@@ -58,6 +58,7 @@ export async function runServices(options: ServiceOptions): Promise<void> {
         logger,
         publicOrigin: rt.config.publicUrl.origin,
         previousHosts: rt.config.previousPublicHosts,
+        api: { db: rt.db.db, storage: rt.storage, publicOrigin: rt.config.publicUrl.origin },
         checks: [
           { name: 'database', check: () => rt.db.ping() },
           { name: 'storage', check: () => rt.storage.healthCheck() },

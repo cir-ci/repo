@@ -8,6 +8,7 @@ import {
   buildShards,
   builds,
   files,
+  organizations,
   projects,
   reviews,
   screenshotDiffs,
@@ -435,4 +436,22 @@ export async function failBuild(db: Database, buildId: string, message: string):
     .update(builds)
     .set({ status: 'error', errorMessage: message.slice(0, 2000), completedAt: new Date() })
     .where(eq(builds.id, buildId))
+}
+
+export interface ProjectContext {
+  project: ProjectRow
+  orgSlug: string
+}
+
+/** A project plus its org slug, which dashboard URLs need. */
+export async function getProjectContext(
+  db: Database,
+  projectId: string,
+): Promise<ProjectContext | undefined> {
+  const [row] = await db
+    .select({ project: projects, orgSlug: organizations.slug })
+    .from(projects)
+    .innerJoin(organizations, eq(organizations.id, projects.orgId))
+    .where(eq(projects.id, projectId))
+  return row
 }

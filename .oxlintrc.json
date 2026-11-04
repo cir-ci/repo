@@ -20,12 +20,16 @@
     "eqeqeq": "error",
     "no-debugger": "error",
     "no-console": "off",
-    "import/no-cycle": "error"
+    "import/no-cycle": "error",
+    // Targets Express. CirCI uses Fastify, which handles async handlers and their rejections.
+    "oxc/no-async-endpoint-handlers": "off"
   },
   "overrides": [
     {
       "files": ["**/test/**/*.ts"],
-      "env": { "vitest": true }
+      "env": {
+        "vitest": true
+      }
     }
   ]
 }

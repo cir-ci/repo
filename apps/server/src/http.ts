@@ -1,5 +1,7 @@
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify'
 
+import { registerV1, type V1Deps } from './api/v1.ts'
+
 export interface ReadinessCheck {
   name: string
   check(): Promise<void>
@@ -14,6 +16,8 @@ export interface ServerOptions {
   publicOrigin?: string
   /** Old dashboard hosts; requests to them are permanently redirected to `publicOrigin`. */
   previousHosts?: string[]
+  /** CI upload API (`/v1`). Omitted in tests that only exercise health endpoints. */
+  api?: V1Deps
 }
 
 export function buildServer(options: ServerOptions): FastifyInstance {
@@ -60,6 +64,8 @@ export function buildServer(options: ServerOptions): FastifyInstance {
       .code(ok ? 200 : 503)
       .send({ status: ok ? 'ok' : 'fail', checks: Object.fromEntries(results) })
   })
+
+  if (options.api) registerV1(app, options.api)
 
   return app
 }
