@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+
 import { InvalidKeyError } from './types.ts'
 
 const KEY_RE = /^[A-Za-z0-9][A-Za-z0-9._\-/]*$/

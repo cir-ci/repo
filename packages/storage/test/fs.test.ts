@@ -4,7 +4,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import { text } from 'node:stream/consumers'
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+
 import {
   ChecksumMismatchError,
   contentKey,
@@ -84,6 +86,6 @@ describe('contentKey', () => {
   })
 
   it('rejects anything that is not a lowercase hex sha256', () => {
-    expect(() => contentKey('ABC')).toThrow()
+    expect(() => contentKey('ABC')).toThrow(/Not a lowercase hex sha256/)
   })
 })

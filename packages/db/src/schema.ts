@@ -149,7 +149,9 @@ export const files = pgTable(
     check('files_kind_check', inList('kind', FILE_KINDS)),
     check('files_status_check', inList('status', FILE_STATUSES)),
     check('files_verified_check', sql`(${t.status} = 'verified') = (${t.verifiedAt} is not null)`),
-    index('files_gc_marked_idx').on(t.gcMarkedAt).where(sql`${t.gcMarkedAt} is not null`),
+    index('files_gc_marked_idx')
+      .on(t.gcMarkedAt)
+      .where(sql`${t.gcMarkedAt} is not null`),
   ],
 )
 
@@ -167,7 +169,10 @@ export const builds = pgTable(
     prNumber: integer('pr_number'),
     baseBranch: text('base_branch'),
     mergeBaseSha: text('merge_base_sha'),
-    ancestorShas: text('ancestor_shas').array().notNull().default(sql`'{}'::text[]`),
+    ancestorShas: text('ancestor_shas')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     ancestryStatus: text('ancestry_status')
       .$type<(typeof ANCESTRY_STATUSES)[number]>()
       .notNull()

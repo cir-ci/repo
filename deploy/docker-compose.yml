@@ -22,7 +22,7 @@ services:
       # Postgres 18 images keep their data under /var/lib/postgresql/<major>/.
       - pgdata:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U zopheros -d zopheros"]
+      test: ['CMD-SHELL', 'pg_isready -U zopheros -d zopheros']
       interval: 5s
       timeout: 3s
       retries: 20
@@ -33,7 +33,7 @@ services:
       dockerfile: deploy/Dockerfile
     image: zopheros:local
     restart: unless-stopped
-    command: ["all"]
+    command: ['all']
     environment:
       DATABASE_URL: postgres://zopheros:${POSTGRES_PASSWORD}@postgres:5432/zopheros
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
@@ -41,7 +41,7 @@ services:
       STORAGE_DRIVER: fs
       STORAGE_PATH: /var/lib/zopheros/files
     ports:
-      - "${ZOPHEROS_PORT:-3000}:3000"
+      - '${ZOPHEROS_PORT:-3000}:3000'
     volumes:
       - files:/var/lib/zopheros/files
     depends_on:

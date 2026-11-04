@@ -12,6 +12,7 @@ import {
   runMigrations,
 } from '@zopheros/db'
 import { Command } from 'commander'
+
 import { createRuntime, type Runtime } from './runtime.ts'
 import { runServices } from './services.ts'
 

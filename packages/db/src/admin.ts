@@ -1,5 +1,6 @@
 import { assertValidSlug, issueProjectToken, slugify, ValidationError } from '@zopheros/core'
 import { and, asc, eq } from 'drizzle-orm'
+
 import type { Database } from './client.ts'
 import { ConflictError, isUniqueViolation, NotFoundError } from './errors.ts'
 import { organizations, projects } from './schema.ts'

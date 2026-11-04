@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { hashToken, issueProjectToken, looksLikeProjectToken } from '../src/index.ts'
 
 describe('project tokens', () => {

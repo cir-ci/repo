@@ -4,6 +4,7 @@ import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+
 import {
   ConflictError,
   createOrganization,
@@ -25,7 +26,7 @@ beforeAll(async () => {
   client = new PGlite()
   const pglite = drizzle({ client, schema })
   await migrate(pglite, { migrationsFolder })
-  db = pglite as unknown as Database
+  db = pglite
 })
 
 afterAll(async () => {
@@ -131,9 +132,10 @@ describe('organizations and projects', () => {
   })
 })
 
-describe('schema constraints from the plan', () => {
-  const h = (c: string) => c.repeat(64)
+/** A fake sha256 made of one repeated hex digit. */
+const h = (c: string) => c.repeat(64)
 
+describe('schema constraints from the plan', () => {
   it('only accepts lowercase hex sha256 file ids', async () => {
     const code = await failCode(() =>
       db.insert(schema.files).values({ sha256: 'ABC', storageKey: 'k1', kind: 'screenshot' }),
@@ -225,6 +227,7 @@ describe('schema constraints from the plan', () => {
       .returning()
     if (!build) throw new Error('no build')
     for (const shardIndex of ['0', '0', '1']) {
+      // oxlint-disable-next-line no-await-in-loop -- shards finalize one after another to simulate a retry
       await db
         .insert(schema.buildShards)
         .values({ buildId: build.id, shardIndex })
@@ -237,7 +240,7 @@ describe('schema constraints from the plan', () => {
       .select()
       .from(schema.buildShards)
       .where(eq(schema.buildShards.buildId, build.id))
-    expect(shards.map((s) => s.shardIndex).sort()).toEqual(['0', '1'])
+    expect(shards.map((s) => s.shardIndex).toSorted()).toEqual(['0', '1'])
   })
 
   it('blocks deleting a file that an upload claim still relies on', async () => {

@@ -44,13 +44,15 @@ docker compose exec zopheros zopheros admin project create --org acme --name "We
 
 ## Development
 
-Requires Node 24 and pnpm 12.
+Requires Node 26 (see `.nvmrc`) and pnpm 12.
 
 ```sh
+nvm install && nvm use   # Node 26 from .nvmrc
 pnpm install
 pnpm test          # Vitest; database tests run on PGlite, so no Docker needed
 pnpm typecheck
-pnpm lint          # Biome (pnpm format to fix)
+pnpm lint          # oxlint, including type-aware rules
+pnpm format        # oxfmt (pnpm format:check in CI)
 pnpm build         # tsc project build → */dist
 
 # Run the server from source against your own Postgres:

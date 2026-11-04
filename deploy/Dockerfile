@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Build from the repo root:  docker build -f deploy/Dockerfile -t zopheros .
 
-ARG NODE_VERSION=24
+ARG NODE_VERSION=26
 ARG PNPM_VERSION=12.0.0
 
 FROM node:${NODE_VERSION}-slim AS base

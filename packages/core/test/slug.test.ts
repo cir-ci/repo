@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { assertValidSlug, isValidSlug, slugify, ValidationError } from '../src/index.ts'
 
 describe('slugs', () => {

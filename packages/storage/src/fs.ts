@@ -4,6 +4,7 @@ import { access, mkdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve, sep } from 'node:path'
 import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
+
 import { assertSha256Hex, assertValidKey } from './keys.ts'
 import {
   ChecksumMismatchError,
@@ -90,7 +91,7 @@ export class FsStorage implements StorageDriver {
       const s = await stat(this.pathFor(key))
       return s.isFile() ? { size: s.size } : null
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null
+      if (hasErrorCode(err, 'ENOENT')) return null
       throw err
     }
   }
@@ -105,4 +106,8 @@ export class FsStorage implements StorageDriver {
     await writeFile(probe, 'ok')
     await rm(probe, { force: true })
   }
+}
+
+function hasErrorCode(err: unknown, code: string): boolean {
+  return err instanceof Error && 'code' in err && err.code === code
 }

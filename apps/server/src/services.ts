@@ -1,6 +1,7 @@
 import { runMigrations } from '@zopheros/db'
 import { type RunningWorker, startWorker } from '@zopheros/worker'
 import type { FastifyInstance } from 'fastify'
+
 import { buildServer } from './http.ts'
 import { createRuntime } from './runtime.ts'
 

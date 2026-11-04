@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
-import type { Readable } from 'node:stream'
+import { Readable } from 'node:stream'
+
 import {
   DeleteObjectCommand,
   GetObjectCommand,
@@ -12,6 +13,7 @@ import {
   S3ServiceException,
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+
 import { assertSha256Hex, assertValidKey, base64ToHex, hexToBase64 } from './keys.ts'
 import {
   ChecksumMismatchError,
@@ -100,7 +102,9 @@ export class S3Storage implements StorageDriver {
         new GetObjectCommand({ Bucket: this.bucket, Key: this.objectKey(key) }),
       )
       if (!res.Body) throw new ObjectNotFoundError(key)
-      return res.Body as Readable
+      // In Node the SDK returns an IncomingMessage, which is a Readable.
+      if (!(res.Body instanceof Readable)) throw new Error('S3 returned a non-stream body')
+      return res.Body
     } catch (err) {
       if (isNotFound(err)) throw new ObjectNotFoundError(key)
       throw err

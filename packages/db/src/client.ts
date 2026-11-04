@@ -1,8 +1,10 @@
 import { fileURLToPath } from 'node:url'
+
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
-import pg from 'pg'
+import { Pool } from 'pg'
+
 import * as schema from './schema.ts'
 
 export type Schema = typeof schema
@@ -18,7 +20,7 @@ export const migrationsFolder = fileURLToPath(new URL('../migrations', import.me
 
 export interface DbHandle {
   db: Database
-  pool: pg.Pool
+  pool: Pool
   ping(): Promise<void>
   close(): Promise<void>
 }
@@ -28,7 +30,7 @@ export function createDb(options: {
   poolMax?: number
   applicationName?: string
 }): DbHandle {
-  const pool = new pg.Pool({
+  const pool = new Pool({
     connectionString: options.url,
     max: options.poolMax ?? 10,
     application_name: options.applicationName ?? 'zopheros',

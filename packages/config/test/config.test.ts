@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { ConfigError, loadConfig } from '../src/index.ts'
 
 const base = { DATABASE_URL: 'postgres://localhost/zopheros' }
@@ -17,12 +18,9 @@ describe('loadConfig', () => {
   })
 
   it('requires S3_BUCKET for the s3 driver', () => {
-    try {
-      loadConfig({ ...base, STORAGE_DRIVER: 's3' })
-      expect.unreachable()
-    } catch (err) {
-      expect((err as ConfigError).issues).toEqual([expect.stringContaining('S3_BUCKET')])
-    }
+    expect(() => loadConfig({ ...base, STORAGE_DRIVER: 's3' })).toThrow(
+      expect.objectContaining({ issues: [expect.stringContaining('S3_BUCKET')] }),
+    )
   })
 
   it('rejects half-set S3 credentials', () => {
