@@ -1,7 +1,7 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-// `pnpm dev` here proxies the API to a CirCI server on :3000 (pnpm zopheros all / circi all).
+// `pnpm dev` here proxies the API to a CirCI server on :3000 (pnpm circi all).
 export default defineConfig({
   plugins: [react()],
   server: {

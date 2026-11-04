@@ -1,8 +1,10 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 
-import type { Database } from './client.ts'
-import { files, uploadClaims } from './schema.ts'
-import type { FileKind } from './schema.ts'
+import type { Database } from '../client.ts'
+import { type FileKind, files, uploadClaims } from '../schema/index.ts'
+import type { FileRow } from '../types.ts'
+
+/** Content-addressed files: upload planning (verify before dedup, PLAN §8) and bookkeeping. */
 
 const SHA256_RE = /^[0-9a-f]{64}$/
 
@@ -107,8 +109,6 @@ export async function planUploads(
     return planned
   })
 }
-
-export type FileRow = typeof files.$inferSelect
 
 export async function getFile(db: Database, sha256: string): Promise<FileRow | undefined> {
   const [row] = await db.select().from(files).where(eq(files.sha256, sha256))

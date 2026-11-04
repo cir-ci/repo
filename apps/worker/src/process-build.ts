@@ -10,7 +10,7 @@ import {
   getProjectById,
   listBaselineCandidates,
   listBuildScreenshots,
-  type NewDiff,
+  type NewScreenshotDiff,
   replaceBuildDiffs,
   type Screenshot,
   setBuildBaseline,
@@ -69,7 +69,7 @@ export async function processBuild(deps: ProcessDeps, buildId: string): Promise<
   const head = await listBuildScreenshots(db, build.id)
   const base = baseBuild ? await listBuildScreenshots(db, baseBuild.id) : []
   const pairs = pairScreenshots(head, base)
-  const rows: NewDiff[] = pairs.map((p) => ({
+  const rows: NewScreenshotDiff[] = pairs.map((p) => ({
     buildId: build.id,
     name: p.name,
     headScreenshotId: 'head' in p ? p.head.id : null,

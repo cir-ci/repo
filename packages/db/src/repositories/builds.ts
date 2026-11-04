@@ -1,37 +1,30 @@
 import { ValidationError } from '@circi/core'
 import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm'
 
-import type { Database } from './client.ts'
-import { ConflictError, isUniqueViolation, NotFoundError } from './errors.ts'
-import { enqueueJob, QUEUES } from './jobs.ts'
+import type { Database } from '../client.ts'
+import { ConflictError, isUniqueViolation, NotFoundError } from '../errors.ts'
 import {
+  type BaselineSource,
+  type BuildConclusion,
   buildShards,
   builds,
   files,
-  organizations,
   projects,
   reviews,
   screenshotDiffs,
   screenshots,
   uploadClaims,
-} from './schema.ts'
+} from '../schema/index.ts'
+import type { Build } from '../types.ts'
+import { enqueueJob, QUEUES } from './jobs.ts'
 
-export type Build = typeof builds.$inferSelect
-export type Screenshot = typeof screenshots.$inferSelect
-export type ScreenshotDiff = typeof screenshotDiffs.$inferSelect
-export type ProjectRow = typeof projects.$inferSelect
+/** Build lifecycle: create (or join a parallel build), finalize shards, baseline, finish. */
 
 const SHA_RE = /^[0-9a-f]{7,64}$/
-const BUILD_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
-const MAX_ANCESTORS = 2_000
 
-export async function findProjectByTokenHash(
-  db: Database,
-  tokenHash: string,
-): Promise<ProjectRow | undefined> {
-  const [row] = await db.select().from(projects).where(eq(projects.tokenHash, tokenHash))
-  return row
-}
+const BUILD_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
+
+const MAX_ANCESTORS = 2_000
 
 export interface CreateBuildInput {
   projectId: string
@@ -137,6 +130,11 @@ async function findParallelBuild(
         eq(builds.parallelNonce, nonce),
       ),
     )
+  return row
+}
+
+export async function getBuild(db: Database, buildId: string): Promise<Build | undefined> {
+  const [row] = await db.select().from(builds).where(eq(builds.id, buildId))
   return row
 }
 
@@ -295,10 +293,6 @@ export async function getBuildCounts(db: Database, buildId: string): Promise<Bui
   return counts
 }
 
-// ---------------------------------------------------------------------------------------------
-// Worker side (PLAN §7.2, §7.3)
-// ---------------------------------------------------------------------------------------------
-
 /** Possible baselines: same project and name, finished, not the build itself. */
 export async function listBaselineCandidates(db: Database, build: Build): Promise<Build[]> {
   const conditions = [
@@ -333,76 +327,15 @@ export async function listBaselineCandidates(db: Database, build: Build): Promis
   return [...seen.values()]
 }
 
-export async function listBuildScreenshots(db: Database, buildId: string): Promise<Screenshot[]> {
-  return db.select().from(screenshots).where(eq(screenshots.buildId, buildId))
-}
-
-export async function getBuild(db: Database, buildId: string): Promise<Build | undefined> {
-  const [row] = await db.select().from(builds).where(eq(builds.id, buildId))
-  return row
-}
-
-export async function getProjectById(
-  db: Database,
-  projectId: string,
-): Promise<ProjectRow | undefined> {
-  const [row] = await db.select().from(projects).where(eq(projects.id, projectId))
-  return row
-}
-
 export async function setBuildBaseline(
   db: Database,
   buildId: string,
   baseline: {
     baseBuildId: string | null
-    baselineSource: 'cli' | 'sdk' | 'provider' | 'fallback' | 'none'
+    baselineSource: BaselineSource
   },
 ): Promise<void> {
   await db.update(builds).set(baseline).where(eq(builds.id, buildId))
-}
-
-export type NewDiff = typeof screenshotDiffs.$inferInsert
-
-/** Replaces a build's diff rows (processing is idempotent, so a retried job starts clean). */
-export async function replaceBuildDiffs(
-  db: Database,
-  buildId: string,
-  diffs: NewDiff[],
-): Promise<void> {
-  await db.transaction(async (tx) => {
-    await tx.delete(screenshotDiffs).where(eq(screenshotDiffs.buildId, buildId))
-    if (diffs.length > 0) await tx.insert(screenshotDiffs).values(diffs)
-  })
-}
-
-export async function updateDiff(
-  db: Database,
-  diffId: string,
-  values: Partial<
-    Pick<
-      NewDiff,
-      | 'status'
-      | 'score'
-      | 'changedPixels'
-      | 'sizeChanged'
-      | 'diffFileSha256'
-      | 'jobStatus'
-      | 'errorMessage'
-    >
-  >,
-): Promise<void> {
-  await db.update(screenshotDiffs).set(values).where(eq(screenshotDiffs.id, diffId))
-}
-
-export async function setScreenshotThumbnail(
-  db: Database,
-  screenshotId: string,
-  sha256: string,
-): Promise<void> {
-  await db
-    .update(screenshots)
-    .set({ thumbnailSha256: sha256 })
-    .where(eq(screenshots.id, screenshotId))
 }
 
 /**
@@ -412,7 +345,7 @@ export async function setScreenshotThumbnail(
 export async function completeBuild(
   db: Database,
   build: Build,
-  result: { conclusion: 'no_changes' | 'changes_detected'; autoApprove: boolean },
+  result: { conclusion: BuildConclusion; autoApprove: boolean },
 ): Promise<void> {
   await db.transaction(async (tx) => {
     await tx
@@ -436,22 +369,4 @@ export async function failBuild(db: Database, buildId: string, message: string):
     .update(builds)
     .set({ status: 'error', errorMessage: message.slice(0, 2000), completedAt: new Date() })
     .where(eq(builds.id, buildId))
-}
-
-export interface ProjectContext {
-  project: ProjectRow
-  orgSlug: string
-}
-
-/** A project plus its org slug, which dashboard URLs need. */
-export async function getProjectContext(
-  db: Database,
-  projectId: string,
-): Promise<ProjectContext | undefined> {
-  const [row] = await db
-    .select({ project: projects, orgSlug: organizations.slug })
-    .from(projects)
-    .innerJoin(organizations, eq(organizations.id, projects.orgId))
-    .where(eq(projects.id, projectId))
-  return row
 }

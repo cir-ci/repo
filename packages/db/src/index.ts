@@ -1,5 +1,3 @@
-export * from './admin.ts'
-export * from './builds.ts'
 export {
   createDb,
   type Database,
@@ -9,7 +7,12 @@ export {
   type Schema,
 } from './client.ts'
 export * from './errors.ts'
-export * from './files.ts'
-export * from './jobs.ts'
-export * as schema from './schema.ts'
-export * from './dashboard.ts'
+export * from './queries/dashboard.ts'
+export * from './repositories/builds.ts'
+export * from './repositories/files.ts'
+export * from './repositories/jobs.ts'
+export * from './repositories/organizations.ts'
+export * from './repositories/projects.ts'
+export * from './repositories/screenshots.ts'
+export * as schema from './schema/index.ts'
+export type * from './types.ts'

@@ -5,7 +5,7 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
 import { Pool } from 'pg'
 
-import * as schema from './schema.ts'
+import * as schema from './schema/index.ts'
 
 export type Schema = typeof schema
 

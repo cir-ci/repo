@@ -1,9 +1,10 @@
 import { and, eq, lt, lte, or, sql } from 'drizzle-orm'
 
-import type { Database } from './client.ts'
-import { jobs } from './schema.ts'
+import type { Database } from '../client.ts'
+import { jobs } from '../schema/index.ts'
+import type { Job } from '../types.ts'
 
-export type Job = typeof jobs.$inferSelect
+/** The Postgres job queue (PLAN §2): enqueue, claim with SKIP LOCKED, finish or retry. */
 
 export const QUEUES = {
   /** Resolve the baseline, diff every screenshot, finish the build (PLAN §7.3). */

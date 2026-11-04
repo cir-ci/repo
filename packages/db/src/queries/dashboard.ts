@@ -1,10 +1,20 @@
 import { aliasedTable, and, desc, eq, inArray, lt, sql } from 'drizzle-orm'
 
-import type { BuildCounts } from './builds.ts'
-import type { Database } from './client.ts'
-import { builds, files, organizations, projects, screenshotDiffs, screenshots } from './schema.ts'
+import type { Database } from '../client.ts'
+import type { BuildCounts } from '../repositories/builds.ts'
+import {
+  builds,
+  files,
+  organizations,
+  projects,
+  screenshotDiffs,
+  screenshots,
+} from '../schema/index.ts'
 
-/** Read-only queries behind the dashboard (M1: a password-protected overview; M2 adds accounts). */
+/**
+ * Read models behind the dashboard: shaped for the UI, read-only, free to join widely.
+ * Writes always go through the repositories.
+ */
 
 export interface BuildListItem {
   id: string
@@ -42,36 +52,6 @@ export async function listProjectsOverview(db: Database): Promise<ProjectOvervie
       }
     }),
   )
-}
-
-export async function findProjectBySlugs(
-  db: Database,
-  orgSlug: string,
-  projectSlug: string,
-): Promise<
-  | {
-      id: string
-      slug: string
-      name: string
-      defaultBranch: string
-      orgSlug: string
-      orgName: string
-    }
-  | undefined
-> {
-  const [row] = await db
-    .select({
-      id: projects.id,
-      slug: projects.slug,
-      name: projects.name,
-      defaultBranch: projects.defaultBranch,
-      orgSlug: organizations.slug,
-      orgName: organizations.name,
-    })
-    .from(projects)
-    .innerJoin(organizations, eq(organizations.id, projects.orgId))
-    .where(and(eq(organizations.slug, orgSlug), eq(projects.slug, projectSlug)))
-  return row
 }
 
 export async function listBuildsForProject(
