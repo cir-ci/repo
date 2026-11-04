@@ -33,7 +33,7 @@ A cheaper, self-hostable alternative to Argos-CI. CI uploads screenshots → ser
 4. **Storage:** local disk by default (cheapest), S3-compatible as an option (§2).
 5. **Merge blocking:** unreviewed changes block merging by default, configurable per project (§7.4).
 6. **Static-site hosting:** the dashboard lives at **any address you choose** (`PUBLIC_URL`, written `<dashboard-host>` in this plan, e.g. `circi.example.com` or `ci.acme.io`), and it can be changed later (§7.9). Hosted sites live on a **separate, dedicated domain** (placeholder `example-sites.com`), one subdomain per site: `<site-id>.example-sites.com`. Uploaded code then can't set cookies on `example.com` or `<dashboard-host>`. DNS for both is on **Route53**, which is the default Caddy DNS module (§7.6).
-7. **One static-site pipeline** for every kind of site (Storybook, Vitest report, Playwright report, coverage, docs, generic). Kinds are small plugins on a shared upload, ingest, serve, alias and link flow (§7.6).
+7. **One static-site pipeline** for every kind of site (Storybook, Vitest report, Playwright report, coverage, docs, generic). Kinds are small plugins on a shared upload, ingest, address, serve and link flow (§7.6).
 8. **Vitest:** first-class SDK for Vitest browser mode, including Storybook's Vitest addon. Vitest HTML reports are hosted through the same pipeline (§7.7).
 9. **Hosted sites always require login.** There are no public sites. Logging in once at `<dashboard-host>` works for every site (SSO through a token handoff) (§7.6).
 10. **Site navigation:** opening a commit/PR/branch's sites starts at a menu of all its hosted sites. A small switcher stays available inside each site. With only one site there's no menu or switcher; you go straight to the site (§7.6).
@@ -43,6 +43,7 @@ A cheaper, self-hostable alternative to Argos-CI. CI uploads screenshots → ser
 14. **Merge gate:** when a git host integration is connected, CirCI's own commit status is the required check, and approving flips it green with no CI re-run. Plus a **GitHub bot** (a GitHub App, like Argos's) for checks, PR comments, and approving from GitHub (§7.4).
 15. **Signups:** invite-only by default, a first-run setup link for the instance admin, email-domain auto-join for verified domains, and only the instance admin can create orgs. Both can be opened up with env flags (§8).
 16. **Dashboard address is a setting, not a fixed name:** any host and port, at the root of its own hostname. Moving it later keeps old links working through redirects (§7.9).
+17. **Site links use hashes, on the sites domain:** each hosted site is served at `<hash>-<site-slug>.<sites domain>`, where the hash is the commit SHA (exact version) or a hash of the branch name (newest on that branch). The dashboard never serves or redirects site content; it gives an overview and links to the sites (§7.6).
 
 ---
 
@@ -169,9 +170,10 @@ circi/
 - **commit_ancestry**: project_id, commit_sha, merge_base_sha, ancestor_shas, created_at. Registered by `circi argos-env` and used when an Argos SDK build for that commit arrives (§7.2)
 - **instance_settings**: setup_token_hash (one-time, cleared after first admin is created), signups_enabled, org_creation (`admin` | `anyone`)
 
-- **static_sites**: id, project_id, build_id (nullable; a site can be uploaded alone), kind (`storybook` | `vitest-report` | `playwright-report` | `coverage` | `docs` | `generic`), name (slug, default = kind; lets you have several sites per commit, e.g. `docs` and `storybook`, or `storybook-web` and `storybook-mobile`), entry_path, spa_fallback (bool), commit_sha, branch, pr_number, status (`uploading` | `ready` | `error` | `expired`), total_bytes, file_count, created_at
+- **project_sites**: id, project_id, name (default = kind; lets a project have several sites, e.g. `docs` and `storybook`, or `storybook-web` and `storybook-mobile`), kind (`storybook` | `vitest-report` | `playwright-report` | `coverage` | `docs` | `generic`), **slug** (the DNS part of the site's addresses, e.g. `web-storybook`; unique across the instance, ≤ 50 chars), created_at. Unique on (project_id, name).
+- **static_sites** (one row per uploaded version): id, project_site_id, build_id (nullable; a site can be uploaded alone), entry_path, spa_fallback (bool), commit_sha, branch, pr_number, status (`uploading` | `ready` | `error` | `expired`), total_bytes, file_count, replaced_at (set when a CI re-run uploads the same commit again), created_at. One live version per (project_site_id, commit_sha).
 - **static_site_files**: site_id, path, file_sha256, content_type (PK site_id + path). The blobs live in `files` (kind `asset`) and are deduplicated across sites, like screenshots.
-- **static_site_aliases**: project_id, site_name, alias (`branch/<name>`, `pr/<n>`, `latest`), site_id. Unique on (project_id, site_name, alias). Gives stable URLs that move to the newest site.
+- **site_hostnames**: label (PK, the part before the sites domain, e.g. `3f9c2ab41d07-web-storybook`), project_site_id, kind (`commit` | `branch`), commit_sha (commit links), branch + branch_hash (branch links), site_id (the version currently served), updated_at, expires_at (branch links). Unique on (project_site_id, kind, commit_sha) and (project_site_id, kind, branch). This is what the site handler looks up for every request (§7.6).
 - projects gain: `static_hosting_enabled` (bool, default false). There is no public flag; sites always require login.
 
 Indexes: (project_id, branch, created_at), (project_id, name, commit_sha), (build_id, name) unique on screenshots, (file_sha256) on screenshots, static_site_files and upload_claims (for GC reference checks).
@@ -316,10 +318,10 @@ Off by default; enabled per project (`static_hosting_enabled`) and for the whole
 Every site goes through the same five stages. Only a small **kind definition** differs:
 
 ```
-upload ─▶ ingest ─▶ serve ─▶ alias ─▶ link
-(CLI)     (worker:   (wildcard  (branch/  (build page, PR/MR comment,
-           extract,   subdomain) pr/latest) commit status, deep links
-           dedupe)                          from screenshots)
+upload ─▶ ingest ─▶ address ─────────────▶ serve ─▶ link
+(CLI)     (worker:   (commit link + move      (sites    (dashboard overview, PR/MR
+           extract,   the branch link)         domain)   comment, deep links from
+           dedupe)                                       screenshots)
 ```
 
 **Kind registry** (`packages/sites/kinds/*.ts`):
@@ -351,27 +353,43 @@ Adding a kind means one file with a detector and optional deep-link function. No
   - `circi storybook upload <dir>` is a shortcut for `site upload --kind storybook`.
   - `circi upload <screenshots> --site <dir>[:kind[:name]]` (repeatable) attaches sites to the screenshot build in one step.
   - SDKs can upload their own reports at the end of a run: Playwright reporter `uploadReport: true`, Vitest plugin `uploadReport: true`.
-- Uses the same CI detection, git ancestry and project token as screenshot builds. A site without a screenshot build still gets commit/branch/PR info, so it gets aliases and a PR comment line.
+- Uses the same CI detection, git ancestry and project token as screenshot builds. A site without a screenshot build still gets commit/branch/PR info, so it gets commit and branch links and a PR comment line.
 - **Two transports:**
   - **Tarball (default; best for local disk):** the CLI streams a `.tar.gz` to `POST /v1/sites`. The worker extracts it, hashes each file, dedupes into `files`, writes `static_site_files`, then marks the site `ready`. One request, even for 3,000-file Storybooks.
   - **Per-file (S3 driver):** hash manifest → presigned PUTs for missing files only → finalize. Same pattern as screenshots; saves bandwidth when most assets haven't changed.
 - Limits: max site size (default 200 MB), max file count, zip-bomb ratio checks. Tarball entries: **only regular files and directories are accepted**. Symlinks, hard links, device files and FIFOs are rejected, as are `..` segments, absolute paths and paths that normalize outside the root.
 - Per-file transport uses the same checksum-verified PUTs, upload claims and verified-only dedup as screenshots (§8). The tarball transport hashes files server-side, so they're verified when written.
 - Also works with the Argos SDKs: screenshots go through the compat API, then a separate `circi site upload` step uploads the site.
-- Re-uploading the same (commit, name) replaces the earlier site (CI re-runs), and the old one becomes eligible for garbage collection.
+- Re-uploading the same (commit, site) replaces the earlier version (CI re-runs): the commit link serves the new one, and the old version becomes eligible for garbage collection.
+
+**Addresses: `<hash>-<site-slug>.<sites domain>`**
+
+Every site is served from its own hostname on the sites domain. The dashboard never serves site content and never sits in between; it only links to these addresses.
+
+| Link | Hostname | Serves | Example |
+|---|---|---|---|
+| **Commit** | `<first 12 hex of the commit SHA>-<site-slug>` | That commit's site, exactly | `3f9c2ab41d07-web-storybook.example-sites.com` |
+| **Branch** | `<first 12 hex of sha256(branch name)>-<site-slug>` | The newest site on that branch | `a81f0c3e92bd-web-storybook.example-sites.com` |
+
+- **Site slug:** set per project site when it's first uploaded. The default is `<project-slug>-<site name>` (`web-storybook`). If another org's project already uses it, the org slug is appended (`web-storybook-acme`). Admins can rename it; the old slug keeps redirecting.
+- **Why hashes:** branch names can contain `/`, uppercase and characters DNS doesn't allow, and can be longer than a DNS label. A hash of the name is always 12 safe characters and stays the same for the branch's lifetime. Commit SHAs are already hashes. 12 hex characters plus `-` plus a slug of up to 50 characters fits the 63-character DNS label limit, and every address is a single label, so the one `*.<sites domain>` wildcard certificate covers all of them.
+- **Collisions:** a 12-character prefix is unique in practice, and `site_hostnames.label` is the primary key. If a new label would collide with an existing one (another commit sharing the prefix, or a branch hash equal to a commit prefix), the new one uses 16 characters instead. The full SHA is always stored and shown in the dashboard.
+- **Which version a branch link serves:** when a new version for branch B becomes ready, B's link moves to it **unless the new commit is an ancestor of the one the link already serves**. CI re-running an older commit doesn't move the link backwards, while a new commit or a force-push does. The upload's git history (§7.1) is what this check uses.
+- **There are no PR or `latest` links.** A PR uses its head branch's link, and the default branch's link plays the role of "latest". PR comments link to the commit address (the exact version reviewed) and the branch address (always current).
+- **Expiry:** a branch link that gets no new upload for `retention_days` expires; the default branch's link never does. With a git host integration connected, deleting a branch expires its link right away. An expired or unknown address shows a small "This site has expired" page with a link to the project's sites in the dashboard, served on the sites domain.
 
 **Serving**
 - **Host layout:**
 
   | URL                                    | What                                                                                   | Env                                   |
   | -------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------- |
-  | `https://<dashboard-host>/`             | Dashboard, API, login, aliases, site menu                                              | `PUBLIC_URL`                          |
-  | `https://<site-id>.example-sites.com/` | One hosted site per subdomain, on a **separate registrable domain** used only for this | `STATIC_SITES_HOST=example-sites.com` |
+  | `https://<dashboard-host>/`             | Dashboard, API, login: the overview of everything, with links to every site            | `PUBLIC_URL`                          |
+  | `https://<hash>-<site-slug>.example-sites.com/` | One hosted site per hostname (commit or branch link), on a **separate registrable domain** used only for this | `STATIC_SITES_HOST=example-sites.com` |
 
   A Storybook or report runs arbitrary JS from the uploaded build.
   - **Why a separate domain:** browser JS can set cookies on any parent domain that isn't a public suffix. On `*.<dashboard-host>`, a malicious upload could run `document.cookie = '…; Domain=example.com'` and fill the cookie jar until the dashboard _and every other `example.com` site_ fail with "header too large" for that user, or plant cookies that other apps on `example.com` read. Server-side rules can't stop this. On `example-sites.com`, the worst an upload can reach is other CirCI sites. GitHub Pages (`github.io`) and Netlify (`netlify.app`) use the same model.
-  - One origin per site also means a site can't read another site's storage or service workers.
-  - `site-id` is a 26-char lowercase base32 id (128-bit, fits in a DNS label).
+  - One origin per hostname also means a site can't read another site's storage or service workers. A commit link and a branch link are separate origins even when they serve the same version, which is fine.
+  - Addresses are predictable (they contain the commit SHA), not secret. That's acceptable because every request needs login (below).
   - **There is no single-hostname fallback.** Serving uploads from the dashboard origin would give them the viewer's full session. Wildcard DNS on the sites domain is required for static hosting; without `STATIC_SITES_HOST` the feature is off. On startup the server refuses a `STATIC_SITES_HOST` that equals `PUBLIC_URL`'s host, is above it, or is below it.
 - **Hardening that remains** (the dashboard and sites are now cross-site, so SameSite cookies already protect the dashboard; these are defense in depth):
   - All dashboard cookies use the **`__Host-` prefix** (no `Domain`, `Path=/`, Secure, SameSite=Lax) and HttpOnly.
@@ -379,7 +397,7 @@ Adding a kind means one file with a detector and optional deep-link function. No
   - No CORS on the API for the sites domain. Site responses get `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy: same-origin`, and **CSP `frame-ancestors 'self' https://<dashboard-host>`**. There's no `X-Frame-Options`, because it can't allow one specific other origin and would block the review iframe.
   - **Cookie cleanup on the sites domain:** the site handler accepts large request headers (64 KB). If a request carries cookies other than its own `__Host-circi_site*`, it answers with `Set-Cookie` expiring them on the domain. A cookie bomb from one upload clears itself on the next request instead of locking the user out of every site.
   - Optional, for large installs: submit the sites domain to the **Public Suffix List** (as `github.io` is). Browsers then treat each site subdomain as its own site, so they can't set cookies for each other at all. The PSL is slow to reach browsers, so this is not something to rely on.
-  - The site handler only answers on `<26-char-id>.example-sites.com`, and the app only on `<dashboard-host>`. Anything else gets a 404.
+  - The site handler only answers on `<label>.example-sites.com` for labels in `site_hostnames`, and the app only on `<dashboard-host>`. Anything else gets the "expired or unknown" page or a 404.
 - **DNS + TLS (Route53):**
   - An A/AAAA record for `<dashboard-host>` in its hosted zone, and `*` A/AAAA in a new `example-sites.com` hosted zone (the apex can stay empty).
   - Let's Encrypt certs for `<dashboard-host>` (HTTP-01 is enough) and `*.example-sites.com` (needs **DNS-01**).
@@ -391,43 +409,44 @@ Adding a kind means one file with a detector and optional deep-link function. No
   - **Nothing on the dashboard's parent domain may set cookies for the whole domain** (e.g. `Domain=example.com` when the dashboard is `circi.example.com`). Uploads can't reach those cookies any more, but every such cookie is still sent to the dashboard. Keeping them host-scoped is part of the same hygiene step.
   - The setup guide has a dedicated step, "Step: check domain and cookie rules", right after the DNS step. It has a **⚠️ warning callout** explaining both rules, how to check (browser devtools → Application → Cookies, or `curl -sI https://<host> | grep -i 'set-cookie.*domain='`), and how to fix them. The same warning appears on the static-hosting docs page and in the `deploy/` README.
   - `circi doctor` (a deploy check command) does a best-effort check. It fetches the dashboard's parent domain and its `www.`, plus the sites domain apex, and warns about any `Set-Cookie` with a `Domain=` attribute, or anything served on the sites apex. It also repeats the warning, since it can't see every host.
-- Stable aliases live on the app host and redirect to the current site subdomain: `https://<dashboard-host>/<org>/<project>/sites/<name>/{branch/<branch>,pr/<n>,latest}[/<path>]`. The optional path is passed through, so a link like `…/sites/docs/latest/guide/setup` works. This keeps alias names (which may contain `/`, long branch names, etc.) out of DNS labels.
-- Caching is the same for every kind:
-  - Non-HTML files get `Cache-Control: private, max-age=31536000, immutable`, with the file's sha256 as ETag. `private` because every response needs login, so shared caches must not store it; `immutable` because a site's files never change after `ready`.
-  - HTML gets `private, no-cache`. Its **ETag is computed from the bytes actually sent**: the file sha256 plus whether the switcher is injected, plus the switcher version. Adding a second site to a ref changes the HTML ETag, so browsers fetch the page again and see the switcher instead of getting a stale 304.
+- Caching is the same for every kind. Everything is `private`, because every response needs login and shared caches must not store it. The content behind an address can change (a branch link moves, a CI re-run replaces a commit's version), so nothing is cached forever by URL alone:
+  - Files whose name contains a content hash (e.g. `main.3f9c2ab4.js`, `index-BkL3x9_q.css`, which Storybook and Vite builds produce) get `max-age=31536000, immutable`. The same name always means the same bytes.
+  - Everything else gets `no-cache` with the file's sha256 as ETag, so revisits are cheap `304`s and a moved branch link shows new content at once.
+  - HTML's **ETag is computed from the bytes actually sent**: the file sha256 plus whether the switcher is injected, plus the switcher version. Adding a second site to a commit changes the HTML ETag, so browsers fetch the page again and see the switcher instead of getting a stale 304.
   - Unknown paths → kind's `spaFallback` (or `--spa`) decides between the entry page and a 404.
 - Response headers: `X-Content-Type-Options: nosniff`, the CSP `frame-ancestors` above, no `Set-Cookie` except the site's own auth cookies and the cookie cleanup.
-- No CDN by default: since every request needs login, a plain CDN would either skip the check or cache nothing. Browser caching (`private, immutable`) does most of the work. If needed later, CloudFront with signed cookies issued during the SSO handoff can cache sites while still requiring login (M4).
+- No CDN by default: since every request needs login, a plain CDN would either skip the check or cache nothing. Browser caching (immutable hashed assets, 304s for the rest) does most of the work. If needed later, CloudFront with signed cookies issued during the SSO handoff can cache sites while still requiring login (M4).
 
 **Access control: login always required, single sign-on across all sites**
 - Every request to a site subdomain needs a valid per-site cookie. There is no public mode.
-- Flow when opening `k3f9….example-sites.com/…` without a site cookie:
-  1. The site handler redirects to `https://<dashboard-host>/_sso/site?site=k3f9…&return=/path`.
+- Flow when opening `3f9c2ab41d07-web-storybook.example-sites.com/…` without a site cookie (the dashboard only takes part in signing in; it never serves the site):
+  1. The site handler redirects to `https://<dashboard-host>/_sso/site?host=3f9c2ab41d07-web-storybook&return=/path`.
   2. Not logged in to the dashboard → show the login page (email login / password / OIDC, whichever is enabled). Already logged in → no prompt, so you sign in once for everything.
-  3. The app checks the user is a member of the site's org with at least `viewer` role, then redirects back with a **single-use, 60 s token bound to that site id** (`/_circi/auth?t=…`).
+  3. The app checks the user is a member of the site's org with at least `viewer` role, then redirects back with a **single-use, 60 s token bound to that hostname** (`/_circi/auth?t=…`).
   4. The site handler swaps the token for a `__Host-circi_site` cookie (HttpOnly, Secure, SameSite=Lax), valid for that subdomain only. It's a short-lived (1 h, sliding) reference to the dashboard session, so **logging out or revoking a session or membership cuts off site access within a minute**: the site handler re-checks the session against a cached lookup with a 60 s TTL.
 - Site cookies are useless on other site subdomains or on the dashboard. A malicious upload can't use them to reach other sites or the API.
 - **Embedded live view** (Storybook iframe in the review UI): the site is cross-site to the dashboard there, so a Lax cookie isn't sent. The same handoff runs inside the iframe and sets `__Host-circi_site_embed` (`SameSite=None; Secure; Partitioned`), which is only valid inside the dashboard's frame. Where a browser blocks even partitioned cookies, the UI detects the failed handoff and shows "Open live view in new tab" instead.
 
 **Site navigation**
-- Each ref has a **site menu** page: `https://<dashboard-host>/<org>/<project>/sites/{commit/<sha>,pr/<n>,branch/<b>,latest}`. It's the starting point that PR/MR comments, commit statuses and the build page link to.
-  - It shows a card per hosted site for that ref (label, icon and name from the kind registry, upload time, size), plus links to the screenshot build and the same sites on the base branch.
-  - **Exactly one site → no menu:** a 302 straight to that site, with no switcher. The menu only appears when there's something to choose between.
+- **The dashboard is the overview and navigation, not a host.** Its pages list sites and link out to their addresses on the sites domain:
+  - **Project → Sites:** every branch that has sites, newest first and searchable, with each site's branch link, the commit it currently serves, and when it was uploaded. Expired branches are shown greyed out. This is the "browse all branches" page.
+  - **Commit view** (from a build, a branch or the PR comment): a card per site for that commit (label, icon and name from the kind registry, upload time, size), linking to its commit address, plus links to the screenshot build and the same sites on the base branch.
+  - When a commit has **exactly one site**, the dashboard links straight to it and there's no switcher; the card list only matters when there's something to choose between.
   - Zero sites → "No sites uploaded for this commit", with the CLI snippet.
-- **Switcher inside sites (only when the ref has 2+ sites):** the site handler injects one `<script src="/_circi/nav.js" data-site=…>` before `</body>` in HTML responses.
-  - It renders a small collapsible pill in a Shadow DOM (so it can't clash with the site's CSS), with a dropdown of the other sites on the same ref and "← All sites" back to the menu.
-  - **Both the script and its data come from the site's own origin**, so no CORS is needed and the "no CORS for the sites domain" rule holds. The site handler serves `/_circi/nav.js` (a versioned build of the switcher) and `/_circi/sites.json`. The JSON lists the ref's sites, with links that go through the app's aliases, and is authorized by the site cookie. The handler reads Postgres directly; the switcher never calls the dashboard API.
+- **Switcher inside sites (only when the commit has 2+ sites):** the site handler injects one `<script src="/_circi/nav.js" data-site=…>` before `</body>` in HTML responses.
+  - It renders a small collapsible pill in a Shadow DOM (so it can't clash with the site's CSS), with a dropdown of the other sites for the same commit (or, on a branch link, the other sites' branch links) and "← CirCI" back to the commit view in the dashboard.
+  - **Both the script and its data come from the site's own origin**, so no CORS is needed and the "no CORS for the sites domain" rule holds. The site handler serves `/_circi/nav.js` (a versioned build of the switcher) and `/_circi/sites.json`. The JSON lists the other sites' addresses on the sites domain and is authorized by the site cookie. The handler reads Postgres directly; the switcher never calls the dashboard API.
   - The `/_circi/` path prefix is reserved on every site. Uploads containing it are rejected.
-  - It can be disabled per project (`site_nav_injection: false`) or per upload (`--no-nav`) for sites that break with injected markup. The menu page still works in that case.
+  - It can be disabled per project (`site_nav_injection: false`) or per upload (`--no-nav`) for sites that break with injected markup. The dashboard's commit view still links to every site in that case.
   - Each kind can choose where the pill sits so it doesn't cover the site's own nav (e.g. bottom-left for Storybook, top-right for Playwright reports).
 
 **Integration with reviews**
-- The build page shows a **Sites** panel listing every site for the commit (label and icon from the kind).
+- The build page shows a **Sites** panel listing every site for the commit (label and icon from the kind), linking to their commit addresses.
 - On each screenshot, every site whose kind's `deepLink(meta)` returns a URL gets a button ("Open story", "Open in Playwright report", …). Storybook can also be embedded live, showing base and head sites side by side.
-- The PR/MR comment has one **Sites** row per site, built from the registry (e.g. `Storybook · Vitest report · Coverage 84.2% · Docs`), using `pr/<n>` aliases so links stay valid across pushes. The commit status links to the build page.
+- The PR/MR comment has one **Sites** row per site, built from the registry (e.g. `Storybook · Vitest report · Coverage 84.2% · Docs`), each linking to the commit address (exactly what this push built) with the branch address next to it (always the newest). The comment is edited on every push, so its commit links stay current. The commit status links to the build page.
 
 **Retention**
-- Same `retention_days` as builds. Sites that an alias currently points to (e.g. the latest default-branch site) are never deleted. Blobs are removed by the shared GC (§8), which respects upload claims and the grace period.
+- Same `retention_days` as builds. A version that a live branch link currently serves is never deleted, so the default branch's newest site always stays. When a branch link expires, its version follows normal retention. Blobs are removed by the shared GC (§8), which respects upload claims and the grace period.
 
 ### 7.7 Vitest integration
 
@@ -512,7 +531,7 @@ The dashboard's address is **whatever `PUBLIC_URL` says**. `<dashboard-host>` in
 - No credentials, query string or fragment. The value is normalized: lowercase host, no trailing slash.
 - It must not equal, contain or sit inside `STATIC_SITES_HOST` (§7.6). This check arrives with static hosting in M3.5; the others are enforced now.
 
-**Everything derived from it:** CSRF `Origin` checks, `frame-ancestors`, the site sign-in handoff, links in PR/MR comments and commit statuses, email links, the GitHub App webhook and OAuth callback URLs, and alias and site-menu URLs. None of them is hard-coded.
+**Everything derived from it:** CSRF `Origin` checks, `frame-ancestors`, the site sign-in handoff, links in PR/MR comments and commit statuses, email links, the GitHub App webhook and OAuth callback URLs, and the dashboard's overview pages and their links. None of them is hard-coded.
 
 **Changing it later**
 1. Set the new `PUBLIC_URL` and list the old address in **`PREVIOUS_PUBLIC_URLS`** (comma-separated). Keep DNS and TLS for the old host pointing at CirCI.
@@ -618,19 +637,20 @@ _Status: done, except the Docker image build and compose smoke test, which are d
 
 ### M3.5 — Static-site pipeline (≈2 weeks)
 
-- [ ] `static_sites` schema (kind + name), tarball ingest worker (regular files + dirs only, no symlinks/hard links/devices, reserved `/_circi/` prefix, dedup, size limits)
+- [ ] `project_sites` / `static_sites` / `site_hostnames` schema, tarball ingest worker (regular files + dirs only, no symlinks/hard links/devices, reserved `/_circi/` prefix, dedup, size limits)
 - [ ] **Kind registry** + built-in kinds: `storybook`, `vitest-report`, `playwright-report`, `coverage`, `docs`, `generic`, with `--kind auto` detection fixture tests per kind
 - [ ] `circi site upload` (+ `storybook upload` shortcut, `upload --site`); per-file transport for the S3 driver
 - [ ] SDK `uploadReport` options (Playwright reporter, Vitest plugin)
-- [ ] **Wildcard-subdomain serving on the separate sites domain** (`<site-id>.<STATIC_SITES_HOST>`), startup check that it's unrelated to `PUBLIC_URL`, caching with sent-bytes HTML ETags, SPA fallback
+- [ ] **Wildcard-subdomain serving on the separate sites domain** (`<hash>-<site-slug>.<STATIC_SITES_HOST>`: commit links from the SHA, branch links from a hash of the branch name, 16-char fallback on collision), startup check that it's unrelated to `PUBLIC_URL`, caching (immutable only for content-hashed filenames, ETag revalidation otherwise, sent-bytes HTML ETags), SPA fallback
 - [ ] Caddy + `caddy-dns/route53` image and Caddyfile in `deploy/` (dashboard host + wildcard sites domain); IAM policy, Terraform snippet for both zones, Route53 setup docs
 - [ ] Docs: **"Check domain and cookie rules" setup step with ⚠️ warning** (dedicated sites domain; no cookies set for the dashboard's whole parent domain), repeated on the static-hosting page and in the `deploy/` README; `circi doctor` best-effort check
 - [ ] Required-login SSO handoff (`/_sso/site` → single-use token → `__Host-circi_site` cookie), session/membership revocation within 60 s
-- [ ] Site menu page per ref (commit/PR/branch/latest) with single-site direct redirect
+- [ ] Branch-link rules: move unless the new commit is an ancestor of the current one; expiry after `retention_days` or on branch deletion; "expired or unknown" page on the sites domain
+- [ ] Dashboard navigation: project Sites page (all branches), commit view with site cards, direct link when there's one site; site slug defaults, rename with redirect
 - [ ] Injected Shadow-DOM switcher served from the site's own origin (`/_circi/nav.js` + `sites.json`) for refs with 2+ sites; per-kind position; project/upload opt-out
 - [ ] Hardening: `__Host-` dashboard cookies, CSRF + exact-Origin checks, strict host routing, COOP/CORP, `frame-ancestors` (no X-Frame-Options), cookie-bomb cleanup on the sites domain
 - [ ] Embedded live view with partitioned cookie + new-tab fallback
-- [ ] Name-scoped branch/PR/latest aliases with path passthrough; Sites row in PR/MR comment
+- [ ] Sites row in the PR/MR comment with commit + branch addresses
 - [ ] Review UI: Sites panel; per-screenshot deep-link buttons from the registry; live Storybook before/after iframe
 - [ ] `@circi/vitest` Storybook-addon mode (auto-screenshot each story with `storyId`)
 - [ ] Security tests: path traversal, symlink/hard-link tarballs, cross-site cookie isolation, cookie bombing, cookie tossing and CSRF from a malicious site, app/site host routing
