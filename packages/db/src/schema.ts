@@ -189,6 +189,10 @@ export const builds = pgTable(
       .$type<(typeof REVIEW_STATUSES)[number]>()
       .notNull()
       .default('pending'),
+    /** Why the build ended in `error`, shown on the build page. */
+    errorMessage: text('error_message'),
+    finalizedAt: timestamp('finalized_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [
@@ -255,11 +259,16 @@ export const screenshots = pgTable(
       .notNull()
       .references(() => files.sha256, { onDelete: 'restrict' }),
     metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default({}),
+    /** WebP thumbnail for lists, made by the worker. */
+    thumbnailSha256: text('thumbnail_sha256').references(() => files.sha256, {
+      onDelete: 'restrict',
+    }),
     createdAt: createdAt(),
   },
   (t) => [
     uniqueIndex('screenshots_build_name_key').on(t.buildId, t.name),
     index('screenshots_file_idx').on(t.fileSha256),
+    index('screenshots_thumbnail_idx').on(t.thumbnailSha256),
   ],
 )
 
@@ -276,8 +285,15 @@ export const screenshotDiffs = pgTable(
     headScreenshotId: uuid('head_screenshot_id').references(() => screenshots.id, {
       onDelete: 'cascade',
     }),
+    /** Screenshot name; also present for `removed`, where there is no head screenshot. */
+    name: text('name').notNull(),
     status: text('status').$type<(typeof DIFF_STATUSES)[number]>(),
     score: real('score'),
+    changedPixels: integer('changed_pixels'),
+    /** Dimensions differ: always `changed`, whatever the score (PLAN §7.3). */
+    sizeChanged: boolean('size_changed').notNull().default(false),
+    /** Why a diff `failed` (e.g. not a PNG). */
+    errorMessage: text('error_message'),
     diffFileSha256: text('diff_file_sha256').references(() => files.sha256, {
       onDelete: 'restrict',
     }),
@@ -288,7 +304,7 @@ export const screenshotDiffs = pgTable(
     createdAt: createdAt(),
   },
   (t) => [
-    index('screenshot_diffs_build_idx').on(t.buildId),
+    uniqueIndex('screenshot_diffs_build_name_key').on(t.buildId, t.name),
     index('screenshot_diffs_diff_file_idx').on(t.diffFileSha256),
     check('screenshot_diffs_status_check', inListOrNull('status', DIFF_STATUSES)),
     check('screenshot_diffs_job_status_check', inList('job_status', DIFF_JOB_STATUSES)),
@@ -328,4 +344,40 @@ export const commitAncestry = pgTable(
     createdAt: createdAt(),
   },
   (t) => [primaryKey({ columns: [t.projectId, t.commitSha] })],
+)
+
+export const JOB_STATUSES = ['pending', 'running', 'done', 'failed'] as const
+
+/**
+ * Background job queue in Postgres (PLAN §2: no Redis). Workers claim jobs with
+ * `FOR UPDATE SKIP LOCKED`, so several workers can share the table safely. Jobs can be
+ * enqueued in the same transaction as the data they act on.
+ */
+export const jobs = pgTable(
+  'jobs',
+  {
+    id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
+    queue: text('queue').notNull(),
+    payload: jsonb('payload').$type<Record<string, unknown>>().notNull().default({}),
+    /** At most one pending or running job per (queue, dedupe_key). */
+    dedupeKey: text('dedupe_key'),
+    status: text('status').$type<(typeof JOB_STATUSES)[number]>().notNull().default('pending'),
+    runAt: timestamp('run_at', { withTimezone: true }).notNull().defaultNow(),
+    attempts: integer('attempts').notNull().default(0),
+    maxAttempts: integer('max_attempts').notNull().default(5),
+    /** A running job whose lock expired (crashed worker) is picked up again. */
+    lockedUntil: timestamp('locked_until', { withTimezone: true }),
+    lastError: text('last_error'),
+    createdAt: createdAt(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (t) => [
+    index('jobs_claim_idx')
+      .on(t.queue, t.runAt)
+      .where(sql`${t.status} in ('pending', 'running')`),
+    uniqueIndex('jobs_dedupe_key')
+      .on(t.queue, t.dedupeKey)
+      .where(sql`${t.dedupeKey} is not null and ${t.status} in ('pending', 'running')`),
+    check('jobs_status_check', inList('status', JOB_STATUSES)),
+  ],
 )

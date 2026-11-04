@@ -44,7 +44,7 @@ async function failCode(run: () => Promise<unknown>): Promise<string | undefined
 }
 
 describe('migrations', () => {
-  it('create every M0/M1 table', async () => {
+  it('create every table', async () => {
     const res = await client.query<{ tablename: string }>(
       "select tablename from pg_tables where schemaname = 'public' order by tablename",
     )
@@ -53,6 +53,7 @@ describe('migrations', () => {
       'builds',
       'commit_ancestry',
       'files',
+      'jobs',
       'memberships',
       'organizations',
       'projects',
