@@ -61,7 +61,8 @@ export async function upload(options: UploadOptions): Promise<UploadResult> {
   if (!ci.commitSha || !ci.branch) {
     const local = await localHead(git)
     ci.commitSha ??= local.sha
-    if (!ci.branch && !ci.prNumber && local.branch) ci.branch = local.branch
+    // A detached checkout reports no branch, so this only fills in a real one.
+    if (!ci.branch && local.branch) ci.branch = local.branch
   }
   if (!ci.commitSha) {
     throw new UsageError(

@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "unicorn", "oxc", "import", "node", "vitest"],
+  "plugins": ["typescript", "unicorn", "oxc", "import", "node", "vitest", "react"],
   "categories": {
     "correctness": "error",
     "suspicious": "error",
@@ -22,7 +22,9 @@
     "no-console": "off",
     "import/no-cycle": "error",
     // Targets Express. CirCI uses Fastify, which handles async handlers and their rejections.
-    "oxc/no-async-endpoint-handlers": "off"
+    "oxc/no-async-endpoint-handlers": "off",
+    // The web app uses React's automatic JSX runtime, so React needn't be in scope.
+    "react/react-in-jsx-scope": "off"
   },
   "overrides": [
     {

@@ -128,7 +128,8 @@ describe('circi upload → server → worker → --wait', () => {
 
     const second = await upload({
       ...common,
-      env: { CIRCI_PR_NUMBER: '12', CIRCI_BASE_BRANCH: 'main', CIRCI_BRANCH: 'feature' },
+      // No CIRCI_BRANCH: the branch must come from the local checkout, even for a PR.
+      env: { CIRCI_PR_NUMBER: '12', CIRCI_BASE_BRANCH: 'main' },
     })
     expect(second.ci).toMatchObject({ commitSha: prSha, prNumber: 12, branch: 'feature' })
     expect(second.ancestry).toMatchObject({

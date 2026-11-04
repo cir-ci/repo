@@ -14,10 +14,13 @@ WORKDIR /app
 FROM base AS manifests
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/server/package.json apps/server/
+COPY apps/web/package.json apps/web/
 COPY apps/worker/package.json apps/worker/
+COPY packages/cli/package.json packages/cli/
 COPY packages/config/package.json packages/config/
 COPY packages/core/package.json packages/core/
 COPY packages/db/package.json packages/db/
+COPY packages/diff/package.json packages/diff/
 COPY packages/storage/package.json packages/storage/
 
 FROM manifests AS build
@@ -28,13 +31,17 @@ COPY packages packages
 RUN pnpm build
 
 FROM manifests AS runtime-tree
-RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile --prod
+# Only the server and the packages it depends on: the web app ships as static files below,
+# and the CI CLI is published separately, so React, MUI and friends stay out of the image.
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile --prod --filter "@circi/server..."
 COPY --from=build /app/apps/server/dist apps/server/dist
 COPY --from=build /app/apps/worker/dist apps/worker/dist
 COPY --from=build /app/packages/config/dist packages/config/dist
 COPY --from=build /app/packages/core/dist packages/core/dist
 COPY --from=build /app/packages/db/dist packages/db/dist
 COPY --from=build /app/packages/db/migrations packages/db/migrations
+COPY --from=build /app/packages/diff/dist packages/diff/dist
+COPY --from=build /app/apps/web/dist apps/web/dist
 COPY --from=build /app/packages/storage/dist packages/storage/dist
 
 FROM node:${NODE_VERSION}-slim AS runtime

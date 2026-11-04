@@ -1,6 +1,7 @@
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify'
 
 import { registerV1, type V1Deps } from './api/v1.ts'
+import { type DashboardDeps, registerDashboard } from './dashboard.ts'
 
 export interface ReadinessCheck {
   name: string
@@ -18,6 +19,8 @@ export interface ServerOptions {
   previousHosts?: string[]
   /** CI upload API (`/v1`). Omitted in tests that only exercise health endpoints. */
   api?: V1Deps
+  /** Dashboard (`/api`, `/`). Omitted in tests that don't need it. */
+  dashboard?: DashboardDeps
 }
 
 export function buildServer(options: ServerOptions): FastifyInstance {
@@ -66,6 +69,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
   })
 
   if (options.api) registerV1(app, options.api)
+  if (options.dashboard) registerDashboard(app, options.dashboard)
 
   return app
 }

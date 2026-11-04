@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+
 import { runMigrations } from '@circi/db'
 import { type RunningWorker, startWorker } from '@circi/worker'
 import type { FastifyInstance } from 'fastify'
@@ -64,6 +66,12 @@ export async function runServices(options: ServiceOptions): Promise<void> {
         publicOrigin: rt.config.publicUrl.origin,
         previousHosts: rt.config.previousPublicHosts,
         api: { db: rt.db.db, storage: rt.storage, publicOrigin: rt.config.publicUrl.origin },
+        dashboard: {
+          db: rt.db.db,
+          storage: rt.storage,
+          ...(rt.config.dashboardPassword ? { password: rt.config.dashboardPassword } : {}),
+          webDist: webDistPath(),
+        },
         checks: [
           { name: 'database', check: () => rt.db.ping() },
           { name: 'storage', check: () => rt.storage.healthCheck() },
@@ -87,4 +95,9 @@ export async function runServices(options: ServiceOptions): Promise<void> {
     await rt.close().catch(() => {})
     process.exitCode = 1
   }
+}
+
+/** apps/web/dist, from both src/ (development) and dist/ (production): both sit in apps/server. */
+function webDistPath(): string {
+  return process.env.CIRCI_WEB_DIST ?? fileURLToPath(new URL('../../web/dist', import.meta.url))
 }

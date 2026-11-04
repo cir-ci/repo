@@ -24,6 +24,7 @@
     "@circi/db": "workspace:*",
     "@circi/storage": "workspace:*",
     "@circi/worker": "workspace:*",
+    "@fastify/static": "10.1.8",
     "commander": "15.0.0",
     "fastify": "5.12.8",
     "pino": "10.4.0",

@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -b tsconfig.build.json",
-    "typecheck": "tsc -p tsconfig.json",
+    "build": "tsc -b tsconfig.build.json && pnpm --filter @circi/web build",
+    "typecheck": "tsc -p tsconfig.json && tsc -p apps/web",
     "lint": "oxlint --type-aware --deny-warnings",
     "format": "oxfmt",
     "test": "vitest run",

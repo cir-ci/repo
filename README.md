@@ -2,7 +2,18 @@
 
 Self-hosted visual regression testing: a cheaper alternative to Argos-CI. CI uploads screenshots, the server diffs them against a baseline, and reviewers approve or reject the changes.
 
-**Status: M0 (foundations).** The server runs, applies its database schema, and can create organizations, projects and CI tokens. Uploading, diffing and the review UI arrive in M1. See [PLAN.md](PLAN.md) for the full design and milestones.
+**Status: M1 (first usable version).** CI uploads screenshots with `circi upload`, the worker diffs them against the right baseline, `--wait` fails the CI job when changes need review, and a password-protected dashboard shows the results. User accounts, approving in the UI and git host integrations come next (M2). See [PLAN.md](PLAN.md) for the full design and milestones.
+
+## Uploading from CI
+
+```sh
+CIRCI_TOKEN=circi_… CIRCI_API_URL=https://ci.acme.io npx circi upload ./screenshots --wait
+```
+
+- Every `*.png` under the directory is a screenshot, named by its path (`settings/profile.png` → `settings/profile`). An optional `<file>.png.json` next to it adds metadata.
+- Commit, branch and PR are read from the CI environment (GitHub Actions, GitLab, Bitbucket, Gitea/Forgejo, CircleCI, Buildkite, Jenkins, Azure Pipelines); `CIRCI_COMMIT`, `CIRCI_BRANCH`, `CIRCI_PR_NUMBER` and `CIRCI_BASE_BRANCH` override them.
+- Shallow CI checkouts are fine: the CLI fetches the base branch and just enough history to find the right baseline.
+- `--wait` exit codes: `0` pass, `1` visual changes need review (blocks the merge), `2` error.
 
 ## Self-hosting (Docker)
 
@@ -38,6 +49,7 @@ docker compose exec circi circi admin project create --org acme --name "Web app"
 | `PREVIOUS_PUBLIC_URLS` | | Comma-separated old dashboard addresses. Requests to them are redirected to `PUBLIC_URL`, so old links keep working after a move |
 | `HOST` / `PORT` | `0.0.0.0` / `3000` | |
 | `LOG_LEVEL` | `info` | `fatal` … `trace` |
+| `DASHBOARD_PASSWORD` | | Dashboard password (12+ characters, any username). Until user accounts arrive, the dashboard is off without it |
 | `STORAGE_DRIVER` | `fs` | `fs` (local disk) or `s3` |
 | `STORAGE_PATH` | `/var/lib/circi/files` | For `fs` |
 | `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_FORCE_PATH_STYLE` | | For `s3`; endpoint for R2/B2/MinIO, omit for AWS |

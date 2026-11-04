@@ -108,3 +108,16 @@ describe('loadConfig', () => {
     })
   })
 })
+
+describe('DASHBOARD_PASSWORD', () => {
+  it('is optional, and the dashboard is off without it', () => {
+    expect(loadConfig(base).dashboardPassword).toBeUndefined()
+    expect(loadConfig({ ...base, DASHBOARD_PASSWORD: '' }).dashboardPassword).toBeUndefined()
+  })
+  it('must be at least 12 characters', () => {
+    expect(() => loadConfig({ ...base, DASHBOARD_PASSWORD: 'short' })).toThrow(/at least 12/)
+    expect(
+      loadConfig({ ...base, DASHBOARD_PASSWORD: 'correct-horse-battery' }).dashboardPassword,
+    ).toBe('correct-horse-battery')
+  })
+})
