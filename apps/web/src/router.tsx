@@ -1,10 +1,13 @@
 import { AppBar, Box, Container, Toolbar, Typography } from '@mui/material'
-import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router'
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  lazyRouteComponent,
+  Outlet,
+} from '@tanstack/react-router'
 
 import { RouterLink } from './components.tsx'
-import { BuildPage } from './pages/Build.tsx'
-import { ProjectPage } from './pages/Project.tsx'
-import { ProjectsPage } from './pages/Projects.tsx'
 
 function Layout() {
   return (
@@ -58,19 +61,20 @@ const rootRoute = createRootRoute({ component: Layout, notFoundComponent: NotFou
 const projectsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  component: ProjectsPage,
+  // Each page is its own chunk, loaded on first visit (and preloaded when a link is hovered).
+  component: lazyRouteComponent(() => import('./pages/Projects.tsx'), 'ProjectsPage'),
 })
 
 const projectRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '$org/$project',
-  component: ProjectPage,
+  component: lazyRouteComponent(() => import('./pages/Project.tsx'), 'ProjectPage'),
 })
 
 const buildRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '$org/$project/builds/$number',
-  component: BuildPage,
+  component: lazyRouteComponent(() => import('./pages/Build.tsx'), 'BuildPage'),
 })
 
 const routeTree = rootRoute.addChildren([projectsRoute, projectRoute, buildRoute])

@@ -10,7 +10,20 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    // One internal dashboard bundle (~175 kB gzipped, mostly MUI); not worth splitting yet.
-    chunkSizeWarningLimit: 700,
+    // The largest chunk is React DOM (~220 kB); anything bigger means a split regressed.
+    chunkSizeWarningLimit: 250,
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          // Libraries every page needs get their own long-lived chunks, so app changes don't
+          // invalidate them in browsers' caches. MUI is left to split per page: grouping it would
+          // pull build-page-only components into the first load.
+          groups: [
+            { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+            { name: 'tanstack', test: /node_modules[\\/]@tanstack[\\/]/ },
+          ],
+        },
+      },
+    },
   },
 })
