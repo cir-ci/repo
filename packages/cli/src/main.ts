@@ -4,6 +4,14 @@ import { Command } from 'commander'
 import { ApiError } from './api.ts'
 import { upload, UsageError } from './upload.ts'
 
+// If whoever reads our output goes away (e.g. `circi upload … | head -1`), keep uploading
+// quietly instead of dying halfway with EPIPE.
+for (const stream of [process.stdout, process.stderr]) {
+  stream.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code !== 'EPIPE') throw err
+  })
+}
+
 const program = new Command()
   .name('circi')
   .description('Upload screenshots from CI to a CirCI server')

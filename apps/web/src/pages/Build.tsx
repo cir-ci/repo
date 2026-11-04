@@ -296,6 +296,23 @@ function Viewer(props: {
         <Typography variant="h2" noWrap title={diff.name} sx={{ mr: 'auto', minWidth: 0 }}>
           {diff.name}
         </Typography>
+        {/* Before the mode buttons, so they don't move when the slider appears. */}
+        {comparable && mode === 'overlay' ? (
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', width: 240 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0 }}>
+              Diff layer
+            </Typography>
+            <Slider
+              size="small"
+              min={0}
+              max={1}
+              step={0.05}
+              value={props.opacity}
+              onChange={(_, v) => props.onOpacity(Array.isArray(v) ? (v[0] ?? 0) : v)}
+              aria-label="Diff layer opacity"
+            />
+          </Stack>
+        ) : null}
         {comparable ? (
           <ToggleButtonGroup
             size="small"
@@ -314,22 +331,6 @@ function Viewer(props: {
               Diff
             </ToggleButton>
           </ToggleButtonGroup>
-        ) : null}
-        {comparable && mode === 'overlay' ? (
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', width: 200 }}>
-            <Typography variant="body2" color="text.secondary" noWrap>
-              Diff layer
-            </Typography>
-            <Slider
-              size="small"
-              min={0}
-              max={1}
-              step={0.05}
-              value={props.opacity}
-              onChange={(_, v) => props.onOpacity(Array.isArray(v) ? (v[0] ?? 0) : v)}
-              aria-label="Diff layer opacity"
-            />
-          </Stack>
         ) : null}
       </Stack>
 
