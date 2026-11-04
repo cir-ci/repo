@@ -9,7 +9,9 @@ describe('loadConfig', () => {
     const c = loadConfig(base)
     expect(c.storage).toEqual({ driver: 'fs', path: '/var/lib/circi/files' })
     expect(c.http).toEqual({ host: '0.0.0.0', port: 3000 })
-    expect(c.publicUrl.href).toBe('http://localhost:3000/')
+    expect(c.publicUrl.origin).toBe('http://localhost:3000')
+    expect(c.previousPublicHosts).toEqual([])
+    expect(c.warnings).toEqual([])
     expect(c.env).toBe('production')
   })
 
@@ -55,5 +57,54 @@ describe('loadConfig', () => {
 
   it('rejects an invalid port', () => {
     expect(() => loadConfig({ ...base, PORT: '70000' })).toThrow(ConfigError)
+  })
+
+  describe('dashboard address (PUBLIC_URL)', () => {
+    it.each([
+      ['https://circi.example.com', 'https://circi.example.com', 'circi.example.com'],
+      ['https://ci.acme.io/', 'https://ci.acme.io', 'ci.acme.io'],
+      ['https://Visual.ACME.dev:8443', 'https://visual.acme.dev:8443', 'visual.acme.dev:8443'],
+      ['http://localhost:4000', 'http://localhost:4000', 'localhost:4000'],
+    ])('accepts any host: %s', (raw, origin, host) => {
+      const c = loadConfig({ ...base, PUBLIC_URL: raw })
+      expect(c.publicUrl).toMatchObject({ origin, host })
+    })
+
+    it.each([
+      ['https://example.com/circi', /without a path/],
+      ['https://ci.acme.io/?x=1', /query string/],
+      ['ftp://ci.acme.io', /https:\/\/ or http:\/\//],
+      ['https://user:pw@ci.acme.io', /username or password/],
+      ['ci.acme.io', /not a URL/],
+    ])('rejects %s', (raw, message) => {
+      expect(() => loadConfig({ ...base, PUBLIC_URL: raw })).toThrow(message)
+    })
+
+    it('warns about plain http on a non-local host, but not on localhost', () => {
+      expect(loadConfig({ ...base, PUBLIC_URL: 'http://ci.acme.io' }).warnings).toEqual([
+        expect.stringContaining('plain http on ci.acme.io'),
+      ])
+      expect(loadConfig({ ...base, PUBLIC_URL: 'http://app.localhost:3000' }).warnings).toEqual([])
+    })
+
+    it('collects previous addresses for redirects, deduplicated', () => {
+      const c = loadConfig({
+        ...base,
+        PUBLIC_URL: 'https://ci.acme.io',
+        PREVIOUS_PUBLIC_URLS:
+          'https://circi.acme.io, https://CIRCI.acme.io/,https://old.acme.io:8443',
+      })
+      expect(c.previousPublicHosts).toEqual(['circi.acme.io', 'old.acme.io:8443'])
+    })
+
+    it('rejects a previous address equal to the current one', () => {
+      expect(() =>
+        loadConfig({
+          ...base,
+          PUBLIC_URL: 'https://ci.acme.io',
+          PREVIOUS_PUBLIC_URLS: 'https://ci.acme.io',
+        }),
+      ).toThrow(/is the current PUBLIC_URL host/)
+    })
   })
 })

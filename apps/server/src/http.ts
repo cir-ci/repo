@@ -10,6 +10,10 @@ export interface ServerOptions {
   checks: ReadinessCheck[]
   /** Per-check timeout for /readyz, so a hung dependency can't hang the probe. */
   checkTimeoutMs?: number
+  /** Current dashboard origin (`PUBLIC_URL`), e.g. `https://ci.acme.io`. */
+  publicOrigin?: string
+  /** Old dashboard hosts; requests to them are permanently redirected to `publicOrigin`. */
+  previousHosts?: string[]
 }
 
 export function buildServer(options: ServerOptions): FastifyInstance {
@@ -18,6 +22,21 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     trustProxy: true,
   })
   const timeout = options.checkTimeoutMs ?? 2_000
+
+  // After the dashboard moves (PUBLIC_URL changed), old links keep working: 308 keeps the
+  // method and body, so API clients still pointed at the old host also follow it.
+  const previousHosts = new Set(options.previousHosts?.map((h) => h.toLowerCase()) ?? [])
+  if (previousHosts.size > 0 && options.publicOrigin) {
+    const target = options.publicOrigin
+    app.addHook('onRequest', (req, reply, done) => {
+      if (previousHosts.has(req.host.toLowerCase())) {
+        // Sending a reply ends the request; `done` must not be called as well.
+        void reply.redirect(`${target}${req.url}`, 308)
+        return
+      }
+      done()
+    })
+  }
 
   // Liveness: the process is up and serving. Never touches dependencies.
   // Both probes are polled every few seconds, so they don't log each request.

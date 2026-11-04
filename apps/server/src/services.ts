@@ -43,6 +43,8 @@ export async function runServices(options: ServiceOptions): Promise<void> {
   process.once('SIGTERM', () => void shutdown('SIGTERM'))
   process.once('SIGINT', () => void shutdown('SIGINT'))
 
+  for (const warning of rt.config.warnings) logger.warn(warning)
+
   try {
     if (options.migrate) {
       logger.info('applying database migrations')
@@ -54,13 +56,23 @@ export async function runServices(options: ServiceOptions): Promise<void> {
     if (options.http) {
       app = buildServer({
         logger,
+        publicOrigin: rt.config.publicUrl.origin,
+        previousHosts: rt.config.previousPublicHosts,
         checks: [
           { name: 'database', check: () => rt.db.ping() },
           { name: 'storage', check: () => rt.storage.healthCheck() },
         ],
       })
       await app.listen({ host: rt.config.http.host, port: rt.config.http.port })
-      logger.info({ publicUrl: rt.config.publicUrl.href }, 'http server ready')
+      logger.info(
+        {
+          publicUrl: rt.config.publicUrl.origin,
+          ...(rt.config.previousPublicHosts.length > 0
+            ? { redirectingFrom: rt.config.previousPublicHosts }
+            : {}),
+        },
+        'http server ready',
+      )
     }
   } catch (err) {
     logger.error({ err }, 'failed to start')

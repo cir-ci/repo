@@ -37,6 +37,7 @@ services:
     environment:
       DATABASE_URL: postgres://circi:${POSTGRES_PASSWORD}@postgres:5432/circi
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
+      PREVIOUS_PUBLIC_URLS: ${PREVIOUS_PUBLIC_URLS:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       STORAGE_DRIVER: fs
       STORAGE_PATH: /var/lib/circi/files

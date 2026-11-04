@@ -34,7 +34,8 @@ docker compose exec circi circi admin project create --org acme --name "Web app"
 | Variable | Default | Notes |
 |---|---|---|
 | `DATABASE_URL` | (required) | Postgres connection string |
-| `PUBLIC_URL` | `http://localhost:3000` | Dashboard address, e.g. `https://circi.example.com` |
+| `PUBLIC_URL` | `http://localhost:3000` | Dashboard address: any host you own, e.g. `https://ci.acme.io`. Must be the root of its own hostname (no sub-path); use `https` outside local development |
+| `PREVIOUS_PUBLIC_URLS` | | Comma-separated old dashboard addresses. Requests to them are redirected to `PUBLIC_URL`, so old links keep working after a move |
 | `HOST` / `PORT` | `0.0.0.0` / `3000` | |
 | `LOG_LEVEL` | `info` | `fatal` … `trace` |
 | `STORAGE_DRIVER` | `fs` | `fs` (local disk) or `s3` |

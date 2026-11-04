@@ -1,5 +1,9 @@
 import { z } from 'zod'
 
+import { isLocalAddress, type PublicAddress, parsePublicAddress } from './public-url.ts'
+
+export { isLocalAddress, type PublicAddress, parsePublicAddress } from './public-url.ts'
+
 const bool = z
   .enum(['true', 'false', '1', '0', 'yes', 'no'])
   .transform((v) => v === 'true' || v === '1' || v === 'yes')
@@ -11,7 +15,8 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   HOST: z.string().default('0.0.0.0'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-  PUBLIC_URL: z.url().default('http://localhost:3000'),
+  PUBLIC_URL: z.string().default('http://localhost:3000'),
+  PREVIOUS_PUBLIC_URLS: z.string().default(''),
   DATABASE_URL: z.string({ error: 'is required' }).min(1, 'is required'),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).default(10),
   STORAGE_DRIVER: z.enum(['fs', 's3']).default('fs'),
@@ -39,7 +44,15 @@ export interface Config {
   env: 'development' | 'production' | 'test'
   logLevel: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace'
   http: { host: string; port: number }
-  publicUrl: URL
+  /** The dashboard address (`PUBLIC_URL`). Any host you own; see PLAN §7.9. */
+  publicUrl: PublicAddress
+  /**
+   * Hosts the dashboard used to live on (`PREVIOUS_PUBLIC_URLS`). Requests to them are
+   * redirected to `publicUrl`, so old links in PR comments and emails keep working.
+   */
+  previousPublicHosts: string[]
+  /** Settings that work but are probably a mistake; logged at startup. */
+  warnings: string[]
   database: { url: string; poolMax: number }
   storage: StorageConfig
 }
@@ -62,6 +75,26 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   }
   const e = parsed.data
   const issues: string[] = []
+  const warnings: string[] = []
+
+  const publicUrl = parsePublicAddress(e.PUBLIC_URL, 'PUBLIC_URL')
+  if (typeof publicUrl === 'string') issues.push(publicUrl)
+  else if (publicUrl.protocol === 'http:' && !isLocalAddress(publicUrl)) {
+    warnings.push(
+      `PUBLIC_URL uses plain http on ${publicUrl.host}. Logins need https outside local development; put a TLS proxy such as Caddy in front and use https://${publicUrl.host}.`,
+    )
+  }
+
+  const previousPublicHosts: string[] = []
+  for (const raw of e.PREVIOUS_PUBLIC_URLS.split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)) {
+    const prev = parsePublicAddress(raw, 'PREVIOUS_PUBLIC_URLS')
+    if (typeof prev === 'string') issues.push(prev)
+    else if (typeof publicUrl !== 'string' && prev.host === publicUrl.host) {
+      issues.push(`PREVIOUS_PUBLIC_URLS: ${prev.host} is the current PUBLIC_URL host`)
+    } else if (!previousPublicHosts.includes(prev.host)) previousPublicHosts.push(prev.host)
+  }
 
   let storage: StorageConfig
   if (e.STORAGE_DRIVER === 's3') {
@@ -90,13 +123,15 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     storage = { driver: 'fs', path: e.STORAGE_PATH }
   }
 
-  if (issues.length > 0) throw new ConfigError(issues)
+  if (issues.length > 0 || typeof publicUrl === 'string') throw new ConfigError(issues)
 
   return {
     env: e.NODE_ENV,
     logLevel: e.LOG_LEVEL,
     http: { host: e.HOST, port: e.PORT },
-    publicUrl: new URL(e.PUBLIC_URL),
+    publicUrl,
+    previousPublicHosts,
+    warnings,
     database: { url: e.DATABASE_URL, poolMax: e.DATABASE_POOL_MAX },
     storage,
   }
