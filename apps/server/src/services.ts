@@ -1,0 +1,71 @@
+import { runMigrations } from '@zopheros/db'
+import { type RunningWorker, startWorker } from '@zopheros/worker'
+import type { FastifyInstance } from 'fastify'
+import { buildServer } from './http.ts'
+import { createRuntime } from './runtime.ts'
+
+export interface ServiceOptions {
+  http: boolean
+  worker: boolean
+  migrate: boolean
+}
+
+const SHUTDOWN_TIMEOUT_MS = 10_000
+
+/** Runs `serve`, `worker` or `all` until SIGTERM/SIGINT, then shuts down gracefully. */
+export async function runServices(options: ServiceOptions): Promise<void> {
+  const rt = createRuntime()
+  const { logger } = rt
+  let app: FastifyInstance | undefined
+  let worker: RunningWorker | undefined
+
+  let stopping = false
+  const shutdown = async (signal: string) => {
+    if (stopping) return
+    stopping = true
+    logger.info({ signal }, 'shutting down')
+    const force = setTimeout(() => {
+      logger.error('shutdown timed out, exiting')
+      process.exit(1)
+    }, SHUTDOWN_TIMEOUT_MS)
+    force.unref()
+    try {
+      await app?.close()
+      await worker?.stop()
+      await rt.close()
+      process.exit(0)
+    } catch (err) {
+      logger.error({ err }, 'error during shutdown')
+      process.exit(1)
+    }
+  }
+  process.once('SIGTERM', () => void shutdown('SIGTERM'))
+  process.once('SIGINT', () => void shutdown('SIGINT'))
+
+  try {
+    if (options.migrate) {
+      logger.info('applying database migrations')
+      await runMigrations(rt.db)
+    }
+    if (options.worker) {
+      worker = await startWorker({ db: rt.db, storage: rt.storage, logger })
+    }
+    if (options.http) {
+      app = buildServer({
+        logger,
+        checks: [
+          { name: 'database', check: () => rt.db.ping() },
+          { name: 'storage', check: () => rt.storage.healthCheck() },
+        ],
+      })
+      await app.listen({ host: rt.config.http.host, port: rt.config.http.port })
+      logger.info({ publicUrl: rt.config.publicUrl.href }, 'http server ready')
+    }
+  } catch (err) {
+    logger.error({ err }, 'failed to start')
+    await app?.close().catch(() => {})
+    await worker?.stop().catch(() => {})
+    await rt.close().catch(() => {})
+    process.exitCode = 1
+  }
+}

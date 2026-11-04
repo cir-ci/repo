@@ -1,0 +1,21 @@
+{
+  "name": "@zopheros/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@zopheros/config": "workspace:*",
+    "@zopheros/db": "workspace:*",
+    "@zopheros/storage": "workspace:*"
+  }
+}

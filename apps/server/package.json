@@ -1,0 +1,31 @@
+{
+  "name": "@zopheros/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "start": "node dist/main.js",
+    "dev": "node --conditions=development src/main.ts"
+  },
+  "dependencies": {
+    "@zopheros/config": "workspace:*",
+    "@zopheros/core": "workspace:*",
+    "@zopheros/db": "workspace:*",
+    "@zopheros/storage": "workspace:*",
+    "@zopheros/worker": "workspace:*",
+    "commander": "15.0.0",
+    "fastify": "5.12.8",
+    "pino": "10.4.0"
+  },
+  "bin": {
+    "zopheros": "./dist/main.js"
+  }
+}
