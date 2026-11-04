@@ -16,8 +16,8 @@ import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createTestDb, seedProject, type TestDb } from '../../../packages/db/test/helpers.ts'
-import { buildServer } from '../src/http.ts'
+import { createTestDb, seedProject, type TestDb } from '../../../../packages/db/test/helpers.ts'
+import { buildServer } from '../../src/http/app.ts'
 
 const ORIGIN = 'https://ci.acme.io'
 const logger = pino({ level: 'silent' })

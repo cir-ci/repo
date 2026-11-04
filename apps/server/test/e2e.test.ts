@@ -13,7 +13,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { upload } from '../../../packages/cli/src/index.ts'
 import { createTestDb, seedProject, type TestDb } from '../../../packages/db/test/helpers.ts'
-import { buildServer } from '../src/http.ts'
+import { buildServer } from '../src/http/app.ts'
 
 /**
  * M1 end to end (PLAN §9): the real CLI uploads to a real HTTP server, the worker diffs, and

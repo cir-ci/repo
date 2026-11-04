@@ -1,3 +1,5 @@
+/** Small async helpers for the worker. */
+
 /** Runs `fn` over `items` with at most `limit` in flight. Rejects on the first failure. */
 export async function mapLimit<T>(
   items: readonly T[],

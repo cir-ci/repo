@@ -1,0 +1,27 @@
+import type { Database, ProjectContext } from '@circi/db'
+import type { StorageDriver } from '@circi/storage'
+
+/** What the CI API (`/v1`) needs. */
+export interface V1Deps {
+  db: Database
+  storage: StorageDriver
+  /** Dashboard origin (`PUBLIC_URL`), used for build links and local-disk upload URLs. */
+  publicOrigin: string
+}
+
+/** What the dashboard (`/api` and the web app) needs. */
+export interface DashboardDeps {
+  db: Database
+  storage: StorageDriver
+  /** Interim protection until accounts arrive in M2. Unset: the dashboard is off. */
+  password?: string
+  /** Built web app (apps/web/dist). Missing: the API still works, pages explain how to build. */
+  webDist?: string
+}
+
+declare module 'fastify' {
+  interface FastifyRequest {
+    /** The project whose CI token authenticated this `/v1` request. */
+    project?: ProjectContext
+  }
+}

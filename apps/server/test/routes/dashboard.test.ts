@@ -11,9 +11,9 @@ import { pino } from 'pino'
 import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createTestDb, seedProject, type TestDb } from '../../../packages/db/test/helpers.ts'
-import { checkBasicAuth } from '../src/dashboard.ts'
-import { buildServer } from '../src/http.ts'
+import { createTestDb, seedProject, type TestDb } from '../../../../packages/db/test/helpers.ts'
+import { buildServer } from '../../src/http/app.ts'
+import { checkBasicAuth } from '../../src/http/hooks/dashboard-password.ts'
 
 const PASSWORD = 'correct-horse-battery'
 const logger = pino({ level: 'silent' })
