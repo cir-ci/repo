@@ -15,7 +15,7 @@ const envSchema = z.object({
   DATABASE_URL: z.string({ error: 'is required' }).min(1, 'is required'),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).default(10),
   STORAGE_DRIVER: z.enum(['fs', 's3']).default('fs'),
-  STORAGE_PATH: z.string().default('/var/lib/zopheros/files'),
+  STORAGE_PATH: z.string().default('/var/lib/circi/files'),
   S3_BUCKET: z.preprocess(emptyToUndefined, z.string().optional()),
   S3_REGION: z.string().default('us-east-1'),
   S3_ENDPOINT: z.preprocess(emptyToUndefined, z.url().optional()),

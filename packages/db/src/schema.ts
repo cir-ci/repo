@@ -315,7 +315,7 @@ export const reviews = pgTable(
   ],
 )
 
-/** History registered by `zopheros argos-env` before an Argos SDK build arrives (PLAN §7.2). */
+/** History registered by `circi argos-env` before an Argos SDK build arrives (PLAN §7.2). */
 export const commitAncestry = pgTable(
   'commit_ancestry',
   {

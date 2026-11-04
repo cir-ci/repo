@@ -1,4 +1,4 @@
-import { assertValidSlug, issueProjectToken, slugify, ValidationError } from '@zopheros/core'
+import { assertValidSlug, issueProjectToken, slugify, ValidationError } from '@circi/core'
 import { and, asc, eq } from 'drizzle-orm'
 
 import type { Database } from './client.ts'

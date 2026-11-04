@@ -1,15 +1,15 @@
 import { createHash, randomBytes } from 'node:crypto'
 
-/** CI token format: `zop_` + 43 chars of base64url (32 random bytes). */
-const TOKEN_PREFIX = 'zop_'
-const TOKEN_RE = /^zop_[A-Za-z0-9_-]{43}$/
+/** CI token format: `circi_` + 43 chars of base64url (32 random bytes). */
+const TOKEN_PREFIX = 'circi_'
+const TOKEN_RE = /^circi_[A-Za-z0-9_-]{43}$/
 
 export interface IssuedToken {
   /** Shown to the user exactly once, never stored. */
   token: string
   /** sha256 hex of the full token; what the database stores and looks up by. */
   hash: string
-  /** First characters after the prefix, safe to display ("zop_AbC1…"). */
+  /** First characters after the prefix, safe to display ("circi_AbC1…"). */
   hint: string
 }
 

@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import { ConfigError, loadConfig } from '../src/index.ts'
 
-const base = { DATABASE_URL: 'postgres://localhost/zopheros' }
+const base = { DATABASE_URL: 'postgres://localhost/circi' }
 
 describe('loadConfig', () => {
   it('applies defaults (local-disk storage)', () => {
     const c = loadConfig(base)
-    expect(c.storage).toEqual({ driver: 'fs', path: '/var/lib/zopheros/files' })
+    expect(c.storage).toEqual({ driver: 'fs', path: '/var/lib/circi/files' })
     expect(c.http).toEqual({ host: '0.0.0.0', port: 3000 })
     expect(c.publicUrl.href).toBe('http://localhost:3000/')
     expect(c.env).toBe('production')
@@ -33,14 +33,14 @@ describe('loadConfig', () => {
     const c = loadConfig({
       ...base,
       STORAGE_DRIVER: 's3',
-      S3_BUCKET: 'zopheros',
+      S3_BUCKET: 'circi',
       S3_ENDPOINT: 'http://minio:9000',
       S3_ACCESS_KEY_ID: 'a',
       S3_SECRET_ACCESS_KEY: 'b',
     })
     expect(c.storage).toMatchObject({
       driver: 's3',
-      bucket: 'zopheros',
+      bucket: 'circi',
       endpoint: 'http://minio:9000',
       forcePathStyle: true,
       credentials: { accessKeyId: 'a', secretAccessKey: 'b' },

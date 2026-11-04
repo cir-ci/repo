@@ -34,7 +34,7 @@ export interface S3StorageOptions {
   forcePathStyle?: boolean
   /** Omit to use the default AWS credential chain (env, IAM role, …). */
   credentials?: { accessKeyId: string; secretAccessKey: string }
-  /** Optional prefix inside the bucket, e.g. "zopheros/". */
+  /** Optional prefix inside the bucket, e.g. "circi/". */
   prefix?: string
 }
 

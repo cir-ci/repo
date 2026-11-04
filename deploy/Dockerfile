@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Build from the repo root:  docker build -f deploy/Dockerfile -t zopheros .
+# Build from the repo root:  docker build -f deploy/Dockerfile -t circi .
 
 ARG NODE_VERSION=26
 ARG PNPM_VERSION=12.0.0
@@ -39,16 +39,16 @@ COPY --from=build /app/packages/storage/dist packages/storage/dist
 
 FROM node:${NODE_VERSION}-slim AS runtime
 ENV NODE_ENV=production \
-    STORAGE_PATH=/var/lib/zopheros/files \
+    STORAGE_PATH=/var/lib/circi/files \
     PORT=3000
 WORKDIR /app
 COPY --from=runtime-tree /app /app
-RUN mkdir -p /var/lib/zopheros/files && chown node:node /var/lib/zopheros/files \
- && ln -s /app/apps/server/dist/main.js /usr/local/bin/zopheros && chmod +x /app/apps/server/dist/main.js
+RUN mkdir -p /var/lib/circi/files && chown node:node /var/lib/circi/files \
+ && ln -s /app/apps/server/dist/main.js /usr/local/bin/circi && chmod +x /app/apps/server/dist/main.js
 USER node
-VOLUME /var/lib/zopheros/files
+VOLUME /var/lib/circi/files
 EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
-ENTRYPOINT ["zopheros"]
+ENTRYPOINT ["circi"]
 CMD ["all"]

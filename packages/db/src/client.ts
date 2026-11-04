@@ -33,7 +33,7 @@ export function createDb(options: {
   const pool = new Pool({
     connectionString: options.url,
     max: options.poolMax ?? 10,
-    application_name: options.applicationName ?? 'zopheros',
+    application_name: options.applicationName ?? 'circi',
   })
   const db = drizzle({ client: pool, schema })
   return {

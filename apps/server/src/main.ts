@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { ConfigError } from '@zopheros/config'
-import { ValidationError } from '@zopheros/core'
+import { ConfigError } from '@circi/config'
+import { ValidationError } from '@circi/core'
 import {
   ConflictError,
   createOrganization,
@@ -10,15 +10,15 @@ import {
   NotFoundError,
   rotateProjectToken,
   runMigrations,
-} from '@zopheros/db'
+} from '@circi/db'
 import { Command } from 'commander'
 
 import { createRuntime, type Runtime } from './runtime.ts'
 import { runServices } from './services.ts'
 
 const program = new Command()
-  .name('zopheros')
-  .description('Zopheros server: visual regression testing, self-hosted')
+  .name('circi')
+  .description('CirCI server: visual regression testing, self-hosted')
   .showHelpAfterError()
 
 program
@@ -155,7 +155,7 @@ function publicProject<T extends { tokenHash: string }>(p: T): Omit<T, 'tokenHas
 }
 
 function printToken(token: string): void {
-  console.log('\nCI token (shown once, store it as the ZOPHEROS_TOKEN secret in your CI):')
+  console.log('\nCI token (shown once, store it as the CIRCI_TOKEN secret in your CI):')
   console.log(`  ${token}`)
 }
 

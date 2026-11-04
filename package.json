@@ -1,5 +1,5 @@
 {
-  "name": "zopheros-monorepo",
+  "name": "circi-monorepo",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,8 +9,8 @@
     "format": "oxfmt",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:generate": "pnpm --filter @zopheros/db generate",
-    "zopheros": "node --conditions=development apps/server/src/main.ts",
+    "db:generate": "pnpm --filter @circi/db generate",
+    "circi": "node --conditions=development apps/server/src/main.ts",
     "clean": "rm -rf apps/*/dist packages/*/dist apps/*/*.tsbuildinfo packages/*/*.tsbuildinfo",
     "format:check": "oxfmt --check"
   },

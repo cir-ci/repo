@@ -9,7 +9,7 @@ const sha = (s: string) => createHash('sha256').update(s).digest('hex')
 
 describe('S3Storage.presignPut (offline)', () => {
   const storage = new S3Storage({
-    bucket: 'zopheros',
+    bucket: 'circi',
     region: 'us-east-1',
     endpoint: 'http://localhost:9000',
     forcePathStyle: true,
@@ -24,7 +24,7 @@ describe('S3Storage.presignPut (offline)', () => {
       contentType: 'image/png',
     })
     const url = new URL(presigned.url)
-    expect(url.pathname).toBe('/zopheros/aa/bb/key')
+    expect(url.pathname).toBe('/circi/aa/bb/key')
     const signed = url.searchParams.get('X-Amz-SignedHeaders')?.split(';') ?? []
     expect(signed).toEqual(
       expect.arrayContaining(['content-length', 'content-type', 'x-amz-checksum-sha256']),
@@ -48,17 +48,17 @@ describe('S3Storage.presignPut (offline)', () => {
 })
 
 // Runs against a real S3-compatible server when configured, e.g.
-// ZOPHEROS_TEST_S3_ENDPOINT=http://localhost:9000 (MinIO from docker-compose.s3.yml).
-const endpoint = process.env.ZOPHEROS_TEST_S3_ENDPOINT
+// CIRCI_TEST_S3_ENDPOINT=http://localhost:9000 (MinIO from docker-compose.s3.yml).
+const endpoint = process.env.CIRCI_TEST_S3_ENDPOINT
 describe.skipIf(!endpoint)('S3Storage (live)', () => {
   const storage = new S3Storage({
-    bucket: process.env.ZOPHEROS_TEST_S3_BUCKET ?? 'zopheros',
+    bucket: process.env.CIRCI_TEST_S3_BUCKET ?? 'circi',
     region: 'us-east-1',
     endpoint: endpoint ?? '',
     forcePathStyle: true,
     credentials: {
-      accessKeyId: process.env.ZOPHEROS_TEST_S3_ACCESS_KEY ?? 'zopheros',
-      secretAccessKey: process.env.ZOPHEROS_TEST_S3_SECRET_KEY ?? 'zopheros-dev-secret',
+      accessKeyId: process.env.CIRCI_TEST_S3_ACCESS_KEY ?? 'circi',
+      secretAccessKey: process.env.CIRCI_TEST_S3_SECRET_KEY ?? 'circi-dev-secret',
     },
   })
 

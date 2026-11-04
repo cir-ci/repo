@@ -1,5 +1,5 @@
-import { runMigrations } from '@zopheros/db'
-import { type RunningWorker, startWorker } from '@zopheros/worker'
+import { runMigrations } from '@circi/db'
+import { type RunningWorker, startWorker } from '@circi/worker'
 import type { FastifyInstance } from 'fastify'
 
 import { buildServer } from './http.ts'

@@ -16,7 +16,7 @@ import {
 } from './types.ts'
 
 export interface FsStorageOptions {
-  /** Directory that holds all objects, e.g. a Docker volume at /var/lib/zopheros/files. */
+  /** Directory that holds all objects, e.g. a Docker volume at /var/lib/circi/files. */
   path: string
 }
 

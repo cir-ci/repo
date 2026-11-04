@@ -130,19 +130,19 @@ importers:
 
   apps/server:
     dependencies:
-      '@zopheros/config':
+      '@circi/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@zopheros/core':
+      '@circi/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@zopheros/db':
+      '@circi/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@zopheros/storage':
+      '@circi/storage':
         specifier: workspace:*
         version: link:../../packages/storage
-      '@zopheros/worker':
+      '@circi/worker':
         specifier: workspace:*
         version: link:../worker
       commander:
@@ -157,13 +157,13 @@ importers:
 
   apps/worker:
     dependencies:
-      '@zopheros/config':
+      '@circi/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@zopheros/db':
+      '@circi/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@zopheros/storage':
+      '@circi/storage':
         specifier: workspace:*
         version: link:../../packages/storage
 
@@ -177,7 +177,7 @@ importers:
 
   packages/db:
     dependencies:
-      '@zopheros/core':
+      '@circi/core':
         specifier: workspace:*
         version: link:../core
       drizzle-orm:

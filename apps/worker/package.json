@@ -1,5 +1,5 @@
 {
-  "name": "@zopheros/worker",
+  "name": "@circi/worker",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -14,8 +14,8 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@zopheros/config": "workspace:*",
-    "@zopheros/db": "workspace:*",
-    "@zopheros/storage": "workspace:*"
+    "@circi/config": "workspace:*",
+    "@circi/db": "workspace:*",
+    "@circi/storage": "workspace:*"
   }
 }

@@ -42,16 +42,16 @@ jobs:
       COMPOSE: docker compose -f docker-compose.yml -f docker-compose.s3.yml
     steps:
       - uses: actions/checkout@v5
-      - name: Start the stack (Postgres + MinIO + Zopheros)
+      - name: Start the stack (Postgres + MinIO + CirCI)
         run: $COMPOSE up -d --build --wait --wait-timeout 180
       - name: Ready and healthy
         run: curl -fsS http://localhost:3000/readyz
       - name: Admin commands work inside the image
         run: |
-          $COMPOSE exec -T zopheros zopheros admin org create --name "CI Org"
-          $COMPOSE exec -T zopheros zopheros admin project create --org ci-org --name "Web" --json \
-            | grep -q '"token": "zop_'
-          $COMPOSE exec -T zopheros zopheros admin project list --org ci-org
+          $COMPOSE exec -T circi circi admin org create --name "CI Org"
+          $COMPOSE exec -T circi circi admin project create --org ci-org --name "Web" --json \
+            | grep -q '"token": "circi_'
+          $COMPOSE exec -T circi circi admin project list --org ci-org
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
@@ -61,7 +61,7 @@ jobs:
         working-directory: .
         run: |
           pnpm install --frozen-lockfile
-          ZOPHEROS_TEST_S3_ENDPOINT=http://localhost:9000 pnpm exec vitest run packages/storage
+          CIRCI_TEST_S3_ENDPOINT=http://localhost:9000 pnpm exec vitest run packages/storage
       - name: Logs on failure
         if: failure()
         run: $COMPOSE logs --no-color

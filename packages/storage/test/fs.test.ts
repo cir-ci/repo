@@ -22,7 +22,7 @@ describe('FsStorage', () => {
   let storage: FsStorage
 
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'zopheros-fs-'))
+    dir = await mkdtemp(join(tmpdir(), 'circi-fs-'))
     storage = new FsStorage({ path: dir })
   })
   afterEach(async () => {

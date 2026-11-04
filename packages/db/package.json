@@ -1,5 +1,5 @@
 {
-  "name": "@zopheros/db",
+  "name": "@circi/db",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -15,7 +15,7 @@
     "generate": "drizzle-kit generate"
   },
   "dependencies": {
-    "@zopheros/core": "workspace:*",
+    "@circi/core": "workspace:*",
     "drizzle-orm": "0.45.4",
     "pg": "8.23.1"
   },

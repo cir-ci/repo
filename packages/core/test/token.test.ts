@@ -14,12 +14,12 @@ describe('project tokens', () => {
 
   it('has a display hint that does not reveal the secret part', () => {
     const { token, hint } = issueProjectToken()
-    expect(hint).toBe(`${token.slice(0, 10)}…`)
-    expect(token.length - 10).toBeGreaterThanOrEqual(37)
+    expect(hint).toBe(`${token.slice(0, 12)}…`)
+    expect(token.length - 12).toBeGreaterThanOrEqual(37)
   })
 
   it('rejects things that are not tokens', () => {
-    expect(looksLikeProjectToken('zop_short')).toBe(false)
+    expect(looksLikeProjectToken('circi_short')).toBe(false)
     expect(looksLikeProjectToken(`ghp_${'a'.repeat(43)}`)).toBe(false)
   })
 })

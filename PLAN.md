@@ -1,4 +1,4 @@
-# Zopheros — Self-hosted Visual Regression Testing
+# CirCI — Self-hosted Visual Regression Testing
 
 A cheaper, self-hostable alternative to Argos-CI. CI uploads screenshots → server diffs them against a baseline → results show up as a GitHub check, and a reviewer approves or rejects the changes in a web UI.
 
@@ -6,7 +6,7 @@ A cheaper, self-hostable alternative to Argos-CI. CI uploads screenshots → ser
 
 ## 1. What Argos does (scope we're replicating)
 
-| Capability                                                                                        | Argos                               | Zopheros v1                                                                        | Later                     |
+| Capability                                                                                        | Argos                               | CirCI v1                                                                        | Later                     |
 | ------------------------------------------------------------------------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------- | ------------------------- |
 | Upload screenshots from CI (CLI)                                                                  | ✅                                  | ✅                                                                                 |                           |
 | Test-runner SDKs (Playwright, Cypress, Storybook, Vitest)                                         | ✅                                  | ✅ Playwright + **Vitest browser mode** (native, §7.7); others via Argos SDKs (§3) | Native Cypress, Storybook |
@@ -32,15 +32,15 @@ A cheaper, self-hostable alternative to Argos-CI. CI uploads screenshots → ser
 3. **Multi-tenant:** organizations, members and roles (§6, §8).
 4. **Storage:** local disk by default (cheapest), S3-compatible as an option (§2).
 5. **Merge blocking:** unreviewed changes block merging by default, configurable per project (§7.4).
-6. **Static-site hosting:** the dashboard is at **`zop.example.com`**. Hosted sites live on a **separate, dedicated domain** (placeholder `example-sites.com`), one subdomain per site: `<site-id>.example-sites.com`. Uploaded code then can't set cookies on `example.com` or `zop.example.com`. DNS for both is on **Route53**, which is the default Caddy DNS module (§7.6).
+6. **Static-site hosting:** the dashboard is at **`circi.example.com`**. Hosted sites live on a **separate, dedicated domain** (placeholder `example-sites.com`), one subdomain per site: `<site-id>.example-sites.com`. Uploaded code then can't set cookies on `example.com` or `circi.example.com`. DNS for both is on **Route53**, which is the default Caddy DNS module (§7.6).
 7. **One static-site pipeline** for every kind of site (Storybook, Vitest report, Playwright report, coverage, docs, generic). Kinds are small plugins on a shared upload, ingest, serve, alias and link flow (§7.6).
 8. **Vitest:** first-class SDK for Vitest browser mode, including Storybook's Vitest addon. Vitest HTML reports are hosted through the same pipeline (§7.7).
-9. **Hosted sites always require login.** There are no public sites. Logging in once at `zop.example.com` works for every site (SSO through a token handoff) (§7.6).
+9. **Hosted sites always require login.** There are no public sites. Logging in once at `circi.example.com` works for every site (SSO through a token handoff) (§7.6).
 10. **Site navigation:** opening a commit/PR/branch's sites starts at a menu of all its hosted sites. A small switcher stays available inside each site. With only one site there's no menu or switcher; you go straight to the site (§7.6).
 11. **Email login (magic link / one-time code)** acts as SSO for the dashboard and all sites. It can be turned off for the whole instance or per organization (§7.8).
-12. **Domain rules, written as a warning step in the setup guide (§7.6):** the sites domain is used for nothing but Zopheros sites. Nothing on `example.com` may set cookies for the whole domain.
-13. **Baseline history for Argos-SDK users:** use the SDK's history when it sends it, then the git host's API, then the fallback baseline. A `zopheros argos-env` wrapper is documented for exact baselines on any host. The build page shows which source was used (§7.2).
-14. **Merge gate:** when a git host integration is connected, Zopheros's own commit status is the required check, and approving flips it green with no CI re-run. Plus a **GitHub bot** (a GitHub App, like Argos's) for checks, PR comments, and approving from GitHub (§7.4).
+12. **Domain rules, written as a warning step in the setup guide (§7.6):** the sites domain is used for nothing but CirCI sites. Nothing on `example.com` may set cookies for the whole domain.
+13. **Baseline history for Argos-SDK users:** use the SDK's history when it sends it, then the git host's API, then the fallback baseline. A `circi argos-env` wrapper is documented for exact baselines on any host. The build page shows which source was used (§7.2).
+14. **Merge gate:** when a git host integration is connected, CirCI's own commit status is the required check, and approving flips it green with no CI re-run. Plus a **GitHub bot** (a GitHub App, like Argos's) for checks, PR comments, and approving from GitHub (§7.4).
 15. **Signups:** invite-only by default, a first-run setup link for the instance admin, email-domain auto-join for verified domains, and only the instance admin can create orgs. Both can be opened up with env flags (§8).
 
 ---
@@ -48,7 +48,7 @@ A cheaper, self-hostable alternative to Argos-CI. CI uploads screenshots → ser
 ## 2. Architecture
 
 ```
- CI job ── zopheros CLI / Playwright reporter
+ CI job ── circi CLI / Playwright reporter
    │  1. POST /builds (sha256 list) → presigned PUT URLs for missing files only
    │  2. PUT images directly to object storage
    │  3. POST /builds/:id/finalize (names + metadata, shard i of n)
@@ -68,7 +68,7 @@ A cheaper, self-hostable alternative to Argos-CI. CI uploads screenshots → ser
    → commit status + PR/MR comment.  No adapter? → CLI `--wait` exit code / outgoing webhook
 ```
 
-**Storage: local disk vs. object storage.** "Local disk" means a directory on the server running Zopheros (a Docker volume such as `/var/lib/zopheros/files`), **not the git repo**. Committing screenshots to the repo would bloat its history permanently; we never do that.
+**Storage: local disk vs. object storage.** "Local disk" means a directory on the server running CirCI (a Docker volume such as `/var/lib/circi/files`), **not the git repo**. Committing screenshots to the repo would bloat its history permanently; we never do that.
 
 | Option                                | Approx. cost                                              | Notes                                                                                            |
 | ------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
@@ -77,11 +77,11 @@ A cheaper, self-hostable alternative to Argos-CI. CI uploads screenshots → ser
 | Backblaze B2 / Hetzner Object Storage | ~$0.006–0.01/GB-mo                                        | Cheapest object storage; free egress has some limits.                                            |
 | AWS S3                                | ~$0.023/GB-mo + egress                                    | Most expensive here; only if already on AWS.                                                     |
 
-With content-addressed dedup and retention, a typical project stays in the low tens of GB, so local disk is the default. The storage driver interface makes switching a config change, plus a `zopheros storage migrate` command to copy files across.
+With content-addressed dedup and retention, a typical project stays in the low tens of GB, so local disk is the default. The storage driver interface makes switching a config change, plus a `circi storage migrate` command to copy files across.
 
 **Cost-driven design choices**
 - **No Redis.** The job queue lives in Postgres (`pg-boss` or `graphile-worker`). One fewer service to run.
-- **One Docker image.** `zopheros serve` (API + UI), `zopheros worker`, or `zopheros all` for small installs. A single small VM can run it.
+- **One Docker image.** `circi serve` (API + UI), `circi worker`, or `circi all` for small installs. A single small VM can run it.
 - **Content-addressed storage.** Files are keyed by SHA-256; unchanged screenshots across builds are uploaded and stored once. This is the biggest storage saving.
 - **Skip work on identical hashes.** Same hash as baseline → `unchanged`, no pixel diff. Most screenshots in most builds go this way.
 - **Direct-to-storage uploads** through presigned URLs, so the API never proxies image bytes (with a streaming fallback for the local-filesystem backend). Every upload is **checksum-verified before it can be deduplicated against** (§8).
@@ -91,7 +91,7 @@ With content-addressed dedup and retention, a typical project stays in the low t
 
 ## 3. Key decision: Argos API compatibility
 
-Argos's JS SDKs (`@argos-ci/cli`, `@argos-ci/playwright`, `@argos-ci/cypress`, `@argos-ci/storybook`) are open source and accept a custom API base URL (`ARGOS_API_BASE_URL` / `apiBaseUrl`). If Zopheros implements the same upload endpoints, **existing Argos users switch by changing one env var** and we don't have to write or maintain SDKs.
+Argos's JS SDKs (`@argos-ci/cli`, `@argos-ci/playwright`, `@argos-ci/cypress`, `@argos-ci/storybook`) are open source and accept a custom API base URL (`ARGOS_API_BASE_URL` / `apiBaseUrl`). If CirCI implements the same upload endpoints, **existing Argos users switch by changing one env var** and we don't have to write or maintain SDKs.
 
 - **Recommended:** v1 implements the Argos upload API contract (to be confirmed from the `argos-ci/argos-javascript` source — endpoint shapes, auth header, sharding fields) **and** ships a thin native CLI on the same endpoints.
 - Risk: their contract can change. Mitigation: pin a tested SDK version range in docs and add a contract test suite running the real Argos CLI against our server in CI.
@@ -121,7 +121,7 @@ Argos's JS SDKs (`@argos-ci/cli`, `@argos-ci/playwright`, `@argos-ci/cypress`, `
 ## 5. Repo layout
 
 ```
-zopheros/
+circi/
   apps/
     server/        # Fastify API, GitHub webhooks, serves built UI
     worker/        # diff + notification jobs
@@ -134,7 +134,7 @@ zopheros/
     diff/          # odiff/pixelmatch wrapper, thumbnails
     providers/     # GitProvider interface + github/, gitlab/, bitbucket/, gitea/ adapters
     auth/          # sessions, password/OIDC, org RBAC
-    cli/           # `zopheros upload ./screenshots`
+    cli/           # `circi upload ./screenshots`
     sdk-core/      # shared: screenshot stabilization, metadata, upload client
     playwright/    # reporter/fixture (only if not relying on Argos SDK)
     vitest/        # Vitest browser-mode helper + reporter + Storybook-addon integration
@@ -165,7 +165,7 @@ zopheros/
 - **screenshots**: id, build_id, shard_index, name, file_sha256, metadata (jsonb: browser, viewport, test title/file, retries, url, storyId)
 - **screenshot_diffs**: id, build_id, base_screenshot_id (nullable), head_screenshot_id (nullable), status (`added` | `removed` | `changed` | `unchanged` | `failed`), score (0–1), diff_file_sha256, job_status
 - **reviews**: id, build_id, user_id, state (`approved` | `rejected`), source (`ui` | `github-check` | `github-comment` | `auto`), created_at (history, latest wins)
-- **commit_ancestry**: project_id, commit_sha, merge_base_sha, ancestor_shas, created_at. Registered by `zopheros argos-env` and used when an Argos SDK build for that commit arrives (§7.2)
+- **commit_ancestry**: project_id, commit_sha, merge_base_sha, ancestor_shas, created_at. Registered by `circi argos-env` and used when an Argos SDK build for that commit arrives (§7.2)
 - **instance_settings**: setup_token_hash (one-time, cleared after first admin is created), signups_enabled, org_creation (`admin` | `anyone`)
 
 - **static_sites**: id, project_id, build_id (nullable; a site can be uploaded alone), kind (`storybook` | `vitest-report` | `playwright-report` | `coverage` | `docs` | `generic`), name (slug, default = kind; lets you have several sites per commit, e.g. `docs` and `storybook`, or `storybook-web` and `storybook-mobile`), entry_path, spa_fallback (bool), commit_sha, branch, pr_number, status (`uploading` | `ready` | `error` | `expired`), total_bytes, file_count, created_at
@@ -182,7 +182,7 @@ Indexes: (project_id, branch, created_at), (project_id, name, commit_sha), (buil
 ### 7.1 Upload (from CI)
 
 1. CLI collects `*.png` from a directory (+ optional sidecar JSON metadata), computes SHA-256 per file.
-2. Reads CI context from env: commit SHA, branch, PR/MR number, base branch. Detectors for GitHub Actions, GitLab CI, Bitbucket Pipelines, Gitea/Forgejo Actions, CircleCI, Jenkins, Buildkite, Azure Pipelines, plus generic `ZOPHEROS_*` overrides for anything else. **Gotcha:** on GitHub `pull_request` events `GITHUB_SHA` is the merge commit; use the PR head SHA from the event payload.
+2. Reads CI context from env: commit SHA, branch, PR/MR number, base branch. Detectors for GitHub Actions, GitLab CI, Bitbucket Pipelines, Gitea/Forgejo Actions, CircleCI, Jenkins, Buildkite, Azure Pipelines, plus generic `CIRCI_*` overrides for anything else. **Gotcha:** on GitHub `pull_request` events `GITHUB_SHA` is the merge commit; use the PR head SHA from the event payload.
 3. **Collects git ancestry locally.** This is what keeps baselines independent of any git host. It always works from the **head SHA from step 2**, never from `HEAD`, because CI checkouts often sit on a synthetic merge commit (GitHub `refs/pull/N/merge`). Working from that commit would make the merge-base the tip of the base branch, not the PR's fork point.
    1. Make sure both commits exist locally: `git fetch --no-tags --depth=200 origin <headSha> +refs/heads/<base>:refs/remotes/origin/<base>`. Default CI checkouts (e.g. `actions/checkout` with depth 1) don't have the base branch at all, and `git fetch --deepen` only deepens refs that are already there.
    2. `git merge-base <headSha> origin/<base>`. If it fails because history is shallow, deepen both refs (`git fetch --deepen=200 origin <headSha> <base>`) up to a limit (default 2,000 commits) and retry.
@@ -215,7 +215,7 @@ Every step below applies this filter. Pick the build to compare against, in this
    4. `fallback`: step 3 below.
 
    The build page shows the source ("Baseline from: SDK history / GitLab API / fallback — latest main build"). For `fallback`, it adds a hint on how to get exact baselines:
-   - **`zopheros argos-env` wrapper** for Argos-SDK users on hosts without an integration: `npx zopheros argos-env -- npx playwright test`. It runs our ancestry collection (§7.1), registers the result under the commit (`POST /v1/ancestry`, keyed by project + commit SHA), then runs the wrapped command unchanged. The compat endpoint picks up that history when the Argos SDK creates the build, so no Argos config changes are needed.
+   - **`circi argos-env` wrapper** for Argos-SDK users on hosts without an integration: `npx circi argos-env -- npx playwright test`. It runs our ancestry collection (§7.1), registers the result under the commit (`POST /v1/ancestry`, keyed by project + commit SHA), then runs the wrapped command unchanged. The compat endpoint picks up that history when the Argos SDK creates the build, so no Argos config changes are needed.
 3. **Fallback:** the latest eligible build on the default branch.
 4. **None found:** every screenshot is `added`; build is an "orphan" (UI says so, check is neutral).
 
@@ -244,7 +244,7 @@ Building this as a pure function in `packages/core` with good unit tests matters
 | Rejected                | ❌ failure                                                        | ❌ failure                             |
 | Processing error        | ❌ failure                                                        | ⚠️ success + warning                   |
 
-Blocking only works if the repo marks the Zopheros status as **required** (branch protection / protected branches / merge checks). Docs cover this for each host.
+Blocking only works if the repo marks the CirCI status as **required** (branch protection / protected branches / merge checks). Docs cover this for each host.
 
 **`GitProvider` interface** (in `packages/providers`):
 ```ts
@@ -263,22 +263,22 @@ interface GitProvider {
 | Gitea / Forgejo               | Commit statuses | Issue comments | Access token                |
 
 **Merge gate: who blocks the merge**
-- **Integration connected (GitHub, GitLab, Bitbucket, Gitea/Forgejo): the Zopheros commit status is the gate.**
-  - The repo marks the `zopheros/<build-name>` status (or GitHub check) as required. `zopheros upload --wait` waits only for _processing_ to finish and **exits 0 even with unreviewed changes**, so the CI job stays green and test failures aren't confused with visual changes. It exits non-zero only for upload or processing errors.
+- **Integration connected (GitHub, GitLab, Bitbucket, Gitea/Forgejo): the CirCI commit status is the gate.**
+  - The repo marks the `circi/<build-name>` status (or GitHub check) as required. `circi upload --wait` waits only for _processing_ to finish and **exits 0 even with unreviewed changes**, so the CI job stays green and test failures aren't confused with visual changes. It exits non-zero only for upload or processing errors.
   - Approving or rejecting in the UI (or from the GitHub bot) updates the status within seconds. **No CI re-run needed.**
   - New pushes get a fresh pending status; old builds on the same PR are marked superseded.
 - **No integration:** `--wait` **exits non-zero** while changes are unreviewed, so the CI job is the gate. After approval, the build page and the outgoing webhook show "Approved — re-run the `<job>` job to unblock", with a direct link if the CI provides a job URL (e.g. `CI_JOB_URL`, `BUILD_URL`).
 - `--wait` picks the mode automatically from the project's settings; `--gate=status|exit-code` overrides it.
 - Optional outgoing **webhook** per project (`build.completed`, `build.reviewed`, HMAC-signed) for custom integrations or chat notifications.
 
-**GitHub bot (Zopheros GitHub App)**
+**GitHub bot (CirCI GitHub App)**
 
 Like the Argos bot, it shows up on PRs as **`<app-name>[bot]`**. Each self-hosted instance runs its own GitHub App, because webhooks must reach that instance's server.
-- **One-click setup:** Settings → Integrations → GitHub → "Create GitHub App" uses GitHub's **App Manifest flow**. It pre-fills name, logo, webhook URL (`https://zop.example.com/webhooks/github`), permissions and events. GitHub redirects back, and Zopheros stores the app id, private key and webhook secret (encrypted). Works with GitHub.com and GitHub Enterprise Server (base URL setting). A manual setup path with the same values is documented.
+- **One-click setup:** Settings → Integrations → GitHub → "Create GitHub App" uses GitHub's **App Manifest flow**. It pre-fills name, logo, webhook URL (`https://circi.example.com/webhooks/github`), permissions and events. GitHub redirects back, and CirCI stores the app id, private key and webhook secret (encrypted). Works with GitHub.com and GitHub Enterprise Server (base URL setting). A manual setup path with the same values is documented.
   - **Permissions:** Checks (write), Commit statuses (write), Pull requests (write, for comments), Contents (read: merge-base / commit lookups), Metadata (read), Members (read, optional, for mapping org members).
   - **Events:** `installation`, `installation_repositories`, `pull_request`, `check_run` (for button clicks), `issue_comment` (for commands).
-- **Install → link:** an org admin installs the app on repos. Zopheros lists the installed repos so each project can be linked in one click; the project's provider connection is created automatically.
-- **Check run per build name** (`Zopheros / default`, `Zopheros / vitest-chromium`):
+- **Install → link:** an org admin installs the app on repos. CirCI lists the installed repos so each project can be linked in one click; the project's provider connection is created automatically.
+- **Check run per build name** (`CirCI / default`, `CirCI / vitest-chromium`):
   - The title gives counts ("3 changed, 1 added — review required"). The summary has a markdown table with thumbnails of the first changed screenshots, linked to the review page.
   - **Action buttons** (Checks API `requested_action`): **Approve** and **Reject** right on the GitHub checks tab.
   - The conclusion follows the status-mapping table above: `action_required` while pending when merges are blocked, `success` after approval.
@@ -290,8 +290,8 @@ Like the Argos bot, it shows up on PRs as **`<app-name>[bot]`**. Each self-hoste
   | vitest-chromium | ✅ No changes       | —                   | —           |
 
   Plus the **Sites** row (§7.6) and the baseline source when it isn't exact. It only posts once a PR has a build; projects can turn comments off and keep checks only.
-- **Comment commands:** `/zopheros approve`, `/zopheros reject`, `/zopheros rerun` (re-process the build, e.g. after changing the threshold). The bot reacts with 👍 on success, or replies with the reason it refused.
-- **Who may approve from GitHub** (buttons and commands): the GitHub user must be linked to a Zopheros user (GitHub OAuth login, matched by GitHub user id, never by email) with role `member` or higher in the project's org. If they aren't linked, the bot replies "Link your GitHub account at zop.example.com/settings/identities". Optionally a project can instead accept _repo write access on GitHub_ as enough, for teams that don't want to manage Zopheros roles.
+- **Comment commands:** `/circi approve`, `/circi reject`, `/circi rerun` (re-process the build, e.g. after changing the threshold). The bot reacts with 👍 on success, or replies with the reason it refused.
+- **Who may approve from GitHub** (buttons and commands): the GitHub user must be linked to a CirCI user (GitHub OAuth login, matched by GitHub user id, never by email) with role `member` or higher in the project's org. If they aren't linked, the bot replies "Link your GitHub account at circi.example.com/settings/identities". Optionally a project can instead accept _repo write access on GitHub_ as enough, for teams that don't want to manage CirCI roles.
 - Every review records where it came from (`ui` | `github-check` | `github-comment`) in the audit log.
 - Webhook signatures are verified, deliveries are processed idempotently by delivery id, and GitHub's rate limits are respected (check/comment updates are debounced per PR).
 - Other hosts get statuses + comments through their adapters (§ above). Bot-style buttons and commands are GitHub-only in v1; GitLab MR comment commands come later (M4).
@@ -346,9 +346,9 @@ interface SiteKind {
 Adding a kind means one file with a detector and optional deep-link function. No schema, API or UI changes, because the UI renders sites from the registry (label, icon, link).
 
 **Upload**
-- One command for everything: `zopheros site upload <dir> [--kind auto|storybook|…] [--name <slug>] [--spa]`.
-  - `zopheros storybook upload <dir>` is a shortcut for `site upload --kind storybook`.
-  - `zopheros upload <screenshots> --site <dir>[:kind[:name]]` (repeatable) attaches sites to the screenshot build in one step.
+- One command for everything: `circi site upload <dir> [--kind auto|storybook|…] [--name <slug>] [--spa]`.
+  - `circi storybook upload <dir>` is a shortcut for `site upload --kind storybook`.
+  - `circi upload <screenshots> --site <dir>[:kind[:name]]` (repeatable) attaches sites to the screenshot build in one step.
   - SDKs can upload their own reports at the end of a run: Playwright reporter `uploadReport: true`, Vitest plugin `uploadReport: true`.
 - Uses the same CI detection, git ancestry and project token as screenshot builds. A site without a screenshot build still gets commit/branch/PR info, so it gets aliases and a PR comment line.
 - **Two transports:**
@@ -356,7 +356,7 @@ Adding a kind means one file with a detector and optional deep-link function. No
   - **Per-file (S3 driver):** hash manifest → presigned PUTs for missing files only → finalize. Same pattern as screenshots; saves bandwidth when most assets haven't changed.
 - Limits: max site size (default 200 MB), max file count, zip-bomb ratio checks. Tarball entries: **only regular files and directories are accepted**. Symlinks, hard links, device files and FIFOs are rejected, as are `..` segments, absolute paths and paths that normalize outside the root.
 - Per-file transport uses the same checksum-verified PUTs, upload claims and verified-only dedup as screenshots (§8). The tarball transport hashes files server-side, so they're verified when written.
-- Also works with the Argos SDKs: screenshots go through the compat API, then a separate `zopheros site upload` step uploads the site.
+- Also works with the Argos SDKs: screenshots go through the compat API, then a separate `circi site upload` step uploads the site.
 - Re-uploading the same (commit, name) replaces the earlier site (CI re-runs), and the old one becomes eligible for garbage collection.
 
 **Serving**
@@ -364,33 +364,33 @@ Adding a kind means one file with a detector and optional deep-link function. No
 
   | URL                                    | What                                                                                   | Env                                   |
   | -------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------- |
-  | `https://zop.example.com/`             | Dashboard, API, login, aliases, site menu                                              | `PUBLIC_URL`                          |
+  | `https://circi.example.com/`             | Dashboard, API, login, aliases, site menu                                              | `PUBLIC_URL`                          |
   | `https://<site-id>.example-sites.com/` | One hosted site per subdomain, on a **separate registrable domain** used only for this | `STATIC_SITES_HOST=example-sites.com` |
 
   A Storybook or report runs arbitrary JS from the uploaded build.
-  - **Why a separate domain:** browser JS can set cookies on any parent domain that isn't a public suffix. On `*.zop.example.com`, a malicious upload could run `document.cookie = '…; Domain=example.com'` and fill the cookie jar until the dashboard _and every other `example.com` site_ fail with "header too large" for that user, or plant cookies that other apps on `example.com` read. Server-side rules can't stop this. On `example-sites.com`, the worst an upload can reach is other Zopheros sites. GitHub Pages (`github.io`) and Netlify (`netlify.app`) use the same model.
+  - **Why a separate domain:** browser JS can set cookies on any parent domain that isn't a public suffix. On `*.circi.example.com`, a malicious upload could run `document.cookie = '…; Domain=example.com'` and fill the cookie jar until the dashboard _and every other `example.com` site_ fail with "header too large" for that user, or plant cookies that other apps on `example.com` read. Server-side rules can't stop this. On `example-sites.com`, the worst an upload can reach is other CirCI sites. GitHub Pages (`github.io`) and Netlify (`netlify.app`) use the same model.
   - One origin per site also means a site can't read another site's storage or service workers.
   - `site-id` is a 26-char lowercase base32 id (128-bit, fits in a DNS label).
   - **There is no single-hostname fallback.** Serving uploads from the dashboard origin would give them the viewer's full session. Wildcard DNS on the sites domain is required for static hosting; without `STATIC_SITES_HOST` the feature is off. On startup the server refuses a `STATIC_SITES_HOST` that equals `PUBLIC_URL`'s host, is above it, or is below it.
 - **Hardening that remains** (the dashboard and sites are now cross-site, so SameSite cookies already protect the dashboard; these are defense in depth):
   - All dashboard cookies use the **`__Host-` prefix** (no `Domain`, `Path=/`, Secure, SameSite=Lax) and HttpOnly.
-  - State-changing dashboard requests need a **CSRF token** plus an exact `Origin` check for `https://zop.example.com`.
-  - No CORS on the API for the sites domain. Site responses get `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy: same-origin`, and **CSP `frame-ancestors 'self' https://zop.example.com`**. There's no `X-Frame-Options`, because it can't allow one specific other origin and would block the review iframe.
-  - **Cookie cleanup on the sites domain:** the site handler accepts large request headers (64 KB). If a request carries cookies other than its own `__Host-zop_site*`, it answers with `Set-Cookie` expiring them on the domain. A cookie bomb from one upload clears itself on the next request instead of locking the user out of every site.
+  - State-changing dashboard requests need a **CSRF token** plus an exact `Origin` check for `https://circi.example.com`.
+  - No CORS on the API for the sites domain. Site responses get `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy: same-origin`, and **CSP `frame-ancestors 'self' https://circi.example.com`**. There's no `X-Frame-Options`, because it can't allow one specific other origin and would block the review iframe.
+  - **Cookie cleanup on the sites domain:** the site handler accepts large request headers (64 KB). If a request carries cookies other than its own `__Host-circi_site*`, it answers with `Set-Cookie` expiring them on the domain. A cookie bomb from one upload clears itself on the next request instead of locking the user out of every site.
   - Optional, for large installs: submit the sites domain to the **Public Suffix List** (as `github.io` is). Browsers then treat each site subdomain as its own site, so they can't set cookies for each other at all. The PSL is slow to reach browsers, so this is not something to rely on.
-  - The site handler only answers on `<26-char-id>.example-sites.com`, and the app only on `zop.example.com`. Anything else gets a 404.
+  - The site handler only answers on `<26-char-id>.example-sites.com`, and the app only on `circi.example.com`. Anything else gets a 404.
 - **DNS + TLS (Route53):**
-  - `zop` A/AAAA record in the `example.com` hosted zone, and `*` A/AAAA in a new `example-sites.com` hosted zone (the apex can stay empty).
-  - Let's Encrypt certs for `zop.example.com` (HTTP-01 is enough) and `*.example-sites.com` (needs **DNS-01**).
+  - `circi` A/AAAA record in the `example.com` hosted zone, and `*` A/AAAA in a new `example-sites.com` hosted zone (the apex can stay empty).
+  - Let's Encrypt certs for `circi.example.com` (HTTP-01 is enough) and `*.example-sites.com` (needs **DNS-01**).
   - `deploy/` ships a Caddy image built with `caddy-dns/route53` (via `xcaddy`) and a Caddyfile covering both, with automatic renewal.
   - Credentials: an IAM role on EC2 (preferred) or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`. Docs include a minimal IAM policy (`route53:ChangeResourceRecordSets` + `ListResourceRecordSets` on **the sites hosted zone only**, + `route53:GetChange`) and a Terraform snippet for both zones' records.
   - Other DNS providers: swap the Caddy module (one line in the Dockerfile).
-- **Domain rules: a ⚠️ warning step in the setup guide.** Zopheros can't enforce these, so the docs do:
-  - **The sites domain is dedicated to Zopheros.** Host nothing else on it, not even its apex or `www`, and never set cookies on it. Anything else there shares a cookie scope with untrusted uploads.
+- **Domain rules: a ⚠️ warning step in the setup guide.** CirCI can't enforce these, so the docs do:
+  - **The sites domain is dedicated to CirCI.** Host nothing else on it, not even its apex or `www`, and never set cookies on it. Anything else there shares a cookie scope with untrusted uploads.
   - **Nothing on `example.com` may set cookies for the whole domain** (`Domain=example.com`). Uploads can't reach those cookies any more, but every `example.com` cookie is still sent to the dashboard. Keeping them host-scoped is part of the same hygiene step.
   - The setup guide has a dedicated step, "Step: check domain and cookie rules", right after the DNS step. It has a **⚠️ warning callout** explaining both rules, how to check (browser devtools → Application → Cookies, or `curl -sI https://<host> | grep -i 'set-cookie.*domain='`), and how to fix them. The same warning appears on the static-hosting docs page and in the `deploy/` README.
-  - `zopheros doctor` (a deploy check command) does a best-effort check. It fetches `example.com`, `www.example.com` and the sites domain apex, and warns about any `Set-Cookie` with a `Domain=` attribute, or anything served on the sites apex. It also repeats the warning, since it can't see every host.
-- Stable aliases live on the app host and redirect to the current site subdomain: `https://zop.example.com/<org>/<project>/sites/<name>/{branch/<branch>,pr/<n>,latest}[/<path>]`. The optional path is passed through, so a link like `…/sites/docs/latest/guide/setup` works. This keeps alias names (which may contain `/`, long branch names, etc.) out of DNS labels.
+  - `circi doctor` (a deploy check command) does a best-effort check. It fetches `example.com`, `www.example.com` and the sites domain apex, and warns about any `Set-Cookie` with a `Domain=` attribute, or anything served on the sites apex. It also repeats the warning, since it can't see every host.
+- Stable aliases live on the app host and redirect to the current site subdomain: `https://circi.example.com/<org>/<project>/sites/<name>/{branch/<branch>,pr/<n>,latest}[/<path>]`. The optional path is passed through, so a link like `…/sites/docs/latest/guide/setup` works. This keeps alias names (which may contain `/`, long branch names, etc.) out of DNS labels.
 - Caching is the same for every kind:
   - Non-HTML files get `Cache-Control: private, max-age=31536000, immutable`, with the file's sha256 as ETag. `private` because every response needs login, so shared caches must not store it; `immutable` because a site's files never change after `ready`.
   - HTML gets `private, no-cache`. Its **ETag is computed from the bytes actually sent**: the file sha256 plus whether the switcher is injected, plus the switcher version. Adding a second site to a ref changes the HTML ETag, so browsers fetch the page again and see the switcher instead of getting a stale 304.
@@ -401,22 +401,22 @@ Adding a kind means one file with a detector and optional deep-link function. No
 **Access control: login always required, single sign-on across all sites**
 - Every request to a site subdomain needs a valid per-site cookie. There is no public mode.
 - Flow when opening `k3f9….example-sites.com/…` without a site cookie:
-  1. The site handler redirects to `https://zop.example.com/_sso/site?site=k3f9…&return=/path`.
+  1. The site handler redirects to `https://circi.example.com/_sso/site?site=k3f9…&return=/path`.
   2. Not logged in to the dashboard → show the login page (email login / password / OIDC, whichever is enabled). Already logged in → no prompt, so you sign in once for everything.
-  3. The app checks the user is a member of the site's org with at least `viewer` role, then redirects back with a **single-use, 60 s token bound to that site id** (`/_zopheros/auth?t=…`).
-  4. The site handler swaps the token for a `__Host-zop_site` cookie (HttpOnly, Secure, SameSite=Lax), valid for that subdomain only. It's a short-lived (1 h, sliding) reference to the dashboard session, so **logging out or revoking a session or membership cuts off site access within a minute**: the site handler re-checks the session against a cached lookup with a 60 s TTL.
+  3. The app checks the user is a member of the site's org with at least `viewer` role, then redirects back with a **single-use, 60 s token bound to that site id** (`/_circi/auth?t=…`).
+  4. The site handler swaps the token for a `__Host-circi_site` cookie (HttpOnly, Secure, SameSite=Lax), valid for that subdomain only. It's a short-lived (1 h, sliding) reference to the dashboard session, so **logging out or revoking a session or membership cuts off site access within a minute**: the site handler re-checks the session against a cached lookup with a 60 s TTL.
 - Site cookies are useless on other site subdomains or on the dashboard. A malicious upload can't use them to reach other sites or the API.
-- **Embedded live view** (Storybook iframe in the review UI): the site is cross-site to the dashboard there, so a Lax cookie isn't sent. The same handoff runs inside the iframe and sets `__Host-zop_site_embed` (`SameSite=None; Secure; Partitioned`), which is only valid inside the dashboard's frame. Where a browser blocks even partitioned cookies, the UI detects the failed handoff and shows "Open live view in new tab" instead.
+- **Embedded live view** (Storybook iframe in the review UI): the site is cross-site to the dashboard there, so a Lax cookie isn't sent. The same handoff runs inside the iframe and sets `__Host-circi_site_embed` (`SameSite=None; Secure; Partitioned`), which is only valid inside the dashboard's frame. Where a browser blocks even partitioned cookies, the UI detects the failed handoff and shows "Open live view in new tab" instead.
 
 **Site navigation**
-- Each ref has a **site menu** page: `https://zop.example.com/<org>/<project>/sites/{commit/<sha>,pr/<n>,branch/<b>,latest}`. It's the starting point that PR/MR comments, commit statuses and the build page link to.
+- Each ref has a **site menu** page: `https://circi.example.com/<org>/<project>/sites/{commit/<sha>,pr/<n>,branch/<b>,latest}`. It's the starting point that PR/MR comments, commit statuses and the build page link to.
   - It shows a card per hosted site for that ref (label, icon and name from the kind registry, upload time, size), plus links to the screenshot build and the same sites on the base branch.
   - **Exactly one site → no menu:** a 302 straight to that site, with no switcher. The menu only appears when there's something to choose between.
   - Zero sites → "No sites uploaded for this commit", with the CLI snippet.
-- **Switcher inside sites (only when the ref has 2+ sites):** the site handler injects one `<script src="/_zopheros/nav.js" data-site=…>` before `</body>` in HTML responses.
+- **Switcher inside sites (only when the ref has 2+ sites):** the site handler injects one `<script src="/_circi/nav.js" data-site=…>` before `</body>` in HTML responses.
   - It renders a small collapsible pill in a Shadow DOM (so it can't clash with the site's CSS), with a dropdown of the other sites on the same ref and "← All sites" back to the menu.
-  - **Both the script and its data come from the site's own origin**, so no CORS is needed and the "no CORS for the sites domain" rule holds. The site handler serves `/_zopheros/nav.js` (a versioned build of the switcher) and `/_zopheros/sites.json`. The JSON lists the ref's sites, with links that go through the app's aliases, and is authorized by the site cookie. The handler reads Postgres directly; the switcher never calls the dashboard API.
-  - The `/_zopheros/` path prefix is reserved on every site. Uploads containing it are rejected.
+  - **Both the script and its data come from the site's own origin**, so no CORS is needed and the "no CORS for the sites domain" rule holds. The site handler serves `/_circi/nav.js` (a versioned build of the switcher) and `/_circi/sites.json`. The JSON lists the ref's sites, with links that go through the app's aliases, and is authorized by the site cookie. The handler reads Postgres directly; the switcher never calls the dashboard API.
+  - The `/_circi/` path prefix is reserved on every site. Uploads containing it are rejected.
   - It can be disabled per project (`site_nav_injection: false`) or per upload (`--no-nav`) for sites that break with injected markup. The menu page still works in that case.
   - Each kind can choose where the pill sits so it doesn't cover the site's own nav (e.g. bottom-left for Storybook, top-right for Playwright reports).
 
@@ -430,44 +430,44 @@ Adding a kind means one file with a detector and optional deep-link function. No
 
 ### 7.7 Vitest integration
 
-Vitest **browser mode** runs component tests in a real browser (Playwright or WebdriverIO provider), so it can capture screenshots just like Playwright. `@zopheros/vitest` covers three cases:
+Vitest **browser mode** runs component tests in a real browser (Playwright or WebdriverIO provider), so it can capture screenshots just like Playwright. `@circi/vitest` covers three cases:
 
 **1. Screenshots from component tests**
 ```ts
 // vitest.config.ts
-import { zopheros } from '@zopheros/vitest/plugin'
+import { circi } from '@circi/vitest/plugin'
 export default defineConfig({
-  plugins: [zopheros()],                // adds reporter + setup file, reads ZOPHEROS_TOKEN
+  plugins: [circi()],                // adds reporter + setup file, reads CIRCI_TOKEN
   test: { browser: { enabled: true, provider: 'playwright', instances: [{ browser: 'chromium' }] } },
 })
 
 // Button.test.tsx
-import { zopherosScreenshot } from '@zopheros/vitest'
+import { circiScreenshot } from '@circi/vitest'
 test('primary button', async () => {
   render(<Button variant="primary">Save</Button>)
-  await zopherosScreenshot('button-primary')               // whole viewport
-  await zopherosScreenshot('button-primary-el', { element: page.getByRole('button') })
+  await circiScreenshot('button-primary')               // whole viewport
+  await circiScreenshot('button-primary-el', { element: page.getByRole('button') })
 })
 ```
 
-- The helper (browser side) **stabilizes** before capturing: waits for `document.fonts.ready` and pending images, disables CSS animations and transitions, hides the caret, and optionally waits for network idle. It then calls Vitest's `page.screenshot()` / `locator.screenshot()` (from `vitest/browser`) and writes to `.zopheros/screenshots/`.
+- The helper (browser side) **stabilizes** before capturing: waits for `document.fonts.ready` and pending images, disables CSS animations and transitions, hides the caret, and optionally waits for network idle. It then calls Vitest's `page.screenshot()` / `locator.screenshot()` (from `vitest/browser`) and writes to `.circi/screenshots/`.
 - Metadata saved per screenshot: test file, full test name, browser and viewport, Vitest version, retry count, and `colorScheme`. The server pairs screenshots by `name`, falling back to `file › test title`.
 - The **reporter** (Node side, `onTestRunEnd`) uploads everything at the end of the run, with one build per `instances[]` browser (build name = `vitest-chromium` etc.). It handles Vitest sharding (`--shard=i/n`) by mapping to `parallel: {nonce, total}` automatically.
 - **Vitest 4 `toMatchScreenshot`**: an optional mode collects those screenshots instead of comparing them against local reference files in git. Teams already using it can switch with no test changes, and reference PNGs no longer bloat the repo.
 
 **2. Storybook via its Vitest addon**
-- Storybook's `@storybook/addon-vitest` runs every story as a Vitest browser test. With `zopheros({ storybook: true })`, each story is screenshotted automatically after its `play` function finishes. Metadata includes `storyId`, so the review UI links straight to the hosted story (§7.6). Stories can opt out with `parameters.zopheros = { disable: true }` or set viewports and modes.
-- This replaces a separate Storybook screenshot runner: one `vitest` command produces screenshots, and `zopheros storybook upload` hosts the static build.
+- Storybook's `@storybook/addon-vitest` runs every story as a Vitest browser test. With `circi({ storybook: true })`, each story is screenshotted automatically after its `play` function finishes. Metadata includes `storyId`, so the review UI links straight to the hosted story (§7.6). Stories can opt out with `parameters.circi = { disable: true }` or set viewports and modes.
+- This replaces a separate Storybook screenshot runner: one `vitest` command produces screenshots, and `circi storybook upload` hosts the static build.
 
 **3. Hosted Vitest reports**
-- `uploadReport: true` in the plugin (or `zopheros site upload ./html`, auto-detected as `vitest-report`) hosts the `vitest --reporter=html` output through the §7.6 pipeline.
+- `uploadReport: true` in the plugin (or `circi site upload ./html`, auto-detected as `vitest-report`) hosts the `vitest --reporter=html` output through the §7.6 pipeline.
 - Coverage HTML (`coverage/`) is auto-detected as `coverage`.
 
-**Compatibility:** test against Vitest 3.2+ and 4.x with both the Playwright and WebdriverIO providers. CI matrix in the Zopheros repo.
+**Compatibility:** test against Vitest 3.2+ and 4.x with both the Playwright and WebdriverIO providers. CI matrix in the CirCI repo.
 
 ### 7.8 Login methods & email login
 
-All login happens at `https://zop.example.com/login`. The dashboard session it creates is the single sign-on for every hosted site (§7.6).
+All login happens at `https://circi.example.com/login`. The dashboard session it creates is the single sign-on for every hosted site (§7.6).
 
 **Methods**, each can be turned on or off:
 
@@ -481,9 +481,9 @@ All login happens at `https://zop.example.com/login`. The dashboard session it c
 - Magic links point to a confirm page (`/login/email/confirm?t=…`) that needs a button click (POST). Corporate mail scanners that pre-open links can't use them up.
 - Codes and links are single-use, hashed at rest, valid for 10 minutes, with 5 code attempts per challenge. Both are rate limited per email and per IP.
 - The response is the same whether or not the email has an account, so attackers can't find out which emails exist. With signups disabled, unknown emails just get nothing.
-- **Allowed email domains:** an org can list domains (`example.com`). Anyone who logs in with an address on that domain that **Zopheros itself verified** auto-joins the org with `auto_join_role` (default `viewer`). Teammates then need no invites.
-  - "Zopheros verified" means email login (we sent the code) or an instance-scoped OIDC provider an operator marked `trusted_for_email`. An `email_verified` claim from an org-scoped provider never counts.
-  - Claiming a domain needs proof: a DNS TXT record (`_zopheros-verify.example.com`). Otherwise any org could list `gmail.com` or a competitor's domain.
+- **Allowed email domains:** an org can list domains (`example.com`). Anyone who logs in with an address on that domain that **CirCI itself verified** auto-joins the org with `auto_join_role` (default `viewer`). Teammates then need no invites.
+  - "CirCI verified" means email login (we sent the code) or an instance-scoped OIDC provider an operator marked `trusted_for_email`. An `email_verified` claim from an org-scoped provider never counts.
+  - Claiming a domain needs proof: a DNS TXT record (`_circi-verify.example.com`). Otherwise any org could list `gmail.com` or a competitor's domain.
 
 **OIDC trust rules** (so one org's identity provider can't take over accounts in another org)
 - Identities are matched by **(issuer, subject)**, never by email. A first OIDC login never attaches to an existing user just because the email matches.
@@ -498,7 +498,7 @@ All login happens at `https://zop.example.com/login`. The dashboard session it c
 **Turning methods on and off**
 - The instance env flags are the outer limit; orgs can only narrow them. When a method is off, its UI and endpoints disappear, and existing sessions created through it stay valid unless "revoke sessions" is ticked.
 - **Lockout guard:** you can't turn off the last method that any owner of the org can log in with. The settings page explains why.
-- Break-glass: `zopheros admin auth enable email --org <slug>` (CLI on the server) for when an IdP goes down.
+- Break-glass: `circi admin auth enable email --org <slug>` (CLI on the server) for when an IdP goes down.
 - If a user is in several orgs, they can log in with any method the instance allows, but each org's own rules are enforced when its content is accessed. Example: org A allows only OIDC, so a session from email login gets "re-authenticate with Okta" on org A's builds and sites.
 
 ---
@@ -508,7 +508,7 @@ All login happens at `https://zop.example.com/login`. The dashboard session it c
 - **Org isolation:** every query is scoped by `org_id` and enforced in one data-access layer. Tests check that cross-org access returns 404.
 - **Roles:** owner (billing-free, so: delete org, manage owners) · admin (projects, provider connections, members) · member (review builds) · viewer (read only). Instance-level `superadmin` flag for the operator.
 - **Signups & first run (defaults):**
-  - **First run:** with no users in the database, the server prints a one-time **setup link** (`https://zop.example.com/setup?t=…`) to its log. It's valid for 24 h and can be regenerated with `zopheros admin setup-link`. Whoever opens it creates the first account and becomes `superadmin`. Until then, every other page shows "Instance not set up yet".
+  - **First run:** with no users in the database, the server prints a one-time **setup link** (`https://circi.example.com/setup?t=…`) to its log. It's valid for 24 h and can be regenerated with `circi admin setup-link`. Whoever opens it creates the first account and becomes `superadmin`. Until then, every other page shows "Instance not set up yet".
   - **Invite-only by default** (`SIGNUPS_ENABLED=false`): new accounts come only from org invites, or from **email-domain auto-join** into an org that has verified that domain (§7.8). Anyone else trying to log in gets the same neutral response as for unknown emails.
   - **Only the superadmin creates orgs** by default (`ORG_CREATION=admin`). This stops users from creating orgs and filling the disk.
   - Public instances can set `SIGNUPS_ENABLED=true` and/or `ORG_CREATION=anyone`. The admin UI can change both at runtime (stored in `instance_settings`; env sets the initial value).
@@ -542,13 +542,13 @@ _Status: done, except the Docker image build and compose smoke test, which are d
 
 - [x] pnpm monorepo, TS config, lint/format (oxlint + oxfmt), Vitest, GitHub Actions CI
 - [x] Postgres schema + migrations (Drizzle; M0/M1 tables, constraints from §6), storage driver interface (FS + S3) with checksum-verified writes and presigned PUTs
-- [x] `docker-compose.yml` with postgres + app (local-disk volume); `docker-compose.s3.yml` overlay with MinIO; `zopheros all` entrypoint, `/healthz` + `/readyz`, graceful shutdown
+- [x] `docker-compose.yml` with postgres + app (local-disk volume); `docker-compose.s3.yml` overlay with MinIO; `circi all` entrypoint, `/healthz` + `/readyz`, graceful shutdown
 - [x] Org + project creation via an admin CLI command (no UI yet), token issuance + rotation
 
 ### M1 — Upload → diff → view (≈2 weeks) — _first usable version_
 
 - [ ] Upload API (create build, presigned URLs, finalize) with **verify-before-dedup** (`pending`/`verified` files, S3 checksum PUTs, FS hash-on-write) and upload claims
-- [ ] Native CLI `zopheros upload <dir>` with CI env detection, git ancestry from the PR head SHA (base-branch fetch + deepen), `--wait` exit code
+- [ ] Native CLI `circi upload <dir>` with CI env detection, git ancestry from the PR head SHA (base-branch fetch + deepen), `--wait` exit code
 - [ ] CI token scopes: create/upload + read build status
 - [ ] Baseline resolution from CLI-provided ancestry (§7.2) with the eligibility filter (same name, complete, approved or no-changes), table-driven unit tests
 - [ ] Worker: pairing, odiff diffing, thresholds, **dimension change → always changed**, thumbnails, build completion
@@ -558,7 +558,7 @@ _Status: done, except the Docker image build and compose smoke test, which are d
 ### M2 — Organizations, auth & review (≈2 weeks)
 
 - [ ] Pluggable login methods; **email login (magic link + 6-digit code)** with rate limiting; password login; sessions list and revoke
-- [ ] Turning login methods on/off: instance env flags + per-org `auth_settings`, lockout guard, `zopheros admin auth` break-glass command
+- [ ] Turning login methods on/off: instance env flags + per-org `auth_settings`, lockout guard, `circi admin auth` break-glass command
 - [ ] Allowed email domains → auto-join org with a default role
 - [ ] Organizations, memberships, roles, invites; org/project settings UI
 - [ ] First-run setup link, invite-only default, `SIGNUPS_ENABLED` / `ORG_CREATION` (env + admin UI)
@@ -570,7 +570,7 @@ _Status: done, except the Docker image build and compose smoke test, which are d
 ### M2.5 — Git provider adapters + GitHub bot (≈3 weeks)
 
 - [ ] `GitProvider` interface + shared status/comment rendering
-- [ ] **GitHub bot**: App Manifest one-click setup (GitHub.com + GHES), install → repo/project linking, check run per build name with thumbnails and **Approve/Reject buttons**, PR summary comment, `/zopheros approve|reject|rerun` commands, GitHub-user → Zopheros-user mapping by GitHub id, review `source` audit, idempotent webhook handling + debounced updates
+- [ ] **GitHub bot**: App Manifest one-click setup (GitHub.com + GHES), install → repo/project linking, check run per build name with thumbnails and **Approve/Reject buttons**, PR summary comment, `/circi approve|reject|rerun` commands, GitHub-user → CirCI-user mapping by GitHub id, review `source` audit, idempotent webhook handling + debounced updates
 - [ ] Merge-gate modes: status gate when an integration is connected (`--wait` exits 0 on unreviewed changes), exit-code gate otherwise with "re-run to unblock" link; `--gate` override
 - [ ] GitLab (commit status, MR note; cloud + self-managed base URL)
 - [ ] Gitea/Forgejo (commit status, PR comment)
@@ -583,28 +583,28 @@ _Status: done, except the Docker image build and compose smoke test, which are d
 - [ ] Multiple build names per commit (e.g. `chromium`, `mobile`, `storybook`)
 - [ ] Check which commit-history fields the Argos SDK sends (from its source)
 - [ ] **Argos API compatibility layer** (maps SDK history fields) + contract tests running the real `@argos-ci/cli` and `@argos-ci/playwright`
-- [ ] History source order cli → sdk → provider → fallback, `baseline_source` shown on the build page; `zopheros argos-env` wrapper + `POST /v1/ancestry`
-- [ ] **`@zopheros/vitest`**: browser-side `zopherosScreenshot` with stabilization, reporter upload, shard mapping, one build per browser instance
+- [ ] History source order cli → sdk → provider → fallback, `baseline_source` shown on the build page; `circi argos-env` wrapper + `POST /v1/ancestry`
+- [ ] **`@circi/vitest`**: browser-side `circiScreenshot` with stabilization, reporter upload, shard mapping, one build per browser instance
 - [ ] Vitest `toMatchScreenshot` collection mode
 - [ ] Docs: CI examples (GitHub Actions, GitLab CI, Bitbucket Pipelines, Gitea Actions, Jenkins), Playwright + Vitest setup, migration from Argos
 
 ### M3.5 — Static-site pipeline (≈2 weeks)
 
-- [ ] `static_sites` schema (kind + name), tarball ingest worker (regular files + dirs only, no symlinks/hard links/devices, reserved `/_zopheros/` prefix, dedup, size limits)
+- [ ] `static_sites` schema (kind + name), tarball ingest worker (regular files + dirs only, no symlinks/hard links/devices, reserved `/_circi/` prefix, dedup, size limits)
 - [ ] **Kind registry** + built-in kinds: `storybook`, `vitest-report`, `playwright-report`, `coverage`, `docs`, `generic`, with `--kind auto` detection fixture tests per kind
-- [ ] `zopheros site upload` (+ `storybook upload` shortcut, `upload --site`); per-file transport for the S3 driver
+- [ ] `circi site upload` (+ `storybook upload` shortcut, `upload --site`); per-file transport for the S3 driver
 - [ ] SDK `uploadReport` options (Playwright reporter, Vitest plugin)
 - [ ] **Wildcard-subdomain serving on the separate sites domain** (`<site-id>.<STATIC_SITES_HOST>`), startup check that it's unrelated to `PUBLIC_URL`, caching with sent-bytes HTML ETags, SPA fallback
 - [ ] Caddy + `caddy-dns/route53` image and Caddyfile in `deploy/` (dashboard host + wildcard sites domain); IAM policy, Terraform snippet for both zones, Route53 setup docs
-- [ ] Docs: **"Check domain and cookie rules" setup step with ⚠️ warning** (dedicated sites domain; no `Domain=example.com` cookies), repeated on the static-hosting page and in the `deploy/` README; `zopheros doctor` best-effort check
-- [ ] Required-login SSO handoff (`/_sso/site` → single-use token → `__Host-zop_site` cookie), session/membership revocation within 60 s
+- [ ] Docs: **"Check domain and cookie rules" setup step with ⚠️ warning** (dedicated sites domain; no `Domain=example.com` cookies), repeated on the static-hosting page and in the `deploy/` README; `circi doctor` best-effort check
+- [ ] Required-login SSO handoff (`/_sso/site` → single-use token → `__Host-circi_site` cookie), session/membership revocation within 60 s
 - [ ] Site menu page per ref (commit/PR/branch/latest) with single-site direct redirect
-- [ ] Injected Shadow-DOM switcher served from the site's own origin (`/_zopheros/nav.js` + `sites.json`) for refs with 2+ sites; per-kind position; project/upload opt-out
+- [ ] Injected Shadow-DOM switcher served from the site's own origin (`/_circi/nav.js` + `sites.json`) for refs with 2+ sites; per-kind position; project/upload opt-out
 - [ ] Hardening: `__Host-` dashboard cookies, CSRF + exact-Origin checks, strict host routing, COOP/CORP, `frame-ancestors` (no X-Frame-Options), cookie-bomb cleanup on the sites domain
 - [ ] Embedded live view with partitioned cookie + new-tab fallback
 - [ ] Name-scoped branch/PR/latest aliases with path passthrough; Sites row in PR/MR comment
 - [ ] Review UI: Sites panel; per-screenshot deep-link buttons from the registry; live Storybook before/after iframe
-- [ ] `@zopheros/vitest` Storybook-addon mode (auto-screenshot each story with `storyId`)
+- [ ] `@circi/vitest` Storybook-addon mode (auto-screenshot each story with `storyId`)
 - [ ] Security tests: path traversal, symlink/hard-link tarballs, cross-site cookie isolation, cookie bombing, cookie tossing and CSRF from a malicious site, app/site host routing
 
 ### M4 — Hardening & polish (ongoing)
@@ -615,7 +615,7 @@ _Status: done, except the Docker image build and compose smoke test, which are d
 - [ ] Flaky detection (a screenshot that keeps changing on the default branch without review)
 - [ ] CloudFront in front of sites with signed cookies from the SSO handoff (optional, for heavy traffic)
 - [ ] Azure DevOps adapter; GitLab MR comment commands; SAML SSO; per-org storage quotas
-- [ ] `zopheros storage migrate` (fs ↔ s3)
+- [ ] `circi storage migrate` (fs ↔ s3)
 - [ ] Helm chart, metrics dashboard, backup docs
 
 ---

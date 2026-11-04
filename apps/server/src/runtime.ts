@@ -1,6 +1,6 @@
-import { type Config, loadConfig } from '@zopheros/config'
-import { createDb, type DbHandle } from '@zopheros/db'
-import { createStorage, type StorageDriver } from '@zopheros/storage'
+import { type Config, loadConfig } from '@circi/config'
+import { createDb, type DbHandle } from '@circi/db'
+import { createStorage, type StorageDriver } from '@circi/storage'
 import { type Logger, pino } from 'pino'
 
 export interface Runtime {
@@ -14,7 +14,7 @@ export interface Runtime {
 export function createLogger(config: Pick<Config, 'logLevel' | 'env'>): Logger {
   return pino({
     level: config.logLevel,
-    base: { service: 'zopheros' },
+    base: { service: 'circi' },
     redact: { paths: ['req.headers.authorization', 'req.headers.cookie'], remove: true },
   })
 }

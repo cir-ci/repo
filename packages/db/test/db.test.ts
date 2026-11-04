@@ -1,5 +1,5 @@
+import { hashToken } from '@circi/core'
 import { PGlite } from '@electric-sql/pglite'
-import { hashToken } from '@zopheros/core'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'
@@ -85,7 +85,7 @@ describe('organizations and projects', () => {
     expect(project.slug).toBe('web-app')
     expect(project.defaultBranch).toBe('main')
     expect(project.tokenHash).toBe(hashToken(token))
-    expect(project.tokenHint).toBe(`${token.slice(0, 10)}…`)
+    expect(project.tokenHint).toBe(`${token.slice(0, 12)}…`)
     const raw = await client.query(`select * from projects where id = $1`, [project.id])
     expect(JSON.stringify(raw.rows)).not.toContain(token)
   })

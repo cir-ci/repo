@@ -1,5 +1,5 @@
-import type { DbHandle } from '@zopheros/db'
-import type { StorageDriver } from '@zopheros/storage'
+import type { DbHandle } from '@circi/db'
+import type { StorageDriver } from '@circi/storage'
 
 export interface WorkerLogger {
   info(obj: object | string, msg?: string): void

@@ -1,9 +1,9 @@
 {
-  "name": "@zopheros/server",
+  "name": "@circi/server",
   "version": "0.0.0",
   "private": true,
   "bin": {
-    "zopheros": "./dist/main.js"
+    "circi": "./dist/main.js"
   },
   "type": "module",
   "exports": {
@@ -19,11 +19,11 @@
     "dev": "node --conditions=development src/main.ts"
   },
   "dependencies": {
-    "@zopheros/config": "workspace:*",
-    "@zopheros/core": "workspace:*",
-    "@zopheros/db": "workspace:*",
-    "@zopheros/storage": "workspace:*",
-    "@zopheros/worker": "workspace:*",
+    "@circi/config": "workspace:*",
+    "@circi/core": "workspace:*",
+    "@circi/db": "workspace:*",
+    "@circi/storage": "workspace:*",
+    "@circi/worker": "workspace:*",
     "commander": "15.0.0",
     "fastify": "5.12.8",
     "pino": "10.4.0"

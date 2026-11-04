@@ -1,49 +1,49 @@
-# Zopheros: single-server install with local-disk storage (the cheapest setup, PLAN §2).
+# CirCI: single-server install with local-disk storage (the cheapest setup, PLAN §2).
 #
 #   cd deploy && cp .env.example .env   # set POSTGRES_PASSWORD and PUBLIC_URL
 #   docker compose up -d --build
-#   docker compose exec zopheros zopheros admin org create --name "Acme"
-#   docker compose exec zopheros zopheros admin project create --org acme --name "Web app"
+#   docker compose exec circi circi admin org create --name "Acme"
+#   docker compose exec circi circi admin project create --org acme --name "Web app"
 #
 # For S3-compatible storage (local MinIO for development), add the overlay:
 #   docker compose -f docker-compose.yml -f docker-compose.s3.yml up -d --build
 
-name: zopheros
+name: circi
 
 services:
   postgres:
     image: postgres:18-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: zopheros
+      POSTGRES_USER: circi
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
-      POSTGRES_DB: zopheros
+      POSTGRES_DB: circi
     volumes:
       # Postgres 18 images keep their data under /var/lib/postgresql/<major>/.
       - pgdata:/var/lib/postgresql
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U zopheros -d zopheros']
+      test: ['CMD-SHELL', 'pg_isready -U circi -d circi']
       interval: 5s
       timeout: 3s
       retries: 20
 
-  zopheros:
+  circi:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
-    image: zopheros:local
+    image: circi:local
     restart: unless-stopped
     command: ['all']
     environment:
-      DATABASE_URL: postgres://zopheros:${POSTGRES_PASSWORD}@postgres:5432/zopheros
+      DATABASE_URL: postgres://circi:${POSTGRES_PASSWORD}@postgres:5432/circi
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       STORAGE_DRIVER: fs
-      STORAGE_PATH: /var/lib/zopheros/files
+      STORAGE_PATH: /var/lib/circi/files
     ports:
-      - '${ZOPHEROS_PORT:-3000}:3000'
+      - '${CIRCI_PORT:-3000}:3000'
     volumes:
-      - files:/var/lib/zopheros/files
+      - files:/var/lib/circi/files
     depends_on:
       postgres:
         condition: service_healthy
