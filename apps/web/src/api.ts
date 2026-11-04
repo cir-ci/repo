@@ -119,15 +119,18 @@ export const projectsQuery = () =>
     queryFn: () => getJson<{ projects: ProjectOverview[] }>('/api/projects'),
   })
 
-export const projectQuery = (org: string, project: string) =>
+export const projectQuery = (org: string, project: string, before?: number) =>
   queryOptions({
-    queryKey: ['project', org, project],
+    queryKey: ['project', org, project, before ?? null],
     queryFn: () =>
       getJson<{ project: ProjectInfo; builds: BuildListItem[] }>(
-        `/api/projects/${seg(org)}/${seg(project)}`,
+        `/api/projects/${seg(org)}/${seg(project)}${before ? `?before=${before}` : ''}`,
       ),
     refetchInterval: (q) => (q.state.data?.builds.some((b) => isActive(b.status)) ? 3_000 : false),
   })
+
+/** Page size of the builds list (the server returns at most this many). */
+export const BUILDS_PAGE_SIZE = 50
 
 export const buildQuery = (org: string, project: string, number: number) =>
   queryOptions({

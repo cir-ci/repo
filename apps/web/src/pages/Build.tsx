@@ -1,16 +1,10 @@
-import ExpandLess from '@mui/icons-material/ExpandLess'
-import ExpandMore from '@mui/icons-material/ExpandMore'
+import CollectionsOutlined from '@mui/icons-material/CollectionsOutlined'
 import {
   Alert,
   Box,
-  Breadcrumbs,
-  Chip,
-  Collapse,
-  List,
-  ListItemButton,
-  ListItemText,
-  ListSubheader,
+  CircularProgress,
   Paper,
+  Skeleton,
   Slider,
   Stack,
   ToggleButton,
@@ -18,8 +12,8 @@ import {
   Typography,
 } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
-import { useParams } from '@tanstack/react-router'
-import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
   type BuildDetail,
@@ -30,49 +24,120 @@ import {
   isActive,
 } from '../api.ts'
 import {
-  CountsLine,
-  ErrorAlert,
-  Loading,
-  RefLine,
+  BuildMeta,
+  BuildStateLabel,
+  CountsSummary,
+  DIFF_STATUS,
+  ErrorState,
   RouterLink,
-  StatusChip,
-  TimeAgo,
+  useDocumentTitle,
 } from '../components.tsx'
+import { Blankslate } from '../primitives/Blankslate.tsx'
+import { Delayed, useAnnounce } from '../primitives/feedback.tsx'
+import { CommitSha, StateLabel, ToneText } from '../primitives/labels.tsx'
+import { NavListGroup, NavListItem, navListItemSx } from '../primitives/NavList.tsx'
+import { PageHeader, ParentLinkContent } from '../primitives/PageHeader.tsx'
+import { PageLayout } from '../primitives/PageLayout.tsx'
+import type { ViewMode } from '../router.tsx'
 
-const GROUPS: { key: DiffStatus; label: string; open: boolean }[] = [
-  { key: 'changed', label: 'Changed', open: true },
-  { key: 'failed', label: 'Failed', open: true },
-  { key: 'added', label: 'Added', open: true },
-  { key: 'removed', label: 'Removed', open: true },
-  { key: 'unchanged', label: 'Unchanged', open: false },
+const ROUTE = '/$org/$project/builds/$number'
+
+/** Review order: what needs a decision first, unchanged last (and collapsed). */
+const GROUPS: { key: DiffStatus; title: string; open: boolean }[] = [
+  { key: 'changed', title: 'Changed', open: true },
+  { key: 'failed', title: 'Failed', open: true },
+  { key: 'added', title: 'Added', open: true },
+  { key: 'removed', title: 'Removed', open: true },
+  { key: 'unchanged', title: 'Unchanged', open: false },
 ]
 
-type Mode = 'side' | 'overlay' | 'diff'
-
 export function BuildPage() {
-  const params = useParams({ from: '/$org/$project/builds/$number' })
+  const params = useParams({ from: ROUTE })
   const number = Number(params.number)
-  const { data, error } = useQuery(buildQuery(params.org, params.project, number))
-  if (error) return <ErrorAlert error={error} />
-  if (!data) return <Loading />
-  return <BuildView data={data} />
+  const { data, error, refetch } = useQuery(buildQuery(params.org, params.project, number))
+  useDocumentTitle(`Build #${number}`, params.project)
+  useProcessingAnnouncement(data)
+
+  const parentLink = (
+    <RouterLink to="/$org/$project" params={{ org: params.org, project: params.project }}>
+      <ParentLinkContent>{params.project}</ParentLinkContent>
+    </RouterLink>
+  )
+
+  if (error) {
+    return (
+      <PageLayout header={<PageHeader title={`Build #${number}`} parentLink={parentLink} />}>
+        <ErrorState
+          error={error}
+          onRetry={() => void refetch()}
+          notFound="This build doesn’t exist"
+        />
+      </PageLayout>
+    )
+  }
+  if (!data) {
+    // The title is known from the URL, so only the rest waits; placeholders keep the layout still.
+    return (
+      <PageLayout
+        header={
+          <PageHeader
+            title={`Build #${number}`}
+            parentLink={parentLink}
+            description={
+              <Delayed>
+                <Skeleton width={320} />
+              </Delayed>
+            }
+          />
+        }
+        pane={
+          <Delayed>
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} height={44} />
+            ))}
+          </Delayed>
+        }
+      >
+        <Delayed>
+          <Skeleton variant="rounded" height={420} />
+        </Delayed>
+      </PageLayout>
+    )
+  }
+  return <BuildReview data={data} parentLink={parentLink} />
 }
 
-function BuildView({ data }: { data: BuildDetail }) {
-  const { build, baseline, project } = data
+/** Tells screen reader users once when a build they're watching finishes processing. */
+function useProcessingAnnouncement(data: BuildDetail | undefined) {
+  const announce = useAnnounce()
+  const wasActive = useRef<boolean | undefined>(undefined)
+  useEffect(() => {
+    if (!data) return
+    const active = isActive(data.build.status)
+    if (wasActive.current && !active) {
+      const c = data.build.counts
+      announce(
+        `Build #${data.build.number} processed: ${c.changed} changed, ${c.added} added, ${c.removed} removed.`,
+      )
+    }
+    wasActive.current = active
+  }, [data, announce])
+}
 
-  // Review order: what needs attention first, unchanged last.
+function BuildReview({ data, parentLink }: { data: BuildDetail; parentLink: ReactNode }) {
+  const { build, baseline } = data
+  const params = useParams({ from: ROUTE })
+  const search = useSearch({ from: ROUTE })
+  const navigate = useNavigate({ from: ROUTE })
+  const mode: ViewMode = search.mode ?? 'side'
+
   const ordered = useMemo(
     () => GROUPS.flatMap((g) => data.diffs.filter((d) => d.status === g.key)),
     [data.diffs],
   )
-  const [selectedId, setSelectedId] = useState<string | undefined>(undefined)
-  const selected =
-    ordered.find((d) => d.id === selectedId) ??
-    ordered.find((d) => d.status !== 'unchanged') ??
-    ordered[0]
-  const [mode, setMode] = useState<Mode>('side')
-  const [opacity, setOpacity] = useState(0.7)
+  const fromUrl = search.shot ? ordered.find((d) => d.name === search.shot) : undefined
+  // Wide viewports open the first screenshot that needs attention; narrow ones show the list first.
+  const selected = fromUrl ?? ordered.find((d) => d.status !== 'unchanged') ?? ordered[0]
   const [open, setOpen] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(GROUPS.map((g) => [g.key, g.open])),
   )
@@ -81,162 +146,178 @@ function BuildView({ data }: { data: BuildDetail }) {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return
       const i = selected ? ordered.indexOf(selected) : -1
-      if (e.key === 'j') setSelectedId(ordered[Math.min(ordered.length - 1, i + 1)]?.id)
-      else if (e.key === 'k') setSelectedId(ordered[Math.max(0, i - 1)]?.id)
-      else if (e.key === '1') setMode('side')
-      else if (e.key === '2') setMode('overlay')
-      else if (e.key === '3') setMode('diff')
-      else return
+      const change: Record<string, { shot?: string; mode?: ViewMode } | undefined> = {
+        j: { shot: ordered[Math.min(ordered.length - 1, i + 1)]?.name },
+        k: { shot: ordered[Math.max(0, i - 1)]?.name },
+        '1': { mode: 'side' },
+        '2': { mode: 'overlay' },
+        '3': { mode: 'diff' },
+      }
+      const next = change[e.key]
+      if (!next) return
       e.preventDefault()
+      void navigate({ search: (prev) => ({ ...prev, ...next }), replace: true })
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [ordered, selected])
+  }, [ordered, selected, navigate])
 
-  return (
-    <>
-      <Breadcrumbs sx={{ mb: 1 }}>
-        <RouterLink to="/" underline="hover" color="inherit">
-          Projects
-        </RouterLink>
-        <RouterLink
-          to="/$org/$project"
-          params={{ org: project.orgSlug, project: project.slug }}
-          underline="hover"
-          color="inherit"
-        >
-          {project.name}
-        </RouterLink>
-        <Typography color="text.primary">#{build.number}</Typography>
-      </Breadcrumbs>
-
-      <Stack spacing={1} sx={{ mb: 2 }}>
-        <Typography variant="h1">
+  const header = (
+    <PageHeader
+      title={
+        <>
           Build #{build.number}
           {build.name !== 'default' ? (
-            <Chip label={build.name} variant="outlined" sx={{ ml: 1 }} />
+            <Box component="span" sx={{ fontWeight: 400, color: 'text.secondary' }}>
+              {' '}
+              · {build.name}
+            </Box>
           ) : null}
-        </Typography>
-        <Stack
-          direction="row"
-          spacing={2}
-          useFlexGap
-          sx={{ alignItems: 'center', flexWrap: 'wrap' }}
-        >
-          <StatusChip build={build} />
-          <RefLine build={build} />
-          <Typography variant="body2" color="text.secondary">
-            <TimeAgo iso={build.createdAt} />
-          </Typography>
-          <CountsLine counts={build.counts} />
+        </>
+      }
+      parentLink={parentLink}
+      trailingVisual={<BuildStateLabel build={build} />}
+      description={
+        <Stack spacing={1}>
+          <BuildMeta build={build} />
+          {isActive(build.status) ? null : <CountsSummary counts={build.counts} />}
         </Stack>
-        <Typography variant="body2" color="text.secondary">
-          {baselineText(data)}
-        </Typography>
+      }
+      hasBorder
+    >
+      <Stack spacing={1}>
+        <BaselineNote data={data} />
         {build.errorMessage ? <Alert severity="error">{build.errorMessage}</Alert> : null}
         {isActive(build.status) ? (
-          <Alert severity="info">Processing… this page updates by itself.</Alert>
+          <Alert severity="info" icon={<CircularProgress size={16} aria-hidden />}>
+            Processing screenshots. This page updates when it’s done.
+          </Alert>
         ) : null}
       </Stack>
+    </PageHeader>
+  )
 
-      {ordered.length === 0 ? null : (
-        <Box
-          sx={{
-            display: 'grid',
-            gap: 2,
-            alignItems: 'start',
-            gridTemplateColumns: { xs: '1fr', md: '300px minmax(0, 1fr)' },
-          }}
-        >
-          <Paper
-            component="nav"
-            aria-label="Screenshots"
-            sx={{
-              position: { md: 'sticky' },
-              top: { md: 64 },
-              maxHeight: { xs: '40vh', md: 'calc(100vh - 88px)' },
-              overflowY: 'auto',
-            }}
-          >
-            {GROUPS.map((g) => {
-              const items = data.diffs.filter((d) => d.status === g.key)
-              if (items.length === 0) return null
-              // The selected screenshot's group stays open, so j/k never selects something hidden.
-              const isOpen = (open[g.key] ?? false) || selected?.status === g.key
-              return (
-                <List
-                  key={g.key}
-                  dense
-                  disablePadding
-                  subheader={
-                    <ListSubheader
-                      component="button"
-                      onClick={() => setOpen((o) => ({ ...o, [g.key]: !isOpen }))}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        width: '100%',
-                        border: 0,
-                        cursor: 'pointer',
-                        font: 'inherit',
-                      }}
+  if (ordered.length === 0) {
+    return (
+      <PageLayout header={header}>
+        {isActive(build.status) ? null : (
+          <Blankslate
+            icon={<CollectionsOutlined />}
+            heading="No screenshots in this build"
+            description="The upload contained no PNG files."
+          />
+        )}
+      </PageLayout>
+    )
+  }
+
+  return (
+    <PageLayout
+      header={header}
+      paneLabel="Screenshots"
+      narrowShows={fromUrl ? 'content' : 'pane'}
+      pane={
+        <Box component="ul" sx={{ m: 0, p: 0 }}>
+          {GROUPS.map((g) => {
+            const items = data.diffs.filter((d) => d.status === g.key)
+            if (items.length === 0) return null
+            return (
+              <NavListGroup
+                key={g.key}
+                title={g.title}
+                count={items.length}
+                // The selected screenshot's group stays open, so j/k never selects something hidden.
+                open={(open[g.key] ?? false) || selected?.status === g.key}
+                onToggle={() => setOpen((o) => ({ ...o, [g.key]: !(o[g.key] ?? false) }))}
+              >
+                {items.map((d) => (
+                  <NavListItem key={d.id}>
+                    <RouterLink
+                      to={ROUTE}
+                      params={params}
+                      search={(prev) => ({ ...prev, shot: d.name })}
+                      // Current only when chosen in the URL. Wide viewports also open a default
+                      // screenshot, which gets the same marker there; narrow ones show the list.
+                      aria-current={d.id === fromUrl?.id ? 'page' : undefined}
+                      data-default={!fromUrl && d.id === selected?.id ? '' : undefined}
+                      sx={navListItemSx}
                     >
-                      <Box component="span" sx={{ flex: 1, textAlign: 'left' }}>
-                        {g.label} · {items.length}
+                      <Thumb diff={d} />
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography noWrap title={d.name} sx={{ fontWeight: 'inherit' }}>
+                          {d.name}
+                        </Typography>
+                        {d.status === 'changed' ? (
+                          <Typography variant="body2" color="text.secondary">
+                            {changeSummary(d)}
+                          </Typography>
+                        ) : null}
                       </Box>
-                      {isOpen ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
-                    </ListSubheader>
-                  }
-                >
-                  <Collapse in={isOpen} unmountOnExit>
-                    {items.map((d) => (
-                      <ListItemButton
-                        key={d.id}
-                        selected={d.id === selected?.id}
-                        onClick={() => setSelectedId(d.id)}
-                      >
-                        <Thumb diff={d} />
-                        <ListItemText
-                          primary={d.name}
-                          secondary={d.status === 'changed' ? scoreText(d) : null}
-                          slotProps={{ primary: { noWrap: true, title: d.name } }}
-                          sx={{ ml: 1.5, minWidth: 0 }}
-                        />
-                      </ListItemButton>
-                    ))}
-                  </Collapse>
-                </List>
-              )
-            })}
-          </Paper>
-          {selected ? (
-            <Viewer
-              diff={selected}
-              mode={mode}
-              onMode={setMode}
-              opacity={opacity}
-              onOpacity={setOpacity}
-              baselineNumber={baseline?.number}
-            />
-          ) : null}
+                    </RouterLink>
+                  </NavListItem>
+                ))}
+              </NavListGroup>
+            )
+          })}
         </Box>
-      )}
-    </>
+      }
+    >
+      {selected ? (
+        <Viewer
+          diff={selected}
+          mode={mode}
+          baselineNumber={baseline?.number}
+          backLink={
+            <RouterLink
+              to={ROUTE}
+              params={params}
+              search={(prev) => ({ ...prev, shot: undefined })}
+            >
+              <ParentLinkContent>All screenshots</ParentLinkContent>
+            </RouterLink>
+          }
+          onMode={(m) => void navigate({ search: (prev) => ({ ...prev, mode: m }), replace: true })}
+        />
+      ) : null}
+    </PageLayout>
   )
 }
 
-function baselineText({ build, baseline }: BuildDetail): string {
-  if (isActive(build.status)) return 'Picking a baseline…'
-  if (!baseline)
-    return 'No baseline: this is the first build to compare against, so every screenshot is new.'
-  const where = `build #${baseline.number} (${baseline.branch ?? 'unknown branch'} @ ${baseline.commitSha.slice(0, 7)})`
-  if (build.baselineSource === 'fallback') {
-    return `Compared with ${where}, the latest on the default branch. This build's git history wasn't available, so the comparison may include unrelated changes.`
+/** Where the comparison comes from: plain metadata normally, a warning when it's a fallback. */
+function BaselineNote({ data }: { data: BuildDetail }) {
+  const { build, baseline } = data
+  if (isActive(build.status)) return null
+  if (!baseline) {
+    return (
+      <Alert severity="info">
+        First build to compare against: every screenshot is new. Later builds are compared with this
+        one once it’s approved.
+      </Alert>
+    )
   }
-  return `Compared with ${where}.`
+  const where = (
+    <>
+      build #{baseline.number} on {baseline.branch ?? 'an unknown branch'} (
+      <CommitSha sha={baseline.commitSha} />)
+    </>
+  )
+  if (build.baselineSource === 'fallback') {
+    return (
+      <Alert severity="warning">
+        Compared with {where}, the latest on the default branch, because this build’s git history
+        wasn’t available. Changes merged since this branch was created may show up here. Fetch more
+        history in CI (for example <code>fetch-depth: 0</code>) for an exact comparison.
+      </Alert>
+    )
+  }
+  return (
+    <Typography color="text.secondary">
+      Compared with {where}, where this branch started.
+    </Typography>
+  )
 }
 
-function scoreText(d: DiffItem): string {
+function changeSummary(d: DiffItem): string {
   if (d.sizeChanged) return 'Size changed'
   if (d.score === null) return ''
   const pct = d.score * 100
@@ -245,179 +326,235 @@ function scoreText(d: DiffItem): string {
 
 function Thumb({ diff }: { diff: DiffItem }) {
   const src = diff.head?.thumbnail ?? diff.base?.thumbnail
-  return (
-    <Box
-      component={src ? 'img' : 'span'}
-      {...(src ? { src: fileUrl(src), alt: '', loading: 'lazy' as const } : {})}
-      sx={{
-        width: 48,
-        height: 36,
-        flexShrink: 0,
-        objectFit: 'cover',
-        objectPosition: 'top',
-        borderRadius: 0.5,
-        border: 1,
-        borderColor: 'divider',
-        bgcolor: 'action.hover',
-      }}
-    />
+  const sx = {
+    width: 48,
+    height: 32,
+    flexShrink: 0,
+    objectFit: 'cover',
+    objectPosition: 'top',
+    borderRadius: 1,
+    border: 1,
+    borderColor: 'divider',
+    bgcolor: 'action.hover',
+  } as const
+  return src ? (
+    <Box component="img" src={fileUrl(src)} alt="" loading="lazy" sx={sx} />
+  ) : (
+    <Box component="span" sx={sx} />
   )
 }
 
 /** Checkerboard behind screenshots, so transparency and size-change padding are visible. */
 const checker = {
-  border: 1,
-  borderColor: 'divider',
-  borderRadius: 1,
-  backgroundImage: 'repeating-conic-gradient(rgba(127,127,127,0.18) 0% 25%, transparent 0% 50%)',
+  display: 'block',
+  maxWidth: '100%',
+  height: 'auto',
+  backgroundImage: 'repeating-conic-gradient(rgba(127,127,127,0.16) 0% 25%, transparent 0% 50%)',
   backgroundSize: '16px 16px',
 } as const
 
+/**
+ * The screenshot viewer, shaped like GitHub's file box: a header bar with the name, status and
+ * view switch (Primer SegmentedControl: switching views is not navigation), then the images.
+ */
 function Viewer(props: {
   diff: DiffItem
-  mode: Mode
-  onMode: (m: Mode) => void
-  opacity: number
-  onOpacity: (n: number) => void
+  mode: ViewMode
   baselineNumber: number | undefined
+  backLink: ReactNode
+  onMode: (m: ViewMode) => void
 }) {
   const { diff } = props
-  const comparable = diff.status === 'changed' && diff.head !== null && diff.base !== null
-  const mode: Mode = comparable ? props.mode : 'side'
+  const [opacity, setOpacity] = useState(0.7)
+  const comparable =
+    diff.status === 'changed' && diff.head !== null && diff.base !== null && diff.diff !== null
+  const mode: ViewMode = comparable ? props.mode : 'side'
+  const status = diff.status ? DIFF_STATUS[diff.status] : undefined
 
   return (
-    <Paper sx={{ p: 2, minWidth: 0 }}>
-      <Stack
-        direction="row"
-        spacing={2}
-        useFlexGap
-        sx={{ alignItems: 'center', flexWrap: 'wrap', mb: 2 }}
-      >
-        <Typography variant="h2" noWrap title={diff.name} sx={{ mr: 'auto', minWidth: 0 }}>
-          {diff.name}
-        </Typography>
-        {/* Before the mode buttons, so they don't move when the slider appears. */}
-        {comparable && mode === 'overlay' ? (
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', width: 240 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0 }}>
-              Diff layer
-            </Typography>
-            <Slider
-              size="small"
-              min={0}
-              max={1}
-              step={0.05}
-              value={props.opacity}
-              onChange={(_, v) => props.onOpacity(Array.isArray(v) ? (v[0] ?? 0) : v)}
-              aria-label="Diff layer opacity"
-            />
-          </Stack>
-        ) : null}
-        {comparable ? (
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={mode}
-            onChange={(_, m: Mode | null) => m && props.onMode(m)}
-            aria-label="View mode"
-          >
-            <ToggleButton value="side" title="Side by side (1)">
-              Side by side
-            </ToggleButton>
-            <ToggleButton value="overlay" title="Overlay (2)">
-              Overlay
-            </ToggleButton>
-            <ToggleButton value="diff" title="Diff (3)">
-              Diff
-            </ToggleButton>
-          </ToggleButtonGroup>
-        ) : null}
-      </Stack>
-
-      {diff.status === 'failed' ? (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {diff.errorMessage ?? 'This screenshot could not be processed.'}
-        </Alert>
-      ) : null}
-      {diff.sizeChanged && diff.base && diff.head ? (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          Size changed: {diff.base.width}×{diff.base.height} → {diff.head.width}×{diff.head.height}
-        </Alert>
-      ) : null}
-
-      {mode === 'side' ? (
+    <>
+      <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 2 }}>{props.backLink}</Box>
+      <Paper component="section" aria-labelledby="viewer-title" sx={{ overflow: 'hidden' }}>
         <Box
           sx={{
-            display: 'grid',
-            gap: 2,
-            gridTemplateColumns: { xs: '1fr', lg: diff.base && diff.head ? '1fr 1fr' : '1fr' },
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 1.5,
+            px: 2,
+            py: 1,
+            bgcolor: 'action.hover',
+            borderBottom: 1,
+            borderColor: 'divider',
           }}
         >
-          {diff.base ? (
-            <Pane
-              label={props.baselineNumber ? `Baseline (#${props.baselineNumber})` : 'Baseline'}
-              sha={diff.base.sha256}
-            />
+          {status ? (
+            <StateLabel tone={status.tone} icon={status.icon} size="small">
+              {status.label}
+            </StateLabel>
           ) : null}
-          {diff.head ? (
-            <Pane label={diff.status === 'added' ? 'New' : 'This build'} sha={diff.head.sha256} />
-          ) : null}
-          {!diff.head && diff.base ? (
-            <Typography color="text.secondary">Removed in this build.</Typography>
-          ) : null}
-        </Box>
-      ) : null}
-
-      {mode === 'overlay' && diff.head && diff.diff ? (
-        <Box component="figure" sx={{ m: 0 }}>
-          <Typography component="figcaption" variant="caption" color="text.secondary">
-            This build, with changes highlighted
+          <Typography
+            id="viewer-title"
+            variant="h2"
+            component="h2"
+            noWrap
+            title={diff.name}
+            sx={{ minWidth: 0, flex: 1 }}
+          >
+            {diff.name}
           </Typography>
-          <Box sx={{ position: 'relative', display: 'inline-block', maxWidth: '100%' }}>
-            <Box
-              component="img"
-              src={fileUrl(diff.head.sha256)}
-              alt={`${diff.name} in this build`}
-              sx={{ display: 'block', maxWidth: '100%', ...checker }}
-            />
-            <Box
-              component="img"
-              src={fileUrl(diff.diff.sha256)}
-              alt=""
-              sx={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                pointerEvents: 'none',
-                opacity: props.opacity,
-              }}
-            />
-          </Box>
+          {comparable && mode === 'overlay' ? (
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', width: 220 }}>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ flexShrink: 0 }}
+                id="opacity-label"
+              >
+                Diff layer
+              </Typography>
+              <Slider
+                size="small"
+                min={0}
+                max={1}
+                step={0.05}
+                value={opacity}
+                onChange={(_, v) => setOpacity(Array.isArray(v) ? (v[0] ?? 0) : v)}
+                aria-labelledby="opacity-label"
+              />
+            </Stack>
+          ) : null}
+          {comparable ? (
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={mode}
+              onChange={(_, m: ViewMode | null) => m && props.onMode(m)}
+              aria-label="View"
+            >
+              <ToggleButton value="side" title="Side by side (1)">
+                Side by side
+              </ToggleButton>
+              <ToggleButton value="overlay" title="Overlay (2)">
+                Overlay
+              </ToggleButton>
+              <ToggleButton value="diff" title="Changes only (3)">
+                Changes only
+              </ToggleButton>
+            </ToggleButtonGroup>
+          ) : null}
         </Box>
-      ) : null}
 
-      {mode === 'diff' && diff.diff ? (
-        <Pane label="Changed pixels in red" sha={diff.diff.sha256} />
-      ) : null}
-    </Paper>
+        <Box sx={{ p: 2 }}>
+          {diff.status === 'failed' ? (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {diff.errorMessage ?? 'This screenshot couldn’t be processed.'}
+            </Alert>
+          ) : null}
+          {diff.sizeChanged && diff.base && diff.head ? (
+            <ToneText tone="attention" sx={{ mb: 2, typography: 'body1' }}>
+              Size changed from {diff.base.width}×{diff.base.height} to {diff.head.width}×
+              {diff.head.height}
+            </ToneText>
+          ) : null}
+
+          {mode === 'side' ? (
+            <Box
+              sx={{
+                display: 'grid',
+                gap: 2,
+                gridTemplateColumns: { xs: '1fr', lg: diff.base && diff.head ? '1fr 1fr' : '1fr' },
+              }}
+            >
+              {diff.base ? (
+                <Figure
+                  label={
+                    props.baselineNumber ? `Baseline · build #${props.baselineNumber}` : 'Baseline'
+                  }
+                  sha={diff.base.sha256}
+                />
+              ) : null}
+              {diff.head ? (
+                <Figure
+                  label={diff.status === 'added' ? 'New in this build' : 'This build'}
+                  sha={diff.head.sha256}
+                />
+              ) : null}
+              {!diff.head && diff.base ? (
+                <Typography color="text.secondary">
+                  This screenshot isn’t in this build any more.
+                </Typography>
+              ) : null}
+            </Box>
+          ) : null}
+
+          {mode === 'overlay' && diff.head && diff.diff ? (
+            <Box component="figure" sx={{ m: 0 }}>
+              <Typography
+                component="figcaption"
+                variant="body2"
+                color="text.secondary"
+                sx={{ mb: 0.5 }}
+              >
+                This build, with changed pixels highlighted
+              </Typography>
+              <Box
+                sx={{
+                  position: 'relative',
+                  display: 'inline-block',
+                  maxWidth: '100%',
+                  border: 1,
+                  borderColor: 'divider',
+                }}
+              >
+                <Box
+                  component="img"
+                  src={fileUrl(diff.head.sha256)}
+                  alt={`${diff.name} in this build`}
+                  sx={checker}
+                />
+                <Box
+                  component="img"
+                  src={fileUrl(diff.diff.sha256)}
+                  alt=""
+                  sx={{
+                    position: 'absolute',
+                    inset: 0,
+                    width: '100%',
+                    height: '100%',
+                    pointerEvents: 'none',
+                    opacity,
+                  }}
+                />
+              </Box>
+            </Box>
+          ) : null}
+
+          {mode === 'diff' && diff.diff ? (
+            <Figure label="Changed pixels in red" sha={diff.diff.sha256} />
+          ) : null}
+        </Box>
+      </Paper>
+    </>
   )
 }
 
-function Pane({ label, sha }: { label: string; sha: string }) {
+function Figure({ label, sha }: { label: string; sha: string }) {
   return (
     <Box component="figure" sx={{ m: 0, minWidth: 0 }}>
-      <Typography component="figcaption" variant="caption" color="text.secondary">
+      <Typography component="figcaption" variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
         {label}
       </Typography>
-      <a href={fileUrl(sha)} target="_blank" rel="noreferrer" title="Open full size">
-        <Box
-          component="img"
-          src={fileUrl(sha)}
-          alt={label}
-          sx={{ display: 'block', maxWidth: '100%', height: 'auto', ...checker }}
-        />
-      </a>
+      <Box
+        component="a"
+        href={fileUrl(sha)}
+        target="_blank"
+        rel="noreferrer"
+        title="Open full size"
+        sx={{ display: 'inline-block', maxWidth: '100%', border: 1, borderColor: 'divider' }}
+      >
+        <Box component="img" src={fileUrl(sha)} alt={label} sx={checker} />
+      </Box>
     </Box>
   )
 }

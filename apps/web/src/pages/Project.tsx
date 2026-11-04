@@ -1,100 +1,156 @@
-import {
-  Box,
-  Breadcrumbs,
-  Chip,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-} from '@mui/material'
+import CollectionsOutlined from '@mui/icons-material/CollectionsOutlined'
+import { Box, Button, Typography } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
-import { useParams } from '@tanstack/react-router'
+import { createLink, useParams, useSearch } from '@tanstack/react-router'
 
-import { projectQuery } from '../api.ts'
+import { BUILDS_PAGE_SIZE, projectQuery } from '../api.ts'
 import {
-  Code,
-  CountsLine,
-  ErrorAlert,
-  Loading,
-  RefLine,
+  BuildMeta,
+  BuildStateLabel,
+  CountsSummary,
+  ErrorState,
   RouterLink,
-  StatusChip,
-  TimeAgo,
+  useDocumentTitle,
 } from '../components.tsx'
+import { Blankslate } from '../primitives/Blankslate.tsx'
+import { ListSkeleton } from '../primitives/feedback.tsx'
+import { BranchName } from '../primitives/labels.tsx'
+import { PageHeader } from '../primitives/PageHeader.tsx'
+import { PageLayout } from '../primitives/PageLayout.tsx'
+
+const ButtonLink = createLink(Button)
 
 export function ProjectPage() {
   const { org, project } = useParams({ from: '/$org/$project' })
-  const { data, error } = useQuery(projectQuery(org, project))
-  if (error) return <ErrorAlert error={error} />
-  if (!data) return <Loading />
+  const { before } = useSearch({ from: '/$org/$project' })
+  const { data, error, refetch } = useQuery(projectQuery(org, project, before))
+  useDocumentTitle(before ? 'Older builds' : 'Builds', data?.project.name ?? project)
+
+  const builds = data?.builds ?? []
+  const oldest = builds.at(-1)?.number
 
   return (
-    <>
-      <Breadcrumbs sx={{ mb: 1 }}>
-        <RouterLink to="/" underline="hover" color="inherit">
-          Projects
-        </RouterLink>
-        <Typography color="text.secondary">{data.project.orgName}</Typography>
-      </Breadcrumbs>
-      <Typography variant="h1" gutterBottom>
-        {data.project.name}
+    <PageLayout
+      header={
+        <PageHeader
+          // The project name only arrives with the data; the slug keeps the header from jumping.
+          title={data?.project.name ?? project}
+          description={
+            data ? (
+              <>
+                Screenshot builds from CI. Builds on{' '}
+                <BranchName>{data.project.defaultBranch}</BranchName> become the baselines that pull
+                requests are compared with.
+              </>
+            ) : undefined
+          }
+        />
+      }
+    >
+      <Typography variant="h2" component="h2" sx={{ mb: 1.5 }}>
+        {before ? 'Older builds' : 'Builds'}
       </Typography>
-
-      {data.builds.length === 0 ? (
-        <Box sx={{ maxWidth: 720 }}>
-          <Typography>No builds yet. Upload screenshots from CI:</Typography>
-          <Code>{`CIRCI_TOKEN=… CIRCI_API_URL=${window.location.origin} npx circi upload ./screenshots --wait`}</Code>
-        </Box>
+      {error ? (
+        <ErrorState
+          error={error}
+          onRetry={() => void refetch()}
+          notFound="This project doesn’t exist"
+        />
+      ) : !data ? (
+        <ListSkeleton />
+      ) : builds.length === 0 ? (
+        <Blankslate
+          border
+          icon={<CollectionsOutlined />}
+          heading={before ? 'No older builds' : 'No builds yet'}
+          description={
+            before
+              ? undefined
+              : 'Upload screenshots from your CI job. Builds appear here as soon as they’re processed.'
+          }
+          code={
+            before
+              ? undefined
+              : `CIRCI_TOKEN=… CIRCI_API_URL=${window.location.origin} \\\n  npx circi upload ./screenshots --wait`
+          }
+        />
       ) : (
-        <TableContainer component={Paper}>
-          <Table size="small" aria-label="Builds">
-            <TableHead>
-              <TableRow>
-                <TableCell>Build</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Branch</TableCell>
-                <TableCell>Screenshots</TableCell>
-                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>When</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {data.builds.map((b) => (
-                <TableRow key={b.id} hover>
-                  <TableCell>
+        <>
+          <Box
+            component="ul"
+            aria-label="Builds"
+            sx={{ m: 0, p: 0, border: 1, borderColor: 'divider', borderRadius: 1 }}
+          >
+            {builds.map((b, i) => (
+              <Box
+                component="li"
+                key={b.id}
+                sx={{
+                  listStyle: 'none',
+                  display: 'flex',
+                  flexDirection: { xs: 'column', md: 'row' },
+                  alignItems: { xs: 'flex-start', md: 'center' },
+                  gap: 1.5,
+                  px: 2,
+                  py: 1.5,
+                  borderTop: i === 0 ? 0 : 1,
+                  borderColor: 'divider',
+                  '&:hover': { bgcolor: 'action.hover' },
+                }}
+              >
+                {/* Fixed-width column so build titles line up whatever the state's label length. */}
+                <Box sx={{ width: { md: 148 }, flexShrink: 0 }}>
+                  <BuildStateLabel build={b} size="small" />
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography component="h3" sx={{ fontWeight: 600 }}>
                     <RouterLink
                       to="/$org/$project/builds/$number"
                       params={{ org, project, number: String(b.number) }}
+                      color="text.primary"
                     >
-                      #{b.number}
+                      Build #{b.number}
+                      {b.name !== 'default' ? (
+                        <Box component="span" sx={{ fontWeight: 400, color: 'text.secondary' }}>
+                          {' '}
+                          · {b.name}
+                        </Box>
+                      ) : null}
                     </RouterLink>
-                    {b.name !== 'default' ? (
-                      <Chip label={b.name} variant="outlined" sx={{ ml: 1 }} />
-                    ) : null}
-                  </TableCell>
-                  <TableCell>
-                    <StatusChip build={b} />
-                  </TableCell>
-                  <TableCell>
-                    <RefLine build={b} />
-                  </TableCell>
-                  <TableCell>
-                    <CountsLine counts={b.counts} />
-                  </TableCell>
-                  <TableCell
-                    sx={{ display: { xs: 'none', md: 'table-cell' }, color: 'text.secondary' }}
-                  >
-                    <TimeAgo iso={b.createdAt} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                  </Typography>
+                  <Box sx={{ mt: 0.25 }}>
+                    <BuildMeta build={b} />
+                  </Box>
+                </Box>
+                <CountsSummary counts={b.counts} includeUnchanged={false} />
+              </Box>
+            ))}
+          </Box>
+          {/* Primer: pagination sits directly below the collection it pages. */}
+          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 2 }}>
+            {before ? (
+              <ButtonLink
+                variant="outlined"
+                to="/$org/$project"
+                params={{ org, project }}
+                search={{}}
+              >
+                Newest builds
+              </ButtonLink>
+            ) : null}
+            {builds.length === BUILDS_PAGE_SIZE && oldest ? (
+              <ButtonLink
+                variant="outlined"
+                to="/$org/$project"
+                params={{ org, project }}
+                search={{ before: oldest }}
+              >
+                Older builds
+              </ButtonLink>
+            ) : null}
+          </Box>
+        </>
       )}
-    </>
+    </PageLayout>
   )
 }
