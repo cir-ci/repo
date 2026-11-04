@@ -1,0 +1,105 @@
+import sharp from 'sharp'
+import { describe, expect, it } from 'vitest'
+
+import { diffImages, InvalidImageError, makeThumbnail, readPngInfo } from '../src/index.ts'
+
+/** A solid-colour PNG, optionally with a filled rectangle on top. */
+async function png(
+  width: number,
+  height: number,
+  options: {
+    color?: string
+    rect?: { x: number; y: number; w: number; h: number; color: string }
+  } = {},
+): Promise<Buffer> {
+  let img = sharp({
+    create: { width, height, channels: 4, background: options.color ?? '#ffffff' },
+  })
+  if (options.rect) {
+    const r = options.rect
+    const patch = await sharp({
+      create: { width: r.w, height: r.h, channels: 4, background: r.color },
+    })
+      .png()
+      .toBuffer()
+    img = sharp(await img.png().toBuffer()).composite([{ input: patch, left: r.x, top: r.y }])
+  }
+  return img.png().toBuffer()
+}
+
+describe('readPngInfo', () => {
+  it('reads PNG dimensions', async () => {
+    expect(await readPngInfo(await png(40, 30))).toEqual({ width: 40, height: 30 })
+  })
+
+  it('rejects non-PNG and garbage input', async () => {
+    const jpeg = await sharp({ create: { width: 4, height: 4, channels: 3, background: '#000' } })
+      .jpeg()
+      .toBuffer()
+    await expect(readPngInfo(jpeg)).rejects.toThrow(/Expected a PNG, got jpeg/)
+    await expect(readPngInfo(Buffer.from('not an image'))).rejects.toBeInstanceOf(InvalidImageError)
+  })
+})
+
+describe('diffImages', () => {
+  it('finds no change between identical renders', async () => {
+    const a = await png(100, 100)
+    const res = await diffImages(a, await png(100, 100))
+    expect(res).toMatchObject({ changed: false, changedPixels: 0, score: 0, sizeChanged: false })
+    expect(res.diffPng).toBeUndefined()
+  })
+
+  it('counts changed pixels and produces a diff image', async () => {
+    const base = await png(100, 100)
+    const head = await png(100, 100, { rect: { x: 10, y: 10, w: 10, h: 10, color: '#000000' } })
+    const res = await diffImages(base, head)
+    expect(res.changed).toBe(true)
+    expect(res.changedPixels).toBe(100)
+    expect(res.score).toBeCloseTo(0.01)
+    expect(await readPngInfo(res.diffPng ?? Buffer.alloc(0))).toEqual({ width: 100, height: 100 })
+  })
+
+  it('treats changes within the project threshold as unchanged', async () => {
+    const base = await png(100, 100)
+    const head = await png(100, 100, { rect: { x: 0, y: 0, w: 1, h: 1, color: '#000000' } })
+    expect((await diffImages(base, head, { threshold: 0.001 })).changed).toBe(false)
+    expect((await diffImages(base, head, { threshold: 0 })).changed).toBe(true)
+  })
+
+  it('ignores colour noise below the pixel tolerance', async () => {
+    const res = await diffImages(
+      await png(50, 50, { color: '#ffffff' }),
+      await png(50, 50, { color: '#fefefe' }),
+    )
+    expect(res.changedPixels).toBe(0)
+  })
+
+  it('always reports a size change as changed, even when it is a tiny share of pixels', async () => {
+    // 1280×4000 grows by 2 px: the padded area is 0.05% of the canvas, under a 0.1% threshold.
+    const base = await png(1280, 4000)
+    const head = await png(1280, 4002)
+    const res = await diffImages(base, head, { threshold: 0.001 })
+    expect(res.score).toBeLessThan(0.001)
+    expect(res).toMatchObject({
+      sizeChanged: true,
+      changed: true,
+      width: 1280,
+      height: 4002,
+      base: { width: 1280, height: 4000 },
+      head: { width: 1280, height: 4002 },
+    })
+  })
+})
+
+describe('makeThumbnail', () => {
+  it('scales to 480 wide and keeps the top of tall pages', async () => {
+    const thumb = await makeThumbnail(await png(1280, 8000))
+    expect(thumb).toMatchObject({ width: 480, height: 720 })
+    const meta = await sharp(thumb.webp).metadata()
+    expect(meta.format).toBe('webp')
+  })
+
+  it('never enlarges small screenshots', async () => {
+    expect(await makeThumbnail(await png(200, 100))).toMatchObject({ width: 200, height: 100 })
+  })
+})

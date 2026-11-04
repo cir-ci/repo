@@ -51,7 +51,12 @@ export async function runServices(options: ServiceOptions): Promise<void> {
       await runMigrations(rt.db)
     }
     if (options.worker) {
-      worker = await startWorker({ db: rt.db, storage: rt.storage, logger })
+      worker = await startWorker({
+        db: rt.db.db,
+        storage: rt.storage,
+        logger,
+        ping: () => rt.db.ping(),
+      })
     }
     if (options.http) {
       app = buildServer({

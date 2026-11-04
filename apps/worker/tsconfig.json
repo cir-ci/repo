@@ -7,8 +7,17 @@
   },
   "include": ["src"],
   "references": [
-    { "path": "../../packages/config" },
-    { "path": "../../packages/db" },
-    { "path": "../../packages/storage" }
+    {
+      "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/db"
+    },
+    {
+      "path": "../../packages/diff"
+    },
+    {
+      "path": "../../packages/storage"
+    }
   ]
 }
