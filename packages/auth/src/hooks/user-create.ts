@@ -14,8 +14,13 @@ export function beforeUserCreate(options: Pick<AuthOptions, 'db' | 'sso'>) {
   return async (
     user: { email?: unknown; emailVerified: boolean },
     context: { path?: string; params?: unknown } | null,
-  ) => {
+  ): Promise<{ data: { emailVerified: boolean } } | undefined> => {
     const email = typeof user.email === 'string' ? user.email : ''
+    if (context?.path?.startsWith('/sso/callback')) {
+      // An organization's own provider may bring its people in, but its word about an email
+      // address proves nothing: the account starts out unverified.
+      return { data: { emailVerified: false } }
+    }
     if (isSsoPath(context?.path)) {
       const allowed = mayCreateSsoAccount({
         trusted: isTrusted(options.sso, ssoProviderOf(context)),
@@ -24,14 +29,15 @@ export function beforeUserCreate(options: Pick<AuthOptions, 'db' | 'sso'>) {
         onVerifiedDomain: (await organizationsForEmailDomain(options.db, email)).length > 0,
       })
       if (!allowed) throw new APIError('FORBIDDEN', { message: 'No account for this address' })
-      return
+      return undefined
     }
-    if (context?.path !== '/sign-in/email-otp') return
+    if (context?.path !== '/sign-in/email-otp') return undefined
     if (
       !(await hasPendingInvitation(options.db, email)) &&
       (await organizationsForEmailDomain(options.db, email)).length === 0
     ) {
       throw new APIError('FORBIDDEN', { message: 'No account for this address' })
     }
+    return undefined
   }
 }

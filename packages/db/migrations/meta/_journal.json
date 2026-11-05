@@ -78,6 +78,13 @@
       "when": 1793870909587,
       "tag": "0010_git_connections",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793875241999,
+      "tag": "0011_org_sso",
+      "breakpoints": true
     }
   ]
 }

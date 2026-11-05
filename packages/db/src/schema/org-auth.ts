@@ -26,6 +26,8 @@ export const sessionMethods = pgTable(
       .primaryKey()
       .references(() => session.id, { onDelete: 'cascade' }),
     method: text('method').notNull(),
+    /** For `org-oidc`: the only organization this session may open. */
+    scopeOrgId: text('scope_org_id'),
   },
   (t) => [check('session_methods_method_check', inList(t.method.name, LOGIN_METHODS))],
 )

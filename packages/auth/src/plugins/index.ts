@@ -5,6 +5,7 @@ import { CI_KEY_CONFIG, CI_KEY_PREFIX, INVITATION_TTL_SECONDS } from '../constan
 import { invitationMail } from '../mail.ts'
 import type { PluginOptions } from '../options.ts'
 import { emailLoginPlugin } from './email-login.ts'
+import { orgSsoPlugin } from './org-sso.ts'
 import { ssoPlugins } from './sso.ts'
 
 /**
@@ -36,6 +37,7 @@ export function authPlugins(options: PluginOptions = {}) {
       },
     }),
     ...ssoPlugins(options.sso ?? []),
+    orgSsoPlugin(),
     apiKey([
       {
         configId: CI_KEY_CONFIG,

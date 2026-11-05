@@ -98,10 +98,8 @@ describe('per-organization login methods', () => {
   it('remembers how each session signed in', async () => {
     const sessions = await t.db.query.session.findMany()
     const methods = await Promise.all(sessions.map((s) => getSessionMethod(t.db, s.id)))
-    expect(methods.toSorted((a, b) => String(a).localeCompare(String(b)))).toEqual([
-      'email',
-      'password',
-    ])
+    const names = methods.map((m) => (typeof m === 'string' ? m : 'scoped'))
+    expect(names.toSorted((a, b) => a.localeCompare(b))).toEqual(['email', 'password'])
   })
 
   it('accepts everything until an organization narrows it', async () => {

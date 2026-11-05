@@ -2,6 +2,7 @@ import { createOrganization, createProjectWithToken } from '@circi/auth'
 import {
   getMemberRole,
   orgAcceptsSession,
+  type SessionMethod,
   listManageableOrganizations,
   listRefusingOrganizations,
   getOrganizationBySlug,
@@ -24,12 +25,17 @@ const orgParams = z.object({ org: z.string() })
  * get the project's CI token once, in the response.
  */
 export const dashboardOrganizationRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
-  async function canCreateOrganization(userId: string): Promise<boolean> {
-    return deps.orgCreation === 'anyone' || (await isInstanceAdmin(deps.db, userId))
+  async function canCreateOrganization(user: {
+    id: string
+    method: SessionMethod
+  }): Promise<boolean> {
+    // Someone signed in through an organization's own provider belongs to that organization only.
+    if (typeof user.method === 'object') return false
+    return deps.orgCreation === 'anyone' || (await isInstanceAdmin(deps.db, user.id))
   }
 
   app.get('/capabilities', async (req) => ({
-    canCreateOrganization: await canCreateOrganization(currentUser(req).id),
+    canCreateOrganization: await canCreateOrganization(currentUser(req)),
     /** Organizations that refuse the way this session signed in, and what they accept. */
     refusingOrganizations: await listRefusingOrganizations(
       deps.db,
@@ -46,7 +52,7 @@ export const dashboardOrganizationRoutes: FastifyPluginAsync<DashboardDeps> = as
 
   app.post('/organizations', async (req, reply) => {
     const user = currentUser(req)
-    if (!(await canCreateOrganization(user.id))) {
+    if (!(await canCreateOrganization(user))) {
       return reply.code(403).send({ error: 'Only instance admins can create organizations here' })
     }
     const { name } = parse(nameBody, req.body)

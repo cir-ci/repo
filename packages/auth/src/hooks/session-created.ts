@@ -21,7 +21,24 @@ function loginMethodOf(path: string | undefined): LoginMethod | undefined {
   if (path === '/sign-in/email') return 'password'
   if (path === '/sign-in/email-otp') return 'email'
   if (path.startsWith('/callback/')) return 'oidc'
+  // An organization's own provider (registered through the SSO plugin).
+  if (path.startsWith('/sso/callback')) return 'org-oidc'
   return undefined
+}
+
+async function providerOrganization(
+  db: Database,
+  context: { params?: unknown } | null,
+): Promise<string | undefined> {
+  const params = context?.params
+  const providerId: unknown =
+    typeof params === 'object' && params !== null ? Reflect.get(params, 'providerId') : undefined
+  if (typeof providerId !== 'string') return undefined
+  const [row] = await db
+    .select({ organizationId: schema.ssoProvider.organizationId })
+    .from(schema.ssoProvider)
+    .where(eq(schema.ssoProvider.providerId, providerId))
+  return row?.organizationId ?? undefined
 }
 
 /** Mails the account's owner when someone signs in from a browser it hasn't been used from. */
@@ -89,9 +106,16 @@ export function onSessionCreated(options: AuthOptions) {
     created: { id: string; userId: string; userAgent?: string | null; ipAddress?: string | null },
     context: { path?: string; params?: unknown } | null,
   ) => {
-    const method = loginMethodOf(context?.path)
+    let method = loginMethodOf(context?.path)
     if (!method) return
-    await recordSessionMethod(options.db, created.id, method)
+    let scopeOrgId: string | undefined
+    if (method === 'org-oidc') {
+      // A provider an instance admin registered has no organization: it behaves like the
+      // instance-wide ones. One an organization registered opens only that organization.
+      scopeOrgId = await providerOrganization(options.db, context)
+      if (!scopeOrgId) method = 'oidc'
+    }
+    await recordSessionMethod(options.db, created.id, method, scopeOrgId)
     await warnAboutNewDevice(options, created, method)
     // An emailed code proves the person owns the address, so a verified domain claim may add
     // them to its organization. (A password or an organization's own identity provider proves

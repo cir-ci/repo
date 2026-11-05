@@ -6,6 +6,7 @@ import { useDocumentTitle } from '../../components.tsx'
 import { authMethodsQuery, setupQuery } from './api.ts'
 import { EmailForm } from './EmailForm.tsx'
 import { readInvitedEmail, readLink } from './login-helpers.ts'
+import { OrgSsoSignIn } from './OrgSsoSignIn.tsx'
 import { PasswordForm } from './PasswordForm.tsx'
 import { SetupPage } from './SetupPage.tsx'
 import { SsoButtons } from './SsoButtons.tsx'
@@ -46,6 +47,7 @@ export function LoginPage() {
         <PasswordForm onEmail={emailOn ? () => setMode('email') : undefined} />
       )}
       <SsoButtons providers={methods.data?.sso ?? []} />
+      <OrgSsoSignIn />
       <Typography variant="body2" color="text.secondary" sx={{ mt: 3, textAlign: 'center' }}>
         No account? Ask the person who runs CirCI for one.
       </Typography>

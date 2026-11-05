@@ -11,6 +11,7 @@ import { beforeUserCreate } from './hooks/user-create.ts'
 import type { AuthOptions } from './options.ts'
 import { authPlugins } from './plugins/index.ts'
 import { socialProviders } from './plugins/sso.ts'
+import { trustedOriginsFor } from './trusted-issuers.ts'
 
 /**
  * Authentication, provided by better-auth (https://better-auth.com):
@@ -31,8 +32,11 @@ export function createAuth(options: AuthOptions) {
     baseURL: options.baseURL,
     basePath: '/api/auth',
     secret: options.secret,
+    trustedOrigins: trustedOriginsFor(options.db),
     database: drizzleAdapter(options.db, {
       provider: 'pg',
+      // Needed by the organization single sign-on plugin, which resolves users in a transaction.
+      transaction: true,
       schema: {
         user: schema.user,
         session: schema.session,
@@ -42,6 +46,7 @@ export function createAuth(options: AuthOptions) {
         member: schema.member,
         invitation: schema.invitation,
         apikey: schema.apikey,
+        ssoProvider: schema.ssoProvider,
       },
     }),
     ...(options.sso?.length ? { socialProviders: socialProviders(options.sso) } : {}),

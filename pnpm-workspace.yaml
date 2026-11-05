@@ -8,6 +8,7 @@ catalog:
   '@aws-sdk/s3-request-presigner': 3.1161.0
   '@better-auth/api-key': 1.7.15
   '@better-auth/drizzle-adapter': 1.7.15
+  '@better-auth/sso': 1.7.15
   '@electric-sql/pglite': 0.5.12
   '@emotion/react': 11.14.0
   '@emotion/styled': 11.14.1

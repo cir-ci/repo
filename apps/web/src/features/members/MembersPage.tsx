@@ -10,6 +10,7 @@ import { PageLayout } from '../../primitives/PageLayout.tsx'
 import { Row, Section } from '../../primitives/Rows.tsx'
 import { EmailDomains } from './EmailDomains.tsx'
 import { InviteForm } from './InviteForm.tsx'
+import { OrgSso } from './OrgSso.tsx'
 import { SignInMethods } from './SignInMethods.tsx'
 
 /** Who is in an organization, and (for owners and admins) inviting people and removing them. */
@@ -100,6 +101,7 @@ export function MembersPage() {
           </Section>
           {canManage ? <SignInMethods org={org} /> : null}
           {canManage ? <EmailDomains org={org} /> : null}
+          {canManage ? <OrgSso org={org} /> : null}
           {pending.length > 0 ? (
             <Section title="Pending invitations" count={pending.length}>
               {pending.map((i) => (

@@ -18,6 +18,7 @@
     "@better-auth/api-key": "catalog:",
     "@better-auth/core": "1.7.15",
     "@better-auth/drizzle-adapter": "catalog:",
+    "@better-auth/sso": "catalog:",
     "@circi/core": "workspace:*",
     "@circi/db": "workspace:*",
     "better-auth": "catalog:",

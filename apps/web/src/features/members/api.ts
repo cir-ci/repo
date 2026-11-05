@@ -47,3 +47,26 @@ export function useDomainActions(org: string) {
     }),
   }
 }
+
+export const orgSsoQuery = (org: string) =>
+  queryOptions({
+    queryKey: ['org-sso', org],
+    queryFn: () => getJson<{ providers: Org.SsoProvider[] }>(`/api/organizations/${seg(org)}/sso`),
+  })
+
+export function useOrgSso(org: string) {
+  const queryClient = useQueryClient()
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['org-sso', org] })
+  const base = `/api/organizations/${seg(org)}/sso`
+  return {
+    register: useMutation({
+      mutationFn: (input: { issuer: string; clientId: string; clientSecret: string }) =>
+        post<{ provider: Org.SsoProvider }>(base, input),
+      onSuccess: refresh,
+    }),
+    remove: useMutation({
+      mutationFn: (providerId: string) => send<undefined>('DELETE', `${base}/${seg(providerId)}`),
+      onSuccess: refresh,
+    }),
+  }
+}

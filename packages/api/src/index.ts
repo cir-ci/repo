@@ -143,6 +143,14 @@ export namespace Org {
     instance: { password: boolean; email: boolean }
   }
 
+  /** An organization's own single sign-on provider. */
+  export interface SsoProvider {
+    providerId: string
+    issuer: string
+    /** What to register as the redirect address at the identity provider. */
+    redirectUri: string
+  }
+
   export interface Domain {
     id: string
     domain: string

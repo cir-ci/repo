@@ -21,7 +21,11 @@ import {
 export type { LoginMethod }
 
 /** A session's login method, or `unknown` for sessions that predate the record. */
-export type SessionMethod = LoginMethod | 'unknown'
+/** An organization's own single sign-on opens that organization and nothing else. */
+export interface OrgScopedMethod {
+  scopedTo: string
+}
+export type SessionMethod = LoginMethod | 'unknown' | OrgScopedMethod
 
 /** What the instance offers; the caller derives it from config. */
 export interface InstanceMethods {
@@ -48,23 +52,26 @@ export async function recordSessionMethod(
   db: Database,
   sessionId: string,
   method: LoginMethod,
+  scopeOrgId?: string,
 ): Promise<void> {
+  const scope = method === 'org-oidc' ? (scopeOrgId ?? null) : null
   await db
     .insert(sessionMethods)
-    .values({ sessionId, method })
-    .onConflictDoUpdate({ target: sessionMethods.sessionId, set: { method } })
+    .values({ sessionId, method, scopeOrgId: scope })
+    .onConflictDoUpdate({ target: sessionMethods.sessionId, set: { method, scopeOrgId: scope } })
 }
 
 /** How a session signed in; `undefined` for sessions that predate the record. */
 export async function getSessionMethod(
   db: Database,
   sessionId: string,
-): Promise<LoginMethod | undefined> {
+): Promise<SessionMethod | undefined> {
   const [row] = await db
-    .select({ method: sessionMethods.method })
+    .select({ method: sessionMethods.method, scope: sessionMethods.scopeOrgId })
     .from(sessionMethods)
     .where(eq(sessionMethods.sessionId, sessionId))
   const method = row?.method
+  if (method === 'org-oidc') return row?.scope ? { scopedTo: row.scope } : undefined
   return method === 'password' || method === 'email' || method === 'oidc' ? method : undefined
 }
 
@@ -75,6 +82,7 @@ export async function getSessionMethod(
  */
 export function orgAccepts(orgId: AnyPgColumn, method: SessionMethod | undefined): SQL {
   if (method === undefined || method === 'oidc') return sql`true`
+  if (typeof method === 'object') return sql`${orgId} = ${method.scopedTo}`
   const restricted =
     method === 'password'
       ? sql`${orgAuthSettings.passwordLoginEnabled} = false`

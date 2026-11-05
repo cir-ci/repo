@@ -23,8 +23,11 @@ export const DIFF_JOB_STATUSES = ['pending', 'running', 'done', 'failed'] as con
 export const REVIEW_STATES = ['approved', 'rejected'] as const
 export const REVIEW_SOURCES = ['ui', 'github-check', 'github-comment', 'auto', 'rerun'] as const
 export const WEBHOOK_EVENTS = ['build.completed', 'build.reviewed'] as const
-/** How someone signed in: `oidc` covers every single sign-on provider. */
-export const LOGIN_METHODS = ['password', 'email', 'oidc'] as const
+/**
+ * How someone signed in: `oidc` is an instance-wide single sign-on provider, `org-oidc` one an
+ * organization added itself (and which only opens that organization).
+ */
+export const LOGIN_METHODS = ['password', 'email', 'oidc', 'org-oidc'] as const
 export const GIT_PROVIDER_KINDS = ['github'] as const
 export const JOB_STATUSES = ['pending', 'running', 'done', 'failed'] as const
 

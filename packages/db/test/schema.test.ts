@@ -58,6 +58,7 @@ describe('migrations', () => {
       'screenshots',
       'session',
       'session_methods',
+      'sso_provider',
       'upload_claims',
       'user',
       'verification',
