@@ -1,6 +1,7 @@
-import { boolean, check, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
+import { boolean, check, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
-import { inList } from './_columns.ts'
+import { createdAt, id, inList } from './_columns.ts'
 import { organization, session } from './auth.ts'
 import { LOGIN_METHODS } from './enums.ts'
 
@@ -27,4 +28,33 @@ export const sessionMethods = pgTable(
     method: text('method').notNull(),
   },
   (t) => [check('session_methods_method_check', inList(t.method.name, LOGIN_METHODS))],
+)
+
+/**
+ * Email domains an organization claims (PLAN §7.8). People who sign in with an address on a
+ * *verified* domain join the organization automatically. Claiming needs proof: a DNS TXT record
+ * at `_circi-verify.<domain>` holding `verification_token`. A verified domain belongs to one
+ * organization only.
+ */
+export const orgDomains = pgTable(
+  'org_domains',
+  {
+    id: id(),
+    orgId: text('org_id')
+      .notNull()
+      .references(() => organization.id, { onDelete: 'cascade' }),
+    domain: text('domain').notNull(),
+    verificationToken: text('verification_token').notNull(),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    /** Role new people get; only `member` for now (a constraint swap adds more). */
+    autoJoinRole: text('auto_join_role').notNull().default('member'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('org_domains_org_domain_key').on(t.orgId, t.domain),
+    uniqueIndex('org_domains_verified_domain_key')
+      .on(t.domain)
+      .where(sql`${t.verifiedAt} is not null`),
+    check('org_domains_auto_join_role_check', inList(t.autoJoinRole.name, ['member'])),
+  ],
 )

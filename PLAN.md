@@ -634,7 +634,7 @@ _Status: accounts, organizations, roles, CI tokens and organization isolation ar
 - [x] Migration of the earlier hand-written users, organizations and memberships (tested on legacy rows)
 - [x] Email login (6-digit code + link) with SMTP (`SMTP_*`, `AUTH_EMAIL_ENABLED`, `circi admin mail test`); better-auth's per-IP limits (3 codes/min). Still open: per-email limit across IPs, "new sign-in" notification mail
 - [x] Turning login methods on/off: `AUTH_PASSWORD_ENABLED` / `AUTH_EMAIL_ENABLED` instance flags + per-org `org_auth_settings` (members page), the session's login method recorded and enforced on an org's content (including better-auth's organization endpoints), lockout guard, `circi admin auth enable|disable` break-glass. Per-org OIDC rules arrive with OIDC
-- [ ] Allowed email domains → auto-join org with a default role; domain claims verified by DNS TXT record
+- [x] Allowed email domains → auto-join as `member` for people who sign in with an emailed code; claims verified by DNS TXT record (`_circi-verify.<domain>`), a verified domain belongs to one organization (members page)
 - [x] Invitations (organization plugin + SMTP) and a members page
 - [x] Sessions list and revoke (account page), project settings page (incl. webhooks, SSRF-restricted addresses)
 - [x] `ORG_CREATION` and a first-run setup page (guarded by a setup code from the server log), organization/project creation and CI-token rotation in the dashboard, so a fresh install needs no CLI

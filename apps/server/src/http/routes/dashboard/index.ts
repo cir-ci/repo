@@ -5,6 +5,7 @@ import { jsonErrorHandler } from '../../errors.ts'
 import { requireSameOrigin } from '../../hooks/same-origin.ts'
 import { requireSession } from '../../hooks/session.ts'
 import { authRoutes } from '../auth.ts'
+import { dashboardDomainRoutes } from './domains.ts'
 import { dashboardFileRoutes } from './files.ts'
 import { dashboardInstanceRoutes } from './instance.ts'
 import { dashboardOrgAuthRoutes } from './org-auth.ts'
@@ -14,6 +15,26 @@ import { dashboardReviewRoutes } from './reviews.ts'
 import { dashboardSettingsRoutes } from './settings.ts'
 import { dashboardSetupRoutes } from './setup.ts'
 import { webAppRoutes } from './web-app.ts'
+
+/**
+ * Only the dependencies go to child plugins: Fastify's registration options also carry a
+ * `prefix`, which would leak into everything they register. One list, so none can be forgotten.
+ */
+function dependenciesOf(options: DashboardDeps): DashboardDeps {
+  return {
+    db: options.db,
+    auth: options.auth,
+    storage: options.storage,
+    publicOrigin: options.publicOrigin,
+    ...(options.emailLogin ? { emailLogin: true } : {}),
+    ...(options.passwordLogin === false ? { passwordLogin: false } : {}),
+    ...(options.webhookAllowPrivate ? { webhookAllowPrivate: true } : {}),
+    ...(options.orgCreation ? { orgCreation: options.orgCreation } : {}),
+    ...(options.authSecret ? { authSecret: options.authSecret } : {}),
+    ...(options.resolveTxt ? { resolveTxt: options.resolveTxt } : {}),
+    ...(options.webDist ? { webDist: options.webDist } : {}),
+  }
+}
 
 /**
  * The dashboard, in three parts:
@@ -27,19 +48,7 @@ import { webAppRoutes } from './web-app.ts'
  * The CI API (`/v1`) and health checks live outside this scope.
  */
 export const dashboardRoutes: FastifyPluginAsync<DashboardDeps> = async (dash, options) => {
-  // Only the dependencies go to children (registration options can carry a `prefix`).
-  const deps: DashboardDeps = {
-    db: options.db,
-    auth: options.auth,
-    storage: options.storage,
-    publicOrigin: options.publicOrigin,
-    ...(options.emailLogin ? { emailLogin: true } : {}),
-    ...(options.passwordLogin === false ? { passwordLogin: false } : {}),
-    ...(options.webhookAllowPrivate ? { webhookAllowPrivate: true } : {}),
-    ...(options.orgCreation ? { orgCreation: options.orgCreation } : {}),
-    ...(options.authSecret ? { authSecret: options.authSecret } : {}),
-    ...(options.webDist ? { webDist: options.webDist } : {}),
-  }
+  const deps = dependenciesOf(options)
   dash.setErrorHandler(jsonErrorHandler)
 
   await dash.register(authRoutes, {
@@ -63,17 +72,7 @@ export const dashboardRoutes: FastifyPluginAsync<DashboardDeps> = async (dash, o
 
 /** Everything under `/api` except sign-in needs a signed-in user. */
 const sessionApi: FastifyPluginAsync<DashboardDeps> = async (api, options) => {
-  // Copy only the dependencies: `options` also carries this scope's `prefix`.
-  const deps: DashboardDeps = {
-    db: options.db,
-    auth: options.auth,
-    storage: options.storage,
-    publicOrigin: options.publicOrigin,
-    ...(options.webhookAllowPrivate ? { webhookAllowPrivate: true } : {}),
-    ...(options.orgCreation ? { orgCreation: options.orgCreation } : {}),
-    ...(options.emailLogin ? { emailLogin: true } : {}),
-    ...(options.passwordLogin === false ? { passwordLogin: false } : {}),
-  }
+  const deps = dependenciesOf(options)
   api.addHook('onRequest', requireSameOrigin(deps.publicOrigin))
   api.addHook('onRequest', requireSession(deps.auth, deps.db))
   await api.register(dashboardProjectRoutes, deps)
@@ -81,6 +80,7 @@ const sessionApi: FastifyPluginAsync<DashboardDeps> = async (api, options) => {
   await api.register(dashboardOrganizationRoutes, deps)
   await api.register(dashboardInstanceRoutes, deps)
   await api.register(dashboardOrgAuthRoutes, deps)
+  await api.register(dashboardDomainRoutes, deps)
   await api.register(dashboardReviewRoutes, deps)
   await api.register(dashboardFileRoutes, deps)
 }

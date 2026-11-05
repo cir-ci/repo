@@ -44,6 +44,7 @@ describe('migrations', () => {
       'jobs',
       'member',
       'org_auth_settings',
+      'org_domains',
       'organization',
       'projects',
       'reviews',

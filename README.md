@@ -48,6 +48,8 @@ Each project's **Settings** page (owners and admins) sets the default branch, a 
 
 Owners and admins can restrict which sign-in methods an organization accepts (password, email code) on the members page. The organization's projects are then only shown to sessions that signed in with an accepted method, and the page refuses a change that would leave no owner able to sign in. If a setting ever locks everyone out, `circi admin auth enable password --org acme` (or `email`) on the server undoes it.
 
+Owners and admins can also claim email domains on the members page. After adding a DNS TXT record (`_circi-verify.example.com`) to prove the domain is theirs, anyone who signs in with an emailed code on an address at that domain joins the organization as a member, with no invitation (people with no account yet get one). A domain can be verified by one organization only.
+
 Anyone you add to an organization sees its projects, builds and screenshots, and nothing else. Add people with `circi admin user create` and `circi admin member add`.
 
 - Storage defaults to local disk (a Docker volume), the cheapest option. For S3-compatible storage, set `STORAGE_DRIVER=s3` and the `S3_*` variables. `docker-compose.s3.yml` adds a local MinIO for development.

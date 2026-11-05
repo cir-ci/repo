@@ -24,6 +24,8 @@ export interface DashboardDeps {
   passwordLogin?: boolean
   /** Webhooks may point at private addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). Default off. */
   webhookAllowPrivate?: boolean
+  /** Looks up TXT records for domain verification; replaceable in tests. Default: real DNS. */
+  resolveTxt?: (name: string) => Promise<string[][]>
   /** Who may create organizations in the dashboard. Default: instance admins only. */
   orgCreation?: 'admin' | 'anyone'
   /** The instance secret, from which the first-run setup code is derived. */

@@ -340,3 +340,37 @@ export function useSaveOrgAuth(org: string) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['org-auth', org] }),
   })
 }
+
+export interface OrgDomainInfo {
+  id: string
+  domain: string
+  verified: boolean
+  dnsName?: string
+  dnsValue?: string
+}
+
+export const domainsQuery = (org: string) =>
+  queryOptions({
+    queryKey: ['org-domains', org],
+    queryFn: () => getJson<{ domains: OrgDomainInfo[] }>(`/api/organizations/${seg(org)}/domains`),
+  })
+
+export function useDomainActions(org: string) {
+  const queryClient = useQueryClient()
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['org-domains', org] })
+  const base = `/api/organizations/${seg(org)}/domains`
+  return {
+    add: useMutation({
+      mutationFn: (domain: string) => post<{ domain: OrgDomainInfo }>(base, { domain }),
+      onSuccess: refresh,
+    }),
+    verify: useMutation({
+      mutationFn: (id: string) => post<{ verified: boolean }>(`${base}/${seg(id)}/verify`, {}),
+      onSuccess: refresh,
+    }),
+    remove: useMutation({
+      mutationFn: (id: string) => request<undefined>(`${base}/${seg(id)}`, { method: 'DELETE' }),
+      onSuccess: refresh,
+    }),
+  }
+}

@@ -1,8 +1,11 @@
+import { randomUUID } from 'node:crypto'
+
 import { apiKey } from '@better-auth/api-key'
 import { drizzleAdapter } from '@better-auth/drizzle-adapter'
 import type { Database } from '@circi/db'
 import {
   getSessionMethod,
+  organizationsForEmailDomain,
   type LoginMethod,
   orgAcceptsSession,
   recordSessionMethod,
@@ -145,7 +148,8 @@ function emailLoginPlugin(options: LoginMailOptions) {
       if (type !== 'sign-in' || !options.mailer || !options.baseURL || !options.db) return
       if (
         !(await hasAccount(options.db, email)) &&
-        !(await hasPendingInvitation(options.db, email))
+        !(await hasPendingInvitation(options.db, email)) &&
+        (await organizationsForEmailDomain(options.db, email)).length === 0
       ) {
         return
       }
@@ -239,17 +243,26 @@ export function createAuth(options: AuthOptions) {
           // Remember how this session signed in: an organization may refuse some methods.
           after: async (created, context) => {
             const method = loginMethodOf(context?.path)
-            if (method) await recordSessionMethod(options.db, created.id, method)
+            if (!method) return
+            await recordSessionMethod(options.db, created.id, method)
+            // An emailed code proves the person owns the address, so a verified domain claim
+            // may add them to its organization. (A password or an organization's own
+            // identity provider proves nothing about the address, so they never do.)
+            if (method === 'email') await joinByVerifiedDomain(options.db, created.userId)
           },
         },
       },
       user: {
         create: {
           before: async (_user, context) => {
-            // Only the email-code sign-in can create accounts on its own, and only for invitees.
+            // Only the email-code sign-in can create accounts on its own: for invitees, and for
+            // people on a domain some organization has verified.
             if (context?.path !== '/sign-in/email-otp') return
             const email = typeof _user.email === 'string' ? _user.email : ''
-            if (!(await hasPendingInvitation(options.db, email))) {
+            if (
+              !(await hasPendingInvitation(options.db, email)) &&
+              (await organizationsForEmailDomain(options.db, email)).length === 0
+            ) {
               throw new APIError('FORBIDDEN', { message: 'No account for this address' })
             }
           },
@@ -268,6 +281,28 @@ function organizationRef(source: unknown): { id?: string; slug?: string } | unde
   if (typeof id === 'string' && id) return { id }
   if (typeof slug === 'string' && slug) return { slug }
   return undefined
+}
+
+/** Adds the user to every organization that claimed (and proved) their email's domain. */
+async function joinByVerifiedDomain(db: Database, userId: string): Promise<void> {
+  const [user] = await db
+    .select({ email: schema.user.email })
+    .from(schema.user)
+    .where(eq(schema.user.id, userId))
+  if (!user) return
+  for (const { orgId, role } of await organizationsForEmailDomain(db, user.email)) {
+    // Written directly, like better-auth's own addMember would; an existing seat is left alone.
+    // eslint-disable-next-line no-await-in-loop -- a handful of organizations at most
+    const [existing] = await db
+      .select({ id: schema.member.id })
+      .from(schema.member)
+      .where(and(eq(schema.member.organizationId, orgId), eq(schema.member.userId, userId)))
+    if (existing) continue
+    // eslint-disable-next-line no-await-in-loop
+    await db
+      .insert(schema.member)
+      .values({ id: randomUUID(), organizationId: orgId, userId, role, createdAt: new Date() })
+  }
 }
 
 /** How a sign-in came in, from the better-auth endpoint that created the session. */
