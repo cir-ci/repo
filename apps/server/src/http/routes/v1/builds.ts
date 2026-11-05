@@ -1,7 +1,6 @@
 import { buildOutcome } from '@circi/core'
 import {
   createBuild,
-  finalizeBuild,
   getBuildCounts,
   getFile,
   getProjectBuild,
@@ -9,6 +8,7 @@ import {
   markFileVerified,
   planUploads,
 } from '@circi/db'
+import { finalizeBuild } from '@circi/services'
 import { contentKey } from '@circi/storage'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'

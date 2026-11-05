@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
   createBuild,
-  finalizeBuild,
+  finalizeShard,
   markFileVerified,
   planUploads,
   schema,
@@ -75,7 +75,7 @@ async function uploaded(buildId: string, shas: string[]) {
   await Promise.all(shas.map((s) => markFileVerified(t.db, s, { size: 10 })))
 }
 
-describe('finalizeBuild', () => {
+describe('finalizeShard', () => {
   it('refuses screenshots whose files are not verified, listing them', async () => {
     const { build } = await newBuild()
     await planUploads(t.db, {
@@ -84,35 +84,42 @@ describe('finalizeBuild', () => {
       files: [png(sha('5'))],
       storageKeyFor: keyFor,
     })
-    const res = await finalizeBuild(t.db, {
+    const res = await finalizeShard(t.db, {
       buildId: build.id,
       screenshots: [{ name: 'home', sha256: sha('5') }],
     })
     expect(res).toEqual({ status: 'missing', missing: [sha('5')] })
   })
 
-  it('moves a single-shard build to processing and enqueues exactly one job', async () => {
+  it('moves a single-shard build to processing, and hands the build back', async () => {
     const { build } = await newBuild()
     await uploaded(build.id, [sha('6'), sha('7')])
-    const res = await finalizeBuild(t.db, {
+    const res = await finalizeShard(t.db, {
       buildId: build.id,
       screenshots: [
         { name: 'home', sha256: sha('6') },
         { name: 'login', sha256: sha('7'), metadata: { browser: 'chromium' } },
       ],
     })
-    expect(res).toEqual({ status: 'ok', complete: true, shardsReceived: 1, shardsTotal: 1 })
+    expect(res).toMatchObject({
+      status: 'ok',
+      complete: true,
+      shardsReceived: 1,
+      shardsTotal: 1,
+      build: { id: build.id, status: 'processing' },
+    })
     const [row] = await t.db.select().from(schema.builds).where(eq(schema.builds.id, build.id))
     expect(row?.status).toBe('processing')
+    // Storing data is all the repository does: queueing the diff job is the service layer's call.
     const jobs = await t.db.select().from(schema.jobs).where(eq(schema.jobs.dedupeKey, build.id))
-    expect(jobs).toHaveLength(1)
+    expect(jobs).toHaveLength(0)
     const claims = await t.db
       .select()
       .from(schema.uploadClaims)
       .where(eq(schema.uploadClaims.buildId, build.id))
     expect(claims).toEqual([])
 
-    await expect(finalizeBuild(t.db, { buildId: build.id, screenshots: [] })).rejects.toThrow(
+    await expect(finalizeShard(t.db, { buildId: build.id, screenshots: [] })).rejects.toThrow(
       /already processing/,
     )
   })
@@ -120,19 +127,19 @@ describe('finalizeBuild', () => {
   it('waits for every shard, and a retried shard replaces its screenshots', async () => {
     const { build } = await newBuild({ parallel: { nonce: 'n1', total: 2 } })
     await uploaded(build.id, [sha('8'), sha('9'), sha('a')])
-    const first = await finalizeBuild(t.db, {
+    const first = await finalizeShard(t.db, {
       buildId: build.id,
       shardIndex: '0',
       screenshots: [{ name: 'a', sha256: sha('8') }],
     })
     expect(first).toMatchObject({ complete: false, shardsReceived: 1, shardsTotal: 2 })
-    const retry = await finalizeBuild(t.db, {
+    const retry = await finalizeShard(t.db, {
       buildId: build.id,
       shardIndex: '0',
       screenshots: [{ name: 'a2', sha256: sha('9') }],
     })
     expect(retry).toMatchObject({ complete: false, shardsReceived: 1 })
-    const last = await finalizeBuild(t.db, {
+    const last = await finalizeShard(t.db, {
       buildId: build.id,
       shardIndex: '1',
       screenshots: [{ name: 'b', sha256: sha('a') }],
@@ -149,7 +156,7 @@ describe('finalizeBuild', () => {
     const { build } = await newBuild()
     await uploaded(build.id, [sha('b')])
     await expect(
-      finalizeBuild(t.db, {
+      finalizeShard(t.db, {
         buildId: build.id,
         screenshots: [
           { name: 'x', sha256: sha('b') },

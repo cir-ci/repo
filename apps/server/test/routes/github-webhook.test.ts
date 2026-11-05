@@ -1,7 +1,6 @@
 import { createHmac } from 'node:crypto'
 
 import {
-  completeBuild,
   createBuild,
   getBuild,
   linkProjectToGithub,
@@ -9,6 +8,7 @@ import {
   schema,
   setCheckRunId,
 } from '@circi/db'
+import { completeBuild } from '@circi/services'
 import { createTestDb, type TestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'

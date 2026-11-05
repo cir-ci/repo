@@ -5,15 +5,14 @@ import { join } from 'node:path'
 
 import {
   createBuild,
-  finalizeBuild,
   getBuild,
   getFile,
   listBuildReviews,
   listBuildScreenshots,
-  reviewBuild,
   markFileVerified,
   planUploads,
 } from '@circi/db'
+import { finalizeBuild, reviewBuild } from '@circi/services'
 import { contentKey, FsStorage } from '@circi/storage'
 import { createTestDb, seedProject, type TestDb } from '@circi/testing'
 import sharp from 'sharp'

@@ -16,9 +16,6 @@ import {
   uploadClaims,
 } from '../schema/index.ts'
 import type { Build } from '../types.ts'
-import { queueGitNotify } from './git.ts'
-import { enqueueJob, QUEUES } from './jobs.ts'
-import { queueWebhookEvent } from './webhooks.ts'
 
 /** Build lifecycle: create (or join a parallel build), finalize shards, baseline, finish. */
 
@@ -159,10 +156,15 @@ const SCREENSHOT_NAME_RE = /^[^\0\n\r]{1,512}$/
  * screenshots instead of being counted twice. When every shard is in, the build moves to
  * `processing` and the processing job is enqueued in the same transaction.
  */
-export async function finalizeBuild(
+/**
+ * Stores one shard's screenshots, and moves the build to `processing` once the last shard is
+ * in. Data only: the caller (`finalizeBuild` in `@circi/services`) decides what else must happen
+ * in the same transaction, such as queueing the diff job.
+ */
+export async function finalizeShard(
   db: Database,
-  input: { buildId: string; shardIndex?: string; screenshots: finalizeBuild.Screenshot[] },
-): Promise<finalizeBuild.Result> {
+  input: { buildId: string; shardIndex?: string; screenshots: finalizeShard.Screenshot[] },
+): Promise<finalizeShard.Result> {
   const shardIndex = input.shardIndex ?? '0'
   const names = new Set<string>()
   for (const s of input.screenshots) {
@@ -241,13 +243,14 @@ export async function finalizeBuild(
         .update(builds)
         .set({ status: 'processing', finalizedAt: new Date() })
         .where(eq(builds.id, build.id))
-      await queueGitNotify(tx, { ...build, status: 'processing' })
       await tx.delete(uploadClaims).where(eq(uploadClaims.buildId, build.id))
-      await enqueueJob(tx, {
-        queue: QUEUES.processBuild,
-        payload: { buildId: build.id },
-        dedupeKey: build.id,
-      })
+      return {
+        status: 'ok',
+        complete: true,
+        shardsReceived: count,
+        shardsTotal: total,
+        build: { ...build, status: 'processing' },
+      }
     } else if (build.status === 'pending') {
       await tx.update(builds).set({ status: 'uploading' }).where(eq(builds.id, build.id))
     }
@@ -255,7 +258,7 @@ export async function finalizeBuild(
   })
 }
 
-export namespace finalizeBuild {
+export namespace finalizeShard {
   export interface Screenshot {
     name: string
     sha256: string
@@ -263,7 +266,14 @@ export namespace finalizeBuild {
   }
 
   export type Result =
-    | { status: 'ok'; complete: boolean; shardsReceived: number; shardsTotal: number }
+    | {
+        status: 'ok'
+        complete: boolean
+        shardsReceived: number
+        shardsTotal: number
+        /** The build, now `processing`, when this shard was the last one. */
+        build?: Build
+      }
     /** Some files aren't verified yet: the client must (re)upload them. */
     | { status: 'missing'; missing: string[] }
 }
@@ -353,16 +363,15 @@ export async function setBuildBaseline(
  * is approved automatically (recorded as an `auto` review) so it becomes the next baseline.
  */
 /**
- * Finishes a build. On the default branch with auto-approve on, a build with changes starts out
- * approved so it becomes the next baseline; a re-run that reproduces an approved build's exact
- * screenshots is approved too (`findApprovedRerunOf`). Both are recorded as reviews.
+ * Records a processed build's outcome, approving it at once when `approval` says so. Data only:
+ * announcing the result is `completeBuild` in `@circi/services`.
  */
-export async function completeBuild(
+export async function setBuildResult(
   db: Database,
   build: Build,
-  result: { conclusion: BuildConclusion; approval: completeBuild.Approval },
-): Promise<void> {
-  await db.transaction(async (tx) => {
+  result: { conclusion: BuildConclusion; approval: setBuildResult.Approval },
+): Promise<Build> {
+  return db.transaction(async (tx) => {
     const approved = result.approval !== 'none'
     await tx
       .update(builds)
@@ -382,14 +391,11 @@ export async function completeBuild(
       })
     }
     const [done] = await tx.select().from(builds).where(eq(builds.id, build.id))
-    if (done) {
-      await queueWebhookEvent(tx, { build: done, event: 'build.completed' })
-      await queueGitNotify(tx, done)
-    }
+    if (!done) throw new NotFoundError('Build not found')
+    return done
   })
 }
-
-export namespace completeBuild {
+export namespace setBuildResult {
   /** Why a finished build starts out approved without anyone clicking. */
   export type Approval = 'none' | 'default-branch' | 'rerun'
 }
@@ -435,36 +441,37 @@ export async function findApprovedRerunOf(db: Database, build: Build): Promise<s
   return undefined
 }
 
-export async function failBuild(db: Database, buildId: string, message: string): Promise<void> {
-  await db.transaction(async (tx) => {
-    const [failed] = await tx
-      .update(builds)
-      .set({ status: 'error', errorMessage: message.slice(0, 2000), completedAt: new Date() })
-      .where(eq(builds.id, buildId))
-      .returning()
-    if (failed) await queueGitNotify(tx, failed)
-  })
+/** Marks a build as failed; returns it, or nothing if it no longer exists. */
+export async function setBuildError(
+  db: Database,
+  buildId: string,
+  message: string,
+): Promise<Build | undefined> {
+  const [failed] = await db
+    .update(builds)
+    .set({ status: 'error', errorMessage: message.slice(0, 2000), completedAt: new Date() })
+    .where(eq(builds.id, buildId))
+    .returning()
+  return failed
 }
 
 /**
- * Processes a build again from scratch (the `/circi rerun` command, e.g. after changing the
- * diff threshold): it goes back to `processing` with no decision, and its job is queued.
+ * Puts a finished build back to `processing` with no decision, so it can be diffed again
+ * (e.g. after changing the diff threshold). Data only: queueing the job is `requeueBuild` in
+ * `@circi/services`.
  */
-export async function requeueBuild(db: Database, buildId: string): Promise<void> {
-  await db.transaction(async (tx) => {
-    const [updated] = await tx
-      .update(builds)
-      .set({
-        status: 'processing',
-        conclusion: null,
-        reviewStatus: 'pending',
-        completedAt: null,
-        errorMessage: null,
-      })
-      .where(and(eq(builds.id, buildId), inArray(builds.status, ['complete', 'error'])))
-      .returning()
-    if (!updated) throw new NotFoundError('Build not found, or still processing')
-    await enqueueJob(tx, { queue: QUEUES.processBuild, payload: { buildId } })
-    await queueGitNotify(tx, updated)
-  })
+export async function resetBuild(db: Database, buildId: string): Promise<Build> {
+  const [updated] = await db
+    .update(builds)
+    .set({
+      status: 'processing',
+      conclusion: null,
+      reviewStatus: 'pending',
+      completedAt: null,
+      errorMessage: null,
+    })
+    .where(and(eq(builds.id, buildId), inArray(builds.status, ['complete', 'error'])))
+    .returning()
+  if (!updated) throw new NotFoundError('Build not found, or still processing')
+  return updated
 }

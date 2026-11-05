@@ -331,6 +331,9 @@ importers:
       '@circi/providers':
         specifier: workspace:*
         version: link:../../packages/providers
+      '@circi/services':
+        specifier: workspace:*
+        version: link:../../packages/services
       '@circi/storage':
         specifier: workspace:*
         version: link:../../packages/storage
@@ -438,6 +441,9 @@ importers:
       '@circi/providers':
         specifier: workspace:*
         version: link:../../packages/providers
+      '@circi/services':
+        specifier: workspace:*
+        version: link:../../packages/services
       '@circi/storage':
         specifier: workspace:*
         version: link:../../packages/storage
@@ -549,6 +555,19 @@ importers:
         version: 0.35.5(@types/node@26.6.6)
 
   packages/providers: {}
+
+  packages/services:
+    dependencies:
+      '@circi/db':
+        specifier: workspace:*
+        version: link:../db
+    devDependencies:
+      '@circi/testing':
+        specifier: workspace:*
+        version: link:../testing
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.4(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(kysely@0.29.8)(pg@8.23.1)
 
   packages/storage:
     dependencies:

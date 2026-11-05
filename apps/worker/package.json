@@ -18,6 +18,7 @@
     "@circi/db": "workspace:*",
     "@circi/diff": "workspace:*",
     "@circi/providers": "workspace:*",
+    "@circi/services": "workspace:*",
     "@circi/storage": "workspace:*"
   },
   "devDependencies": {

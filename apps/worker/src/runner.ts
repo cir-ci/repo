@@ -2,13 +2,13 @@ import {
   claimJob,
   completeJob,
   type Database,
-  failBuild,
   failJob,
   GIT_NOTIFY_QUEUE,
   type Job,
   QUEUES,
 } from '@circi/db'
 import type { GithubApp } from '@circi/providers'
+import { failBuild } from '@circi/services'
 import type { StorageDriver } from '@circi/storage'
 
 import { deliverWebhook } from './jobs/deliver-webhook.ts'

@@ -4,8 +4,6 @@ import type { Database } from '../client.ts'
 import { ConflictError, NotFoundError } from '../errors.ts'
 import { builds, type ReviewSource, type ReviewState, reviews, user } from '../schema/index.ts'
 import type { Build } from '../types.ts'
-import { queueGitNotify } from './git.ts'
-import { queueWebhookEvent } from './webhooks.ts'
 
 /**
  * Approving and rejecting builds (PLAN §7.4). Every decision is kept as a row; the latest one is
@@ -16,9 +14,14 @@ import { queueWebhookEvent } from './webhooks.ts'
 /**
  * Records a decision on a build. Only a finished build with changes can be reviewed: there's
  * nothing to decide while it's processing, or when it matched its baseline. Deciding the same
- * thing again is a no-op, so a double click doesn't pile up history; changing your mind is fine.
+ * thing again changes nothing (`changed: false`), so a double click doesn't pile up history;
+ * changing your mind is fine. Data only: announcing a decision is `reviewBuild` in
+ * `@circi/services`.
  */
-export async function reviewBuild(db: Database, input: reviewBuild.Input): Promise<Build> {
+export async function recordReview(
+  db: Database,
+  input: recordReview.Input,
+): Promise<recordReview.Result> {
   return db.transaction(async (tx) => {
     const [build] = await tx.select().from(builds).where(eq(builds.id, input.buildId)).for('update')
     if (!build) throw new NotFoundError('Build not found')
@@ -30,7 +33,7 @@ export async function reviewBuild(db: Database, input: reviewBuild.Input): Promi
     if (build.conclusion !== 'changes_detected') {
       throw new ConflictError(`Build #${build.number} has no changes to review`)
     }
-    if (build.reviewStatus === input.state) return build
+    if (build.reviewStatus === input.state) return { build, changed: false, reviewerName: null }
 
     await tx.insert(reviews).values({
       buildId: build.id,
@@ -48,26 +51,23 @@ export async function reviewBuild(db: Database, input: reviewBuild.Input): Promi
       .select({ name: user.name })
       .from(user)
       .where(eq(user.id, input.userId))
-    await queueWebhookEvent(tx, {
-      build: updated,
-      event: 'build.reviewed',
-      review: {
-        state: input.state,
-        source: input.source ?? 'ui',
-        userName: reviewer?.name ?? null,
-      },
-    })
-    await queueGitNotify(tx, updated)
-    return updated
+    return { build: updated, changed: true, reviewerName: reviewer?.name ?? null }
   })
 }
 
-export namespace reviewBuild {
+export namespace recordReview {
   export interface Input {
     buildId: string
     userId: string
     state: ReviewState
     source?: ReviewSource
+  }
+
+  export interface Result {
+    build: Build
+    /** False when the build already had this decision. */
+    changed: boolean
+    reviewerName: string | null
   }
 }
 

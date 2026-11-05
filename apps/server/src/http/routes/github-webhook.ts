@@ -5,10 +5,9 @@ import {
   findMemberByGithubId,
   findProjectsByRepo,
   latestBuildsForPr,
-  requeueBuild,
-  reviewBuild,
 } from '@circi/db'
 import { type GithubApp, parseCommand, verifyGithubSignature } from '@circi/providers'
+import { requeueBuild, reviewBuild } from '@circi/services'
 import type { FastifyBaseLogger, FastifyPluginAsync } from 'fastify'
 
 /**

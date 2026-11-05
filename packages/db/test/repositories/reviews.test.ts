@@ -9,7 +9,7 @@ import {
   listBaselineCandidates,
   listBuildReviews,
   NotFoundError,
-  reviewBuild,
+  recordReview,
   schema,
 } from '../../src/index.ts'
 
@@ -37,7 +37,11 @@ async function buildWithChanges(overrides: Partial<typeof schema.builds.$inferIn
   return { project, owner, buildId: build.id }
 }
 
-describe('reviewBuild', () => {
+/** The decision's effect on the build; announcing it is the service layer's job. */
+const reviewBuild = async (db: TestDb['db'], input: recordReview.Input) =>
+  (await recordReview(db, input)).build
+
+describe('recordReview', () => {
   it('approves a build, and records who and how', async () => {
     const { owner, buildId } = await buildWithChanges()
     const build = await reviewBuild(t.db, { buildId, userId: owner.id, state: 'approved' })

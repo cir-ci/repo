@@ -1,6 +1,5 @@
 import {
   claimJob,
-  completeBuild,
   completeJob,
   createBuild,
   GIT_NOTIFY_QUEUE,
@@ -8,9 +7,9 @@ import {
   getPrCommentId,
   type Job,
   linkProjectToGithub,
-  reviewBuild,
   schema,
 } from '@circi/db'
+import { completeBuild, reviewBuild } from '@circi/services'
 import { createTestDb, seedProject, type TestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'

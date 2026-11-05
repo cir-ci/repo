@@ -1,6 +1,5 @@
 import { pairScreenshots, resolveBaseline } from '@circi/core'
 import {
-  completeBuild,
   type Database,
   getBuild,
   findApprovedRerunOf,
@@ -17,6 +16,7 @@ import {
   updateDiff,
 } from '@circi/db'
 import { diffImages, InvalidImageError, makeThumbnail, readPngInfo } from '@circi/diff'
+import { completeBuild } from '@circi/services'
 import type { StorageDriver } from '@circi/storage'
 
 import { mapLimit } from '../lib/concurrency.ts'

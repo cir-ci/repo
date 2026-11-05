@@ -1,4 +1,5 @@
-import { findProjectForMember, getBuildByNumber, reviewBuild } from '@circi/db'
+import { findProjectForMember, getBuildByNumber } from '@circi/db'
+import { reviewBuild } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
