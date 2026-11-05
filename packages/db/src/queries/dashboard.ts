@@ -2,7 +2,7 @@ import { aliasedTable, and, desc, eq, exists, inArray, lt, or, sql } from 'drizz
 
 import type { Database } from '../client.ts'
 import { orgAccepts, type SessionMethod } from '../repositories/auth-settings.ts'
-import type { BuildCounts } from '../repositories/builds.ts'
+import type { getBuildCounts } from '../repositories/builds.ts'
 import { listBuildReviews, type ReviewEntry } from '../repositories/reviews.ts'
 import {
   type AncestryStatus,
@@ -37,7 +37,7 @@ export interface BuildListItem {
   conclusion: BuildConclusion | null
   reviewStatus: ReviewStatus
   createdAt: Date
-  counts: BuildCounts
+  counts: getBuildCounts.Counts
 }
 
 export interface ProjectOverview {
@@ -102,7 +102,7 @@ export async function listBuildsForProject(
       ),
     )
     .groupBy(screenshotDiffs.buildId, screenshotDiffs.status)
-  const byBuild = new Map<string, BuildCounts>()
+  const byBuild = new Map<string, getBuildCounts.Counts>()
   for (const c of counts) {
     const entry = byBuild.get(c.buildId) ?? emptyCounts()
     if (c.status && c.status in entry) entry[c.status] += c.n
@@ -124,7 +124,7 @@ export async function listBuildsForProject(
   }))
 }
 
-function emptyCounts(): BuildCounts {
+function emptyCounts(): getBuildCounts.Counts {
   return { added: 0, removed: 0, changed: 0, unchanged: 0, failed: 0, total: 0 }
 }
 
@@ -154,7 +154,7 @@ export interface BuildDetail {
     baselineSource: BaselineSource | null
     errorMessage: string | null
     completedAt: Date | null
-    counts: BuildCounts
+    counts: getBuildCounts.Counts
   }
   baseline: { number: number; commitSha: string; branch: string | null } | null
   /** Approve/reject decisions, newest first. */

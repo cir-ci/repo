@@ -8,19 +8,6 @@ import type { FileRow } from '../types.ts'
 
 const SHA256_RE = /^[0-9a-f]{64}$/
 
-export interface UploadRequestFile {
-  sha256: string
-  size: number
-  contentType: string
-}
-
-export interface PlannedUpload {
-  sha256: string
-  storageKey: string
-  size: number
-  contentType: string
-}
-
 /**
  * Decides which files a build must upload (PLAN §7.1 step 4, §8 "verify before dedup").
  *
@@ -34,11 +21,11 @@ export async function planUploads(
   input: {
     buildId: string
     kind: FileKind
-    files: UploadRequestFile[]
+    files: planUploads.File[]
     storageKeyFor: (sha256: string) => string
   },
-): Promise<PlannedUpload[]> {
-  const requested = new Map<string, UploadRequestFile>()
+): Promise<planUploads.Planned[]> {
+  const requested = new Map<string, planUploads.File>()
   for (const f of input.files) {
     if (!SHA256_RE.test(f.sha256)) throw new Error(`Invalid sha256: ${f.sha256}`)
     requested.set(f.sha256, f)
@@ -85,7 +72,7 @@ export async function planUploads(
       .select({ sha256: files.sha256, storageKey: files.storageKey, status: files.status })
       .from(files)
       .where(inArray(files.sha256, missing))
-    const planned: PlannedUpload[] = []
+    const planned: planUploads.Planned[] = []
     const lateVerified: string[] = []
     for (const r of rows) {
       if (r.status === 'verified') {
@@ -108,6 +95,21 @@ export async function planUploads(
     }
     return planned
   })
+}
+
+export namespace planUploads {
+  export interface File {
+    sha256: string
+    size: number
+    contentType: string
+  }
+
+  export interface Planned {
+    sha256: string
+    storageKey: string
+    size: number
+    contentType: string
+  }
 }
 
 export async function getFile(db: Database, sha256: string): Promise<FileRow | undefined> {

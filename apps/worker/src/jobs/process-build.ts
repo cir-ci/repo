@@ -1,6 +1,5 @@
 import { pairScreenshots, resolveBaseline } from '@circi/core'
 import {
-  type AutoApproval,
   completeBuild,
   type Database,
   getBuild,
@@ -156,7 +155,7 @@ export async function processBuild(deps: ProcessDeps, buildId: string): Promise<
 
   // 5. Conclusion. Added, removed and unreadable screenshots all need a human look.
   const conclusion = statuses.every((s) => s === 'unchanged') ? 'no_changes' : 'changes_detected'
-  let approval: AutoApproval = 'none'
+  let approval: completeBuild.Approval = 'none'
   if (conclusion === 'changes_detected') {
     if (
       project.autoApproveDefaultBranch &&

@@ -7,13 +7,6 @@ import { emailCodeRequests, knownDevices } from '../schema/index.ts'
 
 /** Abuse limits and "new sign-in" tracking around email login (PLAN §7.8). */
 
-export interface CodeLimit {
-  /** Codes one address may ask for within the window. Default 5. */
-  limit?: number
-  /** Default 15 minutes. */
-  windowMs?: number
-}
-
 /**
  * Counts one sign-in code request for `email` and says whether it may go ahead. The count
  * covers every IP, and applies whether or not the address has an account, so the answer never
@@ -22,7 +15,7 @@ export interface CodeLimit {
 export async function takeEmailCodeSlot(
   db: Database,
   email: string,
-  options: CodeLimit = {},
+  options: takeEmailCodeSlot.Options = {},
 ): Promise<boolean> {
   const address = email.trim().toLowerCase()
   const limit = options.limit ?? 5
@@ -37,6 +30,15 @@ export async function takeEmailCodeSlot(
   if ((row?.n ?? 0) >= limit) return false
   await db.insert(emailCodeRequests).values({ email: address })
   return true
+}
+
+export namespace takeEmailCodeSlot {
+  export interface Options {
+    /** Codes one address may ask for within the window. Default 5. */
+    limit?: number
+    /** Default 15 minutes. */
+    windowMs?: number
+  }
 }
 
 export const deviceFingerprint = (userAgent: string | null | undefined) =>

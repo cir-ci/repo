@@ -22,25 +22,12 @@ import { queueWebhookEvent } from './webhooks.ts'
 
 /** Build lifecycle: create (or join a parallel build), finalize shards, baseline, finish. */
 
-export interface CreateBuildInput {
-  projectId: string
-  name?: string
-  commitSha: string
-  branch?: string | null
-  prNumber?: number | null
-  baseBranch?: string | null
-  mergeBaseSha?: string | null
-  ancestorShas?: string[]
-  ancestryStatus?: 'ok' | 'missing' | 'truncated'
-  parallel?: { nonce: string; total: number }
-}
-
 /**
  * Creates a build, or joins the existing one for parallel shards (PLAN §7.1 step 4): shards
  * that start at the same moment hit the unique (project, name, commit, nonce) index and all
  * get the same build.
  */
-export async function createBuild(db: Database, input: CreateBuildInput): Promise<Build> {
+export async function createBuild(db: Database, input: createBuild.Input): Promise<Build> {
   const { name, commitSha, ancestorShas } = checkBuildInput({
     name: input.name,
     commitSha: input.commitSha,
@@ -99,6 +86,21 @@ export async function createBuild(db: Database, input: CreateBuildInput): Promis
   })
 }
 
+export namespace createBuild {
+  export interface Input {
+    projectId: string
+    name?: string
+    commitSha: string
+    branch?: string | null
+    prNumber?: number | null
+    baseBranch?: string | null
+    mergeBaseSha?: string | null
+    ancestorShas?: string[]
+    ancestryStatus?: 'ok' | 'missing' | 'truncated'
+    parallel?: { nonce: string; total: number }
+  }
+}
+
 async function findParallelBuild(
   db: Database,
   projectId: string,
@@ -150,17 +152,6 @@ export async function getProjectBuild(
   return row
 }
 
-export interface FinalizeScreenshot {
-  name: string
-  sha256: string
-  metadata?: Record<string, unknown>
-}
-
-export type FinalizeResult =
-  | { status: 'ok'; complete: boolean; shardsReceived: number; shardsTotal: number }
-  /** Some files aren't verified yet: the client must (re)upload them. */
-  | { status: 'missing'; missing: string[] }
-
 const SCREENSHOT_NAME_RE = /^[^\0\n\r]{1,512}$/
 
 /**
@@ -170,8 +161,8 @@ const SCREENSHOT_NAME_RE = /^[^\0\n\r]{1,512}$/
  */
 export async function finalizeBuild(
   db: Database,
-  input: { buildId: string; shardIndex?: string; screenshots: FinalizeScreenshot[] },
-): Promise<FinalizeResult> {
+  input: { buildId: string; shardIndex?: string; screenshots: finalizeBuild.Screenshot[] },
+): Promise<finalizeBuild.Result> {
   const shardIndex = input.shardIndex ?? '0'
   const names = new Set<string>()
   for (const s of input.screenshots) {
@@ -264,22 +255,29 @@ export async function finalizeBuild(
   })
 }
 
-export interface BuildCounts {
-  added: number
-  removed: number
-  changed: number
-  unchanged: number
-  failed: number
-  total: number
+export namespace finalizeBuild {
+  export interface Screenshot {
+    name: string
+    sha256: string
+    metadata?: Record<string, unknown>
+  }
+
+  export type Result =
+    | { status: 'ok'; complete: boolean; shardsReceived: number; shardsTotal: number }
+    /** Some files aren't verified yet: the client must (re)upload them. */
+    | { status: 'missing'; missing: string[] }
 }
 
-export async function getBuildCounts(db: Database, buildId: string): Promise<BuildCounts> {
+export async function getBuildCounts(
+  db: Database,
+  buildId: string,
+): Promise<getBuildCounts.Counts> {
   const rows = await db
     .select({ status: screenshotDiffs.status, n: sql<number>`count(*)::int` })
     .from(screenshotDiffs)
     .where(eq(screenshotDiffs.buildId, buildId))
     .groupBy(screenshotDiffs.status)
-  const counts: BuildCounts = {
+  const counts: getBuildCounts.Counts = {
     added: 0,
     removed: 0,
     changed: 0,
@@ -292,6 +290,17 @@ export async function getBuildCounts(db: Database, buildId: string): Promise<Bui
     counts.total += r.n
   }
   return counts
+}
+
+export namespace getBuildCounts {
+  export interface Counts {
+    added: number
+    removed: number
+    changed: number
+    unchanged: number
+    failed: number
+    total: number
+  }
 }
 
 /** Possible baselines: same project and name, finished, not the build itself. */
@@ -343,9 +352,6 @@ export async function setBuildBaseline(
  * Finishes a build. On the project's default branch with auto-approve on, a build with changes
  * is approved automatically (recorded as an `auto` review) so it becomes the next baseline.
  */
-/** Why a finished build starts out approved without anyone clicking. */
-export type AutoApproval = 'none' | 'default-branch' | 'rerun'
-
 /**
  * Finishes a build. On the default branch with auto-approve on, a build with changes starts out
  * approved so it becomes the next baseline; a re-run that reproduces an approved build's exact
@@ -354,7 +360,7 @@ export type AutoApproval = 'none' | 'default-branch' | 'rerun'
 export async function completeBuild(
   db: Database,
   build: Build,
-  result: { conclusion: BuildConclusion; approval: AutoApproval },
+  result: { conclusion: BuildConclusion; approval: completeBuild.Approval },
 ): Promise<void> {
   await db.transaction(async (tx) => {
     const approved = result.approval !== 'none'
@@ -381,6 +387,11 @@ export async function completeBuild(
       await queueGitNotify(tx, done)
     }
   })
+}
+
+export namespace completeBuild {
+  /** Why a finished build starts out approved without anyone clicking. */
+  export type Approval = 'none' | 'default-branch' | 'rerun'
 }
 
 /**

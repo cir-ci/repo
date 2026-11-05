@@ -13,19 +13,12 @@ import { queueWebhookEvent } from './webhooks.ts'
  * and what the merge gate reads.
  */
 
-export interface ReviewBuildInput {
-  buildId: string
-  userId: string
-  state: ReviewState
-  source?: ReviewSource
-}
-
 /**
  * Records a decision on a build. Only a finished build with changes can be reviewed: there's
  * nothing to decide while it's processing, or when it matched its baseline. Deciding the same
  * thing again is a no-op, so a double click doesn't pile up history; changing your mind is fine.
  */
-export async function reviewBuild(db: Database, input: ReviewBuildInput): Promise<Build> {
+export async function reviewBuild(db: Database, input: reviewBuild.Input): Promise<Build> {
   return db.transaction(async (tx) => {
     const [build] = await tx.select().from(builds).where(eq(builds.id, input.buildId)).for('update')
     if (!build) throw new NotFoundError('Build not found')
@@ -67,6 +60,15 @@ export async function reviewBuild(db: Database, input: ReviewBuildInput): Promis
     await queueGitNotify(tx, updated)
     return updated
   })
+}
+
+export namespace reviewBuild {
+  export interface Input {
+    buildId: string
+    userId: string
+    state: ReviewState
+    source?: ReviewSource
+  }
 }
 
 export interface ReviewEntry {
