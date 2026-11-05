@@ -27,6 +27,14 @@ Create a GitHub App (Settings → Developer settings → GitHub Apps) with webho
 
 Each build then shows as a **CirCI / <build name>** check with **Approve** and **Reject** buttons, plus one summary comment on the pull request. Comment `/circi approve`, `/circi reject` or `/circi rerun` to act on the pull request's newest commit. Who may approve from GitHub: people who linked their GitHub login on their CirCI **Account** page (needs a GitHub single-sign-on app, `AUTH_GITHUB_*`) and who belong to the project's organization. To block merging, mark the check as required in the repository's branch protection. With a project linked to a repository, the check is the merge gate: `circi upload --wait` waits for processing, exits 0 even with unreviewed changes (so a green CI job isn't confused with a visual review), and fails only on processing errors. Approving on GitHub or in the dashboard updates the check within seconds, no re-run needed. Without a linked repository the CI job is the gate (exit 1 until approved, then re-run). `--gate status|exit-code` overrides the choice.
 
+## Hosting Storybook and reports
+
+Set `STATIC_SITES_HOST` to a **separate, dedicated domain** and switch on *Host static sites* in a project's settings, then `circi storybook upload ./storybook-static` or `circi site upload ./report --name playwright`. Each upload gets a commit address and a branch address (`<hash>-<site>.<sites domain>`); opening one asks you to sign in, and only members of the project's organization get in. See [docs/static-sites.md](docs/static-sites.md) for how it works, the **⚠️ domain and cookie rules you must check**, Route53/Caddy setup (`deploy/`), and what isn't built yet. `circi admin doctor` checks what it can.
+
+## CI examples, Vitest and Argos
+
+[docs/ci-examples.md](docs/ci-examples.md) (GitHub Actions, GitLab CI, Bitbucket Pipelines, Gitea, Jenkins, sharded runs), [docs/vitest.md](docs/vitest.md) (`@circi/vitest`) and [docs/argos-migration.md](docs/argos-migration.md) (point the Argos SDKs at `/v2`).
+
 ## Self-hosting (Docker)
 
 ```sh
@@ -82,6 +90,7 @@ Anyone you add to an organization sees its projects, builds and screenshots, and
 | `circi admin project create\|list\|rotate-token` | Manage projects and their CI tokens |
 | `circi admin auth enable\|disable <email\|password> --org <slug>` | Change an organization's accepted sign-in methods (skips the lockout guard: break-glass) |
 | `circi admin github link\|unlink` | Link a project to a GitHub repository (needs the GitHub App) |
+| `circi admin doctor` | Best-effort check of the domains' cookie scope and the sites domain |
 | `circi admin setup-code` | Print the code the first-run setup page asks for |
 | `circi admin mail test` | Send a test mail through the configured SMTP server |
 | `circi admin webhook add\|list\|remove` | Send a project's `build.completed` / `build.reviewed` events to a URL |
@@ -98,6 +107,8 @@ Anyone you add to an organization sees its projects, builds and screenshots, and
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | | Outgoing mail. `SMTP_FROM` is required with `SMTP_HOST`; port defaults to 587 (STARTTLS), 465 means implicit TLS. Check it with `circi admin mail test --to you@acme.io` |
 | `AUTH_PASSWORD_ENABLED` | `true` | Email + password sign-in. `false` needs email login (SMTP) to be available, or nobody could sign in |
 | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_WEBHOOK_SECRET`, `GITHUB_API_URL` | | The GitHub App, see above |
+| `STATIC_SITES_HOST`, `STATIC_SITES_MAX_MB` | | Static site hosting: a dedicated domain, and the largest site in MB (default 200) |
+| `UPLOAD_TIMEOUT_MINUTES` | `60` | Builds still uploading after this long fail, naming the missing shards; `0` never |
 | `AUTH_SSO_ENABLED` | `true` | Set `false` to hide single sign-on even with providers configured |
 | `AUTH_GITHUB_*`, `AUTH_GOOGLE_*`, `AUTH_OIDC_*` | | Single sign-on providers, see above |
 | `AUTH_EMAIL_ENABLED` | `true` | Email sign-in codes; only offered when SMTP is configured. `false` turns them off |

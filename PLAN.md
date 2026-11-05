@@ -658,36 +658,36 @@ _Status: accounts, organizations, roles, CI tokens and organization isolation ar
 
 ### M3 — CI ergonomics (≈1–2 weeks)
 
-- [ ] Sharded/parallel builds: unique (project, name, commit, nonce) with `ON CONFLICT`, `build_shards` by index (idempotent retries), timeout listing missing shards
-- [ ] Multiple build names per commit (e.g. `chromium`, `mobile`, `storybook`)
-- [ ] Check which commit-history fields the Argos SDK sends (from its source)
-- [ ] **Argos API compatibility layer** (maps SDK history fields) + contract tests running the real `@argos-ci/cli` and `@argos-ci/playwright`
-- [ ] History source order cli → sdk → provider → fallback, `baseline_source` shown on the build page; `circi argos-env` wrapper + `POST /v1/ancestry`
-- [ ] **`@circi/vitest`**: browser-side `circiScreenshot` with stabilization, reporter upload, shard mapping, one build per browser instance
-- [ ] Vitest `toMatchScreenshot` collection mode
-- [ ] Docs: CI examples (GitHub Actions, GitLab CI, Bitbucket Pipelines, Gitea Actions, Jenkins), Playwright + Vitest setup, migration from Argos
+- [x] Sharded/parallel builds: unique (project, name, commit, nonce) with `ON CONFLICT`, `build_shards` by index (idempotent retries), `circi upload --shard n/total`, and a timeout (`UPLOAD_TIMEOUT_MINUTES`) that fails a stalled build naming the missing shards
+- [x] Multiple build names per commit (e.g. `chromium`, `mobile`, `storybook`)
+- [x] Check which commit-history fields the Argos SDK sends (from its source): `referenceCommit`, `parentCommits` (closest first, the first entry is the commit itself), `prHeadCommit`, `referenceBranch`; and `POST /baseline` when it resolves history itself
+- [x] **Argos API compatibility layer** (`/v2`: project, baseline, builds, multipart uploads, chunked updates, parallel). Contract tests play the SDK's documented requests. **Not done:** running the real `@argos-ci/cli` / `@argos-ci/playwright` against it (installing and running them was not allowed in the session that built this); response shapes the SDK reads that aren't visible in its `upload()` source are best guesses
+- [x] History source (`builds.history_source`: cli or sdk) recorded as `baseline_source`; `circi argos-env` prints the SDK variables. **Not built:** the `provider` step (asking the git host for history) and `POST /v1/ancestry`
+- [x] **`@circi/vitest`**: `circiScreenshot` with stabilization, reporter upload, shard mapping (`--shard`), one build per reporter name. Reporter, collection, naming and shard mapping are tested; **taking screenshots in a real browser through Vitest browser mode has not been run**
+- [x] Vitest `toMatchScreenshot` collection mode (`collectToMatchScreenshot: true`; reads the `__screenshots__` folders)
+- [x] Docs: CI examples (GitHub Actions, GitLab CI, Bitbucket Pipelines, Gitea Actions, Jenkins), Vitest setup, migration from Argos (`docs/`)
 
 ### M3.5 — Static-site pipeline (≈2 weeks)
 
-- [ ] `project_sites` / `static_sites` / `site_hostnames` schema, tarball ingest worker (regular files + dirs only, no symlinks/hard links/devices, reserved `/_circi/` prefix, dedup, size limits)
-- [ ] **Kind registry** + built-in kinds: `storybook`, `vitest-report`, `playwright-report`, `coverage`, `docs`, `generic`, with `--kind auto` detection fixture tests per kind
-- [ ] `circi site upload` (+ `storybook upload` shortcut, `upload --site`); per-file transport for the S3 driver
-- [ ] SDK `uploadReport` options (Playwright reporter, Vitest plugin)
-- [ ] **Wildcard-subdomain serving on the separate sites domain** (`<hash>-<site-slug>.<STATIC_SITES_HOST>`: commit links from the SHA, branch links from a hash of the branch name, 16-char fallback on collision, slugs ≤ 46 chars), startup check that it's unrelated to `PUBLIC_URL`, caching (`private, no-cache` + sha256 ETags everywhere, sent-bytes HTML ETags), SPA fallback
-- [ ] Caddy + `caddy-dns/route53` image and Caddyfile in `deploy/` (dashboard host + wildcard sites domain); IAM policy, Terraform snippet for both zones, Route53 setup docs
-- [ ] Docs: **"Check domain and cookie rules" setup step with ⚠️ warning** (dedicated sites domain; no cookies set for the dashboard's whole parent domain), repeated on the static-hosting page and in the `deploy/` README; `circi doctor` best-effort check
-- [ ] Required-login SSO handoff (`/_sso/site` → single-use token → `__Host-circi_site` cookie), session/membership revocation within 60 s
-- [ ] Branch-link rules: move only to the branch tip (`ls-remote` tip, confirmed via `getBranchHead` when an integration is connected; local `--is-ancestor` fallback); never from forks; expiry after `retention_days` or on branch deletion; commit addresses expire with their version
-- [ ] Uniform sign-in redirect for live, expired and unknown addresses; members-only "expired" page, one "Not found" page for everything else
-- [ ] Service worker gate: worker scripts only on commit addresses of `serviceWorker` kinds; branch → commit redirect for those kinds
-- [ ] Dashboard navigation: project Sites page (all branches), commit view with site cards, direct link when there's one site; site slug algorithm (≤ 46 chars, org suffix, numeric suffix), rename with permanent redirect via `site_slug_history`
-- [ ] Injected Shadow-DOM switcher served from the site's own origin (`/_circi/nav.js` + `sites.json`) for commits with 2+ sites; per-kind position; project/upload opt-out
-- [ ] Hardening: `__Host-` dashboard cookies, CSRF + exact-Origin checks, strict host routing, COOP/CORP, `frame-ancestors` (no X-Frame-Options), cookie-bomb cleanup on the sites domain
-- [ ] Embedded live view with partitioned cookie + new-tab fallback
-- [ ] Sites row in the PR/MR comment with commit + branch addresses
-- [ ] Review UI: Sites panel; per-screenshot deep-link buttons from the registry; live Storybook before/after iframe
-- [ ] `@circi/vitest` Storybook-addon mode (auto-screenshot each story with `storyId`)
-- [ ] Security tests: path traversal, symlink/hard-link tarballs, cross-site cookie isolation, cookie bombing, cookie tossing and CSRF from a malicious site, app/site host routing
+- [x] `project_sites` / `static_sites` / `static_site_files` / `site_hostnames` schema and tarball ingest (regular files + dirs only, no symlinks/hard links/devices, no `..`/absolute/backslash paths, reserved `/_circi/` prefix, dedup by hash, size/file-count/zip-bomb limits), tested with hand-built hostile archives. Ingest runs in the upload request, not a worker
+- [x] **Kind registry** (`@circi/sites`) + built-in kinds with `--kind auto` detection fixture tests. Deep links from screenshots are not built
+- [x] `circi site upload` and `circi storybook upload` (tarball transport; symlinks refused with names). **Not built:** `upload --site`, the per-file S3 transport
+- [ ] SDK `uploadReport` options (Playwright reporter, Vitest plugin): not built
+- [x] **Wildcard-subdomain serving on the separate sites domain** (host-routed in the app: commit/branch addresses, startup refusal of a sites domain related to `PUBLIC_URL`, `private, no-cache` + sha256 ETags, SPA fallback). HTML ETags are the file hash because nothing is injected yet. Original spec: (`<hash>-<site-slug>.<STATIC_SITES_HOST>`: commit links from the SHA, branch links from a hash of the branch name, 16-char fallback on collision, slugs ≤ 46 chars), startup check that it's unrelated to `PUBLIC_URL`, caching (`private, no-cache` + sha256 ETags everywhere, sent-bytes HTML ETags), SPA fallback
+- [x] Caddy + `caddy-dns/route53` image, Caddyfile and compose overlay in `deploy/`; IAM policy, Terraform snippet and Route53 docs in `docs/static-sites.md`. **Never run:** the Caddy image build, certificate issuance and the compose overlay were not exercised
+- [x] Docs: **"Check domain and cookie rules" step with ⚠️ warning** in `docs/static-sites.md`, repeated in `deploy/README.md` and the README; `circi admin doctor` best-effort check (tested with a fake fetcher)
+- [x] Required-login SSO handoff (`/_sso/site` → single-use 60 s token bound to the address → `__Host-circi_site` cookie), session/membership revocation within 60 s (tested)
+- [x] Branch-link rules: move only to the branch tip (`ls-remote`; local `--is-ancestor` fallback); never from forks. **Not built:** confirming the tip through the git host's API, expiry after `retention_days` / on branch deletion
+- [x] Uniform sign-in redirect for live and unknown addresses and one "Not found" page (tested). There is no "expired" state yet because nothing expires
+- [x] Service worker gate: worker scripts only on commit addresses of `serviceWorker` kinds; branch → commit redirect for those kinds (tested)
+- [x] Project Sites page (branches + uploads, linking out) and the slug algorithm (≤ 46 chars, org suffix, numeric suffix). **Not built:** the commit view with site cards, rename with `site_slug_history`
+- [ ] Injected Shadow-DOM switcher: not built (`/_circi/` is reserved and answers 404)
+- [x] Hardening: strict host routing, COOP/CORP, `frame-ancestors` (no X-Frame-Options), 64 KB headers and cookie-bomb cleanup on the sites domain (the dashboard's `__Host-` cookies and CSRF checks were done earlier)
+- [ ] Embedded live view with partitioned cookie + new-tab fallback: not built
+- [ ] Sites row in the PR/MR comment with commit + branch addresses: not built
+- [ ] Review UI: Sites panel; per-screenshot deep-link buttons; live Storybook before/after iframe: not built (sites are listed on the project's Sites page)
+- [ ] `@circi/vitest` Storybook-addon mode: not built
+- [x] Security tests: path traversal (tarball and request paths), symlink/hard-link/device tarballs, one site's cookie refused on another, cookie bombing, app/site host routing, reserved prefix, token replay and cross-address tokens. **Not covered:** cookie tossing and CSRF from a malicious site in a real browser
 
 ### M4 — Hardening & polish (ongoing)
 

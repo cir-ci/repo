@@ -25,6 +25,7 @@ COPY packages/db/package.json packages/db/
 COPY packages/diff/package.json packages/diff/
 COPY packages/providers/package.json packages/providers/
 COPY packages/services/package.json packages/services/
+COPY packages/sites/package.json packages/sites/
 COPY packages/storage/package.json packages/storage/
 COPY packages/testing/package.json packages/testing/
 COPY packages/vitest/package.json packages/vitest/
@@ -50,6 +51,7 @@ COPY --from=build /app/packages/db/migrations packages/db/migrations
 COPY --from=build /app/packages/diff/dist packages/diff/dist
 COPY --from=build /app/packages/providers/dist packages/providers/dist
 COPY --from=build /app/packages/services/dist packages/services/dist
+COPY --from=build /app/packages/sites/dist packages/sites/dist
 COPY --from=build /app/apps/web/dist apps/web/dist
 COPY --from=build /app/packages/storage/dist packages/storage/dist
 

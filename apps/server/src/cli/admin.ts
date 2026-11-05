@@ -26,6 +26,7 @@ import {
 import type { Command } from 'commander'
 
 import type { Runtime } from '../runtime.ts'
+import { httpFetcher, runDoctor } from './doctor.ts'
 import { printJson, printPassword, printToken, publicProject, withRuntime } from './output.ts'
 
 /** `circi admin user|org|member|project …`, run on the server. */
@@ -37,6 +38,19 @@ export function addAdminCommands(program: Command): void {
   addProjectCommands(admin.command('project').description('manage projects and their CI tokens'))
   addMailCommands(admin.command('mail').description('check outgoing mail'))
   addGithubCommands(admin.command('github').description('link projects to GitHub repositories'))
+  admin
+    .command('doctor')
+    .description('check the deployment for what CirCI cannot enforce (cookie scope of the domains)')
+    .action(() =>
+      withRuntime(async (rt) => {
+        let warned = false
+        for (const f of await runDoctor(rt.config, httpFetcher)) {
+          console.log(`${f.level === 'ok' ? '✓' : f.level === 'warn' ? '⚠' : '·'} ${f.message}`)
+          warned ||= f.level === 'warn'
+        }
+        if (warned) process.exitCode = 1
+      }),
+    )
   addAuthCommands(admin.command('auth').description('login methods of an organization'))
   admin
     .command('setup-code')

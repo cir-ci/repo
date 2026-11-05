@@ -1,0 +1,33 @@
+# Two hosts, two certificates (see docs/static-sites.md).
+#
+#   DASHBOARD_HOST  e.g. ci.acme.io          the dashboard and API (HTTP-01 is enough)
+#   SITES_HOST      e.g. acme-sites.com      hosted sites, a SEPARATE domain used for nothing else
+#
+# Caddy keeps the Host header when proxying, which is how CirCI tells a site from the dashboard.
+
+{$DASHBOARD_HOST} {
+	reverse_proxy circi:3000
+}
+
+# One wildcard certificate covers every site address (`<hash>-<slug>.{$SITES_HOST}`).
+# Wildcards need the DNS-01 challenge: Route53 credentials come from the AWS credential chain
+# (an IAM role on EC2 is best; otherwise AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY).
+*.{$SITES_HOST} {
+	tls {
+		dns route53
+	}
+	reverse_proxy circi:3000 {
+		# Uploaded sites can set many cookies; let their requests through so CirCI can clear them.
+		transport http {
+			response_header_timeout 60s
+		}
+	}
+}
+
+# The bare sites domain serves nothing.
+{$SITES_HOST} {
+	tls {
+		dns route53
+	}
+	respond "Not found" 404
+}
