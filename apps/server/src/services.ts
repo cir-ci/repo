@@ -77,6 +77,12 @@ export async function runServices(options: ServiceOptions): Promise<void> {
       })
     }
     if (options.http) {
+      const base = {
+        db: rt.db.db,
+        auth: rt.auth,
+        storage: rt.storage,
+        publicOrigin: rt.config.publicUrl.origin,
+      }
       app = buildServer({
         logger,
         publicOrigin: rt.config.publicUrl.origin,
@@ -93,17 +99,11 @@ export async function runServices(options: ServiceOptions): Promise<void> {
             }
           : {}),
         api: {
-          db: rt.db.db,
-          auth: rt.auth,
-          storage: rt.storage,
-          publicOrigin: rt.config.publicUrl.origin,
+          ...base,
           githubApp: rt.config.github !== undefined,
         },
         dashboard: {
-          db: rt.db.db,
-          auth: rt.auth,
-          storage: rt.storage,
-          publicOrigin: rt.config.publicUrl.origin,
+          ...base,
           emailLogin: rt.config.emailLogin,
           passwordLogin: rt.config.passwordLogin,
           sso: rt.config.sso.map((p) => ({ id: p.id, name: p.name })),

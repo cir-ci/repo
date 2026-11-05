@@ -49,7 +49,17 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     checks: options.checks,
     ...(options.checkTimeoutMs ? { checkTimeoutMs: options.checkTimeoutMs } : {}),
   })
-  if (options.api) void app.register(v1Routes, { ...options.api, prefix: '/v1' })
+  // Each scope is registered inside a wrapper that carries its `prefix`, so the plugin itself
+  // receives only its dependencies and can pass them straight on to its routes.
+  const { api } = options
+  if (api) {
+    void app.register(
+      async (scope) => {
+        await scope.register(v1Routes, api)
+      },
+      { prefix: '/v1' },
+    )
+  }
   if (options.githubWebhook) void app.register(githubWebhookRoutes, options.githubWebhook)
   if (options.dashboard) void app.register(dashboardRoutes, options.dashboard)
 

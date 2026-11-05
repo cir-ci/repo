@@ -17,28 +17,6 @@ import { dashboardSetupRoutes } from './setup.ts'
 import { webAppRoutes } from './web-app.ts'
 
 /**
- * Only the dependencies go to child plugins: Fastify's registration options also carry a
- * `prefix`, which would leak into everything they register. One list, so none can be forgotten.
- */
-function dependenciesOf(options: DashboardDeps): DashboardDeps {
-  return {
-    db: options.db,
-    auth: options.auth,
-    storage: options.storage,
-    publicOrigin: options.publicOrigin,
-    ...(options.emailLogin ? { emailLogin: true } : {}),
-    ...(options.passwordLogin === false ? { passwordLogin: false } : {}),
-    ...(options.sso?.length ? { sso: options.sso } : {}),
-    ...(options.webhookAllowPrivate ? { webhookAllowPrivate: true } : {}),
-    ...(options.orgCreation ? { orgCreation: options.orgCreation } : {}),
-    ...(options.githubApp ? { githubApp: true } : {}),
-    ...(options.authSecret ? { authSecret: options.authSecret } : {}),
-    ...(options.resolveTxt ? { resolveTxt: options.resolveTxt } : {}),
-    ...(options.webDist ? { webDist: options.webDist } : {}),
-  }
-}
-
-/**
  * The dashboard, in three parts:
  *
  *   /api/auth/*   sign-in and sessions, handled by better-auth (public: you sign in here)
@@ -50,7 +28,9 @@ function dependenciesOf(options: DashboardDeps): DashboardDeps {
  * The CI API (`/v1`) and health checks live outside this scope.
  */
 export const dashboardRoutes: FastifyPluginAsync<DashboardDeps> = async (dash, options) => {
-  const deps = dependenciesOf(options)
+  // Registered through `scoped()` or a plain `register`, never with a `prefix` of its own, so
+  // `options` holds exactly the dependencies and can be handed to every child as is.
+  const deps = options
   dash.setErrorHandler(jsonErrorHandler)
 
   await dash.register(authRoutes, {
@@ -68,14 +48,18 @@ export const dashboardRoutes: FastifyPluginAsync<DashboardDeps> = async (dash, o
       secret: deps.authSecret,
     })
   }
-  await dash.register(sessionApi, { ...deps, prefix: '/api' })
+  await dash.register(
+    async (scope) => {
+      await scope.register(sessionApi, deps)
+    },
+    { prefix: '/api' },
+  )
   // Last: its catch-all serves the app shell for client-side routes.
   await dash.register(webAppRoutes, deps)
 }
 
 /** Everything under `/api` except sign-in needs a signed-in user. */
-const sessionApi: FastifyPluginAsync<DashboardDeps> = async (api, options) => {
-  const deps = dependenciesOf(options)
+const sessionApi: FastifyPluginAsync<DashboardDeps> = async (api, deps) => {
   api.addHook('onRequest', requireSameOrigin(deps.publicOrigin))
   api.addHook('onRequest', requireSession(deps.auth, deps.db))
   await api.register(dashboardProjectRoutes, deps)

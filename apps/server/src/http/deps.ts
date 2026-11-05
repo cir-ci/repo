@@ -2,24 +2,23 @@ import type { Auth } from '@circi/auth'
 import type { Database, ProjectContext, SessionMethod } from '@circi/db'
 import type { StorageDriver } from '@circi/storage'
 
-/** What the CI API (`/v1`) needs. */
-export interface V1Deps {
+/** What every HTTP scope needs. */
+export interface BaseDeps {
   db: Database
   auth: Auth
   storage: StorageDriver
-  /** Dashboard origin (`PUBLIC_URL`), used for build links and local-disk upload URLs. */
+  /** Dashboard origin (`PUBLIC_URL`): build links, upload URLs, CSRF and better-auth's base. */
   publicOrigin: string
+}
+
+/** What the CI API (`/v1`) needs. */
+export interface V1Deps extends BaseDeps {
   /** This instance has a GitHub App: a linked project's check is then the merge gate. */
   githubApp?: boolean
 }
 
 /** What the dashboard (sign-in, `/api` and the web app) needs. */
-export interface DashboardDeps {
-  db: Database
-  auth: Auth
-  storage: StorageDriver
-  /** Dashboard origin (`PUBLIC_URL`); better-auth's requests are built against it. */
-  publicOrigin: string
+export interface DashboardDeps extends BaseDeps {
   /** Email sign-in codes are offered (`AUTH_EMAIL_ENABLED` and SMTP configured). Default off. */
   emailLogin?: boolean
   /** Email + password sign-in is offered. Default on. */
