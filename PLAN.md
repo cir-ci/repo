@@ -641,7 +641,7 @@ _Status: accounts, organizations, roles, CI tokens and organization isolation ar
 - [ ] OAuth/OIDC login (GitHub, GitLab, Google, generic OIDC). Instance vs. org-scoped providers, (issuer, subject) matching, `trusted_for_email`, org-scoped sessions, confirmed account linking
 - [x] Approve/reject flow (same-origin guarded), auto-approve on default branch, re-run carry-over
 - [ ] `block_merge_on_changes` setting
-- [ ] Outgoing signed webhooks
+- [x] Outgoing signed webhooks (`circi admin webhook add|list|remove`; settings UI comes with the org/project settings page)
 
 ### M2.5 — Git provider adapters + GitHub bot (≈3 weeks)
 

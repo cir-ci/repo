@@ -51,6 +51,7 @@ describe('migrations', () => {
       'upload_claims',
       'user',
       'verification',
+      'webhooks',
     ])
   })
 

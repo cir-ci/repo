@@ -9,6 +9,8 @@ import type { Job } from '../types.ts'
 export const QUEUES = {
   /** Resolve the baseline, diff every screenshot, finish the build (PLAN §7.3). */
   processBuild: 'process-build',
+  /** Send one outgoing webhook delivery (PLAN §7.4). */
+  webhook: 'webhook',
 } as const
 
 export async function enqueueJob(

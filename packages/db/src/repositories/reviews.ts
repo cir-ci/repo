@@ -4,6 +4,7 @@ import type { Database } from '../client.ts'
 import { ConflictError, NotFoundError } from '../errors.ts'
 import { builds, type ReviewSource, type ReviewState, reviews, user } from '../schema/index.ts'
 import type { Build } from '../types.ts'
+import { queueWebhookEvent } from './webhooks.ts'
 
 /**
  * Approving and rejecting builds (PLAN §7.4). Every decision is kept as a row; the latest one is
@@ -49,6 +50,19 @@ export async function reviewBuild(db: Database, input: ReviewBuildInput): Promis
       .where(eq(builds.id, build.id))
       .returning()
     if (!updated) throw new Error('update returned no row')
+    const [reviewer] = await tx
+      .select({ name: user.name })
+      .from(user)
+      .where(eq(user.id, input.userId))
+    await queueWebhookEvent(tx, {
+      build: updated,
+      event: 'build.reviewed',
+      review: {
+        state: input.state,
+        source: input.source ?? 'ui',
+        userName: reviewer?.name ?? null,
+      },
+    })
     return updated
   })
 }

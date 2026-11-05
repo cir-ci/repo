@@ -9,6 +9,7 @@ import {
 } from '@circi/db'
 import type { StorageDriver } from '@circi/storage'
 
+import { deliverWebhook } from './jobs/deliver-webhook.ts'
 import { processBuild } from './jobs/process-build.ts'
 import { interruptibleSleep } from './lib/concurrency.ts'
 
@@ -24,6 +25,8 @@ export interface WorkerDeps {
   db: Database
   storage: StorageDriver
   logger: WorkerLogger
+  /** The dashboard's origin (`PUBLIC_URL`), used for links in webhook bodies. */
+  publicOrigin?: string
   /** Startup check of the database connection. */
   ping?: () => Promise<void>
   /** How long to wait when the queue is empty. Default 1 s. */
@@ -57,7 +60,7 @@ export async function startWorker(deps: WorkerDeps): Promise<RunningWorker> {
       let job: Job | undefined
       try {
         // oxlint-disable-next-line no-await-in-loop -- a poll loop claims one job at a time
-        job = await claimJob(deps.db, QUEUES.processBuild, lockSeconds)
+        job = await claimNext(deps.db, lockSeconds)
       } catch (err) {
         deps.logger.error({ err }, 'could not claim a job')
       }
@@ -82,7 +85,16 @@ export async function startWorker(deps: WorkerDeps): Promise<RunningWorker> {
   }
 }
 
+/** Builds first: a webhook is never worth delaying a diff for. */
+async function claimNext(db: Database, lockSeconds: number): Promise<Job | undefined> {
+  return (
+    (await claimJob(db, QUEUES.processBuild, lockSeconds)) ??
+    (await claimJob(db, QUEUES.webhook, lockSeconds))
+  )
+}
+
 async function runJob(deps: WorkerDeps, job: Job): Promise<void> {
+  if (job.queue === QUEUES.webhook) return runWebhookJob(deps, job)
   const buildId = typeof job.payload.buildId === 'string' ? job.payload.buildId : undefined
   const started = Date.now()
   try {
@@ -105,5 +117,24 @@ async function runJob(deps: WorkerDeps, job: Job): Promise<void> {
       deps.logger.error({ jobId: job.id, buildId, err }, 'build processing failed for good')
       if (buildId) await failBuild(deps.db, buildId, message).catch(() => {})
     }
+  }
+}
+
+async function runWebhookJob(deps: WorkerDeps, job: Job): Promise<void> {
+  const fields = { jobId: job.id, webhookId: job.payload.webhookId, event: job.payload.event }
+  try {
+    const result = await deliverWebhook(
+      { db: deps.db, ...(deps.publicOrigin ? { publicOrigin: deps.publicOrigin } : {}) },
+      job,
+    )
+    await completeJob(deps.db, job.id)
+    deps.logger.info({ ...fields, ...result }, 'webhook processed')
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    const willRetry = await failJob(deps.db, job, message).catch(() => true)
+    deps.logger[willRetry ? 'warn' : 'error'](
+      { ...fields, attempt: job.attempts, err: message },
+      willRetry ? 'webhook delivery failed, will retry' : 'webhook delivery failed for good',
+    )
   }
 }

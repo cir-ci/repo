@@ -15,4 +15,5 @@ export {
   resolveBaseline,
 } from './baseline.ts'
 export { type PairableScreenshot, pairScreenshots, type ScreenshotPair } from './pairing.ts'
+export { signWebhook, verifyWebhookSignature } from './webhook.ts'
 export { type BuildOutcome, buildOutcome, type OutcomeInput } from './outcome.ts'

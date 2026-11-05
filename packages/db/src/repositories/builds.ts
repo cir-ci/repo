@@ -17,6 +17,7 @@ import {
 } from '../schema/index.ts'
 import type { Build } from '../types.ts'
 import { enqueueJob, QUEUES } from './jobs.ts'
+import { queueWebhookEvent } from './webhooks.ts'
 
 /** Build lifecycle: create (or join a parallel build), finalize shards, baseline, finish. */
 
@@ -387,6 +388,8 @@ export async function completeBuild(
         source: result.approval === 'rerun' ? 'rerun' : 'auto',
       })
     }
+    const [done] = await tx.select().from(builds).where(eq(builds.id, build.id))
+    if (done) await queueWebhookEvent(tx, { build: done, event: 'build.completed' })
   })
 }
 

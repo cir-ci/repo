@@ -15,6 +15,10 @@ CIRCI_TOKEN=circi_… CIRCI_API_URL=https://ci.acme.io npx circi upload ./screen
 - Shallow CI checkouts are fine: the CLI fetches the base branch and just enough history to find the right baseline.
 - `--wait` exit codes: `0` pass, `1` visual changes need review (blocks the merge), `2` error.
 
+## Webhooks
+
+`circi admin webhook add --org acme --project web-app --url https://hooks.acme.io/circi` prints a signing secret once. Each event is a JSON `POST` with `CirCI-Event`, `CirCI-Delivery` and `CirCI-Signature: t=<unix>,v1=<hex>` headers, where `v1` is HMAC-SHA256 of `<t>.<raw body>` with the secret (`verifyWebhookSignature` in `@circi/core` does this check; reject signatures older than a few minutes). The body has the organization, project, build (number, conclusion, review status, commit, branch, PR), the dashboard `url`, and for `build.reviewed` the decision and reviewer. Any non-2xx answer is retried with backoff (8 attempts); redirects are not followed.
+
 ## Self-hosting (Docker)
 
 ```sh
@@ -46,6 +50,7 @@ Anyone you add to an organization sees its projects, builds and screenshots, and
 | `circi admin org create\|list` | Manage organizations (`create` needs `--owner <email>`) |
 | `circi admin member add` | Add an existing account to an organization (`--role owner\|admin\|member`) |
 | `circi admin project create\|list\|rotate-token` | Manage projects and their CI tokens |
+| `circi admin webhook add\|list\|remove` | Send a project's `build.completed` / `build.reviewed` events to a URL |
 
 ### Configuration
 

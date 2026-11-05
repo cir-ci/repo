@@ -22,6 +22,7 @@ export const DIFF_STATUSES = ['added', 'removed', 'changed', 'unchanged', 'faile
 export const DIFF_JOB_STATUSES = ['pending', 'running', 'done', 'failed'] as const
 export const REVIEW_STATES = ['approved', 'rejected'] as const
 export const REVIEW_SOURCES = ['ui', 'github-check', 'github-comment', 'auto', 'rerun'] as const
+export const WEBHOOK_EVENTS = ['build.completed', 'build.reviewed'] as const
 export const JOB_STATUSES = ['pending', 'running', 'done', 'failed'] as const
 
 export type FileKind = (typeof FILE_KINDS)[number]
@@ -35,4 +36,5 @@ export type DiffStatus = (typeof DIFF_STATUSES)[number]
 export type DiffJobStatus = (typeof DIFF_JOB_STATUSES)[number]
 export type ReviewState = (typeof REVIEW_STATES)[number]
 export type ReviewSource = (typeof REVIEW_SOURCES)[number]
+export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number]
 export type JobStatus = (typeof JOB_STATUSES)[number]

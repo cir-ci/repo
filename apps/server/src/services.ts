@@ -58,6 +58,7 @@ export async function runServices(options: ServiceOptions): Promise<void> {
         storage: rt.storage,
         logger,
         ping: () => rt.db.ping(),
+        publicOrigin: rt.config.publicUrl.origin,
       })
     }
     if (options.http) {

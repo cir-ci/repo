@@ -7,9 +7,19 @@ import {
   rotateProjectToken,
   setUserPassword,
 } from '@circi/auth'
-import { listOrganizations, listProjects } from '@circi/db'
+import {
+  createWebhook,
+  deleteWebhook,
+  getProjectBySlugs,
+  isWebhookEvent,
+  listOrganizations,
+  listProjects,
+  listWebhooks,
+  WEBHOOK_EVENTS,
+} from '@circi/db'
 import type { Command } from 'commander'
 
+import type { Runtime } from '../runtime.ts'
 import { printJson, printPassword, printToken, publicProject, withRuntime } from './output.ts'
 
 /** `circi admin user|org|member|project …`, run on the server. */
@@ -19,6 +29,7 @@ export function addAdminCommands(program: Command): void {
   addOrgCommands(admin.command('org').description('manage organizations'))
   addMemberCommands(admin.command('member').description('manage organization members'))
   addProjectCommands(admin.command('project').description('manage projects and their CI tokens'))
+  addWebhookCommands(admin.command('webhook').description('manage outgoing webhooks of a project'))
 }
 
 function addUserCommands(user: Command): void {
@@ -195,4 +206,69 @@ function addProjectCommands(project: Command): void {
         printToken(token)
       }),
     )
+}
+
+function addWebhookCommands(webhook: Command): void {
+  webhook
+    .command('add')
+    .description('send signed events of a project to a URL (the secret is printed once)')
+    .requiredOption('--org <slug>', 'organization slug')
+    .requiredOption('--project <slug>', 'project slug')
+    .requiredOption('--url <url>', 'http(s) address that receives POSTs')
+    .option('--events <list>', `comma-separated, from: ${WEBHOOK_EVENTS.join(', ')} (default: all)`)
+    .option('--json', 'print JSON (includes the secret)')
+    .action(
+      (opts: { org: string; project: string; url: string; events?: string; json?: boolean }) =>
+        withRuntime(async (rt) => {
+          const url = new URL(opts.url)
+          if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+            throw new Error('--url must be an http or https address')
+          }
+          const events = (opts.events?.split(',').map((e) => e.trim()) ?? []).filter(Boolean)
+          const unknown = events.filter((e) => !isWebhookEvent(e))
+          if (unknown.length > 0) throw new Error(`Unknown event(s): ${unknown.join(', ')}`)
+          const project = await projectOf(rt, opts.org, opts.project)
+          const created = await createWebhook(rt.db.db, {
+            projectId: project.id,
+            url: url.toString(),
+            events: events.filter(isWebhookEvent),
+          })
+          if (opts.json) return printJson(created)
+          console.log(`Added webhook ${created.id} → ${created.url} (${created.events.join(', ')})`)
+          console.log('\nSigning secret (shown once, verify CirCI-Signature with it):')
+          console.log(`  ${created.secret}`)
+        }),
+    )
+
+  webhook
+    .command('list')
+    .description("list a project's webhooks")
+    .requiredOption('--org <slug>', 'organization slug')
+    .requiredOption('--project <slug>', 'project slug')
+    .action((opts: { org: string; project: string }) =>
+      withRuntime(async (rt) => {
+        const project = await projectOf(rt, opts.org, opts.project)
+        const hooks = await listWebhooks(rt.db.db, project.id)
+        if (hooks.length === 0) return console.log('No webhooks yet.')
+        for (const h of hooks) console.log(`${h.id}\t${h.url}\t${h.events.join(',')}`)
+      }),
+    )
+
+  webhook
+    .command('remove')
+    .description('stop sending to a webhook')
+    .requiredOption('--org <slug>', 'organization slug')
+    .requiredOption('--project <slug>', 'project slug')
+    .requiredOption('--id <id>', 'webhook id from `webhook list`')
+    .action((opts: { org: string; project: string; id: string }) =>
+      withRuntime(async (rt) => {
+        const project = await projectOf(rt, opts.org, opts.project)
+        await deleteWebhook(rt.db.db, project.id, opts.id)
+        console.log('Removed.')
+      }),
+    )
+}
+
+function projectOf(rt: Runtime, org: string, slug: string) {
+  return getProjectBySlugs(rt.db.db, { orgSlug: org, projectSlug: slug })
 }
