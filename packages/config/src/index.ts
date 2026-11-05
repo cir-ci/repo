@@ -38,6 +38,7 @@ const envSchema = z.object({
   SMTP_FROM: z.preprocess(emptyToUndefined, z.string().optional()),
   AUTH_EMAIL_ENABLED: z.preprocess(emptyToUndefined, bool.optional()),
   WEBHOOK_ALLOW_PRIVATE_ADDRESSES: z.preprocess(emptyToUndefined, bool.optional()),
+  AUTH_PASSWORD_ENABLED: z.preprocess(emptyToUndefined, bool.optional()),
   ORG_CREATION: z.preprocess(emptyToUndefined, z.enum(['admin', 'anyone']).default('admin')),
 })
 
@@ -84,6 +85,8 @@ export interface Config {
   /** Email login (one-time code / link) is offered: switched on (default) and SMTP is set up. */
   emailLogin: boolean
   /** Webhooks may point at private/loopback addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
+  /** Email + password sign-in is offered (`AUTH_PASSWORD_ENABLED`, default on). */
+  passwordLogin: boolean
   webhookAllowPrivate: boolean
   /** Who may create organizations in the dashboard: instance admins only, or any member. */
   orgCreation: 'admin' | 'anyone'
@@ -176,6 +179,15 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     warnings.push('AUTH_EMAIL_ENABLED is on but SMTP_HOST is not set, so email login is off.')
   }
 
+  const passwordLogin = e.AUTH_PASSWORD_ENABLED !== false
+  const emailLogin = Boolean(smtp) && e.AUTH_EMAIL_ENABLED !== false
+  if (!passwordLogin && !emailLogin) {
+    issues.push(
+      'AUTH_PASSWORD_ENABLED is off and email login is not available: nobody could sign in. ' +
+        'Turn password sign-in on, or set up SMTP for email login',
+    )
+  }
+
   if (issues.length > 0 || typeof publicUrl === 'string') throw new ConfigError(issues)
 
   return {
@@ -189,7 +201,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     database: { url: e.DATABASE_URL, poolMax: e.DATABASE_POOL_MAX },
     storage,
     ...(smtp ? { smtp } : {}),
-    emailLogin: Boolean(smtp) && e.AUTH_EMAIL_ENABLED !== false,
+    emailLogin,
+    passwordLogin,
     webhookAllowPrivate: e.WEBHOOK_ALLOW_PRIVATE_ADDRESSES === true,
     orgCreation: e.ORG_CREATION,
   }

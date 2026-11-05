@@ -50,6 +50,13 @@
       "when": 1793869920724,
       "tag": "0006_instance_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793870042600,
+      "tag": "0007_org_auth_settings",
+      "breakpoints": true
     }
   ]
 }

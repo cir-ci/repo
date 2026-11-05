@@ -5,6 +5,7 @@ import type { Database } from '../client.ts'
 import { ConflictError, isUniqueViolation, NotFoundError } from '../errors.ts'
 import { member, organization, projects } from '../schema/index.ts'
 import type { Project } from '../types.ts'
+import { orgAccepts, type SessionMethod } from './auth-settings.ts'
 import { getOrganizationBySlug } from './organizations.ts'
 
 /**
@@ -105,7 +106,7 @@ export interface VisibleProject {
  */
 export async function findProjectForMember(
   db: Database,
-  input: { orgSlug: string; projectSlug: string; userId: string },
+  input: { orgSlug: string; projectSlug: string; userId: string; method?: SessionMethod },
 ): Promise<VisibleProject | undefined> {
   const [row] = await db
     .select({
@@ -122,7 +123,13 @@ export async function findProjectForMember(
       member,
       and(eq(member.organizationId, organization.id), eq(member.userId, input.userId)),
     )
-    .where(and(eq(organization.slug, input.orgSlug), eq(projects.slug, input.projectSlug)))
+    .where(
+      and(
+        eq(organization.slug, input.orgSlug),
+        eq(projects.slug, input.projectSlug),
+        orgAccepts(organization.id, input.method),
+      ),
+    )
   return row
 }
 

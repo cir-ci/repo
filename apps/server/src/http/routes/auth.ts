@@ -11,9 +11,13 @@ export const authRoutes: FastifyPluginAsync<{
   auth: Auth
   publicOrigin: string
   emailLogin: boolean
+  passwordLogin: boolean
 }> = async (app, options) => {
   /** What the sign-in page can offer. Public: it's needed before anyone is signed in. */
-  app.get('/api/auth-methods', async () => ({ password: true, email: options.emailLogin }))
+  app.get('/api/auth-methods', async () => ({
+    password: options.passwordLogin,
+    email: options.emailLogin,
+  }))
 
   // With email login off its endpoints disappear, rather than existing and doing nothing.
   if (!options.emailLogin) {

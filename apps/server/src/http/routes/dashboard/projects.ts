@@ -24,7 +24,7 @@ const PAGE_SIZE = 50
  */
 export const dashboardProjectRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
   app.get('/projects', async (req) => ({
-    projects: await listProjectsOverview(deps.db, currentUser(req).id),
+    projects: await listProjectsOverview(deps.db, currentUser(req).id, currentUser(req).method),
   }))
 
   app.get('/projects/:org/:project', async (req, reply) => {
@@ -33,6 +33,7 @@ export const dashboardProjectRoutes: FastifyPluginAsync<DashboardDeps> = async (
       orgSlug: params.org,
       projectSlug: params.project,
       userId: currentUser(req).id,
+      method: currentUser(req).method,
     })
     if (!project) return reply.code(404).send({ error: 'Project not found' })
     const before = Number(parse(buildsQuery, req.query).before)
@@ -49,6 +50,7 @@ export const dashboardProjectRoutes: FastifyPluginAsync<DashboardDeps> = async (
       orgSlug: params.org,
       projectSlug: params.project,
       userId: currentUser(req).id,
+      method: currentUser(req).method,
     })
     const number = Number(params.number)
     if (!project || !Number.isInteger(number))

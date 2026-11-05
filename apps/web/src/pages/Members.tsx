@@ -1,8 +1,19 @@
-import { Alert, Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import {
+  Alert,
+  Box,
+  Button,
+  Checkbox,
+  FormControlLabel,
+  MenuItem,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 
+import { orgAuthQuery, useSaveOrgAuth } from '../api.ts'
 import { authClient } from '../auth.ts'
 import { ErrorState, RelativeTime, useDocumentTitle } from '../components.tsx'
 import { ListSkeleton, useAnnounce } from '../primitives/feedback.tsx'
@@ -96,6 +107,7 @@ export function MembersPage() {
               />
             ))}
           </Section>
+          {canManage ? <SignInMethods org={org} /> : null}
           {pending.length > 0 ? (
             <Section title="Pending invitations" count={pending.length}>
               {pending.map((i) => (
@@ -198,6 +210,53 @@ function InviteForm({
       {message ? (
         <Alert severity={message.severity} sx={{ mt: 1.5, maxWidth: 560 }}>
           {message.text}
+        </Alert>
+      ) : null}
+    </Box>
+  )
+}
+
+/** Which login methods this organization accepts; the server keeps at least one usable by an owner. */
+function SignInMethods({ org }: { org: string }) {
+  const { data } = useQuery(orgAuthQuery(org))
+  const save = useSaveOrgAuth(org)
+  if (!data) return null
+  const { settings, instance } = data
+  const toggle = (patch: Partial<typeof settings>) => save.mutate(patch)
+  return (
+    <Box component="section">
+      <Typography variant="h2" component="h2" sx={{ mb: 0.5 }}>
+        Sign-in methods
+      </Typography>
+      <Typography color="text.secondary" sx={{ mb: 1 }}>
+        People sign in with any method the instance offers, but this organization only shows its
+        projects to sessions that used a method you accept here.
+      </Typography>
+      <Stack>
+        <FormControlLabel
+          label="Password"
+          control={
+            <Checkbox
+              checked={settings.passwordLoginEnabled && instance.password}
+              disabled={!instance.password || save.isPending}
+              onChange={(_, on) => toggle({ passwordLoginEnabled: on })}
+            />
+          }
+        />
+        <FormControlLabel
+          label={instance.email ? 'Email code' : 'Email code (not set up on this instance)'}
+          control={
+            <Checkbox
+              checked={settings.emailLoginEnabled && instance.email}
+              disabled={!instance.email || save.isPending}
+              onChange={(_, on) => toggle({ emailLoginEnabled: on })}
+            />
+          }
+        />
+      </Stack>
+      {save.error ? (
+        <Alert severity="error" sx={{ mt: 1, maxWidth: 560 }}>
+          {save.error.message}
         </Alert>
       ) : null}
     </Box>

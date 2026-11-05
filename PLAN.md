@@ -633,7 +633,7 @@ _Status: accounts, organizations, roles, CI tokens and organization isolation ar
 - [x] Organization isolation in every dashboard query, including files shared by hash; sign-in page, user menu and sign-out in the web app
 - [x] Migration of the earlier hand-written users, organizations and memberships (tested on legacy rows)
 - [x] Email login (6-digit code + link) with SMTP (`SMTP_*`, `AUTH_EMAIL_ENABLED`, `circi admin mail test`); better-auth's per-IP limits (3 codes/min). Still open: per-email limit across IPs, "new sign-in" notification mail
-- [ ] Turning login methods on/off: instance env flags + per-org `org_auth_settings`, lockout guard, `circi admin auth` break-glass command
+- [x] Turning login methods on/off: `AUTH_PASSWORD_ENABLED` / `AUTH_EMAIL_ENABLED` instance flags + per-org `org_auth_settings` (members page), the session's login method recorded and enforced on an org's content (including better-auth's organization endpoints), lockout guard, `circi admin auth enable|disable` break-glass. Per-org OIDC rules arrive with OIDC
 - [ ] Allowed email domains → auto-join org with a default role; domain claims verified by DNS TXT record
 - [x] Invitations (organization plugin + SMTP) and a members page
 - [x] Sessions list and revoke (account page), project settings page (incl. webhooks, SSRF-restricted addresses)

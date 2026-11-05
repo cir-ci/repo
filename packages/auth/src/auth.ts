@@ -1,9 +1,15 @@
 import { apiKey } from '@better-auth/api-key'
 import { drizzleAdapter } from '@better-auth/drizzle-adapter'
 import type { Database } from '@circi/db'
-import { schema } from '@circi/db'
+import {
+  getSessionMethod,
+  type LoginMethod,
+  orgAcceptsSession,
+  recordSessionMethod,
+  schema,
+} from '@circi/db'
 import { betterAuth } from 'better-auth'
-import { APIError } from 'better-auth/api'
+import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
 import { admin, emailOTP, organization } from 'better-auth/plugins'
 import { and, eq, gt, sql } from 'drizzle-orm'
 
@@ -38,6 +44,8 @@ export interface AuthOptions {
    * the server only exposes them when email login is switched on.
    */
   mailer?: Mailer
+  /** Email + password sign-in is on (default). Off: only email codes (and later SSO) work. */
+  passwordLogin?: boolean
   /** Called when sending a mail fails (it's never awaited, so sign-in timing doesn't leak). */
   onMailError?: (err: unknown) => void
 }
@@ -193,7 +201,7 @@ export function createAuth(options: AuthOptions) {
       },
     }),
     emailAndPassword: {
-      enabled: true,
+      enabled: options.passwordLogin !== false,
       disableSignUp: true,
       minPasswordLength: MIN_PASSWORD_LENGTH,
     },
@@ -201,7 +209,40 @@ export function createAuth(options: AuthOptions) {
       cookiePrefix: 'circi',
       ...hostCookies(options.baseURL),
     },
+    hooks: {
+      // better-auth's own organization endpoints (members, invitations) obey an organization's
+      // login-method rules like the rest of the dashboard: a refused session gets "not found".
+      before: createAuthMiddleware(async (ctx) => {
+        if (!ctx.path.startsWith('/organization/')) return
+        const ref = organizationRef(ctx.body) ?? organizationRef(ctx.query)
+        if (!ref) return
+        const session = await getSessionFromCtx(ctx)
+        if (!session) return
+        const [org] = await options.db
+          .select({ id: schema.organization.id })
+          .from(schema.organization)
+          .where(
+            ref.id
+              ? eq(schema.organization.id, ref.id)
+              : eq(schema.organization.slug, ref.slug ?? ''),
+          )
+        if (!org) return
+        const method = (await getSessionMethod(options.db, session.session.id)) ?? 'unknown'
+        if (!(await orgAcceptsSession(options.db, org.id, method))) {
+          throw new APIError('NOT_FOUND', { message: 'Organization not found' })
+        }
+      }),
+    },
     databaseHooks: {
+      session: {
+        create: {
+          // Remember how this session signed in: an organization may refuse some methods.
+          after: async (created, context) => {
+            const method = loginMethodOf(context?.path)
+            if (method) await recordSessionMethod(options.db, created.id, method)
+          },
+        },
+      },
       user: {
         create: {
           before: async (_user, context) => {
@@ -217,6 +258,25 @@ export function createAuth(options: AuthOptions) {
     },
     plugins: authPlugins(options),
   })
+}
+
+/** The organization a request names, by id or slug. */
+function organizationRef(source: unknown): { id?: string; slug?: string } | undefined {
+  if (typeof source !== 'object' || source === null) return undefined
+  const id: unknown = Reflect.get(source, 'organizationId')
+  const slug: unknown = Reflect.get(source, 'organizationSlug')
+  if (typeof id === 'string' && id) return { id }
+  if (typeof slug === 'string' && slug) return { slug }
+  return undefined
+}
+
+/** How a sign-in came in, from the better-auth endpoint that created the session. */
+function loginMethodOf(path: string | undefined): LoginMethod | undefined {
+  if (!path) return undefined
+  if (path === '/sign-in/email') return 'password'
+  if (path === '/sign-in/email-otp') return 'email'
+  if (path.startsWith('/callback/') || path.startsWith('/oauth2/callback/')) return 'oidc'
+  return undefined
 }
 
 export type Auth = ReturnType<typeof createAuth>

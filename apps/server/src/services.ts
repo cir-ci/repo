@@ -92,6 +92,7 @@ export async function runServices(options: ServiceOptions): Promise<void> {
           storage: rt.storage,
           publicOrigin: rt.config.publicUrl.origin,
           emailLogin: rt.config.emailLogin,
+          passwordLogin: rt.config.passwordLogin,
           webhookAllowPrivate: rt.config.webhookAllowPrivate,
           orgCreation: rt.config.orgCreation,
           authSecret: rt.config.authSecret,

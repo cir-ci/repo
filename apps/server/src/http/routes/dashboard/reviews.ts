@@ -23,6 +23,7 @@ export const dashboardReviewRoutes: FastifyPluginAsync<DashboardDeps> = async (a
       orgSlug: p.org,
       projectSlug: p.project,
       userId: user.id,
+      method: user.method,
     })
     const number = Number(p.number)
     const build =

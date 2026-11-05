@@ -17,7 +17,7 @@ export const dashboardFileRoutes: FastifyPluginAsync<DashboardDeps> = async (app
     const hash = req.params.sha256
     if (!SHA_RE.test(hash)) return reply.code(404).send({ error: 'Not found' })
     // Checked before the 304 shortcut: a cached copy must not outlive losing access.
-    if (!(await canUserAccessFile(deps.db, currentUser(req).id, hash))) {
+    if (!(await canUserAccessFile(deps.db, currentUser(req).id, hash, currentUser(req).method))) {
       return reply.code(404).send({ error: 'Not found' })
     }
     if (req.headers['if-none-match'] === `"${hash}"`) return reply.code(304).send()

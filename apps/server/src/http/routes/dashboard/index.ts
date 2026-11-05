@@ -7,6 +7,7 @@ import { requireSession } from '../../hooks/session.ts'
 import { authRoutes } from '../auth.ts'
 import { dashboardFileRoutes } from './files.ts'
 import { dashboardInstanceRoutes } from './instance.ts'
+import { dashboardOrgAuthRoutes } from './org-auth.ts'
 import { dashboardOrganizationRoutes } from './organizations.ts'
 import { dashboardProjectRoutes } from './projects.ts'
 import { dashboardReviewRoutes } from './reviews.ts'
@@ -33,6 +34,7 @@ export const dashboardRoutes: FastifyPluginAsync<DashboardDeps> = async (dash, o
     storage: options.storage,
     publicOrigin: options.publicOrigin,
     ...(options.emailLogin ? { emailLogin: true } : {}),
+    ...(options.passwordLogin === false ? { passwordLogin: false } : {}),
     ...(options.webhookAllowPrivate ? { webhookAllowPrivate: true } : {}),
     ...(options.orgCreation ? { orgCreation: options.orgCreation } : {}),
     ...(options.authSecret ? { authSecret: options.authSecret } : {}),
@@ -44,6 +46,7 @@ export const dashboardRoutes: FastifyPluginAsync<DashboardDeps> = async (dash, o
     auth: deps.auth,
     publicOrigin: deps.publicOrigin,
     emailLogin: deps.emailLogin === true,
+    passwordLogin: deps.passwordLogin !== false,
   })
   if (deps.authSecret) {
     await dash.register(dashboardSetupRoutes, {
@@ -68,13 +71,16 @@ const sessionApi: FastifyPluginAsync<DashboardDeps> = async (api, options) => {
     publicOrigin: options.publicOrigin,
     ...(options.webhookAllowPrivate ? { webhookAllowPrivate: true } : {}),
     ...(options.orgCreation ? { orgCreation: options.orgCreation } : {}),
+    ...(options.emailLogin ? { emailLogin: true } : {}),
+    ...(options.passwordLogin === false ? { passwordLogin: false } : {}),
   }
   api.addHook('onRequest', requireSameOrigin(deps.publicOrigin))
-  api.addHook('onRequest', requireSession(deps.auth))
+  api.addHook('onRequest', requireSession(deps.auth, deps.db))
   await api.register(dashboardProjectRoutes, deps)
   await api.register(dashboardSettingsRoutes, deps)
   await api.register(dashboardOrganizationRoutes, deps)
   await api.register(dashboardInstanceRoutes, deps)
+  await api.register(dashboardOrgAuthRoutes, deps)
   await api.register(dashboardReviewRoutes, deps)
   await api.register(dashboardFileRoutes, deps)
 }

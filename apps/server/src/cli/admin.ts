@@ -12,11 +12,13 @@ import { webhookUrlProblem } from '@circi/core'
 import {
   createWebhook,
   deleteWebhook,
+  getOrganizationBySlug,
   getProjectBySlugs,
   isWebhookEvent,
   listOrganizations,
   listProjects,
   listWebhooks,
+  setOrgAuthSettings,
   WEBHOOK_EVENTS,
 } from '@circi/db'
 import type { Command } from 'commander'
@@ -32,6 +34,7 @@ export function addAdminCommands(program: Command): void {
   addMemberCommands(admin.command('member').description('manage organization members'))
   addProjectCommands(admin.command('project').description('manage projects and their CI tokens'))
   addMailCommands(admin.command('mail').description('check outgoing mail'))
+  addAuthCommands(admin.command('auth').description('login methods of an organization'))
   admin
     .command('setup-code')
     .description('print the code that first-run setup in the dashboard asks for')
@@ -302,4 +305,43 @@ function addMailCommands(mail: Command): void {
         console.log(`Sent a test mail to ${opts.to}`)
       }),
     )
+}
+
+function addAuthCommands(auth: Command): void {
+  for (const action of ['enable', 'disable'] as const) {
+    auth
+      .command(`${action} <method>`)
+      .description(
+        action === 'enable'
+          ? 'accept a login method (email or password) in an organization again; the way back in when it was locked down'
+          : 'stop accepting a login method (email or password) in an organization',
+      )
+      .requiredOption('--org <slug>', 'organization slug')
+      .action((method: string, opts: { org: string }) =>
+        withRuntime(async (rt) => {
+          if (method !== 'email' && method !== 'password') {
+            throw new Error('method must be "email" or "password"')
+          }
+          const org = await getOrganizationBySlug(rt.db.db, opts.org)
+          const value = action === 'enable'
+          // This is the break-glass command, so the lockout guard doesn't apply to it.
+          const settings = await setOrgAuthSettings(
+            rt.db.db,
+            org.id,
+            method === 'email' ? { emailLoginEnabled: value } : { passwordLoginEnabled: value },
+            {
+              force: true,
+              instance: {
+                password: rt.config.passwordLogin,
+                email: rt.config.emailLogin,
+                oidc: false,
+              },
+            },
+          )
+          console.log(
+            `${org.slug}: email login ${settings.emailLoginEnabled ? 'on' : 'off'}, password login ${settings.passwordLoginEnabled ? 'on' : 'off'}`,
+          )
+        }),
+      )
+  }
 }

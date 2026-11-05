@@ -1,5 +1,5 @@
 import FolderOpenOutlined from '@mui/icons-material/FolderOpenOutlined'
-import { Box, Button, Typography } from '@mui/material'
+import { Alert, Box, Button, Typography } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
@@ -49,6 +49,15 @@ export function ProjectsPage() {
         />
       }
     >
+      {caps?.refusingOrganizations.map((o) => (
+        <Alert key={o.name} severity="info" sx={{ mb: 2 }}>
+          {o.name} only shows its projects to people who signed in with{' '}
+          {o.accepts.length > 0
+            ? o.accepts.map((m) => (m === 'email' ? 'an email code' : 'a password')).join(' or ')
+            : 'another method'}
+          . Sign out and sign in that way to see them.
+        </Alert>
+      ))}
       {error ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : !data ? (

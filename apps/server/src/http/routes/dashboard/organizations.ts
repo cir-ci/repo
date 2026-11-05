@@ -1,7 +1,9 @@
 import { createOrganization, createProjectWithToken } from '@circi/auth'
 import {
   getMemberRole,
+  orgAcceptsSession,
   listManageableOrganizations,
+  listRefusingOrganizations,
   getOrganizationBySlug,
   isInstanceAdmin,
   NotFoundError,
@@ -28,8 +30,18 @@ export const dashboardOrganizationRoutes: FastifyPluginAsync<DashboardDeps> = as
 
   app.get('/capabilities', async (req) => ({
     canCreateOrganization: await canCreateOrganization(currentUser(req).id),
+    /** Organizations that refuse the way this session signed in, and what they accept. */
+    refusingOrganizations: await listRefusingOrganizations(
+      deps.db,
+      currentUser(req).id,
+      currentUser(req).method,
+    ),
     /** Where this person may create projects. */
-    manageableOrganizations: await listManageableOrganizations(deps.db, currentUser(req).id),
+    manageableOrganizations: await listManageableOrganizations(
+      deps.db,
+      currentUser(req).id,
+      currentUser(req).method,
+    ),
   }))
 
   app.post('/organizations', async (req, reply) => {
@@ -49,9 +61,13 @@ export const dashboardOrganizationRoutes: FastifyPluginAsync<DashboardDeps> = as
       if (err instanceof NotFoundError) return undefined
       throw err
     })
-    const role = org
-      ? await getMemberRole(deps.db, { userId: currentUser(req).id, organizationId: org.id })
-      : undefined
+    const refused = org
+      ? !(await orgAcceptsSession(deps.db, org.id, currentUser(req).method))
+      : false
+    const role =
+      org && !refused
+        ? await getMemberRole(deps.db, { userId: currentUser(req).id, organizationId: org.id })
+        : undefined
     if (!org || !role) return reply.code(404).send({ error: 'Organization not found' })
     if (role !== 'owner' && role !== 'admin') {
       return reply.code(403).send({ error: 'Only owners and admins can create projects' })

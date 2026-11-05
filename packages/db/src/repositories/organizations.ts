@@ -4,6 +4,7 @@ import type { Database } from '../client.ts'
 import { NotFoundError } from '../errors.ts'
 import { member, organization } from '../schema/index.ts'
 import type { Organization } from '../types.ts'
+import { orgAccepts, type SessionMethod } from './auth-settings.ts'
 
 /**
  * Read access to organizations and memberships. They're owned by better-auth's organization
@@ -61,11 +62,18 @@ export async function getMemberRole(
 export async function listManageableOrganizations(
   db: Database,
   userId: string,
+  method?: SessionMethod,
 ): Promise<{ slug: string; name: string }[]> {
   return db
     .select({ slug: organization.slug, name: organization.name })
     .from(member)
     .innerJoin(organization, eq(organization.id, member.organizationId))
-    .where(and(eq(member.userId, userId), inArray(member.role, ['owner', 'admin'])))
+    .where(
+      and(
+        eq(member.userId, userId),
+        inArray(member.role, ['owner', 'admin']),
+        orgAccepts(organization.id, method),
+      ),
+    )
     .orderBy(asc(organization.slug))
 }

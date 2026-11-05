@@ -8,6 +8,7 @@ export {
 } from './client.ts'
 export * from './errors.ts'
 export * from './queries/dashboard.ts'
+export * from './repositories/auth-settings.ts'
 export * from './repositories/builds.ts'
 export * from './repositories/files.ts'
 export * from './repositories/instance.ts'

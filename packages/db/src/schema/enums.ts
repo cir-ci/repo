@@ -23,8 +23,11 @@ export const DIFF_JOB_STATUSES = ['pending', 'running', 'done', 'failed'] as con
 export const REVIEW_STATES = ['approved', 'rejected'] as const
 export const REVIEW_SOURCES = ['ui', 'github-check', 'github-comment', 'auto', 'rerun'] as const
 export const WEBHOOK_EVENTS = ['build.completed', 'build.reviewed'] as const
+/** How someone signed in: `oidc` covers every single sign-on provider. */
+export const LOGIN_METHODS = ['password', 'email', 'oidc'] as const
 export const JOB_STATUSES = ['pending', 'running', 'done', 'failed'] as const
 
+export type LoginMethod = (typeof LOGIN_METHODS)[number]
 export type FileKind = (typeof FILE_KINDS)[number]
 export type FileStatus = (typeof FILE_STATUSES)[number]
 export type BuildStatus = (typeof BUILD_STATUSES)[number]

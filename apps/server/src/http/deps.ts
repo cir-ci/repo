@@ -1,5 +1,5 @@
 import type { Auth } from '@circi/auth'
-import type { Database, ProjectContext } from '@circi/db'
+import type { Database, ProjectContext, SessionMethod } from '@circi/db'
 import type { StorageDriver } from '@circi/storage'
 
 /** What the CI API (`/v1`) needs. */
@@ -20,6 +20,8 @@ export interface DashboardDeps {
   publicOrigin: string
   /** Email sign-in codes are offered (`AUTH_EMAIL_ENABLED` and SMTP configured). Default off. */
   emailLogin?: boolean
+  /** Email + password sign-in is offered. Default on. */
+  passwordLogin?: boolean
   /** Webhooks may point at private addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). Default off. */
   webhookAllowPrivate?: boolean
   /** Who may create organizations in the dashboard. Default: instance admins only. */
@@ -35,6 +37,6 @@ declare module 'fastify' {
     /** The project whose CI token authenticated this `/v1` request. */
     project?: ProjectContext
     /** The signed-in user, inside the session-protected dashboard API. */
-    user?: { id: string; email: string; name: string }
+    user?: { id: string; email: string; name: string; method: SessionMethod }
   }
 }

@@ -93,6 +93,7 @@ describe('first-run setup', () => {
     const caps = await app.inject({ method: 'GET', url: '/api/capabilities', headers: { cookie } })
     expect(caps.json()).toEqual({
       canCreateOrganization: true,
+      refusingOrganizations: [],
       manageableOrganizations: [{ slug: 'acme-inc', name: 'Acme Inc' }],
     })
 
@@ -139,7 +140,11 @@ describe('creating organizations and projects', () => {
       url: '/api/capabilities',
       headers: { cookie: plain },
     })
-    expect(caps.json()).toEqual({ canCreateOrganization: false, manageableOrganizations: [] })
+    expect(caps.json()).toEqual({
+      canCreateOrganization: false,
+      manageableOrganizations: [],
+      refusingOrganizations: [],
+    })
     await app.close()
   })
 

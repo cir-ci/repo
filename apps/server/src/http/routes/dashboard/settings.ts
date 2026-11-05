@@ -65,6 +65,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<DashboardDeps> = async 
       orgSlug: p.org,
       projectSlug: p.project,
       userId: user.id,
+      method: user.method,
     })
     const project = visible ? await getProjectById(deps.db, visible.id) : undefined
     if (!visible || !project) {

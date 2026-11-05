@@ -46,6 +46,8 @@ Owners and admins can also invite people by email from the organization's member
 
 Each project's **Settings** page (owners and admins) sets the default branch, a diff threshold, retention, whether builds on the default branch are approved automatically, and whether unreviewed changes block merging. The account menu has **Account and sessions**, to see every device signed in as you and sign any of them out.
 
+Owners and admins can restrict which sign-in methods an organization accepts (password, email code) on the members page. The organization's projects are then only shown to sessions that signed in with an accepted method, and the page refuses a change that would leave no owner able to sign in. If a setting ever locks everyone out, `circi admin auth enable password --org acme` (or `email`) on the server undoes it.
+
 Anyone you add to an organization sees its projects, builds and screenshots, and nothing else. Add people with `circi admin user create` and `circi admin member add`.
 
 - Storage defaults to local disk (a Docker volume), the cheapest option. For S3-compatible storage, set `STORAGE_DRIVER=s3` and the `S3_*` variables. `docker-compose.s3.yml` adds a local MinIO for development.
@@ -62,6 +64,7 @@ Anyone you add to an organization sees its projects, builds and screenshots, and
 | `circi admin org create\|list` | Manage organizations (`create` needs `--owner <email>`) |
 | `circi admin member add` | Add an existing account to an organization (`--role owner\|admin\|member`) |
 | `circi admin project create\|list\|rotate-token` | Manage projects and their CI tokens |
+| `circi admin auth enable\|disable <email\|password> --org <slug>` | Change an organization's accepted sign-in methods (skips the lockout guard: break-glass) |
 | `circi admin setup-code` | Print the code the first-run setup page asks for |
 | `circi admin mail test` | Send a test mail through the configured SMTP server |
 | `circi admin webhook add\|list\|remove` | Send a project's `build.completed` / `build.reviewed` events to a URL |
@@ -76,6 +79,7 @@ Anyone you add to an organization sees its projects, builds and screenshots, and
 | `HOST` / `PORT` | `0.0.0.0` / `3000` | |
 | `LOG_LEVEL` | `info` | `fatal` … `trace` |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | | Outgoing mail. `SMTP_FROM` is required with `SMTP_HOST`; port defaults to 587 (STARTTLS), 465 means implicit TLS. Check it with `circi admin mail test --to you@acme.io` |
+| `AUTH_PASSWORD_ENABLED` | `true` | Email + password sign-in. `false` needs email login (SMTP) to be available, or nobody could sign in |
 | `AUTH_EMAIL_ENABLED` | `true` | Email sign-in codes; only offered when SMTP is configured. `false` turns them off |
 | `ORG_CREATION` | `admin` | Who may create organizations in the dashboard: `admin` (instance admins) or `anyone` (every signed-in account) |
 | `WEBHOOK_ALLOW_PRIVATE_ADDRESSES` | `false` | Allow webhooks to private/loopback addresses (they are refused by default) |

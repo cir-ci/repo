@@ -1,6 +1,7 @@
 import { aliasedTable, and, desc, eq, exists, inArray, lt, or, sql } from 'drizzle-orm'
 
 import type { Database } from '../client.ts'
+import { orgAccepts, type SessionMethod } from '../repositories/auth-settings.ts'
 import type { BuildCounts } from '../repositories/builds.ts'
 import { listBuildReviews, type ReviewEntry } from '../repositories/reviews.ts'
 import {
@@ -43,12 +44,14 @@ export interface ProjectOverview {
 export async function listProjectsOverview(
   db: Database,
   userId: string,
+  method?: SessionMethod,
 ): Promise<ProjectOverview[]> {
   const rows = await db
     .select({ org: organization, project: projects })
     .from(projects)
     .innerJoin(organization, eq(organization.id, projects.orgId))
     .innerJoin(member, and(eq(member.organizationId, organization.id), eq(member.userId, userId)))
+    .where(orgAccepts(organization.id, method))
     .orderBy(organization.slug, projects.slug)
   return Promise.all(
     rows.map(async ({ org, project }) => {
@@ -266,6 +269,7 @@ export async function canUserAccessFile(
   db: Database,
   userId: string,
   sha256: string,
+  method?: SessionMethod,
 ): Promise<boolean> {
   const inUsersOrg = (buildId: typeof screenshots.buildId | typeof screenshotDiffs.buildId) =>
     exists(
@@ -277,7 +281,7 @@ export async function canUserAccessFile(
           member,
           and(eq(member.organizationId, projects.orgId), eq(member.userId, userId)),
         )
-        .where(eq(builds.id, buildId)),
+        .where(and(eq(builds.id, buildId), orgAccepts(projects.orgId, method))),
     )
   const [viaScreenshot] = await db
     .select({ one: sql`1` })

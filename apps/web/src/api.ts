@@ -260,6 +260,8 @@ export function useDeleteWebhook(org: string, project: string) {
 export interface Capabilities {
   canCreateOrganization: boolean
   manageableOrganizations: { slug: string; name: string }[]
+  /** Organizations that won't show their content to the way this session signed in. */
+  refusingOrganizations: { name: string; accepts: ('password' | 'email')[] }[]
 }
 
 export const capabilitiesQuery = () =>
@@ -314,3 +316,27 @@ export const submitSetup = (input: {
   password: string
   organizationName: string
 }) => post<{ email: string }>('/api/setup', input)
+
+export interface OrgAuthResponse {
+  canManage: boolean
+  settings: { emailLoginEnabled: boolean; passwordLoginEnabled: boolean }
+  instance: { password: boolean; email: boolean }
+}
+
+export const orgAuthQuery = (org: string) =>
+  queryOptions({
+    queryKey: ['org-auth', org],
+    queryFn: () => getJson<OrgAuthResponse>(`/api/organizations/${seg(org)}/auth`),
+  })
+
+export function useSaveOrgAuth(org: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (patch: Partial<OrgAuthResponse['settings']>) =>
+      request<{ settings: OrgAuthResponse['settings'] }>(`/api/organizations/${seg(org)}/auth`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['org-auth', org] }),
+  })
+}

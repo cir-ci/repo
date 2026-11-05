@@ -21,6 +21,7 @@ export function LoginPage() {
   })
   const fromLink = readLink()
   const invitedEmail = readInvitedEmail()
+  const passwordOn = methods.data?.password !== false
   const [mode, setMode] = useState<'password' | 'email'>(
     fromLink || invitedEmail ? 'email' : 'password',
   )
@@ -35,11 +36,11 @@ export function LoginPage() {
       <Typography variant="h1" sx={{ textAlign: 'center', mb: 3 }}>
         Sign in to CirCI
       </Typography>
-      {mode === 'email' && emailOn ? (
+      {(mode === 'email' || !passwordOn) && emailOn ? (
         <EmailForm
           initial={fromLink}
           invitedEmail={invitedEmail}
-          onBack={() => setMode('password')}
+          onBack={passwordOn ? () => setMode('password') : undefined}
         />
       ) : (
         <PasswordForm onEmail={emailOn ? () => setMode('email') : undefined} />
@@ -114,7 +115,7 @@ function EmailForm({
   initial: { email: string; code: string } | undefined
   /** From an invitation link: the address that was invited, to save typing it. */
   invitedEmail: string | undefined
-  onBack: () => void
+  onBack: (() => void) | undefined
 }) {
   const [email, setEmail] = useState(initial?.email ?? '')
   const [sent, setSent] = useState(Boolean(initial))
@@ -169,9 +170,11 @@ function EmailForm({
           <Button type="submit" variant="contained" disabled={busy} fullWidth>
             {busy ? 'Sending…' : 'Email me a code'}
           </Button>
-          <Link component="button" type="button" variant="body2" onClick={onBack}>
-            Use a password instead
-          </Link>
+          {onBack ? (
+            <Link component="button" type="button" variant="body2" onClick={onBack}>
+              Use a password instead
+            </Link>
+          ) : null}
         </Stack>
       </Box>
     )
