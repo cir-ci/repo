@@ -602,6 +602,12 @@ importers:
         specifier: 'catalog:'
         version: 0.45.4(@electric-sql/pglite@0.5.12)(@types/pg@8.23.1)(kysely@0.29.8)(pg@8.23.1)
 
+  packages/vitest:
+    dependencies:
+      '@circi/cli':
+        specifier: workspace:*
+        version: link:../cli
+
 packages:
 
   '@authenio/xml-encryption@6.0.2':

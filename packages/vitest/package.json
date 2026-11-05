@@ -1,0 +1,20 @@
+{
+  "name": "@circi/vitest",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Vitest integration: screenshot helper, reporter that uploads to CirCI",
+  "type": "module",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@circi/cli": "workspace:*"
+  }
+}
