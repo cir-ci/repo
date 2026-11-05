@@ -44,19 +44,20 @@ export function buildState(b: BuildStatus): { label: string; tone: Tone; icon: R
   return { label: 'Changes to review', tone: 'attention', icon: <RateReviewOutlined /> }
 }
 
-export function BuildStateLabel({
-  build,
-  size,
-}: {
-  build: BuildStatus
-  size?: 'small' | 'medium'
-}) {
+export function BuildStateLabel({ build, size }: BuildStateLabel.Props) {
   const s = buildState(build)
   return (
     <StateLabel tone={s.tone} icon={s.icon} {...(size ? { size } : {})}>
       {s.label}
     </StateLabel>
   )
+}
+
+export namespace BuildStateLabel {
+  export interface Props {
+    build: BuildStatus
+    size?: 'small' | 'medium'
+  }
 }
 
 export const DIFF_STATUS: Record<DiffStatus, { label: string; tone: Tone; icon: ReactNode }> = {
@@ -68,13 +69,7 @@ export const DIFF_STATUS: Record<DiffStatus, { label: string; tone: Tone; icon: 
 }
 
 /** "2 changed · 1 added …" with an icon per kind; zero counts are left out. */
-export function CountsSummary({
-  counts,
-  includeUnchanged = true,
-}: {
-  counts: Build.Counts
-  includeUnchanged?: boolean
-}) {
+export function CountsSummary({ counts, includeUnchanged = true }: CountsSummary.Props) {
   const order: DiffStatus[] = ['changed', 'failed', 'added', 'removed']
   if (includeUnchanged) order.push('unchanged')
   if (counts.total === 0) {
@@ -97,12 +92,15 @@ export function CountsSummary({
   )
 }
 
+export namespace CountsSummary {
+  export interface Props {
+    counts: Build.Counts
+    includeUnchanged?: boolean
+  }
+}
+
 /** Metadata line for a build: PR, branch, commit, time. */
-export function BuildMeta({
-  build,
-}: {
-  build: Pick<Build.ListItem, 'branch' | 'prNumber' | 'commitSha' | 'createdAt'>
-}) {
+export function BuildMeta({ build }: BuildMeta.Props) {
   return (
     <Stack
       direction="row"
@@ -121,6 +119,12 @@ export function BuildMeta({
       <RelativeTime iso={build.createdAt} />
     </Stack>
   )
+}
+
+export namespace BuildMeta {
+  export interface Props {
+    build: Pick<Build.ListItem, 'branch' | 'prNumber' | 'commitSha' | 'createdAt'>
+  }
 }
 
 /** The current time, refreshed every minute so relative times on an open page stay right. */
@@ -144,7 +148,7 @@ const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
 const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
 
 /** Primer RelativeTime: "3 minutes ago", with the exact time on hover. */
-export function RelativeTime({ iso }: { iso: string }) {
+export function RelativeTime({ iso }: RelativeTime.Props) {
   const now = useNow()
   const seconds = (new Date(iso).getTime() - now) / 1000
   const unit = UNITS.find(([, s]) => Math.abs(seconds) >= s)
@@ -156,11 +160,17 @@ export function RelativeTime({ iso }: { iso: string }) {
   )
 }
 
+export namespace RelativeTime {
+  export interface Props {
+    iso: string
+  }
+}
+
 /**
  * Error state per Primer: alert icon, what went wrong in plain words, and the way to recover.
  * A 404 gets a "not found" message; anything else offers to retry.
  */
-export function ErrorState(props: { error: Error; onRetry?: () => void; notFound?: string }) {
+export function ErrorState(props: ErrorState.Props) {
   if (props.error instanceof HttpError && props.error.status === 404 && props.notFound) {
     return (
       <Blankslate
@@ -184,6 +194,14 @@ export function ErrorState(props: { error: Error; onRetry?: () => void; notFound
       }
     />
   )
+}
+
+export namespace ErrorState {
+  export interface Props {
+    error: Error
+    onRetry?: () => void
+    notFound?: string
+  }
 }
 
 /** Sets the browser tab title, most specific first: "Build #2 · web-app · CirCI". */

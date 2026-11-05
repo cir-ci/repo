@@ -6,7 +6,7 @@ import { RouterLink } from '../../components.tsx'
 import { authClient, type SessionUser } from '../../lib/auth-client.ts'
 
 /** The signed-in person, top right: who they are, and a way to sign out. */
-export function UserMenu({ user }: { user: SessionUser }) {
+export function UserMenu({ user }: UserMenu.Props) {
   const queryClient = useQueryClient()
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
 
@@ -46,4 +46,10 @@ export function UserMenu({ user }: { user: SessionUser }) {
       </Menu>
     </Box>
   )
+}
+
+export namespace UserMenu {
+  export interface Props {
+    user: SessionUser
+  }
 }

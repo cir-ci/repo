@@ -21,7 +21,7 @@ import { visuallyHidden } from '../theme.ts'
 const appear = keyframes`from { opacity: 0 } to { opacity: 1 }`
 
 /** Reserves the content's space at once, but only becomes visible after `delayMs`. */
-export function Delayed({ children, delayMs = 1000 }: { children: ReactNode; delayMs?: number }) {
+export function Delayed({ children, delayMs = 1000 }: Delayed.Props) {
   return (
     <Box
       sx={{ opacity: 0, animation: `${appear} 150ms ease-out ${delayMs}ms forwards` }}
@@ -32,8 +32,15 @@ export function Delayed({ children, delayMs = 1000 }: { children: ReactNode; del
   )
 }
 
+export namespace Delayed {
+  export interface Props {
+    children: ReactNode
+    delayMs?: number
+  }
+}
+
 /** Placeholder rows shaped like a list of title + metadata lines. */
-export function ListSkeleton({ rows = 5 }: { rows?: number }) {
+export function ListSkeleton({ rows = 5 }: ListSkeleton.Props) {
   return (
     <Delayed>
       <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}>
@@ -48,10 +55,16 @@ export function ListSkeleton({ rows = 5 }: { rows?: number }) {
   )
 }
 
+export namespace ListSkeleton {
+  export interface Props {
+    rows?: number
+  }
+}
+
 const AnnouncerContext = createContext<(message: string) => void>(() => {})
 
 /** Provides `useAnnounce()` and renders the single polite live region. */
-export function AnnouncerProvider({ children }: { children: ReactNode }) {
+export function AnnouncerProvider({ children }: AnnouncerProvider.Props) {
   const [message, setMessage] = useState('')
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const announce = useCallback((next: string) => {
@@ -69,6 +82,12 @@ export function AnnouncerProvider({ children }: { children: ReactNode }) {
       </Box>
     </AnnouncerContext.Provider>
   )
+}
+
+export namespace AnnouncerProvider {
+  export interface Props {
+    children: ReactNode
+  }
 }
 
 export function useAnnounce(): (message: string) => void {

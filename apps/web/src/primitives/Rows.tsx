@@ -2,7 +2,7 @@ import { Box, Typography } from '@mui/material'
 import type { ReactNode } from 'react'
 
 /** A titled, bordered list of rows: members, sessions, webhooks. */
-export function Section(props: { title: string; count?: number; children: ReactNode }) {
+export function Section(props: Section.Props) {
   return (
     <Box component="section">
       <Typography variant="h2" component="h2" sx={{ mb: 1.5 }}>
@@ -19,7 +19,15 @@ export function Section(props: { title: string; count?: number; children: ReactN
   )
 }
 
-export function Row(props: { primary: ReactNode; secondary: ReactNode; action?: ReactNode }) {
+export namespace Section {
+  export interface Props {
+    title: string
+    count?: number
+    children: ReactNode
+  }
+}
+
+export function Row(props: Row.Props) {
   return (
     <Box
       component="li"
@@ -41,4 +49,12 @@ export function Row(props: { primary: ReactNode; secondary: ReactNode; action?: 
       {props.action}
     </Box>
   )
+}
+
+export namespace Row {
+  export interface Props {
+    primary: ReactNode
+    secondary: ReactNode
+    action?: ReactNode
+  }
 }

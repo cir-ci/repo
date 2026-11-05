@@ -23,7 +23,7 @@ function field(form: FormData, key: string): string {
 }
 
 /** A secret shown once, with a way to copy it. */
-export function SecretBox({ label, value }: { label: string; value: string }) {
+export function SecretBox({ label, value }: SecretBox.Props) {
   const [copied, setCopied] = useState(false)
   return (
     <Box>
@@ -59,7 +59,14 @@ export function SecretBox({ label, value }: { label: string; value: string }) {
   )
 }
 
-export function NewOrganizationDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+export namespace SecretBox {
+  export interface Props {
+    label: string
+    value: string
+  }
+}
+
+export function NewOrganizationDialog({ open, onClose }: NewOrganizationDialog.Props) {
   const create = useCreateOrganization()
   const announce = useAnnounce()
 
@@ -103,11 +110,14 @@ export function NewOrganizationDialog({ open, onClose }: { open: boolean; onClos
   )
 }
 
-export function NewProjectDialog(props: {
-  open: boolean
-  onClose: () => void
-  organizations: Org.Capabilities['manageableOrganizations']
-}) {
+export namespace NewOrganizationDialog {
+  export interface Props {
+    open: boolean
+    onClose: () => void
+  }
+}
+
+export function NewProjectDialog(props: NewProjectDialog.Props) {
   const create = useCreateProject()
   const navigate = useNavigate()
   const [created, setCreated] = useState<{ org: string; slug: string; token: string } | null>(null)
@@ -191,4 +201,12 @@ export function NewProjectDialog(props: {
       )}
     </Dialog>
   )
+}
+
+export namespace NewProjectDialog {
+  export interface Props {
+    open: boolean
+    onClose: () => void
+    organizations: Org.Capabilities['manageableOrganizations']
+  }
 }

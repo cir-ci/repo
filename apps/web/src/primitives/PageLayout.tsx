@@ -10,15 +10,7 @@ import type { ReactNode } from 'react'
  *   the content (`narrowShows`), never the pane stacked above a long content area.
  * - Padding: 16px, 24px from 1280px (xlarge) up.
  */
-export function PageLayout(props: {
-  header: ReactNode
-  children: ReactNode
-  /** Turns this into a split page. */
-  pane?: ReactNode
-  paneLabel?: string
-  /** Narrow viewports only: which half of a split page to show. */
-  narrowShows?: 'pane' | 'content'
-}) {
+export function PageLayout(props: PageLayout.Props) {
   const padding = { xs: 2, xl: 3 }
   if (!props.pane) {
     return (
@@ -66,4 +58,16 @@ export function PageLayout(props: {
       </Box>
     </Box>
   )
+}
+
+export namespace PageLayout {
+  export interface Props {
+    header: ReactNode
+    children: ReactNode
+    /** Turns this into a split page. */
+    pane?: ReactNode
+    paneLabel?: string
+    /** Narrow viewports only: which half of a split page to show. */
+    narrowShows?: 'pane' | 'content'
+  }
 }

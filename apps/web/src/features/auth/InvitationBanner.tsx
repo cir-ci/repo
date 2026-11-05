@@ -11,7 +11,7 @@ type Invitation = { id: string; organizationName: string; role: string; email: s
  * and joins on one click. Nothing happens from just opening the link, so mail scanners that
  * visit it can't accept on anyone's behalf (they have no session anyway).
  */
-export function InvitationBanner({ userEmail }: { userEmail: string }) {
+export function InvitationBanner({ userEmail }: InvitationBanner.Props) {
   const queryClient = useQueryClient()
   const [id] = useState(readInvitationId)
   const [invitation, setInvitation] = useState<Invitation | undefined>(undefined)
@@ -85,6 +85,12 @@ export function InvitationBanner({ userEmail }: { userEmail: string }) {
       </Alert>
     </Box>
   )
+}
+
+export namespace InvitationBanner {
+  export interface Props {
+    userEmail: string
+  }
 }
 
 function readInvitationId(): string | undefined {

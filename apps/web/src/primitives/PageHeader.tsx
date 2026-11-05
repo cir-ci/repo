@@ -12,16 +12,7 @@ import type { ReactNode } from 'react'
  * - description: metadata about the page's subject;
  * - children: anything else that belongs to the header (banners about the whole page).
  */
-export function PageHeader(props: {
-  title: ReactNode
-  parentLink?: ReactNode
-  leadingVisual?: ReactNode
-  trailingVisual?: ReactNode
-  actions?: ReactNode
-  description?: ReactNode
-  children?: ReactNode
-  hasBorder?: boolean
-}) {
+export function PageHeader(props: PageHeader.Props) {
   return (
     <Box
       component="header"
@@ -55,8 +46,21 @@ export function PageHeader(props: {
   )
 }
 
+export namespace PageHeader {
+  export interface Props {
+    title: ReactNode
+    parentLink?: ReactNode
+    leadingVisual?: ReactNode
+    trailingVisual?: ReactNode
+    actions?: ReactNode
+    description?: ReactNode
+    children?: ReactNode
+    hasBorder?: boolean
+  }
+}
+
 /** The narrow-viewport up-link: an arrow and the parent's name. */
-export function ParentLinkContent({ children }: { children: ReactNode }) {
+export function ParentLinkContent({ children }: ParentLinkContent.Props) {
   return (
     <Box
       component="span"
@@ -66,4 +70,10 @@ export function ParentLinkContent({ children }: { children: ReactNode }) {
       {children}
     </Box>
   )
+}
+
+export namespace ParentLinkContent {
+  export interface Props {
+    children: ReactNode
+  }
 }

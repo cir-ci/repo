@@ -11,7 +11,7 @@ import { useReviewBuild } from './api.ts'
  * Approve and reject, for a finished build with changes. Only the decision that isn't already
  * in force is offered, so after approving you're left with "Reject" to change your mind.
  */
-export function ReviewActions(props: { data: Build.Detail }) {
+export function ReviewActions(props: ReviewActions.Props) {
   const { build, project } = props.data
   const review = useReviewBuild(project.orgSlug, project.slug, build.number)
   const announce = useAnnounce()
@@ -58,8 +58,14 @@ export function ReviewActions(props: { data: Build.Detail }) {
   )
 }
 
+export namespace ReviewActions {
+  export interface Props {
+    data: Build.Detail
+  }
+}
+
 /** One line on where the build stands: who decided and when, or that it still needs a decision. */
-export function ReviewNote({ data }: { data: Build.Detail }) {
+export function ReviewNote({ data }: ReviewNote.Props) {
   const { build, reviews } = data
   if (build.status !== 'complete' || build.conclusion !== 'changes_detected') return null
   const latest = reviews[0]
@@ -88,4 +94,10 @@ export function ReviewNote({ data }: { data: Build.Detail }) {
       )}
     </Typography>
   )
+}
+
+export namespace ReviewNote {
+  export interface Props {
+    data: Build.Detail
+  }
 }

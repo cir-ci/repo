@@ -11,13 +11,7 @@ import { CounterLabel } from './labels.tsx'
  * `aria-current="page"` and a visible marker, not just a background tint.
  */
 
-export function NavListGroup(props: {
-  title: string
-  count: number
-  open: boolean
-  onToggle: () => void
-  children: ReactNode
-}) {
+export function NavListGroup(props: NavListGroup.Props) {
   const id = useId()
   return (
     <Box component="li" sx={{ listStyle: 'none', '& + &': { mt: 1 } }}>
@@ -58,6 +52,16 @@ export function NavListGroup(props: {
   )
 }
 
+export namespace NavListGroup {
+  export interface Props {
+    title: string
+    count: number
+    open: boolean
+    onToggle: () => void
+    children: ReactNode
+  }
+}
+
 /** The current item: tinted, bold, and Primer's marker bar on the leading edge. */
 const currentItem = {
   bgcolor: 'action.selected',
@@ -95,10 +99,16 @@ export const navListItemSx = {
   '&:focus-visible': { outline: 2, outlineStyle: 'solid', outlineColor: 'primary.main' },
 } as const
 
-export function NavListItem({ children }: { children: ReactNode }) {
+export function NavListItem({ children }: NavListItem.Props) {
   return (
     <Box component="li" sx={{ listStyle: 'none', pl: 1 }}>
       {children}
     </Box>
   )
+}
+
+export namespace NavListItem {
+  export interface Props {
+    children: ReactNode
+  }
 }

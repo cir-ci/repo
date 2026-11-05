@@ -18,12 +18,7 @@ const TONE_COLOR: Record<Tone, string> = {
  * Primer StateLabel: an icon, text and colour together. State is never shown by colour alone,
  * so it reads the same for colour-blind users, in greyscale and to screen readers.
  */
-export function StateLabel(props: {
-  tone: Tone
-  icon: ReactNode
-  children: ReactNode
-  size?: 'small' | 'medium'
-}) {
+export function StateLabel(props: StateLabel.Props) {
   const small = props.size === 'small'
   return (
     <Box
@@ -51,13 +46,17 @@ export function StateLabel(props: {
   )
 }
 
+export namespace StateLabel {
+  export interface Props {
+    tone: Tone
+    icon: ReactNode
+    children: ReactNode
+    size?: 'small' | 'medium'
+  }
+}
+
 /** A small icon + text in a tone's colour, for inline status (counts, list metadata). */
-export function ToneText(props: {
-  tone: Tone
-  icon?: ReactNode
-  children: ReactNode
-  sx?: SxProps<Theme>
-}) {
+export function ToneText(props: ToneText.Props) {
   return (
     <Box
       component="span"
@@ -79,8 +78,17 @@ export function ToneText(props: {
   )
 }
 
+export namespace ToneText {
+  export interface Props {
+    tone: Tone
+    icon?: ReactNode
+    children: ReactNode
+    sx?: SxProps<Theme>
+  }
+}
+
 /** Primer CounterLabel: a count next to a heading or tab. */
-export function CounterLabel({ children, label }: { children: number; label?: string }) {
+export function CounterLabel({ children, label }: CounterLabel.Props) {
   return (
     <Box
       component="span"
@@ -103,8 +111,15 @@ export function CounterLabel({ children, label }: { children: number; label?: st
   )
 }
 
+export namespace CounterLabel {
+  export interface Props {
+    children: number
+    label?: string
+  }
+}
+
 /** Primer BranchName: monospace, truncated with the full name on hover. */
-export function BranchName({ children }: { children: string }) {
+export function BranchName({ children }: BranchName.Props) {
   return (
     <Box
       component="span"
@@ -130,11 +145,23 @@ export function BranchName({ children }: { children: string }) {
   )
 }
 
+export namespace BranchName {
+  export interface Props {
+    children: string
+  }
+}
+
 /** A commit SHA, shortened to 7 characters with the full SHA on hover. */
-export function CommitSha({ sha }: { sha: string }) {
+export function CommitSha({ sha }: CommitSha.Props) {
   return (
     <Box component="code" title={sha} sx={{ fontFamily: monoFont, fontSize: '0.75rem' }}>
       {sha.slice(0, 7)}
     </Box>
   )
+}
+
+export namespace CommitSha {
+  export interface Props {
+    sha: string
+  }
 }

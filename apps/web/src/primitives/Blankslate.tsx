@@ -9,15 +9,7 @@ import { monoFont } from '../theme.ts'
  * primary action and one secondary link. `code` shows setup commands, as Primer recommends for
  * empty states whose next step is running something.
  */
-export function Blankslate(props: {
-  icon: ReactNode
-  heading: string
-  description?: ReactNode
-  code?: string
-  primaryAction?: ReactNode
-  secondaryAction?: ReactNode
-  border?: boolean
-}) {
+export function Blankslate(props: Blankslate.Props) {
   return (
     <Box
       sx={{
@@ -64,4 +56,16 @@ export function Blankslate(props: {
       {props.secondaryAction ? <Box sx={{ mt: 2 }}>{props.secondaryAction}</Box> : null}
     </Box>
   )
+}
+
+export namespace Blankslate {
+  export interface Props {
+    icon: ReactNode
+    heading: string
+    description?: ReactNode
+    code?: string
+    primaryAction?: ReactNode
+    secondaryAction?: ReactNode
+    border?: boolean
+  }
 }
