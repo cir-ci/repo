@@ -1,12 +1,14 @@
+export { type Auth, createAuth } from './auth.ts'
 export {
-  type Auth,
-  type AuthOptions,
-  authPlugins,
   CI_KEY_CONFIG,
   CI_KEY_PREFIX,
-  createAuth,
+  EMAIL_CODE_TTL_SECONDS,
+  INVITATION_TTL_SECONDS,
   MIN_PASSWORD_LENGTH,
-} from './auth.ts'
+} from './constants.ts'
+export { hasPendingInvitation } from './accounts.ts'
+export type { AuthOptions } from './options.ts'
+export { authPlugins } from './plugins/index.ts'
 
 export {
   createSmtpMailer,
@@ -16,7 +18,6 @@ export {
   signInMail,
   invitationMail,
 } from './mail.ts'
-export { EMAIL_CODE_TTL_SECONDS, hasPendingInvitation, INVITATION_TTL_SECONDS } from './auth.ts'
 
 export {
   addMember,

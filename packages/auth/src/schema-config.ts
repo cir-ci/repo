@@ -1,7 +1,7 @@
 import { drizzleAdapter } from '@better-auth/drizzle-adapter'
 import { betterAuth } from 'better-auth'
 
-import { authPlugins } from './auth.ts'
+import { authPlugins } from './plugins/index.ts'
 
 /**
  * Only for `pnpm db:auth-schema`: the better-auth CLI reads this to generate

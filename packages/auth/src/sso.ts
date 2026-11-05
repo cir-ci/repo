@@ -52,3 +52,18 @@ export function mayCreateSsoAccount(input: {
 export function mayLinkSsoAccount(input: { trusted: boolean; accountAgeMs: number }): boolean {
   return input.trusted || input.accountAgeMs < 60_000
 }
+
+/** The provider a single sign-on callback is for (`/callback/:id`). */
+export function ssoProviderOf(
+  context: { params?: unknown } | null | undefined,
+): string | undefined {
+  const params = context?.params
+  if (typeof params !== 'object' || params === null) return undefined
+  const id: unknown = Reflect.get(params, 'id')
+  return typeof id === 'string' ? id : undefined
+}
+
+/** Whether the operator vouches for this provider's email addresses. */
+export function isTrusted(providers: SsoProvider[] | undefined, id: string | undefined): boolean {
+  return providers?.find((p) => p.id === id)?.trustedForEmail === true
+}
