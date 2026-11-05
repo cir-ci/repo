@@ -16,6 +16,8 @@ catalog:
   '@mui/material': 9.5.0
   '@tanstack/react-query': 5.105.3
   '@tanstack/react-router': 1.170.46
+  '@testing-library/dom': 10.4.2
+  '@testing-library/react': 16.3.3
   '@types/node': 26.6.6
   '@types/nodemailer': 8.0.2
   '@types/pg': 8.23.1
@@ -28,15 +30,16 @@ catalog:
   drizzle-kit: 0.31.11
   drizzle-orm: 0.45.4
   fastify: 5.12.8
+  happy-dom: 21.0.4
   nodemailer: 10.3.1
   oxfmt: 0.76.0
-  oxlint: 1.91.0
   oxlint-tsgolint: 7.0.2005
+  oxlint: 1.91.0
   pg: 8.23.1
   pino: 10.4.0
   pixelmatch: 8.0.0
-  react: 19.3.1
   react-dom: 19.3.1
+  react: 19.3.1
   sharp: 0.35.5
   typescript: 7.0.2
   vite: 8.3.5
