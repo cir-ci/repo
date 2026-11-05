@@ -34,6 +34,7 @@ const settingsBody = z
     autoApproveDefaultBranch: z.boolean(),
     blockMergeOnChanges: z.boolean(),
     retentionDays: z.number(),
+    staticHostingEnabled: z.boolean(),
   })
   .partial()
   .strict()
@@ -101,6 +102,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<DashboardDeps> = async 
       settings: projectSettings(found.project),
       webhooks: (await listWebhooks(deps.db, found.project.id)).map(present),
       webhookEvents: WEBHOOK_EVENTS,
+      sitesConfigured: deps.sites !== undefined,
       github: {
         configured: deps.githubApp === true,
         webhookUrl: `${deps.publicOrigin}/webhooks/github`,

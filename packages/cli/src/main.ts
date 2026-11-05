@@ -2,6 +2,7 @@
 import { Command } from 'commander'
 
 import { ApiError } from './api.ts'
+import { uploadSite } from './site.ts'
 import { upload, UsageError } from './upload.ts'
 
 // If whoever reads our output goes away (e.g. `circi upload … | head -1`), keep uploading
@@ -90,6 +91,44 @@ Exit codes: 0 pass, 1 visual changes block the merge (with --wait), 2 error`,
       process.exitCode = result.exitCode
     },
   )
+
+function siteCommand(parent: Command, name: string, description: string, fixedKind?: string) {
+  const command = parent
+    .command(name)
+    .description(description)
+    .argument('<dir>', 'the built site (a folder with its index.html)')
+    .option('--name <name>', 'which of the project’s sites this is', fixedKind ?? 'site')
+    .option('--spa', 'serve unknown paths with the entry page (single-page apps)')
+    .option('--api-url <url>', 'CirCI address (default: CIRCI_API_URL)')
+  if (!fixedKind) {
+    command.option(
+      '--kind <kind>',
+      'storybook, vitest-report, playwright-report, coverage, docs, generic or auto',
+      'auto',
+    )
+  }
+  command.action(
+    async (dir: string, opts: { name: string; kind?: string; spa?: boolean; apiUrl?: string }) => {
+      const token = process.env.CIRCI_TOKEN
+      const apiUrl = opts.apiUrl ?? process.env.CIRCI_API_URL
+      if (!token) throw new UsageError('Set CIRCI_TOKEN to the project CI token')
+      if (!apiUrl) throw new UsageError('Set CIRCI_API_URL (or --api-url) to your CirCI address')
+      await uploadSite({
+        dir,
+        apiUrl,
+        token,
+        name: opts.name,
+        kind: fixedKind ?? opts.kind ?? 'auto',
+        ...(opts.spa ? { spa: true } : {}),
+      })
+    },
+  )
+}
+
+const site = program.command('site').description('host a built static site next to the screenshots')
+siteCommand(site, 'upload', 'upload a built site (Storybook, a test report, coverage, docs…)')
+const storybook = program.command('storybook').description('Storybook shortcuts')
+siteCommand(storybook, 'upload', 'upload a built Storybook (storybook build)', 'storybook')
 
 program
   .command('argos-env')

@@ -40,6 +40,7 @@ export function ProjectSettingsPage() {
             project={project}
             settings={data.settings}
             canManage={data.canManage}
+            sitesConfigured={data.sitesConfigured}
           />
           {data.canManage ? <CiToken org={org} project={project} /> : null}
           {data.github.configured ? (

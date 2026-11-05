@@ -154,6 +154,8 @@ export interface ProjectSettings {
   autoApproveDefaultBranch: boolean
   blockMergeOnChanges: boolean
   retentionDays: number
+  /** Whether CI may upload static sites for this project (needs `STATIC_SITES_HOST`). */
+  staticHostingEnabled: boolean
 }
 
 export function projectSettings(project: Project): ProjectSettings {
@@ -164,6 +166,7 @@ export function projectSettings(project: Project): ProjectSettings {
     autoApproveDefaultBranch: project.autoApproveDefaultBranch,
     blockMergeOnChanges: project.blockMergeOnChanges,
     retentionDays: project.retentionDays,
+    staticHostingEnabled: project.staticHostingEnabled,
   }
 }
 
@@ -200,6 +203,8 @@ export async function updateProjectSettings(
     set.autoApproveDefaultBranch = patch.autoApproveDefaultBranch
   }
   if (patch.blockMergeOnChanges !== undefined) set.blockMergeOnChanges = patch.blockMergeOnChanges
+  if (patch.staticHostingEnabled !== undefined)
+    set.staticHostingEnabled = patch.staticHostingEnabled
   if (Object.keys(set).length === 0) {
     const current = await getProjectById(db, projectId)
     if (!current) throw new NotFoundError('Project not found')

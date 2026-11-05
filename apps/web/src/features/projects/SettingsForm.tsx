@@ -36,6 +36,8 @@ export function SettingsForm(props: SettingsForm.Props) {
       retentionDays: Number(text('retentionDays')),
       autoApproveDefaultBranch: form.has('autoApproveDefaultBranch'),
       blockMergeOnChanges: form.has('blockMergeOnChanges'),
+      // The box only exists when the instance can host sites; otherwise leave the setting be.
+      ...(props.sitesConfigured ? { staticHostingEnabled: form.has('staticHostingEnabled') } : {}),
     })
     setSaved(true)
     announce('Settings saved')
@@ -105,6 +107,24 @@ export function SettingsForm(props: SettingsForm.Props) {
             }
             label="Approve builds on the default branch automatically"
           />
+          {props.sitesConfigured ? (
+            <>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    name="staticHostingEnabled"
+                    defaultChecked={s.staticHostingEnabled}
+                    disabled={!props.canManage}
+                  />
+                }
+                label="Host static sites (Storybook, reports) for this project"
+              />
+              <Typography variant="body2" color="text.secondary" sx={{ ml: 4, mt: -0.5 }}>
+                Upload with `circi site upload`. Sites are served from the sites domain and need
+                sign-in; only members of this organization can open them.
+              </Typography>
+            </>
+          ) : null}
         </FormGroup>
         {save.error ? <Alert severity="error">{save.error.message}</Alert> : null}
         {saved ? <Alert severity="success">Settings saved.</Alert> : null}
@@ -126,5 +146,7 @@ export namespace SettingsForm {
     project: string
     settings: Project.Settings
     canManage: boolean
+    /** The instance can host sites (so the switch is shown). */
+    sitesConfigured?: boolean
   }
 }

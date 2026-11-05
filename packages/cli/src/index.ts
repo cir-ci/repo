@@ -2,4 +2,5 @@ export { ApiClient, ApiError, type BuildStatus, type BuildSummary } from './api.
 export { type CiContext, detectCi } from './ci-env.ts'
 export { collectScreenshots, type LocalScreenshot } from './files.ts'
 export { type Ancestry, collectAncestry, gitRunner } from './git.ts'
+export { packSite, uploadSite, type SiteUploadOptions, type SiteUploadResult } from './site.ts'
 export { upload, type UploadOptions, type UploadResult, UsageError } from './upload.ts'

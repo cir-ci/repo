@@ -105,6 +105,7 @@ export namespace Project {
     autoApproveDefaultBranch: boolean
     blockMergeOnChanges: boolean
     retentionDays: number
+    staticHostingEnabled: boolean
   }
 
   export interface Webhook {
@@ -126,6 +127,8 @@ export namespace Project {
     webhooks: Webhook[]
     webhookEvents: string[]
     github: { configured: boolean; webhookUrl: string; link: GithubLink | null }
+    /** Static site hosting is set up on this instance (`STATIC_SITES_HOST`). */
+    sitesConfigured: boolean
   }
 }
 

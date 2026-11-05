@@ -159,6 +159,15 @@ export async function remoteBranchTip(
   return out?.split(/\s+/)[0] || undefined
 }
 
+/** Whether `ancestor` is HEAD or one of its ancestors (false when it can't be told). */
+export async function isAncestor(
+  git: GitRunner,
+  ancestor: string,
+  head = 'HEAD',
+): Promise<boolean> {
+  return (await tryRun(git, ['merge-base', '--is-ancestor', ancestor, head])) !== undefined
+}
+
 export async function localHead(git: GitRunner): Promise<{ sha?: string; branch?: string }> {
   const sha = await tryRun(git, ['rev-parse', 'HEAD'])
   const branch = await tryRun(git, ['rev-parse', '--abbrev-ref', 'HEAD'])

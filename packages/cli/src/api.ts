@@ -96,6 +96,44 @@ export class ApiClient {
     return this.json('GET', `/v1/builds/${buildId}/status${gate ? `?gate=${gate}` : ''}`)
   }
 
+  /** Uploads a site (a `.tar.gz`); the query says what and where it is. */
+  async uploadSite(query: Record<string, string>, archive: Uint8Array): Promise<SiteUpload> {
+    const res = await this.fetchImpl(
+      `${this.baseUrl}/v1/sites?${new URLSearchParams(query).toString()}`,
+      {
+        method: 'POST',
+        headers: { authorization: `Bearer ${this.token}`, 'content-type': 'application/gzip' },
+        body: archive,
+      },
+    )
+    const text = await res.text()
+    let data: unknown
+    try {
+      data = text ? JSON.parse(text) : undefined
+    } catch {
+      data = undefined
+    }
+    if (!res.ok) {
+      const message =
+        typeof data === 'object' && data !== null && typeof Reflect.get(data, 'error') === 'string'
+          ? String(Reflect.get(data, 'error'))
+          : `HTTP ${res.status}`
+      throw new ApiError(res.status, message, data)
+    }
+    // The server's tests pin this shape.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+    return data as SiteUpload
+  }
+
+  /** The commit a branch's address serves now, or null when it has none yet. */
+  async servedCommit(name: string, branch: string): Promise<string | null> {
+    const res = await this.json<{ commit: string | null }>(
+      'GET',
+      `/v1/sites/served?${new URLSearchParams({ name, branch }).toString()}`,
+    )
+    return res.commit
+  }
+
   /** Sends one file as instructed by the server, retrying transient failures. */
   async upload(instruction: UploadInstruction, bytes: Uint8Array, attempts = 3): Promise<void> {
     // fetch sets content-length itself from the body; passing it explicitly is not allowed.
@@ -166,4 +204,12 @@ async function safeText(res: Response): Promise<string> {
   } catch {
     return ''
   }
+}
+
+export interface SiteUpload {
+  site: { name: string; kind: string; slug: string }
+  version: { commitSha: string; fileCount: number; totalBytes: number }
+  addresses: { commit: string; branch?: string }
+  branchMoved: boolean
+  replaced: boolean
 }

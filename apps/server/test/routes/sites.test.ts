@@ -1,8 +1,11 @@
+import { execFile } from 'node:child_process'
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { promisify } from 'node:util'
 
 import { type Auth } from '@circi/auth'
+import { packSite as packWithCli, uploadSite } from '@circi/cli'
 import { schema } from '@circi/db'
 import { FsStorage } from '@circi/storage'
 import { createTestDb, type TestDb } from '@circi/testing'
@@ -33,6 +36,7 @@ let auth: Auth
 let acme: Tenant
 let rival: Tenant
 let ownerCookie: string
+let apiUrl = ''
 let rivalCookie: string
 
 beforeAll(async () => {
@@ -55,7 +59,10 @@ beforeAll(async () => {
     api: { db: t.db, auth, storage, publicOrigin: DASH, sites },
     dashboard: { db: t.db, auth, storage, publicOrigin: DASH, sites },
   })
-  await app.ready()
+  await app.listen({ host: '127.0.0.1', port: 0 })
+  const address = app.server.address()
+  if (!address || typeof address === 'string') throw new Error('no address')
+  apiUrl = `http://127.0.0.1:${address.port}`
   acme = await seedTenant(auth, t.db)
   rival = await seedTenant(auth, t.db)
   await t.db
@@ -429,5 +436,77 @@ describe('service workers', () => {
     const moved = await siteGet(branchLabel, '/trace/sw.js', { cookie: branchCookie })
     expect(moved.statusCode).toBe(302)
     expect(moved.headers.location).toBe(`${originFor(commitLabel)}/trace/sw.js`)
+  })
+})
+
+describe('circi site upload', () => {
+  const exec = promisify(execFile)
+  const gitEnv = {
+    ...process.env,
+    GIT_AUTHOR_NAME: 't',
+    GIT_AUTHOR_EMAIL: 't@example.com',
+    GIT_COMMITTER_NAME: 't',
+    GIT_COMMITTER_EMAIL: 't@example.com',
+    GIT_CONFIG_GLOBAL: '/dev/null',
+    GIT_CONFIG_NOSYSTEM: '1',
+  }
+  const git = async (cwd: string, ...args: string[]) =>
+    (await exec('git', args, { cwd, env: gitEnv })).stdout.trim()
+
+  it('uploads a built site from a checkout, and its branch address follows the tip', async () => {
+    const repo = await mkdtemp(join(dir, 'repo-'))
+    const built = join(repo, 'storybook-static')
+    await mkdir(join(built, 'assets'), { recursive: true })
+    await Promise.all(
+      Object.entries(STORYBOOK).map(([path, content]) => writeFile(join(built, path), content)),
+    )
+    await git(repo, 'init', '-q', '-b', 'main')
+    await git(repo, 'remote', 'add', 'origin', repo)
+    await git(repo, 'add', '.')
+    await git(repo, 'commit', '-q', '-m', 'one')
+    await git(repo, 'fetch', '-q', 'origin')
+    const lines: string[] = []
+    const first = await uploadSite({
+      dir: built,
+      apiUrl,
+      token: acme.token,
+      name: 'cli-storybook',
+      cwd: repo,
+      env: {},
+      log: (l) => void lines.push(l),
+    })
+    expect(first.site.kind).toBe('storybook')
+    expect(first.branchMoved).toBe(true)
+    expect(first.addresses.branch).toBeDefined()
+    expect(lines.join('\n')).toContain('commit:')
+
+    // A new commit not pushed anywhere: the remote tip is unknown, so it must descend from what
+    // the branch address serves now (it does), and the address moves.
+    await writeFile(join(built, 'index.html'), 'second')
+    await git(repo, 'add', '-A')
+    await git(repo, 'commit', '-q', '-m', 'two')
+    const second = await uploadSite({
+      dir: built,
+      apiUrl,
+      token: acme.token,
+      name: 'cli-storybook',
+      cwd: repo,
+      env: {},
+      log: () => {},
+    })
+    expect(second.branchMoved).toBe(true)
+    expect(second.addresses.branch).toBe(first.addresses.branch)
+    expect(second.addresses.commit).not.toBe(first.addresses.commit)
+  })
+
+  it('refuses a site containing symbolic links, naming them', async () => {
+    const built = await mkdtemp(join(dir, 'links-'))
+    await writeFile(join(built, 'index.html'), 'x')
+    await symlink('/etc/passwd', join(built, 'secrets'))
+    await expect(packWithCli(built)).rejects.toThrow(/symbolic links.*secrets/)
+  })
+
+  it('refuses something that is not a directory', async () => {
+    await expect(packWithCli(join(dir, 'nope'))).rejects.toThrow(/not a directory/)
   })
 })
