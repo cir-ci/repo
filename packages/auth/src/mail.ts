@@ -85,3 +85,31 @@ export function invitationMail(input: {
     ].join('\n'),
   }
 }
+
+/** Tells an account's owner that someone signed in from a browser it hasn't been used from. */
+export function newSignInMail(input: {
+  to: string
+  name: string
+  when: Date
+  method: string
+  userAgent: string | null
+  ipAddress: string | null
+  origin: string
+}): Mail {
+  return {
+    to: input.to,
+    subject: 'New sign-in to your CirCI account',
+    text: [
+      `Hi ${input.name},`,
+      '',
+      `Your CirCI account was just signed in to (${input.method}) from a browser it hasn't been used from before:`,
+      '',
+      `  When:   ${input.when.toUTCString()}`,
+      `  Device: ${input.userAgent ?? 'unknown'}`,
+      `  From:   ${input.ipAddress ?? 'unknown address'}`,
+      '',
+      `If this was you, nothing to do. If not, sign in at ${input.origin}, open "Account and sessions" to sign that device out, and change your password.`,
+      '',
+    ].join('\n'),
+  }
+}

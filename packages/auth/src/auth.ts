@@ -4,19 +4,22 @@ import { apiKey } from '@better-auth/api-key'
 import { drizzleAdapter } from '@better-auth/drizzle-adapter'
 import type { Database } from '@circi/db'
 import {
+  deviceFingerprint,
   getSessionMethod,
-  organizationsForEmailDomain,
   type LoginMethod,
+  noteDevice,
+  organizationsForEmailDomain,
   orgAcceptsSession,
   recordSessionMethod,
   schema,
+  takeEmailCodeSlot,
 } from '@circi/db'
 import { betterAuth } from 'better-auth'
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
 import { admin, emailOTP, genericOAuth, organization } from 'better-auth/plugins'
 import { and, eq, gt, sql } from 'drizzle-orm'
 
-import { invitationMail, type Mailer, signInMail } from './mail.ts'
+import { invitationMail, type Mailer, newSignInMail, signInMail } from './mail.ts'
 import { isSsoPath, mayCreateSsoAccount, mayLinkSsoAccount, type SsoProvider } from './sso.ts'
 
 /**
@@ -260,6 +263,17 @@ export function createAuth(options: AuthOptions) {
       // better-auth's own organization endpoints (members, invitations) obey an organization's
       // login-method rules like the rest of the dashboard: a refused session gets "not found".
       before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === '/email-otp/send-verification-otp') {
+          // On top of better-auth's per-IP limit: one address can't be flooded from many IPs.
+          // Counted for every address, so refusing never reveals which ones have accounts.
+          const email = typeof ctx.body?.email === 'string' ? ctx.body.email : ''
+          if (email && !(await takeEmailCodeSlot(options.db, email))) {
+            throw new APIError('TOO_MANY_REQUESTS', {
+              message: 'Too many sign-in codes requested for this address. Try again later.',
+            })
+          }
+          return
+        }
         if (!ctx.path.startsWith('/organization/')) return
         const ref = organizationRef(ctx.body) ?? organizationRef(ctx.query)
         if (!ref) return
@@ -288,6 +302,7 @@ export function createAuth(options: AuthOptions) {
             const method = loginMethodOf(context?.path)
             if (!method) return
             await recordSessionMethod(options.db, created.id, method)
+            await warnAboutNewDevice(options, created, method)
             // An emailed code proves the person owns the address, so a verified domain claim
             // may add them to its organization. (A password or an organization's own
             // identity provider proves nothing about the address, so they never do.)
@@ -354,6 +369,36 @@ export function createAuth(options: AuthOptions) {
     },
     plugins: authPlugins(options),
   })
+}
+
+/** Mails the account's owner when someone signs in from a browser it hasn't been used from. */
+async function warnAboutNewDevice(
+  options: AuthOptions,
+  session: { userId: string; userAgent?: string | null; ipAddress?: string | null },
+  method: LoginMethod,
+): Promise<void> {
+  const seen = await noteDevice(options.db, session.userId, deviceFingerprint(session.userAgent))
+  if (seen !== 'new' || !options.mailer) return
+  const [user] = await options.db
+    .select({ email: schema.user.email, name: schema.user.name })
+    .from(schema.user)
+    .where(eq(schema.user.id, session.userId))
+  if (!user) return
+  const label =
+    method === 'password' ? 'password' : method === 'email' ? 'email code' : 'single sign-on'
+  void options.mailer
+    .send(
+      newSignInMail({
+        to: user.email,
+        name: user.name,
+        when: new Date(),
+        method: label,
+        userAgent: session.userAgent ?? null,
+        ipAddress: session.ipAddress ?? null,
+        origin: options.baseURL,
+      }),
+    )
+    .catch((err: unknown) => options.onMailError?.(err))
 }
 
 /** The provider a single sign-on callback is for (`/callback/:id`). */

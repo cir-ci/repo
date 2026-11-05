@@ -218,3 +218,49 @@ describe('invitations', () => {
     expect((await signInWithCode(on, 'stranger@acme.test', '123456')).statusCode).not.toBe(200)
   })
 })
+
+const signInFrom = (userAgent: string) =>
+  on.inject({
+    method: 'POST',
+    url: '/api/auth/sign-in/email',
+    headers: { ...json, 'user-agent': userAgent },
+    payload: { email: tenant.owner.email, password: tenant.owner.password },
+  })
+
+const newSignInMails = () => sent.filter((m) => m.subject.startsWith('New sign-in'))
+
+describe('abuse limits and new-device mail', () => {
+  it('stops one address being flooded with codes, even from different IPs', async () => {
+    const email = 'flood@acme.test'
+    const statuses: number[] = []
+    for (let i = 0; i < 7; i += 1) {
+      // eslint-disable-next-line no-await-in-loop -- order matters
+      const res = await on.inject({
+        method: 'POST',
+        url: '/api/auth/email-otp/send-verification-otp',
+        headers: { ...json, 'x-forwarded-for': `203.0.113.${i + 1}` },
+        payload: { email, type: 'sign-in' },
+      })
+      statuses.push(res.statusCode)
+    }
+    // No account behind this address, and it's limited all the same: the limit leaks nothing.
+    expect(statuses).toEqual([200, 200, 200, 200, 200, 429, 429])
+  })
+
+  it('mails the owner once per browser the account has not been used from before', async () => {
+    // Earlier tests already signed this account in from the default test client.
+    sent.length = 0
+    expect((await signInFrom('Firefox/130 (Macintosh)')).statusCode).toBe(200)
+    await vi.waitFor(() => expect(newSignInMails()).toHaveLength(1))
+    const mail = newSignInMails()[0]
+    expect(mail?.to).toBe(tenant.owner.email)
+    expect(mail?.text).toContain('Firefox/130 (Macintosh)')
+    expect(mail?.text).toContain('Account and sessions')
+
+    // The same browser again: nothing more. A different one: another mail.
+    expect((await signInFrom('Firefox/130 (Macintosh)')).statusCode).toBe(200)
+    expect((await signInFrom('Safari/17 (iPhone)')).statusCode).toBe(200)
+    await vi.waitFor(() => expect(newSignInMails()).toHaveLength(2))
+    expect(newSignInMails()[1]?.text).toContain('Safari/17 (iPhone)')
+  })
+})

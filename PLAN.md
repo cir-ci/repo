@@ -632,7 +632,7 @@ _Status: accounts, organizations, roles, CI tokens and organization isolation ar
 - [x] CI tokens as organization-owned API keys, rotation deletes the old key
 - [x] Organization isolation in every dashboard query, including files shared by hash; sign-in page, user menu and sign-out in the web app
 - [x] Migration of the earlier hand-written users, organizations and memberships (tested on legacy rows)
-- [x] Email login (6-digit code + link) with SMTP (`SMTP_*`, `AUTH_EMAIL_ENABLED`, `circi admin mail test`); better-auth's per-IP limits (3 codes/min). Still open: per-email limit across IPs, "new sign-in" notification mail
+- [x] Email login (6-digit code + link) with SMTP (`SMTP_*`, `AUTH_EMAIL_ENABLED`, `circi admin mail test`); better-auth's per-IP limits (3 codes/min). Also a per-address limit on code requests across all IPs (5 per 15 min, counted for unknown addresses too) and a "new sign-in" mail when an account signs in from a browser it hasn't been used from
 - [x] Turning login methods on/off: `AUTH_PASSWORD_ENABLED` / `AUTH_EMAIL_ENABLED` instance flags + per-org `org_auth_settings` (members page), the session's login method recorded and enforced on an org's content (including better-auth's organization endpoints), lockout guard, `circi admin auth enable|disable` break-glass. Per-org OIDC rules arrive with OIDC
 - [x] Allowed email domains → auto-join as `member` for people who sign in with an emailed code; claims verified by DNS TXT record (`_circi-verify.<domain>`), a verified domain belongs to one organization (members page)
 - [x] Invitations (organization plugin + SMTP) and a members page

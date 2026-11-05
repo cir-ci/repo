@@ -42,6 +42,8 @@ docker compose exec circi circi admin setup-code
 
 With SMTP configured, people with an account can also sign in with a 6-digit code mailed to them (the mail also holds a link that fills the code in). Codes work once, expire after 10 minutes, are stored hashed, lock after 5 wrong attempts, and addresses without an account get the same answer and no mail.
 
+Code requests are limited per address (5 per 15 minutes, across all IPs, whether or not the address has an account), and with SMTP configured people get a "new sign-in" mail when their account signs in from a browser it hasn't been used from before.
+
 Owners and admins can also invite people by email from the organization's members page (click the organization name in the header). Invited people without an account create it by signing in with an emailed code.
 
 Each project's **Settings** page (owners and admins) sets the default branch, a diff threshold, retention, whether builds on the default branch are approved automatically, and whether unreviewed changes block merging. The account menu has **Account and sessions**, to see every device signed in as you and sign any of them out.
