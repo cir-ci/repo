@@ -25,6 +25,7 @@
     "@fastify/multipart": "catalog:",
     "@fastify/static": "catalog:",
     "commander": "catalog:",
+    "drizzle-orm": "catalog:",
     "fastify": "catalog:",
     "pino": "catalog:",
     "zod": "catalog:"
@@ -33,7 +34,6 @@
     "@circi/cli": "workspace:*",
     "@circi/testing": "workspace:*",
     "@electric-sql/pglite": "catalog:",
-    "drizzle-orm": "catalog:",
     "sharp": "catalog:",
     "tar": "catalog:"
   }

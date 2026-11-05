@@ -11,7 +11,12 @@ import { schema } from '@circi/db'
 
 export function trustedOriginsFor(db: Database): () => Promise<string[]> {
   return async () => {
-    const rows = await db.select({ issuer: schema.ssoProvider.issuer }).from(schema.ssoProvider)
+    // better-auth asks while it starts up, which on a new database is before the migrations
+    // have created the table. Nothing is registered yet then, and later requests ask again.
+    const rows = await db
+      .select({ issuer: schema.ssoProvider.issuer })
+      .from(schema.ssoProvider)
+      .catch(() => [])
     const origins = new Set<string>()
     for (const { issuer } of rows) {
       try {
