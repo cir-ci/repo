@@ -132,14 +132,19 @@ DATABASE_URL=postgres://… BETTER_AUTH_SECRET=$(openssl rand -base64 32) STORAG
 
 ```
 apps/server      circi command: HTTP routes (CI API, dashboard, sign-in), admin CLI, process lifecycle
-apps/worker      background jobs: baseline, diffing, thumbnails
-apps/web         the dashboard (React, TanStack Router/Query, MUI)
-packages/auth    better-auth setup: accounts, organizations, CI tokens (API keys), admin operations
+apps/worker      background jobs: baseline, diffing, thumbnails, webhooks, git notifications
+apps/web         the dashboard (React, TanStack Router/Query, MUI), organised by feature
+packages/api     the dashboard API's wire types, shared by the server and the web app
+packages/auth    better-auth setup (plugins, hooks), admin operations
 packages/cli     `circi upload` for CI
 packages/config  environment parsing and validation
-packages/core    shared logic: baselines, pairing, build outcomes, slugs
+packages/core    shared logic: baselines, pairing, build outcomes, limits, slugs
 packages/db      Drizzle schema, migrations, repositories, dashboard queries
 packages/diff    PNG validation, pixel diffs, thumbnails
+packages/providers  GitHub App client and what CirCI shows on a git host
 packages/storage local-disk and S3 drivers with checksum-verified writes
+packages/testing PGlite test database and seeders
 deploy/          Dockerfile and docker-compose files
 ```
+
+See [CLAUDE.md](CLAUDE.md) for the layering rules and type conventions.
