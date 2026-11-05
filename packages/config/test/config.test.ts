@@ -152,4 +152,17 @@ describe('BETTER_AUTH_SECRET', () => {
       'x'.repeat(32),
     )
   })
+
+  it('lets only instance admins create organizations unless told otherwise', () => {
+    expect(loadConfig(base).orgCreation).toBe('admin')
+    expect(loadConfig({ ...base, ORG_CREATION: 'anyone' }).orgCreation).toBe('anyone')
+    expect(() => loadConfig({ ...base, ORG_CREATION: 'sometimes' })).toThrow(ConfigError)
+  })
+
+  it('refuses private webhook addresses unless allowed', () => {
+    expect(loadConfig(base).webhookAllowPrivate).toBe(false)
+    expect(
+      loadConfig({ ...base, WEBHOOK_ALLOW_PRIVATE_ADDRESSES: 'true' }).webhookAllowPrivate,
+    ).toBe(true)
+  })
 })

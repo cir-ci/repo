@@ -38,6 +38,7 @@ const envSchema = z.object({
   SMTP_FROM: z.preprocess(emptyToUndefined, z.string().optional()),
   AUTH_EMAIL_ENABLED: z.preprocess(emptyToUndefined, bool.optional()),
   WEBHOOK_ALLOW_PRIVATE_ADDRESSES: z.preprocess(emptyToUndefined, bool.optional()),
+  ORG_CREATION: z.preprocess(emptyToUndefined, z.enum(['admin', 'anyone']).default('admin')),
 })
 
 export type StorageConfig =
@@ -84,6 +85,8 @@ export interface Config {
   emailLogin: boolean
   /** Webhooks may point at private/loopback addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
   webhookAllowPrivate: boolean
+  /** Who may create organizations in the dashboard: instance admins only, or any member. */
+  orgCreation: 'admin' | 'anyone'
 }
 
 export class ConfigError extends Error {
@@ -188,5 +191,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     ...(smtp ? { smtp } : {}),
     emailLogin: Boolean(smtp) && e.AUTH_EMAIL_ENABLED !== false,
     webhookAllowPrivate: e.WEBHOOK_ALLOW_PRIVATE_ADDRESSES === true,
+    orgCreation: e.ORG_CREATION,
   }
 }

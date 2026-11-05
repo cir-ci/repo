@@ -1,4 +1,4 @@
-import { and, asc, eq } from 'drizzle-orm'
+import { and, asc, eq, inArray } from 'drizzle-orm'
 
 import type { Database } from '../client.ts'
 import { NotFoundError } from '../errors.ts'
@@ -55,4 +55,17 @@ export async function getMemberRole(
     .from(member)
     .where(and(eq(member.userId, input.userId), eq(member.organizationId, input.organizationId)))
   return row?.role
+}
+
+/** Organizations where the user is an owner or admin, i.e. may create projects. */
+export async function listManageableOrganizations(
+  db: Database,
+  userId: string,
+): Promise<{ slug: string; name: string }[]> {
+  return db
+    .select({ slug: organization.slug, name: organization.name })
+    .from(member)
+    .innerJoin(organization, eq(organization.id, member.organizationId))
+    .where(and(eq(member.userId, userId), inArray(member.role, ['owner', 'admin'])))
+    .orderBy(asc(organization.slug))
 }

@@ -1,8 +1,9 @@
 import FolderOpenOutlined from '@mui/icons-material/FolderOpenOutlined'
-import { Box, Typography } from '@mui/material'
+import { Box, Button, Typography } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 
-import { projectsQuery } from '../api.ts'
+import { capabilitiesQuery, projectsQuery } from '../api.ts'
 import {
   BuildMeta,
   BuildStateLabel,
@@ -11,6 +12,7 @@ import {
   RouterLink,
   useDocumentTitle,
 } from '../components.tsx'
+import { NewOrganizationDialog, NewProjectDialog } from '../CreateDialogs.tsx'
 import { Blankslate } from '../primitives/Blankslate.tsx'
 import { ListSkeleton } from '../primitives/feedback.tsx'
 import { PageHeader } from '../primitives/PageHeader.tsx'
@@ -19,6 +21,10 @@ import { PageLayout } from '../primitives/PageLayout.tsx'
 export function ProjectsPage() {
   useDocumentTitle('Projects')
   const { data, error, refetch } = useQuery(projectsQuery())
+  const { data: caps } = useQuery(capabilitiesQuery())
+  const [dialog, setDialog] = useState<'project' | 'organization' | null>(null)
+  const canCreateProject = (caps?.manageableOrganizations.length ?? 0) > 0
+  const canCreateOrg = caps?.canCreateOrganization === true
 
   return (
     <PageLayout
@@ -26,6 +32,20 @@ export function ProjectsPage() {
         <PageHeader
           title="Projects"
           description="Each project receives screenshot builds from one repository’s CI."
+          actions={
+            <>
+              {canCreateOrg ? (
+                <Button size="small" onClick={() => setDialog('organization')}>
+                  New organization
+                </Button>
+              ) : null}
+              {canCreateProject ? (
+                <Button size="small" variant="contained" onClick={() => setDialog('project')}>
+                  New project
+                </Button>
+              ) : null}
+            </>
+          }
         />
       }
     >
@@ -38,9 +58,23 @@ export function ProjectsPage() {
           border
           icon={<FolderOpenOutlined />}
           heading="Create your first project"
-          description="A project holds the screenshot builds of one repository. Create one on the server, then add its CI token to your CI."
-          code={
-            'circi admin org create --name "Acme"\ncirci admin project create --org acme --name "Web app"'
+          description={
+            canCreateProject
+              ? 'A project holds the screenshot builds of one repository. Create one, then add its CI token to your CI.'
+              : canCreateOrg
+                ? 'Create an organization first, then add a project to it.'
+                : 'You aren’t an owner or admin of any organization yet. Ask one to add you, or to create a project.'
+          }
+          primaryAction={
+            canCreateProject ? (
+              <Button variant="contained" onClick={() => setDialog('project')}>
+                New project
+              </Button>
+            ) : canCreateOrg ? (
+              <Button variant="contained" onClick={() => setDialog('organization')}>
+                New organization
+              </Button>
+            ) : undefined
           }
         />
       ) : (
@@ -90,6 +124,12 @@ export function ProjectsPage() {
           ))}
         </Box>
       )}
+      <NewOrganizationDialog open={dialog === 'organization'} onClose={() => setDialog(null)} />
+      <NewProjectDialog
+        open={dialog === 'project'}
+        onClose={() => setDialog(null)}
+        organizations={caps?.manageableOrganizations ?? []}
+      />
     </PageLayout>
   )
 }

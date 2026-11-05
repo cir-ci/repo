@@ -256,3 +256,61 @@ export function useDeleteWebhook(org: string, project: string) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', org, project] }),
   })
 }
+
+export interface Capabilities {
+  canCreateOrganization: boolean
+  manageableOrganizations: { slug: string; name: string }[]
+}
+
+export const capabilitiesQuery = () =>
+  queryOptions({
+    queryKey: ['capabilities'],
+    queryFn: () => getJson<Capabilities>('/api/capabilities'),
+  })
+
+export const setupQuery = () =>
+  queryOptions({
+    queryKey: ['setup'],
+    queryFn: () => getJson<{ needed: boolean }>('/api/setup'),
+    staleTime: 0,
+  })
+
+const post = <T>(path: string, body: unknown) =>
+  request<T>(path, { method: 'POST', body: JSON.stringify(body) })
+
+export function useCreateOrganization() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (name: string) =>
+      post<{ organization: { slug: string; name: string } }>('/api/organizations', { name }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['capabilities'] }),
+  })
+}
+
+/** Creates a project; the response holds its CI token, which is shown only once. */
+export function useCreateProject() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { org: string; name: string }) =>
+      post<{ project: { slug: string; name: string }; token: string }>(
+        `/api/organizations/${seg(input.org)}/projects`,
+        { name: input.name },
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['projects'] }),
+  })
+}
+
+export function useRotateToken(org: string, project: string) {
+  return useMutation({
+    mutationFn: () =>
+      post<{ token: string }>(`/api/projects/${seg(org)}/${seg(project)}/token`, {}),
+  })
+}
+
+export const submitSetup = (input: {
+  code: string
+  name: string
+  email: string
+  password: string
+  organizationName: string
+}) => post<{ email: string }>('/api/setup', input)

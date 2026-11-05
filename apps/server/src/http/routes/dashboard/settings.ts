@@ -1,3 +1,4 @@
+import { rotateProjectToken } from '@circi/auth'
 import { ValidationError, webhookUrlProblem } from '@circi/core'
 import {
   createWebhook,
@@ -99,6 +100,18 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<DashboardDeps> = async 
     if (!project) return reply
     const patch = parse(settingsBody, req.body)
     return { settings: await updateProjectSettings(deps.db, project.id, patch) }
+  })
+
+  /** A new CI token. The old one stops working at once; the new one is shown only here. */
+  app.post('/projects/:org/:project/token', async (req, reply) => {
+    const project = await loadForManager(req, reply)
+    if (!project) return reply
+    const p = parse(projectParams, req.params)
+    const issued = await rotateProjectToken(deps.auth, deps.db, {
+      orgSlug: p.org,
+      projectSlug: project.slug,
+    })
+    return { token: issued.token }
   })
 
   app.post('/projects/:org/:project/webhooks', async (req, reply) => {

@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url'
 
-import { runMigrations } from '@circi/db'
+import { setupCode } from '@circi/auth'
+import { countUsers, runMigrations } from '@circi/db'
 import { type RunningWorker, startWorker } from '@circi/worker'
 import type { FastifyInstance } from 'fastify'
 
@@ -52,6 +53,11 @@ export async function runServices(options: ServiceOptions): Promise<void> {
       logger.info('applying database migrations')
       await runMigrations(rt.db)
     }
+    if (options.http && (await countUsers(rt.db.db)) === 0) {
+      logger.warn(
+        `No accounts yet. Open ${rt.config.publicUrl.origin} and set up CirCI with the setup code ${setupCode(rt.config.authSecret)}`,
+      )
+    }
     if (options.worker) {
       worker = await startWorker({
         db: rt.db.db,
@@ -80,6 +86,8 @@ export async function runServices(options: ServiceOptions): Promise<void> {
           publicOrigin: rt.config.publicUrl.origin,
           emailLogin: rt.config.emailLogin,
           webhookAllowPrivate: rt.config.webhookAllowPrivate,
+          orgCreation: rt.config.orgCreation,
+          authSecret: rt.config.authSecret,
           webDist: webDistPath(),
         },
         checks: [

@@ -573,7 +573,7 @@ The dashboard's address is **whatever `PUBLIC_URL` says**. `<dashboard-host>` in
 - **Org isolation:** every query is scoped by `org_id` and enforced in one data-access layer. Tests check that cross-org access returns 404.
 - **Roles:** better-auth's organization roles: **owner** (everything, including deleting the organization and managing owners) · **admin** (everything except those) · **member** (reviews builds). The old read-only `viewer` role was migrated to `member`; it can return as a custom role with better-auth's access control if wanted. Instance admins use better-auth's admin plugin (`circi admin user create --instance-admin`); they manage accounts but see only the organizations they belong to.
 - **Accounts (today):** there is no self sign-up (`disableSignUp`). The operator creates accounts with `circi admin user create` (a generated password is printed once), organizations with `circi admin org create --owner <email>`, and members with `circi admin member add`. Passwords need 12+ characters and are hashed by better-auth.
-- **Planned (M2):** invitations by email (better-auth's invitation flow plus SMTP), email-domain auto-join for verified domains (§7.8), `ORG_CREATION=admin|anyone`, and a first-run setup page so a fresh install needs no CLI to get its first account. Until then the CLI above is the way in.
+- **Planned (M2):** invitations by email (better-auth's invitation flow plus SMTP), email-domain auto-join for verified domains (§7.8), `ORG_CREATION=admin|anyone` and a first-run setup page (both now built: setup needs a code from the server log so a stranger can't claim a fresh install).
 - **Sessions:** better-auth's httpOnly session cookie, 7 days. Over https it is named `__Host-circi.session_token` (Secure, no Domain, Path=/), so a hosted site on a subdomain can neither read nor overwrite it (§7.6). `BETTER_AUTH_SECRET` signs it; rotating the secret signs everyone out.
 - **Organization isolation is enforced in the queries, not just the UI:** every dashboard query is joined to the signed-in user's memberships. A project, build or file in anyone else's organization answers 404, the same as one that doesn't exist. Files are shared across organizations by content hash, so a hash alone proves nothing: each download checks the file belongs to a build in one of the user's organizations, before any cached-copy shortcut.
 - Provider credentials are encrypted at rest (AES-GCM, key from `ENCRYPTION_KEY`).
@@ -637,7 +637,7 @@ _Status: accounts, organizations, roles, CI tokens and organization isolation ar
 - [ ] Allowed email domains → auto-join org with a default role; domain claims verified by DNS TXT record
 - [x] Invitations (organization plugin + SMTP) and a members page
 - [x] Sessions list and revoke (account page), project settings page (incl. webhooks, SSRF-restricted addresses)
-- [ ] `ORG_CREATION` and a first-run setup page, so a fresh install needs no CLI for its first account
+- [x] `ORG_CREATION` and a first-run setup page (guarded by a setup code from the server log), organization/project creation and CI-token rotation in the dashboard, so a fresh install needs no CLI
 - [ ] Store the last `PUBLIC_URL`; on change, log and show the address-change checklist with OIDC redirect URIs to update (§7.9)
 - [ ] OAuth/OIDC login (GitHub, GitLab, Google, generic OIDC). Instance vs. org-scoped providers, (issuer, subject) matching, `trusted_for_email`, org-scoped sessions, confirmed account linking
 - [x] Approve/reject flow (same-origin guarded), auto-approve on default branch, re-run carry-over

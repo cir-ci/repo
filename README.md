@@ -28,12 +28,16 @@ cd deploy
 cp .env.example .env        # set POSTGRES_PASSWORD, PUBLIC_URL and BETTER_AUTH_SECRET (openssl rand -base64 32)
 docker compose up -d --build
 
-# There is no self sign-up: create the first account, an organization it owns, and a project.
-docker compose exec circi circi admin user create --email you@acme.io --name "You"
-# → prints a generated password once; sign in at PUBLIC_URL and change it
-docker compose exec circi circi admin org create --name "Acme" --owner you@acme.io
-docker compose exec circi circi admin project create --org acme --name "Web app"
-# → prints the project's CI token once; store it as CIRCI_TOKEN in your CI secrets
+# Open PUBLIC_URL: a fresh install shows a setup page that creates the first account (an
+# instance admin) and its organization. It asks for a setup code, printed in the server log
+# (docker compose logs circi) or by:
+docker compose exec circi circi admin setup-code
+# Then create projects in the dashboard (their CI token is shown once).
+#
+# Everything also works from the command line, e.g.:
+#   circi admin user create --email you@acme.io --name "You"
+#   circi admin org create --name "Acme" --owner you@acme.io
+#   circi admin project create --org acme --name "Web app"
 ```
 
 With SMTP configured, people with an account can also sign in with a 6-digit code mailed to them (the mail also holds a link that fills the code in). Codes work once, expire after 10 minutes, are stored hashed, lock after 5 wrong attempts, and addresses without an account get the same answer and no mail.
@@ -58,6 +62,7 @@ Anyone you add to an organization sees its projects, builds and screenshots, and
 | `circi admin org create\|list` | Manage organizations (`create` needs `--owner <email>`) |
 | `circi admin member add` | Add an existing account to an organization (`--role owner\|admin\|member`) |
 | `circi admin project create\|list\|rotate-token` | Manage projects and their CI tokens |
+| `circi admin setup-code` | Print the code the first-run setup page asks for |
 | `circi admin mail test` | Send a test mail through the configured SMTP server |
 | `circi admin webhook add\|list\|remove` | Send a project's `build.completed` / `build.reviewed` events to a URL |
 
@@ -72,6 +77,7 @@ Anyone you add to an organization sees its projects, builds and screenshots, and
 | `LOG_LEVEL` | `info` | `fatal` … `trace` |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | | Outgoing mail. `SMTP_FROM` is required with `SMTP_HOST`; port defaults to 587 (STARTTLS), 465 means implicit TLS. Check it with `circi admin mail test --to you@acme.io` |
 | `AUTH_EMAIL_ENABLED` | `true` | Email sign-in codes; only offered when SMTP is configured. `false` turns them off |
+| `ORG_CREATION` | `admin` | Who may create organizations in the dashboard: `admin` (instance admins) or `anyone` (every signed-in account) |
 | `WEBHOOK_ALLOW_PRIVATE_ADDRESSES` | `false` | Allow webhooks to private/loopback addresses (they are refused by default) |
 | `BETTER_AUTH_SECRET` | (required) | Signs sessions and cookies; 32+ characters (`openssl rand -base64 32`). Changing it signs everyone out |
 | `STORAGE_DRIVER` | `fs` | `fs` (local disk) or `s3` |

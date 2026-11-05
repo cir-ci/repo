@@ -5,6 +5,7 @@ import {
   createUser,
   generatePassword,
   rotateProjectToken,
+  setupCode,
   setUserPassword,
 } from '@circi/auth'
 import { webhookUrlProblem } from '@circi/core'
@@ -31,6 +32,15 @@ export function addAdminCommands(program: Command): void {
   addMemberCommands(admin.command('member').description('manage organization members'))
   addProjectCommands(admin.command('project').description('manage projects and their CI tokens'))
   addMailCommands(admin.command('mail').description('check outgoing mail'))
+  admin
+    .command('setup-code')
+    .description('print the code that first-run setup in the dashboard asks for')
+    .action(() =>
+      withRuntime((rt) => {
+        console.log(setupCode(rt.config.authSecret))
+        return Promise.resolve()
+      }),
+    )
   addWebhookCommands(admin.command('webhook').description('manage outgoing webhooks of a project'))
 }
 

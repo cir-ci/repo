@@ -18,9 +18,11 @@ import {
   settingsQuery,
   useAddWebhook,
   useDeleteWebhook,
+  useRotateToken,
   useSaveSettings,
 } from '../api.ts'
 import { ErrorState, RelativeTime, useDocumentTitle } from '../components.tsx'
+import { SecretBox } from '../CreateDialogs.tsx'
 import { ListSkeleton, useAnnounce } from '../primitives/feedback.tsx'
 import { PageHeader } from '../primitives/PageHeader.tsx'
 import { PageLayout } from '../primitives/PageLayout.tsx'
@@ -55,6 +57,7 @@ export function ProjectSettingsPage() {
             settings={data.settings}
             canManage={data.canManage}
           />
+          {data.canManage ? <CiToken org={org} project={project} /> : null}
           <Webhooks
             org={org}
             project={project}
@@ -297,5 +300,52 @@ function Webhooks(props: {
         </Box>
       ) : null}
     </Stack>
+  )
+}
+
+function CiToken({ org, project }: { org: string; project: string }) {
+  const rotate = useRotateToken(org, project)
+  const [confirming, setConfirming] = useState(false)
+  return (
+    <Box component="section" sx={{ maxWidth: 560 }}>
+      <Typography variant="h2" component="h2" sx={{ mb: 1 }}>
+        CI token
+      </Typography>
+      <Typography color="text.secondary" sx={{ mb: 1.5 }}>
+        CI jobs upload with this project’s token. A token is only shown when it’s created, so if
+        it’s lost, replace it: the old one stops working immediately.
+      </Typography>
+      {rotate.data ? (
+        <Alert severity="warning" sx={{ mb: 1.5 }}>
+          <Typography sx={{ mb: 1 }}>
+            New token. Copy it now and update <code>CIRCI_TOKEN</code> in your CI secrets: it isn’t
+            shown again.
+          </Typography>
+          <SecretBox label="CI token" value={rotate.data.token} />
+        </Alert>
+      ) : null}
+      {rotate.error ? (
+        <Alert severity="error" sx={{ mb: 1.5 }}>
+          {rotate.error.message}
+        </Alert>
+      ) : null}
+      {confirming ? (
+        <Stack direction="row" spacing={1}>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={rotate.isPending}
+            onClick={() => rotate.mutate(undefined, { onSettled: () => setConfirming(false) })}
+          >
+            Replace token
+          </Button>
+          <Button onClick={() => setConfirming(false)}>Cancel</Button>
+        </Stack>
+      ) : (
+        <Button variant="outlined" onClick={() => setConfirming(true)}>
+          Replace CI token…
+        </Button>
+      )}
+    </Box>
   )
 }

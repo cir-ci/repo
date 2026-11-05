@@ -6,9 +6,11 @@ import { requireSameOrigin } from '../../hooks/same-origin.ts'
 import { requireSession } from '../../hooks/session.ts'
 import { authRoutes } from '../auth.ts'
 import { dashboardFileRoutes } from './files.ts'
+import { dashboardOrganizationRoutes } from './organizations.ts'
 import { dashboardProjectRoutes } from './projects.ts'
 import { dashboardReviewRoutes } from './reviews.ts'
 import { dashboardSettingsRoutes } from './settings.ts'
+import { dashboardSetupRoutes } from './setup.ts'
 import { webAppRoutes } from './web-app.ts'
 
 /**
@@ -31,6 +33,8 @@ export const dashboardRoutes: FastifyPluginAsync<DashboardDeps> = async (dash, o
     publicOrigin: options.publicOrigin,
     ...(options.emailLogin ? { emailLogin: true } : {}),
     ...(options.webhookAllowPrivate ? { webhookAllowPrivate: true } : {}),
+    ...(options.orgCreation ? { orgCreation: options.orgCreation } : {}),
+    ...(options.authSecret ? { authSecret: options.authSecret } : {}),
     ...(options.webDist ? { webDist: options.webDist } : {}),
   }
   dash.setErrorHandler(jsonErrorHandler)
@@ -40,6 +44,14 @@ export const dashboardRoutes: FastifyPluginAsync<DashboardDeps> = async (dash, o
     publicOrigin: deps.publicOrigin,
     emailLogin: deps.emailLogin === true,
   })
+  if (deps.authSecret) {
+    await dash.register(dashboardSetupRoutes, {
+      db: deps.db,
+      auth: deps.auth,
+      publicOrigin: deps.publicOrigin,
+      secret: deps.authSecret,
+    })
+  }
   await dash.register(sessionApi, { ...deps, prefix: '/api' })
   // Last: its catch-all serves the app shell for client-side routes.
   await dash.register(webAppRoutes, deps)
@@ -54,11 +66,13 @@ const sessionApi: FastifyPluginAsync<DashboardDeps> = async (api, options) => {
     storage: options.storage,
     publicOrigin: options.publicOrigin,
     ...(options.webhookAllowPrivate ? { webhookAllowPrivate: true } : {}),
+    ...(options.orgCreation ? { orgCreation: options.orgCreation } : {}),
   }
   api.addHook('onRequest', requireSameOrigin(deps.publicOrigin))
   api.addHook('onRequest', requireSession(deps.auth))
   await api.register(dashboardProjectRoutes, deps)
   await api.register(dashboardSettingsRoutes, deps)
+  await api.register(dashboardOrganizationRoutes, deps)
   await api.register(dashboardReviewRoutes, deps)
   await api.register(dashboardFileRoutes, deps)
 }
