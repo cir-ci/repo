@@ -9,6 +9,8 @@ export interface V1Deps {
   storage: StorageDriver
   /** Dashboard origin (`PUBLIC_URL`), used for build links and local-disk upload URLs. */
   publicOrigin: string
+  /** This instance has a GitHub App: a linked project's check is then the merge gate. */
+  githubApp?: boolean
 }
 
 /** What the dashboard (sign-in, `/api` and the web app) needs. */

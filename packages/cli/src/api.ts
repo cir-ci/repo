@@ -92,8 +92,8 @@ export class ApiClient {
     return this.json('POST', `/v1/builds/${buildId}/finalize`, body)
   }
 
-  status(buildId: string): Promise<BuildStatus> {
-    return this.json('GET', `/v1/builds/${buildId}/status`)
+  status(buildId: string, gate?: 'status' | 'exit-code'): Promise<BuildStatus> {
+    return this.json('GET', `/v1/builds/${buildId}/status${gate ? `?gate=${gate}` : ''}`)
   }
 
   /** Sends one file as instructed by the server, retrying transient failures. */

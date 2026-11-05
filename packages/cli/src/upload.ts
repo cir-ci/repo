@@ -19,6 +19,8 @@ export interface UploadOptions {
   /** Build name, for several kinds of builds per commit (e.g. `chromium`, `mobile`). */
   name?: string
   wait?: boolean
+  /** Who blocks the merge: the git host's check (`status`) or this job (`exit-code`). Default: the server decides. */
+  gate?: 'status' | 'exit-code'
   waitTimeoutMs?: number
   pollIntervalMs?: number
   /** Allow `git fetch` to complete shallow history (default true). */
@@ -139,6 +141,7 @@ export async function upload(options: UploadOptions): Promise<UploadResult> {
   const status = await waitForResult(client, build.id, {
     timeoutMs: options.waitTimeoutMs ?? 10 * 60_000,
     intervalMs: options.pollIntervalMs ?? 2_000,
+    ...(options.gate ? { gate: options.gate } : {}),
   })
   result.status = status
   if (!status) {
@@ -166,12 +169,12 @@ export async function upload(options: UploadOptions): Promise<UploadResult> {
 async function waitForResult(
   client: ApiClient,
   buildId: string,
-  opts: { timeoutMs: number; intervalMs: number },
+  opts: { timeoutMs: number; intervalMs: number; gate?: 'status' | 'exit-code' },
 ): Promise<BuildStatus | undefined> {
   const deadline = Date.now() + opts.timeoutMs
   for (;;) {
     // oxlint-disable-next-line no-await-in-loop -- polling
-    const status = await client.status(buildId)
+    const status = await client.status(buildId, opts.gate)
     if (status.outcome.state !== 'pending') return status
     if (Date.now() + opts.intervalMs > deadline) return undefined
     // oxlint-disable-next-line no-await-in-loop -- polling interval

@@ -97,6 +97,7 @@ export async function runServices(options: ServiceOptions): Promise<void> {
           auth: rt.auth,
           storage: rt.storage,
           publicOrigin: rt.config.publicUrl.origin,
+          githubApp: rt.config.github !== undefined,
         },
         dashboard: {
           db: rt.db.db,

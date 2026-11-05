@@ -19,6 +19,7 @@ export const v1Routes: FastifyPluginAsync<V1Deps> = async (v1, options) => {
     auth: options.auth,
     storage: options.storage,
     publicOrigin: options.publicOrigin,
+    ...(options.githubApp ? { githubApp: true } : {}),
   }
   v1.addHook('onRequest', requireProjectToken(deps.auth, deps.db))
   // Uploaded file bodies reach the handler as a raw stream.

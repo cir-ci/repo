@@ -23,6 +23,10 @@ program
   .argument('<dir>', 'directory with .png screenshots (searched recursively)')
   .option('--name <name>', 'build name, for several kinds of builds per commit', 'default')
   .option('--wait', 'wait for the result and exit non-zero when it should block the merge')
+  .option(
+    '--gate <mode>',
+    'who blocks the merge: status (the git host check, exit 0 on unreviewed changes) or exit-code (this job); default: decided by the server',
+  )
   .option('--timeout <seconds>', 'how long --wait waits', '600')
   .option('--api-url <url>', 'CirCI address (default: CIRCI_API_URL)')
   .option('--no-fetch', "don't run git fetch to complete shallow history")
@@ -44,6 +48,7 @@ Exit codes: 0 pass, 1 visual changes block the merge (with --wait), 2 error`,
       opts: {
         name: string
         wait?: boolean
+        gate?: string
         timeout: string
         apiUrl?: string
         fetch: boolean
@@ -58,12 +63,16 @@ Exit codes: 0 pass, 1 visual changes block the merge (with --wait), 2 error`,
       if (!Number.isFinite(timeout) || timeout <= 0)
         throw new UsageError('--timeout must be a positive number of seconds')
 
+      if (opts.gate !== undefined && opts.gate !== 'status' && opts.gate !== 'exit-code') {
+        throw new UsageError('--gate must be "status" or "exit-code"')
+      }
       const result = await upload({
         dir,
         apiUrl,
         token,
         name: opts.name,
         wait: opts.wait ?? false,
+        ...(opts.gate ? { gate: opts.gate } : {}),
         waitTimeoutMs: timeout * 1000,
         fetch: opts.fetch,
         ...(opts.json ? { log: (line: string) => console.error(line) } : {}),

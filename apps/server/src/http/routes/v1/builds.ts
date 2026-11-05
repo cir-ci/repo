@@ -5,17 +5,21 @@ import {
   getBuildCounts,
   getFile,
   getProjectBuild,
+  getProjectLink,
   markFileVerified,
   planUploads,
 } from '@circi/db'
 import { contentKey } from '@circi/storage'
 import type { FastifyPluginAsync } from 'fastify'
+import { z } from 'zod'
 
 import type { V1Deps } from '../../deps.ts'
 import { currentProject } from '../../hooks/project-token.ts'
 import { describeBuild } from '../../presenters.ts'
 import { parse } from '../../validation.ts'
 import { buildIdParams, createBuildBody, finalizeBody, JSON_BODY_LIMIT } from './schemas.ts'
+
+const statusQuery = z.object({ gate: z.enum(['status', 'exit-code']).optional() })
 
 /**
  * A build's life from CI (PLAN §7.1): create it and learn what to upload, finalize each shard,
@@ -82,14 +86,18 @@ export const buildRoutes: FastifyPluginAsync<V1Deps> = async (app, deps) => {
   app.get('/builds/:id/status', async (req, reply) => {
     const ctx = currentProject(req)
     const { id } = parse(buildIdParams, req.params)
+    const { gate: requested } = parse(statusQuery, req.query)
     const build = await getProjectBuild(deps.db, ctx.project.id, id)
     if (!build) return reply.code(404).send({ error: 'Build not found' })
+    // Who blocks the merge (PLAN §7.4): the check on the git host when this project reports to
+    // one, otherwise this CI job. The CLI's `--gate` overrides the choice.
+    const linked = deps.githubApp === true && (await getProjectLink(deps.db, ctx.project.id))
+    const gate = requested ?? (linked ? 'status' : 'exit-code')
     return {
       build: describeBuild(ctx, build, deps.publicOrigin),
       counts: await getBuildCounts(deps.db, build.id),
       outcome: buildOutcome({ ...build, blockMergeOnChanges: ctx.project.blockMergeOnChanges }),
-      // M1 has no git host integrations, so the CI job itself is the merge gate (PLAN §7.4).
-      gate: 'exit-code' as const,
+      gate,
       errorMessage: build.errorMessage,
     }
   })
