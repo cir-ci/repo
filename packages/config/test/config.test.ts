@@ -7,6 +7,9 @@ const base = {
   BETTER_AUTH_SECRET: 'test-secret-that-is-long-enough-123',
 }
 
+const withSitesHost = (host: string, extra: Record<string, string> = {}) =>
+  loadConfig({ ...base, PUBLIC_URL: 'https://ci.acme.io', STATIC_SITES_HOST: host, ...extra })
+
 describe('loadConfig', () => {
   it('applies defaults (local-disk storage)', () => {
     const c = loadConfig(base)
@@ -223,19 +226,16 @@ describe('BETTER_AUTH_SECRET', () => {
     })
   })
 
-  const ok = (host: string, extra: Record<string, string> = {}) =>
-    loadConfig({ ...base, PUBLIC_URL: 'https://ci.acme.io', STATIC_SITES_HOST: host, ...extra })
-
   describe('static sites domain', () => {
     it('is off unless set, and accepts an unrelated domain', () => {
       expect(loadConfig(base).staticSites).toBeUndefined()
-      expect(ok('Example-Sites.com').staticSites).toEqual({
+      expect(withSitesHost('Example-Sites.com').staticSites).toEqual({
         host: 'example-sites.com',
         maxBytes: 200 * 1024 * 1024,
       })
-      expect(ok('example-sites.com', { STATIC_SITES_MAX_MB: '50' }).staticSites?.maxBytes).toBe(
-        50 * 1024 * 1024,
-      )
+      expect(
+        withSitesHost('example-sites.com', { STATIC_SITES_MAX_MB: '50' }).staticSites?.maxBytes,
+      ).toBe(50 * 1024 * 1024)
     })
 
     it.each([
@@ -246,7 +246,7 @@ describe('BETTER_AUTH_SECRET', () => {
       ['https://example-sites.com', 'not a domain name'],
       ['localhost', 'no dot'],
     ])('refuses %s (%s)', (host) => {
-      expect(() => ok(host)).toThrow(ConfigError)
+      expect(() => withSitesHost(host)).toThrow(ConfigError)
     })
   })
 })
