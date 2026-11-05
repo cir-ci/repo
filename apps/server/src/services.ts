@@ -1,12 +1,14 @@
 import { fileURLToPath } from 'node:url'
 
-import { setupCode } from '@circi/auth'
-import { countUsers, publicUrlChecklist, recordPublicUrl, runMigrations } from '@circi/db'
+import { runMigrations } from '@circi/db'
 import { type RunningWorker, startWorker } from '@circi/worker'
 import type { FastifyInstance } from 'fastify'
 
 import { buildServer } from './http/app.ts'
 import { createRuntime } from './runtime.ts'
+import { serverOptionsFor } from './server-options.ts'
+import { createShutdown } from './shutdown.ts'
+import { announceStartup } from './startup.ts'
 
 export interface ServiceOptions {
   http: boolean
@@ -23,26 +25,16 @@ export async function runServices(options: ServiceOptions): Promise<void> {
   let app: FastifyInstance | undefined
   let worker: RunningWorker | undefined
 
-  let stopping = false
-  const shutdown = async (signal: string) => {
-    if (stopping) return
-    stopping = true
-    logger.info({ signal }, 'shutting down')
-    const force = setTimeout(() => {
-      logger.error('shutdown timed out, exiting')
-      process.exit(1)
-    }, SHUTDOWN_TIMEOUT_MS)
-    force.unref()
-    try {
+  const shutdown = createShutdown({
+    logger,
+    close: async () => {
       await app?.close()
       await worker?.stop()
       await rt.close()
-      process.exit(0)
-    } catch (err) {
-      logger.error({ err }, 'error during shutdown')
-      process.exit(1)
-    }
-  }
+    },
+    exit: (code) => process.exit(code),
+    timeoutMs: SHUTDOWN_TIMEOUT_MS,
+  })
   process.once('SIGTERM', () => void shutdown('SIGTERM'))
   process.once('SIGINT', () => void shutdown('SIGINT'))
 
@@ -53,18 +45,7 @@ export async function runServices(options: ServiceOptions): Promise<void> {
       logger.info('applying database migrations')
       await runMigrations(rt.db)
     }
-    const moved = await recordPublicUrl(rt.db.db, rt.config.publicUrl.origin)
-    if (moved) {
-      logger.warn(
-        { from: moved.from, to: moved.to, checklist: publicUrlChecklist(moved) },
-        `The dashboard address changed from ${moved.from} to ${moved.to}. Finish the address-change checklist.`,
-      )
-    }
-    if (options.http && (await countUsers(rt.db.db)) === 0) {
-      logger.warn(
-        `No accounts yet. Open ${rt.config.publicUrl.origin} and set up CirCI with the setup code ${setupCode(rt.config.authSecret)}`,
-      )
-    }
+    await announceStartup(rt, options)
     if (options.worker) {
       worker = await startWorker({
         db: rt.db.db,
@@ -77,47 +58,7 @@ export async function runServices(options: ServiceOptions): Promise<void> {
       })
     }
     if (options.http) {
-      const base = {
-        db: rt.db.db,
-        auth: rt.auth,
-        storage: rt.storage,
-        publicOrigin: rt.config.publicUrl.origin,
-      }
-      app = buildServer({
-        logger,
-        publicOrigin: rt.config.publicUrl.origin,
-        previousHosts: rt.config.previousPublicHosts,
-        ...(rt.config.github
-          ? {
-              githubWebhook: {
-                db: rt.db.db,
-                secret: rt.config.github.webhookSecret,
-                github: rt.github,
-                publicOrigin: rt.config.publicUrl.origin,
-                logger,
-              },
-            }
-          : {}),
-        api: {
-          ...base,
-          githubApp: rt.config.github !== undefined,
-        },
-        dashboard: {
-          ...base,
-          emailLogin: rt.config.emailLogin,
-          passwordLogin: rt.config.passwordLogin,
-          sso: rt.config.sso.map((p) => ({ id: p.id, name: p.name })),
-          webhookAllowPrivate: rt.config.webhookAllowPrivate,
-          orgCreation: rt.config.orgCreation,
-          githubApp: rt.config.github !== undefined,
-          authSecret: rt.config.authSecret,
-          webDist: webDistPath(),
-        },
-        checks: [
-          { name: 'database', check: () => rt.db.ping() },
-          { name: 'storage', check: () => rt.storage.healthCheck() },
-        ],
-      })
+      app = buildServer(serverOptionsFor(rt, webDistPath()))
       await app.listen({ host: rt.config.http.host, port: rt.config.http.port })
       logger.info(
         {
