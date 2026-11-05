@@ -505,7 +505,7 @@ All login happens in the dashboard (the web app shows its sign-in page to anyone
 | Email + password | **Done** | `emailAndPassword` (sign-up disabled, 12+ characters) |
 | Email login (code + link) | **Done** (instance switch; per-org switch M2) | better-auth's `emailOTP` plugin with SMTP. The mailed link opens `/#signin-email=…&code=…` (fragment, so servers never see it) and still needs a click, so scanners can't use the code up |
 | OAuth / OIDC | M2 | its generic OAuth / SSO support; the trust rules below still apply |
-| Invitations, roles | Organizations and roles **done** (CLI); invitation mail + accept flow **done** (members page: next) | organization plugin. The mail link opens `/#invite=<id>&email=…`; an invited address with no account gets one by signing in with an emailed code (only invitees: unknown addresses get no mail and no account), then confirms joining with a click |
+| Invitations, roles | Organizations and roles **done** (CLI); invitation mail, accept flow and the members page (`/organizations/<org>/members`: invite, withdraw, remove) **done** | organization plugin. The mail link opens `/#invite=<id>&email=…`; an invited address with no account gets one by signing in with an emailed code (only invitees: unknown addresses get no mail and no account), then confirms joining with a click |
 | CI tokens | **Done** | API key plugin, §8 |
 
 The per-organization switches, allowed email domains, the lockout guard and the "org-scoped provider" rules below are CirCI's own policy layered on top (hooks around better-auth's endpoints plus the `org_auth_settings` table), not features better-auth provides.
@@ -635,7 +635,8 @@ _Status: accounts, organizations, roles, CI tokens and organization isolation ar
 - [x] Email login (6-digit code + link) with SMTP (`SMTP_*`, `AUTH_EMAIL_ENABLED`, `circi admin mail test`); better-auth's per-IP limits (3 codes/min). Still open: per-email limit across IPs, "new sign-in" notification mail
 - [ ] Turning login methods on/off: instance env flags + per-org `org_auth_settings`, lockout guard, `circi admin auth` break-glass command
 - [ ] Allowed email domains → auto-join org with a default role; domain claims verified by DNS TXT record
-- [ ] Invitations (organization plugin + SMTP), sessions list and revoke, org/project settings UI
+- [x] Invitations (organization plugin + SMTP) and a members page
+- [ ] Sessions list and revoke, project settings UI (incl. webhooks)
 - [ ] `ORG_CREATION` and a first-run setup page, so a fresh install needs no CLI for its first account
 - [ ] Store the last `PUBLIC_URL`; on change, log and show the address-change checklist with OIDC redirect URIs to update (§7.9)
 - [ ] OAuth/OIDC login (GitHub, GitLab, Google, generic OIDC). Instance vs. org-scoped providers, (issuer, subject) matching, `trusted_for_email`, org-scoped sessions, confirmed account linking

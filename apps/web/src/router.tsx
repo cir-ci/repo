@@ -97,9 +97,15 @@ function AppFrame() {
             <Box component="span" sx={{ color: 'text.secondary' }} aria-hidden>
               /
             </Box>
-            <Box component="span" sx={{ color: 'text.secondary' }}>
+            <RouterLink
+              to="/organizations/$org/members"
+              params={{ org: params.org }}
+              color="inherit"
+              sx={{ color: 'text.secondary' }}
+              aria-label={`${params.org} members`}
+            >
               {params.org}
-            </Box>
+            </RouterLink>
             {params.project ? (
               <>
                 <Box component="span" sx={{ color: 'text.secondary' }} aria-hidden>
@@ -197,7 +203,14 @@ const buildRoute = createRoute({
   component: lazyRouteComponent(() => import('./pages/Build.tsx'), 'BuildPage'),
 })
 
-const routeTree = rootRoute.addChildren([projectsRoute, projectRoute, buildRoute])
+// Three segments, so it can't collide with `$org/$project` (two) or a build page (four).
+const membersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'organizations/$org/members',
+  component: lazyRouteComponent(() => import('./pages/Members.tsx'), 'MembersPage'),
+})
+
+const routeTree = rootRoute.addChildren([projectsRoute, projectRoute, buildRoute, membersRoute])
 
 export const router = createRouter({ routeTree, defaultPreload: 'intent', scrollRestoration: true })
 

@@ -36,6 +36,8 @@ docker compose exec circi circi admin project create --org acme --name "Web app"
 
 With SMTP configured, people with an account can also sign in with a 6-digit code mailed to them (the mail also holds a link that fills the code in). Codes work once, expire after 10 minutes, are stored hashed, lock after 5 wrong attempts, and addresses without an account get the same answer and no mail.
 
+Owners and admins can also invite people by email from the organization's members page (click the organization name in the header). Invited people without an account create it by signing in with an emailed code.
+
 Anyone you add to an organization sees its projects, builds and screenshots, and nothing else. Add people with `circi admin user create` and `circi admin member add`.
 
 - Storage defaults to local disk (a Docker volume), the cheapest option. For S3-compatible storage, set `STORAGE_DRIVER=s3` and the `S3_*` variables. `docker-compose.s3.yml` adds a local MinIO for development.
