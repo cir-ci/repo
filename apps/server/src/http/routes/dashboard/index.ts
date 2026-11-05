@@ -31,6 +31,7 @@ function dependenciesOf(options: DashboardDeps): DashboardDeps {
     ...(options.sso?.length ? { sso: options.sso } : {}),
     ...(options.webhookAllowPrivate ? { webhookAllowPrivate: true } : {}),
     ...(options.orgCreation ? { orgCreation: options.orgCreation } : {}),
+    ...(options.githubApp ? { githubApp: true } : {}),
     ...(options.authSecret ? { authSecret: options.authSecret } : {}),
     ...(options.resolveTxt ? { resolveTxt: options.resolveTxt } : {}),
     ...(options.webDist ? { webDist: options.webDist } : {}),

@@ -28,6 +28,8 @@ export interface DashboardDeps {
   webhookAllowPrivate?: boolean
   /** Looks up TXT records for domain verification; replaceable in tests. Default: real DNS. */
   resolveTxt?: (name: string) => Promise<string[][]>
+  /** This instance has a GitHub App, so projects can be linked to repositories. */
+  githubApp?: boolean
   /** Who may create organizations in the dashboard. Default: instance admins only. */
   orgCreation?: 'admin' | 'anyone'
   /** The instance secret, from which the first-run setup code is derived. */

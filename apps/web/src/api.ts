@@ -208,6 +208,11 @@ export interface SettingsResponse {
   settings: ProjectSettings
   webhooks: WebhookInfo[]
   webhookEvents: string[]
+  github: {
+    configured: boolean
+    webhookUrl: string
+    link: { installationId: string; repoRef: string } | null
+  }
 }
 
 export const settingsQuery = (org: string, project: string) =>
@@ -370,6 +375,23 @@ export function useDomainActions(org: string) {
     }),
     remove: useMutation({
       mutationFn: (id: string) => request<undefined>(`${base}/${seg(id)}`, { method: 'DELETE' }),
+      onSuccess: refresh,
+    }),
+  }
+}
+
+export function useGithubLink(org: string, project: string) {
+  const queryClient = useQueryClient()
+  const url = `/api/projects/${seg(org)}/${seg(project)}/github`
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['settings', org, project] })
+  return {
+    save: useMutation({
+      mutationFn: (input: { installationId: string; repoRef: string }) =>
+        request<{ link: unknown }>(url, { method: 'PUT', body: JSON.stringify(input) }),
+      onSuccess: refresh,
+    }),
+    remove: useMutation({
+      mutationFn: () => request<undefined>(url, { method: 'DELETE' }),
       onSuccess: refresh,
     }),
   }

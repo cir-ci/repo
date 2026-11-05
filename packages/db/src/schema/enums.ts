@@ -25,6 +25,7 @@ export const REVIEW_SOURCES = ['ui', 'github-check', 'github-comment', 'auto', '
 export const WEBHOOK_EVENTS = ['build.completed', 'build.reviewed'] as const
 /** How someone signed in: `oidc` covers every single sign-on provider. */
 export const LOGIN_METHODS = ['password', 'email', 'oidc'] as const
+export const GIT_PROVIDER_KINDS = ['github'] as const
 export const JOB_STATUSES = ['pending', 'running', 'done', 'failed'] as const
 
 export type LoginMethod = (typeof LOGIN_METHODS)[number]

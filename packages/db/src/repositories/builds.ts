@@ -16,6 +16,7 @@ import {
   uploadClaims,
 } from '../schema/index.ts'
 import type { Build } from '../types.ts'
+import { queueGitNotify } from './git.ts'
 import { enqueueJob, QUEUES } from './jobs.ts'
 import { queueWebhookEvent } from './webhooks.ts'
 
@@ -264,6 +265,7 @@ export async function finalizeBuild(
         .update(builds)
         .set({ status: 'processing', finalizedAt: new Date() })
         .where(eq(builds.id, build.id))
+      await queueGitNotify(tx, { ...build, status: 'processing' })
       await tx.delete(uploadClaims).where(eq(uploadClaims.buildId, build.id))
       await enqueueJob(tx, {
         queue: QUEUES.processBuild,
@@ -389,7 +391,10 @@ export async function completeBuild(
       })
     }
     const [done] = await tx.select().from(builds).where(eq(builds.id, build.id))
-    if (done) await queueWebhookEvent(tx, { build: done, event: 'build.completed' })
+    if (done) {
+      await queueWebhookEvent(tx, { build: done, event: 'build.completed' })
+      await queueGitNotify(tx, done)
+    }
   })
 }
 
@@ -435,8 +440,35 @@ export async function findApprovedRerunOf(db: Database, build: Build): Promise<s
 }
 
 export async function failBuild(db: Database, buildId: string, message: string): Promise<void> {
-  await db
-    .update(builds)
-    .set({ status: 'error', errorMessage: message.slice(0, 2000), completedAt: new Date() })
-    .where(eq(builds.id, buildId))
+  await db.transaction(async (tx) => {
+    const [failed] = await tx
+      .update(builds)
+      .set({ status: 'error', errorMessage: message.slice(0, 2000), completedAt: new Date() })
+      .where(eq(builds.id, buildId))
+      .returning()
+    if (failed) await queueGitNotify(tx, failed)
+  })
+}
+
+/**
+ * Processes a build again from scratch (the `/circi rerun` command, e.g. after changing the
+ * diff threshold): it goes back to `processing` with no decision, and its job is queued.
+ */
+export async function requeueBuild(db: Database, buildId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [updated] = await tx
+      .update(builds)
+      .set({
+        status: 'processing',
+        conclusion: null,
+        reviewStatus: 'pending',
+        completedAt: null,
+        errorMessage: null,
+      })
+      .where(and(eq(builds.id, buildId), inArray(builds.status, ['complete', 'error'])))
+      .returning()
+    if (!updated) throw new NotFoundError('Build not found, or still processing')
+    await enqueueJob(tx, { queue: QUEUES.processBuild, payload: { buildId } })
+    await queueGitNotify(tx, updated)
+  })
 }

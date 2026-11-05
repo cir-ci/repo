@@ -17,10 +17,12 @@
     "@circi/core": "workspace:*",
     "@circi/db": "workspace:*",
     "@circi/diff": "workspace:*",
+    "@circi/providers": "workspace:*",
     "@circi/storage": "workspace:*"
   },
   "devDependencies": {
     "@electric-sql/pglite": "catalog:",
+    "drizzle-orm": "catalog:",
     "sharp": "catalog:"
   }
 }

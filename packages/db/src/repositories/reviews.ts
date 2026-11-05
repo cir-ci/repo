@@ -4,6 +4,7 @@ import type { Database } from '../client.ts'
 import { ConflictError, NotFoundError } from '../errors.ts'
 import { builds, type ReviewSource, type ReviewState, reviews, user } from '../schema/index.ts'
 import type { Build } from '../types.ts'
+import { queueGitNotify } from './git.ts'
 import { queueWebhookEvent } from './webhooks.ts'
 
 /**
@@ -63,6 +64,7 @@ export async function reviewBuild(db: Database, input: ReviewBuildInput): Promis
         userName: reviewer?.name ?? null,
       },
     })
+    await queueGitNotify(tx, updated)
     return updated
   })
 }

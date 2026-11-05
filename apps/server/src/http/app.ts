@@ -3,6 +3,7 @@ import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify'
 import type { DashboardDeps, V1Deps } from './deps.ts'
 import { redirectPreviousHosts } from './hooks/previous-hosts.ts'
 import { dashboardRoutes } from './routes/dashboard/index.ts'
+import { githubWebhookRoutes, type GithubWebhookDeps } from './routes/github-webhook.ts'
 import { healthRoutes, type ReadinessCheck } from './routes/health.ts'
 import { v1Routes } from './routes/v1/index.ts'
 
@@ -19,6 +20,8 @@ export interface ServerOptions {
   previousHosts?: string[]
   /** CI upload API (`/v1`). Omitted in tests that only exercise health endpoints. */
   api?: V1Deps
+  /** GitHub App webhooks (`/webhooks/github`). Omitted when no GitHub App is configured. */
+  githubWebhook?: GithubWebhookDeps
   /** Dashboard (`/api`, `/`). Omitted in tests that don't need it. */
   dashboard?: DashboardDeps
 }
@@ -29,6 +32,7 @@ export interface ServerOptions {
  *   (all)       redirect from previous dashboard hosts
  *   /healthz    /readyz          no auth
  *   /v1/…       CI API           project token
+ *   /webhooks/github  GitHub App   signature
  *   /api/auth/… sign-in          public (better-auth)
  *   /api/…      dashboard API    session cookie
  *   /…          web app          public static files
@@ -46,6 +50,7 @@ export function buildServer(options: ServerOptions): FastifyInstance {
     ...(options.checkTimeoutMs ? { checkTimeoutMs: options.checkTimeoutMs } : {}),
   })
   if (options.api) void app.register(v1Routes, { ...options.api, prefix: '/v1' })
+  if (options.githubWebhook) void app.register(githubWebhookRoutes, options.githubWebhook)
   if (options.dashboard) void app.register(dashboardRoutes, options.dashboard)
 
   return app

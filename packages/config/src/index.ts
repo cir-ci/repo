@@ -38,6 +38,10 @@ const envSchema = z.object({
   SMTP_FROM: z.preprocess(emptyToUndefined, z.string().optional()),
   AUTH_EMAIL_ENABLED: z.preprocess(emptyToUndefined, bool.optional()),
   WEBHOOK_ALLOW_PRIVATE_ADDRESSES: z.preprocess(emptyToUndefined, bool.optional()),
+  GITHUB_APP_ID: z.preprocess(emptyToUndefined, z.string().optional()),
+  GITHUB_APP_PRIVATE_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
+  GITHUB_APP_WEBHOOK_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),
+  GITHUB_API_URL: z.preprocess(emptyToUndefined, z.string().optional()),
   AUTH_PASSWORD_ENABLED: z.preprocess(emptyToUndefined, bool.optional()),
   AUTH_SSO_ENABLED: z.preprocess(emptyToUndefined, bool.optional()),
   AUTH_GITHUB_CLIENT_ID: z.preprocess(emptyToUndefined, z.string().optional()),
@@ -60,6 +64,16 @@ export interface SsoConfig {
   clientSecret: string
   issuer?: string
   trustedForEmail: boolean
+}
+
+/** The instance's GitHub App (PLAN §7.4). */
+export interface GithubAppConfig {
+  appId: string
+  /** PEM. `\n` escapes in the environment variable are turned into newlines. */
+  privateKey: string
+  webhookSecret: string
+  /** `https://api.github.com`, or a GitHub Enterprise Server's `https://host/api/v3`. */
+  apiUrl: string
 }
 
 export type StorageConfig =
@@ -105,6 +119,8 @@ export interface Config {
   /** Email login (one-time code / link) is offered: switched on (default) and SMTP is set up. */
   emailLogin: boolean
   /** Webhooks may point at private/loopback addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
+  /** The GitHub App: absent when none is configured. */
+  github?: GithubAppConfig
   /** Single sign-on providers, empty when none is configured or `AUTH_SSO_ENABLED=false`. */
   sso: SsoConfig[]
   /** Email + password sign-in is offered (`AUTH_PASSWORD_ENABLED`, default on). */
@@ -201,6 +217,24 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     warnings.push('AUTH_EMAIL_ENABLED is on but SMTP_HOST is not set, so email login is off.')
   }
 
+  let github: GithubAppConfig | undefined
+  const githubParts = [e.GITHUB_APP_ID, e.GITHUB_APP_PRIVATE_KEY, e.GITHUB_APP_WEBHOOK_SECRET]
+  if (githubParts.some(Boolean)) {
+    if (!githubParts.every(Boolean)) {
+      issues.push(
+        'GITHUB_APP_ID / GITHUB_APP_PRIVATE_KEY / GITHUB_APP_WEBHOOK_SECRET: set all three',
+      )
+    } else {
+      const apiUrl = (e.GITHUB_API_URL ?? 'https://api.github.com').replace(/\/$/, '')
+      if (!/^https?:\/\//.test(apiUrl)) issues.push('GITHUB_API_URL: must be an http(s) address')
+      github = {
+        appId: e.GITHUB_APP_ID ?? '',
+        privateKey: (e.GITHUB_APP_PRIVATE_KEY ?? '').replace(/\\n/g, '\n'),
+        webhookSecret: e.GITHUB_APP_WEBHOOK_SECRET ?? '',
+        apiUrl,
+      }
+    }
+  }
   const sso: SsoConfig[] = []
   const pair = (name: string, id: string | undefined, secret: string | undefined) => {
     if (Boolean(id) !== Boolean(secret)) {
@@ -272,6 +306,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     emailLogin,
     passwordLogin,
     sso: ssoOn,
+    ...(github ? { github } : {}),
     webhookAllowPrivate: e.WEBHOOK_ALLOW_PRIVATE_ADDRESSES === true,
     orgCreation: e.ORG_CREATION,
   }

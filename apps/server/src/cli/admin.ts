@@ -14,6 +14,8 @@ import {
   deleteWebhook,
   getOrganizationBySlug,
   getProjectBySlugs,
+  linkProjectToGithub,
+  unlinkProject,
   isWebhookEvent,
   listOrganizations,
   listProjects,
@@ -34,6 +36,7 @@ export function addAdminCommands(program: Command): void {
   addMemberCommands(admin.command('member').description('manage organization members'))
   addProjectCommands(admin.command('project').description('manage projects and their CI tokens'))
   addMailCommands(admin.command('mail').description('check outgoing mail'))
+  addGithubCommands(admin.command('github').description('link projects to GitHub repositories'))
   addAuthCommands(admin.command('auth').description('login methods of an organization'))
   admin
     .command('setup-code')
@@ -344,4 +347,43 @@ function addAuthCommands(auth: Command): void {
         }),
       )
   }
+}
+
+function addGithubCommands(github: Command): void {
+  github
+    .command('link')
+    .description(
+      'report a project’s builds to a GitHub repository (needs the GitHub App installed on it)',
+    )
+    .requiredOption('--org <slug>', 'organization slug')
+    .requiredOption('--project <slug>', 'project slug')
+    .requiredOption('--repo <owner/name>', 'the repository')
+    .requiredOption('--installation <id>', 'the GitHub App installation id (see its URL on GitHub)')
+    .action((opts: { org: string; project: string; repo: string; installation: string }) =>
+      withRuntime(async (rt) => {
+        if (!rt.config.github) throw new Error('No GitHub App is configured (GITHUB_APP_*)')
+        if (!/^[\w.-]+\/[\w.-]+$/.test(opts.repo))
+          throw new Error('--repo must look like owner/name')
+        if (!/^\d+$/.test(opts.installation)) throw new Error('--installation must be a number')
+        const project = await projectOf(rt, opts.org, opts.project)
+        await linkProjectToGithub(rt.db.db, project.id, {
+          installationId: opts.installation,
+          repoRef: opts.repo,
+        })
+        console.log(`${opts.org}/${opts.project} now reports to ${opts.repo}`)
+      }),
+    )
+
+  github
+    .command('unlink')
+    .description('stop reporting a project to GitHub')
+    .requiredOption('--org <slug>', 'organization slug')
+    .requiredOption('--project <slug>', 'project slug')
+    .action((opts: { org: string; project: string }) =>
+      withRuntime(async (rt) => {
+        const project = await projectOf(rt, opts.org, opts.project)
+        await unlinkProject(rt.db.db, project.id)
+        console.log(`${opts.org}/${opts.project} no longer reports to GitHub`)
+      }),
+    )
 }

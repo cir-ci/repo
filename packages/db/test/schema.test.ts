@@ -35,6 +35,7 @@ describe('migrations', () => {
     expect(res.rows.map((r) => r.tablename)).toEqual([
       'account',
       'apikey',
+      'build_checks',
       'build_shards',
       'builds',
       'commit_ancestry',
@@ -48,7 +49,10 @@ describe('migrations', () => {
       'org_auth_settings',
       'org_domains',
       'organization',
+      'pr_comments',
       'projects',
+      'provider_connections',
+      'provider_deliveries',
       'reviews',
       'screenshot_diffs',
       'screenshots',

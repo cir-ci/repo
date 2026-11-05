@@ -20,6 +20,9 @@
       "path": "packages/diff"
     },
     {
+      "path": "packages/providers"
+    },
+    {
       "path": "packages/cli"
     },
     {

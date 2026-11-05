@@ -5,6 +5,9 @@ import {
   deleteWebhook,
   findProjectForMember,
   getProjectById,
+  getProjectLink,
+  linkProjectToGithub,
+  unlinkProject,
   getProjectMemberRole,
   isWebhookEvent,
   listWebhooks,
@@ -34,6 +37,11 @@ const settingsBody = z
   })
   .partial()
   .strict()
+
+const githubBody = z.object({
+  installationId: z.string().regex(/^\d{1,20}$/, 'The installation id is a number'),
+  repoRef: z.string().regex(/^[\w.-]+\/[\w.-]+$/, 'Use owner/name, e.g. acme/web'),
+})
 
 const webhookBody = z.object({
   url: z.string().max(2048),
@@ -93,6 +101,11 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<DashboardDeps> = async 
       settings: projectSettings(found.project),
       webhooks: (await listWebhooks(deps.db, found.project.id)).map(present),
       webhookEvents: WEBHOOK_EVENTS,
+      github: {
+        configured: deps.githubApp === true,
+        webhookUrl: `${deps.publicOrigin}/webhooks/github`,
+        link: (await getProjectLink(deps.db, found.project.id)) ?? null,
+      },
     }
   })
 
@@ -113,6 +126,22 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<DashboardDeps> = async 
       projectSlug: project.slug,
     })
     return { token: issued.token }
+  })
+
+  app.put('/projects/:org/:project/github', async (req, reply) => {
+    const project = await loadForManager(req, reply)
+    if (!project) return reply
+    if (!deps.githubApp) throw new ValidationError('This instance has no GitHub App configured')
+    const link = parse(githubBody, req.body)
+    await linkProjectToGithub(deps.db, project.id, link)
+    return { link }
+  })
+
+  app.delete('/projects/:org/:project/github', async (req, reply) => {
+    const project = await loadForManager(req, reply)
+    if (!project) return reply
+    await unlinkProject(deps.db, project.id)
+    return reply.code(204).send()
   })
 
   app.post('/projects/:org/:project/webhooks', async (req, reply) => {

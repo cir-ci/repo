@@ -36,6 +36,7 @@ beforeAll(async () => {
       auth,
       storage: new FsStorage({ path: join(dir, 'files') }),
       publicOrigin: ORIGIN,
+      githubApp: true,
     },
   })
   await app.ready()
@@ -59,7 +60,7 @@ afterAll(async () => {
 
 const base = () => `/api/projects/${acme.orgSlug}/web`
 const call = (
-  method: 'GET' | 'PATCH' | 'POST' | 'DELETE',
+  method: 'GET' | 'PATCH' | 'POST' | 'PUT' | 'DELETE',
   url: string,
   cookie: string,
   body?: unknown,
@@ -180,5 +181,41 @@ describe('project webhooks', () => {
       404,
     )
     expect((await call('DELETE', `${base()}/webhooks/nope`, ownerCookie)).statusCode).toBe(404)
+  })
+})
+
+const put = (cookie: string, payload: unknown) => call('PUT', `${base()}/github`, cookie, payload)
+
+describe('GitHub link', () => {
+  it('links a project to a repository and shows it in the settings', async () => {
+    const before = (await call('GET', `${base()}/settings`, memberCookie)).json().github
+    expect(before).toEqual({
+      configured: true,
+      webhookUrl: `${ORIGIN}/webhooks/github`,
+      link: null,
+    })
+    const res = await put(ownerCookie, { installationId: '4242', repoRef: 'acme/web' })
+    expect(res.statusCode).toBe(200)
+    const after = (await call('GET', `${base()}/settings`, memberCookie)).json().github
+    expect(after.link).toEqual({ installationId: '4242', repoRef: 'acme/web' })
+  })
+
+  it('rejects malformed values, and anyone who is not an owner or admin', async () => {
+    const bad = await Promise.all(
+      [
+        { installationId: 'abc', repoRef: 'acme/web' },
+        { installationId: '1', repoRef: 'not a repo' },
+        { installationId: '1' },
+      ].map(async (b) => (await put(ownerCookie, b)).statusCode),
+    )
+    expect(bad).toEqual([400, 400, 400])
+    expect((await put(memberCookie, { installationId: '1', repoRef: 'a/b' })).statusCode).toBe(403)
+    expect((await put(rivalCookie, { installationId: '1', repoRef: 'a/b' })).statusCode).toBe(404)
+  })
+
+  it('unlinks', async () => {
+    expect((await call('DELETE', `${base()}/github`, ownerCookie)).statusCode).toBe(204)
+    const after = (await call('GET', `${base()}/settings`, ownerCookie)).json().github
+    expect(after.link).toBeNull()
   })
 })

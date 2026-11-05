@@ -71,6 +71,13 @@
       "when": 1793870781640,
       "tag": "0009_email_security",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793870909587,
+      "tag": "0010_git_connections",
+      "breakpoints": true
     }
   ]
 }

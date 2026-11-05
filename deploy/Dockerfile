@@ -22,6 +22,7 @@ COPY packages/config/package.json packages/config/
 COPY packages/core/package.json packages/core/
 COPY packages/db/package.json packages/db/
 COPY packages/diff/package.json packages/diff/
+COPY packages/providers/package.json packages/providers/
 COPY packages/storage/package.json packages/storage/
 
 FROM manifests AS build
@@ -43,6 +44,7 @@ COPY --from=build /app/packages/core/dist packages/core/dist
 COPY --from=build /app/packages/db/dist packages/db/dist
 COPY --from=build /app/packages/db/migrations packages/db/migrations
 COPY --from=build /app/packages/diff/dist packages/diff/dist
+COPY --from=build /app/packages/providers/dist packages/providers/dist
 COPY --from=build /app/apps/web/dist apps/web/dist
 COPY --from=build /app/packages/storage/dist packages/storage/dist
 

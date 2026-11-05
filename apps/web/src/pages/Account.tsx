@@ -1,6 +1,7 @@
-import { Alert, Box, Button, Stack } from '@mui/material'
+import { Alert, Box, Button, Stack, Typography } from '@mui/material'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
+import { getJson } from '../api.ts'
 import { authClient } from '../auth.ts'
 import { ErrorState, RelativeTime, useDocumentTitle } from '../components.tsx'
 import { ListSkeleton, useAnnounce } from '../primitives/feedback.tsx'
@@ -76,6 +77,12 @@ export function AccountPage() {
     },
   })
 
+  const methods = useQuery({
+    queryKey: ['auth-methods'],
+    queryFn: () => getJson<{ sso: { id: string; name: string }[] }>('/api/auth-methods'),
+    staleTime: 5 * 60_000,
+  })
+  const githubOn = methods.data?.sso.some((p) => p.id === 'github') === true
   const currentToken = current?.session.token
   const others = data?.filter((s) => s.token !== currentToken) ?? []
 
@@ -131,6 +138,24 @@ export function AccountPage() {
               )
             })}
           </Section>
+          {githubOn ? (
+            <Box>
+              <Typography variant="h2" component="h2" sx={{ mb: 0.5 }}>
+                GitHub
+              </Typography>
+              <Typography color="text.secondary" sx={{ mb: 1 }}>
+                Link your GitHub login so that Approve and Reject on pull requests count as you.
+              </Typography>
+              <Button
+                variant="outlined"
+                onClick={() =>
+                  void authClient.linkSocial({ provider: 'github', callbackURL: '/account' })
+                }
+              >
+                Link GitHub
+              </Button>
+            </Box>
+          ) : null}
           {others.length > 0 ? (
             <Box>
               <Button

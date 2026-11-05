@@ -4,12 +4,15 @@ import {
   type Database,
   failBuild,
   failJob,
+  GIT_NOTIFY_QUEUE,
   type Job,
   QUEUES,
 } from '@circi/db'
+import type { GithubApp } from '@circi/providers'
 import type { StorageDriver } from '@circi/storage'
 
 import { deliverWebhook } from './jobs/deliver-webhook.ts'
+import { notifyGit } from './jobs/notify-git.ts'
 import { processBuild } from './jobs/process-build.ts'
 import { interruptibleSleep } from './lib/concurrency.ts'
 
@@ -27,6 +30,8 @@ export interface WorkerDeps {
   logger: WorkerLogger
   /** The dashboard's origin (`PUBLIC_URL`), used for links in webhook bodies. */
   publicOrigin?: string
+  /** The GitHub App, when configured: builds are then reported to linked repositories. */
+  github?: GithubApp
   /** Webhooks may point at private addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
   webhookAllowPrivate?: boolean
   /** Startup check of the database connection. */
@@ -91,12 +96,14 @@ export async function startWorker(deps: WorkerDeps): Promise<RunningWorker> {
 async function claimNext(db: Database, lockSeconds: number): Promise<Job | undefined> {
   return (
     (await claimJob(db, QUEUES.processBuild, lockSeconds)) ??
+    (await claimJob(db, GIT_NOTIFY_QUEUE, lockSeconds)) ??
     (await claimJob(db, QUEUES.webhook, lockSeconds))
   )
 }
 
 async function runJob(deps: WorkerDeps, job: Job): Promise<void> {
   if (job.queue === QUEUES.webhook) return runWebhookJob(deps, job)
+  if (job.queue === GIT_NOTIFY_QUEUE) return runGitNotifyJob(deps, job)
   const buildId = typeof job.payload.buildId === 'string' ? job.payload.buildId : undefined
   const started = Date.now()
   try {
@@ -141,6 +148,25 @@ async function runWebhookJob(deps: WorkerDeps, job: Job): Promise<void> {
     deps.logger[willRetry ? 'warn' : 'error'](
       { ...fields, attempt: job.attempts, err: message },
       willRetry ? 'webhook delivery failed, will retry' : 'webhook delivery failed for good',
+    )
+  }
+}
+
+async function runGitNotifyJob(deps: WorkerDeps, job: Job): Promise<void> {
+  const fields = { jobId: job.id, buildId: job.payload.buildId }
+  try {
+    const result = await notifyGit(
+      { db: deps.db, github: deps.github, publicOrigin: deps.publicOrigin ?? '' },
+      job,
+    )
+    await completeJob(deps.db, job.id)
+    deps.logger.info({ ...fields, ...result }, 'git host notified')
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    const willRetry = await failJob(deps.db, job, message).catch(() => true)
+    deps.logger[willRetry ? 'warn' : 'error'](
+      { ...fields, attempt: job.attempts, err: message },
+      willRetry ? 'could not notify the git host, will retry' : 'could not notify the git host',
     )
   }
 }

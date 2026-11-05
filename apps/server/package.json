@@ -23,6 +23,7 @@
     "@circi/config": "workspace:*",
     "@circi/core": "workspace:*",
     "@circi/db": "workspace:*",
+    "@circi/providers": "workspace:*",
     "@circi/storage": "workspace:*",
     "@circi/worker": "workspace:*",
     "@fastify/static": "catalog:",
@@ -33,6 +34,7 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "catalog:",
+    "drizzle-orm": "catalog:",
     "sharp": "catalog:"
   }
 }

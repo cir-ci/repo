@@ -21,6 +21,12 @@ CIRCI_TOKEN=circi_… CIRCI_API_URL=https://ci.acme.io npx circi upload ./screen
 
 Owners and admins can also add and remove webhooks on the project's **Settings** page (the secret is shown once). Addresses must be public: `localhost`, private networks and cloud metadata addresses are refused, and names are re-checked at delivery. Set `WEBHOOK_ALLOW_PRIVATE_ADDRESSES=true` if your receivers live on your own network.
 
+## GitHub
+
+Create a GitHub App (Settings → Developer settings → GitHub Apps) with webhook URL `PUBLIC_URL/webhooks/github`, a webhook secret, permissions *Checks: write*, *Pull requests: write*, *Metadata: read*, and events *Check run* and *Issue comment*. Install it on your repositories, then set `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` (the PEM; `\n` escapes are fine) and `GITHUB_APP_WEBHOOK_SECRET`; for GitHub Enterprise Server also `GITHUB_API_URL=https://ghe.example.com/api/v3`. Link a project to its repository on its **Settings** page (or `circi admin github link --org acme --project web --repo acme/web --installation 12345678`; the installation id is the number in the installation's settings address).
+
+Each build then shows as a **CirCI / <build name>** check with **Approve** and **Reject** buttons, plus one summary comment on the pull request. Comment `/circi approve`, `/circi reject` or `/circi rerun` to act on the pull request's newest commit. Who may approve from GitHub: people who linked their GitHub login on their CirCI **Account** page (needs a GitHub single-sign-on app, `AUTH_GITHUB_*`) and who belong to the project's organization. To block merging, mark the check as required in the repository's branch protection. With a project linked, `circi upload --wait` still exits 1 on unreviewed changes until the gate mode work in M2.5 lands.
+
 ## Self-hosting (Docker)
 
 ```sh
@@ -73,6 +79,7 @@ Anyone you add to an organization sees its projects, builds and screenshots, and
 | `circi admin member add` | Add an existing account to an organization (`--role owner\|admin\|member`) |
 | `circi admin project create\|list\|rotate-token` | Manage projects and their CI tokens |
 | `circi admin auth enable\|disable <email\|password> --org <slug>` | Change an organization's accepted sign-in methods (skips the lockout guard: break-glass) |
+| `circi admin github link\|unlink` | Link a project to a GitHub repository (needs the GitHub App) |
 | `circi admin setup-code` | Print the code the first-run setup page asks for |
 | `circi admin mail test` | Send a test mail through the configured SMTP server |
 | `circi admin webhook add\|list\|remove` | Send a project's `build.completed` / `build.reviewed` events to a URL |
@@ -88,6 +95,7 @@ Anyone you add to an organization sees its projects, builds and screenshots, and
 | `LOG_LEVEL` | `info` | `fatal` … `trace` |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | | Outgoing mail. `SMTP_FROM` is required with `SMTP_HOST`; port defaults to 587 (STARTTLS), 465 means implicit TLS. Check it with `circi admin mail test --to you@acme.io` |
 | `AUTH_PASSWORD_ENABLED` | `true` | Email + password sign-in. `false` needs email login (SMTP) to be available, or nobody could sign in |
+| `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_WEBHOOK_SECRET`, `GITHUB_API_URL` | | The GitHub App, see above |
 | `AUTH_SSO_ENABLED` | `true` | Set `false` to hide single sign-on even with providers configured |
 | `AUTH_GITHUB_*`, `AUTH_GOOGLE_*`, `AUTH_OIDC_*` | | Single sign-on providers, see above |
 | `AUTH_EMAIL_ENABLED` | `true` | Email sign-in codes; only offered when SMTP is configured. `false` turns them off |

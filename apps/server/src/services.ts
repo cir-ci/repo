@@ -73,6 +73,7 @@ export async function runServices(options: ServiceOptions): Promise<void> {
         ping: () => rt.db.ping(),
         publicOrigin: rt.config.publicUrl.origin,
         webhookAllowPrivate: rt.config.webhookAllowPrivate,
+        ...(rt.github ? { github: rt.github } : {}),
       })
     }
     if (options.http) {
@@ -80,6 +81,17 @@ export async function runServices(options: ServiceOptions): Promise<void> {
         logger,
         publicOrigin: rt.config.publicUrl.origin,
         previousHosts: rt.config.previousPublicHosts,
+        ...(rt.config.github
+          ? {
+              githubWebhook: {
+                db: rt.db.db,
+                secret: rt.config.github.webhookSecret,
+                github: rt.github,
+                publicOrigin: rt.config.publicUrl.origin,
+                logger,
+              },
+            }
+          : {}),
         api: {
           db: rt.db.db,
           auth: rt.auth,
@@ -96,6 +108,7 @@ export async function runServices(options: ServiceOptions): Promise<void> {
           sso: rt.config.sso.map((p) => ({ id: p.id, name: p.name })),
           webhookAllowPrivate: rt.config.webhookAllowPrivate,
           orgCreation: rt.config.orgCreation,
+          githubApp: rt.config.github !== undefined,
           authSecret: rt.config.authSecret,
           webDist: webDistPath(),
         },
