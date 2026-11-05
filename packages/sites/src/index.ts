@@ -20,3 +20,5 @@ export {
   type SiteKindId,
 } from './kinds.ts'
 export { requestPath, RESERVED_PREFIX, safeEntryPath, UnsafePathError } from './paths.ts'
+export { IngestError, type IngestedFile, type IngestOptions, ingestTarball } from './ingest.ts'
+export { contentTypeFor } from './mime.ts'

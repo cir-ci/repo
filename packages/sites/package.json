@@ -13,5 +13,7 @@
   "scripts": {
     "build": "tsc -b"
   },
-  "dependencies": {}
+  "dependencies": {
+    "tar": "catalog:"
+  }
 }
