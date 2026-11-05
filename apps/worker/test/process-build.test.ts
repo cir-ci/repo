@@ -8,7 +8,9 @@ import {
   finalizeBuild,
   getBuild,
   getFile,
+  listBuildReviews,
   listBuildScreenshots,
+  reviewBuild,
   markFileVerified,
   planUploads,
 } from '@circi/db'
@@ -54,7 +56,13 @@ async function png(
 /** Creates a build the way the API does: plan, store bytes, verify, finalize. */
 async function uploadBuild(
   projectId: string,
-  build: { commitSha: string; branch: string; prNumber?: number; ancestorShas?: string[] },
+  build: {
+    commitSha: string
+    branch: string
+    name?: string
+    prNumber?: number
+    ancestorShas?: string[]
+  },
   shots: Record<string, Buffer>,
 ) {
   const created = await createBuild(t.db, { projectId, ...build })
@@ -203,6 +211,96 @@ describe('processBuild', () => {
     expect(await processBuild({ db: t.db, storage }, b.id)).toEqual({
       status: 'skipped',
       reason: 'build is complete',
+    })
+  })
+})
+
+function pr(extra: { name?: string } = {}) {
+  return {
+    commitSha: 'bbbb001',
+    branch: 'feature',
+    prNumber: 4,
+    ancestorShas: ['aaaa001'],
+    ...extra,
+  }
+}
+
+/** A project on main with a baseline, and a PR whose screenshot changed. */
+async function prSetup() {
+  const { project, owner } = await seedProject(t.db)
+  const home = await png(200, 100)
+  const base = await uploadBuild(project.id, { commitSha: 'aaaa001', branch: 'main' }, { home })
+  await processBuild({ db: t.db, storage }, base.id)
+  const changed = await png(200, 100, { x: 50, y: 50 })
+  return { project, owner, home, changed }
+}
+
+describe('re-runs of an approved commit', () => {
+  it('approves a re-run with the same screenshots, and says why', async () => {
+    const { project, owner, changed } = await prSetup()
+    const first = await uploadBuild(project.id, pr(), { home: changed })
+    expect(await processBuild({ db: t.db, storage }, first.id)).toMatchObject({
+      conclusion: 'changes_detected',
+      autoApproved: false,
+    })
+    // Nothing is approved yet, so an identical re-run still needs a decision.
+    const early = await uploadBuild(project.id, pr(), { home: changed })
+    expect(await processBuild({ db: t.db, storage }, early.id)).toMatchObject({
+      autoApproved: false,
+    })
+
+    await reviewBuild(t.db, { buildId: first.id, userId: owner.id, state: 'approved' })
+    const rerun = await uploadBuild(project.id, pr(), { home: changed })
+    expect(await processBuild({ db: t.db, storage }, rerun.id)).toMatchObject({
+      conclusion: 'changes_detected',
+      autoApproved: true,
+    })
+    expect((await getBuild(t.db, rerun.id))?.reviewStatus).toBe('approved')
+    expect(await listBuildReviews(t.db, rerun.id)).toMatchObject([
+      { state: 'approved', source: 'rerun', userName: null },
+    ])
+  })
+
+  it('does not approve a re-run that differs in any screenshot', async () => {
+    const { project, owner, changed, home } = await prSetup()
+    const first = await uploadBuild(project.id, pr(), { home: changed })
+    await processBuild({ db: t.db, storage }, first.id)
+    await reviewBuild(t.db, { buildId: first.id, userId: owner.id, state: 'approved' })
+
+    const different = await png(200, 100, { x: 120, y: 10 })
+    const another = await uploadBuild(project.id, pr(), { home: different })
+    expect(await processBuild({ db: t.db, storage }, another.id)).toMatchObject({
+      autoApproved: false,
+    })
+    const extra = await uploadBuild(project.id, pr(), { home: changed, about: home })
+    expect(await processBuild({ db: t.db, storage }, extra.id)).toMatchObject({
+      autoApproved: false,
+    })
+  })
+
+  it('does not carry approval to another commit, another build name, or past a rejection', async () => {
+    const { project, owner, changed } = await prSetup()
+    const first = await uploadBuild(project.id, pr(), { home: changed })
+    await processBuild({ db: t.db, storage }, first.id)
+    await reviewBuild(t.db, { buildId: first.id, userId: owner.id, state: 'approved' })
+
+    const otherCommit = await uploadBuild(
+      project.id,
+      { ...pr(), commitSha: 'cccc001' },
+      { home: changed },
+    )
+    expect(await processBuild({ db: t.db, storage }, otherCommit.id)).toMatchObject({
+      autoApproved: false,
+    })
+    const otherName = await uploadBuild(project.id, pr({ name: 'mobile' }), { home: changed })
+    expect(await processBuild({ db: t.db, storage }, otherName.id)).toMatchObject({
+      autoApproved: false,
+    })
+
+    await reviewBuild(t.db, { buildId: first.id, userId: owner.id, state: 'rejected' })
+    const afterRejection = await uploadBuild(project.id, pr(), { home: changed })
+    expect(await processBuild({ db: t.db, storage }, afterRejection.id)).toMatchObject({
+      autoApproved: false,
     })
   })
 })

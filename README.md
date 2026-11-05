@@ -2,7 +2,7 @@
 
 Self-hosted visual regression testing: a cheaper alternative to Argos-CI. CI uploads screenshots, the server diffs them against a baseline, and reviewers approve or reject the changes.
 
-**Status: M1 plus accounts.** CI uploads screenshots with `circi upload`, the worker diffs them against the right baseline, `--wait` fails the CI job when changes need review, and a dashboard shows the results to signed-in members of the organization. Accounts, organizations and CI tokens are handled by [better-auth](https://better-auth.com). Approving in the UI, email login, single sign-on and git host integrations come next (M2). See [PLAN.md](PLAN.md) for the full design and milestones.
+**Status: M1 plus accounts.** CI uploads screenshots with `circi upload`, the worker diffs them against the right baseline, `--wait` fails the CI job when changes need review, and a dashboard shows the results to signed-in members of the organization. Accounts, organizations and CI tokens are handled by [better-auth](https://better-auth.com). Email login, single sign-on and git host integrations come next (M2). See [PLAN.md](PLAN.md) for the full design and milestones.
 
 ## Uploading from CI
 

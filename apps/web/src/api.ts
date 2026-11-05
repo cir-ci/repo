@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 /** Types, fetchers and TanStack Query options for the dashboard API (apps/server/src/dashboard.ts). */
 
@@ -71,7 +71,19 @@ export interface BuildDetail {
     completedAt: string | null
   }
   baseline: { number: number; commitSha: string; branch: string | null } | null
+  /** Approve/reject decisions, newest first. */
+  reviews: ReviewEntry[]
   diffs: DiffItem[]
+}
+
+export type ReviewState = 'approved' | 'rejected'
+
+export interface ReviewEntry {
+  state: ReviewState
+  source: 'ui' | 'github-check' | 'github-comment' | 'auto' | 'rerun'
+  /** Null for automatic approvals. */
+  userName: string | null
+  createdAt: string
 }
 
 export class HttpError extends Error {
@@ -83,8 +95,14 @@ export class HttpError extends Error {
   }
 }
 
-async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(path, { headers: { accept: 'application/json' } })
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const res = await fetch(path, {
+    ...init,
+    headers: {
+      accept: 'application/json',
+      ...(init.body ? { 'content-type': 'application/json' } : {}),
+    },
+  })
   if (!res.ok) {
     let message = `HTTP ${res.status}`
     try {
@@ -106,6 +124,8 @@ async function getJson<T>(path: string): Promise<T> {
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   return (await res.json()) as T
 }
+
+const getJson = <T>(path: string) => request<T>(path)
 
 const seg = encodeURIComponent
 
@@ -141,3 +161,24 @@ export const buildQuery = (org: string, project: string, number: number) =>
   })
 
 export const fileUrl = (sha256: string) => `/api/files/${sha256}`
+
+/**
+ * Approve or reject a build's changes. Afterwards everything that shows the build's state is
+ * refetched: its page, the project's builds list and the projects overview.
+ */
+export function useReviewBuild(org: string, project: string, number: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (state: ReviewState) =>
+      request<{ build: { reviewStatus: ReviewState } }>(
+        `/api/projects/${seg(org)}/${seg(project)}/builds/${number}/review`,
+        { method: 'POST', body: JSON.stringify({ state }) },
+      ),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['build', org, project, number] }),
+        queryClient.invalidateQueries({ queryKey: ['project', org, project] }),
+        queryClient.invalidateQueries({ queryKey: ['projects'] }),
+      ]),
+  })
+}

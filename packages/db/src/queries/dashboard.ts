@@ -2,6 +2,7 @@ import { aliasedTable, and, desc, eq, exists, inArray, lt, or, sql } from 'drizz
 
 import type { Database } from '../client.ts'
 import type { BuildCounts } from '../repositories/builds.ts'
+import { listBuildReviews, type ReviewEntry } from '../repositories/reviews.ts'
 import {
   builds,
   files,
@@ -147,6 +148,8 @@ export interface BuildDetail {
     counts: BuildCounts
   }
   baseline: { number: number; commitSha: string; branch: string | null } | null
+  /** Approve/reject decisions, newest first. */
+  reviews: ReviewEntry[]
   diffs: DiffItem[]
 }
 
@@ -195,6 +198,8 @@ export async function getBuildDetail(
     .where(eq(screenshotDiffs.buildId, build.id))
     .orderBy(screenshotDiffs.name)
 
+  const decisions = await listBuildReviews(db, build.id)
+
   return {
     build: {
       id: build.id,
@@ -215,6 +220,7 @@ export async function getBuildDetail(
       counts,
     },
     baseline,
+    reviews: decisions,
     diffs: rows.map((r) => ({
       id: r.diff.id,
       name: r.diff.name,

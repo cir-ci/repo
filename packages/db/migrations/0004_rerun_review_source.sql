@@ -1,0 +1,2 @@
+ALTER TABLE "reviews" DROP CONSTRAINT "reviews_source_check";--> statement-breakpoint
+ALTER TABLE "reviews" ADD CONSTRAINT "reviews_source_check" CHECK (source in ('ui', 'github-check', 'github-comment', 'auto', 'rerun'));

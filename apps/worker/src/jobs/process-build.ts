@@ -1,8 +1,10 @@
 import { pairScreenshots, resolveBaseline } from '@circi/core'
 import {
+  type AutoApproval,
   completeBuild,
   type Database,
   getBuild,
+  findApprovedRerunOf,
   getProjectById,
   listBaselineCandidates,
   listBuildDiffs,
@@ -154,13 +156,21 @@ export async function processBuild(deps: ProcessDeps, buildId: string): Promise<
 
   // 5. Conclusion. Added, removed and unreadable screenshots all need a human look.
   const conclusion = statuses.every((s) => s === 'unchanged') ? 'no_changes' : 'changes_detected'
-  const autoApprove =
-    conclusion === 'changes_detected' &&
-    project.autoApproveDefaultBranch &&
-    build.prNumber === null &&
-    build.branch === project.defaultBranch
-  await completeBuild(db, build, { conclusion, autoApprove })
-  return { status: 'complete', conclusion, autoApproved: autoApprove }
+  let approval: AutoApproval = 'none'
+  if (conclusion === 'changes_detected') {
+    if (
+      project.autoApproveDefaultBranch &&
+      build.prNumber === null &&
+      build.branch === project.defaultBranch
+    ) {
+      approval = 'default-branch'
+    } else if (await findApprovedRerunOf(db, build)) {
+      // A CI re-run of a commit whose exact screenshots someone already approved.
+      approval = 'rerun'
+    }
+  }
+  await completeBuild(db, build, { conclusion, approval })
+  return { status: 'complete', conclusion, autoApproved: approval !== 'none' }
 }
 
 async function thumbnailFor(

@@ -38,6 +38,7 @@ import { CommitSha, StateLabel, ToneText } from '../primitives/labels.tsx'
 import { NavListGroup, NavListItem, navListItemSx } from '../primitives/NavList.tsx'
 import { PageHeader, ParentLinkContent } from '../primitives/PageHeader.tsx'
 import { PageLayout } from '../primitives/PageLayout.tsx'
+import { ReviewActions, ReviewNote } from '../ReviewActions.tsx'
 import type { ViewMode } from '../router.tsx'
 
 const ROUTE = '/$org/$project/builds/$number'
@@ -177,6 +178,11 @@ function BuildReview({ data, parentLink }: { data: BuildDetail; parentLink: Reac
       }
       parentLink={parentLink}
       trailingVisual={<BuildStateLabel build={build} />}
+      actions={
+        build.status === 'complete' && build.conclusion === 'changes_detected' ? (
+          <ReviewActions data={data} />
+        ) : undefined
+      }
       description={
         <Stack spacing={1}>
           <BuildMeta build={build} />
@@ -186,6 +192,7 @@ function BuildReview({ data, parentLink }: { data: BuildDetail; parentLink: Reac
       hasBorder
     >
       <Stack spacing={1}>
+        <ReviewNote data={data} />
         <BaselineNote data={data} />
         {build.errorMessage ? <Alert severity="error">{build.errorMessage}</Alert> : null}
         {isActive(build.status) ? (

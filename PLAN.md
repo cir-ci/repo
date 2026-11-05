@@ -300,6 +300,7 @@ Like the Argos bot, it shows up on PRs as **`<app-name>[bot]`**. Each self-hoste
 **Other behavior**
 - Default-branch builds auto-approve when configured, so they become baselines.
 - Approve/reject in the UI writes a `review` row (with `source`) and re-runs `notify`.
+- Re-run carry-over: a new build for the same project, build name and commit whose screenshots are identical (name + sha256) to an already approved build is approved automatically (review source `rerun`), so "approve, then re-run the CI job" goes green. It never carries over a rejection, another commit, another build name, or any differing screenshot.
 - Provider comment: one comment per PR, updated in place and found by a hidden marker, with changed/added/removed counts per build name.
 
 ### 7.5 Review UI
@@ -638,7 +639,8 @@ _Status: accounts, organizations, roles, CI tokens and organization isolation ar
 - [ ] `ORG_CREATION` and a first-run setup page, so a fresh install needs no CLI for its first account
 - [ ] Store the last `PUBLIC_URL`; on change, log and show the address-change checklist with OIDC redirect URIs to update (§7.9)
 - [ ] OAuth/OIDC login (GitHub, GitLab, Google, generic OIDC). Instance vs. org-scoped providers, (issuer, subject) matching, `trusted_for_email`, org-scoped sessions, confirmed account linking
-- [ ] Approve/reject flow; auto-approve on default branch; `block_merge_on_changes` setting
+- [x] Approve/reject flow (same-origin guarded), auto-approve on default branch, re-run carry-over
+- [ ] `block_merge_on_changes` setting
 - [ ] Outgoing signed webhooks
 
 ### M2.5 — Git provider adapters + GitHub bot (≈3 weeks)

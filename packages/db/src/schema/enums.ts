@@ -21,7 +21,7 @@ export const BASELINE_SOURCES = ['cli', 'sdk', 'provider', 'fallback', 'none'] a
 export const DIFF_STATUSES = ['added', 'removed', 'changed', 'unchanged', 'failed'] as const
 export const DIFF_JOB_STATUSES = ['pending', 'running', 'done', 'failed'] as const
 export const REVIEW_STATES = ['approved', 'rejected'] as const
-export const REVIEW_SOURCES = ['ui', 'github-check', 'github-comment', 'auto'] as const
+export const REVIEW_SOURCES = ['ui', 'github-check', 'github-comment', 'auto', 'rerun'] as const
 export const JOB_STATUSES = ['pending', 'running', 'done', 'failed'] as const
 
 export type FileKind = (typeof FILE_KINDS)[number]

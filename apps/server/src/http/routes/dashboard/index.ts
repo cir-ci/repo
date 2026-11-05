@@ -2,17 +2,20 @@ import type { FastifyPluginAsync } from 'fastify'
 
 import type { DashboardDeps } from '../../deps.ts'
 import { jsonErrorHandler } from '../../errors.ts'
+import { requireSameOrigin } from '../../hooks/same-origin.ts'
 import { requireSession } from '../../hooks/session.ts'
 import { authRoutes } from '../auth.ts'
 import { dashboardFileRoutes } from './files.ts'
 import { dashboardProjectRoutes } from './projects.ts'
+import { dashboardReviewRoutes } from './reviews.ts'
 import { webAppRoutes } from './web-app.ts'
 
 /**
  * The dashboard, in three parts:
  *
  *   /api/auth/*   sign-in and sessions, handled by better-auth (public: you sign in here)
- *   /api/*        the dashboard's JSON API, behind the session cookie
+ *   /api/*        the dashboard's JSON API, behind the session cookie; anything that changes
+ *                 data must also come from the dashboard's own origin (CSRF)
  *   everything else  the web app, public: static files that hold no data, and the app shell
  *                    that shows the sign-in page
  *
@@ -44,7 +47,9 @@ const sessionApi: FastifyPluginAsync<DashboardDeps> = async (api, options) => {
     storage: options.storage,
     publicOrigin: options.publicOrigin,
   }
+  api.addHook('onRequest', requireSameOrigin(deps.publicOrigin))
   api.addHook('onRequest', requireSession(deps.auth))
   await api.register(dashboardProjectRoutes, deps)
+  await api.register(dashboardReviewRoutes, deps)
   await api.register(dashboardFileRoutes, deps)
 }

@@ -138,6 +138,19 @@ export async function getBuild(db: Database, buildId: string): Promise<Build | u
   return row
 }
 
+/** A build by its per-project number, the number people see in URLs and on screen. */
+export async function getBuildByNumber(
+  db: Database,
+  projectId: string,
+  number: number,
+): Promise<Build | undefined> {
+  const [row] = await db
+    .select()
+    .from(builds)
+    .where(and(eq(builds.projectId, projectId), eq(builds.number, number)))
+  return row
+}
+
 export async function getProjectBuild(
   db: Database,
   projectId: string,
@@ -342,12 +355,21 @@ export async function setBuildBaseline(
  * Finishes a build. On the project's default branch with auto-approve on, a build with changes
  * is approved automatically (recorded as an `auto` review) so it becomes the next baseline.
  */
+/** Why a finished build starts out approved without anyone clicking. */
+export type AutoApproval = 'none' | 'default-branch' | 'rerun'
+
+/**
+ * Finishes a build. On the default branch with auto-approve on, a build with changes starts out
+ * approved so it becomes the next baseline; a re-run that reproduces an approved build's exact
+ * screenshots is approved too (`findApprovedRerunOf`). Both are recorded as reviews.
+ */
 export async function completeBuild(
   db: Database,
   build: Build,
-  result: { conclusion: BuildConclusion; autoApprove: boolean },
+  result: { conclusion: BuildConclusion; approval: AutoApproval },
 ): Promise<void> {
   await db.transaction(async (tx) => {
+    const approved = result.approval !== 'none'
     await tx
       .update(builds)
       .set({
@@ -355,13 +377,58 @@ export async function completeBuild(
         conclusion: result.conclusion,
         completedAt: new Date(),
         errorMessage: null,
-        ...(result.autoApprove ? { reviewStatus: 'approved' as const } : {}),
+        ...(approved ? { reviewStatus: 'approved' as const } : {}),
       })
       .where(eq(builds.id, build.id))
-    if (result.autoApprove) {
-      await tx.insert(reviews).values({ buildId: build.id, state: 'approved', source: 'auto' })
+    if (approved) {
+      await tx.insert(reviews).values({
+        buildId: build.id,
+        state: 'approved',
+        source: result.approval === 'rerun' ? 'rerun' : 'auto',
+      })
     }
   })
+}
+
+/**
+ * The earlier build that makes this one an approved re-run, if any: same project, build name and
+ * commit, currently approved, with exactly the same screenshots (same names, same bytes). This
+ * is what lets "approve in the dashboard, then re-run the CI job" go green: the re-run is a new
+ * build, but nothing in it is new to the reviewer. A different commit, a different screenshot or
+ * a rejected earlier build never qualifies.
+ */
+export async function findApprovedRerunOf(db: Database, build: Build): Promise<string | undefined> {
+  const earlier = await db
+    .select({ id: builds.id })
+    .from(builds)
+    .where(
+      and(
+        eq(builds.projectId, build.projectId),
+        eq(builds.name, build.name),
+        eq(builds.commitSha, build.commitSha),
+        eq(builds.status, 'complete'),
+        eq(builds.reviewStatus, 'approved'),
+        ne(builds.id, build.id),
+      ),
+    )
+    .orderBy(desc(builds.createdAt))
+  if (earlier.length === 0) return undefined
+  const signature = async (buildId: string) => {
+    const rows = await db
+      .select({ name: screenshots.name, sha: screenshots.fileSha256 })
+      .from(screenshots)
+      .where(eq(screenshots.buildId, buildId))
+    return rows
+      .map((r) => `${r.name}\0${r.sha}`)
+      .toSorted()
+      .join('\n')
+  }
+  const mine = await signature(build.id)
+  for (const candidate of earlier) {
+    // oxlint-disable-next-line no-await-in-loop -- stops at the first match; there are rarely more than a couple
+    if ((await signature(candidate.id)) === mine) return candidate.id
+  }
+  return undefined
 }
 
 export async function failBuild(db: Database, buildId: string, message: string): Promise<void> {
