@@ -1,5 +1,5 @@
 import { SHA256_RE } from '@circi/core'
-import { and, eq, inArray, isNull } from 'drizzle-orm'
+import { and, eq, gt, inArray, isNull } from 'drizzle-orm'
 
 import type { Database } from '../client.ts'
 import { type FileKind, files, uploadClaims } from '../schema/index.ts'
@@ -198,4 +198,25 @@ export async function hasUploadClaim(
     .from(uploadClaims)
     .where(and(eq(uploadClaims.buildId, buildId), eq(uploadClaims.fileSha256, sha256)))
   return row !== undefined
+}
+
+/** Verified files in hash order, `limit` at a time after `afterSha`: for walking all of them. */
+export async function listVerifiedFiles(
+  db: Database,
+  afterSha: string,
+  limit: number,
+): Promise<
+  { sha256: string; storageKey: string; contentType: string | null; size: number | null }[]
+> {
+  return db
+    .select({
+      sha256: files.sha256,
+      storageKey: files.storageKey,
+      contentType: files.contentType,
+      size: files.size,
+    })
+    .from(files)
+    .where(and(eq(files.status, 'verified'), gt(files.sha256, afterSha)))
+    .orderBy(files.sha256)
+    .limit(limit)
 }

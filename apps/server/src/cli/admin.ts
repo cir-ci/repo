@@ -24,7 +24,8 @@ import {
   storageUsage,
   WEBHOOK_EVENTS,
 } from '@circi/db'
-import { runRetention } from '@circi/services'
+import { migrateStorage, runRetention } from '@circi/services'
+import { createStorage } from '@circi/storage'
 import type { Command } from 'commander'
 
 import type { Runtime } from '../runtime.ts'
@@ -423,6 +424,68 @@ function addStorageCommands(storage: Command): void {
           `waiting to be deleted: ${usage.markedForDeletion.count} files, ${mb(usage.markedForDeletion.bytes)} (after the ${rt.config.gcGraceHours} h grace period)`,
         )
       }),
+    )
+
+  storage
+    .command('migrate')
+    .description(
+      'copy every stored file to another storage (local disk or S3), under the same keys',
+    )
+    .requiredOption('--to <driver>', 'fs or s3')
+    .option('--path <dir>', 'for fs: the target directory')
+    .option('--bucket <name>', 'for s3: the target bucket')
+    .option('--region <region>', 'for s3: its region')
+    .option('--endpoint <url>', 'for s3: a custom endpoint (R2, MinIO…)')
+    .option('--force-path-style', 'for s3: use path-style addressing (MinIO)')
+    .action(
+      (opts: {
+        to: string
+        path?: string
+        bucket?: string
+        region?: string
+        endpoint?: string
+        forcePathStyle?: boolean
+      }) =>
+        withRuntime(async (rt) => {
+          const target =
+            opts.to === 'fs'
+              ? opts.path
+                ? createStorage({ driver: 'fs', path: opts.path })
+                : undefined
+              : opts.to === 's3' && opts.bucket
+                ? createStorage({
+                    driver: 's3',
+                    bucket: opts.bucket,
+                    region: opts.region ?? 'us-east-1',
+                    ...(opts.endpoint ? { endpoint: opts.endpoint } : {}),
+                    ...(opts.forcePathStyle ? { forcePathStyle: true } : {}),
+                    ...(process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY
+                      ? {
+                          credentials: {
+                            accessKeyId: process.env.S3_ACCESS_KEY_ID,
+                            secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+                          },
+                        }
+                      : {}),
+                  })
+                : undefined
+          if (!target) throw new Error('Use --to fs --path <dir>, or --to s3 --bucket <name>')
+          await target.healthCheck()
+          const result = await migrateStorage(rt.db.db, {
+            from: rt.storage,
+            to: target,
+            onFile: (n) => {
+              if (n % 100 === 0) console.log(`  ${n} files…`)
+            },
+          })
+          console.log(
+            `Copied ${result.copied}, already there ${result.skipped}, missing at the source ${result.missing.length}, failed ${result.failed.length}.`,
+          )
+          for (const f of result.failed.slice(0, 10))
+            console.log(`  failed ${f.sha256}: ${f.error}`)
+          if (result.failed.length > 0) process.exitCode = 1
+          else console.log(`Now set STORAGE_DRIVER=${opts.to} (and its settings) and restart.`)
+        }),
     )
 
   storage

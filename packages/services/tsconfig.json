@@ -9,6 +9,9 @@
   "references": [
     {
       "path": "../db"
+    },
+    {
+      "path": "../storage"
     }
   ]
 }

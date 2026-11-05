@@ -14,7 +14,8 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "@circi/db": "workspace:*"
+    "@circi/db": "workspace:*",
+    "@circi/storage": "workspace:*"
   },
   "devDependencies": {
     "@circi/testing": "workspace:*",
