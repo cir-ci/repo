@@ -59,6 +59,7 @@ export async function runServices(options: ServiceOptions): Promise<void> {
         logger,
         ping: () => rt.db.ping(),
         publicOrigin: rt.config.publicUrl.origin,
+        webhookAllowPrivate: rt.config.webhookAllowPrivate,
       })
     }
     if (options.http) {
@@ -78,6 +79,7 @@ export async function runServices(options: ServiceOptions): Promise<void> {
           storage: rt.storage,
           publicOrigin: rt.config.publicUrl.origin,
           emailLogin: rt.config.emailLogin,
+          webhookAllowPrivate: rt.config.webhookAllowPrivate,
           webDist: webDistPath(),
         },
         checks: [

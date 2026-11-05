@@ -19,6 +19,8 @@ CIRCI_TOKEN=circi_… CIRCI_API_URL=https://ci.acme.io npx circi upload ./screen
 
 `circi admin webhook add --org acme --project web-app --url https://hooks.acme.io/circi` prints a signing secret once. Each event is a JSON `POST` with `CirCI-Event`, `CirCI-Delivery` and `CirCI-Signature: t=<unix>,v1=<hex>` headers, where `v1` is HMAC-SHA256 of `<t>.<raw body>` with the secret (`verifyWebhookSignature` in `@circi/core` does this check; reject signatures older than a few minutes). The body has the organization, project, build (number, conclusion, review status, commit, branch, PR), the dashboard `url`, and for `build.reviewed` the decision and reviewer. Any non-2xx answer is retried with backoff (8 attempts); redirects are not followed.
 
+Owners and admins can also add and remove webhooks on the project's **Settings** page (the secret is shown once). Addresses must be public: `localhost`, private networks and cloud metadata addresses are refused, and names are re-checked at delivery. Set `WEBHOOK_ALLOW_PRIVATE_ADDRESSES=true` if your receivers live on your own network.
+
 ## Self-hosting (Docker)
 
 ```sh
@@ -37,6 +39,8 @@ docker compose exec circi circi admin project create --org acme --name "Web app"
 With SMTP configured, people with an account can also sign in with a 6-digit code mailed to them (the mail also holds a link that fills the code in). Codes work once, expire after 10 minutes, are stored hashed, lock after 5 wrong attempts, and addresses without an account get the same answer and no mail.
 
 Owners and admins can also invite people by email from the organization's members page (click the organization name in the header). Invited people without an account create it by signing in with an emailed code.
+
+Each project's **Settings** page (owners and admins) sets the default branch, a diff threshold, retention, whether builds on the default branch are approved automatically, and whether unreviewed changes block merging. The account menu has **Account and sessions**, to see every device signed in as you and sign any of them out.
 
 Anyone you add to an organization sees its projects, builds and screenshots, and nothing else. Add people with `circi admin user create` and `circi admin member add`.
 
@@ -68,6 +72,7 @@ Anyone you add to an organization sees its projects, builds and screenshots, and
 | `LOG_LEVEL` | `info` | `fatal` … `trace` |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | | Outgoing mail. `SMTP_FROM` is required with `SMTP_HOST`; port defaults to 587 (STARTTLS), 465 means implicit TLS. Check it with `circi admin mail test --to you@acme.io` |
 | `AUTH_EMAIL_ENABLED` | `true` | Email sign-in codes; only offered when SMTP is configured. `false` turns them off |
+| `WEBHOOK_ALLOW_PRIVATE_ADDRESSES` | `false` | Allow webhooks to private/loopback addresses (they are refused by default) |
 | `BETTER_AUTH_SECRET` | (required) | Signs sessions and cookies; 32+ characters (`openssl rand -base64 32`). Changing it signs everyone out |
 | `STORAGE_DRIVER` | `fs` | `fs` (local disk) or `s3` |
 | `STORAGE_PATH` | `/var/lib/circi/files` | For `fs` |

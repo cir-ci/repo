@@ -7,6 +7,7 @@ import {
   rotateProjectToken,
   setUserPassword,
 } from '@circi/auth'
+import { webhookUrlProblem } from '@circi/core'
 import {
   createWebhook,
   deleteWebhook,
@@ -221,10 +222,11 @@ function addWebhookCommands(webhook: Command): void {
     .action(
       (opts: { org: string; project: string; url: string; events?: string; json?: boolean }) =>
         withRuntime(async (rt) => {
+          const problem = webhookUrlProblem(opts.url, {
+            allowPrivate: rt.config.webhookAllowPrivate,
+          })
+          if (problem) throw new Error(`--url: ${problem}`)
           const url = new URL(opts.url)
-          if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-            throw new Error('--url must be an http or https address')
-          }
           const events = (opts.events?.split(',').map((e) => e.trim()) ?? []).filter(Boolean)
           const unknown = events.filter((e) => !isWebhookEvent(e))
           if (unknown.length > 0) throw new Error(`Unknown event(s): ${unknown.join(', ')}`)

@@ -20,6 +20,8 @@ export interface DashboardDeps {
   publicOrigin: string
   /** Email sign-in codes are offered (`AUTH_EMAIL_ENABLED` and SMTP configured). Default off. */
   emailLogin?: boolean
+  /** Webhooks may point at private addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). Default off. */
+  webhookAllowPrivate?: boolean
   /** Built web app (apps/web/dist). Missing: the API still works, pages explain how to build. */
   webDist?: string
 }

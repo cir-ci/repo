@@ -1,4 +1,6 @@
-import { signWebhook } from '@circi/core'
+import { lookup } from 'node:dns/promises'
+
+import { isPrivateAddress, signWebhook, webhookUrlProblem } from '@circi/core'
 import { type Database, getWebhook, type Job } from '@circi/db'
 
 /** The `webhook` job: one signed delivery of one event to one receiver (PLAN §7.4). */
@@ -10,6 +12,10 @@ export interface DeliverDeps {
   /** Replaceable in tests. */
   fetch?: typeof fetch
   timeoutMs?: number
+  /** Deliver to private/loopback addresses too (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
+  allowPrivate?: boolean
+  /** Resolves a hostname to its addresses; replaceable in tests. */
+  resolve?: (host: string) => Promise<string[]>
 }
 
 export type DeliverResult =
@@ -31,6 +37,16 @@ export async function deliverWebhook(deps: DeliverDeps, job: Job): Promise<Deliv
   const webhook = await getWebhook(deps.db, webhookId)
   if (!webhook) return { status: 'skipped', reason: 'webhook was deleted' }
   if (!webhook.enabled) return { status: 'skipped', reason: 'webhook is disabled' }
+
+  if (!deps.allowPrivate) {
+    // The address was checked when it was added, but a name can point somewhere else later.
+    const problem = webhookUrlProblem(webhook.url)
+    const host = new URL(webhook.url).hostname.replace(/^\[|\]$/g, '')
+    const addresses = problem ? [] : await (deps.resolve ?? resolveAll)(host)
+    if (problem || addresses.some(isPrivateAddress)) {
+      return { status: 'skipped', reason: 'webhook address is on a private network' }
+    }
+  }
 
   const link = deps.publicOrigin
     ? {
@@ -56,4 +72,8 @@ export async function deliverWebhook(deps: DeliverDeps, job: Job): Promise<Deliv
     throw new Error(`${webhook.url} answered ${response.status}`)
   }
   return { status: 'delivered', code: response.status }
+}
+
+async function resolveAll(host: string): Promise<string[]> {
+  return (await lookup(host, { all: true })).map((a) => a.address)
 }

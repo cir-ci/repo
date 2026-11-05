@@ -40,6 +40,8 @@ const answer =
   async () =>
     new Response('', { status })
 
+const publicDns = async () => ['93.184.216.34']
+
 describe('deliverWebhook', () => {
   it('posts the signed body, with a link to the build', async () => {
     const { project } = await seedProject(t.db)
@@ -60,7 +62,7 @@ describe('deliverWebhook', () => {
     }
 
     const result = await deliverWebhook(
-      { db: t.db, publicOrigin: 'https://ci.acme.io', fetch: fetcher },
+      { db: t.db, publicOrigin: 'https://ci.acme.io', fetch: fetcher, resolve: publicDns },
       await jobFor(hook.id),
     )
     expect(result).toEqual({ status: 'delivered', code: 200 })
@@ -87,10 +89,10 @@ describe('deliverWebhook', () => {
       url: 'https://hooks.acme.io/x',
     })
     await expect(
-      deliverWebhook({ db: t.db, fetch: answer(500) }, await jobFor(hook.id)),
+      deliverWebhook({ db: t.db, fetch: answer(500), resolve: publicDns }, await jobFor(hook.id)),
     ).rejects.toThrow('500')
     await expect(
-      deliverWebhook({ db: t.db, fetch: answer(302) }, await jobFor(hook.id)),
+      deliverWebhook({ db: t.db, fetch: answer(302), resolve: publicDns }, await jobFor(hook.id)),
     ).rejects.toThrow('302')
   })
 
@@ -100,5 +102,23 @@ describe('deliverWebhook', () => {
       await jobFor('00000000-0000-0000-0000-000000000000'),
     )
     expect(result).toEqual({ status: 'skipped', reason: 'webhook was deleted' })
+  })
+
+  it('skips a receiver whose name now points at a private address', async () => {
+    const { project } = await seedProject(t.db)
+    const hook = await createWebhook(t.db, {
+      projectId: project.id,
+      url: 'https://hooks.acme.io/x',
+    })
+    const result = await deliverWebhook(
+      { db: t.db, fetch: answer(200), resolve: async () => ['169.254.169.254'] },
+      await jobFor(hook.id),
+    )
+    expect(result).toMatchObject({ status: 'skipped' })
+    const allowed = await deliverWebhook(
+      { db: t.db, fetch: answer(200), resolve: async () => ['10.0.0.9'], allowPrivate: true },
+      await jobFor(hook.id),
+    )
+    expect(allowed).toEqual({ status: 'delivered', code: 200 })
   })
 })

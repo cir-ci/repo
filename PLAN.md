@@ -636,13 +636,13 @@ _Status: accounts, organizations, roles, CI tokens and organization isolation ar
 - [ ] Turning login methods on/off: instance env flags + per-org `org_auth_settings`, lockout guard, `circi admin auth` break-glass command
 - [ ] Allowed email domains → auto-join org with a default role; domain claims verified by DNS TXT record
 - [x] Invitations (organization plugin + SMTP) and a members page
-- [ ] Sessions list and revoke, project settings UI (incl. webhooks)
+- [x] Sessions list and revoke (account page), project settings page (incl. webhooks, SSRF-restricted addresses)
 - [ ] `ORG_CREATION` and a first-run setup page, so a fresh install needs no CLI for its first account
 - [ ] Store the last `PUBLIC_URL`; on change, log and show the address-change checklist with OIDC redirect URIs to update (§7.9)
 - [ ] OAuth/OIDC login (GitHub, GitLab, Google, generic OIDC). Instance vs. org-scoped providers, (issuer, subject) matching, `trusted_for_email`, org-scoped sessions, confirmed account linking
 - [x] Approve/reject flow (same-origin guarded), auto-approve on default branch, re-run carry-over
-- [ ] `block_merge_on_changes` setting
-- [x] Outgoing signed webhooks (`circi admin webhook add|list|remove`; settings UI comes with the org/project settings page)
+- [x] `block_merge_on_changes` setting (project settings page)
+- [x] Outgoing signed webhooks (`circi admin webhook add|list|remove`; managed on the project settings page too)
 
 ### M2.5 — Git provider adapters + GitHub bot (≈3 weeks)
 

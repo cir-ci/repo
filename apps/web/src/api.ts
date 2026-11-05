@@ -120,6 +120,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     }
     throw new HttpError(res.status, message)
   }
+  // No-content answers (deletes) carry nothing to parse; callers of those ask for `undefined`.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+  if (res.status === 204) return undefined as T
   // The server's tests pin these shapes.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   return (await res.json()) as T
@@ -180,5 +183,76 @@ export function useReviewBuild(org: string, project: string, number: number) {
         queryClient.invalidateQueries({ queryKey: ['project', org, project] }),
         queryClient.invalidateQueries({ queryKey: ['projects'] }),
       ]),
+  })
+}
+
+export interface ProjectSettings {
+  name: string
+  defaultBranch: string
+  diffThreshold: number
+  autoApproveDefaultBranch: boolean
+  blockMergeOnChanges: boolean
+  retentionDays: number
+}
+
+export interface WebhookInfo {
+  id: string
+  url: string
+  events: string[]
+  enabled: boolean
+  createdAt: string
+}
+
+export interface SettingsResponse {
+  canManage: boolean
+  settings: ProjectSettings
+  webhooks: WebhookInfo[]
+  webhookEvents: string[]
+}
+
+export const settingsQuery = (org: string, project: string) =>
+  queryOptions({
+    queryKey: ['settings', org, project],
+    queryFn: () => getJson<SettingsResponse>(`/api/projects/${seg(org)}/${seg(project)}/settings`),
+  })
+
+/** Saves some project settings, then refreshes everything that shows them. */
+export function useSaveSettings(org: string, project: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (patch: Partial<ProjectSettings>) =>
+      request<{ settings: ProjectSettings }>(`/api/projects/${seg(org)}/${seg(project)}/settings`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      }),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['settings', org, project] }),
+        queryClient.invalidateQueries({ queryKey: ['project', org, project] }),
+        queryClient.invalidateQueries({ queryKey: ['projects'] }),
+      ]),
+  })
+}
+
+export function useAddWebhook(org: string, project: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { url: string; events: string[] }) =>
+      request<{ webhook: WebhookInfo; secret: string }>(
+        `/api/projects/${seg(org)}/${seg(project)}/webhooks`,
+        { method: 'POST', body: JSON.stringify(input) },
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', org, project] }),
+  })
+}
+
+export function useDeleteWebhook(org: string, project: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      request<undefined>(`/api/projects/${seg(org)}/${seg(project)}/webhooks/${seg(id)}`, {
+        method: 'DELETE',
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', org, project] }),
   })
 }

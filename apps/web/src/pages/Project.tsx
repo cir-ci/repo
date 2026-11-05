@@ -35,6 +35,11 @@ export function ProjectPage() {
         <PageHeader
           // The project name only arrives with the data; the slug keeps the header from jumping.
           title={data?.project.name ?? project}
+          actions={
+            <ButtonLink to="/$org/$project/settings" params={{ org, project }} size="small">
+              Settings
+            </ButtonLink>
+          }
           description={
             data ? (
               <>

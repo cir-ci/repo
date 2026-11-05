@@ -27,6 +27,8 @@ export interface WorkerDeps {
   logger: WorkerLogger
   /** The dashboard's origin (`PUBLIC_URL`), used for links in webhook bodies. */
   publicOrigin?: string
+  /** Webhooks may point at private addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
+  webhookAllowPrivate?: boolean
   /** Startup check of the database connection. */
   ping?: () => Promise<void>
   /** How long to wait when the queue is empty. Default 1 s. */
@@ -124,7 +126,11 @@ async function runWebhookJob(deps: WorkerDeps, job: Job): Promise<void> {
   const fields = { jobId: job.id, webhookId: job.payload.webhookId, event: job.payload.event }
   try {
     const result = await deliverWebhook(
-      { db: deps.db, ...(deps.publicOrigin ? { publicOrigin: deps.publicOrigin } : {}) },
+      {
+        db: deps.db,
+        ...(deps.publicOrigin ? { publicOrigin: deps.publicOrigin } : {}),
+        ...(deps.webhookAllowPrivate ? { allowPrivate: true } : {}),
+      },
       job,
     )
     await completeJob(deps.db, job.id)

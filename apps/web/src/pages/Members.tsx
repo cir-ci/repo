@@ -8,6 +8,7 @@ import { ErrorState, RelativeTime, useDocumentTitle } from '../components.tsx'
 import { ListSkeleton, useAnnounce } from '../primitives/feedback.tsx'
 import { PageHeader } from '../primitives/PageHeader.tsx'
 import { PageLayout } from '../primitives/PageLayout.tsx'
+import { Row, Section } from '../primitives/Rows.tsx'
 
 /** Who is in an organization, and (for owners and admins) inviting people and removing them. */
 export function MembersPage() {
@@ -199,50 +200,6 @@ function InviteForm({
           {message.text}
         </Alert>
       ) : null}
-    </Box>
-  )
-}
-
-function Section(props: { title: string; count: number; children: React.ReactNode }) {
-  return (
-    <Box component="section">
-      <Typography variant="h2" component="h2" sx={{ mb: 1.5 }}>
-        {props.title} ({props.count})
-      </Typography>
-      <Box
-        component="ul"
-        sx={{ listStyle: 'none', m: 0, p: 0, border: 1, borderColor: 'divider', borderRadius: 1 }}
-      >
-        {props.children}
-      </Box>
-    </Box>
-  )
-}
-
-function Row(props: {
-  primary: React.ReactNode
-  secondary: React.ReactNode
-  action: React.ReactNode
-}) {
-  return (
-    <Box
-      component="li"
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 2,
-        px: 2,
-        py: 1.25,
-        '&:not(:last-child)': { borderBottom: 1, borderColor: 'divider' },
-      }}
-    >
-      <Box sx={{ minWidth: 0, flex: 1 }}>
-        <Typography sx={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{props.primary}</Typography>
-        <Typography variant="body2" color="text.secondary">
-          {props.secondary}
-        </Typography>
-      </Box>
-      {props.action}
     </Box>
   )
 }

@@ -210,7 +210,26 @@ const membersRoute = createRoute({
   component: lazyRouteComponent(() => import('./pages/Members.tsx'), 'MembersPage'),
 })
 
-const routeTree = rootRoute.addChildren([projectsRoute, projectRoute, buildRoute, membersRoute])
+const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '$org/$project/settings',
+  component: lazyRouteComponent(() => import('./pages/ProjectSettings.tsx'), 'ProjectSettingsPage'),
+})
+
+const accountRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'account',
+  component: lazyRouteComponent(() => import('./pages/Account.tsx'), 'AccountPage'),
+})
+
+const routeTree = rootRoute.addChildren([
+  projectsRoute,
+  projectRoute,
+  buildRoute,
+  membersRoute,
+  settingsRoute,
+  accountRoute,
+])
 
 export const router = createRouter({ routeTree, defaultPreload: 'intent', scrollRestoration: true })
 

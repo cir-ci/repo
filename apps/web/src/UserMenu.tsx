@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { authClient, type SessionUser } from './auth.ts'
+import { RouterLink } from './components.tsx'
 
 /** The signed-in person, top right: who they are, and a way to sign out. */
 export function UserMenu({ user }: { user: SessionUser }) {
@@ -36,6 +37,9 @@ export function UserMenu({ user }: { user: SessionUser }) {
             {user.email}
           </Typography>
         </Box>
+        <MenuItem component={RouterLink} to="/account" onClick={() => setAnchor(null)}>
+          <ListItemText>Account and sessions</ListItemText>
+        </MenuItem>
         <MenuItem onClick={() => void signOut()}>
           <ListItemText>Sign out</ListItemText>
         </MenuItem>

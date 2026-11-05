@@ -37,6 +37,7 @@ const envSchema = z.object({
   SMTP_PASSWORD: z.preprocess(emptyToUndefined, z.string().optional()),
   SMTP_FROM: z.preprocess(emptyToUndefined, z.string().optional()),
   AUTH_EMAIL_ENABLED: z.preprocess(emptyToUndefined, bool.optional()),
+  WEBHOOK_ALLOW_PRIVATE_ADDRESSES: z.preprocess(emptyToUndefined, bool.optional()),
 })
 
 export type StorageConfig =
@@ -81,6 +82,8 @@ export interface Config {
   smtp?: SmtpConfig
   /** Email login (one-time code / link) is offered: switched on (default) and SMTP is set up. */
   emailLogin: boolean
+  /** Webhooks may point at private/loopback addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
+  webhookAllowPrivate: boolean
 }
 
 export class ConfigError extends Error {
@@ -184,5 +187,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     storage,
     ...(smtp ? { smtp } : {}),
     emailLogin: Boolean(smtp) && e.AUTH_EMAIL_ENABLED !== false,
+    webhookAllowPrivate: e.WEBHOOK_ALLOW_PRIVATE_ADDRESSES === true,
   }
 }

@@ -8,6 +8,7 @@ import { authRoutes } from '../auth.ts'
 import { dashboardFileRoutes } from './files.ts'
 import { dashboardProjectRoutes } from './projects.ts'
 import { dashboardReviewRoutes } from './reviews.ts'
+import { dashboardSettingsRoutes } from './settings.ts'
 import { webAppRoutes } from './web-app.ts'
 
 /**
@@ -29,6 +30,7 @@ export const dashboardRoutes: FastifyPluginAsync<DashboardDeps> = async (dash, o
     storage: options.storage,
     publicOrigin: options.publicOrigin,
     ...(options.emailLogin ? { emailLogin: true } : {}),
+    ...(options.webhookAllowPrivate ? { webhookAllowPrivate: true } : {}),
     ...(options.webDist ? { webDist: options.webDist } : {}),
   }
   dash.setErrorHandler(jsonErrorHandler)
@@ -51,10 +53,12 @@ const sessionApi: FastifyPluginAsync<DashboardDeps> = async (api, options) => {
     auth: options.auth,
     storage: options.storage,
     publicOrigin: options.publicOrigin,
+    ...(options.webhookAllowPrivate ? { webhookAllowPrivate: true } : {}),
   }
   api.addHook('onRequest', requireSameOrigin(deps.publicOrigin))
   api.addHook('onRequest', requireSession(deps.auth))
   await api.register(dashboardProjectRoutes, deps)
+  await api.register(dashboardSettingsRoutes, deps)
   await api.register(dashboardReviewRoutes, deps)
   await api.register(dashboardFileRoutes, deps)
 }

@@ -125,3 +125,80 @@ export async function findProjectForMember(
     .where(and(eq(organization.slug, input.orgSlug), eq(projects.slug, input.projectSlug)))
   return row
 }
+
+/** The member's role in the project's organization (`owner`, `admin`, `member`), if they belong. */
+export async function getProjectMemberRole(
+  db: Database,
+  projectId: string,
+  userId: string,
+): Promise<string | undefined> {
+  const [row] = await db
+    .select({ role: member.role })
+    .from(projects)
+    .innerJoin(member, and(eq(member.organizationId, projects.orgId), eq(member.userId, userId)))
+    .where(eq(projects.id, projectId))
+  return row?.role
+}
+
+export interface ProjectSettings {
+  name: string
+  defaultBranch: string
+  diffThreshold: number
+  autoApproveDefaultBranch: boolean
+  blockMergeOnChanges: boolean
+  retentionDays: number
+}
+
+export function projectSettings(project: Project): ProjectSettings {
+  return {
+    name: project.name,
+    defaultBranch: project.defaultBranch,
+    diffThreshold: project.diffThreshold,
+    autoApproveDefaultBranch: project.autoApproveDefaultBranch,
+    blockMergeOnChanges: project.blockMergeOnChanges,
+    retentionDays: project.retentionDays,
+  }
+}
+
+/** Changes the given settings only; invalid values are a `ValidationError`. */
+export async function updateProjectSettings(
+  db: Database,
+  projectId: string,
+  patch: Partial<ProjectSettings>,
+): Promise<ProjectSettings> {
+  const set: Partial<ProjectSettings> = {}
+  if (patch.name !== undefined) {
+    const name = patch.name.trim()
+    if (!name) throw new ValidationError('Project name is required')
+    set.name = name
+  }
+  if (patch.defaultBranch !== undefined) {
+    const branch = patch.defaultBranch.trim()
+    if (!branch) throw new ValidationError('Default branch is required')
+    set.defaultBranch = branch
+  }
+  if (patch.diffThreshold !== undefined) {
+    if (!(patch.diffThreshold >= 0 && patch.diffThreshold <= 1)) {
+      throw new ValidationError('Diff threshold must be between 0 and 1')
+    }
+    set.diffThreshold = patch.diffThreshold
+  }
+  if (patch.retentionDays !== undefined) {
+    if (!Number.isInteger(patch.retentionDays) || patch.retentionDays < 1) {
+      throw new ValidationError('Retention must be at least 1 day')
+    }
+    set.retentionDays = patch.retentionDays
+  }
+  if (patch.autoApproveDefaultBranch !== undefined) {
+    set.autoApproveDefaultBranch = patch.autoApproveDefaultBranch
+  }
+  if (patch.blockMergeOnChanges !== undefined) set.blockMergeOnChanges = patch.blockMergeOnChanges
+  if (Object.keys(set).length === 0) {
+    const current = await getProjectById(db, projectId)
+    if (!current) throw new NotFoundError('Project not found')
+    return projectSettings(current)
+  }
+  const [row] = await db.update(projects).set(set).where(eq(projects.id, projectId)).returning()
+  if (!row) throw new NotFoundError('Project not found')
+  return projectSettings(row)
+}
