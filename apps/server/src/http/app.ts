@@ -2,6 +2,7 @@ import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify'
 
 import type { DashboardDeps, V1Deps } from './deps.ts'
 import { redirectPreviousHosts } from './hooks/previous-hosts.ts'
+import { argosRoutes } from './routes/argos/index.ts'
 import { dashboardRoutes } from './routes/dashboard/index.ts'
 import { githubWebhookRoutes, type GithubWebhookDeps } from './routes/github-webhook.ts'
 import { healthRoutes, type ReadinessCheck } from './routes/health.ts'
@@ -32,6 +33,7 @@ export interface ServerOptions {
  *   (all)       redirect from previous dashboard hosts
  *   /healthz    /readyz          no auth
  *   /v1/…       CI API           project token
+ *   /v2/…       Argos-compatible CI API   project token
  *   /webhooks/github  GitHub App   signature
  *   /api/auth/… sign-in          public (better-auth)
  *   /api/…      dashboard API    session cookie
@@ -53,6 +55,12 @@ export function buildServer(options: ServerOptions): FastifyInstance {
   // receives only its dependencies and can pass them straight on to its routes.
   const { api } = options
   if (api) {
+    void app.register(
+      async (scope) => {
+        await scope.register(argosRoutes, api)
+      },
+      { prefix: '/v2' },
+    )
     void app.register(
       async (scope) => {
         await scope.register(v1Routes, api)

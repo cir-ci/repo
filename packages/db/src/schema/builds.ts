@@ -48,6 +48,8 @@ export const builds = pgTable(
       .notNull()
       .default(sql`'{}'::text[]`),
     ancestryStatus: text('ancestry_status').$type<AncestryStatus>().notNull().default('missing'),
+    /** Who supplied the commit history used to find the baseline: our CLI or an Argos SDK. */
+    historySource: text('history_source').$type<'cli' | 'sdk'>().notNull().default('cli'),
     baselineSource: text('baseline_source').$type<BaselineSource>(),
     baseBuildId: uuid('base_build_id').references((): AnyPgColumn => builds.id, {
       onDelete: 'set null',

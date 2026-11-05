@@ -1,3 +1,4 @@
+import { SHA256_RE } from '@circi/core'
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 
 import type { Database } from '../client.ts'
@@ -5,8 +6,6 @@ import { type FileKind, files, uploadClaims } from '../schema/index.ts'
 import type { FileRow } from '../types.ts'
 
 /** Content-addressed files: upload planning (verify before dedup, PLAN §8) and bookkeeping. */
-
-const SHA256_RE = /^[0-9a-f]{64}$/
 
 /**
  * Decides which files a build must upload (PLAN §7.1 step 4, §8 "verify before dedup").
@@ -87,10 +86,13 @@ export async function planUploads(
         contentType: f?.contentType ?? 'application/octet-stream',
       })
     }
-    if (lateVerified.length > 0) {
+    // Every file the build asked for is claimed by it: that keeps it from being collected, and
+    // it's what lets this build (and only it) upload bytes for a file the server doesn't have yet.
+    const claimed = [...lateVerified, ...planned.map((p) => p.sha256)]
+    if (claimed.length > 0) {
       await tx
         .insert(uploadClaims)
-        .values(lateVerified.map((fileSha256) => ({ buildId: input.buildId, fileSha256 })))
+        .values(claimed.map((fileSha256) => ({ buildId: input.buildId, fileSha256 })))
         .onConflictDoNothing()
     }
     return planned
@@ -183,4 +185,17 @@ export async function upsertServerFile(
   const existing = await getFile(db, input.sha256)
   if (!existing) throw new Error(`file ${input.sha256} vanished`)
   return { storageKey: existing.storageKey, created: false }
+}
+
+/** Whether `buildId` asked for this file, which is what lets it upload the bytes. */
+export async function hasUploadClaim(
+  db: Database,
+  buildId: string,
+  sha256: string,
+): Promise<boolean> {
+  const [row] = await db
+    .select({ sha: uploadClaims.fileSha256 })
+    .from(uploadClaims)
+    .where(and(eq(uploadClaims.buildId, buildId), eq(uploadClaims.fileSha256, sha256)))
+  return row !== undefined
 }

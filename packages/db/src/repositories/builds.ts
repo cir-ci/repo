@@ -1,4 +1,4 @@
-import { checkBuildInput, ValidationError } from '@circi/core'
+import { checkBuildInput, MAX_PARALLEL_SHARDS, resolveBaseline, ValidationError } from '@circi/core'
 import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm'
 
 import type { Database } from '../client.ts'
@@ -42,6 +42,7 @@ export async function createBuild(db: Database, input: createBuild.Input): Promi
     mergeBaseSha: input.mergeBaseSha?.toLowerCase() ?? null,
     ancestorShas,
     ancestryStatus: input.ancestryStatus ?? (ancestorShas.length > 0 ? 'ok' : 'missing'),
+    historySource: input.historySource ?? 'cli',
     status: 'uploading' as const,
     parallelNonce: input.parallel?.nonce ?? null,
     parallelTotal: input.parallel?.total ?? null,
@@ -94,6 +95,8 @@ export namespace createBuild {
     mergeBaseSha?: string | null
     ancestorShas?: string[]
     ancestryStatus?: 'ok' | 'missing' | 'truncated'
+    /** Who sent `ancestorShas`; `sdk` for an Argos SDK. Default `cli`. */
+    historySource?: 'cli' | 'sdk'
     parallel?: { nonce: string; total: number }
   }
 }
@@ -163,7 +166,15 @@ const SCREENSHOT_NAME_RE = /^[^\0\n\r]{1,512}$/
  */
 export async function finalizeShard(
   db: Database,
-  input: { buildId: string; shardIndex?: string; screenshots: finalizeShard.Screenshot[] },
+  input: {
+    buildId: string
+    shardIndex?: string
+    screenshots: finalizeShard.Screenshot[]
+    /** Add to this shard's screenshots instead of replacing them (chunked uploads). */
+    append?: boolean
+    /** Store the screenshots but don't count the shard as finished yet. */
+    hold?: boolean
+  },
 ): Promise<finalizeShard.Result> {
   const shardIndex = input.shardIndex ?? '0'
   const names = new Set<string>()
@@ -194,9 +205,11 @@ export async function finalizeShard(
       if (missing.length > 0) return { status: 'missing', missing }
     }
 
-    await tx
-      .delete(screenshots)
-      .where(and(eq(screenshots.buildId, build.id), eq(screenshots.shardIndex, shardIndex)))
+    if (!input.append) {
+      await tx
+        .delete(screenshots)
+        .where(and(eq(screenshots.buildId, build.id), eq(screenshots.shardIndex, shardIndex)))
+    }
     if (input.screenshots.length > 0) {
       try {
         await tx.insert(screenshots).values(
@@ -224,6 +237,21 @@ export async function finalizeShard(
         .where(and(eq(uploadClaims.buildId, build.id), inArray(uploadClaims.fileSha256, shas)))
     }
 
+    if (input.hold) {
+      if (build.status === 'pending') {
+        await tx.update(builds).set({ status: 'uploading' }).where(eq(builds.id, build.id))
+      }
+      const [received = { count: 0 }] = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(buildShards)
+        .where(eq(buildShards.buildId, build.id))
+      return {
+        status: 'ok',
+        complete: false,
+        shardsReceived: received.count,
+        shardsTotal: build.parallelTotal ?? 1,
+      }
+    }
     await tx
       .insert(buildShards)
       .values({ buildId: build.id, shardIndex })
@@ -314,12 +342,15 @@ export namespace getBuildCounts {
 }
 
 /** Possible baselines: same project and name, finished, not the build itself. */
-export async function listBaselineCandidates(db: Database, build: Build): Promise<Build[]> {
+export async function listBaselineCandidates(
+  db: Database,
+  build: Pick<Build, 'projectId' | 'name' | 'ancestorShas'> & { id?: string },
+): Promise<Build[]> {
   const conditions = [
     eq(builds.projectId, build.projectId),
     eq(builds.name, build.name),
     eq(builds.status, 'complete'),
-    ne(builds.id, build.id),
+    ...(build.id ? [ne(builds.id, build.id)] : []),
   ]
   const shas = [...new Set(build.ancestorShas)]
   const project = await db
@@ -474,4 +505,44 @@ export async function resetBuild(db: Database, buildId: string): Promise<Build> 
     .returning()
   if (!updated) throw new NotFoundError('Build not found, or still processing')
   return updated
+}
+
+/**
+ * Sets how many shards a parallel build has. Argos SDKs only learn the total when the last
+ * shard reports, so a build starts with the most it could have and is corrected here.
+ */
+export async function setParallelTotal(
+  db: Database,
+  buildId: string,
+  total: number,
+): Promise<void> {
+  const clamped = Math.min(Math.max(Math.trunc(total), 1), MAX_PARALLEL_SHARDS)
+  await db
+    .update(builds)
+    .set({ parallelTotal: clamped })
+    .where(and(eq(builds.id, buildId), inArray(builds.status, ['pending', 'uploading'])))
+}
+
+/**
+ * The baseline an Argos SDK asks for: the newest eligible build of this project and build name
+ * on one of `commits` (nearest first), if any.
+ */
+export async function findBaselineByCommits(
+  db: Database,
+  input: { projectId: string; name: string; commits: string[] },
+): Promise<{ id: string; commitSha: string; branch: string | null } | undefined> {
+  const candidates = await listBaselineCandidates(db, {
+    projectId: input.projectId,
+    name: input.name,
+    ancestorShas: input.commits,
+  })
+  const project = await db
+    .select({ defaultBranch: projects.defaultBranch })
+    .from(projects)
+    .where(eq(projects.id, input.projectId))
+  const resolved = resolveBaseline(
+    { ancestorShas: input.commits, defaultBranch: project[0]?.defaultBranch ?? 'main' },
+    candidates,
+  )
+  return resolved.via === 'none' ? undefined : resolved.build
 }

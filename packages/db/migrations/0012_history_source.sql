@@ -1,0 +1,1 @@
+ALTER TABLE "builds" ADD COLUMN "history_source" text DEFAULT 'cli' NOT NULL;

@@ -21,6 +21,7 @@
     "@circi/services": "workspace:*",
     "@circi/storage": "workspace:*",
     "@circi/worker": "workspace:*",
+    "@fastify/multipart": "catalog:",
     "@fastify/static": "catalog:",
     "commander": "catalog:",
     "fastify": "catalog:",

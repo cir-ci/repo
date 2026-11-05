@@ -17,6 +17,9 @@ export interface V1Deps extends BaseDeps {
   githubApp?: boolean
 }
 
+/** What the Argos-compatible API (`/v2`) needs: the same as the CI API. */
+export type V2Deps = V1Deps
+
 /** What the dashboard (sign-in, `/api` and the web app) needs. */
 export interface DashboardDeps extends BaseDeps {
   /** Email sign-in codes are offered (`AUTH_EMAIL_ENABLED` and SMTP configured). Default off. */

@@ -59,10 +59,13 @@ export async function processBuild(deps: ProcessDeps, buildId: string): Promise<
   const baseBuild = resolution.via === 'none' ? undefined : resolution.build
   await setBuildBaseline(db, build.id, {
     baseBuildId: baseBuild?.id ?? null,
-    // M1 only receives history from CirCI's own CLI; Argos SDKs ('sdk') and git host
-    // lookups ('provider') arrive in M3 and M2.5.
+    // The history came from our CLI or from an Argos SDK, whichever created the build.
     baselineSource:
-      resolution.via === 'ancestry' ? 'cli' : resolution.via === 'fallback' ? 'fallback' : 'none',
+      resolution.via === 'ancestry'
+        ? build.historySource
+        : resolution.via === 'fallback'
+          ? 'fallback'
+          : 'none',
   })
 
   // 2. Pair by name.
