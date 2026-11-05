@@ -13,10 +13,11 @@ import {
 } from '@circi/db'
 import { betterAuth } from 'better-auth'
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
-import { admin, emailOTP, organization } from 'better-auth/plugins'
+import { admin, emailOTP, genericOAuth, organization } from 'better-auth/plugins'
 import { and, eq, gt, sql } from 'drizzle-orm'
 
 import { invitationMail, type Mailer, signInMail } from './mail.ts'
+import { isSsoPath, mayCreateSsoAccount, mayLinkSsoAccount, type SsoProvider } from './sso.ts'
 
 /**
  * Authentication, provided by better-auth (https://better-auth.com):
@@ -49,11 +50,15 @@ export interface AuthOptions {
   mailer?: Mailer
   /** Email + password sign-in is on (default). Off: only email codes (and later SSO) work. */
   passwordLogin?: boolean
+  /** Single sign-on providers the operator set up. None: sign-in is password and email only. */
+  sso?: SsoProvider[]
   /** Called when sending a mail fails (it's never awaited, so sign-in timing doesn't leak). */
   onMailError?: (err: unknown) => void
 }
 
-type LoginMailOptions = Partial<Pick<AuthOptions, 'db' | 'mailer' | 'onMailError' | 'baseURL'>>
+type LoginMailOptions = Partial<
+  Pick<AuthOptions, 'db' | 'mailer' | 'onMailError' | 'baseURL' | 'sso'>
+>
 
 /** How long an invitation can be accepted. */
 export const INVITATION_TTL_SECONDS = 7 * 24 * 3600
@@ -114,6 +119,7 @@ export function authPlugins(options: LoginMailOptions = {}) {
           .catch((err: unknown) => options.onMailError?.(err))
       },
     }),
+    ...ssoPlugins(options.sso ?? []),
     apiKey([
       {
         configId: CI_KEY_CONFIG,
@@ -125,6 +131,36 @@ export function authPlugins(options: LoginMailOptions = {}) {
       },
     ]),
   ]
+}
+
+/** The generic OpenID Connect provider is a plugin; GitHub and Google are built in. */
+function ssoPlugins(providers: SsoProvider[]) {
+  const oidc = providers.find((p) => p.id === 'oidc')
+  if (!oidc?.issuer) return []
+  return [
+    genericOAuth({
+      config: [
+        {
+          providerId: 'oidc',
+          discoveryUrl: `${oidc.issuer.replace(/\/$/, '')}/.well-known/openid-configuration`,
+          clientId: oidc.clientId,
+          clientSecret: oidc.clientSecret,
+          scopes: ['openid', 'email', 'profile'],
+          pkce: true,
+        },
+      ],
+    }),
+  ]
+}
+
+function socialProviders(providers: SsoProvider[]) {
+  const pick = (id: 'github' | 'google') => {
+    const p = providers.find((x) => x.id === id)
+    return p ? { clientId: p.clientId, clientSecret: p.clientSecret } : undefined
+  }
+  const github = pick('github')
+  const google = pick('google')
+  return { ...(github ? { github } : {}), ...(google ? { google } : {}) }
 }
 
 /**
@@ -204,6 +240,13 @@ export function createAuth(options: AuthOptions) {
         apikey: schema.apikey,
       },
     }),
+    ...(options.sso?.length ? { socialProviders: socialProviders(options.sso) } : {}),
+    account: {
+      accountLinking: {
+        enabled: true,
+        trustedProviders: (options.sso ?? []).filter((p) => p.trustedForEmail).map((p) => p.id),
+      },
+    },
     emailAndPassword: {
       enabled: options.passwordLogin !== false,
       disableSignUp: true,
@@ -249,6 +292,33 @@ export function createAuth(options: AuthOptions) {
             // may add them to its organization. (A password or an organization's own
             // identity provider proves nothing about the address, so they never do.)
             if (method === 'email') await joinByVerifiedDomain(options.db, created.userId)
+            if (method === 'oidc' && isTrusted(options.sso, ssoProviderOf(context))) {
+              await joinByVerifiedDomain(options.db, created.userId, { requireVerifiedEmail: true })
+            }
+          },
+        },
+      },
+      account: {
+        create: {
+          // A login with a provider the operator doesn't vouch for must not attach to an
+          // account that already existed, even if the provider claims the email is verified.
+          before: async (created, context) => {
+            if (!isSsoPath(context?.path)) return
+            const [owner] = await options.db
+              .select({ createdAt: schema.user.createdAt })
+              .from(schema.user)
+              .where(eq(schema.user.id, created.userId))
+            const accountAgeMs = owner ? Date.now() - owner.createdAt.getTime() : 0
+            if (
+              !mayLinkSsoAccount({
+                trusted: isTrusted(options.sso, created.providerId),
+                accountAgeMs,
+              })
+            ) {
+              throw new APIError('FORBIDDEN', {
+                message: 'This sign-in provider is not trusted to link to an existing account',
+              })
+            }
           },
         },
       },
@@ -257,8 +327,21 @@ export function createAuth(options: AuthOptions) {
           before: async (_user, context) => {
             // Only the email-code sign-in can create accounts on its own: for invitees, and for
             // people on a domain some organization has verified.
-            if (context?.path !== '/sign-in/email-otp') return
             const email = typeof _user.email === 'string' ? _user.email : ''
+            if (isSsoPath(context?.path)) {
+              // Single sign-on never opens the door by itself (no self sign-up).
+              const allowed = mayCreateSsoAccount({
+                trusted: isTrusted(options.sso, ssoProviderOf(context)),
+                emailVerified: _user.emailVerified,
+                invited: await hasPendingInvitation(options.db, email),
+                onVerifiedDomain: (await organizationsForEmailDomain(options.db, email)).length > 0,
+              })
+              if (!allowed) {
+                throw new APIError('FORBIDDEN', { message: 'No account for this address' })
+              }
+              return
+            }
+            if (context?.path !== '/sign-in/email-otp') return
             if (
               !(await hasPendingInvitation(options.db, email)) &&
               (await organizationsForEmailDomain(options.db, email)).length === 0
@@ -273,6 +356,18 @@ export function createAuth(options: AuthOptions) {
   })
 }
 
+/** The provider a single sign-on callback is for (`/callback/:id`). */
+function ssoProviderOf(context: { params?: unknown } | null | undefined): string | undefined {
+  const params = context?.params
+  if (typeof params !== 'object' || params === null) return undefined
+  const id: unknown = Reflect.get(params, 'id')
+  return typeof id === 'string' ? id : undefined
+}
+
+function isTrusted(providers: SsoProvider[] | undefined, id: string | undefined): boolean {
+  return providers?.find((p) => p.id === id)?.trustedForEmail === true
+}
+
 /** The organization a request names, by id or slug. */
 function organizationRef(source: unknown): { id?: string; slug?: string } | undefined {
   if (typeof source !== 'object' || source === null) return undefined
@@ -284,12 +379,16 @@ function organizationRef(source: unknown): { id?: string; slug?: string } | unde
 }
 
 /** Adds the user to every organization that claimed (and proved) their email's domain. */
-async function joinByVerifiedDomain(db: Database, userId: string): Promise<void> {
+async function joinByVerifiedDomain(
+  db: Database,
+  userId: string,
+  options: { requireVerifiedEmail?: boolean } = {},
+): Promise<void> {
   const [user] = await db
-    .select({ email: schema.user.email })
+    .select({ email: schema.user.email, emailVerified: schema.user.emailVerified })
     .from(schema.user)
     .where(eq(schema.user.id, userId))
-  if (!user) return
+  if (!user || (options.requireVerifiedEmail && !user.emailVerified)) return
   for (const { orgId, role } of await organizationsForEmailDomain(db, user.email)) {
     // Written directly, like better-auth's own addMember would; an existing seat is left alone.
     // eslint-disable-next-line no-await-in-loop -- a handful of organizations at most
@@ -310,7 +409,7 @@ function loginMethodOf(path: string | undefined): LoginMethod | undefined {
   if (!path) return undefined
   if (path === '/sign-in/email') return 'password'
   if (path === '/sign-in/email-otp') return 'email'
-  if (path.startsWith('/callback/') || path.startsWith('/oauth2/callback/')) return 'oidc'
+  if (path.startsWith('/callback/')) return 'oidc'
   return undefined
 }
 

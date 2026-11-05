@@ -28,7 +28,7 @@ export const dashboardOrgAuthRoutes: FastifyPluginAsync<DashboardDeps> = async (
   const instance: InstanceMethods = {
     password: deps.passwordLogin !== false,
     email: deps.emailLogin === true,
-    oidc: false,
+    oidc: (deps.sso?.length ?? 0) > 0,
   }
 
   async function load(req: FastifyRequest, reply: FastifyReply) {

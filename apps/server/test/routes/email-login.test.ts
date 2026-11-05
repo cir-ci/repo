@@ -74,10 +74,12 @@ describe('email login', () => {
     expect((await on.inject({ url: '/api/auth-methods' })).json()).toEqual({
       password: true,
       email: true,
+      sso: [],
     })
     expect((await off.inject({ url: '/api/auth-methods' })).json()).toEqual({
       password: true,
       email: false,
+      sso: [],
     })
   })
 

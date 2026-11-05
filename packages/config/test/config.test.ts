@@ -165,4 +165,61 @@ describe('BETTER_AUTH_SECRET', () => {
       loadConfig({ ...base, WEBHOOK_ALLOW_PRIVATE_ADDRESSES: 'true' }).webhookAllowPrivate,
     ).toBe(true)
   })
+
+  describe('single sign-on', () => {
+    it('is off unless a provider is configured', () => {
+      expect(loadConfig(base).sso).toEqual([])
+    })
+
+    it('reads GitHub, Google and a generic provider, and only trusts what it should', () => {
+      const c = loadConfig({
+        ...base,
+        AUTH_GITHUB_CLIENT_ID: 'gh',
+        AUTH_GITHUB_CLIENT_SECRET: 'ghs',
+        AUTH_GOOGLE_CLIENT_ID: 'g',
+        AUTH_GOOGLE_CLIENT_SECRET: 'gs',
+        AUTH_OIDC_ISSUER: 'https://sso.acme.io',
+        AUTH_OIDC_CLIENT_ID: 'o',
+        AUTH_OIDC_CLIENT_SECRET: 'os',
+        AUTH_OIDC_NAME: 'Acme SSO',
+      })
+      expect(c.sso.map((p) => [p.id, p.name, p.trustedForEmail])).toEqual([
+        ['github', 'GitHub', true],
+        ['google', 'Google', true],
+        ['oidc', 'Acme SSO', false],
+      ])
+      const trusted = loadConfig({
+        ...base,
+        AUTH_OIDC_ISSUER: 'https://sso.acme.io',
+        AUTH_OIDC_CLIENT_ID: 'o',
+        AUTH_OIDC_CLIENT_SECRET: 'os',
+        AUTH_OIDC_TRUSTED_FOR_EMAIL: 'true',
+      })
+      expect(trusted.sso[0]?.trustedForEmail).toBe(true)
+    })
+
+    it('rejects half-configured providers', () => {
+      expect(() => loadConfig({ ...base, AUTH_GITHUB_CLIENT_ID: 'gh' })).toThrow(ConfigError)
+      expect(() =>
+        loadConfig({ ...base, AUTH_OIDC_ISSUER: 'https://sso.acme.io', AUTH_OIDC_CLIENT_ID: 'o' }),
+      ).toThrow(ConfigError)
+      expect(() =>
+        loadConfig({
+          ...base,
+          AUTH_OIDC_ISSUER: 'sso.acme.io',
+          AUTH_OIDC_CLIENT_ID: 'o',
+          AUTH_OIDC_CLIENT_SECRET: 'os',
+        }),
+      ).toThrow(ConfigError)
+    })
+
+    it('can be switched off, and counts as a way in when password login is off', () => {
+      const github = { AUTH_GITHUB_CLIENT_ID: 'gh', AUTH_GITHUB_CLIENT_SECRET: 'ghs' }
+      expect(loadConfig({ ...base, ...github, AUTH_SSO_ENABLED: 'false' }).sso).toEqual([])
+      expect(() => loadConfig({ ...base, AUTH_PASSWORD_ENABLED: 'false' })).toThrow(ConfigError)
+      expect(loadConfig({ ...base, ...github, AUTH_PASSWORD_ENABLED: 'false' }).passwordLogin).toBe(
+        false,
+      )
+    })
+  })
 })

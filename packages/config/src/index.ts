@@ -39,8 +39,28 @@ const envSchema = z.object({
   AUTH_EMAIL_ENABLED: z.preprocess(emptyToUndefined, bool.optional()),
   WEBHOOK_ALLOW_PRIVATE_ADDRESSES: z.preprocess(emptyToUndefined, bool.optional()),
   AUTH_PASSWORD_ENABLED: z.preprocess(emptyToUndefined, bool.optional()),
+  AUTH_SSO_ENABLED: z.preprocess(emptyToUndefined, bool.optional()),
+  AUTH_GITHUB_CLIENT_ID: z.preprocess(emptyToUndefined, z.string().optional()),
+  AUTH_GITHUB_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),
+  AUTH_GOOGLE_CLIENT_ID: z.preprocess(emptyToUndefined, z.string().optional()),
+  AUTH_GOOGLE_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),
+  AUTH_OIDC_ISSUER: z.preprocess(emptyToUndefined, z.string().optional()),
+  AUTH_OIDC_CLIENT_ID: z.preprocess(emptyToUndefined, z.string().optional()),
+  AUTH_OIDC_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),
+  AUTH_OIDC_NAME: z.preprocess(emptyToUndefined, z.string().optional()),
+  AUTH_OIDC_TRUSTED_FOR_EMAIL: z.preprocess(emptyToUndefined, bool.optional()),
   ORG_CREATION: z.preprocess(emptyToUndefined, z.enum(['admin', 'anyone']).default('admin')),
 })
+
+/** A single sign-on provider the operator configured (instance-scoped, PLAN §7.8). */
+export interface SsoConfig {
+  id: 'github' | 'google' | 'oidc'
+  name: string
+  clientId: string
+  clientSecret: string
+  issuer?: string
+  trustedForEmail: boolean
+}
 
 export type StorageConfig =
   | { driver: 'fs'; path: string }
@@ -85,6 +105,8 @@ export interface Config {
   /** Email login (one-time code / link) is offered: switched on (default) and SMTP is set up. */
   emailLogin: boolean
   /** Webhooks may point at private/loopback addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
+  /** Single sign-on providers, empty when none is configured or `AUTH_SSO_ENABLED=false`. */
+  sso: SsoConfig[]
   /** Email + password sign-in is offered (`AUTH_PASSWORD_ENABLED`, default on). */
   passwordLogin: boolean
   webhookAllowPrivate: boolean
@@ -179,12 +201,58 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     warnings.push('AUTH_EMAIL_ENABLED is on but SMTP_HOST is not set, so email login is off.')
   }
 
+  const sso: SsoConfig[] = []
+  const pair = (name: string, id: string | undefined, secret: string | undefined) => {
+    if (Boolean(id) !== Boolean(secret)) {
+      issues.push(`${name}_CLIENT_ID / ${name}_CLIENT_SECRET: set both, or neither`)
+      return false
+    }
+    return Boolean(id && secret)
+  }
+  if (pair('AUTH_GITHUB', e.AUTH_GITHUB_CLIENT_ID, e.AUTH_GITHUB_CLIENT_SECRET)) {
+    // GitHub reports the primary email only when it is verified.
+    sso.push({
+      id: 'github',
+      name: 'GitHub',
+      clientId: e.AUTH_GITHUB_CLIENT_ID ?? '',
+      clientSecret: e.AUTH_GITHUB_CLIENT_SECRET ?? '',
+      trustedForEmail: true,
+    })
+  }
+  if (pair('AUTH_GOOGLE', e.AUTH_GOOGLE_CLIENT_ID, e.AUTH_GOOGLE_CLIENT_SECRET)) {
+    sso.push({
+      id: 'google',
+      name: 'Google',
+      clientId: e.AUTH_GOOGLE_CLIENT_ID ?? '',
+      clientSecret: e.AUTH_GOOGLE_CLIENT_SECRET ?? '',
+      trustedForEmail: true,
+    })
+  }
+  const oidcParts = [e.AUTH_OIDC_ISSUER, e.AUTH_OIDC_CLIENT_ID, e.AUTH_OIDC_CLIENT_SECRET]
+  if (oidcParts.some(Boolean)) {
+    if (!oidcParts.every(Boolean)) {
+      issues.push('AUTH_OIDC_ISSUER / AUTH_OIDC_CLIENT_ID / AUTH_OIDC_CLIENT_SECRET: set all three')
+    } else if (!/^https?:\/\//.test(e.AUTH_OIDC_ISSUER ?? '')) {
+      issues.push('AUTH_OIDC_ISSUER: must be an https:// address (the issuer URL)')
+    } else {
+      sso.push({
+        id: 'oidc',
+        name: e.AUTH_OIDC_NAME ?? 'Single sign-on',
+        clientId: e.AUTH_OIDC_CLIENT_ID ?? '',
+        clientSecret: e.AUTH_OIDC_CLIENT_SECRET ?? '',
+        issuer: e.AUTH_OIDC_ISSUER ?? '',
+        // Not every identity provider checks that its users own the addresses they claim.
+        trustedForEmail: e.AUTH_OIDC_TRUSTED_FOR_EMAIL === true,
+      })
+    }
+  }
+  const ssoOn = e.AUTH_SSO_ENABLED !== false ? sso : []
   const passwordLogin = e.AUTH_PASSWORD_ENABLED !== false
   const emailLogin = Boolean(smtp) && e.AUTH_EMAIL_ENABLED !== false
-  if (!passwordLogin && !emailLogin) {
+  if (!passwordLogin && !emailLogin && ssoOn.length === 0) {
     issues.push(
-      'AUTH_PASSWORD_ENABLED is off and email login is not available: nobody could sign in. ' +
-        'Turn password sign-in on, or set up SMTP for email login',
+      'AUTH_PASSWORD_ENABLED is off and neither email login nor single sign-on is available: ' +
+        'nobody could sign in. Turn password sign-in on, set up SMTP, or configure a provider',
     )
   }
 
@@ -203,6 +271,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     ...(smtp ? { smtp } : {}),
     emailLogin,
     passwordLogin,
+    sso: ssoOn,
     webhookAllowPrivate: e.WEBHOOK_ALLOW_PRIVATE_ADDRESSES === true,
     orgCreation: e.ORG_CREATION,
   }

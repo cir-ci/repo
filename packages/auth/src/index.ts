@@ -33,3 +33,4 @@ export {
 export { isAPIError as isAuthApiError } from 'better-auth/api'
 export { fromNodeHeaders } from 'better-auth/node'
 export { isSetupCode, setupCode } from './setup.ts'
+export { callbackUrl, type SsoProvider } from './sso.ts'

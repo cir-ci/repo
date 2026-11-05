@@ -22,6 +22,8 @@ export interface DashboardDeps {
   emailLogin?: boolean
   /** Email + password sign-in is offered. Default on. */
   passwordLogin?: boolean
+  /** Single sign-on buttons to offer (the providers are configured in `createAuth`). */
+  sso?: { id: string; name: string }[]
   /** Webhooks may point at private addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). Default off. */
   webhookAllowPrivate?: boolean
   /** Looks up TXT records for domain verification; replaceable in tests. Default: real DNS. */

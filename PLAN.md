@@ -639,7 +639,7 @@ _Status: accounts, organizations, roles, CI tokens and organization isolation ar
 - [x] Sessions list and revoke (account page), project settings page (incl. webhooks, SSRF-restricted addresses)
 - [x] `ORG_CREATION` and a first-run setup page (guarded by a setup code from the server log), organization/project creation and CI-token rotation in the dashboard, so a fresh install needs no CLI
 - [x] Store the last `PUBLIC_URL` (`instance_settings`); on change, log the address-change checklist and show it to instance admins until dismissed (§7.9)
-- [ ] OAuth/OIDC login (GitHub, GitLab, Google, generic OIDC). Instance vs. org-scoped providers, (issuer, subject) matching, `trusted_for_email`, org-scoped sessions, confirmed account linking
+- [x] Single sign-on with instance-scoped providers: GitHub, Google and one generic OpenID Connect provider (GitLab, Okta, Entra ID, Keycloak…) set by env. No self sign-up through them (invitees, or trusted providers on a verified email domain), `trusted_for_email` decides who may attach to an existing account or count towards a domain. **Not built:** org-scoped providers added by org admins, and the confirm-by-email-code step before linking (an untrusted provider simply can't link). The provider round-trip is only tested up to the redirect, not against a real provider
 - [x] Approve/reject flow (same-origin guarded), auto-approve on default branch, re-run carry-over
 - [x] `block_merge_on_changes` setting (project settings page)
 - [x] Outgoing signed webhooks (`circi admin webhook add|list|remove`; managed on the project settings page too)

@@ -334,7 +334,7 @@ function addAuthCommands(auth: Command): void {
               instance: {
                 password: rt.config.passwordLogin,
                 email: rt.config.emailLogin,
-                oidc: false,
+                oidc: rt.config.sso.length > 0,
               },
             },
           )

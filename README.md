@@ -50,6 +50,10 @@ Owners and admins can restrict which sign-in methods an organization accepts (pa
 
 Owners and admins can also claim email domains on the members page. After adding a DNS TXT record (`_circi-verify.example.com`) to prove the domain is theirs, anyone who signs in with an emailed code on an address at that domain joins the organization as a member, with no invitation (people with no account yet get one). A domain can be verified by one organization only.
 
+### Single sign-on
+
+Set `AUTH_GITHUB_CLIENT_ID`/`_SECRET`, `AUTH_GOOGLE_CLIENT_ID`/`_SECRET`, or `AUTH_OIDC_ISSUER`/`_CLIENT_ID`/`_CLIENT_SECRET` (+ `AUTH_OIDC_NAME` for the button label) for any OpenID Connect provider, and the sign-in page gets a button for each. Register `PUBLIC_URL/api/auth/callback/<github|google|oidc>` as the redirect URI at the provider. A provider login never creates an account by itself: the person must have been invited, or the provider must be trusted for email and the address be on a verified organization domain. It attaches to an existing account with the same email only if the provider is trusted: GitHub and Google are, a generic provider is not unless you set `AUTH_OIDC_TRUSTED_FOR_EMAIL=true` (only do that if the provider verifies every address it reports).
+
 Anyone you add to an organization sees its projects, builds and screenshots, and nothing else. Add people with `circi admin user create` and `circi admin member add`.
 
 - Storage defaults to local disk (a Docker volume), the cheapest option. For S3-compatible storage, set `STORAGE_DRIVER=s3` and the `S3_*` variables. `docker-compose.s3.yml` adds a local MinIO for development.
@@ -82,6 +86,8 @@ Anyone you add to an organization sees its projects, builds and screenshots, and
 | `LOG_LEVEL` | `info` | `fatal` … `trace` |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | | Outgoing mail. `SMTP_FROM` is required with `SMTP_HOST`; port defaults to 587 (STARTTLS), 465 means implicit TLS. Check it with `circi admin mail test --to you@acme.io` |
 | `AUTH_PASSWORD_ENABLED` | `true` | Email + password sign-in. `false` needs email login (SMTP) to be available, or nobody could sign in |
+| `AUTH_SSO_ENABLED` | `true` | Set `false` to hide single sign-on even with providers configured |
+| `AUTH_GITHUB_*`, `AUTH_GOOGLE_*`, `AUTH_OIDC_*` | | Single sign-on providers, see above |
 | `AUTH_EMAIL_ENABLED` | `true` | Email sign-in codes; only offered when SMTP is configured. `false` turns them off |
 | `ORG_CREATION` | `admin` | Who may create organizations in the dashboard: `admin` (instance admins) or `anyone` (every signed-in account) |
 | `WEBHOOK_ALLOW_PRIVATE_ADDRESSES` | `false` | Allow webhooks to private/loopback addresses (they are refused by default) |

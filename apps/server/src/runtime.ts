@@ -34,6 +34,7 @@ export function createRuntime(env: Record<string, string | undefined> = process.
     baseURL: config.publicUrl.origin,
     ...(mailer ? { mailer } : {}),
     passwordLogin: config.passwordLogin,
+    sso: config.sso,
     onMailError: (err) => logger.error({ err }, 'could not send a mail'),
   })
   const storage = createStorage(config.storage)

@@ -28,6 +28,7 @@ function dependenciesOf(options: DashboardDeps): DashboardDeps {
     publicOrigin: options.publicOrigin,
     ...(options.emailLogin ? { emailLogin: true } : {}),
     ...(options.passwordLogin === false ? { passwordLogin: false } : {}),
+    ...(options.sso?.length ? { sso: options.sso } : {}),
     ...(options.webhookAllowPrivate ? { webhookAllowPrivate: true } : {}),
     ...(options.orgCreation ? { orgCreation: options.orgCreation } : {}),
     ...(options.authSecret ? { authSecret: options.authSecret } : {}),
@@ -56,6 +57,7 @@ export const dashboardRoutes: FastifyPluginAsync<DashboardDeps> = async (dash, o
     publicOrigin: deps.publicOrigin,
     emailLogin: deps.emailLogin === true,
     passwordLogin: deps.passwordLogin !== false,
+    sso: deps.sso ?? [],
   })
   if (deps.authSecret) {
     await dash.register(dashboardSetupRoutes, {
