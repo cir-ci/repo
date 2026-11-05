@@ -55,6 +55,7 @@ export async function runServices(options: ServiceOptions): Promise<void> {
         publicOrigin: rt.config.publicUrl.origin,
         webhookAllowPrivate: rt.config.webhookAllowPrivate,
         uploadTimeoutMinutes: rt.config.uploadTimeoutMinutes,
+        gcGraceHours: rt.config.gcGraceHours,
         ...(rt.github ? { github: rt.github } : {}),
       })
     }

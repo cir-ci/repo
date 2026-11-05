@@ -11,4 +11,5 @@ export {
   finalizeBuild,
   requeueBuild,
 } from './builds.ts'
+export { runRetention } from './retention.ts'
 export { reviewBuild } from './reviews.ts'

@@ -692,7 +692,7 @@ _Status: accounts, organizations, roles, CI tokens and organization isolation ar
 ### M4 — Hardening & polish (ongoing)
 
 - [ ] Swipe slider viewer, synced zoom, keyboard nav, virtualized lists
-- [ ] Retention + mark/grace/re-check GC (§8) with concurrency tests (GC racing dedup); storage usage page
+- [x] Retention + mark/grace/re-check GC (§8): builds and site versions expire after the project's `retention_days` (the newest default-branch baseline per build name never does; a version a live branch address serves never does), unreferenced files are marked, then deleted after `GC_GRACE_HOURS` once re-checked under a lock; tests include a file re-claimed during the grace period. `circi admin storage usage|gc`. **Not built:** a storage usage *page* in the dashboard; concurrency is tested as deterministic interleavings on one connection, not with parallel connections
 - [ ] Ignore regions / masks per screenshot name (or rely on SDK-side masking)
 - [ ] Flaky detection (a screenshot that keeps changing on the default branch without review)
 - [ ] CloudFront in front of sites with signed cookies from the SSO handoff (optional, for heavy traffic)

@@ -90,6 +90,7 @@ Anyone you add to an organization sees its projects, builds and screenshots, and
 | `circi admin project create\|list\|rotate-token` | Manage projects and their CI tokens |
 | `circi admin auth enable\|disable <email\|password> --org <slug>` | Change an organization's accepted sign-in methods (skips the lockout guard: break-glass) |
 | `circi admin github link\|unlink` | Link a project to a GitHub repository (needs the GitHub App) |
+| `circi admin storage usage\|gc` | What's stored, by kind; run retention now (expire old builds and sites, delete unused files) |
 | `circi admin doctor` | Best-effort check of the domains' cookie scope and the sites domain |
 | `circi admin setup-code` | Print the code the first-run setup page asks for |
 | `circi admin mail test` | Send a test mail through the configured SMTP server |
@@ -108,6 +109,7 @@ Anyone you add to an organization sees its projects, builds and screenshots, and
 | `AUTH_PASSWORD_ENABLED` | `true` | Email + password sign-in. `false` needs email login (SMTP) to be available, or nobody could sign in |
 | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_WEBHOOK_SECRET`, `GITHUB_API_URL` | | The GitHub App, see above |
 | `STATIC_SITES_HOST`, `STATIC_SITES_MAX_MB` | | Static site hosting: a dedicated domain, and the largest site in MB (default 200) |
+| `GC_GRACE_HOURS` | `24` | Files nothing uses any more are deleted after this long. Old builds and sites expire after the project's retention (days) |
 | `UPLOAD_TIMEOUT_MINUTES` | `60` | Builds still uploading after this long fail, naming the missing shards; `0` never |
 | `AUTH_SSO_ENABLED` | `true` | Set `false` to hide single sign-on even with providers configured |
 | `AUTH_GITHUB_*`, `AUTH_GOOGLE_*`, `AUTH_OIDC_*` | | Single sign-on providers, see above |

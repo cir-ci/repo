@@ -8,7 +8,7 @@ import {
   QUEUES,
 } from '@circi/db'
 import type { GithubApp } from '@circi/providers'
-import { expireStalledBuilds, failBuild } from '@circi/services'
+import { expireStalledBuilds, failBuild, runRetention } from '@circi/services'
 import type { StorageDriver } from '@circi/storage'
 
 import { deliverWebhook } from './jobs/deliver-webhook.ts'
@@ -42,6 +42,10 @@ export interface WorkerDeps {
   concurrency?: number
   /** Builds still uploading after this many minutes are failed (default 60); 0 turns it off. */
   uploadTimeoutMinutes?: number
+  /** How long a file waits, once nothing uses it, before it's deleted (default 24 hours). */
+  gcGraceHours?: number
+  /** How often retention runs: expiring old builds and sites, collecting files (default 6 hours); 0 turns it off. */
+  retentionIntervalMs?: number
   /** How often to look for them (default 5 minutes). */
   maintenanceIntervalMs?: number
   /** How long a claimed job stays locked before another worker may retry it. Default 10 min. */
@@ -102,11 +106,27 @@ export async function startWorker(deps: WorkerDeps): Promise<RunningWorker> {
       : undefined
   maintenance?.unref()
 
+  const retentionEvery = deps.retentionIntervalMs ?? 6 * 3600_000
+  const retention =
+    retentionEvery > 0
+      ? setInterval(() => {
+          runRetention(deps.db, {
+            graceMs: (deps.gcGraceHours ?? 24) * 3600_000,
+            deleteObject: (key) => deps.storage.delete(key),
+          }).then(
+            (r) => deps.logger.info(r, 'retention pass finished'),
+            (err: unknown) => deps.logger.error({ err }, 'retention pass failed'),
+          )
+        }, retentionEvery)
+      : undefined
+  retention?.unref()
+
   deps.logger.info({ storage: deps.storage.kind, lanes }, 'worker started')
   return {
     async stop() {
       state.running = false
       if (maintenance) clearInterval(maintenance)
+      if (retention) clearInterval(retention)
       for (const s of sleepers) s.wake()
       await Promise.all(loops)
       deps.logger.info('worker stopped')

@@ -21,8 +21,10 @@ import {
   listProjects,
   listWebhooks,
   setOrgAuthSettings,
+  storageUsage,
   WEBHOOK_EVENTS,
 } from '@circi/db'
+import { runRetention } from '@circi/services'
 import type { Command } from 'commander'
 
 import type { Runtime } from '../runtime.ts'
@@ -51,6 +53,7 @@ export function addAdminCommands(program: Command): void {
         if (warned) process.exitCode = 1
       }),
     )
+  addStorageCommands(admin.command('storage').description('what is stored, and cleaning up'))
   addAuthCommands(admin.command('auth').description('login methods of an organization'))
   admin
     .command('setup-code')
@@ -398,6 +401,47 @@ function addGithubCommands(github: Command): void {
         const project = await projectOf(rt, opts.org, opts.project)
         await unlinkProject(rt.db.db, project.id)
         console.log(`${opts.org}/${opts.project} no longer reports to GitHub`)
+      }),
+    )
+}
+
+const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
+
+function addStorageCommands(storage: Command): void {
+  storage
+    .command('usage')
+    .description('how much is stored, by kind, and how much is waiting to be deleted')
+    .option('--json', 'print JSON')
+    .action((opts: { json?: boolean }) =>
+      withRuntime(async (rt) => {
+        const usage = await storageUsage(rt.db.db)
+        if (opts.json) return printJson(usage)
+        for (const f of usage.files)
+          console.log(`${f.kind.padEnd(10)} ${String(f.count).padStart(7)} files  ${mb(f.bytes)}`)
+        console.log(`${'total'.padEnd(10)} ${mb(usage.totalBytes)}`)
+        console.log(
+          `waiting to be deleted: ${usage.markedForDeletion.count} files, ${mb(usage.markedForDeletion.bytes)} (after the ${rt.config.gcGraceHours} h grace period)`,
+        )
+      }),
+    )
+
+  storage
+    .command('gc')
+    .description('run retention now: expire old builds and sites, delete files nothing uses')
+    .option(
+      '--grace-hours <hours>',
+      'how long unused files wait before deletion (default: GC_GRACE_HOURS)',
+    )
+    .action((opts: { graceHours?: string }) =>
+      withRuntime(async (rt) => {
+        const grace =
+          opts.graceHours === undefined ? rt.config.gcGraceHours : Number(opts.graceHours)
+        if (!Number.isFinite(grace) || grace < 0) throw new Error('--grace-hours must be 0 or more')
+        const result = await runRetention(rt.db.db, {
+          graceMs: grace * 3600_000,
+          deleteObject: (key) => rt.storage.delete(key),
+        })
+        console.log(JSON.stringify(result, null, 2))
       }),
     )
 }

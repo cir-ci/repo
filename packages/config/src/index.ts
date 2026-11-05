@@ -47,6 +47,7 @@ const envSchema = z.object({
     emptyToUndefined,
     z.coerce.number().int().min(1).max(5000).default(200),
   ),
+  GC_GRACE_HOURS: z.preprocess(emptyToUndefined, z.coerce.number().min(0).default(24)),
   UPLOAD_TIMEOUT_MINUTES: z.preprocess(
     emptyToUndefined,
     z.coerce.number().int().min(0).default(60),
@@ -137,6 +138,8 @@ export interface Config {
   emailLogin: boolean
   /** Static site hosting: absent unless `STATIC_SITES_HOST` is set. */
   staticSites?: StaticSitesConfig
+  /** Hours a file nobody uses waits before it is deleted (`GC_GRACE_HOURS`). */
+  gcGraceHours: number
   /** Builds still uploading after this many minutes fail; 0 never does (`UPLOAD_TIMEOUT_MINUTES`). */
   uploadTimeoutMinutes: number
   /** Webhooks may point at private/loopback addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
@@ -341,6 +344,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     ...(github ? { github } : {}),
     webhookAllowPrivate: e.WEBHOOK_ALLOW_PRIVATE_ADDRESSES === true,
     uploadTimeoutMinutes: e.UPLOAD_TIMEOUT_MINUTES,
+    gcGraceHours: e.GC_GRACE_HOURS,
     orgCreation: e.ORG_CREATION,
   }
 }

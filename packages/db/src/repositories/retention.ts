@@ -1,0 +1,210 @@
+import { and, eq, inArray, isNotNull, isNull, lt, sql } from 'drizzle-orm'
+
+import type { Database } from '../client.ts'
+import { isForeignKeyViolation } from '../errors.ts'
+import {
+  builds,
+  files,
+  projects,
+  screenshotDiffs,
+  screenshots,
+  siteHostnames,
+  staticSites,
+  uploadClaims,
+} from '../schema/index.ts'
+
+/**
+ * Retention and garbage collection (PLAN §8). Old data goes in three separate steps, so a
+ * mistake in one can't lose files that something still needs:
+ *
+ *  1. **Expire**: builds and site versions past their project's `retention_days` lose their
+ *     rows that point at files (screenshots, diffs, site files). Builds stay, as `expired`.
+ *  2. **Mark**: files nothing points at any more get `gc_marked_at`.
+ *  3. **Collect**: files marked for longer than a grace period are re-checked, and only then
+ *     deleted. Anything that started pointing at one in the meantime (a build that was told "we
+ *     already have it", a re-upload) un-marks it instead.
+ */
+
+/** The values of one column from a raw query's result, whichever driver ran it. */
+function column(result: unknown, name: string): string[] {
+  const rows: unknown =
+    typeof result === 'object' && result !== null ? Reflect.get(result, 'rows') : undefined
+  if (!Array.isArray(rows)) return []
+  return rows.map((row: unknown) => String(Reflect.get(Object(row), name)))
+}
+
+/** A file is referenced if anything at all points at it. */
+const isReferenced = (sha: typeof files.sha256) => sql`(
+  exists (select 1 from ${screenshots} where ${screenshots.fileSha256} = ${sha} or ${screenshots.thumbnailSha256} = ${sha})
+  or exists (select 1 from ${screenshotDiffs} where ${screenshotDiffs.diffFileSha256} = ${sha})
+  or exists (select 1 from static_site_files where static_site_files.sha256 = ${sha})
+  or exists (select 1 from ${uploadClaims} where ${uploadClaims.fileSha256} = ${sha})
+)`
+
+/**
+ * Expires finished builds older than their project's retention. The newest build that can serve
+ * as a baseline on the default branch, per build name, is never expired: later builds compare
+ * against it. Returns how many builds were expired.
+ */
+export async function expireBuilds(db: Database, now: Date): Promise<number> {
+  return db.transaction(async (tx) => {
+    const expired = await tx.execute(sql`
+      with keep as (
+        select distinct on (b.project_id, b.name) b.id
+        from ${builds} b
+        join ${projects} p on p.id = b.project_id
+        where b.status = 'complete'
+          and b.branch = p.default_branch
+          and (b.review_status = 'approved' or (b.conclusion = 'no_changes' and b.review_status <> 'rejected'))
+        order by b.project_id, b.name, b.created_at desc
+      )
+      update ${builds} b
+      set status = 'expired'
+      from ${projects} p
+      where p.id = b.project_id
+        and b.status in ('complete', 'error')
+        and b.created_at < ${now}::timestamptz - (p.retention_days * interval '1 day')
+        and b.id not in (select id from keep)
+      returning b.id
+    `)
+    const ids = column(expired, 'id')
+    if (ids.length === 0) return 0
+    await tx.delete(screenshotDiffs).where(inArray(screenshotDiffs.buildId, ids))
+    await tx.delete(screenshots).where(inArray(screenshots.buildId, ids))
+    await tx.delete(uploadClaims).where(inArray(uploadClaims.buildId, ids))
+    return ids.length
+  })
+}
+
+/**
+ * Expires hosted sites: a branch address nobody uploaded to for the project's retention period
+ * goes away (the default branch's never does), then versions older than retention that no live
+ * branch address serves are deleted with their files list and commit address.
+ */
+export async function expireSites(
+  db: Database,
+  now: Date,
+): Promise<{ addresses: number; versions: number }> {
+  return db.transaction(async (tx) => {
+    const addresses = await tx.execute(sql`
+      delete from ${siteHostnames} h
+      using project_sites s, ${projects} p
+      where h.project_site_id = s.id and p.id = s.project_id
+        and h.link_kind = 'branch'
+        and h.branch is distinct from p.default_branch
+        and h.updated_at < ${now}::timestamptz - (p.retention_days * interval '1 day')
+      returning h.label
+    `)
+    const versions = await tx.execute(sql`
+      delete from ${staticSites} v
+      using project_sites s, ${projects} p
+      where s.id = v.project_site_id and p.id = s.project_id
+        and v.created_at < ${now}::timestamptz - (p.retention_days * interval '1 day')
+        and not exists (
+          select 1 from ${siteHostnames} h where h.static_site_id = v.id and h.link_kind = 'branch'
+        )
+      returning v.id
+    `)
+    return { addresses: column(addresses, 'label').length, versions: column(versions, 'id').length }
+  })
+}
+
+/** Marks files nothing points at, so the next collection can consider them. */
+export async function markUnreferencedFiles(db: Database, now: Date): Promise<number> {
+  const marked = await db
+    .update(files)
+    .set({ gcMarkedAt: now })
+    .where(and(isNull(files.gcMarkedAt), sql`not ${isReferenced(files.sha256)}`))
+    .returning({ sha: files.sha256 })
+  return marked.length
+}
+
+/** Un-marks files that something has started pointing at since they were marked. */
+export async function unmarkReferencedFiles(db: Database): Promise<number> {
+  const unmarked = await db
+    .update(files)
+    .set({ gcMarkedAt: null })
+    .where(and(isNotNull(files.gcMarkedAt), isReferenced(files.sha256)))
+    .returning({ sha: files.sha256 })
+  return unmarked.length
+}
+
+/**
+ * Deletes files marked for longer than `graceMs`, one at a time. Each is locked and checked
+ * again: if something points at it now it's un-marked and kept. The row goes first, and then
+ * its storage object (a failure there leaves an orphan object, never a row without bytes).
+ */
+export async function collectMarkedFiles(
+  db: Database,
+  input: { now: Date; graceMs: number; deleteObject: (storageKey: string) => Promise<void> },
+): Promise<{ deleted: number; kept: number }> {
+  const cutoff = new Date(input.now.getTime() - input.graceMs)
+  const candidates = await db
+    .select({ sha256: files.sha256 })
+    .from(files)
+    .where(and(isNotNull(files.gcMarkedAt), lt(files.gcMarkedAt, cutoff)))
+  let deleted = 0
+  let kept = 0
+  for (const { sha256 } of candidates) {
+    // eslint-disable-next-line no-await-in-loop -- one locked check and delete at a time
+    const key = await db.transaction(async (tx): Promise<string | undefined> => {
+      const [row] = await tx.select().from(files).where(eq(files.sha256, sha256)).for('update')
+      if (!row?.gcMarkedAt) return undefined
+      const [still] = await tx
+        .select({ referenced: sql<boolean>`${isReferenced(files.sha256)}` })
+        .from(files)
+        .where(eq(files.sha256, sha256))
+      if (still?.referenced) {
+        await tx.update(files).set({ gcMarkedAt: null }).where(eq(files.sha256, sha256))
+        return undefined
+      }
+      try {
+        await tx.delete(files).where(eq(files.sha256, sha256))
+      } catch (err) {
+        // A reference appeared between the check and the delete: the foreign key says no.
+        if (isForeignKeyViolation(err)) return undefined
+        throw err
+      }
+      return row.storageKey
+    })
+    if (key === undefined) {
+      kept += 1
+      continue
+    }
+    deleted += 1
+    // eslint-disable-next-line no-await-in-loop
+    await input.deleteObject(key).catch(() => {})
+  }
+  return { deleted, kept }
+}
+
+export interface StorageUsage {
+  files: { kind: string; count: number; bytes: number }[]
+  totalBytes: number
+  markedForDeletion: { count: number; bytes: number }
+}
+
+/** What's stored: by kind of file, and how much is waiting to be collected. */
+export async function storageUsage(db: Database): Promise<StorageUsage> {
+  const rows = await db
+    .select({
+      kind: files.kind,
+      count: sql<number>`count(*)::int`,
+      bytes: sql<number>`coalesce(sum(${files.size}), 0)::bigint::float8`,
+    })
+    .from(files)
+    .where(eq(files.status, 'verified'))
+    .groupBy(files.kind)
+  const [marked] = await db
+    .select({
+      count: sql<number>`count(*)::int`,
+      bytes: sql<number>`coalesce(sum(${files.size}), 0)::bigint::float8`,
+    })
+    .from(files)
+    .where(isNotNull(files.gcMarkedAt))
+  return {
+    files: rows.map((r) => ({ kind: r.kind, count: r.count, bytes: r.bytes })),
+    totalBytes: rows.reduce((n, r) => n + r.bytes, 0),
+    markedForDeletion: { count: marked?.count ?? 0, bytes: marked?.bytes ?? 0 },
+  }
+}
