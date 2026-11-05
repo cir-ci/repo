@@ -191,7 +191,7 @@ const projectRoute = createRoute({
   component: lazyRouteComponent(() => import('./features/projects/ProjectPage.tsx'), 'ProjectPage'),
 })
 
-export type ViewMode = 'side' | 'overlay' | 'diff'
+export type ViewMode = 'side' | 'overlay' | 'diff' | 'swipe'
 export interface BuildSearch {
   /** Selected screenshot, so a link can point straight at one change. */
   shot?: string
@@ -203,7 +203,10 @@ const buildRoute = createRoute({
   path: '$org/$project/builds/$number',
   validateSearch: (search: Record<string, unknown>): BuildSearch => ({
     ...(typeof search.shot === 'string' && search.shot ? { shot: search.shot } : {}),
-    ...(search.mode === 'side' || search.mode === 'overlay' || search.mode === 'diff'
+    ...(search.mode === 'side' ||
+    search.mode === 'overlay' ||
+    search.mode === 'diff' ||
+    search.mode === 'swipe'
       ? { mode: search.mode }
       : {}),
   }),

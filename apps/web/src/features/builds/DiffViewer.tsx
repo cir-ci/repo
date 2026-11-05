@@ -98,6 +98,9 @@ export function Viewer(props: Viewer.Props) {
               <ToggleButton value="diff" title="Changes only (3)">
                 Changes only
               </ToggleButton>
+              <ToggleButton value="swipe" title="Swipe (4)">
+                Swipe
+              </ToggleButton>
             </ToggleButtonGroup>
           ) : null}
         </Box>
@@ -187,6 +190,17 @@ export function Viewer(props: Viewer.Props) {
             </Box>
           ) : null}
 
+          {mode === 'swipe' && diff.base && diff.head ? (
+            <Swipe
+              base={diff.base.sha256}
+              head={diff.head.sha256}
+              name={diff.name}
+              baselineLabel={
+                props.baselineNumber ? `Baseline · build #${props.baselineNumber}` : 'Baseline'
+              }
+            />
+          ) : null}
+
           {mode === 'diff' && diff.diff ? (
             <Figure label="Changed pixels in red" sha={diff.diff.sha256} />
           ) : null}
@@ -194,6 +208,76 @@ export function Viewer(props: Viewer.Props) {
       </Paper>
     </>
   )
+}
+
+/**
+ * Baseline and this build in one frame, with a divider you drag (or move with the arrow keys):
+ * the baseline shows on the left of it, this build on the right.
+ */
+function Swipe({ base, head, name, baselineLabel }: Swipe.Props) {
+  const [at, setAt] = useState(50)
+  return (
+    <Box component="figure" sx={{ m: 0 }}>
+      <Typography component="figcaption" variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+        {baselineLabel} on the left, this build on the right
+      </Typography>
+      <Box
+        sx={{
+          position: 'relative',
+          display: 'inline-block',
+          maxWidth: '100%',
+          border: 1,
+          borderColor: 'divider',
+        }}
+      >
+        <Box component="img" src={fileUrl(base)} alt={`${name} in the baseline`} sx={checker} />
+        <Box
+          component="img"
+          src={fileUrl(head)}
+          alt={`${name} in this build`}
+          sx={{
+            ...checker,
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            clipPath: `inset(0 0 0 ${at}%)`,
+          }}
+        />
+        <Box
+          aria-hidden
+          sx={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            left: `${at}%`,
+            width: 2,
+            ml: '-1px',
+            bgcolor: 'primary.main',
+            pointerEvents: 'none',
+          }}
+        />
+      </Box>
+      <Slider
+        size="small"
+        min={0}
+        max={100}
+        step={1}
+        value={at}
+        onChange={(_, v) => setAt(Array.isArray(v) ? (v[0] ?? 0) : v)}
+        aria-label="Swipe position"
+        sx={{ display: 'block', mt: 1, maxWidth: 480 }}
+      />
+    </Box>
+  )
+}
+export namespace Swipe {
+  export interface Props {
+    base: string
+    head: string
+    name: string
+    baselineLabel: string
+  }
 }
 
 export namespace Viewer {

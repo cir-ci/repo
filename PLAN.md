@@ -691,7 +691,7 @@ _Status: accounts, organizations, roles, CI tokens and organization isolation ar
 
 ### M4 — Hardening & polish (ongoing)
 
-- [ ] Swipe slider viewer, synced zoom, keyboard nav, virtualized lists
+- [~] Swipe slider viewer (a fourth view mode with a draggable divider, key `4`) is built but **not yet seen in a browser**; synced zoom and virtualized lists are not built. Keyboard navigation already existed
 - [x] Retention + mark/grace/re-check GC (§8): builds and site versions expire after the project's `retention_days` (the newest default-branch baseline per build name never does; a version a live branch address serves never does), unreferenced files are marked, then deleted after `GC_GRACE_HOURS` once re-checked under a lock; tests include a file re-claimed during the grace period. `circi admin storage usage|gc`. **Not built:** a storage usage *page* in the dashboard; concurrency is tested as deterministic interleavings on one connection, not with parallel connections
 - [x] Ignore regions per screenshot name (`circi admin ignore add|list|remove`, applied to both images before comparing; tested end to end). **Not built:** drawing regions in the review UI
 - [x] Flaky detection: a screenshot that changed in 3+ of the last 10 default-branch builds is flagged on the project page, with a pointer to ignore regions

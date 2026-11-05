@@ -44,6 +44,7 @@ export function BuildReview({ data, parentLink }: BuildReview.Props) {
         '1': { mode: 'side' },
         '2': { mode: 'overlay' },
         '3': { mode: 'diff' },
+        '4': { mode: 'swipe' },
       }
       const next = change[e.key]
       if (!next) return
