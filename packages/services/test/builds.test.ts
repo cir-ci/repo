@@ -225,9 +225,9 @@ describe('expireStalledBuilds', () => {
   })
 })
 
-describe('describeStall', () => {
-  const stalled = async (total: number) => (await newBuild({ parallelTotal: total })).build
+const stalled = async (total: number) => (await newBuild({ parallelTotal: total })).build
 
+describe('describeStall', () => {
   it('lists missing shards one-based, and gives up listing when there are many', async () => {
     expect(describeStall(await stalled(30), ['0', '1'])).not.toContain(': shard')
     expect(describeStall(await stalled(3), ['1'])).toContain('shard 1, 3')
