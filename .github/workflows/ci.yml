@@ -39,6 +39,7 @@ jobs:
         working-directory: deploy
     env:
       POSTGRES_PASSWORD: ci-only-password
+      BETTER_AUTH_SECRET: ci-only-secret-that-is-at-least-32-characters
       COMPOSE: docker compose -f docker-compose.yml -f docker-compose.s3.yml
     steps:
       - uses: actions/checkout@v5
@@ -48,10 +49,19 @@ jobs:
         run: curl -fsS http://localhost:3000/readyz
       - name: Admin commands work inside the image
         run: |
-          $COMPOSE exec -T circi circi admin org create --name "CI Org"
+          $COMPOSE exec -T circi circi admin user create --email ci@example.com --name CI \
+            --password ci-only-password-123
+          $COMPOSE exec -T circi circi admin org create --name "CI Org" --owner ci@example.com
           $COMPOSE exec -T circi circi admin project create --org ci-org --name "Web" --json \
             | grep -q '"token": "circi_'
           $COMPOSE exec -T circi circi admin project list --org ci-org
+      - name: Sign-in works, and the dashboard API needs it
+        run: |
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/projects)" = 401
+          curl -fsS -c cookies.txt -H 'content-type: application/json' -H 'origin: http://localhost:3000' \
+            -d '{"email":"ci@example.com","password":"ci-only-password-123"}' \
+            http://localhost:3000/api/auth/sign-in/email
+          curl -fsS -b cookies.txt http://localhost:3000/api/projects | grep -q '"ci-org"'
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:

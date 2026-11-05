@@ -16,6 +16,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/server/package.json apps/server/
 COPY apps/web/package.json apps/web/
 COPY apps/worker/package.json apps/worker/
+COPY packages/auth/package.json packages/auth/
 COPY packages/cli/package.json packages/cli/
 COPY packages/config/package.json packages/config/
 COPY packages/core/package.json packages/core/
@@ -36,6 +37,7 @@ FROM manifests AS runtime-tree
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile --prod --filter "@circi/server..."
 COPY --from=build /app/apps/server/dist apps/server/dist
 COPY --from=build /app/apps/worker/dist apps/worker/dist
+COPY --from=build /app/packages/auth/dist packages/auth/dist
 COPY --from=build /app/packages/config/dist packages/config/dist
 COPY --from=build /app/packages/core/dist packages/core/dist
 COPY --from=build /app/packages/db/dist packages/db/dist

@@ -1,14 +1,22 @@
 import { CssBaseline, ThemeProvider } from '@mui/material'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import { HttpError } from './api.ts'
+import { authClient } from './auth.ts'
 import { router } from './router.tsx'
 import { theme } from './theme.ts'
 
 const queryClient = new QueryClient({
+  // A 401 means the session ended (expired, or signed out in another tab): re-check it, and the
+  // app falls back to the sign-in page by itself.
+  queryCache: new QueryCache({
+    onError: (err) => {
+      if (err instanceof HttpError && err.status === 401) authClient.$store.notify('$sessionSignal')
+    },
+  }),
   defaultOptions: {
     queries: {
       staleTime: 10_000,

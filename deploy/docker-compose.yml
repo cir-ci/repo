@@ -38,7 +38,7 @@ services:
       DATABASE_URL: postgres://circi:${POSTGRES_PASSWORD}@postgres:5432/circi
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
       PREVIOUS_PUBLIC_URLS: ${PREVIOUS_PUBLIC_URLS:-}
-      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD:-}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in deploy/.env (openssl rand -base64 32)}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       STORAGE_DRIVER: fs
       STORAGE_PATH: /var/lib/circi/files

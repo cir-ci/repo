@@ -7,10 +7,16 @@ import {
   Outlet,
   useParams,
 } from '@tanstack/react-router'
+import { lazy, Suspense } from 'react'
 
+import { authClient } from './auth.ts'
 import { RouterLink } from './components.tsx'
 import { Blankslate } from './primitives/Blankslate.tsx'
-import { AnnouncerProvider } from './primitives/feedback.tsx'
+import { AnnouncerProvider, Delayed } from './primitives/feedback.tsx'
+import { UserMenu } from './UserMenu.tsx'
+
+// Only people who aren't signed in need the sign-in form, so it's its own chunk.
+const LoginPage = lazy(() => import('./pages/Login.tsx').then((m) => ({ default: m.LoginPage })))
 
 /**
  * App frame per Primer's page regions: an app header that scrolls with the page (never fixed),
@@ -18,6 +24,8 @@ import { AnnouncerProvider } from './primitives/feedback.tsx'
  */
 function AppFrame() {
   const params = useParams({ strict: false })
+  const { data: session, isPending } = authClient.useSession()
+  const user = session?.user
   return (
     <AnnouncerProvider>
       <MuiLink
@@ -73,7 +81,7 @@ function AppFrame() {
             CirCI
           </Typography>
         </RouterLink>
-        {params.org ? (
+        {user && params.org ? (
           <Box
             component="nav"
             aria-label="Context"
@@ -113,9 +121,24 @@ function AppFrame() {
             ) : null}
           </Box>
         ) : null}
+        {user ? <UserMenu user={{ id: user.id, name: user.name, email: user.email }} /> : null}
       </Box>
       <Box component="main" id="content" tabIndex={-1} sx={{ outline: 'none' }}>
-        <Outlet />
+        {/* Pages only render (and fetch) once there's a session. Checking one takes well under
+            a second, so nothing is shown at first, then a spinner if it drags on. */}
+        {isPending ? (
+          <Delayed>
+            <Box sx={{ textAlign: 'center', mt: 8, color: 'text.secondary' }}>
+              Checking your session…
+            </Box>
+          </Delayed>
+        ) : user ? (
+          <Outlet />
+        ) : (
+          <Suspense fallback={null}>
+            <LoginPage />
+          </Suspense>
+        )}
       </Box>
     </AnnouncerProvider>
   )

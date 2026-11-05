@@ -37,13 +37,14 @@ A cheaper, self-hostable alternative to Argos-CI. CI uploads screenshots → ser
 8. **Vitest:** first-class SDK for Vitest browser mode, including Storybook's Vitest addon. Vitest HTML reports are hosted through the same pipeline (§7.7).
 9. **Hosted sites always require login.** There are no public sites. Logging in once at `<dashboard-host>` works for every site (SSO through a token handoff) (§7.6).
 10. **Site navigation:** the dashboard lists a commit's or branch's hosted sites and links out to each one; it never serves or redirects site content. Inside a site, a small switcher jumps to the commit's other sites. With only one site there's no switcher, and the dashboard links straight to it (§7.6).
-11. **Email login (magic link / one-time code)** acts as SSO for the dashboard and all sites. It can be turned off for the whole instance or per organization (§7.8).
+11. **Email login (magic link / one-time code, planned via better-auth plugins)** acts as SSO for the dashboard and all sites. It can be turned off for the whole instance or per organization (§7.8).
 12. **Domain rules, written as a warning step in the setup guide (§7.6):** the sites domain is used for nothing but CirCI sites. Nothing on the dashboard's parent domain (e.g. `example.com` for `circi.example.com`) may set cookies for the whole domain.
 13. **Baseline history for Argos-SDK users:** use the SDK's history when it sends it, then the git host's API, then the fallback baseline. A `circi argos-env` wrapper is documented for exact baselines on any host. The build page shows which source was used (§7.2).
 14. **Merge gate:** when a git host integration is connected, CirCI's own commit status is the required check, and approving flips it green with no CI re-run. Plus a **GitHub bot** (a GitHub App, like Argos's) for checks, PR comments, and approving from GitHub (§7.4).
 15. **Signups:** invite-only by default, a first-run setup link for the instance admin, email-domain auto-join for verified domains, and only the instance admin can create orgs. Both can be opened up with env flags (§8).
 16. **Dashboard address is a setting, not a fixed name:** any host and port, at the root of its own hostname. Moving it later keeps old links working through redirects (§7.9).
 17. **Site links use hashes, on the sites domain:** each hosted site is served at `<hash>-<site-slug>.<sites domain>`, where the hash is the commit SHA (exact version) or a hash of the branch name (newest on that branch). The dashboard never serves or redirects site content; it gives an overview and links to the sites (§7.6).
+18. **Authentication is better-auth, not custom code:** accounts, sessions, organizations, roles and CI tokens (API keys) all come from it; CirCI adds organization isolation in its queries and the admin CLI around it (§7.8, §8). Replaced the hand-written organizations, users and CI-token code from M0/M1.
 
 ---
 
@@ -113,7 +114,7 @@ Argos's JS SDKs (`@argos-ci/cli`, `@argos-ci/playwright`, `@argos-ci/cypress`, `
 | Image diff | `pixelmatch` (pure JS, anti-aliasing aware) on a padded canvas, `sharp` for decode/thumbnails; `odiff` (native, faster) can replace it later if diffing becomes a bottleneck | No native-binary issues across Docker/CI in M1 |
 | Storage       | Driver interface: **local FS (default)** + S3-compatible (R2/B2/MinIO/AWS)                                                                                                                | Cheapest default, easy upgrade path                     |
 | Web UI | React 19 + Vite 8 (Rolldown/Oxc) + TanStack Router (typed routes) + TanStack Query (loading, polling) + MUI 9 (components, light/dark theme), served by the API | |
-| Auth          | Pluggable login methods, each can be turned off: **email login (magic link + 6-digit code)**, password (argon2), OAuth/OIDC (GitHub, GitLab, Google, any OIDC); per-project tokens for CI | Can't depend on any single git host for identity (§7.8) |
+| Auth | **better-auth** (https://better-auth.com) with its Drizzle adapter: accounts and sessions (email + password now; magic link / email code, OIDC and invitations via its plugins in M2), organizations and roles (organization plugin), CI tokens (API key plugin), instance admins (admin plugin) | Mature, maintained auth instead of hand-rolled sessions and tokens; still independent of any single git host (§7.8) |
 | Git providers | Adapter interface: GitHub App, GitLab, Bitbucket, Gitea/Forgejo                                                                                                                           | Status + comments only; baselines never depend on them  |
 | Email         | SMTP (Nodemailer)                                                                                                                                                                         | Invites, magic links                                    |
 | Deploy | Docker image (`deploy/Dockerfile`), `deploy/docker-compose.yml` (app + Postgres, local-disk volume), `docker-compose.s3.yml` overlay (MinIO, dev only), Helm chart later | |
@@ -135,7 +136,7 @@ circi/
     sites/         # static-site ingest (tarball extract, manifest) + serving handler
     diff/          # odiff/pixelmatch wrapper, thumbnails
     providers/     # GitProvider interface + github/, gitlab/, bitbucket/, gitea/ adapters
-    auth/          # sessions, password/OIDC, org RBAC
+    auth/          # better-auth setup + admin operations (accounts, orgs, members, CI tokens)
     cli/           # `circi upload ./screenshots`
     sdk-core/      # shared: screenshot stabilization, metadata, upload client
     playwright/    # reporter/fixture (only if not relying on Argos SDK)
@@ -150,16 +151,11 @@ circi/
 
 ## 6. Data model (v1)
 
-- **users**: id, email (unique), name, avatar_url, password_hash (nullable), email_verified_at
-- **identities**: user_id, provider (`github` | `gitlab` | `google` | `oidc:<id>`), subject: linked OAuth/OIDC logins. Unique on (provider, subject), so identities are matched by issuer + subject and never by email alone (§7.8)
-- **oidc_providers**: id, scope (`instance` | `org`), org_id (nullable), issuer, client_id, client_secret (encrypted), trusted_for_email (bool, instance-scoped only)
-- **organizations**: id, name, slug, created_at, auth_settings (jsonb: `email_login_enabled`, `password_login_enabled`, `oidc_providers[]`, `allowed_email_domains[]`, `auto_join_role`)
-- **login_challenges**: id, email, code_hash, link_token_hash, attempts, expires_at, consumed_at, ip, user_agent (email login, §7.8)
-- **sessions**: id (hashed), user_id, created_at, last_seen_at, expires_at, ip, user_agent (list and revoke in the UI)
-- **memberships**: org_id, user_id, role (`owner` | `admin` | `member` | `viewer`)
-- **invites**: org_id, email, role, token_hash, expires_at
+- **Auth tables (better-auth, generated into `schema/auth.ts`, never edited by hand):** `user`, `session`, `account` (credentials and linked logins), `verification`, `organization`, `member` (role `owner` | `admin` | `member`), `invitation`, `apikey`. Regenerate with `pnpm db:auth-schema` after changing its plugins, then `pnpm db:generate`.
+- **oidc_providers** (planned, M2; uses better-auth's generic OAuth/SSO support): id, scope (`instance` | `org`), org_id (nullable), issuer, client_id, client_secret (encrypted), trusted_for_email (bool, instance-scoped only)
+- **org_auth_settings** (planned, M2; better-auth's `organization` table has no room for it): org_id, `email_login_enabled`, `password_login_enabled`, `oidc_providers[]`, `allowed_email_domains[]`, `auto_join_role`
 - **provider_connections**: id, org_id, kind (`github` | `gitlab` | `bitbucket` | `gitea`), base_url (self-hosted GitLab/Gitea), credentials (encrypted), metadata
-- **projects**: id, org_id, name, slug (unique per org), token_hash (CI token scopes: create builds/sites + read status of this project's builds, §8), default_branch, provider_connection_id (nullable), repo_ref (e.g. `owner/name` or GitLab project id), diff_threshold, auto_approve_default_branch (bool), **block_merge_on_changes (bool, default true)**, retention_days
+- **projects**: id, org_id, name, slug (unique per org), ci_key_id (the project's CI token: a better-auth API key owned by the organization, FK to `apikey`; scopes in §8), default_branch, provider_connection_id (nullable), repo_ref (e.g. `owner/name` or GitLab project id), diff_threshold, auto_approve_default_branch (bool), **block_merge_on_changes (bool, default true)**, retention_days
 - **files**: sha256 (PK), storage_key (`<sha256>/<generation-uuid>`, so a new upload of a just-deleted hash never collides with the old object's deletion), width, height, bytes, kind (`screenshot` | `diff` | `thumbnail` | `asset`), status (`pending` | `verified`), verified_at, gc_marked_at (nullable), created_at. **Dedup only matches `verified` rows.**
 - **upload_claims**: build_id or site_id, file_sha256, created_at. Records "the server told this upload it already has the file". GC treats claims as references; they're removed on finalize or when the upload expires (24 h).
 - **builds**: id, project_id, number (per-project sequence), name (default `"default"`; allows several build types per commit), commit_sha, branch, pr_number, base_branch, merge_base_sha, ancestor_shas (text[]; sent by the CLI), ancestry_status (`ok` | `missing` | `truncated`), baseline_source (`cli` | `sdk` | `provider` | `fallback` | `none`), base_build_id (nullable), status (`pending` → `uploading` → `processing` → `complete` | `error` | `expired`), parallel_nonce (nullable), parallel_total, conclusion (`no_changes` | `changes_detected`), review_status (`pending` | `approved` | `rejected`), created_at. **Unique on (project_id, name, commit_sha, parallel_nonce)** where the nonce is set, so shards that start at the same moment get the same build.
@@ -168,7 +164,7 @@ circi/
 - **screenshot_diffs**: id, build_id, base_screenshot_id (nullable), head_screenshot_id (nullable), status (`added` | `removed` | `changed` | `unchanged` | `failed`), score (0–1), diff_file_sha256, job_status
 - **reviews**: id, build_id, user_id, state (`approved` | `rejected`), source (`ui` | `github-check` | `github-comment` | `auto`), created_at (history, latest wins)
 - **commit_ancestry**: project_id, commit_sha, merge_base_sha, ancestor_shas, created_at. Registered by `circi argos-env` and used when an Argos SDK build for that commit arrives (§7.2)
-- **instance_settings**: setup_token_hash (one-time, cleared after first admin is created), signups_enabled, org_creation (`admin` | `anyone`)
+- **instance_settings** (planned): signups_enabled, org_creation (`admin` | `anyone`). Self sign-up is off in the code today; accounts are created with `circi admin user create`
 
 - **project_sites**: id, project_id, name (default = kind; lets a project have several sites, e.g. `docs` and `storybook`, or `storybook-web` and `storybook-mobile`), kind (`storybook` | `vitest-report` | `playwright-report` | `coverage` | `docs` | `generic`), **slug** (the DNS part of the site's addresses, e.g. `web-storybook`; ≤ 46 chars; unique across the instance, including retired slugs), created_at. Unique on (project_id, name).
 - **site_slug_history**: slug (PK), project_site_id, retired_at. Old slugs after a rename: they keep redirecting to the current slug and can never be given to another site.
@@ -499,7 +495,19 @@ test('primary button', async () => {
 
 ### 7.8 Login methods & email login
 
-All login happens at `https://<dashboard-host>/login`. The dashboard session it creates is the single sign-on for every hosted site (§7.6).
+All login happens in the dashboard (the web app shows its sign-in page to anyone without a session). The dashboard session it creates is the single sign-on for every hosted site (§7.6).
+
+**Built on better-auth.** Authentication isn't custom code: better-auth is mounted at `/api/auth`, and this section describes how its methods map onto what CirCI needs.
+
+| Method | Status | How |
+|---|---|---|
+| Email + password | **Done** | `emailAndPassword` (sign-up disabled, 12+ characters) |
+| Email login (magic link / code) | M2 | better-auth's `magicLink` and `emailOTP` plugins, with SMTP |
+| OAuth / OIDC | M2 | its generic OAuth / SSO support; the trust rules below still apply |
+| Invitations, roles | Organizations and roles **done** (CLI); invitations M2 | organization plugin |
+| CI tokens | **Done** | API key plugin, §8 |
+
+The per-organization switches, allowed email domains, the lockout guard and the "org-scoped provider" rules below are CirCI's own policy layered on top (hooks around better-auth's endpoints plus the `org_auth_settings` table), not features better-auth provides.
 
 **Methods**, each can be turned on or off:
 
@@ -562,14 +570,13 @@ The dashboard's address is **whatever `PUBLIC_URL` says**. `<dashboard-host>` in
 ## 8. Security & ops
 
 - **Org isolation:** every query is scoped by `org_id` and enforced in one data-access layer. Tests check that cross-org access returns 404.
-- **Roles:** owner (billing-free, so: delete org, manage owners) · admin (projects, provider connections, members) · member (review builds) · viewer (read only). Instance-level `superadmin` flag for the operator.
-- **Signups & first run (defaults):**
-  - **First run:** with no users in the database, the server prints a one-time **setup link** (`https://<dashboard-host>/setup?t=…`) to its log. It's valid for 24 h and can be regenerated with `circi admin setup-link`. Whoever opens it creates the first account and becomes `superadmin`. Until then, every other page shows "Instance not set up yet".
-  - **Invite-only by default** (`SIGNUPS_ENABLED=false`): new accounts come only from org invites, or from **email-domain auto-join** into an org that has verified that domain (§7.8). Anyone else trying to log in gets the same neutral response as for unknown emails.
-  - **Only the superadmin creates orgs** by default (`ORG_CREATION=admin`). This stops users from creating orgs and filling the disk.
-  - Public instances can set `SIGNUPS_ENABLED=true` and/or `ORG_CREATION=anyone`. The admin UI can change both at runtime (stored in `instance_settings`; env sets the initial value).
+- **Roles:** better-auth's organization roles: **owner** (everything, including deleting the organization and managing owners) · **admin** (everything except those) · **member** (reviews builds). The old read-only `viewer` role was migrated to `member`; it can return as a custom role with better-auth's access control if wanted. Instance admins use better-auth's admin plugin (`circi admin user create --instance-admin`); they manage accounts but see only the organizations they belong to.
+- **Accounts (today):** there is no self sign-up (`disableSignUp`). The operator creates accounts with `circi admin user create` (a generated password is printed once), organizations with `circi admin org create --owner <email>`, and members with `circi admin member add`. Passwords need 12+ characters and are hashed by better-auth.
+- **Planned (M2):** invitations by email (better-auth's invitation flow plus SMTP), email-domain auto-join for verified domains (§7.8), `ORG_CREATION=admin|anyone`, and a first-run setup page so a fresh install needs no CLI to get its first account. Until then the CLI above is the way in.
+- **Sessions:** better-auth's httpOnly session cookie, 7 days. Over https it is named `__Host-circi.session_token` (Secure, no Domain, Path=/), so a hosted site on a subdomain can neither read nor overwrite it (§7.6). `BETTER_AUTH_SECRET` signs it; rotating the secret signs everyone out.
+- **Organization isolation is enforced in the queries, not just the UI:** every dashboard query is joined to the signed-in user's memberships. A project, build or file in anyone else's organization answers 404, the same as one that doesn't exist. Files are shared across organizations by content hash, so a hash alone proves nothing: each download checks the file belongs to a build in one of the user's organizations, before any cached-copy shortcut.
 - Provider credentials are encrypted at rest (AES-GCM, key from `ENCRYPTION_KEY`).
-- Project CI tokens: random 32 bytes, stored hashed, shown once. Scopes: **create builds and sites, upload files, and read status of that project's builds** (`GET /v1/builds/:id/status`, used by `--wait` and SDK reporters). They can't review, read screenshots or change settings.
+- **Project CI tokens are better-auth API keys** owned by the project's organization: `circi_` prefix, 64 random characters, stored hashed, shown once, with the project id in their metadata. Verified by the API key plugin, and valid only while they are the project's current key (`projects.ci_key_id`), so rotating deletes the old key and it stops working at once. Per-key rate limiting is off, because the plugin's default of 10 requests a day would stop a single CI run. Scopes are enforced by what `/v1` exposes: create builds, upload files, read status of that project's builds; a CI token can't read the dashboard API, and a session can't upload.
 - **Upload integrity: verify before dedup.** The dedup store is shared across builds and orgs, so a hash must never be trusted before the bytes are checked.
   - A `files` row starts as `pending` and becomes `verified` only after the bytes are confirmed. **Dedup only matches `verified` rows**; a `pending` hash gets its own presigned URL again.
   - S3 driver: presigned PUTs require `x-amz-checksum-sha256` (supported by AWS S3, R2 and MinIO), so storage rejects bytes that don't match. Finalize then does a `HEAD` to confirm the object and checksum before marking it verified. Short TTL, content-length and content-type constraints stay.
@@ -584,7 +591,7 @@ The dashboard's address is **whatever `PUBLIC_URL` says**. `<dashboard-host>` in
 - GitHub App private key + webhook secrets come from env/secret files; verify webhook signatures for every provider.
 - Config entirely via env (`DATABASE_URL`, `STORAGE_DRIVER=fs|s3`, `STORAGE_PATH`, `S3_*`, `PUBLIC_URL`, `SESSION_SECRET`, `ENCRYPTION_KEY`, `SMTP_*`, `OIDC_*`, `GITHUB_APP_*` (optional; the manifest flow stores these in the DB instead), `SIGNUPS_ENABLED` (default false), `ORG_CREATION=admin|anyone` (default admin), `AUTH_EMAIL_ENABLED` (default true), `AUTH_PASSWORD_ENABLED`, `AUTH_OIDC_ENABLED`, `STATIC_SITES_HOST` (a separate, dedicated domain, e.g. `example-sites.com`), `STATIC_SITES_MAX_MB`).
 - Static-site uploads run untrusted code in viewers' browsers. Each one gets its own `<id>.example-sites.com` origin on a domain separate from the dashboard, and is never served from `PUBLIC_URL` (there's no fallback mode). Dashboard cookies are `__Host-` only, state-changing requests need CSRF tokens and an exact-`Origin` check, host routing is strict, and cookie bombs on the sites domain clear themselves (§7.6). Security tests try cookie bombing, cookie tossing and CSRF from a malicious uploaded site.
-- Email login: rate limits per email and per IP, codes hashed, 5 attempts per challenge, 10 min expiry, no user enumeration (same response whether or not the email exists), and a "new sign-in" email notification (§7.8).
+- Email login (planned, M2, via better-auth's magic link / email code plugins): rate limits per email and per IP, codes hashed, 5 attempts per challenge, 10 min expiry, no user enumeration (same response whether or not the email exists), and a "new sign-in" email notification (§7.8). Sign-in itself is already rate limited by better-auth.
 - Health endpoints, structured logs (pino), Prometheus metrics (queue depth, diff duration, build latency).
 - Backups: Postgres dump + bucket versioning. Document both.
 
@@ -617,14 +624,20 @@ _Status: done. The end-to-end flow (CLI → API → storage → worker → `--wa
 
 ### M2 — Organizations, auth & review (≈2 weeks)
 
-- [ ] Pluggable login methods; **email login (magic link + 6-digit code)** with rate limiting; password login; sessions list and revoke
-- [ ] Turning login methods on/off: instance env flags + per-org `auth_settings`, lockout guard, `circi admin auth` break-glass command
-- [ ] Allowed email domains → auto-join org with a default role
-- [ ] Organizations, memberships, roles, invites; org/project settings UI
-- [ ] First-run setup link, invite-only default, `SIGNUPS_ENABLED` / `ORG_CREATION` (env + admin UI)
+_Status: accounts, organizations, roles, CI tokens and organization isolation are done on better-auth. The rest of M2 builds on it._
+
+- [x] Authentication on **better-auth**: email + password sign-in, httpOnly sessions with `__Host-` cookies over https, no self sign-up, 12+ character passwords
+- [x] Organizations, members and roles (owner / admin / member) from better-auth's organization plugin; managed with `circi admin user|org|member`
+- [x] CI tokens as organization-owned API keys, rotation deletes the old key
+- [x] Organization isolation in every dashboard query, including files shared by hash; sign-in page, user menu and sign-out in the web app
+- [x] Migration of the earlier hand-written users, organizations and memberships (tested on legacy rows)
+- [ ] Email login (magic link + 6-digit code) with SMTP; rate limiting configured
+- [ ] Turning login methods on/off: instance env flags + per-org `org_auth_settings`, lockout guard, `circi admin auth` break-glass command
+- [ ] Allowed email domains → auto-join org with a default role; domain claims verified by DNS TXT record
+- [ ] Invitations (organization plugin + SMTP), sessions list and revoke, org/project settings UI
+- [ ] `ORG_CREATION` and a first-run setup page, so a fresh install needs no CLI for its first account
 - [ ] Store the last `PUBLIC_URL`; on change, log and show the address-change checklist with OIDC redirect URIs to update (§7.9)
 - [ ] OAuth/OIDC login (GitHub, GitLab, Google, generic OIDC). Instance vs. org-scoped providers, (issuer, subject) matching, `trusted_for_email`, org-scoped sessions, confirmed account linking
-- [ ] Email-domain claims verified by DNS TXT record
 - [ ] Approve/reject flow; auto-approve on default branch; `block_merge_on_changes` setting
 - [ ] Outgoing signed webhooks
 
