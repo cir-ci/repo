@@ -3,6 +3,7 @@ import {
   type Database,
   enqueueJob,
   finalizeShard,
+  listStalledBuilds,
   QUEUES,
   queueGitNotify,
   queueWebhookEvent,
@@ -73,4 +74,34 @@ export async function requeueBuild(db: Database, buildId: string): Promise<void>
     await enqueueJob(tx, { queue: QUEUES.processBuild, payload: { buildId } })
     await queueGitNotify(tx, build)
   })
+}
+
+/** What went wrong with a build that stopped receiving uploads. */
+export function describeStall(build: Build, receivedShards: readonly string[]): string {
+  const total = build.parallelTotal
+  if (!total || build.parallelNonce === null) {
+    return 'The upload never finished: the CI job stopped before sending the screenshot list.'
+  }
+  const got = new Set(receivedShards)
+  const missing = Array.from({ length: total }, (_, i) => String(i)).filter((i) => !got.has(i))
+  const named =
+    missing.length > 0 && missing.length <= 20
+      ? `: shard ${missing.map((m) => Number(m) + 1).join(', ')}`
+      : ''
+  return `Timed out waiting for ${total - got.size} of ${total} shard(s)${named}. The CI job(s) that should have uploaded them probably failed or never ran.`
+}
+
+/**
+ * Fails builds that were still waiting for uploads at `cutoff`, saying which shards never came,
+ * so a crashed CI job shows up as an error instead of a build that stays "uploading" forever.
+ * Returns how many it failed.
+ */
+export async function expireStalledBuilds(db: Database, cutoff: Date): Promise<number> {
+  let failed = 0
+  for (const { build, receivedShards } of await listStalledBuilds(db, cutoff)) {
+    // eslint-disable-next-line no-await-in-loop -- each one is its own transaction
+    await failBuild(db, build.id, describeStall(build, receivedShards))
+    failed += 1
+  }
+  return failed
 }

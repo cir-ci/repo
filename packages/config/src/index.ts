@@ -42,6 +42,10 @@ const envSchema = z.object({
   GITHUB_APP_PRIVATE_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
   GITHUB_APP_WEBHOOK_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),
   GITHUB_API_URL: z.preprocess(emptyToUndefined, z.string().optional()),
+  UPLOAD_TIMEOUT_MINUTES: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().int().min(0).default(60),
+  ),
   AUTH_PASSWORD_ENABLED: z.preprocess(emptyToUndefined, bool.optional()),
   AUTH_SSO_ENABLED: z.preprocess(emptyToUndefined, bool.optional()),
   AUTH_GITHUB_CLIENT_ID: z.preprocess(emptyToUndefined, z.string().optional()),
@@ -118,6 +122,8 @@ export interface Config {
   smtp?: SmtpConfig
   /** Email login (one-time code / link) is offered: switched on (default) and SMTP is set up. */
   emailLogin: boolean
+  /** Builds still uploading after this many minutes fail; 0 never does (`UPLOAD_TIMEOUT_MINUTES`). */
+  uploadTimeoutMinutes: number
   /** Webhooks may point at private/loopback addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
   /** The GitHub App: absent when none is configured. */
   github?: GithubAppConfig
@@ -308,6 +314,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     sso: ssoOn,
     ...(github ? { github } : {}),
     webhookAllowPrivate: e.WEBHOOK_ALLOW_PRIVATE_ADDRESSES === true,
+    uploadTimeoutMinutes: e.UPLOAD_TIMEOUT_MINUTES,
     orgCreation: e.ORG_CREATION,
   }
 }

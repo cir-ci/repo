@@ -54,6 +54,7 @@ export async function runServices(options: ServiceOptions): Promise<void> {
         ping: () => rt.db.ping(),
         publicOrigin: rt.config.publicUrl.origin,
         webhookAllowPrivate: rt.config.webhookAllowPrivate,
+        uploadTimeoutMinutes: rt.config.uploadTimeoutMinutes,
         ...(rt.github ? { github: rt.github } : {}),
       })
     }

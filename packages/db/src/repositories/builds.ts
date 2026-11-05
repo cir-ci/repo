@@ -1,5 +1,5 @@
 import { checkBuildInput, MAX_PARALLEL_SHARDS, resolveBaseline, ValidationError } from '@circi/core'
-import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, lt, ne, sql } from 'drizzle-orm'
 
 import type { Database } from '../client.ts'
 import { ConflictError, isUniqueViolation, NotFoundError } from '../errors.ts'
@@ -545,4 +545,33 @@ export async function findBaselineByCommits(
     candidates,
   )
   return resolved.via === 'none' ? undefined : resolved.build
+}
+
+/** A build that was never finished, with the shards it did receive. */
+export interface StalledBuild {
+  build: Build
+  /** Indexes of the shards that arrived. */
+  receivedShards: string[]
+}
+
+/** Builds still waiting for uploads that were created before `cutoff`. */
+export async function listStalledBuilds(db: Database, cutoff: Date): Promise<StalledBuild[]> {
+  const stalled = await db
+    .select()
+    .from(builds)
+    .where(and(inArray(builds.status, ['pending', 'uploading']), lt(builds.createdAt, cutoff)))
+  if (stalled.length === 0) return []
+  const shards = await db
+    .select({ buildId: buildShards.buildId, shardIndex: buildShards.shardIndex })
+    .from(buildShards)
+    .where(
+      inArray(
+        buildShards.buildId,
+        stalled.map((b) => b.id),
+      ),
+    )
+  return stalled.map((build) => ({
+    build,
+    receivedShards: shards.filter((s) => s.buildId === build.id).map((s) => s.shardIndex),
+  }))
 }

@@ -8,7 +8,7 @@ import {
   QUEUES,
 } from '@circi/db'
 import type { GithubApp } from '@circi/providers'
-import { failBuild } from '@circi/services'
+import { expireStalledBuilds, failBuild } from '@circi/services'
 import type { StorageDriver } from '@circi/storage'
 
 import { deliverWebhook } from './jobs/deliver-webhook.ts'
@@ -40,6 +40,10 @@ export interface WorkerDeps {
   pollIntervalMs?: number
   /** Builds processed at the same time. Default 2. */
   concurrency?: number
+  /** Builds still uploading after this many minutes are failed (default 60); 0 turns it off. */
+  uploadTimeoutMinutes?: number
+  /** How often to look for them (default 5 minutes). */
+  maintenanceIntervalMs?: number
   /** How long a claimed job stays locked before another worker may retry it. Default 10 min. */
   lockSeconds?: number
 }
@@ -81,10 +85,28 @@ export async function startWorker(deps: WorkerDeps): Promise<RunningWorker> {
     }
   })
 
+  const timeoutMinutes = deps.uploadTimeoutMinutes ?? 60
+  const maintenance =
+    timeoutMinutes > 0
+      ? setInterval(
+          () => {
+            expireStalledBuilds(deps.db, new Date(Date.now() - timeoutMinutes * 60_000)).then(
+              (n) => {
+                if (n > 0) deps.logger.warn({ builds: n }, 'failed builds that stopped uploading')
+              },
+              (err: unknown) => deps.logger.error({ err }, 'could not expire stalled builds'),
+            )
+          },
+          deps.maintenanceIntervalMs ?? 5 * 60_000,
+        )
+      : undefined
+  maintenance?.unref()
+
   deps.logger.info({ storage: deps.storage.kind, lanes }, 'worker started')
   return {
     async stop() {
       state.running = false
+      if (maintenance) clearInterval(maintenance)
       for (const s of sleepers) s.wake()
       await Promise.all(loops)
       deps.logger.info('worker stopped')

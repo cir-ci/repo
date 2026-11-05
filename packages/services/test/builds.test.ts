@@ -11,7 +11,15 @@ import { createTestDb, seedProject, sha, type TestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { completeBuild, failBuild, finalizeBuild, requeueBuild, reviewBuild } from '../src/index.ts'
+import {
+  completeBuild,
+  describeStall,
+  expireStalledBuilds,
+  failBuild,
+  finalizeBuild,
+  requeueBuild,
+  reviewBuild,
+} from '../src/index.ts'
 
 let t: TestDb
 beforeAll(async () => {
@@ -179,5 +187,49 @@ describe('reviewBuild', () => {
       reviewBuild(t.db, { buildId: build.id, userId: owner.id, state: 'approved' }),
     ).rejects.toThrow(/can be reviewed once/)
     expect(await jobsIn(GIT_NOTIFY_QUEUE)).toHaveLength(0)
+  })
+})
+
+const later = () => new Date(Date.now() + 60_000)
+
+describe('expireStalledBuilds', () => {
+  it('fails a parallel build naming the shards that never came, and ignores recent ones', async () => {
+    const { build } = await newBuild({ parallelTotal: 4 })
+    await verified(build.id, sha('7'))
+    await finalizeBuild(t.db, {
+      buildId: build.id,
+      shardIndex: '1',
+      screenshots: [{ name: 'a', sha256: sha('7') }],
+    })
+    // Created just now: not stalled yet.
+    expect(await expireStalledBuilds(t.db, new Date(Date.now() - 3_600_000))).toBe(0)
+    expect(await expireStalledBuilds(t.db, later())).toBeGreaterThanOrEqual(1)
+    const [row] = await t.db.select().from(schema.builds).where(eq(schema.builds.id, build.id))
+    expect(row?.status).toBe('error')
+    expect(row?.errorMessage).toContain('3 of 4 shard(s): shard 1, 3, 4')
+  })
+
+  it('fails a plain upload that never finished, and leaves processing builds alone', async () => {
+    const stalled = await newBuild({ linked: true })
+    const processing = await newBuild()
+    await t.db
+      .update(schema.builds)
+      .set({ status: 'processing' })
+      .where(eq(schema.builds.id, processing.build.id))
+    await expireStalledBuilds(t.db, later())
+    const rows = await t.db.select().from(schema.builds)
+    const byId = new Map(rows.map((r) => [r.id, r]))
+    expect(byId.get(stalled.build.id)?.errorMessage).toMatch(/never finished/)
+    expect(byId.get(processing.build.id)?.status).toBe('processing')
+    expect((await jobsIn(GIT_NOTIFY_QUEUE)).length).toBeGreaterThanOrEqual(1)
+  })
+})
+
+describe('describeStall', () => {
+  const stalled = async (total: number) => (await newBuild({ parallelTotal: total })).build
+
+  it('lists missing shards one-based, and gives up listing when there are many', async () => {
+    expect(describeStall(await stalled(30), ['0', '1'])).not.toContain(': shard')
+    expect(describeStall(await stalled(3), ['1'])).toContain('shard 1, 3')
   })
 })

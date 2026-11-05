@@ -91,6 +91,20 @@ Exit codes: 0 pass, 1 visual changes block the merge (with --wait), 2 error`,
     },
   )
 
+program
+  .command('argos-env')
+  .description('print the environment that points the Argos SDKs at this CirCI server')
+  .option('--api-url <url>', 'CirCI address (default: CIRCI_API_URL)')
+  .action((opts: { apiUrl?: string }) => {
+    const apiUrl = opts.apiUrl ?? process.env.CIRCI_API_URL
+    const token = process.env.CIRCI_TOKEN
+    if (!apiUrl) throw new UsageError('Set CIRCI_API_URL (or --api-url) to your CirCI address')
+    if (!token) throw new UsageError('Set CIRCI_TOKEN to the project CI token')
+    // `eval "$(circi argos-env)"` in a shell, or append the output to $GITHUB_ENV.
+    console.log(`ARGOS_API_BASE_URL=${apiUrl.replace(/\/$/, '')}/v2`)
+    console.log(`ARGOS_TOKEN=${token}`)
+  })
+
 program.parseAsync(process.argv).catch((err: unknown) => {
   if (err instanceof UsageError || err instanceof ApiError) {
     console.error(`error: ${err.message}`)
