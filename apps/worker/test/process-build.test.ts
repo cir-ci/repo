@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import {
+  addIgnoreRegion,
   createBuild,
   getBuild,
   getFile,
@@ -233,6 +234,49 @@ async function prSetup() {
   const changed = await png(200, 100, { x: 50, y: 50 })
   return { project, owner, home, changed }
 }
+
+describe('ignored regions', () => {
+  it('leaves a changing clock out of the comparison, but not the rest of the page', async () => {
+    const { project } = await seedProject(t.db)
+    const before = await png(320, 200, { x: 20, y: 20 })
+    const clockMoved = await png(320, 200, { x: 24, y: 24 }) // the "clock" differs
+    const base = await uploadBuild(
+      project.id,
+      { commitSha: 'bbbb001', branch: 'main' },
+      { home: before },
+    )
+    await processBuild({ db: t.db, storage }, base.id)
+
+    // Without a rule, the changed clock is a change.
+    const plain = await uploadBuild(
+      project.id,
+      { commitSha: 'bbbb002', branch: 'main', ancestorShas: ['bbbb001'] },
+      { home: clockMoved },
+    )
+    await processBuild({ db: t.db, storage }, plain.id)
+    expect((await diffsOf(plain.id)).home?.status).toBe('changed')
+
+    // With a rule covering the clock, the same difference no longer counts.
+    await addIgnoreRegion(t.db, project.id, { name: 'home', x: 10, y: 10, width: 40, height: 40 })
+    const masked = await uploadBuild(
+      project.id,
+      { commitSha: 'bbbb003', branch: 'main', ancestorShas: ['bbbb001'] },
+      { home: clockMoved },
+    )
+    expect((await processBuild({ db: t.db, storage }, masked.id)).status).toBe('complete')
+    expect((await diffsOf(masked.id)).home?.status).toBe('unchanged')
+
+    // A rule for another screenshot name changes nothing here.
+    await addIgnoreRegion(t.db, project.id, { name: 'login', x: 0, y: 0, width: 320, height: 200 })
+    const stillMasked = await uploadBuild(
+      project.id,
+      { commitSha: 'bbbb004', branch: 'main', ancestorShas: ['bbbb001'] },
+      { home: await png(320, 200, { x: 200, y: 150 }) },
+    )
+    await processBuild({ db: t.db, storage }, stillMasked.id)
+    expect((await diffsOf(stillMasked.id)).home?.status).toBe('changed')
+  })
+})
 
 describe('re-runs of an approved commit', () => {
   it('approves a re-run with the same screenshots, and says why', async () => {

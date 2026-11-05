@@ -41,6 +41,7 @@ describe('migrations', () => {
       'commit_ancestry',
       'email_code_requests',
       'files',
+      'ignore_regions',
       'instance_settings',
       'invitation',
       'jobs',

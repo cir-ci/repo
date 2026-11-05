@@ -91,6 +91,42 @@ describe('diffImages', () => {
   })
 })
 
+const clock = (color: string) => png(100, 100, { rect: { x: 10, y: 10, w: 20, h: 10, color } })
+
+describe('diffImages ignoring regions', () => {
+  it('does not see a change inside an ignored rectangle', async () => {
+    const res = await diffImages(await clock('#000000'), await clock('#ff0000'), {
+      ignore: [{ x: 10, y: 10, width: 20, height: 10 }],
+    })
+    expect(res).toMatchObject({ changed: false, changedPixels: 0 })
+  })
+
+  it('still sees changes outside it, and counts only those', async () => {
+    const base = await png(100, 100, { rect: { x: 10, y: 10, w: 20, h: 10, color: '#000000' } })
+    const head = await png(100, 100, {
+      color: '#ffffff',
+      rect: { x: 10, y: 10, w: 20, h: 10, color: '#ff0000' },
+    })
+    const other = await sharp(head)
+      .composite([{ input: await png(5, 5, { color: '#000000' }), left: 80, top: 80 }])
+      .png()
+      .toBuffer()
+    const res = await diffImages(base, other, { ignore: [{ x: 10, y: 10, width: 20, height: 10 }] })
+    expect(res.changed).toBe(true)
+    expect(res.changedPixels).toBe(25)
+  })
+
+  it('clips a region that runs off the image, and accepts several', async () => {
+    const res = await diffImages(await clock('#000000'), await clock('#00ff00'), {
+      ignore: [
+        { x: 0, y: 0, width: 15, height: 1000 },
+        { x: 14, y: 0, width: 5000, height: 1000 },
+      ],
+    })
+    expect(res.changed).toBe(false)
+  })
+})
+
 describe('makeThumbnail', () => {
   it('scales to 480 wide and keeps the top of tall pages', async () => {
     const thumb = await makeThumbnail(await png(1280, 8000))

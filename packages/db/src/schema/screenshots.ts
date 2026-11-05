@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm'
 import {
   boolean,
   check,
@@ -15,6 +16,7 @@ import { createdAt, id, inList, inListOrNull } from './_columns.ts'
 import { builds } from './builds.ts'
 import { DIFF_JOB_STATUSES, DIFF_STATUSES, type DiffJobStatus, type DiffStatus } from './enums.ts'
 import { files } from './files.ts'
+import { projects } from './projects.ts'
 
 /** A build's screenshots, and the comparison of each against the baseline. */
 
@@ -77,5 +79,33 @@ export const screenshotDiffs = pgTable(
     index('screenshot_diffs_diff_file_idx').on(t.diffFileSha256),
     check('screenshot_diffs_status_check', inListOrNull('status', DIFF_STATUSES)),
     check('screenshot_diffs_job_status_check', inList('job_status', DIFF_JOB_STATUSES)),
+  ],
+)
+
+/**
+ * A rectangle to ignore when comparing the screenshots with this name in a project: something
+ * that legitimately differs every run (a clock, an ad, a random avatar).
+ */
+export const ignoreRegions = pgTable(
+  'ignore_regions',
+  {
+    id: id(),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    /** The screenshot name it applies to (exact match). */
+    name: text('name').notNull(),
+    x: integer('x').notNull(),
+    y: integer('y').notNull(),
+    width: integer('width').notNull(),
+    height: integer('height').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('ignore_regions_project_idx').on(t.projectId, t.name),
+    check(
+      'ignore_regions_size_check',
+      sql`${t.width} > 0 and ${t.height} > 0 and ${t.x} >= 0 and ${t.y} >= 0`,
+    ),
   ],
 )

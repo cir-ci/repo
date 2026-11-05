@@ -46,6 +46,26 @@ export interface DiffOptions {
   pixelTolerance?: number
   /** Project diff threshold: share of changed pixels (0–1) still considered unchanged. */
   threshold?: number
+  /** Rectangles (in pixels) that are blanked in both images first: clocks, ads, avatars… */
+  ignore?: readonly IgnoreRegion[]
+}
+
+export interface IgnoreRegion {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/** Makes the region identical (transparent) in a canvas, clipped to its edges. */
+function blank(raw: Uint8Array, canvasWidth: number, canvasHeight: number, r: IgnoreRegion): void {
+  const x0 = Math.max(0, Math.floor(r.x))
+  const y0 = Math.max(0, Math.floor(r.y))
+  const x1 = Math.min(canvasWidth, Math.floor(r.x + r.width))
+  const y1 = Math.min(canvasHeight, Math.floor(r.y + r.height))
+  for (let y = y0; y < y1; y += 1) {
+    raw.fill(0, (y * canvasWidth + x0) * 4, (y * canvasWidth + x1) * 4)
+  }
 }
 
 export interface DiffResult {
@@ -80,6 +100,10 @@ export async function diffImages(
     toRgbaCanvas(basePng, base, width, height),
     toRgbaCanvas(headPng, head, width, height),
   ])
+  for (const region of options.ignore ?? []) {
+    blank(baseRaw, width, height, region)
+    blank(headRaw, width, height, region)
+  }
   const output = new Uint8Array(width * height * 4)
   const changedPixels = pixelmatch(baseRaw, headRaw, output, width, height, {
     threshold: options.pixelTolerance ?? 0.1,

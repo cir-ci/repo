@@ -4,6 +4,7 @@ import {
   getBuild,
   findApprovedRerunOf,
   getProjectById,
+  ignoreRegionsByName,
   listBaselineCandidates,
   listBuildDiffs,
   listBuildScreenshots,
@@ -97,6 +98,7 @@ export async function processBuild(deps: ProcessDeps, buildId: string): Promise<
 
   // 4. Pixel diffs for same-name pairs with different bytes.
   const diffRows = await listBuildDiffs(db, build.id)
+  const ignored = await ignoreRegionsByName(db, build.projectId)
   const byName = new Map(diffRows.map((r) => [r.name, r]))
   const statuses: string[] = []
   await mapLimit(pairs, concurrency, async (pair) => {
@@ -125,7 +127,10 @@ export async function processBuild(deps: ProcessDeps, buildId: string): Promise<
         loader(pair.base.fileSha256),
         loader(pair.head.fileSha256),
       ])
-      const res = await diffImages(basePng, headPng, { threshold: project.diffThreshold })
+      const res = await diffImages(basePng, headPng, {
+        threshold: project.diffThreshold,
+        ...(ignored.has(pair.name) ? { ignore: ignored.get(pair.name) ?? [] } : {}),
+      })
       let diffFileSha256: string | null = null
       if (res.diffPng) {
         diffFileSha256 = await storeServerFile(db, storage, res.diffPng, {

@@ -99,6 +99,13 @@
       "when": 1793881483502,
       "tag": "0013_static_sites",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793882964570,
+      "tag": "0014_ignore_regions",
+      "breakpoints": true
     }
   ]
 }
