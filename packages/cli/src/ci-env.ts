@@ -3,6 +3,29 @@
  * a JSON reader, so every provider is covered by table-driven tests.
  */
 
+/**
+ * An id shared by every job of one CI run, so the shards of a parallel build find each other.
+ * `undefined` when the CI isn't recognised (pass `--nonce` or `CIRCI_PARALLEL_NONCE` then).
+ */
+export function ciRunId(env: Record<string, string | undefined>): string | undefined {
+  const pick = (...names: string[]) => names.map((n) => env[n]).find((v) => v)
+  const base = pick(
+    'CIRCI_PARALLEL_NONCE',
+    'GITHUB_RUN_ID',
+    'CI_PIPELINE_ID',
+    'BUILDKITE_BUILD_ID',
+    'CIRCLE_WORKFLOW_ID',
+    'BITBUCKET_BUILD_NUMBER',
+    'BUILD_TAG',
+    'BUILD_ID',
+    'BUILD_BUILDID',
+  )
+  // A re-run of a GitHub job is a new attempt and must not join the old build.
+  return base && env.GITHUB_RUN_ATTEMPT && !env.CIRCI_PARALLEL_NONCE
+    ? `${base}-${env.GITHUB_RUN_ATTEMPT}`
+    : base
+}
+
 export interface CiContext {
   provider:
     | 'github'

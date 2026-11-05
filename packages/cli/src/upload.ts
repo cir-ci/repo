@@ -8,7 +8,7 @@ import {
   type BuildSummary,
   type UploadInstruction,
 } from './api.ts'
-import { type CiContext, detectCi } from './ci-env.ts'
+import { type CiContext, ciRunId, detectCi } from './ci-env.ts'
 import { collectScreenshots, type LocalScreenshot } from './files.ts'
 import { type Ancestry, collectAncestry, gitRunner, localHead } from './git.ts'
 
@@ -19,6 +19,11 @@ export interface UploadOptions {
   /** Build name, for several kinds of builds per commit (e.g. `chromium`, `mobile`). */
   name?: string
   wait?: boolean
+  /**
+   * This job uploads one shard of a parallel build: `index` is 0-based. Shards of one build
+   * share a nonce (default: the CI run's id), and the build is processed once all `total` arrive.
+   */
+  shard?: { index: number; total: number; nonce?: string }
   /** Who blocks the merge: the git host's check (`status`) or this job (`exit-code`). Default: the server decides. */
   gate?: 'status' | 'exit-code'
   waitTimeoutMs?: number
@@ -85,6 +90,29 @@ export async function upload(options: UploadOptions): Promise<UploadResult> {
     )
   }
 
+  let parallel: { nonce: string; total: number } | undefined
+  if (options.shard) {
+    const { index, total } = options.shard
+    if (
+      !Number.isInteger(index) ||
+      !Number.isInteger(total) ||
+      total < 1 ||
+      index < 0 ||
+      index >= total
+    ) {
+      throw new UsageError(
+        '--shard must look like 1/4: this job’s number, then how many jobs there are',
+      )
+    }
+    const nonce = options.shard.nonce ?? ciRunId(env)
+    if (!nonce) {
+      throw new UsageError(
+        'Could not tell which CI run these shards belong to. Set CIRCI_PARALLEL_NONCE (or --nonce) to the same value in every shard.',
+      )
+    }
+    parallel = { nonce, total }
+  }
+
   log(
     `Uploading ${shots.length} screenshot(s) for ${ci.commitSha.slice(0, 12)}` +
       (ci.branch ? ` on ${ci.branch}` : '') +
@@ -99,12 +127,14 @@ export async function upload(options: UploadOptions): Promise<UploadResult> {
     mergeBaseSha: ancestry.mergeBaseSha ?? null,
     ancestorShas: ancestry.ancestorShas,
     ancestryStatus: ancestry.status,
+    ...(parallel ? { parallel } : {}),
     files: uniqueFiles(shots),
   })
 
   const byHash = new Map(shots.map((s) => [s.sha256, s]))
   await sendAll(client, uploads, byHash)
   const finalizeBody = {
+    ...(options.shard ? { shardIndex: String(options.shard.index) } : {}),
     screenshots: shots.map((s) => ({
       name: s.name,
       sha256: s.sha256,
@@ -126,6 +156,9 @@ export async function upload(options: UploadOptions): Promise<UploadResult> {
   }
   const deduplicated = new Set(shots.map((s) => s.sha256)).size - uploads.length
   log(`Build #${build.number}: ${build.url}`)
+  if (options.shard) {
+    log(`  shard ${options.shard.index + 1} of ${options.shard.total} uploaded`)
+  }
   log(`  ${uploads.length} uploaded, ${deduplicated} already on the server`)
 
   const result: UploadResult = {

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 
-import { upload } from '@circi/cli'
+import { ApiClient, upload } from '@circi/cli'
 import { FsStorage } from '@circi/storage'
 import { createTestDb, type TestDb } from '@circi/testing'
 import { type RunningWorker, startWorker } from '@circi/worker'
@@ -152,5 +152,37 @@ describe('circi upload → server → worker → --wait', () => {
     })
     expect(second.exitCode).toBe(1)
     expect(lines.some((l) => l.includes(`/builds/${second.build.number}`))).toBe(true)
+  })
+
+  it('joins the shards of one CI run into a single build, finished by the last one', async () => {
+    const repo = join(root, 'sharded')
+    const left = join(repo, 'left')
+    const right = join(repo, 'right')
+    await mkdir(left, { recursive: true })
+    await mkdir(right, { recursive: true })
+    await git(root, 'init', '-q', '-b', 'main', repo)
+    await screenshot(join(left, 'home.png'))
+    await screenshot(join(right, 'login.png'), { x: 10, y: 10 })
+    await git(repo, 'add', '.')
+    await git(repo, 'commit', '-q', '-m', 'sharded')
+    const env = { GITHUB_RUN_ID: '991', GITHUB_RUN_ATTEMPT: '1' }
+    const common = { apiUrl, token, cwd: repo, fetch: false, pollIntervalMs: 50, log: () => {} }
+
+    const one = await upload({ ...common, dir: left, env, shard: { index: 0, total: 2 } })
+    const stillWaiting = await new ApiClient({ baseUrl: apiUrl, token }).status(one.build.id)
+    expect(stillWaiting.build.status).toBe('uploading')
+
+    const two = await upload({
+      ...common,
+      dir: right,
+      env,
+      shard: { index: 1, total: 2 },
+      wait: true,
+    })
+    expect(two.build.id).toBe(one.build.id)
+    // Both shards' screenshots are in the one build (compared with the earlier main build).
+    expect(two.status?.counts.total).toBe(2)
+    expect(two.status?.build.status).toBe('complete')
+    expect(two.exitCode).toBe(0)
   })
 })

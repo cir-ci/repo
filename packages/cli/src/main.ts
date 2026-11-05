@@ -24,6 +24,11 @@ program
   .option('--name <name>', 'build name, for several kinds of builds per commit', 'default')
   .option('--wait', 'wait for the result and exit non-zero when it should block the merge')
   .option(
+    '--shard <n/total>',
+    'this job uploads shard n of total of one parallel build (e.g. 2/4); processed once all arrive',
+  )
+  .option('--nonce <id>', 'ties the shards of one parallel build together (default: the CI run id)')
+  .option(
     '--gate <mode>',
     'who blocks the merge: status (the git host check, exit 0 on unreviewed changes) or exit-code (this job); default: decided by the server',
   )
@@ -49,6 +54,8 @@ Exit codes: 0 pass, 1 visual changes block the merge (with --wait), 2 error`,
         name: string
         wait?: boolean
         gate?: string
+        shard?: string
+        nonce?: string
         timeout: string
         apiUrl?: string
         fetch: boolean
@@ -66,12 +73,14 @@ Exit codes: 0 pass, 1 visual changes block the merge (with --wait), 2 error`,
       if (opts.gate !== undefined && opts.gate !== 'status' && opts.gate !== 'exit-code') {
         throw new UsageError('--gate must be "status" or "exit-code"')
       }
+      const shard = opts.shard ? parseShard(opts.shard, opts.nonce) : undefined
       const result = await upload({
         dir,
         apiUrl,
         token,
         name: opts.name,
         wait: opts.wait ?? false,
+        ...(shard ? { shard } : {}),
         ...(opts.gate ? { gate: opts.gate } : {}),
         waitTimeoutMs: timeout * 1000,
         fetch: opts.fetch,
@@ -90,3 +99,10 @@ program.parseAsync(process.argv).catch((err: unknown) => {
   }
   process.exitCode = 2
 })
+
+/** `2/4` → the second of four jobs, 0-based internally. */
+function parseShard(text: string, nonce: string | undefined) {
+  const m = /^(\d+)\/(\d+)$/.exec(text.trim())
+  if (!m?.[1] || !m[2]) throw new UsageError('--shard must look like 1/4')
+  return { index: Number(m[1]) - 1, total: Number(m[2]), ...(nonce ? { nonce } : {}) }
+}

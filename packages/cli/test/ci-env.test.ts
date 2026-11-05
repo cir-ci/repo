@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { detectCi } from '../src/ci-env.ts'
+import { ciRunId, detectCi } from '../src/ci-env.ts'
 
 const noFile = () => {
   throw new Error('no event file')
@@ -252,5 +252,21 @@ describe('detectCi', () => {
       commitSha: 'abc1234',
       branch: 'x',
     })
+  })
+})
+
+describe('ciRunId', () => {
+  it('is shared by the jobs of one run, and changes when a run is re-attempted', () => {
+    expect(ciRunId({ GITHUB_RUN_ID: '55', GITHUB_RUN_ATTEMPT: '1' })).toBe('55-1')
+    expect(ciRunId({ GITHUB_RUN_ID: '55', GITHUB_RUN_ATTEMPT: '2' })).toBe('55-2')
+    expect(ciRunId({ CI_PIPELINE_ID: '77' })).toBe('77')
+    expect(ciRunId({ BUILDKITE_BUILD_ID: 'abc' })).toBe('abc')
+  })
+
+  it('lets the user choose, and says nothing when the CI is unknown', () => {
+    expect(
+      ciRunId({ CIRCI_PARALLEL_NONCE: 'mine', GITHUB_RUN_ID: '55', GITHUB_RUN_ATTEMPT: '1' }),
+    ).toBe('mine')
+    expect(ciRunId({})).toBeUndefined()
   })
 })
