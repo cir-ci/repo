@@ -510,3 +510,35 @@ describe('circi site upload', () => {
     await expect(packWithCli(join(dir, 'nope'))).rejects.toThrow(/not a directory/)
   })
 })
+
+describe('the project’s Sites page API', () => {
+  it('lists sites with their branch and commit addresses, only for members', async () => {
+    await upload(STORYBOOK, {
+      name: 'listed',
+      commit: '7'.repeat(40),
+      branch: 'main',
+      branch_tip: '7'.repeat(40),
+    })
+    const res = await app.inject({
+      url: `/api/projects/${acme.orgSlug}/web/sites`,
+      headers: { cookie: ownerCookie },
+    })
+    expect(res.statusCode).toBe(200)
+    const listing = res.json()
+    expect(listing.configured).toBe(true)
+    const site = listing.sites.find((x: { name: string }) => x.name === 'listed')
+    expect(site).toMatchObject({ kind: 'storybook', kindLabel: 'Storybook' })
+    expect(site.branches[0]).toMatchObject({ branch: 'main', commitSha: '7'.repeat(40) })
+    expect(site.branches[0].address).toMatch(
+      /^https:\/\/[0-9a-f]{12}-web-listed.*\.example-sites\.com$/,
+    )
+    expect(site.versions[0]).toMatchObject({ commitSha: '7'.repeat(40), branch: 'main' })
+    expect(site.versions[0].address).toMatch(/^https:\/\/777777777777-/)
+
+    const outsider = await app.inject({
+      url: `/api/projects/${acme.orgSlug}/web/sites`,
+      headers: { cookie: rivalCookie },
+    })
+    expect(outsider.statusCode).toBe(404)
+  })
+})
