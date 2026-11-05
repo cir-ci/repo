@@ -42,6 +42,11 @@ const envSchema = z.object({
   GITHUB_APP_PRIVATE_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
   GITHUB_APP_WEBHOOK_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),
   GITHUB_API_URL: z.preprocess(emptyToUndefined, z.string().optional()),
+  STATIC_SITES_HOST: z.preprocess(emptyToUndefined, z.string().optional()),
+  STATIC_SITES_MAX_MB: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().int().min(1).max(5000).default(200),
+  ),
   UPLOAD_TIMEOUT_MINUTES: z.preprocess(
     emptyToUndefined,
     z.coerce.number().int().min(0).default(60),
@@ -78,6 +83,14 @@ export interface GithubAppConfig {
   webhookSecret: string
   /** `https://api.github.com`, or a GitHub Enterprise Server's `https://host/api/v3`. */
   apiUrl: string
+}
+
+/** Hosted static sites, served from their own domain (PLAN §7.6). */
+export interface StaticSitesConfig {
+  /** The dedicated domain, e.g. `example-sites.com`: sites live at `<hash>-<slug>.<host>`. */
+  host: string
+  /** Largest site (uncompressed) accepted, in bytes. */
+  maxBytes: number
 }
 
 export type StorageConfig =
@@ -122,6 +135,8 @@ export interface Config {
   smtp?: SmtpConfig
   /** Email login (one-time code / link) is offered: switched on (default) and SMTP is set up. */
   emailLogin: boolean
+  /** Static site hosting: absent unless `STATIC_SITES_HOST` is set. */
+  staticSites?: StaticSitesConfig
   /** Builds still uploading after this many minutes fail; 0 never does (`UPLOAD_TIMEOUT_MINUTES`). */
   uploadTimeoutMinutes: number
   /** Webhooks may point at private/loopback addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
@@ -241,6 +256,16 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       }
     }
   }
+  let staticSites: StaticSitesConfig | undefined
+  if (e.STATIC_SITES_HOST) {
+    const host = e.STATIC_SITES_HOST.trim().toLowerCase().replace(/\.$/, '')
+    const problem = staticSitesHostProblem(
+      host,
+      typeof publicUrl === 'string' ? undefined : publicUrl.hostname,
+    )
+    if (problem) issues.push(`STATIC_SITES_HOST: ${problem}`)
+    else staticSites = { host, maxBytes: e.STATIC_SITES_MAX_MB * 1024 * 1024 }
+  }
   const sso: SsoConfig[] = []
   const pair = (name: string, id: string | undefined, secret: string | undefined) => {
     if (Boolean(id) !== Boolean(secret)) {
@@ -312,9 +337,38 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     emailLogin,
     passwordLogin,
     sso: ssoOn,
+    ...(staticSites ? { staticSites } : {}),
     ...(github ? { github } : {}),
     webhookAllowPrivate: e.WEBHOOK_ALLOW_PRIVATE_ADDRESSES === true,
     uploadTimeoutMinutes: e.UPLOAD_TIMEOUT_MINUTES,
     orgCreation: e.ORG_CREATION,
   }
+}
+
+const parentDomain = (h: string) => h.split('.').slice(1).join('.')
+
+/**
+ * Why `host` can't be the sites domain, or undefined. Uploaded sites run arbitrary JavaScript, so
+ * they must not share a cookie scope with the dashboard: the domain has to be unrelated to it
+ * (not the same host, not a parent of it, not a child of it).
+ */
+export function staticSitesHostProblem(
+  host: string,
+  dashboardHostname: string | undefined,
+): string | undefined {
+  if (!/^(?=.{4,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(host)) {
+    return `"${host}" is not a domain name (expected e.g. example-sites.com, without https:// or a port)`
+  }
+  if (!dashboardHostname) return undefined
+  const dash = dashboardHostname.toLowerCase()
+  if (dash === host)
+    return 'must differ from the dashboard host: sites run uploaded code and must not share its cookies'
+  if (dash.endsWith(`.${host}`))
+    return `is a parent of the dashboard host ${dash}: use a separate domain`
+  if (host.endsWith(`.${dash}`)) return `is below the dashboard host ${dash}: use a separate domain`
+  // Siblings under one parent domain (ci.acme.io and sites.acme.io) can set cookies on acme.io.
+  if (parentDomain(dash).includes('.') && parentDomain(dash) === parentDomain(host)) {
+    return `shares the parent domain ${parentDomain(dash)} with the dashboard: a site could set cookies for both. Use a different registrable domain`
+  }
+  return undefined
 }

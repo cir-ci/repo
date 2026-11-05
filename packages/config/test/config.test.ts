@@ -222,4 +222,31 @@ describe('BETTER_AUTH_SECRET', () => {
       )
     })
   })
+
+  const ok = (host: string, extra: Record<string, string> = {}) =>
+    loadConfig({ ...base, PUBLIC_URL: 'https://ci.acme.io', STATIC_SITES_HOST: host, ...extra })
+
+  describe('static sites domain', () => {
+    it('is off unless set, and accepts an unrelated domain', () => {
+      expect(loadConfig(base).staticSites).toBeUndefined()
+      expect(ok('Example-Sites.com').staticSites).toEqual({
+        host: 'example-sites.com',
+        maxBytes: 200 * 1024 * 1024,
+      })
+      expect(ok('example-sites.com', { STATIC_SITES_MAX_MB: '50' }).staticSites?.maxBytes).toBe(
+        50 * 1024 * 1024,
+      )
+    })
+
+    it.each([
+      ['ci.acme.io', 'same as the dashboard'],
+      ['acme.io', 'a parent of the dashboard'],
+      ['sites.ci.acme.io', 'below the dashboard'],
+      ['sites.acme.io', 'a sibling that shares acme.io'],
+      ['https://example-sites.com', 'not a domain name'],
+      ['localhost', 'no dot'],
+    ])('refuses %s (%s)', (host) => {
+      expect(() => ok(host)).toThrow(ConfigError)
+    })
+  })
 })

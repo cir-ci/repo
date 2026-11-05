@@ -92,6 +92,13 @@
       "when": 1793875650142,
       "tag": "0012_history_source",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793881483502,
+      "tag": "0013_static_sites",
+      "breakpoints": true
     }
   ]
 }
