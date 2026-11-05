@@ -1,4 +1,4 @@
-import { ValidationError } from '@circi/core'
+import { checkBuildInput, ValidationError } from '@circi/core'
 import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm'
 
 import type { Database } from '../client.ts'
@@ -22,12 +22,6 @@ import { queueWebhookEvent } from './webhooks.ts'
 
 /** Build lifecycle: create (or join a parallel build), finalize shards, baseline, finish. */
 
-const SHA_RE = /^[0-9a-f]{7,64}$/
-
-const BUILD_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
-
-const MAX_ANCESTORS = 2_000
-
 export interface CreateBuildInput {
   projectId: string
   name?: string
@@ -47,21 +41,12 @@ export interface CreateBuildInput {
  * get the same build.
  */
 export async function createBuild(db: Database, input: CreateBuildInput): Promise<Build> {
-  const name = input.name ?? 'default'
-  if (!BUILD_NAME_RE.test(name)) {
-    throw new ValidationError(
-      `Invalid build name "${name}": use letters, digits, ".", "_" or "-" (max 64)`,
-    )
-  }
-  const commitSha = input.commitSha.toLowerCase()
-  if (!SHA_RE.test(commitSha)) throw new ValidationError(`Invalid commit SHA "${input.commitSha}"`)
-  const ancestorShas = (input.ancestorShas ?? []).map((s) => s.toLowerCase())
-  if (ancestorShas.length > MAX_ANCESTORS || ancestorShas.some((s) => !SHA_RE.test(s))) {
-    throw new ValidationError(`ancestorShas must be at most ${MAX_ANCESTORS} commit SHAs`)
-  }
-  if (input.parallel && (input.parallel.total < 1 || input.parallel.total > 1_000)) {
-    throw new ValidationError('parallel.total must be between 1 and 1000')
-  }
+  const { name, commitSha, ancestorShas } = checkBuildInput({
+    name: input.name,
+    commitSha: input.commitSha,
+    ancestorShas: input.ancestorShas,
+    parallelTotal: input.parallel?.total,
+  })
 
   const values = {
     projectId: input.projectId,

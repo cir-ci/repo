@@ -1,4 +1,14 @@
 export { ValidationError } from './errors.ts'
+export {
+  BUILD_NAME_RE,
+  checkBuildInput,
+  COMMIT_SHA_RE,
+  isCommitSha,
+  isSha256,
+  MAX_ANCESTORS,
+  MAX_PARALLEL_SHARDS,
+  SHA256_RE,
+} from './limits.ts'
 export { assertValidSlug, isValidSlug, slugify } from './slug.ts'
 export {
   hashToken,

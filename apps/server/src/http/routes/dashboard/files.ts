@@ -1,10 +1,9 @@
+import { isSha256 } from '@circi/core'
 import { canUserAccessFile, getFile } from '@circi/db'
 import type { FastifyPluginAsync } from 'fastify'
 
 import type { DashboardDeps } from '../../deps.ts'
 import { currentUser } from '../../hooks/session.ts'
-
-const SHA_RE = /^[0-9a-f]{64}$/
 
 /**
  * `GET /api/files/:sha256`: screenshots, diffs and thumbnails by content hash. The bytes behind a
@@ -15,7 +14,7 @@ const SHA_RE = /^[0-9a-f]{64}$/
 export const dashboardFileRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
   app.get<{ Params: { sha256: string } }>('/files/:sha256', async (req, reply) => {
     const hash = req.params.sha256
-    if (!SHA_RE.test(hash)) return reply.code(404).send({ error: 'Not found' })
+    if (!isSha256(hash)) return reply.code(404).send({ error: 'Not found' })
     // Checked before the 304 shortcut: a cached copy must not outlive losing access.
     if (!(await canUserAccessFile(deps.db, currentUser(req).id, hash, currentUser(req).method))) {
       return reply.code(404).send({ error: 'Not found' })
