@@ -11,6 +11,7 @@ import { lazy, Suspense } from 'react'
 
 import { authClient } from './auth.ts'
 import { RouterLink } from './components.tsx'
+import { InvitationBanner } from './InvitationBanner.tsx'
 import { Blankslate } from './primitives/Blankslate.tsx'
 import { AnnouncerProvider, Delayed } from './primitives/feedback.tsx'
 import { UserMenu } from './UserMenu.tsx'
@@ -133,7 +134,10 @@ function AppFrame() {
             </Box>
           </Delayed>
         ) : user ? (
-          <Outlet />
+          <>
+            <InvitationBanner userEmail={user.email} />
+            <Outlet />
+          </>
         ) : (
           <Suspense fallback={null}>
             <LoginPage />

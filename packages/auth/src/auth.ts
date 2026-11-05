@@ -3,9 +3,11 @@ import { drizzleAdapter } from '@better-auth/drizzle-adapter'
 import type { Database } from '@circi/db'
 import { schema } from '@circi/db'
 import { betterAuth } from 'better-auth'
+import { APIError } from 'better-auth/api'
 import { admin, emailOTP, organization } from 'better-auth/plugins'
+import { and, eq, gt, sql } from 'drizzle-orm'
 
-import { type Mailer, signInMail } from './mail.ts'
+import { invitationMail, type Mailer, signInMail } from './mail.ts'
 
 /**
  * Authentication, provided by better-auth (https://better-auth.com):
@@ -40,7 +42,35 @@ export interface AuthOptions {
   onMailError?: (err: unknown) => void
 }
 
-type LoginMailOptions = Partial<Pick<AuthOptions, 'mailer' | 'onMailError' | 'baseURL'>>
+type LoginMailOptions = Partial<Pick<AuthOptions, 'db' | 'mailer' | 'onMailError' | 'baseURL'>>
+
+/** How long an invitation can be accepted. */
+export const INVITATION_TTL_SECONDS = 7 * 24 * 3600
+
+/** Whether someone invited this address and the invitation can still be accepted. */
+export async function hasPendingInvitation(db: Database, email: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: schema.invitation.id })
+    .from(schema.invitation)
+    .where(
+      and(
+        sql`lower(${schema.invitation.email}) = ${email.toLowerCase()}`,
+        eq(schema.invitation.status, 'pending'),
+        gt(schema.invitation.expiresAt, new Date()),
+      ),
+    )
+    .limit(1)
+  return row !== undefined
+}
+
+async function hasAccount(db: Database, email: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: schema.user.id })
+    .from(schema.user)
+    .where(sql`lower(${schema.user.email}) = ${email.toLowerCase()}`)
+    .limit(1)
+  return row !== undefined
+}
 
 /** How long an emailed sign-in code works. */
 export const EMAIL_CODE_TTL_SECONDS = 600
@@ -53,7 +83,26 @@ export function authPlugins(options: LoginMailOptions = {}) {
   return [
     admin(),
     emailLoginPlugin(options),
-    organization({ allowUserToCreateOrganization: false }),
+    organization({
+      allowUserToCreateOrganization: false,
+      invitationExpiresIn: INVITATION_TTL_SECONDS,
+      cancelPendingInvitationsOnReInvite: true,
+      sendInvitationEmail: async ({ email, organization: org, inviter, role, id }) => {
+        if (!options.mailer || !options.baseURL) return
+        void options.mailer
+          .send(
+            invitationMail({
+              to: email,
+              invitationId: id,
+              organizationName: org.name,
+              inviterName: inviter.user.name,
+              role,
+              origin: options.baseURL,
+            }),
+          )
+          .catch((err: unknown) => options.onMailError?.(err))
+      },
+    }),
     apiKey([
       {
         configId: CI_KEY_CONFIG,
@@ -79,10 +128,19 @@ function emailLoginPlugin(options: LoginMailOptions) {
     expiresIn: EMAIL_CODE_TTL_SECONDS,
     allowedAttempts: 5,
     storeOTP: 'hashed',
-    disableSignUp: true,
+    // Signing in with a code creates the account of someone who was invited (the code proves
+    // they own the address); for anyone else no mail is sent, and `databaseHooks` in
+    // `createAuth` refuses to create the account anyway.
+    disableSignUp: false,
     // Not awaited: waiting for the mail server would show which addresses have accounts.
     sendVerificationOTP: async ({ email, otp, type }) => {
-      if (type !== 'sign-in' || !options.mailer || !options.baseURL) return
+      if (type !== 'sign-in' || !options.mailer || !options.baseURL || !options.db) return
+      if (
+        !(await hasAccount(options.db, email)) &&
+        !(await hasPendingInvitation(options.db, email))
+      ) {
+        return
+      }
       void options.mailer
         .send(signInMail(email, otp, options.baseURL))
         .catch((err: unknown) => options.onMailError?.(err))
@@ -142,6 +200,20 @@ export function createAuth(options: AuthOptions) {
     advanced: {
       cookiePrefix: 'circi',
       ...hostCookies(options.baseURL),
+    },
+    databaseHooks: {
+      user: {
+        create: {
+          before: async (_user, context) => {
+            // Only the email-code sign-in can create accounts on its own, and only for invitees.
+            if (context?.path !== '/sign-in/email-otp') return
+            const email = typeof _user.email === 'string' ? _user.email : ''
+            if (!(await hasPendingInvitation(options.db, email))) {
+              throw new APIError('FORBIDDEN', { message: 'No account for this address' })
+            }
+          },
+        },
+      },
     },
     plugins: authPlugins(options),
   })

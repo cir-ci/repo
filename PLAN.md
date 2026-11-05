@@ -505,7 +505,7 @@ All login happens in the dashboard (the web app shows its sign-in page to anyone
 | Email + password | **Done** | `emailAndPassword` (sign-up disabled, 12+ characters) |
 | Email login (code + link) | **Done** (instance switch; per-org switch M2) | better-auth's `emailOTP` plugin with SMTP. The mailed link opens `/#signin-email=…&code=…` (fragment, so servers never see it) and still needs a click, so scanners can't use the code up |
 | OAuth / OIDC | M2 | its generic OAuth / SSO support; the trust rules below still apply |
-| Invitations, roles | Organizations and roles **done** (CLI); invitations M2 | organization plugin |
+| Invitations, roles | Organizations and roles **done** (CLI); invitation mail + accept flow **done** (members page: next) | organization plugin. The mail link opens `/#invite=<id>&email=…`; an invited address with no account gets one by signing in with an emailed code (only invitees: unknown addresses get no mail and no account), then confirms joining with a click |
 | CI tokens | **Done** | API key plugin, §8 |
 
 The per-organization switches, allowed email domains, the lockout guard and the "org-scoped provider" rules below are CirCI's own policy layered on top (hooks around better-auth's endpoints plus the `org_auth_settings` table), not features better-auth provides.

@@ -8,8 +8,15 @@ export {
   MIN_PASSWORD_LENGTH,
 } from './auth.ts'
 
-export { createSmtpMailer, type Mail, type Mailer, type SmtpOptions, signInMail } from './mail.ts'
-export { EMAIL_CODE_TTL_SECONDS } from './auth.ts'
+export {
+  createSmtpMailer,
+  type Mail,
+  type Mailer,
+  type SmtpOptions,
+  signInMail,
+  invitationMail,
+} from './mail.ts'
+export { EMAIL_CODE_TTL_SECONDS, hasPendingInvitation, INVITATION_TTL_SECONDS } from './auth.ts'
 
 export {
   addMember,

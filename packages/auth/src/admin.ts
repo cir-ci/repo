@@ -37,7 +37,12 @@ export async function createUser(
       role: input.instanceAdmin ? 'admin' : 'user',
     },
   })
-  return user
+  // An operator vouches for the accounts they create. Left unverified, the first email-code
+  // sign-in would count as proof of ownership and better-auth would delete the password of
+  // such an "unproven" account.
+  const context = await auth.$context
+  await context.internalAdapter.updateUser(user.id, { emailVerified: true })
+  return { ...user, emailVerified: true }
 }
 
 async function getUserIdByEmail(db: Database, email: string): Promise<string> {

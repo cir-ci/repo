@@ -56,3 +56,32 @@ export function signInMail(email: string, code: string, origin: string): Mail {
     ].join('\n'),
   }
 }
+
+/**
+ * The invitation mail. The link opens the sign-in page with the invitation id and address in
+ * the fragment; after signing in (an emailed code is enough, even without an account yet) the
+ * person confirms joining with one click.
+ */
+export function invitationMail(input: {
+  to: string
+  invitationId: string
+  organizationName: string
+  inviterName: string
+  role: string
+  origin: string
+}): Mail {
+  const link = `${input.origin}/#invite=${encodeURIComponent(input.invitationId)}&email=${encodeURIComponent(input.to)}`
+  return {
+    to: input.to,
+    subject: `${input.inviterName} invited you to ${input.organizationName} on CirCI`,
+    text: [
+      `${input.inviterName} invited you to join ${input.organizationName} on CirCI as ${input.role}.`,
+      '',
+      'Open this link and sign in with this email address to accept (the invitation is valid for 7 days):',
+      link,
+      '',
+      "If you weren't expecting this, you can ignore this email.",
+      '',
+    ].join('\n'),
+  }
+}

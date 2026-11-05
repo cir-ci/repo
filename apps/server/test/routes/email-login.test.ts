@@ -10,7 +10,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { createTestDb, type TestDb } from '../../../../packages/db/test/helpers.ts'
 import { buildServer } from '../../src/http/app.ts'
-import { createTestAuth, ORIGIN, seedTenant, type Tenant } from '../helpers.ts'
+import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '../helpers.ts'
 
 let t: TestDb
 let dir: string
@@ -99,6 +99,8 @@ describe('email login', () => {
       .join('; ')
     const me = await on.inject({ url: '/api/projects', headers: { cookie } })
     expect(me.statusCode).toBe(200)
+    // Signing in with a code must not cost an operator-created account its password.
+    await signIn(on, tenant.owner.email, tenant.owner.password)
   })
 
   it('a code works once', async () => {
@@ -137,5 +139,80 @@ describe('email login', () => {
   it('has no email-code endpoints when switched off', async () => {
     expect((await requestCode(off, tenant.owner.email)).statusCode).toBe(404)
     expect((await signInWithCode(off, tenant.owner.email, '123456')).statusCode).toBe(404)
+  })
+})
+
+const cookieOf = (res: { headers: Record<string, unknown> }) =>
+  [res.headers['set-cookie']]
+    .flat()
+    .map((c) => String(c).split(';')[0])
+    .join('; ')
+
+async function invite(email: string, role = 'member') {
+  const ownerCookie = await signIn(on, tenant.owner.email, tenant.owner.password)
+  const org = await on.inject({
+    method: 'GET',
+    url: '/api/auth/organization/get-full-organization',
+    headers: { cookie: ownerCookie, origin: ORIGIN },
+    query: { organizationSlug: tenant.orgSlug },
+  })
+  sent.length = 0
+  const res = await on.inject({
+    method: 'POST',
+    url: '/api/auth/organization/invite-member',
+    headers: { cookie: ownerCookie, ...json },
+    payload: { email, role, organizationId: org.json().id },
+  })
+  expect(res.statusCode).toBe(200)
+  await vi.waitFor(() => expect(sent).toHaveLength(1))
+  return { invitationId: String(res.json().id), mail: sent[0] }
+}
+
+describe('invitations', () => {
+  it('lets someone without an account join: the mailed code creates it, then they accept', async () => {
+    const email = 'newcomer@acme.test'
+    const { invitationId, mail } = await invite(email)
+    expect(mail?.to).toBe(email)
+    expect(mail?.text).toContain(`${ORIGIN}/#invite=${invitationId}&email=`)
+
+    sent.length = 0
+    await requestCode(on, email)
+    await vi.waitFor(() => expect(sent).toHaveLength(1))
+    const res = await signInWithCode(on, email, codeOf(sent[0]))
+    expect(res.statusCode).toBe(200)
+    const cookie = cookieOf(res)
+
+    const before = await on.inject({ url: '/api/projects', headers: { cookie } })
+    expect(before.json().projects).toHaveLength(0)
+    const accepted = await on.inject({
+      method: 'POST',
+      url: '/api/auth/organization/accept-invitation',
+      headers: { cookie, ...json },
+      payload: { invitationId },
+    })
+    expect(accepted.statusCode).toBe(200)
+    const after = await on.inject({ url: '/api/projects', headers: { cookie } })
+    expect(after.json().projects).toHaveLength(1)
+  })
+
+  it('does not let another address use the invitation', async () => {
+    const { invitationId } = await invite('invitee@acme.test')
+    const other = await seedTenant(createTestAuth(t.db), t.db)
+    const cookie = await signIn(on, other.owner.email, other.owner.password)
+    const res = await on.inject({
+      method: 'POST',
+      url: '/api/auth/organization/accept-invitation',
+      headers: { cookie, ...json },
+      payload: { invitationId },
+    })
+    expect(res.statusCode).not.toBe(200)
+  })
+
+  it('still creates no account for an address nobody invited', async () => {
+    sent.length = 0
+    await requestCode(on, 'stranger@acme.test')
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(sent).toHaveLength(0)
+    expect((await signInWithCode(on, 'stranger@acme.test', '123456')).statusCode).not.toBe(200)
   })
 })

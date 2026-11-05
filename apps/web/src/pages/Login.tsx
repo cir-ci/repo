@@ -19,8 +19,11 @@ export function LoginPage() {
     staleTime: 5 * 60_000,
   })
   const fromLink = readLink()
-  const [mode, setMode] = useState<'password' | 'email'>(fromLink ? 'email' : 'password')
-  const emailOn = methods.data?.email === true || Boolean(fromLink)
+  const invitedEmail = readInvitedEmail()
+  const [mode, setMode] = useState<'password' | 'email'>(
+    fromLink || invitedEmail ? 'email' : 'password',
+  )
+  const emailOn = methods.data?.email === true || Boolean(fromLink) || Boolean(invitedEmail)
 
   return (
     <Box sx={{ maxWidth: 320, mx: 'auto', mt: { xs: 4, md: 10 }, px: 2 }}>
@@ -28,7 +31,11 @@ export function LoginPage() {
         Sign in to CirCI
       </Typography>
       {mode === 'email' && emailOn ? (
-        <EmailForm initial={fromLink} onBack={() => setMode('password')} />
+        <EmailForm
+          initial={fromLink}
+          invitedEmail={invitedEmail}
+          onBack={() => setMode('password')}
+        />
       ) : (
         <PasswordForm onEmail={emailOn ? () => setMode('email') : undefined} />
       )}
@@ -96,9 +103,12 @@ function PasswordForm({ onEmail }: { onEmail: (() => void) | undefined }) {
 /** Step 1: ask for a code. Step 2: type it (or arrive with it filled in from the mailed link). */
 function EmailForm({
   initial,
+  invitedEmail,
   onBack,
 }: {
   initial: { email: string; code: string } | undefined
+  /** From an invitation link: the address that was invited, to save typing it. */
+  invitedEmail: string | undefined
   onBack: () => void
 }) {
   const [email, setEmail] = useState(initial?.email ?? '')
@@ -144,6 +154,7 @@ function EmailForm({
             name="email"
             type="email"
             label="Email"
+            defaultValue={invitedEmail ?? ''}
             autoComplete="username"
             autoFocus
             required
@@ -207,6 +218,12 @@ function readLink(): { email: string; code: string } | undefined {
   const email = params.get('signin-email')
   const code = params.get('code')
   return email && code ? { email, code } : undefined
+}
+
+/** An invitation link (`/#invite=…&email=…`) opened while signed out. */
+function readInvitedEmail(): string | undefined {
+  const params = new URLSearchParams(window.location.hash.slice(1))
+  return params.get('invite') ? (params.get('email') ?? undefined) : undefined
 }
 
 function clearLink(): void {
