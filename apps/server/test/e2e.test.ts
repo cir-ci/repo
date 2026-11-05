@@ -4,15 +4,15 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 
+import { upload } from '@circi/cli'
 import { FsStorage } from '@circi/storage'
+import { createTestDb, type TestDb } from '@circi/testing'
 import { type RunningWorker, startWorker } from '@circi/worker'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { upload } from '../../../packages/cli/src/index.ts'
-import { createTestDb, type TestDb } from '../../../packages/db/test/helpers.ts'
 import { buildServer } from '../src/http/app.ts'
 import { createTestAuth, seedTenant } from './helpers.ts'
 

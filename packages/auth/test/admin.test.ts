@@ -1,7 +1,7 @@
 import { listUserOrganizationIds } from '@circi/db'
+import { createTestDb, type TestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createTestDb, type TestDb } from '../../db/test/helpers.ts'
 import {
   addMember,
   type Auth,

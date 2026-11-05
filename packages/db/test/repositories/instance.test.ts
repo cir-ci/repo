@@ -1,3 +1,4 @@
+import { createTestDb, type TestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
@@ -9,7 +10,6 @@ import {
   recordPublicUrl,
   setSetting,
 } from '../../src/index.ts'
-import { createTestDb, type TestDb } from '../helpers.ts'
 
 let t: TestDb
 beforeAll(async () => {

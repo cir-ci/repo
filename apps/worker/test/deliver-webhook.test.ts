@@ -1,9 +1,9 @@
 import { verifyWebhookSignature } from '@circi/core'
 import { claimJob, createWebhook, enqueueJob, QUEUES, type Job } from '@circi/db'
+import { seedProject } from '@circi/testing'
+import { createTestDb, type TestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { seedProject } from '../../../packages/db/test/helpers.ts'
-import { createTestDb, type TestDb } from '../../../packages/db/test/helpers.ts'
 import { deliverWebhook } from '../src/jobs/deliver-webhook.ts'
 
 let t: TestDb

@@ -1,3 +1,11 @@
+import {
+  addTestMember,
+  createTestDb,
+  seedOrg,
+  seedProject,
+  seedUser,
+  type TestDb,
+} from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
@@ -9,14 +17,6 @@ import {
   NotFoundError,
   setProjectCiKey,
 } from '../../src/index.ts'
-import {
-  addTestMember,
-  createTestDb,
-  seedOrg,
-  seedProject,
-  seedUser,
-  type TestDb,
-} from '../helpers.ts'
 
 let t: TestDb
 

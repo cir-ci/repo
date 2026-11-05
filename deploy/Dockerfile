@@ -25,6 +25,7 @@ COPY packages/db/package.json packages/db/
 COPY packages/diff/package.json packages/diff/
 COPY packages/providers/package.json packages/providers/
 COPY packages/storage/package.json packages/storage/
+COPY packages/testing/package.json packages/testing/
 
 FROM manifests AS build
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile

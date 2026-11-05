@@ -1,3 +1,11 @@
+import {
+  addTestMember,
+  createTestDb,
+  seedProject,
+  seedUser,
+  sha,
+  type TestDb,
+} from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
@@ -7,7 +15,6 @@ import {
   schema,
   upsertServerFile,
 } from '../../src/index.ts'
-import { addTestMember, createTestDb, seedProject, seedUser, sha, type TestDb } from '../helpers.ts'
 
 let t: TestDb
 

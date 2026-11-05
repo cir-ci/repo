@@ -1,7 +1,7 @@
+import { createTestDb, seedProject, type TestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { deviceFingerprint, noteDevice, takeEmailCodeSlot } from '../../src/index.ts'
-import { createTestDb, seedProject, type TestDb } from '../helpers.ts'
 
 let t: TestDb
 beforeAll(async () => {

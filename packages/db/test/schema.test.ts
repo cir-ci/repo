@@ -1,10 +1,10 @@
+import { createTestDb, seedProject, type TestDb } from '@circi/testing'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { migrationsFolder, pgErrorCode, schema } from '../src/index.ts'
-import { createTestDb, seedProject, type TestDb } from './helpers.ts'
 
 /** Migrations apply cleanly, and the database itself enforces the plan's invariants (PLAN §6, §8). */
 

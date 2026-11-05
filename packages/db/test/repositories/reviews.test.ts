@@ -1,4 +1,5 @@
 import { resolveBaseline } from '@circi/core'
+import { createTestDb, seedProject, seedUser, type TestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -11,7 +12,6 @@ import {
   reviewBuild,
   schema,
 } from '../../src/index.ts'
-import { createTestDb, seedProject, seedUser, type TestDb } from '../helpers.ts'
 
 let t: TestDb
 

@@ -27,6 +27,8 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@circi/cli": "workspace:*",
+    "@circi/testing": "workspace:*",
     "@electric-sql/pglite": "catalog:",
     "drizzle-orm": "catalog:",
     "sharp": "catalog:"

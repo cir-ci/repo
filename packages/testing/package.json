@@ -1,0 +1,21 @@
+{
+  "name": "@circi/testing",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@circi/db": "workspace:*",
+    "@electric-sql/pglite": "catalog:",
+    "drizzle-orm": "catalog:"
+  }
+}

@@ -1,7 +1,3 @@
-import { PGlite } from '@electric-sql/pglite'
-import { drizzle } from 'drizzle-orm/pglite'
-import { migrate } from 'drizzle-orm/pglite/migrator'
-
 import {
   createProject,
   type Database,
@@ -9,7 +5,10 @@ import {
   type Organization,
   schema,
   type User,
-} from '../src/index.ts'
+} from '@circi/db'
+import { PGlite } from '@electric-sql/pglite'
+import { drizzle } from 'drizzle-orm/pglite'
+import { migrate } from 'drizzle-orm/pglite/migrator'
 
 export interface TestDb {
   client: PGlite

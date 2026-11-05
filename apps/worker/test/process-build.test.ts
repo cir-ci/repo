@@ -15,10 +15,10 @@ import {
   planUploads,
 } from '@circi/db'
 import { contentKey, FsStorage } from '@circi/storage'
+import { createTestDb, seedProject, type TestDb } from '@circi/testing'
 import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createTestDb, seedProject, type TestDb } from '../../../packages/db/test/helpers.ts'
 import { processBuild, startWorker } from '../src/index.ts'
 
 let t: TestDb

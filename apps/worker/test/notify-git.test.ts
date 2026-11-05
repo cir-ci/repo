@@ -11,10 +11,10 @@ import {
   reviewBuild,
   schema,
 } from '@circi/db'
+import { createTestDb, seedProject, type TestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createTestDb, seedProject, type TestDb } from '../../../packages/db/test/helpers.ts'
 import { notifyGit } from '../src/jobs/notify-git.ts'
 
 let t: TestDb

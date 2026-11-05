@@ -21,6 +21,7 @@
     "@circi/storage": "workspace:*"
   },
   "devDependencies": {
+    "@circi/testing": "workspace:*",
     "@electric-sql/pglite": "catalog:",
     "drizzle-orm": "catalog:",
     "sharp": "catalog:"

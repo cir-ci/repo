@@ -5,11 +5,11 @@ import { join } from 'node:path'
 import { createUser, type Mail } from '@circi/auth'
 import { listOrgDomains } from '@circi/db'
 import { FsStorage } from '@circi/storage'
+import { createTestDb, type TestDb } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createTestDb, type TestDb } from '../../../../packages/db/test/helpers.ts'
 import { buildServer } from '../../src/http/app.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '../helpers.ts'
 
