@@ -542,3 +542,19 @@ describe('the project’s Sites page API', () => {
     expect(outsider.statusCode).toBe(404)
   })
 })
+
+describe('the flaky screenshots API', () => {
+  it('answers for members with a report, and with "not found" for outsiders', async () => {
+    const own = await app.inject({
+      url: `/api/projects/${acme.orgSlug}/web/flaky`,
+      headers: { cookie: ownerCookie },
+    })
+    expect(own.statusCode).toBe(200)
+    expect(own.json()).toMatchObject({ flaky: expect.any(Array), builds: expect.any(Number) })
+    const outsider = await app.inject({
+      url: `/api/projects/${acme.orgSlug}/web/flaky`,
+      headers: { cookie: rivalCookie },
+    })
+    expect(outsider.statusCode).toBe(404)
+  })
+})

@@ -1,5 +1,5 @@
 import CollectionsOutlined from '@mui/icons-material/CollectionsOutlined'
-import { Box, Button, Typography } from '@mui/material'
+import { Alert, Box, Button, Typography } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { createLink, useParams, useSearch } from '@tanstack/react-router'
 
@@ -16,7 +16,7 @@ import { ListSkeleton } from '../../primitives/feedback.tsx'
 import { BranchName } from '../../primitives/labels.tsx'
 import { PageHeader } from '../../primitives/PageHeader.tsx'
 import { PageLayout } from '../../primitives/PageLayout.tsx'
-import { BUILDS_PAGE_SIZE, projectQuery } from './api.ts'
+import { BUILDS_PAGE_SIZE, flakyQuery, projectQuery } from './api.ts'
 
 const ButtonLink = createLink(Button)
 
@@ -24,6 +24,7 @@ export function ProjectPage() {
   const { org, project } = useParams({ from: '/$org/$project' })
   const { before } = useSearch({ from: '/$org/$project' })
   const { data, error, refetch } = useQuery(projectQuery(org, project, before))
+  const { data: flaky } = useQuery(flakyQuery(org, project))
   useDocumentTitle(before ? 'Older builds' : 'Builds', data?.project.name ?? project)
 
   const builds = data?.builds ?? []
@@ -57,6 +58,19 @@ export function ProjectPage() {
         />
       }
     >
+      {flaky && flaky.flaky.length > 0 ? (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <strong>
+            These screenshots keep changing on {data?.project.defaultBranch ?? 'the default branch'}
+            :
+          </strong>{' '}
+          {flaky.flaky
+            .map((f) => `${f.name} (${f.changedIn} of the last ${flaky.builds} builds)`)
+            .join(', ')}
+          . They are probably not stable (a clock, an animation, random content). Mask the part that
+          changes with <code>circi admin ignore add</code>.
+        </Alert>
+      ) : null}
       <Typography variant="h2" component="h2" sx={{ mb: 1.5 }}>
         {before ? 'Older builds' : 'Builds'}
       </Typography>

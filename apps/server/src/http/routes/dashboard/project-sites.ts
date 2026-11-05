@@ -1,4 +1,4 @@
-import { findProjectForMember, listProjectSites } from '@circi/db'
+import { findProjectForMember, listFlakyScreenshots, listProjectSites } from '@circi/db'
 import { isSiteKindId, KINDS } from '@circi/sites'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
@@ -49,5 +49,19 @@ export const dashboardProjectSitesRoutes: FastifyPluginAsync<DashboardDeps> = as
         })),
       })),
     }
+  })
+
+  /** Screenshots that keep changing on the default branch: probably flaky, not really changed. */
+  app.get('/projects/:org/:project/flaky', async (req, reply) => {
+    const p = parse(params, req.params)
+    const user = currentUser(req)
+    const project = await findProjectForMember(deps.db, {
+      orgSlug: p.org,
+      projectSlug: p.project,
+      userId: user.id,
+      method: user.method,
+    })
+    if (!project) return reply.code(404).send({ error: 'Project not found' })
+    return listFlakyScreenshots(deps.db, project.id)
   })
 }

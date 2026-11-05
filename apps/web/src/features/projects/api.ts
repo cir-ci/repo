@@ -1,4 +1,4 @@
-import type { Build, Org, Project } from '@circi/api'
+import type { Build, Flaky, Org, Project } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { getJson, post, send, seg } from '../../lib/http.ts'
@@ -120,3 +120,10 @@ export function useGithubLink(org: string, project: string) {
     }),
   }
 }
+
+export const flakyQuery = (org: string, project: string) =>
+  queryOptions({
+    queryKey: ['flaky', org, project],
+    queryFn: () => getJson<Flaky.Report>(`/api/projects/${seg(org)}/${seg(project)}/flaky`),
+    staleTime: 60_000,
+  })
