@@ -1,3 +1,4 @@
+import type { Build, DiffStatus } from '@circi/api'
 import CollectionsOutlined from '@mui/icons-material/CollectionsOutlined'
 import {
   Alert,
@@ -16,14 +17,6 @@ import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
-  type BuildDetail,
-  buildQuery,
-  type DiffItem,
-  type DiffStatus,
-  fileUrl,
-  isActive,
-} from '../api.ts'
-import {
   BuildMeta,
   BuildStateLabel,
   CountsSummary,
@@ -31,15 +24,16 @@ import {
   ErrorState,
   RouterLink,
   useDocumentTitle,
-} from '../components.tsx'
-import { Blankslate } from '../primitives/Blankslate.tsx'
-import { Delayed, useAnnounce } from '../primitives/feedback.tsx'
-import { CommitSha, StateLabel, ToneText } from '../primitives/labels.tsx'
-import { NavListGroup, NavListItem, navListItemSx } from '../primitives/NavList.tsx'
-import { PageHeader, ParentLinkContent } from '../primitives/PageHeader.tsx'
-import { PageLayout } from '../primitives/PageLayout.tsx'
-import { ReviewActions, ReviewNote } from '../ReviewActions.tsx'
-import type { ViewMode } from '../router.tsx'
+} from '../../components.tsx'
+import { Blankslate } from '../../primitives/Blankslate.tsx'
+import { Delayed, useAnnounce } from '../../primitives/feedback.tsx'
+import { CommitSha, StateLabel, ToneText } from '../../primitives/labels.tsx'
+import { NavListGroup, NavListItem, navListItemSx } from '../../primitives/NavList.tsx'
+import { PageHeader, ParentLinkContent } from '../../primitives/PageHeader.tsx'
+import { PageLayout } from '../../primitives/PageLayout.tsx'
+import type { ViewMode } from '../../router.tsx'
+import { buildQuery, fileUrl, isActive } from './api.ts'
+import { ReviewActions, ReviewNote } from './ReviewActions.tsx'
 
 const ROUTE = '/$org/$project/builds/$number'
 
@@ -109,7 +103,7 @@ export function BuildPage() {
 }
 
 /** Tells screen reader users once when a build they're watching finishes processing. */
-function useProcessingAnnouncement(data: BuildDetail | undefined) {
+function useProcessingAnnouncement(data: Build.Detail | undefined) {
   const announce = useAnnounce()
   const wasActive = useRef<boolean | undefined>(undefined)
   useEffect(() => {
@@ -125,7 +119,7 @@ function useProcessingAnnouncement(data: BuildDetail | undefined) {
   }, [data, announce])
 }
 
-function BuildReview({ data, parentLink }: { data: BuildDetail; parentLink: ReactNode }) {
+function BuildReview({ data, parentLink }: { data: Build.Detail; parentLink: ReactNode }) {
   const { build, baseline } = data
   const params = useParams({ from: ROUTE })
   const search = useSearch({ from: ROUTE })
@@ -291,7 +285,7 @@ function BuildReview({ data, parentLink }: { data: BuildDetail; parentLink: Reac
 }
 
 /** Where the comparison comes from: plain metadata normally, a warning when it's a fallback. */
-function BaselineNote({ data }: { data: BuildDetail }) {
+function BaselineNote({ data }: { data: Build.Detail }) {
   const { build, baseline } = data
   if (isActive(build.status)) return null
   if (!baseline) {
@@ -324,14 +318,14 @@ function BaselineNote({ data }: { data: BuildDetail }) {
   )
 }
 
-function changeSummary(d: DiffItem): string {
+function changeSummary(d: Build.DiffItem): string {
   if (d.sizeChanged) return 'Size changed'
   if (d.score === null) return ''
   const pct = d.score * 100
   return `${pct < 0.01 ? '<0.01' : pct.toFixed(pct < 1 ? 2 : 1)}% of pixels`
 }
 
-function Thumb({ diff }: { diff: DiffItem }) {
+function Thumb({ diff }: { diff: Build.DiffItem }) {
   const src = diff.head?.thumbnail ?? diff.base?.thumbnail
   const sx = {
     width: 48,
@@ -365,7 +359,7 @@ const checker = {
  * view switch (Primer SegmentedControl: switching views is not navigation), then the images.
  */
 function Viewer(props: {
-  diff: DiffItem
+  diff: Build.DiffItem
   mode: ViewMode
   baselineNumber: number | undefined
   backLink: ReactNode

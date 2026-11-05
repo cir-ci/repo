@@ -1,13 +1,13 @@
 import { Alert, Box, Button, Stack, Typography } from '@mui/material'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { getJson } from '../api.ts'
-import { authClient } from '../auth.ts'
-import { ErrorState, RelativeTime, useDocumentTitle } from '../components.tsx'
-import { ListSkeleton, useAnnounce } from '../primitives/feedback.tsx'
-import { PageHeader } from '../primitives/PageHeader.tsx'
-import { PageLayout } from '../primitives/PageLayout.tsx'
-import { Row, Section } from '../primitives/Rows.tsx'
+import { ErrorState, RelativeTime, useDocumentTitle } from '../../components.tsx'
+import { authClient } from '../../lib/auth-client.ts'
+import { ListSkeleton, useAnnounce } from '../../primitives/feedback.tsx'
+import { PageHeader } from '../../primitives/PageHeader.tsx'
+import { PageLayout } from '../../primitives/PageLayout.tsx'
+import { Row, Section } from '../../primitives/Rows.tsx'
+import { authMethodsQuery } from '../auth/api.ts'
 
 /** A short, readable name for a browser's user-agent string, e.g. "Firefox on macOS". */
 export function describeAgent(agent: string | null | undefined): string {
@@ -77,11 +77,7 @@ export function AccountPage() {
     },
   })
 
-  const methods = useQuery({
-    queryKey: ['auth-methods'],
-    queryFn: () => getJson<{ sso: { id: string; name: string }[] }>('/api/auth-methods'),
-    staleTime: 5 * 60_000,
-  })
+  const methods = useQuery(authMethodsQuery())
   const githubOn = methods.data?.sso.some((p) => p.id === 'github') === true
   const currentToken = current?.session.token
   const others = data?.filter((s) => s.token !== currentToken) ?? []

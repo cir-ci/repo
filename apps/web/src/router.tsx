@@ -9,16 +9,18 @@ import {
 } from '@tanstack/react-router'
 import { lazy, Suspense } from 'react'
 
-import { AddressChangeBanner } from './AddressChangeBanner.tsx'
-import { authClient } from './auth.ts'
 import { RouterLink } from './components.tsx'
-import { InvitationBanner } from './InvitationBanner.tsx'
+import { InvitationBanner } from './features/auth/InvitationBanner.tsx'
+import { UserMenu } from './features/auth/UserMenu.tsx'
+import { AddressChangeBanner } from './features/instance/AddressChangeBanner.tsx'
+import { authClient } from './lib/auth-client.ts'
 import { Blankslate } from './primitives/Blankslate.tsx'
 import { AnnouncerProvider, Delayed } from './primitives/feedback.tsx'
-import { UserMenu } from './UserMenu.tsx'
 
 // Only people who aren't signed in need the sign-in form, so it's its own chunk.
-const LoginPage = lazy(() => import('./pages/Login.tsx').then((m) => ({ default: m.LoginPage })))
+const LoginPage = lazy(() =>
+  import('./features/auth/LoginPage.tsx').then((m) => ({ default: m.LoginPage })),
+)
 
 /**
  * App frame per Primer's page regions: an app header that scrolls with the page (never fixed),
@@ -173,7 +175,10 @@ const rootRoute = createRootRoute({ component: AppFrame, notFoundComponent: NotF
 const projectsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  component: lazyRouteComponent(() => import('./pages/Projects.tsx'), 'ProjectsPage'),
+  component: lazyRouteComponent(
+    () => import('./features/projects/ProjectsPage.tsx'),
+    'ProjectsPage',
+  ),
 })
 
 const projectRoute = createRoute({
@@ -183,7 +188,7 @@ const projectRoute = createRoute({
     const before = Number(search.before)
     return Number.isInteger(before) && before > 1 ? { before } : {}
   },
-  component: lazyRouteComponent(() => import('./pages/Project.tsx'), 'ProjectPage'),
+  component: lazyRouteComponent(() => import('./features/projects/ProjectPage.tsx'), 'ProjectPage'),
 })
 
 export type ViewMode = 'side' | 'overlay' | 'diff'
@@ -202,26 +207,29 @@ const buildRoute = createRoute({
       ? { mode: search.mode }
       : {}),
   }),
-  component: lazyRouteComponent(() => import('./pages/Build.tsx'), 'BuildPage'),
+  component: lazyRouteComponent(() => import('./features/builds/BuildPage.tsx'), 'BuildPage'),
 })
 
 // Three segments, so it can't collide with `$org/$project` (two) or a build page (four).
 const membersRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'organizations/$org/members',
-  component: lazyRouteComponent(() => import('./pages/Members.tsx'), 'MembersPage'),
+  component: lazyRouteComponent(() => import('./features/members/MembersPage.tsx'), 'MembersPage'),
 })
 
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '$org/$project/settings',
-  component: lazyRouteComponent(() => import('./pages/ProjectSettings.tsx'), 'ProjectSettingsPage'),
+  component: lazyRouteComponent(
+    () => import('./features/projects/ProjectSettingsPage.tsx'),
+    'ProjectSettingsPage',
+  ),
 })
 
 const accountRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'account',
-  component: lazyRouteComponent(() => import('./pages/Account.tsx'), 'AccountPage'),
+  component: lazyRouteComponent(() => import('./features/account/AccountPage.tsx'), 'AccountPage'),
 })
 
 const routeTree = rootRoute.addChildren([

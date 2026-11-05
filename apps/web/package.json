@@ -9,6 +9,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@circi/api": "workspace:*",
     "@emotion/react": "catalog:",
     "@emotion/styled": "catalog:",
     "@mui/icons-material": "catalog:",

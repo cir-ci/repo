@@ -2,7 +2,7 @@ import { Alert, Box, Button, Stack } from '@mui/material'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
-import { authClient } from './auth.ts'
+import { authClient } from '../../lib/auth-client.ts'
 
 type Invitation = { id: string; organizationName: string; role: string; email: string }
 

@@ -2,9 +2,9 @@ import { Alert, Box, Button, Link, Stack, TextField, Typography } from '@mui/mat
 import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useState } from 'react'
 
-import { getJson, setupQuery, submitSetup } from '../api.ts'
-import { authClient } from '../auth.ts'
-import { useDocumentTitle } from '../components.tsx'
+import { useDocumentTitle } from '../../components.tsx'
+import { authClient } from '../../lib/auth-client.ts'
+import { authMethodsQuery, setupQuery, submitSetup } from './api.ts'
 
 /**
  * Sign-in, as a Primer interstitial page: centred, 320px wide, one task. There's no sign-up
@@ -14,14 +14,7 @@ import { useDocumentTitle } from '../components.tsx'
 export function LoginPage() {
   useDocumentTitle('Sign in')
   const setup = useQuery(setupQuery())
-  const methods = useQuery({
-    queryKey: ['auth-methods'],
-    queryFn: () =>
-      getJson<{ password: boolean; email: boolean; sso: { id: string; name: string }[] }>(
-        '/api/auth-methods',
-      ),
-    staleTime: 5 * 60_000,
-  })
+  const methods = useQuery(authMethodsQuery())
   const fromLink = readLink()
   const invitedEmail = readInvitedEmail()
   const passwordOn = methods.data?.password !== false

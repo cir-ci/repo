@@ -1,3 +1,4 @@
+import type { Build, DiffStatus } from '@circi/api'
 import AddCircleOutlineOutlined from '@mui/icons-material/AddCircleOutlineOutlined'
 import CancelOutlined from '@mui/icons-material/CancelOutlined'
 import CheckCircleOutlineOutlined from '@mui/icons-material/CheckCircleOutlineOutlined'
@@ -14,7 +15,7 @@ import { Box, Button, Link as MuiLink, Stack } from '@mui/material'
 import { createLink } from '@tanstack/react-router'
 import { type ReactNode, useEffect, useState } from 'react'
 
-import { type BuildListItem, type Counts, type DiffStatus, HttpError } from './api.ts'
+import { HttpError } from './lib/http.ts'
 import { Blankslate } from './primitives/Blankslate.tsx'
 import { BranchName, CommitSha, StateLabel, type Tone, ToneText } from './primitives/labels.tsx'
 
@@ -23,7 +24,7 @@ import { BranchName, CommitSha, StateLabel, type Tone, ToneText } from './primit
 /** MUI's Link driven by TanStack Router: typed `to`/`params`/`search`, client-side navigation. */
 export const RouterLink = createLink(MuiLink)
 
-type BuildStatus = Pick<BuildListItem, 'status' | 'conclusion' | 'reviewStatus'>
+type BuildStatus = Pick<Build.ListItem, 'status' | 'conclusion' | 'reviewStatus'>
 
 export function buildState(b: BuildStatus): { label: string; tone: Tone; icon: ReactNode } {
   if (b.status === 'uploading' || b.status === 'pending') {
@@ -71,7 +72,7 @@ export function CountsSummary({
   counts,
   includeUnchanged = true,
 }: {
-  counts: Counts
+  counts: Build.Counts
   includeUnchanged?: boolean
 }) {
   const order: DiffStatus[] = ['changed', 'failed', 'added', 'removed']
@@ -100,7 +101,7 @@ export function CountsSummary({
 export function BuildMeta({
   build,
 }: {
-  build: Pick<BuildListItem, 'branch' | 'prNumber' | 'commitSha' | 'createdAt'>
+  build: Pick<Build.ListItem, 'branch' | 'prNumber' | 'commitSha' | 'createdAt'>
 }) {
   return (
     <Stack

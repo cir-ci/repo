@@ -4,8 +4,8 @@ import { RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
-import { HttpError } from './api.ts'
-import { authClient } from './auth.ts'
+import { authClient } from './lib/auth-client.ts'
+import { HttpError } from './lib/http.ts'
 import { router } from './router.tsx'
 import { theme } from './theme.ts'
 

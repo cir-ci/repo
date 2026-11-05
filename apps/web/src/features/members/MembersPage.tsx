@@ -13,13 +13,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 
-import { domainsQuery, orgAuthQuery, useDomainActions, useSaveOrgAuth } from '../api.ts'
-import { authClient } from '../auth.ts'
-import { ErrorState, RelativeTime, useDocumentTitle } from '../components.tsx'
-import { ListSkeleton, useAnnounce } from '../primitives/feedback.tsx'
-import { PageHeader } from '../primitives/PageHeader.tsx'
-import { PageLayout } from '../primitives/PageLayout.tsx'
-import { Row, Section } from '../primitives/Rows.tsx'
+import { ErrorState, RelativeTime, useDocumentTitle } from '../../components.tsx'
+import { authClient } from '../../lib/auth-client.ts'
+import { ListSkeleton, useAnnounce } from '../../primitives/feedback.tsx'
+import { PageHeader } from '../../primitives/PageHeader.tsx'
+import { PageLayout } from '../../primitives/PageLayout.tsx'
+import { Row, Section } from '../../primitives/Rows.tsx'
+import { domainsQuery, orgAuthQuery, useDomainActions, useSaveOrgAuth } from './api.ts'
 
 /** Who is in an organization, and (for owners and admins) inviting people and removing them. */
 export function MembersPage() {

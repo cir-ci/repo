@@ -1,16 +1,17 @@
+import type { Build, ReviewState } from '@circi/api'
 import CancelOutlined from '@mui/icons-material/CancelOutlined'
 import TaskAlt from '@mui/icons-material/TaskAlt'
 import { Alert, Button, Stack, Typography } from '@mui/material'
 
-import { type BuildDetail, type ReviewState, useReviewBuild } from './api.ts'
-import { RelativeTime } from './components.tsx'
-import { useAnnounce } from './primitives/feedback.tsx'
+import { RelativeTime } from '../../components.tsx'
+import { useAnnounce } from '../../primitives/feedback.tsx'
+import { useReviewBuild } from './api.ts'
 
 /**
  * Approve and reject, for a finished build with changes. Only the decision that isn't already
  * in force is offered, so after approving you're left with "Reject" to change your mind.
  */
-export function ReviewActions(props: { data: BuildDetail }) {
+export function ReviewActions(props: { data: Build.Detail }) {
   const { build, project } = props.data
   const review = useReviewBuild(project.orgSlug, project.slug, build.number)
   const announce = useAnnounce()
@@ -58,7 +59,7 @@ export function ReviewActions(props: { data: BuildDetail }) {
 }
 
 /** One line on where the build stands: who decided and when, or that it still needs a decision. */
-export function ReviewNote({ data }: { data: BuildDetail }) {
+export function ReviewNote({ data }: { data: Build.Detail }) {
   const { build, reviews } = data
   if (build.status !== 'complete' || build.conclusion !== 'changes_detected') return null
   const latest = reviews[0]

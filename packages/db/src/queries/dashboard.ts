@@ -5,7 +5,13 @@ import { orgAccepts, type SessionMethod } from '../repositories/auth-settings.ts
 import type { BuildCounts } from '../repositories/builds.ts'
 import { listBuildReviews, type ReviewEntry } from '../repositories/reviews.ts'
 import {
+  type AncestryStatus,
+  type BaselineSource,
+  type BuildConclusion,
+  type BuildStatus,
   builds,
+  type DiffStatus,
+  type ReviewStatus,
   files,
   member,
   organization,
@@ -27,9 +33,9 @@ export interface BuildListItem {
   commitSha: string
   branch: string | null
   prNumber: number | null
-  status: string
-  conclusion: string | null
-  reviewStatus: string
+  status: BuildStatus
+  conclusion: BuildConclusion | null
+  reviewStatus: ReviewStatus
   createdAt: Date
   counts: BuildCounts
 }
@@ -131,7 +137,7 @@ export interface ImageRef {
 export interface DiffItem {
   id: string
   name: string
-  status: string | null
+  status: DiffStatus | null
   score: number | null
   changedPixels: number | null
   sizeChanged: boolean
@@ -144,8 +150,8 @@ export interface DiffItem {
 export interface BuildDetail {
   build: Omit<BuildListItem, 'counts'> & {
     baseBranch: string | null
-    ancestryStatus: string
-    baselineSource: string | null
+    ancestryStatus: AncestryStatus
+    baselineSource: BaselineSource | null
     errorMessage: string | null
     completedAt: Date | null
     counts: BuildCounts

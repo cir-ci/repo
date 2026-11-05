@@ -2,8 +2,8 @@ import { Avatar, Box, IconButton, ListItemText, Menu, MenuItem, Typography } fro
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { authClient, type SessionUser } from './auth.ts'
-import { RouterLink } from './components.tsx'
+import { RouterLink } from '../../components.tsx'
+import { authClient, type SessionUser } from '../../lib/auth-client.ts'
 
 /** The signed-in person, top right: who they are, and a way to sign out. */
 export function UserMenu({ user }: { user: SessionUser }) {

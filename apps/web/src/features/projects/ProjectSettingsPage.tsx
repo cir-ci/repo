@@ -1,3 +1,4 @@
+import type { Project } from '@circi/api'
 import {
   Alert,
   Box,
@@ -13,21 +14,20 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 
+import { ErrorState, RelativeTime, useDocumentTitle } from '../../components.tsx'
+import { ListSkeleton, useAnnounce } from '../../primitives/feedback.tsx'
+import { PageHeader } from '../../primitives/PageHeader.tsx'
+import { PageLayout } from '../../primitives/PageLayout.tsx'
+import { Row, Section } from '../../primitives/Rows.tsx'
 import {
-  type ProjectSettings,
   settingsQuery,
   useAddWebhook,
   useDeleteWebhook,
   useGithubLink,
   useRotateToken,
   useSaveSettings,
-} from '../api.ts'
-import { ErrorState, RelativeTime, useDocumentTitle } from '../components.tsx'
-import { SecretBox } from '../CreateDialogs.tsx'
-import { ListSkeleton, useAnnounce } from '../primitives/feedback.tsx'
-import { PageHeader } from '../primitives/PageHeader.tsx'
-import { PageLayout } from '../primitives/PageLayout.tsx'
-import { Row, Section } from '../primitives/Rows.tsx'
+} from './api.ts'
+import { SecretBox } from './CreateDialogs.tsx'
 
 /** A project's settings, and where it sends webhooks. Owners and admins edit; members look. */
 export function ProjectSettingsPage() {
@@ -83,7 +83,7 @@ export function ProjectSettingsPage() {
 function SettingsForm(props: {
   org: string
   project: string
-  settings: ProjectSettings
+  settings: Project.Settings
   canManage: boolean
 }) {
   const save = useSaveSettings(props.org, props.project)

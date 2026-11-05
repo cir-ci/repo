@@ -3,7 +3,6 @@ import { Alert, Box, Button, Typography } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { capabilitiesQuery, projectsQuery } from '../api.ts'
 import {
   BuildMeta,
   BuildStateLabel,
@@ -11,12 +10,13 @@ import {
   ErrorState,
   RouterLink,
   useDocumentTitle,
-} from '../components.tsx'
-import { NewOrganizationDialog, NewProjectDialog } from '../CreateDialogs.tsx'
-import { Blankslate } from '../primitives/Blankslate.tsx'
-import { ListSkeleton } from '../primitives/feedback.tsx'
-import { PageHeader } from '../primitives/PageHeader.tsx'
-import { PageLayout } from '../primitives/PageLayout.tsx'
+} from '../../components.tsx'
+import { Blankslate } from '../../primitives/Blankslate.tsx'
+import { ListSkeleton } from '../../primitives/feedback.tsx'
+import { PageHeader } from '../../primitives/PageHeader.tsx'
+import { PageLayout } from '../../primitives/PageLayout.tsx'
+import { capabilitiesQuery, projectsQuery } from './api.ts'
+import { NewOrganizationDialog, NewProjectDialog } from './CreateDialogs.tsx'
 
 export function ProjectsPage() {
   useDocumentTitle('Projects')

@@ -1,26 +1,12 @@
 import { Alert, Box, Button } from '@mui/material'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 
-import { getJson } from './api.ts'
-
-interface Notices {
-  publicUrlChange: { from: string; to: string; checklist: string[] } | null
-}
+import { noticesQuery, useDismissAddressChange } from './api.ts'
 
 /** Tells instance admins the dashboard moved to a new address, with what's left to do. */
 export function AddressChangeBanner() {
-  const queryClient = useQueryClient()
-  const { data } = useQuery({
-    queryKey: ['instance-notices'],
-    queryFn: () => getJson<Notices>('/api/instance/notices'),
-  })
-  const dismiss = useMutation({
-    mutationFn: () =>
-      fetch('/api/instance/notices/public-url/dismiss', { method: 'POST' }).then((res) => {
-        if (!res.ok) throw new Error('Couldn’t dismiss this')
-      }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['instance-notices'] }),
-  })
+  const { data } = useQuery(noticesQuery())
+  const dismiss = useDismissAddressChange()
   const change = data?.publicUrlChange
   if (!change) return null
   return (

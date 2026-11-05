@@ -1,3 +1,4 @@
+import type { Org } from '@circi/api'
 import {
   Alert,
   Box,
@@ -13,8 +14,8 @@ import {
 import { useNavigate } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 
-import { type Capabilities, useCreateOrganization, useCreateProject } from './api.ts'
-import { useAnnounce } from './primitives/feedback.tsx'
+import { useAnnounce } from '../../primitives/feedback.tsx'
+import { useCreateOrganization, useCreateProject } from './api.ts'
 
 function field(form: FormData, key: string): string {
   const value = form.get(key)
@@ -105,7 +106,7 @@ export function NewOrganizationDialog({ open, onClose }: { open: boolean; onClos
 export function NewProjectDialog(props: {
   open: boolean
   onClose: () => void
-  organizations: Capabilities['manageableOrganizations']
+  organizations: Org.Capabilities['manageableOrganizations']
 }) {
   const create = useCreateProject()
   const navigate = useNavigate()

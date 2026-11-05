@@ -3,7 +3,6 @@ import { Box, Button, Typography } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { createLink, useParams, useSearch } from '@tanstack/react-router'
 
-import { BUILDS_PAGE_SIZE, projectQuery } from '../api.ts'
 import {
   BuildMeta,
   BuildStateLabel,
@@ -11,12 +10,13 @@ import {
   ErrorState,
   RouterLink,
   useDocumentTitle,
-} from '../components.tsx'
-import { Blankslate } from '../primitives/Blankslate.tsx'
-import { ListSkeleton } from '../primitives/feedback.tsx'
-import { BranchName } from '../primitives/labels.tsx'
-import { PageHeader } from '../primitives/PageHeader.tsx'
-import { PageLayout } from '../primitives/PageLayout.tsx'
+} from '../../components.tsx'
+import { Blankslate } from '../../primitives/Blankslate.tsx'
+import { ListSkeleton } from '../../primitives/feedback.tsx'
+import { BranchName } from '../../primitives/labels.tsx'
+import { PageHeader } from '../../primitives/PageHeader.tsx'
+import { PageLayout } from '../../primitives/PageLayout.tsx'
+import { BUILDS_PAGE_SIZE, projectQuery } from './api.ts'
 
 const ButtonLink = createLink(Button)
 
