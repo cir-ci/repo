@@ -638,7 +638,7 @@ _Status: accounts, organizations, roles, CI tokens and organization isolation ar
 - [x] Invitations (organization plugin + SMTP) and a members page
 - [x] Sessions list and revoke (account page), project settings page (incl. webhooks, SSRF-restricted addresses)
 - [x] `ORG_CREATION` and a first-run setup page (guarded by a setup code from the server log), organization/project creation and CI-token rotation in the dashboard, so a fresh install needs no CLI
-- [ ] Store the last `PUBLIC_URL`; on change, log and show the address-change checklist with OIDC redirect URIs to update (§7.9)
+- [x] Store the last `PUBLIC_URL` (`instance_settings`); on change, log the address-change checklist and show it to instance admins until dismissed (§7.9)
 - [ ] OAuth/OIDC login (GitHub, GitLab, Google, generic OIDC). Instance vs. org-scoped providers, (issuer, subject) matching, `trusted_for_email`, org-scoped sessions, confirmed account linking
 - [x] Approve/reject flow (same-origin guarded), auto-approve on default branch, re-run carry-over
 - [x] `block_merge_on_changes` setting (project settings page)

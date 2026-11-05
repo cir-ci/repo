@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url'
 
 import { setupCode } from '@circi/auth'
-import { countUsers, runMigrations } from '@circi/db'
+import { countUsers, publicUrlChecklist, recordPublicUrl, runMigrations } from '@circi/db'
 import { type RunningWorker, startWorker } from '@circi/worker'
 import type { FastifyInstance } from 'fastify'
 
@@ -52,6 +52,13 @@ export async function runServices(options: ServiceOptions): Promise<void> {
     if (options.migrate) {
       logger.info('applying database migrations')
       await runMigrations(rt.db)
+    }
+    const moved = await recordPublicUrl(rt.db.db, rt.config.publicUrl.origin)
+    if (moved) {
+      logger.warn(
+        { from: moved.from, to: moved.to, checklist: publicUrlChecklist(moved) },
+        `The dashboard address changed from ${moved.from} to ${moved.to}. Finish the address-change checklist.`,
+      )
     }
     if (options.http && (await countUsers(rt.db.db)) === 0) {
       logger.warn(

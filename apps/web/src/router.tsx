@@ -9,6 +9,7 @@ import {
 } from '@tanstack/react-router'
 import { lazy, Suspense } from 'react'
 
+import { AddressChangeBanner } from './AddressChangeBanner.tsx'
 import { authClient } from './auth.ts'
 import { RouterLink } from './components.tsx'
 import { InvitationBanner } from './InvitationBanner.tsx'
@@ -142,6 +143,7 @@ function AppFrame() {
         ) : user ? (
           <>
             <InvitationBanner userEmail={user.email} />
+            <AddressChangeBanner />
             <Outlet />
           </>
         ) : (

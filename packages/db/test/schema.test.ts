@@ -39,6 +39,7 @@ describe('migrations', () => {
       'builds',
       'commit_ancestry',
       'files',
+      'instance_settings',
       'invitation',
       'jobs',
       'member',

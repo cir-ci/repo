@@ -6,6 +6,7 @@ import { requireSameOrigin } from '../../hooks/same-origin.ts'
 import { requireSession } from '../../hooks/session.ts'
 import { authRoutes } from '../auth.ts'
 import { dashboardFileRoutes } from './files.ts'
+import { dashboardInstanceRoutes } from './instance.ts'
 import { dashboardOrganizationRoutes } from './organizations.ts'
 import { dashboardProjectRoutes } from './projects.ts'
 import { dashboardReviewRoutes } from './reviews.ts'
@@ -73,6 +74,7 @@ const sessionApi: FastifyPluginAsync<DashboardDeps> = async (api, options) => {
   await api.register(dashboardProjectRoutes, deps)
   await api.register(dashboardSettingsRoutes, deps)
   await api.register(dashboardOrganizationRoutes, deps)
+  await api.register(dashboardInstanceRoutes, deps)
   await api.register(dashboardReviewRoutes, deps)
   await api.register(dashboardFileRoutes, deps)
 }

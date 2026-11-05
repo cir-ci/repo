@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { createUser, setupCode, verifyProjectToken } from '@circi/auth'
 import type { Auth } from '@circi/auth'
-import { countUsers } from '@circi/db'
+import { countUsers, recordPublicUrl } from '@circi/db'
 import { FsStorage } from '@circi/storage'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
@@ -197,6 +197,32 @@ describe('creating organizations and projects', () => {
     expect((await post(app, '/api/projects/plain-org/rotating/token', {}, admin)).statusCode).toBe(
       404,
     )
+    await app.close()
+  })
+})
+
+describe('instance notices', () => {
+  it('tells instance admins about a moved dashboard, until dismissed', async () => {
+    const app = await serverWith()
+    await recordPublicUrl(t.db, 'https://ci.old.io')
+    await recordPublicUrl(t.db, ORIGIN)
+    const admin = await signIn(app, 'admin@acme.test', PASSWORD)
+    const plain = await signIn(app, 'plain@acme.test', PASSWORD)
+    const get = (cookie: string) =>
+      app.inject({ method: 'GET', url: '/api/instance/notices', headers: { cookie } })
+
+    const notice = (await get(admin)).json().publicUrlChange
+    expect(notice).toMatchObject({ from: 'https://ci.old.io', to: ORIGIN })
+    expect(notice.checklist.length).toBeGreaterThan(0)
+    expect((await get(plain)).json()).toEqual({ publicUrlChange: null })
+
+    expect(
+      (await post(app, '/api/instance/notices/public-url/dismiss', {}, plain)).statusCode,
+    ).toBe(403)
+    expect(
+      (await post(app, '/api/instance/notices/public-url/dismiss', {}, admin)).statusCode,
+    ).toBe(204)
+    expect((await get(admin)).json()).toEqual({ publicUrlChange: null })
     await app.close()
   })
 })
