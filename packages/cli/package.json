@@ -19,6 +19,7 @@
     "dev": "node --conditions=development src/main.ts"
   },
   "dependencies": {
-    "commander": "catalog:"
+    "commander": "catalog:",
+    "tar": "catalog:"
   }
 }

@@ -6,6 +6,7 @@ import type { StorageDriver } from '@circi/storage'
 import type { Logger } from 'pino'
 
 import type { ServerOptions } from './http/app.ts'
+import type { SitesDeps } from './http/deps.ts'
 
 /** What `serverOptionsFor` needs from the runtime. */
 export interface ServerRuntime {
@@ -20,6 +21,7 @@ export interface ServerRuntime {
 /** Turns the configuration into the HTTP server's options: which scopes exist and with what. */
 export function serverOptionsFor(rt: ServerRuntime, webDist: string): ServerOptions {
   const { config } = rt
+  const sites = config.staticSites ? sitesDeps(config.staticSites, config.publicUrl) : undefined
   const base = {
     db: rt.db.db,
     auth: rt.auth,
@@ -41,7 +43,18 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): ServerOpti
           },
         }
       : {}),
-    api: { ...base, githubApp: config.github !== undefined },
+    ...(sites
+      ? {
+          siteServing: {
+            db: rt.db.db,
+            storage: rt.storage,
+            publicOrigin: config.publicUrl.origin,
+            sites,
+            secret: config.authSecret,
+          },
+        }
+      : {}),
+    api: { ...base, githubApp: config.github !== undefined, ...(sites ? { sites } : {}) },
     dashboard: {
       ...base,
       emailLogin: config.emailLogin,
@@ -50,6 +63,7 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): ServerOpti
       webhookAllowPrivate: config.webhookAllowPrivate,
       orgCreation: config.orgCreation,
       githubApp: config.github !== undefined,
+      ...(sites ? { sites } : {}),
       authSecret: config.authSecret,
       webDist,
     },
@@ -57,5 +71,18 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): ServerOpti
       { name: 'database', check: () => rt.db.ping() },
       { name: 'storage', check: () => rt.storage.healthCheck() },
     ],
+  }
+}
+
+/** Where sites live: `<label>.<sites domain>` with the dashboard's scheme and port. */
+function sitesDeps(
+  sites: NonNullable<Config['staticSites']>,
+  publicUrl: Config['publicUrl'],
+): SitesDeps {
+  const port = new URL(publicUrl.origin).port
+  return {
+    host: sites.host,
+    maxBytes: sites.maxBytes,
+    originFor: (label) => `${publicUrl.protocol}//${label}.${sites.host}${port ? `:${port}` : ''}`,
   }
 }

@@ -19,6 +19,7 @@
     "@circi/db": "workspace:*",
     "@circi/providers": "workspace:*",
     "@circi/services": "workspace:*",
+    "@circi/sites": "workspace:*",
     "@circi/storage": "workspace:*",
     "@circi/worker": "workspace:*",
     "@fastify/multipart": "catalog:",
@@ -33,6 +34,7 @@
     "@circi/testing": "workspace:*",
     "@electric-sql/pglite": "catalog:",
     "drizzle-orm": "catalog:",
-    "sharp": "catalog:"
+    "sharp": "catalog:",
+    "tar": "catalog:"
   }
 }

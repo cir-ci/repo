@@ -42,6 +42,9 @@
     },
     {
       "path": "packages/api"
+    },
+    {
+      "path": "packages/ui"
     }
   ]
 }

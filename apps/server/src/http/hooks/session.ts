@@ -12,7 +12,13 @@ export function requireSession(auth: Auth, db: Database): onRequestAsyncHookHand
     if (!session) return reply.code(401).send({ error: 'Sign in to continue' })
     // Organizations may refuse some login methods, so the session's method travels with it.
     const method = (await getSessionMethod(db, session.session.id)) ?? 'unknown'
-    req.user = { id: session.user.id, email: session.user.email, name: session.user.name, method }
+    req.user = {
+      id: session.user.id,
+      email: session.user.email,
+      name: session.user.name,
+      method,
+      sessionId: session.session.id,
+    }
     return undefined
   }
 }

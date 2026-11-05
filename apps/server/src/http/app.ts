@@ -7,6 +7,7 @@ import { dashboardRoutes } from './routes/dashboard/index.ts'
 import { githubWebhookRoutes, type GithubWebhookDeps } from './routes/github-webhook.ts'
 import { healthRoutes, type ReadinessCheck } from './routes/health.ts'
 import { v1Routes } from './routes/v1/index.ts'
+import { siteHostHook, type SiteServerDeps } from './sites/serve.ts'
 
 export type { ReadinessCheck } from './routes/health.ts'
 
@@ -23,6 +24,8 @@ export interface ServerOptions {
   api?: V1Deps
   /** GitHub App webhooks (`/webhooks/github`). Omitted when no GitHub App is configured. */
   githubWebhook?: GithubWebhookDeps
+  /** Static site hosting: requests for site addresses are answered before any route. */
+  siteServing?: SiteServerDeps
   /** Dashboard (`/api`, `/`). Omitted in tests that don't need it. */
   dashboard?: DashboardDeps
 }
@@ -42,7 +45,14 @@ export interface ServerOptions {
  * Each scope's hooks and error handler apply only inside it.
  */
 export function buildServer(options: ServerOptions): FastifyInstance {
-  const app = Fastify({ loggerInstance: options.logger, trustProxy: true })
+  const app = Fastify({
+    loggerInstance: options.logger,
+    trustProxy: true,
+    // Uploaded sites can stuff the cookie jar of the sites domain; accept the big headers that
+    // result so the site handler can clear them (see `cleanupCookies`).
+    http: { maxHeaderSize: 64 * 1024 },
+  })
+  if (options.siteServing) app.addHook('onRequest', siteHostHook(options.siteServing))
 
   if (options.previousHosts?.length && options.publicOrigin) {
     app.addHook('onRequest', redirectPreviousHosts(options.previousHosts, options.publicOrigin))

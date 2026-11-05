@@ -10,8 +10,11 @@
   },
   "dependencies": {
     "@circi/api": "workspace:*",
+    "@circi/ui": "workspace:*",
     "@emotion/react": "catalog:",
     "@emotion/styled": "catalog:",
+    "@fontsource-variable/inter": "catalog:",
+    "@fontsource-variable/jetbrains-mono": "catalog:",
     "@mui/icons-material": "catalog:",
     "@mui/material": "catalog:",
     "@tanstack/react-query": "catalog:",

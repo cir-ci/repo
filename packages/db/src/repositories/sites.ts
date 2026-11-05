@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 
 import { ValidationError } from '@circi/core'
-import { and, desc, eq, gt, inArray, like, lt } from 'drizzle-orm'
+import { and, desc, eq, gt, inArray, like, lt, sql } from 'drizzle-orm'
 
 import type { Database } from '../client.ts'
 import {
@@ -60,8 +60,14 @@ export async function ensureAssetFiles(
     )
     .onConflictDoUpdate({
       target: files.sha256,
-      // Bytes written by the server are verified by construction (it hashed them itself).
-      set: { status: 'verified', verifiedAt: new Date() },
+      // Bytes written by the server are verified by construction (it hashed them itself). A
+      // file that was already verified keeps the copy it has; one that was only announced (or
+      // never arrived) now points at the copy just written.
+      set: {
+        storageKey: sql`case when ${files.status} = 'verified' then ${files.storageKey} else excluded.storage_key end`,
+        status: 'verified',
+        verifiedAt: new Date(),
+      },
     })
 }
 

@@ -1,4 +1,9 @@
-import { CssBaseline, ThemeProvider } from '@mui/material'
+// Fonts ship with the app: a self-hosted install may have no route to a font service.
+// oxlint-disable-next-line import/no-unassigned-import
+import '@fontsource-variable/inter'
+// oxlint-disable-next-line import/no-unassigned-import
+import '@fontsource-variable/jetbrains-mono'
+import { CirciTheme } from '@circi/ui'
 import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
@@ -7,7 +12,6 @@ import { createRoot } from 'react-dom/client'
 import { authClient } from './lib/auth-client.ts'
 import { HttpError } from './lib/http.ts'
 import { router } from './router.tsx'
-import { theme } from './theme.ts'
 
 const queryClient = new QueryClient({
   // A 401 means the session ended (expired, or signed out in another tab): re-check it, and the
@@ -30,11 +34,10 @@ const root = document.getElementById('root')
 if (!root) throw new Error('#root missing from index.html')
 createRoot(root).render(
   <StrictMode>
-    <ThemeProvider theme={theme}>
-      <CssBaseline enableColorScheme />
+    <CirciTheme>
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
       </QueryClientProvider>
-    </ThemeProvider>
+    </CirciTheme>
   </StrictMode>,
 )
