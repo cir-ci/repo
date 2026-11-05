@@ -1,9 +1,9 @@
 import { check, index, pgTable, text, uuid } from 'drizzle-orm/pg-core'
 
 import { createdAt, id, inList } from './_columns.ts'
+import { user } from './auth.ts'
 import { builds } from './builds.ts'
 import { REVIEW_SOURCES, REVIEW_STATES, type ReviewSource, type ReviewState } from './enums.ts'
-import { users } from './organizations.ts'
 
 /** Approve/reject history; the latest review decides a build's review status. */
 
@@ -15,7 +15,7 @@ export const reviews = pgTable(
       .notNull()
       .references(() => builds.id, { onDelete: 'cascade' }),
     /** Null for automatic approvals (default-branch auto-approve). */
-    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
     state: text('state').$type<ReviewState>().notNull(),
     source: text('source').$type<ReviewSource>().notNull(),
     createdAt: createdAt(),

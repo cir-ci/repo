@@ -1,19 +1,18 @@
-import { hashToken, looksLikeProjectToken } from '@circi/core'
-import {
-  type Database,
-  findProjectByTokenHash,
-  getProjectContext,
-  type ProjectContext,
-} from '@circi/db'
+import type { Auth } from '@circi/auth'
+import { verifyProjectToken } from '@circi/auth'
+import type { Database, ProjectContext } from '@circi/db'
 import type { FastifyRequest, onRequestAsyncHookHandler } from 'fastify'
 
 /**
- * `/v1` authentication: a project CI token as `Authorization: Bearer circi_…`. The matching
- * project goes on `req.project`; anything else is a 401 before any handler runs.
+ * `/v1` authentication: a project CI token as `Authorization: Bearer circi_…`, checked by
+ * better-auth's API key plugin. The matching project goes on `req.project`; anything else is a
+ * 401 before any handler runs.
  */
-export function requireProjectToken(db: Database): onRequestAsyncHookHandler {
+export function requireProjectToken(auth: Auth, db: Database): onRequestAsyncHookHandler {
   return async (req, reply) => {
-    const project = await authenticate(db, req)
+    const header = req.headers.authorization
+    const token = header?.startsWith('Bearer ') ? header.slice(7).trim() : undefined
+    const project = token ? await verifyProjectToken(auth, db, token) : undefined
     if (!project) {
       return reply
         .code(401)
@@ -29,15 +28,4 @@ export function requireProjectToken(db: Database): onRequestAsyncHookHandler {
 export function currentProject(req: FastifyRequest): ProjectContext {
   if (!req.project) throw new Error('unauthenticated request reached a handler')
   return req.project
-}
-
-async function authenticate(
-  db: Database,
-  req: FastifyRequest,
-): Promise<ProjectContext | undefined> {
-  const header = req.headers.authorization
-  const token = header?.startsWith('Bearer ') ? header.slice(7).trim() : undefined
-  if (!token || !looksLikeProjectToken(token)) return undefined
-  const project = await findProjectByTokenHash(db, hashToken(token))
-  return project ? getProjectContext(db, project.id) : undefined
 }

@@ -1,37 +1,58 @@
-import { assertValidSlug, slugify, ValidationError } from '@circi/core'
-import { asc, eq } from 'drizzle-orm'
+import { and, asc, eq } from 'drizzle-orm'
 
 import type { Database } from '../client.ts'
-import { ConflictError, isUniqueViolation, NotFoundError } from '../errors.ts'
-import { organizations } from '../schema/index.ts'
+import { NotFoundError } from '../errors.ts'
+import { member, organization } from '../schema/index.ts'
 import type { Organization } from '../types.ts'
 
-/** Organizations: create, list, look up. */
-
-export async function createOrganization(
-  db: Database,
-  input: { name: string; slug?: string },
-): Promise<Organization> {
-  const name = input.name.trim()
-  if (!name) throw new ValidationError('Organization name is required')
-  const slug = input.slug ?? slugify(name)
-  assertValidSlug(slug, 'organization slug')
-  try {
-    const [org] = await db.insert(organizations).values({ name, slug }).returning()
-    if (!org) throw new Error('insert returned no row')
-    return org
-  } catch (err) {
-    if (isUniqueViolation(err)) throw new ConflictError(`Organization "${slug}" already exists`)
-    throw err
-  }
-}
+/**
+ * Read access to organizations and memberships. They're owned by better-auth's organization
+ * plugin: create orgs and add members through `@circi/auth`, never by writing these tables.
+ */
 
 export async function listOrganizations(db: Database): Promise<Organization[]> {
-  return db.select().from(organizations).orderBy(asc(organizations.slug))
+  return db.select().from(organization).orderBy(asc(organization.slug))
 }
 
 export async function getOrganizationBySlug(db: Database, slug: string): Promise<Organization> {
-  const [org] = await db.select().from(organizations).where(eq(organizations.slug, slug))
+  const [org] = await db.select().from(organization).where(eq(organization.slug, slug))
   if (!org) throw new NotFoundError(`Organization "${slug}" not found`)
   return org
+}
+
+/** The organizations a user belongs to: the boundary of everything they may see (PLAN §8). */
+export async function listUserOrganizationIds(db: Database, userId: string): Promise<string[]> {
+  const rows = await db
+    .select({ id: member.organizationId })
+    .from(member)
+    .where(eq(member.userId, userId))
+  return rows.map((r) => r.id)
+}
+
+/**
+ * A user who owns the organization. better-auth only lets owners issue organization-owned API
+ * keys, so CI tokens are issued on behalf of one.
+ */
+export async function findOrganizationOwnerId(
+  db: Database,
+  organizationId: string,
+): Promise<string | undefined> {
+  const [row] = await db
+    .select({ userId: member.userId })
+    .from(member)
+    .where(and(eq(member.organizationId, organizationId), eq(member.role, 'owner')))
+    .limit(1)
+  return row?.userId
+}
+
+/** The user's role in an organization, or undefined when they aren't a member. */
+export async function getMemberRole(
+  db: Database,
+  input: { userId: string; organizationId: string },
+): Promise<string | undefined> {
+  const [row] = await db
+    .select({ role: member.role })
+    .from(member)
+    .where(and(eq(member.userId, input.userId), eq(member.organizationId, input.organizationId)))
+  return row?.role
 }

@@ -12,8 +12,9 @@ import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { upload } from '../../../packages/cli/src/index.ts'
-import { createTestDb, seedProject, type TestDb } from '../../../packages/db/test/helpers.ts'
+import { createTestDb, type TestDb } from '../../../packages/db/test/helpers.ts'
 import { buildServer } from '../src/http/app.ts'
+import { createTestAuth, seedTenant } from './helpers.ts'
 
 /**
  * M1 end to end (PLAN §9): the real CLI uploads to a real HTTP server, the worker diffs, and
@@ -71,11 +72,16 @@ beforeAll(async () => {
   if (!address || typeof address === 'string') throw new Error('no address')
   apiUrl = `http://127.0.0.1:${address.port}`
   await app.close()
-  app = buildServer({ logger, checks: [], api: { db: t.db, storage, publicOrigin: apiUrl } })
+  const betterAuth = createTestAuth(t.db)
+  app = buildServer({
+    logger,
+    checks: [],
+    api: { db: t.db, auth: betterAuth, storage, publicOrigin: apiUrl },
+  })
   await app.listen({ host: '127.0.0.1', port: address.port })
 
   worker = await startWorker({ db: t.db, storage, logger, pollIntervalMs: 20 })
-  ;({ token } = await seedProject(t.db))
+  ;({ token } = await seedTenant(betterAuth, t.db))
 })
 
 afterAll(async () => {

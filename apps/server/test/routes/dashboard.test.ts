@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import type { Auth } from '@circi/auth'
 import { createBuild, finalizeBuild, markFileVerified, planUploads } from '@circi/db'
 import { contentKey, FsStorage } from '@circi/storage'
 import { processBuild } from '@circi/worker'
@@ -11,20 +12,23 @@ import { pino } from 'pino'
 import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createTestDb, seedProject, type TestDb } from '../../../../packages/db/test/helpers.ts'
+import { createTestDb, type TestDb } from '../../../../packages/db/test/helpers.ts'
 import { buildServer } from '../../src/http/app.ts'
-import { checkBasicAuth } from '../../src/http/hooks/dashboard-password.ts'
+import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '../helpers.ts'
 
-const PASSWORD = 'correct-horse-battery'
 const logger = pino({ level: 'silent' })
-const basic = (password: string) => `Basic ${Buffer.from(`any:${password}`).toString('base64')}`
 const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex')
 
 let t: TestDb
 let dir: string
 let storage: FsStorage
 let app: FastifyInstance
-let orgSlug: string
+let betterAuth: Auth
+/** Two unrelated organizations: `acme` has builds, `rival` is someone else. */
+let acme: Tenant
+let rival: Tenant
+let acmeCookie: string
+let rivalCookie: string
 
 async function png(color: string): Promise<Buffer> {
   return sharp({ create: { width: 60, height: 40, channels: 4, background: color } })
@@ -71,6 +75,7 @@ async function buildWith(
 
 beforeAll(async () => {
   t = await createTestDb()
+  betterAuth = createTestAuth(t.db)
   dir = await mkdtemp(join(tmpdir(), 'circi-dash-'))
   storage = new FsStorage({ path: join(dir, 'files') })
   const webDist = join(dir, 'web')
@@ -80,19 +85,20 @@ beforeAll(async () => {
   app = buildServer({
     logger,
     checks: [],
-    dashboard: { db: t.db, storage, password: PASSWORD, webDist },
+    dashboard: { db: t.db, auth: betterAuth, storage, publicOrigin: ORIGIN, webDist },
   })
   await app.ready()
 
-  const { project } = await seedProject(t.db)
-  orgSlug =
-    (await t.db.query.organizations.findFirst({ where: (o, { eq }) => eq(o.id, project.orgId) }))
-      ?.slug ?? ''
-  await buildWith(project.id, 'aaaa001', [], {
+  acme = await seedTenant(betterAuth, t.db)
+  rival = await seedTenant(betterAuth, t.db)
+  acmeCookie = await signIn(app, acme.owner.email, acme.owner.password)
+  rivalCookie = await signIn(app, rival.owner.email, rival.owner.password)
+
+  await buildWith(acme.project.id, 'aaaa001', [], {
     home: await png('#ffffff'),
     about: await png('#eeeeee'),
   })
-  await buildWith(project.id, 'aaaa002', ['aaaa001'], {
+  await buildWith(acme.project.id, 'aaaa002', ['aaaa001'], {
     home: await png('#ff0000'),
     about: await png('#eeeeee'),
   })
@@ -103,48 +109,144 @@ afterAll(async () => {
   await rm(dir, { recursive: true, force: true })
 })
 
-const get = (url: string, headers: Record<string, string> = { authorization: basic(PASSWORD) }) =>
-  app.inject({ method: 'GET', url, headers })
+/** GET as Acme's owner by default; pass '' for no session at all. */
+const get = (url: string, cookie: string = acmeCookie) =>
+  app.inject({ method: 'GET', url, headers: cookie ? { cookie } : {} })
 
-describe('access', () => {
-  it('is off without a password, and says how to turn it on', async () => {
-    const off = buildServer({ logger, checks: [], dashboard: { db: t.db, storage } })
-    try {
-      const api = await off.inject({ method: 'GET', url: '/api/projects' })
-      expect(api.statusCode).toBe(503)
-      expect(api.json().error).toMatch(/DASHBOARD_PASSWORD/)
-      const html = await off.inject({ method: 'GET', url: '/', headers: { accept: 'text/html' } })
-      expect(html.statusCode).toBe(503)
-      expect(html.body).toContain('DASHBOARD_PASSWORD')
-      // Health checks never go through the dashboard gate.
-      expect((await off.inject({ method: 'GET', url: '/healthz' })).statusCode).toBe(200)
-    } finally {
-      await off.close()
-    }
+async function buildDetail(cookie: string, orgSlug = acme.orgSlug) {
+  return get(`/api/projects/${orgSlug}/web/builds/2`, cookie)
+}
+
+describe('signing in', () => {
+  it('needs a session for the dashboard API', async () => {
+    const res = await get('/api/projects', '')
+    expect(res.statusCode).toBe(401)
+    expect(res.json()).toEqual({ error: 'Sign in to continue' })
   })
 
-  it('asks for the password, and accepts any username with the right one', async () => {
-    const none = await get('/api/projects', {})
-    expect(none.statusCode).toBe(401)
-    expect(none.headers['www-authenticate']).toMatch(/^Basic realm="CirCI"/)
-    expect(
-      (await get('/api/projects', { authorization: basic('wrong-password-here') })).statusCode,
-    ).toBe(401)
-    expect((await get('/api/projects')).statusCode).toBe(200)
+  it('signs in with email and password, and the cookie works', async () => {
+    const res = await get('/api/projects', acmeCookie)
+    expect(res.statusCode).toBe(200)
   })
 
-  it('compares passwords safely', () => {
-    expect(checkBasicAuth(basic(PASSWORD), PASSWORD)).toBe(true)
-    expect(checkBasicAuth(basic(`${PASSWORD}x`), PASSWORD)).toBe(false)
-    expect(checkBasicAuth('Basic !!!', PASSWORD)).toBe(false)
-    expect(checkBasicAuth('Bearer x', PASSWORD)).toBe(false)
+  it('sets a __Host- session cookie: Secure, HttpOnly, no Domain, Path=/', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/sign-in/email',
+      headers: { origin: ORIGIN, 'content-type': 'application/json' },
+      payload: { email: acme.owner.email, password: acme.owner.password },
+    })
+    const cookies = [res.headers['set-cookie']]
+      .flat()
+      .filter((c): c is string => typeof c === 'string')
+    const session = cookies.find((c) => c.startsWith('__Host-circi.session_token='))
+    expect(session).toBeDefined()
+    expect(session).toMatch(/;\s*Secure/i)
+    expect(session).toMatch(/;\s*HttpOnly/i)
+    expect(session).toMatch(/;\s*Path=\//i)
+    expect(session).not.toMatch(/;\s*Domain=/i)
+    // Every cookie better-auth sets must qualify for the prefix, or browsers drop it.
+    for (const c of cookies) expect(c.startsWith('__Host-')).toBe(true)
+  })
+
+  it('refuses a wrong password', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/sign-in/email',
+      headers: { origin: ORIGIN, 'content-type': 'application/json' },
+      payload: { email: acme.owner.email, password: 'definitely-the-wrong-one' },
+    })
+    expect(res.statusCode).toBe(401)
+    expect(res.headers['set-cookie']).toBeUndefined()
+  })
+
+  it('has no self sign-up: accounts come from the admin CLI', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      headers: { origin: ORIGIN, 'content-type': 'application/json' },
+      payload: {
+        email: 'stranger@example.com',
+        name: 'Stranger',
+        password: 'a-very-long-password-1',
+      },
+    })
+    expect(res.statusCode).toBeGreaterThanOrEqual(400)
+    const projects = await get('/api/projects', '')
+    expect(projects.statusCode).toBe(401)
+  })
+
+  it('reports who is signed in, and nobody when signed out', async () => {
+    const me = await app.inject({
+      method: 'GET',
+      url: '/api/auth/get-session',
+      headers: { cookie: acmeCookie },
+    })
+    expect(me.json()).toMatchObject({ user: { email: acme.owner.email } })
+    const nobody = await app.inject({ method: 'GET', url: '/api/auth/get-session' })
+    expect(nobody.json()).toBeNull()
+  })
+
+  it('stops working after signing out', async () => {
+    const cookie = await signIn(app, acme.owner.email, acme.owner.password)
+    expect((await get('/api/projects', cookie)).statusCode).toBe(200)
+    const out = await app.inject({
+      method: 'POST',
+      url: '/api/auth/sign-out',
+      headers: { origin: ORIGIN, cookie, 'content-type': 'application/json' },
+      payload: {},
+    })
+    expect(out.statusCode).toBe(200)
+    expect((await get('/api/projects', cookie)).statusCode).toBe(401)
+  })
+
+  it('does not accept a CI token as a dashboard session', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/projects',
+      headers: { authorization: `Bearer ${acme.token}` },
+    })
+    expect(res.statusCode).toBe(401)
+  })
+})
+
+describe('organization isolation', () => {
+  it('lists only the signed-in user’s projects', async () => {
+    const mine = (await get('/api/projects', acmeCookie)).json().projects
+    expect(mine.map((p: { org: { slug: string } }) => p.org.slug)).toEqual([acme.orgSlug])
+    const theirs = (await get('/api/projects', rivalCookie)).json().projects
+    expect(theirs.map((p: { org: { slug: string } }) => p.org.slug)).toEqual([rival.orgSlug])
+  })
+
+  it('answers “not found” for another organization’s project and builds', async () => {
+    const urls = [`/api/projects/${acme.orgSlug}/web`, `/api/projects/${acme.orgSlug}/web/builds/2`]
+    const asked = await Promise.all(
+      urls.flatMap((url) => [get(url, rivalCookie), get(`${url}x`, rivalCookie)]),
+    )
+    // Real and made-up projects get the same answer, so nothing reveals what exists.
+    expect(asked.map((r) => r.statusCode)).toEqual([404, 404, 404, 404])
+  })
+
+  it('serves a screenshot only to members of its organization', async () => {
+    const detail = (await buildDetail(acmeCookie)).json()
+    const home = detail.diffs.find((d: { name: string }) => d.name === 'home')
+    const url = `/api/files/${home.head.sha256}`
+    expect((await get(url, acmeCookie)).statusCode).toBe(200)
+    expect((await get(url, rivalCookie)).statusCode).toBe(404)
+    expect((await get(url, '')).statusCode).toBe(401)
+    // A cached copy mustn't get past a lost membership either.
+    const revalidate = await app.inject({
+      method: 'GET',
+      url,
+      headers: { cookie: rivalCookie, 'if-none-match': `"${home.head.sha256}"` },
+    })
+    expect(revalidate.statusCode).toBe(404)
   })
 })
 
 describe('API', () => {
   it('lists projects with their latest build', async () => {
-    const res = await get('/api/projects')
-    const p = res.json().projects.find((x: { org: { slug: string } }) => x.org.slug === orgSlug)
+    const p = (await get('/api/projects')).json().projects[0]
     expect(p.latestBuild).toMatchObject({
       number: 2,
       status: 'complete',
@@ -153,13 +255,13 @@ describe('API', () => {
   })
 
   it("lists a project's builds, newest first", async () => {
-    const res = await get(`/api/projects/${orgSlug}/web`)
+    const res = await get(`/api/projects/${acme.orgSlug}/web`)
     expect(res.json().builds.map((b: { number: number }) => b.number)).toEqual([2, 1])
-    expect((await get(`/api/projects/${orgSlug}/nope`)).statusCode).toBe(404)
+    expect((await get(`/api/projects/${acme.orgSlug}/nope`)).statusCode).toBe(404)
   })
 
   it('returns a build with its baseline and image references', async () => {
-    const res = await get(`/api/projects/${orgSlug}/web/builds/2`)
+    const res = await buildDetail(acmeCookie)
     expect(res.statusCode).toBe(200)
     const body = res.json()
     expect(body.baseline).toMatchObject({ number: 1, commitSha: 'aaaa001' })
@@ -174,11 +276,11 @@ describe('API', () => {
       base: { width: 60, height: 40 },
       diff: { width: 60, height: 40 },
     })
-    expect((await get(`/api/projects/${orgSlug}/web/builds/99`)).statusCode).toBe(404)
+    expect((await get(`/api/projects/${acme.orgSlug}/web/builds/99`)).statusCode).toBe(404)
   })
 
   it('serves files by hash with permanent caching', async () => {
-    const home = (await get(`/api/projects/${orgSlug}/web/builds/2`))
+    const home = (await buildDetail(acmeCookie))
       .json()
       .diffs.find((d: { name: string }) => d.name === 'home')
     const res = await get(`/api/files/${home.head.sha256}`)
@@ -186,9 +288,10 @@ describe('API', () => {
     expect(res.headers['content-type']).toBe('image/png')
     expect(res.headers['cache-control']).toBe('private, max-age=31536000, immutable')
     expect(sha(res.rawPayload)).toBe(home.head.sha256)
-    const cached = await get(`/api/files/${home.head.sha256}`, {
-      authorization: basic(PASSWORD),
-      'if-none-match': `"${home.head.sha256}"`,
+    const cached = await app.inject({
+      method: 'GET',
+      url: `/api/files/${home.head.sha256}`,
+      headers: { cookie: acmeCookie, 'if-none-match': `"${home.head.sha256}"` },
     })
     expect(cached.statusCode).toBe(304)
     expect((await get(`/api/files/${'0'.repeat(64)}`)).statusCode).toBe(404)
@@ -197,21 +300,21 @@ describe('API', () => {
 })
 
 describe('web app', () => {
-  it('serves the app shell for client-side routes', async () => {
-    const res = await get(`/${orgSlug}/web/builds/2`)
+  it('serves the app shell to everyone, so it can show the sign-in page', async () => {
+    const res = await get(`/${acme.orgSlug}/web/builds/2`, '')
     expect(res.statusCode).toBe(200)
     expect(res.body).toContain('id="root"')
     expect(res.headers['cache-control']).toBe('no-cache')
   })
 
   it('caches hashed assets for good', async () => {
-    const res = await get('/assets/app-1a2b3c.js')
+    const res = await get('/assets/app-1a2b3c.js', '')
     expect(res.statusCode).toBe(200)
     expect(res.headers['cache-control']).toBe('public, max-age=31536000, immutable')
   })
 
   it('answers unknown API paths with JSON 404s, not the app shell', async () => {
-    const res = await get('/api/nope')
+    const res = await get('/api/nope', acmeCookie)
     expect(res.statusCode).toBe(404)
     expect(res.json()).toEqual({ error: 'Not found' })
   })

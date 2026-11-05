@@ -15,6 +15,20 @@
       "when": 1793794562999,
       "tag": "0001_m1_uploads_and_jobs",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793798168378,
+      "tag": "0002_better_auth_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793798173841,
+      "tag": "0003_drop_legacy_auth",
+      "breakpoints": true
     }
   ]
 }

@@ -16,10 +16,11 @@ export const v1Routes: FastifyPluginAsync<V1Deps> = async (v1, options) => {
   // `prefix`, which children would otherwise apply a second time (/v1/v1/…).
   const deps: V1Deps = {
     db: options.db,
+    auth: options.auth,
     storage: options.storage,
     publicOrigin: options.publicOrigin,
   }
-  v1.addHook('onRequest', requireProjectToken(deps.db))
+  v1.addHook('onRequest', requireProjectToken(deps.auth, deps.db))
   // Uploaded file bodies reach the handler as a raw stream.
   v1.addContentTypeParser(['image/png', 'application/octet-stream'], (_req, payload, done) => {
     done(null, payload)

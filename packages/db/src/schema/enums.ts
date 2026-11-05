@@ -4,7 +4,6 @@
  * inside a transaction.
  */
 
-export const ROLES = ['owner', 'admin', 'member', 'viewer'] as const
 export const FILE_KINDS = ['screenshot', 'diff', 'thumbnail', 'asset'] as const
 export const FILE_STATUSES = ['pending', 'verified'] as const
 export const BUILD_STATUSES = [
@@ -25,7 +24,6 @@ export const REVIEW_STATES = ['approved', 'rejected'] as const
 export const REVIEW_SOURCES = ['ui', 'github-check', 'github-comment', 'auto'] as const
 export const JOB_STATUSES = ['pending', 'running', 'done', 'failed'] as const
 
-export type Role = (typeof ROLES)[number]
 export type FileKind = (typeof FILE_KINDS)[number]
 export type FileStatus = (typeof FILE_STATUSES)[number]
 export type BuildStatus = (typeof BUILD_STATUSES)[number]

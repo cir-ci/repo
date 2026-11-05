@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 
 import { ConfigError, loadConfig } from '../src/index.ts'
 
-const base = { DATABASE_URL: 'postgres://localhost/circi' }
+const base = {
+  DATABASE_URL: 'postgres://localhost/circi',
+  BETTER_AUTH_SECRET: 'test-secret-that-is-long-enough-123',
+}
 
 describe('loadConfig', () => {
   it('applies defaults (local-disk storage)', () => {
@@ -109,15 +112,16 @@ describe('loadConfig', () => {
   })
 })
 
-describe('DASHBOARD_PASSWORD', () => {
-  it('is optional, and the dashboard is off without it', () => {
-    expect(loadConfig(base).dashboardPassword).toBeUndefined()
-    expect(loadConfig({ ...base, DASHBOARD_PASSWORD: '' }).dashboardPassword).toBeUndefined()
+describe('BETTER_AUTH_SECRET', () => {
+  it('is required, and says how to make one', () => {
+    const { BETTER_AUTH_SECRET: _omit, ...withoutSecret } = base
+    expect(() => loadConfig(withoutSecret)).toThrow(/openssl rand -base64 32/)
   })
-  it('must be at least 12 characters', () => {
-    expect(() => loadConfig({ ...base, DASHBOARD_PASSWORD: 'short' })).toThrow(/at least 12/)
-    expect(
-      loadConfig({ ...base, DASHBOARD_PASSWORD: 'correct-horse-battery' }).dashboardPassword,
-    ).toBe('correct-horse-battery')
+
+  it('must be at least 32 characters', () => {
+    expect(() => loadConfig({ ...base, BETTER_AUTH_SECRET: 'too-short' })).toThrow(/at least 32/)
+    expect(loadConfig({ ...base, BETTER_AUTH_SECRET: 'x'.repeat(32) }).authSecret).toBe(
+      'x'.repeat(32),
+    )
   })
 })

@@ -2,10 +2,14 @@ import { createRuntime, type Runtime } from '../runtime.ts'
 
 /** Output and runtime helpers shared by the one-shot commands (`migrate`, `admin …`). */
 
-/** Never print the token hash, even in JSON output. */
-export function publicProject<T extends { tokenHash: string }>(p: T): Omit<T, 'tokenHash'> {
-  const { tokenHash: _hash, ...rest } = p
-  return rest
+/** A project as printed by the CLI. (The CI key is better-auth's; only its id is stored here.) */
+export function publicProject<T>(p: T): T {
+  return p
+}
+
+export function printPassword(password: string): void {
+  console.log('\nPassword (shown once, they can change it after signing in):')
+  console.log(`  ${password}`)
 }
 
 export function printToken(token: string): void {

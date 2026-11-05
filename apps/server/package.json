@@ -19,19 +19,20 @@
     "dev": "node --conditions=development src/main.ts"
   },
   "dependencies": {
+    "@circi/auth": "workspace:*",
     "@circi/config": "workspace:*",
     "@circi/core": "workspace:*",
     "@circi/db": "workspace:*",
     "@circi/storage": "workspace:*",
     "@circi/worker": "workspace:*",
-    "@fastify/static": "10.1.8",
-    "commander": "15.0.0",
-    "fastify": "5.12.8",
-    "pino": "10.4.0",
-    "zod": "4.6.7"
+    "@fastify/static": "catalog:",
+    "commander": "catalog:",
+    "fastify": "catalog:",
+    "pino": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "0.5.12",
-    "sharp": "0.35.5"
+    "@electric-sql/pglite": "catalog:",
+    "sharp": "catalog:"
   }
 }

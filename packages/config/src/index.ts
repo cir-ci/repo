@@ -17,10 +17,9 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   PUBLIC_URL: z.string().default('http://localhost:3000'),
   PREVIOUS_PUBLIC_URLS: z.string().default(''),
-  DASHBOARD_PASSWORD: z.preprocess(
-    emptyToUndefined,
-    z.string().min(12, 'must be at least 12 characters').optional(),
-  ),
+  BETTER_AUTH_SECRET: z
+    .string({ error: 'is required (generate one with: openssl rand -base64 32)' })
+    .min(32, 'must be at least 32 characters (generate one with: openssl rand -base64 32)'),
   DATABASE_URL: z.string({ error: 'is required' }).min(1, 'is required'),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).default(10),
   STORAGE_DRIVER: z.enum(['fs', 's3']).default('fs'),
@@ -55,11 +54,8 @@ export interface Config {
    * redirected to `publicUrl`, so old links in PR comments and emails keep working.
    */
   previousPublicHosts: string[]
-  /**
-   * Interim dashboard protection until accounts arrive in M2: HTTP basic auth with this
-   * password. Unset means the dashboard is off.
-   */
-  dashboardPassword?: string
+  /** Signs sessions and cookies (BETTER_AUTH_SECRET). Rotating it signs everyone out. */
+  authSecret: string
   /** Settings that work but are probably a mistake; logged at startup. */
   warnings: string[]
   database: { url: string; poolMax: number }
@@ -141,7 +137,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     publicUrl,
     previousPublicHosts,
     warnings,
-    ...(e.DASHBOARD_PASSWORD ? { dashboardPassword: e.DASHBOARD_PASSWORD } : {}),
+    authSecret: e.BETTER_AUTH_SECRET,
     database: { url: e.DATABASE_URL, poolMax: e.DATABASE_POOL_MAX },
     storage,
   }

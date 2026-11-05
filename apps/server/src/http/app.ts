@@ -29,7 +29,9 @@ export interface ServerOptions {
  *   (all)       redirect from previous dashboard hosts
  *   /healthz    /readyz          no auth
  *   /v1/…       CI API           project token
- *   /api/…, /…  dashboard        dashboard password
+ *   /api/auth/… sign-in          public (better-auth)
+ *   /api/…      dashboard API    session cookie
+ *   /…          web app          public static files
  *
  * Each scope's hooks and error handler apply only inside it.
  */

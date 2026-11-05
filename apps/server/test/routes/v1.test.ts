@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 
+import type { Auth } from '@circi/auth'
+import { rotateProjectToken } from '@circi/auth'
 import { getFile } from '@circi/db'
 import {
   FsStorage,
@@ -16,10 +18,10 @@ import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createTestDb, seedProject, type TestDb } from '../../../../packages/db/test/helpers.ts'
+import { createTestDb, type TestDb } from '../../../../packages/db/test/helpers.ts'
 import { buildServer } from '../../src/http/app.ts'
+import { createTestAuth, ORIGIN, seedTenant } from '../helpers.ts'
 
-const ORIGIN = 'https://ci.acme.io'
 const logger = pino({ level: 'silent' })
 const sha256 = (b: Buffer) => createHash('sha256').update(b).digest('hex')
 const png = (text: string) => Buffer.from(`\x89PNG fake ${text}`)
@@ -27,14 +29,21 @@ const png = (text: string) => Buffer.from(`\x89PNG fake ${text}`)
 let t: TestDb
 let dir: string
 let app: FastifyInstance
+let betterAuth: Auth
 
 beforeAll(async () => {
   t = await createTestDb()
+  betterAuth = createTestAuth(t.db)
   dir = await mkdtemp(join(tmpdir(), 'circi-api-'))
   app = buildServer({
     logger,
     checks: [],
-    api: { db: t.db, storage: new FsStorage({ path: dir }), publicOrigin: ORIGIN },
+    api: {
+      db: t.db,
+      auth: betterAuth,
+      storage: new FsStorage({ path: dir }),
+      publicOrigin: ORIGIN,
+    },
   })
   await app.ready()
 })
@@ -79,17 +88,41 @@ describe('authentication', () => {
   })
 
   it('describes the token’s project', async () => {
-    const { project, token } = await seedProject(t.db, { defaultBranch: 'trunk' })
+    const { project, token } = await seedTenant(betterAuth, t.db, { defaultBranch: 'trunk' })
     const res = await app.inject({ method: 'GET', url: '/v1/project', headers: auth(token) })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toMatchObject({ slug: project.slug, defaultBranch: 'trunk' })
     expect(res.json().dashboardUrl).toMatch(new RegExp(`^${ORIGIN}/org-\\d+/web$`))
   })
+
+  it('stops accepting a token as soon as it is rotated', async () => {
+    const tenant = await seedTenant(betterAuth, t.db)
+    const ok = await app.inject({ method: 'GET', url: '/v1/project', headers: auth(tenant.token) })
+    expect(ok.statusCode).toBe(200)
+    const { token: fresh } = await rotateProjectToken(betterAuth, t.db, {
+      orgSlug: tenant.orgSlug,
+      projectSlug: 'web',
+    })
+    const old = await app.inject({ method: 'GET', url: '/v1/project', headers: auth(tenant.token) })
+    expect(old.statusCode).toBe(401)
+    const now = await app.inject({ method: 'GET', url: '/v1/project', headers: auth(fresh) })
+    expect(now.statusCode).toBe(200)
+  })
+
+  it('does not take a dashboard session as a CI credential', async () => {
+    const tenant = await seedTenant(betterAuth, t.db)
+    const res = await app.inject({
+      method: 'GET',
+      url: '/v1/project',
+      headers: { authorization: `Bearer ${tenant.owner.password}` },
+    })
+    expect(res.statusCode).toBe(401)
+  })
 })
 
 describe('upload flow (local-disk storage)', () => {
   it('creates a build, uploads through the API, finalizes and enqueues processing', async () => {
-    const { token } = await seedProject(t.db)
+    const { token } = await seedTenant(betterAuth, t.db)
     const a = png('a')
     const b = png('b')
     const created = await createBuild(token, [a, b])
@@ -134,7 +167,7 @@ describe('upload flow (local-disk storage)', () => {
   })
 
   it('does not ask for files the server already has (dedup)', async () => {
-    const { token } = await seedProject(t.db)
+    const { token } = await seedTenant(betterAuth, t.db)
     const c = png('c')
     const first = (await createBuild(token, [c])).json()
     await upload(token, c)
@@ -144,7 +177,7 @@ describe('upload flow (local-disk storage)', () => {
   })
 
   it('rejects bytes that do not match the hash and stores nothing', async () => {
-    const { token } = await seedProject(t.db)
+    const { token } = await seedTenant(betterAuth, t.db)
     const good = png('good')
     await createBuild(token, [good])
     const res = await upload(token, png('evil'), sha256(good))
@@ -154,12 +187,12 @@ describe('upload flow (local-disk storage)', () => {
   })
 
   it('refuses uploads nobody asked for', async () => {
-    const { token } = await seedProject(t.db)
+    const { token } = await seedTenant(betterAuth, t.db)
     expect((await upload(token, png('unrequested'))).statusCode).toBe(404)
   })
 
   it('answers 409 with the missing hashes when finalizing too early', async () => {
-    const { token } = await seedProject(t.db)
+    const { token } = await seedTenant(betterAuth, t.db)
     const d = png('d')
     const build = (await createBuild(token, [d])).json().build
     const res = await app.inject({
@@ -173,7 +206,7 @@ describe('upload flow (local-disk storage)', () => {
   })
 
   it('validates input', async () => {
-    const { token } = await seedProject(t.db)
+    const { token } = await seedTenant(betterAuth, t.db)
     const jpeg = await app.inject({
       method: 'POST',
       url: '/v1/builds',
@@ -195,8 +228,8 @@ describe('upload flow (local-disk storage)', () => {
   })
 
   it("hides other projects' builds", async () => {
-    const owner = await seedProject(t.db)
-    const other = await seedProject(t.db)
+    const owner = await seedTenant(betterAuth, t.db)
+    const other = await seedTenant(betterAuth, t.db)
     const build = (await createBuild(owner.token, [])).json().build
     const res = await app.inject({
       method: 'GET',
@@ -243,11 +276,11 @@ describe('upload flow (direct-to-S3)', () => {
     const s3App = buildServer({
       logger,
       checks: [],
-      api: { db: t.db, storage: s3, publicOrigin: ORIGIN },
+      api: { db: t.db, auth: betterAuth, storage: s3, publicOrigin: ORIGIN },
     })
     await s3App.ready()
     try {
-      const { token } = await seedProject(t.db)
+      const { token } = await seedTenant(betterAuth, t.db)
       const e = png('s3-e')
       const created = await s3App.inject({
         method: 'POST',

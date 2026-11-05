@@ -1,11 +1,12 @@
-import { aliasedTable, and, desc, eq, inArray, lt, sql } from 'drizzle-orm'
+import { aliasedTable, and, desc, eq, exists, inArray, lt, or, sql } from 'drizzle-orm'
 
 import type { Database } from '../client.ts'
 import type { BuildCounts } from '../repositories/builds.ts'
 import {
   builds,
   files,
-  organizations,
+  member,
+  organization,
   projects,
   screenshotDiffs,
   screenshots,
@@ -13,7 +14,8 @@ import {
 
 /**
  * Read models behind the dashboard: shaped for the UI, read-only, free to join widely.
- * Writes always go through the repositories.
+ * Writes always go through the repositories. Everything a user can reach is limited to the
+ * organizations they're a member of (PLAN §8: org isolation).
  */
 
 export interface BuildListItem {
@@ -36,12 +38,17 @@ export interface ProjectOverview {
   latestBuild: BuildListItem | null
 }
 
-export async function listProjectsOverview(db: Database): Promise<ProjectOverview[]> {
+/** Projects in the organizations `userId` belongs to, with each one's latest build. */
+export async function listProjectsOverview(
+  db: Database,
+  userId: string,
+): Promise<ProjectOverview[]> {
   const rows = await db
-    .select({ org: organizations, project: projects })
+    .select({ org: organization, project: projects })
     .from(projects)
-    .innerJoin(organizations, eq(organizations.id, projects.orgId))
-    .orderBy(organizations.slug, projects.slug)
+    .innerJoin(organization, eq(organization.id, projects.orgId))
+    .innerJoin(member, and(eq(member.organizationId, organization.id), eq(member.userId, userId)))
+    .orderBy(organization.slug, projects.slug)
   return Promise.all(
     rows.map(async ({ org, project }) => {
       const [latest] = await listBuildsForProject(db, project.id, { limit: 1 })
@@ -242,4 +249,45 @@ export async function getBuildDetail(
         : null,
     })),
   }
+}
+
+/**
+ * Whether `userId` may download a stored file. Files are shared across organizations by content
+ * hash, so knowing a hash proves nothing: the file must be a screenshot, thumbnail or diff of a
+ * build in one of the user's organizations.
+ */
+export async function canUserAccessFile(
+  db: Database,
+  userId: string,
+  sha256: string,
+): Promise<boolean> {
+  const inUsersOrg = (buildId: typeof screenshots.buildId | typeof screenshotDiffs.buildId) =>
+    exists(
+      db
+        .select({ one: sql`1` })
+        .from(builds)
+        .innerJoin(projects, eq(projects.id, builds.projectId))
+        .innerJoin(
+          member,
+          and(eq(member.organizationId, projects.orgId), eq(member.userId, userId)),
+        )
+        .where(eq(builds.id, buildId)),
+    )
+  const [viaScreenshot] = await db
+    .select({ one: sql`1` })
+    .from(screenshots)
+    .where(
+      and(
+        or(eq(screenshots.fileSha256, sha256), eq(screenshots.thumbnailSha256, sha256)),
+        inUsersOrg(screenshots.buildId),
+      ),
+    )
+    .limit(1)
+  if (viaScreenshot) return true
+  const [viaDiff] = await db
+    .select({ one: sql`1` })
+    .from(screenshotDiffs)
+    .where(and(eq(screenshotDiffs.diffFileSha256, sha256), inUsersOrg(screenshotDiffs.buildId)))
+    .limit(1)
+  return Boolean(viaDiff)
 }

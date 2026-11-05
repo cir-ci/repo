@@ -14,7 +14,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
-    "pixelmatch": "8.0.0",
-    "sharp": "0.35.5"
+    "pixelmatch": "catalog:",
+    "sharp": "catalog:"
   }
 }

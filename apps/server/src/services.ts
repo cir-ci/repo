@@ -65,11 +65,17 @@ export async function runServices(options: ServiceOptions): Promise<void> {
         logger,
         publicOrigin: rt.config.publicUrl.origin,
         previousHosts: rt.config.previousPublicHosts,
-        api: { db: rt.db.db, storage: rt.storage, publicOrigin: rt.config.publicUrl.origin },
+        api: {
+          db: rt.db.db,
+          auth: rt.auth,
+          storage: rt.storage,
+          publicOrigin: rt.config.publicUrl.origin,
+        },
         dashboard: {
           db: rt.db.db,
+          auth: rt.auth,
           storage: rt.storage,
-          ...(rt.config.dashboardPassword ? { password: rt.config.dashboardPassword } : {}),
+          publicOrigin: rt.config.publicUrl.origin,
           webDist: webDistPath(),
         },
         checks: [

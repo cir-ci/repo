@@ -1,3 +1,4 @@
+import { isAuthApiError } from '@circi/auth'
 import { ConfigError } from '@circi/config'
 import { ValidationError } from '@circi/core'
 import { ConflictError, NotFoundError } from '@circi/db'
@@ -23,7 +24,8 @@ export async function runCli(argv: string[]): Promise<void> {
       err instanceof ConfigError ||
       err instanceof ConflictError ||
       err instanceof NotFoundError ||
-      err instanceof ValidationError
+      err instanceof ValidationError ||
+      isAuthApiError(err)
     console.error(expected ? `error: ${err.message}` : err)
     process.exitCode = 1
   }

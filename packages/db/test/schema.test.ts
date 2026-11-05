@@ -3,14 +3,8 @@ import { drizzle } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import {
-  createOrganization,
-  createProject,
-  migrationsFolder,
-  pgErrorCode,
-  schema,
-} from '../src/index.ts'
-import { createTestDb, type TestDb } from './helpers.ts'
+import { migrationsFolder, pgErrorCode, schema } from '../src/index.ts'
+import { createTestDb, seedProject, type TestDb } from './helpers.ts'
 
 /** Migrations apply cleanly, and the database itself enforces the plan's invariants (PLAN §6, §8). */
 
@@ -39,19 +33,24 @@ describe('migrations', () => {
       "select tablename from pg_tables where schemaname = 'public' order by tablename",
     )
     expect(res.rows.map((r) => r.tablename)).toEqual([
+      'account',
+      'apikey',
       'build_shards',
       'builds',
       'commit_ancestry',
       'files',
+      'invitation',
       'jobs',
-      'memberships',
-      'organizations',
+      'member',
+      'organization',
       'projects',
       'reviews',
       'screenshot_diffs',
       'screenshots',
+      'session',
       'upload_claims',
-      'users',
+      'user',
+      'verification',
     ])
   })
 
@@ -90,8 +89,7 @@ describe('schema constraints from the plan', () => {
   })
 
   it('collapses concurrent shards into one build per (project, name, commit, nonce)', async () => {
-    await createOrganization(t.db, { name: 'Shards', slug: 'shards' })
-    const { project } = await createProject(t.db, { orgSlug: 'shards', name: 'p' })
+    const { project } = await seedProject(t.db)
     const build = {
       projectId: project.id,
       commitSha: 'c0ffee',
@@ -132,8 +130,7 @@ describe('schema constraints from the plan', () => {
   })
 
   it('requires parallel nonce and total together', async () => {
-    await createOrganization(t.db, { name: 'Par', slug: 'par' })
-    const { project } = await createProject(t.db, { orgSlug: 'par', name: 'p' })
+    const { project } = await seedProject(t.db)
     const code = await failCode(() =>
       t.db
         .insert(schema.builds)
@@ -143,8 +140,7 @@ describe('schema constraints from the plan', () => {
   })
 
   it('upserts a retried shard instead of counting it twice', async () => {
-    await createOrganization(t.db, { name: 'Retry', slug: 'retry' })
-    const { project } = await createProject(t.db, { orgSlug: 'retry', name: 'p' })
+    const { project } = await seedProject(t.db)
     const [build] = await t.db
       .insert(schema.builds)
       .values({
@@ -174,8 +170,7 @@ describe('schema constraints from the plan', () => {
   })
 
   it('blocks deleting a file that an upload claim still relies on', async () => {
-    await createOrganization(t.db, { name: 'Claims', slug: 'claims' })
-    const { project } = await createProject(t.db, { orgSlug: 'claims', name: 'p' })
+    const { project } = await seedProject(t.db)
     const [build] = await t.db
       .insert(schema.builds)
       .values({ projectId: project.id, commitSha: 'x', number: 1 })
@@ -189,11 +184,48 @@ describe('schema constraints from the plan', () => {
     expect(code).toBe('23001') // restrict_violation (ON DELETE RESTRICT)
   })
 
-  it('treats user emails case-insensitively', async () => {
-    await t.db.insert(schema.users).values({ email: 'Ada@Example.com' })
+  it('only lets a project belong to an existing organization', async () => {
     const code = await failCode(() =>
-      t.db.insert(schema.users).values({ email: 'ada@example.com' }),
+      t.db.insert(schema.projects).values({ orgId: 'no-such-org', slug: 'p', name: 'p' }),
     )
-    expect(code).toBe('23505')
+    expect(code).toBe('23503')
+  })
+
+  it('deletes an organization’s projects and builds with it', async () => {
+    const { project, org } = await seedProject(t.db)
+    await t.db
+      .insert(schema.builds)
+      .values({ projectId: project.id, commitSha: 'abc1234', number: 1 })
+    await t.db.delete(schema.organization).where(eq(schema.organization.id, org.id))
+    expect(
+      await t.db.select().from(schema.projects).where(eq(schema.projects.id, project.id)),
+    ).toEqual([])
+    expect(
+      await t.db.select().from(schema.builds).where(eq(schema.builds.projectId, project.id)),
+    ).toEqual([])
+  })
+
+  it('keeps a project when its CI key is deleted, with no token', async () => {
+    const { project } = await seedProject(t.db)
+    const [key] = await t.db
+      .insert(schema.apikey)
+      .values({
+        id: 'key-1',
+        referenceId: project.orgId,
+        key: 'hashed',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning()
+    await t.db
+      .update(schema.projects)
+      .set({ ciKeyId: key?.id ?? null })
+      .where(eq(schema.projects.id, project.id))
+    await t.db.delete(schema.apikey).where(eq(schema.apikey.id, 'key-1'))
+    const [after] = await t.db
+      .select()
+      .from(schema.projects)
+      .where(eq(schema.projects.id, project.id))
+    expect(after?.ciKeyId).toBeNull()
   })
 })

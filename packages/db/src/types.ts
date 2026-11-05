@@ -2,15 +2,17 @@ import type {
   builds,
   files,
   jobs,
-  organizations,
+  organization,
   projects,
   screenshotDiffs,
   screenshots,
+  user,
 } from './schema/index.ts'
 
 /** Row types, as read from and written to the database. */
 
-export type Organization = typeof organizations.$inferSelect
+export type Organization = typeof organization.$inferSelect
+export type User = typeof user.$inferSelect
 export type Project = typeof projects.$inferSelect
 export type Build = typeof builds.$inferSelect
 export type Screenshot = typeof screenshots.$inferSelect

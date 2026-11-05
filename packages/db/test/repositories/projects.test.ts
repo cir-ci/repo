@@ -1,16 +1,22 @@
-import { hashToken } from '@circi/core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
   ConflictError,
-  createOrganization,
   createProject,
-  listOrganizations,
+  findProjectForMember,
+  getProjectBySlugs,
   listProjects,
   NotFoundError,
-  rotateProjectToken,
+  setProjectCiKey,
 } from '../../src/index.ts'
-import { createTestDb, type TestDb } from '../helpers.ts'
+import {
+  addTestMember,
+  createTestDb,
+  seedOrg,
+  seedProject,
+  seedUser,
+  type TestDb,
+} from '../helpers.ts'
 
 let t: TestDb
 
@@ -21,65 +27,117 @@ afterAll(async () => {
   await t.close()
 })
 
-describe('organizations and projects', () => {
-  it('creates an org with a derived slug and rejects duplicates', async () => {
-    const org = await createOrganization(t.db, { name: 'Acme Inc' })
-    expect(org.slug).toBe('acme-inc')
-    await expect(createOrganization(t.db, { name: 'Acme Inc' })).rejects.toBeInstanceOf(
-      ConflictError,
-    )
-    expect((await listOrganizations(t.db)).map((o) => o.slug)).toContain('acme-inc')
-  })
-
-  it('creates a project whose token is stored only as a hash', async () => {
-    await createOrganization(t.db, { name: 'Tokens', slug: 'tokens' })
-    const { project, token } = await createProject(t.db, { orgSlug: 'tokens', name: 'Web app' })
-    expect(project.slug).toBe('web-app')
-    expect(project.defaultBranch).toBe('main')
-    expect(project.tokenHash).toBe(hashToken(token))
-    expect(project.tokenHint).toBe(`${token.slice(0, 12)}…`)
-    const raw = await t.client.query(`select * from projects where id = $1`, [project.id])
-    expect(JSON.stringify(raw.rows)).not.toContain(token)
-  })
-
-  it('applies the plan defaults to new projects', async () => {
-    await createOrganization(t.db, { name: 'Defaults', slug: 'defaults' })
-    const { project } = await createProject(t.db, { orgSlug: 'defaults', name: 'p' })
+describe('projects', () => {
+  it('creates a project with a derived slug and the plan’s defaults', async () => {
+    const { org } = await seedOrg(t.db)
+    const project = await createProject(t.db, { orgSlug: org.slug, name: 'Web app' })
     expect(project).toMatchObject({
+      slug: 'web-app',
+      orgId: org.id,
+      defaultBranch: 'main',
       diffThreshold: 0,
       autoApproveDefaultBranch: true,
       blockMergeOnChanges: true,
       retentionDays: 30,
       staticHostingEnabled: false,
       buildCounter: 0,
+      ciKeyId: null,
     })
   })
 
-  it('scopes project slugs per org', async () => {
-    await createOrganization(t.db, { name: 'One', slug: 'one' })
-    await createOrganization(t.db, { name: 'Two', slug: 'two' })
-    await createProject(t.db, { orgSlug: 'one', name: 'web' })
-    await createProject(t.db, { orgSlug: 'two', name: 'web' })
-    await expect(createProject(t.db, { orgSlug: 'one', name: 'web' })).rejects.toBeInstanceOf(
-      ConflictError,
-    )
+  it('scopes project slugs per organization', async () => {
+    const one = await seedOrg(t.db)
+    const two = await seedOrg(t.db)
+    await createProject(t.db, { orgSlug: one.org.slug, name: 'web' })
+    await createProject(t.db, { orgSlug: two.org.slug, name: 'web' })
+    await expect(
+      createProject(t.db, { orgSlug: one.org.slug, name: 'web' }),
+    ).rejects.toBeInstanceOf(ConflictError)
     await expect(createProject(t.db, { orgSlug: 'missing', name: 'web' })).rejects.toBeInstanceOf(
       NotFoundError,
     )
   })
 
-  it('rotates only the requested project token', async () => {
-    await createOrganization(t.db, { name: 'Rotate', slug: 'rotate' })
-    const a = await createProject(t.db, { orgSlug: 'rotate', name: 'a' })
-    const b = await createProject(t.db, { orgSlug: 'rotate', name: 'b' })
-    const rotated = await rotateProjectToken(t.db, { orgSlug: 'rotate', projectSlug: 'a' })
-    expect(rotated.token).not.toBe(a.token)
-    const projects = await listProjects(t.db, 'rotate')
-    const byslug = Object.fromEntries(projects.map((p) => [p.slug, p]))
-    expect(byslug.a?.tokenHash).toBe(hashToken(rotated.token))
-    expect(byslug.b?.tokenHash).toBe(hashToken(b.token))
+  it('rejects names that cannot become a valid slug', async () => {
+    const { org } = await seedOrg(t.db)
     await expect(
-      rotateProjectToken(t.db, { orgSlug: 'rotate', projectSlug: 'nope' }),
+      createProject(t.db, { orgSlug: org.slug, name: 'x', slug: 'admin' }),
+    ).rejects.toThrow(/reserved/)
+    await expect(createProject(t.db, { orgSlug: org.slug, name: '   ' })).rejects.toThrow(
+      /required/,
+    )
+  })
+
+  it('lists an organization’s projects by slug', async () => {
+    const { org } = await seedOrg(t.db)
+    await createProject(t.db, { orgSlug: org.slug, name: 'b' })
+    await createProject(t.db, { orgSlug: org.slug, name: 'a' })
+    expect((await listProjects(t.db, org.slug)).map((p) => p.slug)).toEqual(['a', 'b'])
+  })
+
+  it('finds a project by its slugs, or says it does not exist', async () => {
+    const { project, org } = await seedProject(t.db)
+    expect(
+      await getProjectBySlugs(t.db, { orgSlug: org.slug, projectSlug: project.slug }),
+    ).toMatchObject({
+      id: project.id,
+    })
+    await expect(
+      getProjectBySlugs(t.db, { orgSlug: org.slug, projectSlug: 'nope' }),
     ).rejects.toBeInstanceOf(NotFoundError)
+  })
+
+  it('records the project’s current CI key, and clears it', async () => {
+    const { project, org } = await seedProject(t.db)
+    await t.client.query(
+      `insert into apikey (id, reference_id, key, created_at, updated_at) values ('k1', '${org.id}', 'h', now(), now())`,
+    )
+    await setProjectCiKey(t.db, project.id, 'k1')
+    expect(
+      (await getProjectBySlugs(t.db, { orgSlug: org.slug, projectSlug: project.slug })).ciKeyId,
+    ).toBe('k1')
+    await setProjectCiKey(t.db, project.id, null)
+    expect(
+      (await getProjectBySlugs(t.db, { orgSlug: org.slug, projectSlug: project.slug })).ciKeyId,
+    ).toBeNull()
+  })
+})
+
+describe('findProjectForMember (organization isolation)', () => {
+  it('shows a project to members of its organization only', async () => {
+    const { project, org, owner } = await seedProject(t.db)
+    const colleague = await seedUser(t.db)
+    await addTestMember(t.db, { orgId: org.id, userId: colleague.id })
+    const outsider = await seedUser(t.db)
+    const ask = (userId: string) =>
+      findProjectForMember(t.db, { orgSlug: org.slug, projectSlug: project.slug, userId })
+
+    expect(await ask(owner.id)).toMatchObject({ id: project.id, orgSlug: org.slug })
+    expect(await ask(colleague.id)).toMatchObject({ id: project.id })
+    expect(await ask(outsider.id)).toBeUndefined()
+  })
+
+  it('answers the same for a project that does not exist', async () => {
+    const { org, owner } = await seedProject(t.db)
+    expect(
+      await findProjectForMember(t.db, {
+        orgSlug: org.slug,
+        projectSlug: 'nope',
+        userId: owner.id,
+      }),
+    ).toBeUndefined()
+  })
+
+  it('does not leak a project across organizations that share a slug', async () => {
+    const a = await seedProject(t.db)
+    const b = await seedProject(t.db)
+    expect(a.project.slug).toBe(b.project.slug)
+    expect(
+      await findProjectForMember(t.db, {
+        orgSlug: b.org.slug,
+        projectSlug: b.project.slug,
+        userId: a.owner.id,
+      }),
+    ).toBeUndefined()
   })
 })
