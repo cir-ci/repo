@@ -29,6 +29,7 @@ export function addAdminCommands(program: Command): void {
   addOrgCommands(admin.command('org').description('manage organizations'))
   addMemberCommands(admin.command('member').description('manage organization members'))
   addProjectCommands(admin.command('project').description('manage projects and their CI tokens'))
+  addMailCommands(admin.command('mail').description('check outgoing mail'))
   addWebhookCommands(admin.command('webhook').description('manage outgoing webhooks of a project'))
 }
 
@@ -271,4 +272,22 @@ function addWebhookCommands(webhook: Command): void {
 
 function projectOf(rt: Runtime, org: string, slug: string) {
   return getProjectBySlugs(rt.db.db, { orgSlug: org, projectSlug: slug })
+}
+
+function addMailCommands(mail: Command): void {
+  mail
+    .command('test')
+    .description('send a test mail through the configured SMTP server')
+    .requiredOption('--to <email>', 'recipient')
+    .action((opts: { to: string }) =>
+      withRuntime(async (rt) => {
+        if (!rt.mailer) throw new Error('SMTP is not configured (set SMTP_HOST and SMTP_FROM)')
+        await rt.mailer.send({
+          to: opts.to,
+          subject: 'CirCI test mail',
+          text: 'If you can read this, CirCI can send mail.\n',
+        })
+        console.log(`Sent a test mail to ${opts.to}`)
+      }),
+    )
 }

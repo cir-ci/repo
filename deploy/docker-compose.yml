@@ -40,6 +40,12 @@ services:
       PREVIOUS_PUBLIC_URLS: ${PREVIOUS_PUBLIC_URLS:-}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in deploy/.env (openssl rand -base64 32)}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      AUTH_EMAIL_ENABLED: ${AUTH_EMAIL_ENABLED:-}
       STORAGE_DRIVER: fs
       STORAGE_PATH: /var/lib/circi/files
     ports:

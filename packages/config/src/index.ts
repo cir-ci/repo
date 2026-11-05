@@ -30,6 +30,13 @@ const envSchema = z.object({
   S3_FORCE_PATH_STYLE: z.preprocess(emptyToUndefined, bool.optional()),
   S3_ACCESS_KEY_ID: z.preprocess(emptyToUndefined, z.string().optional()),
   S3_SECRET_ACCESS_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
+  SMTP_HOST: z.preprocess(emptyToUndefined, z.string().optional()),
+  SMTP_PORT: z.preprocess(emptyToUndefined, z.coerce.number().int().min(1).max(65535).optional()),
+  SMTP_SECURE: z.preprocess(emptyToUndefined, bool.optional()),
+  SMTP_USER: z.preprocess(emptyToUndefined, z.string().optional()),
+  SMTP_PASSWORD: z.preprocess(emptyToUndefined, z.string().optional()),
+  SMTP_FROM: z.preprocess(emptyToUndefined, z.string().optional()),
+  AUTH_EMAIL_ENABLED: z.preprocess(emptyToUndefined, bool.optional()),
 })
 
 export type StorageConfig =
@@ -42,6 +49,16 @@ export type StorageConfig =
       forcePathStyle: boolean
       credentials?: { accessKeyId: string; secretAccessKey: string }
     }
+
+export interface SmtpConfig {
+  host: string
+  port: number
+  /** Implicit TLS (port 465). Otherwise STARTTLS is used when the server offers it. */
+  secure: boolean
+  auth?: { user: string; password: string }
+  /** The From address, e.g. `CirCI <ci@acme.io>`. */
+  from: string
+}
 
 export interface Config {
   env: 'development' | 'production' | 'test'
@@ -60,6 +77,10 @@ export interface Config {
   warnings: string[]
   database: { url: string; poolMax: number }
   storage: StorageConfig
+  /** Outgoing mail (`SMTP_*`); absent when no SMTP server is configured. */
+  smtp?: SmtpConfig
+  /** Email login (one-time code / link) is offered: switched on (default) and SMTP is set up. */
+  emailLogin: boolean
 }
 
 export class ConfigError extends Error {
@@ -128,6 +149,27 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     storage = { driver: 'fs', path: e.STORAGE_PATH }
   }
 
+  let smtp: SmtpConfig | undefined
+  if (e.SMTP_HOST) {
+    if (!e.SMTP_FROM) issues.push('SMTP_FROM: required when SMTP_HOST is set')
+    if (Boolean(e.SMTP_USER) !== Boolean(e.SMTP_PASSWORD)) {
+      issues.push('SMTP_USER / SMTP_PASSWORD: set both, or neither for a server without login')
+    }
+    const port = e.SMTP_PORT ?? (e.SMTP_SECURE ? 465 : 587)
+    smtp = {
+      host: e.SMTP_HOST,
+      port,
+      secure: e.SMTP_SECURE ?? port === 465,
+      from: e.SMTP_FROM ?? '',
+      ...(e.SMTP_USER && e.SMTP_PASSWORD
+        ? { auth: { user: e.SMTP_USER, password: e.SMTP_PASSWORD } }
+        : {}),
+    }
+  }
+  if (e.AUTH_EMAIL_ENABLED === true && !smtp) {
+    warnings.push('AUTH_EMAIL_ENABLED is on but SMTP_HOST is not set, so email login is off.')
+  }
+
   if (issues.length > 0 || typeof publicUrl === 'string') throw new ConfigError(issues)
 
   return {
@@ -140,5 +182,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     authSecret: e.BETTER_AUTH_SECRET,
     database: { url: e.DATABASE_URL, poolMax: e.DATABASE_POOL_MAX },
     storage,
+    ...(smtp ? { smtp } : {}),
+    emailLogin: Boolean(smtp) && e.AUTH_EMAIL_ENABLED !== false,
   }
 }

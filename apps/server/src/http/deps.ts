@@ -18,6 +18,8 @@ export interface DashboardDeps {
   storage: StorageDriver
   /** Dashboard origin (`PUBLIC_URL`); better-auth's requests are built against it. */
   publicOrigin: string
+  /** Email sign-in codes are offered (`AUTH_EMAIL_ENABLED` and SMTP configured). Default off. */
+  emailLogin?: boolean
   /** Built web app (apps/web/dist). Missing: the API still works, pages explain how to build. */
   webDist?: string
 }

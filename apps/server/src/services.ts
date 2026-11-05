@@ -77,6 +77,7 @@ export async function runServices(options: ServiceOptions): Promise<void> {
           auth: rt.auth,
           storage: rt.storage,
           publicOrigin: rt.config.publicUrl.origin,
+          emailLogin: rt.config.emailLogin,
           webDist: webDistPath(),
         },
         checks: [

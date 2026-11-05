@@ -7,10 +7,20 @@ import type { FastifyPluginAsync } from 'fastify'
  * request becomes a Web `Request` built against the configured public origin, not the Host
  * header, so redirects and origin checks stay right behind a reverse proxy.
  */
-export const authRoutes: FastifyPluginAsync<{ auth: Auth; publicOrigin: string }> = async (
-  app,
-  options,
-) => {
+export const authRoutes: FastifyPluginAsync<{
+  auth: Auth
+  publicOrigin: string
+  emailLogin: boolean
+}> = async (app, options) => {
+  /** What the sign-in page can offer. Public: it's needed before anyone is signed in. */
+  app.get('/api/auth-methods', async () => ({ password: true, email: options.emailLogin }))
+
+  // With email login off its endpoints disappear, rather than existing and doing nothing.
+  if (!options.emailLogin) {
+    app.all('/api/auth/email-otp/*', (_request, reply) => reply.callNotFound())
+    app.all('/api/auth/sign-in/email-otp', (_request, reply) => reply.callNotFound())
+  }
+
   app.route({
     method: ['GET', 'POST'],
     url: '/api/auth/*',

@@ -18,6 +18,34 @@ describe('loadConfig', () => {
     expect(c.env).toBe('production')
   })
 
+  it('offers email login only with SMTP, and lets it be switched off', () => {
+    expect(loadConfig(base)).toMatchObject({ emailLogin: false })
+    const smtp = { ...base, SMTP_HOST: 'smtp.acme.io', SMTP_FROM: 'CirCI <ci@acme.io>' }
+    const on = loadConfig(smtp)
+    expect(on.emailLogin).toBe(true)
+    expect(on.smtp).toEqual({
+      host: 'smtp.acme.io',
+      port: 587,
+      secure: false,
+      from: 'CirCI <ci@acme.io>',
+    })
+    expect(loadConfig({ ...smtp, AUTH_EMAIL_ENABLED: 'false' }).emailLogin).toBe(false)
+    expect(loadConfig({ ...smtp, SMTP_PORT: '465' }).smtp?.secure).toBe(true)
+  })
+
+  it('warns when email login is asked for without SMTP', () => {
+    const c = loadConfig({ ...base, AUTH_EMAIL_ENABLED: 'true' })
+    expect(c.emailLogin).toBe(false)
+    expect(c.warnings.join()).toContain('SMTP_HOST')
+  })
+
+  it('needs SMTP_FROM, and user and password together', () => {
+    expect(() => loadConfig({ ...base, SMTP_HOST: 'smtp.acme.io' })).toThrow('SMTP_FROM')
+    expect(() =>
+      loadConfig({ ...base, SMTP_HOST: 'h', SMTP_FROM: 'a@b.c', SMTP_USER: 'u' }),
+    ).toThrow('SMTP_USER')
+  })
+
   it('requires DATABASE_URL', () => {
     expect(() => loadConfig({})).toThrow(ConfigError)
   })

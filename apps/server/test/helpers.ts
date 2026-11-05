@@ -1,5 +1,6 @@
 import {
   type Auth,
+  type Mailer,
   createAuth,
   createOrganization,
   createProjectWithToken,
@@ -12,8 +13,13 @@ import { expect } from 'vitest'
 /** Public origin used by the server tests (better-auth builds its URLs and cookies from it). */
 export const ORIGIN = 'https://ci.acme.io'
 
-export function createTestAuth(db: Database): Auth {
-  return createAuth({ db, secret: 'test-secret-that-is-long-enough-1234', baseURL: ORIGIN })
+export function createTestAuth(db: Database, mailer?: Mailer): Auth {
+  return createAuth({
+    db,
+    secret: 'test-secret-that-is-long-enough-1234',
+    baseURL: ORIGIN,
+    ...(mailer ? { mailer } : {}),
+  })
 }
 
 let n = 0

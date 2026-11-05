@@ -3,7 +3,9 @@ import { drizzleAdapter } from '@better-auth/drizzle-adapter'
 import type { Database } from '@circi/db'
 import { schema } from '@circi/db'
 import { betterAuth } from 'better-auth'
-import { admin, organization } from 'better-auth/plugins'
+import { admin, emailOTP, organization } from 'better-auth/plugins'
+
+import { type Mailer, signInMail } from './mail.ts'
 
 /**
  * Authentication, provided by better-auth (https://better-auth.com):
@@ -29,15 +31,28 @@ export interface AuthOptions {
   secret: string
   /** The dashboard origin (PUBLIC_URL); auth lives under `${baseURL}/api/auth`. */
   baseURL: string
+  /**
+   * Sends the email sign-in codes. Without it the email-code endpoints exist but send nothing;
+   * the server only exposes them when email login is switched on.
+   */
+  mailer?: Mailer
+  /** Called when sending a mail fails (it's never awaited, so sign-in timing doesn't leak). */
+  onMailError?: (err: unknown) => void
 }
+
+type LoginMailOptions = Partial<Pick<AuthOptions, 'mailer' | 'onMailError' | 'baseURL'>>
+
+/** How long an emailed sign-in code works. */
+export const EMAIL_CODE_TTL_SECONDS = 600
 
 /**
  * Plugins, shared with `schema-config.ts` so the generated tables always match what runs.
  * After changing them: `pnpm db:auth-schema`, then `pnpm db:generate`.
  */
-export function authPlugins() {
+export function authPlugins(options: LoginMailOptions = {}) {
   return [
     admin(),
+    emailLoginPlugin(options),
     organization({ allowUserToCreateOrganization: false }),
     apiKey([
       {
@@ -50,6 +65,29 @@ export function authPlugins() {
       },
     ]),
   ]
+}
+
+/**
+ * Email login (PLAN §7.8): a 6-digit code, mailed together with a link that opens the sign-in
+ * page with the code filled in (in the URL fragment, so servers and proxies never see it). The
+ * page still needs a click, so mail scanners that open links can't use the code up.
+ * Unknown addresses get no mail and the same answer (`disableSignUp`).
+ */
+function emailLoginPlugin(options: LoginMailOptions) {
+  return emailOTP({
+    otpLength: 6,
+    expiresIn: EMAIL_CODE_TTL_SECONDS,
+    allowedAttempts: 5,
+    storeOTP: 'hashed',
+    disableSignUp: true,
+    // Not awaited: waiting for the mail server would show which addresses have accounts.
+    sendVerificationOTP: async ({ email, otp, type }) => {
+      if (type !== 'sign-in' || !options.mailer || !options.baseURL) return
+      void options.mailer
+        .send(signInMail(email, otp, options.baseURL))
+        .catch((err: unknown) => options.onMailError?.(err))
+    },
+  })
 }
 
 const hostCookie = (name: string) => ({
@@ -105,7 +143,7 @@ export function createAuth(options: AuthOptions) {
       cookiePrefix: 'circi',
       ...hostCookies(options.baseURL),
     },
-    plugins: authPlugins(),
+    plugins: authPlugins(options),
   })
 }
 

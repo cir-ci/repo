@@ -34,6 +34,8 @@ docker compose exec circi circi admin project create --org acme --name "Web app"
 # → prints the project's CI token once; store it as CIRCI_TOKEN in your CI secrets
 ```
 
+With SMTP configured, people with an account can also sign in with a 6-digit code mailed to them (the mail also holds a link that fills the code in). Codes work once, expire after 10 minutes, are stored hashed, lock after 5 wrong attempts, and addresses without an account get the same answer and no mail.
+
 Anyone you add to an organization sees its projects, builds and screenshots, and nothing else. Add people with `circi admin user create` and `circi admin member add`.
 
 - Storage defaults to local disk (a Docker volume), the cheapest option. For S3-compatible storage, set `STORAGE_DRIVER=s3` and the `S3_*` variables. `docker-compose.s3.yml` adds a local MinIO for development.
@@ -50,6 +52,7 @@ Anyone you add to an organization sees its projects, builds and screenshots, and
 | `circi admin org create\|list` | Manage organizations (`create` needs `--owner <email>`) |
 | `circi admin member add` | Add an existing account to an organization (`--role owner\|admin\|member`) |
 | `circi admin project create\|list\|rotate-token` | Manage projects and their CI tokens |
+| `circi admin mail test` | Send a test mail through the configured SMTP server |
 | `circi admin webhook add\|list\|remove` | Send a project's `build.completed` / `build.reviewed` events to a URL |
 
 ### Configuration
@@ -61,6 +64,8 @@ Anyone you add to an organization sees its projects, builds and screenshots, and
 | `PREVIOUS_PUBLIC_URLS` | | Comma-separated old dashboard addresses. Requests to them are redirected to `PUBLIC_URL`, so old links keep working after a move |
 | `HOST` / `PORT` | `0.0.0.0` / `3000` | |
 | `LOG_LEVEL` | `info` | `fatal` … `trace` |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | | Outgoing mail. `SMTP_FROM` is required with `SMTP_HOST`; port defaults to 587 (STARTTLS), 465 means implicit TLS. Check it with `circi admin mail test --to you@acme.io` |
+| `AUTH_EMAIL_ENABLED` | `true` | Email sign-in codes; only offered when SMTP is configured. `false` turns them off |
 | `BETTER_AUTH_SECRET` | (required) | Signs sessions and cookies; 32+ characters (`openssl rand -base64 32`). Changing it signs everyone out |
 | `STORAGE_DRIVER` | `fs` | `fs` (local disk) or `s3` |
 | `STORAGE_PATH` | `/var/lib/circi/files` | For `fs` |

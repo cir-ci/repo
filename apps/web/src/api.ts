@@ -125,7 +125,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (await res.json()) as T
 }
 
-const getJson = <T>(path: string) => request<T>(path)
+export const getJson = <T>(path: string) => request<T>(path)
 
 const seg = encodeURIComponent
 

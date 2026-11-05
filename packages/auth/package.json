@@ -22,10 +22,12 @@
     "@circi/db": "workspace:*",
     "better-auth": "catalog:",
     "drizzle-orm": "catalog:",
+    "nodemailer": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@electric-sql/pglite": "catalog:",
+    "@types/nodemailer": "catalog:",
     "auth": "catalog:"
   }
 }

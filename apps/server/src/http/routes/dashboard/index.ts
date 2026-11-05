@@ -28,11 +28,16 @@ export const dashboardRoutes: FastifyPluginAsync<DashboardDeps> = async (dash, o
     auth: options.auth,
     storage: options.storage,
     publicOrigin: options.publicOrigin,
+    ...(options.emailLogin ? { emailLogin: true } : {}),
     ...(options.webDist ? { webDist: options.webDist } : {}),
   }
   dash.setErrorHandler(jsonErrorHandler)
 
-  await dash.register(authRoutes, { auth: deps.auth, publicOrigin: deps.publicOrigin })
+  await dash.register(authRoutes, {
+    auth: deps.auth,
+    publicOrigin: deps.publicOrigin,
+    emailLogin: deps.emailLogin === true,
+  })
   await dash.register(sessionApi, { ...deps, prefix: '/api' })
   // Last: its catch-all serves the app shell for client-side routes.
   await dash.register(webAppRoutes, deps)

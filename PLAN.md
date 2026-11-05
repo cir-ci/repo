@@ -503,7 +503,7 @@ All login happens in the dashboard (the web app shows its sign-in page to anyone
 | Method | Status | How |
 |---|---|---|
 | Email + password | **Done** | `emailAndPassword` (sign-up disabled, 12+ characters) |
-| Email login (magic link / code) | M2 | better-auth's `magicLink` and `emailOTP` plugins, with SMTP |
+| Email login (code + link) | **Done** (instance switch; per-org switch M2) | better-auth's `emailOTP` plugin with SMTP. The mailed link opens `/#signin-email=…&code=…` (fragment, so servers never see it) and still needs a click, so scanners can't use the code up |
 | OAuth / OIDC | M2 | its generic OAuth / SSO support; the trust rules below still apply |
 | Invitations, roles | Organizations and roles **done** (CLI); invitations M2 | organization plugin |
 | CI tokens | **Done** | API key plugin, §8 |
@@ -632,7 +632,7 @@ _Status: accounts, organizations, roles, CI tokens and organization isolation ar
 - [x] CI tokens as organization-owned API keys, rotation deletes the old key
 - [x] Organization isolation in every dashboard query, including files shared by hash; sign-in page, user menu and sign-out in the web app
 - [x] Migration of the earlier hand-written users, organizations and memberships (tested on legacy rows)
-- [ ] Email login (magic link + 6-digit code) with SMTP; rate limiting configured
+- [x] Email login (6-digit code + link) with SMTP (`SMTP_*`, `AUTH_EMAIL_ENABLED`, `circi admin mail test`); better-auth's per-IP limits (3 codes/min). Still open: per-email limit across IPs, "new sign-in" notification mail
 - [ ] Turning login methods on/off: instance env flags + per-org `org_auth_settings`, lockout guard, `circi admin auth` break-glass command
 - [ ] Allowed email domains → auto-join org with a default role; domain claims verified by DNS TXT record
 - [ ] Invitations (organization plugin + SMTP), sessions list and revoke, org/project settings UI
