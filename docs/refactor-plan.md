@@ -7,7 +7,7 @@ moves in every package (§2.2, §3.1; `7a69f94`, `9bd87e3`, `8a935e8`, `ad817af`
 seeders in `@circi/testing`; the missing test files of §3.2; Testing Library removed; the `apps/web`
 layout (§2.3), shell, every page and the removal of MUI (`012190e`); the real-stack e2e suite
 (`75dbd7f`). What is left (all in `docs/remaining-work.md`): six test files that still hand-insert
-rows instead of using the seeders, the dogfooding step (§3.3, not started), and the design
+rows instead of using the seeders, the design
 decisions in §6 that need a person. The sections below are the original plan, kept for the
 reasoning; where they say "today" they describe 2026-11-05.
 
@@ -146,6 +146,10 @@ Original list:
 - **Decided, dogfood:** screenshot each `@circi/ui` component's preview, in both schemes, with
   `@circi/vitest` in browser mode and upload to a local CirCI. This is also the first real check
   of Vitest browser mode, which has never been verified.
+  **Done 2026-11-08:** `pnpm test:visual` (project `ui-visual`, `packages/ui/visual/`, only with
+  `VISUAL=1`) takes 103 screenshots of all 40 components in both schemes; `e2e/test/dogfood.e2e.test.ts`
+  uploads them to a real stack, approves and re-runs to `no_changes`. It found three bugs in
+  `@circi/vitest`, now fixed (see `docs/vitest.md`).
 
 ## 4. UI/UX migration (§4.2 onward blocked on §6)
 

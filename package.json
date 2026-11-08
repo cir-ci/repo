@@ -9,6 +9,7 @@
     "format": "oxfmt",
     "test": "vitest run",
     "test:e2e": "E2E=1 vitest run --project e2e",
+    "test:visual": "VISUAL=1 vitest run --project ui-visual",
     "test:watch": "vitest",
     "db:generate": "pnpm --filter @circi/db generate",
     "circi": "node --conditions=@circi/source apps/server/src/main.ts",

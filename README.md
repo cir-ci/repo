@@ -135,6 +135,7 @@ nvm install && nvm use   # Node 26 from .nvmrc
 pnpm install
 pnpm exec playwright install chromium   # once: the component tests run in headless Chromium (Vitest browser mode)
 pnpm test          # Vitest; database tests run on PGlite, so no Docker needed
+pnpm test:visual   # screenshots every @circi/ui component in light and dark; uploads when CIRCI_API_URL and CIRCI_TOKEN are set (docs/vitest.md)
 pnpm typecheck
 pnpm lint          # oxlint, including type-aware rules
 pnpm format        # oxfmt (pnpm format:check in CI)

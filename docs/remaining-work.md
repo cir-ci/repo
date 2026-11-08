@@ -56,6 +56,19 @@ left is listed below by kind.
   a 401; a missing bucket killing the server (and `doctor` having no storage check, `storage
   migrate` trusting same-size objects); `HEAD` on a site answering `content-length: 0`; empty
   names from email-code sign-ins; refused SSO sign-ins ending on a bare 403.
+- **Dogfooding (2026-11-08)**: CirCI tests its own design system. `pnpm test:visual` (project
+  `ui-visual`, registered only with `VISUAL=1`, so never in `pnpm test`) screenshots every
+  `@circi/ui` component, 40 of 40, in light and dark with `@circi/vitest` in Vitest browser mode
+  (103 pictures from 57 cases: the `.design-sync` previews, plus cases for Button, TextField, Dialog,
+  ColorSchemeControl and the icons); without `CIRCI_*` it only saves to `.circi/screenshots`.
+  `e2e/test/dogfood.e2e.test.ts` runs it against the real stack: first build all `added` and pending,
+  approve, second run on the same commit `no_changes`. Three runs locally were byte-identical. Not
+  covered: open Menu, Select and Tooltip popups (previews show them closed), hover/focus/pressed
+  states, the web app's own pages, other browsers (Firefox, WebKit), CI on Linux (fonts and
+  anti-aliasing differ per OS: baselines are per machine until the suite runs in one place). Found
+  in `@circi/vitest`: its main entry could not be imported by a browser test (node-only reporter;
+  now `@circi/vitest/browser`), `circiScreenshot` saved next to the test file where the reporter
+  never looked, and the reporter looked in the cwd rather than Vitest's root; each has a test.
 - **Migration cleanup**: `primitives/`, `LegacyRouterLink` and the MUI theme deleted; own
   colour-scheme manager; z-index scale; import rules in `layers.test.ts`; `renderPage` is the one
   web test helper.
@@ -169,9 +182,7 @@ decision"):
   generated cases; `Ref` copy tested against a stubbed `navigator.clipboard`; the first browser
   run after a new dependency is optimised can fail with import errors (rerun is clean): pin
   `optimizeDeps` includes in the Vitest browser config (none set today).
-- Dogfooding: screenshot each `@circi/ui` preview in both schemes with `@circi/vitest` and upload
-  to a local CirCI (refactor-plan §3.3). Not started; also the first real check of Vitest browser
-  mode with that reporter.
+- Dogfooding: done, see Done; the web app itself is still not screenshotted.
 - Visual regression for the web app itself (CirCI testing itself) is not set up.
 
 ## 6. Docs

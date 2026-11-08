@@ -71,7 +71,7 @@ Which file uses what (this list is the decision record; keep it current):
 
 | File | Stack | Why |
 | --- | --- | --- |
-| review, flaky, email-login, invitations, webhooks, sso (organization part) | `default`, shared | everything is scoped to the file's organization; email-login's limiter test and the domain test use their own addresses and domain |
+| review, flaky, dogfood, email-login, invitations, webhooks, sso (organization part) | `default`, shared | everything is scoped to the file's organization; email-login's limiter test and the domain test use their own addresses and domain |
 | github-root-url | dedicated | the shared fake serves `/api/v3` (Enterprise form); this file's own fake answers at the root, as `https://api.github.com` does, which needs `GITHUB_API_URL` set differently |
 | github-app, github-approve, merge-gate, host-fakes | `github`, shared | one fake GitHub per worker, reset per file; each file uses repositories and GitHub user ids of its own |
 | s3, storage-s3-doctor, sites (the S3 describe) | `s3`, shared | LocalStack for the worker; the files use content of their own (the bucket is shared) |

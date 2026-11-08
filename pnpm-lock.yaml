@@ -697,6 +697,15 @@ importers:
         specifier: 'catalog:'
         version: 19.3.1
     devDependencies:
+      '@circi/vitest':
+        specifier: workspace:*
+        version: link:../vitest
+      '@fontsource-variable/inter':
+        specifier: 'catalog:'
+        version: 5.3.0
+      '@fontsource-variable/jetbrains-mono':
+        specifier: 'catalog:'
+        version: 5.3.0
       '@tsdown/css':
         specifier: 'catalog:'
         version: 0.23.5(jiti@2.7.0)(postcss-modules@9.0.1(postcss@8.5.32))(postcss@8.5.32)(tsdown@0.23.5)(tsx@4.23.15)
@@ -724,6 +733,9 @@ importers:
       tar:
         specifier: 'catalog:'
         version: 7.5.22
+      vitest:
+        specifier: '>=4'
+        version: 5.1.0(@types/node@26.6.6)(@vitest/browser-playwright@5.1.0)(@vitest/ui@5.1.0)(happy-dom@21.0.4)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
     devDependencies:
       '@arethetypeswrong/core':
         specifier: 'catalog:'

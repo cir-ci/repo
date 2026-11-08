@@ -1,8 +1,14 @@
+import { createRequire } from 'node:module'
+import { resolve } from 'node:path'
+
 import { playwright } from '@vitest/browser-playwright'
 import { defineConfig } from 'vitest/config'
 
 import { E2eTimingReporter } from './e2e/src/timing-reporter.ts'
 import { circiTokensCss } from './packages/ui/tokens-css.ts'
+import { CirciReporter } from './packages/vitest/src/index.ts'
+
+const uiRequire = createRequire(resolve(import.meta.dirname, 'packages/ui/package.json'))
 
 /**
  * Three kinds of test: logic (`*.test.ts`) runs in Node, including the web app's render-free tests;
@@ -20,7 +26,12 @@ export default defineConfig({
   test: {
     testTimeout: 30_000,
     // End-to-end runs also write e2e/.artifacts/timings.json and print a timing summary.
+    // Visual runs (`pnpm test:visual`) send the screenshots to CirCI when CIRCI_API_URL and
+    // CIRCI_TOKEN are set, and only keep them in .circi/screenshots otherwise.
     ...(process.env['E2E'] ? { reporters: ['default', new E2eTimingReporter()] } : {}),
+    ...(process.env['VISUAL']
+      ? { reporters: ['default', new CirciReporter({ name: 'ui-chromium', wait: true })] }
+      : {}),
     // Stopping an end-to-end stack (docker compose down -v) happens in global teardown.
     teardownTimeout: 120_000,
     projects: [
@@ -57,6 +68,45 @@ export default defineConfig({
                 fileParallelism: true,
                 maxWorkers: Number(process.env['E2E_WORKERS'] ?? 3) || 3,
                 isolate: false,
+              },
+            },
+          ]
+        : []),
+      // The design system's own visual tests (`pnpm test:visual`): every @circi/ui component in
+      // both colour schemes, screenshotted by @circi/vitest. Registered only with VISUAL=1, so
+      // `pnpm test` never takes screenshots that nobody compares.
+      ...(process.env['VISUAL']
+        ? [
+            {
+              extends: true,
+              oxc: { jsx: { runtime: 'automatic' as const } },
+              // The previews live in .design-sync, outside any package that depends on @circi/ui.
+              resolve: {
+                alias: [
+                  {
+                    find: /^@circi\/ui$/,
+                    replacement: resolve(import.meta.dirname, 'packages/ui/src/index.ts'),
+                  },
+                  // Files outside a package can't resolve React: use the design system's copy.
+                  ...['react', 'react/jsx-runtime', 'react/jsx-dev-runtime'].map((id) => ({
+                    find: new RegExp(`^${id}$`),
+                    replacement: uiRequire.resolve(id),
+                  })),
+                ],
+              },
+              test: {
+                name: 'ui-visual',
+                include: ['packages/ui/visual/**/*.visual.test.tsx'],
+                // Starts from an empty .circi/screenshots, so nothing stale is uploaded.
+                globalSetup: ['packages/ui/visual/clean-screenshots.ts'],
+                browser: {
+                  enabled: true,
+                  headless: true,
+                  provider: playwright(),
+                  // A fixed viewport: portals (dialogs, drawers) are shot at this size.
+                  viewport: { width: 1000, height: 700 },
+                  instances: [{ browser: 'chromium' as const }],
+                },
               },
             },
           ]

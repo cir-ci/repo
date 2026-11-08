@@ -24,6 +24,9 @@
     "react": "catalog:"
   },
   "devDependencies": {
+    "@circi/vitest": "workspace:*",
+    "@fontsource-variable/inter": "catalog:",
+    "@fontsource-variable/jetbrains-mono": "catalog:",
     "@tsdown/css": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
