@@ -32,9 +32,6 @@
       "path": "apps/worker"
     },
     {
-      "path": "apps/server"
-    },
-    {
       "path": "packages/api"
     }
   ]

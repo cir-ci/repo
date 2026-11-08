@@ -83,9 +83,10 @@ export async function runServices(options: ServiceOptions): Promise<void> {
 }
 
 /**
- * apps/web/dist, from both src/lifecycle/ (development) and dist/lifecycle/ (production): both sit
- * two folders below apps/server, so the web app is `../../../web/dist`. Moving this file means
- * changing the path; `test/lifecycle/web-dist.test.ts` pins the result.
+ * apps/web/dist, found from src/lifecycle/ (two folders below apps/server) in development. The
+ * server bundle is one file elsewhere, so the image points `CIRCI_WEB_DIST` at the copy it ships
+ * (deploy/Dockerfile). Moving this file means changing the path; `test/lifecycle/web-dist.test.ts`
+ * pins the result.
  */
 export function webDistPath(): string {
   return process.env.CIRCI_WEB_DIST ?? fileURLToPath(new URL('../../../web/dist', import.meta.url))

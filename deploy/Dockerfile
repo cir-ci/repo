@@ -38,32 +38,28 @@ COPY apps apps
 COPY packages packages
 RUN pnpm build
 
-FROM manifests AS runtime-tree
-# Only the server and the packages it depends on: the web app ships as static files below,
-# and the CI CLI is published separately, so React, MUI and friends stay out of the image.
-RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile --prod --filter "@circi/server..."
-COPY --from=build /app/apps/server/dist apps/server/dist
-COPY --from=build /app/apps/worker/dist apps/worker/dist
-COPY --from=build /app/packages/auth/dist packages/auth/dist
-COPY --from=build /app/packages/config/dist packages/config/dist
-COPY --from=build /app/packages/core/dist packages/core/dist
-COPY --from=build /app/packages/db/dist packages/db/dist
-COPY --from=build /app/packages/db/migrations packages/db/migrations
-COPY --from=build /app/packages/diff/dist packages/diff/dist
-COPY --from=build /app/packages/providers/dist packages/providers/dist
-COPY --from=build /app/packages/services/dist packages/services/dist
-COPY --from=build /app/packages/sites/dist packages/sites/dist
-COPY --from=build /app/apps/web/dist apps/web/dist
-COPY --from=build /app/packages/storage/dist packages/storage/dist
+FROM manifests AS runtime-deps
+# The server bundle inlines our code and almost every dependency; what is left external is the
+# server package's `dependencies` (sharp, pg, the AWS SDK; see apps/server/tsdown.config.ts), and
+# `pnpm deploy` installs exactly those, from the lockfile. The web app ships as static files below,
+# and the CI CLI is published separately.
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm --filter @circi/server deploy --prod /deploy
 
 FROM node:${NODE_VERSION}-slim AS runtime
+# CIRCI_MIGRATIONS and CIRCI_WEB_DIST: the bundle can't find these relative to itself.
 ENV NODE_ENV=production \
+    NODE_OPTIONS=--enable-source-maps \
+    CIRCI_MIGRATIONS=/app/migrations \
+    CIRCI_WEB_DIST=/app/web \
     STORAGE_PATH=/var/lib/circi/files \
     PORT=3000
 WORKDIR /app
-COPY --from=runtime-tree /app /app
+COPY --from=runtime-deps /deploy/node_modules node_modules
+COPY --from=build /app/apps/server/dist dist
+COPY --from=build /app/packages/db/migrations migrations
+COPY --from=build /app/apps/web/dist web
 RUN mkdir -p /var/lib/circi/files && chown node:node /var/lib/circi/files \
- && ln -s /app/apps/server/dist/main.js /usr/local/bin/circi && chmod +x /app/apps/server/dist/main.js
+ && ln -s /app/dist/main.mjs /usr/local/bin/circi
 USER node
 VOLUME /var/lib/circi/files
 EXPOSE 3000

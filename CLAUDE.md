@@ -11,7 +11,8 @@ Commit messages end with the `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthrop
 
 ```
 apps/server     HTTP routes (http/, shared helpers in http/lib/), admin CLI, process lifecycle
-                (lifecycle/services.ts composes lifecycle/{startup,server-options,shutdown}.ts)
+                (lifecycle/services.ts composes lifecycle/{startup,server-options,shutdown}.ts);
+                built with tsdown into one bundle for the image (deploy/README.md)
 apps/worker     background jobs (process-build, webhook delivery, git-notify)
 apps/web        the dashboard, organised by feature: src/features/<feature>/{api.ts, *Page.tsx, …}
 packages/api    the dashboard API's wire types (types only, one namespace per resource)

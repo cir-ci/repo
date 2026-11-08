@@ -340,12 +340,28 @@ importers:
 
   apps/server:
     dependencies:
+      '@aws-sdk/client-s3':
+        specifier: 'catalog:'
+        version: 3.1161.0
+      '@aws-sdk/s3-request-presigner':
+        specifier: 'catalog:'
+        version: 3.1161.0
+      pg:
+        specifier: 'catalog:'
+        version: 8.23.1
+      sharp:
+        specifier: 'catalog:'
+        version: 0.35.5(@types/node@26.6.6)
+    devDependencies:
       '@circi/api':
         specifier: workspace:*
         version: link:../../packages/api
       '@circi/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@circi/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
       '@circi/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -367,9 +383,15 @@ importers:
       '@circi/storage':
         specifier: workspace:*
         version: link:../../packages/storage
+      '@circi/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
       '@circi/worker':
         specifier: workspace:*
         version: link:../worker
+      '@electric-sql/pglite':
+        specifier: 'catalog:'
+        version: 0.5.12
       '@fastify/multipart':
         specifier: 'catalog:'
         version: 10.1.7
@@ -388,25 +410,15 @@ importers:
       pino:
         specifier: 'catalog:'
         version: 10.4.0
-      zod:
-        specifier: 'catalog:'
-        version: 4.6.7
-    devDependencies:
-      '@circi/cli':
-        specifier: workspace:*
-        version: link:../../packages/cli
-      '@circi/testing':
-        specifier: workspace:*
-        version: link:../../packages/testing
-      '@electric-sql/pglite':
-        specifier: 'catalog:'
-        version: 0.5.12
-      sharp:
-        specifier: 'catalog:'
-        version: 0.35.5(@types/node@26.6.6)
       tar:
         specifier: 'catalog:'
         version: 7.5.22
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.23.5(@arethetypeswrong/core@0.18.5)(@tsdown/css@0.23.5)(publint@0.3.25)(tsx@4.23.15)(typescript@7.0.2)
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
 
   apps/web:
     dependencies:

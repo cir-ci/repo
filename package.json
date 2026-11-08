@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -b tsconfig.build.json && pnpm --filter @circi/ui --filter @circi/cli --filter @circi/vitest build && pnpm --filter @circi/web build",
+    "build": "tsc -b tsconfig.build.json && pnpm --filter @circi/ui --filter @circi/cli --filter @circi/vitest --filter @circi/server build && pnpm --filter @circi/web build",
     "typecheck": "tsc -p tsconfig.json && tsc -p apps/web && tsc -p packages/ui",
     "lint": "oxlint --type-aware --deny-warnings",
     "format": "oxfmt",

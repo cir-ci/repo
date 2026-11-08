@@ -3,17 +3,24 @@
   "version": "0.0.0",
   "private": true,
   "bin": {
-    "circi-server": "./dist/main.js"
+    "circi-server": "./dist/main.mjs"
   },
   "type": "module",
   "scripts": {
-    "build": "tsc -b",
-    "start": "node dist/main.js",
+    "build": "tsdown",
+    "start": "node dist/main.mjs",
     "dev": "node --conditions=@circi/source src/main.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "catalog:",
+    "@aws-sdk/s3-request-presigner": "catalog:",
+    "pg": "catalog:",
+    "sharp": "catalog:"
+  },
+  "devDependencies": {
     "@circi/api": "workspace:*",
     "@circi/auth": "workspace:*",
+    "@circi/cli": "workspace:*",
     "@circi/config": "workspace:*",
     "@circi/core": "workspace:*",
     "@circi/db": "workspace:*",
@@ -21,20 +28,17 @@
     "@circi/services": "workspace:*",
     "@circi/sites": "workspace:*",
     "@circi/storage": "workspace:*",
+    "@circi/testing": "workspace:*",
     "@circi/worker": "workspace:*",
+    "@electric-sql/pglite": "catalog:",
     "@fastify/multipart": "catalog:",
     "@fastify/static": "catalog:",
     "commander": "catalog:",
     "drizzle-orm": "catalog:",
     "fastify": "catalog:",
     "pino": "catalog:",
+    "tar": "catalog:",
+    "tsdown": "catalog:",
     "zod": "catalog:"
-  },
-  "devDependencies": {
-    "@circi/cli": "workspace:*",
-    "@circi/testing": "workspace:*",
-    "@electric-sql/pglite": "catalog:",
-    "sharp": "catalog:",
-    "tar": "catalog:"
   }
 }

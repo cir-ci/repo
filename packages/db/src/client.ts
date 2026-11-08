@@ -16,8 +16,13 @@ export type Schema = typeof schema
  */
 export type Database = PgDatabase<PgQueryResultHKT, Schema>
 
-/** Works from both `src/` (development) and `dist/` (production): both sit one level below the package root. */
-export const migrationsFolder = fileURLToPath(new URL('../migrations', import.meta.url))
+/**
+ * `packages/db/migrations` when running from the source tree (this file sits one level below the
+ * package root). The server bundle moves this code, so the image points `CIRCI_MIGRATIONS` at the
+ * copy it ships (deploy/Dockerfile); `test/migrations-path.test.ts` pins both.
+ */
+export const migrationsFolder =
+  process.env.CIRCI_MIGRATIONS ?? fileURLToPath(new URL('../migrations', import.meta.url))
 
 /**
  * Subscribes to a Postgres NOTIFY channel on a dedicated connection. Resolves once LISTEN is
