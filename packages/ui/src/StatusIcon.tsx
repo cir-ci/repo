@@ -47,7 +47,7 @@ export function StatusIcon(props: StatusIcon.Props) {
       {status === 'needs-review' && (
         <>
           <circle cx="7" cy="7" r="6.25" fill="none" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M7 1.5a5.5 5.5 0 0 1 0 11z" fill="currentColor" />
+          <path d="M7 .75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor" />
         </>
       )}
       {status === 'processing' && (
