@@ -1,8 +1,22 @@
-import { and, eq, inArray, lt, or, sql } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  eq,
+  gt,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  not,
+  notExists,
+  or,
+  sql,
+} from 'drizzle-orm'
 
 import type { Database } from '../client.ts'
 import { ConflictError, NotFoundError } from '../errors.ts'
-import { builds, member, projects, reviewRequests } from '../schema/index.ts'
+import { builds, member, notifications, projects, reviewRequests } from '../schema/index.ts'
+import type { SnoozeKind } from '../schema/index.ts'
 import type { ReviewRequest } from '../types.ts'
 
 /**
@@ -159,4 +173,82 @@ export async function dismissReviewRequest(
     )
     .returning()
   return row
+}
+
+/**
+ * Sets (`until` and `kind`) or clears (`kind: null`) the snooze of an open request of a build in
+ * `projectId`. Only the reviewer may. Returns the request, or undefined when there is nothing of
+ * theirs to change (unknown, closed, in another project, or someone else's).
+ */
+export async function setReviewRequestSnooze(
+  db: Database,
+  input: {
+    projectId: string
+    requestId: string
+    userId: string
+    kind: SnoozeKind | null
+    until: Date | null
+  },
+): Promise<ReviewRequest | undefined> {
+  const inProject = db
+    .select({ id: builds.id })
+    .from(builds)
+    .where(eq(builds.projectId, input.projectId))
+  const [row] = await db
+    .update(reviewRequests)
+    .set({
+      snoozeKind: input.kind,
+      snoozedUntil: input.kind === null ? null : input.until,
+    })
+    .where(
+      and(
+        eq(reviewRequests.id, input.requestId),
+        eq(reviewRequests.state, 'open'),
+        eq(reviewRequests.reviewerId, input.userId),
+        inArray(reviewRequests.buildId, inProject),
+      ),
+    )
+    .returning()
+  return row
+}
+
+/**
+ * Open requests past their due time at `now`, not snoozed, whose reviewer has not yet been told
+ * they are overdue (no `review_overdue` notification carries the request's id). Rows are locked
+ * (skipping ones another worker holds) until the transaction ends, so two sweeps never both
+ * report the same request.
+ */
+export async function lockOverdueUnnotifiedRequests(
+  db: Database,
+  now: Date,
+): Promise<ReviewRequest[]> {
+  const told = db
+    .select({ one: sql`1` })
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.kind, 'review_overdue'),
+        eq(notifications.userId, reviewRequests.reviewerId),
+        eq(notifications.buildId, reviewRequests.buildId),
+        sql`${notifications.payload} ->> 'requestId' = ${reviewRequests.id}::text`,
+      ),
+    )
+  return db
+    .select()
+    .from(reviewRequests)
+    .where(
+      and(
+        eq(reviewRequests.state, 'open'),
+        lt(reviewRequests.dueAt, now),
+        not(
+          and(
+            isNotNull(reviewRequests.snoozeKind),
+            or(isNull(reviewRequests.snoozedUntil), gt(reviewRequests.snoozedUntil, now)),
+          ) ?? sql`false`,
+        ),
+        notExists(told),
+      ),
+    )
+    .orderBy(asc(reviewRequests.dueAt), asc(reviewRequests.id))
+    .for('update', { skipLocked: true })
 }

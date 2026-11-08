@@ -136,4 +136,32 @@ describe('review requests', () => {
     expect(reviewed.statusCode).toBe(200)
     expect(ids(await list('for-you', louCookie))).toEqual([])
   })
+
+  it('lets only the reviewer snooze and unsnooze a request', async () => {
+    const made = await post(requestUrl(), { payload: { reviewerId: lou.id } })
+    const id = made.json().id
+    const base = `/api/projects/${acme.orgSlug}/web/review-requests/${id}`
+
+    expect((await post(`${base}/snooze`, { payload: { kind: 'tomorrow' } })).statusCode).toBe(404)
+    expect(
+      (await post(`${base}/snooze`, { cookie: rivalCookie, payload: { kind: 'tomorrow' } }))
+        .statusCode,
+    ).toBe(404)
+    expect((await post(`${base}/snooze`, { cookie: louCookie, payload: {} })).statusCode).toBe(400)
+    expect(
+      (await post(`${base}/snooze`, { cookie: louCookie, payload: { kind: 'date' } })).statusCode,
+    ).toBe(400)
+
+    const res = await post(`${base}/snooze`, { cookie: louCookie, payload: { kind: 'next_push' } })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({ id, snoozeKind: 'next_push', snoozedUntil: null })
+    expect(ids(await list('for-you', louCookie))).toEqual([])
+    expect(ids(await list('snoozed', louCookie))).toEqual([id])
+
+    expect((await post(`${base}/unsnooze`)).statusCode).toBe(404)
+    expect((await post(`${base}/unsnooze`, { cookie: rivalCookie })).statusCode).toBe(404)
+    const back = await post(`${base}/unsnooze`, { cookie: louCookie })
+    expect(back.json()).toEqual({ id, snoozeKind: null, snoozedUntil: null })
+    expect(ids(await list('for-you', louCookie))).toEqual([id])
+  })
 })

@@ -55,3 +55,4 @@ export {
 } from './rules.ts'
 export { rotationFor, rotationHandover } from './rotation.ts'
 export { SNOOZE_WAKE_HOUR, snoozeUntil, type SnoozeChoice } from './snooze.ts'
+export { parseMentions } from './mentions.ts'

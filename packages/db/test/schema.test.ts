@@ -38,6 +38,7 @@ describe('migrations', () => {
       'build_checks',
       'build_shards',
       'builds',
+      'comments',
       'commit_ancestry',
       'email_code_requests',
       'files',

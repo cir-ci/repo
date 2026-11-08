@@ -17,7 +17,13 @@ describe('reviewing a build', () => {
     expect((await buildDetail(acmeCookie)).json().baseline).toMatchObject({ number: 1 })
     expect(await reviewStatus()).toBe('approved')
     expect((await buildDetail(acmeCookie)).json().reviews).toEqual([
-      { state: 'approved', source: 'auto', userName: null, createdAt: expect.any(String) },
+      {
+        state: 'approved',
+        source: 'auto',
+        reason: null,
+        userName: null,
+        createdAt: expect.any(String),
+      },
     ])
   })
 
@@ -31,6 +37,7 @@ describe('reviewing a build', () => {
     expect(detail.reviews[0]).toEqual({
       state: 'rejected',
       source: 'ui',
+      reason: null,
       userName: expect.stringMatching(/^Owner \d+$/),
       createdAt: expect.any(String),
     })

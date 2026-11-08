@@ -5,6 +5,7 @@
  */
 export * from './auth.ts'
 export * from './builds.ts'
+export * from './comments.ts'
 export * from './enums.ts'
 export * from './files.ts'
 export * from './git.ts'

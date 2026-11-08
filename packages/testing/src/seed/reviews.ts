@@ -10,6 +10,7 @@ export interface SeedReviewRequestInput {
   snoozedUntil?: Date | null
   snoozeKind?: ReviewRequest['snoozeKind']
   createdAt?: Date
+  closedAt?: Date | null
 }
 
 /**
@@ -30,6 +31,7 @@ export async function seedReviewRequest(
       dueAt: input.dueAt ?? null,
       snoozedUntil: input.snoozedUntil ?? null,
       snoozeKind: input.snoozeKind ?? null,
+      closedAt: input.closedAt ?? null,
       ...(input.createdAt ? { createdAt: input.createdAt } : {}),
     })
     .returning()
@@ -46,6 +48,7 @@ export async function seedReview(
     userId: string | null
     state?: 'approved' | 'rejected'
     source?: 'ui' | 'github-check' | 'github-comment' | 'auto' | 'rerun'
+    reason?: string | null
     createdAt?: Date
   },
 ) {
@@ -56,6 +59,7 @@ export async function seedReview(
       userId: input.userId,
       state: input.state ?? 'approved',
       source: input.source ?? (input.userId === null ? 'auto' : 'ui'),
+      reason: input.reason ?? null,
       ...(input.createdAt ? { createdAt: input.createdAt } : {}),
     })
     .returning()

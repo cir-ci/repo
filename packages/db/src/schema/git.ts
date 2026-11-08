@@ -54,6 +54,8 @@ export const buildChecks = pgTable('build_checks', {
     .primaryKey()
     .references(() => builds.id, { onDelete: 'cascade' }),
   checkRunId: text('check_run_id').notNull(),
+  /** When the check run was first created; shown in the build's activity. */
+  createdAt: createdAt(),
 })
 
 /** The one summary comment per pull request, found again to be edited in place. */

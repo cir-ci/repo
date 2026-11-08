@@ -1,4 +1,4 @@
-import { reviewDueAt, ValidationError } from '@circi/core'
+import { reviewDueAt, type SnoozeChoice, snoozeUntil, ValidationError } from '@circi/core'
 import {
   type Build,
   closeReviewRequestsForBuild,
@@ -6,6 +6,7 @@ import {
   dismissReviewRequest as dismissRequest,
   getBuild,
   getProjectById,
+  lockOverdueUnnotifiedRequests,
   hasClosedReviewRequest,
   markBuildNotificationsRead,
   listProjectBuildsByIds,
@@ -15,6 +16,7 @@ import {
   queueWebhookEvent,
   recordReview,
   type ReviewRequest,
+  setReviewRequestSnooze,
 } from '@circi/db'
 
 import { notify } from './notifications.ts'
@@ -28,7 +30,10 @@ import { notify } from './notifications.ts'
 export async function reviewBuild(db: Database, input: reviewBuild.Input): Promise<Build> {
   return db.transaction(async (tx) => {
     const { reason, ...decision } = input
-    const { build, changed, reviewerName } = await recordReview(tx, decision)
+    const { build, changed, reviewerName } = await recordReview(tx, {
+      ...decision,
+      ...(reason ? { reason } : {}),
+    })
     const closed = await closeReviewRequestsForBuild(tx, build.id)
     // Deciding settles the build for its reviewer; the others' "please review" notices end with
     // their requests.
@@ -157,8 +162,8 @@ export const MAX_BULK_REVIEW = 50
  * Approves or rejects several builds of one project at once, in a single transaction: every
  * build goes through `reviewBuild` (so each one that changed queues its own webhook and git
  * notices, and each one's review requests close), and if any id is not a build of the project, or
- * any build cannot be reviewed, nothing changes at all. `reason` is carried for when decisions
- * can store one (comments, B6); it is not saved yet.
+ * any build cannot be reviewed, nothing changes at all. `reason` is stored with a rejection
+ * and goes to each build's author.
  */
 export async function reviewBuilds(
   db: Database,
@@ -181,6 +186,7 @@ export async function reviewBuilds(
         userId: input.userId,
         state: input.state,
         ...(input.source ? { source: input.source } : {}),
+        ...(input.reason ? { reason: input.reason } : {}),
       })
       reviewed.push(build)
     }
@@ -199,4 +205,74 @@ export namespace reviewBuilds {
   export interface Result {
     builds: Build[]
   }
+}
+
+/**
+ * Puts an open request of yours off. `next_push` lasts until a newer build on the branch
+ * (finalizing it supersedes the request, which ends the snooze with it); the other choices end at
+ * a time (`date` is the end for `choice: 'date'`). Overdue reminders pause while it lasts.
+ * Throws NotFoundError when the request is not an open one of yours in the project.
+ */
+export async function snoozeReviewRequest(
+  db: Database,
+  input: {
+    projectId: string
+    requestId: string
+    userId: string
+    kind: SnoozeChoice
+    date?: Date | null
+    now?: Date
+  },
+): Promise<ReviewRequest> {
+  const until = snoozeUntil(input.kind, input.now ?? new Date(), input.date)
+  const row = await setReviewRequestSnooze(db, {
+    projectId: input.projectId,
+    requestId: input.requestId,
+    userId: input.userId,
+    kind: input.kind,
+    until,
+  })
+  if (!row) throw new NotFoundError('Review request not found')
+  return row
+}
+
+/** Brings a snoozed request back to For you now. */
+export async function unsnoozeReviewRequest(
+  db: Database,
+  input: { projectId: string; requestId: string; userId: string },
+): Promise<ReviewRequest> {
+  const row = await setReviewRequestSnooze(db, { ...input, kind: null, until: null })
+  if (!row) throw new NotFoundError('Review request not found')
+  return row
+}
+
+/**
+ * Tells reviewers their request is overdue: once per request, ever. A request qualifies when it
+ * is open, past `due_at`, not snoozed, and no `review_overdue` notification for it exists yet
+ * (the notification's `requestId` is the memory, so a deleted or read notice is not re-sent).
+ * Returns how many reviewers were told.
+ */
+export async function notifyOverdueReviews(
+  db: Database,
+  input: { now?: Date } = {},
+): Promise<number> {
+  const now = input.now ?? new Date()
+  return db.transaction(async (tx) => {
+    const requests = await lockOverdueUnnotifiedRequests(tx, now)
+    for (const request of requests) {
+      // eslint-disable-next-line no-await-in-loop -- one transaction, one connection
+      await notify(tx, {
+        userId: request.reviewerId,
+        kind: 'review_overdue',
+        buildId: request.buildId,
+        actorId: null,
+        payload: {
+          requestId: request.id,
+          dueAt: request.dueAt?.toISOString() ?? null,
+          overdueByMs: request.dueAt ? now.getTime() - request.dueAt.getTime() : 0,
+        },
+      })
+    }
+    return requests.length
+  })
 }

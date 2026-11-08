@@ -40,6 +40,7 @@ export async function recordReview(
       userId: input.userId,
       state: input.state,
       source: input.source ?? 'ui',
+      reason: input.state === 'rejected' ? input.reason || null : null,
     })
     const [updated] = await tx
       .update(builds)
@@ -61,6 +62,8 @@ export namespace recordReview {
     userId: string
     state: ReviewState
     source?: ReviewSource
+    /** Why the changes were rejected; stored only with a rejection. */
+    reason?: string | null
   }
 
   export interface Result {
@@ -74,6 +77,8 @@ export namespace recordReview {
 export interface ReviewEntry {
   state: ReviewState
   source: ReviewSource
+  /** Why it was rejected, when the reviewer said. */
+  reason: string | null
   /** Null for automatic approvals, or when the reviewer's account was deleted. */
   userName: string | null
   createdAt: Date
@@ -85,6 +90,7 @@ export async function listBuildReviews(db: Database, buildId: string): Promise<R
     .select({
       state: reviews.state,
       source: reviews.source,
+      reason: reviews.reason,
       userName: user.name,
       createdAt: reviews.createdAt,
     })

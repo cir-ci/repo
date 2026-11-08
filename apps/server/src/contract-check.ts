@@ -1,6 +1,8 @@
 import type {
+  Activity,
   Baseline,
   Build,
+  Comment,
   IgnoreRegion,
   Inbox,
   Insights,
@@ -11,8 +13,10 @@ import type {
   Triage,
 } from '@circi/api'
 import type {
+  ActivityEvent,
   BaselineItem,
   BuildDetail,
+  CommentItem,
   GitAttention,
   IgnoreRegionRow,
   InboxItem,
@@ -69,10 +73,14 @@ export type ContractChecks = [
   Fits<Json<InboxList>, Inbox.List>,
   Fits<NotificationPreferences, Inbox.Preferences>,
   Fits<SearchResults, Search.Results>,
+  Fits<Json<ActivityEvent>, Activity.Event>,
+  Fits<Json<CommentItem>, Omit<Comment.Item, 'mine' | 'canDelete'>>,
 ]
 
 /** Each entry must be `true`; a mismatch above makes its entry `never`, and this line fails. */
 export const contractChecks: ContractChecks = [
+  true,
+  true,
   true,
   true,
   true,

@@ -6,6 +6,8 @@ import {
   requestReview,
   reviewBuild,
   reviewBuilds,
+  snoozeReviewRequest,
+  unsnoozeReviewRequest,
 } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
@@ -188,5 +190,54 @@ export const dashboardReviewRequestRoutes: FastifyPluginAsync<DashboardDeps> = a
       : undefined
     if (!dismissed) return reply.code(404).send({ error: 'Review request not found' })
     return { id: dismissed.id, state: dismissed.state }
+  })
+
+  const snoozeBody = z.object({
+    kind: z.enum(['next_push', 'tomorrow', 'next_week', 'date']),
+    date: z.coerce.date().optional(),
+  })
+
+  /** Only the reviewer may put an open request off, or bring it back. */
+  app.post('/projects/:org/:project/review-requests/:id/snooze', async (req, reply) => {
+    const p = parse(dismissParams, req.params)
+    const { kind, date } = parse(snoozeBody, req.body)
+    const user = currentUser(req)
+    const project = await findProjectForMember(deps.db, {
+      orgSlug: p.org,
+      projectSlug: p.project,
+      userId: user.id,
+      method: user.method,
+    })
+    if (!project) return reply.code(404).send({ error: 'Review request not found' })
+    const row = await snoozeReviewRequest(deps.db, {
+      projectId: project.id,
+      requestId: p.id,
+      userId: user.id,
+      kind,
+      ...(date ? { date } : {}),
+    })
+    return {
+      id: row.id,
+      snoozeKind: row.snoozeKind,
+      snoozedUntil: row.snoozedUntil?.toISOString() ?? null,
+    }
+  })
+
+  app.post('/projects/:org/:project/review-requests/:id/unsnooze', async (req, reply) => {
+    const p = parse(dismissParams, req.params)
+    const user = currentUser(req)
+    const project = await findProjectForMember(deps.db, {
+      orgSlug: p.org,
+      projectSlug: p.project,
+      userId: user.id,
+      method: user.method,
+    })
+    if (!project) return reply.code(404).send({ error: 'Review request not found' })
+    const row = await unsnoozeReviewRequest(deps.db, {
+      projectId: project.id,
+      requestId: p.id,
+      userId: user.id,
+    })
+    return { id: row.id, snoozeKind: row.snoozeKind, snoozedUntil: null }
   })
 }

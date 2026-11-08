@@ -6,6 +6,7 @@
 export * from './db.ts'
 export * from './seed/auth.ts'
 export * from './seed/builds.ts'
+export * from './seed/comments.ts'
 export * from './seed/notifications.ts'
 export * from './seed/reviews.ts'
 export * from './seed/screenshots.ts'

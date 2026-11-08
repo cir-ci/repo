@@ -1,0 +1,98 @@
+import type { ReviewSource, ReviewState } from './build.ts'
+import type { ReviewRequestState } from './review.ts'
+
+export namespace Comment {
+  /** A rectangle on a snapshot, as fractions (0 to 1) of its width and height. */
+  export interface Region {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
+
+  export interface Author {
+    id: string
+    name: string
+  }
+
+  export interface Item {
+    id: string
+    /** Set on a reply; replies are one level deep. */
+    parentId: string | null
+    snapshotName: string | null
+    region: Region | null
+    /** Empty for a deleted comment, which stays so its thread keeps its shape. */
+    body: string
+    /** Null when the author has since left. */
+    author: Author | null
+    createdAt: string
+    editedAt: string | null
+    deletedAt: string | null
+    /** The caller wrote it. */
+    mine: boolean
+    /** The caller may delete it: their own, or any as an organization owner or admin. */
+    canDelete: boolean
+  }
+
+  /** `GET …/builds/:number/comments`: oldest first. */
+  export interface List {
+    comments: Item[]
+  }
+
+  /** `POST …/builds/:number/comments`. */
+  export interface Create {
+    body: string
+    snapshotName?: string
+    region?: Region
+    /** Reply to this comment instead of starting a thread. */
+    parentId?: string
+  }
+
+  /** `PATCH …/builds/:number/comments/:id`. */
+  export interface Edit {
+    body: string
+  }
+}
+
+export namespace Activity {
+  interface Person {
+    id: string
+    name: string
+  }
+
+  interface Base {
+    /** ISO time. */
+    at: string
+  }
+
+  export type Event = Base &
+    (
+      | { type: 'uploaded' }
+      | { type: 'processing' }
+      | { type: 'completed' }
+      | { type: 'failed'; message: string | null }
+      | { type: 'check_created' }
+      | { type: 'review_requested'; reviewer: Person | null; by: Person | null }
+      | { type: 'review_request_closed'; reviewer: Person | null; state: ReviewRequestState }
+      | {
+          type: 'review'
+          state: ReviewState
+          source: ReviewSource
+          reason: string | null
+          by: Person | null
+        }
+      | {
+          type: 'comment'
+          commentId: string
+          parentId: string | null
+          snapshotName: string | null
+          body: string
+          by: Person | null
+        }
+    )
+
+  /** `GET …/builds/:number/activity`: oldest first. */
+  export interface Timeline {
+    events: Event[]
+  }
+}

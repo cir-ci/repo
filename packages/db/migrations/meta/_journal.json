@@ -148,6 +148,13 @@
       "when": 1794138353733,
       "tag": "0020_many_patriot",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794139084584,
+      "tag": "0021_funny_wolf_cub",
+      "breakpoints": true
     }
   ]
 }

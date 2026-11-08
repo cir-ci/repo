@@ -1,5 +1,6 @@
 import type {
   builds,
+  comments,
   files,
   jobs,
   notifications,
@@ -24,3 +25,4 @@ export type FileRow = typeof files.$inferSelect
 export type ReviewRequest = typeof reviewRequests.$inferSelect
 export type Job = typeof jobs.$inferSelect
 export type Notification = typeof notifications.$inferSelect
+export type Comment = typeof comments.$inferSelect

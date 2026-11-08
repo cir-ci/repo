@@ -47,7 +47,13 @@ describe('recordReview', () => {
     const build = await reviewBuild(t.db, { buildId, userId: owner.id, state: 'approved' })
     expect(build.reviewStatus).toBe('approved')
     expect(await listBuildReviews(t.db, buildId)).toEqual([
-      { state: 'approved', source: 'ui', userName: owner.name, createdAt: expect.any(Date) },
+      {
+        state: 'approved',
+        source: 'ui',
+        reason: null,
+        userName: owner.name,
+        createdAt: expect.any(Date),
+      },
     ])
   })
 

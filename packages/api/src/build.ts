@@ -62,6 +62,8 @@ export namespace Build {
   export interface Review {
     state: ReviewState
     source: ReviewSource
+    /** Why it was rejected, when the reviewer said. */
+    reason: string | null
     /** Null for automatic approvals. */
     userName: string | null
     createdAt: string

@@ -15,6 +15,13 @@ export {
   startBuild,
   type AuthorClaim,
 } from './builds.ts'
+export {
+  addComment,
+  deleteComment,
+  editComment,
+  matchMentions,
+  MAX_COMMENT_LENGTH,
+} from './comments.ts'
 export { gateInputs } from './gate.ts'
 export { migrateStorage } from './migrate-storage.ts'
 export {
@@ -30,9 +37,12 @@ export { previewRetention, runRetention } from './retention.ts'
 export {
   dismissReviewRequest,
   MAX_BULK_REVIEW,
+  notifyOverdueReviews,
   requestReview,
   reviewBuild,
   reviewBuilds,
+  snoozeReviewRequest,
+  unsnoozeReviewRequest,
 } from './reviews.ts'
 export {
   assignTriage,

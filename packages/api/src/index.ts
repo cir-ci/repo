@@ -9,6 +9,7 @@
 
 export * from './baseline.ts'
 export * from './build.ts'
+export * from './comment.ts'
 export * from './flaky.ts'
 export * from './insights.ts'
 export * from './instance.ts'

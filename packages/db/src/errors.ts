@@ -25,3 +25,11 @@ export function pgErrorCode(err: unknown): string | undefined {
 
 export const isUniqueViolation = (err: unknown) => pgErrorCode(err) === '23505'
 export const isForeignKeyViolation = (err: unknown) => pgErrorCode(err) === '23503'
+
+/** The caller is known but may not do this (e.g. editing someone else's comment). */
+export class ForbiddenError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ForbiddenError'
+  }
+}

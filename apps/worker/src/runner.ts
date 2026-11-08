@@ -16,6 +16,7 @@ import type { StorageDriver } from '@circi/storage'
 import { deliverWebhook } from './jobs/deliver-webhook.ts'
 import { notifyGit } from './jobs/notify-git.ts'
 import { processBuild } from './jobs/process-build.ts'
+import { reviewSweep } from './jobs/review-sweep.ts'
 import { type EmailSender, sendNotificationEmail } from './jobs/send-email.ts'
 import { interruptibleSleep } from './lib/concurrency.ts'
 
@@ -56,6 +57,8 @@ export interface WorkerDeps {
   gcGraceHours?: number
   /** How often retention runs: expiring old builds and sites, collecting files (default 6 hours); 0 turns it off. */
   retentionIntervalMs?: number
+  /** How often overdue review requests are looked for (default 5 minutes); 0 turns it off. */
+  reviewSweepIntervalMs?: number
   /** How often to look for them (default 5 minutes). */
   maintenanceIntervalMs?: number
   /** How long a claimed job stays locked before another worker may retry it. Default 10 min. */
@@ -145,12 +148,27 @@ export async function startWorker(deps: WorkerDeps): Promise<RunningWorker> {
       : undefined
   retention?.unref()
 
+  const sweepEvery = deps.reviewSweepIntervalMs ?? 5 * 60_000
+  const sweep =
+    sweepEvery > 0
+      ? setInterval(() => {
+          reviewSweep({ db: deps.db }).then(
+            (n) => {
+              if (n > 0) deps.logger.info({ reviewers: n }, 'told reviewers about overdue requests')
+            },
+            (err: unknown) => deps.logger.error({ err }, 'review sweep failed'),
+          )
+        }, sweepEvery)
+      : undefined
+  sweep?.unref()
+
   deps.logger.info({ storage: deps.storage.kind, lanes }, 'worker started')
   return {
     async stop() {
       state.running = false
       if (maintenance) clearInterval(maintenance)
       if (retention) clearInterval(retention)
+      if (sweep) clearInterval(sweep)
       wakeAll()
       await listener?.stop()
       await Promise.all(loops)

@@ -18,6 +18,8 @@ export const reviews = pgTable(
     userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
     state: text('state').$type<ReviewState>().notNull(),
     source: text('source').$type<ReviewSource>().notNull(),
+    /** Why the changes were rejected, when the reviewer said. */
+    reason: text('reason'),
     createdAt: createdAt(),
   },
   (t) => [

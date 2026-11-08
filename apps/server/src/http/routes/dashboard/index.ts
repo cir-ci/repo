@@ -5,7 +5,9 @@ import { requireSession } from '../../hooks/session.ts'
 import type { DashboardDeps } from '../../lib/deps.ts'
 import { jsonErrorHandler } from '../../lib/errors.ts'
 import { authRoutes } from '../auth.ts'
+import { dashboardActivityRoutes } from './activity.ts'
 import { dashboardBaselineRoutes } from './baselines.ts'
+import { dashboardCommentRoutes } from './comments.ts'
 import { dashboardDomainRoutes } from './domains.ts'
 import { dashboardFileRoutes } from './files.ts'
 import { dashboardIgnoreRegionRoutes } from './ignore-regions.ts'
@@ -91,6 +93,8 @@ const sessionApi: FastifyPluginAsync<DashboardDeps> = async (api, deps) => {
   await api.register(dashboardReviewRoutes, deps)
   await api.register(dashboardReviewRequestRoutes, deps)
   await api.register(dashboardBaselineRoutes, deps)
+  await api.register(dashboardCommentRoutes, deps)
+  await api.register(dashboardActivityRoutes, deps)
   await api.register(dashboardInboxRoutes, deps)
   await api.register(dashboardInsightsRoutes, deps)
   await api.register(dashboardRuleRoutes, deps)
