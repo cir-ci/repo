@@ -8,12 +8,12 @@
 
 export interface SsoProvider {
   /** `github`, `google` or `oidc` (better-auth's provider id; also part of the callback URL). */
-  id: 'github' | 'google' | 'oidc'
+  id: 'github' | 'gitlab' | 'google' | 'oidc'
   /** Label on the sign-in button. */
   name: string
   clientId: string
   clientSecret: string
-  /** Issuer of the generic OpenID Connect provider (`oidc` only). */
+  /** Issuer of the generic OpenID Connect provider (`oidc`), or a self-managed GitLab's address (`gitlab`). */
   issuer?: string
   /**
    * The operator vouches that this provider only reports addresses its users own. Only then may

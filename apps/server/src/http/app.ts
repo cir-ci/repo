@@ -3,8 +3,10 @@ import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify'
 import { redirectPreviousHosts } from './hooks/previous-hosts.ts'
 import type { Deps } from './lib/deps.ts'
 import { argosRoutes } from './routes/argos/index.ts'
+import { bitbucketWebhookRoutes } from './routes/bitbucket-webhook.ts'
 import { dashboardRoutes } from './routes/dashboard/index.ts'
 import { githubWebhookRoutes } from './routes/github-webhook.ts'
+import { gitlabWebhookRoutes } from './routes/gitlab-webhook.ts'
 import { healthRoutes } from './routes/health.ts'
 import { v1Routes } from './routes/v1/index.ts'
 import { siteHostHook } from './sites/serve.ts'
@@ -30,6 +32,10 @@ export namespace buildServer {
     api?: Deps.V1
     /** GitHub App webhooks (`/webhooks/github`). Omitted when no GitHub App is configured. */
     githubWebhook?: githubWebhookRoutes.Deps
+    /** GitLab webhooks (`/webhooks/gitlab`). Always served; the secret is derived from the instance secret. */
+    gitlabWebhook?: gitlabWebhookRoutes.Deps
+    /** Bitbucket Cloud webhooks (`/webhooks/bitbucket`). */
+    bitbucketWebhook?: bitbucketWebhookRoutes.Deps
     /** Static site hosting: requests for site addresses are answered before any route. */
     siteServing?: siteHostHook.Options
     /** Dashboard (`/api`, `/`). Omitted in tests that don't need it. */
@@ -91,6 +97,8 @@ export function buildServer(options: buildServer.Options): FastifyInstance {
     )
   }
   if (options.githubWebhook) void app.register(githubWebhookRoutes, options.githubWebhook)
+  if (options.gitlabWebhook) void app.register(gitlabWebhookRoutes, options.gitlabWebhook)
+  if (options.bitbucketWebhook) void app.register(bitbucketWebhookRoutes, options.bitbucketWebhook)
   if (options.dashboard) void app.register(dashboardRoutes, options.dashboard)
 
   return app

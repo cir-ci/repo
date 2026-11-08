@@ -32,6 +32,8 @@ export interface ProviderHarness {
   }
   /** Headers a delivery with this body carries when the host signed it correctly. */
   signed(body: string): GitProvider.WebhookHeaders
+  /** The host sends a shared token, not a signature of the body (GitLab): a changed body cannot be told apart. */
+  tokenOnly?: boolean
 }
 
 const report: CheckReport = {
@@ -40,7 +42,13 @@ const report: CheckReport = {
   conclusion: 'action_required',
   title: '3 changed: review required',
   summary: 'details',
-  actions: [{ identifier: 'approve', label: 'Approve', description: 'Accept these changes' }],
+  actions: [
+    {
+      identifier: 'approve',
+      label: 'Approve',
+      description: 'Accept these changes',
+    },
+  ],
 }
 
 const commentBody = (n: number) => `${PR_COMMENT_MARKER}\nbuild ${n}`
@@ -99,7 +107,8 @@ export function runGitProviderContract(name: string, make: () => ProviderHarness
       const body = '{"zen":"hi"}'
       expect(h.provider.verifyWebhook(body, h.signed(body))).toBe(true)
       expect(h.provider.verifyWebhook(Buffer.from(body), h.signed(body))).toBe(true)
-      expect(h.provider.verifyWebhook(`${body} `, h.signed(body))).toBe(false)
+      // A signature covers the body; a shared token cannot tell a changed body apart.
+      expect(h.provider.verifyWebhook(`${body} `, h.signed(body))).toBe(h.tokenOnly === true)
       expect(h.provider.verifyWebhook(body, {})).toBe(false)
     })
 

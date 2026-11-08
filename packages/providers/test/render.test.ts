@@ -40,7 +40,10 @@ describe('checkReport', () => {
       flakyOnly: true,
       counts: { added: 0, removed: 0, changed: 1, failed: 0, total: 4 },
     })
-    const r = checkReport(flaky, { blockMergeOnChanges: true, flakyBlocksMerge: false })
+    const r = checkReport(flaky, {
+      blockMergeOnChanges: true,
+      flakyBlocksMerge: false,
+    })
     expect(r).toMatchObject({
       conclusion: 'success',
       title: 'Only flaky screenshots changed (1 changed)',
@@ -68,7 +71,9 @@ describe('checkReport', () => {
   })
 
   it('follows the review: approved passes, rejected fails, and each offers the other button', () => {
-    const approved = checkReport(build({ reviewStatus: 'approved' }), { blockMergeOnChanges: true })
+    const approved = checkReport(build({ reviewStatus: 'approved' }), {
+      blockMergeOnChanges: true,
+    })
     expect(approved.conclusion).toBe('success')
     expect(approved.actions.map((a) => a.identifier)).toEqual(['reject'])
     const rejected = checkReport(build({ reviewStatus: 'rejected' }), {
@@ -79,7 +84,9 @@ describe('checkReport', () => {
   })
 
   it('succeeds without buttons when nothing changed, and is in progress while processing', () => {
-    const none = checkReport(build({ conclusion: 'no_changes' }), { blockMergeOnChanges: true })
+    const none = checkReport(build({ conclusion: 'no_changes' }), {
+      blockMergeOnChanges: true,
+    })
     expect(none).toMatchObject({ conclusion: 'success', actions: [] })
     const running = checkReport(build({ status: 'processing', conclusion: null }), {
       blockMergeOnChanges: true,
@@ -89,7 +96,11 @@ describe('checkReport', () => {
   })
 
   it('fails on a processing error, or warns when merges are not blocked', () => {
-    const failed = build({ status: 'error', errorMessage: 'bad png', conclusion: null })
+    const failed = build({
+      status: 'error',
+      errorMessage: 'bad png',
+      conclusion: null,
+    })
     expect(checkReport(failed, { blockMergeOnChanges: true })).toMatchObject({
       conclusion: 'failure',
       title: 'Processing failed',

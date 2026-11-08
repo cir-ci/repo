@@ -510,3 +510,32 @@ describe('layout', () => {
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390)
   })
 })
+
+describe('the linked Figma frame', () => {
+  const figma = {
+    fileKey: 'FileKey12345',
+    nodeId: '1:2',
+    url: 'https://www.figma.com/design/FileKey12345?node-id=1-2',
+    frameName: 'Payment',
+  }
+
+  it('shows a Figma frame link in the snapshot header when the snapshot has one', async () => {
+    fakeBuildApi(
+      detail(
+        {},
+        { diffs: [shot('checkout / payment', 'changed', { figma }), shot('home', 'added')] },
+      ),
+    )
+    await renderBuild()
+    const chip = page.getByRole('link', { name: 'Figma frame: Payment' })
+    await expect.element(chip).toHaveAttribute('href', figma.url)
+    await expect.element(chip).toHaveAttribute('target', '_blank')
+  })
+
+  it('shows none for a snapshot without a link', async () => {
+    fakeBuildApi(detail({}, { diffs: [shot('home', 'added')] }))
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    expect(page.getByRole('link', { name: /Figma frame/ }).elements()).toHaveLength(0)
+  })
+})

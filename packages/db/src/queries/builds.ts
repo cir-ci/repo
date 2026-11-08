@@ -1,6 +1,7 @@
 import { aliasedTable, and, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm'
 
 import type { getBuildCounts } from '#repositories/builds.ts'
+import { listBuildIssueLinks } from '#repositories/issue-links.ts'
 import { listBuildReviews, type ReviewEntry } from '#repositories/reviews.ts'
 import {
   type AncestryStatus,
@@ -17,6 +18,8 @@ import {
   screenshots,
 } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
+
+import { figmaFramesForSnapshots } from './figma.ts'
 
 /** Build read models for the dashboard: shaped for the UI, read-only, free to join widely. */
 
@@ -172,6 +175,8 @@ export namespace getBuildDetail {
       | null
     base: (getBuildDetail.ImageRef & { thumbnail: string | null }) | null
     diff: getBuildDetail.ImageRef | null
+    /** The Figma frame the snapshot is linked to, if any. */
+    figma: figmaFramesForSnapshots.Frame | null
   }
 
   export interface Detail {
@@ -187,6 +192,8 @@ export namespace getBuildDetail {
     /** Approve/reject decisions, newest first. */
     reviews: ReviewEntry[]
     diffs: getBuildDetail.DiffItem[]
+    /** Issues created from the build, oldest first. */
+    issues: { key: string; url: string; title: string }[]
   }
 }
 
@@ -236,6 +243,16 @@ export async function getBuildDetail(
     .orderBy(screenshotDiffs.name)
 
   const decisions = await listBuildReviews(db, build.id)
+  const frames = await figmaFramesForSnapshots(
+    db,
+    projectId,
+    rows.map((r) => r.diff.name),
+  )
+  const issues = (await listBuildIssueLinks(db, build.id)).map((l) => ({
+    key: l.issueKey,
+    url: l.url,
+    title: l.title,
+  }))
 
   return {
     build: {
@@ -259,6 +276,7 @@ export async function getBuildDetail(
     },
     baseline,
     reviews: decisions,
+    issues,
     diffs: rows.map((r) => ({
       id: r.diff.id,
       name: r.diff.name,
@@ -291,6 +309,7 @@ export async function getBuildDetail(
             height: r.diffDims?.height ?? null,
           }
         : null,
+      figma: frames.get(r.diff.name) ?? null,
     })),
   }
 }

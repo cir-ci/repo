@@ -161,9 +161,58 @@ function Row(props: {
           ) : (
             <Badge shape="tag">Connected</Badge>
           )}
-          {page ? (
+          {page === 'github' ? (
             <Link
               to="/organizations/$org/settings/integrations/github"
+              params={{ org: props.org }}
+              aria-label={`Configure ${label}`}
+            >
+              Configure
+            </Link>
+          ) : null}
+          {page === 'gitlab' ? (
+            <Link
+              to="/organizations/$org/settings/integrations/gitlab"
+              params={{ org: props.org }}
+              aria-label={`Configure ${label}`}
+            >
+              Configure
+            </Link>
+          ) : null}
+          {page === 'figma' ? (
+            <Link
+              to="/organizations/$org/settings/integrations/figma"
+              params={{ org: props.org }}
+              aria-label={`Configure ${label}`}
+            >
+              Configure
+            </Link>
+          ) : null}
+          {page === 'bitbucket' ? (
+            <Link
+              to="/organizations/$org/settings/integrations/bitbucket"
+              params={{ org: props.org }}
+              aria-label={`Configure ${label}`}
+            >
+              Configure
+            </Link>
+          ) : null}
+          {item.kind === 'linear' || item.kind === 'jira' ? (
+            <Link
+              to={
+                item.kind === 'linear'
+                  ? '/organizations/$org/settings/integrations/linear'
+                  : '/organizations/$org/settings/integrations/jira'
+              }
+              params={{ org: props.org }}
+              aria-label={`Configure ${label}`}
+            >
+              Configure
+            </Link>
+          ) : null}
+          {item.kind === 'slack' ? (
+            <Link
+              to="/organizations/$org/settings/integrations/slack"
               params={{ org: props.org }}
               aria-label={`Configure ${label}`}
             >

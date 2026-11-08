@@ -59,4 +59,42 @@ export namespace Integration {
       installationId: string | null
     }[]
   }
+
+  /** `GET /api/orgs/:org/integrations/bitbucket`: the Bitbucket workspaces and the repository each project reports to. */
+  export interface BitbucketPage {
+    canManage: boolean
+    webhookUrl: string
+    /** The secret to put on the Bitbucket webhook; only owners and admins get it. */
+    webhookSecret: string | null
+    connections: { id: string; workspace: string; needsAttention: boolean }[]
+    projects: {
+      slug: string
+      name: string
+      repoRef: string | null
+      /** The Bitbucket connection it reports through. */
+      connectionId: string | null
+    }[]
+  }
+
+  /** `GET /api/orgs/:org/integrations/gitlab`: the GitLab connections and the GitLab project each CirCI project reports to. */
+  export interface GitlabPage {
+    canManage: boolean
+    webhookUrl: string
+    /** The secret token to put on the GitLab webhook; only owners and admins get it. */
+    webhookSecret: string | null
+    connections: {
+      id: string
+      /** `host#user id` of the token's principal. */
+      name: string
+      needsAttention: boolean
+    }[]
+    projects: {
+      slug: string
+      name: string
+      /** The GitLab project's path with namespace, e.g. `acme/tools/web`. */
+      repoRef: string | null
+      /** The GitLab connection it reports through. */
+      connectionId: string | null
+    }[]
+  }
 }

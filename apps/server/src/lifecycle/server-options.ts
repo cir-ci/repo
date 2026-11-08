@@ -1,12 +1,20 @@
 import type { Auth } from '@circi/auth'
 import type { Config } from '@circi/config'
 import type { Database } from '@circi/db'
-import type { GithubApp, ProviderRegistry } from '@circi/providers'
+import type {
+  BitbucketCloud,
+  FigmaClient,
+  GithubApp,
+  ProviderRegistry,
+  SlackClient,
+  GitlabProvider,
+} from '@circi/providers'
 import type { StorageDriver } from '@circi/storage'
 import type { Logger } from 'pino'
 
 import type { buildServer } from '#http/app.ts'
 import type { Deps } from '#http/lib/deps.ts'
+import { gitlabWebhookSecret } from '#http/lib/gitlab-secret.ts'
 
 /** What `serverOptionsFor` needs from the runtime. */
 export interface ServerRuntime {
@@ -16,7 +24,11 @@ export interface ServerRuntime {
   auth: Auth
   storage: StorageDriver
   github?: GithubApp
+  gitlab?: GitlabProvider
   providers?: ProviderRegistry
+  bitbucket?: BitbucketCloud
+  slack?: SlackClient
+  figma?: FigmaClient
 }
 
 /** Turns the configuration into the HTTP server's options: which scopes exist and with what. */
@@ -41,6 +53,25 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): buildServe
             secret: config.github.webhookSecret,
             github: rt.github,
             ...(rt.providers ? { providers: rt.providers } : {}),
+            publicOrigin: config.publicUrl.origin,
+            logger: rt.logger,
+          },
+        }
+      : {}),
+    gitlabWebhook: {
+      db: rt.db.db,
+      secret: gitlabWebhookSecret(config.authSecret),
+      gitlab: rt.gitlab,
+      authSecret: config.authSecret,
+      publicOrigin: config.publicUrl.origin,
+      logger: rt.logger,
+    },
+    ...(rt.bitbucket
+      ? {
+          bitbucketWebhook: {
+            db: rt.db.db,
+            bitbucket: rt.bitbucket,
+            authSecret: config.authSecret,
             publicOrigin: config.publicUrl.origin,
             logger: rt.logger,
           },
@@ -71,6 +102,17 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): buildServe
       orgCreation: config.orgCreation,
       githubApp: config.github !== undefined,
       ...(rt.providers ? { providers: rt.providers } : {}),
+      ...(rt.gitlab ? { gitlab: rt.gitlab } : {}),
+      ...(rt.figma ? { figma: rt.figma } : {}),
+      ...(config.slack && rt.slack
+        ? {
+            slack: {
+              clientId: config.slack.clientId,
+              clientSecret: config.slack.clientSecret,
+              client: rt.slack,
+            },
+          }
+        : {}),
       ...(sites ? { sites } : {}),
       authSecret: config.authSecret,
       webDist,

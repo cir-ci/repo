@@ -11,7 +11,13 @@ export interface ReportedBuild {
   reviewStatus: string
   prNumber: number | null
   errorMessage: string | null
-  counts: { added: number; removed: number; changed: number; failed: number; total: number }
+  counts: {
+    added: number
+    removed: number
+    changed: number
+    failed: number
+    total: number
+  }
   /** Every change is a flaky screenshot (only looked up while flaky ones don't block). */
   flakyOnly?: boolean
   /** Dashboard address of the build page. */
@@ -26,7 +32,11 @@ export interface CheckReport {
   title: string
   summary: string
   /** Buttons on the check (GitHub `requested_action`). */
-  actions: { identifier: 'approve' | 'reject'; label: string; description: string }[]
+  actions: {
+    identifier: 'approve' | 'reject'
+    label: string
+    description: string
+  }[]
 }
 
 export namespace CheckReport {
@@ -95,11 +105,21 @@ export function checkReport(
     ...(build.reviewStatus === 'approved'
       ? []
       : [
-          { identifier: 'approve' as const, label: 'Approve', description: 'Accept these changes' },
+          {
+            identifier: 'approve' as const,
+            label: 'Approve',
+            description: 'Accept these changes',
+          },
         ]),
     ...(build.reviewStatus === 'rejected'
       ? []
-      : [{ identifier: 'reject' as const, label: 'Reject', description: 'Reject these changes' }]),
+      : [
+          {
+            identifier: 'reject' as const,
+            label: 'Reject',
+            description: 'Reject these changes',
+          },
+        ]),
   ]
   if (build.reviewStatus === 'approved') {
     return {

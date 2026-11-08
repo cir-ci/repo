@@ -22,7 +22,9 @@ export {
   matchMentions,
   MAX_COMMENT_LENGTH,
 } from './comments.ts'
+export { autoLinkFigmaFrames, clearFigmaFile, type FigmaFrames, setFigmaFile } from './figma.ts'
 export { gateInputs } from './gate.ts'
+export { createIssueFromBuild, MAX_ISSUE_TITLE_LENGTH } from './issues.ts'
 export { migrateStorage } from './migrate-storage.ts'
 export {
   markInboxRead,
@@ -33,6 +35,7 @@ export {
   unsnoozeNotification,
   updateNotificationPreferences,
 } from './notifications.ts'
+export { queueSlackNotice } from './slack.ts'
 export { previewRetention, runRetention } from './retention.ts'
 export {
   dismissReviewRequest,

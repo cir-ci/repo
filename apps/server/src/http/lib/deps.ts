@@ -1,6 +1,13 @@
 import type { Auth } from '@circi/auth'
 import type { Database, SessionMethod, getProjectContext } from '@circi/db'
-import type { GitProvider, ProviderRegistry } from '@circi/providers'
+import type {
+  FigmaClient,
+  GitProvider,
+  ProviderRegistry,
+  SlackClient,
+  GitlabProvider,
+  TrackerFactory,
+} from '@circi/providers'
 import type { StorageDriver } from '@circi/storage'
 
 export namespace Deps {
@@ -19,6 +26,13 @@ export namespace Deps {
     githubApp?: boolean
     /** Static site hosting, when `STATIC_SITES_HOST` is set. */
     sites?: Deps.Sites
+  }
+
+  /** The Slack app's credentials and the client that talks to Slack. */
+  export interface Slack {
+    clientId: string
+    clientSecret: string
+    client: Pick<SlackClient, 'authorizeUrl' | 'exchangeCode' | 'listChannels'>
   }
 
   /** Hosted static sites: where they live and who may open them (PLAN §7.6). */
@@ -50,6 +64,14 @@ export namespace Deps {
     githubApp?: boolean
     /** Git host adapters by connection kind (the repository picker asks them what they can see). */
     providers?: ProviderRegistry<Pick<GitProvider, 'listRepositories'>>
+    /** Figma's REST API, for connecting an account and linking frames. */
+    figma?: Pick<FigmaClient, 'me' | 'getFile' | 'listFrames' | 'getNodeNames'>
+    /** The GitLab adapter, which also identifies a token's principal when a connection is added. */
+    gitlab?: Pick<GitlabProvider, 'identify' | 'listRepositories'>
+    /** The Slack app that installs into workspaces; absent unless `SLACK_CLIENT_ID` is set. */
+    slack?: Deps.Slack
+    /** Builds Linear and Jira adapters from stored credentials; replaceable in tests. Default: the real ones. */
+    trackers?: TrackerFactory
     /** Static site hosting, when `STATIC_SITES_HOST` is set. */
     sites?: Deps.Sites
     /** Who may create organizations in the dashboard. Default: instance admins only. */

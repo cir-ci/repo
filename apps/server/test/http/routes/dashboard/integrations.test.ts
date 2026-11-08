@@ -127,9 +127,10 @@ describe('GET /api/orgs/:org/integrations', () => {
         built: true,
         connectable: true,
       })
+      // Built, but this server has no Slack app configured.
       expect(byKind.slack).toMatchObject({
         status: 'available',
-        built: false,
+        built: true,
         connectable: false,
       })
       expect(byKind['azure-devops']).toMatchObject({

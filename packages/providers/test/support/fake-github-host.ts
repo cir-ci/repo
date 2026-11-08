@@ -25,7 +25,10 @@ export function fakeGithubHost(options: { installationId: string; repos: string[
     ) {
       return revoked
         ? json({ message: 'Not Found' }, 404)
-        : json({ token: 'ghs_fake', expires_at: new Date(Date.now() + 3600_000).toISOString() })
+        : json({
+            token: 'ghs_fake',
+            expires_at: new Date(Date.now() + 3600_000).toISOString(),
+          })
     }
     if (req.method === 'POST' && path.endsWith('/check-runs')) {
       const id = nextId++
@@ -39,7 +42,10 @@ export function fakeGithubHost(options: { installationId: string; repos: string[
     }
     if (req.method === 'GET' && /\/issues\/\d+\/comments$/.test(path)) return json(comments)
     if (req.method === 'POST' && /\/issues\/\d+\/comments$/.test(path)) {
-      const comment = { id: nextId++, body: String(Reflect.get(Object(body), 'body')) }
+      const comment = {
+        id: nextId++,
+        body: String(Reflect.get(Object(body), 'body')),
+      }
       comments.push(comment)
       return json(comment, 201)
     }

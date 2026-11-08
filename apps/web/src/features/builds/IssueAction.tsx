@@ -1,0 +1,65 @@
+import type { Build } from '@circi/api'
+import { Button } from '@circi/ui'
+import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+
+import { isActive } from './api.ts'
+import { CreateIssueDialog } from './CreateIssueDialog.tsx'
+import { issuePreview, issuesQuery, useCreateIssue } from './issues-api.ts'
+
+/**
+ * "Create issue" in the review header, for the selected snapshot (the whole build when none is
+ * selected). Shown only when the project has a tracker (Linear or Jira) mapped, so a project
+ * without one sees nothing.
+ */
+export function IssueAction({ data, snapshotName }: IssueAction.Props) {
+  const { project, build } = data
+  const { data: issues } = useQuery({
+    ...issuesQuery(project.orgSlug, project.slug, build.number),
+    enabled: !isActive(build.status) && build.status !== 'expired',
+  })
+  const create = useCreateIssue(project.orgSlug, project.slug, build.number)
+  const [open, setOpen] = useState(false)
+  if (!issues || issues.trackers.length === 0) return null
+  const preview = issuePreview(data, snapshotName, window.location.origin)
+
+  return (
+    <>
+      <Button
+        onClick={() => {
+          create.reset()
+          setOpen(true)
+        }}
+      >
+        Create issue
+      </Button>
+      <CreateIssueDialog
+        // A new selection starts a new draft.
+        key={snapshotName ?? ''}
+        open={open}
+        trackers={issues.trackers}
+        snapshotName={snapshotName}
+        defaultTitle={preview.title}
+        description={preview.description}
+        pending={create.isPending}
+        error={create.error}
+        onCancel={() => setOpen(false)}
+        onCreate={(input, onCreated) =>
+          create.mutate(input, {
+            onSuccess: (issue) => {
+              onCreated(issue)
+              setOpen(false)
+            },
+          })
+        }
+      />
+    </>
+  )
+}
+
+export namespace IssueAction {
+  export interface Props {
+    data: Build.Detail
+    snapshotName: string | null
+  }
+}

@@ -39,6 +39,19 @@
   flex: none;
 }
 
+.figmaChip {
+  flex: none;
+  max-width: 220px;
+  overflow: hidden;
+  padding: 0 6px;
+  border: 1px solid var(--circi-border, currentColor);
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .controls {
   display: flex;
   flex-wrap: wrap;

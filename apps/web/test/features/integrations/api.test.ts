@@ -83,3 +83,17 @@ describe('small helpers', () => {
     expect(integrationPage('slack')).toBeNull()
   })
 })
+
+describe('Bitbucket helpers', () => {
+  it('accepts workspace ids and rejects the rest', async () => {
+    const { isBitbucketWorkspace } = await import('#features/integrations/api.ts')
+    expect(isBitbucketWorkspace(' acme-ws_1 ')).toBe(true)
+    for (const bad of ['', 'has space', '-lead', 'a/b', 'a'.repeat(101)])
+      expect(isBitbucketWorkspace(bad)).toBe(false)
+  })
+
+  it('has a page for Bitbucket connections', () => {
+    expect(integrationPage('bitbucket')).toBe('bitbucket')
+    expect(integrationPage('azure-devops')).toBeNull()
+  })
+})

@@ -247,10 +247,17 @@ export async function startBuild(
  */
 export async function recordPullRequestAuthor(
   db: Database,
-  input: { projectId: string; prNumber: number; login: string; providerId?: string | null },
+  input: {
+    projectId: string
+    prNumber: number
+    login: string
+    providerId?: string | null
+    /** The git host the author is on; default `github`. */
+    provider?: 'github' | 'gitlab'
+  },
 ): Promise<number> {
   const userId = await matchAuthor(db, input.projectId, {
-    provider: 'github',
+    provider: input.provider ?? 'github',
     providerId: input.providerId ?? null,
   })
   return setPullRequestAuthor(db, {

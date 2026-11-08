@@ -1,5 +1,6 @@
 import { and, aliasedTable, eq, isNull } from 'drizzle-orm'
 
+import { listBuildIssueLinks } from '#repositories/issue-links.ts'
 import {
   builds,
   buildChecks,
@@ -15,7 +16,7 @@ import type { Database } from '#src/client.ts'
 
 /**
  * A build's activity: one list, oldest first, put together from the tables that each keep their
- * own history (build lifecycle, check run, review requests, decisions, comments).
+ * own history (build lifecycle, check run, review requests, decisions, comments, issues created).
  */
 
 interface Actor {
@@ -45,6 +46,12 @@ export type ActivityEvent = { at: Date } & (
       parentId: string | null
       snapshotName: string | null
       body: string
+      by: Actor | null
+    }
+  | {
+      type: 'issue_created'
+      issue: { key: string; url: string; title: string; tracker: string }
+      snapshotName: string | null
       by: Actor | null
     }
 )
@@ -118,6 +125,16 @@ export async function listBuildActivity(db: Database, buildId: string): Promise<
       snapshotName: c.snapshotName,
       body: c.body,
       by: actor(c.authorId, name),
+    })
+  }
+
+  for (const link of await listBuildIssueLinks(db, buildId)) {
+    events.push({
+      type: 'issue_created',
+      at: link.createdAt,
+      issue: { key: link.issueKey, url: link.url, title: link.title, tracker: link.kind },
+      snapshotName: link.snapshotName,
+      by: link.createdBy,
     })
   }
 

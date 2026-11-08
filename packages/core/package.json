@@ -8,7 +8,10 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./integrations": "./src/integrations.ts"
+    "./figma": "./src/figma.ts",
+    "./integrations": "./src/integrations.ts",
+    "./issues": "./src/issues.ts",
+    "./slack": "./src/slack.ts"
   },
   "dependencies": {}
 }

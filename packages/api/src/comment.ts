@@ -89,6 +89,12 @@ export namespace Activity {
           body: string
           by: Person | null
         }
+      | {
+          type: 'issue_created'
+          issue: { key: string; url: string; title: string; tracker: string }
+          snapshotName: string | null
+          by: Person | null
+        }
     )
 
   /** `GET …/builds/:number/activity`: oldest first. */

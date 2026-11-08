@@ -50,6 +50,7 @@ export {
 export { rotationFor, rotationHandover } from './rotation.ts'
 export { SNOOZE_WAKE_HOUR, snoozeUntil, type SnoozeChoice } from './snooze.ts'
 export { parseMentions } from './mentions.ts'
+export { defaultIssueTitle, issueDescription, type IssueText } from './issues.ts'
 export {
   catalogEntry,
   filterCatalog,
@@ -62,4 +63,24 @@ export {
   integrationGroupLabel,
   isInstallationId,
 } from './integrations.ts'
+export {
+  figmaFrameUrl,
+  type FigmaLinkLike,
+  matchFramesToSnapshots,
+  normalizeFrameName,
+  normalizeNodeId,
+  parseFigmaFileRef,
+  parseFigmaUrl,
+  pickFigmaLink,
+} from './figma.ts'
 export { openSecret, sealSecret } from './secrets.ts'
+export {
+  isSlackEvent,
+  SLACK_CHANNEL_ID_RE,
+  SLACK_DEFAULT_EVENTS,
+  SLACK_EVENT_LABEL,
+  SLACK_EVENTS,
+  type SlackEvent,
+  slackEventsOf,
+} from './slack.ts'
+export { signState, verifyState } from './signed-state.ts'

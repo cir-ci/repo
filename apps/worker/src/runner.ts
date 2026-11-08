@@ -9,7 +9,7 @@ import {
   type ListenFn,
   QUEUES,
 } from '@circi/db'
-import type { GithubApp, ProviderRegistry } from '@circi/providers'
+import type { GithubApp, ProviderRegistry, SlackClient } from '@circi/providers'
 import { expireStalledBuilds, failBuild, runRetention } from '@circi/services'
 import type { StorageDriver } from '@circi/storage'
 
@@ -18,6 +18,7 @@ import { notifyGit } from './jobs/notify-git.ts'
 import { processBuild } from './jobs/process-build.ts'
 import { reviewSweep } from './jobs/review-sweep.ts'
 import { sendNotificationEmail } from './jobs/send-email.ts'
+import { sendSlack } from './jobs/send-slack.ts'
 import { interruptibleSleep } from './lib/concurrency.ts'
 
 /** The worker process: polls the job queue and runs each job. */
@@ -43,6 +44,8 @@ export namespace startWorker {
     authSecret?: string
     /** Sends notification emails; absent without SMTP, and such jobs are then skipped. */
     mailer?: sendNotificationEmail.Sender
+    /** Slack's Web API client; absent in tests that do not send Slack messages (such jobs are then dropped). */
+    slack?: Pick<SlackClient, 'postMessage'>
     /** Webhooks may point at private addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
     webhookAllowPrivate?: boolean
     /** Startup check of the database connection. */
@@ -256,7 +259,8 @@ async function claimNext(db: Database, lockSeconds: number): Promise<Job | undef
     (await claimJob(db, QUEUES.processBuild, lockSeconds)) ??
     (await claimJob(db, GIT_NOTIFY_QUEUE, lockSeconds)) ??
     (await claimJob(db, QUEUES.webhook, lockSeconds)) ??
-    (await claimJob(db, QUEUES.notificationEmail, lockSeconds))
+    (await claimJob(db, QUEUES.notificationEmail, lockSeconds)) ??
+    (await claimJob(db, QUEUES.slack, lockSeconds))
   )
 }
 
@@ -264,6 +268,7 @@ async function runJob(deps: startWorker.Deps, job: Job): Promise<void> {
   if (job.queue === QUEUES.webhook) return runWebhookJob(deps, job)
   if (job.queue === GIT_NOTIFY_QUEUE) return runGitNotifyJob(deps, job)
   if (job.queue === QUEUES.notificationEmail) return runEmailJob(deps, job)
+  if (job.queue === QUEUES.slack) return runSlackJob(deps, job)
   const buildId = typeof job.payload.buildId === 'string' ? job.payload.buildId : undefined
   const started = Date.now()
   try {
@@ -358,6 +363,35 @@ async function runEmailJob(deps: startWorker.Deps, job: Job): Promise<void> {
       willRetry
         ? 'could not send a notification email, will retry'
         : 'could not send a notification email',
+    )
+  }
+}
+
+async function runSlackJob(deps: startWorker.Deps, job: Job): Promise<void> {
+  const fields = { jobId: job.id, buildId: job.payload.buildId, event: job.payload.event }
+  try {
+    if (!deps.slack || !deps.authSecret) {
+      await completeJob(deps.db, job.id)
+      deps.logger.info(fields, 'slack message skipped: Slack is not set up in this worker')
+      return
+    }
+    const result = await sendSlack(
+      {
+        db: deps.db,
+        slack: deps.slack,
+        authSecret: deps.authSecret,
+        publicOrigin: deps.publicOrigin ?? '',
+      },
+      job,
+    )
+    await completeJob(deps.db, job.id)
+    deps.logger.info({ ...fields, ...result }, 'slack message processed')
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    const willRetry = await failJob(deps.db, job, message).catch(() => true)
+    deps.logger[willRetry ? 'warn' : 'error'](
+      { ...fields, attempt: job.attempts, err: message },
+      willRetry ? 'could not send a slack message, will retry' : 'could not send a slack message',
     )
   }
 }

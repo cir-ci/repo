@@ -53,6 +53,9 @@ const envSchema = z.object({
   GITHUB_APP_PRIVATE_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
   GITHUB_APP_WEBHOOK_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),
   GITHUB_API_URL: z.preprocess(emptyToUndefined, z.string().optional()),
+  SLACK_CLIENT_ID: z.preprocess(emptyToUndefined, z.string().optional()),
+  SLACK_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),
+  SLACK_API_URL: z.preprocess(emptyToUndefined, z.string().optional()),
   STATIC_SITES_HOST: z.preprocess(emptyToUndefined, z.string().optional()),
   STATIC_SITES_MAX_MB: z.preprocess(
     emptyToUndefined,
@@ -69,6 +72,10 @@ const envSchema = z.object({
   AUTH_GITHUB_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),
   AUTH_GOOGLE_CLIENT_ID: z.preprocess(emptyToUndefined, z.string().optional()),
   AUTH_GOOGLE_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),
+  AUTH_GITLAB_CLIENT_ID: z.preprocess(emptyToUndefined, z.string().optional()),
+  AUTH_GITLAB_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),
+  /** A self-managed GitLab's address; default gitlab.com. */
+  AUTH_GITLAB_URL: z.preprocess(emptyToUndefined, z.string().optional()),
   AUTH_OIDC_ISSUER: z.preprocess(emptyToUndefined, z.string().optional()),
   AUTH_OIDC_CLIENT_ID: z.preprocess(emptyToUndefined, z.string().optional()),
   AUTH_OIDC_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),
@@ -80,7 +87,7 @@ const envSchema = z.object({
 export namespace Config {
   /** A single sign-on provider the operator configured (instance-scoped, PLAN §7.8). */
   export interface Sso {
-    id: 'github' | 'google' | 'oidc'
+    id: 'github' | 'gitlab' | 'google' | 'oidc'
     name: string
     clientId: string
     clientSecret: string
@@ -95,6 +102,14 @@ export namespace Config {
     privateKey: string
     webhookSecret: string
     /** `https://api.github.com`, or a GitHub Enterprise Server's `https://host/api/v3`. */
+    apiUrl: string
+  }
+
+  /** The Slack app that installs into workspaces (`SLACK_CLIENT_ID` / `SLACK_CLIENT_SECRET`). */
+  export interface Slack {
+    clientId: string
+    clientSecret: string
+    /** `https://slack.com/api`, or a stand-in for tests. */
     apiUrl: string
   }
 
@@ -168,6 +183,8 @@ export interface Config {
   /** Webhooks may point at private/loopback addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
   /** The GitHub App: absent when none is configured. */
   github?: Config.GithubApp
+  /** The Slack app: absent when none is configured, and Slack then cannot be added. */
+  slack?: Config.Slack
   /** Single sign-on providers, empty when none is configured or `AUTH_SSO_ENABLED=false`. */
   sso: Config.Sso[]
   /** Email + password sign-in is offered (`AUTH_PASSWORD_ENABLED`, default on). */
@@ -284,6 +301,16 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       }
     }
   }
+  let slack: Config.Slack | undefined
+  if (e.SLACK_CLIENT_ID || e.SLACK_CLIENT_SECRET) {
+    if (!(e.SLACK_CLIENT_ID && e.SLACK_CLIENT_SECRET)) {
+      issues.push('SLACK_CLIENT_ID / SLACK_CLIENT_SECRET: set both, or neither')
+    } else {
+      const apiUrl = (e.SLACK_API_URL ?? 'https://slack.com/api').replace(/\/$/, '')
+      if (!/^https?:\/\//.test(apiUrl)) issues.push('SLACK_API_URL: must be an http(s) address')
+      slack = { clientId: e.SLACK_CLIENT_ID, clientSecret: e.SLACK_CLIENT_SECRET, apiUrl }
+    }
+  }
   let staticSites: Config.StaticSites | undefined
   if (e.STATIC_SITES_HOST) {
     const host = e.STATIC_SITES_HOST.trim().toLowerCase().replace(/\.$/, '')
@@ -310,6 +337,17 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       clientId: e.AUTH_GITHUB_CLIENT_ID ?? '',
       clientSecret: e.AUTH_GITHUB_CLIENT_SECRET ?? '',
       trustedForEmail: true,
+    })
+  }
+  if (pair('AUTH_GITLAB', e.AUTH_GITLAB_CLIENT_ID, e.AUTH_GITLAB_CLIENT_SECRET)) {
+    // A self-managed GitLab need not confirm its users' addresses: not trusted for email.
+    sso.push({
+      id: 'gitlab',
+      name: 'GitLab',
+      clientId: e.AUTH_GITLAB_CLIENT_ID ?? '',
+      clientSecret: e.AUTH_GITLAB_CLIENT_SECRET ?? '',
+      ...(e.AUTH_GITLAB_URL ? { issuer: e.AUTH_GITLAB_URL.replace(/\/$/, '') } : {}),
+      trustedForEmail: false,
     })
   }
   if (pair('AUTH_GOOGLE', e.AUTH_GOOGLE_CLIENT_ID, e.AUTH_GOOGLE_CLIENT_SECRET)) {
@@ -370,6 +408,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     sso: ssoOn,
     ...(staticSites ? { staticSites } : {}),
     ...(github ? { github } : {}),
+    ...(slack ? { slack } : {}),
     webhookAllowPrivate: e.WEBHOOK_ALLOW_PRIVATE_ADDRESSES === true,
     uploadTimeoutMinutes: e.UPLOAD_TIMEOUT_MINUTES,
     gcGraceHours: e.GC_GRACE_HOURS,

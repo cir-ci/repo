@@ -63,6 +63,7 @@ export async function runServices(options: runServices.Options): Promise<void> {
         gcGraceHours: rt.config.gcGraceHours,
         ...(rt.github ? { github: rt.github } : {}),
         providers: rt.providers,
+        slack: rt.slack,
         ...(rt.mailer ? { mailer: rt.mailer } : {}),
       })
     }

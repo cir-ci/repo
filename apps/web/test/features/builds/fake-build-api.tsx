@@ -86,6 +86,7 @@ export function detail(
     baseline: { number: 6, commitSha: 'fedcba9876543210', branch: 'main' },
     reviews: [],
     diffs,
+    issues: [],
     ...rest,
   }
   return result

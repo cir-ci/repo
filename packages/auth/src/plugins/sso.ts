@@ -23,11 +23,22 @@ export function ssoPlugins(providers: SsoProvider[]) {
 }
 
 export function socialProviders(providers: SsoProvider[]) {
-  const pick = (id: 'github' | 'google') => {
+  const pick = (id: 'github' | 'gitlab' | 'google') => {
     const p = providers.find((x) => x.id === id)
-    return p ? { clientId: p.clientId, clientSecret: p.clientSecret } : undefined
+    return p
+      ? {
+          clientId: p.clientId,
+          clientSecret: p.clientSecret,
+          ...(id === 'gitlab' && p.issuer ? { issuer: p.issuer } : {}),
+        }
+      : undefined
   }
   const github = pick('github')
+  const gitlab = pick('gitlab')
   const google = pick('google')
-  return { ...(github ? { github } : {}), ...(google ? { google } : {}) }
+  return {
+    ...(github ? { github } : {}),
+    ...(gitlab ? { gitlab } : {}),
+    ...(google ? { google } : {}),
+  }
 }

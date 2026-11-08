@@ -1,3 +1,4 @@
+import type { Figma } from './figma.ts'
 import type { Project } from './project.ts'
 
 export type BuildStatus = 'pending' | 'uploading' | 'processing' | 'complete' | 'error' | 'expired'
@@ -65,6 +66,8 @@ export namespace Build {
     head: (ImageRef & { thumbnail: string | null; metadata: Record<string, unknown> }) | null
     base: (ImageRef & { thumbnail: string | null }) | null
     diff: ImageRef | null
+    /** The Figma frame this snapshot is linked to; absent or null when there is none. */
+    figma?: Figma.Frame | null
   }
 
   /** One approve/reject decision. */
@@ -91,5 +94,7 @@ export namespace Build {
     /** Decisions, newest first. */
     reviews: Review[]
     diffs: DiffItem[]
+    /** Issues created from the build in Linear or Jira, oldest first. */
+    issues: { key: string; url: string; title: string }[]
   }
 }

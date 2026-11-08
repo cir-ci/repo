@@ -268,3 +268,16 @@
     border-top: 1px solid var(--circi-line-subtle);
   }
 }
+
+/* The issue dialog's description preview: the text the tracker will get, as written. */
+.preview {
+  box-sizing: border-box;
+  max-height: 200px;
+  margin: 4px 0 0;
+  padding: 8px;
+  overflow: auto;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 6px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

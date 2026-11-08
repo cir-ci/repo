@@ -8,6 +8,7 @@ import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { ActivityTab } from './ActivityTab.tsx'
 import { CommentsTab } from './CommentsTab.tsx'
 import { commentsQuery } from './discussion-api.ts'
+import { LinkedIssues } from './LinkedIssues.tsx'
 import { commentCount } from './timeline.ts'
 
 import styles from './Discussion.module.css'
@@ -158,6 +159,7 @@ function DetailsTab({ data, onRequestReview }: DetailsTab.Props) {
         <Kbd>⇧</Kbd>
         <Kbd>R</Kbd>
       </Stack>
+      <LinkedIssues issues={data.issues} />
       <div>
         <Text variant="micro" tone="tertiary">
           Decisions

@@ -50,7 +50,13 @@ const report: CheckReport = {
   conclusion: 'action_required',
   title: '3 changed: review required',
   summary: 'details',
-  actions: [{ identifier: 'approve', label: 'Approve', description: 'Accept these changes' }],
+  actions: [
+    {
+      identifier: 'approve',
+      label: 'Approve',
+      description: 'Accept these changes',
+    },
+  ],
 }
 
 const tokenReply = {
@@ -118,7 +124,13 @@ describe('GithubApp', () => {
       conclusion: 'action_required',
       details_url: 'https://ci/x',
       output: { title: '3 changed: review required', summary: 'details' },
-      actions: [{ identifier: 'approve', label: 'Approve', description: 'Accept these changes' }],
+      actions: [
+        {
+          identifier: 'approve',
+          label: 'Approve',
+          description: 'Accept these changes',
+        },
+      ],
     })
     await app.upsertCheckRun('99', 'acme/web', {
       sha: 'abc1234',
@@ -177,11 +189,17 @@ describe('GithubApp', () => {
     const { app } = appWith({
       'POST /app/installations/99/access_tokens': [tokenReply],
       'POST /repos/acme/web/check-runs': [
-        new Response('{"message":"Resource not accessible by integration"}', { status: 403 }),
+        new Response('{"message":"Resource not accessible by integration"}', {
+          status: 403,
+        }),
       ],
     })
     await expect(
-      app.upsertCheckRun('99', 'acme/web', { sha: 'a', report, detailsUrl: 'u' }),
+      app.upsertCheckRun('99', 'acme/web', {
+        sha: 'a',
+        report,
+        detailsUrl: 'u',
+      }),
     ).rejects.toThrow(GithubApiError)
   })
 
@@ -189,14 +207,21 @@ describe('GithubApp', () => {
     const { app, calls } = appWith({
       'POST /app/installations/99/access_tokens': [
         tokenReply,
-        { token: 'ghs_second', expires_at: new Date(Date.now() + 3_600_000).toISOString() },
+        {
+          token: 'ghs_second',
+          expires_at: new Date(Date.now() + 3_600_000).toISOString(),
+        },
       ],
       'POST /repos/acme/web/check-runs': [
         new Response('{"message":"Bad credentials"}', { status: 401 }),
         { id: 5 },
       ],
     })
-    const id = await app.upsertCheckRun('99', 'acme/web', { sha: 'a', report, detailsUrl: 'u' })
+    const id = await app.upsertCheckRun('99', 'acme/web', {
+      sha: 'a',
+      report,
+      detailsUrl: 'u',
+    })
     expect(id).toBe('5')
     const runs = calls.filter((c) => c.path === '/repos/acme/web/check-runs')
     expect(runs).toHaveLength(2)
@@ -210,7 +235,11 @@ describe('GithubApp', () => {
       ],
     })
     await expect(
-      again.upsertCheckRun('99', 'acme/web', { sha: 'a', report, detailsUrl: 'u' }),
+      again.upsertCheckRun('99', 'acme/web', {
+        sha: 'a',
+        report,
+        detailsUrl: 'u',
+      }),
     ).rejects.toBeInstanceOf(GithubInstallationRevokedError)
   })
 
@@ -237,7 +266,11 @@ describe('GithubApp', () => {
       ],
     }).app
     await expect(
-      suspended.upsertCheckRun('99', 'acme/web', { sha: 'a', report, detailsUrl: 'u' }),
+      suspended.upsertCheckRun('99', 'acme/web', {
+        sha: 'a',
+        report,
+        detailsUrl: 'u',
+      }),
     ).rejects.toBeInstanceOf(GithubInstallationRevokedError)
   })
 

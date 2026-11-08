@@ -1,4 +1,4 @@
-import type { Build, ReviewStatus } from '@circi/api'
+import type { Build, Figma, ReviewStatus } from '@circi/api'
 import {
   Banner,
   Button,
@@ -8,6 +8,7 @@ import {
   Heading,
   IconButton,
   Kbd,
+  Link,
   ReviewIcon,
   SegmentedControl,
   Slider,
@@ -27,6 +28,21 @@ import { DESIGN_MODE, type ViewMode, VIEW_MODES } from './search.ts'
 import { type Zoom, stepZoom, zoomedWidth, zoomLabel } from './zoom.ts'
 
 import styles from './DiffViewer.module.css'
+
+/** A small link to the Figma frame this snapshot is linked to, opening it in Figma. */
+export function FigmaFrameChip({ frame }: { frame: Figma.Frame }) {
+  return (
+    <Link
+      className={styles.figmaChip}
+      href={frame.url}
+      target="_blank"
+      rel="noreferrer"
+      title={frame.frameName ?? 'Open the linked frame in Figma'}
+    >
+      Figma frame{frame.frameName ? `: ${frame.frameName}` : ''}
+    </Link>
+  )
+}
 
 const isViewMode = (value: string): value is ViewMode =>
   value === DESIGN_MODE || VIEW_MODES.some((m) => m === value)
@@ -78,6 +94,7 @@ export function Viewer({
               {summary}
             </Text>
           ) : null}
+          {diff.figma ? <FigmaFrameChip frame={diff.figma} /> : null}
         </div>
         <div className={styles.controls}>
           {comparable ? (

@@ -42,7 +42,7 @@ export async function listOrgIntegrations(
       source: 'connection',
       kind: c.kind,
       group,
-      name: `Installation ${c.externalId}`,
+      name: c.kind === 'github' ? `Installation ${c.externalId}` : c.externalId,
       needsAttention: c.needsAttention !== null,
       attentionReason: c.needsAttention,
       projectCount: c.projectCount,

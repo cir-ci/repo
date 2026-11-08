@@ -6,6 +6,30 @@ import { commentCount, groupThreads, timelineItems } from '#features/builds/time
 const at = '2026-11-08T10:00:00.000Z'
 const person = { id: 'u1', name: 'Ada Lovelace' }
 
+describe('timelineItems: issues', () => {
+  it('says who created which issue, for which snapshot, and quotes its title', () => {
+    const [item] = timelineItems([
+      {
+        type: 'issue_created',
+        at,
+        issue: {
+          key: 'WEB-9',
+          url: 'https://x.test/WEB-9',
+          title: 'Header broke',
+          tracker: 'jira',
+        },
+        snapshotName: 'home',
+        by: person,
+      },
+    ])
+    expect(item).toMatchObject({
+      actor: 'Ada Lovelace',
+      text: 'created issue WEB-9 for home',
+      quote: 'Header broke',
+    })
+  })
+})
+
 describe('timelineItems', () => {
   it('describes each kind of event, keeping a rejection’s reason as a quote', () => {
     const events: Activity.Event[] = [

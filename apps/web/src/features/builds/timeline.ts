@@ -81,6 +81,15 @@ export function timelineItems(events: readonly Activity.Event[]): TimelineItem[]
           commentId: e.commentId,
         })
         break
+      case 'issue_created':
+        items.push({
+          ...base,
+          status: 'neutral',
+          actor: e.by?.name ?? null,
+          text: `created issue ${e.issue.key}${e.snapshotName ? ` for ${e.snapshotName}` : ''}`,
+          quote: e.issue.title,
+        })
+        break
     }
   })
   return items

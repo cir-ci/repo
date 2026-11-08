@@ -15,6 +15,7 @@ import { isConnectionRevoked } from '@circi/providers'
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
+import { openConnectionCredentials } from '#http/lib/connection-credentials.ts'
 import type { Deps } from '#http/lib/deps.ts'
 import { loadOrg } from '#http/lib/org-access.ts'
 import { parse } from '#http/lib/validation.ts'
@@ -57,9 +58,19 @@ export const dashboardIntegrationRoutes: FastifyPluginAsync<Deps.Dashboard> = as
 
   /** Kinds this instance can connect now: GitHub when its App is configured, plus registered hosts. */
   const connectable = (kind: string) =>
-    (kind === 'github' && deps.githubApp === true) || deps.providers?.get(kind) !== undefined
+    (kind === 'github' && deps.githubApp === true) ||
+    (kind === 'slack' && deps.slack !== undefined) ||
+    (kind === 'figma' && deps.figma !== undefined && deps.authSecret !== undefined) ||
+    ((kind === 'linear' || kind === 'jira') && deps.authSecret !== undefined) ||
+    deps.providers?.get(kind) !== undefined
   /** Kinds with an add flow in this build: GitHub's routes, or a registered provider. */
-  const built = (kind: string) => kind === 'github' || deps.providers?.get(kind) !== undefined
+  const built = (kind: string) =>
+    kind === 'github' ||
+    kind === 'slack' ||
+    kind === 'figma' ||
+    kind === 'linear' ||
+    kind === 'jira' ||
+    deps.providers?.get(kind) !== undefined
 
   app.get('/orgs/:org/integrations', async (req, reply) => {
     const found = await load(req, reply)
@@ -167,6 +178,7 @@ export const dashboardIntegrationRoutes: FastifyPluginAsync<Deps.Dashboard> = as
     try {
       const repositories: Integration.Repository[] = await provider.listRepositories(
         connection.externalId,
+        openConnectionCredentials(deps.authSecret, connection.encryptedCredentials),
       )
       return { repositories }
     } catch (err) {

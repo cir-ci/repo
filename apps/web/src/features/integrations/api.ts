@@ -48,8 +48,8 @@ export const integrationLabel = (item: Pick<Integration.Item, 'kind' | 'name'>) 
   `${catalogEntry(item.kind)?.name ?? item.kind} (${item.name})`
 
 /** Where an added integration's own page is, if it has one yet. */
-export const integrationPage = (kind: string): 'github' | null =>
-  kind === 'github' ? 'github' : null
+export const integrationPage = (kind: string): 'github' | 'gitlab' | 'bitbucket' | 'figma' | null =>
+  kind === 'github' || kind === 'gitlab' || kind === 'bitbucket' || kind === 'figma' ? kind : null
 
 /** "3 projects", "1 project", "No projects yet". */
 export const projectCountLabel = (count: number) =>
@@ -120,6 +120,52 @@ export function useProjectRepository(org: string) {
     unlink: useMutation({
       mutationFn: (project: string) => send<undefined>('DELETE', url(project)),
       onSuccess: (_data, project) => refresh(project),
+    }),
+  }
+}
+
+// ---- Bitbucket --------------------------------------------------------------------------------
+
+/** A Bitbucket workspace id: lowercase letters, digits, dashes and underscores (`bitbucket.org/<id>`). */
+export const isBitbucketWorkspace = (value: string) =>
+  /^[a-z0-9][a-z0-9_-]{0,99}$/i.test(value.trim())
+
+export const bitbucketPageQuery = (org: string) =>
+  queryOptions({
+    queryKey: ['integrations', org, 'bitbucket'],
+    queryFn: () => getJson<Integration.BitbucketPage>(`${base(org)}/bitbucket`),
+  })
+
+export function useConnectBitbucket(org: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { workspace: string; token: string; username?: string }) =>
+      post<{ id: string }>(`${base(org)}/bitbucket`, {
+        workspace: input.workspace.trim(),
+        token: input.token.trim(),
+        ...(input.username?.trim() ? { username: input.username.trim() } : {}),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations', org] }),
+  })
+}
+
+/** Points a project at a repository on a Bitbucket connection, or stops it. */
+export function useBitbucketProjectRepository(org: string) {
+  const queryClient = useQueryClient()
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['integrations', org] })
+  const url = (project: string) => `${base(org)}/bitbucket/projects/${seg(project)}`
+  return {
+    link: useMutation({
+      mutationFn: (input: { project: string; repoRef: string; connectionId: string }) =>
+        send<unknown>('PUT', url(input.project), {
+          repoRef: input.repoRef.trim(),
+          connectionId: input.connectionId,
+        }),
+      onSuccess: refresh,
+    }),
+    unlink: useMutation({
+      mutationFn: (project: string) => send<undefined>('DELETE', url(project)),
+      onSuccess: refresh,
     }),
   }
 }

@@ -29,6 +29,7 @@ import { CountsSummary } from './CountsSummary.tsx'
 import { screenshotLabel, screenshotStatus, shotReview } from './diff-status.ts'
 import { Viewer } from './DiffViewer.tsx'
 import { commentsQuery } from './discussion-api.ts'
+import { IssueAction } from './IssueAction.tsx'
 import { regionThreads } from './regions.ts'
 import { RequestReviewDialog } from './RequestReviewDialog.tsx'
 import {
@@ -152,6 +153,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
         actions={
           <>
             <BuildStateLabel build={build} hasBaseline={hasBaseline} />
+            <IssueAction data={data} snapshotName={selected?.name ?? null} />
             {isReviewable(build) ? (
               <ReviewActions review={review} buildNumber={build.number} />
             ) : null}

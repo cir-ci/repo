@@ -233,6 +233,19 @@ describe('BETTER_AUTH_SECRET', () => {
       expect(trusted.sso[0]?.trustedForEmail).toBe(true)
     })
 
+    it('reads GitLab with an optional self-managed address, never trusted for email', () => {
+      const c = loadConfig({
+        ...base,
+        AUTH_GITLAB_CLIENT_ID: 'gl',
+        AUTH_GITLAB_CLIENT_SECRET: 'gls',
+        AUTH_GITLAB_URL: 'https://git.acme.io/',
+      })
+      expect(c.sso).toMatchObject([
+        { id: 'gitlab', name: 'GitLab', issuer: 'https://git.acme.io', trustedForEmail: false },
+      ])
+      expect(() => loadConfig({ ...base, AUTH_GITLAB_CLIENT_ID: 'gl' })).toThrow(ConfigError)
+    })
+
     it('rejects half-configured providers', () => {
       expect(() => loadConfig({ ...base, AUTH_GITHUB_CLIENT_ID: 'gh' })).toThrow(ConfigError)
       expect(() =>

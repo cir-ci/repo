@@ -12,7 +12,13 @@ import {
   unavailableNote,
   useConnectGithub,
 } from './api.ts'
+import { ConnectBitbucket } from './ConnectBitbucket.tsx'
+import { ConnectFigma } from './ConnectFigma.tsx'
+import { ConnectGitlab } from './ConnectGitlab.tsx'
+import { ConnectTracker } from './ConnectTracker.tsx'
 import { ProviderLogo } from './logos.tsx'
+import { useSlackInstall } from './slack-api.ts'
+import { isTrackerKind, TRACKER_NAME, type TrackerKind } from './trackers-api.ts'
 
 import styles from './Integrations.module.css'
 
@@ -27,12 +33,17 @@ const GROUP_OPTIONS = [{ value: 'all', label: 'All' }, ...GROUPS]
 export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
   const [query, setQuery] = useState('')
   const [group, setGroup] = useState<GroupFilter>('all')
-  const [connecting, setConnecting] = useState<'github' | null>(null)
+  const [connecting, setConnecting] = useState<'github' | 'gitlab' | 'bitbucket' | null>(null)
+  const [tracker, setTracker] = useState<TrackerKind | null>(null)
+  const [figma, setFigma] = useState(false)
+  const slackInstall = useSlackInstall(props.org)
   const tiles = filterCatalog(props.catalog, { query, group })
 
   function close(open: boolean) {
     if (!open) {
       setConnecting(null)
+      setTracker(null)
+      setFigma(false)
       setQuery('')
       setGroup('all')
     }
@@ -43,18 +54,46 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
     <Dialog
       open={props.open}
       onOpenChange={close}
-      title={connecting === 'github' ? 'Connect GitHub' : 'Add an integration'}
+      title={
+        figma
+          ? 'Connect Figma'
+          : tracker
+            ? `Connect ${TRACKER_NAME[tracker]}`
+            : connecting === 'github'
+              ? 'Connect GitHub'
+              : connecting === 'gitlab'
+                ? 'Connect GitLab'
+                : connecting === 'bitbucket'
+                  ? 'Connect Bitbucket'
+                  : 'Add an integration'
+      }
       size="wide"
       actions={
-        connecting ? (
-          <Button onClick={() => setConnecting(null)}>Back</Button>
+        connecting || tracker || figma ? (
+          <Button
+            onClick={() => {
+              setConnecting(null)
+              setTracker(null)
+              setFigma(false)
+            }}
+          >
+            Back
+          </Button>
         ) : (
           <Button onClick={() => close(false)}>Close</Button>
         )
       }
     >
-      {connecting === 'github' ? (
+      {figma ? (
+        <ConnectFigma org={props.org} onDone={() => close(false)} />
+      ) : tracker ? (
+        <ConnectTracker kind={tracker} org={props.org} onDone={() => close(false)} />
+      ) : connecting === 'github' ? (
         <ConnectGithub org={props.org} onDone={() => close(false)} />
+      ) : connecting === 'gitlab' ? (
+        <ConnectGitlab org={props.org} onDone={() => close(false)} />
+      ) : connecting === 'bitbucket' ? (
+        <ConnectBitbucket org={props.org} onDone={() => close(false)} />
       ) : (
         <>
           <div className={styles.filters}>
@@ -73,6 +112,7 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
               }}
             />
           </div>
+          {slackInstall.error ? <Banner tone="danger">{slackInstall.error.message}</Banner> : null}
           {tiles.length === 0 ? (
             <Text tone="secondary">No integrations match “{query.trim()}”.</Text>
           ) : (
@@ -91,7 +131,12 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
                   <Button
                     disabled={!canAdd(entry)}
                     onClick={() => {
+                      if (isTrackerKind(entry.kind)) setTracker(entry.kind)
                       if (entry.kind === 'github') setConnecting('github')
+                      if (entry.kind === 'gitlab') setConnecting('gitlab')
+                      if (entry.kind === 'bitbucket') setConnecting('bitbucket')
+                      if (entry.kind === 'slack') slackInstall.mutate()
+                      if (entry.kind === 'figma') setFigma(true)
                     }}
                     aria-label={`Add ${entry.name}`}
                   >
@@ -109,7 +154,13 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
 
 /** Only kinds with an add flow can be picked: planned and not-set-up ones are disabled. */
 const canAdd = (entry: Integration.CatalogEntry) =>
-  unavailableNote(entry) === null && entry.kind === 'github'
+  unavailableNote(entry) === null &&
+  (entry.kind === 'github' ||
+    entry.kind === 'gitlab' ||
+    entry.kind === 'bitbucket' ||
+    entry.kind === 'slack' ||
+    entry.kind === 'figma' ||
+    isTrackerKind(entry.kind))
 
 function ConnectGithub(props: { org: string; onDone: () => void }) {
   const connect = useConnectGithub(props.org)
