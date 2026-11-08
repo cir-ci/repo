@@ -264,6 +264,29 @@ describe('ProjectSettingsPage', () => {
       await expect.element(page.getByRole('button', { name: 'Copy CI token' })).toBeVisible()
     })
 
+    it('warns at the top while GitHub refuses the installation', async () => {
+      api({
+        github: github({
+          installationId: '4242',
+          repoRef: 'acme/web',
+          attention: { reason: 'installation_revoked', since: new Date().toISOString() },
+        }),
+      })
+      await show()
+      const banner = page.getByRole('alert')
+      await expect.element(banner.getByText(/reach GitHub for this project/)).toBeVisible()
+      await expect.element(banner.getByText(/GitHub App was removed or suspended/)).toBeVisible()
+      // The link is still shown and can be saved again, which clears the warning.
+      await expect.element(page.getByRole('button', { name: 'Update link' })).toBeVisible()
+    })
+
+    it('shows no warning for a healthy link', async () => {
+      api({ github: github({ installationId: '4242', repoRef: 'acme/web', attention: null }) })
+      await show()
+      await expect.element(page.getByText(/Reporting to/)).toBeVisible()
+      expect(page.getByRole('alert').elements()).toHaveLength(0)
+    })
+
     it('shows the server’s refusal', async () => {
       api(
         {},
@@ -305,7 +328,7 @@ describe('ProjectSettingsPage', () => {
 
     it('shows the current link, updates it and unlinks it', async () => {
       const fake = api(
-        { github: github({ installationId: '4242', repoRef: 'acme/web' }) },
+        { github: github({ installationId: '4242', repoRef: 'acme/web', attention: null }) },
         {
           [`PUT ${API}/github`]: { body: { link: {} } },
           [`DELETE ${API}/github`]: { status: 204 },
@@ -337,7 +360,10 @@ describe('ProjectSettingsPage', () => {
     })
 
     it('is read-only for members', async () => {
-      api({ canManage: false, github: github({ installationId: '4242', repoRef: 'acme/web' }) })
+      api({
+        canManage: false,
+        github: github({ installationId: '4242', repoRef: 'acme/web', attention: null }),
+      })
       await show()
       await expect.element(page.getByText(/Reporting to/)).toBeVisible()
       expect(page.getByRole('button', { name: 'Unlink' }).elements()).toHaveLength(0)

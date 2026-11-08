@@ -37,9 +37,27 @@ export namespace Project {
     createdAt: string
   }
 
+  /** CirCI can't use the project's git connection and a person has to act. */
+  export interface GitAttention {
+    /** `installation_revoked`: GitHub says the App was uninstalled or suspended. */
+    reason: 'installation_revoked'
+    /** When it first failed (ISO). */
+    since: string
+  }
+
   export interface GithubLink {
     installationId: string
     repoRef: string
+    /** Set while GitHub refuses the installation; cleared when a call succeeds or it is linked again. */
+    attention: GitAttention | null
+  }
+
+  /** `GET /api/projects/:org/:project`: the project and a page of its builds. */
+  export interface BuildsResponse {
+    project: Info
+    builds: Build.ListItem[]
+    /** Set while the project's GitHub connection needs attention; null otherwise. */
+    gitAttention: GitAttention | null
   }
 
   export interface SettingsResponse {

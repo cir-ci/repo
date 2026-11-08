@@ -24,6 +24,7 @@ import { BuildMeta } from '../builds/BuildMeta.tsx'
 import { CountsSummary } from '../builds/CountsSummary.tsx'
 import { shotReview } from '../builds/diff-status.ts'
 import { BUILDS_PAGE_SIZE, flakyQuery, projectQuery } from './api.ts'
+import { GitAttentionBanner } from './GitAttentionBanner.tsx'
 import { useLoadingAnnouncement } from './loading.ts'
 import { ProjectBreadcrumbs } from './ProjectBreadcrumbs.tsx'
 
@@ -78,6 +79,7 @@ export function ProjectPage() {
             that pull requests are compared with.
           </Text>
         ) : null}
+        <GitAttentionBanner attention={data?.gitAttention} />
         {flaky && flaky.flaky.length > 0 ? (
           <Banner
             tone="warning"

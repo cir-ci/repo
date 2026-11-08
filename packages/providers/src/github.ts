@@ -28,6 +28,29 @@ export class GithubApiError extends Error {
   }
 }
 
+/**
+ * GitHub says the installation is gone: uninstalled or suspended. Retrying cannot help until
+ * someone reinstalls the App, so callers stop and record that the project needs attention.
+ * `status` is what GitHub answered (401, 404, or 403 for a suspended installation).
+ */
+export class GithubInstallationRevokedError extends GithubApiError {
+  readonly installationId: string
+  constructor(installationId: string, cause: GithubApiError) {
+    super(cause.status, cause.message)
+    this.name = 'GithubInstallationRevokedError'
+    this.installationId = installationId
+  }
+}
+
+/** A 401 for a token, before it is known whether a fresh one helps. */
+function isRejectedToken(err: unknown): err is GithubApiError {
+  return (
+    err instanceof GithubApiError &&
+    !(err instanceof GithubInstallationRevokedError) &&
+    err.status === 401
+  )
+}
+
 const b64url = (data: Buffer | string) => Buffer.from(data).toString('base64url')
 
 /** GitHub signs each webhook body with the secret: `X-Hub-Signature-256: sha256=<hex>`. */
@@ -105,12 +128,27 @@ export class GithubApp {
   async #installationToken(installationId: string): Promise<string> {
     const cached = this.#tokens.get(installationId)
     if (cached && cached.expiresAt - 60_000 > this.#now()) return cached.token
-    const { data } = await this.#call(
-      this.appJwt(),
-      'POST',
-      `/app/installations/${encodeURIComponent(installationId)}/access_tokens`,
-      {},
-    )
+    let data: unknown
+    try {
+      ;({ data } = await this.#call(
+        this.appJwt(),
+        'POST',
+        `/app/installations/${encodeURIComponent(installationId)}/access_tokens`,
+        {},
+      ))
+    } catch (err) {
+      // 404: the installation does not exist (uninstalled). 401: GitHub refuses the App for it.
+      // 403 "suspended": the owner suspended the App. Anything else (5xx, rate limits) is transient.
+      if (
+        err instanceof GithubApiError &&
+        (err.status === 401 ||
+          err.status === 404 ||
+          (err.status === 403 && /suspended/i.test(err.message)))
+      ) {
+        throw new GithubInstallationRevokedError(installationId, err)
+      }
+      throw err
+    }
     const token = typeof data === 'object' && data !== null ? Reflect.get(data, 'token') : undefined
     const expires =
       typeof data === 'object' && data !== null ? Reflect.get(data, 'expires_at') : undefined
@@ -123,19 +161,22 @@ export class GithubApp {
   }
 
   async #api(installationId: string, method: string, path: string, body?: unknown) {
+    const attempt = async () =>
+      this.#call(await this.#installationToken(installationId), method, path, body)
     try {
-      return await this.#call(await this.#installationToken(installationId), method, path, body)
+      return await attempt()
     } catch (err) {
-      // A cached token GitHub no longer accepts (revoked, or the app was reinstalled): forget it
-      // and try once with a fresh one, instead of failing until the cache expires.
-      if (
-        !(err instanceof GithubApiError) ||
-        err.status !== 401 ||
-        !this.#tokens.has(installationId)
-      )
-        throw err
-      this.#tokens.delete(installationId)
-      return this.#call(await this.#installationToken(installationId), method, path, body)
+      if (!isRejectedToken(err)) throw err
+    }
+    // A token GitHub no longer accepts (revoked, or the app was reinstalled): forget it and try
+    // once with a fresh one, instead of failing until the cache expires. A 401 that survives the
+    // refresh means the installation itself is gone.
+    this.#tokens.delete(installationId)
+    try {
+      return await attempt()
+    } catch (err) {
+      if (isRejectedToken(err)) throw new GithubInstallationRevokedError(installationId, err)
+      throw err
     }
   }
 
@@ -219,7 +260,12 @@ export class GithubApp {
         await this.#api(installationId, 'PATCH', `/repos/${repo}/issues/comments/${id}`, { body })
         return id
       } catch (err) {
-        if (!(err instanceof GithubApiError) || err.status !== 404) throw err
+        if (
+          !(err instanceof GithubApiError) ||
+          err instanceof GithubInstallationRevokedError ||
+          err.status !== 404
+        )
+          throw err
         // Deleted by someone: write a new one.
       }
     }
@@ -274,7 +320,12 @@ export class GithubApp {
         typeof data === 'object' && data !== null ? Reflect.get(data, 'permission') : undefined
       return ['admin', 'maintain', 'write'].includes(String(permission))
     } catch (err) {
-      if (err instanceof GithubApiError && err.status === 404) return false
+      if (
+        err instanceof GithubApiError &&
+        !(err instanceof GithubInstallationRevokedError) &&
+        err.status === 404
+      )
+        return false
       throw err
     }
   }

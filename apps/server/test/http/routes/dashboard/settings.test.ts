@@ -4,7 +4,12 @@ import { join } from 'node:path'
 
 import { addMember, createUser } from '@circi/auth'
 import type { Auth } from '@circi/auth'
-import { getOrgSettings, getProjectById, listWebhooks } from '@circi/db'
+import {
+  getOrgSettings,
+  getProjectById,
+  listWebhooks,
+  markInstallationNeedsAttention,
+} from '@circi/db'
 import { FsStorage } from '@circi/storage'
 import { createTestDb, type TestDb } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
@@ -234,7 +239,7 @@ describe('GitHub link', () => {
     const res = await put(ownerCookie, { installationId: '4242', repoRef: 'acme/web' })
     expect(res.statusCode).toBe(200)
     const after = (await call('GET', `${base()}/settings`, memberCookie)).json().github
-    expect(after.link).toEqual({ installationId: '4242', repoRef: 'acme/web' })
+    expect(after.link).toEqual({ installationId: '4242', repoRef: 'acme/web', attention: null })
   })
 
   it('rejects malformed values, and anyone who is not an owner or admin', async () => {
@@ -248,6 +253,32 @@ describe('GitHub link', () => {
     expect(bad).toEqual([400, 400, 400])
     expect((await put(memberCookie, { installationId: '1', repoRef: 'a/b' })).statusCode).toBe(403)
     expect((await put(rivalCookie, { installationId: '1', repoRef: 'a/b' })).statusCode).toBe(404)
+  })
+
+  it('shows that GitHub refuses the installation, on the settings and the project page, until it is linked again', async () => {
+    await put(ownerCookie, { installationId: '4243', repoRef: 'acme/web' })
+    const settings = async () =>
+      (await call('GET', `${base()}/settings`, memberCookie)).json().github.link.attention
+    const page = async () => (await call('GET', base(), memberCookie)).json().gitAttention
+    expect(await settings()).toBeNull()
+    expect(await page()).toBeNull()
+
+    await markInstallationNeedsAttention(t.db, '4243', 'installation_revoked')
+    expect(await settings()).toEqual({
+      reason: 'installation_revoked',
+      since: expect.stringMatching(/^\d{4}-\d\d-\d\dT/),
+    })
+    expect(await page()).toEqual(await settings())
+    // Another organization's project is not told.
+    expect(
+      (await call('GET', `/api/projects/${rival.orgSlug}/web`, rivalCookie)).json().gitAttention,
+    ).toBeNull()
+
+    expect(
+      (await put(ownerCookie, { installationId: '4243', repoRef: 'acme/web' })).statusCode,
+    ).toBe(200)
+    expect(await settings()).toBeNull()
+    expect(await page()).toBeNull()
   })
 
   it('unlinks', async () => {

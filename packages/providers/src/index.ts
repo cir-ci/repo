@@ -1,6 +1,7 @@
 export {
   GithubApiError,
   GithubApp,
+  GithubInstallationRevokedError,
   type GithubAppOptions,
   verifyGithubSignature,
 } from './github.ts'

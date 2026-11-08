@@ -1,3 +1,4 @@
+import type { Project } from '@circi/api'
 import { Banner, Button, SectionHeader, Text, TextField } from '@circi/ui'
 import { type FormEvent } from 'react'
 
@@ -76,7 +77,7 @@ export namespace GithubLink {
   export interface Props {
     org: string
     project: string
-    github: { webhookUrl: string; link: { installationId: string; repoRef: string } | null }
+    github: { webhookUrl: string; link: Project.GithubLink | null }
     canManage: boolean
   }
 }

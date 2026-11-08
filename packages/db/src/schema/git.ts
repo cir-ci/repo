@@ -9,10 +9,10 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 
-import { createdAt, id, inList } from './_columns.ts'
+import { createdAt, id, inList, inListOrNull } from './_columns.ts'
 import { organization } from './auth.ts'
 import { builds } from './builds.ts'
-import { GIT_PROVIDER_KINDS } from './enums.ts'
+import { CONNECTION_ATTENTION, GIT_PROVIDER_KINDS } from './enums.ts'
 import { projects } from './projects.ts'
 
 /**
@@ -29,9 +29,20 @@ export const providerConnections = pgTable(
     kind: text('kind').notNull(),
     /** The GitHub App installation id. */
     installationId: text('installation_id').notNull(),
+    /**
+     * Why CirCI can't use this connection, set by the worker when GitHub says the installation
+     * is gone (`installation_revoked`); null while it works. Cleared by the next call that
+     * succeeds and when a project is linked to the installation again.
+     */
+    needsAttention: text('needs_attention'),
+    needsAttentionAt: timestamp('needs_attention_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [
+    check(
+      'provider_connections_needs_attention_check',
+      inListOrNull(t.needsAttention.name, CONNECTION_ATTENTION),
+    ),
     uniqueIndex('provider_connections_key').on(t.orgId, t.kind, t.installationId),
     check('provider_connections_kind_check', inList(t.kind.name, GIT_PROVIDER_KINDS)),
   ],

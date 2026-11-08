@@ -45,11 +45,11 @@ export async function createLinkedProject(
   session: Session,
   org: string,
   name: string,
-  options: { repoRef: string; blockMergeOnChanges?: boolean },
+  options: { repoRef: string; blockMergeOnChanges?: boolean; installationId?: string },
 ): Promise<LinkedProject> {
   const project = await createProject(session, org, name)
   await session.put(`/api/projects/${org}/${project.slug}/github`, {
-    installationId: INSTALLATION,
+    installationId: options.installationId ?? INSTALLATION,
     repoRef: options.repoRef,
   })
   if (options.blockMergeOnChanges !== undefined) {

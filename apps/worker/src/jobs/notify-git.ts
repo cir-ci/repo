@@ -6,11 +6,19 @@ import {
   getGitTarget,
   getPrCommentId,
   type Job,
+  clearInstallationNeedsAttention,
+  markInstallationNeedsAttention,
   setCheckRunId,
   setPrCommentId,
   withAdvisoryLock,
 } from '@circi/db'
-import { type GithubApp, checkReport, prCommentBody, type ReportedBuild } from '@circi/providers'
+import {
+  checkReport,
+  type GithubApp,
+  GithubInstallationRevokedError,
+  prCommentBody,
+  type ReportedBuild,
+} from '@circi/providers'
 import { gateInputs } from '@circi/services'
 
 /** The `git-notify` job: show a build's state on its commit and pull request (PLAN §7.4). */
@@ -41,11 +49,27 @@ export async function notifyGit(deps: NotifyDeps, job: Job): Promise<NotifyResul
   // Jobs for one project run one at a time (lanes and worker processes both): two at once would
   // each create the build's check run and the pull request's comment, because neither has seen
   // the other's id yet. State is read inside the lock, so a job that waited writes the latest.
-  return withAdvisoryLock(deps.db, `git-notify:${first.build.projectId}`, async (db) => {
-    const target = await getGitTarget(db, buildId)
-    if (!target) return { status: 'skipped', reason: 'project is not linked to a repository' }
-    return notifyLocked({ ...deps, db, github }, target)
-  })
+  try {
+    return await withAdvisoryLock(deps.db, `git-notify:${first.build.projectId}`, async (db) => {
+      const target = await getGitTarget(db, buildId)
+      if (!target) return { status: 'skipped', reason: 'project is not linked to a repository' }
+      const result = await notifyLocked({ ...deps, db, github }, target)
+      // GitHub accepted the calls again (the App was reinstalled): drop the warning.
+      if (target.connectionNeedsAttention) {
+        await clearInstallationNeedsAttention(db, target.installationId)
+      }
+      return result
+    })
+  } catch (err) {
+    if (!(err instanceof GithubInstallationRevokedError)) throw err
+    // Uninstalled or suspended: retrying cannot help. Record it for the dashboard and finish the
+    // job; the next build's job tries again, and clears the state once GitHub answers.
+    await markInstallationNeedsAttention(deps.db, first.installationId, 'installation_revoked')
+    return {
+      status: 'skipped',
+      reason: `GitHub installation ${first.installationId} was removed or suspended`,
+    }
+  }
 }
 
 async function notifyLocked(

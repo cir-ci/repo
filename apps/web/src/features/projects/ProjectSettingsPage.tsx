@@ -6,6 +6,7 @@ import { useDocumentTitle } from '../../lib/document-title.ts'
 import { ErrorState } from '../../lib/ErrorState.tsx'
 import { projectsQuery, settingsQuery } from './api.ts'
 import { CiToken } from './CiTokenSection.tsx'
+import { GitAttentionBanner } from './GitAttentionBanner.tsx'
 import { GithubLink } from './GithubSection.tsx'
 import { useLoadingAnnouncement } from './loading.ts'
 import { ProjectBreadcrumbs } from './ProjectBreadcrumbs.tsx'
@@ -52,6 +53,7 @@ export function ProjectSettingsPage() {
           </Delayed>
         ) : (
           <>
+            <GitAttentionBanner attention={data.github.link?.attention} />
             {data.canManage ? null : (
               <Banner>Only owners and admins can change these settings.</Banner>
             )}

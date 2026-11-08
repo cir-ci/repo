@@ -4,6 +4,7 @@ import {
   createBuild,
   GIT_NOTIFY_QUEUE,
   getCheckRunId,
+  getProjectGitAttention,
   getPrCommentId,
   type Job,
   linkProjectToGithub,
@@ -11,6 +12,7 @@ import {
   setOrgSettings,
   updateProjectSettings,
 } from '@circi/db'
+import { GithubApiError, GithubInstallationRevokedError } from '@circi/providers'
 import { completeBuild, reviewBuild } from '@circi/services'
 import { createTestDb, seedBuild, seedDiff, seedProject, type TestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
@@ -92,6 +94,28 @@ async function linkedBuild(prNumber: number | null) {
     .where(eq(schema.builds.id, build.id))
   return { project, owner, build: { ...build, status: 'processing' as const } }
 }
+
+const publicOrigin = 'https://ci.acme.io'
+const revoked = () =>
+  new GithubInstallationRevokedError('77', new GithubApiError(401, 'GitHub: Bad credentials'))
+
+async function setup() {
+  const linked = await linkedBuild(null)
+  await linkProjectToGithub(t.db, linked.project.id, {
+    installationId: '77',
+    repoRef: 'acme/web',
+  })
+  await completeBuild(t.db, linked.build, { conclusion: 'no_changes', approval: 'none' })
+  return linked
+}
+const failing = (error: Error) => ({
+  upsertCheckRun: async (): Promise<string> => {
+    throw error
+  },
+  upsertComment: async (): Promise<string> => {
+    throw error
+  },
+})
 
 describe('notifyGit', () => {
   it('reports a finished build as a check run and a pull request comment, then updates them', async () => {
@@ -236,6 +260,47 @@ describe('notifyGit', () => {
       await notifyGit({ db: t.db, github: undefined, publicOrigin: 'https://x' }, job),
     ).toMatchObject({
       status: 'skipped',
+    })
+  })
+
+  describe('a revoked installation', () => {
+    it('stops retrying, records that the project needs attention, and clears it when GitHub answers again', async () => {
+      const { project, build } = await setup()
+      expect(await getProjectGitAttention(t.db, project.id)).toBeUndefined()
+
+      const job = await nextJob()
+      const result = await notifyGit({ db: t.db, github: failing(revoked()), publicOrigin }, job)
+      // Returned, not thrown: the queue marks the job done instead of retrying five times.
+      expect(result).toMatchObject({ status: 'skipped', reason: expect.stringContaining('77') })
+      expect(await getProjectGitAttention(t.db, project.id)).toMatchObject({
+        reason: 'installation_revoked',
+      })
+
+      // Other errors still throw (and so retry), and do not touch the state.
+      await expect(
+        notifyGit(
+          { db: t.db, github: failing(new GithubApiError(502, 'bad gateway')), publicOrigin },
+          job,
+        ),
+      ).rejects.toThrow('bad gateway')
+      expect(await getProjectGitAttention(t.db, project.id)).toBeDefined()
+
+      // The App was reinstalled: the next call works and the warning goes away.
+      const fake = fakeGithub()
+      expect(await notifyGit({ db: t.db, github: fake.github, publicOrigin }, job)).toEqual({
+        status: 'notified',
+      })
+      expect(fake.checks).toHaveLength(1)
+      expect(await getProjectGitAttention(t.db, project.id)).toBeUndefined()
+      expect(await getCheckRunId(t.db, build.id)).toBe('9001')
+    })
+
+    it('is cleared by linking the project to the installation again', async () => {
+      const { project } = await setup()
+      await notifyGit({ db: t.db, github: failing(revoked()), publicOrigin }, await nextJob())
+      expect(await getProjectGitAttention(t.db, project.id)).toBeDefined()
+      await linkProjectToGithub(t.db, project.id, { installationId: '77', repoRef: 'acme/web' })
+      expect(await getProjectGitAttention(t.db, project.id)).toBeUndefined()
     })
   })
 })

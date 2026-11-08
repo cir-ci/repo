@@ -29,6 +29,8 @@ export const WEBHOOK_EVENTS = ['build.completed', 'build.reviewed'] as const
  */
 export const LOGIN_METHODS = ['password', 'email', 'oidc', 'org-oidc'] as const
 export const GIT_PROVIDER_KINDS = ['github'] as const
+/** Why a git connection needs a person to look at it. */
+export const CONNECTION_ATTENTION = ['installation_revoked'] as const
 export const JOB_STATUSES = ['pending', 'running', 'done', 'failed'] as const
 
 export type LoginMethod = (typeof LOGIN_METHODS)[number]

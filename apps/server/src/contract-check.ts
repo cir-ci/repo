@@ -1,5 +1,11 @@
 import type { Build, Project } from '@circi/api'
-import type { BuildDetail, BuildListItem, ProjectOverview, VisibleProject } from '@circi/db'
+import type {
+  BuildDetail,
+  GitAttention,
+  BuildListItem,
+  ProjectOverview,
+  VisibleProject,
+} from '@circi/db'
 
 /**
  * Compile-time proof that what the server's read models produce fits the wire format in
@@ -22,10 +28,11 @@ export type ContractChecks = [
   Fits<Json<BuildListItem>, Build.ListItem>,
   Fits<Json<ProjectOverview>, Project.Overview>,
   Fits<VisibleProject, Project.Info>,
+  Fits<Json<GitAttention>, Project.GitAttention>,
   Fits<Json<BuildDetail>['diffs'], Build.DiffItem[]>,
   Fits<Json<BuildDetail>['reviews'], Build.Review[]>,
   Fits<Json<BuildDetail>['build'], Omit<Build.Detail['build'], never>>,
 ]
 
 /** Each entry must be `true`; a mismatch above makes its entry `never`, and this line fails. */
-export const contractChecks: ContractChecks = [true, true, true, true, true, true]
+export const contractChecks: ContractChecks = [true, true, true, true, true, true, true]

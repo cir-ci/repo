@@ -1,6 +1,7 @@
 import {
   findProjectForMember,
   getBuildDetail,
+  getProjectGitAttention,
   listBuildsForProject,
   listProjectsOverview,
 } from '@circi/db'
@@ -41,7 +42,14 @@ export const dashboardProjectRoutes: FastifyPluginAsync<DashboardDeps> = async (
       limit: PAGE_SIZE,
       ...(Number.isInteger(before) && before > 0 ? { beforeNumber: before } : {}),
     })
-    return { project, builds }
+    const attention = await getProjectGitAttention(deps.db, project.id)
+    return {
+      project,
+      builds,
+      gitAttention: attention
+        ? { reason: attention.reason, since: attention.since.toISOString() }
+        : null,
+    }
   })
 
   app.get('/projects/:org/:project/builds/:number', async (req, reply) => {

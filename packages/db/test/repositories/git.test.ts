@@ -9,7 +9,10 @@ import {
   getCheckRunId,
   getGitTarget,
   getPrCommentId,
+  clearInstallationNeedsAttention,
+  getProjectGitAttention,
   getProjectLink,
+  markInstallationNeedsAttention,
   latestBuildsForPr,
   linkProjectToGithub,
   NotFoundError,
@@ -47,6 +50,33 @@ describe('project links', () => {
 
     await unlinkProject(t.db, project.id)
     expect(await getProjectLink(t.db, project.id)).toBeUndefined()
+  })
+
+  it('records and clears that an installation needs attention, for every project on it', async () => {
+    const a = await seedProject(t.db)
+    const b = await seedProject(t.db)
+    const other = await seedProject(t.db)
+    await linkProjectToGithub(t.db, a.project.id, { installationId: '555', repoRef: 'a/one' })
+    await linkProjectToGithub(t.db, b.project.id, { installationId: '555', repoRef: 'b/two' })
+    await linkProjectToGithub(t.db, other.project.id, { installationId: '556', repoRef: 'c/three' })
+    expect(await getProjectGitAttention(t.db, a.project.id)).toBeUndefined()
+
+    const first = new Date('2026-01-01T00:00:00Z')
+    await markInstallationNeedsAttention(t.db, '555', 'installation_revoked', first)
+    // Marking again keeps the time of the first failure.
+    await markInstallationNeedsAttention(t.db, '555', 'installation_revoked', new Date())
+    expect(await getProjectGitAttention(t.db, a.project.id)).toEqual({
+      reason: 'installation_revoked',
+      since: first,
+    })
+    expect(await getProjectGitAttention(t.db, b.project.id)).toBeDefined()
+    expect(await getProjectGitAttention(t.db, other.project.id)).toBeUndefined()
+    const build = await seedBuild(t.db, a.project.id)
+    expect((await getGitTarget(t.db, build.id))?.connectionNeedsAttention).toBe(true)
+
+    await clearInstallationNeedsAttention(t.db, '555')
+    expect(await getProjectGitAttention(t.db, a.project.id)).toBeUndefined()
+    expect((await getGitTarget(t.db, build.id))?.connectionNeedsAttention).toBe(false)
   })
 
   it('refuses to link a project that does not exist', async () => {

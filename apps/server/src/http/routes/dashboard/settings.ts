@@ -1,11 +1,14 @@
+import type { Project } from '@circi/api'
 import { rotateProjectToken } from '@circi/auth'
 import { ValidationError, webhookUrlProblem } from '@circi/core'
 import {
   createWebhook,
+  type Database,
   deleteWebhook,
   findProjectForMember,
   getOrgSettings,
   getProjectById,
+  getProjectGitAttention,
   getProjectLink,
   linkProjectToGithub,
   unlinkProject,
@@ -55,6 +58,18 @@ const webhookBody = z.object({
 const NO_EVENTS = 'Choose at least one event for the webhook to receive'
 
 /** A webhook as the dashboard sees it: the signing secret is only shown when it's created. */
+async function githubLink(db: Database, projectId: string): Promise<Project.GithubLink | null> {
+  const link = await getProjectLink(db, projectId)
+  if (!link) return null
+  const attention = await getProjectGitAttention(db, projectId)
+  return {
+    ...link,
+    attention: attention
+      ? { reason: attention.reason, since: attention.since.toISOString() }
+      : null,
+  }
+}
+
 function present(hook: Webhook) {
   return {
     id: hook.id,
@@ -113,7 +128,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<DashboardDeps> = async 
       github: {
         configured: deps.githubApp === true,
         webhookUrl: `${deps.publicOrigin}/webhooks/github`,
-        link: (await getProjectLink(deps.db, found.project.id)) ?? null,
+        link: await githubLink(deps.db, found.project.id),
       },
     }
   })
@@ -143,7 +158,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<DashboardDeps> = async 
     if (!deps.githubApp) throw new ValidationError('This instance has no GitHub App configured')
     const link = parse(githubBody, req.body)
     await linkProjectToGithub(deps.db, project.id, link)
-    return { link }
+    return { link: { ...link, attention: null } }
   })
 
   app.delete('/projects/:org/:project/github', async (req, reply) => {

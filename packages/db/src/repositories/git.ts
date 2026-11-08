@@ -1,7 +1,8 @@
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, isNotNull, isNull, ne, or, sql } from 'drizzle-orm'
 
 import type { Database } from '../client.ts'
 import { NotFoundError } from '../errors.ts'
+import { CONNECTION_ATTENTION } from '../schema/enums.ts'
 import {
   account,
   buildChecks,
@@ -28,6 +29,15 @@ export interface GitLink {
   repoRef: string
 }
 
+/** Why a connection needs a person's attention (see `markInstallationNeedsAttention`). */
+export type ConnectionAttention = (typeof CONNECTION_ATTENTION)[number]
+
+/** What the dashboard shows when CirCI can't use a project's git connection. */
+export interface GitAttention {
+  reason: ConnectionAttention
+  since: Date
+}
+
 /** Points a project at a repository through a GitHub App installation. */
 export async function linkProjectToGithub(
   db: Database,
@@ -45,7 +55,8 @@ export async function linkProjectToGithub(
         providerConnections.kind,
         providerConnections.installationId,
       ],
-      set: { installationId: link.installationId },
+      // Linking again is how someone says "I reinstalled the App": try afresh.
+      set: { installationId: link.installationId, needsAttention: null, needsAttentionAt: null },
     })
     .returning()
   if (!connection) throw new Error('upsert returned no row')
@@ -60,6 +71,65 @@ export async function unlinkProject(db: Database, projectId: string): Promise<vo
     .update(projects)
     .set({ providerConnectionId: null, repoRef: null })
     .where(eq(projects.id, projectId))
+}
+
+/**
+ * Records that GitHub no longer accepts this installation (uninstalled or suspended), on every
+ * organization's connection to it. Keeps the time of the first failure.
+ */
+export async function markInstallationNeedsAttention(
+  db: Database,
+  installationId: string,
+  reason: ConnectionAttention,
+  now: Date = new Date(),
+): Promise<void> {
+  await db
+    .update(providerConnections)
+    .set({ needsAttention: reason, needsAttentionAt: now })
+    .where(
+      and(
+        eq(providerConnections.kind, 'github'),
+        eq(providerConnections.installationId, installationId),
+        or(
+          isNull(providerConnections.needsAttention),
+          ne(providerConnections.needsAttention, reason),
+        ),
+      ),
+    )
+}
+
+/** Clears the state above, after a call to GitHub succeeded. */
+export async function clearInstallationNeedsAttention(
+  db: Database,
+  installationId: string,
+): Promise<void> {
+  await db
+    .update(providerConnections)
+    .set({ needsAttention: null, needsAttentionAt: null })
+    .where(
+      and(
+        eq(providerConnections.kind, 'github'),
+        eq(providerConnections.installationId, installationId),
+        isNotNull(providerConnections.needsAttention),
+      ),
+    )
+}
+
+/** Whether CirCI can't use the project's git connection; undefined when it works or there is none. */
+export async function getProjectGitAttention(
+  db: Database,
+  projectId: string,
+): Promise<GitAttention | undefined> {
+  const [row] = await db
+    .select({
+      reason: providerConnections.needsAttention,
+      since: providerConnections.needsAttentionAt,
+    })
+    .from(projects)
+    .innerJoin(providerConnections, eq(providerConnections.id, projects.providerConnectionId))
+    .where(eq(projects.id, projectId))
+  const reason = CONNECTION_ATTENTION.find((r) => r === row?.reason)
+  return reason && row?.since ? { reason, since: row.since } : undefined
 }
 
 export async function getProjectLink(
@@ -82,6 +152,8 @@ export interface GitTarget extends GitLink {
   projectName: string
   blockMergeOnChanges: boolean
   commentsEnabled: boolean
+  /** The connection is marked as unusable; a successful notify clears it. */
+  connectionNeedsAttention: boolean
 }
 
 export async function getGitTarget(db: Database, buildId: string): Promise<GitTarget | undefined> {
@@ -94,6 +166,7 @@ export async function getGitTarget(db: Database, buildId: string): Promise<GitTa
       block: projects.blockMergeOnChanges,
       repoRef: projects.repoRef,
       installationId: providerConnections.installationId,
+      attention: providerConnections.needsAttention,
     })
     .from(builds)
     .innerJoin(projects, eq(projects.id, builds.projectId))
@@ -108,6 +181,7 @@ export async function getGitTarget(db: Database, buildId: string): Promise<GitTa
     projectName: row.projectName,
     blockMergeOnChanges: row.block,
     commentsEnabled: true,
+    connectionNeedsAttention: row.attention !== null,
     repoRef: row.repoRef,
     installationId: row.installationId,
   }

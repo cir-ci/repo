@@ -1,4 +1,4 @@
-import type { Build, Flaky, Org, Project } from '@circi/api'
+import type { Flaky, Org, Project } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { getJson, post, send, seg } from '../../lib/http.ts'
@@ -17,7 +17,7 @@ export const projectQuery = (org: string, project: string, before?: number) =>
   queryOptions({
     queryKey: ['project', org, project, before ?? null],
     queryFn: () =>
-      getJson<{ project: Project.Info; builds: Build.ListItem[] }>(
+      getJson<Project.BuildsResponse>(
         `/api/projects/${seg(org)}/${seg(project)}${before ? `?before=${before}` : ''}`,
       ),
     refetchInterval: (q) => (q.state.data?.builds.some((b) => isActive(b.status)) ? 3_000 : false),
@@ -111,7 +111,8 @@ export function useGithubLink(org: string, project: string) {
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['settings', org, project] })
   return {
     save: useMutation({
-      mutationFn: (input: Project.GithubLink) => send<{ link: unknown }>('PUT', url, input),
+      mutationFn: (input: Pick<Project.GithubLink, 'installationId' | 'repoRef'>) =>
+        send<{ link: unknown }>('PUT', url, input),
       onSuccess: refresh,
     }),
     remove: useMutation({

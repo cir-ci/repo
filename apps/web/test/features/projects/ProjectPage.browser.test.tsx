@@ -17,9 +17,13 @@ const info = {
   orgName: 'Acme Inc',
 }
 
-function api(builds: unknown[], flaky: unknown = { builds: 10, flaky: [] }) {
+function api(
+  builds: unknown[],
+  flaky: unknown = { builds: 10, flaky: [] },
+  gitAttention: unknown = null,
+) {
   return fakeApi({
-    'GET /api/projects/acme/web': { body: { project: info, builds } },
+    'GET /api/projects/acme/web': { body: { project: info, builds, gitAttention } },
     'GET /api/projects/acme/web/flaky': { body: flaky },
   })
 }
@@ -53,6 +57,21 @@ describe('ProjectPage', () => {
       .element(page.getByText(/become the baselines that pull requests are compared with/))
       .toBeVisible()
     expect(document.title).toBe('Builds · Web App · CirCI')
+  })
+
+  it('warns when GitHub no longer accepts the project’s installation, and says nothing otherwise', async () => {
+    api([build(3)])
+    await show()
+    await expect.element(page.getByText('Web App', { exact: true }).first()).toBeVisible()
+    expect(page.getByText(/can’t reach GitHub/).elements()).toHaveLength(0)
+    restoreFetch()
+
+    api([build(3)], undefined, { reason: 'installation_revoked', since: new Date().toISOString() })
+    await show()
+    const banner = page.getByRole('alert')
+    await expect.element(banner.getByText(/reach GitHub for this project/)).toBeVisible()
+    await expect.element(banner.getByText(/GitHub App was removed or suspended/)).toBeVisible()
+    await expect.element(banner.getByText(/Reinstall/)).toBeVisible()
   })
 
   it('lists builds as rows linking to each build, with status, name, meta and counts', async () => {

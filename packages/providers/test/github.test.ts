@@ -2,7 +2,13 @@ import { createHmac, createPublicKey, createVerify, generateKeyPairSync } from '
 
 import { describe, expect, it } from 'vitest'
 
-import { type CheckReport, GithubApiError, GithubApp, verifyGithubSignature } from '../src/index.ts'
+import {
+  type CheckReport,
+  GithubApiError,
+  GithubApp,
+  GithubInstallationRevokedError,
+  verifyGithubSignature,
+} from '../src/index.ts'
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', {
   modulusLength: 2048,
@@ -205,7 +211,62 @@ describe('GithubApp', () => {
     })
     await expect(
       again.upsertCheckRun('99', 'acme/web', { sha: 'a', report, detailsUrl: 'u' }),
-    ).rejects.toThrow(GithubApiError)
+    ).rejects.toBeInstanceOf(GithubInstallationRevokedError)
+  })
+
+  it('treats a 401 or 404 when minting the installation token as a revoked installation', async () => {
+    for (const status of [401, 404]) {
+      const { app, calls } = appWith({
+        'POST /app/installations/99/access_tokens': [
+          new Response('{"message":"Not Found"}', { status }),
+        ],
+      })
+      // oxlint-disable-next-line no-await-in-loop -- two independent apps, one after the other
+      const err = await app
+        .upsertCheckRun('99', 'acme/web', { sha: 'a', report, detailsUrl: 'u' })
+        .catch((e: unknown) => e)
+      expect(err).toBeInstanceOf(GithubInstallationRevokedError)
+      expect(err).toMatchObject({ installationId: '99', status })
+      expect(calls).toHaveLength(1)
+    }
+    const suspended = appWith({
+      'POST /app/installations/99/access_tokens': [
+        new Response('{"message":"This GitHub App installation has been suspended."}', {
+          status: 403,
+        }),
+      ],
+    }).app
+    await expect(
+      suspended.upsertCheckRun('99', 'acme/web', { sha: 'a', report, detailsUrl: 'u' }),
+    ).rejects.toBeInstanceOf(GithubInstallationRevokedError)
+  })
+
+  it('does not call a 404 on a repository, or a 5xx, a revoked installation', async () => {
+    const { app } = appWith({
+      'POST /app/installations/99/access_tokens': [tokenReply],
+      'POST /repos/acme/web/check-runs': [new Response('{"message":"Not Found"}', { status: 404 })],
+    })
+    const err = await app
+      .upsertCheckRun('99', 'acme/web', { sha: 'a', report, detailsUrl: 'u' })
+      .catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(GithubApiError)
+    expect(err).not.toBeInstanceOf(GithubInstallationRevokedError)
+    const { app: flaky } = appWith({
+      'POST /app/installations/99/access_tokens': [new Response('{}', { status: 502 })],
+    })
+    const err2 = await flaky
+      .upsertCheckRun('99', 'acme/web', { sha: 'a', report, detailsUrl: 'u' })
+      .catch((e: unknown) => e)
+    expect(err2).not.toBeInstanceOf(GithubInstallationRevokedError)
+  })
+
+  it('canWrite surfaces a revoked installation instead of answering false', async () => {
+    const { app } = appWith({
+      'POST /app/installations/99/access_tokens': [new Response('{}', { status: 404 })],
+    })
+    await expect(app.canWrite('99', 'acme/web', 'ann')).rejects.toBeInstanceOf(
+      GithubInstallationRevokedError,
+    )
   })
 
   it('knows who has write access', async () => {

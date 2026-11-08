@@ -203,6 +203,59 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     expect(gh.find('PATCH /repos/acme/web/issues/comments/').length).toBeGreaterThan(0)
   })
 
+  it('a 401 for the installation puts a banner on the project and its settings, until the link is saved again', async () => {
+    const { stack, setup } = ctx
+    // An installation of its own: the others in this file keep working.
+    const REVOKED = '9191'
+    const p = await createLinkedProject(stack, setup.session, orgSlug, 'Revoked', {
+      repoRef: 'acme/revoked',
+      installationId: REVOKED,
+    })
+    const projectUrl = `${stack.url}/${orgSlug}/${p.slug}`
+    const attention = async () =>
+      (await setup.session.get<{ gitAttention: unknown }>(`/api/projects/${orgSlug}/${p.slug}`))
+        .gitAttention
+    expect(await attention()).toBeNull()
+
+    gh.revokeInstallation(REVOKED)
+    const pr = await uploadPr(stack, p, 31, { login: { dot: { x: 20, y: 20 } } })
+    await expect.poll(attention, { timeout: 30_000 }).toMatchObject({
+      reason: 'installation_revoked',
+    })
+    // No retries pile up: the job is done, and GitHub saw no check run for it.
+    await expect
+      .poll(
+        async () => [
+          ...new Set(
+            (
+              await stack.sql(
+                `select status from jobs where queue = 'git-notify' and payload->>'buildId' = '${pr.buildId}'`,
+              )
+            ).map((r) => r[0]),
+          ),
+        ],
+        { timeout: 30_000 },
+      )
+      .toEqual(['done'])
+    expect(gh.checkRuns.find((c) => c.headSha === pr.sha)).toBeUndefined()
+
+    const page = await browser.as(setup.session)
+    await page.goto(projectUrl)
+    await page.getByText(/can.t reach GitHub for this project/).waitFor()
+    await page.getByText(/GitHub App was removed or suspended/).waitFor()
+    await page.goto(`${projectUrl}/settings`)
+    await page.getByText(/can.t reach GitHub for this project/).waitFor()
+
+    // Reinstalled: saving the link again clears the banner on both pages.
+    gh.restoreInstallation(REVOKED)
+    await page.getByRole('button', { name: 'Update link' }).click()
+    await page.getByText(/can.t reach GitHub for this project/).waitFor({ state: 'detached' })
+    expect(await attention()).toBeNull()
+    await page.goto(projectUrl)
+    await page.getByRole('heading', { name: 'Builds' }).waitFor()
+    expect(await page.getByText(/can.t reach GitHub for this project/).count()).toBe(0)
+  })
+
   it('tokens and the private key never reach the logs', async () => {
     const logs = await ctx.stack.logs('circi')
     expect(logs).not.toContain('BEGIN PRIVATE KEY')

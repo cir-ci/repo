@@ -211,27 +211,43 @@ describe('approving from GitHub, and GitHub failing (fake GitHub)', () => {
     expect(gh.checkRuns.filter((c) => c.headSha === pr.sha)).toHaveLength(1)
   })
 
-  it('a revoked installation (401) fails the notification without crashing the worker or the build', async () => {
+  it('a revoked installation (401) neither crashes the worker nor the build, is not retried, and is flagged on the project', async () => {
     const { stack, setup } = ctx
     n += 1
     gh.revokeInstallation('4242')
     const pr = await uploadPr(stack, p, n, { login: { dot: { x: 300 + n, y: 170 } } })
     // The build itself is fine; the dashboard still works.
     expect((await buildDetail(setup.session, p, pr.buildNumber)).build.status).toBe('complete')
-    await poll(
-      async () =>
-        (
-          await stack.sql(
-            `select status, last_error from jobs where queue = 'git-notify' and last_error like '%Bad credentials%' order by id desc limit 1`,
-          )
-        )[0]?.[1],
-      { timeout: 30_000 },
-    ).toContain('Bad credentials')
+    const attention = async () =>
+      (
+        await setup.session.get<{ gitAttention: { reason: string } | null }>(
+          `/api/projects/${org}/${p.slug}`,
+        )
+      ).gitAttention?.reason
+    await poll(attention, { timeout: 30_000 }).toBe('installation_revoked')
+    // The job is finished, not left failing for retries.
+    await expect
+      .poll(
+        async () => [
+          ...new Set(
+            (
+              await stack.sql(
+                `select status from jobs where queue = 'git-notify' and payload->>'buildId' = '${pr.buildId}'`,
+              )
+            ).map((r) => r[0]),
+          ),
+        ],
+        { timeout: 30_000 },
+      )
+      .toEqual(['done'])
     expect(checkFor(pr.sha)).toBeUndefined()
     expect((await fetch(`${stack.url}/healthz`)).status).toBe(200)
-    // Once the installation works again the pending job goes through on retry.
+    // Once the installation works again the next build reports, and the warning goes away.
     gh.restoreInstallation('4242')
-    await poll(() => checkFor(pr.sha)?.conclusion, { timeout: 90_000 }).toBe('action_required')
+    n += 1
+    const next = await uploadPr(stack, p, n, { login: { dot: { x: 300 + n, y: 171 } } })
+    await poll(() => checkFor(next.sha)?.conclusion, { timeout: 90_000 }).toBe('action_required')
+    await poll(attention).toBeUndefined()
   })
 
   it('tokens and keys never reach the logs, including during failures', async () => {
