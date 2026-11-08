@@ -103,8 +103,10 @@ Anyone you add to an organization sees its projects, builds and screenshots, and
 | `DATABASE_URL` | (required) | Postgres connection string |
 | `PUBLIC_URL` | `http://localhost:3000` | Dashboard address: any host you own, e.g. `https://ci.acme.io`. Must be the root of its own hostname (no sub-path); use `https` outside local development |
 | `PREVIOUS_PUBLIC_URLS` | | Comma-separated old dashboard addresses. Requests to them are redirected to `PUBLIC_URL`, so old links keep working after a move |
+| `TRUSTED_PROXIES` | none | Reverse proxies whose `X-Forwarded-For` is believed: comma-separated IPs or CIDR ranges (e.g. `10.0.0.5,172.16.0.0/12`), or `true` for any hop (**unsafe**: anyone who can reach the app directly can forge their address). By default nobody is trusted and the client address is the socket's: forged headers can't dodge the sign-in rate limits. **Behind a reverse proxy, set it to the proxy's address**, or all users share the proxy's address and one rate limit |
 | `HOST` / `PORT` | `0.0.0.0` / `3000` | |
 | `LOG_LEVEL` | `info` | `fatal` … `trace` |
+| `DATABASE_URL` and the worker | | The worker wakes on Postgres `LISTEN/NOTIFY`, so it needs a direct Postgres connection or session pooling, not a transaction pooler such as PgBouncer in transaction mode |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | | Outgoing mail. `SMTP_FROM` is required with `SMTP_HOST`; port defaults to 587 (STARTTLS), 465 means implicit TLS. Check it with `circi admin mail test --to you@acme.io` |
 | `AUTH_PASSWORD_ENABLED` | `true` | Email + password sign-in. `false` needs email login (SMTP) to be available, or nobody could sign in |
 | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_WEBHOOK_SECRET`, `GITHUB_API_URL` | | The GitHub App, see above |

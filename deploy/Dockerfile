@@ -29,6 +29,7 @@ COPY packages/sites/package.json packages/sites/
 COPY packages/storage/package.json packages/storage/
 COPY packages/testing/package.json packages/testing/
 COPY packages/vitest/package.json packages/vitest/
+COPY e2e/package.json e2e/
 
 FROM manifests AS build
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile
