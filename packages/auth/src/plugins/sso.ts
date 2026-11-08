@@ -1,6 +1,6 @@
 import { genericOAuth } from 'better-auth/plugins'
 
-import type { SsoProvider } from '../sso.ts'
+import type { SsoProvider } from '../sso/sso.ts'
 
 /** The generic OpenID Connect provider is a plugin; GitHub and Google are built in. */
 export function ssoPlugins(providers: SsoProvider[]) {

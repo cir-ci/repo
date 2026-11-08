@@ -16,8 +16,8 @@ import {
 } from '@circi/db'
 import { eq } from 'drizzle-orm'
 
-import type { Auth } from './auth.ts'
-import { CI_KEY_CONFIG, CI_KEY_PREFIX, MIN_PASSWORD_LENGTH } from './constants.ts'
+import type { Auth } from '../auth.ts'
+import { CI_KEY_CONFIG, CI_KEY_PREFIX, MIN_PASSWORD_LENGTH } from '../constants.ts'
 
 /**
  * Operations that span better-auth and CirCI's own data: accounts, organizations, members, and

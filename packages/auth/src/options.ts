@@ -1,7 +1,7 @@
 import type { Database } from '@circi/db'
 
 import type { Mailer } from './mail.ts'
-import type { SsoProvider } from './sso.ts'
+import type { SsoProvider } from './sso/sso.ts'
 
 export interface AuthOptions {
   db: Database
@@ -18,6 +18,11 @@ export interface AuthOptions {
   passwordLogin?: boolean
   /** Single sign-on providers the operator set up. None: sign-in is password and email only. */
   sso?: SsoProvider[]
+  /**
+   * Rate limiting of the sign-in endpoints, per client address. Default: on in production, off
+   * otherwise (better-auth's own default). Tests that exercise the limiter switch it on.
+   */
+  rateLimit?: boolean
   /** Called when sending a mail fails (it's never awaited, so sign-in timing doesn't leak). */
   onMailError?: (err: unknown) => void
 }

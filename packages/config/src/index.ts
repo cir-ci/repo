@@ -1,3 +1,5 @@
+import { isIP } from 'node:net'
+
 import { z } from 'zod'
 
 import { isLocalAddress, type PublicAddress, parsePublicAddress } from './public-url.ts'
@@ -17,6 +19,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   PUBLIC_URL: z.string().default('http://localhost:3000'),
   PREVIOUS_PUBLIC_URLS: z.string().default(''),
+  TRUSTED_PROXIES: z.preprocess(emptyToUndefined, z.string().optional()),
   BETTER_AUTH_SECRET: z
     .string({ error: 'is required (generate one with: openssl rand -base64 32)' })
     .min(32, 'must be at least 32 characters (generate one with: openssl rand -base64 32)'),
@@ -126,6 +129,12 @@ export interface Config {
    * redirected to `publicUrl`, so old links in PR comments and emails keep working.
    */
   previousPublicHosts: string[]
+  /**
+   * Reverse proxies whose `X-Forwarded-For` is believed (`TRUSTED_PROXIES`): addresses or CIDR
+   * ranges, `true` for any hop (unsafe), or an empty list (the default) for none: the client is
+   * then the socket's remote address and forwarded headers are ignored.
+   */
+  trustedProxies: true | string[]
   /** Signs sessions and cookies (BETTER_AUTH_SECRET). Rotating it signs everyone out. */
   authSecret: string
   /** Settings that work but are probably a mistake; logged at startup. */
@@ -324,6 +333,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     )
   }
 
+  const trustedProxies = parseTrustedProxies(e.TRUSTED_PROXIES, issues)
+
   if (issues.length > 0 || typeof publicUrl === 'string') throw new ConfigError(issues)
 
   return {
@@ -332,6 +343,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     http: { host: e.HOST, port: e.PORT },
     publicUrl,
     previousPublicHosts,
+    trustedProxies: trustedProxies ?? [],
     warnings,
     authSecret: e.BETTER_AUTH_SECRET,
     database: { url: e.DATABASE_URL, poolMax: e.DATABASE_POOL_MAX },
@@ -347,6 +359,36 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     gcGraceHours: e.GC_GRACE_HOURS,
     orgCreation: e.ORG_CREATION,
   }
+}
+
+function isAddressOrCidr(entry: string): boolean {
+  const [address = '', prefix, ...rest] = entry.split('/')
+  const family = isIP(address)
+  if (family === 0 || rest.length > 0) return false
+  if (prefix === undefined) return true
+  return /^\d{1,3}$/.test(prefix) && Number(prefix) <= (family === 4 ? 32 : 128)
+}
+
+function parseTrustedProxies(
+  raw: string | undefined,
+  issues: string[],
+): true | string[] | undefined {
+  const value = raw?.trim() ?? ''
+  if (value === '' || value.toLowerCase() === 'false') return undefined
+  if (value.toLowerCase() === 'true') return true
+  const entries = value
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean)
+  const bad = entries.filter((v) => !isAddressOrCidr(v))
+  if (bad.length > 0) {
+    issues.push(
+      `TRUSTED_PROXIES: "${bad.join('", "')}" is not an IP address or CIDR range ` +
+        '(expected e.g. 10.0.0.1, 172.16.0.0/12, or true to trust any hop)',
+    )
+    return undefined
+  }
+  return entries
 }
 
 const parentDomain = (h: string) => h.split('.').slice(1).join('.')

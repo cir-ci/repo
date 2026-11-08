@@ -11,7 +11,7 @@ import { beforeUserCreate } from './hooks/user-create.ts'
 import type { AuthOptions } from './options.ts'
 import { authPlugins } from './plugins/index.ts'
 import { socialProviders } from './plugins/sso.ts'
-import { trustedOriginsFor } from './trusted-issuers.ts'
+import { trustedOriginsFor } from './sso/trusted-issuers.ts'
 
 /**
  * Authentication, provided by better-auth (https://better-auth.com):
@@ -61,6 +61,7 @@ export function createAuth(options: AuthOptions) {
       disableSignUp: true,
       minPasswordLength: MIN_PASSWORD_LENGTH,
     },
+    ...(options.rateLimit === undefined ? {} : { rateLimit: { enabled: options.rateLimit } }),
     advanced: {
       cookiePrefix: 'circi',
       ...hostCookies(options.baseURL),

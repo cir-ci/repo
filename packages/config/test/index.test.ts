@@ -21,6 +21,23 @@ describe('loadConfig', () => {
     expect(c.env).toBe('production')
   })
 
+  it('trusts no proxy by default, and parses TRUSTED_PROXIES', () => {
+    expect(loadConfig(base).trustedProxies).toEqual([])
+    expect(loadConfig({ ...base, TRUSTED_PROXIES: '' }).trustedProxies).toEqual([])
+    expect(loadConfig({ ...base, TRUSTED_PROXIES: 'false' }).trustedProxies).toEqual([])
+    expect(loadConfig({ ...base, TRUSTED_PROXIES: 'true' }).trustedProxies).toBe(true)
+    expect(
+      loadConfig({ ...base, TRUSTED_PROXIES: ' 10.0.0.1, 172.16.0.0/12 ,::1,fd00::/8' })
+        .trustedProxies,
+    ).toEqual(['10.0.0.1', '172.16.0.0/12', '::1', 'fd00::/8'])
+  })
+
+  it('rejects TRUSTED_PROXIES entries that are not addresses or CIDR ranges', () => {
+    for (const bad of ['proxy.acme.io', '10.0.0.0/33', '10.0.0.1/x', '10.0.0.1,nope', '1.2.3/8']) {
+      expect(() => loadConfig({ ...base, TRUSTED_PROXIES: bad })).toThrow('TRUSTED_PROXIES')
+    }
+  })
+
   it('offers email login only with SMTP, and lets it be switched off', () => {
     expect(loadConfig(base)).toMatchObject({ emailLogin: false })
     const smtp = { ...base, SMTP_HOST: 'smtp.acme.io', SMTP_FROM: 'CirCI <ci@acme.io>' }

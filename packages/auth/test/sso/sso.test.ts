@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { callbackUrl, type SsoProvider } from '../src/index.ts'
-import { isSsoPath, mayCreateSsoAccount, mayLinkSsoAccount } from '../src/sso.ts'
+import { callbackUrl, type SsoProvider } from '../../src/index.ts'
+import { isSsoPath, mayCreateSsoAccount, mayLinkSsoAccount } from '../../src/sso/sso.ts'
 
 const provider = (id: SsoProvider['id']): SsoProvider => ({
   id,

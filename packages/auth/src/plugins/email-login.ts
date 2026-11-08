@@ -1,9 +1,9 @@
 import { organizationsForEmailDomain } from '@circi/db'
 import { emailOTP } from 'better-auth/plugins'
 
-import { hasAccount, hasPendingInvitation } from '../accounts.ts'
 import { EMAIL_CODE_TTL_SECONDS } from '../constants.ts'
 import { signInMail } from '../mail.ts'
+import { hasAccount, hasPendingInvitation } from '../operations/accounts.ts'
 import type { PluginOptions } from '../options.ts'
 
 /**

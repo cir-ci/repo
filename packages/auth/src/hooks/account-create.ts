@@ -3,7 +3,7 @@ import { APIError } from 'better-auth/api'
 import { eq } from 'drizzle-orm'
 
 import type { AuthOptions } from '../options.ts'
-import { isSsoPath, isTrusted, mayLinkSsoAccount } from '../sso.ts'
+import { isSsoPath, isTrusted, mayLinkSsoAccount } from '../sso/sso.ts'
 
 /**
  * A login with a provider the operator doesn't vouch for must not attach to an account that
@@ -23,6 +23,8 @@ export function beforeAccountCreate(options: Pick<AuthOptions, 'db' | 'sso'>) {
     if (!mayLinkSsoAccount({ trusted: isTrusted(options.sso, created.providerId), accountAgeMs })) {
       throw new APIError('FORBIDDEN', {
         message: 'This sign-in provider is not trusted to link to an existing account',
+        // Makes the callback redirect to the error URL instead of ending on a bare 403.
+        code: 'provider_not_trusted_to_link',
       })
     }
   }

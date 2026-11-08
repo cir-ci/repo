@@ -13,7 +13,7 @@ import { and, eq } from 'drizzle-orm'
 
 import { newSignInMail } from '../mail.ts'
 import type { AuthOptions } from '../options.ts'
-import { isTrusted, ssoProviderOf } from '../sso.ts'
+import { isTrusted, ssoProviderOf } from '../sso/sso.ts'
 
 /** How a sign-in came in, from the better-auth endpoint that created the session. */
 function loginMethodOf(path: string | undefined): LoginMethod | undefined {

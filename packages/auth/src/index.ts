@@ -6,7 +6,7 @@ export {
   INVITATION_TTL_SECONDS,
   MIN_PASSWORD_LENGTH,
 } from './constants.ts'
-export { hasPendingInvitation } from './accounts.ts'
+export { hasPendingInvitation } from './operations/accounts.ts'
 export type { AuthOptions } from './options.ts'
 export { authPlugins } from './plugins/index.ts'
 
@@ -29,10 +29,10 @@ export {
   rotateProjectToken,
   setUserPassword,
   verifyProjectToken,
-} from './admin.ts'
+} from './operations/admin.ts'
 
 export { isAPIError as isAuthApiError } from 'better-auth/api'
 export { fromNodeHeaders } from 'better-auth/node'
-export { isSetupCode, setupCode } from './setup.ts'
-export { withTrustedIssuer } from './trusted-issuers.ts'
-export { callbackUrl, type SsoProvider } from './sso.ts'
+export { isSetupCode, setupCode } from './operations/setup.ts'
+export { withTrustedIssuer } from './sso/trusted-issuers.ts'
+export { callbackUrl, type SsoProvider } from './sso/sso.ts'
