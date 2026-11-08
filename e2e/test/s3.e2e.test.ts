@@ -3,11 +3,11 @@ import { createHash, randomBytes } from 'node:crypto'
 import type { Build } from '@circi/api'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createProject } from '../src/admin.ts'
-import { Repo } from '../src/git-repo.ts'
-import { screenshot } from '../src/images.ts'
-import { uploadOrThrow } from '../src/upload.ts'
-import { useBrowser, useStack } from '../src/vitest.ts'
+import { createProject } from '#src/admin.ts'
+import { Repo } from '#src/git-repo.ts'
+import { screenshot } from '#src/images.ts'
+import { uploadOrThrow } from '#src/upload.ts'
+import { useBrowser, useStack } from '#src/vitest.ts'
 
 /** The same upload against LocalStack: the bytes land in the bucket and the dashboard serves them back. */
 describe('S3 storage on LocalStack', () => {

@@ -1,8 +1,8 @@
 import { and, eq, exists, or, sql } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { orgAccepts, type SessionMethod } from '../repositories/auth-settings.ts'
-import { builds, member, projects, screenshotDiffs, screenshots } from '../schema/index.ts'
+import { orgAccepts, type SessionMethod } from '#repositories/auth-settings.ts'
+import { builds, member, projects, screenshotDiffs, screenshots } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
 
 /**
  * Whether `userId` may download a stored file. Files are shared across organizations by content

@@ -3,9 +3,9 @@ import { getBuildByNumber, listBuildActivity } from '@circi/db'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
-import type { DashboardDeps } from '../../lib/deps.ts'
-import { loadProject } from '../../lib/project-access.ts'
-import { parse } from '../../lib/validation.ts'
+import type { DashboardDeps } from '#http/lib/deps.ts'
+import { loadProject } from '#http/lib/project-access.ts'
+import { parse } from '#http/lib/validation.ts'
 
 const params = z.object({ org: z.string(), project: z.string(), number: z.string() })
 

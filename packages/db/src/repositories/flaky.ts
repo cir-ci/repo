@@ -1,8 +1,8 @@
 import { onlyFlakyChanges } from '@circi/core'
 import { and, count, desc, eq, gte, inArray } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { builds, projects, screenshotDiffs } from '../schema/index.ts'
+import { builds, projects, screenshotDiffs } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
 
 /**
  * Flaky screenshots (PLAN M4): ones that keep showing up as changed on the default branch.

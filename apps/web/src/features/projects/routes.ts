@@ -1,6 +1,7 @@
 import { createRoute, lazyRouteComponent } from '@tanstack/react-router'
 
-import { rootRoute } from '../../app/root-route.ts'
+import { rootRoute } from '#app/root-route.ts'
+
 import { parseBuildsSearch } from './builds-filters.ts'
 
 // Each page is its own chunk, loaded on first visit (and preloaded when a link is hovered).

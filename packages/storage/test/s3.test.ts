@@ -4,7 +4,7 @@ import { text } from 'node:stream/consumers'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { ChecksumMismatchError, hexToBase64, S3Storage } from '../src/index.ts'
+import { ChecksumMismatchError, hexToBase64, S3Storage } from '#src/index.ts'
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex')
 

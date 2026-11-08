@@ -30,7 +30,7 @@ export const STATUS_LABEL: Record<Status, string> = {
  */
 export function StatusIcon(props: StatusIcon.Props) {
   const { status, size = 14, label = STATUS_LABEL[status], decorative = false } = props
-  const ink = styles['ink']
+  const ink = styles.ink
   return (
     <svg
       viewBox="0 0 14 14"
@@ -39,7 +39,7 @@ export function StatusIcon(props: StatusIcon.Props) {
       aria-hidden={decorative ? true : undefined}
       width={size}
       height={size}
-      className={cx(styles['root'], props.className)}
+      className={cx(styles.root, props.className)}
       data-status={status}
     >
       {status === 'approved' && (

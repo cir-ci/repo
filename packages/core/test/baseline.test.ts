@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { type BaselineCandidate, isEligibleBaseline, resolveBaseline } from '../src/index.ts'
+import { type BaselineCandidate, isEligibleBaseline, resolveBaseline } from '#src/index.ts'
 
 let seq = 0
 function build(overrides: Partial<BaselineCandidate> & { commitSha: string }): BaselineCandidate {

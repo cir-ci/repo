@@ -3,16 +3,17 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { ValidationError } from '@circi/core'
 import { and, eq, sql } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { NotFoundError } from '../errors.ts'
 import {
   organization,
   projects,
   WEBHOOK_EVENTS,
   type WebhookEvent,
   webhooks,
-} from '../schema/index.ts'
-import type { Build } from '../types.ts'
+} from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+import { NotFoundError } from '#src/errors.ts'
+import type { Build } from '#src/types.ts'
+
 import { enqueueJob, QUEUES } from './jobs.ts'
 import type { ReviewEntry } from './reviews.ts'
 

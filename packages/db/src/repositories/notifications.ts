@@ -1,6 +1,5 @@
 import { and, eq, inArray, isNull, ne, sql } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
 import {
   builds,
   type NotificationKind,
@@ -10,8 +9,9 @@ import {
   projects,
   reviewRequests,
   user,
-} from '../schema/index.ts'
-import type { Notification } from '../types.ts'
+} from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+import type { Notification } from '#src/types.ts'
 
 /**
  * Inbox notifications and who wants email about them. Data only: deciding that something

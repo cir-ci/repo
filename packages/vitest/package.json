@@ -7,6 +7,9 @@
     "dist"
   ],
   "type": "module",
+  "imports": {
+    "#src/*": "./src/*"
+  },
   "exports": {
     ".": {
       "@circi/source": "./src/index.ts",

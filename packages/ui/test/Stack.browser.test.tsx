@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { Stack } from '../src/index.ts'
+import { Stack } from '#src/index.ts'
 
 describe('Stack', () => {
   it('is a column flex container by default and lays out in a row with a gap', async () => {

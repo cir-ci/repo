@@ -8,7 +8,7 @@ import {
   ssoErrorMessage,
   text,
   withoutSignInLink,
-} from '../../../src/features/auth/login-helpers.ts'
+} from '#features/auth/login-helpers.ts'
 
 describe('readLink', () => {
   it('reads the email and code from the fragment of the mailed link', () => {

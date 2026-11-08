@@ -2,7 +2,8 @@ import { generateKeyPairSync } from 'node:crypto'
 
 import { describe, expect, it } from 'vitest'
 
-import { GithubApp, providerRegistry } from '../src/index.ts'
+import { GithubApp, providerRegistry } from '#src/index.ts'
+
 import { type ProviderHarness, runGitProviderContract } from './support/contract.ts'
 import { fakeGithubHost } from './support/fake-github-host.ts'
 

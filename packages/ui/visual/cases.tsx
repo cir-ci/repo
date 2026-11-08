@@ -1,5 +1,5 @@
-import * as icons from '../src/icons.ts'
-import { Button, ColorSchemeControl, Dialog, TextField, tokens } from '../src/index.ts'
+import * as icons from '#src/icons.ts'
+import { Button, ColorSchemeControl, Dialog, TextField, tokens } from '#src/index.ts'
 
 /**
  * Visual cases for the components that have no `.design-sync/previews` file. Each export is one

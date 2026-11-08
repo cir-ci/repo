@@ -2,9 +2,9 @@ import { AnnouncerProvider } from '@circi/ui'
 import { afterEach, describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
-import { OrgSso } from '../../../src/features/members/OrgSso.tsx'
-import { renderPage } from '../../support/render.tsx'
-import { fakeFetch, pending, restoreFetch } from '../fetch-routes.ts'
+import { OrgSso } from '#features/members/OrgSso.tsx'
+import { fakeFetch, pending, restoreFetch } from '#test/features/fetch-routes.ts'
+import { renderPage } from '#test/support/render.tsx'
 
 const BASE = '/api/organizations/acme/sso'
 const provider = {

@@ -3,6 +3,12 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "imports": {
+    "#app/*": "./src/app/*",
+    "#features/*": "./src/features/*",
+    "#lib/*": "./src/lib/*",
+    "#test/*": "./test/*"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",

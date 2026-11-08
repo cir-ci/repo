@@ -1,7 +1,7 @@
 import { count, eq } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { user } from '../schema/index.ts'
+import { user } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
 
 /** Lookups on better-auth's user table that CirCI's own flows need. */
 

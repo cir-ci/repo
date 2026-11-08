@@ -14,12 +14,12 @@ import multipart from '@fastify/multipart'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
-import { requireProjectToken, currentProject } from '../../hooks/project-token.ts'
-import type { V2Deps } from '../../lib/deps.ts'
-import { jsonErrorHandler } from '../../lib/errors.ts'
-import { describeBuild } from '../../lib/presenters.ts'
-import { parse } from '../../lib/validation.ts'
-import { MAX_SCREENSHOT_BYTES } from '../v1/schemas.ts'
+import { requireProjectToken, currentProject } from '#http/hooks/project-token.ts'
+import type { V2Deps } from '#http/lib/deps.ts'
+import { jsonErrorHandler } from '#http/lib/errors.ts'
+import { describeBuild } from '#http/lib/presenters.ts'
+import { parse } from '#http/lib/validation.ts'
+import { MAX_SCREENSHOT_BYTES } from '#http/routes/v1/schemas.ts'
 
 /**
  * The Argos upload protocol (`/v2`), so projects that already use the Argos SDKs (Playwright,

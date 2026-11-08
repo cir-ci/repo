@@ -12,7 +12,7 @@ import {
 } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { getSidebar } from '../../src/index.ts'
+import { getSidebar } from '#src/index.ts'
 
 let t: TestDb
 beforeAll(async () => {

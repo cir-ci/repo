@@ -1,8 +1,8 @@
 import { and, eq, lt, lte, or, sql } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { jobs } from '../schema/index.ts'
-import type { Job } from '../types.ts'
+import { jobs } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+import type { Job } from '#src/types.ts'
 
 /** The Postgres job queue (PLAN §2): enqueue, claim with SKIP LOCKED, finish or retry. */
 

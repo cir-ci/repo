@@ -4,9 +4,9 @@ import { assignTriage, dismissTriage, snoozeTriage } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
-import type { DashboardDeps } from '../../lib/deps.ts'
-import { loadProject } from '../../lib/project-access.ts'
-import { parse } from '../../lib/validation.ts'
+import type { DashboardDeps } from '#http/lib/deps.ts'
+import { loadProject } from '#http/lib/project-access.ts'
+import { parse } from '#http/lib/validation.ts'
 
 const ref = { kind: z.enum(schema.TRIAGE_KINDS), key: z.string().min(1).max(500) }
 const assignBody = z.object({ ...ref, assigneeId: z.string().min(1).nullable() })

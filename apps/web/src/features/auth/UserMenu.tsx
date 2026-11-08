@@ -9,7 +9,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 
-import { authClient, type SessionUser } from '../../lib/auth-client.ts'
+import { authClient, type SessionUser } from '#lib/auth-client.ts'
 
 import styles from './UserMenu.module.css'
 
@@ -33,11 +33,11 @@ export function UserMenu({ user }: UserMenu.Props) {
       trigger={
         <button
           type="button"
-          className={styles['trigger']}
+          className={styles.trigger}
           aria-label={`Account menu for ${user.name}`}
         >
           <Avatar name={user.name} size={24} />
-          <span className={styles['name']}>{user.name}</span>
+          <span className={styles.name}>{user.name}</span>
           <ChevronsUpDownIcon />
         </button>
       }
@@ -46,9 +46,9 @@ export function UserMenu({ user }: UserMenu.Props) {
           type: 'content',
           name: 'who',
           node: (
-            <div className={styles['who']}>
-              <span className={styles['whoName']}>{user.name}</span>
-              <span className={styles['whoEmail']}>{user.email}</span>
+            <div className={styles.who}>
+              <span className={styles.whoName}>{user.name}</span>
+              <span className={styles.whoEmail}>{user.email}</span>
             </div>
           ),
         },

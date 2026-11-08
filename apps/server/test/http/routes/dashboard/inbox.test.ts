@@ -1,8 +1,8 @@
 import { seedNotification } from '@circi/testing'
 import { afterAll, describe, expect, it } from 'vitest'
 
-import { startDashboard } from '../../../support/dashboard-fixture.ts'
-import { ORIGIN } from '../../../support/helpers.ts'
+import { startDashboard } from '#test/support/dashboard-fixture.ts'
+import { ORIGIN } from '#test/support/helpers.ts'
 
 const fx = await startDashboard()
 const { app, db, acme, rival, acmeCookie, rivalCookie, get } = fx

@@ -1,9 +1,9 @@
 import { organizationsForEmailDomain } from '@circi/db'
 import { APIError } from 'better-auth/api'
 
-import { hasPendingInvitation } from '../operations/accounts.ts'
-import type { AuthOptions } from '../options.ts'
-import { isSsoPath, isTrusted, mayCreateSsoAccount, ssoProviderOf } from '../sso/sso.ts'
+import { hasPendingInvitation } from '#operations/accounts.ts'
+import type { AuthOptions } from '#src/options.ts'
+import { isSsoPath, isTrusted, mayCreateSsoAccount, ssoProviderOf } from '#sso/sso.ts'
 
 /**
  * Accounts are never created by self sign-up. Only an email-code sign-in may create one on its

@@ -3,9 +3,9 @@ import { getInsights } from '@circi/db'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
-import { currentUser } from '../../hooks/session.ts'
-import type { DashboardDeps } from '../../lib/deps.ts'
-import { parse } from '../../lib/validation.ts'
+import { currentUser } from '#http/hooks/session.ts'
+import type { DashboardDeps } from '#http/lib/deps.ts'
+import { parse } from '#http/lib/validation.ts'
 
 const DAY_MS = 86_400_000
 /** Longest range one request may ask for. */

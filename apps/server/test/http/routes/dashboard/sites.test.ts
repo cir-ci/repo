@@ -15,8 +15,8 @@ import { pino } from 'pino'
 import * as tar from 'tar'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { buildServer } from '../../../../src/http/app.ts'
-import { createTestAuth, seedTenant, signIn, type Tenant } from '../../../support/helpers.ts'
+import { buildServer } from '#http/app.ts'
+import { createTestAuth, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
 
 /**
  * Hosted sites end to end: upload, the sign-in handoff, serving, and the rules that keep an

@@ -16,11 +16,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { authClient } from '../../lib/auth-client.ts'
-import { useDocumentTitle } from '../../lib/document-title.ts'
-import { ErrorState } from '../../lib/ErrorState.tsx'
-import { RelativeTime } from '../../lib/RelativeTime.tsx'
-import { authMethodsQuery } from '../auth/api.ts'
+import { authMethodsQuery } from '#features/auth/api.ts'
+import { authClient } from '#lib/auth-client.ts'
+import { useDocumentTitle } from '#lib/document-title.ts'
+import { ErrorState } from '#lib/ErrorState.tsx'
+import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import styles from './AccountPage.module.css'
 
@@ -106,7 +106,7 @@ export function AccountPage() {
       <PanelHeader>
         <Breadcrumbs items={[{ label: 'Account' }]} />
       </PanelHeader>
-      <div className={styles['content']}>
+      <div className={styles.content}>
         <Stack gap={1}>
           <Heading level="title" as="h1">
             Your account
@@ -126,7 +126,7 @@ export function AccountPage() {
         ) : (
           <>
             {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
-            <section className={styles['section']}>
+            <section className={styles.section}>
               <SectionHeader
                 title={
                   <>
@@ -137,7 +137,7 @@ export function AccountPage() {
                   </>
                 }
               />
-              <div className={styles['list']}>
+              <div className={styles.list}>
                 {data.map((s) => {
                   const isCurrent = s.token === currentToken
                   return (
@@ -170,7 +170,7 @@ export function AccountPage() {
               </div>
             </section>
             {githubOn ? (
-              <section className={styles['section']}>
+              <section className={styles.section}>
                 <SectionHeader
                   title="GitHub"
                   description="Link your GitHub login so that Approve and Reject on pull requests count as you."

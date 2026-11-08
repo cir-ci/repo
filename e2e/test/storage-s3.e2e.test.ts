@@ -2,13 +2,13 @@ import { HeadObjectCommand } from '@aws-sdk/client-s3'
 import type { Build } from '@circi/api'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createProject, type CreatedProject } from '../src/admin.ts'
-import { run } from '../src/docker.ts'
-import { Repo } from '../src/git-repo.ts'
-import { screenshot } from '../src/images.ts'
-import { fileRows, noisePng, sha256Hex } from '../src/storage.ts'
-import { uploadBuild, uploadOrThrow } from '../src/upload.ts'
-import { useStack } from '../src/vitest.ts'
+import { createProject, type CreatedProject } from '#src/admin.ts'
+import { run } from '#src/docker.ts'
+import { Repo } from '#src/git-repo.ts'
+import { screenshot } from '#src/images.ts'
+import { fileRows, noisePng, sha256Hex } from '#src/storage.ts'
+import { uploadBuild, uploadOrThrow } from '#src/upload.ts'
+import { useStack } from '#src/vitest.ts'
 
 /** S3 storage on LocalStack: uploads, dedupe, serving, failures, and what the operator sees. */
 describe('S3 storage', () => {

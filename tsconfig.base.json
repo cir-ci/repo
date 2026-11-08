@@ -12,7 +12,7 @@
     "exactOptionalPropertyTypes": false,
     "verbatimModuleSyntax": true,
     "erasableSyntaxOnly": true,
-    "rewriteRelativeImportExtensions": true,
+    "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "skipLibCheck": true,
     "declaration": true,

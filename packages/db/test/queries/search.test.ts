@@ -12,7 +12,7 @@ import {
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { listBuildsForProject, schema, searchOrganization } from '../../src/index.ts'
+import { listBuildsForProject, schema, searchOrganization } from '#src/index.ts'
 
 let t: TestDb
 beforeAll(async () => {

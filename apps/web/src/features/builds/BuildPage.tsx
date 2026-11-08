@@ -4,8 +4,9 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useEffect, useRef } from 'react'
 
-import { useDocumentTitle } from '../../lib/document-title.ts'
-import { ErrorState } from '../../lib/ErrorState.tsx'
+import { useDocumentTitle } from '#lib/document-title.ts'
+import { ErrorState } from '#lib/ErrorState.tsx'
+
 import { buildQuery, isActive } from './api.ts'
 import { BuildBreadcrumbs } from './BuildBreadcrumbs.tsx'
 import { BuildReview } from './BuildReview.tsx'
@@ -24,7 +25,7 @@ export function BuildPage() {
 
   // The breadcrumb is known from the URL, so only the rest waits; placeholders keep the layout still.
   return (
-    <div className={styles['page']}>
+    <div className={styles.page}>
       <PanelHeader>
         <BuildBreadcrumbs org={params.org} project={params.project} number={number} />
       </PanelHeader>
@@ -35,13 +36,13 @@ export function BuildPage() {
           notFound="This build doesn’t exist"
         />
       ) : (
-        <div className={styles['body']}>
-          <div className={styles['list']}>
+        <div className={styles.body}>
+          <div className={styles.list}>
             <Delayed>
               <ListSkeleton rows={6} />
             </Delayed>
           </div>
-          <div className={styles['placeholder']}>
+          <div className={styles.placeholder}>
             <Delayed>
               <Skeleton height={420} />
             </Delayed>

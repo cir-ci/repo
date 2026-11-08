@@ -11,7 +11,7 @@ import {
   orderShots,
   shotBadge,
   shotKind,
-} from '../../../src/features/builds/review-model.ts'
+} from '#features/builds/review-model.ts'
 
 let id = 0
 const diff = (name: string, status: Build.DiffItem['status'], over: Partial<Build.DiffItem> = {}) =>

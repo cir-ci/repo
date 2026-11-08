@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
 
-import { Button, Drawer } from '../src/index.ts'
+import { Button, Drawer } from '#src/index.ts'
 
 function Harness() {
   const [open, setOpen] = useState(false)

@@ -12,7 +12,7 @@ export function AddressChangeBanner() {
   const change = data?.publicUrlChange
   if (!change) return null
   return (
-    <div className={styles['wrap']}>
+    <div className={styles.wrap}>
       <Banner
         tone="warning"
         title={`The dashboard moved from ${change.from} to ${change.to}.`}
@@ -22,7 +22,7 @@ export function AddressChangeBanner() {
           </Button>
         }
       >
-        <ul className={styles['checklist']}>
+        <ul className={styles.checklist}>
           {change.checklist.map((step) => (
             <li key={step}>{step}</li>
           ))}

@@ -1,8 +1,8 @@
 import { and, asc, eq, isNull } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { builds, comments, member, projects, user } from '../schema/index.ts'
-import type { Comment } from '../types.ts'
+import { builds, comments, member, projects, user } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+import type { Comment } from '#src/types.ts'
 
 /** Comments on builds: plain storage. Mentions and their notices are `@circi/services`. */
 

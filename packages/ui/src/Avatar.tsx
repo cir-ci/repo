@@ -28,11 +28,11 @@ export function Avatar({ name, src, size = 24, className }: Avatar.Props) {
       role="img"
       aria-label={name}
       data-size={size}
-      className={cx(styles['root'], className)}
+      className={cx(styles.root, className)}
       style={{ width: size, height: size, fontSize: Math.round(size * 0.42) }}
     >
-      {src ? <BaseAvatar.Image src={src} alt="" className={styles['image']} /> : null}
-      <BaseAvatar.Fallback className={styles['fallback']}>{initials(name)}</BaseAvatar.Fallback>
+      {src ? <BaseAvatar.Image src={src} alt="" className={styles.image} /> : null}
+      <BaseAvatar.Fallback className={styles.fallback}>{initials(name)}</BaseAvatar.Fallback>
     </BaseAvatar.Root>
   )
 }

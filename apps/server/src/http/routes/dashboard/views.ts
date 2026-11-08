@@ -11,10 +11,10 @@ import {
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
-import { savedFilters } from '../../lib/build-filters.ts'
-import type { DashboardDeps } from '../../lib/deps.ts'
-import { loadOrg } from '../../lib/org-access.ts'
-import { parse } from '../../lib/validation.ts'
+import { savedFilters } from '#http/lib/build-filters.ts'
+import type { DashboardDeps } from '#http/lib/deps.ts'
+import { loadOrg } from '#http/lib/org-access.ts'
+import { parse } from '#http/lib/validation.ts'
 
 const viewParams = z.object({ org: z.string(), id: z.uuid() })
 const pinParams = z.object({ org: z.string(), project: z.string() })

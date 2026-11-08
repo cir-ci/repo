@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { IconButton, RowMenuIcon } from '../src/index.ts'
+import { IconButton, RowMenuIcon } from '#src/index.ts'
 
 describe('RowMenuIcon', () => {
   it('is a 16px icon hidden from assistive tech, so the button names it', async () => {

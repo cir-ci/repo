@@ -12,7 +12,8 @@ import {
 } from '@circi/ui'
 import { type FormEvent, useState } from 'react'
 
-import { RelativeTime } from '../../lib/RelativeTime.tsx'
+import { RelativeTime } from '#lib/RelativeTime.tsx'
+
 import { useAddWebhook, useDeleteWebhook } from './api.ts'
 import { SecretBox } from './CreateDialogs.tsx'
 
@@ -51,7 +52,7 @@ export function Webhooks(props: Webhooks.Props) {
   }
 
   return (
-    <section className={styles['section']}>
+    <section className={styles.section}>
       <SectionHeader
         divided
         title={
@@ -127,7 +128,7 @@ export function Webhooks(props: Webhooks.Props) {
         </Banner>
       ) : null}
       {props.canManage ? (
-        <form onSubmit={submit} noValidate className={styles['fields']}>
+        <form onSubmit={submit} noValidate className={styles.fields}>
           <Text as="strong" variant="body" className={hookStyles['formTitle']}>
             Add a webhook
           </Text>
@@ -149,7 +150,7 @@ export function Webhooks(props: Webhooks.Props) {
                 if (next.length > 0) setEventsError(null)
               }}
             >
-              <div className={styles['checks']}>
+              <div className={styles.checks}>
                 {props.events.map((event) => (
                   <Checkbox key={event} value={event} label={event} />
                 ))}
@@ -162,7 +163,7 @@ export function Webhooks(props: Webhooks.Props) {
             ) : null}
           </div>
           {add.error ? <Banner tone="danger">{add.error.message}</Banner> : null}
-          <div className={styles['actions']}>
+          <div className={styles.actions}>
             <Button type="submit" variant="primary" loading={add.isPending}>
               {add.isPending ? 'Adding…' : 'Add webhook'}
             </Button>

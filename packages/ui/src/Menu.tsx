@@ -38,15 +38,15 @@ export function Menu({
     >
       <BaseMenu.Trigger render={trigger} />
       <BaseMenu.Portal>
-        <BaseMenu.Positioner className={styles['positioner']} sideOffset={4} align={align}>
-          <BaseMenu.Popup className={cx(styles['popup'], className)}>
+        <BaseMenu.Positioner className={styles.positioner} sideOffset={4} align={align}>
+          <BaseMenu.Popup className={cx(styles.popup, className)}>
             {keyed.map(({ entry, key }) =>
               entry.type === 'separator' ? (
-                <BaseMenu.Separator key={key} className={styles['separator']} />
+                <BaseMenu.Separator key={key} className={styles.separator} />
               ) : entry.type === 'content' ? (
                 <div
                   key={key}
-                  className={styles['content']}
+                  className={styles.content}
                   // The control keeps its own arrow keys instead of the menu moving between items.
                   onKeyDown={(event) => {
                     if (
@@ -62,20 +62,20 @@ export function Menu({
               ) : (
                 <BaseMenu.Item
                   key={key}
-                  className={styles['item']}
+                  className={styles.item}
                   data-tone={entry.tone}
                   disabled={entry.disabled}
                   aria-keyshortcuts={entry.shortcut}
                   onClick={entry.onSelect}
                 >
                   {entry.icon ? (
-                    <span className={styles['icon']} aria-hidden="true">
+                    <span className={styles.icon} aria-hidden="true">
                       {entry.icon}
                     </span>
                   ) : null}
-                  <span className={styles['label']}>{entry.label}</span>
+                  <span className={styles.label}>{entry.label}</span>
                   {entry.shortcut ? (
-                    <kbd className={styles['shortcut']} aria-hidden="true">
+                    <kbd className={styles.shortcut} aria-hidden="true">
                       {entry.shortcut}
                     </kbd>
                   ) : null}

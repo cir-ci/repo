@@ -14,8 +14,8 @@ import { pino } from 'pino'
 import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { buildServer } from '../../../src/http/app.ts'
-import { createTestAuth, ORIGIN, seedTenant, type Tenant } from '../../support/helpers.ts'
+import { buildServer } from '#http/app.ts'
+import { createTestAuth, ORIGIN, seedTenant, type Tenant } from '#test/support/helpers.ts'
 
 /**
  * Plays the sequence `@argos-ci/core`'s `upload()` performs, from its source: GET /project,

@@ -57,7 +57,7 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
         <ConnectGithub org={props.org} onDone={() => close(false)} />
       ) : (
         <>
-          <div className={styles['filters']}>
+          <div className={styles.filters}>
             <TextField
               label="Search integrations"
               type="search"
@@ -76,12 +76,12 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
           {tiles.length === 0 ? (
             <Text tone="secondary">No integrations match “{query.trim()}”.</Text>
           ) : (
-            <ul className={styles['tiles']} aria-label="Available integrations">
+            <ul className={styles.tiles} aria-label="Available integrations">
               {tiles.map((entry) => (
-                <li key={entry.kind} className={styles['tile']} data-disabled={!canAdd(entry)}>
-                  <div className={styles['tileHead']}>
+                <li key={entry.kind} className={styles.tile} data-disabled={!canAdd(entry)}>
+                  <div className={styles.tileHead}>
                     <ProviderLogo kind={entry.kind} />
-                    <Text className={styles['tileTitle']}>{entry.name}</Text>
+                    <Text className={styles.tileTitle}>{entry.name}</Text>
                     {props.added.includes(entry.kind) ? <Badge shape="tag">Added</Badge> : null}
                     {entry.status === 'planned' ? <Badge shape="tag">Planned</Badge> : null}
                   </div>
@@ -131,7 +131,7 @@ function ConnectGithub(props: { org: string; onDone: () => void }) {
   }
 
   return (
-    <form onSubmit={submit} noValidate className={styles['form']}>
+    <form onSubmit={submit} noValidate className={styles.form}>
       <TextField
         label="GitHub App installation id"
         value={id}

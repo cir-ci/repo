@@ -11,16 +11,16 @@ const auth = vi.hoisted(() => ({
   removeMember: vi.fn<(arg: unknown) => Promise<unknown>>(),
   updateMemberRole: vi.fn<(arg: unknown) => Promise<unknown>>(),
 }))
-vi.mock('../../../src/lib/auth-client.ts', () => ({
+vi.mock('#lib/auth-client.ts', () => ({
   authClient: {
     useSession: () => ({ data: { user: { id: auth.userId } }, isPending: false }),
     organization: auth,
   },
 }))
 
-import { MembersPage } from '../../../src/features/members/MembersPage.tsx'
-import { renderPage } from '../../support/render.tsx'
-import { fakeFetch, restoreFetch } from '../fetch-routes.ts'
+import { MembersPage } from '#features/members/MembersPage.tsx'
+import { fakeFetch, restoreFetch } from '#test/features/fetch-routes.ts'
+import { renderPage } from '#test/support/render.tsx'
 
 const ada = {
   id: 'm1',

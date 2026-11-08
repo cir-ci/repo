@@ -6,7 +6,7 @@ import {
   type Shortcut,
   type ShortcutAction,
   type ShortcutScope,
-} from '../../lib/shortcuts.ts'
+} from '#lib/shortcuts.ts'
 
 /**
  * The command menu without a DOM: what it lists for an empty query (jump-to entries and the

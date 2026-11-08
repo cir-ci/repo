@@ -1,7 +1,7 @@
 import type { Build, Flaky, ReviewState } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { getJson, post, seg } from '../../lib/http.ts'
+import { getJson, post, seg } from '#lib/http.ts'
 
 /** Builds still being uploaded or processed; their pages poll until they finish. */
 export const isActive = (status: string) =>

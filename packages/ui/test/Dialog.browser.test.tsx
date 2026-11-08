@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
 
-import { Button, Dialog, TextField } from '../src/index.ts'
+import { Button, Dialog, TextField } from '#src/index.ts'
 
 function Harness(props: { onOpenChange?: (open: boolean) => void }) {
   const [open, setOpen] = useState(false)

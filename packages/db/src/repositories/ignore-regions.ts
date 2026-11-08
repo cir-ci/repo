@@ -1,9 +1,9 @@
 import { ValidationError } from '@circi/core'
 import { and, asc, eq } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { NotFoundError } from '../errors.ts'
-import { ignoreRegions } from '../schema/index.ts'
+import { ignoreRegions } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+import { NotFoundError } from '#src/errors.ts'
 
 /** Rectangles ignored when comparing a project's screenshots by name (PLAN M4). */
 

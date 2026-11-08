@@ -2,7 +2,8 @@ import type { Build, ReviewState } from '@circi/api'
 import { Button, CancelIcon, Kbd, TaskDoneIcon, Text, Tooltip, useAnnounce } from '@circi/ui'
 import { useState } from 'react'
 
-import { RelativeTime } from '../../lib/RelativeTime.tsx'
+import { RelativeTime } from '#lib/RelativeTime.tsx'
+
 import { useReviewBuild } from './api.ts'
 import { RejectDialog } from './RejectDialog.tsx'
 import { isReviewable } from './review-model.ts'

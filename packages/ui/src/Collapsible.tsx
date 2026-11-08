@@ -25,14 +25,14 @@ export function Collapsible({
       open={open}
       defaultOpen={defaultOpen}
       onOpenChange={(next) => onOpenChange?.(next)}
-      className={cx(styles['root'], className)}
+      className={cx(styles.root, className)}
     >
-      <BaseCollapsible.Trigger className={styles['trigger']}>
-        <ChevronRightIcon size={14} strokeWidth={2} className={styles['chevron']} />
-        <span className={styles['title']}>{title}</span>
-        {count === undefined ? null : <span className={styles['count']}>{count}</span>}
+      <BaseCollapsible.Trigger className={styles.trigger}>
+        <ChevronRightIcon size={14} strokeWidth={2} className={styles.chevron} />
+        <span className={styles.title}>{title}</span>
+        {count === undefined ? null : <span className={styles.count}>{count}</span>}
       </BaseCollapsible.Trigger>
-      <BaseCollapsible.Panel className={styles['panel']}>{children}</BaseCollapsible.Panel>
+      <BaseCollapsible.Panel className={styles.panel}>{children}</BaseCollapsible.Panel>
     </BaseCollapsible.Root>
   )
 }

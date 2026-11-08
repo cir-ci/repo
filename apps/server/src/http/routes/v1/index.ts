@@ -1,8 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify'
 
-import { requireProjectToken } from '../../hooks/project-token.ts'
-import type { V1Deps } from '../../lib/deps.ts'
-import { jsonErrorHandler } from '../../lib/errors.ts'
+import { requireProjectToken } from '#http/hooks/project-token.ts'
+import type { V1Deps } from '#http/lib/deps.ts'
+import { jsonErrorHandler } from '#http/lib/errors.ts'
+
 import { buildRoutes } from './builds.ts'
 import { fileRoutes } from './files.ts'
 import { projectRoutes } from './project.ts'

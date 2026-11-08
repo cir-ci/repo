@@ -4,8 +4,8 @@ import { rm } from 'node:fs/promises'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createProject, type CreatedProject } from '../src/admin.ts'
-import { Repo } from '../src/git-repo.ts'
+import { createProject, type CreatedProject } from '#src/admin.ts'
+import { Repo } from '#src/git-repo.ts'
 import {
   makeSiteDir,
   postSiteArchive,
@@ -14,8 +14,8 @@ import {
   tgzOf,
   uploadSiteCli,
   type TarEntry,
-} from '../src/sites.ts'
-import { useStack } from '../src/vitest.ts'
+} from '#src/sites.ts'
+import { useStack } from '#src/vitest.ts'
 
 /**
  * Hostile and oversized site archives through the real `POST /v1/sites`, and the CLI's own limit

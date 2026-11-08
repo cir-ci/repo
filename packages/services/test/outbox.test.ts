@@ -3,7 +3,7 @@ import { createTestDb, seedProject, type TestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { completeBuild, reviewBuild } from '../src/index.ts'
+import { completeBuild, reviewBuild } from '#src/index.ts'
 
 let t: TestDb
 

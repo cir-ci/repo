@@ -1,8 +1,6 @@
 import { checkBuildInput, MAX_PARALLEL_SHARDS, resolveBaseline, ValidationError } from '@circi/core'
 import { and, desc, eq, inArray, lt, ne, sql } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { ConflictError, isUniqueViolation, NotFoundError } from '../errors.ts'
 import {
   type BaselineSource,
   type BuildConclusion,
@@ -14,8 +12,10 @@ import {
   screenshotDiffs,
   screenshots,
   uploadClaims,
-} from '../schema/index.ts'
-import type { Build } from '../types.ts'
+} from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+import { ConflictError, isUniqueViolation, NotFoundError } from '#src/errors.ts'
+import type { Build } from '#src/types.ts'
 
 /** Build lifecycle: create (or join a parallel build), finalize shards, baseline, finish. */
 

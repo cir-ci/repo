@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { HttpError, request, send } from '../src/lib/http.ts'
+import { HttpError, request, send } from '#lib/http.ts'
 
 function stubFetch(response: Response) {
   const fetcher = vi.fn<typeof fetch>(async () => response.clone())

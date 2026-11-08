@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { flakyNames, median, percentile, weekStart, weeksBetween } from '../src/index.ts'
+import { flakyNames, median, percentile, weekStart, weeksBetween } from '#src/index.ts'
 
 describe('percentile', () => {
   it('interpolates like percentile_cont', () => {

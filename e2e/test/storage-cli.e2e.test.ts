@@ -3,13 +3,13 @@ import { spawn } from 'node:child_process'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createProject, type CreatedProject } from '../src/admin.ts'
-import { Repo } from '../src/git-repo.ts'
-import { COMPOSE_FILE } from '../src/paths.ts'
-import { s3Env } from '../src/s3.ts'
-import { fileRows, noisePng, parseJsonOutput, sha256Hex } from '../src/storage.ts'
-import { uploadOrThrow } from '../src/upload.ts'
-import { useStack } from '../src/vitest.ts'
+import { createProject, type CreatedProject } from '#src/admin.ts'
+import { Repo } from '#src/git-repo.ts'
+import { COMPOSE_FILE } from '#src/paths.ts'
+import { s3Env } from '#src/s3.ts'
+import { fileRows, noisePng, parseJsonOutput, sha256Hex } from '#src/storage.ts'
+import { uploadOrThrow } from '#src/upload.ts'
+import { useStack } from '#src/vitest.ts'
 
 interface Usage {
   files: { kind: string; count: number; bytes: number }[]

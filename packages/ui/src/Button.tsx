@@ -43,7 +43,7 @@ export function Button({
       <a
         href={href}
         onClick={onClick}
-        className={cx(styles['root'], className)}
+        className={cx(styles.root, className)}
         data-variant={variant}
         data-size={size}
       >
@@ -63,7 +63,7 @@ export function Button({
           onPressedChange?.(!isPressed)
         }
       }}
-      className={cx(styles['root'], className)}
+      className={cx(styles.root, className)}
       data-variant={variant}
       data-size={size}
       aria-pressed={pressable ? isPressed : undefined}
@@ -73,7 +73,7 @@ export function Button({
       focusableWhenDisabled={loading || undefined}
       aria-busy={loading || undefined}
     >
-      {loading ? <span className={styles['spinner']} aria-hidden="true" /> : leading}
+      {loading ? <span className={styles.spinner} aria-hidden="true" /> : leading}
       {children}
     </BaseButton>
   )

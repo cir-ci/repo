@@ -46,7 +46,7 @@ export function EmailDomains({ org }: EmailDomains.Props) {
   }
 
   return (
-    <section className={styles['root']}>
+    <section className={styles.root}>
       <SectionHeader
         title="Email domains"
         description="Once a domain is verified, anyone who signs in with an emailed code on an address at that domain joins this organization as a member, with no invitation."
@@ -67,21 +67,21 @@ export function EmailDomains({ org }: EmailDomains.Props) {
           <ListSkeleton rows={2} />
         </Delayed>
       ) : data.domains.length > 0 ? (
-        <div className={styles['list']}>
+        <div className={styles.list}>
           {data.domains.map((d) => (
             <ListRow key={d.id}>
-              <div className={styles['row']}>
-                <div className={styles['domain']}>
+              <div className={styles.row}>
+                <div className={styles.domain}>
                   <Text>{d.domain}</Text>
                   {d.verified ? null : (
                     <>
                       <Text variant="small" tone="secondary">
                         Add this DNS TXT record, then check:
                       </Text>
-                      <Text as="code" variant="mono" className={styles['record']}>
+                      <Text as="code" variant="mono" className={styles.record}>
                         {d.dnsName} TXT {d.dnsValue}
                       </Text>
-                      <div className={styles['check']}>
+                      <div className={styles.check}>
                         <Button
                           size="sm"
                           loading={verify.isPending && verify.variables === d.id}
@@ -106,7 +106,7 @@ export function EmailDomains({ org }: EmailDomains.Props) {
                     </>
                   )}
                 </div>
-                <div className={styles['trailing']}>
+                <div className={styles.trailing}>
                   <StatusChip status={d.verified ? 'approved' : 'neutral'}>
                     {d.verified ? 'Verified' : 'Not verified'}
                   </StatusChip>
@@ -124,9 +124,9 @@ export function EmailDomains({ org }: EmailDomains.Props) {
           ))}
         </div>
       ) : null}
-      <form onSubmit={(e) => void submit(e)} noValidate className={styles['form']}>
+      <form onSubmit={(e) => void submit(e)} noValidate className={styles.form}>
         <TextField
-          className={styles['field']}
+          className={styles.field}
           name="domain"
           label="Domain"
           placeholder="example.com"
@@ -138,7 +138,7 @@ export function EmailDomains({ org }: EmailDomains.Props) {
             setProblem(undefined)
           }}
         />
-        <Button type="submit" loading={add.isPending} className={styles['submit']}>
+        <Button type="submit" loading={add.isPending} className={styles.submit}>
           Add domain
         </Button>
       </form>

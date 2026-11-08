@@ -1,6 +1,6 @@
 import { Breadcrumbs } from '@circi/ui'
 
-import { useClientLink } from '../../lib/use-client-link.ts'
+import { useClientLink } from '#lib/use-client-link.ts'
 
 /** `project / Build #148`: the project is a link, routed on the client. */
 export function BuildBreadcrumbs({ org, project, number, name }: BuildBreadcrumbs.Props) {

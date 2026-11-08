@@ -1,10 +1,10 @@
 import type { Build, Flaky } from '@circi/api'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { approveBuild, createProject, type CreatedProject } from '../src/admin.ts'
-import { Repo } from '../src/git-repo.ts'
-import { uploadOrThrow } from '../src/upload.ts'
-import { useBrowser, useStack } from '../src/vitest.ts'
+import { approveBuild, createProject, type CreatedProject } from '#src/admin.ts'
+import { Repo } from '#src/git-repo.ts'
+import { uploadOrThrow } from '#src/upload.ts'
+import { useBrowser, useStack } from '#src/vitest.ts'
 
 /**
  * Flaky screenshot detection on the real stack: a screenshot that shows as changed in 3 or more of

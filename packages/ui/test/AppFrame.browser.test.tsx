@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { AppFrame } from '../src/index.ts'
+import { AppFrame } from '#src/index.ts'
 
 describe('AppFrame', () => {
   it('has a Main navigation landmark and a main landmark holding the page', async () => {

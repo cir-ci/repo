@@ -11,7 +11,7 @@ export function Skeleton({ width = '100%', height = 14, className }: Skeleton.Pr
     <span
       aria-hidden="true"
       data-slot="skeleton"
-      className={cx(styles['root'], className)}
+      className={cx(styles.root, className)}
       style={{ width, height }}
     />
   )
@@ -29,9 +29,9 @@ export namespace Skeleton {
 /** Rows of 44px with two bars each, shaped like a list of `ListRow`s. */
 export function ListSkeleton({ rows = 5, className }: ListSkeleton.Props) {
   return (
-    <div aria-hidden="true" data-slot="skeleton-list" className={cx(styles['list'], className)}>
+    <div aria-hidden="true" data-slot="skeleton-list" className={cx(styles.list, className)}>
       {Array.from({ length: rows }, (_, i) => (
-        <div key={i} data-slot="skeleton-row" className={styles['row']}>
+        <div key={i} data-slot="skeleton-row" className={styles.row}>
           <Skeleton width="30%" height={12} />
           <Skeleton width="55%" height={10} />
         </div>

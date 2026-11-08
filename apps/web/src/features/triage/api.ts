@@ -8,15 +8,15 @@ import {
   type QueryClient,
 } from '@tanstack/react-query'
 
-import { getJson, post, seg } from '../../lib/http.ts'
-import type { SnoozeChoice } from '../../lib/snooze.ts'
-import { fileUrl } from '../builds/api.ts'
+import { fileUrl } from '#features/builds/api.ts'
 import {
   type ShotKind,
   screenshotLabel,
   screenshotStatus,
   shotReview,
-} from '../builds/diff-status.ts'
+} from '#features/builds/diff-status.ts'
+import { getJson, post, seg } from '#lib/http.ts'
+import type { SnoozeChoice } from '#lib/snooze.ts'
 
 export const triageKey = (org: string, project: string) => ['triage', org, project] as const
 

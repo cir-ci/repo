@@ -3,13 +3,14 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
-import { useDocumentTitle } from '../../lib/document-title.ts'
-import { ErrorState } from '../../lib/ErrorState.tsx'
-import { parseFilters, type BuildFilters } from '../projects/builds-filters.ts'
-import { BuildsBrowser } from '../projects/BuildsBrowser.tsx'
+import { parseFilters, type BuildFilters } from '#features/projects/builds-filters.ts'
+import { BuildsBrowser } from '#features/projects/BuildsBrowser.tsx'
+import { useDocumentTitle } from '#lib/document-title.ts'
+import { ErrorState } from '#lib/ErrorState.tsx'
+
 import { findView, viewsQuery } from './api.ts'
 
-import styles from '../projects/ProjectPage.module.css'
+import styles from '#features/projects/ProjectPage.module.css'
 
 /** A saved view: its project's builds list with the view's filters applied (editable for this visit only). */
 export function ViewPage() {
@@ -23,7 +24,7 @@ export function ViewPage() {
       <PanelHeader>
         <Breadcrumbs items={[{ label: 'Views' }, { label: view?.name ?? '…' }]} />
       </PanelHeader>
-      <div className={styles['content']}>
+      <div className={styles.content}>
         {error ? (
           <ErrorState error={error} onRetry={() => void refetch()} />
         ) : !data ? (

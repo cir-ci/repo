@@ -1,7 +1,8 @@
 import { Avatar, Banner, StatusIcon, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 
-import { RelativeTime } from '../../lib/RelativeTime.tsx'
+import { RelativeTime } from '#lib/RelativeTime.tsx'
+
 import { activityQuery } from './discussion-api.ts'
 import { timelineItems } from './timeline.ts'
 
@@ -21,12 +22,12 @@ export function ActivityTab({ org, project, number, onOpenComment }: ActivityTab
   const items = timelineItems(data.events)
   if (items.length === 0) return <Text tone="secondary">Nothing has happened yet.</Text>
   return (
-    <ol className={styles['list']} aria-label="Activity">
+    <ol className={styles.list} aria-label="Activity">
       {items.map((item) => (
-        <li key={item.key} className={styles['event']}>
+        <li key={item.key} className={styles.event}>
           <StatusIcon status={item.status} size={14} decorative />
-          <div className={styles['eventBody']}>
-            <div className={styles['line']}>
+          <div className={styles.eventBody}>
+            <div className={styles.line}>
               {item.actor ? <Avatar name={item.actor} size={18} /> : null}
               <Text>
                 {item.actor ? <strong>{item.actor}</strong> : null} {item.text}
@@ -39,15 +40,15 @@ export function ActivityTab({ org, project, number, onOpenComment }: ActivityTab
               item.commentId ? (
                 <button
                   type="button"
-                  className={styles['linkButton']}
+                  className={styles.linkButton}
                   onClick={() => item.commentId && onOpenComment(item.commentId)}
                 >
-                  <Text variant="small" as="span" className={styles['quote']}>
+                  <Text variant="small" as="span" className={styles.quote}>
                     {item.quote}
                   </Text>
                 </button>
               ) : (
-                <Text variant="small" tone="secondary" as="p" className={styles['quote']}>
+                <Text variant="small" tone="secondary" as="p" className={styles.quote}>
                   {item.quote}
                 </Text>
               )

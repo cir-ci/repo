@@ -43,7 +43,7 @@ export function BuildFilterBar({
     if (close) onOpenChange(undefined)
   }
   return (
-    <div className={styles['bar']} role="group" aria-label="Filters">
+    <div className={styles.bar} role="group" aria-label="Filters">
       {FILTER_FIELDS.map(({ field, label }) => {
         const active = fieldValue(field, filters) !== undefined
         return (
@@ -84,7 +84,7 @@ export function BuildFilterBar({
           ) : null}
         </>
       ) : null}
-      <span className={styles['spacer']} />
+      <span className={styles.spacer} />
       <Popover
         label="Display options"
         align="end"
@@ -128,7 +128,7 @@ function FieldEditor({
   if (field === 'status') {
     const current = activeState(filters)
     return (
-      <div role="group" aria-label="Status" className={styles['options']}>
+      <div role="group" aria-label="Status" className={styles.options}>
         {STATE_OPTIONS.map((o) => (
           <Button
             key={o.id}
@@ -163,7 +163,7 @@ function TextEditor({
     onChange(withText(filters, field, text))
   }
   return (
-    <form onSubmit={submit} className={styles['form']}>
+    <form onSubmit={submit} className={styles.form}>
       <TextField label={label} value={text} autoFocus onChange={(e) => setText(e.target.value)} />
       <Button type="submit" size="sm" variant="primary">
         Apply
@@ -186,7 +186,7 @@ function DateEditor({
     onChange(withDates(filters, from, to))
   }
   return (
-    <form onSubmit={submit} className={styles['form']}>
+    <form onSubmit={submit} className={styles.form}>
       <TextField label="From" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
       <TextField label="To" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
       <Button type="submit" size="sm" variant="primary">
@@ -208,7 +208,7 @@ function DisplayEditor({
       <Text variant="small" tone="secondary" id="display-group">
         Group by
       </Text>
-      <div role="group" aria-labelledby="display-group" className={styles['options']}>
+      <div role="group" aria-labelledby="display-group" className={styles.options}>
         {GROUPS.map((g) => (
           <Button
             key={g}
@@ -224,7 +224,7 @@ function DisplayEditor({
       <Text variant="small" tone="secondary" id="display-order">
         Order
       </Text>
-      <div role="group" aria-labelledby="display-order" className={styles['options']}>
+      <div role="group" aria-labelledby="display-order" className={styles.options}>
         {ORDERS.map((o) => (
           <Button
             key={o}

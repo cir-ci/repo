@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildOutcome, onlyFlakyChanges, resolveFlakyBlocksMerge } from '../src/index.ts'
+import { buildOutcome, onlyFlakyChanges, resolveFlakyBlocksMerge } from '#src/index.ts'
 
 const flags = { flakyOnly: false, flakyBlocksMerge: true }
 const done = { status: 'complete', conclusion: 'changes_detected', reviewStatus: 'pending' }

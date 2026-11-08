@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { PanelHeader } from '../src/index.ts'
+import { PanelHeader } from '#src/index.ts'
 
 describe('PanelHeader', () => {
   it('is a header at least 44px high with the title left and actions right', async () => {

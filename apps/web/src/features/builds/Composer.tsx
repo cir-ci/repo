@@ -1,7 +1,8 @@
 import { Avatar, Button, Kbd, Text } from '@circi/ui'
 import { type Ref, useId, useState } from 'react'
 
-import { isSubmitKey } from '../../lib/shortcuts.ts'
+import { isSubmitKey } from '#lib/shortcuts.ts'
+
 import {
   insertMention,
   matchMembers,
@@ -51,7 +52,7 @@ export function Composer(props: Composer.Props) {
   }
 
   return (
-    <div className={styles['composer']}>
+    <div className={styles.composer}>
       <label htmlFor={id}>
         <Text variant="small" tone="secondary">
           {label}
@@ -61,7 +62,7 @@ export function Composer(props: Composer.Props) {
       <textarea
         id={id}
         ref={inputRef}
-        className={styles['textarea']}
+        className={styles.textarea}
         rows={3}
         value={text}
         role="combobox"
@@ -97,7 +98,7 @@ export function Composer(props: Composer.Props) {
         }}
       />
       {open ? (
-        <ul id={listId} role="listbox" aria-label="Members" className={styles['mentions']}>
+        <ul id={listId} role="listbox" aria-label="Members" className={styles.mentions}>
           {options.map((m, i) => (
             <li
               key={m.userId}
@@ -126,7 +127,7 @@ export function Composer(props: Composer.Props) {
           {props.error}
         </Text>
       ) : null}
-      <div className={styles['actions']}>
+      <div className={styles.actions}>
         <Button
           variant="primary"
           size="sm"

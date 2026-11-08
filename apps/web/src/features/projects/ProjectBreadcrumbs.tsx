@@ -1,6 +1,6 @@
 import { Breadcrumbs } from '@circi/ui'
 
-import { useClientLink } from '../../lib/use-client-link.ts'
+import { useClientLink } from '#lib/use-client-link.ts'
 
 /**
  * Breadcrumbs that navigate through the router: a real `href` (open in a new tab works), no page

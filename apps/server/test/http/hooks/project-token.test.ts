@@ -3,8 +3,8 @@ import { createTestDb, type TestDb } from '@circi/testing'
 import Fastify from 'fastify'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { currentProject, requireProjectToken } from '../../../src/http/hooks/project-token.ts'
-import { createTestAuth, seedTenant, type Tenant } from '../../support/helpers.ts'
+import { currentProject, requireProjectToken } from '#http/hooks/project-token.ts'
+import { createTestAuth, seedTenant, type Tenant } from '#test/support/helpers.ts'
 
 let t: TestDb
 let auth: Auth

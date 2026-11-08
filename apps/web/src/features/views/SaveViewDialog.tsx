@@ -1,7 +1,7 @@
 import { Button, Dialog, TextField } from '@circi/ui'
 import { type FormEvent, useId, useState } from 'react'
 
-import { fieldValue, FILTER_FIELDS, type BuildFilters } from '../projects/builds-filters.ts'
+import { fieldValue, FILTER_FIELDS, type BuildFilters } from '#features/projects/builds-filters.ts'
 
 /** Names the filters of the list and saves them as a view (shown under "Your views"). */
 export function SaveViewDialog({

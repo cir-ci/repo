@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { circiScreenshot, screenshotPath, settlePage, STABILIZE_CSS } from '../src/screenshot.ts'
+import { circiScreenshot, screenshotPath, settlePage, STABILIZE_CSS } from '#src/screenshot.ts'
 
 describe('screenshotPath', () => {
   it('makes tidy, stable names that stay inside the folder', () => {

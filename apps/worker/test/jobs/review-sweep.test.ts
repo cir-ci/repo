@@ -11,7 +11,7 @@ import {
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { reviewSweep } from '../../src/jobs/review-sweep.ts'
+import { reviewSweep } from '#jobs/review-sweep.ts'
 
 let t: TestDb
 beforeAll(async () => {

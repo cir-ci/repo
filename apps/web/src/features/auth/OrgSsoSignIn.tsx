@@ -1,7 +1,7 @@
 import { Banner, Button, TextField } from '@circi/ui'
 import { type FormEvent, useState } from 'react'
 
-import { post } from '../../lib/http.ts'
+import { post } from '#lib/http.ts'
 
 import styles from './AuthForms.module.css'
 
@@ -35,20 +35,20 @@ export function OrgSsoSignIn() {
 
   if (!open) {
     return (
-      <Button variant="ghost" className={styles['center']} onClick={() => setOpen(true)}>
+      <Button variant="ghost" className={styles.center} onClick={() => setOpen(true)}>
         Sign in through your organization
       </Button>
     )
   }
   return (
     <form
-      className={`${styles['form']} ${styles['compact']}`}
+      className={`${styles.form} ${styles.compact}`}
       onSubmit={(e) => void submit(e)}
       noValidate
     >
       {error ? <Banner tone="danger">{error}</Banner> : null}
       <TextField name="organization" label="Organization" placeholder="acme" required autoFocus />
-      <Button type="submit" loading={busy} className={styles['block']}>
+      <Button type="submit" loading={busy} className={styles.block}>
         Continue
       </Button>
     </form>

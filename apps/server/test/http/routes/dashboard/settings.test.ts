@@ -16,14 +16,8 @@ import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { buildServer } from '../../../../src/http/app.ts'
-import {
-  createTestAuth,
-  ORIGIN,
-  seedTenant,
-  signIn,
-  type Tenant,
-} from '../../../support/helpers.ts'
+import { buildServer } from '#http/app.ts'
+import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
 
 let t: TestDb
 let dir: string

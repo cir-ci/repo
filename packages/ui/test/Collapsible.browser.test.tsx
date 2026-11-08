@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
 
-import { Collapsible } from '../src/index.ts'
+import { Collapsible } from '#src/index.ts'
 
 describe('Collapsible', () => {
   it('is a button with aria-expanded that shows and hides its panel', async () => {

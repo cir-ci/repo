@@ -8,7 +8,7 @@ import {
   flattenGroups,
   groupBaselines,
   sizeLabel,
-} from '../../../src/features/baselines/api.ts'
+} from '#features/baselines/api.ts'
 
 const item = (name: string, buildName = 'default', over: Partial<Baseline.Item> = {}) => ({
   name,

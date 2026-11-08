@@ -20,7 +20,7 @@ export function Stack({
 }: Stack.Props) {
   return createElement(as, {
     ...rest,
-    className: cx(styles['root'], className),
+    className: cx(styles.root, className),
     'data-direction': direction,
     'data-gap': gap,
     'data-align': align,

@@ -32,26 +32,26 @@ export function Dialog({
       disablePointerDismissal={!dismissible}
     >
       <BaseDialog.Portal>
-        <BaseDialog.Backdrop className={styles['backdrop']} />
-        <BaseDialog.Viewport className={styles['viewport']}>
-          <BaseDialog.Popup className={styles['popup']} data-size={size}>
-            <header className={styles['header']}>
-              <BaseDialog.Title className={styles['title']}>{title}</BaseDialog.Title>
+        <BaseDialog.Backdrop className={styles.backdrop} />
+        <BaseDialog.Viewport className={styles.viewport}>
+          <BaseDialog.Popup className={styles.popup} data-size={size}>
+            <header className={styles.header}>
+              <BaseDialog.Title className={styles.title}>{title}</BaseDialog.Title>
               {hideClose ? null : (
-                <BaseDialog.Close className={styles['close']} aria-label="Close">
+                <BaseDialog.Close className={styles.close} aria-label="Close">
                   <CloseIcon />
                 </BaseDialog.Close>
               )}
             </header>
-            <div className={styles['body']}>
+            <div className={styles.body}>
               {description ? (
-                <BaseDialog.Description className={styles['description']}>
+                <BaseDialog.Description className={styles.description}>
                   {description}
                 </BaseDialog.Description>
               ) : null}
               {children}
             </div>
-            {actions ? <footer className={styles['footer']}>{actions}</footer> : null}
+            {actions ? <footer className={styles.footer}>{actions}</footer> : null}
           </BaseDialog.Popup>
         </BaseDialog.Viewport>
       </BaseDialog.Portal>

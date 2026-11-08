@@ -3,8 +3,8 @@ import { createTestDb, seedOrg, type TestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { beforeAccountCreate } from '../../src/hooks/account-create.ts'
-import type { SsoProvider } from '../../src/sso/sso.ts'
+import { beforeAccountCreate } from '#hooks/account-create.ts'
+import type { SsoProvider } from '#sso/sso.ts'
 
 let t: TestDb
 beforeAll(async () => {

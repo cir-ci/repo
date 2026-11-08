@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { keyCaps, keyToken, SHORTCUTS, shortcutGroups } from '../../src/lib/shortcuts.ts'
-import { stepIndex } from '../../src/lib/use-list-navigation.ts'
+import { keyCaps, keyToken, SHORTCUTS, shortcutGroups } from '#lib/shortcuts.ts'
+import { stepIndex } from '#lib/use-list-navigation.ts'
 
 describe('the shortcut registry', () => {
   it('has no key twice in the same scope', () => {

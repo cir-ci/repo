@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { StatusChip } from '../src/index.ts'
+import { StatusChip } from '#src/index.ts'
 
 describe('StatusChip', () => {
   it('shows the status word by default, next to its glyph', async () => {

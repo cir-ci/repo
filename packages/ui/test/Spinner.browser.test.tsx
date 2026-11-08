@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { Spinner } from '../src/index.ts'
+import { Spinner } from '#src/index.ts'
 
 describe('Spinner', () => {
   it('is decorative without a label', async () => {

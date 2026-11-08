@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { PGlite } from '@electric-sql/pglite'
 import { afterAll, describe, expect, it } from 'vitest'
 
-import { migrationsFolder } from '../src/index.ts'
+import { migrationsFolder } from '#src/index.ts'
 
 /**
  * 0023 renames `provider_connections.installation_id` to `external_id` and adds credentials.

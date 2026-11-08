@@ -9,7 +9,7 @@ afterEach(() => {
 
 async function load(): Promise<string> {
   vi.resetModules()
-  return (await import('../src/client.ts')).migrationsFolder
+  return (await import('#src/client.ts')).migrationsFolder
 }
 
 describe('migrationsFolder', () => {

@@ -14,8 +14,8 @@ import {
   extractLinks,
   mailIds,
   waitForNewMail,
-} from '../src/index.ts'
-import { useBrowser, useStack } from '../src/vitest.ts'
+} from '#src/index.ts'
+import { useBrowser, useStack } from '#src/vitest.ts'
 
 /**
  * Invitations and members on the real stack: invite from the Members page, the mail in Mailpit,

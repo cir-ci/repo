@@ -2,7 +2,7 @@ import { expect, it, describe } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { Badge } from '../src/index.ts'
+import { Badge } from '#src/index.ts'
 
 describe('Badge', () => {
   it('renders its text with tone and shape as data attributes', async () => {

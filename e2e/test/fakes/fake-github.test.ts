@@ -1,7 +1,7 @@
 import { type CheckReport, GithubApiError, GithubApp, PR_COMMENT_MARKER } from '@circi/providers'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { type FakeGithub, startFakeGithub } from '../../src/fakes/fake-github.ts'
+import { type FakeGithub, startFakeGithub } from '#fakes/fake-github.ts'
 
 let gh: FakeGithub
 let app: GithubApp

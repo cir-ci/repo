@@ -1,7 +1,7 @@
 import { Banner, Breadcrumbs, Delayed, ListSkeleton, PanelHeader } from '@circi/ui'
 import type { ReactNode } from 'react'
 
-import { ErrorState } from '../../lib/ErrorState.tsx'
+import { ErrorState } from '#lib/ErrorState.tsx'
 
 import styles from './Settings.module.css'
 
@@ -12,7 +12,7 @@ export function Frame(props: Frame.Props) {
       <PanelHeader>
         <Breadcrumbs items={props.crumbs.map((label) => ({ label }))} />
       </PanelHeader>
-      <div className={styles['content']}>
+      <div className={styles.content}>
         {props.error ? (
           <ErrorState
             error={props.error}

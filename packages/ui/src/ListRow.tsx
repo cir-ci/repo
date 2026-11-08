@@ -12,13 +12,13 @@ export function ListRow(props: ListRow.Props) {
   const content = (
     <>
       {props.leading}
-      <div className={styles['content']}>{props.children}</div>
+      <div className={styles.content}>{props.children}</div>
       {props.trailing}
     </>
   )
   const interactive = Boolean(props.href ?? props.onClick)
   const common = {
-    className: cx(styles['root'], props.className),
+    className: cx(styles.root, props.className),
     'aria-current': props.selected ? ('true' as const) : undefined,
     'data-density': props.density,
     'data-selected': props.selected ? '' : undefined,

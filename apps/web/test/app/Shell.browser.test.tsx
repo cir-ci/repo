@@ -20,7 +20,7 @@ const auth = vi.hoisted(() => ({
   } | null,
   signOut: vi.fn<() => Promise<void>>(),
 }))
-vi.mock('../../src/lib/auth-client.ts', () => ({
+vi.mock('#lib/auth-client.ts', () => ({
   authClient: {
     useSession: () => ({ data: auth.user ? { user: auth.user } : null, isPending: false }),
     signOut: auth.signOut,
@@ -29,7 +29,7 @@ vi.mock('../../src/lib/auth-client.ts', () => ({
   },
 }))
 
-import { Shell } from '../../src/app/Shell.tsx'
+import { Shell } from '#app/Shell.tsx'
 
 const overview = (org: string, orgName: string, project: string) => ({
   org: { slug: org, name: orgName },

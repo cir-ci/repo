@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
-import { validateInboxSearch } from '../../../src/features/inbox/api.ts'
-import { InboxPage } from '../../../src/features/inbox/InboxPage.tsx'
-import { renderPage } from '../../support/render.tsx'
-import { fakeApi, restoreFetch } from '../fetch-routes.ts'
+import { validateInboxSearch } from '#features/inbox/api.ts'
+import { InboxPage } from '#features/inbox/InboxPage.tsx'
+import { fakeApi, restoreFetch } from '#test/features/fetch-routes.ts'
+import { renderPage } from '#test/support/render.tsx'
 
 afterEach(() => restoreFetch())
 

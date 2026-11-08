@@ -29,8 +29,8 @@ export function Popover({
     >
       <BasePopover.Trigger render={trigger} />
       <BasePopover.Portal>
-        <BasePopover.Positioner className={styles['positioner']} sideOffset={4} align={align}>
-          <BasePopover.Popup aria-label={label} className={cx(styles['popup'], className)}>
+        <BasePopover.Positioner className={styles.positioner} sideOffset={4} align={align}>
+          <BasePopover.Popup aria-label={label} className={cx(styles.popup, className)}>
             {children}
           </BasePopover.Popup>
         </BasePopover.Positioner>

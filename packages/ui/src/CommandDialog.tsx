@@ -26,10 +26,10 @@ export function CommandDialog({
       }}
     >
       <BaseDialog.Portal>
-        <BaseDialog.Backdrop className={styles['backdrop']} />
-        <BaseDialog.Viewport className={styles['viewport']}>
-          <BaseDialog.Popup className={styles['popup']}>
-            <BaseDialog.Title className={styles['hidden']}>{label}</BaseDialog.Title>
+        <BaseDialog.Backdrop className={styles.backdrop} />
+        <BaseDialog.Viewport className={styles.viewport}>
+          <BaseDialog.Popup className={styles.popup}>
+            <BaseDialog.Title className={styles.hidden}>{label}</BaseDialog.Title>
             {children}
           </BaseDialog.Popup>
         </BaseDialog.Viewport>

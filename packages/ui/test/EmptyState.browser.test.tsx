@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { Button, EmptyState } from '../src/index.ts'
+import { Button, EmptyState } from '#src/index.ts'
 
 describe('EmptyState', () => {
   it('shows a heading, a line of text and an action', async () => {

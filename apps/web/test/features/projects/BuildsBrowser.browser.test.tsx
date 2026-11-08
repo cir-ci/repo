@@ -5,13 +5,14 @@ import { page, userEvent } from 'vitest/browser'
 const auth = vi.hoisted(() => ({
   getFullOrganization: vi.fn<(arg: unknown) => Promise<unknown>>(),
 }))
-vi.mock('../../../src/lib/auth-client.ts', () => ({ authClient: { organization: auth } }))
+vi.mock('#lib/auth-client.ts', () => ({ authClient: { organization: auth } }))
 
-import { parseBuildsSearch } from '../../../src/features/projects/builds-filters.ts'
-import { ProjectPage } from '../../../src/features/projects/ProjectPage.tsx'
-import { ViewPage } from '../../../src/features/views/ViewPage.tsx'
-import { renderPage } from '../../support/render.tsx'
-import { fakeApi, restoreFetch } from '../fetch-routes.ts'
+import { parseBuildsSearch } from '#features/projects/builds-filters.ts'
+import { ProjectPage } from '#features/projects/ProjectPage.tsx'
+import { ViewPage } from '#features/views/ViewPage.tsx'
+import { fakeApi, restoreFetch } from '#test/features/fetch-routes.ts'
+import { renderPage } from '#test/support/render.tsx'
+
 import { build } from './support.tsx'
 
 afterEach(() => {

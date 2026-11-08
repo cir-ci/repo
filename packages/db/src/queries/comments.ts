@@ -1,7 +1,7 @@
 import { asc, eq } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { comments, user } from '../schema/index.ts'
+import { comments, user } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
 
 /** The comments of a build, shaped for the dashboard. */
 

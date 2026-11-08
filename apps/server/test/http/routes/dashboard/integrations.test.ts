@@ -17,8 +17,8 @@ import { createTestDb } from '@circi/testing'
 import { pino } from 'pino'
 import { afterAll, describe, expect, it } from 'vitest'
 
-import { buildServer } from '../../../../src/http/app.ts'
-import { createTestAuth, ORIGIN, seedTenant, signIn } from '../../../support/helpers.ts'
+import { buildServer } from '#http/app.ts'
+import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 
 const t = await createTestDb()
 const dir = await mkdtemp(join(tmpdir(), 'circi-integrations-'))

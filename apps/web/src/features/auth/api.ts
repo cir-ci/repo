@@ -1,7 +1,7 @@
 import type { Instance } from '@circi/api'
 import { queryOptions } from '@tanstack/react-query'
 
-import { getJson, post } from '../../lib/http.ts'
+import { getJson, post } from '#lib/http.ts'
 
 /** What the sign-in page can offer. Public. */
 export const authMethodsQuery = () =>

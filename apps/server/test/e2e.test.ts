@@ -14,7 +14,8 @@ import { pino } from 'pino'
 import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { buildServer } from '../src/http/app.ts'
+import { buildServer } from '#http/app.ts'
+
 import { createTestAuth, seedTenant } from './support/helpers.ts'
 
 /**

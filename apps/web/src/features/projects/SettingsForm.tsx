@@ -54,9 +54,9 @@ export function SettingsForm(props: SettingsForm.Props) {
   }
 
   return (
-    <form onSubmit={submit} noValidate className={styles['section']}>
+    <form onSubmit={submit} noValidate className={styles.section}>
       <SectionHeader title="Builds" />
-      <div className={styles['fields']}>
+      <div className={styles.fields}>
         <TextField name="name" label="Name" defaultValue={s.name} disabled={disabled} />
         <TextField
           name="defaultBranch"
@@ -85,7 +85,7 @@ export function SettingsForm(props: SettingsForm.Props) {
           min={1}
           step={1}
         />
-        <div className={styles['checks']}>
+        <div className={styles.checks}>
           <Checkbox
             label="Block merging until changes are approved"
             description="With this off, `circi upload --wait` passes even when visual changes need review."
@@ -123,7 +123,7 @@ export function SettingsForm(props: SettingsForm.Props) {
         {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
         {saved ? <Banner tone="success">Settings saved.</Banner> : null}
         {props.canManage ? (
-          <div className={styles['actions']}>
+          <div className={styles.actions}>
             <Button type="submit" variant="primary" loading={save.isPending}>
               {save.isPending ? 'Saving…' : 'Save settings'}
             </Button>

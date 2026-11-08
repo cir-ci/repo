@@ -15,11 +15,11 @@ function field(form: FormData, key: string): string {
 /** A secret shown once, with a way to copy it. */
 export function SecretBox({ label, value }: SecretBox.Props) {
   return (
-    <div className={styles['secret']}>
+    <div className={styles.secret}>
       <Text variant="small" tone="secondary">
         {label}
       </Text>
-      <Ref value={value} label={label} className={styles['secretValue']} />
+      <Ref value={value} label={label} className={styles.secretValue} />
     </div>
   )
 }
@@ -81,7 +81,7 @@ export function NewOrganizationDialog({ open, onClose }: NewOrganizationDialog.P
         </>
       }
     >
-      <form id="new-organization" onSubmit={submit} noValidate className={styles['form']}>
+      <form id="new-organization" onSubmit={submit} noValidate className={styles.form}>
         <TextField name="name" label="Name" required autoFocus error={nameError} />
         {create.error ? <Banner tone="danger">{create.error.message}</Banner> : null}
       </form>
@@ -145,7 +145,7 @@ export function NewProjectDialog(props: NewProjectDialog.Props) {
           </Button>
         }
       >
-        <div className={styles['form']}>
+        <div className={styles.form}>
           <Banner tone="warning">
             Copy this CI token now: it isn’t shown again. Put it in your CI secrets as{' '}
             <Text as="code" variant="mono">
@@ -177,7 +177,7 @@ export function NewProjectDialog(props: NewProjectDialog.Props) {
         </>
       }
     >
-      <form id="new-project" onSubmit={submit} noValidate className={styles['form']}>
+      <form id="new-project" onSubmit={submit} noValidate className={styles.form}>
         <Select
           name="org"
           label="Organization"

@@ -1,7 +1,6 @@
 import { ValidationError } from '@circi/core'
 import { and, asc, eq, inArray, max } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
 import {
   builds,
   member,
@@ -10,8 +9,9 @@ import {
   triageItems,
   triageRotationMembers,
   user,
-} from '../schema/index.ts'
-import type { SnoozeKind, TriageKind } from '../schema/index.ts'
+} from '#schema/index.ts'
+import type { SnoozeKind, TriageKind } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
 
 /**
  * Triage state: what people did about a project's problems (assigned, snoozed, dismissed), and

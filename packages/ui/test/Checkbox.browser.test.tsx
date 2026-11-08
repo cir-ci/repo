@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
 
-import { Checkbox, CheckboxGroup } from '../src/index.ts'
+import { Checkbox, CheckboxGroup } from '#src/index.ts'
 
 describe('Checkbox', () => {
   it('is a checkbox named by its label, 14×14, toggled by click and by Space', async () => {

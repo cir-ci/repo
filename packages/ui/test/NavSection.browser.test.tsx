@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { NavItem } from '../src/NavItem.tsx'
-import { NavSection } from '../src/NavSection.tsx'
+import { NavItem } from '#src/NavItem.tsx'
+import { NavSection } from '#src/NavSection.tsx'
 
 describe('NavSection', () => {
   it('is a region named by its label and holds its items', async () => {

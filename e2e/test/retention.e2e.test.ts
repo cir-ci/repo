@@ -1,11 +1,11 @@
 import type { Build } from '@circi/api'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createProject, type CreatedProject } from '../src/admin.ts'
-import { Repo } from '../src/git-repo.ts'
-import { fileRows, noisePng, parseJsonOutput, sha256Hex } from '../src/storage.ts'
-import { uploadOrThrow, type UploadResult } from '../src/upload.ts'
-import { useBrowser, useStack } from '../src/vitest.ts'
+import { createProject, type CreatedProject } from '#src/admin.ts'
+import { Repo } from '#src/git-repo.ts'
+import { fileRows, noisePng, parseJsonOutput, sha256Hex } from '#src/storage.ts'
+import { uploadOrThrow, type UploadResult } from '#src/upload.ts'
+import { useBrowser, useStack } from '#src/vitest.ts'
 
 interface Retention {
   expiredBuilds: number

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { ciRunId, detectCi } from '../src/ci-env.ts'
+import { ciRunId, detectCi } from '#src/ci-env.ts'
 
 const noFile = () => {
   throw new Error('no event file')

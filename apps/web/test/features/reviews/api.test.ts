@@ -7,8 +7,8 @@ import {
   requestName,
   requestRef,
   validateReviewsSearch,
-} from '../../../src/features/reviews/api.ts'
-import { nextAfterRemoval } from '../../../src/lib/list-keys.ts'
+} from '#features/reviews/api.ts'
+import { nextAfterRemoval } from '#lib/list-keys.ts'
 
 const request = (over: Partial<Review.Request> = {}): Review.Request => ({
   id: 'r1',

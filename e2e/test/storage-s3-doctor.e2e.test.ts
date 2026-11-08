@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { startFakeS3 } from '../src/storage.ts'
-import { useStack } from '../src/vitest.ts'
+import { startFakeS3 } from '#src/storage.ts'
+import { useStack } from '#src/vitest.ts'
 
 /**
  * What `circi admin doctor` and the server say about a broken S3 configuration (split out of

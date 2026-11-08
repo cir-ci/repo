@@ -31,7 +31,7 @@ function Frame(props: {
     <>
       <svg
         viewBox={`0 0 ${PLOT.width} ${PLOT.height}`}
-        className={styles['chart']}
+        className={styles.chart}
         role="img"
         aria-labelledby={id}
       >
@@ -39,14 +39,14 @@ function Frame(props: {
         {[...props.ticks, 0].map((t) => (
           <g key={t}>
             <line
-              className={styles['gridline']}
+              className={styles.gridline}
               x1={PLOT.left}
               x2={PLOT.width - PLOT.right}
               y1={yAt(PLOT, t, props.top)}
               y2={yAt(PLOT, t, props.top)}
             />
             <text
-              className={styles['tick']}
+              className={styles.tick}
               x={PLOT.left - 6}
               y={yAt(PLOT, t, props.top) + 4}
               textAnchor="end"
@@ -57,18 +57,12 @@ function Frame(props: {
         ))}
         {props.children}
         {props.labels.map((l) => (
-          <text
-            key={l.x}
-            className={styles['tick']}
-            x={l.x}
-            y={PLOT.height - 6}
-            textAnchor="middle"
-          >
+          <text key={l.x} className={styles.tick} x={l.x} y={PLOT.height - 6} textAnchor="middle">
             {l.text}
           </text>
         ))}
       </svg>
-      <span className={styles['axisTitle']}>{props.yLabel}</span>
+      <span className={styles.axisTitle}>{props.yLabel}</span>
       {props.table}
     </>
   )
@@ -79,7 +73,7 @@ const WeekTable = (props: {
   column: string
   rows: { week: string; value: string }[]
 }) => (
-  <table className={styles['sr']}>
+  <table className={styles.sr}>
     <caption>{props.caption}</caption>
     <thead>
       <tr>
@@ -126,7 +120,7 @@ export function ReviewChart({ weeks }: { weeks: readonly Insights.Week[] }) {
         b.value === null ? null : (
           <rect
             key={b.x}
-            className={styles['bar']}
+            className={styles.bar}
             x={b.x - width / 2}
             y={b.y}
             width={width}
@@ -136,7 +130,7 @@ export function ReviewChart({ weeks }: { weeks: readonly Insights.Week[] }) {
         ),
       )}
       <line
-        className={styles['axis']}
+        className={styles.axis}
         x1={PLOT.left}
         x2={PLOT.width - PLOT.right}
         y1={base}
@@ -165,12 +159,12 @@ export function FlakyChart({ weeks }: { weeks: readonly Insights.Week[] }) {
         />
       }
     >
-      {points.length > 1 ? <path className={styles['line']} d={path} /> : null}
+      {points.length > 1 ? <path className={styles.line} d={path} /> : null}
       {points.map((p) => (
-        <circle key={p.x} className={styles['dot']} cx={p.x} cy={p.y} r={3.5} />
+        <circle key={p.x} className={styles.dot} cx={p.x} cy={p.y} r={3.5} />
       ))}
       <line
-        className={styles['axis']}
+        className={styles.axis}
         x1={PLOT.left}
         x2={PLOT.width - PLOT.right}
         y1={base}

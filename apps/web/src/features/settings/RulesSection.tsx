@@ -41,7 +41,7 @@ export function RulesSection(props: RulesSection.Props) {
   const failure = actions.create.error ?? actions.update.error ?? actions.remove.error
 
   return (
-    <section className={styles['section']}>
+    <section className={styles.section}>
       <SectionHeader
         title="Review rules"
         description="When a build has a screenshot or a name that matches, these people are asked to review it. Use * within a name and ** across folders."
@@ -57,7 +57,7 @@ export function RulesSection(props: RulesSection.Props) {
           Without rules, nobody is asked to review automatically.
         </EmptyState>
       ) : null}
-      <ul className={styles['list']} aria-label="Review rules">
+      <ul className={styles.list} aria-label="Review rules">
         {props.rules.map((rule) =>
           editing?.id === rule.id ? (
             <li key={rule.id}>
@@ -69,7 +69,7 @@ export function RulesSection(props: RulesSection.Props) {
                 density="two-line"
                 trailing={
                   props.canManage ? (
-                    <div className={styles['actions']}>
+                    <div className={styles.actions}>
                       <Button
                         aria-label={`Edit rule ${rule.pattern}`}
                         onClick={() => setEditing({ id: rule.id, draft: draftOf(rule) })}
@@ -86,7 +86,7 @@ export function RulesSection(props: RulesSection.Props) {
                   ) : undefined
                 }
               >
-                <div className={styles['who']}>
+                <div className={styles.who}>
                   <Text variant="mono" truncate>
                     {rule.pattern}
                   </Text>
@@ -157,7 +157,7 @@ function RuleEditor(props: RuleEditor.Props) {
   const { draft } = props
   return (
     <form
-      className={styles['editor']}
+      className={styles.editor}
       noValidate
       aria-label="Rule"
       onSubmit={(e) => {
@@ -206,7 +206,7 @@ function RuleEditor(props: RuleEditor.Props) {
       {touched && problem && draft.reviewerIds.length === 0 ? (
         <Banner tone="danger">{problem}</Banner>
       ) : null}
-      <div className={styles['actions']}>
+      <div className={styles.actions}>
         <Button type="submit" variant="primary" loading={props.saving} disabled={!props.dirty}>
           {props.saving ? 'Saving…' : 'Save rule'}
         </Button>

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { Heading } from '../src/index.ts'
+import { Heading } from '#src/index.ts'
 
 describe('Heading', () => {
   it('maps each level to a heading element and size', async () => {

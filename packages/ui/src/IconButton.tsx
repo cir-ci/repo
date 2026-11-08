@@ -11,12 +11,7 @@ import styles from './IconButton.module.css'
  */
 export function IconButton({ label, children, className, ...rest }: IconButton.Props) {
   return (
-    <BaseButton
-      type="button"
-      {...rest}
-      aria-label={label}
-      className={cx(styles['root'], className)}
-    >
+    <BaseButton type="button" {...rest} aria-label={label} className={cx(styles.root, className)}>
       {children}
     </BaseButton>
   )

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { type ColorScheme, palettes, tokens, tokenVariables } from '../src/index.ts'
+import { type ColorScheme, palettes, tokens, tokenVariables } from '#src/index.ts'
+
 import canvas from './canvas-palette.json' with { type: 'json' }
 
 /** WCAG 2 relative luminance of a `#rrggbb` colour. */

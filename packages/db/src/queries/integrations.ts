@@ -1,8 +1,8 @@
 import { groupOfKind, INTEGRATION_GROUPS, type IntegrationGroup } from '@circi/core'
 
-import type { Database } from '../client.ts'
-import { listGitConnections } from '../repositories/git.ts'
-import { listIntegrations } from '../repositories/integrations.ts'
+import { listGitConnections } from '#repositories/git.ts'
+import { listIntegrations } from '#repositories/integrations.ts'
+import type { Database } from '#src/client.ts'
 
 /** One row of the organisation's Integrations page: a git connection or another integration. */
 export interface IntegrationItem {

@@ -1,7 +1,7 @@
 import type { Insights } from '@circi/api'
 import { queryOptions } from '@tanstack/react-query'
 
-import { getJson, seg } from '../../lib/http.ts'
+import { getJson, seg } from '#lib/http.ts'
 
 export const RANGES = [7, 30, 90] as const
 export type RangeDays = (typeof RANGES)[number]

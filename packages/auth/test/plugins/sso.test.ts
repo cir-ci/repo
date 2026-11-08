@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { socialProviders, ssoPlugins } from '../../src/plugins/sso.ts'
-import type { SsoProvider } from '../../src/sso/sso.ts'
+import { socialProviders, ssoPlugins } from '#plugins/sso.ts'
+import type { SsoProvider } from '#sso/sso.ts'
 
 const provider = (id: SsoProvider['id'], issuer?: string): SsoProvider => ({
   id,

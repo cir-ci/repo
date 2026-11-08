@@ -10,10 +10,11 @@ import {
 import { Outlet, useRouterState } from '@tanstack/react-router'
 import { lazy, type ReactNode, Suspense, useEffect, useState } from 'react'
 
-import { InvitationBanner } from '../features/auth/InvitationBanner.tsx'
-import { AddressChangeBanner } from '../features/instance/AddressChangeBanner.tsx'
-import { authClient, type SessionUser } from '../lib/auth-client.ts'
-import { RouterLink } from '../lib/router-link.ts'
+import { InvitationBanner } from '#features/auth/InvitationBanner.tsx'
+import { AddressChangeBanner } from '#features/instance/AddressChangeBanner.tsx'
+import { authClient, type SessionUser } from '#lib/auth-client.ts'
+import { RouterLink } from '#lib/router-link.ts'
+
 import { SettingsLayout } from './SettingsLayout.tsx'
 import { currentSection, isOutsideFrame, isSettingsSection, sectionLabel } from './shell-model.ts'
 import { ShortcutLayer } from './ShortcutLayer.tsx'
@@ -23,7 +24,7 @@ import styles from './Shell.module.css'
 
 // Only people who aren't signed in need the sign-in form, so it's its own chunk.
 const LoginPage = lazy(() =>
-  import('../features/auth/LoginPage.tsx').then((m) => ({ default: m.LoginPage })),
+  import('#features/auth/LoginPage.tsx').then((m) => ({ default: m.LoginPage })),
 )
 
 /** The width below which the sidebar becomes a drawer: `AppFrame`'s stacking breakpoint. */
@@ -46,7 +47,7 @@ export function Shell() {
     content = (
       <PlainFrame>
         <Delayed>
-          <div className={styles['centered']}>Checking your session…</div>
+          <div className={styles.centered}>Checking your session…</div>
         </Delayed>
       </PlainFrame>
     )
@@ -88,14 +89,14 @@ function Notices({ email }: { email: string }) {
 /** The ground and the logo for pages that live outside the sidebar frame. */
 function PlainFrame({ children }: { children: ReactNode }) {
   return (
-    <div className={styles['plain']}>
-      <header className={styles['plainBar']}>
-        <RouterLink to="/" className={styles['logo']} aria-label="CirCI home">
-          <span className={styles['mark']} aria-hidden="true" />
+    <div className={styles.plain}>
+      <header className={styles.plainBar}>
+        <RouterLink to="/" className={styles.logo} aria-label="CirCI home">
+          <span className={styles.mark} aria-hidden="true" />
           CirCI
         </RouterLink>
       </header>
-      <main id="content" tabIndex={-1} className={styles['main']}>
+      <main id="content" tabIndex={-1} className={styles.main}>
         {children}
       </main>
     </div>
@@ -125,11 +126,11 @@ function SignedInFrame({ user }: { user: SessionUser }) {
       <AppFrame
         sidebar={<Sidebar user={user} />}
         compactBar={
-          <div className={styles['bar']}>
+          <div className={styles.bar}>
             <IconButton label="Open navigation" onClick={() => setDrawerOpen(true)}>
               <MenuIcon />
             </IconButton>
-            <span className={styles['barTitle']}>{sectionLabel(section) ?? 'CirCI'}</span>
+            <span className={styles.barTitle}>{sectionLabel(section) ?? 'CirCI'}</span>
           </div>
         }
       >
@@ -143,7 +144,7 @@ function SignedInFrame({ user }: { user: SessionUser }) {
         )}
       </AppFrame>
       <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} title="Navigation">
-        <nav aria-label="Main" className={styles['drawerNav']}>
+        <nav aria-label="Main" className={styles.drawerNav}>
           <Sidebar user={user} />
         </nav>
       </Drawer>

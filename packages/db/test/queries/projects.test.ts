@@ -1,7 +1,7 @@
 import { addTestMember, createTestDb, seedProject, seedUser, type TestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { listProjectsOverview } from '../../src/index.ts'
+import { listProjectsOverview } from '#src/index.ts'
 
 let t: TestDb
 

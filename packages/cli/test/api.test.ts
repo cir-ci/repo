@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { ApiClient, ApiError, type UploadInstruction } from '../src/api.ts'
+import { ApiClient, ApiError, type UploadInstruction } from '#src/api.ts'
+
 import { FakeCirci } from './support/fake-circi.ts'
 
 const fake = new FakeCirci({ servedCommit: 'abc123', failUploads: 1 })

@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
-import { capabilitiesQuery, projectsQuery } from '../features/projects/api.ts'
+import { capabilitiesQuery, projectsQuery } from '#features/projects/api.ts'
+
 import { NavLink } from './NavLink.tsx'
 import { listOrgs, pickOrg, readRememberedOrg } from './shell-model.ts'
 
@@ -23,8 +24,8 @@ export function SettingsLayout({ children }: SettingsLayout.Props) {
   const project = params.project
 
   return (
-    <div className={styles['root']}>
-      <nav aria-label="Settings" className={styles['nav']}>
+    <div className={styles.root}>
+      <nav aria-label="Settings" className={styles.nav}>
         <NavSection label="Account">
           <NavLink to="/account">Profile</NavLink>
           <NavLink to="/account/notifications">Notifications</NavLink>
@@ -57,7 +58,7 @@ export function SettingsLayout({ children }: SettingsLayout.Props) {
           </NavSection>
         ) : null}
       </nav>
-      <div className={styles['page']}>{children}</div>
+      <div className={styles.page}>{children}</div>
     </div>
   )
 }

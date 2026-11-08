@@ -2,7 +2,7 @@ import { resolve } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { webDistPath } from '../../src/lifecycle/services.ts'
+import { webDistPath } from '#lifecycle/services.ts'
 
 const saved = process.env.CIRCI_WEB_DIST
 afterEach(() => {

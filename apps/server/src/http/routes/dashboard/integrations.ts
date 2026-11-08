@@ -16,9 +16,9 @@ import { isConnectionRevoked } from '@circi/providers'
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
-import type { DashboardDeps } from '../../lib/deps.ts'
-import { loadOrg } from '../../lib/org-access.ts'
-import { parse } from '../../lib/validation.ts'
+import type { DashboardDeps } from '#http/lib/deps.ts'
+import { loadOrg } from '#http/lib/org-access.ts'
+import { parse } from '#http/lib/validation.ts'
 
 const idParams = z.object({ org: z.string(), id: z.uuid() })
 const removeParams = idParams.extend({ source: z.enum(['connection', 'integration']) })

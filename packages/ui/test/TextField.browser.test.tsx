@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
 
-import { TextField } from '../src/index.ts'
+import { TextField } from '#src/index.ts'
 
 describe('TextField', () => {
   it('names the input by its label and passes input props through', async () => {

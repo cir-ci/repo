@@ -1,9 +1,9 @@
 import { type BuildFilterValues, ValidationError } from '@circi/core'
 import { and, asc, eq, sql } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { ConflictError, isUniqueViolation, NotFoundError } from '../errors.ts'
-import { projects, savedViews, userPinnedProjects } from '../schema/index.ts'
+import { projects, savedViews, userPinnedProjects } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+import { ConflictError, isUniqueViolation, NotFoundError } from '#src/errors.ts'
 
 /**
  * Saved views and pinned projects: a person's own sidebar. Every function takes the owner and

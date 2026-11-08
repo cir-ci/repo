@@ -14,7 +14,7 @@ export function SkipLink({
   children = 'Skip to content',
 }: SkipLink.Props) {
   return (
-    <a href={href} className={cx(styles['root'], className)}>
+    <a href={href} className={cx(styles.root, className)}>
       {children}
     </a>
   )

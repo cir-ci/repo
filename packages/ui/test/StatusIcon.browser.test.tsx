@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { STATUS_LABEL, type Status, StatusIcon } from '../src/index.ts'
+import { STATUS_LABEL, type Status, StatusIcon } from '#src/index.ts'
 
 const STATUSES: Status[] = [
   'approved',

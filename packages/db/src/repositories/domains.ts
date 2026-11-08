@@ -4,9 +4,9 @@ import { resolveTxt } from 'node:dns/promises'
 import { ValidationError } from '@circi/core'
 import { and, asc, eq, isNotNull } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { ConflictError, isUniqueViolation, NotFoundError } from '../errors.ts'
-import { orgDomains } from '../schema/index.ts'
+import { orgDomains } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+import { ConflictError, isUniqueViolation, NotFoundError } from '#src/errors.ts'
 
 /** Email domains an organization claims, and the DNS proof that makes a claim count (PLAN §7.8). */
 

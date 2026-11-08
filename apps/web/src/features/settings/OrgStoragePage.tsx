@@ -2,7 +2,8 @@ import { EmptyState, ListRow, SectionHeader, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 
-import { useDocumentTitle } from '../../lib/document-title.ts'
+import { useDocumentTitle } from '#lib/document-title.ts'
+
 import { formatBytes, storageQuery, storageRows } from './api.ts'
 import { Frame } from './Frame.tsx'
 
@@ -29,7 +30,7 @@ export function OrgStoragePage() {
     >
       {data ? (
         <>
-          <section className={styles['section']}>
+          <section className={styles.section}>
             <SectionHeader
               title="Storage"
               description={`${formatBytes(data.storage.totalBytes)} in total. Files shared between builds are counted once per project.`}
@@ -39,19 +40,19 @@ export function OrgStoragePage() {
                 Upload a build to see its size here.
               </EmptyState>
             ) : (
-              <ul className={styles['list']} aria-label="Storage by project">
+              <ul className={styles.list} aria-label="Storage by project">
                 {rows.map((p) => (
                   <li key={p.slug}>
                     <ListRow density="two-line">
-                      <div className={styles['who']}>
-                        <div className={styles['row']}>
+                      <div className={styles.who}>
+                        <div className={styles.row}>
                           <Link to="/$org/$project/settings" params={{ org, project: p.slug }}>
                             {p.name}
                           </Link>
                           <Text>{formatBytes(p.bytes)}</Text>
                         </div>
                         <div
-                          className={styles['bar']}
+                          className={styles.bar}
                           style={{ width: `${Math.max(p.share * 100, 1)}%` }}
                         />
                       </div>
@@ -61,7 +62,7 @@ export function OrgStoragePage() {
               </ul>
             )}
           </section>
-          <section className={styles['section']}>
+          <section className={styles.section}>
             <SectionHeader title="Retention" />
             <Text tone="secondary">
               How long builds are kept is set per project: open a project’s settings and change

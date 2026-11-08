@@ -2,7 +2,7 @@ import { createTestDb, seedUser, type TestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { countUsers, isInstanceAdmin, schema } from '../../src/index.ts'
+import { countUsers, isInstanceAdmin, schema } from '#src/index.ts'
 
 let t: TestDb
 beforeAll(async () => {

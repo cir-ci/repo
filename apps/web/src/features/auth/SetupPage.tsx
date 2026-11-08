@@ -1,8 +1,9 @@
 import { Banner, Button, TextField } from '@circi/ui'
 import { useState, type FormEvent } from 'react'
 
-import { authClient } from '../../lib/auth-client.ts'
-import { useDocumentTitle } from '../../lib/document-title.ts'
+import { authClient } from '#lib/auth-client.ts'
+import { useDocumentTitle } from '#lib/document-title.ts'
+
 import { submitSetup } from './api.ts'
 import { AuthPanel } from './AuthPanel.tsx'
 import { text } from './login-helpers.ts'
@@ -47,7 +48,7 @@ export function SetupPage() {
       title="Set up CirCI"
       description="Create the first account, which becomes the instance admin, and its organization."
     >
-      <form className={styles['form']} onSubmit={(e) => void submit(e)} noValidate>
+      <form className={styles.form} onSubmit={(e) => void submit(e)} noValidate>
         {error ? <Banner tone="danger">{error}</Banner> : null}
         <TextField
           name="code"
@@ -68,7 +69,7 @@ export function SetupPage() {
           description="At least 12 characters."
         />
         <TextField name="organizationName" label="Organization name" required />
-        <Button type="submit" variant="primary" loading={busy} className={styles['block']}>
+        <Button type="submit" variant="primary" loading={busy} className={styles.block}>
           {busy ? 'Setting up…' : 'Create account'}
         </Button>
       </form>

@@ -2,15 +2,21 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 // The auth client is the edge to better-auth: a fake signs Ada in.
-vi.mock('../../../src/lib/auth-client.ts', () => ({
+vi.mock('#lib/auth-client.ts', () => ({
   authClient: {
     useSession: () => ({ data: { user: { id: 'u1', name: 'Ada Lovelace' } }, isPending: false }),
   },
 }))
 
-import { TriagePage } from '../../../src/features/triage/TriagePage.tsx'
-import { renderPage } from '../../support/render.tsx'
-import { fakeApi, fakeFetch, pending, type ReplyHandler, restoreFetch } from '../fetch-routes.ts'
+import { TriagePage } from '#features/triage/TriagePage.tsx'
+import {
+  fakeApi,
+  fakeFetch,
+  pending,
+  type ReplyHandler,
+  restoreFetch,
+} from '#test/features/fetch-routes.ts'
+import { renderPage } from '#test/support/render.tsx'
 
 afterEach(() => restoreFetch())
 

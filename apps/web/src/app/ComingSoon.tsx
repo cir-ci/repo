@@ -1,6 +1,6 @@
 import { Breadcrumbs, EmptyState, PanelHeader } from '@circi/ui'
 
-import { useDocumentTitle } from '../lib/document-title.ts'
+import { useDocumentTitle } from '#lib/document-title.ts'
 
 /**
  * Stands in for a page that is planned but not built (docs/next-steps-plan.md, Phase C). The

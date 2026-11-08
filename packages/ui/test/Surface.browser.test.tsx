@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { CirciTheme, Surface } from '../src/index.ts'
+import { CirciTheme, Surface } from '#src/index.ts'
 
 describe('Surface', () => {
   it('is a panel with a 1px hairline by default', async () => {

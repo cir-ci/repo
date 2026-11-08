@@ -5,8 +5,8 @@ import type { GithubApp, ProviderRegistry } from '@circi/providers'
 import type { StorageDriver } from '@circi/storage'
 import type { Logger } from 'pino'
 
-import type { ServerOptions } from '../http/app.ts'
-import type { SitesDeps } from '../http/lib/deps.ts'
+import type { ServerOptions } from '#http/app.ts'
+import type { SitesDeps } from '#http/lib/deps.ts'
 
 /** What `serverOptionsFor` needs from the runtime. */
 export interface ServerRuntime {

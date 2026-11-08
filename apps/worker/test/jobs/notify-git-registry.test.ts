@@ -6,7 +6,7 @@ import { createTestDb, seedProject, type TestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { notifyGit } from '../../src/jobs/notify-git.ts'
+import { notifyGit } from '#jobs/notify-git.ts'
 
 let t: TestDb
 beforeAll(async () => {

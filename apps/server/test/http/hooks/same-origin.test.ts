@@ -1,7 +1,7 @@
 import Fastify from 'fastify'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { requireSameOrigin } from '../../../src/http/hooks/same-origin.ts'
+import { requireSameOrigin } from '#http/hooks/same-origin.ts'
 
 const ORIGIN = 'https://ci.acme.io'
 const app = Fastify()

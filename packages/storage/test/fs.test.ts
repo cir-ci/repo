@@ -13,7 +13,7 @@ import {
   FsStorage,
   InvalidKeyError,
   ObjectNotFoundError,
-} from '../src/index.ts'
+} from '#src/index.ts'
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex')
 

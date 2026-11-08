@@ -14,13 +14,14 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
-import { useDocumentTitle } from '../../lib/document-title.ts'
-import { ErrorState } from '../../lib/ErrorState.tsx'
-import { RelativeTime } from '../../lib/RelativeTime.tsx'
-import { useClientLink } from '../../lib/use-client-link.ts'
-import { useListNavigation } from '../../lib/use-list-navigation.ts'
-import { fileUrl } from '../builds/api.ts'
-import { useLoadingAnnouncement } from '../projects/loading.ts'
+import { fileUrl } from '#features/builds/api.ts'
+import { useLoadingAnnouncement } from '#features/projects/loading.ts'
+import { useDocumentTitle } from '#lib/document-title.ts'
+import { ErrorState } from '#lib/ErrorState.tsx'
+import { RelativeTime } from '#lib/RelativeTime.tsx'
+import { useClientLink } from '#lib/use-client-link.ts'
+import { useListNavigation } from '#lib/use-list-navigation.ts'
+
 import {
   baselineId,
   baselinesQuery,
@@ -33,7 +34,7 @@ import {
 } from './api.ts'
 import { ROUTE } from './routes.ts'
 
-import listStyles from '../../lib/ListPage.module.css'
+import listStyles from '#lib/ListPage.module.css'
 import styles from './BaselinesPage.module.css'
 
 export function BaselinesPage() {
@@ -81,7 +82,7 @@ export function BaselinesPage() {
                   {countLabel(items.length, all.length)} on {data.project.defaultBranch}
                 </span>
                 <TextField
-                  className={styles['filter']}
+                  className={styles.filter}
                   label="Filter"
                   placeholder="Name, build or commit"
                   value={filter}
@@ -93,10 +94,10 @@ export function BaselinesPage() {
                   Nothing matches “{filter.trim()}”.
                 </EmptyState>
               ) : (
-                <div className={styles['groups']} ref={listRef}>
+                <div className={styles.groups} ref={listRef}>
                   {groups.map((group) => (
                     <section key={group.buildName} aria-labelledby={`baselines-${group.buildName}`}>
-                      <h2 className={styles['groupHeader']} id={`baselines-${group.buildName}`}>
+                      <h2 className={styles.groupHeader} id={`baselines-${group.buildName}`}>
                         {group.buildName}
                       </h2>
                       <ul
@@ -115,7 +116,7 @@ export function BaselinesPage() {
                               leading={
                                 item.thumbnailSha256 || item.fileSha256 ? (
                                   <img
-                                    className={styles['thumb']}
+                                    className={styles.thumb}
                                     src={fileUrl(item.thumbnailSha256 ?? item.fileSha256)}
                                     alt=""
                                     loading="lazy"

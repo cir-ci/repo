@@ -12,9 +12,10 @@ import {
 import { useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import { useState } from 'react'
 
-import { UserMenu } from '../features/auth/UserMenu.tsx'
-import { useSidebarModel } from '../features/sidebar/api.ts'
-import type { SessionUser } from '../lib/auth-client.ts'
+import { UserMenu } from '#features/auth/UserMenu.tsx'
+import { useSidebarModel } from '#features/sidebar/api.ts'
+import type { SessionUser } from '#lib/auth-client.ts'
+
 import { NavLink } from './NavLink.tsx'
 import { OrgSwitcher } from './OrgSwitcher.tsx'
 import {
@@ -138,7 +139,7 @@ export function Sidebar({ user }: Sidebar.Props) {
           ) : null}
         </NavSection>
       ) : null}
-      <div className={styles['footer']}>
+      <div className={styles.footer}>
         <UserMenu user={user} />
       </div>
     </>

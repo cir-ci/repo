@@ -2,9 +2,9 @@ import { AnnouncerProvider } from '@circi/ui'
 import { afterEach, describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
-import { EmailDomains } from '../../../src/features/members/EmailDomains.tsx'
-import { renderPage } from '../../support/render.tsx'
-import { fakeFetch, pending as hang, restoreFetch } from '../fetch-routes.ts'
+import { EmailDomains } from '#features/members/EmailDomains.tsx'
+import { fakeFetch, pending as hang, restoreFetch } from '#test/features/fetch-routes.ts'
+import { renderPage } from '#test/support/render.tsx'
 
 const BASE = '/api/organizations/acme/domains'
 const verified = { id: 'd1', domain: 'acme.test', verified: true }

@@ -1,7 +1,7 @@
 import type { Inbox, Insights, ReviewRule, ReviewRuleKind, Triage } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { getJson, post, send, seg } from '../../lib/http.ts'
+import { getJson, post, send, seg } from '#lib/http.ts'
 
 // ---- Review rules -----------------------------------------------------------------------------
 

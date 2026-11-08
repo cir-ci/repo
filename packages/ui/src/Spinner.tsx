@@ -14,7 +14,7 @@ export function Spinner({ size = 16, label, className }: Spinner.Props) {
       aria-label={label}
       aria-hidden={label ? undefined : true}
       data-size={size}
-      className={cx(styles['root'], className)}
+      className={cx(styles.root, className)}
     />
   )
 }

@@ -2,8 +2,8 @@ import type { Build } from '@circi/api'
 import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it } from 'vitest'
 
-import { buildQuery, fileUrl, isActive } from '../../../src/features/builds/api.ts'
-import { projectQuery } from '../../../src/features/projects/api.ts'
+import { buildQuery, fileUrl, isActive } from '#features/builds/api.ts'
+import { projectQuery } from '#features/projects/api.ts'
 
 const interval = (options: { refetchInterval?: unknown }, data: unknown) => {
   const fn = options.refetchInterval

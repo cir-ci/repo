@@ -2,7 +2,7 @@ import { schema } from '@circi/db'
 import { createTestDb, seedOrg, seedUser, type TestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { type Auth, createAuth, type Mail } from '../../src/index.ts'
+import { type Auth, createAuth, type Mail } from '#src/index.ts'
 
 let t: TestDb
 let auth: Auth

@@ -1,7 +1,7 @@
 import { signWebhook } from '@circi/core'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { startWebhookReceiver, type WebhookReceiver } from '../../src/fakes/webhook-receiver.ts'
+import { startWebhookReceiver, type WebhookReceiver } from '#fakes/webhook-receiver.ts'
 
 let receiver: WebhookReceiver | undefined
 afterEach(async () => {

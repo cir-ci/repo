@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { isLocalAddress, parsePublicAddress } from '../src/public-url.ts'
+import { isLocalAddress, parsePublicAddress } from '#src/public-url.ts'
 
 describe('parsePublicAddress', () => {
   it('normalises the origin and host', () => {

@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto'
 
 import { and, count, eq, gt, lt } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { emailCodeRequests, knownDevices } from '../schema/index.ts'
+import { emailCodeRequests, knownDevices } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
 
 /** Abuse limits and "new sign-in" tracking around email login (PLAN §7.8). */
 

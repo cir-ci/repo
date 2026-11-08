@@ -11,7 +11,7 @@ import {
   NotFoundError,
   recordReview,
   schema,
-} from '../../src/index.ts'
+} from '#src/index.ts'
 
 let t: TestDb
 

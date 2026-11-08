@@ -19,10 +19,10 @@ const InGroup = createContext(false)
 export function Checkbox({ label, description, className, ...rest }: Checkbox.Props) {
   const inGroup = useContext(InGroup)
   const item = (
-    <div className={cx(styles['root'], className)}>
-      <Field.Label className={styles['row']}>
-        <BaseCheckbox.Root {...rest} className={styles['box']}>
-          <BaseCheckbox.Indicator className={styles['indicator']} keepMounted={false}>
+    <div className={cx(styles.root, className)}>
+      <Field.Label className={styles.row}>
+        <BaseCheckbox.Root {...rest} className={styles.box}>
+          <BaseCheckbox.Indicator className={styles.indicator} keepMounted={false}>
             {rest.indeterminate ? (
               <MinusIcon size={12} strokeWidth={3} />
             ) : (
@@ -33,7 +33,7 @@ export function Checkbox({ label, description, className, ...rest }: Checkbox.Pr
         {label}
       </Field.Label>
       {description ? (
-        <Field.Description className={styles['description']}>{description}</Field.Description>
+        <Field.Description className={styles.description}>{description}</Field.Description>
       ) : null}
     </div>
   )
@@ -74,9 +74,9 @@ export function CheckboxGroup({
               onValueChange={(next) => onValueChange?.(next)}
             />
           }
-          className={cx(styles['group'], className)}
+          className={cx(styles.group, className)}
         >
-          <Fieldset.Legend className={styles['legend']}>{legend}</Fieldset.Legend>
+          <Fieldset.Legend className={styles.legend}>{legend}</Fieldset.Legend>
           {children}
         </Fieldset.Root>
       </Field.Root>

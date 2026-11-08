@@ -2,8 +2,9 @@ import { Banner, Delayed, ListSkeleton, PanelHeader } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
-import { useDocumentTitle } from '../../lib/document-title.ts'
-import { ErrorState } from '../../lib/ErrorState.tsx'
+import { useDocumentTitle } from '#lib/document-title.ts'
+import { ErrorState } from '#lib/ErrorState.tsx'
+
 import { projectsQuery, settingsQuery } from './api.ts'
 import { CiToken } from './CiTokenSection.tsx'
 import { GitAttentionBanner } from './GitAttentionBanner.tsx'
@@ -39,7 +40,7 @@ export function ProjectSettingsPage() {
           ]}
         />
       </PanelHeader>
-      <div className={styles['content']}>
+      <div className={styles.content}>
         {error ? (
           <ErrorState
             error={error}

@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
-import { AddIntegrationDialog } from '../../../src/features/integrations/AddIntegrationDialog.tsx'
-import { GithubIntegrationPage } from '../../../src/features/integrations/GithubIntegrationPage.tsx'
-import { IntegrationsPage } from '../../../src/features/integrations/IntegrationsPage.tsx'
-import { renderPage } from '../../support/render.tsx'
-import { fakeApi, restoreFetch } from '../fetch-routes.ts'
+import { AddIntegrationDialog } from '#features/integrations/AddIntegrationDialog.tsx'
+import { GithubIntegrationPage } from '#features/integrations/GithubIntegrationPage.tsx'
+import { IntegrationsPage } from '#features/integrations/IntegrationsPage.tsx'
+import { fakeApi, restoreFetch } from '#test/features/fetch-routes.ts'
+import { renderPage } from '#test/support/render.tsx'
+
 import { CATALOG, item } from './fixtures.ts'
 
 afterEach(() => restoreFetch())

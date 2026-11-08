@@ -7,7 +7,7 @@ import {
   COLOR_SCHEME_ATTRIBUTE,
   ColorSchemeControl,
   MODE_STORAGE_KEY,
-} from '../src/index.ts'
+} from '#src/index.ts'
 
 /** A `matchMedia` whose `(prefers-color-scheme: light)` answer the test controls. */
 function fakeSystem(initial: 'light' | 'dark') {

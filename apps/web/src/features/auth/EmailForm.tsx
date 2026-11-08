@@ -1,7 +1,8 @@
 import { Banner, Button, TextField } from '@circi/ui'
 import { useState, type FormEvent } from 'react'
 
-import { authClient } from '../../lib/auth-client.ts'
+import { authClient } from '#lib/auth-client.ts'
+
 import { clearLink, describeCodeFailure, describeFailure, text } from './login-helpers.ts'
 
 import styles from './AuthForms.module.css'
@@ -44,7 +45,7 @@ export function EmailForm({ initial, invitedEmail, onBack }: EmailForm.Props) {
 
   if (!sent) {
     return (
-      <form className={styles['form']} onSubmit={(e) => void request(e)} noValidate>
+      <form className={styles.form} onSubmit={(e) => void request(e)} noValidate>
         {error ? <Banner tone="danger">{error}</Banner> : null}
         <TextField
           name="email"
@@ -55,11 +56,11 @@ export function EmailForm({ initial, invitedEmail, onBack }: EmailForm.Props) {
           autoFocus
           required
         />
-        <Button type="submit" variant="primary" loading={busy} className={styles['block']}>
+        <Button type="submit" variant="primary" loading={busy} className={styles.block}>
           {busy ? 'Sending…' : 'Email me a code'}
         </Button>
         {onBack ? (
-          <Button variant="ghost" className={styles['center']} onClick={onBack}>
+          <Button variant="ghost" className={styles.center} onClick={onBack}>
             Use a password instead
           </Button>
         ) : null}
@@ -68,7 +69,7 @@ export function EmailForm({ initial, invitedEmail, onBack }: EmailForm.Props) {
   }
 
   return (
-    <form className={styles['form']} onSubmit={(e) => void confirm(e)} noValidate>
+    <form className={styles.form} onSubmit={(e) => void confirm(e)} noValidate>
       <Banner tone="info">
         If {email} has an account, we sent it a 6-digit code. It works for 10 minutes.
       </Banner>
@@ -83,12 +84,12 @@ export function EmailForm({ initial, invitedEmail, onBack }: EmailForm.Props) {
         inputMode="numeric"
         pattern="[0-9 ]*"
       />
-      <Button type="submit" variant="primary" loading={busy} className={styles['block']}>
+      <Button type="submit" variant="primary" loading={busy} className={styles.block}>
         {busy ? 'Signing in…' : 'Sign in'}
       </Button>
       <Button
         variant="ghost"
-        className={styles['center']}
+        className={styles.center}
         onClick={() => {
           clearLink()
           setSent(false)

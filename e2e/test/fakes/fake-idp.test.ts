@@ -2,7 +2,7 @@ import { createPublicKey, createVerify, type webcrypto } from 'node:crypto'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { type FakeIdp, startFakeIdp } from '../../src/fakes/fake-idp.ts'
+import { type FakeIdp, startFakeIdp } from '#fakes/fake-idp.ts'
 
 let idp: FakeIdp | undefined
 afterEach(async () => {

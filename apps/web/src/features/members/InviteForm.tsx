@@ -45,11 +45,11 @@ export function InviteForm({ organizationId, onInvited }: InviteForm.Props) {
   }
 
   return (
-    <section className={styles['root']}>
+    <section className={styles.root}>
       <SectionHeader title="Invite someone" />
-      <form onSubmit={(e) => void submit(e)} noValidate className={styles['form']}>
+      <form onSubmit={(e) => void submit(e)} noValidate className={styles.form}>
         <TextField
-          className={styles['email']}
+          className={styles.email}
           name="email"
           type="email"
           label="Email"
@@ -62,14 +62,14 @@ export function InviteForm({ organizationId, onInvited }: InviteForm.Props) {
           }}
         />
         <Select
-          className={styles['role']}
+          className={styles.role}
           name="role"
           label="Role"
           items={ROLES}
           value={role}
           onValueChange={(next) => setRole(next === 'admin' ? 'admin' : 'member')}
         />
-        <Button type="submit" variant="primary" loading={busy} className={styles['submit']}>
+        <Button type="submit" variant="primary" loading={busy} className={styles.submit}>
           {busy ? 'Sending…' : 'Send invitation'}
         </Button>
       </form>

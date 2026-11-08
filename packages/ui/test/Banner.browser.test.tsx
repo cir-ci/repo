@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { Banner, Button } from '../src/index.ts'
+import { Banner, Button } from '#src/index.ts'
 
 describe('Banner', () => {
   it('is a polite status for info, success and warning', async () => {

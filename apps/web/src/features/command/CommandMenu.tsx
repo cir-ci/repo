@@ -3,7 +3,8 @@ import { CommandDialog, Kbd, Pane, SearchIcon, Text } from '@circi/ui'
 import { useParams, useRouter, useRouterState } from '@tanstack/react-router'
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react'
 
-import { keyCaps } from '../../lib/shortcuts.ts'
+import { keyCaps } from '#lib/shortcuts.ts'
+
 import { useSearchResults } from './api.ts'
 import {
   type Entry,
@@ -111,12 +112,12 @@ export function CommandMenu({ open, onOpenChange, org, projects, views }: Comman
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange} onClosed={onClosed} label="Command menu">
-      <div className={styles['main']}>
-        <div className={styles['field']}>
+      <div className={styles.main}>
+        <div className={styles.field}>
           <SearchIcon aria-hidden="true" />
           <input
             ref={input}
-            className={styles['input']}
+            className={styles.input}
             role="combobox"
             aria-label="Search or run a command"
             aria-expanded="true"
@@ -135,10 +136,10 @@ export function CommandMenu({ open, onOpenChange, org, projects, views }: Comman
             onKeyDown={onKeyDown}
           />
         </div>
-        <div id={listId} role="listbox" aria-label="Results" className={styles['list']}>
+        <div id={listId} role="listbox" aria-label="Results" className={styles.list}>
           {groups.map(({ group, entries: items }) => (
-            <div key={group} role="group" aria-label={group} className={styles['group']}>
-              <div className={styles['heading']} aria-hidden="true">
+            <div key={group} role="group" aria-label={group} className={styles.group}>
+              <div className={styles.heading} aria-hidden="true">
                 {group}
               </div>
               {items.map((entry) => {
@@ -151,14 +152,14 @@ export function CommandMenu({ open, onOpenChange, org, projects, views }: Comman
                     id={optionId(i)}
                     role="option"
                     aria-selected={i === current}
-                    className={styles['option']}
+                    className={styles.option}
                     onMouseMove={() => i !== current && setActive(i)}
                     onClick={() => choose(entry)}
                   >
-                    <span className={styles['label']}>{entry.label}</span>
-                    {entry.detail ? <span className={styles['detail']}>{entry.detail}</span> : null}
+                    <span className={styles.label}>{entry.label}</span>
+                    {entry.detail ? <span className={styles.detail}>{entry.detail}</span> : null}
                     {entry.hint ? (
-                      <span className={styles['caps']}>
+                      <span className={styles.caps}>
                         {keyCaps(entry.hint).map((cap) => (
                           <Kbd key={cap}>{cap}</Kbd>
                         ))}
@@ -170,7 +171,7 @@ export function CommandMenu({ open, onOpenChange, org, projects, views }: Comman
             </div>
           ))}
         </div>
-        <div role="status" className={styles['status']}>
+        <div role="status" className={styles.status}>
           {flat.length === 0 && q !== ''
             ? failed
               ? 'Search failed. Try again.'
@@ -179,7 +180,7 @@ export function CommandMenu({ open, onOpenChange, org, projects, views }: Comman
                 : `No results for “${q}”`
             : null}
         </div>
-        <footer className={styles['footer']}>
+        <footer className={styles.footer}>
           <Text variant="micro" tone="tertiary">
             <Kbd>↑</Kbd> <Kbd>↓</Kbd> move · <Kbd>↵</Kbd> open · <Kbd>→</Kbd> quick look ·{' '}
             <Kbd>Esc</Kbd> close
@@ -187,8 +188,8 @@ export function CommandMenu({ open, onOpenChange, org, projects, views }: Comman
         </footer>
       </div>
       {preview ? (
-        <Pane label="Quick look" context={preview.title} width="sm" className={styles['pane']}>
-          <dl className={styles['rows']}>
+        <Pane label="Quick look" context={preview.title} width="sm" className={styles.pane}>
+          <dl className={styles.rows}>
             {preview.rows.map((row) => (
               <div key={row.label}>
                 <dt>{row.label}</dt>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { pairScreenshots } from '../src/index.ts'
+import { pairScreenshots } from '#src/index.ts'
 
 const s = (id: string, name: string, fileSha256: string) => ({ id, name, fileSha256 })
 

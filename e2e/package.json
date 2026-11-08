@@ -4,6 +4,10 @@
   "private": true,
   "description": "End-to-end tests against the real Docker stack (see README.md)",
   "type": "module",
+  "imports": {
+    "#fakes/*": "./src/fakes/*",
+    "#src/*": "./src/*"
+  },
   "dependencies": {
     "@aws-sdk/client-s3": "catalog:",
     "@circi/core": "workspace:*",

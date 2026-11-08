@@ -13,14 +13,14 @@ import styles from './Switch.module.css'
 export function Switch({ label, description, className, ...rest }: Switch.Props) {
   return (
     <Field.Root>
-      <div className={cx(styles['root'], className)}>
-        <Field.Label className={styles['row']}>
-          <span className={styles['text']}>
+      <div className={cx(styles.root, className)}>
+        <Field.Label className={styles.row}>
+          <span className={styles.text}>
             {label}
-            {description ? <span className={styles['description']}>{description}</span> : null}
+            {description ? <span className={styles.description}>{description}</span> : null}
           </span>
-          <BaseSwitch.Root {...rest} className={styles['track']}>
-            <BaseSwitch.Thumb className={styles['thumb']} />
+          <BaseSwitch.Root {...rest} className={styles.track}>
+            <BaseSwitch.Thumb className={styles.thumb} />
           </BaseSwitch.Root>
         </Field.Label>
       </div>

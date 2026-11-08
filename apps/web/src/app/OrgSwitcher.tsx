@@ -9,17 +9,17 @@ import styles from './OrgSwitcher.module.css'
  * of the organizations the person can see; with only one it still shows that one's name.
  */
 export function OrgSwitcher({ orgs, current, onSelect }: OrgSwitcher.Props) {
-  if (!current) return <div className={styles['brand']}>CirCI</div>
+  if (!current) return <div className={styles.brand}>CirCI</div>
   return (
     <Menu
       trigger={
         <button
           type="button"
-          className={styles['trigger']}
+          className={styles.trigger}
           aria-label={`Organization: ${current.name}`}
         >
           <Avatar name={current.name} size={24} />
-          <span className={styles['name']}>{current.name}</span>
+          <span className={styles.name}>{current.name}</span>
           <ChevronsUpDownIcon />
         </button>
       }

@@ -1,7 +1,7 @@
 import { pino } from 'pino'
 import { describe, expect, it } from 'vitest'
 
-import { buildServer } from '../../../src/http/app.ts'
+import { buildServer } from '#http/app.ts'
 
 const logger = pino({ level: 'silent' })
 

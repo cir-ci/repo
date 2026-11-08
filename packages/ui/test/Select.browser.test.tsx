@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
 
-import { Select } from '../src/index.ts'
+import { Select } from '#src/index.ts'
 
 const ROLES = [
   { value: 'owner', label: 'Owner' },

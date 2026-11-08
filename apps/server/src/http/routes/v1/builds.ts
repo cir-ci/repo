@@ -12,10 +12,11 @@ import { contentKey } from '@circi/storage'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
-import { currentProject } from '../../hooks/project-token.ts'
-import type { V1Deps } from '../../lib/deps.ts'
-import { describeBuild } from '../../lib/presenters.ts'
-import { parse } from '../../lib/validation.ts'
+import { currentProject } from '#http/hooks/project-token.ts'
+import type { V1Deps } from '#http/lib/deps.ts'
+import { describeBuild } from '#http/lib/presenters.ts'
+import { parse } from '#http/lib/validation.ts'
+
 import { buildIdParams, createBuildBody, finalizeBody, JSON_BODY_LIMIT } from './schemas.ts'
 
 const statusQuery = z.object({ gate: z.enum(['status', 'exit-code']).optional() })

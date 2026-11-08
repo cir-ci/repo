@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
 
-import { Slider } from '../src/index.ts'
+import { Slider } from '#src/index.ts'
 
 describe('Slider', () => {
   it('is a slider named by its label with the range and value', async () => {

@@ -20,7 +20,7 @@ export function Badge({
   return (
     <span
       {...rest}
-      className={cx(styles['root'], className)}
+      className={cx(styles.root, className)}
       data-tone={tone}
       data-shape={shape}
       data-state={tone === 'state' ? state : undefined}

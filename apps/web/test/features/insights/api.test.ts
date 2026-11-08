@@ -6,14 +6,14 @@ import {
   formatHours,
   rangeBounds,
   validateInsightsSearch,
-} from '../../../src/features/insights/api.ts'
+} from '#features/insights/api.ts'
 import {
   flakySummary,
   labelIndexes,
   niceScale,
   reviewBars,
   storageBars,
-} from '../../../src/features/insights/chart.ts'
+} from '#features/insights/chart.ts'
 
 describe('insights search', () => {
   it('defaults to 30 days and drops junk', () => {

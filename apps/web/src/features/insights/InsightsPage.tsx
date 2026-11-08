@@ -11,10 +11,11 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 
-import { useDocumentTitle } from '../../lib/document-title.ts'
-import { ErrorState } from '../../lib/ErrorState.tsx'
-import { useLoadingAnnouncement } from '../projects/loading.ts'
-import { useSidebarModel } from '../sidebar/api.ts'
+import { useLoadingAnnouncement } from '#features/projects/loading.ts'
+import { useSidebarModel } from '#features/sidebar/api.ts'
+import { useDocumentTitle } from '#lib/document-title.ts'
+import { ErrorState } from '#lib/ErrorState.tsx'
+
 import {
   formatBytes,
   formatHours,
@@ -56,7 +57,7 @@ export function InsightsPage() {
     <>
       <PanelHeader
         actions={
-          <div className={styles['filters']}>
+          <div className={styles.filters}>
             <Select
               label="Project"
               hideLabel
@@ -77,7 +78,7 @@ export function InsightsPage() {
       >
         <Breadcrumbs items={[{ label: org }, { label: 'Insights' }]} />
       </PanelHeader>
-      <div className={styles['body']}>
+      <div className={styles.body}>
         {error ? (
           <ErrorState
             error={error}
@@ -94,18 +95,14 @@ export function InsightsPage() {
           </EmptyState>
         ) : (
           <>
-            <ul className={styles['tiles']} aria-label="Summary">
+            <ul className={styles.tiles} aria-label="Summary">
               {tiles(data, search.range).map((t) => (
-                <li key={t.id} className={styles['tile']}>
+                <li key={t.id} className={styles.tile}>
                   <Text variant="small" tone="secondary">
                     {t.title}
                   </Text>
-                  <span className={styles['value']}>{t.value}</span>
-                  <span
-                    className={styles['pill']}
-                    data-tone={t.delta.tone}
-                    aria-label={t.delta.label}
-                  >
+                  <span className={styles.value}>{t.value}</span>
+                  <span className={styles.pill} data-tone={t.delta.tone} aria-label={t.delta.label}>
                     {t.delta.text}
                   </span>
                   <Text variant="small" tone="secondary">
@@ -114,40 +111,40 @@ export function InsightsPage() {
                 </li>
               ))}
             </ul>
-            <div className={styles['grid']}>
-              <section className={styles['card']} aria-labelledby="ins-review">
+            <div className={styles.grid}>
+              <section className={styles.card} aria-labelledby="ins-review">
                 <h2 id="ins-review">Median time to review, per week</h2>
                 <ReviewChart weeks={data.weeks} />
               </section>
-              <section className={styles['card']} aria-labelledby="ins-flaky">
+              <section className={styles.card} aria-labelledby="ins-flaky">
                 <h2 id="ins-flaky">Flaky snapshots</h2>
                 <FlakyChart weeks={data.weeks} />
               </section>
-              <section className={styles['card']} aria-labelledby="ins-storage">
+              <section className={styles.card} aria-labelledby="ins-storage">
                 <h2 id="ins-storage">Storage by project</h2>
                 <Text variant="small" tone="secondary">
                   {formatBytes(data.storage.totalBytes)} total
                 </Text>
-                <ul className={styles['list']}>
+                <ul className={styles.list}>
                   {storageBars(data.storage).map((p) => (
-                    <li key={p.slug} className={styles['hbar']}>
+                    <li key={p.slug} className={styles.hbar}>
                       <span>{p.name}</span>
-                      <div className={styles['track']} aria-hidden="true">
-                        <div className={styles['fill']} style={{ width: `${p.share * 100}%` }} />
+                      <div className={styles.track} aria-hidden="true">
+                        <div className={styles.fill} style={{ width: `${p.share * 100}%` }} />
                       </div>
-                      <span className={styles['num']}>{formatBytes(p.bytes)}</span>
+                      <span className={styles.num}>{formatBytes(p.bytes)}</span>
                     </li>
                   ))}
                 </ul>
               </section>
-              <section className={styles['card']} aria-labelledby="ins-who">
+              <section className={styles.card} aria-labelledby="ins-who">
                 <h2 id="ins-who">Reviewer load</h2>
                 {data.reviewers.length === 0 ? (
                   <Text variant="small" tone="secondary">
                     No reviewers yet.
                   </Text>
                 ) : (
-                  <table className={styles['table']}>
+                  <table className={styles.table}>
                     <thead>
                       <tr>
                         <th scope="col">Reviewer</th>

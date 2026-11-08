@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { IconButton } from '../src/index.ts'
+import { IconButton } from '#src/index.ts'
 
 describe('IconButton', () => {
   it('is a button named by its label, 28×28, and calls onClick', async () => {

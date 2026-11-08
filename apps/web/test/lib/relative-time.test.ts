@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatRelative } from '../../src/lib/relative-time.ts'
+import { formatRelative } from '#lib/relative-time.ts'
 
 const NOW = Date.parse('2026-11-05T12:00:00Z')
 const ago = (seconds: number) => new Date(NOW - seconds * 1000).toISOString()

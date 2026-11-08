@@ -41,7 +41,7 @@ export function TabList<T extends string>({
     <>
       {/* The arrow keys are the tabs' own keyboard model; the buttons inside are the focus targets. */}
       {/* oxlint-disable-next-line jsx-a11y/interactive-supports-focus, jsx-a11y/no-static-element-interactions */}
-      <div role="tablist" aria-label={label} className={styles['list']} onKeyDown={onKeyDown}>
+      <div role="tablist" aria-label={label} className={styles.list} onKeyDown={onKeyDown}>
         {tabs.map((tab) => (
           <button
             key={tab.value}
@@ -51,14 +51,14 @@ export function TabList<T extends string>({
             aria-selected={tab.value === value}
             aria-controls={panelId}
             tabIndex={tab.value === value ? 0 : -1}
-            className={styles['tab']}
+            className={styles.tab}
             onClick={() => onChange(tab.value)}
           >
             {tab.label}
           </button>
         ))}
       </div>
-      <div role="tabpanel" id={panelId} aria-labelledby={tabId(value)} className={styles['panel']}>
+      <div role="tabpanel" id={panelId} aria-labelledby={tabId(value)} className={styles.panel}>
         {children}
       </div>
     </>

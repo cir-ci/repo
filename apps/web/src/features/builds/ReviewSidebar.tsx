@@ -3,7 +3,8 @@ import { Badge, Button, Kbd, Stack, StatusIcon, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { type KeyboardEvent, type Ref, useId } from 'react'
 
-import { RelativeTime } from '../../lib/RelativeTime.tsx'
+import { RelativeTime } from '#lib/RelativeTime.tsx'
+
 import { ActivityTab } from './ActivityTab.tsx'
 import { CommentsTab } from './CommentsTab.tsx'
 import { commentsQuery } from './discussion-api.ts'
@@ -48,21 +49,16 @@ export function ReviewSidebar(props: ReviewSidebar.Props) {
   }
 
   return (
-    <aside aria-label="Build discussion" className={styles['sidebar']}>
+    <aside aria-label="Build discussion" className={styles.sidebar}>
       {/* The arrow keys are the tablist's own: the wrapper only forwards them. */}
-      <div
-        role="tablist"
-        aria-label="Build sidebar"
-        className={styles['tabs']}
-        onKeyDown={onKeyDown}
-      >
+      <div role="tablist" aria-label="Build sidebar" className={styles.tabs} onKeyDown={onKeyDown}>
         {SIDEBAR_TABS.map((t) => (
           <button
             key={t}
             id={`${id}-tab-${t}`}
             type="button"
             role="tab"
-            className={styles['tab']}
+            className={styles.tab}
             aria-selected={t === tab}
             aria-controls={`${id}-panel`}
             tabIndex={t === tab ? 0 : -1}
@@ -77,7 +73,7 @@ export function ReviewSidebar(props: ReviewSidebar.Props) {
         id={`${id}-panel`}
         role="tabpanel"
         aria-labelledby={`${id}-tab-${tab}`}
-        className={styles['panel']}
+        className={styles.panel}
       >
         {tab === 'details' ? (
           <DetailsTab data={data} onRequestReview={props.onRequestReview} />
@@ -127,7 +123,7 @@ function DetailsTab({ data, onRequestReview }: DetailsTab.Props) {
   const { build, baseline, reviews } = data
   return (
     <>
-      <dl className={styles['facts']}>
+      <dl className={styles.facts}>
         <Text as="dt" variant="small" tone="secondary">
           Branch
         </Text>
@@ -171,11 +167,11 @@ function DetailsTab({ data, onRequestReview }: DetailsTab.Props) {
             Nobody has decided yet.
           </Text>
         ) : (
-          <ul className={styles['list']}>
+          <ul className={styles.list}>
             {reviews.map((r) => (
-              <li key={`${r.createdAt}-${r.state}-${r.userName}`} className={styles['event']}>
+              <li key={`${r.createdAt}-${r.state}-${r.userName}`} className={styles.event}>
                 <StatusIcon status={r.state} size={14} decorative />
-                <div className={styles['eventBody']}>
+                <div className={styles.eventBody}>
                   <Text>
                     {r.state === 'approved' ? 'Approved' : 'Rejected'}
                     {r.source === 'auto' || r.source === 'rerun'
@@ -186,7 +182,7 @@ function DetailsTab({ data, onRequestReview }: DetailsTab.Props) {
                     </Text>
                   </Text>
                   {r.reason ? (
-                    <Text variant="small" tone="secondary" as="p" className={styles['quote']}>
+                    <Text variant="small" tone="secondary" as="p" className={styles.quote}>
                       {r.reason}
                     </Text>
                   ) : null}

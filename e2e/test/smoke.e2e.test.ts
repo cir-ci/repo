@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { newAccount, signIn } from '../src/admin.ts'
-import { signInThroughUi, signOutThroughUi, submitSignIn } from '../src/browser.ts'
-import { useBrowser, useStack } from '../src/vitest.ts'
+import { newAccount, signIn } from '#src/admin.ts'
+import { signInThroughUi, signOutThroughUi, submitSignIn } from '#src/browser.ts'
+import { useBrowser, useStack } from '#src/vitest.ts'
 
 /**
  * The stack boots, and a person can claim a fresh install, sign out and sign back in: all through

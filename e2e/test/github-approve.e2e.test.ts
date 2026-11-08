@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 
-import { createUserViaCli } from '../src/admin.ts'
-import type { FakeGithub } from '../src/fakes/fake-github.ts'
+import type { FakeGithub } from '#fakes/fake-github.ts'
+import { createUserViaCli } from '#src/admin.ts'
 import {
   buildDetail,
   checkRunPayload,
@@ -12,8 +12,8 @@ import {
   type LinkedProject,
   type PrBuild,
   uploadPr,
-} from '../src/github-helpers.ts'
-import { useStack } from '../src/vitest.ts'
+} from '#src/github-helpers.ts'
+import { useStack } from '#src/vitest.ts'
 
 // Polls up to 20 s unless told otherwise (vitest's default is 1 s).
 const poll = <T>(fn: () => T | Promise<T>, options: { timeout?: number } = {}) =>

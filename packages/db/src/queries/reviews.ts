@@ -1,8 +1,7 @@
 import { isSnoozed, overdueBy } from '@circi/core'
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, not, or, sql } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { orgAccepts, type SessionMethod } from '../repositories/auth-settings.ts'
+import { orgAccepts, type SessionMethod } from '#repositories/auth-settings.ts'
 import {
   builds,
   member,
@@ -12,8 +11,9 @@ import {
   reviewRequests,
   type SnoozeKind,
   user,
-} from '../schema/index.ts'
-import type { Build } from '../types.ts'
+} from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+import type { Build } from '#src/types.ts'
 
 /**
  * The review requests a person sees on the Reviews page, across the organizations they belong

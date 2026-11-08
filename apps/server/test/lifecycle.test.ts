@@ -3,9 +3,9 @@ import { loadConfig } from '@circi/config'
 import { createTestDb, seedOrg, type TestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { serverOptionsFor, type ServerRuntime } from '../src/lifecycle/server-options.ts'
-import { createShutdown } from '../src/lifecycle/shutdown.ts'
-import { announceStartup } from '../src/lifecycle/startup.ts'
+import { serverOptionsFor, type ServerRuntime } from '#lifecycle/server-options.ts'
+import { createShutdown } from '#lifecycle/shutdown.ts'
+import { announceStartup } from '#lifecycle/startup.ts'
 
 const env = {
   DATABASE_URL: 'postgres://localhost/circi',

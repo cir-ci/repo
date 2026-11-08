@@ -1,7 +1,5 @@
 import { and, eq, inArray, isNotNull, isNull, lt, sql } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { isForeignKeyViolation } from '../errors.ts'
 import {
   builds,
   files,
@@ -11,7 +9,9 @@ import {
   siteHostnames,
   staticSites,
   uploadClaims,
-} from '../schema/index.ts'
+} from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+import { isForeignKeyViolation } from '#src/errors.ts'
 
 /**
  * Retention and garbage collection (PLAN §8). Old data goes in three separate steps, so a

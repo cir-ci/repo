@@ -1,7 +1,6 @@
 import { and, desc, eq, gt, inArray, isNotNull, isNull, lte, or, sql, type SQL } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { orgAccepts, type SessionMethod } from '../repositories/auth-settings.ts'
+import { orgAccepts, type SessionMethod } from '#repositories/auth-settings.ts'
 import {
   builds,
   member,
@@ -11,7 +10,8 @@ import {
   projects,
   reviewRequests,
   user,
-} from '../schema/index.ts'
+} from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
 
 /**
  * A person's inbox: notifications across the organizations they belong to (PLAN §8: org

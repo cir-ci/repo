@@ -1,7 +1,7 @@
 import type { Activity, Comment } from '@circi/api'
 import { describe, expect, it } from 'vitest'
 
-import { commentCount, groupThreads, timelineItems } from '../../../src/features/builds/timeline.ts'
+import { commentCount, groupThreads, timelineItems } from '#features/builds/timeline.ts'
 
 const at = '2026-11-08T10:00:00.000Z'
 const person = { id: 'u1', name: 'Ada Lovelace' }

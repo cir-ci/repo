@@ -23,14 +23,14 @@ export function Banner({ tone = 'info', title, action, className, children }: Ba
     <div
       role={tone === 'danger' ? 'alert' : 'status'}
       data-tone={tone}
-      className={cx(styles['root'], className)}
+      className={cx(styles.root, className)}
     >
-      <Icon className={styles['icon']} />
-      <div className={styles['body']}>
-        {title ? <strong className={styles['title']}>{title}</strong> : null}
+      <Icon className={styles.icon} />
+      <div className={styles.body}>
+        {title ? <strong className={styles.title}>{title}</strong> : null}
         {children}
       </div>
-      {action ? <div className={styles['action']}>{action}</div> : null}
+      {action ? <div className={styles.action}>{action}</div> : null}
     </div>
   )
 }

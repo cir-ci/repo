@@ -2,8 +2,9 @@ import { Banner, ListRow, SectionHeader, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
-import { useDocumentTitle } from '../../lib/document-title.ts'
-import { organizationQuery } from '../members/api.ts'
+import { organizationQuery } from '#features/members/api.ts'
+import { useDocumentTitle } from '#lib/document-title.ts'
+
 import { Frame } from './Frame.tsx'
 
 import styles from './Settings.module.css'
@@ -26,24 +27,24 @@ export function OrgGeneralPage() {
       notFound="This organization doesn’t exist"
     >
       {data ? (
-        <section className={styles['section']}>
+        <section className={styles.section}>
           <SectionHeader title="Organisation" />
           <Banner>Renaming an organisation or changing its address isn’t available yet.</Banner>
-          <div className={styles['list']}>
+          <div className={styles.list}>
             <ListRow>
-              <div className={styles['row']}>
+              <div className={styles.row}>
                 <Text tone="secondary">Name</Text>
                 <Text>{data.name}</Text>
               </div>
             </ListRow>
             <ListRow>
-              <div className={styles['row']}>
+              <div className={styles.row}>
                 <Text tone="secondary">Address</Text>
                 <Text variant="mono">{data.slug}</Text>
               </div>
             </ListRow>
             <ListRow>
-              <div className={styles['row']}>
+              <div className={styles.row}>
                 <Text tone="secondary">People</Text>
                 <Text>{data.members.length}</Text>
               </div>

@@ -1,8 +1,7 @@
 import { aliasedTable, and, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import type { getBuildCounts } from '../repositories/builds.ts'
-import { listBuildReviews, type ReviewEntry } from '../repositories/reviews.ts'
+import type { getBuildCounts } from '#repositories/builds.ts'
+import { listBuildReviews, type ReviewEntry } from '#repositories/reviews.ts'
 import {
   type AncestryStatus,
   type BaselineSource,
@@ -16,7 +15,8 @@ import {
   reviewRequests,
   screenshotDiffs,
   screenshots,
-} from '../schema/index.ts'
+} from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
 
 /** Build read models for the dashboard: shaped for the UI, read-only, free to join widely. */
 

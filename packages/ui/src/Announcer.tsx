@@ -30,7 +30,7 @@ export function AnnouncerProvider({ children }: AnnouncerProvider.Props) {
   return (
     <AnnouncerContext.Provider value={announce}>
       {children}
-      <div role="status" aria-live="polite" className={styles['region']}>
+      <div role="status" aria-live="polite" className={styles.region}>
         {message}
       </div>
     </AnnouncerContext.Provider>

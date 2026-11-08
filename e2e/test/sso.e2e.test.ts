@@ -11,8 +11,8 @@ import {
   type FakeIdp,
   startFakeIdp,
   withBrowser,
-} from '../src/index.ts'
-import { useBrowser, useStack } from '../src/vitest.ts'
+} from '#src/index.ts'
+import { useBrowser, useStack } from '#src/vitest.ts'
 
 /**
  * Single sign-on on the real stack. The identity provider is a fake OIDC server on the host

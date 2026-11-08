@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { Ref } from '../src/index.ts'
+import { Ref } from '#src/index.ts'
 
 const original = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
 

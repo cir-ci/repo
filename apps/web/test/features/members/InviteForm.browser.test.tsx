@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
 const auth = vi.hoisted(() => ({ inviteMember: vi.fn<(arg: unknown) => Promise<unknown>>() }))
-vi.mock('../../../src/lib/auth-client.ts', () => ({ authClient: { organization: auth } }))
+vi.mock('#lib/auth-client.ts', () => ({ authClient: { organization: auth } }))
 
-import { InviteForm } from '../../../src/features/members/InviteForm.tsx'
-import { renderPage } from '../../support/render.tsx'
+import { InviteForm } from '#features/members/InviteForm.tsx'
+import { renderPage } from '#test/support/render.tsx'
 
 const show = (onInvited = vi.fn<() => Promise<unknown>>(async () => {})) =>
   renderPage(

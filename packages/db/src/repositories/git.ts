@@ -1,8 +1,6 @@
 import { and, desc, eq, isNotNull, isNull, ne, or, sql } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { NotFoundError } from '../errors.ts'
-import { CONNECTION_ATTENTION } from '../schema/enums.ts'
+import { CONNECTION_ATTENTION } from '#schema/enums.ts'
 import {
   account,
   buildChecks,
@@ -13,8 +11,11 @@ import {
   projects,
   providerConnections,
   providerDeliveries,
-} from '../schema/index.ts'
-import type { Build } from '../types.ts'
+} from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+import { NotFoundError } from '#src/errors.ts'
+import type { Build } from '#src/types.ts'
+
 import { enqueueJob } from './jobs.ts'
 
 /**

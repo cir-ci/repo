@@ -1,7 +1,7 @@
 import type { Baseline } from '@circi/api'
 import { queryOptions } from '@tanstack/react-query'
 
-import { getJson, seg } from '../../lib/http.ts'
+import { getJson, seg } from '#lib/http.ts'
 
 export const baselinesQuery = (org: string, project: string) =>
   queryOptions({

@@ -6,7 +6,7 @@ import {
   isConnectionRevoked,
   PR_COMMENT_MARKER,
   type WebhookHeaders,
-} from '../../src/index.ts'
+} from '#src/index.ts'
 
 /**
  * The contract every git host adapter keeps. A provider's test file builds a harness (the adapter

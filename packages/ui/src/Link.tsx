@@ -9,7 +9,7 @@ import styles from './Link.module.css'
  * so the app can wrap it with TanStack Router's `createLink`.
  */
 export function Link({ className, ...rest }: Link.Props) {
-  return <a {...rest} className={cx(styles['root'], className)} />
+  return <a {...rest} className={cx(styles.root, className)} />
 }
 
 export namespace Link {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { isSetupCode, setupCode } from '../../src/index.ts'
+import { isSetupCode, setupCode } from '#src/index.ts'
 
 describe('setup code', () => {
   it('is stable for one secret and differs between secrets', () => {

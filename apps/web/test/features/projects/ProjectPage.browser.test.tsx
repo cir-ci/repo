@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
-import { ProjectPage } from '../../../src/features/projects/ProjectPage.tsx'
-import { renderPage } from '../../support/render.tsx'
-import { fakeApi, hangingFetch, restoreFetch } from '../fetch-routes.ts'
+import { ProjectPage } from '#features/projects/ProjectPage.tsx'
+import { fakeApi, hangingFetch, restoreFetch } from '#test/features/fetch-routes.ts'
+import { renderPage } from '#test/support/render.tsx'
+
 import { build } from './support.tsx'
 
 afterEach(() => restoreFetch())

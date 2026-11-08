@@ -1,7 +1,7 @@
 import { Button, Dialog, Kbd, Text } from '@circi/ui'
 import { type FormEvent, useId, useState } from 'react'
 
-import { isSubmitKey } from '../../lib/shortcuts.ts'
+import { isSubmitKey } from '#lib/shortcuts.ts'
 
 import styles from './Discussion.module.css'
 
@@ -56,13 +56,13 @@ export function RejectDialog({
         </>
       }
     >
-      <form id={`${fieldId}-form`} onSubmit={submit} className={styles['form']}>
-        <label htmlFor={fieldId} className={styles['label']}>
+      <form id={`${fieldId}-form`} onSubmit={submit} className={styles.form}>
+        <label htmlFor={fieldId} className={styles.label}>
           <Text variant="small">Reason</Text>
         </label>
         <textarea
           id={fieldId}
-          className={styles['textarea']}
+          className={styles.textarea}
           value={reason}
           rows={4}
           aria-required="true"

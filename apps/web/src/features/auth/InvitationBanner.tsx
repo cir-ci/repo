@@ -2,7 +2,7 @@ import { Banner, Button } from '@circi/ui'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
-import { authClient } from '../../lib/auth-client.ts'
+import { authClient } from '#lib/auth-client.ts'
 
 import styles from './InvitationBanner.module.css'
 
@@ -62,11 +62,11 @@ export function InvitationBanner({ userEmail }: InvitationBanner.Props) {
   }
 
   return (
-    <div className={styles['wrap']}>
+    <div className={styles.wrap}>
       <Banner
         tone={error ? 'danger' : 'info'}
         action={
-          <div className={styles['actions']}>
+          <div className={styles.actions}>
             {invitation && !error ? (
               <Button size="sm" variant="primary" loading={busy} onClick={() => void accept()}>
                 Join

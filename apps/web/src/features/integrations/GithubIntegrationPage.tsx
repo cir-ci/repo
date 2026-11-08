@@ -13,8 +13,9 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 import { type FormEvent, useId, useState } from 'react'
 
-import { useDocumentTitle } from '../../lib/document-title.ts'
-import { Frame } from '../settings/Frame.tsx'
+import { Frame } from '#features/settings/Frame.tsx'
+import { useDocumentTitle } from '#lib/document-title.ts'
+
 import { githubPageQuery, repositoriesQuery, useProjectRepository } from './api.ts'
 
 import styles from './Integrations.module.css'

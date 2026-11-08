@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { ErrorState } from '../../src/lib/ErrorState.tsx'
-import { HttpError } from '../../src/lib/http.ts'
+import { ErrorState } from '#lib/ErrorState.tsx'
+import { HttpError } from '#lib/http.ts'
 
 describe('ErrorState', () => {
   it('says "not found" in the page’s own words for a 404', async () => {

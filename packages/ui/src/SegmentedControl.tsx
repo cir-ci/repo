@@ -11,7 +11,7 @@ import styles from './SegmentedControl.module.css'
 export function SegmentedControl(props: SegmentedControl.Props) {
   return (
     <ToggleGroup
-      className={styles['root']}
+      className={styles.root}
       aria-label={props.label}
       value={[props.value]}
       onValueChange={(next) => {
@@ -20,7 +20,7 @@ export function SegmentedControl(props: SegmentedControl.Props) {
       }}
     >
       {props.options.map((o) => (
-        <Toggle key={o.value} value={o.value} className={styles['item']}>
+        <Toggle key={o.value} value={o.value} className={styles.item}>
           {o.label}
         </Toggle>
       ))}

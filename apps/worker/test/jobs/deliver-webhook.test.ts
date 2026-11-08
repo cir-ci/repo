@@ -4,7 +4,7 @@ import { seedProject } from '@circi/testing'
 import { createTestDb, type TestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { deliverWebhook } from '../../src/jobs/deliver-webhook.ts'
+import { deliverWebhook } from '#jobs/deliver-webhook.ts'
 
 let t: TestDb
 

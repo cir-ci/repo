@@ -19,17 +19,18 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 
-import { authClient } from '../../lib/auth-client.ts'
-import { useDocumentTitle } from '../../lib/document-title.ts'
-import { ErrorState } from '../../lib/ErrorState.tsx'
-import { focusRow, nextAfterRemoval } from '../../lib/list-keys.ts'
-import { useShortcutHandlers } from '../../lib/shortcuts.ts'
-import type { SnoozeChoice } from '../../lib/snooze.ts'
-import { SnoozeMenu } from '../../lib/SnoozeMenu.tsx'
-import { useListNavigation } from '../../lib/use-list-navigation.ts'
-import { fileUrl } from '../builds/api.ts'
-import { RegionLayer } from '../builds/RegionLayer.tsx'
-import { useLoadingAnnouncement } from '../projects/loading.ts'
+import { fileUrl } from '#features/builds/api.ts'
+import { RegionLayer } from '#features/builds/RegionLayer.tsx'
+import { useLoadingAnnouncement } from '#features/projects/loading.ts'
+import { authClient } from '#lib/auth-client.ts'
+import { useDocumentTitle } from '#lib/document-title.ts'
+import { ErrorState } from '#lib/ErrorState.tsx'
+import { focusRow, nextAfterRemoval } from '#lib/list-keys.ts'
+import { useShortcutHandlers } from '#lib/shortcuts.ts'
+import type { SnoozeChoice } from '#lib/snooze.ts'
+import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
+import { useListNavigation } from '#lib/use-list-navigation.ts'
+
 import {
   flatten,
   type Frame,
@@ -52,7 +53,7 @@ import {
 } from './api.ts'
 import { ROUTE } from './routes.ts'
 
-import listStyles from '../../lib/ListPage.module.css'
+import listStyles from '#lib/ListPage.module.css'
 import styles from './TriagePage.module.css'
 
 /** Accepting a baseline and ignoring a region are about a screenshot; a failed build has none. */
@@ -164,7 +165,7 @@ export function TriagePage() {
         actions={
           data && chip && data.rotation.onTriage ? (
             <Badge shape="tag" tone="accent" aria-label={chip}>
-              <span className={styles['chip']}>
+              <span className={styles.chip}>
                 <Avatar name={data.rotation.onTriage.name} size={16} />
                 {chip}
               </span>
@@ -244,10 +245,10 @@ export function TriagePage() {
                 </Text>
               ) : null}
               <div className={listStyles['split']}>
-                <div className={styles['groups']} id="triage-groups" ref={listRef}>
+                <div className={styles.groups} id="triage-groups" ref={listRef}>
                   {groups.map((group) => (
                     <section key={group.kind} aria-labelledby={`triage-${group.kind}`}>
-                      <h2 className={styles['groupHeader']} id={`triage-${group.kind}`}>
+                      <h2 className={styles.groupHeader} id={`triage-${group.kind}`}>
                         {group.label}
                         <Badge aria-label={`${group.items.length} items`}>
                           {group.items.length}
@@ -282,7 +283,7 @@ export function TriagePage() {
                               }
                             >
                               <span style={visuallyHidden}>{`${itemName(item)}. `}</span>
-                              <span className={styles['title']} aria-hidden="true">
+                              <span className={styles.title} aria-hidden="true">
                                 <Text truncate>{itemTitle(item)}</Text>
                               </span>
                               <span className={listStyles['meta']} aria-hidden="true">
@@ -305,7 +306,7 @@ export function TriagePage() {
                     context={selected.snapshotName ?? `Build #${selected.build.number}`}
                     width="lg"
                   >
-                    <div className={styles['paneBody']}>
+                    <div className={styles.paneBody}>
                       <Text>
                         {KIND_LABEL[selected.kind]} in build #{selected.build.number}
                         {selected.build.branch ? ` on ${selected.build.branch}` : ''}
@@ -379,13 +380,11 @@ function Filmstrip({
     ) : null
   }
   return (
-    <ol aria-label={`Recent builds of ${name}`} className={styles['filmstrip']}>
+    <ol aria-label={`Recent builds of ${name}`} className={styles.filmstrip}>
       {frames.map((frame) => (
-        <li key={frame.number} className={styles['frame']}>
-          <span className={styles['thumb']}>
-            {frame.src ? <img src={frame.src} alt="" /> : null}
-          </span>
-          <span className={styles['frameMeta']}>
+        <li key={frame.number} className={styles.frame}>
+          <span className={styles.thumb}>{frame.src ? <img src={frame.src} alt="" /> : null}</span>
+          <span className={styles.frameMeta}>
             <StatusIcon status={frame.status} label={frame.label} size={12} />#{frame.number}
           </span>
         </li>
@@ -419,11 +418,11 @@ function Drawing({
     )
   }
   return (
-    <div className={styles['paneBody']}>
+    <div className={styles.paneBody}>
       <Text variant="small" tone="secondary">
         Drag over the screenshot to mark the region CirCI should ignore.
       </Text>
-      <div className={styles['canvas']}>
+      <div className={styles.canvas}>
         <img src={fileUrl(frame.sha256)} alt={`${name} in build #${frame.number}`} />
         <RegionLayer
           annotations={{
@@ -437,7 +436,7 @@ function Drawing({
           }}
         />
       </div>
-      <div className={styles['drawActions']}>
+      <div className={styles.drawActions}>
         <Button size="sm" variant="primary" disabled={!pending} loading={busy} onClick={onConfirm}>
           Ignore this region
         </Button>

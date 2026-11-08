@@ -7,7 +7,7 @@ import {
   INTEGRATION_GROUPS,
   openSecret,
   sealSecret,
-} from '../src/index.ts'
+} from '#src/index.ts'
 
 describe('integration catalog', () => {
   it('has unique kinds, each in a known group', () => {

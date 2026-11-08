@@ -1,6 +1,6 @@
 import { createRoute, lazyRouteComponent } from '@tanstack/react-router'
 
-import { rootRoute } from '../../app/root-route.ts'
+import { rootRoute } from '#app/root-route.ts'
 
 export const ROUTE = '/$org/$project/baselines'
 

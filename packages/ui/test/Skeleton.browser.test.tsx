@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 
-import { ListSkeleton, Skeleton } from '../src/index.ts'
+import { ListSkeleton, Skeleton } from '#src/index.ts'
 
 describe('Skeleton', () => {
   it('is visible at once, hidden from assistive tech, and the size given', async () => {

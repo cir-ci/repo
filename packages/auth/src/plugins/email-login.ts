@@ -1,10 +1,10 @@
 import { organizationsForEmailDomain } from '@circi/db'
 import { emailOTP } from 'better-auth/plugins'
 
-import { EMAIL_CODE_TTL_SECONDS } from '../constants.ts'
-import { signInMail } from '../mail.ts'
-import { hasAccount, hasPendingInvitation } from '../operations/accounts.ts'
-import type { PluginOptions } from '../options.ts'
+import { hasAccount, hasPendingInvitation } from '#operations/accounts.ts'
+import { EMAIL_CODE_TTL_SECONDS } from '#src/constants.ts'
+import { signInMail } from '#src/mail.ts'
+import type { PluginOptions } from '#src/options.ts'
 
 /**
  * Email login (PLAN §7.8): a 6-digit code, mailed together with a link that opens the sign-in

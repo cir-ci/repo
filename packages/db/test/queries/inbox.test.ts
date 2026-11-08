@@ -10,7 +10,7 @@ import {
 } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { countUnreadNotifications, listInbox } from '../../src/index.ts'
+import { countUnreadNotifications, listInbox } from '#src/index.ts'
 
 let t: TestDb
 beforeAll(async () => {

@@ -1,8 +1,8 @@
 import type { Inbox, NotificationKind } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { getJson, post, send, seg } from '../../lib/http.ts'
-import type { SnoozeChoice } from '../../lib/snooze.ts'
+import { getJson, post, send, seg } from '#lib/http.ts'
+import type { SnoozeChoice } from '#lib/snooze.ts'
 
 export const INBOX_TABS: readonly { value: Inbox.Tab; label: string }[] = [
   { value: 'for-you', label: 'For you' },

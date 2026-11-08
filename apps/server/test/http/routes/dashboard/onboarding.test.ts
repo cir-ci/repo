@@ -11,8 +11,8 @@ import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { buildServer } from '../../../../src/http/app.ts'
-import { createTestAuth, ORIGIN, signIn } from '../../../support/helpers.ts'
+import { buildServer } from '#http/app.ts'
+import { createTestAuth, ORIGIN, signIn } from '#test/support/helpers.ts'
 
 const SECRET = 'test-secret-that-is-long-enough-1234'
 const PASSWORD = 'first-admin-password-1'

@@ -1,10 +1,11 @@
 import type { FastifyPluginAsync } from 'fastify'
 
-import { requireSameOrigin } from '../../hooks/same-origin.ts'
-import { requireSession } from '../../hooks/session.ts'
-import type { DashboardDeps } from '../../lib/deps.ts'
-import { jsonErrorHandler } from '../../lib/errors.ts'
-import { authRoutes } from '../auth.ts'
+import { requireSameOrigin } from '#http/hooks/same-origin.ts'
+import { requireSession } from '#http/hooks/session.ts'
+import type { DashboardDeps } from '#http/lib/deps.ts'
+import { jsonErrorHandler } from '#http/lib/errors.ts'
+import { authRoutes } from '#http/routes/auth.ts'
+
 import { dashboardActivityRoutes } from './activity.ts'
 import { dashboardBaselineRoutes } from './baselines.ts'
 import { dashboardCommentRoutes } from './comments.ts'

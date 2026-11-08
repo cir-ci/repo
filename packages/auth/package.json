@@ -3,6 +3,13 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "imports": {
+    "#hooks/*": "./src/hooks/*",
+    "#operations/*": "./src/operations/*",
+    "#plugins/*": "./src/plugins/*",
+    "#src/*": "./src/*",
+    "#sso/*": "./src/sso/*"
+  },
   "exports": "./src/index.ts",
   "scripts": {
     "schema": "auth generate --config src/schema-config.ts --output ../db/src/schema/auth.ts --yes"

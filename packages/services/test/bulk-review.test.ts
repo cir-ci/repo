@@ -3,7 +3,7 @@ import { createTestDb, seedBuild, seedProject, type TestDb } from '@circi/testin
 import { eq, inArray } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { MAX_BULK_REVIEW, reviewBuilds } from '../src/index.ts'
+import { MAX_BULK_REVIEW, reviewBuilds } from '#src/index.ts'
 
 let t: TestDb
 beforeAll(async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { shardFromArgs } from '../src/shard.ts'
+import { shardFromArgs } from '#src/shard.ts'
 
 describe('shardFromArgs', () => {
   it('reads Vitest’s 1-based --shard in both spellings', () => {

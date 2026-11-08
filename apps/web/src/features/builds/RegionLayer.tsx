@@ -52,7 +52,7 @@ export function RegionLayer({ annotations }: RegionLayer.Props) {
 
   return (
     <div
-      className={styles['layer']}
+      className={styles.layer}
       data-drawing={drawing ? '' : undefined}
       data-testid="region-layer"
       onPointerDown={down}
@@ -64,28 +64,22 @@ export function RegionLayer({ annotations }: RegionLayer.Props) {
         <button
           key={t.id}
           type="button"
-          className={styles['marker']}
+          className={styles.marker}
           style={regionStyle(t.region)}
           data-focused={t.id === annotations.focusedId ? '' : undefined}
           aria-label={`Comment ${t.number}`}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => annotations.onMarker(t.id)}
         >
-          <span aria-hidden="true" className={styles['number']}>
+          <span aria-hidden="true" className={styles.number}>
             {t.number}
           </span>
         </button>
       ))}
       {annotations.pending ? (
-        <span
-          className={styles['marker']}
-          data-pending=""
-          style={regionStyle(annotations.pending)}
-        />
+        <span className={styles.marker} data-pending="" style={regionStyle(annotations.pending)} />
       ) : null}
-      {live ? (
-        <span className={styles['marker']} data-pending="" style={regionStyle(live)} />
-      ) : null}
+      {live ? <span className={styles.marker} data-pending="" style={regionStyle(live)} /> : null}
     </div>
   )
 }

@@ -1,11 +1,7 @@
 import type { Comment } from '@circi/api'
 import { describe, expect, it } from 'vitest'
 
-import {
-  regionFromPoints,
-  regionStyle,
-  regionThreads,
-} from '../../../src/features/builds/regions.ts'
+import { regionFromPoints, regionStyle, regionThreads } from '#features/builds/regions.ts'
 
 const box = { left: 100, top: 50, width: 400, height: 200 }
 

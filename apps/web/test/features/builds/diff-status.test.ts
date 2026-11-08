@@ -7,7 +7,7 @@ import {
   screenshotStatus,
   shotReview,
   type ShotKind,
-} from '../../../src/features/builds/diff-status.ts'
+} from '#features/builds/diff-status.ts'
 
 const reviews: ReviewStatus[] = ['pending', 'approved', 'rejected']
 const decided: Record<ReviewStatus, Status> = {

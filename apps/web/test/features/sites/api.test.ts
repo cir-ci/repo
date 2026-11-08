@@ -1,12 +1,8 @@
 import { QueryClient } from '@tanstack/react-query'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import {
-  formatSize,
-  projectSitesQuery,
-  requestSiteAccess,
-} from '../../../src/features/sites/api.ts'
-import { fakeFetch, restoreFetch, json } from '../fetch-routes.ts'
+import { formatSize, projectSitesQuery, requestSiteAccess } from '#features/sites/api.ts'
+import { fakeFetch, restoreFetch, json } from '#test/features/fetch-routes.ts'
 
 afterEach(() => restoreFetch())
 

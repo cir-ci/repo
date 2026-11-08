@@ -2,7 +2,8 @@ import { Avatar, Banner, Dialog, Text, TextField, useAnnounce } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { organizationQuery } from '../members/api.ts'
+import { organizationQuery } from '#features/members/api.ts'
+
 import { useRequestReview } from './discussion-api.ts'
 import { matchMembers } from './mentions.ts'
 
@@ -76,12 +77,12 @@ export function RequestReviewDialog({
       ) : shown.length === 0 ? (
         <Text tone="secondary">No one matches.</Text>
       ) : (
-        <ul className={styles['people']} aria-label="Members">
+        <ul className={styles.people} aria-label="Members">
           {shown.map((p) => (
             <li key={p.userId}>
               <button
                 type="button"
-                className={styles['person']}
+                className={styles.person}
                 disabled={request.isPending}
                 onClick={() => choose(p)}
               >

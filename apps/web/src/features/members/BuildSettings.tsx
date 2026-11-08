@@ -11,7 +11,7 @@ export function BuildSettings({ org }: BuildSettings.Props) {
   const save = useSaveOrgSettings(org)
   if (!data) return null
   return (
-    <section className={styles['root']}>
+    <section className={styles.root}>
       <SectionHeader
         title="Build defaults"
         description="Projects use these unless their own settings say otherwise."

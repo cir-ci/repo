@@ -19,7 +19,8 @@ import {
 import type { StorageDriver } from '@circi/storage'
 import type { FastifyReply, FastifyRequest, onRequestAsyncHookHandler } from 'fastify'
 
-import type { SitesDeps } from '../lib/deps.ts'
+import type { SitesDeps } from '#http/lib/deps.ts'
+
 import {
   cleanupCookies,
   cookieName,

@@ -13,7 +13,7 @@ import {
   verificationName,
   verificationValue,
   verifyOrgDomain,
-} from '../../src/index.ts'
+} from '#src/index.ts'
 
 let t: TestDb
 beforeAll(async () => {

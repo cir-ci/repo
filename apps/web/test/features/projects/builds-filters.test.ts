@@ -14,7 +14,7 @@ import {
   withState,
   withText,
   without,
-} from '../../../src/features/projects/builds-filters.ts'
+} from '#features/projects/builds-filters.ts'
 
 describe('builds filters and the URL', () => {
   it('round-trips filters through the search object and the query string', () => {

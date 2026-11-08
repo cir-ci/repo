@@ -14,7 +14,7 @@ import {
   snoozeBody,
   withAssignee,
   withoutItem,
-} from '../../../src/features/triage/api.ts'
+} from '#features/triage/api.ts'
 
 const item = (over: Partial<Triage.Item> = {}): Triage.Item => ({
   kind: 'flaky',

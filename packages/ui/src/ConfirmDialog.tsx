@@ -44,17 +44,17 @@ export function ConfirmDialog({
       }}
     >
       <AlertDialog.Portal>
-        <AlertDialog.Backdrop className={styles['backdrop']} />
-        <AlertDialog.Viewport className={styles['viewport']}>
+        <AlertDialog.Backdrop className={styles.backdrop} />
+        <AlertDialog.Viewport className={styles.viewport}>
           <AlertDialog.Popup
-            className={styles['popup']}
+            className={styles.popup}
             initialFocus={confirmText === undefined ? cancel : true}
           >
-            <form onSubmit={submit} className={styles['form']}>
-              <div className={styles['body']}>
-                <AlertDialog.Title className={styles['title']}>{title}</AlertDialog.Title>
+            <form onSubmit={submit} className={styles.form}>
+              <div className={styles.body}>
+                <AlertDialog.Title className={styles.title}>{title}</AlertDialog.Title>
                 {description ? (
-                  <AlertDialog.Description className={styles['description']}>
+                  <AlertDialog.Description className={styles.description}>
                     {description}
                   </AlertDialog.Description>
                 ) : null}
@@ -62,7 +62,7 @@ export function ConfirmDialog({
                   <TextField
                     label={
                       <>
-                        Type <code className={styles['phrase']}>{confirmText}</code> to confirm
+                        Type <code className={styles.phrase}>{confirmText}</code> to confirm
                       </>
                     }
                     value={typed}
@@ -72,7 +72,7 @@ export function ConfirmDialog({
                   />
                 )}
               </div>
-              <footer className={styles['footer']}>
+              <footer className={styles.footer}>
                 <AlertDialog.Close
                   ref={cancel}
                   render={<Button type="button">{cancelLabel}</Button>}
@@ -80,7 +80,7 @@ export function ConfirmDialog({
                 <Button
                   type="submit"
                   variant="danger"
-                  className={styles['confirm']}
+                  className={styles.confirm}
                   disabled={!matches}
                   loading={loading}
                 >

@@ -2,9 +2,10 @@ import { Spinner, Stack, Text } from '@circi/ui'
 import { useSearch } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 
-import { useDocumentTitle } from '../../lib/document-title.ts'
-import { RouterLink } from '../../lib/router-link.ts'
-import { AuthPanel } from '../auth/AuthPanel.tsx'
+import { AuthPanel } from '#features/auth/AuthPanel.tsx'
+import { useDocumentTitle } from '#lib/document-title.ts'
+import { RouterLink } from '#lib/router-link.ts'
+
 import { requestSiteAccess } from './api.ts'
 
 /**

@@ -31,7 +31,8 @@ import { migrateStorage, previewRetention, runRetention } from '@circi/services'
 import { createStorage } from '@circi/storage'
 import type { Command } from 'commander'
 
-import type { Runtime } from '../lifecycle/runtime.ts'
+import type { Runtime } from '#lifecycle/runtime.ts'
+
 import { httpFetcher, runDoctor } from './doctor.ts'
 import { printJson, printPassword, printToken, publicProject, withRuntime } from './output.ts'
 

@@ -1,13 +1,13 @@
 import type { Build } from '@circi/api'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createProject, type CreatedProject, inviteMember, newAccount } from '../src/admin.ts'
-import type { FakeGithub } from '../src/fakes/fake-github.ts'
-import { startWebhookReceiver, type WebhookReceiver } from '../src/fakes/webhook-receiver.ts'
-import { Repo } from '../src/git-repo.ts'
-import { extractLinks } from '../src/mail.ts'
-import { uploadOrThrow } from '../src/upload.ts'
-import { useStack } from '../src/vitest.ts'
+import type { FakeGithub } from '#fakes/fake-github.ts'
+import { startWebhookReceiver, type WebhookReceiver } from '#fakes/webhook-receiver.ts'
+import { createProject, type CreatedProject, inviteMember, newAccount } from '#src/admin.ts'
+import { Repo } from '#src/git-repo.ts'
+import { extractLinks } from '#src/mail.ts'
+import { uploadOrThrow } from '#src/upload.ts'
+import { useStack } from '#src/vitest.ts'
 
 /**
  * Proves the plumbing the feature tests build on: the container reaches fakes running on the host

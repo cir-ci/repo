@@ -3,9 +3,9 @@ import { join } from 'node:path'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { approveBuild, createProject } from '../src/admin.ts'
-import type { FakeGithub } from '../src/fakes/fake-github.ts'
-import { Repo } from '../src/git-repo.ts'
+import type { FakeGithub } from '#fakes/fake-github.ts'
+import { approveBuild, createProject } from '#src/admin.ts'
+import { Repo } from '#src/git-repo.ts'
 import {
   buildDetail,
   commentPayload,
@@ -13,9 +13,9 @@ import {
   createLinkedProject,
   type LinkedProject,
   uploadPr,
-} from '../src/github-helpers.ts'
-import { uploadBuild, uploadOrThrow } from '../src/upload.ts'
-import { useStack } from '../src/vitest.ts'
+} from '#src/github-helpers.ts'
+import { uploadBuild, uploadOrThrow } from '#src/upload.ts'
+import { useStack } from '#src/vitest.ts'
 
 /**
  * The merge gate: what the CirCI check says for each state of a build, with `Block merging until

@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
-import { SetupPage } from '../../../src/features/auth/SetupPage.tsx'
-import { renderPage } from '../../support/render.tsx'
-import { fakeFetch, restoreFetch, json } from '../fetch-routes.ts'
+import { SetupPage } from '#features/auth/SetupPage.tsx'
+import { fakeFetch, restoreFetch, json } from '#test/features/fetch-routes.ts'
+import { renderPage } from '#test/support/render.tsx'
 
 afterEach(() => restoreFetch())
 

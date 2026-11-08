@@ -3,7 +3,6 @@ import { createHash, randomBytes } from 'node:crypto'
 import { ValidationError } from '@circi/core'
 import { and, desc, eq, gt, inArray, like, lt, sql } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
 import {
   files,
   member,
@@ -16,7 +15,8 @@ import {
   siteTokens,
   staticSiteFiles,
   staticSites,
-} from '../schema/index.ts'
+} from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
 
 /**
  * Hosted static sites (PLAN §7.6): publishing a version, the addresses that point at versions,

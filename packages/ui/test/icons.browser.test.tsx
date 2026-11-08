@@ -9,7 +9,7 @@ import {
   RowMenuIcon,
   RefreshIcon,
   UsersIcon,
-} from '../src/index.ts'
+} from '#src/index.ts'
 
 describe('icons', () => {
   it('are 16px, stroke 1.75 and hidden from assistive tech by default', async () => {

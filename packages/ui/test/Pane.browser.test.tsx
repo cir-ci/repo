@@ -2,7 +2,7 @@ import { expect, it, describe } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { Button, Pane } from '../src/index.ts'
+import { Button, Pane } from '#src/index.ts'
 
 describe('Pane', () => {
   it('is a region named by its label, with the context in its header', async () => {

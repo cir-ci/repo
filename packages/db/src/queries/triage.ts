@@ -1,9 +1,8 @@
 import { rotationFor, rotationHandover } from '@circi/core'
 import { aliasedTable, and, desc, eq, gt, inArray, notExists, sql } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { listFlakyScreenshots } from '../repositories/flaky.ts'
-import { getTriageRotation, latestDefaultBranchBuildNumber } from '../repositories/triage.ts'
+import { listFlakyScreenshots } from '#repositories/flaky.ts'
+import { getTriageRotation, latestDefaultBranchBuildNumber } from '#repositories/triage.ts'
 import {
   builds,
   organization,
@@ -13,8 +12,9 @@ import {
   type TriageKind,
   triageItems,
   user,
-} from '../schema/index.ts'
-import type { Build } from '../types.ts'
+} from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+import type { Build } from '#src/types.ts'
 
 /**
  * A project's triage queue: the problems on its default branch that nobody has dealt with.

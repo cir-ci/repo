@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  insertMention,
-  matchMembers,
-  mentionAt,
-  mentionHandle,
-} from '../../../src/features/builds/mentions.ts'
+import { insertMention, matchMembers, mentionAt, mentionHandle } from '#features/builds/mentions.ts'
 
 const ada = { userId: 'u1', name: 'Ada Lovelace', email: 'ada@example.test' }
 const grace = { userId: 'u2', name: 'Grace Hopper', email: 'grace@example.test' }

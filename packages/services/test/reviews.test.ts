@@ -11,7 +11,7 @@ import {
 import { asc, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { dismissReviewRequest, finalizeBuild, requestReview, reviewBuild } from '../src/index.ts'
+import { dismissReviewRequest, finalizeBuild, requestReview, reviewBuild } from '#src/index.ts'
 
 let t: TestDb
 beforeAll(async () => {

@@ -1,6 +1,6 @@
 import { createRoute, lazyRouteComponent, redirect } from '@tanstack/react-router'
 
-import { rootRoute } from '../../app/root-route.ts'
+import { rootRoute } from '#app/root-route.ts'
 
 // Four segments under `organizations`, so it can't collide with `$org/$project/…` pages.
 const membersRoute = createRoute({

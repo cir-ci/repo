@@ -11,7 +11,8 @@ import { processBuild } from '@circi/worker'
 import { pino } from 'pino'
 import sharp from 'sharp'
 
-import { buildServer } from '../../src/http/app.ts'
+import { buildServer } from '#http/app.ts'
+
 import { createTestAuth, ORIGIN, seedTenant, signIn } from './helpers.ts'
 
 const logger = pino({ level: 'silent' })

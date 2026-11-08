@@ -16,10 +16,11 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { ShortcutsDialog } from '../../app/ShortcutsDialog.tsx'
-import { RouterLink } from '../../lib/router-link.ts'
-import { isAvailable, SHORTCUTS, useShortcutHandlers } from '../../lib/shortcuts.ts'
-import { useListNavigation } from '../../lib/use-list-navigation.ts'
+import { ShortcutsDialog } from '#app/ShortcutsDialog.tsx'
+import { RouterLink } from '#lib/router-link.ts'
+import { isAvailable, SHORTCUTS, useShortcutHandlers } from '#lib/shortcuts.ts'
+import { useListNavigation } from '#lib/use-list-navigation.ts'
+
 import { flakyQuery, isActive } from './api.ts'
 import { BuildBreadcrumbs } from './BuildBreadcrumbs.tsx'
 import { BuildMeta } from './BuildMeta.tsx'
@@ -201,7 +202,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
                 open={open[g.kind] ?? g.open}
                 onOpenChange={(expanded) => setOpen({ ...open, [g.kind]: expanded })}
               >
-                <ul className={styles['rows']}>
+                <ul className={styles.rows}>
                   {g.items.map((d) => (
                     <li key={d.id} {...rowProps(d.id)}>
                       <RouterLink
@@ -213,7 +214,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
                         aria-current={d.id === fromUrl?.id ? 'page' : undefined}
                         data-default={!fromUrl && d.id === selected?.id ? '' : undefined}
                         data-selected={d.id === selected?.id ? '' : undefined}
-                        className={styles['row']}
+                        className={styles.row}
                       >
                         <StatusIcon
                           status={screenshotStatus(g.kind, buildReview)}
@@ -221,7 +222,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
                           label={screenshotLabel(g.kind, buildReview)}
                         />
                         <Tooltip content={d.name}>
-                          <Text className={styles['name']}>{d.name}</Text>
+                          <Text className={styles.name}>{d.name}</Text>
                         </Tooltip>
                         <Text variant="mono" tone="secondary">
                           {shotBadge(d)}

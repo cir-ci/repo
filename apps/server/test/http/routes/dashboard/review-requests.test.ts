@@ -1,8 +1,8 @@
 import { addMember, createUser } from '@circi/auth'
 import { afterAll, describe, expect, it } from 'vitest'
 
-import { startDashboard } from '../../../support/dashboard-fixture.ts'
-import { ORIGIN, signIn } from '../../../support/helpers.ts'
+import { startDashboard } from '#test/support/dashboard-fixture.ts'
+import { ORIGIN, signIn } from '#test/support/helpers.ts'
 
 const fx = await startDashboard()
 const { app, auth, db, acme, rival, acmeCookie, rivalCookie, get } = fx

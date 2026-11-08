@@ -1,7 +1,7 @@
 import type { Activity, Comment, Review } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { getJson, post, send, seg } from '../../lib/http.ts'
+import { getJson, post, send, seg } from '#lib/http.ts'
 
 const base = (org: string, project: string, number: number) =>
   `/api/projects/${seg(org)}/${seg(project)}/builds/${number}`

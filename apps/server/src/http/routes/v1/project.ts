@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 
-import { currentProject } from '../../hooks/project-token.ts'
-import type { V1Deps } from '../../lib/deps.ts'
+import { currentProject } from '#http/hooks/project-token.ts'
+import type { V1Deps } from '#http/lib/deps.ts'
 
 /** `GET /v1/project`: what the CLI needs to know about the token's project. */
 export const projectRoutes: FastifyPluginAsync<V1Deps> = async (app, deps) => {

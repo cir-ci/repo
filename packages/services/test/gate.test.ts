@@ -3,7 +3,7 @@ import { setOrgSettings, updateProjectSettings } from '@circi/db'
 import { createTestDb, seedBuild, seedDiff, seedProject, type TestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { gateInputs } from '../src/index.ts'
+import { gateInputs } from '#src/index.ts'
 
 let t: TestDb
 beforeAll(async () => {

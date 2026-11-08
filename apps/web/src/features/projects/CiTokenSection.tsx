@@ -15,7 +15,7 @@ export function CiToken({ org, project }: CiToken.Props) {
   const announce = useAnnounce()
   const [confirming, setConfirming] = useState(false)
   return (
-    <section className={styles['section']}>
+    <section className={styles.section}>
       <SectionHeader
         divided
         title="CI token"

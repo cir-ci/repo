@@ -12,7 +12,7 @@ import {
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { type EmailSender, sendNotificationEmail } from '../../src/jobs/send-email.ts'
+import { type EmailSender, sendNotificationEmail } from '#jobs/send-email.ts'
 
 let t: TestDb
 beforeAll(async () => {

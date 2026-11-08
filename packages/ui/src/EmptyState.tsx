@@ -21,13 +21,13 @@ export function EmptyState({
 }: EmptyState.Props) {
   const Heading = `h${headingLevel}` as const
   return (
-    <div data-tone={tone} className={cx(styles['root'], className)}>
-      <span className={styles['icon']} aria-hidden="true">
+    <div data-tone={tone} className={cx(styles.root, className)}>
+      <span className={styles.icon} aria-hidden="true">
         {icon ?? <InboxIcon size={32} />}
       </span>
-      <Heading className={styles['title']}>{title}</Heading>
-      {children ? <p className={styles['description']}>{children}</p> : null}
-      {action ? <div className={styles['action']}>{action}</div> : null}
+      <Heading className={styles.title}>{title}</Heading>
+      {children ? <p className={styles.description}>{children}</p> : null}
+      {action ? <div className={styles.action}>{action}</div> : null}
     </div>
   )
 }

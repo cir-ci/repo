@@ -1,6 +1,6 @@
 import { Dialog, Kbd, Text } from '@circi/ui'
 
-import { keyCaps, shortcutGroups } from '../lib/shortcuts.ts'
+import { keyCaps, shortcutGroups } from '#lib/shortcuts.ts'
 
 import styles from './ShortcutsDialog.module.css'
 
@@ -17,10 +17,10 @@ export function ShortcutsDialog({
           <Text variant="micro" tone="tertiary">
             {group}
           </Text>
-          <dl className={styles['shortcuts']}>
+          <dl className={styles.shortcuts}>
             {shortcuts.map((s) => (
-              <div key={s.key} className={styles['shortcut']}>
-                <dt className={styles['caps']}>
+              <div key={s.key} className={styles.shortcut}>
+                <dt className={styles.caps}>
                   {keyCaps(s.key).map((cap) => (
                     <Kbd key={cap}>{cap}</Kbd>
                   ))}

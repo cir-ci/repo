@@ -11,18 +11,18 @@ import styles from './Breadcrumbs.module.css'
  */
 export function Breadcrumbs({ items, label = 'Breadcrumb', className }: Breadcrumbs.Props) {
   return (
-    <nav aria-label={label} className={cx(styles['root'], className)}>
-      <ol className={styles['list']}>
+    <nav aria-label={label} className={cx(styles.root, className)}>
+      <ol className={styles.list}>
         {items.map((item, index) => {
           const last = index === items.length - 1
           return (
-            <li key={item.key ?? `${index}:${item.label}`} className={styles['item']}>
+            <li key={item.key ?? `${index}:${item.label}`} className={styles.item}>
               {last || item.href === undefined ? (
-                <span className={styles['current']} aria-current={last ? 'page' : undefined}>
+                <span className={styles.current} aria-current={last ? 'page' : undefined}>
                   {item.label}
                 </span>
               ) : (
-                <a href={item.href} onClick={item.onClick} className={styles['link']}>
+                <a href={item.href} onClick={item.onClick} className={styles.link}>
                   {item.label}
                 </a>
               )}

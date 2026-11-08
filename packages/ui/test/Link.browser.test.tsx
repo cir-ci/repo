@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
 
-import { Link } from '../src/index.ts'
+import { Link } from '#src/index.ts'
 
 describe('Link', () => {
   it('is an anchor with its href, underlined only on hover', async () => {

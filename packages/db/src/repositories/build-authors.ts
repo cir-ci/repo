@@ -1,7 +1,7 @@
 import { and, eq, sql } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { account, builds, member, projects, user } from '../schema/index.ts'
+import { account, builds, member, projects, user } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
 
 /** Who authored a build: lookups of the members it could be, and the store for a PR's author. */
 

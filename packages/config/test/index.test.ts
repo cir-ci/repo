@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { ConfigError, loadConfig } from '../src/index.ts'
+import { ConfigError, loadConfig } from '#src/index.ts'
 
 const base = {
   DATABASE_URL: 'postgres://localhost/circi',

@@ -17,8 +17,8 @@ import {
   tryCode,
   waitForNewMail,
   withBrowser,
-} from '../src/index.ts'
-import { useBrowser, useStack } from '../src/vitest.ts'
+} from '#src/index.ts'
+import { useBrowser, useStack } from '#src/vitest.ts'
 
 /**
  * Emailed sign-in codes, organization email domains and per-organization sign-in methods on the

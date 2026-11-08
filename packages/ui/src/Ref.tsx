@@ -32,14 +32,14 @@ export function Ref({ value, display, label = 'value', className }: Ref.Props) {
   }
 
   return (
-    <span className={cx(styles['root'], className)}>
-      <code className={styles['value']} title={display === undefined ? undefined : value}>
+    <span className={cx(styles.root, className)}>
+      <code className={styles.value} title={display === undefined ? undefined : value}>
         {display ?? value}
       </code>
-      <IconButton label={`Copy ${label}`} onClick={() => void copy()} className={styles['button']}>
+      <IconButton label={`Copy ${label}`} onClick={() => void copy()} className={styles.button}>
         {copied ? <CheckIcon strokeWidth={2} /> : <CopyIcon />}
       </IconButton>
-      <span role="status" className={styles['copied']}>
+      <span role="status" className={styles.copied}>
         {copied ? 'Copied' : ''}
       </span>
     </span>

@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { type FakeGithub, startFakeGithub } from '../src/fakes/fake-github.ts'
-import { buildDetail, createLinkedProject, uploadPr } from '../src/github-helpers.ts'
-import { useStack } from '../src/vitest.ts'
+import { type FakeGithub, startFakeGithub } from '#fakes/fake-github.ts'
+import { buildDetail, createLinkedProject, uploadPr } from '#src/github-helpers.ts'
+import { useStack } from '#src/vitest.ts'
 
 /**
  * The github.com form of the API address. The shared `github` profile serves its fake under

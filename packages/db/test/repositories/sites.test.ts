@@ -26,7 +26,7 @@ import {
   servedCommitForBranch,
   siteSessionValid,
   touchSiteSession,
-} from '../../src/index.ts'
+} from '#src/index.ts'
 
 let t: TestDb
 beforeAll(async () => {

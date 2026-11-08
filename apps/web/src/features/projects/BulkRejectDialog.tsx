@@ -1,7 +1,7 @@
 import { Button, Dialog, Text } from '@circi/ui'
 import { type FormEvent, useId, useState } from 'react'
 
-import { isSubmitKey } from '../../lib/shortcuts.ts'
+import { isSubmitKey } from '#lib/shortcuts.ts'
 
 import styles from './BulkRejectDialog.module.css'
 
@@ -52,13 +52,13 @@ export function BulkRejectDialog({
         </>
       }
     >
-      <form id={`${fieldId}-form`} onSubmit={submit} className={styles['form']}>
+      <form id={`${fieldId}-form`} onSubmit={submit} className={styles.form}>
         <label htmlFor={fieldId}>
           <Text variant="small">Reason</Text>
         </label>
         <textarea
           id={fieldId}
-          className={styles['textarea']}
+          className={styles.textarea}
           value={reason}
           rows={4}
           aria-required="true"

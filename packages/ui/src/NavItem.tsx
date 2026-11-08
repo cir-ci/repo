@@ -12,11 +12,11 @@ export function NavItem(props: NavItem.Props) {
   const content = (
     <>
       {props.icon}
-      <span className={styles['label']}>
+      <span className={styles.label}>
         {props.children}
         {props.count === undefined ? null : (
           <span
-            className={styles['hidden']}
+            className={styles.hidden}
           >{`, ${props.count}${props.countLabel ? ` ${props.countLabel}` : ''}`}</span>
         )}
       </span>
@@ -29,7 +29,7 @@ export function NavItem(props: NavItem.Props) {
     </>
   )
   const common = {
-    className: styles['root'],
+    className: styles.root,
     onClick: props.onClick,
     'aria-current': props.selected ? ('page' as const) : undefined,
     'data-selected': props.selected ? '' : undefined,

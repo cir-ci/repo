@@ -1,6 +1,6 @@
 import { EmptyState } from '@circi/ui'
 
-import { RouterLink } from '../lib/router-link.ts'
+import { RouterLink } from '#lib/router-link.ts'
 
 /** The 404 page, rendered inside the shell (docs/design-gaps.md §5). */
 export function NotFound() {

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { Breadcrumbs } from '../src/index.ts'
+import { Breadcrumbs } from '#src/index.ts'
 
 const ITEMS = [
   { label: 'Projects', href: '/projects' },

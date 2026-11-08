@@ -12,9 +12,9 @@ import {
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
-import { currentUser } from '../../hooks/session.ts'
-import type { DashboardDeps } from '../../lib/deps.ts'
-import { parse } from '../../lib/validation.ts'
+import { currentUser } from '#http/hooks/session.ts'
+import type { DashboardDeps } from '#http/lib/deps.ts'
+import { parse } from '#http/lib/validation.ts'
 
 const nameBody = z.object({ name: z.string().min(1).max(100) })
 const orgParams = z.object({ org: z.string() })

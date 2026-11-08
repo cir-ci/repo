@@ -14,7 +14,7 @@ const DEFAULT_ELEMENT = { display: 'h1', title: 'h2', heading: 'h3' } as const
 export function Heading({ level = 'heading', as, className, ...rest }: Heading.Props) {
   return createElement(as ?? DEFAULT_ELEMENT[level], {
     ...rest,
-    className: cx(styles['root'], className),
+    className: cx(styles.root, className),
     'data-level': level,
   })
 }

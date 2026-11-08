@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 
-import { createProject } from '../src/admin.ts'
-import type { FakeGithub } from '../src/fakes/fake-github.ts'
+import type { FakeGithub } from '#fakes/fake-github.ts'
+import { createProject } from '#src/admin.ts'
 import {
   buildDetail,
   checkRunPayload,
@@ -9,8 +9,8 @@ import {
   INSTALLATION,
   type LinkedProject,
   uploadPr,
-} from '../src/github-helpers.ts'
-import { useBrowser, useStack } from '../src/vitest.ts'
+} from '#src/github-helpers.ts'
+import { useBrowser, useStack } from '#src/vitest.ts'
 
 /**
  * The GitHub App against the real stack. GitHub itself is a fake on the host (`fake-github.ts`,

@@ -1,9 +1,9 @@
 import type { Activity, Build, Comment } from '@circi/api'
 import { vi } from 'vitest'
 
-import { BuildPage } from '../../../src/features/builds/BuildPage.tsx'
-import { validateBuildSearch } from '../../../src/features/builds/search.ts'
-import { renderPage } from '../../support/render.tsx'
+import { BuildPage } from '#features/builds/BuildPage.tsx'
+import { validateBuildSearch } from '#features/builds/search.ts'
+import { renderPage } from '#test/support/render.tsx'
 
 let nextId = 0
 

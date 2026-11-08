@@ -11,8 +11,8 @@ import {
   parseBuildQuery,
   searchEntries,
   wrapIndex,
-} from '../../../src/features/command/model.ts'
-import { SHORTCUTS } from '../../../src/lib/shortcuts.ts'
+} from '#features/command/model.ts'
+import { SHORTCUTS } from '#lib/shortcuts.ts'
 
 const build = (over: Partial<Search.Build> = {}): Search.Build => ({
   projectSlug: 'web',

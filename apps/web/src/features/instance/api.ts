@@ -1,7 +1,7 @@
 import type { Instance } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { getJson, post } from '../../lib/http.ts'
+import { getJson, post } from '#lib/http.ts'
 
 export const noticesQuery = () =>
   queryOptions({

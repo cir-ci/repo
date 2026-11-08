@@ -1,7 +1,7 @@
 import { createTestDb, seedProject, type TestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { ConflictError } from '../../src/errors.ts'
+import { ConflictError } from '#src/errors.ts'
 import {
   connectGithub,
   createIntegration,
@@ -20,7 +20,7 @@ import {
   removeIntegrationProject,
   setIntegrationAttention,
   setIntegrationProject,
-} from '../../src/index.ts'
+} from '#src/index.ts'
 
 let t: TestDb
 beforeAll(async () => {

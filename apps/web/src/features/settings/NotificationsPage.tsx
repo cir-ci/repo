@@ -1,7 +1,8 @@
 import { Banner, SectionHeader, Switch } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 
-import { useDocumentTitle } from '../../lib/document-title.ts'
+import { useDocumentTitle } from '#lib/document-title.ts'
+
 import { PREFERENCE_ROWS, preferencesQuery, useSetPreference } from './api.ts'
 import { Frame } from './Frame.tsx'
 
@@ -21,12 +22,12 @@ export function NotificationsPage() {
       onRetry={() => void refetch()}
     >
       {data ? (
-        <section className={styles['section']}>
+        <section className={styles.section}>
           <SectionHeader
             title="Email"
             description="The Inbox always has every notification. Emails are only sent when this CirCI server can send mail."
           />
-          <div className={styles['fields']}>
+          <div className={styles.fields}>
             {PREFERENCE_ROWS.map((row) => (
               <Switch
                 key={row.key}

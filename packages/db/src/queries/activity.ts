@@ -1,6 +1,5 @@
 import { and, aliasedTable, eq, isNull } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
 import {
   builds,
   buildChecks,
@@ -11,7 +10,8 @@ import {
   type ReviewSource,
   type ReviewState,
   user,
-} from '../schema/index.ts'
+} from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
 
 /**
  * A build's activity: one list, oldest first, put together from the tables that each keep their

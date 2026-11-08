@@ -20,8 +20,8 @@ import { diffImages, InvalidImageError, makeThumbnail, readPngInfo } from '@circ
 import { completeBuild } from '@circi/services'
 import type { StorageDriver } from '@circi/storage'
 
-import { mapLimit } from '../lib/concurrency.ts'
-import { createLoader, type Loader, storeServerFile } from '../lib/files.ts'
+import { mapLimit } from '#lib/concurrency.ts'
+import { createLoader, type Loader, storeServerFile } from '#lib/files.ts'
 
 /** The `process-build` job (PLAN §7.2–7.3). */
 

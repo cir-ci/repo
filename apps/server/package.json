@@ -6,6 +6,12 @@
     "circi-server": "./dist/main.mjs"
   },
   "type": "module",
+  "imports": {
+    "#cli/*": "./src/cli/*",
+    "#http/*": "./src/http/*",
+    "#lifecycle/*": "./src/lifecycle/*",
+    "#test/*": "./test/*"
+  },
   "scripts": {
     "build": "tsdown",
     "start": "node dist/main.mjs",

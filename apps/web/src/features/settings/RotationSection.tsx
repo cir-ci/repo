@@ -12,8 +12,9 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { RelativeTime } from '../../lib/RelativeTime.tsx'
-import { triageQuery } from '../triage/api.ts'
+import { triageQuery } from '#features/triage/api.ts'
+import { RelativeTime } from '#lib/RelativeTime.tsx'
+
 import {
   rotationBody,
   rotationDirty,
@@ -40,7 +41,7 @@ export function RotationSection(props: RotationSection.Props) {
 
   return (
     <form
-      className={styles['section']}
+      className={styles.section}
       noValidate
       onSubmit={(e) => {
         e.preventDefault()
@@ -58,7 +59,7 @@ export function RotationSection(props: RotationSection.Props) {
         title="Triage rotation"
         description="One person at a time is on triage for the week and is the default owner of what turns up. People take turns in the order they were added."
       />
-      <div className={styles['fields']}>
+      <div className={styles.fields}>
         {onTriage ? (
           <Text>
             On triage this week: <strong>{onTriage.name}</strong>
@@ -102,7 +103,7 @@ export function RotationSection(props: RotationSection.Props) {
         {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
         {done && !dirty ? <Banner tone="success">Triage rotation saved.</Banner> : null}
         {props.canManage ? (
-          <div className={styles['actions']}>
+          <div className={styles.actions}>
             <Button type="submit" variant="primary" loading={save.isPending} disabled={!dirty}>
               {save.isPending ? 'Saving…' : 'Save rotation'}
             </Button>

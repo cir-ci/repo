@@ -1,9 +1,9 @@
 import { SHA256_RE } from '@circi/core'
 import { and, eq, gt, inArray, isNull } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { type FileKind, files, uploadClaims } from '../schema/index.ts'
-import type { FileRow } from '../types.ts'
+import { type FileKind, files, uploadClaims } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+import type { FileRow } from '#src/types.ts'
 
 /** Content-addressed files: upload planning (verify before dedup, PLAN §8) and bookkeeping. */
 

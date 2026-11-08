@@ -2,7 +2,8 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { collectDirectory, collectToMatchScreenshot } from '../src/collect.ts'
+import { collectDirectory, collectToMatchScreenshot } from '#src/collect.ts'
+
 import { useTempRoot } from './support/temp-root.ts'
 
 const tmp = useTempRoot()

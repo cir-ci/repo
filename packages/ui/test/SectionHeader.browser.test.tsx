@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { Button, SectionHeader } from '../src/index.ts'
+import { Button, SectionHeader } from '#src/index.ts'
 
 describe('SectionHeader', () => {
   it('is a heading with a description and an action', async () => {

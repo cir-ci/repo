@@ -6,7 +6,7 @@ import { promisify } from 'node:util'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { collectAncestry, gitRunner, remoteBranchTip } from '../src/git.ts'
+import { collectAncestry, gitRunner, remoteBranchTip } from '#src/git.ts'
 
 const exec = promisify(execFile)
 const env = {

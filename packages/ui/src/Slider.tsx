@@ -31,12 +31,12 @@ export function Slider({
       max={max}
       step={step}
       disabled={disabled}
-      className={cx(styles['root'], className)}
+      className={cx(styles.root, className)}
     >
-      <BaseSlider.Control className={styles['control']}>
-        <BaseSlider.Track className={styles['track']}>
-          <BaseSlider.Indicator className={styles['indicator']} />
-          <BaseSlider.Thumb aria-label={label} className={styles['thumb']} />
+      <BaseSlider.Control className={styles.control}>
+        <BaseSlider.Track className={styles.track}>
+          <BaseSlider.Indicator className={styles.indicator} />
+          <BaseSlider.Thumb aria-label={label} className={styles.thumb} />
         </BaseSlider.Track>
       </BaseSlider.Control>
     </BaseSlider.Root>

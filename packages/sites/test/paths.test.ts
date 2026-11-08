@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { requestPath, safeEntryPath, UnsafePathError } from '../src/paths.ts'
+import { requestPath, safeEntryPath, UnsafePathError } from '#src/paths.ts'
 
 describe('safeEntryPath', () => {
   it('accepts ordinary paths and tidies them', () => {

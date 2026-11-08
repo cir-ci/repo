@@ -17,7 +17,8 @@ import {
 } from '@circi/ui'
 import { type CSSProperties, useState } from 'react'
 
-import { MODE_OPTIONS } from '../../lib/shortcuts.ts'
+import { MODE_OPTIONS } from '#lib/shortcuts.ts'
+
 import { fileUrl } from './api.ts'
 import { screenshotLabel, screenshotStatus, type ShotKind } from './diff-status.ts'
 import { type Annotations, RegionLayer } from './RegionLayer.tsx'
@@ -61,24 +62,24 @@ export function Viewer({
   const zoomed = zoom !== 'fit'
 
   return (
-    <section aria-labelledby="viewer-title" className={styles['viewer']}>
-      <div className={styles['toolbar']}>
-        <div className={styles['title']}>
+    <section aria-labelledby="viewer-title" className={styles.viewer}>
+      <div className={styles.toolbar}>
+        <div className={styles.title}>
           <StatusIcon
             status={screenshotStatus(kind, review)}
             size={12}
             label={screenshotLabel(kind, review)}
           />
-          <Heading as="h2" id="viewer-title" title={diff.name} className={styles['name']}>
+          <Heading as="h2" id="viewer-title" title={diff.name} className={styles.name}>
             {diff.name}
           </Heading>
           {summary ? (
-            <Text variant="mono" tone="secondary" className={styles['summary']}>
+            <Text variant="mono" tone="secondary" className={styles.summary}>
               {summary}
             </Text>
           ) : null}
         </div>
-        <div className={styles['controls']}>
+        <div className={styles.controls}>
           {comparable ? (
             <SegmentedControl
               label="View"
@@ -90,7 +91,7 @@ export function Viewer({
             />
           ) : null}
           {comparable && mode === 'overlay' ? (
-            <span className={styles['slider']}>
+            <span className={styles.slider}>
               <Text variant="small" tone="secondary">
                 Diff layer
               </Text>
@@ -105,7 +106,7 @@ export function Viewer({
             </span>
           ) : null}
           {comparable && mode === 'swipe' ? (
-            <span className={styles['slider']}>
+            <span className={styles.slider}>
               <Text variant="small" tone="secondary">
                 Swipe
               </Text>
@@ -131,7 +132,7 @@ export function Viewer({
               </Button>
             </Tooltip>
           ) : null}
-          <div className={styles['group']}>
+          <div className={styles.group}>
             <SegmentedControl
               label="Zoom"
               options={[
@@ -153,7 +154,7 @@ export function Viewer({
               </Text>
             ) : null}
           </div>
-          <div className={styles['group']}>
+          <div className={styles.group}>
             <Tooltip
               content={
                 <>
@@ -192,7 +193,7 @@ export function Viewer({
         </div>
       </div>
 
-      <div className={styles['ground']}>
+      <div className={styles.ground}>
         {diff.status === 'failed' ? (
           <Banner tone="danger">
             {diff.errorMessage ?? 'This screenshot couldn’t be processed.'}
@@ -206,7 +207,7 @@ export function Viewer({
         ) : null}
 
         {mode === 'side' ? (
-          <div className={styles['side']} data-zoomed={zoomed ? '' : undefined}>
+          <div className={styles.side} data-zoomed={zoomed ? '' : undefined}>
             {diff.base ? <Figure label={baselineLabel} image={diff.base} zoom={zoom} /> : null}
             {diff.head ? (
               <Figure
@@ -217,7 +218,7 @@ export function Viewer({
               />
             ) : null}
             {!diff.head && diff.base ? (
-              <Text tone="secondary" as="p" className={styles['note']}>
+              <Text tone="secondary" as="p" className={styles.note}>
                 This screenshot isn’t in this build any more.
               </Text>
             ) : null}
@@ -225,21 +226,21 @@ export function Viewer({
         ) : null}
 
         {mode === 'overlay' && diff.head && diff.diff ? (
-          <figure className={styles['figure']}>
-            <Text as="small" variant="small" tone="secondary" className={styles['caption']}>
+          <figure className={styles.figure}>
+            <Text as="small" variant="small" tone="secondary" className={styles.caption}>
               This build, with changed pixels highlighted
             </Text>
-            <div className={styles['frame']}>
+            <div className={styles.frame}>
               <img
                 src={fileUrl(diff.head.sha256)}
                 alt={`${diff.name} in this build`}
-                className={styles['image']}
+                className={styles.image}
                 style={imageStyle(zoom, diff.head.width)}
               />
               <img
                 src={fileUrl(diff.diff.sha256)}
                 alt=""
-                className={styles['cover']}
+                className={styles.cover}
                 style={{ opacity: opacity / 100 }}
               />
               {annotate ? <RegionLayer annotations={annotate} /> : null}
@@ -248,24 +249,24 @@ export function Viewer({
         ) : null}
 
         {mode === 'swipe' && diff.base && diff.head ? (
-          <figure className={styles['figure']}>
-            <Text as="small" variant="small" tone="secondary" className={styles['caption']}>
+          <figure className={styles.figure}>
+            <Text as="small" variant="small" tone="secondary" className={styles.caption}>
               {baselineLabel} on the left, this build on the right
             </Text>
-            <div className={styles['frame']}>
+            <div className={styles.frame}>
               <img
                 src={fileUrl(diff.base.sha256)}
                 alt={`${diff.name} in the baseline`}
-                className={styles['image']}
+                className={styles.image}
                 style={imageStyle(zoom, diff.base.width)}
               />
               <img
                 src={fileUrl(diff.head.sha256)}
                 alt={`${diff.name} in this build`}
-                className={styles['cover']}
+                className={styles.cover}
                 style={{ clipPath: `inset(0 0 0 ${at}%)` }}
               />
-              <span aria-hidden="true" className={styles['divider']} style={{ left: `${at}%` }} />
+              <span aria-hidden="true" className={styles.divider} style={{ left: `${at}%` }} />
               {annotate ? <RegionLayer annotations={annotate} /> : null}
             </div>
           </figure>
@@ -317,28 +318,28 @@ const imageStyle = (zoom: Zoom, naturalWidth: number | null): CSSProperties | un
 
 function Figure({ label, image, zoom, annotations }: Figure.Props) {
   return (
-    <figure className={styles['figure']}>
-      <Text as="small" variant="small" tone="secondary" className={styles['caption']}>
+    <figure className={styles.figure}>
+      <Text as="small" variant="small" tone="secondary" className={styles.caption}>
         {label}
       </Text>
       {/* The layer is a sibling of the link, never inside it: markers are buttons. */}
-      <div className={styles['stage']}>
+      <div className={styles.stage}>
         <a
           href={fileUrl(image.sha256)}
           target="_blank"
           rel="noreferrer"
           title="Open full size"
-          className={styles['frame']}
+          className={styles.frame}
         >
           <img
             src={fileUrl(image.sha256)}
             alt={label}
-            className={styles['image']}
+            className={styles.image}
             style={imageStyle(zoom, image.width)}
           />
         </a>
         {annotations ? (
-          <div className={styles['inset']}>
+          <div className={styles.inset}>
             <RegionLayer annotations={annotations} />
           </div>
         ) : null}

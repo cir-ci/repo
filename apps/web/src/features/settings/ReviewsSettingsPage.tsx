@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
-import { useDocumentTitle } from '../../lib/document-title.ts'
-import { organizationQuery } from '../members/api.ts'
-import { settingsQuery } from '../projects/api.ts'
+import { organizationQuery } from '#features/members/api.ts'
+import { settingsQuery } from '#features/projects/api.ts'
+import { useDocumentTitle } from '#lib/document-title.ts'
+
 import { rulesQuery } from './api.ts'
 import { Frame } from './Frame.tsx'
 import { ReviewTargetSection } from './ReviewTargetSection.tsx'

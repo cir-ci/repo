@@ -2,7 +2,8 @@ import { findProjectForMember, getProjectMemberRole } from '@circi/db'
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
-import { currentUser } from '../hooks/session.ts'
+import { currentUser } from '#http/hooks/session.ts'
+
 import type { DashboardDeps } from './deps.ts'
 import { parse } from './validation.ts'
 

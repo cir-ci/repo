@@ -9,7 +9,7 @@ import { FsStorage } from '@circi/storage'
 import { createTestDb, seedFile, type TestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { createLoader, readAll, storeServerFile } from '../../src/lib/files.ts'
+import { createLoader, readAll, storeServerFile } from '#lib/files.ts'
 
 let t: TestDb
 let dir: string

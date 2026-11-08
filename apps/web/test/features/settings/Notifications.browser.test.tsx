@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
-import { AppearancePage } from '../../../src/features/settings/AppearancePage.tsx'
-import { NotificationsPage } from '../../../src/features/settings/NotificationsPage.tsx'
-import { renderPage } from '../../support/render.tsx'
-import { fakeApi, restoreFetch } from '../fetch-routes.ts'
+import { AppearancePage } from '#features/settings/AppearancePage.tsx'
+import { NotificationsPage } from '#features/settings/NotificationsPage.tsx'
+import { fakeApi, restoreFetch } from '#test/features/fetch-routes.ts'
+import { renderPage } from '#test/support/render.tsx'
 
 afterEach(() => restoreFetch())
 

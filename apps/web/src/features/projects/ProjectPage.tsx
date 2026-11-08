@@ -2,10 +2,11 @@ import { Banner, Button, PanelHeader, Ref, Text, useAnnounce } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 
-import { useDocumentTitle } from '../../lib/document-title.ts'
-import { useClientLink } from '../../lib/use-client-link.ts'
-import { useSidebarModel } from '../sidebar/api.ts'
-import { usePinProject } from '../views/api.ts'
+import { useSidebarModel } from '#features/sidebar/api.ts'
+import { usePinProject } from '#features/views/api.ts'
+import { useDocumentTitle } from '#lib/document-title.ts'
+import { useClientLink } from '#lib/use-client-link.ts'
+
 import { flakyQuery, projectQuery } from './api.ts'
 import { type BuildFilters, parseBuildsSearch, toSearch } from './builds-filters.ts'
 import { BuildsBrowser } from './BuildsBrowser.tsx'
@@ -78,9 +79,9 @@ export function ProjectPage() {
           ]}
         />
       </PanelHeader>
-      <div className={styles['content']}>
+      <div className={styles.content}>
         {data ? (
-          <Text as="p" variant="small" tone="secondary" className={styles['intro']}>
+          <Text as="p" variant="small" tone="secondary" className={styles.intro}>
             Screenshot builds from CI. Builds on{' '}
             <Ref value={data.project.defaultBranch} label="default branch" /> become the baselines
             that pull requests are compared with.

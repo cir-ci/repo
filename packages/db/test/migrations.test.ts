@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { PGlite } from '@electric-sql/pglite'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { migrationsFolder } from '../src/index.ts'
+import { migrationsFolder } from '#src/index.ts'
 
 /**
  * Migration 0003 moves existing organizations, users and memberships into better-auth's tables.

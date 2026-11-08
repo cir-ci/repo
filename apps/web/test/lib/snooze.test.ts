@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { customSnoozeDate, dateInputValue, snoozeOptions } from '../../src/lib/snooze.ts'
+import { customSnoozeDate, dateInputValue, snoozeOptions } from '#lib/snooze.ts'
 
 describe('snoozeOptions', () => {
   it('offers the four choices in order', () => {

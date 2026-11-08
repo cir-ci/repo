@@ -19,8 +19,8 @@ import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { buildServer } from '../../../src/http/app.ts'
-import { createTestAuth, ORIGIN, seedTenant } from '../../support/helpers.ts'
+import { buildServer } from '#http/app.ts'
+import { createTestAuth, ORIGIN, seedTenant } from '#test/support/helpers.ts'
 
 const logger = pino({ level: 'silent' })
 const sha256 = (b: Buffer) => createHash('sha256').update(b).digest('hex')

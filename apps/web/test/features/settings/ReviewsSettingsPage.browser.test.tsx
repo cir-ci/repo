@@ -5,11 +5,11 @@ import { page } from 'vitest/browser'
 const auth = vi.hoisted(() => ({
   getFullOrganization: vi.fn<(arg: unknown) => Promise<unknown>>(),
 }))
-vi.mock('../../../src/lib/auth-client.ts', () => ({ authClient: { organization: auth } }))
+vi.mock('#lib/auth-client.ts', () => ({ authClient: { organization: auth } }))
 
-import { ReviewsSettingsPage } from '../../../src/features/settings/ReviewsSettingsPage.tsx'
-import { renderPage } from '../../support/render.tsx'
-import { fakeApi, type ReplyHandler, restoreFetch } from '../fetch-routes.ts'
+import { ReviewsSettingsPage } from '#features/settings/ReviewsSettingsPage.tsx'
+import { fakeApi, type ReplyHandler, restoreFetch } from '#test/features/fetch-routes.ts'
+import { renderPage } from '#test/support/render.tsx'
 
 const API = '/api/projects/acme/web'
 

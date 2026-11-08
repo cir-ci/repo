@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseMentions } from '../src/index.ts'
+import { parseMentions } from '#src/index.ts'
 
 describe('parseMentions', () => {
   it('finds tokens, lowercased, once each, in order', () => {

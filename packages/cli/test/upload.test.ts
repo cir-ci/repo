@@ -4,7 +4,8 @@ import { join } from 'node:path'
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { pollDelay, UsageError, upload, type UploadOptions } from '../src/upload.ts'
+import { pollDelay, UsageError, upload, type UploadOptions } from '#src/upload.ts'
+
 import { FakeCirci, type FakeCirciOptions } from './support/fake-circi.ts'
 
 let dir: string

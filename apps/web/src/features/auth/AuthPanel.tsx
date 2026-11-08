@@ -10,8 +10,8 @@ import styles from './AuthPanel.module.css'
  */
 export function AuthPanel({ title, description, children }: AuthPanel.Props) {
   return (
-    <Surface variant="panel" className={styles['panel']}>
-      <div className={styles['head']}>
+    <Surface variant="panel" className={styles.panel}>
+      <div className={styles.head}>
         <Heading level="display">{title}</Heading>
         {description ? (
           <Text as="p" tone="secondary">

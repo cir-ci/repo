@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  type BuildStatus,
-  buildState,
-  screenState,
-} from '../../../src/features/builds/build-state.ts'
+import { type BuildStatus, buildState, screenState } from '#features/builds/build-state.ts'
 
 const state = (over: Partial<BuildStatus>) =>
   buildState({

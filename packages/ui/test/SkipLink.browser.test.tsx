@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
 
-import { SkipLink } from '../src/index.ts'
+import { SkipLink } from '#src/index.ts'
 
 describe('SkipLink', () => {
   it('is the first Tab stop, off-screen until focused, and points at the main content', async () => {

@@ -13,12 +13,12 @@ export function SignInMethods({ org }: SignInMethods.Props) {
   const { settings, instance } = data
   const toggle = (patch: Partial<typeof settings>) => save.mutate(patch)
   return (
-    <section className={styles['root']}>
+    <section className={styles.root}>
       <SectionHeader
         title="Sign-in methods"
         description="People sign in with any method the instance offers, but this organization only shows its projects to sessions that used a method you accept here."
       />
-      <div className={styles['methods']}>
+      <div className={styles.methods}>
         <Checkbox
           label="Password"
           checked={settings.passwordLoginEnabled && instance.password}

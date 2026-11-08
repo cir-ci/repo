@@ -1,6 +1,6 @@
 import type { Build } from '@circi/api'
 
-import { buildState } from '../builds/build-state.ts'
+import { buildState } from '#features/builds/build-state.ts'
 
 export const GROUPS = ['none', 'status', 'branch', 'author', 'day'] as const
 export type GroupBy = (typeof GROUPS)[number]

@@ -9,7 +9,7 @@ import {
   parseLabel,
   pickLabel,
   slugify,
-} from '../src/addresses.ts'
+} from '#src/addresses.ts'
 
 describe('addresses', () => {
   it('hashes commits by prefix and branches by name, always 12 safe characters', () => {

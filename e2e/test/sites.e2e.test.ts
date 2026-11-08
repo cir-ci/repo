@@ -14,8 +14,8 @@ import {
   signIn,
   type CreatedProject,
   type Session,
-} from '../src/admin.ts'
-import { Repo } from '../src/git-repo.ts'
+} from '#src/admin.ts'
+import { Repo } from '#src/git-repo.ts'
 import {
   cookieFrom,
   labelOfAddress,
@@ -23,8 +23,8 @@ import {
   siteCookieFor,
   siteRequest,
   uploadSiteCli,
-} from '../src/sites.ts'
-import { useBrowser, useStack } from '../src/vitest.ts'
+} from '#src/sites.ts'
+import { useBrowser, useStack } from '#src/vitest.ts'
 
 /**
  * Hosted static sites on the real stack (docs/static-sites.md, PLAN §7.6): the real CLI packs and

@@ -1,10 +1,10 @@
 import { Avatar, Delayed, Dialog, ListRow, ListSkeleton, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 
-import { ErrorState } from '../../lib/ErrorState.tsx'
-import { organizationQuery } from '../members/api.ts'
+import { organizationQuery } from '#features/members/api.ts'
+import { ErrorState } from '#lib/ErrorState.tsx'
 
-import styles from '../../lib/ListPage.module.css'
+import styles from '#lib/ListPage.module.css'
 
 /** Who to ask for a review: the members of the build's organization, one click each. */
 export function MemberPicker({ org, open, onOpenChange, onPick }: MemberPicker.Props) {
@@ -18,7 +18,7 @@ export function MemberPicker({ org, open, onOpenChange, onPick }: MemberPicker.P
           <ListSkeleton rows={3} />
         </Delayed>
       ) : (
-        <ul aria-label="Members" className={styles['members']}>
+        <ul aria-label="Members" className={styles.members}>
           {data.members.map((m) => (
             <li key={m.id}>
               <ListRow

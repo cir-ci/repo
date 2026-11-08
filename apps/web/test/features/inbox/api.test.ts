@@ -8,7 +8,7 @@ import {
   notificationText,
   snoozeBody,
   validateInboxSearch,
-} from '../../../src/features/inbox/api.ts'
+} from '#features/inbox/api.ts'
 
 const item = (over: Partial<Inbox.Item> = {}): Inbox.Item => ({
   id: 'n1',

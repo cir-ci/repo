@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
-import { validateInsightsSearch } from '../../../src/features/insights/api.ts'
-import { InsightsPage } from '../../../src/features/insights/InsightsPage.tsx'
-import { renderPage } from '../../support/render.tsx'
-import { fakeFetch, restoreFetch } from '../fetch-routes.ts'
+import { validateInsightsSearch } from '#features/insights/api.ts'
+import { InsightsPage } from '#features/insights/InsightsPage.tsx'
+import { fakeFetch, restoreFetch } from '#test/features/fetch-routes.ts'
+import { renderPage } from '#test/support/render.tsx'
 
 afterEach(() => restoreFetch())
 

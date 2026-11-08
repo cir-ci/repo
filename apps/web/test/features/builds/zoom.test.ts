@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { stepZoom, zoomedWidth, zoomLabel } from '../../../src/features/builds/zoom.ts'
+import { stepZoom, zoomedWidth, zoomLabel } from '#features/builds/zoom.ts'
 
 describe('stepZoom', () => {
   it('goes from "fit" to 100% in and 50% out', () => {

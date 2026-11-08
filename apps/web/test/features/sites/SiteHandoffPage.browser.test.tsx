@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
-import { SiteHandoffPage } from '../../../src/features/sites/SiteHandoffPage.tsx'
-import { renderPage } from '../../support/render.tsx'
-import { fakeFetch, restoreFetch, json, pending } from '../fetch-routes.ts'
+import { SiteHandoffPage } from '#features/sites/SiteHandoffPage.tsx'
+import { fakeFetch, restoreFetch, json, pending } from '#test/features/fetch-routes.ts'
+import { renderPage } from '#test/support/render.tsx'
 
 afterEach(() => restoreFetch())
 

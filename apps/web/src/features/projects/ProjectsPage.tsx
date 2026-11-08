@@ -13,13 +13,14 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { useDocumentTitle } from '../../lib/document-title.ts'
-import { ErrorState } from '../../lib/ErrorState.tsx'
-import { useClientLink } from '../../lib/use-client-link.ts'
-import { buildState } from '../builds/build-state.ts'
-import { BuildMeta } from '../builds/BuildMeta.tsx'
-import { CountsSummary } from '../builds/CountsSummary.tsx'
-import { shotReview } from '../builds/diff-status.ts'
+import { buildState } from '#features/builds/build-state.ts'
+import { BuildMeta } from '#features/builds/BuildMeta.tsx'
+import { CountsSummary } from '#features/builds/CountsSummary.tsx'
+import { shotReview } from '#features/builds/diff-status.ts'
+import { useDocumentTitle } from '#lib/document-title.ts'
+import { ErrorState } from '#lib/ErrorState.tsx'
+import { useClientLink } from '#lib/use-client-link.ts'
+
 import { capabilitiesQuery, projectsQuery } from './api.ts'
 import { NewOrganizationDialog, NewProjectDialog } from './CreateDialogs.tsx'
 import { useLoadingAnnouncement } from './loading.ts'
@@ -57,7 +58,7 @@ export function ProjectsPage() {
       >
         <ProjectBreadcrumbs items={[{ label: 'Projects' }]} />
       </PanelHeader>
-      <div className={styles['content']}>
+      <div className={styles.content}>
         <Text as="p" variant="small" tone="secondary">
           Each project receives screenshot builds from one repository’s CI.
         </Text>
@@ -99,13 +100,13 @@ export function ProjectsPage() {
                 : 'You aren’t an owner or admin of any organization yet. Ask one to add you, or to create a project.'}
           </EmptyState>
         ) : (
-          <ul aria-label="Projects" className={styles['list']}>
+          <ul aria-label="Projects" className={styles.list}>
             {data.projects.map(({ org, project, latestBuild }) => {
               const state = latestBuild ? buildState(latestBuild) : null
               return (
                 <li key={`${org.slug}/${project.slug}`}>
                   <ListRow
-                    className={styles['row']}
+                    className={styles.row}
                     {...clientLink({
                       to: '/$org/$project',
                       params: { org: org.slug, project: project.slug },
@@ -119,7 +120,7 @@ export function ProjectsPage() {
                     }
                     trailing={
                       latestBuild ? (
-                        <span className={styles['trailing']}>
+                        <span className={styles.trailing}>
                           <CountsSummary
                             counts={latestBuild.counts}
                             review={shotReview(latestBuild)}
@@ -129,11 +130,11 @@ export function ProjectsPage() {
                       ) : undefined
                     }
                   >
-                    <span className={styles['title']}>
-                      <span className={styles['org']}>{org.name} / </span>
+                    <span className={styles.title}>
+                      <span className={styles.org}>{org.name} / </span>
                       {project.name}
                     </span>
-                    <div className={styles['meta']}>
+                    <div className={styles.meta}>
                       {latestBuild ? (
                         <BuildMeta build={latestBuild} />
                       ) : (

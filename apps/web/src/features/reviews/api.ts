@@ -1,8 +1,8 @@
 import type { Review } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { getJson, post, seg } from '../../lib/http.ts'
-import type { SnoozeChoice } from '../../lib/snooze.ts'
+import { getJson, post, seg } from '#lib/http.ts'
+import type { SnoozeChoice } from '#lib/snooze.ts'
 
 export const REVIEW_TABS: readonly { value: Review.Tab; label: string }[] = [
   { value: 'for-you', label: 'For you' },

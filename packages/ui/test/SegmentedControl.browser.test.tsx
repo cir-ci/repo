@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
 
-import { SegmentedControl } from '../src/index.ts'
+import { SegmentedControl } from '#src/index.ts'
 
 const OPTIONS = [
   { value: 'side', label: 'Side by side' },

@@ -1,10 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createProject, type CreatedProject } from '../src/admin.ts'
-import { startWebhookReceiver, type WebhookReceiver } from '../src/fakes/webhook-receiver.ts'
-import { Repo } from '../src/git-repo.ts'
-import { uploadOrThrow } from '../src/upload.ts'
-import { useBrowser, useStack } from '../src/vitest.ts'
+import { startWebhookReceiver, type WebhookReceiver } from '#fakes/webhook-receiver.ts'
+import { createProject, type CreatedProject } from '#src/admin.ts'
+import { Repo } from '#src/git-repo.ts'
+import { uploadOrThrow } from '#src/upload.ts'
+import { useBrowser, useStack } from '#src/vitest.ts'
 
 /**
  * The webhook address guard on the real stack, with `WEBHOOK_ALLOW_PRIVATE_ADDRESSES=false` (the

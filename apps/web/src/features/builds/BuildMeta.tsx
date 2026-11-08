@@ -1,7 +1,7 @@
 import type { Build } from '@circi/api'
 import { Stack, Text } from '@circi/ui'
 
-import { RelativeTime } from '../../lib/RelativeTime.tsx'
+import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 /** Metadata line for a build: PR, branch, commit, time. */
 export function BuildMeta({ build, showBranch = true }: BuildMeta.Props) {

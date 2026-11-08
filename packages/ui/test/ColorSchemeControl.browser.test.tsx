@@ -7,7 +7,7 @@ import {
   COLOR_SCHEME_ATTRIBUTE,
   ColorSchemeControl,
   MODE_STORAGE_KEY,
-} from '../src/index.ts'
+} from '#src/index.ts'
 
 afterEach(() => {
   document.documentElement.removeAttribute(COLOR_SCHEME_ATTRIBUTE)

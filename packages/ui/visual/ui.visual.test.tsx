@@ -9,7 +9,8 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { CirciTheme, COLOR_SCHEME_ATTRIBUTE } from '../src/index.ts'
+import { CirciTheme, COLOR_SCHEME_ATTRIBUTE } from '#src/index.ts'
+
 import { extraCases } from './cases.tsx'
 
 /**

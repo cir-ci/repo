@@ -13,7 +13,7 @@ import {
   pinnedViews,
   sectionLabel,
   sidebarProjects,
-} from '../../src/app/shell-model.ts'
+} from '#app/shell-model.ts'
 
 const overview = (org: string, project: string): Project.Overview => ({
   org: { slug: org, name: org.toUpperCase() },

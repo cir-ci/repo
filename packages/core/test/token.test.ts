@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { hashToken, issueProjectToken, looksLikeProjectToken } from '../src/index.ts'
+import { hashToken, issueProjectToken, looksLikeProjectToken } from '#src/index.ts'
 
 describe('project tokens', () => {
   it('issues unique, well-formed tokens with a matching hash', () => {

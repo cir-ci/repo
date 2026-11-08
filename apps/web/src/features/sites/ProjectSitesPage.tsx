@@ -16,9 +16,10 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from '@tanstack/react-router'
 
-import { useDocumentTitle } from '../../lib/document-title.ts'
-import { ErrorState } from '../../lib/ErrorState.tsx'
-import { RelativeTime } from '../../lib/RelativeTime.tsx'
+import { useDocumentTitle } from '#lib/document-title.ts'
+import { ErrorState } from '#lib/ErrorState.tsx'
+import { RelativeTime } from '#lib/RelativeTime.tsx'
+
 import { formatSize, projectSitesQuery } from './api.ts'
 
 import styles from './ProjectSitesPage.module.css'
@@ -61,8 +62,8 @@ export function ProjectSitesPage() {
           ]}
         />
       </PanelHeader>
-      <div className={styles['content']}>
-        <div className={styles['intro']}>
+      <div className={styles.content}>
+        <div className={styles.intro}>
           <Heading level="title" as="h1">{`${project} sites`}</Heading>
           <Text as="p" tone="secondary">
             Storybook, test reports and other sites uploaded from CI. Opening one asks you to sign
@@ -89,7 +90,7 @@ export function ProjectSitesPage() {
             icon={<GlobeIcon size={32} />}
             title="No sites yet"
             action={
-              <Surface variant="raised" className={styles['code']}>
+              <Surface variant="raised" className={styles.code}>
                 <Text as="code" variant="mono">
                   {UPLOAD_EXAMPLE}
                 </Text>
@@ -101,17 +102,17 @@ export function ProjectSitesPage() {
           </EmptyState>
         ) : (
           data.sites.map((site) => (
-            <section key={site.slug} className={styles['site']}>
+            <section key={site.slug} className={styles.site}>
               <SectionHeader title={site.name} description={site.kindLabel} />
               {site.branches.length > 0 ? (
-                <div className={styles['group']}>
+                <div className={styles.group}>
                   <Heading level="heading">
                     Branches{' '}
                     <Text variant="micro" tone="tertiary">
                       {site.branches.length}
                     </Text>
                   </Heading>
-                  <div className={styles['list']}>
+                  <div className={styles.list}>
                     {site.branches.map((b) => (
                       <ListRow key={b.address}>
                         <Text as="div" truncate>
@@ -128,14 +129,14 @@ export function ProjectSitesPage() {
                   </div>
                 </div>
               ) : null}
-              <div className={styles['group']}>
+              <div className={styles.group}>
                 <Heading level="heading">
                   Uploads{' '}
                   <Text variant="micro" tone="tertiary">
                     {site.versions.length}
                   </Text>
                 </Heading>
-                <div className={styles['list']}>
+                <div className={styles.list}>
                   {site.versions.map((v) => (
                     <ListRow key={v.commitSha}>
                       <Text as="div" variant="mono" truncate>

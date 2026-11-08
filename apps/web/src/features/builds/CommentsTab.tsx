@@ -3,8 +3,9 @@ import { Avatar, Banner, Button, EmptyState, ReviewIcon, Text, useAnnounce } fro
 import { useQuery } from '@tanstack/react-query'
 import { type Ref, useEffect, useRef, useState } from 'react'
 
-import { RelativeTime } from '../../lib/RelativeTime.tsx'
-import { organizationQuery } from '../members/api.ts'
+import { organizationQuery } from '#features/members/api.ts'
+import { RelativeTime } from '#lib/RelativeTime.tsx'
+
 import { Composer } from './Composer.tsx'
 import { commentsQuery, useAddComment, useDeleteComment, useEditComment } from './discussion-api.ts'
 import type { MentionMember } from './mentions.ts'
@@ -47,7 +48,7 @@ export function CommentsTab(props: CommentsTab.Props) {
         error={add.error?.message}
         context={
           pendingRegion && snapshotName ? (
-            <div className={styles['line']}>
+            <div className={styles.line}>
               <Text variant="small">Pinned to a region of {snapshotName}</Text>
               <Button size="sm" variant="ghost" onClick={props.onClearRegion}>
                 Remove pin
@@ -81,7 +82,7 @@ export function CommentsTab(props: CommentsTab.Props) {
           Press C to write one, or drag over a snapshot to comment on a region.
         </EmptyState>
       ) : (
-        <div className={styles['list']} role="list" aria-label="Comments">
+        <div className={styles.list} role="list" aria-label="Comments">
           {threads.map((t) => (
             <ThreadView
               key={t.root.id}
@@ -142,7 +143,7 @@ function ThreadView({
     <div
       ref={card}
       role="listitem"
-      className={styles['thread']}
+      className={styles.thread}
       data-thread-id={root.id}
       data-focused={focused ? '' : undefined}
       tabIndex={-1}
@@ -151,7 +152,7 @@ function ThreadView({
         {root.snapshotName && root.region ? (
           <button
             type="button"
-            className={styles['pin']}
+            className={styles.pin}
             onClick={() => root.snapshotName && onShow(root.snapshotName, root.id)}
           >
             {number ? `${number} · ` : ''}
@@ -160,12 +161,12 @@ function ThreadView({
         ) : null}
       </CommentView>
       {replies.map((r) => (
-        <div key={r.id} className={styles['reply']}>
+        <div key={r.id} className={styles.reply}>
           <CommentView comment={r} members={members} org={org} project={project} build={build} />
         </div>
       ))}
       {replying ? (
-        <div className={styles['reply']}>
+        <div className={styles.reply}>
           <Composer
             members={members}
             label="Reply"
@@ -179,7 +180,7 @@ function ThreadView({
           />
         </div>
       ) : (
-        <div className={styles['reply']}>
+        <div className={styles.reply}>
           <Button size="sm" variant="ghost" onClick={() => setReplying(true)}>
             Reply
           </Button>
@@ -209,10 +210,10 @@ function CommentView({ comment, members, org, project, build, children }: Commen
   const name = comment.author?.name ?? 'Someone who has left'
   const deleted = comment.deletedAt !== null
   return (
-    <div className={styles['comment']}>
+    <div className={styles.comment}>
       <Avatar name={name} />
-      <div className={styles['eventBody']}>
-        <div className={styles['line']}>
+      <div className={styles.eventBody}>
+        <div className={styles.line}>
           <Text>
             <strong>{name}</strong>
           </Text>
@@ -238,12 +239,12 @@ function CommentView({ comment, members, org, project, build, children }: Commen
             }
           />
         ) : (
-          <p className={styles['commentBody']}>
+          <p className={styles.commentBody}>
             <Text>{comment.body}</Text>
           </p>
         )}
         {!deleted && !editing && (comment.mine || comment.canDelete) ? (
-          <div className={styles['actions']}>
+          <div className={styles.actions}>
             {comment.mine ? (
               <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
                 Edit

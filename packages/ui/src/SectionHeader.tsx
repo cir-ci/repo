@@ -19,12 +19,12 @@ export function SectionHeader({
 }: SectionHeader.Props) {
   const Heading = `h${headingLevel}` as const
   return (
-    <header data-divided={divided ? '' : undefined} className={cx(styles['root'], className)}>
-      <div className={styles['text']}>
-        <Heading className={styles['title']}>{title}</Heading>
-        {description ? <p className={styles['description']}>{description}</p> : null}
+    <header data-divided={divided ? '' : undefined} className={cx(styles.root, className)}>
+      <div className={styles.text}>
+        <Heading className={styles.title}>{title}</Heading>
+        {description ? <p className={styles.description}>{description}</p> : null}
       </div>
-      {action ? <div className={styles['action']}>{action}</div> : null}
+      {action ? <div className={styles.action}>{action}</div> : null}
     </header>
   )
 }

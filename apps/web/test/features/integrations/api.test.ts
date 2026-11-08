@@ -9,7 +9,8 @@ import {
   isInstallationId,
   projectCountLabel,
   unavailableNote,
-} from '../../../src/features/integrations/api.ts'
+} from '#features/integrations/api.ts'
+
 import { CATALOG, entry, item } from './fixtures.ts'
 
 describe('groupItems', () => {

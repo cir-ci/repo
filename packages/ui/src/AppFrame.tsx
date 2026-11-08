@@ -14,12 +14,12 @@ export function AppFrame(props: AppFrame.Props) {
     '--circi-frame-height': height,
   }
   return (
-    <div className={styles['root']} style={style} data-compact={props.compactBar ? '' : undefined}>
-      {props.compactBar ? <div className={styles['bar']}>{props.compactBar}</div> : null}
-      <nav className={styles['sidebar']} aria-label="Main">
+    <div className={styles.root} style={style} data-compact={props.compactBar ? '' : undefined}>
+      {props.compactBar ? <div className={styles.bar}>{props.compactBar}</div> : null}
+      <nav className={styles.sidebar} aria-label="Main">
         {props.sidebar}
       </nav>
-      <main className={styles['main']} id="content" tabIndex={-1}>
+      <main className={styles.main} id="content" tabIndex={-1}>
         {props.children}
       </main>
     </div>

@@ -11,9 +11,9 @@ import {
 } from '@circi/db'
 import { and, eq } from 'drizzle-orm'
 
-import { newSignInMail } from '../mail.ts'
-import type { AuthOptions } from '../options.ts'
-import { isTrusted, ssoProviderOf } from '../sso/sso.ts'
+import { newSignInMail } from '#src/mail.ts'
+import type { AuthOptions } from '#src/options.ts'
+import { isTrusted, ssoProviderOf } from '#sso/sso.ts'
 
 /** How a sign-in came in, from the better-auth endpoint that created the session. */
 function loginMethodOf(path: string | undefined): LoginMethod | undefined {

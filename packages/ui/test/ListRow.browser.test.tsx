@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
 
-import { ListRow } from '../src/index.ts'
+import { ListRow } from '#src/index.ts'
 
 describe('ListRow', () => {
   it('is a link with an href and a button with only onClick', async () => {

@@ -1,9 +1,10 @@
 import { and, asc, eq, inArray } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { NotFoundError } from '../errors.ts'
-import { member, organization } from '../schema/index.ts'
-import type { Organization } from '../types.ts'
+import { member, organization } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+import { NotFoundError } from '#src/errors.ts'
+import type { Organization } from '#src/types.ts'
+
 import { orgAccepts, type SessionMethod } from './auth-settings.ts'
 
 /**

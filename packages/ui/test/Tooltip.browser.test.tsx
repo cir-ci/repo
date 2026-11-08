@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
 
-import { IconButton, Tooltip } from '../src/index.ts'
+import { IconButton, Tooltip } from '#src/index.ts'
 
 function Harness(props: { delay?: number }) {
   return (

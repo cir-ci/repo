@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { interruptibleSleep, mapLimit } from '../../src/lib/concurrency.ts'
+import { interruptibleSleep, mapLimit } from '#lib/concurrency.ts'
 
 describe('mapLimit', () => {
   it('runs every item, never more than `limit` at once', async () => {

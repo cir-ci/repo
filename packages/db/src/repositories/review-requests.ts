@@ -13,11 +13,11 @@ import {
   sql,
 } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { ConflictError, NotFoundError } from '../errors.ts'
-import { builds, member, notifications, projects, reviewRequests } from '../schema/index.ts'
-import type { SnoozeKind } from '../schema/index.ts'
-import type { ReviewRequest } from '../types.ts'
+import { builds, member, notifications, projects, reviewRequests } from '#schema/index.ts'
+import type { SnoozeKind } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+import { ConflictError, NotFoundError } from '#src/errors.ts'
+import type { ReviewRequest } from '#src/types.ts'
 
 /**
  * Review requests: who was asked to look at which build, and whether they still need to. Data

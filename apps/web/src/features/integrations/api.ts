@@ -8,7 +8,7 @@ import {
 } from '@circi/core/integrations'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { getJson, post, seg, send } from '../../lib/http.ts'
+import { getJson, post, seg, send } from '#lib/http.ts'
 
 // ---- Logic (tested in Node) -------------------------------------------------------------------
 

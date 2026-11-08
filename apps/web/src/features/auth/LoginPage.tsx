@@ -2,7 +2,8 @@ import { Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { useDocumentTitle } from '../../lib/document-title.ts'
+import { useDocumentTitle } from '#lib/document-title.ts'
+
 import { authMethodsQuery, setupQuery } from './api.ts'
 import { AuthPanel } from './AuthPanel.tsx'
 import { EmailForm } from './EmailForm.tsx'
@@ -48,11 +49,11 @@ export function LoginPage() {
       ) : (
         <PasswordForm onEmail={emailOn ? () => setMode('email') : undefined} />
       )}
-      <div className={styles['form']}>
+      <div className={styles.form}>
         <SsoButtons providers={methods.data?.sso ?? []} />
         <OrgSsoSignIn />
       </div>
-      <Text as="p" variant="small" tone="secondary" className={styles['center']}>
+      <Text as="p" variant="small" tone="secondary" className={styles.center}>
         No account? Ask the person who runs CirCI for one.
       </Text>
     </AuthPanel>

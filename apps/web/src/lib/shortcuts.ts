@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-import { DESIGN_MODE, VIEW_MODES, type ViewMode } from '../features/builds/search.ts'
+import { DESIGN_MODE, VIEW_MODES, type ViewMode } from '#features/builds/search.ts'
 
 /**
  * The one keyboard layer. Every shortcut is declared once in `SHORTCUTS` (keys, scope, group,

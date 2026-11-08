@@ -3,7 +3,7 @@ import { addTestMember, createTestDb, seedProject, seedUser, type TestDb } from 
 import { and, asc, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { addComment, deleteComment, editComment, matchMentions, reviewBuild } from '../src/index.ts'
+import { addComment, deleteComment, editComment, matchMentions, reviewBuild } from '#src/index.ts'
 
 let t: TestDb
 beforeAll(async () => {

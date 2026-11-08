@@ -16,11 +16,11 @@ export function Drawer({ open, onOpenChange, title, children }: Drawer.Props) {
   return (
     <BaseDrawer.Root open={open} onOpenChange={(next) => onOpenChange(next)} swipeDirection="left">
       <BaseDrawer.Portal>
-        <BaseDrawer.Backdrop className={styles['backdrop']} />
-        <BaseDrawer.Viewport className={styles['viewport']}>
-          <BaseDrawer.Popup className={styles['popup']}>
-            <BaseDrawer.Title className={styles['title']}>{title}</BaseDrawer.Title>
-            <BaseDrawer.Content className={styles['content']}>{children}</BaseDrawer.Content>
+        <BaseDrawer.Backdrop className={styles.backdrop} />
+        <BaseDrawer.Viewport className={styles.viewport}>
+          <BaseDrawer.Popup className={styles.popup}>
+            <BaseDrawer.Title className={styles.title}>{title}</BaseDrawer.Title>
+            <BaseDrawer.Content className={styles.content}>{children}</BaseDrawer.Content>
           </BaseDrawer.Popup>
         </BaseDrawer.Viewport>
       </BaseDrawer.Portal>

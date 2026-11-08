@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { assertValidSlug, isValidSlug, slugify, ValidationError } from '../src/index.ts'
+import { assertValidSlug, isValidSlug, slugify, ValidationError } from '#src/index.ts'
 
 describe('slugs', () => {
   it.each(['acme', 'web-app', 'a', 'a1', 'x'.repeat(40)])('accepts %s', (s) => {

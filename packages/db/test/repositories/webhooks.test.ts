@@ -9,7 +9,7 @@ import {
   NotFoundError,
   pgErrorCode,
   schema,
-} from '../../src/index.ts'
+} from '#src/index.ts'
 
 let t: TestDb
 

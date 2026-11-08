@@ -6,8 +6,8 @@ import styles from './NavSection.module.css'
 export function NavSection({ label, children }: NavSection.Props) {
   const id = useId()
   return (
-    <section aria-labelledby={id} className={styles['root']}>
-      <div id={id} className={styles['label']}>
+    <section aria-labelledby={id} className={styles.root}>
+      <div id={id} className={styles.label}>
         {label}
       </div>
       {children}

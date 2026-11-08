@@ -2,7 +2,7 @@ import type { Search } from '@circi/api'
 import { keepPreviousData, queryOptions, useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
-import { request, seg } from '../../lib/http.ts'
+import { request, seg } from '#lib/http.ts'
 
 /** How long typing pauses before a search is sent. */
 export const SEARCH_DEBOUNCE_MS = 200

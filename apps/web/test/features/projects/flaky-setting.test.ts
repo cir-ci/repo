@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  choiceOf,
-  flakyChoices,
-  isFlakyChoice,
-  valueOf,
-} from '../../../src/features/projects/flaky-setting.ts'
+import { choiceOf, flakyChoices, isFlakyChoice, valueOf } from '#features/projects/flaky-setting.ts'
 
 describe('flaky-setting', () => {
   it('maps the wire value to the control and back', () => {

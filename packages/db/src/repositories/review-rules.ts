@@ -1,8 +1,6 @@
 import { RULE_KINDS, ValidationError } from '@circi/core'
 import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { NotFoundError } from '../errors.ts'
 import {
   member,
   projects,
@@ -11,7 +9,9 @@ import {
   type ReviewRuleKind,
   screenshots,
   user,
-} from '../schema/index.ts'
+} from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+import { NotFoundError } from '#src/errors.ts'
 
 /**
  * Review rules: which glob of snapshot or build names asks which people to review. Data only;

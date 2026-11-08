@@ -1,9 +1,10 @@
 import { apiKey } from '@better-auth/api-key'
 import { admin, organization } from 'better-auth/plugins'
 
-import { CI_KEY_CONFIG, CI_KEY_PREFIX, INVITATION_TTL_SECONDS } from '../constants.ts'
-import { invitationMail } from '../mail.ts'
-import type { PluginOptions } from '../options.ts'
+import { CI_KEY_CONFIG, CI_KEY_PREFIX, INVITATION_TTL_SECONDS } from '#src/constants.ts'
+import { invitationMail } from '#src/mail.ts'
+import type { PluginOptions } from '#src/options.ts'
+
 import { emailLoginPlugin } from './email-login.ts'
 import { orgSsoPlugin } from './org-sso.ts'
 import { ssoPlugins } from './sso.ts'

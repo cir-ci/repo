@@ -2,7 +2,7 @@ import { getSessionMethod, orgAcceptsSession, schema, takeEmailCodeSlot } from '
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
 import { eq } from 'drizzle-orm'
 
-import type { AuthOptions } from '../options.ts'
+import type { AuthOptions } from '#src/options.ts'
 
 /** The organization a request names, by id or slug. */
 function organizationRef(source: unknown): { id?: string; slug?: string } | undefined {

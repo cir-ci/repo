@@ -1,10 +1,10 @@
 import type { Build } from '@circi/api'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { approveBuild, createProject, type CreatedProject } from '../src/admin.ts'
-import { Repo } from '../src/git-repo.ts'
-import { uploadOrThrow } from '../src/upload.ts'
-import { useBrowser, useStack } from '../src/vitest.ts'
+import { approveBuild, createProject, type CreatedProject } from '#src/admin.ts'
+import { Repo } from '#src/git-repo.ts'
+import { uploadOrThrow } from '#src/upload.ts'
+import { useBrowser, useStack } from '#src/vitest.ts'
 
 /**
  * The core loop on the real stack: the real CLI uploads a baseline on `main` and a changed build

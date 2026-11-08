@@ -1,8 +1,8 @@
 import { DEFAULT_FLAKY_BLOCKS_MERGE } from '@circi/core'
 import { eq } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { orgSettings } from '../schema/index.ts'
+import { orgSettings } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
 
 /** An organization's defaults for its projects (a project may override each one). */
 

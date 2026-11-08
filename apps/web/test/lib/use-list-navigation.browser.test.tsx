@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
 
-import { useListNavigation } from '../../src/lib/use-list-navigation.ts'
+import { useListNavigation } from '#lib/use-list-navigation.ts'
 
 const ITEMS = ['alpha', 'beta', 'gamma']
 

@@ -1,8 +1,9 @@
 import type { Flaky, Org, Project } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { getJson, post, send, seg } from '../../lib/http.ts'
-import { isActive } from '../builds/api.ts'
+import { isActive } from '#features/builds/api.ts'
+import { getJson, post, send, seg } from '#lib/http.ts'
+
 import { type BuildFilters, hasFilters, toQuery, toSearch } from './builds-filters.ts'
 
 /** Page size of the builds list (the server returns at most this many). */

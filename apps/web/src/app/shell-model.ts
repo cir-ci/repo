@@ -1,6 +1,6 @@
 import type { Project, Sidebar, View } from '@circi/api'
 
-import type { GoTarget } from '../lib/shortcuts.ts'
+import type { GoTarget } from '#lib/shortcuts.ts'
 
 /** What the sidebar needs to know, kept apart from rendering so it can be tested without a DOM. */
 

@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, max, ne, or } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { builds, files, reviews, screenshots } from '../schema/index.ts'
+import { builds, files, reviews, screenshots } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
 
 /**
  * The baselines page (PLAN §7.2): for each screenshot name, the image a new default-branch build

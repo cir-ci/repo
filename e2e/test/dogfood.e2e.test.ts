@@ -5,10 +5,10 @@ import { join } from 'node:path'
 import type { Build } from '@circi/api'
 import { describe, expect, it } from 'vitest'
 
-import { approveBuild, createProject, type CreatedProject } from '../src/admin.ts'
-import { GIT_ENV } from '../src/git-repo.ts'
-import { REPO_ROOT } from '../src/paths.ts'
-import { useStack } from '../src/vitest.ts'
+import { approveBuild, createProject, type CreatedProject } from '#src/admin.ts'
+import { GIT_ENV } from '#src/git-repo.ts'
+import { REPO_ROOT } from '#src/paths.ts'
+import { useStack } from '#src/vitest.ts'
 
 /**
  * CirCI tests its own design system. `pnpm test:visual` screenshots every `@circi/ui` component in

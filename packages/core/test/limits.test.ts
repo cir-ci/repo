@@ -6,7 +6,7 @@ import {
   isSha256,
   MAX_ANCESTORS,
   ValidationError,
-} from '../src/index.ts'
+} from '#src/index.ts'
 
 describe('limits', () => {
   it('recognises commit SHAs and sha256 hashes', () => {

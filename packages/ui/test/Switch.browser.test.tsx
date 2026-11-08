@@ -2,7 +2,7 @@ import { expect, it, describe, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
 
-import { Switch } from '../src/index.ts'
+import { Switch } from '#src/index.ts'
 
 describe('Switch', () => {
   it('is a switch named by its label', async () => {

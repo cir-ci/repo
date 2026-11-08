@@ -3,13 +3,13 @@ import { verifyWebhookSignature } from '@circi/core'
 import type { Page } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createProject, type CreatedProject, type Session } from '../src/admin.ts'
-import { listen } from '../src/fakes/http.ts'
-import { startWebhookReceiver, type WebhookReceiver } from '../src/fakes/webhook-receiver.ts'
-import { Repo } from '../src/git-repo.ts'
-import type { Stack } from '../src/stack.ts'
-import { uploadOrThrow } from '../src/upload.ts'
-import { useBrowser, useStack } from '../src/vitest.ts'
+import { listen } from '#fakes/http.ts'
+import { startWebhookReceiver, type WebhookReceiver } from '#fakes/webhook-receiver.ts'
+import { createProject, type CreatedProject, type Session } from '#src/admin.ts'
+import { Repo } from '#src/git-repo.ts'
+import type { Stack } from '#src/stack.ts'
+import { uploadOrThrow } from '#src/upload.ts'
+import { useBrowser, useStack } from '#src/vitest.ts'
 
 /**
  * Outgoing webhooks on the real stack (private addresses allowed, as the harness sets): added in

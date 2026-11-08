@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { instanceSettings } from '../schema/index.ts'
+import { instanceSettings } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
 
 /** Instance-wide settings (key/value) and the dashboard-address change notice (PLAN §7.9). */
 

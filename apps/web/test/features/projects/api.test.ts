@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { isActive } from '../../../src/features/builds/api.ts'
+import { isActive } from '#features/builds/api.ts'
 import {
   BUILDS_PAGE_SIZE,
   capabilitiesQuery,
@@ -8,8 +8,8 @@ import {
   projectQuery,
   projectsQuery,
   settingsQuery,
-} from '../../../src/features/projects/api.ts'
-import { restoreFetch } from '../fetch-routes.ts'
+} from '#features/projects/api.ts'
+import { restoreFetch } from '#test/features/fetch-routes.ts'
 
 function stubFetch(body: unknown) {
   const fetcher = vi.fn<typeof fetch>(async () => Response.json(body))

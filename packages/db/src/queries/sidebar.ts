@@ -1,9 +1,10 @@
 import { and, asc, eq } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import type { SessionMethod } from '../repositories/auth-settings.ts'
-import { listPinnedProjectIds, listSavedViews, type SavedViewRow } from '../repositories/views.ts'
-import { projects } from '../schema/index.ts'
+import type { SessionMethod } from '#repositories/auth-settings.ts'
+import { listPinnedProjectIds, listSavedViews, type SavedViewRow } from '#repositories/views.ts'
+import { projects } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+
 import { countUnreadNotifications } from './inbox.ts'
 import { listReviewRequests } from './reviews.ts'
 import { countOpenTriage } from './triage.ts'

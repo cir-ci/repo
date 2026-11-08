@@ -61,7 +61,7 @@ export function OrgSso({ org }: OrgSso.Props) {
   const clear = (name: keyof Problems) => () => setProblems((p) => ({ ...p, [name]: undefined }))
 
   return (
-    <section className={styles['root']}>
+    <section className={styles.root}>
       <SectionHeader
         title="Single sign-on"
         description={`Connect your own OpenID Connect provider (Okta, Entra ID, Keycloak…). People sign in from the sign-in page with “${org}” and join as members. Their session opens this organization only, and an address that already has an account elsewhere is refused.`}
@@ -83,20 +83,20 @@ export function OrgSso({ org }: OrgSso.Props) {
         </Delayed>
       ) : null}
       {providers.length > 0 ? (
-        <div className={styles['list']}>
+        <div className={styles.list}>
           {providers.map((p) => (
             <ListRow key={p.providerId}>
-              <div className={styles['row']}>
-                <div className={styles['provider']}>
+              <div className={styles.row}>
+                <div className={styles.provider}>
                   <Text>{p.issuer}</Text>
-                  <Text variant="small" tone="secondary" className={styles['redirect']}>
+                  <Text variant="small" tone="secondary" className={styles.redirect}>
                     Redirect address to register at the provider:{' '}
                     <Text as="code" variant="mono">
                       {p.redirectUri}
                     </Text>
                   </Text>
                 </div>
-                <div className={styles['trailing']}>
+                <div className={styles.trailing}>
                   <StatusChip status="approved">Connected</StatusChip>
                   <Button
                     size="sm"
@@ -113,7 +113,7 @@ export function OrgSso({ org }: OrgSso.Props) {
         </div>
       ) : null}
       {data && providers.length === 0 ? (
-        <form onSubmit={(e) => void submit(e)} noValidate className={styles['form']}>
+        <form onSubmit={(e) => void submit(e)} noValidate className={styles.form}>
           <TextField
             name="issuer"
             label="Issuer address"

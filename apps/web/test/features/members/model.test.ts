@@ -8,7 +8,7 @@ import {
   validateDomain,
   validateInvite,
   validateSso,
-} from '../../../src/features/members/model.ts'
+} from '#features/members/model.ts'
 
 const members = [
   { userId: 'u1', role: 'owner' },

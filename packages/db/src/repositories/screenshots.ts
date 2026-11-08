@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { screenshotDiffs, screenshots } from '../schema/index.ts'
-import type { NewScreenshotDiff, Screenshot, ScreenshotDiff } from '../types.ts'
+import { screenshotDiffs, screenshots } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+import type { NewScreenshotDiff, Screenshot, ScreenshotDiff } from '#src/types.ts'
 
 /** A build's screenshots and the worker's per-screenshot comparison results. */
 

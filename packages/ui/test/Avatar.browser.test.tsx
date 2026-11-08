@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { Avatar, initials } from '../src/index.ts'
+import { Avatar, initials } from '#src/index.ts'
 
 describe('initials', () => {
   it('takes the first and last word', () => {

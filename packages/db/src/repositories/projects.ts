@@ -1,10 +1,11 @@
 import { assertValidSlug, slugify, ValidationError } from '@circi/core'
 import { and, asc, eq } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { ConflictError, isUniqueViolation, NotFoundError } from '../errors.ts'
-import { member, organization, projects } from '../schema/index.ts'
-import type { Project } from '../types.ts'
+import { member, organization, projects } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+import { ConflictError, isUniqueViolation, NotFoundError } from '#src/errors.ts'
+import type { Project } from '#src/types.ts'
+
 import { orgAccepts, type SessionMethod } from './auth-settings.ts'
 import { getOrganizationBySlug } from './organizations.ts'
 

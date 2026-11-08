@@ -12,7 +12,7 @@ import {
   unpinProject,
   updateView,
   updateViewFilters,
-} from '../src/index.ts'
+} from '#src/index.ts'
 
 let t: TestDb
 beforeAll(async () => {

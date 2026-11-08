@@ -1,7 +1,8 @@
 import { Banner, Button } from '@circi/ui'
 import { useState } from 'react'
 
-import { authClient } from '../../lib/auth-client.ts'
+import { authClient } from '#lib/auth-client.ts'
+
 import { ssoErrorMessage } from './login-helpers.ts'
 
 import styles from './AuthForms.module.css'
@@ -20,10 +21,10 @@ export function SsoButtons({ providers }: SsoButtons.Props) {
   }
 
   return (
-    <div className={`${styles['form']} ${styles['compact']}`}>
+    <div className={`${styles.form} ${styles.compact}`}>
       {error ? <Banner tone="danger">{error}</Banner> : null}
       {providers.map((p) => (
-        <Button key={p.id} className={styles['block']} onClick={() => void go(p.id)}>
+        <Button key={p.id} className={styles.block} onClick={() => void go(p.id)}>
           Continue with {p.name}
         </Button>
       ))}

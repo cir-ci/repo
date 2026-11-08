@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { isOverdue, isSnoozed, overdueBy, reviewDueAt } from '../src/index.ts'
+import { isOverdue, isSnoozed, overdueBy, reviewDueAt } from '#src/index.ts'
 
 const due = new Date('2026-01-02T12:00:00.000Z')
 const at = (ms: number) => new Date(due.getTime() + ms)

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 
-import { Delayed, ListSkeleton } from '../src/index.ts'
+import { Delayed, ListSkeleton } from '#src/index.ts'
 
 describe('Delayed', () => {
   it('reserves its content at once but only shows it after the delay', async () => {

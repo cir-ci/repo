@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
-import { SignInMethods } from '../../../src/features/members/SignInMethods.tsx'
-import { renderPage } from '../../support/render.tsx'
-import { fakeFetch, pending, restoreFetch } from '../fetch-routes.ts'
+import { SignInMethods } from '#features/members/SignInMethods.tsx'
+import { fakeFetch, pending, restoreFetch } from '#test/features/fetch-routes.ts'
+import { renderPage } from '#test/support/render.tsx'
 
 const PATH = '/api/organizations/acme/auth'
 const auth = (over: { password?: boolean; email?: boolean; instance?: object } = {}) => ({

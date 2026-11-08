@@ -4,7 +4,8 @@ import { runMigrations } from '@circi/db'
 import { type RunningWorker, startWorker } from '@circi/worker'
 import type { FastifyInstance } from 'fastify'
 
-import { buildServer } from '../http/app.ts'
+import { buildServer } from '#http/app.ts'
+
 import { createRuntime } from './runtime.ts'
 import { serverOptionsFor } from './server-options.ts'
 import { createShutdown } from './shutdown.ts'

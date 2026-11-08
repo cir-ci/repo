@@ -12,15 +12,15 @@ import styles from './Pane.module.css'
 export function Pane({ label, context, actions, width = 'md', className, children }: Pane.Props) {
   const id = useId()
   return (
-    <section aria-labelledby={id} className={cx(styles['root'], className)} data-width={width}>
-      <header className={styles['header']}>
-        <h2 id={id} className={styles['label']}>
+    <section aria-labelledby={id} className={cx(styles.root, className)} data-width={width}>
+      <header className={styles.header}>
+        <h2 id={id} className={styles.label}>
           {label}
         </h2>
-        {context ? <span className={styles['context']}>{context}</span> : null}
+        {context ? <span className={styles.context}>{context}</span> : null}
       </header>
-      <div className={styles['body']}>{children}</div>
-      {actions ? <footer className={styles['actions']}>{actions}</footer> : null}
+      <div className={styles.body}>{children}</div>
+      {actions ? <footer className={styles.actions}>{actions}</footer> : null}
     </section>
   )
 }

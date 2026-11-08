@@ -21,7 +21,7 @@ import {
   targetProblem,
   targetValue,
   toggleMember,
-} from '../../../src/features/settings/api.ts'
+} from '#features/settings/api.ts'
 
 afterEach(() => vi.unstubAllGlobals())
 

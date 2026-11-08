@@ -18,16 +18,17 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 
-import { useDocumentTitle } from '../../lib/document-title.ts'
-import { ErrorState } from '../../lib/ErrorState.tsx'
-import { focusRow, leavesKeyToFocus, nextAfterRemoval } from '../../lib/list-keys.ts'
-import { RelativeTime } from '../../lib/RelativeTime.tsx'
-import { useShortcutHandlers } from '../../lib/shortcuts.ts'
-import { SnoozeMenu } from '../../lib/SnoozeMenu.tsx'
-import { TabList } from '../../lib/TabList.tsx'
-import { useClientLink } from '../../lib/use-client-link.ts'
-import { useListNavigation } from '../../lib/use-list-navigation.ts'
-import { useLoadingAnnouncement } from '../projects/loading.ts'
+import { useLoadingAnnouncement } from '#features/projects/loading.ts'
+import { useDocumentTitle } from '#lib/document-title.ts'
+import { ErrorState } from '#lib/ErrorState.tsx'
+import { focusRow, leavesKeyToFocus, nextAfterRemoval } from '#lib/list-keys.ts'
+import { RelativeTime } from '#lib/RelativeTime.tsx'
+import { useShortcutHandlers } from '#lib/shortcuts.ts'
+import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
+import { TabList } from '#lib/TabList.tsx'
+import { useClientLink } from '#lib/use-client-link.ts'
+import { useListNavigation } from '#lib/use-list-navigation.ts'
+
 import {
   overdueLabel,
   requestCount,
@@ -43,7 +44,7 @@ import {
 } from './api.ts'
 import { MemberPicker } from './MemberPicker.tsx'
 
-import styles from '../../lib/ListPage.module.css'
+import styles from '#lib/ListPage.module.css'
 
 export function ReviewsPage() {
   useDocumentTitle('Reviews')
@@ -136,7 +137,7 @@ export function ReviewsPage() {
       <PanelHeader>
         <Breadcrumbs items={[{ label: 'Reviews' }]} />
       </PanelHeader>
-      <div className={styles['page']}>
+      <div className={styles.page}>
         <TabList
           label="Reviews"
           tabs={REVIEW_TABS}
@@ -151,7 +152,7 @@ export function ReviewsPage() {
             })
           }}
         >
-          <div className={styles['body']}>
+          <div className={styles.body}>
             {error ? (
               <ErrorState error={error} onRetry={() => void refetch()} />
             ) : !data ? (
@@ -164,8 +165,8 @@ export function ReviewsPage() {
               </EmptyState>
             ) : (
               <>
-                <div className={styles['toolbar']}>
-                  <span role="status" className={styles['count']}>
+                <div className={styles.toolbar}>
+                  <span role="status" className={styles.count}>
                     {requestCount(requests.length)}
                   </span>
                   {selected && can.approve ? (
@@ -211,10 +212,10 @@ export function ReviewsPage() {
                     {failed.message}
                   </Text>
                 ) : null}
-                <div className={styles['split']}>
+                <div className={styles.split}>
                   <ul
                     aria-label={REVIEW_TABS.find((t) => t.value === tab)?.label ?? 'Reviews'}
-                    className={styles['list']}
+                    className={styles.list}
                     ref={listRef}
                   >
                     {requests.map((r) => {
@@ -235,7 +236,7 @@ export function ReviewsPage() {
                             })}
                             leading={person ? <Avatar name={person.name} /> : undefined}
                             trailing={
-                              <span className={styles['trailing']}>
+                              <span className={styles.trailing}>
                                 {overdue ? (
                                   <Badge tone="state" state="rejected" shape="tag">
                                     {overdue}
@@ -249,7 +250,7 @@ export function ReviewsPage() {
                               </span>
                             }
                           >
-                            <span className={styles['title']}>
+                            <span className={styles.title}>
                               <Text truncate>
                                 Build #{r.build.number} · {r.project.name}
                               </Text>
@@ -257,7 +258,7 @@ export function ReviewsPage() {
                                 {requestRef(r.build)}
                               </Text>
                             </span>
-                            <span className={styles['meta']}>
+                            <span className={styles.meta}>
                               <span>
                                 {tab === 'created'
                                   ? `Asked of ${r.reviewer.name}`
@@ -326,7 +327,7 @@ const EMPTY: Record<Review.Tab, { title: string; text: string }> = {
 
 function RequestDetail({ request: r }: { request: Review.Request }) {
   return (
-    <div className={styles['detail']}>
+    <div className={styles.detail}>
       <Text>
         {r.project.name} · build #{r.build.number}
       </Text>

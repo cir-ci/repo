@@ -1,7 +1,7 @@
 import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
 
-import { diffImages, InvalidImageError, makeThumbnail, readPngInfo } from '../src/index.ts'
+import { diffImages, InvalidImageError, makeThumbnail, readPngInfo } from '#src/index.ts'
 
 /** A solid-colour PNG, optionally with a filled rectangle on top. */
 async function png(

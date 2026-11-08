@@ -11,8 +11,7 @@ import {
 import { and, count, eq, gte, inArray, isNotNull, lt, min, ne, sql, sum } from 'drizzle-orm'
 import { union } from 'drizzle-orm/pg-core'
 
-import type { Database } from '../client.ts'
-import { orgAccepts, type SessionMethod } from '../repositories/auth-settings.ts'
+import { orgAccepts, type SessionMethod } from '#repositories/auth-settings.ts'
 import {
   builds,
   files,
@@ -24,7 +23,8 @@ import {
   screenshotDiffs,
   screenshots,
   user,
-} from '../schema/index.ts'
+} from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
 
 /**
  * Insights (PLAN M4 metrics): aggregates over an organization's review history, optionally for

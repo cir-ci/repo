@@ -1,8 +1,9 @@
 import { and, eq } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { orgAccepts, type SessionMethod } from '../repositories/auth-settings.ts'
-import { member, organization, projects } from '../schema/index.ts'
+import { orgAccepts, type SessionMethod } from '#repositories/auth-settings.ts'
+import { member, organization, projects } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+
 import { type BuildListItem, listBuildsForProject } from './builds.ts'
 
 /**

@@ -21,10 +21,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 
-import { authClient } from '../../lib/auth-client.ts'
-import { useDocumentTitle } from '../../lib/document-title.ts'
-import { ErrorState } from '../../lib/ErrorState.tsx'
-import { RelativeTime } from '../../lib/RelativeTime.tsx'
+import { authClient } from '#lib/auth-client.ts'
+import { useDocumentTitle } from '#lib/document-title.ts'
+import { ErrorState } from '#lib/ErrorState.tsx'
+import { RelativeTime } from '#lib/RelativeTime.tsx'
+
 import { cancelInvitation, changeMemberRole, organizationQuery, removeMember } from './api.ts'
 import { BuildSettings } from './BuildSettings.tsx'
 import { EmailDomains } from './EmailDomains.tsx'
@@ -93,7 +94,7 @@ export function MembersPage() {
       <PanelHeader>
         <Breadcrumbs items={[{ label: data?.name ?? org }, { label: 'Members' }]} />
       </PanelHeader>
-      <div className={styles['page']}>
+      <div className={styles.page}>
         {error ? (
           <ErrorState
             error={error}
@@ -108,28 +109,25 @@ export function MembersPage() {
           <>
             {canManage ? <InviteForm organizationId={data.id} onInvited={refresh} /> : null}
             {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
-            <section className={styles['section']}>
+            <section className={styles.section}>
               <SectionHeader title="Members" description={peopleCount(data.members.length)} />
-              <div className={styles['list']}>
+              <div className={styles.list}>
                 {data.members.map((m) => {
                   const isMe = m.userId === session?.user.id
                   const editable = canManage && !isMe
                   return (
                     <ListRow key={m.id} leading={<Avatar name={m.user.name} />}>
-                      <div className={styles['member']}>
-                        <div className={styles['who']}>
+                      <div className={styles.member}>
+                        <div className={styles.who}>
                           <Text truncate>{m.user.name}</Text>
                           <Text variant="small" tone="secondary" truncate>
                             {m.user.email}
                           </Text>
                         </div>
-                        <div
-                          className={styles['controls']}
-                          data-editable={editable ? '' : undefined}
-                        >
+                        <div className={styles.controls} data-editable={editable ? '' : undefined}>
                           {editable && m.role !== 'owner' ? (
                             <Select
-                              className={styles['role']}
+                              className={styles.role}
                               label={`Role of ${m.user.name}`}
                               hideLabel
                               items={ROLES}
@@ -189,12 +187,12 @@ export function MembersPage() {
             {canManage ? <EmailDomains org={org} /> : null}
             {canManage ? <OrgSso org={org} /> : null}
             {pending.length > 0 ? (
-              <section className={styles['section']}>
+              <section className={styles.section}>
                 <SectionHeader
                   title="Pending invitations"
                   description={invitationCount(pending.length)}
                 />
-                <div className={styles['list']}>
+                <div className={styles.list}>
                   {pending.map((i) => (
                     <ListRow
                       key={i.id}
@@ -211,7 +209,7 @@ export function MembersPage() {
                         ) : null
                       }
                     >
-                      <div className={styles['who']}>
+                      <div className={styles.who}>
                         <Text truncate>{i.email}</Text>
                         <Text variant="small" tone="secondary">
                           {ROLE_LABEL[i.role ?? 'member'] ?? i.role} · expires{' '}

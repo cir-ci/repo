@@ -11,7 +11,7 @@ import styles from './Surface.module.css'
 export function Surface({ as = 'div', variant = 'panel', className, ...rest }: Surface.Props) {
   return createElement(as, {
     ...rest,
-    className: cx(styles['root'], className),
+    className: cx(styles.root, className),
     'data-variant': variant,
   })
 }

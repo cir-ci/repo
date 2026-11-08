@@ -1,7 +1,8 @@
 import type { UploadOptions } from '@circi/cli'
 import { describe, expect, it } from 'vitest'
 
-import { CirciReporter } from '../src/reporter.ts'
+import { CirciReporter } from '#src/reporter.ts'
+
 import { useTempRoot } from './support/temp-root.ts'
 
 const tmp = useTempRoot()

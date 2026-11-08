@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { Text } from '../src/index.ts'
+import { Text } from '#src/index.ts'
 
 describe('Text', () => {
   it('is a 13px span by default', async () => {

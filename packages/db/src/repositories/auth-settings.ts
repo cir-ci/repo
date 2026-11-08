@@ -1,8 +1,6 @@
 import { and, eq, sql, type SQL } from 'drizzle-orm'
 import type { AnyPgColumn } from 'drizzle-orm/pg-core'
 
-import type { Database } from '../client.ts'
-import { ConflictError } from '../errors.ts'
 import {
   account,
   type LoginMethod,
@@ -10,7 +8,9 @@ import {
   orgAuthSettings,
   organization,
   sessionMethods,
-} from '../schema/index.ts'
+} from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+import { ConflictError } from '#src/errors.ts'
 
 /**
  * Login methods per organization (PLAN §7.8). The instance switches are the outer limit;

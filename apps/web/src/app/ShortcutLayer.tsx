@@ -2,9 +2,10 @@ import { useAnnounce } from '@circi/ui'
 import { useParams, useRouter } from '@tanstack/react-router'
 import { createContext, type ReactNode, useContext, useMemo, useState } from 'react'
 
-import { CommandMenu } from '../features/command/CommandMenu.tsx'
-import { useSidebarModel } from '../features/sidebar/api.ts'
-import { useShortcutHandlers } from '../lib/shortcuts.ts'
+import { CommandMenu } from '#features/command/CommandMenu.tsx'
+import { useSidebarModel } from '#features/sidebar/api.ts'
+import { useShortcutHandlers } from '#lib/shortcuts.ts'
+
 import { goPath, readRememberedOrg } from './shell-model.ts'
 import { ShortcutsDialog } from './ShortcutsDialog.tsx'
 import { useOrgs } from './use-orgs.ts'

@@ -8,7 +8,7 @@ import {
   orderBuilds,
   parseDisplay,
   saveDisplay,
-} from '../../../src/features/projects/display-options.ts'
+} from '#features/projects/display-options.ts'
 
 const item = (number: number, branch: string | null = 'main'): Build.ListItem => ({
   id: `b${number}`,

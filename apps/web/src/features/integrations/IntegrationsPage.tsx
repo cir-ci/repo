@@ -14,8 +14,9 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
-import { useDocumentTitle } from '../../lib/document-title.ts'
-import { Frame } from '../settings/Frame.tsx'
+import { Frame } from '#features/settings/Frame.tsx'
+import { useDocumentTitle } from '#lib/document-title.ts'
+
 import { AddIntegrationDialog } from './AddIntegrationDialog.tsx'
 import {
   groupItems,
@@ -57,8 +58,8 @@ export function IntegrationsPage() {
     >
       {data ? (
         <>
-          <section className={styles['groups']}>
-            <div className={styles['head']}>
+          <section className={styles.groups}>
+            <div className={styles.head}>
               <SectionHeader
                 title="Integrations"
                 description={`Tools connected to ${org}. Each integration’s settings say which projects use it and how.`}
@@ -76,11 +77,11 @@ export function IntegrationsPage() {
               </EmptyState>
             ) : (
               groups.map((g) => (
-                <section key={g.group} className={styles['group']} aria-label={g.label}>
+                <section key={g.group} className={styles.group} aria-label={g.label}>
                   <Text variant="small" tone="secondary">
                     {g.label}
                   </Text>
-                  <ul className={styles['list']}>
+                  <ul className={styles.list}>
                     {g.items.map((item) => (
                       <li key={item.id}>
                         <Row
@@ -144,15 +145,15 @@ function Row(props: {
   const label = integrationLabel(item)
   return (
     <ListRow density="two-line">
-      <div className={styles['row']}>
+      <div className={styles.row}>
         <ProviderLogo kind={item.kind} />
-        <div className={styles['name']}>
+        <div className={styles.name}>
           <Text>{item.name}</Text>
           <Text variant="small" tone="secondary">
             {projectCountLabel(item.projectCount)}
           </Text>
         </div>
-        <div className={styles['trailing']}>
+        <div className={styles.trailing}>
           {item.needsAttention ? (
             <Badge tone="state" state="rejected" shape="tag">
               Needs attention

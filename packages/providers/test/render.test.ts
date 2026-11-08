@@ -7,7 +7,7 @@ import {
   PR_COMMENT_MARKER,
   prCommentBody,
   type ReportedBuild,
-} from '../src/index.ts'
+} from '#src/index.ts'
 
 const build = (over: Partial<ReportedBuild> = {}): ReportedBuild => ({
   number: 7,

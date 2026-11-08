@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { ValidationError } from '../src/errors.ts'
-import { snoozeUntil } from '../src/snooze.ts'
+import { ValidationError } from '#src/errors.ts'
+import { snoozeUntil } from '#src/snooze.ts'
 
 const iso = (d: Date | null) => d?.toISOString() ?? null
 

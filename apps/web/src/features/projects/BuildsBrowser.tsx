@@ -18,18 +18,19 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { type ReactNode, useState } from 'react'
 
-import { ErrorState } from '../../lib/ErrorState.tsx'
-import { leavesKeyToFocus } from '../../lib/list-keys.ts'
-import { RelativeTime } from '../../lib/RelativeTime.tsx'
-import { useShortcutHandlers } from '../../lib/shortcuts.ts'
-import { useClientLink } from '../../lib/use-client-link.ts'
-import { useListNavigation } from '../../lib/use-list-navigation.ts'
-import { buildState } from '../builds/build-state.ts'
-import { CountsSummary } from '../builds/CountsSummary.tsx'
-import { shotReview } from '../builds/diff-status.ts'
-import { MemberPicker } from '../reviews/MemberPicker.tsx'
-import { useSaveView } from '../views/api.ts'
-import { SaveViewDialog } from '../views/SaveViewDialog.tsx'
+import { buildState } from '#features/builds/build-state.ts'
+import { CountsSummary } from '#features/builds/CountsSummary.tsx'
+import { shotReview } from '#features/builds/diff-status.ts'
+import { MemberPicker } from '#features/reviews/MemberPicker.tsx'
+import { useSaveView } from '#features/views/api.ts'
+import { SaveViewDialog } from '#features/views/SaveViewDialog.tsx'
+import { ErrorState } from '#lib/ErrorState.tsx'
+import { leavesKeyToFocus } from '#lib/list-keys.ts'
+import { RelativeTime } from '#lib/RelativeTime.tsx'
+import { useShortcutHandlers } from '#lib/shortcuts.ts'
+import { useClientLink } from '#lib/use-client-link.ts'
+import { useListNavigation } from '#lib/use-list-navigation.ts'
+
 import { BUILDS_PAGE_SIZE, projectQuery, useBulkRequestReview, useBulkReview } from './api.ts'
 import { BuildFilterBar } from './BuildFilterBar.tsx'
 import { type BuildFilters, type FilterField, hasFilters, toSearch } from './builds-filters.ts'
@@ -174,7 +175,7 @@ export function BuildsBrowser({
             title={before ? 'No older builds' : 'No builds yet'}
             action={
               before ? undefined : (
-                <Surface variant="raised" className={styles['command']}>
+                <Surface variant="raised" className={styles.command}>
                   <Text as="code" variant="mono">
                     {`CIRCI_TOKEN=… CIRCI_API_URL=${window.location.origin} \\\n  npx circi upload ./screenshots --wait`}
                   </Text>
@@ -189,8 +190,8 @@ export function BuildsBrowser({
         )
       ) : (
         <>
-          <div className={styles['split']}>
-            <ul aria-label="Builds" className={styles['list']} ref={listRef}>
+          <div className={styles.split}>
+            <ul aria-label="Builds" className={styles.list} ref={listRef}>
               {groups.map((group) => (
                 <GroupRows key={group.key} label={group.label} count={group.builds.length}>
                   {group.builds.map((b) => {
@@ -199,16 +200,16 @@ export function BuildsBrowser({
                     return (
                       <li key={b.id} {...rowProps(b.id)} data-checked={checked ? '' : undefined}>
                         <ListRow
-                          className={styles['row']}
+                          className={styles.row}
                           selected={b.id === cursor?.id}
                           {...clientLink({
                             to: '/$org/$project/builds/$number',
                             params: { org, project, number: String(b.number) },
                           })}
                           leading={
-                            <span className={styles['lead']}>
+                            <span className={styles.lead}>
                               {checked ? (
-                                <span className={styles['check']} aria-hidden="true">
+                                <span className={styles.check} aria-hidden="true">
                                   <CheckIcon size={12} strokeWidth={3} />
                                 </span>
                               ) : null}
@@ -217,7 +218,7 @@ export function BuildsBrowser({
                           }
                           trailing={
                             display.show.counts ? (
-                              <span className={styles['trailing']}>
+                              <span className={styles.trailing}>
                                 <CountsSummary
                                   counts={b.counts}
                                   review={shotReview(b)}
@@ -227,14 +228,14 @@ export function BuildsBrowser({
                             ) : undefined
                           }
                         >
-                          <span className={styles['title']}>
+                          <span className={styles.title}>
                             {checked ? <span style={visuallyHidden}>Selected, </span> : null}
                             Build #{b.number}
                             {b.name !== 'default' ? (
-                              <span className={styles['name']}> · {b.name}</span>
+                              <span className={styles.name}> · {b.name}</span>
                             ) : null}
                           </span>
-                          <div className={styles['meta']}>
+                          <div className={styles.meta}>
                             <RowMeta build={b} show={display.show} />
                           </div>
                         </ListRow>
@@ -266,7 +267,7 @@ export function BuildsBrowser({
             ) : null}
           </div>
           {/* Primer: pagination sits directly below the collection it pages. */}
-          <div className={styles['pager']}>
+          <div className={styles.pager}>
             {before ? (
               <Button
                 {...clientLink({
@@ -293,7 +294,7 @@ export function BuildsBrowser({
         </>
       )}
       {chosen.length > 0 ? (
-        <div role="region" aria-label="Bulk actions" className={styles['bulk']}>
+        <div role="region" aria-label="Bulk actions" className={styles.bulk}>
           <Text variant="small">{chosen.length} selected</Text>
           <Button
             size="sm"
@@ -390,8 +391,8 @@ function GroupRows({
   return (
     <>
       {label ? (
-        <li className={styles['group']}>
-          <h3 className={styles['groupTitle']}>{label}</h3>
+        <li className={styles.group}>
+          <h3 className={styles.groupTitle}>{label}</h3>
           <Text variant="small" tone="secondary">
             {count}
           </Text>
@@ -404,7 +405,7 @@ function GroupRows({
 
 function RowMeta({ build, show }: { build: Build.ListItem; show: DisplayOptions['show'] }) {
   return (
-    <span className={styles['metaLine']}>
+    <span className={styles.metaLine}>
       {build.prNumber ? (
         <Text variant="small" tone="secondary">
           PR #{build.prNumber}
@@ -437,7 +438,7 @@ function RowMeta({ build, show }: { build: Build.ListItem; show: DisplayOptions[
 function BuildPeek({ build: b }: { build: Build.ListItem }) {
   const state = buildState(b)
   return (
-    <dl className={styles['peek']}>
+    <dl className={styles.peek}>
       <dt>State</dt>
       <dd>{state.label}</dd>
       {b.name !== 'default' ? (

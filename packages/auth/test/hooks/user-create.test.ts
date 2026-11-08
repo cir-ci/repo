@@ -1,8 +1,8 @@
 import { createTestDb, seedInvitation, seedOrg, seedOrgDomain, type TestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { beforeUserCreate } from '../../src/hooks/user-create.ts'
-import type { SsoProvider } from '../../src/sso/sso.ts'
+import { beforeUserCreate } from '#hooks/user-create.ts'
+import type { SsoProvider } from '#sso/sso.ts'
 
 let t: TestDb
 beforeAll(async () => {

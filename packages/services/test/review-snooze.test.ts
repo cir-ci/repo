@@ -3,7 +3,7 @@ import { addTestMember, createTestDb, seedProject, seedUser, type TestDb } from 
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { requestReview, snoozeReviewRequest, unsnoozeReviewRequest } from '../src/index.ts'
+import { requestReview, snoozeReviewRequest, unsnoozeReviewRequest } from '#src/index.ts'
 
 let t: TestDb
 beforeAll(async () => {

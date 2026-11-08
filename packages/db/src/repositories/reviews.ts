@@ -1,9 +1,9 @@
 import { desc, eq } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { ConflictError, NotFoundError } from '../errors.ts'
-import { builds, type ReviewSource, type ReviewState, reviews, user } from '../schema/index.ts'
-import type { Build } from '../types.ts'
+import { builds, type ReviewSource, type ReviewState, reviews, user } from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+import { ConflictError, NotFoundError } from '#src/errors.ts'
+import type { Build } from '#src/types.ts'
 
 /**
  * Approving and rejecting builds (PLAN §7.4). Every decision is kept as a row; the latest one is

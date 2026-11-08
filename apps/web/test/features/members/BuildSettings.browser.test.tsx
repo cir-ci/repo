@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
-import { BuildSettings } from '../../../src/features/members/BuildSettings.tsx'
-import { renderPage } from '../../support/render.tsx'
-import { fakeFetch, pending, restoreFetch } from '../fetch-routes.ts'
+import { BuildSettings } from '#features/members/BuildSettings.tsx'
+import { fakeFetch, pending, restoreFetch } from '#test/features/fetch-routes.ts'
+import { renderPage } from '#test/support/render.tsx'
 
 const PATH = '/api/organizations/acme/settings'
 const answer = (flakyBlocksMerge: boolean, canManage = true) => ({

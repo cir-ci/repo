@@ -36,12 +36,12 @@ export function Select({
       name={name}
       invalid={error ? true : undefined}
       disabled={disabled}
-      className={cx(styles['root'], className)}
+      className={cx(styles.root, className)}
     >
       <Field.Label
         nativeLabel={false}
         render={<div />}
-        className={styles['label']}
+        className={styles.label}
         style={hideLabel ? visuallyHidden : undefined}
       >
         {label}
@@ -55,31 +55,31 @@ export function Select({
         }}
         required={required}
       >
-        <BaseSelect.Trigger className={styles['trigger']}>
-          <BaseSelect.Value className={styles['value']} placeholder={placeholder} />
-          <BaseSelect.Icon className={styles['chevron']}>
+        <BaseSelect.Trigger className={styles.trigger}>
+          <BaseSelect.Value className={styles.value} placeholder={placeholder} />
+          <BaseSelect.Icon className={styles.chevron}>
             <ExpandMoreIcon />
           </BaseSelect.Icon>
         </BaseSelect.Trigger>
         <BaseSelect.Portal>
           <BaseSelect.Positioner
-            className={styles['positioner']}
+            className={styles.positioner}
             sideOffset={4}
             alignItemWithTrigger={false}
           >
-            <BaseSelect.Popup className={styles['popup']} data-slot="select-popup">
-              <BaseSelect.List className={styles['list']}>
+            <BaseSelect.Popup className={styles.popup} data-slot="select-popup">
+              <BaseSelect.List className={styles.list}>
                 {items.map((item) => (
                   <BaseSelect.Item
                     key={item.value}
                     value={item.value}
                     disabled={item.disabled}
-                    className={styles['item']}
+                    className={styles.item}
                   >
-                    <BaseSelect.ItemIndicator className={styles['indicator']}>
+                    <BaseSelect.ItemIndicator className={styles.indicator}>
                       <CheckIcon size={14} strokeWidth={2} />
                     </BaseSelect.ItemIndicator>
-                    <BaseSelect.ItemText className={styles['itemText']}>
+                    <BaseSelect.ItemText className={styles.itemText}>
                       {item.label}
                     </BaseSelect.ItemText>
                   </BaseSelect.Item>
@@ -90,11 +90,11 @@ export function Select({
         </BaseSelect.Portal>
       </BaseSelect.Root>
       {error ? (
-        <Field.Error match className={styles['error']}>
+        <Field.Error match className={styles.error}>
           {error}
         </Field.Error>
       ) : description ? (
-        <Field.Description className={styles['description']}>{description}</Field.Description>
+        <Field.Description className={styles.description}>{description}</Field.Description>
       ) : null}
     </Field.Root>
   )

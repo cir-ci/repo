@@ -18,17 +18,18 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 
-import { useDocumentTitle } from '../../lib/document-title.ts'
-import { ErrorState } from '../../lib/ErrorState.tsx'
-import { focusRow, leavesKeyToFocus, nextAfterRemoval } from '../../lib/list-keys.ts'
-import { RelativeTime } from '../../lib/RelativeTime.tsx'
-import { useShortcutHandlers } from '../../lib/shortcuts.ts'
-import type { SnoozeChoice } from '../../lib/snooze.ts'
-import { SnoozeMenu } from '../../lib/SnoozeMenu.tsx'
-import { TabList } from '../../lib/TabList.tsx'
-import { useClientLink } from '../../lib/use-client-link.ts'
-import { useListNavigation } from '../../lib/use-list-navigation.ts'
-import { useLoadingAnnouncement } from '../projects/loading.ts'
+import { useLoadingAnnouncement } from '#features/projects/loading.ts'
+import { useDocumentTitle } from '#lib/document-title.ts'
+import { ErrorState } from '#lib/ErrorState.tsx'
+import { focusRow, leavesKeyToFocus, nextAfterRemoval } from '#lib/list-keys.ts'
+import { RelativeTime } from '#lib/RelativeTime.tsx'
+import { useShortcutHandlers } from '#lib/shortcuts.ts'
+import type { SnoozeChoice } from '#lib/snooze.ts'
+import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
+import { TabList } from '#lib/TabList.tsx'
+import { useClientLink } from '#lib/use-client-link.ts'
+import { useListNavigation } from '#lib/use-list-navigation.ts'
+
 import {
   INBOX_TABS,
   inboxCount,
@@ -42,7 +43,7 @@ import {
   useUnsnoozeNotification,
 } from './api.ts'
 
-import styles from '../../lib/ListPage.module.css'
+import styles from '#lib/ListPage.module.css'
 
 export function InboxPage() {
   useDocumentTitle('Inbox')
@@ -152,7 +153,7 @@ export function InboxPage() {
       >
         <Breadcrumbs items={[{ label: 'Inbox' }]} />
       </PanelHeader>
-      <div className={styles['page']}>
+      <div className={styles.page}>
         <TabList
           label="Inbox"
           tabs={INBOX_TABS}
@@ -162,7 +163,7 @@ export function InboxPage() {
             void navigate({ to: '/inbox', search: { tab: next }, replace: true })
           }}
         >
-          <div className={styles['body']}>
+          <div className={styles.body}>
             {error ? (
               <ErrorState error={error} onRetry={() => void refetch()} />
             ) : !data ? (
@@ -175,8 +176,8 @@ export function InboxPage() {
               </EmptyState>
             ) : (
               <>
-                <div className={styles['toolbar']}>
-                  <span role="status" className={styles['count']}>
+                <div className={styles.toolbar}>
+                  <span role="status" className={styles.count}>
                     {inboxCount(items)}
                   </span>
                   {selected ? (
@@ -218,10 +219,10 @@ export function InboxPage() {
                     {failed.message}
                   </Text>
                 ) : null}
-                <div className={styles['split']}>
+                <div className={styles.split}>
                   <ul
                     aria-label={INBOX_TABS.find((t) => t.value === tab)?.label ?? 'Inbox'}
-                    className={styles['list']}
+                    className={styles.list}
                     ref={listRef}
                   >
                     {items.map((item) => {
@@ -241,13 +242,13 @@ export function InboxPage() {
                             }}
                             leading={
                               item.readAt ? (
-                                <span className={styles['read']} />
+                                <span className={styles.read} />
                               ) : (
-                                <span className={styles['unread']} aria-hidden="true" />
+                                <span className={styles.unread} aria-hidden="true" />
                               )
                             }
                             trailing={
-                              <span className={styles['trailing']}>
+                              <span className={styles.trailing}>
                                 {item.alsoInReviews ? (
                                   <Badge shape="tag">Also in Reviews</Badge>
                                 ) : null}
@@ -261,7 +262,7 @@ export function InboxPage() {
                               {item.readAt ? null : 'Unread. '}
                             </span>
                             <Text truncate>{title}</Text>
-                            <span className={styles['meta']}>
+                            <span className={styles.meta}>
                               {detail ? <span>{detail}</span> : null}
                               {item.project ? <span>{item.project.name}</span> : null}
                             </span>
@@ -324,7 +325,7 @@ const EMPTY: Record<Inbox.Tab, { title: string; text: string }> = {
 function ItemDetail({ item }: { item: Inbox.Item }) {
   const { title, detail } = notificationText(item)
   return (
-    <div className={styles['detail']}>
+    <div className={styles.detail}>
       <Text>{title}</Text>
       {detail ? <Text tone="secondary">{detail}</Text> : null}
       <dl>

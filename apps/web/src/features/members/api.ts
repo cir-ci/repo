@@ -1,8 +1,8 @@
 import type { Org } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { authClient } from '../../lib/auth-client.ts'
-import { getJson, HttpError, post, send, seg } from '../../lib/http.ts'
+import { authClient } from '#lib/auth-client.ts'
+import { getJson, HttpError, post, send, seg } from '#lib/http.ts'
 
 /** Roles the page can hand out; an owner is made elsewhere. */
 export type AssignableRole = 'admin' | 'member'

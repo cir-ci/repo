@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { detectKind, KINDS } from '../src/kinds.ts'
+import { detectKind, KINDS } from '#src/kinds.ts'
 
 const files = (...f: string[]) => f
 

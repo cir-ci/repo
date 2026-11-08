@@ -19,7 +19,7 @@ export function Text({
 }: Text.Props) {
   return createElement(as, {
     ...rest,
-    className: cx(styles['root'], className),
+    className: cx(styles.root, className),
     'data-variant': variant,
     'data-tone': tone,
     'data-truncate': truncate ? '' : undefined,

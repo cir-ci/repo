@@ -1,8 +1,8 @@
 import { QueryClient } from '@tanstack/react-query'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { noticesQuery } from '../../../src/features/instance/api.ts'
-import { fakeFetch, restoreFetch } from '../fetch-routes.ts'
+import { noticesQuery } from '#features/instance/api.ts'
+import { fakeFetch, restoreFetch } from '#test/features/fetch-routes.ts'
 
 afterEach(() => restoreFetch())
 

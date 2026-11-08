@@ -10,7 +10,7 @@ import styles from './Delayed.module.css'
  */
 export function Delayed({ children, delayMs = 300 }: Delayed.Props) {
   return (
-    <div className={styles['root']} style={{ animationDelay: `${delayMs}ms` }} aria-hidden="true">
+    <div className={styles.root} style={{ animationDelay: `${delayMs}ms` }} aria-hidden="true">
       {children}
     </div>
   )

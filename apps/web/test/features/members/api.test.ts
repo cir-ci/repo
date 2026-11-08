@@ -9,7 +9,7 @@ const auth = vi.hoisted(() => ({
   removeMember: vi.fn<(arg: unknown) => Promise<unknown>>(),
   updateMemberRole: vi.fn<(arg: unknown) => Promise<unknown>>(),
 }))
-vi.mock('../../../src/lib/auth-client.ts', () => ({ authClient: { organization: auth } }))
+vi.mock('#lib/auth-client.ts', () => ({ authClient: { organization: auth } }))
 
 import {
   cancelInvitation,
@@ -20,9 +20,9 @@ import {
   organizationQuery,
   orgSsoQuery,
   removeMember,
-} from '../../../src/features/members/api.ts'
-import { HttpError } from '../../../src/lib/http.ts'
-import { fakeFetch, restoreFetch } from '../fetch-routes.ts'
+} from '#features/members/api.ts'
+import { HttpError } from '#lib/http.ts'
+import { fakeFetch, restoreFetch } from '#test/features/fetch-routes.ts'
 
 beforeEach(() => vi.resetAllMocks())
 afterEach(() => restoreFetch())

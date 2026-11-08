@@ -2,8 +2,8 @@ import { CirciTheme } from '@circi/ui'
 import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 
-import { authClient } from '../lib/auth-client.ts'
-import { HttpError } from '../lib/http.ts'
+import { authClient } from '#lib/auth-client.ts'
+import { HttpError } from '#lib/http.ts'
 
 export function createQueryClient(): QueryClient {
   return new QueryClient({

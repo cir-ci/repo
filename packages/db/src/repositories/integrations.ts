@@ -1,13 +1,13 @@
 import { and, asc, eq, sql } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { ConflictError, isUniqueViolation } from '../errors.ts'
 import {
   type INTEGRATION_KINDS,
   integrationProjects,
   integrations,
   projects,
-} from '../schema/index.ts'
+} from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
+import { ConflictError, isUniqueViolation } from '#src/errors.ts'
 
 /**
  * An organisation's non-git integrations (Slack, Linear, Jira, Figma) and the projects that use

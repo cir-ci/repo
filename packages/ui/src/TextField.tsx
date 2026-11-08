@@ -28,16 +28,16 @@ export function TextField({
       name={name}
       invalid={error ? true : undefined}
       disabled={disabled}
-      className={cx(styles['root'], className)}
+      className={cx(styles.root, className)}
     >
-      <Field.Label className={styles['label']}>{label}</Field.Label>
-      <Input {...input} className={styles['control']} />
+      <Field.Label className={styles.label}>{label}</Field.Label>
+      <Input {...input} className={styles.control} />
       {error ? (
-        <Field.Error match className={styles['error']}>
+        <Field.Error match className={styles.error}>
           {error}
         </Field.Error>
       ) : description ? (
-        <Field.Description className={styles['description']}>{description}</Field.Description>
+        <Field.Description className={styles.description}>{description}</Field.Description>
       ) : null}
     </Field.Root>
   )

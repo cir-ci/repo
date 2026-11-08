@@ -1,7 +1,6 @@
 import { and, desc, eq, ilike, max, or, sql } from 'drizzle-orm'
 
-import type { Database } from '../client.ts'
-import { orgAccepts, type SessionMethod } from '../repositories/auth-settings.ts'
+import { orgAccepts, type SessionMethod } from '#repositories/auth-settings.ts'
 import {
   type BuildStatus,
   builds,
@@ -10,7 +9,8 @@ import {
   projects,
   type ReviewStatus,
   screenshots,
-} from '../schema/index.ts'
+} from '#schema/index.ts'
+import type { Database } from '#src/client.ts'
 
 /**
  * Search for the command menu: one query string against an organization's builds, branches,

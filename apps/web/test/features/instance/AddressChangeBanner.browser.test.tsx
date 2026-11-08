@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
-import { AddressChangeBanner } from '../../../src/features/instance/AddressChangeBanner.tsx'
-import { renderPage } from '../../support/render.tsx'
-import { fakeFetch, restoreFetch } from '../fetch-routes.ts'
+import { AddressChangeBanner } from '#features/instance/AddressChangeBanner.tsx'
+import { fakeFetch, restoreFetch } from '#test/features/fetch-routes.ts'
+import { renderPage } from '#test/support/render.tsx'
 
 afterEach(() => restoreFetch())
 

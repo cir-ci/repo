@@ -8,7 +8,7 @@ import {
   GithubApp,
   GithubInstallationRevokedError,
   verifyGithubSignature,
-} from '../src/index.ts'
+} from '#src/index.ts'
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', {
   modulusLength: 2048,

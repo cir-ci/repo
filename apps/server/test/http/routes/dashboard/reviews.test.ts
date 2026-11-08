@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest'
 
-import { png, startDashboard } from '../../../support/dashboard-fixture.ts'
+import { png, startDashboard } from '#test/support/dashboard-fixture.ts'
 
 const fx = await startDashboard()
 const { acme, acmeCookie, rivalCookie, get, buildDetail, review, buildWith } = fx

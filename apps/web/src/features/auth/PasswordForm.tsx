@@ -1,7 +1,8 @@
 import { Banner, Button, TextField } from '@circi/ui'
 import { type FormEvent, useState } from 'react'
 
-import { authClient } from '../../lib/auth-client.ts'
+import { authClient } from '#lib/auth-client.ts'
+
 import { describeFailure, text } from './login-helpers.ts'
 
 import styles from './AuthForms.module.css'
@@ -25,7 +26,7 @@ export function PasswordForm({ onEmail }: PasswordForm.Props) {
   }
 
   return (
-    <form className={styles['form']} onSubmit={(e) => void submit(e)} noValidate>
+    <form className={styles.form} onSubmit={(e) => void submit(e)} noValidate>
       {error ? <Banner tone="danger">{error}</Banner> : null}
       <TextField
         name="email"
@@ -42,11 +43,11 @@ export function PasswordForm({ onEmail }: PasswordForm.Props) {
         autoComplete="current-password"
         required
       />
-      <Button type="submit" variant="primary" loading={busy} className={styles['block']}>
+      <Button type="submit" variant="primary" loading={busy} className={styles.block}>
         {busy ? 'Signing in…' : 'Sign in'}
       </Button>
       {onEmail ? (
-        <Button variant="ghost" className={styles['center']} onClick={onEmail}>
+        <Button variant="ghost" className={styles.center} onClick={onEmail}>
           Email me a sign-in code instead
         </Button>
       ) : null}
