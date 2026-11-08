@@ -4,7 +4,16 @@ export type BuildStatus = 'pending' | 'uploading' | 'processing' | 'complete' | 
 export type BuildConclusion = 'no_changes' | 'changes_detected'
 export type ReviewStatus = 'pending' | 'approved' | 'rejected'
 export type ReviewState = 'approved' | 'rejected'
-export type ReviewSource = 'ui' | 'github-check' | 'github-comment' | 'auto' | 'rerun'
+export type ReviewSource =
+  | 'ui'
+  | 'github-check'
+  | 'github-comment'
+  | 'gitlab-comment'
+  | 'gitlab-status'
+  | 'bitbucket-comment'
+  | 'bitbucket-status'
+  | 'auto'
+  | 'rerun'
 export type DiffStatus = 'added' | 'removed' | 'changed' | 'unchanged' | 'failed'
 
 export namespace Build {

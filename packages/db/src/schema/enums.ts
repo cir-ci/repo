@@ -21,7 +21,17 @@ export const BASELINE_SOURCES = ['cli', 'sdk', 'provider', 'fallback', 'none'] a
 export const DIFF_STATUSES = ['added', 'removed', 'changed', 'unchanged', 'failed'] as const
 export const DIFF_JOB_STATUSES = ['pending', 'running', 'done', 'failed'] as const
 export const REVIEW_STATES = ['approved', 'rejected'] as const
-export const REVIEW_SOURCES = ['ui', 'github-check', 'github-comment', 'auto', 'rerun'] as const
+export const REVIEW_SOURCES = [
+  'ui',
+  'github-check',
+  'github-comment',
+  'gitlab-comment',
+  'gitlab-status',
+  'bitbucket-comment',
+  'bitbucket-status',
+  'auto',
+  'rerun',
+] as const
 /** Where a review request stands: waiting on the reviewer, or closed for one of three reasons. */
 export const REVIEW_REQUEST_STATES = ['open', 'done', 'superseded', 'dismissed'] as const
 /** How a request was snoozed; `next_push` wakes on the next build of the branch (no end time). */
@@ -51,7 +61,9 @@ export const LOGIN_METHODS = ['password', 'email', 'oidc', 'org-oidc'] as const
  * Git hosts a connection can be to. GitLab and Bitbucket are added here (a CHECK swap in a
  * migration, no data change) by the work that implements their providers.
  */
-export const GIT_PROVIDER_KINDS = ['github'] as const
+export const GIT_PROVIDER_KINDS = ['github', 'gitlab', 'bitbucket'] as const
+/** How a Figma link was made. */
+export const FIGMA_LINK_SOURCES = ['auto', 'manual'] as const
 /** Non-git integrations of an organisation (`integrations.kind`); more are added the same way. */
 export const INTEGRATION_KINDS = ['slack', 'linear', 'jira', 'figma'] as const
 /** Why a git connection needs a person to look at it. */
