@@ -19,11 +19,11 @@ describe('StatusChip', () => {
     expect(page.getByRole('img').elements()).toHaveLength(0)
   })
 
-  it('does not read the glyph name before custom text ("Expired", not "No changes Expired")', async () => {
+  it('does not read the glyph name before custom text ("Expired", not "Unchanged Expired")', async () => {
     await render(<StatusChip status="neutral">Expired</StatusChip>)
     const chip = page.getByText('Expired').element()
     expect(chip.textContent).toBe('Expired')
     expect(chip.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
-    expect(page.getByRole('img', { name: 'No changes' }).elements()).toHaveLength(0)
+    expect(page.getByRole('img', { name: 'Unchanged' }).elements()).toHaveLength(0)
   })
 })

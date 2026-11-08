@@ -29,12 +29,12 @@ There are no CSS classes to use: components are styled in JS. Build your own lay
 - Surfaces, dimmest to highest: `tokens.surface.chrome` (sidebar and page ground), `panel` (content), `raised` (inputs, buttons), `overlay` (menus), `highest`.
 - Text: `tokens.text.primary`, `secondary`, `tertiary`.
 - Accent: `tokens.accent.main` (the logo-derived clay), `tokens.accent.text` for accent-coloured text, `tokens.accent.onAccent` for text on an accent fill, `tokens.accent.subtle` behind a selected row.
-- State: `tokens.state.approved` (teal), `review` (amber), `processing` (periwinkle), `rejected` (rose). Use them only for state, never decoration.
+- State: `tokens.state.approved` (teal), `review` (amber), `processing` (periwinkle), `rejected` (crimson). Pending added, removed and flaky have their own glyphs (ring with plus, minus, tilde; amber). `reviewText` is the amber for words (darker in light). Use them only for state, never decoration.
 - Lines: `tokens.line.subtle` for dividers, `strong` for control edges. Use hairlines, not shadows.
 - Brand: `tokens.brand.maroon`, `blush`, `rosewood`, `salmon`, `terracotta` (the logo's tones).
 - Fonts: Inter at 13px for UI; `window.CirciUI.monoFont` for branch names, commit SHAs and anything copyable.
 
-State is always shown with `StatusIcon` or `StatusChip` (shape plus colour), with these `status` values: `approved`, `needs-review`, `processing`, `rejected`, `neutral`.
+State is always shown with `StatusIcon` or `StatusChip` (shape plus colour), with these `status` values: `approved`, `needs-review`, `processing`, `rejected`, `neutral` (labelled "Unchanged"), plus the per-diff glyphs `added`, `removed`, `flaky`.
 
 ## Layout
 

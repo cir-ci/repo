@@ -11,6 +11,13 @@
   color: var(--circi-state-review);
 }
 
+.root[data-status='added'],
+.root[data-status='removed'],
+.root[data-status='flaky'] {
+  /* A change is never an outcome: the same amber as needs-review, the inner mark says which kind. */
+  color: var(--circi-state-review);
+}
+
 .root[data-status='processing'] {
   color: var(--circi-state-processing);
 }

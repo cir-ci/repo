@@ -16,6 +16,14 @@
   text-decoration: none;
 }
 
+.root[data-density='compact'] {
+  min-height: 32px;
+}
+
+.root[data-density='two-line'] {
+  min-height: 56px;
+}
+
 .root[data-interactive] {
   cursor: pointer;
 }
@@ -30,8 +38,9 @@
 }
 
 .root:focus-visible {
-  outline: 2px solid var(--circi-accent-main);
-  outline-offset: -2px;
+  outline: 2px solid var(--circi-accent-text);
+  outline-offset: -5px;
+  border-radius: var(--circi-radius-inline);
 }
 
 .content {

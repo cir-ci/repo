@@ -30,4 +30,24 @@ describe('NavItem', () => {
     expect(getComputedStyle(button.element()).height).toBe('28px')
     expect(button.element()).not.toHaveAttribute('aria-current')
   })
+
+  it('announces the count in the name and shows it', async () => {
+    await render(
+      <NavItem href="/inbox" count={3} countLabel="unread">
+        Inbox
+      </NavItem>,
+    )
+    const link = page.getByRole('link', { name: /^Inbox ?, 3 unread$/ })
+    await expect.element(link).toBeVisible()
+  })
+
+  it('is 26px tall and indented as a sub item', async () => {
+    await render(
+      <NavItem href="/a" sub>
+        Child
+      </NavItem>,
+    )
+    const style = getComputedStyle(page.getByRole('link', { name: 'Child' }).element())
+    expect([style.height, style.paddingLeft]).toEqual(['26px', '34px'])
+  })
 })

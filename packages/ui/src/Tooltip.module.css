@@ -6,7 +6,7 @@
   box-sizing: border-box;
   max-width: 320px;
   padding: 6px 8px;
-  border-radius: 5px;
+  border-radius: var(--circi-radius-popup);
   background: var(--circi-surface-highest);
   color: var(--circi-text-primary);
   font-size: 12px;

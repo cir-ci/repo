@@ -127,7 +127,12 @@ describe('ProjectPage', () => {
       const chip = page.getByText(text).element()
       expect(chip.textContent).toBe(text)
       expect(chip.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true')
-      expect(chip.querySelector('svg')?.getAttribute('data-status')).toBe(glyph)
+      // Pending added and removed have their own glyphs; decided ones follow the review.
+      const own =
+        reviewStatus === 'pending'
+          ? { '1 added': 'added', '1 removed': 'removed' }[text]
+          : undefined
+      expect(chip.querySelector('svg')?.getAttribute('data-status')).toBe(own ?? glyph)
     }
     expect(
       page.getByText('1 failed').element().querySelector('svg')?.getAttribute('data-status'),

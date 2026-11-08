@@ -4,11 +4,12 @@ import { STATUS_LABEL, type Status, StatusIcon } from './StatusIcon.tsx'
 
 import styles from './StatusChip.module.css'
 
-/** A small pill pairing a status glyph with its word: "Needs review", "4 changed". */
+/** A small pill pairing a status glyph with its word: "Needs review", "4 changed". Builds pass their own word
+ * (No changes, Uploading, Failed, Expired, No baseline) over the nearest glyph. */
 export function StatusChip(props: StatusChip.Props) {
   return (
     <span className={styles['root']}>
-      {/* With custom text the glyph is decoration: "Expired" shouldn't read "No changes Expired". */}
+      {/* With custom text the glyph is decoration: "Expired" shouldn't read "Unchanged Expired". */}
       <StatusIcon
         status={props.status}
         size={10}

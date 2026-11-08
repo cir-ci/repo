@@ -1,0 +1,50 @@
+.root {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-sizing: border-box;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--circi-surface-highest);
+  color: var(--circi-text-primary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.root[data-shape='tag'] {
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.root[data-tone='accent'] {
+  background: var(--circi-accent-subtle);
+  color: var(--circi-accent-text);
+}
+
+.root[data-state='approved'] {
+  background: color-mix(in srgb, var(--circi-state-approved) 14%, transparent);
+  color: var(--circi-state-approved);
+}
+
+.root[data-state='review'] {
+  background: color-mix(in srgb, var(--circi-state-review) 14%, transparent);
+  color: var(--circi-state-review-text);
+}
+
+.root[data-state='processing'] {
+  background: color-mix(in srgb, var(--circi-state-processing) 14%, transparent);
+  color: var(--circi-state-processing);
+}
+
+.root[data-state='rejected'] {
+  background: color-mix(in srgb, var(--circi-state-rejected) 14%, transparent);
+  color: var(--circi-state-rejected);
+}

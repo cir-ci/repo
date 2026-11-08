@@ -22,7 +22,7 @@
   height: 32px;
   padding-inline: 10px 6px;
   border: 1px solid var(--circi-line-strong);
-  border-radius: 6px;
+  border-radius: var(--circi-radius-control);
   background: var(--circi-surface-raised);
   color: var(--circi-text-primary);
   font: inherit;
@@ -35,7 +35,7 @@
 }
 
 .trigger:focus-visible {
-  outline: 2px solid var(--circi-accent-main);
+  outline: 2px solid var(--circi-accent-text);
   outline-offset: 2px;
 }
 
@@ -96,7 +96,7 @@
   padding: 4px;
   overflow-y: auto;
   border: 1px solid var(--circi-line-strong);
-  border-radius: 8px;
+  border-radius: var(--circi-radius-popup);
   background: var(--circi-surface-overlay);
   color: var(--circi-text-primary);
   font-size: 13px;
@@ -128,7 +128,7 @@
   box-sizing: border-box;
   height: 28px;
   padding-inline: 6px 10px;
-  border-radius: 5px;
+  border-radius: var(--circi-radius-control);
   cursor: default;
   user-select: none;
   outline: none;

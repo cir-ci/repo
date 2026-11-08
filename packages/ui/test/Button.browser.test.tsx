@@ -98,4 +98,52 @@ describe('Button', () => {
     await link.click()
     expect(onClick).toHaveBeenCalledTimes(1)
   })
+  it('toggle and filter are buttons with aria-pressed that flip on click and Space', async () => {
+    const onPressedChange = vi.fn<(pressed: boolean) => void>()
+    await render(
+      <>
+        <Button variant="toggle" onPressedChange={onPressedChange}>
+          Wrap
+        </Button>
+        <Button variant="filter" defaultPressed>
+          Status
+        </Button>
+      </>,
+    )
+    const wrap = page.getByRole('button', { name: 'Wrap' })
+    await expect.element(wrap).toHaveAttribute('aria-pressed', 'false')
+    await wrap.click()
+    await expect.element(wrap).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.keyboard(' ')
+    await expect.element(wrap).toHaveAttribute('aria-pressed', 'false')
+    expect(onPressedChange.mock.calls.map(([pressed]) => pressed)).toEqual([true, false])
+    const filter = page.getByRole('button', { name: 'Status' })
+    await expect.element(filter).toHaveAttribute('aria-pressed', 'true')
+    expect(getComputedStyle(filter.element()).height).toBe('24px')
+  })
+
+  it('a controlled pressed button follows its prop', async () => {
+    await render(
+      <Button variant="toggle" pressed>
+        Wrap
+      </Button>,
+    )
+    const wrap = page.getByRole('button', { name: 'Wrap' })
+    await wrap.click()
+    await expect.element(wrap).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('other variants have no aria-pressed; select-trigger has no chrome', async () => {
+    await render(
+      <>
+        <Button>Plain</Button>
+        <Button variant="select-trigger">main</Button>
+      </>,
+    )
+    await expect
+      .element(page.getByRole('button', { name: 'Plain' }))
+      .not.toHaveAttribute('aria-pressed')
+    const trigger = page.getByRole('button', { name: 'main' }).element()
+    expect(getComputedStyle(trigger).borderTopColor).toBe('rgba(0, 0, 0, 0)')
+  })
 })

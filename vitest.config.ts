@@ -31,6 +31,7 @@ const baseUiDeps = [
   'menu',
   'select',
   'slider',
+  'switch',
   'toggle',
   'toggle-group',
   'tooltip',

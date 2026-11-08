@@ -9,7 +9,6 @@ import {
   type ShotKind,
 } from '../../../src/features/builds/diff-status.ts'
 
-const reviewable: ShotKind[] = ['changed', 'added', 'removed']
 const reviews: ReviewStatus[] = ['pending', 'approved', 'rejected']
 const decided: Record<ReviewStatus, Status> = {
   pending: 'needs-review',
@@ -19,11 +18,17 @@ const decided: Record<ReviewStatus, Status> = {
 
 describe('screenshotStatus', () => {
   const cases: [ShotKind, ReviewStatus, Status][] = [
-    ...reviewable.flatMap((k) =>
-      reviews.map((r): [ShotKind, ReviewStatus, Status] => [k, r, decided[r]]),
+    ...reviews.map((r): [ShotKind, ReviewStatus, Status] => ['changed', r, decided[r]]),
+    // Pending added and removed have their own glyph; decided ones follow the review.
+    ...(['added', 'removed'] as const).flatMap((k) =>
+      reviews.map((r): [ShotKind, ReviewStatus, Status] => [
+        k,
+        r,
+        r === 'pending' ? k : decided[r],
+      ]),
     ),
     ...reviews.map((r): [ShotKind, ReviewStatus, Status] => ['unchanged', r, 'neutral']),
-    ...reviews.map((r): [ShotKind, ReviewStatus, Status] => ['flaky', r, 'neutral']),
+    ...reviews.map((r): [ShotKind, ReviewStatus, Status] => ['flaky', r, 'flaky']),
     ...reviews.map((r): [ShotKind, ReviewStatus, Status] => ['failed', r, 'rejected']),
   ]
   it.each(cases)('%s in a %s build is %s', (kind, review, status) => {

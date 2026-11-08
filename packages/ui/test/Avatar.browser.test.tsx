@@ -33,4 +33,12 @@ describe('Avatar', () => {
     await render(<Avatar name="Ada Lovelace" src="data:image/png;base64,broken" />)
     await expect.element(page.getByRole('img', { name: 'Ada Lovelace' })).toHaveTextContent('AL')
   })
+
+  it('uses the avatar-text colour and falls back to initials when the image 404s', async () => {
+    await render(<Avatar name="Ada Lovelace" src="/does-not-exist.png" />)
+    const avatar = page.getByRole('img', { name: 'Ada Lovelace' })
+    await expect.element(avatar).toHaveTextContent('AL')
+    expect(getComputedStyle(avatar.element()).color).not.toBe('')
+    expect(avatar.element().querySelector('img')).toBeNull()
+  })
 })

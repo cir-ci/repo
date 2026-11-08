@@ -1,0 +1,78 @@
+.root {
+  display: block;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--circi-text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+}
+
+.description {
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
+}
+
+.track {
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  width: 32px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: var(--circi-surface-highest);
+  cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+
+.track[data-checked] {
+  background: var(--circi-accent-main);
+}
+
+.thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--circi-text-secondary);
+  transition:
+    left 120ms ease-out,
+    background-color 120ms ease-out;
+}
+
+.thumb[data-checked] {
+  left: 16px;
+  background: var(--circi-accent-on-accent);
+}
+
+.track:focus-visible {
+  outline: 2px solid var(--circi-accent-text);
+  outline-offset: 2px;
+}
+
+.track[data-disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track,
+  .thumb {
+    transition: none;
+  }
+}

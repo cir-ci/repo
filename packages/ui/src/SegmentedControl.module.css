@@ -2,7 +2,7 @@
   display: inline-flex;
   padding: 2px;
   border: 1px solid var(--circi-line-subtle);
-  border-radius: 7px;
+  border-radius: var(--circi-radius-control);
   background: var(--circi-surface-chrome);
 }
 
@@ -11,7 +11,7 @@
   height: 26px;
   padding-inline: 12px;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--circi-radius-inline);
   background: transparent;
   color: var(--circi-text-secondary);
   font: inherit;
@@ -32,7 +32,7 @@
 }
 
 .item:focus-visible {
-  outline: 2px solid var(--circi-accent-main);
+  outline: 2px solid var(--circi-accent-text);
   outline-offset: 2px;
 }
 

@@ -32,6 +32,17 @@ const ButtonVariants = () => (
       <Button variant="link">Link</Button>
     </div>
     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <Button variant="toggle">Toggle</Button>
+      <Button variant="toggle" defaultPressed>
+        Toggle on
+      </Button>
+      <Button variant="filter">Filter</Button>
+      <Button variant="filter" defaultPressed>
+        Filter on
+      </Button>
+      <Button variant="select-trigger">main</Button>
+    </div>
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
       <Button variant="primary" size="sm">
         Approve
       </Button>

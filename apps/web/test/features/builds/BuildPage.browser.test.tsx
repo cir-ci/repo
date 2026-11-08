@@ -88,13 +88,15 @@ describe('BuildPage states', () => {
       const added = list.getByRole('img', {
         name: `Added${reviewStatus === 'pending' ? '' : `, ${reviewStatus}`}`,
       })
-      expect(added.element().getAttribute('data-status')).toBe(glyph)
+      const addedGlyph = reviewStatus === 'pending' ? 'added' : glyph
+      expect(added.element().getAttribute('data-status')).toBe(addedGlyph)
       // The chips read as their text only (the glyph is hidden), and follow the review too.
       for (const text of ['2 changed', '1 added']) {
         const chip = page.getByText(text).element()
         expect(chip.textContent).toBe(text)
         expect(chip.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true')
-        expect(chip.querySelector('svg')?.getAttribute('data-status')).toBe(glyph)
+        const expected = text === '1 added' && reviewStatus === 'pending' ? 'added' : glyph
+        expect(chip.querySelector('svg')?.getAttribute('data-status')).toBe(expected)
       }
       expect(
         page.getByText('2 unchanged').element().querySelector('svg')?.getAttribute('data-status'),

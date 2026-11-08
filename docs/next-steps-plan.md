@@ -94,6 +94,8 @@ baselines. No app screens change except where a renamed prop forces it.
 
 **Parallel:** A0 alone (gate) → A1, A2, A3, A4 as four agents → A5 by the lead.
 
+**Status (2026-11-08): Phase A done.** Left over: group headers at 32px (no ListRow group header exists; `SectionHeader` is separate), the 5px row inset on `NavItem` (the canvas gives the nav 8px padding; unclear what the 5px meant), `--circi-radius-command` has no consumer until C5. `ui-visual` baselines live on the CirCI server, not in the repo: `pnpm test:visual` passes (60 cases) but uploads only when `CIRCI_API_URL` and `CIRCI_TOKEN` are set, so approving the new look is yours.
+
 ## 5. Phase B: backend and data model
 
 Outcome: every screen in Phase C has its tables, repositories, services, routes, `@circi/api`

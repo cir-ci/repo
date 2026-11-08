@@ -19,8 +19,22 @@ export function tokensCss(): string {
     '--circi-z-tooltip': '300',
     '--circi-z-skip': '400',
   }
+  // Corner radii: 4 inline marks, 6 controls and items, 8 popups and tooltips, 10 panels and dialogs, 12 command menu.
+  const radii = {
+    '--circi-radius-inline': '4px',
+    '--circi-radius-control': '6px',
+    '--circi-radius-popup': '8px',
+    '--circi-radius-panel': '10px',
+    '--circi-radius-command': '12px',
+  }
   return [
-    block(':root', { 'color-scheme': 'dark', ...tokenVariables('dark'), ...fonts, ...layers }),
+    block(':root', {
+      'color-scheme': 'dark',
+      ...tokenVariables('dark'),
+      ...fonts,
+      ...layers,
+      ...radii,
+    }),
     block(`[${COLOR_SCHEME_ATTRIBUTE}='dark']`, {
       'color-scheme': 'dark',
       ...tokenVariables('dark'),

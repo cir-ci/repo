@@ -209,8 +209,10 @@ popups and hover; none for layout; nothing moves when `prefers-reduced-motion`.
 
 ## 14. The light scheme
 
-Built (refactor-plan §4.0), derived not designed: same hues, accent `#b4573f`, state colours
-darkened for 4.5:1 contrast. **Needs a look** at chrome-vs-panel separation (`#f3efed` vs
+Built (refactor-plan §4.0). Since 2026-11-08 the light palette is the canvas's (`MainLight` board;
+`packages/ui/test/canvas-palette.json` fails a test if `theme.ts` drifts from it); the earlier
+"derived, not designed" values are gone. **Settled by the canvas:** chrome-vs-panel separation.
+**Still open** at chrome-vs-panel separation (`#f3efed` vs
 `#fcfbfa`) and the accent clay, which reads browner than the dark scheme's.
 
 ## 15. Logo and favicon

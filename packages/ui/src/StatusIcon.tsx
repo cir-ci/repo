@@ -2,19 +2,30 @@ import { cx } from './cx.ts'
 
 import styles from './StatusIcon.module.css'
 
-export type Status = 'approved' | 'needs-review' | 'processing' | 'rejected' | 'neutral'
+export type Status =
+  | 'approved'
+  | 'needs-review'
+  | 'processing'
+  | 'rejected'
+  | 'neutral'
+  | 'added'
+  | 'removed'
+  | 'flaky'
 
 export const STATUS_LABEL: Record<Status, string> = {
   approved: 'Approved',
   'needs-review': 'Needs review',
   processing: 'Processing',
   rejected: 'Rejected',
-  neutral: 'No changes',
+  neutral: 'Unchanged',
+  added: 'Added',
+  removed: 'Removed',
+  flaky: 'Flaky',
 }
 
 /**
  * A build or snapshot's state as a small glyph: a filled check (approved), half-filled ring
- * (needs review), dashed ring (processing), filled cross (rejected) or plain ring (no changes).
+ * (needs review), dashed ring (processing), filled cross (rejected) or plain ring (unchanged), and a ring with a plus (added), minus (removed) or tilde (flaky).
  * The shape differs per state, so it never relies on colour alone.
  */
 export function StatusIcon(props: StatusIcon.Props) {
@@ -74,6 +85,42 @@ export function StatusIcon(props: StatusIcon.Props) {
       )}
       {status === 'neutral' && (
         <circle cx="7" cy="7" r="6.25" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      )}
+      {status === 'added' && (
+        <>
+          <circle cx="7" cy="7" r="6.25" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <path
+            d="M7 4.2v5.6M4.2 7h5.6"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </>
+      )}
+      {status === 'removed' && (
+        <>
+          <circle cx="7" cy="7" r="6.25" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <path
+            d="M4.2 7h5.6"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </>
+      )}
+      {status === 'flaky' && (
+        <>
+          <circle cx="7" cy="7" r="6.25" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <path
+            d="M4 7.6c1-1.9 2-1.9 3 0s2 1.9 3 0"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+          />
+        </>
       )}
     </svg>
   )

@@ -26,7 +26,7 @@
 }
 
 .root:focus-visible {
-  outline: 2px solid var(--circi-accent-main);
+  outline: 2px solid var(--circi-accent-text);
   outline-offset: 2px;
 }
 

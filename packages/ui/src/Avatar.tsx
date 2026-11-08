@@ -19,7 +19,7 @@ export function initials(name: string): string {
 }
 
 /**
- * Provisional (docs/design-gaps.md §6): a round avatar on Base UI's `Avatar`: the image when it
+ * A round avatar on Base UI's `Avatar`: the image when it
  * loads, otherwise the initials of `name`. The element is an image named by `name`.
  */
 export function Avatar({ name, src, size = 24, className }: Avatar.Props) {

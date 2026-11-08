@@ -6,8 +6,8 @@
   box-sizing: border-box;
   overflow: hidden;
   border-radius: 50%;
-  background: var(--circi-action-selected);
-  color: var(--circi-text-secondary);
+  background: var(--circi-surface-highest);
+  color: var(--circi-avatar-text);
   font-weight: 600;
   line-height: 1;
   vertical-align: middle;

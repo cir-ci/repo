@@ -34,7 +34,7 @@
   max-width: 100%;
   max-height: 100%;
   border: 1px solid var(--circi-line-strong);
-  border-radius: 10px;
+  border-radius: var(--circi-radius-panel);
   background: var(--circi-surface-overlay);
   color: var(--circi-text-primary);
   font-size: 13px;
@@ -88,7 +88,7 @@
   height: 28px;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--circi-radius-control);
   background: transparent;
   color: var(--circi-text-secondary);
   cursor: pointer;
@@ -99,7 +99,7 @@
 }
 
 .close:focus-visible {
-  outline: 2px solid var(--circi-accent-main);
+  outline: 2px solid var(--circi-accent-text);
   outline-offset: 2px;
 }
 

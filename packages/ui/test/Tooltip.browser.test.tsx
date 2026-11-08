@@ -53,4 +53,11 @@ describe('Tooltip', () => {
       button.element().getBoundingClientRect().top,
     )
   })
+
+  it('has an 8px radius', async () => {
+    await render(<Harness />)
+    await userEvent.tab()
+    const popup = page.getByText('Close the panel').element()
+    expect(getComputedStyle(popup).borderTopLeftRadius).toBe('8px')
+  })
 })
