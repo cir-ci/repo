@@ -52,11 +52,16 @@
 
 .shortcut {
   display: grid;
-  grid-template-columns: 32px 1fr;
+  grid-template-columns: 96px 1fr;
   align-items: center;
 }
 
 .shortcut dt,
 .shortcut dd {
   margin: 0;
+}
+
+.caps {
+  display: flex;
+  gap: 4px;
 }

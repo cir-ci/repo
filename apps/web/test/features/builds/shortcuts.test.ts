@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { validateBuildSearch } from '../../../src/features/builds/search.ts'
-import {
-  isHandledElsewhere,
-  SHORTCUTS,
-  shortcutFor,
-} from '../../../src/features/builds/shortcuts.ts'
+import { isHandledElsewhere, SHORTCUTS, shortcutFor } from '../../../src/lib/shortcuts.ts'
 
 describe('shortcutFor', () => {
   it('maps the review keys to actions', () => {

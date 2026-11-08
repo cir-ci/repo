@@ -5,6 +5,7 @@ import { buildsRoutes } from '../features/builds/routes.ts'
 import { membersRoutes } from '../features/members/routes.ts'
 import { projectsRoutes } from '../features/projects/routes.ts'
 import { sitesRoutes } from '../features/sites/routes.ts'
+import { placeholderRoutes } from './placeholder-routes.tsx'
 import { rootRoute } from './root-route.ts'
 
 /** The route tree: each feature declares its own routes; this only assembles them. */
@@ -14,6 +15,7 @@ const routeTree = rootRoute.addChildren([
   ...membersRoutes,
   ...sitesRoutes,
   ...accountRoutes,
+  ...placeholderRoutes,
 ])
 
 /** The router; tests pass a memory `history` so they don't touch the address bar. */

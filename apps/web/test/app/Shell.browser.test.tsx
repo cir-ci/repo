@@ -9,7 +9,7 @@ import {
 } from '@tanstack/react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
-import { page } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 
 // The auth client is the edge to better-auth: a fake stands in for it (nothing here talks to a server).
 const auth = vi.hoisted(() => ({
@@ -46,6 +46,41 @@ const API: Record<string, unknown> = {
       overview('globex', 'Globex', 'portal'),
     ],
   },
+  '/api/orgs/acme/sidebar': {
+    projects: [
+      { slug: 'web-app', name: 'web-app', pinned: true, triage: 4 },
+      { slug: 'storybook', name: 'storybook', pinned: false, triage: 0 },
+      { slug: 'api', name: 'api', pinned: false, triage: 0 },
+    ],
+    views: [
+      {
+        id: 'v1',
+        name: 'Failing on main',
+        filters: {},
+        pinned: true,
+        position: 0,
+        project: null,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      },
+      {
+        id: 'v2',
+        name: 'Not pinned',
+        filters: {},
+        pinned: false,
+        position: 1,
+        project: null,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      },
+    ],
+    inboxUnread: 3,
+    reviews: 2,
+  },
+  '/api/orgs/globex/sidebar': {
+    projects: [{ slug: 'portal', name: 'portal', pinned: false, triage: 0 }],
+    views: [],
+    inboxUnread: 0,
+    reviews: 0,
+  },
   '/api/capabilities': {
     canCreateOrganization: false,
     manageableOrganizations: [],
@@ -65,8 +100,34 @@ async function renderShell(path: string) {
     createRoute({ getParentRoute: () => root, path: 'account', component: text('Account page') }),
     createRoute({
       getParentRoute: () => root,
-      path: 'organizations/$org/members',
+      path: 'organizations/$org/settings/members',
       component: text('Members page'),
+    }),
+    createRoute({ getParentRoute: () => root, path: 'inbox', component: text('Inbox page') }),
+    createRoute({
+      getParentRoute: () => root,
+      path: 'organizations/$org/reviews',
+      component: text('Reviews page'),
+    }),
+    createRoute({
+      getParentRoute: () => root,
+      path: 'organizations/$org/insights',
+      component: text('Insights page'),
+    }),
+    createRoute({
+      getParentRoute: () => root,
+      path: 'organizations/$org/settings',
+      component: text('Org settings page'),
+    }),
+    createRoute({
+      getParentRoute: () => root,
+      path: '$org/$project/settings',
+      component: text('Project settings page'),
+    }),
+    createRoute({
+      getParentRoute: () => root,
+      path: '$org/$project/triage',
+      component: text('Triage page'),
     }),
     createRoute({
       getParentRoute: () => root,
@@ -128,35 +189,64 @@ describe('Shell, wide', () => {
     await renderShell('/')
     const nav = page.getByRole('navigation', { name: 'Main' })
     await expect.element(nav).toBeVisible()
+    await expect.element(nav.getByRole('button', { name: /Search/ })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: 'Projects', exact: true })).toBeVisible()
-    await expect.element(nav.getByRole('link', { name: 'Members' })).toBeVisible()
-    // The organization of the first project (alphabetical: Acme), its projects alphabetically.
+    await expect.element(nav.getByRole('link', { name: 'Insights' })).toBeVisible()
+    await expect.element(nav.getByRole('link', { name: 'Settings' })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: 'storybook' })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: 'web-app' })).toBeVisible()
     expect(nav.getByRole('link', { name: 'portal' }).elements()).toHaveLength(0)
     await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
   })
 
+  it('shows the Inbox and Reviews counts and the pinned views', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/')
+    const nav = page.getByRole('navigation', { name: 'Main' })
+    await expect.element(nav.getByRole('link', { name: 'Inbox , 3 unread' })).toBeVisible()
+    await expect.element(nav.getByRole('link', { name: 'Reviews , 2 waiting' })).toBeVisible()
+    await expect.element(nav.getByRole('link', { name: 'Failing on main' })).toBeVisible()
+    expect(nav.getByRole('link', { name: 'Not pinned' }).elements()).toHaveLength(0)
+  })
+
+  it('lists pinned projects first, then the rest A to Z', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/')
+    const nav = page.getByRole('navigation', { name: 'Main' })
+    await expect.element(nav.getByRole('link', { name: 'api' })).toBeVisible()
+    const names = nav
+      .getByRole('region', { name: 'Projects' })
+      .getByRole('link')
+      .elements()
+      .map((el) => el.textContent)
+    expect(names).toEqual(['web-app', 'api', 'storybook'])
+  })
+
   it('marks the current page with aria-current', async () => {
     await page.viewport(1280, 800)
-    await renderShell('/organizations/acme/members')
+    await renderShell('/organizations/acme/reviews')
     const nav = page.getByRole('navigation', { name: 'Main' })
     await expect
-      .element(nav.getByRole('link', { name: 'Members' }))
+      .element(nav.getByRole('link', { name: 'Reviews , 2 waiting' }))
       .toHaveAttribute('aria-current', 'page')
     await expect
       .element(nav.getByRole('link', { name: 'Projects', exact: true }))
       .not.toHaveAttribute('aria-current')
   })
 
-  it('opens the project’s pages under it and marks the open one', async () => {
+  it('opens the open project’s pages under it, with the Triage count', async () => {
     await page.viewport(1280, 800)
-    await renderShell('/acme/web-app/sites')
+    await renderShell('/acme/web-app/triage')
     const nav = page.getByRole('navigation', { name: 'Main' })
     await expect
-      .element(nav.getByRole('link', { name: 'Sites' }))
+      .element(nav.getByRole('link', { name: 'Triage , 4 waiting' }))
       .toHaveAttribute('aria-current', 'page')
-    await expect.element(nav.getByRole('link', { name: 'Settings' })).toBeVisible()
+    await expect.element(nav.getByRole('link', { name: 'Builds' })).toBeVisible()
+    await expect.element(nav.getByRole('link', { name: 'Baselines' })).toBeVisible()
+    // Settings twice: the top-level entry and the project's.
+    expect(nav.getByRole('link', { name: 'Settings' }).elements()).toHaveLength(2)
+    // Other projects stay collapsed.
+    expect(nav.getByRole('link', { name: 'Builds' }).elements()).toHaveLength(1)
   })
 
   it('navigates without a page reload', async () => {
@@ -164,10 +254,10 @@ describe('Shell, wide', () => {
     const { router } = await renderShell('/')
     await page
       .getByRole('navigation', { name: 'Main' })
-      .getByRole('link', { name: 'Members' })
+      .getByRole('link', { name: 'Insights' })
       .click()
-    await expect.element(page.getByRole('main')).toHaveTextContent('Members page')
-    expect(router.state.location.pathname).toBe('/organizations/acme/members')
+    await expect.element(page.getByRole('main')).toHaveTextContent('Insights page')
+    expect(router.state.location.pathname).toBe('/organizations/acme/insights')
   })
 
   it('lists the organizations in the switcher and follows the one chosen', async () => {
@@ -232,6 +322,96 @@ describe('Shell, wide', () => {
   })
 })
 
+describe('Shell, keyboard', () => {
+  it('goes to the Inbox with G then I', async () => {
+    await page.viewport(1280, 800)
+    const { router } = await renderShell('/')
+    await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
+    await userEvent.keyboard('gi')
+    await expect.poll(() => router.state.location.pathname).toBe('/inbox')
+    await userEvent.keyboard('gr')
+    await expect.poll(() => router.state.location.pathname).toBe('/organizations/acme/reviews')
+    await userEvent.keyboard('gs')
+    await expect.poll(() => router.state.location.pathname).toBe('/organizations/acme/settings')
+  })
+
+  it('goes to the first project with Triage work on G then T', async () => {
+    await page.viewport(1280, 800)
+    const { router } = await renderShell('/')
+    await expect
+      .element(
+        page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'web-app' }),
+      )
+      .toBeVisible()
+    await userEvent.keyboard('gt')
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app/triage')
+  })
+
+  it('does not take G while typing in a field', async () => {
+    await page.viewport(1280, 800)
+    const { router } = await renderShell('/')
+    await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
+    const field = document.createElement('input')
+    document.body.append(field)
+    field.focus()
+    await userEvent.keyboard('gi')
+    expect(router.state.location.pathname).toBe('/')
+    field.remove()
+  })
+
+  it('copies the link with ⌘⇧C', async () => {
+    await page.viewport(1280, 800)
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined)
+    await renderShell('/')
+    await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'C', metaKey: true, shiftKey: true, bubbles: true }),
+    )
+    await expect.poll(() => writeText.mock.calls.length).toBe(1)
+    expect(writeText).toHaveBeenCalledWith(location.href)
+  })
+})
+
+describe('Shell, settings', () => {
+  it('shows the sectioned settings nav on the members page, which sits inside it', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/organizations/acme/settings/members')
+    const nav = page.getByRole('navigation', { name: 'Settings' })
+    await expect.element(nav).toBeVisible()
+    await expect.element(nav.getByRole('region', { name: 'Account' })).toBeVisible()
+    await expect.element(nav.getByRole('region', { name: 'Organisation · Acme' })).toBeVisible()
+    await expect
+      .element(nav.getByRole('link', { name: 'Members' }))
+      .toHaveAttribute('aria-current', 'page')
+    await expect.element(page.getByText('Members page')).toBeVisible()
+    expect(nav.getByRole('region', { name: /^Project/ }).elements()).toHaveLength(0)
+  })
+
+  it('shares the nav with the account page, and adds the project section on a project’s', async () => {
+    await page.viewport(1280, 800)
+    const { router } = await renderShell('/account')
+    const nav = page.getByRole('navigation', { name: 'Settings' })
+    await expect
+      .element(nav.getByRole('link', { name: 'Profile' }))
+      .toHaveAttribute('aria-current', 'page')
+    await router.navigate({
+      to: '/$org/$project/settings',
+      params: { org: 'acme', project: 'web-app' },
+    })
+    await expect.element(nav.getByRole('region', { name: 'Project · web-app' })).toBeVisible()
+    await expect
+      .element(nav.getByRole('link', { name: 'General' }).last())
+      .toHaveAttribute('aria-current', 'page')
+  })
+
+  it('has no settings nav on other pages', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/inbox')
+    await expect.element(page.getByRole('main')).toHaveTextContent('Inbox page')
+    expect(page.getByRole('navigation', { name: 'Settings' }).elements()).toHaveLength(0)
+  })
+})
+
 describe('Shell, outside the dashboard', () => {
   it('shows the sign-in page, without the sidebar, when nobody is signed in', async () => {
     await page.viewport(1280, 800)
@@ -252,14 +432,14 @@ describe('Shell, outside the dashboard', () => {
 describe('Shell, narrow', () => {
   it('replaces the sidebar with a top bar and a menu button that opens it as a drawer', async () => {
     await page.viewport(390, 800)
-    await renderShell('/organizations/acme/members')
+    await renderShell('/organizations/acme/reviews')
     expect(page.getByRole('navigation', { name: 'Main' }).elements()).toHaveLength(0)
-    await expect.element(page.getByText('Members').first()).toBeVisible()
+    await expect.element(page.getByText('Reviews').first()).toBeVisible()
     await page.getByRole('button', { name: 'Open navigation' }).click()
     const drawer = page.getByRole('dialog', { name: 'Navigation' })
     await expect.element(drawer).toBeVisible()
     await expect
-      .element(drawer.getByRole('link', { name: 'Members' }))
+      .element(drawer.getByRole('link', { name: 'Reviews , 2 waiting' }))
       .toHaveAttribute('aria-current', 'page')
   })
 

@@ -1,12 +1,25 @@
-import { createRoute, lazyRouteComponent } from '@tanstack/react-router'
+import { createRoute, lazyRouteComponent, redirect } from '@tanstack/react-router'
 
 import { rootRoute } from '../../app/root-route.ts'
 
-// Three segments, so it can't collide with `$org/$project` (two) or a build page (four).
+// Four segments under `organizations`, so it can't collide with `$org/$project/…` pages.
 const membersRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: 'organizations/$org/members',
+  path: 'organizations/$org/settings/members',
   component: lazyRouteComponent(() => import('./MembersPage.tsx'), 'MembersPage'),
 })
 
-export const membersRoutes = [membersRoute]
+// Members used to live at `organizations/$org/members`; old links and bookmarks land on the new page.
+const legacyMembersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'organizations/$org/members',
+  beforeLoad: ({ params }) => {
+    throw redirect({
+      to: '/organizations/$org/settings/members',
+      params,
+      replace: true,
+    })
+  },
+})
+
+export const membersRoutes = [membersRoute, legacyMembersRoute]

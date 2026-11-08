@@ -44,7 +44,7 @@ const ROLE_LABEL: Record<string, string> = { owner: 'Owner', admin: 'Admin', mem
 
 /** Who is in an organization, and (for owners and admins) inviting people and removing them. */
 export function MembersPage() {
-  const { org } = useParams({ from: '/organizations/$org/members' })
+  const { org } = useParams({ from: '/organizations/$org/settings/members' })
   const { data: session } = authClient.useSession()
   const queryClient = useQueryClient()
   const announce = useAnnounce()

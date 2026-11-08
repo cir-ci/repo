@@ -14,7 +14,9 @@ import { InvitationBanner } from '../features/auth/InvitationBanner.tsx'
 import { AddressChangeBanner } from '../features/instance/AddressChangeBanner.tsx'
 import { authClient, type SessionUser } from '../lib/auth-client.ts'
 import { RouterLink } from '../lib/router-link.ts'
-import { currentSection, isOutsideFrame, sectionLabel } from './shell-model.ts'
+import { SettingsLayout } from './SettingsLayout.tsx'
+import { currentSection, isOutsideFrame, isSettingsSection, sectionLabel } from './shell-model.ts'
+import { ShortcutLayer } from './ShortcutLayer.tsx'
 import { Sidebar } from './Sidebar.tsx'
 
 import styles from './Shell.module.css'
@@ -102,6 +104,7 @@ function PlainFrame({ children }: { children: ReactNode }) {
 
 function SignedInFrame({ user }: { user: SessionUser }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const section = currentSection(pathname)
   // The drawer belongs to the page it was opened on: choosing another page closes it.
   const [openedAt, setOpenedAt] = useState<string | undefined>(undefined)
   const drawerOpen = openedAt === pathname
@@ -118,7 +121,7 @@ function SignedInFrame({ user }: { user: SessionUser }) {
   }, [])
 
   return (
-    <>
+    <ShortcutLayer>
       <AppFrame
         sidebar={<Sidebar user={user} />}
         compactBar={
@@ -126,20 +129,24 @@ function SignedInFrame({ user }: { user: SessionUser }) {
             <IconButton label="Open navigation" onClick={() => setDrawerOpen(true)}>
               <MenuIcon />
             </IconButton>
-            <span className={styles['barTitle']}>
-              {sectionLabel(currentSection(pathname)) ?? 'CirCI'}
-            </span>
+            <span className={styles['barTitle']}>{sectionLabel(section) ?? 'CirCI'}</span>
           </div>
         }
       >
         <Notices email={user.email} />
-        <Outlet />
+        {isSettingsSection(section) ? (
+          <SettingsLayout>
+            <Outlet />
+          </SettingsLayout>
+        ) : (
+          <Outlet />
+        )}
       </AppFrame>
       <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} title="Navigation">
         <nav aria-label="Main" className={styles['drawerNav']}>
           <Sidebar user={user} />
         </nav>
       </Drawer>
-    </>
+    </ShortcutLayer>
   )
 }

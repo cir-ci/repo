@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   Check,
   ChevronDown,
+  ChartColumn,
   ChevronsUpDown,
   ChevronUp,
   CircleAlert,
@@ -28,6 +29,8 @@ import {
   Menu,
   MessageSquareText,
   RefreshCw,
+  Search,
+  Settings,
   TriangleAlert,
   User,
   Users,
@@ -74,6 +77,7 @@ function icon(Glyph: LucideIcon, name: string) {
  *   ReportProblemOutlined          TriangleAlert
  *   TaskAlt                        CircleCheckBig
  *   (shell)                        Check, ChevronsUpDown, LogOut, Menu, User, Users
+ *   (sidebar)                      ChartColumn, Search, Settings
  *   (components)                   ChevronRight, Copy, Inbox, Info, Minus, MoreHorizontal (the row's "…"), X
  */
 export const AddCircleIcon = icon(CirclePlus, 'AddCircleIcon')
@@ -103,6 +107,9 @@ export const UsersIcon = icon(Users, 'UsersIcon')
 export const ChevronRightIcon = icon(ChevronRight, 'ChevronRightIcon')
 export const CloseIcon = icon(X, 'CloseIcon')
 export const CopyIcon = icon(Copy, 'CopyIcon')
+export const SearchIcon = icon(Search, 'SearchIcon')
+export const SettingsIcon = icon(Settings, 'SettingsIcon')
+export const InsightsIcon = icon(ChartColumn, 'InsightsIcon')
 export const InboxIcon = icon(Inbox, 'InboxIcon')
 export const InfoIcon = icon(Info, 'InfoIcon')
 export const MinusIcon = icon(Minus, 'MinusIcon')

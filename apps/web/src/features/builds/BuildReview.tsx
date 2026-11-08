@@ -17,6 +17,7 @@ import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { RouterLink } from '../../lib/router-link.ts'
+import { useShortcutHandlers } from '../../lib/shortcuts.ts'
 import { flakyQuery, isActive } from './api.ts'
 import { BuildBreadcrumbs } from './BuildBreadcrumbs.tsx'
 import { BuildMeta } from './BuildMeta.tsx'
@@ -35,7 +36,6 @@ import {
 } from './review-model.ts'
 import { ReviewActions, ReviewNote, useReviewControls } from './ReviewActions.tsx'
 import { ROUTE, type ViewMode } from './search.ts'
-import { isHandledElsewhere, shortcutFor } from './shortcuts.ts'
 import { ShortcutsDialog } from './ShortcutsDialog.tsx'
 
 import page from './BuildPage.module.css'
@@ -85,32 +85,14 @@ export function BuildReview({ data }: BuildReview.Props) {
   const hasPrevious = selected !== undefined && previous !== selected
   const hasNext = selected !== undefined && next !== selected
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (isHandledElsewhere(e.target, e)) return
-      const action = shortcutFor(e.key)?.action
-      if (!action) return
-      e.preventDefault()
-      switch (action.type) {
-        case 'next':
-          return goToShot(neighbour(ordered, selected, 1))
-        case 'previous':
-          return goToShot(neighbour(ordered, selected, -1))
-        case 'mode':
-          return void navigate({
-            search: (prev) => ({ ...prev, mode: action.mode }),
-            replace: true,
-          })
-        case 'approve':
-          return e.repeat ? undefined : review.approve()
-        case 'reject':
-          return e.repeat ? undefined : review.askReject()
-        case 'help':
-          return setHelpOpen(true)
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+  useShortcutHandlers({
+    next: () => goToShot(neighbour(ordered, selected, 1)),
+    previous: () => goToShot(neighbour(ordered, selected, -1)),
+    mode: (action) =>
+      void navigate({ search: (prev) => ({ ...prev, mode: action.mode }), replace: true }),
+    approve: (_, e) => (e.repeat ? undefined : review.approve()),
+    reject: (_, e) => (e.repeat ? undefined : review.askReject()),
+    help: () => setHelpOpen(true),
   })
 
   // Keep the selected row in view in the list's own scroll when j / k (or the buttons) move on.

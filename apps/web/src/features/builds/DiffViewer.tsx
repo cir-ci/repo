@@ -15,11 +15,11 @@ import {
 } from '@circi/ui'
 import { type CSSProperties, useState } from 'react'
 
+import { MODE_OPTIONS } from '../../lib/shortcuts.ts'
 import { fileUrl } from './api.ts'
 import { screenshotLabel, screenshotStatus, type ShotKind } from './diff-status.ts'
 import { changeSummary } from './review-model.ts'
 import { type ViewMode, VIEW_MODES } from './search.ts'
-import { MODE_OPTIONS } from './shortcuts.ts'
 import { type Zoom, stepZoom, zoomedWidth, zoomLabel } from './zoom.ts'
 
 import styles from './DiffViewer.module.css'

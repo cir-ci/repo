@@ -1,11 +1,16 @@
-import type { Project } from '@circi/api'
+import type { Project, Sidebar, View } from '@circi/api'
 import { describe, expect, it } from 'vitest'
 
 import {
+  countOrUndefined,
   currentSection,
+  goPath,
   isOutsideFrame,
+  isSettingsSection,
   listOrgs,
+  orderProjects,
   pickOrg,
+  pinnedViews,
   sectionLabel,
   sidebarProjects,
 } from '../../src/app/shell-model.ts'
@@ -45,41 +50,119 @@ describe('pickOrg', () => {
   })
 })
 
+const sidebarProject = (slug: string, over: Partial<Sidebar.Project> = {}): Sidebar.Project => ({
+  slug,
+  name: slug,
+  pinned: false,
+  triage: 0,
+  ...over,
+})
+
+describe('orderProjects', () => {
+  it('puts pinned projects first, in the order given, then the rest A to Z', () => {
+    const ordered = orderProjects([
+      sidebarProject('zeta', { pinned: true }),
+      sidebarProject('beta'),
+      sidebarProject('alpha', { pinned: true }),
+      sidebarProject('Gamma'),
+    ])
+    expect(ordered.map((p) => p.slug)).toEqual(['zeta', 'alpha', 'beta', 'Gamma'])
+  })
+})
+
 describe('sidebarProjects', () => {
-  it('lists one organization’s projects alphabetically, capped, with the total', () => {
-    const projects = [
-      ...['m', 'c', 'a', 'k', 'b', 'd', 'e', 'f', 'g', 'h', 'i', 'j'].map((p) =>
-        overview('acme', p),
-      ),
-      overview('other', 'zzz'),
-    ]
-    const { shown, total } = sidebarProjects(projects, 'acme')
-    expect(shown.map((p) => p.slug)).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'])
+  it('lists projects pinned first then alphabetical, capped, with the total', () => {
+    const projects = ['m', 'c', 'a', 'k', 'b', 'd', 'e', 'f', 'g', 'h', 'i', 'j'].map((p) =>
+      sidebarProject(p, { pinned: p === 'm' }),
+    )
+    const { shown, total } = sidebarProjects(projects)
+    expect(shown.map((p) => p.slug)).toEqual(['m', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'])
     expect(total).toBe(12)
   })
 
   it('keeps the open project listed even past the cap', () => {
     const projects = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'z'].map((p) =>
-      overview('acme', p),
+      sidebarProject(p),
     )
-    expect(sidebarProjects(projects, 'acme', 10, 'z').shown.map((p) => p.slug)).toContain('z')
-    expect(sidebarProjects(projects, 'acme').shown.map((p) => p.slug)).not.toContain('z')
+    expect(sidebarProjects(projects, 10, 'z').shown.map((p) => p.slug)).toContain('z')
+    expect(sidebarProjects(projects).shown.map((p) => p.slug)).not.toContain('z')
   })
 
-  it('is empty for no organization', () => {
-    expect(sidebarProjects([overview('acme', 'a')], undefined)).toEqual({ shown: [], total: 0 })
+  it('is empty before the sidebar has loaded', () => {
+    expect(sidebarProjects(undefined)).toEqual({ shown: [], total: 0 })
   })
 })
+
+describe('countOrUndefined', () => {
+  it('shows a count only when something is waiting', () => {
+    expect(countOrUndefined(0)).toBeUndefined()
+    expect(countOrUndefined(undefined)).toBeUndefined()
+    expect(countOrUndefined(3)).toBe(3)
+  })
+})
+
+const view = (id: string, pinned: boolean, position: number): View.Item => ({
+  id,
+  name: id,
+  filters: {},
+  pinned,
+  position,
+  project: null,
+  createdAt: '2026-01-01T00:00:00.000Z',
+})
+
+describe('pinnedViews', () => {
+  it('keeps the pinned views in the user’s order', () => {
+    const views = [view('c', true, 2), view('x', false, 0), view('a', true, 1)]
+    expect(pinnedViews(views).map((v) => v.id)).toEqual(['a', 'c'])
+    expect(pinnedViews(undefined)).toEqual([])
+  })
+})
+
+describe('goPath', () => {
+  const projects = [
+    sidebarProject('web', { triage: 0 }),
+    sidebarProject('api', { triage: 4 }),
+    sidebarProject('docs', { pinned: true }),
+  ]
+  it('opens the global pages', () => {
+    expect(goPath('inbox', {})).toBe('/inbox')
+    expect(goPath('projects', { org: 'acme' })).toBe('/')
+  })
+  it('opens organization pages only with an organization', () => {
+    expect(goPath('reviews', { org: 'acme' })).toBe('/organizations/acme/reviews')
+    expect(goPath('reviews', {})).toBeUndefined()
+    expect(goPath('settings', { org: 'acme' })).toBe('/organizations/acme/settings')
+    expect(goPath('settings', {})).toBe('/account')
+  })
+  it('opens triage of the open project, else the first project with work waiting, else the first', () => {
+    expect(goPath('triage', { org: 'acme', project: 'web', projects })).toBe('/acme/web/triage')
+    expect(goPath('triage', { org: 'acme', projects })).toBe('/acme/api/triage')
+    expect(goPath('triage', { org: 'acme', projects: projects.slice(2) })).toBe('/acme/docs/triage')
+    expect(goPath('triage', { org: 'acme', projects: [] })).toBeUndefined()
+  })
+})
+
+const inLayout = (path: string) => isSettingsSection(currentSection(path))
 
 describe('currentSection', () => {
   it.each([
     ['/', 'projects'],
+    ['/inbox', 'inbox'],
     ['/account', 'account'],
-    ['/organizations/acme/members', 'members'],
+    ['/account/appearance', 'account'],
+    ['/organizations/acme/reviews', 'reviews'],
+    ['/organizations/acme/insights', 'insights'],
+    ['/organizations/acme/views/v1', 'views'],
+    ['/organizations/acme/settings', 'settings'],
+    ['/organizations/acme/settings/members', 'settings'],
     ['/acme/web', 'builds'],
     ['/acme/web/builds/12', 'builds'],
     ['/acme/web/sites', 'sites'],
-    ['/acme/web/settings', 'settings'],
+    ['/acme/web/triage', 'triage'],
+    ['/acme/web/baselines', 'baselines'],
+    ['/acme/web/settings', 'project-settings'],
+    ['/acme/web/settings/reviews', 'project-settings'],
     ['/_sso/site', undefined],
     ['/acme/web/other', undefined],
   ] as const)('%s is %s', (path, section) => {
@@ -87,8 +170,16 @@ describe('currentSection', () => {
   })
 
   it('has a label for each section', () => {
-    expect(sectionLabel('members')).toBe('Members')
+    expect(sectionLabel('triage')).toBe('Triage')
     expect(sectionLabel(undefined)).toBeUndefined()
+  })
+
+  it('gives every settings page the settings layout, and no other', () => {
+    expect(inLayout('/account')).toBe(true)
+    expect(inLayout('/organizations/acme/settings/members')).toBe(true)
+    expect(inLayout('/acme/web/settings')).toBe(true)
+    expect(inLayout('/acme/web')).toBe(false)
+    expect(inLayout('/inbox')).toBe(false)
   })
 })
 

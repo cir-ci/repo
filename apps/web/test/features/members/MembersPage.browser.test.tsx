@@ -54,7 +54,7 @@ const org = (over: object = {}) => ({
 })
 
 // The route is `organizations/$org/members`; the test route's path is that literal, so the slug is "$org".
-const PATH = '/organizations/$org/members'
+const PATH = '/organizations/$org/settings/members'
 const SETTINGS = {
   'GET /api/organizations/%24org/auth': {
     canManage: true,

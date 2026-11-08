@@ -1,43 +1,54 @@
-import { FolderOpenIcon, Text, UsersIcon } from '@circi/ui'
-import { useQuery } from '@tanstack/react-query'
+import {
+  FolderOpenIcon,
+  InboxIcon,
+  InsightsIcon,
+  Kbd,
+  NavItem,
+  NavSection,
+  ReviewIcon,
+  SearchIcon,
+  SettingsIcon,
+} from '@circi/ui'
 import { useNavigate, useParams, useRouterState } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { UserMenu } from '../features/auth/UserMenu.tsx'
-import { capabilitiesQuery, projectsQuery } from '../features/projects/api.ts'
+import { useSidebarModel } from '../features/sidebar/api.ts'
 import type { SessionUser } from '../lib/auth-client.ts'
 import { NavLink } from './NavLink.tsx'
 import { OrgSwitcher } from './OrgSwitcher.tsx'
 import {
+  countOrUndefined,
   currentSection,
-  listOrgs,
   type OrgRef,
-  pickOrg,
+  pinnedViews,
   readRememberedOrg,
   rememberOrg,
   SIDEBAR_PROJECT_LIMIT,
   sidebarProjects,
 } from './shell-model.ts'
+import { useShortcutLayer } from './ShortcutLayer.tsx'
+import { useOrgs } from './use-orgs.ts'
 
 import styles from './Sidebar.module.css'
 
 /**
- * Provisional (docs/design-gaps.md §6), top to bottom: the organization switcher, the main pages,
- * the organization's projects (the open one expands to its pages), and the signed-in person.
- * `AppFrame` wraps this in the Main navigation on wide screens; the `Drawer` does on narrow ones.
+ * Top to bottom (docs/linear-features-plan.md): the organization switcher, Search, Inbox, Reviews,
+ * Projects, Insights, Settings, "Your views", the organization's projects (the open one expands to
+ * its pages) and the signed-in person. `AppFrame` wraps this in the Main navigation on wide
+ * screens; the `Drawer` does on narrow ones.
  */
 export function Sidebar({ user }: Sidebar.Props) {
   const navigate = useNavigate()
   const params = useParams({ strict: false })
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const section = currentSection(pathname)
-  const { data: overview } = useQuery(projectsQuery())
-  const { data: caps } = useQuery(capabilitiesQuery())
+  const { openCommandMenu } = useShortcutLayer()
   const [chosen, setChosen] = useState(readRememberedOrg)
-
-  const orgs = listOrgs(overview?.projects, caps?.manageableOrganizations, params.org)
-  const org = pickOrg(orgs, params.org, chosen)
-  const { shown, total } = sidebarProjects(overview?.projects, org?.slug, undefined, params.project)
+  const { orgs, org } = useOrgs(chosen)
+  const { data: model } = useSidebarModel(org?.slug)
+  const { shown, total } = sidebarProjects(model?.projects, SIDEBAR_PROJECT_LIMIT, params.project)
+  const views = pinnedViews(model?.views)
 
   function switchOrg(next: OrgRef) {
     rememberOrg(next.slug)
@@ -48,24 +59,71 @@ export function Sidebar({ user }: Sidebar.Props) {
   return (
     <>
       <OrgSwitcher orgs={orgs} current={org} onSelect={switchOrg} />
+      <NavItem icon={<SearchIcon />} trailing={<Kbd>⌘K</Kbd>} onClick={openCommandMenu}>
+        Search
+      </NavItem>
+      <NavLink
+        to="/inbox"
+        icon={<InboxIcon />}
+        selected={section === 'inbox'}
+        {...counted(model?.inboxUnread, 'unread')}
+      >
+        Inbox
+      </NavLink>
+      {org ? (
+        <NavLink
+          to="/organizations/$org/reviews"
+          params={{ org: org.slug }}
+          icon={<ReviewIcon />}
+          selected={section === 'reviews'}
+          {...counted(model?.reviews, 'waiting')}
+        >
+          Reviews
+        </NavLink>
+      ) : null}
       <NavLink to="/" icon={<FolderOpenIcon />} selected={section === 'projects'}>
         Projects
       </NavLink>
       {org ? (
         <NavLink
-          to="/organizations/$org/members"
+          to="/organizations/$org/insights"
           params={{ org: org.slug }}
-          icon={<UsersIcon />}
-          selected={section === 'members'}
+          icon={<InsightsIcon />}
+          selected={section === 'insights'}
         >
-          Members
+          Insights
         </NavLink>
       ) : null}
+      {org ? (
+        <NavLink
+          to="/organizations/$org/settings"
+          params={{ org: org.slug }}
+          icon={<SettingsIcon />}
+          selected={section === 'settings' || section === 'account'}
+        >
+          Settings
+        </NavLink>
+      ) : (
+        <NavLink to="/account" icon={<SettingsIcon />} selected={section === 'account'}>
+          Settings
+        </NavLink>
+      )}
+      {org && views.length > 0 ? (
+        <NavSection label="Your views">
+          {views.map((view) => (
+            <NavLink
+              key={view.id}
+              to="/organizations/$org/views/$view"
+              params={{ org: org.slug, view: view.id }}
+              selected={params.view === view.id}
+            >
+              {view.name}
+            </NavLink>
+          ))}
+        </NavSection>
+      ) : null}
       {org && shown.length > 0 ? (
-        <>
-          <Text variant="micro" tone="tertiary" className={styles['groupLabel']}>
-            Projects
-          </Text>
+        <NavSection label="Projects">
           {shown.map((project) => (
             <ProjectEntry
               key={project.slug}
@@ -78,7 +136,7 @@ export function Sidebar({ user }: Sidebar.Props) {
           {total > SIDEBAR_PROJECT_LIMIT ? (
             <NavLink to="/">{`All projects (${total})`}</NavLink>
           ) : null}
-        </>
+        </NavSection>
       ) : null}
       <div className={styles['footer']}>
         <UserMenu user={user} />
@@ -87,33 +145,53 @@ export function Sidebar({ user }: Sidebar.Props) {
   )
 }
 
+/** The count props of an entry with something waiting for you: accent, announced with `label`. */
+const counted = (n: number | undefined, label: string) => {
+  const count = countOrUndefined(n)
+  return count === undefined ? {} : { count, countTone: 'accent' as const, countLabel: label }
+}
+
 function ProjectEntry({ org, project, open, section }: ProjectEntry.Props) {
+  const params = { org, project: project.slug }
+  const triage = countOrUndefined(project.triage)
   return (
     <>
-      <NavLink
-        to="/$org/$project"
-        params={{ org, project: project.slug }}
-        selected={open && section === 'builds'}
-      >
+      <NavLink to="/$org/$project" params={params} selected={false}>
         {project.name}
       </NavLink>
       {open ? (
-        <div className={styles['nested']}>
+        <>
+          <NavLink to="/$org/$project" params={params} sub selected={section === 'builds'}>
+            Builds
+          </NavLink>
           <NavLink
-            to="/$org/$project/sites"
-            params={{ org, project: project.slug }}
-            selected={section === 'sites'}
+            to="/$org/$project/triage"
+            params={params}
+            sub
+            selected={section === 'triage'}
+            {...(triage === undefined
+              ? {}
+              : { count: triage, countTone: 'neutral' as const, countLabel: 'waiting' })}
           >
-            Sites
+            Triage
+          </NavLink>
+          <NavLink
+            to="/$org/$project/baselines"
+            params={params}
+            sub
+            selected={section === 'baselines'}
+          >
+            Baselines
           </NavLink>
           <NavLink
             to="/$org/$project/settings"
-            params={{ org, project: project.slug }}
-            selected={section === 'settings'}
+            params={params}
+            sub
+            selected={section === 'project-settings'}
           >
             Settings
           </NavLink>
-        </div>
+        </>
       ) : null}
     </>
   )
@@ -122,7 +200,7 @@ function ProjectEntry({ org, project, open, section }: ProjectEntry.Props) {
 namespace ProjectEntry {
   export interface Props {
     org: string
-    project: { slug: string; name: string }
+    project: { slug: string; name: string; triage: number }
     open: boolean
     section: ReturnType<typeof currentSection>
   }

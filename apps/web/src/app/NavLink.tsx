@@ -1,17 +1,36 @@
 import { NavItem } from '@circi/ui'
-import { type LinkComponentProps, useLinkProps } from '@tanstack/react-router'
+import { type LinkComponentProps, useLinkProps, useMatchRoute } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
-/** A sidebar entry that navigates through the router: real `href`, no page reload on click. */
-export function NavLink({ icon, trailing, selected, children, ...link }: NavLink.Props) {
+/**
+ * A sidebar entry that navigates through the router: real `href`, no page reload on click. It is
+ * `selected` when the current address is its own, unless the caller says otherwise.
+ */
+export function NavLink({
+  icon,
+  trailing,
+  selected,
+  children,
+  sub,
+  count,
+  countTone,
+  countLabel,
+  ...link
+}: NavLink.Props) {
   const { href, onClick } = useLinkProps(link)
+  const matchRoute = useMatchRoute()
+  const isCurrent = selected ?? Boolean(matchRoute({ to: link.to, params: link.params }))
   return (
     <NavItem
       {...(href ? { href } : {})}
       {...(onClick ? { onClick } : {})}
       {...(icon ? { icon } : {})}
       {...(trailing ? { trailing } : {})}
-      {...(selected ? { selected } : {})}
+      {...(isCurrent ? { selected: true } : {})}
+      {...(sub ? { sub } : {})}
+      {...(count === undefined ? {} : { count })}
+      {...(countTone ? { countTone } : {})}
+      {...(countLabel ? { countLabel } : {})}
     >
       {children}
     </NavItem>
@@ -24,5 +43,9 @@ export namespace NavLink {
     icon?: ReactNode
     trailing?: ReactNode
     selected?: boolean
+    sub?: boolean
+    count?: number
+    countTone?: NavItem.Props['countTone']
+    countLabel?: string
   }
 }
