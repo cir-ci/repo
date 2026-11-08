@@ -70,6 +70,27 @@ export function mappingSpec(
   }
 }
 
+/** The links section as the dashboard gets it: the form's fields and whether to offer auto-linking. */
+export function linksSpec(
+  links: IntegrationDefinition.Links | undefined,
+): Integration.LinksSpec | null {
+  if (!links) return null
+  return {
+    kind: links.kind,
+    label: links.label,
+    ...(links.description ? { description: links.description } : {}),
+    targetLabel: links.targetLabel,
+    subject: links.subject,
+    fields: links.fields.map((f) => ({
+      key: f.key,
+      label: f.label,
+      ...(f.placeholder ? { placeholder: f.placeholder } : {}),
+      ...(f.description ? { description: f.description } : {}),
+    })),
+    autoLink: links.autoLink === true,
+  }
+}
+
 /** A definition's catalog entry: built (it is registered) and connectable on this instance or not. */
 export function describeDefinition(
   def: IntegrationDefinition,
@@ -88,6 +109,7 @@ export function describeDefinition(
     credentials: credentialFields(def.credentials),
     oauth: def.oauth !== undefined,
     mapping: mappingSpec(def.mapping),
+    links: linksSpec(def.links),
   }
 }
 
@@ -104,6 +126,7 @@ function staticEntry(
     credentials: [],
     oauth: false,
     mapping: null,
+    links: null,
   }
 }
 

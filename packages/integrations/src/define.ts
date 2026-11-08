@@ -29,6 +29,18 @@ export function definitionProblems(def: IntegrationDefinition): string[] {
   if (def.mapping?.target.kind === 'select' && !def.mapping.listTargets) {
     bad('a select mapping target needs `listTargets`')
   }
+  if (def.capabilities.tracker && !def.mapping)
+    bad('a tracker needs a `mapping` (its team or project)')
+  if (def.capabilities.design && !def.mapping) bad('a design tool needs a `mapping` (its file)')
+  if (def.links) {
+    if (!def.mapping) bad('`links` belong to a mapped project: it needs a `mapping`')
+    if (!def.links.fields.some((f) => f.key === def.links?.subject)) {
+      bad(`links.subject ${def.links.subject} is not one of its fields`)
+    }
+    if (def.links.autoLink && !def.capabilities.design) {
+      bad('links.autoLink needs the `design` capability (its frames)')
+    }
+  }
   for (const field of def.mapping?.fields ?? []) {
     if (field.kind !== 'events') continue
     const handled: readonly IntegrationEvent.Type[] = def.events

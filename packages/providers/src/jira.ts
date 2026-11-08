@@ -19,6 +19,26 @@ export type JiraTrackerOptions = {
   fetch?: typeof fetch
 } & ({ email: string; apiToken: string } | { accessToken: string })
 
+/**
+ * A Jira Cloud site's address as its origin, or undefined when it is not an https address of a
+ * named host (an IP, `localhost` or a bare name could aim the server at its own network).
+ */
+export function normalizeJiraSite(raw: string): string | undefined {
+  const text = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+  let url: URL
+  try {
+    url = new URL(text)
+  } catch {
+    return undefined
+  }
+  const host = url.hostname
+  const named = host.includes('.') && !/^[\d.]+$/.test(host) && !host.includes(':')
+  if (url.protocol !== 'https:' || !named || host === 'localhost' || host.endsWith('.local')) {
+    return undefined
+  }
+  return url.origin
+}
+
 const trimSlash = (s: string) => s.replace(/\/+$/, '')
 
 const asRecord = (v: unknown): Record<string, unknown> =>

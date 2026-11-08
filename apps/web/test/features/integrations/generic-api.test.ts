@@ -2,12 +2,14 @@ import type { Integration } from '@circi/api'
 import { describe, expect, it } from 'vitest'
 
 import {
+  autoLinkSummary,
   canSave,
   connectNote,
   credentialsComplete,
   credentialValues,
   extraToSend,
   initialExtra,
+  linkValuesComplete,
   mappingSummary,
   targetItems,
 } from '#features/integrations/generic-api.ts'
@@ -129,5 +131,37 @@ describe('targetItems', () => {
       name: 'old',
     })
     expect(targetItems(targets, { ref: 'C1', name: 'web' })).toHaveLength(2)
+  })
+})
+
+describe('links', () => {
+  const links: Integration.LinksSpec = {
+    kind: 'figma-frame',
+    label: 'Frame links',
+    targetLabel: 'Frame',
+    subject: 'pattern',
+    autoLink: true,
+    fields: [
+      { key: 'pattern', label: 'Snapshot name' },
+      { key: 'url', label: 'Frame address' },
+    ],
+  }
+
+  it('wants a value for every field of the add form', () => {
+    expect(linkValuesComplete(links, { pattern: 'cart', url: 'https://f/1' })).toBe(true)
+    expect(linkValuesComplete(links, { pattern: 'cart', url: '  ' })).toBe(false)
+    expect(linkValuesComplete(links, {})).toBe(false)
+  })
+
+  it('says what a run of "Link automatically" did', () => {
+    expect(autoLinkSummary({ created: 2, unlinked: 0, frames: 5 })).toBe(
+      'Linked 2 snapshots to frames.',
+    )
+    expect(autoLinkSummary({ created: 1, unlinked: 3, frames: 5 })).toBe(
+      'Linked 1 snapshot to frames; 3 snapshots have no frame with a matching name.',
+    )
+    expect(autoLinkSummary({ created: 0, unlinked: 1, frames: 0 })).toBe(
+      'No new frames linked; 1 snapshot has no frame with a matching name.',
+    )
   })
 })

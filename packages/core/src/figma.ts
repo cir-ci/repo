@@ -3,6 +3,9 @@
  * snapshots by name. Pure, so the dashboard, the services and the tests agree on every rule.
  */
 
+/** The `integration_links.kind` of a snapshot-pattern-to-frame link (the one the Figma definition's `links` writes). */
+export const FIGMA_FRAME_LINK_KIND = 'figma-frame'
+
 export namespace parseFigmaUrl {
   export interface Result {
     fileKey: string

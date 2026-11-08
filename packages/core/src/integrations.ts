@@ -5,7 +5,7 @@
  * entries below for what has no definition. Static and pure.
  *
  * `INTEGRATION_CATALOG` holds two kinds of entry: `planned` ones (nothing is built) and `available`
- * ones that still use the older, hand-written flow (git hosts, trackers, Figma). Migrating an
+ * ones that still use the older, hand-written flow (the git hosts). Migrating an
  * integration to the SDK means writing its definition (docs/integration-sdk.md) and DELETING its
  * entry here; a kind in both is a mistake the registry test catches.
  */
@@ -82,32 +82,11 @@ export const INTEGRATION_CATALOG: readonly IntegrationCatalog.Entry[] = [
     status: 'planned',
   },
   {
-    kind: 'figma',
-    group: 'design',
-    name: 'Figma',
-    description: 'Link snapshots to frames, compare with the design, and post results on frames.',
-    status: 'available',
-  },
-  {
     kind: 'penpot',
     group: 'design',
     name: 'Penpot',
     description: 'Link snapshots to Penpot boards.',
     status: 'planned',
-  },
-  {
-    kind: 'linear',
-    group: 'tracker',
-    name: 'Linear',
-    description: 'Create an issue from a rejected snapshot, with the diff attached.',
-    status: 'available',
-  },
-  {
-    kind: 'jira',
-    group: 'tracker',
-    name: 'Jira',
-    description: 'Create an issue from a rejected snapshot, with the diff attached.',
-    status: 'available',
   },
 ]
 

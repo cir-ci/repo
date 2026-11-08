@@ -1,13 +1,7 @@
 import type { Auth } from '@circi/auth'
 import type { Config } from '@circi/config'
 import type { Database } from '@circi/db'
-import type {
-  BitbucketCloud,
-  FigmaClient,
-  GithubApp,
-  ProviderRegistry,
-  GitlabProvider,
-} from '@circi/providers'
+import type { BitbucketCloud, GithubApp, ProviderRegistry, GitlabProvider } from '@circi/providers'
 import type { StorageDriver } from '@circi/storage'
 import type { Logger } from 'pino'
 
@@ -28,7 +22,6 @@ export interface ServerRuntime {
   gitlab?: GitlabProvider
   providers?: ProviderRegistry
   bitbucket?: BitbucketCloud
-  figma?: FigmaClient
 }
 
 /** Turns the configuration into the HTTP server's options: which scopes exist and with what. */
@@ -103,7 +96,6 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): buildServe
       githubApp: config.github !== undefined,
       ...(rt.providers ? { providers: rt.providers } : {}),
       ...(rt.gitlab ? { gitlab: rt.gitlab } : {}),
-      ...(rt.figma ? { figma: rt.figma } : {}),
       integrations: { config: integrationConfig(config) },
       ...(sites ? { sites } : {}),
       authSecret: config.authSecret,

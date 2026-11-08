@@ -1,6 +1,6 @@
-import { figmaFrameUrl, globMatches, pickFigmaLink } from '@circi/core'
+import { FIGMA_FRAME_LINK_KIND, figmaFrameUrl, globMatches, pickFigmaLink } from '@circi/core'
 
-import { listFigmaLinks } from '#repositories/figma.ts'
+import { listProjectLinks } from '#repositories/integration-links.ts'
 import type { Database } from '#src/client.ts'
 
 export namespace figmaFramesForSnapshots {
@@ -15,6 +15,8 @@ export namespace figmaFramesForSnapshots {
   }
 }
 
+const text = (value: unknown): string | undefined => (typeof value === 'string' ? value : undefined)
+
 /**
  * The Figma frame each snapshot name is linked to, for the build review and the peek. A name
  * with several matching links gets the most specific one (manual beats automatic); a name with
@@ -27,7 +29,22 @@ export async function figmaFramesForSnapshots(
 ): Promise<Map<string, figmaFramesForSnapshots.Frame>> {
   const out = new Map<string, figmaFramesForSnapshots.Frame>()
   if (snapshotNames.length === 0) return out
-  const links = await listFigmaLinks(db, projectId)
+  const links = (await listProjectLinks(db, projectId, FIGMA_FRAME_LINK_KIND)).flatMap((l) => {
+    const fileKey = text(l.payload.fileKey)
+    const nodeId = text(l.payload.nodeId)
+    return fileKey && nodeId && l.subject
+      ? [
+          {
+            snapshotPattern: l.subject,
+            source: l.payload.source === 'auto' ? ('auto' as const) : ('manual' as const),
+            fileKey,
+            nodeId,
+            frameName: l.title,
+            createdAt: l.createdAt,
+          },
+        ]
+      : []
+  })
   if (links.length === 0) return out
   for (const name of snapshotNames) {
     const link = pickFigmaLink(links, name, globMatches)

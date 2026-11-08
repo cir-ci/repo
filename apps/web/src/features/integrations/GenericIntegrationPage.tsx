@@ -30,6 +30,7 @@ import {
   useInstall,
   useMapping,
 } from './generic-api.ts'
+import { ProjectLinks } from './ProjectLinks.tsx'
 
 import styles from './Integrations.module.css'
 
@@ -50,6 +51,7 @@ export function GenericIntegrationPage() {
   const install = useInstall(org)
   const note = connectNote(search.connect, name)
   const spec = data?.definition.mapping ?? null
+  const links = data?.definition.links ?? null
 
   return (
     <Frame
@@ -116,6 +118,15 @@ export function GenericIntegrationPage() {
                     onSave={(input) => mapping.save.mutate({ project: p.slug, ...input })}
                     onClear={() => mapping.clear.mutate(p.slug)}
                   />
+                  {links && (p.mapping || data.canManage) ? (
+                    <ProjectLinks
+                      org={org}
+                      integrationId={id}
+                      spec={links}
+                      project={p}
+                      canManage={data.canManage}
+                    />
+                  ) : null}
                 </li>
               ))}
             </ul>

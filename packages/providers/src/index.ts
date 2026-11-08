@@ -47,7 +47,7 @@ export {
   type ProviderRegistry,
   providerRegistry,
 } from './provider.ts'
-export { JiraTracker, toAdf, type JiraTrackerOptions } from './jira.ts'
+export { JiraTracker, normalizeJiraSite, toAdf, type JiraTrackerOptions } from './jira.ts'
 export { LinearTracker, type LinearTrackerOptions } from './linear.ts'
 export {
   createTrackerFactory,

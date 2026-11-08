@@ -7,11 +7,10 @@ import { openSecret } from '@circi/core'
 import {
   createBuild,
   getOrganizationBySlug,
-  listBuildIssueLinks,
+  listBuildLinks,
   listIntegrations,
   schema,
 } from '@circi/db'
-import { type IssueTracker, ProviderApiError, type TrackerFactory } from '@circi/providers'
 import { FsStorage } from '@circi/storage'
 import { createTestDb, seedDiff, sha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
@@ -19,7 +18,6 @@ import { pino } from 'pino'
 import { afterAll, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
-import { normalizeJiraSite } from '#http/routes/dashboard/issue-trackers.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 
 const SECRET = 'test-secret-that-is-long-enough-1234'
@@ -27,47 +25,85 @@ const t = await createTestDb()
 const dir = await mkdtemp(join(tmpdir(), 'circi-trackers-'))
 const auth = createTestAuth(t.db)
 
-/** A fake of both trackers' edges: one account each, a few targets, issues counted up. */
+interface Created {
+  target: string
+  title: string
+  /** Everything the tracker was sent, as text (the Jira description is a document). */
+  text: string
+}
+
+/**
+ * Linear's and Jira's HTTP edges in one `fetch`, behind the real definitions: one account each, a
+ * team or project each, issues counted up, 401 for a key or token that is not in `validKeys`.
+ */
 const fake = {
   validKeys: new Set(['lin_good', 'jira-token']),
   down: false,
   failCreate: false,
-  seenCredentials: [] as string[],
-  created: [] as IssueTracker.CreateInput[],
+  /** The Authorization header of every call. */
+  seenAuth: [] as string[],
+  created: [] as Created[],
 }
-const factory: TrackerFactory = (kind, credentials) => {
-  fake.seenCredentials.push(credentials)
-  const parsed: Record<string, unknown> = JSON.parse(credentials)
-  const token = [parsed.apiKey, parsed.apiToken].find((v) => typeof v === 'string') ?? ''
-  const check = () => {
-    if (fake.down) throw new ProviderApiError(503, 'unavailable')
-    if (!fake.validKeys.has(token)) throw new ProviderApiError(401, 'bad key', { revoked: true })
+const fakeFetch: typeof fetch = async (input, init) => {
+  const req = new Request(input, init)
+  const url = new URL(req.url)
+  const authorization = req.headers.get('authorization') ?? ''
+  fake.seenAuth.push(authorization)
+  const raw = await req.text()
+  const body: Record<string, unknown> = raw ? JSON.parse(raw) : {}
+  if (fake.down) return new Response('unavailable', { status: 503 })
+  const key = authorization.startsWith('Basic ')
+    ? Buffer.from(authorization.slice(6), 'base64').toString().split(':')[1]
+    : authorization
+  if (!fake.validKeys.has(key ?? ''))
+    return Response.json({ errors: [{ message: 'bad' }] }, { status: 401 })
+  if (url.host === 'api.linear.app') {
+    const query = String(body.query)
+    if (query.includes('viewer')) {
+      return Response.json({
+        data: { viewer: { id: 'u1', organization: { id: `lin-${key}`, name: 'Acme Linear' } } },
+      })
+    }
+    if (query.includes('teams')) {
+      return Response.json({
+        data: { teams: { nodes: [{ id: 'team-1', key: 'WEB', name: 'Web' }] } },
+      })
+    }
+    if (query.includes('issueCreate')) {
+      if (fake.failCreate) return new Response('boom', { status: 500 })
+      const args: Record<string, unknown> = Object(Object(body.variables).input)
+      fake.created.push({
+        target: String(args.teamId),
+        title: String(args.title),
+        text: String(args.description),
+      })
+      const n = fake.created.length
+      return Response.json({
+        data: {
+          issueCreate: {
+            success: true,
+            issue: {
+              id: `i${n}`,
+              identifier: `WEB-${n}`,
+              url: `https://linear.test/WEB-${n}`,
+              title: args.title,
+            },
+          },
+        },
+      })
+    }
+    return Response.json({ data: { attachmentCreate: { success: true } } })
   }
-  return {
-    kind,
-    async identify() {
-      check()
-      return kind === 'linear'
-        ? { externalId: `lin-${token}`, name: 'Acme Linear' }
-        : { externalId: 'acme.atlassian.net', name: 'acme.atlassian.net' }
-    },
-    async listTargets() {
-      check()
-      return kind === 'linear'
-        ? [{ ref: 'team-1', name: 'Web (WEB)' }]
-        : [{ ref: 'WEB', name: 'Website (WEB)' }]
-    },
-    async createIssue(input) {
-      check()
-      if (fake.failCreate) throw new ProviderApiError(500, 'boom')
-      fake.created.push(input)
-      return {
-        key: `${input.target.toUpperCase()}-${fake.created.length}`,
-        url: `https://tracker.test/${fake.created.length}`,
-        title: input.title,
-      }
-    },
-  }
+  if (url.pathname.endsWith('/myself')) return Response.json({ accountId: 'a1' })
+  if (url.pathname.endsWith('/project')) return Response.json([{ key: 'WEB', name: 'Website' }])
+  if (fake.failCreate) return new Response('boom', { status: 500 })
+  const fields: Record<string, unknown> = Object(body.fields)
+  fake.created.push({
+    target: String(Object(fields.project).key),
+    title: String(fields.summary),
+    text: JSON.stringify(fields.description),
+  })
+  return Response.json({ key: `WEB-${fake.created.length}` })
 }
 
 const app = buildServer({
@@ -79,7 +115,7 @@ const app = buildServer({
     storage: new FsStorage({ path: dir }),
     publicOrigin: ORIGIN,
     authSecret: SECRET,
-    trackers: factory,
+    integrations: { config: {}, fetch: fakeFetch },
   },
 })
 await app.ready()
@@ -125,7 +161,7 @@ const stored = async (kind: string) =>
 
 describe('connecting a tracker', () => {
   it('verifies Linear with the tracker and stores the key sealed', async () => {
-    const res = await call('POST', `${base}/linear`, ownerCookie, { apiKey: 'lin_good' })
+    const res = await call('POST', `${base}/linear/connect`, ownerCookie, { apiKey: 'lin_good' })
     expect(res.statusCode).toBe(201)
     const [row] = await t.db
       .select()
@@ -136,59 +172,65 @@ describe('connecting a tracker', () => {
     expect(openSecret(SECRET, row?.encryptedCredentials ?? '')).toBe(
       JSON.stringify({ kind: 'linear', apiKey: 'lin_good' }),
     )
-    const dup = await call('POST', `${base}/linear`, ownerCookie, { apiKey: 'lin_good' })
+    const dup = await call('POST', `${base}/linear/connect`, ownerCookie, { apiKey: 'lin_good' })
     expect(dup.statusCode).toBe(409)
   })
 
   it('stores nothing when the key is rejected (400) or the tracker is down (502)', async () => {
     const before = (await stored('linear')).length
-    const bad = await call('POST', `${base}/linear`, ownerCookie, { apiKey: 'wrong' })
+    const bad = await call('POST', `${base}/linear/connect`, ownerCookie, { apiKey: 'wrong' })
     expect(bad.statusCode).toBe(400)
+    expect(bad.json().error).toBe('Linear did not accept those credentials')
     fake.down = true
-    const down = await call('POST', `${base}/linear`, ownerCookie, { apiKey: 'lin_good' })
+    const down = await call('POST', `${base}/linear/connect`, ownerCookie, { apiKey: 'lin_good' })
     fake.down = false
     expect(down.statusCode).toBe(502)
     expect((await stored('linear')).length).toBe(before)
   })
 
   it('connects Jira with the site, email and token', async () => {
-    const res = await call('POST', `${base}/jira`, ownerCookie, {
+    const res = await call('POST', `${base}/jira/connect`, ownerCookie, {
       siteUrl: 'acme.atlassian.net/',
       email: 'ann@acme.test',
       apiToken: 'jira-token',
     })
     expect(res.statusCode).toBe(201)
-    const last = JSON.parse(fake.seenCredentials.at(-1) ?? '{}')
-    expect(last).toEqual({
+    const [row] = await stored('jira')
+    const [secret] = await t.db
+      .select({ sealed: schema.integrations.encryptedCredentials })
+      .from(schema.integrations)
+      .where(eq(schema.integrations.id, row?.id ?? ''))
+    expect(JSON.parse(openSecret(SECRET, secret?.sealed ?? '') ?? '{}')).toEqual({
       kind: 'jira',
       siteUrl: 'https://acme.atlassian.net',
       email: 'ann@acme.test',
       apiToken: 'jira-token',
     })
-    expect((await stored('jira')).map((i) => i.displayName)).toEqual(['acme.atlassian.net'])
+    expect(row?.displayName).toBe('acme.atlassian.net')
   })
 
-  it('refuses a Jira address that is not an https host name', async () => {
+  it('refuses a Jira address that is not an https host name, before calling Jira', async () => {
+    const calls = fake.seenAuth.length
     for (const siteUrl of ['http://127.0.0.1', 'https://localhost', 'intranet', 'ftp://x.test']) {
       // eslint-disable-next-line no-await-in-loop -- few cases
-      const res = await call('POST', `${base}/jira`, ownerCookie, {
+      const res = await call('POST', `${base}/jira/connect`, ownerCookie, {
         siteUrl,
         email: 'a@b.test',
         apiToken: 'jira-token',
       })
       expect([siteUrl, res.statusCode]).toEqual([siteUrl, 400])
     }
-    expect(normalizeJiraSite('https://acme.atlassian.net/jira/x')).toBe(
-      'https://acme.atlassian.net',
-    )
+    expect(fake.seenAuth.length).toBe(calls)
   })
 
   it('is for owners and admins of the organization only', async () => {
     const body = { apiKey: 'lin_good' }
-    expect((await call('POST', `${base}/linear`, louCookie, body)).statusCode).toBe(403)
-    expect((await call('POST', `${base}/linear`, rivalCookie, body)).statusCode).toBe(404)
-    expect((await call('POST', `${base}/linear`, '', body)).statusCode).toBe(401)
-    expect((await call('POST', `${base}/linear`, ownerCookie, { nope: 1 })).statusCode).toBe(400)
+    expect((await call('POST', `${base}/linear/connect`, louCookie, body)).statusCode).toBe(403)
+    expect((await call('POST', `${base}/linear/connect`, rivalCookie, body)).statusCode).toBe(404)
+    expect((await call('POST', `${base}/linear/connect`, '', body)).statusCode).toBe(401)
+    expect(
+      (await call('POST', `${base}/linear/connect`, ownerCookie, { nope: 1 })).statusCode,
+    ).toBe(400)
   })
 })
 
@@ -197,46 +239,53 @@ describe('mapping projects', () => {
     const [linear] = await stored('linear')
     const id = linear?.id ?? ''
     const targets = await call('GET', `${base}/${id}/targets`, ownerCookie)
-    expect(targets.json()).toEqual({ targets: [{ ref: 'team-1', name: 'Web (WEB)' }] })
+    expect(targets.json()).toEqual({ targets: [{ id: 'team-1', name: 'Web (WEB)' }] })
     expect((await call('GET', `${base}/${id}/targets`, louCookie)).statusCode).toBe(403)
     expect((await call('GET', `${base}/${id}/targets`, rivalCookie)).statusCode).toBe(404)
 
     const url = `${base}/${id}/projects/web`
-    expect((await call('PUT', url, ownerCookie, { target: 'nope' })).statusCode).toBe(400)
-    expect((await call('PUT', url, louCookie, { target: 'team-1' })).statusCode).toBe(403)
-    expect(
-      (await call('PUT', `${base}/${id}/projects/ghost`, ownerCookie, { target: 'team-1' }))
-        .statusCode,
-    ).toBe(404)
-    expect((await call('PUT', url, ownerCookie, { target: 'team-1' })).statusCode).toBe(204)
+    const team = { ref: 'team-1', name: 'Web (WEB)' }
+    expect((await call('PUT', url, louCookie, team)).statusCode).toBe(403)
+    expect((await call('PUT', `${base}/${id}/projects/ghost`, ownerCookie, team)).statusCode).toBe(
+      404,
+    )
+    expect((await call('PUT', url, ownerCookie, team)).statusCode).toBe(204)
 
     for (const cookie of [ownerCookie, louCookie]) {
       // eslint-disable-next-line no-await-in-loop -- two viewers
-      const page = await call('GET', `${base}/linear`, cookie)
+      const page = await call('GET', `${base}/${id}/projects`, cookie)
       expect(page.statusCode).toBe(200)
       expect(page.json()).toMatchObject({
         canManage: cookie === ownerCookie,
-        connections: [{ id, name: 'Acme Linear', needsAttention: false }],
-        projects: [{ slug: 'web', integrationId: id, target: 'team-1', targetName: 'Web (WEB)' }],
+        integration: { id, kind: 'linear', name: 'Acme Linear', needsAttention: false },
+        definition: { mapping: { targetLabel: 'Team', targetKind: 'select' } },
+        projects: [
+          {
+            slug: 'web',
+            mapping: { ref: 'team-1', name: 'Web (WEB)', extra: { name: 'Web (WEB)' } },
+          },
+        ],
       })
     }
-    expect((await call('GET', `${base}/linear`, rivalCookie)).statusCode).toBe(404)
+    expect((await call('GET', `${base}/${id}/projects`, rivalCookie)).statusCode).toBe(404)
 
     expect((await call('DELETE', url, ownerCookie)).statusCode).toBe(204)
-    const after = await call('GET', `${base}/linear`, ownerCookie)
-    expect(after.json().projects[0]).toMatchObject({ integrationId: null, target: null })
+    const after = await call('GET', `${base}/${id}/projects`, ownerCookie)
+    expect(after.json().projects[0]).toMatchObject({ slug: 'web', mapping: null })
   })
 
-  it('moves a project to another connection of the same kind', async () => {
-    const second = await call('POST', `${base}/linear`, ownerCookie, { apiKey: 'jira-token' })
-    const [first] = await stored('linear')
-    await call('PUT', `${base}/${first?.id}/projects/web`, ownerCookie, { target: 'team-1' })
-    await call('PUT', `${base}/${second.json().id}/projects/web`, ownerCookie, { target: 'team-1' })
-    const page = await call('GET', `${base}/linear`, ownerCookie)
-    expect(page.json().projects[0].integrationId).toBe(second.json().id)
-    expect(
-      (await call('DELETE', `${base}/integration/${second.json().id}`, ownerCookie)).statusCode,
-    ).toBe(204)
+  it('flags the connection when the tracker rejects the saved key while listing targets', async () => {
+    const res = await call('POST', `${base}/linear/connect`, ownerCookie, { apiKey: 'jira-token' })
+    const id = res.json().id
+    fake.validKeys.delete('jira-token')
+    const list = await call('GET', `${base}/${id}/targets`, ownerCookie)
+    fake.validKeys.add('jira-token')
+    expect(list.statusCode).toBe(409)
+    expect((await stored('linear')).find((i) => i.id === id)).toMatchObject({
+      needsAttention: true,
+      needsAttentionReason: 'Linear no longer accepts the saved credentials',
+    })
+    expect((await call('DELETE', `${base}/integration/${id}`, ownerCookie)).statusCode).toBe(204)
   })
 })
 
@@ -267,7 +316,10 @@ describe('issues from a build', () => {
     const early = await call('POST', url, ownerCookie, { integrationId: jira?.id })
     expect(early.statusCode).toBe(404)
 
-    await call('PUT', `${base}/${jira?.id}/projects/web`, ownerCookie, { target: 'WEB' })
+    await call('PUT', `${base}/${jira?.id}/projects/web`, ownerCookie, {
+      ref: 'WEB',
+      name: 'Website (WEB)',
+    })
     const trackers = (await call('GET', url, louCookie)).json().trackers
     expect(trackers).toEqual([
       { integrationId: jira?.id, kind: 'jira', name: 'acme.atlassian.net', target: 'WEB' },
@@ -283,11 +335,9 @@ describe('issues from a build', () => {
     expect(sent).toMatchObject({
       target: 'WEB',
       title: `Visual regression: home in build #${build.number}`,
-      imageUrl: `${ORIGIN}/api/files/${sha('e')}`,
     })
-    expect(sent?.description).toContain(
-      `${ORIGIN}/${acme.orgSlug}/web/builds/${build.number}?shot=home`,
-    )
+    expect(sent?.text).toContain(`${ORIGIN}/api/files/${sha('e')}`)
+    expect(sent?.text).toContain(`${ORIGIN}/${acme.orgSlug}/web/builds/${build.number}?shot=home`)
 
     const list = (await call('GET', url, ownerCookie)).json()
     expect(list.issues).toMatchObject([
@@ -313,7 +363,7 @@ describe('issues from a build', () => {
     })
     fake.failCreate = false
     expect(res.statusCode).toBe(502)
-    expect(await listBuildIssueLinks(t.db, build.id)).toEqual([])
+    expect(await listBuildLinks(t.db, build.id, 'issue')).toEqual([])
   })
 
   it('flags the connection when the tracker rejects the saved credentials', async () => {

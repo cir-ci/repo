@@ -1,7 +1,8 @@
+import { ISSUE_LINK_KIND } from '@circi/core'
 import { aliasedTable, and, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm'
 
 import type { getBuildCounts } from '#repositories/builds.ts'
-import { listBuildIssueLinks } from '#repositories/issue-links.ts'
+import { listBuildLinks } from '#repositories/integration-links.ts'
 import { listBuildReviews, type ReviewEntry } from '#repositories/reviews.ts'
 import {
   type AncestryStatus,
@@ -248,10 +249,10 @@ export async function getBuildDetail(
     projectId,
     rows.map((r) => r.diff.name),
   )
-  const issues = (await listBuildIssueLinks(db, build.id)).map((l) => ({
-    key: l.issueKey,
-    url: l.url,
-    title: l.title,
+  const issues = (await listBuildLinks(db, build.id, ISSUE_LINK_KIND)).map((l) => ({
+    key: l.externalRef,
+    url: l.url ?? '',
+    title: l.title ?? l.externalRef,
   }))
 
   return {

@@ -26,24 +26,6 @@ const bitbucketRoute = createRoute({
   ),
 })
 
-const linearRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: 'organizations/$org/settings/integrations/linear',
-  component: lazyRouteComponent(
-    () => import('./TrackerIntegrationPage.tsx'),
-    'LinearIntegrationPage',
-  ),
-})
-
-const jiraRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: 'organizations/$org/settings/integrations/jira',
-  component: lazyRouteComponent(
-    () => import('./TrackerIntegrationPage.tsx'),
-    'JiraIntegrationPage',
-  ),
-})
-
 const gitlabRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'organizations/$org/settings/integrations/gitlab',
@@ -63,19 +45,10 @@ const genericRoute = createRoute({
   ),
 })
 
-const figmaRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: 'organizations/$org/settings/integrations/figma',
-  component: lazyRouteComponent(() => import('./FigmaIntegrationPage.tsx'), 'FigmaIntegrationPage'),
-})
-
 export const integrationsRoutes = [
-  figmaRoute,
   integrationsRoute,
   githubRoute,
   bitbucketRoute,
-  genericRoute,
-  linearRoute,
-  jiraRoute,
   gitlabRoute,
+  genericRoute,
 ]

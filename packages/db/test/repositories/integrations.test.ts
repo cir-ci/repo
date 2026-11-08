@@ -1,4 +1,4 @@
-import { createTestDb, seedProject } from '@circi/testing'
+import { createTestDb, seedBuild, seedProject } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { ConflictError } from '#src/errors.ts'
@@ -6,18 +6,23 @@ import {
   connectGithub,
   createIntegration,
   createIntegrationLink,
+  deleteAutoLinks,
   deleteIntegration,
   deleteIntegrationLink,
   findIntegrationByExternalId,
   getGitConnection,
   getIntegration,
+  getProjectIntegration,
   getProjectLink,
+  insertIntegrationLinksIfAbsent,
   linkProjectToGithub,
+  listBuildLinks,
   listGitConnections,
   listIntegrationProjects,
   listIntegrations,
   listOrgIntegrations,
   listOrgProjectMappings,
+  listProjectIntegrations,
   listProjectLinks,
   listProjectRepoLinks,
   markInstallationNeedsAttention,
@@ -196,6 +201,119 @@ describe('integration links', () => {
     expect(await deleteIntegrationLink(t.db, made.id, first.id)).toBe(true)
     expect(await deleteIntegrationLink(t.db, made.id, first.id)).toBe(false)
     expect(await listProjectLinks(t.db, project.id, 'figma-frame')).toEqual([])
+  })
+})
+
+async function seedFigma() {
+  const { org, project } = await seedProject(t.db)
+  const made = await createIntegration(t.db, {
+    orgId: org.id,
+    kind: 'figma',
+    displayName: 'Figma',
+    externalId: `F-${org.id}`,
+  })
+  return { org, project, made }
+}
+
+describe('integration link helpers', () => {
+  it('adds automatic links without replacing a subject the project has, and drops them by scope', async () => {
+    const { project, made } = await seedFigma()
+    const link = (subject: string, scope: string, source: 'auto' | 'manual') => ({
+      integrationId: made.id,
+      projectId: project.id,
+      kind: 'figma-frame',
+      subject,
+      externalRef: `${scope}:1`,
+      payload: { source, scope },
+    })
+    await createIntegrationLink(t.db, link('cart', 'FileA', 'manual'))
+    expect(
+      await insertIntegrationLinksIfAbsent(t.db, [
+        link('cart', 'FileA', 'auto'),
+        link('pay', 'FileA', 'auto'),
+        link('home', 'FileB', 'auto'),
+      ]),
+    ).toBe(2)
+    expect(await insertIntegrationLinksIfAbsent(t.db, [])).toBe(0)
+    const subjects = async () =>
+      (await listProjectLinks(t.db, project.id, 'figma-frame')).map((l) => l.subject)
+    expect(await subjects()).toEqual(['cart', 'home', 'pay'])
+    // Keeping FileA drops FileB's automatic link only; the manual one stays whatever its file.
+    await deleteAutoLinks(t.db, { projectId: project.id, kind: 'figma-frame', keepScope: 'FileA' })
+    expect(await subjects()).toEqual(['cart', 'pay'])
+    await deleteAutoLinks(t.db, { projectId: project.id, kind: 'figma-frame' })
+    expect(await subjects()).toEqual(['cart'])
+  })
+
+  it('deletes a link of a project only through that project', async () => {
+    const a = await seedFigma()
+    const b = await seedFigma()
+    const link = await createIntegrationLink(t.db, {
+      integrationId: a.made.id,
+      projectId: a.project.id,
+      kind: 'figma-frame',
+      subject: 'x',
+      externalRef: 'k:1',
+    })
+    expect(await deleteIntegrationLink(t.db, a.made.id, link.id, b.project.id)).toBe(false)
+    expect(await deleteIntegrationLink(t.db, a.made.id, link.id, a.project.id)).toBe(true)
+  })
+
+  it('lists a build’s links oldest first with their integration and author', async () => {
+    const { project, made } = await seedFigma()
+    const build = await seedBuild(t.db, project.id)
+    for (const key of ['WEB-1', 'WEB-2']) {
+      // oxlint-disable-next-line no-await-in-loop -- order matters
+      await createIntegrationLink(t.db, {
+        integrationId: made.id,
+        buildId: build.id,
+        kind: 'issue',
+        externalRef: key,
+        payload: { snapshotName: null },
+      })
+    }
+    await createIntegrationLink(t.db, {
+      integrationId: made.id,
+      buildId: build.id,
+      kind: 'other',
+      externalRef: 'x',
+    })
+    const issues = await listBuildLinks(t.db, build.id, 'issue')
+    expect(issues.map((l) => [l.externalRef, l.integrationKind, l.createdByName])).toEqual([
+      ['WEB-1', 'figma', null],
+      ['WEB-2', 'figma', null],
+    ])
+    expect(await listBuildLinks(t.db, build.id)).toHaveLength(3)
+  })
+
+  it('lists the integrations of given kinds a project is mapped to, and one with its mapping', async () => {
+    const { org, project, made } = await seedFigma()
+    const linear = await createIntegration(t.db, {
+      orgId: org.id,
+      kind: 'linear',
+      displayName: 'Acme',
+      externalId: 'L1',
+    })
+    await setIntegrationProject(t.db, {
+      integrationId: made.id,
+      projectId: project.id,
+      externalRef: 'FileKey',
+      extra: { name: 'Checkout' },
+    })
+    await setIntegrationProject(t.db, {
+      integrationId: linear.id,
+      projectId: project.id,
+      externalRef: 'team-1',
+      extra: { name: 'Web' },
+    })
+    const mapped = await listProjectIntegrations(t.db, project.id, ['linear', 'jira'])
+    expect(mapped.map((m) => [m.kind, m.externalRef, m.extra.name])).toEqual([
+      ['linear', 'team-1', 'Web'],
+    ])
+    expect(await listProjectIntegrations(t.db, project.id, [])).toEqual([])
+    expect((await getProjectIntegration(t.db, project.id, made.id))?.externalRef).toBe('FileKey')
+    const other = await seedProject(t.db)
+    expect(await getProjectIntegration(t.db, other.project.id, made.id)).toBeUndefined()
   })
 })
 

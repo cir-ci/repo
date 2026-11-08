@@ -84,6 +84,43 @@ describe('the registry', () => {
     ])
   })
 
+  it('checks the links, tracker and design rules', () => {
+    const links: IntegrationDefinition.Links = {
+      kind: 'thing',
+      label: 'Things',
+      targetLabel: 'Thing',
+      subject: 'name',
+      fields: [{ key: 'name', label: 'Name' }],
+      resolve: async () => ({ ref: 'x' }),
+    }
+    // `links` hang on a mapped project, and their subject is one of their fields.
+    expect(() => token({ links, mapping: undefined })).toThrow(/needs a `mapping`/)
+    expect(() => token({ links: { ...links, subject: 'other' } })).toThrow(/not one of its fields/)
+    // Automatic linking needs frames to match against.
+    expect(() => token({ links: { ...links, autoLink: true } })).toThrow(/needs the `design`/)
+    expect(() =>
+      token({
+        events: [],
+        capabilities: { tracker: { create: () => undefined } },
+        mapping: undefined,
+      }),
+    ).toThrow(/tracker needs a `mapping`/)
+    expect(() =>
+      token({
+        events: [],
+        capabilities: {
+          design: {
+            listFrames: async () => [],
+            render: async () => ({}),
+            comment: async () => '',
+            linkFor: () => ({ ref: 'x' }),
+          },
+        },
+        mapping: undefined,
+      }),
+    ).toThrow(/design tool needs a `mapping`/)
+  })
+
   it('looks definitions up and finds the ones that handle an event', () => {
     const registry = new IntegrationRegistry([token()])
     expect(registry.get('testchat')?.name).toBe('Test chat')

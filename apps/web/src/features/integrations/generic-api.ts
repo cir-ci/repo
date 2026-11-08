@@ -108,6 +108,23 @@ export function canSave(
   )
 }
 
+/** Whether every field of the add-link form has a value. */
+export const linkValuesComplete = (
+  spec: Pick<Integration.LinksSpec, 'fields'>,
+  values: Readonly<Record<string, string>>,
+) => spec.fields.every((f) => (values[f.key] ?? '').trim() !== '')
+
+/** The sentence after a "Link automatically" run. */
+export function autoLinkSummary(result: Integration.AutoLinkResult): string {
+  const linked =
+    result.created === 0
+      ? 'No new frames linked'
+      : `Linked ${result.created} ${result.created === 1 ? 'snapshot' : 'snapshots'} to frames`
+  return result.unlinked === 0
+    ? `${linked}.`
+    : `${linked}; ${result.unlinked} ${result.unlinked === 1 ? 'snapshot has' : 'snapshots have'} no frame with a matching name.`
+}
+
 /** The picker's items: the account's targets, plus the saved one if it is gone. */
 export function targetItems(
   targets: readonly Integration.Target[],
@@ -189,6 +206,43 @@ export function useMapping(org: string, id: string) {
     }),
     clear: useMutation({
       mutationFn: (project: string) => send<undefined>('DELETE', url(project)),
+      onSuccess: refresh,
+    }),
+  }
+}
+
+const linksUrl = (org: string, id: string, project: string) =>
+  `${base(org)}/${seg(id)}/projects/${seg(project)}/links`
+
+export const linksQuery = (org: string, id: string, project: string) =>
+  queryOptions({
+    queryKey: ['integrations', org, 'links', id, project],
+    queryFn: () => getJson<Integration.LinkList>(linksUrl(org, id, project)),
+  })
+
+/** A project's links: add one by hand, remove one, or link by name (when the definition offers it). */
+export function useLinks(org: string, id: string) {
+  const queryClient = useQueryClient()
+  const refresh = () =>
+    queryClient.invalidateQueries({ queryKey: ['integrations', org, 'links', id] })
+  return {
+    create: useMutation({
+      mutationFn: (input: { project: string; values: Record<string, string> }) =>
+        post<Integration.Link>(linksUrl(org, id, input.project), {
+          values: Object.fromEntries(
+            Object.entries(input.values).map(([key, value]) => [key, value.trim()]),
+          ),
+        }),
+      onSuccess: refresh,
+    }),
+    remove: useMutation({
+      mutationFn: (input: { project: string; linkId: string }) =>
+        send<undefined>('DELETE', `${linksUrl(org, id, input.project)}/${seg(input.linkId)}`),
+      onSuccess: refresh,
+    }),
+    auto: useMutation({
+      mutationFn: (project: string) =>
+        post<Integration.AutoLinkResult>(`${linksUrl(org, id, project)}/auto`, {}),
       onSuccess: refresh,
     }),
   }

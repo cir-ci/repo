@@ -1,17 +1,17 @@
 import type { Integration } from '@circi/api'
-import { openSecret, sealSecret, signState, verifyState } from '@circi/core'
+import { openSecret, sealSecret, signState, ValidationError, verifyState } from '@circi/core'
 import {
   createIntegration,
+  deleteIntegrationLink,
   findIntegrationByExternalId,
   getIntegration,
   getMemberRole,
-  getOrganizationBySlug,
   getProjectBySlugs,
   listOrgProjectMappings,
-  removeIntegrationProject,
+  listProjectLinks,
   replaceIntegrationCredentials,
   setIntegrationAttention,
-  setIntegrationProject,
+  type IntegrationLink,
 } from '@circi/db'
 import {
   IntegrationError,
@@ -21,6 +21,7 @@ import {
   normalizeExtra,
   describeDefinition,
 } from '@circi/integrations'
+import { addProjectLink, autoLinkProject, mapProject, unmapProject } from '@circi/services'
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
@@ -39,8 +40,10 @@ const callbackQuery = z.object({
   state: z.string().optional(),
   error: z.string().optional(),
 })
+const linkParams = mappingParams.extend({ linkId: z.string() })
+const linkBody = z.strictObject({ values: z.record(z.string(), z.string()) })
 const mappingBody = z.strictObject({
-  ref: z.string().trim().min(1).max(300),
+  ref: z.string().trim().min(1).max(1000),
   name: z.string().trim().min(1).max(200).optional(),
   extra: z.record(z.string(), z.unknown()).optional(),
 })
@@ -63,7 +66,38 @@ async function replyConnectError(req: FastifyRequest, reply: FastifyReply, err: 
   throw err
 }
 
-/** The pieces the generic routes and the transitional tracker delegation share. */
+/** A link as the dashboard gets it. */
+const wireLink = (l: IntegrationLink.Row): Integration.Link => ({
+  id: l.id,
+  subject: l.subject ?? '',
+  ref: l.externalRef,
+  url: l.url,
+  title: l.title,
+  source: l.payload.source === 'auto' ? 'auto' : 'manual',
+  createdAt: l.createdAt.toISOString(),
+})
+
+/** The integration's opened credentials, replying 409 when they cannot be read. */
+async function credentialsFor(
+  reply: FastifyReply,
+  loaded: {
+    integration: { encryptedCredentials: string | null }
+    definition: IntegrationDefinition
+  },
+  ctx: IntegrationDefinition.Context,
+) {
+  const credentials = loaded.integration.encryptedCredentials
+    ? openSecret(ctx.authSecret, loaded.integration.encryptedCredentials)
+    : undefined
+  if (!credentials) {
+    await reply.code(409).send({
+      error: `The ${loaded.definition.name} credentials cannot be read; connect it again`,
+    })
+  }
+  return credentials
+}
+
+/** The pieces the generic routes share. */
 function createGeneric(deps: Deps.Dashboard) {
   const registry = deps.integrations?.registry ?? integrationRegistry
 
@@ -140,6 +174,29 @@ function createGeneric(deps: Deps.Dashboard) {
     return created.id
   }
 
+  /**
+   * Replies for a failed call to the provider: the definition's own errors keep their status, an
+   * error it recognises as "a person has to act" flags the integration (409), anything else is a 502.
+   */
+  async function providerFailed(
+    req: FastifyRequest,
+    reply: FastifyReply,
+    loaded: { integration: { id: string }; definition: IntegrationDefinition },
+    err: unknown,
+  ) {
+    const { integration, definition } = loaded
+    if (err instanceof IntegrationError) return reply.code(err.status).send({ error: err.message })
+    const reason = definition.needsAttention(err)
+    if (reason) {
+      await setIntegrationAttention(deps.db, integration.id, reason)
+      return reply.code(409).send({
+        error: `${definition.name} no longer accepts this connection; reconnect it`,
+      })
+    }
+    req.log.warn({ err }, `the ${definition.name} call failed`)
+    return reply.code(502).send({ error: `${definition.name} did not answer; try again shortly` })
+  }
+
   /** What the integration's account lets a project be pointed at (channels, teams…). */
   const targets = async (req: FastifyRequest, reply: FastifyReply) => {
     const found = await loadForManager(req, reply)
@@ -147,33 +204,19 @@ function createGeneric(deps: Deps.Dashboard) {
     const { id } = parse(idParams, req.params)
     const loaded = await integrationFor(found.org.id, id, reply)
     if (!loaded) return reply
-    const { integration, definition } = loaded
+    const { definition } = loaded
     const ctx = await contextFor(reply)
     if (!ctx) return reply
     if (!definition.mapping?.listTargets) {
       return reply.code(404).send({ error: `${definition.name} has no targets to choose from` })
     }
-    const credentials = integration.encryptedCredentials
-      ? openSecret(ctx.authSecret, integration.encryptedCredentials)
-      : undefined
-    if (!credentials) {
-      return reply
-        .code(409)
-        .send({ error: `The ${definition.name} credentials cannot be read; connect it again` })
-    }
+    const credentials = await credentialsFor(reply, loaded, ctx)
+    if (!credentials) return reply
     try {
       const listed = await definition.mapping.listTargets(credentials, ctx)
       return { targets: listed.map(wireTarget) }
     } catch (err) {
-      const reason = definition.needsAttention(err)
-      if (reason) {
-        await setIntegrationAttention(deps.db, integration.id, reason)
-        return reply.code(409).send({
-          error: `${definition.name} no longer accepts this connection; reconnect it`,
-        })
-      }
-      req.log.warn({ err }, `could not list ${definition.name} targets`)
-      return reply.code(502).send({ error: `${definition.name} did not answer; try again shortly` })
+      return providerFailed(req, reply, loaded, err)
     }
   }
 
@@ -201,11 +244,25 @@ function createGeneric(deps: Deps.Dashboard) {
       orgSlug: found.org.slug,
       projectSlug: params.project,
     })
-    await setIntegrationProject(deps.db, {
+    let target: { ref: string; name?: string | undefined } = { ref: body.ref, name: body.name }
+    if (mapping.target.resolve) {
+      // The definition checks the typed value with the provider and says what to store.
+      const ctx = await contextFor(reply)
+      if (!ctx) return reply
+      const credentials = await credentialsFor(reply, loaded, ctx)
+      if (!credentials) return reply
+      try {
+        target = await mapping.target.resolve(body.ref, { credentials }, ctx)
+      } catch (err) {
+        return providerFailed(req, reply, loaded, err)
+      }
+    }
+    await mapProject(deps.db, {
+      definition,
       integrationId: integration.id,
       projectId: project.id,
-      externalRef: body.ref,
-      extra: { ...(body.name ? { name: body.name } : {}), ...extra },
+      ref: target.ref,
+      extra: { ...(target.name ? { name: target.name } : {}), ...extra },
     })
     return reply.code(204).send()
   }
@@ -221,20 +278,32 @@ function createGeneric(deps: Deps.Dashboard) {
       orgSlug: found.org.slug,
       projectSlug: params.project,
     })
-    await removeIntegrationProject(deps.db, loaded.integration.id, project.id)
+    await unmapProject(deps.db, {
+      definition: loaded.definition,
+      integrationId: loaded.integration.id,
+      projectId: project.id,
+    })
     return reply.code(204).send()
   }
 
-  /**
-   * Whether `:id` is an integration of the registry, without replying: the tracker routes share
-   * these paths until Linear and Jira are migrated and ask first.
-   */
-  async function claims(req: FastifyRequest): Promise<boolean> {
-    const params = idParams.safeParse(req.params)
-    if (!params.success) return false
-    const org = await getOrganizationBySlug(deps.db, params.data.org).catch(() => undefined)
-    const integration = org ? await getIntegration(deps.db, org.id, params.data.id) : undefined
-    return integration !== undefined && registry.has(integration.kind)
+  /** The integration `:id` and the project `:project` of the organisation, with the definition's links section; replies otherwise. */
+  async function linksFor(req: FastifyRequest, reply: FastifyReply, options: { manage: boolean }) {
+    const found = options.manage
+      ? await loadForManager(req, reply)
+      : await loadOrg(deps, req, reply)
+    if (!found) return undefined
+    const params = parse(mappingParams, req.params)
+    const loaded = await integrationFor(found.org.id, params.id, reply)
+    if (!loaded) return undefined
+    if (!loaded.definition.links) {
+      await reply.code(404).send({ error: `${loaded.definition.name} has no links` })
+      return undefined
+    }
+    const project = await getProjectBySlugs(deps.db, {
+      orgSlug: found.org.slug,
+      projectSlug: params.project,
+    })
+    return { ...loaded, links: loaded.definition.links, project, user: found.user }
   }
 
   return {
@@ -247,19 +316,9 @@ function createGeneric(deps: Deps.Dashboard) {
     targets,
     put,
     remove,
-    claims,
+    providerFailed,
+    linksFor,
   }
-}
-
-/**
- * The three mapping handlers for registry integrations, for `issue-trackers.ts` to delegate to:
- * the Linear and Jira routes still own `GET .../:id/targets` and `PUT|DELETE .../:id/projects/:project`
- * (Fastify takes a path once), so they ask `claims` first. Deleted when trackers are migrated; the
- * three routes then move into `dashboardGenericIntegrationRoutes`.
- */
-export function genericMappingHandlers(deps: Deps.Dashboard) {
-  const { claims, targets, put, remove } = createGeneric(deps)
-  return { claims, targets, put, remove }
 }
 
 /**
@@ -272,20 +331,105 @@ export function genericMappingHandlers(deps: Deps.Dashboard) {
  *   POST   /orgs/:org/integrations/:kind/connect       connect with the definition's form
  *   GET    /orgs/:org/integrations/:kind/install       the provider's OAuth install address
  *   GET    /integrations/:kind/callback                where the provider sends the browser back
- *   GET    /orgs/:org/integrations/:id/targets         what a project can be pointed at (*)
+ *   GET    /orgs/:org/integrations/:id/targets         what a project can be pointed at
  *   GET    /orgs/:org/integrations/:id/projects        the integration and every project's mapping
- *   PUT    /orgs/:org/integrations/:id/projects/:project   map a project (*)
- *   DELETE /orgs/:org/integrations/:id/projects/:project   stop (*)
- *
- * (*) registered by `issue-trackers.ts` for now, which hands registry integrations to
- * `genericMappingHandlers`; they move here when Linear and Jira are migrated.
+ *   PUT    /orgs/:org/integrations/:id/projects/:project   map a project
+ *   DELETE /orgs/:org/integrations/:id/projects/:project   stop
+ *   GET    /orgs/:org/integrations/:id/projects/:project/links          the project's links
+ *   POST   /orgs/:org/integrations/:id/projects/:project/links          add one
+ *   DELETE /orgs/:org/integrations/:id/projects/:project/links/:linkId  remove one
+ *   POST   /orgs/:org/integrations/:id/projects/:project/links/auto     link by name
  */
 export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
   app,
   deps,
 ) => {
-  const { registry, loadForManager, definitionFor, integrationFor, contextFor, store } =
-    createGeneric(deps)
+  const {
+    registry,
+    loadForManager,
+    definitionFor,
+    integrationFor,
+    contextFor,
+    store,
+    targets,
+    put,
+    remove,
+    providerFailed,
+    linksFor,
+  } = createGeneric(deps)
+
+  app.get('/orgs/:org/integrations/:id/targets', targets)
+  app.put('/orgs/:org/integrations/:id/projects/:project', put)
+  app.delete('/orgs/:org/integrations/:id/projects/:project', remove)
+
+  /** A project's links (Figma frames), for every member. */
+  app.get('/orgs/:org/integrations/:id/projects/:project/links', async (req, reply) => {
+    const found = await linksFor(req, reply, { manage: false })
+    if (!found) return reply
+    const payload: Integration.LinkList = {
+      links: (await listProjectLinks(deps.db, found.project.id, found.links.kind))
+        .filter((l) => l.integrationId === found.integration.id)
+        .map(wireLink),
+    }
+    return payload
+  })
+
+  /** Adds a link from the values of the definition's link fields; the definition checks them with the provider. */
+  app.post('/orgs/:org/integrations/:id/projects/:project/links', async (req, reply) => {
+    const found = await linksFor(req, reply, { manage: true })
+    if (!found) return reply
+    const ctx = await contextFor(reply)
+    if (!ctx) return reply
+    const { values } = parse(linkBody, req.body)
+    try {
+      const link = await addProjectLink(deps.db, {
+        definition: found.definition,
+        ctx,
+        integration: found.integration,
+        projectId: found.project.id,
+        values,
+        createdBy: found.user.id,
+      })
+      return reply.code(201).send(wireLink(link))
+    } catch (err) {
+      if (err instanceof ValidationError) throw err
+      return providerFailed(req, reply, found, err)
+    }
+  })
+
+  app.delete('/orgs/:org/integrations/:id/projects/:project/links/:linkId', async (req, reply) => {
+    const found = await linksFor(req, reply, { manage: true })
+    if (!found) return reply
+    const { linkId } = parse(linkParams, req.params)
+    if (
+      !z.uuid().safeParse(linkId).success ||
+      !(await deleteIntegrationLink(deps.db, found.integration.id, linkId, found.project.id))
+    ) {
+      return reply.code(404).send({ error: 'Link not found' })
+    }
+    return reply.code(204).send()
+  })
+
+  /** Links the project's snapshots to what the mapped target offers, by name; existing links are left alone. */
+  app.post('/orgs/:org/integrations/:id/projects/:project/links/auto', async (req, reply) => {
+    const found = await linksFor(req, reply, { manage: true })
+    if (!found) return reply
+    const ctx = await contextFor(reply)
+    if (!ctx) return reply
+    try {
+      const result: Integration.AutoLinkResult = await autoLinkProject(deps.db, {
+        definition: found.definition,
+        ctx,
+        integration: found.integration,
+        projectId: found.project.id,
+        createdBy: found.user.id,
+      })
+      return result
+    } catch (err) {
+      if (err instanceof ValidationError) throw err
+      return providerFailed(req, reply, found, err)
+    }
+  })
 
   /**
    * Connects an integration with the values of its connect form. The definition's `connect`

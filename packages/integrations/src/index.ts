@@ -10,8 +10,15 @@ export {
   IntegrationError,
   IntegrationUnreachableError,
   InvalidCredentialsError,
+  InvalidInputError,
 } from './errors.ts'
 export { mappedEvents, mappingExtraSchema, mappingHandles, normalizeExtra } from './mapping.ts'
-export { buildCatalog, credentialFields, describeDefinition, mappingSpec } from './public.ts'
+export {
+  buildCatalog,
+  credentialFields,
+  describeDefinition,
+  linksSpec,
+  mappingSpec,
+} from './public.ts'
 export { IntegrationRegistry, integrationRegistry } from './registry.ts'
 export { resolveKind } from './resolve.ts'

@@ -40,37 +40,4 @@ export namespace Issue {
     snapshotName?: string
     title?: string
   }
-
-  /** A place an issue can go: a Linear team or a Jira project. */
-  export interface Target {
-    ref: string
-    name: string
-  }
-
-  /** `GET /api/orgs/:org/integrations/linear|jira`: the connections and where each project files issues. */
-  export interface Page {
-    canManage: boolean
-    connections: { id: string; name: string; needsAttention: boolean }[]
-    projects: {
-      slug: string
-      name: string
-      /** The connection the project is mapped to, with the target. */
-      integrationId: string | null
-      target: string | null
-      /** What a person calls the target (the team or project name); null while unmapped. */
-      targetName: string | null
-    }[]
-  }
-
-  /** `POST /api/orgs/:org/integrations/linear`. */
-  export interface ConnectLinear {
-    apiKey: string
-  }
-
-  /** `POST /api/orgs/:org/integrations/jira`. */
-  export interface ConnectJira {
-    siteUrl: string
-    email: string
-    apiToken: string
-  }
 }

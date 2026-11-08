@@ -1,13 +1,7 @@
 import type { Auth } from '@circi/auth'
 import type { Database, SessionMethod, getProjectContext } from '@circi/db'
 import type { IntegrationDefinition, IntegrationRegistry } from '@circi/integrations'
-import type {
-  FigmaClient,
-  GitProvider,
-  ProviderRegistry,
-  GitlabProvider,
-  TrackerFactory,
-} from '@circi/providers'
+import type { GitProvider, ProviderRegistry, GitlabProvider } from '@circi/providers'
 import type { StorageDriver } from '@circi/storage'
 
 export namespace Deps {
@@ -57,8 +51,6 @@ export namespace Deps {
     githubApp?: boolean
     /** Git host adapters by connection kind (the repository picker asks them what they can see). */
     providers?: ProviderRegistry<Pick<GitProvider, 'listRepositories'>>
-    /** Figma's REST API, for connecting an account and linking frames. */
-    figma?: Pick<FigmaClient, 'me' | 'getFile' | 'listFrames' | 'getNodeNames'>
     /** The GitLab adapter, which also identifies a token's principal when a connection is added. */
     gitlab?: Pick<GitlabProvider, 'identify' | 'listRepositories'>
     /**
@@ -69,8 +61,6 @@ export namespace Deps {
     integrations?: Pick<IntegrationDefinition.Context, 'config' | 'fetch'> & {
       registry?: IntegrationRegistry
     }
-    /** Builds Linear and Jira adapters from stored credentials; replaceable in tests. Default: the real ones. */
-    trackers?: TrackerFactory
     /** Static site hosting, when `STATIC_SITES_HOST` is set. */
     sites?: Deps.Sites
     /** Who may create organizations in the dashboard. Default: instance admins only. */

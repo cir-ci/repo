@@ -259,3 +259,166 @@ describe('Add dialog', () => {
     await expect.element(page.getByRole('button', { name: 'Add Slack' })).toBeDisabled()
   })
 })
+
+const figmaDefinition = entry({
+  kind: 'figma',
+  name: 'Figma',
+  group: 'design',
+  pageStyle: 'generic',
+  credentials: [{ name: 'token', label: 'Access token', secret: true, optional: false }],
+  mapping: {
+    description: 'Choose the Figma file each project is designed in.',
+    targetLabel: 'File',
+    targetKind: 'text',
+    targetPlaceholder: 'https://www.figma.com/design/…',
+    fields: [],
+  },
+  links: {
+    kind: 'figma-frame',
+    label: 'Frame links',
+    targetLabel: 'Frame',
+    subject: 'pattern',
+    autoLink: true,
+    fields: [
+      { key: 'pattern', label: 'Snapshot name', placeholder: 'checkout/*' },
+      { key: 'url', label: 'Frame address', placeholder: 'https://www.figma.com/design/…' },
+    ],
+  },
+})
+
+const figmaPage = (canManage = true) => ({
+  body: {
+    canManage,
+    configured: false,
+    integration: {
+      id: 'f1',
+      kind: 'figma',
+      name: 'michael',
+      needsAttention: false,
+      attentionReason: null,
+    },
+    definition: figmaDefinition,
+    projects: [
+      {
+        slug: 'web',
+        name: 'Web',
+        mapping: { ref: 'FileKey12345', name: 'Checkout v3', extra: { name: 'Checkout v3' } },
+      },
+      { slug: 'docs', name: 'Docs', mapping: null },
+    ],
+  },
+})
+
+const frameLinks = {
+  body: {
+    links: [
+      {
+        id: 'l1',
+        subject: 'checkout/cart',
+        ref: 'FileKey12345:1:2',
+        url: 'https://www.figma.com/design/FileKey12345?node-id=1-2',
+        title: 'Cart',
+        source: 'auto',
+        createdAt: '2026-11-03T00:00:00.000Z',
+      },
+      {
+        id: 'l2',
+        subject: 'home*',
+        ref: 'FileKey12345:1:1',
+        url: 'https://www.figma.com/design/FileKey12345?node-id=1-1',
+        title: null,
+        source: 'manual',
+        createdAt: '2026-11-03T00:00:00.000Z',
+      },
+    ],
+  },
+}
+
+const showFigma = () => show('/organizations/acme/settings/integrations/figma/f1')
+
+describe('GenericIntegrationPage links (Figma frames)', () => {
+  it('maps a project to a file typed as an address, and shows the links with their source', async () => {
+    await page.viewport(1000, 900)
+    const fake = fakeApi({
+      [`GET ${BASE}/f1/projects`]: figmaPage(),
+      [`GET ${BASE}/f1/projects/web/links`]: frameLinks,
+      [`GET ${BASE}/f1/projects/docs/links`]: { body: { links: [] } },
+      [`PUT ${BASE}/f1/projects/docs`]: { status: 204 },
+    })
+    await showFigma()
+    await expect
+      .element(page.getByRole('textbox', { name: 'Web file' }))
+      .toHaveValue('FileKey12345')
+    const table = page.getByRole('table', { name: 'Web frame links' })
+    await expect
+      .element(table.getByRole('link', { name: 'Cart' }))
+      .toHaveAttribute('href', 'https://www.figma.com/design/FileKey12345?node-id=1-2')
+    await expect.element(table.getByText('Auto')).toBeVisible()
+    await expect.element(table.getByText('Manual')).toBeVisible()
+
+    await page
+      .getByRole('textbox', { name: 'Docs file' })
+      .fill('https://www.figma.com/design/KEY123456789/X')
+    await page.getByRole('form', { name: 'Docs' }).getByRole('button', { name: 'Save' }).click()
+    await vi.waitFor(() => expect(fake.of('PUT')).toHaveLength(1))
+    expect(fake.of('PUT')[0]?.body).toEqual({
+      ref: 'https://www.figma.com/design/KEY123456789/X',
+      extra: {},
+    })
+  })
+
+  it('adds a link from the definition’s fields, removes one, and links automatically', async () => {
+    await page.viewport(1000, 900)
+    const fake = fakeApi({
+      [`GET ${BASE}/f1/projects`]: figmaPage(),
+      [`GET ${BASE}/f1/projects/web/links`]: frameLinks,
+      [`GET ${BASE}/f1/projects/docs/links`]: { body: { links: [] } },
+      [`POST ${BASE}/f1/projects/web/links`]: { status: 201, body: frameLinks.body.links[0] },
+      [`DELETE ${BASE}/f1/projects/web/links/l2`]: { status: 204 },
+      [`POST ${BASE}/f1/projects/web/links/auto`]: { body: { created: 2, unlinked: 1, frames: 5 } },
+    })
+    await showFigma()
+    const add = page.getByRole('form', { name: 'Add a link to Web' })
+    const submit = add.getByRole('button', { name: 'Add link' })
+    await expect.element(submit).toBeDisabled()
+    await add.getByRole('textbox', { name: 'Web snapshot name' }).fill(' cart ')
+    await add
+      .getByRole('textbox', { name: 'Web frame address' })
+      .fill('https://www.figma.com/design/K/x?node-id=1-2')
+    await expect.element(submit).toBeEnabled()
+    await submit.click()
+    await vi.waitFor(() => expect(fake.of('POST')).toHaveLength(1))
+    expect(fake.of('POST')[0]?.body).toEqual({
+      values: { pattern: 'cart', url: 'https://www.figma.com/design/K/x?node-id=1-2' },
+    })
+
+    await page.getByRole('button', { name: 'Remove link home*' }).click()
+    await vi.waitFor(() => expect(fake.of('DELETE')).toHaveLength(1))
+
+    await page.getByRole('button', { name: 'Link Web automatically' }).click()
+    await expect
+      .element(
+        page.getByText(
+          'Linked 2 snapshots to frames; 1 snapshot has no frame with a matching name.',
+        ),
+      )
+      .toBeVisible()
+  })
+
+  it('shows members the links without the forms or buttons', async () => {
+    await page.viewport(1000, 900)
+    fakeApi({
+      [`GET ${BASE}/f1/projects`]: figmaPage(false),
+      [`GET ${BASE}/f1/projects/web/links`]: frameLinks,
+    })
+    await showFigma()
+    await expect
+      .element(
+        page.getByRole('table', { name: 'Web frame links' }).getByRole('link', { name: 'Cart' }),
+      )
+      .toBeVisible()
+    expect(page.getByRole('button', { name: 'Link Web automatically' }).query()).toBeNull()
+    expect(page.getByRole('form', { name: 'Add a link to Web' }).query()).toBeNull()
+    expect(page.getByRole('button', { name: /Remove link/ }).query()).toBeNull()
+  })
+})

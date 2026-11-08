@@ -3,6 +3,9 @@
  * description with where to look. Pure, so the service, the dialog's preview and tests agree.
  */
 
+/** The `integration_links.kind` of an issue created from a build. */
+export const ISSUE_LINK_KIND = 'issue'
+
 export namespace IssueText {
   export interface BuildFacts {
     number: number

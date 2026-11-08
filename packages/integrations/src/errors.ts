@@ -35,3 +35,10 @@ export class IntegrationConflictError extends IntegrationError {
     super(409, message, options)
   }
 }
+
+/** What a person typed cannot be used (not an address of this provider); the message says why. */
+export class InvalidInputError extends IntegrationError {
+  constructor(message: string, options?: ErrorOptions) {
+    super(400, message, options)
+  }
+}

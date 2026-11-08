@@ -4,7 +4,12 @@ An integration is declared once, as an `IntegrationDefinition`, and listed once 
 catalog, the HTTP routes, the worker job, the dashboard's connect form and its mapping page all read
 that definition. Adding an integration writes **no route, table, migration, job, or page**.
 
-Slack is the exemplar (`packages/integrations/src/slack.ts`). Read it next to this document.
+Slack is the exemplar for chat (`packages/integrations/src/slack.ts`); Linear and Jira
+(`linear.ts`, `jira.ts`) are the form-connected trackers, and Figma (`figma.ts`) is the design tool
+with the `links` section. Read the one closest to what you add next to this document.
+
+**Status.** Migrated to the SDK: Slack, Linear, Jira, Figma. Not yet: the git hosts (GitHub, GitLab,
+Bitbucket: git connections, webhooks, `provider_connections`), which keep their own routes and pages.
 
 ## Adding an integration
 
@@ -12,7 +17,7 @@ Exactly these files:
 
 1. `packages/integrations/src/<id>.ts`: the definition (`export const <id> = defineIntegration({...})`).
 2. `packages/integrations/src/registry.ts`: import it and add it to the list in
-   `new IntegrationRegistry([slack, <id>])`. One line.
+   `new IntegrationRegistry([slack, linear, jira, figma, <id>])`. One line.
 3. `apps/web/src/features/integrations/logos.tsx`: one entry in `MARKS` keyed by the definition's `logo`.
 4. Only if the integration needs an app of its own on this instance (an OAuth client): a key in
    `IntegrationDefinition.InstanceConfig` (`definition.ts`), the `Config` entry in `@circi/config`
@@ -43,9 +48,9 @@ a fake of the provider's HTTP edge); the definition only wires them to the SDK.
 | `oauth` | `{ available, authorizeUrl, exchange }`: the install flow. The generic routes sign the `state`, check it on the callback and store the result. Installing the same account again replaces its credentials and clears "needs attention". |
 | `needsAttention(error)` | The reason to show when an error means a person has to act (revoked token, uninstalled app); `null` for anything else (the job retries). |
 | `events` | The domain events it handles (below). |
-| `capabilities` | Typed optional members: `chat.send(message, ctx)`, `git`, `tracker`, `design`. Only `chat` is consumed by the pipeline today. |
-| `mapping` | How a project maps (below). |
-| `links` | Which `integration_links` kinds it writes (documentation). |
+| `capabilities` | Typed optional members: `chat.send(message, ctx)` (the event pipeline), `tracker.create(credentials, ctx)` (an `IssueTracker`: "Create issue" on a build), `design` (`listFrames`, `render`, `comment`, `linkFor`: Figma), `git` (reserved). |
+| `mapping` | How a project maps (below). Required by `tracker` and `design`. |
+| `links` | Project-wide links it keeps, rendered as a table on the generic page (below). Needs a `mapping`. |
 
 `ctx` is `{ authSecret, publicOrigin, config, fetch? }`: the instance, never a database. `fetch`
 exists so tests point the provider's client at a fake.
@@ -55,8 +60,12 @@ exists so tests point the provider's client at a fake.
 One target per project and integration, stored in `integration_projects.external_ref`, with the
 settings below in `extra` (and the target's name in `extra.name`).
 
-- `target`: `{ label, kind: 'text' | 'select', placeholder?, validate?(ref) }`. A `select` target
-  needs `listTargets(credentials, ctx)` (the channels, teams or projects the account offers).
+- `target`: `{ label, kind: 'text' | 'select', placeholder?, validate?(ref), resolve?(ref, { credentials }, ctx) }`.
+  A `select` target needs `listTargets(credentials, ctx)` (the channels, teams or projects the
+  account offers). `resolve` is a transform for a typed target: it runs after `validate`, checks the
+  value with the provider and returns the `ref` to store and the target's name (Figma turns a pasted
+  file address into the file key and reads the file's name). It throws `IntegrationError`s
+  (`InvalidInputError` for "that is not usable", 400) or whatever `needsAttention` recognises.
 - `fields`: settings besides the target, each rendered as a control: `events` (checkboxes over domain
   events, with `defaults` for a newly mapped project), `text`, `toggle`. The server builds a strict
   zod schema from them and fills defaults.
@@ -112,7 +121,14 @@ GET    /orgs/:org/integrations/:id/targets              what a project can be po
 GET    /orgs/:org/integrations/:id/projects             the integration, its spec, every project's mapping
 PUT    /orgs/:org/integrations/:id/projects/:project    map a project
 DELETE /orgs/:org/integrations/:id/projects/:project    stop
+GET    /orgs/:org/integrations/:id/projects/:project/links           the project's links (members)
+POST   /orgs/:org/integrations/:id/projects/:project/links           add one: { values } by field key
+DELETE /orgs/:org/integrations/:id/projects/:project/links/:linkId   remove one
+POST   /orgs/:org/integrations/:id/projects/:project/links/auto      link by name (`links.autoLink`)
 DELETE /orgs/:org/integrations/:source/:id              remove (unchanged, any kind)
+
+GET    /projects/:org/:project/builds/:number/issues    issues made from a build + the project's trackers
+POST   /projects/:org/:project/builds/:number/issues    "Create issue" through the `tracker` capability
 ```
 
 The dashboard page is `organizations/$org/settings/integrations/$kind/$id`
@@ -122,20 +138,61 @@ The dashboard page is `organizations/$org/settings/integrations/$kind/$id`
 
 `integration_links` is the one table for what an integration attaches to a project or build:
 `integration_id`, `project_id` and `build_id` (both nullable), `subject` (a snapshot pattern or
-name), `kind` (`figma-frame`, `issue`), `external_ref`, `url`, `title`, `payload` (jsonb). A row with
-a project and no build is project-wide, unique per project, kind and subject (`createIntegrationLink`
-upserts it). It replaces `figma_links` and `issue_links`.
+name), `kind`, `external_ref`, `url`, `title`, `payload` (jsonb). A row with a project and no build
+is project-wide, unique per project, kind and subject (`createIntegrationLink` upserts it). It
+replaced `figma_links` and `issue_links` (migration 0026 moved their rows). Two kinds exist:
+
+- `issue`: per build; `external_ref` the issue key, `url`, `title`, `payload.snapshotName`. Written
+  by `createIssueFromBuild` after the tracker answered; read by the build detail and the activity.
+- `figma-frame`: project-wide; `subject` the snapshot pattern, `external_ref` `fileKey:nodeId`,
+  `title` the frame's name, `payload` `{ fileKey, nodeId, source: 'auto' | 'manual', scope }`.
+
+### The `links` section
+
+A definition that keeps project-wide links declares it, and the generic page renders it under each
+mapped project: a table (subject, what was linked, how: Auto or Manual, Remove), an add form, and
+an optional "Link automatically" button.
+
+```ts
+links: {
+  kind: 'figma-frame', label: 'Frame links', targetLabel: 'Frame',
+  fields: [{ key: 'pattern', label: 'Snapshot name' }, { key: 'url', label: 'Frame address' }],
+  subject: 'pattern',          // the field that is the link's subject
+  autoLink: true,              // needs the `design` capability
+  resolve(values, { credentials, mappingRef }, ctx) // -> { ref, url?, title?, payload? }
+}
+```
+
+- `resolve` turns the form's values into the link (parsing a pasted address, asking the provider for
+  a name); the services store it (`addProjectLink`) with `payload.source: 'manual'`.
+- `autoLink` matches the project's snapshot names to `design.listFrames(...)` by name
+  (`matchFramesToSnapshots` in `@circi/core`: case and separators ignored, ambiguous names get no
+  link, existing links are never replaced) and stores what `design.linkFor(fileRef, frame)` says
+  with `source: 'auto'` (`autoLinkProject`).
+- Changing a project's target drops the automatic links made for the old one (`payload.scope` is
+  the target they were made for); clearing it drops them all; manual ones stay (`mapProject`,
+  `unmapProject` in `@circi/services`, which the generic mapping routes call).
 
 ## What stays custom
 
 Until its definition exists, an integration keeps its own route file, repository functions and
-page: GitHub, GitLab and Bitbucket (git connections, webhooks, `provider_connections`), Linear and
-Jira (`issue-trackers.ts`), Figma (`figma.ts`, frame links). They appear in the catalog from the
-static list in `@circi/core` (`INTEGRATION_CATALOG`) with `pageStyle: 'custom'`. Migrating one means
-writing its definition, registering it, deleting its entry from `INTEGRATION_CATALOG`, its hand-written
-route and page, and its `built`/`connectable` lines in `routes/dashboard/integrations.ts`. A kind in
-both the registry and `INTEGRATION_CATALOG` fails the registry test.
+page: GitHub, GitLab and Bitbucket (git connections, webhooks, `provider_connections`). They appear
+in the catalog from the static list in `@circi/core` (`INTEGRATION_CATALOG`) with
+`pageStyle: 'custom'`. Migrating one means writing its definition, registering it, deleting its
+entry from `INTEGRATION_CATALOG`, its hand-written route and page, and its `built`/`connectable`
+lines in `routes/dashboard/integrations.ts`. A kind in both the registry and `INTEGRATION_CATALOG`
+fails the registry test.
 
 Some things are not an integration's business and never move into a definition: webhook receivers
 that authenticate a git host (they stay routes), the web app's logo artwork, and the provider
 clients in `packages/providers`.
+
+## Known gaps
+
+Behaviour the old hand-written Linear, Jira and Figma routes had and the generic routes do not:
+
+- A project can be mapped to the same kind on several connections (the trackers used to move it:
+  "one connection per kind per project"); and an organisation can connect several Figma accounts
+  (it used to be one), the same account in several organisations (it used to be refused).
+- Selecting a `select` target is not checked against `listTargets` when saving (the page only offers
+  what the account lists).

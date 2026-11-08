@@ -37,7 +37,7 @@ const wire = (i: listOrgIntegrations.Item): Integration.Item => ({
  * An organisation's integrations: the git hosts and other services it connected. Every member can
  * look; owners and admins add and remove (anyone outside the organisation gets "not found").
  * Integrations of the registry are connected through the generic routes (`integrations-generic.ts`);
- * the kinds not migrated yet (git hosts, trackers, Figma) keep their own routes.
+ * the kinds not migrated yet (the git hosts) keep their own routes.
  */
 export const dashboardIntegrationRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   async function load(req: FastifyRequest, reply: FastifyReply) {
@@ -64,17 +64,9 @@ export const dashboardIntegrationRoutes: FastifyPluginAsync<Deps.Dashboard> = as
    * App is configured, registered hosts, tokens). Each integration migrated to the SDK leaves this.
    */
   const connectable = (kind: string) =>
-    (kind === 'github' && deps.githubApp === true) ||
-    (kind === 'figma' && deps.figma !== undefined && deps.authSecret !== undefined) ||
-    ((kind === 'linear' || kind === 'jira') && deps.authSecret !== undefined) ||
-    deps.providers?.get(kind) !== undefined
+    (kind === 'github' && deps.githubApp === true) || deps.providers?.get(kind) !== undefined
   /** Not-yet-migrated kinds with an add flow in this build: GitHub's routes, or a registered provider. */
-  const built = (kind: string) =>
-    kind === 'github' ||
-    kind === 'figma' ||
-    kind === 'linear' ||
-    kind === 'jira' ||
-    deps.providers?.get(kind) !== undefined
+  const built = (kind: string) => kind === 'github' || deps.providers?.get(kind) !== undefined
 
   const registry = deps.integrations?.registry ?? integrationRegistry
 

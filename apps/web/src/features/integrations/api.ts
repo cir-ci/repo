@@ -47,8 +47,8 @@ export const integrationLabel = (item: Pick<Integration.Item, 'kindName' | 'name
   `${item.kindName} (${item.name})`
 
 /** Where a `custom` integration's own page is, if it has one yet (generic ones share a page). */
-export const integrationPage = (kind: string): 'github' | 'gitlab' | 'bitbucket' | 'figma' | null =>
-  kind === 'github' || kind === 'gitlab' || kind === 'bitbucket' || kind === 'figma' ? kind : null
+export const integrationPage = (kind: string): 'github' | 'gitlab' | 'bitbucket' | null =>
+  kind === 'github' || kind === 'gitlab' || kind === 'bitbucket' ? kind : null
 
 /** "3 projects", "1 project", "No projects yet". */
 export const projectCountLabel = (count: number) =>

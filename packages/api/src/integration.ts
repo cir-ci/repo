@@ -39,6 +39,21 @@ export namespace Integration {
     fields: MappingField[]
   }
 
+  /** The links section of a definition (project-wide links such as Figma's snapshot-to-frame table). */
+  export interface LinksSpec {
+    /** The stored link kind (`figma-frame`). */
+    kind: string
+    label: string
+    description?: string
+    /** The column that names what was linked (`Frame`). */
+    targetLabel: string
+    /** The key of the field that is the link's subject. */
+    subject: string
+    fields: { key: string; label: string; placeholder?: string; description?: string }[]
+    /** Offer "Link automatically". */
+    autoLink: boolean
+  }
+
   /** `kind` is the provider (`github`, `slack`…); the catalog lists the possible values. */
   export interface Item {
     /** Connection id (git hosts) or integration id (everything else). */
@@ -81,6 +96,8 @@ export namespace Integration {
     oauth: boolean
     /** How a project maps to it; null when it has no mapping or is not generic. */
     mapping: MappingSpec | null
+    /** The project-wide links it keeps; null when it has none. */
+    links: LinksSpec | null
   }
 
   /** `GET /api/orgs/:org/integrations`. */
@@ -196,5 +213,39 @@ export namespace Integration {
     ref: string
     name?: string
     extra?: Record<string, unknown>
+  }
+
+  /** One project-wide link of an integration (`GET …/:id/projects/:project/links`). */
+  export interface Link {
+    id: string
+    /** What it is about: the snapshot pattern. */
+    subject: string
+    /** The integration's own id for the target (a Figma `fileKey:nodeId`). */
+    ref: string
+    url: string | null
+    /** What a person calls the target (the frame's name); null when unknown. */
+    title: string | null
+    /** `auto`: CirCI matched it by name; `manual`: a person added it. */
+    source: 'auto' | 'manual'
+    createdAt: string
+  }
+
+  export interface LinkList {
+    links: Link[]
+  }
+
+  /** `POST …/links`: the values of the definition's link fields, by key. */
+  export interface LinkInput {
+    values: Record<string, string>
+  }
+
+  /** `POST …/links/auto`. */
+  export interface AutoLinkResult {
+    /** Links added now. */
+    created: number
+    /** Snapshots the project has uploaded that still have no link. */
+    unlinked: number
+    /** Frames the file has. */
+    frames: number
   }
 }

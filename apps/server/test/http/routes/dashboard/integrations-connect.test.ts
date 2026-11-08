@@ -217,6 +217,7 @@ describe('the catalog and the list, from the registry', () => {
         { name: 'token', label: 'Token', secret: true, optional: false },
       ],
       mapping: { targetLabel: 'Room', targetKind: 'text', fields: [] },
+      links: null,
     })
     // Static entries without a definition stay, planned ones disabled.
     expect(res.json().catalog.find((e: { kind: string }) => e.kind === 'teams')).toMatchObject({

@@ -1,5 +1,5 @@
 import type { IntegrationCatalog, IntegrationEvent } from '@circi/core'
-import type { FigmaClient, GitProvider, IssueTracker } from '@circi/providers'
+import type { GitProvider, IssueTracker } from '@circi/providers'
 import type { z } from 'zod'
 
 /**
@@ -95,6 +95,17 @@ export namespace IntegrationDefinition {
       placeholder?: string
       /** An error message for a target that cannot be right, or null. Checked before saving. */
       validate?(ref: string): string | null
+      /**
+       * A transform for a `text` target, run after `validate` and before anything is stored: turns
+       * what was typed (a pasted address) into the stored `ref` and the target's name, checking it
+       * with the provider using the opened credentials. Throws `IntegrationError`s (400, 502) or an
+       * error `needsAttention` recognises.
+       */
+      resolve?(
+        ref: string,
+        input: { credentials: string },
+        ctx: Context,
+      ): Promise<{ ref: string; name?: string }>
     }
     /** The choices of a `select` target, from the provider, with the integration's opened credentials. */
     listTargets?(credentials: string, ctx: Context): Promise<readonly Target[]>
@@ -127,20 +138,87 @@ export namespace IntegrationDefinition {
     git?: { create(ctx: Context): GitProvider | undefined }
     /** An issue tracker built from the opened credentials. */
     tracker?: { create(credentials: string, ctx: Context): IssueTracker | undefined }
-    /** A design tool built from the opened credentials. */
-    design?: {
-      create(
-        credentials: string,
-        ctx: Context,
-      ): Pick<FigmaClient, 'me' | 'getFile' | 'listFrames' | 'getNodeNames'> | undefined
-    }
+    /** A design tool: the frames of a file, renders of them and comments on them. */
+    design?: Design
   }
 
-  /** What generic `integration_links` rows an integration writes (documentation, shown in tests). */
-  export interface LinkKind {
-    /** `figma-frame`, `issue`. */
+  /**
+   * A design tool, called with the opened credentials and the project's mapped file (`fileRef`,
+   * the mapping's `external_ref`). Calls throw; callers classify them with `needsAttention`.
+   */
+  export interface Design {
+    /** The top-level frames of the file, in page order. */
+    listFrames(credentials: string, fileRef: string, ctx: Context): Promise<readonly DesignFrame[]>
+    /** Temporary image addresses of frames by node id (null where the tool could not render one). */
+    render(
+      credentials: string,
+      fileRef: string,
+      nodeIds: readonly string[],
+      ctx: Context,
+    ): Promise<Record<string, string | null>>
+    /** Comments on a frame; returns the comment's id. */
+    comment(
+      credentials: string,
+      fileRef: string,
+      input: { message: string; nodeId?: string },
+      ctx: Context,
+    ): Promise<string>
+    /** The link a frame of the file makes (pure): what automatic linking stores for it. */
+    linkFor(fileRef: string, frame: DesignFrame): LinkDraft
+  }
+
+  export interface DesignFrame {
+    id: string
+    name: string
+    /** The page it is on. */
+    page: string
+  }
+
+  /** What a link is stored as (`integration_links`): the integration's own id for it, and its parts. */
+  export interface LinkDraft {
+    /** The integration's id for what is linked (a Figma `fileKey:nodeId`). */
+    ref: string
+    url?: string
+    /** What a person calls it (the frame's name). */
+    title?: string
+    /** Anything else the kind needs (`fileKey`, `nodeId`); `source` and `scope` are set by CirCI. */
+    payload?: Record<string, unknown>
+  }
+
+  /** One input of the form that adds a link. */
+  export interface LinkField {
+    key: string
+    label: string
+    placeholder?: string
+    description?: string
+  }
+
+  /**
+   * Project-wide links an integration keeps for a mapped project (Figma: snapshot patterns to
+   * frames), stored as `integration_links` rows of `kind`. The generic page renders a table with
+   * add and remove, and an optional "Link automatically" button (`autoLink`, which needs the
+   * `design` capability and its `linkFor`): CirCI matches the project's snapshots to the file's frames.
+   */
+  export interface Links {
+    /** The stored `integration_links.kind`: `figma-frame`. */
     kind: string
-    description: string
+    /** The table's heading. */
+    label: string
+    description?: string
+    /** The add form's inputs, text only. */
+    fields: readonly LinkField[]
+    /** Which field is the link's subject (the snapshot pattern); unique per project. */
+    subject: string
+    /** Turns the form's values into the link to store; may check with the provider. Throws `IntegrationError`s. */
+    resolve(
+      values: Readonly<Record<string, string>>,
+      input: { credentials: string; mappingRef: string | null },
+      ctx: Context,
+    ): Promise<LinkDraft>
+    /** Offers "Link automatically". */
+    autoLink?: true
+    /** The label of the column that names what was linked (`Frame`). */
+    targetLabel: string
   }
 
   /**
@@ -174,8 +252,8 @@ export namespace IntegrationDefinition {
     events: readonly IntegrationEvent.Type[]
     capabilities: Capabilities
     mapping?: Mapping
-    /** Which `integration_links` kinds it writes. */
-    links?: readonly LinkKind[]
+    /** Project-wide links it keeps (needs a `mapping`). */
+    links?: Links
   }
 }
 

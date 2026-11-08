@@ -38,6 +38,7 @@ export const entry = (
   credentials: [],
   oauth: false,
   mapping: null,
+  links: null,
   ...over,
 })
 

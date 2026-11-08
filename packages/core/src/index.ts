@@ -50,7 +50,7 @@ export {
 export { rotationFor, rotationHandover } from './rotation.ts'
 export { SNOOZE_WAKE_HOUR, snoozeUntil, type SnoozeChoice } from './snooze.ts'
 export { parseMentions } from './mentions.ts'
-export { defaultIssueTitle, issueDescription, type IssueText } from './issues.ts'
+export { defaultIssueTitle, ISSUE_LINK_KIND, issueDescription, type IssueText } from './issues.ts'
 export {
   catalogEntry,
   filterCatalog,
@@ -64,6 +64,7 @@ export {
   isInstallationId,
 } from './integrations.ts'
 export {
+  FIGMA_FRAME_LINK_KIND,
   figmaFrameUrl,
   type FigmaLinkLike,
   matchFramesToSnapshots,

@@ -1,19 +1,19 @@
-import { defaultIssueTitle, issueDescription, ValidationError } from '@circi/core'
+import { defaultIssueTitle, ISSUE_LINK_KIND, issueDescription, ValidationError } from '@circi/core'
 import {
   type Database,
   getBuild,
   getBuildDetail,
+  createIntegrationLink,
   getProjectContext,
-  getProjectTracker,
-  insertIssueLink,
-  type IssueLink,
+  getProjectIntegration,
+  type IntegrationLink,
   listBuildReviews,
   NotFoundError,
 } from '@circi/db'
 
 /**
  * Creates an issue in a tracker (Linear, Jira) from a build or one of its snapshots and records
- * the link, which the build page and its activity show. The tracker is called first and the link
+ * the link (an `integration_links` row of kind `issue`), which the build page and its activity show. The tracker is called first and the link
  * stored only once it answered: a failed call stores nothing (and rethrows), so no build ever
  * shows an issue that does not exist.
  */
@@ -23,12 +23,12 @@ export const MAX_ISSUE_TITLE_LENGTH = 250
 export async function createIssueFromBuild(
   db: Database,
   input: createIssueFromBuild.Input,
-): Promise<IssueLink.Record> {
+): Promise<IntegrationLink.Row> {
   const build = await getBuild(db, input.buildId)
   if (!build) throw new NotFoundError('Build not found')
   const context = await getProjectContext(db, build.projectId)
   if (!context) throw new NotFoundError('Build not found')
-  const mapped = await getProjectTracker(db, build.projectId, input.integrationId)
+  const mapped = await getProjectIntegration(db, build.projectId, input.integrationId)
   if (!mapped) throw new NotFoundError('This project does not file issues in that tracker')
   const tracker = input.openTracker(mapped.integration)
   if (!tracker) {
@@ -65,13 +65,14 @@ export async function createIssueFromBuild(
     }),
     ...(imageUrl ? { imageUrl } : {}),
   })
-  return insertIssueLink(db, {
-    buildId: build.id,
-    snapshotName,
+  return createIntegrationLink(db, {
     integrationId: input.integrationId,
-    issueKey: created.key,
+    buildId: build.id,
+    kind: ISSUE_LINK_KIND,
+    externalRef: created.key,
     url: created.url,
     title: created.title,
+    payload: { snapshotName },
     createdBy: input.userId,
   })
 }

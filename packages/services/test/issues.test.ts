@@ -2,7 +2,7 @@ import {
   createBuild,
   createIntegration,
   listBuildActivity,
-  listBuildIssueLinks,
+  listBuildLinks,
   setIntegrationProject,
 } from '@circi/db'
 import { createTestDb, seedDiff, seedProject, seedReview, sha } from '@circi/testing'
@@ -78,7 +78,14 @@ describe('createIssueFromBuild', () => {
       publicOrigin: 'https://ci.test',
       openTracker: (i) => (i.encryptedCredentials === 'sealed' ? tracker : undefined),
     })
-    expect(link).toMatchObject({ issueKey: 'WEB-9', snapshotName: 'home', createdBy: owner.id })
+    expect(link).toMatchObject({
+      kind: 'issue',
+      externalRef: 'WEB-9',
+      url: 'https://acme.atlassian.net/browse/WEB-9',
+      buildId: build.id,
+      payload: { snapshotName: 'home' },
+      createdBy: owner.id,
+    })
     const [call] = calls
     expect(call).toMatchObject({
       target: 'WEB',
@@ -90,7 +97,7 @@ describe('createIssueFromBuild', () => {
     )
     expect(call?.description).toContain('feat/x')
     expect(call?.description).toContain('cut off')
-    expect(await listBuildIssueLinks(t.db, build.id)).toHaveLength(1)
+    expect(await listBuildLinks(t.db, build.id, 'issue')).toHaveLength(1)
     const events = await listBuildActivity(t.db, build.id)
     expect(events.find((e) => e.type === 'issue_created')).toMatchObject({
       issue: { key: 'WEB-9', tracker: 'jira' },
@@ -126,7 +133,7 @@ describe('createIssueFromBuild', () => {
         openTracker: () => tracker,
       }),
     ).rejects.toThrow('tracker is down')
-    expect(await listBuildIssueLinks(t.db, build.id)).toEqual([])
+    expect(await listBuildLinks(t.db, build.id, 'issue')).toEqual([])
   })
 
   it('refuses a tracker the project is not mapped to, an unknown snapshot and unusable credentials', async () => {
@@ -158,6 +165,6 @@ describe('createIssueFromBuild', () => {
       }),
     ).rejects.toThrow('connect it again')
     expect(calls).toEqual([])
-    expect(await listBuildIssueLinks(t.db, build.id)).toEqual([])
+    expect(await listBuildLinks(t.db, build.id, 'issue')).toEqual([])
   })
 })

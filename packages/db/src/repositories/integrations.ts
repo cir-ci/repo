@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 
 import { integrationProjects, integrations, projects } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
@@ -263,4 +263,71 @@ export async function listOrgProjectMappings(
     name: r.name,
     mapping: r.externalRef === null ? null : { externalRef: r.externalRef, extra: r.extra ?? {} },
   }))
+}
+
+export namespace listProjectIntegrations {
+  /** An integration a project is mapped to, with the mapping. */
+  export interface Row {
+    integrationId: string
+    kind: string
+    displayName: string
+    /** The mapping's target: a Linear team id, a Jira project key, a Figma file key. */
+    externalRef: string
+    extra: Record<string, unknown>
+    needsAttention: boolean
+  }
+}
+
+/** The integrations of the given kinds a project is mapped to, oldest first. */
+export async function listProjectIntegrations(
+  db: Database,
+  projectId: string,
+  kinds: readonly string[],
+): Promise<listProjectIntegrations.Row[]> {
+  if (kinds.length === 0) return []
+  return db
+    .select({
+      integrationId: integrations.id,
+      kind: integrations.kind,
+      displayName: integrations.displayName,
+      externalRef: integrationProjects.externalRef,
+      extra: integrationProjects.extra,
+      needsAttention: integrations.needsAttention,
+    })
+    .from(integrationProjects)
+    .innerJoin(integrations, eq(integrations.id, integrationProjects.integrationId))
+    .where(
+      and(eq(integrationProjects.projectId, projectId), inArray(integrations.kind, [...kinds])),
+    )
+    .orderBy(asc(integrations.createdAt), asc(integrations.id))
+}
+
+/** An integration with the project's mapping, sealed credentials included; undefined if the project is not mapped to it. */
+export async function getProjectIntegration(
+  db: Database,
+  projectId: string,
+  integrationId: string,
+): Promise<
+  | {
+      integration: typeof integrations.$inferSelect
+      externalRef: string
+      extra: Record<string, unknown>
+    }
+  | undefined
+> {
+  const [row] = await db
+    .select({
+      integration: integrations,
+      externalRef: integrationProjects.externalRef,
+      extra: integrationProjects.extra,
+    })
+    .from(integrationProjects)
+    .innerJoin(integrations, eq(integrations.id, integrationProjects.integrationId))
+    .where(
+      and(
+        eq(integrationProjects.projectId, projectId),
+        eq(integrationProjects.integrationId, integrationId),
+      ),
+    )
+  return row
 }

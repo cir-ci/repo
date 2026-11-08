@@ -1,6 +1,7 @@
+import { ISSUE_LINK_KIND } from '@circi/core'
 import { and, aliasedTable, eq, isNull } from 'drizzle-orm'
 
-import { listBuildIssueLinks } from '#repositories/issue-links.ts'
+import { listBuildLinks } from '#repositories/integration-links.ts'
 import {
   builds,
   buildChecks,
@@ -128,13 +129,19 @@ export async function listBuildActivity(db: Database, buildId: string): Promise<
     })
   }
 
-  for (const link of await listBuildIssueLinks(db, buildId)) {
+  for (const link of await listBuildLinks(db, buildId, ISSUE_LINK_KIND)) {
+    const snapshotName = link.payload.snapshotName
     events.push({
       type: 'issue_created',
       at: link.createdAt,
-      issue: { key: link.issueKey, url: link.url, title: link.title, tracker: link.kind },
-      snapshotName: link.snapshotName,
-      by: link.createdBy,
+      issue: {
+        key: link.externalRef,
+        url: link.url ?? '',
+        title: link.title ?? link.externalRef,
+        tracker: link.integrationKind,
+      },
+      snapshotName: typeof snapshotName === 'string' ? snapshotName : null,
+      by: actor(link.createdBy, link.createdByName),
     })
   }
 

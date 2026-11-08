@@ -192,31 +192,9 @@ function Row(props: {
               Configure
             </Link>
           ) : null}
-          {page === 'figma' ? (
-            <Link
-              to="/organizations/$org/settings/integrations/figma"
-              params={{ org: props.org }}
-              aria-label={`Configure ${label}`}
-            >
-              Configure
-            </Link>
-          ) : null}
           {page === 'bitbucket' ? (
             <Link
               to="/organizations/$org/settings/integrations/bitbucket"
-              params={{ org: props.org }}
-              aria-label={`Configure ${label}`}
-            >
-              Configure
-            </Link>
-          ) : null}
-          {item.kind === 'linear' || item.kind === 'jira' ? (
-            <Link
-              to={
-                item.kind === 'linear'
-                  ? '/organizations/$org/settings/integrations/linear'
-                  : '/organizations/$org/settings/integrations/jira'
-              }
               params={{ org: props.org }}
               aria-label={`Configure ${label}`}
             >

@@ -3,7 +3,6 @@ import { type Config, loadConfig } from '@circi/config'
 import { createDb, type DbHandle } from '@circi/db'
 import {
   BitbucketCloud,
-  FigmaClient,
   GithubApp,
   GitlabProvider,
   type ProviderRegistry,
@@ -28,8 +27,6 @@ export interface Runtime {
   providers: ProviderRegistry
   /** Bitbucket Cloud: always available, each connection brings its own token. */
   bitbucket: BitbucketCloud
-  /** Figma's REST API; needs no instance setup (each organisation brings its token). */
-  figma: FigmaClient
   /** Sends mail; absent without SMTP. */
   mailer?: Mailer
   storage: StorageDriver
@@ -81,7 +78,6 @@ export function createRuntime(env: Record<string, string | undefined> = process.
     gitlab,
     providers: providerRegistry({ github, gitlab, bitbucket }),
     bitbucket,
-    figma: new FigmaClient(),
     storage,
     async close() {
       await db.close()

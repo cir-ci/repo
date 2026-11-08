@@ -183,6 +183,13 @@
       "when": 1794148651680,
       "tag": "0025_integration_sdk",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1794150456921,
+      "tag": "0026_move_links",
+      "breakpoints": true
     }
   ]
 }

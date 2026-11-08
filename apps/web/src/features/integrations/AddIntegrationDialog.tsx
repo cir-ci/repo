@@ -13,13 +13,10 @@ import {
   useConnectGithub,
 } from './api.ts'
 import { ConnectBitbucket } from './ConnectBitbucket.tsx'
-import { ConnectFigma } from './ConnectFigma.tsx'
 import { ConnectForm } from './ConnectForm.tsx'
 import { ConnectGitlab } from './ConnectGitlab.tsx'
-import { ConnectTracker } from './ConnectTracker.tsx'
 import { useInstall } from './generic-api.ts'
 import { ProviderLogo } from './logos.tsx'
-import { isTrackerKind, TRACKER_NAME, type TrackerKind } from './trackers-api.ts'
 
 import styles from './Integrations.module.css'
 
@@ -35,8 +32,6 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
   const [query, setQuery] = useState('')
   const [group, setGroup] = useState<GroupFilter>('all')
   const [connecting, setConnecting] = useState<'github' | 'gitlab' | 'bitbucket' | null>(null)
-  const [tracker, setTracker] = useState<TrackerKind | null>(null)
-  const [figma, setFigma] = useState(false)
   // A generic integration whose connect form is open (one with credential fields).
   const [generic, setGeneric] = useState<Integration.CatalogEntry | null>(null)
   const install = useInstall(props.org)
@@ -45,8 +40,6 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
   function close(open: boolean) {
     if (!open) {
       setConnecting(null)
-      setTracker(null)
-      setFigma(false)
       setGeneric(null)
       setQuery('')
       setGroup('all')
@@ -61,26 +54,20 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
       title={
         generic
           ? `Connect ${generic.name}`
-          : figma
-            ? 'Connect Figma'
-            : tracker
-              ? `Connect ${TRACKER_NAME[tracker]}`
-              : connecting === 'github'
-                ? 'Connect GitHub'
-                : connecting === 'gitlab'
-                  ? 'Connect GitLab'
-                  : connecting === 'bitbucket'
-                    ? 'Connect Bitbucket'
-                    : 'Add an integration'
+          : connecting === 'github'
+            ? 'Connect GitHub'
+            : connecting === 'gitlab'
+              ? 'Connect GitLab'
+              : connecting === 'bitbucket'
+                ? 'Connect Bitbucket'
+                : 'Add an integration'
       }
       size="wide"
       actions={
-        connecting || tracker || figma || generic ? (
+        connecting || generic ? (
           <Button
             onClick={() => {
               setConnecting(null)
-              setTracker(null)
-              setFigma(false)
               setGeneric(null)
             }}
           >
@@ -93,10 +80,6 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
     >
       {generic ? (
         <ConnectForm entry={generic} org={props.org} onDone={() => close(false)} />
-      ) : figma ? (
-        <ConnectFigma org={props.org} onDone={() => close(false)} />
-      ) : tracker ? (
-        <ConnectTracker kind={tracker} org={props.org} onDone={() => close(false)} />
       ) : connecting === 'github' ? (
         <ConnectGithub org={props.org} onDone={() => close(false)} />
       ) : connecting === 'gitlab' ? (
@@ -147,11 +130,9 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
                         } else setGeneric(entry)
                         return
                       }
-                      if (isTrackerKind(entry.kind)) setTracker(entry.kind)
                       if (entry.kind === 'github') setConnecting('github')
                       if (entry.kind === 'gitlab') setConnecting('gitlab')
                       if (entry.kind === 'bitbucket') setConnecting('bitbucket')
-                      if (entry.kind === 'figma') setFigma(true)
                     }}
                     aria-label={`Add ${entry.name}`}
                   >
@@ -173,9 +154,7 @@ const canAdd = (entry: Integration.CatalogEntry) =>
   (entry.pageStyle === 'generic' ||
     entry.kind === 'github' ||
     entry.kind === 'gitlab' ||
-    entry.kind === 'bitbucket' ||
-    entry.kind === 'figma' ||
-    isTrackerKind(entry.kind))
+    entry.kind === 'bitbucket')
 
 function ConnectGithub(props: { org: string; onDone: () => void }) {
   const connect = useConnectGithub(props.org)

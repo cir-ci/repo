@@ -2,6 +2,9 @@ import type { IntegrationEvent } from '@circi/core'
 
 import { definitionProblems } from './define.ts'
 import type { IntegrationDefinition } from './definition.ts'
+import { figma } from './figma.ts'
+import { jira } from './jira.ts'
+import { linear } from './linear.ts'
 import { slack } from './slack.ts'
 
 /**
@@ -43,4 +46,4 @@ export class IntegrationRegistry {
  * THE registry. Adding an integration is one line here, next to its import: the definition file is
  * the only other thing to write (docs/integration-sdk.md).
  */
-export const integrationRegistry = new IntegrationRegistry([slack])
+export const integrationRegistry = new IntegrationRegistry([slack, linear, jira, figma])

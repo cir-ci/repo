@@ -22,7 +22,13 @@ export {
   matchMentions,
   MAX_COMMENT_LENGTH,
 } from './comments.ts'
-export { autoLinkFigmaFrames, clearFigmaFile, type FigmaFrames, setFigmaFile } from './figma.ts'
+export {
+  addProjectLink,
+  autoLinkProject,
+  type LinkedIntegration,
+  mapProject,
+  unmapProject,
+} from './integration-links.ts'
 export { gateInputs } from './gate.ts'
 export { createIssueFromBuild, MAX_ISSUE_TITLE_LENGTH } from './issues.ts'
 export { migrateStorage } from './migrate-storage.ts'
