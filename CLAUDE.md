@@ -10,12 +10,12 @@ Commit messages end with the `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthrop
 ## Layout and layers
 
 ```
-apps/server     HTTP routes, admin CLI, process lifecycle (services.ts composes startup.ts,
-                server-options.ts, shutdown.ts)
+apps/server     HTTP routes (http/, shared helpers in http/lib/), admin CLI, process lifecycle
+                (lifecycle/services.ts composes lifecycle/{startup,server-options,shutdown}.ts)
 apps/worker     background jobs (process-build, webhook delivery, git-notify)
 apps/web        the dashboard, organised by feature: src/features/<feature>/{api.ts, *Page.tsx, …}
 packages/api    the dashboard API's wire types (types only, one namespace per resource)
-packages/auth   better-auth composition: plugins/, hooks/, cookies, admin operations
+packages/auth   better-auth composition: plugins/, hooks/, sso/, operations/ (admin, accounts, setup), cookies
 packages/cli    `circi upload` for CI
 packages/config environment parsing
 packages/core   pure shared logic (baselines, outcomes, limits, webhook signing); no I/O
@@ -23,7 +23,9 @@ packages/db     Drizzle schema, migrations, repositories/, queries/
 packages/providers  git host adapters and the text CirCI shows on them (GitHub)
 packages/services   the service layer: operations that change several things at once
 packages/storage    local-disk and S3 drivers
-packages/testing    PGlite test database and seeders, imported as `@circi/testing`
+packages/testing    PGlite test database and seeders (src/seed/), imported as `@circi/testing`
+packages/ui         the design system: Base UI parts styled with CSS modules and `var(--circi-…)`
+                    tokens, light and dark; one `Name.tsx` + `Name.module.css` per component
 ```
 
 Dependencies point downwards: apps → services → db → core; `core` and `api` depend on nothing.
@@ -63,8 +65,15 @@ A namespace must contain only types. Never put a value in one.
 - Node projects (`apps/{server,worker}/test`, `packages/*/test`) run with real migrations on PGlite
   via `@circi/testing`. Never import another package's `test/` folder.
 - Server route tests build the app with `buildServer` and use `app.inject`; sign in through the real
-  `/api/auth` endpoints (see `apps/server/test/helpers.ts`).
-- Web tests (`apps/web/test`) run in happy-dom. Logic goes in `api.ts` / `lib/` so it's testable
-  without rendering.
+  `/api/auth` endpoints (see `apps/server/test/support/helpers.ts`).
+- No `@testing-library/*`. Logic (`*.test.ts`, including `apps/web/test`) runs in Node; components
+  get `*.browser.test.tsx` run in headless Chromium through Vitest browser mode
+  (`vitest-browser-react`, `page.getByRole`, `userEvent` from `vitest/browser`). Logic goes in
+  `api.ts` / `lib/` so it's testable without rendering; page tests render through
+  `apps/web/test/support/render.tsx`.
+- `e2e/` runs against the real Docker stack (Postgres, LocalStack S3, Mailpit, the built image) with
+  `pnpm test:e2e`, never in `pnpm test`; GitHub, the OIDC provider and webhook receivers are host
+  fakes. A bug only the real stack finds gets a regression test in its owning package. See
+  `e2e/README.md`.
 - External services (GitHub, SMTP, OIDC) are faked at their edge; say so when something has only been
   tested against a fake.

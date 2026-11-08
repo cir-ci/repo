@@ -11,7 +11,9 @@
     "apps/*/test/**/*.ts",
     "packages/*/src/**/*.ts",
     "packages/*/test/**/*.ts",
+    "e2e/src/**/*.ts",
+    "e2e/test/**/*.ts",
     "vitest.config.ts"
   ],
-  "exclude": ["apps/web"]
+  "exclude": ["apps/web", "packages/ui"]
 }

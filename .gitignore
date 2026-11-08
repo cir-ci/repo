@@ -7,3 +7,11 @@ coverage/
 !.env.example
 /data/
 .DS_Store
+
+# design-sync
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
+.vitest/

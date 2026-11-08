@@ -7,3 +7,5 @@ deploy/.env
 .env
 *.md
 coverage
+e2e/*
+!e2e/package.json
