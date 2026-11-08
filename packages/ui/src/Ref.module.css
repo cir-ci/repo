@@ -1,0 +1,28 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.value {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--circi-text-primary);
+  font-family: var(--circi-font-mono);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A smaller button than the 28px default, so a Ref fits in a row's text line. */
+.root .button {
+  width: 24px;
+  height: 24px;
+}
+
+.copied {
+  color: var(--circi-state-approved);
+  font-size: 11px;
+  font-weight: 500;
+}

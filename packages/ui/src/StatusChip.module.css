@@ -1,0 +1,13 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  height: 22px;
+  padding-inline: 8px;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}

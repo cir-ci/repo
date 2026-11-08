@@ -1,0 +1,31 @@
+.positioner {
+  z-index: var(--circi-z-tooltip);
+}
+
+.popup {
+  box-sizing: border-box;
+  max-width: 320px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  background: var(--circi-surface-highest);
+  color: var(--circi-text-primary);
+  font-size: 12px;
+  line-height: 1.4;
+  transform-origin: var(--transform-origin);
+  transition: opacity 120ms ease-out;
+}
+
+:root[data-circi-color-scheme='light'] .popup {
+  box-shadow: 0 4px 12px rgb(28 15 12 / 14%);
+}
+
+.popup[data-starting-style],
+.popup[data-ending-style] {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popup {
+    transition: none;
+  }
+}

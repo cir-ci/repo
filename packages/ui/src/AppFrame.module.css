@@ -1,0 +1,87 @@
+.root {
+  display: flex;
+  flex-wrap: wrap;
+  background: var(--circi-surface-chrome);
+  color: var(--circi-text-primary);
+}
+
+.sidebar {
+  display: flex;
+  flex: 1 1 244px;
+  flex-direction: column;
+  gap: 1px;
+  box-sizing: border-box;
+  padding: 10px 8px;
+}
+
+.main {
+  display: flex;
+  flex: 999 1 560px;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0 8px 8px;
+  overflow: hidden;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 10px;
+  background: var(--circi-surface-panel);
+}
+
+.main:focus-visible {
+  outline: none;
+}
+
+/* Only shown below 820px, and only when the app gives a compact bar. */
+.bar {
+  display: none;
+  flex: 1 0 100%;
+  box-sizing: border-box;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 8px;
+}
+
+@media (max-width: 819.98px) {
+  .root[data-compact] .bar {
+    display: flex;
+  }
+
+  .root[data-compact] .sidebar {
+    display: none;
+  }
+
+  /* Bar on top, the panel fills the rest of the height. */
+  .root[data-compact] {
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+
+  .root[data-compact] .bar {
+    flex: none;
+  }
+
+  .root[data-compact] .main {
+    flex: 1 1 auto;
+  }
+}
+
+/* From 820px up the sidebar sits beside the panel; below it stacks above. */
+@media (min-width: 820px) {
+  /*
+   * The sidebar stays in view while a long page scrolls, so the account menu at its foot is
+   * always reachable. Its height is the frame's minimum height (the viewport by default).
+   */
+  .sidebar {
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: var(--circi-frame-height, 100dvh);
+    max-height: 100dvh;
+    max-width: 244px;
+    overflow-y: auto;
+  }
+
+  .main {
+    margin: 8px 8px 8px 0;
+  }
+}

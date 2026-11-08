@@ -1,0 +1,18 @@
+.root {
+  margin: 0;
+  color: var(--circi-text-primary);
+  font-family: var(--circi-font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.root[data-level='title'] {
+  font-size: 15px;
+}
+
+.root[data-level='display'] {
+  font-size: 20px;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+}

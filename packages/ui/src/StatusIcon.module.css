@@ -1,0 +1,25 @@
+.root {
+  flex-shrink: 0;
+  color: var(--circi-text-tertiary);
+}
+
+.root[data-status='approved'] {
+  color: var(--circi-state-approved);
+}
+
+.root[data-status='needs-review'] {
+  color: var(--circi-state-review);
+}
+
+.root[data-status='processing'] {
+  color: var(--circi-state-processing);
+}
+
+.root[data-status='rejected'] {
+  color: var(--circi-state-rejected);
+}
+
+/* The check and cross are cut out of the filled disc in the page's ground colour. */
+.ink {
+  stroke: var(--circi-surface-chrome);
+}

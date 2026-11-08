@@ -1,0 +1,157 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.label {
+  color: var(--circi-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 32px;
+  padding-inline: 10px 6px;
+  border: 1px solid var(--circi-line-strong);
+  border-radius: 6px;
+  background: var(--circi-surface-raised);
+  color: var(--circi-text-primary);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  text-align: start;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.trigger:focus-visible {
+  outline: 2px solid var(--circi-accent-main);
+  outline-offset: 2px;
+}
+
+.trigger[data-popup-open] {
+  background: var(--circi-surface-overlay);
+}
+
+.trigger[data-invalid] {
+  border-color: var(--circi-state-rejected);
+}
+
+.trigger[data-disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.value[data-placeholder] {
+  color: var(--circi-text-tertiary);
+}
+
+.chevron {
+  display: inline-flex;
+  flex: none;
+  color: var(--circi-text-secondary);
+}
+
+.description,
+.error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.description {
+  color: var(--circi-text-tertiary);
+}
+
+.error {
+  color: var(--circi-state-rejected);
+}
+
+/* Above a Dialog (1400) while MUI still exists. */
+.positioner {
+  z-index: var(--circi-z-popup);
+  outline: none;
+}
+
+.popup {
+  box-sizing: border-box;
+  min-width: var(--anchor-width);
+  max-height: var(--available-height);
+  padding: 4px;
+  overflow-y: auto;
+  border: 1px solid var(--circi-line-strong);
+  border-radius: 8px;
+  background: var(--circi-surface-overlay);
+  color: var(--circi-text-primary);
+  font-size: 13px;
+  outline: none;
+  transform-origin: var(--transform-origin);
+  transition:
+    opacity 120ms ease-out,
+    scale 120ms ease-out;
+}
+
+:root[data-circi-color-scheme='light'] .popup {
+  box-shadow: 0 8px 24px rgb(28 15 12 / 14%);
+}
+
+.popup[data-starting-style],
+.popup[data-ending-style] {
+  opacity: 0;
+  scale: 0.98;
+}
+
+.list {
+  outline: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  height: 28px;
+  padding-inline: 6px 10px;
+  border-radius: 5px;
+  cursor: default;
+  user-select: none;
+  outline: none;
+}
+
+.item[data-highlighted] {
+  background: var(--circi-action-hover);
+}
+
+.item[data-disabled] {
+  opacity: 0.45;
+}
+
+/* Reserve the indicator's width so labels line up whether or not an item is selected. */
+.indicator {
+  display: inline-flex;
+  flex: none;
+  width: 14px;
+  color: var(--circi-accent-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popup {
+    transition: none;
+  }
+}

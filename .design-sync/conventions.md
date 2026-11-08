@@ -1,0 +1,45 @@
+# CirCI design system
+
+CirCI is a self-hosted visual-regression dashboard. The look is dense and quiet: the screenshots under review are the loudest thing on screen, and everything else steps back. There is a light and a dark scheme; dark is the default and the reference look.
+
+## Setup (required)
+
+Wrap every screen in `CirciTheme`. It owns the colour scheme (it sets `data-circi-color-scheme` on `<html>`, which picks the colour tokens and `color-scheme`); the page ground and font come with the package's stylesheet. It follows the system scheme; `<CirciTheme mode="light">` pins one. To show one area in the other scheme, put `data-circi-color-scheme="light"` (or `"dark"`) on its wrapper. `ColorSchemeControl` is the viewer's System / Light / Dark switch.
+
+```jsx
+const { CirciTheme, AppFrame, NavItem, PanelHeader, ListRow, StatusIcon, StatusChip, tokens } = window.CirciUI
+
+<CirciTheme>
+  <AppFrame
+    sidebar={<>
+      <NavItem href="#" selected>Projects</NavItem>
+      <NavItem href="#">Members</NavItem>
+    </>}
+  >
+    <PanelHeader actions={<StatusChip status="needs-review" />}>web-app / Build #148</PanelHeader>
+    <ListRow leading={<StatusIcon status="approved" />} trailing={<span>2m</span>}>Add payment form validation</ListRow>
+  </AppFrame>
+</CirciTheme>
+```
+
+## Styling idiom
+
+There are no CSS classes to use: components are styled in JS. Build your own layout glue with inline styles and the values in `tokens` (a plain object on `window.CirciUI`). Every token is a CSS variable (`var(--circi-surface-panel)`), so the same style works in both schemes; never copy hex values. `palettes.light` / `palettes.dark` hold the raw colours for the rare place a variable can't go:
+
+- Surfaces, dimmest to highest: `tokens.surface.chrome` (sidebar and page ground), `panel` (content), `raised` (inputs, buttons), `overlay` (menus), `highest`.
+- Text: `tokens.text.primary`, `secondary`, `tertiary`.
+- Accent: `tokens.accent.main` (the logo-derived clay), `tokens.accent.text` for accent-coloured text, `tokens.accent.onAccent` for text on an accent fill, `tokens.accent.subtle` behind a selected row.
+- State: `tokens.state.approved` (teal), `review` (amber), `processing` (periwinkle), `rejected` (rose). Use them only for state, never decoration.
+- Lines: `tokens.line.subtle` for dividers, `strong` for control edges. Use hairlines, not shadows.
+- Brand: `tokens.brand.maroon`, `blush`, `rosewood`, `salmon`, `terracotta` (the logo's tones).
+- Fonts: Inter at 13px for UI; `window.CirciUI.monoFont` for branch names, commit SHAs and anything copyable.
+
+State is always shown with `StatusIcon` or `StatusChip` (shape plus colour), with these `status` values: `approved`, `needs-review`, `processing`, `rejected`, `neutral`.
+
+## Layout
+
+`AppFrame` puts a dim sidebar beside one lifted content panel; the panel starts with `PanelHeader` (44px: breadcrumb left, actions right). Lists are `ListRow`s (44px, hairline between). Switch views of one thing with `SegmentedControl`; show shortcut hints with `Kbd`. Dense, left-aligned, no cards-in-cards.
+
+## Where to look
+
+Read `styles.css` for the font faces and each component's `.d.ts` for props before building. The source of truth for colours is `tokens`, not hex values copied from screenshots.

@@ -1,0 +1,132 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  height: 28px;
+  padding-inline: 10px;
+  border: 1px solid var(--circi-line-strong);
+  border-radius: 6px;
+  background: var(--circi-surface-raised);
+  color: var(--circi-text-primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 120ms ease-out;
+}
+
+.root[data-size='sm'] {
+  height: 24px;
+}
+
+.root:hover {
+  background: var(--circi-surface-overlay);
+}
+
+.root[data-variant='primary'] {
+  border-color: transparent;
+  background: var(--circi-accent-main);
+  color: var(--circi-accent-on-accent);
+}
+
+.root[data-variant='primary']:hover {
+  background: color-mix(in srgb, var(--circi-accent-main) 92%, var(--circi-text-primary));
+}
+
+.root[data-variant='danger'] {
+  color: var(--circi-state-rejected);
+}
+
+.root[data-variant='ghost'] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--circi-text-secondary);
+}
+
+.root[data-variant='ghost']:hover {
+  background: var(--circi-action-hover);
+}
+
+.root:focus-visible {
+  outline: 2px solid var(--circi-accent-main);
+  outline-offset: 2px;
+}
+
+.root[data-disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Disabled buttons don't react to the pointer. */
+.root[data-disabled]:hover {
+  background: var(--circi-surface-raised);
+}
+
+.root[data-disabled][data-variant='primary']:hover {
+  background: var(--circi-accent-main);
+}
+
+.root[data-disabled][data-variant='ghost']:hover {
+  background: transparent;
+}
+
+/* While loading the button is not "disabled" to the eye: the spinner explains it. */
+.root[data-loading] {
+  opacity: 1;
+  cursor: progress;
+}
+
+.spinner {
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+  border: 1.5px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    transition: none;
+  }
+
+  .spinner {
+    animation: none;
+  }
+}
+
+/* A text-only action: accent colour, underlined on hover, no box. */
+.root[data-variant='link'] {
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--circi-accent-text);
+  font-weight: inherit;
+}
+
+.root[data-variant='link']:hover {
+  background: transparent;
+  text-decoration: underline;
+}
+
+.root[data-disabled][data-variant='link']:hover {
+  background: transparent;
+  text-decoration: none;
+}
+
+a.root {
+  text-decoration: none;
+}

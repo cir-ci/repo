@@ -1,0 +1,9 @@
+.root {
+  color: var(--circi-accent-text);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.root:hover {
+  text-decoration: underline;
+}

@@ -1,0 +1,40 @@
+.root {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--circi-line-subtle);
+  background: transparent;
+  color: var(--circi-text-primary);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+}
+
+.root[data-interactive] {
+  cursor: pointer;
+}
+
+.root[data-interactive]:hover {
+  background: var(--circi-action-hover);
+}
+
+.root[data-selected] {
+  background: var(--circi-accent-subtle);
+  box-shadow: inset 2px 0 0 var(--circi-accent-main);
+}
+
+.root:focus-visible {
+  outline: 2px solid var(--circi-accent-main);
+  outline-offset: -2px;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+}

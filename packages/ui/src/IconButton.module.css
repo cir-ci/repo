@@ -1,0 +1,46 @@
+.root {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--circi-text-secondary);
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+
+.root svg {
+  width: 16px;
+  height: 16px;
+}
+
+.root:hover {
+  background: var(--circi-action-hover);
+}
+
+.root:focus-visible {
+  outline: 2px solid var(--circi-accent-main);
+  outline-offset: 2px;
+}
+
+.root[data-disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.root[data-disabled]:hover {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    transition: none;
+  }
+}

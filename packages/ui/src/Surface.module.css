@@ -1,0 +1,24 @@
+.root {
+  box-sizing: border-box;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 8px;
+  background: var(--circi-surface-panel);
+  color: var(--circi-text-primary);
+}
+
+.root[data-variant='chrome'] {
+  border-radius: 0;
+  background: var(--circi-surface-chrome);
+}
+
+.root[data-variant='panel'] {
+  border-radius: 10px;
+}
+
+.root[data-variant='raised'] {
+  background: var(--circi-surface-raised);
+}
+
+.root[data-variant='overlay'] {
+  background: var(--circi-surface-overlay);
+}

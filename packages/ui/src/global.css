@@ -1,0 +1,26 @@
+/*
+ * The one global stylesheet. The token variables for both schemes are generated from
+ * `tokenVariables()` in theme.ts (see ../tokens-css.ts) where the marker below stands, so
+ * theme.ts stays the single source. The rest is the base reset: low specificity (`:where`) so it
+ * never fights a component. `color-scheme` is set per scheme alongside the variables.
+ */
+/* @circi-tokens */
+
+:where(*, *::before, *::after) {
+  box-sizing: border-box;
+}
+
+:where(body) {
+  margin: 0;
+  background: var(--circi-surface-chrome);
+  color: var(--circi-text-primary);
+  font-family: var(--circi-font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+:where(:focus-visible) {
+  outline: 2px solid var(--circi-accent-main);
+  outline-offset: 2px;
+}

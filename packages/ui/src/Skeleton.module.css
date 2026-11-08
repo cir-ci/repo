@@ -1,0 +1,46 @@
+.root {
+  display: block;
+  max-width: 100%;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--circi-surface-raised) 25%,
+    var(--circi-action-selected) 50%,
+    var(--circi-surface-raised) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  height: 44px;
+  padding-inline: 16px;
+  border-bottom: 1px solid var(--circi-line-subtle);
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    animation: none;
+    background: var(--circi-surface-raised);
+  }
+}

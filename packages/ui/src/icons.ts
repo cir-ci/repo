@@ -1,0 +1,110 @@
+import type { LucideIcon, LucideProps } from 'lucide-react'
+import {
+  ArrowLeft,
+  Check,
+  ChevronDown,
+  ChevronsUpDown,
+  ChevronUp,
+  CircleAlert,
+  CircleCheck,
+  CircleCheckBig,
+  CircleMinus,
+  CirclePlus,
+  CircleX,
+  CloudUpload,
+  Diff,
+  FolderOpen,
+  Globe,
+  Hourglass,
+  Images,
+  Inbox,
+  Info,
+  Copy,
+  ChevronRight,
+  Minus,
+  MoreHorizontal,
+  X,
+  LogOut,
+  Menu,
+  MessageSquareText,
+  RefreshCw,
+  TriangleAlert,
+  User,
+  Users,
+} from 'lucide-react'
+import { createElement } from 'react'
+
+/** Icon props: Lucide's, so `size`, `strokeWidth`, `className` and `aria-label` all work. */
+export type IconProps = LucideProps
+
+/** The defaults (docs/design-gaps.md §12): 16px, stroke 1.75, colour inherited, hidden from assistive tech. */
+function icon(Glyph: LucideIcon, name: string) {
+  function Icon(props: IconProps) {
+    return createElement(Glyph, {
+      size: 16,
+      strokeWidth: 1.75,
+      'aria-hidden': props['aria-label'] ? undefined : true,
+      ...props,
+    })
+  }
+  Icon.displayName = name
+  return Icon
+}
+
+/*
+ * The icons the web app uses today (Material icon -> Lucide icon). Add one here when a page needs
+ * it; apps never import `lucide-react` themselves. Status is never one of these: use `StatusIcon`.
+ *
+ *   AddCircleOutlineOutlined       CirclePlus
+ *   ArrowBack                      ArrowLeft
+ *   CancelOutlined                 CircleX
+ *   CheckCircleOutlineOutlined     CircleCheck
+ *   CloudUploadOutlined            CloudUpload
+ *   CollectionsOutlined            Images
+ *   DifferenceOutlined             Diff
+ *   ErrorOutlineOutlined           CircleAlert
+ *   ExpandLess                     ChevronUp
+ *   ExpandMore                     ChevronDown
+ *   FolderOpenOutlined             FolderOpen
+ *   PublicOutlined                 Globe
+ *   HourglassEmpty                 Hourglass
+ *   RateReviewOutlined             MessageSquareText
+ *   Refresh                        RefreshCw
+ *   RemoveCircleOutlineOutlined    CircleMinus
+ *   ReportProblemOutlined          TriangleAlert
+ *   TaskAlt                        CircleCheckBig
+ *   (shell)                        Check, ChevronsUpDown, LogOut, Menu, User, Users
+ *   (components)                   ChevronRight, Copy, Inbox, Info, Minus, MoreHorizontal (the row's "…"), X
+ */
+export const AddCircleIcon = icon(CirclePlus, 'AddCircleIcon')
+export const ArrowBackIcon = icon(ArrowLeft, 'ArrowBackIcon')
+export const CheckIcon = icon(Check, 'CheckIcon')
+export const CancelIcon = icon(CircleX, 'CancelIcon')
+export const CheckCircleIcon = icon(CircleCheck, 'CheckCircleIcon')
+export const CloudUploadIcon = icon(CloudUpload, 'CloudUploadIcon')
+export const CollectionsIcon = icon(Images, 'CollectionsIcon')
+export const DifferenceIcon = icon(Diff, 'DifferenceIcon')
+export const ErrorIcon = icon(CircleAlert, 'ErrorIcon')
+export const ChevronsUpDownIcon = icon(ChevronsUpDown, 'ChevronsUpDownIcon')
+export const ExpandLessIcon = icon(ChevronUp, 'ExpandLessIcon')
+export const ExpandMoreIcon = icon(ChevronDown, 'ExpandMoreIcon')
+export const FolderOpenIcon = icon(FolderOpen, 'FolderOpenIcon')
+export const GlobeIcon = icon(Globe, 'GlobeIcon')
+export const HourglassIcon = icon(Hourglass, 'HourglassIcon')
+export const ReviewIcon = icon(MessageSquareText, 'ReviewIcon')
+export const RefreshIcon = icon(RefreshCw, 'RefreshIcon')
+export const RemoveCircleIcon = icon(CircleMinus, 'RemoveCircleIcon')
+export const WarningIcon = icon(TriangleAlert, 'WarningIcon')
+export const TaskDoneIcon = icon(CircleCheckBig, 'TaskDoneIcon')
+export const LogOutIcon = icon(LogOut, 'LogOutIcon')
+export const MenuIcon = icon(Menu, 'MenuIcon')
+export const UserIcon = icon(User, 'UserIcon')
+export const UsersIcon = icon(Users, 'UsersIcon')
+export const ChevronRightIcon = icon(ChevronRight, 'ChevronRightIcon')
+export const CloseIcon = icon(X, 'CloseIcon')
+export const CopyIcon = icon(Copy, 'CopyIcon')
+export const InboxIcon = icon(Inbox, 'InboxIcon')
+export const InfoIcon = icon(Info, 'InfoIcon')
+export const MinusIcon = icon(Minus, 'MinusIcon')
+/** The "…" that opens a row's `Menu`, as the icon of an `IconButton` (docs/design-gaps.md §9, §12). */
+export const RowMenuIcon = icon(MoreHorizontal, 'RowMenuIcon')

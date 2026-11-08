@@ -1,0 +1,49 @@
+.root {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  box-sizing: border-box;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--circi-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+
+.root:hover {
+  background: var(--circi-action-hover);
+  color: var(--circi-text-primary);
+}
+
+.root[data-selected] {
+  background: var(--circi-action-selected);
+  color: var(--circi-text-primary);
+}
+
+.root:focus-visible {
+  outline: 2px solid var(--circi-accent-main);
+  outline-offset: 2px;
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    transition: none;
+  }
+}

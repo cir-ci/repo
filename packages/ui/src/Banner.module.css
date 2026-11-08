@@ -1,0 +1,51 @@
+.root {
+  --banner-color: var(--circi-state-processing);
+
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--banner-color) 40%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--banner-color) 8%, transparent);
+  color: var(--circi-text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.root[data-tone='success'] {
+  --banner-color: var(--circi-state-approved);
+}
+
+.root[data-tone='warning'] {
+  --banner-color: var(--circi-state-review);
+}
+
+.root[data-tone='danger'] {
+  --banner-color: var(--circi-state-rejected);
+}
+
+.icon {
+  flex: none;
+  margin-block: 2px;
+  color: var(--banner-color);
+}
+
+.body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.title {
+  margin-inline-end: 6px;
+  font-weight: 600;
+}
+
+.action {
+  flex: none;
+  display: flex;
+  align-items: center;
+  margin-block: -2px;
+}

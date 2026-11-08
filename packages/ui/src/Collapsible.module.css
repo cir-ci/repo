@@ -1,0 +1,65 @@
+.root {
+  display: flex;
+  flex-direction: column;
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 28px;
+  padding-inline: 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--circi-text-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: start;
+  cursor: pointer;
+}
+
+.trigger:hover {
+  background: var(--circi-action-hover);
+}
+
+.trigger:focus-visible {
+  outline: 2px solid var(--circi-accent-main);
+  outline-offset: 2px;
+}
+
+.chevron {
+  flex: none;
+  transition: rotate 120ms ease-out;
+}
+
+.trigger[data-panel-open] .chevron {
+  rotate: 90deg;
+}
+
+.count {
+  color: var(--circi-text-tertiary);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.panel {
+  height: var(--collapsible-panel-height);
+  overflow: hidden;
+  transition: height 120ms ease-out;
+}
+
+.panel[data-starting-style],
+.panel[data-ending-style] {
+  height: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron,
+  .panel {
+    transition: none;
+  }
+}

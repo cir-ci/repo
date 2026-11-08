@@ -1,0 +1,50 @@
+.root {
+  min-width: 0;
+  font-size: 13px;
+}
+
+.list {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: inline-flex;
+  min-width: 0;
+}
+
+/* Decorative: the empty alternative text keeps the slash out of the accessibility tree. */
+.item + .item::before {
+  content: '/' / '';
+  padding-inline: 8px;
+  color: var(--circi-text-tertiary);
+}
+
+.link {
+  color: var(--circi-text-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.link:hover {
+  color: var(--circi-text-primary);
+  text-decoration: underline;
+}
+
+.link:focus-visible {
+  border-radius: 3px;
+  outline: 2px solid var(--circi-accent-main);
+  outline-offset: 2px;
+}
+
+.current {
+  overflow: hidden;
+  color: var(--circi-text-primary);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

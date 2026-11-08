@@ -1,0 +1,19 @@
+.root {
+  position: absolute;
+  top: -48px;
+  left: 8px;
+  z-index: var(--circi-z-skip);
+  padding: 8px 16px;
+  border: 1px solid var(--circi-line-strong);
+  border-radius: 6px;
+  background: var(--circi-surface-overlay);
+  color: var(--circi-text-primary);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.root:focus {
+  top: 8px;
+  outline: 2px solid var(--circi-accent-main);
+  outline-offset: 2px;
+}
