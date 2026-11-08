@@ -12,6 +12,11 @@
       "@circi/source": "./src/index.ts",
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"
+    },
+    "./browser": {
+      "@circi/source": "./src/browser.ts",
+      "types": "./dist/browser.d.mts",
+      "default": "./dist/browser.mjs"
     }
   },
   "publishConfig": {
@@ -19,6 +24,10 @@
       ".": {
         "types": "./dist/index.d.mts",
         "default": "./dist/index.mjs"
+      },
+      "./browser": {
+        "types": "./dist/browser.d.mts",
+        "default": "./dist/browser.mjs"
       }
     }
   },
@@ -33,5 +42,8 @@
     "@circi/cli": "workspace:*",
     "publint": "catalog:",
     "tsdown": "catalog:"
+  },
+  "peerDependencies": {
+    "vitest": ">=4"
   }
 }

@@ -1,3 +1,5 @@
+import { resolve } from 'node:path'
+
 import { type UploadOptions, type UploadResult, upload } from '@circi/cli'
 
 import { type CollectedScreenshot, collectDirectory, collectToMatchScreenshot } from './collect.ts'
@@ -15,7 +17,7 @@ export interface CirciReporterOptions {
   dir?: string
   /** Also upload the pictures Vitest's `toMatchScreenshot` produced. Default false. */
   collectToMatchScreenshot?: boolean
-  /** Project root to look in. Default: the current directory. */
+  /** Project root to look in. Default: the root of the Vitest run. */
   root?: string
   /** Wait for the result and fail the run when changes need review. Default false. */
   wait?: boolean
@@ -42,8 +44,15 @@ type RunEnd = (
  */
 export class CirciReporter {
   readonly onTestRunEnd: RunEnd
+  readonly onInit: (vitest: { config: { root: string } }) => void
 
   constructor(options: CirciReporterOptions = {}) {
+    // `circiScreenshot` saves under the Vitest project's root, so that is where to look, whatever
+    // directory the run was started from.
+    let vitestRoot: string | undefined
+    this.onInit = (vitest) => {
+      vitestRoot = vitest.config.root
+    }
     this.onTestRunEnd = async () => {
       const log = options.log ?? ((l: string) => console.log(l))
       const apiUrl = options.apiUrl ?? process.env.CIRCI_API_URL
@@ -52,7 +61,10 @@ export class CirciReporter {
         log('[circi] skipped: set CIRCI_API_URL and CIRCI_TOKEN to upload screenshots')
         return
       }
-      const shots = await (options.collectImpl ?? collect)(options)
+      const shots = await (options.collectImpl ?? collect)({
+        ...options,
+        root: options.root ?? vitestRoot,
+      })
       if (shots.length === 0) {
         log('[circi] no screenshots found, nothing to upload')
         return
@@ -80,7 +92,7 @@ export class CirciReporter {
 
 async function collect(options: CirciReporterOptions): Promise<CollectedScreenshot[]> {
   const root = options.root ?? process.cwd()
-  const own = await collectDirectory(`${root}/${options.dir ?? DEFAULT_DIR}`)
+  const own = await collectDirectory(resolve(root, options.dir ?? DEFAULT_DIR))
   const adopted = options.collectToMatchScreenshot ? await collectToMatchScreenshot(root) : []
   const names = new Set(own.map((s) => s.name))
   return [...own, ...adopted.filter((s) => !names.has(s.name))]

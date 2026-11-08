@@ -75,4 +75,24 @@ describe('CirciReporter', () => {
     expect(lines.join('\n')).toContain('server down')
     expect(process.exitCode).toBe(before)
   })
+
+  it('looks in the root Vitest reports, not the directory the run was started from', async () => {
+    // circiScreenshot saves under the Vitest project's root; `vitest --root x` or a run from a
+    // subfolder must still find those pictures.
+    await touch('.circi/screenshots/button/primary.png')
+    const staged: string[] = []
+    const reporter = new CirciReporter({
+      apiUrl: 'https://x',
+      token: 't',
+      uploadImpl: async (o) => {
+        const { readdir } = await import('node:fs/promises')
+        staged.push(...(await readdir(`${o.dir}/button`)))
+        return result
+      },
+      ...quiet,
+    })
+    reporter.onInit({ config: { root: tmp.root() } })
+    await reporter.onTestRunEnd([], [], 'passed')
+    expect(staged).toEqual(['primary.png'])
+  })
 })

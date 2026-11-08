@@ -13,6 +13,11 @@ export interface ScreenshotOptions {
   dir?: string
   /** Called before the picture is taken, to wait for something specific. */
   ready?: () => Promise<void> | void
+  /**
+   * The project root that a relative `dir` is under. Default: the root of the Vitest project
+   * running the test, which is also where `CirciReporter` looks.
+   */
+  root?: string
 }
 
 export const DEFAULT_DIR = '.circi/screenshots'
@@ -64,6 +69,21 @@ function currentDocument(): PageDocument {
   return found as PageDocument
 }
 
+/**
+ * Vitest saves `screenshot({ path })` relative to the *test file*, not to the project, so the
+ * reporter would never find a relative path. The path is made absolute, under the project root.
+ */
+async function absolutePath(dir: string, file: string, root?: string): Promise<string> {
+  if (dir.startsWith('/') || /^[A-Za-z]:[\\/]/.test(dir)) return `${dir}/${file}`
+  const base = root ?? (await browserProjectRoot())
+  return `${base}/${dir}/${file}`
+}
+
+async function browserProjectRoot(): Promise<string> {
+  const { server } = await import('vitest/browser')
+  return server.config.root
+}
+
 const frame = (): Promise<void> =>
   new Promise((resolve) => {
     const raf: unknown = Reflect.get(globalThis, 'requestAnimationFrame')
@@ -79,15 +99,18 @@ export async function settlePage(doc: PageDocument = currentDocument()): Promise
     style.textContent = STABILIZE_CSS
     doc.head.append(style)
   }
+  // A frame first: a font is only requested once the text that uses it has been laid out, and
+  // `fonts.ready` resolves at once while nothing has been requested yet.
+  await frame()
   await doc.fonts?.ready
-  // Two frames: layout triggered by the fonts or the style has been applied and painted.
+  // Two more: layout triggered by the fonts or the style has been applied and painted.
   await frame()
   await frame()
 }
 
 /**
  * Takes a stabilized screenshot named `name` (e.g. `settings/profile`), saved under `dir`.
- * Returns the path it wrote, relative to `dir`'s parent project.
+ * Returns the path it wrote, relative to the project root.
  */
 export async function circiScreenshot(
   target: Screenshotter,
@@ -96,7 +119,8 @@ export async function circiScreenshot(
 ): Promise<string> {
   await settlePage()
   await options.ready?.()
-  const path = `${options.dir ?? DEFAULT_DIR}/${screenshotPath(name)}`
-  await target.screenshot({ path })
-  return path
+  const dir = options.dir ?? DEFAULT_DIR
+  const file = screenshotPath(name)
+  await target.screenshot({ path: await absolutePath(dir, file, options.root) })
+  return `${dir}/${file}`
 }
