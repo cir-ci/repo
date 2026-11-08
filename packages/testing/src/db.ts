@@ -1,6 +1,7 @@
 import {
   createProject,
   type Database,
+  type ListenFn,
   migrationsFolder,
   type Organization,
   schema,
@@ -13,6 +14,8 @@ import { migrate } from 'drizzle-orm/pglite/migrator'
 export interface TestDb {
   client: PGlite
   db: Database
+  /** PGlite's LISTEN, shaped like the production `ListenFn`. */
+  listen: ListenFn
   close(): Promise<void>
 }
 
@@ -21,7 +24,13 @@ export async function createTestDb(): Promise<TestDb> {
   const client = new PGlite()
   const db = drizzle({ client, schema })
   await migrate(db, { migrationsFolder })
-  return { client, db, close: () => client.close() }
+  const listen: ListenFn = async (channel, onNotify) => {
+    const unsubscribe = await client.listen(channel, onNotify)
+    return async () => {
+      await unsubscribe()
+    }
+  }
+  return { client, db, listen, close: () => client.close() }
 }
 
 let n = 0

@@ -2,12 +2,16 @@ export {
   createDb,
   type Database,
   type DbHandle,
+  type ListenFn,
   migrationsFolder,
   runMigrations,
   type Schema,
+  withAdvisoryLock,
 } from './client.ts'
 export * from './errors.ts'
-export * from './queries/dashboard.ts'
+export * from './queries/builds.ts'
+export * from './queries/files.ts'
+export * from './queries/projects.ts'
 export * from './repositories/auth-settings.ts'
 export * from './repositories/builds.ts'
 export * from './repositories/domains.ts'

@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { Readable } from 'node:stream'
 
 import { ensureAssetFiles } from '@circi/db'
-import { FsStorage } from '@circi/storage'
+import { FsStorage, type StorageDriver } from '@circi/storage'
 import { createTestDb, type TestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -67,5 +67,25 @@ describe('migrateStorage', () => {
     const seen: number[] = []
     await migrateStorage(t.db, { from, to, onFile: (n) => void seen.push(n) })
     expect(seen).toEqual([1, 2, 3])
+  })
+
+  it('copies again an object whose recorded checksum is not the file’s (a corrupt target)', async () => {
+    const victim = stored[1]
+    if (!victim) throw new Error('no files')
+    const size = (await to.head(victim.key))?.size ?? 0
+    // A target like S3 that knows each object's checksum: this one holds same-size wrong bytes.
+    const checksummed: StorageDriver = {
+      kind: 'fs',
+      put: (key, body, options) => to.put(key, body, options),
+      get: (key) => to.get(key),
+      delete: (key) => to.delete(key),
+      healthCheck: () => to.healthCheck(),
+      head: async (key) => {
+        const info = await to.head(key)
+        return info && key === victim.key ? { ...info, size, sha256: sha256('corrupt') } : info
+      },
+    }
+    const result = await migrateStorage(t.db, { from, to: checksummed })
+    expect(result).toMatchObject({ copied: 1, failed: [] })
   })
 })

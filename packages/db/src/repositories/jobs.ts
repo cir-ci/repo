@@ -13,6 +13,18 @@ export const QUEUES = {
   webhook: 'webhook',
 } as const
 
+/** The Postgres channel a worker LISTENs on; the payload is the queue name. */
+export const JOBS_CHANNEL = 'circi_jobs'
+
+/**
+ * Sends `NOTIFY circi_jobs, '<queue>'`. Postgres delivers a notification when the surrounding
+ * transaction commits (and drops it on rollback), so a worker is woken exactly when the job
+ * becomes visible: the transactional-outbox guarantee is kept.
+ */
+export async function notifyJobs(db: Database, queue: string): Promise<void> {
+  await db.execute(sql`select pg_notify(${JOBS_CHANNEL}, ${queue})`)
+}
+
 export async function enqueueJob(
   db: Database,
   input: {
@@ -34,6 +46,8 @@ export async function enqueueJob(
       ...(input.maxAttempts ? { maxAttempts: input.maxAttempts } : {}),
     })
     .onConflictDoNothing()
+  // A job that is not due yet (retry backoff, a delayed run) is found by the worker's poll.
+  if (!input.runAt || input.runAt.getTime() <= Date.now()) await notifyJobs(db, input.queue)
 }
 
 /**

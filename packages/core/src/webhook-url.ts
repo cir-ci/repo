@@ -14,6 +14,23 @@ function ipv4Octets(address: string): number[] | undefined {
     : undefined
 }
 
+/** The IPv4 address inside `::ffff:a:b`, `::a:b` or the NAT64 `64:ff9b::a:b`, when there is one. */
+function embeddedIpv4(bare: string): string | undefined {
+  const [head = '', tail = ''] = bare.split('::')
+  if (!bare.includes('::')) return undefined
+  const groups = tail.split(':').filter(Boolean)
+  const lead = head.split(':').filter(Boolean)
+  if (lead.length === 0 && groups[0] === 'ffff') lead.push(groups.shift() ?? '')
+  if (groups.length < 1 || groups.length > 2) return undefined
+  const prefix = lead.join(':')
+  if (!['', 'ffff', '64:ff9b'].includes(prefix)) return undefined
+  const [hi, lo] = groups.length === 2 ? groups : ['0', groups[0]]
+  const a = Number.parseInt(hi ?? '0', 16)
+  const b = Number.parseInt(lo ?? '0', 16)
+  if (!(a >= 0 && a <= 0xffff && b >= 0 && b <= 0xffff)) return undefined
+  return `${a >> 8}.${a & 255}.${b >> 8}.${b & 255}`
+}
+
 /** Loopback, private, link-local (cloud metadata), shared, multicast and reserved addresses. */
 export function isPrivateAddress(address: string): boolean {
   const bare = address.replace(/^\[|\]$/g, '').toLowerCase()
@@ -36,6 +53,9 @@ export function isPrivateAddress(address: string): boolean {
   if (kind === 6) {
     const mapped = /^(?:::ffff:|::)(\d+\.\d+\.\d+\.\d+)$/.exec(bare)
     if (mapped?.[1]) return isPrivateAddress(mapped[1])
+    // URL parsing rewrites ::ffff:127.0.0.1 as ::ffff:7f00:1: an IPv4 address in the last 32 bits.
+    const embedded = embeddedIpv4(bare)
+    if (embedded) return isPrivateAddress(embedded)
     if (bare === '::' || bare === '::1') return true
     const first = Number.parseInt(bare.split(':')[0] || '0', 16)
     // fc00::/7 unique local, fe80::/10 link-local, ff00::/8 multicast

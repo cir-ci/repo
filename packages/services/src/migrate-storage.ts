@@ -31,7 +31,13 @@ export async function migrateStorage(
       try {
         // eslint-disable-next-line no-await-in-loop -- one object at a time keeps memory flat
         const existing = await input.to.head(file.storageKey)
-        if (existing && (file.size === null || existing.size === file.size)) {
+        // A target that records the checksum (S3) is compared by hash, so a same-size corrupt
+        // object is copied again; otherwise the size has to match.
+        const intact =
+          existing !== null &&
+          (file.size === null || existing.size === file.size) &&
+          (existing.sha256 === undefined || existing.sha256 === file.sha256)
+        if (intact) {
           result.skipped += 1
         } else {
           // eslint-disable-next-line no-await-in-loop

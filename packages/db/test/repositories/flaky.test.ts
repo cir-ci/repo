@@ -1,8 +1,7 @@
-import { createTestDb, seedProject, type TestDb } from '@circi/testing'
-import { eq } from 'drizzle-orm'
+import { createTestDb, seedBuild, seedDiff, seedProject, type TestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createBuild, listFlakyScreenshots, schema } from '../../src/index.ts'
+import { listFlakyScreenshots } from '../../src/index.ts'
 
 let t: TestDb
 beforeAll(async () => {
@@ -20,20 +19,15 @@ async function mainBuild(
   branch = 'main',
 ) {
   n += 1
-  const build = await createBuild(t.db, {
-    projectId,
+  const build = await seedBuild(t.db, projectId, {
     commitSha: `abc${String(n).padStart(4, '0')}0`,
     branch,
+    status: 'complete',
   })
-  await t.db.update(schema.builds).set({ status: 'complete' }).where(eq(schema.builds.id, build.id))
-  await t.db.insert(schema.screenshotDiffs).values(
-    Object.entries(statuses).map(([name, status]) => ({
-      buildId: build.id,
-      name,
-      status,
-      jobStatus: 'done' as const,
-    })),
-  )
+  for (const [name, status] of Object.entries(statuses)) {
+    // oxlint-disable-next-line no-await-in-loop -- a few rows, in order
+    await seedDiff(t.db, { buildId: build.id, name, status })
+  }
 }
 
 describe('listFlakyScreenshots', () => {

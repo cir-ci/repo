@@ -65,3 +65,28 @@ describe('job queue', () => {
     expect(again?.id).toBe(job.id)
   })
 })
+
+describe('job notifications', () => {
+  it('notifies the jobs channel with the queue name once the job is committed', async () => {
+    const received: string[] = []
+    const unsub = await t.client.listen('circi_jobs', (p) => received.push(p))
+    try {
+      await enqueueJob(t.db, { queue: 'qn1', payload: {} })
+      await expect.poll(() => received).toEqual(['qn1'])
+    } finally {
+      await unsub()
+    }
+  })
+
+  it('does not notify for a job that is not due yet', async () => {
+    const received: string[] = []
+    const unsub = await t.client.listen('circi_jobs', (p) => received.push(p))
+    try {
+      await enqueueJob(t.db, { queue: 'qn2', payload: {}, runAt: new Date(Date.now() + 60_000) })
+      await enqueueJob(t.db, { queue: 'qn3', payload: {} })
+      await expect.poll(() => received).toEqual(['qn3'])
+    } finally {
+      await unsub()
+    }
+  })
+})
