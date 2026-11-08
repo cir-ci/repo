@@ -29,7 +29,7 @@ pnpm test:e2e --shard=1/3                       # a third of the files, for CI (
 ```
 
 Without Docker the run fails within seconds with a message saying so. The image is rebuilt on
-every run (`docker build`, so the layer cache makes an unchanged tree take seconds; the first
+every run (`docker build`, which builds only the server bundle and the web app, so the layer cache makes an unchanged tree take seconds; the first
 build on a machine takes several minutes). `circi:e2e` is a shared tag: change code, rerun, and
 the new image is what every parallel run of the same checkout sees next.
 

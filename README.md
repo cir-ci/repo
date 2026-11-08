@@ -135,7 +135,7 @@ pnpm test          # Vitest; database tests run on PGlite, so no Docker needed
 pnpm typecheck
 pnpm lint          # oxlint, including type-aware rules
 pnpm format        # oxfmt (pnpm format:check in CI)
-pnpm build         # tsc project build → */dist
+pnpm build         # tsdown (ui, cli, vitest, server bundle) and Vite (web) → */dist; the other packages run from source
 
 # Run the server from source against your own Postgres:
 DATABASE_URL=postgres://… BETTER_AUTH_SECRET=$(openssl rand -base64 32) STORAGE_PATH=./data pnpm circi all

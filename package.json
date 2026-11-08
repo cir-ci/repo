@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -b tsconfig.build.json && pnpm --filter @circi/ui --filter @circi/cli --filter @circi/vitest --filter @circi/server build && pnpm --filter @circi/web build",
+    "build": "pnpm --filter @circi/ui --filter @circi/cli --filter @circi/vitest --filter @circi/server build && pnpm --filter @circi/web build",
     "typecheck": "tsc -p tsconfig.json && tsc -p apps/web && tsc -p packages/ui",
     "lint": "oxlint --type-aware --deny-warnings",
     "format": "oxfmt",
@@ -12,7 +12,7 @@
     "test:watch": "vitest",
     "db:generate": "pnpm --filter @circi/db generate",
     "circi": "node --conditions=@circi/source apps/server/src/main.ts",
-    "clean": "rm -rf apps/*/dist packages/*/dist apps/*/*.tsbuildinfo packages/*/*.tsbuildinfo",
+    "clean": "rm -rf apps/*/dist packages/*/dist",
     "format:check": "oxfmt --check",
     "db:auth-schema": "pnpm --filter @circi/auth schema"
   },

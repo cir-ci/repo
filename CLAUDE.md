@@ -5,6 +5,10 @@ Self-hosted visual regression testing (see PLAN.md for the design, README.md for
 ## Commands
 
 Node 26 via nvm, pnpm 12. Before committing: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build`.
+What emits what: `tsc` only type-checks (`pnpm typecheck`, `noEmit`). `pnpm build` runs tsdown for
+`@circi/ui` (`dist`, browser), `@circi/cli` and `@circi/vitest` (published, `dist`) and `apps/server`
+(one bundle for the image), then Vite for `apps/web`. The other packages have no build: their
+`exports` point at `src/*.ts`, which Node, Vitest, Vite, tsc and tsdown all read directly.
 Commit messages end with the `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>` line. No remote repo yet: commits stay local.
 
 ## Layout and layers
@@ -13,7 +17,7 @@ Commit messages end with the `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthrop
 apps/server     HTTP routes (http/, shared helpers in http/lib/), admin CLI, process lifecycle
                 (lifecycle/services.ts composes lifecycle/{startup,server-options,shutdown}.ts);
                 built with tsdown into one bundle for the image (deploy/README.md)
-apps/worker     background jobs (process-build, webhook delivery, git-notify)
+apps/worker     background jobs (process-build, webhook delivery, git-notify); no build, the server bundle inlines it
 apps/web        the dashboard, organised by feature: src/features/<feature>/{api.ts, *Page.tsx, …}
 packages/api    the dashboard API's wire types (types only, one namespace per resource)
 packages/auth   better-auth composition: plugins/, hooks/, sso/, operations/ (admin, accounts, setup), cookies

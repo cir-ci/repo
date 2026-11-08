@@ -3,7 +3,7 @@
 Status: approved 2026-11-06, scheduled **after the e2e speed work** (`docs/e2e-speed-plan.md`):
 those runs build the Docker image through the current build scripts, so the build must not change
 under them. Step 1 (packages/ui spike): **done 2026-11-08**, except a full e2e run (see Step 1 result).
-Step 2 (`@circi/cli`, `@circi/vitest`): **done 2026-11-08** (see Step 2 result). Step 3 (server bundle): **done 2026-11-08** (see Step 3 result). Step 4: not started.
+Step 2 (`@circi/cli`, `@circi/vitest`): **done 2026-11-08** (see Step 2 result). Step 3 (server bundle): **done 2026-11-08** (see Step 3 result). Step 4: **done 2026-11-08** (see Step 4 result). The plan is complete.
 
 ## Decisions
 
@@ -120,3 +120,18 @@ The Docker image runs one tsdown bundle of `apps/server` (the worker, every work
 - **Quirks for step 4**: `apps/server/tsconfig.json` (composite, `outDir: dist`, references) is now only read by editors and tools; `apps/worker` still builds with `tsc -b` for no consumer except `tsconfig.build.json`'s reference graph. The Dockerfile's build stage still runs the whole `pnpm build` (tsc for the packages the server no longer needs, then the bundle): step 4 can narrow it to the server bundle, the web app and the migrations. (The server's `bin` and `start` now say `dist/main.mjs`.) `pnpm deploy` needs only the manifests and the lockfile, so its layer is cached across source changes. A fresh `pnpm install` is needed after pulling (`tsdown` is now a server devDependency).
 - Not decided: nothing open. Not measured: the compressed image size, and cold start on a slow disk (the bundle is one 5.5 MB file; `node --enable-source-maps` costs nothing until a stack is formatted).
 
+
+## Step 4 result (2026-11-08)
+
+The internal packages (`core`, `db`, `services`, `auth`, `storage`, `config`, `providers`, `sites`, `testing`, `api`, `diff`) and `apps/worker` no longer build. Their `package.json` is `"exports": "./src/index.ts"` and no `build` script; their `tsconfig.json` files (and `apps/server`'s) and `tsconfig.build.json` are deleted.
+
+- **Consumers of their built output: none.** Searched `exports`, the Dockerfile, e2e, design-sync, scripts, CI and the other tsconfigs. The server bundle, Vitest, Vite, the web app's `tsc` and tsdown already resolved them to source through `@circi/source`; Node (`pnpm circi`) reads `.ts` through type stripping (a workspace symlink resolves outside `node_modules`, so stripping applies).
+- **Choice: a plain string `exports` pointing at source**, not `@circi/source` plus a `default`. These packages are private and never installed outside the repo, so a `default` pointing at a `dist` that no longer exists would be a lie, and a condition with a single target is noise. `@circi/source` stays where a built output exists beside the source: `@circi/ui`, `@circi/cli`, `@circi/vitest`. Rejected: `exports` with only `@circi/source` (needs the flag in Node, tsc and every tool).
+- **Type checking is unchanged**: the root `tsc -p tsconfig.json` always type-checked the whole tree with `noEmit` (apps/worker, apps/server, e2e included); the per-package `tsconfig.json` files only fed `tsc -b`. File lists from `tsc -p <project> --listFilesOnly`, before and after, are identical: root 2906 files, `apps/web` 1782, `packages/ui` 921 (diff empty).
+- **Root `build`** is now `pnpm --filter @circi/ui --filter @circi/cli --filter @circi/vitest --filter @circi/server build && pnpm --filter @circi/web build`. `pnpm -r build` fails with a task cycle (`db` and `testing` depend on each other, one as a devDependency), so the filter list stays. `clean` is `rm -rf apps/*/dist packages/*/dist`; `*.tsbuildinfo` is gone from `.gitignore` and `.dockerignore`, nothing writes one.
+- **What still emits**: `@circi/ui` (tsdown, browser, minified), `@circi/cli` and `@circi/vitest` (tsdown, published, not minified), `apps/server` (tsdown, one bundle), `apps/web` (Vite). Nothing else.
+- **Dockerfile build stage** runs `pnpm --filter @circi/server --filter @circi/web build` (the bundle and the dashboard; the migrations are copied as files) and copies `tsconfig.json` instead of `tsconfig.build.json` (tsdown finds the root config now that `apps/server` has none). The `runtime-deps` stage (`pnpm deploy`) is untouched, so its layer still caches across source changes.
+- **Stale output**: every `packages/*/dist` of the internal packages deleted (gitignored build output; `dist/` in `.gitignore` covers what remains).
+- **Numbers**: `pnpm build` from clean 1.9 s to 1.25 s (the `tsc -b` of eleven packages was about 1 s). Docker, `--no-cache`, whole build (dominated by `pnpm install`): 30.8 s and 29.4 s before (build stage = `pnpm build`, i.e. also the ui, cli and vitest builds), 29.7 s and 33.6 s after: no measurable difference, the build stage is about 2 s of it either way. No-change rebuild 1.6 s; after a source edit 2.7 s (install and `pnpm deploy` layers cached). Image 457 MB before and after (the image never contained the removed output).
+- **Verified**: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build`; `pnpm test:e2e` (19 files, 147 tests passed).
+- Not decided: nothing open. An editor opening a file under `packages/*/src` finds the root `tsconfig.json` (it includes every package), so the deleted per-package configs cost nothing there.

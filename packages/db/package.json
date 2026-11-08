@@ -3,15 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": {
-    ".": {
-      "@circi/source": "./src/index.ts",
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    }
-  },
+  "exports": "./src/index.ts",
   "scripts": {
-    "build": "tsc -b",
     "generate": "drizzle-kit generate"
   },
   "dependencies": {

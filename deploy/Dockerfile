@@ -33,10 +33,12 @@ COPY e2e/package.json e2e/
 
 FROM manifests AS build
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile
-COPY tsconfig.base.json tsconfig.build.json ./
+COPY tsconfig.base.json tsconfig.json ./
 COPY apps apps
 COPY packages packages
-RUN pnpm build
+# Only what the image ships: the server bundle (inlines the workspace packages from source) and the
+# dashboard. The CLI, @circi/vitest and the design system's own build are not part of the image.
+RUN pnpm --filter @circi/server --filter @circi/web build
 
 FROM manifests AS runtime-deps
 # The server bundle inlines our code and almost every dependency; what is left external is the

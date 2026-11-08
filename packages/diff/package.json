@@ -3,16 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": {
-    ".": {
-      "@circi/source": "./src/index.ts",
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    }
-  },
-  "scripts": {
-    "build": "tsc -b"
-  },
+  "exports": "./src/index.ts",
   "dependencies": {
     "pixelmatch": "catalog:",
     "sharp": "catalog:"
