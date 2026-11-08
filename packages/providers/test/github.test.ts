@@ -179,6 +179,35 @@ describe('GithubApp', () => {
     ).rejects.toThrow(GithubApiError)
   })
 
+  it('drops a cached token GitHub rejects with 401 and retries once with a fresh one', async () => {
+    const { app, calls } = appWith({
+      'POST /app/installations/99/access_tokens': [
+        tokenReply,
+        { token: 'ghs_second', expires_at: new Date(Date.now() + 3_600_000).toISOString() },
+      ],
+      'POST /repos/acme/web/check-runs': [
+        new Response('{"message":"Bad credentials"}', { status: 401 }),
+        { id: 5 },
+      ],
+    })
+    const id = await app.upsertCheckRun('99', 'acme/web', { sha: 'a', report, detailsUrl: 'u' })
+    expect(id).toBe('5')
+    const runs = calls.filter((c) => c.path === '/repos/acme/web/check-runs')
+    expect(runs).toHaveLength(2)
+    expect(runs[1]?.auth).toBe('Bearer ghs_second')
+    // A 401 that persists is surfaced, not retried forever.
+    const { app: again } = appWith({
+      'POST /app/installations/99/access_tokens': [tokenReply, tokenReply],
+      'POST /repos/acme/web/check-runs': [
+        new Response('{"message":"Bad credentials"}', { status: 401 }),
+        new Response('{"message":"Bad credentials"}', { status: 401 }),
+      ],
+    })
+    await expect(
+      again.upsertCheckRun('99', 'acme/web', { sha: 'a', report, detailsUrl: 'u' }),
+    ).rejects.toThrow(GithubApiError)
+  })
+
   it('knows who has write access', async () => {
     const { app } = appWith({
       'POST /app/installations/99/access_tokens': [tokenReply],

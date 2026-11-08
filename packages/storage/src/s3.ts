@@ -170,8 +170,29 @@ export class S3Storage implements StorageDriver {
   }
 
   async healthCheck(): Promise<void> {
-    await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }))
+    try {
+      await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }))
+    } catch (err) {
+      throw new Error(describeS3Failure(err, this.bucket), { cause: err })
+    }
   }
+}
+
+/** A sentence the operator can act on, instead of the SDK's "UnknownError". */
+export function describeS3Failure(err: unknown, bucket: string): string {
+  const status = err instanceof S3ServiceException ? err.$metadata.httpStatusCode : undefined
+  const code = err instanceof Error && 'code' in err ? err.code : undefined
+  if (status === 404) {
+    return `S3 bucket "${bucket}" does not exist (or S3_ENDPOINT points at the wrong service). Create it, or fix S3_BUCKET / S3_REGION.`
+  }
+  if (status === 401 || status === 403) {
+    return `S3 refused access to bucket "${bucket}" (HTTP ${status}). Check S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY and that they may read, write and delete in this bucket.`
+  }
+  if (status === undefined || code === 'ECONNREFUSED' || code === 'ENOTFOUND') {
+    const reason = err instanceof Error ? err.message : String(err)
+    return `Cannot reach S3 for bucket "${bucket}": ${reason}. Check S3_ENDPOINT and the network.`
+  }
+  return `S3 bucket "${bucket}" is not usable (HTTP ${status}): ${err instanceof Error ? err.message : String(err)}`
 }
 
 function isNotFound(err: unknown): boolean {

@@ -4,7 +4,7 @@ import { Readable } from 'node:stream'
 import { describe, expect, it } from 'vitest'
 
 import { type IngestedFile, ingestTarball } from '../src/index.ts'
-import { makeTarGz, type TarEntry } from './tar-helper.ts'
+import { makeTarGz, type TarEntry } from './support/tar-helper.ts'
 
 async function ingest(
   entries: TarEntry[],

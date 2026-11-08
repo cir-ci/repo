@@ -91,3 +91,46 @@ describe.skipIf(!endpoint)('S3Storage (live)', () => {
     await storage.delete(key)
   })
 })
+
+const serve = async (status: number) => {
+  const { createServer } = await import('node:http')
+  const server = createServer((_req, res) => {
+    res.writeHead(status, { 'content-type': 'application/xml' }).end()
+  })
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
+  const address = server.address()
+  const port = typeof address === 'object' && address ? address.port : 0
+  const storage = new S3Storage({
+    bucket: 'circi',
+    region: 'us-east-1',
+    endpoint: `http://127.0.0.1:${port}`,
+    forcePathStyle: true,
+    credentials: { accessKeyId: 'a', secretAccessKey: 'b' },
+  })
+  return { storage, close: () => server.close() }
+}
+
+describe('S3Storage.healthCheck failures say what to fix', () => {
+  it('a missing bucket names the bucket and the setting', async () => {
+    const { storage, close } = await serve(404)
+    await expect(storage.healthCheck()).rejects.toThrow(/bucket "circi" does not exist.*S3_BUCKET/)
+    close()
+  })
+
+  it('refused credentials point at the key settings', async () => {
+    const { storage, close } = await serve(403)
+    await expect(storage.healthCheck()).rejects.toThrow(/refused access.*S3_ACCESS_KEY_ID/)
+    close()
+  })
+
+  it('an unreachable endpoint points at S3_ENDPOINT', async () => {
+    const storage = new S3Storage({
+      bucket: 'circi',
+      region: 'us-east-1',
+      endpoint: 'http://127.0.0.1:1',
+      forcePathStyle: true,
+      credentials: { accessKeyId: 'a', secretAccessKey: 'b' },
+    })
+    await expect(storage.healthCheck()).rejects.toThrow(/Cannot reach S3.*S3_ENDPOINT/)
+  })
+})

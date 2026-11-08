@@ -4,58 +4,12 @@ import {
   branchHash,
   chooseSlug,
   commitHash,
-  detectKind,
-  KINDS,
   labelOf,
   MAX_SLUG_LENGTH,
   parseLabel,
   pickLabel,
-  requestPath,
-  safeEntryPath,
   slugify,
-  UnsafePathError,
-} from '../src/index.ts'
-
-describe('safeEntryPath', () => {
-  it('accepts ordinary paths and tidies them', () => {
-    expect(safeEntryPath('index.html')).toBe('index.html')
-    expect(safeEntryPath('./assets//app.js')).toBe('assets/app.js')
-    expect(safeEntryPath('a/./b/c.css')).toBe('a/b/c.css')
-  })
-
-  it.each([
-    '../etc/passwd',
-    'a/../../b',
-    'a/..',
-    '/etc/passwd',
-    'a\\b',
-    'nul\0byte',
-    '',
-    '.',
-    './',
-    '_circi/nav.js',
-    '_circi',
-    './_circi/x',
-  ])('rejects %j', (raw) => {
-    expect(() => safeEntryPath(raw)).toThrow(UnsafePathError)
-  })
-
-  it('allows names that merely start like the reserved prefix', () => {
-    expect(safeEntryPath('_circi-docs/index.html')).toBe('_circi-docs/index.html')
-  })
-})
-
-describe('requestPath', () => {
-  it('decodes, and refuses to leave the root', () => {
-    expect(requestPath('/assets/app%20x.js')).toBe('assets/app x.js')
-    expect(requestPath('/')).toBe('')
-    expect(requestPath('/a/../b')).toBeUndefined()
-    expect(requestPath('/%2e%2e/secret')).toBeUndefined()
-    expect(requestPath('/a%5Cb')).toBeUndefined()
-    expect(requestPath('/%00')).toBeUndefined()
-    expect(requestPath('/%zz')).toBeUndefined()
-  })
-})
+} from '../src/addresses.ts'
 
 describe('addresses', () => {
   it('hashes commits by prefix and branches by name, always 12 safe characters', () => {
@@ -122,42 +76,6 @@ describe('addresses', () => {
     expect(labelOf('a.b.example-sites.com', d)).toBeUndefined()
     expect(labelOf('x.evil-example-sites.com', d)).toBeUndefined()
     expect(labelOf('x.example-sites.com.evil.io', d)).toBeUndefined()
-  })
-})
-
-const files = (...f: string[]) => f
-
-describe('kind detection', () => {
-  it.each([
-    ['storybook', files('index.html', 'iframe.html', 'index.json', 'sb-manager/runtime.js')],
-    ['storybook', files('index.html', 'iframe.html', 'stories.json')],
-    [
-      'playwright-report',
-      files('index.html', 'data/abc.png', 'trace/index.html', 'trace/sw.bundle.js'),
-    ],
-    ['vitest-report', files('index.html', 'html.meta.json.gz', 'data/x.json')],
-    ['coverage', files('lcov-report/index.html', 'lcov.info')],
-    ['coverage', files('index.html', 'base.css', 'prettify.js', 'src/a.ts.html')],
-    ['generic', files('index.html', 'app.js')],
-    ['generic', files('docs/index.html')],
-  ])('%s', (kind, list) => {
-    expect(detectKind(list).id).toBe(kind)
-  })
-
-  it('never auto-detects docs, and only Playwright reports may run a service worker', () => {
-    expect(KINDS.docs.detect(new Set(['index.html']))).toBe(false)
-    expect(
-      Object.values(KINDS)
-        .filter((k) => k.serviceWorker)
-        .map((k) => k.id),
-    ).toEqual(['playwright-report'])
-  })
-
-  it('knows each kind’s entry page', () => {
-    expect(KINDS.coverage.entryPath(new Set(['lcov-report/index.html']))).toBe(
-      'lcov-report/index.html',
-    )
-    expect(KINDS.storybook.entryPath(new Set())).toBe('index.html')
   })
 })
 

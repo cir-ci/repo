@@ -123,7 +123,20 @@ export class GithubApp {
   }
 
   async #api(installationId: string, method: string, path: string, body?: unknown) {
-    return this.#call(await this.#installationToken(installationId), method, path, body)
+    try {
+      return await this.#call(await this.#installationToken(installationId), method, path, body)
+    } catch (err) {
+      // A cached token GitHub no longer accepts (revoked, or the app was reinstalled): forget it
+      // and try once with a fresh one, instead of failing until the cache expires.
+      if (
+        !(err instanceof GithubApiError) ||
+        err.status !== 401 ||
+        !this.#tokens.has(installationId)
+      )
+        throw err
+      this.#tokens.delete(installationId)
+      return this.#call(await this.#installationToken(installationId), method, path, body)
+    }
   }
 
   /** Creates the check run for a commit, or updates `existingId`. Returns its id. */

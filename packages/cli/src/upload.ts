@@ -173,7 +173,7 @@ export async function upload(options: UploadOptions): Promise<UploadResult> {
 
   const status = await waitForResult(client, build.id, {
     timeoutMs: options.waitTimeoutMs ?? 10 * 60_000,
-    intervalMs: options.pollIntervalMs ?? 2_000,
+    ...(options.pollIntervalMs !== undefined ? { intervalMs: options.pollIntervalMs } : {}),
     ...(options.gate ? { gate: options.gate } : {}),
   })
   result.status = status
@@ -202,17 +202,27 @@ export async function upload(options: UploadOptions): Promise<UploadResult> {
 async function waitForResult(
   client: ApiClient,
   buildId: string,
-  opts: { timeoutMs: number; intervalMs: number; gate?: 'status' | 'exit-code' },
+  opts: { timeoutMs: number; intervalMs?: number; gate?: 'status' | 'exit-code' },
 ): Promise<BuildStatus | undefined> {
   const deadline = Date.now() + opts.timeoutMs
-  for (;;) {
+  for (let attempt = 0; ; attempt += 1) {
     // oxlint-disable-next-line no-await-in-loop -- polling
     const status = await client.status(buildId, opts.gate)
     if (status.outcome.state !== 'pending') return status
-    if (Date.now() + opts.intervalMs > deadline) return undefined
+    const delay = opts.intervalMs ?? pollDelay(attempt)
+    if (Date.now() + delay > deadline) return undefined
     // oxlint-disable-next-line no-await-in-loop -- polling interval
-    await new Promise((r) => setTimeout(r, opts.intervalMs))
+    await new Promise((r) => setTimeout(r, delay))
   }
+}
+
+/**
+ * How long to wait before the next status poll: 500 ms at first, so a build that finishes in a
+ * moment is seen at once, growing by half each time to a ceiling of 2 s, so a long build is not
+ * hammered. `attempt` counts from 0.
+ */
+export function pollDelay(attempt: number): number {
+  return Math.min(2_000, Math.round(500 * 1.5 ** attempt))
 }
 
 function uniqueFiles(shots: LocalScreenshot[]) {
