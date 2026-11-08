@@ -48,15 +48,11 @@ export async function linkProjectToGithub(
   if (!project) throw new NotFoundError('Project not found')
   const [connection] = await db
     .insert(providerConnections)
-    .values({ orgId: project.orgId, kind: 'github', installationId: link.installationId })
+    .values({ orgId: project.orgId, kind: 'github', externalId: link.installationId })
     .onConflictDoUpdate({
-      target: [
-        providerConnections.orgId,
-        providerConnections.kind,
-        providerConnections.installationId,
-      ],
+      target: [providerConnections.orgId, providerConnections.kind, providerConnections.externalId],
       // Linking again is how someone says "I reinstalled the App": try afresh.
-      set: { installationId: link.installationId, needsAttention: null, needsAttentionAt: null },
+      set: { externalId: link.installationId, needsAttention: null, needsAttentionAt: null },
     })
     .returning()
   if (!connection) throw new Error('upsert returned no row')
@@ -64,6 +60,110 @@ export async function linkProjectToGithub(
     .update(projects)
     .set({ providerConnectionId: connection.id, repoRef: link.repoRef })
     .where(eq(projects.id, projectId))
+}
+
+/**
+ * Records that an organisation uses a GitHub App installation, without linking a project yet
+ * (the Integrations page's "Add GitHub"). Connecting again clears a needs-attention mark.
+ */
+export async function connectGithub(
+  db: Database,
+  orgId: string,
+  installationId: string,
+): Promise<{ id: string }> {
+  const [connection] = await db
+    .insert(providerConnections)
+    .values({ orgId, kind: 'github', externalId: installationId })
+    .onConflictDoUpdate({
+      target: [providerConnections.orgId, providerConnections.kind, providerConnections.externalId],
+      set: { needsAttention: null, needsAttentionAt: null },
+    })
+    .returning({ id: providerConnections.id })
+  if (!connection) throw new Error('upsert returned no row')
+  return connection
+}
+
+export interface GitConnectionRow {
+  id: string
+  kind: string
+  externalId: string
+  needsAttention: string | null
+  createdAt: Date
+  /** Projects of the organisation that report through it. */
+  projectCount: number
+}
+
+/** The organisation's git connections, oldest first, with how many projects use each. */
+export async function listGitConnections(db: Database, orgId: string): Promise<GitConnectionRow[]> {
+  const rows = await db
+    .select({
+      id: providerConnections.id,
+      kind: providerConnections.kind,
+      externalId: providerConnections.externalId,
+      needsAttention: providerConnections.needsAttention,
+      createdAt: providerConnections.createdAt,
+      projectCount: sql<number>`count(${projects.id})::int`,
+    })
+    .from(providerConnections)
+    .leftJoin(projects, eq(projects.providerConnectionId, providerConnections.id))
+    .where(eq(providerConnections.orgId, orgId))
+    .groupBy(providerConnections.id)
+    .orderBy(providerConnections.createdAt, providerConnections.id)
+  return rows
+}
+
+/** A git connection of the organisation (undefined for another organisation's). */
+export async function getGitConnection(
+  db: Database,
+  orgId: string,
+  connectionId: string,
+): Promise<typeof providerConnections.$inferSelect | undefined> {
+  const [row] = await db
+    .select()
+    .from(providerConnections)
+    .where(and(eq(providerConnections.orgId, orgId), eq(providerConnections.id, connectionId)))
+  return row
+}
+
+/**
+ * Disconnects a git host: every project reporting through it stops (as `unlinkProject` does for
+ * one), and the connection goes. False when the organisation has no such connection.
+ */
+export async function removeGitConnection(
+  db: Database,
+  orgId: string,
+  connectionId: string,
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const connection = await getGitConnection(tx, orgId, connectionId)
+    if (!connection) return false
+    await tx
+      .update(projects)
+      .set({ providerConnectionId: null, repoRef: null })
+      .where(eq(projects.providerConnectionId, connection.id))
+    await tx.delete(providerConnections).where(eq(providerConnections.id, connection.id))
+    return true
+  })
+}
+
+/** Each of the organisation's projects with the repository it reports to, if any. */
+export async function listProjectRepoLinks(
+  db: Database,
+  orgId: string,
+): Promise<
+  { slug: string; name: string; repoRef: string | null; connectionExternalId: string | null }[]
+> {
+  return db
+    .select({
+      slug: projects.slug,
+      name: projects.name,
+      repoRef: projects.repoRef,
+      connectionExternalId: providerConnections.externalId,
+    })
+    .from(projects)
+    .leftJoin(providerConnections, eq(providerConnections.id, projects.providerConnectionId))
+    .where(eq(projects.orgId, orgId))
+    .orderBy(projects.name, projects.slug)
 }
 
 export async function unlinkProject(db: Database, projectId: string): Promise<void> {
@@ -89,7 +189,7 @@ export async function markInstallationNeedsAttention(
     .where(
       and(
         eq(providerConnections.kind, 'github'),
-        eq(providerConnections.installationId, installationId),
+        eq(providerConnections.externalId, installationId),
         or(
           isNull(providerConnections.needsAttention),
           ne(providerConnections.needsAttention, reason),
@@ -109,7 +209,7 @@ export async function clearInstallationNeedsAttention(
     .where(
       and(
         eq(providerConnections.kind, 'github'),
-        eq(providerConnections.installationId, installationId),
+        eq(providerConnections.externalId, installationId),
         isNotNull(providerConnections.needsAttention),
       ),
     )
@@ -137,7 +237,7 @@ export async function getProjectLink(
   projectId: string,
 ): Promise<GitLink | undefined> {
   const [row] = await db
-    .select({ installationId: providerConnections.installationId, repoRef: projects.repoRef })
+    .select({ installationId: providerConnections.externalId, repoRef: projects.repoRef })
     .from(projects)
     .innerJoin(providerConnections, eq(providerConnections.id, projects.providerConnectionId))
     .where(eq(projects.id, projectId))
@@ -146,6 +246,10 @@ export async function getProjectLink(
 
 /** Everything the notify job needs to report a build. */
 export interface GitTarget extends GitLink {
+  /** The connection's `kind`: which provider reports this build. */
+  kind: string
+  /** Sealed credentials of a token-based host (null for GitHub). */
+  encryptedCredentials: string | null
   build: Build
   orgSlug: string
   projectSlug: string
@@ -165,7 +269,9 @@ export async function getGitTarget(db: Database, buildId: string): Promise<GitTa
       projectName: projects.name,
       block: projects.blockMergeOnChanges,
       repoRef: projects.repoRef,
-      installationId: providerConnections.installationId,
+      installationId: providerConnections.externalId,
+      kind: providerConnections.kind,
+      credentials: providerConnections.encryptedCredentials,
       attention: providerConnections.needsAttention,
     })
     .from(builds)
@@ -184,6 +290,8 @@ export async function getGitTarget(db: Database, buildId: string): Promise<GitTa
     connectionNeedsAttention: row.attention !== null,
     repoRef: row.repoRef,
     installationId: row.installationId,
+    kind: row.kind,
+    encryptedCredentials: row.credentials,
   }
 }
 
@@ -283,7 +391,7 @@ export async function findProjectsByRepo(
     .innerJoin(providerConnections, eq(providerConnections.id, projects.providerConnectionId))
     .where(
       and(
-        eq(providerConnections.installationId, installationId),
+        eq(providerConnections.externalId, installationId),
         sql`lower(${projects.repoRef}) = ${repoRef.toLowerCase()}`,
       ),
     )

@@ -277,14 +277,13 @@ describe('ProjectSettingsPage', () => {
       const banner = page.getByRole('alert')
       await expect.element(banner.getByText(/reach GitHub for this project/)).toBeVisible()
       await expect.element(banner.getByText(/GitHub App was removed or suspended/)).toBeVisible()
-      // The link is still shown and can be saved again, which clears the warning.
-      await expect.element(page.getByRole('button', { name: 'Update link' })).toBeVisible()
+      await expect.element(banner.getByText(/Integrations/)).toBeVisible()
     })
 
     it('shows no warning for a healthy link', async () => {
       api({ github: github({ installationId: '4242', repoRef: 'acme/web', attention: null }) })
       await show()
-      await expect.element(page.getByText(/Reporting to/)).toBeVisible()
+      await expect.element(heading('CI token')).toBeVisible()
       expect(page.getByRole('alert').elements()).toHaveLength(0)
     })
 
@@ -303,71 +302,12 @@ describe('ProjectSettingsPage', () => {
   })
 
   describe('GitHub', () => {
-    it('is left out when the instance has no GitHub App', async () => {
-      api()
+    it('has no section of its own: repositories are chosen under the organisation’s Integrations', async () => {
+      api({ github: github({ installationId: '4242', repoRef: 'acme/web', attention: null }) })
       await show()
       await expect.element(heading('CI token')).toBeVisible()
       expect(heading('GitHub').elements()).toHaveLength(0)
-    })
-
-    it('links a repository', async () => {
-      const fake = api(
-        { github: github(null) },
-        {
-          [`PUT ${API}/github`]: { body: { link: {} } },
-        },
-      )
-      await show()
-      await expect.element(page.getByText('https://circi.test/webhooks/github')).toBeVisible()
-      expect(page.getByRole('button', { name: 'Unlink' }).elements()).toHaveLength(0)
-      await page.getByRole('textbox', { name: 'Repository' }).fill(' acme/web ')
-      await page.getByRole('textbox', { name: 'GitHub App installation id' }).fill('4242')
-      await page.getByRole('button', { name: 'Link repository' }).click()
-      await expect.poll(() => fake.of('PUT')).toHaveLength(1)
-      expect(fake.of('PUT')[0]?.body).toEqual({ repoRef: 'acme/web', installationId: '4242' })
-    })
-
-    it('shows the current link, updates it and unlinks it', async () => {
-      const fake = api(
-        { github: github({ installationId: '4242', repoRef: 'acme/web', attention: null }) },
-        {
-          [`PUT ${API}/github`]: { body: { link: {} } },
-          [`DELETE ${API}/github`]: { status: 204 },
-        },
-      )
-      await show()
-      await expect.element(page.getByText(/Reporting to/)).toBeVisible()
-      await expect
-        .element(page.getByRole('textbox', { name: 'Repository' }))
-        .toHaveValue('acme/web')
-      await page.getByRole('button', { name: 'Update link' }).click()
-      await expect.poll(() => fake.of('PUT')).toHaveLength(1)
-      await page.getByRole('button', { name: 'Unlink' }).click()
-      await expect.poll(() => fake.of('DELETE')).toHaveLength(1)
-    })
-
-    it('shows the server’s refusal', async () => {
-      api(
-        { github: github(null) },
-        {
-          [`PUT ${API}/github`]: { status: 400, body: { error: 'Unknown installation' } },
-        },
-      )
-      await show()
-      await page.getByRole('textbox', { name: 'Repository' }).fill('acme/web')
-      await page.getByRole('textbox', { name: 'GitHub App installation id' }).fill('1')
-      await page.getByRole('button', { name: 'Link repository' }).click()
-      await expect.element(page.getByRole('alert')).toHaveTextContent('Unknown installation')
-    })
-
-    it('is read-only for members', async () => {
-      api({
-        canManage: false,
-        github: github({ installationId: '4242', repoRef: 'acme/web', attention: null }),
-      })
-      await show()
-      await expect.element(page.getByText(/Reporting to/)).toBeVisible()
-      expect(page.getByRole('button', { name: 'Unlink' }).elements()).toHaveLength(0)
+      expect(page.getByRole('textbox', { name: 'Repository' }).elements()).toHaveLength(0)
     })
   })
 

@@ -1,6 +1,14 @@
 import { createHmac, createSign, timingSafeEqual } from 'node:crypto'
 
-import { type CheckReport, PR_COMMENT_MARKER } from './render.ts'
+import {
+  type GitProvider,
+  headerValue,
+  ProviderApiError,
+  type RepositoryInfo,
+  type StatusInput,
+  type WebhookHeaders,
+} from './provider.ts'
+import { PR_COMMENT_MARKER } from './render.ts'
 
 /**
  * GitHub, through a GitHub App (PLAN §7.4): sign in as the app, get a short-lived installation
@@ -14,17 +22,17 @@ export interface GithubAppOptions {
   appId: string
   /** The app's private key (PEM). */
   privateKey: string
+  /** The App's webhook secret, for `verifyWebhook`. */
+  webhookSecret?: string
   /** Replaceable in tests. */
   fetch?: typeof fetch
   now?: () => number
 }
 
-export class GithubApiError extends Error {
-  readonly status: number
-  constructor(status: number, message: string) {
-    super(message)
+export class GithubApiError extends ProviderApiError {
+  constructor(status: number, message: string, options: { revoked?: boolean } = {}) {
+    super(status, message, options)
     this.name = 'GithubApiError'
-    this.status = status
   }
 }
 
@@ -36,7 +44,7 @@ export class GithubApiError extends Error {
 export class GithubInstallationRevokedError extends GithubApiError {
   readonly installationId: string
   constructor(installationId: string, cause: GithubApiError) {
-    super(cause.status, cause.message)
+    super(cause.status, cause.message, { revoked: true })
     this.name = 'GithubInstallationRevokedError'
     this.installationId = installationId
   }
@@ -65,7 +73,16 @@ export function verifyGithubSignature(
   return given.length === expected.length && timingSafeEqual(given, expected)
 }
 
-export class GithubApp {
+/** Verifies GitHub's webhook signature header; the part of the adapter a webhook route needs. */
+export function githubWebhookVerifier(secret: string): Pick<GitProvider, 'verifyWebhook'> {
+  return {
+    verifyWebhook: (rawBody, headers) =>
+      verifyGithubSignature(secret, rawBody, headerValue(headers, 'x-hub-signature-256')),
+  }
+}
+
+export class GithubApp implements GitProvider {
+  readonly kind = 'github'
   readonly #options: GithubAppOptions
   readonly #tokens = new Map<string, { token: string; expiresAt: number }>()
 
@@ -180,12 +197,38 @@ export class GithubApp {
     }
   }
 
+  verifyWebhook(rawBody: Buffer | string, headers: WebhookHeaders): boolean {
+    const secret = this.#options.webhookSecret
+    return secret !== undefined && githubWebhookVerifier(secret).verifyWebhook(rawBody, headers)
+  }
+
+  /** The repositories the installation was given access to (`owner/name`), up to 500. */
+  async listRepositories(installationId: string): Promise<RepositoryInfo[]> {
+    const repos: RepositoryInfo[] = []
+    for (let page = 1; page <= 5; page++) {
+      // eslint-disable-next-line no-await-in-loop -- pages are fetched in order
+      const { data } = await this.#api(
+        installationId,
+        'GET',
+        `/installation/repositories?per_page=100&page=${page}`,
+      )
+      const list: unknown =
+        typeof data === 'object' && data !== null ? Reflect.get(data, 'repositories') : undefined
+      if (!Array.isArray(list)) break
+      for (const r of list) {
+        const ref: unknown =
+          typeof r === 'object' && r !== null ? Reflect.get(r, 'full_name') : undefined
+        if (typeof ref === 'string') {
+          repos.push({ ref, private: Reflect.get(r, 'private') === true })
+        }
+      }
+      if (list.length < 100) break
+    }
+    return repos
+  }
+
   /** Creates the check run for a commit, or updates `existingId`. Returns its id. */
-  async upsertCheckRun(
-    installationId: string,
-    repo: string,
-    input: { sha: string; report: CheckReport; detailsUrl: string; existingId?: string },
-  ): Promise<string> {
+  async upsertCheckRun(installationId: string, repo: string, input: StatusInput): Promise<string> {
     const { report } = input
     const body = {
       name: report.name,

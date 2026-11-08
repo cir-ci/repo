@@ -66,6 +66,21 @@ Type-only namespaces (erasable, so they work with `erasableSyntaxOnly` and Node'
 
 A namespace must contain only types. Never put a value in one.
 
+## Style
+
+- **Imports:** each package's `package.json` `imports` maps a `#<folder>/*` alias per main folder
+  (`#lib/*`, `#features/*`, …). Use it instead of `../../..` climbs; relative `./` stays for
+  siblings.
+- **CSS modules:** `styles.root`, not `styles['root']` (brackets only for names that aren't
+  identifiers).
+- **Base UI wrappers:** a component that passes props on to a Base UI part extends
+  `<Part>.Props` and forwards them; it never redefines them. With extra props of its own it still
+  extends the Base UI props and destructures `{ own, props, ...rest }`.
+- **Types:** types with a shared prefix or suffix live in one namespace (`GitProvider.StatusInput`),
+  not as separate top-level names.
+- **State:** state that changes or is needed across large areas, or is complex, goes in a global
+  store (zustand), not scattered `useState`/context. Local, simple UI state stays in `useState`.
+
 ## Tests
 
 - Node projects (`apps/{server,worker}/test`, `packages/*/test`) run with real migrations on PGlite

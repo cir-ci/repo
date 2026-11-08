@@ -5,6 +5,7 @@ import type {
   Comment,
   IgnoreRegion,
   Inbox,
+  Integration,
   Insights,
   Project,
   Review,
@@ -24,6 +25,7 @@ import type {
   IgnoreRegionRow,
   InboxItem,
   InboxList,
+  IntegrationItem,
   NotificationPreferences,
   InsightsReport,
   InsightsReviewer,
@@ -81,6 +83,7 @@ export type ContractChecks = [
   Fits<Json<ActivityEvent>, Activity.Event>,
   Fits<Json<CommentItem>, Omit<Comment.Item, 'mine' | 'canDelete'>>,
   Fits<Json<SavedViewRow>, View.Item>,
+  Fits<Json<IntegrationItem>, Integration.Item>,
   Fits<Json<SidebarModel>, Sidebar.Model>,
   Fits<BuildFilterValues, View.Filters>,
   Fits<View.Filters, BuildFilterValues>,
@@ -88,6 +91,7 @@ export type ContractChecks = [
 
 /** Each entry must be `true`; a mismatch above makes its entry `never`, and this line fails. */
 export const contractChecks: ContractChecks = [
+  true,
   true,
   true,
   true,

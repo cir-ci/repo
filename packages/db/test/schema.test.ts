@@ -44,6 +44,8 @@ describe('migrations', () => {
       'files',
       'ignore_regions',
       'instance_settings',
+      'integration_projects',
+      'integrations',
       'invitation',
       'jobs',
       'known_devices',

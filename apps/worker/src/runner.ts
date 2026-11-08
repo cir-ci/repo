@@ -9,12 +9,12 @@ import {
   type ListenFn,
   QUEUES,
 } from '@circi/db'
-import type { GithubApp } from '@circi/providers'
+import type { GithubApp, ProviderRegistry } from '@circi/providers'
 import { expireStalledBuilds, failBuild, runRetention } from '@circi/services'
 import type { StorageDriver } from '@circi/storage'
 
 import { deliverWebhook } from './jobs/deliver-webhook.ts'
-import { notifyGit } from './jobs/notify-git.ts'
+import { notifyGit, type NotifyProvider } from './jobs/notify-git.ts'
 import { processBuild } from './jobs/process-build.ts'
 import { reviewSweep } from './jobs/review-sweep.ts'
 import { type EmailSender, sendNotificationEmail } from './jobs/send-email.ts'
@@ -36,6 +36,8 @@ export interface WorkerDeps {
   publicOrigin?: string
   /** The GitHub App, when configured: builds are then reported to linked repositories. */
   github?: GithubApp
+  /** Git host adapters by connection kind; takes the place of `github` when given. */
+  providers?: ProviderRegistry<NotifyProvider>
   /** Sends notification emails; absent without SMTP, and such jobs are then skipped. */
   mailer?: EmailSender
   /** Webhooks may point at private addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
@@ -310,7 +312,12 @@ async function runGitNotifyJob(deps: WorkerDeps, job: Job): Promise<void> {
   const fields = { jobId: job.id, buildId: job.payload.buildId }
   try {
     const result = await notifyGit(
-      { db: deps.db, github: deps.github, publicOrigin: deps.publicOrigin ?? '' },
+      {
+        db: deps.db,
+        github: deps.github,
+        providers: deps.providers,
+        publicOrigin: deps.publicOrigin ?? '',
+      },
       job,
     )
     await completeJob(deps.db, job.id)

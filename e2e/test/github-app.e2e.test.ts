@@ -31,19 +31,24 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
   const deliveries = async () =>
     Number((await ctx.stack.sql('select count(*) from provider_deliveries'))[0]?.[0])
 
-  it('links a repository to a project in the UI and the page shows the installation', async () => {
+  it('connects GitHub in Integrations, links a repository to a project there and unlinks it', async () => {
     const { stack, setup } = ctx
     orgSlug = setup.organization.slug
     const project = await createProject(setup.session, orgSlug, 'Linked in UI')
     const page = await browser.as(setup.session)
-    await page.goto(`${stack.url}/${orgSlug}/${project.slug}/settings`)
-    // The page shows the webhook address CirCI expects on the GitHub App.
-    await page.getByText(`${stack.url}/webhooks/github`).waitFor()
-    await page.getByLabel('Repository').fill('acme/ui-linked')
+    await page.goto(`${stack.url}/organizations/${orgSlug}/settings/integrations`)
+    await page.getByRole('button', { name: 'Add integration' }).click()
+    await page.getByRole('button', { name: 'Add GitHub' }).click()
     await page.getByLabel('GitHub App installation id').fill(INSTALLATION)
-    await page.getByRole('button', { name: 'Link repository' }).click()
-    await page.getByText('Reporting to').waitFor()
-    await page.getByText('acme/ui-linked').first().waitFor()
+    await page.getByRole('button', { name: 'Connect GitHub' }).click()
+    // The GitHub integration's page shows the webhook address CirCI expects on the GitHub App.
+    await page.getByText(`${stack.url}/webhooks/github`).waitFor()
+    await page.getByLabel('Linked in UI repository').fill('acme/ui-linked')
+    await page
+      .getByRole('form', { name: 'Linked in UI' })
+      .getByRole('button', { name: 'Link' })
+      .click()
+    await page.getByRole('button', { name: 'Unlink' }).waitFor()
 
     const settings = await setup.session.get<{
       github: { configured: boolean; link: { installationId: string; repoRef: string } | null }
@@ -54,9 +59,9 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     })
     // Survives a reload; and unlinking works.
     await page.reload()
-    await page.getByText('Reporting to').waitFor()
+    await page.getByLabel('Linked in UI repository').waitFor()
     await page.getByRole('button', { name: 'Unlink' }).click()
-    await page.getByRole('button', { name: 'Link repository' }).waitFor()
+    await page.getByRole('button', { name: 'Link', exact: true }).waitFor()
     const after = await setup.session.get<{ github: { link: unknown } }>(
       `/api/projects/${orgSlug}/${project.slug}/settings`,
     )
@@ -246,9 +251,14 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     await page.goto(`${projectUrl}/settings`)
     await page.getByText(/can.t reach GitHub for this project/).waitFor()
 
-    // Reinstalled: saving the link again clears the banner on both pages.
+    // Reinstalled: saving the repository again on the GitHub integration's page clears the banner.
     gh.restoreInstallation(REVOKED)
-    await page.getByRole('button', { name: 'Update link' }).click()
+    await page.goto(`${stack.url}/organizations/${orgSlug}/settings/integrations/github`)
+    await page
+      .getByRole('form', { name: 'Revoked' })
+      .getByRole('button', { name: 'Update' })
+      .click()
+    await page.goto(`${projectUrl}/settings`)
     await page.getByText(/can.t reach GitHub for this project/).waitFor({ state: 'detached' })
     expect(await attention()).toBeNull()
     await page.goto(projectUrl)

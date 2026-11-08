@@ -1,7 +1,7 @@
 import { type Auth, createAuth, createSmtpMailer, type Mailer } from '@circi/auth'
 import { type Config, loadConfig } from '@circi/config'
 import { createDb, type DbHandle } from '@circi/db'
-import { GithubApp } from '@circi/providers'
+import { GithubApp, type ProviderRegistry, providerRegistry } from '@circi/providers'
 import { createStorage, type StorageDriver } from '@circi/storage'
 import { type Logger, pino } from 'pino'
 
@@ -12,6 +12,8 @@ export interface Runtime {
   auth: Auth
   /** The GitHub App; absent when none is configured. */
   github?: GithubApp
+  /** Git host adapters by `provider_connections.kind`; add a host's adapter where `providers` is built. */
+  providers: ProviderRegistry
   /** Sends mail; absent without SMTP. */
   mailer?: Mailer
   storage: StorageDriver
@@ -45,6 +47,7 @@ export function createRuntime(env: Record<string, string | undefined> = process.
         apiUrl: config.github.apiUrl,
         appId: config.github.appId,
         privateKey: config.github.privateKey,
+        webhookSecret: config.github.webhookSecret,
       })
     : undefined
   const storage = createStorage(config.storage)
@@ -55,6 +58,7 @@ export function createRuntime(env: Record<string, string | undefined> = process.
     auth,
     ...(mailer ? { mailer } : {}),
     ...(github ? { github } : {}),
+    providers: providerRegistry({ github }),
     storage,
     async close() {
       await db.close()

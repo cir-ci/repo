@@ -15,7 +15,5 @@ const placeholder = <const Path extends string>(path: Path, title: string) =>
     component: () => <ComingSoon title={title} />,
   })
 
-export const placeholderRoutes = [
-  // Settings pages.
-  placeholder('organizations/$org/settings/integrations', 'Integrations'),
-]
+// Nothing is planned-but-unbuilt right now; add `placeholder('path', 'Title')` lines here.
+export const placeholderRoutes: ReturnType<typeof placeholder>[] = []

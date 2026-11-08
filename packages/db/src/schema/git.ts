@@ -27,8 +27,13 @@ export const providerConnections = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: 'cascade' }),
     kind: text('kind').notNull(),
-    /** The GitHub App installation id. */
-    installationId: text('installation_id').notNull(),
+    /** The host's id for the connection: the GitHub App installation id for GitHub. */
+    externalId: text('external_id').notNull(),
+    /**
+     * Credentials for token-based hosts, sealed with `sealSecret` (`@circi/core`); null for GitHub,
+     * whose App credentials are instance configuration. Never sent to the dashboard.
+     */
+    encryptedCredentials: text('encrypted_credentials'),
     /**
      * Why CirCI can't use this connection, set by the worker when GitHub says the installation
      * is gone (`installation_revoked`); null while it works. Cleared by the next call that
@@ -43,7 +48,7 @@ export const providerConnections = pgTable(
       'provider_connections_needs_attention_check',
       inListOrNull(t.needsAttention.name, CONNECTION_ATTENTION),
     ),
-    uniqueIndex('provider_connections_key').on(t.orgId, t.kind, t.installationId),
+    uniqueIndex('provider_connections_key').on(t.orgId, t.kind, t.externalId),
     check('provider_connections_kind_check', inList(t.kind.name, GIT_PROVIDER_KINDS)),
   ],
 )

@@ -10,8 +10,8 @@ export function GitAttentionBanner({ attention }: GitAttentionBanner.Props) {
   return (
     <Banner tone="danger" title="CirCI can’t reach GitHub for this project:">
       the GitHub App was removed or suspended, so build results are not being reported on pull
-      requests. Reinstall or unsuspend the App on GitHub, then save the repository link again in the
-      project’s settings.
+      requests. Reinstall or unsuspend the App on GitHub, then save the repository again under the
+      organisation’s Settings › Integrations › GitHub.
     </Banner>
   )
 }

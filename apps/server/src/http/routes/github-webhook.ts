@@ -6,7 +6,14 @@ import {
   findProjectsByRepo,
   latestBuildsForPr,
 } from '@circi/db'
-import { type GithubApp, parseCommand, verifyGithubSignature } from '@circi/providers'
+import {
+  type GitProvider,
+  type GithubApp,
+  githubWebhookVerifier,
+  parseCommand,
+  type ProviderRegistry,
+  providerRegistry,
+} from '@circi/providers'
 import { recordPullRequestAuthor, requeueBuild, reviewBuild } from '@circi/services'
 import type { FastifyBaseLogger, FastifyPluginAsync } from 'fastify'
 
@@ -25,6 +32,8 @@ export interface GithubWebhookDeps {
   secret: string
   /** Used to answer on pull requests; the handler still works (silently) without it. */
   github: Pick<GithubApp, 'react' | 'reply'> | undefined
+  /** Adapters by connection kind; the delivery is verified by the `github` one. Defaults to one built from `secret`. */
+  providers?: ProviderRegistry<Pick<GitProvider, 'verifyWebhook'>>
   publicOrigin: string
   logger: FastifyBaseLogger
 }
@@ -45,16 +54,12 @@ export const githubWebhookRoutes: FastifyPluginAsync<GithubWebhookDeps> = async 
     done(null, body)
   })
 
+  const providers =
+    deps.providers ?? providerRegistry({ github: githubWebhookVerifier(deps.secret) })
+
   app.post('/webhooks/github', async (req, reply) => {
     const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0)
-    const signature = req.headers['x-hub-signature-256']
-    if (
-      !verifyGithubSignature(
-        deps.secret,
-        raw,
-        typeof signature === 'string' ? signature : undefined,
-      )
-    ) {
+    if (!providers.get('github')?.verifyWebhook(raw, req.headers)) {
       return reply.code(401).send({ error: 'Bad signature' })
     }
     const event = String(req.headers['x-github-event'] ?? '')

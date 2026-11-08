@@ -1,5 +1,6 @@
 import type { Auth } from '@circi/auth'
 import type { Database, ProjectContext, SessionMethod } from '@circi/db'
+import type { GitProvider, ProviderRegistry } from '@circi/providers'
 import type { StorageDriver } from '@circi/storage'
 
 /** What every HTTP scope needs. */
@@ -46,6 +47,8 @@ export interface DashboardDeps extends BaseDeps {
   resolveTxt?: (name: string) => Promise<string[][]>
   /** This instance has a GitHub App, so projects can be linked to repositories. */
   githubApp?: boolean
+  /** Git host adapters by connection kind (the repository picker asks them what they can see). */
+  providers?: ProviderRegistry<Pick<GitProvider, 'listRepositories'>>
   /** Static site hosting, when `STATIC_SITES_HOST` is set. */
   sites?: SitesDeps
   /** Who may create organizations in the dashboard. Default: instance admins only. */

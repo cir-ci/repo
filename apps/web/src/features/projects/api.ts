@@ -118,23 +118,6 @@ export function useRotateToken(org: string, project: string) {
   })
 }
 
-export function useGithubLink(org: string, project: string) {
-  const queryClient = useQueryClient()
-  const url = `/api/projects/${seg(org)}/${seg(project)}/github`
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['settings', org, project] })
-  return {
-    save: useMutation({
-      mutationFn: (input: Pick<Project.GithubLink, 'installationId' | 'repoRef'>) =>
-        send<{ link: unknown }>('PUT', url, input),
-      onSuccess: refresh,
-    }),
-    remove: useMutation({
-      mutationFn: () => send<undefined>('DELETE', url),
-      onSuccess: refresh,
-    }),
-  }
-}
-
 export const flakyQuery = (org: string, project: string) =>
   queryOptions({
     queryKey: ['flaky', org, project],

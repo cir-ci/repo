@@ -61,3 +61,15 @@ export {
 export { rotationFor, rotationHandover } from './rotation.ts'
 export { SNOOZE_WAKE_HOUR, snoozeUntil, type SnoozeChoice } from './snooze.ts'
 export { parseMentions } from './mentions.ts'
+export {
+  type CatalogEntry,
+  catalogEntry,
+  filterCatalog,
+  groupOfKind,
+  INTEGRATION_CATALOG,
+  INTEGRATION_GROUP_LABEL,
+  INTEGRATION_GROUPS,
+  type IntegrationGroup,
+  type IntegrationStatus,
+} from './integrations.ts'
+export { openSecret, sealSecret } from './secrets.ts'

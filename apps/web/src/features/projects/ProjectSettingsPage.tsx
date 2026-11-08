@@ -7,7 +7,6 @@ import { ErrorState } from '../../lib/ErrorState.tsx'
 import { projectsQuery, settingsQuery } from './api.ts'
 import { CiToken } from './CiTokenSection.tsx'
 import { GitAttentionBanner } from './GitAttentionBanner.tsx'
-import { GithubLink } from './GithubSection.tsx'
 import { useLoadingAnnouncement } from './loading.ts'
 import { ProjectBreadcrumbs } from './ProjectBreadcrumbs.tsx'
 import { SettingsForm } from './SettingsForm.tsx'
@@ -68,14 +67,6 @@ export function ProjectSettingsPage() {
               sitesConfigured={data.sitesConfigured}
             />
             {data.canManage ? <CiToken org={org} project={project} /> : null}
-            {data.github.configured ? (
-              <GithubLink
-                org={org}
-                project={project}
-                github={data.github}
-                canManage={data.canManage}
-              />
-            ) : null}
             <Webhooks
               org={org}
               project={project}

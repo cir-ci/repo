@@ -1,0 +1,133 @@
+import type { Integration } from '@circi/api'
+import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
+
+import { getJson, post, seg, send } from '../../lib/http.ts'
+
+// ---- Logic (tested in Node) -------------------------------------------------------------------
+
+export const GROUPS: readonly { value: Integration.Group; label: string }[] = [
+  { value: 'git', label: 'Git hosts' },
+  { value: 'chat', label: 'Chat' },
+  { value: 'design', label: 'Design tools' },
+  { value: 'tracker', label: 'Issue trackers' },
+]
+
+export const groupLabel = (group: Integration.Group) =>
+  GROUPS.find((g) => g.value === group)?.label ?? group
+
+/** The added integrations under their group headings, in the canvas order; empty groups left out. */
+export function groupItems(
+  items: readonly Integration.Item[],
+): { group: Integration.Group; label: string; items: Integration.Item[] }[] {
+  return GROUPS.flatMap(({ value, label }) => {
+    const inGroup = items.filter((i) => i.group === value)
+    return inGroup.length > 0 ? [{ group: value, label, items: inGroup }] : []
+  })
+}
+
+export type GroupFilter = Integration.Group | 'all'
+
+export const isGroupFilter = (value: string): value is GroupFilter =>
+  value === 'all' || GROUPS.some((g) => g.value === value)
+
+/** The Add dialog's tiles: entries matching the search text (name, kind, description) and group. */
+export function filterCatalog(
+  catalog: readonly Integration.CatalogEntry[],
+  filter: { query: string; group: GroupFilter },
+): Integration.CatalogEntry[] {
+  const q = filter.query.trim().toLowerCase()
+  return catalog.filter(
+    (e) =>
+      (filter.group === 'all' || e.group === filter.group) &&
+      (!q ||
+        e.name.toLowerCase().includes(q) ||
+        e.kind.includes(q) ||
+        e.description.toLowerCase().includes(q)),
+  )
+}
+
+/** What a tile says when it can't be picked, or null when it can. */
+export function unavailableNote(entry: Integration.CatalogEntry): string | null {
+  if (entry.status === 'planned') return 'Planned'
+  if (!entry.connectable) return 'Not set up on this server'
+  return null
+}
+
+/** Whether a GitHub installation id is acceptable (the server only takes digits). */
+export const isInstallationId = (value: string) => /^\d{1,20}$/.test(value.trim())
+
+/** Where an added integration's own page is, if it has one yet. */
+export const integrationPage = (kind: string): 'github' | null =>
+  kind === 'github' ? 'github' : null
+
+/** "3 projects", "1 project", "No projects yet". */
+export const projectCountLabel = (count: number) =>
+  count === 0 ? 'No projects yet' : `${count} ${count === 1 ? 'project' : 'projects'}`
+
+// ---- Server state -----------------------------------------------------------------------------
+
+const base = (org: string) => `/api/orgs/${seg(org)}/integrations`
+
+export const integrationsQuery = (org: string) =>
+  queryOptions({
+    queryKey: ['integrations', org],
+    queryFn: () => getJson<Integration.ListResponse>(base(org)),
+  })
+
+export const githubPageQuery = (org: string) =>
+  queryOptions({
+    queryKey: ['integrations', org, 'github'],
+    queryFn: () => getJson<Integration.GithubPage>(`${base(org)}/github`),
+  })
+
+export const repositoriesQuery = (org: string, connectionId: string) =>
+  queryOptions({
+    queryKey: ['integrations', org, 'repositories', connectionId],
+    queryFn: () =>
+      getJson<{ repositories: Integration.Repository[] }>(
+        `${base(org)}/${seg(connectionId)}/repositories`,
+      ),
+    staleTime: 60_000,
+    retry: false,
+  })
+
+export function useRemoveIntegration(org: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => send<undefined>('DELETE', `${base(org)}/${seg(id)}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations', org] }),
+  })
+}
+
+export function useConnectGithub(org: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (installationId: string) =>
+      post<{ id: string }>(`${base(org)}/github`, { installationId: installationId.trim() }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations', org] }),
+  })
+}
+
+/** Points a project at a repository on an installation, or stops it (the project-level API is unchanged). */
+export function useProjectRepository(org: string) {
+  const queryClient = useQueryClient()
+  const refresh = (project: string) => {
+    void queryClient.invalidateQueries({ queryKey: ['integrations', org] })
+    void queryClient.invalidateQueries({ queryKey: ['settings', org, project] })
+  }
+  const url = (project: string) => `/api/projects/${seg(org)}/${seg(project)}/github`
+  return {
+    link: useMutation({
+      mutationFn: (input: { project: string; repoRef: string; installationId: string }) =>
+        send<unknown>('PUT', url(input.project), {
+          repoRef: input.repoRef.trim(),
+          installationId: input.installationId,
+        }),
+      onSuccess: (_data, input) => refresh(input.project),
+    }),
+    unlink: useMutation({
+      mutationFn: (project: string) => send<undefined>('DELETE', url(project)),
+      onSuccess: (_data, project) => refresh(project),
+    }),
+  }
+}

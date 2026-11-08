@@ -1,6 +1,7 @@
 export {
   GithubApiError,
   GithubApp,
+  githubWebhookVerifier,
   GithubInstallationRevokedError,
   type GithubAppOptions,
   verifyGithubSignature,
@@ -16,3 +17,14 @@ export {
   prCommentBody,
   type ReportedBuild,
 } from './render.ts'
+export {
+  type GitProvider,
+  headerValue,
+  isConnectionRevoked,
+  ProviderApiError,
+  type ProviderRegistry,
+  providerRegistry,
+  type RepositoryInfo,
+  type StatusInput,
+  type WebhookHeaders,
+} from './provider.ts'

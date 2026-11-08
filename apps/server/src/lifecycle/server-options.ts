@@ -1,7 +1,7 @@
 import type { Auth } from '@circi/auth'
 import type { Config } from '@circi/config'
 import type { Database } from '@circi/db'
-import type { GithubApp } from '@circi/providers'
+import type { GithubApp, ProviderRegistry } from '@circi/providers'
 import type { StorageDriver } from '@circi/storage'
 import type { Logger } from 'pino'
 
@@ -16,6 +16,7 @@ export interface ServerRuntime {
   auth: Auth
   storage: StorageDriver
   github?: GithubApp
+  providers?: ProviderRegistry
 }
 
 /** Turns the configuration into the HTTP server's options: which scopes exist and with what. */
@@ -39,6 +40,7 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): ServerOpti
             db: rt.db.db,
             secret: config.github.webhookSecret,
             github: rt.github,
+            ...(rt.providers ? { providers: rt.providers } : {}),
             publicOrigin: config.publicUrl.origin,
             logger: rt.logger,
           },
@@ -55,7 +57,11 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): ServerOpti
           },
         }
       : {}),
-    api: { ...base, githubApp: config.github !== undefined, ...(sites ? { sites } : {}) },
+    api: {
+      ...base,
+      githubApp: config.github !== undefined,
+      ...(sites ? { sites } : {}),
+    },
     dashboard: {
       ...base,
       emailLogin: config.emailLogin,
@@ -64,6 +70,7 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): ServerOpti
       webhookAllowPrivate: config.webhookAllowPrivate,
       orgCreation: config.orgCreation,
       githubApp: config.github !== undefined,
+      ...(rt.providers ? { providers: rt.providers } : {}),
       ...(sites ? { sites } : {}),
       authSecret: config.authSecret,
       webDist,

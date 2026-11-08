@@ -14,19 +14,26 @@ import {
 } from '@circi/db'
 import {
   checkReport,
-  type GithubApp,
-  GithubInstallationRevokedError,
+  type GitProvider,
+  isConnectionRevoked,
   prCommentBody,
+  type ProviderRegistry,
+  providerRegistry,
   type ReportedBuild,
 } from '@circi/providers'
 import { gateInputs } from '@circi/services'
 
 /** The `git-notify` job: show a build's state on its commit and pull request (PLAN §7.4). */
 
+/** What the job needs of a git host adapter. */
+export type NotifyProvider = Pick<GitProvider, 'upsertCheckRun' | 'upsertComment'>
+
 export interface NotifyDeps {
   db: Database
-  /** The GitHub App, when this instance has one. */
-  github: Pick<GithubApp, 'upsertCheckRun' | 'upsertComment'> | undefined
+  /** The adapters by connection kind. Overrides `github` when both are given. */
+  providers?: ProviderRegistry<NotifyProvider> | undefined
+  /** Shorthand for a registry holding only the GitHub App, when this instance has one. */
+  github?: NotifyProvider | undefined
   /** Dashboard origin, for links back to the build. */
   publicOrigin: string
 }
@@ -41,10 +48,13 @@ export type NotifyResult = { status: 'skipped'; reason: string } | { status: 'no
 export async function notifyGit(deps: NotifyDeps, job: Job): Promise<NotifyResult> {
   const buildId = typeof job.payload.buildId === 'string' ? job.payload.buildId : undefined
   if (!buildId) return { status: 'skipped', reason: 'malformed job' }
-  const github = deps.github
-  if (!github) return { status: 'skipped', reason: 'no GitHub App configured' }
+  const providers = deps.providers ?? providerRegistry({ github: deps.github })
+  if (providers.kinds().length === 0)
+    return { status: 'skipped', reason: 'no GitHub App configured' }
   const first = await getGitTarget(deps.db, buildId)
   if (!first) return { status: 'skipped', reason: 'project is not linked to a repository' }
+  const provider = providers.get(first.kind)
+  if (!provider) return { status: 'skipped', reason: `no ${first.kind} provider configured` }
 
   // Jobs for one project run one at a time (lanes and worker processes both): two at once would
   // each create the build's check run and the pull request's comment, because neither has seen
@@ -53,7 +63,7 @@ export async function notifyGit(deps: NotifyDeps, job: Job): Promise<NotifyResul
     return await withAdvisoryLock(deps.db, `git-notify:${first.build.projectId}`, async (db) => {
       const target = await getGitTarget(db, buildId)
       if (!target) return { status: 'skipped', reason: 'project is not linked to a repository' }
-      const result = await notifyLocked({ ...deps, db, github }, target)
+      const result = await notifyLocked({ ...deps, db, provider }, target)
       // GitHub accepted the calls again (the App was reinstalled): drop the warning.
       if (target.connectionNeedsAttention) {
         await clearInstallationNeedsAttention(db, target.installationId)
@@ -61,19 +71,19 @@ export async function notifyGit(deps: NotifyDeps, job: Job): Promise<NotifyResul
       return result
     })
   } catch (err) {
-    if (!(err instanceof GithubInstallationRevokedError)) throw err
+    if (!isConnectionRevoked(err)) throw err
     // Uninstalled or suspended: retrying cannot help. Record it for the dashboard and finish the
     // job; the next build's job tries again, and clears the state once GitHub answers.
     await markInstallationNeedsAttention(deps.db, first.installationId, 'installation_revoked')
     return {
       status: 'skipped',
-      reason: `GitHub installation ${first.installationId} was removed or suspended`,
+      reason: `${first.kind} connection ${first.installationId} was removed or suspended`,
     }
   }
 }
 
 async function notifyLocked(
-  deps: NotifyDeps & { github: NonNullable<NotifyDeps['github']> },
+  deps: NotifyDeps & { provider: NotifyProvider },
   target: NonNullable<Awaited<ReturnType<typeof getGitTarget>>>,
 ): Promise<NotifyResult> {
   const reported = async (b: typeof target.build): Promise<ReportedBuild> => {
@@ -101,7 +111,7 @@ async function notifyLocked(
     const builds = await buildsForPrSummary(deps.db, target.build.projectId, target.build.prNumber)
     const body = prCommentBody(await Promise.all(builds.map(reported)))
     const existing = await getPrCommentId(deps.db, target.build.projectId, target.build.prNumber)
-    const commentId = await deps.github.upsertComment(
+    const commentId = await deps.provider.upsertComment(
       target.installationId,
       target.repoRef,
       target.build.prNumber,
@@ -116,13 +126,13 @@ async function notifyLocked(
 }
 
 async function setCheck(
-  deps: NotifyDeps,
+  deps: NotifyDeps & { provider: NotifyProvider },
   target: NonNullable<Awaited<ReturnType<typeof getGitTarget>>>,
   mine: ReportedBuild,
   flakyBlocksMerge: boolean,
 ): Promise<void> {
   const existingId = await getCheckRunId(deps.db, target.build.id)
-  const id = await deps.github?.upsertCheckRun(target.installationId, target.repoRef, {
+  const id = await deps.provider.upsertCheckRun(target.installationId, target.repoRef, {
     sha: target.build.commitSha,
     report: checkReport(mine, {
       blockMergeOnChanges: target.blockMergeOnChanges,
