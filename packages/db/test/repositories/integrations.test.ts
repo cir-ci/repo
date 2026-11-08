@@ -418,10 +418,11 @@ describe('git hosts as integrations', () => {
       kinds: ['github', 'gitlab'],
     })
     expect(removed).toEqual([one.integrationId])
+    // Same-instant inserts have no defined order: compare the set.
     expect(
-      (await listProjectIntegrations(t.db, project.id, ['github', 'gitlab', 'slack'])).map(
-        (m) => m.kind,
-      ),
+      (await listProjectIntegrations(t.db, project.id, ['github', 'gitlab', 'slack']))
+        .map((m) => m.kind)
+        .toSorted(),
     ).toEqual(['gitlab', 'slack'])
   })
 })
