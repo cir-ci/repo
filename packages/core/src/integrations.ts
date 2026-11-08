@@ -2,6 +2,9 @@
  * The integrations CirCI knows about: every provider an organisation can add, and the ones that are
  * only planned. Static and pure, so the server, the web app and the tests read one list.
  *
+ * Whether an `available` entry is actually built in this release is the server's call (it has a
+ * registered provider and an add route); the catalog only says what CirCI intends to offer.
+ *
  * Adding a provider: add its entry here (status `available`), its kind to `GIT_PROVIDER_KINDS`
  * or `INTEGRATION_KINDS` in `@circi/db`, and a logo in `apps/web/src/features/integrations/`.
  */
@@ -15,6 +18,15 @@ export const INTEGRATION_GROUP_LABEL: Record<IntegrationGroup, string> = {
   design: 'Design tools',
   tracker: 'Issue trackers',
 }
+
+/** A GitHub App installation id: digits only. The one definition, for the server and the dashboard. */
+export const INSTALLATION_ID_RE = /^\d{1,20}$/
+
+/** Whether the text (padding ignored) is a GitHub App installation id. */
+export const isInstallationId = (value: string) => INSTALLATION_ID_RE.test(value.trim())
+
+/** The label of a group's heading. */
+export const integrationGroupLabel = (group: IntegrationGroup) => INTEGRATION_GROUP_LABEL[group]
 
 export type IntegrationStatus = 'available' | 'planned'
 
@@ -109,10 +121,9 @@ export const catalogEntry = (kind: string): CatalogEntry | undefined =>
 export const groupOfKind = (kind: string): IntegrationGroup | undefined => catalogEntry(kind)?.group
 
 /** Entries matching a search text (name, kind or description) and an optional group. */
-export function filterCatalog(
-  entries: readonly CatalogEntry[],
-  filter: { query?: string; group?: IntegrationGroup | 'all' },
-): CatalogEntry[] {
+export function filterCatalog<
+  E extends Pick<CatalogEntry, 'kind' | 'group' | 'name' | 'description'>,
+>(entries: readonly E[], filter: { query?: string; group?: IntegrationGroup | 'all' }): E[] {
   const q = (filter.query ?? '').trim().toLowerCase()
   return entries.filter(
     (e) =>

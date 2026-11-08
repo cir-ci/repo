@@ -428,6 +428,9 @@ importers:
       '@circi/api':
         specifier: workspace:*
         version: link:../../packages/api
+      '@circi/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@circi/ui':
         specifier: workspace:*
         version: link:../../packages/ui

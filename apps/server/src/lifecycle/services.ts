@@ -54,6 +54,7 @@ export async function runServices(options: ServiceOptions): Promise<void> {
         ping: () => rt.db.ping(),
         listen: rt.db.listen,
         publicOrigin: rt.config.publicUrl.origin,
+        authSecret: rt.config.authSecret,
         webhookAllowPrivate: rt.config.webhookAllowPrivate,
         uploadTimeoutMinutes: rt.config.uploadTimeoutMinutes,
         gcGraceHours: rt.config.gcGraceHours,

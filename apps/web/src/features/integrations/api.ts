@@ -1,19 +1,21 @@
 import type { Integration } from '@circi/api'
+import {
+  filterCatalog,
+  INTEGRATION_GROUP_LABEL,
+  INTEGRATION_GROUPS,
+  isInstallationId,
+  catalogEntry,
+} from '@circi/core/integrations'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { getJson, post, seg, send } from '../../lib/http.ts'
 
 // ---- Logic (tested in Node) -------------------------------------------------------------------
 
-export const GROUPS: readonly { value: Integration.Group; label: string }[] = [
-  { value: 'git', label: 'Git hosts' },
-  { value: 'chat', label: 'Chat' },
-  { value: 'design', label: 'Design tools' },
-  { value: 'tracker', label: 'Issue trackers' },
-]
+export type GroupFilter = Integration.Group | 'all'
 
-export const groupLabel = (group: Integration.Group) =>
-  GROUPS.find((g) => g.value === group)?.label ?? group
+export const GROUPS: readonly { value: Integration.Group; label: string }[] =
+  INTEGRATION_GROUPS.map((value) => ({ value, label: INTEGRATION_GROUP_LABEL[value] }))
 
 /** The added integrations under their group headings, in the canvas order; empty groups left out. */
 export function groupItems(
@@ -25,36 +27,25 @@ export function groupItems(
   })
 }
 
-export type GroupFilter = Integration.Group | 'all'
-
 export const isGroupFilter = (value: string): value is GroupFilter =>
   value === 'all' || GROUPS.some((g) => g.value === value)
 
-/** The Add dialog's tiles: entries matching the search text (name, kind, description) and group. */
-export function filterCatalog(
-  catalog: readonly Integration.CatalogEntry[],
-  filter: { query: string; group: GroupFilter },
-): Integration.CatalogEntry[] {
-  const q = filter.query.trim().toLowerCase()
-  return catalog.filter(
-    (e) =>
-      (filter.group === 'all' || e.group === filter.group) &&
-      (!q ||
-        e.name.toLowerCase().includes(q) ||
-        e.kind.includes(q) ||
-        e.description.toLowerCase().includes(q)),
-  )
-}
+export { filterCatalog, isInstallationId }
 
 /** What a tile says when it can't be picked, or null when it can. */
 export function unavailableNote(entry: Integration.CatalogEntry): string | null {
   if (entry.status === 'planned') return 'Planned'
+  if (!entry.built) return 'Coming soon'
   if (!entry.connectable) return 'Not set up on this server'
   return null
 }
 
-/** Whether a GitHub installation id is acceptable (the server only takes digits). */
-export const isInstallationId = (value: string) => /^\d{1,20}$/.test(value.trim())
+/**
+ * How an added integration is named in labels and titles: the provider's display name, then the
+ * account it is connected to ("GitHub (Installation 501)", "Slack (Acme Slack)").
+ */
+export const integrationLabel = (item: Pick<Integration.Item, 'kind' | 'name'>) =>
+  `${catalogEntry(item.kind)?.name ?? item.kind} (${item.name})`
 
 /** Where an added integration's own page is, if it has one yet. */
 export const integrationPage = (kind: string): 'github' | null =>
@@ -94,7 +85,8 @@ export const repositoriesQuery = (org: string, connectionId: string) =>
 export function useRemoveIntegration(org: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => send<undefined>('DELETE', `${base(org)}/${seg(id)}`),
+    mutationFn: (item: Pick<Integration.Item, 'source' | 'id'>) =>
+      send<undefined>('DELETE', `${base(org)}/${item.source}/${seg(item.id)}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations', org] }),
   })
 }

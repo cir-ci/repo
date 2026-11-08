@@ -11,7 +11,7 @@ import {
   linkProjectToGithub,
   listIntegrations,
 } from '@circi/db'
-import { providerRegistry } from '@circi/providers'
+import { ProviderApiError, providerRegistry } from '@circi/providers'
 import { FsStorage } from '@circi/storage'
 import { createTestDb } from '@circi/testing'
 import { pino } from 'pino'
@@ -37,6 +37,10 @@ const app = buildServer({
       github: {
         async listRepositories(externalId: string) {
           if (failListing) throw new Error('boom')
+          // The fake GitHub edge: only installations 501, 7 and 8 exist.
+          if (!['501', '7', '8'].includes(externalId) && !externalId.startsWith('55')) {
+            throw new ProviderApiError(404, 'Not Found', { revoked: true })
+          }
           return [{ ref: `acme/web-${externalId}`, private: true }]
         },
       },
@@ -118,9 +122,21 @@ describe('GET /api/orgs/:org/integrations', () => {
       expect(body.integrations[0]).toMatchObject({ needsAttention: false, projectCount: 0 })
       expect(JSON.stringify(body)).not.toContain('sealed-secret')
       const byKind = Object.fromEntries(body.catalog.map((e: { kind: string }) => [e.kind, e]))
-      expect(byKind.github).toMatchObject({ status: 'available', connectable: true })
-      expect(byKind.slack).toMatchObject({ status: 'available', connectable: false })
-      expect(byKind['azure-devops']).toMatchObject({ status: 'planned', connectable: false })
+      expect(byKind.github).toMatchObject({
+        status: 'available',
+        built: true,
+        connectable: true,
+      })
+      expect(byKind.slack).toMatchObject({
+        status: 'available',
+        built: false,
+        connectable: false,
+      })
+      expect(byKind['azure-devops']).toMatchObject({
+        status: 'planned',
+        built: false,
+        connectable: false,
+      })
       expect(byKind.teams.status).toBe('planned')
       expect(byKind.penpot.status).toBe('planned')
     }
@@ -130,28 +146,45 @@ describe('GET /api/orgs/:org/integrations', () => {
 describe('removing an integration', () => {
   it('is for admins; members get 403 and strangers 404', async () => {
     const [github] = (await call('GET', base, ownerCookie)).json().integrations
-    expect((await call('DELETE', `${base}/${github.id}`, louCookie)).statusCode).toBe(403)
-    expect((await call('DELETE', `${base}/${github.id}`, rivalCookie)).statusCode).toBe(404)
-    expect((await call('DELETE', `${base}/${github.id}`, '')).statusCode).toBe(401)
+    expect((await call('DELETE', `${base}/connection/${github.id}`, louCookie)).statusCode).toBe(
+      403,
+    )
+    expect((await call('DELETE', `${base}/connection/${github.id}`, rivalCookie)).statusCode).toBe(
+      404,
+    )
+    expect((await call('DELETE', `${base}/connection/${github.id}`, '')).statusCode).toBe(401)
   })
 
   it('removes a non-git integration, and 404s for unknown ids', async () => {
     const slack = (await listIntegrations(t.db, org.id))[0]
-    expect((await call('DELETE', `${base}/${slack?.id}`, ownerCookie)).statusCode).toBe(204)
+    expect((await call('DELETE', `${base}/integration/${slack?.id}`, ownerCookie)).statusCode).toBe(
+      204,
+    )
     expect(await listIntegrations(t.db, org.id)).toEqual([])
-    expect((await call('DELETE', `${base}/${slack?.id}`, ownerCookie)).statusCode).toBe(404)
+    expect((await call('DELETE', `${base}/integration/${slack?.id}`, ownerCookie)).statusCode).toBe(
+      404,
+    )
     expect(
-      (await call('DELETE', `${base}/00000000-0000-4000-8000-000000000000`, ownerCookie))
-        .statusCode,
+      (
+        await call(
+          'DELETE',
+          `${base}/integration/00000000-0000-4000-8000-000000000000`,
+          ownerCookie,
+        )
+      ).statusCode,
     ).toBe(404)
-    expect((await call('DELETE', `${base}/not-a-uuid`, ownerCookie)).statusCode).toBe(400)
+    expect((await call('DELETE', `${base}/integration/not-a-uuid`, ownerCookie)).statusCode).toBe(
+      400,
+    )
   })
 
   it('disconnects a git host the way unlinking does: its projects stop reporting', async () => {
     await linkProjectToGithub(t.db, acme.project.id, { installationId: '501', repoRef: 'acme/web' })
     const [github] = (await call('GET', base, ownerCookie)).json().integrations
     expect(github).toMatchObject({ kind: 'github', projectCount: 1 })
-    expect((await call('DELETE', `${base}/${github.id}`, ownerCookie)).statusCode).toBe(204)
+    expect((await call('DELETE', `${base}/connection/${github.id}`, ownerCookie)).statusCode).toBe(
+      204,
+    )
     expect(await getProjectLink(t.db, acme.project.id)).toBeUndefined()
     expect((await call('GET', base, ownerCookie)).json().integrations).toEqual([])
   })
@@ -178,6 +211,31 @@ describe('the GitHub integration', () => {
       projects: [{ slug: 'web', repoRef: 'acme/web', installationId: '7' }],
     })
     expect((await call('GET', `${base}/github`, rivalCookie)).statusCode).toBe(404)
+  })
+
+  it('rejects an installation GitHub does not know, storing nothing', async () => {
+    const before = (await call('GET', `${base}/github`, ownerCookie)).json().connections
+    const res = await call('POST', `${base}/github`, ownerCookie, { installationId: '123456' })
+    expect(res.statusCode).toBe(404)
+    expect((await call('GET', `${base}/github`, ownerCookie)).json().connections).toEqual(before)
+    failListing = true
+    expect(
+      (await call('POST', `${base}/github`, ownerCookie, { installationId: '8' })).statusCode,
+    ).toBe(502)
+    failListing = false
+    expect((await call('GET', `${base}/github`, ownerCookie)).json().connections).toEqual(before)
+  })
+
+  it('rejects an installation another organization already uses', async () => {
+    await connectGithub(t.db, (await getOrganizationBySlug(t.db, rival.orgSlug)).id, '8')
+    const res = await call('POST', `${base}/github`, ownerCookie, { installationId: '8' })
+    expect(res.statusCode).toBe(409)
+  })
+
+  it('does not remove a connection through the integration route, or the reverse', async () => {
+    const id = (await call('GET', `${base}/github`, ownerCookie)).json().connections[0].id
+    expect((await call('DELETE', `${base}/integration/${id}`, ownerCookie)).statusCode).toBe(404)
+    expect((await call('DELETE', `${base}/bogus/${id}`, ownerCookie)).statusCode).toBe(400)
   })
 
   it('lists the repositories a connection can see, for admins', async () => {

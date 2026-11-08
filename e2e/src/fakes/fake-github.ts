@@ -230,6 +230,9 @@ export async function startFakeGithub(
       if (auth !== 'installation')
         return sendJson(res, 403, { message: 'Resource not accessible by integration' })
 
+      if (url.pathname === '/installation/repositories' && method === 'GET') {
+        return sendJson(res, 200, { total_count: 0, repositories: [] })
+      }
       if ((m = /^\/repos\/([^/]+\/[^/]+)\/check-runs$/.exec(url.pathname)) && method === 'POST') {
         const run = toCheckRun(nextId++, m[1] ?? '', obj)
         checkRuns.push(run)

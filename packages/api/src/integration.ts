@@ -1,11 +1,12 @@
 export namespace Integration {
+  /** Mirrors `IntegrationGroup` in `@circi/core` (api depends on nothing); `contract-check.ts` fails if they drift. */
   export type Group = 'git' | 'chat' | 'design' | 'tracker'
 
   /** `kind` is the provider (`github`, `slack`…); the catalog lists the possible values. */
   export interface Item {
     /** Connection id (git hosts) or integration id (everything else). */
     id: string
-    /** Which table the id belongs to; `DELETE /integrations/:id` works for either. */
+    /** Which table the id belongs to; `DELETE /integrations/:source/:id`. */
     source: 'connection' | 'integration'
     kind: string
     group: Group
@@ -26,6 +27,8 @@ export namespace Integration {
     name: string
     description: string
     status: 'available' | 'planned'
+    /** This release has a provider and add flow for it (`available` entries not built say "Coming soon"). */
+    built: boolean
     /** Available, and this instance can connect it (GitHub needs a GitHub App configured). */
     connectable: boolean
   }

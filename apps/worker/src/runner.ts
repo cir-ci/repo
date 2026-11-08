@@ -38,6 +38,8 @@ export interface WorkerDeps {
   github?: GithubApp
   /** Git host adapters by connection kind; takes the place of `github` when given. */
   providers?: ProviderRegistry<NotifyProvider>
+  /** The instance secret (`BETTER_AUTH_SECRET`): opens sealed per-connection credentials of token git hosts. */
+  authSecret?: string
   /** Sends notification emails; absent without SMTP, and such jobs are then skipped. */
   mailer?: EmailSender
   /** Webhooks may point at private addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
@@ -317,6 +319,7 @@ async function runGitNotifyJob(deps: WorkerDeps, job: Job): Promise<void> {
         github: deps.github,
         providers: deps.providers,
         publicOrigin: deps.publicOrigin ?? '',
+        authSecret: deps.authSecret,
       },
       job,
     )

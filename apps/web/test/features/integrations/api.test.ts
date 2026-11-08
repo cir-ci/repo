@@ -5,6 +5,7 @@ import {
   groupItems,
   integrationPage,
   isGroupFilter,
+  integrationLabel,
   isInstallationId,
   projectCountLabel,
   unavailableNote,
@@ -54,6 +55,9 @@ describe('unavailableNote', () => {
   it('says why a tile cannot be picked', () => {
     expect(unavailableNote(entry({ kind: 'x', name: 'X' }))).toBeNull()
     expect(unavailableNote(entry({ kind: 'x', name: 'X', status: 'planned' }))).toBe('Planned')
+    expect(unavailableNote(entry({ kind: 'x', name: 'X', built: false, connectable: false }))).toBe(
+      'Coming soon',
+    )
     expect(unavailableNote(entry({ kind: 'x', name: 'X', connectable: false }))).toBe(
       'Not set up on this server',
     )
@@ -65,6 +69,12 @@ describe('small helpers', () => {
     expect(isInstallationId(' 4242 ')).toBe(true)
     expect(isInstallationId('')).toBe(false)
     expect(isInstallationId('12a')).toBe(false)
+  })
+  it('names an integration by its provider and account', () => {
+    expect(integrationLabel({ kind: 'github', name: 'Installation 501' })).toBe(
+      'GitHub (Installation 501)',
+    )
+    expect(integrationLabel({ kind: 'mystery', name: 'X' })).toBe('mystery (X)')
   })
   it('names the project count and the integration page', () => {
     expect([0, 1, 3].map(projectCountLabel)).toEqual(['No projects yet', '1 project', '3 projects'])

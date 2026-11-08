@@ -83,6 +83,27 @@ export async function connectGithub(
   return connection
 }
 
+/** Whether another organisation already has a connection to this host account or installation. */
+export async function isInstallationClaimedElsewhere(
+  db: Database,
+  kind: string,
+  externalId: string,
+  orgId: string,
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: providerConnections.id })
+    .from(providerConnections)
+    .where(
+      and(
+        eq(providerConnections.kind, kind),
+        eq(providerConnections.externalId, externalId),
+        ne(providerConnections.orgId, orgId),
+      ),
+    )
+    .limit(1)
+  return row !== undefined
+}
+
 export interface GitConnectionRow {
   id: string
   kind: string
@@ -174,11 +195,12 @@ export async function unlinkProject(db: Database, projectId: string): Promise<vo
 }
 
 /**
- * Records that GitHub no longer accepts this installation (uninstalled or suspended), on every
- * organization's connection to it. Keeps the time of the first failure.
+ * Records that the host no longer accepts this connection (a GitHub installation uninstalled or
+ * suspended, a revoked token), on every organization's connection of that `kind` to it. Keeps the time of the first failure.
  */
 export async function markInstallationNeedsAttention(
   db: Database,
+  kind: string,
   installationId: string,
   reason: ConnectionAttention,
   now: Date = new Date(),
@@ -188,7 +210,7 @@ export async function markInstallationNeedsAttention(
     .set({ needsAttention: reason, needsAttentionAt: now })
     .where(
       and(
-        eq(providerConnections.kind, 'github'),
+        eq(providerConnections.kind, kind),
         eq(providerConnections.externalId, installationId),
         or(
           isNull(providerConnections.needsAttention),
@@ -201,6 +223,7 @@ export async function markInstallationNeedsAttention(
 /** Clears the state above, after a call to GitHub succeeded. */
 export async function clearInstallationNeedsAttention(
   db: Database,
+  kind: string,
   installationId: string,
 ): Promise<void> {
   await db
@@ -208,7 +231,7 @@ export async function clearInstallationNeedsAttention(
     .set({ needsAttention: null, needsAttentionAt: null })
     .where(
       and(
-        eq(providerConnections.kind, 'github'),
+        eq(providerConnections.kind, kind),
         eq(providerConnections.externalId, installationId),
         isNotNull(providerConnections.needsAttention),
       ),

@@ -8,6 +8,12 @@ import type { CheckReport } from './render.ts'
  * `externalId` is `provider_connections.external_id`: the host's id for the connection (the GitHub
  * App installation id). A token-based host reads its credentials for that connection itself, from
  * what it was constructed with, so the arguments stay the same for every host.
+ *
+ * Per-connection secrets: a token host whose credentials differ per connection gets them as the
+ * optional trailing `credentials` argument, the opened plaintext of `provider_connections.
+ * encrypted_credentials` (the notify job opens it with `openSecret`, so adapters never see the
+ * instance secret). GitHub ignores it. Passing it beats a registry that returns a provider bound
+ * to the connection: the registry and every existing call site stay as they are.
  */
 export interface GitProvider {
   /** `provider_connections.kind` this adapter serves, e.g. `github`. */
@@ -18,7 +24,12 @@ export interface GitProvider {
    * commit status): creates it, or updates `existingId`. Returns its id, to be passed back next
    * time. Throws `ProviderApiError`, with `revoked` set when the host says the connection is gone.
    */
-  upsertCheckRun(externalId: string, repo: string, input: StatusInput): Promise<string>
+  upsertCheckRun(
+    externalId: string,
+    repo: string,
+    input: StatusInput,
+    credentials?: string,
+  ): Promise<string>
 
   /**
    * Writes the one summary comment on a pull or merge request: edits `existingId`, else finds the
@@ -30,13 +41,14 @@ export interface GitProvider {
     prNumber: number,
     body: string,
     existingId?: string,
+    credentials?: string,
   ): Promise<string>
 
   /** Whether a webhook delivery really came from the host: checks its signature or token. */
   verifyWebhook(rawBody: Buffer | string, headers: WebhookHeaders): boolean
 
   /** The repositories the connection can see, for choosing one per project. */
-  listRepositories(externalId: string): Promise<RepositoryInfo[]>
+  listRepositories(externalId: string, credentials?: string): Promise<RepositoryInfo[]>
 }
 
 export interface StatusInput {

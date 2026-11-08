@@ -19,21 +19,29 @@ export const entry = (
   group: 'git',
   description: `${over.name} description`,
   status: 'available',
+  built: true,
   connectable: true,
   ...over,
 })
 
 export const CATALOG: Integration.CatalogEntry[] = [
   entry({ kind: 'github', name: 'GitHub' }),
-  entry({ kind: 'gitlab', name: 'GitLab', connectable: false }),
-  entry({ kind: 'azure-devops', name: 'Azure DevOps', status: 'planned', connectable: false }),
-  entry({ kind: 'slack', name: 'Slack', group: 'chat', connectable: false }),
+  entry({ kind: 'gitlab', name: 'GitLab', built: false, connectable: false }),
+  entry({
+    kind: 'azure-devops',
+    name: 'Azure DevOps',
+    status: 'planned',
+    built: false,
+    connectable: false,
+  }),
+  entry({ kind: 'slack', name: 'Slack', group: 'chat', built: false, connectable: false }),
   entry({
     kind: 'teams',
     name: 'Microsoft Teams',
     group: 'chat',
     status: 'planned',
+    built: false,
     connectable: false,
   }),
-  entry({ kind: 'figma', name: 'Figma', group: 'design', connectable: false }),
+  entry({ kind: 'figma', name: 'Figma', group: 'design', built: false, connectable: false }),
 ]

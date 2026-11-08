@@ -1,3 +1,4 @@
+import { sealSecret } from '@circi/core'
 import { claimJob, createBuild, GIT_NOTIFY_QUEUE, linkProjectToGithub, schema } from '@circi/db'
 import { GithubApiError, providerRegistry } from '@circi/providers'
 import { completeBuild } from '@circi/services'
@@ -15,9 +16,12 @@ afterAll(async () => {
   await t.close()
 })
 
-async function queuedJob() {
+async function queuedJob(sealed?: string) {
   const { project } = await seedProject(t.db)
   await linkProjectToGithub(t.db, project.id, { installationId: '5', repoRef: 'acme/web' })
+  if (sealed) {
+    await t.db.update(schema.providerConnections).set({ encryptedCredentials: sealed })
+  }
   const build = await createBuild(t.db, {
     projectId: project.id,
     commitSha: 'abc1234',
@@ -68,5 +72,28 @@ describe('notifyGit resolves the provider by the connection kind', () => {
       job,
     )
     expect(result).toEqual({ status: 'skipped', reason: 'no github provider configured' })
+  })
+
+  it('opens the connection’s sealed credentials for the provider, and never for GitHub’s own', async () => {
+    const seen: (string | undefined)[] = []
+    const github = {
+      upsertCheckRun: async (_id: string, _repo: string, _input: unknown, credentials?: string) => {
+        seen.push(credentials)
+        return '1'
+      },
+      upsertComment: async () => '2',
+    }
+    const deps = { db: t.db, providers: providerRegistry({ github }), publicOrigin: 'https://ci' }
+    await notifyGit({ ...deps, authSecret: 's3cret' }, await queuedJob())
+    await notifyGit(
+      { ...deps, authSecret: 's3cret' },
+      await queuedJob(sealSecret('s3cret', 'token-1')),
+    )
+    expect(seen).toEqual([undefined, 'token-1'])
+    const unreadable = await notifyGit(
+      { ...deps, authSecret: 'other' },
+      await queuedJob(sealSecret('s3cret', 'token-1')),
+    )
+    expect(unreadable).toEqual({ status: 'skipped', reason: 'github credentials cannot be opened' })
   })
 })

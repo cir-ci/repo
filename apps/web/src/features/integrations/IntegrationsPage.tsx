@@ -19,6 +19,7 @@ import { Frame } from '../settings/Frame.tsx'
 import { AddIntegrationDialog } from './AddIntegrationDialog.tsx'
 import {
   groupItems,
+  integrationLabel,
   integrationPage,
   integrationsQuery,
   projectCountLabel,
@@ -110,7 +111,7 @@ export function IntegrationsPage() {
             onOpenChange={(open) => {
               if (!open) setRemoving(null)
             }}
-            title={removing ? `Remove ${removing.name}?` : 'Remove integration?'}
+            title={removing ? `Remove ${integrationLabel(removing)}?` : 'Remove integration?'}
             description={
               removing?.group === 'git'
                 ? 'The projects that report to it stop showing build status on pull requests. You can connect it again later.'
@@ -120,8 +121,8 @@ export function IntegrationsPage() {
             loading={remove.isPending}
             onConfirm={() => {
               if (!removing) return
-              remove.mutate(removing.id, {
-                onSuccess: () => announce(`${removing.name} removed`),
+              remove.mutate(removing, {
+                onSuccess: () => announce(`${integrationLabel(removing)} removed`),
                 onSettled: () => setRemoving(null),
               })
             }}
@@ -140,7 +141,7 @@ function Row(props: {
 }) {
   const { item } = props
   const page = integrationPage(item.kind)
-  const label = `${item.kind} ${item.name}`
+  const label = integrationLabel(item)
   return (
     <ListRow density="two-line">
       <div className={styles['row']}>

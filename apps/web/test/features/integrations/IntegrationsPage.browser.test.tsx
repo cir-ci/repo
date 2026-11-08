@@ -72,16 +72,16 @@ describe('IntegrationsPage', () => {
       [`GET ${LIST}`]: list({
         integrations: [item({ kind: 'slack', id: 's1', group: 'chat', name: 'Acme Slack' })],
       }),
-      [`DELETE ${LIST}/s1`]: { status: 204 },
+      [`DELETE ${LIST}/integration/s1`]: { status: 204 },
     })
     await show()
-    await page.getByRole('button', { name: 'Remove slack Acme Slack' }).click()
-    const dialog = page.getByRole('alertdialog', { name: 'Remove Acme Slack?' })
+    await page.getByRole('button', { name: 'Remove Slack (Acme Slack)' }).click()
+    const dialog = page.getByRole('alertdialog', { name: 'Remove Slack (Acme Slack)?' })
     await expect.element(dialog).toBeVisible()
     await page.getByRole('button', { name: 'Cancel' }).click()
     await expect.element(dialog).not.toBeInTheDocument()
     expect(fake.of('DELETE')).toHaveLength(0)
-    await page.getByRole('button', { name: 'Remove slack Acme Slack' }).click()
+    await page.getByRole('button', { name: 'Remove Slack (Acme Slack)' }).click()
     await page.getByRole('button', { name: 'Remove', exact: true }).click()
     await expect.poll(() => fake.of('DELETE')).toHaveLength(1)
   })
@@ -148,6 +148,7 @@ describe('AddIntegrationDialog', () => {
     await expect.element(page.getByRole('button', { name: 'Add Microsoft Teams' })).toBeDisabled()
     await expect.element(page.getByRole('button', { name: 'Add Slack' })).toBeDisabled()
     await expect.element(page.getByText('Planned').first()).toBeVisible()
+    await expect.element(page.getByText('Coming soon').first()).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Add GitHub' })).toBeEnabled()
   })
 
@@ -210,6 +211,56 @@ describe('GithubIntegrationPage', () => {
     expect(fake.of('PUT')[0]?.body).toEqual({ repoRef: 'acme/docs', installationId: '4242' })
     await page.getByRole('form', { name: 'Web' }).getByRole('button', { name: 'Unlink' }).click()
     await expect.poll(() => fake.of('DELETE')).toHaveLength(1)
+  })
+
+  it('keeps the repository text in step with what is stored: Unlink clears it', async () => {
+    await page.viewport(1000, 800)
+    fakeApi({
+      [`GET ${GITHUB}`]: githubData(),
+      'GET /api/orgs/acme/integrations/c1/repositories': { body: { repositories: [] } },
+      'DELETE /api/projects/acme/web/github': { status: 204 },
+    })
+    await showGithub()
+    const field = page.getByRole('combobox', { name: 'Web repository' })
+    await expect.element(field).toHaveValue('acme/web')
+    await page.getByRole('form', { name: 'Web' }).getByRole('button', { name: 'Unlink' }).click()
+    await expect.element(field).toHaveValue('')
+  })
+
+  it('offers an installation per project only when there are several, and uses it', async () => {
+    await page.viewport(1000, 800)
+    const two = githubData()
+    two.body.connections.push({ id: 'c2', installationId: '9000', needsAttention: false })
+    const fake = fakeApi({
+      [`GET ${GITHUB}`]: two,
+      'GET /api/orgs/acme/integrations/c1/repositories': { body: { repositories: [] } },
+      'GET /api/orgs/acme/integrations/c2/repositories': {
+        body: { repositories: [{ ref: 'acme/other', private: false }] },
+      },
+      'PUT /api/projects/acme/docs/github': { body: { link: {} } },
+    })
+    await showGithub()
+    await expect.element(page.getByRole('combobox', { name: 'Docs installation' })).toBeVisible()
+    await page.getByRole('combobox', { name: 'Docs installation' }).click()
+    await page.getByRole('option', { name: 'Installation 9000' }).click()
+    await expect
+      .poll(() => fake.of('GET').some((r) => r.path.endsWith('/c2/repositories')))
+      .toBe(true)
+    await page.getByRole('combobox', { name: 'Docs repository' }).fill('acme/other')
+    await page.getByRole('form', { name: 'Docs' }).getByRole('button', { name: 'Link' }).click()
+    await expect.poll(() => fake.of('PUT')).toHaveLength(1)
+    expect(fake.of('PUT')[0]?.body).toEqual({ repoRef: 'acme/other', installationId: '9000' })
+  })
+
+  it('shows no installation choice with a single installation', async () => {
+    await page.viewport(1000, 800)
+    fakeApi({
+      [`GET ${GITHUB}`]: githubData(),
+      'GET /api/orgs/acme/integrations/c1/repositories': { body: { repositories: [] } },
+    })
+    await showGithub()
+    await expect.element(page.getByRole('combobox', { name: 'Docs repository' })).toBeVisible()
+    expect(page.getByRole('combobox', { name: 'Docs installation' }).elements()).toHaveLength(0)
   })
 
   it('is read-only for members', async () => {

@@ -86,6 +86,11 @@ describe('upload, diff and review (local-disk storage)', () => {
     expect((await detail()).build.reviewStatus).toBe('pending')
 
     await page.getByRole('button', { name: 'Reject', exact: true }).click()
+    // A reason is required: submitting without one keeps the dialog open.
+    await dialog.getByRole('button', { name: 'Reject', exact: true }).click()
+    await dialog.getByRole('alert').waitFor()
+    expect((await detail()).build.reviewStatus).toBe('pending')
+    await dialog.getByRole('textbox', { name: 'Reason' }).fill('The header moved by 12px')
     await dialog.getByRole('button', { name: 'Reject', exact: true }).click()
 
     await expect.poll(async () => (await detail()).build.reviewStatus).toBe('rejected')
@@ -95,7 +100,7 @@ describe('upload, diff and review (local-disk storage)', () => {
       source: 'ui',
       userName: setup.account.name,
     })
-    await page.getByText(`Rejected by ${setup.account.name}`).waitFor()
+    await page.getByText(`Rejected by ${setup.account.name}`).first().waitFor()
     // Only the opposite decision is offered now.
     // (polled: the dialog's own Reject button is still fading out when the banner appears)
     await expect
@@ -112,7 +117,7 @@ describe('upload, diff and review (local-disk storage)', () => {
 
     await expect.poll(async () => (await detail()).build.reviewStatus).toBe('approved')
     expect((await detail()).reviews.map((r) => r.state)).toEqual(['approved', 'rejected'])
-    await page.getByText(`Approved by ${setup.account.name}`).waitFor()
+    await page.getByText(`Approved by ${setup.account.name}`).first().waitFor()
 
     // The same commit uploaded again (a CI re-run): its exact screenshots were approved, so the
     // new build is approved at once, by "rerun", and does not block the merge.

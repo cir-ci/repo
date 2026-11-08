@@ -66,10 +66,13 @@ export {
   catalogEntry,
   filterCatalog,
   groupOfKind,
+  INSTALLATION_ID_RE,
   INTEGRATION_CATALOG,
   INTEGRATION_GROUP_LABEL,
   INTEGRATION_GROUPS,
+  integrationGroupLabel,
   type IntegrationGroup,
+  isInstallationId,
   type IntegrationStatus,
 } from './integrations.ts'
 export { openSecret, sealSecret } from './secrets.ts'

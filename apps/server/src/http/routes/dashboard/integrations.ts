@@ -1,16 +1,18 @@
 import type { Integration } from '@circi/api'
-import { INTEGRATION_CATALOG } from '@circi/core'
+import { INSTALLATION_ID_RE, INTEGRATION_CATALOG } from '@circi/core'
 import {
   connectGithub,
   deleteIntegration,
   getGitConnection,
   getMemberRole,
+  isInstallationClaimedElsewhere,
   type IntegrationItem,
   listGitConnections,
   listOrgIntegrations,
   listProjectRepoLinks,
   removeGitConnection,
 } from '@circi/db'
+import { isConnectionRevoked } from '@circi/providers'
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
@@ -19,8 +21,9 @@ import { loadOrg } from '../../lib/org-access.ts'
 import { parse } from '../../lib/validation.ts'
 
 const idParams = z.object({ org: z.string(), id: z.uuid() })
+const removeParams = idParams.extend({ source: z.enum(['connection', 'integration']) })
 const githubBody = z.strictObject({
-  installationId: z.string().regex(/^\d{1,20}$/, 'The installation id is a number'),
+  installationId: z.string().regex(INSTALLATION_ID_RE, 'The installation id is a number'),
 })
 
 const wire = (i: IntegrationItem): Integration.Item => ({
@@ -56,6 +59,8 @@ export const dashboardIntegrationRoutes: FastifyPluginAsync<DashboardDeps> = asy
   /** Kinds this instance can connect now: GitHub when its App is configured, plus registered hosts. */
   const connectable = (kind: string) =>
     (kind === 'github' && deps.githubApp === true) || deps.providers?.get(kind) !== undefined
+  /** Kinds with an add flow in this build: GitHub's routes, or a registered provider. */
+  const built = (kind: string) => kind === 'github' || deps.providers?.get(kind) !== undefined
 
   app.get('/orgs/:org/integrations', async (req, reply) => {
     const found = await load(req, reply)
@@ -64,20 +69,27 @@ export const dashboardIntegrationRoutes: FastifyPluginAsync<DashboardDeps> = asy
       canManage: found.canManage,
       integrations: (await listOrgIntegrations(deps.db, found.org.id)).map(wire),
       catalog: INTEGRATION_CATALOG.map((e) =>
-        Object.assign({}, e, { connectable: e.status === 'available' && connectable(e.kind) }),
+        Object.assign({}, e, {
+          built: e.status === 'available' && built(e.kind),
+          connectable: e.status === 'available' && connectable(e.kind),
+        }),
       ),
     }
     return payload
   })
 
-  /** Removes a connection or integration. A git host's projects stop reporting to it, as when unlinked. */
-  app.delete('/orgs/:org/integrations/:id', async (req, reply) => {
+  /**
+   * Removes a connection (`source` is `connection`) or an integration, as the list's `source`
+   * says. A git host's projects stop reporting to it, as when unlinked.
+   */
+  app.delete('/orgs/:org/integrations/:source/:id', async (req, reply) => {
     const org = await loadForManager(req, reply)
     if (!org) return reply
-    const { id } = parse(idParams, req.params)
+    const { source, id } = parse(removeParams, req.params)
     const removed =
-      (await removeGitConnection(deps.db, org.id, id)) ||
-      (await deleteIntegration(deps.db, org.id, id))
+      source === 'connection'
+        ? await removeGitConnection(deps.db, org.id, id)
+        : await deleteIntegration(deps.db, org.id, id)
     if (!removed) return reply.code(404).send({ error: 'Integration not found' })
     return reply.code(204).send()
   })
@@ -108,7 +120,12 @@ export const dashboardIntegrationRoutes: FastifyPluginAsync<DashboardDeps> = asy
     return payload
   })
 
-  /** Connects a GitHub App installation to the organisation (projects then pick repositories on it). */
+  /**
+   * Connects a GitHub App installation to the organisation (projects then pick repositories on it).
+   * There is no install redirect to prove ownership, so the id is checked instead: GitHub must
+   * confirm the App is installed there (a token is minted and its repositories listed), and no
+   * other organisation of this instance may already use it. Nothing is stored otherwise.
+   */
   app.post('/orgs/:org/integrations/github', async (req, reply) => {
     const org = await loadForManager(req, reply)
     if (!org) return reply
@@ -116,6 +133,25 @@ export const dashboardIntegrationRoutes: FastifyPluginAsync<DashboardDeps> = asy
       return reply.code(400).send({ error: 'This instance has no GitHub App configured' })
     }
     const { installationId } = parse(githubBody, req.body)
+    const github = deps.providers?.get('github')
+    if (!github)
+      return reply.code(400).send({ error: 'This instance has no GitHub App configured' })
+    try {
+      await github.listRepositories(installationId)
+    } catch (err) {
+      if (isConnectionRevoked(err)) {
+        return reply
+          .code(404)
+          .send({ error: 'The GitHub App is not installed with that installation id' })
+      }
+      req.log.warn({ err }, 'could not verify the installation')
+      return reply.code(502).send({ error: 'GitHub did not answer; try again shortly' })
+    }
+    if (await isInstallationClaimedElsewhere(deps.db, 'github', installationId, org.id)) {
+      return reply
+        .code(409)
+        .send({ error: 'That installation is already connected to another organization' })
+    }
     const { id } = await connectGithub(deps.db, org.id, installationId)
     return reply.code(201).send({ id })
   })

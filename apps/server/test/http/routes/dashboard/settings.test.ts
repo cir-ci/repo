@@ -280,7 +280,7 @@ describe('GitHub link', () => {
     expect(await settings()).toBeNull()
     expect(await page()).toBeNull()
 
-    await markInstallationNeedsAttention(t.db, '4243', 'installation_revoked')
+    await markInstallationNeedsAttention(t.db, 'github', '4243', 'installation_revoked')
     expect(await settings()).toEqual({
       reason: 'installation_revoked',
       since: expect.stringMatching(/^\d{4}-\d\d-\d\dT/),

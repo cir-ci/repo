@@ -62,9 +62,9 @@ describe('project links', () => {
     expect(await getProjectGitAttention(t.db, a.project.id)).toBeUndefined()
 
     const first = new Date('2026-01-01T00:00:00Z')
-    await markInstallationNeedsAttention(t.db, '555', 'installation_revoked', first)
+    await markInstallationNeedsAttention(t.db, 'github', '555', 'installation_revoked', first)
     // Marking again keeps the time of the first failure.
-    await markInstallationNeedsAttention(t.db, '555', 'installation_revoked', new Date())
+    await markInstallationNeedsAttention(t.db, 'github', '555', 'installation_revoked', new Date())
     expect(await getProjectGitAttention(t.db, a.project.id)).toEqual({
       reason: 'installation_revoked',
       since: first,
@@ -74,7 +74,7 @@ describe('project links', () => {
     const build = await seedBuild(t.db, a.project.id)
     expect((await getGitTarget(t.db, build.id))?.connectionNeedsAttention).toBe(true)
 
-    await clearInstallationNeedsAttention(t.db, '555')
+    await clearInstallationNeedsAttention(t.db, 'github', '555')
     expect(await getProjectGitAttention(t.db, a.project.id)).toBeUndefined()
     expect((await getGitTarget(t.db, build.id))?.connectionNeedsAttention).toBe(false)
   })

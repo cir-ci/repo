@@ -1,4 +1,4 @@
-import { groupOfKind, type IntegrationGroup } from '@circi/core'
+import { groupOfKind, INTEGRATION_GROUPS, type IntegrationGroup } from '@circi/core'
 
 import type { Database } from '../client.ts'
 import { listGitConnections } from '../repositories/git.ts'
@@ -59,7 +59,7 @@ export async function listOrgIntegrations(db: Database, orgId: string): Promise<
       createdAt: i.createdAt,
     })
   }
-  const order: IntegrationGroup[] = ['git', 'chat', 'design', 'tracker']
+  const order: readonly IntegrationGroup[] = INTEGRATION_GROUPS
   return items.toSorted(
     (a, b) =>
       order.indexOf(a.group) - order.indexOf(b.group) ||

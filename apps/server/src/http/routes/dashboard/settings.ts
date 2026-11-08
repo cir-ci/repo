@@ -1,6 +1,6 @@
 import type { Project } from '@circi/api'
 import { rotateProjectToken } from '@circi/auth'
-import { ValidationError, webhookUrlProblem } from '@circi/core'
+import { INSTALLATION_ID_RE, ValidationError, webhookUrlProblem } from '@circi/core'
 import {
   createWebhook,
   type Database,
@@ -48,7 +48,7 @@ const settingsBody = z
   .strict()
 
 const githubBody = z.object({
-  installationId: z.string().regex(/^\d{1,20}$/, 'The installation id is a number'),
+  installationId: z.string().regex(INSTALLATION_ID_RE, 'The installation id is a number'),
   repoRef: z.string().regex(/^[\w.-]+\/[\w.-]+$/, 'Use owner/name, e.g. acme/web'),
 })
 

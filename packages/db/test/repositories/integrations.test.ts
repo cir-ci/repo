@@ -135,7 +135,7 @@ describe('git connections as integrations', () => {
       expect.objectContaining({ repoRef: 'acme/web', connectionExternalId: '501' }),
     ])
 
-    await markInstallationNeedsAttention(t.db, '501', 'installation_revoked')
+    await markInstallationNeedsAttention(t.db, 'github', '501', 'installation_revoked')
     const unified = await listOrgIntegrations(t.db, org.id)
     expect(unified).toEqual([
       expect.objectContaining({

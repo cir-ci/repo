@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@circi/api": "workspace:*",
+    "@circi/core": "workspace:*",
     "@circi/ui": "workspace:*",
     "@fontsource-variable/inter": "catalog:",
     "@fontsource-variable/jetbrains-mono": "catalog:",

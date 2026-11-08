@@ -1,3 +1,4 @@
+import { openSecret } from '@circi/core'
 import {
   buildsForPrSummary,
   type Database,
@@ -36,6 +37,8 @@ export interface NotifyDeps {
   github?: NotifyProvider | undefined
   /** Dashboard origin, for links back to the build. */
   publicOrigin: string
+  /** The instance secret, to open a connection's sealed credentials (token hosts). */
+  authSecret?: string | undefined
 }
 
 export type NotifyResult = { status: 'skipped'; reason: string } | { status: 'notified' }
@@ -63,10 +66,19 @@ export async function notifyGit(deps: NotifyDeps, job: Job): Promise<NotifyResul
     return await withAdvisoryLock(deps.db, `git-notify:${first.build.projectId}`, async (db) => {
       const target = await getGitTarget(db, buildId)
       if (!target) return { status: 'skipped', reason: 'project is not linked to a repository' }
-      const result = await notifyLocked({ ...deps, db, provider }, target)
+      let credentials: string | undefined
+      if (target.encryptedCredentials !== null) {
+        credentials = deps.authSecret
+          ? openSecret(deps.authSecret, target.encryptedCredentials)
+          : undefined
+        if (credentials === undefined) {
+          return { status: 'skipped', reason: `${target.kind} credentials cannot be opened` }
+        }
+      }
+      const result = await notifyLocked({ ...deps, db, provider, credentials }, target)
       // GitHub accepted the calls again (the App was reinstalled): drop the warning.
       if (target.connectionNeedsAttention) {
-        await clearInstallationNeedsAttention(db, target.installationId)
+        await clearInstallationNeedsAttention(db, target.kind, target.installationId)
       }
       return result
     })
@@ -74,7 +86,12 @@ export async function notifyGit(deps: NotifyDeps, job: Job): Promise<NotifyResul
     if (!isConnectionRevoked(err)) throw err
     // Uninstalled or suspended: retrying cannot help. Record it for the dashboard and finish the
     // job; the next build's job tries again, and clears the state once GitHub answers.
-    await markInstallationNeedsAttention(deps.db, first.installationId, 'installation_revoked')
+    await markInstallationNeedsAttention(
+      deps.db,
+      first.kind,
+      first.installationId,
+      'installation_revoked',
+    )
     return {
       status: 'skipped',
       reason: `${first.kind} connection ${first.installationId} was removed or suspended`,
@@ -83,7 +100,7 @@ export async function notifyGit(deps: NotifyDeps, job: Job): Promise<NotifyResul
 }
 
 async function notifyLocked(
-  deps: NotifyDeps & { provider: NotifyProvider },
+  deps: NotifyDeps & { provider: NotifyProvider; credentials: string | undefined },
   target: NonNullable<Awaited<ReturnType<typeof getGitTarget>>>,
 ): Promise<NotifyResult> {
   const reported = async (b: typeof target.build): Promise<ReportedBuild> => {
@@ -117,6 +134,7 @@ async function notifyLocked(
       target.build.prNumber,
       body,
       existing,
+      deps.credentials,
     )
     if (commentId !== existing) {
       await setPrCommentId(deps.db, target.build.projectId, target.build.prNumber, commentId)
@@ -126,20 +144,25 @@ async function notifyLocked(
 }
 
 async function setCheck(
-  deps: NotifyDeps & { provider: NotifyProvider },
+  deps: NotifyDeps & { provider: NotifyProvider; credentials: string | undefined },
   target: NonNullable<Awaited<ReturnType<typeof getGitTarget>>>,
   mine: ReportedBuild,
   flakyBlocksMerge: boolean,
 ): Promise<void> {
   const existingId = await getCheckRunId(deps.db, target.build.id)
-  const id = await deps.provider.upsertCheckRun(target.installationId, target.repoRef, {
-    sha: target.build.commitSha,
-    report: checkReport(mine, {
-      blockMergeOnChanges: target.blockMergeOnChanges,
-      flakyBlocksMerge,
-    }),
-    detailsUrl: mine.url,
-    ...(existingId ? { existingId } : {}),
-  })
+  const id = await deps.provider.upsertCheckRun(
+    target.installationId,
+    target.repoRef,
+    {
+      sha: target.build.commitSha,
+      report: checkReport(mine, {
+        blockMergeOnChanges: target.blockMergeOnChanges,
+        flakyBlocksMerge,
+      }),
+      detailsUrl: mine.url,
+      ...(existingId ? { existingId } : {}),
+    },
+    deps.credentials,
+  )
   if (id && id !== existingId) await setCheckRunId(deps.db, target.build.id, id)
 }
