@@ -9,5 +9,5 @@
     "declaration": false,
     "declarationMap": false
   },
-  "include": ["src", "tsdown.config.ts"]
+  "include": ["src", "test", "tsdown.config.ts"]
 }

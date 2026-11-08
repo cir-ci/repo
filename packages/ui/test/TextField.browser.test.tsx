@@ -16,10 +16,8 @@ describe('TextField', () => {
   it('describes the input with its description', async () => {
     await render(<TextField label="Name" description="Usually the repository’s name." />)
     await expect
-      .element(
-        page.getByRole('textbox', { name: 'Name', description: 'Usually the repository’s name.' }),
-      )
-      .toBeInTheDocument()
+      .element(page.getByRole('textbox', { name: 'Name' }))
+      .toHaveAccessibleDescription('Usually the repository’s name.')
   })
 
   it('shows the error instead of the description, with aria-invalid', async () => {

@@ -313,6 +313,9 @@ importers:
 
   .:
     devDependencies:
+      '@circi/ui':
+        specifier: workspace:*
+        version: link:packages/ui
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.6

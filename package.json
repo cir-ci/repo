@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "pnpm --filter @circi/ui --filter @circi/cli --filter @circi/vitest --filter @circi/server build && pnpm --filter @circi/web build",
-    "typecheck": "tsc -p tsconfig.json && tsc -p apps/web && tsc -p packages/ui",
+    "typecheck": "tsc -p tsconfig.json && tsc -p apps/web && tsc -p packages/ui && tsc -p packages/ui/tsconfig.previews.json",
     "lint": "oxlint --type-aware --deny-warnings",
     "format": "oxfmt",
     "test": "vitest run",
@@ -18,6 +18,7 @@
     "db:auth-schema": "pnpm --filter @circi/auth schema"
   },
   "devDependencies": {
+    "@circi/ui": "workspace:*",
     "@types/node": "catalog:",
     "@vitest/browser-playwright": "catalog:",
     "oxfmt": "catalog:",

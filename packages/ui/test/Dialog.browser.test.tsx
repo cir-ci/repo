@@ -30,14 +30,9 @@ describe('Dialog', () => {
   it('is a modal dialog named by its title and described by its description', async () => {
     await render(<Harness />)
     await page.getByRole('button', { name: 'Open' }).click()
-    await expect
-      .element(
-        page.getByRole('dialog', {
-          name: 'New organization',
-          description: 'Organizations own projects.',
-        }),
-      )
-      .toBeVisible()
+    const dialog = page.getByRole('dialog', { name: 'New organization' })
+    await expect.element(dialog).toBeVisible()
+    await expect.element(dialog).toHaveAccessibleDescription('Organizations own projects.')
   })
 
   it('renders in a portal on document.body with its content and footer', async () => {

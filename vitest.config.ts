@@ -10,6 +10,47 @@ import { CirciReporter } from './packages/vitest/src/index.ts'
 
 const uiRequire = createRequire(resolve(import.meta.dirname, 'packages/ui/package.json'))
 
+// Vite pre-bundles dependencies it finds while a browser project runs, and the first run after a
+// new dependency can fail with import errors until it is rerun. Listing them up front makes
+// that run optimise them before the first test: add a package here when a browser test starts
+// importing it (the list of a run is in node_modules/.vite/vitest/*/deps/_metadata.json).
+// Ids resolve from the project's root; `a > b` resolves b from where a is installed.
+const reactDeps = ['react', 'react/jsx-dev-runtime', 'react/jsx-runtime', 'vitest-browser-react']
+const baseUiDeps = [
+  'alert-dialog',
+  'avatar',
+  'button',
+  'checkbox',
+  'checkbox-group',
+  'collapsible',
+  'dialog',
+  'drawer',
+  'field',
+  'fieldset',
+  'input',
+  'menu',
+  'select',
+  'slider',
+  'toggle',
+  'toggle-group',
+  'tooltip',
+].map((part) => `@base-ui/react/${part}`)
+// Base UI and lucide are installed under @circi/ui; projects rooted elsewhere go through it.
+const viaUi = (ids: string[]) => ids.map((id) => `@circi/ui > ${id}`)
+const uiOptimizeDeps = [...baseUiDeps, 'lucide-react', ...reactDeps]
+const webOptimizeDeps = [
+  ...viaUi([...baseUiDeps, 'lucide-react']),
+  ...reactDeps,
+  '@tanstack/react-query',
+  '@tanstack/react-router',
+  'better-auth/client/plugins',
+  'better-auth/react',
+  'react-dom/client',
+]
+// The visual project is rooted at the repository (screenshots go to its .circi), where nothing
+// but @circi/ui (a dependency of the root package) is installed.
+const visualOptimizeDeps = viaUi([...baseUiDeps, 'lucide-react', 'react', 'react/jsx-dev-runtime'])
+
 /**
  * Three kinds of test: logic (`*.test.ts`) runs in Node, including the web app's render-free tests;
  * end-to-end tests (`e2e`, Docker) run only on request;
@@ -94,6 +135,7 @@ export default defineConfig({
                   })),
                 ],
               },
+              optimizeDeps: { include: visualOptimizeDeps },
               test: {
                 name: 'ui-visual',
                 include: ['packages/ui/visual/**/*.visual.test.tsx'],
@@ -114,14 +156,17 @@ export default defineConfig({
       // Component tests run in real headless Chromium (Vitest browser mode): real portals, focus,
       // pointer events and the real compiled CSS modules.
       ...[
-        { name: 'ui', include: ['packages/ui/test/**/*.browser.test.tsx'] },
-        { name: 'web-browser', include: ['apps/web/test/**/*.browser.test.tsx'] },
-      ].map(({ name, include }) => ({
+        { name: 'ui', root: 'packages/ui', deps: uiOptimizeDeps },
+        { name: 'web-browser', root: 'apps/web', deps: webOptimizeDeps },
+      ].map(({ name, root, deps }) => ({
         extends: true,
+        // The package's own root, so `optimizeDeps.include` resolves from where it is installed.
+        root: resolve(import.meta.dirname, root),
         oxc: { jsx: { runtime: 'automatic' as const } },
+        optimizeDeps: { include: deps },
         test: {
           name,
-          include,
+          include: ['test/**/*.browser.test.tsx'],
           browser: {
             enabled: true,
             headless: true,

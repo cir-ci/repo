@@ -69,6 +69,23 @@ left is listed below by kind.
   in `@circi/vitest`: its main entry could not be imported by a browser test (node-only reporter;
   now `@circi/vitest/browser`), `circiScreenshot` saved next to the test file where the reporter
   never looked, and the reporter looked in the cwd rather than Vitest's root; each has a test.
+- **Cleanup pass (2026-11-08)**:
+  - Seeders: the six hand-inserting tests now use `@circi/testing` (new `seed/auth.ts`:
+    `seedAccount`, `seedInvitation`, `seedOrgDomain`, `seedSsoProvider`; `seedUploadClaim`;
+    existing `seedBuild` and `addTestMember`). The seeders insert better-auth rows directly (as
+    `seedOrg` already did), not through its API.
+  - `optimizeDeps.include` is pinned for `ui`, `web-browser` and `ui-visual` in `vitest.config.ts`
+    (`ui` and `web-browser` run with their package as `root` so the ids resolve; `ui-visual` stays
+    rooted at the repository, where its screenshots go, and reaches Base UI through `@circi/ui`,
+    now a root devDependency); a cold Vite cache passes on the first run.
+  - Web bundle: no chunk warning any more (the `http` chunk is 1 kB; the largest chunk is `react`
+    at 219 kB, then `index` 155 kB, `tanstack` 110 kB), so the limit stays at 250 kB.
+  - Empty directories `apps/web/src/pages/` and `apps/worker/test/support/` deleted.
+  - `packages/ui/test` and `.design-sync/previews` are typechecked (`pnpm typecheck`; previews
+    through `packages/ui/tsconfig.previews.json`); Dialog and TextField tests use
+    `toHaveAccessibleDescription`. `packages/ui/visual` is not typechecked: it imports
+    `@circi/vitest`, whose `@circi/cli` source fails under the DOM lib (`Uint8Array` as
+    `BodyInit`).
 - **Migration cleanup**: `primitives/`, `LegacyRouterLink` and the MUI theme deleted; own
   colour-scheme manager; z-index scale; import rules in `layers.test.ts`; `renderPage` is the one
   web test helper.
@@ -87,11 +104,6 @@ left is listed below by kind.
   fs target is checked by size only.
 - LocalStack accepts any credentials: wrong-credentials handling is covered only by a fake 403
   S3 at the edge.
-- Web bundle: the shared `http` chunk is large (289 kB when last measured) and Vite warns (limit
-  250 kB, `apps/web/vite.config.ts`): find what is in it (`@circi/ui` + Base UI + better-auth
-  client) and split per page or raise the limit on purpose.
-- `apps/web/src/pages/` is an empty leftover directory: delete it.
-- `.vitest/attachments/failure-screenshots/` (gitignored): delete if present.
 - If the Vitest browser project hangs, look for leftover `vitest` and `chrome-headless-shell`
   processes (two earlier agents left stuck ones that made the suite hang once).
 - Observed on the real stack, not fixed: `ref`-based browser automation can't click Base UI menu
@@ -105,9 +117,7 @@ left is listed below by kind.
 
 - Design-sync previews missing or thin: all `*Icon` wrappers ("floor card"), `ConfirmDialog`
   (open state only), `Menu` (closed only), `Select` open popup, `Drawer`, `AppFrame` `compactBar`.
-  Previews in `.design-sync/previews/` are formatted and linted but not typechecked.
-- Test files in `packages/ui/test` are not covered by `packages/ui/tsconfig.json`; the spike's
-  Dialog test uses the untyped `getByRole(..., { description })`.
+  Previews in `.design-sync/previews/` are typechecked (`tsconfig.previews.json`); `packages/ui/visual` is not (see Done).
 - `Delayed` default is 300 ms (spec; the code agrees); the old app used 1000 ms: confirm.
 - Run design-sync again after any change and do the **attended upload** to the design project
   (`DesignSync`): nothing has been uploaded, and no person has reviewed the grades.
@@ -169,21 +179,20 @@ decision"):
 
 ## 5. Tests still missing or to fix (open)
 
-- Several tests insert rows by hand and should use the seeders in `@circi/testing` (still true
-  on 2026-11-08): `apps/server/test/http/routes/dashboard/sites.test.ts`, `.../github-webhook.test.ts`,
-  `.../dashboard/org-sso.test.ts`, `packages/auth/test/hooks/user-create.test.ts`,
-  `packages/auth/test/sso/trusted-issuers.test.ts`, `packages/services/test/retention.test.ts`.
 - `auth` `plugins/org-sso`: only a smoke test (`resolveUser` needs a full identity-provider round
   trip); covered by server route tests only.
 - `cli`: tests run against a fake CirCI server in a non-git directory; git-ancestry paths against
   a real repo are not covered. `migrate --to s3` is tested only to the missing-bucket error (no S3
   fake).
 - Browser-mode tests: Select, Menu and Tooltip positioning only checked in Chromium on
-  generated cases; `Ref` copy tested against a stubbed `navigator.clipboard`; the first browser
-  run after a new dependency is optimised can fail with import errors (rerun is clean): pin
-  `optimizeDeps` includes in the Vitest browser config (none set today).
+  generated cases; `Ref` copy tested against a stubbed `navigator.clipboard`.
 - Dogfooding: done, see Done; the web app itself is still not screenshotted.
 - Visual regression for the web app itself (CirCI testing itself) is not set up.
+- **Not type-checked:** `apps/web/test` (the root tsconfig excludes `apps/web`, the web tsconfig
+  covers only `src`) and `packages/ui/visual` (it imports `@circi/vitest` → `@circi/cli`, whose
+  `Uint8Array` fetch bodies fail under the DOM lib; plus one error in `ui.visual.test.tsx`).
+- `AccountPage.browser.test.tsx` had 2 failures in one cold-cache run ("reading 'token'") and
+  passed on three reruns: possibly flaky.
 
 ## 6. Docs
 
