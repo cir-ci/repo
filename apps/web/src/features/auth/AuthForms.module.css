@@ -1,0 +1,18 @@
+/* Arranges the sign-in and setup forms: one column of fields with 16px between them. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.compact {
+  gap: 12px;
+}
+
+.center {
+  align-self: center;
+}
+
+.block {
+  width: 100%;
+}

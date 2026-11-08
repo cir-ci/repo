@@ -1,9 +1,10 @@
-import { Box, Typography } from '@mui/material'
+import { Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { useDocumentTitle } from '../../components.tsx'
+import { useDocumentTitle } from '../../lib/document-title.ts'
 import { authMethodsQuery, setupQuery } from './api.ts'
+import { AuthPanel } from './AuthPanel.tsx'
 import { EmailForm } from './EmailForm.tsx'
 import { readInvitedEmail, readLink } from './login-helpers.ts'
 import { OrgSsoSignIn } from './OrgSsoSignIn.tsx'
@@ -11,14 +12,18 @@ import { PasswordForm } from './PasswordForm.tsx'
 import { SetupPage } from './SetupPage.tsx'
 import { SsoButtons } from './SsoButtons.tsx'
 
+import styles from './AuthForms.module.css'
+
 /**
- * Sign-in, as a Primer interstitial page: centred, 320px wide, one task. There's no sign-up
- * link because accounts are created by an administrator (`circi admin user create`).
- * With email login on, a second way in: a 6-digit code (or the link in the same mail).
+ * Sign-in, outside the sidebar frame (docs/design-gaps.md §10): one centred panel, one task.
+ * There's no sign-up link because accounts are created by an administrator
+ * (`circi admin user create`). With email login on, a second way in: a 6-digit code (or the
+ * link in the same mail).
  */
 export function LoginPage() {
-  useDocumentTitle('Sign in')
   const setup = useQuery(setupQuery())
+  // The setup page takes over when no account exists yet: the tab title must say what is shown.
+  useDocumentTitle(setup.data?.needed ? 'Set up' : 'Sign in')
   const methods = useQuery(authMethodsQuery())
   const fromLink = readLink()
   const invitedEmail = readInvitedEmail()
@@ -33,10 +38,7 @@ export function LoginPage() {
   if (setup.data?.needed) return <SetupPage />
 
   return (
-    <Box sx={{ maxWidth: 320, mx: 'auto', mt: { xs: 4, md: 10 }, px: 2 }}>
-      <Typography variant="h1" sx={{ textAlign: 'center', mb: 3 }}>
-        Sign in to CirCI
-      </Typography>
+    <AuthPanel title="Sign in to CirCI">
       {(mode === 'email' || !passwordOn) && emailOn ? (
         <EmailForm
           initial={fromLink}
@@ -46,11 +48,13 @@ export function LoginPage() {
       ) : (
         <PasswordForm onEmail={emailOn ? () => setMode('email') : undefined} />
       )}
-      <SsoButtons providers={methods.data?.sso ?? []} />
-      <OrgSsoSignIn />
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 3, textAlign: 'center' }}>
+      <div className={styles['form']}>
+        <SsoButtons providers={methods.data?.sso ?? []} />
+        <OrgSsoSignIn />
+      </div>
+      <Text as="p" variant="small" tone="secondary" className={styles['center']}>
         No account? Ask the person who runs CirCI for one.
-      </Typography>
-    </Box>
+      </Text>
+    </AuthPanel>
   )
 }

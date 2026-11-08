@@ -1,8 +1,10 @@
-import { Alert, Box, Button, Link, Stack, TextField } from '@mui/material'
-import { useState, type FormEvent } from 'react'
+import { Banner, Button, TextField } from '@circi/ui'
+import { type FormEvent, useState } from 'react'
 
 import { authClient } from '../../lib/auth-client.ts'
 import { describeFailure, text } from './login-helpers.ts'
+
+import styles from './AuthForms.module.css'
 
 export function PasswordForm({ onEmail }: PasswordForm.Props) {
   const [error, setError] = useState<string | undefined>(undefined)
@@ -23,38 +25,32 @@ export function PasswordForm({ onEmail }: PasswordForm.Props) {
   }
 
   return (
-    <Box component="form" onSubmit={(e) => void submit(e)} noValidate>
-      <Stack spacing={2}>
-        {error ? <Alert severity="error">{error}</Alert> : null}
-        <TextField
-          name="email"
-          type="email"
-          label="Email"
-          autoComplete="username"
-          autoFocus
-          required
-          size="small"
-          fullWidth
-        />
-        <TextField
-          name="password"
-          type="password"
-          label="Password"
-          autoComplete="current-password"
-          required
-          size="small"
-          fullWidth
-        />
-        <Button type="submit" variant="contained" size="medium" disabled={busy} fullWidth>
-          {busy ? 'Signing in…' : 'Sign in'}
+    <form className={styles['form']} onSubmit={(e) => void submit(e)} noValidate>
+      {error ? <Banner tone="danger">{error}</Banner> : null}
+      <TextField
+        name="email"
+        type="email"
+        label="Email"
+        autoComplete="username"
+        autoFocus
+        required
+      />
+      <TextField
+        name="password"
+        type="password"
+        label="Password"
+        autoComplete="current-password"
+        required
+      />
+      <Button type="submit" variant="primary" loading={busy} className={styles['block']}>
+        {busy ? 'Signing in…' : 'Sign in'}
+      </Button>
+      {onEmail ? (
+        <Button variant="ghost" className={styles['center']} onClick={onEmail}>
+          Email me a sign-in code instead
         </Button>
-        {onEmail ? (
-          <Link component="button" type="button" variant="body2" onClick={onEmail}>
-            Email me a sign-in code instead
-          </Link>
-        ) : null}
-      </Stack>
-    </Box>
+      ) : null}
+    </form>
   )
 }
 

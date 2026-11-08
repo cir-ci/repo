@@ -1,0 +1,86 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.list {
+  overflow: hidden;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 8px;
+}
+
+.list > :last-child {
+  border-bottom: 0;
+}
+
+.trailing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.domain {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding-block: 4px;
+}
+
+.record {
+  overflow-wrap: anywhere;
+}
+
+.check {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+@media (max-width: 559.98px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .trailing {
+    justify-content: flex-start;
+  }
+}
+
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.field {
+  flex: 0 1 280px;
+}
+
+/* Lines the button up with the control, below the label (12px/1.5 label + 6px gap). */
+.submit {
+  margin-top: 24px;
+}
+
+@media (max-width: 559.98px) {
+  .field,
+  .submit {
+    flex: 1 1 100%;
+  }
+
+  .submit {
+    margin-top: 0;
+  }
+}

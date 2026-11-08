@@ -1,7 +1,62 @@
 import type { Org } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { getJson, post, send, seg } from '../../lib/http.ts'
+import { authClient } from '../../lib/auth-client.ts'
+import { getJson, HttpError, post, send, seg } from '../../lib/http.ts'
+
+/** Roles the page can hand out; an owner is made elsewhere. */
+export type AssignableRole = 'admin' | 'member'
+
+/** The organization with its members and invitations (better-auth). A missing one is a 404. */
+export const organizationQuery = (org: string) =>
+  queryOptions({
+    queryKey: ['organization', org],
+    queryFn: async () => {
+      const { data, error } = await authClient.organization.getFullOrganization({
+        query: { organizationSlug: org },
+      })
+      if (error) {
+        throw new HttpError(
+          error.status === 404 ? 404 : (error.status ?? 500),
+          error.message ?? 'Couldn’t load the organization',
+        )
+      }
+      if (!data) throw new HttpError(404, 'Organization not found')
+      return data
+    },
+  })
+
+/** Sends an invitation; the message is better-auth's, or ours when it gave none. */
+export async function inviteMember(input: {
+  email: string
+  role: AssignableRole
+  organizationId: string
+}) {
+  const { error } = await authClient.organization.inviteMember(input)
+  if (error) throw new Error(error.message ?? 'Couldn’t send the invitation.')
+}
+
+export async function cancelInvitation(invitationId: string) {
+  const { error } = await authClient.organization.cancelInvitation({ invitationId })
+  if (error) throw new Error('Couldn’t withdraw the invitation')
+}
+
+export async function removeMember(input: { memberId: string; organizationId: string }) {
+  const { error } = await authClient.organization.removeMember({
+    memberIdOrEmail: input.memberId,
+    organizationId: input.organizationId,
+  })
+  if (error) throw new Error('Couldn’t remove this member')
+}
+
+export async function changeMemberRole(input: {
+  memberId: string
+  role: AssignableRole
+  organizationId: string
+}) {
+  const { error } = await authClient.organization.updateMemberRole(input)
+  if (error) throw new Error(error.message ?? 'Couldn’t change this member’s role')
+}
 
 export const orgAuthQuery = (org: string) =>
   queryOptions({

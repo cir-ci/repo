@@ -1,7 +1,9 @@
-import { Alert, Box, Button } from '@mui/material'
+import { Banner, Button } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 
 import { noticesQuery, useDismissAddressChange } from './api.ts'
+
+import styles from './AddressChangeBanner.module.css'
 
 /** Tells instance admins the dashboard moved to a new address, with what's left to do. */
 export function AddressChangeBanner() {
@@ -10,28 +12,22 @@ export function AddressChangeBanner() {
   const change = data?.publicUrlChange
   if (!change) return null
   return (
-    <Alert
-      severity="warning"
-      sx={{ m: 2 }}
-      action={
-        <Button
-          color="inherit"
-          size="small"
-          disabled={dismiss.isPending}
-          onClick={() => dismiss.mutate()}
-        >
-          Done
-        </Button>
-      }
-    >
-      <strong>
-        The dashboard moved from {change.from} to {change.to}.
-      </strong>
-      <Box component="ul" sx={{ m: 0, mt: 0.5, pl: 2.5 }}>
-        {change.checklist.map((step) => (
-          <li key={step}>{step}</li>
-        ))}
-      </Box>
-    </Alert>
+    <div className={styles['wrap']}>
+      <Banner
+        tone="warning"
+        title={`The dashboard moved from ${change.from} to ${change.to}.`}
+        action={
+          <Button size="sm" loading={dismiss.isPending} onClick={() => dismiss.mutate()}>
+            Done
+          </Button>
+        }
+      >
+        <ul className={styles['checklist']}>
+          {change.checklist.map((step) => (
+            <li key={step}>{step}</li>
+          ))}
+        </ul>
+      </Banner>
+    </div>
   )
 }

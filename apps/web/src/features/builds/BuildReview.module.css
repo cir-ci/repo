@@ -1,0 +1,62 @@
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  height: 36px;
+  padding-inline: 8px;
+  border-radius: 6px;
+  color: var(--circi-text-primary);
+  text-decoration: none;
+}
+
+.row:hover {
+  background: var(--circi-action-hover);
+  text-decoration: none;
+}
+
+/* Selected: the accent's subtle fill and a 2px inset bar (docs/design-gaps.md §13). */
+.row[aria-current='page'],
+.row[data-default] {
+  background: var(--circi-accent-subtle);
+  box-shadow: inset 2px 0 0 var(--circi-accent-main);
+}
+
+.row > svg {
+  flex: none;
+}
+
+.name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shortcuts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.shortcut {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  align-items: center;
+}
+
+.shortcut dt,
+.shortcut dd {
+  margin: 0;
+}

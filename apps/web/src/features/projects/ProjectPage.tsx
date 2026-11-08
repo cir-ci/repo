@@ -1,180 +1,190 @@
-import CollectionsOutlined from '@mui/icons-material/CollectionsOutlined'
-import { Alert, Box, Button, Typography } from '@mui/material'
-import { useQuery } from '@tanstack/react-query'
-import { createLink, useParams, useSearch } from '@tanstack/react-router'
-
 import {
-  BuildMeta,
-  BuildStateLabel,
-  CountsSummary,
-  ErrorState,
-  RouterLink,
-  useDocumentTitle,
-} from '../../components.tsx'
-import { Blankslate } from '../../primitives/Blankslate.tsx'
-import { ListSkeleton } from '../../primitives/feedback.tsx'
-import { BranchName } from '../../primitives/labels.tsx'
-import { PageHeader } from '../../primitives/PageHeader.tsx'
-import { PageLayout } from '../../primitives/PageLayout.tsx'
-import { BUILDS_PAGE_SIZE, flakyQuery, projectQuery } from './api.ts'
+  Banner,
+  Button,
+  CollectionsIcon,
+  Delayed,
+  EmptyState,
+  ListRow,
+  ListSkeleton,
+  PanelHeader,
+  Ref,
+  SectionHeader,
+  StatusIcon,
+  Surface,
+  Text,
+} from '@circi/ui'
+import { useQuery } from '@tanstack/react-query'
+import { useParams, useSearch } from '@tanstack/react-router'
 
-const ButtonLink = createLink(Button)
+import { useDocumentTitle } from '../../lib/document-title.ts'
+import { ErrorState } from '../../lib/ErrorState.tsx'
+import { useClientLink } from '../../lib/use-client-link.ts'
+import { buildState } from '../builds/build-state.ts'
+import { BuildMeta } from '../builds/BuildMeta.tsx'
+import { CountsSummary } from '../builds/CountsSummary.tsx'
+import { shotReview } from '../builds/diff-status.ts'
+import { BUILDS_PAGE_SIZE, flakyQuery, projectQuery } from './api.ts'
+import { useLoadingAnnouncement } from './loading.ts'
+import { ProjectBreadcrumbs } from './ProjectBreadcrumbs.tsx'
+
+import styles from './ProjectPage.module.css'
 
 export function ProjectPage() {
   const { org, project } = useParams({ from: '/$org/$project' })
   const { before } = useSearch({ from: '/$org/$project' })
+  const clientLink = useClientLink()
   const { data, error, refetch } = useQuery(projectQuery(org, project, before))
   const { data: flaky } = useQuery(flakyQuery(org, project))
   useDocumentTitle(before ? 'Older builds' : 'Builds', data?.project.name ?? project)
+  useLoadingAnnouncement(!data && !error, 'Loading builds')
 
   const builds = data?.builds ?? []
   const oldest = builds.at(-1)?.number
 
   return (
-    <PageLayout
-      header={
-        <PageHeader
-          // The project name only arrives with the data; the slug keeps the header from jumping.
-          title={data?.project.name ?? project}
-          actions={
-            <>
-              <ButtonLink to="/$org/$project/sites" params={{ org, project }} size="small">
-                Sites
-              </ButtonLink>
-              <ButtonLink to="/$org/$project/settings" params={{ org, project }} size="small">
-                Settings
-              </ButtonLink>
-            </>
-          }
-          description={
-            data ? (
-              <>
-                Screenshot builds from CI. Builds on{' '}
-                <BranchName>{data.project.defaultBranch}</BranchName> become the baselines that pull
-                requests are compared with.
-              </>
-            ) : undefined
-          }
+    <>
+      <PanelHeader
+        actions={
+          <>
+            <Button
+              size="sm"
+              {...clientLink({ to: '/$org/$project/sites', params: { org, project } })}
+            >
+              Sites
+            </Button>
+            <Button
+              size="sm"
+              {...clientLink({ to: '/$org/$project/settings', params: { org, project } })}
+            >
+              Settings
+            </Button>
+          </>
+        }
+      >
+        <ProjectBreadcrumbs
+          // The names only arrive with the data; the slugs keep the header from jumping.
+          items={[
+            { label: 'Projects', link: { to: '/' } },
+            { label: data?.project.orgName ?? org },
+            { label: data?.project.name ?? project },
+          ]}
         />
-      }
-    >
-      {flaky && flaky.flaky.length > 0 ? (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          <strong>
-            These screenshots keep changing on {data?.project.defaultBranch ?? 'the default branch'}
-            :
-          </strong>{' '}
-          {flaky.flaky
-            .map((f) => `${f.name} (${f.changedIn} of the last ${flaky.builds} builds)`)
-            .join(', ')}
-          . They are probably not stable (a clock, an animation, random content). Mask the part that
-          changes with <code>circi admin ignore add</code>.
-        </Alert>
-      ) : null}
-      <Typography variant="h2" component="h2" sx={{ mb: 1.5 }}>
-        {before ? 'Older builds' : 'Builds'}
-      </Typography>
-      {error ? (
-        <ErrorState
-          error={error}
-          onRetry={() => void refetch()}
-          notFound="This project doesn’t exist"
-        />
-      ) : !data ? (
-        <ListSkeleton />
-      ) : builds.length === 0 ? (
-        <Blankslate
-          border
-          icon={<CollectionsOutlined />}
-          heading={before ? 'No older builds' : 'No builds yet'}
-          description={
-            before
-              ? undefined
-              : 'Upload screenshots from your CI job. Builds appear here as soon as they’re processed.'
-          }
-          code={
-            before
-              ? undefined
-              : `CIRCI_TOKEN=… CIRCI_API_URL=${window.location.origin} \\\n  npx circi upload ./screenshots --wait`
-          }
-        />
-      ) : (
-        <>
-          <Box
-            component="ul"
-            aria-label="Builds"
-            sx={{ m: 0, p: 0, border: 1, borderColor: 'divider', borderRadius: 1 }}
+      </PanelHeader>
+      <div className={styles['content']}>
+        {data ? (
+          <Text as="p" variant="small" tone="secondary" className={styles['intro']}>
+            Screenshot builds from CI. Builds on{' '}
+            <Ref value={data.project.defaultBranch} label="default branch" /> become the baselines
+            that pull requests are compared with.
+          </Text>
+        ) : null}
+        {flaky && flaky.flaky.length > 0 ? (
+          <Banner
+            tone="warning"
+            title={`These screenshots keep changing on ${data?.project.defaultBranch ?? 'the default branch'}:`}
           >
-            {builds.map((b, i) => (
-              <Box
-                component="li"
-                key={b.id}
-                sx={{
-                  listStyle: 'none',
-                  display: 'flex',
-                  flexDirection: { xs: 'column', md: 'row' },
-                  alignItems: { xs: 'flex-start', md: 'center' },
-                  gap: 1.5,
-                  px: 2,
-                  py: 1.5,
-                  borderTop: i === 0 ? 0 : 1,
-                  borderColor: 'divider',
-                  '&:hover': { bgcolor: 'action.hover' },
-                }}
-              >
-                {/* Fixed-width column so build titles line up whatever the state's label length. */}
-                <Box sx={{ width: { md: 148 }, flexShrink: 0 }}>
-                  <BuildStateLabel build={b} size="small" />
-                </Box>
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography component="h3" sx={{ fontWeight: 600 }}>
-                    <RouterLink
-                      to="/$org/$project/builds/$number"
-                      params={{ org, project, number: String(b.number) }}
-                      color="text.primary"
+            {flaky.flaky
+              .map((f) => `${f.name} (${f.changedIn} of the last ${flaky.builds} builds)`)
+              .join(', ')}
+            . They are probably not stable (a clock, an animation, random content). Mask the part
+            that changes with{' '}
+            <Text as="code" variant="mono">
+              circi admin ignore add
+            </Text>
+            .
+          </Banner>
+        ) : null}
+        <SectionHeader title={before ? 'Older builds' : 'Builds'} />
+        {error ? (
+          <ErrorState
+            error={error}
+            onRetry={() => void refetch()}
+            notFound="This project doesn’t exist"
+          />
+        ) : !data ? (
+          <Delayed>
+            <ListSkeleton />
+          </Delayed>
+        ) : builds.length === 0 ? (
+          <EmptyState
+            icon={<CollectionsIcon size={32} />}
+            title={before ? 'No older builds' : 'No builds yet'}
+            action={
+              before ? undefined : (
+                <Surface variant="raised" className={styles['command']}>
+                  <Text as="code" variant="mono">
+                    {`CIRCI_TOKEN=… CIRCI_API_URL=${window.location.origin} \\\n  npx circi upload ./screenshots --wait`}
+                  </Text>
+                </Surface>
+              )
+            }
+          >
+            {before
+              ? undefined
+              : 'Upload screenshots from your CI job. Builds appear here as soon as they’re processed.'}
+          </EmptyState>
+        ) : (
+          <>
+            <ul aria-label="Builds" className={styles['list']}>
+              {builds.map((b) => {
+                const state = buildState(b)
+                return (
+                  <li key={b.id}>
+                    <ListRow
+                      className={styles['row']}
+                      {...clientLink({
+                        to: '/$org/$project/builds/$number',
+                        params: { org, project, number: String(b.number) },
+                      })}
+                      leading={<StatusIcon status={state.status} label={state.label} />}
+                      trailing={
+                        <span className={styles['trailing']}>
+                          <CountsSummary
+                            counts={b.counts}
+                            review={shotReview(b)}
+                            includeUnchanged={false}
+                          />
+                        </span>
+                      }
                     >
-                      Build #{b.number}
-                      {b.name !== 'default' ? (
-                        <Box component="span" sx={{ fontWeight: 400, color: 'text.secondary' }}>
-                          {' '}
-                          · {b.name}
-                        </Box>
-                      ) : null}
-                    </RouterLink>
-                  </Typography>
-                  <Box sx={{ mt: 0.25 }}>
-                    <BuildMeta build={b} />
-                  </Box>
-                </Box>
-                <CountsSummary counts={b.counts} includeUnchanged={false} />
-              </Box>
-            ))}
-          </Box>
-          {/* Primer: pagination sits directly below the collection it pages. */}
-          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 2 }}>
-            {before ? (
-              <ButtonLink
-                variant="outlined"
-                to="/$org/$project"
-                params={{ org, project }}
-                search={{}}
-              >
-                Newest builds
-              </ButtonLink>
-            ) : null}
-            {builds.length === BUILDS_PAGE_SIZE && oldest ? (
-              <ButtonLink
-                variant="outlined"
-                to="/$org/$project"
-                params={{ org, project }}
-                search={{ before: oldest }}
-              >
-                Older builds
-              </ButtonLink>
-            ) : null}
-          </Box>
-        </>
-      )}
-    </PageLayout>
+                      <span className={styles['title']}>
+                        Build #{b.number}
+                        {b.name !== 'default' ? (
+                          <span className={styles['name']}> · {b.name}</span>
+                        ) : null}
+                      </span>
+                      <div className={styles['meta']}>
+                        <BuildMeta build={b} />
+                      </div>
+                    </ListRow>
+                  </li>
+                )
+              })}
+            </ul>
+            {/* Primer: pagination sits directly below the collection it pages. */}
+            <div className={styles['pager']}>
+              {before ? (
+                <Button
+                  {...clientLink({ to: '/$org/$project', params: { org, project }, search: {} })}
+                >
+                  Newest builds
+                </Button>
+              ) : null}
+              {builds.length === BUILDS_PAGE_SIZE && oldest ? (
+                <Button
+                  {...clientLink({
+                    to: '/$org/$project',
+                    params: { org, project },
+                    search: { before: oldest },
+                  })}
+                >
+                  Older builds
+                </Button>
+              ) : null}
+            </div>
+          </>
+        )}
+      </div>
+    </>
   )
 }

@@ -1,85 +1,147 @@
 import type { Build, ReviewState } from '@circi/api'
-import CancelOutlined from '@mui/icons-material/CancelOutlined'
-import TaskAlt from '@mui/icons-material/TaskAlt'
-import { Alert, Button, Stack, Typography } from '@mui/material'
+import {
+  Button,
+  CancelIcon,
+  ConfirmDialog,
+  Kbd,
+  TaskDoneIcon,
+  Text,
+  Tooltip,
+  useAnnounce,
+} from '@circi/ui'
+import { useState } from 'react'
 
-import { RelativeTime } from '../../components.tsx'
-import { useAnnounce } from '../../primitives/feedback.tsx'
+import { RelativeTime } from '../../lib/RelativeTime.tsx'
 import { useReviewBuild } from './api.ts'
+import { isReviewable } from './review-model.ts'
+
+/** What the review screen can do about a build's decision, shared by the buttons and the a / r keys. */
+export interface ReviewControls {
+  /** Only the decision that isn't already in force is offered. */
+  canApprove: boolean
+  canReject: boolean
+  pending: boolean
+  error: Error | null
+  rejecting: boolean
+  approve: () => void
+  /** Rejecting asks first: it holds back the merge. */
+  askReject: () => void
+  cancelReject: () => void
+  confirmReject: () => void
+}
 
 /**
- * Approve and reject, for a finished build with changes. Only the decision that isn't already
- * in force is offered, so after approving you're left with "Reject" to change your mind.
+ * The decisions on a finished build with changes. After approving you're left with "Reject" to
+ * change your mind, and the other way round. A result is announced to screen readers.
  */
-export function ReviewActions(props: ReviewActions.Props) {
-  const { build, project } = props.data
+export function useReviewControls(data: Build.Detail): ReviewControls {
+  const { build, project } = data
   const review = useReviewBuild(project.orgSlug, project.slug, build.number)
   const announce = useAnnounce()
+  const [rejecting, setRejecting] = useState(false)
+  const reviewable = isReviewable(build)
+  const canApprove = reviewable && build.reviewStatus !== 'approved'
+  const canReject = reviewable && build.reviewStatus !== 'rejected'
 
   function decide(state: ReviewState) {
     review.mutate(state, {
       onSuccess: () => announce(`Build #${build.number} ${state}.`),
+      onSettled: () => setRejecting(false),
     })
   }
 
+  return {
+    canApprove,
+    canReject,
+    pending: review.isPending,
+    error: review.error,
+    rejecting,
+    approve: () => {
+      if (canApprove && !review.isPending) decide('approved')
+    },
+    askReject: () => {
+      if (canReject && !review.isPending) setRejecting(true)
+    },
+    cancelReject: () => setRejecting(false),
+    confirmReject: () => {
+      if (canReject && !review.isPending) decide('rejected')
+    },
+  }
+}
+
+/** Reject and Approve all, each with its key in a tooltip, and the confirmation for Reject. */
+export function ReviewActions({ review, buildNumber }: ReviewActions.Props) {
   return (
-    <Stack spacing={1} sx={{ alignItems: 'flex-end' }}>
-      <Stack direction="row" spacing={1}>
-        {build.reviewStatus !== 'rejected' ? (
+    <>
+      {review.canReject ? (
+        <Tooltip
+          content={
+            <>
+              Reject these changes <Kbd>r</Kbd>
+            </>
+          }
+        >
           <Button
-            variant="outlined"
-            color="error"
-            startIcon={<CancelOutlined />}
-            disabled={review.isPending}
-            onClick={() => decide('rejected')}
+            variant="danger"
+            leading={<CancelIcon />}
+            disabled={review.pending}
+            onClick={review.askReject}
           >
             Reject
           </Button>
-        ) : null}
-        {build.reviewStatus !== 'approved' ? (
-          <Button
-            variant="contained"
-            color="success"
-            startIcon={<TaskAlt />}
-            disabled={review.isPending}
-            onClick={() => decide('approved')}
-            title="Accept these changes. Later builds are compared with this one."
-          >
-            Approve
-          </Button>
-        ) : null}
-      </Stack>
-      {review.error ? (
-        <Alert severity="error" sx={{ maxWidth: 360 }}>
-          {review.error.message}
-        </Alert>
+        </Tooltip>
       ) : null}
-    </Stack>
+      {review.canApprove ? (
+        <Tooltip
+          content={
+            <>
+              Accept these changes; later builds are compared with this one <Kbd>a</Kbd>
+            </>
+          }
+        >
+          <Button
+            variant="primary"
+            leading={<TaskDoneIcon />}
+            loading={review.pending && !review.rejecting}
+            disabled={review.pending}
+            onClick={review.approve}
+          >
+            Approve all
+          </Button>
+        </Tooltip>
+      ) : null}
+      <ConfirmDialog
+        open={review.rejecting}
+        onOpenChange={(open) => {
+          if (!open) review.cancelReject()
+        }}
+        title={`Reject build #${buildNumber}?`}
+        description="The build is marked rejected and stays that way until someone approves it. Later builds are not compared with it."
+        confirmLabel="Reject"
+        loading={review.pending}
+        onConfirm={review.confirmReject}
+      />
+    </>
   )
 }
 
 export namespace ReviewActions {
   export interface Props {
-    data: Build.Detail
+    review: ReviewControls
+    buildNumber: number
   }
 }
 
-/** One line on where the build stands: who decided and when, or that it still needs a decision. */
+/** One line on who decided and when; nothing while the build still waits for a decision. */
 export function ReviewNote({ data }: ReviewNote.Props) {
   const { build, reviews } = data
-  if (build.status !== 'complete' || build.conclusion !== 'changes_detected') return null
+  if (!isReviewable(build)) return null
   const latest = reviews[0]
-  if (!latest || build.reviewStatus === 'pending') {
-    return (
-      <Typography color="text.secondary">
-        These changes need a decision. Approving makes this build the baseline that later builds are
-        compared with.
-      </Typography>
-    )
-  }
+  // A build still waiting for a decision says so in its chip and the Approve tooltip.
+  if (!latest || build.reviewStatus === 'pending') return null
   const verb = latest.state === 'approved' ? 'Approved' : 'Rejected'
   return (
-    <Typography color="text.secondary">
+    <Text variant="small" tone="secondary" as="p">
       {latest.source === 'auto' ? (
         <>Approved automatically, because it’s a build on the default branch.</>
       ) : latest.source === 'rerun' ? (
@@ -92,7 +154,7 @@ export function ReviewNote({ data }: ReviewNote.Props) {
           <RelativeTime iso={latest.createdAt} />.
         </>
       )}
-    </Typography>
+    </Text>
   )
 }
 

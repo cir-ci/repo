@@ -1,16 +1,17 @@
-import { type Build } from '@circi/api'
-import { Skeleton } from '@mui/material'
+import type { Build } from '@circi/api'
+import { Delayed, ListSkeleton, PanelHeader, Skeleton, useAnnounce } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useEffect, useRef } from 'react'
 
-import { ErrorState, RouterLink, useDocumentTitle } from '../../components.tsx'
-import { Delayed, useAnnounce } from '../../primitives/feedback.tsx'
-import { PageHeader, ParentLinkContent } from '../../primitives/PageHeader.tsx'
-import { PageLayout } from '../../primitives/PageLayout.tsx'
+import { useDocumentTitle } from '../../lib/document-title.ts'
+import { ErrorState } from '../../lib/ErrorState.tsx'
 import { buildQuery, isActive } from './api.ts'
+import { BuildBreadcrumbs } from './BuildBreadcrumbs.tsx'
 import { BuildReview } from './BuildReview.tsx'
-import { ROUTE } from './route.ts'
+import { ROUTE } from './search.ts'
+
+import styles from './BuildPage.module.css'
 
 export function BuildPage() {
   const params = useParams({ from: ROUTE })
@@ -19,53 +20,36 @@ export function BuildPage() {
   useDocumentTitle(`Build #${number}`, params.project)
   useProcessingAnnouncement(data)
 
-  const parentLink = (
-    <RouterLink to="/$org/$project" params={{ org: params.org, project: params.project }}>
-      <ParentLinkContent>{params.project}</ParentLinkContent>
-    </RouterLink>
-  )
+  if (data) return <BuildReview data={data} />
 
-  if (error) {
-    return (
-      <PageLayout header={<PageHeader title={`Build #${number}`} parentLink={parentLink} />}>
+  // The breadcrumb is known from the URL, so only the rest waits; placeholders keep the layout still.
+  return (
+    <div className={styles['page']}>
+      <PanelHeader>
+        <BuildBreadcrumbs org={params.org} project={params.project} number={number} />
+      </PanelHeader>
+      {error ? (
         <ErrorState
           error={error}
           onRetry={() => void refetch()}
           notFound="This build doesn’t exist"
         />
-      </PageLayout>
-    )
-  }
-  if (!data) {
-    // The title is known from the URL, so only the rest waits; placeholders keep the layout still.
-    return (
-      <PageLayout
-        header={
-          <PageHeader
-            title={`Build #${number}`}
-            parentLink={parentLink}
-            description={
-              <Delayed>
-                <Skeleton width={320} />
-              </Delayed>
-            }
-          />
-        }
-        pane={
-          <Delayed>
-            {[0, 1, 2, 3].map((i) => (
-              <Skeleton key={i} height={44} />
-            ))}
-          </Delayed>
-        }
-      >
-        <Delayed>
-          <Skeleton variant="rounded" height={420} />
-        </Delayed>
-      </PageLayout>
-    )
-  }
-  return <BuildReview data={data} parentLink={parentLink} />
+      ) : (
+        <div className={styles['body']}>
+          <div className={styles['list']}>
+            <Delayed>
+              <ListSkeleton rows={6} />
+            </Delayed>
+          </div>
+          <div className={styles['placeholder']}>
+            <Delayed>
+              <Skeleton height={420} />
+            </Delayed>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 /** Tells screen reader users once when a build they're watching finishes processing. */

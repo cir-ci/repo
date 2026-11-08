@@ -1,8 +1,10 @@
-import { Alert, Box, Button, Stack } from '@mui/material'
+import { Banner, Button } from '@circi/ui'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
 import { authClient } from '../../lib/auth-client.ts'
+
+import styles from './InvitationBanner.module.css'
 
 type Invitation = { id: string; organizationName: string; role: string; email: string }
 
@@ -60,20 +62,20 @@ export function InvitationBanner({ userEmail }: InvitationBanner.Props) {
   }
 
   return (
-    <Box sx={{ px: { xs: 2, xl: 3 }, pt: 2 }}>
-      <Alert
-        severity={error ? 'error' : 'info'}
+    <div className={styles['wrap']}>
+      <Banner
+        tone={error ? 'danger' : 'info'}
         action={
-          <Stack direction="row" spacing={1}>
+          <div className={styles['actions']}>
             {invitation && !error ? (
-              <Button color="inherit" size="small" disabled={busy} onClick={() => void accept()}>
+              <Button size="sm" variant="primary" loading={busy} onClick={() => void accept()}>
                 Join
               </Button>
             ) : null}
-            <Button color="inherit" size="small" onClick={dismiss}>
+            <Button size="sm" variant="ghost" onClick={dismiss}>
               Dismiss
             </Button>
-          </Stack>
+          </div>
         }
       >
         {error ??
@@ -82,8 +84,8 @@ export function InvitationBanner({ userEmail }: InvitationBanner.Props) {
               ? `You’re invited to join ${invitation.organizationName} as ${invitation.role}.`
               : `This invitation is for ${invitation.email}, but you’re signed in as ${userEmail}. Sign out and use that address.`
             : 'Checking your invitation…')}
-      </Alert>
-    </Box>
+      </Banner>
+    </div>
   )
 }
 

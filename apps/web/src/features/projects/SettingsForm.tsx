@@ -1,27 +1,22 @@
 import { type Project } from '@circi/api'
-import {
-  Alert,
-  Box,
-  Button,
-  Checkbox,
-  FormControlLabel,
-  FormGroup,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material'
-import { useState, type FormEvent } from 'react'
+import { Banner, Button, Checkbox, SectionHeader, TextField, useAnnounce } from '@circi/ui'
+import { type FormEvent, useState } from 'react'
 
-import { useAnnounce } from '../../primitives/feedback.tsx'
 import { useSaveSettings } from './api.ts'
+
+import styles from './SettingsSection.module.css'
 
 export function SettingsForm(props: SettingsForm.Props) {
   const save = useSaveSettings(props.org, props.project)
   const announce = useAnnounce()
   const [saved, setSaved] = useState(false)
   const s = props.settings
+  const [blockMerge, setBlockMerge] = useState(s.blockMergeOnChanges)
+  const [autoApprove, setAutoApprove] = useState(s.autoApproveDefaultBranch)
+  const [hosting, setHosting] = useState(s.staticHostingEnabled)
+  const disabled = !props.canManage
 
-  async function submit(e: FormEvent<HTMLFormElement>) {
+  function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const form = new FormData(e.currentTarget)
     const text = (key: string) => {
@@ -29,114 +24,93 @@ export function SettingsForm(props: SettingsForm.Props) {
       return typeof v === 'string' ? v : ''
     }
     setSaved(false)
-    await save.mutateAsync({
-      name: text('name'),
-      defaultBranch: text('defaultBranch'),
-      diffThreshold: Number(text('diffThresholdPercent')) / 100,
-      retentionDays: Number(text('retentionDays')),
-      autoApproveDefaultBranch: form.has('autoApproveDefaultBranch'),
-      blockMergeOnChanges: form.has('blockMergeOnChanges'),
-      // The box only exists when the instance can host sites; otherwise leave the setting be.
-      ...(props.sitesConfigured ? { staticHostingEnabled: form.has('staticHostingEnabled') } : {}),
-    })
-    setSaved(true)
-    announce('Settings saved')
+    save.mutate(
+      {
+        name: text('name'),
+        defaultBranch: text('defaultBranch'),
+        diffThreshold: Number(text('diffThresholdPercent')) / 100,
+        retentionDays: Number(text('retentionDays')),
+        autoApproveDefaultBranch: autoApprove,
+        blockMergeOnChanges: blockMerge,
+        // The box only exists when the instance can host sites; otherwise leave the setting be.
+        ...(props.sitesConfigured ? { staticHostingEnabled: hosting } : {}),
+      },
+      {
+        onSuccess: () => {
+          setSaved(true)
+          announce('Settings saved')
+        },
+      },
+    )
   }
 
   return (
-    <Box component="form" onSubmit={(e) => void submit(e)} noValidate>
-      <Typography variant="h2" component="h2" sx={{ mb: 1.5 }}>
-        Builds
-      </Typography>
-      <Stack spacing={2} sx={{ maxWidth: 560 }}>
-        <TextField
-          name="name"
-          label="Name"
-          defaultValue={s.name}
-          size="small"
-          disabled={!props.canManage}
-        />
+    <form onSubmit={submit} noValidate className={styles['section']}>
+      <SectionHeader title="Builds" />
+      <div className={styles['fields']}>
+        <TextField name="name" label="Name" defaultValue={s.name} disabled={disabled} />
         <TextField
           name="defaultBranch"
           label="Default branch"
           defaultValue={s.defaultBranch}
-          size="small"
-          disabled={!props.canManage}
-          helperText="Builds on this branch become the baselines that pull requests are compared with."
+          disabled={disabled}
+          description="Builds on this branch become the baselines that pull requests are compared with."
         />
         <TextField
           name="diffThresholdPercent"
           label="Ignore differences below (% of pixels)"
           type="number"
           defaultValue={Number((s.diffThreshold * 100).toFixed(4))}
-          size="small"
-          disabled={!props.canManage}
-          slotProps={{ htmlInput: { min: 0, max: 100, step: 'any' } }}
-          helperText="0 reports every changed pixel."
+          disabled={disabled}
+          min={0}
+          max={100}
+          step="any"
+          description="0 reports every changed pixel."
         />
         <TextField
           name="retentionDays"
           label="Keep builds for (days)"
           type="number"
           defaultValue={s.retentionDays}
-          size="small"
-          disabled={!props.canManage}
-          slotProps={{ htmlInput: { min: 1, step: 1 } }}
+          disabled={disabled}
+          min={1}
+          step={1}
         />
-        <FormGroup>
-          <FormControlLabel
-            control={
-              <Checkbox
-                name="blockMergeOnChanges"
-                defaultChecked={s.blockMergeOnChanges}
-                disabled={!props.canManage}
-              />
-            }
+        <div className={styles['checks']}>
+          <Checkbox
             label="Block merging until changes are approved"
+            description="With this off, `circi upload --wait` passes even when visual changes need review."
+            checked={blockMerge}
+            onCheckedChange={setBlockMerge}
+            disabled={disabled}
           />
-          <Typography variant="body2" color="text.secondary" sx={{ ml: 4, mt: -0.5, mb: 1 }}>
-            With this off, `circi upload --wait` passes even when visual changes need review.
-          </Typography>
-          <FormControlLabel
-            control={
-              <Checkbox
-                name="autoApproveDefaultBranch"
-                defaultChecked={s.autoApproveDefaultBranch}
-                disabled={!props.canManage}
-              />
-            }
+          <Checkbox
             label="Approve builds on the default branch automatically"
+            checked={autoApprove}
+            onCheckedChange={setAutoApprove}
+            disabled={disabled}
           />
           {props.sitesConfigured ? (
-            <>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    name="staticHostingEnabled"
-                    defaultChecked={s.staticHostingEnabled}
-                    disabled={!props.canManage}
-                  />
-                }
-                label="Host static sites (Storybook, reports) for this project"
-              />
-              <Typography variant="body2" color="text.secondary" sx={{ ml: 4, mt: -0.5 }}>
-                Upload with `circi site upload`. Sites are served from the sites domain and need
-                sign-in; only members of this organization can open them.
-              </Typography>
-            </>
+            <Checkbox
+              label="Host static sites (Storybook, reports) for this project"
+              description="Upload with `circi site upload`. Sites are served from the sites domain and need sign-in; only members of this organization can open them."
+              checked={hosting}
+              onCheckedChange={setHosting}
+              disabled={disabled}
+            />
           ) : null}
-        </FormGroup>
-        {save.error ? <Alert severity="error">{save.error.message}</Alert> : null}
-        {saved ? <Alert severity="success">Settings saved.</Alert> : null}
+        </div>
+        {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
+        {saved ? <Banner tone="success">Settings saved.</Banner> : null}
         {props.canManage ? (
-          <Box>
-            <Button type="submit" variant="contained" disabled={save.isPending}>
+          <div className={styles['actions']}>
+            <Button type="submit" variant="primary" loading={save.isPending}>
               {save.isPending ? 'Saving…' : 'Save settings'}
             </Button>
-          </Box>
+          </div>
         ) : null}
-      </Stack>
-    </Box>
+      </div>
+    </form>
   )
 }
 

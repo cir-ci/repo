@@ -1,0 +1,71 @@
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+}
+
+/* A Ref is inline-flex; keep the sentence's line height steady around it. */
+.intro {
+  line-height: 1.9;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 8px;
+  list-style: none;
+}
+
+.list > li:last-child > * {
+  border-bottom: 0;
+}
+
+/* The row itself is the link (see ListRow): it highlights on hover and shows the focus ring. */
+.title {
+  font-weight: 600;
+}
+
+.name {
+  color: var(--circi-text-secondary);
+  font-weight: 400;
+}
+
+.meta {
+  margin-top: 2px;
+}
+
+.trailing {
+  flex: none;
+}
+
+.pager {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.command {
+  max-width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.command code {
+  display: block;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 560px) {
+  .row {
+    flex-wrap: wrap;
+  }
+
+  .trailing {
+    flex-basis: 100%;
+    padding-left: 26px;
+  }
+}

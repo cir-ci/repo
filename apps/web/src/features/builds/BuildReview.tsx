@@ -1,225 +1,279 @@
-import { type Build, type DiffStatus } from '@circi/api'
-import CollectionsOutlined from '@mui/icons-material/CollectionsOutlined'
-import { Alert, Box, CircularProgress, Stack, Typography } from '@mui/material'
+import type { Build } from '@circi/api'
+import {
+  Banner,
+  Collapsible,
+  EmptyState,
+  CollectionsIcon,
+  PanelHeader,
+  Ref,
+  Stack,
+  StatusIcon,
+  Text,
+  Tooltip,
+  HourglassIcon,
+} from '@circi/ui'
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
-import { BuildMeta, BuildStateLabel, CountsSummary, RouterLink } from '../../components.tsx'
-import { Blankslate } from '../../primitives/Blankslate.tsx'
-import { CommitSha } from '../../primitives/labels.tsx'
-import { NavListGroup, NavListItem, navListItemSx } from '../../primitives/NavList.tsx'
-import { PageHeader, ParentLinkContent } from '../../primitives/PageHeader.tsx'
-import { PageLayout } from '../../primitives/PageLayout.tsx'
-import { type ViewMode } from '../../router.tsx'
-import { fileUrl, isActive } from './api.ts'
+import { RouterLink } from '../../lib/router-link.ts'
+import { flakyQuery, isActive } from './api.ts'
+import { BuildBreadcrumbs } from './BuildBreadcrumbs.tsx'
+import { BuildMeta } from './BuildMeta.tsx'
+import { BuildStateLabel } from './BuildStateLabel.tsx'
+import { CountsSummary } from './CountsSummary.tsx'
+import { screenshotLabel, screenshotStatus, shotReview } from './diff-status.ts'
 import { Viewer } from './DiffViewer.tsx'
-import { ReviewActions, ReviewNote } from './ReviewActions.tsx'
-import { ROUTE } from './route.ts'
+import {
+  defaultShot,
+  GROUP_ORDER,
+  groupShots,
+  isReviewable,
+  neighbour,
+  orderShots,
+  shotBadge,
+} from './review-model.ts'
+import { ReviewActions, ReviewNote, useReviewControls } from './ReviewActions.tsx'
+import { ROUTE, type ViewMode } from './search.ts'
+import { isHandledElsewhere, shortcutFor } from './shortcuts.ts'
+import { ShortcutsDialog } from './ShortcutsDialog.tsx'
 
-export function BuildReview({ data, parentLink }: BuildReview.Props) {
-  const { build, baseline } = data
+import page from './BuildPage.module.css'
+import styles from './BuildReview.module.css'
+
+/**
+ * The build review screen (docs/design-gaps.md §7, provisional): the header with the decision,
+ * a strip of context, then the screenshot list (280px, its own scroll) beside the viewer.
+ */
+export function BuildReview({ data }: BuildReview.Props) {
+  const { build, baseline, project } = data
   const params = useParams({ from: ROUTE })
   const search = useSearch({ from: ROUTE })
   const navigate = useNavigate({ from: ROUTE })
   const mode: ViewMode = search.mode ?? 'side'
+  const active = isActive(build.status)
+  const review = useReviewControls(data)
+  const [helpOpen, setHelpOpen] = useState(false)
 
-  const ordered = useMemo(
-    () => GROUPS.flatMap((g) => data.diffs.filter((d) => d.status === g.key)),
-    [data.diffs],
-  )
+  // Flaky screenshots are set aside, but the page works without knowing them.
+  const { data: flakyReport } = useQuery({
+    ...flakyQuery(project.orgSlug, project.slug),
+    enabled: !active,
+  })
+  const flaky = useMemo(() => new Set(flakyReport?.flaky.map((f) => f.name) ?? []), [flakyReport])
+  const groups = useMemo(() => groupShots(data.diffs, flaky), [data.diffs, flaky])
+  const ordered = useMemo(() => orderShots(groups), [groups])
   const fromUrl = search.shot ? ordered.find((d) => d.name === search.shot) : undefined
-  // Wide viewports open the first screenshot that needs attention; narrow ones show the list first.
-  const selected = fromUrl ?? ordered.find((d) => d.status !== 'unchanged') ?? ordered[0]
+  const selected = fromUrl ?? defaultShot(groups)
+  const selectedGroup = groups.find((g) => selected && g.items.includes(selected))?.kind
+
   const [open, setOpen] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(GROUPS.map((g) => [g.key, g.open])),
+    Object.fromEntries(GROUP_ORDER.map((g) => [g.kind, g.open])),
   )
+  // Choosing a screenshot (or j / k reaching one) opens its group, so a selection is never hidden.
+  const [openedFor, setOpenedFor] = useState<string | undefined>(undefined)
+  if (selected?.id !== openedFor) {
+    setOpenedFor(selected?.id)
+    if (selectedGroup && open[selectedGroup] === false) setOpen({ ...open, [selectedGroup]: true })
+  }
+
+  const goToShot = (shot: Build.DiffItem | undefined) => {
+    if (shot) void navigate({ search: (prev) => ({ ...prev, shot: shot.name }), replace: true })
+  }
+  const previous = neighbour(ordered, selected, -1)
+  const next = neighbour(ordered, selected, 1)
+  const hasPrevious = selected !== undefined && previous !== selected
+  const hasNext = selected !== undefined && next !== selected
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return
-      const i = selected ? ordered.indexOf(selected) : -1
-      const change: Record<string, { shot?: string; mode?: ViewMode } | undefined> = {
-        j: { shot: ordered[Math.min(ordered.length - 1, i + 1)]?.name },
-        k: { shot: ordered[Math.max(0, i - 1)]?.name },
-        '1': { mode: 'side' },
-        '2': { mode: 'overlay' },
-        '3': { mode: 'diff' },
-        '4': { mode: 'swipe' },
-      }
-      const next = change[e.key]
-      if (!next) return
+      if (isHandledElsewhere(e.target, e)) return
+      const action = shortcutFor(e.key)?.action
+      if (!action) return
       e.preventDefault()
-      void navigate({ search: (prev) => ({ ...prev, ...next }), replace: true })
+      switch (action.type) {
+        case 'next':
+          return goToShot(neighbour(ordered, selected, 1))
+        case 'previous':
+          return goToShot(neighbour(ordered, selected, -1))
+        case 'mode':
+          return void navigate({
+            search: (prev) => ({ ...prev, mode: action.mode }),
+            replace: true,
+          })
+        case 'approve':
+          return e.repeat ? undefined : review.approve()
+        case 'reject':
+          return e.repeat ? undefined : review.askReject()
+        case 'help':
+          return setHelpOpen(true)
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [ordered, selected, navigate])
+  })
 
-  const header = (
-    <PageHeader
-      title={
-        <>
-          Build #{build.number}
-          {build.name !== 'default' ? (
-            <Box component="span" sx={{ fontWeight: 400, color: 'text.secondary' }}>
-              {' '}
-              · {build.name}
-            </Box>
-          ) : null}
-        </>
-      }
-      parentLink={parentLink}
-      trailingVisual={<BuildStateLabel build={build} />}
-      actions={
-        build.status === 'complete' && build.conclusion === 'changes_detected' ? (
-          <ReviewActions data={data} />
-        ) : undefined
-      }
-      description={
-        <Stack spacing={1}>
-          <BuildMeta build={build} />
-          {isActive(build.status) ? null : <CountsSummary counts={build.counts} />}
+  // Keep the selected row in view in the list's own scroll when j / k (or the buttons) move on.
+  const listRef = useRef<HTMLElement>(null)
+  const scrolledFor = useRef(selected?.id)
+  useEffect(() => {
+    if (scrolledFor.current === selected?.id) return
+    scrolledFor.current = selected?.id
+    listRef.current?.querySelector('[data-selected]')?.scrollIntoView({ block: 'nearest' })
+  }, [selected?.id])
+
+  const hasBaseline = baseline !== null
+  const buildReview = shotReview(build)
+  return (
+    <div className={page['page']}>
+      <PanelHeader
+        actions={
+          <>
+            <BuildStateLabel build={build} hasBaseline={hasBaseline} />
+            {isReviewable(build) ? (
+              <ReviewActions review={review} buildNumber={build.number} />
+            ) : null}
+          </>
+        }
+      >
+        <BuildBreadcrumbs
+          org={project.orgSlug}
+          project={project.slug}
+          number={build.number}
+          name={build.name}
+        />
+        {build.branch ? <Ref value={build.branch} label="branch name" /> : null}
+      </PanelHeader>
+
+      <div className={page['context']}>
+        <Stack direction="row" gap={3} wrap align="center">
+          <BuildMeta build={build} showBranch={false} />
+          {active ? null : <CountsSummary counts={build.counts} review={buildReview} />}
         </Stack>
-      }
-      hasBorder
-    >
-      <Stack spacing={1}>
         <ReviewNote data={data} />
         <BaselineNote data={data} />
-        {build.errorMessage ? <Alert severity="error">{build.errorMessage}</Alert> : null}
-        {isActive(build.status) ? (
-          <Alert severity="info" icon={<CircularProgress size={16} aria-hidden />}>
-            Processing screenshots. This page updates when it’s done.
-          </Alert>
+        {review.error ? <Banner tone="danger">{review.error.message}</Banner> : null}
+        {build.errorMessage ? <Banner tone="danger">{build.errorMessage}</Banner> : null}
+        {active ? (
+          <Banner tone="info">Processing screenshots. This page updates when it’s done.</Banner>
         ) : null}
-      </Stack>
-    </PageHeader>
-  )
+      </div>
 
-  if (ordered.length === 0) {
-    return (
-      <PageLayout header={header}>
-        {isActive(build.status) ? null : (
-          <Blankslate
-            icon={<CollectionsOutlined />}
-            heading="No screenshots in this build"
-            description="The upload contained no PNG files."
-          />
-        )}
-      </PageLayout>
-    )
-  }
-
-  return (
-    <PageLayout
-      header={header}
-      paneLabel="Screenshots"
-      narrowShows={fromUrl ? 'content' : 'pane'}
-      pane={
-        <Box component="ul" sx={{ m: 0, p: 0 }}>
-          {GROUPS.map((g) => {
-            const items = data.diffs.filter((d) => d.status === g.key)
-            if (items.length === 0) return null
-            return (
-              <NavListGroup
-                key={g.key}
+      {build.status === 'expired' ? (
+        <EmptyState icon={<HourglassIcon size={32} />} title="This build has expired">
+          Its screenshots were deleted under the project’s retention policy.
+        </EmptyState>
+      ) : ordered.length === 0 ? (
+        active ? null : (
+          <EmptyState icon={<CollectionsIcon size={32} />} title="No screenshots in this build">
+            The upload contained no PNG files.
+          </EmptyState>
+        )
+      ) : (
+        <div className={page['body']}>
+          <nav ref={listRef} aria-label="Screenshots" className={page['list']}>
+            {groups.map((g) => (
+              <Collapsible
+                key={g.kind}
                 title={g.title}
-                count={items.length}
-                // The selected screenshot's group stays open, so j/k never selects something hidden.
-                open={(open[g.key] ?? false) || selected?.status === g.key}
-                onToggle={() => setOpen((o) => ({ ...o, [g.key]: !(o[g.key] ?? false) }))}
+                count={g.items.length}
+                open={open[g.kind] ?? g.open}
+                onOpenChange={(expanded) => setOpen({ ...open, [g.kind]: expanded })}
               >
-                {items.map((d) => (
-                  <NavListItem key={d.id}>
-                    <RouterLink
-                      to={ROUTE}
-                      params={params}
-                      search={(prev) => ({ ...prev, shot: d.name })}
-                      // Current only when chosen in the URL. Wide viewports also open a default
-                      // screenshot, which gets the same marker there; narrow ones show the list.
-                      aria-current={d.id === fromUrl?.id ? 'page' : undefined}
-                      data-default={!fromUrl && d.id === selected?.id ? '' : undefined}
-                      sx={navListItemSx}
-                    >
-                      <Thumb diff={d} />
-                      <Box sx={{ minWidth: 0, flex: 1 }}>
-                        <Typography noWrap title={d.name} sx={{ fontWeight: 'inherit' }}>
-                          {d.name}
-                        </Typography>
-                        {d.status === 'changed' ? (
-                          <Typography variant="body2" color="text.secondary">
-                            {changeSummary(d)}
-                          </Typography>
-                        ) : null}
-                      </Box>
-                    </RouterLink>
-                  </NavListItem>
-                ))}
-              </NavListGroup>
-            )
-          })}
-        </Box>
-      }
-    >
-      {selected ? (
-        <Viewer
-          diff={selected}
-          mode={mode}
-          baselineNumber={baseline?.number}
-          backLink={
-            <RouterLink
-              to={ROUTE}
-              params={params}
-              search={(prev) => ({ ...prev, shot: undefined })}
-            >
-              <ParentLinkContent>All screenshots</ParentLinkContent>
-            </RouterLink>
-          }
-          onMode={(m) => void navigate({ search: (prev) => ({ ...prev, mode: m }), replace: true })}
-        />
-      ) : null}
-    </PageLayout>
+                <ul className={styles['rows']}>
+                  {g.items.map((d) => (
+                    <li key={d.id}>
+                      <RouterLink
+                        to={ROUTE}
+                        params={params}
+                        search={(prev) => ({ ...prev, shot: d.name })}
+                        // Current only when chosen in the URL; the default one gets the same
+                        // marker through `data-default`.
+                        aria-current={d.id === fromUrl?.id ? 'page' : undefined}
+                        data-default={!fromUrl && d.id === selected?.id ? '' : undefined}
+                        data-selected={d.id === selected?.id ? '' : undefined}
+                        className={styles['row']}
+                      >
+                        <StatusIcon
+                          status={screenshotStatus(g.kind, buildReview)}
+                          size={12}
+                          label={screenshotLabel(g.kind, buildReview)}
+                        />
+                        <Tooltip content={d.name}>
+                          <Text className={styles['name']}>{d.name}</Text>
+                        </Tooltip>
+                        <Text variant="mono" tone="secondary">
+                          {shotBadge(d)}
+                        </Text>
+                      </RouterLink>
+                    </li>
+                  ))}
+                </ul>
+              </Collapsible>
+            ))}
+          </nav>
+          {selected && selectedGroup ? (
+            <Viewer
+              diff={selected}
+              kind={selectedGroup}
+              review={buildReview}
+              mode={mode}
+              baselineNumber={baseline?.number}
+              onMode={(m) =>
+                void navigate({ search: (prev) => ({ ...prev, mode: m }), replace: true })
+              }
+              onPrevious={hasPrevious ? () => goToShot(previous) : undefined}
+              onNext={hasNext ? () => goToShot(next) : undefined}
+              onHelp={() => setHelpOpen(true)}
+            />
+          ) : null}
+        </div>
+      )}
+      <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
+    </div>
   )
 }
 
 export namespace BuildReview {
   export interface Props {
     data: Build.Detail
-    parentLink: ReactNode
   }
 }
 
-/** Where the comparison comes from: plain metadata normally, a warning when it's a fallback. */
+/** Where the comparison comes from: plain metadata normally, a banner when it's an orphan or a fallback. */
 function BaselineNote({ data }: BaselineNote.Props) {
   const { build, baseline } = data
-  if (isActive(build.status)) return null
+  if (isActive(build.status) || build.status === 'expired') return null
   if (!baseline) {
     return (
-      <Alert severity="info">
+      <Banner tone="info">
         First build to compare against: every screenshot is new. Later builds are compared with this
         one once it’s approved.
-      </Alert>
+      </Banner>
     )
   }
   const where = (
     <>
       build #{baseline.number} on {baseline.branch ?? 'an unknown branch'} (
-      <CommitSha sha={baseline.commitSha} />)
+      <Text variant="mono" title={baseline.commitSha}>
+        {baseline.commitSha.slice(0, 7)}
+      </Text>
+      )
     </>
   )
   if (build.baselineSource === 'fallback') {
     return (
-      <Alert severity="warning">
+      <Banner tone="warning">
         Compared with {where}, the latest on the default branch, because this build’s git history
         wasn’t available. Changes merged since this branch was created may show up here. Fetch more
         history in CI (for example <code>fetch-depth: 0</code>) for an exact comparison.
-      </Alert>
+      </Banner>
     )
   }
   return (
-    <Typography color="text.secondary">
+    <Text variant="small" tone="secondary" as="p">
       Compared with {where}, where this branch started.
-    </Typography>
+    </Text>
   )
 }
 
@@ -228,45 +282,3 @@ export namespace BaselineNote {
     data: Build.Detail
   }
 }
-
-function changeSummary(d: Build.DiffItem): string {
-  if (d.sizeChanged) return 'Size changed'
-  if (d.score === null) return ''
-  const pct = d.score * 100
-  return `${pct < 0.01 ? '<0.01' : pct.toFixed(pct < 1 ? 2 : 1)}% of pixels`
-}
-
-function Thumb({ diff }: Thumb.Props) {
-  const src = diff.head?.thumbnail ?? diff.base?.thumbnail
-  const sx = {
-    width: 48,
-    height: 32,
-    flexShrink: 0,
-    objectFit: 'cover',
-    objectPosition: 'top',
-    borderRadius: 1,
-    border: 1,
-    borderColor: 'divider',
-    bgcolor: 'action.hover',
-  } as const
-  return src ? (
-    <Box component="img" src={fileUrl(src)} alt="" loading="lazy" sx={sx} />
-  ) : (
-    <Box component="span" sx={sx} />
-  )
-}
-
-export namespace Thumb {
-  export interface Props {
-    diff: Build.DiffItem
-  }
-}
-
-/** Review order: what needs a decision first, unchanged last (and collapsed). */
-const GROUPS: { key: DiffStatus; title: string; open: boolean }[] = [
-  { key: 'changed', title: 'Changed', open: true },
-  { key: 'failed', title: 'Failed', open: true },
-  { key: 'added', title: 'Added', open: true },
-  { key: 'removed', title: 'Removed', open: true },
-  { key: 'unchanged', title: 'Unchanged', open: false },
-]

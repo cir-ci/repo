@@ -1,327 +1,300 @@
-import { type Build } from '@circi/api'
+import type { Build, ReviewStatus } from '@circi/api'
 import {
-  Alert,
-  Box,
-  Paper,
+  Banner,
+  Button,
+  ExpandLessIcon,
+  ExpandMoreIcon,
+  Heading,
+  IconButton,
+  Kbd,
+  SegmentedControl,
   Slider,
-  Stack,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-} from '@mui/material'
-import { useState, type ReactNode } from 'react'
+  StatusIcon,
+  Text,
+  Tooltip,
+} from '@circi/ui'
+import { type CSSProperties, useState } from 'react'
 
-import { DIFF_STATUS } from '../../components.tsx'
-import { StateLabel, ToneText } from '../../primitives/labels.tsx'
-import { type ViewMode } from '../../router.tsx'
 import { fileUrl } from './api.ts'
+import { screenshotLabel, screenshotStatus, type ShotKind } from './diff-status.ts'
+import { changeSummary } from './review-model.ts'
+import { type ViewMode, VIEW_MODES } from './search.ts'
+import { MODE_OPTIONS } from './shortcuts.ts'
+import { type Zoom, stepZoom, zoomedWidth, zoomLabel } from './zoom.ts'
+
+import styles from './DiffViewer.module.css'
+
+const isViewMode = (value: string): value is ViewMode => VIEW_MODES.some((m) => m === value)
 
 /**
- * The screenshot viewer, shaped like GitHub's file box: a header bar with the name, status and
- * view switch (Primer SegmentedControl: switching views is not navigation), then the images.
+ * The screenshot viewer: a 36px toolbar (name, view modes, zoom, previous and next) over a
+ * checkerboard ground that holds the images, so transparent pixels show and nothing else
+ * competes with them. At "fit" an image is never scaled up past its real size.
  */
-export function Viewer(props: Viewer.Props) {
-  const { diff } = props
-  const [opacity, setOpacity] = useState(0.7)
+export function Viewer({ diff, kind, review, baselineNumber, ...props }: Viewer.Props) {
+  const [opacity, setOpacity] = useState(70)
+  const [at, setAt] = useState(50)
+  const [zoom, setZoom] = useState<Zoom>('fit')
   const comparable =
     diff.status === 'changed' && diff.head !== null && diff.base !== null && diff.diff !== null
   const mode: ViewMode = comparable ? props.mode : 'side'
-  const status = diff.status ? DIFF_STATUS[diff.status] : undefined
+  const summary = changeSummary(diff)
+  const baselineLabel = baselineNumber ? `Baseline · build #${baselineNumber}` : 'Baseline'
+  const zoomed = zoom !== 'fit'
 
   return (
-    <>
-      <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 2 }}>{props.backLink}</Box>
-      <Paper component="section" aria-labelledby="viewer-title" sx={{ overflow: 'hidden' }}>
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 1.5,
-            px: 2,
-            py: 1,
-            bgcolor: 'action.hover',
-            borderBottom: 1,
-            borderColor: 'divider',
-          }}
-        >
-          {status ? (
-            <StateLabel tone={status.tone} icon={status.icon} size="small">
-              {status.label}
-            </StateLabel>
-          ) : null}
-          <Typography
-            id="viewer-title"
-            variant="h2"
-            component="h2"
-            noWrap
-            title={diff.name}
-            sx={{ minWidth: 0, flex: 1 }}
-          >
+    <section aria-labelledby="viewer-title" className={styles['viewer']}>
+      <div className={styles['toolbar']}>
+        <div className={styles['title']}>
+          <StatusIcon
+            status={screenshotStatus(kind, review)}
+            size={12}
+            label={screenshotLabel(kind, review)}
+          />
+          <Heading as="h2" id="viewer-title" title={diff.name} className={styles['name']}>
             {diff.name}
-          </Typography>
-          {comparable && mode === 'overlay' ? (
-            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', width: 220 }}>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ flexShrink: 0 }}
-                id="opacity-label"
-              >
-                Diff layer
-              </Typography>
-              <Slider
-                size="small"
-                min={0}
-                max={1}
-                step={0.05}
-                value={opacity}
-                onChange={(_, v) => setOpacity(Array.isArray(v) ? (v[0] ?? 0) : v)}
-                aria-labelledby="opacity-label"
-              />
-            </Stack>
+          </Heading>
+          {summary ? (
+            <Text variant="mono" tone="secondary" className={styles['summary']}>
+              {summary}
+            </Text>
           ) : null}
+        </div>
+        <div className={styles['controls']}>
           {comparable ? (
-            <ToggleButtonGroup
-              size="small"
-              exclusive
+            <SegmentedControl
+              label="View"
+              options={MODE_OPTIONS}
               value={mode}
-              onChange={(_, m: ViewMode | null) => m && props.onMode(m)}
-              aria-label="View"
-            >
-              <ToggleButton value="side" title="Side by side (1)">
-                Side by side
-              </ToggleButton>
-              <ToggleButton value="overlay" title="Overlay (2)">
-                Overlay
-              </ToggleButton>
-              <ToggleButton value="diff" title="Changes only (3)">
-                Changes only
-              </ToggleButton>
-              <ToggleButton value="swipe" title="Swipe (4)">
-                Swipe
-              </ToggleButton>
-            </ToggleButtonGroup>
-          ) : null}
-        </Box>
-
-        <Box sx={{ p: 2 }}>
-          {diff.status === 'failed' ? (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {diff.errorMessage ?? 'This screenshot couldn’t be processed.'}
-            </Alert>
-          ) : null}
-          {diff.sizeChanged && diff.base && diff.head ? (
-            <ToneText tone="attention" sx={{ mb: 2, typography: 'body1' }}>
-              Size changed from {diff.base.width}×{diff.base.height} to {diff.head.width}×
-              {diff.head.height}
-            </ToneText>
-          ) : null}
-
-          {mode === 'side' ? (
-            <Box
-              sx={{
-                display: 'grid',
-                gap: 2,
-                gridTemplateColumns: { xs: '1fr', lg: diff.base && diff.head ? '1fr 1fr' : '1fr' },
+              onChange={(m) => {
+                if (isViewMode(m)) props.onMode(m)
               }}
-            >
-              {diff.base ? (
-                <Figure
-                  label={
-                    props.baselineNumber ? `Baseline · build #${props.baselineNumber}` : 'Baseline'
-                  }
-                  sha={diff.base.sha256}
-                />
-              ) : null}
-              {diff.head ? (
-                <Figure
-                  label={diff.status === 'added' ? 'New in this build' : 'This build'}
-                  sha={diff.head.sha256}
-                />
-              ) : null}
-              {!diff.head && diff.base ? (
-                <Typography color="text.secondary">
-                  This screenshot isn’t in this build any more.
-                </Typography>
-              ) : null}
-            </Box>
-          ) : null}
-
-          {mode === 'overlay' && diff.head && diff.diff ? (
-            <Box component="figure" sx={{ m: 0 }}>
-              <Typography
-                component="figcaption"
-                variant="body2"
-                color="text.secondary"
-                sx={{ mb: 0.5 }}
-              >
-                This build, with changed pixels highlighted
-              </Typography>
-              <Box
-                sx={{
-                  position: 'relative',
-                  display: 'inline-block',
-                  maxWidth: '100%',
-                  border: 1,
-                  borderColor: 'divider',
-                }}
-              >
-                <Box
-                  component="img"
-                  src={fileUrl(diff.head.sha256)}
-                  alt={`${diff.name} in this build`}
-                  sx={checker}
-                />
-                <Box
-                  component="img"
-                  src={fileUrl(diff.diff.sha256)}
-                  alt=""
-                  sx={{
-                    position: 'absolute',
-                    inset: 0,
-                    width: '100%',
-                    height: '100%',
-                    pointerEvents: 'none',
-                    opacity,
-                  }}
-                />
-              </Box>
-            </Box>
-          ) : null}
-
-          {mode === 'swipe' && diff.base && diff.head ? (
-            <Swipe
-              base={diff.base.sha256}
-              head={diff.head.sha256}
-              name={diff.name}
-              baselineLabel={
-                props.baselineNumber ? `Baseline · build #${props.baselineNumber}` : 'Baseline'
-              }
             />
           ) : null}
-
-          {mode === 'diff' && diff.diff ? (
-            <Figure label="Changed pixels in red" sha={diff.diff.sha256} />
+          {comparable && mode === 'overlay' ? (
+            <span className={styles['slider']}>
+              <Text variant="small" tone="secondary">
+                Diff layer
+              </Text>
+              <Slider
+                label="Diff layer"
+                min={0}
+                max={100}
+                step={5}
+                value={opacity}
+                onValueChange={setOpacity}
+              />
+            </span>
           ) : null}
-        </Box>
-      </Paper>
-    </>
-  )
-}
+          {comparable && mode === 'swipe' ? (
+            <span className={styles['slider']}>
+              <Text variant="small" tone="secondary">
+                Swipe
+              </Text>
+              <Slider
+                label="Swipe position"
+                min={0}
+                max={100}
+                step={1}
+                value={at}
+                onValueChange={setAt}
+              />
+            </span>
+          ) : null}
+          <div className={styles['group']}>
+            <SegmentedControl
+              label="Zoom"
+              options={[
+                { value: 'fit', label: 'Fit' },
+                { value: '100', label: '100%' },
+              ]}
+              value={zoom === 'fit' ? 'fit' : zoom === 100 ? '100' : ''}
+              onChange={(z) => setZoom(z === 'fit' ? 'fit' : 100)}
+            />
+            <IconButton label="Zoom out" onClick={() => setZoom(stepZoom(zoom, -1))}>
+              <span aria-hidden="true">−</span>
+            </IconButton>
+            <IconButton label="Zoom in" onClick={() => setZoom(stepZoom(zoom, 1))}>
+              <span aria-hidden="true">+</span>
+            </IconButton>
+            {zoomed && zoom !== 100 ? (
+              <Text variant="mono" tone="secondary" aria-live="polite">
+                {zoomLabel(zoom)}
+              </Text>
+            ) : null}
+          </div>
+          <div className={styles['group']}>
+            <Tooltip
+              content={
+                <>
+                  Previous screenshot <Kbd>k</Kbd>
+                </>
+              }
+            >
+              <IconButton
+                label="Previous screenshot"
+                disabled={!props.onPrevious}
+                onClick={props.onPrevious}
+              >
+                <ExpandLessIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip
+              content={
+                <>
+                  Next screenshot <Kbd>j</Kbd>
+                </>
+              }
+            >
+              <IconButton label="Next screenshot" disabled={!props.onNext} onClick={props.onNext}>
+                <ExpandMoreIcon />
+              </IconButton>
+            </Tooltip>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="Keyboard shortcuts"
+              onClick={props.onHelp}
+            >
+              <Kbd>?</Kbd>
+            </Button>
+          </div>
+        </div>
+      </div>
 
-/**
- * Baseline and this build in one frame, with a divider you drag (or move with the arrow keys):
- * the baseline shows on the left of it, this build on the right.
- */
-function Swipe({ base, head, name, baselineLabel }: Swipe.Props) {
-  const [at, setAt] = useState(50)
-  return (
-    <Box component="figure" sx={{ m: 0 }}>
-      <Typography component="figcaption" variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-        {baselineLabel} on the left, this build on the right
-      </Typography>
-      <Box
-        sx={{
-          position: 'relative',
-          display: 'inline-block',
-          maxWidth: '100%',
-          border: 1,
-          borderColor: 'divider',
-        }}
-      >
-        <Box component="img" src={fileUrl(base)} alt={`${name} in the baseline`} sx={checker} />
-        <Box
-          component="img"
-          src={fileUrl(head)}
-          alt={`${name} in this build`}
-          sx={{
-            ...checker,
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            clipPath: `inset(0 0 0 ${at}%)`,
-          }}
-        />
-        <Box
-          aria-hidden
-          sx={{
-            position: 'absolute',
-            top: 0,
-            bottom: 0,
-            left: `${at}%`,
-            width: 2,
-            ml: '-1px',
-            bgcolor: 'primary.main',
-            pointerEvents: 'none',
-          }}
-        />
-      </Box>
-      <Slider
-        size="small"
-        min={0}
-        max={100}
-        step={1}
-        value={at}
-        onChange={(_, v) => setAt(Array.isArray(v) ? (v[0] ?? 0) : v)}
-        aria-label="Swipe position"
-        sx={{ display: 'block', mt: 1, maxWidth: 480 }}
-      />
-    </Box>
+      <div className={styles['ground']}>
+        {diff.status === 'failed' ? (
+          <Banner tone="danger">
+            {diff.errorMessage ?? 'This screenshot couldn’t be processed.'}
+          </Banner>
+        ) : null}
+        {diff.sizeChanged && diff.base && diff.head ? (
+          <Banner tone="warning">
+            Size changed from {diff.base.width}×{diff.base.height} to {diff.head.width}×
+            {diff.head.height}
+          </Banner>
+        ) : null}
+
+        {mode === 'side' ? (
+          <div className={styles['side']} data-zoomed={zoomed ? '' : undefined}>
+            {diff.base ? <Figure label={baselineLabel} image={diff.base} zoom={zoom} /> : null}
+            {diff.head ? (
+              <Figure
+                label={diff.status === 'added' ? 'New in this build' : 'This build'}
+                image={diff.head}
+                zoom={zoom}
+              />
+            ) : null}
+            {!diff.head && diff.base ? (
+              <Text tone="secondary" as="p" className={styles['note']}>
+                This screenshot isn’t in this build any more.
+              </Text>
+            ) : null}
+          </div>
+        ) : null}
+
+        {mode === 'overlay' && diff.head && diff.diff ? (
+          <figure className={styles['figure']}>
+            <Text as="small" variant="small" tone="secondary" className={styles['caption']}>
+              This build, with changed pixels highlighted
+            </Text>
+            <div className={styles['frame']}>
+              <img
+                src={fileUrl(diff.head.sha256)}
+                alt={`${diff.name} in this build`}
+                className={styles['image']}
+                style={imageStyle(zoom, diff.head.width)}
+              />
+              <img
+                src={fileUrl(diff.diff.sha256)}
+                alt=""
+                className={styles['cover']}
+                style={{ opacity: opacity / 100 }}
+              />
+            </div>
+          </figure>
+        ) : null}
+
+        {mode === 'swipe' && diff.base && diff.head ? (
+          <figure className={styles['figure']}>
+            <Text as="small" variant="small" tone="secondary" className={styles['caption']}>
+              {baselineLabel} on the left, this build on the right
+            </Text>
+            <div className={styles['frame']}>
+              <img
+                src={fileUrl(diff.base.sha256)}
+                alt={`${diff.name} in the baseline`}
+                className={styles['image']}
+                style={imageStyle(zoom, diff.base.width)}
+              />
+              <img
+                src={fileUrl(diff.head.sha256)}
+                alt={`${diff.name} in this build`}
+                className={styles['cover']}
+                style={{ clipPath: `inset(0 0 0 ${at}%)` }}
+              />
+              <span aria-hidden="true" className={styles['divider']} style={{ left: `${at}%` }} />
+            </div>
+          </figure>
+        ) : null}
+
+        {mode === 'diff' && diff.diff ? (
+          <Figure label="Changed pixels in red" image={diff.diff} zoom={zoom} />
+        ) : null}
+      </div>
+    </section>
   )
-}
-export namespace Swipe {
-  export interface Props {
-    base: string
-    head: string
-    name: string
-    baselineLabel: string
-  }
 }
 
 export namespace Viewer {
   export interface Props {
     diff: Build.DiffItem
+    kind: ShotKind
+    /** The build's review (`shotReview`): the glyph follows it. */
+    review: ReviewStatus
     mode: ViewMode
     baselineNumber: number | undefined
-    backLink: ReactNode
     onMode: (m: ViewMode) => void
+    /** Absent at the first / last screenshot. */
+    onPrevious: (() => void) | undefined
+    onNext: (() => void) | undefined
+    onHelp: () => void
   }
 }
 
-function Figure({ label, sha }: Figure.Props) {
+const imageStyle = (zoom: Zoom, naturalWidth: number | null): CSSProperties | undefined => {
+  const width = zoomedWidth(zoom, naturalWidth)
+  return width === undefined ? undefined : { width, maxWidth: 'none' }
+}
+
+function Figure({ label, image, zoom }: Figure.Props) {
   return (
-    <Box component="figure" sx={{ m: 0, minWidth: 0 }}>
-      <Typography component="figcaption" variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+    <figure className={styles['figure']}>
+      <Text as="small" variant="small" tone="secondary" className={styles['caption']}>
         {label}
-      </Typography>
-      <Box
-        component="a"
-        href={fileUrl(sha)}
+      </Text>
+      <a
+        href={fileUrl(image.sha256)}
         target="_blank"
         rel="noreferrer"
         title="Open full size"
-        sx={{ display: 'inline-block', maxWidth: '100%', border: 1, borderColor: 'divider' }}
+        className={styles['frame']}
       >
-        <Box component="img" src={fileUrl(sha)} alt={label} sx={checker} />
-      </Box>
-    </Box>
+        <img
+          src={fileUrl(image.sha256)}
+          alt={label}
+          className={styles['image']}
+          style={imageStyle(zoom, image.width)}
+        />
+      </a>
+    </figure>
   )
 }
 
 export namespace Figure {
   export interface Props {
     label: string
-    sha: string
+    image: Build.ImageRef
+    zoom: Zoom
   }
 }
-
-/** Checkerboard behind screenshots, so transparency and size-change padding are visible. */
-const checker = {
-  display: 'block',
-  maxWidth: '100%',
-  height: 'auto',
-  backgroundImage: 'repeating-conic-gradient(rgba(127,127,127,0.16) 0% 25%, transparent 0% 50%)',
-  backgroundSize: '16px 16px',
-} as const

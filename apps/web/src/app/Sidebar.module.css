@@ -1,0 +1,16 @@
+.groupLabel {
+  display: block;
+  padding: 14px 8px 4px;
+}
+
+.nested {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-left: 12px;
+}
+
+.footer {
+  margin-top: auto;
+  padding-top: 8px;
+}

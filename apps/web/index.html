@@ -5,6 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
     <title>CirCI</title>
+    <script>
+      // Pick the colour scheme before the first paint (keys match @circi/ui's theme.ts).
+      try {
+        const m = localStorage.getItem('circi-color-mode')
+        const s =
+          m === 'light' || m === 'dark'
+            ? m
+            : matchMedia('(prefers-color-scheme: light)').matches
+              ? 'light'
+              : 'dark'
+        document.documentElement.setAttribute('data-circi-color-scheme', s)
+      } catch {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

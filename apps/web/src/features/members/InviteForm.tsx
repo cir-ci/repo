@@ -1,76 +1,80 @@
-import { Alert, Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material'
+import { Banner, Button, Select, SectionHeader, TextField, useAnnounce } from '@circi/ui'
 import { useState, type FormEvent } from 'react'
 
-import { authClient } from '../../lib/auth-client.ts'
-import { useAnnounce } from '../../primitives/feedback.tsx'
+import { type AssignableRole, inviteMember } from './api.ts'
+import { validateInvite } from './model.ts'
+
+import styles from './InviteForm.module.css'
+
+const ROLES = [
+  { value: 'member', label: 'Member' },
+  { value: 'admin', label: 'Admin' },
+]
 
 export function InviteForm({ organizationId, onInvited }: InviteForm.Props) {
   const announce = useAnnounce()
-  const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string } | null>(
-    null,
-  )
+  const [email, setEmail] = useState('')
+  const [role, setRole] = useState<AssignableRole>('member')
+  const [problem, setProblem] = useState<string>()
+  const [message, setMessage] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const form = e.currentTarget
-    const data = new FormData(form)
-    const rawEmail = data.get('email')
-    const email = typeof rawEmail === 'string' ? rawEmail.trim() : ''
-    const role = data.get('role') === 'admin' ? 'admin' : 'member'
+    const address = email.trim()
+    const problems = validateInvite(address)
+    setProblem(problems.email)
+    if (problems.email) return
     setBusy(true)
     setMessage(null)
-    const { error: failure } = await authClient.organization.inviteMember({
-      email,
-      role,
-      organizationId,
-    })
-    setBusy(false)
-    if (failure) {
-      setMessage({ severity: 'error', text: failure.message ?? 'Couldn’t send the invitation.' })
+    try {
+      await inviteMember({ email: address, role, organizationId })
+    } catch (failure) {
+      setMessage({
+        tone: 'danger',
+        text: failure instanceof Error ? failure.message : 'Couldn’t send the invitation.',
+      })
       return
+    } finally {
+      setBusy(false)
     }
-    form.reset()
-    announce(`Invitation sent to ${email}`)
-    setMessage({ severity: 'success', text: `Invitation sent to ${email}.` })
+    setEmail('')
+    announce(`Invitation sent to ${address}`)
+    setMessage({ tone: 'success', text: `Invitation sent to ${address}.` })
     await onInvited()
   }
 
   return (
-    <Box component="form" onSubmit={(e) => void submit(e)} noValidate>
-      <Typography variant="h2" component="h2" sx={{ mb: 1.5 }}>
-        Invite someone
-      </Typography>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} useFlexGap>
+    <section className={styles['root']}>
+      <SectionHeader title="Invite someone" />
+      <form onSubmit={(e) => void submit(e)} noValidate className={styles['form']}>
         <TextField
+          className={styles['email']}
           name="email"
           type="email"
           label="Email"
           required
-          size="small"
-          sx={{ flex: 1, maxWidth: 360 }}
+          value={email}
+          error={problem}
+          onChange={(e) => {
+            setEmail(e.target.value)
+            setProblem(undefined)
+          }}
         />
-        <TextField
+        <Select
+          className={styles['role']}
           name="role"
           label="Role"
-          select
-          defaultValue="member"
-          size="small"
-          sx={{ minWidth: 140 }}
-        >
-          <MenuItem value="member">Member</MenuItem>
-          <MenuItem value="admin">Admin</MenuItem>
-        </TextField>
-        <Button type="submit" variant="contained" disabled={busy}>
+          items={ROLES}
+          value={role}
+          onValueChange={(next) => setRole(next === 'admin' ? 'admin' : 'member')}
+        />
+        <Button type="submit" variant="primary" loading={busy} className={styles['submit']}>
           {busy ? 'Sending…' : 'Send invitation'}
         </Button>
-      </Stack>
-      {message ? (
-        <Alert severity={message.severity} sx={{ mt: 1.5, maxWidth: 560 }}>
-          {message.text}
-        </Alert>
-      ) : null}
-    </Box>
+      </form>
+      {message ? <Banner tone={message.tone}>{message.text}</Banner> : null}
+    </section>
   )
 }
 

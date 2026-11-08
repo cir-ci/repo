@@ -1,50 +1,64 @@
-import { Avatar, Box, IconButton, ListItemText, Menu, MenuItem, Typography } from '@mui/material'
+import {
+  Avatar,
+  ChevronsUpDownIcon,
+  ColorSchemeControl,
+  LogOutIcon,
+  Menu,
+  UserIcon,
+} from '@circi/ui'
 import { useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 
-import { RouterLink } from '../../components.tsx'
 import { authClient, type SessionUser } from '../../lib/auth-client.ts'
 
-/** The signed-in person, top right: who they are, and a way to sign out. */
+import styles from './UserMenu.module.css'
+
+/**
+ * Provisional (docs/design-gaps.md §6): the signed-in person at the bottom of the sidebar: who
+ * they are, a way to their account, the colour scheme, and a way to sign out.
+ */
 export function UserMenu({ user }: UserMenu.Props) {
   const queryClient = useQueryClient()
-  const [anchor, setAnchor] = useState<HTMLElement | null>(null)
+  const navigate = useNavigate()
 
   async function signOut() {
-    setAnchor(null)
     await authClient.signOut()
     // Forget everything fetched as this person, so the next one never sees it.
     queryClient.clear()
   }
 
   return (
-    <Box sx={{ ml: 'auto' }}>
-      <IconButton
-        aria-label={`Account menu for ${user.name}`}
-        aria-haspopup="menu"
-        aria-expanded={anchor ? 'true' : undefined}
-        onClick={(e) => setAnchor(e.currentTarget)}
-        size="small"
-      >
-        <Avatar sx={{ width: 28, height: 28, fontSize: '0.8rem' }}>
-          {user.name.slice(0, 1).toUpperCase()}
-        </Avatar>
-      </IconButton>
-      <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={() => setAnchor(null)}>
-        <Box sx={{ px: 2, py: 1, minWidth: 220 }}>
-          <Typography sx={{ fontWeight: 600 }}>{user.name}</Typography>
-          <Typography variant="body2" color="text.secondary">
-            {user.email}
-          </Typography>
-        </Box>
-        <MenuItem component={RouterLink} to="/account" onClick={() => setAnchor(null)}>
-          <ListItemText>Account and sessions</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={() => void signOut()}>
-          <ListItemText>Sign out</ListItemText>
-        </MenuItem>
-      </Menu>
-    </Box>
+    <Menu
+      align="start"
+      trigger={
+        <button
+          type="button"
+          className={styles['trigger']}
+          aria-label={`Account menu for ${user.name}`}
+        >
+          <Avatar name={user.name} size={24} />
+          <span className={styles['name']}>{user.name}</span>
+          <ChevronsUpDownIcon />
+        </button>
+      }
+      items={[
+        {
+          type: 'content',
+          name: 'who',
+          node: (
+            <div className={styles['who']}>
+              <span className={styles['whoName']}>{user.name}</span>
+              <span className={styles['whoEmail']}>{user.email}</span>
+            </div>
+          ),
+        },
+        { type: 'separator' },
+        { label: 'Account', icon: <UserIcon />, onSelect: () => void navigate({ to: '/account' }) },
+        { type: 'content', name: 'theme', node: <ColorSchemeControl /> },
+        { type: 'separator' },
+        { label: 'Sign out', icon: <LogOutIcon />, onSelect: () => void signOut() },
+      ]}
+    />
   )
 }
 

@@ -1,0 +1,52 @@
+/* The build page's frame: header, a strip of context, then the list beside the viewer. */
+.page {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.context {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--circi-line-subtle);
+}
+
+.body {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: 280px minmax(0, 1fr);
+  align-items: start;
+}
+
+/* Its own scroll: the list stays in view while the viewer's column scrolls with the page. */
+.list {
+  position: sticky;
+  top: 0;
+  box-sizing: border-box;
+  max-height: calc(100dvh - 16px);
+  padding: 8px;
+  overflow-y: auto;
+  border-inline-end: 1px solid var(--circi-line-subtle);
+}
+
+.placeholder {
+  min-width: 0;
+  padding: 16px;
+}
+
+/* Below 820px the list collapses above the viewer. */
+@media (max-width: 819.98px) {
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .list {
+    position: static;
+    max-height: 176px;
+    border-inline-end: 0;
+    border-bottom: 1px solid var(--circi-line-subtle);
+  }
+}

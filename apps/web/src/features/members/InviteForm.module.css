@@ -1,0 +1,36 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.email {
+  flex: 1 1 220px;
+}
+
+.role {
+  flex: 0 0 140px;
+}
+
+/* Lines the button up with the controls, below the labels (12px/1.5 label + 6px gap). */
+.submit {
+  margin-top: 24px;
+}
+
+@media (max-width: 559.98px) {
+  .role,
+  .submit {
+    flex: 1 1 100%;
+  }
+
+  .submit {
+    margin-top: 0;
+  }
+}

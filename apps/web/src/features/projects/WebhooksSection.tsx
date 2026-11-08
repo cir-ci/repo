@@ -1,20 +1,23 @@
 import {
-  Alert,
-  Box,
+  Banner,
   Button,
   Checkbox,
-  FormControlLabel,
-  FormGroup,
-  Stack,
+  CheckboxGroup,
+  ConfirmDialog,
+  ListRow,
+  SectionHeader,
+  Text,
   TextField,
-  Typography,
-} from '@mui/material'
-import { useState, type FormEvent } from 'react'
+  useAnnounce,
+} from '@circi/ui'
+import { type FormEvent, useState } from 'react'
 
-import { RelativeTime } from '../../components.tsx'
-import { useAnnounce } from '../../primitives/feedback.tsx'
-import { Row, Section } from '../../primitives/Rows.tsx'
+import { RelativeTime } from '../../lib/RelativeTime.tsx'
 import { useAddWebhook, useDeleteWebhook } from './api.ts'
+import { SecretBox } from './CreateDialogs.tsx'
+
+import styles from './SettingsSection.module.css'
+import hookStyles from './WebhooksSection.module.css'
 
 export function Webhooks(props: Webhooks.Props) {
   const add = useAddWebhook(props.org, props.project)
@@ -22,121 +25,182 @@ export function Webhooks(props: Webhooks.Props) {
   const announce = useAnnounce()
   const [secret, setSecret] = useState<{ url: string; value: string } | null>(null)
   const [picked, setPicked] = useState<string[]>(props.events)
+  const [urlError, setUrlError] = useState<string | null>(null)
+  const [removing, setRemoving] = useState<Webhooks.Hook | null>(null)
 
-  async function submit(e: FormEvent<HTMLFormElement>) {
+  function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const form = e.currentTarget
     const raw = new FormData(form).get('url')
     const url = typeof raw === 'string' ? raw.trim() : ''
-    const created = await add.mutateAsync({ url, events: picked })
-    form.reset()
-    setSecret({ url: created.webhook.url, value: created.secret })
-    announce('Webhook added')
+    if (!url) {
+      setUrlError('Enter an address')
+      return
+    }
+    setUrlError(null)
+    add.mutate(
+      { url, events: picked },
+      {
+        onSuccess: (created) => {
+          form.reset()
+          setSecret({ url: created.webhook.url, value: created.secret })
+          announce('Webhook added')
+        },
+      },
+    )
   }
 
   return (
-    <Stack spacing={2}>
-      <Section title="Webhooks" count={props.hooks.length}>
+    <section className={styles['section']}>
+      <SectionHeader
+        divided
+        title={
+          <>
+            Webhooks{' '}
+            <Text variant="micro" tone="tertiary">
+              {props.hooks.length}
+            </Text>
+          </>
+        }
+        description="Get a signed POST to your own service when a build finishes or is reviewed."
+      />
+      <ul aria-label="Webhooks" className={hookStyles['list']}>
         {props.hooks.length === 0 ? (
-          <Row
-            primary="No webhooks yet"
-            secondary="Get a signed POST to your own service when a build finishes or is reviewed."
-          />
+          <li>
+            <ListRow>
+              <Text tone="secondary">No webhooks yet</Text>
+            </ListRow>
+          </li>
         ) : (
           props.hooks.map((h) => (
-            <Row
-              key={h.id}
-              primary={h.url}
-              secondary={
-                <>
-                  {h.events.join(', ')} · added <RelativeTime iso={h.createdAt} />
-                </>
-              }
-              action={
-                props.canManage ? (
-                  <Button
-                    color="error"
-                    size="small"
-                    disabled={remove.isPending}
-                    onClick={() =>
-                      remove.mutate(h.id, { onSuccess: () => announce('Webhook removed') })
-                    }
-                  >
-                    Remove
-                  </Button>
-                ) : null
-              }
-            />
+            <li key={h.id}>
+              <ListRow
+                trailing={
+                  props.canManage ? (
+                    <Button variant="danger" size="sm" onClick={() => setRemoving(h)}>
+                      Remove
+                    </Button>
+                  ) : undefined
+                }
+              >
+                <Text variant="mono" truncate as="div">
+                  {h.url}
+                </Text>
+                <div className={hookStyles['meta']}>
+                  <ul aria-label="Events" className={hookStyles['events']}>
+                    {h.events.map((event) => (
+                      <li key={event} className={hookStyles['chip']}>
+                        <Text variant="micro" tone="secondary">
+                          {event}
+                        </Text>
+                      </li>
+                    ))}
+                  </ul>
+                  <Text variant="small" tone="secondary">
+                    added <RelativeTime iso={h.createdAt} />
+                  </Text>
+                </div>
+              </ListRow>
+            </li>
           ))
         )}
-      </Section>
-      {remove.error ? <Alert severity="error">{remove.error.message}</Alert> : null}
+      </ul>
+      {remove.error && !removing ? <Banner tone="danger">{remove.error.message}</Banner> : null}
       {secret ? (
-        <Alert severity="success" onClose={() => setSecret(null)}>
-          <Typography sx={{ fontWeight: 600 }}>Signing secret for {secret.url}</Typography>
-          <Typography
-            component="code"
-            sx={{ display: 'block', my: 0.5, fontFamily: 'monospace', overflowWrap: 'anywhere' }}
-          >
-            {secret.value}
-          </Typography>
-          Copy it now: it isn’t shown again. Verify each request’s <code>CirCI-Signature</code>{' '}
+        <Banner
+          tone="success"
+          title={`Signing secret for ${secret.url}`}
+          action={
+            <Button variant="ghost" size="sm" onClick={() => setSecret(null)}>
+              Dismiss
+            </Button>
+          }
+        >
+          <div className={hookStyles['secret']}>
+            <SecretBox label="Signing secret" value={secret.value} />
+          </div>
+          Copy it now: it isn’t shown again. Verify each request’s{' '}
+          <Text as="code" variant="mono">
+            CirCI-Signature
+          </Text>{' '}
           header with it.
-        </Alert>
+        </Banner>
       ) : null}
       {props.canManage ? (
-        <Box component="form" onSubmit={(e) => void submit(e)} noValidate sx={{ maxWidth: 560 }}>
-          <Typography variant="h3" component="h3" sx={{ mb: 1 }}>
+        <form onSubmit={submit} noValidate className={styles['fields']}>
+          <Text as="strong" variant="body" className={hookStyles['formTitle']}>
             Add a webhook
-          </Typography>
-          <Stack spacing={1.5}>
-            <TextField
-              name="url"
-              type="url"
-              label="Address"
-              placeholder="https://hooks.example.com/circi"
-              required
-              size="small"
-              helperText="Must be a public address."
-            />
-            <FormGroup row>
+          </Text>
+          <TextField
+            name="url"
+            type="url"
+            label="Address"
+            placeholder="https://hooks.example.com/circi"
+            required
+            description="Must be a public address."
+            error={urlError}
+          />
+          <CheckboxGroup legend="Events" value={picked} onValueChange={setPicked}>
+            <div className={styles['checks']}>
               {props.events.map((event) => (
-                <FormControlLabel
-                  key={event}
-                  label={event}
-                  control={
-                    <Checkbox
-                      checked={picked.includes(event)}
-                      onChange={(_, on) =>
-                        setPicked((p) => (on ? [...p, event] : p.filter((x) => x !== event)))
-                      }
-                    />
-                  }
-                />
+                <Checkbox key={event} value={event} label={event} />
               ))}
-            </FormGroup>
-            {add.error ? <Alert severity="error">{add.error.message}</Alert> : null}
-            <Box>
-              <Button
-                type="submit"
-                variant="contained"
-                disabled={add.isPending || picked.length === 0}
-              >
-                {add.isPending ? 'Adding…' : 'Add webhook'}
-              </Button>
-            </Box>
-          </Stack>
-        </Box>
+            </div>
+          </CheckboxGroup>
+          {add.error ? <Banner tone="danger">{add.error.message}</Banner> : null}
+          <div className={styles['actions']}>
+            <Button
+              type="submit"
+              variant="primary"
+              loading={add.isPending}
+              disabled={picked.length === 0}
+            >
+              {add.isPending ? 'Adding…' : 'Add webhook'}
+            </Button>
+          </div>
+        </form>
       ) : null}
-    </Stack>
+      <ConfirmDialog
+        open={removing !== null}
+        onOpenChange={(open) => {
+          if (!open) setRemoving(null)
+        }}
+        title="Remove webhook?"
+        description={
+          removing ? (
+            <>
+              <Text as="code" variant="mono" className={hookStyles['wrap']}>
+                {removing.url}
+              </Text>{' '}
+              stops receiving build events right away. This can’t be undone.
+            </>
+          ) : undefined
+        }
+        confirmLabel="Remove"
+        loading={remove.isPending}
+        onConfirm={() => {
+          if (!removing) return
+          remove.mutate(removing.id, {
+            onSuccess: () => announce('Webhook removed'),
+            onSettled: () => setRemoving(null),
+          })
+        }}
+      />
+    </section>
   )
 }
 
 export namespace Webhooks {
+  export interface Hook {
+    id: string
+    url: string
+    events: string[]
+    createdAt: string
+  }
   export interface Props {
     org: string
     project: string
-    hooks: { id: string; url: string; events: string[]; createdAt: string }[]
+    hooks: Hook[]
     events: string[]
     canManage: boolean
   }

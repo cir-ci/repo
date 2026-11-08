@@ -1,0 +1,487 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { type Locator, page, userEvent } from 'vitest/browser'
+
+import { detail, fakeBuildApi, renderBuild, shot } from './fake-build-api.tsx'
+
+beforeEach(async () => {
+  await page.viewport(1280, 900)
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+/** The exact text of an element once it's there (the browser matcher can't take a pattern). */
+async function hasText(locator: Locator, pattern: RegExp) {
+  await expect.element(locator).toBeVisible()
+  expect(locator.element().textContent).toMatch(pattern)
+}
+
+const viewerTitle = () => page.getByRole('heading', { level: 2 })
+
+describe('BuildPage states', () => {
+  it('shows the breadcrumb at once and nothing else while loading', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise<Response>(() => {})),
+    )
+    await renderBuild()
+    const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
+    await expect.element(crumbs.getByRole('link', { name: 'web-app' })).toBeVisible()
+    await expect.element(crumbs.getByText('Build #7')).toBeVisible()
+    expect(page.getByRole('button', { name: 'Approve all' }).elements()).toHaveLength(0)
+  })
+
+  it('says so in the page’s own words when the build doesn’t exist', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve(new Response(JSON.stringify({ error: 'nope' }), { status: 404 })),
+      ),
+    )
+    await renderBuild()
+    await expect.element(page.getByText('This build doesn’t exist')).toBeVisible()
+  })
+
+  it('offers a retry when the build could not be loaded', async () => {
+    const fetchSpy = vi.fn<typeof fetch>(() =>
+      Promise.resolve(new Response(JSON.stringify({ error: 'database down' }), { status: 500 })),
+    )
+    vi.stubGlobal('fetch', fetchSpy)
+    await renderBuild()
+    await expect.element(page.getByText('database down')).toBeVisible()
+    const before = fetchSpy.mock.calls.length
+    await page.getByRole('button', { name: 'Try again' }).click()
+    await vi.waitFor(() => expect(fetchSpy.mock.calls.length).toBeGreaterThan(before))
+  })
+
+  it('shows the header, counts, the list and the first change that needs a decision', async () => {
+    fakeBuildApi(detail())
+    await renderBuild()
+    await expect.element(page.getByText('Needs review', { exact: true })).toBeVisible()
+    await expect.element(page.getByText('2 changed')).toBeVisible()
+    await expect.element(page.getByText('1 added')).toBeVisible()
+    await expect.element(page.getByText('PR #42')).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Copy branch name' })).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Approve all' })).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Reject' })).toBeVisible()
+    await expect.element(viewerTitle()).toHaveTextContent('checkout / payment')
+    // Both images of the comparison, the baseline first.
+    await expect.element(page.getByRole('img', { name: 'Baseline · build #6' })).toBeVisible()
+    await expect.element(page.getByRole('img', { name: 'This build' })).toBeVisible()
+  })
+
+  it.each([
+    ['pending', 'needs-review', 'Changed'],
+    ['approved', 'approved', 'Changed, approved'],
+    ['rejected', 'rejected', 'Changed, rejected'],
+  ] as const)(
+    'a %s build shows %s glyphs on its list rows and count chips, unchanged ones stay neutral',
+    async (reviewStatus, glyph, rowName) => {
+      fakeBuildApi(detail({ reviewStatus }))
+      await renderBuild()
+      const list = page.getByRole('navigation', { name: 'Screenshots' })
+      await expect.element(list.getByRole('img', { name: rowName }).first()).toBeVisible()
+      const rows = list.getByRole('img', { name: rowName }).elements()
+      expect(rows).toHaveLength(2)
+      for (const row of rows) expect(row.getAttribute('data-status')).toBe(glyph)
+      const added = list.getByRole('img', {
+        name: `Added${reviewStatus === 'pending' ? '' : `, ${reviewStatus}`}`,
+      })
+      expect(added.element().getAttribute('data-status')).toBe(glyph)
+      // The chips read as their text only (the glyph is hidden), and follow the review too.
+      for (const text of ['2 changed', '1 added']) {
+        const chip = page.getByText(text).element()
+        expect(chip.textContent).toBe(text)
+        expect(chip.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true')
+        expect(chip.querySelector('svg')?.getAttribute('data-status')).toBe(glyph)
+      }
+      expect(
+        page.getByText('2 unchanged').element().querySelector('svg')?.getAttribute('data-status'),
+      ).toBe('neutral')
+      // The viewer's header follows it as well.
+      const title = viewerTitle().element().parentElement?.querySelector('svg')
+      expect(title?.getAttribute('data-status')).toBe(glyph)
+    },
+  )
+
+  it('keeps a failed screenshot rejected whatever the review', async () => {
+    fakeBuildApi(
+      detail(
+        { reviewStatus: 'approved' },
+        { diffs: [shot('broken', 'failed'), shot('a', 'changed')] },
+      ),
+    )
+    await renderBuild()
+    const failed = page
+      .getByRole('navigation', { name: 'Screenshots' })
+      .getByRole('img', { name: 'Failed' })
+    await expect.element(failed).toBeVisible()
+    expect(failed.element().getAttribute('data-status')).toBe('rejected')
+    expect(
+      page.getByText('1 failed').element().querySelector('svg')?.getAttribute('data-status'),
+    ).toBe('rejected')
+  })
+
+  it('calls a build with nothing to compare against "No baseline" and explains it', async () => {
+    fakeBuildApi(detail({}, { baseline: null, diffs: [shot('home', 'added')] }))
+    await renderBuild()
+    await expect.element(page.getByText('No baseline', { exact: true })).toBeVisible()
+    await expect.element(page.getByText(/First build to compare against/)).toBeVisible()
+    await expect.element(page.getByRole('img', { name: 'New in this build' })).toBeVisible()
+  })
+
+  it('warns when the baseline is a fallback', async () => {
+    fakeBuildApi(detail({ baselineSource: 'fallback' }))
+    await renderBuild()
+    await expect.element(page.getByText(/latest on the default branch/)).toBeVisible()
+  })
+
+  it('says an expired build has expired and offers no decision', async () => {
+    fakeBuildApi(detail({ status: 'expired', conclusion: null }))
+    await renderBuild()
+    await expect.element(page.getByText('This build has expired')).toBeVisible()
+    await expect.element(page.getByText('Expired', { exact: true })).toBeVisible()
+    expect(page.getByRole('button', { name: 'Approve all' }).elements()).toHaveLength(0)
+    expect(page.getByRole('navigation', { name: 'Screenshots' }).elements()).toHaveLength(0)
+  })
+
+  it('shows a banner while processing, and no empty state', async () => {
+    fakeBuildApi(detail({ status: 'processing', conclusion: null }, { diffs: [] }))
+    await renderBuild()
+    await expect.element(page.getByText(/Processing screenshots/)).toBeVisible()
+    await expect.element(page.getByText('Processing', { exact: true })).toBeVisible()
+    expect(page.getByText('No screenshots in this build').elements()).toHaveLength(0)
+  })
+
+  it('says when a finished build has no screenshots', async () => {
+    fakeBuildApi(detail({ conclusion: 'no_changes' }, { diffs: [] }))
+    await renderBuild()
+    await expect.element(page.getByText('No screenshots in this build')).toBeVisible()
+  })
+
+  it('shows why a build failed, and why a screenshot did', async () => {
+    fakeBuildApi(
+      detail(
+        { status: 'error', conclusion: null, errorMessage: 'Upload was incomplete' },
+        { diffs: [shot('login', 'failed', { errorMessage: 'Not a PNG' })] },
+      ),
+    )
+    await renderBuild()
+    await expect.element(page.getByText('Upload was incomplete')).toBeVisible()
+    await expect.element(page.getByText('Not a PNG')).toBeVisible()
+  })
+
+  it('shows an added screenshot without view modes', async () => {
+    fakeBuildApi(detail({}, { diffs: [shot('home', 'added')] }))
+    await renderBuild()
+    expect(page.getByRole('group', { name: 'View' }).elements()).toHaveLength(0)
+  })
+
+  it('sets a known-flaky change aside in a collapsed Flaky group', async () => {
+    const api = fakeBuildApi(detail())
+    api.flaky = [{ name: 'checkout / address', changedIn: 6 }]
+    await renderBuild()
+    const list = page.getByRole('navigation', { name: 'Screenshots' })
+    await expect
+      .element(list.getByRole('button', { name: /Flaky/ }))
+      .toHaveAttribute('aria-expanded', 'false')
+    await hasText(list.getByRole('button', { name: /Changed/ }), /Changed\s*1$/)
+  })
+})
+
+describe('the screenshot list', () => {
+  it('has the groups with their counts, Unchanged collapsed, and opens and closes them', async () => {
+    fakeBuildApi(detail())
+    await renderBuild()
+    const list = page.getByRole('navigation', { name: 'Screenshots' })
+    await hasText(list.getByRole('button', { name: /Changed/ }), /Changed\s*2$/)
+    await hasText(list.getByRole('button', { name: /Added/ }), /Added\s*1$/)
+    const unchanged = list.getByRole('button', { name: /Unchanged/ })
+    await expect.element(unchanged).toHaveAttribute('aria-expanded', 'false')
+    expect(list.getByRole('link', { name: /pricing/ }).elements()).toHaveLength(0)
+    await unchanged.click()
+    await expect.element(list.getByRole('link', { name: /pricing/ })).toBeVisible()
+    await unchanged.click()
+    await expect.element(list.getByRole('link', { name: /pricing/ })).not.toBeInTheDocument()
+  })
+
+  it('names each row by its status and name, with the diff percentage', async () => {
+    fakeBuildApi(detail())
+    await renderBuild()
+    const row = page.getByRole('link', { name: /checkout \/ payment/ })
+    await hasText(row, /1\.2%$/)
+    await expect.element(row.getByRole('img', { name: 'Changed' })).toBeVisible()
+    await expect
+      .element(page.getByRole('link', { name: /home/ }).getByRole('img', { name: 'Added' }))
+      .toBeVisible()
+  })
+
+  it('selects a screenshot through the search params and marks it current', async () => {
+    fakeBuildApi(detail())
+    const { router } = await renderBuild()
+    await page.getByRole('link', { name: /checkout \/ address/ }).click()
+    expect(router.state.location.search).toMatchObject({ shot: 'checkout / address' })
+    await expect.element(viewerTitle()).toHaveTextContent('checkout / address')
+    await expect
+      .element(page.getByRole('link', { name: /checkout \/ address/ }))
+      .toHaveAttribute('aria-current', 'page')
+  })
+
+  it('opens a screenshot named in the URL, even in a collapsed group', async () => {
+    fakeBuildApi(detail())
+    await renderBuild('/acme/web-app/builds/7?shot=pricing')
+    await expect.element(viewerTitle()).toHaveTextContent('pricing')
+    await expect
+      .element(
+        page
+          .getByRole('navigation', { name: 'Screenshots' })
+          .getByRole('button', { name: /Unchanged/ }),
+      )
+      .toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('lets the open group be collapsed again', async () => {
+    fakeBuildApi(detail())
+    await renderBuild('/acme/web-app/builds/7?shot=pricing')
+    const unchanged = page.getByRole('button', { name: /Unchanged/ })
+    await expect.element(unchanged).toHaveAttribute('aria-expanded', 'true')
+    await unchanged.click()
+    await expect.element(unchanged).toHaveAttribute('aria-expanded', 'false')
+  })
+})
+
+describe('view modes', () => {
+  it('defaults to side by side and follows ?mode=', async () => {
+    fakeBuildApi(detail())
+    await renderBuild()
+    await expect
+      .element(page.getByRole('button', { name: 'Side by side' }))
+      .toHaveAttribute('aria-pressed', 'true')
+    await expect.element(page.getByRole('img', { name: 'This build' })).toBeVisible()
+  })
+
+  it('switches mode through the search params', async () => {
+    fakeBuildApi(detail())
+    const { router } = await renderBuild()
+    await page.getByRole('button', { name: 'Overlay' }).click()
+    expect(router.state.location.search).toMatchObject({ mode: 'overlay' })
+    await expect
+      .element(page.getByRole('img', { name: 'checkout / payment in this build' }))
+      .toBeVisible()
+    await expect.element(page.getByRole('slider', { name: 'Diff layer' })).toBeVisible()
+    await page.getByRole('button', { name: 'Diff', exact: true }).click()
+    expect(router.state.location.search).toMatchObject({ mode: 'diff' })
+    await expect.element(page.getByRole('img', { name: 'Changed pixels in red' })).toBeVisible()
+    await page.getByRole('button', { name: 'Swipe' }).click()
+    expect(router.state.location.search).toMatchObject({ mode: 'swipe' })
+    await expect
+      .element(page.getByRole('img', { name: 'checkout / payment in the baseline' }))
+      .toBeVisible()
+  })
+
+  it('moves the swipe divider with the keyboard', async () => {
+    fakeBuildApi(detail())
+    await renderBuild('/acme/web-app/builds/7?mode=swipe')
+    const slider = page.getByRole('slider', { name: 'Swipe position' })
+    await expect.element(slider).toHaveAttribute('aria-valuenow', '50')
+    const head = page.getByRole('img', { name: 'checkout / payment in this build' })
+    await expect.element(head).toHaveStyle({ clipPath: 'inset(0px 0px 0px 50%)' })
+    slider.element().focus()
+    await userEvent.keyboard('{ArrowRight}{ArrowRight}')
+    await expect.element(slider).toHaveAttribute('aria-valuenow', '52')
+    await expect.element(head).toHaveStyle({ clipPath: 'inset(0px 0px 0px 52%)' })
+    await userEvent.keyboard('{Home}')
+    await expect.element(slider).toHaveAttribute('aria-valuenow', '0')
+    await userEvent.keyboard('{End}')
+    await expect.element(slider).toHaveAttribute('aria-valuenow', '100')
+  })
+})
+
+describe('zoom and stepping', () => {
+  it('fits by default, then shows the real size and steps', async () => {
+    fakeBuildApi(detail())
+    await renderBuild()
+    await expect
+      .element(page.getByRole('button', { name: 'Fit' }))
+      .toHaveAttribute('aria-pressed', 'true')
+    await page.getByRole('button', { name: '100%' }).click()
+    await expect
+      .element(page.getByRole('img', { name: 'This build' }))
+      .toHaveStyle({ width: '400px' })
+    await page.getByRole('button', { name: 'Zoom in' }).click()
+    await expect.element(page.getByText('150%')).toBeVisible()
+    await expect
+      .element(page.getByRole('img', { name: 'This build' }))
+      .toHaveStyle({ width: '600px' })
+    await page.getByRole('button', { name: 'Fit' }).click()
+    expect(page.getByText('150%').elements()).toHaveLength(0)
+  })
+
+  it('steps with the previous and next buttons, disabled at the ends', async () => {
+    fakeBuildApi(detail())
+    await renderBuild()
+    await expect.element(page.getByRole('button', { name: 'Previous screenshot' })).toBeDisabled()
+    await page.getByRole('button', { name: 'Next screenshot' }).click()
+    await expect.element(viewerTitle()).toHaveTextContent('checkout / address')
+    await expect.element(page.getByRole('button', { name: 'Previous screenshot' })).toBeEnabled()
+  })
+})
+
+describe('keyboard shortcuts', () => {
+  it('walks the screenshots with j and k, stopping at the ends', async () => {
+    fakeBuildApi(detail())
+    await renderBuild()
+    await expect.element(viewerTitle()).toHaveTextContent('checkout / payment')
+    await userEvent.keyboard('k')
+    await expect.element(viewerTitle()).toHaveTextContent('checkout / payment')
+    await userEvent.keyboard('j')
+    await expect.element(viewerTitle()).toHaveTextContent('checkout / address')
+    await userEvent.keyboard('j')
+    await expect.element(viewerTitle()).toHaveTextContent('home')
+    await userEvent.keyboard('k')
+    await expect.element(viewerTitle()).toHaveTextContent('checkout / address')
+  })
+
+  it('opens the group of a screenshot j walks into', async () => {
+    fakeBuildApi(detail())
+    await renderBuild('/acme/web-app/builds/7?shot=home')
+    await userEvent.keyboard('j')
+    await expect.element(viewerTitle()).toHaveTextContent('pricing')
+    await expect
+      .element(page.getByRole('button', { name: /Unchanged/ }))
+      .toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('switches the view with 1 to 4', async () => {
+    fakeBuildApi(detail())
+    const { router } = await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    await userEvent.keyboard('2')
+    await vi.waitFor(() => expect(router.state.location.search).toMatchObject({ mode: 'overlay' }))
+    await userEvent.keyboard('4')
+    await vi.waitFor(() => expect(router.state.location.search).toMatchObject({ mode: 'swipe' }))
+    await userEvent.keyboard('1')
+    await vi.waitFor(() => expect(router.state.location.search).toMatchObject({ mode: 'side' }))
+  })
+
+  it('opens the shortcut list with ? and closes it with Escape', async () => {
+    fakeBuildApi(detail())
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    await userEvent.keyboard('?')
+    const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' })
+    await expect.element(dialog).toBeVisible()
+    await expect.element(dialog.getByText('Approve all changes')).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(dialog).not.toBeInTheDocument()
+  })
+
+  it('does not take keys while a dialog is open', async () => {
+    fakeBuildApi(detail())
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    await userEvent.keyboard('?')
+    await expect.element(page.getByRole('dialog')).toBeVisible()
+    await userEvent.keyboard('j')
+    await expect.element(page.getByRole('dialog')).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(viewerTitle()).toHaveTextContent('checkout / payment')
+  })
+})
+
+describe('approving and rejecting', () => {
+  it('approves with the button, announces it, and then offers only Reject', async () => {
+    const api = fakeBuildApi(detail())
+    await renderBuild()
+    await page.getByRole('button', { name: 'Approve all' }).click()
+    await vi.waitFor(() => expect(api.reviews).toEqual([JSON.stringify({ state: 'approved' })]))
+    await expect.element(page.getByText('Build #7 approved.')).toBeInTheDocument()
+    await expect.element(page.getByText('Approved', { exact: true })).toBeVisible()
+    expect(page.getByRole('button', { name: 'Approve all' }).elements()).toHaveLength(0)
+    await expect.element(page.getByRole('button', { name: 'Reject' })).toBeVisible()
+  })
+
+  it('asks before rejecting, and announces the rejection', async () => {
+    const api = fakeBuildApi(detail())
+    await renderBuild()
+    await page.getByRole('button', { name: 'Reject' }).click()
+    const dialog = page.getByRole('alertdialog', { name: 'Reject build #7?' })
+    await expect.element(dialog).toBeVisible()
+    await dialog.getByRole('button', { name: 'Cancel' }).click()
+    await expect.element(dialog).not.toBeInTheDocument()
+    expect(api.reviews).toEqual([])
+
+    await page.getByRole('button', { name: 'Reject' }).click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Reject' }).click()
+    await vi.waitFor(() => expect(api.reviews).toEqual([JSON.stringify({ state: 'rejected' })]))
+    await expect.element(page.getByText('Build #7 rejected.')).toBeInTheDocument()
+    await expect.element(page.getByText('Rejected', { exact: true })).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Approve all' })).toBeVisible()
+  })
+
+  it('approves with a and asks about rejecting with r', async () => {
+    const api = fakeBuildApi(detail())
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    await userEvent.keyboard('r')
+    await expect.element(page.getByRole('alertdialog', { name: 'Reject build #7?' })).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(page.getByRole('alertdialog')).not.toBeInTheDocument()
+    expect(api.reviews).toEqual([])
+    await userEvent.keyboard('a')
+    await vi.waitFor(() => expect(api.reviews).toEqual([JSON.stringify({ state: 'approved' })]))
+    await expect.element(page.getByText('Build #7 approved.')).toBeInTheDocument()
+    // Already approved: a does nothing more.
+    await userEvent.keyboard('a')
+    expect(api.reviews).toHaveLength(1)
+  })
+
+  it('ignores a and r on a build that cannot be reviewed', async () => {
+    const api = fakeBuildApi(detail({ conclusion: 'no_changes' }))
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    await userEvent.keyboard('a')
+    await userEvent.keyboard('r')
+    expect(page.getByRole('alertdialog').elements()).toHaveLength(0)
+    expect(api.reviews).toEqual([])
+  })
+
+  it('shows the server’s message when the decision fails', async () => {
+    const api = fakeBuildApi(detail())
+    api.reviewError = 'You can’t review this build'
+    await renderBuild()
+    await page.getByRole('button', { name: 'Approve all' }).click()
+    await expect.element(page.getByRole('alert')).toHaveTextContent('You can’t review this build')
+    await expect.element(page.getByRole('button', { name: 'Approve all' })).toBeEnabled()
+  })
+})
+
+describe('layout', () => {
+  it('puts the list beside the viewer on a wide screen, 280px wide', async () => {
+    fakeBuildApi(detail())
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    const list = page
+      .getByRole('navigation', { name: 'Screenshots' })
+      .element()
+      .getBoundingClientRect()
+    const viewer = page.getByRole('region').element().getBoundingClientRect()
+    expect(list.width).toBe(280)
+    expect(viewer.left).toBeGreaterThanOrEqual(list.right)
+  })
+
+  it('stacks the list above the viewer below 820px', async () => {
+    await page.viewport(390, 800)
+    fakeBuildApi(detail())
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    const list = page
+      .getByRole('navigation', { name: 'Screenshots' })
+      .element()
+      .getBoundingClientRect()
+    const viewer = page.getByRole('region').element().getBoundingClientRect()
+    expect(viewer.top).toBeGreaterThanOrEqual(list.bottom - 1)
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390)
+  })
+})

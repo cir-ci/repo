@@ -1,16 +1,10 @@
-import { Alert, Button, Stack } from '@mui/material'
+import { Banner, Button } from '@circi/ui'
 import { useState } from 'react'
 
 import { authClient } from '../../lib/auth-client.ts'
+import { ssoErrorMessage } from './login-helpers.ts'
 
-/** What the sign-in page says when a provider login came back refused. */
-function ssoErrorMessage(): string | undefined {
-  const code = new URLSearchParams(window.location.search).get('error')
-  if (!code) return undefined
-  return code.toLowerCase().includes('link')
-    ? 'That sign-in provider isn’t trusted to attach to an existing account. Sign in another way, then ask whoever runs CirCI.'
-    : 'Signing in with that provider didn’t work. If you have no account yet, ask to be invited.'
-}
+import styles from './AuthForms.module.css'
 
 /** One button per single sign-on provider the operator set up. */
 export function SsoButtons({ providers }: SsoButtons.Props) {
@@ -26,14 +20,14 @@ export function SsoButtons({ providers }: SsoButtons.Props) {
   }
 
   return (
-    <Stack spacing={1.5} sx={{ mt: 3 }}>
-      {error ? <Alert severity="error">{error}</Alert> : null}
+    <div className={`${styles['form']} ${styles['compact']}`}>
+      {error ? <Banner tone="danger">{error}</Banner> : null}
       {providers.map((p) => (
-        <Button key={p.id} variant="outlined" fullWidth onClick={() => void go(p.id)}>
+        <Button key={p.id} className={styles['block']} onClick={() => void go(p.id)}>
           Continue with {p.name}
         </Button>
       ))}
-    </Stack>
+    </div>
   )
 }
 

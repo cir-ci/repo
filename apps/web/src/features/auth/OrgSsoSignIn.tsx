@@ -1,7 +1,9 @@
-import { Alert, Box, Button, Link, Stack, TextField } from '@mui/material'
+import { Banner, Button, TextField } from '@circi/ui'
 import { type FormEvent, useState } from 'react'
 
 import { post } from '../../lib/http.ts'
+
+import styles from './AuthForms.module.css'
 
 /**
  * Sign in through an organization's own identity provider: type the organization's name (its
@@ -33,30 +35,22 @@ export function OrgSsoSignIn() {
 
   if (!open) {
     return (
-      <Box sx={{ mt: 2, textAlign: 'center' }}>
-        <Link component="button" type="button" variant="body2" onClick={() => setOpen(true)}>
-          Sign in through your organization
-        </Link>
-      </Box>
+      <Button variant="ghost" className={styles['center']} onClick={() => setOpen(true)}>
+        Sign in through your organization
+      </Button>
     )
   }
   return (
-    <Box component="form" onSubmit={(e) => void submit(e)} noValidate sx={{ mt: 2 }}>
-      <Stack spacing={1.5}>
-        {error ? <Alert severity="error">{error}</Alert> : null}
-        <TextField
-          name="organization"
-          label="Organization"
-          placeholder="acme"
-          required
-          autoFocus
-          size="small"
-          fullWidth
-        />
-        <Button type="submit" variant="outlined" disabled={busy} fullWidth>
-          Continue
-        </Button>
-      </Stack>
-    </Box>
+    <form
+      className={`${styles['form']} ${styles['compact']}`}
+      onSubmit={(e) => void submit(e)}
+      noValidate
+    >
+      {error ? <Banner tone="danger">{error}</Banner> : null}
+      <TextField name="organization" label="Organization" placeholder="acme" required autoFocus />
+      <Button type="submit" loading={busy} className={styles['block']}>
+        Continue
+      </Button>
+    </form>
   )
 }

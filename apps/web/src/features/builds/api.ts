@@ -1,4 +1,4 @@
-import type { Build, ReviewState } from '@circi/api'
+import type { Build, Flaky, ReviewState } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { getJson, post, seg } from '../../lib/http.ts'
@@ -13,6 +13,16 @@ export const buildQuery = (org: string, project: string, number: number) =>
     queryFn: () =>
       getJson<Build.Detail>(`/api/projects/${seg(org)}/${seg(project)}/builds/${number}`),
     refetchInterval: (q) => (q.state.data && isActive(q.state.data.build.status) ? 2_000 : false),
+  })
+
+/**
+ * The screenshots that keep changing on the default branch, so the review list can set them
+ * aside. Same key and shape as the project page's, so the two share a cache entry.
+ */
+export const flakyQuery = (org: string, project: string) =>
+  queryOptions({
+    queryKey: ['flaky', org, project],
+    queryFn: () => getJson<Flaky.Report>(`/api/projects/${seg(org)}/${seg(project)}/flaky`),
   })
 
 export const fileUrl = (sha256: string) => `/api/files/${sha256}`

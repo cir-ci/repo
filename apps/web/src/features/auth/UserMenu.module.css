@@ -1,0 +1,55 @@
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 36px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--circi-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.trigger:hover,
+.trigger[data-popup-open] {
+  background: var(--circi-action-hover);
+}
+
+.trigger:focus-visible {
+  outline: 2px solid var(--circi-accent-main);
+  outline-offset: 2px;
+}
+
+.trigger svg {
+  flex: none;
+  color: var(--circi-text-tertiary);
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.who {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+}
+
+.whoName {
+  font-weight: 600;
+}
+
+.whoEmail {
+  color: var(--circi-text-secondary);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
