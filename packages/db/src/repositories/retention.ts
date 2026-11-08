@@ -208,3 +208,57 @@ export async function storageUsage(db: Database): Promise<StorageUsage> {
     markedForDeletion: { count: marked?.count ?? 0, bytes: marked?.bytes ?? 0 },
   }
 }
+
+export interface CollectionPreview {
+  /** Files a collection run would delete now: unreferenced and marked longer than the grace. */
+  wouldDelete: { count: number; bytes: number; sampleKeys: string[] }
+  /** Unreferenced files not marked yet (or marked too recently); a run marks them, deletes nothing. */
+  wouldMark: number
+}
+
+/**
+ * What `collectMarkedFiles` would delete, without deleting or marking anything. Builds and
+ * sites that retention would expire are not simulated: their files only become unreferenced
+ * when expiry runs.
+ */
+export async function previewCollection(
+  db: Database,
+  input: { now: Date; graceMs: number; sample?: number },
+): Promise<CollectionPreview> {
+  const cutoff = new Date(input.now.getTime() - input.graceMs)
+  const due = and(
+    isNotNull(files.gcMarkedAt),
+    lt(files.gcMarkedAt, cutoff),
+    sql`not ${isReferenced(files.sha256)}`,
+  )
+  const [totals] = await db
+    .select({
+      count: sql<number>`count(*)::int`,
+      bytes: sql<number>`coalesce(sum(${files.size}), 0)::bigint::float8`,
+    })
+    .from(files)
+    .where(due)
+  const sample = await db
+    .select({ key: files.storageKey })
+    .from(files)
+    .where(due)
+    .orderBy(files.gcMarkedAt, files.sha256)
+    .limit(input.sample ?? 10)
+  const [pending] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(files)
+    .where(
+      and(
+        sql`not ${isReferenced(files.sha256)}`,
+        sql`(${files.gcMarkedAt} is null or ${files.gcMarkedAt} >= ${cutoff.toISOString()}::timestamptz)`,
+      ),
+    )
+  return {
+    wouldDelete: {
+      count: totals?.count ?? 0,
+      bytes: totals?.bytes ?? 0,
+      sampleKeys: sample.map((r) => r.key),
+    },
+    wouldMark: pending?.count ?? 0,
+  }
+}

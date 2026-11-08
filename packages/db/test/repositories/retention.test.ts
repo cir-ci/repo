@@ -17,6 +17,7 @@ import {
   expireSites,
   listBuildScreenshots,
   markUnreferencedFiles,
+  previewCollection,
   schema,
   storageUsage,
   unmarkReferencedFiles,
@@ -199,5 +200,40 @@ describe('storageUsage', () => {
     } finally {
       await fresh.close()
     }
+  })
+})
+
+describe('previewCollection', () => {
+  it('reports what a collection would delete, and changes nothing', async () => {
+    const project = await projectWithRetention(30)
+    const build = await seedBuild(t.db, project.id, { branch: 'main' })
+    const used = sha('f1')
+    const due = sha('f2')
+    const recent = sha('f3')
+    const fresh = sha('f4')
+    await seedScreenshot(t.db, { buildId: build.id, fileSha256: used })
+    await Promise.all([due, recent, fresh].map((s) => seedFile(t.db, { sha256: s })))
+    await t.db
+      .update(schema.files)
+      .set({ gcMarkedAt: new Date(now.getTime() - 3 * 3600_000) })
+      .where(eq(schema.files.sha256, due))
+    await t.db
+      .update(schema.files)
+      .set({ gcMarkedAt: new Date(now.getTime() - 3600_000 / 2) })
+      .where(eq(schema.files.sha256, recent))
+    // Marked, but referenced since: not deleted.
+    await t.db
+      .update(schema.files)
+      .set({ gcMarkedAt: new Date(now.getTime() - 5 * 3600_000) })
+      .where(eq(schema.files.sha256, used))
+
+    const before = await t.db.select().from(schema.files)
+    const preview = await previewCollection(t.db, { now, graceMs: 3600_000, sample: 5 })
+    expect(preview.wouldDelete.count).toBe(1)
+    expect(preview.wouldDelete.bytes).toBe(1)
+    expect(preview.wouldDelete.sampleKeys).toEqual([`k/${due}`])
+    // `recent` is marked too recently and `fresh` is not marked: a run marks them (others may exist).
+    expect(preview.wouldMark).toBeGreaterThanOrEqual(2)
+    expect(await t.db.select().from(schema.files)).toEqual(before)
   })
 })

@@ -162,6 +162,13 @@ describe('retention and garbage collection', () => {
     await ctx.stack.sql(
       `update files set gc_marked_at = now() - interval '2 hours' where gc_marked_at is not null`,
     )
+    // A dry run names the file and its key, and deletes and marks nothing.
+    const dry = await ctx.stack.cli('storage', 'gc', '--grace-hours', '1', '--dry-run')
+    expect(dry).toContain('Would delete')
+    expect(dry).toContain(row?.storageKey ?? 'missing')
+    expect(await rowOf(mine)).toBeDefined()
+    expect(await onDisk(row?.storageKey ?? '')).toBe(true)
+
     const collecting = await gc()
     expect(collecting.deleted).toBeGreaterThanOrEqual(1)
     expect(await rowOf(mine)).toBeUndefined()

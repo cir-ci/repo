@@ -27,7 +27,7 @@ import {
   storageUsage,
   WEBHOOK_EVENTS,
 } from '@circi/db'
-import { migrateStorage, runRetention } from '@circi/services'
+import { migrateStorage, previewRetention, runRetention } from '@circi/services'
 import { createStorage } from '@circi/storage'
 import type { Command } from 'commander'
 
@@ -504,11 +504,29 @@ function addStorageCommands(storage: Command): void {
       '--grace-hours <hours>',
       'how long unused files wait before deletion (default: GC_GRACE_HOURS)',
     )
-    .action((opts: { graceHours?: string }) =>
+    .option(
+      '--dry-run',
+      'list what would be deleted (count, bytes, sample of keys); change nothing',
+    )
+    .action((opts: { graceHours?: string; dryRun?: boolean }) =>
       withRuntime(async (rt) => {
         const grace =
           opts.graceHours === undefined ? rt.config.gcGraceHours : Number(opts.graceHours)
         if (!Number.isFinite(grace) || grace < 0) throw new Error('--grace-hours must be 0 or more')
+        if (opts.dryRun) {
+          const preview = await previewRetention(rt.db.db, { graceMs: grace * 3600_000 })
+          const { count, bytes, sampleKeys } = preview.wouldDelete
+          console.log(`Dry run: nothing is deleted or marked.`)
+          console.log(
+            `Would delete ${count} files, ${mb(bytes)} (unused and marked for over ${grace} h).`,
+          )
+          for (const key of sampleKeys) console.log(`  ${key}`)
+          if (count > sampleKeys.length) console.log(`  … and ${count - sampleKeys.length} more`)
+          console.log(
+            `${preview.wouldMark} more unused files would be marked now and deleted after the grace period. Builds and sites past retention are not simulated.`,
+          )
+          return
+        }
         const result = await runRetention(rt.db.db, {
           graceMs: grace * 3600_000,
           deleteObject: (key) => rt.storage.delete(key),

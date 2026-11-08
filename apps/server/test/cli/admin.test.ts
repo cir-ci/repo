@@ -3,9 +3,11 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import { schema } from '@circi/db'
 import { FsStorage } from '@circi/storage'
 import { createTestDb, type TestDb, seedFile } from '@circi/testing'
 import { Command } from 'commander'
+import { eq } from 'drizzle-orm'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { addAdminCommands } from '../../src/cli/admin.ts'
@@ -107,6 +109,29 @@ describe('circi admin storage', () => {
   it('gc rejects a negative or non-numeric grace period', async () => {
     await expect(run('gc', '--grace-hours', '-1')).rejects.toThrow(/0 or more/)
     await expect(run('gc', '--grace-hours', 'soon')).rejects.toThrow(/0 or more/)
+  })
+
+  it('gc --dry-run lists what would be deleted and changes nothing', async () => {
+    const old = Buffer.from('unused-and-old')
+    const oldKey = `k/${sha(old)}`
+    await seedFile(t.db, { sha256: sha(old) })
+    await storage.put(oldKey, old)
+    await t.db
+      .update(schema.files)
+      .set({ gcMarkedAt: new Date(Date.now() - 48 * 3600_000) })
+      .where(eq(schema.files.sha256, sha(old)))
+    const before = await t.db.select().from(schema.files)
+
+    const lines = await run('gc', '--grace-hours', '24', '--dry-run')
+    expect(lines[0]).toContain('nothing is deleted or marked')
+    expect(lines[1]).toContain('Would delete 1 files')
+    expect(lines).toContain(`  ${oldKey}`)
+    expect(lines.at(-1)).toContain('1 more unused files would be marked')
+    // Nothing deleted, nothing marked.
+    expect(await t.db.select().from(schema.files)).toEqual(before)
+    expect(await storage.head(oldKey)).not.toBeNull()
+    await storage.delete(oldKey)
+    await t.db.delete(schema.files).where(eq(schema.files.sha256, sha(old)))
   })
 
   it('gc runs retention and prints the result as JSON', async () => {

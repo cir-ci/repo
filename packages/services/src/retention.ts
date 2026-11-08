@@ -1,9 +1,11 @@
 import {
   collectMarkedFiles,
+  type CollectionPreview,
   type Database,
   expireBuilds,
   expireSites,
   markUnreferencedFiles,
+  previewCollection,
   unmarkReferencedFiles,
 } from '@circi/db'
 
@@ -43,4 +45,22 @@ export namespace runRetention {
     deleted: number
     kept: number
   }
+}
+
+/**
+ * `runRetention`'s file collection without doing it: what would be deleted (count, bytes, a
+ * sample of storage keys) and how many files would be newly marked. Changes nothing.
+ */
+export async function previewRetention(
+  db: Database,
+  options: { now?: Date; graceMs?: number; sample?: number } = {},
+): Promise<previewRetention.Result> {
+  return previewCollection(db, {
+    now: options.now ?? new Date(),
+    graceMs: options.graceMs ?? 24 * 3600_000,
+    ...(options.sample === undefined ? {} : { sample: options.sample }),
+  })
+}
+export namespace previewRetention {
+  export type Result = CollectionPreview
 }
