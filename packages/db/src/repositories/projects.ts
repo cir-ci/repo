@@ -156,6 +156,8 @@ export interface ProjectSettings {
   /** Whether flaky-only changes block the merge; null inherits the organization's setting. */
   flakyBlocksMerge: boolean | null
   retentionDays: number
+  /** Hours a review request may wait before it is overdue; null means no review target. */
+  reviewTargetHours: number | null
   /** Whether CI may upload static sites for this project (needs `STATIC_SITES_HOST`). */
   staticHostingEnabled: boolean
 }
@@ -169,6 +171,7 @@ export function projectSettings(project: Project): ProjectSettings {
     blockMergeOnChanges: project.blockMergeOnChanges,
     flakyBlocksMerge: project.flakyBlocksMerge,
     retentionDays: project.retentionDays,
+    reviewTargetHours: project.reviewTargetHours,
     staticHostingEnabled: project.staticHostingEnabled,
   }
 }
@@ -201,6 +204,15 @@ export async function updateProjectSettings(
       throw new ValidationError('Retention must be at least 1 day')
     }
     set.retentionDays = patch.retentionDays
+  }
+  if (patch.reviewTargetHours !== undefined) {
+    if (
+      patch.reviewTargetHours !== null &&
+      (!Number.isInteger(patch.reviewTargetHours) || patch.reviewTargetHours < 1)
+    ) {
+      throw new ValidationError('The review target must be at least 1 hour, or empty for none')
+    }
+    set.reviewTargetHours = patch.reviewTargetHours
   }
   if (patch.autoApproveDefaultBranch !== undefined) {
     set.autoApproveDefaultBranch = patch.autoApproveDefaultBranch

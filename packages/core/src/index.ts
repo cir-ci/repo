@@ -34,3 +34,4 @@ export {
   resolveFlakyBlocksMerge,
 } from './flaky.ts'
 export { type BuildOutcome, buildOutcome, type OutcomeInput } from './outcome.ts'
+export { isOverdue, isSnoozed, overdueBy, reviewDueAt } from './review-target.ts'

@@ -1,5 +1,6 @@
-import { findProjectForMember, getBuildByNumber } from '@circi/db'
-import { reviewBuild } from '@circi/services'
+import type { Review } from '@circi/api'
+import { findProjectForMember, getBuildByNumber, listReviewRequests, REVIEW_TABS } from '@circi/db'
+import { dismissReviewRequest, requestReview, reviewBuild } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
@@ -42,5 +43,94 @@ export const dashboardReviewRoutes: FastifyPluginAsync<DashboardDeps> = async (a
         reviewStatus: updated.reviewStatus,
       },
     }
+  })
+}
+
+const listQuery = z.object({ tab: z.enum(REVIEW_TABS).default('for-you') })
+const projectParams = z.object({ org: z.string(), project: z.string() })
+const requestBody = z.object({ reviewerId: z.string().min(1) })
+const dismissParams = projectParams.extend({ id: z.string().uuid() })
+
+/**
+ * Review requests (who was asked to look at which build). The list spans the signed-in user's
+ * organizations; asking and dropping a request work on one project's builds. Everyone outside
+ * the organization gets "not found", as everywhere else on the dashboard.
+ */
+export const dashboardReviewRequestRoutes: FastifyPluginAsync<DashboardDeps> = async (
+  app,
+  deps,
+) => {
+  app.get('/reviews', async (req): Promise<Review.List> => {
+    const { tab } = parse(listQuery, req.query)
+    const user = currentUser(req)
+    const items = await listReviewRequests(deps.db, {
+      userId: user.id,
+      tab,
+      now: new Date(),
+      method: user.method,
+    })
+    return {
+      tab,
+      requests: items.map((r) =>
+        Object.assign({}, r, {
+          createdAt: r.createdAt.toISOString(),
+          dueAt: r.dueAt?.toISOString() ?? null,
+          snoozedUntil: r.snoozedUntil?.toISOString() ?? null,
+        }),
+      ),
+    }
+  })
+
+  /** Any member may ask any member of the organization (including themselves) to review. */
+  app.post('/projects/:org/:project/builds/:number/review-requests', async (req, reply) => {
+    const p = parse(projectParams.extend({ number: z.string() }), req.params)
+    const { reviewerId } = parse(requestBody, req.body)
+    const user = currentUser(req)
+    const project = await findProjectForMember(deps.db, {
+      orgSlug: p.org,
+      projectSlug: p.project,
+      userId: user.id,
+      method: user.method,
+    })
+    const number = Number(p.number)
+    const build =
+      project && Number.isInteger(number)
+        ? await getBuildByNumber(deps.db, project.id, number)
+        : undefined
+    if (!build) return reply.code(404).send({ error: 'Build not found' })
+
+    const { request, created } = await requestReview(deps.db, {
+      buildId: build.id,
+      reviewerId,
+      requestedById: user.id,
+    })
+    const payload: Review.Requested = {
+      id: request.id,
+      state: request.state,
+      dueAt: request.dueAt?.toISOString() ?? null,
+      created,
+    }
+    return reply.code(created ? 201 : 200).send(payload)
+  })
+
+  /** The reviewer or whoever asked may drop an open request. */
+  app.post('/projects/:org/:project/review-requests/:id/dismiss', async (req, reply) => {
+    const p = parse(dismissParams, req.params)
+    const user = currentUser(req)
+    const project = await findProjectForMember(deps.db, {
+      orgSlug: p.org,
+      projectSlug: p.project,
+      userId: user.id,
+      method: user.method,
+    })
+    const dismissed = project
+      ? await dismissReviewRequest(deps.db, {
+          projectId: project.id,
+          requestId: p.id,
+          userId: user.id,
+        })
+      : undefined
+    if (!dismissed) return reply.code(404).send({ error: 'Review request not found' })
+    return { id: dismissed.id, state: dismissed.state }
   })
 }

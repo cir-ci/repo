@@ -40,6 +40,8 @@ const settingsBody = z
     /** null: inherit the organization's setting. */
     flakyBlocksMerge: z.boolean().nullable(),
     retentionDays: z.number(),
+    /** null: no review target. */
+    reviewTargetHours: z.number().nullable(),
     staticHostingEnabled: z.boolean(),
   })
   .partial()

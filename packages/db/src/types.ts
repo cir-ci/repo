@@ -4,6 +4,7 @@ import type {
   jobs,
   organization,
   projects,
+  reviewRequests,
   screenshotDiffs,
   screenshots,
   user,
@@ -19,4 +20,5 @@ export type Screenshot = typeof screenshots.$inferSelect
 export type ScreenshotDiff = typeof screenshotDiffs.$inferSelect
 export type NewScreenshotDiff = typeof screenshotDiffs.$inferInsert
 export type FileRow = typeof files.$inferSelect
+export type ReviewRequest = typeof reviewRequests.$inferSelect
 export type Job = typeof jobs.$inferSelect

@@ -41,6 +41,7 @@ describe('projects', () => {
       autoApproveDefaultBranch: true,
       blockMergeOnChanges: true,
       retentionDays: 30,
+      reviewTargetHours: 24,
       staticHostingEnabled: false,
       buildCounter: 0,
       ciKeyId: null,
@@ -164,5 +165,23 @@ describe('flaky-screenshot setting', () => {
     expect(
       (await updateProjectSettings(t.db, project.id, { flakyBlocksMerge: null })).flakyBlocksMerge,
     ).toBeNull()
+  })
+
+  it('has a 24 hour review target that can be changed, cleared with null, and must be positive', async () => {
+    const { project } = await seedProject(t.db)
+    expect(projectSettings(project).reviewTargetHours).toBe(24)
+    expect(
+      (await updateProjectSettings(t.db, project.id, { reviewTargetHours: 4 })).reviewTargetHours,
+    ).toBe(4)
+    expect(
+      (await updateProjectSettings(t.db, project.id, { retentionDays: 7 })).reviewTargetHours,
+    ).toBe(4)
+    expect(
+      (await updateProjectSettings(t.db, project.id, { reviewTargetHours: null }))
+        .reviewTargetHours,
+    ).toBeNull()
+    await expect(updateProjectSettings(t.db, project.id, { reviewTargetHours: 0 })).rejects.toThrow(
+      /review target/,
+    )
   })
 })

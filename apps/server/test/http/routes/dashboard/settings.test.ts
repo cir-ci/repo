@@ -96,6 +96,7 @@ describe('project settings', () => {
       blockMergeOnChanges: true,
       diffThreshold: 0,
       retentionDays: 30,
+      reviewTargetHours: 24,
     })
     const member = (await call('GET', `${base()}/settings`, memberCookie)).json()
     expect(member.canManage).toBe(false)
@@ -117,11 +118,27 @@ describe('project settings', () => {
 
   it('rejects invalid values and unknown fields', async () => {
     const codes = await Promise.all(
-      [{ diffThreshold: 2 }, { retentionDays: 0 }, { defaultBranch: '  ' }, { ciKeyId: 'x' }].map(
+      [
+        { diffThreshold: 2 },
+        { retentionDays: 0 },
+        { defaultBranch: '  ' },
+        { ciKeyId: 'x' },
+        { reviewTargetHours: 0 },
+      ].map(
         async (body) => (await call('PATCH', `${base()}/settings`, ownerCookie, body)).statusCode,
       ),
     )
-    expect(codes).toEqual([400, 400, 400, 400])
+    expect(codes).toEqual([400, 400, 400, 400, 400])
+  })
+
+  it('sets the review target in hours, and clears it with null', async () => {
+    const set = await call('PATCH', `${base()}/settings`, ownerCookie, { reviewTargetHours: 8 })
+    expect(set.json().settings.reviewTargetHours).toBe(8)
+    const cleared = await call('PATCH', `${base()}/settings`, ownerCookie, {
+      reviewTargetHours: null,
+    })
+    expect(cleared.json().settings.reviewTargetHours).toBeNull()
+    await call('PATCH', `${base()}/settings`, ownerCookie, { reviewTargetHours: 24 })
   })
 
   it('lets a project inherit the organization on flaky screenshots, or set its own', async () => {

@@ -40,6 +40,8 @@ export const projects = pgTable(
      */
     flakyBlocksMerge: boolean('flaky_blocks_merge'),
     retentionDays: integer('retention_days').notNull().default(30),
+    /** Hours a review request may wait before it is overdue; null means no review target. */
+    reviewTargetHours: integer('review_target_hours').default(24),
     staticHostingEnabled: boolean('static_hosting_enabled').notNull().default(false),
     /** Last assigned per-project build number; bumped atomically when a build is created. */
     buildCounter: integer('build_counter').notNull().default(0),
@@ -52,5 +54,9 @@ export const projects = pgTable(
       sql`${t.diffThreshold} >= 0 and ${t.diffThreshold} <= 1`,
     ),
     check('projects_retention_days_check', sql`${t.retentionDays} >= 1`),
+    check(
+      'projects_review_target_hours_check',
+      sql`${t.reviewTargetHours} is null or ${t.reviewTargetHours} >= 1`,
+    ),
   ],
 )

@@ -15,6 +15,7 @@ const settings = {
   blockMergeOnChanges: true,
   flakyBlocksMerge: null as boolean | null,
   retentionDays: 30,
+  reviewTargetHours: 24 as number | null,
   staticHostingEnabled: false,
 }
 

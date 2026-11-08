@@ -1,9 +1,10 @@
-import type { Build, Project } from '@circi/api'
+import type { Build, Project, Review } from '@circi/api'
 import type {
   BuildDetail,
   GitAttention,
   BuildListItem,
   ProjectOverview,
+  ReviewRequestItem,
   VisibleProject,
 } from '@circi/db'
 
@@ -32,7 +33,8 @@ export type ContractChecks = [
   Fits<Json<BuildDetail>['diffs'], Build.DiffItem[]>,
   Fits<Json<BuildDetail>['reviews'], Build.Review[]>,
   Fits<Json<BuildDetail>['build'], Omit<Build.Detail['build'], never>>,
+  Fits<Json<ReviewRequestItem>, Review.Request>,
 ]
 
 /** Each entry must be `true`; a mismatch above makes its entry `never`, and this line fails. */
-export const contractChecks: ContractChecks = [true, true, true, true, true, true, true]
+export const contractChecks: ContractChecks = [true, true, true, true, true, true, true, true]

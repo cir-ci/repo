@@ -1,0 +1,51 @@
+import type { BuildConclusion, BuildStatus, ReviewStatus } from './build.ts'
+
+export type ReviewRequestState = 'open' | 'done' | 'superseded' | 'dismissed'
+export type SnoozeKind = 'next_push' | 'tomorrow' | 'next_week' | 'date'
+
+export namespace Review {
+  /** The Reviews page's tabs: asked of you, asked by you, asked of you and put off. */
+  export type Tab = 'for-you' | 'created' | 'snoozed'
+
+  /** Someone asked to review a build. */
+  export interface Request {
+    id: string
+    state: ReviewRequestState
+    createdAt: string
+    /** When the project's review target runs out; null when the project has none. */
+    dueAt: string | null
+    /** Milliseconds past `dueAt`; 0 when on time, snoozed or without a target. */
+    overdueByMs: number
+    snoozedUntil: string | null
+    snoozeKind: SnoozeKind | null
+    reviewer: { id: string; name: string }
+    /** Null when whoever asked has since left. */
+    requestedBy: { id: string; name: string } | null
+    build: {
+      number: number
+      branch: string | null
+      prNumber: number | null
+      commitSha: string
+      status: BuildStatus
+      conclusion: BuildConclusion | null
+      reviewStatus: ReviewStatus
+    }
+    project: { slug: string; name: string }
+    org: { slug: string; name: string }
+  }
+
+  /** `GET /api/reviews?tab=…`: one tab of the Reviews page, most urgent first. */
+  export interface List {
+    tab: Tab
+    requests: Request[]
+  }
+
+  /** `POST …/builds/:number/review-requests`: the request, new or already open. */
+  export interface Requested {
+    id: string
+    state: ReviewRequestState
+    dueAt: string | null
+    /** False when the reviewer already had an open request for this build. */
+    created: boolean
+  }
+}

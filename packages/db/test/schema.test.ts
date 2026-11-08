@@ -56,6 +56,7 @@ describe('migrations', () => {
       'projects',
       'provider_connections',
       'provider_deliveries',
+      'review_requests',
       'reviews',
       'screenshot_diffs',
       'screenshots',

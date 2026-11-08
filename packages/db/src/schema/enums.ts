@@ -22,6 +22,10 @@ export const DIFF_STATUSES = ['added', 'removed', 'changed', 'unchanged', 'faile
 export const DIFF_JOB_STATUSES = ['pending', 'running', 'done', 'failed'] as const
 export const REVIEW_STATES = ['approved', 'rejected'] as const
 export const REVIEW_SOURCES = ['ui', 'github-check', 'github-comment', 'auto', 'rerun'] as const
+/** Where a review request stands: waiting on the reviewer, or closed for one of three reasons. */
+export const REVIEW_REQUEST_STATES = ['open', 'done', 'superseded', 'dismissed'] as const
+/** How a request was snoozed; `next_push` wakes on the next build of the branch (no end time). */
+export const SNOOZE_KINDS = ['next_push', 'tomorrow', 'next_week', 'date'] as const
 export const WEBHOOK_EVENTS = ['build.completed', 'build.reviewed'] as const
 /**
  * How someone signed in: `oidc` is an instance-wide single sign-on provider, `org-oidc` one an
@@ -45,5 +49,7 @@ export type DiffStatus = (typeof DIFF_STATUSES)[number]
 export type DiffJobStatus = (typeof DIFF_JOB_STATUSES)[number]
 export type ReviewState = (typeof REVIEW_STATES)[number]
 export type ReviewSource = (typeof REVIEW_SOURCES)[number]
+export type ReviewRequestState = (typeof REVIEW_REQUEST_STATES)[number]
+export type SnoozeKind = (typeof SNOOZE_KINDS)[number]
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number]
 export type JobStatus = (typeof JOB_STATUSES)[number]

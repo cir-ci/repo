@@ -1,0 +1,157 @@
+import {
+  addTestMember,
+  createTestDb,
+  seedBuild,
+  seedProject,
+  seedReviewRequest,
+  seedUser,
+  type TestDb,
+} from '@circi/testing'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+
+import { listReviewRequests } from '../../src/index.ts'
+
+let t: TestDb
+beforeAll(async () => {
+  t = await createTestDb()
+})
+afterAll(async () => {
+  await t.close()
+})
+
+const now = new Date('2026-03-10T12:00:00.000Z')
+const hoursFromNow = (h: number) => new Date(now.getTime() + h * 3_600_000)
+
+/** An organization with an owner (the reviewer), a teammate who asks, and one build to review. */
+async function setup() {
+  const { project, org, owner } = await seedProject(t.db)
+  const teammate = await seedUser(t.db)
+  await addTestMember(t.db, { orgId: org.id, userId: teammate.id })
+  const build = await seedBuild(t.db, project.id, { branch: 'feature/x', prNumber: 7 })
+  return { project, org, owner, teammate, build }
+}
+
+describe('listReviewRequests', () => {
+  it('shows what is asked of you with the build and project, and how overdue it is', async () => {
+    const { project, org, owner, teammate, build } = await setup()
+    await seedReviewRequest(t.db, {
+      buildId: build.id,
+      reviewerId: owner.id,
+      requestedById: teammate.id,
+      dueAt: hoursFromNow(-3),
+    })
+
+    const [item, ...rest] = await listReviewRequests(t.db, {
+      userId: owner.id,
+      tab: 'for-you',
+      now,
+    })
+    expect(rest).toEqual([])
+    expect(item).toMatchObject({
+      state: 'open',
+      overdueByMs: 3 * 3_600_000,
+      reviewer: { id: owner.id },
+      requestedBy: { id: teammate.id, name: teammate.name },
+      build: { number: 1, branch: 'feature/x', prNumber: 7 },
+      project: { slug: project.slug },
+      org: { slug: org.slug },
+    })
+  })
+
+  it('is not overdue on time or without a review target', async () => {
+    const { owner, build, teammate } = await setup()
+    const b2 = await seedBuild(t.db, build.projectId)
+    await seedReviewRequest(t.db, {
+      buildId: build.id,
+      reviewerId: owner.id,
+      requestedById: teammate.id,
+      dueAt: hoursFromNow(2),
+    })
+    await seedReviewRequest(t.db, { buildId: b2.id, reviewerId: owner.id, dueAt: null })
+    const items = await listReviewRequests(t.db, { userId: owner.id, tab: 'for-you', now })
+    expect(items.map((i) => [i.build.number, i.overdueByMs, i.requestedBy?.id ?? null])).toEqual([
+      [1, 0, teammate.id], // soonest due first, without a due time last
+      [2, 0, null],
+    ])
+  })
+
+  it('splits for you, created by you and snoozed, and leaves closed requests out', async () => {
+    const { owner, teammate, build } = await setup()
+    const b2 = await seedBuild(t.db, build.projectId)
+    const b3 = await seedBuild(t.db, build.projectId)
+    const b4 = await seedBuild(t.db, build.projectId)
+    await seedReviewRequest(t.db, {
+      buildId: build.id,
+      reviewerId: owner.id,
+      requestedById: teammate.id,
+    })
+    await seedReviewRequest(t.db, {
+      buildId: b2.id,
+      reviewerId: owner.id,
+      requestedById: teammate.id,
+      dueAt: hoursFromNow(-5),
+      snoozedUntil: hoursFromNow(1),
+      snoozeKind: 'tomorrow',
+    })
+    await seedReviewRequest(t.db, {
+      buildId: b3.id,
+      reviewerId: owner.id,
+      requestedById: teammate.id,
+      snoozeKind: 'next_push',
+    })
+    await seedReviewRequest(t.db, {
+      buildId: b4.id,
+      reviewerId: teammate.id,
+      requestedById: owner.id,
+    })
+    await seedReviewRequest(t.db, {
+      buildId: b4.id,
+      reviewerId: owner.id,
+      requestedById: teammate.id,
+      state: 'done',
+    })
+
+    const numbers = async (userId: string, tab: 'for-you' | 'created' | 'snoozed') =>
+      (await listReviewRequests(t.db, { userId, tab, now })).map((i) => i.build.number)
+    expect(await numbers(owner.id, 'for-you')).toEqual([1])
+    expect((await numbers(owner.id, 'snoozed')).toSorted((a, b) => a - b)).toEqual([2, 3])
+    expect(await numbers(owner.id, 'created')).toEqual([4])
+    expect(await numbers(teammate.id, 'for-you')).toEqual([4])
+
+    // A snooze that has run out is awake again, and counts as overdue again.
+    const later = new Date(hoursFromNow(2))
+    const woken = await listReviewRequests(t.db, { userId: owner.id, tab: 'for-you', now: later })
+    expect(woken.map((i) => i.build.number).toSorted((a, b) => a - b)).toEqual([1, 2])
+    expect(woken.find((i) => i.build.number === 2)?.overdueByMs).toBe(7 * 3_600_000)
+  })
+
+  it('does not show a snoozed request as overdue', async () => {
+    const { owner, build } = await setup()
+    await seedReviewRequest(t.db, {
+      buildId: build.id,
+      reviewerId: owner.id,
+      dueAt: hoursFromNow(-5),
+      snoozeKind: 'next_push',
+    })
+    const [item] = await listReviewRequests(t.db, { userId: owner.id, tab: 'snoozed', now })
+    expect(item?.overdueByMs).toBe(0)
+  })
+
+  it("never shows another organization's requests", async () => {
+    const mine = await setup()
+    const theirs = await setup()
+    await seedReviewRequest(t.db, { buildId: theirs.build.id, reviewerId: theirs.owner.id })
+    // Even a request that names me as the reviewer is invisible once I am not in its organization.
+    await seedReviewRequest(t.db, {
+      buildId: theirs.build.id,
+      reviewerId: mine.owner.id,
+      requestedById: mine.owner.id,
+    })
+    const tabs = await Promise.all(
+      (['for-you', 'created', 'snoozed'] as const).map((tab) =>
+        listReviewRequests(t.db, { userId: mine.owner.id, tab, now }),
+      ),
+    )
+    expect(tabs).toEqual([[], [], []])
+  })
+})

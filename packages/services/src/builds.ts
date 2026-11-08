@@ -10,6 +10,7 @@ import {
   resetBuild,
   setBuildError,
   setBuildResult,
+  supersedeReviewRequests,
 } from '@circi/db'
 
 /**
@@ -19,7 +20,10 @@ import {
  * Repositories in `@circi/db` only store data; anything that must follow a change is decided here.
  */
 
-/** Stores one shard's screenshots; once the last shard is in, queues the build for diffing. */
+/**
+ * Stores one shard's screenshots; once the last shard is in, queues the build for diffing and
+ * closes review requests on older builds of the same branch as superseded.
+ */
 export async function finalizeBuild(
   db: Database,
   input: Parameters<typeof finalizeShard>[1],
@@ -33,6 +37,14 @@ export async function finalizeBuild(
         dedupeKey: result.build.id,
       })
       await queueGitNotify(tx, result.build)
+      // A newer build on the branch replaces the older builds' review requests.
+      if (result.build.branch !== null) {
+        await supersedeReviewRequests(tx, {
+          projectId: result.build.projectId,
+          branch: result.build.branch,
+          beforeNumber: result.build.number,
+        })
+      }
     }
     return result
   })

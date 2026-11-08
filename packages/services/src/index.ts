@@ -14,4 +14,4 @@ export {
 export { gateInputs } from './gate.ts'
 export { migrateStorage } from './migrate-storage.ts'
 export { previewRetention, runRetention } from './retention.ts'
-export { reviewBuild } from './reviews.ts'
+export { dismissReviewRequest, requestReview, reviewBuild } from './reviews.ts'
