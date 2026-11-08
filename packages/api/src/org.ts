@@ -12,6 +12,17 @@ export namespace Org {
     instance: { password: boolean; email: boolean }
   }
 
+  /** An organization's defaults for its projects. */
+  export interface Settings {
+    /** Whether a pull request that only changes flaky screenshots still blocks the merge. */
+    flakyBlocksMerge: boolean
+  }
+
+  export interface SettingsResponse {
+    canManage: boolean
+    settings: Settings
+  }
+
   /** An organization's own single sign-on provider. */
   export interface SsoProvider {
     providerId: string

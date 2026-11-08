@@ -8,6 +8,10 @@ export interface OutcomeInput {
   conclusion: string | null
   reviewStatus: string
   blockMergeOnChanges: boolean
+  /** Every difference is a flaky screenshot (`onlyFlakyChanges`). */
+  flakyOnly: boolean
+  /** The effective setting (`resolveFlakyBlocksMerge`). */
+  flakyBlocksMerge: boolean
 }
 
 export interface BuildOutcome {
@@ -46,6 +50,9 @@ export function buildOutcome(b: OutcomeInput): BuildOutcome {
   if (b.reviewStatus === 'rejected') return { state: 'fail', summary: 'Changes rejected' }
   if (b.conclusion === 'no_changes') return { state: 'pass', summary: 'No visual changes' }
   if (b.reviewStatus === 'approved') return { state: 'pass', summary: 'Changes approved' }
+  if (b.flakyOnly && !b.flakyBlocksMerge) {
+    return { state: 'pass', summary: 'Only flaky screenshots changed' }
+  }
   return b.blockMergeOnChanges
     ? { state: 'fail', summary: 'Visual changes need review' }
     : {

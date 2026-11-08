@@ -62,6 +62,7 @@ export function ProjectSettingsPage() {
               project={project}
               settings={data.settings}
               canManage={data.canManage}
+              orgFlakyBlocksMerge={data.org.flakyBlocksMerge}
               sitesConfigured={data.sitesConfigured}
             />
             {data.canManage ? <CiToken org={org} project={project} /> : null}

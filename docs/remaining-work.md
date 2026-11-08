@@ -29,8 +29,10 @@ still uncommitted in the working tree.
    serial run: 139 of 146 passed (17 minutes); the 7 failures were test races and a missing
    error redirect, all fixed (see §0b).
 
-3. Observed on the real stack, not fixed: after approving a build the per-screenshot glyphs
-   still show "needs review" (the glyph shows the diff, not the review: decide); `ref`-based
+3. Decided 2026-11-08 and built: after approving or rejecting a build, the per-screenshot glyphs
+   show the review (`screenshotStatus(kind, review)` in
+   `apps/web/src/features/builds/diff-status.ts`); unchanged and flaky stay neutral, failed stays
+   rejected. Observed on the real stack, not fixed: `ref`-based
    automation can't click Base UI menu items (real clicks and the keyboard work, and the tests
    cover both).
 4. The stack is left running (`cd deploy && docker compose down` stops it; add `-v` to delete
@@ -54,14 +56,31 @@ Fixed, each with a regression test in the owning package:
 - Earlier: `webDistPath` after the layout move, sticky sidebar, SSO form autofill, setup title.
 
 Not bugs but worth knowing (decide whether to change):
-- A pull request whose only change is a flaky screenshot still blocks the merge (flaky is a
-  dashboard grouping only).
-- An empty `events` list on a webhook subscribes it to every event; no regenerate-secret
+- ~~A pull request whose only change is a flaky screenshot still blocks the merge (flaky is a
+  dashboard grouping only).~~ Decided and done (2026-11-08): it is a setting. The organization's
+  **Flaky screenshots block merges** (members page, default on, so nothing changes for existing
+  installs) and a per-project override (nullable: null inherits, or explicitly on/off).
+  `resolveFlakyBlocksMerge` and `onlyFlakyChanges` in `@circi/core`; `gateInputs` in
+  `@circi/services` feeds the status endpoint (`--wait`) and the git notice. With it off and only
+  flaky screenshots changed, the gate is the success path (check run success, outcome pass); the
+  build still lists them as changed/flaky. Tests: core, db, services, worker, server routes, web,
+  `e2e/test/merge-gate.e2e.test.ts`.
+- ~~An empty `events` list on a webhook subscribes it to every event.~~ Decided and done
+  (2026-11-08): not allowed. Creating a webhook with no events is a 400 ("Choose at least one
+  event for the webhook to receive") in the API, `createWebhook` and `circi admin webhook add`;
+  the form shows the error and sends nothing. No data migration was needed: the table has had
+  `CHECK (cardinality(events) > 0)` since `0005_webhooks`, so no row can hold an empty list
+  (a test pins that). Still open: no regenerate-secret
   endpoint; no per-project webhook limit; a delivery-time private-address skip is only logged.
 - A revoked GitHub installation (401) is not surfaced: the job retries 5 times and ends
   `failed` in `jobs.last_error`; there is no "needs attention" flag or banner.
-- No neutral state for a project with no baseline (every screenshot is "added" and held for
-  review); an undecodable PNG counts as a failed screenshot, not a build error.
+- ~~No neutral state for a project with no baseline (every screenshot is "added" and held for
+  review).~~ Decided (2026-11-08): keep it, and done: the first build is never
+  auto-approved, not even on the default branch with auto-approve on (auto-approve needs a
+  baseline). Until someone approves it, later builds have no baseline either and are held too.
+  Pinned by tests in `apps/worker/test/jobs/process-build.test.ts` (a first PR or default-branch
+  build ends pending review and the gate says fail; the second default-branch build, with an
+  approved baseline, is auto-approved). Still open: an undecodable PNG counts as a failed screenshot, not a build error.
 - No handler for GitHub `installation`, `pull_request` and `push` events (accepted and ignored);
   no GitHub OAuth/device flow in CirCI: GitHub identities were inserted by SQL in the tests, so
   the "link GitHub" step on the Account page is untested.

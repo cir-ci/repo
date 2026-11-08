@@ -1,6 +1,12 @@
 import type { Build } from '@circi/api'
 
-import { type Account, addMemberViaCli, createProject, createUserViaCli } from './admin.ts'
+import {
+  type Account,
+  addMemberViaCli,
+  approveBuild,
+  createProject,
+  createUserViaCli,
+} from './admin.ts'
 import type { Session } from './admin.ts'
 import { Repo } from './git-repo.ts'
 import type { ScreenshotSpec } from './images.ts'
@@ -56,6 +62,8 @@ export async function createLinkedProject(
   const baselineSha = await repo.commit('baseline')
   const up = await uploadBuild({ stack, token: project.token, repo, wait: true })
   if (up.exitCode !== 0) throw new Error(`baseline upload failed: ${up.stderr}\n${up.stdout}`)
+  // The first build has no baseline, so it waits for review: approve it to make it the baseline.
+  await approveBuild(session, org, project.slug, up.result?.build.number ?? 0)
   return {
     org,
     slug: project.slug,

@@ -31,7 +31,7 @@ A cheaper, self-hostable alternative to Argos-CI. CI uploads screenshots → ser
 2. **Git hosting:** works with any host. The core never calls a git host's API to work out baselines (§7.2); host integrations are optional adapters (§7.4).
 3. **Multi-tenant:** organizations, members and roles (§6, §8).
 4. **Storage:** local disk by default (cheapest), S3-compatible as an option (§2).
-5. **Merge blocking:** unreviewed changes block merging by default, configurable per project (§7.4).
+5. **Merge blocking:** unreviewed changes block merging by default, configurable per project (§7.4). A change to flaky screenshots only blocks by default too; the organization can turn that off for all its projects and a project can override it (nullable on the project: null inherits). A project with no baseline has no neutral state: every screenshot is `added` and the build waits for review (not even the default branch: auto-approve needs an approved baseline, so every screenshot is approved once by a person).
 6. **Static-site hosting:** the dashboard lives at **any address you choose** (`PUBLIC_URL`, written `<dashboard-host>` in this plan, e.g. `circi.example.com` or `ci.acme.io`), and it can be changed later (§7.9). Hosted sites live on a **separate, dedicated domain** (placeholder `example-sites.com`), with addresses like `<hash>-<site-slug>.example-sites.com` (decision 17). Uploaded code then can't set cookies on `example.com` or `<dashboard-host>`. DNS for both is on **Route53**, which is the default Caddy DNS module (§7.6).
 7. **One static-site pipeline** for every kind of site (Storybook, Vitest report, Playwright report, coverage, docs, generic). Kinds are small plugins on a shared upload, ingest, address, serve and link flow (§7.6).
 8. **Vitest:** first-class SDK for Vitest browser mode, including Storybook's Vitest addon. Vitest HTML reports are hosted through the same pipeline (§7.7).
@@ -298,7 +298,7 @@ Like the Argos bot, it shows up on PRs as **`<app-name>[bot]`**. Each self-hoste
 - Other hosts get statuses + comments through their adapters (§ above). Bot-style buttons and commands are GitHub-only in v1; GitLab MR comment commands come later (M4).
 
 **Other behavior**
-- Default-branch builds auto-approve when configured, so they become baselines.
+- Default-branch builds auto-approve when configured and a baseline exists, so they become baselines. The first build (no baseline) is never auto-approved; until it is approved, later builds also have no baseline.
 - Approve/reject in the UI writes a `review` row (with `source`) and re-runs `notify`.
 - Re-run carry-over: a new build for the same project, build name and commit whose screenshots are identical (name + sha256) to an already approved build is approved automatically (review source `rerun`), so "approve, then re-run the CI job" goes green. It never carries over a rejection, another commit, another build name, or any differing screenshot.
 - Provider comment: one comment per PR, updated in place and found by a hidden marker, with changed/added/removed counts per build name.
@@ -695,6 +695,8 @@ _Status: accounts, organizations, roles, CI tokens and organization isolation ar
 - [x] Retention + mark/grace/re-check GC (§8): builds and site versions expire after the project's `retention_days` (the newest default-branch baseline per build name never does; a version a live branch address serves never does), unreferenced files are marked, then deleted after `GC_GRACE_HOURS` once re-checked under a lock; tests include a file re-claimed during the grace period. `circi admin storage usage|gc`. **Not built:** a storage usage *page* in the dashboard; concurrency is tested as deterministic interleavings on one connection, not with parallel connections
 - [x] Ignore regions per screenshot name (`circi admin ignore add|list|remove`, applied to both images before comparing; tested end to end). **Not built:** drawing regions in the review UI
 - [x] Flaky detection: a screenshot that changed in 3+ of the last 10 default-branch builds is flagged on the project page, with a pointer to ignore regions
+- [x] Flaky-only changes and the gate (2026-11-08): `org_settings.flaky_blocks_merge` (default true) and `projects.flaky_blocks_merge` (nullable, null inherits), resolved by `resolveFlakyBlocksMerge` in `@circi/core`; with it off and only flaky screenshots changed, `buildOutcome` and the check run take the success path while the dashboard still groups them as flaky
+- [x] A webhook needs at least one event (an empty list used to mean all); the dashboard API and `circi admin webhook add` refuse it
 - [ ] CloudFront in front of sites with signed cookies from the SSO handoff (optional, for heavy traffic)
 - [ ] Azure DevOps adapter; GitLab MR comment commands; SAML SSO; per-org storage quotas
 - [x] `circi admin storage migrate` (fs ↔ s3): copies every file under the same keys, hash-checked and resumable (tested between two local-disk storages; **not run against a real S3**)

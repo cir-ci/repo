@@ -161,11 +161,13 @@ export async function processBuild(deps: ProcessDeps, buildId: string): Promise<
     }
   })
 
-  // 5. Conclusion. Added, removed and unreadable screenshots all need a human look.
+  // 5. Conclusion. Added, removed and unreadable screenshots all need a human look. A build with
+  // no baseline (a project's first) is never auto-approved: someone reviews every screenshot once.
   const conclusion = statuses.every((s) => s === 'unchanged') ? 'no_changes' : 'changes_detected'
   let approval: completeBuild.Approval = 'none'
   if (conclusion === 'changes_detected') {
     if (
+      baseBuild !== undefined &&
       project.autoApproveDefaultBranch &&
       build.prNumber === null &&
       build.branch === project.defaultBranch

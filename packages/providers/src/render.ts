@@ -12,6 +12,8 @@ export interface ReportedBuild {
   prNumber: number | null
   errorMessage: string | null
   counts: { added: number; removed: number; changed: number; failed: number; total: number }
+  /** Every change is a flaky screenshot (only looked up while flaky ones don't block). */
+  flakyOnly?: boolean
   /** Dashboard address of the build page. */
   url: string
 }
@@ -48,11 +50,12 @@ export function describeCounts(c: ReportedBuild['counts']): string {
 /**
  * The status mapping table of PLAN §7.4. With `blockMergeOnChanges` an unreviewed change holds
  * the check at `action_required` (it blocks the merge if the check is required); without it the
- * check passes and only says how many changes await review.
+ * check passes and only says how many changes await review. With `flakyBlocksMerge` off, a build
+ * whose only changes are flaky screenshots passes too, saying so.
  */
 export function checkReport(
   build: ReportedBuild,
-  options: { blockMergeOnChanges: boolean },
+  options: { blockMergeOnChanges: boolean; flakyBlocksMerge?: boolean },
 ): CheckReport {
   const name = checkName(build.name)
   const link = `[Open build #${build.number} in CirCI](${build.url})`
@@ -114,6 +117,16 @@ export function checkReport(
       conclusion: 'failure',
       title: `Changes rejected (${counts})`,
       summary: link,
+    }
+  }
+  if (build.flakyOnly && options.flakyBlocksMerge === false) {
+    return {
+      ...base,
+      actions,
+      status: 'completed',
+      conclusion: 'success',
+      title: `Only flaky screenshots changed (${counts})`,
+      summary: `${counts}. These screenshots keep changing on the default branch, and this project does not hold merges for them. Approve or reject the changes here, or open the build to see them.\n\n${link}`,
     }
   }
   return {

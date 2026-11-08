@@ -1,9 +1,9 @@
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createProject } from '../src/admin.ts'
+import { approveBuild, createProject } from '../src/admin.ts'
 import type { FakeGithub } from '../src/fakes/fake-github.ts'
 import { Repo } from '../src/git-repo.ts'
 import {
@@ -14,7 +14,7 @@ import {
   type LinkedProject,
   uploadPr,
 } from '../src/github-helpers.ts'
-import { uploadBuild } from '../src/upload.ts'
+import { uploadBuild, uploadOrThrow } from '../src/upload.ts'
 import { useStack } from '../src/vitest.ts'
 
 /**
@@ -52,10 +52,12 @@ describe('merge gate (against a fake GitHub)', () => {
     await expect.poll(() => checkFor(sha)?.status, { timeout: 30_000 }).toBe('completed')
   }
 
-  it('the baseline on main is reported too: no changes, success', async () => {
+  it('the baseline on main is reported too: it waited for review, and is success once approved', async () => {
+    // createLinkedProject approved it: a first build is never approved automatically.
     await expect
       .poll(() => checkFor(blocking.baselineSha)?.conclusion, { timeout: 30_000 })
       .toBe('success')
+    expect(checkFor(blocking.baselineSha)?.title).toMatch(/^Changes approved/)
   })
 
   it('no changes: success, "No visual changes", no buttons', async () => {
@@ -116,6 +118,113 @@ describe('merge gate (against a fake GitHub)', () => {
       .poll(() => checkFor(pr.sha)?.conclusion, { timeout: 30_000 })
       .toBe('action_required')
     expect(comment.reactions).toContain('+1')
+  })
+
+  const orgFlaky = (flakyBlocksMerge: boolean) =>
+    ctx.setup.session.patch(`/api/organizations/${org}/settings`, { flakyBlocksMerge })
+
+  describe('a pull request that only changes a flaky screenshot', () => {
+    // `login` changes in 3 builds on main, so it is flagged as flaky (see flaky.e2e.test.ts); the
+    // pull requests below change nothing else. The organization's switch is global to this file's
+    // organization, so it is put back at the end.
+    let flaky: LinkedProject
+    let prs = 50
+
+    beforeAll(async () => {
+      const { stack, setup } = ctx
+      flaky = await createLinkedProject(stack, setup.session, org, 'Flaky', {
+        repoRef: 'acme/flaky',
+      })
+      for (const x of [100, 150, 200]) {
+        // oxlint-disable-next-line no-await-in-loop -- builds on main are sequential
+        await flaky.repo.checkout('main')
+        // oxlint-disable-next-line no-await-in-loop
+        await flaky.repo.writeShots({ login: { dot: { x, y: 60 } } })
+        // oxlint-disable-next-line no-await-in-loop
+        await flaky.repo.commit(`main: login moves to ${x}`)
+        // oxlint-disable-next-line no-await-in-loop
+        await uploadOrThrow({ stack, token: flaky.token, repo: flaky.repo, wait: true })
+      }
+      const report = await setup.session.get<{ flaky: { name: string }[] }>(
+        `/api/projects/${org}/${flaky.slug}/flaky`,
+      )
+      if (report.flaky.map((f) => f.name).join() !== 'login') {
+        throw new Error(`expected only login to be flaky, got ${JSON.stringify(report.flaky)}`)
+      }
+    })
+
+    afterAll(async () => {
+      await ctx.setup.session.patch(`/api/organizations/${org}/settings`, {
+        flakyBlocksMerge: true,
+      })
+    })
+
+    const projectFlaky = (flakyBlocksMerge: boolean | null) =>
+      ctx.setup.session.patch(`/api/projects/${org}/${flaky.slug}/settings`, { flakyBlocksMerge })
+
+    /** A pull request that moves only `login`, and what its check and `--wait` said. */
+    async function flakyPr() {
+      prs += 1
+      const pr = await uploadPr(ctx.stack, flaky, prs, { login: { dot: { x: 300, y: 60 + prs } } })
+      await settle(pr.sha)
+      const detail = await buildDetail(ctx.setup.session, flaky, pr.buildNumber)
+      // The dashboard still says "changed": flaky is a grouping, not a status.
+      expect(
+        detail.diffs.map((d) => [d.name, d.status]).filter(([, s]) => s !== 'unchanged'),
+      ).toEqual([['login', 'changed']])
+      return { pr, check: checkFor(pr.sha), outcome: pr.upload?.status?.outcome }
+    }
+
+    it('blocks the merge by default, as any other change does', async () => {
+      const { check, outcome } = await flakyPr()
+      expect(check).toMatchObject({
+        conclusion: 'action_required',
+        title: '1 changed: review required',
+      })
+      expect(outcome).toMatchObject({ state: 'fail' })
+    })
+
+    it('passes once the organization stops blocking on flaky screenshots, saying why', async () => {
+      await orgFlaky(false)
+      const { check, outcome, pr } = await flakyPr()
+      expect(check).toMatchObject({
+        conclusion: 'success',
+        title: 'Only flaky screenshots changed (1 changed)',
+      })
+      expect(check?.actions.map((a) => a.identifier)).toEqual(['approve', 'reject'])
+      expect(outcome).toMatchObject({ state: 'pass', summary: 'Only flaky screenshots changed' })
+      expect(pr.exitCode).toBe(0)
+    })
+
+    it('a change to a steady screenshot next to the flaky one still blocks', async () => {
+      await orgFlaky(false)
+      prs += 1
+      const pr = await uploadPr(ctx.stack, flaky, prs, {
+        login: { dot: { x: 320, y: 90 } },
+        home: { dot: { x: 12, y: 12 } },
+      })
+      await settle(pr.sha)
+      expect(checkFor(pr.sha)).toMatchObject({
+        conclusion: 'action_required',
+        title: '2 changed: review required',
+      })
+    })
+
+    it('a project can override the organization in either direction', async () => {
+      await orgFlaky(false)
+      await projectFlaky(true)
+      expect((await flakyPr()).check?.conclusion).toBe('action_required')
+
+      await orgFlaky(true)
+      await projectFlaky(false)
+      const passing = await flakyPr()
+      expect(passing.check?.conclusion).toBe('success')
+      expect(passing.outcome).toMatchObject({ state: 'pass' })
+
+      // Back to inheriting: the organization's value (blocking) applies again.
+      await projectFlaky(null)
+      expect((await flakyPr()).check?.conclusion).toBe('action_required')
+    })
   })
 
   it('approved in the CirCI UI: the same check run turns success within seconds, offering Reject', async () => {
@@ -194,7 +303,10 @@ describe('merge gate (against a fake GitHub)', () => {
     try {
       await repo.writeShots({ home: {} })
       await repo.commit('base')
-      expect((await uploadBuild({ stack, token: plain.token, repo, wait: true })).exitCode).toBe(0)
+      // Its first build waits for review (no baseline), so the CI-job gate fails until approved.
+      const first = await uploadOrThrow({ stack, token: plain.token, repo, wait: true })
+      expect(first.exitCode).toBe(1)
+      await approveBuild(ctx.setup.session, org, plain.slug, first.build.number)
       await repo.checkout('feature', { create: true })
       await repo.writeShots({ home: { dot: { x: 9, y: 9 } } })
       await repo.commit('change')

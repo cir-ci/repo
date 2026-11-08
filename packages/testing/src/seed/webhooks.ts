@@ -1,4 +1,10 @@
-import { createWebhook, type Database, type Webhook, type WebhookEvent } from '@circi/db'
+import {
+  createWebhook,
+  type Database,
+  type Webhook,
+  WEBHOOK_EVENTS,
+  type WebhookEvent,
+} from '@circi/db'
 
 let n = 0
 
@@ -12,6 +18,6 @@ export function seedWebhook(
   return createWebhook(db, {
     projectId,
     url: input.url ?? `https://hooks.example.com/${n}`,
-    ...(input.events ? { events: input.events } : {}),
+    events: input.events ?? WEBHOOK_EVENTS,
   })
 }

@@ -26,6 +26,7 @@ import { useDocumentTitle } from '../../lib/document-title.ts'
 import { ErrorState } from '../../lib/ErrorState.tsx'
 import { RelativeTime } from '../../lib/RelativeTime.tsx'
 import { cancelInvitation, changeMemberRole, organizationQuery, removeMember } from './api.ts'
+import { BuildSettings } from './BuildSettings.tsx'
 import { EmailDomains } from './EmailDomains.tsx'
 import { InviteForm } from './InviteForm.tsx'
 import { canManageMembers, invitationCount, peopleCount, pendingInvitations } from './model.ts'
@@ -183,6 +184,7 @@ export function MembersPage() {
                 </EmptyState>
               ) : null}
             </section>
+            {canManage ? <BuildSettings org={org} /> : null}
             {canManage ? <SignInMethods org={org} /> : null}
             {canManage ? <EmailDomains org={org} /> : null}
             {canManage ? <OrgSso org={org} /> : null}

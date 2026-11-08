@@ -15,7 +15,9 @@ import {
   getProjectBySlugs,
   listProjects,
   NotFoundError,
+  projectSettings,
   setProjectCiKey,
+  updateProjectSettings,
 } from '../../src/index.ts'
 
 let t: TestDb
@@ -139,5 +141,28 @@ describe('findProjectForMember (organization isolation)', () => {
         userId: a.owner.id,
       }),
     ).toBeUndefined()
+  })
+})
+
+describe('flaky-screenshot setting', () => {
+  it('starts as null: the project inherits the organization', async () => {
+    const { project } = await seedProject(t.db)
+    expect(projectSettings(project).flakyBlocksMerge).toBeNull()
+  })
+
+  it('is set to on or off, and back to null to inherit again; other patches leave it be', async () => {
+    const { project } = await seedProject(t.db)
+    expect(
+      (await updateProjectSettings(t.db, project.id, { flakyBlocksMerge: false })).flakyBlocksMerge,
+    ).toBe(false)
+    expect(
+      (await updateProjectSettings(t.db, project.id, { retentionDays: 7 })).flakyBlocksMerge,
+    ).toBe(false)
+    expect(
+      (await updateProjectSettings(t.db, project.id, { flakyBlocksMerge: true })).flakyBlocksMerge,
+    ).toBe(true)
+    expect(
+      (await updateProjectSettings(t.db, project.id, { flakyBlocksMerge: null })).flakyBlocksMerge,
+    ).toBeNull()
   })
 })

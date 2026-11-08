@@ -48,6 +48,7 @@ describe('deliverWebhook', () => {
     const hook = await createWebhook(t.db, {
       projectId: project.id,
       url: 'https://hooks.acme.io/x',
+      events: ['build.completed'],
     })
     const seen: { url: string; headers: Headers; body: string; redirect: string }[] = []
     const fetcher: typeof fetch = async (url, init) => {
@@ -87,6 +88,7 @@ describe('deliverWebhook', () => {
     const hook = await createWebhook(t.db, {
       projectId: project.id,
       url: 'https://hooks.acme.io/x',
+      events: ['build.completed'],
     })
     await expect(
       deliverWebhook({ db: t.db, fetch: answer(500), resolve: publicDns }, await jobFor(hook.id)),
@@ -109,6 +111,7 @@ describe('deliverWebhook', () => {
     const hook = await createWebhook(t.db, {
       projectId: project.id,
       url: 'https://hooks.acme.io/x',
+      events: ['build.completed'],
     })
     const result = await deliverWebhook(
       { db: t.db, fetch: answer(200), resolve: async () => ['169.254.169.254'] },

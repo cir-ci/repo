@@ -11,6 +11,7 @@ import {
   withAdvisoryLock,
 } from '@circi/db'
 import { type GithubApp, checkReport, prCommentBody, type ReportedBuild } from '@circi/providers'
+import { gateInputs } from '@circi/services'
 
 /** The `git-notify` job: show a build's state on its commit and pull request (PLAN §7.4). */
 
@@ -53,6 +54,7 @@ async function notifyLocked(
 ): Promise<NotifyResult> {
   const reported = async (b: typeof target.build): Promise<ReportedBuild> => {
     const counts = await getBuildCounts(deps.db, b.id)
+    const gate = await gateInputs(deps.db, b)
     return {
       number: b.number,
       name: b.name,
@@ -62,12 +64,14 @@ async function notifyLocked(
       prNumber: b.prNumber,
       errorMessage: b.errorMessage,
       counts,
+      flakyOnly: gate.flakyOnly,
       url: `${deps.publicOrigin}/${target.orgSlug}/${target.projectSlug}/builds/${b.number}`,
     }
   }
 
   const mine = await reported(target.build)
-  await setCheck(deps, target, mine)
+  const { flakyBlocksMerge } = await gateInputs(deps.db, target.build)
+  await setCheck(deps, target, mine, flakyBlocksMerge)
 
   if (target.build.prNumber !== null && target.commentsEnabled) {
     const builds = await buildsForPrSummary(deps.db, target.build.projectId, target.build.prNumber)
@@ -91,11 +95,15 @@ async function setCheck(
   deps: NotifyDeps,
   target: NonNullable<Awaited<ReturnType<typeof getGitTarget>>>,
   mine: ReportedBuild,
+  flakyBlocksMerge: boolean,
 ): Promise<void> {
   const existingId = await getCheckRunId(deps.db, target.build.id)
   const id = await deps.github?.upsertCheckRun(target.installationId, target.repoRef, {
     sha: target.build.commitSha,
-    report: checkReport(mine, { blockMergeOnChanges: target.blockMergeOnChanges }),
+    report: checkReport(mine, {
+      blockMergeOnChanges: target.blockMergeOnChanges,
+      flakyBlocksMerge,
+    }),
     detailsUrl: mine.url,
     ...(existingId ? { existingId } : {}),
   })

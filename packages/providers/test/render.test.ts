@@ -35,6 +35,34 @@ describe('checkReport', () => {
     expect(r.summary).toContain('https://ci.acme.io/acme/web/builds/7')
   })
 
+  it('passes a flaky-only change when flaky screenshots do not block, and says so', () => {
+    const flaky = build({
+      flakyOnly: true,
+      counts: { added: 0, removed: 0, changed: 1, failed: 0, total: 4 },
+    })
+    const r = checkReport(flaky, { blockMergeOnChanges: true, flakyBlocksMerge: false })
+    expect(r).toMatchObject({
+      conclusion: 'success',
+      title: 'Only flaky screenshots changed (1 changed)',
+    })
+    expect(r.summary).toContain('keep changing on the default branch')
+    // The buttons are still offered, and the other rules still apply.
+    expect(r.actions.map((a) => a.identifier)).toEqual(['approve', 'reject'])
+    expect(
+      checkReport(flaky, { blockMergeOnChanges: true, flakyBlocksMerge: true }).conclusion,
+    ).toBe('action_required')
+    expect(checkReport(flaky, { blockMergeOnChanges: true }).conclusion).toBe('action_required')
+    expect(
+      checkReport(
+        { ...flaky, reviewStatus: 'rejected' },
+        {
+          blockMergeOnChanges: true,
+          flakyBlocksMerge: false,
+        },
+      ).conclusion,
+    ).toBe('failure')
+  })
+
   it('passes unreviewed changes when merges are not blocked', () => {
     expect(checkReport(build(), { blockMergeOnChanges: false }).conclusion).toBe('success')
   })

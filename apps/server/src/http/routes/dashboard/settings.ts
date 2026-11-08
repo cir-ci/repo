@@ -4,6 +4,7 @@ import {
   createWebhook,
   deleteWebhook,
   findProjectForMember,
+  getOrgSettings,
   getProjectById,
   getProjectLink,
   linkProjectToGithub,
@@ -33,6 +34,8 @@ const settingsBody = z
     diffThreshold: z.number(),
     autoApproveDefaultBranch: z.boolean(),
     blockMergeOnChanges: z.boolean(),
+    /** null: inherit the organization's setting. */
+    flakyBlocksMerge: z.boolean().nullable(),
     retentionDays: z.number(),
     staticHostingEnabled: z.boolean(),
   })
@@ -48,6 +51,8 @@ const webhookBody = z.object({
   url: z.string().max(2048),
   events: z.array(z.string()).optional(),
 })
+
+const NO_EVENTS = 'Choose at least one event for the webhook to receive'
 
 /** A webhook as the dashboard sees it: the signing secret is only shown when it's created. */
 function present(hook: Webhook) {
@@ -100,6 +105,8 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<DashboardDeps> = async 
     return {
       canManage: found.canManage,
       settings: projectSettings(found.project),
+      // What a project that inherits gets, so the form can say so.
+      org: await getOrgSettings(deps.db, found.project.orgId),
       webhooks: (await listWebhooks(deps.db, found.project.id)).map(present),
       webhookEvents: WEBHOOK_EVENTS,
       sitesConfigured: deps.sites !== undefined,
@@ -154,6 +161,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<DashboardDeps> = async 
     const problem = webhookUrlProblem(url, { allowPrivate })
     if (problem) throw new ValidationError(problem)
     const events = body.events ?? []
+    if (events.length === 0) throw new ValidationError(NO_EVENTS)
     const unknown = events.filter((e) => !isWebhookEvent(e))
     if (unknown.length > 0) throw new ValidationError(`Unknown event(s): ${unknown.join(', ')}`)
     const created = await createWebhook(deps.db, {

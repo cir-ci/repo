@@ -1,4 +1,5 @@
 import type { Build } from './build.ts'
+import type { Org } from './org.ts'
 
 export namespace Project {
   export interface Overview {
@@ -22,6 +23,8 @@ export namespace Project {
     diffThreshold: number
     autoApproveDefaultBranch: boolean
     blockMergeOnChanges: boolean
+    /** Whether a change to flaky screenshots only blocks the merge; null inherits the organization's. */
+    flakyBlocksMerge: boolean | null
     retentionDays: number
     staticHostingEnabled: boolean
   }
@@ -42,6 +45,8 @@ export namespace Project {
   export interface SettingsResponse {
     canManage: boolean
     settings: Settings
+    /** The organization's settings, which a project inherits where its own value is null. */
+    org: Org.Settings
     webhooks: Webhook[]
     webhookEvents: string[]
     github: { configured: boolean; webhookUrl: string; link: GithubLink | null }

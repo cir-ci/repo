@@ -77,6 +77,26 @@ export function useSaveOrgAuth(org: string) {
   })
 }
 
+export const orgSettingsQuery = (org: string) =>
+  queryOptions({
+    queryKey: ['org-settings', org],
+    queryFn: () => getJson<Org.SettingsResponse>(`/api/organizations/${seg(org)}/settings`),
+  })
+
+export function useSaveOrgSettings(org: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (patch: Partial<Org.Settings>) =>
+      send<{ settings: Org.Settings }>('PATCH', `/api/organizations/${seg(org)}/settings`, patch),
+    // Projects that inherit a setting show the organization's value, so refresh theirs too.
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['org-settings', org] }),
+        queryClient.invalidateQueries({ queryKey: ['settings'] }),
+      ]),
+  })
+}
+
 export const domainsQuery = (org: string) =>
   queryOptions({
     queryKey: ['org-domains', org],

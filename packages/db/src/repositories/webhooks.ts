@@ -1,5 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 
+import { ValidationError } from '@circi/core'
 import { and, eq, sql } from 'drizzle-orm'
 
 import type { Database } from '../client.ts'
@@ -27,15 +28,17 @@ export function isWebhookEvent(value: string): value is WebhookEvent {
 
 export async function createWebhook(
   db: Database,
-  input: { projectId: string; url: string; events?: readonly WebhookEvent[] },
+  input: { projectId: string; url: string; events: readonly WebhookEvent[] },
 ): Promise<Webhook> {
+  // No "empty means every event": a webhook says what it wants to hear.
+  if (input.events.length === 0) throw new ValidationError('A webhook needs at least one event')
   const [row] = await db
     .insert(webhooks)
     .values({
       projectId: input.projectId,
       url: input.url,
       secret: `whsec_${randomBytes(24).toString('base64url')}`,
-      events: [...(input.events?.length ? input.events : WEBHOOK_EVENTS)],
+      events: [...new Set(input.events)],
     })
     .returning()
   if (!row) throw new Error('insert returned no row')

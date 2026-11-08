@@ -257,30 +257,33 @@ function addWebhookCommands(webhook: Command): void {
     .requiredOption('--org <slug>', 'organization slug')
     .requiredOption('--project <slug>', 'project slug')
     .requiredOption('--url <url>', 'http(s) address that receives POSTs')
-    .option('--events <list>', `comma-separated, from: ${WEBHOOK_EVENTS.join(', ')} (default: all)`)
+    .requiredOption('--events <list>', `comma-separated, from: ${WEBHOOK_EVENTS.join(', ')}`)
     .option('--json', 'print JSON (includes the secret)')
-    .action(
-      (opts: { org: string; project: string; url: string; events?: string; json?: boolean }) =>
-        withRuntime(async (rt) => {
-          const problem = webhookUrlProblem(opts.url, {
-            allowPrivate: rt.config.webhookAllowPrivate,
-          })
-          if (problem) throw new Error(`--url: ${problem}`)
-          const url = new URL(opts.url)
-          const events = (opts.events?.split(',').map((e) => e.trim()) ?? []).filter(Boolean)
-          const unknown = events.filter((e) => !isWebhookEvent(e))
-          if (unknown.length > 0) throw new Error(`Unknown event(s): ${unknown.join(', ')}`)
-          const project = await projectOf(rt, opts.org, opts.project)
-          const created = await createWebhook(rt.db.db, {
-            projectId: project.id,
-            url: url.toString(),
-            events: events.filter(isWebhookEvent),
-          })
-          if (opts.json) return printJson(created)
-          console.log(`Added webhook ${created.id} → ${created.url} (${created.events.join(', ')})`)
-          console.log('\nSigning secret (shown once, verify CirCI-Signature with it):')
-          console.log(`  ${created.secret}`)
-        }),
+    .action((opts: { org: string; project: string; url: string; events: string; json?: boolean }) =>
+      withRuntime(async (rt) => {
+        const problem = webhookUrlProblem(opts.url, {
+          allowPrivate: rt.config.webhookAllowPrivate,
+        })
+        if (problem) throw new Error(`--url: ${problem}`)
+        const url = new URL(opts.url)
+        const events = opts.events
+          .split(',')
+          .map((e) => e.trim())
+          .filter(Boolean)
+        if (events.length === 0) throw new Error('--events: choose at least one event')
+        const unknown = events.filter((e) => !isWebhookEvent(e))
+        if (unknown.length > 0) throw new Error(`Unknown event(s): ${unknown.join(', ')}`)
+        const project = await projectOf(rt, opts.org, opts.project)
+        const created = await createWebhook(rt.db.db, {
+          projectId: project.id,
+          url: url.toString(),
+          events: events.filter(isWebhookEvent),
+        })
+        if (opts.json) return printJson(created)
+        console.log(`Added webhook ${created.id} → ${created.url} (${created.events.join(', ')})`)
+        console.log('\nSigning secret (shown once, verify CirCI-Signature with it):')
+        console.log(`  ${created.secret}`)
+      }),
     )
 
   webhook

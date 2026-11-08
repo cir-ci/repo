@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { createBuild, markFileVerified, planUploads } from '@circi/db'
-import { finalizeBuild } from '@circi/services'
+import { finalizeBuild, reviewBuild } from '@circi/services'
 import { contentKey, FsStorage } from '@circi/storage'
 import { createTestDb } from '@circi/testing'
 import { processBuild } from '@circi/worker'
@@ -86,10 +86,13 @@ export async function startDashboard() {
     return b
   }
 
-  await buildWith(acme.project.id, 'aaaa001', [], {
+  // A project's first build has no baseline, so it waits for review: someone approves it once.
+  // Build 2 then has that baseline, and on the default branch it is approved automatically.
+  const first = await buildWith(acme.project.id, 'aaaa001', [], {
     home: await png('#ffffff'),
     about: await png('#eeeeee'),
   })
+  await reviewBuild(t.db, { buildId: first.id, userId: acme.owner.id, state: 'approved' })
   await buildWith(acme.project.id, 'aaaa002', ['aaaa001'], {
     home: await png('#ff0000'),
     about: await png('#eeeeee'),

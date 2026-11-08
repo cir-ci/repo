@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { addMember, createUser } from '@circi/auth'
 import type { Auth } from '@circi/auth'
-import { getProjectById, listWebhooks } from '@circi/db'
+import { getOrgSettings, getProjectById, listWebhooks } from '@circi/db'
 import { FsStorage } from '@circi/storage'
 import { createTestDb, type TestDb } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
@@ -119,6 +119,26 @@ describe('project settings', () => {
     expect(codes).toEqual([400, 400, 400, 400])
   })
 
+  it('lets a project inherit the organization on flaky screenshots, or set its own', async () => {
+    const got = (await call('GET', `${base()}/settings`, memberCookie)).json()
+    // Nothing set: the project inherits, and the organization blocks, as before.
+    expect(got.settings.flakyBlocksMerge).toBeNull()
+    expect(got.org).toEqual({ flakyBlocksMerge: true })
+
+    const off = await call('PATCH', `${base()}/settings`, ownerCookie, { flakyBlocksMerge: false })
+    expect(off.json().settings.flakyBlocksMerge).toBe(false)
+    expect((await getProjectById(t.db, acme.project.id))?.flakyBlocksMerge).toBe(false)
+
+    const inherit = await call('PATCH', `${base()}/settings`, ownerCookie, {
+      flakyBlocksMerge: null,
+    })
+    expect(inherit.json().settings.flakyBlocksMerge).toBeNull()
+    expect((await getProjectById(t.db, acme.project.id))?.flakyBlocksMerge).toBeNull()
+
+    const bad = await call('PATCH', `${base()}/settings`, ownerCookie, { flakyBlocksMerge: 'no' })
+    expect(bad.statusCode).toBe(400)
+  })
+
   it('refuses plain members with 403 and outsiders with 404', async () => {
     expect(
       (await call('PATCH', `${base()}/settings`, memberCookie, { name: 'x' })).statusCode,
@@ -162,6 +182,17 @@ describe('project webhooks', () => {
       ),
     )
     expect(codes).toEqual([400, 400, 400, 400])
+  })
+
+  it('refuses a webhook with no events: missing or empty does not mean "all"', async () => {
+    const url = 'https://hooks.acme.io/none'
+    for (const body of [{ url }, { url, events: [] }]) {
+      // eslint-disable-next-line no-await-in-loop -- two requests
+      const res = await call('POST', `${base()}/webhooks`, ownerCookie, body)
+      expect(res.statusCode).toBe(400)
+      expect(res.json().error).toBe('Choose at least one event for the webhook to receive')
+    }
+    expect(await listWebhooks(t.db, acme.project.id)).toHaveLength(1)
   })
 
   it('keeps plain members and outsiders from adding or removing webhooks', async () => {
@@ -223,5 +254,45 @@ describe('GitHub link', () => {
     expect((await call('DELETE', `${base()}/github`, ownerCookie)).statusCode).toBe(204)
     const after = (await call('GET', `${base()}/settings`, ownerCookie)).json().github
     expect(after.link).toBeNull()
+  })
+})
+
+const orgUrl = () => `/api/organizations/${acme.orgSlug}/settings`
+
+describe('organization settings', () => {
+  it('shows the defaults to members, and whether they can change them', async () => {
+    const owner = (await call('GET', orgUrl(), ownerCookie)).json()
+    expect(owner).toEqual({ canManage: true, settings: { flakyBlocksMerge: true } })
+    expect((await call('GET', orgUrl(), memberCookie)).json().canManage).toBe(false)
+  })
+
+  it('lets an owner change them, and projects that inherit see the new value', async () => {
+    const res = await call('PATCH', orgUrl(), ownerCookie, { flakyBlocksMerge: false })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({ settings: { flakyBlocksMerge: false } })
+    expect(await getOrgSettings(t.db, acme.project.orgId)).toEqual({ flakyBlocksMerge: false })
+    const project = (await call('GET', `${base()}/settings`, memberCookie)).json()
+    expect(project.org).toEqual({ flakyBlocksMerge: false })
+    expect(project.settings.flakyBlocksMerge).toBeNull()
+  })
+
+  it('rejects invalid values and unknown fields', async () => {
+    const codes = await Promise.all(
+      [{ flakyBlocksMerge: 'yes' }, { flakyBlocksMerge: null }, { other: true }].map(
+        async (body) => (await call('PATCH', orgUrl(), ownerCookie, body)).statusCode,
+      ),
+    )
+    expect(codes).toEqual([400, 400, 400])
+  })
+
+  it('refuses plain members with 403 and outsiders with 404', async () => {
+    expect(
+      (await call('PATCH', orgUrl(), memberCookie, { flakyBlocksMerge: true })).statusCode,
+    ).toBe(403)
+    expect((await call('GET', orgUrl(), rivalCookie)).statusCode).toBe(404)
+    expect(
+      (await call('PATCH', orgUrl(), rivalCookie, { flakyBlocksMerge: true })).statusCode,
+    ).toBe(404)
+    expect(await getOrgSettings(t.db, acme.project.orgId)).toEqual({ flakyBlocksMerge: false })
   })
 })

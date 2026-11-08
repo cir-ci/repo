@@ -1,8 +1,15 @@
 import { type Project } from '@circi/api'
-import { Banner, Button, Checkbox, SectionHeader, TextField, useAnnounce } from '@circi/ui'
+import { Banner, Button, Checkbox, SectionHeader, Select, TextField, useAnnounce } from '@circi/ui'
 import { type FormEvent, useState } from 'react'
 
 import { useSaveSettings } from './api.ts'
+import {
+  choiceOf,
+  flakyChoices,
+  type FlakyChoice,
+  isFlakyChoice,
+  valueOf,
+} from './flaky-setting.ts'
 
 import styles from './SettingsSection.module.css'
 
@@ -12,6 +19,7 @@ export function SettingsForm(props: SettingsForm.Props) {
   const [saved, setSaved] = useState(false)
   const s = props.settings
   const [blockMerge, setBlockMerge] = useState(s.blockMergeOnChanges)
+  const [flaky, setFlaky] = useState<FlakyChoice>(choiceOf(s.flakyBlocksMerge))
   const [autoApprove, setAutoApprove] = useState(s.autoApproveDefaultBranch)
   const [hosting, setHosting] = useState(s.staticHostingEnabled)
   const disabled = !props.canManage
@@ -32,6 +40,7 @@ export function SettingsForm(props: SettingsForm.Props) {
         retentionDays: Number(text('retentionDays')),
         autoApproveDefaultBranch: autoApprove,
         blockMergeOnChanges: blockMerge,
+        flakyBlocksMerge: valueOf(flaky),
         // The box only exists when the instance can host sites; otherwise leave the setting be.
         ...(props.sitesConfigured ? { staticHostingEnabled: hosting } : {}),
       },
@@ -84,8 +93,19 @@ export function SettingsForm(props: SettingsForm.Props) {
             onCheckedChange={setBlockMerge}
             disabled={disabled}
           />
+          <Select
+            label="Flaky screenshots block merges"
+            description="A flaky screenshot keeps changing on the default branch. With this off, a pull request whose only changes are flaky ones passes the gate; the build still lists them as flaky."
+            items={flakyChoices(props.orgFlakyBlocksMerge)}
+            value={flaky}
+            onValueChange={(next) => {
+              if (isFlakyChoice(next)) setFlaky(next)
+            }}
+            disabled={disabled}
+          />
           <Checkbox
             label="Approve builds on the default branch automatically"
+            description="Applies once there is an approved baseline: a project's first build always waits for someone to review it."
             checked={autoApprove}
             onCheckedChange={setAutoApprove}
             disabled={disabled}
@@ -120,6 +140,8 @@ export namespace SettingsForm {
     project: string
     settings: Project.Settings
     canManage: boolean
+    /** The organization's setting, which "inherit" follows. */
+    orgFlakyBlocksMerge: boolean
     /** The instance can host sites (so the switch is shown). */
     sitesConfigured?: boolean
   }

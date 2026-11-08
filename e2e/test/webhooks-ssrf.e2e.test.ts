@@ -33,7 +33,10 @@ describe('webhook address guard (private addresses refused)', () => {
 
   const base = () => `/api/projects/${ctx.setup.organization.slug}/${project.slug}/webhooks`
   const add = (url: string) =>
-    ctx.setup.session.request<{ error?: string }>('POST', base(), { url })
+    ctx.setup.session.request<{ error?: string }>('POST', base(), {
+      url,
+      events: ['build.completed'],
+    })
   const count = async () =>
     Number(
       (

@@ -8,9 +8,11 @@ import {
   type Job,
   linkProjectToGithub,
   schema,
+  setOrgSettings,
+  updateProjectSettings,
 } from '@circi/db'
 import { completeBuild, reviewBuild } from '@circi/services'
-import { createTestDb, seedProject, type TestDb } from '@circi/testing'
+import { createTestDb, seedBuild, seedDiff, seedProject, type TestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -120,6 +122,47 @@ describe('notifyGit', () => {
     expect(fake.checks[1]?.input.existingId).toBe('9001')
     expect(fake.checks[1]?.input.report.conclusion).toBe('success')
     expect(fake.comments[1]?.existing).toBe('7001')
+  })
+
+  it('passes a flaky-only change when flaky screenshots do not block merges (org default, project override)', async () => {
+    await t.db.delete(schema.jobs)
+    const { project, org } = await seedProject(t.db)
+    await linkProjectToGithub(t.db, project.id, { installationId: '99', repoRef: 'acme/web' })
+    for (let i = 0; i < 3; i += 1) {
+      // oxlint-disable-next-line no-await-in-loop -- builds are numbered in order
+      const main = await seedBuild(t.db, project.id, { branch: 'main', status: 'complete' })
+      // oxlint-disable-next-line no-await-in-loop
+      await seedDiff(t.db, { buildId: main.id, name: 'wobble', status: 'changed' })
+    }
+    const pr = await seedBuild(t.db, project.id, {
+      branch: 'feature',
+      prNumber: 4,
+      status: 'complete',
+      conclusion: 'changes_detected',
+    })
+    await seedDiff(t.db, { buildId: pr.id, name: 'wobble', status: 'changed' })
+    await seedDiff(t.db, { buildId: pr.id, name: 'steady', status: 'unchanged' })
+
+    const fake = fakeGithub()
+    const deps = { db: t.db, github: fake.github, publicOrigin: 'https://ci.acme.io' }
+    const conclusion = async () => {
+      await t.db.insert(schema.jobs).values({
+        queue: GIT_NOTIFY_QUEUE,
+        payload: { buildId: pr.id },
+        dedupeKey: `flaky-${fake.checks.length}`,
+      })
+      await notifyGit(deps, await nextJob())
+      return fake.checks.at(-1)?.input.report.conclusion
+    }
+
+    expect(await conclusion()).toBe('action_required') // the default: flaky changes block
+    await setOrgSettings(t.db, org.id, { flakyBlocksMerge: false })
+    expect(await conclusion()).toBe('success')
+    expect(fake.checks.at(-1)?.input.report).toMatchObject({
+      title: 'Only flaky screenshots changed (1 changed)',
+    })
+    await updateProjectSettings(t.db, project.id, { flakyBlocksMerge: true })
+    expect(await conclusion()).toBe('action_required') // the project overrides the organization
   })
 
   it('serializes concurrent jobs, so one build gets one check run and one comment', async () => {

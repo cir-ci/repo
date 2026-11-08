@@ -187,6 +187,21 @@ export async function completeSetup(
   }
 }
 
+/**
+ * Approves a build through the dashboard API, as a member would. A project's first build has no
+ * baseline and is never approved automatically, so tests approve it before relying on it.
+ */
+export function approveBuild(
+  session: Session,
+  org: string,
+  slug: string,
+  buildNumber: number,
+): Promise<unknown> {
+  return session.post(`/api/projects/${org}/${slug}/builds/${buildNumber}/review`, {
+    state: 'approved',
+  })
+}
+
 export interface CreatedProject {
   slug: string
   name: string

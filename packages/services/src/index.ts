@@ -11,6 +11,7 @@ export {
   finalizeBuild,
   requeueBuild,
 } from './builds.ts'
+export { gateInputs } from './gate.ts'
 export { migrateStorage } from './migrate-storage.ts'
 export { runRetention } from './retention.ts'
 export { reviewBuild } from './reviews.ts'

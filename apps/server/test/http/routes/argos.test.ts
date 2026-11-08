@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { schema } from '@circi/db'
+import { reviewBuild } from '@circi/services'
 import { FsStorage } from '@circi/storage'
 import { createTestDb, type TestDb } from '@circi/testing'
 import { processBuild } from '@circi/worker'
@@ -171,6 +172,15 @@ describe('Argos-compatible API', () => {
     expect(a.put.statusCode).toBe(200)
     expect(a.put.json().build.url).toContain('/builds/')
     expect((await processBuild({ db: t.db, storage }, a.buildId)).status).toBe('complete')
+    // The project's first build waits for review; until it is approved it is no baseline.
+    const early = await app.inject({
+      method: 'POST',
+      url: '/v2/baseline',
+      headers: auth(),
+      payload: { commits: [commitOf(0xa01)], name: 'default' },
+    })
+    expect(early.json().baseline).toBeNull()
+    await reviewBuild(t.db, { buildId: a.buildId, userId: tenant.owner.id, state: 'approved' })
 
     // The SDK found the history itself, and asks which build it maps to.
     const baseline = await app.inject({

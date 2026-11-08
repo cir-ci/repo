@@ -26,6 +26,7 @@ export function Webhooks(props: Webhooks.Props) {
   const [secret, setSecret] = useState<{ url: string; value: string } | null>(null)
   const [picked, setPicked] = useState<string[]>(props.events)
   const [urlError, setUrlError] = useState<string | null>(null)
+  const [eventsError, setEventsError] = useState<string | null>(null)
   const [removing, setRemoving] = useState<Webhooks.Hook | null>(null)
 
   function submit(e: FormEvent<HTMLFormElement>) {
@@ -33,11 +34,10 @@ export function Webhooks(props: Webhooks.Props) {
     const form = e.currentTarget
     const raw = new FormData(form).get('url')
     const url = typeof raw === 'string' ? raw.trim() : ''
-    if (!url) {
-      setUrlError('Enter an address')
-      return
-    }
-    setUrlError(null)
+    // Both problems are shown together, and nothing is sent until both are fixed.
+    setUrlError(url ? null : 'Enter an address')
+    setEventsError(picked.length === 0 ? 'Choose at least one event' : null)
+    if (!url || picked.length === 0) return
     add.mutate(
       { url, events: picked },
       {
@@ -140,21 +140,30 @@ export function Webhooks(props: Webhooks.Props) {
             description="Must be a public address."
             error={urlError}
           />
-          <CheckboxGroup legend="Events" value={picked} onValueChange={setPicked}>
-            <div className={styles['checks']}>
-              {props.events.map((event) => (
-                <Checkbox key={event} value={event} label={event} />
-              ))}
-            </div>
-          </CheckboxGroup>
+          <div className={hookStyles['eventsField']}>
+            <CheckboxGroup
+              legend="Events"
+              value={picked}
+              onValueChange={(next) => {
+                setPicked(next)
+                if (next.length > 0) setEventsError(null)
+              }}
+            >
+              <div className={styles['checks']}>
+                {props.events.map((event) => (
+                  <Checkbox key={event} value={event} label={event} />
+                ))}
+              </div>
+            </CheckboxGroup>
+            {eventsError ? (
+              <Text variant="small" tone="rejected" role="alert">
+                {eventsError}
+              </Text>
+            ) : null}
+          </div>
           {add.error ? <Banner tone="danger">{add.error.message}</Banner> : null}
           <div className={styles['actions']}>
-            <Button
-              type="submit"
-              variant="primary"
-              loading={add.isPending}
-              disabled={picked.length === 0}
-            >
+            <Button type="submit" variant="primary" loading={add.isPending}>
               {add.isPending ? 'Adding…' : 'Add webhook'}
             </Button>
           </div>

@@ -27,4 +27,10 @@ export {
 export { type PairableScreenshot, pairScreenshots, type ScreenshotPair } from './pairing.ts'
 export { signWebhook, verifyWebhookSignature } from './webhook.ts'
 export { isPrivateAddress, webhookUrlProblem } from './webhook-url.ts'
+export {
+  DEFAULT_FLAKY_BLOCKS_MERGE,
+  type FlakyOnlyInput,
+  onlyFlakyChanges,
+  resolveFlakyBlocksMerge,
+} from './flaky.ts'
 export { type BuildOutcome, buildOutcome, type OutcomeInput } from './outcome.ts'

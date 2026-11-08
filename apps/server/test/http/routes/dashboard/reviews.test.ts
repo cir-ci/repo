@@ -9,7 +9,12 @@ afterAll(() => fx.close())
 const reviewStatus = async () => (await buildDetail(acmeCookie)).json().build.reviewStatus
 
 describe('reviewing a build', () => {
-  it('starts approved on the default branch, and says it was automatic', async () => {
+  it('starts approved on the default branch once there is a baseline, and says it was automatic', async () => {
+    // The fixture approved build 1 by hand (a first build is never automatic); build 2 compares
+    // with it and is approved without anyone looking.
+    const first = (await get(`/api/projects/${acme.orgSlug}/web/builds/1`)).json()
+    expect(first.reviews).toMatchObject([{ state: 'approved', source: 'ui' }])
+    expect((await buildDetail(acmeCookie)).json().baseline).toMatchObject({ number: 1 })
     expect(await reviewStatus()).toBe('approved')
     expect((await buildDetail(acmeCookie)).json().reviews).toEqual([
       { state: 'approved', source: 'auto', userName: null, createdAt: expect.any(String) },

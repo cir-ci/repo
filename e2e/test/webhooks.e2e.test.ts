@@ -93,10 +93,10 @@ describe('webhooks (private addresses allowed)', () => {
   const settingsUrl = () =>
     `${ctx.stack.url}/${ctx.setup.organization.slug}/${project.slug}/settings`
   const hooks = () => hooksOf(ctx.setup.session, ctx.setup.organization.slug, project.slug)
-  const apiAdd = (url: string, events?: string[]) =>
+  const apiAdd = (url: string, events: string[]) =>
     ctx.setup.session.post<{ webhook: HookView; secret: string }>(
       `/api/projects/${ctx.setup.organization.slug}/${project.slug}/webhooks`,
-      { url, ...(events ? { events } : {}) },
+      { url, events },
     )
 
   async function addThroughUi(page: Page, url: string, uncheck: string[] = []): Promise<string> {
@@ -276,23 +276,36 @@ describe('webhooks (private addresses allowed)', () => {
     expect(detail.build.reviewStatus).toBe('rejected')
   })
 
-  it('an empty event list means every event; unknown events and bad addresses are refused', async () => {
+  it('a webhook needs at least one event: empty or missing is refused, in the API and in the form', async () => {
     const { setup } = ctx
     const org = setup.organization.slug
-    const all = await apiAdd(`${completedOnly.url}/all`, [])
-    expect(all.webhook.events.toSorted()).toEqual(['build.completed', 'build.reviewed'])
-    await ctx.setup.session.delete(
-      `/api/projects/${org}/${project.slug}/webhooks/${all.webhook.id}`,
-    )
+    const url = `/api/projects/${org}/${project.slug}/webhooks`
+    for (const body of [
+      { url: 'https://example.com/none' },
+      { url: 'https://example.com/none', events: [] },
+    ]) {
+      // oxlint-disable-next-line no-await-in-loop -- two requests
+      const res = await setup.session.request<{ error: string }>('POST', url, body)
+      expect(res.status).toBe(400)
+      expect(res.body.error).toContain('Choose at least one event')
+    }
+    // The form: unticking every event shows the error beside them and sends nothing.
+    const page = await browser.as(setup.session)
+    await page.goto(settingsUrl())
+    await page.getByRole('textbox', { name: 'Address' }).fill('https://example.com/none')
+    await page.getByRole('checkbox', { name: 'build.completed' }).click()
+    await page.getByRole('checkbox', { name: 'build.reviewed' }).click()
+    await page.getByRole('button', { name: 'Add webhook' }).click()
+    await page.getByRole('alert').filter({ hasText: 'Choose at least one event' }).waitFor()
+    expect(await hooks()).toHaveLength(2)
 
-    const refused = async (body: unknown) =>
-      (await setup.session.request('POST', `/api/projects/${org}/${project.slug}/webhooks`, body))
-        .status
+    const refused = async (body: unknown) => (await setup.session.request('POST', url, body)).status
+    const events = ['build.completed']
     expect(await refused({ url: 'https://example.com/x', events: ['build.exploded'] })).toBe(400)
-    expect(await refused({ url: 'ftp://example.com/x' })).toBe(400)
-    expect(await refused({ url: 'not a url' })).toBe(400)
-    expect(await refused({ url: 'https://user:pw@example.com/x' })).toBe(400)
-    expect(await refused({ url: `https://example.com/${'a'.repeat(2100)}` })).toBe(400)
+    expect(await refused({ url: 'ftp://example.com/x', events })).toBe(400)
+    expect(await refused({ url: 'not a url', events })).toBe(400)
+    expect(await refused({ url: 'https://user:pw@example.com/x', events })).toBe(400)
+    expect(await refused({ url: `https://example.com/${'a'.repeat(2100)}`, events })).toBe(400)
     expect(await hooks()).toHaveLength(2)
   })
 

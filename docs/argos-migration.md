@@ -26,4 +26,4 @@ ARGOS_TOKEN=circi_…          # a CirCI project token
 
 ## Moving the history
 
-Existing Argos builds aren't imported. The first build on your default branch after switching becomes the baseline; auto-approve on the default branch (on by default) makes it one without review.
+Existing Argos builds aren't imported. The first build on your default branch after switching becomes the baseline once someone approves it (a first build is never approved automatically); after that, auto-approve on the default branch (on by default) keeps the baseline moving without review.

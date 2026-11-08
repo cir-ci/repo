@@ -13,6 +13,7 @@ const settings = {
   diffThreshold: 0.001,
   autoApproveDefaultBranch: false,
   blockMergeOnChanges: true,
+  flakyBlocksMerge: null as boolean | null,
   retentionDays: 30,
   staticHostingEnabled: false,
 }
@@ -29,6 +30,7 @@ function response(over: Record<string, unknown> = {}) {
   return {
     canManage: true,
     settings,
+    org: { flakyBlocksMerge: true },
     webhooks: [],
     webhookEvents: ['build.completed', 'build.reviewed'],
     github: { configured: false, webhookUrl: 'https://circi.test/webhooks/github', link: null },
@@ -38,6 +40,7 @@ function response(over: Record<string, unknown> = {}) {
 }
 
 const API = '/api/projects/acme/web'
+const control = () => page.getByRole('combobox', { name: 'Flaky screenshots block merges' })
 
 function api(over: Record<string, unknown> = {}, extra: Record<string, ReplyHandler> = {}) {
   return fakeApi({
@@ -131,6 +134,7 @@ describe('ProjectSettingsPage', () => {
           retentionDays: 90,
           autoApproveDefaultBranch: true,
           blockMergeOnChanges: true,
+          flakyBlocksMerge: null,
           staticHostingEnabled: true,
         },
       },
@@ -138,6 +142,56 @@ describe('ProjectSettingsPage', () => {
     await expect
       .element(page.getByRole('status').filter({ hasText: /^Settings saved$/ }))
       .toBeVisible()
+  })
+
+  describe('flaky screenshots block merges', () => {
+    it('inherits the organization by default, and says what that currently means', async () => {
+      api()
+      await show()
+      await expect.element(control()).toHaveTextContent('Inherit from organization (currently: on)')
+    })
+
+    it('shows the organization’s current value when it is off', async () => {
+      api({ org: { flakyBlocksMerge: false } })
+      await show()
+      await expect
+        .element(control())
+        .toHaveTextContent('Inherit from organization (currently: off)')
+    })
+
+    it('shows an explicit value of its own', async () => {
+      api({ settings: { ...settings, flakyBlocksMerge: false } })
+      await show()
+      await expect.element(control()).toHaveTextContent('Off')
+    })
+
+    it('saves an explicit choice, and null to inherit again', async () => {
+      const fake = api()
+      await show()
+      await control().click()
+      await page.getByRole('option', { name: 'Off' }).click()
+      await page.getByRole('button', { name: 'Save settings' }).click()
+      await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
+      expect(fake.of('PATCH')[0]?.body).toMatchObject({ flakyBlocksMerge: false })
+
+      await control().click()
+      await page.getByRole('option', { name: 'On', exact: true }).click()
+      await page.getByRole('button', { name: 'Save settings' }).click()
+      await expect.poll(() => fake.of('PATCH')).toHaveLength(2)
+      expect(fake.of('PATCH')[1]?.body).toMatchObject({ flakyBlocksMerge: true })
+
+      await control().click()
+      await page.getByRole('option', { name: /^Inherit from organization/ }).click()
+      await page.getByRole('button', { name: 'Save settings' }).click()
+      await expect.poll(() => fake.of('PATCH')).toHaveLength(3)
+      expect(fake.of('PATCH')[2]?.body).toMatchObject({ flakyBlocksMerge: null })
+    })
+
+    it('is read-only for members', async () => {
+      api({ canManage: false })
+      await show()
+      await expect.element(control()).toBeDisabled()
+    })
   })
 
   it('shows the server’s refusal when saving fails', async () => {
@@ -349,15 +403,35 @@ describe('ProjectSettingsPage', () => {
       await expect.element(page.getByText('whsec_abc')).not.toBeInTheDocument()
     })
 
-    it('asks for an address and won’t add without an event', async () => {
+    it('asks for an address', async () => {
       const fake = api()
       await show()
       await page.getByRole('button', { name: 'Add webhook' }).click()
       await expect.element(page.getByText('Enter an address')).toBeVisible()
       expect(fake.of('POST')).toHaveLength(0)
+    })
+
+    it('won’t add without an event: says so next to the events, and sends nothing', async () => {
+      const fake = api()
+      await show()
+      await page.getByRole('textbox', { name: 'Address' }).fill('https://new.test/hook')
       await page.getByRole('checkbox', { name: 'build.completed' }).click()
       await page.getByRole('checkbox', { name: 'build.reviewed' }).click()
-      await expect.element(page.getByRole('button', { name: 'Add webhook' })).toBeDisabled()
+      await page.getByRole('button', { name: 'Add webhook' }).click()
+      await expect.element(page.getByRole('alert')).toHaveTextContent('Choose at least one event')
+      expect(fake.of('POST')).toHaveLength(0)
+      // Picking an event clears the error, and the webhook can be added.
+      fake.set(`POST ${API}/webhooks`, {
+        body: { webhook: hook('h9', 'https://new.test/hook'), secret: 'whsec_abc' },
+      })
+      await page.getByRole('checkbox', { name: 'build.reviewed' }).click()
+      await expect.element(page.getByRole('alert')).not.toBeInTheDocument()
+      await page.getByRole('button', { name: 'Add webhook' }).click()
+      await expect.poll(() => fake.of('POST')).toHaveLength(1)
+      expect(fake.of('POST')[0]?.body).toEqual({
+        url: 'https://new.test/hook',
+        events: ['build.reviewed'],
+      })
     })
 
     it('shows the server’s refusal of an address', async () => {

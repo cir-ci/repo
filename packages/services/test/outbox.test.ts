@@ -41,6 +41,7 @@ describe('webhook events', () => {
     const hook = await createWebhook(t.db, {
       projectId: project.id,
       url: 'https://hooks.acme.io/x',
+      events: ['build.completed', 'build.reviewed'],
     })
     await completeBuild(t.db, build, { conclusion: 'changes_detected', approval: 'none' })
     const [job, ...rest] = await queued()
@@ -86,8 +87,13 @@ describe('webhook events', () => {
     const hook = await createWebhook(t.db, {
       projectId: project.id,
       url: 'https://hooks.acme.io/x',
+      events: ['build.completed'],
     })
-    await createWebhook(t.db, { projectId: other.project.id, url: 'https://hooks.other.io/x' })
+    await createWebhook(t.db, {
+      projectId: other.project.id,
+      url: 'https://hooks.other.io/x',
+      events: ['build.completed'],
+    })
     await t.db
       .update(schema.webhooks)
       .set({ enabled: false })

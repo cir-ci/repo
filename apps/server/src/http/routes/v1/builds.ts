@@ -8,7 +8,7 @@ import {
   markFileVerified,
   planUploads,
 } from '@circi/db'
-import { finalizeBuild } from '@circi/services'
+import { finalizeBuild, gateInputs } from '@circi/services'
 import { contentKey } from '@circi/storage'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
@@ -96,7 +96,7 @@ export const buildRoutes: FastifyPluginAsync<V1Deps> = async (app, deps) => {
     return {
       build: describeBuild(ctx, build, deps.publicOrigin),
       counts: await getBuildCounts(deps.db, build.id),
-      outcome: buildOutcome({ ...build, blockMergeOnChanges: ctx.project.blockMergeOnChanges }),
+      outcome: buildOutcome({ ...build, ...(await gateInputs(deps.db, build)) }),
       gate,
       errorMessage: build.errorMessage,
     }

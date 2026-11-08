@@ -46,3 +46,9 @@
 .wrap {
   overflow-wrap: anywhere;
 }
+
+.eventsField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}

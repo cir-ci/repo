@@ -16,7 +16,7 @@ The CLI reads the commit, branch and pull request from the CI's environment. It 
     CIRCI_API_URL: https://ci.acme.io
 ```
 
-With the GitHub App linked to the repository, `--wait` exits 0 even when changes need review and the **CirCI** check is the merge gate (mark it required). Without it, the job fails until the changes are approved, then re-run it.
+With the GitHub App linked to the repository, `--wait` exits 0 even when changes need review and the **CirCI** check is the merge gate (mark it required). Without it, the job fails until the changes are approved, then re-run it. A project's first build has no baseline, so all its screenshots are new and need review before the gate opens (even on the default branch: auto-approve applies only once there is an approved baseline, so someone approves every screenshot once). Pull requests that change only flaky screenshots (see the project's settings) can pass without review when the organization or project says flaky changes don't block.
 
 ### Sharded runs
 

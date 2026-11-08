@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { promisify } from 'node:util'
 
 import { ApiClient, upload } from '@circi/cli'
+import { reviewBuild } from '@circi/services'
 import { FsStorage } from '@circi/storage'
 import { createTestDb, type TestDb } from '@circi/testing'
 import { type RunningWorker, startWorker } from '@circi/worker'
@@ -41,6 +42,7 @@ let app: FastifyInstance
 let worker: RunningWorker
 let apiUrl: string
 let token: string
+let ownerId: string
 
 async function screenshot(path: string, dot?: { x: number; y: number }) {
   const page = sharp({ create: { width: 400, height: 300, channels: 4, background: '#f8fafc' } })
@@ -81,7 +83,9 @@ beforeAll(async () => {
   await app.listen({ host: '127.0.0.1', port: address.port })
 
   worker = await startWorker({ db: t.db, storage, logger, pollIntervalMs: 20 })
-  ;({ token } = await seedTenant(betterAuth, t.db))
+  const tenant = await seedTenant(betterAuth, t.db)
+  token = tenant.token
+  ownerId = tenant.owner.id
 })
 
 afterAll(async () => {
@@ -117,14 +121,19 @@ describe('circi upload → server → worker → --wait', () => {
       log: (l: string) => lines.push(l),
     }
 
-    // 1. main: first build, everything added, auto-approved → passes.
+    // 1. main: first build, everything added. With no baseline it is never auto-approved, so it
+    // waits for review and the run fails until someone approves it.
     const first = await upload({ ...common, env: {} })
     expect(first.ci).toMatchObject({ provider: 'local', commitSha: mainSha, branch: 'main' })
     expect(first.ancestry).toEqual({ status: 'ok', mergeBaseSha: mainSha, ancestorShas: [] })
     expect(first.uploaded).toBe(2)
-    expect(first.status?.outcome).toMatchObject({ state: 'pass', summary: 'Changes approved' })
+    expect(first.status?.outcome).toMatchObject({
+      state: 'fail',
+      summary: 'Visual changes need review',
+    })
     expect(first.status?.counts).toMatchObject({ added: 2, total: 2 })
-    expect(first.exitCode).toBe(0)
+    expect(first.exitCode).toBe(1)
+    await reviewBuild(t.db, { buildId: first.build.id, userId: ownerId, state: 'approved' })
 
     // 2. A PR branch moves the dot on the login page.
     await git(repo, 'checkout', '-q', '-b', 'feature')

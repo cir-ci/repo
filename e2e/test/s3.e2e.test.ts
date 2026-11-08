@@ -37,7 +37,8 @@ describe('S3 storage on LocalStack', () => {
     await repo.commit('first')
     const up = await uploadOrThrow({ stack, token: project.token, repo, wait: true })
     expect(up.uploaded).toBe(1)
-    expect(up.exitCode).toBe(0)
+    // The project's first build waits for review, so `--wait` exits 1 (no linked repository).
+    expect(up.exitCode).toBe(1)
 
     // The original is in the bucket byte for byte (the CLI used a presigned PUT to LocalStack)...
     const objects = await s3.list()

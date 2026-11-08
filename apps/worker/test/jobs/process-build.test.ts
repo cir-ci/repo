@@ -3,6 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import { buildOutcome } from '@circi/core'
 import {
   addIgnoreRegion,
   createBuild,
@@ -12,8 +13,9 @@ import {
   listBuildScreenshots,
   markFileVerified,
   planUploads,
+  updateProjectSettings,
 } from '@circi/db'
-import { finalizeBuild, reviewBuild } from '@circi/services'
+import { finalizeBuild, gateInputs, reviewBuild } from '@circi/services'
 import { contentKey, FsStorage } from '@circi/storage'
 import { createTestDb, seedProject, type TestDb } from '@circi/testing'
 import sharp from 'sharp'
@@ -98,11 +100,12 @@ async function diffsOf(buildId: string) {
 
 describe('processBuild', () => {
   it('runs a main → PR → main sequence end to end', async () => {
-    const { project } = await seedProject(t.db)
+    const { project, owner } = await seedProject(t.db)
     const home = await png(320, 200)
     const login = await png(320, 200, { x: 20, y: 20 })
 
-    // 1. First build on main: no baseline, everything added, auto-approved.
+    // 1. First build on main: no baseline, everything added. Never auto-approved: someone
+    // approves every screenshot once.
     const b1 = await uploadBuild(
       project.id,
       { commitSha: 'aaaa001', branch: 'main' },
@@ -111,16 +114,17 @@ describe('processBuild', () => {
     expect(await processBuild({ db: t.db, storage }, b1.id)).toEqual({
       status: 'complete',
       conclusion: 'changes_detected',
-      autoApproved: true,
+      autoApproved: false,
     })
     expect(await getBuild(t.db, b1.id)).toMatchObject({
       status: 'complete',
-      reviewStatus: 'approved',
+      reviewStatus: 'pending',
       baseBuildId: null,
       baselineSource: 'none',
     })
     const d1 = await diffsOf(b1.id)
     expect([d1.home?.status, d1.login?.status]).toEqual(['added', 'added'])
+    await reviewBuild(t.db, { buildId: b1.id, userId: owner.id, state: 'approved' })
 
     // 2. PR forked from main@aaaa001: one change, one new screenshot.
     const loginChanged = await png(320, 200, { x: 200, y: 120 })
@@ -163,14 +167,146 @@ describe('processBuild', () => {
     })
   })
 
-  it('reports a removed screenshot and a 1px size change as changes', async () => {
+  it('holds the first build of a project with no baseline for review, and blocks the gate', async () => {
+    // No neutral state: with nothing to compare against, every screenshot is "added", which is a
+    // change a person must look at.
     const { project } = await seedProject(t.db)
+    const home = await png(320, 200)
+    const first = await uploadBuild(
+      project.id,
+      { commitSha: 'fff0001', branch: 'feature', prNumber: 1 },
+      { home },
+    )
+    expect(await processBuild({ db: t.db, storage }, first.id)).toEqual({
+      status: 'complete',
+      conclusion: 'changes_detected',
+      autoApproved: false,
+    })
+    const build = await getBuild(t.db, first.id)
+    expect(build).toMatchObject({ reviewStatus: 'pending', baseBuildId: null })
+    expect((await diffsOf(first.id)).home?.status).toBe('added')
+    expect(buildOutcome({ ...build!, ...(await gateInputs(t.db, build!)) })).toMatchObject({
+      state: 'fail',
+      summary: 'Visual changes need review',
+    })
+  })
+
+  it('holds the first default-branch build for review even with auto-approval on', async () => {
+    const { project } = await seedProject(t.db)
+    expect(project.autoApproveDefaultBranch).toBe(true)
+    const first = await uploadBuild(
+      project.id,
+      { commitSha: 'fff0002', branch: 'main' },
+      { home: await png(320, 200) },
+    )
+    expect(await processBuild({ db: t.db, storage }, first.id)).toEqual({
+      status: 'complete',
+      conclusion: 'changes_detected',
+      autoApproved: false,
+    })
+    const build = await getBuild(t.db, first.id)
+    expect(build).toMatchObject({ reviewStatus: 'pending', baseBuildId: null })
+    expect(await listBuildReviews(t.db, first.id)).toEqual([])
+    expect(buildOutcome({ ...build!, ...(await gateInputs(t.db, build!)) })).toMatchObject({
+      state: 'fail',
+    })
+  })
+
+  it('has no baseline after a pending first build until someone approves it', async () => {
+    const { project, owner } = await seedProject(t.db)
+    const home = await png(320, 200)
+    const first = await uploadBuild(project.id, { commitSha: 'fff0003', branch: 'main' }, { home })
+    await processBuild({ db: t.db, storage }, first.id)
+
+    // Still unapproved: the next build finds no baseline and is held as well.
+    const second = await uploadBuild(
+      project.id,
+      { commitSha: 'fff0004', branch: 'main', ancestorShas: ['fff0003'] },
+      { home },
+    )
+    expect(await processBuild({ db: t.db, storage }, second.id)).toMatchObject({
+      conclusion: 'changes_detected',
+      autoApproved: false,
+    })
+    expect(await getBuild(t.db, second.id)).toMatchObject({
+      baseBuildId: null,
+      reviewStatus: 'pending',
+    })
+
+    await reviewBuild(t.db, { buildId: first.id, userId: owner.id, state: 'approved' })
+    const third = await uploadBuild(
+      project.id,
+      { commitSha: 'fff0005', branch: 'main', ancestorShas: ['fff0003'] },
+      { home },
+    )
+    expect(await processBuild({ db: t.db, storage }, third.id)).toMatchObject({
+      conclusion: 'no_changes',
+    })
+    expect(await getBuild(t.db, third.id)).toMatchObject({ baseBuildId: first.id })
+  })
+
+  it('auto-approves a default-branch build once an approved baseline exists', async () => {
+    const { project, owner } = await seedProject(t.db)
+    const first = await uploadBuild(
+      project.id,
+      { commitSha: 'fff0006', branch: 'main' },
+      { home: await png(320, 200) },
+    )
+    await processBuild({ db: t.db, storage }, first.id)
+    await reviewBuild(t.db, { buildId: first.id, userId: owner.id, state: 'approved' })
+
+    const second = await uploadBuild(
+      project.id,
+      { commitSha: 'fff0007', branch: 'main', ancestorShas: ['fff0006'] },
+      { home: await png(320, 200, { x: 30, y: 30 }) },
+    )
+    expect(await processBuild({ db: t.db, storage }, second.id)).toEqual({
+      status: 'complete',
+      conclusion: 'changes_detected',
+      autoApproved: true,
+    })
+    expect(await getBuild(t.db, second.id)).toMatchObject({
+      baseBuildId: first.id,
+      reviewStatus: 'approved',
+    })
+    expect(await listBuildReviews(t.db, second.id)).toMatchObject([
+      { state: 'approved', source: 'auto' },
+    ])
+  })
+
+  it('holds a default-branch build with a baseline when auto-approval is off', async () => {
+    const { project, owner } = await seedProject(t.db)
+    await updateProjectSettings(t.db, project.id, { autoApproveDefaultBranch: false })
+    const first = await uploadBuild(
+      project.id,
+      { commitSha: 'fff0008', branch: 'main' },
+      { home: await png(320, 200) },
+    )
+    expect(await processBuild({ db: t.db, storage }, first.id)).toMatchObject({
+      autoApproved: false,
+    })
+    await reviewBuild(t.db, { buildId: first.id, userId: owner.id, state: 'approved' })
+    const second = await uploadBuild(
+      project.id,
+      { commitSha: 'fff0009', branch: 'main', ancestorShas: ['fff0008'] },
+      { home: await png(320, 200, { x: 30, y: 30 }) },
+    )
+    expect(await processBuild({ db: t.db, storage }, second.id)).toMatchObject({
+      conclusion: 'changes_detected',
+      autoApproved: false,
+    })
+    expect(await getBuild(t.db, second.id)).toMatchObject({ reviewStatus: 'pending' })
+  })
+
+  it('reports a removed screenshot and a 1px size change as changes', async () => {
+    const { project, owner } = await seedProject(t.db)
     const b1 = await uploadBuild(
       project.id,
       { commitSha: 'cccc001', branch: 'main' },
       { a: await png(100, 400), gone: await png(100, 100) },
     )
     await processBuild({ db: t.db, storage }, b1.id)
+    await reviewBuild(t.db, { buildId: b1.id, userId: owner.id, state: 'approved' })
     const b2 = await uploadBuild(
       project.id,
       { commitSha: 'cccc002', branch: 'main', ancestorShas: ['cccc001'] },
@@ -237,7 +373,7 @@ async function prSetup() {
 
 describe('ignored regions', () => {
   it('leaves a changing clock out of the comparison, but not the rest of the page', async () => {
-    const { project } = await seedProject(t.db)
+    const { project, owner } = await seedProject(t.db)
     const before = await png(320, 200, { x: 20, y: 20 })
     const clockMoved = await png(320, 200, { x: 24, y: 24 }) // the "clock" differs
     const base = await uploadBuild(
@@ -246,6 +382,7 @@ describe('ignored regions', () => {
       { home: before },
     )
     await processBuild({ db: t.db, storage }, base.id)
+    await reviewBuild(t.db, { buildId: base.id, userId: owner.id, state: 'approved' })
 
     // Without a rule, the changed clock is a change.
     const plain = await uploadBuild(

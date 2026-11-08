@@ -34,6 +34,11 @@ export const projects = pgTable(
     diffThreshold: real('diff_threshold').notNull().default(0),
     autoApproveDefaultBranch: boolean('auto_approve_default_branch').notNull().default(true),
     blockMergeOnChanges: boolean('block_merge_on_changes').notNull().default(true),
+    /**
+     * Whether a change to flaky screenshots only still blocks the merge. Null inherits the
+     * organization's setting (`org_settings`).
+     */
+    flakyBlocksMerge: boolean('flaky_blocks_merge'),
     retentionDays: integer('retention_days').notNull().default(30),
     staticHostingEnabled: boolean('static_hosting_enabled').notNull().default(false),
     /** Last assigned per-project build number; bumped atomically when a build is created. */

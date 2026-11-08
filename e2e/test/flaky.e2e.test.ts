@@ -1,7 +1,7 @@
 import type { Build, Flaky } from '@circi/api'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createProject, type CreatedProject } from '../src/admin.ts'
+import { approveBuild, createProject, type CreatedProject } from '../src/admin.ts'
 import { Repo } from '../src/git-repo.ts'
 import { uploadOrThrow } from '../src/upload.ts'
 import { useBrowser, useStack } from '../src/vitest.ts'
@@ -39,7 +39,11 @@ describe('flaky screenshots', () => {
       wobble: { dot: { x: options.still ? 370 : 10 + (mainBuilds % 12) * 30, y: 100 } },
     })
     await repo.commit(`main ${mainBuilds}`)
-    return uploadOrThrow({ stack: ctx.stack, token: project.token, repo, wait: true })
+    const up = await uploadOrThrow({ stack: ctx.stack, token: project.token, repo, wait: true })
+    // The first build has no baseline and is never approved automatically; later main builds are.
+    if (mainBuilds === 1)
+      await approveBuild(ctx.setup.session, org(), project.slug, up.build.number)
+    return up
   }
 
   it('twice changed is not flaky yet; the third change flags it, the steady one never', async () => {
