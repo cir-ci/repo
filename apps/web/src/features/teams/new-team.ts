@@ -156,9 +156,3 @@ export function repoChoices(
     })),
   )
 }
-
-/** The sentence for a step that failed after the team itself was created. */
-export const warningText = (what: 'branch' | 'repository', reason: string): string =>
-  what === 'branch'
-    ? `The team was created, but its default branch could not be set: ${reason}. Set it under the team’s General settings.`
-    : `The team was created, but the repository could not be linked: ${reason}. Link it under Integrations.`

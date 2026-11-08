@@ -105,6 +105,8 @@ export function useSaveWorkspaceSettings(workspace: string) {
     onSuccess: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: ['workspace-settings', workspace] }),
+        // The Storage page shows the default retention beside what is used.
+        queryClient.invalidateQueries({ queryKey: ['workspace-storage', workspace] }),
         queryClient.invalidateQueries({ queryKey: ['settings'] }),
       ]),
   })

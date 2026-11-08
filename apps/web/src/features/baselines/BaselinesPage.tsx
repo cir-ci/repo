@@ -1,11 +1,9 @@
 import type { Baseline } from '@circi/api'
 import {
-  Breadcrumbs,
   Delayed,
   EmptyState,
   ListRow,
   ListSkeleton,
-  PanelHeader,
   Text,
   TextField,
   visuallyHidden,
@@ -18,6 +16,7 @@ import { fileUrl } from '#features/builds/api.ts'
 import { useLoadingAnnouncement } from '#features/teams/loading.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
+import { PageHeading, teamCrumb } from '#lib/PageHeading.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useClientLink } from '#lib/use-client-link.ts'
 import { useListNavigation } from '#lib/use-list-navigation.ts'
@@ -59,9 +58,7 @@ export function BaselinesPage() {
 
   return (
     <>
-      <PanelHeader>
-        <Breadcrumbs items={[{ label: team }, { label: 'Baselines' }]} />
-      </PanelHeader>
+      <PageHeading crumbs={[teamCrumb(workspace, { slug: team, name: team })]} title="Baselines" />
       <div className={listStyles['page']}>
         <div className={listStyles['body']}>
           {error ? (

@@ -1,4 +1,4 @@
-import { Breadcrumbs, Delayed, EmptyState, ListSkeleton, PanelHeader } from '@circi/ui'
+import { Delayed, EmptyState, ListSkeleton } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -7,6 +7,7 @@ import { parseFilters, type BuildFilters } from '#features/teams/builds-filters.
 import { BuildsBrowser } from '#features/teams/BuildsBrowser.tsx'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
+import { PageHeading } from '#lib/PageHeading.tsx'
 
 import { findView, viewsQuery } from './api.ts'
 
@@ -21,9 +22,7 @@ export function ViewPage() {
 
   return (
     <>
-      <PanelHeader>
-        <Breadcrumbs items={[{ label: 'Views' }, { label: view?.name ?? '…' }]} />
-      </PanelHeader>
+      <PageHeading crumbs={[{ label: 'Views' }]} title={view?.name ?? '…'} />
       <div className={styles.content}>
         {error ? (
           <ErrorState error={error} onRetry={() => void refetch()} />

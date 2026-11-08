@@ -27,8 +27,8 @@ const Both = (props: { children: ReactNode; width?: number }) => (
 
 export const Empty = () => (
   <Both width={480}>
-    <EmptyState title="No projects yet" action={<Button variant="primary">New project</Button>}>
-      Create a project to start comparing builds.
+    <EmptyState title="No teams yet" action={<Button variant="primary">New team</Button>}>
+      Create a team to start comparing builds.
     </EmptyState>
   </Both>
 )
@@ -38,7 +38,7 @@ export const Error = () => (
     <EmptyState
       title="This build doesn’t exist"
       tone="rejected"
-      action={<Button>Back to Projects</Button>}
+      action={<Button>Back to Teams</Button>}
     >
       It may have expired, or the link is wrong.
     </EmptyState>

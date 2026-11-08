@@ -97,6 +97,18 @@ describe('Jira', () => {
     expect(issue.url).toBe('https://acme.atlassian.net/browse/WEB-1')
   })
 
+  it('files the issue as the type asked for, a Task otherwise', async () => {
+    const fake = fakeJiraHost({ authorization: 'Bearer t', projects })
+    const tracker = new JiraTracker({
+      siteUrl: 'https://acme.atlassian.net',
+      accessToken: 't',
+      fetch: fake.fetcher,
+    })
+    await tracker.createIssue({ target: 'WEB', title: 'a', description: 'd' })
+    await tracker.createIssue({ target: 'WEB', title: 'b', description: 'd', issueType: 'Bug' })
+    expect(fake.host.issueTypes()).toEqual(['Task', 'Bug'])
+  })
+
   it('writes the description as an Atlassian document with links', () => {
     const doc = toAdf('one\n\ntwo https://x.test/y', 'https://x.test/diff')
     expect(doc.type).toBe('doc')

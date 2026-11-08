@@ -97,6 +97,7 @@ export function fakeJiraHost(options: {
   projects: { key: string; name: string }[]
 }) {
   const issues: FakeIssue[] = []
+  const issueTypes: string[] = []
   const counters = new Map<string, number>()
 
   const fetcher: typeof fetch = async (input, init) => {
@@ -124,6 +125,7 @@ export function fakeJiraHost(options: {
       const n = (counters.get(projectKey) ?? 0) + 1
       counters.set(projectKey, n)
       const key = `${projectKey}-${n}`
+      issueTypes.push(String(record(fields.issuetype).name))
       issues.push({
         key,
         target: projectKey,
@@ -142,5 +144,5 @@ export function fakeJiraHost(options: {
     return json({ errorMessages: ['not found'] }, 404)
   }
 
-  return { fetcher, host: { issues: () => [...issues] } }
+  return { fetcher, host: { issues: () => [...issues], issueTypes: () => [...issueTypes] } }
 }

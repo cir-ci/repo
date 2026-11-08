@@ -83,5 +83,15 @@ export const jira = defineIntegration({
       'Choose the Jira project each CirCI team files issues in. A team without one has no “Create issue”.',
     target: { label: 'Project', kind: 'select' },
     listTargets: (credentials, ctx) => trackerTargets(trackerOf(credentials, ctx)),
+    fields: [
+      {
+        kind: 'text',
+        key: 'issueType',
+        label: 'Issue type',
+        // Left empty, the issue is a Task; the name must exist in the Jira project.
+        placeholder: 'Task',
+        optional: true,
+      },
+    ],
   },
 })

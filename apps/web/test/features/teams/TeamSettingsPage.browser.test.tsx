@@ -63,6 +63,11 @@ const show = () =>
   })
 const heading = (name: string) => page.getByRole('heading', { name })
 
+async function openDelete() {
+  await page.getByRole('button', { name: 'Delete team' }).click()
+  return page.getByRole('dialog', { name: 'Delete Web App?' })
+}
+
 describe('TeamSettingsPage', () => {
   it('shows its breadcrumb while loading and announces a slow load', async () => {
     hangingFetch()
@@ -79,7 +84,7 @@ describe('TeamSettingsPage', () => {
     await show()
     await expect
       .element(page.getByRole('link', { name: 'Web App' }))
-      .toHaveAttribute('href', '/acme/web')
+      .toHaveAttribute('href', '/acme/web/settings')
     expect(document.title).toBe('General · web · CirCI')
   })
 
@@ -335,6 +340,50 @@ describe('TeamSettingsPage', () => {
       await show()
       await expect.element(page.getByRole('img', { name: 'Web App' })).toBeVisible()
       expect(page.getByRole('radio').elements()).toHaveLength(0)
+    })
+  })
+
+  describe('danger zone', () => {
+    it('deletes the team once its address is typed back, then goes to the teams list', async () => {
+      const fake = api({}, { [`DELETE ${API}`]: { status: 204 } })
+      const { router } = await show()
+      const dialog = await openDelete()
+      const confirm = dialog.getByRole('button', { name: 'Delete team' })
+      await expect.element(confirm).toBeDisabled()
+      await dialog.getByRole('textbox', { name: 'Type acme/web to confirm' }).fill('acme/other')
+      await expect.element(confirm).toBeDisabled()
+      await dialog.getByRole('textbox', { name: 'Type acme/web to confirm' }).fill('acme/web')
+      await confirm.click()
+      await expect.poll(() => fake.of('DELETE')).toHaveLength(1)
+      await expect.poll(() => router.state.location.pathname).toBe('/')
+    })
+
+    it('shows the server’s refusal and keeps the dialog', async () => {
+      api(
+        {},
+        {
+          [`DELETE ${API}`]: {
+            status: 403,
+            body: { error: 'Only owners and admins can change this' },
+          },
+        },
+      )
+      await show()
+      const dialog = await openDelete()
+      await dialog.getByRole('textbox', { name: 'Type acme/web to confirm' }).fill('acme/web')
+      await dialog.getByRole('button', { name: 'Delete team' }).click()
+      await expect
+        .element(dialog.getByRole('alert'))
+        .toHaveTextContent('Only owners and admins can change this')
+    })
+
+    it('is disabled for members, with the reason', async () => {
+      api({ canManage: false })
+      await show()
+      await expect.element(page.getByRole('button', { name: 'Delete team' })).toBeDisabled()
+      await expect
+        .element(page.getByText('Only owners and admins can delete a team.'))
+        .toBeVisible()
     })
   })
 

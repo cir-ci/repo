@@ -61,7 +61,7 @@ describe('email-code sign-in', () => {
     const seen = await mailIds(stack.mail, alice.email)
     await withBrowser(browser.browser, {}, async (page) => {
       await page.goto(`${stack.url}/login`)
-      await page.getByRole('button', { name: 'Email me a sign-in code instead' }).click()
+      await page.getByRole('button', { name: 'Email me a code' }).click()
       await page.getByLabel('Email').fill(alice.email)
       await page.getByRole('button', { name: 'Email me a code' }).click()
       await page.getByText(`If ${alice.email} has an account, we sent it a 6-digit code.`).waitFor()
@@ -100,7 +100,7 @@ describe('email-code sign-in', () => {
     const alice = await member('wrongui')
     await withBrowser(browser.browser, {}, async (page) => {
       await page.goto(`${stack.url}/login`)
-      await page.getByRole('button', { name: 'Email me a sign-in code instead' }).click()
+      await page.getByRole('button', { name: 'Email me a code' }).click()
       await page.getByLabel('Email').fill(alice.email)
       await page.getByRole('button', { name: 'Email me a code' }).click()
       await page.getByLabel('6-digit code').fill('000000')
@@ -198,7 +198,7 @@ describe('email-code sign-in', () => {
     // In the page: the stranger sees the same "we sent a code" step as everyone.
     await withBrowser(browser.browser, {}, async (page) => {
       await page.goto(`${stack.url}/login`)
-      await page.getByRole('button', { name: 'Email me a sign-in code instead' }).click()
+      await page.getByRole('button', { name: 'Email me a code' }).click()
       await page.getByLabel('Email').fill(newAccount('ui-stranger').email)
       await page.getByRole('button', { name: 'Email me a code' }).click()
       await page.getByText(/has an account, we sent it a 6-digit code/).waitFor()
@@ -258,11 +258,11 @@ describe('email-code sign-in', () => {
       )
     expect(await slugs(viaPassword)).toContain(team.slug)
 
-    // The owner unticks "Password" on the Members page.
+    // The owner turns off "Password" on the Sign-in page.
     const adminByCode = await signInWithCode(stack.url, stack.mail, setup.account.email)
     const page = await browser.as(adminByCode)
-    await page.goto(`${stack.url}/workspaces/${workspace()}/members`)
-    const box = page.getByRole('checkbox', { name: 'Password' })
+    await page.goto(`${stack.url}/workspaces/${workspace()}/settings/sign-in`)
+    const box = page.getByRole('switch', { name: 'Password' })
     await box.waitFor()
     await box.click()
     await expect
@@ -321,7 +321,7 @@ describe('workspace email domains', () => {
   it('validates, adds, cannot prove a domain without DNS, joins people once verified, and stops when removed', async () => {
     const { stack, setup } = ctx
     const page = await browser.as(setup.session)
-    await page.goto(`${stack.url}/workspaces/${workspace()}/members`)
+    await page.goto(`${stack.url}/workspaces/${workspace()}/settings/sign-in`)
     await page.getByRole('heading', { name: 'Email domains' }).waitFor()
     const field = page.getByLabel('Domain', { exact: true })
 

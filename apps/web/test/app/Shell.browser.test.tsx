@@ -102,12 +102,25 @@ const API: Record<string, unknown> = {
   },
   '/api/capabilities': {
     canCreateWorkspace: false,
+    instanceAdmin: false,
     manageableWorkspaces: [],
     refusingWorkspaces: [],
   },
   '/api/instance/notices': {},
   '/api/setup': { needed: false },
   '/api/auth-methods': { password: true, email: false, sso: [] },
+}
+
+const BASE_CAPS = API['/api/capabilities']
+
+/** Whether the person runs the instance is the server's answer (`/api/capabilities`), not the session's. */
+function asInstanceAdmin() {
+  API['/api/capabilities'] = {
+    canCreateWorkspace: false,
+    instanceAdmin: true,
+    manageableWorkspaces: [],
+    refusingWorkspaces: [],
+  }
 }
 
 const text = (content: string) => () => <p>{content}</p>
@@ -209,6 +222,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  API['/api/capabilities'] = BASE_CAPS
   vi.unstubAllGlobals()
 })
 
@@ -501,11 +515,12 @@ describe('Shell, settings', () => {
 
   it('shows the Instance section to an instance admin, with its four pages', async () => {
     await page.viewport(1280, 800)
-    auth.user = { id: 'u1', name: 'Ada Lovelace', email: 'ada@example.test', role: 'admin' }
+    asInstanceAdmin()
     await renderShell('/instance/accounts')
     const section = page
       .getByRole('navigation', { name: 'Settings' })
       .getByRole('region', { name: /Instance/ })
+    await expect.element(section).toBeVisible()
     const names = section
       .getByRole('link')
       .elements()
@@ -592,7 +607,7 @@ describe('Shell, menus', () => {
 
   it('offers Instance admin in the account menu only to instance admins', async () => {
     await page.viewport(1280, 800)
-    auth.user = { id: 'u1', name: 'Ada Lovelace', email: 'ada@example.test', role: 'admin' }
+    asInstanceAdmin()
     const { router } = await renderShell('/')
     await page.getByRole('button', { name: 'Account menu for Ada Lovelace' }).click()
     await page.getByRole('menuitem', { name: 'Instance admin' }).click()
@@ -615,6 +630,7 @@ describe('Shell, menus', () => {
     await page.viewport(1280, 800)
     API['/api/capabilities'] = {
       canCreateWorkspace: true,
+      instanceAdmin: false,
       manageableWorkspaces: [],
       refusingWorkspaces: [],
     }
@@ -626,6 +642,7 @@ describe('Shell, menus', () => {
     } finally {
       API['/api/capabilities'] = {
         canCreateWorkspace: false,
+        instanceAdmin: false,
         manageableWorkspaces: [],
         refusingWorkspaces: [],
       }
@@ -638,6 +655,7 @@ describe('Shell, sidebar teams', () => {
     await page.viewport(1280, 800)
     API['/api/capabilities'] = {
       canCreateWorkspace: false,
+      instanceAdmin: false,
       manageableWorkspaces: [{ slug: 'acme', name: 'Acme' }],
       refusingWorkspaces: [],
     }
@@ -656,6 +674,7 @@ describe('Shell, sidebar teams', () => {
     } finally {
       API['/api/capabilities'] = {
         canCreateWorkspace: false,
+        instanceAdmin: false,
         manageableWorkspaces: [],
         refusingWorkspaces: [],
       }
@@ -667,6 +686,7 @@ describe('Shell, sidebar teams', () => {
     await page.viewport(1280, 800)
     API['/api/capabilities'] = {
       canCreateWorkspace: false,
+      instanceAdmin: false,
       manageableWorkspaces: [{ slug: 'acme', name: 'Acme' }],
       refusingWorkspaces: [],
     }
@@ -678,6 +698,7 @@ describe('Shell, sidebar teams', () => {
     } finally {
       API['/api/capabilities'] = {
         canCreateWorkspace: false,
+        instanceAdmin: false,
         manageableWorkspaces: [],
         refusingWorkspaces: [],
       }

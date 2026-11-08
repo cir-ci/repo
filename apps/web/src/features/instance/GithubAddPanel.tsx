@@ -51,7 +51,7 @@ export function GithubAddPanel({ entry, workspace, onDone }: GithubAddPanel.Prop
           <Text tone="secondary">
             This instance has no GitHub App yet. Creating it takes one click.
           </Text>
-          <Link to="/instance">Set up the GitHub App</Link>
+          <Link to="/instance/settings">Set up the GitHub App</Link>
         </>
       ) : (
         <Banner>An administrator of this instance must set up the GitHub App first.</Banner>

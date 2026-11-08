@@ -78,10 +78,9 @@ export function Shell() {
   )
 }
 
-/** The parts of the session the shell uses; `role` is the admin plugin's (not in the client's type). */
+/** The parts of the session the shell uses. */
 function sessionUser(user: { id: string; name: string; email: string }): SessionUser {
-  const role = 'role' in user && typeof user.role === 'string' ? user.role : undefined
-  return { id: user.id, name: user.name, email: user.email, ...(role ? { role } : {}) }
+  return { id: user.id, name: user.name, email: user.email }
 }
 
 function Notices({ email }: { email: string }) {
@@ -114,7 +113,7 @@ function SignedInFrame({ user }: { user: SessionUser }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const section = currentSection(pathname)
   // Settings replace the sidebar with their own navigation (Back to app, Account, Workspace, Team, Instance).
-  const nav = isSettingsSection(section) ? <SettingsNav user={user} /> : <Sidebar user={user} />
+  const nav = isSettingsSection(section) ? <SettingsNav /> : <Sidebar user={user} />
   const navLabel = isSettingsSection(section) ? 'Settings' : 'Main'
   // The drawer belongs to the page it was opened on: choosing another page closes it.
   const [openedAt, setOpenedAt] = useState<string | undefined>(undefined)

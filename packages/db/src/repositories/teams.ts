@@ -292,3 +292,14 @@ export async function updateTeamSettings(
   if (!row) throw new NotFoundError('Team not found')
   return teamSettings(row)
 }
+
+/**
+ * Deletes a team; its builds, snapshots, sites, rules, links and webhooks go with it through the
+ * schema's cascades. Files are content-addressed and shared, so they stay: retention marks and
+ * collects the ones nothing points at any more. Returns the team's CI key id (to revoke it).
+ */
+export async function deleteTeam(db: Database, teamId: string): Promise<string | null> {
+  const [row] = await db.delete(teams).where(eq(teams.id, teamId)).returning({ key: teams.ciKeyId })
+  if (!row) throw new NotFoundError('Team not found')
+  return row.key
+}

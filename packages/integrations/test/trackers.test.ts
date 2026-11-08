@@ -140,6 +140,12 @@ describe('jira', () => {
     )
   })
 
+  it('lets a team choose the issue type, optional (a Task when empty)', () => {
+    expect(jira.mapping?.fields).toEqual([
+      { kind: 'text', key: 'issueType', label: 'Issue type', placeholder: 'Task', optional: true },
+    ])
+  })
+
   it('lists the Jira projects as targets', async () => {
     const credentials = JSON.stringify({
       kind: 'jira',

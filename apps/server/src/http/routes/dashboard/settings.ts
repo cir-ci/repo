@@ -1,5 +1,5 @@
 import type { Team } from '@circi/api'
-import { rotateTeamToken } from '@circi/auth'
+import { deleteTeamWithToken, rotateTeamToken } from '@circi/auth'
 import { INSTALLATION_ID_RE, ValidationError, webhookUrlProblem } from '@circi/core'
 import {
   createWebhook,
@@ -167,6 +167,14 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
     if (!team) return reply
     const patch = parse(settingsBody, req.body)
     return { settings: await updateTeamSettings(deps.db, team.id, patch) }
+  })
+
+  /** Deletes the team and everything that belongs to it (owners and admins). */
+  app.delete('/teams/:workspace/:team', async (req, reply) => {
+    const team = await loadForManager(req, reply)
+    if (!team) return reply
+    await deleteTeamWithToken(deps.db, team.id)
+    return reply.code(204).send()
   })
 
   /** The tile colour and icon (owners and admins). */

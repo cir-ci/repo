@@ -1,13 +1,4 @@
-import {
-  Breadcrumbs,
-  Delayed,
-  EmptyState,
-  ListSkeleton,
-  PanelHeader,
-  SegmentedControl,
-  Select,
-  Text,
-} from '@circi/ui'
+import { Delayed, EmptyState, ListSkeleton, SegmentedControl, Select, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 
@@ -15,6 +6,7 @@ import { useSidebarModel } from '#features/sidebar/api.ts'
 import { useLoadingAnnouncement } from '#features/teams/loading.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
+import { PageHeading, workspaceCrumb } from '#lib/PageHeading.tsx'
 
 import {
   formatBytes,
@@ -56,7 +48,9 @@ export function InsightsPage() {
 
   return (
     <>
-      <PanelHeader
+      <PageHeading
+        crumbs={[workspaceCrumb({ slug: workspace, name: workspace })]}
+        title="Insights"
         actions={
           <div className={styles.filters}>
             <Select
@@ -74,9 +68,7 @@ export function InsightsPage() {
             />
           </div>
         }
-      >
-        <Breadcrumbs items={[{ label: workspace }, { label: 'Insights' }]} />
-      </PanelHeader>
+      />
       <div className={styles.body}>
         {error ? (
           <ErrorState error={error} onRetry={() => void refetch()} notFound="Workspace not found" />

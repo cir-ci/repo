@@ -30,6 +30,8 @@ interface Created {
   title: string
   /** Everything the tracker was sent, as text (the Jira description is a document). */
   text: string
+  /** Jira only: the issue type named in the request. */
+  issueType?: string
 }
 
 /**
@@ -102,6 +104,7 @@ const fakeFetch: typeof fetch = async (input, init) => {
     target: String(Object(fields.project).key),
     title: String(fields.summary),
     text: JSON.stringify(fields.description),
+    issueType: String(Object(fields.issuetype).name),
   })
   return Response.json({ key: `WEB-${fake.created.length}` })
 }
@@ -338,6 +341,8 @@ describe('issues from a build', () => {
       target: 'WEB',
       title: `Visual regression: home in build #${build.number}`,
     })
+    // No issue type chosen: Jira gets a Task.
+    expect(sent?.issueType).toBe('Task')
     expect(sent?.text).toContain(`${ORIGIN}/api/files/${sha('e')}`)
     expect(sent?.text).toContain(
       `${ORIGIN}/${acme.workspaceSlug}/web/builds/${build.number}?shot=home`,
@@ -356,6 +361,26 @@ describe('issues from a build', () => {
         by: { name: 'Lou' },
       },
     )
+  })
+
+  it('files the issue as the type chosen on the team’s mapping', async () => {
+    const build = await setup()
+    const [jira] = await stored('jira')
+    const mapped = await call('PUT', `${base}/${jira?.id}/teams/web`, ownerCookie, {
+      ref: 'WEB',
+      name: 'Website (WEB)',
+      extra: { issueType: 'Bug' },
+    })
+    expect(mapped.statusCode).toBe(204)
+    const res = await call('POST', `${buildUrl(build.number)}/issues`, ownerCookie, {
+      integrationId: jira?.id,
+    })
+    expect(res.statusCode).toBe(201)
+    expect(fake.created.at(-1)?.issueType).toBe('Bug')
+    await call('PUT', `${base}/${jira?.id}/teams/web`, ownerCookie, {
+      ref: 'WEB',
+      name: 'Website (WEB)',
+    })
   })
 
   it('answers 502 and stores nothing when the tracker fails', async () => {

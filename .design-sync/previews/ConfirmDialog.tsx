@@ -6,7 +6,7 @@ export const Typed = () => (
     open
     onOpenChange={() => {}}
     title="Delete web-app?"
-    description="All builds, baselines and sites of this project are deleted. This can’t be undone."
+    description="All builds, baselines and sites of this team are deleted. This can’t be undone."
     confirmText="web-app"
     onConfirm={() => {}}
   />

@@ -18,6 +18,7 @@ const overview = (workspace: string, team: string, latestBuild: unknown = null) 
 
 const caps = (over: Record<string, unknown> = {}) => ({
   canCreateWorkspace: false,
+  instanceAdmin: false,
   manageableWorkspaces: [],
   refusingWorkspaces: [],
   ...over,

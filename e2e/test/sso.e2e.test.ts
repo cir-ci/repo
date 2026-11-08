@@ -47,7 +47,8 @@ describe('a workspace’s own single sign-on', () => {
   })
   const ctx = useStack({ profile: 'default' })
   const browser = useBrowser()
-  const membersUrl = (workspace: string) => `${ctx.stack.url}/workspaces/${workspace}/members`
+  const signInUrl = (workspace: string) =>
+    `${ctx.stack.url}/workspaces/${workspace}/settings/sign-in`
   /** A workspace's own provider row (its id is `<slug>-sso`): the instance has many. */
   const providers = async (workspace: string) =>
     (
@@ -79,7 +80,7 @@ describe('a workspace’s own single sign-on', () => {
   it('shows the provider form without autofill, and refuses bad input with messages', async () => {
     const { session, workspace } = await freshWorkspace()
     const page = await browser.as(session)
-    await page.goto(membersUrl(workspace))
+    await page.goto(signInUrl(workspace))
     await page.getByRole('heading', { name: 'Single sign-on' }).waitFor()
     // Chromium's password manager only autofills what is not marked otherwise: these are the
     // attributes that fixed the earlier bug (the user's own login landing in these fields).
@@ -113,7 +114,7 @@ describe('a workspace’s own single sign-on', () => {
     const { stack } = ctx
     const { session, workspace } = await freshWorkspace()
     const page = await browser.as(session)
-    await page.goto(membersUrl(workspace))
+    await page.goto(signInUrl(workspace))
     await page.getByRole('heading', { name: 'Single sign-on' }).waitFor()
     await fillProvider(page, idp.issuer, CLIENT_ID, 'wrong-secret')
     await page.getByText('Connected', { exact: true }).waitFor()
@@ -146,7 +147,7 @@ describe('a workspace’s own single sign-on', () => {
     const shown = await createTeam(setup.session, workspace, 'Visible')
 
     const page = await browser.as(setup.session)
-    await page.goto(membersUrl(workspace))
+    await page.goto(signInUrl(workspace))
     await page.getByRole('heading', { name: 'Single sign-on' }).waitFor()
     await fillProvider(page, idp.issuer, CLIENT_ID, SECRET)
     await page.getByText('Connected', { exact: true }).waitFor()
@@ -237,7 +238,7 @@ describe('a workspace’s own single sign-on', () => {
     const workspace = setup.workspace
     await connect(setup.session, workspace)
     const page = await browser.as(setup.session)
-    await page.goto(membersUrl(workspace))
+    await page.goto(signInUrl(workspace))
     await disconnect(page, idp.issuer)
     expect(await providers(workspace)).toBe('0')
     idp.identity = { sub: 'emp-ann', email: 'whoever@acme-corp.e2e.test', name: 'Ann Employee' }

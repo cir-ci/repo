@@ -1,6 +1,8 @@
 # Next steps: from the design canvas to shipped features
 
-Status: 2026-11-08. Nothing here is built. This plan turns the CirCI Design System canvas
+Status: 2026-11-09. **Phases A to D are done** (each merged only after `pnpm format && lint &&
+typecheck && test && build` was green; `pnpm test:e2e` too for the last wave). The sections below
+are the plan as written; what remains is in section 11. This plan turns the CirCI Design System canvas
 (https://claude.ai/artifact/WiAjMhRumRaiSMaYTeNc39, 58 boards on Foundations, Components and
 Screens) and the Linear-style feature plan (`docs/linear-features-plan.md`) into work, in four
 phases: **A** `@circi/ui` and `theme.ts`, **B** backend and data model, **C** web screens,
@@ -205,13 +207,13 @@ the matching B items. D needs A, C0 and its listed B items.
 | R3 | **Parallel migrations collide** on Drizzle's journal | Lead-only migration generation per wave (section 3) |
 | R4 | **Gravatar leaks email hashes** to a third party from a self-hosted instance, and needs `img-src` in the CSP | Instance setting (default on, off for air-gapped installs); computed on the server; the sign-in account picture always wins |
 | R5 | **Dark rejected is borderline for deuteranopia** (ΔE 8.0 from clay) | Shape carries it (filled cross); the A0 separation test pins it so it can't get worse |
-| R6 | **Team tiles reuse state colours**, against "state colour only for state" | Add a small categorical team palette (4–6 tokens, not state hues) in A0, and update the canvas later |
+| R6 | **Team tiles reuse state colours**, against "state colour only for state" | **Resolved (2026-11-09):** the canvas has a team palette (slate, olive, plum, moss, mauve, graphite) with `tile-text`; `theme.ts` carries it and `TeamTile` uses it, so no team looks like a state |
 | R7 | **Subscriptions** (feature 11) overlap with notifications and Slack | Cut; Slack channels and notifications cover it |
 | R8 | **Interactive boards were never click-tested** in every state; Overlays popup clipping untested | Treat board behaviour as intent; the browser tests in Phase C are the real check |
 | R9 | **Visual baselines churn** with every palette and radius change | Regenerate once per phase (A5, end of each C wave), reviewed by you |
 | R10 | **External services only faked** (GitLab, Bitbucket, Slack, Linear, Jira, Figma, SMTP) | Say so in each integration's docs; one manual test against each real service before release |
 
-- **R11 (found in A0, your call):** the canvas's light review amber `#b38d05` is 3.0:1 on the panel
+- **R11 (found in A0; resolved 2026-11-09 by the canvas and `theme.ts`, which now match):** the canvas's light review amber `#b38d05` is 3.0:1 on the panel
   and 3.1:1 on raised, but 2.7:1 on chrome and 2.5:1 on highest, below the 3:1 the palette test
   asks of glyphs. `theme.ts` matches the canvas, and the test checks review only where it is
   drawn (panel, raised). If a review glyph ever appears on the sidebar or a highest surface,
@@ -223,4 +225,41 @@ the matching B items. D needs A, C0 and its listed B items.
 - Done 2026-11-08: `docs/linear-features-plan.md` has the current keyboard map, "review target"
   instead of SLA, the resolved questions, and the Reviews page marked as new.
 - To do: update the Foundations note on the canvas that says crimson and amber "still need to land in
-  theme.ts" once A0 is merged.
+  theme.ts" (A0 is merged).
+
+## 11. What remains (2026-11-09)
+
+**Review amber (R11) and team colours (R6) are resolved** by the canvas and `theme.ts`.
+
+Gaps still open from the reports:
+
+- No per-snapshot approval route (Triage's "Accept as baseline" and the Command menu's approve
+  approve the whole build); no snapshot-history endpoint (the filmstrip fetches up to five build
+  details); no bulk request-review route; no workspace-wide builds list (a saved view with no team
+  is empty); no author or reviewer suggestions; no server-side sort or group on the builds list.
+- Rules cannot be reordered; the Sites page has no sidebar entry (linked from the team).
+- Triage's snooze list and `countOpenTriage` (one query per team) are not optimised.
+- Keyboard: no way to draw a comment region without a mouse; J/K cannot enter a collapsed group;
+  the account menu's theme radio group changes on Enter or Space, not on an arrow key (accepted).
+- Deleting a workspace stays disabled in the dashboard (ask whoever runs the server): only teams
+  can be deleted (owners and admins, typed confirmation). A deleted team's screenshot files are
+  collected by retention after the grace period; there is no immediate purge.
+- Jira's issue type is a text field on the team's mapping (default Task); it is not checked against
+  the project's types until an issue is filed.
+- The team Create route takes `defaultBranch` and `repository` for git integrations that need no
+  provider call to map (GitHub, GitLab, Bitbucket); a definition that resolves its target with the
+  provider (Figma) is refused there.
+- `ui-visual` baselines live on the CirCI server: `pnpm test:visual` passes locally, and uploading
+  to approve the new look is yours.
+- Flaky under full-suite load (they pass alone and on retry): `ProfilePage.browser.test.tsx`
+  (sign-out buttons re-render while the session refetches).
+
+Only fake-tested: GitHub, GitLab, Bitbucket, Slack, Linear, Jira and Figma (HTTP edges faked in
+tests and in `e2e/`), SMTP (Mailpit in e2e, a fake elsewhere), and OIDC sign-in (a host fake). One
+manual run against each real service is needed before release (R10).
+
+**Handbook follow-up.** `PLAN.md` still says project and organisation, and it is not edited here.
+The Handbook mirror needs: the vocabulary mapping (project to team, organisation to workspace,
+in the UI, routes, API, identifiers and tables); the single initial migration (the earlier history
+was squashed when the tables were renamed); and the split between better-auth's tables (generated
+by `pnpm db:auth-schema`, written only through its API) and CirCI's own.

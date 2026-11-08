@@ -1,4 +1,4 @@
-import type { Activity, Build, Comment } from '@circi/api'
+import type { Activity, Build, Comment, Issue } from '@circi/api'
 import { vi } from 'vitest'
 
 import { BuildPage } from '#features/builds/BuildPage.tsx'
@@ -105,6 +105,8 @@ export interface FakeApi {
   comments: Comment.Item[]
   /** `GET …/activity`. */
   activity: Activity.Event[]
+  /** `GET …/issues`: the issues filed from this build and the trackers its team has. */
+  issues: Issue.List
   /** The bodies of the comment POSTs, in order. */
   commentPosts: Comment.Create[]
   /** The bodies of the review-request POSTs, in order. */
@@ -126,6 +128,7 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
     reviews: [],
     comments: [],
     activity: [],
+    issues: { issues: [], trackers: [] },
     commentPosts: [],
     requests: [],
     members: [],
@@ -161,6 +164,7 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
       }
       if (url.pathname === `${root}/comments`) return json({ comments: api.comments })
       if (url.pathname === `${root}/activity`) return json({ events: api.activity })
+      if (url.pathname === `${root}/issues`) return json(api.issues)
       if (url.pathname === `${root}/review-requests` && method === 'POST') {
         api.requests.push(JSON.parse(typeof init?.body === 'string' ? init.body : '{}'))
         return json({ id: 'r1', state: 'open', dueAt: null, created: true }, 201)

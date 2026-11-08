@@ -1,14 +1,12 @@
 import type { Inbox } from '@circi/api'
 import {
   Badge,
-  Breadcrumbs,
   Button,
   Delayed,
   EmptyState,
   InboxIcon,
   ListRow,
   ListSkeleton,
-  PanelHeader,
   Pane,
   Text,
   useAnnounce,
@@ -22,6 +20,7 @@ import { useLoadingAnnouncement } from '#features/teams/loading.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { focusRow, leavesKeyToFocus, nextAfterRemoval } from '#lib/list-keys.ts'
+import { PageHeading } from '#lib/PageHeading.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
@@ -141,7 +140,8 @@ export function InboxPage() {
 
   return (
     <>
-      <PanelHeader
+      <PageHeading
+        title="Inbox"
         actions={
           <Button
             size="sm"
@@ -154,9 +154,7 @@ export function InboxPage() {
             Mark all read
           </Button>
         }
-      >
-        <Breadcrumbs items={[{ label: 'Inbox' }]} />
-      </PanelHeader>
+      />
       <div className={styles.page}>
         <TabList
           label="Inbox"

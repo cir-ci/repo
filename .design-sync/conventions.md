@@ -12,7 +12,7 @@ const { CirciTheme, AppFrame, NavItem, PanelHeader, ListRow, StatusIcon, StatusC
 <CirciTheme>
   <AppFrame
     sidebar={<>
-      <NavItem href="#" selected>Projects</NavItem>
+      <NavItem href="#" selected>Teams</NavItem>
       <NavItem href="#">Members</NavItem>
     </>}
   >
@@ -31,6 +31,8 @@ There are no CSS classes to use: components are styled in JS. Build your own lay
 - Accent: `tokens.accent.main` (the logo-derived clay), `tokens.accent.text` for accent-coloured text, `tokens.accent.onAccent` for text on an accent fill, `tokens.accent.subtle` behind a selected row.
 - State: `tokens.state.approved` (teal), `review` (amber), `processing` (periwinkle), `rejected` (crimson). Pending added, removed and flaky have their own glyphs (ring with plus, minus, tilde; amber). `reviewText` is the amber for words (darker in light). Use them only for state, never decoration.
 - Lines: `tokens.line.subtle` for dividers, `strong` for control edges. Use hairlines, not shadows.
+- Team identity: `TeamTile` (16, 20, 24 or 40px) is a rounded square in one of the team colours (`slate`, `olive`, `plum`, `moss`, `mauve`, `graphite`: `tokens.team.*`) holding the team's first letter or a Lucide icon in `var(--circi-tile-text)`. It tells teams apart and never means a state: do not use `state.*` colours for a team, and pick the colour by the team, not by its health. Write the team's name beside it (the tile is then decorative); `labelled` makes it an image named by the team.
+- Badge text colours: a `Badge` is neutral (`text.primary`), accent (`accent.text`) or state (`tone="state"` with `state` naming one). A state badge has a 14% tint of the state colour behind it and its words use the state's *text* colour (`approved-text`, `review-text`, `rejected-text`; processing uses its glyph colour), which is darker than the glyph in light so it reads as words. Always `count` (pill, numbers) or `tag` (radius 4, words); never colour a badge by hand.
 - Brand: `tokens.brand.maroon`, `blush`, `rosewood`, `salmon`, `terracotta` (the logo's tones).
 - Fonts: Inter at 13px for UI; `window.CirciUI.monoFont` for branch names, commit SHAs and anything copyable.
 
@@ -38,7 +40,7 @@ State is always shown with `StatusIcon` or `StatusChip` (shape plus colour), wit
 
 ## Layout
 
-`AppFrame` puts a dim sidebar beside one lifted content panel; the panel starts with `PanelHeader` (44px: breadcrumb left, actions right). Lists are `ListRow`s (44px, hairline between). Switch views of one thing with `SegmentedControl`; show shortcut hints with `Kbd`. Dense, left-aligned, no cards-in-cards.
+`AppFrame` puts a dim sidebar beside one lifted content panel; the panel starts with `PanelHeader` (44px: breadcrumb left, actions right). The current breadcrumb is the page's `<h1>` (`Breadcrumbs currentIsHeading`); a page with no breadcrumb has a visually hidden `<h1>`. Words: Team and Workspace, never project or organisation. Lists are `ListRow`s (44px, hairline between). Switch views of one thing with `SegmentedControl`; show shortcut hints with `Kbd`. Dense, left-aligned, no cards-in-cards.
 
 ## Where to look
 

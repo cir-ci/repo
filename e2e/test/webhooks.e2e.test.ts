@@ -65,6 +65,14 @@ const gapsOf = (r: WebhookReceiver) =>
     .slice(1)
     .map((d, i) => d.receivedAt.getTime() - (r.deliveries[i]?.receivedAt.getTime() ?? 0))
 
+/** The page's Add webhook button opens the dialog with the form. */
+async function openAddDialog(page: Page) {
+  await page.getByRole('button', { name: 'Add webhook' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Add webhook' })
+  await dialog.waitFor()
+  return dialog
+}
+
 describe('webhooks (private addresses allowed)', () => {
   const ctx = useStack({ profile: 'default', setup: true })
   const browser = useBrowser()
@@ -90,7 +98,8 @@ describe('webhooks (private addresses allowed)', () => {
     await repo.destroy()
   })
 
-  const settingsUrl = () => `${ctx.stack.url}/${ctx.setup.workspace.slug}/${team.slug}/settings`
+  const settingsUrl = () =>
+    `${ctx.stack.url}/${ctx.setup.workspace.slug}/${team.slug}/settings/webhooks`
   const hooks = () => hooksOf(ctx.setup.session, ctx.setup.workspace.slug, team.slug)
   const apiAdd = (url: string, events: string[]) =>
     ctx.setup.session.post<{ webhook: HookView; secret: string }>(
@@ -100,9 +109,10 @@ describe('webhooks (private addresses allowed)', () => {
 
   async function addThroughUi(page: Page, url: string, uncheck: string[] = []): Promise<string> {
     await page.goto(settingsUrl())
-    await page.getByRole('textbox', { name: 'Address' }).fill(url)
-    for (const event of uncheck) await page.getByRole('checkbox', { name: event }).click()
-    await page.getByRole('button', { name: 'Add webhook' }).click()
+    const dialog = await openAddDialog(page)
+    await dialog.getByRole('textbox', { name: 'Address' }).fill(url)
+    for (const event of uncheck) await dialog.getByRole('checkbox', { name: event }).click()
+    await dialog.getByRole('button', { name: 'Add webhook' }).click()
     const banner = page.getByText(/whsec_[\w-]+/)
     await banner.waitFor()
     const secret = /whsec_[\w-]+/.exec((await banner.first().textContent()) ?? '')?.[0]
@@ -122,6 +132,7 @@ describe('webhooks (private addresses allowed)', () => {
     completedOnly.setSecret(secret)
     completedSecret = secret
     await page.getByText('Copy it now: it isn’t shown again.').waitFor()
+    await page.getByRole('button', { name: 'Done' }).click()
 
     const list = page.getByRole('list', { name: 'Webhooks' })
     await list.getByText(`${completedOnly.url}/hooks/completed`).waitFor()
@@ -291,11 +302,12 @@ describe('webhooks (private addresses allowed)', () => {
     // The form: unticking every event shows the error beside them and sends nothing.
     const page = await browser.as(setup.session)
     await page.goto(settingsUrl())
-    await page.getByRole('textbox', { name: 'Address' }).fill('https://example.com/none')
-    await page.getByRole('checkbox', { name: 'build.completed' }).click()
-    await page.getByRole('checkbox', { name: 'build.reviewed' }).click()
-    await page.getByRole('button', { name: 'Add webhook' }).click()
-    await page.getByRole('alert').filter({ hasText: 'Choose at least one event' }).waitFor()
+    const dialog = await openAddDialog(page)
+    await dialog.getByRole('textbox', { name: 'Address' }).fill('https://example.com/none')
+    await dialog.getByRole('checkbox', { name: 'build.completed' }).click()
+    await dialog.getByRole('checkbox', { name: 'build.reviewed' }).click()
+    await dialog.getByRole('button', { name: 'Add webhook' }).click()
+    await dialog.getByRole('alert').filter({ hasText: 'Choose at least one event' }).waitFor()
     expect(await hooks()).toHaveLength(2)
 
     const refused = async (body: unknown) => (await setup.session.request('POST', url, body)).status

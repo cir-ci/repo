@@ -1,6 +1,8 @@
 # Design gaps: what `@circi/ui` still needs designed
 
-Status: 2026-11-08 (the provisional designs below are built; the deviations are noted per section). The design system (`.design-sync/conventions.md`) covers the frame, rows,
+Status: 2026-11-09. The provisional designs below are built, and the canvas
+(https://claude.ai/artifact/WiAjMhRumRaiSMaYTeNc39) has since settled most of them: see
+"Settled by the canvas" below. The design system (`.design-sync/conventions.md`) covers the frame, rows,
 status glyphs, segmented control and key caps. Everything below is used by the dashboard but not
 designed yet.
 
@@ -10,6 +12,24 @@ not shadows, 13px Inter, 28px controls, 44px rows, tokens only). Components get 
 designer signs them off. **Needs a decision** lists what the spec can't settle by itself.
 
 Sizes in px. Colours are token names (`surface.raised` = `var(--circi-surface-raised)`).
+
+## Settled by the canvas (2026-11-09)
+
+The canvas's Foundations, Components and Screens boards answered these; the spec in each section
+below is kept as history and is superseded where it disagrees.
+
+- **Settled:** focus ring (2px `accent.text`, 2px out, never removed; inset on rows), radii (4, 6,
+  8, 10, 12 only), control height 28 and input height 32, nothing interactive under 24px, no type
+  under 11px, row densities (32 / 44 / 56), selected row (`accent.subtle` and a 2px bar),
+  the light scheme (the `MainLight` board; `canvas-palette.json` pins it), flaky as amber with its
+  own tilde glyph, and the status glyph shapes (§8).
+- **Settled, new components:** `Badge` (count or tag; neutral, accent or state), `Switch`
+  (instant-apply settings only), `Pane` (preview pane), `TeamTile` (identity in a team colour with
+  `tile-text` on top, never state), `NavSection`, the settings navigation, the Add integration
+  dialog, `PageHeading`'s rule (the current breadcrumb is the page's `<h1>`).
+- **Settled, copy:** the words are Team and Workspace (never project or organisation).
+- **Still open:** logo and favicon (§15), a human sign-off of components (§16), the 5px row inset on
+  `NavItem`, group headers at 32px, and motion (120ms ease-out is provisional).
 
 ## 1. Buttons
 
@@ -203,7 +223,7 @@ it's always `StatusIcon`.
 ## 13. Interaction states
 
 **Provisional:** hover `action.hover`; selected `action.selected` (nav) or `accent.subtle` + 2px
-`accent.main` inset bar (rows); focus ring 2px `accent.main` outside the element with 2px offset,
+`accent.main` inset bar (rows); focus ring 2px `accent.text` outside the element with 2px offset (inset 5px on rows),
 only on keyboard focus (`:focus-visible`); disabled 45% opacity. Motion: 120ms ease-out for
 popups and hover; none for layout; nothing moves when `prefers-reduced-motion`.
 
@@ -211,9 +231,9 @@ popups and hover; none for layout; nothing moves when `prefers-reduced-motion`.
 
 Built (refactor-plan §4.0). Since 2026-11-08 the light palette is the canvas's (`MainLight` board;
 `packages/ui/test/canvas-palette.json` fails a test if `theme.ts` drifts from it); the earlier
-"derived, not designed" values are gone. **Settled by the canvas:** chrome-vs-panel separation.
-**Still open** at chrome-vs-panel separation (`#f3efed` vs
-`#fcfbfa`) and the accent clay, which reads browner than the dark scheme's.
+"derived, not designed" values are gone. **Settled by the canvas:** chrome-vs-panel separation
+(`#f3efed` vs `#fcfbfa`) and the accent clay. **Still open:** the light review amber is 2.7:1 on
+chrome (next-steps-plan R11).
 
 ## 15. Logo and favicon
 

@@ -5,13 +5,13 @@ export const Sidebar = () => (
     <NavItem href="#search" trailing={<Kbd>⌘K</Kbd>}>
       Search
     </NavItem>
-    <NavItem href="#projects" selected>
-      Projects
+    <NavItem href="#teams" selected>
+      Teams
     </NavItem>
     <NavItem href="#members">Members</NavItem>
     <NavItem href="#settings">Settings</NavItem>
     <div style={{ padding: '14px 8px 4px', fontSize: 11, fontWeight: 500, opacity: 0.6 }}>
-      Projects
+      Teams
     </div>
     <NavItem href="#web-app" trailing={<StatusIcon status="needs-review" size={10} />}>
       web-app

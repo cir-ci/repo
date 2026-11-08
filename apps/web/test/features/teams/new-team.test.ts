@@ -7,7 +7,6 @@ import {
   repoChoices,
   repoHelp,
   slugify,
-  warningText,
 } from '#features/teams/new-team.ts'
 
 const ctx = { token: 'circi_secret123', team: 'acme/web-app', apiUrl: 'https://ci.acme.io' }
@@ -65,10 +64,6 @@ describe('notes', () => {
     expect(gateNote(false)).toContain('CI job is the merge gate')
     expect(repoHelp(true)).toContain('posts a check')
     expect(repoHelp(false)).toContain('CLI exit code')
-  })
-  it('explains a step that failed after the team was made', () => {
-    expect(warningText('branch', 'nope')).toContain('default branch could not be set: nope')
-    expect(warningText('repository', 'nope')).toContain('repository could not be linked: nope')
   })
 })
 

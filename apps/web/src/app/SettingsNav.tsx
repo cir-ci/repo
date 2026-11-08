@@ -20,13 +20,13 @@ import {
   UsersIcon,
   WebhookIcon,
 } from '@circi/ui'
+import { useQuery } from '@tanstack/react-query'
 import { useRouterState, useParams } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
 import { useSidebarModel } from '#features/sidebar/api.ts'
+import { capabilitiesQuery } from '#features/teams/api.ts'
 import { isTeamIconName } from '#features/teams/appearance.ts'
-import type { SessionUser } from '#lib/auth-client.ts'
-import { isInstanceAdmin } from '#lib/instance-admin.ts'
 
 import { NavLink } from './NavLink.tsx'
 import {
@@ -66,7 +66,8 @@ const TEAM_PATH = {
  * for the people who run the instance, Instance. The workspace is the one in the address, else the
  * last chosen; the team is the one in the address, else the last one used here, else the first.
  */
-export function SettingsNav({ user }: SettingsNav.Props) {
+export function SettingsNav() {
+  const { data: caps } = useQuery(capabilitiesQuery())
   const params = useParams({ strict: false })
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { workspace } = useWorkspaces(readRememberedWorkspace())
@@ -181,7 +182,7 @@ export function SettingsNav({ user }: SettingsNav.Props) {
           ))}
         </NavSection>
       ) : null}
-      {isInstanceAdmin(user) ? (
+      {caps?.instanceAdmin ? (
         <NavSection
           label={
             <>
@@ -206,10 +207,4 @@ export function SettingsNav({ user }: SettingsNav.Props) {
       ) : null}
     </>
   )
-}
-
-export namespace SettingsNav {
-  export interface Props {
-    user: SessionUser
-  }
 }

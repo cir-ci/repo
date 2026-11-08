@@ -1,4 +1,4 @@
-import { Banner, Button, Heading, Text } from '@circi/ui'
+import { Banner, Button, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 
@@ -19,14 +19,11 @@ export function GithubSetupPage() {
 
   return (
     <Frame
-      crumbs={['Integrations', 'GitHub']}
+      crumbs={['Integrations', 'Connect GitHub']}
       loading={!data && !error}
       error={error}
       onRetry={() => void refetch()}
     >
-      <Heading level="title" as="h1">
-        Connect GitHub
-      </Heading>
       {installation === '' ? (
         <Banner tone="danger">GitHub did not say which installation to connect.</Banner>
       ) : (data?.manageableWorkspaces.length ?? 0) === 0 ? (

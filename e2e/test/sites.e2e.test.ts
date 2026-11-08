@@ -154,7 +154,7 @@ describe('static sites (local-disk storage)', () => {
 
     const page = await browser.as(setup.session)
     await page.goto(`${stack.url}/${workspace}/${team.slug}/sites`)
-    await page.getByRole('heading', { name: 'docs-hub sites' }).waitFor()
+    await page.getByRole('heading', { level: 1, name: 'Sites' }).waitFor()
     await page.getByText('Storybook', { exact: true }).waitFor()
     expect(await page.getByRole('link', { name: 'main', exact: true }).getAttribute('href')).toBe(
       branchAddress,

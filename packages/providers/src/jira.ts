@@ -123,7 +123,7 @@ export class JiraTracker implements IssueTracker {
         fields: {
           project: { key: input.target },
           summary: input.title,
-          issuetype: { name: this.#options.issueType ?? 'Task' },
+          issuetype: { name: input.issueType || this.#options.issueType || 'Task' },
           description: toAdf(input.description, input.imageUrl),
         },
       }),

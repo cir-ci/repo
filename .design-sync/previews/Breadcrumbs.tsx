@@ -29,7 +29,7 @@ export const Trail = () => (
   <Both>
     <Breadcrumbs
       items={[
-        { label: 'Projects', href: '#' },
+        { label: 'Teams', href: '#' },
         { label: 'web-app', href: '#' },
         { label: 'Build #148' },
       ]}

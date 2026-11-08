@@ -13,7 +13,7 @@ const Scheme = (props: { scheme: 'light' | 'dark'; children: ReactNode }) => (
 const Demo = () => (
   <Stack gap={3}>
     <Heading level="display">Set up CirCI</Heading>
-    <Heading level="title">Create a project</Heading>
+    <Heading level="title">Create a team</Heading>
     <Heading>Webhooks</Heading>
     <Text variant="small" tone="secondary">
       Display 20, title 15, heading 13.

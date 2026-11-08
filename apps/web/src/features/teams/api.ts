@@ -134,6 +134,23 @@ export function useSaveAppearance(workspace: string, team: string) {
   })
 }
 
+/** Deletes the team; everything fetched about it or the lists it was in is refetched. */
+export function useDeleteTeam(workspace: string, team: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => send<void>('DELETE', `/api/teams/${seg(workspace)}/${seg(team)}`),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ['team', workspace, team] })
+      queryClient.removeQueries({ queryKey: ['settings', workspace, team] })
+      return Promise.all(
+        [['teams'], ['sidebar'], ['capabilities']].map((queryKey) =>
+          queryClient.invalidateQueries({ queryKey }),
+        ),
+      )
+    },
+  })
+}
+
 /** Unlinks the team from its git repository (linking happens in the workspace's integrations). */
 export function useUnlinkRepository(workspace: string, team: string) {
   const queryClient = useQueryClient()

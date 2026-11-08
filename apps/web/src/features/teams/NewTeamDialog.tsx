@@ -191,11 +191,6 @@ function CreatedStep({ created }: { created: CreatedTeam }) {
 
   return (
     <div className={styles.form}>
-      {created.warnings.map((warning) => (
-        <Banner key={warning} tone="warning">
-          {warning}
-        </Banner>
-      ))}
       <Text as="p" variant="small" tone="secondary">
         <strong>{created.name}</strong> is ready. Add this CI token to your CI as a secret named{' '}
         <Text as="code" variant="mono">

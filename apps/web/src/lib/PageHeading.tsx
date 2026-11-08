@@ -19,7 +19,7 @@ const NO_CRUMBS: readonly PageHeading.Crumb[] = []
  * (`workspaceCrumb`, `teamCrumb`). A top-level page (Inbox, Teams) has no ancestors:
  * `<PageHeading title="Inbox" />`. Keep this API stable: other pages depend on it.
  */
-export function PageHeading({ crumbs = NO_CRUMBS, title, actions }: PageHeading.Props) {
+export function PageHeading({ crumbs = NO_CRUMBS, title, actions, after }: PageHeading.Props) {
   const clientLink = useClientLink()
   return (
     <PanelHeader {...(actions ? { actions } : {})}>
@@ -33,6 +33,7 @@ export function PageHeading({ crumbs = NO_CRUMBS, title, actions }: PageHeading.
           { label: title },
         ]}
       />
+      {after}
     </PanelHeader>
   )
 }
@@ -74,6 +75,8 @@ export namespace PageHeading {
     title: string
     /** Buttons for the page's main actions, on the right. */
     actions?: ReactNode
+    /** Something that belongs beside the title (a branch name), right after the breadcrumb. */
+    after?: ReactNode
   }
 }
 

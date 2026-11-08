@@ -46,7 +46,7 @@ describe('TeamSitesPage', () => {
   it('holds a skeleton under the header while loading', async () => {
     fakeFetch({ [API]: pending })
     await open()
-    await expect.element(page.getByRole('heading', { name: 'web sites', level: 1 })).toBeVisible()
+    await expect.element(page.getByRole('heading', { name: 'Sites', level: 1 })).toBeVisible()
     expect(document.querySelector('[data-slot="skeleton"]')).not.toBeNull()
   })
 
@@ -57,7 +57,7 @@ describe('TeamSitesPage', () => {
     await expect.element(trail.getByRole('link', { name: 'Teams' })).toHaveAttribute('href', '/')
     await expect
       .element(trail.getByRole('link', { name: 'web' }))
-      .toHaveAttribute('href', '/acme/web')
+      .toHaveAttribute('href', '/acme/web/settings')
     await expect.element(trail.getByText('Sites')).toHaveAttribute('aria-current', 'page')
   })
 

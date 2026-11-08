@@ -1,10 +1,11 @@
-import { Banner, Button, PanelHeader, Ref, TeamTile, Text, useAnnounce } from '@circi/ui'
+import { Banner, Button, Ref, TeamTile, Text, useAnnounce } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { usePinTeam } from '#features/views/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
+import { PageHeading, workspaceCrumb } from '#lib/PageHeading.tsx'
 import { useClientLink } from '#lib/use-client-link.ts'
 
 import { flakyQuery, teamQuery } from './api.ts'
@@ -12,7 +13,6 @@ import { isTeamColor, isTeamIconName } from './appearance.ts'
 import { type BuildFilters, parseBuildsSearch, toSearch } from './builds-filters.ts'
 import { BuildsBrowser } from './BuildsBrowser.tsx'
 import { GitAttentionBanner } from './GitAttentionBanner.tsx'
-import { TeamBreadcrumbs } from './TeamBreadcrumbs.tsx'
 
 import styles from './TeamPage.module.css'
 
@@ -40,7 +40,12 @@ export function TeamPage() {
 
   return (
     <>
-      <PanelHeader
+      <PageHeading
+        crumbs={[
+          { label: 'Teams', link: { to: '/' } },
+          workspaceCrumb({ slug: workspace, name: data?.team.workspaceName ?? workspace }),
+        ]}
+        title={data?.team.name ?? team}
         actions={
           <>
             {pinned === undefined ? null : (
@@ -70,16 +75,7 @@ export function TeamPage() {
             </Button>
           </>
         }
-      >
-        <TeamBreadcrumbs
-          // The names only arrive with the data; the slugs keep the header from jumping.
-          items={[
-            { label: 'Teams', link: { to: '/' } },
-            { label: data?.team.workspaceName ?? workspace },
-            { label: data?.team.name ?? team },
-          ]}
-        />
-      </PanelHeader>
+      />
       <div className={styles.content}>
         {data ? (
           <div className={styles.identity}>

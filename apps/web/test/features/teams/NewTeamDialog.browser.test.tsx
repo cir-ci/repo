@@ -11,6 +11,7 @@ afterEach(() => restoreFetch())
 
 const caps = {
   canCreateWorkspace: false,
+  instanceAdmin: false,
   manageableWorkspaces: [
     { slug: 'acme', name: 'Acme' },
     { slug: 'globex', name: 'Globex' },
@@ -48,8 +49,6 @@ const routes = () => ({
       token: 'circi_secret_token_value',
     },
   },
-  'PATCH /api/teams/acme/checkout-flows/settings': { body: { settings: {} } },
-  'PUT /api/workspaces/acme/integrations/i1/teams/checkout-flows': { status: 204 },
 })
 
 const show = () =>
@@ -151,7 +150,7 @@ describe('New team dialog', () => {
     expect(router.state.location.pathname).toBe('/acme/checkout-flows')
   })
 
-  it('sets the default branch and links the repository after creating the team', async () => {
+  it('sends the default branch and the repository in the one create call', async () => {
     const { api } = await open()
     await page.getByRole('textbox', { name: 'Name' }).fill('Checkout flows')
     await page.getByRole('textbox', { name: 'Default branch' }).fill('develop')
@@ -160,37 +159,37 @@ describe('New team dialog', () => {
     await page.getByRole('button', { name: 'Create team' }).click()
     const dialog = page.getByRole('dialog', { name: 'Team created' })
     await expect.element(dialog).toBeVisible()
-    expect(api.of('PATCH')).toEqual([
+    expect(api.of('POST')).toEqual([
       {
-        method: 'PATCH',
-        path: '/api/teams/acme/checkout-flows/settings',
-        body: { defaultBranch: 'develop' },
+        method: 'POST',
+        path: '/api/workspaces/acme/teams',
+        body: {
+          name: 'Checkout flows',
+          defaultBranch: 'develop',
+          repository: { integration: 'i1', ref: 'r1', name: 'acme/web' },
+        },
       },
     ])
-    expect(api.of('PUT')[0]).toMatchObject({
-      path: '/api/workspaces/acme/integrations/i1/teams/checkout-flows',
-      body: { ref: 'r1', name: 'acme/web' },
-    })
+    expect(api.of('PATCH')).toHaveLength(0)
+    expect(api.of('PUT')).toHaveLength(0)
     // A linked repository means the pull request's check is the gate.
     await expect
       .element(dialog)
       .toMatchTextContent(/the check on the pull request is the merge gate/)
   })
 
-  it('says so when a step after creation fails, and still shows the token', async () => {
+  it('creates nothing and keeps the form when the server refuses the repository', async () => {
     const { api } = await open()
-    api.set('PATCH /api/teams/acme/checkout-flows/settings', {
+    api.set('POST /api/workspaces/acme/teams', {
       status: 400,
-      body: { error: 'No such branch' },
+      body: { error: 'repository: not a git integration of this workspace' },
     })
     await page.getByRole('textbox', { name: 'Name' }).fill('Checkout flows')
-    await page.getByRole('textbox', { name: 'Default branch' }).fill('develop')
+    await page.getByRole('combobox', { name: /Link a repository/ }).click()
+    await page.getByRole('option', { name: 'acme/web' }).click()
     await page.getByRole('button', { name: 'Create team' }).click()
-    const dialog = page.getByRole('dialog', { name: 'Team created' })
-    await expect
-      .element(dialog)
-      .toMatchTextContent(/default branch could not be set: No such branch/)
-    await expect.element(dialog.getByText('circi_secret_token_value')).toBeVisible()
+    await expect.element(page.getByText(/not a git integration of this workspace/)).toBeVisible()
+    await expect.element(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Checkout flows')
   })
 
   it('creates in the chosen workspace', async () => {

@@ -1,7 +1,6 @@
 import {
   Avatar,
   Banner,
-  Breadcrumbs,
   Button,
   ConfirmDialog,
   Delayed,
@@ -10,7 +9,6 @@ import {
   ListRow,
   ListSkeleton,
   Menu,
-  PanelHeader,
   RowMenuIcon,
   SectionHeader,
   Select,
@@ -24,6 +22,7 @@ import { useEffect, useState } from 'react'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
+import { PageHeading, workspaceCrumb } from '#lib/PageHeading.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import { cancelInvitation, changeMemberRole, workspaceQuery, removeMember } from './api.ts'
@@ -87,11 +86,16 @@ export function MembersPage() {
 
   return (
     <>
-      <PanelHeader>
-        <Breadcrumbs
-          items={[{ label: data?.name ?? workspace }, { label: 'Settings' }, { label: 'Members' }]}
-        />
-      </PanelHeader>
+      <PageHeading
+        crumbs={[
+          workspaceCrumb({ slug: workspace, name: data?.name ?? workspace }),
+          {
+            label: 'Settings',
+            link: { to: '/workspaces/$workspace/settings', params: { workspace } },
+          },
+        ]}
+        title="Members"
+      />
       <div className={styles.page}>
         {error ? (
           <ErrorState

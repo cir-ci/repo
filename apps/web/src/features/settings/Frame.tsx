@@ -1,7 +1,8 @@
-import { Banner, Breadcrumbs, Delayed, ListSkeleton, PanelHeader } from '@circi/ui'
+import { Banner, Delayed, ListSkeleton } from '@circi/ui'
 import type { ReactNode } from 'react'
 
 import { ErrorState } from '#lib/ErrorState.tsx'
+import { PageHeading } from '#lib/PageHeading.tsx'
 
 import styles from './Settings.module.css'
 
@@ -9,9 +10,10 @@ import styles from './Settings.module.css'
 export function Frame(props: Frame.Props) {
   return (
     <>
-      <PanelHeader>
-        <Breadcrumbs items={props.crumbs.map((label) => ({ label }))} />
-      </PanelHeader>
+      <PageHeading
+        crumbs={props.crumbs.slice(0, -1).map((label) => ({ label }))}
+        title={props.crumbs.at(-1) ?? ''}
+      />
       <div className={styles.content}>
         {props.error ? (
           <ErrorState
@@ -36,6 +38,7 @@ export function Frame(props: Frame.Props) {
 
 export namespace Frame {
   export interface Props {
+    /** The path to the page, outermost first; the last is the page's `<h1>`. */
     crumbs: string[]
     loading?: boolean
     error?: Error | null

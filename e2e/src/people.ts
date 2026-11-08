@@ -161,10 +161,12 @@ export async function signInWithCodeThroughUi(
 ): Promise<void> {
   const seen = await mailIds(mail, email)
   await page.goto(`${baseUrl}/login`)
-  await page
-    .getByRole('button', { name: 'Email me a sign-in code instead' })
-    .click()
-    .catch(() => undefined)
+  // With the password form showing, "Email me a code" switches to the code form; where the
+  // instance only offers codes the form is already there (its button then submits).
+  await page.getByLabel('Email').waitFor()
+  if ((await page.getByLabel('Password').count()) > 0) {
+    await page.getByRole('button', { name: 'Email me a code' }).click()
+  }
   await page.getByRole('button', { name: 'Email me a code' }).waitFor()
   await page.getByLabel('Email').fill(email)
   await page.getByRole('button', { name: 'Email me a code' }).click()

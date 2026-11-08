@@ -1,3 +1,4 @@
+import type { Page } from 'playwright'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import type { FakeGithub } from '#fakes/fake-github.ts'
@@ -19,6 +20,14 @@ import { useBrowser, useStack } from '#src/vitest.ts'
  */
 /** The installation the Integrations page connects in this file. */
 const UI_INSTALLATION = String(Date.now())
+
+/** The integration page's "Add a repository by name" form: saves the link for `team`. */
+async function linkByName(page: Page, repository: string, team: string) {
+  await page.getByLabel('Add a repository by name').fill(repository)
+  await page.getByRole('combobox', { name: 'Team', exact: true }).click()
+  await page.getByRole('option', { name: team, exact: true }).click()
+  await page.getByRole('button', { name: 'Link repository' }).click()
+}
 
 describe('GitHub App: linking, webhook intake, check run and comment', () => {
   let gh: FakeGithub
@@ -49,12 +58,8 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     await page.getByRole('button', { name: 'Connect GitHub' }).click()
     // The integration's page shows the webhook address CirCI expects on the GitHub App.
     await page.getByText(`${stack.url}/webhooks/github`).waitFor()
-    await page.getByLabel('Linked in UI repository').fill('acme/ui-linked')
-    await page
-      .getByRole('form', { name: 'Linked in UI' })
-      .getByRole('button', { name: 'Save' })
-      .click()
-    await page.getByRole('button', { name: 'Remove Linked in UI repository' }).waitFor()
+    await linkByName(page, 'acme/ui-linked', 'Linked in UI')
+    await page.getByRole('combobox', { name: 'Team for acme/ui-linked' }).waitFor()
 
     const settings = await setup.session.get<{
       github: { configured: boolean; link: { installationId: string; repoRef: string } | null }
@@ -65,12 +70,20 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     })
     // Survives a reload; and unlinking works.
     await page.reload()
-    await page.getByRole('combobox', { name: 'Linked in UI repository' }).waitFor()
-    await page.getByRole('button', { name: 'Remove Linked in UI repository' }).click()
-    await page
-      .getByRole('form', { name: 'Linked in UI' })
-      .getByRole('button', { name: 'Save' })
-      .waitFor()
+    const picker = page.getByRole('combobox', { name: 'Team for acme/ui-linked' })
+    await picker.waitFor()
+    await picker.click()
+    await page.getByRole('option', { name: 'Not linked' }).click()
+    await expect
+      .poll(
+        async () =>
+          (
+            await setup.session.get<{ github: { link: unknown } }>(
+              `/api/teams/${workspaceSlug}/${team.slug}/settings`,
+            )
+          ).github.link,
+      )
+      .toBeNull()
     const after = await setup.session.get<{ github: { link: unknown } }>(
       `/api/teams/${workspaceSlug}/${team.slug}/settings`,
     )
@@ -269,10 +282,8 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     await page.goto(
       `${stack.url}/workspaces/${workspaceSlug}/settings/integrations/github/${integration?.id}`,
     )
-    await page
-      .getByRole('form', { name: 'Revoked' })
-      .getByRole('button', { name: 'Update' })
-      .click()
+    await linkByName(page, 'acme/revoked', 'Revoked')
+    await expect.poll(attention).toBeNull()
     await page.goto(`${teamUrl}/settings`)
     await page.getByText(/can.t reach GitHub for this team/).waitFor({ state: 'detached' })
     expect(await attention()).toBeNull()

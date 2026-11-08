@@ -17,6 +17,7 @@ export {
   createWorkspace,
   createTeamWithToken,
   createUser,
+  deleteTeamWithToken,
   generatePassword,
   type IssuedToken,
   rotateTeamToken,

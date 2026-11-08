@@ -64,6 +64,10 @@ export async function createIssueFromBuild(
       imageUrl: imageUrl ?? null,
     }),
     ...(imageUrl ? { imageUrl } : {}),
+    // The team's mapping settings: Jira's issue type.
+    ...(typeof mapped.extra.issueType === 'string' && mapped.extra.issueType
+      ? { issueType: mapped.extra.issueType }
+      : {}),
   })
   return createIntegrationLink(db, {
     integrationId: input.integrationId,
@@ -85,6 +89,7 @@ export namespace createIssueFromBuild {
       title: string
       description: string
       imageUrl?: string
+      issueType?: string
     }): Promise<{ key: string; url: string; title: string }>
   }
 

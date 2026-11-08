@@ -2,13 +2,11 @@ import type { Review } from '@circi/api'
 import {
   Avatar,
   Badge,
-  Breadcrumbs,
   Button,
   Delayed,
   EmptyState,
   ListRow,
   ListSkeleton,
-  PanelHeader,
   Pane,
   ReviewIcon,
   Text,
@@ -22,6 +20,7 @@ import { useLoadingAnnouncement } from '#features/teams/loading.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { focusRow, leavesKeyToFocus, nextAfterRemoval } from '#lib/list-keys.ts'
+import { PageHeading } from '#lib/PageHeading.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
@@ -138,9 +137,7 @@ export function ReviewsPage() {
 
   return (
     <>
-      <PanelHeader>
-        <Breadcrumbs items={[{ label: 'Reviews' }]} />
-      </PanelHeader>
+      <PageHeading title="Reviews" />
       <div className={styles.page}>
         <TabList
           label="Reviews"

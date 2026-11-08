@@ -16,7 +16,7 @@ import {
   Text,
   Tooltip,
 } from '@circi/ui'
-import { type CSSProperties, useState } from 'react'
+import { type CSSProperties, type ReactNode, useState } from 'react'
 
 import { MODE_OPTIONS } from '#lib/shortcuts.ts'
 
@@ -59,6 +59,7 @@ export function Viewer({
   baselineNumber,
   designEnabled = false,
   annotations,
+  issues,
   ...props
 }: Viewer.Props) {
   const [opacity, setOpacity] = useState(70)
@@ -209,6 +210,7 @@ export function Viewer({
           </div>
         </div>
       </div>
+      {issues}
 
       <div className={styles.ground}>
         {diff.status === 'failed' ? (
@@ -325,6 +327,8 @@ export namespace Viewer {
     designEnabled?: boolean
     /** Comment regions on this snapshot; absent where nobody can comment. */
     annotations?: Annotations
+    /** The link row for issues filed about this snapshot, right under the toolbar. */
+    issues?: ReactNode
   }
 }
 

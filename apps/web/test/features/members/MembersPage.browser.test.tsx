@@ -99,7 +99,9 @@ describe('MembersPage', () => {
   it('lists members with avatar, name, email and role, and the pending invitations', async () => {
     await page.viewport(1000, 800)
     await show()
-    await expect.element(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible()
+    await expect
+      .element(page.getByRole('heading', { name: 'Members', exact: true, level: 2 }))
+      .toBeVisible()
     await expect.element(page.getByText('2 people')).toBeVisible()
     await expect.element(page.getByText('Ada Lovelace')).toBeVisible()
     await expect.element(page.getByText('ada@example.test')).toBeVisible()

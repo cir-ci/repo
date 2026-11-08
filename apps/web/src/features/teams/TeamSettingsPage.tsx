@@ -1,6 +1,7 @@
 import { useParams } from '@tanstack/react-router'
 
 import { AppearanceSection } from './AppearanceSection.tsx'
+import { DeleteTeamSection } from './DeleteTeamSection.tsx'
 import { GitAttentionBanner } from './GitAttentionBanner.tsx'
 import { SettingsForm } from './SettingsForm.tsx'
 import { TeamSettingsFrame } from './TeamSettingsFrame.tsx'
@@ -30,6 +31,12 @@ export function TeamSettingsPage() {
             link={data.github.link}
             workspaceFlakyBlocksMerge={data.workspace.flakyBlocksMerge}
             sitesConfigured={data.sitesConfigured}
+          />
+          <DeleteTeamSection
+            workspace={workspace}
+            team={team}
+            name={name}
+            canManage={data.canManage}
           />
         </>
       )}

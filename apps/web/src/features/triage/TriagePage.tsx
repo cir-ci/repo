@@ -2,13 +2,11 @@ import type { Comment, Triage } from '@circi/api'
 import {
   Avatar,
   Badge,
-  Breadcrumbs,
   Button,
   Delayed,
   EmptyState,
   ListRow,
   ListSkeleton,
-  PanelHeader,
   Pane,
   StatusIcon,
   Text,
@@ -26,6 +24,7 @@ import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { focusRow, nextAfterRemoval } from '#lib/list-keys.ts'
+import { PageHeading, teamCrumb } from '#lib/PageHeading.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
@@ -164,7 +163,9 @@ export function TriagePage() {
 
   return (
     <>
-      <PanelHeader
+      <PageHeading
+        crumbs={[teamCrumb(workspace, { slug: team, name: team })]}
+        title="Triage"
         actions={
           data && chip && data.rotation.onTriage ? (
             <Badge shape="tag" tone="accent" aria-label={chip}>
@@ -175,9 +176,7 @@ export function TriagePage() {
             </Badge>
           ) : undefined
         }
-      >
-        <Breadcrumbs items={[{ label: team }, { label: 'Triage' }]} />
-      </PanelHeader>
+      />
       <div className={listStyles['page']}>
         <div className={listStyles['body']}>
           {error ? (

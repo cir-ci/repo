@@ -4,7 +4,6 @@ import {
   Collapsible,
   EmptyState,
   CollectionsIcon,
-  PanelHeader,
   Ref,
   Stack,
   StatusIcon,
@@ -17,12 +16,13 @@ import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { ShortcutsDialog } from '#app/ShortcutsDialog.tsx'
+import { PageHeading, teamCrumb } from '#lib/PageHeading.tsx'
 import { RouterLink } from '#lib/router-link.ts'
 import { isAvailable, SHORTCUTS, useShortcutHandlers } from '#lib/shortcuts.ts'
 import { useListNavigation } from '#lib/use-list-navigation.ts'
 
 import { flakyQuery, isActive } from './api.ts'
-import { BuildBreadcrumbs } from './BuildBreadcrumbs.tsx'
+import { buildTitle } from './build-title.ts'
 import { BuildMeta } from './BuildMeta.tsx'
 import { BuildStateLabel } from './BuildStateLabel.tsx'
 import { CountsSummary } from './CountsSummary.tsx'
@@ -30,6 +30,7 @@ import { screenshotLabel, screenshotStatus, shotReview } from './diff-status.ts'
 import { Viewer } from './DiffViewer.tsx'
 import { commentsQuery } from './discussion-api.ts'
 import { IssueAction } from './IssueAction.tsx'
+import { SnapshotIssues } from './LinkedIssues.tsx'
 import { regionThreads } from './regions.ts'
 import { RequestReviewDialog } from './RequestReviewDialog.tsx'
 import {
@@ -149,7 +150,9 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const buildReview = shotReview(build)
   return (
     <div className={page['page']}>
-      <PanelHeader
+      <PageHeading
+        crumbs={[teamCrumb(team.workspaceSlug, { slug: team.slug, name: team.name })]}
+        title={buildTitle(build.number, build.name)}
         actions={
           <>
             <BuildStateLabel build={build} hasBaseline={hasBaseline} />
@@ -159,15 +162,8 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
             ) : null}
           </>
         }
-      >
-        <BuildBreadcrumbs
-          workspace={team.workspaceSlug}
-          team={team.slug}
-          number={build.number}
-          name={build.name}
-        />
-        {build.branch ? <Ref value={build.branch} label="branch name" /> : null}
-      </PanelHeader>
+        after={build.branch ? <Ref value={build.branch} label="branch name" /> : null}
+      />
 
       <div className={page['context']}>
         <Stack direction="row" gap={3} wrap align="center">
@@ -250,6 +246,14 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
               onNext={hasNext ? () => goToShot(next) : undefined}
               onHelp={() => setHelpOpen(true)}
               designEnabled={designEnabled}
+              issues={
+                <SnapshotIssues
+                  workspace={team.workspaceSlug}
+                  team={team.slug}
+                  number={build.number}
+                  snapshotName={selected.name}
+                />
+              }
               annotations={{
                 threads: pinned.flatMap((c, i) =>
                   c.region ? [{ id: c.id, number: i + 1, region: c.region }] : [],

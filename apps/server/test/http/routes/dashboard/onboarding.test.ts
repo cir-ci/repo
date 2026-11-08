@@ -94,6 +94,7 @@ describe('first-run setup', () => {
     const caps = await app.inject({ method: 'GET', url: '/api/capabilities', headers: { cookie } })
     expect(caps.json()).toEqual({
       canCreateWorkspace: true,
+      instanceAdmin: true,
       refusingWorkspaces: [],
       manageableWorkspaces: [{ slug: 'acme-inc', name: 'Acme Inc' }],
     })
@@ -143,6 +144,7 @@ describe('creating workspaces and teams', () => {
     })
     expect(caps.json()).toEqual({
       canCreateWorkspace: false,
+      instanceAdmin: false,
       manageableWorkspaces: [],
       refusingWorkspaces: [],
     })

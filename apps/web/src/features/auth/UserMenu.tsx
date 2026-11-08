@@ -8,11 +8,11 @@ import {
   UserIcon,
   useColorScheme,
 } from '@circi/ui'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 
+import { capabilitiesQuery } from '#features/teams/api.ts'
 import { authClient, type SessionUser } from '#lib/auth-client.ts'
-import { isInstanceAdmin } from '#lib/instance-admin.ts'
 
 import styles from './UserMenu.module.css'
 
@@ -32,6 +32,7 @@ export function UserMenu({ user }: UserMenu.Props) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { mode, setMode } = useColorScheme()
+  const { data: caps } = useQuery(capabilitiesQuery())
 
   async function signOut() {
     await authClient.signOut()
@@ -91,7 +92,7 @@ export function UserMenu({ user }: UserMenu.Props) {
           onSelect: () => void navigate({ to: '/account/shortcuts' }),
         },
         { type: 'separator' },
-        ...(isInstanceAdmin(user)
+        ...(caps?.instanceAdmin
           ? [
               {
                 label: 'Instance admin',

@@ -1,6 +1,8 @@
 export namespace Workspace {
   export interface Capabilities {
     canCreateWorkspace: boolean
+    /** Whether this person runs the instance (its admin pages and menu entries). */
+    instanceAdmin: boolean
     manageableWorkspaces: { slug: string; name: string }[]
     /** Workspaces that won't show their content to the way this session signed in. */
     refusingWorkspaces: { name: string; accepts: ('password' | 'email')[] }[]

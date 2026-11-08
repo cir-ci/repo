@@ -19,6 +19,40 @@ async function hasText(locator: Locator, pattern: RegExp) {
 
 const viewerTitle = () => page.getByRole('heading', { level: 2 })
 
+const filed = (snapshotName: string | null) => ({
+  id: `i-${snapshotName}`,
+  key: snapshotName ? 'WEB-9' : 'WEB-1',
+  url: 'https://x.test/WEB-9',
+  title: 'Visual regression',
+  tracker: 'jira',
+  snapshotName,
+  createdAt: new Date().toISOString(),
+  createdBy: 'Dana',
+})
+
+describe('issues on a snapshot', () => {
+  it('shows a link row under the selected snapshot’s header, and not under another', async () => {
+    const api = fakeBuildApi(detail())
+    api.issues = { issues: [filed('checkout / payment')], trackers: [] }
+    await renderBuild()
+    const row = page.getByRole('list', { name: 'Issues for this snapshot' })
+    const link = row.getByRole('link', { name: 'WEB-9 · Jira' })
+    await expect.element(link).toHaveAttribute('href', 'https://x.test/WEB-9')
+    await expect.element(link).toHaveAttribute('target', '_blank')
+    // No toast: the row is the whole confirmation.
+    expect(
+      page
+        .getByRole('status')
+        .elements()
+        .map((el) => el.textContent),
+    ).not.toContain(expect.stringContaining('WEB-9'))
+    // The viewer follows the keys: the next snapshot has no issue.
+    await userEvent.keyboard('j')
+    await expect.element(viewerTitle()).toHaveTextContent('checkout / address')
+    expect(page.getByRole('list', { name: 'Issues for this snapshot' }).elements()).toHaveLength(0)
+  })
+})
+
 describe('BuildPage states', () => {
   it('shows the breadcrumb at once and nothing else while loading', async () => {
     vi.stubGlobal(

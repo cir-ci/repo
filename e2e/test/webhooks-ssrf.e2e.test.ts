@@ -90,9 +90,11 @@ describe('webhook address guard (private addresses refused)', () => {
   it('shows the reason in the settings page when the address is refused', async () => {
     const { stack, setup } = ctx
     const page = await browser.as(setup.session)
-    await page.goto(`${stack.url}/${setup.workspace.slug}/${team.slug}/settings`)
-    await page.getByRole('textbox', { name: 'Address' }).fill('http://169.254.169.254/latest/')
+    await page.goto(`${stack.url}/${setup.workspace.slug}/${team.slug}/settings/webhooks`)
     await page.getByRole('button', { name: 'Add webhook' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Add webhook' })
+    await dialog.getByRole('textbox', { name: 'Address' }).fill('http://169.254.169.254/latest/')
+    await dialog.getByRole('button', { name: 'Add webhook' }).click()
     await page.getByText('That address is on a private network').waitFor()
     expect(await page.getByText(/whsec_/).count()).toBe(0)
     expect(await count()).toBe(1)

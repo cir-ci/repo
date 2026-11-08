@@ -5,6 +5,7 @@ import {
   ConflictError,
   createTeam,
   type Database,
+  deleteTeam,
   findWorkspaceOwnerId,
   getWorkspaceBySlug,
   getTeamBySlugs,
@@ -193,6 +194,12 @@ export async function rotateTeamToken(
 ): Promise<IssuedToken> {
   const team = await getTeamBySlugs(db, input)
   return issueToken(auth, db, input.workspaceSlug, team, input.rotatedBy)
+}
+
+/** Deletes a team (see `deleteTeam`) and revokes its CI key, so the token stops working at once. */
+export async function deleteTeamWithToken(db: Database, teamId: string): Promise<void> {
+  const keyId = await deleteTeam(db, teamId)
+  if (keyId) await db.delete(schema.apikey).where(eq(schema.apikey.id, keyId))
 }
 
 async function issueToken(

@@ -174,7 +174,7 @@ describe('the Add dialog’s GitHub tile', () => {
     await page.getByRole('button', { name: 'Add GitHub' }).click()
     await expect
       .element(page.getByRole('link', { name: 'Set up the GitHub App' }))
-      .toHaveAttribute('href', '/instance')
+      .toHaveAttribute('href', '/instance/settings')
     await expect
       .element(page.getByRole('button', { name: 'Install on GitHub' }))
       .not.toBeInTheDocument()

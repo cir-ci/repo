@@ -44,6 +44,8 @@ export namespace IssueTracker {
     description: string
     /** Where the diff image can be opened. */
     imageUrl?: string
+    /** The kind of issue to file, for a tracker that has them (Jira: `Task`, `Bug`…); others ignore it. */
+    issueType?: string
   }
 
   export interface Issue {

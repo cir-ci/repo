@@ -1,6 +1,5 @@
 import {
   Banner,
-  Breadcrumbs,
   GlobeIcon,
   Delayed,
   EmptyState,
@@ -8,16 +7,16 @@ import {
   Link,
   ListRow,
   ListSkeleton,
-  PanelHeader,
   SectionHeader,
   Surface,
   Text,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate, useParams } from '@tanstack/react-router'
+import { useParams } from '@tanstack/react-router'
 
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
+import { PageHeading, teamCrumb } from '#lib/PageHeading.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import { formatSize, teamSitesQuery } from './api.ts'
@@ -33,38 +32,20 @@ const UPLOAD_EXAMPLE =
  */
 export function TeamSitesPage() {
   const { workspace, team } = useParams({ from: '/$workspace/$team/sites' })
-  const navigate = useNavigate()
   const { data, error, refetch } = useQuery(teamSitesQuery(workspace, team))
   useDocumentTitle('Sites', team)
 
   return (
     <>
-      <PanelHeader>
-        <Breadcrumbs
-          items={[
-            {
-              label: 'Teams',
-              href: '/',
-              onClick: (e) => {
-                e.preventDefault()
-                void navigate({ to: '/' })
-              },
-            },
-            {
-              label: team,
-              href: `/${workspace}/${team}`,
-              onClick: (e) => {
-                e.preventDefault()
-                void navigate({ to: '/$workspace/$team', params: { workspace, team } })
-              },
-            },
-            { label: 'Sites' },
-          ]}
-        />
-      </PanelHeader>
+      <PageHeading
+        crumbs={[
+          { label: 'Teams', link: { to: '/' } },
+          teamCrumb(workspace, { slug: team, name: team }),
+        ]}
+        title="Sites"
+      />
       <div className={styles.content}>
         <div className={styles.intro}>
-          <Heading level="title" as="h1">{`${team} sites`}</Heading>
           <Text as="p" tone="secondary">
             Storybook, test reports and other sites uploaded from CI. Opening one asks you to sign
             in on its own address.

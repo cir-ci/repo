@@ -1,14 +1,14 @@
 import type { Team } from '@circi/api'
-import { Banner, Delayed, ListSkeleton, PanelHeader } from '@circi/ui'
+import { Banner, Delayed, ListSkeleton } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
+import { PageHeading, teamCrumb, workspaceCrumb } from '#lib/PageHeading.tsx'
 
 import { settingsQuery, teamsQuery } from './api.ts'
 import { useLoadingAnnouncement } from './loading.ts'
-import { TeamBreadcrumbs } from './TeamBreadcrumbs.tsx'
 
 import styles from './TeamSettingsFrame.module.css'
 
@@ -36,17 +36,15 @@ export function TeamSettingsFrame({
 
   return (
     <>
-      <PanelHeader>
-        <TeamBreadcrumbs
-          items={[
-            { label: 'Teams', link: { to: '/' } },
-            { label: workspaceName },
-            { label: teamName, link: { to: '/$workspace/$team', params: { workspace, team } } },
-            { label: 'Settings' },
-            ...(page === 'Settings' ? [] : [{ label: page }]),
-          ]}
-        />
-      </PanelHeader>
+      <PageHeading
+        crumbs={[
+          { label: 'Teams', link: { to: '/' } },
+          workspaceCrumb({ slug: workspace, name: workspaceName }),
+          teamCrumb(workspace, { slug: team, name: teamName }),
+          ...(page === 'Settings' ? [] : [{ label: 'Settings' }]),
+        ]}
+        title={page}
+      />
       <div className={styles.content} data-width={width}>
         {error ? (
           <ErrorState
