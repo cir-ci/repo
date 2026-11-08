@@ -1,0 +1,51 @@
+{
+  "$schema": "../node_modules/oxlint/configuration_schema.json",
+  "extends": ["../.oxlintrc.json"],
+  "rules": {
+    // The harness talks to external systems (HTTP APIs, docker, git) and polls them: JSON comes
+    // back as `unknown` and is narrowed by the call site's expectation, and waiting is a loop.
+    "typescript/no-unsafe-type-assertion": "off",
+    "eslint/no-await-in-loop": "off"
+  },
+  "overrides": [
+    {
+      // No fixed sleeps in the tests: wait for the thing you are waiting for (`expect.poll`, the
+      // fakes' `waitFor`, a barrier event). oxlint has no `no-restricted-syntax`, so the two
+      // sleep shapes are banned separately: the `setTimeout` global (a `new Promise(r =>
+      // setTimeout(r, ms))` sleep) and Playwright's `waitForTimeout`. The fakes in `src/fakes/`
+      // and their own tests may delay: a delay is the behaviour they simulate.
+      "files": ["test/**/*.ts"],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          {
+            "name": "setTimeout",
+            "message": "No fixed sleeps in e2e tests: poll for the state (expect.poll) or wait for a barrier event."
+          }
+        ],
+        "no-restricted-properties": [
+          "error",
+          {
+            "property": "waitForTimeout",
+            "message": "No fixed sleeps in e2e tests: wait for the element or state (expect(...).toBeVisible, page.waitForURL ...)."
+          }
+        ],
+        "no-restricted-imports": [
+          "error",
+          {
+            "name": "node:timers/promises",
+            "message": "No fixed sleeps in e2e tests: poll for the state or wait for a barrier event."
+          }
+        ]
+      }
+    },
+    {
+      "files": ["test/fakes/**/*.ts"],
+      "rules": {
+        "no-restricted-globals": "off",
+        "no-restricted-properties": "off",
+        "no-restricted-imports": "off"
+      }
+    }
+  ]
+}

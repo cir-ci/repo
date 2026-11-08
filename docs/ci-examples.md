@@ -75,6 +75,22 @@ withCredentials([string(credentialsId: 'circi-token', variable: 'CIRCI_TOKEN')])
 ```
 Jenkins doesn't say which pull request a build is for unless you pass it: set `CIRCI_PR_NUMBER`, `CIRCI_BRANCH` and `CIRCI_BASE_BRANCH` (the multibranch plugin provides `CHANGE_ID`, `BRANCH_NAME` and `CHANGE_TARGET`).
 
+## CirCI's own end-to-end suite
+
+The Docker-backed suite in `e2e/` (see `e2e/README.md`) shards across machines with Vitest's `--shard`; every job builds the image (or loads one built earlier and sets `E2E_SKIP_BUILD=1`) and runs its slice with its own workers:
+
+```yaml
+strategy:
+  fail-fast: false
+  matrix: { shard: [1, 2, 3] }
+steps:
+  - uses: actions/checkout@v4
+  - run: pnpm install --frozen-lockfile && pnpm build && pnpm exec playwright install --with-deps chromium
+  - run: E2E_WORKERS=3 pnpm test:e2e --shard=${{ matrix.shard }}/3
+```
+
+Vitest deals the files out by name, not by duration, so the shards are not equally long; use as many shards as you have runners and expect the slowest to set the time. Each job needs a Docker daemon and about 3 GB for three workers.
+
 ## Overrides
 
 `CIRCI_COMMIT`, `CIRCI_BRANCH`, `CIRCI_PR_NUMBER`, `CIRCI_BASE_BRANCH` replace what's detected. `CIRCI_PARALLEL_NONCE` ties shards together when the CI isn't recognised.

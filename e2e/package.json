@@ -1,0 +1,19 @@
+{
+  "name": "@circi/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "End-to-end tests against the real Docker stack (see README.md)",
+  "type": "module",
+  "dependencies": {
+    "@aws-sdk/client-s3": "catalog:",
+    "@circi/core": "workspace:*",
+    "playwright": "catalog:",
+    "sharp": "catalog:"
+  },
+  "devDependencies": {
+    "@circi/api": "workspace:*",
+    "@circi/providers": "workspace:*",
+    "@types/node": "catalog:",
+    "vitest": "catalog:"
+  }
+}

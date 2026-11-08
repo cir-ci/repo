@@ -1,0 +1,125 @@
+import { execFile, spawnSync } from 'node:child_process'
+import { createServer } from 'node:net'
+
+export interface RunResult {
+  stdout: string
+  stderr: string
+  /** Exit code (0 on success). */
+  code: number
+}
+
+export interface RunOptions {
+  cwd?: string
+  env?: Record<string, string | undefined>
+  /** Milliseconds before the process is killed (default 5 minutes). */
+  timeoutMs?: number
+  /** Resolve instead of throwing on a non-zero exit. */
+  allowFail?: boolean
+  input?: string
+}
+
+/** Runs a command and collects its output; throws a readable error unless `allowFail`. */
+export function run(command: string, args: string[], options: RunOptions = {}): Promise<RunResult> {
+  return new Promise((resolve, reject) => {
+    const child = execFile(
+      command,
+      args,
+      {
+        cwd: options.cwd,
+        env: options.env ? { ...process.env, ...options.env } : process.env,
+        timeout: options.timeoutMs ?? 300_000,
+        maxBuffer: 64 * 1024 * 1024,
+      },
+      (error, stdout, stderr) => {
+        const code = error ? (typeof error.code === 'number' ? error.code : 1) : 0
+        if (error && !options.allowFail) {
+          reject(
+            new Error(
+              `${command} ${args.join(' ')} failed (${error.killed ? 'timed out' : `exit ${code}`})\n${stderr || stdout || error.message}`,
+            ),
+          )
+          return
+        }
+        resolve({ stdout, stderr, code })
+      },
+    )
+    if (options.input !== undefined) child.stdin?.end(options.input)
+  })
+}
+
+/** A free TCP port on 127.0.0.1 (briefly bound, then released). */
+export function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = createServer()
+    server.once('error', reject)
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address()
+      if (typeof address !== 'object' || address === null) {
+        server.close()
+        reject(new Error('no address'))
+        return
+      }
+      server.close(() => resolve(address.port))
+    })
+  })
+}
+
+/**
+ * Throws a clear error (fast: five seconds) when there is no Docker daemon, instead of letting the
+ * first `docker compose` call hang or fail obscurely.
+ */
+export function assertDocker(): void {
+  const probe = spawnSync('docker', ['info', '--format', '{{.ServerVersion}}'], {
+    encoding: 'utf8',
+    timeout: 8_000,
+  })
+  if (probe.error || probe.status !== 0) {
+    const why = probe.error
+      ? probe.error.message
+      : (probe.stderr.trim().split('\n').at(-1) ?? 'docker info failed')
+    throw new Error(
+      `The end-to-end tests need a running Docker daemon, and "docker info" failed: ${why}\n` +
+        'Start Docker (Docker Desktop, OrbStack, colima ...) and run `pnpm test:e2e` again.',
+    )
+  }
+  const compose = spawnSync('docker', ['compose', 'version', '--short'], {
+    encoding: 'utf8',
+    timeout: 8_000,
+  })
+  if (compose.error || compose.status !== 0) {
+    throw new Error('The end-to-end tests need the Docker Compose v2 plugin ("docker compose").')
+  }
+}
+
+/** Prefix of every compose project this run creates; `down`ed by the run's teardown. */
+export function runPrefix(runId: string): string {
+  return `circi-e2e-${runId}-`
+}
+
+/** Removes every compose project of a run (containers, networks, volumes). Synchronous: used in exit handlers. */
+export function removeRunProjectsSync(runId: string): string[] {
+  const ps = spawnSync(
+    'docker',
+    ['ps', '-a', '--format', '{{.Label "com.docker.compose.project"}}'],
+    { encoding: 'utf8', timeout: 30_000 },
+  )
+  const projects = new Set(
+    ps.stdout
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.startsWith(runPrefix(runId))),
+  )
+  for (const project of projects) {
+    spawnSync('docker', ['compose', '-p', project, 'down', '-v', '--remove-orphans', '-t', '2'], {
+      timeout: 120_000,
+    })
+  }
+  return [...projects]
+}
+
+/** Removes one compose project (containers, networks, volumes). Synchronous: used in exit handlers. */
+export function removeProjectSync(project: string): void {
+  spawnSync('docker', ['compose', '-p', project, 'down', '-v', '--remove-orphans', '-t', '2'], {
+    timeout: 120_000,
+  })
+}
