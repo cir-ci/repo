@@ -24,18 +24,11 @@ const settings = {
   staticHostingEnabled: false,
 }
 
-const hook = (id: string, url: string, events = ['build.completed']) => ({
-  id,
-  url,
-  events,
-  enabled: true,
-  createdAt: new Date().toISOString(),
-})
-
 function response(over: Record<string, unknown> = {}) {
   return {
     canManage: true,
     settings,
+    appearance: { color: 'slate', icon: null },
     workspace: { flakyBlocksMerge: true },
     webhooks: [],
     webhookEvents: ['build.completed', 'build.reviewed'],
@@ -75,8 +68,8 @@ describe('TeamSettingsPage', () => {
     hangingFetch()
     await show()
     const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
-    await expect.poll(() => crumbs.element().textContent).toBe('TeamsacmewebSettings')
-    await expect.element(page.getByRole('status').first()).toHaveTextContent('Loading settings', {
+    await expect.poll(() => crumbs.element().textContent).toBe('TeamsacmewebSettingsGeneral')
+    await expect.element(page.getByRole('status').first()).toHaveTextContent('Loading general', {
       timeout: 2_000,
     })
   })
@@ -87,7 +80,7 @@ describe('TeamSettingsPage', () => {
     await expect
       .element(page.getByRole('link', { name: 'Web App' }))
       .toHaveAttribute('href', '/acme/web')
-    expect(document.title).toBe('Settings · web · CirCI')
+    expect(document.title).toBe('General · web · CirCI')
   })
 
   it('fills the form from the saved settings, converting the threshold to a percentage', async () => {
@@ -211,7 +204,7 @@ describe('TeamSettingsPage', () => {
   })
 
   it('lets members look but not change anything', async () => {
-    api({ canManage: false, webhooks: [hook('h1', 'https://a.test/hook')] })
+    api({ canManage: false })
     await show()
     await expect
       .element(page.getByText('Only owners and admins can change these settings.'))
@@ -221,10 +214,6 @@ describe('TeamSettingsPage', () => {
       .element(page.getByRole('checkbox', { name: 'Block merging until changes are approved' }))
       .toHaveAttribute('data-disabled')
     expect(page.getByRole('button', { name: 'Save settings' }).elements()).toHaveLength(0)
-    expect(heading('CI token').elements()).toHaveLength(0)
-    expect(page.getByRole('button', { name: 'Remove' }).elements()).toHaveLength(0)
-    expect(page.getByRole('textbox', { name: 'Address' }).elements()).toHaveLength(0)
-    await expect.element(page.getByText('https://a.test/hook')).toBeVisible()
   })
 
   it('says the team doesn’t exist for a 404, and retries other errors', async () => {
@@ -242,32 +231,7 @@ describe('TeamSettingsPage', () => {
     await expect.element(page.getByRole('textbox', { name: 'Name' })).toBeVisible()
   })
 
-  describe('CI token', () => {
-    it('replaces the token only after confirming, and shows the new one once', async () => {
-      const fake = api(
-        {},
-        {
-          [`POST ${API}/token`]: { body: { token: 'circi_new_token' } },
-        },
-      )
-      await show()
-      await expect.element(page.getByLabelText('Token hidden')).toBeVisible()
-      await page.getByRole('button', { name: 'Replace token…' }).click()
-      const dialog = page.getByRole('alertdialog', { name: 'Replace the CI token?' })
-      await expect.element(dialog).toBeVisible()
-      // Cancelling changes nothing.
-      await page.getByRole('button', { name: 'Cancel' }).click()
-      await expect.element(dialog).not.toBeInTheDocument()
-      expect(fake.of('POST')).toHaveLength(0)
-      await page.getByRole('button', { name: 'Replace token…' }).click()
-      await page.getByRole('button', { name: 'Replace token', exact: true }).click()
-      await expect.element(page.getByText('circi_new_token')).toBeVisible()
-      await expect.element(page.getByText(/update CIRCI_TOKEN in your CI secrets/)).toBeVisible()
-      await expect.element(dialog).not.toBeInTheDocument()
-      expect(fake.of('POST')).toHaveLength(1)
-      await expect.element(page.getByRole('button', { name: 'Copy CI token' })).toBeVisible()
-    })
-
+  describe('GitHub', () => {
     it('warns at the top while GitHub refuses the installation', async () => {
       api({
         github: github({
@@ -283,161 +247,102 @@ describe('TeamSettingsPage', () => {
       await expect.element(banner.getByText(/Integrations/)).toBeVisible()
     })
 
-    it('shows no warning for a healthy link', async () => {
+    it('shows no warning for a healthy link, and names the linked repository', async () => {
       api({ github: github({ installationId: '4242', repoRef: 'acme/web', attention: null }) })
       await show()
-      await expect.element(heading('CI token')).toBeVisible()
+      await expect.element(page.getByText('acme/web')).toBeVisible()
       expect(page.getByRole('alert').elements()).toHaveLength(0)
+      expect(page.getByRole('textbox', { name: 'Repository' }).elements()).toHaveLength(0)
+    })
+
+    it('links to the workspace integrations to change the repository', async () => {
+      api({ github: github({ installationId: '4242', repoRef: 'acme/web', attention: null }) })
+      await show()
+      await expect
+        .element(page.getByRole('link', { name: 'Change' }))
+        .toHaveAttribute('href', '/workspaces/acme/settings/integrations')
+    })
+
+    it('unlinks only after confirming', async () => {
+      const fake = api(
+        { github: github({ installationId: '4242', repoRef: 'acme/web', attention: null }) },
+        { [`DELETE ${API}/github`]: { status: 204 } },
+      )
+      await show()
+      await page.getByRole('button', { name: 'Unlink' }).click()
+      await page.getByRole('button', { name: 'Cancel' }).click()
+      await expect.element(page.getByRole('alertdialog')).not.toBeInTheDocument()
+      expect(fake.of('DELETE')).toHaveLength(0)
+      await page.getByRole('button', { name: 'Unlink' }).click()
+      await page.getByRole('alertdialog').getByRole('button', { name: 'Unlink' }).click()
+      await expect.poll(() => fake.of('DELETE')).toHaveLength(1)
+    })
+  })
+
+  describe('icon and colour', () => {
+    const ARIA = { color: 'slate', icon: null as string | null }
+
+    it('shows the tile and saves a picked colour at once', async () => {
+      const fake = api(
+        { appearance: ARIA },
+        { [`PATCH ${API}/appearance`]: { body: { appearance: { color: 'plum', icon: null } } } },
+      )
+      await show()
+      await expect.element(page.getByRole('img', { name: 'Web App' })).toBeVisible()
+      await page.getByRole('radio', { name: 'Plum' }).click()
+      await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
+      expect(fake.of('PATCH')[0]).toMatchObject({
+        path: `${API}/appearance`,
+        body: { color: 'plum' },
+      })
+    })
+
+    it('searches the 31 icons and saves a picked one, or null for the first letter', async () => {
+      const fake = api(
+        { appearance: { color: 'slate', icon: 'globe' } },
+        { [`PATCH ${API}/appearance`]: { body: { appearance: { color: 'slate', icon: null } } } },
+      )
+      await show()
+      const group = page.getByRole('group', { name: 'Icon' })
+      // The first letter plus every icon.
+      await expect.element(group).toBeVisible()
+      expect(group.getByRole('button').elements()).toHaveLength(32)
+      await expect
+        .element(group.getByRole('button', { name: 'globe' }))
+        .toHaveAttribute('aria-pressed', 'true')
+      await page.getByRole('textbox', { name: 'Find an icon' }).fill('rock')
+      await page.getByRole('button', { name: 'rocket' }).click()
+      await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
+      expect(fake.of('PATCH')[0]?.body).toEqual({ icon: 'rocket' })
+      await page.getByRole('textbox', { name: 'Find an icon' }).fill('zzz')
+      await expect.element(page.getByText('No icon matches “zzz”.')).toBeVisible()
+      await page.getByRole('textbox', { name: 'Find an icon' }).fill('')
+      await page.getByRole('button', { name: 'First letter' }).click()
+      await expect.poll(() => fake.of('PATCH')).toHaveLength(2)
+      expect(fake.of('PATCH')[1]?.body).toEqual({ icon: null })
     })
 
     it('shows the server’s refusal', async () => {
-      api(
-        {},
-        {
-          [`POST ${API}/token`]: { status: 500, body: { error: 'could not issue a token' } },
-        },
-      )
+      const fake = api({ appearance: ARIA })
+      fake.set(`PATCH ${API}/appearance`, { status: 400, body: { error: 'Unknown icon' } })
       await show()
-      await page.getByRole('button', { name: 'Replace token…' }).click()
-      await page.getByRole('button', { name: 'Replace token', exact: true }).click()
-      await expect.element(page.getByRole('alert')).toHaveTextContent('could not issue a token')
+      await page.getByRole('radio', { name: 'Moss' }).click()
+      await expect.element(page.getByRole('alert')).toHaveTextContent('Unknown icon')
+    })
+
+    it('is read-only for members: the tile shows, no pickers', async () => {
+      api({ canManage: false, appearance: ARIA })
+      await show()
+      await expect.element(page.getByRole('img', { name: 'Web App' })).toBeVisible()
+      expect(page.getByRole('radio').elements()).toHaveLength(0)
     })
   })
 
-  describe('GitHub', () => {
-    it('has no section of its own: repositories are chosen under the workspace’s Integrations', async () => {
-      api({ github: github({ installationId: '4242', repoRef: 'acme/web', attention: null }) })
-      await show()
-      await expect.element(heading('CI token')).toBeVisible()
-      expect(heading('GitHub').elements()).toHaveLength(0)
-      expect(page.getByRole('textbox', { name: 'Repository' }).elements()).toHaveLength(0)
-    })
-  })
-
-  describe('webhooks', () => {
-    it('says when there are none', async () => {
-      api()
-      await show()
-      await expect.element(page.getByText('No webhooks yet')).toBeVisible()
-      await expect
-        .element(
-          page.getByText(
-            'Get a signed POST to your own service when a build finishes or is reviewed.',
-          ),
-        )
-        .toBeVisible()
-    })
-
-    it('lists each webhook with its address, events and age', async () => {
-      api({
-        webhooks: [
-          hook('h1', 'https://a.test/hook', ['build.completed', 'build.reviewed']),
-          hook('h2', 'https://b.test/hook'),
-        ],
-      })
-      await show()
-      const rows = page.getByRole('list', { name: 'Webhooks' })
-      await expect.element(rows.getByText('https://a.test/hook')).toBeVisible()
-      await expect.element(rows.getByText('https://b.test/hook')).toBeVisible()
-      await expect
-        .element(rows.getByRole('list', { name: 'Events' }).first().getByText('build.reviewed'))
-        .toBeVisible()
-      expect(page.getByRole('button', { name: 'Remove' }).elements()).toHaveLength(2)
-    })
-
-    it('adds one for the picked events and shows its signing secret once', async () => {
-      const fake = api(
-        {},
-        {
-          [`POST ${API}/webhooks`]: {
-            body: { webhook: hook('h9', 'https://new.test/hook'), secret: 'whsec_abc' },
-          },
-        },
-      )
-      await show()
-      await page.getByRole('textbox', { name: 'Address' }).fill(' https://new.test/hook ')
-      await page.getByRole('checkbox', { name: 'build.reviewed' }).click()
-      await page.getByRole('button', { name: 'Add webhook' }).click()
-      await expect.element(page.getByText('Signing secret for https://new.test/hook')).toBeVisible()
-      await expect.element(page.getByText('whsec_abc')).toBeVisible()
-      expect(fake.of('POST')).toEqual([
-        {
-          method: 'POST',
-          path: `${API}/webhooks`,
-          body: { url: 'https://new.test/hook', events: ['build.completed'] },
-        },
-      ])
-      // The address field is cleared, and the notice can be dismissed.
-      await expect.element(page.getByRole('textbox', { name: 'Address' })).toHaveValue('')
-      await page.getByRole('button', { name: 'Dismiss' }).click()
-      await expect.element(page.getByText('whsec_abc')).not.toBeInTheDocument()
-    })
-
-    it('asks for an address', async () => {
-      const fake = api()
-      await show()
-      await page.getByRole('button', { name: 'Add webhook' }).click()
-      await expect.element(page.getByText('Enter an address')).toBeVisible()
-      expect(fake.of('POST')).toHaveLength(0)
-    })
-
-    it('won’t add without an event: says so next to the events, and sends nothing', async () => {
-      const fake = api()
-      await show()
-      await page.getByRole('textbox', { name: 'Address' }).fill('https://new.test/hook')
-      await page.getByRole('checkbox', { name: 'build.completed' }).click()
-      await page.getByRole('checkbox', { name: 'build.reviewed' }).click()
-      await page.getByRole('button', { name: 'Add webhook' }).click()
-      await expect.element(page.getByRole('alert')).toHaveTextContent('Choose at least one event')
-      expect(fake.of('POST')).toHaveLength(0)
-      // Picking an event clears the error, and the webhook can be added.
-      fake.set(`POST ${API}/webhooks`, {
-        body: { webhook: hook('h9', 'https://new.test/hook'), secret: 'whsec_abc' },
-      })
-      await page.getByRole('checkbox', { name: 'build.reviewed' }).click()
-      await expect.element(page.getByRole('alert')).not.toBeInTheDocument()
-      await page.getByRole('button', { name: 'Add webhook' }).click()
-      await expect.poll(() => fake.of('POST')).toHaveLength(1)
-      expect(fake.of('POST')[0]?.body).toEqual({
-        url: 'https://new.test/hook',
-        events: ['build.reviewed'],
-      })
-    })
-
-    it('shows the server’s refusal of an address', async () => {
-      api(
-        {},
-        {
-          [`POST ${API}/webhooks`]: { status: 400, body: { error: 'Address must be public' } },
-        },
-      )
-      await show()
-      await page.getByRole('textbox', { name: 'Address' }).fill('http://localhost/x')
-      await page.getByRole('button', { name: 'Add webhook' }).click()
-      await expect.element(page.getByRole('alert')).toHaveTextContent('Address must be public')
-    })
-
-    it('removes one only after confirming, naming it', async () => {
-      const fake = api(
-        { webhooks: [hook('h1', 'https://a.test/hook'), hook('h2', 'https://b.test/hook')] },
-        { [`DELETE ${API}/webhooks/h2`]: { status: 204 } },
-      )
-      await show()
-      await page.getByRole('button', { name: 'Remove' }).nth(1).click()
-      const dialog = page.getByRole('alertdialog', { name: 'Remove webhook?' })
-      await expect.element(dialog).toBeVisible()
-      await expect
-        .element(dialog)
-        .toHaveAccessibleDescription(/https:\/\/b\.test\/hook stops receiving build events/)
-      await page.getByRole('button', { name: 'Cancel' }).click()
-      expect(fake.of('DELETE')).toHaveLength(0)
-      await page.getByRole('button', { name: 'Remove' }).nth(1).click()
-      await page.getByRole('alertdialog').getByRole('button', { name: 'Remove' }).click()
-      await expect.poll(() => fake.of('DELETE')).toHaveLength(1)
-      await expect.element(page.getByRole('alertdialog')).not.toBeInTheDocument()
-      await expect
-        .element(page.getByRole('status').filter({ hasText: /^Webhook removed$/ }))
-        .toBeVisible()
-    })
+  it('has no CI token or webhooks on this page: they have their own', async () => {
+    api()
+    await show()
+    await expect.element(page.getByRole('textbox', { name: 'Name' })).toBeVisible()
+    expect(heading('CI token').elements()).toHaveLength(0)
+    expect(heading('Webhooks').elements()).toHaveLength(0)
   })
 })

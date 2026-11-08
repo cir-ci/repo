@@ -15,5 +15,5 @@ const placeholder = <const Path extends string>(path: Path, title: string) =>
     component: () => <ComingSoon title={title} />,
   })
 
-// Nothing is planned-but-unbuilt right now; add `placeholder('path', 'Title')` lines here.
+// Settings pages another feature builds: it deletes its line and declares the same path in its routes.ts.
 export const placeholderRoutes: ReturnType<typeof placeholder>[] = []

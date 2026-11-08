@@ -48,7 +48,7 @@ export function PasswordForm({ onEmail }: PasswordForm.Props) {
       </Button>
       {onEmail ? (
         <Button variant="ghost" className={styles.center} onClick={onEmail}>
-          Email me a sign-in code instead
+          Email me a code
         </Button>
       ) : null}
     </form>

@@ -76,7 +76,7 @@ export function TeamLinks({ workspace, integrationId, spec, team, canManage }: T
                 </td>
                 <td>
                   {l.url ? (
-                    <a href={l.url} target="_blank" rel="noreferrer">
+                    <a href={l.url} target="_blank" rel="noopener noreferrer">
                       {l.title ?? l.ref}
                     </a>
                   ) : (

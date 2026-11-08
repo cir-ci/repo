@@ -30,12 +30,57 @@ vi.mock('#lib/auth-client.ts', () => ({
 }))
 
 import { Shell } from '#app/Shell.tsx'
+import { resetStores } from '#lib/stores/index.ts'
 
 const overview = (workspace: string, workspaceName: string, team: string) => ({
   workspace: { slug: workspace, name: workspaceName },
   team: { slug: team, name: team, defaultBranch: 'main' },
   latestBuild: null,
 })
+
+const SIDEBAR_ACME = {
+  teams: [
+    {
+      slug: 'web-app',
+      name: 'web-app',
+      pinned: true,
+      triage: 4,
+      color: 'slate',
+      icon: 'layout-grid',
+    },
+    {
+      slug: 'storybook',
+      name: 'storybook',
+      pinned: false,
+      triage: 0,
+      color: 'olive',
+      icon: null,
+    },
+    { slug: 'api', name: 'api', pinned: false, triage: 0, color: 'olive', icon: null },
+  ],
+  views: [
+    {
+      id: 'v1',
+      name: 'Failing on main',
+      filters: {},
+      pinned: true,
+      position: 0,
+      team: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+    },
+    {
+      id: 'v2',
+      name: 'Not pinned',
+      filters: {},
+      pinned: false,
+      position: 1,
+      team: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+    },
+  ],
+  inboxUnread: 3,
+  reviews: 2,
+}
 
 // The data API is the other edge: answers by path.
 const API: Record<string, unknown> = {
@@ -46,37 +91,11 @@ const API: Record<string, unknown> = {
       overview('globex', 'Globex', 'portal'),
     ],
   },
-  '/api/workspaces/acme/sidebar': {
-    teams: [
-      { slug: 'web-app', name: 'web-app', pinned: true, triage: 4 },
-      { slug: 'storybook', name: 'storybook', pinned: false, triage: 0 },
-      { slug: 'api', name: 'api', pinned: false, triage: 0 },
-    ],
-    views: [
-      {
-        id: 'v1',
-        name: 'Failing on main',
-        filters: {},
-        pinned: true,
-        position: 0,
-        team: null,
-        createdAt: '2026-01-01T00:00:00.000Z',
-      },
-      {
-        id: 'v2',
-        name: 'Not pinned',
-        filters: {},
-        pinned: false,
-        position: 1,
-        team: null,
-        createdAt: '2026-01-01T00:00:00.000Z',
-      },
-    ],
-    inboxUnread: 3,
-    reviews: 2,
-  },
+  '/api/workspaces/acme/sidebar': SIDEBAR_ACME,
   '/api/workspaces/globex/sidebar': {
-    teams: [{ slug: 'portal', name: 'portal', pinned: false, triage: 0 }],
+    teams: [
+      { slug: 'portal', name: 'portal', pinned: false, triage: 0, color: 'olive', icon: null },
+    ],
     views: [],
     inboxUnread: 0,
     reviews: 0,
@@ -97,7 +116,16 @@ async function renderShell(path: string) {
   const root = createRootRoute({ component: Shell })
   const routes = [
     createRoute({ getParentRoute: () => root, path: '/', component: text('Teams page') }),
-    createRoute({ getParentRoute: () => root, path: 'account', component: text('Account page') }),
+    createRoute({
+      getParentRoute: () => root,
+      path: 'account/profile',
+      component: text('Profile page'),
+    }),
+    createRoute({
+      getParentRoute: () => root,
+      path: 'instance/accounts',
+      component: text('Instance accounts page'),
+    }),
     createRoute({
       getParentRoute: () => root,
       path: 'workspaces/$workspace/settings/members',
@@ -161,6 +189,7 @@ async function renderShell(path: string) {
 }
 
 beforeEach(() => {
+  resetStores()
   auth.user = { id: 'u1', name: 'Ada Lovelace', email: 'ada@example.test' }
   auth.signOut.mockReset().mockResolvedValue(undefined)
   localStorage.clear()
@@ -194,7 +223,7 @@ describe('Shell, wide', () => {
     await expect.element(nav.getByRole('link', { name: 'Insights' })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: 'Settings' })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: 'storybook' })).toBeVisible()
-    await expect.element(nav.getByRole('link', { name: 'web-app' })).toBeVisible()
+    await expect.element(nav.getByRole('link', { name: /^web-app/ })).toBeVisible()
     expect(nav.getByRole('link', { name: 'portal' }).elements()).toHaveLength(0)
     await expect.element(page.getByRole('main')).toHaveTextContent('Teams page')
   })
@@ -214,12 +243,14 @@ describe('Shell, wide', () => {
     await renderShell('/')
     const nav = page.getByRole('navigation', { name: 'Main' })
     await expect.element(nav.getByRole('link', { name: 'api' })).toBeVisible()
-    const names = nav
-      .getByRole('region', { name: 'Teams' })
-      .getByRole('link')
-      .elements()
-      .map((el) => el.textContent)
-    expect(names).toEqual(['web-app', 'api', 'storybook'])
+    const names = (label: string) =>
+      nav
+        .getByRole('region', { name: label })
+        .getByRole('link')
+        .elements()
+        .map((el) => el.getAttribute('href'))
+    expect(names('Pinned')).toEqual(['/acme/web-app'])
+    expect(names('Teams')).toEqual(['/acme/api', '/acme/storybook'])
   })
 
   it('marks the current page with aria-current', async () => {
@@ -243,6 +274,7 @@ describe('Shell, wide', () => {
       .toHaveAttribute('aria-current', 'page')
     await expect.element(nav.getByRole('link', { name: 'Builds' })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: 'Baselines' })).toBeVisible()
+    await expect.element(nav.getByRole('link', { name: 'Sites' })).toBeVisible()
     // Settings twice: the top-level entry and the team's.
     expect(nav.getByRole('link', { name: 'Settings' }).elements()).toHaveLength(2)
     // Other teams stay collapsed.
@@ -265,7 +297,11 @@ describe('Shell, wide', () => {
     const { router } = await renderShell('/acme/web-app')
     const trigger = page.getByRole('button', { name: 'Workspace: Acme' })
     await trigger.click()
-    expect(page.getByRole('menuitem').elements()).toHaveLength(2)
+    // Two workspaces, Workspace settings (no right to create one).
+    expect(page.getByRole('menuitem').elements()).toHaveLength(3)
+    await expect
+      .element(page.getByRole('menuitem', { name: 'Acme' }))
+      .toHaveAttribute('aria-current', 'true')
     await page.getByRole('menuitem', { name: 'Globex' }).click()
     await expect.element(page.getByRole('button', { name: 'Workspace: Globex' })).toBeVisible()
     await expect
@@ -297,8 +333,12 @@ describe('Shell, wide', () => {
     queryClient.setQueryData(['marker'], 1)
     await page.getByRole('button', { name: 'Account menu for Ada Lovelace' }).click()
     await expect.element(page.getByText('ada@example.test')).toBeVisible()
-    await expect.element(page.getByRole('menuitem', { name: 'Account' })).toBeVisible()
-    await expect.element(page.getByRole('group', { name: 'Theme' })).toBeVisible()
+    await expect.element(page.getByRole('menuitem', { name: 'Profile and sessions' })).toBeVisible()
+    await expect.element(page.getByRole('menuitem', { name: 'Notifications' })).toBeVisible()
+    await expect.element(page.getByRole('menuitem', { name: /Keyboard shortcuts/ })).toBeVisible()
+    await expect.element(page.getByRole('menuitemradio', { name: 'Dark' })).toBeVisible()
+    // Only people who run the instance see its admin pages.
+    expect(page.getByRole('menuitem', { name: 'Instance admin' }).elements()).toHaveLength(0)
     await page.getByRole('menuitem', { name: 'Sign out' }).click()
     await expect.poll(() => auth.signOut.mock.calls.length).toBe(1)
     // Everything fetched as this person is forgotten.
@@ -309,8 +349,8 @@ describe('Shell, wide', () => {
     await page.viewport(1280, 800)
     const { router } = await renderShell('/')
     await page.getByRole('button', { name: 'Account menu for Ada Lovelace' }).click()
-    await page.getByRole('menuitem', { name: 'Account' }).click()
-    await expect.poll(() => router.state.location.pathname).toBe('/account')
+    await page.getByRole('menuitem', { name: 'Profile and sessions' }).click()
+    await expect.poll(() => router.state.location.pathname).toBe('/account/profile')
   })
 
   it('has a skip link to the main content', async () => {
@@ -340,7 +380,7 @@ describe('Shell, keyboard', () => {
     const { router } = await renderShell('/')
     await expect
       .element(
-        page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'web-app' }),
+        page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: /^web-app/ }),
       )
       .toBeVisible()
     await userEvent.keyboard('gt')
@@ -373,35 +413,137 @@ describe('Shell, keyboard', () => {
 })
 
 describe('Shell, settings', () => {
-  it('shows the sectioned settings nav on the members page, which sits inside it', async () => {
+  it('replaces the sidebar with the settings nav: Back to app, Account, Workspace', async () => {
     await page.viewport(1280, 800)
     await renderShell('/workspaces/acme/settings/members')
     const nav = page.getByRole('navigation', { name: 'Settings' })
     await expect.element(nav).toBeVisible()
+    expect(page.getByRole('navigation', { name: 'Main' }).elements()).toHaveLength(0)
+    await expect.element(nav.getByRole('link', { name: 'Back to app' })).toBeVisible()
     await expect.element(nav.getByRole('region', { name: 'Account' })).toBeVisible()
-    await expect.element(nav.getByRole('region', { name: 'Workspace · Acme' })).toBeVisible()
+    const workspace = nav.getByRole('region', { name: 'Workspace · Acme' })
+    await expect.element(workspace).toBeVisible()
+    const names = workspace
+      .getByRole('link')
+      .elements()
+      .map((el) => el.textContent)
+    expect(names).toEqual([
+      'General',
+      'Members',
+      'Sign-in and domains',
+      'Integrations',
+      'Storage and retention',
+    ])
     await expect
       .element(nav.getByRole('link', { name: 'Members' }))
       .toHaveAttribute('aria-current', 'page')
     await expect.element(page.getByText('Members page')).toBeVisible()
-    expect(nav.getByRole('region', { name: /^Team/ }).elements()).toHaveLength(0)
   })
 
-  it('shares the nav with the account page, and adds the team section on a team’s', async () => {
+  it('lists the account pages and marks the one open', async () => {
     await page.viewport(1280, 800)
-    const { router } = await renderShell('/account')
+    await renderShell('/account/profile')
+    const account = page
+      .getByRole('navigation', { name: 'Settings' })
+      .getByRole('region', { name: 'Account' })
+    const names = account
+      .getByRole('link')
+      .elements()
+      .map((el) => el.textContent)
+    expect(names).toEqual(['Profile', 'Notifications', 'Appearance', 'Keyboard shortcuts'])
+    await expect
+      .element(account.getByRole('link', { name: 'Profile' }))
+      .toHaveAttribute('aria-current', 'page')
+  })
+
+  it('shows the Team section for the team in the address, with its five pages', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/acme/web-app/settings')
+    const team = page
+      .getByRole('navigation', { name: 'Settings' })
+      .getByRole('region', { name: 'Team · web-app' })
+    await expect.element(team).toBeVisible()
+    const names = team
+      .getByRole('link')
+      .elements()
+      .map((el) => el.textContent)
+    expect(names).toEqual([
+      'General',
+      'CI token',
+      'Reviews and triage',
+      'Webhooks',
+      'Ignore regions',
+    ])
+    await expect
+      .element(team.getByRole('link', { name: 'General' }))
+      .toHaveAttribute('aria-current', 'page')
+  })
+
+  it('keeps a team in the Team section off its own pages: the first team, or the last one used', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/account/profile')
+    await expect
+      .element(
+        page
+          .getByRole('navigation', { name: 'Settings' })
+          .getByRole('region', { name: 'Team · web-app' }),
+      )
+      .toBeVisible()
+  })
+
+  it('shows the Instance section only to instance admins', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/account/profile')
     const nav = page.getByRole('navigation', { name: 'Settings' })
+    expect(nav.getByRole('region', { name: /Instance/ }).elements()).toHaveLength(0)
+    expect(nav.getByRole('link', { name: 'Health' }).elements()).toHaveLength(0)
+  })
+
+  it('shows the Instance section to an instance admin, with its four pages', async () => {
+    await page.viewport(1280, 800)
+    auth.user = { id: 'u1', name: 'Ada Lovelace', email: 'ada@example.test', role: 'admin' }
+    await renderShell('/instance/accounts')
+    const section = page
+      .getByRole('navigation', { name: 'Settings' })
+      .getByRole('region', { name: /Instance/ })
+    const names = section
+      .getByRole('link')
+      .elements()
+      .map((el) => el.textContent)
+    expect(names).toEqual(['Accounts', 'Workspaces', 'Instance settings', 'Health'])
     await expect
-      .element(nav.getByRole('link', { name: 'Profile' }))
+      .element(section.getByRole('link', { name: 'Accounts' }))
       .toHaveAttribute('aria-current', 'page')
-    await router.navigate({
-      to: '/$workspace/$team/settings',
-      params: { workspace: 'acme', team: 'web-app' },
-    })
-    await expect.element(nav.getByRole('region', { name: 'Team · web-app' })).toBeVisible()
+  })
+
+  it('switches team from the section header and stays on the same settings page', async () => {
+    await page.viewport(1280, 800)
+    const { router } = await renderShell('/acme/web-app/settings/reviews')
+    await page.getByRole('button', { name: 'Switch team' }).click()
+    const panel = page.getByRole('dialog', { name: 'Switch team' })
     await expect
-      .element(nav.getByRole('link', { name: 'General' }).last())
-      .toHaveAttribute('aria-current', 'page')
+      .element(panel.getByRole('link', { name: 'web-app' }))
+      .toHaveAttribute('aria-current', 'true')
+    await panel.getByRole('searchbox', { name: 'Find a team' }).fill('stor')
+    expect(panel.getByRole('link').elements()).toHaveLength(1)
+    await panel.getByRole('link', { name: 'storybook' }).click()
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/storybook/settings/reviews')
+  })
+
+  it('moves through the team switcher with the arrow keys and closes it with Escape', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/acme/web-app/settings')
+    const trigger = page.getByRole('button', { name: 'Switch team' })
+    await trigger.click()
+    const panel = page.getByRole('dialog', { name: 'Switch team' })
+    panel.getByRole('searchbox', { name: 'Find a team' }).element().focus()
+    await userEvent.keyboard('{ArrowDown}')
+    await expect.element(panel.getByRole('link', { name: 'web-app' })).toHaveFocus()
+    await userEvent.keyboard('{ArrowDown}')
+    await expect.element(panel.getByRole('link', { name: 'api' })).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(page.getByRole('dialog', { name: 'Switch team' })).not.toBeInTheDocument()
+    await expect.element(trigger).toHaveFocus()
   })
 
   it('has no settings nav on other pages', async () => {
@@ -409,6 +551,148 @@ describe('Shell, settings', () => {
     await renderShell('/inbox')
     await expect.element(page.getByRole('main')).toHaveTextContent('Inbox page')
     expect(page.getByRole('navigation', { name: 'Settings' }).elements()).toHaveLength(0)
+  })
+})
+
+describe('Shell, menus', () => {
+  it('opens the account menu with the keyboard, moves with arrows and returns focus on Escape', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/')
+    const trigger = page.getByRole('button', { name: 'Account menu for Ada Lovelace' })
+    await expect.element(trigger).toBeVisible()
+    trigger.element().focus()
+    await userEvent.keyboard('{Enter}')
+    await expect.element(page.getByRole('menu')).toBeVisible()
+    await expect.element(page.getByRole('menuitem', { name: 'Profile and sessions' })).toHaveFocus()
+    await userEvent.keyboard('{ArrowDown}')
+    await expect.element(page.getByRole('menuitem', { name: 'Notifications' })).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(page.getByRole('menu')).not.toBeInTheDocument()
+    await expect.element(trigger).toHaveFocus()
+  })
+
+  it('changes the theme from the menu’s radio group on a key press, and marks <html>', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/')
+    await page.getByRole('button', { name: 'Account menu for Ada Lovelace' }).click()
+    const dark = page.getByRole('menuitemradio', { name: 'Dark' })
+    const light = page.getByRole('menuitemradio', { name: 'Light' })
+    light.element().focus()
+    await userEvent.keyboard('{Enter}')
+    await expect.poll(() => document.documentElement.dataset.circiColorScheme).toBe('light')
+    await expect.element(light).toBeChecked()
+    expect(getComputedStyle(document.documentElement).colorScheme).toBe('light')
+    dark.element().focus()
+    await userEvent.keyboard('{Enter}')
+    await expect.poll(() => document.documentElement.dataset.circiColorScheme).toBe('dark')
+    await expect.element(dark).toBeChecked()
+    expect(getComputedStyle(document.documentElement).colorScheme).toBe('dark')
+    expect(localStorage.getItem('circi-color-mode')).toBe('dark')
+  })
+
+  it('offers Instance admin in the account menu only to instance admins', async () => {
+    await page.viewport(1280, 800)
+    auth.user = { id: 'u1', name: 'Ada Lovelace', email: 'ada@example.test', role: 'admin' }
+    const { router } = await renderShell('/')
+    await page.getByRole('button', { name: 'Account menu for Ada Lovelace' }).click()
+    await page.getByRole('menuitem', { name: 'Instance admin' }).click()
+    await expect.poll(() => router.state.location.pathname).toBe('/instance/accounts')
+  })
+
+  it('opens the workspace switcher with arrows, marks the current workspace, and has Workspace settings', async () => {
+    await page.viewport(1280, 800)
+    const { router } = await renderShell('/acme/web-app')
+    const trigger = page.getByRole('button', { name: 'Workspace: Acme' })
+    await expect.element(trigger).toBeVisible()
+    trigger.element().focus()
+    await userEvent.keyboard('{ArrowDown}')
+    await expect.element(page.getByRole('menu')).toBeVisible()
+    await page.getByRole('menuitem', { name: 'Workspace settings' }).click()
+    await expect.poll(() => router.state.location.pathname).toBe('/workspaces/acme/settings')
+  })
+
+  it('offers Create workspace when the person may create one', async () => {
+    await page.viewport(1280, 800)
+    API['/api/capabilities'] = {
+      canCreateWorkspace: true,
+      manageableWorkspaces: [],
+      refusingWorkspaces: [],
+    }
+    try {
+      await renderShell('/')
+      await page.getByRole('button', { name: 'Workspace: Acme' }).click()
+      await page.getByRole('menuitem', { name: 'Create workspace' }).click()
+      await expect.element(page.getByRole('dialog', { name: 'New workspace' })).toBeVisible()
+    } finally {
+      API['/api/capabilities'] = {
+        canCreateWorkspace: false,
+        manageableWorkspaces: [],
+        refusingWorkspaces: [],
+      }
+    }
+  })
+})
+
+describe('Shell, sidebar teams', () => {
+  it('shows only a New team entry when the workspace has no teams', async () => {
+    await page.viewport(1280, 800)
+    API['/api/capabilities'] = {
+      canCreateWorkspace: false,
+      manageableWorkspaces: [{ slug: 'acme', name: 'Acme' }],
+      refusingWorkspaces: [],
+    }
+    API['/api/workspaces/acme/sidebar'] = { teams: [], views: [], inboxUnread: 0, reviews: 0 }
+    try {
+      await renderShell('/')
+      const nav = page.getByRole('navigation', { name: 'Main' })
+      await expect.element(nav.getByRole('button', { name: 'New team' }).last()).toBeVisible()
+      expect(nav.getByRole('region', { name: 'Pinned' }).elements()).toHaveLength(0)
+      expect(nav.getByRole('region', { name: 'Your views' }).elements()).toHaveLength(0)
+      await nav
+        .getByRole('region', { name: 'Teams' })
+        .getByRole('button', { name: 'New team' })
+        .click()
+      await expect.element(page.getByRole('dialog', { name: 'New team' })).toBeVisible()
+    } finally {
+      API['/api/capabilities'] = {
+        canCreateWorkspace: false,
+        manageableWorkspaces: [],
+        refusingWorkspaces: [],
+      }
+      API['/api/workspaces/acme/sidebar'] = SIDEBAR_ACME
+    }
+  })
+
+  it('has a + button for New team next to the workspace name when teams can be created', async () => {
+    await page.viewport(1280, 800)
+    API['/api/capabilities'] = {
+      canCreateWorkspace: false,
+      manageableWorkspaces: [{ slug: 'acme', name: 'Acme' }],
+      refusingWorkspaces: [],
+    }
+    try {
+      await renderShell('/')
+      const nav = page.getByRole('navigation', { name: 'Main' })
+      await nav.getByRole('button', { name: 'New team' }).click()
+      await expect.element(page.getByRole('dialog', { name: 'New team' })).toBeVisible()
+    } finally {
+      API['/api/capabilities'] = {
+        canCreateWorkspace: false,
+        manageableWorkspaces: [],
+        refusingWorkspaces: [],
+      }
+    }
+  })
+
+  it('has no + when the person can’t create teams, and shows each team’s tile', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/')
+    const nav = page.getByRole('navigation', { name: 'Main' })
+    await expect.element(nav.getByRole('link', { name: /^web-app/ })).toBeVisible()
+    expect(nav.getByRole('button', { name: 'New team' }).elements()).toHaveLength(0)
+    // One tile per team row (pinned web-app, then api and storybook).
+    expect(nav.element().querySelectorAll('[data-color]')).toHaveLength(3)
+    expect(nav.element().querySelector('[data-color="slate"]')).not.toBeNull()
   })
 })
 
@@ -449,7 +733,7 @@ describe('Shell, narrow', () => {
     await page.getByRole('button', { name: 'Open navigation' }).click()
     await page
       .getByRole('dialog', { name: 'Navigation' })
-      .getByRole('link', { name: 'web-app' })
+      .getByRole('link', { name: /^web-app/ })
       .click()
     await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app')
     await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)

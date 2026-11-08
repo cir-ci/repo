@@ -1,92 +1,239 @@
+/* The board's column: 820px, 36px between sections. */
 .content {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 36px;
   box-sizing: border-box;
   width: 100%;
-  max-width: 672px;
-  padding: 16px;
+  max-width: 820px;
+  margin-inline: auto;
+  padding: 32px 24px 64px;
 }
 
-.head {
+.section {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: flex-end;
   gap: 16px;
+}
+
+.sectionHead > :first-child {
+  flex: 1;
+  min-width: 0;
 }
 
 .groups {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 28px;
 }
 
 .group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 10px;
 }
 
-.list {
+.box {
   display: flex;
   flex-direction: column;
   margin: 0;
   padding: 0;
+  overflow: hidden;
   list-style: none;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 10px;
+  background: var(--circi-surface-raised);
+}
+
+.box > li {
+  display: block;
+  border-bottom: 1px solid var(--circi-line-subtle);
+}
+
+.box > li:last-child {
+  border-bottom: 0;
 }
 
 .row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  min-width: 0;
-  width: 100%;
+  box-sizing: border-box;
+  min-height: 56px;
+  padding: 10px 16px;
 }
 
 .name {
   display: flex;
+  flex: 1 1 260px;
   flex-direction: column;
-  flex: 1;
+  min-width: 0;
+}
+
+.teamName {
+  display: inline-flex;
+  flex: 1 1 200px;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
 }
 
 .trailing {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
 
-.tiles {
+.arrow {
+  flex: none;
+  color: var(--circi-text-tertiary);
+}
+
+.picker {
+  flex: 0 1 240px;
+  min-width: 160px;
+}
+
+/* A provider's mark on a white tile, in both colour schemes. */
+.logo {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 10px;
+  background: #fff;
+  color: #181616;
+}
+
+.logo[data-size='32'] {
+  border-radius: 8px;
+}
+
+.logo[data-size='24'] {
+  border-radius: 6px;
+}
+
+.logoLetter {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* The page's own head: mark, name and what it is connected to, status, actions. */
+.pageHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+.pageTitle {
+  display: flex;
+  flex: 1 1 300px;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentcolor;
+}
+
+.statusOk {
+  color: var(--circi-state-approved-text);
+}
+
+.statusBad {
+  color: var(--circi-state-rejected-text);
+}
+
+.cmd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  padding: 8px 16px;
+}
+
+.cmd code {
+  flex: none;
+  width: 140px;
+}
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.field {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+}
+
+.divider {
+  padding-top: 16px;
+  border-top: 1px solid var(--circi-line-subtle);
+}
+
+/* Settings under a team row: events and switches. */
+.extras {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
+  padding: 0 16px 12px 44px;
+}
+
+.tiles {
+  display: flex;
+  flex-direction: column;
   margin: 0;
-  padding: 0;
+  padding: 4px 0 8px;
   list-style: none;
 }
 
 .tile {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--circi-border, currentColor);
-  border-radius: var(--circi-radius-panel, 10px);
-}
-
-.tile[data-disabled='true'] {
-  opacity: 0.6;
-}
-
-.tileHead {
-  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 16px;
 }
 
-.tileTitle {
-  flex: 1;
-  min-width: 0;
+.tile:hover {
+  background: var(--circi-action-hover);
+}
+
+.tile[data-disabled='true'] .name {
+  opacity: 0.8;
+}
+
+.tileGroup {
+  padding: 12px 16px 4px;
 }
 
 .filters {
@@ -101,14 +248,18 @@
   gap: 16px;
 }
 
-.repoRow {
+.inline {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
-.repoField {
+.grow {
   flex: 1;
   min-width: 200px;
+}
+
+.empty {
+  padding: 8px;
 }

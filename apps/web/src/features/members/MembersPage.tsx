@@ -18,7 +18,7 @@ import {
   useAnnounce,
 } from '@circi/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useParams } from '@tanstack/react-router'
+import { Link, useParams } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 
 import { authClient } from '#lib/auth-client.ts'
@@ -27,12 +27,8 @@ import { ErrorState } from '#lib/ErrorState.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import { cancelInvitation, changeMemberRole, workspaceQuery, removeMember } from './api.ts'
-import { BuildSettings } from './BuildSettings.tsx'
-import { EmailDomains } from './EmailDomains.tsx'
 import { InviteForm } from './InviteForm.tsx'
 import { canManageMembers, invitationCount, peopleCount, pendingInvitations } from './model.ts'
-import { SignInMethods } from './SignInMethods.tsx'
-import { WorkspaceSso } from './WorkspaceSso.tsx'
 
 import styles from './MembersPage.module.css'
 
@@ -92,7 +88,9 @@ export function MembersPage() {
   return (
     <>
       <PanelHeader>
-        <Breadcrumbs items={[{ label: data?.name ?? workspace }, { label: 'Members' }]} />
+        <Breadcrumbs
+          items={[{ label: data?.name ?? workspace }, { label: 'Settings' }, { label: 'Members' }]}
+        />
       </PanelHeader>
       <div className={styles.page}>
         {error ? (
@@ -107,7 +105,13 @@ export function MembersPage() {
           </Delayed>
         ) : (
           <>
-            {canManage ? <InviteForm workspaceId={data.id} onInvited={refresh} /> : null}
+            {canManage ? (
+              <InviteForm workspaceId={data.id} onInvited={refresh} />
+            ) : (
+              <Banner>
+                Only owners and admins can invite people, change roles or remove people.
+              </Banner>
+            )}
             {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
             <section className={styles.section}>
               <SectionHeader title="Members" description={peopleCount(data.members.length)} />
@@ -182,10 +186,6 @@ export function MembersPage() {
                 </EmptyState>
               ) : null}
             </section>
-            {canManage ? <BuildSettings workspace={workspace} /> : null}
-            {canManage ? <SignInMethods workspace={workspace} /> : null}
-            {canManage ? <EmailDomains workspace={workspace} /> : null}
-            {canManage ? <WorkspaceSso workspace={workspace} /> : null}
             {pending.length > 0 ? (
               <section className={styles.section}>
                 <SectionHeader
@@ -221,6 +221,13 @@ export function MembersPage() {
                 </div>
               </section>
             ) : null}
+            <Text variant="small" tone="tertiary">
+              Sign-in methods and email domains are in{' '}
+              <Link to="/workspaces/$workspace/settings/sign-in" params={{ workspace }}>
+                Sign-in and domains
+              </Link>
+              .
+            </Text>
           </>
         )}
       </div>

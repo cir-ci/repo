@@ -46,16 +46,15 @@ describe('IntegrationsPage', () => {
     })
     await show()
     const git = page.getByRole('region', { name: 'Git hosts' })
-    await expect.element(git.getByText('Installation 501')).toBeVisible()
-    await expect.element(git.getByText('2 teams')).toBeVisible()
+    await expect.element(git.getByText('Installation 501 · 2 teams')).toBeVisible()
     await expect.element(git.getByText('Needs attention')).toBeVisible()
     await expect.element(git.getByRole('link', { name: /Configure/ })).toBeVisible()
     const chat = page.getByRole('region', { name: 'Chat' })
-    await expect.element(chat.getByText('Acme Slack')).toBeVisible()
+    await expect.element(chat.getByText('Acme Slack · No teams yet')).toBeVisible()
     await expect.element(chat.getByText('Connected')).toBeVisible()
     expect(page.getByRole('region', { name: 'Design tools' }).elements()).toHaveLength(0)
     // Providers have a mark, not read aloud.
-    expect(document.querySelector('svg[data-kind="github"]')).not.toBeNull()
+    expect(document.querySelector('[data-kind="github"] svg')).not.toBeNull()
   })
 
   it('says so when nothing was added', async () => {
@@ -65,27 +64,7 @@ describe('IntegrationsPage', () => {
     await expect.element(page.getByText('No integrations yet')).toBeVisible()
   })
 
-  it('removes an integration after a confirmation', async () => {
-    await page.viewport(1000, 800)
-    const fake = fakeApi({
-      [`GET ${LIST}`]: list({
-        integrations: [item({ kind: 'slack', id: 's1', group: 'chat', name: 'Acme Slack' })],
-      }),
-      [`DELETE ${LIST}/s1`]: { status: 204 },
-    })
-    await show()
-    await page.getByRole('button', { name: 'Remove Slack (Acme Slack)' }).click()
-    const dialog = page.getByRole('alertdialog', { name: 'Remove Slack (Acme Slack)?' })
-    await expect.element(dialog).toBeVisible()
-    await page.getByRole('button', { name: 'Cancel' }).click()
-    await expect.element(dialog).not.toBeInTheDocument()
-    expect(fake.of('DELETE')).toHaveLength(0)
-    await page.getByRole('button', { name: 'Remove Slack (Acme Slack)' }).click()
-    await page.getByRole('button', { name: 'Remove', exact: true }).click()
-    await expect.poll(() => fake.of('DELETE')).toHaveLength(1)
-  })
-
-  it('shows members the list without Add or Remove', async () => {
+  it('shows members the list without Add', async () => {
     await page.viewport(1000, 800)
     fakeApi({
       [`GET ${LIST}`]: list({
@@ -94,7 +73,7 @@ describe('IntegrationsPage', () => {
       }),
     })
     await show()
-    await expect.element(page.getByText('Acme Slack')).toBeVisible()
+    await expect.element(page.getByText('Acme Slack · No teams yet')).toBeVisible()
     await expect.element(page.getByText(/Only owners and admins/)).toBeVisible()
     expect(page.getByRole('button', { name: 'Add integration' }).elements()).toHaveLength(0)
     expect(page.getByRole('button', { name: /^Remove/ }).elements()).toHaveLength(0)

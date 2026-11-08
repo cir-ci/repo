@@ -3,6 +3,7 @@ import { Input } from '@base-ui/react/input'
 import type { ReactNode } from 'react'
 
 import { cx } from './cx.ts'
+import { visuallyHidden } from './theme.ts'
 
 import styles from './TextField.module.css'
 
@@ -16,6 +17,7 @@ import styles from './TextField.module.css'
  */
 export function TextField({
   label,
+  hideLabel,
   description,
   error,
   className,
@@ -30,7 +32,9 @@ export function TextField({
       disabled={disabled}
       className={cx(styles.root, className)}
     >
-      <Field.Label className={styles.label}>{label}</Field.Label>
+      <Field.Label className={styles.label} style={hideLabel ? visuallyHidden : undefined}>
+        {label}
+      </Field.Label>
       <Input {...input} className={styles.control} />
       {error ? (
         <Field.Error match className={styles.error}>
@@ -49,6 +53,8 @@ export namespace TextField {
     'className' | 'render' | 'children' | 'aria-label' | 'aria-labelledby'
   > {
     label: ReactNode
+    /** Hide the label visually; it still names the control for assistive tech. */
+    hideLabel?: boolean
     /** Help under the control; hidden while there is an `error`. */
     description?: ReactNode
     /** Makes the field invalid and replaces the description. */

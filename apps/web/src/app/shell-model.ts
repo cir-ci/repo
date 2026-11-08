@@ -86,7 +86,8 @@ export function goPath(
   const workspace = where.workspace ? encodeURIComponent(where.workspace) : undefined
   if (target === 'inbox') return '/inbox'
   if (target === 'teams') return '/'
-  if (target === 'settings') return workspace ? `/workspaces/${workspace}/settings` : '/account'
+  if (target === 'settings')
+    return workspace ? `/workspaces/${workspace}/settings` : '/account/profile'
   if (!workspace) return undefined
   if (target === 'reviews') return `/workspaces/${workspace}/reviews`
   // Triage: the open team's queue; elsewhere the first team with something waiting, else the first.
@@ -103,6 +104,7 @@ export type Section =
   | 'views'
   | 'account'
   | 'settings'
+  | 'instance'
   | 'builds'
   | 'sites'
   | 'triage'
@@ -117,6 +119,7 @@ const SECTION_LABEL: Record<Section, string> = {
   views: 'Views',
   account: 'Account',
   settings: 'Settings',
+  instance: 'Instance',
   builds: 'Builds',
   sites: 'Sites',
   triage: 'Triage',
@@ -147,6 +150,7 @@ export function currentSection(pathname: string): Section | undefined {
   const parts = pathname.split('/').filter(Boolean)
   if (parts.length === 0) return 'teams'
   if (parts[0] === 'account') return 'account'
+  if (parts[0] === 'instance') return 'instance'
   if (parts[0] === 'inbox') return 'inbox'
   if (parts[0] === 'workspaces') return WORKSPACE_SECTIONS[parts[2] ?? '']
   if (parts[0] === '_sso') return undefined
@@ -154,9 +158,12 @@ export function currentSection(pathname: string): Section | undefined {
   return TEAM_SECTIONS[parts[2] ?? '']
 }
 
-/** Settings pages (account, workspace, team) share one layout with the settings nav. */
+/** Settings pages (account, workspace, team, instance) share one layout with the settings nav. */
 export const isSettingsSection = (section: Section | undefined): boolean =>
-  section === 'account' || section === 'settings' || section === 'team-settings'
+  section === 'account' ||
+  section === 'settings' ||
+  section === 'team-settings' ||
+  section === 'instance'
 
 /** Pages shown without the sidebar: they belong to a flow (a hosted site's sign-in), not the dashboard. */
 export const isOutsideFrame = (pathname: string): boolean => pathname.startsWith('/_sso/')
@@ -175,6 +182,87 @@ export function readRememberedWorkspace(): string | undefined {
 export function rememberWorkspace(slug: string): void {
   try {
     localStorage.setItem(REMEMBERED_WORKSPACE_KEY, slug)
+  } catch {
+    // Storage blocked: the choice lasts until the page reloads.
+  }
+}
+
+// ---- Account, instance and the settings tree ----------------------------------------------------
+
+/**
+ * A workspace's mark in the sidebar, menus and settings nav: the workspace being shown is the
+ * brand's maroon with white text, every other one is neutral (`surface.highest`).
+ */
+export const workspaceMark = (slug: string, current: string | undefined): 'brand' | 'neutral' =>
+  slug === current ? 'brand' : 'neutral'
+
+/** The first letter of a workspace's name, lower case as on the canvas. */
+export const workspaceLetter = (name: string): string => name.trim()[0]?.toLowerCase() ?? '?'
+
+/** The settings pages of a team, in the order of the settings nav: `path` is what follows `/settings`. */
+export const TEAM_SETTINGS_PAGES = [
+  { key: 'general', label: 'General', path: '' },
+  { key: 'token', label: 'CI token', path: '/token' },
+  { key: 'reviews', label: 'Reviews and triage', path: '/reviews' },
+  { key: 'webhooks', label: 'Webhooks', path: '/webhooks' },
+  { key: 'ignore-regions', label: 'Ignore regions', path: '/ignore-regions' },
+] as const
+
+export type TeamSettingsKey = (typeof TEAM_SETTINGS_PAGES)[number]['key']
+
+/** Which team settings page an address is (General for the bare `/settings`), if it is one. */
+export function teamSettingsKey(pathname: string): TeamSettingsKey | undefined {
+  const parts = pathname.split('/').filter(Boolean)
+  if (parts[0] === 'workspaces' || parts[0] === 'account' || parts[0] === 'instance')
+    return undefined
+  if (parts[2] !== 'settings') return undefined
+  return TEAM_SETTINGS_PAGES.find((p) => p.path === (parts[3] ? `/${parts[3]}` : ''))?.key
+}
+
+/**
+ * The same settings page of another team: switching teams in the settings nav stays on the page
+ * you are on (CI token stays CI token), and lands on General when the current address is not
+ * a team settings page.
+ */
+export function teamSettingsPath(workspace: string, team: string, pathname: string): string {
+  const key = teamSettingsKey(pathname)
+  const page = TEAM_SETTINGS_PAGES.find((p) => p.key === key)
+  return `/${encodeURIComponent(workspace)}/${encodeURIComponent(team)}/settings${page?.path ?? ''}`
+}
+
+/** The teams whose name contains what was typed in the team switcher. */
+export function matchTeams<T extends { name: string }>(teams: readonly T[], query: string): T[] {
+  const needle = query.trim().toLowerCase()
+  return needle ? teams.filter((t) => t.name.toLowerCase().includes(needle)) : [...teams]
+}
+
+/**
+ * The team the Team part of the settings nav is about: the one in the address, else the one
+ * last used in settings (if it is still there), else the first. Nothing when there are no teams.
+ */
+export function pickSettingsTeam<T extends { slug: string }>(
+  teams: readonly T[],
+  routeTeam: string | undefined,
+  remembered: string | undefined,
+): T | undefined {
+  return (
+    teams.find((t) => t.slug === routeTeam) ?? teams.find((t) => t.slug === remembered) ?? teams[0]
+  )
+}
+
+const REMEMBERED_TEAM_KEY = 'circi-settings-team'
+
+export function readRememberedTeam(workspace: string): string | undefined {
+  try {
+    return localStorage.getItem(`${REMEMBERED_TEAM_KEY}:${workspace}`) ?? undefined
+  } catch {
+    return undefined
+  }
+}
+
+export function rememberTeam(workspace: string, team: string): void {
+  try {
+    localStorage.setItem(`${REMEMBERED_TEAM_KEY}:${workspace}`, team)
   } catch {
     // Storage blocked: the choice lasts until the page reloads.
   }

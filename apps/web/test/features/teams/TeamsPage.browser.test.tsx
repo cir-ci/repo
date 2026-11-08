@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
+import { TeamDialogs } from '#features/teams/TeamDialogs.tsx'
 import { TeamsPage } from '#features/teams/TeamsPage.tsx'
 import { fakeApi, hangingFetch, restoreFetch } from '#test/features/fetch-routes.ts'
 import { renderPage } from '#test/support/render.tsx'
@@ -22,7 +23,15 @@ const caps = (over: Record<string, unknown> = {}) => ({
   ...over,
 })
 
-const show = () => renderPage(<TeamsPage />, { route: '/', url: '/', announcer: true })
+// The New team and New workspace dialogs belong to the shell: the page only opens them.
+const show = () =>
+  renderPage(
+    <>
+      <TeamsPage />
+      <TeamDialogs />
+    </>,
+    { route: '/', url: '/', announcer: true },
+  )
 
 const openWorkspaceDialog = async () => {
   const api = fakeApi({
@@ -42,27 +51,6 @@ const openWorkspaceDialog = async () => {
   await page.getByRole('button', { name: 'New workspace' }).click()
   await expect.element(page.getByRole('dialog', { name: 'New workspace' })).toBeVisible()
   return api
-}
-
-const openTeamDialog = async () => {
-  const api = fakeApi({
-    'GET /api/teams': { body: { teams: [overview('acme', 'web')] } },
-    'GET /api/capabilities': {
-      body: caps({
-        manageableWorkspaces: [
-          { slug: 'acme', name: 'Acme' },
-          { slug: 'globex', name: 'Globex' },
-        ],
-      }),
-    },
-    'POST /api/workspaces/globex/teams': {
-      body: { team: { slug: 'portal', name: 'Portal' }, token: 'circi_secret_token' },
-    },
-  })
-  const screen = await show()
-  await page.getByRole('button', { name: 'New team' }).click()
-  await expect.element(page.getByRole('dialog', { name: 'New team' })).toBeVisible()
-  return { api, ...screen }
 }
 
 describe('TeamsPage', () => {
@@ -123,7 +111,8 @@ describe('TeamsPage', () => {
     await expect
       .element(page.getByRole('heading', { name: 'Create your first team' }))
       .toBeVisible()
-    await expect.element(page.getByText(/A team holds the screenshot builds/)).toBeVisible()
+    await expect.element(page.getByText(/A team is one app or component library/)).toBeVisible()
+    await expect.element(page.getByText(/ARGOS_API_BASE_URL=/)).toBeVisible()
     await expect
       .poll(() => page.getByRole('button', { name: 'New team' }).elements().length)
       .toBe(2)
@@ -226,50 +215,6 @@ describe('TeamsPage', () => {
       await page.getByRole('button', { name: 'New workspace' }).click()
       await userEvent.keyboard('{Escape}')
       await expect.element(page.getByRole('dialog')).not.toBeInTheDocument()
-    })
-  })
-
-  describe('New team', () => {
-    it('starts on the first workspace and asks for a name', async () => {
-      const { api } = await openTeamDialog()
-      await expect
-        .element(page.getByRole('combobox', { name: 'Workspace' }))
-        .toHaveTextContent('Acme')
-      await expect.element(page.getByText('Usually the repository’s name.')).toBeVisible()
-      await page.getByRole('button', { name: 'Create' }).click()
-      await expect.element(page.getByText('Enter a name')).toBeVisible()
-      expect(api.of('POST')).toHaveLength(0)
-    })
-
-    it('creates the team in the chosen workspace and shows the CI token once', async () => {
-      const { api, router } = await openTeamDialog()
-      await page.getByRole('combobox', { name: 'Workspace' }).click()
-      await page.getByRole('option', { name: 'Globex' }).click()
-      await page.getByRole('textbox', { name: 'Name' }).fill('Portal')
-      await page.getByRole('button', { name: 'Create' }).click()
-      const dialog = page.getByRole('dialog', { name: 'Team created' })
-      await expect.element(dialog).toBeVisible()
-      await expect.element(page.getByText('circi_secret_token')).toBeVisible()
-      await expect.element(page.getByText(/isn’t shown again/)).toBeVisible()
-      expect(api.of('POST')[0]).toMatchObject({ body: { name: 'Portal' } })
-      // It can't be dismissed by accident: no close button, and Escape does nothing.
-      expect(page.getByRole('button', { name: 'Close' }).elements()).toHaveLength(0)
-      await userEvent.keyboard('{Escape}')
-      await expect.element(dialog).toBeVisible()
-      await page.getByRole('button', { name: 'I’ve saved it' }).click()
-      await expect.element(page.getByRole('dialog')).not.toBeInTheDocument()
-      expect(router.state.location.pathname).toBe('/globex/portal')
-    })
-
-    it('shows the server’s refusal', async () => {
-      const { api } = await openTeamDialog()
-      api.set('POST /api/workspaces/acme/teams', {
-        status: 400,
-        body: { error: 'Name is too long' },
-      })
-      await page.getByRole('textbox', { name: 'Name' }).fill('x'.repeat(300))
-      await page.getByRole('button', { name: 'Create' }).click()
-      await expect.element(page.getByRole('alert')).toHaveTextContent('Name is too long')
     })
   })
 })

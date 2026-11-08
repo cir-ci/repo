@@ -1,11 +1,20 @@
-import { createRoute, lazyRouteComponent } from '@tanstack/react-router'
+import { createRoute, lazyRouteComponent, redirect } from '@tanstack/react-router'
 
 import { rootRoute } from '#app/root-route.ts'
 
+const profileRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'account/profile',
+  component: lazyRouteComponent(() => import('./ProfilePage.tsx'), 'ProfilePage'),
+})
+
+// `/account` used to be the profile page; old links and the sign-in return address land on the new one.
 const accountRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'account',
-  component: lazyRouteComponent(() => import('./AccountPage.tsx'), 'AccountPage'),
+  beforeLoad: () => {
+    throw redirect({ to: '/account/profile', replace: true })
+  },
 })
 
-export const accountRoutes = [accountRoute]
+export const accountRoutes = [accountRoute, profileRoute]

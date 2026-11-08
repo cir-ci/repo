@@ -88,7 +88,7 @@ describe('ReviewsSettingsPage', () => {
     await expect.element(page.getByRole('checkbox', { name: /Set a review target/ })).toBeChecked()
     await expect.element(page.getByRole('spinbutton', { name: /Overdue after/ })).toHaveValue(24)
     await expect.element(page.getByText('checkout/**')).toBeVisible()
-    await expect.element(page.getByText('Ada Lovelace', { exact: true })).toBeVisible()
+    await expect.element(page.getByRole('strong').filter({ hasText: 'Ada Lovelace' })).toBeVisible()
     const superseded = page.getByRole('switch', { name: /superseded/ })
     await expect.element(superseded).toBeChecked()
     await expect.element(superseded).toHaveAttribute('data-disabled')

@@ -1,6 +1,6 @@
 import type { Integration } from '@circi/api'
 import { Badge, Banner, Button, Dialog, SegmentedControl, Text, TextField } from '@circi/ui'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 
 import { GithubAddPanel } from '#features/instance/GithubAddPanel.tsx'
 
@@ -10,6 +10,8 @@ import { useInstall } from './generic-api.ts'
 import { ProviderLogo } from './logos.tsx'
 
 import styles from './Integrations.module.css'
+
+const groupIndex = (g: Integration.Group) => GROUPS.findIndex((x) => x.value === g)
 
 const GROUP_OPTIONS = [{ value: 'all', label: 'All' }, ...GROUPS]
 
@@ -25,7 +27,9 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
   // A generic integration whose connect form is open (one with credential fields).
   const [generic, setGeneric] = useState<Integration.CatalogEntry | null>(null)
   const install = useInstall(props.workspace)
-  const tiles = filterCatalog(props.catalog, { query, group })
+  const tiles = filterCatalog(props.catalog, { query, group }).toSorted(
+    (a, b) => groupIndex(a.group) - groupIndex(b.group),
+  )
 
   function close(open: boolean) {
     if (!open) {
@@ -79,30 +83,45 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
             <Text tone="secondary">No integrations match “{query.trim()}”.</Text>
           ) : (
             <ul className={styles.tiles} aria-label="Available integrations">
-              {tiles.map((entry) => (
-                <li key={entry.kind} className={styles.tile} data-disabled={!canAdd(entry)}>
-                  <div className={styles.tileHead}>
+              {tiles.map((entry, index) => (
+                <Fragment key={entry.kind}>
+                  {index === 0 || tiles[index - 1]?.group !== entry.group ? (
+                    <li role="presentation" className={styles.tileGroup}>
+                      <Text variant="small" tone="tertiary">
+                        {GROUPS.find((g) => g.value === entry.group)?.label}
+                      </Text>
+                    </li>
+                  ) : null}
+                  <li className={styles.tile} data-disabled={!canAdd(entry)}>
                     <ProviderLogo kind={entry.logo} />
-                    <Text className={styles.tileTitle}>{entry.name}</Text>
-                    {props.added.includes(entry.kind) ? <Badge shape="tag">Added</Badge> : null}
+                    <span className={styles.name}>
+                      <Text>{entry.name}</Text>
+                      <Text variant="small" tone="tertiary">
+                        {(canAdd(entry) || entry.status === 'planned'
+                          ? null
+                          : unavailableNote(entry)) ?? entry.description}
+                      </Text>
+                    </span>
+                    {props.added.includes(entry.kind) ? (
+                      <Text variant="small" tone="secondary">
+                        Added
+                      </Text>
+                    ) : null}
                     {entry.status === 'planned' ? <Badge shape="tag">Planned</Badge> : null}
-                  </div>
-                  <Text variant="small" tone="secondary">
-                    {(canAdd(entry) ? null : unavailableNote(entry)) ?? entry.description}
-                  </Text>
-                  <Button
-                    disabled={!canAdd(entry)}
-                    onClick={() => {
-                      // Nothing to type, only an install: go straight to the provider.
-                      if (entry.credentials.length === 0 && entry.oauth) {
-                        install.mutate(entry.kind)
-                      } else setGeneric(entry)
-                    }}
-                    aria-label={`Add ${entry.name}`}
-                  >
-                    Add
-                  </Button>
-                </li>
+                    <Button
+                      disabled={!canAdd(entry)}
+                      onClick={() => {
+                        // Nothing to type, only an install: go straight to the provider.
+                        if (entry.credentials.length === 0 && entry.oauth) {
+                          install.mutate(entry.kind)
+                        } else setGeneric(entry)
+                      }}
+                      aria-label={`Add ${entry.name}`}
+                    >
+                      Add
+                    </Button>
+                  </li>
+                </Fragment>
               ))}
             </ul>
           )}

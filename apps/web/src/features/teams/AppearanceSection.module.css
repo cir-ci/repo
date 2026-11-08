@@ -1,0 +1,83 @@
+.pickers {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  border-top: 1px solid var(--circi-line-subtle);
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  float: left;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 0;
+  color: var(--circi-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.swatch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--circi-line-strong);
+  border-radius: 6px;
+  color: var(--circi-text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.swatch[data-on] {
+  border-color: var(--circi-accent-main);
+  background: var(--circi-accent-subtle);
+}
+
+/* The radio is the focusable control; the label draws its ring. */
+.radio {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.swatch:has(.radio:focus-visible) {
+  outline: 2px solid var(--circi-accent-text);
+  outline-offset: 2px;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+}
+
+.iconHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.search {
+  flex: 0 1 240px;
+}
+
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}

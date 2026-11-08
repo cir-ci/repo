@@ -12,4 +12,5 @@ export const authClient = createAuthClient({
   plugins: [emailOTPClient(), organizationClient()],
 })
 
-export type SessionUser = { id: string; name: string; email: string }
+/** `role` is better-auth's admin role (`admin` for the people who run the instance). */
+export type SessionUser = { id: string; name: string; email: string; role?: string }

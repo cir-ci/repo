@@ -127,14 +127,16 @@ describe('MembersPage', () => {
     expect(document.title).toBe('Members · $workspace · CirCI')
   })
 
-  it('offers the management sections to owners and admins', async () => {
+  it('offers inviting to owners and admins, and keeps sign-in settings on their own page', async () => {
     await page.viewport(1000, 800)
     await show()
-    await Promise.all(
-      ['Invite someone', 'Sign-in methods', 'Email domains', 'Single sign-on'].map(async (name) => {
-        await expect.element(page.getByRole('heading', { name })).toBeVisible()
-      }),
-    )
+    await expect.element(page.getByRole('heading', { name: 'Invite someone' })).toBeVisible()
+    for (const name of ['Sign-in methods', 'Email domains', 'Single sign-on']) {
+      expect(page.getByRole('heading', { name }).elements()).toHaveLength(0)
+    }
+    await expect
+      .element(page.getByRole('link', { name: 'Sign-in and domains' }))
+      .toHaveAttribute('href', '/workspaces/%24workspace/settings/sign-in')
   })
 
   it('shows a plain member the list and nothing to manage', async () => {
@@ -146,9 +148,8 @@ describe('MembersPage', () => {
     expect(page.getByRole('combobox').elements()).toHaveLength(0)
     expect(page.getByRole('button', { name: /^Actions for/ }).elements()).toHaveLength(0)
     expect(page.getByRole('button', { name: 'Withdraw' }).elements()).toHaveLength(0)
-    for (const name of ['Invite someone', 'Sign-in methods', 'Email domains', 'Single sign-on']) {
-      expect(page.getByRole('heading', { name }).elements()).toHaveLength(0)
-    }
+    expect(page.getByRole('heading', { name: 'Invite someone' }).elements()).toHaveLength(0)
+    await expect.element(page.getByText(/Only owners and admins can invite/)).toBeVisible()
   })
 
   it('says so when you are the only member', async () => {

@@ -4,10 +4,10 @@
   gap: 8px;
   box-sizing: border-box;
   width: 100%;
-  height: 36px;
+  height: 32px;
   padding: 0 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--circi-radius-control);
   background: transparent;
   color: var(--circi-text-primary);
   font: inherit;
@@ -22,7 +22,7 @@
 }
 
 .trigger:focus-visible {
-  outline: 2px solid var(--circi-accent-main);
+  outline: 2px solid var(--circi-accent-text);
   outline-offset: 2px;
 }
 

@@ -9,6 +9,8 @@ import { renderPage } from '#test/support/render.tsx'
 afterEach(() => restoreFetch())
 
 const PATH = '/api/inbox/preferences'
+const MAIL = { body: { password: true, email: true, sso: [] } }
+const NO_MAIL = { body: { password: true, email: false, sso: [] } }
 const requested = () => page.getByRole('switch', { name: /Review requested/ })
 const overdue = () => page.getByRole('switch', { name: /Review overdue/ })
 
@@ -17,6 +19,7 @@ describe('NotificationsPage', () => {
     await page.viewport(1000, 800)
     fakeApi({
       [`GET ${PATH}`]: { body: { emailReviewRequested: true, emailReviewOverdue: false } },
+      'GET /api/auth-methods': MAIL,
     })
     await renderPage(<NotificationsPage />)
     await expect.element(requested()).toBeChecked()
@@ -29,6 +32,7 @@ describe('NotificationsPage', () => {
     let prefs = { emailReviewRequested: true, emailReviewOverdue: false }
     const api = fakeApi({
       [`GET ${PATH}`]: () => ({ body: prefs }),
+      'GET /api/auth-methods': MAIL,
       [`PUT ${PATH}`]: () => {
         prefs = { ...prefs, emailReviewOverdue: true }
         return { body: prefs }
@@ -44,6 +48,7 @@ describe('NotificationsPage', () => {
     await page.viewport(1000, 800)
     fakeApi({
       [`GET ${PATH}`]: { body: { emailReviewRequested: true, emailReviewOverdue: false } },
+      'GET /api/auth-methods': MAIL,
       [`PUT ${PATH}`]: { status: 500, body: { error: 'Database is down' } },
     })
     await renderPage(<NotificationsPage />)
@@ -53,15 +58,45 @@ describe('NotificationsPage', () => {
       .toHaveTextContent('Couldn’t save that: Database is down')
     await expect.element(overdue()).not.toBeChecked()
   })
+
+  it('says email is off, with no switches, when the server can’t send mail', async () => {
+    await page.viewport(1000, 800)
+    fakeApi({
+      [`GET ${PATH}`]: { body: { emailReviewRequested: true, emailReviewOverdue: true } },
+      'GET /api/auth-methods': NO_MAIL,
+    })
+    await renderPage(<NotificationsPage />)
+    await expect.element(page.getByText(/can’t send mail yet/)).toBeVisible()
+    expect(page.getByRole('switch').elements()).toHaveLength(0)
+  })
+
+  it('lists what always lands in the Inbox, and names the page', async () => {
+    await page.viewport(1000, 800)
+    fakeApi({
+      [`GET ${PATH}`]: { body: { emailReviewRequested: true, emailReviewOverdue: true } },
+      'GET /api/auth-methods': MAIL,
+    })
+    await renderPage(<NotificationsPage />)
+    await expect.element(page.getByRole('heading', { name: 'In your Inbox' })).toBeVisible()
+    await expect.element(page.getByText('Flaky snapshot detected')).toBeVisible()
+    await expect.element(page.getByRole('navigation', { name: 'Breadcrumb' })).toBeVisible()
+  })
 })
 
 describe('AppearancePage', () => {
-  it('offers system, light and dark', async () => {
+  it('offers system, light and dark as radio cards and applies the choice', async () => {
     await page.viewport(1000, 800)
     await renderPage(<AppearancePage />)
-    const dark = page.getByRole('button', { name: 'Dark' })
-    await expect.element(dark).toBeVisible()
+    const group = page.getByRole('group', { name: 'Theme' })
+    await expect.element(group).toBeVisible()
+    const dark = page.getByRole('radio', { name: /Dark/ })
+    const light = page.getByRole('radio', { name: /Light/ })
+    await expect.element(page.getByRole('radio', { name: /System/ })).toBeChecked()
     await dark.click()
-    await expect.element(dark).toHaveAttribute('aria-pressed', 'true')
+    await expect.element(dark).toBeChecked()
+    expect(document.documentElement.getAttribute('data-circi-color-scheme')).toBe('dark')
+    await light.click()
+    await expect.element(light).toBeChecked()
+    expect(document.documentElement.getAttribute('data-circi-color-scheme')).toBe('light')
   })
 })

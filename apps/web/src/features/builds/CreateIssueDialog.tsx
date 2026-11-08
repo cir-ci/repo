@@ -1,5 +1,5 @@
 import type { Issue } from '@circi/api'
-import { Banner, Button, Dialog, Select, Text, TextField, useAnnounce } from '@circi/ui'
+import { Banner, Button, Dialog, SegmentedControl, Text, TextField, useAnnounce } from '@circi/ui'
 import { type FormEvent, useId, useState } from 'react'
 
 import styles from './Discussion.module.css'
@@ -17,7 +17,7 @@ export function CreateIssueDialog(props: CreateIssueDialog.Props) {
   const formId = useId()
   const tracker = trackers.find((t) => t.integrationId === picked) ?? trackers[0]
   const shownTitle = title ?? defaultTitle
-  const name = tracker ? TRACKER_NAMES[tracker.kind] : 'the tracker'
+  const name = tracker ? (TRACKER_NAMES[tracker.kind] ?? tracker.kind) : 'the tracker'
 
   function submit(e?: FormEvent) {
     e?.preventDefault()
@@ -70,15 +70,24 @@ export function CreateIssueDialog(props: CreateIssueDialog.Props) {
     >
       <form id={`${formId}-form`} onSubmit={submit} className={styles.form}>
         {trackers.length > 1 ? (
-          <Select
+          <SegmentedControl
             label="Tracker"
-            items={trackers.map((t) => ({
+            options={trackers.map((t) => ({
               value: t.integrationId,
-              label: `${TRACKER_NAMES[t.kind]} (${t.name})`,
+              label: TRACKER_NAMES[t.kind] ?? t.kind,
             }))}
             value={tracker?.integrationId ?? ''}
-            onValueChange={setPicked}
+            onChange={setPicked}
           />
+        ) : null}
+        {tracker?.kind === 'jira' ? (
+          <Text variant="small" tone="secondary">
+            Project{' '}
+            <Text as="code" variant="mono">
+              {tracker.target}
+            </Text>{' '}
+            in {tracker.name}
+          </Text>
         ) : null}
         <TextField
           label="Title"
@@ -95,6 +104,9 @@ export function CreateIssueDialog(props: CreateIssueDialog.Props) {
           </Text>
         </div>
         {props.error ? <Banner tone="danger">{props.error.message}</Banner> : null}
+        <Text variant="small" tone="tertiary">
+          The issue links back to this build.
+        </Text>
       </form>
     </Dialog>
   )

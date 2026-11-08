@@ -108,7 +108,8 @@ describe('GenericIntegrationPage', () => {
     // Nothing saved yet: the definition's defaults are on, approvals are not.
     await expect.element(docs.getByRole('checkbox', { name: 'Build rejected' })).toBeChecked()
     await expect.element(docs.getByRole('checkbox', { name: 'Build approved' })).not.toBeChecked()
-    await expect.element(docs.getByRole('button', { name: 'Save' })).toBeDisabled()
+    // Nothing changed yet: nothing to save.
+    expect(docs.getByRole('button', { name: 'Save' }).elements()).toHaveLength(0)
     await docs.getByRole('combobox', { name: 'Docs channel' }).click()
     await page.getByRole('option', { name: 'design (private)' }).click()
     await docs.getByRole('checkbox', { name: 'Build approved' }).click()
@@ -167,7 +168,7 @@ describe('GenericIntegrationPage', () => {
     expect(fake.of('GET').some((r) => r.path.endsWith('/targets'))).toBe(false)
   })
 
-  it('says when the integration needs attention, and reinstalls through the provider', async () => {
+  it('says when the integration needs attention, and reconnects through the provider', async () => {
     await page.viewport(1000, 900)
     const assign = vi.spyOn(navigation, 'assign').mockImplementation(() => {})
     fakeApi({
@@ -186,10 +187,41 @@ describe('GenericIntegrationPage', () => {
     await show()
     await expect.element(page.getByText('CirCI can’t reach Acme Workspace:')).toBeVisible()
     await expect.element(page.getByText(/token_revoked/)).toBeVisible()
-    await page.getByRole('button', { name: 'Reinstall Acme Workspace' }).click()
+    await expect.element(page.getByText('Needs attention')).toBeVisible()
+    await page.getByRole('button', { name: 'Reconnect Acme Workspace' }).click()
     await expect
       .poll(() => assign.mock.calls)
       .toEqual([['https://slack.com/oauth/v2/authorize?state=s']])
+  })
+
+  it('removes the integration after a confirmation', async () => {
+    await page.viewport(1000, 900)
+    const fake = fakeApi({
+      [`GET ${BASE}/w1/teams`]: pageData(),
+      [`GET ${BASE}/w1/targets`]: TARGETS,
+      [`DELETE ${BASE}/w1`]: { status: 204 },
+    })
+    await show()
+    await page.getByRole('button', { name: 'Remove Acme Workspace' }).click()
+    const dialog = page.getByRole('alertdialog', { name: 'Remove Acme Workspace?' })
+    await expect.element(dialog).toBeVisible()
+    await page.getByRole('button', { name: 'Cancel' }).click()
+    await expect.element(dialog).not.toBeInTheDocument()
+    expect(fake.of('DELETE')).toHaveLength(0)
+    await page.getByRole('button', { name: 'Remove Acme Workspace' }).click()
+    await page.getByRole('button', { name: 'Remove', exact: true }).click()
+    await expect.poll(() => fake.of('DELETE')).toHaveLength(1)
+  })
+
+  it('has the breadcrumb as its h1, and no Remove or Reconnect for members', async () => {
+    await page.viewport(1000, 900)
+    fakeApi({ [`GET ${BASE}/w1/teams`]: pageData({ canManage: false }) })
+    await show()
+    await expect.element(page.getByRole('heading', { level: 1, name: 'Slack' })).toBeVisible()
+    const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
+    await expect.element(crumbs.getByRole('link', { name: 'Settings' })).toBeVisible()
+    await expect.element(crumbs.getByRole('link', { name: 'Integrations' })).toBeVisible()
+    expect(page.getByRole('button', { name: /^(Remove|Reconnect)/ }).elements()).toHaveLength(0)
   })
 
   it('reports how the install ended', async () => {
@@ -472,23 +504,35 @@ describe('GenericIntegrationPage for a git host', () => {
     await show('/workspaces/acme/settings/integrations/gitlab/g1')
     await expect.element(page.getByText('https://circi.test/webhooks/gitlab')).toBeVisible()
     await expect.element(page.getByText('shh-secret')).toBeVisible()
+    // Repository first, with its team; the host's own list adds the ones no team has yet.
     await expect
-      .element(page.getByRole('combobox', { name: 'Web gitlab project' }))
-      .toHaveValue('acme/web')
-    await expect.poll(() => document.querySelectorAll('datalist option').length).toBeGreaterThan(0)
+      .element(page.getByRole('combobox', { name: 'Team for acme/web' }))
+      .toHaveTextContent('Web')
+    await expect
+      .element(page.getByRole('combobox', { name: 'Team for acme/docs' }))
+      .toHaveTextContent('Not linked')
 
-    const docs = page.getByRole('form', { name: 'Docs' })
-    await docs.getByRole('combobox', { name: 'Docs gitlab project' }).fill(' acme/docs ')
-    await docs.getByRole('button', { name: 'Save' }).click()
+    await page.getByRole('combobox', { name: 'Team for acme/docs' }).click()
+    await page.getByRole('option', { name: 'Docs' }).click()
     await expect.poll(() => fake.of('PUT')).toHaveLength(1)
-    // A repository is sent as typed (trimmed); its name is stored by the server.
     expect(fake.of('PUT')[0]?.body).toEqual({ ref: 'acme/docs', extra: {} })
 
-    await page
-      .getByRole('form', { name: 'Web' })
-      .getByRole('button', { name: 'Remove Web gitlab project' })
-      .click()
+    // "Not linked" lets the team go.
+    await page.getByRole('combobox', { name: 'Team for acme/web' }).click()
+    await page.getByRole('option', { name: 'Not linked' }).click()
     await expect.poll(() => fake.of('DELETE')).toHaveLength(1)
+  })
+
+  it('flags a repository the host no longer lists, and reinstalls', async () => {
+    await page.viewport(1000, 900)
+    fakeApi({
+      [`GET ${BASE}/g1/teams`]: gitPage(),
+      [`GET ${BASE}/g1/targets`]: { body: { targets: [{ id: 'acme/docs', name: 'acme/docs' }] } },
+    })
+    await show('/workspaces/acme/settings/integrations/gitlab/g1')
+    await expect
+      .element(page.getByText(/Needs attention: the app was uninstalled from this/))
+      .toBeVisible()
   })
 
   it('is read-only for members, who do not get the webhook secret', async () => {

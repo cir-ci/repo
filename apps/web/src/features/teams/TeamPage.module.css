@@ -69,3 +69,14 @@
     padding-left: 26px;
   }
 }
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.teamName {
+  font-size: 18px;
+  font-weight: 600;
+}

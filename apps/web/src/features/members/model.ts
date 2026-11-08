@@ -32,33 +32,3 @@ export function validateInvite(email: string): Problems<'email'> {
     return { email: 'That doesn’t look like an email address' }
   return {}
 }
-
-export function validateDomain(domain: string): Problems<'domain'> {
-  if (!domain) return { domain: 'Enter a domain, like example.com' }
-  if (!/^[^\s@/:]+\.[^\s@/:]+$/.test(domain))
-    return { domain: 'Enter just the domain, like example.com' }
-  return {}
-}
-
-export function validateSso(input: {
-  issuer: string
-  clientId: string
-  clientSecret: string
-}): Problems<'issuer' | 'clientId' | 'clientSecret'> {
-  const problems: Problems<'issuer' | 'clientId' | 'clientSecret'> = {}
-  if (!input.issuer) problems.issuer = 'Enter the issuer address'
-  else if (!isWebAddress(input.issuer))
-    problems.issuer = 'Enter a full address, like https://login.example.com'
-  if (!input.clientId) problems.clientId = 'Enter the client id'
-  if (!input.clientSecret) problems.clientSecret = 'Enter the client secret'
-  return problems
-}
-
-function isWebAddress(value: string): boolean {
-  try {
-    const { protocol } = new URL(value)
-    return protocol === 'https:' || protocol === 'http:'
-  } catch {
-    return false
-  }
-}

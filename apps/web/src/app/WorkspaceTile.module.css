@@ -1,0 +1,34 @@
+.root {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--circi-radius-control);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.root[data-size='16'] {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--circi-radius-inline);
+}
+
+.root[data-size='24'] {
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+}
+
+.root[data-mark='brand'] {
+  background: var(--circi-brand-maroon);
+  color: #ffffff;
+}
+
+.root[data-mark='neutral'] {
+  background: var(--circi-surface-highest);
+  color: var(--circi-text-primary);
+}

@@ -9,7 +9,12 @@ import styles from './Breadcrumbs.module.css'
  * the last is plain text marked `aria-current="page"`. The separator is drawn by CSS and
  * silent for screen readers.
  */
-export function Breadcrumbs({ items, label = 'Breadcrumb', className }: Breadcrumbs.Props) {
+export function Breadcrumbs({
+  items,
+  label = 'Breadcrumb',
+  currentIsHeading = false,
+  className,
+}: Breadcrumbs.Props) {
   return (
     <nav aria-label={label} className={cx(styles.root, className)}>
       <ol className={styles.list}>
@@ -17,7 +22,11 @@ export function Breadcrumbs({ items, label = 'Breadcrumb', className }: Breadcru
           const last = index === items.length - 1
           return (
             <li key={item.key ?? `${index}:${item.label}`} className={styles.item}>
-              {last || item.href === undefined ? (
+              {last && currentIsHeading ? (
+                <h1 className={styles.current} aria-current="page">
+                  {item.label}
+                </h1>
+              ) : last || item.href === undefined ? (
                 <span className={styles.current} aria-current={last ? 'page' : undefined}>
                   {item.label}
                 </span>
@@ -49,6 +58,8 @@ export namespace Breadcrumbs {
     items: ReadonlyArray<Item>
     /** The landmark's name. */
     label?: string
+    /** The current (last) crumb is the page's `<h1>`: every page's title is its breadcrumb. */
+    currentIsHeading?: boolean
     className?: string
   }
 }

@@ -5,9 +5,7 @@ import {
   pendingInvitations,
   invitationCount,
   peopleCount,
-  validateDomain,
   validateInvite,
-  validateSso,
 } from '#features/members/model.ts'
 
 const members = [
@@ -66,40 +64,5 @@ describe('validateInvite', () => {
   )
   it('accepts an address', () => {
     expect(validateInvite('ada@example.test')).toEqual({})
-  })
-})
-
-describe('validateDomain', () => {
-  it('asks for a domain', () => {
-    expect(validateDomain('').domain).toMatch(/Enter a domain/)
-  })
-  it.each(['example', 'https://example.com', 'a@example.com', 'example.com/x'])(
-    'refuses %j',
-    (domain) => {
-      expect(validateDomain(domain).domain).toMatch(/just the domain/)
-    },
-  )
-  it('accepts a domain', () => {
-    expect(validateDomain('example.com')).toEqual({})
-    expect(validateDomain('mail.example.co.uk')).toEqual({})
-  })
-})
-
-describe('validateSso', () => {
-  const ok = { issuer: 'https://login.example.com', clientId: 'id', clientSecret: 's3cret' }
-  it('accepts a complete form', () => {
-    expect(validateSso(ok)).toEqual({})
-  })
-  it('names every empty field', () => {
-    expect(validateSso({ issuer: '', clientId: '', clientSecret: '' })).toEqual({
-      issuer: 'Enter the issuer address',
-      clientId: 'Enter the client id',
-      clientSecret: 'Enter the client secret',
-    })
-  })
-  it('wants a full web address for the issuer', () => {
-    expect(validateSso({ ...ok, issuer: 'login.example.com' }).issuer).toMatch(/full address/)
-    expect(validateSso({ ...ok, issuer: 'ftp://login.example.com' }).issuer).toMatch(/full address/)
-    expect(validateSso({ ...ok, issuer: 'http://localhost:8080' })).toEqual({})
   })
 })

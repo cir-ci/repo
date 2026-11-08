@@ -152,6 +152,69 @@ export function mappingSummary(
   return labels.length === 0 ? 'No events' : labels.join(', ')
 }
 
+/** Whether the row differs from what is saved: another target, or other settings. */
+export function isDirty(
+  spec: Integration.MappingSpec,
+  saved: Integration.Mapping | null,
+  ref: string,
+  values: Readonly<ExtraValues>,
+): boolean {
+  if (ref.trim() !== (saved?.ref ?? '')) return true
+  const before = extraToSend(spec.fields, initialExtra(spec.fields, saved?.extra))
+  return JSON.stringify(before) !== JSON.stringify(extraToSend(spec.fields, values))
+}
+
+/** One repository of a git host's page, and the team that reports to it. */
+export interface RepositoryRow {
+  ref: string
+  label: string
+  /** The team mapped to it; null when none is. */
+  team: string | null
+  /** Mapped, but the host no longer lists it: the app was uninstalled from it. */
+  broken: boolean
+}
+
+/**
+ * The rows of a git host's page, repository first: every repository the host offers, and every
+ * mapped one the host no longer lists (flagged only when the list loaded, `targets` not null),
+ * mapped ones first, each group A to Z.
+ */
+export function repositoryRows(
+  teams: readonly Integration.MappingTeam[],
+  targets: readonly Integration.Target[] | null,
+): RepositoryRow[] {
+  const rows = new Map<string, RepositoryRow>()
+  for (const t of targets ?? []) {
+    rows.set(t.id, { ref: t.id, label: t.label ?? t.name, team: null, broken: false })
+  }
+  for (const team of teams) {
+    const m = team.mapping
+    if (!m) continue
+    const known = rows.get(m.ref)
+    rows.set(m.ref, {
+      ref: m.ref,
+      label: known?.label ?? m.name ?? m.ref,
+      team: team.slug,
+      broken: targets !== null && !known,
+    })
+  }
+  return [...rows.values()].toSorted(
+    (a, b) => Number(b.team !== null) - Number(a.team !== null) || a.label.localeCompare(b.label),
+  )
+}
+
+/** "Michael's workspace · 3 teams use it": what the page says under the integration's name. */
+export function connectionLine(
+  kindName: string,
+  account: string,
+  teams: readonly Integration.MappingTeam[],
+): string {
+  const used = teams.filter((t) => t.mapping !== null).length
+  const count =
+    used === 0 ? 'no teams use it yet' : `${used} ${used === 1 ? 'team uses' : 'teams use'} it`
+  return `${kindName} · ${account} · ${count}`
+}
+
 // ---- Server state -----------------------------------------------------------------------------
 
 const base = (workspace: string) => `/api/workspaces/${seg(workspace)}/integrations`

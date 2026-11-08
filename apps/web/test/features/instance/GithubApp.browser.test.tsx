@@ -2,10 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { formPost } from '#features/instance/github-app-api.ts'
-import { InstancePage } from '#features/instance/InstancePage.tsx'
+import { InstanceSettingsPage } from '#features/instance/InstanceSettingsPage.tsx'
 import { AddIntegrationDialog } from '#features/integrations/AddIntegrationDialog.tsx'
 import { navigation } from '#features/integrations/generic-api.ts'
 import { fakeApi, restoreFetch } from '#test/features/fetch-routes.ts'
+import { settingsFixture } from '#test/features/instance/fixtures.ts'
 import { entry } from '#test/features/integrations/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -13,6 +14,8 @@ afterEach(() => {
   restoreFetch()
   vi.restoreAllMocks()
 })
+
+const SETTINGS = settingsFixture()
 
 const APP = {
   source: 'none',
@@ -25,13 +28,17 @@ const APP = {
   defaultName: 'CirCI (ci.acme.io)',
 }
 
-const showInstance = (url = '/instance') =>
-  renderPage(<InstancePage />, { route: '/instance', url })
+const showInstance = (url = '/instance/settings') =>
+  renderPage(<InstanceSettingsPage />, { route: '/instance/settings', url })
 
-describe('the instance page', () => {
+/** The page also reads the effective settings; the GitHub App section is what these tests are about. */
+const fakeInstance = (routes: Parameters<typeof fakeApi>[0]) =>
+  fakeApi({ 'GET /api/instance/settings': { body: SETTINGS }, ...routes })
+
+describe('the GitHub App section of Instance settings', () => {
   it('creates the App: posts the manifest it was given to GitHub with its state', async () => {
     const submit = vi.spyOn(formPost, 'submit').mockImplementation(() => {})
-    const fake = fakeApi({
+    const fake = fakeInstance({
       'GET /api/instance/github-app': { body: APP },
       'POST /api/instance/github-app/manifest': {
         body: {
@@ -55,7 +62,7 @@ describe('the instance page', () => {
   })
 
   it('warns about an address GitHub cannot reach, but still lets it be tried', async () => {
-    fakeApi({
+    fakeInstance({
       'GET /api/instance/github-app': {
         body: { ...APP, warning: 'GitHub cannot deliver webhooks to localhost.' },
       },
@@ -68,7 +75,7 @@ describe('the instance page', () => {
   })
 
   it('blocks an insecure address', async () => {
-    fakeApi({
+    fakeInstance({
       'GET /api/instance/github-app': {
         body: { ...APP, blocked: 'GitHub only delivers to https.' },
       },
@@ -79,7 +86,7 @@ describe('the instance page', () => {
   })
 
   it('shows an App from the environment read-only, with no button to create one', async () => {
-    fakeApi({
+    fakeInstance({
       'GET /api/instance/github-app': {
         body: {
           ...APP,
@@ -100,7 +107,7 @@ describe('the instance page', () => {
   })
 
   it('says an App created here is stored, and tells a non-admin they cannot create one', async () => {
-    fakeApi({
+    fakeInstance({
       'GET /api/instance/github-app': {
         body: { ...APP, source: 'manifest', appId: '9', slug: 'circi', canManage: false },
       },
@@ -113,8 +120,8 @@ describe('the instance page', () => {
   })
 
   it('explains a setup GitHub did not finish', async () => {
-    fakeApi({ 'GET /api/instance/github-app': { body: APP } })
-    await showInstance('/instance?githubApp=failed')
+    fakeInstance({ 'GET /api/instance/github-app': { body: APP } })
+    await showInstance('/instance/settings?githubApp=failed')
     await expect.element(page.getByText(/did not finish creating the App/)).toBeVisible()
   })
 })

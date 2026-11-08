@@ -2,44 +2,45 @@ import type { Integration } from '@circi/api'
 import {
   Banner,
   Button,
-  Checkbox,
+  ConfirmDialog,
+  Dialog,
   EmptyState,
-  ListRow,
-  SectionHeader,
-  Select,
+  Heading,
   Text,
-  TextField,
+  useAnnounce,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
-import { useParams, useSearch } from '@tanstack/react-router'
-import { type FormEvent, useId, useState } from 'react'
+import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
+import { useState } from 'react'
 
-import { Frame } from '#features/settings/Frame.tsx'
 import { useDocumentTitle } from '#lib/document-title.ts'
 
+import { useRemoveIntegration } from './api.ts'
+import { ConnectForm } from './ConnectForm.tsx'
 import {
-  canSave,
+  connectionLine,
   connectNote,
-  type ExtraValues,
-  extraToSend,
-  initialExtra,
   mappingPageQuery,
-  mappingSummary,
-  targetItems,
-  targetsQuery,
   useInstall,
   useMapping,
 } from './generic-api.ts'
+import { IntegrationFrame } from './IntegrationFrame.tsx'
+import { IntegrationHead } from './IntegrationHead.tsx'
+import { RepositoryRows } from './RepositoryRows.tsx'
 import { TeamLinks } from './TeamLinks.tsx'
+import { useTeamMark } from './TeamMark.tsx'
+import { TeamRow } from './TeamRows.tsx'
+import { TrackerPreview } from './TrackerPreview.tsx'
 
 import styles from './Integrations.module.css'
 
 /**
- * The one page for every integration: each team maps to one target
- * of the integration (a select of what the account offers, or a typed id) with the settings the
- * definition lists (event toggles, text, switches). Nothing here knows any
- * integration: it renders the definition's mapping spec from the API. A team without a target
- * uses nothing.
+ * The one page for every integration, laid out as the canvas's boards: the provider's mark and
+ * connection state with Reconnect and Remove, then, from the definition's mapping spec, either
+ * the host's repositories each with its team (a git host) or one row per
+ * team with a picker and its settings (a chat channel, a tracker team or project, a design file);
+ * a few lines of what CirCI posts or sends close the page. Nothing here knows an integration:
+ * it renders the definition from the API. A team without a target uses nothing.
  */
 export function GenericIntegrationPage() {
   const { workspace, id } = useParams({
@@ -51,13 +52,42 @@ export function GenericIntegrationPage() {
   useDocumentTitle(name, 'Integrations', workspace)
   const mapping = useMapping(workspace, id)
   const install = useInstall(workspace)
+  const remove = useRemoveIntegration(workspace)
+  const navigate = useNavigate()
+  const announce = useAnnounce()
+  const mark = useTeamMark(workspace)
+  const [removing, setRemoving] = useState(false)
+  const [reconnecting, setReconnecting] = useState(false)
   const note = connectNote(search.connect, name)
   const spec = data?.definition.mapping ?? null
   const links = data?.definition.links ?? null
 
+  // Moves a repository to another team: the old team lets go of it first.
+  async function assign(input: { ref: string; from: string | null; to: string | null }) {
+    try {
+      if (input.from) await mapping.clear.mutateAsync(input.from)
+      if (input.to) await mapping.save.mutateAsync({ team: input.to, ref: input.ref })
+    } catch {
+      // Shown by the banners below, from the mutations' own errors.
+    }
+  }
+
+  const reinstall = (label: string) =>
+    data?.canManage && data.configured && data.definition.oauth ? (
+      <Button
+        loading={install.isPending}
+        onClick={() => install.mutate(data.integration.kind)}
+        aria-label={`${label} ${data.integration.name}`}
+      >
+        {label}
+      </Button>
+    ) : null
+
   return (
-    <Frame
-      crumbs={[workspace, 'Integrations', name]}
+    <IntegrationFrame
+      workspace={workspace}
+      below
+      title={name}
       loading={!data && !error}
       error={error}
       onRetry={() => void refetch()}
@@ -67,258 +97,254 @@ export function GenericIntegrationPage() {
       }
     >
       {data ? (
-        <section className={styles.groups}>
-          <SectionHeader
-            title={`${data.definition.name} (${data.integration.name})`}
-            description={spec?.description ?? data.definition.description}
+        <>
+          <IntegrationHead
+            logo={data.definition.logo}
+            name={data.definition.name}
+            line={connectionLine(data.definition.name, data.integration.name, data.teams)}
+            needsAttention={data.integration.needsAttention}
+            actions={
+              data.canManage ? (
+                <>
+                  {data.definition.oauth && data.configured ? (
+                    <Button
+                      loading={install.isPending}
+                      onClick={() => install.mutate(data.integration.kind)}
+                      aria-label={`Reconnect ${data.integration.name}`}
+                    >
+                      Reconnect
+                    </Button>
+                  ) : data.definition.credentials.length > 0 ? (
+                    <Button
+                      onClick={() => setReconnecting(true)}
+                      aria-label={`Reconnect ${data.integration.name}`}
+                    >
+                      Reconnect
+                    </Button>
+                  ) : null}
+                  <Button
+                    variant="danger"
+                    onClick={() => setRemoving(true)}
+                    aria-label={`Remove ${data.integration.name}`}
+                  >
+                    Remove
+                  </Button>
+                </>
+              ) : null
+            }
           />
           {note ? <Banner tone={note.tone}>{note.text}</Banner> : null}
-          {data.webhook ? (
-            <Text variant="small" tone="secondary">
-              {data.definition.name} calls{' '}
-              <Text as="code" variant="mono">
-                {data.webhook.url}
+          {data.integration.needsAttention ? (
+            <Banner tone="danger" title={`CirCI can’t reach ${data.integration.name}:`}>
+              {data.integration.attentionReason ??
+                `${data.definition.name} no longer accepts the saved credentials.`}
+            </Banner>
+          ) : null}
+          {install.error ? <Banner tone="danger">{install.error.message}</Banner> : null}
+          {remove.error ? <Banner tone="danger">{remove.error.message}</Banner> : null}
+          {mapping.save.error ? <Banner tone="danger">{mapping.save.error.message}</Banner> : null}
+          {mapping.clear.error ? (
+            <Banner tone="danger">{mapping.clear.error.message}</Banner>
+          ) : null}
+
+          {spec === null ? (
+            <EmptyState title="Nothing to set up">
+              {data.definition.name} has no per-team settings.
+            </EmptyState>
+          ) : (
+            <section className={styles.section} aria-labelledby="mapping-title">
+              <div>
+                <Heading level="title" as="h2" id="mapping-title">
+                  {data.definition.group === 'git' ? 'Repositories' : 'Teams'}
+                </Heading>
+                <Text as="p" variant="small" tone="secondary">
+                  {spec.description ?? data.definition.description}
+                </Text>
+              </div>
+              {data.definition.group === 'git' ? (
+                <RepositoryRows
+                  workspace={workspace}
+                  integrationId={id}
+                  spec={spec}
+                  teams={data.teams}
+                  canManage={data.canManage}
+                  onAssign={(input) => void assign(input)}
+                  reinstall={reinstall('Reinstall')}
+                />
+              ) : (
+                <ul className={styles.box} aria-label={`${spec.targetLabel} by team`}>
+                  {data.teams.map((team) => (
+                    <li key={team.slug}>
+                      <TeamRow
+                        // Start over when the saved mapping changes (after saving, or removing it).
+                        key={`${team.mapping?.ref ?? ''}:${JSON.stringify(team.mapping?.extra ?? {})}`}
+                        workspace={workspace}
+                        integrationId={id}
+                        spec={spec}
+                        team={team}
+                        mark={mark(team.slug, team.name)}
+                        canManage={data.canManage}
+                        saving={mapping.save.isPending}
+                        onSave={(input) => mapping.save.mutate({ team: team.slug, ...input })}
+                        onClear={() => mapping.clear.mutate(team.slug)}
+                      />
+                      {links && (team.mapping || data.canManage) ? (
+                        <TeamLinks
+                          workspace={workspace}
+                          integrationId={id}
+                          spec={links}
+                          team={team}
+                          canManage={data.canManage}
+                        />
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+
+          <Footer
+            group={data.definition.group}
+            webhook={data.webhook}
+            name={data.definition.name}
+          />
+
+          <ConfirmDialog
+            open={removing}
+            onOpenChange={setRemoving}
+            title={`Remove ${data.integration.name}?`}
+            description={
+              data.definition.group === 'git'
+                ? 'The teams that report to it stop showing build status on pull requests. You can connect it again later.'
+                : 'Teams stop using it. You can connect it again later.'
+            }
+            confirmLabel="Remove"
+            loading={remove.isPending}
+            onConfirm={() =>
+              remove.mutate(
+                { id: data.integration.id },
+                {
+                  onSuccess: () => {
+                    announce(`${data.integration.name} removed`)
+                    void navigate({
+                      to: '/workspaces/$workspace/settings/integrations',
+                      params: { workspace },
+                    })
+                  },
+                  onSettled: () => setRemoving(false),
+                },
+              )
+            }
+          />
+          <Dialog
+            open={reconnecting}
+            onOpenChange={setReconnecting}
+            title={`Reconnect ${data.definition.name}`}
+            description="Enter the credentials again; the teams’ settings stay as they are."
+            actions={<Button onClick={() => setReconnecting(false)}>Cancel</Button>}
+          >
+            <ConnectForm
+              entry={data.definition}
+              workspace={workspace}
+              onDone={() => setReconnecting(false)}
+            />
+          </Dialog>
+        </>
+      ) : null}
+    </IntegrationFrame>
+  )
+}
+
+/** What CirCI posts or sends, and the webhook a git host calls: the lines that close the page. */
+function Footer(props: {
+  group: Integration.Group
+  name: string
+  webhook: Integration.MappingPage['webhook']
+}) {
+  const { webhook } = props
+  return (
+    <>
+      {props.group === 'git' ? (
+        <section className={styles.section} aria-labelledby="posts-title">
+          <div>
+            <Heading level="title" as="h2" id="posts-title">
+              What CirCI posts on pull requests
+            </Heading>
+            <Text as="p" variant="small" tone="secondary">
+              Make the check required in branch protection to block merging until changes are
+              reviewed. Approving here or on {props.name} turns it green without a CI re-run.
+            </Text>
+          </div>
+          <div className={styles.box}>
+            <div className={styles.row}>
+              <span className={styles.name}>
+                <Text>Status check</Text>
+                <Text variant="small" tone="tertiary">
+                  One per build name, such as <Text variant="mono">CirCI / default</Text>, with the
+                  build’s changes and a review link.
+                </Text>
+              </span>
+              <Text variant="small" tone="secondary">
+                Always on
               </Text>
-              {data.webhook.secret ? (
+            </div>
+            <div className={styles.row}>
+              <span className={styles.name}>
+                <Text>Summary comment</Text>
+                <Text variant="small" tone="tertiary">
+                  One per pull request, edited in place on every push.
+                </Text>
+              </span>
+              <Text variant="small" tone="secondary">
+                Always on
+              </Text>
+            </div>
+          </div>
+          <div className={styles.box}>
+            {[
+              ['/circi approve', 'Approves the newest build on the pull request.'],
+              ['/circi reject', 'Rejects it; text after the command becomes the reason.'],
+              [
+                '/circi rerun',
+                'Processes the build again, for example after changing the threshold.',
+              ],
+            ].map(([command, text]) => (
+              <div key={command} className={styles.cmd}>
+                <Text as="code" variant="mono">
+                  {command}
+                </Text>
+                <Text variant="small" tone="secondary">
+                  {text}
+                </Text>
+              </div>
+            ))}
+          </div>
+          <Text as="p" variant="small" tone="secondary">
+            Commands work for members of the workspace who linked their {props.name} account on
+            their profile. Anyone else gets a reply explaining how to link.
+          </Text>
+          {webhook ? (
+            <Text variant="small" tone="secondary">
+              {props.name} calls{' '}
+              <Text as="code" variant="mono">
+                {webhook.url}
+              </Text>
+              {webhook.secret ? (
                 <>
                   {' '}
                   with the secret{' '}
                   <Text as="code" variant="mono">
-                    {data.webhook.secret}
+                    {webhook.secret}
                   </Text>
                 </>
               ) : null}
               .
             </Text>
           ) : null}
-          {data.integration.needsAttention ? (
-            <Banner
-              tone="danger"
-              title={`CirCI can’t reach ${data.integration.name}:`}
-              action={
-                data.canManage && data.configured && data.definition.oauth ? (
-                  <Button
-                    loading={install.isPending}
-                    onClick={() => install.mutate(data.integration.kind)}
-                    aria-label={`Reinstall ${data.integration.name}`}
-                  >
-                    Reinstall
-                  </Button>
-                ) : undefined
-              }
-            >
-              {data.integration.attentionReason ??
-                `${data.definition.name} no longer accepts the saved credentials.`}
-            </Banner>
-          ) : null}
-          {install.error ? <Banner tone="danger">{install.error.message}</Banner> : null}
-          {mapping.save.error ? <Banner tone="danger">{mapping.save.error.message}</Banner> : null}
-          {mapping.clear.error ? (
-            <Banner tone="danger">{mapping.clear.error.message}</Banner>
-          ) : null}
-          {spec === null ? (
-            <EmptyState title="Nothing to set up">
-              {data.definition.name} has no per-team settings.
-            </EmptyState>
-          ) : (
-            <ul className={styles.list} aria-label={`${spec.targetLabel} by team`}>
-              {data.teams.map((p) => (
-                <li key={p.slug}>
-                  <TeamMapping
-                    // Start over when the saved mapping changes (after saving, or removing it).
-                    key={`${p.mapping?.ref ?? ''}:${JSON.stringify(p.mapping?.extra ?? {})}`}
-                    workspace={workspace}
-                    integrationId={id}
-                    spec={spec}
-                    team={p}
-                    canManage={data.canManage}
-                    saving={mapping.save.isPending}
-                    onSave={(input) => mapping.save.mutate({ team: p.slug, ...input })}
-                    onClear={() => mapping.clear.mutate(p.slug)}
-                  />
-                  {links && (p.mapping || data.canManage) ? (
-                    <TeamLinks
-                      workspace={workspace}
-                      integrationId={id}
-                      spec={links}
-                      team={p}
-                      canManage={data.canManage}
-                    />
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
         </section>
       ) : null}
-    </Frame>
-  )
-}
-
-function TeamMapping(props: {
-  workspace: string
-  integrationId: string
-  spec: Integration.MappingSpec
-  team: Integration.MappingTeam
-  canManage: boolean
-  saving: boolean
-  onSave: (input: Integration.MappingInput) => void
-  onClear: () => void
-}) {
-  const { spec, team } = props
-  const saved = team.mapping
-  const [ref, setRef] = useState(saved?.ref ?? '')
-  const [values, setValues] = useState<ExtraValues>(() => initialExtra(spec.fields, saved?.extra))
-  const selecting = spec.targetKind === 'select'
-  // A repository is typed (`owner/name`), with the host's repositories offered as suggestions.
-  const suggesting = spec.targetKind === 'repository'
-  const listId = useId()
-  const targets = useQuery({
-    ...targetsQuery(props.workspace, props.integrationId),
-    enabled: (selecting || suggesting) && props.canManage,
-    retry: suggesting ? false : undefined,
-  })
-  const items = targetItems(
-    targets.data?.targets ?? [],
-    saved ? { ref: saved.ref, name: saved.name } : null,
-  )
-  const summary = saved ? mappingSummary(spec, saved.extra) : null
-  const targetName = spec.targetLabel.toLowerCase()
-
-  if (!props.canManage) {
-    return (
-      <ListRow density="two-line">
-        <div className={styles.row}>
-          <div className={styles.name}>
-            <Text>{team.name}</Text>
-            <Text variant="small" tone="secondary">
-              {saved ? (summary ?? 'In use') : 'Not set up'}
-            </Text>
-          </div>
-          <Text tone="secondary" variant="mono">
-            {saved ? (saved.name ?? saved.ref) : '—'}
-          </Text>
-        </div>
-      </ListRow>
-    )
-  }
-
-  function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    if (!canSave(spec, ref, values)) return
-    const picked = items.find((i) => i.value === ref)
-    if (selecting && !picked) return
-    props.onSave({
-      ref: ref.trim(),
-      ...(picked ? { name: picked.name } : {}),
-      extra: extraToSend(spec.fields, values),
-    })
-  }
-
-  const setValue = (key: string, value: unknown) => setValues((cur) => ({ ...cur, [key]: value }))
-
-  return (
-    <ListRow density="two-line">
-      <form onSubmit={submit} noValidate className={styles.form} aria-label={team.name}>
-        {selecting ? (
-          <Select
-            className={styles.repoField}
-            label={`${team.name} ${targetName}`}
-            items={items}
-            value={ref}
-            placeholder={targets.isPending ? `Loading ${targetName}s…` : `Choose a ${targetName}`}
-            onValueChange={setRef}
-            {...(targets.error ? { error: targets.error.message } : {})}
-          />
-        ) : (
-          <>
-            <TextField
-              label={`${team.name} ${targetName}`}
-              value={ref}
-              onChange={(e) => setRef(e.target.value)}
-              {...(suggesting ? { list: listId } : {})}
-              {...(spec.targetPlaceholder ? { placeholder: spec.targetPlaceholder } : {})}
-            />
-            {suggesting ? (
-              <datalist id={listId}>
-                {(targets.data?.targets ?? []).map((t) => (
-                  <option key={t.id} value={t.id} />
-                ))}
-              </datalist>
-            ) : null}
-          </>
-        )}
-        {spec.fields.map((field) => {
-          if (field.kind === 'events') {
-            const on = Array.isArray(values[field.key]) ? values[field.key] : []
-            return (
-              <div
-                key={field.key}
-                role="group"
-                aria-label={`${team.name} ${field.label.toLowerCase()}`}
-                className={styles.form}
-              >
-                {field.options.map((o) => (
-                  <Checkbox
-                    key={o.event}
-                    label={o.label}
-                    checked={Array.isArray(on) && on.includes(o.event)}
-                    onCheckedChange={(checked) =>
-                      setValue(
-                        field.key,
-                        field.options
-                          .map((x) => x.event)
-                          .filter((e) =>
-                            e === o.event ? checked : Array.isArray(on) && on.includes(e),
-                          ),
-                      )
-                    }
-                  />
-                ))}
-              </div>
-            )
-          }
-          if (field.kind === 'toggle') {
-            return (
-              <Checkbox
-                key={field.key}
-                label={field.label}
-                checked={values[field.key] === true}
-                onCheckedChange={(checked) => setValue(field.key, checked)}
-              />
-            )
-          }
-          return (
-            <TextField
-              key={field.key}
-              label={`${team.name} ${field.label.toLowerCase()}`}
-              value={typeof values[field.key] === 'string' ? String(values[field.key]) : ''}
-              onChange={(e) => setValue(field.key, e.target.value)}
-              required={!field.optional}
-              {...(field.placeholder ? { placeholder: field.placeholder } : {})}
-            />
-          )
-        })}
-        <div className={styles.trailing}>
-          <Button
-            type="submit"
-            variant="primary"
-            loading={props.saving}
-            disabled={!canSave(spec, ref, values)}
-          >
-            {saved ? 'Update' : 'Save'}
-          </Button>
-          {saved ? (
-            <Button
-              variant="danger"
-              onClick={props.onClear}
-              aria-label={`Remove ${team.name} ${targetName}`}
-            >
-              Remove
-            </Button>
-          ) : null}
-        </div>
-      </form>
-    </ListRow>
+      {props.group === 'tracker' ? <TrackerPreview name={props.name} /> : null}
+    </>
   )
 }

@@ -36,7 +36,7 @@ export function FigmaFrameChip({ frame }: { frame: Figma.Frame }) {
       className={styles.figmaChip}
       href={frame.url}
       target="_blank"
-      rel="noreferrer"
+      rel="noopener noreferrer"
       title={frame.frameName ?? 'Open the linked frame in Figma'}
     >
       Figma frame{frame.frameName ? `: ${frame.frameName}` : ''}
@@ -344,7 +344,7 @@ function Figure({ label, image, zoom, annotations }: Figure.Props) {
         <a
           href={fileUrl(image.sha256)}
           target="_blank"
-          rel="noreferrer"
+          rel="noopener noreferrer"
           title="Open full size"
           className={styles.frame}
         >

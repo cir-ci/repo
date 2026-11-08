@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { IssueAction } from '#features/builds/IssueAction.tsx'
-import { LinkedIssues } from '#features/builds/LinkedIssues.tsx'
+import { LinkedIssues, SnapshotIssues } from '#features/builds/LinkedIssues.tsx'
 import { fakeApi, restoreFetch } from '#test/features/fetch-routes.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -52,7 +52,7 @@ describe('IssueAction', () => {
     const preview = dialog.getByLabelText('Description preview')
     await expect.poll(() => preview.element().textContent).toContain('Branch: feature/checkout')
     // One tracker: no choice to make.
-    expect(dialog.getByRole('combobox', { name: 'Tracker' }).elements()).toHaveLength(0)
+    expect(dialog.getByRole('group', { name: 'Tracker' }).elements()).toHaveLength(0)
 
     await dialog.getByRole('textbox', { name: 'Title' }).fill('Payment form is misaligned')
     await dialog.getByRole('button', { name: 'Create issue' }).click()
@@ -74,8 +74,7 @@ describe('IssueAction', () => {
     await show(null)
     await page.getByRole('button', { name: 'Create issue' }).click()
     const dialog = page.getByRole('dialog', { name: 'Create issue' })
-    await dialog.getByRole('combobox', { name: 'Tracker' }).click()
-    await page.getByRole('option', { name: 'Linear (Acme)' }).click()
+    await dialog.getByRole('button', { name: 'Linear' }).click()
     await dialog.getByRole('button', { name: 'Create issue' }).click()
     await expect.poll(() => fake.of('POST')).toHaveLength(1)
     expect(fake.of('POST')[0]?.body).toEqual({ integrationId: 'i2' })
@@ -106,5 +105,45 @@ describe('LinkedIssues', () => {
     const link = page.getByRole('link', { name: 'WEB-9' })
     await expect.element(link).toHaveAttribute('href', 'https://x.test/WEB-9')
     await expect.element(page.getByText('Header broke')).toBeVisible()
+  })
+})
+
+const link = (over: Partial<Issue.Link>): Issue.Link => ({
+  id: 'a',
+  key: 'WEB-9',
+  url: 'https://x.test/WEB-9',
+  title: 'Header broke',
+  tracker: 'jira',
+  snapshotName: 'checkout / payment',
+  createdAt: new Date().toISOString(),
+  createdBy: 'Dana',
+  ...over,
+})
+
+describe('SnapshotIssues', () => {
+  it('shows a link row for the issues of the selected snapshot only, opening in a new tab', async () => {
+    fakeApi({
+      [`GET ${ISSUES}`]: {
+        body: {
+          issues: [link({}), link({ id: 'b', key: 'WEB-10', snapshotName: 'other' })],
+          trackers: [jira],
+        },
+      },
+    })
+    await renderPage(
+      <SnapshotIssues
+        workspace="acme"
+        team="web-app"
+        number={7}
+        snapshotName="checkout / payment"
+      />,
+    )
+    const row = page.getByRole('list', { name: 'Issues for this snapshot' })
+    const issue = row.getByRole('link', { name: 'WEB-9 · Jira' })
+    await expect.element(issue).toHaveAttribute('href', 'https://x.test/WEB-9')
+    await expect.element(issue).toHaveAttribute('target', '_blank')
+    await expect.element(issue).toHaveAttribute('rel', 'noopener noreferrer')
+    await expect.element(row.getByText(/created by Dana/)).toBeVisible()
+    expect(page.getByRole('link', { name: /WEB-10/ }).elements()).toHaveLength(0)
   })
 })

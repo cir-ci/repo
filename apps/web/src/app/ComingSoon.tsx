@@ -1,6 +1,7 @@
-import { Breadcrumbs, EmptyState, PanelHeader } from '@circi/ui'
+import { EmptyState } from '@circi/ui'
 
 import { useDocumentTitle } from '#lib/document-title.ts'
+import { PageHeading } from '#lib/PageHeading.tsx'
 
 /**
  * Stands in for a page that is planned but not built (docs/next-steps-plan.md, Phase C). The
@@ -11,12 +12,8 @@ export function ComingSoon({ title }: ComingSoon.Props) {
   useDocumentTitle(title)
   return (
     <>
-      <PanelHeader>
-        <Breadcrumbs items={[{ label: title }]} />
-      </PanelHeader>
-      <EmptyState title={title} headingLevel={1}>
-        This page is coming soon.
-      </EmptyState>
+      <PageHeading title={title} />
+      <EmptyState title={title}>This page is coming soon.</EmptyState>
     </>
   )
 }

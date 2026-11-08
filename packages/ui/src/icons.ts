@@ -115,3 +115,45 @@ export const InfoIcon = icon(Info, 'InfoIcon')
 export const MinusIcon = icon(Minus, 'MinusIcon')
 /** The "…" that opens a row's `Menu`, as the icon of an `IconButton` (docs/design-gaps.md §9, §12). */
 export const RowMenuIcon = icon(MoreHorizontal, 'RowMenuIcon')
+
+// The shell's navigation icons (sidebar, settings nav, account menu).
+// oxlint-disable-next-line import/no-duplicates
+import {
+  Activity,
+  Bell,
+  Blocks,
+  Building2,
+  ChevronLeft,
+  Database,
+  Keyboard,
+  KeyRound,
+  ListFilter,
+  Pin,
+  Plus,
+  ScanLine,
+  Server,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sun,
+  UserPlus,
+  Webhook,
+} from 'lucide-react'
+
+export const ActivityIcon = icon(Activity, 'ActivityIcon')
+export const BellIcon = icon(Bell, 'BellIcon')
+export const BlocksIcon = icon(Blocks, 'BlocksIcon')
+export const BuildingIcon = icon(Building2, 'BuildingIcon')
+export const ChevronLeftIcon = icon(ChevronLeft, 'ChevronLeftIcon')
+export const DatabaseIcon = icon(Database, 'DatabaseIcon')
+export const KeyboardIcon = icon(Keyboard, 'KeyboardIcon')
+export const KeyIcon = icon(KeyRound, 'KeyIcon')
+export const ListFilterIcon = icon(ListFilter, 'ListFilterIcon')
+export const PinIcon = icon(Pin, 'PinIcon')
+export const PlusIcon = icon(Plus, 'PlusIcon')
+export const ScanIcon = icon(ScanLine, 'ScanIcon')
+export const ServerIcon = icon(Server, 'ServerIcon')
+export const ShieldCheckIcon = icon(ShieldCheck, 'ShieldCheckIcon')
+export const SlidersIcon = icon(SlidersHorizontal, 'SlidersIcon')
+export const SunIcon = icon(Sun, 'SunIcon')
+export const UserPlusIcon = icon(UserPlus, 'UserPlusIcon')
+export const WebhookIcon = icon(Webhook, 'WebhookIcon')

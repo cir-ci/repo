@@ -1,13 +1,23 @@
-.groupLabel {
-  display: block;
-  padding: 14px 8px 4px;
+.header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
 }
 
-.nested {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding-left: 12px;
+.switcher {
+  flex: 1;
+  min-width: 0;
+}
+
+.newTeam button {
+  border: 1px dashed var(--circi-line-strong);
+}
+
+.pin {
+  flex: none;
+  margin-left: 4px;
+  color: var(--circi-text-tertiary);
 }
 
 .footer {

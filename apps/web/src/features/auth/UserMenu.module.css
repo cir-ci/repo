@@ -4,13 +4,14 @@
   gap: 8px;
   box-sizing: border-box;
   width: 100%;
-  height: 36px;
+  height: 28px;
   padding: 0 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--circi-radius-control);
   background: transparent;
-  color: var(--circi-text-primary);
+  color: var(--circi-text-secondary);
   font: inherit;
+  font-weight: 500;
   text-align: left;
   cursor: pointer;
 }
@@ -21,13 +22,8 @@
 }
 
 .trigger:focus-visible {
-  outline: 2px solid var(--circi-accent-main);
+  outline: 2px solid var(--circi-accent-text);
   outline-offset: 2px;
-}
-
-.trigger svg {
-  flex: none;
-  color: var(--circi-text-tertiary);
 }
 
 .name {

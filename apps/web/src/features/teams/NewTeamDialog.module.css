@@ -1,0 +1,42 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.once {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  color: var(--circi-state-review-text);
+  font-size: 12px;
+}
+
+.once svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.snippetBox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: var(--circi-radius-panel);
+  background: var(--circi-surface-chrome);
+}
+
+.snippet {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow-x: auto;
+  color: var(--circi-text-primary);
+  font-family: var(--circi-font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre;
+}

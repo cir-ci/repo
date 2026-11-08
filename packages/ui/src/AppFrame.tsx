@@ -16,7 +16,7 @@ export function AppFrame(props: AppFrame.Props) {
   return (
     <div className={styles.root} style={style} data-compact={props.compactBar ? '' : undefined}>
       {props.compactBar ? <div className={styles.bar}>{props.compactBar}</div> : null}
-      <nav className={styles.sidebar} aria-label="Main">
+      <nav className={styles.sidebar} aria-label={props.sidebarLabel ?? 'Main'}>
         {props.sidebar}
       </nav>
       <main className={styles.main} id="content" tabIndex={-1}>
@@ -30,6 +30,8 @@ export namespace AppFrame {
   export interface Props {
     /** Navigation: workspace switcher, `NavItem`s, project list. */
     sidebar: ReactNode
+    /** The sidebar landmark's name; "Main" unless the sidebar is another navigation (Settings). */
+    sidebarLabel?: string
     /** The page, usually a `PanelHeader` followed by content. */
     children: ReactNode
     /** Minimum height of the frame; defaults to the full viewport. Set it to embed the frame in a smaller area. */

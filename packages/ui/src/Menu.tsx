@@ -80,6 +80,7 @@ export function Menu({ trigger, items, align = 'start', className, ...rest }: Me
                   data-tone={entry.tone}
                   disabled={entry.disabled}
                   aria-keyshortcuts={entry.shortcut}
+                  aria-current={entry.current ? 'true' : undefined}
                   onClick={entry.onSelect}
                 >
                   {entry.icon ? (
@@ -88,6 +89,11 @@ export function Menu({ trigger, items, align = 'start', className, ...rest }: Me
                     </span>
                   ) : null}
                   <span className={styles.label}>{entry.label}</span>
+                  {entry.trailing ? (
+                    <span className={styles.trailing} aria-hidden="true">
+                      {entry.trailing}
+                    </span>
+                  ) : null}
                   {entry.shortcut ? (
                     <kbd className={styles.shortcut} aria-hidden="true">
                       {entry.shortcut}
@@ -112,6 +118,10 @@ export namespace Menu {
     icon?: ReactNode
     /** Shortcut text shown on the right ("⌘K"); hidden from the item's name, exposed as `aria-keyshortcuts`. */
     shortcut?: string
+    /** The current choice (the open workspace): announced with `aria-current`. */
+    current?: boolean
+    /** Something after the label, decorative (a check, a role): hidden from the item's name. */
+    trailing?: ReactNode
     /** `danger` colours the item with the rejected state (remove, delete). */
     tone?: 'danger'
     disabled?: boolean

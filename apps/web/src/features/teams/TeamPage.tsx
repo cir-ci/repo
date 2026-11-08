@@ -1,4 +1,4 @@
-import { Banner, Button, PanelHeader, Ref, Text, useAnnounce } from '@circi/ui'
+import { Banner, Button, PanelHeader, Ref, TeamTile, Text, useAnnounce } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 
@@ -8,6 +8,7 @@ import { useDocumentTitle } from '#lib/document-title.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 
 import { flakyQuery, teamQuery } from './api.ts'
+import { isTeamColor, isTeamIconName } from './appearance.ts'
 import { type BuildFilters, parseBuildsSearch, toSearch } from './builds-filters.ts'
 import { BuildsBrowser } from './BuildsBrowser.tsx'
 import { GitAttentionBanner } from './GitAttentionBanner.tsx'
@@ -80,6 +81,19 @@ export function TeamPage() {
         />
       </PanelHeader>
       <div className={styles.content}>
+        {data ? (
+          <div className={styles.identity}>
+            <TeamTile
+              name={data.team.name}
+              color={isTeamColor(data.team.color) ? data.team.color : 'slate'}
+              {...(isTeamIconName(data.team.icon) ? { icon: data.team.icon } : {})}
+              size={40}
+            />
+            <Text as="span" variant="body" className={styles.teamName}>
+              {data.team.name}
+            </Text>
+          </div>
+        ) : null}
         {data ? (
           <Text as="p" variant="small" tone="secondary" className={styles.intro}>
             Screenshot builds from CI. Builds on{' '}

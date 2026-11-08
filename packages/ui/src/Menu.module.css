@@ -82,6 +82,14 @@
   color: var(--circi-accent-text);
 }
 
+.trailing {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
+}
+
 .shortcut {
   display: inline-flex;
   align-items: center;

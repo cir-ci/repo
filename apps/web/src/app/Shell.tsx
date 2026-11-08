@@ -12,10 +12,11 @@ import { lazy, type ReactNode, Suspense, useEffect, useState } from 'react'
 
 import { InvitationBanner } from '#features/auth/InvitationBanner.tsx'
 import { AddressChangeBanner } from '#features/instance/AddressChangeBanner.tsx'
+import { TeamDialogs } from '#features/teams/TeamDialogs.tsx'
 import { authClient, type SessionUser } from '#lib/auth-client.ts'
 import { RouterLink } from '#lib/router-link.ts'
 
-import { SettingsLayout } from './SettingsLayout.tsx'
+import { SettingsNav } from './SettingsNav.tsx'
 import { currentSection, isOutsideFrame, isSettingsSection, sectionLabel } from './shell-model.ts'
 import { ShortcutLayer } from './ShortcutLayer.tsx'
 import { Sidebar } from './Sidebar.tsx'
@@ -67,7 +68,7 @@ export function Shell() {
       </PlainFrame>
     )
   } else {
-    content = <SignedInFrame user={{ id: user.id, name: user.name, email: user.email }} />
+    content = <SignedInFrame user={sessionUser(user)} />
   }
   return (
     <AnnouncerProvider>
@@ -75,6 +76,12 @@ export function Shell() {
       {content}
     </AnnouncerProvider>
   )
+}
+
+/** The parts of the session the shell uses; `role` is the admin plugin's (not in the client's type). */
+function sessionUser(user: { id: string; name: string; email: string }): SessionUser {
+  const role = 'role' in user && typeof user.role === 'string' ? user.role : undefined
+  return { id: user.id, name: user.name, email: user.email, ...(role ? { role } : {}) }
 }
 
 function Notices({ email }: { email: string }) {
@@ -106,6 +113,9 @@ function PlainFrame({ children }: { children: ReactNode }) {
 function SignedInFrame({ user }: { user: SessionUser }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const section = currentSection(pathname)
+  // Settings replace the sidebar with their own navigation (Back to app, Account, Workspace, Team, Instance).
+  const nav = isSettingsSection(section) ? <SettingsNav user={user} /> : <Sidebar user={user} />
+  const navLabel = isSettingsSection(section) ? 'Settings' : 'Main'
   // The drawer belongs to the page it was opened on: choosing another page closes it.
   const [openedAt, setOpenedAt] = useState<string | undefined>(undefined)
   const drawerOpen = openedAt === pathname
@@ -124,7 +134,8 @@ function SignedInFrame({ user }: { user: SessionUser }) {
   return (
     <ShortcutLayer>
       <AppFrame
-        sidebar={<Sidebar user={user} />}
+        sidebar={nav}
+        sidebarLabel={navLabel}
         compactBar={
           <div className={styles.bar}>
             <IconButton label="Open navigation" onClick={() => setDrawerOpen(true)}>
@@ -135,17 +146,12 @@ function SignedInFrame({ user }: { user: SessionUser }) {
         }
       >
         <Notices email={user.email} />
-        {isSettingsSection(section) ? (
-          <SettingsLayout>
-            <Outlet />
-          </SettingsLayout>
-        ) : (
-          <Outlet />
-        )}
+        <Outlet />
       </AppFrame>
+      <TeamDialogs />
       <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} title="Navigation">
-        <nav aria-label="Main" className={styles.drawerNav}>
-          <Sidebar user={user} />
+        <nav aria-label={navLabel} className={styles.drawerNav}>
+          {nav}
         </nav>
       </Drawer>
     </ShortcutLayer>

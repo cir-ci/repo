@@ -8,11 +8,18 @@ import {
   isOutsideFrame,
   isSettingsSection,
   listWorkspaces,
+  matchTeams,
   orderTeams,
+  pickSettingsTeam,
   pickWorkspace,
   pinnedViews,
   sectionLabel,
   sidebarTeams,
+  TEAM_SETTINGS_PAGES,
+  teamSettingsKey,
+  teamSettingsPath,
+  workspaceLetter,
+  workspaceMark,
 } from '#app/shell-model.ts'
 
 const overview = (workspace: string, team: string): Team.Overview => ({
@@ -131,7 +138,7 @@ describe('goPath', () => {
     expect(goPath('reviews', { workspace: 'acme' })).toBe('/workspaces/acme/reviews')
     expect(goPath('reviews', {})).toBeUndefined()
     expect(goPath('settings', { workspace: 'acme' })).toBe('/workspaces/acme/settings')
-    expect(goPath('settings', {})).toBe('/account')
+    expect(goPath('settings', {})).toBe('/account/profile')
   })
   it('opens triage of the open team, else the first team with work waiting, else the first', () => {
     expect(goPath('triage', { workspace: 'acme', team: 'web', teams })).toBe('/acme/web/triage')
@@ -149,6 +156,9 @@ describe('currentSection', () => {
     ['/inbox', 'inbox'],
     ['/account', 'account'],
     ['/account/appearance', 'account'],
+    ['/account/shortcuts', 'account'],
+    ['/instance/accounts', 'instance'],
+    ['/instance', 'instance'],
     ['/workspaces/acme/reviews', 'reviews'],
     ['/workspaces/acme/insights', 'insights'],
     ['/workspaces/acme/views/v1', 'views'],
@@ -176,6 +186,7 @@ describe('currentSection', () => {
     expect(inLayout('/account')).toBe(true)
     expect(inLayout('/workspaces/acme/settings/members')).toBe(true)
     expect(inLayout('/acme/web/settings')).toBe(true)
+    expect(inLayout('/instance/health')).toBe(true)
     expect(inLayout('/acme/web')).toBe(false)
     expect(inLayout('/inbox')).toBe(false)
   })
@@ -185,5 +196,65 @@ describe('isOutsideFrame', () => {
   it('is true only for the site sign-in handoff', () => {
     expect(isOutsideFrame('/_sso/site')).toBe(true)
     expect(isOutsideFrame('/acme/web')).toBe(false)
+  })
+})
+
+describe('workspace marks', () => {
+  it('makes the open workspace brand maroon and the others neutral', () => {
+    expect(workspaceMark('acme', 'acme')).toBe('brand')
+    expect(workspaceMark('acme-labs', 'acme')).toBe('neutral')
+    expect(workspaceMark('acme', undefined)).toBe('neutral')
+  })
+  it('uses the first letter, lower case', () => {
+    expect(workspaceLetter('Acme')).toBe('a')
+    expect(workspaceLetter('  side-project')).toBe('s')
+    expect(workspaceLetter('')).toBe('?')
+  })
+})
+
+describe('team settings pages', () => {
+  it('lists the five pages in the nav order', () => {
+    expect(TEAM_SETTINGS_PAGES.map((p) => p.key)).toEqual([
+      'general',
+      'token',
+      'reviews',
+      'webhooks',
+      'ignore-regions',
+    ])
+  })
+  it.each([
+    ['/acme/web/settings', 'general'],
+    ['/acme/web/settings/token', 'token'],
+    ['/acme/web/settings/reviews', 'reviews'],
+    ['/acme/web/settings/webhooks', 'webhooks'],
+    ['/acme/web/settings/ignore-regions', 'ignore-regions'],
+    ['/acme/web/settings/other', undefined],
+    ['/acme/web/triage', undefined],
+    ['/workspaces/acme/settings', undefined],
+    ['/account/appearance', undefined],
+    ['/instance/settings', undefined],
+  ] as const)('%s is %s', (path, key) => {
+    expect(teamSettingsKey(path)).toBe(key)
+  })
+  it('switches team on the same settings page, General elsewhere', () => {
+    expect(teamSettingsPath('acme', 'api', '/acme/web/settings/webhooks')).toBe(
+      '/acme/api/settings/webhooks',
+    )
+    expect(teamSettingsPath('acme', 'api', '/acme/web/settings')).toBe('/acme/api/settings')
+    expect(teamSettingsPath('acme', 'api', '/account/profile')).toBe('/acme/api/settings')
+    expect(teamSettingsPath('acme', 'a b', '/inbox')).toBe('/acme/a%20b/settings')
+  })
+  it('finds teams by what is typed, ignoring case', () => {
+    const teams = [{ name: 'web-app' }, { name: 'Storybook' }, { name: 'api' }]
+    expect(matchTeams(teams, 'STORY')).toEqual([{ name: 'Storybook' }])
+    expect(matchTeams(teams, '  ')).toHaveLength(3)
+    expect(matchTeams(teams, 'zzz')).toEqual([])
+  })
+  it('is about the team in the address, else the last used, else the first', () => {
+    const teams = [{ slug: 'api' }, { slug: 'web' }]
+    expect(pickSettingsTeam(teams, 'web', 'api')?.slug).toBe('web')
+    expect(pickSettingsTeam(teams, undefined, 'web')?.slug).toBe('web')
+    expect(pickSettingsTeam(teams, 'gone', 'gone')?.slug).toBe('api')
+    expect(pickSettingsTeam([], 'web', 'web')).toBeUndefined()
   })
 })

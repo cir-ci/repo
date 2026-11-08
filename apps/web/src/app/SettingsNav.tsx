@@ -1,0 +1,215 @@
+import {
+  ActivityIcon,
+  BellIcon,
+  BlocksIcon,
+  BuildingIcon,
+  ChevronLeftIcon,
+  DatabaseIcon,
+  KeyboardIcon,
+  KeyIcon,
+  NavSection,
+  ReviewIcon,
+  ScanIcon,
+  ServerIcon,
+  ShieldCheckIcon,
+  SlidersIcon,
+  SunIcon,
+  TeamTile,
+  UserIcon,
+  UserPlusIcon,
+  UsersIcon,
+  WebhookIcon,
+} from '@circi/ui'
+import { useRouterState, useParams } from '@tanstack/react-router'
+import type { ReactNode } from 'react'
+
+import { useSidebarModel } from '#features/sidebar/api.ts'
+import { isTeamIconName } from '#features/teams/appearance.ts'
+import type { SessionUser } from '#lib/auth-client.ts'
+import { isInstanceAdmin } from '#lib/instance-admin.ts'
+
+import { NavLink } from './NavLink.tsx'
+import {
+  orderTeams,
+  pickSettingsTeam,
+  readRememberedTeam,
+  readRememberedWorkspace,
+  TEAM_SETTINGS_PAGES,
+  teamSettingsKey,
+  type TeamSettingsKey,
+} from './shell-model.ts'
+import { TeamSwitcher } from './TeamSwitcher.tsx'
+import { useWorkspaces } from './use-workspaces.ts'
+import { WorkspaceTile } from './WorkspaceTile.tsx'
+
+import styles from './SettingsNav.module.css'
+
+const TEAM_ICON: Record<TeamSettingsKey, ReactNode> = {
+  general: <SlidersIcon />,
+  token: <KeyIcon />,
+  reviews: <ReviewIcon />,
+  webhooks: <WebhookIcon />,
+  'ignore-regions': <ScanIcon />,
+}
+
+const TEAM_PATH = {
+  general: '/$workspace/$team/settings',
+  token: '/$workspace/$team/settings/token',
+  reviews: '/$workspace/$team/settings/reviews',
+  webhooks: '/$workspace/$team/settings/webhooks',
+  'ignore-regions': '/$workspace/$team/settings/ignore-regions',
+} as const
+
+/**
+ * The left column of every settings page (the canvas's SettingsNav board), in place of the
+ * sidebar: Back to app, then Account, Workspace, Team (with a team switcher in its header) and,
+ * for the people who run the instance, Instance. The workspace is the one in the address, else the
+ * last chosen; the team is the one in the address, else the last one used here, else the first.
+ */
+export function SettingsNav({ user }: SettingsNav.Props) {
+  const params = useParams({ strict: false })
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const { workspace } = useWorkspaces(readRememberedWorkspace())
+  const { data: model } = useSidebarModel(workspace?.slug)
+  const teams = orderTeams(model?.teams ?? [])
+  const team = workspace
+    ? pickSettingsTeam(
+        teams,
+        params.workspace === workspace.slug ? params.team : undefined,
+        readRememberedTeam(workspace.slug),
+      )
+    : undefined
+  const teamKey = teamSettingsKey(pathname)
+
+  return (
+    <>
+      <NavLink to="/inbox" icon={<ChevronLeftIcon />} selected={false}>
+        Back to app
+      </NavLink>
+      <NavSection label="Account">
+        <NavLink to="/account/profile" icon={<UserIcon />}>
+          Profile
+        </NavLink>
+        <NavLink to="/account/notifications" icon={<BellIcon />}>
+          Notifications
+        </NavLink>
+        <NavLink to="/account/appearance" icon={<SunIcon />}>
+          Appearance
+        </NavLink>
+        <NavLink to="/account/shortcuts" icon={<KeyboardIcon />}>
+          Keyboard shortcuts
+        </NavLink>
+      </NavSection>
+      {workspace ? (
+        <NavSection
+          label={
+            <>
+              <WorkspaceTile
+                name={workspace.name}
+                slug={workspace.slug}
+                current={workspace.slug}
+                size={16}
+              />
+              {`Workspace · ${workspace.name}`}
+            </>
+          }
+        >
+          <NavLink
+            to="/workspaces/$workspace/settings"
+            params={{ workspace: workspace.slug }}
+            icon={<BuildingIcon />}
+          >
+            General
+          </NavLink>
+          <NavLink
+            to="/workspaces/$workspace/settings/members"
+            params={{ workspace: workspace.slug }}
+            icon={<UsersIcon />}
+          >
+            Members
+          </NavLink>
+          <NavLink
+            to="/workspaces/$workspace/settings/sign-in"
+            params={{ workspace: workspace.slug }}
+            icon={<ShieldCheckIcon />}
+          >
+            Sign-in and domains
+          </NavLink>
+          <NavLink
+            to="/workspaces/$workspace/settings/integrations"
+            params={{ workspace: workspace.slug }}
+            icon={<BlocksIcon />}
+            selected={pathname.startsWith(
+              `/workspaces/${encodeURIComponent(workspace.slug)}/settings/integrations`,
+            )}
+          >
+            Integrations
+          </NavLink>
+          <NavLink
+            to="/workspaces/$workspace/settings/storage"
+            params={{ workspace: workspace.slug }}
+            icon={<DatabaseIcon />}
+          >
+            Storage and retention
+          </NavLink>
+        </NavSection>
+      ) : null}
+      {workspace && team ? (
+        <NavSection
+          label={
+            <>
+              <TeamTile
+                name={team.name}
+                color={team.color}
+                {...(isTeamIconName(team.icon) ? { icon: team.icon } : {})}
+              />
+              <span className={styles.teamName}>{`Team · ${team.name}`}</span>
+            </>
+          }
+          actions={<TeamSwitcher workspace={workspace.slug} teams={teams} current={team.slug} />}
+        >
+          {TEAM_SETTINGS_PAGES.map(({ key, label }) => (
+            <NavLink
+              key={key}
+              to={TEAM_PATH[key]}
+              params={{ workspace: workspace.slug, team: team.slug }}
+              icon={TEAM_ICON[key]}
+              selected={team.slug === params.team && teamKey === key}
+            >
+              {label}
+            </NavLink>
+          ))}
+        </NavSection>
+      ) : null}
+      {isInstanceAdmin(user) ? (
+        <NavSection
+          label={
+            <>
+              <span className={styles.teamName}>Instance</span>
+              <span className={styles.note}>Admins only</span>
+            </>
+          }
+        >
+          <NavLink to="/instance/accounts" icon={<UserPlusIcon />}>
+            Accounts
+          </NavLink>
+          <NavLink to="/instance/workspaces" icon={<BuildingIcon />}>
+            Workspaces
+          </NavLink>
+          <NavLink to="/instance/settings" icon={<ServerIcon />}>
+            Instance settings
+          </NavLink>
+          <NavLink to="/instance/health" icon={<ActivityIcon />}>
+            Health
+          </NavLink>
+        </NavSection>
+      ) : null}
+    </>
+  )
+}
+
+export namespace SettingsNav {
+  export interface Props {
+    user: SessionUser
+  }
+}

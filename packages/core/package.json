@@ -9,6 +9,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./figma": "./src/figma.ts",
+    "./slug": "./src/slug.ts",
     "./integrations": "./src/integrations.ts",
     "./issues": "./src/issues.ts"
   },

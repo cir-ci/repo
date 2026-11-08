@@ -14,10 +14,22 @@ const appearanceRoute = createRoute({
   component: lazyRouteComponent(() => import('./AppearancePage.tsx'), 'AppearancePage'),
 })
 
+const shortcutsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'account/shortcuts',
+  component: lazyRouteComponent(() => import('./ShortcutsPage.tsx'), 'ShortcutsPage'),
+})
+
 const workspaceGeneralRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'workspaces/$workspace/settings',
   component: lazyRouteComponent(() => import('./WorkspaceGeneralPage.tsx'), 'WorkspaceGeneralPage'),
+})
+
+const signInRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'workspaces/$workspace/settings/sign-in',
+  component: lazyRouteComponent(() => import('./SignInPage.tsx'), 'SignInPage'),
 })
 
 const workspaceStorageRoute = createRoute({
@@ -35,7 +47,9 @@ const reviewsRoute = createRoute({
 export const settingsRoutes = [
   notificationsRoute,
   appearanceRoute,
+  shortcutsRoute,
   workspaceGeneralRoute,
+  signInRoute,
   workspaceStorageRoute,
   reviewsRoute,
 ]

@@ -1,0 +1,91 @@
+.list {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 8px;
+  list-style: none;
+}
+
+.list > li:last-child > * {
+  border-bottom: 0;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 2px;
+}
+
+.events {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  padding: 0 6px;
+  border: 1px solid var(--circi-line-strong);
+  border-radius: 6px;
+}
+
+.secret {
+  margin-bottom: 8px;
+}
+
+.formTitle {
+  font-weight: 600;
+}
+
+/* A long address wraps inside the dialog instead of running out of it. */
+.wrap {
+  overflow-wrap: anywhere;
+}
+
+.eventsField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+}
+
+.headText {
+  flex: 1 1 360px;
+}
+
+.headText p {
+  margin: 4px 0 0;
+}
+
+.dialogForm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.hookRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mono {
+  overflow-wrap: anywhere;
+}
+
+.checks {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

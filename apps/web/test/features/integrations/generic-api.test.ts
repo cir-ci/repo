@@ -4,13 +4,16 @@ import { describe, expect, it } from 'vitest'
 import {
   autoLinkSummary,
   canSave,
+  connectionLine,
   connectNote,
   credentialsComplete,
   credentialValues,
   extraToSend,
   initialExtra,
+  isDirty,
   linkValuesComplete,
   mappingSummary,
+  repositoryRows,
   targetItems,
 } from '#features/integrations/generic-api.ts'
 
@@ -163,5 +166,80 @@ describe('links', () => {
     expect(autoLinkSummary({ created: 0, unlinked: 1, frames: 0 })).toBe(
       'No new frames linked; 1 snapshot has no frame with a matching name.',
     )
+  })
+})
+
+const channelSpec: Integration.MappingSpec = {
+  targetLabel: 'Channel',
+  targetKind: 'select',
+  fields: [events],
+}
+
+describe('isDirty', () => {
+  const dirtySpec = channelSpec
+  const saved: Integration.Mapping = {
+    ref: 'C1',
+    name: 'a',
+    extra: { events: ['review.requested'] },
+  }
+
+  it('is clean until the target or a setting changes', () => {
+    expect(isDirty(dirtySpec, saved, 'C1', initialExtra(dirtySpec.fields, saved.extra))).toBe(false)
+    expect(isDirty(dirtySpec, saved, 'C2', initialExtra(dirtySpec.fields, saved.extra))).toBe(true)
+    expect(
+      isDirty(dirtySpec, saved, 'C1', { events: ['review.requested', 'build.rejected'] }),
+    ).toBe(true)
+  })
+
+  it('treats an unsaved row as dirty once it has a target', () => {
+    expect(isDirty(dirtySpec, null, '', initialExtra(dirtySpec.fields, null))).toBe(false)
+    expect(isDirty(dirtySpec, null, 'C1', initialExtra(dirtySpec.fields, null))).toBe(true)
+  })
+})
+
+const team = (slug: string, ref?: string): Integration.MappingTeam => ({
+  slug,
+  name: slug,
+  mapping: ref ? { ref, name: ref, extra: {} } : null,
+})
+
+describe('repositoryRows', () => {
+  const targets = [
+    { id: 'acme/www', name: 'acme/www' },
+    { id: 'acme/web', name: 'acme/web' },
+  ]
+
+  it('lists the host’s repositories with their teams, mapped ones first', () => {
+    expect(repositoryRows([team('web', 'acme/web'), team('www')], targets)).toEqual([
+      { ref: 'acme/web', label: 'acme/web', team: 'web', broken: false },
+      { ref: 'acme/www', label: 'acme/www', team: null, broken: false },
+    ])
+  })
+
+  it('flags a mapped repository the host no longer lists, only when the list loaded', () => {
+    const teams = [team('old', 'acme/gone')]
+    expect(repositoryRows(teams, targets)[0]).toEqual({
+      ref: 'acme/gone',
+      label: 'acme/gone',
+      team: 'old',
+      broken: true,
+    })
+    expect(repositoryRows(teams, null)).toEqual([
+      { ref: 'acme/gone', label: 'acme/gone', team: 'old', broken: false },
+    ])
+  })
+})
+
+const t = (ref: string | null): Integration.MappingTeam => ({
+  slug: 'x',
+  name: 'x',
+  mapping: ref ? { ref, name: null, extra: {} } : null,
+})
+
+describe('connectionLine', () => {
+  it('says what it is connected to and how many teams use it', () => {
+    expect(connectionLine('Slack', 'Acme', [t(null)])).toBe('Slack · Acme · no teams use it yet')
+    expect(connectionLine('Slack', 'Acme', [t('a')])).toBe('Slack · Acme · 1 team uses it')
+    expect(connectionLine('Slack', 'Acme', [t('a'), t('b')])).toBe('Slack · Acme · 2 teams use it')
   })
 })

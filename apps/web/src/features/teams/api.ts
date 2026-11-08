@@ -1,4 +1,4 @@
-import type { Flaky, Workspace, Team } from '@circi/api'
+import type { Flaky, IgnoreRegion, Workspace, Team } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { isActive } from '#features/builds/api.ts'
@@ -52,19 +52,6 @@ export function useCreateWorkspace() {
   })
 }
 
-/** Creates a team; the response holds its CI token, which is shown only once. */
-export function useCreateTeam() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (input: { workspace: string; name: string }) =>
-      post<{ team: { slug: string; name: string }; token: string }>(
-        `/api/workspaces/${seg(input.workspace)}/teams`,
-        { name: input.name },
-      ),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['teams'] }),
-  })
-}
-
 export const settingsQuery = (workspace: string, team: string) =>
   queryOptions({
     queryKey: ['settings', workspace, team],
@@ -112,10 +99,93 @@ export function useDeleteWebhook(workspace: string, team: string) {
   })
 }
 
+export const tokenQuery = (workspace: string, team: string) =>
+  queryOptions({
+    queryKey: ['token', workspace, team],
+    queryFn: () => getJson<Team.Token>(`/api/teams/${seg(workspace)}/${seg(team)}/token`),
+  })
+
+/** Makes a new CI token (the old one stops working); the response carries it, once. */
 export function useRotateToken(workspace: string, team: string) {
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () =>
-      post<{ token: string }>(`/api/teams/${seg(workspace)}/${seg(team)}/token`, {}),
+      post<Team.TokenRotated>(`/api/teams/${seg(workspace)}/${seg(team)}/token`, {}),
+    onSuccess: (rotated) => queryClient.setQueryData(['token', workspace, team], rotated.info),
+  })
+}
+
+/** Saves the team's tile colour and icon, then refreshes everything that draws the tile. */
+export function useSaveAppearance(workspace: string, team: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (patch: Partial<Team.Appearance>) =>
+      send<{ appearance: Team.Appearance }>(
+        'PATCH',
+        `/api/teams/${seg(workspace)}/${seg(team)}/appearance`,
+        patch,
+      ),
+    onSuccess: () =>
+      Promise.all(
+        [['settings', workspace, team], ['team', workspace, team], ['teams'], ['sidebar']].map(
+          (queryKey) => queryClient.invalidateQueries({ queryKey }),
+        ),
+      ),
+  })
+}
+
+/** Unlinks the team from its git repository (linking happens in the workspace's integrations). */
+export function useUnlinkRepository(workspace: string, team: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => send<undefined>('DELETE', `/api/teams/${seg(workspace)}/${seg(team)}/github`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', workspace, team] }),
+  })
+}
+
+export const ignoreRegionsQuery = (workspace: string, team: string) =>
+  queryOptions({
+    queryKey: ['ignore-regions', workspace, team],
+    queryFn: () =>
+      getJson<IgnoreRegion.List>(`/api/teams/${seg(workspace)}/${seg(team)}/ignore-regions`),
+  })
+
+export type RegionRect = Pick<IgnoreRegion.Item, 'x' | 'y' | 'width' | 'height'>
+
+export function useAddIgnoreRegion(workspace: string, team: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: RegionRect & { name: string }) =>
+      post<IgnoreRegion.Item>(`/api/teams/${seg(workspace)}/${seg(team)}/ignore-regions`, input),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['ignore-regions', workspace, team] }),
+  })
+}
+
+export function useEditIgnoreRegion(workspace: string, team: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { id: string; rect: RegionRect }) =>
+      send<IgnoreRegion.Item>(
+        'PATCH',
+        `/api/teams/${seg(workspace)}/${seg(team)}/ignore-regions/${seg(input.id)}`,
+        input.rect,
+      ),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['ignore-regions', workspace, team] }),
+  })
+}
+
+export function useDeleteIgnoreRegion(workspace: string, team: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      send<undefined>(
+        'DELETE',
+        `/api/teams/${seg(workspace)}/${seg(team)}/ignore-regions/${seg(id)}`,
+      ),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['ignore-regions', workspace, team] }),
   })
 }
 

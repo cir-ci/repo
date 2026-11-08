@@ -80,7 +80,7 @@ describe('LoginPage', () => {
   it('switches to a mailed code and back, when email login is on', async () => {
     fakeFetch(methods({ email: true }))
     await renderPage(<LoginPage />)
-    await page.getByRole('button', { name: 'Email me a sign-in code instead' }).click()
+    await page.getByRole('button', { name: 'Email me a code' }).click()
     await expect.element(page.getByRole('button', { name: 'Email me a code' })).toBeVisible()
     await page.getByRole('button', { name: 'Use a password instead' }).click()
     await expect.element(page.getByLabelText('Password')).toBeVisible()

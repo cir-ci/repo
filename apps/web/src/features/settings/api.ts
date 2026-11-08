@@ -1,4 +1,4 @@
-import type { Inbox, Insights, ReviewRule, ReviewRuleKind, Triage } from '@circi/api'
+import type { Inbox, ReviewRule, ReviewRuleKind, Storage, Triage, Workspace } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { getJson, post, send, seg } from '#lib/http.ts'
@@ -233,13 +233,41 @@ export function useSetPreference() {
   })
 }
 
+// ---- Workspace General ------------------------------------------------------------------------
+
+export const workspaceGeneralQuery = (workspace: string) =>
+  queryOptions({
+    queryKey: ['workspace-general', workspace],
+    queryFn: () => getJson<Workspace.General>(`/api/workspaces/${seg(workspace)}`),
+  })
+
+/** Renames the workspace and/or changes its address (the old address stops working). */
+export function useSaveWorkspaceGeneral(workspace: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (patch: { name?: string; slug?: string }) =>
+      send<{ name: string; slug: string }>('PATCH', `/api/workspaces/${seg(workspace)}`, patch),
+    // The name and address show in the sidebar, the switcher and every page header.
+    onSuccess: () => queryClient.invalidateQueries(),
+  })
+}
+
 // ---- Storage ----------------------------------------------------------------------------------
 
 export const storageQuery = (workspace: string) =>
   queryOptions({
     queryKey: ['workspace-storage', workspace],
-    queryFn: () => getJson<Insights.Report>(`/api/workspaces/${seg(workspace)}/insights`),
+    queryFn: () => getJson<Storage.Usage>(`/api/workspaces/${seg(workspace)}/storage`),
   })
+
+export const KIND_LABEL: Record<Storage.Kind, string> = {
+  screenshot: 'Screenshots',
+  diff: 'Diff images',
+  thumbnail: 'Thumbnails',
+  site: 'Hosted sites',
+}
+
+const KIND_ORDER: readonly Storage.Kind[] = ['screenshot', 'diff', 'thumbnail', 'site']
 
 const UNITS = ['B', 'KB', 'MB', 'GB', 'TB'] as const
 
@@ -255,11 +283,32 @@ export function formatBytes(bytes: number): string {
   return `${text.replace(/\.0$/, '')} ${UNITS[unit]}`
 }
 
-/** The teams by size, biggest first, each with its share of the total (0 to 1). */
-export function storageRows(storage: Insights.Storage) {
-  return storage.teams
-    .toSorted((a, b) => b.bytes - a.bytes || a.name.localeCompare(b.name))
-    .map((p) =>
-      Object.assign({}, p, { share: storage.totalBytes > 0 ? p.bytes / storage.totalBytes : 0 }),
-    )
+/** "1 file", "41,260 files". */
+export const fileCount = (files: number) =>
+  `${files.toLocaleString('en-US')} ${files === 1 ? 'file' : 'files'}`
+
+/** "1 day", "90 days". */
+export const dayCount = (days: number) => `${days} ${days === 1 ? 'day' : 'days'}`
+
+/** The kinds in the board's order (kinds with nothing stored included), each with its share of `totalBytes`. */
+export function kindRows(storage: Pick<Storage.Usage, 'kinds' | 'totalBytes'>) {
+  return KIND_ORDER.map((kind) => {
+    const found = storage.kinds.find((k) => k.kind === kind)
+    const bytes = found?.bytes ?? 0
+    return {
+      kind,
+      label: KIND_LABEL[kind],
+      files: found?.files ?? 0,
+      versions: found?.versions,
+      bytes,
+      share: storage.totalBytes > 0 ? Math.min(1, bytes / storage.totalBytes) : 0,
+    }
+  })
+}
+
+/** The teams by size, biggest first, each with its share of the biggest (so the largest bar is full). */
+export function teamRows(storage: Pick<Storage.Usage, 'teams'>) {
+  const sorted = storage.teams.toSorted((a, b) => b.bytes - a.bytes || a.name.localeCompare(b.name))
+  const biggest = sorted[0]?.bytes ?? 0
+  return sorted.map((t) => Object.assign({}, t, { share: biggest > 0 ? t.bytes / biggest : 0 }))
 }
