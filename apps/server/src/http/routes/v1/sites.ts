@@ -20,9 +20,9 @@ import { contentKey } from '@circi/storage'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
-import type { V1Deps } from '../../deps.ts'
 import { currentProject } from '../../hooks/project-token.ts'
-import { parse } from '../../validation.ts'
+import type { V1Deps } from '../../lib/deps.ts'
+import { parse } from '../../lib/validation.ts'
 
 const bool = z.enum(['true', 'false', '1', '0']).transform((v) => v === 'true' || v === '1')
 

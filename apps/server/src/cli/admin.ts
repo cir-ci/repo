@@ -31,7 +31,7 @@ import { migrateStorage, runRetention } from '@circi/services'
 import { createStorage } from '@circi/storage'
 import type { Command } from 'commander'
 
-import type { Runtime } from '../runtime.ts'
+import type { Runtime } from '../lifecycle/runtime.ts'
 import { httpFetcher, runDoctor } from './doctor.ts'
 import { printJson, printPassword, printToken, publicProject, withRuntime } from './output.ts'
 
@@ -50,7 +50,7 @@ export function addAdminCommands(program: Command): void {
     .action(() =>
       withRuntime(async (rt) => {
         let warned = false
-        for (const f of await runDoctor(rt.config, httpFetcher)) {
+        for (const f of await runDoctor(rt.config, httpFetcher, rt.storage)) {
           console.log(`${f.level === 'ok' ? '✓' : f.level === 'warn' ? '⚠' : '·'} ${f.message}`)
           warned ||= f.level === 'warn'
         }

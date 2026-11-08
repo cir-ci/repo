@@ -33,10 +33,16 @@ export const authRoutes: FastifyPluginAsync<{
     handler: async (request, reply) => {
       const url = new URL(request.url, options.publicOrigin)
       const hasBody = request.method !== 'GET' && request.body !== undefined
+      // better-auth keys its rate limits and session records on `X-Forwarded-For`. Whatever the
+      // client sent is replaced by the address Fastify resolved (the socket, or the forwarded
+      // chain through the configured trusted proxies), so a forged header changes nothing.
+      const headers = fromNodeHeaders(request.headers)
+      headers.set('x-forwarded-for', request.ip)
+      headers.delete('x-real-ip')
       const response = await options.auth.handler(
         new Request(url, {
           method: request.method,
-          headers: fromNodeHeaders(request.headers),
+          headers,
           ...(hasBody ? { body: JSON.stringify(request.body) } : {}),
         }),
       )

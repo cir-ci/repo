@@ -4,8 +4,8 @@ import { join } from 'node:path'
 import fastifyStatic from '@fastify/static'
 import type { FastifyPluginAsync } from 'fastify'
 
-import type { DashboardDeps } from '../../deps.ts'
-import { isApiPath, noticePage } from '../../pages.ts'
+import type { DashboardDeps } from '../../lib/deps.ts'
+import { isApiPath, noticePage } from '../../lib/pages.ts'
 
 /**
  * The built web app (apps/web/dist): static files, and the app shell for every client-side

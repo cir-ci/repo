@@ -5,9 +5,9 @@ import { getFile, markFileVerified } from '@circi/db'
 import { ChecksumMismatchError } from '@circi/storage'
 import type { FastifyPluginAsync } from 'fastify'
 
-import type { V1Deps } from '../../deps.ts'
-import { byteLimit, TooLargeError } from '../../streams.ts'
-import { parse } from '../../validation.ts'
+import type { V1Deps } from '../../lib/deps.ts'
+import { byteLimit, TooLargeError } from '../../lib/streams.ts'
+import { parse } from '../../lib/validation.ts'
 import { fileParams, MAX_SCREENSHOT_BYTES } from './schemas.ts'
 
 /**

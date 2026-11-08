@@ -19,7 +19,7 @@ import {
 import type { StorageDriver } from '@circi/storage'
 import type { FastifyReply, FastifyRequest, onRequestAsyncHookHandler } from 'fastify'
 
-import type { SitesDeps } from '../deps.ts'
+import type { SitesDeps } from '../lib/deps.ts'
 import {
   cleanupCookies,
   cookieName,
@@ -204,7 +204,17 @@ export function siteHostHook(deps: SiteServerDeps): onRequestAsyncHookHandler {
       .header('cross-origin-resource-policy', 'same-origin')
     if (req.headers['if-none-match'] === etag) return reply.code(304).send()
     void reply.header('content-type', file.contentType).header('content-length', file.size)
-    if (req.method === 'HEAD') return reply.send()
+    if (req.method === 'HEAD') {
+      // Fastify answers `content-length: 0` to a HEAD it sends nothing for; write the head
+      // ourselves so it reports the size a GET would send.
+      void reply.hijack()
+      for (const [name, value] of Object.entries(reply.getHeaders())) {
+        if (value !== undefined) reply.raw.setHeader(name, value)
+      }
+      reply.raw.writeHead(200)
+      reply.raw.end()
+      return reply
+    }
     return reply.send(await deps.storage.get(file.storageKey))
   }
 }

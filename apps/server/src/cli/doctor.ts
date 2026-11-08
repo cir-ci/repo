@@ -27,8 +27,23 @@ type Fetcher = (url: string) => Promise<{ status: number; setCookies: string[] }
 export async function runDoctor(
   config: Pick<Config, 'publicUrl' | 'staticSites'>,
   fetchHost: Fetcher,
+  storage?: { kind: string; healthCheck(): Promise<void> },
 ): Promise<Finding[]> {
   const findings: Finding[] = []
+  if (storage) {
+    try {
+      await storage.healthCheck()
+      findings.push({
+        level: 'ok',
+        message: `Storage (${storage.kind}) is reachable and writable.`,
+      })
+    } catch (err) {
+      findings.push({
+        level: 'warn',
+        message: `Storage (${storage.kind}) is not usable: ${err instanceof Error ? err.message : String(err)}`,
+      })
+    }
+  }
   const dashboard = config.publicUrl.hostname
   if (config.publicUrl.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(dashboard)) {
     findings.push({

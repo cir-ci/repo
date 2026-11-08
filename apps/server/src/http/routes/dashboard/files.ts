@@ -2,8 +2,8 @@ import { isSha256 } from '@circi/core'
 import { canUserAccessFile, getFile } from '@circi/db'
 import type { FastifyPluginAsync } from 'fastify'
 
-import type { DashboardDeps } from '../../deps.ts'
 import { currentUser } from '../../hooks/session.ts'
+import type { DashboardDeps } from '../../lib/deps.ts'
 
 /**
  * `GET /api/files/:sha256`: screenshots, diffs and thumbnails by content hash. The bytes behind a

@@ -1,7 +1,7 @@
 import { runMigrations } from '@circi/db'
 import type { Command } from 'commander'
 
-import { runServices } from '../services.ts'
+import { runServices } from '../lifecycle/services.ts'
 import { withRuntime } from './output.ts'
 
 /** Long-running processes (`serve`, `worker`, `all`) and `migrate`. */

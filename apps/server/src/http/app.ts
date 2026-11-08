@@ -1,7 +1,7 @@
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify'
 
-import type { DashboardDeps, V1Deps } from './deps.ts'
 import { redirectPreviousHosts } from './hooks/previous-hosts.ts'
+import type { DashboardDeps, V1Deps } from './lib/deps.ts'
 import { argosRoutes } from './routes/argos/index.ts'
 import { dashboardRoutes } from './routes/dashboard/index.ts'
 import { githubWebhookRoutes, type GithubWebhookDeps } from './routes/github-webhook.ts'
@@ -13,6 +13,11 @@ export type { ReadinessCheck } from './routes/health.ts'
 
 export interface ServerOptions {
   logger: FastifyBaseLogger
+  /**
+   * Proxies whose `X-Forwarded-For` is believed (see `Config.trustedProxies`). Default: none, so
+   * `request.ip` is the socket's remote address.
+   */
+  trustedProxies?: true | string[]
   checks: ReadinessCheck[]
   /** Per-check timeout for /readyz, so a hung dependency can't hang the probe. */
   checkTimeoutMs?: number
@@ -47,7 +52,12 @@ export interface ServerOptions {
 export function buildServer(options: ServerOptions): FastifyInstance {
   const app = Fastify({
     loggerInstance: options.logger,
-    trustProxy: true,
+    trustProxy:
+      options.trustedProxies === true
+        ? true
+        : (options.trustedProxies ?? []).length > 0
+          ? options.trustedProxies
+          : false,
     // Uploaded sites can stuff the cookie jar of the sites domain; accept the big headers that
     // result so the site handler can clear them (see `cleanupCookies`).
     http: { maxHeaderSize: 64 * 1024 },

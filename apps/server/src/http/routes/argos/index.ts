@@ -15,11 +15,11 @@ import multipart from '@fastify/multipart'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
-import type { V2Deps } from '../../deps.ts'
-import { jsonErrorHandler } from '../../errors.ts'
 import { requireProjectToken, currentProject } from '../../hooks/project-token.ts'
-import { describeBuild } from '../../presenters.ts'
-import { parse } from '../../validation.ts'
+import type { V2Deps } from '../../lib/deps.ts'
+import { jsonErrorHandler } from '../../lib/errors.ts'
+import { describeBuild } from '../../lib/presenters.ts'
+import { parse } from '../../lib/validation.ts'
 import { MAX_SCREENSHOT_BYTES } from '../v1/schemas.ts'
 
 /**

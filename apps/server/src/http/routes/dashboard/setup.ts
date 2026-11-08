@@ -3,9 +3,9 @@ import { countUsers } from '@circi/db'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
-import type { DashboardDeps } from '../../deps.ts'
 import { requireSameOrigin } from '../../hooks/same-origin.ts'
-import { parse } from '../../validation.ts'
+import type { DashboardDeps } from '../../lib/deps.ts'
+import { parse } from '../../lib/validation.ts'
 
 const body = z.object({
   code: z.string(),

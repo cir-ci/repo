@@ -7,9 +7,9 @@ import {
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
-import type { DashboardDeps } from '../../deps.ts'
 import { currentUser } from '../../hooks/session.ts'
-import { parse } from '../../validation.ts'
+import type { DashboardDeps } from '../../lib/deps.ts'
+import { parse } from '../../lib/validation.ts'
 
 const projectParams = z.object({ org: z.string(), project: z.string() })
 const buildParams = projectParams.extend({ number: z.string() })

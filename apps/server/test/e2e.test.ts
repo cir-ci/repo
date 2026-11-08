@@ -14,7 +14,7 @@ import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { buildServer } from '../src/http/app.ts'
-import { createTestAuth, seedTenant } from './helpers.ts'
+import { createTestAuth, seedTenant } from './support/helpers.ts'
 
 /**
  * M1 end to end (PLAN §9): the real CLI uploads to a real HTTP server, the worker diffs, and

@@ -1,9 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify'
 
-import type { DashboardDeps } from '../../deps.ts'
-import { jsonErrorHandler } from '../../errors.ts'
 import { requireSameOrigin } from '../../hooks/same-origin.ts'
 import { requireSession } from '../../hooks/session.ts'
+import type { DashboardDeps } from '../../lib/deps.ts'
+import { jsonErrorHandler } from '../../lib/errors.ts'
 import { authRoutes } from '../auth.ts'
 import { dashboardDomainRoutes } from './domains.ts'
 import { dashboardFileRoutes } from './files.ts'

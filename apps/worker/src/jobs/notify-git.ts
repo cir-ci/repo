@@ -8,6 +8,7 @@ import {
   type Job,
   setCheckRunId,
   setPrCommentId,
+  withAdvisoryLock,
 } from '@circi/db'
 import { type GithubApp, checkReport, prCommentBody, type ReportedBuild } from '@circi/providers'
 
@@ -31,10 +32,25 @@ export type NotifyResult = { status: 'skipped'; reason: string } | { status: 'no
 export async function notifyGit(deps: NotifyDeps, job: Job): Promise<NotifyResult> {
   const buildId = typeof job.payload.buildId === 'string' ? job.payload.buildId : undefined
   if (!buildId) return { status: 'skipped', reason: 'malformed job' }
-  if (!deps.github) return { status: 'skipped', reason: 'no GitHub App configured' }
-  const target = await getGitTarget(deps.db, buildId)
-  if (!target) return { status: 'skipped', reason: 'project is not linked to a repository' }
+  const github = deps.github
+  if (!github) return { status: 'skipped', reason: 'no GitHub App configured' }
+  const first = await getGitTarget(deps.db, buildId)
+  if (!first) return { status: 'skipped', reason: 'project is not linked to a repository' }
 
+  // Jobs for one project run one at a time (lanes and worker processes both): two at once would
+  // each create the build's check run and the pull request's comment, because neither has seen
+  // the other's id yet. State is read inside the lock, so a job that waited writes the latest.
+  return withAdvisoryLock(deps.db, `git-notify:${first.build.projectId}`, async (db) => {
+    const target = await getGitTarget(db, buildId)
+    if (!target) return { status: 'skipped', reason: 'project is not linked to a repository' }
+    return notifyLocked({ ...deps, db, github }, target)
+  })
+}
+
+async function notifyLocked(
+  deps: NotifyDeps & { github: NonNullable<NotifyDeps['github']> },
+  target: NonNullable<Awaited<ReturnType<typeof getGitTarget>>>,
+): Promise<NotifyResult> {
   const reported = async (b: typeof target.build): Promise<ReportedBuild> => {
     const counts = await getBuildCounts(deps.db, b.id)
     return {

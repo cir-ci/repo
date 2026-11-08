@@ -5,6 +5,8 @@ import {
   failJob,
   GIT_NOTIFY_QUEUE,
   type Job,
+  JOBS_CHANNEL,
+  type ListenFn,
   QUEUES,
 } from '@circi/db'
 import type { GithubApp } from '@circi/providers'
@@ -36,7 +38,12 @@ export interface WorkerDeps {
   webhookAllowPrivate?: boolean
   /** Startup check of the database connection. */
   ping?: () => Promise<void>
-  /** How long to wait when the queue is empty. Default 1 s. */
+  /**
+   * Subscribes to Postgres NOTIFY (`createDb(...).listen` in production): a queued job then wakes
+   * the worker at once. Without it, or while the connection is down, the poll finds jobs.
+   */
+  listen?: ListenFn
+  /** How long to wait when the queue is empty. Default 1 s; also the fallback for missed notifications. */
   pollIntervalMs?: number
   /** Builds processed at the same time. Default 2. */
   concurrency?: number
@@ -70,9 +77,23 @@ export async function startWorker(deps: WorkerDeps): Promise<RunningWorker> {
   const state = { running: true }
   const sleepers = Array.from({ length: lanes }, () => interruptibleSleep())
 
-  const loops = sleepers.map(async (sleeper) => {
+  // A wake-up that arrives while a lane is busy (or between "found nothing" and "went to sleep")
+  // is remembered per lane, so it is never lost; several before the lane looks count as one.
+  const woken = sleepers.map(() => false)
+  const wakeAll = () => {
+    sleepers.forEach((s, i) => {
+      woken[i] = true
+      s.wake()
+    })
+  }
+  const listener = deps.listen
+    ? startListening(deps.listen, wakeAll, deps.logger, () => state.running)
+    : undefined
+
+  const loops = sleepers.map(async (sleeper, lane) => {
     while (state.running) {
       let job: Job | undefined
+      woken[lane] = false
       try {
         // oxlint-disable-next-line no-await-in-loop -- a poll loop claims one job at a time
         job = await claimNext(deps.db, lockSeconds)
@@ -81,7 +102,7 @@ export async function startWorker(deps: WorkerDeps): Promise<RunningWorker> {
       }
       if (!job) {
         // oxlint-disable-next-line no-await-in-loop -- idle wait between polls
-        await sleeper.sleep(pollMs)
+        if (!woken[lane]) await sleeper.sleep(pollMs)
         continue
       }
       // oxlint-disable-next-line no-await-in-loop -- jobs in one lane run sequentially
@@ -127,9 +148,77 @@ export async function startWorker(deps: WorkerDeps): Promise<RunningWorker> {
       state.running = false
       if (maintenance) clearInterval(maintenance)
       if (retention) clearInterval(retention)
-      for (const s of sleepers) s.wake()
+      wakeAll()
+      await listener?.stop()
       await Promise.all(loops)
       deps.logger.info('worker stopped')
+    },
+  }
+}
+
+const RECONNECT_MIN_MS = 500
+const RECONNECT_MAX_MS = 30_000
+
+/**
+ * Keeps a LISTEN on the jobs channel alive: every notification wakes the poll loops, and a
+ * dropped connection is re-established with exponential backoff. Logs once per outage, then once
+ * when it is back (a wake-up follows, since notifications sent meanwhile were missed).
+ */
+function startListening(
+  listen: ListenFn,
+  wake: () => void,
+  logger: WorkerLogger,
+  isRunning: () => boolean,
+): { stop(): Promise<void> } {
+  let unlisten: (() => Promise<void>) | undefined
+  let retryTimer: NodeJS.Timeout | undefined
+  let stopped = false
+  let outage = false
+  let delay = RECONNECT_MIN_MS
+
+  const connect = async (): Promise<void> => {
+    retryTimer = undefined
+    if (stopped || !isRunning()) return
+    try {
+      const stop = await listen(JOBS_CHANNEL, wake, (err) => {
+        unlisten = undefined
+        lostConnection(err)
+      })
+      if (stopped) {
+        await stop().catch(() => {})
+        return
+      }
+      unlisten = stop
+      delay = RECONNECT_MIN_MS
+      if (outage) {
+        outage = false
+        logger.info('job notifications are back')
+        wake()
+      }
+    } catch (err) {
+      lostConnection(err)
+    }
+  }
+
+  const lostConnection = (err: unknown): void => {
+    if (stopped) return
+    if (!outage) {
+      outage = true
+      logger.warn({ err }, 'lost the job notification connection; polling until it is back')
+    }
+    retryTimer = setTimeout(() => void connect(), delay)
+    retryTimer.unref()
+    delay = Math.min(delay * 2, RECONNECT_MAX_MS)
+  }
+
+  const first = connect()
+  return {
+    async stop() {
+      stopped = true
+      if (retryTimer) clearTimeout(retryTimer)
+      await first
+      await unlisten?.().catch(() => {})
+      unlisten = undefined
     },
   }
 }

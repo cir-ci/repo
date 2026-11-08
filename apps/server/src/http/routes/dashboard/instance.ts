@@ -6,8 +6,8 @@ import {
 } from '@circi/db'
 import type { FastifyPluginAsync } from 'fastify'
 
-import type { DashboardDeps } from '../../deps.ts'
 import { currentUser } from '../../hooks/session.ts'
+import type { DashboardDeps } from '../../lib/deps.ts'
 
 /** Things only the people who run the instance need to hear about. */
 export const dashboardInstanceRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
