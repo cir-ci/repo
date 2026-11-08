@@ -26,6 +26,10 @@ export const REVIEW_SOURCES = ['ui', 'github-check', 'github-comment', 'auto', '
 export const REVIEW_REQUEST_STATES = ['open', 'done', 'superseded', 'dismissed'] as const
 /** How a request was snoozed; `next_push` wakes on the next build of the branch (no end time). */
 export const SNOOZE_KINDS = ['next_push', 'tomorrow', 'next_week', 'date'] as const
+/** What a review rule's pattern is matched against. */
+export const REVIEW_RULE_KINDS = ['snapshot-name', 'build-name'] as const
+/** What kind of problem a triage item is. (Integration problems are not recorded yet.) */
+export const TRIAGE_KINDS = ['flaky', 'no_baseline', 'failed'] as const
 export const WEBHOOK_EVENTS = ['build.completed', 'build.reviewed'] as const
 /**
  * How someone signed in: `oidc` is an instance-wide single sign-on provider, `org-oidc` one an
@@ -51,5 +55,7 @@ export type ReviewState = (typeof REVIEW_STATES)[number]
 export type ReviewSource = (typeof REVIEW_SOURCES)[number]
 export type ReviewRequestState = (typeof REVIEW_REQUEST_STATES)[number]
 export type SnoozeKind = (typeof SNOOZE_KINDS)[number]
+export type ReviewRuleKind = (typeof REVIEW_RULE_KINDS)[number]
+export type TriageKind = (typeof TRIAGE_KINDS)[number]
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number]
 export type JobStatus = (typeof JOB_STATUSES)[number]

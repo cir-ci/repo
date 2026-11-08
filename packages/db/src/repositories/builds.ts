@@ -46,6 +46,9 @@ export async function createBuild(db: Database, input: createBuild.Input): Promi
     status: 'uploading' as const,
     parallelNonce: input.parallel?.nonce ?? null,
     parallelTotal: input.parallel?.total ?? null,
+    authorLogin: input.author?.login ?? null,
+    authorEmail: input.author?.email ?? null,
+    authorUserId: input.author?.userId ?? null,
   }
 
   return db.transaction(async (tx) => {
@@ -98,6 +101,8 @@ export namespace createBuild {
     /** Who sent `ancestorShas`; `sdk` for an Argos SDK. Default `cli`. */
     historySource?: 'cli' | 'sdk'
     parallel?: { nonce: string; total: number }
+    /** Who made the change; `userId` is the member it was matched to (see `startBuild`). */
+    author?: { login?: string | null; email?: string | null; userId?: string | null }
   }
 }
 

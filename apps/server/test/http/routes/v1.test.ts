@@ -6,7 +6,7 @@ import { Readable } from 'node:stream'
 
 import type { Auth } from '@circi/auth'
 import { rotateProjectToken } from '@circi/auth'
-import { getFile } from '@circi/db'
+import { getBuild, getFile } from '@circi/db'
 import {
   FsStorage,
   type ObjectInfo,
@@ -14,7 +14,7 @@ import {
   type PutResult,
   type StorageDriver,
 } from '@circi/storage'
-import { createTestDb, type TestDb } from '@circi/testing'
+import { createTestDb, seedAccount, type TestDb } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -73,6 +73,32 @@ async function upload(token: string, b: Buffer, hash = sha256(b)) {
     payload: b,
   })
 }
+
+describe('build author', () => {
+  it('stores the author the CI sends and matches a linked member', async () => {
+    const tenant = await seedTenant(betterAuth, t.db)
+    await seedAccount(t.db, { userId: tenant.owner.id, accountId: '8675309' })
+    const res = await createBuild(tenant.token, [png('a')], {
+      author: { login: 'octocat', provider: 'github', providerId: '8675309' },
+    })
+    expect(res.statusCode).toBe(201)
+    const build = await getBuild(t.db, res.json().build.id)
+    expect(build).toMatchObject({
+      authorLogin: 'octocat',
+      authorEmail: null,
+      authorUserId: tenant.owner.id,
+    })
+  })
+
+  it('accepts a build without an author, and refuses an empty login', async () => {
+    const tenant = await seedTenant(betterAuth, t.db)
+    const plain = await createBuild(tenant.token, [png('b')])
+    expect(plain.statusCode).toBe(201)
+    expect(await getBuild(t.db, plain.json().build.id)).toMatchObject({ authorLogin: null })
+    const bad = await createBuild(tenant.token, [png('c')], { author: { login: '' } })
+    expect(bad.statusCode).toBe(400)
+  })
+})
 
 describe('authentication', () => {
   it('requires a valid project token', async () => {

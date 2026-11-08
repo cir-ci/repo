@@ -270,3 +270,54 @@ describe('ciRunId', () => {
     expect(ciRunId({})).toBeUndefined()
   })
 })
+
+const noEvent = () => noFile()
+
+describe('detectCi author', () => {
+  it.each([
+    [
+      'github',
+      { GITHUB_ACTIONS: 'true', GITHUB_ACTOR: 'octocat', GITHUB_ACTOR_ID: '583231' },
+      { login: 'octocat', provider: 'github', providerId: '583231' },
+    ],
+    [
+      'gitlab',
+      {
+        GITLAB_CI: 'true',
+        GITLAB_USER_LOGIN: 'ann',
+        GITLAB_USER_EMAIL: 'ann@acme.test',
+        GITLAB_USER_ID: '12',
+      },
+      { login: 'ann', email: 'ann@acme.test', provider: 'gitlab', providerId: '12' },
+    ],
+    [
+      'bitbucket',
+      { BITBUCKET_BUILD_NUMBER: '5', BITBUCKET_STEP_TRIGGERER_UUID: '{abc-123}' },
+      { login: '{abc-123}' },
+    ],
+    ['circleci', { CIRCLECI: 'true', CIRCLE_USERNAME: 'bob' }, { login: 'bob' }],
+    [
+      'buildkite',
+      {
+        BUILDKITE: 'true',
+        BUILDKITE_BUILD_AUTHOR: 'Cy',
+        BUILDKITE_BUILD_AUTHOR_EMAIL: 'cy@acme.test',
+      },
+      { login: 'Cy', email: 'cy@acme.test' },
+    ],
+    [
+      'azure',
+      { TF_BUILD: 'True', BUILD_REQUESTEDFOR: 'Di', BUILD_REQUESTEDFOREMAIL: 'di@acme.test' },
+      { login: 'Di', email: 'di@acme.test' },
+    ],
+  ])('%s', (_name, env, author) => {
+    expect(detectCi(env, noEvent).author).toEqual(author)
+  })
+
+  it('has no author when the CI names nobody, and CIRCI_AUTHOR wins over the CI', () => {
+    expect(detectCi({ GITHUB_ACTIONS: 'true' }, noEvent).author).toBeUndefined()
+    expect(detectCi({}, noEvent).author).toBeUndefined()
+    const env = { GITLAB_CI: 'true', GITLAB_USER_LOGIN: 'ann', CIRCI_AUTHOR: 'zed' }
+    expect(detectCi(env, noEvent).author).toEqual({ login: 'zed' })
+  })
+})

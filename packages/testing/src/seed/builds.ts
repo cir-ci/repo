@@ -8,6 +8,8 @@ export interface SeedBuildInput extends Omit<createBuild.Input, 'projectId' | 'c
   /** Set after creation, for builds that should already be past `uploading`. */
   status?: Build['status']
   conclusion?: Build['conclusion']
+  reviewStatus?: Build['reviewStatus']
+  completedAt?: Date
   createdAt?: Date
 }
 
@@ -18,7 +20,7 @@ export async function seedBuild(
   input: SeedBuildInput = {},
 ): Promise<Build> {
   n += 1
-  const { status, conclusion, createdAt, commitSha, ...rest } = input
+  const { status, conclusion, reviewStatus, completedAt, createdAt, commitSha, ...rest } = input
   const build = await createBuild(db, {
     ...rest,
     projectId,
@@ -27,6 +29,8 @@ export async function seedBuild(
   const set = {
     ...(status ? { status } : {}),
     ...(conclusion ? { conclusion } : {}),
+    ...(reviewStatus ? { reviewStatus } : {}),
+    ...(completedAt ? { completedAt } : {}),
     ...(createdAt ? { createdAt } : {}),
   }
   if (Object.keys(set).length === 0) return build

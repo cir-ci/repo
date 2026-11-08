@@ -80,7 +80,8 @@ export namespace openReviewRequest {
   export interface Input {
     buildId: string
     reviewerId: string
-    requestedById: string
+    /** Null when the system asked (a review rule or the triage rotation). */
+    requestedById: string | null
     /** From the project's review target; null when it has none. */
     dueAt: Date | null
   }

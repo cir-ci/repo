@@ -8,13 +8,14 @@ export async function seedFile(
     kind?: 'screenshot' | 'thumbnail' | 'diff' | 'asset'
     width?: number
     height?: number
+    size?: number
   },
 ): Promise<void> {
   await upsertServerFile(db, {
     sha256: input.sha256,
     storageKey: `k/${input.sha256}`,
     kind: input.kind ?? 'screenshot',
-    size: 1,
+    size: input.size ?? 1,
     contentType: 'image/png',
     ...(input.width ? { width: input.width } : {}),
     ...(input.height ? { height: input.height } : {}),
@@ -24,11 +25,30 @@ export async function seedFile(
 /** A screenshot of `buildId`, creating its file (and thumbnail file) rows first. */
 export async function seedScreenshot(
   db: Database,
-  input: { buildId: string; fileSha256: string; thumbnailSha256?: string; name?: string },
+  input: {
+    buildId: string
+    fileSha256: string
+    thumbnailSha256?: string
+    name?: string
+    /** Stored sizes in bytes, for storage totals; 1 when unset. */
+    size?: number
+    thumbnailSize?: number
+    width?: number
+    height?: number
+  },
 ) {
-  await seedFile(db, { sha256: input.fileSha256 })
+  await seedFile(db, {
+    sha256: input.fileSha256,
+    ...(input.size ? { size: input.size } : {}),
+    ...(input.width ? { width: input.width } : {}),
+    ...(input.height ? { height: input.height } : {}),
+  })
   if (input.thumbnailSha256) {
-    await seedFile(db, { sha256: input.thumbnailSha256, kind: 'thumbnail' })
+    await seedFile(db, {
+      sha256: input.thumbnailSha256,
+      kind: 'thumbnail',
+      ...(input.thumbnailSize ? { size: input.thumbnailSize } : {}),
+    })
   }
   const [row] = await db
     .insert(schema.screenshots)
@@ -51,9 +71,16 @@ export async function seedDiff(
     name?: string
     status?: 'added' | 'removed' | 'changed' | 'unchanged' | 'failed'
     diffFileSha256?: string
+    diffFileSize?: number
   },
 ) {
-  if (input.diffFileSha256) await seedFile(db, { sha256: input.diffFileSha256, kind: 'diff' })
+  if (input.diffFileSha256) {
+    await seedFile(db, {
+      sha256: input.diffFileSha256,
+      kind: 'diff',
+      ...(input.diffFileSize ? { size: input.diffFileSize } : {}),
+    })
+  }
   const [row] = await db
     .insert(schema.screenshotDiffs)
     .values({

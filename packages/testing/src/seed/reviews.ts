@@ -36,3 +36,29 @@ export async function seedReviewRequest(
   if (!row) throw new Error('seed insert returned no row')
   return row
 }
+
+/** A decision on a build, inserted as given (any time or source), for history-shaped tests. */
+export async function seedReview(
+  db: Database,
+  input: {
+    buildId: string
+    /** Null for an automatic approval. */
+    userId: string | null
+    state?: 'approved' | 'rejected'
+    source?: 'ui' | 'github-check' | 'github-comment' | 'auto' | 'rerun'
+    createdAt?: Date
+  },
+) {
+  const [row] = await db
+    .insert(schema.reviews)
+    .values({
+      buildId: input.buildId,
+      userId: input.userId,
+      state: input.state ?? 'approved',
+      source: input.source ?? (input.userId === null ? 'auto' : 'ui'),
+      ...(input.createdAt ? { createdAt: input.createdAt } : {}),
+    })
+    .returning()
+  if (!row) throw new Error('seed insert returned no row')
+  return row
+}

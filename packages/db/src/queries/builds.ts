@@ -10,6 +10,7 @@ import {
   type BuildStatus,
   builds,
   type DiffStatus,
+  user,
   type ReviewStatus,
   files,
   screenshotDiffs,
@@ -30,6 +31,24 @@ export interface BuildListItem {
   reviewStatus: ReviewStatus
   createdAt: Date
   counts: getBuildCounts.Counts
+  author: BuildAuthor | null
+}
+
+/** Who made a build: the login the CI or git host gave, and the member it matched, if any. */
+export interface BuildAuthor {
+  login: string
+  /** The member's name, when the author is matched to one. */
+  name: string | null
+  /** The member's profile picture, when matched and they have one. */
+  avatarUrl: string | null
+}
+
+function toAuthor(
+  build: { authorLogin: string | null },
+  member: { name: string; image: string | null } | null,
+): BuildAuthor | null {
+  const login = build.authorLogin ?? member?.name
+  return login ? { login, name: member?.name ?? null, avatarUrl: member?.image ?? null } : null
 }
 
 export async function listBuildsForProject(
@@ -37,9 +56,10 @@ export async function listBuildsForProject(
   projectId: string,
   options: { limit: number; beforeNumber?: number },
 ): Promise<BuildListItem[]> {
-  const rows = await db
-    .select()
+  const found = await db
+    .select({ build: builds, member: { name: user.name, image: user.image } })
     .from(builds)
+    .leftJoin(user, eq(user.id, builds.authorUserId))
     .where(
       and(
         eq(builds.projectId, projectId),
@@ -48,7 +68,9 @@ export async function listBuildsForProject(
     )
     .orderBy(desc(builds.number))
     .limit(options.limit)
-  if (rows.length === 0) return []
+  if (found.length === 0) return []
+  const rows = found.map((f) => f.build)
+  const members = new Map(found.map((f) => [f.build.id, f.member]))
   const counts = await db
     .select({
       buildId: screenshotDiffs.buildId,
@@ -82,6 +104,7 @@ export async function listBuildsForProject(
     reviewStatus: b.reviewStatus,
     createdAt: b.createdAt,
     counts: byBuild.get(b.id) ?? emptyCounts(),
+    author: toAuthor(b, members.get(b.id) ?? null),
   }))
 }
 
@@ -188,6 +211,7 @@ export async function getBuildDetail(
       createdAt: build.createdAt,
       completedAt: build.completedAt,
       counts,
+      author: list?.id === build.id ? list.author : null,
     },
     baseline,
     reviews: decisions,

@@ -7,7 +7,7 @@ import {
   latestBuildsForPr,
 } from '@circi/db'
 import { type GithubApp, parseCommand, verifyGithubSignature } from '@circi/providers'
-import { requeueBuild, reviewBuild } from '@circi/services'
+import { recordPullRequestAuthor, requeueBuild, reviewBuild } from '@circi/services'
 import type { FastifyBaseLogger, FastifyPluginAsync } from 'fastify'
 
 /**
@@ -71,6 +71,7 @@ export const githubWebhookRoutes: FastifyPluginAsync<GithubWebhookDeps> = async 
     try {
       if (event === 'check_run') await onCheckRun(deps, payload)
       else if (event === 'issue_comment') await onComment(deps, payload)
+      else if (event === 'pull_request') await onPullRequest(deps, payload)
     } catch (err) {
       // Acknowledge anyway: GitHub would only redeliver the same thing.
       deps.logger.error({ err, event, delivery }, 'github webhook handling failed')
@@ -105,6 +106,29 @@ async function onCheckRun(deps: GithubWebhookDeps, p: Record<string, unknown>) {
     state: identifier === 'approve' ? 'approved' : 'rejected',
     source: 'github-check',
   })
+}
+
+/** The pull request's author replaces the login CI sent on every build of that pull request. */
+async function onPullRequest(deps: GithubWebhookDeps, p: Record<string, unknown>) {
+  if (p.action !== 'opened' && p.action !== 'reopened' && p.action !== 'synchronize') return
+  const pr = record(p.pull_request)
+  const author = record(pr.user)
+  const login = str(author.login)
+  const number = Number(pr.number)
+  const installation = str(record(p.installation).id)
+  const repo = str(record(p.repository).full_name)
+  if (!login || !Number.isInteger(number) || !installation || !repo) return
+  const projects = await findProjectsByRepo(deps.db, installation, repo)
+  await Promise.all(
+    projects.map((project) =>
+      recordPullRequestAuthor(deps.db, {
+        projectId: project.id,
+        prNumber: number,
+        login,
+        providerId: str(author.id) ?? null,
+      }),
+    ),
+  )
 }
 
 async function onComment(deps: GithubWebhookDeps, p: Record<string, unknown>) {

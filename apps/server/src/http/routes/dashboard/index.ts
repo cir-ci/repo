@@ -5,8 +5,11 @@ import { requireSession } from '../../hooks/session.ts'
 import type { DashboardDeps } from '../../lib/deps.ts'
 import { jsonErrorHandler } from '../../lib/errors.ts'
 import { authRoutes } from '../auth.ts'
+import { dashboardBaselineRoutes } from './baselines.ts'
 import { dashboardDomainRoutes } from './domains.ts'
 import { dashboardFileRoutes } from './files.ts'
+import { dashboardIgnoreRegionRoutes } from './ignore-regions.ts'
+import { dashboardInsightsRoutes } from './insights.ts'
 import { dashboardInstanceRoutes } from './instance.ts'
 import { dashboardOrgAuthRoutes } from './org-auth.ts'
 import { dashboardOrgSettingsRoutes } from './org-settings.ts'
@@ -15,9 +18,11 @@ import { dashboardOrganizationRoutes } from './organizations.ts'
 import { dashboardProjectSitesRoutes } from './project-sites.ts'
 import { dashboardProjectRoutes } from './projects.ts'
 import { dashboardReviewRequestRoutes, dashboardReviewRoutes } from './reviews.ts'
+import { dashboardRuleRoutes } from './rules.ts'
 import { dashboardSettingsRoutes } from './settings.ts'
 import { dashboardSetupRoutes } from './setup.ts'
 import { dashboardSiteHandoffRoutes } from './site-handoff.ts'
+import { dashboardTriageRoutes } from './triage.ts'
 import { webAppRoutes } from './web-app.ts'
 
 /**
@@ -78,5 +83,10 @@ const sessionApi: FastifyPluginAsync<DashboardDeps> = async (api, deps) => {
   await api.register(dashboardProjectSitesRoutes, deps)
   await api.register(dashboardReviewRoutes, deps)
   await api.register(dashboardReviewRequestRoutes, deps)
+  await api.register(dashboardBaselineRoutes, deps)
+  await api.register(dashboardInsightsRoutes, deps)
+  await api.register(dashboardRuleRoutes, deps)
+  await api.register(dashboardTriageRoutes, deps)
+  await api.register(dashboardIgnoreRegionRoutes, deps)
   await api.register(dashboardFileRoutes, deps)
 }

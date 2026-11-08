@@ -47,6 +47,16 @@ export interface CiContext {
   fromFork?: boolean
   /** Link to the CI job, for "re-run to unblock" messages. */
   jobUrl?: string
+  /** Who triggered the run, as the CI names them. The server may replace it with the PR's author. */
+  author?: CiAuthor
+}
+
+export interface CiAuthor {
+  login: string
+  email?: string
+  /** Sign-in provider the id belongs to, so the server can match a linked account. */
+  provider?: string
+  providerId?: string
 }
 
 type Env = Record<string, string | undefined>
@@ -54,7 +64,8 @@ type ReadJson = (path: string) => unknown
 
 export function detectCi(env: Env, readJson: ReadJson): CiContext {
   const ctx = detectProvider(env, readJson)
-  return applyOverrides(ctx, env)
+  const author = detectAuthor(ctx.provider, env)
+  return applyOverrides(author ? { ...ctx, author } : ctx, env)
 }
 
 function detectProvider(env: Env, readJson: ReadJson): CiContext {
@@ -201,14 +212,63 @@ function azure(env: Env): CiContext {
   }
 }
 
+function makeAuthor(
+  login: string | undefined,
+  extra: { email?: string | undefined; provider?: string; providerId?: string | undefined } = {},
+): CiAuthor | undefined {
+  return login
+    ? {
+        login,
+        ...(extra.email ? { email: extra.email } : {}),
+        ...(extra.provider && extra.providerId
+          ? { provider: extra.provider, providerId: extra.providerId }
+          : {}),
+      }
+    : undefined
+}
+
+/** Each CI's own variable for who started the run; the first one that is set wins. */
+function detectAuthor(provider: CiContext['provider'], env: Env): CiAuthor | undefined {
+  const pick = (...names: string[]) => names.map((n) => nonEmpty(env[n])).find((v) => v)
+  switch (provider) {
+    case 'github':
+      return makeAuthor(pick('GITHUB_ACTOR'), {
+        provider: 'github',
+        providerId: pick('GITHUB_ACTOR_ID'),
+      })
+    case 'gitea':
+      return makeAuthor(pick('GITHUB_ACTOR', 'GITEA_ACTOR'))
+    case 'gitlab':
+      return makeAuthor(pick('GITLAB_USER_LOGIN'), {
+        email: pick('GITLAB_USER_EMAIL'),
+        provider: 'gitlab',
+        providerId: pick('GITLAB_USER_ID'),
+      })
+    case 'bitbucket':
+      return makeAuthor(pick('BITBUCKET_STEP_TRIGGERER_UUID'))
+    case 'circleci':
+      return makeAuthor(pick('CIRCLE_USERNAME'))
+    case 'buildkite':
+      return makeAuthor(pick('BUILDKITE_BUILD_AUTHOR', 'BUILDKITE_BUILD_CREATOR'), {
+        email: pick('BUILDKITE_BUILD_AUTHOR_EMAIL', 'BUILDKITE_BUILD_CREATOR_EMAIL'),
+      })
+    case 'azure':
+      return makeAuthor(pick('BUILD_REQUESTEDFOR'), { email: pick('BUILD_REQUESTEDFOREMAIL') })
+    default:
+      return undefined
+  }
+}
+
 /** `CIRCI_*` variables win over anything detected, for CIs we don't know or odd setups. */
 function applyOverrides(ctx: CiContext, env: Env): CiContext {
+  const author = nonEmpty(env.CIRCI_AUTHOR)
   return {
     ...ctx,
     commitSha: nonEmpty(env.CIRCI_COMMIT) ?? ctx.commitSha,
     branch: nonEmpty(env.CIRCI_BRANCH) ?? ctx.branch,
     prNumber: num(env.CIRCI_PR_NUMBER) ?? ctx.prNumber,
     baseBranch: nonEmpty(env.CIRCI_BASE_BRANCH) ?? ctx.baseBranch,
+    ...(author ? { author: { login: author } } : {}),
   }
 }
 

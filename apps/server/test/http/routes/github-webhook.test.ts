@@ -112,6 +112,27 @@ const comment = (pr: number, body: string, senderId = GITHUB_ID, type = 'User') 
 const reviewState = async (id: string) => (await getBuild(t.db, id))?.reviewStatus
 
 describe('GitHub webhook', () => {
+  it('the pull request author replaces the login CI sent', async () => {
+    n += 1
+    const build = await seedBuild(t.db, acme.project.id, {
+      commitSha: `def${2000 + n}`,
+      branch: 'feature',
+      prNumber: 31,
+      author: { login: 'ci-pusher' },
+    })
+    const res = await deliver('pull_request', {
+      action: 'opened',
+      pull_request: { number: 31, user: { id: Number(GITHUB_ID), login: 'ann' } },
+      installation: { id: 99 },
+      repository: { full_name: 'acme/web' },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(await getBuild(t.db, build.id)).toMatchObject({
+      authorLogin: 'ann',
+      authorUserId: acme.owner.id,
+    })
+  })
+
   it('refuses a bad signature', async () => {
     const res = await deliver('ping', { zen: 'x' }, { secret: 'wrong' })
     expect(res.statusCode).toBe(401)

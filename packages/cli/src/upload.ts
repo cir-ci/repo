@@ -26,6 +26,8 @@ export interface UploadOptions {
   shard?: { index: number; total: number; nonce?: string }
   /** Who blocks the merge: the git host's check (`status`) or this job (`exit-code`). Default: the server decides. */
   gate?: 'status' | 'exit-code'
+  /** Who made the change (`--author`); replaces what the CI environment says. */
+  author?: string
   waitTimeoutMs?: number
   pollIntervalMs?: number
   /** Allow `git fetch` to complete shallow history (default true). */
@@ -65,6 +67,7 @@ export async function upload(options: UploadOptions): Promise<UploadResult> {
   const project = await client.project()
   const git = gitRunner(cwd)
   const ci = detectCi(env, (path) => JSON.parse(readFileSync(path, 'utf8')))
+  if (options.author?.trim()) ci.author = { login: options.author.trim() }
   if (!ci.commitSha || !ci.branch) {
     const local = await localHead(git)
     ci.commitSha ??= local.sha
@@ -128,6 +131,7 @@ export async function upload(options: UploadOptions): Promise<UploadResult> {
     ancestorShas: ancestry.ancestorShas,
     ancestryStatus: ancestry.status,
     ...(parallel ? { parallel } : {}),
+    ...(ci.author ? { author: ci.author } : {}),
     files: uniqueFiles(shots),
   })
 

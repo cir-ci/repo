@@ -12,7 +12,16 @@ export const JSON_BODY_LIMIT = 16 * 1024 * 1024
 const sha256 = z.string().regex(SHA256_RE, 'must be a lowercase hex sha256')
 const commitSha = z.string().regex(COMMIT_SHA_RE, 'must be a commit SHA')
 
+/** Who made the change, as the CI reports it. Matching it to a member is the service's job. */
+export const authorBody = z.object({
+  login: z.string().trim().min(1).max(255).nullish(),
+  email: z.string().trim().min(1).max(320).nullish(),
+  provider: z.string().min(1).max(64).optional(),
+  providerId: z.string().min(1).max(128).nullish(),
+})
+
 export const createBuildBody = z.object({
+  author: authorBody.optional(),
   name: z.string().optional(),
   commitSha,
   branch: z.string().max(255).nullish(),

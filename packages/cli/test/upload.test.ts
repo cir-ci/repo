@@ -54,6 +54,16 @@ async function run(options: Partial<UploadOptions> = {}, server: FakeCirciOption
 }
 
 describe('upload', () => {
+  it('sends the CI actor as the author, and --author replaces it', async () => {
+    await run({ env: { ...env, GITLAB_USER_LOGIN: 'ann', GITLAB_USER_ID: '12' } })
+    expect(fake.json(fake.to('/v1/builds')[0]!)).toMatchObject({
+      author: { login: 'ann', provider: 'gitlab', providerId: '12' },
+    })
+    await fake.stop()
+    await run({ env: { ...env, GITLAB_USER_LOGIN: 'ann' }, author: ' zed ' })
+    expect(fake.json(fake.to('/v1/builds')[0]!)).toMatchObject({ author: { login: 'zed' } })
+  })
+
   it('sends the files the server asks for, finalizes, and says what happened', async () => {
     const result = await run()
     expect(result).toMatchObject({ exitCode: 0, uploaded: 1, deduplicated: 1 })

@@ -8,6 +8,13 @@ export type ReviewSource = 'ui' | 'github-check' | 'github-comment' | 'auto' | '
 export type DiffStatus = 'added' | 'removed' | 'changed' | 'unchanged' | 'failed'
 
 export namespace Build {
+  /** Who made the change. `login` comes from the CI or the git host; the rest from a matched member. */
+  export interface Author {
+    login: string
+    name: string | null
+    avatarUrl: string | null
+  }
+
   export interface Counts {
     added: number
     removed: number
@@ -29,6 +36,7 @@ export namespace Build {
     reviewStatus: ReviewStatus
     createdAt: string
     counts: Counts
+    author: Author | null
   }
 
   export interface ImageRef {

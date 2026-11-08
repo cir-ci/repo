@@ -1,6 +1,5 @@
 import { buildOutcome } from '@circi/core'
 import {
-  createBuild,
   getBuildCounts,
   getFile,
   getProjectBuild,
@@ -8,7 +7,7 @@ import {
   markFileVerified,
   planUploads,
 } from '@circi/db'
-import { finalizeBuild, gateInputs } from '@circi/services'
+import { finalizeBuild, gateInputs, startBuild } from '@circi/services'
 import { contentKey } from '@circi/storage'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
@@ -29,7 +28,7 @@ export const buildRoutes: FastifyPluginAsync<V1Deps> = async (app, deps) => {
   app.post('/builds', { bodyLimit: JSON_BODY_LIMIT }, async (req, reply) => {
     const ctx = currentProject(req)
     const body = parse(createBuildBody, req.body)
-    const build = await createBuild(deps.db, {
+    const build = await startBuild(deps.db, {
       projectId: ctx.project.id,
       commitSha: body.commitSha,
       ...(body.name ? { name: body.name } : {}),
@@ -40,6 +39,7 @@ export const buildRoutes: FastifyPluginAsync<V1Deps> = async (app, deps) => {
       ...(body.ancestorShas ? { ancestorShas: body.ancestorShas } : {}),
       ...(body.ancestryStatus ? { ancestryStatus: body.ancestryStatus } : {}),
       ...(body.parallel ? { parallel: body.parallel } : {}),
+      ...(body.author ? { author: body.author } : {}),
     })
     const planned = await planUploads(deps.db, {
       buildId: build.id,

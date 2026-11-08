@@ -13,6 +13,7 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { createdAt, id, inList, inListOrNull } from './_columns.ts'
+import { user } from './auth.ts'
 import {
   ANCESTRY_STATUSES,
   type AncestryStatus,
@@ -61,6 +62,11 @@ export const builds = pgTable(
     reviewStatus: text('review_status').$type<ReviewStatus>().notNull().default('pending'),
     /** Why the build ended in `error`, shown on the build page. */
     errorMessage: text('error_message'),
+    /** Who made the change: the CI's actor, replaced by the git host's PR author (B1). */
+    authorLogin: text('author_login'),
+    authorEmail: text('author_email'),
+    /** The member the author is, when their linked sign-in account matched exactly one. */
+    authorUserId: text('author_user_id').references(() => user.id, { onDelete: 'set null' }),
     finalizedAt: timestamp('finalized_at', { withTimezone: true }),
     completedAt: timestamp('completed_at', { withTimezone: true }),
     createdAt: createdAt(),

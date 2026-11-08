@@ -1,15 +1,26 @@
+import { reviewDueAt, reviewersForBuild, rotationFor } from '@circi/core'
 import {
   type Build,
+  closeReviewRequestsForBuild,
+  createBuild,
   type Database,
   enqueueJob,
   finalizeShard,
+  findMembersByAccount,
+  getProjectById,
+  getRotationForResolution,
+  findMembersByVerifiedEmail,
+  listRulesForResolution,
+  listScreenshotNames,
   listStalledBuilds,
+  openReviewRequest,
   QUEUES,
   queueGitNotify,
   queueWebhookEvent,
   resetBuild,
   setBuildError,
   setBuildResult,
+  setPullRequestAuthor,
   supersedeReviewRequests,
 } from '@circi/db'
 
@@ -21,12 +32,14 @@ import {
  */
 
 /**
- * Stores one shard's screenshots; once the last shard is in, queues the build for diffing and
- * closes review requests on older builds of the same branch as superseded.
+ * Stores one shard's screenshots; once the last shard is in, queues the build for diffing,
+ * closes review requests on older builds of the same branch as superseded, and asks the people
+ * the project's review rules name (else this week's person on triage) to review the build.
  */
 export async function finalizeBuild(
   db: Database,
   input: Parameters<typeof finalizeShard>[1],
+  options: { now?: Date } = {},
 ): Promise<finalizeShard.Result> {
   return db.transaction(async (tx) => {
     const result = await finalizeShard(tx, input)
@@ -45,10 +58,39 @@ export async function finalizeBuild(
           beforeNumber: result.build.number,
         })
       }
+      await requestRuleReviewers(tx, result.build, options.now ?? new Date())
     }
     return result
   })
 }
+/**
+ * Opens a review request (asked by nobody: the system) for each reviewer the project's rules
+ * name for this build, once each. A build no rule matches goes to whoever is on triage this
+ * week, if the project has a rotation; with neither, nobody is asked.
+ */
+async function requestRuleReviewers(db: Database, build: Build, now: Date): Promise<void> {
+  const project = await getProjectById(db, build.projectId)
+  if (!project) return
+  const rules = await listRulesForResolution(db, project.id)
+  let reviewerIds =
+    rules.length === 0
+      ? []
+      : reviewersForBuild(rules, {
+          name: build.name,
+          snapshotNames: await listScreenshotNames(db, build.id),
+        })
+  if (reviewerIds.length === 0) {
+    const rotation = await getRotationForResolution(db, project.id)
+    const onTriage = rotation ? rotationFor(now, rotation.memberIds, rotation.startsOn) : null
+    reviewerIds = onTriage ? [onTriage] : []
+  }
+  const dueAt = reviewDueAt(now, project.reviewTargetHours)
+  for (const reviewerId of reviewerIds) {
+    // eslint-disable-next-line no-await-in-loop -- one transaction, a few reviewers
+    await openReviewRequest(db, { buildId: build.id, reviewerId, requestedById: null, dueAt })
+  }
+}
+
 export namespace finalizeBuild {
   export type Screenshot = finalizeShard.Screenshot
   export type Result = finalizeShard.Result
@@ -62,6 +104,10 @@ export async function completeBuild(
 ): Promise<void> {
   await db.transaction(async (tx) => {
     const done = await setBuildResult(tx, build, result)
+    // Nothing to review (no changes, or approved on its own): requests made at upload close.
+    if (done.conclusion === 'no_changes' || done.reviewStatus === 'approved') {
+      await closeReviewRequestsForBuild(tx, done.id)
+    }
     await queueWebhookEvent(tx, { build: done, event: 'build.completed' })
     await queueGitNotify(tx, done)
   })
@@ -116,4 +162,77 @@ export async function expireStalledBuilds(db: Database, cutoff: Date): Promise<n
     failed += 1
   }
   return failed
+}
+
+/** What a CI or git host says about who made a change. Everything is optional. */
+export interface AuthorClaim {
+  login?: string | null
+  email?: string | null
+  /** The sign-in provider the id belongs to (`github`, `gitlab`, …); default `github`. */
+  provider?: string
+  /** The author's id at that provider (GitHub's numeric user id), matched to a linked account. */
+  providerId?: string | null
+}
+
+/**
+ * The member an author is: the one user of the project's organization whose linked sign-in
+ * account has the claimed provider id, else the one whose verified email matches. No match, or
+ * more than one, gives null: a wrong guess would show someone else's name on a build.
+ */
+export async function matchAuthor(
+  db: Database,
+  projectId: string,
+  claim: AuthorClaim,
+): Promise<string | null> {
+  if (claim.providerId) {
+    const byAccount = await findMembersByAccount(
+      db,
+      projectId,
+      claim.provider ?? 'github',
+      claim.providerId,
+    )
+    if (byAccount.length === 1) return byAccount[0] ?? null
+    if (byAccount.length > 1) return null
+  }
+  if (claim.email) {
+    const byEmail = await findMembersByVerifiedEmail(db, projectId, claim.email)
+    if (byEmail.length === 1) return byEmail[0] ?? null
+  }
+  return null
+}
+
+/** Creates a build (or joins a parallel one) with its author matched to a member. */
+export async function startBuild(
+  db: Database,
+  input: Omit<createBuild.Input, 'author'> & { author?: AuthorClaim },
+): Promise<Build> {
+  const { author, ...rest } = input
+  if (!author || (!author.login && !author.email && !author.providerId)) {
+    return createBuild(db, rest)
+  }
+  const userId = await matchAuthor(db, input.projectId, author)
+  return createBuild(db, {
+    ...rest,
+    author: { login: author.login ?? null, email: author.email ?? null, userId },
+  })
+}
+
+/**
+ * A pull request's author, as the git host reports it, replaces whatever CI claimed on every
+ * build of that pull request.
+ */
+export async function recordPullRequestAuthor(
+  db: Database,
+  input: { projectId: string; prNumber: number; login: string; providerId?: string | null },
+): Promise<number> {
+  const userId = await matchAuthor(db, input.projectId, {
+    provider: 'github',
+    providerId: input.providerId ?? null,
+  })
+  return setPullRequestAuthor(db, {
+    projectId: input.projectId,
+    prNumber: input.prNumber,
+    login: input.login,
+    userId,
+  })
 }

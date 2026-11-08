@@ -1,6 +1,5 @@
 import { COMMIT_SHA_RE, isSha256, MAX_PARALLEL_SHARDS, ValidationError } from '@circi/core'
 import {
-  createBuild,
   findBaselineByCommits,
   getFile,
   getProjectBuild,
@@ -9,7 +8,7 @@ import {
   planUploads,
   setParallelTotal,
 } from '@circi/db'
-import { finalizeBuild } from '@circi/services'
+import { finalizeBuild, startBuild } from '@circi/services'
 import { ChecksumMismatchError, contentKey } from '@circi/storage'
 import multipart from '@fastify/multipart'
 import type { FastifyPluginAsync } from 'fastify'
@@ -45,6 +44,8 @@ const baselineBody = z.object({
 })
 
 const createBody = z.object({
+  /** Not part of Argos's API; an SDK or script may send the author's login. */
+  author: z.string().trim().min(1).max(255).nullish(),
   commit: z.string().regex(COMMIT_SHA_RE, 'must be a commit SHA'),
   branch: z.string().max(255).nullish(),
   name: z.string().nullish(),
@@ -188,7 +189,7 @@ export const argosRoutes: FastifyPluginAsync<V2Deps> = async (v2, deps) => {
         .filter((c) => c !== commit)
       const ancestorShas = [...new Set(history)]
       const name = buildName(body.name)
-      const build = await createBuild(deps.db, {
+      const build = await startBuild(deps.db, {
         projectId: ctx.project.id,
         commitSha: commit,
         ...(name ? { name } : {}),
@@ -202,6 +203,7 @@ export const argosRoutes: FastifyPluginAsync<V2Deps> = async (v2, deps) => {
         ancestorShas,
         ancestryStatus: ancestorShas.length > 0 ? 'ok' : 'missing',
         historySource: 'sdk',
+        ...(body.author ? { author: { login: body.author } } : {}),
         // The total is only known when the last shard reports; start with the most it could be.
         ...(body.parallel && body.parallelNonce
           ? { parallel: { nonce: body.parallelNonce, total: MAX_PARALLEL_SHARDS } }

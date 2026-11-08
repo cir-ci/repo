@@ -9,9 +9,20 @@ export {
   expireStalledBuilds,
   failBuild,
   finalizeBuild,
+  matchAuthor,
+  recordPullRequestAuthor,
   requeueBuild,
+  startBuild,
+  type AuthorClaim,
 } from './builds.ts'
 export { gateInputs } from './gate.ts'
 export { migrateStorage } from './migrate-storage.ts'
 export { previewRetention, runRetention } from './retention.ts'
 export { dismissReviewRequest, requestReview, reviewBuild } from './reviews.ts'
+export {
+  assignTriage,
+  createIgnoreRegion,
+  deleteIgnoreRegion,
+  dismissTriage,
+  snoozeTriage,
+} from './triage.ts'

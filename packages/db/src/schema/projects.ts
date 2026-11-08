@@ -6,6 +6,7 @@ import {
   pgTable,
   real,
   text,
+  timestamp,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
@@ -42,6 +43,11 @@ export const projects = pgTable(
     retentionDays: integer('retention_days').notNull().default(30),
     /** Hours a review request may wait before it is overdue; null means no review target. */
     reviewTargetHours: integer('review_target_hours').default(24),
+    /**
+     * The first week of the triage rotation (any moment in it); null when the project has no
+     * rotation. Who is on triage comes from `triage_rotation_members` in this order.
+     */
+    triageRotationStartsOn: timestamp('triage_rotation_starts_on', { withTimezone: true }),
     staticHostingEnabled: boolean('static_hosting_enabled').notNull().default(false),
     /** Last assigned per-project build number; bumped atomically when a build is created. */
     buildCounter: integer('build_counter').notNull().default(0),

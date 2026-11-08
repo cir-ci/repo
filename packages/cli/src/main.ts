@@ -35,6 +35,7 @@ program
     '--gate <mode>',
     'who blocks the merge: status (the git host check, exit 0 on unreviewed changes) or exit-code (this job); default: decided by the server',
   )
+  .option('--author <login>', 'who made the change (default: the CI actor, e.g. GITHUB_ACTOR)')
   .option('--timeout <seconds>', 'how long --wait waits', '600')
   .option('--api-url <url>', 'CirCI address (default: CIRCI_API_URL)')
   .option('--no-fetch', "don't run git fetch to complete shallow history")
@@ -47,6 +48,7 @@ Environment:
   CIRCI_API_URL  CirCI address, e.g. https://ci.acme.io
   CIRCI_COMMIT, CIRCI_BRANCH, CIRCI_PR_NUMBER, CIRCI_BASE_BRANCH
                  override what is detected from the CI environment
+  CIRCI_AUTHOR   who made the change (same as --author)
 
 Exit codes: 0 pass, 1 visual changes block the merge (with --wait), 2 error`,
   )
@@ -59,6 +61,7 @@ Exit codes: 0 pass, 1 visual changes block the merge (with --wait), 2 error`,
         gate?: string
         shard?: string
         nonce?: string
+        author?: string
         timeout: string
         apiUrl?: string
         fetch: boolean
@@ -85,6 +88,7 @@ Exit codes: 0 pass, 1 visual changes block the merge (with --wait), 2 error`,
         wait: opts.wait ?? false,
         ...(shard ? { shard } : {}),
         ...(opts.gate ? { gate: opts.gate } : {}),
+        ...(opts.author ? { author: opts.author } : {}),
         waitTimeoutMs: timeout * 1000,
         fetch: opts.fetch,
         ...(opts.json ? { log: (line: string) => console.error(line) } : {}),
