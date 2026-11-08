@@ -1,5 +1,4 @@
 import { execFile, spawnSync } from 'node:child_process'
-import { createServer } from 'node:net'
 
 export interface RunResult {
   stdout: string
@@ -44,23 +43,6 @@ export function run(command: string, args: string[], options: RunOptions = {}): 
       },
     )
     if (options.input !== undefined) child.stdin?.end(options.input)
-  })
-}
-
-/** A free TCP port on 127.0.0.1 (briefly bound, then released). */
-export function freePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const server = createServer()
-    server.once('error', reject)
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address()
-      if (typeof address !== 'object' || address === null) {
-        server.close()
-        reject(new Error('no address'))
-        return
-      }
-      server.close(() => resolve(address.port))
-    })
   })
 }
 

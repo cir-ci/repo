@@ -3,9 +3,15 @@
 # per-run environment and runs `docker compose -p <project> -f compose.yml -f <override> up`.
 # Everything is torn down with `down -v` afterwards. To poke at one: E2E_KEEP=1 (see README.md).
 #
-# Published ports are chosen by the harness (E2E_*_PORT), on 127.0.0.1 except LocalStack: the
-# circi container reaches it through host.docker.internal, which on Linux is the docker0 address,
-# so that port listens on all interfaces (it holds fake credentials and test data only).
+# Published ports are chosen by Docker (`127.0.0.1::<container port>`), never picked by the
+# harness first: picking a free port and binding it later races with other processes. The harness
+# reads them back with `docker compose port`. LocalStack's (through `edge-s3`) listens on all
+# interfaces: the circi container reaches it through host.docker.internal, which on Linux is the
+# docker0 address (it holds fake credentials and test data only).
+#
+# CirCI's own port is needed in its environment (PUBLIC_URL) before it starts, and Docker only
+# assigns a port when a container starts. So `edge`, a plain TCP forwarder, is started first and
+# owns the published port for the life of the stack; circi is started after it.
 
 services:
   postgres:
@@ -32,8 +38,6 @@ services:
       SERVICES: s3
       DEBUG: '0'
       EAGER_SERVICE_LOADING: '1'
-    ports:
-      - '${E2E_S3_PORT:-0}:4566'
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     healthcheck:
@@ -52,12 +56,67 @@ services:
       MP_SMTP_AUTH_ACCEPT_ANY: '1'
       MP_SMTP_AUTH_ALLOW_INSECURE: '1'
     ports:
-      - '127.0.0.1:${E2E_MAIL_PORT:-0}:8025'
+      - '127.0.0.1::8025'
     healthcheck:
       test: ['CMD', '/mailpit', 'readyz']
       interval: 1s
       timeout: 3s
       retries: 60
+
+  # A TCP forwarder (raw TCP, so Host headers, keep-alive and WebSockets pass untouched) that owns
+  # a published port. Docker re-assigns a dynamic host port whenever its container restarts, so
+  # whatever a test may stop and start (LocalStack) is reached through a forwarder that never
+  # restarts. Uses the circi image, which is built before any stack starts.
+  edge: &edge
+    image: circi:e2e
+    pull_policy: never
+    environment:
+      UPSTREAM_HOST: circi
+      UPSTREAM_PORT: '3000'
+    entrypoint:
+      - node
+      - -e
+      - |
+        const net = require('node:net')
+        const host = process.env.UPSTREAM_HOST
+        const port = Number(process.env.UPSTREAM_PORT)
+        net
+          .createServer((client) => {
+            const upstream = net.connect(port, host)
+            client.pipe(upstream).pipe(client)
+            const stop = () => {
+              client.destroy()
+              upstream.destroy()
+            }
+            client.on('error', stop).on('close', stop)
+            upstream.on('error', stop).on('close', stop)
+          })
+          .listen(port, '0.0.0.0')
+    ports:
+      - '127.0.0.1::3000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('node:net').connect(Number(process.env.UPSTREAM_PORT),'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))",
+        ]
+      interval: 1s
+      timeout: 3s
+      retries: 60
+
+  # In front of LocalStack, on all interfaces (see the header).
+  edge-s3:
+    <<: *edge
+    profiles: ['s3']
+    environment:
+      UPSTREAM_HOST: localstack
+      UPSTREAM_PORT: '4566'
+    ports:
+      - '4566'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
 
   circi:
     build:
@@ -86,8 +145,6 @@ services:
       # the test addresses themselves (10.x.x.x) stay untrusted hops, and so count as clients.
       TRUSTED_PROXIES: '172.16.0.0/12,192.168.0.0/16'
       # Per-run additions (storage, sites, GitHub App, SSO, ...) come from the override file.
-    ports:
-      - '127.0.0.1:${E2E_PORT:-0}:3000'
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     volumes:

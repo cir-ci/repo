@@ -4,7 +4,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { freePort, removeRunProjectsSync, run, type RunResult } from './docker.ts'
+import { removeRunProjectsSync, run, type RunResult } from './docker.ts'
 import { Mailbox } from './mail.ts'
 import { ARTIFACTS_DIR, COMPOSE_FILE } from './paths.ts'
 import { S3_ACCESS_KEY, S3_BUCKET, S3_SECRET_KEY, S3Bucket } from './s3.ts'
@@ -127,52 +127,43 @@ export async function startStack(options: StackOptions = {}): Promise<Stack> {
   const withS3 = storage === 's3' || options.localstack === true
   counter += 1
   const project = `circi-e2e-${runId()}-${counter}-${randomBytes(2).toString('hex')}`
-  const [http, mail, s3Port] = await Promise.all([
-    freePort(),
-    freePort(),
-    withS3 ? freePort() : Promise.resolve(undefined),
-  ])
-  // Sites need a dashboard host unrelated to the sites domain (`localhost` is a parent of
-  // `*.localhost`), so then the dashboard is addressed by IP.
-  const url = `http://${options.sitesHost ? '127.0.0.1' : 'localhost'}:${http}`
   const dir = await mkdtemp(join(tmpdir(), `${project}-`))
 
-  const environment: Record<string, string> = {
-    ...(storage === 's3'
-      ? {
-          STORAGE_DRIVER: 's3',
-          S3_BUCKET,
-          S3_REGION: 'us-east-1',
-          // The host name containers and the host-run CLI both reach LocalStack under: presigned
-          // upload URLs carry it. (The CLI maps it to loopback, see dns-preload.ts.)
-          S3_ENDPOINT: `http://host.docker.internal:${s3Port}`,
-          S3_FORCE_PATH_STYLE: 'true',
-          S3_ACCESS_KEY_ID: S3_ACCESS_KEY,
-          S3_SECRET_ACCESS_KEY: S3_SECRET_KEY,
-        }
-      : {}),
-    ...(options.sitesHost ? { STATIC_SITES_HOST: options.sitesHost } : {}),
-    ...options.env,
-  }
-  const override = join(dir, 'override.json')
-  writeFileSync(override, JSON.stringify({ services: { circi: { environment } } }))
+  // Docker picks every host port when the container starts; they are read back after `up`. The
+  // dashboard's address is needed in circi's environment, so `edge` (which owns its port) starts
+  // first and circi after it.
+  let http = 0
+  let mail = 0
+  let s3Port: number | undefined
+  let url = 'http://localhost'
 
-  const composeEnv = {
-    E2E_PORT: String(http),
-    E2E_MAIL_PORT: String(mail),
-    E2E_S3_PORT: String(s3Port ?? 0),
+  const environment: Record<string, string> = { ...options.env }
+  const override = join(dir, 'override.json')
+  const composeEnv: Record<string, string> = {
     E2E_PUBLIC_URL: url,
     COMPOSE_PROFILES: withS3 ? 's3' : '',
     COMPOSE_PROJECT_NAME: project,
   }
+  const writeOverride = () =>
+    writeFileSync(override, JSON.stringify({ services: { circi: { environment } } }))
+  writeOverride()
   const compose = (args: string[], extra: { allowFail?: boolean; timeoutMs?: number } = {}) =>
     run('docker', ['compose', '-f', COMPOSE_FILE, '-f', override, ...args], {
       env: composeEnv,
       ...extra,
     })
+  const publishedPort = async (service: string, containerPort: number): Promise<number> => {
+    const res = await compose(['port', service, String(containerPort)], { timeoutMs: 30_000 })
+    // "127.0.0.1:49153", or "[::]:49153", possibly one line per address family.
+    const port = Number(res.stdout.trim().split('\n')[0]?.split(':').at(-1))
+    if (!Number.isInteger(port) || port < 1) {
+      throw new Error(`docker compose port ${service} ${containerPort} printed "${res.stdout}"`)
+    }
+    return port
+  }
 
-  const mailbox = new Mailbox(`http://127.0.0.1:${mail}`)
-  const bucket = s3Port ? new S3Bucket(s3Port) : undefined
+  let mailbox: Mailbox | undefined
+  let bucket: S3Bucket | undefined
   let stopped = false
   const phases: Stack['phases'] = { up: 0, healthy: 0 }
 
@@ -211,21 +202,47 @@ export async function startStack(options: StackOptions = {}): Promise<Stack> {
   }
 
   const upBegan = Date.now()
+  const wait = ['up', '-d', '--wait', '--wait-timeout', '240']
   try {
-    if (withS3) {
-      await compose(
-        ['up', '-d', '--wait', '--wait-timeout', '240', 'postgres', 'mailpit', 'localstack'],
-        {
-          timeoutMs: 300_000,
-        },
-      )
-      await bucket?.ensure()
-      await compose(['up', '-d', '--wait', '--wait-timeout', '240', 'circi'], {
+    // Everything that needs no address of its own in circi's environment first. `edge` is the
+    // published face of circi: Docker assigns its port here, and circi starts after it knows it.
+    await compose(
+      [...wait, 'postgres', 'mailpit', 'edge', ...(withS3 ? ['localstack', 'edge-s3'] : [])],
+      {
         timeoutMs: 300_000,
-      })
-    } else {
-      await compose(['up', '-d', '--wait', '--wait-timeout', '240'], { timeoutMs: 300_000 })
-    }
+      },
+    )
+    ;[http, mail, s3Port] = await Promise.all([
+      publishedPort('edge', 3000),
+      publishedPort('mailpit', 8025),
+      withS3 ? publishedPort('edge-s3', 4566) : Promise.resolve(undefined),
+    ])
+    // Sites need a dashboard host unrelated to the sites domain (`localhost` is a parent of
+    // `*.localhost`), so then the dashboard is addressed by IP.
+    url = `http://${options.sitesHost ? '127.0.0.1' : 'localhost'}:${http}`
+    composeEnv['E2E_PUBLIC_URL'] = url
+    mailbox = new Mailbox(`http://127.0.0.1:${mail}`)
+    bucket = s3Port ? new S3Bucket(s3Port) : undefined
+    Object.assign(environment, {
+      ...(storage === 's3' && s3Port
+        ? {
+            STORAGE_DRIVER: 's3',
+            S3_BUCKET,
+            S3_REGION: 'us-east-1',
+            // The host name containers and the host-run CLI both reach LocalStack under: presigned
+            // upload URLs carry it. (The CLI maps it to loopback, see dns-preload.ts.)
+            S3_ENDPOINT: `http://host.docker.internal:${s3Port}`,
+            S3_FORCE_PATH_STYLE: 'true',
+            S3_ACCESS_KEY_ID: S3_ACCESS_KEY,
+            S3_SECRET_ACCESS_KEY: S3_SECRET_KEY,
+          }
+        : {}),
+      ...(options.sitesHost ? { STATIC_SITES_HOST: options.sitesHost } : {}),
+      ...options.env,
+    })
+    writeOverride()
+    await bucket?.ensure()
+    await compose([...wait, 'circi'], { timeoutMs: 300_000 })
     phases.up = Date.now() - upBegan
     const healthyBegan = Date.now()
     await waitHealthy(url)
@@ -239,6 +256,7 @@ export async function startStack(options: StackOptions = {}): Promise<Stack> {
       { cause: err },
     )
   }
+  if (!mailbox) throw new Error('unreachable: the stack came up without a mailbox')
 
   const exec: Stack['exec'] = (service, command, o = {}) =>
     compose(['exec', '-T', service, ...command], {
@@ -303,7 +321,7 @@ export async function startStack(options: StackOptions = {}): Promise<Stack> {
     saveLogs,
     reconfigure: async (env) => {
       Object.assign(environment, env)
-      writeFileSync(override, JSON.stringify({ services: { circi: { environment } } }))
+      writeOverride()
       await compose(['up', '-d', '--force-recreate', '--wait', '--wait-timeout', '240', 'circi'], {
         timeoutMs: 300_000,
       })

@@ -1,10 +1,8 @@
 # Remaining work: missing features and fixes
 
-Status: 2026-11-08. Everything is committed on `main` (HEAD `a9b830a`). The Base UI migration,
+Status: 2026-11-08. Everything is committed on `main` . The Base UI migration,
 the e2e speed plan, the tsdown plan and the review-rule decisions are done (see Done); what is
-left is listed below by kind. Five fixes are **in progress** in parallel and not described here
-beyond their names: S3 client timeouts, revoked GitHub installation detection, `storage gc
---dry-run`, e2e coverage of github.com URLs, and the e2e harness port race.
+left is listed below by kind.
 
 ## Done (verified against the code, 2026-11-08)
 
@@ -35,6 +33,22 @@ beyond their names: S3 client timeouts, revoked GitHub installation detection, `
     `apps/web/src/features/builds/diff-status.ts`; unchanged and flaky stay neutral, failed stays
     rejected).
 - **Needs-review glyph**: its half fills the whole circle (`28a3ac2`).
+- **S3 client timeouts**: `S3_CONNECT_TIMEOUT_SECONDS` (10) and `S3_REQUEST_TIMEOUT_SECONDS`
+  (60, idle time on the socket, not total time); `circi admin doctor` reports "S3 did not answer
+  in time". Tested only against a TCP server that accepts and never answers.
+- **Revoked GitHub installation**: 401/404 minting the installation token, a 401 that survives
+  the token refresh, or 403 "suspended" set `provider_connections.needs_attention` (migration
+  0016); the notify job stops retrying, and the project and settings pages show a banner. Cleared
+  by the next successful notify or by linking the repository again. The failing build's check run
+  is not replayed after a reinstall. Tested against fakes only.
+- **`circi admin storage gc --dry-run`**: count, bytes and sample keys of what a run would
+  delete, and how many files it would newly mark; changes nothing. Does not simulate expiry of
+  old builds and sites.
+- **e2e github.com URL form**: `e2e/test/github-root-url.e2e.test.ts` runs a dedicated stack with
+  the fake GitHub at the root; shared stacks keep the Enterprise `/api/v3` form.
+- **e2e port race**: Docker assigns every host port (`127.0.0.1::N`, read back with `docker
+  compose port`); TCP forwarders `edge` (circi) and `edge-s3` (LocalStack) own the published
+  ports, so a restarted container keeps its address. About 4 s more per stack boot.
 - **First real-stack test (2026-11-05)** and the bugs it found, each fixed with a regression test:
   `webDistPath` one folder too shallow in the Docker image, the sticky sidebar, SSO form
   autofill, the setup page title; SSRF bypass with IPv4-mapped IPv6 webhook URLs; duplicate
@@ -53,11 +67,9 @@ beyond their names: S3 client timeouts, revoked GitHub installation detection, `
 - An undecodable PNG counts as a failed screenshot, not a build error.
 - No handler for GitHub `installation`, `pull_request` and `push` events (accepted and ignored);
   no GitHub OAuth/device flow in CirCI: GitHub identities were inserted by SQL in the tests, so
-  the "link GitHub" step on the Account page is untested. (Revoked-installation detection is in
-  progress.)
+  the "link GitHub" step on the Account page is untested.
 - Sites: an expired site simply disappears (no "expired" marker, an expired address answers like
-  an unknown one); no story deep links for sites. (`storage gc --dry-run` and S3 client timeouts
-  are in progress.)
+  an unknown one); no story deep links for sites.
 - Same-size migration corruption is only detected when the S3 target object has a checksum; an
   fs target is checked by size only.
 - LocalStack accepts any credentials: wrong-credentials handling is covered only by a fake 403
@@ -161,7 +173,6 @@ decision"):
   to a local CirCI (refactor-plan §3.3). Not started; also the first real check of Vitest browser
   mode with that reporter.
 - Visual regression for the web app itself (CirCI testing itself) is not set up.
-- (In progress, not described here: e2e github.com URL coverage and the harness port race.)
 
 ## 6. Docs
 

@@ -34,7 +34,7 @@ build on a machine takes several minutes). `circi:e2e` is a shared tag: change c
 the new image is what every parallel run of the same checkout sees next.
 
 Parallel runs are safe: every stack gets its own compose project (`circi-e2e-<run>-<n>-<rand>`),
-its own free host ports and its own volumes. Inside one run test files run in parallel on
+host ports that Docker assigns itself (published as `127.0.0.1::<port>` and read back with `docker compose port`, so there is no window between picking a free port and binding it) and its own volumes. CirCI's port must be known before CirCI starts (`PUBLIC_URL`), so a small `edge` container, a TCP forwarder started first, owns it. Inside one run test files run in parallel on
 `E2E_WORKERS` Vitest workers (default 3; about 2.4 GB at the measured peak, see Timings). The image
 is built once in `global-setup.ts` before any worker starts. The run always removes its stacks
 (`docker compose down -v`), also on failure and Ctrl-C (`global-setup.ts`, which finds them by
@@ -58,7 +58,9 @@ Booting a stack is the biggest cost (7 s, 12 s with LocalStack), so most files s
   Anything global that a test creates needs a name of its own: an organization email domain, a
   GitHub user id, a repository (`org/name`), a client address.
 - The `github` profile owns a fake GitHub (`ctx.github`, under `/api/v3`, as GitHub Enterprise
-  serves it); it is `reset()` at the start of every file.
+  serves it); it is `reset()` at the start of every file. The github.com form (the API address
+  with no path) is covered by `github-root-url.e2e.test.ts`, which runs its own fake on a dedicated
+  stack.
 - `useStack({ dedicated: true, ... })` (also the default without `profile`) starts a stack for the
   file and removes it afterwards. Use it for anything instance-wide: first-run setup, `reconfigure`,
   stopping a service, instance sign-in settings (`AUTH_OIDC_*`), retention and garbage-collection
@@ -70,6 +72,7 @@ Which file uses what (this list is the decision record; keep it current):
 | File | Stack | Why |
 | --- | --- | --- |
 | review, flaky, email-login, invitations, webhooks, sso (organization part) | `default`, shared | everything is scoped to the file's organization; email-login's limiter test and the domain test use their own addresses and domain |
+| github-root-url | dedicated | the shared fake serves `/api/v3` (Enterprise form); this file's own fake answers at the root, as `https://api.github.com` does, which needs `GITHUB_API_URL` set differently |
 | github-app, github-approve, merge-gate, host-fakes | `github`, shared | one fake GitHub per worker, reset per file; each file uses repositories and GitHub user ids of its own |
 | s3, storage-s3-doctor, sites (the S3 describe) | `s3`, shared | LocalStack for the worker; the files use content of their own (the bucket is shared) |
 | smoke | dedicated | first-run setup in the browser |
@@ -86,9 +89,9 @@ Which file uses what (this list is the decision record; keep it current):
 
 ```
 e2e/
-  compose.yml          postgres, localstack (profile s3), mailpit, circi
+  compose.yml          postgres, localstack (profile s3), mailpit, edge (the published port), circi
   src/
-    stack.ts           startStack(): project, ports, override env, up --wait, exec/cli/sql/logs, stop
+    stack.ts           startStack(): project, Docker-assigned ports, override env, up --wait, exec/cli/sql/logs, stop
     pool.ts            the shared stacks of a Vitest worker (profiles, acquire, eviction, exit cleanup)
     vitest.ts          useStack(), useBrowser(): the hooks most test files need
     admin.ts           Session (cookie jar), signIn, completeSetup, createTenant, createProject, invite, CLI users
