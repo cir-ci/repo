@@ -17,7 +17,7 @@
 .body {
   display: grid;
   flex: 1 1 auto;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: 280px minmax(0, 1fr) 340px;
   align-items: start;
 }
 
@@ -38,6 +38,17 @@
 }
 
 /* Below 820px the list collapses above the viewer. */
+@media (max-width: 1099.98px) {
+  .body {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+
+  /* The sidebar takes a row of its own under the list and the viewer. */
+  .body > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 819.98px) {
   .body {
     grid-template-columns: minmax(0, 1fr);

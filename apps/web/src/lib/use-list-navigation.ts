@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useCallback, useRef } from 'react'
 
 import { useShortcutHandlers } from './shortcuts.ts'
 
@@ -40,7 +40,12 @@ export function useListNavigation<T>({ items, getId, selectedId, onSelect }: Opt
 
   useShortcutHandlers({ next: () => move(1), previous: () => move(-1) })
 
-  return { ref, rowProps: (id: string) => ({ 'data-row-id': id }) }
+  /** Put this on the list element (`ref={list.listRef}`). */
+  const listRef = useCallback((el: HTMLElement | null) => {
+    ref.current = el
+  }, [])
+
+  return { ref, listRef, rowProps: (id: string) => ({ 'data-row-id': id }) }
 }
 
 interface Options<T> {

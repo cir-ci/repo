@@ -1,0 +1,129 @@
+/* Layout shared by the list pages (Reviews, Inbox): tabs, a toolbar, the list and a peek pane. */
+.page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px 16px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.count {
+  margin-right: auto;
+  color: var(--circi-text-secondary);
+  font-size: 12px;
+}
+
+.split {
+  display: flex;
+  flex: 1;
+  gap: 12px;
+  align-items: flex-start;
+  min-height: 0;
+}
+
+.list {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 8px;
+  list-style: none;
+}
+
+.list > li:last-child > * {
+  border-bottom: 0;
+}
+
+.title {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 2px;
+  color: var(--circi-text-secondary);
+  font-size: 12px;
+}
+
+.trailing {
+  display: flex;
+  flex: none;
+  gap: 8px;
+  align-items: center;
+}
+
+.unread {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--circi-accent-main);
+}
+
+.read {
+  flex: none;
+  width: 8px;
+  height: 8px;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.detail dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0;
+}
+
+.detail dt {
+  color: var(--circi-text-secondary);
+}
+
+.detail dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.members {
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+@media (max-width: 720px) {
+  .split {
+    flex-direction: column;
+  }
+}

@@ -1,4 +1,4 @@
-import type { Build } from '@circi/api'
+import type { Build, Comment } from '@circi/api'
 import {
   Banner,
   Collapsible,
@@ -17,7 +17,8 @@ import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { RouterLink } from '../../lib/router-link.ts'
-import { useShortcutHandlers } from '../../lib/shortcuts.ts'
+import { isAvailable, SHORTCUTS, useShortcutHandlers } from '../../lib/shortcuts.ts'
+import { useListNavigation } from '../../lib/use-list-navigation.ts'
 import { flakyQuery, isActive } from './api.ts'
 import { BuildBreadcrumbs } from './BuildBreadcrumbs.tsx'
 import { BuildMeta } from './BuildMeta.tsx'
@@ -25,6 +26,9 @@ import { BuildStateLabel } from './BuildStateLabel.tsx'
 import { CountsSummary } from './CountsSummary.tsx'
 import { screenshotLabel, screenshotStatus, shotReview } from './diff-status.ts'
 import { Viewer } from './DiffViewer.tsx'
+import { commentsQuery } from './discussion-api.ts'
+import { regionThreads } from './regions.ts'
+import { RequestReviewDialog } from './RequestReviewDialog.tsx'
 import {
   defaultShot,
   GROUP_ORDER,
@@ -35,6 +39,7 @@ import {
   shotBadge,
 } from './review-model.ts'
 import { ReviewActions, ReviewNote, useReviewControls } from './ReviewActions.tsx'
+import { ReviewSidebar, type SidebarTab } from './ReviewSidebar.tsx'
 import { ROUTE, type ViewMode } from './search.ts'
 import { ShortcutsDialog } from './ShortcutsDialog.tsx'
 
@@ -45,7 +50,7 @@ import styles from './BuildReview.module.css'
  * The build review screen (docs/design-gaps.md §7, provisional): the header with the decision,
  * a strip of context, then the screenshot list (280px, its own scroll) beside the viewer.
  */
-export function BuildReview({ data }: BuildReview.Props) {
+export function BuildReview({ data, designEnabled = false }: BuildReview.Props) {
   const { build, baseline, project } = data
   const params = useParams({ from: ROUTE })
   const search = useSearch({ from: ROUTE })
@@ -54,6 +59,12 @@ export function BuildReview({ data }: BuildReview.Props) {
   const active = isActive(build.status)
   const review = useReviewControls(data)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [requesting, setRequesting] = useState(false)
+  const [tab, setTab] = useState<SidebarTab>('details')
+  const [drawing, setDrawing] = useState(false)
+  const [pendingRegion, setPendingRegion] = useState<Comment.Region | null>(null)
+  const [focusedComment, setFocusedComment] = useState<string | null>(null)
+  const composer = useRef<HTMLTextAreaElement>(null)
 
   // Flaky screenshots are set aside, but the page works without knowing them.
   const { data: flakyReport } = useQuery({
@@ -85,24 +96,52 @@ export function BuildReview({ data }: BuildReview.Props) {
   const hasPrevious = selected !== undefined && previous !== selected
   const hasNext = selected !== undefined && next !== selected
 
+  // J / K select the next or previous screenshot and move focus to its row with it.
+  const { ref: listRef, rowProps } = useListNavigation({
+    items: ordered,
+    getId: (d) => d.id,
+    selectedId: selected?.id,
+    onSelect: goToShot,
+  })
+
+  const comments = useQuery(commentsQuery(project.orgSlug, project.slug, build.number))
+  const pinned = selected ? regionThreads(comments.data?.comments ?? [], selected.name) : []
+
+  // C: open the Comments tab and put the cursor in its field once it is on screen.
+  const [wantsComposer, setWantsComposer] = useState(0)
+  useEffect(() => {
+    if (wantsComposer > 0) composer.current?.focus()
+  }, [wantsComposer])
+  const openComposer = () => {
+    setTab('comments')
+    setWantsComposer((n) => n + 1)
+  }
+
   useShortcutHandlers({
-    next: () => goToShot(neighbour(ordered, selected, 1)),
-    previous: () => goToShot(neighbour(ordered, selected, -1)),
-    mode: (action) =>
-      void navigate({ search: (prev) => ({ ...prev, mode: action.mode }), replace: true }),
+    mode: (action) => {
+      const shortcut = SHORTCUTS.find(
+        (s) => s.action.type === 'mode' && s.action.mode === action.mode,
+      )
+      if (shortcut && !isAvailable(shortcut, designEnabled)) return
+      void navigate({ search: (prev) => ({ ...prev, mode: action.mode }), replace: true })
+    },
     approve: (_, e) => (e.repeat ? undefined : review.approve()),
     reject: (_, e) => (e.repeat ? undefined : review.askReject()),
+    requestReview: (_, e) => (e.repeat ? undefined : setRequesting(true)),
+    comment: (_, e) => (e.repeat ? undefined : openComposer()),
     help: () => setHelpOpen(true),
   })
 
   // Keep the selected row in view in the list's own scroll when j / k (or the buttons) move on.
-  const listRef = useRef<HTMLElement>(null)
-  const scrolledFor = useRef(selected?.id)
+  const selectedId = selected?.id
+  const scrolledFor = useRef(selectedId)
   useEffect(() => {
-    if (scrolledFor.current === selected?.id) return
-    scrolledFor.current = selected?.id
-    listRef.current?.querySelector('[data-selected]')?.scrollIntoView({ block: 'nearest' })
-  }, [selected?.id])
+    if (scrolledFor.current === selectedId) return
+    scrolledFor.current = selectedId
+    document
+      .querySelector('nav[aria-label="Screenshots"] [data-selected]')
+      ?.scrollIntoView({ block: 'nearest' })
+  }, [selectedId, scrolledFor])
 
   const hasBaseline = baseline !== null
   const buildReview = shotReview(build)
@@ -164,7 +203,7 @@ export function BuildReview({ data }: BuildReview.Props) {
               >
                 <ul className={styles['rows']}>
                   {g.items.map((d) => (
-                    <li key={d.id}>
+                    <li key={d.id} {...rowProps(d.id)}>
                       <RouterLink
                         to={ROUTE}
                         params={params}
@@ -207,11 +246,56 @@ export function BuildReview({ data }: BuildReview.Props) {
               onPrevious={hasPrevious ? () => goToShot(previous) : undefined}
               onNext={hasNext ? () => goToShot(next) : undefined}
               onHelp={() => setHelpOpen(true)}
+              designEnabled={designEnabled}
+              annotations={{
+                threads: pinned.flatMap((c, i) =>
+                  c.region ? [{ id: c.id, number: i + 1, region: c.region }] : [],
+                ),
+                pending: pendingRegion,
+                focusedId: focusedComment,
+                drawing,
+                onDrawingChange: setDrawing,
+                onDraw: (region) => {
+                  setPendingRegion(region)
+                  setDrawing(false)
+                  openComposer()
+                },
+                onMarker: (id) => {
+                  setTab('comments')
+                  setFocusedComment(id)
+                },
+              }}
             />
           ) : null}
+          <ReviewSidebar
+            data={data}
+            tab={tab}
+            onTab={setTab}
+            snapshotName={selected?.name ?? null}
+            pendingRegion={pendingRegion}
+            onClearRegion={() => setPendingRegion(null)}
+            focusedId={focusedComment}
+            composerRef={composer}
+            onOpenComment={(id) => {
+              setTab('comments')
+              setFocusedComment(id)
+            }}
+            onShowSnapshot={(name, id) => {
+              void navigate({ search: (prev) => ({ ...prev, shot: name }), replace: true })
+              setFocusedComment(id)
+            }}
+            onRequestReview={() => setRequesting(true)}
+          />
         </div>
       )}
-      <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
+      <RequestReviewDialog
+        open={requesting}
+        onClose={() => setRequesting(false)}
+        org={project.orgSlug}
+        project={project.slug}
+        number={build.number}
+      />
+      <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} designEnabled={designEnabled} />
     </div>
   )
 }
@@ -219,6 +303,8 @@ export function BuildReview({ data }: BuildReview.Props) {
 export namespace BuildReview {
   export interface Props {
     data: Build.Detail
+    /** Offers the Design compare mode (key 5); false until the Figma integration lands (Phase D). */
+    designEnabled?: boolean
   }
 }
 

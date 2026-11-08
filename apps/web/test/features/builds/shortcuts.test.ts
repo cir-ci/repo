@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import { validateBuildSearch } from '../../../src/features/builds/search.ts'
-import { isHandledElsewhere, SHORTCUTS, shortcutFor } from '../../../src/lib/shortcuts.ts'
+import {
+  isAvailable,
+  isHandledElsewhere,
+  isSubmitKey,
+  SHORTCUTS,
+  shortcutFor,
+  shortcutGroups,
+} from '../../../src/lib/shortcuts.ts'
 
 describe('shortcutFor', () => {
   it('maps the review keys to actions', () => {
@@ -27,6 +34,34 @@ describe('shortcutFor', () => {
   })
 })
 
+const keys = (enabled: boolean) =>
+  shortcutGroups(enabled).flatMap((g) => g.shortcuts.map((s) => s.key))
+
+describe('build review keys', () => {
+  it('declares comment, request review, submit and the Design mode once each', () => {
+    expect(shortcutFor('c')?.action).toEqual({ type: 'comment' })
+    expect(shortcutFor('shift+r')?.action).toEqual({ type: 'requestReview' })
+    expect(shortcutFor('mod+Enter')?.action).toEqual({ type: 'submit' })
+    expect(shortcutFor('5')?.action).toEqual({ type: 'mode', mode: 'design' })
+  })
+
+  it('offers the Design mode only when it is enabled', () => {
+    const design = shortcutFor('5')
+    expect(design && isAvailable(design, false)).toBe(false)
+    expect(design && isAvailable(design, true)).toBe(true)
+    expect(keys(false)).not.toContain('5')
+    expect(keys(true)).toContain('5')
+    expect(keys(false)).toEqual(expect.arrayContaining(['c', 'shift+r', 'mod+Enter']))
+  })
+
+  it('recognises command-enter and control-enter, not plain enter', () => {
+    const e = { key: 'Enter', metaKey: false, ctrlKey: false, altKey: false, shiftKey: false }
+    expect(isSubmitKey({ ...e, metaKey: true })).toBe(true)
+    expect(isSubmitKey({ ...e, ctrlKey: true })).toBe(true)
+    expect(isSubmitKey(e)).toBe(false)
+  })
+})
+
 describe('isHandledElsewhere', () => {
   it('leaves keys with a modifier to the browser', () => {
     expect(isHandledElsewhere(null, { metaKey: true, ctrlKey: false, altKey: false })).toBe(true)
@@ -46,5 +81,9 @@ describe('validateBuildSearch', () => {
   it('drops anything else', () => {
     expect(validateBuildSearch({ shot: '', mode: 'wiggle' })).toEqual({})
     expect(validateBuildSearch({ shot: 3, mode: 2 })).toEqual({})
+  })
+
+  it('accepts the Design mode', () => {
+    expect(validateBuildSearch({ mode: 'design' })).toEqual({ mode: 'design' })
   })
 })

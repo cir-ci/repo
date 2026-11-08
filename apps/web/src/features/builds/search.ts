@@ -1,9 +1,15 @@
 /** The build page's route id and search params, kept render-free so components and tests can share them. */
 export const ROUTE = '/$org/$project/builds/$number'
 
-export type ViewMode = 'side' | 'overlay' | 'diff' | 'swipe'
+/** The compare modes that need nothing but the build (keys 1 to 4). */
+export type ImageMode = 'side' | 'overlay' | 'diff' | 'swipe'
 
-export const VIEW_MODES: readonly ViewMode[] = ['side', 'overlay', 'diff', 'swipe']
+/** `design` (key 5) compares with a Figma frame; it is only offered once the integration is on (Phase D). */
+export type ViewMode = ImageMode | 'design'
+
+export const VIEW_MODES: readonly ImageMode[] = ['side', 'overlay', 'diff', 'swipe']
+
+export const DESIGN_MODE: ViewMode = 'design'
 
 export interface BuildSearch {
   /** Selected screenshot, so a link can point straight at one change. */
@@ -11,7 +17,8 @@ export interface BuildSearch {
   mode?: ViewMode
 }
 
-const isViewMode = (value: unknown): value is ViewMode => VIEW_MODES.some((mode) => mode === value)
+const isViewMode = (value: unknown): value is ViewMode =>
+  value === DESIGN_MODE || VIEW_MODES.some((mode) => mode === value)
 
 export function validateBuildSearch(search: Record<string, unknown>): BuildSearch {
   return {

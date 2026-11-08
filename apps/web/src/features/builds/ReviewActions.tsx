@@ -1,18 +1,10 @@
 import type { Build, ReviewState } from '@circi/api'
-import {
-  Button,
-  CancelIcon,
-  ConfirmDialog,
-  Kbd,
-  TaskDoneIcon,
-  Text,
-  Tooltip,
-  useAnnounce,
-} from '@circi/ui'
+import { Button, CancelIcon, Kbd, TaskDoneIcon, Text, Tooltip, useAnnounce } from '@circi/ui'
 import { useState } from 'react'
 
 import { RelativeTime } from '../../lib/RelativeTime.tsx'
 import { useReviewBuild } from './api.ts'
+import { RejectDialog } from './RejectDialog.tsx'
 import { isReviewable } from './review-model.ts'
 
 /** What the review screen can do about a build's decision, shared by the buttons and the a / r keys. */
@@ -27,7 +19,8 @@ export interface ReviewControls {
   /** Rejecting asks first: it holds back the merge. */
   askReject: () => void
   cancelReject: () => void
-  confirmReject: () => void
+  /** Rejects with the reason the dialog collected. */
+  confirmReject: (reason: string) => void
 }
 
 /**
@@ -43,8 +36,8 @@ export function useReviewControls(data: Build.Detail): ReviewControls {
   const canApprove = reviewable && build.reviewStatus !== 'approved'
   const canReject = reviewable && build.reviewStatus !== 'rejected'
 
-  function decide(state: ReviewState) {
-    review.mutate(state, {
+  function decide(state: ReviewState, reason?: string) {
+    review.mutate(reason ? { state, reason } : { state }, {
       onSuccess: () => announce(`Build #${build.number} ${state}.`),
       onSettled: () => setRejecting(false),
     })
@@ -63,8 +56,8 @@ export function useReviewControls(data: Build.Detail): ReviewControls {
       if (canReject && !review.isPending) setRejecting(true)
     },
     cancelReject: () => setRejecting(false),
-    confirmReject: () => {
-      if (canReject && !review.isPending) decide('rejected')
+    confirmReject: (reason) => {
+      if (canReject && !review.isPending) decide('rejected', reason)
     },
   }
 }
@@ -110,16 +103,12 @@ export function ReviewActions({ review, buildNumber }: ReviewActions.Props) {
           </Button>
         </Tooltip>
       ) : null}
-      <ConfirmDialog
+      <RejectDialog
         open={review.rejecting}
-        onOpenChange={(open) => {
-          if (!open) review.cancelReject()
-        }}
-        title={`Reject build #${buildNumber}?`}
-        description="The build is marked rejected and stays that way until someone approves it. Later builds are not compared with it."
-        confirmLabel="Reject"
-        loading={review.pending}
-        onConfirm={review.confirmReject}
+        buildNumber={buildNumber}
+        pending={review.pending}
+        onCancel={review.cancelReject}
+        onReject={review.confirmReject}
       />
     </>
   )

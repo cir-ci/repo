@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-import { VIEW_MODES, type ViewMode } from '../features/builds/search.ts'
+import { DESIGN_MODE, VIEW_MODES, type ViewMode } from '../features/builds/search.ts'
 
 /**
  * The one keyboard layer. Every shortcut is declared once in `SHORTCUTS` (keys, scope, group,
@@ -12,17 +12,25 @@ import { VIEW_MODES, type ViewMode } from '../features/builds/search.ts'
  */
 
 /** Where a shortcut applies: everywhere, in a list of rows, or on the build review screen. */
-export type ShortcutScope = 'global' | 'list' | 'build-review'
+export type ShortcutScope = 'global' | 'list' | 'inbox' | 'build-review'
 
-export type ShortcutGroup = 'Navigation' | 'General' | 'Lists' | 'Build review'
+export type ShortcutGroup = 'Navigation' | 'General' | 'Lists' | 'Inbox' | 'Build review'
 
 export type GoTarget = 'inbox' | 'reviews' | 'projects' | 'triage' | 'settings'
 
 export type ShortcutAction =
   | { type: 'next' }
   | { type: 'previous' }
+  | { type: 'open' }
+  | { type: 'peek' }
+  | { type: 'snooze' }
+  | { type: 'requestReview' }
+  | { type: 'toggleRead' }
+  | { type: 'remove' }
   | { type: 'approve' }
   | { type: 'reject' }
+  | { type: 'comment' }
+  | { type: 'submit' }
   | { type: 'help' }
   | { type: 'command' }
   | { type: 'copyLink' }
@@ -42,6 +50,7 @@ const MODE_NAME: Record<ViewMode, string> = {
   overlay: 'Overlay',
   diff: 'Diff',
   swipe: 'Swipe',
+  design: 'Design',
 }
 
 export const MODE_OPTIONS = VIEW_MODES.map((value) => ({ value, label: MODE_NAME[value] }))
@@ -99,6 +108,48 @@ export const SHORTCUTS: readonly Shortcut[] = [
     action: { type: 'previous' },
   },
   {
+    key: 'Enter',
+    scope: 'list',
+    group: 'Lists',
+    description: 'Open',
+    action: { type: 'open' },
+  },
+  {
+    key: 'space',
+    scope: 'list',
+    group: 'Lists',
+    description: 'Peek at the item',
+    action: { type: 'peek' },
+  },
+  {
+    key: 'h',
+    scope: 'list',
+    group: 'Lists',
+    description: 'Snooze',
+    action: { type: 'snooze' },
+  },
+  {
+    key: 'shift+r',
+    scope: 'list',
+    group: 'Lists',
+    description: 'Request review',
+    action: { type: 'requestReview' },
+  },
+  {
+    key: 'u',
+    scope: 'inbox',
+    group: 'Inbox',
+    description: 'Mark read or unread',
+    action: { type: 'toggleRead' },
+  },
+  {
+    key: 'Backspace',
+    scope: 'inbox',
+    group: 'Inbox',
+    description: 'Delete the notification',
+    action: { type: 'remove' },
+  },
+  {
     key: 'a',
     scope: 'build-review',
     group: 'Build review',
@@ -109,8 +160,22 @@ export const SHORTCUTS: readonly Shortcut[] = [
     key: 'r',
     scope: 'build-review',
     group: 'Build review',
-    description: 'Reject the build',
+    description: 'Reject the build, with a reason',
     action: { type: 'reject' },
+  },
+  {
+    key: 'c',
+    scope: 'build-review',
+    group: 'Build review',
+    description: 'Write a comment',
+    action: { type: 'comment' },
+  },
+  {
+    key: 'mod+Enter',
+    scope: 'build-review',
+    group: 'Build review',
+    description: 'Send the comment or confirm the dialog you are typing in',
+    action: { type: 'submit' },
   },
   ...VIEW_MODES.map((mode, i): Shortcut => ({
     key: String(i + 1),
@@ -119,15 +184,34 @@ export const SHORTCUTS: readonly Shortcut[] = [
     description: MODE_NAME[mode],
     action: { type: 'mode', mode },
   })),
+  {
+    key: String(VIEW_MODES.length + 1),
+    scope: 'build-review',
+    group: 'Build review',
+    description: MODE_NAME[DESIGN_MODE],
+    action: { type: 'mode', mode: DESIGN_MODE },
+  },
 ]
+
+/** Whether the help lists and the screen honours a shortcut: the Design mode needs the integration. */
+export const isAvailable = (s: Shortcut, designEnabled: boolean) =>
+  designEnabled || s.action.type !== 'mode' || s.action.mode !== DESIGN_MODE
+
+/** Whether a key press is ⌘↵ / Ctrl+↵, which sends a comment or confirms a dialog from its text field. */
+export const isSubmitKey = (
+  e: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'>,
+) => keyToken(e) === 'mod+Enter'
 
 export const shortcutFor = (key: string): Shortcut | undefined =>
   SHORTCUTS.find((s) => s.key === key)
 
 /** The shortcuts under their group headings, for the help dialog. */
-export function shortcutGroups(): { group: ShortcutGroup; shortcuts: Shortcut[] }[] {
+export function shortcutGroups(
+  designEnabled = false,
+): { group: ShortcutGroup; shortcuts: Shortcut[] }[] {
   const groups: { group: ShortcutGroup; shortcuts: Shortcut[] }[] = []
   for (const shortcut of SHORTCUTS) {
+    if (!isAvailable(shortcut, designEnabled)) continue
     const found = groups.find((g) => g.group === shortcut.group)
     if (found) found.shortcuts.push(shortcut)
     else groups.push({ group: shortcut.group, shortcuts: [shortcut] })
@@ -135,7 +219,13 @@ export function shortcutGroups(): { group: ShortcutGroup; shortcuts: Shortcut[] 
   return groups
 }
 
-const KEY_LABEL: Record<string, string> = { mod: '⌘', shift: '⇧' }
+const KEY_LABEL: Record<string, string> = {
+  mod: '⌘',
+  shift: '⇧',
+  Enter: '↵',
+  Backspace: '⌫',
+  space: 'Space',
+}
 
 /** The caps to draw for a key spec: `mod+shift+c` is ⌘ ⇧ C, `g i` is G I. */
 export function keyCaps(key: string): string[] {
@@ -150,7 +240,8 @@ export function keyToken(
   event: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'>,
 ): string | undefined {
   if (event.altKey) return undefined
-  const key = event.key.length === 1 ? event.key.toLowerCase() : event.key
+  const key =
+    event.key === ' ' ? 'space' : event.key.length === 1 ? event.key.toLowerCase() : event.key
   const mod = event.metaKey || event.ctrlKey
   // Shift only tells keys apart when it is not what makes the character (`?`, `A`).
   const shift = event.shiftKey && (mod || /^[a-z]$/.test(key))
@@ -173,7 +264,7 @@ const CHORD_MS = 1000
 
 /** The handler for each action type; `useShortcutHandlers` binds them. */
 export type ShortcutHandlers = {
-  [A in ShortcutAction as A['type']]?: (action: A, event: KeyboardEvent) => void
+  [A in ShortcutAction as A['type']]?: (action: A, event: KeyboardEvent) => void | false
 }
 
 const bound: { current: ShortcutHandlers }[] = []
@@ -185,11 +276,11 @@ function run(shortcut: Shortcut, event: KeyboardEvent): boolean {
     // Handlers are keyed by the action's own type, so this one takes exactly this action.
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const handler = entry.current[type] as
-      | ((action: ShortcutAction, event: KeyboardEvent) => void)
+      | ((action: ShortcutAction, event: KeyboardEvent) => void | false)
       | undefined
     if (!handler) continue
-    event.preventDefault()
-    handler(shortcut.action, event)
+    // A handler that returns `false` leaves the key to the browser (Enter on a focused link).
+    if (handler(shortcut.action, event) !== false) event.preventDefault()
     return true
   }
   return false

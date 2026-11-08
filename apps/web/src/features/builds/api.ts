@@ -27,6 +27,12 @@ export const flakyQuery = (org: string, project: string) =>
 
 export const fileUrl = (sha256: string) => `/api/files/${sha256}`
 
+/** A decision on a build; rejecting carries the reason the author will read. */
+export interface Decision {
+  state: ReviewState
+  reason?: string
+}
+
 /**
  * Approve or reject a build's changes. Afterwards everything that shows the build's state is
  * refetched: its page, the project's builds list and the projects overview.
@@ -34,10 +40,10 @@ export const fileUrl = (sha256: string) => `/api/files/${sha256}`
 export function useReviewBuild(org: string, project: string, number: number) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (state: ReviewState) =>
+    mutationFn: ({ state, reason }: Decision) =>
       post<{ build: { reviewStatus: ReviewState } }>(
         `/api/projects/${seg(org)}/${seg(project)}/builds/${number}/review`,
-        { state },
+        reason ? { state, reason } : { state },
       ),
     onSuccess: () =>
       Promise.all([

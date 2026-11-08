@@ -16,8 +16,6 @@ const placeholder = <const Path extends string>(path: Path, title: string) =>
   })
 
 export const placeholderRoutes = [
-  placeholder('inbox', 'Inbox'),
-  placeholder('organizations/$org/reviews', 'Reviews'),
   placeholder('organizations/$org/insights', 'Insights'),
   placeholder('organizations/$org/views/$view', 'View'),
   placeholder('$org/$project/triage', 'Triage'),

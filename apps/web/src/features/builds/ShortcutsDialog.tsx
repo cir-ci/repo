@@ -5,10 +5,14 @@ import { keyCaps, shortcutGroups } from '../../lib/shortcuts.ts'
 import styles from './BuildReview.module.css'
 
 /** Every keyboard shortcut, from the registry, opened with `?`. */
-export function ShortcutsDialog({ open, onOpenChange }: ShortcutsDialog.Props) {
+export function ShortcutsDialog({
+  open,
+  onOpenChange,
+  designEnabled = false,
+}: ShortcutsDialog.Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title="Keyboard shortcuts">
-      {shortcutGroups().map(({ group, shortcuts }) => (
+      {shortcutGroups(designEnabled).map(({ group, shortcuts }) => (
         <section key={group} aria-label={group}>
           <Text variant="micro" tone="tertiary">
             {group}
@@ -37,5 +41,7 @@ export namespace ShortcutsDialog {
   export interface Props {
     open: boolean
     onOpenChange: (open: boolean) => void
+    /** Lists the Design mode key too. */
+    designEnabled?: boolean
   }
 }

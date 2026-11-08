@@ -1,4 +1,4 @@
-import type { Build } from '@circi/api'
+import type { Activity, Build, Comment } from '@circi/api'
 import { vi } from 'vitest'
 
 import { BuildPage } from '../../../src/features/builds/BuildPage.tsx'
@@ -100,6 +100,16 @@ export interface FakeApi {
   reviewError: string | null
   /** The bodies of the review POSTs, in order. */
   reviews: string[]
+  /** `GET …/comments`; a POST appends to it. */
+  comments: Comment.Item[]
+  /** `GET …/activity`. */
+  activity: Activity.Event[]
+  /** The bodies of the comment POSTs, in order. */
+  commentPosts: Comment.Create[]
+  /** The bodies of the review-request POSTs, in order. */
+  requests: unknown[]
+  /** The organization's members, as better-auth returns them. */
+  members: { id: string; userId: string; user: { name: string; email: string } }[]
   fetch: ReturnType<typeof vi.fn<typeof fetch>>
 }
 
@@ -113,6 +123,11 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
     flaky: [],
     reviewError: null,
     reviews: [],
+    comments: [],
+    activity: [],
+    commentPosts: [],
+    requests: [],
+    members: [],
     fetch: vi.fn<typeof fetch>((input, init) => {
       const url = new URL(input instanceof Request ? input.url : String(input), 'http://localhost')
       const method = init?.method ?? 'GET'
@@ -124,7 +139,40 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
         api.build = { ...api.build, build: { ...api.build.build, reviewStatus: state } }
         return json({ build: { reviewStatus: state } })
       }
-      if (url.pathname === '/api/projects/acme/web-app/builds/7') return json(api.build)
+      const root = '/api/projects/acme/web-app/builds/7'
+      if (url.pathname === `${root}/comments` && method === 'POST') {
+        const body = JSON.parse(typeof init?.body === 'string' ? init.body : '{}')
+        api.commentPosts.push(body)
+        api.comments.push({
+          id: `c${api.comments.length + 1}`,
+          parentId: body.parentId ?? null,
+          snapshotName: body.snapshotName ?? null,
+          region: body.region ?? null,
+          body: body.body,
+          author: { id: 'u1', name: 'Ada Lovelace' },
+          createdAt: new Date().toISOString(),
+          editedAt: null,
+          deletedAt: null,
+          mine: true,
+          canDelete: true,
+        })
+        return json({ id: `c${api.comments.length}` }, 201)
+      }
+      if (url.pathname === `${root}/comments`) return json({ comments: api.comments })
+      if (url.pathname === `${root}/activity`) return json({ events: api.activity })
+      if (url.pathname === `${root}/review-requests` && method === 'POST') {
+        api.requests.push(JSON.parse(typeof init?.body === 'string' ? init.body : '{}'))
+        return json({ id: 'r1', state: 'open', dueAt: null, created: true }, 201)
+      }
+      if (url.pathname === '/api/auth/organization/get-full-organization')
+        return json({
+          id: 'org1',
+          name: 'Acme',
+          slug: 'acme',
+          members: api.members,
+          invitations: [],
+        })
+      if (url.pathname === root) return json(api.build)
       if (url.pathname === '/api/projects/acme/web-app/flaky')
         return json({ builds: 10, flaky: api.flaky })
       return json({ error: 'not found' }, 404)

@@ -2,11 +2,13 @@ import type { Build, ReviewStatus } from '@circi/api'
 import {
   Banner,
   Button,
+  EmptyState,
   ExpandLessIcon,
   ExpandMoreIcon,
   Heading,
   IconButton,
   Kbd,
+  ReviewIcon,
   SegmentedControl,
   Slider,
   StatusIcon,
@@ -18,26 +20,42 @@ import { type CSSProperties, useState } from 'react'
 import { MODE_OPTIONS } from '../../lib/shortcuts.ts'
 import { fileUrl } from './api.ts'
 import { screenshotLabel, screenshotStatus, type ShotKind } from './diff-status.ts'
+import { type Annotations, RegionLayer } from './RegionLayer.tsx'
 import { changeSummary } from './review-model.ts'
-import { type ViewMode, VIEW_MODES } from './search.ts'
+import { DESIGN_MODE, type ViewMode, VIEW_MODES } from './search.ts'
 import { type Zoom, stepZoom, zoomedWidth, zoomLabel } from './zoom.ts'
 
 import styles from './DiffViewer.module.css'
 
-const isViewMode = (value: string): value is ViewMode => VIEW_MODES.some((m) => m === value)
+const isViewMode = (value: string): value is ViewMode =>
+  value === DESIGN_MODE || VIEW_MODES.some((m) => m === value)
 
 /**
  * The screenshot viewer: a 36px toolbar (name, view modes, zoom, previous and next) over a
  * checkerboard ground that holds the images, so transparent pixels show and nothing else
  * competes with them. At "fit" an image is never scaled up past its real size.
  */
-export function Viewer({ diff, kind, review, baselineNumber, ...props }: Viewer.Props) {
+export function Viewer({
+  diff,
+  kind,
+  review,
+  baselineNumber,
+  designEnabled = false,
+  annotations,
+  ...props
+}: Viewer.Props) {
   const [opacity, setOpacity] = useState(70)
   const [at, setAt] = useState(50)
   const [zoom, setZoom] = useState<Zoom>('fit')
   const comparable =
     diff.status === 'changed' && diff.head !== null && diff.base !== null && diff.diff !== null
-  const mode: ViewMode = comparable ? props.mode : 'side'
+  const mode: ViewMode =
+    comparable && (props.mode !== DESIGN_MODE || designEnabled) ? props.mode : 'side'
+  const modeOptions = designEnabled
+    ? [...MODE_OPTIONS, { value: DESIGN_MODE, label: 'Design' }]
+    : MODE_OPTIONS
+  // Regions are drawn on this build's image, so they need one.
+  const annotate = diff.head !== null && mode !== 'design' ? annotations : undefined
   const summary = changeSummary(diff)
   const baselineLabel = baselineNumber ? `Baseline · build #${baselineNumber}` : 'Baseline'
   const zoomed = zoom !== 'fit'
@@ -64,7 +82,7 @@ export function Viewer({ diff, kind, review, baselineNumber, ...props }: Viewer.
           {comparable ? (
             <SegmentedControl
               label="View"
-              options={MODE_OPTIONS}
+              options={modeOptions}
               value={mode}
               onChange={(m) => {
                 if (isViewMode(m)) props.onMode(m)
@@ -100,6 +118,18 @@ export function Viewer({ diff, kind, review, baselineNumber, ...props }: Viewer.
                 onValueChange={setAt}
               />
             </span>
+          ) : null}
+          {annotate ? (
+            <Tooltip content="Drag over the screenshot to comment on a region">
+              <Button
+                variant="toggle"
+                size="sm"
+                aria-pressed={annotate.drawing}
+                onClick={() => annotate.onDrawingChange(!annotate.drawing)}
+              >
+                Comment on a region
+              </Button>
+            </Tooltip>
           ) : null}
           <div className={styles['group']}>
             <SegmentedControl
@@ -183,6 +213,7 @@ export function Viewer({ diff, kind, review, baselineNumber, ...props }: Viewer.
                 label={diff.status === 'added' ? 'New in this build' : 'This build'}
                 image={diff.head}
                 zoom={zoom}
+                annotations={annotate}
               />
             ) : null}
             {!diff.head && diff.base ? (
@@ -211,6 +242,7 @@ export function Viewer({ diff, kind, review, baselineNumber, ...props }: Viewer.
                 className={styles['cover']}
                 style={{ opacity: opacity / 100 }}
               />
+              {annotate ? <RegionLayer annotations={annotate} /> : null}
             </div>
           </figure>
         ) : null}
@@ -234,12 +266,24 @@ export function Viewer({ diff, kind, review, baselineNumber, ...props }: Viewer.
                 style={{ clipPath: `inset(0 0 0 ${at}%)` }}
               />
               <span aria-hidden="true" className={styles['divider']} style={{ left: `${at}%` }} />
+              {annotate ? <RegionLayer annotations={annotate} /> : null}
             </div>
           </figure>
         ) : null}
 
         {mode === 'diff' && diff.diff ? (
-          <Figure label="Changed pixels in red" image={diff.diff} zoom={zoom} />
+          <Figure
+            label="Changed pixels in red"
+            image={diff.diff}
+            zoom={zoom}
+            annotations={annotate}
+          />
+        ) : null}
+
+        {mode === 'design' ? (
+          <EmptyState icon={<ReviewIcon size={32} />} title="Design compare">
+            The frame this screenshot is built from will show here.
+          </EmptyState>
         ) : null}
       </div>
     </section>
@@ -259,6 +303,10 @@ export namespace Viewer {
     onPrevious: (() => void) | undefined
     onNext: (() => void) | undefined
     onHelp: () => void
+    /** Offers the Design mode (key 5); false until the Figma integration exists. */
+    designEnabled?: boolean
+    /** Comment regions on this snapshot; absent where nobody can comment. */
+    annotations?: Annotations
   }
 }
 
@@ -267,26 +315,34 @@ const imageStyle = (zoom: Zoom, naturalWidth: number | null): CSSProperties | un
   return width === undefined ? undefined : { width, maxWidth: 'none' }
 }
 
-function Figure({ label, image, zoom }: Figure.Props) {
+function Figure({ label, image, zoom, annotations }: Figure.Props) {
   return (
     <figure className={styles['figure']}>
       <Text as="small" variant="small" tone="secondary" className={styles['caption']}>
         {label}
       </Text>
-      <a
-        href={fileUrl(image.sha256)}
-        target="_blank"
-        rel="noreferrer"
-        title="Open full size"
-        className={styles['frame']}
-      >
-        <img
-          src={fileUrl(image.sha256)}
-          alt={label}
-          className={styles['image']}
-          style={imageStyle(zoom, image.width)}
-        />
-      </a>
+      {/* The layer is a sibling of the link, never inside it: markers are buttons. */}
+      <div className={styles['stage']}>
+        <a
+          href={fileUrl(image.sha256)}
+          target="_blank"
+          rel="noreferrer"
+          title="Open full size"
+          className={styles['frame']}
+        >
+          <img
+            src={fileUrl(image.sha256)}
+            alt={label}
+            className={styles['image']}
+            style={imageStyle(zoom, image.width)}
+          />
+        </a>
+        {annotations ? (
+          <div className={styles['inset']}>
+            <RegionLayer annotations={annotations} />
+          </div>
+        ) : null}
+      </div>
     </figure>
   )
 }
@@ -296,5 +352,6 @@ export namespace Figure {
     label: string
     image: Build.ImageRef
     zoom: Zoom
+    annotations?: Annotations | undefined
   }
 }

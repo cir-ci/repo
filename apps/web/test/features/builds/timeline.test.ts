@@ -1,0 +1,95 @@
+import type { Activity, Comment } from '@circi/api'
+import { describe, expect, it } from 'vitest'
+
+import { commentCount, groupThreads, timelineItems } from '../../../src/features/builds/timeline.ts'
+
+const at = '2026-11-08T10:00:00.000Z'
+const person = { id: 'u1', name: 'Ada Lovelace' }
+
+describe('timelineItems', () => {
+  it('describes each kind of event, keeping a rejection’s reason as a quote', () => {
+    const events: Activity.Event[] = [
+      { type: 'uploaded', at },
+      { type: 'failed', at, message: 'out of memory' },
+      { type: 'review_requested', at, reviewer: { id: 'u2', name: 'Grace' }, by: person },
+      { type: 'review_requested', at, reviewer: null, by: null },
+      { type: 'review_request_closed', at, reviewer: { id: 'u2', name: 'Grace' }, state: 'done' },
+      { type: 'review', at, state: 'rejected', source: 'ui', reason: 'Too blue', by: person },
+      { type: 'review', at, state: 'approved', source: 'auto', reason: null, by: null },
+      {
+        type: 'comment',
+        at,
+        commentId: 'c1',
+        parentId: 'c0',
+        snapshotName: 'home',
+        body: 'x'.repeat(300),
+        by: person,
+      },
+    ]
+    const items = timelineItems(events)
+    expect(items.map((i) => i.text)).toEqual([
+      'Build uploaded',
+      'Build failed',
+      'requested Grace to review',
+      'Review requested from someone who has left',
+      'Review request for Grace was answered',
+      'rejected the build',
+      'Approved automatically: a build on the default branch',
+      'replied on home',
+    ])
+    expect(items[1]?.quote).toBe('out of memory')
+    expect(items[1]?.status).toBe('rejected')
+    expect(items[5]).toMatchObject({ status: 'rejected', actor: 'Ada Lovelace', quote: 'Too blue' })
+    // Automatic decisions have no actor.
+    expect(items[6]).toMatchObject({ status: 'approved', actor: null })
+    // A long comment is cut, and links back to its comment.
+    expect(items[7]?.quote?.length).toBe(140)
+    expect(items[7]?.commentId).toBe('c1')
+    expect(new Set(items.map((i) => i.key)).size).toBe(items.length)
+  })
+})
+
+const comment = (id: string, over: Partial<Comment.Item> = {}): Comment.Item => ({
+  id,
+  parentId: null,
+  snapshotName: null,
+  region: null,
+  body: id,
+  author: person,
+  createdAt: at,
+  editedAt: null,
+  deletedAt: null,
+  mine: false,
+  canDelete: false,
+  ...over,
+})
+
+describe('groupThreads', () => {
+  it('nests replies under their comment in order', () => {
+    const threads = groupThreads([
+      comment('a'),
+      comment('b'),
+      comment('a1', { parentId: 'a' }),
+      comment('a2', { parentId: 'a' }),
+    ])
+    expect(threads.map((t) => [t.root.id, t.replies.map((r) => r.id)])).toEqual([
+      ['a', ['a1', 'a2']],
+      ['b', []],
+    ])
+  })
+
+  it('keeps a deleted comment only while it has replies', () => {
+    const deleted = { deletedAt: at, body: '' }
+    const threads = groupThreads([
+      comment('a', deleted),
+      comment('a1', { parentId: 'a' }),
+      comment('b', deleted),
+      comment('c1', { parentId: 'c' }),
+    ])
+    expect(threads.map((t) => t.root.id)).toEqual(['a'])
+  })
+
+  it('counts comments that still exist', () => {
+    expect(commentCount([comment('a'), comment('b', { deletedAt: at })])).toBe(1)
+  })
+})

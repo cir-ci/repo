@@ -1,0 +1,270 @@
+/* The review sidebar: tabs, the timeline, comments, and the dialogs' text fields. */
+.sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  max-height: calc(100dvh - 16px);
+  min-width: 0;
+  border-inline-start: 1px solid var(--circi-line-subtle);
+  background: var(--circi-surface-panel);
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  padding: 4px 8px 0;
+  border-bottom: 1px solid var(--circi-line-subtle);
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--circi-text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--circi-text-primary);
+}
+
+.tab[aria-selected='true'] {
+  border-bottom-color: var(--circi-accent-main);
+  color: var(--circi-text-primary);
+}
+
+.panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  margin: 0;
+}
+
+.facts dt,
+.facts dd {
+  margin: 0;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.event {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.eventBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+}
+
+.quote {
+  margin: 2px 0 0;
+  padding-inline-start: 8px;
+  border-inline-start: 2px solid var(--circi-line-strong);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.linkButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--circi-text-secondary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.linkButton:hover {
+  color: var(--circi-text-primary);
+}
+
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 6px;
+}
+
+.thread:focus-visible,
+.thread[data-focused] {
+  border-color: var(--circi-annotation);
+  outline: none;
+}
+
+.comment {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.reply {
+  margin-inline-start: 16px;
+}
+
+.commentBody {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--circi-annotation);
+  color: var(--circi-annotation-text);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.composer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  display: block;
+}
+
+.textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--circi-line-strong);
+  border-radius: 6px;
+  background: var(--circi-surface-raised, transparent);
+  color: var(--circi-text-primary);
+  font: inherit;
+  resize: vertical;
+}
+
+.textarea:focus-visible {
+  outline: 2px solid var(--circi-accent-main);
+  outline-offset: -1px;
+}
+
+.textarea[aria-invalid='true'] {
+  border-color: var(--circi-state-rejected);
+}
+
+.mentions {
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  z-index: 2;
+  margin: 2px 0 0;
+  padding: 4px;
+  border: 1px solid var(--circi-line-strong);
+  border-radius: 6px;
+  background: var(--circi-surface-panel);
+  list-style: none;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.3);
+}
+
+.mentions [role='option'] {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.mentions [role='option'][aria-selected='true'] {
+  background: var(--circi-accent-subtle);
+}
+
+.people {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.person {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--circi-text-primary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.person:hover,
+.person:focus-visible {
+  background: var(--circi-action-hover);
+}
+
+/* Below 1100px the sidebar drops under the viewer instead of squeezing it. */
+@media (max-width: 1099.98px) {
+  .sidebar {
+    position: static;
+    max-height: none;
+    border-inline-start: 0;
+    border-top: 1px solid var(--circi-line-subtle);
+  }
+}

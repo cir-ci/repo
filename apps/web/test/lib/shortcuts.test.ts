@@ -21,8 +21,10 @@ describe('the shortcut registry', () => {
   })
 
   it('lists every entry in the help groups', () => {
-    const listed = shortcutGroups().flatMap((g) => g.shortcuts)
+    // The Design mode key is listed only once the integration is on.
+    const listed = shortcutGroups(true).flatMap((g) => g.shortcuts)
     expect(listed).toHaveLength(SHORTCUTS.length)
+    expect(shortcutGroups().flatMap((g) => g.shortcuts)).toHaveLength(SHORTCUTS.length - 1)
   })
 
   it('declares the global keys', () => {
@@ -44,10 +46,22 @@ describe('keyToken', () => {
     expect(press('k', { metaKey: true })).toBe('mod+k')
     expect(press('C', { ctrlKey: true, shiftKey: true })).toBe('mod+shift+c')
     expect(press('Escape')).toBe('Escape')
+    expect(press(' ')).toBe('space')
+    expect(press('R', { shiftKey: true })).toBe('shift+r')
   })
 
   it('never names an Alt press', () => {
     expect(press('j', { altKey: true })).toBeUndefined()
+  })
+})
+
+describe('the list shortcuts', () => {
+  it('declares open, peek, snooze, request review, read and delete', () => {
+    const keys = SHORTCUTS.map((s) => s.key)
+    expect(keys).toEqual(
+      expect.arrayContaining(['Enter', 'space', 'h', 'shift+r', 'u', 'Backspace']),
+    )
+    expect(SHORTCUTS.find((s) => s.key === 'u')?.scope).toBe('inbox')
   })
 })
 
@@ -56,6 +70,10 @@ describe('keyCaps', () => {
     expect(keyCaps('mod+shift+c')).toEqual(['⌘', '⇧', 'C'])
     expect(keyCaps('g i')).toEqual(['G', 'I'])
     expect(keyCaps('?')).toEqual(['?'])
+    expect(keyCaps('Enter')).toEqual(['↵'])
+    expect(keyCaps('Backspace')).toEqual(['⌫'])
+    expect(keyCaps('space')).toEqual(['Space'])
+    expect(keyCaps('shift+r')).toEqual(['⇧', 'R'])
   })
 })
 

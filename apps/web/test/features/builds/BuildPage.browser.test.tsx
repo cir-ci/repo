@@ -404,22 +404,45 @@ describe('approving and rejecting', () => {
     await expect.element(page.getByRole('button', { name: 'Reject' })).toBeVisible()
   })
 
-  it('asks before rejecting, and announces the rejection', async () => {
+  it('asks for a reason before rejecting, and announces the rejection', async () => {
     const api = fakeBuildApi(detail())
     await renderBuild()
     await page.getByRole('button', { name: 'Reject' }).click()
-    const dialog = page.getByRole('alertdialog', { name: 'Reject build #7?' })
+    const dialog = page.getByRole('dialog', { name: 'Reject build #7?' })
     await expect.element(dialog).toBeVisible()
     await dialog.getByRole('button', { name: 'Cancel' }).click()
     await expect.element(dialog).not.toBeInTheDocument()
     expect(api.reviews).toEqual([])
 
     await page.getByRole('button', { name: 'Reject' }).click()
-    await page.getByRole('alertdialog').getByRole('button', { name: 'Reject' }).click()
-    await vi.waitFor(() => expect(api.reviews).toEqual([JSON.stringify({ state: 'rejected' })]))
+    // The reason is required: an empty one is refused with a message and nothing is sent.
+    await page.getByRole('dialog').getByRole('button', { name: 'Reject' }).click()
+    await expect.element(page.getByText('Say why you are rejecting it.')).toBeVisible()
+    expect(api.reviews).toEqual([])
+
+    await page.getByRole('textbox', { name: 'Reason' }).fill('The button lost its focus ring')
+    await page.getByRole('dialog').getByRole('button', { name: 'Reject' }).click()
+    await vi.waitFor(() =>
+      expect(api.reviews).toEqual([
+        JSON.stringify({ state: 'rejected', reason: 'The button lost its focus ring' }),
+      ]),
+    )
     await expect.element(page.getByText('Build #7 rejected.')).toBeInTheDocument()
     await expect.element(page.getByText('Rejected', { exact: true })).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Approve all' })).toBeVisible()
+  })
+
+  it('opens the reject dialog with r and sends it with command-enter', async () => {
+    const api = fakeBuildApi(detail())
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    await userEvent.keyboard('r')
+    await expect.element(page.getByRole('dialog', { name: 'Reject build #7?' })).toBeVisible()
+    await page.getByRole('textbox', { name: 'Reason' }).fill('Wrong colour')
+    await userEvent.keyboard('{Meta>}{Enter}{/Meta}')
+    await vi.waitFor(() =>
+      expect(api.reviews).toEqual([JSON.stringify({ state: 'rejected', reason: 'Wrong colour' })]),
+    )
   })
 
   it('approves with a and asks about rejecting with r', async () => {
@@ -427,9 +450,9 @@ describe('approving and rejecting', () => {
     await renderBuild()
     await expect.element(viewerTitle()).toBeVisible()
     await userEvent.keyboard('r')
-    await expect.element(page.getByRole('alertdialog', { name: 'Reject build #7?' })).toBeVisible()
+    await expect.element(page.getByRole('dialog', { name: 'Reject build #7?' })).toBeVisible()
     await userEvent.keyboard('{Escape}')
-    await expect.element(page.getByRole('alertdialog')).not.toBeInTheDocument()
+    await expect.element(page.getByRole('dialog')).not.toBeInTheDocument()
     expect(api.reviews).toEqual([])
     await userEvent.keyboard('a')
     await vi.waitFor(() => expect(api.reviews).toEqual([JSON.stringify({ state: 'approved' })]))

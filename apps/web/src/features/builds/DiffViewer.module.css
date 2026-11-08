@@ -123,6 +123,19 @@
   line-height: 0;
 }
 
+.stage {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+}
+
+/* Over the image itself, inside the frame's 1px border. */
+.inset {
+  position: absolute;
+  inset: 1px;
+}
+
 .image {
   display: block;
   max-width: 100%;
