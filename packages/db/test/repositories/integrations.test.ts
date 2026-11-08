@@ -1,32 +1,34 @@
-import { createTestDb, seedBuild, seedProject } from '@circi/testing'
+import {
+  createTestDb,
+  seedBuild,
+  seedGitConnection,
+  seedGitLink,
+  seedProject,
+} from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { ConflictError } from '#src/errors.ts'
 import {
-  connectGithub,
   createIntegration,
   createIntegrationLink,
   deleteAutoLinks,
   deleteIntegration,
   deleteIntegrationLink,
   findIntegrationByExternalId,
-  getGitConnection,
   getIntegration,
   getProjectIntegration,
   getProjectLink,
+  isAccountClaimedElsewhere,
+  removeOtherProjectMappings,
   insertIntegrationLinksIfAbsent,
-  linkProjectToGithub,
   listBuildLinks,
-  listGitConnections,
   listIntegrationProjects,
   listIntegrations,
   listOrgIntegrations,
   listOrgProjectMappings,
   listProjectIntegrations,
   listProjectLinks,
-  listProjectRepoLinks,
   markInstallationNeedsAttention,
-  removeGitConnection,
   removeIntegrationProject,
   replaceIntegrationCredentials,
   setIntegrationAttention,
@@ -317,76 +319,95 @@ describe('integration link helpers', () => {
   })
 })
 
-describe('git connections as integrations', () => {
-  it('connects without a project, counts projects, and disconnects like unlinking each one', async () => {
+describe('git hosts as integrations', () => {
+  it('counts projects, shows needs-attention with its time, and removing it stops every project', async () => {
     const { org, project, owner } = await seedProject(t.db)
     const second = await seedProject(t.db, { org: { org, owner }, slug: 'backend' })
-    const { id } = await connectGithub(t.db, org.id, '501')
-    expect((await connectGithub(t.db, org.id, '501')).id).toBe(id)
-    expect(await listGitConnections(t.db, org.id)).toEqual([
-      expect.objectContaining({ id, kind: 'github', externalId: '501', projectCount: 0 }),
-    ])
-
-    await linkProjectToGithub(t.db, project.id, { installationId: '501', repoRef: 'acme/web' })
-    await linkProjectToGithub(t.db, second.project.id, {
-      installationId: '501',
-      repoRef: 'acme/api',
+    const { id } = await seedGitConnection(t.db, { orgId: org.id, externalId: '501' })
+    expect((await seedGitConnection(t.db, { orgId: org.id, externalId: '501' })).id).toBe(id)
+    expect((await listIntegrations(t.db, org.id))[0]).toMatchObject({
+      id,
+      kind: 'github',
+      displayName: 'Installation 501',
+      projectCount: 0,
     })
-    expect((await listGitConnections(t.db, org.id))[0]?.projectCount).toBe(2)
-    expect(await listProjectRepoLinks(t.db, org.id)).toEqual([
-      expect.objectContaining({ repoRef: 'acme/api', connectionExternalId: '501' }),
-      expect.objectContaining({ repoRef: 'acme/web', connectionExternalId: '501' }),
-    ])
 
-    await markInstallationNeedsAttention(t.db, 'github', '501', 'installation_revoked')
-    const unified = await listOrgIntegrations(t.db, org.id)
-    expect(unified).toEqual([
+    await seedGitLink(t.db, project.id, { externalId: '501', repoRef: 'acme/web' })
+    await seedGitLink(t.db, second.project.id, { externalId: '501', repoRef: 'acme/api' })
+    expect((await listIntegrations(t.db, org.id))[0]?.projectCount).toBe(2)
+
+    await markInstallationNeedsAttention(t.db, 'github', '501', 'The App was removed')
+    expect(
+      await listOrgIntegrations(t.db, org.id, () => ({
+        group: 'git',
+        name: 'GitHub',
+      })),
+    ).toEqual([
       expect.objectContaining({
         id,
-        source: 'connection',
         kind: 'github',
         group: 'git',
         needsAttention: true,
-        attentionReason: 'installation_revoked',
+        attentionReason: 'The App was removed',
         projectCount: 2,
       }),
     ])
 
     const stranger = await seedProject(t.db)
-    expect(await removeGitConnection(t.db, stranger.org.id, id)).toBe(false)
-    expect(await getGitConnection(t.db, org.id, id)).toBeDefined()
-    expect(await removeGitConnection(t.db, org.id, id)).toBe(true)
-    expect(await getProjectLink(t.db, project.id)).toBeUndefined()
-    expect(await getProjectLink(t.db, second.project.id)).toBeUndefined()
-    expect(await listGitConnections(t.db, org.id)).toEqual([])
+    expect(await deleteIntegration(t.db, stranger.org.id, id)).toBe(false)
+    expect(await getIntegration(t.db, org.id, id)).toBeDefined()
+    expect(await deleteIntegration(t.db, org.id, id)).toBe(true)
+    expect(await getProjectLink(t.db, project.id, ['github'])).toBeUndefined()
+    expect(await getProjectLink(t.db, second.project.id, ['github'])).toBeUndefined()
+    expect(await listIntegrations(t.db, org.id)).toEqual([])
   })
 
-  it('lists git connections and other integrations together, git hosts first', async () => {
-    const { org } = await seedProject(t.db)
-    await createIntegration(t.db, {
-      orgId: org.id,
-      kind: 'figma',
-      displayName: 'Design',
-      externalId: 'f',
+  it('tells whether another organisation has the account, and sets the time of attention once', async () => {
+    const a = await seedProject(t.db)
+    const b = await seedProject(t.db)
+    const { id } = await seedGitConnection(t.db, { orgId: a.org.id, externalId: '8000' })
+    expect(await isAccountClaimedElsewhere(t.db, 'github', '8000', a.org.id)).toBe(false)
+    expect(await isAccountClaimedElsewhere(t.db, 'github', '8000', b.org.id)).toBe(true)
+    expect(await isAccountClaimedElsewhere(t.db, 'gitlab', '8000', b.org.id)).toBe(false)
+
+    await setIntegrationAttention(t.db, id, 'gone')
+    const first = (await getIntegration(t.db, a.org.id, id))?.needsAttentionAt
+    expect(first).toBeInstanceOf(Date)
+    await setIntegrationAttention(t.db, id, 'gone again')
+    expect((await getIntegration(t.db, a.org.id, id))?.needsAttentionAt).toEqual(first)
+    await setIntegrationAttention(t.db, id, null)
+    expect((await getIntegration(t.db, a.org.id, id))?.needsAttentionAt).toBeNull()
+  })
+
+  it('drops a project’s mappings on other integrations of the kinds, keeping the one named', async () => {
+    const { org, project } = await seedProject(t.db)
+    const one = await seedGitLink(t.db, project.id, { externalId: '1', repoRef: 'a/b' })
+    const two = await seedGitLink(t.db, project.id, {
+      kind: 'gitlab',
+      externalId: 'h#1',
+      repoRef: 'a/b',
     })
-    await createIntegration(t.db, {
+    const slack = await createIntegration(t.db, {
       orgId: org.id,
       kind: 'slack',
       displayName: 'Chat',
       externalId: 's',
     })
-    await connectGithub(t.db, org.id, '9')
-    // Kinds are looked up by the caller (the server asks the registry, then the static catalog).
-    const kinds = new Map<string, listOrgIntegrations.Kind>([
-      ['github', { group: 'git', name: 'GitHub', pageStyle: 'custom' }],
-      ['slack', { group: 'chat', name: 'Slack', pageStyle: 'generic' }],
-      ['figma', { group: 'design', name: 'Figma', pageStyle: 'custom' }],
-    ])
-    const listed = await listOrgIntegrations(t.db, org.id, (kind) => kinds.get(kind))
-    expect(listed.map((i) => [i.kind, i.group, i.name])).toEqual([
-      ['github', 'git', 'Installation 9'],
-      ['slack', 'chat', 'Chat'],
-      ['figma', 'design', 'Design'],
-    ])
+    await setIntegrationProject(t.db, {
+      integrationId: slack.id,
+      projectId: project.id,
+      externalRef: 'C1',
+    })
+    const removed = await removeOtherProjectMappings(t.db, {
+      projectId: project.id,
+      keepIntegrationId: two.integrationId,
+      kinds: ['github', 'gitlab'],
+    })
+    expect(removed).toEqual([one.integrationId])
+    expect(
+      (await listProjectIntegrations(t.db, project.id, ['github', 'gitlab', 'slack'])).map(
+        (m) => m.kind,
+      ),
+    ).toEqual(['gitlab', 'slack'])
   })
 })

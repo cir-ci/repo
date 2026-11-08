@@ -161,11 +161,11 @@ describe('serverOptionsFor', () => {
       orgCreation: 'admin',
     })
     expect(o.api?.githubApp).toBe(false)
-    expect(o.githubWebhook).toBeUndefined()
+    expect(o.gitWebhook?.integrations?.config.github).toBeUndefined()
     expect(o.checks.map((c) => c.name)).toEqual(['database', 'storage'])
   })
 
-  it('adds the GitHub webhook scope only when a GitHub App is configured', () => {
+  it('gives the git webhook scope the GitHub App only when one is configured', () => {
     const o = serverOptionsFor(
       runtimeWith({
         GITHUB_APP_ID: '1',
@@ -174,7 +174,7 @@ describe('serverOptionsFor', () => {
       }),
       '/web',
     )
-    expect(o.githubWebhook?.secret).toBe('sec')
+    expect(o.gitWebhook?.integrations?.config.github?.webhookSecret).toBe('sec')
     expect(o.api?.githubApp).toBe(true)
     expect(o.dashboard?.githubApp).toBe(true)
   })

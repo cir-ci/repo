@@ -17,6 +17,9 @@ import { useBrowser, useStack } from '#src/vitest.ts'
  * the same fake the real `GithubApp` is unit-tested against): nothing here proves CirCI against
  * the real github.com. `GITHUB_API_URL` points at the fake under `/api/v3`, as for GitHub Enterprise.
  */
+/** The installation the Integrations page connects in this file. */
+const UI_INSTALLATION = String(Date.now())
+
 describe('GitHub App: linking, webhook intake, check run and comment', () => {
   let gh: FakeGithub
   const ctx = useStack({ profile: 'github', setup: true })
@@ -39,29 +42,34 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     await page.goto(`${stack.url}/organizations/${orgSlug}/settings/integrations`)
     await page.getByRole('button', { name: 'Add integration' }).click()
     await page.getByRole('button', { name: 'Add GitHub' }).click()
-    await page.getByLabel('GitHub App installation id').fill(INSTALLATION)
+    // An installation of its own: one installation belongs to one organization, and the other
+    // files of this stack link theirs to the default one.
+    await page.getByLabel('GitHub App installation id').fill(UI_INSTALLATION)
     await page.getByRole('button', { name: 'Connect GitHub' }).click()
-    // The GitHub integration's page shows the webhook address CirCI expects on the GitHub App.
+    // The integration's page shows the webhook address CirCI expects on the GitHub App.
     await page.getByText(`${stack.url}/webhooks/github`).waitFor()
     await page.getByLabel('Linked in UI repository').fill('acme/ui-linked')
     await page
       .getByRole('form', { name: 'Linked in UI' })
-      .getByRole('button', { name: 'Link' })
+      .getByRole('button', { name: 'Save' })
       .click()
-    await page.getByRole('button', { name: 'Unlink' }).waitFor()
+    await page.getByRole('button', { name: 'Remove Linked in UI repository' }).waitFor()
 
     const settings = await setup.session.get<{
       github: { configured: boolean; link: { installationId: string; repoRef: string } | null }
     }>(`/api/projects/${orgSlug}/${project.slug}/settings`)
     expect(settings.github).toMatchObject({
       configured: true,
-      link: { installationId: INSTALLATION, repoRef: 'acme/ui-linked' },
+      link: { installationId: UI_INSTALLATION, repoRef: 'acme/ui-linked' },
     })
     // Survives a reload; and unlinking works.
     await page.reload()
-    await page.getByLabel('Linked in UI repository').waitFor()
-    await page.getByRole('button', { name: 'Unlink' }).click()
-    await page.getByRole('button', { name: 'Link', exact: true }).waitFor()
+    await page.getByRole('combobox', { name: 'Linked in UI repository' }).waitFor()
+    await page.getByRole('button', { name: 'Remove Linked in UI repository' }).click()
+    await page
+      .getByRole('form', { name: 'Linked in UI' })
+      .getByRole('button', { name: 'Save' })
+      .waitFor()
     const after = await setup.session.get<{ github: { link: unknown } }>(
       `/api/projects/${orgSlug}/${project.slug}/settings`,
     )
@@ -253,7 +261,13 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
 
     // Reinstalled: saving the repository again on the GitHub integration's page clears the banner.
     gh.restoreInstallation(REVOKED)
-    await page.goto(`${stack.url}/organizations/${orgSlug}/settings/integrations/github`)
+    const listed = await setup.session.get<{
+      integrations: { id: string; kind: string; name: string }[]
+    }>(`/api/orgs/${orgSlug}/integrations`)
+    const integration = listed.integrations.find((i) => i.name === `Installation ${REVOKED}`)
+    await page.goto(
+      `${stack.url}/organizations/${orgSlug}/settings/integrations/github/${integration?.id}`,
+    )
     await page
       .getByRole('form', { name: 'Revoked' })
       .getByRole('button', { name: 'Update' })

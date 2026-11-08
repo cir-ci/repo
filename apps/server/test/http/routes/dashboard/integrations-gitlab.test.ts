@@ -4,16 +4,16 @@ import { join } from 'node:path'
 
 import { addMember, createUser } from '@circi/auth'
 import { openSecret } from '@circi/core'
-import { getOrganizationBySlug, listGitConnections, schema } from '@circi/db'
+import { getOrganizationBySlug, listIntegrations, schema } from '@circi/db'
+import { derivedWebhookSecret } from '@circi/integrations'
 import { GitlabProvider, providerRegistry } from '@circi/providers'
 import { FsStorage } from '@circi/storage'
-import { createTestDb } from '@circi/testing'
+import { createTestDb, seedGitLink } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { pino } from 'pino'
 import { afterAll, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
-import { gitlabWebhookSecret } from '#http/lib/gitlab-secret.ts'
 import { fakeGitlab } from '#test/support/fake-gitlab.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 
@@ -32,7 +32,6 @@ const app = buildServer({
     storage: new FsStorage({ path: dir }),
     publicOrigin: ORIGIN,
     authSecret: AUTH_SECRET,
-    gitlab,
     providers: providerRegistry({ gitlab }),
   },
 })
@@ -76,12 +75,14 @@ const base = `/api/orgs/${acme.orgSlug}/integrations`
 const org = await getOrganizationBySlug(t.db, acme.orgSlug)
 const connect = { baseUrl: 'https://gitlab.example.com/', token: 'good' }
 
-describe('POST /api/orgs/:org/integrations/gitlab', () => {
+describe('POST /api/orgs/:org/integrations/gitlab/connect', () => {
   it('needs a session, an organization you belong to, and an owner or admin', async () => {
-    expect((await call('POST', `${base}/gitlab`, '', connect)).statusCode).toBe(401)
-    expect((await call('POST', `${base}/gitlab`, rivalCookie, connect)).statusCode).toBe(404)
-    expect((await call('POST', `${base}/gitlab`, louCookie, connect)).statusCode).toBe(403)
-    expect(await listGitConnections(t.db, org.id)).toEqual([])
+    expect((await call('POST', `${base}/gitlab/connect`, '', connect)).statusCode).toBe(401)
+    expect((await call('POST', `${base}/gitlab/connect`, rivalCookie, connect)).statusCode).toBe(
+      404,
+    )
+    expect((await call('POST', `${base}/gitlab/connect`, louCookie, connect)).statusCode).toBe(403)
+    expect(await listIntegrations(t.db, org.id)).toEqual([])
   })
 
   it('validates the body and the address', async () => {
@@ -97,31 +98,37 @@ describe('POST /api/orgs/:org/integrations/gitlab', () => {
       { baseUrl: 'http://localhost:8080', token: 'good' },
     ]) {
       // eslint-disable-next-line no-await-in-loop -- in order
-      expect((await call('POST', `${base}/gitlab`, ownerCookie, body)).statusCode).toBe(400)
+      expect((await call('POST', `${base}/gitlab/connect`, ownerCookie, body)).statusCode).toBe(400)
     }
   })
 
   it('stores nothing when GitLab refuses the token or is down', async () => {
-    const refused = await call('POST', `${base}/gitlab`, ownerCookie, {
+    const refused = await call('POST', `${base}/gitlab/connect`, ownerCookie, {
       ...connect,
       token: 'wrong',
     })
     expect(refused.statusCode).toBe(400)
     expect(refused.body).not.toContain('wrong')
     fake.setDown(true)
-    expect((await call('POST', `${base}/gitlab`, ownerCookie, connect)).statusCode).toBe(502)
+    expect((await call('POST', `${base}/gitlab/connect`, ownerCookie, connect)).statusCode).toBe(
+      502,
+    )
     fake.setDown(false)
-    expect(await listGitConnections(t.db, org.id)).toEqual([])
+    expect(await listIntegrations(t.db, org.id)).toEqual([])
   })
 
   it('verifies through the provider, then stores address and token sealed under host#user', async () => {
-    const res = await call('POST', `${base}/gitlab`, ownerCookie, connect)
+    const res = await call('POST', `${base}/gitlab/connect`, ownerCookie, connect)
     expect(res.statusCode).toBe(201)
     const [row] = await t.db
       .select()
-      .from(schema.providerConnections)
-      .where(eq(schema.providerConnections.orgId, org.id))
-    expect(row).toMatchObject({ kind: 'gitlab', externalId: 'gitlab.example.com#7' })
+      .from(schema.integrations)
+      .where(eq(schema.integrations.orgId, org.id))
+    expect(row).toMatchObject({
+      kind: 'gitlab',
+      externalId: 'gitlab.example.com#7',
+      displayName: 'gitlab.example.com#7',
+    })
     expect(row?.encryptedCredentials).not.toContain('good')
     expect(JSON.parse(openSecret(AUTH_SECRET, row?.encryptedCredentials ?? '') ?? '{}')).toEqual({
       baseUrl: 'https://gitlab.example.com',
@@ -130,22 +137,22 @@ describe('POST /api/orgs/:org/integrations/gitlab', () => {
   })
 
   it('connecting the same principal again keeps one connection', async () => {
-    const res = await call('POST', `${base}/gitlab`, ownerCookie, connect)
+    const res = await call('POST', `${base}/gitlab/connect`, ownerCookie, connect)
     expect(res.statusCode).toBe(201)
-    expect(
-      (await listGitConnections(t.db, org.id)).filter((c) => c.kind === 'gitlab'),
-    ).toHaveLength(1)
+    expect((await listIntegrations(t.db, org.id)).filter((c) => c.kind === 'gitlab')).toHaveLength(
+      1,
+    )
   })
 
   it('supports several connections, and refuses a principal another organization has', async () => {
-    const second = await call('POST', `${base}/gitlab`, ownerCookie, {
+    const second = await call('POST', `${base}/gitlab/connect`, ownerCookie, {
       baseUrl: 'https://gitlab.example.com',
       token: 'other',
     })
     expect(second.statusCode).toBe(201)
     const taken = await call(
       'POST',
-      `/api/orgs/${rival.orgSlug}/integrations/gitlab`,
+      `/api/orgs/${rival.orgSlug}/integrations/gitlab/connect`,
       rivalCookie,
       connect,
     )
@@ -153,7 +160,7 @@ describe('POST /api/orgs/:org/integrations/gitlab', () => {
     // The same token on another instance is another principal.
     const elsewhere = await call(
       'POST',
-      `/api/orgs/${rival.orgSlug}/integrations/gitlab`,
+      `/api/orgs/${rival.orgSlug}/integrations/gitlab/connect`,
       rivalCookie,
       { baseUrl: 'https://git.other.example', token: 'good' },
     )
@@ -161,78 +168,100 @@ describe('POST /api/orgs/:org/integrations/gitlab', () => {
   })
 })
 
-describe('GitLab page and project mapping', () => {
+const connections = async () =>
+  (await t.db.select().from(schema.integrations))
+    .filter((i) => i.orgId === org.id && i.kind === 'gitlab')
+    .toSorted((a, b) => a.externalId.localeCompare(b.externalId))
+
+describe('GitLab mapping page and project mapping', () => {
   it('shows members the page without the webhook secret, managers with it', async () => {
-    const manager = (await call('GET', `${base}/gitlab`, ownerCookie)).json()
+    const [first] = await connections()
+    const url = `${base}/${first?.id}/projects`
+    const manager = (await call('GET', url, ownerCookie)).json()
     expect(manager).toMatchObject({
       canManage: true,
-      webhookUrl: `${ORIGIN}/webhooks/gitlab`,
-      webhookSecret: gitlabWebhookSecret(AUTH_SECRET),
-      connections: [
-        { name: 'gitlab.example.com#7', needsAttention: false },
-        { name: 'gitlab.example.com#8', needsAttention: false },
-      ],
-      projects: [{ slug: 'web', repoRef: null, connectionId: null }],
+      integration: { kind: 'gitlab', name: 'gitlab.example.com#7', needsAttention: false },
+      definition: { mapping: { targetKind: 'repository' } },
+      webhook: {
+        url: `${ORIGIN}/webhooks/gitlab`,
+        secret: derivedWebhookSecret(AUTH_SECRET, 'gitlab'),
+      },
+      projects: [{ slug: 'web', mapping: null }],
     })
-    const member = (await call('GET', `${base}/gitlab`, louCookie)).json()
-    expect(member).toMatchObject({ canManage: false, webhookSecret: null })
+    const member = (await call('GET', url, louCookie)).json()
+    expect(member).toMatchObject({ canManage: false, webhook: { secret: null } })
     expect(JSON.stringify(member)).not.toContain('good')
-    expect((await call('GET', `${base}/gitlab`, rivalCookie)).statusCode).toBe(404)
-    expect((await call('GET', `${base}/gitlab`, '')).statusCode).toBe(401)
+    expect((await call('GET', url, rivalCookie)).statusCode).toBe(404)
+    expect((await call('GET', url, '')).statusCode).toBe(401)
   })
 
   it('lists projects through the connection own token', async () => {
-    const page = (await call('GET', `${base}/gitlab`, ownerCookie)).json()
-    const res = await call('GET', `${base}/${page.connections[0].id}/repositories`, ownerCookie)
+    const [first] = await connections()
+    const res = await call('GET', `${base}/${first?.id}/targets`, ownerCookie)
     expect(res.json()).toEqual({
-      repositories: [
-        { ref: 'acme/web', private: true },
-        { ref: 'acme/tools/oss', private: false },
+      targets: [
+        { id: 'acme/web', name: 'acme/web' },
+        { id: 'acme/tools/oss', name: 'acme/tools/oss' },
       ],
     })
   })
 
-  it('links a project to a GitLab project with a namespace path, and unlinks it', async () => {
-    const page = (await call('GET', `${base}/gitlab`, ownerCookie)).json()
-    const connectionId: string = page.connections[0].id
-    const url = `${base}/gitlab/projects/web`
-    const body = { connectionId, repoRef: 'acme/tools/oss' }
+  it('maps a project to a GitLab project with a namespace path, and unmaps it', async () => {
+    const [first] = await connections()
+    const url = `${base}/${first?.id}/projects/web`
+    const body = { ref: 'acme/tools/oss' }
     expect((await call('PUT', url, louCookie, body)).statusCode).toBe(403)
     expect((await call('PUT', url, rivalCookie, body)).statusCode).toBe(404)
+    expect((await call('PUT', url, ownerCookie, { ref: 'nonsense' })).statusCode).toBe(400)
     expect(
-      (await call('PUT', url, ownerCookie, { connectionId, repoRef: 'nonsense' })).statusCode,
-    ).toBe(400)
-    expect(
-      (await call('PUT', url, ownerCookie, { ...body, connectionId: crypto.randomUUID() }))
+      (await call('PUT', `${base}/${crypto.randomUUID()}/projects/web`, ownerCookie, body))
         .statusCode,
     ).toBe(404)
-    expect((await call('PUT', `${base}/gitlab/projects/nope`, ownerCookie, body)).statusCode).toBe(
-      404,
-    )
-    expect((await call('PUT', url, ownerCookie, body)).statusCode).toBe(200)
-    expect((await call('GET', `${base}/gitlab`, ownerCookie)).json().projects).toEqual([
-      { slug: 'web', name: 'web', repoRef: 'acme/tools/oss', connectionId },
+    expect(
+      (await call('PUT', `${base}/${first?.id}/projects/nope`, ownerCookie, body)).statusCode,
+    ).toBe(404)
+    expect((await call('PUT', url, ownerCookie, body)).statusCode).toBe(204)
+    const page = (await call('GET', `${base}/${first?.id}/projects`, ownerCookie)).json()
+    expect(page.projects).toMatchObject([
+      { slug: 'web', mapping: { ref: 'acme/tools/oss', name: 'acme/tools/oss' } },
     ])
     expect((await call('DELETE', url, louCookie)).statusCode).toBe(403)
     expect((await call('DELETE', url, ownerCookie)).statusCode).toBe(204)
-    expect((await call('GET', `${base}/gitlab`, ownerCookie)).json().projects[0]).toMatchObject({
-      repoRef: null,
-      connectionId: null,
-    })
-    expect((await call('DELETE', url, ownerCookie)).statusCode).toBe(204)
-    expect((await call('DELETE', `${base}/gitlab/projects/nope`, ownerCookie)).statusCode).toBe(404)
+    expect(
+      (await call('GET', `${base}/${first?.id}/projects`, ownerCookie)).json().projects[0].mapping,
+    ).toBeNull()
   })
 
-  it('does not link a project through a GitHub connection', async () => {
-    const [github] = await t.db
-      .insert(schema.providerConnections)
-      .values({ orgId: org.id, kind: 'github', externalId: '4242' })
-      .returning()
-    const res = await call('PUT', `${base}/gitlab/projects/web`, ownerCookie, {
-      connectionId: github?.id,
+  it('moves a project from one GitLab connection to the other instead of keeping both', async () => {
+    const [first, second] = await connections()
+    const body = { ref: 'acme/web' }
+    expect(
+      (await call('PUT', `${base}/${first?.id}/projects/web`, ownerCookie, body)).statusCode,
+    ).toBe(204)
+    expect(
+      (await call('PUT', `${base}/${second?.id}/projects/web`, ownerCookie, body)).statusCode,
+    ).toBe(204)
+    const mapped = async (id: string | undefined) =>
+      (await call('GET', `${base}/${id}/projects`, ownerCookie)).json().projects[0].mapping
+    expect(await mapped(first?.id)).toBeNull()
+    expect(await mapped(second?.id)).toMatchObject({ ref: 'acme/web' })
+  })
+
+  it('moves a project from a GitHub installation to GitLab: one git host per project', async () => {
+    const github = await seedGitLink(t.db, acme.project.id, {
+      externalId: '4242',
       repoRef: 'acme/web',
     })
-    expect(res.statusCode).toBe(404)
+    const [first] = await connections()
+    expect(
+      (await call('PUT', `${base}/${first?.id}/projects/web`, ownerCookie, { ref: 'acme/web' }))
+        .statusCode,
+    ).toBe(204)
+    const [row] = await t.db
+      .select()
+      .from(schema.integrationProjects)
+      .where(eq(schema.integrationProjects.integrationId, github.integrationId))
+    expect(row).toBeUndefined()
   })
 
   it('marks GitLab built and connectable in the catalog', async () => {

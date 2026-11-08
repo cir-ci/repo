@@ -60,7 +60,6 @@ describe('migrations', () => {
       'pr_comments',
       'project_sites',
       'projects',
-      'provider_connections',
       'provider_deliveries',
       'review_requests',
       'review_rule_reviewers',

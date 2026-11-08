@@ -184,3 +184,86 @@ describe('0026_move_links', () => {
     expect(tables.rows).toEqual([])
   })
 })
+
+describe('0027_git_hosts', () => {
+  it('moves provider_connections into integrations and each linked project into integration_projects', async () => {
+    const migration = await migrateUntil('0027_')
+    await client.exec(`
+      insert into organization (id, name, slug, created_at) values ('o1', 'Acme', 'acme', now()), ('o2', 'Rival', 'rival', now());
+      insert into projects (id, org_id, slug, name) values
+        ('00000000-0000-0000-0000-0000000000a1', 'o1', 'web', 'Web'),
+        ('00000000-0000-0000-0000-0000000000a2', 'o1', 'api', 'API'),
+        ('00000000-0000-0000-0000-0000000000a3', 'o1', 'docs', 'Docs');
+      insert into provider_connections (id, org_id, kind, external_id, encrypted_credentials, needs_attention, needs_attention_at, created_at) values
+        ('00000000-0000-0000-0000-0000000000c1', 'o1', 'github', '4242', null, 'installation_revoked', '2026-01-02T03:04:05Z', '2026-01-01T00:00:00Z'),
+        ('00000000-0000-0000-0000-0000000000c2', 'o1', 'gitlab', 'gitlab.acme.test#7', 'sealed-gitlab', null, null, '2026-01-01T00:00:00Z'),
+        ('00000000-0000-0000-0000-0000000000c3', 'o2', 'bitbucket', 'acme-ws', 'sealed-bb', 'installation_revoked', '2026-02-02T00:00:00Z', '2026-01-01T00:00:00Z');
+      update projects set provider_connection_id = '00000000-0000-0000-0000-0000000000c1', repo_ref = 'Acme/Web' where id = '00000000-0000-0000-0000-0000000000a1';
+      update projects set provider_connection_id = '00000000-0000-0000-0000-0000000000c2', repo_ref = 'tools/api' where id = '00000000-0000-0000-0000-0000000000a2';
+    `)
+    for (const s of migration) {
+      // oxlint-disable-next-line no-await-in-loop -- statements must run in order
+      await client.exec(s)
+    }
+
+    const integrations = await client.query(
+      `select id, org_id, kind, display_name, external_id, encrypted_credentials, needs_attention,
+              needs_attention_reason is not null as has_reason, needs_attention_at
+       from integrations order by external_id`,
+    )
+    expect(integrations.rows).toEqual([
+      expect.objectContaining({
+        id: '00000000-0000-0000-0000-0000000000c1',
+        kind: 'github',
+        display_name: 'Installation 4242',
+        external_id: '4242',
+        encrypted_credentials: null,
+        needs_attention: true,
+        has_reason: true,
+        needs_attention_at: new Date('2026-01-02T03:04:05Z'),
+      }),
+      expect.objectContaining({
+        id: '00000000-0000-0000-0000-0000000000c3',
+        org_id: 'o2',
+        kind: 'bitbucket',
+        display_name: 'acme-ws',
+        encrypted_credentials: 'sealed-bb',
+        needs_attention: true,
+      }),
+      expect.objectContaining({
+        id: '00000000-0000-0000-0000-0000000000c2',
+        kind: 'gitlab',
+        display_name: 'gitlab.acme.test#7',
+        encrypted_credentials: 'sealed-gitlab',
+        needs_attention: false,
+        has_reason: false,
+        needs_attention_at: null,
+      }),
+    ])
+
+    const mapped = await client.query(
+      `select ip.project_id, ip.integration_id, ip.external_ref, ip.extra from integration_projects ip order by ip.external_ref`,
+    )
+    expect(mapped.rows).toEqual([
+      {
+        project_id: '00000000-0000-0000-0000-0000000000a1',
+        integration_id: '00000000-0000-0000-0000-0000000000c1',
+        external_ref: 'Acme/Web',
+        extra: { name: 'Acme/Web' },
+      },
+      {
+        project_id: '00000000-0000-0000-0000-0000000000a2',
+        integration_id: '00000000-0000-0000-0000-0000000000c2',
+        external_ref: 'tools/api',
+        extra: { name: 'tools/api' },
+      },
+    ])
+
+    const gone = await client.query<{ name: string }>(
+      `select tablename as name from pg_tables where schemaname = 'public' and tablename = 'provider_connections'
+       union all select column_name from information_schema.columns
+       where table_name = 'projects' and column_name in ('provider_connection_id', 'repo_ref')`,
+    )
+    expect(gone.rows).toEqual([])
+  })
+})

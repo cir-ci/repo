@@ -17,8 +17,6 @@ import {
   addIgnoreRegion,
   listIgnoreRegions,
   removeIgnoreRegion,
-  linkProjectToGithub,
-  unlinkProject,
   isWebhookEvent,
   listOrganizations,
   listProjects,
@@ -27,7 +25,13 @@ import {
   storageUsage,
   WEBHOOK_EVENTS,
 } from '@circi/db'
-import { migrateStorage, previewRetention, runRetention } from '@circi/services'
+import {
+  linkProjectToGithub,
+  migrateStorage,
+  previewRetention,
+  runRetention,
+  unlinkProjectFromGit,
+} from '@circi/services'
 import { createStorage } from '@circi/storage'
 import type { Command } from 'commander'
 
@@ -410,7 +414,7 @@ function addGithubCommands(github: Command): void {
     .action((opts: { org: string; project: string }) =>
       withRuntime(async (rt) => {
         const project = await projectOf(rt, opts.org, opts.project)
-        await unlinkProject(rt.db.db, project.id)
+        await unlinkProjectFromGit(rt.db.db, project.id)
         console.log(`${opts.org}/${opts.project} no longer reports to GitHub`)
       }),
     )

@@ -3,10 +3,8 @@ import { describe, expect, it } from 'vitest'
 import {
   filterCatalog,
   groupItems,
-  integrationPage,
   isGroupFilter,
   integrationLabel,
-  isInstallationId,
   projectCountLabel,
   unavailableNote,
 } from '#features/integrations/api.ts'
@@ -66,34 +64,13 @@ describe('unavailableNote', () => {
 })
 
 describe('small helpers', () => {
-  it('accepts digit-only installation ids', () => {
-    expect(isInstallationId(' 4242 ')).toBe(true)
-    expect(isInstallationId('')).toBe(false)
-    expect(isInstallationId('12a')).toBe(false)
-  })
   it('names an integration by its provider and account', () => {
     expect(integrationLabel({ kindName: 'GitHub', name: 'Installation 501' })).toBe(
       'GitHub (Installation 501)',
     )
     expect(integrationLabel({ kindName: 'Mystery', name: 'X' })).toBe('Mystery (X)')
   })
-  it('names the project count and the integration page', () => {
+  it('names the project count', () => {
     expect([0, 1, 3].map(projectCountLabel)).toEqual(['No projects yet', '1 project', '3 projects'])
-    expect(integrationPage('github')).toBe('github')
-    expect(integrationPage('slack')).toBeNull()
-  })
-})
-
-describe('Bitbucket helpers', () => {
-  it('accepts workspace ids and rejects the rest', async () => {
-    const { isBitbucketWorkspace } = await import('#features/integrations/api.ts')
-    expect(isBitbucketWorkspace(' acme-ws_1 ')).toBe(true)
-    for (const bad of ['', 'has space', '-lead', 'a/b', 'a'.repeat(101)])
-      expect(isBitbucketWorkspace(bad)).toBe(false)
-  })
-
-  it('has a page for Bitbucket connections', () => {
-    expect(integrationPage('bitbucket')).toBe('bitbucket')
-    expect(integrationPage('azure-devops')).toBeNull()
   })
 })

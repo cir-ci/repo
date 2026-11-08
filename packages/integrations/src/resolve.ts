@@ -6,9 +6,9 @@ import type { IntegrationRegistry } from './registry.ts'
 export function resolveKind(
   registry: IntegrationRegistry,
   kind: string,
-): { group: IntegrationCatalog.Group; name: string; pageStyle: 'generic' | 'custom' } | undefined {
+): { group: IntegrationCatalog.Group; name: string } | undefined {
   const def = registry.get(kind)
-  if (def) return { group: def.group, name: def.name, pageStyle: def.pageStyle }
+  if (def) return { group: def.group, name: def.name }
   const entry = catalogEntry(kind)
-  return entry ? { group: entry.group, name: entry.name, pageStyle: 'custom' } : undefined
+  return entry ? { group: entry.group, name: entry.name } : undefined
 }

@@ -10,10 +10,10 @@ import { PR_COMMENT_MARKER } from './render.ts'
  * token can see.
  *
  * Where the details live (a decision, so the rest of the code never guesses):
- * - `provider_connections.encrypted_credentials` holds, sealed with `sealSecret`, the JSON
+ * - `integrations.encrypted_credentials` holds, sealed with `sealSecret`, the JSON
  *   `{"baseUrl":"https://gitlab.example.com","token":"glpat-…"}` (see `gitlabCredentials`). The
  *   base URL belongs to the credentials because every call needs both together.
- * - `provider_connections.external_id` is `<host>#<user id>` of the token's principal (a project
+ * - `integrations.external_id` is `<host>#<user id>` of the token's principal (a project
  *   access token's bot user has its own id), from `GET /user`, so the same token principal on the
  *   same instance cannot be connected to two organisations.
  * - Webhooks: GitLab sends the secret token it was configured with in `X-Gitlab-Token`; the

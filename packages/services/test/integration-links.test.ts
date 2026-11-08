@@ -40,7 +40,6 @@ function fakeDesign(files: Record<string, { id: string; name: string }[]>) {
     name: 'Figma',
     description: 'A design tool for tests.',
     logo: 'figma',
-    pageStyle: 'generic',
     credentials: z.object({ token: z.string().meta({ label: 'Token', secret: true }) }),
     connect: async (input) => ({ externalId: 'x', displayName: 'x', credentials: input.token }),
     needsAttention: () => null,

@@ -66,7 +66,6 @@ export const slack = defineIntegration({
   name: 'Slack',
   description: 'Review requested, overdue and rejected notices in a channel per project.',
   logo: 'slack',
-  pageStyle: 'generic',
   // Nothing to type: the workspace is connected by installing the app.
   credentials: z.object({}),
 

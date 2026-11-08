@@ -10,8 +10,6 @@ import {
   getProjectById,
   getProjectGitAttention,
   getProjectLink,
-  linkProjectToGithub,
-  unlinkProject,
   getProjectMemberRole,
   isWebhookEvent,
   listWebhooks,
@@ -20,6 +18,7 @@ import {
   WEBHOOK_EVENTS,
   type Webhook,
 } from '@circi/db'
+import { gitKinds, linkProjectToGithub, unlinkProjectFromGit } from '@circi/services'
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
@@ -61,9 +60,9 @@ const NO_EVENTS = 'Choose at least one event for the webhook to receive'
 
 /** A webhook as the dashboard sees it: the signing secret is only shown when it's created. */
 async function githubLink(db: Database, projectId: string): Promise<Project.GithubLink | null> {
-  const link = await getProjectLink(db, projectId)
+  const link = await getProjectLink(db, projectId, gitKinds())
   if (!link) return null
-  const attention = await getProjectGitAttention(db, projectId)
+  const attention = await getProjectGitAttention(db, projectId, gitKinds())
   return {
     ...link,
     attention: attention
@@ -166,7 +165,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
   app.delete('/projects/:org/:project/github', async (req, reply) => {
     const project = await loadForManager(req, reply)
     if (!project) return reply
-    await unlinkProject(deps.db, project.id)
+    await unlinkProjectFromGit(deps.db, project.id)
     return reply.code(204).send()
   })
 

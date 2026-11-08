@@ -9,9 +9,11 @@ import {
   listProjectLinks,
   listProjectSnapshotNames,
   removeIntegrationProject,
+  removeOtherProjectMappings,
+  setIntegrationAttention,
   setIntegrationProject,
 } from '@circi/db'
-import type { IntegrationDefinition } from '@circi/integrations'
+import { type IntegrationDefinition, integrationRegistry } from '@circi/integrations'
 
 /**
  * Project-wide integration links (`integration_links` rows of a definition's `links.kind`; Figma's
@@ -193,9 +195,12 @@ export namespace mapProject {
 /**
  * Points a project at a target of the integration. When the definition keeps links, changing to
  * another target drops the automatic links made for the old one (they would point at things that
- * are not there); manual links stay, as a person made them.
+ * are not there); manual links stay, as a person made them. An `exclusive` definition moves the
+ * project: its mapping on any other connection of the kind (a git host: of any git host) goes.
+ * Mapping a git host again says the connection works, so its "needs attention" is cleared.
  */
 export async function mapProject(db: Database, input: mapProject.Input): Promise<void> {
+  const { definition } = input
   await db.transaction(async (tx) => {
     await setIntegrationProject(tx, {
       integrationId: input.integrationId,
@@ -203,6 +208,22 @@ export async function mapProject(db: Database, input: mapProject.Input): Promise
       externalRef: input.ref,
       extra: input.extra,
     })
+    const exclusive = definition.exclusive?.project
+    if (exclusive) {
+      const kinds =
+        exclusive === 'kind'
+          ? [definition.id]
+          : integrationRegistry
+              .all()
+              .filter((d) => d.group === definition.group)
+              .map((d) => d.id)
+      await removeOtherProjectMappings(tx, {
+        projectId: input.projectId,
+        keepIntegrationId: input.integrationId,
+        kinds,
+      })
+    }
+    if (definition.capabilities.git) await setIntegrationAttention(tx, input.integrationId, null)
     if (input.definition.links) {
       await deleteAutoLinks(tx, {
         projectId: input.projectId,

@@ -7,8 +7,8 @@
 
 export class IntegrationError extends Error {
   /** The HTTP status the generic route answers with. */
-  readonly status: 400 | 409 | 502
-  constructor(status: 400 | 409 | 502, message: string, options?: ErrorOptions) {
+  readonly status: 400 | 404 | 409 | 502
+  constructor(status: 400 | 404 | 409 | 502, message: string, options?: ErrorOptions) {
     super(message, options)
     this.name = new.target.name
     this.status = status
@@ -40,5 +40,12 @@ export class IntegrationConflictError extends IntegrationError {
 export class InvalidInputError extends IntegrationError {
   constructor(message: string, options?: ErrorOptions) {
     super(400, message, options)
+  }
+}
+
+/** What was named does not exist on the provider (a GitHub App installation id nobody installed). */
+export class IntegrationNotFoundError extends IntegrationError {
+  constructor(message: string, options?: ErrorOptions) {
+    super(404, message, options)
   }
 }

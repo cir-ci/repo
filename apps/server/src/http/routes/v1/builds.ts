@@ -7,7 +7,7 @@ import {
   markFileVerified,
   planUploads,
 } from '@circi/db'
-import { finalizeBuild, gateInputs, startBuild } from '@circi/services'
+import { finalizeBuild, gateInputs, gitKinds, startBuild } from '@circi/services'
 import { contentKey } from '@circi/storage'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
@@ -92,7 +92,8 @@ export const buildRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
     if (!build) return reply.code(404).send({ error: 'Build not found' })
     // Who blocks the merge (PLAN §7.4): the check on the git host when this project reports to
     // one, otherwise this CI job. The CLI's `--gate` overrides the choice.
-    const linked = deps.githubApp === true && (await getProjectLink(deps.db, ctx.project.id))
+    const linked =
+      deps.githubApp === true && (await getProjectLink(deps.db, ctx.project.id, gitKinds()))
     const gate = requested ?? (linked ? 'status' : 'exit-code')
     return {
       build: describeBuild(ctx, build, deps.publicOrigin),

@@ -4,10 +4,9 @@
  * definition in the registry (built, connectable, with its connect and mapping specs), then the
  * entries below for what has no definition. Static and pure.
  *
- * `INTEGRATION_CATALOG` holds two kinds of entry: `planned` ones (nothing is built) and `available`
- * ones that still use the older, hand-written flow (the git hosts). Migrating an
- * integration to the SDK means writing its definition (docs/integration-sdk.md) and DELETING its
- * entry here; a kind in both is a mistake the registry test catches.
+ * `INTEGRATION_CATALOG` holds only `planned` entries (nothing is built yet). Building one means
+ * writing its definition (docs/integration-sdk.md) and DELETING its entry here; a kind in both is a
+ * mistake the registry test catches.
  */
 
 export const INTEGRATION_GROUPS = ['git', 'chat', 'design', 'tracker'] as const
@@ -46,27 +45,6 @@ export const integrationGroupLabel = (group: IntegrationCatalog.Group) =>
   INTEGRATION_GROUP_LABEL[group]
 
 export const INTEGRATION_CATALOG: readonly IntegrationCatalog.Entry[] = [
-  {
-    kind: 'github',
-    group: 'git',
-    name: 'GitHub',
-    description: 'Build status on the pull request, one summary comment, and sign-in with GitHub.',
-    status: 'available',
-  },
-  {
-    kind: 'gitlab',
-    group: 'git',
-    name: 'GitLab',
-    description: 'Build status on the merge request, one summary note, and sign-in with GitLab.',
-    status: 'available',
-  },
-  {
-    kind: 'bitbucket',
-    group: 'git',
-    name: 'Bitbucket',
-    description: 'Build status on the pull request and one summary comment.',
-    status: 'available',
-  },
   {
     kind: 'azure-devops',
     group: 'git',

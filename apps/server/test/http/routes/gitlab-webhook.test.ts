@@ -1,8 +1,8 @@
 import { sealSecret } from '@circi/core'
-import { connectGitlab, getBuild, linkProjectToGitlab, listBuildReviews } from '@circi/db'
-import { gitlabCredentials } from '@circi/providers'
+import { getBuild, listBuildReviews } from '@circi/db'
+import { gitlabCredentials, gitlabWebhookVerifier, providerRegistry } from '@circi/providers'
 import { completeBuild } from '@circi/services'
-import { createTestDb, seedAccount, seedBuild } from '@circi/testing'
+import { createTestDb, seedAccount, seedBuild, seedGitLink } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -24,37 +24,45 @@ beforeAll(async () => {
   t = await createTestDb()
   const auth = createTestAuth(t.db)
   acme = await seedTenant(auth, t.db)
-  const { id } = await connectGitlab(
-    t.db,
-    acme.project.orgId,
-    'gitlab.example.com#7',
-    sealSecret(AUTH_SECRET, gitlabCredentials('https://gitlab.example.com', 'tok')),
-  )
-  await linkProjectToGitlab(t.db, acme.project.orgId, acme.project.slug, {
-    connectionId: id,
+  await seedGitLink(t.db, acme.project.id, {
+    kind: 'gitlab',
+    externalId: 'gitlab.example.com#7',
     repoRef: 'Acme/Tools/Web',
+    encryptedCredentials: sealSecret(
+      AUTH_SECRET,
+      gitlabCredentials('https://gitlab.example.com', 'tok'),
+    ),
   })
   // The owner signed in with GitLab.
   await seedAccount(t.db, { userId: acme.owner.id, accountId: GITLAB_ID, providerId: 'gitlab' })
   app = buildServer({
     logger: pino({ level: 'silent' }),
     checks: [],
-    gitlabWebhook: {
+    gitWebhook: {
       db: t.db,
-      secret: SECRET,
       authSecret: AUTH_SECRET,
       publicOrigin: 'https://ci.acme.io',
       logger: pino({ level: 'silent' }),
-      gitlab: {
-        react: async (repo, mr, noteId, emoji, credentials) => {
-          sent.push(
-            `react ${repo}!${mr} ${noteId} ${emoji} ${JSON.parse(credentials ?? '{}').token}`,
-          )
+      // The fake GitLab edge: verifies the token, and records what is said on GitLab.
+      providers: providerRegistry({
+        gitlab: {
+          ...gitlabWebhookVerifier(SECRET),
+          react: async (
+            repo: string,
+            mr: number,
+            noteId: string,
+            emoji: string,
+            credentials?: string,
+          ) => {
+            sent.push(
+              `react ${repo}!${mr} ${noteId} ${emoji} ${JSON.parse(credentials ?? '{}').token}`,
+            )
+          },
+          reply: async (_repo: string, mr: number, body: string) => {
+            sent.push(`reply ${mr}: ${body}`)
+          },
         },
-        reply: async (_repo, mr, body) => {
-          sent.push(`reply ${mr}: ${body}`)
-        },
-      },
+      }),
     },
   })
   await app.ready()

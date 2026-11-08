@@ -235,7 +235,6 @@ describe('the mapping page, targets and project mapping', () => {
         integration: { id, kind: 'slack', name: 'Acme Workspace', needsAttention: false },
         definition: {
           kind: 'slack',
-          pageStyle: 'generic',
           oauth: true,
           credentials: [],
           mapping: { targetKind: 'select', fields: [{ kind: 'events', key: 'events' }] },

@@ -37,9 +37,9 @@ export namespace startWorker {
     logger: startWorker.Logger
     /** The dashboard's origin (`PUBLIC_URL`), used for links in webhook bodies. */
     publicOrigin?: string
-    /** The GitHub App, when configured: builds are then reported to linked repositories. */
+    /** Stands in for the GitHub App's adapter (tests); production builds it from `integrations.config.github`. */
     github?: GithubApp
-    /** Git host adapters by connection kind; takes the place of `github` when given. */
+    /** Stands in for the git host adapters by connection kind (tests); production uses the definitions'. */
     providers?: ProviderRegistry<notifyGit.Provider>
     /** The instance secret (`BETTER_AUTH_SECRET`): opens sealed per-connection credentials of token git hosts. */
     authSecret?: string
@@ -327,6 +327,7 @@ async function runGitNotifyJob(deps: startWorker.Deps, job: Job): Promise<void> 
     const result = await notifyGit(
       {
         db: deps.db,
+        context: deps.integrations,
         github: deps.github,
         providers: deps.providers,
         publicOrigin: deps.publicOrigin ?? '',

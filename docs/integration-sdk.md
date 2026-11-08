@@ -5,11 +5,12 @@ catalog, the HTTP routes, the worker job, the dashboard's connect form and its m
 that definition. Adding an integration writes **no route, table, migration, job, or page**.
 
 Slack is the exemplar for chat (`packages/integrations/src/slack.ts`); Linear and Jira
-(`linear.ts`, `jira.ts`) are the form-connected trackers, and Figma (`figma.ts`) is the design tool
-with the `links` section. Read the one closest to what you add next to this document.
+(`linear.ts`, `jira.ts`) are the form-connected trackers, Figma (`figma.ts`) is the design tool
+with the `links` section, and GitHub, GitLab and Bitbucket (`github.ts`, `gitlab.ts`, `bitbucket.ts`)
+are the git hosts with the `git` capability. Read the one closest to what you add next to this document.
 
-**Status.** Migrated to the SDK: Slack, Linear, Jira, Figma. Not yet: the git hosts (GitHub, GitLab,
-Bitbucket: git connections, webhooks, `provider_connections`), which keep their own routes and pages.
+**Status.** Every integration is on the SDK. There are no per-kind tables, routes, repositories or
+pages: `provider_connections` is gone (migration 0027 moved its rows into `integrations`).
 
 ## Adding an integration
 
@@ -17,11 +18,11 @@ Exactly these files:
 
 1. `packages/integrations/src/<id>.ts`: the definition (`export const <id> = defineIntegration({...})`).
 2. `packages/integrations/src/registry.ts`: import it and add it to the list in
-   `new IntegrationRegistry([slack, linear, jira, figma, <id>])`. One line.
+   `new IntegrationRegistry([github, gitlab, bitbucket, slack, linear, jira, figma, <id>])`. One line.
 3. `apps/web/src/features/integrations/logos.tsx`: one entry in `MARKS` keyed by the definition's `logo`.
-4. Only if the integration needs an app of its own on this instance (an OAuth client): a key in
-   `IntegrationDefinition.InstanceConfig` (`definition.ts`), the `Config` entry in `@circi/config`
-   and its line in `apps/server/src/lifecycle/integration-config.ts`.
+4. Only if the integration needs an app of its own on this instance (an OAuth client, the GitHub
+   App): a key in `IntegrationDefinition.InstanceConfig` (`definition.ts`), the `Config` entry in
+   `@circi/config` and its line in `apps/server/src/lifecycle/integration-config.ts`.
 
 Not touched: routes, schema, `INTEGRATION_CATALOG` (that is only for planned tiles), the provider
 registry, the worker, the web router. A definition that cannot work (no logo, no way to connect, a
@@ -41,16 +42,18 @@ a fake of the provider's HTTP edge); the definition only wires them to the SDK.
 | `group` | `git`, `chat`, `design` or `tracker`: where it sits in the Add dialog and the list. |
 | `name`, `description` | Shown on the tile and in labels. |
 | `logo` | Key into the dashboard's `MARKS` table. |
-| `pageStyle` | `generic`: configured on the one generic page. `custom`: keeps its own page (migrating integrations only). |
 | `credentials` | A zod object. Each field carries `.meta({ label, secret, description, placeholder })`; the connect form is rendered from it. `z.object({})` means nothing to type (OAuth only). |
 | `available(ctx)` | Whether this instance can connect it now (an OAuth app is configured). Default true. Feeds the tile's `connectable`. |
 | `connect(input, ctx)` | Verifies the form's values with the provider and returns `{ externalId, displayName, credentials }`. Throws `InvalidCredentialsError` (400), `IntegrationUnreachableError` (502) or `IntegrationConflictError` (409); the generic route maps them. `credentials` is the text that is sealed and stored (a token, or JSON for several fields). |
 | `oauth` | `{ available, authorizeUrl, exchange }`: the install flow. The generic routes sign the `state`, check it on the callback and store the result. Installing the same account again replaces its credentials and clears "needs attention". |
 | `needsAttention(error)` | The reason to show when an error means a person has to act (revoked token, uninstalled app); `null` for anything else (the job retries). |
 | `events` | The domain events it handles (below). |
-| `capabilities` | Typed optional members: `chat.send(message, ctx)` (the event pipeline), `tracker.create(credentials, ctx)` (an `IssueTracker`: "Create issue" on a build), `design` (`listFrames`, `render`, `comment`, `linkFor`: Figma), `git` (reserved). |
-| `mapping` | How a project maps (below). Required by `tracker` and `design`. |
+| `capabilities` | Typed optional members: `chat.send(message, ctx)` (the event pipeline), `tracker.create(credentials, ctx)` (an `IssueTracker`: "Create issue" on a build), `design` (`listFrames`, `render`, `comment`, `linkFor`: Figma), `git` (a git host: below). |
+| `mapping` | How a project maps (below). Required by `tracker`, `design` and `git`. |
 | `links` | Project-wide links it keeps, rendered as a table on the generic page (below). Needs a `mapping`. |
+| `exclusive` | `{ account?: true, project?: 'kind' \| 'group' }`. `account`: the same external account connects in ONE organisation of the instance (a second one gets a 409). `project`: a project maps to one connection of the kind (`kind`) or to one git host of the group (`group`); mapping to another moves it. Figma: `account`; Linear and Jira: `project: 'kind'`; the git hosts: both (`group`). |
+| `replaceOnReconnect` | Connecting an account the organisation already has replaces its credentials and clears "needs attention" (a rotated token, a reinstalled App) instead of a 409. The git hosts. |
+| `secretless` | The connection keeps no secret (GitHub: the App's credentials are instance configuration, the installation id is the external id). Nothing is sealed; capabilities get `''` as credentials. |
 
 `ctx` is `{ authSecret, publicOrigin, config, fetch? }`: the instance, never a database. `fetch`
 exists so tests point the provider's client at a fake.
@@ -60,9 +63,12 @@ exists so tests point the provider's client at a fake.
 One target per project and integration, stored in `integration_projects.external_ref`, with the
 settings below in `extra` (and the target's name in `extra.name`).
 
-- `target`: `{ label, kind: 'text' | 'select', placeholder?, validate?(ref), resolve?(ref, { credentials }, ctx) }`.
+- `target`: `{ label, kind: 'text' | 'select' | 'repository', placeholder?, validate?(ref), resolve?(ref, { credentials }, ctx) }`.
   A `select` target needs `listTargets(credentials, ctx)` (the channels, teams or projects the
-  account offers). `resolve` is a transform for a typed target: it runs after `validate`, checks the
+  account offers). A `repository` target (the git hosts, and only they: it needs the `git`
+  capability) is typed as `owner/name`, with the repositories `git.provider(ctx).listRepositories`
+  offers as suggestions (the page falls back to plain typing when the host cannot list them); its
+  name is the ref. `resolve` is a transform for a typed target: it runs after `validate`, checks the
   value with the provider and returns the `ref` to store and the target's name (Figma turns a pasted
   file address into the file key and reads the file's name). It throws `IntegrationError`s
   (`InvalidInputError` for "that is not usable", 400) or whatever `needsAttention` recognises.
@@ -117,7 +123,8 @@ it, and list it in the `events` of the definitions that handle it.
 POST   /orgs/:org/integrations/:kind/connect            connect with the form
 GET    /orgs/:org/integrations/:kind/install            OAuth install address
 GET    /integrations/:kind/callback                     OAuth callback (under /api)
-GET    /orgs/:org/integrations/:id/targets              what a project can be pointed at
+POST   /integrations/:kind/webhook                      git host webhook (under /api, no session); also POST /webhooks/:kind
+GET    /orgs/:org/integrations/:id/targets              what a project can be pointed at (a git host: its repositories)
 GET    /orgs/:org/integrations/:id/projects             the integration, its spec, every project's mapping
 PUT    /orgs/:org/integrations/:id/projects/:project    map a project
 DELETE /orgs/:org/integrations/:id/projects/:project    stop
@@ -125,7 +132,7 @@ GET    /orgs/:org/integrations/:id/projects/:project/links           the project
 POST   /orgs/:org/integrations/:id/projects/:project/links           add one: { values } by field key
 DELETE /orgs/:org/integrations/:id/projects/:project/links/:linkId   remove one
 POST   /orgs/:org/integrations/:id/projects/:project/links/auto      link by name (`links.autoLink`)
-DELETE /orgs/:org/integrations/:source/:id              remove (unchanged, any kind)
+DELETE /orgs/:org/integrations/:id                      remove (any kind; its mappings go with it)
 
 GET    /projects/:org/:project/builds/:number/issues    issues made from a build + the project's trackers
 POST   /projects/:org/:project/builds/:number/issues    "Create issue" through the `tracker` capability
@@ -173,26 +180,66 @@ links: {
   the target they were made for); clearing it drops them all; manual ones stay (`mapProject`,
   `unmapProject` in `@circi/services`, which the generic mapping routes call).
 
+## Git hosts
+
+GitHub, GitLab and Bitbucket are definitions with the `git` capability; everything the pipeline does
+for a git host reads it, so adding Azure DevOps would be one definition and one registry line.
+
+```ts
+git: {
+  provider(ctx): GitProvider | undefined      // status/check run, summary comment, verifyWebhook, listRepositories
+  webhook: {
+    deliveryId(headers, rawBody): string | null   // handled once per id (null: refused)
+    events(headers, payload): GitEvent[]          // normalised events, below
+    secret?(ctx): string | null                   // shown to owners/admins; absent when configured on the host
+  }
+  respond(answer, ctx): Promise<void>         // a reaction or a reply on the host
+}
+```
+
+- **Connection.** One connection is an `integrations` row: GitHub the App installation id (verified
+  with GitHub when connecting: a token is minted and the repositories listed, so the App must really
+  be installed there; no other organisation may use it), GitLab `<host>#<user id>` of the token's
+  principal, Bitbucket the workspace slug. Sealed credentials are the host's JSON (GitLab address and
+  token, Bitbucket token and optional username); GitHub keeps none. `needsAttention(error)` turns a
+  revoked token or uninstalled App into the reason the dashboard shows (`GitAttentionBanner`); the
+  `git-notify` worker flags it, and mapping a project again (or reconnecting) clears it.
+- **Mapping.** The project's repository is `integration_projects.external_ref` of its mapping on the
+  connection. `exclusive: { account: true, project: 'group' }` keeps one account in one organisation
+  and a project on one git host.
+- **Pipeline.** The `git-notify` job reads the build's git target (`getGitTarget`), asks the
+  definition for its `git.provider(ctx)`, and writes the status and the one summary comment. Which
+  kinds are git hosts is `integrationRegistry.gitKinds()`; repository functions that need it take the
+  list (`kinds`), the services pass `gitKinds()`.
+- **Webhook ingress.** One route, `POST /api/integrations/:kind/webhook` (and the alias
+  `POST /webhooks/:kind`, the address installed GitHub Apps already point at), looks the definition up,
+  has `git.provider(ctx).verifyWebhook` check the signature or token, claims `deliveryId` once, and
+  gives `git.webhook.events` to `handleGitEvents` (`packages/services/src/git-events.ts`), the one
+  handler for every host. The events (`GitEvent`): `pull_request` (author, and for hosts that learn it
+  this way the source commit and branch), `command` (`/circi approve|reject|rerun` in a comment, with
+  the actor's host account id) and `check_action` (Approve or Reject pressed on a GitHub check run).
+  The handler remembers authors, links builds to pull requests, reviews or reruns for the member the
+  host account belongs to (matched by account id, exactly one member; never by email), and has the
+  definition `respond`. A repository is found by `findGitProjects` (the connection by external id, or
+  by its prefix for GitLab's `host#`; the repository case-insensitively).
+- **Webhook secret.** GitHub's is the App's, configured with `GITHUB_APP_WEBHOOK_SECRET`. GitLab's and
+  Bitbucket's are derived from the instance secret (`derivedWebhookSecret(authSecret, kind)`), shown
+  with the webhook address on the integration's page to owners and admins.
+- **Tests.** A test fakes a host's edge with `Context.gitProviders` (by definition id), or with the
+  provider's `fetch`; nothing talks to a real host.
+
 ## What stays custom
 
-Until its definition exists, an integration keeps its own route file, repository functions and
-page: GitHub, GitLab and Bitbucket (git connections, webhooks, `provider_connections`). They appear
-in the catalog from the static list in `@circi/core` (`INTEGRATION_CATALOG`) with
-`pageStyle: 'custom'`. Migrating one means writing its definition, registering it, deleting its
-entry from `INTEGRATION_CATALOG`, its hand-written route and page, and its `built`/`connectable`
-lines in `routes/dashboard/integrations.ts`. A kind in both the registry and `INTEGRATION_CATALOG`
-fails the registry test.
-
-Some things are not an integration's business and never move into a definition: webhook receivers
-that authenticate a git host (they stay routes), the web app's logo artwork, and the provider
-clients in `packages/providers`.
+Nothing is a route, table, job or page of one integration. What is not a definition's business: the
+web app's logo artwork (`MARKS`), the provider clients in `packages/providers`, and the planned tiles
+of `INTEGRATION_CATALOG` (entries without a definition yet; a kind in both the registry and the
+catalog fails the registry test). GitLab and Bitbucket sign-in (auth providers) is `@circi/auth`'s.
 
 ## Known gaps
 
-Behaviour the old hand-written Linear, Jira and Figma routes had and the generic routes do not:
-
-- A project can be mapped to the same kind on several connections (the trackers used to move it:
-  "one connection per kind per project"); and an organisation can connect several Figma accounts
-  (it used to be one), the same account in several organisations (it used to be refused).
+- An organisation can connect several Figma accounts (it used to be one); an account is still
+  connectable in one organisation (`exclusive.account`).
 - Selecting a `select` target is not checked against `listTargets` when saving (the page only offers
-  what the account lists).
+  what the account lists), and a `repository` is not checked against the host's list.
+- Linking a project through the project settings page or `circi-admin github link` records the
+  installation without asking GitHub (the organisation's Integrations page does verify it).

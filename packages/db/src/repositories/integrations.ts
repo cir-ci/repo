@@ -1,13 +1,13 @@
-import { and, asc, eq, inArray, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm'
 
 import { integrationProjects, integrations, projects } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { ConflictError, isUniqueViolation } from '#src/errors.ts'
 
 /**
- * An organisation's non-git integrations (Slack, Linear, Jira, Figma) and the projects that use
- * them. Git hosts are `provider_connections` (see `git.ts`). Credentials arrive and leave sealed
- * (`sealSecret` in `@circi/core`); nothing here reads them.
+ * An organisation's integrations (git hosts, Slack, Linear, Jira, Figma) and the projects that use
+ * them. Credentials arrive and leave sealed (`sealSecret` in `@circi/core`); nothing here reads
+ * them. The git-specific lookups are in `git.ts`.
  */
 
 export namespace OrgIntegration {
@@ -116,7 +116,13 @@ export async function setIntegrationAttention(
 ): Promise<void> {
   await db
     .update(integrations)
-    .set({ needsAttention: reason !== null, needsAttentionReason: reason })
+    .set({
+      needsAttention: reason !== null,
+      needsAttentionReason: reason,
+      // The time of the first failure is kept while it keeps failing.
+      needsAttentionAt:
+        reason === null ? null : sql`coalesce(${integrations.needsAttentionAt}, now())`,
+    })
     .where(eq(integrations.id, integrationId))
 }
 
@@ -213,7 +219,7 @@ export async function findIntegrationByExternalId(
 export async function replaceIntegrationCredentials(
   db: Database,
   integrationId: string,
-  input: { displayName: string; encryptedCredentials: string },
+  input: { displayName: string; encryptedCredentials: string | null },
 ): Promise<void> {
   await db
     .update(integrations)
@@ -222,8 +228,59 @@ export async function replaceIntegrationCredentials(
       encryptedCredentials: input.encryptedCredentials,
       needsAttention: false,
       needsAttentionReason: null,
+      needsAttentionAt: null,
     })
     .where(eq(integrations.id, integrationId))
+}
+
+/** Whether another organisation already has a connection to this external account (same kind). */
+export async function isAccountClaimedElsewhere(
+  db: Database,
+  kind: string,
+  externalId: string,
+  orgId: string,
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: integrations.id })
+    .from(integrations)
+    .where(
+      and(
+        eq(integrations.kind, kind),
+        eq(integrations.externalId, externalId),
+        ne(integrations.orgId, orgId),
+      ),
+    )
+    .limit(1)
+  return row !== undefined
+}
+
+/**
+ * Drops the project's mappings on integrations of the given kinds other than `keepIntegrationId`:
+ * what "a project maps to one connection" means (mapping to a second moves it). Returns the
+ * integrations it stopped using.
+ */
+export async function removeOtherProjectMappings(
+  db: Database,
+  input: { projectId: string; keepIntegrationId: string; kinds: readonly string[] },
+): Promise<string[]> {
+  if (input.kinds.length === 0) return []
+  const rows = await db
+    .delete(integrationProjects)
+    .where(
+      and(
+        eq(integrationProjects.projectId, input.projectId),
+        ne(integrationProjects.integrationId, input.keepIntegrationId),
+        inArray(
+          integrationProjects.integrationId,
+          db
+            .select({ id: integrations.id })
+            .from(integrations)
+            .where(inArray(integrations.kind, [...input.kinds])),
+        ),
+      ),
+    )
+    .returning({ integrationId: integrationProjects.integrationId })
+  return rows.map((r) => r.integrationId)
 }
 
 export namespace listOrgProjectMappings {

@@ -1,13 +1,11 @@
 import type { Auth } from '@circi/auth'
 import type { Config } from '@circi/config'
 import type { Database } from '@circi/db'
-import type { BitbucketCloud, GithubApp, ProviderRegistry, GitlabProvider } from '@circi/providers'
 import type { StorageDriver } from '@circi/storage'
 import type { Logger } from 'pino'
 
 import type { buildServer } from '#http/app.ts'
 import type { Deps } from '#http/lib/deps.ts'
-import { gitlabWebhookSecret } from '#http/lib/gitlab-secret.ts'
 
 import { integrationConfig } from './integration-config.ts'
 
@@ -18,10 +16,6 @@ export interface ServerRuntime {
   db: { db: Database; ping(): Promise<void> }
   auth: Auth
   storage: StorageDriver
-  github?: GithubApp
-  gitlab?: GitlabProvider
-  providers?: ProviderRegistry
-  bitbucket?: BitbucketCloud
 }
 
 /** Turns the configuration into the HTTP server's options: which scopes exist and with what. */
@@ -39,37 +33,14 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): buildServe
     trustedProxies: config.trustedProxies,
     publicOrigin: config.publicUrl.origin,
     previousHosts: config.previousPublicHosts,
-    ...(config.github
-      ? {
-          githubWebhook: {
-            db: rt.db.db,
-            secret: config.github.webhookSecret,
-            github: rt.github,
-            ...(rt.providers ? { providers: rt.providers } : {}),
-            publicOrigin: config.publicUrl.origin,
-            logger: rt.logger,
-          },
-        }
-      : {}),
-    gitlabWebhook: {
+    gitWebhook: {
       db: rt.db.db,
-      secret: gitlabWebhookSecret(config.authSecret),
-      gitlab: rt.gitlab,
       authSecret: config.authSecret,
       publicOrigin: config.publicUrl.origin,
+      integrations: { config: integrationConfig(config) },
+      webhookAllowPrivate: config.webhookAllowPrivate,
       logger: rt.logger,
     },
-    ...(rt.bitbucket
-      ? {
-          bitbucketWebhook: {
-            db: rt.db.db,
-            bitbucket: rt.bitbucket,
-            authSecret: config.authSecret,
-            publicOrigin: config.publicUrl.origin,
-            logger: rt.logger,
-          },
-        }
-      : {}),
     ...(sites
       ? {
           siteServing: {
@@ -94,8 +65,6 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): buildServe
       webhookAllowPrivate: config.webhookAllowPrivate,
       orgCreation: config.orgCreation,
       githubApp: config.github !== undefined,
-      ...(rt.providers ? { providers: rt.providers } : {}),
-      ...(rt.gitlab ? { gitlab: rt.gitlab } : {}),
       integrations: { config: integrationConfig(config) },
       ...(sites ? { sites } : {}),
       authSecret: config.authSecret,

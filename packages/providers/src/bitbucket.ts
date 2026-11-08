@@ -27,7 +27,7 @@ export interface BitbucketCredentials {
   username?: string
 }
 
-/** The text sealed into `provider_connections.encrypted_credentials`. */
+/** The text sealed into `integrations.encrypted_credentials`. */
 export const serializeBitbucketCredentials = (c: BitbucketCredentials): string => JSON.stringify(c)
 
 const DEFAULT_API = 'https://api.bitbucket.org/2.0'

@@ -5,18 +5,18 @@ import type { CheckReport } from './render.ts'
  * job, the webhook routes, the repository picker) resolve an adapter from the registry by the
  * connection's `kind` and call only this; nothing outside a provider's own file knows a host's API.
  *
- * `externalId` is `provider_connections.external_id`: the host's id for the connection (the GitHub
+ * `externalId` is `integrations.external_id`: the host's id for the connection (the GitHub
  * App installation id). A token-based host reads its credentials for that connection itself, from
  * what it was constructed with, so the arguments stay the same for every host.
  *
  * Per-connection secrets: a token host whose credentials differ per connection gets them as the
- * optional trailing `credentials` argument, the opened plaintext of `provider_connections.
+ * optional trailing `credentials` argument, the opened plaintext of `integrations.
  * encrypted_credentials` (the notify job opens it with `openSecret`, so adapters never see the
  * instance secret). GitHub ignores it. Passing it beats a registry that returns a provider bound
  * to the connection: the registry and every existing call site stay as they are.
  */
 export interface GitProvider {
-  /** `provider_connections.kind` this adapter serves, e.g. `github`. */
+  /** `integrations.kind` this adapter serves, e.g. `github`. */
   readonly kind: string
 
   /**
@@ -92,7 +92,7 @@ export class ProviderApiError extends Error {
 export const isConnectionRevoked = (err: unknown): err is ProviderApiError =>
   err instanceof ProviderApiError && err.revoked
 
-/** Adapters by `provider_connections.kind`. */
+/** Adapters by `integrations.kind`. */
 export interface ProviderRegistry<P = GitProvider> {
   get(kind: string): P | undefined
   kinds(): string[]

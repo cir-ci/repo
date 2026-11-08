@@ -26,6 +26,7 @@ import {
   supersedeReviewRequests,
 } from '@circi/db'
 
+import { gitKinds } from './git-kinds.ts'
 import { queueIntegrationEvent } from './integration-events.ts'
 import { notifyReviewRequested } from './reviews.ts'
 
@@ -54,7 +55,7 @@ export async function finalizeBuild(
         payload: { buildId: result.build.id },
         dedupeKey: result.build.id,
       })
-      await queueGitNotify(tx, result.build)
+      await queueGitNotify(tx, result.build, gitKinds())
       // A newer build on the branch replaces the older builds' review requests.
       if (result.build.branch !== null) {
         const superseded = await supersedeReviewRequests(tx, {
@@ -135,7 +136,7 @@ export async function completeBuild(
     }
     await queueWebhookEvent(tx, { build: done, event: 'build.completed' })
     await queueIntegrationEvent(tx, { type: 'build.completed', buildId: done.id })
-    await queueGitNotify(tx, done)
+    await queueGitNotify(tx, done, gitKinds())
   })
 }
 export namespace completeBuild {
@@ -147,7 +148,7 @@ export namespace completeBuild {
 export async function failBuild(db: Database, buildId: string, message: string): Promise<void> {
   await db.transaction(async (tx) => {
     const failed = await setBuildError(tx, buildId, message)
-    if (failed) await queueGitNotify(tx, failed)
+    if (failed) await queueGitNotify(tx, failed, gitKinds())
   })
 }
 
@@ -156,7 +157,7 @@ export async function requeueBuild(db: Database, buildId: string): Promise<void>
   await db.transaction(async (tx) => {
     const build = await resetBuild(tx, buildId)
     await enqueueJob(tx, { queue: QUEUES.processBuild, payload: { buildId } })
-    await queueGitNotify(tx, build)
+    await queueGitNotify(tx, build, gitKinds())
   })
 }
 
@@ -254,8 +255,8 @@ export async function recordPullRequestAuthor(
     prNumber: number
     login: string
     providerId?: string | null
-    /** The git host the author is on; default `github`. */
-    provider?: 'github' | 'gitlab'
+    /** The sign-in provider the author is on (`github`, `gitlab`, `bitbucket`); default `github`. */
+    provider?: string
   },
 ): Promise<number> {
   const userId = await matchAuthor(db, input.projectId, {

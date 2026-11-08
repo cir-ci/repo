@@ -7,6 +7,7 @@ import {
   getIntegration,
   getMemberRole,
   getProjectBySlugs,
+  isAccountClaimedElsewhere,
   listOrgProjectMappings,
   listProjectLinks,
   replaceIntegrationCredentials,
@@ -14,6 +15,7 @@ import {
   type IntegrationLink,
 } from '@circi/db'
 import {
+  IntegrationConflictError,
   IntegrationError,
   type IntegrationDefinition,
   integrationRegistry,
@@ -66,6 +68,19 @@ async function replyConnectError(req: FastifyRequest, reply: FastifyReply, err: 
   throw err
 }
 
+/** The repositories a git host's connection can see, as targets. */
+async function listRepositories(
+  git: NonNullable<IntegrationDefinition['capabilities']['git']>,
+  externalId: string,
+  credentials: string,
+  ctx: IntegrationDefinition.Context,
+): Promise<IntegrationDefinition.Target[]> {
+  const provider = git.provider(ctx)
+  if (!provider) return []
+  const repositories = await provider.listRepositories(externalId, credentials || undefined)
+  return repositories.map((r) => ({ id: r.ref, name: r.ref }))
+}
+
 /** A link as the dashboard gets it. */
 const wireLink = (l: IntegrationLink.Row): Integration.Link => ({
   id: l.id,
@@ -77,7 +92,10 @@ const wireLink = (l: IntegrationLink.Row): Integration.Link => ({
   createdAt: l.createdAt.toISOString(),
 })
 
-/** The integration's opened credentials, replying 409 when they cannot be read. */
+/**
+ * The integration's opened credentials, replying 409 when they cannot be read. A `secretless`
+ * definition (an App-based git host) keeps none: its capabilities get an empty string.
+ */
 async function credentialsFor(
   reply: FastifyReply,
   loaded: {
@@ -86,15 +104,35 @@ async function credentialsFor(
   },
   ctx: IntegrationDefinition.Context,
 ) {
+  if (loaded.definition.secretless) return ''
   const credentials = loaded.integration.encryptedCredentials
     ? openSecret(ctx.authSecret, loaded.integration.encryptedCredentials)
     : undefined
-  if (!credentials) {
+  if (credentials === undefined) {
     await reply.code(409).send({
       error: `The ${loaded.definition.name} credentials cannot be read; connect it again`,
     })
   }
   return credentials
+}
+
+/**
+ * The address a git host calls, and the secret to put on it (owners and admins only; a host whose
+ * secret is configured elsewhere has none to show). Null for an integration with no webhook.
+ */
+function webhookOf(
+  definition: IntegrationDefinition,
+  ctx: IntegrationDefinition.Context | undefined,
+  publicOrigin: string,
+  role: string | undefined,
+): Integration.MappingPage['webhook'] {
+  const git = definition.capabilities.git
+  if (!git) return null
+  const canSee = role === 'owner' || role === 'admin'
+  return {
+    url: `${publicOrigin}/webhooks/${definition.id}`,
+    secret: canSee && ctx ? (git.webhook.secret?.(ctx) ?? null) : null,
+  }
 }
 
 /** The pieces the generic routes share. */
@@ -143,19 +181,34 @@ function createGeneric(deps: Deps.Dashboard) {
     return ctx
   }
 
-  /** Stores a connected account sealed: a reconnect of the same account replaces its credentials. */
+  /**
+   * Stores a connected account sealed. An `exclusive` definition refuses an account another
+   * organisation already uses (409). A reconnect of the same account replaces its credentials
+   * (always for an OAuth install, and for a definition with `replaceOnReconnect`); otherwise the
+   * same account twice is a 409.
+   */
   async function store(
     orgId: string,
     userId: string,
-    kind: string,
+    definition: IntegrationDefinition,
     connected: IntegrationDefinition.ConnectResult,
     ctx: IntegrationDefinition.Context,
     options: { replace: boolean },
   ): Promise<string> {
-    const sealed = sealSecret(ctx.authSecret, connected.credentials)
-    const existing = options.replace
-      ? await findIntegrationByExternalId(deps.db, orgId, kind, connected.externalId)
-      : undefined
+    const kind = definition.id
+    if (
+      definition.exclusive?.account &&
+      (await isAccountClaimedElsewhere(deps.db, kind, connected.externalId, orgId))
+    ) {
+      throw new IntegrationConflictError(
+        `That ${definition.name} account is already connected to another organization`,
+      )
+    }
+    const sealed = connected.credentials ? sealSecret(ctx.authSecret, connected.credentials) : null
+    const existing =
+      options.replace || definition.replaceOnReconnect
+        ? await findIntegrationByExternalId(deps.db, orgId, kind, connected.externalId)
+        : undefined
     if (existing) {
       await replaceIntegrationCredentials(deps.db, existing.id, {
         displayName: connected.displayName,
@@ -207,13 +260,18 @@ function createGeneric(deps: Deps.Dashboard) {
     const { definition } = loaded
     const ctx = await contextFor(reply)
     if (!ctx) return reply
-    if (!definition.mapping?.listTargets) {
+    const git = definition.capabilities.git
+    const isRepository = definition.mapping?.target.kind === 'repository'
+    if (!definition.mapping?.listTargets && !(git && isRepository)) {
       return reply.code(404).send({ error: `${definition.name} has no targets to choose from` })
     }
     const credentials = await credentialsFor(reply, loaded, ctx)
-    if (!credentials) return reply
+    if (credentials === undefined) return reply
     try {
-      const listed = await definition.mapping.listTargets(credentials, ctx)
+      const listed =
+        git && isRepository
+          ? await listRepositories(git, loaded.integration.externalId, credentials, ctx)
+          : ((await definition.mapping?.listTargets?.(credentials, ctx)) ?? [])
       return { targets: listed.map(wireTarget) }
     } catch (err) {
       return providerFailed(req, reply, loaded, err)
@@ -244,13 +302,16 @@ function createGeneric(deps: Deps.Dashboard) {
       orgSlug: found.org.slug,
       projectSlug: params.project,
     })
-    let target: { ref: string; name?: string | undefined } = { ref: body.ref, name: body.name }
+    let target: { ref: string; name?: string | undefined } = {
+      ref: body.ref,
+      name: body.name ?? (mapping.target.kind === 'repository' ? body.ref : undefined),
+    }
     if (mapping.target.resolve) {
       // The definition checks the typed value with the provider and says what to store.
       const ctx = await contextFor(reply)
       if (!ctx) return reply
       const credentials = await credentialsFor(reply, loaded, ctx)
-      if (!credentials) return reply
+      if (credentials === undefined) return reply
       try {
         target = await mapping.target.resolve(body.ref, { credentials }, ctx)
       } catch (err) {
@@ -455,7 +516,9 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
     const input = parse(definition.credentials, req.body ?? {})
     try {
       const connected = await definition.connect(input, ctx)
-      const id = await store(found.org.id, found.user.id, kind, connected, ctx, { replace: false })
+      const id = await store(found.org.id, found.user.id, definition, connected, ctx, {
+        replace: false,
+      })
       return reply.code(201).send({ id })
     } catch (err) {
       return replyConnectError(req, reply, err)
@@ -530,7 +593,7 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
         code: query.code,
         redirectUri: `${deps.publicOrigin}/api${callbackPath(kind)}`,
       })
-      const id = await store(orgId, user.id, kind, connected, ctx, { replace: true })
+      const id = await store(orgId, user.id, definition, connected, ctx, { replace: true })
       return reply.redirect(`${list}/${encodeURIComponent(kind)}/${id}?connect=connected`)
     } catch (err) {
       req.log.warn({ err }, `could not finish the ${definition.name} install`)
@@ -565,6 +628,7 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
         definition,
         ctx ?? { authSecret: '', publicOrigin: deps.publicOrigin, config: {} },
       ),
+      webhook: webhookOf(definition, ctx, deps.publicOrigin, role),
       projects: (await listOrgProjectMappings(deps.db, found.org.id, integration.id)).map((p) => ({
         slug: p.slug,
         name: p.name,

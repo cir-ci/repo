@@ -31,7 +31,6 @@ const token = (over: Partial<IntegrationDefinition.Of<z.ZodObject<{ token: z.Zod
     name: 'Test chat',
     description: 'A chat for tests.',
     logo: 'testchat',
-    pageStyle: 'generic',
     credentials: z.object({
       token: z.string().meta({ label: 'Token', secret: true, description: 'From the settings' }),
     }),
@@ -156,14 +155,13 @@ describe('the catalog', () => {
       token(),
       token({ id: 'other', name: 'Other', available: () => false }),
     ])
-    const catalog = buildCatalog(registry.all(), ctx, () => ({ built: false, connectable: false }))
+    const catalog = buildCatalog(registry.all(), ctx)
     expect(catalog.find((e) => e.kind === 'testchat')).toMatchObject({
       name: 'Test chat',
       group: 'chat',
       status: 'available',
       built: true,
       connectable: true,
-      pageStyle: 'generic',
       logo: 'testchat',
       oauth: false,
       credentials: [
@@ -184,10 +182,7 @@ describe('the catalog', () => {
   })
 
   it('keeps the planned tiles and the static entries without a definition, once each', () => {
-    const catalog = buildCatalog(integrationRegistry.all(), ctx, () => ({
-      built: true,
-      connectable: true,
-    }))
+    const catalog = buildCatalog(integrationRegistry.all(), ctx)
     const kinds = catalog.map((e) => e.kind)
     expect(new Set(kinds).size).toBe(kinds.length)
     for (const planned of INTEGRATION_CATALOG.filter((e) => e.status === 'planned')) {
@@ -206,13 +201,8 @@ describe('the catalog', () => {
     expect(resolveKind(integrationRegistry, 'slack')).toEqual({
       group: 'chat',
       name: 'Slack',
-      pageStyle: 'generic',
     })
-    expect(resolveKind(integrationRegistry, 'github')).toEqual({
-      group: 'git',
-      name: 'GitHub',
-      pageStyle: 'custom',
-    })
+    expect(resolveKind(integrationRegistry, 'github')).toEqual({ group: 'git', name: 'GitHub' })
     expect(resolveKind(integrationRegistry, 'nope')).toBeUndefined()
   })
 })

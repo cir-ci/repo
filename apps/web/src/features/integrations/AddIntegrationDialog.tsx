@@ -1,20 +1,9 @@
 import type { Integration } from '@circi/api'
 import { Badge, Banner, Button, Dialog, SegmentedControl, Text, TextField } from '@circi/ui'
-import { useNavigate } from '@tanstack/react-router'
-import { type FormEvent, useState } from 'react'
+import { useState } from 'react'
 
-import {
-  type GroupFilter,
-  filterCatalog,
-  GROUPS,
-  isGroupFilter,
-  isInstallationId,
-  unavailableNote,
-  useConnectGithub,
-} from './api.ts'
-import { ConnectBitbucket } from './ConnectBitbucket.tsx'
+import { type GroupFilter, filterCatalog, GROUPS, isGroupFilter, unavailableNote } from './api.ts'
 import { ConnectForm } from './ConnectForm.tsx'
-import { ConnectGitlab } from './ConnectGitlab.tsx'
 import { useInstall } from './generic-api.ts'
 import { ProviderLogo } from './logos.tsx'
 
@@ -24,14 +13,13 @@ const GROUP_OPTIONS = [{ value: 'all', label: 'All' }, ...GROUPS]
 
 /**
  * Every integration CirCI knows, searchable and filterable by group. Planned ones are disabled.
- * Adding GitHub is the one flow built so far: it asks for the GitHub App installation id (the
- * number at the end of the installation's settings address on GitHub), as the project page did,
- * then opens GitHub's own integration page to choose repositories.
+ * Each built one is added the same way, from its definition: a form of the credentials it asks for
+ * (GitHub: the App installation id; GitLab and Bitbucket: an address or workspace and a token), or
+ * straight to the provider's install when there is nothing to type.
  */
 export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
   const [query, setQuery] = useState('')
   const [group, setGroup] = useState<GroupFilter>('all')
-  const [connecting, setConnecting] = useState<'github' | 'gitlab' | 'bitbucket' | null>(null)
   // A generic integration whose connect form is open (one with credential fields).
   const [generic, setGeneric] = useState<Integration.CatalogEntry | null>(null)
   const install = useInstall(props.org)
@@ -39,7 +27,6 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
 
   function close(open: boolean) {
     if (!open) {
-      setConnecting(null)
       setGeneric(null)
       setQuery('')
       setGroup('all')
@@ -51,28 +38,11 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
     <Dialog
       open={props.open}
       onOpenChange={close}
-      title={
-        generic
-          ? `Connect ${generic.name}`
-          : connecting === 'github'
-            ? 'Connect GitHub'
-            : connecting === 'gitlab'
-              ? 'Connect GitLab'
-              : connecting === 'bitbucket'
-                ? 'Connect Bitbucket'
-                : 'Add an integration'
-      }
+      title={generic ? `Connect ${generic.name}` : 'Add an integration'}
       size="wide"
       actions={
-        connecting || generic ? (
-          <Button
-            onClick={() => {
-              setConnecting(null)
-              setGeneric(null)
-            }}
-          >
-            Back
-          </Button>
+        generic ? (
+          <Button onClick={() => setGeneric(null)}>Back</Button>
         ) : (
           <Button onClick={() => close(false)}>Close</Button>
         )
@@ -80,12 +50,6 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
     >
       {generic ? (
         <ConnectForm entry={generic} org={props.org} onDone={() => close(false)} />
-      ) : connecting === 'github' ? (
-        <ConnectGithub org={props.org} onDone={() => close(false)} />
-      ) : connecting === 'gitlab' ? (
-        <ConnectGitlab org={props.org} onDone={() => close(false)} />
-      ) : connecting === 'bitbucket' ? (
-        <ConnectBitbucket org={props.org} onDone={() => close(false)} />
       ) : (
         <>
           <div className={styles.filters}>
@@ -123,16 +87,10 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
                   <Button
                     disabled={!canAdd(entry)}
                     onClick={() => {
-                      if (entry.pageStyle === 'generic') {
-                        // Nothing to type, only an install: go straight to the provider.
-                        if (entry.credentials.length === 0 && entry.oauth) {
-                          install.mutate(entry.kind)
-                        } else setGeneric(entry)
-                        return
-                      }
-                      if (entry.kind === 'github') setConnecting('github')
-                      if (entry.kind === 'gitlab') setConnecting('gitlab')
-                      if (entry.kind === 'bitbucket') setConnecting('bitbucket')
+                      // Nothing to type, only an install: go straight to the provider.
+                      if (entry.credentials.length === 0 && entry.oauth) {
+                        install.mutate(entry.kind)
+                      } else setGeneric(entry)
                     }}
                     aria-label={`Add ${entry.name}`}
                   >
@@ -148,58 +106,8 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
   )
 }
 
-/** Only kinds with an add flow can be picked (every generic one has): planned and not-set-up ones are disabled. */
-const canAdd = (entry: Integration.CatalogEntry) =>
-  unavailableNote(entry) === null &&
-  (entry.pageStyle === 'generic' ||
-    entry.kind === 'github' ||
-    entry.kind === 'gitlab' ||
-    entry.kind === 'bitbucket')
-
-function ConnectGithub(props: { org: string; onDone: () => void }) {
-  const connect = useConnectGithub(props.org)
-  const navigate = useNavigate()
-  const [id, setId] = useState('')
-
-  function submit(e: FormEvent) {
-    e.preventDefault()
-    if (!isInstallationId(id)) return
-    connect.mutate(id, {
-      onSuccess: () => {
-        props.onDone()
-        void navigate({
-          to: '/organizations/$org/settings/integrations/github',
-          params: { org: props.org },
-        })
-      },
-    })
-  }
-
-  return (
-    <form onSubmit={submit} noValidate className={styles.form}>
-      <TextField
-        label="GitHub App installation id"
-        value={id}
-        onChange={(e) => setId(e.target.value)}
-        required
-        inputMode="numeric"
-        description="Install the CirCI GitHub App on your account or organisation, then paste the number at the end of the installation’s settings address on GitHub."
-        {...(id && !isInstallationId(id) ? { error: 'The installation id is a number' } : {})}
-      />
-      {connect.error ? <Banner tone="danger">{connect.error.message}</Banner> : null}
-      <div>
-        <Button
-          type="submit"
-          variant="primary"
-          loading={connect.isPending}
-          disabled={!isInstallationId(id)}
-        >
-          Connect GitHub
-        </Button>
-      </div>
-    </form>
-  )
-}
+/** Only built, set-up kinds can be picked: planned and not-set-up ones are disabled. */
+const canAdd = (entry: Integration.CatalogEntry) => unavailableNote(entry) === null
 
 export namespace AddIntegrationDialog {
   export interface Props {

@@ -21,7 +21,6 @@ const slackDefinition = entry({
   kind: 'slack',
   name: 'Slack',
   group: 'chat',
-  pageStyle: 'generic',
   oauth: true,
   mapping: {
     description: 'Choose a channel for each project.',
@@ -131,7 +130,6 @@ describe('GenericIntegrationPage', () => {
       kind: 'tokenchat',
       name: 'Token chat',
       group: 'chat',
-      pageStyle: 'generic',
       mapping: {
         targetLabel: 'Room',
         targetKind: 'text',
@@ -232,7 +230,6 @@ describe('Add dialog', () => {
       kind: 'tokenchat',
       name: 'Token chat',
       group: 'chat',
-      pageStyle: 'generic',
       credentials: [{ name: 'token', label: 'Token', secret: true, optional: false }],
     })
     await renderPage(
@@ -264,7 +261,6 @@ const figmaDefinition = entry({
   kind: 'figma',
   name: 'Figma',
   group: 'design',
-  pageStyle: 'generic',
   credentials: [{ name: 'token', label: 'Access token', secret: true, optional: false }],
   mapping: {
     description: 'Choose the Figma file each project is designed in.',
@@ -420,5 +416,87 @@ describe('GenericIntegrationPage links (Figma frames)', () => {
     expect(page.getByRole('button', { name: 'Link Web automatically' }).query()).toBeNull()
     expect(page.getByRole('form', { name: 'Add a link to Web' }).query()).toBeNull()
     expect(page.getByRole('button', { name: /Remove link/ }).query()).toBeNull()
+  })
+})
+
+const gitDefinition = entry({
+  kind: 'gitlab',
+  name: 'GitLab',
+  mapping: {
+    description: 'Choose the GitLab project each CirCI project reports to.',
+    targetLabel: 'GitLab project',
+    targetKind: 'repository',
+    targetPlaceholder: 'acme/web',
+    fields: [],
+  },
+})
+
+const gitPage = (over: Record<string, unknown> = {}) => ({
+  body: {
+    canManage: true,
+    configured: false,
+    integration: {
+      id: 'g1',
+      kind: 'gitlab',
+      name: 'gitlab.example.com#7',
+      needsAttention: false,
+      attentionReason: null,
+    },
+    definition: gitDefinition,
+    webhook: { url: 'https://circi.test/webhooks/gitlab', secret: 'shh-secret' },
+    projects: [
+      { slug: 'web', name: 'Web', mapping: { ref: 'acme/web', name: 'acme/web', extra: {} } },
+      { slug: 'docs', name: 'Docs', mapping: null },
+    ],
+    ...over,
+  },
+})
+
+describe('GenericIntegrationPage for a git host', () => {
+  it('shows the webhook address and secret, and maps a repository typed or suggested', async () => {
+    await page.viewport(1000, 900)
+    const fake = fakeApi({
+      [`GET ${BASE}/g1/projects`]: gitPage(),
+      [`GET ${BASE}/g1/targets`]: {
+        body: { targets: [{ id: 'acme/docs', name: 'acme/docs' }] },
+      },
+      [`PUT ${BASE}/g1/projects/docs`]: { status: 204 },
+      [`DELETE ${BASE}/g1/projects/web`]: { status: 204 },
+    })
+    await show('/organizations/acme/settings/integrations/gitlab/g1')
+    await expect.element(page.getByText('https://circi.test/webhooks/gitlab')).toBeVisible()
+    await expect.element(page.getByText('shh-secret')).toBeVisible()
+    await expect
+      .element(page.getByRole('combobox', { name: 'Web gitlab project' }))
+      .toHaveValue('acme/web')
+    await expect.poll(() => document.querySelectorAll('datalist option').length).toBeGreaterThan(0)
+
+    const docs = page.getByRole('form', { name: 'Docs' })
+    await docs.getByRole('combobox', { name: 'Docs gitlab project' }).fill(' acme/docs ')
+    await docs.getByRole('button', { name: 'Save' }).click()
+    await expect.poll(() => fake.of('PUT')).toHaveLength(1)
+    // A repository is sent as typed (trimmed); its name is stored by the server.
+    expect(fake.of('PUT')[0]?.body).toEqual({ ref: 'acme/docs', extra: {} })
+
+    await page
+      .getByRole('form', { name: 'Web' })
+      .getByRole('button', { name: 'Remove Web gitlab project' })
+      .click()
+    await expect.poll(() => fake.of('DELETE')).toHaveLength(1)
+  })
+
+  it('is read-only for members, who do not get the webhook secret', async () => {
+    await page.viewport(1000, 900)
+    fakeApi({
+      [`GET ${BASE}/g1/projects`]: gitPage({
+        canManage: false,
+        webhook: { url: 'https://circi.test/webhooks/gitlab', secret: null },
+      }),
+    })
+    await show('/organizations/acme/settings/integrations/gitlab/g1')
+    await expect.element(page.getByText('https://circi.test/webhooks/gitlab')).toBeVisible()
+    expect(page.getByText('shh-secret').elements()).toHaveLength(0)
+    await expect.element(page.getByText('acme/web')).toBeVisible()
+    expect(page.getByRole('textbox').elements()).toHaveLength(0)
   })
 })

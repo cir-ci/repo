@@ -19,6 +19,7 @@ import {
   setReviewRequestSnooze,
 } from '@circi/db'
 
+import { gitKinds } from './git-kinds.ts'
 import { queueIntegrationEvent } from './integration-events.ts'
 import { notify } from './notifications.ts'
 
@@ -69,7 +70,7 @@ export async function reviewBuild(db: Database, input: reviewBuild.Input): Promi
         event: 'build.reviewed',
         review: { state: input.state, source: input.source ?? 'ui', userName: reviewerName },
       })
-      await queueGitNotify(tx, build)
+      await queueGitNotify(tx, build, gitKinds())
     }
     return build
   })

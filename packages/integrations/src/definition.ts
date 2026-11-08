@@ -14,12 +14,11 @@ import type { z } from 'zod'
 export namespace IntegrationDefinition {
   export type Group = IntegrationCatalog.Group
 
-  /** `generic`: configured on the one generic page. `custom`: the integration keeps its own page. */
-  export type PageStyle = 'generic' | 'custom'
-
   /** Instance-wide settings of the integrations that need one (an OAuth app). One key per kind. */
   export interface InstanceConfig {
     slack?: { clientId: string; clientSecret: string; apiUrl?: string }
+    /** The instance's GitHub App (its credentials; installations are the connections). */
+    github?: { apiUrl: string; appId: string; privateKey: string; webhookSecret: string }
   }
 
   /** What a definition's functions get: the instance, never a database. */
@@ -31,6 +30,13 @@ export namespace IntegrationDefinition {
     config: InstanceConfig
     /** Replaces `fetch` for the provider's HTTP calls (tests). */
     fetch?: typeof fetch
+    /**
+     * Replaces a git host's adapter, by definition id (tests fake the host's edge here). What it
+     * holds must have the methods the caller uses; `git.provider(ctx)` of the definition returns it.
+     */
+    gitProviders?: Readonly<Record<string, object>>
+    /** Addresses a person types in may point at private networks (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
+    allowPrivateAddresses?: boolean
   }
 
   /**
@@ -90,8 +96,12 @@ export namespace IntegrationDefinition {
     target: {
       /** `Channel`, `Team`, `Project`. */
       label: string
-      /** `select` offers `listTargets`; `text` takes the id typed in. */
-      kind: 'text' | 'select'
+      /**
+       * `select` offers `listTargets`; `text` takes the id typed in; `repository` is a `select`
+       * over the git host's repositories (the `git` capability's `listRepositories`) that falls
+       * back to typing `owner/name` when the host cannot list them.
+       */
+      kind: 'text' | 'select' | 'repository'
       placeholder?: string
       /** An error message for a target that cannot be right, or null. Checked before saving. */
       validate?(ref: string): string | null
@@ -107,7 +117,10 @@ export namespace IntegrationDefinition {
         ctx: Context,
       ): Promise<{ ref: string; name?: string }>
     }
-    /** The choices of a `select` target, from the provider, with the integration's opened credentials. */
+    /**
+     * The choices of a `select` target, from the provider, with the integration's opened
+     * credentials. A `repository` target needs none: the `git` capability lists them.
+     */
     listTargets?(credentials: string, ctx: Context): Promise<readonly Target[]>
     fields?: readonly MappingField[]
     /**
@@ -131,11 +144,99 @@ export namespace IntegrationDefinition {
     credentials: string
   }
 
+  /** The connection a webhook delivery is about: its external id, or the start of it (GitLab: `host#`). */
+  export type GitConnectionMatch = { externalId: string } | { externalIdPrefix: string }
+
+  /** A repository a delivery names, and which of the organisations' connections it is on. */
+  export interface GitRepo {
+    /** The host's name for it: `owner/name`, a GitLab path with namespace. */
+    ref: string
+    connection: GitConnectionMatch
+  }
+
+  /** Who did it on the host: their account id there (matched to a linked CirCI sign-in) and name. */
+  export interface GitActor {
+    accountId: string
+    login: string
+  }
+
+  /** What a git host's webhook means, normalised: the one shared handler acts on these. */
+  export type GitEvent =
+    | {
+        /** A pull or merge request was opened or changed. */
+        type: 'pull_request'
+        repo: GitRepo
+        number: number
+        /** Its author, as the host says. */
+        author: { login: string; accountId?: string } | null
+        /** The source commit and branch, for hosts whose builds learn their pull request this way. */
+        head?: { sha?: string; branch?: string }
+      }
+    | {
+        /** `/circi approve|reject|rerun` in a comment on a pull request. */
+        type: 'command'
+        repo: GitRepo
+        number: number
+        command: 'approve' | 'reject' | 'rerun'
+        /** The comment, to react to. */
+        commentId?: string
+        actor: GitActor
+      }
+    | {
+        /** Approve or Reject pressed on a build's check (GitHub check runs). */
+        type: 'check_action'
+        action: 'approve' | 'reject'
+        checkRunId: string
+        /** Where to answer when the person is unknown. */
+        repo?: GitRepo
+        actor: GitActor
+      }
+
+  /** How the one shared handler's verdict is told to the person on the host. */
+  export interface GitAnswer {
+    event: Extract<GitEvent, { type: 'command' | 'check_action' }>
+    /** What happened: done, the person is not a CirCI member of the project, or nothing applied. */
+    outcome: 'acted' | 'refused' | 'ignored'
+    /** The pull request, when the event itself does not carry it (a check action's build). */
+    prNumber?: number
+    /** The connection's external id and opened credentials (`undefined` for a connection without any). */
+    connection: { externalId: string; credentials: string | undefined }
+  }
+
+  export interface GitWebhook {
+    /**
+     * The delivery's id, to handle it once (GitHub's retries and replays); null when the headers
+     * carry none (the delivery is refused). Includes any prefix that keeps hosts apart.
+     */
+    deliveryId(headers: GitProvider.WebhookHeaders, rawBody: Buffer): string | null
+    /** The events a verified delivery's JSON body means; empty for any the host sends that CirCI ignores. */
+    events(headers: GitProvider.WebhookHeaders, payload: Record<string, unknown>): GitEvent[]
+    /**
+     * The secret to put on the host's webhook, for owners and admins to read: derived from the
+     * instance secret. Null where it is configured elsewhere (the GitHub App's own).
+     */
+    secret?(ctx: Context): string | null
+  }
+
+  /**
+   * A git host: reports a build on its commit and pull request, and tells CirCI about pull
+   * requests and commands through a webhook. Everything about the host's API stays behind
+   * `GitProvider`; the shared pipeline (the `git-notify` job, the webhook ingress, the repository
+   * picker) never knows which host it is.
+   */
+  export interface Git {
+    /** The adapter for this instance; undefined when it cannot work here (no GitHub App configured). */
+    provider(ctx: Context): GitProvider | undefined
+    webhook: GitWebhook
+    /** Answers a command or check action on the host (a reaction or a reply). Failures are logged by the caller. */
+    respond(input: GitAnswer, ctx: Context): Promise<void>
+  }
+
   export interface Capabilities {
     /** Posts a message about an event to the mapped channel. Throws; the worker classifies it. */
     chat?: { send(message: ChatMessage, ctx: Context): Promise<void> }
-    /** A git host (still reached through `provider_connections` until git hosts migrate). */
-    git?: { create(ctx: Context): GitProvider | undefined }
+    /** A git host. */
+    git?: Git
     /** An issue tracker built from the opened credentials. */
     tracker?: { create(credentials: string, ctx: Context): IssueTracker | undefined }
     /** A design tool: the frames of a file, renders of them and comments on them. */
@@ -233,8 +334,6 @@ export namespace IntegrationDefinition {
     description: string
     /** Key into the dashboard's logo table (`apps/web/src/features/integrations/logos.tsx`). */
     logo: string
-    /** Where it is configured. Generic definitions get the generic mapping page. */
-    pageStyle: PageStyle
     credentials: S
     /** Whether this instance can connect it now. Default true. */
     available?(ctx: Context): boolean
@@ -254,6 +353,29 @@ export namespace IntegrationDefinition {
     mapping?: Mapping
     /** Project-wide links it keeps (needs a `mapping`). */
     links?: Links
+    /**
+     * Rules that keep an external account or a project's mapping to one place. `account`: the same
+     * external account connects in ONE organisation of the instance (a second organisation gets
+     * a 409). `project`: a project maps to one connection of the kind (`kind`) or to one git host
+     * of the group (`group`); mapping to another moves it.
+     */
+    exclusive?: Exclusive
+    /**
+     * The connection keeps no secret of its own (GitHub: the App's credentials are instance
+     * configuration, the installation id is the external id): nothing is sealed, and capabilities
+     * get an empty credentials string.
+     */
+    secretless?: true
+    /**
+     * Connecting an account the organisation already has replaces its credentials and clears
+     * "needs attention" (a rotated token, a reinstalled App) instead of answering 409.
+     */
+    replaceOnReconnect?: true
+  }
+
+  export interface Exclusive {
+    account?: true
+    project?: 'kind' | 'group'
   }
 }
 

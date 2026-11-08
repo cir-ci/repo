@@ -12,7 +12,7 @@ import {
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams, useSearch } from '@tanstack/react-router'
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useId, useState } from 'react'
 
 import { Frame } from '#features/settings/Frame.tsx'
 import { useDocumentTitle } from '#lib/document-title.ts'
@@ -35,9 +35,9 @@ import { ProjectLinks } from './ProjectLinks.tsx'
 import styles from './Integrations.module.css'
 
 /**
- * The one page for every integration with `pageStyle: 'generic'`: each project maps to one target
+ * The one page for every integration: each project maps to one target
  * of the integration (a select of what the account offers, or a typed id) with the settings the
- * definition lists (event toggles, text, switches). Nothing here knows Slack or any other
+ * definition lists (event toggles, text, switches). Nothing here knows any
  * integration: it renders the definition's mapping spec from the API. A project without a target
  * uses nothing.
  */
@@ -73,6 +73,24 @@ export function GenericIntegrationPage() {
             description={spec?.description ?? data.definition.description}
           />
           {note ? <Banner tone={note.tone}>{note.text}</Banner> : null}
+          {data.webhook ? (
+            <Text variant="small" tone="secondary">
+              {data.definition.name} calls{' '}
+              <Text as="code" variant="mono">
+                {data.webhook.url}
+              </Text>
+              {data.webhook.secret ? (
+                <>
+                  {' '}
+                  with the secret{' '}
+                  <Text as="code" variant="mono">
+                    {data.webhook.secret}
+                  </Text>
+                </>
+              ) : null}
+              .
+            </Text>
+          ) : null}
           {data.integration.needsAttention ? (
             <Banner
               tone="danger"
@@ -152,9 +170,13 @@ function ProjectMapping(props: {
   const [ref, setRef] = useState(saved?.ref ?? '')
   const [values, setValues] = useState<ExtraValues>(() => initialExtra(spec.fields, saved?.extra))
   const selecting = spec.targetKind === 'select'
+  // A repository is typed (`owner/name`), with the host's repositories offered as suggestions.
+  const suggesting = spec.targetKind === 'repository'
+  const listId = useId()
   const targets = useQuery({
     ...targetsQuery(props.org, props.integrationId),
-    enabled: selecting && props.canManage,
+    enabled: (selecting || suggesting) && props.canManage,
+    retry: suggesting ? false : undefined,
   })
   const items = targetItems(
     targets.data?.targets ?? [],
@@ -209,12 +231,22 @@ function ProjectMapping(props: {
             {...(targets.error ? { error: targets.error.message } : {})}
           />
         ) : (
-          <TextField
-            label={`${project.name} ${targetName}`}
-            value={ref}
-            onChange={(e) => setRef(e.target.value)}
-            {...(spec.targetPlaceholder ? { placeholder: spec.targetPlaceholder } : {})}
-          />
+          <>
+            <TextField
+              label={`${project.name} ${targetName}`}
+              value={ref}
+              onChange={(e) => setRef(e.target.value)}
+              {...(suggesting ? { list: listId } : {})}
+              {...(spec.targetPlaceholder ? { placeholder: spec.targetPlaceholder } : {})}
+            />
+            {suggesting ? (
+              <datalist id={listId}>
+                {(targets.data?.targets ?? []).map((t) => (
+                  <option key={t.id} value={t.id} />
+                ))}
+              </datalist>
+            ) : null}
+          </>
         )}
         {spec.fields.map((field) => {
           if (field.kind === 'events') {

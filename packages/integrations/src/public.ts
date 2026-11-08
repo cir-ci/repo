@@ -104,7 +104,6 @@ export function describeDefinition(
     status: 'available',
     built: true,
     connectable: def.available ? def.available(ctx) : true,
-    pageStyle: def.pageStyle,
     logo: def.logo,
     credentials: credentialFields(def.credentials),
     oauth: def.oauth !== undefined,
@@ -113,15 +112,12 @@ export function describeDefinition(
   }
 }
 
-/** What an entry of the static catalog (a planned one, or one not migrated yet) adds to be a catalog entry. */
-function staticEntry(
-  entry: IntegrationCatalog.Entry,
-  state: { built: boolean; connectable: boolean },
-): Integration.CatalogEntry {
+/** What a planned entry of the static catalog is as a catalog entry: shown disabled, nothing behind it. */
+function plannedEntry(entry: IntegrationCatalog.Entry): Integration.CatalogEntry {
   return {
     ...entry,
-    ...state,
-    pageStyle: 'custom',
+    built: false,
+    connectable: false,
     logo: entry.kind,
     credentials: [],
     oauth: false,
@@ -131,23 +127,19 @@ function staticEntry(
 }
 
 /**
- * The catalog the dashboard shows: every definition of the registry, then the static entries that
- * have no definition (planned tiles, and integrations not migrated to the SDK yet, whose
- * `built`/`connectable` the caller decides with `legacy`).
+ * The catalog the dashboard shows: every definition of the registry, then the planned entries of
+ * the static catalog that have no definition yet.
  */
 export function buildCatalog(
   definitions: readonly IntegrationDefinition[],
   ctx: IntegrationDefinition.Context,
-  legacy: (entry: IntegrationCatalog.Entry) => { built: boolean; connectable: boolean },
 ): Integration.CatalogEntry[] {
   const known = new Set(definitions.map((d) => d.id))
   const entries: Integration.CatalogEntry[] = [
     ...definitions.map((d) => describeDefinition(d, ctx)),
-    ...INTEGRATION_CATALOG.filter((e) => !known.has(e.kind)).map((e) =>
-      staticEntry(e, e.status === 'available' ? legacy(e) : { built: false, connectable: false }),
-    ),
+    ...INTEGRATION_CATALOG.filter((e) => !known.has(e.kind)).map(plannedEntry),
   ]
-  // Stable by group (git, chat, design, tracker), registry entries before static ones in a group.
+  // Stable by group (git, chat, design, tracker), registry entries before planned ones in a group.
   return entries.toSorted(
     (a, b) => INTEGRATION_GROUPS.indexOf(a.group) - INTEGRATION_GROUPS.indexOf(b.group),
   )

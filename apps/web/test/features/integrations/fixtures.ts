@@ -13,10 +13,8 @@ const NAMES: Record<string, string> = {
 export const item = (over: Partial<Integration.Item> & Pick<Integration.Item, 'kind'>) =>
   ({
     id: over.id ?? `id-${over.kind}`,
-    source: 'integration',
     group: 'git',
     kindName: NAMES[over.kind] ?? over.kind,
-    pageStyle: over.kind === 'slack' ? 'generic' : 'custom',
     name: over.kind,
     needsAttention: false,
     attentionReason: null,
@@ -33,7 +31,6 @@ export const entry = (
   status: 'available',
   built: true,
   connectable: true,
-  pageStyle: 'custom',
   logo: over.kind,
   credentials: [],
   oauth: false,
@@ -43,7 +40,19 @@ export const entry = (
 })
 
 export const CATALOG: Integration.CatalogEntry[] = [
-  entry({ kind: 'github', name: 'GitHub' }),
+  entry({
+    kind: 'github',
+    name: 'GitHub',
+    credentials: [
+      {
+        name: 'installationId',
+        label: 'GitHub App installation id',
+        secret: false,
+        optional: false,
+        description: 'The number at the end of the installation’s settings address.',
+      },
+    ],
+  }),
   entry({ kind: 'gitlab', name: 'GitLab', built: false, connectable: false }),
   entry({
     kind: 'azure-devops',

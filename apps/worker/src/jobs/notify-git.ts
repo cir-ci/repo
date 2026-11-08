@@ -13,13 +13,12 @@ import {
   setPrCommentId,
   withAdvisoryLock,
 } from '@circi/db'
+import { type IntegrationDefinition, integrationRegistry } from '@circi/integrations'
 import {
   checkReport,
   type GitProvider,
-  isConnectionRevoked,
   prCommentBody,
   type ProviderRegistry,
-  providerRegistry,
   type ReportedBuild,
 } from '@circi/providers'
 import { gateInputs } from '@circi/services'
@@ -32,9 +31,11 @@ export namespace notifyGit {
 
   export interface Deps {
     db: Database
-    /** The adapters by connection kind. Overrides `github` when both are given. */
+    /** What the definitions' git capabilities read: the instance's settings (the GitHub App). */
+    context?: Pick<IntegrationDefinition.Context, 'config' | 'fetch'> | undefined
+    /** Stands in for the definitions' adapters, by connection kind (tests fake the host's edge). */
     providers?: ProviderRegistry<notifyGit.Provider> | undefined
-    /** Shorthand for a registry holding only the GitHub App, when this instance has one. */
+    /** Shorthand for a `providers` holding only a GitHub adapter. */
     github?: notifyGit.Provider | undefined
     /** Dashboard origin, for links back to the build. */
     publicOrigin: string
@@ -53,20 +54,21 @@ export namespace notifyGit {
 export async function notifyGit(deps: notifyGit.Deps, job: Job): Promise<notifyGit.Result> {
   const buildId = typeof job.payload.buildId === 'string' ? job.payload.buildId : undefined
   if (!buildId) return { status: 'skipped', reason: 'malformed job' }
-  const providers = deps.providers ?? providerRegistry({ github: deps.github })
-  if (providers.kinds().length === 0)
-    return { status: 'skipped', reason: 'no GitHub App configured' }
-  const first = await getGitTarget(deps.db, buildId)
+  const kinds = integrationRegistry.gitKinds()
+  const first = await getGitTarget(deps.db, buildId, kinds)
   if (!first) return { status: 'skipped', reason: 'project is not linked to a repository' }
-  const provider = providers.get(first.kind)
-  if (!provider) return { status: 'skipped', reason: `no ${first.kind} provider configured` }
+  const definition = integrationRegistry.get(first.kind)
+  const provider = definition?.capabilities.git?.provider(contextOf(deps))
+  if (!definition || !provider) {
+    return { status: 'skipped', reason: `no ${first.kind} provider configured` }
+  }
 
   // Jobs for one project run one at a time (lanes and worker processes both): two at once would
   // each create the build's check run and the pull request's comment, because neither has seen
   // the other's id yet. State is read inside the lock, so a job that waited writes the latest.
   try {
     return await withAdvisoryLock(deps.db, `git-notify:${first.build.projectId}`, async (db) => {
-      const target = await getGitTarget(db, buildId)
+      const target = await getGitTarget(db, buildId, kinds)
       if (!target) return { status: 'skipped', reason: 'project is not linked to a repository' }
       let credentials: string | undefined
       if (target.encryptedCredentials !== null) {
@@ -85,19 +87,33 @@ export async function notifyGit(deps: notifyGit.Deps, job: Job): Promise<notifyG
       return result
     })
   } catch (err) {
-    if (!isConnectionRevoked(err)) throw err
-    // Uninstalled or suspended: retrying cannot help. Record it for the dashboard and finish the
-    // job; the next build's job tries again, and clears the state once GitHub answers.
-    await markInstallationNeedsAttention(
-      deps.db,
-      first.kind,
-      first.installationId,
-      'installation_revoked',
-    )
+    const reason = definition.needsAttention(err)
+    if (!reason) throw err
+    // Uninstalled or suspended, token revoked: retrying cannot help. Record it for the dashboard
+    // and finish the job; the next build's job tries again, and clears the state once the host
+    // answers.
+    await markInstallationNeedsAttention(deps.db, first.kind, first.installationId, reason)
     return {
       status: 'skipped',
       reason: `${first.kind} connection ${first.installationId} was removed or suspended`,
     }
+  }
+}
+
+/** What the definitions' git capabilities get: the instance, with any adapters a test swapped in. */
+function contextOf(deps: notifyGit.Deps): IntegrationDefinition.Context {
+  const stubs: Record<string, object> = {}
+  for (const kind of deps.providers?.kinds() ?? []) {
+    const provider = deps.providers?.get(kind)
+    if (provider) stubs[kind] = provider
+  }
+  if (deps.github && !stubs.github) stubs.github = deps.github
+  return {
+    authSecret: deps.authSecret ?? '',
+    publicOrigin: deps.publicOrigin,
+    config: deps.context?.config ?? {},
+    ...(deps.context?.fetch ? { fetch: deps.context.fetch } : {}),
+    gitProviders: stubs,
   }
 }
 

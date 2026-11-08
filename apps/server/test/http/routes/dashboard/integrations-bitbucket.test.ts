@@ -4,7 +4,8 @@ import { join } from 'node:path'
 
 import { addMember, createUser } from '@circi/auth'
 import { openSecret } from '@circi/core'
-import { getOrganizationBySlug, listGitConnections, schema } from '@circi/db'
+import { getOrganizationBySlug, listIntegrations, schema } from '@circi/db'
+import { derivedWebhookSecret } from '@circi/integrations'
 import { ProviderApiError, providerRegistry } from '@circi/providers'
 import { FsStorage } from '@circi/storage'
 import { createTestDb } from '@circi/testing'
@@ -13,7 +14,6 @@ import { pino } from 'pino'
 import { afterAll, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
-import { bitbucketWebhookSecret } from '#http/lib/bitbucket-secret.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 
 const AUTH_SECRET = 'instance-secret-long-enough-for-test'
@@ -82,14 +82,18 @@ const call = (
 const base = `/api/orgs/${acme.orgSlug}/integrations`
 const org = await getOrganizationBySlug(t.db, acme.orgSlug)
 
-describe('POST /api/orgs/:org/integrations/bitbucket', () => {
+describe('POST /api/orgs/:org/integrations/bitbucket/connect', () => {
   const connect = { workspace: 'Acme-WS', token: 'good' }
 
   it('needs a session, an organization you belong to, and an owner or admin', async () => {
-    expect((await call('POST', `${base}/bitbucket`, '', connect)).statusCode).toBe(401)
-    expect((await call('POST', `${base}/bitbucket`, rivalCookie, connect)).statusCode).toBe(404)
-    expect((await call('POST', `${base}/bitbucket`, louCookie, connect)).statusCode).toBe(403)
-    expect(await listGitConnections(t.db, org.id)).toEqual([])
+    expect((await call('POST', `${base}/bitbucket/connect`, '', connect)).statusCode).toBe(401)
+    expect((await call('POST', `${base}/bitbucket/connect`, rivalCookie, connect)).statusCode).toBe(
+      404,
+    )
+    expect((await call('POST', `${base}/bitbucket/connect`, louCookie, connect)).statusCode).toBe(
+      403,
+    )
+    expect(await listIntegrations(t.db, org.id)).toEqual([])
   })
 
   it('validates the body', async () => {
@@ -101,7 +105,9 @@ describe('POST /api/orgs/:org/integrations/bitbucket', () => {
       { workspace: 'acme', token: 'x', extra: 1 },
     ]) {
       // eslint-disable-next-line no-await-in-loop -- in order
-      expect((await call('POST', `${base}/bitbucket`, ownerCookie, body)).statusCode).toBe(400)
+      expect((await call('POST', `${base}/bitbucket/connect`, ownerCookie, body)).statusCode).toBe(
+        400,
+      )
     }
   })
 
@@ -116,32 +122,32 @@ describe('POST /api/orgs/:org/integrations/bitbucket', () => {
     for (const [err, status] of cases) {
       failure = err
       // eslint-disable-next-line no-await-in-loop -- in order
-      const res = await call('POST', `${base}/bitbucket`, ownerCookie, connect)
+      const res = await call('POST', `${base}/bitbucket/connect`, ownerCookie, connect)
       expect(res.statusCode).toBe(status)
       expect(res.body).not.toContain('good')
     }
     failure = undefined
-    expect(await listGitConnections(t.db, org.id)).toEqual([])
+    expect(await listIntegrations(t.db, org.id)).toEqual([])
   })
 
   it('verifies through the provider, then stores the token sealed under the workspace slug', async () => {
     listed.length = 0
-    const res = await call('POST', `${base}/bitbucket`, ownerCookie, connect)
+    const res = await call('POST', `${base}/bitbucket/connect`, ownerCookie, connect)
     expect(res.statusCode).toBe(201)
     expect(listed).toHaveLength(1)
     expect(listed[0]?.workspace).toBe('acme-ws')
     expect(JSON.parse(listed[0]?.credentials ?? '{}')).toEqual({ token: 'good' })
     const [row] = await t.db
       .select()
-      .from(schema.providerConnections)
-      .where(eq(schema.providerConnections.orgId, org.id))
+      .from(schema.integrations)
+      .where(eq(schema.integrations.orgId, org.id))
     expect(row).toMatchObject({ kind: 'bitbucket', externalId: 'acme-ws' })
     expect(row?.encryptedCredentials).not.toContain('good')
     expect(openSecret(AUTH_SECRET, row?.encryptedCredentials ?? '')).toBe('{"token":"good"}')
   })
 
   it('connecting again replaces the token without a second connection', async () => {
-    const res = await call('POST', `${base}/bitbucket`, ownerCookie, {
+    const res = await call('POST', `${base}/bitbucket/connect`, ownerCookie, {
       workspace: 'acme-ws',
       token: 'newer',
       username: 'ann',
@@ -149,8 +155,8 @@ describe('POST /api/orgs/:org/integrations/bitbucket', () => {
     expect(res.statusCode).toBe(201)
     const rows = await t.db
       .select()
-      .from(schema.providerConnections)
-      .where(eq(schema.providerConnections.orgId, org.id))
+      .from(schema.integrations)
+      .where(eq(schema.integrations.orgId, org.id))
     expect(rows).toHaveLength(1)
     expect(
       JSON.parse(openSecret(AUTH_SECRET, rows[0]?.encryptedCredentials ?? '') ?? '{}'),
@@ -160,7 +166,7 @@ describe('POST /api/orgs/:org/integrations/bitbucket', () => {
   it('refuses a workspace another organization already connected', async () => {
     const res = await call(
       'POST',
-      `/api/orgs/${rival.orgSlug}/integrations/bitbucket`,
+      `/api/orgs/${rival.orgSlug}/integrations/bitbucket/connect`,
       rivalCookie,
       {
         workspace: 'acme-ws',
@@ -171,73 +177,63 @@ describe('POST /api/orgs/:org/integrations/bitbucket', () => {
   })
 })
 
-describe('Bitbucket page and project mapping', () => {
+const connection = async () =>
+  (await t.db.select().from(schema.integrations)).find(
+    (i) => i.orgId === org.id && i.kind === 'bitbucket',
+  )
+
+describe('Bitbucket mapping page and project mapping', () => {
   it('shows members the page without the webhook secret, and managers with it', async () => {
-    const manager = (await call('GET', `${base}/bitbucket`, ownerCookie)).json()
+    const id = (await connection())?.id
+    const url = `${base}/${id}/projects`
+    const manager = (await call('GET', url, ownerCookie)).json()
     expect(manager).toMatchObject({
       canManage: true,
-      webhookUrl: `${ORIGIN}/webhooks/bitbucket`,
-      webhookSecret: bitbucketWebhookSecret(AUTH_SECRET),
-      connections: [{ workspace: 'acme-ws', needsAttention: false }],
-      projects: [{ slug: 'web', repoRef: null, connectionId: null }],
+      integration: { kind: 'bitbucket', name: 'acme-ws', needsAttention: false },
+      webhook: {
+        url: `${ORIGIN}/webhooks/bitbucket`,
+        secret: derivedWebhookSecret(AUTH_SECRET, 'bitbucket'),
+      },
+      projects: [{ slug: 'web', mapping: null }],
     })
-    const member = (await call('GET', `${base}/bitbucket`, louCookie)).json()
-    expect(member).toMatchObject({ canManage: false, webhookSecret: null })
+    const member = (await call('GET', url, louCookie)).json()
+    expect(member).toMatchObject({ canManage: false, webhook: { secret: null } })
     expect(JSON.stringify(member)).not.toContain('newer')
-    expect((await call('GET', `${base}/bitbucket`, rivalCookie)).statusCode).toBe(404)
-    expect((await call('GET', `${base}/bitbucket`, '')).statusCode).toBe(401)
+    expect((await call('GET', url, rivalCookie)).statusCode).toBe(404)
+    expect((await call('GET', url, '')).statusCode).toBe(401)
   })
 
   it('lists the repositories a connection can see, through its own token', async () => {
-    const page = (await call('GET', `${base}/bitbucket`, ownerCookie)).json()
+    const id = (await connection())?.id
     listed.length = 0
-    const res = await call('GET', `${base}/${page.connections[0].id}/repositories`, ownerCookie)
-    expect(res.json()).toEqual({ repositories: [{ ref: 'acme-ws/web', private: true }] })
+    const res = await call('GET', `${base}/${id}/targets`, ownerCookie)
+    expect(res.json()).toEqual({ targets: [{ id: 'acme-ws/web', name: 'acme-ws/web' }] })
     expect(JSON.parse(listed[0]?.credentials ?? '{}')).toEqual({ token: 'newer', username: 'ann' })
   })
 
-  it('links a project to a repository, and unlinks it', async () => {
-    const page = (await call('GET', `${base}/bitbucket`, ownerCookie)).json()
-    const connectionId: string = page.connections[0].id
-    const url = `${base}/bitbucket/projects/web`
+  it('maps a project to a repository, and unmaps it', async () => {
+    const id = (await connection())?.id
+    const url = `${base}/${id}/projects/web`
+    const body = { ref: 'acme-ws/web' }
+    expect((await call('PUT', url, louCookie, body)).statusCode).toBe(403)
+    expect((await call('PUT', url, rivalCookie, body)).statusCode).toBe(404)
+    expect((await call('PUT', url, ownerCookie, { ref: 'nonsense' })).statusCode).toBe(400)
     expect(
-      (await call('PUT', url, louCookie, { connectionId, repoRef: 'acme-ws/web' })).statusCode,
-    ).toBe(403)
-    expect(
-      (await call('PUT', url, rivalCookie, { connectionId, repoRef: 'acme-ws/web' })).statusCode,
+      (await call('PUT', `${base}/${crypto.randomUUID()}/projects/web`, ownerCookie, body))
+        .statusCode,
     ).toBe(404)
+    expect((await call('PUT', `${base}/${id}/projects/nope`, ownerCookie, body)).statusCode).toBe(
+      404,
+    )
+    expect((await call('PUT', url, ownerCookie, body)).statusCode).toBe(204)
     expect(
-      (await call('PUT', url, ownerCookie, { connectionId, repoRef: 'nonsense' })).statusCode,
-    ).toBe(400)
-    expect(
-      (
-        await call('PUT', url, ownerCookie, {
-          connectionId: crypto.randomUUID(),
-          repoRef: 'acme-ws/web',
-        })
-      ).statusCode,
-    ).toBe(404)
-    expect(
-      (
-        await call('PUT', `${base}/bitbucket/projects/nope`, ownerCookie, {
-          connectionId,
-          repoRef: 'acme-ws/web',
-        })
-      ).statusCode,
-    ).toBe(404)
-    expect(
-      (await call('PUT', url, ownerCookie, { connectionId, repoRef: 'acme-ws/web' })).statusCode,
-    ).toBe(200)
-    expect((await call('GET', `${base}/bitbucket`, ownerCookie)).json().projects).toEqual([
-      { slug: 'web', name: 'web', repoRef: 'acme-ws/web', connectionId },
-    ])
+      (await call('GET', `${base}/${id}/projects`, ownerCookie)).json().projects,
+    ).toMatchObject([{ slug: 'web', mapping: { ref: 'acme-ws/web' } }])
     expect((await call('DELETE', url, louCookie)).statusCode).toBe(403)
     expect((await call('DELETE', url, ownerCookie)).statusCode).toBe(204)
-    expect((await call('GET', `${base}/bitbucket`, ownerCookie)).json().projects[0]).toMatchObject({
-      repoRef: null,
-      connectionId: null,
-    })
-    expect((await call('DELETE', url, ownerCookie)).statusCode).toBe(404)
+    expect(
+      (await call('GET', `${base}/${id}/projects`, ownerCookie)).json().projects[0].mapping,
+    ).toBeNull()
   })
 
   it('marks Bitbucket built and connectable in the catalog', async () => {

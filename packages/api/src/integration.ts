@@ -2,8 +2,6 @@ export namespace Integration {
   /** Mirrors `IntegrationGroup` in `@circi/core` (api depends on nothing); `contract-check.ts` fails if they drift. */
   export type Group = 'git' | 'chat' | 'design' | 'tracker'
 
-  export type PageStyle = 'generic' | 'custom'
-
   /** One field of a connect form, from the definition's credentials schema. */
   export interface CredentialField {
     name: string
@@ -34,7 +32,7 @@ export namespace Integration {
     description?: string
     /** What the target is called (`Channel`, `Team`) and how it is chosen. */
     targetLabel: string
-    targetKind: 'text' | 'select'
+    targetKind: 'text' | 'select' | 'repository'
     targetPlaceholder?: string
     fields: MappingField[]
   }
@@ -56,16 +54,11 @@ export namespace Integration {
 
   /** `kind` is the provider (`github`, `slack`…); the catalog lists the possible values. */
   export interface Item {
-    /** Connection id (git hosts) or integration id (everything else). */
     id: string
-    /** Which table the id belongs to; `DELETE /integrations/:source/:id`. */
-    source: 'connection' | 'integration'
     kind: string
     group: Group
     /** The provider's name (`Slack`), for labels. */
     kindName: string
-    /** `generic` integrations are configured on `/integrations/:kind/:id`; `custom` ones on their own page. */
-    pageStyle: PageStyle
     /** The account, workspace or installation it is connected to. */
     name: string
     /** CirCI can't use the connection and a person has to act. */
@@ -87,7 +80,6 @@ export namespace Integration {
     built: boolean
     /** Available, and this instance can connect it (GitHub needs a GitHub App configured). */
     connectable: boolean
-    pageStyle: PageStyle
     /** Key of the logo (`apps/web/src/features/integrations/logos.tsx`); defaults to `kind`. */
     logo: string
     /** The connect form's fields (empty for an OAuth-only or not-yet-generic integration). */
@@ -107,70 +99,12 @@ export namespace Integration {
     catalog: CatalogEntry[]
   }
 
-  /** A repository a git connection can see. */
-  export interface Repository {
-    ref: string
-    private: boolean
-  }
-
-  /** `GET /api/orgs/:org/integrations/github`: the GitHub connections and the repository each project reports to. */
-  export interface GithubPage {
-    canManage: boolean
-    configured: boolean
-    webhookUrl: string
-    connections: { id: string; installationId: string; needsAttention: boolean }[]
-    projects: {
-      slug: string
-      name: string
-      repoRef: string | null
-      installationId: string | null
-    }[]
-  }
-
-  /** `GET /api/orgs/:org/integrations/bitbucket`: the Bitbucket workspaces and the repository each project reports to. */
-  export interface BitbucketPage {
-    canManage: boolean
-    webhookUrl: string
-    /** The secret to put on the Bitbucket webhook; only owners and admins get it. */
-    webhookSecret: string | null
-    connections: { id: string; workspace: string; needsAttention: boolean }[]
-    projects: {
-      slug: string
-      name: string
-      repoRef: string | null
-      /** The Bitbucket connection it reports through. */
-      connectionId: string | null
-    }[]
-  }
-
-  /** `GET /api/orgs/:org/integrations/gitlab`: the GitLab connections and the GitLab project each CirCI project reports to. */
-  export interface GitlabPage {
-    canManage: boolean
-    webhookUrl: string
-    /** The secret token to put on the GitLab webhook; only owners and admins get it. */
-    webhookSecret: string | null
-    connections: {
-      id: string
-      /** `host#user id` of the token's principal. */
-      name: string
-      needsAttention: boolean
-    }[]
-    projects: {
-      slug: string
-      name: string
-      /** The GitLab project's path with namespace, e.g. `acme/tools/web`. */
-      repoRef: string | null
-      /** The GitLab connection it reports through. */
-      connectionId: string | null
-    }[]
-  }
-
   /** `GET /api/orgs/:org/integrations/:kind/install`: where to send the browser to install the app. */
   export interface Install {
     url: string
   }
 
-  /** What a project can be pointed at: a Slack channel, a Linear team. */
+  /** What a project can be pointed at: a Slack channel, a Linear team, a repository. */
   export interface Target {
     id: string
     /** Stored beside the mapping so the page can show it without asking the provider. */
@@ -205,6 +139,11 @@ export namespace Integration {
       attentionReason: string | null
     }
     definition: CatalogEntry
+    /**
+     * The webhook a git host calls: its address, and the secret to put on it (owners and admins
+     * only; null for a host whose webhook secret is configured elsewhere). Null for any other integration.
+     */
+    webhook: { url: string; secret: string | null } | null
     projects: MappingProject[]
   }
 

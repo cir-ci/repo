@@ -7,9 +7,16 @@ import type { IntegrationDefinition } from '@circi/integrations'
  * of a new integration here, next to its `Config` entry.
  */
 export function integrationConfig(
-  config: Pick<Config, 'slack'>,
+  config: Pick<Config, 'slack' | 'github'>,
 ): IntegrationDefinition.InstanceConfig {
-  if (!config.slack) return {}
-  const { clientId, clientSecret, apiUrl } = config.slack
-  return { slack: { clientId, clientSecret, apiUrl } }
+  const out: IntegrationDefinition.InstanceConfig = {}
+  if (config.slack) {
+    const { clientId, clientSecret, apiUrl } = config.slack
+    out.slack = { clientId, clientSecret, apiUrl }
+  }
+  if (config.github) {
+    const { apiUrl, appId, privateKey, webhookSecret } = config.github
+    out.github = { apiUrl, appId, privateKey, webhookSecret }
+  }
+  return out
 }

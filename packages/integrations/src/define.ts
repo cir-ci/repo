@@ -29,6 +29,12 @@ export function definitionProblems(def: IntegrationDefinition): string[] {
   if (def.mapping?.target.kind === 'select' && !def.mapping.listTargets) {
     bad('a select mapping target needs `listTargets`')
   }
+  if (def.mapping?.target.kind === 'repository' && !def.capabilities.git) {
+    bad('a repository mapping target needs the `git` capability (it lists the repositories)')
+  }
+  if (def.capabilities.git && def.mapping?.target.kind !== 'repository') {
+    bad('a git host maps projects to repositories: its `mapping.target.kind` is `repository`')
+  }
   if (def.capabilities.tracker && !def.mapping)
     bad('a tracker needs a `mapping` (its team or project)')
   if (def.capabilities.design && !def.mapping) bad('a design tool needs a `mapping` (its file)')

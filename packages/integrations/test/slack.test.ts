@@ -73,7 +73,6 @@ describe('the Slack definition', () => {
     expect(credentialFields(slack.credentials)).toEqual([])
     expect('connect' in slack).toBe(false)
     expect(slack.oauth).toBeDefined()
-    expect(slack.pageStyle).toBe('generic')
   })
 
   it('is connectable only when the instance has a Slack app', () => {

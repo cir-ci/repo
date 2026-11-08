@@ -8,7 +8,6 @@ import {
   text,
   timestamp,
   uniqueIndex,
-  uuid,
 } from 'drizzle-orm/pg-core'
 
 import { createdAt, id } from './_columns.ts'
@@ -27,10 +26,6 @@ export const projects = pgTable(
     ciKeyId: text('ci_key_id')
       .unique()
       .references(() => apikey.id, { onDelete: 'set null' }),
-    /** The git host connection (GitHub App installation) this project reports to, if any. */
-    providerConnectionId: uuid('provider_connection_id'),
-    /** The repository on that host, e.g. `owner/name`. */
-    repoRef: text('repo_ref'),
     defaultBranch: text('default_branch').notNull().default('main'),
     diffThreshold: real('diff_threshold').notNull().default(0),
     autoApproveDefaultBranch: boolean('auto_approve_default_branch').notNull().default(true),

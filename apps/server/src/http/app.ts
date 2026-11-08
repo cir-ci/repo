@@ -3,11 +3,9 @@ import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify'
 import { redirectPreviousHosts } from './hooks/previous-hosts.ts'
 import type { Deps } from './lib/deps.ts'
 import { argosRoutes } from './routes/argos/index.ts'
-import { bitbucketWebhookRoutes } from './routes/bitbucket-webhook.ts'
 import { dashboardRoutes } from './routes/dashboard/index.ts'
-import { githubWebhookRoutes } from './routes/github-webhook.ts'
-import { gitlabWebhookRoutes } from './routes/gitlab-webhook.ts'
 import { healthRoutes } from './routes/health.ts'
+import { integrationWebhookRoutes } from './routes/integration-webhook.ts'
 import { v1Routes } from './routes/v1/index.ts'
 import { siteHostHook } from './sites/serve.ts'
 
@@ -30,12 +28,8 @@ export namespace buildServer {
     previousHosts?: string[]
     /** CI upload API (`/v1`). Omitted in tests that only exercise health endpoints. */
     api?: Deps.V1
-    /** GitHub App webhooks (`/webhooks/github`). Omitted when no GitHub App is configured. */
-    githubWebhook?: githubWebhookRoutes.Deps
-    /** GitLab webhooks (`/webhooks/gitlab`). Always served; the secret is derived from the instance secret. */
-    gitlabWebhook?: gitlabWebhookRoutes.Deps
-    /** Bitbucket Cloud webhooks (`/webhooks/bitbucket`). */
-    bitbucketWebhook?: bitbucketWebhookRoutes.Deps
+    /** Git host webhooks (`/api/integrations/:kind/webhook`, `/webhooks/:kind`), one route for every host. */
+    gitWebhook?: integrationWebhookRoutes.Deps
     /** Static site hosting: requests for site addresses are answered before any route. */
     siteServing?: siteHostHook.Options
     /** Dashboard (`/api`, `/`). Omitted in tests that don't need it. */
@@ -50,7 +44,7 @@ export namespace buildServer {
  *   /healthz    /readyz          no auth
  *   /v1/…       CI API           project token
  *   /v2/…       Argos-compatible CI API   project token
- *   /webhooks/github  GitHub App   signature
+ *   /webhooks/:kind   git hosts    signature or token (also /api/integrations/:kind/webhook)
  *   /api/auth/… sign-in          public (better-auth)
  *   /api/…      dashboard API    session cookie
  *   /…          web app          public static files
@@ -96,9 +90,7 @@ export function buildServer(options: buildServer.Options): FastifyInstance {
       { prefix: '/v1' },
     )
   }
-  if (options.githubWebhook) void app.register(githubWebhookRoutes, options.githubWebhook)
-  if (options.gitlabWebhook) void app.register(gitlabWebhookRoutes, options.gitlabWebhook)
-  if (options.bitbucketWebhook) void app.register(bitbucketWebhookRoutes, options.bitbucketWebhook)
+  if (options.gitWebhook) void app.register(integrationWebhookRoutes, options.gitWebhook)
   if (options.dashboard) void app.register(dashboardRoutes, options.dashboard)
 
   return app

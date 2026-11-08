@@ -166,14 +166,11 @@ describe('connecting Figma', () => {
     expect(list.json().catalog.find((e: { kind: string }) => e.kind === 'figma')).toMatchObject({
       built: true,
       connectable: true,
-      pageStyle: 'generic',
       mapping: { targetLabel: 'File', targetKind: 'text' },
       links: { kind: 'figma-frame', autoLink: true, subject: 'pattern' },
     })
     expect(JSON.stringify(list.json())).not.toContain('figd_michael')
-    expect(list.json().integrations).toMatchObject([
-      { kind: 'figma', pageStyle: 'generic', projectCount: 0 },
-    ])
+    expect(list.json().integrations).toMatchObject([{ kind: 'figma', projectCount: 0 }])
   })
 
   it('answers 409 for the same account again', async () => {
@@ -354,7 +351,7 @@ describe('links', () => {
   })
 
   it('removing the integration forgets its links', async () => {
-    expect((await call('DELETE', `${orgBase}/integration/${id}`, ownerCookie)).statusCode).toBe(204)
+    expect((await call('DELETE', `${orgBase}/${id}`, ownerCookie)).statusCode).toBe(204)
     expect(await storedLinks()).toEqual([])
     expect(await listIntegrations(t.db, org.id)).toEqual([])
   })

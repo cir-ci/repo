@@ -26,7 +26,7 @@ export const jira = defineIntegration({
   name: 'Jira',
   description: 'Create an issue from a rejected snapshot, with the diff attached.',
   logo: 'jira',
-  pageStyle: 'generic',
+  exclusive: { project: 'kind' },
   credentials: z.object({
     siteUrl: z
       .string()

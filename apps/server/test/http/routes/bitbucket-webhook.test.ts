@@ -1,10 +1,10 @@
 import { createHmac } from 'node:crypto'
 
 import { sealSecret } from '@circi/core'
-import { connectBitbucket, getBuild, linkProjectToBitbucket, listBuildReviews } from '@circi/db'
-import { BitbucketCloud, serializeBitbucketCredentials } from '@circi/providers'
+import { getBuild, listBuildReviews } from '@circi/db'
+import { BitbucketCloud, providerRegistry, serializeBitbucketCredentials } from '@circi/providers'
 import { completeBuild } from '@circi/services'
-import { createTestDb, seedAccount, seedBuild } from '@circi/testing'
+import { createTestDb, seedAccount, seedBuild, seedGitLink } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -26,16 +26,11 @@ let n = 0
 beforeAll(async () => {
   t = await createTestDb()
   acme = await seedTenant(createTestAuth(t.db), t.db)
-  const { id } = await connectBitbucket(t.db, {
-    orgId: (await t.db.query.organization.findFirst())?.id ?? '',
-    workspace: 'acme',
-    encryptedCredentials: sealSecret(AUTH_SECRET, serializeBitbucketCredentials({ token: 'tok' })),
-  })
-  await linkProjectToBitbucket(t.db, {
-    orgId: acme.project.orgId,
-    projectSlug: acme.project.slug,
-    connectionId: id,
+  await seedGitLink(t.db, acme.project.id, {
+    kind: 'bitbucket',
+    externalId: 'acme',
     repoRef: 'acme/Web',
+    encryptedCredentials: sealSecret(AUTH_SECRET, serializeBitbucketCredentials({ token: 'tok' })),
   })
   // The owner linked their Bitbucket account.
   await seedAccount(t.db, { userId: acme.owner.id, accountId: ANN, providerId: 'bitbucket' })
@@ -57,9 +52,9 @@ beforeAll(async () => {
   app = buildServer({
     logger: pino({ level: 'silent' }),
     checks: [],
-    bitbucketWebhook: {
+    gitWebhook: {
       db: t.db,
-      bitbucket,
+      providers: providerRegistry({ bitbucket }),
       authSecret: AUTH_SECRET,
       publicOrigin: 'https://ci.acme.io',
       logger: pino({ level: 'silent' }),

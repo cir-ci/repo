@@ -19,13 +19,15 @@ describe('integration catalog', () => {
   it('plans exactly Azure DevOps, Microsoft Teams and Penpot', () => {
     const planned = INTEGRATION_CATALOG.filter((e) => e.status === 'planned').map((e) => e.kind)
     expect(planned.toSorted()).toEqual(['azure-devops', 'penpot', 'teams'])
-    expect(catalogEntry('github')?.status).toBe('available')
+    expect(catalogEntry('teams')?.status).toBe('planned')
+    // Built integrations live in the registry, not in this list.
+    expect(catalogEntry('github')).toBeUndefined()
     expect(catalogEntry('nope')).toBeUndefined()
   })
 
   it('filters by text and group', () => {
-    expect(filterCatalog(INTEGRATION_CATALOG, { query: 'lab' }).map((e) => e.kind)).toEqual([
-      'gitlab',
+    expect(filterCatalog(INTEGRATION_CATALOG, { query: 'azure' }).map((e) => e.kind)).toEqual([
+      'azure-devops',
     ])
     expect(filterCatalog(INTEGRATION_CATALOG, { group: 'chat' }).map((e) => e.kind)).toEqual([
       'teams',

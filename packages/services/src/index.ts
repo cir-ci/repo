@@ -30,6 +30,9 @@ export {
   unmapProject,
 } from './integration-links.ts'
 export { gateInputs } from './gate.ts'
+export { handleGitEvents } from './git-events.ts'
+export { gitKinds } from './git-kinds.ts'
+export { linkProjectToGithub, unlinkProjectFromGit } from './git-links.ts'
 export { createIssueFromBuild, MAX_ISSUE_TITLE_LENGTH } from './issues.ts'
 export { migrateStorage } from './migrate-storage.ts'
 export {

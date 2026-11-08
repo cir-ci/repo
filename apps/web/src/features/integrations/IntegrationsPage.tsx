@@ -21,7 +21,6 @@ import { AddIntegrationDialog } from './AddIntegrationDialog.tsx'
 import {
   groupItems,
   integrationLabel,
-  integrationPage,
   integrationsQuery,
   projectCountLabel,
   useRemoveIntegration,
@@ -154,7 +153,6 @@ function Row(props: {
   onRemove: () => void
 }) {
   const { item } = props
-  const page = integrationPage(item.kind)
   const label = integrationLabel(item)
   return (
     <ListRow density="two-line">
@@ -174,42 +172,13 @@ function Row(props: {
           ) : (
             <Badge shape="tag">Connected</Badge>
           )}
-          {page === 'github' ? (
-            <Link
-              to="/organizations/$org/settings/integrations/github"
-              params={{ org: props.org }}
-              aria-label={`Configure ${label}`}
-            >
-              Configure
-            </Link>
-          ) : null}
-          {page === 'gitlab' ? (
-            <Link
-              to="/organizations/$org/settings/integrations/gitlab"
-              params={{ org: props.org }}
-              aria-label={`Configure ${label}`}
-            >
-              Configure
-            </Link>
-          ) : null}
-          {page === 'bitbucket' ? (
-            <Link
-              to="/organizations/$org/settings/integrations/bitbucket"
-              params={{ org: props.org }}
-              aria-label={`Configure ${label}`}
-            >
-              Configure
-            </Link>
-          ) : null}
-          {item.pageStyle === 'generic' ? (
-            <Link
-              to="/organizations/$org/settings/integrations/$kind/$id"
-              params={{ org: props.org, kind: item.kind, id: item.id }}
-              aria-label={`Configure ${label}`}
-            >
-              Configure
-            </Link>
-          ) : null}
+          <Link
+            to="/organizations/$org/settings/integrations/$kind/$id"
+            params={{ org: props.org, kind: item.kind, id: item.id }}
+            aria-label={`Configure ${label}`}
+          >
+            Configure
+          </Link>
           {props.canManage ? (
             <Button variant="danger" onClick={props.onRemove} aria-label={`Remove ${label}`}>
               Remove

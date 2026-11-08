@@ -1,10 +1,15 @@
 import type { Auth } from '@circi/auth'
 import type { Database, SessionMethod, getProjectContext } from '@circi/db'
 import type { IntegrationDefinition, IntegrationRegistry } from '@circi/integrations'
-import type { GitProvider, ProviderRegistry, GitlabProvider } from '@circi/providers'
+import type { ProviderRegistry } from '@circi/providers'
 import type { StorageDriver } from '@circi/storage'
 
 export namespace Deps {
+  /** Instance settings of the registry's integrations, a replaceable `fetch`, and (tests) another registry. */
+  export type IntegrationsOption = Pick<IntegrationDefinition.Context, 'config' | 'fetch'> & {
+    registry?: IntegrationRegistry
+  }
+
   /** What every HTTP scope needs. */
   export interface Base {
     db: Database
@@ -49,18 +54,14 @@ export namespace Deps {
     resolveTxt?: (name: string) => Promise<string[][]>
     /** This instance has a GitHub App, so projects can be linked to repositories. */
     githubApp?: boolean
-    /** Git host adapters by connection kind (the repository picker asks them what they can see). */
-    providers?: ProviderRegistry<Pick<GitProvider, 'listRepositories'>>
-    /** The GitLab adapter, which also identifies a token's principal when a connection is added. */
-    gitlab?: Pick<GitlabProvider, 'identify' | 'listRepositories'>
+    /** Stands in for the git host adapters by connection kind (tests fake the host's edge); production uses the definitions'. */
+    providers?: ProviderRegistry<object>
     /**
      * Instance settings of the registry's integrations (`config`: the Slack app, set by
      * `SLACK_CLIENT_ID`…) and a replaceable `fetch` for their HTTP calls (tests). `registry`
      * replaces the real one in tests of the generic routes.
      */
-    integrations?: Pick<IntegrationDefinition.Context, 'config' | 'fetch'> & {
-      registry?: IntegrationRegistry
-    }
+    integrations?: Deps.IntegrationsOption
     /** Static site hosting, when `STATIC_SITES_HOST` is set. */
     sites?: Deps.Sites
     /** Who may create organizations in the dashboard. Default: instance admins only. */

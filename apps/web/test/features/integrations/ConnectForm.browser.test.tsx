@@ -31,7 +31,6 @@ const definition = entry({
   kind: 'tokenchat',
   name: 'Token chat',
   group: 'chat',
-  pageStyle: 'generic',
   credentials: FIELDS,
 })
 

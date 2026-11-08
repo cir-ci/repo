@@ -8,34 +8,7 @@ const integrationsRoute = createRoute({
   component: lazyRouteComponent(() => import('./IntegrationsPage.tsx'), 'IntegrationsPage'),
 })
 
-const githubRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: 'organizations/$org/settings/integrations/github',
-  component: lazyRouteComponent(
-    () => import('./GithubIntegrationPage.tsx'),
-    'GithubIntegrationPage',
-  ),
-})
-
-const bitbucketRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: 'organizations/$org/settings/integrations/bitbucket',
-  component: lazyRouteComponent(
-    () => import('./BitbucketIntegrationPage.tsx'),
-    'BitbucketIntegrationPage',
-  ),
-})
-
-const gitlabRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: 'organizations/$org/settings/integrations/gitlab',
-  component: lazyRouteComponent(
-    () => import('./GitlabIntegrationPage.tsx'),
-    'GitlabIntegrationPage',
-  ),
-})
-
-/** Every integration with `pageStyle: 'generic'`: one page, rendered from its definition's spec. */
+/** Every integration: one page, rendered from its definition's spec. */
 const genericRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'organizations/$org/settings/integrations/$kind/$id',
@@ -45,10 +18,4 @@ const genericRoute = createRoute({
   ),
 })
 
-export const integrationsRoutes = [
-  integrationsRoute,
-  githubRoute,
-  bitbucketRoute,
-  gitlabRoute,
-  genericRoute,
-]
+export const integrationsRoutes = [integrationsRoute, genericRoute]

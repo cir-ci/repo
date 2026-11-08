@@ -8,10 +8,12 @@ export type { EventsField, IntegrationDefinition } from './definition.ts'
 export {
   IntegrationConflictError,
   IntegrationError,
+  IntegrationNotFoundError,
   IntegrationUnreachableError,
   InvalidCredentialsError,
   InvalidInputError,
 } from './errors.ts'
+export { derivedWebhookSecret } from './git-support.ts'
 export { mappedEvents, mappingExtraSchema, mappingHandles, normalizeExtra } from './mapping.ts'
 export {
   buildCatalog,

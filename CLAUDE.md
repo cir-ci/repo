@@ -53,14 +53,16 @@ Dependencies point downwards: apps → services → db → core, and services �
   writes that trigger nothing.
 - **`packages/db/queries/`** are read models shaped for the dashboard. Their return types must fit
   `@circi/api`; `apps/server/src/contract-check.ts` fails to typecheck if they drift.
-- **Integrations** (Slack, Linear, Jira, Figma; the git hosts are still to migrate) are declared once, in
+- **Integrations** (GitHub, GitLab, Bitbucket, Slack, Linear, Jira, Figma: all of them) are declared once, in
   `packages/integrations/src/<id>.ts`, and listed once in `registry.ts`. Routes (`integrations-generic.ts`,
-  `issue-trackers.ts` for "Create issue"), the `integration-event` job, the catalog and the dashboard's connect
-  form, mapping page and links table are generic and read the registry: adding an integration touches no route,
-  table, job or page. `integrations.kind` is not a CHECK constraint; the registry validates it. What an
-  integration attaches to a project or build (Figma frames, issues) is a row of `integration_links`. A service
-  queues a domain event once with `queueIntegrationEvent`; the worker delivers it. Only the git hosts keep their
-  own route files and pages until their definitions exist (docs/integration-sdk.md).
+  `integration-webhook.ts` for git hosts, `issue-trackers.ts` for "Create issue"), the `integration-event` and
+  `git-notify` jobs, the catalog and the dashboard's connect form, mapping page and links table are generic and
+  read the registry: adding an integration touches no route, table, job or page. `integrations.kind` is not a
+  CHECK constraint; the registry validates it. A git host is an integration with the `git` capability: its
+  repository is the project's `integration_projects` row, its webhook is one shared route and one shared handler
+  (`handleGitEvents` in `@circi/services`) fed normalised events. What an integration attaches to a project or
+  build (Figma frames, issues) is a row of `integration_links`. A service queues a domain event once with
+  `queueIntegrationEvent`; the worker delivers it. Nothing is custom any more (docs/integration-sdk.md).
 - **Better-auth's tables** (`schema/auth.ts`) are generated (`pnpm db:auth-schema`, then
   `pnpm db:generate`), never edited by hand. Writes to them go through better-auth's API.
 - **Fastify scopes** receive exactly their dependencies. Register a scope with a prefix through a

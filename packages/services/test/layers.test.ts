@@ -22,6 +22,11 @@ const importsOf = (dir: string, packages: string[]) =>
     .filter((f) => packages.some((p) => new RegExp(`from '${p}(/[^']*)?'`).test(f.text)))
     .map((f) => f.file)
 
+const named = (dir: string) =>
+  readdirSync(join(root, dir), { recursive: true, encoding: 'utf8' }).filter((f) =>
+    /(github|gitlab|bitbucket|slack|linear|jira|figma)/i.test(f),
+  )
+
 describe('layers', () => {
   it('keeps repositories to storing data: only services queue jobs and notices', () => {
     const offenders = readdirSync(repositories)
@@ -53,10 +58,23 @@ describe('the integration SDK', () => {
   })
 
   it('has no integration route, job or page named after one integration in the generic files', () => {
-    const generic = ['apps/server/src/http/routes/dashboard/integrations-generic.ts']
+    const generic = [
+      'apps/server/src/http/routes/dashboard/integrations-generic.ts',
+      'apps/server/src/http/routes/integration-webhook.ts',
+      'packages/services/src/git-events.ts',
+      'apps/web/src/features/integrations/GenericIntegrationPage.tsx',
+    ]
     for (const file of generic) {
-      expect(readFileSync(join(root, file), 'utf8')).not.toMatch(/slack/i)
+      expect(readFileSync(join(root, file), 'utf8')).not.toMatch(
+        /slack|\bgithub\b|gitlab|bitbucket/i,
+      )
     }
+  })
+
+  it('has no per-integration route, repository or page left: only definitions know a provider', () => {
+    expect(named('apps/server/src/http/routes')).toEqual([])
+    expect(named('packages/db/src/repositories')).toEqual([])
+    expect(named('apps/web/src/features/integrations').filter((f) => f !== 'logos.tsx')).toEqual([])
   })
 })
 

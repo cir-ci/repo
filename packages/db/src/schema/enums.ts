@@ -61,7 +61,6 @@ export const LOGIN_METHODS = ['password', 'email', 'oidc', 'org-oidc'] as const
  * Git hosts a connection can be to. GitLab and Bitbucket are added here (a CHECK swap in a
  * migration, no data change) by the work that implements their providers.
  */
-export const GIT_PROVIDER_KINDS = ['github', 'gitlab', 'bitbucket'] as const
 /** Why a git connection needs a person to look at it. */
 export const CONNECTION_ATTENTION = ['installation_revoked'] as const
 export const JOB_STATUSES = ['pending', 'running', 'done', 'failed'] as const

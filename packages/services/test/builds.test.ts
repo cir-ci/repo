@@ -1,7 +1,6 @@
 import {
   createBuild,
   GIT_NOTIFY_QUEUE,
-  linkProjectToGithub,
   markFileVerified,
   planUploads,
   QUEUES,
@@ -19,6 +18,7 @@ import {
   finalizeBuild,
   requeueBuild,
   reviewBuild,
+  linkProjectToGithub,
 } from '#src/index.ts'
 
 let t: createTestDb.Result

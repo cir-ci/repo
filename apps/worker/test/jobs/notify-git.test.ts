@@ -7,13 +7,12 @@ import {
   getProjectGitAttention,
   getPrCommentId,
   type Job,
-  linkProjectToGithub,
   schema,
   setOrgSettings,
   updateProjectSettings,
 } from '@circi/db'
 import { GithubApiError, GithubInstallationRevokedError } from '@circi/providers'
-import { completeBuild, reviewBuild } from '@circi/services'
+import { completeBuild, linkProjectToGithub, reviewBuild } from '@circi/services'
 import { createTestDb, seedBuild, seedDiff, seedProject } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -266,13 +265,13 @@ describe('notifyGit', () => {
   describe('a revoked installation', () => {
     it('stops retrying, records that the project needs attention, and clears it when GitHub answers again', async () => {
       const { project, build } = await setup()
-      expect(await getProjectGitAttention(t.db, project.id)).toBeUndefined()
+      expect(await getProjectGitAttention(t.db, project.id, ['github'])).toBeUndefined()
 
       const job = await nextJob()
       const result = await notifyGit({ db: t.db, github: failing(revoked()), publicOrigin }, job)
       // Returned, not thrown: the queue marks the job done instead of retrying five times.
       expect(result).toMatchObject({ status: 'skipped', reason: expect.stringContaining('77') })
-      expect(await getProjectGitAttention(t.db, project.id)).toMatchObject({
+      expect(await getProjectGitAttention(t.db, project.id, ['github'])).toMatchObject({
         reason: 'installation_revoked',
       })
 
@@ -283,7 +282,7 @@ describe('notifyGit', () => {
           job,
         ),
       ).rejects.toThrow('bad gateway')
-      expect(await getProjectGitAttention(t.db, project.id)).toBeDefined()
+      expect(await getProjectGitAttention(t.db, project.id, ['github'])).toBeDefined()
 
       // The App was reinstalled: the next call works and the warning goes away.
       const fake = fakeGithub()
@@ -291,16 +290,16 @@ describe('notifyGit', () => {
         status: 'notified',
       })
       expect(fake.checks).toHaveLength(1)
-      expect(await getProjectGitAttention(t.db, project.id)).toBeUndefined()
+      expect(await getProjectGitAttention(t.db, project.id, ['github'])).toBeUndefined()
       expect(await getCheckRunId(t.db, build.id)).toBe('9001')
     })
 
     it('is cleared by linking the project to the installation again', async () => {
       const { project } = await setup()
       await notifyGit({ db: t.db, github: failing(revoked()), publicOrigin }, await nextJob())
-      expect(await getProjectGitAttention(t.db, project.id)).toBeDefined()
+      expect(await getProjectGitAttention(t.db, project.id, ['github'])).toBeDefined()
       await linkProjectToGithub(t.db, project.id, { installationId: '77', repoRef: 'acme/web' })
-      expect(await getProjectGitAttention(t.db, project.id)).toBeUndefined()
+      expect(await getProjectGitAttention(t.db, project.id, ['github'])).toBeUndefined()
     })
   })
 })

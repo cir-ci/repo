@@ -285,7 +285,7 @@ describe('mapping projects', () => {
       needsAttention: true,
       needsAttentionReason: 'Linear no longer accepts the saved credentials',
     })
-    expect((await call('DELETE', `${base}/integration/${id}`, ownerCookie)).statusCode).toBe(204)
+    expect((await call('DELETE', `${base}/${id}`, ownerCookie)).statusCode).toBe(204)
   })
 })
 

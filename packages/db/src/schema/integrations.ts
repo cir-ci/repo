@@ -1,13 +1,13 @@
-import { boolean, jsonb, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core'
+import { boolean, jsonb, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core'
 
 import { createdAt, id } from './_columns.ts'
 import { organization, user } from './auth.ts'
 import { projects } from './projects.ts'
 
 /**
- * A connection of an organisation to something that is not a git host: a Slack workspace, a Linear
- * or Jira site, a Figma account (git hosts are `provider_connections`). Integrations belong to the
- * organisation; projects only use them through `integration_projects`.
+ * A connection of an organisation to an external account: a git host installation, workspace or
+ * token (GitHub, GitLab, Bitbucket), a Slack workspace, a Linear or Jira site, a Figma account.
+ * Integrations belong to the organisation; projects only use them through `integration_projects`.
  */
 export const integrations = pgTable(
   'integrations',
@@ -23,12 +23,14 @@ export const integrations = pgTable(
     kind: text('kind').notNull(),
     /** What a person calls it: the workspace or site name. */
     displayName: text('display_name').notNull(),
-    /** The provider's id for the account (Slack team id, Jira cloud id…). */
+    /** The provider's id for the account (Slack team id, Jira cloud id, GitHub installation id…). */
     externalId: text('external_id').notNull(),
     /** Sealed with `sealSecret` (`@circi/core`); never sent to the dashboard. */
     encryptedCredentials: text('encrypted_credentials'),
     needsAttention: boolean('needs_attention').notNull().default(false),
     needsAttentionReason: text('needs_attention_reason'),
+    /** When it first needed attention (kept while it keeps failing); null while it works. */
+    needsAttentionAt: timestamp('needs_attention_at', { withTimezone: true }),
     createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
     createdAt: createdAt(),
   },
@@ -36,8 +38,8 @@ export const integrations = pgTable(
 )
 
 /**
- * What a project uses an integration for: its repository-like target (a Slack channel, a Linear
- * team, a Jira project, a Figma file) in `external_ref`, anything more in `extra`. At most one per
+ * What a project uses an integration for: its repository-like target (a repository, a Slack
+ * channel, a Linear team, a Jira project, a Figma file) in `external_ref`, anything more in `extra`. At most one per
  * project and integration.
  */
 export const integrationProjects = pgTable(

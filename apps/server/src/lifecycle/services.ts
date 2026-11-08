@@ -62,8 +62,6 @@ export async function runServices(options: runServices.Options): Promise<void> {
         webhookAllowPrivate: rt.config.webhookAllowPrivate,
         uploadTimeoutMinutes: rt.config.uploadTimeoutMinutes,
         gcGraceHours: rt.config.gcGraceHours,
-        ...(rt.github ? { github: rt.github } : {}),
-        providers: rt.providers,
         integrations: { config: integrationConfig(rt.config) },
         ...(rt.mailer ? { mailer: rt.mailer } : {}),
       })

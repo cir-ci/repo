@@ -5,7 +5,7 @@ import { getJson, post, seg, send } from '#lib/http.ts'
 
 // ---- Logic (tested in Node) -------------------------------------------------------------------
 // Everything here works from a definition's public spec (`Integration.CatalogEntry`): the same code
-// serves every integration that has `pageStyle: 'generic'`.
+// serves every integration.
 
 /** Where the browser goes; a seam so tests can watch it instead of leaving the page. */
 export const navigation = {

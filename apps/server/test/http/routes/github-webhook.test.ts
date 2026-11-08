@@ -1,7 +1,8 @@
 import { createHmac } from 'node:crypto'
 
-import { getBuild, linkProjectToGithub, listBuildReviews, schema, setCheckRunId } from '@circi/db'
-import { completeBuild } from '@circi/services'
+import { getBuild, listBuildReviews, schema, setCheckRunId } from '@circi/db'
+import { githubWebhookVerifier, providerRegistry } from '@circi/providers'
+import { completeBuild, linkProjectToGithub } from '@circi/services'
 import { createTestDb, seedAccount, seedBuild } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
@@ -30,19 +31,23 @@ beforeAll(async () => {
   app = buildServer({
     logger: pino({ level: 'silent' }),
     checks: [],
-    githubWebhook: {
+    gitWebhook: {
       db: t.db,
-      secret: SECRET,
+      authSecret: 'instance-secret',
       publicOrigin: 'https://ci.acme.io',
       logger: pino({ level: 'silent' }),
-      github: {
-        react: async (_i, _r, commentId, content) => {
-          sent.push(`react ${commentId} ${content}`)
+      // The fake GitHub edge: verifies like the App does, and records what is said on GitHub.
+      providers: providerRegistry({
+        github: {
+          ...githubWebhookVerifier(SECRET),
+          react: async (_i: string, _r: string, commentId: string, content: string) => {
+            sent.push(`react ${commentId} ${content}`)
+          },
+          reply: async (_i: string, _r: string, pr: number, body: string) => {
+            sent.push(`reply ${pr}: ${body}`)
+          },
         },
-        reply: async (_i, _r, pr, body) => {
-          sent.push(`reply ${pr}: ${body}`)
-        },
-      },
+      }),
     },
   })
   await app.ready()

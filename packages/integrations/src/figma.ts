@@ -41,7 +41,7 @@ export const figma = defineIntegration({
   name: 'Figma',
   description: 'Link snapshots to frames, compare with the design, and post results on frames.',
   logo: 'figma',
-  pageStyle: 'generic',
+  exclusive: { account: true },
   credentials: z.object({
     token: z.string().trim().min(8).max(500).meta({
       label: 'Access token',

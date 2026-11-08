@@ -5,6 +5,7 @@ import {
   listBuildsForProject,
   listProjectsOverview,
 } from '@circi/db'
+import { gitKinds } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
@@ -58,7 +59,7 @@ export const dashboardProjectRoutes: FastifyPluginAsync<Deps.Dashboard> = async 
       filters,
       ...(Number.isInteger(before) && before > 0 ? { beforeNumber: before } : {}),
     })
-    const attention = await getProjectGitAttention(deps.db, project.id)
+    const attention = await getProjectGitAttention(deps.db, project.id, gitKinds())
     return {
       project,
       builds,

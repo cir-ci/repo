@@ -1,8 +1,11 @@
 import type { IntegrationEvent } from '@circi/core'
 
+import { bitbucket } from './bitbucket.ts'
 import { definitionProblems } from './define.ts'
 import type { IntegrationDefinition } from './definition.ts'
 import { figma } from './figma.ts'
+import { github } from './github.ts'
+import { gitlab } from './gitlab.ts'
 import { jira } from './jira.ts'
 import { linear } from './linear.ts'
 import { slack } from './slack.ts'
@@ -36,6 +39,13 @@ export class IntegrationRegistry {
     return [...this.#byId.values()]
   }
 
+  /** The ids of the git hosts (definitions with the `git` capability). */
+  gitKinds(): string[] {
+    return this.all()
+      .filter((d) => d.capabilities.git !== undefined)
+      .map((d) => d.id)
+  }
+
   /** The definitions that handle an event. */
   handling(event: IntegrationEvent.Type): IntegrationDefinition[] {
     return this.all().filter((d) => d.events.includes(event))
@@ -46,4 +56,12 @@ export class IntegrationRegistry {
  * THE registry. Adding an integration is one line here, next to its import: the definition file is
  * the only other thing to write (docs/integration-sdk.md).
  */
-export const integrationRegistry = new IntegrationRegistry([slack, linear, jira, figma])
+export const integrationRegistry = new IntegrationRegistry([
+  github,
+  gitlab,
+  bitbucket,
+  slack,
+  linear,
+  jira,
+  figma,
+])

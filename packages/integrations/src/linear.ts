@@ -20,7 +20,7 @@ export const linear = defineIntegration({
   name: 'Linear',
   description: 'Create an issue from a rejected snapshot, with the diff attached.',
   logo: 'linear',
-  pageStyle: 'generic',
+  exclusive: { project: 'kind' },
   credentials: z.object({
     apiKey: z.string().trim().min(1).max(500).meta({
       label: 'API key',

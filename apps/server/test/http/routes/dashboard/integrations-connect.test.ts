@@ -34,7 +34,6 @@ const tokenchat = defineIntegration({
   name: 'Token chat',
   description: 'A chat connected with a token.',
   logo: 'tokenchat',
-  pageStyle: 'generic',
   credentials: z.object({
     site: z.string().optional().meta({ label: 'Site', placeholder: 'chat.example.com' }),
     token: z.string().min(1).meta({ label: 'Token', secret: true }),
@@ -203,7 +202,6 @@ describe('the catalog and the list, from the registry', () => {
       status: 'available',
       built: true,
       connectable: true,
-      pageStyle: 'generic',
       logo: 'tokenchat',
       oauth: false,
       credentials: [
@@ -225,7 +223,7 @@ describe('the catalog and the list, from the registry', () => {
       connectable: false,
     })
     expect(res.json().integrations).toMatchObject([
-      { kind: 'tokenchat', kindName: 'Token chat', pageStyle: 'generic', group: 'chat' },
+      { kind: 'tokenchat', kindName: 'Token chat', group: 'chat' },
     ])
   })
 })

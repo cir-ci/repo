@@ -1,11 +1,10 @@
-import { createTestDb, seedBuild, seedOrg, seedProject } from '@circi/testing'
+import { createTestDb, seedBuild, seedGitLink, seedProject } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
   claimDelivery,
   findBuildByCheckRun,
-  findMemberByGithubId,
-  findProjectsByRepo,
+  findGitProjects,
   getCheckRunId,
   getGitTarget,
   getPrCommentId,
@@ -14,13 +13,13 @@ import {
   getProjectLink,
   markInstallationNeedsAttention,
   latestBuildsForPr,
-  linkProjectToGithub,
-  NotFoundError,
   schema,
   setCheckRunId,
   setPrCommentId,
   unlinkProject,
 } from '#src/index.ts'
+
+const GIT = ['github']
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -34,75 +33,73 @@ describe('project links', () => {
   it('links a project to a repository, reuses the installation, and unlinks', async () => {
     const { project, org, owner } = await seedProject(t.db)
     const second = await seedProject(t.db, { org: { org, owner }, slug: 'backend' })
-    expect(await getProjectLink(t.db, project.id)).toBeUndefined()
+    expect(await getProjectLink(t.db, project.id, GIT)).toBeUndefined()
 
-    await linkProjectToGithub(t.db, project.id, { installationId: '42', repoRef: 'Acme/Web' })
-    await linkProjectToGithub(t.db, second.project.id, {
-      installationId: '42',
-      repoRef: 'acme/api',
-    })
-    expect(await getProjectLink(t.db, project.id)).toEqual({
+    await seedGitLink(t.db, project.id, { externalId: '42', repoRef: 'Acme/Web' })
+    await seedGitLink(t.db, second.project.id, { externalId: '42', repoRef: 'acme/api' })
+    expect(await getProjectLink(t.db, project.id, GIT)).toEqual({
       installationId: '42',
       repoRef: 'Acme/Web',
     })
-    const connections = await t.db.select().from(schema.providerConnections)
+    const connections = await t.db.select().from(schema.integrations)
     expect(connections.filter((c) => c.orgId === org.id)).toHaveLength(1)
 
-    await unlinkProject(t.db, project.id)
-    expect(await getProjectLink(t.db, project.id)).toBeUndefined()
+    await unlinkProject(t.db, project.id, GIT)
+    expect(await getProjectLink(t.db, project.id, GIT)).toBeUndefined()
   })
 
   it('records and clears that an installation needs attention, for every project on it', async () => {
     const a = await seedProject(t.db)
     const b = await seedProject(t.db)
     const other = await seedProject(t.db)
-    await linkProjectToGithub(t.db, a.project.id, { installationId: '555', repoRef: 'a/one' })
-    await linkProjectToGithub(t.db, b.project.id, { installationId: '555', repoRef: 'b/two' })
-    await linkProjectToGithub(t.db, other.project.id, { installationId: '556', repoRef: 'c/three' })
-    expect(await getProjectGitAttention(t.db, a.project.id)).toBeUndefined()
+    await seedGitLink(t.db, a.project.id, { externalId: '555', repoRef: 'a/one' })
+    await seedGitLink(t.db, b.project.id, { externalId: '555', repoRef: 'b/two' })
+    await seedGitLink(t.db, other.project.id, { externalId: '556', repoRef: 'c/three' })
+    expect(await getProjectGitAttention(t.db, a.project.id, GIT)).toBeUndefined()
 
     const first = new Date('2026-01-01T00:00:00Z')
     await markInstallationNeedsAttention(t.db, 'github', '555', 'installation_revoked', first)
     // Marking again keeps the time of the first failure.
     await markInstallationNeedsAttention(t.db, 'github', '555', 'installation_revoked', new Date())
-    expect(await getProjectGitAttention(t.db, a.project.id)).toEqual({
+    expect(await getProjectGitAttention(t.db, a.project.id, GIT)).toEqual({
       reason: 'installation_revoked',
       since: first,
     })
-    expect(await getProjectGitAttention(t.db, b.project.id)).toBeDefined()
-    expect(await getProjectGitAttention(t.db, other.project.id)).toBeUndefined()
+    expect(await getProjectGitAttention(t.db, b.project.id, GIT)).toBeDefined()
+    expect(await getProjectGitAttention(t.db, other.project.id, GIT)).toBeUndefined()
     const build = await seedBuild(t.db, a.project.id)
-    expect((await getGitTarget(t.db, build.id))?.connectionNeedsAttention).toBe(true)
+    expect((await getGitTarget(t.db, build.id, GIT))?.connectionNeedsAttention).toBe(true)
 
     await clearInstallationNeedsAttention(t.db, 'github', '555')
-    expect(await getProjectGitAttention(t.db, a.project.id)).toBeUndefined()
-    expect((await getGitTarget(t.db, build.id))?.connectionNeedsAttention).toBe(false)
+    expect(await getProjectGitAttention(t.db, a.project.id, GIT)).toBeUndefined()
+    expect((await getGitTarget(t.db, build.id, GIT))?.connectionNeedsAttention).toBe(false)
   })
 
-  it('refuses to link a project that does not exist', async () => {
-    await expect(
-      linkProjectToGithub(t.db, '00000000-0000-0000-0000-000000000000', {
-        installationId: '1',
-        repoRef: 'a/b',
-      }),
-    ).rejects.toBeInstanceOf(NotFoundError)
-  })
-
-  it('finds projects by repository, ignoring case, per installation', async () => {
+  it('finds projects by repository, ignoring case, per connection', async () => {
     const { project } = await seedProject(t.db)
-    await linkProjectToGithub(t.db, project.id, { installationId: '77', repoRef: 'Acme/Shop' })
-    expect(await findProjectsByRepo(t.db, '77', 'acme/SHOP')).toEqual([
-      { id: project.id, orgId: project.orgId },
+    await seedGitLink(t.db, project.id, { externalId: '77', repoRef: 'Acme/Shop' })
+    expect(await findGitProjects(t.db, 'github', { externalId: '77' }, 'acme/SHOP')).toEqual([
+      expect.objectContaining({ id: project.id, orgId: project.orgId, externalId: '77' }),
     ])
-    expect(await findProjectsByRepo(t.db, '78', 'acme/shop')).toEqual([])
+    expect(await findGitProjects(t.db, 'github', { externalId: '78' }, 'acme/shop')).toEqual([])
+    // A host named by the start of the id (GitLab's `host#`), and never across kinds.
+    await seedGitLink(t.db, project.id, {
+      kind: 'gitlab',
+      externalId: 'git.acme.test#5',
+      repoRef: 'g/h',
+    })
+    expect(
+      (await findGitProjects(t.db, 'gitlab', { externalIdPrefix: 'GIT.acme.test#' }, 'G/H')).length,
+    ).toBe(1)
+    expect(await findGitProjects(t.db, 'github', { externalIdPrefix: 'git.' }, 'g/h')).toEqual([])
   })
 
   it('describes what the notify job needs for a linked build, and nothing for an unlinked one', async () => {
     const { project, org } = await seedProject(t.db)
     const build = await seedBuild(t.db, project.id)
-    expect(await getGitTarget(t.db, build.id)).toBeUndefined()
-    await linkProjectToGithub(t.db, project.id, { installationId: '9', repoRef: 'a/b' })
-    const target = await getGitTarget(t.db, build.id)
+    expect(await getGitTarget(t.db, build.id, GIT)).toBeUndefined()
+    await seedGitLink(t.db, project.id, { externalId: '9', repoRef: 'a/b' })
+    const target = await getGitTarget(t.db, build.id, GIT)
     expect(target).toMatchObject({
       installationId: '9',
       repoRef: 'a/b',
@@ -159,29 +156,5 @@ describe('latestBuildsForPr', () => {
       second.id,
     ])
     expect(await latestBuildsForPr(t.db, project.id, 99)).toEqual([])
-  })
-})
-
-describe('findMemberByGithubId', () => {
-  it('matches the linked GitHub account of someone in the project’s organization', async () => {
-    const { project, owner } = await seedProject(t.db)
-    const outside = (await seedOrg(t.db)).owner
-    for (const [user, githubId] of [
-      [owner, '1001'],
-      [outside, '1002'],
-    ] as const) {
-      // oxlint-disable-next-line no-await-in-loop -- two rows
-      await t.db.insert(schema.account).values({
-        id: `gh-${githubId}`,
-        accountId: githubId,
-        providerId: 'github',
-        userId: user.id,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })
-    }
-    expect(await findMemberByGithubId(t.db, '1001', project.id)).toBe(owner.id)
-    expect(await findMemberByGithubId(t.db, '1002', project.id)).toBeUndefined() // other org
-    expect(await findMemberByGithubId(t.db, '9999', project.id)).toBeUndefined()
   })
 })
