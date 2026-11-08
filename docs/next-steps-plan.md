@@ -192,6 +192,12 @@ the matching B items. D needs A, C0 and its listed B items.
 | R9 | **Visual baselines churn** with every palette and radius change | Regenerate once per phase (A5, end of each C wave), reviewed by you |
 | R10 | **External services only faked** (GitLab, Bitbucket, Slack, Linear, Jira, Figma, SMTP) | Say so in each integration's docs; one manual test against each real service before release |
 
+- **R11 (found in A0, your call):** the canvas's light review amber `#b38d05` is 3.0:1 on the panel
+  and 3.1:1 on raised, but 2.7:1 on chrome and 2.5:1 on highest, below the 3:1 the palette test
+  asks of glyphs. `theme.ts` matches the canvas, and the test checks review only where it is
+  drawn (panel, raised). If a review glyph ever appears on the sidebar or a highest surface,
+  darken it (about `#a07c04` passes 3:1 on all four) and update the canvas.
+
 ## 10. Doc housekeeping
 
 - Done 2026-11-08: the review doc's Decision column says "Fix" for all 41 findings.

@@ -28,12 +28,31 @@ const dark = {
     main: '#d9806d',
     text: '#eaa493',
     onAccent: '#1c0f0c',
+    hover: '#f3c2b6',
     /** Fill behind a selected row. */
     subtle: 'rgba(217, 128, 109, 0.12)',
   },
-  state: { approved: '#5cb8a8', review: '#e2b04a', processing: '#9aa3f7', rejected: '#f2707f' },
+  /** `reviewText` is `review` for text: in light the glyph amber is too pale to read as words. */
+  state: {
+    approved: '#5cb8a8',
+    review: '#eec84f',
+    reviewText: '#eec84f',
+    processing: '#9aa3f7',
+    rejected: '#ff0a1f',
+  },
   line: { subtle: 'rgba(255, 255, 255, 0.07)', strong: 'rgba(255, 255, 255, 0.12)' },
   action: { hover: 'rgba(255, 255, 255, 0.045)', selected: 'rgba(255, 255, 255, 0.075)' },
+  /** Tokens with no group: emitted as `--circi-<key>` (the canvas names them this way). */
+  other: {
+    annotation: '#8b46ff',
+    annotationText: '#ffffff',
+    avatarText: '#e4b1a7',
+    glow: 'color-mix(in srgb, var(--circi-brand-maroon) 55%, transparent)',
+    scrim: 'rgba(0, 0, 0, 0.5)',
+    shadowPopup: 'none',
+    /** The canvas's own backdrop, behind the artboards. */
+    stage: '#0f0d0c',
+  },
 }
 
 const light: typeof dark = {
@@ -51,11 +70,27 @@ const light: typeof dark = {
     main: '#b4573f',
     text: '#9c4a35',
     onAccent: '#ffffff',
+    hover: '#7d3a29',
     subtle: 'rgba(180, 87, 63, 0.10)',
   },
-  state: { approved: '#17806f', review: '#9a6200', processing: '#4f5bd5', rejected: '#c93a4f' },
+  state: {
+    approved: '#17806f',
+    review: '#b38d05',
+    reviewText: '#6b4c00',
+    processing: '#4f5bd5',
+    rejected: '#930028',
+  },
   line: { subtle: 'rgba(28, 15, 12, 0.08)', strong: 'rgba(28, 15, 12, 0.15)' },
   action: { hover: 'rgba(28, 15, 12, 0.04)', selected: 'rgba(28, 15, 12, 0.07)' },
+  other: {
+    annotation: '#8b46ff',
+    annotationText: '#ffffff',
+    avatarText: '#5e5450',
+    glow: 'color-mix(in srgb, var(--circi-brand-maroon) 14%, transparent)',
+    scrim: 'rgba(0, 0, 0, 0.3)',
+    shadowPopup: '0 8px 24px rgba(28, 15, 12, 0.14)',
+    stage: '#ebe5e2',
+  },
 }
 
 export type ColorScheme = 'light' | 'dark'
@@ -74,7 +109,9 @@ export const COLOR_SCHEME_ATTRIBUTE = 'data-circi-color-scheme'
 export const MODE_STORAGE_KEY = 'circi-color-mode'
 
 const kebab = (s: string) => s.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)
-const varName = (group: string, key: string) => `--circi-${group}-${kebab(key)}`
+/** The group `other` has no prefix: `other.scrim` is `--circi-scrim`. */
+const varName = (group: string, key: string) =>
+  group === 'other' ? `--circi-${kebab(key)}` : `--circi-${group}-${kebab(key)}`
 
 type Tokens = { readonly [G in keyof Palette]: { readonly [K in keyof Palette[G]]: string } }
 
