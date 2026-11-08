@@ -108,6 +108,43 @@ describe('j and k', () => {
   })
 })
 
+const unchanged = () => page.getByRole('button', { name: /^Unchanged/ })
+
+describe('j and k with collapsed groups', () => {
+  it('stop on a collapsed group’s header, Enter opens it, and the next j enters it', async () => {
+    fakeBuildApi(detail())
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    await userEvent.keyboard('jj')
+    await expect.element(page.getByRole('link', { name: /home/ })).toHaveFocus()
+    await userEvent.keyboard('j')
+    // The collapsed group is a stop, not skipped; nothing changed in the selection.
+    await expect.element(unchanged()).toHaveFocus()
+    await expect.element(unchanged()).toHaveAttribute('aria-expanded', 'false')
+    await expect.element(page.getByRole('link', { name: /home/ })).toHaveAttribute('data-selected')
+    await userEvent.keyboard('{Enter}')
+    await expect.element(unchanged()).toHaveAttribute('aria-expanded', 'true')
+    await expect.element(unchanged()).toHaveFocus()
+    await userEvent.keyboard('j')
+    const pricing = page.getByRole('link', { name: /pricing/ })
+    await expect.element(pricing).toHaveFocus()
+    await expect.element(pricing).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('K comes back to the header, and Right opens it, Left closes it', async () => {
+    fakeBuildApi(detail())
+    await renderBuild()
+    await userEvent.keyboard('jjj')
+    await expect.element(unchanged()).toHaveFocus()
+    await userEvent.keyboard('{ArrowRight}')
+    await expect.element(unchanged()).toHaveAttribute('aria-expanded', 'true')
+    await userEvent.keyboard('{ArrowLeft}')
+    await expect.element(unchanged()).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.keyboard('k')
+    await expect.element(page.getByRole('link', { name: /home/ })).toHaveFocus()
+  })
+})
+
 describe('comments', () => {
   it('c opens Comments with the field focused, and @ suggests members', async () => {
     const api = fakeBuildApi(detail())
@@ -173,6 +210,51 @@ describe('comments', () => {
     await vi.waitFor(() =>
       expect(document.activeElement?.getAttribute('data-thread-id')).toBe('c1'),
     )
+  })
+
+  it('places a region from the keyboard: arrows move, Shift resizes, Enter confirms, and it is announced', async () => {
+    const api = fakeBuildApi(detail())
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    await page.getByRole('button', { name: 'Comment on a region' }).click()
+    const tool = page.getByRole('group', { name: 'Region to mark' })
+    await expect.element(tool).toHaveFocus()
+    await expect.element(page.getByText(/^Drawing a region\./)).toBeInTheDocument()
+    await userEvent.keyboard('{ArrowRight}{ArrowRight}{ArrowDown}')
+    await expect
+      .element(page.getByText('42% from the left, 41% from the top, 20% wide, 20% high'))
+      .toBeInTheDocument()
+    await userEvent.keyboard('{Shift>}{ArrowRight}{ArrowRight}{ArrowDown}{/Shift}')
+    await expect
+      .element(page.getByText('42% from the left, 41% from the top, 22% wide, 21% high'))
+      .toBeInTheDocument()
+    await userEvent.keyboard('{Enter}')
+    // Like a drag: the Comments tab opens with the cursor in its field, pinned to the region.
+    await expect.element(page.getByRole('combobox', { name: 'Comment' })).toHaveFocus()
+    await expect.element(page.getByText('Pinned to a region of checkout / payment')).toBeVisible()
+    await userEvent.keyboard('Too tight')
+    await page.getByRole('button', { name: 'Comment', exact: true }).click()
+    await vi.waitFor(() => expect(api.commentPosts).toHaveLength(1))
+    const region = api.commentPosts[0]?.region
+    expect(region?.x).toBeCloseTo(0.42, 3)
+    expect(region?.y).toBeCloseTo(0.41, 3)
+    expect(region?.width).toBeCloseTo(0.22, 3)
+    expect(region?.height).toBeCloseTo(0.21, 3)
+  })
+
+  it('cancels the keyboard region with Escape and returns focus to the button', async () => {
+    fakeBuildApi(detail())
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    const toggle = page.getByRole('button', { name: 'Comment on a region' })
+    await toggle.click()
+    await expect.element(page.getByRole('group', { name: 'Region to mark' })).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+    await expect
+      .element(page.getByRole('group', { name: 'Region to mark' }))
+      .not.toBeInTheDocument()
+    await expect.element(toggle).toHaveFocus()
+    await expect.element(page.getByText('Region cancelled')).toBeInTheDocument()
   })
 
   it('shows replies, and edit and delete only where they are allowed', async () => {

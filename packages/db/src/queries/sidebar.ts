@@ -76,16 +76,16 @@ export async function getSidebar(
       now: input.now,
       ...(input.method === undefined ? {} : { method: input.method }),
     }),
-    Promise.all(ordered.map((p) => countOpenTriage(db, { teamId: p.id, now: input.now }))),
+    countOpenTriage(db, { workspaceId: input.workspace.id, now: input.now }),
   ])
   return {
-    teams: ordered.map((p, i) => ({
+    teams: ordered.map((p) => ({
       slug: p.slug,
       name: p.name,
       color: p.color,
       icon: p.icon,
       pinned: rank.has(p.id),
-      triage: triage[i] ?? 0,
+      triage: triage.get(p.id) ?? 0,
     })),
     views,
     inboxUnread,

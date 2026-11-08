@@ -3,9 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { createBuild } from '@circi/db'
-import { linkTeamToGithub } from '@circi/services'
 import { FsStorage } from '@circi/storage'
-import { createTestDb } from '@circi/testing'
+import { createTestDb, seedGitLink } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -39,7 +38,7 @@ beforeAll(async () => {
   await app.ready()
   linked = await seedTenant(auth, t.db)
   plain = await seedTenant(auth, t.db)
-  await linkTeamToGithub(t.db, linked.team.id, { installationId: '1', repoRef: 'acme/web' })
+  await seedGitLink(t.db, linked.team.id, { externalId: '1', repoRef: 'acme/web' })
   linkedBuildId = (await createBuild(t.db, { teamId: linked.team.id, commitSha: 'abc1234' })).id
   plainBuildId = (await createBuild(t.db, { teamId: plain.team.id, commitSha: 'abc1234' })).id
 })

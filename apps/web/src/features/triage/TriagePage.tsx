@@ -422,7 +422,8 @@ function Drawing({
   return (
     <div className={styles.paneBody}>
       <Text variant="small" tone="secondary">
-        Drag over the screenshot to mark the region CirCI should ignore.
+        Drag over the screenshot to mark the region CirCI should ignore, or use the arrow keys
+        (Shift to resize, Enter to set, Escape to cancel).
       </Text>
       <div className={styles.canvas}>
         <img src={fileUrl(frame.sha256)} alt={`${name} in build #${frame.number}`} />
@@ -432,7 +433,10 @@ function Drawing({
             pending,
             focusedId: null,
             drawing: true,
-            onDrawingChange: () => {},
+            // Escape in the keyboard tool cancels, like the Cancel button.
+            onDrawingChange: (on) => {
+              if (!on) onCancel()
+            },
             onDraw,
             onMarker: () => {},
           }}

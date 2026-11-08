@@ -12,13 +12,18 @@ import {
   getTeamLink,
   getTeamMemberRole,
   getTeamTokenInfo,
+  getWebhook,
   isWebhookEvent,
+  listWebhookDeliveries,
   listWebhooks,
+  queueTestWebhook,
+  type WebhookDelivery,
   teamSettings,
   updateTeamSettings,
   WEBHOOK_EVENTS,
   type Webhook,
 } from '@circi/db'
+import { IntegrationError } from '@circi/integrations'
 import {
   gitKinds,
   linkTeamToGithub,
@@ -31,6 +36,7 @@ import { z } from 'zod'
 import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
 import { githubConfigured } from '#http/lib/github-app.ts'
+import { integrationContext } from '#http/lib/integration-context.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const teamParams = z.object({ workspace: z.string(), team: z.string() })
@@ -98,14 +104,36 @@ async function tokenInfo(db: Database, teamId: string, canManage: boolean): Prom
   }
 }
 
-function present(hook: Webhook) {
+function presentDelivery(d: WebhookDelivery): Team.WebhookDelivery {
   return {
+    deliveryId: d.deliveryId,
+    event: d.event,
+    test: d.test,
+    attempt: d.attempt,
+    statusCode: d.statusCode,
+    error: d.error,
+    createdAt: d.createdAt.toISOString(),
+  }
+}
+
+function present(hook: Webhook, deliveries: WebhookDelivery[] = []): Team.Webhook {
+  return {
+    deliveries: deliveries.map(presentDelivery),
     id: hook.id,
     url: hook.url,
     events: hook.events,
     enabled: hook.enabled,
-    createdAt: hook.createdAt,
+    createdAt: hook.createdAt.toISOString(),
   }
+}
+
+async function presentWebhooks(db: Database, teamId: string): Promise<Team.Webhook[]> {
+  const hooks = await listWebhooks(db, teamId)
+  const deliveries = await listWebhookDeliveries(
+    db,
+    hooks.map((h) => h.id),
+  )
+  return hooks.map((h) => present(h, deliveries.get(h.id)))
 }
 
 /**
@@ -151,7 +179,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
       appearance: { color: found.team.color, icon: found.team.icon },
       // What a team that inherits gets, so the form can say so.
       workspace: await getWorkspaceSettings(deps.db, found.team.workspaceId),
-      webhooks: (await listWebhooks(deps.db, found.team.id)).map(present),
+      webhooks: await presentWebhooks(deps.db, found.team.id),
       webhookEvents: WEBHOOK_EVENTS,
       sitesConfigured: deps.sites !== undefined,
       github: {
@@ -214,7 +242,18 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
     if (!githubConfigured(deps))
       throw new ValidationError('This instance has no GitHub App configured')
     const link = parse(githubBody, req.body)
-    await linkTeamToGithub(deps.db, team.id, link)
+    const ctx = integrationContext(deps)
+    if (!ctx) return reply.code(400).send({ error: 'This instance cannot store credentials' })
+    try {
+      // Verified with GitHub like the integration's Add flow: nothing is stored when it fails.
+      await linkTeamToGithub(deps.db, team.id, link, ctx)
+    } catch (err) {
+      if (err instanceof IntegrationError) {
+        if (err.status === 502) req.log.warn({ err }, 'could not verify the GitHub installation')
+        return reply.code(err.status).send({ error: err.message })
+      }
+      throw err
+    }
     return { link: { ...link, attention: null } }
   })
 
@@ -242,6 +281,22 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
       events: events.filter(isWebhookEvent),
     })
     return reply.code(201).send({ webhook: present(created), secret: created.secret })
+  })
+
+  /**
+   * Queues a signed test event to one webhook (owners and admins). It goes through the delivery
+   * job like a build event, so it shows in the webhook's recent deliveries once it has run.
+   */
+  app.post('/teams/:workspace/:team/webhooks/:id/test', async (req, reply) => {
+    const team = await loadForManager(req, reply)
+    if (!team) return reply
+    const { id } = parse(hookParams, req.params)
+    if (!z.uuid().safeParse(id).success) return reply.code(404).send({ error: 'Webhook not found' })
+    const hook = await getWebhook(deps.db, id)
+    if (hook?.teamId !== team.id) return reply.code(404).send({ error: 'Webhook not found' })
+    if (!hook.enabled) throw new ValidationError('This webhook is disabled')
+    const deliveryId = await queueTestWebhook(deps.db, hook.id)
+    return reply.code(202).send({ deliveryId })
   })
 
   app.delete('/teams/:workspace/:team/webhooks/:id', async (req, reply) => {

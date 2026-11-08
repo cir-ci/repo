@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { boolean, check, index, pgTable, text, uuid } from 'drizzle-orm/pg-core'
+import { boolean, check, index, integer, pgTable, text, uuid } from 'drizzle-orm/pg-core'
 
 import { createdAt, id } from './_columns.ts'
 import { teams } from './teams.ts'
@@ -30,4 +30,30 @@ export const webhooks = pgTable(
     index('webhooks_team_idx').on(t.teamId),
     check('webhooks_events_check', sql`cardinality(${t.events}) > 0`),
   ],
+)
+
+/**
+ * One row per delivery attempt, for the "recent deliveries" list: what the receiver answered
+ * (or why no request was made) and when. Only the newest few per webhook are kept.
+ */
+export const webhookDeliveries = pgTable(
+  'webhook_deliveries',
+  {
+    id: id(),
+    webhookId: uuid('webhook_id')
+      .notNull()
+      .references(() => webhooks.id, { onDelete: 'cascade' }),
+    /** The `CirCI-Delivery` id: the same for every attempt of one event. */
+    deliveryId: text('delivery_id').notNull(),
+    event: text('event').notNull(),
+    /** A "Send test" event rather than a build event. */
+    test: boolean('test').notNull().default(false),
+    /** 1 for the first try, 2 for the first retry, … */
+    attempt: integer('attempt').notNull(),
+    /** The receiver's HTTP status; null when no answer came (see `error`). */
+    statusCode: integer('status_code'),
+    error: text('error'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('webhook_deliveries_hook_idx').on(t.webhookId, t.createdAt)],
 )

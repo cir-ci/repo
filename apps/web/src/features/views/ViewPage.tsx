@@ -43,9 +43,11 @@ export function ViewPage() {
             filters={parseFilters({ ...view.filters })}
           />
         ) : (
-          <EmptyState title={view.name}>
-            This view spans the whole workspace, which the builds list can’t show yet.
-          </EmptyState>
+          <ViewBuilds
+            key={view.id}
+            workspace={workspace}
+            filters={parseFilters({ ...view.filters })}
+          />
         )}
       </div>
     </>
@@ -58,16 +60,24 @@ function ViewBuilds({
   filters: initial,
 }: {
   workspace: string
-  team: string
+  /** Absent for a view across the whole workspace. */
+  team?: string
   filters: BuildFilters
 }) {
   const [filters, setFilters] = useState(initial)
+  // A workspace-wide list pages by a build id kept here; a team's pages by number, in its URL.
+  const [cursor, setCursor] = useState<string>()
   return (
     <BuildsBrowser
       workspace={workspace}
       team={team}
       filters={filters}
-      onFiltersChange={setFilters}
+      onFiltersChange={(next) => {
+        setFilters(next)
+        setCursor(undefined)
+      }}
+      cursor={cursor}
+      onCursorChange={setCursor}
       canSave={false}
     />
   )

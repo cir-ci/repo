@@ -77,7 +77,7 @@ function toAuthor(
   return login ? { login, name: member?.name ?? null, avatarUrl: member?.image ?? null } : null
 }
 
-function filterConditions(f: listBuildsForTeam.Filters) {
+export function buildFilterConditions(f: listBuildsForTeam.Filters) {
   return [
     f.status ? eq(builds.status, f.status) : undefined,
     f.reviewStatus ? eq(builds.reviewStatus, f.reviewStatus) : undefined,
@@ -107,11 +107,22 @@ export async function listBuildsForTeam(
       and(
         eq(builds.teamId, teamId),
         options.beforeNumber ? lt(builds.number, options.beforeNumber) : undefined,
-        ...filterConditions(options.filters ?? {}),
+        ...buildFilterConditions(options.filters ?? {}),
       ),
     )
     .orderBy(desc(builds.number))
     .limit(options.limit)
+  return hydrateBuildList(db, found)
+}
+
+/** The builds with their screenshot counts and authors: what both builds lists show. */
+export async function hydrateBuildList(
+  db: Database,
+  found: {
+    build: typeof builds.$inferSelect
+    member: { name: string; image: string | null } | null
+  }[],
+): Promise<listBuildsForTeam.Item[]> {
   if (found.length === 0) return []
   const rows = found.map((f) => f.build)
   const members = new Map(found.map((f) => [f.build.id, f.member]))

@@ -44,3 +44,20 @@
 .layer[data-drawing] .marker:not([data-pending]) {
   pointer-events: none;
 }
+
+/* The keyboard tool: present for focus and screen readers, shown only while it has focus. */
+.tool {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px dashed var(--circi-annotation);
+  background: color-mix(in srgb, var(--circi-annotation) 20%, transparent);
+  opacity: 0;
+  outline: none;
+  pointer-events: none;
+}
+
+.tool:focus {
+  opacity: 1;
+  outline: 2px solid var(--circi-annotation-text);
+  outline-offset: 2px;
+}

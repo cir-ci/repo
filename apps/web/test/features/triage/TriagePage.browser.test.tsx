@@ -50,18 +50,33 @@ const queue = (items: unknown[], onTriage: { id: string; name: string } | null =
   },
 })
 
-const detail = {
-  team: { slug: 'web', name: 'Web' },
-  build: { number: 12, status: 'complete', reviewStatus: 'pending' },
-  diffs: [
+const history = {
+  defaultBranch: 'main',
+  default: [
     {
-      name: 'home',
+      build: {
+        number: 12,
+        branch: 'main',
+        status: 'complete',
+        reviewStatus: 'pending',
+        createdAt: '2026-11-08T10:00:00.000Z',
+      },
       status: 'changed',
-      head: { sha256: 'abc', thumbnail: 'abc-t', width: 400, height: 300 },
-      base: null,
+      image: { sha256: 'abc', thumbnail: 'abc-t', width: 400, height: 300 },
     },
-    { name: 'pricing', status: 'added', head: null, base: null },
+    {
+      build: {
+        number: 11,
+        branch: 'main',
+        status: 'complete',
+        reviewStatus: 'approved',
+        createdAt: '2026-11-07T10:00:00.000Z',
+      },
+      status: 'unchanged',
+      image: { sha256: 'abd', thumbnail: null, width: 400, height: 300 },
+    },
   ],
+  branch: null,
 }
 
 const show = () =>
@@ -89,7 +104,8 @@ function server() {
   }
   const routes: Record<string, ReplyHandler> = {
     [`GET ${BASE}/triage`]: () => ({ body: queue(current) }),
-    [`GET ${BASE}/builds/12`]: { body: detail },
+    [`GET ${BASE}/snapshots/home/history`]: { body: history },
+    [`GET ${BASE}/snapshots/pricing/history`]: { body: { ...history, default: [] } },
     [`POST ${BASE}/triage/dismiss`]: (body) => gone(field(body, 'key')),
     [`POST ${BASE}/triage/snooze`]: (body) => gone(field(body, 'key')),
     [`POST ${BASE}/triage/assign`]: { body: {} },
@@ -120,6 +136,18 @@ describe('TriagePage', () => {
     const strip = page.getByRole('list', { name: 'Recent builds of home' })
     await expect.element(strip).toBeVisible()
     await expect.element(strip.getByRole('img', { name: 'Flaky' })).toBeVisible()
+    expect(strip.getByRole('listitem').elements()).toHaveLength(2)
+  })
+
+  it('reads the filmstrip with one history request, not one per build', async () => {
+    const api = server()
+    await show()
+    await expect.element(page.getByRole('list', { name: 'Recent builds of home' })).toBeVisible()
+    const paths = api.of('GET').map((c) => c.path)
+    expect(paths.filter((p) => p.includes('/snapshots/'))).toEqual([
+      `${BASE}/snapshots/home/history`,
+    ])
+    expect(paths.some((p) => p.includes('/builds/'))).toBe(false)
   })
 
   it('shows who is on triage this week', async () => {
@@ -233,6 +261,41 @@ describe('TriagePage', () => {
     expect(Number(field(posted, 'y'))).toBeCloseTo(30, -1)
     expect(Number(field(posted, 'width'))).toBeCloseTo(160, -1)
     expect(Number(field(posted, 'height'))).toBeCloseTo(120, -1)
+  })
+
+  it('draws an ignore region from the keyboard with I, arrows and Enter', async () => {
+    const api = server()
+    await show()
+    await expect.element(page.getByRole('button', { name: 'Add ignore region' })).toBeVisible()
+    await userEvent.keyboard('i')
+    const image = page.getByRole('img', { name: 'home in build #12' }).element()
+    image.style.width = '400px'
+    image.style.height = '300px'
+    await expect.element(page.getByRole('group', { name: 'Region to mark' })).toHaveFocus()
+    await userEvent.keyboard('{ArrowLeft}{Shift>}{ArrowRight}{/Shift}')
+    await userEvent.keyboard('{Enter}')
+    await page.getByRole('button', { name: 'Ignore this region' }).click()
+    await vi.waitFor(() =>
+      expect(api.of('POST').some((c) => c.path === `${BASE}/ignore-regions`)).toBe(true),
+    )
+    const posted = api.of('POST').find((c) => c.path === `${BASE}/ignore-regions`)?.body
+    expect(field(posted, 'name')).toBe('home')
+    // Start 40%, 40%, 20% x 20% of 400 x 300: one step left, one step wider (21%).
+    expect(Number(field(posted, 'x'))).toBe(156)
+    expect(Number(field(posted, 'y'))).toBe(120)
+    expect(Number(field(posted, 'width'))).toBe(84)
+    expect(Number(field(posted, 'height'))).toBe(60)
+  })
+
+  it('Escape leaves the keyboard region tool, like Cancel', async () => {
+    server()
+    await show()
+    await userEvent.keyboard('i')
+    await expect.element(page.getByRole('group', { name: 'Region to mark' })).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+    await expect
+      .element(page.getByRole('group', { name: 'Region to mark' }))
+      .not.toBeInTheDocument()
   })
 
   it('moves the selection with J and K', async () => {

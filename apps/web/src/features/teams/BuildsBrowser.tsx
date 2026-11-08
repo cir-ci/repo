@@ -33,7 +33,13 @@ import { useListStore } from '#lib/stores/list-store.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 import { useListNavigation } from '#lib/use-list-navigation.ts'
 
-import { BUILDS_PAGE_SIZE, teamQuery, useBulkRequestReview, useBulkReview } from './api.ts'
+import {
+  BUILDS_PAGE_SIZE,
+  teamQuery,
+  useBulkRequestReview,
+  useBulkReview,
+  workspaceBuildsQuery,
+} from './api.ts'
 import { BuildFilterBar } from './BuildFilterBar.tsx'
 import { type BuildFilters, type FilterField, hasFilters, toSearch } from './builds-filters.ts'
 import { BulkRejectDialog } from './BulkRejectDialog.tsx'
@@ -55,11 +61,24 @@ export function BuildsBrowser({
   filters,
   onFiltersChange,
   before,
+  cursor: pageCursor,
+  onCursorChange,
   canSave = true,
 }: BuildsBrowser.Props) {
   const clientLink = useClientLink()
   const announce = useAnnounce()
-  const { data, error, refetch } = useQuery(teamQuery(workspace, team, before, filters))
+  // Without a team this is the whole workspace's list (a saved view with no team).
+  const scoped = team !== undefined
+  const teamResult = useQuery({
+    ...teamQuery(workspace, team ?? '', before, filters),
+    enabled: scoped,
+  })
+  const workspaceResult = useQuery({
+    ...workspaceBuildsQuery(workspace, pageCursor, filters),
+    enabled: !scoped,
+  })
+  const { data, error, refetch } = scoped ? teamResult : workspaceResult
+  const teamOf = (b: Row) => b.team?.slug ?? team ?? ''
   useLoadingAnnouncement(!data && !error, 'Loading builds')
 
   const display = useDisplayStore((s) => s.display)
@@ -75,13 +94,14 @@ export function BuildsBrowser({
   const [picking, setPicking] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const bulk = useBulkReview(workspace, team)
-  const bulkRequest = useBulkRequestReview(workspace, team)
+  // Bulk decisions are one team's (a single transaction); a workspace-wide list only browses.
+  const bulk = useBulkReview(workspace, team ?? '')
+  const bulkRequest = useBulkRequestReview(workspace, team ?? '')
   const saveView = useSaveView(workspace)
 
-  const builds = data?.builds ?? []
+  const builds: readonly Row[] = data?.builds ?? []
   const oldest = builds.at(-1)?.number
-  const groups = groupBuilds(orderBuilds(builds, display.order), display.groupBy)
+  const groups = groupBuilds(orderBuilds([...builds], display.order), display.groupBy)
   const flat = groups.flatMap((g) => g.builds)
   const cursor = flat.find((b) => b.id === cursorId) ?? flat[0]
   const chosen = flat.filter((b) => selected.has(b.id))
@@ -101,7 +121,7 @@ export function BuildsBrowser({
       return undefined
     },
     select: () => {
-      if (!cursor) return
+      if (!cursor || !scoped) return
       const on = useListStore.getState().toggleChecked(cursor.id)
       const next = useListStore.getState().checked
       const count = flat.filter((b) => next.has(b.id)).length
@@ -133,6 +153,7 @@ export function BuildsBrowser({
       <SectionHeader title={title} />
       {data && (builds.length > 0 || filtered) ? (
         <BuildFilterBar
+          workspace={workspace}
           filters={filters}
           onFiltersChange={onFiltersChange}
           display={display}
@@ -146,7 +167,7 @@ export function BuildsBrowser({
         <ErrorState
           error={error}
           onRetry={() => void refetch()}
-          notFound="This team doesn’t exist"
+          notFound={scoped ? 'This team doesn’t exist' : 'This workspace doesn’t exist'}
         />
       ) : !data ? (
         <Delayed>
@@ -159,7 +180,9 @@ export function BuildsBrowser({
             title="No builds match"
             action={<Button onClick={() => onFiltersChange({})}>Clear filters</Button>}
           >
-            Nothing in this team fits these filters.
+            {scoped
+              ? 'Nothing in this team fits these filters.'
+              : 'Nothing in this workspace fits these filters.'}
           </EmptyState>
         ) : (
           <EmptyState
@@ -196,7 +219,7 @@ export function BuildsBrowser({
                           selected={b.id === cursor?.id}
                           {...clientLink({
                             to: '/$workspace/$team/builds/$number',
-                            params: { workspace, team, number: String(b.number) },
+                            params: { workspace, team: teamOf(b), number: String(b.number) },
                           })}
                           leading={
                             <span className={styles.lead}>
@@ -247,7 +270,7 @@ export function BuildsBrowser({
                     variant="primary"
                     {...clientLink({
                       to: '/$workspace/$team/builds/$number',
-                      params: { workspace, team, number: String(cursor.number) },
+                      params: { workspace, team: teamOf(cursor), number: String(cursor.number) },
                     })}
                   >
                     Open build
@@ -260,28 +283,43 @@ export function BuildsBrowser({
           </div>
           {/* Primer: pagination sits directly below the collection it pages. */}
           <div className={styles.pager}>
-            {before ? (
-              <Button
-                {...clientLink({
-                  to: '/$workspace/$team',
-                  params: { workspace, team },
-                  search: toSearch(filters),
-                })}
-              >
-                Newest builds
-              </Button>
-            ) : null}
-            {builds.length === BUILDS_PAGE_SIZE && oldest ? (
-              <Button
-                {...clientLink({
-                  to: '/$workspace/$team',
-                  params: { workspace, team },
-                  search: toSearch(filters, oldest),
-                })}
-              >
-                Older builds
-              </Button>
-            ) : null}
+            {scoped ? (
+              <>
+                {before ? (
+                  <Button
+                    {...clientLink({
+                      to: '/$workspace/$team',
+                      params: { workspace, team },
+                      search: toSearch(filters),
+                    })}
+                  >
+                    Newest builds
+                  </Button>
+                ) : null}
+                {builds.length === BUILDS_PAGE_SIZE && oldest ? (
+                  <Button
+                    {...clientLink({
+                      to: '/$workspace/$team',
+                      params: { workspace, team },
+                      search: toSearch(filters, oldest),
+                    })}
+                  >
+                    Older builds
+                  </Button>
+                ) : null}
+              </>
+            ) : (
+              <>
+                {pageCursor ? (
+                  <Button onClick={() => onCursorChange?.(undefined)}>Newest builds</Button>
+                ) : null}
+                {workspaceResult.data?.next ? (
+                  <Button onClick={() => onCursorChange?.(workspaceResult.data?.next ?? undefined)}>
+                    Older builds
+                  </Button>
+                ) : null}
+              </>
+            )}
           </div>
         </>
       )}
@@ -325,7 +363,7 @@ export function BuildsBrowser({
         onOpenChange={setPicking}
         onPick={(member) =>
           bulkRequest.mutate(
-            { numbers: chosen.map((b) => b.number), reviewerId: member.id },
+            { buildIds: chosen.map((b) => b.id), reviewerIds: [member.id] },
             {
               onSuccess: () => {
                 announce(`Asked ${member.name} to review ${countText(chosen.length)}`)
@@ -360,11 +398,15 @@ export function BuildsBrowser({
 export namespace BuildsBrowser {
   export interface Props {
     workspace: string
-    team: string
+    /** The team whose builds to list; absent for every team of the workspace (a view with no team). */
+    team?: string | undefined
     filters: BuildFilters
     onFiltersChange: (filters: BuildFilters) => void
-    /** The page cursor (builds older than this number). */
+    /** A team's page cursor (builds older than this number). */
     before?: number | undefined
+    /** The workspace-wide page cursor (builds before this build id), and how to change it. */
+    cursor?: string | undefined
+    onCursorChange?: ((cursor: string | undefined) => void) | undefined
     /** Offer "Save view" (not on a saved view's own page). */
     canSave?: boolean
   }
@@ -395,9 +437,17 @@ function GroupRows({
   )
 }
 
-function RowMeta({ build, show }: { build: Build.ListItem; show: DisplayOptions['show'] }) {
+/** A build in either list: a workspace-wide one also names its team. */
+type Row = Build.ListItem & { team?: { slug: string; name: string } }
+
+function RowMeta({ build, show }: { build: Row; show: DisplayOptions['show'] }) {
   return (
     <span className={styles.metaLine}>
+      {build.team ? (
+        <Text variant="small" tone="secondary">
+          {build.team.name}
+        </Text>
+      ) : null}
       {build.prNumber ? (
         <Text variant="small" tone="secondary">
           PR #{build.prNumber}

@@ -68,6 +68,39 @@ describe('review rules', () => {
     expect((await send('DELETE', `${base()}/rules/not-a-uuid`)).statusCode).toBe(404)
   })
 
+  it('reorders rules for managers only, all at once', async () => {
+    const make = async (pattern: string) =>
+      (
+        await send('POST', `${base()}/rules`, {
+          payload: { kind: 'snapshot-name', pattern, reviewerIds: [lou.id] },
+        })
+      ).json().id
+    const [a, b] = [await make('first/**'), await make('second/**')]
+    const order = (ids: string[]) =>
+      send('PUT', `${base()}/rules/order`, { payload: { ruleIds: ids } })
+    const res = await order([b, a])
+    expect(res.statusCode).toBe(200)
+    expect(res.json().rules.map((r: { id: string }) => r.id)).toEqual([b, a])
+    expect((await get(`${base()}/rules`)).json().rules.map((r: { id: string }) => r.id)).toEqual([
+      b,
+      a,
+    ])
+    expect((await order([a])).statusCode).toBe(400)
+    expect((await order(['nope'])).statusCode).toBe(400)
+    const asMember = await send('PUT', `${base()}/rules/order`, {
+      cookie: louCookie,
+      payload: { ruleIds: [a, b] },
+    })
+    expect(asMember.statusCode).toBe(403)
+    const outsider = await send('PUT', `${base()}/rules/order`, {
+      cookie: rivalCookie,
+      payload: { ruleIds: [a, b] },
+    })
+    expect(outsider.statusCode).toBe(404)
+    await send('DELETE', `${base()}/rules/${a}`)
+    await send('DELETE', `${base()}/rules/${b}`)
+  })
+
   it('rejects bad rules with 400', async () => {
     for (const payload of [
       { kind: 'snapshot-name', pattern: '', reviewerIds: [lou.id] },

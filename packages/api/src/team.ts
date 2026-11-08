@@ -66,6 +66,23 @@ export namespace Team {
     events: string[]
     enabled: boolean
     createdAt: string
+    /** The newest delivery attempts (at most 20), newest first. */
+    deliveries: WebhookDelivery[]
+  }
+
+  /** One attempt to deliver one event to a webhook. */
+  export interface WebhookDelivery {
+    /** The `CirCI-Delivery` id; every retry of one event shares it. */
+    deliveryId: string
+    event: string
+    /** A "Send test" event. */
+    test: boolean
+    /** 1 for the first try, 2 for the first retry, … */
+    attempt: number
+    /** What the receiver answered; null when it could not be reached (see `error`). */
+    statusCode: number | null
+    error: string | null
+    createdAt: string
   }
 
   /** CirCI can't use the team's git connection and a person has to act. */

@@ -17,7 +17,7 @@ export const findView = (views: readonly View.Item[] | undefined, id: string) =>
 export function useSaveView(workspace: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (input: { name: string; team: string; filters: View.Filters }) =>
+    mutationFn: (input: { name: string; team?: string | undefined; filters: View.Filters }) =>
       post<View.Item>(`/api/workspaces/${seg(workspace)}/views`, { ...input, pinned: true }),
     onSuccess: () =>
       Promise.all([

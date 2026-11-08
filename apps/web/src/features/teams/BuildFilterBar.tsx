@@ -1,6 +1,10 @@
 import { Button, Popover, Switch, Text, TextField } from '@circi/ui'
-import { type FormEvent, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { type FormEvent, useDeferredValue, useState } from 'react'
 
+import { workspaceQuery } from '#features/members/api.ts'
+
+import { suggestionsQuery } from './api.ts'
 import {
   type BuildFilters,
   chipName,
@@ -30,6 +34,7 @@ import styles from './BuildFilterBar.module.css'
 
 /** A chip for each filter (a dashed button that fills in once set), the display options and Save view. */
 export function BuildFilterBar({
+  workspace,
   filters,
   onFiltersChange,
   display,
@@ -38,6 +43,9 @@ export function BuildFilterBar({
   onOpenChange,
   onSaveView,
 }: BuildFilterBar.Props) {
+  // People's names for the author and reviewer chips, which hold user ids once a suggestion is picked.
+  const members = useQuery({ ...workspaceQuery(workspace), staleTime: 60_000 })
+  const labels = new Map((members.data?.members ?? []).map((m) => [m.userId, m.user.name]))
   const set = (next: BuildFilters, close = true) => {
     onFiltersChange(next)
     if (close) onOpenChange(undefined)
@@ -59,11 +67,11 @@ export function BuildFilterBar({
                 pressed={active}
                 aria-keyshortcuts={field === 'status' ? 'f' : undefined}
               >
-                {chipName(field, filters)}
+                {chipName(field, filters, labels)}
               </Button>
             }
           >
-            <FieldEditor field={field} filters={filters} onChange={set} />
+            <FieldEditor workspace={workspace} field={field} filters={filters} onChange={set} />
             {active ? (
               <Button size="sm" variant="ghost" onClick={() => set(without(filters, field))}>
                 Clear {label.toLowerCase()}
@@ -104,6 +112,7 @@ export function BuildFilterBar({
 
 export namespace BuildFilterBar {
   export interface Props {
+    workspace: string
     filters: BuildFilters
     onFiltersChange: (filters: BuildFilters) => void
     display: DisplayOptions
@@ -117,10 +126,12 @@ export namespace BuildFilterBar {
 }
 
 function FieldEditor({
+  workspace,
   field,
   filters,
   onChange,
 }: {
+  workspace: string
   field: FilterField
   filters: BuildFilters
   onChange: (filters: BuildFilters) => void
@@ -144,14 +155,16 @@ function FieldEditor({
     )
   }
   if (field === 'date') return <DateEditor filters={filters} onChange={onChange} />
-  return <TextEditor field={field} filters={filters} onChange={onChange} />
+  return <TextEditor workspace={workspace} field={field} filters={filters} onChange={onChange} />
 }
 
 function TextEditor({
+  workspace,
   field,
   filters,
   onChange,
 }: {
+  workspace: string
   field: 'branch' | 'author' | 'reviewer' | 'name'
   filters: BuildFilters
   onChange: (filters: BuildFilters) => void
@@ -168,7 +181,44 @@ function TextEditor({
       <Button type="submit" size="sm" variant="primary">
         Apply
       </Button>
+      {field === 'author' || field === 'reviewer' ? (
+        <Suggestions
+          workspace={workspace}
+          field={field}
+          text={text}
+          onPick={(value) => onChange(withText(filters, field, value))}
+        />
+      ) : null}
     </form>
+  )
+}
+
+/** Typeahead for the author and reviewer chips: the workspace's members, narrowed as you type. */
+function Suggestions({
+  workspace,
+  field,
+  text,
+  onPick,
+}: {
+  workspace: string
+  field: 'author' | 'reviewer'
+  text: string
+  onPick: (value: string) => void
+}) {
+  const typed = useDeferredValue(text.trim())
+  const { data } = useQuery(suggestionsQuery(workspace, field, typed))
+  const items = data?.suggestions ?? []
+  if (items.length === 0) return null
+  return (
+    <ul aria-label="Suggestions" className={styles.suggestions}>
+      {items.map((s) => (
+        <li key={`${s.kind}:${s.value}`}>
+          <Button size="sm" variant="ghost" onClick={() => onPick(s.value)}>
+            {s.label}
+          </Button>
+        </li>
+      ))}
+    </ul>
   )
 }
 

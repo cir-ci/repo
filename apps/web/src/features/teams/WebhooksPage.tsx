@@ -1,3 +1,4 @@
+import type { Team } from '@circi/api'
 import {
   Banner,
   Button,
@@ -15,10 +16,10 @@ import { type FormEvent, useState } from 'react'
 
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
-import { useAddWebhook, useDeleteWebhook } from './api.ts'
+import { useAddWebhook, useDeleteWebhook, useTestWebhook } from './api.ts'
 import { SecretBox } from './SecretBox.tsx'
 import { TeamSettingsFrame } from './TeamSettingsFrame.tsx'
-import { eventDescription, webhookProblems } from './webhook-events.ts'
+import { describeDelivery, eventDescription, webhookProblems } from './webhook-events.ts'
 
 import shared from './TeamSettings.module.css'
 import styles from './WebhooksPage.module.css'
@@ -45,6 +46,7 @@ export function WebhooksPage() {
 function Webhooks(props: Webhooks.Props) {
   const add = useAddWebhook(props.workspace, props.team)
   const remove = useDeleteWebhook(props.workspace, props.team)
+  const test = useTestWebhook(props.workspace, props.team)
   const announce = useAnnounce()
   const [adding, setAdding] = useState(false)
   const [secret, setSecret] = useState<{ url: string; value: string } | null>(null)
@@ -112,9 +114,23 @@ function Webhooks(props: Webhooks.Props) {
                 <ListRow
                   trailing={
                     props.canManage ? (
-                      <Button variant="danger" size="sm" onClick={() => setRemoving(h)}>
-                        Remove
-                      </Button>
+                      <div className={styles.rowActions}>
+                        <Button
+                          size="sm"
+                          aria-label={`Send test to ${h.url}`}
+                          loading={test.isPending && test.variables === h.id}
+                          onClick={() =>
+                            test.mutate(h.id, {
+                              onSuccess: () => announce('Test event queued'),
+                            })
+                          }
+                        >
+                          Send test
+                        </Button>
+                        <Button variant="danger" size="sm" onClick={() => setRemoving(h)}>
+                          Remove
+                        </Button>
+                      </div>
                     ) : undefined
                   }
                 >
@@ -135,12 +151,44 @@ function Webhooks(props: Webhooks.Props) {
                       added <RelativeTime iso={h.createdAt} />
                     </Text>
                   </div>
+                  <details className={styles.deliveries}>
+                    <summary>
+                      <Text variant="small" tone="secondary">
+                        Recent deliveries ({h.deliveries.length})
+                      </Text>
+                    </summary>
+                    {h.deliveries.length === 0 ? (
+                      <Text as="p" variant="small" tone="tertiary">
+                        Nothing sent yet.
+                      </Text>
+                    ) : (
+                      <ul aria-label={`Recent deliveries to ${h.url}`} className={styles.attempts}>
+                        {h.deliveries.map((d) => {
+                          const shown = describeDelivery(d)
+                          return (
+                            <li key={`${d.deliveryId}-${d.attempt}`} className={styles.attempt}>
+                              <Text variant="small" tone={shown.ok ? 'primary' : 'rejected'}>
+                                {shown.text}
+                              </Text>
+                              <Text variant="small" tone="secondary">
+                                {d.event}
+                              </Text>
+                              <Text variant="small" tone="secondary">
+                                <RelativeTime iso={d.createdAt} />
+                              </Text>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    )}
+                  </details>
                 </ListRow>
               </li>
             ))
           )}
         </ul>
         {remove.error && !removing ? <Banner tone="danger">{remove.error.message}</Banner> : null}
+        {test.error ? <Banner tone="danger">{test.error.message}</Banner> : null}
       </section>
 
       <section className={shared.section} aria-labelledby="wh-verify">
@@ -277,6 +325,7 @@ namespace Webhooks {
     url: string
     events: string[]
     createdAt: string
+    deliveries: Team.WebhookDelivery[]
   }
   export interface Props {
     workspace: string

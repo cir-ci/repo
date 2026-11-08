@@ -11,6 +11,14 @@ export namespace Deps {
   /** Instance settings of the registry's integrations, a replaceable `fetch`, and (tests) another registry. */
   export type IntegrationsOption = Pick<IntegrationDefinition.Context, 'config' | 'fetch'> & {
     registry?: IntegrationRegistry
+    /**
+     * Brings `config` up to date with the instance settings other replicas may have changed
+     * (the GitHub App created in the dashboard). Cheap to call: it reads at most once per TTL.
+     * Called before each request is handled.
+     */
+    refresh?: () => Promise<void>
+    /** Makes the next `refresh` read: called by the replica that just wrote the setting. */
+    invalidate?: () => void
   }
 
   /** What every HTTP scope needs. */

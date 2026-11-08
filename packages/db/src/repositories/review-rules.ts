@@ -188,3 +188,38 @@ export async function deleteReviewRule(db: Database, teamId: string, id: string)
     .returning({ id: reviewRules.id })
   if (rows.length === 0) throw new NotFoundError('Review rule not found')
 }
+
+/**
+ * Puts a team's rules in the given order (first match wins, so the order matters). The list
+ * must name every rule of the team exactly once; otherwise nothing changes. One statement per
+ * rule inside one transaction, so a reader never sees a half-moved list.
+ */
+export async function reorderReviewRules(
+  db: Database,
+  teamId: string,
+  ruleIds: readonly string[],
+): Promise<ReviewRuleRow[]> {
+  await db.transaction(async (tx) => {
+    const current = await tx
+      .select({ id: reviewRules.id })
+      .from(reviewRules)
+      .where(eq(reviewRules.teamId, teamId))
+      .for('update')
+    const known = new Set(current.map((r) => r.id))
+    if (
+      new Set(ruleIds).size !== ruleIds.length ||
+      ruleIds.length !== known.size ||
+      !ruleIds.every((id) => known.has(id))
+    ) {
+      throw new ValidationError('Give every review rule of the team exactly once')
+    }
+    for (const [position, id] of ruleIds.entries()) {
+      // oxlint-disable-next-line no-await-in-loop -- a team has a handful of rules
+      await tx
+        .update(reviewRules)
+        .set({ position })
+        .where(and(eq(reviewRules.id, id), eq(reviewRules.teamId, teamId)))
+    }
+  })
+  return listReviewRules(db, teamId)
+}

@@ -5,7 +5,7 @@ import { startWorker } from '@circi/worker'
 import type { FastifyInstance } from 'fastify'
 
 import { buildServer } from '#http/app.ts'
-import { useStoredGithubApp } from '#http/lib/github-app.ts'
+import { GITHUB_APP_TTL_MS, githubAppSync, useStoredGithubApp } from '#http/lib/github-app.ts'
 
 import { integrationConfig } from './integration-config.ts'
 import { createRuntime } from './runtime.ts'
@@ -29,10 +29,13 @@ export async function runServices(options: runServices.Options): Promise<void> {
   const { logger } = rt
   let app: FastifyInstance | undefined
   let worker: startWorker.Running | undefined
+  let githubSync: githubAppSync.Sync | undefined
+  let syncTimer: NodeJS.Timeout | undefined
 
   const shutdown = createShutdown({
     logger,
     close: async () => {
+      clearInterval(syncTimer)
       await app?.close()
       await worker?.stop()
       await rt.close()
@@ -56,6 +59,23 @@ export async function runServices(options: runServices.Options): Promise<void> {
       if (await useStoredGithubApp(rt.db.db, rt.config.authSecret, live)) {
         logger.info('using the GitHub App created in the dashboard')
       }
+      // Another replica may create or change the App later: look again every TTL (and before
+      // each HTTP request), so no replica needs a restart.
+      const sync = githubAppSync({
+        db: rt.db.db,
+        authSecret: rt.config.authSecret,
+        config: live,
+      })
+      githubSync = sync
+      syncTimer = setInterval(() => {
+        sync.refresh().then(
+          (changed) => {
+            if (changed) logger.info('the GitHub App changed in the dashboard; using the new one')
+          },
+          (err: unknown) => logger.warn({ err }, 'could not look for a changed GitHub App'),
+        )
+      }, GITHUB_APP_TTL_MS)
+      syncTimer.unref()
     }
     await announceStartup(rt, options)
     if (options.worker) {
@@ -75,7 +95,9 @@ export async function runServices(options: runServices.Options): Promise<void> {
       })
     }
     if (options.http) {
-      app = buildServer(serverOptionsFor(rt, webDistPath()))
+      app = buildServer(
+        serverOptionsFor({ ...rt, ...(githubSync ? { githubSync } : {}) }, webDistPath()),
+      )
       await app.listen({ host: rt.config.http.host, port: rt.config.http.port })
       logger.info(
         {

@@ -78,6 +78,7 @@ describe('migrations', () => {
       'user',
       'user_pinned_teams',
       'verification',
+      'webhook_deliveries',
       'webhooks',
       'workspace',
       'workspace_auth_settings',

@@ -234,13 +234,27 @@ the matching B items. D needs A, C0 and its listed B items.
 Gaps still open from the reports:
 
 - No per-snapshot approval route (Triage's "Accept as baseline" and the Command menu's approve
-  approve the whole build); no snapshot-history endpoint (the filmstrip fetches up to five build
-  details); no bulk request-review route; no workspace-wide builds list (a saved view with no team
-  is empty); no author or reviewer suggestions; no server-side sort or group on the builds list.
-- Rules cannot be reordered; the Sites page has no sidebar entry (linked from the team).
-- Triage's snooze list and `countOpenTriage` (one query per team) are not optimised.
-- Keyboard: no way to draw a comment region without a mouse; J/K cannot enter a collapsed group;
-  the account menu's theme radio group changes on Enter or Space, not on an arrow key (accepted).
+  approve the whole build); no server-side sort or group on the builds list; a workspace-wide
+  builds list (saved view with no team) has no bulk bar, because bulk decisions are one team's
+  transaction.
+- ~~Rules cannot be reordered~~ (done 2026-11-09: `PUT …/rules/order`, Up and Down buttons).
+  The Sites page has no sidebar entry (linked from the team).
+- ~~Snapshot-history endpoint~~, ~~bulk request-review route~~, ~~workspace-wide builds list and
+  author/reviewer suggestions~~, ~~`countOpenTriage` per team~~ (done 2026-11-09:
+  `GET …/snapshots/:name/history?limit&build&branch`, `POST …/builds/request-review`,
+  `GET /api/workspaces/:ws/builds` and `…/builds/suggestions`, one aggregated query for the
+  sidebar). Triage's snooze list is still derived per team.
+- ~~Webhooks: no Send test, no recent deliveries~~ (done: `POST …/webhooks/:id/test`, table
+  `webhook_deliveries`, last 20 per webhook on the page).
+- ~~GitHub App created in the dashboard not seen by other replicas~~ (done: 30 s TTL refresh,
+  stale-while-revalidate on requests, invalidated on the writing replica).
+- ~~Legacy GitHub link paths did not verify the installation~~ (done: team settings and
+  `circi admin github link` verify with GitHub like the Add flow).
+- ~~Keyboard: no way to draw a region; J/K skip collapsed groups~~ (done: focusable region tool in
+  `RegionLayer`; J/K stop on a collapsed group's header, Right or Enter opens it).
+- ~~Moving a team between installations~~: `mapTeam` was already one transaction that writes the
+  new mapping before dropping the old; a failure-injection test now pins it.
+- The account menu's theme radio group changes on Enter or Space, not on an arrow key (accepted).
 - Deleting a workspace stays disabled in the dashboard (ask whoever runs the server): only teams
   can be deleted (owners and admins, typed confirmation). A deleted team's screenshot files are
   collected by retention after the grace period; there is no immediate purge.

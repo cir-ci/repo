@@ -306,6 +306,7 @@ async function runWebhookJob(deps: startWorker.Deps, job: Job): Promise<void> {
         db: deps.db,
         ...(deps.publicOrigin ? { publicOrigin: deps.publicOrigin } : {}),
         ...(deps.webhookAllowPrivate ? { allowPrivate: true } : {}),
+        warn: (obj, msg) => deps.logger.warn(obj, msg),
       },
       job,
     )

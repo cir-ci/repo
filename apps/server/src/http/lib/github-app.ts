@@ -124,6 +124,84 @@ export async function useStoredGithubApp(
   return true
 }
 
+/** How long a replica trusts what it last read of the stored App before it reads again. */
+export const GITHUB_APP_TTL_MS = 30_000
+
+export namespace githubAppSync {
+  export interface Options {
+    db: Database
+    authSecret: string
+    /** The live configuration shared by the routes, the webhook and the worker of this replica. */
+    config: IntegrationDefinition.InstanceConfig
+    /** Default 30 seconds. */
+    ttlMs?: number
+    /** Replaceable in tests. */
+    now?: () => number
+  }
+  export interface Sync {
+    /** Reads the stored App unless it was read less than the TTL ago; true when `config` changed. */
+    refresh(): Promise<boolean>
+    /** Forgets the last read, so the next `refresh` reads: call it after writing the setting. */
+    invalidate(): void
+  }
+}
+
+const sameApp = (
+  a: IntegrationDefinition.InstanceConfig['github'],
+  b: NonNullable<IntegrationDefinition.InstanceConfig['github']>,
+) =>
+  a?.apiUrl === b.apiUrl &&
+  a.appId === b.appId &&
+  a.privateKey === b.privateKey &&
+  a.webhookSecret === b.webhookSecret
+
+/**
+ * Keeps one replica's live configuration in step with the `github_app` setting: with several
+ * replicas on one database, the one that ran the manifest flow wrote the setting and updated its
+ * own object at once, while the others hold the old one. `refresh` is a TTL-cached read; it
+ * replaces `config.github` only when the stored App differs (a new object, so anything keyed on
+ * the old one starts afresh) and never clears it: an unreadable or missing setting keeps what
+ * the replica has. Concurrent refreshes share one read, and a failed read counts as a read (it is
+ * not retried until the TTL passes).
+ */
+export function githubAppSync(options: githubAppSync.Options): githubAppSync.Sync {
+  const ttl = options.ttlMs ?? GITHUB_APP_TTL_MS
+  const now = options.now ?? Date.now
+  let readAt = Number.NEGATIVE_INFINITY
+  let inflight: Promise<boolean> | undefined
+
+  async function read(): Promise<boolean> {
+    let app: StoredGithubApp | undefined
+    try {
+      app = await readStoredGithubApp(options.db, options.authSecret)
+    } finally {
+      // Also after a database error: a down database is not asked again on every request.
+      readAt = now()
+    }
+    if (!app || sameApp(options.config.github, app)) return false
+    options.config.github = {
+      apiUrl: app.apiUrl,
+      appId: app.appId,
+      privateKey: app.privateKey,
+      webhookSecret: app.webhookSecret,
+    }
+    return true
+  }
+
+  return {
+    refresh() {
+      if (now() - readAt < ttl) return Promise.resolve(false)
+      inflight ??= read().finally(() => {
+        inflight = undefined
+      })
+      return inflight
+    },
+    invalidate() {
+      readAt = Number.NEGATIVE_INFINITY
+    },
+  }
+}
+
 export type GithubAppSource = 'env' | 'manifest' | 'none'
 
 type SourceDeps = Pick<Deps.Dashboard, 'githubApp' | 'integrations'>

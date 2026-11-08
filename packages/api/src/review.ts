@@ -48,4 +48,9 @@ export namespace Review {
     /** False when the reviewer already had an open request for this build. */
     created: boolean
   }
+
+  /** `POST …/builds/request-review`: one entry per build and reviewer. */
+  export interface BulkRequested {
+    requests: (Requested & { buildId: string; reviewerId: string })[]
+  }
 }

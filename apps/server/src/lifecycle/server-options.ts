@@ -6,6 +6,7 @@ import type { Logger } from 'pino'
 
 import type { buildServer } from '#http/app.ts'
 import type { Deps } from '#http/lib/deps.ts'
+import type { githubAppSync } from '#http/lib/github-app.ts'
 
 import { integrationConfig } from './integration-config.ts'
 
@@ -18,6 +19,8 @@ export interface ServerRuntime {
   storage: StorageDriver
   /** Sends mail; absent without SMTP. */
   mailer?: Mailer
+  /** Keeps the live GitHub App in step with the database (absent when the environment sets the App). */
+  githubSync?: githubAppSync.Sync
 }
 
 /** Turns the configuration into the HTTP server's options: which scopes exist and with what. */
@@ -25,6 +28,10 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): buildServe
   const { config } = rt
   const sites = config.staticSites ? sitesDeps(config.staticSites, config.publicUrl) : undefined
   const integrations = integrationConfig(config)
+  const sync = rt.githubSync
+  const live: Pick<Deps.IntegrationsOption, 'refresh' | 'invalidate'> = sync
+    ? { refresh: async () => void (await sync.refresh()), invalidate: () => sync.invalidate() }
+    : {}
   const base = {
     db: rt.db.db,
     auth: rt.auth,
@@ -40,7 +47,7 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): buildServe
       db: rt.db.db,
       authSecret: config.authSecret,
       publicOrigin: config.publicUrl.origin,
-      integrations: { config: integrations },
+      integrations: { config: integrations, ...live },
       webhookAllowPrivate: config.webhookAllowPrivate,
       logger: rt.logger,
     },
@@ -70,7 +77,7 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): buildServe
       workspaceCreation: config.workspaceCreation,
       githubApp: config.github !== undefined,
       ...(config.githubApiUrl ? { githubApiUrl: config.githubApiUrl } : {}),
-      integrations: { config: integrations },
+      integrations: { config: integrations, ...live },
       ...(sites ? { sites } : {}),
       authSecret: config.authSecret,
       instance: { config, ...(rt.mailer ? { mailer: rt.mailer } : {}) },

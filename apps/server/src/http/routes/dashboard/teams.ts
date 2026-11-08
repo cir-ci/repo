@@ -1,6 +1,8 @@
+import type { Snapshot } from '@circi/api'
 import {
   findTeamForMember,
   getBuildDetail,
+  getSnapshotHistory,
   getTeamGitAttention,
   listBuildsForTeam,
   listTeamsOverview,
@@ -10,8 +12,9 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
-import { buildFilterShape } from '#http/lib/build-filters.ts'
+import { buildFilterShape, toBuildFilters } from '#http/lib/build-filters.ts'
 import type { Deps } from '#http/lib/deps.ts'
+import { loadTeam } from '#http/lib/team-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const teamParams = z.object({ workspace: z.string(), team: z.string() })
@@ -20,6 +23,19 @@ const buildsQuery = z.object({
   before: z.string().optional(),
   ...buildFilterShape,
 })
+
+const historyQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(20).optional(),
+  branch: z.string().max(500).optional(),
+  /** Start the default branch list at this build number (inclusive). */
+  build: z.coerce.number().int().min(1).optional(),
+})
+
+const wire = (entries: getSnapshotHistory.Entry[]): Snapshot.HistoryEntry[] =>
+  entries.map((e) => ({
+    ...e,
+    build: { ...e.build, createdAt: e.build.createdAt.toISOString() },
+  }))
 
 /** Builds list page size; the web app shows "Older builds" when a page is full. */
 const PAGE_SIZE = 50
@@ -44,16 +60,7 @@ export const dashboardTeamRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
     if (!team) return reply.code(404).send({ error: 'Team not found' })
     const q = parse(buildsQuery, req.query)
     const before = Number(q.before)
-    const filters: listBuildsForTeam.Filters = {
-      ...(q.status ? { status: q.status } : {}),
-      ...(q.review ? { reviewStatus: q.review } : {}),
-      ...(q.branch ? { branch: q.branch } : {}),
-      ...(q.author ? { author: q.author } : {}),
-      ...(q.reviewer ? { reviewer: q.reviewer } : {}),
-      ...(q.name ? { name: q.name } : {}),
-      ...(q.from ? { from: new Date(q.from) } : {}),
-      ...(q.to ? { to: new Date(q.to) } : {}),
-    }
+    const filters = toBuildFilters(q)
     const builds = await listBuildsForTeam(deps.db, team.id, {
       limit: PAGE_SIZE,
       filters,
@@ -83,5 +90,31 @@ export const dashboardTeamRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
     const detail = await getBuildDetail(deps.db, team.id, number)
     if (!detail) return reply.code(404).send({ error: 'Build not found' })
     return { team, ...detail }
+  })
+
+  /**
+   * A snapshot's recent builds on the default branch and, with `branch`, on that branch too:
+   * the image and how it compared in each. The name is URL-encoded (it may hold slashes).
+   */
+  app.get('/teams/:workspace/:team/snapshots/:name/history', async (req, reply) => {
+    const params = parse(teamParams.extend({ name: z.string().min(1).max(500) }), req.params)
+    const found = await loadTeam(deps, req, reply)
+    if (!found) return reply
+    const team = found.team
+    const q = parse(historyQuery, req.query)
+    const history = await getSnapshotHistory(deps.db, {
+      teamId: team.id,
+      name: params.name,
+      ...(q.branch ? { branch: q.branch } : {}),
+      ...(q.limit ? { limit: q.limit } : {}),
+      ...(q.build ? { build: q.build } : {}),
+    })
+    if (!history) return reply.code(404).send({ error: 'Team not found' })
+    const payload: Snapshot.History = {
+      defaultBranch: history.defaultBranch,
+      default: wire(history.default),
+      branch: history.branch ? wire(history.branch) : null,
+    }
+    return payload
   })
 }

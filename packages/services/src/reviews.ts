@@ -119,6 +119,72 @@ export namespace requestReview {
   export type Result = openReviewRequest.Result
 }
 
+/** Most builds, and most reviewers, one bulk request may cover. */
+export const MAX_BULK_REQUEST_REVIEW = 50
+const MAX_REQUEST_REVIEWERS = 20
+
+/**
+ * Asks each of `reviewerIds` to review each of `buildIds`, all builds of one team, in a single
+ * transaction: every pair goes through `requestReview` (so each new request notifies its
+ * reviewer), and if any id is not a build of the team, or any pair cannot be asked (a build
+ * that cannot be reviewed, a reviewer outside the workspace), nothing changes at all. A pair
+ * that already has an open request keeps it and is reported as not created.
+ */
+export async function requestReviews(
+  db: Database,
+  input: requestReviews.Input,
+): Promise<requestReviews.Result> {
+  const buildIds = [...new Set(input.buildIds)]
+  const reviewerIds = [...new Set(input.reviewerIds)]
+  if (buildIds.length === 0) throw new ValidationError('buildIds: pick at least one build')
+  if (buildIds.length > MAX_BULK_REQUEST_REVIEW) {
+    throw new ValidationError(`buildIds: at most ${MAX_BULK_REQUEST_REVIEW} builds at once`)
+  }
+  if (reviewerIds.length === 0) throw new ValidationError('reviewerIds: pick at least one reviewer')
+  if (reviewerIds.length > MAX_REQUEST_REVIEWERS) {
+    throw new ValidationError(`reviewerIds: at most ${MAX_REQUEST_REVIEWERS} reviewers`)
+  }
+  return db.transaction(async (tx) => {
+    const own = await listTeamBuildsByIds(tx, input.teamId, buildIds)
+    if (own.length !== buildIds.length) throw new NotFoundError('Build not found')
+    const requests: requestReviews.Item[] = []
+    for (const buildId of buildIds) {
+      for (const reviewerId of reviewerIds) {
+        // Sequential on purpose: one transaction, one connection.
+        // eslint-disable-next-line no-await-in-loop
+        const { request, created } = await requestReview(tx, {
+          buildId,
+          reviewerId,
+          requestedById: input.requestedById,
+          ...(input.now ? { now: input.now } : {}),
+        })
+        requests.push({ buildId, reviewerId, request, created })
+      }
+    }
+    return { requests }
+  })
+}
+export namespace requestReviews {
+  export interface Input {
+    teamId: string
+    buildIds: string[]
+    reviewerIds: string[]
+    requestedById: string
+    /** For tests; defaults to the current time. */
+    now?: Date
+  }
+  export interface Item {
+    buildId: string
+    reviewerId: string
+    request: ReviewRequest
+    /** False when the reviewer already had an open request for the build. */
+    created: boolean
+  }
+  export interface Result {
+    requests: Item[]
+  }
+}
+
 /**
  * Drops a review request of a build in `teamId`. Only its reviewer or whoever asked may;
  * returns the request, or undefined when there was nothing of theirs to drop.

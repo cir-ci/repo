@@ -6,7 +6,7 @@ import {
   QUEUES,
   schema,
 } from '@circi/db'
-import { createTestDb, seedTeam, sha } from '@circi/testing'
+import { createTestDb, seedGitLink, seedTeam, sha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -18,7 +18,6 @@ import {
   finalizeBuild,
   requeueBuild,
   reviewBuild,
-  linkTeamToGithub,
 } from '#src/index.ts'
 
 let t: createTestDb.Result
@@ -38,7 +37,7 @@ const jobsIn = async (queue: string) =>
 async function newBuild(options: { linked?: boolean; parallelTotal?: number } = {}) {
   const { team, owner } = await seedTeam(t.db)
   if (options.linked) {
-    await linkTeamToGithub(t.db, team.id, { installationId: '1', repoRef: 'acme/web' })
+    await seedGitLink(t.db, team.id, { externalId: '1', repoRef: 'acme/web' })
   }
   const build = await createBuild(t.db, {
     teamId: team.id,

@@ -157,6 +157,25 @@ describe('ReviewsSettingsPage', () => {
     await expect.poll(() => calls.of('DELETE')).toHaveLength(1)
   })
 
+  it('moves a rule down with the keyboard-reachable buttons', async () => {
+    const two = {
+      rules: [
+        { id: 'r1', kind: 'snapshot-name', pattern: 'checkout/**', position: 0, reviewers: [ada] },
+        { id: 'r2', kind: 'build-name', pattern: 'release/*', position: 1, reviewers: [grace] },
+      ],
+    }
+    const calls = api(two, { [`PUT ${API}/rules/order`]: { body: { rules: two.rules } } })
+    await show()
+    await expect
+      .element(page.getByRole('button', { name: 'Move rule checkout/** up' }))
+      .toBeDisabled()
+    await expect
+      .element(page.getByRole('button', { name: 'Move rule release/* down' }))
+      .toBeDisabled()
+    await page.getByRole('button', { name: 'Move rule checkout/** down' }).click()
+    await expect.poll(() => calls.of('PUT')[0]?.body).toEqual({ ruleIds: ['r2', 'r1'] })
+  })
+
   it('saves the rotation with members and a start date', async () => {
     const calls = api({}, { [`PUT ${API}/triage-rotation`]: { body: {} } })
     await show()

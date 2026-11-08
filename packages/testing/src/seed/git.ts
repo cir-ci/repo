@@ -3,6 +3,8 @@ import {
   type Database,
   findIntegrationByExternalId,
   getTeamById,
+  removeOtherTeamMappings,
+  setIntegrationAttention,
   setIntegrationTeam,
 } from '@circi/db'
 
@@ -40,16 +42,31 @@ export async function seedGitLink(
     externalId: string
     repoRef: string
     encryptedCredentials?: string | null
+    /** Like mapping through `mapTeam`: the team's mappings on other git hosts go. Default true. */
+    exclusive?: boolean
   },
 ): Promise<{ integrationId: string }> {
   const team = await getTeamById(db, teamId)
   if (!team) throw new Error('Team not found')
-  const connection = await seedGitConnection(db, { ...input, workspaceId: team.workspaceId })
+  const connection = await seedGitConnection(db, {
+    ...input,
+    workspaceId: team.workspaceId,
+  })
   await setIntegrationTeam(db, {
     integrationId: connection.id,
     teamId,
     externalRef: input.repoRef,
     extra: { name: input.repoRef },
   })
+  // What mapping a team to a git host does (`mapTeam` in @circi/services): one git host per team,
+  // and mapping says the connection works.
+  if (input.exclusive !== false) {
+    await removeOtherTeamMappings(db, {
+      teamId,
+      keepIntegrationId: connection.id,
+      kinds: ['github', 'gitlab', 'bitbucket'],
+    })
+  }
+  await setIntegrationAttention(db, connection.id, null)
   return { integrationId: connection.id }
 }

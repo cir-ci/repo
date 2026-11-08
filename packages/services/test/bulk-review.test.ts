@@ -1,9 +1,9 @@
 import { createWebhook, GIT_NOTIFY_QUEUE, QUEUES, schema } from '@circi/db'
-import { createTestDb, seedBuild, seedTeam } from '@circi/testing'
+import { createTestDb, seedBuild, seedGitLink, seedTeam } from '@circi/testing'
 import { eq, inArray } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { linkTeamToGithub, MAX_BULK_REVIEW, reviewBuilds } from '#src/index.ts'
+import { MAX_BULK_REVIEW, reviewBuilds } from '#src/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -23,7 +23,7 @@ const done = { status: 'complete', conclusion: 'changes_detected' } as const
 
 async function setup(count = 3) {
   const { team, owner } = await seedTeam(t.db)
-  await linkTeamToGithub(t.db, team.id, { installationId: '1', repoRef: 'acme/web' })
+  await seedGitLink(t.db, team.id, { externalId: '1', repoRef: 'acme/web' })
   await createWebhook(t.db, {
     teamId: team.id,
     url: 'https://hooks.acme.io/x',

@@ -48,4 +48,23 @@ describe('Collapsible', () => {
     await userEvent.keyboard(' ')
     await expect.element(page.getByText('Row content')).toBeVisible()
   })
+
+  it('opens with Right and closes with Left', async () => {
+    await render(
+      <Collapsible title="Unchanged">
+        <p>Row content</p>
+      </Collapsible>,
+    )
+    const trigger = page.getByRole('button', { name: 'Unchanged' })
+    await userEvent.tab()
+    await userEvent.keyboard('{ArrowLeft}')
+    await expect.element(trigger).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.keyboard('{ArrowRight}')
+    await expect.element(trigger).toHaveAttribute('aria-expanded', 'true')
+    await expect.element(page.getByText('Row content')).toBeVisible()
+    await userEvent.keyboard('{ArrowRight}')
+    await expect.element(trigger).toHaveAttribute('aria-expanded', 'true')
+    await userEvent.keyboard('{ArrowLeft}')
+    await expect.element(trigger).toHaveAttribute('aria-expanded', 'false')
+  })
 })

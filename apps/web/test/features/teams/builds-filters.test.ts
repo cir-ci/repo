@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   activeState,
   chipName,
+  toWorkspaceQuery,
   dayEnd,
   dayStart,
   hasFilters,
@@ -73,6 +74,10 @@ describe('chips', () => {
     expect(chipName('status', { review: 'pending' })).toBe('Status: Needs review')
     expect(chipName('branch', { branch: 'main' })).toBe('Branch: main')
     expect(chipName('date', { from: '2026-11-01T00:00:00.000Z' })).toBe('Date: from 2026-11-01')
+    const names = new Map([['u1', 'Ada Lovelace']])
+    expect(chipName('author', { author: 'u1' }, names)).toBe('Author: Ada Lovelace')
+    expect(chipName('reviewer', { reviewer: 'u9' }, names)).toBe('Reviewer: u9')
+    expect(chipName('author', { author: 'octocat' }, names)).toBe('Author: octocat')
   })
 
   it('sets and clears the status choice, replacing both keys', () => {
@@ -90,5 +95,13 @@ describe('chips', () => {
     expect(dayEnd('2026-11-08')).toBe('2026-11-08T23:59:59.999Z')
     expect(dayStart('nope')).toBeUndefined()
     expect(without({ ...dated, branch: 'x' }, 'date')).toEqual({ branch: 'x' })
+  })
+})
+
+describe('toWorkspaceQuery', () => {
+  it('is the filters plus the build id cursor', () => {
+    expect(toWorkspaceQuery({})).toBe('')
+    expect(toWorkspaceQuery({ review: 'pending' }, 'b1')).toBe('?review=pending&before=b1')
+    expect(toWorkspaceQuery({}, 'b1')).toBe('?before=b1')
   })
 })

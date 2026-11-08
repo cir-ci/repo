@@ -114,3 +114,55 @@ describe('POST /api/teams/:workspace/:team/builds/review', () => {
     expect(await numbersOf()).toEqual({ 1: 'rejected', 2: 'rejected' })
   })
 })
+
+const ask = (payload: object, options: { workspace?: string; cookie?: string } = {}) =>
+  app.inject({
+    method: 'POST',
+    url: `/api/teams/${options.workspace ?? acme.workspaceSlug}/web/builds/request-review`,
+    headers: {
+      'content-type': 'application/json',
+      cookie: options.cookie ?? acmeCookie,
+      origin: ORIGIN,
+    },
+    payload,
+  })
+const open = async () =>
+  (await db.query.reviewRequests.findMany()).filter((r) => r.state === 'open')
+
+describe('POST /api/teams/:workspace/:team/builds/request-review', () => {
+  it('rejects bad bodies with 400', async () => {
+    const id = '00000000-0000-4000-8000-000000000000'
+    expect((await ask({ buildIds: [], reviewerIds: ['u'] })).statusCode).toBe(400)
+    expect((await ask({ buildIds: [id], reviewerIds: [] })).statusCode).toBe(400)
+    expect((await ask({ buildIds: ['x'], reviewerIds: ['u'] })).statusCode).toBe(400)
+    expect(
+      (await ask({ buildIds: Array.from({ length: 51 }, () => id), reviewerIds: ['u'] }))
+        .statusCode,
+    ).toBe(400)
+  })
+
+  it('is not found for a non-member and for ids outside the team, changing nothing', async () => {
+    const rows = (await db.query.builds.findMany()).filter((b) => b.teamId === acme.team.id)
+    const ids = rows.map((b) => b.id)
+    expect(
+      (await ask({ buildIds: ids, reviewerIds: [acme.owner.id] }, { cookie: rivalCookie }))
+        .statusCode,
+    ).toBe(404)
+    const missing = '00000000-0000-4000-8000-000000000000'
+    expect(
+      (await ask({ buildIds: [...ids, missing], reviewerIds: [acme.owner.id] })).statusCode,
+    ).toBe(404)
+    expect(await open()).toEqual([])
+  })
+
+  it('refuses all of it, not part, when a reviewer is outside the workspace', async () => {
+    const rows = (await db.query.builds.findMany()).filter((b) => b.teamId === acme.team.id)
+    const res = await ask({
+      buildIds: rows.map((b) => b.id),
+      reviewerIds: [acme.owner.id, rival.owner.id],
+    })
+    // Build 2 (auto-approved, no changes) cannot be asked either: a conflict, nothing stored.
+    expect(res.statusCode).toBe(409)
+    expect(await open()).toEqual([])
+  })
+})

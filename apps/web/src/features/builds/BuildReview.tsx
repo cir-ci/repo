@@ -105,6 +105,12 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
     getId: (d) => d.id,
     selectedId: selected?.id,
     onSelect: goToShot,
+    // A collapsed group is one stop for J / K (its header): Enter or Right opens it.
+    groups: groups.map((g) => ({
+      id: g.kind,
+      items: g.items,
+      collapsed: !(open[g.kind] ?? g.open),
+    })),
   })
 
   const comments = useQuery(commentsQuery(team.workspaceSlug, team.slug, build.number))
@@ -195,6 +201,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
             {groups.map((g) => (
               <Collapsible
                 key={g.kind}
+                data-group-id={g.kind}
                 title={g.title}
                 count={g.items.length}
                 open={open[g.kind] ?? g.open}

@@ -15,6 +15,7 @@ const hook = (id: string, url: string, events = ['build.completed']) => ({
   events,
   enabled: true,
   createdAt: new Date().toISOString(),
+  deliveries: [] as Record<string, unknown>[],
 })
 
 function api(over: Record<string, unknown> = {}, extra: Record<string, ReplyHandler> = {}) {
@@ -46,6 +47,44 @@ const openDialog = () => page.getByRole('button', { name: 'Add webhook' }).click
 const dialogAdd = () => page.getByRole('dialog').getByRole('button', { name: 'Add webhook' })
 
 describe('WebhooksPage', () => {
+  it('sends a test event and lists recent deliveries', async () => {
+    const withDeliveries = {
+      ...hook('h1', 'https://a.test/hook'),
+      deliveries: [
+        {
+          deliveryId: 'd2',
+          event: 'webhook.test',
+          test: true,
+          attempt: 1,
+          statusCode: 200,
+          error: null,
+          createdAt: new Date().toISOString(),
+        },
+        {
+          deliveryId: 'd1',
+          event: 'build.completed',
+          test: false,
+          attempt: 3,
+          statusCode: null,
+          error: 'connect ECONNREFUSED',
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    }
+    const fake = api(
+      { webhooks: [withDeliveries] },
+      { [`POST ${API}/webhooks/h1/test`]: { status: 202, body: { deliveryId: 'x' } } },
+    )
+    await show()
+    await page.getByText('Recent deliveries (2)').click()
+    const list = page.getByRole('list', { name: 'Recent deliveries to https://a.test/hook' })
+    await expect.element(list.getByText('200 delivered, test')).toBeVisible()
+    await expect.element(list.getByText('connect ECONNREFUSED failed, attempt 3')).toBeVisible()
+    await page.getByRole('button', { name: 'Send test to https://a.test/hook' }).click()
+    await expect.poll(() => fake.of('POST')).toHaveLength(1)
+    await expect.element(page.getByText('Test event queued')).toBeInTheDocument()
+  })
+
   it('says when there are none, and explains how to check a delivery', async () => {
     api()
     await show()

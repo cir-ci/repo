@@ -8,16 +8,36 @@ import {
   getWorkspaceSettings,
   getTeamById,
   listWebhooks,
+  recordWebhookDelivery,
+  schema,
   markInstallationNeedsAttention,
 } from '@circi/db'
+import { GithubApiError, GithubInstallationRevokedError, providerRegistry } from '@circi/providers'
 import { FsStorage } from '@circi/storage'
 import { createTestDb } from '@circi/testing'
+import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
+
+/** Installations GitHub knows; `9500` is one it cannot be asked about right now. */
+const githubEdge = providerRegistry<object>({
+  github: {
+    listRepositories: async (installationId: string) => {
+      if (installationId === '9500') throw new Error('connect ETIMEDOUT')
+      if (!/^(4242|4243|4244)$/.test(installationId)) {
+        throw new GithubInstallationRevokedError(
+          installationId,
+          new GithubApiError(404, 'GitHub: Not Found'),
+        )
+      }
+      return [{ ref: 'acme/web' }]
+    },
+  },
+})
 
 let t: createTestDb.Result
 let dir: string
@@ -42,6 +62,9 @@ beforeAll(async () => {
       storage: new FsStorage({ path: join(dir, 'files') }),
       publicOrigin: ORIGIN,
       githubApp: true,
+      authSecret: 'settings-test-secret-long-enough-123',
+      // GitHub's edge: these installations exist; any other id is "not found", 5xx ones time out.
+      providers: githubEdge,
     },
   })
   await app.ready()
@@ -228,6 +251,50 @@ describe('team webhooks', () => {
     )
   })
 
+  it('queues a signed test event for owners and admins, and lists recent deliveries', async () => {
+    const [hook] = await listWebhooks(t.db, acme.team.id)
+    const url = `${base()}/webhooks/${hook?.id}/test`
+    const res = await call('POST', url, ownerCookie)
+    expect(res.statusCode).toBe(202)
+    const { deliveryId } = res.json()
+    const queued = await t.db.select().from(schema.jobs).where(eq(schema.jobs.queue, 'webhook'))
+    expect(queued.map((j) => j.payload)).toContainEqual(
+      expect.objectContaining({
+        webhookId: hook?.id,
+        deliveryId,
+        test: true,
+        event: 'webhook.test',
+      }),
+    )
+
+    expect((await call('POST', url, memberCookie)).statusCode).toBe(403)
+    expect((await call('POST', url, rivalCookie)).statusCode).toBe(404)
+    expect((await call('POST', `${base()}/webhooks/nope/test`, ownerCookie)).statusCode).toBe(404)
+    expect(
+      (
+        await call(
+          'POST',
+          `${base()}/webhooks/00000000-0000-0000-0000-000000000000/test`,
+          ownerCookie,
+        )
+      ).statusCode,
+    ).toBe(404)
+
+    await recordWebhookDelivery(t.db, {
+      webhookId: hook?.id ?? '',
+      deliveryId,
+      event: 'webhook.test',
+      test: true,
+      attempt: 1,
+      statusCode: 503,
+    })
+    const listed = (await call('GET', `${base()}/settings`, memberCookie)).json()
+    expect(listed.webhooks[0].deliveries).toMatchObject([
+      { deliveryId, test: true, attempt: 1, statusCode: 503, error: null },
+    ])
+    expect(listed.webhooks[0].deliveries[0].createdAt).toMatch(/^\d{4}-/)
+  })
+
   it('deletes a webhook, and answers 404 for a missing or malformed id', async () => {
     const [hook] = await listWebhooks(t.db, acme.team.id)
     expect((await call('DELETE', `${base()}/webhooks/${hook?.id}`, ownerCookie)).statusCode).toBe(
@@ -255,6 +322,38 @@ describe('GitHub link', () => {
     expect(res.statusCode).toBe(200)
     const after = (await call('GET', `${base()}/settings`, memberCookie)).json().github
     expect(after.link).toEqual({ installationId: '4242', repoRef: 'acme/web', attention: null })
+  })
+
+  it('verifies the installation with GitHub, and stores nothing when it cannot', async () => {
+    const before = (await call('GET', `${base()}/settings`, memberCookie)).json().github.link
+    const unknown = await put(ownerCookie, { installationId: '31337', repoRef: 'acme/web' })
+    expect(unknown.statusCode).toBe(404)
+    expect(unknown.json().error).toBe('The GitHub App is not installed with that installation id')
+    const down = await put(ownerCookie, { installationId: '9500', repoRef: 'acme/web' })
+    expect(down.statusCode).toBe(502)
+    expect(down.json().error).toBe('GitHub did not answer; try again shortly')
+    expect((await call('GET', `${base()}/settings`, memberCookie)).json().github.link).toEqual(
+      before,
+    )
+    const stored = await t.db.select().from(schema.integrations)
+    expect(stored.filter((i) => ['31337', '9500'].includes(i.externalId ?? ''))).toEqual([])
+  })
+
+  it('refuses an installation that another workspace already uses (409)', async () => {
+    expect(
+      (
+        await call('PUT', `/api/teams/${rival.workspaceSlug}/web/github`, rivalCookie, {
+          installationId: '4244',
+          repoRef: 'rival/web',
+        })
+      ).statusCode,
+    ).toBe(200)
+    const taken = await put(ownerCookie, { installationId: '4244', repoRef: 'acme/web' })
+    expect(taken.statusCode).toBe(409)
+    expect(taken.json().error).toBe('That GitHub account is already connected to another workspace')
+    expect((await call('GET', `${base()}/settings`, memberCookie)).json().github.link).not.toEqual(
+      expect.objectContaining({ installationId: '4244' }),
+    )
   })
 
   it('rejects malformed values, and anyone who is not an owner or admin', async () => {

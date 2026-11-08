@@ -1,10 +1,11 @@
 import type { Triage } from '@circi/api'
-import { describe, expect, it } from 'vitest'
+import { QueryClient } from '@tanstack/react-query'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
-  filmstripNumbers,
   flatten,
   frameOf,
+  snapshotHistoryQuery,
   groupItems,
   itemName,
   queueCount,
@@ -113,33 +114,55 @@ describe('ignore regions', () => {
   })
 })
 
-describe('filmstrip', () => {
-  it('lists the build and the ones before it, newest first, never below 1', () => {
-    expect(filmstripNumbers(12)).toEqual([12, 11, 10, 9, 8])
-    expect(filmstripNumbers(2)).toEqual([2, 1])
-  })
+const entry = (
+  status: 'changed' | 'unchanged' | null,
+  image: { sha256: string; thumbnail: string | null } | null,
+  reviewStatus: 'pending' | 'approved' = 'pending',
+) => ({
+  build: {
+    number: 7,
+    branch: 'main',
+    status: 'complete' as const,
+    reviewStatus,
+    createdAt: '2026-11-08T10:00:00.000Z',
+  },
+  status,
+  image: image && { ...image, width: 10, height: 20 },
+})
 
+describe('filmstrip', () => {
   it('gives a changed screenshot of a flaky item the flaky glyph', () => {
-    const detail = {
-      build: { number: 7, status: 'complete' as const, reviewStatus: 'pending' as const },
-      diffs: [
-        {
-          name: 'home',
-          status: 'changed' as const,
-          head: { sha256: 'h', thumbnail: 't', width: 10, height: 20, metadata: {} },
-          base: null,
-        },
-        { name: 'quiet', status: 'unchanged' as const, head: null, base: null },
-      ],
-    }
-    expect(frameOf(detail, 'home', 'flaky')).toMatchObject({
+    const changed = entry('changed', { sha256: 'h', thumbnail: 't' })
+    expect(frameOf(changed, 'flaky')).toMatchObject({
+      number: 7,
       status: 'flaky',
       label: 'Flaky',
       src: '/api/files/t',
       sha256: 'h',
+      width: 10,
+      height: 20,
     })
-    expect(frameOf(detail, 'home', 'no_baseline').status).toBe('needs-review')
-    expect(frameOf(detail, 'quiet', 'flaky').status).toBe('neutral')
-    expect(frameOf(detail, 'gone', 'flaky').label).toBe('Not in this build')
+    expect(frameOf(changed, 'no_baseline').status).toBe('needs-review')
+    expect(frameOf(entry('unchanged', { sha256: 'h', thumbnail: null }), 'flaky')).toMatchObject({
+      status: 'neutral',
+      src: '/api/files/h',
+    })
+  })
+
+  it('has no image for a build that has none, and reads a not yet compared snapshot as unchanged', () => {
+    expect(frameOf(entry(null, null), 'flaky')).toMatchObject({ src: null, sha256: null })
+  })
+})
+
+describe('snapshotHistoryQuery', () => {
+  it('asks for the history anchored on the item’s build, with the name escaped', async () => {
+    let asked = ''
+    vi.stubGlobal('fetch', async (path: string) => {
+      asked = path
+      return Response.json({ defaultBranch: 'main', default: [], branch: null })
+    })
+    await new QueryClient().fetchQuery(snapshotHistoryQuery('acme', 'web', 'checkout/home', 12))
+    expect(asked).toBe('/api/teams/acme/web/snapshots/checkout%2Fhome/history?limit=5&build=12')
+    vi.unstubAllGlobals()
   })
 })

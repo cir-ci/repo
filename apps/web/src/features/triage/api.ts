@@ -1,9 +1,9 @@
-import type { Build, Comment, Triage, TriageKind } from '@circi/api'
+import type { Comment, Snapshot, Triage, TriageKind } from '@circi/api'
 import type { Status } from '@circi/ui'
 import {
   queryOptions,
   useMutation,
-  useQueries,
+  useQuery,
   useQueryClient,
   type QueryClient,
 } from '@tanstack/react-query'
@@ -147,53 +147,28 @@ export function regionToPixels(
 
 export const FILMSTRIP_LENGTH = 5
 
-/** The build numbers of the filmstrip: the item's build and the ones before it, newest first. */
-export function filmstripNumbers(number: number, length = FILMSTRIP_LENGTH): number[] {
-  return Array.from({ length }, (_, i) => number - i).filter((n) => n >= 1)
-}
-
 export interface Frame {
   number: number
   status: Status
   label: string
-  /** The image of the snapshot in that build; null when the build has no such snapshot. */
+  /** The image of the snapshot in that build; null when the build has none. */
   src: string | null
   sha256: string | null
   width: number | null
   height: number | null
 }
 
-export namespace Frame {
-  /**
-   * One frame of the filmstrip: the snapshot `name` in a build. A screenshot that changes in a
-   * flaky item shows the flaky glyph; the rest follow `screenshotStatus`.
-   */
-  export interface Source {
-    build: Pick<Build.ListItem, 'number' | 'status' | 'reviewStatus'>
-    diffs: readonly Pick<Build.DiffItem, 'name' | 'status' | 'head' | 'base'>[]
-  }
-}
-
-export function frameOf(detail: Frame.Source, name: string, itemKind: TriageKind): Frame {
-  const diff = detail.diffs.find((d) => d.name === name)
-  const number = detail.build.number
-  if (!diff) {
-    return {
-      number,
-      status: 'neutral',
-      label: 'Not in this build',
-      src: null,
-      sha256: null,
-      width: null,
-      height: null,
-    }
-  }
+/**
+ * One frame of the filmstrip: the snapshot in one build of its history. A screenshot that
+ * changes in a flaky item shows the flaky glyph; the rest follow `screenshotStatus`.
+ */
+export function frameOf(entry: Snapshot.HistoryEntry, itemKind: TriageKind): Frame {
   const kind: ShotKind =
-    itemKind === 'flaky' && diff.status === 'changed' ? 'flaky' : (diff.status ?? 'unchanged')
-  const review = shotReview(detail.build)
-  const image = diff.head ?? diff.base
+    itemKind === 'flaky' && entry.status === 'changed' ? 'flaky' : (entry.status ?? 'unchanged')
+  const review = shotReview(entry.build)
+  const image = entry.image
   return {
-    number,
+    number: entry.build.number,
     status: screenshotStatus(kind, review),
     label: screenshotLabel(kind, review),
     src: image ? fileUrl(image.thumbnail ?? image.sha256) : null,
@@ -203,25 +178,34 @@ export function frameOf(detail: Frame.Source, name: string, itemKind: TriageKind
   }
 }
 
-const buildDetailQuery = (workspace: string, team: string, number: number) =>
+/** `build` anchors the history on the triage item's own build, so its frame is always there. */
+export const snapshotHistoryQuery = (
+  workspace: string,
+  team: string,
+  name: string,
+  build: number,
+) =>
   queryOptions({
-    queryKey: ['build', workspace, team, number],
+    queryKey: ['snapshot-history', workspace, team, name, build],
     queryFn: () =>
-      getJson<Build.Detail>(`/api/teams/${seg(workspace)}/${seg(team)}/builds/${number}`),
-    retry: false,
+      getJson<Snapshot.History>(
+        `/api/teams/${seg(workspace)}/${seg(team)}/snapshots/${seg(name)}/history?limit=${FILMSTRIP_LENGTH}&build=${build}`,
+      ),
   })
 
-/** The recent builds' frames of a snapshot, newest first; builds that can't be read are left out. */
+/** The recent builds' frames of a snapshot, newest first: one request, whatever the length. */
 export function useFilmstrip(workspace: string, team: string, item: Triage.Item | undefined) {
   const name = item?.snapshotName ?? undefined
-  const numbers = item && name ? filmstripNumbers(item.build.number) : []
-  const results = useQueries({
-    queries: numbers.map((n) => buildDetailQuery(workspace, team, n)),
+  const history = useQuery({
+    ...snapshotHistoryQuery(workspace, team, name ?? '', item?.build.number ?? 0),
+    enabled: name !== undefined,
   })
   const kind = item?.kind
   const frames =
-    name && kind ? results.flatMap((r) => (r.data ? [frameOf(r.data, name, kind)] : [])) : []
-  return { frames, loading: results.some((r) => r.isPending) }
+    kind && history.data && name !== undefined
+      ? history.data.default.map((entry) => frameOf(entry, kind))
+      : []
+  return { frames, loading: name !== undefined && history.isPending }
 }
 
 // -- Mutations -----------------------------------------------------------------------------------

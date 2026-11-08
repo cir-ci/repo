@@ -153,6 +153,8 @@ export const dashboardGithubAppRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
         privateKey: credentials.privateKey,
         webhookSecret: credentials.webhookSecret,
       }
+      // This replica now knows the new App; its next read of the setting must not be a cached one.
+      deps.integrations.invalidate?.()
     }
     const install = signState(ctx.authSecret, {
       kind: 'github',

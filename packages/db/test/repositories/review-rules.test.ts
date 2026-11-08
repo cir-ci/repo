@@ -8,6 +8,7 @@ import {
   getTriageRotation,
   listReviewRules,
   listRulesForResolution,
+  reorderReviewRules,
   schema,
   setTriageRotation,
   updateReviewRule,
@@ -28,6 +29,8 @@ async function setup() {
   const stranger = await seedUser(t.db)
   return { team, owner, mate, stranger }
 }
+
+const ids = (rules: { id: string }[]) => rules.map((r) => r.id)
 
 describe('review rules', () => {
   it('lists rules in creation order with their reviewers', async () => {
@@ -88,6 +91,36 @@ describe('review rules', () => {
     await expect(deleteReviewRule(t.db, other.team.id, rule.id)).rejects.toThrow(/not found/)
     await deleteReviewRule(t.db, team.id, rule.id)
     expect(await listReviewRules(t.db, team.id)).toEqual([])
+  })
+
+  it('reorders rules, and refuses a list that is not every rule once', async () => {
+    const { team, owner } = await setup()
+    const make = (pattern: string) =>
+      createReviewRule(t.db, {
+        teamId: team.id,
+        kind: 'snapshot-name',
+        pattern,
+        reviewerIds: [owner.id],
+      })
+    const [a, b, c] = [await make('a'), await make('b'), await make('c')]
+    const moved = await reorderReviewRules(t.db, team.id, [c.id, a.id, b.id])
+    expect(ids(moved)).toEqual([c.id, a.id, b.id])
+    expect(moved.map((r) => r.position)).toEqual([0, 1, 2])
+    expect(ids(await listReviewRules(t.db, team.id))).toEqual([c.id, a.id, b.id])
+    // A new rule goes last.
+    const d = await make('d')
+    expect(ids(await listReviewRules(t.db, team.id))).toEqual([c.id, a.id, b.id, d.id])
+    const bad = [
+      [a.id, b.id],
+      [a.id, a.id, b.id, c.id],
+      [a.id, b.id, c.id, owner.id],
+    ]
+    await Promise.all(
+      bad.map((list) =>
+        expect(reorderReviewRules(t.db, team.id, list)).rejects.toThrow(/exactly once/),
+      ),
+    )
+    expect(ids(await listReviewRules(t.db, team.id))).toEqual([c.id, a.id, b.id, d.id])
   })
 
   it('leaves out reviewers who have left when resolving', async () => {

@@ -35,7 +35,9 @@ import {
 import { createStorage } from '@circi/storage'
 import type { Command } from 'commander'
 
+import { useStoredGithubApp } from '#http/lib/github-app.ts'
 import { formatFinding, httpFetcher, runDoctor } from '#lifecycle/doctor.ts'
+import { integrationConfig } from '#lifecycle/integration-config.ts'
 import type { Runtime } from '#lifecycle/runtime.ts'
 
 import { printJson, printPassword, printToken, publicTeam, withRuntime } from './output.ts'
@@ -391,15 +393,27 @@ function addGithubCommands(github: Command): void {
     .requiredOption('--installation <id>', 'the GitHub App installation id (see its URL on GitHub)')
     .action((opts: { org: string; team: string; repo: string; installation: string }) =>
       withRuntime(async (rt) => {
-        if (!rt.config.github) throw new Error('No GitHub App is configured (GITHUB_APP_*)')
         if (!/^[\w.-]+\/[\w.-]+$/.test(opts.repo))
           throw new Error('--repo must look like owner/name')
         if (!/^\d+$/.test(opts.installation)) throw new Error('--installation must be a number')
         const team = await teamOf(rt, opts.org, opts.team)
-        await linkTeamToGithub(rt.db.db, team.id, {
-          installationId: opts.installation,
-          repoRef: opts.repo,
-        })
+        // The App from the environment, or the one created in the dashboard.
+        const config = integrationConfig(rt.config)
+        if (!rt.config.github) await useStoredGithubApp(rt.db.db, rt.config.authSecret, config)
+        if (!config.github) {
+          throw new Error('No GitHub App is configured (GITHUB_APP_*, or create one in Instance)')
+        }
+        // Verified with GitHub like the dashboard's Add flow; nothing is stored when it fails.
+        await linkTeamToGithub(
+          rt.db.db,
+          team.id,
+          { installationId: opts.installation, repoRef: opts.repo },
+          {
+            authSecret: rt.config.authSecret,
+            publicOrigin: rt.config.publicUrl.origin,
+            config,
+          },
+        )
         console.log(`${opts.org}/${opts.team} now reports to ${opts.repo}`)
       }),
     )

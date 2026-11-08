@@ -48,9 +48,11 @@ export { queueIntegrationEvent } from './integration-events.ts'
 export { previewRetention, runRetention } from './retention.ts'
 export {
   dismissReviewRequest,
+  MAX_BULK_REQUEST_REVIEW,
   MAX_BULK_REVIEW,
   notifyOverdueReviews,
   requestReview,
+  requestReviews,
   reviewBuild,
   reviewBuilds,
   snoozeReviewRequest,

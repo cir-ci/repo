@@ -176,6 +176,42 @@ describe('selecting and peeking', () => {
     await expect.element(bar).not.toBeInTheDocument()
   })
 
+  it('requests a review of the selection with one request', async () => {
+    auth.getFullOrganization.mockResolvedValue({
+      data: {
+        id: 'o1',
+        name: 'Acme',
+        slug: 'acme',
+        members: [
+          {
+            id: 'm1',
+            userId: 'u1',
+            role: 'owner',
+            user: { name: 'Ada Lovelace', email: 'a@x.test' },
+          },
+        ],
+        invitations: [],
+      },
+      error: null,
+    })
+    const fake = api([build(8), build(7), build(6)], {
+      'POST /api/teams/acme/web/builds/request-review': { body: { requests: [] } },
+    })
+    await show()
+    await expect.element(page.getByRole('link', { name: /Build #8/ })).toBeVisible()
+    await userEvent.keyboard('x')
+    await userEvent.keyboard('j')
+    await userEvent.keyboard('j')
+    await userEvent.keyboard('x')
+    await page.getByRole('button', { name: 'Request review' }).click()
+    await page.getByRole('dialog').getByText('Ada Lovelace').click()
+    await expect.poll(() => fake.of('POST')).toHaveLength(1)
+    expect(fake.of('POST')[0]).toMatchObject({
+      path: '/api/teams/acme/web/builds/request-review',
+      body: { buildIds: ['b8', 'b6'], reviewerIds: ['u1'] },
+    })
+  })
+
   it('rejects the selection with a required reason', async () => {
     const fake = api([build(8), build(7)], {
       'POST /api/teams/acme/web/builds/review': { body: { builds: [] } },
@@ -255,6 +291,12 @@ describe('saving a view and pinning', () => {
   })
 })
 
+/** A build of the workspace-wide list: the usual item and its team. */
+const row = (n: number, team: string) => ({
+  ...build(n),
+  team: { slug: team, name: team.toUpperCase() },
+})
+
 const showView = (id = 'v1') =>
   renderPage(<ViewPage />, {
     route: '/workspaces/$workspace/views/$view',
@@ -280,6 +322,104 @@ describe('ViewPage', () => {
     await expect.element(page.getByRole('button', { name: 'Status: Needs review' })).toBeVisible()
     expect(page.getByRole('button', { name: 'Save view' }).elements()).toHaveLength(0)
     expect(document.title).toBe('Waiting on me · CirCI')
+  })
+
+  it('lists every team’s builds for a view with no team, and pages with a cursor', async () => {
+    const wide = { ...view, filters: { review: 'pending' }, team: null }
+    const urls: string[] = []
+    const fake = fakeApi({
+      'GET /api/workspaces/acme/views': { body: { views: [wide] } },
+      'GET /api/workspaces/acme/builds': {
+        body: {
+          workspace: { slug: 'acme', name: 'Acme Inc' },
+          builds: [row(9, 'docs'), row(8, 'web')],
+          next: 'cursor-1',
+        },
+      },
+      'GET /api/workspaces/acme/sidebar': { body: sidebar() },
+    })
+    const inner = globalThis.fetch
+    vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
+      urls.push(input instanceof Request ? input.url : String(input))
+      return inner(input, init)
+    })
+    await showView()
+    const docs = page.getByRole('link', { name: /Build #9/ })
+    await expect.element(docs).toBeVisible()
+    expect(docs.element().getAttribute('href')).toBe('/acme/docs/builds/9')
+    expect(
+      page
+        .getByRole('link', { name: /Build #8/ })
+        .element()
+        .getAttribute('href'),
+    ).toBe('/acme/web/builds/8')
+    await expect.element(page.getByText('DOCS')).toBeVisible()
+    expect(urls).toContain('/api/workspaces/acme/builds?review=pending')
+    await page.getByRole('button', { name: 'Older builds' }).click()
+    await expect
+      .poll(() => urls)
+      .toContain('/api/workspaces/acme/builds?review=pending&before=cursor-1')
+    // Bulk selection belongs to one team, so X selects nothing here.
+    await userEvent.keyboard('x')
+    expect(page.getByRole('region', { name: 'Bulk actions' }).elements()).toHaveLength(0)
+    expect(fake.of('POST')).toHaveLength(0)
+  })
+
+  it('offers members as suggestions on the author chip, and shows the name once picked', async () => {
+    auth.getFullOrganization.mockResolvedValue({
+      data: {
+        id: 'o1',
+        name: 'Acme',
+        slug: 'acme',
+        members: [
+          {
+            id: 'm1',
+            userId: 'u1',
+            role: 'owner',
+            user: { name: 'Ada Lovelace', email: 'a@x.test' },
+          },
+        ],
+        invitations: [],
+      },
+      error: null,
+    })
+    const wide = { ...view, filters: {}, team: null }
+    const asked: string[] = []
+    fakeApi({
+      'GET /api/workspaces/acme/views': { body: { views: [wide] } },
+      'GET /api/workspaces/acme/builds': {
+        body: {
+          workspace: { slug: 'acme', name: 'Acme Inc' },
+          builds: [{ ...build(9), team: { slug: 'docs', name: 'Docs' } }],
+          next: null,
+        },
+      },
+      'GET /api/workspaces/acme/builds/suggestions': {
+        body: {
+          suggestions: [
+            { value: 'u1', label: 'Ada Lovelace', kind: 'member' },
+            { value: 'octocat', label: 'octocat', kind: 'login' },
+          ],
+        },
+      },
+      'GET /api/workspaces/acme/sidebar': { body: sidebar() },
+    })
+    const inner = globalThis.fetch
+    vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
+      asked.push(input instanceof Request ? input.url : String(input))
+      return inner(input, init)
+    })
+    await showView()
+    await page.getByRole('button', { name: 'Author' }).click()
+    const list = page.getByRole('list', { name: 'Suggestions' })
+    await expect.element(list.getByRole('button', { name: 'octocat' })).toBeVisible()
+    await page.getByRole('textbox', { name: 'Author' }).fill('ada')
+    await expect
+      .poll(() => asked.some((u) => u.includes('field=author') && u.includes('q=ada')))
+      .toBe(true)
+    await list.getByRole('button', { name: 'Ada Lovelace' }).click()
+    await expect.element(page.getByRole('button', { name: 'Author: Ada Lovelace' })).toBeVisible()
+    await expect.poll(() => asked.some((u) => u.includes('builds?author=u1'))).toBe(true)
   })
 
   it('says when the view does not exist', async () => {

@@ -11,9 +11,8 @@ import {
   schema,
 } from '@circi/db'
 import { ProviderApiError, providerRegistry } from '@circi/providers'
-import { linkTeamToGithub } from '@circi/services'
 import { FsStorage } from '@circi/storage'
-import { createTestDb, seedGitConnection } from '@circi/testing'
+import { createTestDb, seedGitConnection, seedGitLink } from '@circi/testing'
 import { pino } from 'pino'
 import { afterAll, describe, expect, it } from 'vitest'
 
@@ -173,7 +172,7 @@ describe('removing an integration', () => {
   })
 
   it('disconnects a git host the way unlinking does: its teams stop reporting', async () => {
-    await linkTeamToGithub(t.db, acme.team.id, { installationId: '501', repoRef: 'acme/web' })
+    await seedGitLink(t.db, acme.team.id, { externalId: '501', repoRef: 'acme/web' })
     const [github] = (await call('GET', base, ownerCookie)).json().integrations
     expect(github).toMatchObject({ kind: 'github', teamCount: 1 })
     expect((await call('DELETE', `${base}/${github.id}`, ownerCookie)).statusCode).toBe(204)

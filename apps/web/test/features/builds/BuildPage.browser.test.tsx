@@ -379,10 +379,23 @@ describe('keyboard shortcuts', () => {
     await expect.element(viewerTitle()).toHaveTextContent('checkout / address')
   })
 
-  it('opens the group of a screenshot j walks into', async () => {
+  it('walks into a collapsed group through its header: j stops there, Right opens it, j enters', async () => {
     fakeBuildApi(detail())
     await renderBuild('/acme/web-app/builds/7?shot=home')
+    const group = page.getByRole('button', { name: /Unchanged/ })
     await userEvent.keyboard('j')
+    await expect.element(group).toHaveFocus()
+    await expect.element(group).toHaveAttribute('aria-expanded', 'false')
+    await expect.element(viewerTitle()).toHaveTextContent('home')
+    await userEvent.keyboard('{ArrowRight}')
+    await expect.element(group).toHaveAttribute('aria-expanded', 'true')
+    await userEvent.keyboard('j')
+    await expect.element(viewerTitle()).toHaveTextContent('pricing')
+  })
+
+  it('opens the group of a screenshot chosen in the URL', async () => {
+    fakeBuildApi(detail())
+    await renderBuild('/acme/web-app/builds/7?shot=pricing')
     await expect.element(viewerTitle()).toHaveTextContent('pricing')
     await expect
       .element(page.getByRole('button', { name: /Unchanged/ }))

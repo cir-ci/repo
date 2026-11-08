@@ -74,6 +74,25 @@ export const ruleDirty = (rule: ReviewRule.Item, draft: RuleDraft) =>
     draft.reviewerIds,
   )
 
+/**
+ * The rule ids with one moved a place up (`-1`) or down (`1`); null when it can't move that way.
+ * First match wins, so this is the order the server stores.
+ */
+export function movedRuleIds(
+  rules: readonly Pick<ReviewRule.Item, 'id'>[],
+  id: string,
+  by: -1 | 1,
+): string[] | null {
+  const ids = rules.map((r) => r.id)
+  const from = ids.indexOf(id)
+  const to = from + by
+  if (from < 0 || to < 0 || to >= ids.length) return null
+  const [moved] = ids.splice(from, 1)
+  if (moved === undefined) return null
+  ids.splice(to, 0, moved)
+  return ids
+}
+
 /** "Alice", "Alice and Bob", "Alice, Bob and 2 others". */
 export function reviewerNames(rule: Pick<ReviewRule.Item, 'reviewers'>): string {
   const names = rule.reviewers.map((r) => r.name)
@@ -109,6 +128,10 @@ export function useRuleActions(workspace: string, team: string) {
     }),
     remove: useMutation({
       mutationFn: (id: string) => send<void>('DELETE', `${base}/rules/${seg(id)}`),
+      onSuccess: refresh,
+    }),
+    reorder: useMutation({
+      mutationFn: (ruleIds: string[]) => send<unknown>('PUT', `${base}/rules/order`, { ruleIds }),
       onSuccess: refresh,
     }),
     rotation: useMutation({

@@ -9,7 +9,13 @@ import {
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { dismissTriageItem, listTriage, schema, setTriageRotation } from '#src/index.ts'
+import {
+  countOpenTriage,
+  dismissTriageItem,
+  listTriage,
+  schema,
+  setTriageRotation,
+} from '#src/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -140,5 +146,91 @@ describe('listTriage', () => {
     expect(queue.rotation.onTriage).toEqual({ id: mate.id, name: mate.name })
     expect(queue.rotation.until?.toISOString()).toBe('2026-03-16T00:00:00.000Z')
     expect(queue.rotation.members.map((m) => m.id)).toEqual([owner.id, mate.id])
+  })
+})
+
+describe('countOpenTriage', () => {
+  it('equals the open items of listTriage for every team of the workspace, in one query', async () => {
+    const first = await seedTeam(t.db, { slug: 'busy' })
+    const { workspace, owner } = first
+    const calm = await seedTeam(t.db, { workspace: { workspace, owner }, slug: 'calm' })
+    const snoozy = await seedTeam(t.db, { workspace: { workspace, owner }, slug: 'snoozy' })
+    const empty = await seedTeam(t.db, { workspace: { workspace, owner }, slug: 'empty' })
+    const outside = await seedTeam(t.db)
+
+    // busy: orphans (one dismissed), flaky `home`, a failed build, an errored build that a
+    // later complete build supersedes.
+    const orphan = await mainBuild(first.team.id, { baselineSource: 'none' })
+    await seedDiff(t.db, { buildId: orphan.id, name: 'pricing', status: 'added' })
+    await seedDiff(t.db, { buildId: orphan.id, name: 'docs', status: 'added' })
+    await dismissTriageItem(t.db, { teamId: first.team.id, kind: 'no_baseline', key: 'docs' })
+    await mainBuild(first.team.id, { status: 'error' })
+    for (let i = 0; i < 3; i += 1) {
+      // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
+      const b = await mainBuild(first.team.id, { baselineSource: 'cli' })
+      // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
+      await seedDiff(t.db, { buildId: b.id, name: 'home', status: 'changed' })
+    }
+    await mainBuild(first.team.id, { status: 'error' })
+    await mainBuild(first.team.id, { status: 'error', branch: 'feature' })
+
+    // snoozy: a failed build snoozed until next push, an orphan snoozed until a future time,
+    // an orphan whose snooze has ended, and a failure snoozed until a push that then happened.
+    const s1 = await mainBuild(snoozy.team.id, { baselineSource: 'none' })
+    await seedDiff(t.db, { buildId: s1.id, name: 'a', status: 'added' })
+    await seedDiff(t.db, { buildId: s1.id, name: 'b', status: 'added' })
+    await seedDiff(t.db, { buildId: s1.id, name: 'c', status: 'added' })
+    const failing = await mainBuild(snoozy.team.id, { status: 'error' })
+    // The failed build is newer than the orphan build, so it is not superseded.
+    await t.db.insert(schema.triageItems).values([
+      {
+        teamId: snoozy.team.id,
+        kind: 'failed',
+        key: `build:${failing.number}`,
+        snoozeKind: 'next_push',
+        snoozedAfterBuild: failing.number,
+      },
+      {
+        teamId: snoozy.team.id,
+        kind: 'no_baseline',
+        key: 'a',
+        snoozeKind: 'tomorrow',
+        snoozedUntil: new Date('2026-03-12T09:00:00Z'),
+      },
+      {
+        teamId: snoozy.team.id,
+        kind: 'no_baseline',
+        key: 'b',
+        snoozeKind: 'tomorrow',
+        snoozedUntil: new Date('2026-03-10T09:00:00Z'),
+      },
+      {
+        teamId: snoozy.team.id,
+        kind: 'no_baseline',
+        key: 'c',
+        snoozeKind: 'next_push',
+        snoozedAfterBuild: failing.number - 1,
+      },
+    ])
+
+    // calm: clean. empty: no builds. outside: another workspace, must not appear.
+    const ok = await mainBuild(calm.team.id, { baselineSource: 'cli' })
+    await seedDiff(t.db, { buildId: ok.id, name: 'home', status: 'unchanged' })
+    await mainBuild(outside.team.id, { status: 'error' })
+
+    const counts = await countOpenTriage(t.db, { workspaceId: workspace.id, now })
+    const expected = new Map<string, number>()
+    for (const team of [first, calm, snoozy, empty]) {
+      // oxlint-disable-next-line no-await-in-loop -- the oracle: one list per team
+      const queue = await listTriage(t.db, { teamId: team.team.id, now })
+      expected.set(team.team.id, queue.items.filter((i) => !i.snoozed).length)
+    }
+    expect(counts).toEqual(expected)
+    // Not vacuous: the busy team has several, the snoozy one some, the quiet ones none.
+    expect(counts.get(first.team.id)).toBeGreaterThanOrEqual(3)
+    expect(counts.get(snoozy.team.id)).toBeGreaterThanOrEqual(1)
+    expect(counts.get(calm.team.id)).toBe(0)
+    expect(counts.get(empty.team.id)).toBe(0)
+    expect(counts.has(outside.team.id)).toBe(false)
   })
 })

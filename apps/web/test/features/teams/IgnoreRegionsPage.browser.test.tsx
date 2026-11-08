@@ -178,6 +178,25 @@ describe('IgnoreRegionsPage', () => {
     })
   })
 
+  it('draws a region from the keyboard and saves it in pixels', async () => {
+    const fake = api(list(), {
+      [`POST ${API}/ignore-regions`]: { status: 201, body: region('9', 'checkout/summary') },
+    })
+    await show()
+    await page.getByRole('button', { name: 'Draw region' }).click()
+    await expect.element(page.getByRole('group', { name: 'Region to mark' })).toHaveFocus()
+    await userEvent.keyboard('{ArrowDown}{Shift>}{ArrowDown}{/Shift}{Enter}')
+    await expect.poll(() => fake.of('POST')).toHaveLength(1)
+    expect(fake.of('POST')[0]?.body).toMatchObject({
+      name: 'checkout/summary',
+      // The screenshot is 1000 x 500: start 40%, 40%, 20% x 20%, one step down, one step taller.
+      x: 400,
+      y: 205,
+      width: 200,
+      height: 105,
+    })
+  })
+
   it('can’t draw on a screenshot of unknown size', async () => {
     api(list({ snapshots: [snapshot('checkout/summary', 2, false), snapshot('nav/header', 1)] }))
     await show()

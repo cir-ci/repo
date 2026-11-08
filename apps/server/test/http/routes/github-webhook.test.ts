@@ -2,8 +2,8 @@ import { createHmac } from 'node:crypto'
 
 import { getBuild, listBuildReviews, schema, setCheckRunId } from '@circi/db'
 import { githubWebhookVerifier, providerRegistry } from '@circi/providers'
-import { completeBuild, linkTeamToGithub } from '@circi/services'
-import { createTestDb, seedAccount, seedBuild } from '@circi/testing'
+import { completeBuild } from '@circi/services'
+import { createTestDb, seedAccount, seedBuild, seedGitLink } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
@@ -25,7 +25,7 @@ beforeAll(async () => {
   t = await createTestDb()
   const auth = createTestAuth(t.db)
   acme = await seedTenant(auth, t.db)
-  await linkTeamToGithub(t.db, acme.team.id, { installationId: '99', repoRef: 'Acme/Web' })
+  await seedGitLink(t.db, acme.team.id, { externalId: '99', repoRef: 'Acme/Web' })
   // The owner linked their GitHub login.
   await seedAccount(t.db, { userId: acme.owner.id, accountId: GITHUB_ID })
   app = buildServer({

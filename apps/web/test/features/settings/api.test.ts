@@ -7,6 +7,7 @@ import {
   draftOf,
   draftProblem,
   formatBytes,
+  movedRuleIds,
   patternProblem,
   preferencesQuery,
   reviewerNames,
@@ -216,5 +217,16 @@ describe('preferences query', () => {
     })
     const data = await new QueryClient().fetchQuery(preferencesQuery())
     expect(data.emailReviewOverdue).toBe(false)
+  })
+})
+
+describe('movedRuleIds', () => {
+  const rules = [{ id: 'a' }, { id: 'b' }, { id: 'c' }]
+  it('moves a rule one place and stops at the ends', () => {
+    expect(movedRuleIds(rules, 'b', -1)).toEqual(['b', 'a', 'c'])
+    expect(movedRuleIds(rules, 'b', 1)).toEqual(['a', 'c', 'b'])
+    expect(movedRuleIds(rules, 'a', -1)).toBeNull()
+    expect(movedRuleIds(rules, 'c', 1)).toBeNull()
+    expect(movedRuleIds(rules, 'zzz', 1)).toBeNull()
   })
 })

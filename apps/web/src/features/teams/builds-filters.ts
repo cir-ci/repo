@@ -67,6 +67,14 @@ export function toQuery(filters: BuildFilters, before?: number): string {
   return text ? `?${text}` : ''
 }
 
+/** The query string of the workspace-wide builds request: the filters, and the page cursor (a build id). */
+export function toWorkspaceQuery(filters: BuildFilters, before?: string): string {
+  const params = new URLSearchParams(toQuery(filters))
+  if (before) params.set('before', before)
+  const text = params.toString()
+  return text ? `?${text}` : ''
+}
+
 export const hasFilters = (filters: BuildFilters) =>
   Object.keys(parseFilters({ ...filters })).length > 0
 
@@ -169,20 +177,34 @@ function dateText(filters: BuildFilters): string | undefined {
 }
 
 /** What a chip says it filters by: undefined while the field is not filtered. */
-export function fieldValue(field: FilterField, filters: BuildFilters): string | undefined {
+export function fieldValue(
+  field: FilterField,
+  filters: BuildFilters,
+  /** Names for values that are user ids (the author and reviewer filters take either). */
+  labels?: ReadonlyMap<string, string>,
+): string | undefined {
   switch (field) {
     case 'status':
       return activeState(filters)?.label ?? filters.status ?? filters.review
     case 'date':
       return dateText(filters)
+    case 'author':
+    case 'reviewer': {
+      const value = filters[field]
+      return value === undefined ? undefined : (labels?.get(value) ?? value)
+    }
     default:
       return filters[field]
   }
 }
 
 /** The chip's accessible name: "Status: Needs review", or just "Status" while unfiltered. */
-export function chipName(field: FilterField, filters: BuildFilters): string {
+export function chipName(
+  field: FilterField,
+  filters: BuildFilters,
+  labels?: ReadonlyMap<string, string>,
+): string {
   const label = FILTER_FIELDS.find((f) => f.field === field)?.label ?? field
-  const value = fieldValue(field, filters)
+  const value = fieldValue(field, filters, labels)
   return value ? `${label}: ${value}` : label
 }

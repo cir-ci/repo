@@ -239,11 +239,76 @@ export async function listTriage(
   }
 }
 
-/** How many items wait in a team's queue: not snoozed, not dismissed. */
+/**
+ * How many items wait in each team's queue of a workspace (not snoozed, not dismissed), in one
+ * query: the sidebar needs every team's number and must not run a triage list per team. The
+ * counts equal `listTriage(...).items.filter(i => !i.snoozed).length` for each team; teams with
+ * nothing waiting are in the map with 0. The three kinds mirror `listTriage` (flaky window 10,
+ * at least 3 changes; the same orphan and failed rules), then what people did about them is
+ * applied the same way (dismissed out, snoozed out while their snooze lasts).
+ */
 export async function countOpenTriage(
   db: Database,
-  input: { teamId: string; now: Date },
-): Promise<number> {
-  const queue = await listTriage(db, input)
-  return queue.items.filter((i) => !i.snoozed).length
+  input: { workspaceId: string; now: Date },
+): Promise<Map<string, number>> {
+  const result: unknown = await db.execute(sql`
+    with ws_teams as (
+      select id, default_branch from teams where workspace_id = ${input.workspaceId}
+    ),
+    main_builds as (
+      select b.id, b.team_id, b.number, b.status, b.baseline_source
+      from builds b join ws_teams t on t.id = b.team_id and b.branch = t.default_branch
+    ),
+    latest_push as (
+      select team_id, max(number) as n from main_builds group by team_id
+    ),
+    last_complete as (
+      select team_id, max(number) as n from main_builds where status = 'complete' group by team_id
+    ),
+    recent as (
+      select id, team_id from (
+        select id, team_id, row_number() over (partition by team_id order by number desc) as rn
+        from main_builds where status = 'complete'
+      ) r where rn <= 10
+    ),
+    found as (
+      select recent.team_id, 'flaky'::text as kind, d.name as key
+      from screenshot_diffs d join recent on recent.id = d.build_id
+      where d.status = 'changed'
+      group by recent.team_id, d.name having count(*) >= 3
+      union
+      select mb.team_id, 'no_baseline', d.name
+      from screenshot_diffs d join main_builds mb on mb.id = d.build_id
+      where mb.status = 'complete' and mb.baseline_source = 'none' and d.status = 'added'
+        and not exists (
+          select 1 from screenshot_diffs ld join main_builds lb on lb.id = ld.build_id
+          where lb.team_id = mb.team_id and lb.status = 'complete'
+            and lb.number > mb.number and ld.name = d.name)
+      union
+      select mb.team_id, 'failed', 'build:' || mb.number
+      from main_builds mb
+      where mb.status = 'error'
+        and coalesce((select n from last_complete lc where lc.team_id = mb.team_id), 0) <= mb.number
+    )
+    select t.id as team_id,
+      (count(f.key) filter (where i.dismissed_at is null
+        and not (i.snooze_kind is not null
+          and case when i.snoozed_until is not null
+                then i.snoozed_until > ${input.now.toISOString()}::timestamptz
+                else coalesce(lp.n, 0) <= coalesce(i.snoozed_after_build, 0) end)))::int as open
+    from ws_teams t
+    left join found f on f.team_id = t.id
+    left join triage_items i on i.team_id = f.team_id and i.kind = f.kind and i.key = f.key
+    left join latest_push lp on lp.team_id = t.id
+    group by t.id
+  `)
+  const rows: unknown =
+    typeof result === 'object' && result !== null ? Reflect.get(result, 'rows') : undefined
+  if (!Array.isArray(rows)) return new Map()
+  return new Map(
+    rows.map((row: unknown) => [
+      String(Reflect.get(Object(row), 'team_id')),
+      Number(Reflect.get(Object(row), 'open')),
+    ]),
+  )
 }

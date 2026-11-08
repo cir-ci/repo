@@ -1,10 +1,16 @@
-import type { Flaky, IgnoreRegion, Workspace, Team } from '@circi/api'
+import type { Flaky, IgnoreRegion, Review, Workspace, WorkspaceBuilds, Team } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { isActive } from '#features/builds/api.ts'
 import { getJson, post, send, seg } from '#lib/http.ts'
 
-import { type BuildFilters, hasFilters, toQuery, toSearch } from './builds-filters.ts'
+import {
+  type BuildFilters,
+  hasFilters,
+  toQuery,
+  toSearch,
+  toWorkspaceQuery,
+} from './builds-filters.ts'
 
 /** Page size of the builds list (the server returns at most this many). */
 export const BUILDS_PAGE_SIZE = 50
@@ -85,6 +91,19 @@ export function useAddWebhook(workspace: string, team: string) {
       post<{ webhook: Team.Webhook; secret: string }>(
         `/api/teams/${seg(workspace)}/${seg(team)}/webhooks`,
         input,
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', workspace, team] }),
+  })
+}
+
+/** Queues a signed test event; it appears in the webhook's deliveries once it has run. */
+export function useTestWebhook(workspace: string, team: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      post<{ deliveryId: string }>(
+        `/api/teams/${seg(workspace)}/${seg(team)}/webhooks/${seg(id)}/test`,
+        {},
       ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', workspace, team] }),
   })
@@ -213,6 +232,37 @@ export const flakyQuery = (workspace: string, team: string) =>
     staleTime: 60_000,
   })
 
+/** A page of the builds of every team of a workspace (a view with no team); `before` is a build id. */
+export const workspaceBuildsQuery = (
+  workspace: string,
+  before?: string,
+  filters: BuildFilters = {},
+) =>
+  queryOptions({
+    queryKey: [
+      'workspace-builds',
+      workspace,
+      before ?? null,
+      ...(hasFilters(filters) ? [toSearch(filters)] : []),
+    ],
+    queryFn: () =>
+      getJson<WorkspaceBuilds.List>(
+        `/api/workspaces/${seg(workspace)}/builds${toWorkspaceQuery(filters, before)}`,
+      ),
+    refetchInterval: (q) => (q.state.data?.builds.some((b) => isActive(b.status)) ? 3_000 : false),
+  })
+
+/** People to offer while typing an author or reviewer filter. */
+export const suggestionsQuery = (workspace: string, field: 'author' | 'reviewer', text: string) =>
+  queryOptions({
+    queryKey: ['build-suggestions', workspace, field, text],
+    queryFn: () =>
+      getJson<WorkspaceBuilds.Suggestions>(
+        `/api/workspaces/${seg(workspace)}/builds/suggestions?${new URLSearchParams({ field, q: text })}`,
+      ),
+    staleTime: 30_000,
+  })
+
 /** Approves or rejects several builds of a team in one request (all or nothing). */
 export function useBulkReview(workspace: string, team: string) {
   const queryClient = useQueryClient()
@@ -231,17 +281,14 @@ export function useBulkReview(workspace: string, team: string) {
   })
 }
 
-/** Asks one person to review each of several builds (one request per build; there is no bulk route). */
+/** Asks people to review several builds of a team in one request (all or nothing). */
 export function useBulkRequestReview(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (input: { numbers: number[]; reviewerId: string }) =>
-      Promise.all(
-        input.numbers.map((n) =>
-          post(`/api/teams/${seg(workspace)}/${seg(team)}/builds/${n}/review-requests`, {
-            reviewerId: input.reviewerId,
-          }),
-        ),
+    mutationFn: (input: { buildIds: string[]; reviewerIds: string[] }) =>
+      post<Review.BulkRequested>(
+        `/api/teams/${seg(workspace)}/${seg(team)}/builds/request-review`,
+        input,
       ),
     onSuccess: () =>
       Promise.all(

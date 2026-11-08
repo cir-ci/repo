@@ -1,20 +1,30 @@
 import { Collapsible as BaseCollapsible } from '@base-ui/react/collapsible'
-import type { ReactNode } from 'react'
+import type { KeyboardEvent, ReactNode } from 'react'
 
 import { cx } from './cx.ts'
 import { ChevronRightIcon } from './icons.ts'
 
 import styles from './Collapsible.module.css'
 
+/** Right opens a closed disclosure and Left closes an open one (Enter and Space already toggle). */
+function onArrow(event: KeyboardEvent<HTMLElement>) {
+  const open = event.currentTarget.getAttribute('aria-expanded') === 'true'
+  if ((event.key === 'ArrowRight' && !open) || (event.key === 'ArrowLeft' && open)) {
+    event.preventDefault()
+    event.currentTarget.click()
+  }
+}
+
 /**
  * Provisional: a disclosure on Base UI's `Collapsible`: a trigger button (`aria-expanded`) with a
  * chevron, a title and an optional count, over a panel that slides open. Used for the collapsed
- * "Unchanged (14)" group in the build review list.
+ * "Unchanged (14)" group in the build review list. Right opens it and Left closes it from the
+ * trigger, in addition to Enter and Space.
  */
 export function Collapsible({ title, count, className, children, ...rest }: Collapsible.Props) {
   return (
     <BaseCollapsible.Root {...rest} className={cx(styles.root, className)}>
-      <BaseCollapsible.Trigger className={styles.trigger}>
+      <BaseCollapsible.Trigger className={styles.trigger} onKeyDown={onArrow}>
         <ChevronRightIcon size={14} strokeWidth={2} className={styles.chevron} />
         <span className={styles.title}>{title}</span>
         {count === undefined ? null : <span className={styles.count}>{count}</span>}

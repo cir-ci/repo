@@ -1,9 +1,16 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 
 import { ValidationError } from '@circi/core'
-import { and, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 
-import { workspace, teams, WEBHOOK_EVENTS, type WebhookEvent, webhooks } from '#schema/index.ts'
+import {
+  workspace,
+  teams,
+  WEBHOOK_EVENTS,
+  type WebhookEvent,
+  webhookDeliveries,
+  webhooks,
+} from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { NotFoundError } from '#src/errors.ts'
 import type { Build } from '#src/types.ts'
@@ -154,4 +161,110 @@ export async function queueWebhookEvent(
     })
   }
   return targets.length
+}
+
+/** The event name of a "Send test" delivery. It is not one of `WEBHOOK_EVENTS`: nobody subscribes to it. */
+export const TEST_EVENT = 'webhook.test'
+
+/**
+ * Queues one signed test delivery to one webhook, through the same job as a build event (so it
+ * is signed, checked and retried the same way). The body carries `test: true` and no build.
+ * Returns the delivery id the receiver sees in `CirCI-Delivery`.
+ */
+export async function queueTestWebhook(db: Database, webhookId: string): Promise<string> {
+  const [target] = await db
+    .select({
+      teamId: webhooks.teamId,
+      teamSlug: teams.slug,
+      teamName: teams.name,
+      workspaceSlug: workspace.slug,
+    })
+    .from(webhooks)
+    .innerJoin(teams, eq(teams.id, webhooks.teamId))
+    .innerJoin(workspace, eq(workspace.id, teams.workspaceId))
+    .where(eq(webhooks.id, webhookId))
+  if (!target) throw new NotFoundError('Webhook not found')
+  const deliveryId = randomUUID()
+  await enqueueJob(db, {
+    queue: QUEUES.webhook,
+    payload: {
+      webhookId,
+      deliveryId,
+      event: TEST_EVENT,
+      test: true,
+      createdAt: new Date().toISOString(),
+      data: {
+        workspace: { slug: target.workspaceSlug },
+        team: { id: target.teamId, slug: target.teamSlug, name: target.teamName },
+      },
+    },
+    maxAttempts: 1,
+  })
+  return deliveryId
+}
+
+export type WebhookDelivery = typeof webhookDeliveries.$inferSelect
+
+/** How many attempts are kept per webhook; the dashboard shows the newest `RECENT_DELIVERIES`. */
+const KEPT_DELIVERIES = 50
+export const RECENT_DELIVERIES = 20
+
+/** About one insert in this many also prunes: the table stays small without a delete per attempt. */
+const PRUNE_ONE_IN = 20
+
+export async function recordWebhookDelivery(
+  db: Database,
+  input: {
+    webhookId: string
+    deliveryId: string
+    event: string
+    test: boolean
+    attempt: number
+    statusCode: number | null
+    error?: string | null
+  },
+): Promise<void> {
+  await db.insert(webhookDeliveries).values({
+    ...input,
+    error: input.error ? input.error.slice(0, 500) : null,
+    // Attempts are ordered by when they happened, even inside one transaction.
+    createdAt: sql`clock_timestamp()`,
+  })
+  if (Math.random() * PRUNE_ONE_IN < 1) await pruneWebhookDeliveries(db, input.webhookId)
+}
+
+/** Drops what fell out of the newest `KEPT_DELIVERIES` attempts of a webhook. */
+export async function pruneWebhookDeliveries(db: Database, webhookId: string): Promise<void> {
+  await db.execute(sql`
+    delete from webhook_deliveries where webhook_id = ${webhookId} and id in (
+      select id from webhook_deliveries where webhook_id = ${webhookId}
+      order by created_at desc, id desc offset ${KEPT_DELIVERIES})`)
+}
+
+/** The newest attempts (at most `limit`, default 20) of each of the given webhooks, newest first. */
+export async function listWebhookDeliveries(
+  db: Database,
+  webhookIds: readonly string[],
+  limit = RECENT_DELIVERIES,
+): Promise<Map<string, WebhookDelivery[]>> {
+  const byHook = new Map<string, WebhookDelivery[]>(webhookIds.map((id) => [id, []]))
+  if (webhookIds.length === 0) return byHook
+  const ranked = db
+    .select({
+      id: webhookDeliveries.id,
+      rank: sql<number>`row_number() over (partition by ${webhookDeliveries.webhookId} order by ${webhookDeliveries.createdAt} desc, ${webhookDeliveries.id} desc)`.as(
+        'rank',
+      ),
+    })
+    .from(webhookDeliveries)
+    .where(inArray(webhookDeliveries.webhookId, [...webhookIds]))
+    .as('ranked')
+  const rows = await db
+    .select({ row: webhookDeliveries })
+    .from(webhookDeliveries)
+    .innerJoin(ranked, eq(ranked.id, webhookDeliveries.id))
+    .where(sql`${ranked.rank} <= ${limit}`)
+    .orderBy(desc(webhookDeliveries.createdAt), desc(webhookDeliveries.id))
+  for (const { row } of rows) byHook.get(row.webhookId)?.push(row)
+  return byHook
 }

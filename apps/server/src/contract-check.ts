@@ -14,8 +14,10 @@ import type {
   ReviewRule,
   Search,
   Sidebar,
+  Snapshot,
   Triage,
   View,
+  WorkspaceBuilds,
 } from '@circi/api'
 import type { BuildFilterValues } from '@circi/core'
 import type {
@@ -32,6 +34,10 @@ import type {
   listIgnoreRegionSnapshots,
   setTeamAppearance,
   getSidebar,
+  getSnapshotHistory,
+  listBuildFilterSuggestions,
+  listBuildsForWorkspace,
+  WebhookDelivery,
   searchWorkspace,
   listTriage,
   listBuildsForTeam,
@@ -98,12 +104,20 @@ export type ContractChecks = [
   Fits<Json<SavedViewRow>, View.Item>,
   Fits<Json<listWorkspaceIntegrations.Item>, Integration.Item>,
   Fits<Json<getSidebar.Result>, Sidebar.Model>,
+  Fits<Json<getSnapshotHistory.Result>, Snapshot.History>,
+  Fits<Json<listBuildsForWorkspace.Item>, WorkspaceBuilds.Item>,
+  Fits<listBuildFilterSuggestions.Item, WorkspaceBuilds.Suggestion>,
+  Fits<Json<WebhookDelivery>, Team.WebhookDelivery>,
   Fits<BuildFilterValues, View.Filters>,
   Fits<View.Filters, BuildFilterValues>,
 ]
 
 /** Each entry must be `true`; a mismatch above makes its entry `never`, and this line fails. */
 export const contractChecks: ContractChecks = [
+  true,
+  true,
+  true,
+  true,
   true,
   true,
   true,

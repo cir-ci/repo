@@ -396,6 +396,7 @@ describe('git hosts as integrations', () => {
     const { workspace, team } = await seedTeam(t.db)
     const one = await seedGitLink(t.db, team.id, { externalId: '1', repoRef: 'a/b' })
     const two = await seedGitLink(t.db, team.id, {
+      exclusive: false,
       kind: 'gitlab',
       externalId: 'h#1',
       repoRef: 'a/b',

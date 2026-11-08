@@ -10,7 +10,14 @@ import {
 import { asc, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { dismissReviewRequest, finalizeBuild, requestReview, reviewBuild } from '#src/index.ts'
+import {
+  dismissReviewRequest,
+  finalizeBuild,
+  MAX_BULK_REQUEST_REVIEW,
+  requestReview,
+  requestReviews,
+  reviewBuild,
+} from '#src/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -148,6 +155,95 @@ describe('requestReview', () => {
       requestReview(t.db, { buildId: build.id, reviewerId: teammate.id, requestedById: owner.id }),
     ).rejects.toThrow(/no changes/)
     expect(await requestsOf(build.id)).toEqual([])
+  })
+})
+
+async function several() {
+  const { team, owner, teammate, build } = await setup()
+  const second = await createBuild(t.db, { teamId: team.id, commitSha: 'def5678', branch: 'x' })
+  await t.db
+    .update(schema.builds)
+    .set({ status: 'complete', conclusion: 'changes_detected' })
+    .where(eq(schema.builds.id, second.id))
+  await t.db.delete(schema.notifications)
+  return { team, owner, teammate, builds: [build, second] }
+}
+const notices = () => t.db.select().from(schema.notifications)
+
+describe('requestReviews', () => {
+  it('asks every reviewer about every build in one go, notifying each new request', async () => {
+    const { team, owner, teammate, builds } = await several()
+    const result = await requestReviews(t.db, {
+      teamId: team.id,
+      buildIds: builds.map((b) => b.id),
+      reviewerIds: [teammate.id, owner.id],
+      requestedById: owner.id,
+    })
+    expect(result.requests).toHaveLength(4)
+    expect(result.requests.every((r) => r.created)).toBe(true)
+    expect((await Promise.all(builds.map((b) => requestsOf(b.id)))).map((r) => r.length)).toEqual([
+      2, 2,
+    ])
+    expect((await notices()).filter((n) => n.userId === teammate.id)).toHaveLength(2)
+
+    const again = await requestReviews(t.db, {
+      teamId: team.id,
+      buildIds: builds.map((b) => b.id),
+      reviewerIds: [teammate.id],
+      requestedById: owner.id,
+    })
+    expect(again.requests.map((r) => r.created)).toEqual([false, false])
+    expect((await notices()).filter((n) => n.userId === teammate.id)).toHaveLength(2)
+  })
+
+  it('changes nothing when one build is another team’s', async () => {
+    const { team, owner, teammate, builds } = await several()
+    const other = await seedTeam(t.db)
+    const foreign = await createBuild(t.db, {
+      teamId: other.team.id,
+      commitSha: 'fff9999',
+      branch: 'x',
+    })
+    await expect(
+      requestReviews(t.db, {
+        teamId: team.id,
+        buildIds: [...builds.map((b) => b.id), foreign.id],
+        reviewerIds: [teammate.id],
+        requestedById: owner.id,
+      }),
+    ).rejects.toThrow('Build not found')
+    expect(await Promise.all(builds.map((b) => requestsOf(b.id)))).toEqual([[], []])
+    expect(await notices()).toEqual([])
+  })
+
+  it('rolls back the earlier requests when a later pair cannot be asked', async () => {
+    const { team, owner, teammate, builds } = await several()
+    const stranger = await seedUser(t.db)
+    await expect(
+      requestReviews(t.db, {
+        teamId: team.id,
+        buildIds: builds.map((b) => b.id),
+        reviewerIds: [teammate.id, stranger.id],
+        requestedById: owner.id,
+      }),
+    ).rejects.toThrow(/not a member/)
+    expect(await Promise.all(builds.map((b) => requestsOf(b.id)))).toEqual([[], []])
+    expect(await notices()).toEqual([])
+  })
+
+  it('refuses empty lists and too many builds', async () => {
+    const { team, owner, teammate, builds } = await several()
+    const base = { teamId: team.id, requestedById: owner.id }
+    await expect(
+      requestReviews(t.db, { ...base, buildIds: [], reviewerIds: [teammate.id] }),
+    ).rejects.toThrow('at least one build')
+    await expect(
+      requestReviews(t.db, { ...base, buildIds: [builds[0]!.id], reviewerIds: [] }),
+    ).rejects.toThrow('at least one reviewer')
+    const many = Array.from({ length: MAX_BULK_REQUEST_REVIEW + 1 }, (_, i) => String(i))
+    await expect(
+      requestReviews(t.db, { ...base, buildIds: many, reviewerIds: [teammate.id] }),
+    ).rejects.toThrow('at most')
   })
 })
 

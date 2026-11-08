@@ -64,6 +64,21 @@ export function buildServer(options: buildServer.Options): FastifyInstance {
     // result so the site handler can clear them (see `cleanupCookies`).
     http: { maxHeaderSize: 64 * 1024 },
   })
+  // A replica that did not write an instance setting (the GitHub App) still notices it: the live
+  // configuration is refreshed, at most once per its TTL, when a request arrives. Stale while
+  // revalidating: the request never waits for the read (a slow or down database must not stall
+  // /healthz), the next one sees the result.
+  const refreshers = new Set(
+    [options.gitWebhook?.integrations?.refresh, options.dashboard?.integrations?.refresh].filter(
+      (r) => r !== undefined,
+    ),
+  )
+  if (refreshers.size > 0) {
+    app.addHook('onRequest', (_req, _reply, done) => {
+      for (const refresh of refreshers) refresh().catch(() => {})
+      done()
+    })
+  }
   if (options.siteServing) app.addHook('onRequest', siteHostHook(options.siteServing))
 
   if (options.previousHosts?.length && options.publicOrigin) {

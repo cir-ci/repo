@@ -1,8 +1,8 @@
 import { sealSecret } from '@circi/core'
 import { claimJob, createBuild, GIT_NOTIFY_QUEUE, schema } from '@circi/db'
 import { GithubApiError, providerRegistry } from '@circi/providers'
-import { completeBuild, linkTeamToGithub } from '@circi/services'
-import { createTestDb, seedTeam } from '@circi/testing'
+import { completeBuild } from '@circi/services'
+import { createTestDb, seedGitLink, seedTeam } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -18,7 +18,7 @@ afterAll(async () => {
 
 async function queuedJob(sealed?: string) {
   const { team } = await seedTeam(t.db)
-  await linkTeamToGithub(t.db, team.id, { installationId: '5', repoRef: 'acme/web' })
+  await seedGitLink(t.db, team.id, { externalId: '5', repoRef: 'acme/web' })
   if (sealed) {
     await t.db.update(schema.integrations).set({ encryptedCredentials: sealed })
   }

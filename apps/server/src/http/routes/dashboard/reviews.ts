@@ -2,8 +2,10 @@ import type { Review } from '@circi/api'
 import { findTeamForMember, getBuildByNumber, listReviewRequests, REVIEW_TABS } from '@circi/db'
 import {
   dismissReviewRequest,
+  MAX_BULK_REQUEST_REVIEW,
   MAX_BULK_REVIEW,
   requestReview,
+  requestReviews,
   reviewBuild,
   reviewBuilds,
   snoozeReviewRequest,
@@ -14,6 +16,7 @@ import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
+import { loadTeam } from '#http/lib/team-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const params = z.object({ workspace: z.string(), team: z.string(), number: z.string() })
@@ -102,7 +105,40 @@ export const dashboardBulkReviewRoutes: FastifyPluginAsync<Deps.Dashboard> = asy
       })),
     }
   })
+
+  /**
+   * `POST …/builds/request-review`: ask each reviewer to review each build, in one transaction.
+   * All or nothing, like the bulk decision above. Any member may ask.
+   */
+  app.post('/teams/:workspace/:team/builds/request-review', async (req, reply) => {
+    const input = parse(requestBulkBody, req.body)
+    const found = await loadTeam(deps, req, reply)
+    if (!found) return reply
+    const { team, user } = found
+    const { requests } = await requestReviews(deps.db, {
+      teamId: team.id,
+      buildIds: input.buildIds,
+      reviewerIds: input.reviewerIds,
+      requestedById: user.id,
+    })
+    const payload: Review.BulkRequested = {
+      requests: requests.map((r) => ({
+        buildId: r.buildId,
+        reviewerId: r.reviewerId,
+        id: r.request.id,
+        state: r.request.state,
+        dueAt: r.request.dueAt?.toISOString() ?? null,
+        created: r.created,
+      })),
+    }
+    return payload
+  })
 }
+
+const requestBulkBody = z.object({
+  buildIds: z.array(z.string().uuid()).min(1).max(MAX_BULK_REQUEST_REVIEW),
+  reviewerIds: z.array(z.string().min(1)).min(1).max(20),
+})
 
 const listQuery = z.object({ tab: z.enum(REVIEW_TABS).default('for-you') })
 const teamParams = z.object({ workspace: z.string(), team: z.string() })

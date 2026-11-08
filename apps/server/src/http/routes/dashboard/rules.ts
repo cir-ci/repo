@@ -5,6 +5,7 @@ import {
   getTeamMemberRole,
   getTriageRotation,
   listReviewRules,
+  reorderReviewRules,
   setTriageRotation,
   updateReviewRule,
 } from '@circi/db'
@@ -20,6 +21,7 @@ const ruleBody = z.object({
   pattern: z.string().max(200),
   reviewerIds: z.array(z.string().min(1)).max(20),
 })
+const orderBody = z.object({ ruleIds: z.array(z.uuid()).max(500) })
 const ruleParams = z.object({ id: z.string() })
 const rotationBody = z.object({
   memberIds: z.array(z.string().min(1)).max(50),
@@ -56,6 +58,15 @@ export const dashboardRuleRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
     const body = parse(ruleBody, req.body)
     const rule = await createReviewRule(deps.db, { teamId: found.team.id, ...body })
     return reply.code(201).send(rule)
+  })
+
+  /** Puts the rules in the given order (every rule once); the first match wins. */
+  app.put('/teams/:workspace/:team/rules/order', async (req, reply) => {
+    const found = await loadTeam(deps, req, reply, { manage: true })
+    if (!found) return reply
+    const body = parse(orderBody, req.body)
+    const rules: ReviewRule.Item[] = await reorderReviewRules(deps.db, found.team.id, body.ruleIds)
+    return { rules }
   })
 
   app.put('/teams/:workspace/:team/rules/:id', async (req, reply) => {

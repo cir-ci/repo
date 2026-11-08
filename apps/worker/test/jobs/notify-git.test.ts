@@ -12,8 +12,8 @@ import {
   updateTeamSettings,
 } from '@circi/db'
 import { GithubApiError, GithubInstallationRevokedError } from '@circi/providers'
-import { completeBuild, linkTeamToGithub, reviewBuild } from '@circi/services'
-import { createTestDb, seedBuild, seedDiff, seedTeam } from '@circi/testing'
+import { completeBuild, reviewBuild } from '@circi/services'
+import { createTestDb, seedBuild, seedDiff, seedGitLink, seedTeam } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -80,7 +80,7 @@ async function nextJob(): Promise<Job> {
 async function linkedBuild(prNumber: number | null) {
   await t.db.delete(schema.jobs)
   const { team, owner } = await seedTeam(t.db)
-  await linkTeamToGithub(t.db, team.id, { installationId: '99', repoRef: 'acme/web' })
+  await seedGitLink(t.db, team.id, { externalId: '99', repoRef: 'acme/web' })
   const build = await createBuild(t.db, {
     teamId: team.id,
     commitSha: 'abc1234',
@@ -100,10 +100,7 @@ const revoked = () =>
 
 async function setup() {
   const linked = await linkedBuild(null)
-  await linkTeamToGithub(t.db, linked.team.id, {
-    installationId: '77',
-    repoRef: 'acme/web',
-  })
+  await seedGitLink(t.db, linked.team.id, { externalId: '77', repoRef: 'acme/web' })
   await completeBuild(t.db, linked.build, { conclusion: 'no_changes', approval: 'none' })
   return linked
 }
@@ -150,7 +147,7 @@ describe('notifyGit', () => {
   it('passes a flaky-only change when flaky screenshots do not block merges (workspace default, team override)', async () => {
     await t.db.delete(schema.jobs)
     const { team, workspace } = await seedTeam(t.db)
-    await linkTeamToGithub(t.db, team.id, { installationId: '99', repoRef: 'acme/web' })
+    await seedGitLink(t.db, team.id, { externalId: '99', repoRef: 'acme/web' })
     for (let i = 0; i < 3; i += 1) {
       // oxlint-disable-next-line no-await-in-loop -- builds are numbered in order
       const main = await seedBuild(t.db, team.id, { branch: 'main', status: 'complete' })
@@ -298,7 +295,7 @@ describe('notifyGit', () => {
       const { team } = await setup()
       await notifyGit({ db: t.db, github: failing(revoked()), publicOrigin }, await nextJob())
       expect(await getTeamGitAttention(t.db, team.id, ['github'])).toBeDefined()
-      await linkTeamToGithub(t.db, team.id, { installationId: '77', repoRef: 'acme/web' })
+      await seedGitLink(t.db, team.id, { externalId: '77', repoRef: 'acme/web' })
       expect(await getTeamGitAttention(t.db, team.id, ['github'])).toBeUndefined()
     })
   })

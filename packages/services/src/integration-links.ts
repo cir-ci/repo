@@ -201,6 +201,9 @@ export namespace mapTeam {
  */
 export async function mapTeam(db: Database, input: mapTeam.Input): Promise<void> {
   const { definition } = input
+  // One transaction, and the new mapping is written before the old ones are dropped: a team that
+  // moves between installations (or git hosts) is never seen with no mapping, and if any step
+  // fails it keeps the old one.
   await db.transaction(async (tx) => {
     await setIntegrationTeam(tx, {
       integrationId: input.integrationId,

@@ -98,3 +98,57 @@ export namespace Build {
     issues: { key: string; url: string; title: string }[]
   }
 }
+
+export namespace Snapshot {
+  /** One build in a snapshot's history. */
+  export interface HistoryEntry {
+    build: {
+      number: number
+      branch: string | null
+      status: BuildStatus
+      reviewStatus: ReviewStatus
+      createdAt: string
+    }
+    /** How the snapshot compared in that build; null while it is not compared yet. */
+    status: DiffStatus | null
+    /** The screenshot in that build (the baseline's for a removed one); null when there is none. */
+    image: (Build.ImageRef & { thumbnail: string | null }) | null
+  }
+
+  /** `GET …/snapshots/:name/history?limit=5&branch=…`. */
+  export interface History {
+    defaultBranch: string
+    /** Newest first. */
+    default: HistoryEntry[]
+    /** The viewed branch's builds; null when none was asked for or it is the default branch. */
+    branch: HistoryEntry[] | null
+  }
+}
+
+export namespace WorkspaceBuilds {
+  /** A build in the workspace-wide list: the usual item, and the team it belongs to. */
+  export interface Item extends Build.ListItem {
+    team: { slug: string; name: string }
+  }
+
+  /** `GET /api/workspaces/:workspace/builds`: a page, newest first. */
+  export interface List {
+    workspace: { slug: string; name: string }
+    builds: Item[]
+    /** The cursor (`before`) of the next page; null on the last one. */
+    next: string | null
+  }
+
+  /** One suggestion for the author or reviewer chip. */
+  export interface Suggestion {
+    /** What the filter takes: a user id, or (for unmatched authors) a git login. */
+    value: string
+    label: string
+    kind: 'member' | 'login'
+  }
+
+  /** `GET /api/workspaces/:workspace/builds/suggestions?field=&q=`. */
+  export interface Suggestions {
+    suggestions: Suggestion[]
+  }
+}

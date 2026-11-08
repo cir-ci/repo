@@ -20,6 +20,7 @@ import {
   draftProblem,
   emptyDraft,
   isRuleKind,
+  movedRuleIds,
   kindLabel,
   RULE_KINDS,
   reviewerNames,
@@ -38,13 +39,23 @@ export function RulesSection(props: RulesSection.Props) {
   const announce = useAnnounce()
   const [editing, setEditing] = useState<Editing>(null)
   const [deleting, setDeleting] = useState<ReviewRule.Item | null>(null)
-  const failure = actions.create.error ?? actions.update.error ?? actions.remove.error
+  const failure =
+    actions.create.error ?? actions.update.error ?? actions.remove.error ?? actions.reorder.error
+
+  function move(rule: ReviewRule.Item, by: -1 | 1) {
+    const ids = movedRuleIds(props.rules, rule.id, by)
+    if (!ids) return
+    actions.reorder.mutate(ids, {
+      onSuccess: () =>
+        announce(`${rule.pattern} moved ${by < 0 ? 'up' : 'down'} to ${ids.indexOf(rule.id) + 1}`),
+    })
+  }
 
   return (
     <section className={styles.section}>
       <SectionHeader
         title="Review rules"
-        description="When a build has a screenshot or a name that matches, these people are asked to review it. Use * within a name and ** across folders."
+        description="When a build has a screenshot or a name that matches, these people are asked to review it. Use * within a name and ** across folders. The first rule that matches wins, so order them with Up and Down."
         action={
           props.canManage && !editing ? (
             <Button onClick={() => setEditing({ id: null, draft: emptyDraft() })}>Add rule</Button>
@@ -58,7 +69,7 @@ export function RulesSection(props: RulesSection.Props) {
         </EmptyState>
       ) : null}
       <ul className={styles.list} aria-label="Review rules">
-        {props.rules.map((rule) =>
+        {props.rules.map((rule, index) =>
           editing?.id === rule.id ? (
             <li key={rule.id}>
               <RuleEditor {...editorProps(props, editing, setEditing, actions, announce, rule)} />
@@ -70,6 +81,20 @@ export function RulesSection(props: RulesSection.Props) {
                 trailing={
                   props.canManage ? (
                     <div className={styles.actions}>
+                      <Button
+                        aria-label={`Move rule ${rule.pattern} up`}
+                        disabled={index === 0 || actions.reorder.isPending}
+                        onClick={() => move(rule, -1)}
+                      >
+                        Up
+                      </Button>
+                      <Button
+                        aria-label={`Move rule ${rule.pattern} down`}
+                        disabled={index === props.rules.length - 1 || actions.reorder.isPending}
+                        onClick={() => move(rule, 1)}
+                      >
+                        Down
+                      </Button>
                       <Button
                         aria-label={`Edit rule ${rule.pattern}`}
                         onClick={() => setEditing({ id: rule.id, draft: draftOf(rule) })}

@@ -139,7 +139,7 @@ export function Viewer({
             </span>
           ) : null}
           {annotate ? (
-            <Tooltip content="Drag over the screenshot to comment on a region">
+            <Tooltip content="Drag over the screenshot, or use the arrow keys, to comment on a region">
               <Button
                 variant="toggle"
                 size="sm"

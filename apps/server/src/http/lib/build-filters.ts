@@ -1,4 +1,5 @@
 import { BUILD_FILTER_REVIEWS, BUILD_FILTER_STATUSES } from '@circi/core'
+import type { listBuildsForTeam } from '@circi/db'
 import { z } from 'zod'
 
 /**
@@ -18,3 +19,19 @@ export const buildFilterShape = {
 
 /** For saved views: unknown keys are refused rather than silently kept. */
 export const savedFilters = z.strictObject(buildFilterShape)
+
+/** The parsed filters (a request's query) as the builds queries take them. */
+export function toBuildFilters(
+  q: Partial<z.infer<z.ZodObject<typeof buildFilterShape>>>,
+): listBuildsForTeam.Filters {
+  return {
+    ...(q.status ? { status: q.status } : {}),
+    ...(q.review ? { reviewStatus: q.review } : {}),
+    ...(q.branch ? { branch: q.branch } : {}),
+    ...(q.author ? { author: q.author } : {}),
+    ...(q.reviewer ? { reviewer: q.reviewer } : {}),
+    ...(q.name ? { name: q.name } : {}),
+    ...(q.from ? { from: new Date(q.from) } : {}),
+    ...(q.to ? { to: new Date(q.to) } : {}),
+  }
+}
