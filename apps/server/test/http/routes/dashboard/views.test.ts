@@ -1,3 +1,4 @@
+import { teamColorFor } from '@circi/core'
 import { getWorkspaceBySlug } from '@circi/db'
 import { addTestMember, seedSavedView, seedUser } from '@circi/testing'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -129,7 +130,9 @@ describe('saved view routes', () => {
     expect((await send('PUT', pin)).json()).toEqual({ pinned: true, changed: true })
     expect((await send('PUT', pin)).json()).toEqual({ pinned: true, changed: false })
     const bar = (await get(`/api/workspaces/${acme.workspaceSlug}/sidebar`)).json()
-    expect(bar.teams).toEqual([{ slug: 'web', name: 'web', pinned: true, triage: 0 }])
+    expect(bar.teams).toEqual([
+      { slug: 'web', name: 'web', color: teamColorFor('web'), icon: null, pinned: true, triage: 0 },
+    ])
     expect(bar).toMatchObject({ inboxUnread: 0, reviews: 0 })
     expect(bar.views.length).toBeGreaterThan(0)
     expect((await send('DELETE', pin)).json()).toEqual({ pinned: false, changed: true })

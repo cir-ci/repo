@@ -178,39 +178,6 @@ export async function collectMarkedFiles(
   return { deleted, kept }
 }
 
-export namespace storageUsage {
-  export interface Result {
-    files: { kind: string; count: number; bytes: number }[]
-    totalBytes: number
-    markedForDeletion: { count: number; bytes: number }
-  }
-}
-
-/** What's stored: by kind of file, and how much is waiting to be collected. */
-export async function storageUsage(db: Database): Promise<storageUsage.Result> {
-  const rows = await db
-    .select({
-      kind: files.kind,
-      count: sql<number>`count(*)::int`,
-      bytes: sql<number>`coalesce(sum(${files.size}), 0)::bigint::float8`,
-    })
-    .from(files)
-    .where(eq(files.status, 'verified'))
-    .groupBy(files.kind)
-  const [marked] = await db
-    .select({
-      count: sql<number>`count(*)::int`,
-      bytes: sql<number>`coalesce(sum(${files.size}), 0)::bigint::float8`,
-    })
-    .from(files)
-    .where(isNotNull(files.gcMarkedAt))
-  return {
-    files: rows.map((r) => ({ kind: r.kind, count: r.count, bytes: r.bytes })),
-    totalBytes: rows.reduce((n, r) => n + r.bytes, 0),
-    markedForDeletion: { count: marked?.count ?? 0, bytes: marked?.bytes ?? 0 },
-  }
-}
-
 export namespace previewCollection {
   export interface Preview {
     /** Files a collection run would delete now: unreferenced and marked longer than the grace. */

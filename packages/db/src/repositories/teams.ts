@@ -1,4 +1,12 @@
-import { assertValidSlug, slugify, ValidationError } from '@circi/core'
+import {
+  assertTeamColor,
+  assertTeamIcon,
+  assertValidSlug,
+  slugify,
+  teamColorFor,
+  type TeamColor,
+  ValidationError,
+} from '@circi/core'
 import { and, asc, eq } from 'drizzle-orm'
 
 import { member, workspace, teams } from '#schema/index.ts'
@@ -7,6 +15,7 @@ import { ConflictError, isUniqueViolation, NotFoundError } from '#src/errors.ts'
 import type { Team } from '#src/types.ts'
 
 import { workspaceAccepts, type SessionMethod } from './auth-settings.ts'
+import { getWorkspaceSettings } from './workspace-settings.ts'
 import { getWorkspaceBySlug } from './workspaces.ts'
 
 /**
@@ -16,7 +25,16 @@ import { getWorkspaceBySlug } from './workspaces.ts'
 
 export async function createTeam(
   db: Database,
-  input: { workspaceSlug: string; name: string; slug?: string; defaultBranch?: string },
+  input: {
+    workspaceSlug: string
+    name: string
+    slug?: string
+    defaultBranch?: string
+    /** A palette colour; from a hash of the name when left out. */
+    color?: string
+    /** A Lucide icon name from `TEAM_ICON_NAMES`; none shows the first letter. */
+    icon?: string | null
+  },
 ): Promise<Team> {
   const found = await getWorkspaceBySlug(db, input.workspaceSlug)
   const name = input.name.trim()
@@ -24,10 +42,16 @@ export async function createTeam(
   const slug = input.slug ?? slugify(name)
   assertValidSlug(slug, 'team slug')
   const defaultBranch = input.defaultBranch?.trim() || 'main'
+  const color = input.color ?? teamColorFor(name)
+  assertTeamColor(color)
+  const icon = input.icon ?? null
+  if (icon !== null) assertTeamIcon(icon)
+  // A new team starts with the workspace's default retention; it can change its own after.
+  const { retentionDays } = await getWorkspaceSettings(db, found.id)
   try {
     const [team] = await db
       .insert(teams)
-      .values({ workspaceId: found.id, name, slug, defaultBranch })
+      .values({ workspaceId: found.id, name, slug, defaultBranch, color, icon, retentionDays })
       .returning()
     if (!team) throw new Error('insert returned no row')
     return team
@@ -57,13 +81,46 @@ export async function getTeamBySlugs(
   return row.team
 }
 
+export namespace setTeamAppearance {
+  export interface Appearance {
+    color: TeamColor
+    icon: string | null
+  }
+}
+
+/** Changes the team's tile colour and/or icon (`null` clears the icon); invalid values are a `ValidationError`. */
+export async function setTeamAppearance(
+  db: Database,
+  teamId: string,
+  patch: { color?: string; icon?: string | null },
+): Promise<setTeamAppearance.Appearance> {
+  const set: { color?: TeamColor; icon?: string | null } = {}
+  if (patch.color !== undefined) {
+    assertTeamColor(patch.color)
+    set.color = patch.color
+  }
+  if (patch.icon !== undefined) {
+    if (patch.icon !== null) assertTeamIcon(patch.icon)
+    set.icon = patch.icon
+  }
+  if (Object.keys(set).length === 0) {
+    const current = await getTeamById(db, teamId)
+    if (!current) throw new NotFoundError('Team not found')
+    return { color: current.color, icon: current.icon }
+  }
+  const [row] = await db.update(teams).set(set).where(eq(teams.id, teamId)).returning()
+  if (!row) throw new NotFoundError('Team not found')
+  return { color: row.color, icon: row.icon }
+}
+
 /** Points the team at its current CI key (null after revoking). */
 export async function setTeamCiKey(
   db: Database,
   teamId: string,
   ciKeyId: string | null,
+  createdBy: string | null = null,
 ): Promise<void> {
-  await db.update(teams).set({ ciKeyId }).where(eq(teams.id, teamId))
+  await db.update(teams).set({ ciKeyId, ciKeyCreatedBy: createdBy }).where(eq(teams.id, teamId))
 }
 
 export async function getTeamById(db: Database, teamId: string): Promise<Team | undefined> {
@@ -97,6 +154,8 @@ export namespace findTeamForMember {
     slug: string
     name: string
     defaultBranch: string
+    color: TeamColor
+    icon: string | null
     workspaceSlug: string
     workspaceName: string
   }
@@ -116,6 +175,8 @@ export async function findTeamForMember(
       slug: teams.slug,
       name: teams.name,
       defaultBranch: teams.defaultBranch,
+      color: teams.color,
+      icon: teams.icon,
       workspaceSlug: workspace.slug,
       workspaceName: workspace.name,
     })

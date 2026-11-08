@@ -21,6 +21,7 @@ export {
   type IssuedToken,
   rotateTeamToken,
   setUserPassword,
+  updateWorkspace,
   verifyTeamToken,
 } from './operations/admin.ts'
 

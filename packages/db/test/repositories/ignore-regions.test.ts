@@ -1,8 +1,9 @@
-import { createTestDb, seedTeam } from '@circi/testing'
+import { createTestDb, seedTeam, seedUser } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
   addIgnoreRegion,
+  changeIgnoreRegion,
   ignoreRegionsByName,
   listIgnoreRegions,
   NotFoundError,
@@ -68,5 +69,45 @@ describe('ignore regions', () => {
     await expect(removeIgnoreRegion(t.db, other.team.id, mine.id)).rejects.toThrow(NotFoundError)
     await removeIgnoreRegion(t.db, team.id, mine.id)
     expect(await listIgnoreRegions(t.db, team.id)).toEqual([])
+  })
+
+  it('records who added a region, and moves or renames one', async () => {
+    const { team } = await seedTeam(t.db)
+    const person = await seedUser(t.db)
+    const added = await addIgnoreRegion(t.db, team.id, {
+      name: 'home',
+      x: 0,
+      y: 0,
+      width: 10,
+      height: 10,
+      createdBy: person.id,
+    })
+    expect(added.createdBy).toEqual({ id: person.id, name: person.name })
+    const cli = await addIgnoreRegion(t.db, team.id, {
+      name: 'home',
+      x: 5,
+      y: 5,
+      width: 1,
+      height: 1,
+    })
+    expect(cli.createdBy).toBeNull()
+
+    const moved = await changeIgnoreRegion(t.db, team.id, added.id, { x: 4, width: 20 })
+    expect(moved).toMatchObject({ x: 4, y: 0, width: 20, height: 10, name: 'home' })
+    expect(moved.createdBy).toEqual({ id: person.id, name: person.name })
+    expect((await changeIgnoreRegion(t.db, team.id, added.id, { name: ' login ' })).name).toBe(
+      'login',
+    )
+    await expect(changeIgnoreRegion(t.db, team.id, added.id, { width: 0 })).rejects.toThrow(
+      /at least 1/,
+    )
+    await expect(changeIgnoreRegion(t.db, team.id, added.id, { name: ' ' })).rejects.toThrow(
+      /name is required/,
+    )
+    // Another team's region is not found.
+    const other = await seedTeam(t.db)
+    await expect(changeIgnoreRegion(t.db, other.team.id, added.id, { x: 1 })).rejects.toThrow(
+      NotFoundError,
+    )
   })
 })

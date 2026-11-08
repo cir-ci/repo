@@ -86,5 +86,26 @@ export namespace IgnoreRegion {
     y: number
     width: number
     height: number
+    createdAt: string
+    /** Who added it; null for the CLI or when the person's account is gone. */
+    createdBy: { id: string; name: string } | null
+  }
+
+  /** A screenshot name that has regions, with the latest screenshot to draw them on. */
+  export interface Snapshot {
+    name: string
+    regions: number
+    latest: {
+      buildNumber: number
+      sha256: string
+      width: number | null
+      height: number | null
+    } | null
+  }
+
+  /** `GET /api/teams/:workspace/:team/ignore-regions`. */
+  export interface List {
+    regions: Item[]
+    snapshots: Snapshot[]
   }
 }

@@ -11,6 +11,7 @@ import {
   getTeamGitAttention,
   getTeamLink,
   getTeamMemberRole,
+  getTeamTokenInfo,
   isWebhookEvent,
   listWebhooks,
   teamSettings,
@@ -18,7 +19,12 @@ import {
   WEBHOOK_EVENTS,
   type Webhook,
 } from '@circi/db'
-import { gitKinds, linkTeamToGithub, unlinkTeamFromGit } from '@circi/services'
+import {
+  gitKinds,
+  linkTeamToGithub,
+  unlinkTeamFromGit,
+  updateTeamAppearance,
+} from '@circi/services'
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
@@ -47,6 +53,15 @@ const settingsBody = z
   .partial()
   .strict()
 
+const appearanceBody = z
+  .object({
+    color: z.string().max(40),
+    /** null clears the icon (the tile shows the team's first letter). */
+    icon: z.string().max(40).nullable(),
+  })
+  .partial()
+  .strict()
+
 const githubBody = z.object({
   installationId: z.string().regex(INSTALLATION_ID_RE, 'The installation id is a number'),
   repoRef: z.string().regex(/^[\w.-]+\/[\w.-]+$/, 'Use owner/name, e.g. acme/web'),
@@ -69,6 +84,17 @@ async function githubLink(db: Database, teamId: string): Promise<Team.GithubLink
     attention: attention
       ? { reason: attention.reason, since: attention.since.toISOString() }
       : null,
+  }
+}
+
+async function tokenInfo(db: Database, teamId: string, canManage: boolean): Promise<Team.Token> {
+  const info = await getTeamTokenInfo(db, teamId)
+  return {
+    canManage,
+    hint: info.hint,
+    createdAt: info.createdAt?.toISOString() ?? null,
+    createdBy: info.createdBy,
+    lastUsedAt: info.lastUsedAt?.toISOString() ?? null,
   }
 }
 
@@ -122,6 +148,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
     return {
       canManage: found.canManage,
       settings: teamSettings(found.team),
+      appearance: { color: found.team.color, icon: found.team.icon },
       // What a team that inherits gets, so the form can say so.
       workspace: await getWorkspaceSettings(deps.db, found.team.workspaceId),
       webhooks: (await listWebhooks(deps.db, found.team.id)).map(present),
@@ -142,17 +169,36 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
     return { settings: await updateTeamSettings(deps.db, team.id, patch) }
   })
 
-  /** A new CI token. The old one stops working at once; the new one is shown only here. */
-  app.post('/teams/:workspace/:team/token', async (req, reply) => {
+  /** The tile colour and icon (owners and admins). */
+  app.patch('/teams/:workspace/:team/appearance', async (req, reply) => {
     const team = await loadForManager(req, reply)
     if (!team) return reply
-    const p = parse(teamParams, req.params)
-    const issued = await rotateTeamToken(deps.auth, deps.db, {
-      workspaceSlug: p.workspace,
-      teamSlug: team.slug,
-    })
-    return { token: issued.token }
+    const patch = parse(appearanceBody, req.body)
+    return { appearance: await updateTeamAppearance(deps.db, team.id, patch) }
   })
+
+  /** Facts about the team's current CI token (members may look); never the token itself. */
+  app.get('/teams/:workspace/:team/token', async (req, reply): Promise<Team.Token | void> => {
+    const found = await load(req, reply)
+    if (!found) return reply
+    return tokenInfo(deps.db, found.team.id, found.canManage)
+  })
+
+  /** A new CI token. The old one stops working at once; the new one is shown only here. */
+  app.post(
+    '/teams/:workspace/:team/token',
+    async (req, reply): Promise<Team.TokenRotated | void> => {
+      const team = await loadForManager(req, reply)
+      if (!team) return reply
+      const p = parse(teamParams, req.params)
+      const issued = await rotateTeamToken(deps.auth, deps.db, {
+        workspaceSlug: p.workspace,
+        teamSlug: team.slug,
+        rotatedBy: currentUser(req).id,
+      })
+      return { token: issued.token, info: await tokenInfo(deps.db, team.id, true) }
+    },
+  )
 
   app.put('/teams/:workspace/:team/github', async (req, reply) => {
     const team = await loadForManager(req, reply)

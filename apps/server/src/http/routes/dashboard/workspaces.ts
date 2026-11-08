@@ -17,6 +17,10 @@ import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const nameBody = z.object({ name: z.string().min(1).max(100) })
+const teamBody = nameBody.extend({
+  color: z.string().max(40).optional(),
+  icon: z.string().max(40).nullable().optional(),
+})
 const workspaceParams = z.object({ workspace: z.string() })
 
 /**
@@ -59,7 +63,7 @@ export const dashboardWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
 
   app.post('/workspaces/:workspace/teams', async (req, reply) => {
     const { workspace: workspaceSlug } = parse(workspaceParams, req.params)
-    const { name } = parse(nameBody, req.body)
+    const { name, color, icon } = parse(teamBody, req.body)
     const workspace = await getWorkspaceBySlug(deps.db, workspaceSlug).catch((err: unknown) => {
       if (err instanceof NotFoundError) return undefined
       throw err
@@ -75,7 +79,16 @@ export const dashboardWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
     if (role !== 'owner' && role !== 'admin') {
       return reply.code(403).send({ error: 'Only owners and admins can create teams' })
     }
-    const { team, token } = await createTeamWithToken(deps.auth, deps.db, { workspaceSlug, name })
-    return reply.code(201).send({ team: { slug: team.slug, name: team.name }, token })
+    const { team, token } = await createTeamWithToken(deps.auth, deps.db, {
+      workspaceSlug,
+      name,
+      createdBy: currentUser(req).id,
+      ...(color === undefined ? {} : { color }),
+      ...(icon === undefined ? {} : { icon }),
+    })
+    return reply.code(201).send({
+      team: { slug: team.slug, name: team.name, color: team.color, icon: team.icon },
+      token,
+    })
   })
 }

@@ -56,10 +56,12 @@ export {
   snoozeReviewRequest,
   unsnoozeReviewRequest,
 } from './reviews.ts'
+export { updateTeamAppearance } from './teams.ts'
 export {
   assignTriage,
   createIgnoreRegion,
   deleteIgnoreRegion,
+  editIgnoreRegion,
   dismissTriage,
   snoozeTriage,
 } from './triage.ts'

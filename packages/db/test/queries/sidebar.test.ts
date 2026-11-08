@@ -1,3 +1,4 @@
+import { teamColorFor } from '@circi/core'
 import {
   addTestMember,
   createTestDb,
@@ -57,10 +58,18 @@ describe('getSidebar', () => {
     await seedSavedView(t.db, { userId: mate.id, workspaceId: workspace.id, name: 'Theirs' })
 
     const bar = await getSidebar(t.db, { userId: owner.id, workspace, now })
-    expect(bar.teams).toEqual([
+    expect(
+      bar.teams.map(({ slug, name, pinned, triage }) => ({ slug, name, pinned, triage })),
+    ).toEqual([
       { slug: 'zeta', name: 'zeta', pinned: true, triage: 0 },
       { slug: 'alpha', name: 'alpha', pinned: false, triage: 0 },
       { slug: 'mid', name: 'mid', pinned: false, triage: 2 },
+    ])
+    // Each team carries its tile: a colour from its name, and no icon until one is chosen.
+    expect(bar.teams.map((p) => [p.color, p.icon])).toEqual([
+      [teamColorFor('zeta'), null],
+      [teamColorFor('alpha'), null],
+      [teamColorFor('mid'), null],
     ])
     expect(bar.reviews).toBe(1)
     expect(bar.inboxUnread).toBe(1)

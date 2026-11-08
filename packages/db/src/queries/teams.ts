@@ -1,3 +1,4 @@
+import type { TeamColor } from '@circi/core'
 import { and, eq } from 'drizzle-orm'
 
 import { workspaceAccepts, type SessionMethod } from '#repositories/auth-settings.ts'
@@ -13,7 +14,7 @@ import { listBuildsForTeam } from './builds.ts'
 
 export interface TeamOverview {
   workspace: { slug: string; name: string }
-  team: { slug: string; name: string; defaultBranch: string }
+  team: { slug: string; name: string; defaultBranch: string; color: TeamColor; icon: string | null }
   latestBuild: listBuildsForTeam.Item | null
 }
 
@@ -35,7 +36,13 @@ export async function listTeamsOverview(
       const [latest] = await listBuildsForTeam(db, team.id, { limit: 1 })
       return {
         workspace: { slug: owner.slug, name: owner.name },
-        team: { slug: team.slug, name: team.name, defaultBranch: team.defaultBranch },
+        team: {
+          slug: team.slug,
+          name: team.name,
+          defaultBranch: team.defaultBranch,
+          color: team.color,
+          icon: team.icon,
+        },
         latestBuild: latest ?? null,
       }
     }),

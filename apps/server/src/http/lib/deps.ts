@@ -1,8 +1,11 @@
-import type { Auth } from '@circi/auth'
+import type { Auth, Mailer } from '@circi/auth'
+import type { Config } from '@circi/config'
 import type { Database, SessionMethod, getTeamContext } from '@circi/db'
 import type { IntegrationDefinition, IntegrationRegistry } from '@circi/integrations'
 import type { ProviderRegistry } from '@circi/providers'
 import type { StorageDriver } from '@circi/storage'
+
+import type { Fetcher } from '#lifecycle/doctor.ts'
 
 export namespace Deps {
   /** Instance settings of the registry's integrations, a replaceable `fetch`, and (tests) another registry. */
@@ -17,6 +20,15 @@ export namespace Deps {
     storage: StorageDriver
     /** Dashboard origin (`PUBLIC_URL`): build links, upload URLs, CSRF and better-auth's base. */
     publicOrigin: string
+  }
+
+  /** What the instance admin's pages read: the effective configuration and the mailer. */
+  export interface Instance {
+    config: Config
+    /** Sends mail; absent without SMTP. */
+    mailer?: Mailer
+    /** How the doctor asks other hosts about cookies; replaceable in tests. Default: real HTTP. */
+    fetchHost?: Fetcher
   }
 
   /** What the CI API (`/v1`) needs. */
@@ -76,6 +88,8 @@ export namespace Deps {
     workspaceCreation?: 'admin' | 'anyone'
     /** The instance secret, from which the first-run setup code is derived. */
     authSecret?: string
+    /** The configuration behind Instance › Settings and Health; without it those routes answer 501. */
+    instance?: Deps.Instance
     /** Built web app (apps/web/dist). Missing: the API still works, pages explain how to build. */
     webDist?: string
   }

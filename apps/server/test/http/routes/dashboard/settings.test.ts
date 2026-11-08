@@ -143,7 +143,7 @@ describe('team settings', () => {
     const got = (await call('GET', `${base()}/settings`, memberCookie)).json()
     // Nothing set: the team inherits, and the workspace blocks, as before.
     expect(got.settings.flakyBlocksMerge).toBeNull()
-    expect(got.workspace).toEqual({ flakyBlocksMerge: true })
+    expect(got.workspace).toEqual({ flakyBlocksMerge: true, retentionDays: 30 })
 
     const off = await call('PATCH', `${base()}/settings`, ownerCookie, { flakyBlocksMerge: false })
     expect(off.json().settings.flakyBlocksMerge).toBe(false)
@@ -308,19 +308,23 @@ const workspaceUrl = () => `/api/workspaces/${acme.workspaceSlug}/settings`
 describe('workspace settings', () => {
   it('shows the defaults to members, and whether they can change them', async () => {
     const owner = (await call('GET', workspaceUrl(), ownerCookie)).json()
-    expect(owner).toEqual({ canManage: true, settings: { flakyBlocksMerge: true } })
+    expect(owner).toEqual({
+      canManage: true,
+      settings: { flakyBlocksMerge: true, retentionDays: 30 },
+    })
     expect((await call('GET', workspaceUrl(), memberCookie)).json().canManage).toBe(false)
   })
 
   it('lets an owner change them, and teams that inherit see the new value', async () => {
     const res = await call('PATCH', workspaceUrl(), ownerCookie, { flakyBlocksMerge: false })
     expect(res.statusCode).toBe(200)
-    expect(res.json()).toEqual({ settings: { flakyBlocksMerge: false } })
+    expect(res.json()).toEqual({ settings: { flakyBlocksMerge: false, retentionDays: 30 } })
     expect(await getWorkspaceSettings(t.db, acme.team.workspaceId)).toEqual({
       flakyBlocksMerge: false,
+      retentionDays: 30,
     })
     const team = (await call('GET', `${base()}/settings`, memberCookie)).json()
-    expect(team.workspace).toEqual({ flakyBlocksMerge: false })
+    expect(team.workspace).toEqual({ flakyBlocksMerge: false, retentionDays: 30 })
     expect(team.settings.flakyBlocksMerge).toBeNull()
   })
 
@@ -343,6 +347,7 @@ describe('workspace settings', () => {
     ).toBe(404)
     expect(await getWorkspaceSettings(t.db, acme.team.workspaceId)).toEqual({
       flakyBlocksMerge: false,
+      retentionDays: 30,
     })
   })
 })

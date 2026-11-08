@@ -1,5 +1,8 @@
+import type { Storage, Workspace } from '@circi/api'
+import { updateWorkspace } from '@circi/auth'
 import {
   getMemberRole,
+  getWorkspaceStorage,
   getWorkspaceBySlug,
   getWorkspaceSettings,
   NotFoundError,
@@ -14,11 +17,19 @@ import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const params = z.object({ workspace: z.string() })
-const body = z.object({ flakyBlocksMerge: z.boolean() }).partial().strict()
+const body = z
+  .object({ flakyBlocksMerge: z.boolean(), retentionDays: z.number() })
+  .partial()
+  .strict()
+const generalBody = z
+  .object({ name: z.string().max(100), slug: z.string().max(100) })
+  .partial()
+  .strict()
 
 /**
- * A workspace's defaults for its teams. Members can see them, owners and admins change
- * them; anyone outside the workspace gets "not found".
+ * A workspace's name and address, its defaults for its teams (flaky gate, retention) and its
+ * storage usage. Members can see them, owners and admins change them; anyone outside the
+ * workspace gets "not found".
  */
 export const dashboardWorkspaceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
   app,
@@ -45,6 +56,42 @@ export const dashboardWorkspaceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard
     return { workspace, canManage: role === 'owner' || role === 'admin' }
   }
 
+  const MANAGE = 'Only owners and admins can change workspace settings'
+
+  app.get('/workspaces/:workspace', async (req, reply): Promise<Workspace.General | void> => {
+    const found = await load(req, reply)
+    if (!found) return reply
+    return {
+      canManage: found.canManage,
+      name: found.workspace.name,
+      slug: found.workspace.slug,
+    }
+  })
+
+  /** Renames the workspace and/or changes its address; the old address stops working. */
+  app.patch('/workspaces/:workspace', async (req, reply) => {
+    const found = await load(req, reply)
+    if (!found) return reply
+    if (!found.canManage) return reply.code(403).send({ error: MANAGE })
+    const patch = parse(generalBody, req.body)
+    const updated = await updateWorkspace(deps.auth, deps.db, {
+      workspaceId: found.workspace.id,
+      ...(patch.name === undefined ? {} : { name: patch.name }),
+      ...(patch.slug === undefined ? {} : { slug: patch.slug }),
+    })
+    return { name: updated.name, slug: updated.slug }
+  })
+
+  /** What the workspace's builds and hosted sites take up, by kind and by team. */
+  app.get('/workspaces/:workspace/storage', async (req, reply): Promise<Storage.Usage | void> => {
+    const found = await load(req, reply)
+    if (!found) return reply
+    return {
+      canManage: found.canManage,
+      ...(await getWorkspaceStorage(deps.db, found.workspace.id)),
+    }
+  })
+
   app.get('/workspaces/:workspace/settings', async (req, reply) => {
     const found = await load(req, reply)
     if (!found) return reply
@@ -57,9 +104,7 @@ export const dashboardWorkspaceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard
   app.patch('/workspaces/:workspace/settings', async (req, reply) => {
     const found = await load(req, reply)
     if (!found) return reply
-    if (!found.canManage) {
-      return reply.code(403).send({ error: 'Only owners and admins can change workspace settings' })
-    }
+    if (!found.canManage) return reply.code(403).send({ error: MANAGE })
     const patch = parse(body, req.body)
     return { settings: await setWorkspaceSettings(deps.db, found.workspace.id, patch) }
   })

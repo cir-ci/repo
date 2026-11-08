@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 
 import { assertValidSlug, slugify, ValidationError } from '@circi/core'
 import {
+  ConflictError,
   createTeam,
   type Database,
   findWorkspaceOwnerId,
@@ -54,7 +55,11 @@ async function getUserIdByEmail(db: Database, email: string): Promise<string> {
   return row.id
 }
 
-/** Replaces a user's password (and signs them out everywhere else is up to the caller). */
+/**
+ * Replaces a user's password (signing them out everywhere is up to the caller). better-auth's
+ * `setUserPassword` endpoint needs an admin session, which the CLI doesn't have, so this hashes
+ * with better-auth's own hasher and updates the credential through its adapter.
+ */
 export async function setUserPassword(
   auth: Auth,
   db: Database,
@@ -62,7 +67,20 @@ export async function setUserPassword(
 ) {
   assertPasswordLength(input.password)
   const userId = await getUserIdByEmail(db, input.email)
-  await auth.api.setUserPassword({ body: { userId, newPassword: input.password } })
+  const context = await auth.$context
+  const hash = await context.password.hash(input.password)
+  const accounts = await context.internalAdapter.findAccounts(userId)
+  if (accounts.some((a) => a.providerId === 'credential')) {
+    await context.internalAdapter.updatePassword(userId, hash)
+  } else {
+    // A single-sign-on account has no password yet: this gives it one.
+    await context.internalAdapter.linkAccount({
+      userId,
+      providerId: 'credential',
+      accountId: userId,
+      password: hash,
+    })
+  }
 }
 
 /** A random password that meets the minimum, for accounts created from the command line. */
@@ -92,6 +110,43 @@ export async function createWorkspace(
   return workspace
 }
 
+/**
+ * Renames a workspace and/or changes its slug (the address `<PUBLIC_URL>/<slug>/…`; old
+ * addresses do not redirect). The slug follows the same rules as at creation (reserved words,
+ * shape) and must be free. Written through better-auth's adapter, which owns the table.
+ */
+export async function updateWorkspace(
+  auth: Auth,
+  db: Database,
+  input: { workspaceId: string; name?: string; slug?: string },
+): Promise<{ name: string; slug: string }> {
+  const [current] = await db
+    .select()
+    .from(schema.workspace)
+    .where(eq(schema.workspace.id, input.workspaceId))
+  if (!current) throw new NotFoundError('Workspace not found')
+  const name = input.name === undefined ? current.name : input.name.trim()
+  if (!name) throw new ValidationError('Workspace name is required')
+  const slug = input.slug === undefined ? current.slug : input.slug
+  if (slug !== current.slug) {
+    assertValidSlug(slug, 'workspace slug')
+    const [taken] = await db
+      .select({ id: schema.workspace.id })
+      .from(schema.workspace)
+      .where(eq(schema.workspace.slug, slug))
+    if (taken) throw new ConflictError(`The address "${slug}" is already taken`)
+  }
+  if (name !== current.name || slug !== current.slug) {
+    const context = await auth.$context
+    await context.adapter.update({
+      model: 'organization',
+      where: [{ field: 'id', value: input.workspaceId }],
+      update: { name, slug },
+    })
+  }
+  return { name, slug }
+}
+
 export async function addMember(
   auth: Auth,
   db: Database,
@@ -112,20 +167,32 @@ export interface IssuedToken {
 export async function createTeamWithToken(
   auth: Auth,
   db: Database,
-  input: { workspaceSlug: string; name: string; slug?: string; defaultBranch?: string },
+  input: {
+    workspaceSlug: string
+    name: string
+    slug?: string
+    defaultBranch?: string
+    color?: string
+    icon?: string | null
+    /** The person creating it, recorded as who issued the first token. */
+    createdBy?: string
+  },
 ): Promise<IssuedToken> {
-  const team = await createTeam(db, input)
-  return issueToken(auth, db, input.workspaceSlug, team)
+  const { createdBy, ...team } = input
+  return issueToken(auth, db, input.workspaceSlug, await createTeam(db, team), createdBy)
 }
 
-/** Replaces a team's CI token. The old one stops working immediately. */
+/**
+ * Replaces a team's CI token. The old one stops working immediately. The token is returned
+ * once; only its hash is stored (better-auth hashes the key).
+ */
 export async function rotateTeamToken(
   auth: Auth,
   db: Database,
-  input: { workspaceSlug: string; teamSlug: string },
+  input: { workspaceSlug: string; teamSlug: string; rotatedBy?: string },
 ): Promise<IssuedToken> {
   const team = await getTeamBySlugs(db, input)
-  return issueToken(auth, db, input.workspaceSlug, team)
+  return issueToken(auth, db, input.workspaceSlug, team, input.rotatedBy)
 }
 
 async function issueToken(
@@ -133,6 +200,7 @@ async function issueToken(
   db: Database,
   workspaceSlug: string,
   team: Team,
+  issuedBy?: string,
 ): Promise<IssuedToken> {
   const previousKeyId = team.ciKeyId
   // Workspace-owned keys are issued on behalf of a user who may manage them: an owner.
@@ -150,7 +218,7 @@ async function issueToken(
       metadata: { teamId: team.id },
     },
   })
-  await setTeamCiKey(db, team.id, key.id)
+  await setTeamCiKey(db, team.id, key.id, issuedBy ?? null)
   // The team now points at the new key; remove the old one so it can't be used either.
   if (previousKeyId) await db.delete(schema.apikey).where(eq(schema.apikey.id, previousKeyId))
   return { team: { ...team, ciKeyId: key.id }, token: key.key }

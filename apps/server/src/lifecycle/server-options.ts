@@ -1,4 +1,4 @@
-import type { Auth } from '@circi/auth'
+import type { Auth, Mailer } from '@circi/auth'
 import type { Config } from '@circi/config'
 import type { Database } from '@circi/db'
 import type { StorageDriver } from '@circi/storage'
@@ -16,6 +16,8 @@ export interface ServerRuntime {
   db: { db: Database; ping(): Promise<void> }
   auth: Auth
   storage: StorageDriver
+  /** Sends mail; absent without SMTP. */
+  mailer?: Mailer
 }
 
 /** Turns the configuration into the HTTP server's options: which scopes exist and with what. */
@@ -71,6 +73,7 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): buildServe
       integrations: { config: integrations },
       ...(sites ? { sites } : {}),
       authSecret: config.authSecret,
+      instance: { config, ...(rt.mailer ? { mailer: rt.mailer } : {}) },
       webDist,
     },
     checks: [

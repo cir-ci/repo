@@ -16,6 +16,15 @@ export namespace Workspace {
   export interface Settings {
     /** Whether a pull request that only changes flaky screenshots still blocks the merge. */
     flakyBlocksMerge: boolean
+    /** Days of retention a new team starts with (existing teams keep their own). */
+    retentionDays: number
+  }
+
+  /** `GET /api/workspaces/:workspace`: what the General page shows. */
+  export interface General {
+    canManage: boolean
+    name: string
+    slug: string
   }
 
   export interface SettingsResponse {

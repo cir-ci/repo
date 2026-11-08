@@ -35,9 +35,9 @@ import {
 import { createStorage } from '@circi/storage'
 import type { Command } from 'commander'
 
+import { formatFinding, httpFetcher, runDoctor } from '#lifecycle/doctor.ts'
 import type { Runtime } from '#lifecycle/runtime.ts'
 
-import { httpFetcher, runDoctor } from './doctor.ts'
 import { printJson, printPassword, printToken, publicTeam, withRuntime } from './output.ts'
 
 /** `circi admin user|workspace|member|team …`, run on the server. */
@@ -56,7 +56,7 @@ export function addAdminCommands(program: Command): void {
       withRuntime(async (rt) => {
         let warned = false
         for (const f of await runDoctor(rt.config, httpFetcher, rt.storage)) {
-          console.log(`${f.level === 'ok' ? '✓' : f.level === 'warn' ? '⚠' : '·'} ${f.message}`)
+          console.log(formatFinding(f))
           warned ||= f.level === 'warn'
         }
         if (warned) process.exitCode = 1

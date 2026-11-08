@@ -53,6 +53,8 @@ export function authPlugins(options: PluginOptions = {}) {
         references: 'organization',
         defaultPrefix: CI_KEY_PREFIX,
         enableMetadata: true,
+        // Keep `circi_` plus six characters, so the dashboard can say which token is current.
+        startingCharactersConfig: { shouldStore: true, charactersLength: CI_KEY_PREFIX.length + 6 },
         // The plugin's default (10 requests a day per key) would stop a single CI run.
         rateLimit: { enabled: false },
       },

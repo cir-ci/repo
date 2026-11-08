@@ -4,8 +4,10 @@ import type {
   Build,
   Comment,
   IgnoreRegion,
+  InstanceAdmin,
   Inbox,
   Integration,
+  Storage,
   Insights,
   Team,
   Review,
@@ -25,6 +27,10 @@ import type {
   ReviewRuleRow,
   SavedViewRow,
   getInsights,
+  getTeamTokenInfo,
+  getWorkspaceStorage,
+  listIgnoreRegionSnapshots,
+  setTeamAppearance,
   getSidebar,
   searchWorkspace,
   listTriage,
@@ -37,6 +43,9 @@ import type {
   getTeamGitAttention,
   findTeamForMember,
   getTriageRotation,
+  getQueueDepth,
+  listAccounts,
+  listInstanceWorkspaces,
 } from '@circi/db'
 
 /**
@@ -57,6 +66,9 @@ type Json<T> = T extends Date
 type Fits<Actual, Wire> = [Actual] extends [Wire] ? true : never
 
 export type ContractChecks = [
+  Fits<Json<listAccounts.Item>, InstanceAdmin.Account>,
+  Fits<Json<listInstanceWorkspaces.Item>, InstanceAdmin.Workspace>,
+  Fits<Json<getQueueDepth.Item>, InstanceAdmin.QueueDepth>,
   Fits<Json<listBuildsForTeam.Item>, Build.ListItem>,
   Fits<Json<TeamOverview>, Team.Overview>,
   Fits<findTeamForMember.Visible, Team.Info>,
@@ -72,7 +84,11 @@ export type ContractChecks = [
   Fits<Json<listTriage.Queue>, Triage.Queue>,
   Fits<Json<getTriageRotation.Rotation>, Triage.Rotation>,
   Fits<ReviewRuleRow, ReviewRule.Item>,
-  Fits<IgnoreRegionRow, IgnoreRegion.Item>,
+  Fits<Json<IgnoreRegionRow>, IgnoreRegion.Item>,
+  Fits<listIgnoreRegionSnapshots.Snapshot, IgnoreRegion.Snapshot>,
+  Fits<getWorkspaceStorage.Result, Omit<Storage.Usage, 'canManage'>>,
+  Fits<Json<getTeamTokenInfo.Info>, Omit<Team.Token, 'canManage'>>,
+  Fits<setTeamAppearance.Appearance, Team.Appearance>,
   Fits<Json<listInbox.Item>, Inbox.Item>,
   Fits<Json<listInbox.List>, Inbox.List>,
   Fits<getNotificationPreferences.Preferences, Inbox.Preferences>,
@@ -88,6 +104,13 @@ export type ContractChecks = [
 
 /** Each entry must be `true`; a mismatch above makes its entry `never`, and this line fails. */
 export const contractChecks: ContractChecks = [
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
   true,
   true,
   true,

@@ -1,3 +1,4 @@
+import type { TeamColor } from '@circi/core'
 import { and, asc, eq } from 'drizzle-orm'
 
 import type { SessionMethod } from '#repositories/auth-settings.ts'
@@ -15,6 +16,8 @@ export namespace getSidebar {
   export interface Team {
     slug: string
     name: string
+    color: TeamColor
+    icon: string | null
     pinned: boolean
     /** Triage items waiting (not snoozed, not dismissed). */
     triage: number
@@ -42,7 +45,13 @@ export async function getSidebar(
   },
 ): Promise<getSidebar.Result> {
   const rows = await db
-    .select({ id: teams.id, slug: teams.slug, name: teams.name })
+    .select({
+      id: teams.id,
+      slug: teams.slug,
+      name: teams.name,
+      color: teams.color,
+      icon: teams.icon,
+    })
     .from(teams)
     .where(and(eq(teams.workspaceId, input.workspace.id)))
     .orderBy(asc(teams.name), asc(teams.slug))
@@ -73,6 +82,8 @@ export async function getSidebar(
     teams: ordered.map((p, i) => ({
       slug: p.slug,
       name: p.name,
+      color: p.color,
+      icon: p.icon,
       pinned: rank.has(p.id),
       triage: triage[i] ?? 0,
     })),

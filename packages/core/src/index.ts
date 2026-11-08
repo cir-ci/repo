@@ -82,3 +82,14 @@ export {
   isIntegrationEvent,
 } from './events.ts'
 export { signState, verifyState } from './signed-state.ts'
+export {
+  assertTeamColor,
+  assertTeamIcon,
+  isTeamColor,
+  isTeamIcon,
+  TEAM_COLORS,
+  TEAM_ICON_NAMES,
+  teamColorFor,
+  type TeamColor,
+  type TeamIconName,
+} from './team-appearance.ts'

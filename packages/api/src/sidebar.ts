@@ -1,9 +1,14 @@
+import type { Team as TeamTypes } from './team.ts'
 import type { View } from './view.ts'
+
+type TeamColor = TeamTypes.Color
 
 export namespace Sidebar {
   export interface Team {
     slug: string
     name: string
+    color: TeamColor
+    icon: string | null
     pinned: boolean
     /** Triage items waiting: not snoozed, not dismissed. */
     triage: number

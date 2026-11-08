@@ -1,7 +1,7 @@
 import { ValidationError } from '@circi/core'
 import { and, asc, eq } from 'drizzle-orm'
 
-import { ignoreRegions } from '#schema/index.ts'
+import { ignoreRegions, user } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { NotFoundError } from '#src/errors.ts'
 
@@ -14,7 +14,13 @@ export interface Region {
   height: number
 }
 
-export type IgnoreRegionRow = Region & { id: string; name: string }
+export type IgnoreRegionRow = Region & {
+  id: string
+  name: string
+  createdAt: Date
+  /** Who added it; null for the CLI or when the person's account is gone. */
+  createdBy: { id: string; name: string } | null
+}
 
 function assertRegion(r: Region): void {
   for (const [k, v] of Object.entries(r)) {
@@ -29,33 +35,104 @@ function assertRegion(r: Region): void {
 export async function addIgnoreRegion(
   db: Database,
   teamId: string,
-  input: Region & { name: string },
+  input: Region & { name: string; createdBy?: string | null },
 ): Promise<IgnoreRegionRow> {
   const name = input.name.trim()
   if (!name) throw new ValidationError('A screenshot name is required')
   assertRegion({ x: input.x, y: input.y, width: input.width, height: input.height })
   const [row] = await db
     .insert(ignoreRegions)
-    .values({ teamId, name, x: input.x, y: input.y, width: input.width, height: input.height })
-    .returning()
+    .values({
+      teamId,
+      name,
+      x: input.x,
+      y: input.y,
+      width: input.width,
+      height: input.height,
+      createdBy: input.createdBy ?? null,
+    })
+    .returning({ id: ignoreRegions.id })
   if (!row) throw new Error('insert returned no row')
-  return { id: row.id, name: row.name, x: row.x, y: row.y, width: row.width, height: row.height }
+  return getRegion(db, teamId, row.id)
 }
 
-export async function listIgnoreRegions(db: Database, teamId: string): Promise<IgnoreRegionRow[]> {
-  const rows = await db
-    .select()
-    .from(ignoreRegions)
-    .where(eq(ignoreRegions.teamId, teamId))
-    .orderBy(asc(ignoreRegions.name), asc(ignoreRegions.createdAt))
-  return rows.map((r) => ({
+const columns = {
+  id: ignoreRegions.id,
+  name: ignoreRegions.name,
+  x: ignoreRegions.x,
+  y: ignoreRegions.y,
+  width: ignoreRegions.width,
+  height: ignoreRegions.height,
+  createdAt: ignoreRegions.createdAt,
+  creatorId: user.id,
+  creatorName: user.name,
+}
+
+function present(r: {
+  id: string
+  name: string
+  x: number
+  y: number
+  width: number
+  height: number
+  createdAt: Date
+  creatorId: string | null
+  creatorName: string | null
+}): IgnoreRegionRow {
+  return {
     id: r.id,
     name: r.name,
     x: r.x,
     y: r.y,
     width: r.width,
     height: r.height,
-  }))
+    createdAt: r.createdAt,
+    createdBy: r.creatorId && r.creatorName ? { id: r.creatorId, name: r.creatorName } : null,
+  }
+}
+
+async function getRegion(db: Database, teamId: string, id: string): Promise<IgnoreRegionRow> {
+  const [row] = await db
+    .select(columns)
+    .from(ignoreRegions)
+    .leftJoin(user, eq(user.id, ignoreRegions.createdBy))
+    .where(and(eq(ignoreRegions.teamId, teamId), eq(ignoreRegions.id, id)))
+  if (!row) throw new NotFoundError('Ignore region not found')
+  return present(row)
+}
+
+export async function listIgnoreRegions(db: Database, teamId: string): Promise<IgnoreRegionRow[]> {
+  const rows = await db
+    .select(columns)
+    .from(ignoreRegions)
+    .leftJoin(user, eq(user.id, ignoreRegions.createdBy))
+    .where(eq(ignoreRegions.teamId, teamId))
+    .orderBy(asc(ignoreRegions.name), asc(ignoreRegions.createdAt), asc(ignoreRegions.id))
+  return rows.map(present)
+}
+
+/** Moves or resizes a region, or points it at another screenshot name (`NotFoundError` when the team has no such region). */
+export async function changeIgnoreRegion(
+  db: Database,
+  teamId: string,
+  id: string,
+  patch: Partial<Region> & { name?: string },
+): Promise<IgnoreRegionRow> {
+  const current = await getRegion(db, teamId, id)
+  const next = {
+    name: patch.name === undefined ? current.name : patch.name.trim(),
+    x: patch.x ?? current.x,
+    y: patch.y ?? current.y,
+    width: patch.width ?? current.width,
+    height: patch.height ?? current.height,
+  }
+  if (!next.name) throw new ValidationError('A screenshot name is required')
+  assertRegion({ x: next.x, y: next.y, width: next.width, height: next.height })
+  await db
+    .update(ignoreRegions)
+    .set(next)
+    .where(and(eq(ignoreRegions.teamId, teamId), eq(ignoreRegions.id, id)))
+  return getRegion(db, teamId, id)
 }
 
 export async function removeIgnoreRegion(db: Database, teamId: string, id: string): Promise<void> {

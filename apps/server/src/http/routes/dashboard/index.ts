@@ -15,6 +15,10 @@ import { dashboardGithubAppRoutes } from './github-app.ts'
 import { dashboardIgnoreRegionRoutes } from './ignore-regions.ts'
 import { dashboardInboxRoutes } from './inbox.ts'
 import { dashboardInsightsRoutes } from './insights.ts'
+import { dashboardInstanceAccountRoutes } from './instance-accounts.ts'
+import { dashboardInstanceHealthRoutes } from './instance-health.ts'
+import { dashboardInstanceSettingsRoutes } from './instance-settings.ts'
+import { dashboardInstanceWorkspaceRoutes } from './instance-workspaces.ts'
 import { dashboardInstanceRoutes } from './instance.ts'
 import { dashboardGenericIntegrationRoutes } from './integrations-generic.ts'
 import { dashboardIntegrationRoutes } from './integrations.ts'
@@ -89,6 +93,10 @@ const sessionApi: FastifyPluginAsync<Deps.Dashboard> = async (api, deps) => {
   await api.register(dashboardSettingsRoutes, deps)
   await api.register(dashboardWorkspaceRoutes, deps)
   await api.register(dashboardInstanceRoutes, deps)
+  await api.register(dashboardInstanceAccountRoutes, deps)
+  await api.register(dashboardInstanceWorkspaceRoutes, deps)
+  await api.register(dashboardInstanceSettingsRoutes, deps)
+  await api.register(dashboardInstanceHealthRoutes, deps)
   await api.register(dashboardGithubAppRoutes, deps)
   await api.register(dashboardWorkspaceAuthRoutes, deps)
   await api.register(dashboardWorkspaceSettingsRoutes, deps)

@@ -1,5 +1,12 @@
-import { listUserWorkspaceIds } from '@circi/db'
+import {
+  getTeamById,
+  getTeamTokenInfo,
+  getWorkspaceBySlug,
+  listUserWorkspaceIds,
+  schema,
+} from '@circi/db'
 import { createTestDb } from '@circi/testing'
+import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
@@ -10,6 +17,7 @@ import {
   createTeamWithToken,
   createUser,
   rotateTeamToken,
+  updateWorkspace,
   verifyTeamToken,
 } from '#src/index.ts'
 
@@ -111,5 +119,92 @@ describe('CI tokens (better-auth API keys owned by the workspace)', () => {
       // oxlint-disable-next-line no-await-in-loop -- sequential requests, like a CI run polling
       expect(await verifyTeamToken(auth, t.db, token)).toBeDefined()
     }
+  })
+})
+
+describe('CI token facts', () => {
+  it('stores only a hash, keeps a short hint, and records who issued it and when it was used', async () => {
+    const { owner, slug } = await workspaceWithOwner()
+    const first = await createTeamWithToken(auth, t.db, {
+      workspaceSlug: slug,
+      name: 'tok',
+      createdBy: owner.id,
+    })
+    const [row] = await t.db
+      .select()
+      .from(schema.apikey)
+      .where(eq(schema.apikey.id, first.team.ciKeyId ?? ''))
+    // Nothing in the key row is the token, and the row's key column is its hash.
+    expect(JSON.stringify(row)).not.toContain(first.token)
+    expect(row?.key).not.toBe(first.token)
+    expect(row?.key).toMatch(/^[A-Za-z0-9_+/=-]{20,}$/)
+
+    const fresh = await getTeamTokenInfo(t.db, first.team.id)
+    expect(fresh.hint).toBe(`${first.token.slice(0, 12)}…`)
+    expect(fresh.createdBy).toEqual({ id: owner.id, name: owner.name })
+    expect(fresh.createdAt).toBeInstanceOf(Date)
+    expect(fresh.lastUsedAt).toBeNull()
+
+    await verifyTeamToken(auth, t.db, first.token)
+    expect((await getTeamTokenInfo(t.db, first.team.id)).lastUsedAt).toBeInstanceOf(Date)
+
+    // Rotating makes a different token, forgets the use, and names the person who rotated.
+    const dev = await createUser(auth, {
+      email: `dev-${slug}@example.com`,
+      name: 'Rotator',
+      password: 'a-long-password-3',
+    })
+    const next = await rotateTeamToken(auth, t.db, {
+      workspaceSlug: slug,
+      teamSlug: 'tok',
+      rotatedBy: dev.id,
+    })
+    expect(next.token).not.toBe(first.token)
+    const after = await getTeamTokenInfo(t.db, first.team.id)
+    expect(after.hint).toBe(`${next.token.slice(0, 12)}…`)
+    expect(after.createdBy).toEqual({ id: dev.id, name: 'Rotator' })
+    expect(after.lastUsedAt).toBeNull()
+    expect(await verifyTeamToken(auth, t.db, first.token)).toBeUndefined()
+    expect((await getTeamById(t.db, first.team.id))?.ciKeyCreatedBy).toBe(dev.id)
+  })
+})
+
+describe('updateWorkspace', () => {
+  it('renames, changes the address, and keeps what was not sent', async () => {
+    const { workspace, slug } = await workspaceWithOwner()
+    expect(
+      await updateWorkspace(auth, t.db, { workspaceId: workspace.id, name: ' New name ' }),
+    ).toEqual({
+      name: 'New name',
+      slug,
+    })
+    expect(
+      await updateWorkspace(auth, t.db, { workspaceId: workspace.id, slug: `${slug}-moved` }),
+    ).toEqual({ name: 'New name', slug: `${slug}-moved` })
+    expect((await getWorkspaceBySlug(t.db, `${slug}-moved`)).id).toBe(workspace.id)
+    await expect(getWorkspaceBySlug(t.db, slug)).rejects.toThrow(/not found/)
+  })
+
+  it('applies the creation rules to the address: shape, reserved words, uniqueness', async () => {
+    const a = await workspaceWithOwner()
+    const b = await workspaceWithOwner()
+    const input = { workspaceId: a.workspace.id }
+    await expect(updateWorkspace(auth, t.db, { ...input, slug: 'Bad Slug' })).rejects.toThrow(
+      /Invalid/,
+    )
+    await expect(updateWorkspace(auth, t.db, { ...input, slug: 'admin' })).rejects.toThrow(
+      /reserved/,
+    )
+    await expect(updateWorkspace(auth, t.db, { ...input, slug: b.slug })).rejects.toThrow(
+      /already taken/,
+    )
+    await expect(updateWorkspace(auth, t.db, { ...input, name: '  ' })).rejects.toThrow(
+      /name is required/,
+    )
+    await expect(
+      updateWorkspace(auth, t.db, { workspaceId: 'missing', name: 'x' }),
+    ).rejects.toThrow(/not found/)
+    // Sending the address it already has is not a conflict.
+    await expect(updateWorkspace(auth, t.db, { ...input, slug: a.slug })).resolves.toBeDefined()
   })
 })

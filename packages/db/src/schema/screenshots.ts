@@ -13,6 +13,7 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { createdAt, id, inList, inListOrNull } from './_columns.ts'
+import { user } from './auth.ts'
 import { builds } from './builds.ts'
 import { DIFF_JOB_STATUSES, DIFF_STATUSES, type DiffJobStatus, type DiffStatus } from './enums.ts'
 import { files } from './files.ts'
@@ -99,6 +100,8 @@ export const ignoreRegions = pgTable(
     y: integer('y').notNull(),
     width: integer('width').notNull(),
     height: integer('height').notNull(),
+    /** Who added it (null for the CLI, or after the person's account is deleted). */
+    createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
     createdAt: createdAt(),
   },
   (t) => [

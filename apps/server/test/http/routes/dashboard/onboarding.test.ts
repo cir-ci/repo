@@ -4,6 +4,7 @@ import { join } from 'node:path'
 
 import { createUser, setupCode, verifyTeamToken } from '@circi/auth'
 import type { Auth } from '@circi/auth'
+import { teamColorFor } from '@circi/core'
 import { countUsers, recordPublicUrl } from '@circi/db'
 import { FsStorage } from '@circi/storage'
 import { createTestDb } from '@circi/testing'
@@ -160,7 +161,12 @@ describe('creating workspaces and teams', () => {
       plain,
     )
     expect(team.statusCode).toBe(201)
-    expect(team.json().team).toEqual({ slug: 'web-app', name: 'Web App' })
+    expect(team.json().team).toEqual({
+      slug: 'web-app',
+      name: 'Web App',
+      color: teamColorFor('Web App'),
+      icon: null,
+    })
     expect(team.json().token).toMatch(/^circi_/)
     await app.close()
   })

@@ -1,4 +1,6 @@
+import { teamColorFor, TEAM_COLORS } from '@circi/core'
 import { addTestMember, createTestDb, seedWorkspace, seedTeam, seedUser } from '@circi/testing'
+import { sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
@@ -9,6 +11,7 @@ import {
   listTeams,
   NotFoundError,
   teamSettings,
+  setTeamAppearance,
   setTeamCiKey,
   updateTeamSettings,
 } from '#src/index.ts'
@@ -175,5 +178,54 @@ describe('flaky-screenshot setting', () => {
     await expect(updateTeamSettings(t.db, team.id, { reviewTargetHours: 0 })).rejects.toThrow(
       /review target/,
     )
+  })
+
+  it('gives a new team a colour from its name and no icon, unless it chooses', async () => {
+    const { workspace } = await seedWorkspace(t.db)
+    const auto = await createTeam(t.db, { workspaceSlug: workspace.slug, name: 'Checkout' })
+    expect(auto).toMatchObject({ color: teamColorFor('Checkout'), icon: null })
+    const chosen = await createTeam(t.db, {
+      workspaceSlug: workspace.slug,
+      name: 'Docs',
+      color: 'plum',
+      icon: 'book-open',
+    })
+    expect(chosen).toMatchObject({ color: 'plum', icon: 'book-open' })
+    await expect(
+      createTeam(t.db, { workspaceSlug: workspace.slug, name: 'x1', color: 'red' }),
+    ).rejects.toThrow(/Colour must be/)
+    await expect(
+      createTeam(t.db, { workspaceSlug: workspace.slug, name: 'x2', icon: 'trash' }),
+    ).rejects.toThrow(/Unknown icon/)
+    expect(TEAM_COLORS).toContain(auto.color)
+  })
+
+  it('changes colour and icon separately, clears the icon with null, and validates both', async () => {
+    const { team } = await seedTeam(t.db)
+    expect(await setTeamAppearance(t.db, team.id, { icon: 'rocket' })).toEqual({
+      color: team.color,
+      icon: 'rocket',
+    })
+    expect(await setTeamAppearance(t.db, team.id, { color: 'moss' })).toEqual({
+      color: 'moss',
+      icon: 'rocket',
+    })
+    expect(await setTeamAppearance(t.db, team.id, { icon: null })).toEqual({
+      color: 'moss',
+      icon: null,
+    })
+    expect(await setTeamAppearance(t.db, team.id, {})).toEqual({ color: 'moss', icon: null })
+    await expect(setTeamAppearance(t.db, team.id, { color: 'pink' })).rejects.toThrow(/Colour/)
+    await expect(setTeamAppearance(t.db, team.id, { icon: 'nope' })).rejects.toThrow(/icon/)
+    await expect(
+      setTeamAppearance(t.db, '00000000-0000-4000-8000-000000000000', { color: 'plum' }),
+    ).rejects.toThrow(NotFoundError)
+  })
+
+  it('refuses a colour outside the palette at the database too', async () => {
+    const { team } = await seedTeam(t.db)
+    await expect(
+      t.db.execute(sql`update teams set color = 'red' where id = ${team.id}`),
+    ).rejects.toThrow(/teams_color_check|color/)
   })
 })

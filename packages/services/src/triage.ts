@@ -1,6 +1,7 @@
 import { type SnoozeChoice, snoozeUntil } from '@circi/core'
 import {
   addIgnoreRegion,
+  changeIgnoreRegion,
   assignTriageItem,
   type Database,
   dismissTriageItem,
@@ -70,6 +71,8 @@ export async function createIgnoreRegion(
     y: number
     width: number
     height: number
+    /** Who adds it, shown on the regions list. */
+    createdBy?: string
     resolves?: { kind: string; key: string }
   },
 ): Promise<IgnoreRegionRow> {
@@ -79,6 +82,16 @@ export async function createIgnoreRegion(
     if (resolves) await dismissTriageItem(tx, { teamId, ...resolves })
     return added
   })
+}
+
+/** Moves, resizes or renames a region; every later comparison uses the new rectangle. */
+export async function editIgnoreRegion(
+  db: Database,
+  teamId: string,
+  id: string,
+  patch: Parameters<typeof changeIgnoreRegion>[3],
+): Promise<IgnoreRegionRow> {
+  return db.transaction((tx) => changeIgnoreRegion(tx, teamId, id, patch))
 }
 
 /** Stops ignoring a region (throws `NotFoundError` when the team has no such region). */

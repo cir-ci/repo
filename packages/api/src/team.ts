@@ -2,9 +2,18 @@ import type { Build } from './build.ts'
 import type { Workspace } from './workspace.ts'
 
 export namespace Team {
+  /** The team tile palette (`--circi-team-<colour>`). */
+  export type Color = 'slate' | 'olive' | 'plum' | 'moss' | 'mauve' | 'graphite'
+
+  /** How the team's tile looks; `icon` is a Lucide icon name, null shows the first letter. */
+  export interface Appearance {
+    color: Color
+    icon: string | null
+  }
+
   export interface Overview {
     workspace: { slug: string; name: string }
-    team: { slug: string; name: string; defaultBranch: string }
+    team: { slug: string; name: string; defaultBranch: string; color: Color; icon: string | null }
     latestBuild: Build.ListItem | null
   }
 
@@ -13,8 +22,28 @@ export namespace Team {
     slug: string
     name: string
     defaultBranch: string
+    color: Color
+    icon: string | null
     workspaceSlug: string
     workspaceName: string
+  }
+
+  /** `GET …/token`: facts about the team's current CI token (never the token itself). */
+  export interface Token {
+    canManage: boolean
+    /** The start of the token ("circi_AbC1…"); null when the team has no token. */
+    hint: string | null
+    createdAt: string | null
+    /** The person who issued it; null when unknown (the first token, or the person is gone). */
+    createdBy: { id: string; name: string } | null
+    /** When CI last authenticated with it (ISO); null if it never has. */
+    lastUsedAt: string | null
+  }
+
+  /** `POST …/token`: the new token, shown only here, and its metadata. */
+  export interface TokenRotated {
+    token: string
+    info: Token
   }
 
   export interface Settings {
@@ -65,6 +94,7 @@ export namespace Team {
   export interface SettingsResponse {
     canManage: boolean
     settings: Settings
+    appearance: Appearance
     /** The workspace's settings, which a team inherits where its own value is null. */
     workspace: Workspace.Settings
     webhooks: Webhook[]
