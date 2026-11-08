@@ -3,13 +3,7 @@ import { type Ref, useId, useState } from 'react'
 
 import { isSubmitKey } from '#lib/shortcuts.ts'
 
-import {
-  insertMention,
-  matchMembers,
-  mentionAt,
-  type MentionMember,
-  mentionHandle,
-} from './mentions.ts'
+import { insertMention, matchMembers, mentionAt, type Mention, mentionHandle } from './mentions.ts'
 
 import styles from './Discussion.module.css'
 
@@ -32,7 +26,7 @@ export function Composer(props: Composer.Props) {
   const open = token !== null && options.length > 0
   const activeOption = options[Math.min(active, options.length - 1)]
 
-  function choose(member: MentionMember, el: HTMLTextAreaElement | null) {
+  function choose(member: Mention.Member, el: HTMLTextAreaElement | null) {
     if (!token) return
     const next = insertMention(text, token, mentionHandle(member, members))
     setText(next.text)
@@ -152,7 +146,7 @@ export function Composer(props: Composer.Props) {
 
 export namespace Composer {
   export interface Props {
-    members: readonly MentionMember[]
+    members: readonly Mention.Member[]
     /** The field's accessible name ("Comment", "Reply", "Edit comment"). */
     label: string
     initial?: string

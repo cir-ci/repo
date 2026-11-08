@@ -4,20 +4,30 @@
  * (Vitest's `page` and its locators both do).
  */
 
-export interface Screenshotter {
-  screenshot(options: { path: string }): Promise<unknown>
-}
+export namespace circiScreenshot {
+  export interface Screenshotter {
+    screenshot(options: { path: string }): Promise<unknown>
+  }
 
-export interface ScreenshotOptions {
-  /** Where screenshots go. Default `.circi/screenshots`. */
-  dir?: string
-  /** Called before the picture is taken, to wait for something specific. */
-  ready?: () => Promise<void> | void
-  /**
-   * The project root that a relative `dir` is under. Default: the root of the Vitest project
-   * running the test, which is also where `CirciReporter` looks.
-   */
-  root?: string
+  export interface Options {
+    /** Where screenshots go. Default `.circi/screenshots`. */
+    dir?: string
+    /** Called before the picture is taken, to wait for something specific. */
+    ready?: () => Promise<void> | void
+    /**
+     * The project root that a relative `dir` is under. Default: the root of the Vitest project
+     * running the test, which is also where `CirciReporter` looks.
+     */
+    root?: string
+  }
+
+  /** The part of a browser document this uses (the package is built without the DOM library). */
+  export interface PageDocument {
+    getElementById(id: string): unknown
+    createElement(tag: string): { id: string; textContent: string | null }
+    head: { append(node: unknown): void }
+    fonts?: { ready: Promise<unknown> }
+  }
 }
 
 export const DEFAULT_DIR = '.circi/screenshots'
@@ -51,22 +61,14 @@ export function screenshotPath(name: string): string {
   return `${parts.join('/')}.png`
 }
 
-/** The part of a browser document this uses (the package is built without the DOM library). */
-export interface PageDocument {
-  getElementById(id: string): unknown
-  createElement(tag: string): { id: string; textContent: string | null }
-  head: { append(node: unknown): void }
-  fonts?: { ready: Promise<unknown> }
-}
-
-function currentDocument(): PageDocument {
+function currentDocument(): circiScreenshot.PageDocument {
   const found: unknown = Reflect.get(globalThis, 'document')
   if (typeof found !== 'object' || found === null) {
     throw new Error('circiScreenshot must run in the browser (Vitest browser mode)')
   }
   // The browser's own document has these members; checked structurally above.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-  return found as PageDocument
+  return found as circiScreenshot.PageDocument
 }
 
 /**
@@ -92,7 +94,9 @@ const frame = (): Promise<void> =>
   })
 
 /** The browser-side steps that make a page hold still. Run inside the page. */
-export async function settlePage(doc: PageDocument = currentDocument()): Promise<void> {
+export async function settlePage(
+  doc: circiScreenshot.PageDocument = currentDocument(),
+): Promise<void> {
   if (!doc.getElementById('circi-stabilize')) {
     const style = doc.createElement('style')
     style.id = 'circi-stabilize'
@@ -113,9 +117,9 @@ export async function settlePage(doc: PageDocument = currentDocument()): Promise
  * Returns the path it wrote, relative to the project root.
  */
 export async function circiScreenshot(
-  target: Screenshotter,
+  target: circiScreenshot.Screenshotter,
   name: string,
-  options: ScreenshotOptions = {},
+  options: circiScreenshot.Options = {},
 ): Promise<string> {
   await settlePage()
   await options.ready?.()

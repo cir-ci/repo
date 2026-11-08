@@ -3,14 +3,14 @@ import {
   getBuildByNumber,
   getProjectMemberRole,
   listBuildComments,
-  type VisibleProject,
+  type findProjectForMember,
 } from '@circi/db'
 import { addComment, deleteComment, editComment, MAX_COMMENT_LENGTH } from '@circi/services'
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { loadProject } from '#http/lib/project-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
@@ -35,7 +35,7 @@ const editBody = z.object({ body: z.string().trim().min(1).max(MAX_COMMENT_LENGT
  * everyone else gets "not found". You edit only your own; you delete your own, and owners and
  * admins may delete anyone's.
  */
-export const dashboardCommentRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const dashboardCommentRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   async function loadBuild(req: FastifyRequest, reply: FastifyReply) {
     const access = await loadProject(deps, req, reply)
     if (!access) return undefined
@@ -51,7 +51,7 @@ export const dashboardCommentRoutes: FastifyPluginAsync<DashboardDeps> = async (
     return { project, build }
   }
 
-  const isAdmin = async (project: VisibleProject, userId: string) => {
+  const isAdmin = async (project: findProjectForMember.Visible, userId: string) => {
     const role = await getProjectMemberRole(deps.db, project.id, userId)
     return role === 'owner' || role === 'admin'
   }

@@ -1,6 +1,6 @@
 import type { Auth } from '@circi/auth'
 import { verifyProjectToken } from '@circi/auth'
-import type { Database, ProjectContext } from '@circi/db'
+import type { Database, getProjectContext } from '@circi/db'
 import type { FastifyRequest, onRequestAsyncHookHandler } from 'fastify'
 
 /**
@@ -25,7 +25,7 @@ export function requireProjectToken(auth: Auth, db: Database): onRequestAsyncHoo
 }
 
 /** The authenticated project, inside a scope protected by `requireProjectToken`. */
-export function currentProject(req: FastifyRequest): ProjectContext {
+export function currentProject(req: FastifyRequest): getProjectContext.Context {
   if (!req.project) throw new Error('unauthenticated request reached a handler')
   return req.project
 }

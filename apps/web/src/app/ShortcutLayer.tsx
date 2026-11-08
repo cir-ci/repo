@@ -1,32 +1,19 @@
 import { useAnnounce } from '@circi/ui'
 import { useParams, useRouter } from '@tanstack/react-router'
-import { createContext, type ReactNode, useContext, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 
 import { CommandMenu } from '#features/command/CommandMenu.tsx'
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
+import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 
 import { goPath, readRememberedOrg } from './shell-model.ts'
 import { ShortcutsDialog } from './ShortcutsDialog.tsx'
 import { useOrgs } from './use-orgs.ts'
 
-interface Callbacks {
-  /** Opens the command menu (⌘K, the sidebar's Search). */
-  openCommandMenu: () => void
-  /** Opens the shortcuts help (`?`). */
-  openHelp: () => void
-}
-
-const noop = () => {}
-
-const ShortcutLayerContext = createContext<Callbacks>({ openCommandMenu: noop, openHelp: noop })
-
-/** The callbacks the shortcut layer exposes, for the sidebar's Search button. */
-export const useShortcutLayer = (): Callbacks => useContext(ShortcutLayerContext)
-
 /**
- * Binds the global shortcuts (G-chords, ⌘K, `?`, ⌘⇧C) once for the signed-in app, and owns the
- * two dialogs they open: the command menu and the shortcuts help.
+ * Binds the global shortcuts (G-chords, ⌘K, `?`, ⌘⇧C) once for the signed-in app, and renders the
+ * two dialogs they open (their open state is in `useOverlayStore`): the command menu and the shortcuts help.
  */
 export function ShortcutLayer({ children }: ShortcutLayer.Props) {
   const router = useRouter()
@@ -34,11 +21,10 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
   const announce = useAnnounce()
   const { org } = useOrgs(readRememberedOrg())
   const { data: sidebar } = useSidebarModel(org?.slug)
-  const [commandOpen, setCommandOpen] = useState(false)
-  const [helpOpen, setHelpOpen] = useState(false)
-
-  const openCommandMenu = () => setCommandOpen(true)
-  const openHelp = () => setHelpOpen(true)
+  const commandOpen = useOverlayStore((s) => s.commandMenuOpen)
+  const setCommandOpen = useOverlayStore((s) => s.setCommandMenuOpen)
+  const helpOpen = useOverlayStore((s) => s.helpOpen)
+  const setHelpOpen = useOverlayStore((s) => s.setHelpOpen)
 
   useShortcutHandlers({
     go: ({ to }) => {
@@ -50,8 +36,8 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
       })
       if (path) router.history.push(path)
     },
-    command: openCommandMenu,
-    help: openHelp,
+    command: () => setCommandOpen(true),
+    help: () => setHelpOpen(true),
     copyLink: () => {
       navigator.clipboard.writeText(location.href).then(
         () => announce('Link copied'),
@@ -60,12 +46,8 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
     },
   })
 
-  const callbacks = useMemo(
-    () => ({ openCommandMenu: () => setCommandOpen(true), openHelp: () => setHelpOpen(true) }),
-    [],
-  )
   return (
-    <ShortcutLayerContext value={callbacks}>
+    <>
       {children}
       <CommandMenu
         open={commandOpen}
@@ -75,7 +57,7 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
         views={sidebar?.views}
       />
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
-    </ShortcutLayerContext>
+    </>
   )
 }
 

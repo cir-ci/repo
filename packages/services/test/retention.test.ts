@@ -7,13 +7,13 @@ import {
   schema,
   storageUsage,
 } from '@circi/db'
-import { createTestDb, seedProject, seedUploadClaim, sha, type TestDb } from '@circi/testing'
+import { createTestDb, seedProject, seedUploadClaim, sha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { completeBuild, finalizeBuild, runRetention } from '#src/index.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 beforeAll(async () => {
   t = await createTestDb()
 })

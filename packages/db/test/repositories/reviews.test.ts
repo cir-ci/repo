@@ -1,5 +1,5 @@
 import { resolveBaseline } from '@circi/core'
-import { createTestDb, seedProject, seedUser, type TestDb } from '@circi/testing'
+import { createTestDb, seedProject, seedUser } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -13,7 +13,7 @@ import {
   schema,
 } from '#src/index.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 
 beforeAll(async () => {
   t = await createTestDb()
@@ -38,7 +38,7 @@ async function buildWithChanges(overrides: Partial<typeof schema.builds.$inferIn
 }
 
 /** The decision's effect on the build; announcing it is the service layer's job. */
-const reviewBuild = async (db: TestDb['db'], input: recordReview.Input) =>
+const reviewBuild = async (db: createTestDb.Result['db'], input: recordReview.Input) =>
   (await recordReview(db, input)).build
 
 describe('recordReview', () => {

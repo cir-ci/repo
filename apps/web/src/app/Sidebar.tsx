@@ -15,6 +15,7 @@ import { useState } from 'react'
 import { UserMenu } from '#features/auth/UserMenu.tsx'
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import type { SessionUser } from '#lib/auth-client.ts'
+import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 
 import { NavLink } from './NavLink.tsx'
 import { OrgSwitcher } from './OrgSwitcher.tsx'
@@ -28,7 +29,6 @@ import {
   SIDEBAR_PROJECT_LIMIT,
   sidebarProjects,
 } from './shell-model.ts'
-import { useShortcutLayer } from './ShortcutLayer.tsx'
 import { useOrgs } from './use-orgs.ts'
 
 import styles from './Sidebar.module.css'
@@ -44,7 +44,7 @@ export function Sidebar({ user }: Sidebar.Props) {
   const params = useParams({ strict: false })
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const section = currentSection(pathname)
-  const { openCommandMenu } = useShortcutLayer()
+  const setCommandMenuOpen = useOverlayStore((s) => s.setCommandMenuOpen)
   const [chosen, setChosen] = useState(readRememberedOrg)
   const { orgs, org } = useOrgs(chosen)
   const { data: model } = useSidebarModel(org?.slug)
@@ -60,7 +60,11 @@ export function Sidebar({ user }: Sidebar.Props) {
   return (
     <>
       <OrgSwitcher orgs={orgs} current={org} onSelect={switchOrg} />
-      <NavItem icon={<SearchIcon />} trailing={<Kbd>⌘K</Kbd>} onClick={openCommandMenu}>
+      <NavItem
+        icon={<SearchIcon />}
+        trailing={<Kbd>⌘K</Kbd>}
+        onClick={() => setCommandMenuOpen(true)}
+      >
         Search
       </NavItem>
       <NavLink

@@ -10,17 +10,10 @@ import styles from './CommandDialog.module.css'
  * `label` names the dialog for screen readers; `onClosed` runs once the close has finished (a
  * command that opens another dialog waits for it).
  */
-export function CommandDialog({
-  open,
-  onOpenChange,
-  onClosed,
-  label,
-  children,
-}: CommandDialog.Props) {
+export function CommandDialog({ onClosed, label, children, ...rest }: CommandDialog.Props) {
   return (
     <BaseDialog.Root
-      open={open}
-      onOpenChange={(next) => onOpenChange(next)}
+      {...rest}
       onOpenChangeComplete={(next) => {
         if (!next) onClosed?.()
       }}
@@ -39,9 +32,8 @@ export function CommandDialog({
 }
 
 export namespace CommandDialog {
-  export interface Props {
-    open: boolean
-    onOpenChange: (open: boolean) => void
+  // `onOpenChangeComplete` is ours (`onClosed`, once the close finished).
+  export interface Props extends Omit<BaseDialog.Root.Props, 'children' | 'onOpenChangeComplete'> {
     onClosed?: () => void
     /** The accessible name of the dialog. */
     label: string

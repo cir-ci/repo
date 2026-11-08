@@ -24,20 +24,22 @@ import type { Database } from '#src/client.ts'
  * passed in so the database package stays free of it.
  */
 
-export interface SiteFileInput {
-  path: string
-  sha256: string
-  size: number
-  contentType: string
-}
+export namespace publishSiteVersion {
+  export interface File {
+    path: string
+    sha256: string
+    size: number
+    contentType: string
+  }
 
-export interface Addressing {
-  /** The slug to use when a site is first created: tries `taken` until one is free. */
-  chooseSlug(taken: (slug: string) => boolean): string
-  /** A commit address's label (12 or 16 hash characters + slug). */
-  commitLabel(slug: string, exists: (label: string) => boolean): string
-  /** A branch address's label. */
-  branchLabel(branch: string, slug: string, exists: (label: string) => boolean): string
+  export interface Addressing {
+    /** The slug to use when a site is first created: tries `taken` until one is free. */
+    chooseSlug(taken: (slug: string) => boolean): string
+    /** A commit address's label (12 or 16 hash characters + slug). */
+    commitLabel(slug: string, exists: (label: string) => boolean): string
+    /** A branch address's label. */
+    branchLabel(branch: string, slug: string, exists: (label: string) => boolean): string
+  }
 }
 
 export async function ensureAssetFiles(
@@ -250,8 +252,8 @@ export namespace publishSiteVersion {
     /** Whether the branch address should now serve this version (the caller checked the tip). */
     moveBranch: boolean
     entryPath: string
-    files: SiteFileInput[]
-    addressing: Addressing
+    files: publishSiteVersion.File[]
+    addressing: publishSiteVersion.Addressing
     /** A prefix every candidate slug starts with, to preload the slugs that might clash. */
     slugPrefix: string
   }
@@ -266,22 +268,24 @@ export namespace publishSiteVersion {
   }
 }
 
-/** What an address serves, with who owns it. */
-export interface ServedSite {
-  label: string
-  linkKind: 'commit' | 'branch'
-  versionId: string
-  commitSha: string
-  entryPath: string
-  site: { id: string; name: string; kind: string; slug: string; spa: boolean }
-  project: { id: string; slug: string; name: string }
-  org: { id: string; slug: string; name: string }
+export namespace findSiteByLabel {
+  /** What an address serves, with who owns it. */
+  export interface Site {
+    label: string
+    linkKind: 'commit' | 'branch'
+    versionId: string
+    commitSha: string
+    entryPath: string
+    site: { id: string; name: string; kind: string; slug: string; spa: boolean }
+    project: { id: string; slug: string; name: string }
+    org: { id: string; slug: string; name: string }
+  }
 }
 
 export async function findSiteByLabel(
   db: Database,
   label: string,
-): Promise<ServedSite | undefined> {
+): Promise<findSiteByLabel.Site | undefined> {
   const [row] = await db
     .select({
       label: siteHostnames.label,
@@ -348,27 +352,29 @@ export async function commitLabelOfVersion(
   return row?.label
 }
 
-export interface ProjectSiteListing {
-  name: string
-  kind: string
-  slug: string
-  versions: {
-    commitSha: string
-    branch: string | null
-    createdAt: Date
-    totalBytes: number
-    commitLabel: string | undefined
-  }[]
-  branches: { branch: string; label: string; commitSha: string; updatedAt: Date }[]
+export namespace listProjectSites {
+  export interface Listing {
+    name: string
+    kind: string
+    slug: string
+    versions: {
+      commitSha: string
+      branch: string | null
+      createdAt: Date
+      totalBytes: number
+      commitLabel: string | undefined
+    }[]
+    branches: { branch: string; label: string; commitSha: string; updatedAt: Date }[]
+  }
 }
 
 /** Every site of a project with its newest versions and the branches that have an address. */
 export async function listProjectSites(
   db: Database,
   projectId: string,
-): Promise<ProjectSiteListing[]> {
+): Promise<listProjectSites.Listing[]> {
   const sites = await db.select().from(projectSites).where(eq(projectSites.projectId, projectId))
-  const result: ProjectSiteListing[] = []
+  const result: listProjectSites.Listing[] = []
   for (const site of sites) {
     // eslint-disable-next-line no-await-in-loop -- a project has a handful of sites
     const versions = await db

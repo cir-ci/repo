@@ -29,35 +29,37 @@ export class IngestError extends Error {
   }
 }
 
-export interface IngestedFile {
-  path: string
-  sha256: string
-  size: number
-  contentType: string
-}
+export namespace ingestTarball {
+  export interface File {
+    path: string
+    sha256: string
+    size: number
+    contentType: string
+  }
 
-export interface IngestOptions {
-  /** Most uncompressed bytes in the whole site. */
-  maxBytes: number
-  /** Most files. Default 20,000. */
-  maxFiles?: number
-  /** Largest single file. Default `maxBytes`. */
-  maxFileBytes?: number
-  /** Most uncompressed bytes per compressed byte: a zip-bomb guard. Default 100. */
-  maxRatio?: number
-  /** Called once per file with its bytes, which hash to `sha256`. Store them. */
-  store(file: IngestedFile, content: Buffer): Promise<void>
+  export interface Options {
+    /** Most uncompressed bytes in the whole site. */
+    maxBytes: number
+    /** Most files. Default 20,000. */
+    maxFiles?: number
+    /** Largest single file. Default `maxBytes`. */
+    maxFileBytes?: number
+    /** Most uncompressed bytes per compressed byte: a zip-bomb guard. Default 100. */
+    maxRatio?: number
+    /** Called once per file with its bytes, which hash to `sha256`. Store them. */
+    store(file: ingestTarball.File, content: Buffer): Promise<void>
+  }
 }
 
 export async function ingestTarball(
   input: Readable,
-  options: IngestOptions,
-): Promise<IngestedFile[]> {
+  options: ingestTarball.Options,
+): Promise<ingestTarball.File[]> {
   const maxFiles = options.maxFiles ?? 20_000
   const maxFileBytes = options.maxFileBytes ?? options.maxBytes
   const maxRatio = options.maxRatio ?? 100
   const seen = new Set<string>()
-  const result: IngestedFile[] = []
+  const result: ingestTarball.File[] = []
   const pending: Promise<void>[] = []
   let compressed = 0
   let total = 0
@@ -183,7 +185,7 @@ export async function ingestTarball(
       entry.on('end', () => {
         if (failure) return
         const content = Buffer.concat(chunks)
-        const file: IngestedFile = {
+        const file: ingestTarball.File = {
           path,
           sha256: createHash('sha256').update(content).digest('hex'),
           size: content.length,

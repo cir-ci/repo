@@ -20,44 +20,46 @@ import type { Database } from '#src/client.ts'
 
 export const SEARCH_LIMIT = 5
 
-export interface SearchBuild {
-  projectSlug: string
-  projectName: string
-  number: number
-  name: string
-  branch: string | null
-  prNumber: number | null
-  status: BuildStatus
-  reviewStatus: ReviewStatus
-}
+export namespace searchOrganization {
+  export interface Build {
+    projectSlug: string
+    projectName: string
+    number: number
+    name: string
+    branch: string | null
+    prNumber: number | null
+    status: BuildStatus
+    reviewStatus: ReviewStatus
+  }
 
-export interface SearchBranch {
-  projectSlug: string
-  projectName: string
-  branch: string
-  /** The newest build on it. */
-  latestBuildNumber: number
-}
+  export interface Branch {
+    projectSlug: string
+    projectName: string
+    branch: string
+    /** The newest build on it. */
+    latestBuildNumber: number
+  }
 
-export interface SearchProject {
-  slug: string
-  name: string
-}
+  export interface Project {
+    slug: string
+    name: string
+  }
 
-export interface SearchSnapshot {
-  projectSlug: string
-  projectName: string
-  name: string
-  /** The newest build that has a screenshot of this name. */
-  latestBuildNumber: number
-}
+  export interface Snapshot {
+    projectSlug: string
+    projectName: string
+    name: string
+    /** The newest build that has a screenshot of this name. */
+    latestBuildNumber: number
+  }
 
-export interface SearchResults {
-  query: string
-  builds: SearchBuild[]
-  branches: SearchBranch[]
-  projects: SearchProject[]
-  snapshots: SearchSnapshot[]
+  export interface Results {
+    query: string
+    builds: searchOrganization.Build[]
+    branches: searchOrganization.Branch[]
+    projects: searchOrganization.Project[]
+    snapshots: searchOrganization.Snapshot[]
+  }
 }
 
 /** Escapes `%`, `_` and `\` so the user's text matches literally inside `like`. */
@@ -74,7 +76,7 @@ export async function searchOrganization(
     limit?: number
     method?: SessionMethod
   },
-): Promise<SearchResults | undefined> {
+): Promise<searchOrganization.Results | undefined> {
   const [org] = await db
     .select({ id: organization.id })
     .from(organization)
@@ -87,7 +89,13 @@ export async function searchOrganization(
 
   const q = input.query.trim()
   const limit = input.limit ?? SEARCH_LIMIT
-  const empty: SearchResults = { query: q, builds: [], branches: [], projects: [], snapshots: [] }
+  const empty: searchOrganization.Results = {
+    query: q,
+    builds: [],
+    branches: [],
+    projects: [],
+    snapshots: [],
+  }
   if (q === '') return empty
 
   const like = contains(q)

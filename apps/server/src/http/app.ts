@@ -1,38 +1,40 @@
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify'
 
 import { redirectPreviousHosts } from './hooks/previous-hosts.ts'
-import type { DashboardDeps, V1Deps } from './lib/deps.ts'
+import type { Deps } from './lib/deps.ts'
 import { argosRoutes } from './routes/argos/index.ts'
 import { dashboardRoutes } from './routes/dashboard/index.ts'
-import { githubWebhookRoutes, type GithubWebhookDeps } from './routes/github-webhook.ts'
-import { healthRoutes, type ReadinessCheck } from './routes/health.ts'
+import { githubWebhookRoutes } from './routes/github-webhook.ts'
+import { healthRoutes } from './routes/health.ts'
 import { v1Routes } from './routes/v1/index.ts'
-import { siteHostHook, type SiteServerDeps } from './sites/serve.ts'
+import { siteHostHook } from './sites/serve.ts'
 
-export type { ReadinessCheck } from './routes/health.ts'
+export type { healthRoutes } from './routes/health.ts'
 
-export interface ServerOptions {
-  logger: FastifyBaseLogger
-  /**
-   * Proxies whose `X-Forwarded-For` is believed (see `Config.trustedProxies`). Default: none, so
-   * `request.ip` is the socket's remote address.
-   */
-  trustedProxies?: true | string[]
-  checks: ReadinessCheck[]
-  /** Per-check timeout for /readyz, so a hung dependency can't hang the probe. */
-  checkTimeoutMs?: number
-  /** Current dashboard origin (`PUBLIC_URL`), e.g. `https://ci.acme.io`. */
-  publicOrigin?: string
-  /** Old dashboard hosts; requests to them are permanently redirected to `publicOrigin`. */
-  previousHosts?: string[]
-  /** CI upload API (`/v1`). Omitted in tests that only exercise health endpoints. */
-  api?: V1Deps
-  /** GitHub App webhooks (`/webhooks/github`). Omitted when no GitHub App is configured. */
-  githubWebhook?: GithubWebhookDeps
-  /** Static site hosting: requests for site addresses are answered before any route. */
-  siteServing?: SiteServerDeps
-  /** Dashboard (`/api`, `/`). Omitted in tests that don't need it. */
-  dashboard?: DashboardDeps
+export namespace buildServer {
+  export interface Options {
+    logger: FastifyBaseLogger
+    /**
+     * Proxies whose `X-Forwarded-For` is believed (see `Config.trustedProxies`). Default: none, so
+     * `request.ip` is the socket's remote address.
+     */
+    trustedProxies?: true | string[]
+    checks: healthRoutes.Check[]
+    /** Per-check timeout for /readyz, so a hung dependency can't hang the probe. */
+    checkTimeoutMs?: number
+    /** Current dashboard origin (`PUBLIC_URL`), e.g. `https://ci.acme.io`. */
+    publicOrigin?: string
+    /** Old dashboard hosts; requests to them are permanently redirected to `publicOrigin`. */
+    previousHosts?: string[]
+    /** CI upload API (`/v1`). Omitted in tests that only exercise health endpoints. */
+    api?: Deps.V1
+    /** GitHub App webhooks (`/webhooks/github`). Omitted when no GitHub App is configured. */
+    githubWebhook?: githubWebhookRoutes.Deps
+    /** Static site hosting: requests for site addresses are answered before any route. */
+    siteServing?: siteHostHook.Options
+    /** Dashboard (`/api`, `/`). Omitted in tests that don't need it. */
+    dashboard?: Deps.Dashboard
+  }
 }
 
 /**
@@ -49,7 +51,7 @@ export interface ServerOptions {
  *
  * Each scope's hooks and error handler apply only inside it.
  */
-export function buildServer(options: ServerOptions): FastifyInstance {
+export function buildServer(options: buildServer.Options): FastifyInstance {
   const app = Fastify({
     loggerInstance: options.logger,
     trustProxy:

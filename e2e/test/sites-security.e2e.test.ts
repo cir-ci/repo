@@ -13,7 +13,7 @@ import {
   siteRequest,
   tgzOf,
   uploadSiteCli,
-  type TarEntry,
+  type tarOf,
 } from '#src/sites.ts'
 import { useStack } from '#src/vitest.ts'
 
@@ -33,7 +33,7 @@ describe('hostile site archives (local-disk storage, STATIC_SITES_MAX_MB=1)', ()
   let org: string
   let repo: Repo
   const scratch: string[] = []
-  const INDEX: TarEntry = { name: 'index.html', content: '<h1>ok</h1>' }
+  const INDEX: tarOf.Entry = { name: 'index.html', content: '<h1>ok</h1>' }
 
   beforeAll(async () => {
     const { setup, stack } = ctx
@@ -56,7 +56,7 @@ describe('hostile site archives (local-disk storage, STATIC_SITES_MAX_MB=1)', ()
     await Promise.all(scratch.map((d) => rm(d, { recursive: true, force: true })))
   })
 
-  const post = (entries: TarEntry[], query: Record<string, string> = {}) =>
+  const post = (entries: tarOf.Entry[], query: Record<string, string> = {}) =>
     postSiteArchive(ctx.stack, project.token, tgzOf(entries), query)
 
   const healthy = async () => {
@@ -64,7 +64,7 @@ describe('hostile site archives (local-disk storage, STATIC_SITES_MAX_MB=1)', ()
     expect(res.status).toBe(200)
   }
 
-  const hostile: [string, TarEntry[]][] = [
+  const hostile: [string, tarOf.Entry[]][] = [
     ['a path that climbs out with ../', [INDEX, { name: '../../../tmp/e2e-pwned', content: 'x' }]],
     [
       'a path that climbs out in the middle',
@@ -175,7 +175,7 @@ describe('hostile site archives (local-disk storage, STATIC_SITES_MAX_MB=1)', ()
   })
 
   it('refuses too many files', async () => {
-    const entries: TarEntry[] = [INDEX]
+    const entries: tarOf.Entry[] = [INDEX]
     for (let i = 0; i < 20_100; i += 1) entries.push({ name: `f/${i}.txt`, content: '' })
     const res = await post(entries)
     expect(res.status, res.text).toBe(400)

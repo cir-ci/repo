@@ -11,7 +11,7 @@ import {
   markInstallationNeedsAttention,
 } from '@circi/db'
 import { FsStorage } from '@circi/storage'
-import { createTestDb, type TestDb } from '@circi/testing'
+import { createTestDb } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -19,7 +19,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildServer } from '#http/app.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 let dir: string
 let app: FastifyInstance
 let auth: Auth

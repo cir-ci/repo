@@ -30,13 +30,15 @@ export interface GitLink {
   repoRef: string
 }
 
-/** Why a connection needs a person's attention (see `markInstallationNeedsAttention`). */
-export type ConnectionAttention = (typeof CONNECTION_ATTENTION)[number]
+export namespace getProjectGitAttention {
+  /** What the dashboard shows when CirCI can't use a project's git connection. */
+  export interface Attention {
+    reason: getProjectGitAttention.Kind
+    since: Date
+  }
 
-/** What the dashboard shows when CirCI can't use a project's git connection. */
-export interface GitAttention {
-  reason: ConnectionAttention
-  since: Date
+  /** Why a connection needs a person's attention (see `markInstallationNeedsAttention`). */
+  export type Kind = (typeof CONNECTION_ATTENTION)[number]
 }
 
 /** Points a project at a repository through a GitHub App installation. */
@@ -105,18 +107,23 @@ export async function isInstallationClaimedElsewhere(
   return row !== undefined
 }
 
-export interface GitConnectionRow {
-  id: string
-  kind: string
-  externalId: string
-  needsAttention: string | null
-  createdAt: Date
-  /** Projects of the organisation that report through it. */
-  projectCount: number
+export namespace listGitConnections {
+  export interface Row {
+    id: string
+    kind: string
+    externalId: string
+    needsAttention: string | null
+    createdAt: Date
+    /** Projects of the organisation that report through it. */
+    projectCount: number
+  }
 }
 
 /** The organisation's git connections, oldest first, with how many projects use each. */
-export async function listGitConnections(db: Database, orgId: string): Promise<GitConnectionRow[]> {
+export async function listGitConnections(
+  db: Database,
+  orgId: string,
+): Promise<listGitConnections.Row[]> {
   const rows = await db
     .select({
       id: providerConnections.id,
@@ -203,7 +210,7 @@ export async function markInstallationNeedsAttention(
   db: Database,
   kind: string,
   installationId: string,
-  reason: ConnectionAttention,
+  reason: getProjectGitAttention.Kind,
   now: Date = new Date(),
 ): Promise<void> {
   await db
@@ -243,7 +250,7 @@ export async function clearInstallationNeedsAttention(
 export async function getProjectGitAttention(
   db: Database,
   projectId: string,
-): Promise<GitAttention | undefined> {
+): Promise<getProjectGitAttention.Attention | undefined> {
   const [row] = await db
     .select({
       reason: providerConnections.needsAttention,
@@ -268,23 +275,28 @@ export async function getProjectLink(
   return row?.repoRef ? { installationId: row.installationId, repoRef: row.repoRef } : undefined
 }
 
-/** Everything the notify job needs to report a build. */
-export interface GitTarget extends GitLink {
-  /** The connection's `kind`: which provider reports this build. */
-  kind: string
-  /** Sealed credentials of a token-based host (null for GitHub). */
-  encryptedCredentials: string | null
-  build: Build
-  orgSlug: string
-  projectSlug: string
-  projectName: string
-  blockMergeOnChanges: boolean
-  commentsEnabled: boolean
-  /** The connection is marked as unusable; a successful notify clears it. */
-  connectionNeedsAttention: boolean
+export namespace getGitTarget {
+  /** Everything the notify job needs to report a build. */
+  export interface Target extends GitLink {
+    /** The connection's `kind`: which provider reports this build. */
+    kind: string
+    /** Sealed credentials of a token-based host (null for GitHub). */
+    encryptedCredentials: string | null
+    build: Build
+    orgSlug: string
+    projectSlug: string
+    projectName: string
+    blockMergeOnChanges: boolean
+    commentsEnabled: boolean
+    /** The connection is marked as unusable; a successful notify clears it. */
+    connectionNeedsAttention: boolean
+  }
 }
 
-export async function getGitTarget(db: Database, buildId: string): Promise<GitTarget | undefined> {
+export async function getGitTarget(
+  db: Database,
+  buildId: string,
+): Promise<getGitTarget.Target | undefined> {
   const [row] = await db
     .select({
       build: builds,

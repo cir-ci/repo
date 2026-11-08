@@ -7,8 +7,8 @@ import { promisify } from 'node:util'
 import { ApiClient, upload } from '@circi/cli'
 import { reviewBuild } from '@circi/services'
 import { FsStorage } from '@circi/storage'
-import { createTestDb, type TestDb } from '@circi/testing'
-import { type RunningWorker, startWorker } from '@circi/worker'
+import { createTestDb } from '@circi/testing'
+import { startWorker } from '@circi/worker'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import sharp from 'sharp'
@@ -37,10 +37,10 @@ const gitEnv = {
 const git = async (cwd: string, ...args: string[]) =>
   (await exec('git', args, { cwd, env: gitEnv })).stdout.trim()
 
-let t: TestDb
+let t: createTestDb.Result
 let root: string
 let app: FastifyInstance
-let worker: RunningWorker
+let worker: startWorker.Running
 let apiUrl: string
 let token: string
 let ownerId: string

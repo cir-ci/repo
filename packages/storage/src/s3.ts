@@ -15,31 +15,24 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 import { assertSha256Hex, assertValidKey, base64ToHex, hexToBase64 } from './keys.ts'
-import {
-  ChecksumMismatchError,
-  type ObjectInfo,
-  ObjectNotFoundError,
-  type PresignedPut,
-  type PresignPutOptions,
-  type PutOptions,
-  type PutResult,
-  type StorageDriver,
-} from './types.ts'
+import { ChecksumMismatchError, ObjectNotFoundError, type StorageDriver } from './types.ts'
 
-export interface S3StorageOptions {
-  bucket: string
-  region: string
-  /** For R2, B2, MinIO, Hetzner… Omit for AWS S3. */
-  endpoint?: string
-  forcePathStyle?: boolean
-  /** Omit to use the default AWS credential chain (env, IAM role, …). */
-  credentials?: { accessKeyId: string; secretAccessKey: string }
-  /** Optional prefix inside the bucket, e.g. "circi/". */
-  prefix?: string
-  /** Give up connecting after this many ms. Default 10 s. */
-  connectTimeoutMs?: number
-  /** Give up when a request's socket is silent for this many ms. Default 60 s. */
-  requestTimeoutMs?: number
+export namespace S3Storage {
+  export interface Options {
+    bucket: string
+    region: string
+    /** For R2, B2, MinIO, Hetzner… Omit for AWS S3. */
+    endpoint?: string
+    forcePathStyle?: boolean
+    /** Omit to use the default AWS credential chain (env, IAM role, …). */
+    credentials?: { accessKeyId: string; secretAccessKey: string }
+    /** Optional prefix inside the bucket, e.g. "circi/". */
+    prefix?: string
+    /** Give up connecting after this many ms. Default 10 s. */
+    connectTimeoutMs?: number
+    /** Give up when a request's socket is silent for this many ms. Default 60 s. */
+    requestTimeoutMs?: number
+  }
 }
 
 export const DEFAULT_S3_CONNECT_TIMEOUT_MS = 10_000
@@ -53,7 +46,7 @@ export class S3Storage implements StorageDriver {
   private readonly bucket: string
   private readonly prefix: string
 
-  constructor(options: S3StorageOptions, client?: S3Client) {
+  constructor(options: S3Storage.Options, client?: S3Client) {
     this.bucket = options.bucket
     this.prefix = options.prefix ?? ''
     this.client =
@@ -86,8 +79,8 @@ export class S3Storage implements StorageDriver {
   async put(
     key: string,
     body: Readable | Uint8Array,
-    options: PutOptions = {},
-  ): Promise<PutResult> {
+    options: StorageDriver.PutOptions = {},
+  ): Promise<StorageDriver.PutResult> {
     // Buffer the body: we must know the sha256 before sending so S3 verifies it server-side.
     // Uploads through this path are screenshots and site files, which are small.
     const bytes = body instanceof Uint8Array ? Buffer.from(body) : await readAll(body)
@@ -126,7 +119,7 @@ export class S3Storage implements StorageDriver {
     }
   }
 
-  async head(key: string): Promise<ObjectInfo | null> {
+  async head(key: string): Promise<StorageDriver.ObjectInfo | null> {
     try {
       const res = await this.client.send(
         new HeadObjectCommand({
@@ -158,7 +151,10 @@ export class S3Storage implements StorageDriver {
    * Presigned PUT that only accepts the exact bytes announced (PLAN §8 "verify before dedup"):
    * the SHA-256 checksum, length and content type are signed headers, so S3 rejects anything else.
    */
-  async presignPut(key: string, options: PresignPutOptions): Promise<PresignedPut> {
+  async presignPut(
+    key: string,
+    options: StorageDriver.PresignPutOptions,
+  ): Promise<StorageDriver.PresignedPut> {
     assertSha256Hex(options.sha256)
     const checksum = hexToBase64(options.sha256)
     const command = new PutObjectCommand({

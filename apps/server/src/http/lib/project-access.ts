@@ -4,7 +4,7 @@ import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
 
-import type { DashboardDeps } from './deps.ts'
+import type { Deps } from './deps.ts'
 import { parse } from './validation.ts'
 
 const projectParams = z.object({ org: z.string(), project: z.string() })
@@ -15,7 +15,7 @@ const projectParams = z.object({ org: z.string(), project: z.string() })
  * are not owners or admins get 403. Replies itself when it returns undefined.
  */
 export async function loadProject(
-  deps: Pick<DashboardDeps, 'db'>,
+  deps: Pick<Deps.Dashboard, 'db'>,
   req: FastifyRequest,
   reply: FastifyReply,
   options: { manage?: boolean } = {},

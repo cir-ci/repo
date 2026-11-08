@@ -5,25 +5,28 @@ import { type Database, getWebhook, type Job } from '@circi/db'
 
 /** The `webhook` job: one signed delivery of one event to one receiver (PLAN §7.4). */
 
-export interface DeliverDeps {
-  db: Database
-  /** The dashboard's origin, for the `url` link in the body. */
-  publicOrigin?: string
-  /** Replaceable in tests. */
-  fetch?: typeof fetch
-  timeoutMs?: number
-  /** Deliver to private/loopback addresses too (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
-  allowPrivate?: boolean
-  /** Resolves a hostname to its addresses; replaceable in tests. */
-  resolve?: (host: string) => Promise<string[]>
+export namespace deliverWebhook {
+  export interface Deps {
+    db: Database
+    /** The dashboard's origin, for the `url` link in the body. */
+    publicOrigin?: string
+    /** Replaceable in tests. */
+    fetch?: typeof fetch
+    timeoutMs?: number
+    /** Deliver to private/loopback addresses too (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
+    allowPrivate?: boolean
+    /** Resolves a hostname to its addresses; replaceable in tests. */
+    resolve?: (host: string) => Promise<string[]>
+  }
+
+  export type Result = { status: 'skipped'; reason: string } | { status: 'delivered'; code: number }
 }
 
-export type DeliverResult =
-  | { status: 'skipped'; reason: string }
-  | { status: 'delivered'; code: number }
-
 /** Throws when the receiver doesn't answer 2xx, so the queue retries with backoff. */
-export async function deliverWebhook(deps: DeliverDeps, job: Job): Promise<DeliverResult> {
+export async function deliverWebhook(
+  deps: deliverWebhook.Deps,
+  job: Job,
+): Promise<deliverWebhook.Result> {
   const { webhookId, deliveryId, event, createdAt, data } = job.payload as {
     webhookId?: string
     deliveryId?: string

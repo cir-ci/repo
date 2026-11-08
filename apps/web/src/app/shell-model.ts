@@ -1,6 +1,6 @@
 import type { Project, Sidebar, View } from '@circi/api'
 
-import type { GoTarget } from '#lib/shortcuts.ts'
+import type { Shortcut } from '#lib/shortcuts.ts'
 
 /** What the sidebar needs to know, kept apart from rendering so it can be tested without a DOM. */
 
@@ -70,7 +70,7 @@ export function pinnedViews(views: readonly View.Item[] | undefined): View.Item[
 
 /** The page a go-to chord (`G I`, `G R`, …) opens, or nothing when it has no organization or project to open in. */
 export function goPath(
-  target: GoTarget,
+  target: Shortcut.GoTarget,
   where: {
     org?: string | undefined
     project?: string | undefined

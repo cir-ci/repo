@@ -4,7 +4,7 @@ import { createIgnoreRegion, deleteIgnoreRegion } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { loadProject } from '#http/lib/project-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
@@ -27,7 +27,10 @@ const idParams = z.object({ id: z.string() })
  * outside the organization gets "not found". A region is checked for a whole-number rectangle by
  * the repository (400 otherwise).
  */
-export const dashboardIgnoreRegionRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const dashboardIgnoreRegionRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
+  app,
+  deps,
+) => {
   app.get('/projects/:org/:project/ignore-regions', async (req, reply) => {
     const found = await loadProject(deps, req, reply)
     if (!found) return reply

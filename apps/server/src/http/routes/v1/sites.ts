@@ -8,7 +8,6 @@ import {
   commitHash,
   detectKind,
   IngestError,
-  type IngestedFile,
   ingestTarball,
   isSiteKindId,
   KINDS,
@@ -21,7 +20,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
 import { currentProject } from '#http/hooks/project-token.ts'
-import type { V1Deps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const bool = z.enum(['true', 'false', '1', '0']).transform((v) => v === 'true' || v === '1')
@@ -48,7 +47,7 @@ const uploadQuery = z.object({
  * limits and only regular files; each file is hashed and stored once by content. The response
  * lists the site's addresses on the sites domain.
  */
-export const siteRoutes: FastifyPluginAsync<V1Deps> = async (app, deps) => {
+export const siteRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
   app.post(
     '/sites',
     { bodyLimit: (deps.sites?.maxBytes ?? 0) + 1024 * 1024 },
@@ -70,7 +69,7 @@ export const siteRoutes: FastifyPluginAsync<V1Deps> = async (app, deps) => {
 
       // `contentKey` makes a fresh key each call: one per blob, remembered for the database row.
       const keys = new Map<string, string>()
-      let files: IngestedFile[]
+      let files: ingestTarball.File[]
       try {
         files = await ingestTarball(body, {
           maxBytes: sites.maxBytes,

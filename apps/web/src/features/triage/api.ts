@@ -163,16 +163,18 @@ export interface Frame {
   height: number | null
 }
 
-/**
- * One frame of the filmstrip: the snapshot `name` in a build. A screenshot that changes in a
- * flaky item shows the flaky glyph; the rest follow `screenshotStatus`.
- */
-export interface FrameSource {
-  build: Pick<Build.ListItem, 'number' | 'status' | 'reviewStatus'>
-  diffs: readonly Pick<Build.DiffItem, 'name' | 'status' | 'head' | 'base'>[]
+export namespace Frame {
+  /**
+   * One frame of the filmstrip: the snapshot `name` in a build. A screenshot that changes in a
+   * flaky item shows the flaky glyph; the rest follow `screenshotStatus`.
+   */
+  export interface Source {
+    build: Pick<Build.ListItem, 'number' | 'status' | 'reviewStatus'>
+    diffs: readonly Pick<Build.DiffItem, 'name' | 'status' | 'head' | 'base'>[]
+  }
 }
 
-export function frameOf(detail: FrameSource, name: string, itemKind: TriageKind): Frame {
+export function frameOf(detail: Frame.Source, name: string, itemKind: TriageKind): Frame {
   const diff = detail.diffs.find((d) => d.name === name)
   const number = detail.build.number
   if (!diff) {

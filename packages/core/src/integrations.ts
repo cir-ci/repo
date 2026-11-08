@@ -10,9 +10,24 @@
  */
 
 export const INTEGRATION_GROUPS = ['git', 'chat', 'design', 'tracker'] as const
-export type IntegrationGroup = (typeof INTEGRATION_GROUPS)[number]
 
-export const INTEGRATION_GROUP_LABEL: Record<IntegrationGroup, string> = {
+export namespace IntegrationCatalog {
+  export type Group = (typeof INTEGRATION_GROUPS)[number]
+
+  export type Status = 'available' | 'planned'
+
+  export interface Entry {
+    /** Stable id: the `kind` stored on a connection or integration. */
+    kind: string
+    group: Group
+    name: string
+    description: string
+    /** `planned` entries are shown disabled and have no backend. */
+    status: Status
+  }
+}
+
+export const INTEGRATION_GROUP_LABEL: Record<IntegrationCatalog.Group, string> = {
   git: 'Git hosts',
   chat: 'Chat',
   design: 'Design tools',
@@ -26,21 +41,10 @@ export const INSTALLATION_ID_RE = /^\d{1,20}$/
 export const isInstallationId = (value: string) => INSTALLATION_ID_RE.test(value.trim())
 
 /** The label of a group's heading. */
-export const integrationGroupLabel = (group: IntegrationGroup) => INTEGRATION_GROUP_LABEL[group]
+export const integrationGroupLabel = (group: IntegrationCatalog.Group) =>
+  INTEGRATION_GROUP_LABEL[group]
 
-export type IntegrationStatus = 'available' | 'planned'
-
-export interface CatalogEntry {
-  /** Stable id: the `kind` stored on a connection or integration. */
-  kind: string
-  group: IntegrationGroup
-  name: string
-  description: string
-  /** `planned` entries are shown disabled and have no backend. */
-  status: IntegrationStatus
-}
-
-export const INTEGRATION_CATALOG: readonly CatalogEntry[] = [
+export const INTEGRATION_CATALOG: readonly IntegrationCatalog.Entry[] = [
   {
     kind: 'github',
     group: 'git',
@@ -114,16 +118,20 @@ export const INTEGRATION_CATALOG: readonly CatalogEntry[] = [
 ]
 
 /** The catalog entry for a kind, or undefined for a kind CirCI doesn't list. */
-export const catalogEntry = (kind: string): CatalogEntry | undefined =>
+export const catalogEntry = (kind: string): IntegrationCatalog.Entry | undefined =>
   INTEGRATION_CATALOG.find((e) => e.kind === kind)
 
 /** The group a stored kind belongs to, or undefined for a kind CirCI does not list. */
-export const groupOfKind = (kind: string): IntegrationGroup | undefined => catalogEntry(kind)?.group
+export const groupOfKind = (kind: string): IntegrationCatalog.Group | undefined =>
+  catalogEntry(kind)?.group
 
 /** Entries matching a search text (name, kind or description) and an optional group. */
 export function filterCatalog<
-  E extends Pick<CatalogEntry, 'kind' | 'group' | 'name' | 'description'>,
->(entries: readonly E[], filter: { query?: string; group?: IntegrationGroup | 'all' }): E[] {
+  E extends Pick<IntegrationCatalog.Entry, 'kind' | 'group' | 'name' | 'description'>,
+>(
+  entries: readonly E[],
+  filter: { query?: string; group?: IntegrationCatalog.Group | 'all' },
+): E[] {
   const q = (filter.query ?? '').trim().toLowerCase()
   return entries.filter(
     (e) =>

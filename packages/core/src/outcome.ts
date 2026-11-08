@@ -3,27 +3,7 @@
  * git host commit statuses, so the two can never disagree.
  */
 
-export interface OutcomeInput {
-  status: string
-  conclusion: string | null
-  reviewStatus: string
-  blockMergeOnChanges: boolean
-  /** Every difference is a flaky screenshot (`onlyFlakyChanges`). */
-  flakyOnly: boolean
-  /** The effective setting (`resolveFlakyBlocksMerge`). */
-  flakyBlocksMerge: boolean
-}
-
-export interface BuildOutcome {
-  /** `pending` while processing; `pass`/`fail` once there's an answer. */
-  state: 'pending' | 'pass' | 'fail'
-  /** One line for CLI output and commit status descriptions. */
-  summary: string
-  /** Passing, but something deserves a look (unreviewed changes when merges aren't blocked). */
-  warning?: string
-}
-
-export function buildOutcome(b: OutcomeInput): BuildOutcome {
+export function buildOutcome(b: buildOutcome.Input): buildOutcome.Result {
   switch (b.status) {
     case 'pending':
     case 'uploading':
@@ -60,4 +40,26 @@ export function buildOutcome(b: OutcomeInput): BuildOutcome {
         summary: 'Visual changes to review',
         warning: 'Changes are not reviewed yet; merges are not blocked for this project',
       }
+}
+
+export namespace buildOutcome {
+  export interface Input {
+    status: string
+    conclusion: string | null
+    reviewStatus: string
+    blockMergeOnChanges: boolean
+    /** Every difference is a flaky screenshot (`onlyFlakyChanges`). */
+    flakyOnly: boolean
+    /** The effective setting (`resolveFlakyBlocksMerge`). */
+    flakyBlocksMerge: boolean
+  }
+
+  export interface Result {
+    /** `pending` while processing; `pass`/`fail` once there's an answer. */
+    state: 'pending' | 'pass' | 'fail'
+    /** One line for CLI output and commit status descriptions. */
+    summary: string
+    /** Passing, but something deserves a look (unreviewed changes when merges aren't blocked). */
+    warning?: string
+  }
 }

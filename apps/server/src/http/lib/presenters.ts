@@ -1,8 +1,8 @@
-import type { Build, ProjectContext } from '@circi/db'
+import type { Build, getProjectContext } from '@circi/db'
 
 /** The build summary every `/v1` response uses, with a link to its dashboard page. */
 export function describeBuild(
-  ctx: ProjectContext,
+  ctx: getProjectContext.Context,
   build: Pick<Build, 'id' | 'number' | 'name' | 'status' | 'conclusion' | 'reviewStatus'>,
   publicOrigin: string,
 ) {

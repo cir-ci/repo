@@ -30,48 +30,50 @@ import type { Build } from '#src/types.ts'
  * to the organization, which has its own banner and the Inbox, not to one project's triage.
  */
 
-export interface TriageItem {
-  kind: TriageKind
-  /** What identifies the problem within its kind: the snapshot name, or `build:<number>`. */
-  key: string
-  /** The screenshot it is about; null for a failed build. */
-  snapshotName: string | null
-  project: { slug: string; name: string }
-  build: {
-    number: number
-    branch: string | null
-    commitSha: string
-    status: Build['status']
-    createdAt: Date
+export namespace listTriage {
+  export interface Item {
+    kind: TriageKind
+    /** What identifies the problem within its kind: the snapshot name, or `build:<number>`. */
+    key: string
+    /** The screenshot it is about; null for a failed build. */
+    snapshotName: string | null
+    project: { slug: string; name: string }
+    build: {
+      number: number
+      branch: string | null
+      commitSha: string
+      status: Build['status']
+      createdAt: Date
+    }
+    assignee: { id: string; name: string } | null
+    /** When a timed snooze ends; null when not snoozed or snoozed until the next push. */
+    snoozedUntil: Date | null
+    snoozeKind: SnoozeKind | null
+    /** Whether the item is snoozed right now (and so belongs under Snoozed, not in the queue). */
+    snoozed: boolean
   }
-  assignee: { id: string; name: string } | null
-  /** When a timed snooze ends; null when not snoozed or snoozed until the next push. */
-  snoozedUntil: Date | null
-  snoozeKind: SnoozeKind | null
-  /** Whether the item is snoozed right now (and so belongs under Snoozed, not in the queue). */
-  snoozed: boolean
-}
 
-export interface TriageQueue {
-  items: TriageItem[]
-  rotation: {
-    members: { id: string; name: string }[]
-    /** Who is on triage this week; null without a rotation. */
-    onTriage: { id: string; name: string } | null
-    /** When the turn passes to the next person; null without a rotation. */
-    until: Date | null
+  export interface Queue {
+    items: listTriage.Item[]
+    rotation: {
+      members: { id: string; name: string }[]
+      /** Who is on triage this week; null without a rotation. */
+      onTriage: { id: string; name: string } | null
+      /** When the turn passes to the next person; null without a rotation. */
+      until: Date | null
+    }
   }
 }
 
 const KIND_ORDER: Record<TriageKind, number> = { flaky: 0, no_baseline: 1, failed: 2 }
 
-type BuildRef = TriageItem['build']
+type BuildRef = listTriage.Item['build']
 
 /** Dismissed items are left out; snoozed ones are included and marked. Newest problems first. */
 export async function listTriage(
   db: Database,
   input: { projectId: string; now: Date },
-): Promise<TriageQueue> {
+): Promise<listTriage.Queue> {
   const [row] = await db
     .select({ project: projects, orgSlug: organization.slug })
     .from(projects)
@@ -193,7 +195,7 @@ export async function listTriage(
   const stateOf = new Map(states.map((s) => [`${s.item.kind}\u0000${s.item.key}`, s]))
   const latestPush = found.length > 0 ? await latestDefaultBranchBuildNumber(db, project.id) : 0
 
-  const items: TriageItem[] = []
+  const items: listTriage.Item[] = []
   for (const f of found) {
     const s = stateOf.get(`${f.kind}\u0000${f.key}`)
     if (s?.item.dismissedAt) continue

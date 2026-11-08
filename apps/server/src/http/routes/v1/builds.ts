@@ -13,7 +13,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
 import { currentProject } from '#http/hooks/project-token.ts'
-import type { V1Deps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { describeBuild } from '#http/lib/presenters.ts'
 import { parse } from '#http/lib/validation.ts'
 
@@ -25,7 +25,7 @@ const statusQuery = z.object({ gate: z.enum(['status', 'exit-code']).optional() 
  * A build's life from CI (PLAN §7.1): create it and learn what to upload, finalize each shard,
  * then poll its status.
  */
-export const buildRoutes: FastifyPluginAsync<V1Deps> = async (app, deps) => {
+export const buildRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
   app.post('/builds', { bodyLimit: JSON_BODY_LIMIT }, async (req, reply) => {
     const ctx = currentProject(req)
     const body = parse(createBuildBody, req.body)
@@ -109,7 +109,7 @@ export const buildRoutes: FastifyPluginAsync<V1Deps> = async (app, deps) => {
  * this API (with the project token) for local-disk storage.
  */
 async function uploadInstruction(
-  deps: V1Deps,
+  deps: Deps.V1,
   p: { sha256: string; storageKey: string; size: number; contentType: string },
 ) {
   if (deps.storage.presignPut) {
@@ -136,7 +136,7 @@ async function uploadInstruction(
 }
 
 /** S3 uploads go straight to storage; verify each pending object's stored checksum at finalize. */
-async function verifyStoredObjects(deps: V1Deps, shas: string[]): Promise<void> {
+async function verifyStoredObjects(deps: Deps.V1, shas: string[]): Promise<void> {
   await Promise.all(
     shas.map(async (hash) => {
       const file = await getFile(deps.db, hash)

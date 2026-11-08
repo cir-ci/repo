@@ -4,10 +4,8 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_DISPLAY,
   groupBuilds,
-  loadDisplay,
   orderBuilds,
   parseDisplay,
-  saveDisplay,
 } from '#features/projects/display-options.ts'
 
 const item = (number: number, branch: string | null = 'main'): Build.ListItem => ({
@@ -39,26 +37,6 @@ describe('display options', () => {
     expect(options.groupBy).toBe('branch')
     expect(options.order).toBe('newest')
     expect(options.show).toEqual({ ...DEFAULT_DISPLAY.show, counts: false })
-  })
-
-  it('persists, and survives storage that throws', () => {
-    const items = new Map<string, string>()
-    const storage = {
-      getItem: (k: string) => items.get(k) ?? null,
-      setItem: (k: string, v: string) => void items.set(k, v),
-    }
-    saveDisplay({ ...DEFAULT_DISPLAY, order: 'oldest' }, storage)
-    expect(loadDisplay(storage).order).toBe('oldest')
-    const blocked = {
-      getItem: () => {
-        throw new Error('blocked')
-      },
-      setItem: () => {
-        throw new Error('blocked')
-      },
-    }
-    expect(loadDisplay(blocked)).toEqual(DEFAULT_DISPLAY)
-    expect(() => saveDisplay(DEFAULT_DISPLAY, blocked)).not.toThrow()
   })
 
   it('orders by build number', () => {

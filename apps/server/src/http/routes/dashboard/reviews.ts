@@ -13,7 +13,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const params = z.object({ org: z.string(), project: z.string(), number: z.string() })
@@ -28,7 +28,7 @@ const body = z.object({
  * project's organization may decide; everyone else gets the same "not found" as for a build
  * that doesn't exist. Decisions can be changed, and the latest one counts.
  */
-export const dashboardReviewRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const dashboardReviewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   app.post('/projects/:org/:project/builds/:number/review', async (req, reply) => {
     const p = parse(params, req.params)
     const { state, reason } = parse(body, req.body)
@@ -74,7 +74,7 @@ const bulkParams = z.object({ org: z.string(), project: z.string() })
  * `POST …/builds/review`: approve or reject several builds of a project at once. All or
  * nothing: an id that isn't a build of the project (or can't be reviewed) fails the call.
  */
-export const dashboardBulkReviewRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const dashboardBulkReviewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   app.post('/projects/:org/:project/builds/review', async (req, reply) => {
     const p = parse(bulkParams, req.params)
     const input = parse(bulkBody, req.body)
@@ -114,7 +114,7 @@ const dismissParams = projectParams.extend({ id: z.string().uuid() })
  * organizations; asking and dropping a request work on one project's builds. Everyone outside
  * the organization gets "not found", as everywhere else on the dashboard.
  */
-export const dashboardReviewRequestRoutes: FastifyPluginAsync<DashboardDeps> = async (
+export const dashboardReviewRequestRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
   app,
   deps,
 ) => {

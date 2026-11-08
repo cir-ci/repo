@@ -1,21 +1,23 @@
 import type { FastifyPluginAsync } from 'fastify'
 
-export interface ReadinessCheck {
-  name: string
-  check(): Promise<void>
-}
+export namespace healthRoutes {
+  export interface Check {
+    name: string
+    check(): Promise<void>
+  }
 
-export interface HealthOptions {
-  checks: ReadinessCheck[]
-  /** Per-check timeout for /readyz, so a hung dependency can't hang the probe. */
-  checkTimeoutMs?: number
+  export interface Options {
+    checks: healthRoutes.Check[]
+    /** Per-check timeout for /readyz, so a hung dependency can't hang the probe. */
+    checkTimeoutMs?: number
+  }
 }
 
 /**
  * `/healthz` (liveness: the process serves) and `/readyz` (readiness: dependencies answer).
  * Both are polled every few seconds, so they don't log each request.
  */
-export const healthRoutes: FastifyPluginAsync<HealthOptions> = async (app, options) => {
+export const healthRoutes: FastifyPluginAsync<healthRoutes.Options> = async (app, options) => {
   const timeout = options.checkTimeoutMs ?? 2_000
 
   app.get('/healthz', { logLevel: 'silent' }, async () => ({ status: 'ok' }))

@@ -1,13 +1,6 @@
 import { createHmac, createSign, timingSafeEqual } from 'node:crypto'
 
-import {
-  type GitProvider,
-  headerValue,
-  ProviderApiError,
-  type RepositoryInfo,
-  type StatusInput,
-  type WebhookHeaders,
-} from './provider.ts'
+import { type GitProvider, headerValue, ProviderApiError } from './provider.ts'
 import { PR_COMMENT_MARKER } from './render.ts'
 
 /**
@@ -197,14 +190,14 @@ export class GithubApp implements GitProvider {
     }
   }
 
-  verifyWebhook(rawBody: Buffer | string, headers: WebhookHeaders): boolean {
+  verifyWebhook(rawBody: Buffer | string, headers: GitProvider.WebhookHeaders): boolean {
     const secret = this.#options.webhookSecret
     return secret !== undefined && githubWebhookVerifier(secret).verifyWebhook(rawBody, headers)
   }
 
   /** The repositories the installation was given access to (`owner/name`), up to 500. */
-  async listRepositories(installationId: string): Promise<RepositoryInfo[]> {
-    const repos: RepositoryInfo[] = []
+  async listRepositories(installationId: string): Promise<GitProvider.Repository[]> {
+    const repos: GitProvider.Repository[] = []
     for (let page = 1; page <= 5; page++) {
       // eslint-disable-next-line no-await-in-loop -- pages are fetched in order
       const { data } = await this.#api(
@@ -228,7 +221,11 @@ export class GithubApp implements GitProvider {
   }
 
   /** Creates the check run for a commit, or updates `existingId`. Returns its id. */
-  async upsertCheckRun(installationId: string, repo: string, input: StatusInput): Promise<string> {
+  async upsertCheckRun(
+    installationId: string,
+    repo: string,
+    input: GitProvider.StatusInput,
+  ): Promise<string> {
     const { report } = input
     const body = {
       name: report.name,

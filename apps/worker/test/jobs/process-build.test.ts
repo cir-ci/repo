@@ -17,13 +17,13 @@ import {
 } from '@circi/db'
 import { finalizeBuild, gateInputs, reviewBuild } from '@circi/services'
 import { contentKey, FsStorage } from '@circi/storage'
-import { createTestDb, seedProject, type TestDb } from '@circi/testing'
+import { createTestDb, seedProject } from '@circi/testing'
 import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { processBuild, startWorker } from '#src/index.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 let dir: string
 let storage: FsStorage
 

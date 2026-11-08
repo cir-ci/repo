@@ -25,11 +25,9 @@ export function Select({
   placeholder,
   name,
   disabled,
-  required,
-  value,
-  defaultValue,
   onValueChange,
   className,
+  ...rest
 }: Select.Props) {
   return (
     <Field.Root
@@ -47,13 +45,11 @@ export function Select({
         {label}
       </Field.Label>
       <BaseSelect.Root
+        {...rest}
         items={items}
-        value={value}
-        defaultValue={defaultValue}
         onValueChange={(next) => {
           if (typeof next === 'string') onValueChange?.(next)
         }}
-        required={required}
       >
         <BaseSelect.Trigger className={styles.trigger}>
           <BaseSelect.Value className={styles.value} placeholder={placeholder} />
@@ -107,7 +103,13 @@ export namespace Select {
     disabled?: boolean
   }
 
-  export interface Props {
+  export interface Props
+    // `items` and `onValueChange` are ours (a flat list, a bare string); `name` and `disabled`
+    // go to the field wrapper, which hands them on.
+    extends Omit<
+      BaseSelect.Root.Props<string>,
+      'items' | 'onValueChange' | 'children' | 'multiple'
+    > {
     label: ReactNode
     /** Hide the label visually; it still names the control for assistive tech. */
     hideLabel?: boolean
@@ -118,11 +120,6 @@ export namespace Select {
     items: ReadonlyArray<Item>
     /** Shown while nothing is picked. */
     placeholder?: string
-    name?: string
-    disabled?: boolean
-    required?: boolean
-    value?: string
-    defaultValue?: string
     onValueChange?: (value: string) => void
     /** On the field wrapper, for layout. */
     className?: string

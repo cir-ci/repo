@@ -3,7 +3,7 @@ import { join } from 'node:path'
 
 import type { Auth } from '@circi/auth'
 import { FsStorage } from '@circi/storage'
-import { createTestDb, type TestDb } from '@circi/testing'
+import { createTestDb } from '@circi/testing'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -12,7 +12,7 @@ import { buildServer } from '#http/app.ts'
 import { currentUser, requireSession } from '#http/hooks/session.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 let auth: Auth
 let app: FastifyInstance
 let tenant: Tenant

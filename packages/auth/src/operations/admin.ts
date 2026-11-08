@@ -10,7 +10,6 @@ import {
   getProjectContext,
   NotFoundError,
   type Project,
-  type ProjectContext,
   schema,
   setProjectCiKey,
 } from '@circi/db'
@@ -165,7 +164,7 @@ export async function verifyProjectToken(
   auth: Auth,
   db: Database,
   token: string,
-): Promise<ProjectContext | undefined> {
+): Promise<getProjectContext.Context | undefined> {
   if (!token.startsWith(CI_KEY_PREFIX)) return undefined
   const result = await auth.api.verifyApiKey({ body: { key: token, configId: CI_KEY_CONFIG } })
   if (!result.valid || !result.key) return undefined

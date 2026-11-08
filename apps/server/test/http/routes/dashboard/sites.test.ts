@@ -8,7 +8,7 @@ import { type Auth } from '@circi/auth'
 import { packSite as packWithCli, uploadSite } from '@circi/cli'
 import { schema } from '@circi/db'
 import { FsStorage } from '@circi/storage'
-import { addTestMember, createTestDb, type TestDb } from '@circi/testing'
+import { addTestMember, createTestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
@@ -29,7 +29,7 @@ const originFor = (label: string) => `https://${label}.${SITES}`
 const COMMIT = 'a'.repeat(40)
 const COMMIT2 = 'b'.repeat(40)
 
-let t: TestDb
+let t: createTestDb.Result
 let dir: string
 let app: FastifyInstance
 let auth: Auth

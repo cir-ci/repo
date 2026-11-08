@@ -1,24 +1,30 @@
 import { execFile, spawnSync } from 'node:child_process'
 
-export interface RunResult {
-  stdout: string
-  stderr: string
-  /** Exit code (0 on success). */
-  code: number
-}
+export namespace run {
+  export interface Options {
+    cwd?: string
+    env?: Record<string, string | undefined>
+    /** Milliseconds before the process is killed (default 5 minutes). */
+    timeoutMs?: number
+    /** Resolve instead of throwing on a non-zero exit. */
+    allowFail?: boolean
+    input?: string
+  }
 
-export interface RunOptions {
-  cwd?: string
-  env?: Record<string, string | undefined>
-  /** Milliseconds before the process is killed (default 5 minutes). */
-  timeoutMs?: number
-  /** Resolve instead of throwing on a non-zero exit. */
-  allowFail?: boolean
-  input?: string
+  export interface Result {
+    stdout: string
+    stderr: string
+    /** Exit code (0 on success). */
+    code: number
+  }
 }
 
 /** Runs a command and collects its output; throws a readable error unless `allowFail`. */
-export function run(command: string, args: string[], options: RunOptions = {}): Promise<RunResult> {
+export function run(
+  command: string,
+  args: string[],
+  options: run.Options = {},
+): Promise<run.Result> {
   return new Promise((resolve, reject) => {
     const child = execFile(
       command,

@@ -56,3 +56,4 @@ catalog:
   vitest: 5.1.0
   vitest-browser-react: 2.3.0
   zod: 4.6.7
+  zustand: 5.1.0

@@ -6,7 +6,7 @@ import type { Browser, Page } from 'playwright'
 import { Session } from './admin.ts'
 import { openSession, PLAYWRIGHT_TIMEOUT_MS } from './browser.ts'
 import { clientAddressHeaders, freshIp } from './client-address.ts'
-import { extractCode, type Mailbox, type MailMessage } from './mail.ts'
+import { extractCode, type Mailbox } from './mail.ts'
 import { ARTIFACTS_DIR } from './paths.ts'
 
 /**
@@ -89,7 +89,7 @@ export async function waitForNewMail(
   to: string,
   seen: Set<string>,
   options: { subject?: string | RegExp; timeoutMs?: number } = {},
-): Promise<MailMessage> {
+): Promise<Mailbox.Message> {
   const deadline = Date.now() + (options.timeoutMs ?? 30_000)
   const subject = options.subject
   for (;;) {

@@ -1,4 +1,5 @@
 import { Avatar as BaseAvatar } from '@base-ui/react/avatar'
+import type { CSSProperties } from 'react'
 
 import { cx } from './cx.ts'
 
@@ -22,14 +23,15 @@ export function initials(name: string): string {
  * A round avatar on Base UI's `Avatar`: the image when it
  * loads, otherwise the initials of `name`. The element is an image named by `name`.
  */
-export function Avatar({ name, src, size = 24, className }: Avatar.Props) {
+export function Avatar({ name, src, size = 24, className, style, ...rest }: Avatar.Props) {
   return (
     <BaseAvatar.Root
+      {...rest}
       role="img"
       aria-label={name}
       data-size={size}
       className={cx(styles.root, className)}
-      style={{ width: size, height: size, fontSize: Math.round(size * 0.42) }}
+      style={{ ...style, width: size, height: size, fontSize: Math.round(size * 0.42) }}
     >
       {src ? <BaseAvatar.Image src={src} alt="" className={styles.image} /> : null}
       <BaseAvatar.Fallback className={styles.fallback}>{initials(name)}</BaseAvatar.Fallback>
@@ -38,12 +40,15 @@ export function Avatar({ name, src, size = 24, className }: Avatar.Props) {
 }
 
 export namespace Avatar {
-  export interface Props {
+  export interface Props
+    // `children` are ours (image + fallback); `className` is a plain string so it merges via `cx`; `style` likewise.
+    extends Omit<BaseAvatar.Root.Props, 'children' | 'className' | 'style' | 'render'> {
     /** The person's or organization's name: the accessible name and the source of the initials. */
     name: string
     src?: string
     /** Diameter in px; 24 in rows and the sidebar. */
     size?: number
     className?: string
+    style?: CSSProperties
   }
 }

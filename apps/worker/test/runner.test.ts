@@ -4,13 +4,13 @@ import { join } from 'node:path'
 
 import { enqueueJob, JOBS_CHANNEL, type ListenFn, schema } from '@circi/db'
 import { FsStorage } from '@circi/storage'
-import { createTestDb, type TestDb } from '@circi/testing'
+import { createTestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { startWorker } from '#src/index.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 let dir: string
 let storage: FsStorage
 const silentListen: ListenFn = async () => async () => {}

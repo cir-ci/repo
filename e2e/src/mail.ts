@@ -3,33 +3,35 @@
  * server catches everything CirCI sends.
  */
 
-export interface MailAddress {
-  Name: string
-  Address: string
-}
+export namespace Mailbox {
+  export interface Address {
+    Name: string
+    Address: string
+  }
 
-export interface MailSummary {
-  ID: string
-  Subject: string
-  From: MailAddress
-  To: MailAddress[]
-  Created: string
-  Snippet: string
-}
+  export interface Summary {
+    ID: string
+    Subject: string
+    From: Mailbox.Address
+    To: Mailbox.Address[]
+    Created: string
+    Snippet: string
+  }
 
-export interface MailMessage extends MailSummary {
-  Text: string
-  HTML: string
-}
+  export interface Message extends Mailbox.Summary {
+    Text: string
+    HTML: string
+  }
 
-export interface WaitForMail {
-  /** Recipient address. */
-  to: string
-  /** Substring or pattern the subject must match. */
-  subject?: string | RegExp
-  /** Only messages created after this moment (default: any). */
-  after?: Date
-  timeoutMs?: number
+  export interface WaitFor {
+    /** Recipient address. */
+    to: string
+    /** Substring or pattern the subject must match. */
+    subject?: string | RegExp
+    /** Only messages created after this moment (default: any). */
+    after?: Date
+    timeoutMs?: number
+  }
 }
 
 export class Mailbox {
@@ -45,13 +47,15 @@ export class Mailbox {
     return (await res.json()) as T
   }
 
-  async messages(): Promise<MailSummary[]> {
-    const data = await this.#json<{ messages: MailSummary[] | null }>('/api/v1/messages?limit=200')
+  async messages(): Promise<Mailbox.Summary[]> {
+    const data = await this.#json<{ messages: Mailbox.Summary[] | null }>(
+      '/api/v1/messages?limit=200',
+    )
     return data.messages ?? []
   }
 
-  async message(id: string): Promise<MailMessage> {
-    return this.#json<MailMessage>(`/api/v1/message/${encodeURIComponent(id)}`)
+  async message(id: string): Promise<Mailbox.Message> {
+    return this.#json<Mailbox.Message>(`/api/v1/message/${encodeURIComponent(id)}`)
   }
 
   async clear(): Promise<void> {
@@ -59,17 +63,17 @@ export class Mailbox {
   }
 
   /** Every message to `to`, newest first. */
-  async to(address: string): Promise<MailSummary[]> {
-    const data = await this.#json<{ messages: MailSummary[] | null }>(
+  async to(address: string): Promise<Mailbox.Summary[]> {
+    const data = await this.#json<{ messages: Mailbox.Summary[] | null }>(
       `/api/v1/search?query=${encodeURIComponent(`to:${address}`)}&limit=200`,
     )
     return data.messages ?? []
   }
 
   /** Waits for a message to an address (polling), then returns it in full. */
-  async waitFor(options: WaitForMail): Promise<MailMessage> {
+  async waitFor(options: Mailbox.WaitFor): Promise<Mailbox.Message> {
     const deadline = Date.now() + (options.timeoutMs ?? 30_000)
-    const matches = (m: MailSummary) => {
+    const matches = (m: Mailbox.Summary) => {
       if (options.after && new Date(m.Created) <= options.after) return false
       const subject = options.subject
       if (subject === undefined) return true
@@ -92,7 +96,7 @@ export class Mailbox {
 }
 
 /** The first standalone 6-digit code in a message (the sign-in code). */
-export function extractCode(message: Pick<MailMessage, 'Text' | 'HTML'>): string {
+export function extractCode(message: Pick<Mailbox.Message, 'Text' | 'HTML'>): string {
   const match =
     /(?<![\d#])(\d{6})(?!\d)/.exec(message.Text) ?? /(?<![\d#])(\d{6})(?!\d)/.exec(message.HTML)
   if (!match?.[1]) throw new Error(`No 6-digit code in the mail:\n${message.Text}`)
@@ -100,7 +104,7 @@ export function extractCode(message: Pick<MailMessage, 'Text' | 'HTML'>): string
 }
 
 /** Every http(s) link in a message, from both parts, without duplicates. */
-export function extractLinks(message: Pick<MailMessage, 'Text' | 'HTML'>): string[] {
+export function extractLinks(message: Pick<Mailbox.Message, 'Text' | 'HTML'>): string[] {
   const found = new Set<string>()
   for (const m of message.HTML.matchAll(/href="(https?:\/\/[^"]+)"/g)) {
     if (m[1]) found.add(m[1].replaceAll('&amp;', '&'))

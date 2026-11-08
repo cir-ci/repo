@@ -1,11 +1,11 @@
 import { buildOutcome } from '@circi/core'
 import { setOrgSettings, updateProjectSettings } from '@circi/db'
-import { createTestDb, seedBuild, seedDiff, seedProject, type TestDb } from '@circi/testing'
+import { createTestDb, seedBuild, seedDiff, seedProject } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { gateInputs } from '#src/index.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 beforeAll(async () => {
   t = await createTestDb()
 })

@@ -10,7 +10,7 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const params = z.object({ org: z.string() })
@@ -20,7 +20,7 @@ const body = z.object({ flakyBlocksMerge: z.boolean() }).partial().strict()
  * An organization's defaults for its projects. Members can see them, owners and admins change
  * them; anyone outside the organization gets "not found".
  */
-export const dashboardOrgSettingsRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const dashboardOrgSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   async function load(req: FastifyRequest, reply: FastifyReply) {
     const { org: slug } = parse(params, req.params)
     const user = currentUser(req)

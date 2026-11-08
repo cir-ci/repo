@@ -3,7 +3,7 @@ import { Readable } from 'node:stream'
 
 import { describe, expect, it } from 'vitest'
 
-import { type IngestedFile, ingestTarball } from '#src/index.ts'
+import { ingestTarball } from '#src/index.ts'
 
 import { makeTarGz, type TarEntry } from './support/tar-helper.ts'
 
@@ -14,7 +14,7 @@ async function ingest(
   const stored = new Map<string, Buffer>()
   const files = await ingestTarball(Readable.from([makeTarGz(entries)]), {
     maxBytes: 10 * 1024 * 1024,
-    store: async (f: IngestedFile, content: Buffer) => void stored.set(f.sha256, content),
+    store: async (f: ingestTarball.File, content: Buffer) => void stored.set(f.sha256, content),
     ...over,
   })
   return { files, stored }

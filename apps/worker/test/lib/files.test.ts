@@ -6,12 +6,12 @@ import { Readable } from 'node:stream'
 
 import { getFile } from '@circi/db'
 import { FsStorage } from '@circi/storage'
-import { createTestDb, seedFile, type TestDb } from '@circi/testing'
+import { createTestDb, seedFile } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { createLoader, readAll, storeServerFile } from '#lib/files.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 let dir: string
 let storage: FsStorage
 

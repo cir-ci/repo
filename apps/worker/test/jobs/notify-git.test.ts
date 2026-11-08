@@ -14,13 +14,13 @@ import {
 } from '@circi/db'
 import { GithubApiError, GithubInstallationRevokedError } from '@circi/providers'
 import { completeBuild, reviewBuild } from '@circi/services'
-import { createTestDb, seedBuild, seedDiff, seedProject, type TestDb } from '@circi/testing'
+import { createTestDb, seedBuild, seedDiff, seedProject } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { notifyGit } from '#jobs/notify-git.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 beforeAll(async () => {
   t = await createTestDb()
 })

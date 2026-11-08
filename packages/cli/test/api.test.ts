@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { ApiClient, ApiError, type UploadInstruction } from '#src/api.ts'
+import { ApiClient, ApiError } from '#src/api.ts'
 
 import { FakeCirci } from './support/fake-circi.ts'
 
@@ -13,7 +13,9 @@ afterAll(async () => {
 })
 
 const client = () => new ApiClient({ baseUrl: `${fake.url}//`, token: 'circi_secret' })
-const instruction = (over: Partial<UploadInstruction> = {}): UploadInstruction => ({
+const instruction = (
+  over: Partial<ApiClient.UploadInstruction> = {},
+): ApiClient.UploadInstruction => ({
   sha256: 'a'.repeat(64),
   url: `${fake.url}/files/${'a'.repeat(64)}`,
   method: 'PUT',

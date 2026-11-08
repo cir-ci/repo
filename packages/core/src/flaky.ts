@@ -16,22 +16,24 @@ export function resolveFlakyBlocksMerge(org: boolean, project: boolean | null): 
 /** What an organization says when it has never been asked: flaky changes block like any other. */
 export const DEFAULT_FLAKY_BLOCKS_MERGE = true
 
-export interface FlakyOnlyInput {
-  counts: { added: number; removed: number; changed: number; failed: number }
-  /** Names of the screenshots whose status is `changed`. */
-  changed: readonly string[]
-  /** Names the project currently flags as flaky. */
-  flaky: readonly string[]
-}
-
 /**
  * Whether the build's only differences are flaky screenshots: at least one change, nothing
  * added, removed or failed, and every changed screenshot is on the flaky list.
  */
-export function onlyFlakyChanges(input: FlakyOnlyInput): boolean {
+export function onlyFlakyChanges(input: onlyFlakyChanges.Input): boolean {
   const { added, removed, changed, failed } = input.counts
   if (changed === 0 || added > 0 || removed > 0 || failed > 0) return false
   if (input.changed.length === 0) return false
   const flaky = new Set(input.flaky)
   return input.changed.every((name) => flaky.has(name))
+}
+
+export namespace onlyFlakyChanges {
+  export interface Input {
+    counts: { added: number; removed: number; changed: number; failed: number }
+    /** Names of the screenshots whose status is `changed`. */
+    changed: readonly string[]
+    /** Names the project currently flags as flaky. */
+    flaky: readonly string[]
+  }
 }

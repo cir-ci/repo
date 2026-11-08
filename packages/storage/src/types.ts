@@ -1,49 +1,58 @@
 import type { Readable } from 'node:stream'
 
-export interface PutOptions {
-  contentType?: string
-  /** Hex sha256 the bytes must match. On mismatch nothing is stored and ChecksumMismatchError is thrown. */
-  expectedSha256?: string
-  /** Known body length; lets S3 stream without buffering. */
-  contentLength?: number
-}
+export namespace StorageDriver {
+  export interface PutOptions {
+    contentType?: string
+    /** Hex sha256 the bytes must match. On mismatch nothing is stored and ChecksumMismatchError is thrown. */
+    expectedSha256?: string
+    /** Known body length; lets S3 stream without buffering. */
+    contentLength?: number
+  }
 
-export interface PutResult {
-  size: number
-  sha256: string
-}
+  export interface PutResult {
+    size: number
+    sha256: string
+  }
 
-export interface ObjectInfo {
-  size: number
-  contentType?: string
-  /** Hex sha256 when the backend stores it (S3 with checksums); undefined for FS. */
-  sha256?: string
-}
+  export interface ObjectInfo {
+    size: number
+    contentType?: string
+    /** Hex sha256 when the backend stores it (S3 with checksums); undefined for FS. */
+    sha256?: string
+  }
 
-export interface PresignPutOptions {
-  /** Hex sha256 of the exact bytes the client will upload. Storage rejects anything else. */
-  sha256: string
-  contentLength: number
-  contentType: string
-  expiresInSeconds?: number
-}
+  export interface PresignPutOptions {
+    /** Hex sha256 of the exact bytes the client will upload. Storage rejects anything else. */
+    sha256: string
+    contentLength: number
+    contentType: string
+    expiresInSeconds?: number
+  }
 
-export interface PresignedPut {
-  url: string
-  method: 'PUT'
-  /** Headers the client must send unchanged; they are part of the signature. */
-  headers: Record<string, string>
+  export interface PresignedPut {
+    url: string
+    method: 'PUT'
+    /** Headers the client must send unchanged; they are part of the signature. */
+    headers: Record<string, string>
+  }
 }
 
 export interface StorageDriver {
   readonly kind: 'fs' | 's3'
-  put(key: string, body: Readable | Uint8Array, options?: PutOptions): Promise<PutResult>
+  put(
+    key: string,
+    body: Readable | Uint8Array,
+    options?: StorageDriver.PutOptions,
+  ): Promise<StorageDriver.PutResult>
   get(key: string): Promise<Readable>
-  head(key: string): Promise<ObjectInfo | null>
+  head(key: string): Promise<StorageDriver.ObjectInfo | null>
   /** Idempotent: deleting a missing key succeeds. */
   delete(key: string): Promise<void>
   /** Direct-to-storage upload URL. Only S3 supports it; FS uploads stream through the API. */
-  presignPut?(key: string, options: PresignPutOptions): Promise<PresignedPut>
+  presignPut?(
+    key: string,
+    options: StorageDriver.PresignPutOptions,
+  ): Promise<StorageDriver.PresignedPut>
   healthCheck(): Promise<void>
 }
 

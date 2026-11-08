@@ -3,21 +3,23 @@ import { eq } from 'drizzle-orm'
 
 let n = 0
 
-export interface SeedBuildInput extends Omit<createBuild.Input, 'projectId' | 'commitSha'> {
-  commitSha?: string
-  /** Set after creation, for builds that should already be past `uploading`. */
-  status?: Build['status']
-  conclusion?: Build['conclusion']
-  reviewStatus?: Build['reviewStatus']
-  completedAt?: Date
-  createdAt?: Date
+export namespace seedBuild {
+  export interface Input extends Omit<createBuild.Input, 'projectId' | 'commitSha'> {
+    commitSha?: string
+    /** Set after creation, for builds that should already be past `uploading`. */
+    status?: Build['status']
+    conclusion?: Build['conclusion']
+    reviewStatus?: Build['reviewStatus']
+    completedAt?: Date
+    createdAt?: Date
+  }
 }
 
 /** A build in `projectId`, created through `createBuild` (so numbering and counters are real). */
 export async function seedBuild(
   db: Database,
   projectId: string,
-  input: SeedBuildInput = {},
+  input: seedBuild.Input = {},
 ): Promise<Build> {
   n += 1
   const { status, conclusion, reviewStatus, completedAt, createdAt, commitSha, ...rest } = input

@@ -1,6 +1,6 @@
 import { setupCode } from '@circi/auth'
 import { loadConfig } from '@circi/config'
-import { createTestDb, seedOrg, type TestDb } from '@circi/testing'
+import { createTestDb, seedOrg } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { serverOptionsFor, type ServerRuntime } from '#lifecycle/server-options.ts'
@@ -27,7 +27,7 @@ function capturingLogger() {
 }
 
 describe('announceStartup', () => {
-  let t: TestDb
+  let t: createTestDb.Result
   beforeAll(async () => {
     t = await createTestDb()
   })

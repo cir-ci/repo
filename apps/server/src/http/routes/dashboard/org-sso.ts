@@ -12,7 +12,7 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const orgParams = z.object({ org: z.string() })
@@ -28,7 +28,7 @@ const registerBody = z.object({
  * people it signs in become members of this organization only, and their sessions open nothing
  * else. Secrets are stored with the provider and never sent back.
  */
-export const dashboardOrgSsoRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const dashboardOrgSsoRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   async function managed(req: FastifyRequest, reply: FastifyReply) {
     const { org: slug } = parse(orgParams, req.params)
     const user = currentUser(req)

@@ -67,22 +67,24 @@ export async function deleteWebhook(db: Database, projectId: string, id: string)
   if (deleted.length === 0) throw new NotFoundError('Webhook not found')
 }
 
-/** What a receiver gets, besides `id`, `event`, `createdAt` and the dashboard `url`. */
-export interface WebhookData {
-  organization: { slug: string }
-  project: { id: string; slug: string; name: string }
-  build: {
-    id: string
-    number: number
-    name: string
-    status: string
-    conclusion: string | null
-    reviewStatus: string
-    commitSha: string
-    branch: string | null
-    prNumber: number | null
+export namespace queueWebhookEvent {
+  /** What a receiver gets, besides `id`, `event`, `createdAt` and the dashboard `url`. */
+  export interface Data {
+    organization: { slug: string }
+    project: { id: string; slug: string; name: string }
+    build: {
+      id: string
+      number: number
+      name: string
+      status: string
+      conclusion: string | null
+      reviewStatus: string
+      commitSha: string
+      branch: string | null
+      prNumber: number | null
+    }
+    review?: { state: string; source: string; reviewer: string | null }
   }
-  review?: { state: string; source: string; reviewer: string | null }
 }
 
 /**
@@ -130,7 +132,7 @@ export async function queueWebhookEvent(
     )
   const createdAt = new Date().toISOString()
   for (const target of targets) {
-    const data: WebhookData = {
+    const data: queueWebhookEvent.Data = {
       organization: { slug: target.orgSlug },
       project: { id: build.projectId, slug: target.projectSlug, name: target.projectName },
       build: {

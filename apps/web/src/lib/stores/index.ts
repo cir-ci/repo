@@ -1,0 +1,19 @@
+import { DISPLAY_KEY } from '#features/projects/display-options.ts'
+
+import { useDisplayStore } from './display-store.ts'
+import { useListStore } from './list-store.ts'
+import { useOverlayStore } from './overlay-store.ts'
+import { useShortcutStore } from './shortcut-store.ts'
+
+/** Puts every store back to its initial state; tests call it so state never leaks between them. */
+export function resetStores(): void {
+  useShortcutStore.getState().reset()
+  useOverlayStore.getState().reset()
+  useListStore.getState().reset()
+  try {
+    localStorage.removeItem(DISPLAY_KEY)
+  } catch {
+    // No storage to clear.
+  }
+  useDisplayStore.getState().reset()
+}

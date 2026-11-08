@@ -1,9 +1,9 @@
-import { createTestDb, seedOrg, type TestDb } from '@circi/testing'
+import { createTestDb, seedOrg } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { getOrgSettings, setOrgSettings } from '#src/index.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 beforeAll(async () => {
   t = await createTestDb()
 })

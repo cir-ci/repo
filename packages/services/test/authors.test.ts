@@ -1,11 +1,11 @@
 import { listBuildsForProject, schema } from '@circi/db'
-import { createTestDb, seedAccount, seedProject, type TestDb } from '@circi/testing'
+import { createTestDb, seedAccount, seedProject } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { recordPullRequestAuthor, startBuild } from '#src/index.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 beforeAll(async () => {
   t = await createTestDb()
 })

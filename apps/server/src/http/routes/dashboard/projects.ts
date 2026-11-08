@@ -1,5 +1,4 @@
 import {
-  type BuildFilters,
   findProjectForMember,
   getBuildDetail,
   getProjectGitAttention,
@@ -11,7 +10,7 @@ import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
 import { buildFilterShape } from '#http/lib/build-filters.ts'
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const projectParams = z.object({ org: z.string(), project: z.string() })
@@ -28,7 +27,7 @@ const PAGE_SIZE = 50
  * Projects, a project's builds, and one build in detail, shaped for the web app. Everything is
  * limited to the signed-in user's organizations; a project in anyone else's is "not found".
  */
-export const dashboardProjectRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const dashboardProjectRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   app.get('/projects', async (req) => ({
     projects: await listProjectsOverview(deps.db, currentUser(req).id, currentUser(req).method),
   }))
@@ -44,7 +43,7 @@ export const dashboardProjectRoutes: FastifyPluginAsync<DashboardDeps> = async (
     if (!project) return reply.code(404).send({ error: 'Project not found' })
     const q = parse(buildsQuery, req.query)
     const before = Number(q.before)
-    const filters: BuildFilters = {
+    const filters: listBuildsForProject.Filters = {
       ...(q.status ? { status: q.status } : {}),
       ...(q.review ? { reviewStatus: q.review } : {}),
       ...(q.branch ? { branch: q.branch } : {}),

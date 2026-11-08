@@ -1,19 +1,11 @@
 import type { Browser } from 'playwright'
 import { afterAll, beforeAll, beforeEach, expect } from 'vitest'
 
-import {
-  type Account,
-  completeSetup,
-  createTenant,
-  type Session,
-  type SetupResult,
-  type Tenant,
-  type TenantOptions,
-} from './admin.ts'
+import { type Account, completeSetup, createTenant, type Session, type Tenant } from './admin.ts'
 import { type BrowserSession, launchBrowser, openSession } from './browser.ts'
 import type { FakeGithub } from './fakes/fake-github.ts'
 import { acquire, type Profile } from './pool.ts'
-import { startStack, type Stack, type StackOptions } from './stack.ts'
+import { startStack, type Stack } from './stack.ts'
 
 export interface StackContext {
   readonly stack: Stack
@@ -22,11 +14,11 @@ export interface StackContext {
    * session; on a shared stack, this file's own tenant (a fresh organization and owner, an instance
    * admin like the first-run account).
    */
-  readonly setup: SetupResult
+  readonly setup: completeSetup.Result
   /** An instance admin's session (the first-run account). Needs `setup: true` or a shared stack. */
   readonly admin: Session
   /** Another fresh organization with its own owner (and optionally a project), through the API. */
-  tenant(options?: TenantOptions): Promise<Tenant>
+  tenant(options?: createTenant.Options): Promise<Tenant>
   /** The fake GitHub of the `github` profile, reset for this file. */
   readonly github: FakeGithub
 }
@@ -46,7 +38,7 @@ type UseStackOptions =
       setup?: boolean | { organizationName?: string }
       dedicated?: false
     }
-  | (Omit<StackOptions, 'env' | 'profile' | 'pooled'> & {
+  | (Omit<Stack.Options, 'env' | 'profile' | 'pooled'> & {
       /**
        * A stack of its own for this file, removed when the file ends: for tests that change
        * instance-wide state (first-run setup, `reconfigure`, stopping a service, instance sign-in
@@ -70,7 +62,7 @@ type UseStackOptions =
  */
 export function useStack(options: UseStackOptions = { dedicated: true }): StackContext {
   let stack: Stack | undefined
-  let setup: SetupResult | undefined
+  let setup: completeSetup.Result | undefined
   let admin: Session | undefined
   let github: FakeGithub | undefined
   let failed = false

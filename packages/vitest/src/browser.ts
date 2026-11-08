@@ -6,8 +6,6 @@
 export {
   circiScreenshot,
   DEFAULT_DIR,
-  type ScreenshotOptions,
-  type Screenshotter,
   screenshotPath,
   settlePage,
   STABILIZE_CSS,

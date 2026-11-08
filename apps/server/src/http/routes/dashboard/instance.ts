@@ -7,10 +7,10 @@ import {
 import type { FastifyPluginAsync } from 'fastify'
 
 import { currentUser } from '#http/hooks/session.ts'
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 
 /** Things only the people who run the instance need to hear about. */
-export const dashboardInstanceRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const dashboardInstanceRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   app.get('/instance/notices', async (req) => {
     const change = (await isInstanceAdmin(deps.db, currentUser(req).id))
       ? await getPublicUrlChange(deps.db)

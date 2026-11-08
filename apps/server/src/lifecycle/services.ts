@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url'
 
 import { runMigrations } from '@circi/db'
-import { type RunningWorker, startWorker } from '@circi/worker'
+import { startWorker } from '@circi/worker'
 import type { FastifyInstance } from 'fastify'
 
 import { buildServer } from '#http/app.ts'
@@ -11,20 +11,22 @@ import { serverOptionsFor } from './server-options.ts'
 import { createShutdown } from './shutdown.ts'
 import { announceStartup } from './startup.ts'
 
-export interface ServiceOptions {
-  http: boolean
-  worker: boolean
-  migrate: boolean
+export namespace runServices {
+  export interface Options {
+    http: boolean
+    worker: boolean
+    migrate: boolean
+  }
 }
 
 const SHUTDOWN_TIMEOUT_MS = 10_000
 
 /** Runs `serve`, `worker` or `all` until SIGTERM/SIGINT, then shuts down gracefully. */
-export async function runServices(options: ServiceOptions): Promise<void> {
+export async function runServices(options: runServices.Options): Promise<void> {
   const rt = createRuntime()
   const { logger } = rt
   let app: FastifyInstance | undefined
-  let worker: RunningWorker | undefined
+  let worker: startWorker.Running | undefined
 
   const shutdown = createShutdown({
     logger,

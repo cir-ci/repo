@@ -25,23 +25,28 @@ import { createLoader, type Loader, storeServerFile } from '#lib/files.ts'
 
 /** The `process-build` job (PLAN §7.2–7.3). */
 
-export interface ProcessDeps {
-  db: Database
-  storage: StorageDriver
-  /** Parallel image operations per build. Each holds a few decoded screenshots in memory. */
-  concurrency?: number
-}
+export namespace processBuild {
+  export interface Deps {
+    db: Database
+    storage: StorageDriver
+    /** Parallel image operations per build. Each holds a few decoded screenshots in memory. */
+    concurrency?: number
+  }
 
-export type ProcessResult =
-  | { status: 'skipped'; reason: string }
-  | { status: 'complete'; conclusion: 'no_changes' | 'changes_detected'; autoApproved: boolean }
+  export type Result =
+    | { status: 'skipped'; reason: string }
+    | { status: 'complete'; conclusion: 'no_changes' | 'changes_detected'; autoApproved: boolean }
+}
 
 /**
  * Processes one build (PLAN §7.2–7.3): resolve the baseline, pair screenshots by name, diff the
  * pairs whose bytes differ, make thumbnails, then set the conclusion. Idempotent: a retried job
  * rebuilds the diff rows from scratch.
  */
-export async function processBuild(deps: ProcessDeps, buildId: string): Promise<ProcessResult> {
+export async function processBuild(
+  deps: processBuild.Deps,
+  buildId: string,
+): Promise<processBuild.Result> {
   const { db, storage } = deps
   const concurrency = deps.concurrency ?? 4
   const build = await getBuild(db, buildId)

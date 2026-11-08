@@ -144,10 +144,12 @@ export function newAccount(label = 'user'): Account {
   }
 }
 
-export interface SetupResult {
-  account: Account
-  organization: { name: string; slug: string }
-  session: Session
+export namespace completeSetup {
+  export interface Result {
+    account: Account
+    organization: { name: string; slug: string }
+    session: Session
+  }
 }
 
 /**
@@ -158,7 +160,7 @@ export interface SetupResult {
 export async function completeSetup(
   stack: Stack,
   options: { account?: Account; organizationName?: string } = {},
-): Promise<SetupResult> {
+): Promise<completeSetup.Result> {
   const account = options.account ?? newAccount('admin')
   const organizationName = options.organizationName ?? 'Acme'
   const code = await stack.setupCode()
@@ -278,17 +280,19 @@ export async function inviteMember(
   })
 }
 
-export interface TenantOptions {
-  /** Base of the organization name; a unique tag is appended (default `Acme`). */
-  name?: string
-  /** The owner is an instance admin like the first-run account (default true). */
-  instanceAdmin?: boolean
-  /** Also create a project with this name. */
-  project?: string
+export namespace createTenant {
+  export interface Options {
+    /** Base of the organization name; a unique tag is appended (default `Acme`). */
+    name?: string
+    /** The owner is an instance admin like the first-run account (default true). */
+    instanceAdmin?: boolean
+    /** Also create a project with this name. */
+    project?: string
+  }
 }
 
 /** A tenant of a (possibly shared) stack: its own organization, owner account and signed-in session. */
-export interface Tenant extends SetupResult {
+export interface Tenant extends completeSetup.Result {
   project: CreatedProject | undefined
 }
 
@@ -301,7 +305,7 @@ export interface Tenant extends SetupResult {
 export async function createTenant(
   stack: Stack,
   admin: Session,
-  options: TenantOptions = {},
+  options: createTenant.Options = {},
 ): Promise<Tenant> {
   const instanceAdmin = options.instanceAdmin ?? true
   const account = newAccount('owner')

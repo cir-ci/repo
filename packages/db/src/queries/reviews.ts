@@ -22,32 +22,34 @@ import type { Build } from '#src/types.ts'
 
 /** `for-you`: asked of you and awake. `created`: asked by you. `snoozed`: asked of you, put off. */
 export const REVIEW_TABS = ['for-you', 'created', 'snoozed'] as const
-export type ReviewTab = (typeof REVIEW_TABS)[number]
+export namespace listReviewRequests {
+  export type Tab = (typeof REVIEW_TABS)[number]
 
-export interface ReviewRequestItem {
-  id: string
-  state: ReviewRequestState
-  createdAt: Date
-  /** When the project's review target runs out; null when the project has none. */
-  dueAt: Date | null
-  /** Milliseconds past `dueAt`; 0 when on time, snoozed or without a target. */
-  overdueByMs: number
-  snoozedUntil: Date | null
-  snoozeKind: SnoozeKind | null
-  reviewer: { id: string; name: string }
-  /** Null when whoever asked has since left. */
-  requestedBy: { id: string; name: string } | null
-  build: {
-    number: number
-    branch: string | null
-    prNumber: number | null
-    commitSha: string
-    status: Build['status']
-    conclusion: Build['conclusion']
-    reviewStatus: Build['reviewStatus']
+  export interface Item {
+    id: string
+    state: ReviewRequestState
+    createdAt: Date
+    /** When the project's review target runs out; null when the project has none. */
+    dueAt: Date | null
+    /** Milliseconds past `dueAt`; 0 when on time, snoozed or without a target. */
+    overdueByMs: number
+    snoozedUntil: Date | null
+    snoozeKind: SnoozeKind | null
+    reviewer: { id: string; name: string }
+    /** Null when whoever asked has since left. */
+    requestedBy: { id: string; name: string } | null
+    build: {
+      number: number
+      branch: string | null
+      prNumber: number | null
+      commitSha: string
+      status: Build['status']
+      conclusion: Build['conclusion']
+      reviewStatus: Build['reviewStatus']
+    }
+    project: { slug: string; name: string }
+    org: { slug: string; name: string }
   }
-  project: { slug: string; name: string }
-  org: { slug: string; name: string }
 }
 
 /**
@@ -56,8 +58,8 @@ export interface ReviewRequestItem {
  */
 export async function listReviewRequests(
   db: Database,
-  input: { userId: string; tab: ReviewTab; now: Date; method?: SessionMethod },
-): Promise<ReviewRequestItem[]> {
+  input: { userId: string; tab: listReviewRequests.Tab; now: Date; method?: SessionMethod },
+): Promise<listReviewRequests.Item[]> {
   const snoozed =
     and(
       isNotNull(reviewRequests.snoozeKind),

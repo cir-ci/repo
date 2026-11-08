@@ -7,14 +7,8 @@ import { Readable } from 'node:stream'
 import type { Auth } from '@circi/auth'
 import { rotateProjectToken } from '@circi/auth'
 import { getBuild, getFile } from '@circi/db'
-import {
-  FsStorage,
-  type ObjectInfo,
-  type PresignedPut,
-  type PutResult,
-  type StorageDriver,
-} from '@circi/storage'
-import { createTestDb, seedAccount, type TestDb } from '@circi/testing'
+import { FsStorage, type StorageDriver } from '@circi/storage'
+import { createTestDb, seedAccount } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -26,7 +20,7 @@ const logger = pino({ level: 'silent' })
 const sha256 = (b: Buffer) => createHash('sha256').update(b).digest('hex')
 const png = (text: string) => Buffer.from(`\x89PNG fake ${text}`)
 
-let t: TestDb
+let t: createTestDb.Result
 let dir: string
 let app: FastifyInstance
 let betterAuth: Auth
@@ -270,7 +264,7 @@ describe('upload flow (local-disk storage)', () => {
 class FakeS3 implements StorageDriver {
   readonly kind = 's3' as const
   readonly objects = new Map<string, Buffer>()
-  async put(key: string, body: Readable | Uint8Array): Promise<PutResult> {
+  async put(key: string, body: Readable | Uint8Array): Promise<StorageDriver.PutResult> {
     const bytes =
       body instanceof Uint8Array ? Buffer.from(body) : Buffer.concat(await body.toArray())
     this.objects.set(key, bytes)
@@ -279,14 +273,14 @@ class FakeS3 implements StorageDriver {
   async get(key: string): Promise<Readable> {
     return Readable.from([this.objects.get(key) ?? Buffer.alloc(0)])
   }
-  async head(key: string): Promise<ObjectInfo | null> {
+  async head(key: string): Promise<StorageDriver.ObjectInfo | null> {
     const b = this.objects.get(key)
     return b ? { size: b.length, sha256: sha256(b) } : null
   }
   async delete(key: string): Promise<void> {
     this.objects.delete(key)
   }
-  async presignPut(key: string): Promise<PresignedPut> {
+  async presignPut(key: string): Promise<StorageDriver.PresignedPut> {
     return {
       url: `https://s3.example/${key}?sig=x`,
       method: 'PUT',

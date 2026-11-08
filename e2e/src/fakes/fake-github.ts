@@ -2,39 +2,41 @@ import { createHmac, createPublicKey, createVerify, generateKeyPairSync } from '
 
 import { listen, readBody, sendJson, waitUntil } from './http.ts'
 
-export interface RecordedRequest {
-  method: string
-  /** Path without the query string, e.g. `/repos/acme/web/check-runs`. */
-  path: string
-  query: Record<string, string>
-  headers: Record<string, string | string[] | undefined>
-  body: unknown
-  /** `app` for the app JWT, `installation` for an installation token, `none`/`invalid` otherwise. */
-  auth: 'app' | 'installation' | 'none' | 'invalid'
-  at: Date
-}
+export namespace FakeGithub {
+  export interface Request {
+    method: string
+    /** Path without the query string, e.g. `/repos/acme/web/check-runs`. */
+    path: string
+    query: Record<string, string>
+    headers: Record<string, string | string[] | undefined>
+    body: unknown
+    /** `app` for the app JWT, `installation` for an installation token, `none`/`invalid` otherwise. */
+    auth: 'app' | 'installation' | 'none' | 'invalid'
+    at: Date
+  }
 
-export interface FakeCheckRun {
-  id: number
-  repo: string
-  headSha: string
-  name: string
-  status: string
-  conclusion: string | undefined
-  title: string
-  summary: string
-  detailsUrl: string | undefined
-  actions: { identifier: string; label: string; description: string }[]
-  /** Every create/patch body, oldest first. */
-  history: unknown[]
-}
+  export interface CheckRun {
+    id: number
+    repo: string
+    headSha: string
+    name: string
+    status: string
+    conclusion: string | undefined
+    title: string
+    summary: string
+    detailsUrl: string | undefined
+    actions: { identifier: string; label: string; description: string }[]
+    /** Every create/patch body, oldest first. */
+    history: unknown[]
+  }
 
-export interface FakeComment {
-  id: number
-  repo: string
-  prNumber: number
-  body: string
-  reactions: string[]
+  export interface Comment {
+    id: number
+    repo: string
+    prNumber: number
+    body: string
+    reactions: string[]
+  }
 }
 
 export interface FakeGithub {
@@ -48,9 +50,9 @@ export interface FakeGithub {
   /** `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_WEBHOOK_SECRET`, `GITHUB_API_URL` for the stack. */
   env(): Record<string, string>
   /** Every request, in order. */
-  requests: RecordedRequest[]
-  checkRuns: FakeCheckRun[]
-  comments: FakeComment[]
+  requests: FakeGithub.Request[]
+  checkRuns: FakeGithub.CheckRun[]
+  comments: FakeGithub.Comment[]
   /** `repo/login` -> permission (`admin`, `maintain`, `write`, `read`, `none`) for the collaborator check. */
   permissions: Map<string, string>
   setPermission(repo: string, login: string, permission: string): void
@@ -68,15 +70,15 @@ export interface FakeGithub {
   revokeInstallation(installationId: string): void
   restoreInstallation(installationId: string): void
   /** A comment written by a person on a pull request (so reactions and edits have something to hit). */
-  seedComment(repo: string, prNumber: number, body: string): FakeComment
+  seedComment(repo: string, prNumber: number, body: string): FakeGithub.Comment
   /** Every installation token handed out so far (to grep logs for leaks). */
   issuedTokens(): string[]
   /** Requests whose "METHOD path" contains `match`. */
-  find(match: string): RecordedRequest[]
+  find(match: string): FakeGithub.Request[]
   waitForRequest(
     match: string,
     options?: { timeoutMs?: number; since?: number },
-  ): Promise<RecordedRequest>
+  ): Promise<FakeGithub.Request>
   /** A GitHub-signed webhook (`X-Hub-Signature-256`) to CirCI's `POST /webhooks/github`. */
   sendWebhook(
     circiUrl: string,
@@ -114,9 +116,9 @@ export async function startFakeGithub(
     publicKeyEncoding: { type: 'spki', format: 'pem' },
     privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
   })
-  const requests: RecordedRequest[] = []
-  const checkRuns: FakeCheckRun[] = []
-  const comments: FakeComment[] = []
+  const requests: FakeGithub.Request[] = []
+  const checkRuns: FakeGithub.CheckRun[] = []
+  const comments: FakeGithub.Comment[] = []
   const permissions = new Map<string, string>()
   const failures: {
     match: string
@@ -132,7 +134,7 @@ export async function startFakeGithub(
   let nextId = 1000
   let tokenCounter = 0
 
-  function authKind(header: string | undefined): RecordedRequest['auth'] {
+  function authKind(header: string | undefined): FakeGithub.Request['auth'] {
     const token = header?.replace(/^Bearer\s+/i, '')
     if (!token) return 'none'
     if (tokens.has(token)) return 'installation'
@@ -258,7 +260,7 @@ export async function startFakeGithub(
           )
         }
         if (method === 'POST') {
-          const comment: FakeComment = {
+          const comment: FakeGithub.Comment = {
             id: nextId++,
             repo,
             prNumber,
@@ -343,7 +345,7 @@ export async function startFakeGithub(
       delays.push({ match, ms, remaining: times })
     },
     seedComment(repo, prNumber, body) {
-      const comment: FakeComment = { id: nextId++, repo, prNumber, body, reactions: [] }
+      const comment: FakeGithub.Comment = { id: nextId++, repo, prNumber, body, reactions: [] }
       comments.push(comment)
       return comment
     },
@@ -398,12 +400,12 @@ export async function startFakeGithub(
 const text = (v: unknown): string => (typeof v === 'string' ? v : '')
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v)
 
-function wireComment(c: FakeComment) {
+function wireComment(c: FakeGithub.Comment) {
   return { id: c.id, body: c.body, user: { login: 'circi[bot]' } }
 }
 
-function toCheckRun(id: number, repo: string, body: Record<string, unknown>): FakeCheckRun {
-  const run: FakeCheckRun = {
+function toCheckRun(id: number, repo: string, body: Record<string, unknown>): FakeGithub.CheckRun {
+  const run: FakeGithub.CheckRun = {
     id,
     repo,
     headSha: text(body['head_sha']),
@@ -420,7 +422,7 @@ function toCheckRun(id: number, repo: string, body: Record<string, unknown>): Fa
   return run
 }
 
-function applyCheckRun(run: FakeCheckRun, body: Record<string, unknown>): void {
+function applyCheckRun(run: FakeGithub.CheckRun, body: Record<string, unknown>): void {
   run.history.push(body)
   if (typeof body['name'] === 'string') run.name = body['name']
   if (typeof body['status'] === 'string') run.status = body['status']
@@ -432,6 +434,6 @@ function applyCheckRun(run: FakeCheckRun, body: Record<string, unknown>): void {
     run.summary = output.summary ?? ''
   }
   if (Array.isArray(body['actions'])) {
-    run.actions = body['actions'] as FakeCheckRun['actions']
+    run.actions = body['actions'] as FakeGithub.CheckRun['actions']
   }
 }

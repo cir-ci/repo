@@ -6,9 +6,11 @@ import type { Config } from '@circi/config'
  * sites domain's apex. It only sees the hosts it asks about, so it always ends with a reminder.
  */
 
-export interface Finding {
-  level: 'ok' | 'warn' | 'info'
-  message: string
+export namespace runDoctor {
+  export interface Finding {
+    level: 'ok' | 'warn' | 'info'
+    message: string
+  }
 }
 
 /** The parent domain of a host (`ci.acme.io` → `acme.io`), when it has one worth checking. */
@@ -28,8 +30,8 @@ export async function runDoctor(
   config: Pick<Config, 'publicUrl' | 'staticSites'>,
   fetchHost: Fetcher,
   storage?: { kind: string; healthCheck(): Promise<void> },
-): Promise<Finding[]> {
-  const findings: Finding[] = []
+): Promise<runDoctor.Finding[]> {
+  const findings: runDoctor.Finding[] = []
   if (storage) {
     try {
       await storage.healthCheck()

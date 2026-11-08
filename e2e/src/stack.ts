@@ -4,30 +4,34 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { removeRunProjectsSync, run, type RunResult } from './docker.ts'
+import { removeRunProjectsSync, run } from './docker.ts'
 import { Mailbox } from './mail.ts'
 import { ARTIFACTS_DIR, COMPOSE_FILE } from './paths.ts'
 import { S3_ACCESS_KEY, S3_BUCKET, S3_SECRET_KEY, S3Bucket } from './s3.ts'
 
-export interface StackOptions {
-  /** Where CirCI keeps screenshots: its local volume (default) or the LocalStack bucket. */
-  storage?: 'fs' | 's3'
-  /** Extra environment for the `circi` container; wins over everything the harness sets. */
-  env?: Record<string, string>
-  /**
-   * The static-sites domain (`STATIC_SITES_HOST`), e.g. `sites.localhost`: Chrome resolves
-   * `*.localhost` to loopback by itself. It must not be related to the dashboard's host, so with
-   * this set the dashboard is `http://127.0.0.1:<port>` instead of `http://localhost:<port>`.
-   */
-  sitesHost?: string
-  /** Start LocalStack although the storage is local (e.g. to test `storage migrate`). */
-  localstack?: boolean
-  /** Names the test file in the timing summary (`useStack` sets it). */
-  label?: string
-  /** The shared profile this stack serves (set by the pool, shown in the timing summary). */
-  profile?: string
-  /** The pool reports the boot itself (the stack lives on after any one file): `stop()` stays silent. */
-  pooled?: boolean
+export namespace Stack {
+  export interface Options {
+    /** Where CirCI keeps screenshots: its local volume (default) or the LocalStack bucket. */
+    storage?: 'fs' | 's3'
+    /** Extra environment for the `circi` container; wins over everything the harness sets. */
+    env?: Record<string, string>
+    /**
+     * The static-sites domain (`STATIC_SITES_HOST`), e.g. `sites.localhost`: Chrome resolves
+     * `*.localhost` to loopback by itself. It must not be related to the dashboard's host, so with
+     * this set the dashboard is `http://127.0.0.1:<port>` instead of `http://localhost:<port>`.
+     */
+    sitesHost?: string
+    /** Start LocalStack although the storage is local (e.g. to test `storage migrate`). */
+    localstack?: boolean
+    /** Names the test file in the timing summary (`useStack` sets it). */
+    label?: string
+    /** The shared profile this stack serves (set by the pool, shown in the timing summary). */
+    profile?: string
+    /** The pool reports the boot itself (the stack lives on after any one file): `stop()` stays silent. */
+    pooled?: boolean
+  }
+
+  export type Service = 'circi' | 'postgres' | 'mailpit' | 'localstack'
 }
 
 export interface Stack {
@@ -45,21 +49,21 @@ export interface Stack {
   hostFromContainers: string
   /** Runs a command in a service's container. Throws on a non-zero exit unless `allowFail`. */
   exec(
-    service: Service,
+    service: Stack.Service,
     command: string[],
     options?: { allowFail?: boolean; timeoutMs?: number },
-  ): Promise<RunResult>
+  ): Promise<run.Result>
   /** `circi admin ...` in the app container; returns stdout (trimmed). */
   cli(...args: string[]): Promise<string>
   /** The code first-run setup asks for. */
   setupCode(): Promise<string>
   /** Runs SQL in the database; returns rows as arrays of text columns. */
   sql(query: string): Promise<string[][]>
-  logs(service: Service, options?: { tail?: number }): Promise<string>
+  logs(service: Stack.Service, options?: { tail?: number }): Promise<string>
   /** Writes every service's log to `e2e/.artifacts/<project>/`. Returns the folder. */
   saveLogs(): Promise<string>
   /** Recreates the app container after `docker compose stop`, restart etc. */
-  restart(service: Service): Promise<void>
+  restart(service: Stack.Service): Promise<void>
   /**
    * Recreates the app container with `env` merged over the environment the stack started with
    * (e.g. `s3Env(stack)` to switch from local disk to S3). Volumes and the database stay.
@@ -80,8 +84,6 @@ export interface Stack {
 }
 
 const sqlText = (value: string) => `'${value.replaceAll("'", "''")}'`
-
-export type Service = 'circi' | 'postgres' | 'mailpit' | 'localstack'
 
 let counter = 0
 
@@ -122,7 +124,7 @@ export function reportPhases(
  * image) under its own compose project and free host ports, and waits until it is healthy.
  * Several can run at once, in one process or on one machine. `stop()` removes it and its volumes.
  */
-export async function startStack(options: StackOptions = {}): Promise<Stack> {
+export async function startStack(options: Stack.Options = {}): Promise<Stack> {
   const storage = options.storage ?? 'fs'
   const withS3 = storage === 's3' || options.localstack === true
   counter += 1
@@ -167,7 +169,7 @@ export async function startStack(options: StackOptions = {}): Promise<Stack> {
   let stopped = false
   const phases: Stack['phases'] = { up: 0, healthy: 0 }
 
-  const logs = async (service: Service, o: { tail?: number } = {}) => {
+  const logs = async (service: Stack.Service, o: { tail?: number } = {}) => {
     const res = await compose(
       ['logs', '--no-color', ...(o.tail ? ['--tail', String(o.tail)] : []), service],
       { allowFail: true, timeoutMs: 60_000 },
@@ -178,7 +180,7 @@ export async function startStack(options: StackOptions = {}): Promise<Stack> {
     const out = join(ARTIFACTS_DIR, project)
     mkdirSync(out, { recursive: true })
     for (const service of ['circi', 'postgres', 'mailpit', ...(withS3 ? ['localstack'] : [])]) {
-      writeFileSync(join(out, `${service}.log`), await logs(service as Service))
+      writeFileSync(join(out, `${service}.log`), await logs(service as Stack.Service))
     }
     return out
   }

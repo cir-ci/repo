@@ -74,16 +74,18 @@ export async function getProjectById(
   return row
 }
 
-export interface ProjectContext {
-  project: Project
-  orgSlug: string
+export namespace getProjectContext {
+  export interface Context {
+    project: Project
+    orgSlug: string
+  }
 }
 
 /** A project plus its org slug, which dashboard URLs need. */
 export async function getProjectContext(
   db: Database,
   projectId: string,
-): Promise<ProjectContext | undefined> {
+): Promise<getProjectContext.Context | undefined> {
   const [row] = await db
     .select({ project: projects, orgSlug: organization.slug })
     .from(projects)
@@ -92,13 +94,15 @@ export async function getProjectContext(
   return row
 }
 
-export interface VisibleProject {
-  id: string
-  slug: string
-  name: string
-  defaultBranch: string
-  orgSlug: string
-  orgName: string
+export namespace findProjectForMember {
+  export interface Visible {
+    id: string
+    slug: string
+    name: string
+    defaultBranch: string
+    orgSlug: string
+    orgName: string
+  }
 }
 
 /**
@@ -108,7 +112,7 @@ export interface VisibleProject {
 export async function findProjectForMember(
   db: Database,
   input: { orgSlug: string; projectSlug: string; userId: string; method?: SessionMethod },
-): Promise<VisibleProject | undefined> {
+): Promise<findProjectForMember.Visible | undefined> {
   const [row] = await db
     .select({
       id: projects.id,
@@ -148,22 +152,24 @@ export async function getProjectMemberRole(
   return row?.role
 }
 
-export interface ProjectSettings {
-  name: string
-  defaultBranch: string
-  diffThreshold: number
-  autoApproveDefaultBranch: boolean
-  blockMergeOnChanges: boolean
-  /** Whether flaky-only changes block the merge; null inherits the organization's setting. */
-  flakyBlocksMerge: boolean | null
-  retentionDays: number
-  /** Hours a review request may wait before it is overdue; null means no review target. */
-  reviewTargetHours: number | null
-  /** Whether CI may upload static sites for this project (needs `STATIC_SITES_HOST`). */
-  staticHostingEnabled: boolean
+export namespace projectSettings {
+  export interface Settings {
+    name: string
+    defaultBranch: string
+    diffThreshold: number
+    autoApproveDefaultBranch: boolean
+    blockMergeOnChanges: boolean
+    /** Whether flaky-only changes block the merge; null inherits the organization's setting. */
+    flakyBlocksMerge: boolean | null
+    retentionDays: number
+    /** Hours a review request may wait before it is overdue; null means no review target. */
+    reviewTargetHours: number | null
+    /** Whether CI may upload static sites for this project (needs `STATIC_SITES_HOST`). */
+    staticHostingEnabled: boolean
+  }
 }
 
-export function projectSettings(project: Project): ProjectSettings {
+export function projectSettings(project: Project): projectSettings.Settings {
   return {
     name: project.name,
     defaultBranch: project.defaultBranch,
@@ -181,9 +187,9 @@ export function projectSettings(project: Project): ProjectSettings {
 export async function updateProjectSettings(
   db: Database,
   projectId: string,
-  patch: Partial<ProjectSettings>,
-): Promise<ProjectSettings> {
-  const set: Partial<ProjectSettings> = {}
+  patch: Partial<projectSettings.Settings>,
+): Promise<projectSettings.Settings> {
+  const set: Partial<projectSettings.Settings> = {}
   if (patch.name !== undefined) {
     const name = patch.name.trim()
     if (!name) throw new ValidationError('Project name is required')

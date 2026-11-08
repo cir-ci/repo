@@ -19,7 +19,7 @@ import {
 import type { StorageDriver } from '@circi/storage'
 import type { FastifyReply, FastifyRequest, onRequestAsyncHookHandler } from 'fastify'
 
-import type { SitesDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 
 import {
   cleanupCookies,
@@ -40,16 +40,18 @@ import {
  * same answer, so nobody can probe which addresses exist.
  */
 
-export interface SiteServerDeps {
-  db: Database
-  storage: StorageDriver
-  /** Dashboard origin, where sign-in happens and which may frame sites. */
-  publicOrigin: string
-  sites: SitesDeps
-  /** Signs site cookies. */
-  secret: string
-  /** How long a cookie is trusted before it's checked against the dashboard session again. */
-  revalidateMs?: number
+export namespace siteHostHook {
+  export interface Options {
+    db: Database
+    storage: StorageDriver
+    /** Dashboard origin, where sign-in happens and which may frame sites. */
+    publicOrigin: string
+    sites: Deps.Sites
+    /** Signs site cookies. */
+    secret: string
+    /** How long a cookie is trusted before it's checked against the dashboard session again. */
+    revalidateMs?: number
+  }
 }
 
 const REVALIDATE_MS = 60_000
@@ -71,7 +73,7 @@ function safeReturn(raw: unknown): string {
     : '/'
 }
 
-export function siteHostHook(deps: SiteServerDeps): onRequestAsyncHookHandler {
+export function siteHostHook(deps: siteHostHook.Options): onRequestAsyncHookHandler {
   const secure = deps.publicOrigin.startsWith('https:')
   const cookie = cookieName(secure)
   /** `session id + label` → when it was last confirmed against the dashboard session. */

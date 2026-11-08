@@ -6,18 +6,13 @@ import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 
 import { assertSha256Hex, assertValidKey } from './keys.ts'
-import {
-  ChecksumMismatchError,
-  type ObjectInfo,
-  ObjectNotFoundError,
-  type PutOptions,
-  type PutResult,
-  type StorageDriver,
-} from './types.ts'
+import { ChecksumMismatchError, ObjectNotFoundError, type StorageDriver } from './types.ts'
 
-export interface FsStorageOptions {
-  /** Directory that holds all objects, e.g. a Docker volume at /var/lib/circi/files. */
-  path: string
+export namespace FsStorage {
+  export interface Options {
+    /** Directory that holds all objects, e.g. a Docker volume at /var/lib/circi/files. */
+    path: string
+  }
 }
 
 /**
@@ -29,7 +24,7 @@ export class FsStorage implements StorageDriver {
   readonly root: string
   private readonly tmpDir: string
 
-  constructor(options: FsStorageOptions) {
+  constructor(options: FsStorage.Options) {
     this.root = resolve(options.path)
     this.tmpDir = join(this.root, '.tmp')
   }
@@ -44,8 +39,8 @@ export class FsStorage implements StorageDriver {
   async put(
     key: string,
     body: Readable | Uint8Array,
-    options: PutOptions = {},
-  ): Promise<PutResult> {
+    options: StorageDriver.PutOptions = {},
+  ): Promise<StorageDriver.PutResult> {
     const target = this.pathFor(key)
     if (options.expectedSha256) assertSha256Hex(options.expectedSha256)
     await mkdir(this.tmpDir, { recursive: true })
@@ -86,7 +81,7 @@ export class FsStorage implements StorageDriver {
     return createReadStream(path)
   }
 
-  async head(key: string): Promise<ObjectInfo | null> {
+  async head(key: string): Promise<StorageDriver.ObjectInfo | null> {
     try {
       const s = await stat(this.pathFor(key))
       return s.isFile() ? { size: s.size } : null

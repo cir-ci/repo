@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { pollDelay, UsageError, upload, type UploadOptions } from '#src/upload.ts'
+import { pollDelay, UsageError, upload } from '#src/upload.ts'
 
 import { FakeCirci, type FakeCirciOptions } from './support/fake-circi.ts'
 
@@ -39,7 +39,7 @@ const env = {
   CIRCI_PARALLEL_NONCE: 'run-1',
 }
 
-async function run(options: Partial<UploadOptions> = {}, server: FakeCirciOptions = {}) {
+async function run(options: Partial<upload.Options> = {}, server: FakeCirciOptions = {}) {
   fake = await new FakeCirci(server).start()
   return upload({
     dir,

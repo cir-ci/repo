@@ -1,12 +1,12 @@
 import { verifyWebhookSignature } from '@circi/core'
 import { claimJob, createWebhook, enqueueJob, QUEUES, type Job } from '@circi/db'
 import { seedProject } from '@circi/testing'
-import { createTestDb, type TestDb } from '@circi/testing'
+import { createTestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { deliverWebhook } from '#jobs/deliver-webhook.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 
 beforeAll(async () => {
   t = await createTestDb()

@@ -1,31 +1,40 @@
 import type { Build } from '@circi/api'
 import type { Status } from '@circi/ui'
 
-export type BuildStatus = Pick<Build.ListItem, 'status' | 'conclusion' | 'reviewStatus'>
-
-export type BuildStateKind =
-  | 'uploading'
-  | 'processing'
-  | 'failed'
-  | 'expired'
-  | 'rejected'
-  | 'no_changes'
-  | 'approved'
-  | 'review'
-
-/** The old colour vocabulary; kept so callers that still read `tone` keep working. Prefer `status`. */
-export type Tone = 'success' | 'attention' | 'danger' | 'accent' | 'done' | 'neutral'
-
 export interface BuildState {
-  kind: BuildStateKind
+  kind: BuildState.Kind
   label: string
   /** The design system's status for the glyph (docs/design-gaps.md §8). */
   status: Status
-  tone: Tone
+  tone: BuildState.Tone
+}
+
+export namespace BuildState {
+  export type Input = Pick<Build.ListItem, 'status' | 'conclusion' | 'reviewStatus'>
+
+  export type Kind =
+    | 'uploading'
+    | 'processing'
+    | 'failed'
+    | 'expired'
+    | 'rejected'
+    | 'no_changes'
+    | 'approved'
+    | 'review'
+
+  /** The old colour vocabulary; kept so callers that still read `tone` keep working. Prefer `status`. */
+  export type Tone = 'success' | 'attention' | 'danger' | 'accent' | 'done' | 'neutral'
+
+  /** What the review screen shows: a build state, or "No baseline" for an orphan. */
+  export interface Screen {
+    kind: Kind | 'orphan'
+    label: string
+    status: Status
+  }
 }
 
 /** What to call a build, from its status, conclusion and review. Pure: no rendering. */
-export function buildState(b: BuildStatus): BuildState {
+export function buildState(b: BuildState.Input): BuildState {
   if (b.status === 'uploading' || b.status === 'pending')
     return { kind: 'uploading', label: 'Uploading', status: 'processing', tone: 'neutral' }
   if (b.status === 'processing')
@@ -43,17 +52,11 @@ export function buildState(b: BuildStatus): BuildState {
   return { kind: 'review', label: 'Needs review', status: 'needs-review', tone: 'attention' }
 }
 
-export interface ScreenState {
-  kind: BuildStateKind | 'orphan'
-  label: string
-  status: Status
-}
-
 /**
  * The state the review screen shows: `buildState`, except that a build with changes to review
  * but nothing to compare against (an orphan) is "No baseline" (docs/design-gaps.md §8).
  */
-export function screenState(b: BuildStatus, hasBaseline: boolean): ScreenState {
+export function screenState(b: BuildState.Input, hasBaseline: boolean): BuildState.Screen {
   const state = buildState(b)
   if (state.kind === 'review' && !hasBaseline)
     return { kind: 'orphan', label: 'No baseline', status: 'neutral' }

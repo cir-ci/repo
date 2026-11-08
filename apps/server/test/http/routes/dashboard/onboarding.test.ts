@@ -6,7 +6,7 @@ import { createUser, setupCode, verifyProjectToken } from '@circi/auth'
 import type { Auth } from '@circi/auth'
 import { countUsers, recordPublicUrl } from '@circi/db'
 import { FsStorage } from '@circi/storage'
-import { createTestDb, type TestDb } from '@circi/testing'
+import { createTestDb } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -17,7 +17,7 @@ import { createTestAuth, ORIGIN, signIn } from '#test/support/helpers.ts'
 const SECRET = 'test-secret-that-is-long-enough-1234'
 const PASSWORD = 'first-admin-password-1'
 
-let t: TestDb
+let t: createTestDb.Result
 let dir: string
 let auth: Auth
 let dir2: string

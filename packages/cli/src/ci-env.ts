@@ -26,49 +26,51 @@ export function ciRunId(env: Record<string, string | undefined>): string | undef
     : base
 }
 
-export interface CiContext {
-  provider:
-    | 'github'
-    | 'gitea'
-    | 'gitlab'
-    | 'bitbucket'
-    | 'circleci'
-    | 'buildkite'
-    | 'jenkins'
-    | 'azure'
-    | 'local'
-  /** The commit that was built. For PRs this is the PR's head, never a synthetic merge commit. */
-  commitSha?: string
-  branch?: string
-  prNumber?: number
-  /** Branch the PR targets. */
-  baseBranch?: string
-  /** The PR comes from a fork (PLAN §7.6: forks never move branch links). */
-  fromFork?: boolean
-  /** Link to the CI job, for "re-run to unblock" messages. */
-  jobUrl?: string
-  /** Who triggered the run, as the CI names them. The server may replace it with the PR's author. */
-  author?: CiAuthor
-}
+export namespace detectCi {
+  export interface Context {
+    provider:
+      | 'github'
+      | 'gitea'
+      | 'gitlab'
+      | 'bitbucket'
+      | 'circleci'
+      | 'buildkite'
+      | 'jenkins'
+      | 'azure'
+      | 'local'
+    /** The commit that was built. For PRs this is the PR's head, never a synthetic merge commit. */
+    commitSha?: string
+    branch?: string
+    prNumber?: number
+    /** Branch the PR targets. */
+    baseBranch?: string
+    /** The PR comes from a fork (PLAN §7.6: forks never move branch links). */
+    fromFork?: boolean
+    /** Link to the CI job, for "re-run to unblock" messages. */
+    jobUrl?: string
+    /** Who triggered the run, as the CI names them. The server may replace it with the PR's author. */
+    author?: detectCi.Author
+  }
 
-export interface CiAuthor {
-  login: string
-  email?: string
-  /** Sign-in provider the id belongs to, so the server can match a linked account. */
-  provider?: string
-  providerId?: string
+  export interface Author {
+    login: string
+    email?: string
+    /** Sign-in provider the id belongs to, so the server can match a linked account. */
+    provider?: string
+    providerId?: string
+  }
 }
 
 type Env = Record<string, string | undefined>
 type ReadJson = (path: string) => unknown
 
-export function detectCi(env: Env, readJson: ReadJson): CiContext {
+export function detectCi(env: Env, readJson: ReadJson): detectCi.Context {
   const ctx = detectProvider(env, readJson)
   const author = detectAuthor(ctx.provider, env)
   return applyOverrides(author ? { ...ctx, author } : ctx, env)
 }
 
-function detectProvider(env: Env, readJson: ReadJson): CiContext {
+function detectProvider(env: Env, readJson: ReadJson): detectCi.Context {
   if (env.GITHUB_ACTIONS === 'true')
     return github(env, readJson, env.GITEA_ACTIONS === 'true' ? 'gitea' : 'github')
   if (env.GITLAB_CI === 'true') return gitlab(env)
@@ -80,7 +82,7 @@ function detectProvider(env: Env, readJson: ReadJson): CiContext {
   return { provider: 'local' }
 }
 
-function github(env: Env, readJson: ReadJson, provider: 'github' | 'gitea'): CiContext {
+function github(env: Env, readJson: ReadJson, provider: 'github' | 'gitea'): detectCi.Context {
   const jobUrl =
     env.GITHUB_SERVER_URL && env.GITHUB_REPOSITORY && env.GITHUB_RUN_ID
       ? `${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}`
@@ -112,7 +114,7 @@ function github(env: Env, readJson: ReadJson, provider: 'github' | 'gitea'): CiC
   }
 }
 
-function gitlab(env: Env): CiContext {
+function gitlab(env: Env): detectCi.Context {
   if (env.CI_MERGE_REQUEST_IID) {
     return {
       provider: 'gitlab',
@@ -135,7 +137,7 @@ function gitlab(env: Env): CiContext {
   }
 }
 
-function bitbucket(env: Env): CiContext {
+function bitbucket(env: Env): detectCi.Context {
   return {
     provider: 'bitbucket',
     commitSha: env.BITBUCKET_COMMIT,
@@ -148,7 +150,7 @@ function bitbucket(env: Env): CiContext {
   }
 }
 
-function circleci(env: Env): CiContext {
+function circleci(env: Env): detectCi.Context {
   return {
     provider: 'circleci',
     commitSha: env.CIRCLE_SHA1,
@@ -158,7 +160,7 @@ function circleci(env: Env): CiContext {
   }
 }
 
-function buildkite(env: Env): CiContext {
+function buildkite(env: Env): detectCi.Context {
   const pr = env.BUILDKITE_PULL_REQUEST
   return {
     provider: 'buildkite',
@@ -170,7 +172,7 @@ function buildkite(env: Env): CiContext {
   }
 }
 
-function jenkins(env: Env): CiContext {
+function jenkins(env: Env): detectCi.Context {
   const isPr = Boolean(env.CHANGE_ID)
   return {
     provider: 'jenkins',
@@ -185,7 +187,7 @@ function jenkins(env: Env): CiContext {
   }
 }
 
-function azure(env: Env): CiContext {
+function azure(env: Env): detectCi.Context {
   const pr = num(env.SYSTEM_PULLREQUEST_PULLREQUESTNUMBER ?? env.SYSTEM_PULLREQUEST_PULLREQUESTID)
   const jobUrl =
     env.SYSTEM_COLLECTIONURI && env.SYSTEM_TEAMPROJECT && env.BUILD_BUILDID
@@ -215,7 +217,7 @@ function azure(env: Env): CiContext {
 function makeAuthor(
   login: string | undefined,
   extra: { email?: string | undefined; provider?: string; providerId?: string | undefined } = {},
-): CiAuthor | undefined {
+): detectCi.Author | undefined {
   return login
     ? {
         login,
@@ -228,7 +230,10 @@ function makeAuthor(
 }
 
 /** Each CI's own variable for who started the run; the first one that is set wins. */
-function detectAuthor(provider: CiContext['provider'], env: Env): CiAuthor | undefined {
+function detectAuthor(
+  provider: detectCi.Context['provider'],
+  env: Env,
+): detectCi.Author | undefined {
   const pick = (...names: string[]) => names.map((n) => nonEmpty(env[n])).find((v) => v)
   switch (provider) {
     case 'github':
@@ -260,7 +265,7 @@ function detectAuthor(provider: CiContext['provider'], env: Env): CiAuthor | und
 }
 
 /** `CIRCI_*` variables win over anything detected, for CIs we don't know or odd setups. */
-function applyOverrides(ctx: CiContext, env: Env): CiContext {
+function applyOverrides(ctx: detectCi.Context, env: Env): detectCi.Context {
   const author = nonEmpty(env.CIRCI_AUTHOR)
   return {
     ...ctx,

@@ -1,12 +1,5 @@
 import { listIgnoreRegions, listTriage, schema } from '@circi/db'
-import {
-  addTestMember,
-  createTestDb,
-  seedBuild,
-  seedProject,
-  seedUser,
-  type TestDb,
-} from '@circi/testing'
+import { addTestMember, createTestDb, seedBuild, seedProject, seedUser } from '@circi/testing'
 import { and, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -18,7 +11,7 @@ import {
   snoozeTriage,
 } from '#src/index.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 beforeAll(async () => {
   t = await createTestDb()
 })

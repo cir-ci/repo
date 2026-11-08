@@ -10,6 +10,7 @@ vi.mock('#lib/auth-client.ts', () => ({ authClient: { organization: auth } }))
 import { parseBuildsSearch } from '#features/projects/builds-filters.ts'
 import { ProjectPage } from '#features/projects/ProjectPage.tsx'
 import { ViewPage } from '#features/views/ViewPage.tsx'
+import { useDisplayStore } from '#lib/stores/display-store.ts'
 import { fakeApi, restoreFetch } from '#test/features/fetch-routes.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -53,8 +54,9 @@ function api(builds: unknown[], extra: Parameters<typeof fakeApi>[0] = {}) {
   return { ...fake, urls }
 }
 
-const show = (url = '/acme/web') =>
+const show = (url = '/acme/web', beforeRender?: () => Promise<void>) =>
   renderPage(<ProjectPage />, {
+    beforeRender,
     route: '/$org/$project',
     url,
     announcer: true,
@@ -137,12 +139,14 @@ describe('display options', () => {
   })
 
   it('hides a property and reads the saved options on the next visit', async () => {
-    localStorage.setItem(
-      'circi.builds.display',
-      JSON.stringify({ groupBy: 'none', order: 'oldest', show: { counts: false } }),
-    )
     api([build(3), build(2)])
-    await show()
+    await show('/acme/web', async () => {
+      localStorage.setItem(
+        'circi.builds.display',
+        JSON.stringify({ groupBy: 'none', order: 'oldest', show: { counts: false } }),
+      )
+      await useDisplayStore.persist.rehydrate()
+    })
     await expect.element(page.getByRole('link', { name: /Build #3/ })).toBeVisible()
     expect(page.getByText('2 changed').elements()).toHaveLength(0)
     const links = page.getByRole('link', { name: /Build #/ }).elements()

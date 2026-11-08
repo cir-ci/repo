@@ -2,13 +2,13 @@ import { sealSecret } from '@circi/core'
 import { claimJob, createBuild, GIT_NOTIFY_QUEUE, linkProjectToGithub, schema } from '@circi/db'
 import { GithubApiError, providerRegistry } from '@circi/providers'
 import { completeBuild } from '@circi/services'
-import { createTestDb, seedProject, type TestDb } from '@circi/testing'
+import { createTestDb, seedProject } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { notifyGit } from '#jobs/notify-git.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 beforeAll(async () => {
   t = await createTestDb()
 })

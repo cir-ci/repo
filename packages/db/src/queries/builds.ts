@@ -20,58 +20,60 @@ import type { Database } from '#src/client.ts'
 
 /** Build read models for the dashboard: shaped for the UI, read-only, free to join widely. */
 
-export interface BuildListItem {
-  id: string
-  number: number
-  name: string
-  commitSha: string
-  branch: string | null
-  prNumber: number | null
-  status: BuildStatus
-  conclusion: BuildConclusion | null
-  reviewStatus: ReviewStatus
-  createdAt: Date
-  counts: getBuildCounts.Counts
-  author: BuildAuthor | null
-}
+export namespace listBuildsForProject {
+  export interface Item {
+    id: string
+    number: number
+    name: string
+    commitSha: string
+    branch: string | null
+    prNumber: number | null
+    status: BuildStatus
+    conclusion: BuildConclusion | null
+    reviewStatus: ReviewStatus
+    createdAt: Date
+    counts: getBuildCounts.Counts
+    author: listBuildsForProject.Author | null
+  }
 
-/** Who made a build: the login the CI or git host gave, and the member it matched, if any. */
-export interface BuildAuthor {
-  login: string
-  /** The member's name, when the author is matched to one. */
-  name: string | null
-  /** The member's profile picture, when matched and they have one. */
-  avatarUrl: string | null
+  /** Who made a build: the login the CI or git host gave, and the member it matched, if any. */
+  export interface Author {
+    login: string
+    /** The member's name, when the author is matched to one. */
+    name: string | null
+    /** The member's profile picture, when matched and they have one. */
+    avatarUrl: string | null
+  }
+
+  /** Narrows a project's builds list; every field given must match. */
+  export interface Filters {
+    /** The build's own status (uploading, complete, error…). */
+    status?: BuildStatus
+    /** The review state. */
+    reviewStatus?: ReviewStatus
+    branch?: string
+    /** A login (any case) or a member's user id. */
+    author?: string
+    /** A member's user id: builds with an open review request for them. */
+    reviewer?: string
+    /** The build's name (a project can upload several per commit). */
+    name?: string
+    /** Created at or after. */
+    from?: Date
+    /** Created before. */
+    to?: Date
+  }
 }
 
 function toAuthor(
   build: { authorLogin: string | null },
   member: { name: string; image: string | null } | null,
-): BuildAuthor | null {
+): listBuildsForProject.Author | null {
   const login = build.authorLogin ?? member?.name
   return login ? { login, name: member?.name ?? null, avatarUrl: member?.image ?? null } : null
 }
 
-/** Narrows a project's builds list; every field given must match. */
-export interface BuildFilters {
-  /** The build's own status (uploading, complete, error…). */
-  status?: BuildStatus
-  /** The review state. */
-  reviewStatus?: ReviewStatus
-  branch?: string
-  /** A login (any case) or a member's user id. */
-  author?: string
-  /** A member's user id: builds with an open review request for them. */
-  reviewer?: string
-  /** The build's name (a project can upload several per commit). */
-  name?: string
-  /** Created at or after. */
-  from?: Date
-  /** Created before. */
-  to?: Date
-}
-
-function filterConditions(f: BuildFilters) {
+function filterConditions(f: listBuildsForProject.Filters) {
   return [
     f.status ? eq(builds.status, f.status) : undefined,
     f.reviewStatus ? eq(builds.reviewStatus, f.reviewStatus) : undefined,
@@ -91,8 +93,8 @@ function filterConditions(f: BuildFilters) {
 export async function listBuildsForProject(
   db: Database,
   projectId: string,
-  options: { limit: number; beforeNumber?: number; filters?: BuildFilters },
-): Promise<BuildListItem[]> {
+  options: { limit: number; beforeNumber?: number; filters?: listBuildsForProject.Filters },
+): Promise<listBuildsForProject.Item[]> {
   const found = await db
     .select({ build: builds, member: { name: user.name, image: user.image } })
     .from(builds)
@@ -150,45 +152,49 @@ function emptyCounts(): getBuildCounts.Counts {
   return { added: 0, removed: 0, changed: 0, unchanged: 0, failed: 0, total: 0 }
 }
 
-export interface ImageRef {
-  sha256: string
-  width: number | null
-  height: number | null
-}
-
-export interface DiffItem {
-  id: string
-  name: string
-  status: DiffStatus | null
-  score: number | null
-  changedPixels: number | null
-  sizeChanged: boolean
-  errorMessage: string | null
-  head: (ImageRef & { thumbnail: string | null; metadata: Record<string, unknown> }) | null
-  base: (ImageRef & { thumbnail: string | null }) | null
-  diff: ImageRef | null
-}
-
-export interface BuildDetail {
-  build: Omit<BuildListItem, 'counts'> & {
-    baseBranch: string | null
-    ancestryStatus: AncestryStatus
-    baselineSource: BaselineSource | null
-    errorMessage: string | null
-    completedAt: Date | null
-    counts: getBuildCounts.Counts
+export namespace getBuildDetail {
+  export interface ImageRef {
+    sha256: string
+    width: number | null
+    height: number | null
   }
-  baseline: { number: number; commitSha: string; branch: string | null } | null
-  /** Approve/reject decisions, newest first. */
-  reviews: ReviewEntry[]
-  diffs: DiffItem[]
+
+  export interface DiffItem {
+    id: string
+    name: string
+    status: DiffStatus | null
+    score: number | null
+    changedPixels: number | null
+    sizeChanged: boolean
+    errorMessage: string | null
+    head:
+      | (getBuildDetail.ImageRef & { thumbnail: string | null; metadata: Record<string, unknown> })
+      | null
+    base: (getBuildDetail.ImageRef & { thumbnail: string | null }) | null
+    diff: getBuildDetail.ImageRef | null
+  }
+
+  export interface Detail {
+    build: Omit<listBuildsForProject.Item, 'counts'> & {
+      baseBranch: string | null
+      ancestryStatus: AncestryStatus
+      baselineSource: BaselineSource | null
+      errorMessage: string | null
+      completedAt: Date | null
+      counts: getBuildCounts.Counts
+    }
+    baseline: { number: number; commitSha: string; branch: string | null } | null
+    /** Approve/reject decisions, newest first. */
+    reviews: ReviewEntry[]
+    diffs: getBuildDetail.DiffItem[]
+  }
 }
 
 export async function getBuildDetail(
   db: Database,
   projectId: string,
   number: number,
-): Promise<BuildDetail | undefined> {
+): Promise<getBuildDetail.Detail | undefined> {
   const [build] = await db
     .select()
     .from(builds)

@@ -8,13 +8,12 @@ import {
   seedReviewRequest,
   seedSavedView,
   seedUser,
-  type TestDb,
 } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { getSidebar } from '#src/index.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 beforeAll(async () => {
   t = await createTestDb()
 })

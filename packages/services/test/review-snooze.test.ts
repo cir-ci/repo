@@ -1,11 +1,11 @@
 import { createBuild, listReviewRequests, schema } from '@circi/db'
-import { addTestMember, createTestDb, seedProject, seedUser, type TestDb } from '@circi/testing'
+import { addTestMember, createTestDb, seedProject, seedUser } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { requestReview, snoozeReviewRequest, unsnoozeReviewRequest } from '#src/index.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 beforeAll(async () => {
   t = await createTestDb()
 })

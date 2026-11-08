@@ -6,7 +6,6 @@ import {
   getGitConnection,
   getMemberRole,
   isInstallationClaimedElsewhere,
-  type IntegrationItem,
   listGitConnections,
   listOrgIntegrations,
   listProjectRepoLinks,
@@ -16,7 +15,7 @@ import { isConnectionRevoked } from '@circi/providers'
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { loadOrg } from '#http/lib/org-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
@@ -26,7 +25,7 @@ const githubBody = z.strictObject({
   installationId: z.string().regex(INSTALLATION_ID_RE, 'The installation id is a number'),
 })
 
-const wire = (i: IntegrationItem): Integration.Item => ({
+const wire = (i: listOrgIntegrations.Item): Integration.Item => ({
   ...i,
   createdAt: i.createdAt.toISOString(),
 })
@@ -36,7 +35,7 @@ const wire = (i: IntegrationItem): Integration.Item => ({
  * look; owners and admins add and remove (anyone outside the organisation gets "not found").
  * Non-git kinds have no add route yet; each one adds its own when its provider is built.
  */
-export const dashboardIntegrationRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const dashboardIntegrationRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   async function load(req: FastifyRequest, reply: FastifyReply) {
     const found = await loadOrg(deps, req, reply)
     if (!found) return undefined

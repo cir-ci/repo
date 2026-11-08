@@ -1,4 +1,4 @@
-import type { UploadOptions } from '@circi/cli'
+import type { upload } from '@circi/cli'
 import { describe, expect, it } from 'vitest'
 
 import { CirciReporter } from '#src/reporter.ts'
@@ -14,7 +14,7 @@ describe('CirciReporter', () => {
 
   it('uploads what it finds as one build named for the run, with its shard', async () => {
     await touch('.circi/screenshots/a.png')
-    const seen: UploadOptions[] = []
+    const seen: upload.Options[] = []
     const reporter = new CirciReporter({
       apiUrl: 'https://ci.acme.io',
       token: 'circi_x',

@@ -4,7 +4,7 @@ import { assignTriage, dismissTriage, snoozeTriage } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { loadProject } from '#http/lib/project-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
@@ -39,7 +39,7 @@ function state(item: {
  * A project's triage queue and what members do with it: assign, snooze, dismiss. Any member of
  * the organization may; everyone else gets "not found".
  */
-export const dashboardTriageRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const dashboardTriageRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   app.get('/projects/:org/:project/triage', async (req, reply) => {
     const found = await loadProject(deps, req, reply)
     if (!found) return reply

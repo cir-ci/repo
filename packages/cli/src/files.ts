@@ -3,13 +3,15 @@ import { createReadStream } from 'node:fs'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
 
-export interface LocalScreenshot {
-  /** Relative path without `.png`, using `/` on every OS: the name screenshots are paired by. */
-  name: string
-  path: string
-  sha256: string
-  size: number
-  metadata?: Record<string, unknown>
+export namespace collectScreenshots {
+  export interface Screenshot {
+    /** Relative path without `.png`, using `/` on every OS: the name screenshots are paired by. */
+    name: string
+    path: string
+    sha256: string
+    size: number
+    metadata?: Record<string, unknown>
+  }
 }
 
 const MAX_BYTES = 25 * 1024 * 1024
@@ -18,14 +20,14 @@ const MAX_BYTES = 25 * 1024 * 1024
  * Finds every `*.png` under `dir` (skipping hidden folders and node_modules), hashes it, and
  * reads an optional `<file>.png.json` sidecar with metadata (browser, viewport, test…).
  */
-export async function collectScreenshots(dir: string): Promise<LocalScreenshot[]> {
+export async function collectScreenshots(dir: string): Promise<collectScreenshots.Screenshot[]> {
   const paths = await walk(dir)
   const shots = await Promise.all(
-    paths.map(async (path): Promise<LocalScreenshot> => {
+    paths.map(async (path): Promise<collectScreenshots.Screenshot> => {
       const { size } = await stat(path)
       if (size > MAX_BYTES) throw new Error(`${path} is ${size} bytes; the limit is ${MAX_BYTES}`)
       const metadata = await readSidecar(`${path}.json`)
-      const shot: LocalScreenshot = {
+      const shot: collectScreenshots.Screenshot = {
         name: relative(dir, path)
           .split(sep)
           .join('/')

@@ -5,7 +5,7 @@ import { gunzipSync } from 'node:zlib'
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
-import { packSite, uploadSite, type SiteUploadOptions } from '#src/site.ts'
+import { packSite, uploadSite } from '#src/site.ts'
 import { UsageError } from '#src/upload.ts'
 
 import { FakeCirci, type FakeCirciOptions } from './support/fake-circi.ts'
@@ -33,7 +33,7 @@ const env = {
   CI_COMMIT_BRANCH: 'main',
 }
 
-async function run(options: Partial<SiteUploadOptions> = {}, server: FakeCirciOptions = {}) {
+async function run(options: Partial<uploadSite.Options> = {}, server: FakeCirciOptions = {}) {
   fake = await new FakeCirci(server).start()
   const lines: string[] = []
   const result = await uploadSite({

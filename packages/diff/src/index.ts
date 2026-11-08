@@ -16,13 +16,15 @@ export class InvalidImageError extends Error {
   }
 }
 
-export interface ImageInfo {
-  width: number
-  height: number
+export namespace readPngInfo {
+  export interface Info {
+    width: number
+    height: number
+  }
 }
 
 /** Checks the bytes really are a PNG (whatever the client claimed) and reads its size. */
-export async function readPngInfo(png: Buffer): Promise<ImageInfo> {
+export async function readPngInfo(png: Buffer): Promise<readPngInfo.Info> {
   let meta: Metadata
   try {
     meta = await sharp(png, { limitInputPixels: MAX_INPUT_PIXELS }).metadata()
@@ -37,28 +39,51 @@ export async function readPngInfo(png: Buffer): Promise<ImageInfo> {
   return { width: meta.width, height: meta.height }
 }
 
-export interface DiffOptions {
-  /**
-   * Per-pixel colour tolerance passed to pixelmatch (0–1, perceptual distance). The default
-   * 0.1 ignores imperceptible noise. This is not the project's diff threshold, which applies
-   * to the share of changed pixels.
-   */
-  pixelTolerance?: number
-  /** Project diff threshold: share of changed pixels (0–1) still considered unchanged. */
-  threshold?: number
-  /** Rectangles (in pixels) that are blanked in both images first: clocks, ads, avatars… */
-  ignore?: readonly IgnoreRegion[]
-}
+export namespace diffImages {
+  export interface Options {
+    /**
+     * Per-pixel colour tolerance passed to pixelmatch (0–1, perceptual distance). The default
+     * 0.1 ignores imperceptible noise. This is not the project's diff threshold, which applies
+     * to the share of changed pixels.
+     */
+    pixelTolerance?: number
+    /** Project diff threshold: share of changed pixels (0–1) still considered unchanged. */
+    threshold?: number
+    /** Rectangles (in pixels) that are blanked in both images first: clocks, ads, avatars… */
+    ignore?: readonly diffImages.IgnoreRegion[]
+  }
 
-export interface IgnoreRegion {
-  x: number
-  y: number
-  width: number
-  height: number
+  export interface Result {
+    base: readPngInfo.Info
+    head: readPngInfo.Info
+    /** Canvas the comparison ran on: the larger of both sizes. */
+    width: number
+    height: number
+    sizeChanged: boolean
+    changedPixels: number
+    /** changedPixels / (width × height). */
+    score: number
+    /** `changed` whenever the size differs, otherwise when score > threshold (PLAN §7.3). */
+    changed: boolean
+    /** Diff visualisation (PNG); only produced when `changed`. */
+    diffPng?: Buffer
+  }
+
+  export interface IgnoreRegion {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
 }
 
 /** Makes the region identical (transparent) in a canvas, clipped to its edges. */
-function blank(raw: Uint8Array, canvasWidth: number, canvasHeight: number, r: IgnoreRegion): void {
+function blank(
+  raw: Uint8Array,
+  canvasWidth: number,
+  canvasHeight: number,
+  r: diffImages.IgnoreRegion,
+): void {
   const x0 = Math.max(0, Math.floor(r.x))
   const y0 = Math.max(0, Math.floor(r.y))
   const x1 = Math.min(canvasWidth, Math.floor(r.x + r.width))
@@ -68,27 +93,11 @@ function blank(raw: Uint8Array, canvasWidth: number, canvasHeight: number, r: Ig
   }
 }
 
-export interface DiffResult {
-  base: ImageInfo
-  head: ImageInfo
-  /** Canvas the comparison ran on: the larger of both sizes. */
-  width: number
-  height: number
-  sizeChanged: boolean
-  changedPixels: number
-  /** changedPixels / (width × height). */
-  score: number
-  /** `changed` whenever the size differs, otherwise when score > threshold (PLAN §7.3). */
-  changed: boolean
-  /** Diff visualisation (PNG); only produced when `changed`. */
-  diffPng?: Buffer
-}
-
 export async function diffImages(
   basePng: Buffer,
   headPng: Buffer,
-  options: DiffOptions = {},
-): Promise<DiffResult> {
+  options: diffImages.Options = {},
+): Promise<diffImages.Result> {
   const [base, head] = await Promise.all([readPngInfo(basePng), readPngInfo(headPng)])
   const width = Math.max(base.width, head.width)
   const height = Math.max(base.height, head.height)
@@ -113,7 +122,7 @@ export async function diffImages(
   const score = changedPixels / (width * height)
   const changed = sizeChanged || score > (options.threshold ?? 0)
 
-  const result: DiffResult = {
+  const result: diffImages.Result = {
     base,
     head,
     width,
@@ -133,7 +142,7 @@ export async function diffImages(
 
 async function toRgbaCanvas(
   png: Buffer,
-  info: ImageInfo,
+  info: readPngInfo.Info,
   width: number,
   height: number,
 ): Promise<Uint8Array> {
@@ -149,17 +158,19 @@ async function toRgbaCanvas(
   return new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
 }
 
-export interface Thumbnail {
-  webp: Buffer
-  width: number
-  height: number
+export namespace makeThumbnail {
+  export interface Result {
+    webp: Buffer
+    width: number
+    height: number
+  }
 }
 
 const THUMB_WIDTH = 480
 const THUMB_MAX_HEIGHT = 720
 
 /** List thumbnail: the top of the screenshot, at most 480×720, as WebP. */
-export async function makeThumbnail(png: Buffer): Promise<Thumbnail> {
+export async function makeThumbnail(png: Buffer): Promise<makeThumbnail.Result> {
   const info = await readPngInfo(png)
   const scale = Math.min(1, THUMB_WIDTH / info.width)
   const scaledHeight = Math.max(1, Math.round(info.height * scale))

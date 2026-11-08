@@ -1,4 +1,4 @@
-import { createTestDb, seedProject, type TestDb } from '@circi/testing'
+import { createTestDb, seedProject } from '@circi/testing'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'
@@ -8,7 +8,7 @@ import { migrationsFolder, pgErrorCode, schema } from '#src/index.ts'
 
 /** Migrations apply cleanly, and the database itself enforces the plan's invariants (PLAN §6, §8). */
 
-let t: TestDb
+let t: createTestDb.Result
 
 beforeAll(async () => {
   t = await createTestDb()

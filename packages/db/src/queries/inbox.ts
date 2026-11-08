@@ -20,7 +20,39 @@ import type { Database } from '#src/client.ts'
 
 /** `for-you`: about you and your work. `everything`: also project-wide notices. `snoozed`: put off. */
 export const INBOX_TABS = ['for-you', 'everything', 'snoozed'] as const
-export type InboxTab = (typeof INBOX_TABS)[number]
+export namespace listInbox {
+  export type Tab = (typeof INBOX_TABS)[number]
+
+  export interface Item {
+    id: string
+    kind: NotificationKind
+    createdAt: Date
+    /** Null while unread. */
+    readAt: Date | null
+    snoozedUntil: Date | null
+    payload: Record<string, unknown>
+    /** Null for the system, or when the person has since left. */
+    actor: { id: string; name: string } | null
+    /** Null for notices that are not about one build. */
+    build: {
+      number: number
+      branch: string | null
+      prNumber: number | null
+      commitSha: string
+    } | null
+    project: { slug: string; name: string } | null
+    org: { slug: string; name: string } | null
+    /** The same build also waits for this person's review on the Reviews page. */
+    alsoInReviews: boolean
+  }
+
+  export interface List {
+    tab: listInbox.Tab
+    /** Unread notifications that are visible now (not snoozed), whatever the tab. */
+    unread: number
+    items: listInbox.Item[]
+  }
+}
 
 /** The kinds the "For you" tab shows: everything except project-wide notices. */
 export const FOR_YOU_KINDS: readonly NotificationKind[] = [
@@ -32,43 +64,13 @@ export const FOR_YOU_KINDS: readonly NotificationKind[] = [
   'review_overdue',
 ]
 
-export interface InboxItem {
-  id: string
-  kind: NotificationKind
-  createdAt: Date
-  /** Null while unread. */
-  readAt: Date | null
-  snoozedUntil: Date | null
-  payload: Record<string, unknown>
-  /** Null for the system, or when the person has since left. */
-  actor: { id: string; name: string } | null
-  /** Null for notices that are not about one build. */
-  build: {
-    number: number
-    branch: string | null
-    prNumber: number | null
-    commitSha: string
-  } | null
-  project: { slug: string; name: string } | null
-  org: { slug: string; name: string } | null
-  /** The same build also waits for this person's review on the Reviews page. */
-  alsoInReviews: boolean
-}
-
-export interface InboxList {
-  tab: InboxTab
-  /** Unread notifications that are visible now (not snoozed), whatever the tab. */
-  unread: number
-  items: InboxItem[]
-}
-
 const MAX_ITEMS = 200
 
 /** One tab of the inbox, newest first, and how many notifications are unread. */
 export async function listInbox(
   db: Database,
-  input: { userId: string; tab: InboxTab; now: Date; method?: SessionMethod },
-): Promise<InboxList> {
+  input: { userId: string; tab: listInbox.Tab; now: Date; method?: SessionMethod },
+): Promise<listInbox.List> {
   const asleep = and(
     isNotNull(notifications.snoozedUntil),
     gt(notifications.snoozedUntil, input.now),

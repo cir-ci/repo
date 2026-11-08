@@ -10,19 +10,16 @@ import styles from './Slider.module.css'
  */
 export function Slider({
   label,
-  value,
-  defaultValue,
   onValueChange,
   min = 0,
   max = 100,
   step = 1,
-  disabled,
   className,
+  ...rest
 }: Slider.Props) {
   return (
     <BaseSlider.Root
-      value={value}
-      defaultValue={defaultValue}
+      {...rest}
       onValueChange={(next) => {
         const single = typeof next === 'number' ? next : next[0]
         if (single !== undefined) onValueChange?.(single)
@@ -30,7 +27,6 @@ export function Slider({
       min={min}
       max={max}
       step={step}
-      disabled={disabled}
       className={cx(styles.root, className)}
     >
       <BaseSlider.Control className={styles.control}>
@@ -44,16 +40,16 @@ export function Slider({
 }
 
 export namespace Slider {
-  export interface Props {
+  export interface Props
+    // Single thumb: `value` and `defaultValue` stay numbers; `onValueChange` is ours (a bare
+    // number); `className` is a plain string so it merges via `cx`.
+    extends Omit<
+      BaseSlider.Root.Props<number>,
+      'onValueChange' | 'className' | 'render' | 'children' | 'aria-label' | 'aria-labelledby'
+    > {
     /** The accessible name of the thumb ("Swipe position"). */
     label: string
-    value?: number
-    defaultValue?: number
     onValueChange?: (value: number) => void
-    min?: number
-    max?: number
-    step?: number
-    disabled?: boolean
     className?: string
   }
 }

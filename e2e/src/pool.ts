@@ -1,7 +1,7 @@
 import { completeSetup, type Session } from './admin.ts'
 import { removeProjectSync } from './docker.ts'
 import { type FakeGithub, startFakeGithub } from './fakes/fake-github.ts'
-import { reportPhases, startStack, type Stack, type StackOptions } from './stack.ts'
+import { reportPhases, startStack, type Stack } from './stack.ts'
 
 /**
  * Shared stacks. A profile is a stack configuration (`default`, `s3`, `github`); the first
@@ -18,7 +18,7 @@ import { reportPhases, startStack, type Stack, type StackOptions } from './stack
 
 export type Profile = 'default' | 's3' | 'github'
 
-export const PROFILES: Record<Profile, StackOptions & { github?: boolean }> = {
+export const PROFILES: Record<Profile, Stack.Options & { github?: boolean }> = {
   default: {},
   // Also serves static sites (the dashboard is then http://127.0.0.1:<port>).
   s3: { storage: 's3', sitesHost: 'sites.localhost' },

@@ -8,8 +8,7 @@ import {
   latestDefaultBranchBuildNumber,
   removeIgnoreRegion,
   snoozeTriageItem,
-  type TriageItemRow,
-  type TriageRef,
+  type TriageItem,
 } from '@circi/db'
 
 /**
@@ -21,8 +20,8 @@ import {
 /** Hands an item to an organization member, or to nobody. */
 export async function assignTriage(
   db: Database,
-  input: TriageRef & { assigneeId: string | null },
-): Promise<TriageItemRow> {
+  input: TriageItem.Ref & { assigneeId: string | null },
+): Promise<TriageItem.Row> {
   return db.transaction((tx) => assignTriageItem(tx, input))
 }
 
@@ -33,8 +32,8 @@ export async function assignTriage(
  */
 export async function snoozeTriage(
   db: Database,
-  input: TriageRef & { choice: SnoozeChoice; date?: Date | null; now?: Date },
-): Promise<{ item: TriageItemRow; until: Date | null }> {
+  input: TriageItem.Ref & { choice: SnoozeChoice; date?: Date | null; now?: Date },
+): Promise<{ item: TriageItem.Row; until: Date | null }> {
   const until = snoozeUntil(input.choice, input.now ?? new Date(), input.date)
   return db.transaction(async (tx) => {
     const item = await snoozeTriageItem(tx, {
@@ -53,7 +52,7 @@ export async function snoozeTriage(
 }
 
 /** Takes an item out of the queue for good. */
-export async function dismissTriage(db: Database, ref: TriageRef): Promise<TriageItemRow> {
+export async function dismissTriage(db: Database, ref: TriageItem.Ref): Promise<TriageItem.Row> {
   return db.transaction((tx) => dismissTriageItem(tx, ref))
 }
 

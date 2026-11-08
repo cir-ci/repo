@@ -10,7 +10,7 @@ import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
 
-import type { DashboardDeps } from './deps.ts'
+import type { Deps } from './deps.ts'
 import { parse } from './validation.ts'
 
 const orgParams = z.object({ org: z.string() })
@@ -21,7 +21,7 @@ const orgParams = z.object({ org: z.string() })
  * itself when it returns undefined.
  */
 export async function loadOrg(
-  deps: Pick<DashboardDeps, 'db'>,
+  deps: Pick<Deps.Dashboard, 'db'>,
   req: FastifyRequest,
   reply: FastifyReply,
 ): Promise<{ org: Organization; user: ReturnType<typeof currentUser> } | undefined> {

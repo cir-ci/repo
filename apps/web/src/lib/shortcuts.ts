@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 
 import { DESIGN_MODE, VIEW_MODES, type ViewMode } from '#features/builds/search.ts'
+import { useShortcutStore } from '#lib/stores/shortcut-store.ts'
 
 /**
  * The one keyboard layer. Every shortcut is declared once in `SHORTCUTS` (keys, scope, group,
@@ -11,45 +12,52 @@ import { DESIGN_MODE, VIEW_MODES, type ViewMode } from '#features/builds/search.
  * Key syntax: `j`, `?`, `mod+k` (⌘ or Ctrl), `mod+shift+c`, and two-key chords with a space: `g i`.
  */
 
-/** Where a shortcut applies: everywhere, in a list of rows, or on the build review screen. */
-export type ShortcutScope = 'global' | 'list' | 'inbox' | 'triage' | 'build-review'
-
-export type ShortcutGroup = 'Navigation' | 'General' | 'Lists' | 'Inbox' | 'Triage' | 'Build review'
-
-export type GoTarget = 'inbox' | 'reviews' | 'projects' | 'triage' | 'settings'
-
-export type ShortcutAction =
-  | { type: 'next' }
-  | { type: 'previous' }
-  | { type: 'open' }
-  | { type: 'peek' }
-  | { type: 'filter' }
-  | { type: 'display' }
-  | { type: 'select' }
-  | { type: 'snooze' }
-  | { type: 'requestReview' }
-  | { type: 'toggleRead' }
-  | { type: 'remove' }
-  | { type: 'acceptBaseline' }
-  | { type: 'ignoreRegion' }
-  | { type: 'assignMe' }
-  | { type: 'dismiss' }
-  | { type: 'approve' }
-  | { type: 'reject' }
-  | { type: 'comment' }
-  | { type: 'submit' }
-  | { type: 'help' }
-  | { type: 'command' }
-  | { type: 'copyLink' }
-  | { type: 'go'; to: GoTarget }
-  | { type: 'mode'; mode: ViewMode }
-
 export interface Shortcut {
   key: string
-  scope: ShortcutScope
-  group: ShortcutGroup
+  scope: Shortcut.Scope
+  group: Shortcut.Group
   description: string
-  action: ShortcutAction
+  action: Shortcut.Action
+}
+
+export namespace Shortcut {
+  /** Where a shortcut applies: everywhere, in a list of rows, or on the build review screen. */
+  export type Scope = 'global' | 'list' | 'inbox' | 'triage' | 'build-review'
+
+  export type Group = 'Navigation' | 'General' | 'Lists' | 'Inbox' | 'Triage' | 'Build review'
+
+  export type GoTarget = 'inbox' | 'reviews' | 'projects' | 'triage' | 'settings'
+
+  export type Action =
+    | { type: 'next' }
+    | { type: 'previous' }
+    | { type: 'open' }
+    | { type: 'peek' }
+    | { type: 'filter' }
+    | { type: 'display' }
+    | { type: 'select' }
+    | { type: 'snooze' }
+    | { type: 'requestReview' }
+    | { type: 'toggleRead' }
+    | { type: 'remove' }
+    | { type: 'acceptBaseline' }
+    | { type: 'ignoreRegion' }
+    | { type: 'assignMe' }
+    | { type: 'dismiss' }
+    | { type: 'approve' }
+    | { type: 'reject' }
+    | { type: 'comment' }
+    | { type: 'submit' }
+    | { type: 'help' }
+    | { type: 'command' }
+    | { type: 'copyLink' }
+    | { type: 'go'; to: GoTarget }
+    | { type: 'mode'; mode: ViewMode }
+
+  /** The handler for each action type; `useShortcutHandlers` binds them. */
+  export type Handlers = {
+    [A in Action as A['type']]?: (action: A, event: KeyboardEvent) => void | false
+  }
 }
 
 const MODE_NAME: Record<ViewMode, string> = {
@@ -62,7 +70,7 @@ const MODE_NAME: Record<ViewMode, string> = {
 
 export const MODE_OPTIONS = VIEW_MODES.map((value) => ({ value, label: MODE_NAME[value] }))
 
-const GO: readonly [string, GoTarget, string][] = [
+const GO: readonly [string, Shortcut.GoTarget, string][] = [
   ['g i', 'inbox', 'Go to Inbox'],
   ['g r', 'reviews', 'Go to Reviews'],
   ['g p', 'projects', 'Go to Projects'],
@@ -264,8 +272,8 @@ export const shortcutFor = (key: string): Shortcut | undefined =>
 /** The shortcuts under their group headings, for the help dialog. */
 export function shortcutGroups(
   designEnabled = false,
-): { group: ShortcutGroup; shortcuts: Shortcut[] }[] {
-  const groups: { group: ShortcutGroup; shortcuts: Shortcut[] }[] = []
+): { group: Shortcut.Group; shortcuts: Shortcut[] }[] {
+  const groups: { group: Shortcut.Group; shortcuts: Shortcut[] }[] = []
   for (const shortcut of SHORTCUTS) {
     if (!isAvailable(shortcut, designEnabled)) continue
     const found = groups.find((g) => g.group === shortcut.group)
@@ -318,21 +326,13 @@ export function isHandledElsewhere(
 /** How long after a chord's first key (`g`) its second one still counts. */
 const CHORD_MS = 1000
 
-/** The handler for each action type; `useShortcutHandlers` binds them. */
-export type ShortcutHandlers = {
-  [A in ShortcutAction as A['type']]?: (action: A, event: KeyboardEvent) => void | false
-}
-
-const bound: { current: ShortcutHandlers }[] = []
-let pending: { prefix: string; at: number } | undefined
-
 function run(shortcut: Shortcut, event: KeyboardEvent): boolean {
   const type = shortcut.action.type
-  for (const entry of bound.toReversed()) {
+  for (const entry of useShortcutStore.getState().bindings.toReversed()) {
     // Handlers are keyed by the action's own type, so this one takes exactly this action.
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     const handler = entry.current[type] as
-      | ((action: ShortcutAction, event: KeyboardEvent) => void | false)
+      | ((action: Shortcut.Action, event: KeyboardEvent) => void | false)
       | undefined
     if (!handler) continue
     // A handler that returns `false` leaves the key to the browser (Enter on a focused link).
@@ -348,8 +348,9 @@ export function handleKeydown(event: KeyboardEvent, now = Date.now()): void {
   if (token === undefined) return
   // A shortcut with ⌘/Ctrl is meant to work anywhere; the rest leave typing and dialogs alone.
   if (!token.startsWith('mod+') && isHandledElsewhere(event.target, event)) return
+  const { pending, setPending } = useShortcutStore.getState()
   const chord = pending && now - pending.at <= CHORD_MS ? `${pending.prefix} ${token}` : undefined
-  pending = undefined
+  setPending(undefined)
   const second = chord ? shortcutFor(chord) : undefined
   if (second) {
     run(second, event)
@@ -360,29 +361,28 @@ export function handleKeydown(event: KeyboardEvent, now = Date.now()): void {
     run(shortcut, event)
     return
   }
-  if (SHORTCUTS.some((s) => s.key.startsWith(`${token} `))) pending = { prefix: token, at: now }
-}
-
-/** Test seam: forget a half-typed chord. */
-export function resetChord(): void {
-  pending = undefined
+  if (SHORTCUTS.some((s) => s.key.startsWith(`${token} `))) setPending({ prefix: token, at: now })
 }
 
 /**
  * Binds behaviour to shortcut actions while the component is mounted. The newest binding of an
  * action wins, so a screen can take over a global key (the review screen's own `?` list).
  */
-export function useShortcutHandlers(handlers: ShortcutHandlers): void {
+export function useShortcutHandlers(handlers: Shortcut.Handlers): void {
   const ref = useRef(handlers)
   useEffect(() => {
     ref.current = handlers
   })
+  const bind = useShortcutStore((s) => s.bind)
   useEffect(() => {
-    if (bound.length === 0) window.addEventListener('keydown', handleKeydown)
-    bound.push(ref)
+    const unbind = bind(ref)
+    // One `keydown` listener serves every binding, present while any is.
+    window.addEventListener('keydown', handleKeydown)
     return () => {
-      bound.splice(bound.indexOf(ref), 1)
-      if (bound.length === 0) window.removeEventListener('keydown', handleKeydown)
+      unbind()
+      if (useShortcutStore.getState().bindings.length === 0) {
+        window.removeEventListener('keydown', handleKeydown)
+      }
     }
-  }, [])
+  }, [bind])
 }

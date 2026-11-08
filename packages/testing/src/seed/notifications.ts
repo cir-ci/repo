@@ -1,21 +1,23 @@
 import { type Database, type Notification, schema } from '@circi/db'
 
-export interface SeedNotificationInput {
-  userId: string
-  kind?: Notification['kind']
-  buildId?: string | null
-  actorId?: string | null
-  payload?: Record<string, unknown>
-  readAt?: Date | null
-  snoozedUntil?: Date | null
-  deletedAt?: Date | null
-  createdAt?: Date
+export namespace seedNotification {
+  export interface Input {
+    userId: string
+    kind?: Notification['kind']
+    buildId?: string | null
+    actorId?: string | null
+    payload?: Record<string, unknown>
+    readAt?: Date | null
+    snoozedUntil?: Date | null
+    deletedAt?: Date | null
+    createdAt?: Date
+  }
 }
 
 /** A notification, inserted as given (any state or time), for inbox-shaped tests. */
 export async function seedNotification(
   db: Database,
-  input: SeedNotificationInput,
+  input: seedNotification.Input,
 ): Promise<Notification> {
   const [row] = await db
     .insert(schema.notifications)

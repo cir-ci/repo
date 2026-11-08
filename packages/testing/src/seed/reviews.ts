@@ -1,16 +1,18 @@
 import { type Database, type ReviewRequest, schema } from '@circi/db'
 
-export interface SeedReviewRequestInput {
-  buildId: string
-  reviewerId: string
-  requestedById?: string | null
-  state?: ReviewRequest['state']
-  /** Null for a project without a review target; unset means no due time either. */
-  dueAt?: Date | null
-  snoozedUntil?: Date | null
-  snoozeKind?: ReviewRequest['snoozeKind']
-  createdAt?: Date
-  closedAt?: Date | null
+export namespace seedReviewRequest {
+  export interface Input {
+    buildId: string
+    reviewerId: string
+    requestedById?: string | null
+    state?: ReviewRequest['state']
+    /** Null for a project without a review target; unset means no due time either. */
+    dueAt?: Date | null
+    snoozedUntil?: Date | null
+    snoozeKind?: ReviewRequest['snoozeKind']
+    createdAt?: Date
+    closedAt?: Date | null
+  }
 }
 
 /**
@@ -19,7 +21,7 @@ export interface SeedReviewRequestInput {
  */
 export async function seedReviewRequest(
   db: Database,
-  input: SeedReviewRequestInput,
+  input: seedReviewRequest.Input,
 ): Promise<ReviewRequest> {
   const [row] = await db
     .insert(schema.reviewRequests)

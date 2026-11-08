@@ -5,7 +5,7 @@
  */
 
 export interface SiteKind {
-  id: SiteKindId
+  id: SiteKind.Id
   label: string
   /** For `--kind auto`: does this file list look like one of these? Paths use `/`, no leading `/`. */
   detect(files: ReadonlySet<string>): boolean
@@ -25,7 +25,9 @@ export const SITE_KIND_IDS = [
   'docs',
   'generic',
 ] as const
-export type SiteKindId = (typeof SITE_KIND_IDS)[number]
+export namespace SiteKind {
+  export type Id = (typeof SITE_KIND_IDS)[number]
+}
 
 const has = (files: ReadonlySet<string>, ...paths: string[]) => paths.every((p) => files.has(p))
 const anyUnder = (files: ReadonlySet<string>, prefix: string) =>
@@ -33,7 +35,7 @@ const anyUnder = (files: ReadonlySet<string>, prefix: string) =>
 
 const index = () => 'index.html'
 
-export const KINDS: Record<SiteKindId, SiteKind> = {
+export const KINDS: Record<SiteKind.Id, SiteKind> = {
   storybook: {
     id: 'storybook',
     label: 'Storybook',
@@ -94,11 +96,11 @@ export const KINDS: Record<SiteKindId, SiteKind> = {
 /** The first kind (most specific first) whose detector accepts the files; `generic` otherwise. */
 export function detectKind(files: Iterable<string>): SiteKind {
   const set = new Set(files)
-  const order: SiteKindId[] = ['storybook', 'playwright-report', 'vitest-report', 'coverage']
+  const order: SiteKind.Id[] = ['storybook', 'playwright-report', 'vitest-report', 'coverage']
   for (const id of order) if (KINDS[id].detect(set)) return KINDS[id]
   return KINDS.generic
 }
 
-export function isSiteKindId(value: string): value is SiteKindId {
+export function isSiteKindId(value: string): value is SiteKind.Id {
   return (SITE_KIND_IDS as readonly string[]).includes(value)
 }

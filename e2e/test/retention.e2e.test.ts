@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createProject, type CreatedProject } from '#src/admin.ts'
 import { Repo } from '#src/git-repo.ts'
 import { fileRows, noisePng, parseJsonOutput, sha256Hex } from '#src/storage.ts'
-import { uploadOrThrow, type UploadResult } from '#src/upload.ts'
+import { uploadOrThrow } from '#src/upload.ts'
 import { useBrowser, useStack } from '#src/vitest.ts'
 
 interface Retention {
@@ -32,8 +32,8 @@ describe('retention and garbage collection', () => {
     shared: undefined as Buffer | undefined,
     mine: undefined as Buffer | undefined,
   }
-  let first: UploadResult
-  let third: UploadResult
+  let first: uploadOrThrow.Result
+  let third: uploadOrThrow.Result
 
   const root = '/var/lib/circi/files'
   const onDisk = async (key: string) =>

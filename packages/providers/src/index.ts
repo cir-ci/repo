@@ -7,7 +7,6 @@ export {
   verifyGithubSignature,
 } from './github.ts'
 export {
-  type CheckConclusion,
   type CheckReport,
   checkName,
   checkReport,
@@ -24,7 +23,4 @@ export {
   ProviderApiError,
   type ProviderRegistry,
   providerRegistry,
-  type RepositoryInfo,
-  type StatusInput,
-  type WebhookHeaders,
 } from './provider.ts'

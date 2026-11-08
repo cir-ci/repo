@@ -16,17 +16,13 @@ import styles from './Popover.module.css'
 export function Popover({
   trigger,
   label,
-  open,
-  onOpenChange,
   align = 'start',
   className,
   children,
+  ...rest
 }: Popover.Props) {
   return (
-    <BasePopover.Root
-      open={open}
-      onOpenChange={onOpenChange ? (next) => onOpenChange(next) : undefined}
-    >
+    <BasePopover.Root {...rest}>
       <BasePopover.Trigger render={trigger} />
       <BasePopover.Portal>
         <BasePopover.Positioner className={styles.positioner} sideOffset={4} align={align}>
@@ -40,12 +36,10 @@ export function Popover({
 }
 
 export namespace Popover {
-  export interface Props {
+  export interface Props extends Omit<BasePopover.Root.Props, 'children'> {
     trigger: ReactElement<Record<string, unknown>>
     /** The panel's accessible name. */
     label: string
-    open?: boolean
-    onOpenChange?: (open: boolean) => void
     align?: 'start' | 'center' | 'end'
     className?: string
     children?: ReactNode

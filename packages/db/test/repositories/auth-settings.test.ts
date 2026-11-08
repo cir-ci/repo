@@ -1,4 +1,4 @@
-import { createTestDb, seedOrg, seedSession, type TestDb } from '@circi/testing'
+import { createTestDb, seedOrg, seedSession } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
@@ -12,7 +12,7 @@ import {
   setOrgAuthSettings,
 } from '#src/index.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 beforeAll(async () => {
   t = await createTestDb()
 })

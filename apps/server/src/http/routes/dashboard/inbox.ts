@@ -18,7 +18,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const idParams = z.object({ id: z.uuid() })
@@ -45,7 +45,7 @@ function state(n: Notification): Inbox.State {
  * The signed-in user's inbox. Every route is about the caller's own notifications only: someone
  * else's id is "not found", exactly like one that doesn't exist.
  */
-export const dashboardInboxRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const dashboardInboxRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   app.get('/inbox', async (req) => {
     const { tab } = parse(listQuery, req.query)
     const user = currentUser(req)

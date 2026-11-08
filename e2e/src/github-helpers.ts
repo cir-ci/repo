@@ -11,7 +11,7 @@ import type { Session } from './admin.ts'
 import { Repo } from './git-repo.ts'
 import type { ScreenshotSpec } from './images.ts'
 import type { Stack } from './stack.ts'
-import { uploadBuild, type UploadOptions, type UploadResult } from './upload.ts'
+import { uploadBuild, type uploadOrThrow } from './upload.ts'
 
 /** The fake's installation id used by these tests. */
 export const INSTALLATION = '4242'
@@ -32,7 +32,7 @@ export interface PrBuild {
   number: number
   buildNumber: number
   buildId: string
-  upload: UploadResult | undefined
+  upload: uploadOrThrow.Result | undefined
   exitCode: number
 }
 
@@ -83,7 +83,7 @@ export async function uploadPr(
   p: LinkedProject,
   prNumber: number,
   shots: Record<string, ScreenshotSpec | Buffer>,
-  options: Partial<Pick<UploadOptions, 'gate' | 'wait' | 'args'>> & { branch?: string } = {},
+  options: Partial<Pick<uploadBuild.Options, 'gate' | 'wait' | 'args'>> & { branch?: string } = {},
 ): Promise<PrBuild> {
   await p.repo.checkout('main')
   await p.repo.checkout(options.branch ?? `pr-${prNumber}-${Date.now()}`, { create: true })

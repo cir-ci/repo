@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { type BaselineCandidate, isEligibleBaseline, resolveBaseline } from '#src/index.ts'
+import { isEligibleBaseline, resolveBaseline } from '#src/index.ts'
 
 let seq = 0
-function build(overrides: Partial<BaselineCandidate> & { commitSha: string }): BaselineCandidate {
+function build(
+  overrides: Partial<resolveBaseline.Candidate> & { commitSha: string },
+): resolveBaseline.Candidate {
   seq += 1
   return {
     id: `b${seq}`,

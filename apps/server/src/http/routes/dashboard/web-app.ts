@@ -4,14 +4,14 @@ import { join } from 'node:path'
 import fastifyStatic from '@fastify/static'
 import type { FastifyPluginAsync } from 'fastify'
 
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { isApiPath, noticePage } from '#http/lib/pages.ts'
 
 /**
  * The built web app (apps/web/dist): static files, and the app shell for every client-side
  * route. Unknown `/api` and `/v1` paths get JSON 404s instead of the shell.
  */
-export const webAppRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const webAppRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   const dist = deps.webDist
   if (!dist || !existsSync(join(dist, 'index.html'))) {
     app.get('/*', async (req, reply) => {

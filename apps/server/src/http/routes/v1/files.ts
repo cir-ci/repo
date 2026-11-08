@@ -5,7 +5,7 @@ import { getFile, markFileVerified } from '@circi/db'
 import { ChecksumMismatchError } from '@circi/storage'
 import type { FastifyPluginAsync } from 'fastify'
 
-import type { V1Deps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { byteLimit, TooLargeError } from '#http/lib/streams.ts'
 import { parse } from '#http/lib/validation.ts'
 
@@ -15,7 +15,7 @@ import { fileParams, MAX_SCREENSHOT_BYTES } from './schemas.ts'
  * `PUT /v1/files/:sha256`: uploads through the API, used with local-disk storage. The bytes are
  * hashed while streaming and stored only if they match (PLAN §8 "verify before dedup").
  */
-export const fileRoutes: FastifyPluginAsync<V1Deps> = async (app, deps) => {
+export const fileRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
   app.put('/files/:sha256', async (req, reply) => {
     const { sha256: hash } = parse(fileParams, req.params)
     const file = await getFile(deps.db, hash)

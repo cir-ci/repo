@@ -3,7 +3,7 @@ import { canUserAccessFile, getFile } from '@circi/db'
 import type { FastifyPluginAsync } from 'fastify'
 
 import { currentUser } from '#http/hooks/session.ts'
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 
 /**
  * `GET /api/files/:sha256`: screenshots, diffs and thumbnails by content hash. The bytes behind a
@@ -11,7 +11,7 @@ import type { DashboardDeps } from '#http/lib/deps.ts'
  * Files are shared across organizations by hash, so each request checks the file belongs to a
  * build in one of the signed-in user's organizations.
  */
-export const dashboardFileRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const dashboardFileRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   app.get<{ Params: { sha256: string } }>('/files/:sha256', async (req, reply) => {
     const hash = req.params.sha256
     if (!isSha256(hash)) return reply.code(404).send({ error: 'Not found' })

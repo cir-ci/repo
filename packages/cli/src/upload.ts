@@ -1,57 +1,53 @@
 import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 
-import {
-  ApiClient,
-  ApiError,
-  type BuildStatus,
-  type BuildSummary,
-  type UploadInstruction,
-} from './api.ts'
-import { type CiContext, ciRunId, detectCi } from './ci-env.ts'
-import { collectScreenshots, type LocalScreenshot } from './files.ts'
-import { type Ancestry, collectAncestry, gitRunner, localHead } from './git.ts'
+import { ApiClient, ApiError } from './api.ts'
+import { ciRunId, detectCi } from './ci-env.ts'
+import { collectScreenshots } from './files.ts'
+import { collectAncestry, gitRunner, localHead } from './git.ts'
 
-export interface UploadOptions {
-  dir: string
-  apiUrl: string
-  token: string
-  /** Build name, for several kinds of builds per commit (e.g. `chromium`, `mobile`). */
-  name?: string
-  wait?: boolean
-  /**
-   * This job uploads one shard of a parallel build: `index` is 0-based. Shards of one build
-   * share a nonce (default: the CI run's id), and the build is processed once all `total` arrive.
-   */
-  shard?: { index: number; total: number; nonce?: string }
-  /** Who blocks the merge: the git host's check (`status`) or this job (`exit-code`). Default: the server decides. */
-  gate?: 'status' | 'exit-code'
-  /** Who made the change (`--author`); replaces what the CI environment says. */
-  author?: string
-  waitTimeoutMs?: number
-  pollIntervalMs?: number
-  /** Allow `git fetch` to complete shallow history (default true). */
-  fetch?: boolean
-  cwd?: string
-  env?: Record<string, string | undefined>
-  fetchImpl?: typeof fetch
-  log?: (line: string) => void
-}
+export namespace upload {
+  export interface Options {
+    dir: string
+    apiUrl: string
+    token: string
+    /** Build name, for several kinds of builds per commit (e.g. `chromium`, `mobile`). */
+    name?: string
+    wait?: boolean
+    /**
+     * This job uploads one shard of a parallel build: `index` is 0-based. Shards of one build
+     * share a nonce (default: the CI run's id), and the build is processed once all `total` arrive.
+     */
+    shard?: { index: number; total: number; nonce?: string }
+    /** Who blocks the merge: the git host's check (`status`) or this job (`exit-code`). Default: the server decides. */
+    gate?: 'status' | 'exit-code'
+    /** Who made the change (`--author`); replaces what the CI environment says. */
+    author?: string
+    waitTimeoutMs?: number
+    pollIntervalMs?: number
+    /** Allow `git fetch` to complete shallow history (default true). */
+    fetch?: boolean
+    cwd?: string
+    env?: Record<string, string | undefined>
+    fetchImpl?: typeof fetch
+    log?: (line: string) => void
+  }
 
-export interface UploadResult {
-  /** 0 pass, 1 the result should block the merge, 2 something went wrong. */
-  exitCode: 0 | 1 | 2
-  build: BuildSummary
-  ci: CiContext
-  ancestry: Ancestry
-  uploaded: number
-  deduplicated: number
-  status?: BuildStatus
+  export interface Result {
+    /** 0 pass, 1 the result should block the merge, 2 something went wrong. */
+    exitCode: 0 | 1 | 2
+    build: ApiClient.Build
+    ci: detectCi.Context
+    ancestry: collectAncestry.Result
+    uploaded: number
+    deduplicated: number
+    status?: ApiClient.Status
+  }
 }
 
 const UPLOAD_CONCURRENCY = 8
 
-export async function upload(options: UploadOptions): Promise<UploadResult> {
+export async function upload(options: upload.Options): Promise<upload.Result> {
   const log = options.log ?? ((line: string) => console.log(line))
   const env = options.env ?? process.env
   const cwd = options.cwd ?? process.cwd()
@@ -165,7 +161,7 @@ export async function upload(options: UploadOptions): Promise<UploadResult> {
   }
   log(`  ${uploads.length} uploaded, ${deduplicated} already on the server`)
 
-  const result: UploadResult = {
+  const result: upload.Result = {
     exitCode: 0,
     build,
     ci,
@@ -207,7 +203,7 @@ async function waitForResult(
   client: ApiClient,
   buildId: string,
   opts: { timeoutMs: number; intervalMs?: number; gate?: 'status' | 'exit-code' },
-): Promise<BuildStatus | undefined> {
+): Promise<ApiClient.Status | undefined> {
   const deadline = Date.now() + opts.timeoutMs
   for (let attempt = 0; ; attempt += 1) {
     // oxlint-disable-next-line no-await-in-loop -- polling
@@ -229,7 +225,7 @@ export function pollDelay(attempt: number): number {
   return Math.min(2_000, Math.round(500 * 1.5 ** attempt))
 }
 
-function uniqueFiles(shots: LocalScreenshot[]) {
+function uniqueFiles(shots: collectScreenshots.Screenshot[]) {
   const seen = new Map<string, { sha256: string; size: number; contentType: string }>()
   for (const s of shots)
     seen.set(s.sha256, { sha256: s.sha256, size: s.size, contentType: 'image/png' })
@@ -238,8 +234,8 @@ function uniqueFiles(shots: LocalScreenshot[]) {
 
 async function sendAll(
   client: ApiClient,
-  instructions: UploadInstruction[],
-  byHash: Map<string, LocalScreenshot>,
+  instructions: ApiClient.UploadInstruction[],
+  byHash: Map<string, collectScreenshots.Screenshot>,
 ): Promise<void> {
   let next = 0
   const lanes = Array.from(

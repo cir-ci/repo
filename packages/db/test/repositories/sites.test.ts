@@ -7,7 +7,6 @@ import {
   seedSite,
   seedUser,
   sha,
-  type TestDb,
 } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -28,7 +27,7 @@ import {
   touchSiteSession,
 } from '#src/index.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 beforeAll(async () => {
   t = await createTestDb()
 })

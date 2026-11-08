@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 import { schema } from '@circi/db'
 import { FsStorage } from '@circi/storage'
-import { createTestDb, type TestDb, seedFile } from '@circi/testing'
+import { createTestDb, seedFile } from '@circi/testing'
 import { Command } from 'commander'
 import { eq } from 'drizzle-orm'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -36,7 +36,7 @@ vi.mock('#lifecycle/runtime.ts', async (importOriginal) => {
 const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex')
 const bytes = Buffer.from('a')
 
-let t: TestDb
+let t: createTestDb.Result
 let dir: string
 let storage: FsStorage
 

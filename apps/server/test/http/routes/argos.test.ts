@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { schema } from '@circi/db'
 import { reviewBuild } from '@circi/services'
 import { FsStorage } from '@circi/storage'
-import { createTestDb, type TestDb } from '@circi/testing'
+import { createTestDb } from '@circi/testing'
 import { processBuild } from '@circi/worker'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
@@ -23,7 +23,7 @@ import { createTestAuth, ORIGIN, seedTenant, type Tenant } from '#test/support/h
  * last one `final`). Not the real SDK: see the README's note on Argos compatibility.
  */
 
-let t: TestDb
+let t: createTestDb.Result
 let dir: string
 let storage: FsStorage
 let app: FastifyInstance

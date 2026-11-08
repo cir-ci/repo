@@ -26,29 +26,31 @@ import { gateInputs } from '@circi/services'
 
 /** The `git-notify` job: show a build's state on its commit and pull request (PLAN §7.4). */
 
-/** What the job needs of a git host adapter. */
-export type NotifyProvider = Pick<GitProvider, 'upsertCheckRun' | 'upsertComment'>
+export namespace notifyGit {
+  /** What the job needs of a git host adapter. */
+  export type Provider = Pick<GitProvider, 'upsertCheckRun' | 'upsertComment'>
 
-export interface NotifyDeps {
-  db: Database
-  /** The adapters by connection kind. Overrides `github` when both are given. */
-  providers?: ProviderRegistry<NotifyProvider> | undefined
-  /** Shorthand for a registry holding only the GitHub App, when this instance has one. */
-  github?: NotifyProvider | undefined
-  /** Dashboard origin, for links back to the build. */
-  publicOrigin: string
-  /** The instance secret, to open a connection's sealed credentials (token hosts). */
-  authSecret?: string | undefined
+  export interface Deps {
+    db: Database
+    /** The adapters by connection kind. Overrides `github` when both are given. */
+    providers?: ProviderRegistry<notifyGit.Provider> | undefined
+    /** Shorthand for a registry holding only the GitHub App, when this instance has one. */
+    github?: notifyGit.Provider | undefined
+    /** Dashboard origin, for links back to the build. */
+    publicOrigin: string
+    /** The instance secret, to open a connection's sealed credentials (token hosts). */
+    authSecret?: string | undefined
+  }
+
+  export type Result = { status: 'skipped'; reason: string } | { status: 'notified' }
 }
-
-export type NotifyResult = { status: 'skipped'; reason: string } | { status: 'notified' }
 
 /**
  * Reads the build's *current* state (not the state when the job was queued) and writes it as a
  * check run, plus the pull request's summary comment. Throws on GitHub errors, so the queue
  * retries; running it twice just writes the same thing again.
  */
-export async function notifyGit(deps: NotifyDeps, job: Job): Promise<NotifyResult> {
+export async function notifyGit(deps: notifyGit.Deps, job: Job): Promise<notifyGit.Result> {
   const buildId = typeof job.payload.buildId === 'string' ? job.payload.buildId : undefined
   if (!buildId) return { status: 'skipped', reason: 'malformed job' }
   const providers = deps.providers ?? providerRegistry({ github: deps.github })
@@ -100,9 +102,9 @@ export async function notifyGit(deps: NotifyDeps, job: Job): Promise<NotifyResul
 }
 
 async function notifyLocked(
-  deps: NotifyDeps & { provider: NotifyProvider; credentials: string | undefined },
+  deps: notifyGit.Deps & { provider: notifyGit.Provider; credentials: string | undefined },
   target: NonNullable<Awaited<ReturnType<typeof getGitTarget>>>,
-): Promise<NotifyResult> {
+): Promise<notifyGit.Result> {
   const reported = async (b: typeof target.build): Promise<ReportedBuild> => {
     const counts = await getBuildCounts(deps.db, b.id)
     const gate = await gateInputs(deps.db, b)
@@ -144,7 +146,7 @@ async function notifyLocked(
 }
 
 async function setCheck(
-  deps: NotifyDeps & { provider: NotifyProvider; credentials: string | undefined },
+  deps: notifyGit.Deps & { provider: notifyGit.Provider; credentials: string | undefined },
   target: NonNullable<Awaited<ReturnType<typeof getGitTarget>>>,
   mine: ReportedBuild,
   flakyBlocksMerge: boolean,

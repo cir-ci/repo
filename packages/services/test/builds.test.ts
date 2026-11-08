@@ -7,7 +7,7 @@ import {
   QUEUES,
   schema,
 } from '@circi/db'
-import { createTestDb, seedProject, sha, type TestDb } from '@circi/testing'
+import { createTestDb, seedProject, sha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -21,7 +21,7 @@ import {
   reviewBuild,
 } from '#src/index.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 beforeAll(async () => {
   t = await createTestDb()
 })

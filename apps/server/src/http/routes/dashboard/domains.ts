@@ -16,7 +16,7 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const orgParams = z.object({ org: z.string() })
@@ -40,7 +40,7 @@ function present(d: OrgDomain) {
  * with an emailed code on a verified domain joins the organization as a member.
  */
 export const dashboardDomainRoutes: FastifyPluginAsync<
-  DashboardDeps & { resolveTxt?: TxtResolver }
+  Deps.Dashboard & { resolveTxt?: TxtResolver }
 > = async (app, deps) => {
   async function managed(req: FastifyRequest, reply: FastifyReply) {
     const { org: slug } = parse(orgParams, req.params)

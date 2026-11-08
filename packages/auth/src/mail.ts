@@ -2,25 +2,27 @@ import { createTransport } from 'nodemailer'
 
 /** Outgoing mail over SMTP (PLAN §7.8). The auth code only sees this small interface. */
 
-export interface Mail {
-  to: string
-  subject: string
-  text: string
+export namespace Mailer {
+  export interface Mail {
+    to: string
+    subject: string
+    text: string
+  }
+
+  export interface SmtpOptions {
+    host: string
+    port: number
+    secure: boolean
+    auth?: { user: string; password: string }
+    from: string
+  }
 }
 
 export interface Mailer {
-  send(mail: Mail): Promise<void>
+  send(mail: Mailer.Mail): Promise<void>
 }
 
-export interface SmtpOptions {
-  host: string
-  port: number
-  secure: boolean
-  auth?: { user: string; password: string }
-  from: string
-}
-
-export function createSmtpMailer(options: SmtpOptions): Mailer {
+export function createSmtpMailer(options: Mailer.SmtpOptions): Mailer {
   const transport = createTransport({
     host: options.host,
     port: options.port,
@@ -40,7 +42,7 @@ export function createSmtpMailer(options: SmtpOptions): Mailer {
  * The sign-in mail: the code, and a link that opens the sign-in page with the code filled in.
  * The email and code travel in the fragment (`#…`), which browsers never send to a server.
  */
-export function signInMail(email: string, code: string, origin: string): Mail {
+export function signInMail(email: string, code: string, origin: string): Mailer.Mail {
   const link = `${origin}/#signin-email=${encodeURIComponent(email)}&code=${code}`
   return {
     to: email,
@@ -69,7 +71,7 @@ export function invitationMail(input: {
   inviterName: string
   role: string
   origin: string
-}): Mail {
+}): Mailer.Mail {
   const link = `${input.origin}/#invite=${encodeURIComponent(input.invitationId)}&email=${encodeURIComponent(input.to)}`
   return {
     to: input.to,
@@ -95,7 +97,7 @@ export function newSignInMail(input: {
   userAgent: string | null
   ipAddress: string | null
   origin: string
-}): Mail {
+}): Mailer.Mail {
   return {
     to: input.to,
     subject: 'New sign-in to your CirCI account',

@@ -3,14 +3,14 @@ import { getBuildByNumber, listBuildActivity } from '@circi/db'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { loadProject } from '#http/lib/project-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const params = z.object({ org: z.string(), project: z.string(), number: z.string() })
 
 /** `GET …/builds/:number/activity`: what happened to a build, oldest first. Members only. */
-export const dashboardActivityRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const dashboardActivityRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   app.get('/projects/:org/:project/builds/:number/activity', async (req, reply) => {
     const access = await loadProject(deps, req, reply)
     if (!access) return reply

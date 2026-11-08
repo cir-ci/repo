@@ -178,14 +178,16 @@ export async function collectMarkedFiles(
   return { deleted, kept }
 }
 
-export interface StorageUsage {
-  files: { kind: string; count: number; bytes: number }[]
-  totalBytes: number
-  markedForDeletion: { count: number; bytes: number }
+export namespace storageUsage {
+  export interface Result {
+    files: { kind: string; count: number; bytes: number }[]
+    totalBytes: number
+    markedForDeletion: { count: number; bytes: number }
+  }
 }
 
 /** What's stored: by kind of file, and how much is waiting to be collected. */
-export async function storageUsage(db: Database): Promise<StorageUsage> {
+export async function storageUsage(db: Database): Promise<storageUsage.Result> {
   const rows = await db
     .select({
       kind: files.kind,
@@ -209,11 +211,13 @@ export async function storageUsage(db: Database): Promise<StorageUsage> {
   }
 }
 
-export interface CollectionPreview {
-  /** Files a collection run would delete now: unreferenced and marked longer than the grace. */
-  wouldDelete: { count: number; bytes: number; sampleKeys: string[] }
-  /** Unreferenced files not marked yet (or marked too recently); a run marks them, deletes nothing. */
-  wouldMark: number
+export namespace previewCollection {
+  export interface Preview {
+    /** Files a collection run would delete now: unreferenced and marked longer than the grace. */
+    wouldDelete: { count: number; bytes: number; sampleKeys: string[] }
+    /** Unreferenced files not marked yet (or marked too recently); a run marks them, deletes nothing. */
+    wouldMark: number
+  }
 }
 
 /**
@@ -224,7 +228,7 @@ export interface CollectionPreview {
 export async function previewCollection(
   db: Database,
   input: { now: Date; graceMs: number; sample?: number },
-): Promise<CollectionPreview> {
+): Promise<previewCollection.Preview> {
   const cutoff = new Date(input.now.getTime() - input.graceMs)
   const due = and(
     isNotNull(files.gcMarkedAt),

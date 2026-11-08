@@ -16,7 +16,6 @@ import styles from './ConfirmDialog.module.css'
  * accident.
  */
 export function ConfirmDialog({
-  open,
   onOpenChange,
   title,
   description,
@@ -25,6 +24,7 @@ export function ConfirmDialog({
   confirmText,
   loading = false,
   onConfirm,
+  ...rest
 }: ConfirmDialog.Props) {
   const [typed, setTyped] = useState('')
   const cancel = useRef<HTMLButtonElement>(null)
@@ -37,10 +37,10 @@ export function ConfirmDialog({
 
   return (
     <AlertDialog.Root
-      open={open}
-      onOpenChange={(next) => {
+      {...rest}
+      onOpenChange={(next, details) => {
         if (!next) setTyped('')
-        onOpenChange(next)
+        onOpenChange?.(next, details)
       }}
     >
       <AlertDialog.Portal>
@@ -96,9 +96,7 @@ export function ConfirmDialog({
 }
 
 export namespace ConfirmDialog {
-  export interface Props {
-    open: boolean
-    onOpenChange: (open: boolean) => void
+  export interface Props extends Omit<AlertDialog.Root.Props, 'children'> {
     /** The accessible name; say what is being destroyed ("Delete web-app?"). */
     title: ReactNode
     /** What will happen, and that it can't be undone. */

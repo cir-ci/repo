@@ -1,11 +1,11 @@
 import { createWebhook, GIT_NOTIFY_QUEUE, linkProjectToGithub, QUEUES, schema } from '@circi/db'
-import { createTestDb, seedBuild, seedProject, type TestDb } from '@circi/testing'
+import { createTestDb, seedBuild, seedProject } from '@circi/testing'
 import { eq, inArray } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { MAX_BULK_REVIEW, reviewBuilds } from '#src/index.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 beforeAll(async () => {
   t = await createTestDb()
 })

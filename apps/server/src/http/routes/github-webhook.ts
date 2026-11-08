@@ -27,15 +27,17 @@ import type { FastifyBaseLogger, FastifyPluginAsync } from 'fastify'
  * organization.
  */
 
-export interface GithubWebhookDeps {
-  db: Database
-  secret: string
-  /** Used to answer on pull requests; the handler still works (silently) without it. */
-  github: Pick<GithubApp, 'react' | 'reply'> | undefined
-  /** Adapters by connection kind; the delivery is verified by the `github` one. Defaults to one built from `secret`. */
-  providers?: ProviderRegistry<Pick<GitProvider, 'verifyWebhook'>>
-  publicOrigin: string
-  logger: FastifyBaseLogger
+export namespace githubWebhookRoutes {
+  export interface Deps {
+    db: Database
+    secret: string
+    /** Used to answer on pull requests; the handler still works (silently) without it. */
+    github: Pick<GithubApp, 'react' | 'reply'> | undefined
+    /** Adapters by connection kind; the delivery is verified by the `github` one. Defaults to one built from `secret`. */
+    providers?: ProviderRegistry<Pick<GitProvider, 'verifyWebhook'>>
+    publicOrigin: string
+    logger: FastifyBaseLogger
+  }
 }
 
 interface Actor {
@@ -48,7 +50,10 @@ const record = (value: unknown): Record<string, unknown> =>
 const str = (value: unknown): string | undefined =>
   typeof value === 'string' ? value : typeof value === 'number' ? String(value) : undefined
 
-export const githubWebhookRoutes: FastifyPluginAsync<GithubWebhookDeps> = async (app, deps) => {
+export const githubWebhookRoutes: FastifyPluginAsync<githubWebhookRoutes.Deps> = async (
+  app,
+  deps,
+) => {
   // The signature covers the exact bytes, so keep them: parse JSON only after verifying.
   app.addContentTypeParser('application/json', { parseAs: 'buffer' }, (_req, body, done) => {
     done(null, body)
@@ -88,7 +93,7 @@ export const githubWebhookRoutes: FastifyPluginAsync<GithubWebhookDeps> = async 
 const LINK_HELP = (origin: string) =>
   `I couldn't tell who you are in CirCI. Sign in at ${origin} with GitHub (Account and sessions → link GitHub) using a member of this project's organization, then try again.`
 
-async function onCheckRun(deps: GithubWebhookDeps, p: Record<string, unknown>) {
+async function onCheckRun(deps: githubWebhookRoutes.Deps, p: Record<string, unknown>) {
   if (p.action !== 'requested_action') return
   const identifier = str(record(p.requested_action).identifier)
   if (identifier !== 'approve' && identifier !== 'reject') return
@@ -114,7 +119,7 @@ async function onCheckRun(deps: GithubWebhookDeps, p: Record<string, unknown>) {
 }
 
 /** The pull request's author replaces the login CI sent on every build of that pull request. */
-async function onPullRequest(deps: GithubWebhookDeps, p: Record<string, unknown>) {
+async function onPullRequest(deps: githubWebhookRoutes.Deps, p: Record<string, unknown>) {
   if (p.action !== 'opened' && p.action !== 'reopened' && p.action !== 'synchronize') return
   const pr = record(p.pull_request)
   const author = record(pr.user)
@@ -136,7 +141,7 @@ async function onPullRequest(deps: GithubWebhookDeps, p: Record<string, unknown>
   )
 }
 
-async function onComment(deps: GithubWebhookDeps, p: Record<string, unknown>) {
+async function onComment(deps: githubWebhookRoutes.Deps, p: Record<string, unknown>) {
   if (p.action !== 'created') return
   const issue = record(p.issue)
   if (!issue.pull_request) return

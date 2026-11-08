@@ -17,28 +17,17 @@ export {
   looksLikeProjectToken,
   tokenHint,
 } from './token.ts'
-export {
-  type BaselineCandidate,
-  type BaselineInput,
-  type BaselineResolution,
-  isEligibleBaseline,
-  resolveBaseline,
-} from './baseline.ts'
-export { type PairableScreenshot, pairScreenshots, type ScreenshotPair } from './pairing.ts'
+export { isEligibleBaseline, resolveBaseline } from './baseline.ts'
+export { pairScreenshots } from './pairing.ts'
 export { signWebhook, verifyWebhookSignature } from './webhook.ts'
 export { isPrivateAddress, webhookUrlProblem } from './webhook-url.ts'
-export {
-  DEFAULT_FLAKY_BLOCKS_MERGE,
-  type FlakyOnlyInput,
-  onlyFlakyChanges,
-  resolveFlakyBlocksMerge,
-} from './flaky.ts'
+export { DEFAULT_FLAKY_BLOCKS_MERGE, onlyFlakyChanges, resolveFlakyBlocksMerge } from './flaky.ts'
 export {
   BUILD_FILTER_REVIEWS,
   BUILD_FILTER_STATUSES,
   type BuildFilterValues,
 } from './build-filters.ts'
-export { type BuildOutcome, buildOutcome, type OutcomeInput } from './outcome.ts'
+export { buildOutcome } from './outcome.ts'
 export { isOverdue, isSnoozed, overdueBy, reviewDueAt } from './review-target.ts'
 export {
   FLAKY_MIN_CHANGES,
@@ -62,7 +51,6 @@ export { rotationFor, rotationHandover } from './rotation.ts'
 export { SNOOZE_WAKE_HOUR, snoozeUntil, type SnoozeChoice } from './snooze.ts'
 export { parseMentions } from './mentions.ts'
 export {
-  type CatalogEntry,
   catalogEntry,
   filterCatalog,
   groupOfKind,
@@ -70,9 +58,8 @@ export {
   INTEGRATION_CATALOG,
   INTEGRATION_GROUP_LABEL,
   INTEGRATION_GROUPS,
+  type IntegrationCatalog,
   integrationGroupLabel,
-  type IntegrationGroup,
   isInstallationId,
-  type IntegrationStatus,
 } from './integrations.ts'
 export { openSecret, sealSecret } from './secrets.ts'

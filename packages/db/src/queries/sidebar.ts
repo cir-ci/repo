@@ -11,29 +11,31 @@ import { countOpenTriage } from './triage.ts'
 
 /** What the sidebar shows for one organization, in the order it shows it. */
 
-export interface SidebarProject {
-  slug: string
-  name: string
-  pinned: boolean
-  /** Triage items waiting (not snoozed, not dismissed). */
-  triage: number
-}
+export namespace getSidebar {
+  export interface Project {
+    slug: string
+    name: string
+    pinned: boolean
+    /** Triage items waiting (not snoozed, not dismissed). */
+    triage: number
+  }
 
-export interface Sidebar {
-  /** Pinned projects first (in pin order), then the rest A to Z. */
-  projects: SidebarProject[]
-  /** The person's saved views in this organization, in their order. */
-  views: SavedViewRow[]
-  /** Unread, visible, awake notifications (across all of the person's organizations). */
-  inboxUnread: number
-  /** Open, awake review requests asked of the person in this organization. */
-  reviews: number
+  export interface Result {
+    /** Pinned projects first (in pin order), then the rest A to Z. */
+    projects: getSidebar.Project[]
+    /** The person's saved views in this organization, in their order. */
+    views: SavedViewRow[]
+    /** Unread, visible, awake notifications (across all of the person's organizations). */
+    inboxUnread: number
+    /** Open, awake review requests asked of the person in this organization. */
+    reviews: number
+  }
 }
 
 export async function getSidebar(
   db: Database,
   input: { userId: string; org: { id: string; slug: string }; now: Date; method?: SessionMethod },
-): Promise<Sidebar> {
+): Promise<getSidebar.Result> {
   const rows = await db
     .select({ id: projects.id, slug: projects.slug, name: projects.name })
     .from(projects)

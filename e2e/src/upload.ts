@@ -7,64 +7,68 @@ import { GIT_ENV, type Repo } from './git-repo.ts'
 import { CLI_MAIN, E2E_ROOT, REPO_ROOT } from './paths.ts'
 import type { Stack } from './stack.ts'
 
-/** What `circi upload --json` prints (the fields tests usually need; the rest is passed through). */
-export interface UploadResult {
-  build: { id: string; number: number; [key: string]: unknown }
-  uploaded: number
-  deduplicated: number
-  ci: {
-    provider: string
-    commitSha: string
-    branch?: string
-    prNumber?: number
-    [key: string]: unknown
-  }
-  ancestry?: unknown
-  status?: {
-    build: { id: string; status: string; reviewStatus?: string; [key: string]: unknown }
-    counts: {
-      added: number
-      changed: number
-      removed: number
-      unchanged: number
-      total: number
+export namespace uploadOrThrow {
+  /** What `circi upload --json` prints (the fields tests usually need; the rest is passed through). */
+  export interface Result {
+    build: { id: string; number: number; [key: string]: unknown }
+    uploaded: number
+    deduplicated: number
+    ci: {
+      provider: string
+      commitSha: string
+      branch?: string
+      prNumber?: number
       [key: string]: unknown
     }
-    outcome?: { state: string; summary: string; [key: string]: unknown }
+    ancestry?: unknown
+    status?: {
+      build: { id: string; status: string; reviewStatus?: string; [key: string]: unknown }
+      counts: {
+        added: number
+        changed: number
+        removed: number
+        unchanged: number
+        total: number
+        [key: string]: unknown
+      }
+      outcome?: { state: string; summary: string; [key: string]: unknown }
+      [key: string]: unknown
+    }
+    exitCode: number
     [key: string]: unknown
   }
-  exitCode: number
-  [key: string]: unknown
 }
 
-export interface CliRun {
-  exitCode: number
-  stdout: string
-  stderr: string
-  /** Parsed `--json` output, when the command printed some. */
-  result: UploadResult | undefined
-}
+export namespace uploadBuild {
+  export interface Options {
+    stack: Pick<Stack, 'url'>
+    /** The project's CI token. */
+    token: string
+    repo: Repo
+    /** Folder to upload (default: the repo's `screenshots/`). */
+    dir?: string
+    name?: string
+    /** Wait for the worker and exit 1 when changes block the merge. */
+    wait?: boolean
+    /** `n/total`, e.g. `1/2`. */
+    shard?: string
+    gate?: 'status' | 'exit-code'
+    /** Pull request number and base branch (sets CIRCI_PR_NUMBER / CIRCI_BASE_BRANCH). */
+    pr?: { number: number; base?: string }
+    /** Extra environment (e.g. CIRCI_BRANCH, GITHUB_RUN_ID). */
+    env?: Record<string, string>
+    /** Extra CLI arguments. */
+    args?: string[]
+    timeoutSeconds?: number
+  }
 
-export interface UploadOptions {
-  stack: Pick<Stack, 'url'>
-  /** The project's CI token. */
-  token: string
-  repo: Repo
-  /** Folder to upload (default: the repo's `screenshots/`). */
-  dir?: string
-  name?: string
-  /** Wait for the worker and exit 1 when changes block the merge. */
-  wait?: boolean
-  /** `n/total`, e.g. `1/2`. */
-  shard?: string
-  gate?: 'status' | 'exit-code'
-  /** Pull request number and base branch (sets CIRCI_PR_NUMBER / CIRCI_BASE_BRANCH). */
-  pr?: { number: number; base?: string }
-  /** Extra environment (e.g. CIRCI_BRANCH, GITHUB_RUN_ID). */
-  env?: Record<string, string>
-  /** Extra CLI arguments. */
-  args?: string[]
-  timeoutSeconds?: number
+  export interface Run {
+    exitCode: number
+    stdout: string
+    stderr: string
+    /** Parsed `--json` output, when the command printed some. */
+    result: uploadOrThrow.Result | undefined
+  }
 }
 
 /** Rebuilds the CLI when its sources are newer than `dist/main.mjs` (or its build config); throws if it can't. */
@@ -86,7 +90,7 @@ export async function ensureCliBuilt(): Promise<void> {
 }
 
 /** Environment for the CLI: git identity, no CI provider detected, only what the test sets. */
-function cliEnv(options: UploadOptions): Record<string, string> {
+function cliEnv(options: uploadBuild.Options): Record<string, string> {
   const base: Record<string, string> = {}
   for (const key of ['PATH', 'HOME', 'TMPDIR', 'LANG']) {
     const value = process.env[key]
@@ -139,7 +143,7 @@ export function runCli(
  * `circi upload <dir> --json` from inside the repo, as CI would run it. Does not throw on a
  * non-zero exit: tests assert on `exitCode` (1 means visual changes block the merge).
  */
-export async function uploadBuild(options: UploadOptions): Promise<CliRun> {
+export async function uploadBuild(options: uploadBuild.Options): Promise<uploadBuild.Run> {
   await ensureCliBuilt()
   const args = [
     'upload',
@@ -152,9 +156,9 @@ export async function uploadBuild(options: UploadOptions): Promise<CliRun> {
     ...(options.args ?? []),
   ]
   const out = await runCli(args, { cwd: options.repo.dir, env: cliEnv(options) })
-  let result: UploadResult | undefined
+  let result: uploadOrThrow.Result | undefined
   try {
-    result = JSON.parse(out.stdout) as UploadResult
+    result = JSON.parse(out.stdout) as uploadOrThrow.Result
   } catch {
     result = undefined
   }
@@ -163,8 +167,8 @@ export async function uploadBuild(options: UploadOptions): Promise<CliRun> {
 
 /** Like `uploadBuild` but throws unless the upload itself worked (exit 0 or 1) and printed a result. */
 export async function uploadOrThrow(
-  options: UploadOptions,
-): Promise<UploadResult & { run: CliRun }> {
+  options: uploadBuild.Options,
+): Promise<uploadOrThrow.Result & { run: uploadBuild.Run }> {
   const out = await uploadBuild(options)
   if (!out.result || out.exitCode > 1) {
     throw new Error(`circi upload failed (exit ${out.exitCode})\n${out.stderr}\n${out.stdout}`)

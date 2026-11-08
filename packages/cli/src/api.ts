@@ -1,45 +1,61 @@
 /** Thin client for the CirCI `/v1` API, using the built-in fetch. */
 
-export interface ProjectInfo {
-  org: string
-  slug: string
-  name: string
-  defaultBranch: string
-  dashboardUrl: string
-}
-
-export interface BuildSummary {
-  id: string
-  number: number
-  name: string
-  status: string
-  conclusion: string | null
-  reviewStatus: string
-  url: string
-}
-
-export interface UploadInstruction {
-  sha256: string
-  url: string
-  method: 'PUT'
-  headers: Record<string, string>
-  /** `token`: send the project token too (uploads through the API, local-disk storage). */
-  auth: 'token' | 'none'
-}
-
-export interface BuildStatus {
-  build: BuildSummary
-  counts: {
-    added: number
-    removed: number
-    changed: number
-    unchanged: number
-    failed: number
-    total: number
+export namespace ApiClient {
+  export interface Options {
+    baseUrl: string
+    token: string
+    fetch?: typeof fetch
   }
-  outcome: { state: 'pending' | 'pass' | 'fail'; summary: string; warning?: string }
-  gate: 'exit-code' | 'status'
-  errorMessage: string | null
+
+  export interface Project {
+    org: string
+    slug: string
+    name: string
+    defaultBranch: string
+    dashboardUrl: string
+  }
+
+  export interface Build {
+    id: string
+    number: number
+    name: string
+    status: string
+    conclusion: string | null
+    reviewStatus: string
+    url: string
+  }
+
+  export interface UploadInstruction {
+    sha256: string
+    url: string
+    method: 'PUT'
+    headers: Record<string, string>
+    /** `token`: send the project token too (uploads through the API, local-disk storage). */
+    auth: 'token' | 'none'
+  }
+
+  export interface Status {
+    build: ApiClient.Build
+    counts: {
+      added: number
+      removed: number
+      changed: number
+      unchanged: number
+      failed: number
+      total: number
+    }
+    outcome: { state: 'pending' | 'pass' | 'fail'; summary: string; warning?: string }
+    gate: 'exit-code' | 'status'
+    errorMessage: string | null
+  }
+
+  export interface SiteUpload {
+    site: { name: string; kind: string; slug: string }
+    version: { commitSha: string; fileCount: number; totalBytes: number }
+    addresses: { commit: string; branch?: string }
+    branchMoved: boolean
+    replaced: boolean
+  }
 }
 
 export class ApiError extends Error {
@@ -53,30 +69,24 @@ export class ApiError extends Error {
   }
 }
 
-export interface ApiClientOptions {
-  baseUrl: string
-  token: string
-  fetch?: typeof fetch
-}
-
 export class ApiClient {
   readonly baseUrl: string
   private readonly token: string
   private readonly fetchImpl: typeof fetch
 
-  constructor(options: ApiClientOptions) {
+  constructor(options: ApiClient.Options) {
     this.baseUrl = options.baseUrl.replace(/\/+$/, '')
     this.token = options.token
     this.fetchImpl = options.fetch ?? fetch
   }
 
-  project(): Promise<ProjectInfo> {
+  project(): Promise<ApiClient.Project> {
     return this.json('GET', '/v1/project')
   }
 
   createBuild(
     body: Record<string, unknown>,
-  ): Promise<{ build: BuildSummary; uploads: UploadInstruction[] }> {
+  ): Promise<{ build: ApiClient.Build; uploads: ApiClient.UploadInstruction[] }> {
     return this.json('POST', '/v1/builds', body)
   }
 
@@ -84,7 +94,7 @@ export class ApiClient {
     buildId: string,
     body: Record<string, unknown>,
   ): Promise<{
-    build: BuildSummary
+    build: ApiClient.Build
     complete: boolean
     shardsReceived: number
     shardsTotal: number
@@ -92,12 +102,15 @@ export class ApiClient {
     return this.json('POST', `/v1/builds/${buildId}/finalize`, body)
   }
 
-  status(buildId: string, gate?: 'status' | 'exit-code'): Promise<BuildStatus> {
+  status(buildId: string, gate?: 'status' | 'exit-code'): Promise<ApiClient.Status> {
     return this.json('GET', `/v1/builds/${buildId}/status${gate ? `?gate=${gate}` : ''}`)
   }
 
   /** Uploads a site (a `.tar.gz`); the query says what and where it is. */
-  async uploadSite(query: Record<string, string>, archive: Uint8Array): Promise<SiteUpload> {
+  async uploadSite(
+    query: Record<string, string>,
+    archive: Uint8Array,
+  ): Promise<ApiClient.SiteUpload> {
     const res = await this.fetchImpl(
       `${this.baseUrl}/v1/sites?${new URLSearchParams(query).toString()}`,
       {
@@ -122,7 +135,7 @@ export class ApiClient {
     }
     // The server's tests pin this shape.
     // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-    return data as SiteUpload
+    return data as ApiClient.SiteUpload
   }
 
   /** The commit a branch's address serves now, or null when it has none yet. */
@@ -135,7 +148,11 @@ export class ApiClient {
   }
 
   /** Sends one file as instructed by the server, retrying transient failures. */
-  async upload(instruction: UploadInstruction, bytes: Uint8Array, attempts = 3): Promise<void> {
+  async upload(
+    instruction: ApiClient.UploadInstruction,
+    bytes: Uint8Array,
+    attempts = 3,
+  ): Promise<void> {
     // fetch sets content-length itself from the body; passing it explicitly is not allowed.
     const headers = Object.fromEntries(
       Object.entries(instruction.headers).filter(([k]) => k.toLowerCase() !== 'content-length'),
@@ -204,12 +221,4 @@ async function safeText(res: Response): Promise<string> {
   } catch {
     return ''
   }
-}
-
-export interface SiteUpload {
-  site: { name: string; kind: string; slug: string }
-  version: { commitSha: string; fileCount: number; totalBytes: number }
-  addresses: { commit: string; branch?: string }
-  branchMoved: boolean
-  replaced: boolean
 }

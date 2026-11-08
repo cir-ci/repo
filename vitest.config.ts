@@ -48,6 +48,8 @@ const webOptimizeDeps = [
   'better-auth/client/plugins',
   'better-auth/react',
   'react-dom/client',
+  'zustand',
+  'zustand/middleware',
 ]
 // The visual project is rooted at the repository (screenshots go to its .circi), where nothing
 // but @circi/ui (a dependency of the root package) is installed.

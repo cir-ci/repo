@@ -14,14 +14,7 @@ import styles from './Menu.module.css'
  * `trigger` is the element that opens it (a `Button`, `IconButton`, avatar button…); it keeps its
  * own accessible name.
  */
-export function Menu({
-  trigger,
-  items,
-  align = 'start',
-  className,
-  open,
-  onOpenChange,
-}: Menu.Props) {
+export function Menu({ trigger, items, align = 'start', className, ...rest }: Menu.Props) {
   const keyed = items.map((entry, index) => ({
     entry,
     key:
@@ -32,10 +25,7 @@ export function Menu({
           : `item-${entry.label}`,
   }))
   return (
-    <BaseMenu.Root
-      open={open}
-      onOpenChange={onOpenChange ? (next) => onOpenChange(next) : undefined}
-    >
+    <BaseMenu.Root {...rest}>
       <BaseMenu.Trigger render={trigger} />
       <BaseMenu.Portal>
         <BaseMenu.Positioner className={styles.positioner} sideOffset={4} align={align}>
@@ -117,13 +107,10 @@ export namespace Menu {
 
   export type Entry = Item | Separator | Content
 
-  export interface Props {
+  export interface Props extends Omit<BaseMenu.Root.Props, 'children'> {
     trigger: ReactElement<Record<string, unknown>>
     items: ReadonlyArray<Entry>
     align?: 'start' | 'center' | 'end'
     className?: string
-    /** Controlled open state, for a menu a shortcut opens; omit both props to leave it to the trigger. */
-    open?: boolean
-    onOpenChange?: (open: boolean) => void
   }
 }

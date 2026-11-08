@@ -12,7 +12,7 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
 import { savedFilters } from '#http/lib/build-filters.ts'
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { loadOrg } from '#http/lib/org-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
@@ -41,7 +41,7 @@ function wire(v: SavedViewRow): View.Item {
  * the sidebar renders. Views are private to their owner, so another member's view is "not
  * found"; anyone outside the organization gets "not found" for all of it.
  */
-export const dashboardViewRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const dashboardViewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   app.get('/orgs/:org/views', async (req, reply) => {
     const found = await loadOrg(deps, req, reply)
     if (!found) return reply

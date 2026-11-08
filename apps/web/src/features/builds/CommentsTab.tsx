@@ -8,7 +8,7 @@ import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import { Composer } from './Composer.tsx'
 import { commentsQuery, useAddComment, useDeleteComment, useEditComment } from './discussion-api.ts'
-import type { MentionMember } from './mentions.ts'
+import type { Mention } from './mentions.ts'
 import { regionThreads } from './regions.ts'
 import { groupThreads, type Thread } from './timeline.ts'
 
@@ -25,7 +25,7 @@ export function CommentsTab(props: CommentsTab.Props) {
   const add = useAddComment(org, project, number)
   const announce = useAnnounce()
 
-  const members: MentionMember[] = (organization.data?.members ?? []).map((m) => ({
+  const members: Mention.Member[] = (organization.data?.members ?? []).map((m) => ({
     userId: m.userId,
     name: m.user.name,
     email: m.user.email,
@@ -193,7 +193,7 @@ function ThreadView({
 namespace ThreadView {
   export interface Props {
     thread: Thread
-    members: readonly MentionMember[]
+    members: readonly Mention.Member[]
     number: number | undefined
     focused: boolean
     org: string
@@ -275,7 +275,7 @@ function CommentView({ comment, members, org, project, build, children }: Commen
 namespace CommentView {
   export interface Props {
     comment: Comment.Item
-    members: readonly MentionMember[]
+    members: readonly Mention.Member[]
     org: string
     project: string
     build: number

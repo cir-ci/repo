@@ -20,28 +20,35 @@ import { ConflictError } from '#src/errors.ts'
 
 export type { LoginMethod }
 
-/** A session's login method, or `unknown` for sessions that predate the record. */
-/** An organization's own single sign-on opens that organization and nothing else. */
-export interface OrgScopedMethod {
-  scopedTo: string
+export namespace SessionMethod {
+  /** A session's login method, or `unknown` for sessions that predate the record. */
+  /** An organization's own single sign-on opens that organization and nothing else. */
+  export interface OrgScoped {
+    scopedTo: string
+  }
 }
-export type SessionMethod = LoginMethod | 'unknown' | OrgScopedMethod
+export type SessionMethod = LoginMethod | 'unknown' | SessionMethod.OrgScoped
 
-/** What the instance offers; the caller derives it from config. */
-export interface InstanceMethods {
-  password: boolean
-  email: boolean
-  oidc: boolean
+export namespace getOrgAuthSettings {
+  /** What the instance offers; the caller derives it from config. */
+  export interface Instance {
+    password: boolean
+    email: boolean
+    oidc: boolean
+  }
+
+  export interface Result {
+    emailLoginEnabled: boolean
+    passwordLoginEnabled: boolean
+  }
 }
 
-export interface OrgAuthSettings {
-  emailLoginEnabled: boolean
-  passwordLoginEnabled: boolean
-}
+const DEFAULTS: getOrgAuthSettings.Result = { emailLoginEnabled: true, passwordLoginEnabled: true }
 
-const DEFAULTS: OrgAuthSettings = { emailLoginEnabled: true, passwordLoginEnabled: true }
-
-export async function getOrgAuthSettings(db: Database, orgId: string): Promise<OrgAuthSettings> {
+export async function getOrgAuthSettings(
+  db: Database,
+  orgId: string,
+): Promise<getOrgAuthSettings.Result> {
   const [row] = await db.select().from(orgAuthSettings).where(eq(orgAuthSettings.orgId, orgId))
   return row
     ? { emailLoginEnabled: row.emailLoginEnabled, passwordLoginEnabled: row.passwordLoginEnabled }
@@ -160,9 +167,9 @@ async function ownerCanSignIn(
 export async function setOrgAuthSettings(
   db: Database,
   orgId: string,
-  patch: Partial<OrgAuthSettings>,
-  options: { instance: InstanceMethods; force?: boolean },
-): Promise<OrgAuthSettings> {
+  patch: Partial<getOrgAuthSettings.Result>,
+  options: { instance: getOrgAuthSettings.Instance; force?: boolean },
+): Promise<getOrgAuthSettings.Result> {
   const next = { ...(await getOrgAuthSettings(db, orgId)), ...patch }
   if (!options.force) {
     const on = {

@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 
 import { requireProjectToken } from '#http/hooks/project-token.ts'
-import type { V1Deps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { jsonErrorHandler } from '#http/lib/errors.ts'
 
 import { buildRoutes } from './builds.ts'
@@ -13,7 +13,7 @@ import { siteRoutes } from './sites.ts'
  * The CI API, registered under `/v1`. Everything in this scope needs a project token; the hook,
  * body parser and error handler set here apply to every route module registered below.
  */
-export const v1Routes: FastifyPluginAsync<V1Deps> = async (v1, deps) => {
+export const v1Routes: FastifyPluginAsync<Deps.V1> = async (v1, deps) => {
   v1.addHook('onRequest', requireProjectToken(deps.auth, deps.db))
   // Uploaded file bodies reach the handler as a raw stream.
   v1.addContentTypeParser(

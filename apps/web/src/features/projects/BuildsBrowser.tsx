@@ -16,7 +16,7 @@ import {
   visuallyHidden,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 
 import { buildState } from '#features/builds/build-state.ts'
 import { CountsSummary } from '#features/builds/CountsSummary.tsx'
@@ -28,6 +28,8 @@ import { ErrorState } from '#lib/ErrorState.tsx'
 import { leavesKeyToFocus } from '#lib/list-keys.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
+import { useDisplayStore } from '#lib/stores/display-store.ts'
+import { useListStore } from '#lib/stores/list-store.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 import { useListNavigation } from '#lib/use-list-navigation.ts'
 
@@ -35,13 +37,7 @@ import { BUILDS_PAGE_SIZE, projectQuery, useBulkRequestReview, useBulkReview } f
 import { BuildFilterBar } from './BuildFilterBar.tsx'
 import { type BuildFilters, type FilterField, hasFilters, toSearch } from './builds-filters.ts'
 import { BulkRejectDialog } from './BulkRejectDialog.tsx'
-import {
-  type DisplayOptions,
-  groupBuilds,
-  loadDisplay,
-  orderBuilds,
-  saveDisplay,
-} from './display-options.ts'
+import { type DisplayOptions, groupBuilds, orderBuilds } from './display-options.ts'
 import { useLoadingAnnouncement } from './loading.ts'
 
 import styles from './BuildsBrowser.module.css'
@@ -66,11 +62,15 @@ export function BuildsBrowser({
   const { data, error, refetch } = useQuery(projectQuery(org, project, before, filters))
   useLoadingAnnouncement(!data && !error, 'Loading builds')
 
-  const [display, setDisplayState] = useState<DisplayOptions>(loadDisplay)
+  const display = useDisplayStore((s) => s.display)
+  const setDisplay = useDisplayStore((s) => s.setDisplay)
+  const clearChecked = useListStore((s) => s.clearChecked)
   const [open, setOpen] = useState<FilterField | 'display'>()
-  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
-  const [cursorId, setCursorId] = useState<string>()
-  const [peek, setPeek] = useState(false)
+  const selected = useListStore((s) => s.checked)
+  const cursorId = useListStore((s) => s.cursorId)
+  const setCursorId = useListStore((s) => s.setCursorId)
+  const peek = useListStore((s) => s.peek)
+  useEffect(() => () => useListStore.getState().reset(), [])
   const [rejecting, setRejecting] = useState(false)
   const [picking, setPicking] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -78,11 +78,6 @@ export function BuildsBrowser({
   const bulk = useBulkReview(org, project)
   const bulkRequest = useBulkRequestReview(org, project)
   const saveView = useSaveView(org)
-
-  const setDisplay = (next: DisplayOptions) => {
-    setDisplayState(next)
-    saveDisplay(next)
-  }
 
   const builds = data?.builds ?? []
   const oldest = builds.at(-1)?.number
@@ -102,16 +97,13 @@ export function BuildsBrowser({
   useShortcutHandlers({
     peek: (_action, event) => {
       if (leavesKeyToFocus(event) || !cursor) return false
-      setPeek((p) => !p)
+      useListStore.getState().togglePeek()
       return undefined
     },
     select: () => {
       if (!cursor) return
-      const next = new Set(selected)
-      const on = !next.has(cursor.id)
-      if (on) next.add(cursor.id)
-      else next.delete(cursor.id)
-      setSelected(next)
+      const on = useListStore.getState().toggleChecked(cursor.id)
+      const next = useListStore.getState().checked
       const count = flat.filter((b) => next.has(b.id)).length
       announce(`${on ? 'Selected' : 'Deselected'} build ${cursor.number}, ${count} selected`)
     },
@@ -127,7 +119,7 @@ export function BuildsBrowser({
           announce(
             `${decision === 'approved' ? 'Approved' : 'Rejected'} ${countText(chosen.length)}`,
           )
-          setSelected(new Set())
+          clearChecked()
           setRejecting(false)
         },
       },
@@ -310,7 +302,7 @@ export function BuildsBrowser({
           <Button size="sm" onClick={() => setPicking(true)}>
             Request review
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+          <Button size="sm" variant="ghost" onClick={clearChecked}>
             Clear selection
           </Button>
           {failed ? (
@@ -337,7 +329,7 @@ export function BuildsBrowser({
             {
               onSuccess: () => {
                 announce(`Asked ${member.name} to review ${countText(chosen.length)}`)
-                setSelected(new Set())
+                clearChecked()
               },
             },
           )

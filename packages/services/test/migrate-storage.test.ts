@@ -6,12 +6,12 @@ import { Readable } from 'node:stream'
 
 import { ensureAssetFiles } from '@circi/db'
 import { FsStorage, type StorageDriver } from '@circi/storage'
-import { createTestDb, type TestDb } from '@circi/testing'
+import { createTestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { migrateStorage } from '#src/index.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 let dir: string
 let from: FsStorage
 let to: FsStorage

@@ -15,8 +15,6 @@ import styles from './Dialog.module.css'
  * `data-circi-color-scheme`: only the scheme on `<html>` reaches it.
  */
 export function Dialog({
-  open,
-  onOpenChange,
   title,
   description,
   size = 'form',
@@ -24,13 +22,10 @@ export function Dialog({
   hideClose = false,
   dismissible = true,
   children,
+  ...rest
 }: Dialog.Props) {
   return (
-    <BaseDialog.Root
-      open={open}
-      onOpenChange={(next) => onOpenChange(next)}
-      disablePointerDismissal={!dismissible}
-    >
+    <BaseDialog.Root {...rest} disablePointerDismissal={!dismissible}>
       <BaseDialog.Portal>
         <BaseDialog.Backdrop className={styles.backdrop} />
         <BaseDialog.Viewport className={styles.viewport}>
@@ -60,9 +55,7 @@ export function Dialog({
 }
 
 export namespace Dialog {
-  export interface Props {
-    open: boolean
-    onOpenChange: (open: boolean) => void
+  export interface Props extends Omit<BaseDialog.Root.Props, 'children'> {
     /** The accessible name of the dialog. */
     title: ReactNode
     /** One line under the header; becomes the dialog's accessible description. */

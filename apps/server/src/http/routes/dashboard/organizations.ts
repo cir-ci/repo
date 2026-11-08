@@ -13,7 +13,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const nameBody = z.object({ name: z.string().min(1).max(100) })
@@ -24,7 +24,10 @@ const orgParams = z.object({ org: z.string() })
  * any member when `ORG_CREATION=anyone`. Projects: owners and admins of the organization, who
  * get the project's CI token once, in the response.
  */
-export const dashboardOrganizationRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const dashboardOrganizationRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
+  app,
+  deps,
+) => {
   async function canCreateOrganization(user: {
     id: string
     method: SessionMethod

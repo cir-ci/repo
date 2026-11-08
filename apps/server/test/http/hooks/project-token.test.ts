@@ -1,12 +1,12 @@
 import type { Auth } from '@circi/auth'
-import { createTestDb, type TestDb } from '@circi/testing'
+import { createTestDb } from '@circi/testing'
 import Fastify from 'fastify'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { currentProject, requireProjectToken } from '#http/hooks/project-token.ts'
 import { createTestAuth, seedTenant, type Tenant } from '#test/support/helpers.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 let auth: Auth
 let tenant: Tenant
 const app = Fastify()

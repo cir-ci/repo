@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
-import { ShortcutLayer, useShortcutLayer } from '#app/ShortcutLayer.tsx'
+import { ShortcutLayer } from '#app/ShortcutLayer.tsx'
+import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { fakeApi, restoreFetch } from '#test/features/fetch-routes.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -61,9 +62,9 @@ const seen = async (target: { element?: unknown } & Parameters<typeof expect.ele
 }
 
 function Opener() {
-  const { openCommandMenu } = useShortcutLayer()
+  const setCommandMenuOpen = useOverlayStore((s) => s.setCommandMenuOpen)
   return (
-    <button type="button" onClick={openCommandMenu}>
+    <button type="button" onClick={() => setCommandMenuOpen(true)}>
       Search
     </button>
   )

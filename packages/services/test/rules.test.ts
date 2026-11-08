@@ -6,20 +6,13 @@ import {
   schema,
   setTriageRotation,
 } from '@circi/db'
-import {
-  addTestMember,
-  createTestDb,
-  seedProject,
-  seedUser,
-  sha,
-  type TestDb,
-} from '@circi/testing'
+import { addTestMember, createTestDb, seedProject, seedUser, sha } from '@circi/testing'
 import { asc, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { completeBuild, finalizeBuild } from '#src/index.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 beforeAll(async () => {
   t = await createTestDb()
 })

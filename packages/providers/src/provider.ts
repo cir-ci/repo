@@ -27,7 +27,7 @@ export interface GitProvider {
   upsertCheckRun(
     externalId: string,
     repo: string,
-    input: StatusInput,
+    input: GitProvider.StatusInput,
     credentials?: string,
   ): Promise<string>
 
@@ -45,29 +45,31 @@ export interface GitProvider {
   ): Promise<string>
 
   /** Whether a webhook delivery really came from the host: checks its signature or token. */
-  verifyWebhook(rawBody: Buffer | string, headers: WebhookHeaders): boolean
+  verifyWebhook(rawBody: Buffer | string, headers: GitProvider.WebhookHeaders): boolean
 
   /** The repositories the connection can see, for choosing one per project. */
-  listRepositories(externalId: string, credentials?: string): Promise<RepositoryInfo[]>
+  listRepositories(externalId: string, credentials?: string): Promise<GitProvider.Repository[]>
 }
 
-export interface StatusInput {
-  sha: string
-  report: CheckReport
-  detailsUrl: string
-  existingId?: string
-}
+export namespace GitProvider {
+  export interface StatusInput {
+    sha: string
+    report: CheckReport
+    detailsUrl: string
+    existingId?: string
+  }
 
-export interface RepositoryInfo {
-  /** `owner/name`. */
-  ref: string
-  private: boolean
-}
+  export interface Repository {
+    /** `owner/name`. */
+    ref: string
+    private: boolean
+  }
 
-export type WebhookHeaders = Readonly<Record<string, string | string[] | undefined>>
+  export type WebhookHeaders = Readonly<Record<string, string | string[] | undefined>>
+}
 
 /** The first value of a header, whatever the casing the caller's framework used. */
-export function headerValue(headers: WebhookHeaders, name: string): string | undefined {
+export function headerValue(headers: GitProvider.WebhookHeaders, name: string): string | undefined {
   const value = headers[name.toLowerCase()] ?? headers[name]
   return Array.isArray(value) ? value[0] : value
 }

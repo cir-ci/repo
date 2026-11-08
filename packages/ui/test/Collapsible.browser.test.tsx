@@ -19,7 +19,7 @@ describe('Collapsible', () => {
     await trigger.click()
     await expect.element(trigger).toHaveAttribute('aria-expanded', 'true')
     await expect.element(page.getByText('Row content')).toBeVisible()
-    expect(onOpenChange).toHaveBeenLastCalledWith(true)
+    expect(onOpenChange).toHaveBeenLastCalledWith(true, expect.anything())
     await trigger.click()
     await expect.element(page.getByText('Row content')).not.toBeInTheDocument()
   })

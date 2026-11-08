@@ -1,4 +1,4 @@
-import { createTestDb, seedProject, type TestDb } from '@circi/testing'
+import { createTestDb, seedProject } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
@@ -9,7 +9,7 @@ import {
   removeIgnoreRegion,
 } from '#src/index.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 beforeAll(async () => {
   t = await createTestDb()
 })

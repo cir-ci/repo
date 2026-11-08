@@ -1,5 +1,5 @@
 import { listUserOrganizationIds } from '@circi/db'
-import { createTestDb, type TestDb } from '@circi/testing'
+import { createTestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
@@ -13,7 +13,7 @@ import {
   verifyProjectToken,
 } from '#src/index.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 let auth: Auth
 
 beforeAll(async () => {

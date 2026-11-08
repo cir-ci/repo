@@ -16,7 +16,7 @@ import {
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { useLoadingAnnouncement } from '#features/projects/loading.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
@@ -26,6 +26,7 @@ import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
+import { useListStore } from '#lib/stores/list-store.ts'
 import { TabList } from '#lib/TabList.tsx'
 import { useClientLink } from '#lib/use-client-link.ts'
 import { useListNavigation } from '#lib/use-list-navigation.ts'
@@ -54,8 +55,11 @@ export function InboxPage() {
   const { data, error, refetch } = useQuery(inboxQuery(tab))
   useLoadingAnnouncement(!data && !error, 'Loading your inbox')
 
-  const [selectedId, setSelectedId] = useState<string>()
-  const [peek, setPeek] = useState(false)
+  const selectedId = useListStore((s) => s.cursorId)
+  const setSelectedId = useListStore((s) => s.setCursorId)
+  const peek = useListStore((s) => s.peek)
+  const togglePeek = useListStore((s) => s.togglePeek)
+  useEffect(() => () => useListStore.getState().reset(), [])
   const [snoozeOpen, setSnoozeOpen] = useState(false)
 
   const setRead = useSetRead()
@@ -118,7 +122,7 @@ export function InboxPage() {
     },
     peek: (_action, event) => {
       if (leavesKeyToFocus(event) || !selected) return false
-      setPeek((p) => !p)
+      togglePeek()
       return undefined
     },
     toggleRead: () => {

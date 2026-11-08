@@ -7,14 +7,13 @@ import {
   seedNotification,
   seedProject,
   seedUser,
-  type TestDb,
 } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { type EmailSender, sendNotificationEmail } from '#jobs/send-email.ts'
+import { sendNotificationEmail } from '#jobs/send-email.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 beforeAll(async () => {
   t = await createTestDb()
 })
@@ -25,7 +24,7 @@ afterAll(async () => {
 /** The SMTP fake: remembers each mail instead of sending it. */
 function fakeMailer() {
   const sent: { to: string; subject: string; text: string }[] = []
-  const mailer: EmailSender = {
+  const mailer: sendNotificationEmail.Sender = {
     async send(mail) {
       sent.push(mail)
     },
@@ -130,7 +129,7 @@ describe('sendNotificationEmail', () => {
 
   it('lets a failing mailer fail the job so the queue retries', async () => {
     const { notification } = await setup()
-    const mailer: EmailSender = {
+    const mailer: sendNotificationEmail.Sender = {
       async send() {
         throw new Error('smtp down')
       },

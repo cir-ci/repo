@@ -5,7 +5,6 @@ import {
   type GitProvider,
   isConnectionRevoked,
   PR_COMMENT_MARKER,
-  type WebhookHeaders,
 } from '#src/index.ts'
 
 /**
@@ -32,7 +31,7 @@ export interface ProviderHarness {
     revoke(): void
   }
   /** Headers a delivery with this body carries when the host signed it correctly. */
-  signed(body: string): WebhookHeaders
+  signed(body: string): GitProvider.WebhookHeaders
 }
 
 const report: CheckReport = {

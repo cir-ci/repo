@@ -1,33 +1,30 @@
-import {
-  emailPreferenceFor,
-  type Job,
-  getNotificationEmailData,
-  type NotificationEmailData,
-} from '@circi/db'
+import { emailPreferenceFor, type Job, getNotificationEmailData } from '@circi/db'
 import type { Database } from '@circi/db'
 
 /** The `notification-email` job: one email about one inbox notification (B2). */
 
-/** The part of the SMTP mailer the job needs; `@circi/auth`'s `Mailer` fits. */
-export interface EmailSender {
-  send(mail: { to: string; subject: string; text: string }): Promise<void>
-}
+export namespace sendNotificationEmail {
+  /** The part of the SMTP mailer the job needs; `@circi/auth`'s `Mailer` fits. */
+  export interface Sender {
+    send(mail: { to: string; subject: string; text: string }): Promise<void>
+  }
 
-export interface SendEmailDeps {
-  db: Database
-  /** Absent when the instance has no SMTP: the job then does nothing. */
-  mailer?: EmailSender
-  /** The dashboard's origin, for the link in the mail. */
-  publicOrigin?: string
-}
+  export interface Deps {
+    db: Database
+    /** Absent when the instance has no SMTP: the job then does nothing. */
+    mailer?: sendNotificationEmail.Sender
+    /** The dashboard's origin, for the link in the mail. */
+    publicOrigin?: string
+  }
 
-export type SendEmailResult = { status: 'skipped'; reason: string } | { status: 'sent' }
+  export type Result = { status: 'skipped'; reason: string } | { status: 'sent' }
+}
 
 /** Throws when sending fails, so the queue retries with backoff. */
 export async function sendNotificationEmail(
-  deps: SendEmailDeps,
+  deps: sendNotificationEmail.Deps,
   job: Job,
-): Promise<SendEmailResult> {
+): Promise<sendNotificationEmail.Result> {
   const id = job.payload.notificationId
   if (typeof id !== 'string') return { status: 'skipped', reason: 'malformed job' }
   if (!deps.mailer) return { status: 'skipped', reason: 'SMTP is not configured' }
@@ -43,7 +40,7 @@ export async function sendNotificationEmail(
   return { status: 'sent' }
 }
 
-function compose(data: NotificationEmailData, origin: string) {
+function compose(data: getNotificationEmailData.Data, origin: string) {
   const { build, actorName, recipient } = data
   const what = build
     ? `build #${build.number}${build.branch ? ` (${build.branch})` : ''} of ${build.projectName}`

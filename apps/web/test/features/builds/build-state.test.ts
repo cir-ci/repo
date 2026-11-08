@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { type BuildStatus, buildState, screenState } from '#features/builds/build-state.ts'
+import { type BuildState, buildState, screenState } from '#features/builds/build-state.ts'
 
-const state = (over: Partial<BuildStatus>) =>
+const state = (over: Partial<BuildState.Input>) =>
   buildState({
     status: 'complete',
     conclusion: 'changes_detected',
@@ -44,7 +44,7 @@ describe('buildState status (docs/design-gaps.md §8)', () => {
 })
 
 describe('screenState', () => {
-  const review: BuildStatus = {
+  const review: BuildState.Input = {
     status: 'complete',
     conclusion: 'changes_detected',
     reviewStatus: 'pending',

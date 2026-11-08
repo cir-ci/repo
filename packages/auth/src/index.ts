@@ -10,14 +10,7 @@ export { hasPendingInvitation } from './operations/accounts.ts'
 export type { AuthOptions } from './options.ts'
 export { authPlugins } from './plugins/index.ts'
 
-export {
-  createSmtpMailer,
-  type Mail,
-  type Mailer,
-  type SmtpOptions,
-  signInMail,
-  invitationMail,
-} from './mail.ts'
+export { createSmtpMailer, type Mailer, signInMail, invitationMail } from './mail.ts'
 
 export {
   addMember,

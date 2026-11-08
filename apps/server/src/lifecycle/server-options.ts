@@ -5,8 +5,8 @@ import type { GithubApp, ProviderRegistry } from '@circi/providers'
 import type { StorageDriver } from '@circi/storage'
 import type { Logger } from 'pino'
 
-import type { ServerOptions } from '#http/app.ts'
-import type { SitesDeps } from '#http/lib/deps.ts'
+import type { buildServer } from '#http/app.ts'
+import type { Deps } from '#http/lib/deps.ts'
 
 /** What `serverOptionsFor` needs from the runtime. */
 export interface ServerRuntime {
@@ -20,7 +20,7 @@ export interface ServerRuntime {
 }
 
 /** Turns the configuration into the HTTP server's options: which scopes exist and with what. */
-export function serverOptionsFor(rt: ServerRuntime, webDist: string): ServerOptions {
+export function serverOptionsFor(rt: ServerRuntime, webDist: string): buildServer.Options {
   const { config } = rt
   const sites = config.staticSites ? sitesDeps(config.staticSites, config.publicUrl) : undefined
   const base = {
@@ -86,7 +86,7 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): ServerOpti
 function sitesDeps(
   sites: NonNullable<Config['staticSites']>,
   publicUrl: Config['publicUrl'],
-): SitesDeps {
+): Deps.Sites {
   const port = new URL(publicUrl.origin).port
   return {
     host: sites.host,

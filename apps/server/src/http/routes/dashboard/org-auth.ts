@@ -2,7 +2,6 @@ import {
   getMemberRole,
   getOrganizationBySlug,
   getOrgAuthSettings,
-  type InstanceMethods,
   NotFoundError,
   orgAcceptsSession,
   setOrgAuthSettings,
@@ -11,7 +10,7 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const params = z.object({ org: z.string() })
@@ -24,8 +23,8 @@ const body = z
  * An organization's login-method switches (PLAN §7.8). Members can see them, owners and admins
  * change them, and a change that would lock every owner out is refused.
  */
-export const dashboardOrgAuthRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
-  const instance: InstanceMethods = {
+export const dashboardOrgAuthRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
+  const instance: getOrgAuthSettings.Instance = {
     password: deps.passwordLogin !== false,
     email: deps.emailLogin === true,
     oidc: (deps.sso?.length ?? 0) > 0,

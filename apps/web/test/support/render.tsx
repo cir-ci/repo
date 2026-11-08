@@ -11,6 +11,8 @@ import {
 import type { ReactNode } from 'react'
 import { render } from 'vitest-browser-react'
 
+import { resetStores } from '#lib/stores/index.ts'
+
 export interface RenderPageOptions {
   /** The route's path pattern ("/$org/$project/sites"); "/" by default. */
   route?: string
@@ -20,6 +22,8 @@ export interface RenderPageOptions {
   announcer?: boolean
   /** The route's search validation, for a page that reads typed search params. */
   validateSearch?: (search: Record<string, unknown>) => unknown
+  /** Runs after the stores are reset and before the page renders: seed a store or its storage. */
+  beforeRender?: () => void | Promise<void>
 }
 
 /**
@@ -27,6 +31,9 @@ export interface RenderPageOptions {
  * a memory-history router, so page tests share one setup.
  */
 export async function renderPage(ui: ReactNode, options: RenderPageOptions = {}) {
+  // Stores are module singletons: start every page test from their initial state.
+  resetStores()
+  await options.beforeRender?.()
   const route = options.route ?? '/'
   const root = createRootRoute({ component: Outlet })
   const page = createRoute({

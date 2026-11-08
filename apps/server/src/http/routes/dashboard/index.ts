@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 
 import { requireSameOrigin } from '#http/hooks/same-origin.ts'
 import { requireSession } from '#http/hooks/session.ts'
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { jsonErrorHandler } from '#http/lib/errors.ts'
 import { authRoutes } from '#http/routes/auth.ts'
 
@@ -47,7 +47,7 @@ import { webAppRoutes } from './web-app.ts'
  *
  * The CI API (`/v1`) and health checks live outside this scope.
  */
-export const dashboardRoutes: FastifyPluginAsync<DashboardDeps> = async (dash, options) => {
+export const dashboardRoutes: FastifyPluginAsync<Deps.Dashboard> = async (dash, options) => {
   // Registered through `scoped()` or a plain `register`, never with a `prefix` of its own, so
   // `options` holds exactly the dependencies and can be handed to every child as is.
   const deps = options
@@ -79,7 +79,7 @@ export const dashboardRoutes: FastifyPluginAsync<DashboardDeps> = async (dash, o
 }
 
 /** Everything under `/api` except sign-in needs a signed-in user. */
-const sessionApi: FastifyPluginAsync<DashboardDeps> = async (api, deps) => {
+const sessionApi: FastifyPluginAsync<Deps.Dashboard> = async (api, deps) => {
   api.addHook('onRequest', requireSameOrigin(deps.publicOrigin))
   api.addHook('onRequest', requireSession(deps.auth, deps.db))
   await api.register(dashboardProjectRoutes, deps)

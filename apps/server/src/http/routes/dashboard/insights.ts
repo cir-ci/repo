@@ -4,7 +4,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const DAY_MS = 86_400_000
@@ -24,7 +24,7 @@ const query = z.object({
  * Insights for one organization (or one of its projects) over a date range, default the last 30
  * days. Everyone outside the organization gets "not found".
  */
-export const dashboardInsightsRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const dashboardInsightsRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   app.get('/orgs/:org/insights', async (req, reply): Promise<Insights.Report | void> => {
     const p = parse(params, req.params)
     const q = parse(query, req.query)

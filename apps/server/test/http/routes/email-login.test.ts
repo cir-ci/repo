@@ -2,9 +2,9 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import type { Mail } from '@circi/auth'
+import type { Mailer } from '@circi/auth'
 import { FsStorage } from '@circi/storage'
-import { createTestDb, type TestDb } from '@circi/testing'
+import { createTestDb } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -12,10 +12,10 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { buildServer } from '#http/app.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 let dir: string
 let tenant: Tenant
-const sent: Mail[] = []
+const sent: Mailer.Mail[] = []
 let on: FastifyInstance
 let off: FastifyInstance
 
@@ -26,7 +26,7 @@ beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'circi-email-'))
   const storage = new FsStorage({ path: dir })
   const mailer = {
-    send: async (mail: Mail) => {
+    send: async (mail: Mailer.Mail) => {
       sent.push(mail)
     },
   }
@@ -63,7 +63,7 @@ const signInWithCode = (app: FastifyInstance, email: string, otp: string) =>
     payload: { email, otp },
   })
 
-function codeOf(mail: Mail | undefined): string {
+function codeOf(mail: Mailer.Mail | undefined): string {
   const code = /sign-in code is (\d{6})/.exec(mail?.text ?? '')?.[1]
   if (!code) throw new Error('no code in the mail')
   return code

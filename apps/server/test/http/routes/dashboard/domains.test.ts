@@ -2,10 +2,10 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { createUser, type Mail } from '@circi/auth'
+import { createUser, type Mailer } from '@circi/auth'
 import { listOrgDomains } from '@circi/db'
 import { FsStorage } from '@circi/storage'
-import { createTestDb, type TestDb } from '@circi/testing'
+import { createTestDb } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -13,14 +13,14 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildServer } from '#http/app.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 let dir: string
 let app: FastifyInstance
 let acme: Tenant
 let rival: Tenant
 let ownerCookie: string
 let rivalCookie: string
-const sent: Mail[] = []
+const sent: Mailer.Mail[] = []
 /** What DNS currently answers, by name. */
 const dns = new Map<string, string[][]>()
 const json = { origin: ORIGIN, 'content-type': 'application/json' }
@@ -29,7 +29,7 @@ beforeAll(async () => {
   t = await createTestDb()
   dir = await mkdtemp(join(tmpdir(), 'circi-domains-'))
   const auth = createTestAuth(t.db, {
-    send: async (mail: Mail) => {
+    send: async (mail: Mailer.Mail) => {
       sent.push(mail)
     },
   })

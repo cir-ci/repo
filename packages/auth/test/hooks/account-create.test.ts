@@ -1,12 +1,12 @@
 import { schema } from '@circi/db'
-import { createTestDb, seedOrg, type TestDb } from '@circi/testing'
+import { createTestDb, seedOrg } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { beforeAccountCreate } from '#hooks/account-create.ts'
 import type { SsoProvider } from '#sso/sso.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 beforeAll(async () => {
   t = await createTestDb()
 })

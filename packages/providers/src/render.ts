@@ -18,17 +18,19 @@ export interface ReportedBuild {
   url: string
 }
 
-export type CheckConclusion = 'success' | 'failure' | 'action_required' | 'neutral'
-
 export interface CheckReport {
   /** The check's name, `CirCI / <build name>`. */
   name: string
   status: 'in_progress' | 'completed'
-  conclusion?: CheckConclusion
+  conclusion?: CheckReport.Conclusion
   title: string
   summary: string
   /** Buttons on the check (GitHub `requested_action`). */
   actions: { identifier: 'approve' | 'reject'; label: string; description: string }[]
+}
+
+export namespace CheckReport {
+  export type Conclusion = 'success' | 'failure' | 'action_required' | 'neutral'
 }
 
 export const checkName = (buildName: string) => `CirCI / ${buildName}`

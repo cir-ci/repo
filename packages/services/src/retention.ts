@@ -1,6 +1,5 @@
 import {
   collectMarkedFiles,
-  type CollectionPreview,
   type Database,
   expireBuilds,
   expireSites,
@@ -62,5 +61,5 @@ export async function previewRetention(
   })
 }
 export namespace previewRetention {
-  export type Result = CollectionPreview
+  export type Result = previewCollection.Preview
 }

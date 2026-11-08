@@ -4,13 +4,13 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const params = z.object({ org: z.string(), project: z.string() })
 
 /** The default branch's baselines for one project; "not found" outside the organization. */
-export const dashboardBaselineRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const dashboardBaselineRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   app.get(
     '/projects/:org/:project/baselines',
     async (req, reply): Promise<Baseline.List | void> => {

@@ -11,16 +11,18 @@ import { PGlite } from '@electric-sql/pglite'
 import { drizzle } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'
 
-export interface TestDb {
-  client: PGlite
-  db: Database
-  /** PGlite's LISTEN, shaped like the production `ListenFn`. */
-  listen: ListenFn
-  close(): Promise<void>
+export namespace createTestDb {
+  export interface Result {
+    client: PGlite
+    db: Database
+    /** PGlite's LISTEN, shaped like the production `ListenFn`. */
+    listen: ListenFn
+    close(): Promise<void>
+  }
 }
 
 /** A fresh in-process Postgres (PGlite) with every migration applied. */
-export async function createTestDb(): Promise<TestDb> {
+export async function createTestDb(): Promise<createTestDb.Result> {
   const client = new PGlite()
   const db = drizzle({ client, schema })
   await migrate(db, { migrationsFolder })
@@ -35,9 +37,11 @@ export async function createTestDb(): Promise<TestDb> {
 
 let n = 0
 
-export interface SeededOrg {
-  org: Organization
-  owner: User
+export namespace seedOrg {
+  export interface Result {
+    org: Organization
+    owner: User
+  }
 }
 
 /**
@@ -45,7 +49,7 @@ export interface SeededOrg {
  * these through better-auth (`@circi/auth`); the db package can't depend on it, and its tests
  * only need rows that look the way better-auth leaves them.
  */
-export async function seedOrg(db: Database): Promise<SeededOrg> {
+export async function seedOrg(db: Database): Promise<seedOrg.Result> {
   n += 1
   return db.transaction(async (tx) => {
     const [owner] = await tx
@@ -96,7 +100,7 @@ export async function addTestMember(
 /** A new organization (with an owner) and a project in it. */
 export async function seedProject(
   db: Database,
-  options: { defaultBranch?: string; slug?: string; org?: SeededOrg } = {},
+  options: { defaultBranch?: string; slug?: string; org?: seedOrg.Result } = {},
 ) {
   const seeded = options.org ?? (await seedOrg(db))
   const project = await createProject(db, {

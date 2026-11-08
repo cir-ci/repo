@@ -77,57 +77,59 @@ const envSchema = z.object({
   ORG_CREATION: z.preprocess(emptyToUndefined, z.enum(['admin', 'anyone']).default('admin')),
 })
 
-/** A single sign-on provider the operator configured (instance-scoped, PLAN §7.8). */
-export interface SsoConfig {
-  id: 'github' | 'google' | 'oidc'
-  name: string
-  clientId: string
-  clientSecret: string
-  issuer?: string
-  trustedForEmail: boolean
-}
+export namespace Config {
+  /** A single sign-on provider the operator configured (instance-scoped, PLAN §7.8). */
+  export interface Sso {
+    id: 'github' | 'google' | 'oidc'
+    name: string
+    clientId: string
+    clientSecret: string
+    issuer?: string
+    trustedForEmail: boolean
+  }
 
-/** The instance's GitHub App (PLAN §7.4). */
-export interface GithubAppConfig {
-  appId: string
-  /** PEM. `\n` escapes in the environment variable are turned into newlines. */
-  privateKey: string
-  webhookSecret: string
-  /** `https://api.github.com`, or a GitHub Enterprise Server's `https://host/api/v3`. */
-  apiUrl: string
-}
+  /** The instance's GitHub App (PLAN §7.4). */
+  export interface GithubApp {
+    appId: string
+    /** PEM. `\n` escapes in the environment variable are turned into newlines. */
+    privateKey: string
+    webhookSecret: string
+    /** `https://api.github.com`, or a GitHub Enterprise Server's `https://host/api/v3`. */
+    apiUrl: string
+  }
 
-/** Hosted static sites, served from their own domain (PLAN §7.6). */
-export interface StaticSitesConfig {
-  /** The dedicated domain, e.g. `example-sites.com`: sites live at `<hash>-<slug>.<host>`. */
-  host: string
-  /** Largest site (uncompressed) accepted, in bytes. */
-  maxBytes: number
-}
+  /** Hosted static sites, served from their own domain (PLAN §7.6). */
+  export interface StaticSites {
+    /** The dedicated domain, e.g. `example-sites.com`: sites live at `<hash>-<slug>.<host>`. */
+    host: string
+    /** Largest site (uncompressed) accepted, in bytes. */
+    maxBytes: number
+  }
 
-export type StorageConfig =
-  | { driver: 'fs'; path: string }
-  | {
-      driver: 's3'
-      bucket: string
-      region: string
-      endpoint?: string
-      forcePathStyle: boolean
-      credentials?: { accessKeyId: string; secretAccessKey: string }
-      /** Give up connecting after this long (`S3_CONNECT_TIMEOUT_SECONDS`). */
-      connectTimeoutMs: number
-      /** Give up when a request's socket is silent this long (`S3_REQUEST_TIMEOUT_SECONDS`). */
-      requestTimeoutMs: number
-    }
+  export type Storage =
+    | { driver: 'fs'; path: string }
+    | {
+        driver: 's3'
+        bucket: string
+        region: string
+        endpoint?: string
+        forcePathStyle: boolean
+        credentials?: { accessKeyId: string; secretAccessKey: string }
+        /** Give up connecting after this long (`S3_CONNECT_TIMEOUT_SECONDS`). */
+        connectTimeoutMs: number
+        /** Give up when a request's socket is silent this long (`S3_REQUEST_TIMEOUT_SECONDS`). */
+        requestTimeoutMs: number
+      }
 
-export interface SmtpConfig {
-  host: string
-  port: number
-  /** Implicit TLS (port 465). Otherwise STARTTLS is used when the server offers it. */
-  secure: boolean
-  auth?: { user: string; password: string }
-  /** The From address, e.g. `CirCI <ci@acme.io>`. */
-  from: string
+  export interface Smtp {
+    host: string
+    port: number
+    /** Implicit TLS (port 465). Otherwise STARTTLS is used when the server offers it. */
+    secure: boolean
+    auth?: { user: string; password: string }
+    /** The From address, e.g. `CirCI <ci@acme.io>`. */
+    from: string
+  }
 }
 
 export interface Config {
@@ -152,22 +154,22 @@ export interface Config {
   /** Settings that work but are probably a mistake; logged at startup. */
   warnings: string[]
   database: { url: string; poolMax: number }
-  storage: StorageConfig
+  storage: Config.Storage
   /** Outgoing mail (`SMTP_*`); absent when no SMTP server is configured. */
-  smtp?: SmtpConfig
+  smtp?: Config.Smtp
   /** Email login (one-time code / link) is offered: switched on (default) and SMTP is set up. */
   emailLogin: boolean
   /** Static site hosting: absent unless `STATIC_SITES_HOST` is set. */
-  staticSites?: StaticSitesConfig
+  staticSites?: Config.StaticSites
   /** Hours a file nobody uses waits before it is deleted (`GC_GRACE_HOURS`). */
   gcGraceHours: number
   /** Builds still uploading after this many minutes fail; 0 never does (`UPLOAD_TIMEOUT_MINUTES`). */
   uploadTimeoutMinutes: number
   /** Webhooks may point at private/loopback addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
   /** The GitHub App: absent when none is configured. */
-  github?: GithubAppConfig
+  github?: Config.GithubApp
   /** Single sign-on providers, empty when none is configured or `AUTH_SSO_ENABLED=false`. */
-  sso: SsoConfig[]
+  sso: Config.Sso[]
   /** Email + password sign-in is offered (`AUTH_PASSWORD_ENABLED`, default on). */
   passwordLogin: boolean
   webhookAllowPrivate: boolean
@@ -214,7 +216,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     } else if (!previousPublicHosts.includes(prev.host)) previousPublicHosts.push(prev.host)
   }
 
-  let storage: StorageConfig
+  let storage: Config.Storage
   if (e.STORAGE_DRIVER === 's3') {
     if (!e.S3_BUCKET) issues.push('S3_BUCKET: required when STORAGE_DRIVER=s3')
     if (Boolean(e.S3_ACCESS_KEY_ID) !== Boolean(e.S3_SECRET_ACCESS_KEY)) {
@@ -243,7 +245,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     storage = { driver: 'fs', path: e.STORAGE_PATH }
   }
 
-  let smtp: SmtpConfig | undefined
+  let smtp: Config.Smtp | undefined
   if (e.SMTP_HOST) {
     if (!e.SMTP_FROM) issues.push('SMTP_FROM: required when SMTP_HOST is set')
     if (Boolean(e.SMTP_USER) !== Boolean(e.SMTP_PASSWORD)) {
@@ -264,7 +266,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     warnings.push('AUTH_EMAIL_ENABLED is on but SMTP_HOST is not set, so email login is off.')
   }
 
-  let github: GithubAppConfig | undefined
+  let github: Config.GithubApp | undefined
   const githubParts = [e.GITHUB_APP_ID, e.GITHUB_APP_PRIVATE_KEY, e.GITHUB_APP_WEBHOOK_SECRET]
   if (githubParts.some(Boolean)) {
     if (!githubParts.every(Boolean)) {
@@ -282,7 +284,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       }
     }
   }
-  let staticSites: StaticSitesConfig | undefined
+  let staticSites: Config.StaticSites | undefined
   if (e.STATIC_SITES_HOST) {
     const host = e.STATIC_SITES_HOST.trim().toLowerCase().replace(/\.$/, '')
     const problem = staticSitesHostProblem(
@@ -292,7 +294,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     if (problem) issues.push(`STATIC_SITES_HOST: ${problem}`)
     else staticSites = { host, maxBytes: e.STATIC_SITES_MAX_MB * 1024 * 1024 }
   }
-  const sso: SsoConfig[] = []
+  const sso: Config.Sso[] = []
   const pair = (name: string, id: string | undefined, secret: string | undefined) => {
     if (Boolean(id) !== Boolean(secret)) {
       issues.push(`${name}_CLIENT_ID / ${name}_CLIENT_SECRET: set both, or neither`)

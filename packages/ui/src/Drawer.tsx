@@ -12,9 +12,9 @@ import styles from './Drawer.module.css'
  * It renders in a portal on `document.body`, outside any wrapper that sets
  * `data-circi-color-scheme`: only the scheme on `<html>` reaches it.
  */
-export function Drawer({ open, onOpenChange, title, children }: Drawer.Props) {
+export function Drawer({ title, children, ...rest }: Drawer.Props) {
   return (
-    <BaseDrawer.Root open={open} onOpenChange={(next) => onOpenChange(next)} swipeDirection="left">
+    <BaseDrawer.Root swipeDirection="left" {...rest}>
       <BaseDrawer.Portal>
         <BaseDrawer.Backdrop className={styles.backdrop} />
         <BaseDrawer.Viewport className={styles.viewport}>
@@ -29,9 +29,7 @@ export function Drawer({ open, onOpenChange, title, children }: Drawer.Props) {
 }
 
 export namespace Drawer {
-  export interface Props {
-    open: boolean
-    onOpenChange: (open: boolean) => void
+  export interface Props extends Omit<BaseDrawer.Root.Props, 'children'> {
     /** The accessible name of the drawer ("Navigation"). */
     title: string
     children?: ReactNode

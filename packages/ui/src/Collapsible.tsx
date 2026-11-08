@@ -11,22 +11,9 @@ import styles from './Collapsible.module.css'
  * chevron, a title and an optional count, over a panel that slides open. Used for the collapsed
  * "Unchanged (14)" group in the build review list.
  */
-export function Collapsible({
-  title,
-  count,
-  open,
-  defaultOpen = false,
-  onOpenChange,
-  className,
-  children,
-}: Collapsible.Props) {
+export function Collapsible({ title, count, className, children, ...rest }: Collapsible.Props) {
   return (
-    <BaseCollapsible.Root
-      open={open}
-      defaultOpen={defaultOpen}
-      onOpenChange={(next) => onOpenChange?.(next)}
-      className={cx(styles.root, className)}
-    >
+    <BaseCollapsible.Root {...rest} className={cx(styles.root, className)}>
       <BaseCollapsible.Trigger className={styles.trigger}>
         <ChevronRightIcon size={14} strokeWidth={2} className={styles.chevron} />
         <span className={styles.title}>{title}</span>
@@ -38,13 +25,12 @@ export function Collapsible({
 }
 
 export namespace Collapsible {
-  export interface Props {
+  export interface Props
+    // `className` merges via `cx`, `render` would replace our structure, `title` is our heading.
+    extends Omit<BaseCollapsible.Root.Props, 'className' | 'render' | 'children' | 'title'> {
     title: ReactNode
     /** A count shown after the title. */
     count?: number
-    open?: boolean
-    defaultOpen?: boolean
-    onOpenChange?: (open: boolean) => void
     className?: string
     children?: ReactNode
   }

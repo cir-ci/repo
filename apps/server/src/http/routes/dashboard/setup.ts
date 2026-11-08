@@ -4,7 +4,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
 import { requireSameOrigin } from '#http/hooks/same-origin.ts'
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const body = z.object({
@@ -22,7 +22,7 @@ const body = z.object({
  * can't claim it. Once any account exists the endpoint answers "not found" for good.
  */
 export const dashboardSetupRoutes: FastifyPluginAsync<
-  Pick<DashboardDeps, 'db' | 'auth' | 'publicOrigin'> & { secret: string }
+  Pick<Deps.Dashboard, 'db' | 'auth' | 'publicOrigin'> & { secret: string }
 > = async (app, deps) => {
   app.get('/api/setup', async () => ({ needed: (await countUsers(deps.db)) === 0 }))
 

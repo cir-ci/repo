@@ -4,7 +4,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const params = z.object({ org: z.string(), project: z.string() })
@@ -13,7 +13,10 @@ const params = z.object({ org: z.string(), project: z.string() })
  * `GET /api/projects/:org/:project/sites`: the project's hosted sites and their addresses. The
  * dashboard only links out: it never serves a site's files (PLAN §7.6).
  */
-export const dashboardProjectSitesRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const dashboardProjectSitesRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
+  app,
+  deps,
+) => {
   app.get('/projects/:org/:project/sites', async (req, reply) => {
     const p = parse(params, req.params)
     const user = currentUser(req)

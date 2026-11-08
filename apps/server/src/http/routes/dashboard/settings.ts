@@ -24,7 +24,7 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const projectParams = z.object({ org: z.string(), project: z.string() })
@@ -86,7 +86,7 @@ function present(hook: Webhook) {
  * A project's settings and webhooks. Every member can look; owners and admins can change
  * things, and anyone outside the organization gets "not found" like everywhere else.
  */
-export const dashboardSettingsRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   const allowPrivate = deps.webhookAllowPrivate === true
 
   async function load(req: FastifyRequest, reply: FastifyReply) {

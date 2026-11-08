@@ -4,7 +4,7 @@ import { orgAccepts, type SessionMethod } from '#repositories/auth-settings.ts'
 import { member, organization, projects } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
-import { type BuildListItem, listBuildsForProject } from './builds.ts'
+import { listBuildsForProject } from './builds.ts'
 
 /**
  * Project read models for the dashboard. Everything a user can reach is limited to the
@@ -14,7 +14,7 @@ import { type BuildListItem, listBuildsForProject } from './builds.ts'
 export interface ProjectOverview {
   org: { slug: string; name: string }
   project: { slug: string; name: string; defaultBranch: string }
-  latestBuild: BuildListItem | null
+  latestBuild: listBuildsForProject.Item | null
 }
 
 /** Projects in the organizations `userId` belongs to, with each one's latest build. */

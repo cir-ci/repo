@@ -11,7 +11,7 @@ import {
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { loadProject } from '#http/lib/project-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
@@ -37,7 +37,7 @@ const presentRotation = (r: Awaited<ReturnType<typeof getTriageRotation>>): Tria
  * rotation. Every member can look; owners and admins change them, and anyone outside the
  * organization gets "not found".
  */
-export const dashboardRuleRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const dashboardRuleRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   app.get('/projects/:org/:project/rules', async (req, reply) => {
     const found = await loadProject(deps, req, reply)
     if (!found) return reply

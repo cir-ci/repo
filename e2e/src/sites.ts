@@ -26,31 +26,33 @@ export async function makeSiteDir(files: Record<string, string | Buffer>): Promi
   return dir
 }
 
-export interface SiteCliOptions {
-  stack: Pick<Stack, 'url'>
-  token: string
-  /** The checkout the CLI runs in (it reads the commit and branch from git). */
-  repo: Repo
-  dir: string
-  name?: string
-  kind?: string
-  spa?: boolean
-  /** Use `circi storybook upload` instead of `circi site upload`. */
-  storybook?: boolean
-  env?: Record<string, string>
-}
+export namespace uploadSiteCli {
+  export interface Options {
+    stack: Pick<Stack, 'url'>
+    token: string
+    /** The checkout the CLI runs in (it reads the commit and branch from git). */
+    repo: Repo
+    dir: string
+    name?: string
+    kind?: string
+    spa?: boolean
+    /** Use `circi storybook upload` instead of `circi site upload`. */
+    storybook?: boolean
+    env?: Record<string, string>
+  }
 
-export interface SiteCliRun {
-  exitCode: number
-  stdout: string
-  stderr: string
-  /** `commit:` and `branch:` addresses the CLI printed, when it succeeded. */
-  commitAddress: string | undefined
-  branchAddress: string | undefined
+  export interface Run {
+    exitCode: number
+    stdout: string
+    stderr: string
+    /** `commit:` and `branch:` addresses the CLI printed, when it succeeded. */
+    commitAddress: string | undefined
+    branchAddress: string | undefined
+  }
 }
 
 /** `circi site upload <dir>` (the real built CLI) from inside the repo, as CI would run it. */
-export async function uploadSiteCli(options: SiteCliOptions): Promise<SiteCliRun> {
+export async function uploadSiteCli(options: uploadSiteCli.Options): Promise<uploadSiteCli.Run> {
   await ensureCliBuilt()
   const base: Record<string, string> = {}
   for (const key of ['PATH', 'HOME', 'TMPDIR', 'LANG']) {
@@ -106,11 +108,13 @@ export async function postSiteArchive(
   return { status: res.status, body: parsed, text }
 }
 
-export interface SiteResponse {
-  status: number
-  headers: Record<string, string | string[] | undefined>
-  body: Buffer
-  text: string
+export namespace siteRequest {
+  export interface Response {
+    status: number
+    headers: Record<string, string | string[] | undefined>
+    body: Buffer
+    text: string
+  }
 }
 
 /**
@@ -128,7 +132,7 @@ export function siteRequest(
     headers?: Record<string, string>
     host?: string
   } = {},
-): Promise<SiteResponse> {
+): Promise<siteRequest.Response> {
   const url = new URL(address)
   return new Promise((resolve, reject) => {
     const req = request(
@@ -163,7 +167,7 @@ export function siteRequest(
 }
 
 /** The `Set-Cookie` header(s) of a response as `name=value` pairs joined for a `Cookie` header. */
-export function cookieFrom(res: SiteResponse): string {
+export function cookieFrom(res: siteRequest.Response): string {
   const set = res.headers['set-cookie']
   const lines = Array.isArray(set) ? set : set ? [set] : []
   return lines
@@ -201,15 +205,17 @@ export async function siteCookieFor(
 
 // ---- hand-made tar archives --------------------------------------------------------------------
 
-export interface TarEntry {
-  /** The raw name, written as given (NULs, `..` and absolute paths included). */
-  name: string
-  /** `0` file (default), `1` hard link, `2` symlink, `3` char device, `4` block device, `5` dir, `6` FIFO. */
-  type?: '0' | '1' | '2' | '3' | '4' | '5' | '6'
-  content?: string | Buffer
-  linkname?: string
-  /** Declare this size in the header instead of the content's length. */
-  declaredSize?: number
+export namespace tarOf {
+  export interface Entry {
+    /** The raw name, written as given (NULs, `..` and absolute paths included). */
+    name: string
+    /** `0` file (default), `1` hard link, `2` symlink, `3` char device, `4` block device, `5` dir, `6` FIFO. */
+    type?: '0' | '1' | '2' | '3' | '4' | '5' | '6'
+    content?: string | Buffer
+    linkname?: string
+    /** Declare this size in the header instead of the content's length. */
+    declaredSize?: number
+  }
 }
 
 function field(value: string | Buffer, length: number): Buffer {
@@ -223,7 +229,7 @@ function octal(n: number, length: number): Buffer {
 }
 
 /** A ustar archive with exactly the entries given: no safety checks, that is the point. */
-export function tarOf(entries: TarEntry[]): Buffer {
+export function tarOf(entries: tarOf.Entry[]): Buffer {
   const parts: Buffer[] = []
   for (const e of entries) {
     const content = e.content === undefined ? Buffer.alloc(0) : Buffer.from(e.content)
@@ -255,4 +261,4 @@ export function tarOf(entries: TarEntry[]): Buffer {
 }
 
 /** `tarOf(entries)` gzipped, ready for `postSiteArchive`. */
-export const tgzOf = (entries: TarEntry[]): Buffer => gzipSync(tarOf(entries))
+export const tgzOf = (entries: tarOf.Entry[]): Buffer => gzipSync(tarOf(entries))

@@ -40,41 +40,43 @@ import type { Database } from '#src/client.ts'
  *   default-branch builds up to then.
  */
 
-export interface InsightsSummary {
-  medianReviewHours: number | null
-  p90ReviewHours: number | null
-  buildsReviewed: number
-  reviewedOverTarget: number
-  buildsFinished: number
-  buildsWithChanges: number
-  changeRate: number | null
-}
+export namespace getInsights {
+  export interface Summary {
+    medianReviewHours: number | null
+    p90ReviewHours: number | null
+    buildsReviewed: number
+    reviewedOverTarget: number
+    buildsFinished: number
+    buildsWithChanges: number
+    changeRate: number | null
+  }
 
-export interface InsightsWeek {
-  weekStart: Date
-  medianReviewHours: number | null
-  reviews: number
-  flaky: number
-}
+  export interface Week {
+    weekStart: Date
+    medianReviewHours: number | null
+    reviews: number
+    flaky: number
+  }
 
-export interface InsightsReviewer {
-  id: string
-  name: string
-  openRequests: number
-  overdue: number
-  reviews: number
-  medianResponseHours: number | null
-}
+  export interface Reviewer {
+    id: string
+    name: string
+    openRequests: number
+    overdue: number
+    reviews: number
+    medianResponseHours: number | null
+  }
 
-export interface InsightsReport {
-  org: { slug: string; name: string }
-  project: string | null
-  range: { from: Date; to: Date }
-  summary: InsightsSummary
-  previous: InsightsSummary
-  weeks: InsightsWeek[]
-  storage: { projects: { slug: string; name: string; bytes: number }[]; totalBytes: number }
-  reviewers: InsightsReviewer[]
+  export interface Report {
+    org: { slug: string; name: string }
+    project: string | null
+    range: { from: Date; to: Date }
+    summary: getInsights.Summary
+    previous: getInsights.Summary
+    weeks: getInsights.Week[]
+    storage: { projects: { slug: string; name: string; bytes: number }[]; totalBytes: number }
+    reviewers: getInsights.Reviewer[]
+  }
 }
 
 /**
@@ -92,7 +94,7 @@ export async function getInsights(
     now?: Date
     method?: SessionMethod
   },
-): Promise<InsightsReport | undefined> {
+): Promise<getInsights.Report | undefined> {
   const [org] = await db
     .select({ id: organization.id, slug: organization.slug, name: organization.name })
     .from(organization)
@@ -132,7 +134,7 @@ export async function getInsights(
   const reviewed = empty ? [] : await firstReviews(db, projectIds, previousFrom, to)
   const finished = empty ? [] : await finishedBuilds(db, projectIds, previousFrom, to)
 
-  const summarize = (lo: Date, hi: Date): InsightsSummary => {
+  const summarize = (lo: Date, hi: Date): getInsights.Summary => {
     const inRange = reviewed.filter((r) => r.reviewedAt >= lo && r.reviewedAt < hi)
     const hours = inRange.map((r) => r.hours)
     const done = finished.filter((b) => b.readyAt >= lo && b.readyAt < hi)
@@ -154,7 +156,7 @@ export async function getInsights(
   const history = empty
     ? new Map<string, HistoryBuild[]>()
     : await defaultBranchHistory(db, scoped, to)
-  const weeks = weeksBetween(from, to).map((start): InsightsWeek => {
+  const weeks = weeksBetween(from, to).map((start): getInsights.Week => {
     const end = new Date(Math.min(start.getTime() + WEEK_MS, to.getTime()))
     const lo = new Date(Math.max(start.getTime(), from.getTime()))
     const inWeek = reviewed.filter((r) => r.reviewedAt >= lo && r.reviewedAt < end)
@@ -296,7 +298,7 @@ async function defaultBranchHistory(
 async function storageByProject(
   db: Database,
   scoped: { id: string; slug: string; name: string }[],
-): Promise<InsightsReport['storage']> {
+): Promise<getInsights.Report['storage']> {
   const ids = scoped.map((p) => p.id)
   const bytes = new Map<string, number>()
   if (ids.length > 0) {
@@ -334,13 +336,13 @@ async function storageByProject(
 async function reviewerLoad(
   db: Database,
   input: { orgId: string; projectIds: string[]; from: Date; to: Date; now: Date },
-): Promise<InsightsReviewer[]> {
+): Promise<getInsights.Reviewer[]> {
   const members = await db
     .select({ id: user.id, name: user.name })
     .from(member)
     .innerJoin(user, eq(user.id, member.userId))
     .where(eq(member.organizationId, input.orgId))
-  const load = new Map<string, InsightsReviewer>(
+  const load = new Map<string, getInsights.Reviewer>(
     members.map((m) => [
       m.id,
       { ...m, openRequests: 0, overdue: 0, reviews: 0, medianResponseHours: null },

@@ -6,7 +6,7 @@ import { createUser } from '@circi/auth'
 import type { Auth } from '@circi/auth'
 import { schema } from '@circi/db'
 import { FsStorage } from '@circi/storage'
-import { addTestMember, createTestDb, type TestDb } from '@circi/testing'
+import { addTestMember, createTestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
@@ -16,7 +16,7 @@ import { buildServer } from '#http/app.ts'
 import { type FakeIdp, startFakeIdp } from '#test/support/fake-idp.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
 
-let t: TestDb
+let t: createTestDb.Result
 let dir: string
 let app: FastifyInstance
 let auth: Auth

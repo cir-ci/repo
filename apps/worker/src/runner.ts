@@ -14,70 +14,72 @@ import { expireStalledBuilds, failBuild, runRetention } from '@circi/services'
 import type { StorageDriver } from '@circi/storage'
 
 import { deliverWebhook } from './jobs/deliver-webhook.ts'
-import { notifyGit, type NotifyProvider } from './jobs/notify-git.ts'
+import { notifyGit } from './jobs/notify-git.ts'
 import { processBuild } from './jobs/process-build.ts'
 import { reviewSweep } from './jobs/review-sweep.ts'
-import { type EmailSender, sendNotificationEmail } from './jobs/send-email.ts'
+import { sendNotificationEmail } from './jobs/send-email.ts'
 import { interruptibleSleep } from './lib/concurrency.ts'
 
 /** The worker process: polls the job queue and runs each job. */
 
-export interface WorkerLogger {
-  info(obj: object | string, msg?: string): void
-  warn(obj: object | string, msg?: string): void
-  error(obj: object | string, msg?: string): void
-}
+export namespace startWorker {
+  export interface Logger {
+    info(obj: object | string, msg?: string): void
+    warn(obj: object | string, msg?: string): void
+    error(obj: object | string, msg?: string): void
+  }
 
-export interface WorkerDeps {
-  db: Database
-  storage: StorageDriver
-  logger: WorkerLogger
-  /** The dashboard's origin (`PUBLIC_URL`), used for links in webhook bodies. */
-  publicOrigin?: string
-  /** The GitHub App, when configured: builds are then reported to linked repositories. */
-  github?: GithubApp
-  /** Git host adapters by connection kind; takes the place of `github` when given. */
-  providers?: ProviderRegistry<NotifyProvider>
-  /** The instance secret (`BETTER_AUTH_SECRET`): opens sealed per-connection credentials of token git hosts. */
-  authSecret?: string
-  /** Sends notification emails; absent without SMTP, and such jobs are then skipped. */
-  mailer?: EmailSender
-  /** Webhooks may point at private addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
-  webhookAllowPrivate?: boolean
-  /** Startup check of the database connection. */
-  ping?: () => Promise<void>
-  /**
-   * Subscribes to Postgres NOTIFY (`createDb(...).listen` in production): a queued job then wakes
-   * the worker at once. Without it, or while the connection is down, the poll finds jobs.
-   */
-  listen?: ListenFn
-  /** How long to wait when the queue is empty. Default 1 s; also the fallback for missed notifications. */
-  pollIntervalMs?: number
-  /** Builds processed at the same time. Default 2. */
-  concurrency?: number
-  /** Builds still uploading after this many minutes are failed (default 60); 0 turns it off. */
-  uploadTimeoutMinutes?: number
-  /** How long a file waits, once nothing uses it, before it's deleted (default 24 hours). */
-  gcGraceHours?: number
-  /** How often retention runs: expiring old builds and sites, collecting files (default 6 hours); 0 turns it off. */
-  retentionIntervalMs?: number
-  /** How often overdue review requests are looked for (default 5 minutes); 0 turns it off. */
-  reviewSweepIntervalMs?: number
-  /** How often to look for them (default 5 minutes). */
-  maintenanceIntervalMs?: number
-  /** How long a claimed job stays locked before another worker may retry it. Default 10 min. */
-  lockSeconds?: number
-}
+  export interface Deps {
+    db: Database
+    storage: StorageDriver
+    logger: startWorker.Logger
+    /** The dashboard's origin (`PUBLIC_URL`), used for links in webhook bodies. */
+    publicOrigin?: string
+    /** The GitHub App, when configured: builds are then reported to linked repositories. */
+    github?: GithubApp
+    /** Git host adapters by connection kind; takes the place of `github` when given. */
+    providers?: ProviderRegistry<notifyGit.Provider>
+    /** The instance secret (`BETTER_AUTH_SECRET`): opens sealed per-connection credentials of token git hosts. */
+    authSecret?: string
+    /** Sends notification emails; absent without SMTP, and such jobs are then skipped. */
+    mailer?: sendNotificationEmail.Sender
+    /** Webhooks may point at private addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
+    webhookAllowPrivate?: boolean
+    /** Startup check of the database connection. */
+    ping?: () => Promise<void>
+    /**
+     * Subscribes to Postgres NOTIFY (`createDb(...).listen` in production): a queued job then wakes
+     * the worker at once. Without it, or while the connection is down, the poll finds jobs.
+     */
+    listen?: ListenFn
+    /** How long to wait when the queue is empty. Default 1 s; also the fallback for missed notifications. */
+    pollIntervalMs?: number
+    /** Builds processed at the same time. Default 2. */
+    concurrency?: number
+    /** Builds still uploading after this many minutes are failed (default 60); 0 turns it off. */
+    uploadTimeoutMinutes?: number
+    /** How long a file waits, once nothing uses it, before it's deleted (default 24 hours). */
+    gcGraceHours?: number
+    /** How often retention runs: expiring old builds and sites, collecting files (default 6 hours); 0 turns it off. */
+    retentionIntervalMs?: number
+    /** How often overdue review requests are looked for (default 5 minutes); 0 turns it off. */
+    reviewSweepIntervalMs?: number
+    /** How often to look for them (default 5 minutes). */
+    maintenanceIntervalMs?: number
+    /** How long a claimed job stays locked before another worker may retry it. Default 10 min. */
+    lockSeconds?: number
+  }
 
-export interface RunningWorker {
-  stop(): Promise<void>
+  export interface Running {
+    stop(): Promise<void>
+  }
 }
 
 /**
  * Polls the Postgres job queue (PLAN §2) and processes builds. Several worker processes can
  * run against one database: claiming uses `FOR UPDATE SKIP LOCKED`.
  */
-export async function startWorker(deps: WorkerDeps): Promise<RunningWorker> {
+export async function startWorker(deps: startWorker.Deps): Promise<startWorker.Running> {
   await deps.ping?.()
   await deps.storage.healthCheck()
   const pollMs = deps.pollIntervalMs ?? 1_000
@@ -192,7 +194,7 @@ const RECONNECT_MAX_MS = 30_000
 function startListening(
   listen: ListenFn,
   wake: () => void,
-  logger: WorkerLogger,
+  logger: startWorker.Logger,
   isRunning: () => boolean,
 ): { stop(): Promise<void> } {
   let unlisten: (() => Promise<void>) | undefined
@@ -258,7 +260,7 @@ async function claimNext(db: Database, lockSeconds: number): Promise<Job | undef
   )
 }
 
-async function runJob(deps: WorkerDeps, job: Job): Promise<void> {
+async function runJob(deps: startWorker.Deps, job: Job): Promise<void> {
   if (job.queue === QUEUES.webhook) return runWebhookJob(deps, job)
   if (job.queue === GIT_NOTIFY_QUEUE) return runGitNotifyJob(deps, job)
   if (job.queue === QUEUES.notificationEmail) return runEmailJob(deps, job)
@@ -287,7 +289,7 @@ async function runJob(deps: WorkerDeps, job: Job): Promise<void> {
   }
 }
 
-async function runWebhookJob(deps: WorkerDeps, job: Job): Promise<void> {
+async function runWebhookJob(deps: startWorker.Deps, job: Job): Promise<void> {
   const fields = { jobId: job.id, webhookId: job.payload.webhookId, event: job.payload.event }
   try {
     const result = await deliverWebhook(
@@ -310,7 +312,7 @@ async function runWebhookJob(deps: WorkerDeps, job: Job): Promise<void> {
   }
 }
 
-async function runGitNotifyJob(deps: WorkerDeps, job: Job): Promise<void> {
+async function runGitNotifyJob(deps: startWorker.Deps, job: Job): Promise<void> {
   const fields = { jobId: job.id, buildId: job.payload.buildId }
   try {
     const result = await notifyGit(
@@ -335,7 +337,7 @@ async function runGitNotifyJob(deps: WorkerDeps, job: Job): Promise<void> {
   }
 }
 
-async function runEmailJob(deps: WorkerDeps, job: Job): Promise<void> {
+async function runEmailJob(deps: startWorker.Deps, job: Job): Promise<void> {
   const fields = { jobId: job.id, notificationId: job.payload.notificationId }
   try {
     const result = await sendNotificationEmail(

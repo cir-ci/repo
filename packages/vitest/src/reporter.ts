@@ -1,34 +1,36 @@
 import { resolve } from 'node:path'
 
-import { type UploadOptions, type UploadResult, upload } from '@circi/cli'
+import { upload } from '@circi/cli'
 
 import { type CollectedScreenshot, collectDirectory, collectToMatchScreenshot } from './collect.ts'
 import { DEFAULT_DIR } from './screenshot.ts'
 import { type Shard, shardFromArgs } from './shard.ts'
 
-export interface CirciReporterOptions {
-  /** CirCI address. Default: `CIRCI_API_URL`. */
-  apiUrl?: string
-  /** Project CI token. Default: `CIRCI_TOKEN`. */
-  token?: string
-  /** Build name; give each browser project its own (`vitest-chromium`). Default `vitest`. */
-  name?: string
-  /** Where `circiScreenshot` wrote. Default `.circi/screenshots`. */
-  dir?: string
-  /** Also upload the pictures Vitest's `toMatchScreenshot` produced. Default false. */
-  collectToMatchScreenshot?: boolean
-  /** Project root to look in. Default: the root of the Vitest run. */
-  root?: string
-  /** Wait for the result and fail the run when changes need review. Default false. */
-  wait?: boolean
-  /** Fail the Vitest run if the upload fails. Default false: tests passed or failed on their own. */
-  strict?: boolean
-  /** This process's shard, if not given by `--shard`. */
-  shard?: Shard
-  /** For tests. */
-  uploadImpl?: (options: UploadOptions) => Promise<Pick<UploadResult, 'exitCode'>>
-  collectImpl?: (options: CirciReporterOptions) => Promise<CollectedScreenshot[]>
-  log?: (line: string) => void
+export namespace CirciReporter {
+  export interface Options {
+    /** CirCI address. Default: `CIRCI_API_URL`. */
+    apiUrl?: string
+    /** Project CI token. Default: `CIRCI_TOKEN`. */
+    token?: string
+    /** Build name; give each browser project its own (`vitest-chromium`). Default `vitest`. */
+    name?: string
+    /** Where `circiScreenshot` wrote. Default `.circi/screenshots`. */
+    dir?: string
+    /** Also upload the pictures Vitest's `toMatchScreenshot` produced. Default false. */
+    collectToMatchScreenshot?: boolean
+    /** Project root to look in. Default: the root of the Vitest run. */
+    root?: string
+    /** Wait for the result and fail the run when changes need review. Default false. */
+    wait?: boolean
+    /** Fail the Vitest run if the upload fails. Default false: tests passed or failed on their own. */
+    strict?: boolean
+    /** This process's shard, if not given by `--shard`. */
+    shard?: Shard
+    /** For tests. */
+    uploadImpl?: (options: upload.Options) => Promise<Pick<upload.Result, 'exitCode'>>
+    collectImpl?: (options: CirciReporter.Options) => Promise<CollectedScreenshot[]>
+    log?: (line: string) => void
+  }
 }
 
 /** What Vitest calls once a run is over; only the part we use. */
@@ -46,7 +48,7 @@ export class CirciReporter {
   readonly onTestRunEnd: RunEnd
   readonly onInit: (vitest: { config: { root: string } }) => void
 
-  constructor(options: CirciReporterOptions = {}) {
+  constructor(options: CirciReporter.Options = {}) {
     // `circiScreenshot` saves under the Vitest project's root, so that is where to look, whatever
     // directory the run was started from.
     let vitestRoot: string | undefined
@@ -90,7 +92,7 @@ export class CirciReporter {
   }
 }
 
-async function collect(options: CirciReporterOptions): Promise<CollectedScreenshot[]> {
+async function collect(options: CirciReporter.Options): Promise<CollectedScreenshot[]> {
   const root = options.root ?? process.cwd()
   const own = await collectDirectory(resolve(root, options.dir ?? DEFAULT_DIR))
   const adopted = options.collectToMatchScreenshot ? await collectToMatchScreenshot(root) : []

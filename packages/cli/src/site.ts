@@ -3,29 +3,31 @@ import { lstat } from 'node:fs/promises'
 
 import * as tar from 'tar'
 
-import { ApiClient, type SiteUpload } from './api.ts'
+import { ApiClient } from './api.ts'
 import { detectCi } from './ci-env.ts'
 import { gitRunner, isAncestor, localHead, remoteBranchTip } from './git.ts'
 import { UsageError } from './upload.ts'
 
-export interface SiteUploadOptions {
-  dir: string
-  apiUrl: string
-  token: string
-  /** Which site of the project this is (`storybook`, `coverage`…). Default `site`. */
-  name?: string
-  /** `auto` looks at the files. Default `auto`. */
-  kind?: string
-  /** Serve unknown paths with the entry page (single-page apps). */
-  spa?: boolean
-  cwd?: string
-  env?: Record<string, string | undefined>
-  fetchImpl?: typeof fetch
-  log?: (line: string) => void
-}
+export namespace uploadSite {
+  export interface Options {
+    dir: string
+    apiUrl: string
+    token: string
+    /** Which site of the project this is (`storybook`, `coverage`…). Default `site`. */
+    name?: string
+    /** `auto` looks at the files. Default `auto`. */
+    kind?: string
+    /** Serve unknown paths with the entry page (single-page apps). */
+    spa?: boolean
+    cwd?: string
+    env?: Record<string, string | undefined>
+    fetchImpl?: typeof fetch
+    log?: (line: string) => void
+  }
 
-export interface SiteUploadResult extends SiteUpload {
-  archiveBytes: number
+  export interface Result extends ApiClient.SiteUpload {
+    archiveBytes: number
+  }
 }
 
 function fileKind(stat: {
@@ -67,7 +69,7 @@ export async function packSite(dir: string): Promise<Buffer> {
 }
 
 /** `circi site upload`: sends a built site and prints where it can be opened. */
-export async function uploadSite(options: SiteUploadOptions): Promise<SiteUploadResult> {
+export async function uploadSite(options: uploadSite.Options): Promise<uploadSite.Result> {
   const log = options.log ?? ((line: string) => console.log(line))
   const env = options.env ?? process.env
   const git = gitRunner(options.cwd ?? process.cwd())

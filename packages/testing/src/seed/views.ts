@@ -1,19 +1,21 @@
 import { type Database, schema } from '@circi/db'
 
-export interface SeedSavedViewInput {
-  userId: string
-  orgId: string
-  projectId?: string | null
-  name?: string
-  filters?: typeof schema.savedViews.$inferInsert.filters
-  pinned?: boolean
-  position?: number
+export namespace seedSavedView {
+  export interface Input {
+    userId: string
+    orgId: string
+    projectId?: string | null
+    name?: string
+    filters?: typeof schema.savedViews.$inferInsert.filters
+    pinned?: boolean
+    position?: number
+  }
 }
 
 let n = 0
 
 /** A saved view, inserted as given. */
-export async function seedSavedView(db: Database, input: SeedSavedViewInput) {
+export async function seedSavedView(db: Database, input: seedSavedView.Input) {
   n += 1
   const [row] = await db
     .insert(schema.savedViews)

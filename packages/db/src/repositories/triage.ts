@@ -20,15 +20,17 @@ import type { Database } from '#src/client.ts'
  * snooze end time and own the transaction.
  */
 
-export type TriageItemRow = typeof triageItems.$inferSelect
+export namespace TriageItem {
+  export type Row = typeof triageItems.$inferSelect
 
-export interface TriageRef {
-  projectId: string
-  kind: string
-  key: string
+  export interface Ref {
+    projectId: string
+    kind: string
+    key: string
+  }
 }
 
-function checkRef(ref: TriageRef): TriageKind {
+function checkRef(ref: TriageItem.Ref): TriageKind {
   const kind = TRIAGE_KINDS.find((k) => k === ref.kind)
   if (!kind) throw new ValidationError(`Unknown triage kind "${ref.kind}"`)
   if (!ref.key || ref.key.length > 500) throw new ValidationError('A triage item key is required')
@@ -37,9 +39,9 @@ function checkRef(ref: TriageRef): TriageKind {
 
 async function upsertItem(
   db: Database,
-  ref: TriageRef,
+  ref: TriageItem.Ref,
   set: Partial<typeof triageItems.$inferInsert>,
-): Promise<TriageItemRow> {
+): Promise<TriageItem.Row> {
   const kind = checkRef(ref)
   const [row] = await db
     .insert(triageItems)
@@ -56,8 +58,8 @@ async function upsertItem(
 /** Assigns an item to an organization member, or to nobody (`assigneeId: null`). */
 export async function assignTriageItem(
   db: Database,
-  input: TriageRef & { assigneeId: string | null },
-): Promise<TriageItemRow> {
+  input: TriageItem.Ref & { assigneeId: string | null },
+): Promise<TriageItem.Row> {
   if (input.assigneeId !== null) await assertMembers(db, input.projectId, [input.assigneeId])
   return upsertItem(db, input, { assigneeId: input.assigneeId })
 }
@@ -65,13 +67,13 @@ export async function assignTriageItem(
 /** Puts an item off (`snoozeKind: null` wakes it). Clears any earlier dismissal. */
 export async function snoozeTriageItem(
   db: Database,
-  input: TriageRef & {
+  input: TriageItem.Ref & {
     snoozeKind: SnoozeKind | null
     snoozedUntil: Date | null
     /** For `next_push`: the newest default-branch build number now. */
     snoozedAfterBuild: number | null
   },
-): Promise<TriageItemRow> {
+): Promise<TriageItem.Row> {
   return upsertItem(db, input, {
     snoozeKind: input.snoozeKind,
     snoozedUntil: input.snoozedUntil,
@@ -81,7 +83,10 @@ export async function snoozeTriageItem(
 }
 
 /** Dismisses an item: it leaves the queue and stays out. */
-export async function dismissTriageItem(db: Database, ref: TriageRef): Promise<TriageItemRow> {
+export async function dismissTriageItem(
+  db: Database,
+  ref: TriageItem.Ref,
+): Promise<TriageItem.Row> {
   return upsertItem(db, ref, { dismissedAt: new Date() })
 }
 
@@ -109,14 +114,19 @@ async function assertMembers(db: Database, projectId: string, userIds: string[])
   }
 }
 
-export interface TriageRotation {
-  /** Any moment of the first week; null when the project has no rotation. */
-  startsOn: Date | null
-  members: { id: string; name: string }[]
+export namespace getTriageRotation {
+  export interface Rotation {
+    /** Any moment of the first week; null when the project has no rotation. */
+    startsOn: Date | null
+    members: { id: string; name: string }[]
+  }
 }
 
 /** The project's rotation: its members in turn order. */
-export async function getTriageRotation(db: Database, projectId: string): Promise<TriageRotation> {
+export async function getTriageRotation(
+  db: Database,
+  projectId: string,
+): Promise<getTriageRotation.Rotation> {
   const [project] = await db
     .select({ startsOn: projects.triageRotationStartsOn })
     .from(projects)
@@ -137,7 +147,7 @@ export async function getTriageRotation(db: Database, projectId: string): Promis
 export async function setTriageRotation(
   db: Database,
   input: { projectId: string; memberIds: string[]; startsOn?: Date },
-): Promise<TriageRotation> {
+): Promise<getTriageRotation.Rotation> {
   const memberIds = [...new Set(input.memberIds)]
   if (memberIds.length > 50) throw new ValidationError('That is too many people for a rotation')
   if (memberIds.length > 0) await assertMembers(db, input.projectId, memberIds)

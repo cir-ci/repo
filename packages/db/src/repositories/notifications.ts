@@ -23,7 +23,7 @@ import type { Notification } from '#src/types.ts'
 /** The preference that controls the email for a kind; undefined for kinds that are not emailed. */
 export function emailPreferenceFor(
   kind: NotificationKind,
-): keyof NotificationPreferences | undefined {
+): keyof getNotificationPreferences.Preferences | undefined {
   return kind === 'review_requested' || kind === 'review_re_requested'
     ? 'emailReviewRequested'
     : kind === 'review_overdue'
@@ -31,12 +31,14 @@ export function emailPreferenceFor(
       : undefined
 }
 
-export interface NotificationPreferences {
-  emailReviewRequested: boolean
-  emailReviewOverdue: boolean
+export namespace getNotificationPreferences {
+  export interface Preferences {
+    emailReviewRequested: boolean
+    emailReviewOverdue: boolean
+  }
 }
 
-export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+export const DEFAULT_NOTIFICATION_PREFERENCES: getNotificationPreferences.Preferences = {
   emailReviewRequested: true,
   emailReviewOverdue: true,
 }
@@ -181,7 +183,7 @@ export async function hasClosedReviewRequest(
 export async function getNotificationPreferences(
   db: Database,
   userId: string,
-): Promise<NotificationPreferences> {
+): Promise<getNotificationPreferences.Preferences> {
   const [row] = await db
     .select()
     .from(notificationPreferences)
@@ -198,8 +200,8 @@ export async function getNotificationPreferences(
 export async function setNotificationPreferences(
   db: Database,
   userId: string,
-  changes: Partial<NotificationPreferences>,
-): Promise<NotificationPreferences> {
+  changes: Partial<getNotificationPreferences.Preferences>,
+): Promise<getNotificationPreferences.Preferences> {
   await db
     .insert(notificationPreferences)
     .values({ userId, ...changes })
@@ -210,25 +212,27 @@ export async function setNotificationPreferences(
   return getNotificationPreferences(db, userId)
 }
 
-/** What the email job needs to write to one person about one notification. */
-export interface NotificationEmailData {
-  notification: Notification
-  recipient: { id: string; name: string; email: string }
-  actorName: string | null
-  build: {
-    number: number
-    branch: string | null
-    projectSlug: string
-    projectName: string
-    orgSlug: string
-  } | null
-  preferences: NotificationPreferences
+export namespace getNotificationEmailData {
+  /** What the email job needs to write to one person about one notification. */
+  export interface Data {
+    notification: Notification
+    recipient: { id: string; name: string; email: string }
+    actorName: string | null
+    build: {
+      number: number
+      branch: string | null
+      projectSlug: string
+      projectName: string
+      orgSlug: string
+    } | null
+    preferences: getNotificationPreferences.Preferences
+  }
 }
 
 export async function getNotificationEmailData(
   db: Database,
   id: string,
-): Promise<NotificationEmailData | undefined> {
+): Promise<getNotificationEmailData.Data | undefined> {
   const [row] = await db
     .select({ notification: notifications, recipient: user })
     .from(notifications)

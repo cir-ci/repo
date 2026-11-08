@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto'
 
 import { getBuild, linkProjectToGithub, listBuildReviews, schema, setCheckRunId } from '@circi/db'
 import { completeBuild } from '@circi/services'
-import { createTestDb, seedAccount, seedBuild, type TestDb } from '@circi/testing'
+import { createTestDb, seedAccount, seedBuild } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
@@ -14,7 +14,7 @@ import { createTestAuth, seedTenant, type Tenant } from '#test/support/helpers.t
 const SECRET = 'whsec-test'
 const GITHUB_ID = '1234'
 
-let t: TestDb
+let t: createTestDb.Result
 let app: FastifyInstance
 let acme: Tenant
 const sent: string[] = []

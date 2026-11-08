@@ -15,7 +15,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
 import { requireProjectToken, currentProject } from '#http/hooks/project-token.ts'
-import type { V2Deps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { jsonErrorHandler } from '#http/lib/errors.ts'
 import { describeBuild } from '#http/lib/presenters.ts'
 import { parse } from '#http/lib/validation.ts'
@@ -86,7 +86,7 @@ function buildName(raw: string | null | undefined): string | undefined {
   return cleaned || undefined
 }
 
-export const argosRoutes: FastifyPluginAsync<V2Deps> = async (v2, deps) => {
+export const argosRoutes: FastifyPluginAsync<Deps.V2> = async (v2, deps) => {
   v2.setErrorHandler(jsonErrorHandler)
 
   // The upload target is called without the project token (as a presigned URL would be): the

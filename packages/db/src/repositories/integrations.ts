@@ -15,23 +15,38 @@ import { ConflictError, isUniqueViolation } from '#src/errors.ts'
  * (`sealSecret` in `@circi/core`); nothing here reads them.
  */
 
-export type IntegrationRecord = typeof integrations.$inferSelect
-export type IntegrationProject = typeof integrationProjects.$inferSelect
+export namespace OrgIntegration {
+  export type Record = typeof integrations.$inferSelect
 
-export interface NewIntegration {
-  orgId: string
-  kind: (typeof INTEGRATION_KINDS)[number]
-  displayName: string
-  externalId: string
-  encryptedCredentials?: string | null
-  createdBy?: string | null
+  export type Project = typeof integrationProjects.$inferSelect
+
+  export interface Row {
+    id: string
+    kind: string
+    displayName: string
+    needsAttention: boolean
+    needsAttentionReason: string | null
+    createdAt: Date
+    projectCount: number
+  }
+}
+
+export namespace createIntegration {
+  export interface Input {
+    orgId: string
+    kind: (typeof INTEGRATION_KINDS)[number]
+    displayName: string
+    externalId: string
+    encryptedCredentials?: string | null
+    createdBy?: string | null
+  }
 }
 
 /** Adds an integration; ConflictError when the organisation already connected that account. */
 export async function createIntegration(
   db: Database,
-  input: NewIntegration,
-): Promise<IntegrationRecord> {
+  input: createIntegration.Input,
+): Promise<OrgIntegration.Record> {
   try {
     const [row] = await db
       .insert(integrations)
@@ -57,7 +72,7 @@ export async function getIntegration(
   db: Database,
   orgId: string,
   integrationId: string,
-): Promise<IntegrationRecord | undefined> {
+): Promise<OrgIntegration.Record | undefined> {
   const [row] = await db
     .select()
     .from(integrations)
@@ -65,18 +80,8 @@ export async function getIntegration(
   return row
 }
 
-export interface IntegrationRow {
-  id: string
-  kind: string
-  displayName: string
-  needsAttention: boolean
-  needsAttentionReason: string | null
-  createdAt: Date
-  projectCount: number
-}
-
 /** The organisation's integrations, oldest first, with how many projects use each. */
-export async function listIntegrations(db: Database, orgId: string): Promise<IntegrationRow[]> {
+export async function listIntegrations(db: Database, orgId: string): Promise<OrgIntegration.Row[]> {
   return db
     .select({
       id: integrations.id,
@@ -128,7 +133,7 @@ export async function setIntegrationProject(
     externalRef: string
     extra?: Record<string, unknown>
   },
-): Promise<IntegrationProject> {
+): Promise<OrgIntegration.Project> {
   const [row] = await db
     .insert(integrationProjects)
     .values({

@@ -4,7 +4,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
-import type { DashboardDeps } from '#http/lib/deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const body = z.object({
@@ -18,7 +18,7 @@ const body = z.object({
  * method is accepted there) they get a one-minute, single-use token for that address. Everyone
  * else, and every address that doesn't exist, gets the same "not found".
  */
-export const dashboardSiteHandoffRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+export const dashboardSiteHandoffRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   app.post('/site-handoff', async (req, reply) => {
     const sites = deps.sites
     if (!sites) return reply.code(404).send({ error: 'Not found' })

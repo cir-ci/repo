@@ -64,23 +64,6 @@ export function parseDisplay(text: string | null | undefined): DisplayOptions {
   }
 }
 
-/** Reads the person's options; storage may be missing or blocked, then the defaults apply. */
-export function loadDisplay(storage?: Pick<Storage, 'getItem'>): DisplayOptions {
-  try {
-    return parseDisplay((storage ?? localStorage).getItem(DISPLAY_KEY))
-  } catch {
-    return DEFAULT_DISPLAY
-  }
-}
-
-export function saveDisplay(options: DisplayOptions, storage?: Pick<Storage, 'setItem'>): void {
-  try {
-    ;(storage ?? localStorage).setItem(DISPLAY_KEY, JSON.stringify(options))
-  } catch {
-    // Not persisted (private window, blocked storage): the options still apply for this visit.
-  }
-}
-
 /** The page's builds, newest first by number as the server returns them, or reversed. */
 export function orderBuilds<T extends Pick<Build.ListItem, 'number'>>(
   builds: readonly T[],

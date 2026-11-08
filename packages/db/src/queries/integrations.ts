@@ -1,21 +1,23 @@
-import { groupOfKind, INTEGRATION_GROUPS, type IntegrationGroup } from '@circi/core'
+import { groupOfKind, INTEGRATION_GROUPS, type IntegrationCatalog } from '@circi/core'
 
 import { listGitConnections } from '#repositories/git.ts'
 import { listIntegrations } from '#repositories/integrations.ts'
 import type { Database } from '#src/client.ts'
 
-/** One row of the organisation's Integrations page: a git connection or another integration. */
-export interface IntegrationItem {
-  id: string
-  /** Which table the id is in: git hosts are `provider_connections`, the rest `integrations`. */
-  source: 'connection' | 'integration'
-  kind: string
-  group: IntegrationGroup
-  name: string
-  needsAttention: boolean
-  attentionReason: string | null
-  projectCount: number
-  createdAt: Date
+export namespace listOrgIntegrations {
+  /** One row of the organisation's Integrations page: a git connection or another integration. */
+  export interface Item {
+    id: string
+    /** Which table the id is in: git hosts are `provider_connections`, the rest `integrations`. */
+    source: 'connection' | 'integration'
+    kind: string
+    group: IntegrationCatalog.Group
+    name: string
+    needsAttention: boolean
+    attentionReason: string | null
+    projectCount: number
+    createdAt: Date
+  }
 }
 
 /**
@@ -23,12 +25,15 @@ export interface IntegrationItem {
  * by kind for display (git hosts first, then chat, design tools, trackers), oldest first within
  * a group. Rows whose kind the catalog doesn't know are left out.
  */
-export async function listOrgIntegrations(db: Database, orgId: string): Promise<IntegrationItem[]> {
+export async function listOrgIntegrations(
+  db: Database,
+  orgId: string,
+): Promise<listOrgIntegrations.Item[]> {
   const [connections, others] = await Promise.all([
     listGitConnections(db, orgId),
     listIntegrations(db, orgId),
   ])
-  const items: IntegrationItem[] = []
+  const items: listOrgIntegrations.Item[] = []
   for (const c of connections) {
     const group = groupOfKind(c.kind)
     if (!group) continue
@@ -59,7 +64,7 @@ export async function listOrgIntegrations(db: Database, orgId: string): Promise<
       createdAt: i.createdAt,
     })
   }
-  const order: readonly IntegrationGroup[] = INTEGRATION_GROUPS
+  const order: readonly IntegrationCatalog.Group[] = INTEGRATION_GROUPS
   return items.toSorted(
     (a, b) =>
       order.indexOf(a.group) - order.indexOf(b.group) ||
