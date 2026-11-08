@@ -113,7 +113,7 @@ Argos's JS SDKs (`@argos-ci/cli`, `@argos-ci/playwright`, `@argos-ci/cypress`, `
 | Queue | Postgres `jobs` table claimed with `FOR UPDATE SKIP LOCKED` (built in M1 instead of pg-boss): enqueued in the same transaction as the data, runs on PGlite in tests, one fewer dependency | Postgres-backed, retries with backoff, crashed-worker recovery |
 | Image diff | `pixelmatch` (pure JS, anti-aliasing aware) on a padded canvas, `sharp` for decode/thumbnails; `odiff` (native, faster) can replace it later if diffing becomes a bottleneck | No native-binary issues across Docker/CI in M1 |
 | Storage       | Driver interface: **local FS (default)** + S3-compatible (R2/B2/MinIO/AWS)                                                                                                                | Cheapest default, easy upgrade path                     |
-| Web UI | React 19 + Vite 8 (Rolldown/Oxc) + TanStack Router (typed routes) + TanStack Query (loading, polling) + MUI 9 (components, light/dark theme), served by the API | |
+| Web UI | React 19 + Vite 8 (Rolldown/Oxc) + TanStack Router (typed routes) + TanStack Query (loading, polling) + Base UI + CSS modules + Lucide icons (`@circi/ui`, light/dark), served by the API | |
 | Auth | **better-auth** (https://better-auth.com) with its Drizzle adapter: accounts and sessions (email + password now; magic link / email code, OIDC and invitations via its plugins in M2), organizations and roles (organization plugin), CI tokens (API key plugin), instance admins (admin plugin) | Mature, maintained auth instead of hand-rolled sessions and tokens; still independent of any single git host (§7.8) |
 | Git providers | Adapter interface: GitHub App, GitLab, Bitbucket, Gitea/Forgejo                                                                                                                           | Status + comments only; baselines never depend on them  |
 | Email         | SMTP (Nodemailer)                                                                                                                                                                         | Invites, magic links                                    |
@@ -619,7 +619,7 @@ _Status: done. The end-to-end flow (CLI → API → storage → worker → `--wa
 - [x] CI token scopes: create/upload + read build status
 - [x] Baseline resolution from CLI-provided ancestry (§7.2) with the eligibility filter (same name, complete, approved or no-changes), table-driven unit tests
 - [x] Worker: pairing, pixelmatch diffing, thresholds, **dimension change → always changed**, thumbnails, build completion, default-branch auto-approve; Postgres job queue
-- [x] Minimal UI (TanStack + MUI): projects, builds list, build page with side-by-side, overlay (adjustable diff layer) and diff modes, keyboard navigation
+- [x] Minimal UI (TanStack + Base UI): projects, builds list, build page with side-by-side, overlay (adjustable diff layer) and diff modes, keyboard navigation
 - [x] **Interim dashboard protection:** `DASHBOARD_PASSWORD` (HTTP basic auth, any username); without it the dashboard is off. Replaced by accounts in M2
 - [x] E2E test: upload fixture screenshots twice with a changed image; assert diff results
 

@@ -1,16 +1,15 @@
 # Refactor plan: file layout, tests, and the new UI
 
-Status: agreed 2026-11-05 (decisions in §6). Done so far (2026-11-05, 835 tests, all checks green):
-the light colour scheme (§4.0); the Base UI spike and the first wave of `@circi/ui` (foundation,
-the 9 rebuilt components, 19 new components, all Provisional where the design is a gap); back-end
-layout moves and test moves/renames in every package (§2.2 except `apps/web`, §3.1); `@circi/api`
-and `db/queries` split (queries are `{builds,projects,files}.ts`, there was nothing for orgs/sites);
-seeders in `@circi/testing`; the missing test files of §3.2 for server, worker, cli, auth, config and
-db; Testing Library removed from every test and from the dependencies. Left: `apps/web` layout
-(§2.3), the shell and the page-by-page migration (§4.2 steps 2 to 5), removing MUI (step 6), tests
-still hand-inserting rows that should use the new seeders, `apps/web` test gaps (§3.2 web).
-The **UI page work (§4.2 onward) is blocked on the design gaps in §6**; the layout and test work
-(§2, §3) is not.
+Status: **done** (2026-11-08); decisions in §6. Everything is committed on `main`: the light scheme
+(§4.0); the Base UI design system (`6a8a8c3`, `docs/base-ui-plan.md`); back-end layout and test
+moves in every package (§2.2, §3.1; `7a69f94`, `9bd87e3`, `8a935e8`, `ad817af`); `@circi/api` and
+`db/queries` split (queries are `{builds,projects,files}.ts`; there was nothing for orgs/sites);
+seeders in `@circi/testing`; the missing test files of §3.2; Testing Library removed; the `apps/web`
+layout (§2.3), shell, every page and the removal of MUI (`012190e`); the real-stack e2e suite
+(`75dbd7f`). What is left (all in `docs/remaining-work.md`): six test files that still hand-insert
+rows instead of using the seeders, the dogfooding step (§3.3, not started), and the design
+decisions in §6 that need a person. The sections below are the original plan, kept for the
+reasoning; where they say "today" they describe 2026-11-05.
 
 ## 1. Where we are
 
@@ -46,6 +45,10 @@ The **UI page work (§4.2 onward) is blocked on the design gaps in §6**; the la
 
 ### 2.2 Per workspace
 
+Done 2026-11-08 for every row (the `apps/web` row is §2.3; `packages/ui` is split into one file per
+component and builds with tsdown, `docs/tsdown-plan.md`, not `tsc -b`).
+
+
 | Workspace | Change | Size |
 | --- | --- | --- |
 | `apps/server` | Move the lifecycle files (`runtime`, `services`, `startup`, `server-options`, `shutdown`) into `src/lifecycle/`; keep `main.ts` and `contract-check.ts` at the root. Move `http/{deps,errors,pages,presenters,streams,validation}.ts` into `http/lib/`. Update the `CLAUDE.md` layout line. | S |
@@ -74,6 +77,14 @@ src/
   features/builds/build-status.ts   buildState() → @circi/ui `Status`, out of components.tsx
 ```
 
+Done (2026-11-08), with differences from the sketch: `app/` also holds `root-route.ts` (the root
+route, apart from `router.tsx`), `Sidebar.tsx`, `OrgSwitcher.tsx`, `NavLink.tsx` and `shell-model.ts`;
+`lib/` holds `http.ts`, `auth-client.ts`, `router-link.ts`, `use-client-link.ts`, `document-title.ts`,
+`relative-time.ts` and the shared `ErrorState.tsx` and `RelativeTime.tsx`; `buildState()` is
+`features/builds/build-state.ts`. `primitives/`, `components.tsx` and `theme.ts` are gone. Routes:
+`routes.ts` in account, builds, members, projects and sites (auth and instance have none, as they
+have no routes of their own); the router assembles them.
+
 - Delete `primitives/`, `components.tsx` and `theme.ts` once nothing imports them (§4). What is
   still needed moves either into `@circi/ui` (generic) or into the feature that uses it.
 - Every feature declares its routes in `features/<f>/routes.ts` (only `builds/route.ts` does
@@ -84,6 +95,9 @@ src/
 ## 3. Tests
 
 ### 3.1 Moves and renames (no behaviour change)
+
+Done (the `events.test.ts` rename is `packages/services/test/outbox.test.ts`).
+
 
 | From | To |
 | --- | --- |
@@ -96,7 +110,14 @@ src/
 | `packages/sites/test/sites.test.ts`, `config/test/config.test.ts`, `diff/test/diff.test.ts`, `vitest/test/vitest.test.ts` | one file per source module they cover |
 | `packages/ui/test/ui.test.tsx` | one file per component |
 
-### 3.2 Gaps to fill (each item is a missing test file by the mirror rule; check before writing that it isn't already covered elsewhere)
+### 3.2 Gaps to fill
+
+Done for web, server, worker, cli, db and auth plugins (checked 2026-11-08); the remaining test debt is
+in `docs/remaining-work.md` §5.
+
+Original list:
+
+ (each item is a missing test file by the mirror rule; check before writing that it isn't already covered elsewhere)
 
 - **web:** `api.ts` of `projects`, `members`, `sites`, `instance`, `auth`; `auth/login-helpers.ts`.
   Add `test/support/render.tsx`: `renderPage()` wrapping `CirciTheme`, a fresh `QueryClient`,
@@ -160,6 +181,11 @@ src/
 | MUI `Button`, `TextField`, `Alert`, `Dialog`, `Menu`, `Checkbox`, `Avatar` used directly | themed MUI only | Not in the design system (PanelHeader previews hard-code button hex) |
 
 ### 4.2 Order
+
+Progress: all five steps are done (2026-11-05 to 2026-11-08): the components, the shell, every page,
+deletion of the old files with the import rule in `layers.test.ts`, and a real-stack pass (Docker
+plus Chrome) then the e2e suite. design-sync was re-run locally; the attended upload is not done.
+
 
 1. **Fill `@circi/ui`** with the gap components once designed: `Button` (and `IconButton`),
    `TextField`/`Select`/`Checkbox` field with label, help and error, `Banner`, `Dialog`, `Menu`,

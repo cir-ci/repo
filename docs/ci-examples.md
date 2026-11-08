@@ -4,6 +4,10 @@ Every example uploads a directory of PNG screenshots with `circi upload`. Put th
 
 The CLI reads the commit, branch and pull request from the CI's environment. It needs enough git history to find the right baseline: it fetches the base branch and a little more itself, so shallow checkouts work, but a full fetch is faster for large repositories.
 
+## Running CirCI's own tests in CI
+
+The dashboard's component tests run in headless Chromium (Vitest browser mode), so install it before `pnpm test`: `pnpm exec playwright install chromium` (on Linux add `--with-deps`). There is no CONTRIBUTING file; this and the README's Development section are the prerequisites.
+
 ## GitHub Actions
 
 ```yaml

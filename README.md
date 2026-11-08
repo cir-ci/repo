@@ -131,6 +131,7 @@ Requires Node 26 (see `.nvmrc`) and pnpm 12.
 ```sh
 nvm install && nvm use   # Node 26 from .nvmrc
 pnpm install
+pnpm exec playwright install chromium   # once: the component tests run in headless Chromium (Vitest browser mode)
 pnpm test          # Vitest; database tests run on PGlite, so no Docker needed
 pnpm typecheck
 pnpm lint          # oxlint, including type-aware rules
@@ -150,7 +151,7 @@ DATABASE_URL=postgres://… BETTER_AUTH_SECRET=$(openssl rand -base64 32) STORAG
 ```
 apps/server      circi command: HTTP routes (CI API, dashboard, sign-in), admin CLI, process lifecycle
 apps/worker      background jobs: baseline, diffing, thumbnails, webhooks, git notifications
-apps/web         the dashboard (React, TanStack Router/Query, MUI), organised by feature
+apps/web         the dashboard (React, TanStack Router/Query, Base UI design system with light and dark schemes), organised by feature
 packages/api     the dashboard API's wire types, shared by the server and the web app
 packages/auth    better-auth setup (plugins, hooks), admin operations
 packages/cli     `circi upload` for CI

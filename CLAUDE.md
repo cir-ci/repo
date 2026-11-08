@@ -18,7 +18,8 @@ apps/server     HTTP routes (http/, shared helpers in http/lib/), admin CLI, pro
                 (lifecycle/services.ts composes lifecycle/{startup,server-options,shutdown}.ts);
                 built with tsdown into one bundle for the image (deploy/README.md)
 apps/worker     background jobs (process-build, webhook delivery, git-notify); no build, the server bundle inlines it
-apps/web        the dashboard, organised by feature: src/features/<feature>/{api.ts, *Page.tsx, …}
+apps/web        the dashboard: src/app/ (router, shell, sidebar), src/lib/ (http, auth client, shared bits),
+                src/features/<feature>/{api.ts, *Page.tsx, …}
 packages/api    the dashboard API's wire types (types only, one namespace per resource)
 packages/auth   better-auth composition: plugins/, hooks/, sso/, operations/ (admin, accounts, setup), cookies
 packages/cli    `circi upload` for CI

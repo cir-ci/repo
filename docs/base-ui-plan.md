@@ -1,6 +1,6 @@
 # Plan: `@circi/ui` on Base UI instead of MUI
 
-Status: **done** (2026-11-05, §8). All six steps are complete: spike, foundation, the rebuilt and
+Status: **done** (2026-11-05, §8; built with tsdown since 2026-11-08, `docs/tsdown-plan.md`). All six steps are complete: spike, foundation, the rebuilt and
 new components, every page migrated, and MUI and emotion removed (own colour-scheme manager in
 `packages/ui/src/color-scheme.ts`; import rules enforced by `packages/services/test/layers.test.ts`).
 Spike findings: `apps/web` aliases `@circi/ui` to its source (`vite build` otherwise resolves dist
@@ -168,4 +168,4 @@ Vitest's own assertions, not Testing Library.
 6. **Execution:** done by several Sonnet agents in parallel, each on an independent slice
    (separate files or packages), with the spike's gate reviewed before the rest starts.
 
-Status: **approved to proceed** once the user says go.
+Status: approved and carried out (see the status line at the top).

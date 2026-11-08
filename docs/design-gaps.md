@@ -1,6 +1,6 @@
 # Design gaps: what `@circi/ui` still needs designed
 
-Status: 2026-11-05. The design system (`.design-sync/conventions.md`) covers the frame, rows,
+Status: 2026-11-08 (the provisional designs below are built; the deviations are noted per section). The design system (`.design-sync/conventions.md`) covers the frame, rows,
 status glyphs, segmented control and key caps. Everything below is used by the dashboard but not
 designed yet.
 
@@ -101,6 +101,13 @@ Under 820px: a 44px top bar with the logo, current page and a menu button that o
 as a `Drawer` (Base UI `drawer`). Today the frame stacks the whole sidebar above the panel, which
 pushes content below the fold on phones.
 
+**Built, with deviations (2026-11-08):** the org list is derived from the projects and capabilities
+the viewer has, because there is no org-list endpoint (an org with no projects that the viewer
+can't manage is missing); the switcher has no "New organization" item (no API or flow); no CirCI
+version in the footer (the web app has no version source); inside a project the project name
+itself is the Builds entry; the sidebar lists at most 10 projects alphabetically
+(`SIDEBAR_PROJECT_LIMIT`); the mobile top bar and `Drawer` are built.
+
 **Needs a decision:** recent vs alphabetical vs pinned projects; whether the org switcher shows
 when there is only one org; the drawer on mobile.
 
@@ -118,6 +125,13 @@ The main screen, and the least designed. **Provisional:**
 - Viewer ground: a checkerboard so transparent pixels show; images never scaled up past 100% at
   "fit".
 - `?` opens a shortcut help dialog.
+
+**Built, with deviations (2026-11-08):** the page has the list and viewer, the four modes
+(side by side, overlay, diff, swipe), fit/zoom, j/k, `a`/`r` (reject and "sign out everywhere"
+ask for confirmation) and the `?` shortcut dialog. Dropped or not built: the ignore-region toggle
+(the build API sends no region data), list thumbnails, the narrow-screen "All screenshots" link,
+per-screenshot approve, a resizable list, synced zoom/pan; the list's Flaky group is set aside
+from the others.
 
 **Needs a decision:** list width resizable? Per-screenshot approve, or only whole builds (PLAN.md
 has per-screenshot comments as a later feature)? What a reviewer sees after approving (next
@@ -145,6 +159,10 @@ The design has five statuses (`approved`, `needs-review`, `processing`, `rejecte
 | Screenshot | unchanged | neutral | Unchanged |
 | Screenshot | flaky | neutral | Flaky |
 | Screenshot | failed (couldn't compare) | rejected | Failed |
+
+**Built (2026-11-08):** after a build is approved or rejected the per-screenshot glyphs show the
+review (`screenshotStatus(kind, review)`); unchanged and flaky stay neutral, failed stays
+rejected. The table above is the state before a review.
 
 **Needs a decision:** do added/removed/flaky need their own glyphs (e.g. +, −, ~) rather than
 sharing `needs-review`/`neutral`? That would mean extending `StatusIcon`, and the "state colour
