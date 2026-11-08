@@ -236,3 +236,12 @@ export async function listTriage(
     },
   }
 }
+
+/** How many items wait in a project's queue: not snoozed, not dismissed. */
+export async function countOpenTriage(
+  db: Database,
+  input: { projectId: string; now: Date },
+): Promise<number> {
+  const queue = await listTriage(db, input)
+  return queue.items.filter((i) => !i.snoozed).length
+}

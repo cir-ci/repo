@@ -10,6 +10,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
 import { currentUser } from '../../hooks/session.ts'
+import { buildFilterShape } from '../../lib/build-filters.ts'
 import type { DashboardDeps } from '../../lib/deps.ts'
 import { parse } from '../../lib/validation.ts'
 
@@ -17,14 +18,7 @@ const projectParams = z.object({ org: z.string(), project: z.string() })
 const buildParams = projectParams.extend({ number: z.string() })
 const buildsQuery = z.object({
   before: z.string().optional(),
-  status: z.enum(['pending', 'uploading', 'processing', 'complete', 'error', 'expired']).optional(),
-  review: z.enum(['pending', 'approved', 'rejected']).optional(),
-  branch: z.string().min(1).optional(),
-  author: z.string().min(1).optional(),
-  reviewer: z.string().min(1).optional(),
-  name: z.string().min(1).optional(),
-  from: z.iso.datetime().optional(),
-  to: z.iso.datetime().optional(),
+  ...buildFilterShape,
 })
 
 /** Builds list page size; the web app shows "Older builds" when a page is full. */

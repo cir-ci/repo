@@ -51,3 +51,14 @@ export {
   dismissTriage,
   snoozeTriage,
 } from './triage.ts'
+export {
+  createView,
+  deleteView,
+  pinProject,
+  renameView,
+  reorderViews,
+  setViewPinned,
+  unpinProject,
+  updateView,
+  updateViewFilters,
+} from './views.ts'

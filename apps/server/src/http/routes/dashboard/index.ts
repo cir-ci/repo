@@ -31,6 +31,7 @@ import { dashboardSettingsRoutes } from './settings.ts'
 import { dashboardSetupRoutes } from './setup.ts'
 import { dashboardSiteHandoffRoutes } from './site-handoff.ts'
 import { dashboardTriageRoutes } from './triage.ts'
+import { dashboardViewRoutes } from './views.ts'
 import { webAppRoutes } from './web-app.ts'
 
 /**
@@ -101,5 +102,6 @@ const sessionApi: FastifyPluginAsync<DashboardDeps> = async (api, deps) => {
   await api.register(dashboardTriageRoutes, deps)
   await api.register(dashboardIgnoreRegionRoutes, deps)
   await api.register(dashboardSearchRoutes, deps)
+  await api.register(dashboardViewRoutes, deps)
   await api.register(dashboardFileRoutes, deps)
 }

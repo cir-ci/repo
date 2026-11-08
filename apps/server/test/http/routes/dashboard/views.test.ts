@@ -1,0 +1,145 @@
+import { getOrganizationBySlug } from '@circi/db'
+import { addTestMember, seedSavedView, seedUser } from '@circi/testing'
+import { afterAll, describe, expect, it } from 'vitest'
+
+import { startDashboard } from '../../../support/dashboard-fixture.ts'
+import { ORIGIN } from '../../../support/helpers.ts'
+
+const fx = await startDashboard()
+const { app, db, acme, rival, acmeCookie, rivalCookie, get } = fx
+afterAll(() => fx.close())
+
+const send = (
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+  url: string,
+  options: { cookie?: string; payload?: unknown } = {},
+) =>
+  app.inject({
+    method,
+    url,
+    headers: {
+      ...(method === 'DELETE' ? {} : { 'content-type': 'application/json' }),
+      ...(options.cookie === '' ? {} : { cookie: options.cookie ?? acmeCookie }),
+      origin: ORIGIN,
+    },
+    ...(method === 'DELETE' ? {} : { payload: options.payload ?? {} }),
+  })
+
+const views = `/api/orgs/${acme.orgSlug}/views`
+const bad = (payload: unknown) => send('POST', views, { payload })
+
+describe('saved view routes', () => {
+  it('needs a session, and an organization you belong to', async () => {
+    expect((await get(views, '')).statusCode).toBe(401)
+    expect((await get(views, rivalCookie)).statusCode).toBe(404)
+    expect((await get('/api/orgs/nope/views')).statusCode).toBe(404)
+    expect(
+      (await send('POST', views, { cookie: rivalCookie, payload: { name: 'x', filters: {} } }))
+        .statusCode,
+    ).toBe(404)
+    expect((await get(`/api/orgs/${acme.orgSlug}/sidebar`, rivalCookie)).statusCode).toBe(404)
+    expect(
+      (await send('PUT', `/api/orgs/${acme.orgSlug}/pinned-projects/web`, { cookie: rivalCookie }))
+        .statusCode,
+    ).toBe(404)
+  })
+
+  it('creates, lists, patches and deletes a view', async () => {
+    const created = await send('POST', views, {
+      payload: { name: 'Failing', project: 'web', filters: { status: 'error', branch: 'main' } },
+    })
+    expect(created.statusCode).toBe(201)
+    const view = created.json()
+    expect(view).toMatchObject({
+      name: 'Failing',
+      pinned: false,
+      project: { slug: 'web' },
+      filters: { status: 'error', branch: 'main' },
+    })
+    expect((await get(views)).json().views.map((v: { id: string }) => v.id)).toEqual([view.id])
+
+    const patched = await send('PATCH', `${views}/${view.id}`, {
+      payload: { name: 'Broken', pinned: true, filters: { review: 'pending' } },
+    })
+    expect(patched.json()).toMatchObject({
+      name: 'Broken',
+      pinned: true,
+      filters: { review: 'pending' },
+    })
+
+    expect((await send('DELETE', `${views}/${view.id}`)).statusCode).toBe(204)
+    expect((await get(views)).json().views).toEqual([])
+    expect((await send('DELETE', `${views}/${view.id}`)).statusCode).toBe(404)
+  })
+
+  it('validates filters with the builds list definition, and names', async () => {
+    expect((await bad({ name: 'x', filters: { status: 'bogus' } })).statusCode).toBe(400)
+    expect((await bad({ name: 'x', filters: { colour: 'red' } })).statusCode).toBe(400)
+    expect((await bad({ name: 'x', filters: { from: 'yesterday' } })).statusCode).toBe(400)
+    expect((await bad({ name: '', filters: {} })).statusCode).toBe(400)
+    expect((await bad({ name: 'x', project: 'missing', filters: {} })).statusCode).toBe(404)
+    expect((await bad({ name: 'Dup', filters: {} })).statusCode).toBe(201)
+    expect((await bad({ name: 'Dup', filters: {} })).statusCode).toBe(409)
+  })
+
+  it("treats another user's view as not found", async () => {
+    const mate = await addMate()
+    const theirs = await seedSavedView(db, {
+      userId: mate.id,
+      orgId: await orgId(),
+      name: 'Theirs',
+    })
+    expect((await get(views)).json().views.map((v: { name: string }) => v.name)).not.toContain(
+      'Theirs',
+    )
+    expect(
+      (await send('PATCH', `${views}/${theirs.id}`, { payload: { name: 'Mine now' } })).statusCode,
+    ).toBe(404)
+    expect((await send('DELETE', `${views}/${theirs.id}`)).statusCode).toBe(404)
+    // A view of the rival's, addressed through the rival's own organization, is not reachable here.
+    const ours = (await send('POST', views, { payload: { name: 'Ours', filters: {} } })).json()
+    expect(
+      (
+        await send('PATCH', `/api/orgs/${rival.orgSlug}/views/${ours.id}`, {
+          cookie: rivalCookie,
+          payload: { name: 'x' },
+        })
+      ).statusCode,
+    ).toBe(404)
+  })
+
+  it('reorders views', async () => {
+    const list: { id: string }[] = (await get(views)).json().views
+    const ids = list.map((v) => v.id).toReversed()
+    const out = await send('PUT', `${views}/order`, { payload: { ids } })
+    expect(out.statusCode).toBe(200)
+    expect(out.json().views.map((v: { id: string }) => v.id)).toEqual(ids)
+    expect(
+      (await send('PUT', `${views}/order`, { payload: { ids: ids.slice(1) } })).statusCode,
+    ).toBe(400)
+  })
+
+  it('pins and unpins a project, and the sidebar reflects it', async () => {
+    const pin = `/api/orgs/${acme.orgSlug}/pinned-projects/web`
+    expect((await send('PUT', pin)).json()).toEqual({ pinned: true, changed: true })
+    expect((await send('PUT', pin)).json()).toEqual({ pinned: true, changed: false })
+    const bar = (await get(`/api/orgs/${acme.orgSlug}/sidebar`)).json()
+    expect(bar.projects).toEqual([{ slug: 'web', name: 'web', pinned: true, triage: 0 }])
+    expect(bar).toMatchObject({ inboxUnread: 0, reviews: 0 })
+    expect(bar.views.length).toBeGreaterThan(0)
+    expect((await send('DELETE', pin)).json()).toEqual({ pinned: false, changed: true })
+    expect((await get(`/api/orgs/${acme.orgSlug}/sidebar`)).json().projects[0].pinned).toBe(false)
+    expect((await send('PUT', `/api/orgs/${acme.orgSlug}/pinned-projects/nope`)).statusCode).toBe(
+      404,
+    )
+  })
+})
+
+async function orgId() {
+  return (await getOrganizationBySlug(db, acme.orgSlug)).id
+}
+async function addMate() {
+  const u = await seedUser(db)
+  await addTestMember(db, { orgId: await orgId(), userId: u.id })
+  return u
+}

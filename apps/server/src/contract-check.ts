@@ -10,8 +10,11 @@ import type {
   Review,
   ReviewRule,
   Search,
+  Sidebar,
   Triage,
+  View,
 } from '@circi/api'
+import type { BuildFilterValues } from '@circi/core'
 import type {
   ActivityEvent,
   BaselineItem,
@@ -29,7 +32,9 @@ import type {
   ProjectOverview,
   ReviewRequestItem,
   ReviewRuleRow,
+  SavedViewRow,
   SearchResults,
+  Sidebar as SidebarModel,
   TriageQueue,
   TriageRotation,
   VisibleProject,
@@ -75,10 +80,18 @@ export type ContractChecks = [
   Fits<SearchResults, Search.Results>,
   Fits<Json<ActivityEvent>, Activity.Event>,
   Fits<Json<CommentItem>, Omit<Comment.Item, 'mine' | 'canDelete'>>,
+  Fits<Json<SavedViewRow>, View.Item>,
+  Fits<Json<SidebarModel>, Sidebar.Model>,
+  Fits<BuildFilterValues, View.Filters>,
+  Fits<View.Filters, BuildFilterValues>,
 ]
 
 /** Each entry must be `true`; a mismatch above makes its entry `never`, and this line fails. */
 export const contractChecks: ContractChecks = [
+  true,
+  true,
+  true,
+  true,
   true,
   true,
   true,

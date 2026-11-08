@@ -63,6 +63,7 @@ describe('migrations', () => {
       'review_rule_reviewers',
       'review_rules',
       'reviews',
+      'saved_views',
       'screenshot_diffs',
       'screenshots',
       'session',
@@ -77,6 +78,7 @@ describe('migrations', () => {
       'triage_rotation_members',
       'upload_claims',
       'user',
+      'user_pinned_projects',
       'verification',
       'webhooks',
     ])
