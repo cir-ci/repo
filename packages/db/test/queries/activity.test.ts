@@ -11,7 +11,7 @@ import {
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { listBuildActivity, schema, setCheckRunId } from '#src/index.ts'
+import { listBuildActivity, recordSnapshotReviews, schema, setCheckRunId } from '#src/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -127,5 +127,39 @@ describe('listBuildActivity', () => {
 
   it('is empty for an unknown build', async () => {
     expect(await listBuildActivity(t.db, '00000000-0000-4000-8000-000000000000')).toEqual([])
+  })
+
+  it('groups the snapshots one action decided into one event', async () => {
+    const { team, owner } = await seedTeam(t.db)
+    const build = await seedBuild(t.db, team.id, {
+      status: 'complete',
+      conclusion: 'changes_detected',
+      changedSnapshots: ['a', 'b', 'c'],
+    })
+    await recordSnapshotReviews(t.db, {
+      buildId: build.id,
+      userId: owner.id,
+      decision: 'rejected',
+      snapshotNames: ['a'],
+      reason: 'off by a pixel',
+    })
+    await recordSnapshotReviews(t.db, {
+      buildId: build.id,
+      userId: owner.id,
+      decision: 'approved',
+      snapshotNames: 'undecided',
+    })
+    const events = (await listBuildActivity(t.db, build.id)).filter(
+      (e) => e.type === 'snapshot_review',
+    )
+    expect(events).toMatchObject([
+      {
+        decision: 'rejected',
+        snapshotNames: ['a'],
+        reason: 'off by a pixel',
+        by: { name: owner.name },
+      },
+      { decision: 'approved', snapshotNames: ['b', 'c'], reason: null },
+    ])
   })
 })

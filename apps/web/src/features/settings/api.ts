@@ -275,6 +275,22 @@ export function useSaveWorkspaceGeneral(workspace: string) {
   })
 }
 
+/** Deletes the workspace (owners; `confirm` is its name typed back). It disappears for everyone at once. */
+export function useDeleteWorkspace(workspace: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (confirm: string) =>
+      send<Workspace.Deleted>('DELETE', `/api/workspaces/${seg(workspace)}`, { confirm }),
+    // The workspace leaves the sidebar, the switcher and the capabilities at once.
+    onSuccess: () =>
+      Promise.all(
+        [['teams'], ['sidebar'], ['capabilities']].map((queryKey) =>
+          queryClient.invalidateQueries({ queryKey }),
+        ),
+      ),
+  })
+}
+
 // ---- Storage ----------------------------------------------------------------------------------
 
 export const storageQuery = (workspace: string) =>

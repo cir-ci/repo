@@ -15,6 +15,9 @@ export const workspaceAuthSettings = pgTable('workspace_auth_settings', {
     .references(() => workspace.id, { onDelete: 'cascade' }),
   emailLoginEnabled: boolean('email_login_enabled').notNull().default(true),
   passwordLoginEnabled: boolean('password_login_enabled').notNull().default(true),
+  /** Whether GitHub / Google sign-in opens this workspace (only offered when the instance has them). */
+  signinGithub: boolean('signin_github').notNull().default(true),
+  signinGoogle: boolean('signin_google').notNull().default(true),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
@@ -26,6 +29,8 @@ export const sessionMethods = pgTable(
       .primaryKey()
       .references(() => session.id, { onDelete: 'cascade' }),
     method: text('method').notNull(),
+    /** For `oidc`: which provider (`github`, `google`, `gitlab`, `oidc`); null for older sessions. */
+    provider: text('provider'),
     /** For `workspace-oidc`: the only workspace this session may open. */
     scopeWorkspaceId: text('scope_workspace_id'),
   },
@@ -60,3 +65,16 @@ export const workspaceDomains = pgTable(
     check('workspace_domains_auto_join_role_check', inList(t.autoJoinRole.name, ['member'])),
   ],
 )
+
+/**
+ * A workspace deleted by its owner: hidden at once, purged after the grace period (core's
+ * `WORKSPACE_PURGE_DAYS`). No row means the workspace is live. The workspace row stays until the
+ * purge, so its slug stays reserved.
+ */
+export const workspaceDeletions = pgTable('workspace_deletions', {
+  workspaceId: text('workspace_id')
+    .primaryKey()
+    .references(() => workspace.id, { onDelete: 'cascade' }),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }).notNull().defaultNow(),
+  deletedBy: text('deleted_by'),
+})

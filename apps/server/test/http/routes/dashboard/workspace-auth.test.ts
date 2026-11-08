@@ -224,14 +224,22 @@ describe('per-workspace login methods', () => {
       t.db,
       workspace?.id ?? '',
       { passwordLoginEnabled: false, emailLoginEnabled: false },
-      { instance: { password: true, email: false, oidc: false }, force: true },
+      {
+        instance: { password: true, email: false, github: false, google: false, oidc: false },
+        force: true,
+      },
     )
-    expect(settings).toEqual({ passwordLoginEnabled: false, emailLoginEnabled: false })
+    expect(settings).toEqual({
+      passwordLoginEnabled: false,
+      emailLoginEnabled: false,
+      signinGithub: true,
+      signinGoogle: true,
+    })
     const back = await setWorkspaceAuthSettings(
       t.db,
       workspace?.id ?? '',
       { passwordLoginEnabled: true },
-      { instance: { password: true, email: false, oidc: false } },
+      { instance: { password: true, email: false, github: false, google: false, oidc: false } },
     )
     expect(back.passwordLoginEnabled).toBe(true)
   })

@@ -113,11 +113,13 @@ export function TriagePage() {
     snooze.mutate({ ref: item, choice }, { onSuccess: () => leave(item, 'Snoozed') })
   const doDismiss = (item: Triage.Item) =>
     dismiss.mutate({ ref: item }, { onSuccess: () => leave(item, 'Dismissed') })
-  const doAccept = (item: Triage.Item) =>
+  const doAccept = (item: Triage.Item) => {
+    if (!item.snapshotName) return
     accept.mutate(
-      { ref: item, buildNumber: item.build.number },
-      { onSuccess: () => announce(`Accepted build #${item.build.number} as baseline`) },
+      { ref: item, buildNumber: item.build.number, snapshotName: item.snapshotName },
+      { onSuccess: () => announce(`Accepted ${item.snapshotName} as baseline`) },
     )
+  }
   const doAssign = (item: Triage.Item) => {
     if (!me) return
     const mine = item.assignee?.id === me.id

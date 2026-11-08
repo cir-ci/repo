@@ -1,7 +1,15 @@
-import { createTestDb, seedBuild, seedTeam, seedReview, seedScreenshot, sha } from '@circi/testing'
+import {
+  createTestDb,
+  seedBuild,
+  seedChangedSnapshots,
+  seedReview,
+  seedScreenshot,
+  seedTeam,
+  sha,
+} from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { listBaselines } from '#src/index.ts'
+import { listBaselines, recordSnapshotReviews } from '#src/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -127,5 +135,56 @@ describe('listBaselines', () => {
     const { team } = await seedTeam(t.db)
     await seedBuild(t.db, team.id, { branch: 'main', status: 'complete' })
     expect(await listBaselines(t.db, { teamId: team.id, defaultBranch: 'main' })).toEqual([])
+  })
+
+  it('counts a snapshot approved on its own while its build is still pending, never a rejected one', async () => {
+    const { team, owner } = await seedTeam(t.db)
+    const old = await seedBuild(t.db, team.id, {
+      status: 'complete',
+      conclusion: 'no_changes',
+      branch: 'main',
+      createdAt: at('2026-04-01T10:00:00Z'),
+    })
+    await seedScreenshot(t.db, { buildId: old.id, name: 'home', fileSha256: sha('1') })
+    await seedScreenshot(t.db, { buildId: old.id, name: 'about', fileSha256: sha('2') })
+    const next = await seedBuild(t.db, team.id, {
+      status: 'complete',
+      conclusion: 'changes_detected',
+      branch: 'main',
+      createdAt: at('2026-04-02T10:00:00Z'),
+    })
+    await seedChangedSnapshots(t.db, next.id, ['home', 'about'])
+    await seedScreenshot(t.db, { buildId: next.id, name: 'home', fileSha256: sha('3') })
+    await seedScreenshot(t.db, { buildId: next.id, name: 'about', fileSha256: sha('4') })
+    const shas = async () =>
+      Object.fromEntries(
+        (await listBaselines(t.db, { teamId: team.id, defaultBranch: 'main' })).map((b) => [
+          b.name,
+          b.fileSha256,
+        ]),
+      )
+
+    expect(await shas()).toEqual({ home: sha('1'), about: sha('2') }) // nothing decided yet
+    await recordSnapshotReviews(t.db, {
+      buildId: next.id,
+      userId: owner.id,
+      decision: 'approved',
+      snapshotNames: ['home'],
+    })
+    expect(await shas()).toEqual({ home: sha('3'), about: sha('2') }) // build still pending
+    await recordSnapshotReviews(t.db, {
+      buildId: next.id,
+      userId: owner.id,
+      decision: 'rejected',
+      snapshotNames: ['about'],
+    })
+    expect(await shas()).toEqual({ home: sha('3'), about: sha('2') })
+    await recordSnapshotReviews(t.db, {
+      buildId: next.id,
+      userId: owner.id,
+      decision: 'rejected',
+      snapshotNames: ['home'],
+    })
+    expect(await shas()).toEqual({ home: sha('1'), about: sha('2') })
   })
 })

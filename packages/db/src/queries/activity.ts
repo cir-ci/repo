@@ -9,6 +9,7 @@ import {
   type ReviewRequestState,
   reviewRequests,
   reviews,
+  snapshotReviews,
   type ReviewSource,
   type ReviewState,
   user,
@@ -39,6 +40,13 @@ export type ActivityEvent = { at: Date } & (
       source: ReviewSource
       reason: string | null
       /** Null for automatic approvals, or when the reviewer's account was deleted. */
+      by: Actor | null
+    }
+  | {
+      type: 'snapshot_review'
+      decision: ReviewState
+      snapshotNames: string[]
+      reason: string | null
       by: Actor | null
     }
   | {
@@ -95,6 +103,34 @@ export async function listBuildActivity(db: Database, buildId: string): Promise<
       events.push({ type: 'review_request_closed', at: r.closedAt, reviewer: who, state: r.state })
     }
   }
+
+  // Snapshot decisions by people; one action that decided several snapshots is one event.
+  const snapshotDecisions = await db
+    .select({ review: snapshotReviews, name: user.name })
+    .from(snapshotReviews)
+    .leftJoin(user, eq(user.id, snapshotReviews.userId))
+    .where(eq(snapshotReviews.buildId, buildId))
+    .orderBy(snapshotReviews.createdAt, snapshotReviews.snapshotName)
+  const grouped = new Map<string, Extract<ActivityEvent, { type: 'snapshot_review' }>>()
+  for (const { review: r, name } of snapshotDecisions) {
+    if (r.source === 'auto' || r.source === 'rerun') continue
+    const key = `${r.createdAt.getTime()}|${r.userId ?? ''}|${r.decision}`
+    const event = grouped.get(key)
+    if (event) {
+      event.snapshotNames.push(r.snapshotName)
+      if (!event.reason && r.reason) event.reason = r.reason
+    } else {
+      grouped.set(key, {
+        type: 'snapshot_review',
+        at: r.createdAt,
+        decision: r.decision,
+        snapshotNames: [r.snapshotName],
+        reason: r.reason,
+        by: actor(r.userId, name),
+      })
+    }
+  }
+  events.push(...grouped.values())
 
   const decisions = await db
     .select({ review: reviews, name: user.name })

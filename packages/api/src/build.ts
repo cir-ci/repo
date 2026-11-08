@@ -55,6 +55,17 @@ export namespace Build {
     height: number | null
   }
 
+  /** The current decision on one snapshot. */
+  export interface SnapshotReview {
+    decision: ReviewState
+    /** Null for automatic approvals, or when the reviewer's account is gone. */
+    reviewer: { id: string; name: string } | null
+    /** ISO time. */
+    at: string
+    /** Why it was rejected, when the reviewer said. */
+    reason: string | null
+  }
+
   export interface DiffItem {
     id: string
     name: string
@@ -68,6 +79,15 @@ export namespace Build {
     diff: ImageRef | null
     /** The Figma frame this snapshot is linked to; absent or null when there is none. */
     figma?: Figma.Frame | null
+    /** The decision on this snapshot; null while it has none. */
+    review: SnapshotReview | null
+  }
+
+  /** `POST …/builds/:number/snapshots/review`. */
+  export interface SnapshotReviewInput {
+    snapshotNames: string[]
+    decision: ReviewState
+    reason?: string
   }
 
   /** One approve/reject decision. */

@@ -2,6 +2,7 @@ import {
   getMemberRole,
   getWorkspaceBySlug,
   getWorkspaceAuthSettings,
+  instanceAuthMethods,
   NotFoundError,
   workspaceAcceptsSession,
   setWorkspaceAuthSettings,
@@ -15,7 +16,12 @@ import { parse } from '#http/lib/validation.ts'
 
 const params = z.object({ workspace: z.string() })
 const body = z
-  .object({ emailLoginEnabled: z.boolean(), passwordLoginEnabled: z.boolean() })
+  .object({
+    emailLoginEnabled: z.boolean(),
+    passwordLoginEnabled: z.boolean(),
+    signinGithub: z.boolean(),
+    signinGoogle: z.boolean(),
+  })
   .partial()
   .strict()
 
@@ -27,11 +33,11 @@ export const dashboardWorkspaceAuthRoutes: FastifyPluginAsync<Deps.Dashboard> = 
   app,
   deps,
 ) => {
-  const instance: getWorkspaceAuthSettings.Instance = {
+  const instance = instanceAuthMethods({
     password: deps.passwordLogin !== false,
     email: deps.emailLogin === true,
-    oidc: (deps.sso?.length ?? 0) > 0,
-  }
+    providers: (deps.sso ?? []).map((p) => p.id),
+  })
 
   async function load(req: FastifyRequest, reply: FastifyReply) {
     const { workspace: slug } = parse(params, req.params)

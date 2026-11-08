@@ -17,6 +17,13 @@ import { TeamsEmpty } from './TeamsEmpty.tsx'
 
 import styles from './TeamsPage.module.css'
 
+const ACCEPTS_TEXT = {
+  email: 'an email code',
+  password: 'a password',
+  github: 'GitHub',
+  google: 'Google',
+} as const
+
 export function TeamsPage() {
   useDocumentTitle('Teams')
   const clientLink = useClientLink()
@@ -55,7 +62,7 @@ export function TeamsPage() {
           <Banner key={o.name}>
             {o.name} only shows its teams to people who signed in with{' '}
             {o.accepts.length > 0
-              ? o.accepts.map((m) => (m === 'email' ? 'an email code' : 'a password')).join(' or ')
+              ? o.accepts.map((m) => ACCEPTS_TEXT[m]).join(' or ')
               : 'another method'}
             . Sign out and sign in that way to see them.
           </Banner>

@@ -25,9 +25,12 @@ export { DEFAULT_FLAKY_BLOCKS_MERGE, onlyFlakyChanges, resolveFlakyBlocksMerge }
 export {
   BUILD_FILTER_REVIEWS,
   BUILD_FILTER_STATUSES,
+  BUILD_ORDERS,
   type BuildFilterValues,
+  type BuildOrder,
 } from './build-filters.ts'
 export { buildOutcome } from './outcome.ts'
+export { deriveReviewStatus } from './review-status.ts'
 export { isOverdue, isSnoozed, overdueBy, reviewDueAt } from './review-target.ts'
 export {
   FLAKY_MIN_CHANGES,
@@ -93,3 +96,10 @@ export {
   type TeamColor,
   type TeamIconName,
 } from './team-appearance.ts'
+export {
+  isWorkspacePurgeDue,
+  WORKSPACE_PURGE_DAYS,
+  workspaceDaysLeft,
+  workspacePurgeAt,
+  workspacePurgeCutoff,
+} from './workspace-deletion.ts'

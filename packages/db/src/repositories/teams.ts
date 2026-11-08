@@ -14,7 +14,7 @@ import type { Database } from '#src/client.ts'
 import { ConflictError, isUniqueViolation, NotFoundError } from '#src/errors.ts'
 import type { Team } from '#src/types.ts'
 
-import { workspaceAccepts, type SessionMethod } from './auth-settings.ts'
+import { workspaceAccepts, workspaceIsLive, type SessionMethod } from './auth-settings.ts'
 import { getWorkspaceSettings } from './workspace-settings.ts'
 import { getWorkspaceBySlug } from './workspaces.ts'
 
@@ -135,7 +135,7 @@ export namespace getTeamContext {
   }
 }
 
-/** A team plus its workspace slug, which dashboard URLs need. */
+/** A team plus its workspace slug, which dashboard URLs need; none if its workspace is deleted. */
 export async function getTeamContext(
   db: Database,
   teamId: string,
@@ -144,7 +144,7 @@ export async function getTeamContext(
     .select({ team: teams, workspaceSlug: workspace.slug })
     .from(teams)
     .innerJoin(workspace, eq(workspace.id, teams.workspaceId))
-    .where(eq(teams.id, teamId))
+    .where(and(eq(teams.id, teamId), workspaceIsLive(workspace.id)))
   return row
 }
 

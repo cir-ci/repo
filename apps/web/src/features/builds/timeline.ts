@@ -71,6 +71,15 @@ export function timelineItems(events: readonly Activity.Event[]): TimelineItem[]
           quote: e.reason,
         })
         break
+      case 'snapshot_review':
+        items.push({
+          ...base,
+          status: e.decision,
+          actor: e.by?.name ?? null,
+          text: snapshotReviewText(e),
+          quote: e.reason ?? (e.snapshotNames.length > 1 ? e.snapshotNames.join(', ') : null),
+        })
+        break
       case 'comment':
         items.push({
           ...base,
@@ -100,6 +109,13 @@ const REQUEST_CLOSED: Record<ReviewRequestState, string> = {
   done: 'was answered',
   superseded: 'was replaced by a new push',
   dismissed: 'was dropped',
+}
+
+function snapshotReviewText(e: Activity.Event & { type: 'snapshot_review' }): string {
+  const verb = e.decision === 'approved' ? 'approved' : 'rejected'
+  const what =
+    e.snapshotNames.length === 1 ? e.snapshotNames[0] : `${e.snapshotNames.length} snapshots`
+  return e.by ? `${verb} ${what}` : `${what} ${verb} by someone who has left`
 }
 
 function reviewText(e: Activity.Event & { type: 'review' }): string {

@@ -32,9 +32,21 @@ export function shot(
     head: status === 'removed' ? null : { ...image(`head${n}`), thumbnail: null, metadata: {} },
     base: status === 'added' ? null : image(`base${n}`),
     diff: comparable ? image(`diff${n}`) : null,
+    review: null,
     ...over,
   }
 }
+
+/** A decision on a snapshot, as the API returns it. */
+export const decision = (
+  state: 'approved' | 'rejected',
+  reason: string | null = null,
+): NonNullable<Build.DiffItem['review']> => ({
+  decision: state,
+  reviewer: { id: 'u1', name: 'Ada Lovelace' },
+  at: new Date().toISOString(),
+  reason,
+})
 
 export function detail(
   over: Partial<Build.Detail['build']> = {},
@@ -144,6 +156,23 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
         return json({ build: { reviewStatus: state } })
       }
       const root = '/api/teams/acme/web-app/builds/7'
+      if (url.pathname === `${root}/snapshots/review` && method === 'POST') {
+        if (api.reviewError) return json({ error: api.reviewError }, 500)
+        const body = typeof init?.body === 'string' ? init.body : ''
+        api.reviews.push(body)
+        const { snapshotNames, decision: state, reason } = JSON.parse(body)
+        const diffs = api.build.diffs.map((d) =>
+          snapshotNames.includes(d.name) ? { ...d, review: decision(state, reason ?? null) } : d,
+        )
+        const changed = diffs.filter((d) => d.status !== null && d.status !== 'unchanged')
+        const reviewStatus = changed.some((d) => d.review?.decision === 'rejected')
+          ? 'rejected'
+          : changed.every((d) => d.review?.decision === 'approved')
+            ? 'approved'
+            : 'pending'
+        api.build = { ...api.build, diffs, build: { ...api.build.build, reviewStatus } }
+        return json({ build: { reviewStatus } })
+      }
       if (url.pathname === `${root}/comments` && method === 'POST') {
         const body = JSON.parse(typeof init?.body === 'string' ? init.body : '{}')
         api.commentPosts.push(body)

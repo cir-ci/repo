@@ -1,10 +1,12 @@
-import { and, asc, desc, eq, ilike, isNotNull, isNull, sql } from 'drizzle-orm'
+import type { BuildOrder } from '@circi/core'
+import { and, asc, eq, ilike, isNotNull, isNull, sql } from 'drizzle-orm'
 
 import { workspaceAccepts, type SessionMethod } from '#repositories/auth-settings.ts'
 import { builds, member, teams, user, workspace } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { NotFoundError } from '#src/errors.ts'
 
+import { buildAfterCursor, buildOrderBy, workspaceTie } from './builds-order.ts'
 import { buildFilterConditions, hydrateBuildList, type listBuildsForTeam } from './builds.ts'
 
 /**
@@ -21,7 +23,7 @@ export namespace listBuildsForWorkspace {
 
   export interface Result {
     workspace: { slug: string; name: string }
-    /** Newest first. */
+    /** In the order asked for (newest first by default). */
     builds: listBuildsForWorkspace.Item[]
   }
 }
@@ -42,9 +44,10 @@ async function visibleWorkspace(
 }
 
 /**
- * A page of the workspace's builds, newest first, with the same filters as a team's list.
- * Build numbers belong to a team, so the page cursor is a build id: `before` returns the builds
- * created before that one; a cursor that names no build of the workspace is a `NotFoundError`.
+ * A page of the workspace's builds in `order`, with the same filters as a team's list. Build
+ * numbers belong to a team, so the page cursor is a build id: `before` returns the builds that
+ * come after that one in the order; a cursor that names no build of the workspace is a
+ * `NotFoundError`.
  */
 export async function listBuildsForWorkspace(
   db: Database,
@@ -55,10 +58,13 @@ export async function listBuildsForWorkspace(
     limit: number
     before?: string
     filters?: listBuildsForTeam.Filters
+    /** Default newest first. */
+    order?: BuildOrder
   },
 ): Promise<listBuildsForWorkspace.Result | undefined> {
   const ws = await visibleWorkspace(db, input)
   if (!ws) return undefined
+  const order = input.order ?? 'newest'
   if (input.before) {
     const [row] = await db
       .select({ id: builds.id })
@@ -82,12 +88,12 @@ export async function listBuildsForWorkspace(
         // Compared in the database, on the cursor row itself: a round trip through a JS Date
         // would cut the timestamp to milliseconds and repeat or skip builds.
         input.before
-          ? sql`(${builds.createdAt}, ${builds.id}) < (select c.created_at, c.id from ${builds} c where c.id = ${input.before})`
+          ? buildAfterCursor(order, workspaceTie, (c) => sql`${c.id} = ${input.before}`)
           : undefined,
         ...buildFilterConditions(input.filters ?? {}),
       ),
     )
-    .orderBy(desc(builds.createdAt), desc(builds.id))
+    .orderBy(...buildOrderBy(order, workspaceTie))
     .limit(input.limit)
   const items = await hydrateBuildList(db, found)
   const teamOf = new Map(found.map((f) => [f.build.id, f.team]))

@@ -3,7 +3,13 @@ import { createHmac } from 'node:crypto'
 import { getBuild, listBuildReviews, schema, setCheckRunId } from '@circi/db'
 import { githubWebhookVerifier, providerRegistry } from '@circi/providers'
 import { completeBuild } from '@circi/services'
-import { createTestDb, seedAccount, seedBuild, seedGitLink } from '@circi/testing'
+import {
+  createTestDb,
+  seedAccount,
+  seedBuild,
+  seedGitLink,
+  seedChangedSnapshots,
+} from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
@@ -66,6 +72,7 @@ async function changedBuild(pr: number) {
     prNumber: pr,
     status: 'processing',
   })
+  await seedChangedSnapshots(t.db, build.id)
   await completeBuild(
     t.db,
     { ...build, status: 'processing' },

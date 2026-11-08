@@ -19,7 +19,11 @@ beforeEach(async () => {
 const jobsIn = async (queue: string) =>
   t.db.select().from(schema.jobs).where(eq(schema.jobs.queue, queue))
 
-const done = { status: 'complete', conclusion: 'changes_detected' } as const
+const done = {
+  status: 'complete',
+  conclusion: 'changes_detected',
+  changedSnapshots: ['home'],
+} as const
 
 async function setup(count = 3) {
   const { team, owner } = await seedTeam(t.db)

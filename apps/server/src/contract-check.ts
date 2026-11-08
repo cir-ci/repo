@@ -73,7 +73,7 @@ type Fits<Actual, Wire> = [Actual] extends [Wire] ? true : never
 
 export type ContractChecks = [
   Fits<Json<listAccounts.Item>, InstanceAdmin.Account>,
-  Fits<Json<listInstanceWorkspaces.Item>, InstanceAdmin.Workspace>,
+  Fits<Json<listInstanceWorkspaces.Item>, Omit<InstanceAdmin.Workspace, 'daysLeft'>>,
   Fits<Json<getQueueDepth.Item>, InstanceAdmin.QueueDepth>,
   Fits<Json<listBuildsForTeam.Item>, Build.ListItem>,
   Fits<Json<TeamOverview>, Team.Overview>,

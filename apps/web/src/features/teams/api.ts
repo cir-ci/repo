@@ -11,6 +11,7 @@ import {
   toSearch,
   toWorkspaceQuery,
 } from './builds-filters.ts'
+import type { Order } from './display-options.ts'
 
 /** Page size of the builds list (the server returns at most this many). */
 export const BUILDS_PAGE_SIZE = 50
@@ -26,19 +27,21 @@ export const teamQuery = (
   team: string,
   before?: number,
   filters: BuildFilters = {},
+  order: Order = 'newest',
 ) =>
   queryOptions({
-    // Each page and each set of filters is cached on its own.
+    // Each page, each set of filters and each order is cached on its own.
     queryKey: [
       'team',
       workspace,
       team,
       before ?? null,
       ...(hasFilters(filters) ? [toSearch(filters)] : []),
+      ...(order === 'newest' ? [] : [order]),
     ],
     queryFn: () =>
       getJson<Team.BuildsResponse>(
-        `/api/teams/${seg(workspace)}/${seg(team)}${toQuery(filters, before)}`,
+        `/api/teams/${seg(workspace)}/${seg(team)}${toQuery(filters, before, order)}`,
       ),
     refetchInterval: (q) => (q.state.data?.builds.some((b) => isActive(b.status)) ? 3_000 : false),
   })
@@ -237,6 +240,7 @@ export const workspaceBuildsQuery = (
   workspace: string,
   before?: string,
   filters: BuildFilters = {},
+  order: Order = 'newest',
 ) =>
   queryOptions({
     queryKey: [
@@ -244,10 +248,11 @@ export const workspaceBuildsQuery = (
       workspace,
       before ?? null,
       ...(hasFilters(filters) ? [toSearch(filters)] : []),
+      ...(order === 'newest' ? [] : [order]),
     ],
     queryFn: () =>
       getJson<WorkspaceBuilds.List>(
-        `/api/workspaces/${seg(workspace)}/builds${toWorkspaceQuery(filters, before)}`,
+        `/api/workspaces/${seg(workspace)}/builds${toWorkspaceQuery(filters, before, order)}`,
       ),
     refetchInterval: (q) => (q.state.data?.builds.some((b) => isActive(b.status)) ? 3_000 : false),
   })

@@ -109,3 +109,49 @@ describe('resolveBaseline', () => {
     expect(res).toMatchObject({ via: 'ancestry', build: m1 })
   })
 })
+
+describe('per-snapshot baselines', () => {
+  const onMain = { defaultBranch: 'main', ancestorShas: ['c2', 'c1'] }
+
+  it('an approved snapshot in a pending default-branch build is its baseline', () => {
+    const old = build({ commitSha: 'c1' })
+    const pending = build({
+      commitSha: 'c2',
+      reviewStatus: 'pending',
+      approvedSnapshots: ['home'],
+    })
+    expect(resolveBaseline(onMain, [old, pending], 'home')).toMatchObject({ build: pending })
+    // The other snapshots, and the build as a whole, keep the previous baseline.
+    expect(resolveBaseline(onMain, [old, pending], 'other')).toMatchObject({ build: old })
+    expect(resolveBaseline(onMain, [old, pending])).toMatchObject({ build: old })
+  })
+
+  it('a rejected snapshot never counts, even when the rest of the build is approved', () => {
+    const old = build({ commitSha: 'c1' })
+    const rejected = build({ commitSha: 'c2', rejectedSnapshots: ['home'] })
+    expect(resolveBaseline(onMain, [old, rejected], 'home')).toMatchObject({ build: old })
+  })
+
+  it('an undecided snapshot of a pending build does not count; the previous baseline stays', () => {
+    const old = build({ commitSha: 'c1' })
+    const pending = build({ commitSha: 'c2', reviewStatus: 'pending' })
+    expect(resolveBaseline(onMain, [old, pending], 'home')).toMatchObject({ build: old })
+  })
+
+  it('decisions on other branches do not make a snapshot a baseline early', () => {
+    const old = build({ commitSha: 'c1' })
+    const pr = build({
+      commitSha: 'c2',
+      branch: 'feature',
+      reviewStatus: 'pending',
+      approvedSnapshots: ['home'],
+    })
+    expect(resolveBaseline(onMain, [old, pr], 'home')).toMatchObject({ build: old })
+  })
+
+  it('the newest approval wins', () => {
+    const a = build({ commitSha: 'c1', reviewStatus: 'pending', approvedSnapshots: ['home'] })
+    const b = build({ commitSha: 'c2', reviewStatus: 'pending', approvedSnapshots: ['home'] })
+    expect(resolveBaseline(onMain, [a, b], 'home')).toMatchObject({ build: b })
+  })
+})

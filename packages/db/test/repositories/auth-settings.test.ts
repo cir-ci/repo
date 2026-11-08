@@ -20,7 +20,7 @@ afterAll(async () => {
   await t.close()
 })
 
-const instance = { password: true, email: true, oidc: false }
+const instance = { password: true, email: true, github: false, google: false, oidc: false }
 
 describe('workspace auth settings', () => {
   it('accepts everything until narrowed, and saves a narrowing', async () => {
@@ -28,6 +28,8 @@ describe('workspace auth settings', () => {
     expect(await getWorkspaceAuthSettings(t.db, workspace.id)).toEqual({
       emailLoginEnabled: true,
       passwordLoginEnabled: true,
+      signinGithub: true,
+      signinGoogle: true,
     })
     const saved = await setWorkspaceAuthSettings(
       t.db,
@@ -35,7 +37,12 @@ describe('workspace auth settings', () => {
       { passwordLoginEnabled: false },
       { instance },
     )
-    expect(saved).toEqual({ emailLoginEnabled: true, passwordLoginEnabled: false })
+    expect(saved).toEqual({
+      emailLoginEnabled: true,
+      passwordLoginEnabled: false,
+      signinGithub: true,
+      signinGoogle: true,
+    })
     expect(await getWorkspaceAuthSettings(t.db, workspace.id)).toEqual(saved)
   })
 

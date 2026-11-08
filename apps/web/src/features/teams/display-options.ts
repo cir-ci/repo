@@ -12,9 +12,15 @@ export const GROUP_LABEL: Record<GroupBy, string> = {
   day: 'Day',
 }
 
-export const ORDERS = ['newest', 'oldest'] as const
+/** How the server orders the list (the `order` query parameter); grouping stays on this page. */
+export const ORDERS = ['newest', 'oldest', 'most-changes', 'status'] as const
 export type Order = (typeof ORDERS)[number]
-export const ORDER_LABEL: Record<Order, string> = { newest: 'Newest first', oldest: 'Oldest first' }
+export const ORDER_LABEL: Record<Order, string> = {
+  newest: 'Newest first',
+  oldest: 'Oldest first',
+  'most-changes': 'Most changes',
+  status: 'Needs attention first',
+}
 
 export const PROPERTIES = ['branch', 'author', 'date', 'counts'] as const
 export type Property = (typeof PROPERTIES)[number]
@@ -62,14 +68,6 @@ export function parseDisplay(text: string | null | undefined): DisplayOptions {
     order: ORDERS.find((o) => o === get('order')) ?? DEFAULT_DISPLAY.order,
     show,
   }
-}
-
-/** The page's builds, newest first by number as the server returns them, or reversed. */
-export function orderBuilds<T extends Pick<Build.ListItem, 'number'>>(
-  builds: readonly T[],
-  order: Order,
-): T[] {
-  return builds.toSorted((a, b) => (order === 'newest' ? b.number - a.number : a.number - b.number))
 }
 
 export interface BuildGroup<T> {

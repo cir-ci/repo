@@ -45,6 +45,7 @@ export namespace Shortcut {
     | { type: 'assignMe' }
     | { type: 'dismiss' }
     | { type: 'approve' }
+    | { type: 'approveAll' }
     | { type: 'reject' }
     | { type: 'comment' }
     | { type: 'submit' }
@@ -217,14 +218,21 @@ export const SHORTCUTS: readonly Shortcut[] = [
     key: 'a',
     scope: 'build-review',
     group: 'Build review',
-    description: 'Approve all changes',
+    description: 'Approve snapshot',
     action: { type: 'approve' },
+  },
+  {
+    key: 'shift+a',
+    scope: 'build-review',
+    group: 'Build review',
+    description: 'Approve all',
+    action: { type: 'approveAll' },
   },
   {
     key: 'r',
     scope: 'build-review',
     group: 'Build review',
-    description: 'Reject the build, with a reason',
+    description: 'Reject snapshot, with a reason',
     action: { type: 'reject' },
   },
   {

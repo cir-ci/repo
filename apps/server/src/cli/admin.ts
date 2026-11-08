@@ -22,6 +22,7 @@ import {
   listTeams,
   listWebhooks,
   setWorkspaceAuthSettings,
+  instanceAuthMethods,
   storageUsage,
   WEBHOOK_EVENTS,
 } from '@circi/db'
@@ -366,11 +367,11 @@ function addAuthCommands(auth: Command): void {
             method === 'email' ? { emailLoginEnabled: value } : { passwordLoginEnabled: value },
             {
               force: true,
-              instance: {
+              instance: instanceAuthMethods({
                 password: rt.config.passwordLogin,
                 email: rt.config.emailLogin,
-                oidc: rt.config.sso.length > 0,
-              },
+                providers: rt.config.sso.map((p) => p.id),
+              }),
             },
           )
           console.log(

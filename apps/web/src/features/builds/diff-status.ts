@@ -52,3 +52,12 @@ export function screenshotLabel(kind: ShotKind, review: ReviewStatus): string {
     review !== 'pending' && (kind === 'changed' || kind === 'added' || kind === 'removed')
   return suffix ? `${DIFF_LABEL[kind]}, ${review}` : DIFF_LABEL[kind]
 }
+
+/**
+ * The decision a snapshot's glyph follows: its own when someone (or auto-approve) made one;
+ * otherwise pending, except in a build that is approved as a whole (nothing left to decide).
+ */
+export const shotDecision = (
+  diff: Pick<Build.DiffItem, 'review'>,
+  build: ReviewStatus,
+): ReviewStatus => diff.review?.decision ?? (build === 'approved' ? 'approved' : 'pending')

@@ -3,13 +3,13 @@ import { describe, expect, it } from 'vitest'
 import {
   activeState,
   chipName,
-  toWorkspaceQuery,
   dayEnd,
   dayStart,
   hasFilters,
   parseBuildsSearch,
   parseFilters,
   toQuery,
+  toWorkspaceQuery,
   toSearch,
   withDates,
   withState,
@@ -32,6 +32,15 @@ describe('builds filters and the URL', () => {
     expect(parseBuildsSearch(toSearch(filters, 40))).toEqual({ ...filters, before: 40 })
     const query = new URLSearchParams(toQuery(filters, 40))
     expect(parseBuildsSearch(Object.fromEntries(query))).toEqual({ ...filters, before: 40 })
+  })
+
+  it('adds the order to the request, except the default newest first', () => {
+    expect(toQuery({}, undefined, 'newest')).toBe('')
+    expect(toQuery({}, undefined, 'oldest')).toBe('?order=oldest')
+    expect(toQuery({ branch: 'main' }, 40, 'most-changes')).toBe(
+      '?branch=main&before=40&order=most-changes',
+    )
+    expect(toWorkspaceQuery({}, 'abc', 'status')).toBe('?order=status&before=abc')
   })
 
   it('drops unknown keys and invalid values', () => {

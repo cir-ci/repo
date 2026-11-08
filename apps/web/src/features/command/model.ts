@@ -85,6 +85,7 @@ export function contextScopes(pathname: string): Shortcut.Scope[] {
 /** The registry actions worth a menu entry: the ones that do something to the thing on screen. */
 const MENU_ACTIONS: ReadonlySet<Shortcut.Action['type']> = new Set([
   'approve',
+  'approveAll',
   'reject',
   'requestReview',
   'comment',

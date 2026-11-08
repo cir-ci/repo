@@ -4,6 +4,7 @@ import {
   generalDirty,
   generalPatch,
   generalProblems,
+  nameConfirmed,
   retentionDirty,
   retentionProblem,
   validateDomain,
@@ -91,5 +92,14 @@ describe('validateSso', () => {
     expect(validateSso({ ...ok, issuer: 'login.example.com' }).issuer).toMatch(/full address/)
     expect(validateSso({ ...ok, issuer: 'ftp://login.example.com' }).issuer).toMatch(/full address/)
     expect(validateSso({ ...ok, issuer: 'http://localhost:8080' })).toEqual({})
+  })
+})
+
+describe('nameConfirmed', () => {
+  it('needs the name exactly (spaces around it are fine, case is not)', () => {
+    expect(nameConfirmed('Acme Inc', 'Acme Inc')).toBe(true)
+    expect(nameConfirmed('  Acme Inc ', 'Acme Inc')).toBe(true)
+    expect(nameConfirmed('acme inc', 'Acme Inc')).toBe(false)
+    expect(nameConfirmed('', '')).toBe(false)
   })
 })

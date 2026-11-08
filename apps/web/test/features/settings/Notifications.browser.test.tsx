@@ -9,8 +9,8 @@ import { renderPage } from '#test/support/render.tsx'
 afterEach(() => restoreFetch())
 
 const PATH = '/api/inbox/preferences'
-const MAIL = { body: { password: true, email: true, sso: [] } }
-const NO_MAIL = { body: { password: true, email: false, sso: [] } }
+const MAIL = { body: { mailConfigured: true } }
+const NO_MAIL = { body: { mailConfigured: false } }
 const requested = () => page.getByRole('switch', { name: /Review requested/ })
 const overdue = () => page.getByRole('switch', { name: /Review overdue/ })
 
@@ -19,7 +19,7 @@ describe('NotificationsPage', () => {
     await page.viewport(1000, 800)
     fakeApi({
       [`GET ${PATH}`]: { body: { emailReviewRequested: true, emailReviewOverdue: false } },
-      'GET /api/auth-methods': MAIL,
+      'GET /api/capabilities': MAIL,
     })
     await renderPage(<NotificationsPage />)
     await expect.element(requested()).toBeChecked()
@@ -32,7 +32,7 @@ describe('NotificationsPage', () => {
     let prefs = { emailReviewRequested: true, emailReviewOverdue: false }
     const api = fakeApi({
       [`GET ${PATH}`]: () => ({ body: prefs }),
-      'GET /api/auth-methods': MAIL,
+      'GET /api/capabilities': MAIL,
       [`PUT ${PATH}`]: () => {
         prefs = { ...prefs, emailReviewOverdue: true }
         return { body: prefs }
@@ -48,7 +48,7 @@ describe('NotificationsPage', () => {
     await page.viewport(1000, 800)
     fakeApi({
       [`GET ${PATH}`]: { body: { emailReviewRequested: true, emailReviewOverdue: false } },
-      'GET /api/auth-methods': MAIL,
+      'GET /api/capabilities': MAIL,
       [`PUT ${PATH}`]: { status: 500, body: { error: 'Database is down' } },
     })
     await renderPage(<NotificationsPage />)
@@ -63,7 +63,7 @@ describe('NotificationsPage', () => {
     await page.viewport(1000, 800)
     fakeApi({
       [`GET ${PATH}`]: { body: { emailReviewRequested: true, emailReviewOverdue: true } },
-      'GET /api/auth-methods': NO_MAIL,
+      'GET /api/capabilities': NO_MAIL,
     })
     await renderPage(<NotificationsPage />)
     await expect.element(page.getByText(/can’t send mail yet/)).toBeVisible()
@@ -74,7 +74,7 @@ describe('NotificationsPage', () => {
     await page.viewport(1000, 800)
     fakeApi({
       [`GET ${PATH}`]: { body: { emailReviewRequested: true, emailReviewOverdue: true } },
-      'GET /api/auth-methods': MAIL,
+      'GET /api/capabilities': MAIL,
     })
     await renderPage(<NotificationsPage />)
     await expect.element(page.getByRole('heading', { name: 'In your Inbox' })).toBeVisible()

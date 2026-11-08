@@ -33,6 +33,35 @@ export interface Decision {
   reason?: string
 }
 
+/** A decision on some snapshots of a build; rejecting carries the reason the author will read. */
+export interface SnapshotDecision {
+  snapshotNames: string[]
+  decision: ReviewState
+  reason?: string
+}
+
+/**
+ * Approve or reject snapshots of a build. The build's own status follows from the decisions, so
+ * afterwards everything that shows it is refetched, as for `useReviewBuild`.
+ */
+export function useReviewSnapshots(workspace: string, team: string, number: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ snapshotNames, decision, reason }: SnapshotDecision) =>
+      post<{ build: { reviewStatus: string } }>(
+        `/api/teams/${seg(workspace)}/${seg(team)}/builds/${number}/snapshots/review`,
+        reason ? { snapshotNames, decision, reason } : { snapshotNames, decision },
+      ),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['build', workspace, team, number] }),
+        queryClient.invalidateQueries({ queryKey: ['team', workspace, team] }),
+        queryClient.invalidateQueries({ queryKey: ['teams'] }),
+        queryClient.invalidateQueries({ queryKey: ['triage', workspace, team] }),
+      ]),
+  })
+}
+
 /**
  * Approve or reject a build's changes. Afterwards everything that shows the build's state is
  * refetched: its page, the team's builds list and the teams overview.

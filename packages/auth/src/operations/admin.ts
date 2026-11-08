@@ -26,16 +26,20 @@ import { CI_KEY_CONFIG, CI_KEY_PREFIX, MIN_PASSWORD_LENGTH } from '#src/constant
  * always go through its API, so its invariants (hashing, ids, hooks) hold.
  */
 
+/**
+ * Creates an account. Without a `password` it has no credential at all (better-auth creates it
+ * without one): the person signs in with an emailed code or single sign-on.
+ */
 export async function createUser(
   auth: Auth,
-  input: { email: string; name: string; password: string; instanceAdmin?: boolean },
+  input: { email: string; name: string; password?: string; instanceAdmin?: boolean },
 ) {
-  assertPasswordLength(input.password)
+  if (input.password !== undefined) assertPasswordLength(input.password)
   const { user } = await auth.api.createUser({
     body: {
       email: input.email.trim().toLowerCase(),
       name: input.name.trim(),
-      password: input.password,
+      ...(input.password === undefined ? {} : { password: input.password }),
       role: input.instanceAdmin ? 'admin' : 'user',
     },
   })
@@ -45,6 +49,16 @@ export async function createUser(
   const context = await auth.$context
   await context.internalAdapter.updateUser(user.id, { emailVerified: true })
   return { ...user, emailVerified: true }
+}
+
+/**
+ * Mails the address a one-time sign-in code and link: exactly what "Email me a code" on the
+ * sign-in page does (same code, same mail, same expiry). Sent only when the instance has mail.
+ */
+export async function sendSignInCode(auth: Auth, email: string): Promise<void> {
+  await auth.api.sendVerificationOTP({
+    body: { email: email.trim().toLowerCase(), type: 'sign-in' },
+  })
 }
 
 async function getUserIdByEmail(db: Database, email: string): Promise<string> {

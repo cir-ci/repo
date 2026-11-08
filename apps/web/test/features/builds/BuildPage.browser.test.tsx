@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { type Locator, page, userEvent } from 'vitest/browser'
 
-import { detail, fakeBuildApi, renderBuild, shot } from './fake-build-api.tsx'
+import { decision, detail, fakeBuildApi, renderBuild, shot } from './fake-build-api.tsx'
 
 beforeEach(async () => {
   await page.viewport(1280, 900)
@@ -98,7 +98,9 @@ describe('BuildPage states', () => {
     await expect.element(page.getByText('PR #42')).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Copy branch name' })).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Approve all' })).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Approve', exact: true })).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Reject' })).toBeVisible()
+    await expect.element(page.getByText('0 of 3 reviewed')).toBeVisible()
     await expect.element(viewerTitle()).toHaveTextContent('checkout / payment')
     // Both images of the comparison, the baseline first.
     await expect.element(page.getByRole('img', { name: 'Baseline · build #6' })).toBeVisible()
@@ -112,7 +114,18 @@ describe('BuildPage states', () => {
   ] as const)(
     'a %s build shows %s glyphs on its list rows and count chips, unchanged ones stay neutral',
     async (reviewStatus, glyph, rowName) => {
-      fakeBuildApi(detail({ reviewStatus }))
+      // A rejected build is rejected because its snapshots were; give them the decision.
+      const diffs =
+        reviewStatus === 'rejected'
+          ? [
+              shot('a', 'changed', { review: decision('rejected') }),
+              shot('b', 'changed', { review: decision('rejected') }),
+              shot('c', 'added', { review: decision('rejected') }),
+              shot('d', 'unchanged'),
+              shot('e', 'unchanged'),
+            ]
+          : undefined
+      fakeBuildApi(detail({ reviewStatus }, diffs ? { diffs } : {}))
       await renderBuild()
       const list = page.getByRole('navigation', { name: 'Screenshots' })
       await expect.element(list.getByRole('img', { name: rowName }).first()).toBeVisible()
@@ -421,7 +434,8 @@ describe('keyboard shortcuts', () => {
     await userEvent.keyboard('?')
     const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' })
     await expect.element(dialog).toBeVisible()
-    await expect.element(dialog.getByText('Approve all changes')).toBeVisible()
+    await expect.element(dialog.getByText('Approve snapshot')).toBeVisible()
+    await expect.element(dialog.getByText('Approve all', { exact: true })).toBeVisible()
     await userEvent.keyboard('{Escape}')
     await expect.element(dialog).not.toBeInTheDocument()
   })
@@ -439,23 +453,58 @@ describe('keyboard shortcuts', () => {
   })
 })
 
+const body = (over: object) => JSON.stringify(over)
+
 describe('approving and rejecting', () => {
-  it('approves with the button, announces it, and then offers only Reject', async () => {
+  it('approves the current snapshot with the button, announces it, and moves the count', async () => {
     const api = fakeBuildApi(detail())
     await renderBuild()
-    await page.getByRole('button', { name: 'Approve all' }).click()
-    await vi.waitFor(() => expect(api.reviews).toEqual([JSON.stringify({ state: 'approved' })]))
-    await expect.element(page.getByText('Build #7 approved.')).toBeInTheDocument()
-    await expect.element(page.getByText('Approved', { exact: true })).toBeVisible()
-    expect(page.getByRole('button', { name: 'Approve all' }).elements()).toHaveLength(0)
+    await page.getByRole('button', { name: 'Approve', exact: true }).click()
+    await vi.waitFor(() =>
+      expect(api.reviews).toEqual([
+        body({ snapshotNames: ['checkout / payment'], decision: 'approved' }),
+      ]),
+    )
+    await expect.element(page.getByText('checkout / payment approved.')).toBeInTheDocument()
+    await expect.element(page.getByText('1 of 3 reviewed')).toBeVisible()
+    // The build waits on the other two: still needs review, and the row's glyph follows.
+    await expect.element(page.getByText('Needs review', { exact: true })).toBeVisible()
+    const row = page
+      .getByRole('navigation', { name: 'Screenshots' })
+      .getByRole('img', { name: 'Changed, approved' })
+    expect(row.element().getAttribute('data-status')).toBe('approved')
+    // This snapshot is decided: it can only be rejected now.
+    expect(page.getByRole('button', { name: 'Approve', exact: true }).elements()).toHaveLength(0)
     await expect.element(page.getByRole('button', { name: 'Reject' })).toBeVisible()
   })
 
-  it('asks for a reason before rejecting, and announces the rejection', async () => {
+  it('approves every undecided snapshot with the button, leaving a rejected one alone', async () => {
+    const api = fakeBuildApi(
+      detail(
+        {},
+        {
+          diffs: [
+            shot('a', 'changed'),
+            shot('b', 'changed', { review: decision('rejected', 'no') }),
+            shot('c', 'added'),
+          ],
+        },
+      ),
+    )
+    await renderBuild()
+    await page.getByRole('button', { name: 'Approve all' }).click()
+    await vi.waitFor(() =>
+      expect(api.reviews).toEqual([body({ snapshotNames: ['a', 'c'], decision: 'approved' })]),
+    )
+    await expect.element(page.getByText('2 snapshots approved.')).toBeInTheDocument()
+    expect(page.getByRole('button', { name: 'Approve all' }).elements()).toHaveLength(0)
+  })
+
+  it('asks for a reason before rejecting the snapshot, and announces the rejection', async () => {
     const api = fakeBuildApi(detail())
     await renderBuild()
     await page.getByRole('button', { name: 'Reject' }).click()
-    const dialog = page.getByRole('dialog', { name: 'Reject build #7?' })
+    const dialog = page.getByRole('dialog', { name: 'Reject checkout / payment?' })
     await expect.element(dialog).toBeVisible()
     await dialog.getByRole('button', { name: 'Cancel' }).click()
     await expect.element(dialog).not.toBeInTheDocument()
@@ -471,12 +520,19 @@ describe('approving and rejecting', () => {
     await page.getByRole('dialog').getByRole('button', { name: 'Reject' }).click()
     await vi.waitFor(() =>
       expect(api.reviews).toEqual([
-        JSON.stringify({ state: 'rejected', reason: 'The button lost its focus ring' }),
+        body({
+          snapshotNames: ['checkout / payment'],
+          decision: 'rejected',
+          reason: 'The button lost its focus ring',
+        }),
       ]),
     )
-    await expect.element(page.getByText('Build #7 rejected.')).toBeInTheDocument()
+    await expect.element(page.getByText('checkout / payment rejected.')).toBeInTheDocument()
     await expect.element(page.getByText('Rejected', { exact: true })).toBeVisible()
-    await expect.element(page.getByRole('button', { name: 'Approve all' })).toBeVisible()
+    const row = page
+      .getByRole('navigation', { name: 'Screenshots' })
+      .getByRole('img', { name: 'Changed, rejected' })
+    expect(row.element().getAttribute('data-status')).toBe('rejected')
   })
 
   it('opens the reject dialog with r and sends it with command-enter', async () => {
@@ -484,36 +540,52 @@ describe('approving and rejecting', () => {
     await renderBuild()
     await expect.element(viewerTitle()).toBeVisible()
     await userEvent.keyboard('r')
-    await expect.element(page.getByRole('dialog', { name: 'Reject build #7?' })).toBeVisible()
+    await expect
+      .element(page.getByRole('dialog', { name: 'Reject checkout / payment?' }))
+      .toBeVisible()
     await page.getByRole('textbox', { name: 'Reason' }).fill('Wrong colour')
     await userEvent.keyboard('{Meta>}{Enter}{/Meta}')
     await vi.waitFor(() =>
-      expect(api.reviews).toEqual([JSON.stringify({ state: 'rejected', reason: 'Wrong colour' })]),
+      expect(api.reviews).toEqual([
+        body({
+          snapshotNames: ['checkout / payment'],
+          decision: 'rejected',
+          reason: 'Wrong colour',
+        }),
+      ]),
     )
   })
 
-  it('approves with a and asks about rejecting with r', async () => {
+  it('approves the current snapshot with a, and every undecided one with shift-a', async () => {
     const api = fakeBuildApi(detail())
     await renderBuild()
     await expect.element(viewerTitle()).toBeVisible()
-    await userEvent.keyboard('r')
-    await expect.element(page.getByRole('dialog', { name: 'Reject build #7?' })).toBeVisible()
-    await userEvent.keyboard('{Escape}')
-    await expect.element(page.getByRole('dialog')).not.toBeInTheDocument()
-    expect(api.reviews).toEqual([])
     await userEvent.keyboard('a')
-    await vi.waitFor(() => expect(api.reviews).toEqual([JSON.stringify({ state: 'approved' })]))
-    await expect.element(page.getByText('Build #7 approved.')).toBeInTheDocument()
+    await vi.waitFor(() =>
+      expect(api.reviews).toEqual([
+        body({ snapshotNames: ['checkout / payment'], decision: 'approved' }),
+      ]),
+    )
+    await expect.element(page.getByText('checkout / payment approved.')).toBeInTheDocument()
     // Already approved: a does nothing more.
     await userEvent.keyboard('a')
     expect(api.reviews).toHaveLength(1)
+    await userEvent.keyboard('{Shift>}A{/Shift}')
+    await vi.waitFor(() =>
+      expect(api.reviews[1]).toEqual(
+        body({ snapshotNames: ['checkout / address', 'home'], decision: 'approved' }),
+      ),
+    )
+    await expect.element(page.getByText('Approved', { exact: true })).toBeVisible()
+    await expect.element(page.getByText('3 of 3 reviewed')).toBeVisible()
   })
 
-  it('ignores a and r on a build that cannot be reviewed', async () => {
+  it('ignores a, shift-a and r on a build that cannot be reviewed', async () => {
     const api = fakeBuildApi(detail({ conclusion: 'no_changes' }))
     await renderBuild()
     await expect.element(viewerTitle()).toBeVisible()
     await userEvent.keyboard('a')
+    await userEvent.keyboard('{Shift>}A{/Shift}')
     await userEvent.keyboard('r')
     expect(page.getByRole('alertdialog').elements()).toHaveLength(0)
     expect(api.reviews).toEqual([])

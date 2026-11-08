@@ -10,6 +10,7 @@ afterEach(() => restoreFetch())
 const ROUTE = { route: '/workspaces/$workspace/settings', url: '/workspaces/acme/settings' }
 const general = (canManage = true, over: object = {}) => ({
   canManage,
+  isOwner: canManage,
   name: 'Acme Inc',
   slug: 'acme',
   ...over,
@@ -23,7 +24,7 @@ const slug = () => page.getByRole('textbox', { name: 'URL slug' })
 const save = () => page.getByRole('button', { name: 'Save changes' })
 
 describe('WorkspaceGeneralPage', () => {
-  it('shows the name, address, merge defaults and a danger zone that can’t delete yet', async () => {
+  it('shows the name, address, merge defaults and a danger zone', async () => {
     await page.viewport(1000, 900)
     fakeApi({
       'GET /api/workspaces/acme': { body: general() },
@@ -36,9 +37,39 @@ describe('WorkspaceGeneralPage', () => {
     await expect
       .element(page.getByRole('switch', { name: /Flaky screenshots block merges/ }))
       .toBeChecked()
-    await expect.element(page.getByRole('button', { name: 'Delete workspace' })).toBeDisabled()
-    await expect.element(page.getByText(/can’t do this from the dashboard yet/)).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Delete workspace' })).toBeEnabled()
     await expect.element(save()).toBeDisabled()
+  })
+
+  it('lets an admin who is not an owner see why they cannot delete', async () => {
+    await page.viewport(1000, 900)
+    fakeApi({
+      'GET /api/workspaces/acme': { body: general(true, { isOwner: false }) },
+      'GET /api/workspaces/acme/settings': { body: settings() },
+    })
+    await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    await expect.element(page.getByRole('button', { name: 'Delete workspace' })).toBeDisabled()
+    await expect.element(page.getByText('Only an owner can delete the workspace.')).toBeVisible()
+  })
+
+  it('deletes only after the name is typed, then leaves the workspace', async () => {
+    await page.viewport(1000, 900)
+    const api = fakeApi({
+      'GET /api/workspaces/acme': { body: general() },
+      'GET /api/workspaces/acme/settings': { body: settings() },
+      'DELETE /api/workspaces/acme': { body: { purgeAt: '2030-02-01T00:00:00.000Z' } },
+    })
+    await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    await page.getByRole('button', { name: 'Delete workspace' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Delete Acme Inc?' })
+    const confirm = dialog.getByRole('button', { name: 'Delete workspace' })
+    await expect.element(confirm).toBeDisabled()
+    await dialog.getByRole('textbox', { name: /Type Acme Inc to confirm/ }).fill('Acme')
+    await expect.element(confirm).toBeDisabled()
+    await dialog.getByRole('textbox', { name: /Type Acme Inc to confirm/ }).fill('Acme Inc')
+    await confirm.click()
+    await expect.poll(() => api.of('DELETE')).toHaveLength(1)
+    expect(api.of('DELETE')[0]?.body).toEqual({ confirm: 'Acme Inc' })
   })
 
   it('warns that links break when the address changes, and Discard undoes the edit', async () => {

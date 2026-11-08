@@ -14,12 +14,14 @@ import {
   Menu,
   RowMenuIcon,
   SearchIcon,
+  SegmentedControl,
   Text,
   TextField,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useEffect, useState } from 'react'
 
+import { capabilitiesQuery } from '#features/teams/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 
 import {
@@ -161,9 +163,10 @@ export function AccountsPage() {
       <CreateAccountDialog
         open={creating}
         onClose={() => setCreating(false)}
-        onCreated={(email, password) => {
+        onCreated={(email, password, codeSent) => {
           setCreating(false)
           if (password) setSecret({ email, password })
+          else if (codeSent) setDone(`Created the account for ${email} and emailed a sign-in code.`)
           else setDone(`Created the account for ${email}.`)
         }}
       />
@@ -268,9 +271,12 @@ function AccountRow(props: {
 function CreateAccountDialog(props: {
   open: boolean
   onClose: () => void
-  onCreated: (email: string, password: string | null) => void
+  onCreated: (email: string, password: string | null, codeSent: boolean) => void
 }) {
   const create = useCreateAccount()
+  // Sending a sign-in code needs mail; without it only the password choice is offered.
+  const { data: caps } = useQuery(capabilitiesQuery())
+  const mailConfigured = caps?.mailConfigured === true
   const [draft, setDraft] = useState<AccountDraft>(emptyAccountDraft)
   const [shown, setShown] = useState(false)
   const problems = accountProblems(draft)
@@ -292,7 +298,7 @@ function CreateAccountDialog(props: {
         const email = created.account.email
         setDraft(emptyAccountDraft())
         setShown(false)
-        props.onCreated(email, created.password)
+        props.onCreated(email, created.password, created.signInCodeSentTo !== undefined)
       },
     })
   }
@@ -304,7 +310,11 @@ function CreateAccountDialog(props: {
         if (!open) close()
       }}
       title="Create account"
-      description="CirCI generates a password and shows it to you once, or you can choose one."
+      description={
+        draft.delivery === 'code'
+          ? 'No password is set. CirCI mails them a one-time sign-in code and link.'
+          : 'CirCI generates a password and shows it to you once, or you can choose one.'
+      }
       actions={
         <>
           <Button onClick={close}>Cancel</Button>
@@ -330,14 +340,29 @@ function CreateAccountDialog(props: {
           onChange={(e) => setDraft({ ...draft, email: e.target.value })}
           autoComplete="off"
         />
-        <TextField
-          label="Password (leave empty to generate one)"
-          type="password"
-          value={draft.password}
-          error={show('password')}
-          onChange={(e) => setDraft({ ...draft, password: e.target.value })}
-          autoComplete="new-password"
-        />
+        {mailConfigured ? (
+          <SegmentedControl
+            label="How they first sign in"
+            value={draft.delivery}
+            options={[
+              { value: 'password', label: 'Show a generated password' },
+              { value: 'code', label: 'Email a sign-in code' },
+            ]}
+            onChange={(value) =>
+              setDraft({ ...draft, delivery: value === 'code' ? 'code' : 'password' })
+            }
+          />
+        ) : null}
+        {draft.delivery === 'password' ? (
+          <TextField
+            label="Password (leave empty to generate one)"
+            type="password"
+            value={draft.password}
+            error={show('password')}
+            onChange={(e) => setDraft({ ...draft, password: e.target.value })}
+            autoComplete="new-password"
+          />
+        ) : null}
         <Checkbox
           label="Make them an instance admin"
           checked={draft.instanceAdmin}

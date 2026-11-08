@@ -8,8 +8,10 @@ import {
   unmarkReferencedFiles,
 } from '@circi/db'
 
+import { purgeDueWorkspaces } from './workspaces.ts'
+
 /**
- * One pass of retention (PLAN §8): expire old builds and sites, un-mark files that became
+ * One pass of retention (PLAN §8): purge workspaces deleted 30 days ago, expire old builds and sites, un-mark files that became
  * referenced, mark the ones nothing points at, and collect those marked longer than the grace
  * period. Safe to run often and from several processes: each step is idempotent and the
  * collection re-checks every file under a lock before deleting it.
@@ -24,6 +26,8 @@ export async function runRetention(
   },
 ): Promise<runRetention.Result> {
   const now = options.now ?? new Date()
+  // First, so the files of a purged workspace are marked in this same pass.
+  const workspaces = await purgeDueWorkspaces(db, now)
   const builds = await expireBuilds(db, now)
   const sites = await expireSites(db, now)
   const unmarked = await unmarkReferencedFiles(db)
@@ -33,10 +37,18 @@ export async function runRetention(
     graceMs: options.graceMs ?? 24 * 3600_000,
     deleteObject: options.deleteObject,
   })
-  return { expiredBuilds: builds, expiredSites: sites, unmarked, marked, ...collected }
+  return {
+    purgedWorkspaces: workspaces,
+    expiredBuilds: builds,
+    expiredSites: sites,
+    unmarked,
+    marked,
+    ...collected,
+  }
 }
 export namespace runRetention {
   export interface Result {
+    purgedWorkspaces: number
     expiredBuilds: number
     expiredSites: { addresses: number; versions: number }
     unmarked: number

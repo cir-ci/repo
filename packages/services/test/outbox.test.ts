@@ -1,5 +1,5 @@
 import { createBuild, createWebhook, QUEUES, schema } from '@circi/db'
-import { createTestDb, seedTeam } from '@circi/testing'
+import { createTestDb, seedTeam, seedChangedSnapshots } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -43,6 +43,7 @@ describe('webhook events', () => {
       url: 'https://hooks.acme.io/x',
       events: ['build.completed', 'build.reviewed'],
     })
+    await seedChangedSnapshots(t.db, build.id)
     await completeBuild(t.db, build, { conclusion: 'changes_detected', approval: 'none' })
     const [job, ...rest] = await queued()
     expect(rest).toHaveLength(0)
@@ -68,6 +69,7 @@ describe('webhook events', () => {
       url: 'https://hooks.acme.io/x',
       events: ['build.reviewed'],
     })
+    await seedChangedSnapshots(t.db, build.id)
     await completeBuild(t.db, build, { conclusion: 'changes_detected', approval: 'none' })
     expect(await queued()).toHaveLength(0) // not subscribed to build.completed
     await reviewBuild(t.db, { buildId: build.id, userId: owner.id, state: 'approved' })

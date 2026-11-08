@@ -4,42 +4,61 @@ import { useState } from 'react'
 
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
-import { useReviewBuild } from './api.ts'
+import { useReviewSnapshots } from './api.ts'
+import { shotDecision } from './diff-status.ts'
 import { RejectDialog } from './RejectDialog.tsx'
-import { isReviewable } from './review-model.ts'
+import { isReviewable, needsDecision, undecidedNames } from './review-model.ts'
 
-/** What the review screen can do about a build's decision, shared by the buttons and the a / r keys. */
+/** What the review screen can do about decisions, shared by the buttons and the a / ⇧A / r keys. */
 export interface ReviewControls {
-  /** Only the decision that isn't already in force is offered. */
+  /** Only the decision that isn't already in force on the current snapshot is offered. */
   canApprove: boolean
   canReject: boolean
+  /** Some changed snapshot has no decision yet. */
+  canApproveAll: boolean
   pending: boolean
   error: Error | null
   rejecting: boolean
+  /** Approves the current snapshot. */
   approve: () => void
+  /** Approves every changed snapshot that has no decision yet. */
+  approveAll: () => void
   /** Rejecting asks first: it holds back the merge. */
   askReject: () => void
   cancelReject: () => void
-  /** Rejects with the reason the dialog collected. */
+  /** Rejects the current snapshot with the reason the dialog collected. */
   confirmReject: (reason: string) => void
 }
 
 /**
- * The decisions on a finished build with changes. After approving you're left with "Reject" to
- * change your mind, and the other way round. A result is announced to screen readers.
+ * The decisions on the snapshots of a finished build with changes: the current one (A, R) or
+ * every undecided one (⇧A). The build's status follows from them. A result is announced to
+ * screen readers.
  */
-export function useReviewControls(data: Build.Detail): ReviewControls {
+export function useReviewControls(
+  data: Build.Detail,
+  selected: Build.DiffItem | undefined,
+): ReviewControls {
   const { build, team } = data
-  const review = useReviewBuild(team.workspaceSlug, team.slug, build.number)
+  const review = useReviewSnapshots(team.workspaceSlug, team.slug, build.number)
   const announce = useAnnounce()
   const [rejecting, setRejecting] = useState(false)
   const reviewable = isReviewable(build)
-  const canApprove = reviewable && build.reviewStatus !== 'approved'
-  const canReject = reviewable && build.reviewStatus !== 'rejected'
+  const current =
+    selected && needsDecision(selected) ? shotDecision(selected, build.reviewStatus) : undefined
+  const canApprove = reviewable && current !== undefined && current !== 'approved'
+  const canReject = reviewable && current !== undefined && current !== 'rejected'
+  const undecided = reviewable ? undecidedNames(data.diffs, build.reviewStatus) : []
+  const canApproveAll = undecided.length > 0
 
-  function decide(state: ReviewState, reason?: string) {
-    review.mutate(reason ? { state, reason } : { state }, {
-      onSuccess: () => announce(`Build #${build.number} ${state}.`),
+  function decide(
+    snapshotNames: string[],
+    decision: ReviewState,
+    message: string,
+    reason?: string,
+  ) {
+    review.mutate(reason ? { snapshotNames, decision, reason } : { snapshotNames, decision }, {
+      onSuccess: () => announce(message),
       onSettled: () => setRejecting(false),
     })
   }
@@ -47,31 +66,41 @@ export function useReviewControls(data: Build.Detail): ReviewControls {
   return {
     canApprove,
     canReject,
+    canApproveAll,
     pending: review.isPending,
     error: review.error,
     rejecting,
     approve: () => {
-      if (canApprove && !review.isPending) decide('approved')
+      if (canApprove && selected && !review.isPending) {
+        decide([selected.name], 'approved', `${selected.name} approved.`)
+      }
+    },
+    approveAll: () => {
+      if (canApproveAll && !review.isPending) {
+        decide(undecided, 'approved', `${undecided.length} snapshots approved.`)
+      }
     },
     askReject: () => {
       if (canReject && !review.isPending) setRejecting(true)
     },
     cancelReject: () => setRejecting(false),
     confirmReject: (reason) => {
-      if (canReject && !review.isPending) decide('rejected', reason)
+      if (canReject && selected && !review.isPending) {
+        decide([selected.name], 'rejected', `${selected.name} rejected.`, reason)
+      }
     },
   }
 }
 
-/** Reject and Approve all, each with its key in a tooltip, and the confirmation for Reject. */
-export function ReviewActions({ review, buildNumber }: ReviewActions.Props) {
+/** Reject, Approve and Approve all, each with its key in a tooltip, and the confirmation for Reject. */
+export function ReviewActions({ review, snapshotName }: ReviewActions.Props) {
   return (
     <>
       {review.canReject ? (
         <Tooltip
           content={
             <>
-              Reject these changes <Kbd>r</Kbd>
+              Reject this snapshot <Kbd>r</Kbd>
             </>
           }
         >
@@ -89,7 +118,20 @@ export function ReviewActions({ review, buildNumber }: ReviewActions.Props) {
         <Tooltip
           content={
             <>
-              Accept these changes; later builds are compared with this one <Kbd>a</Kbd>
+              Approve this snapshot; on the default branch it becomes the baseline <Kbd>a</Kbd>
+            </>
+          }
+        >
+          <Button leading={<TaskDoneIcon />} disabled={review.pending} onClick={review.approve}>
+            Approve
+          </Button>
+        </Tooltip>
+      ) : null}
+      {review.canApproveAll ? (
+        <Tooltip
+          content={
+            <>
+              Approve every snapshot that has no decision yet <Kbd>⇧</Kbd> <Kbd>A</Kbd>
             </>
           }
         >
@@ -98,7 +140,7 @@ export function ReviewActions({ review, buildNumber }: ReviewActions.Props) {
             leading={<TaskDoneIcon />}
             loading={review.pending && !review.rejecting}
             disabled={review.pending}
-            onClick={review.approve}
+            onClick={review.approveAll}
           >
             Approve all
           </Button>
@@ -106,7 +148,7 @@ export function ReviewActions({ review, buildNumber }: ReviewActions.Props) {
       ) : null}
       <RejectDialog
         open={review.rejecting}
-        buildNumber={buildNumber}
+        subject={snapshotName ?? 'this snapshot'}
         pending={review.pending}
         onCancel={review.cancelReject}
         onReject={review.confirmReject}
@@ -118,7 +160,8 @@ export function ReviewActions({ review, buildNumber }: ReviewActions.Props) {
 export namespace ReviewActions {
   export interface Props {
     review: ReviewControls
-    buildNumber: number
+    /** The snapshot Reject and Approve act on. */
+    snapshotName: string | undefined
   }
 }
 

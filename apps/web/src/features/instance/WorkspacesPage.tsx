@@ -1,7 +1,9 @@
+import type { InstanceAdmin } from '@circi/api'
 import {
   AddCircleIcon,
   Banner,
   Button,
+  ConfirmDialog,
   Dialog,
   EmptyState,
   ListRow,
@@ -16,10 +18,13 @@ import { formatBytes } from '#features/settings/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 
 import {
+  deletedLabel,
   formatDay,
   settingsQuery,
   slugPreview,
   useCreateWorkspace,
+  usePurgeWorkspace,
+  useRestoreWorkspace,
   type WorkspaceDraft,
   WORKSPACE_CREATION_TEXT,
   workspacesQuery,
@@ -39,6 +44,9 @@ export function WorkspacesPage() {
   const settings = useQuery(settingsQuery())
   const [creating, setCreating] = useState(false)
   const [created, setCreated] = useState<string | null>(null)
+  const restore = useRestoreWorkspace()
+  const purge = usePurgeWorkspace()
+  const [purging, setPurging] = useState<InstanceAdmin.Workspace | null>(null)
 
   return (
     <AdminFrame
@@ -64,6 +72,7 @@ export function WorkspacesPage() {
         Every workspace on this CirCI. Their teams and builds stay private to their members.
       </Intro>
       {created ? <Banner tone="success">{created}</Banner> : null}
+      {restore.error ? <Banner tone="danger">{restore.error.message}</Banner> : null}
       <section className={styles.section} aria-label="All workspaces">
         {data && data.workspaces.length === 0 ? (
           <EmptyState title="No workspaces yet">
@@ -82,6 +91,24 @@ export function WorkspacesPage() {
                   }
                   trailing={
                     <>
+                      {w.deletedAt ? (
+                        <>
+                          <Button
+                            size="sm"
+                            loading={restore.isPending && restore.variables === w.id}
+                            onClick={() =>
+                              restore.mutate(w.id, {
+                                onSuccess: () => setCreated(`Restored the workspace ${w.name}.`),
+                              })
+                            }
+                          >
+                            Restore
+                          </Button>
+                          <Button size="sm" variant="danger" onClick={() => setPurging(w)}>
+                            Delete permanently now
+                          </Button>
+                        </>
+                      ) : null}
                       <Text className={styles.num} variant="small">
                         {w.memberCount} {w.memberCount === 1 ? 'member' : 'members'}
                       </Text>
@@ -98,6 +125,14 @@ export function WorkspacesPage() {
                     <Text>{w.name}</Text>
                     <Text tone="tertiary" variant="small">
                       <Text variant="mono">{w.slug}</Text> · created {formatDay(w.createdAt)}
+                      {w.deletedAt ? (
+                        <>
+                          {' · '}
+                          <Text as="span" tone="rejected" variant="small">
+                            {deletedLabel(w.daysLeft)}
+                          </Text>
+                        </>
+                      ) : null}
                     </Text>
                   </div>
                 </ListRow>
@@ -130,6 +165,26 @@ export function WorkspacesPage() {
           </div>
         </section>
       ) : null}
+      <ConfirmDialog
+        open={purging !== null}
+        onOpenChange={(open) => {
+          if (!open) setPurging(null)
+        }}
+        title={`Delete ${purging?.name ?? ''} permanently?`}
+        description="Its teams, builds, screenshots and settings are removed now, without waiting for the rest of the 30 days. This can’t be undone."
+        confirmLabel="Delete permanently"
+        confirmText={purging?.slug}
+        loading={purge.isPending}
+        onConfirm={() => {
+          if (!purging) return
+          purge.mutate(purging.id, {
+            onSuccess: () => {
+              setCreated(`Deleted ${purging.name} permanently.`)
+              setPurging(null)
+            },
+          })
+        }}
+      />
       <CreateWorkspaceDialog
         open={creating}
         onClose={() => setCreating(false)}

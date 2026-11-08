@@ -15,7 +15,7 @@ import {
   planUploads,
   updateTeamSettings,
 } from '@circi/db'
-import { finalizeBuild, gateInputs, reviewBuild } from '@circi/services'
+import { finalizeBuild, gateInputs, reviewBuild, reviewSnapshots } from '@circi/services'
 import { contentKey, FsStorage } from '@circi/storage'
 import { createTestDb, seedTeam } from '@circi/testing'
 import sharp from 'sharp'
@@ -268,6 +268,47 @@ describe('processBuild', () => {
     expect(await listBuildReviews(t.db, second.id)).toMatchObject([
       { state: 'approved', source: 'auto' },
     ])
+  })
+
+  it('compares a snapshot with its approved version in a default-branch build still waiting on review', async () => {
+    const { team, owner } = await seedTeam(t.db)
+    await updateTeamSettings(t.db, team.id, { autoApproveDefaultBranch: false })
+    const plain = await png(320, 200)
+    const marked = await png(320, 200, { x: 30, y: 30 })
+    const other = await png(320, 200, { x: 90, y: 90 })
+    const first = await uploadBuild(
+      team.id,
+      { commitSha: 'fff0b01', branch: 'main' },
+      { home: plain, about: plain },
+    )
+    await processBuild({ db: t.db, storage }, first.id)
+    await reviewBuild(t.db, { buildId: first.id, userId: owner.id, state: 'approved' })
+
+    const second = await uploadBuild(
+      team.id,
+      { commitSha: 'fff0b02', branch: 'main', ancestorShas: ['fff0b01'] },
+      { home: marked, about: other },
+    )
+    await processBuild({ db: t.db, storage }, second.id)
+    await reviewSnapshots(t.db, {
+      buildId: second.id,
+      userId: owner.id,
+      decision: 'approved',
+      snapshotNames: ['home'],
+    })
+    expect(await getBuild(t.db, second.id)).toMatchObject({ reviewStatus: 'pending' })
+
+    const third = await uploadBuild(
+      team.id,
+      { commitSha: 'fff0b03', branch: 'main', ancestorShas: ['fff0b02', 'fff0b01'] },
+      { home: marked, about: other },
+    )
+    await processBuild({ db: t.db, storage }, third.id)
+    expect(await getBuild(t.db, third.id)).toMatchObject({ baseBuildId: first.id })
+    const diffs = await diffsOf(third.id)
+    // home was approved on its own in the pending second build; about still compares with the first.
+    expect(diffs['home']?.status).toBe('unchanged')
+    expect(diffs['about']?.status).toBe('changed')
   })
 
   it('holds a default-branch build with a baseline when auto-approval is off', async () => {

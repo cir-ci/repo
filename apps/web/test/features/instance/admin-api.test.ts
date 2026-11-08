@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   accountBody,
+  deletedLabel,
   accountProblems,
   banBody,
   banProblem,
@@ -48,6 +49,29 @@ describe('creating an account', () => {
       instanceAdmin: true,
       password: 'a'.repeat(12),
     })
+  })
+})
+
+describe('creating an account with a sign-in code', () => {
+  const draft = { ...emptyAccountDraft(), name: 'Lior', email: 'lior@acme.dev' }
+
+  it('sends the flag and no password, whatever was typed before switching', () => {
+    expect(
+      accountBody({ ...draft, delivery: 'code', password: 'a'.repeat(12), instanceAdmin: true }),
+    ).toEqual({ name: 'Lior', email: 'lior@acme.dev', instanceAdmin: true, signInCode: true })
+  })
+
+  it('ignores the password field while a code is chosen', () => {
+    expect(accountProblems({ ...draft, delivery: 'code', password: 'short' })).toEqual({})
+  })
+})
+
+describe('deleted workspaces', () => {
+  it('says how long is left', () => {
+    expect(deletedLabel(30)).toBe('Deleted · 30 days left')
+    expect(deletedLabel(1)).toBe('Deleted · 1 day left')
+    expect(deletedLabel(0)).toBe('Deleted · being purged')
+    expect(deletedLabel(null)).toBe('')
   })
 })
 

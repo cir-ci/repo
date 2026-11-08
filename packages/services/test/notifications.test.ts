@@ -15,6 +15,7 @@ import {
   seedTeam,
   seedUser,
   sha,
+  seedChangedSnapshots,
 } from '@circi/testing'
 import { and, asc, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -72,6 +73,7 @@ async function setup() {
     .update(schema.builds)
     .set({ status: 'complete', conclusion: 'changes_detected' })
     .where(eq(schema.builds.id, build.id))
+  await seedChangedSnapshots(t.db, build.id)
   return { team, workspace, owner, ann, bob, build }
 }
 
@@ -239,6 +241,7 @@ describe('build approved or rejected', () => {
       .update(schema.builds)
       .set({ status: 'complete', conclusion: 'changes_detected' })
       .where(eq(schema.builds.id, build.id))
+    await seedChangedSnapshots(t.db, build.id)
     await reviewBuild(t.db, { buildId: build.id, userId: owner.id, state: 'approved' })
     expect(
       await t.db

@@ -8,6 +8,7 @@ import {
   requestReviews,
   reviewBuild,
   reviewBuilds,
+  reviewSnapshots,
   snoozeReviewRequest,
   unsnoozeReviewRequest,
 } from '@circi/services'
@@ -64,7 +65,51 @@ export const dashboardReviewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
       },
     }
   })
+
+  /**
+   * `POST …/builds/:number/snapshots/review`: approve or reject some snapshots of a build.
+   * Members decide as for the whole build; the build's status follows from the decisions.
+   */
+  app.post('/teams/:workspace/:team/builds/:number/snapshots/review', async (req, reply) => {
+    const p = parse(params, req.params)
+    const { snapshotNames, decision, reason } = parse(snapshotsBody, req.body)
+    const user = currentUser(req)
+    const team = await findTeamForMember(deps.db, {
+      workspaceSlug: p.workspace,
+      teamSlug: p.team,
+      userId: user.id,
+      method: user.method,
+    })
+    const number = Number(p.number)
+    const build =
+      team && Number.isInteger(number)
+        ? await getBuildByNumber(deps.db, team.id, number)
+        : undefined
+    if (!build) return reply.code(404).send({ error: 'Build not found' })
+
+    const updated = await reviewSnapshots(deps.db, {
+      buildId: build.id,
+      userId: user.id,
+      decision,
+      snapshotNames,
+      ...(reason ? { reason } : {}),
+    })
+    return {
+      build: {
+        number: updated.number,
+        status: updated.status,
+        conclusion: updated.conclusion,
+        reviewStatus: updated.reviewStatus,
+      },
+    }
+  })
 }
+
+const snapshotsBody = z.object({
+  snapshotNames: z.array(z.string().min(1).max(500)).min(1).max(1000),
+  decision: z.enum(['approved', 'rejected']),
+  reason: z.string().trim().max(2000).optional(),
+})
 
 const bulkBody = z.object({
   buildIds: z.array(z.string().uuid()).min(1).max(MAX_BULK_REVIEW),

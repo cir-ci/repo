@@ -184,7 +184,12 @@ describe('CI token page', () => {
 describe('workspace name, address and default retention', () => {
   it('shows the name and address to members and lets owners rename', async () => {
     const got = (await call('GET', workspace(), memberCookie)).json()
-    expect(got).toEqual({ canManage: false, name: expect.any(String), slug: acme.workspaceSlug })
+    expect(got).toEqual({
+      canManage: false,
+      isOwner: false,
+      name: expect.any(String),
+      slug: acme.workspaceSlug,
+    })
     const res = await call('PATCH', workspace(), ownerCookie, { name: 'Acme Inc' })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toEqual({ name: 'Acme Inc', slug: acme.workspaceSlug })

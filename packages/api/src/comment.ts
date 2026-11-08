@@ -82,6 +82,14 @@ export namespace Activity {
           by: Person | null
         }
       | {
+          /** Decisions on snapshots, grouped when one action decided several (approve all). */
+          type: 'snapshot_review'
+          decision: ReviewState
+          snapshotNames: string[]
+          reason: string | null
+          by: Person | null
+        }
+      | {
           type: 'comment'
           commentId: string
           parentId: string | null

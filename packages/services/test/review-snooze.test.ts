@@ -1,5 +1,11 @@
 import { createBuild, listReviewRequests, schema } from '@circi/db'
-import { addTestMember, createTestDb, seedTeam, seedUser } from '@circi/testing'
+import {
+  addTestMember,
+  createTestDb,
+  seedTeam,
+  seedUser,
+  seedChangedSnapshots,
+} from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -26,6 +32,7 @@ async function setup() {
     .update(schema.builds)
     .set({ status: 'complete', conclusion: 'changes_detected' })
     .where(eq(schema.builds.id, build.id))
+  await seedChangedSnapshots(t.db, build.id)
   const now = new Date('2026-03-10T12:00:00.000Z') // a Tuesday
   const { request } = await requestReview(t.db, {
     buildId: build.id,

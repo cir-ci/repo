@@ -2,7 +2,7 @@ import { Banner, SectionHeader, Switch, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 
-import { authMethodsQuery } from '#features/auth/api.ts'
+import { capabilitiesQuery } from '#features/teams/api.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 
@@ -42,10 +42,10 @@ export function NotificationsPage() {
   useDocumentTitle('Notifications')
   const { data: session } = authClient.useSession()
   const { data, error, refetch } = useQuery(preferencesQuery())
-  const methods = useQuery(authMethodsQuery())
+  const capabilities = useQuery(capabilitiesQuery())
   const set = useSetPreference()
-  // Email notifications need the server to send mail, which is also what email sign-in needs.
-  const mailConfigured = methods.data?.email === true
+  // Email notifications need the server to send mail (SMTP).
+  const mailConfigured = capabilities.data?.mailConfigured === true
 
   return (
     <Frame

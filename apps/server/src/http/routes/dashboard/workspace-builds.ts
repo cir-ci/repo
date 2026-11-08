@@ -1,4 +1,5 @@
 import type { WorkspaceBuilds } from '@circi/api'
+import { BUILD_ORDERS } from '@circi/core'
 import { listBuildFilterSuggestions, listBuildsForWorkspace } from '@circi/db'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
@@ -9,7 +10,11 @@ import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const params = z.object({ workspace: z.string() })
-const listQuery = z.object({ before: z.uuid().optional(), ...buildFilterShape })
+const listQuery = z.object({
+  before: z.uuid().optional(),
+  order: z.enum(BUILD_ORDERS).default('newest'),
+  ...buildFilterShape,
+})
 const suggestQuery = z.object({
   field: z.enum(['author', 'reviewer']),
   q: z.string().max(100).default(''),
@@ -40,6 +45,7 @@ export const dashboardWorkspaceBuildsRoutes: FastifyPluginAsync<Deps.Dashboard> 
         method: user.method,
         limit: PAGE_SIZE,
         filters,
+        order: q.order,
         ...(q.before ? { before: q.before } : {}),
       })
       if (!found) return reply.code(404).send({ error: 'Workspace not found' })

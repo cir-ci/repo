@@ -43,7 +43,7 @@ import {
 import { BuildFilterBar } from './BuildFilterBar.tsx'
 import { type BuildFilters, type FilterField, hasFilters, toSearch } from './builds-filters.ts'
 import { BulkRejectDialog } from './BulkRejectDialog.tsx'
-import { type DisplayOptions, groupBuilds, orderBuilds } from './display-options.ts'
+import { type DisplayOptions, groupBuilds } from './display-options.ts'
 import { useLoadingAnnouncement } from './loading.ts'
 
 import styles from './BuildsBrowser.module.css'
@@ -69,19 +69,20 @@ export function BuildsBrowser({
   const announce = useAnnounce()
   // Without a team this is the whole workspace's list (a saved view with no team).
   const scoped = team !== undefined
+  // The server orders the list (and pages it in that order); grouping happens on the page.
+  const display = useDisplayStore((s) => s.display)
   const teamResult = useQuery({
-    ...teamQuery(workspace, team ?? '', before, filters),
+    ...teamQuery(workspace, team ?? '', before, filters, display.order),
     enabled: scoped,
   })
   const workspaceResult = useQuery({
-    ...workspaceBuildsQuery(workspace, pageCursor, filters),
+    ...workspaceBuildsQuery(workspace, pageCursor, filters, display.order),
     enabled: !scoped,
   })
   const { data, error, refetch } = scoped ? teamResult : workspaceResult
   const teamOf = (b: Row) => b.team?.slug ?? team ?? ''
   useLoadingAnnouncement(!data && !error, 'Loading builds')
 
-  const display = useDisplayStore((s) => s.display)
   const setDisplay = useDisplayStore((s) => s.setDisplay)
   const clearChecked = useListStore((s) => s.clearChecked)
   const [open, setOpen] = useState<FilterField | 'display'>()
@@ -101,7 +102,7 @@ export function BuildsBrowser({
 
   const builds: readonly Row[] = data?.builds ?? []
   const oldest = builds.at(-1)?.number
-  const groups = groupBuilds(orderBuilds([...builds], display.order), display.groupBy)
+  const groups = groupBuilds(builds, display.groupBy)
   const flat = groups.flatMap((g) => g.builds)
   const cursor = flat.find((b) => b.id === cursorId) ?? flat[0]
   const chosen = flat.filter((b) => selected.has(b.id))
@@ -157,7 +158,14 @@ export function BuildsBrowser({
           filters={filters}
           onFiltersChange={onFiltersChange}
           display={display}
-          onDisplayChange={setDisplay}
+          onDisplayChange={(next) => {
+            // A page cursor belongs to one order: a new order starts from its first page.
+            if (next.order !== display.order) {
+              if (scoped) onFiltersChange(filters)
+              else onCursorChange?.(undefined)
+            }
+            setDisplay(next)
+          }}
           open={open}
           onOpenChange={setOpen}
           onSaveView={canSave ? () => setSaving(true) : undefined}

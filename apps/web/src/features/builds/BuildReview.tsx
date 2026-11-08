@@ -26,7 +26,7 @@ import { buildTitle } from './build-title.ts'
 import { BuildMeta } from './BuildMeta.tsx'
 import { BuildStateLabel } from './BuildStateLabel.tsx'
 import { CountsSummary } from './CountsSummary.tsx'
-import { screenshotLabel, screenshotStatus, shotReview } from './diff-status.ts'
+import { screenshotLabel, screenshotStatus, shotDecision, shotReview } from './diff-status.ts'
 import { Viewer } from './DiffViewer.tsx'
 import { commentsQuery } from './discussion-api.ts'
 import { IssueAction } from './IssueAction.tsx'
@@ -40,6 +40,7 @@ import {
   isReviewable,
   neighbour,
   orderShots,
+  reviewProgress,
   shotBadge,
 } from './review-model.ts'
 import { ReviewActions, ReviewNote, useReviewControls } from './ReviewActions.tsx'
@@ -60,7 +61,6 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const navigate = useNavigate({ from: ROUTE })
   const mode: ViewMode = search.mode ?? 'side'
   const active = isActive(build.status)
-  const review = useReviewControls(data)
   const [helpOpen, setHelpOpen] = useState(false)
   const [requesting, setRequesting] = useState(false)
   const [tab, setTab] = useState<SidebarTab>('details')
@@ -80,6 +80,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const fromUrl = search.shot ? ordered.find((d) => d.name === search.shot) : undefined
   const selected = fromUrl ?? defaultShot(groups)
   const selectedGroup = groups.find((g) => selected && g.items.includes(selected))?.kind
+  const review = useReviewControls(data, selected)
 
   const [open, setOpen] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(GROUP_ORDER.map((g) => [g.kind, g.open])),
@@ -135,6 +136,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
       void navigate({ search: (prev) => ({ ...prev, mode: action.mode }), replace: true })
     },
     approve: (_, e) => (e.repeat ? undefined : review.approve()),
+    approveAll: (_, e) => (e.repeat ? undefined : review.approveAll()),
     reject: (_, e) => (e.repeat ? undefined : review.askReject()),
     requestReview: (_, e) => (e.repeat ? undefined : setRequesting(true)),
     comment: (_, e) => (e.repeat ? undefined : openComposer()),
@@ -154,6 +156,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
 
   const hasBaseline = baseline !== null
   const buildReview = shotReview(build)
+  const progress = reviewProgress(data.diffs, buildReview)
   return (
     <div className={page['page']}>
       <PageHeading
@@ -164,7 +167,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
             <BuildStateLabel build={build} hasBaseline={hasBaseline} />
             <IssueAction data={data} snapshotName={selected?.name ?? null} />
             {isReviewable(build) ? (
-              <ReviewActions review={review} buildNumber={build.number} />
+              <ReviewActions review={review} snapshotName={selected?.name} />
             ) : null}
           </>
         }
@@ -175,6 +178,11 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
         <Stack direction="row" gap={3} wrap align="center">
           <BuildMeta build={build} showBranch={false} />
           {active ? null : <CountsSummary counts={build.counts} review={buildReview} />}
+          {progress.total > 0 && isReviewable(build) ? (
+            <Text variant="small" tone="secondary">
+              {progress.reviewed} of {progress.total} reviewed
+            </Text>
+          ) : null}
         </Stack>
         <ReviewNote data={data} />
         <BaselineNote data={data} />
@@ -222,9 +230,9 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
                         className={styles.row}
                       >
                         <StatusIcon
-                          status={screenshotStatus(g.kind, buildReview)}
+                          status={screenshotStatus(g.kind, shotDecision(d, buildReview))}
                           size={12}
-                          label={screenshotLabel(g.kind, buildReview)}
+                          label={screenshotLabel(g.kind, shotDecision(d, buildReview))}
                         />
                         <Tooltip content={d.name}>
                           <Text className={styles.name}>{d.name}</Text>
@@ -243,7 +251,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
             <Viewer
               diff={selected}
               kind={selectedGroup}
-              review={buildReview}
+              review={shotDecision(selected, buildReview)}
               mode={mode}
               baselineNumber={baseline?.number}
               onMode={(m) =>

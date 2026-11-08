@@ -43,6 +43,28 @@ export function SignInMethods({ workspace }: SignInMethods.Props) {
             onCheckedChange={(on) => save.mutate({ emailLoginEnabled: on })}
           />
         </BoxRow>
+        {instance.github ? (
+          <BoxRow>
+            <Switch
+              label="GitHub"
+              description="Sign-in with a GitHub account. Also covers joining by invitation or verified domain."
+              checked={settings.signinGithub}
+              disabled={locked}
+              onCheckedChange={(on) => save.mutate({ signinGithub: on })}
+            />
+          </BoxRow>
+        ) : null}
+        {instance.google ? (
+          <BoxRow>
+            <Switch
+              label="Google"
+              description="Sign-in with a Google account. Also covers joining by invitation or verified domain."
+              checked={settings.signinGoogle}
+              disabled={locked}
+              onCheckedChange={(on) => save.mutate({ signinGoogle: on })}
+            />
+          </BoxRow>
+        ) : null}
       </Box>
       <Banner>
         You can’t turn off the last method an owner can sign in with. If everyone is ever locked

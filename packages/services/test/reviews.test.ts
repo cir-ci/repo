@@ -6,6 +6,7 @@ import {
   seedReviewRequest,
   seedUser,
   sha,
+  seedChangedSnapshots,
 } from '@circi/testing'
 import { asc, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -48,6 +49,7 @@ async function setup(options: { branch?: string } = {}) {
     .update(schema.builds)
     .set({ status: 'complete', conclusion: 'changes_detected' })
     .where(eq(schema.builds.id, build.id))
+  await seedChangedSnapshots(t.db, build.id)
   return { team, workspace, owner, teammate, build }
 }
 
@@ -165,6 +167,7 @@ async function several() {
     .update(schema.builds)
     .set({ status: 'complete', conclusion: 'changes_detected' })
     .where(eq(schema.builds.id, second.id))
+  await seedChangedSnapshots(t.db, second.id)
   await t.db.delete(schema.notifications)
   return { team, owner, teammate, builds: [build, second] }
 }
@@ -258,6 +261,7 @@ describe('a newer build on the branch', () => {
           .update(schema.builds)
           .set({ status: 'complete', conclusion: 'changes_detected' })
           .where(eq(schema.builds.id, b.id))
+        await seedChangedSnapshots(t.db, b.id)
         await requestReview(t.db, {
           buildId: b.id,
           reviewerId: teammate.id,

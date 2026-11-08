@@ -29,6 +29,8 @@ export namespace InstanceAdmin {
   export interface CreatedAccount {
     account: Account
     password: string | null
+    /** Set when the account was created without a password and mailed a sign-in code instead. */
+    signInCodeSentTo?: string
   }
 
   /** `POST /api/instance/accounts/:id/reset-password`: the new password, shown once. */
@@ -45,6 +47,10 @@ export namespace InstanceAdmin {
     /** Bytes of the distinct files the workspace's builds refer to. */
     storageBytes: number
     createdAt: string
+    /** When an owner deleted it; null while it is live. A deleted workspace is purged 30 days later. */
+    deletedAt: string | null
+    /** Whole days until the purge (0 once due); null while it is live. */
+    daysLeft: number | null
   }
 
   /** `GET /api/instance/workspaces` */

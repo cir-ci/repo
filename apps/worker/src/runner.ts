@@ -5,6 +5,7 @@ import {
   failJob,
   GIT_NOTIFY_QUEUE,
   type Job,
+  jobIsForDeletedWorkspace,
   JOBS_CHANNEL,
   type ListenFn,
   QUEUES,
@@ -269,6 +270,16 @@ async function claimNext(db: Database, lockSeconds: number): Promise<Job | undef
 }
 
 async function runJob(deps: startWorker.Deps, job: Job): Promise<void> {
+  // Nothing is sent for a deleted workspace: webhooks, git checks, Slack, email. (Builds still
+  // being processed finish: that is internal, and a restore finds them complete.)
+  if (
+    job.queue !== QUEUES.processBuild &&
+    (await jobIsForDeletedWorkspace(deps.db, job).catch(() => false))
+  ) {
+    await completeJob(deps.db, job.id)
+    deps.logger.info({ jobId: job.id, queue: job.queue }, 'skipped a job of a deleted workspace')
+    return
+  }
   if (job.queue === QUEUES.webhook) return runWebhookJob(deps, job)
   if (job.queue === GIT_NOTIFY_QUEUE) return runGitNotifyJob(deps, job)
   if (job.queue === QUEUES.notificationEmail) return runEmailJob(deps, job)

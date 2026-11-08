@@ -1,6 +1,6 @@
-import { and, desc, eq, inArray, max, ne, or } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull, max, ne, or } from 'drizzle-orm'
 
-import { builds, files, reviews, screenshots } from '#schema/index.ts'
+import { builds, files, reviews, screenshots, snapshotReviews } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
 /**
@@ -24,8 +24,10 @@ export interface BaselineItem {
 /**
  * The team's current baselines: per build name and screenshot name, the screenshot of the
  * newest eligible build on `defaultBranch`. Eligible is `isEligibleBaseline` in `@circi/core`
- * (finished, and approved or unchanged and not rejected). `approvedAt` is the build's latest
- * approval, or when it finished for a build that needed none.
+ * (finished, and approved or unchanged and not rejected), judged per snapshot: a snapshot
+ * approved on its own counts even while its build is still pending, a rejected one never does.
+ * `approvedAt` is the snapshot's approval, else the build's latest approval, or when it finished
+ * for a build that needed none.
  */
 export async function listBaselines(
   db: Database,
@@ -45,9 +47,18 @@ export async function listBaselines(
       commitSha: builds.commitSha,
       finishedAt: builds.completedAt,
       createdAt: builds.createdAt,
+      snapshotApprovedAt: snapshotReviews.createdAt,
     })
     .from(screenshots)
     .innerJoin(builds, eq(builds.id, screenshots.buildId))
+    .leftJoin(
+      snapshotReviews,
+      and(
+        eq(snapshotReviews.buildId, screenshots.buildId),
+        eq(snapshotReviews.snapshotName, screenshots.name),
+        isNull(snapshotReviews.supersededAt),
+      ),
+    )
     .innerJoin(files, eq(files.sha256, screenshots.fileSha256))
     .where(
       and(
@@ -55,8 +66,14 @@ export async function listBaselines(
         eq(builds.branch, input.defaultBranch),
         eq(builds.status, 'complete'),
         or(
-          eq(builds.reviewStatus, 'approved'),
-          and(eq(builds.conclusion, 'no_changes'), ne(builds.reviewStatus, 'rejected')),
+          eq(snapshotReviews.decision, 'approved'),
+          and(
+            isNull(snapshotReviews.decision),
+            or(
+              eq(builds.reviewStatus, 'approved'),
+              and(eq(builds.conclusion, 'no_changes'), ne(builds.reviewStatus, 'rejected')),
+            ),
+          ),
         ),
       ),
     )
@@ -73,7 +90,9 @@ export async function listBaselines(
     for (const a of approved) if (a.at) approvals.set(a.buildId, a.at)
   }
 
-  return rows.map(({ buildId, finishedAt, createdAt, ...r }) =>
-    Object.assign(r, { approvedAt: approvals.get(buildId) ?? finishedAt ?? createdAt }),
+  return rows.map(({ buildId, finishedAt, createdAt, snapshotApprovedAt, ...r }) =>
+    Object.assign(r, {
+      approvedAt: snapshotApprovedAt ?? approvals.get(buildId) ?? finishedAt ?? createdAt,
+    }),
   )
 }

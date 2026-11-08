@@ -15,6 +15,7 @@ describe('shortcutFor', () => {
     expect(shortcutFor('j')?.action).toEqual({ type: 'next' })
     expect(shortcutFor('k')?.action).toEqual({ type: 'previous' })
     expect(shortcutFor('a')?.action).toEqual({ type: 'approve' })
+    expect(shortcutFor('shift+a')?.action).toEqual({ type: 'approveAll' })
     expect(shortcutFor('r')?.action).toEqual({ type: 'reject' })
     expect(shortcutFor('?')?.action).toEqual({ type: 'help' })
   })

@@ -6,6 +6,7 @@ import { useSidebarModel } from '#features/sidebar/api.ts'
 import { usePinTeam } from '#features/views/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { PageHeading, workspaceCrumb } from '#lib/PageHeading.tsx'
+import { useDisplayStore } from '#lib/stores/display-store.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 
 import { flakyQuery, teamQuery } from './api.ts'
@@ -23,7 +24,8 @@ export function TeamPage() {
   const clientLink = useClientLink()
   const navigate = useNavigate()
   const announce = useAnnounce()
-  const { data } = useQuery(teamQuery(workspace, team, before, filters))
+  const order = useDisplayStore((s) => s.display.order)
+  const { data } = useQuery(teamQuery(workspace, team, before, filters, order))
   const { data: flaky } = useQuery(flakyQuery(workspace, team))
   const { data: sidebar } = useSidebarModel(workspace)
   const pin = usePinTeam(workspace, team)

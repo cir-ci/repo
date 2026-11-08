@@ -117,3 +117,32 @@ describe('groupThreads', () => {
     expect(commentCount([comment('a'), comment('b', { deletedAt: at })])).toBe(1)
   })
 })
+
+const SNAPSHOT_AT = '2026-03-01T10:00:00.000Z'
+
+describe('timelineItems: snapshot decisions', () => {
+  it('names one snapshot, and groups several into one line', () => {
+    const items = timelineItems([
+      {
+        type: 'snapshot_review',
+        at: SNAPSHOT_AT,
+        decision: 'rejected',
+        snapshotNames: ['home'],
+        reason: 'wrong red',
+        by: { id: 'u1', name: 'Ada' },
+      },
+      {
+        type: 'snapshot_review',
+        at: SNAPSHOT_AT,
+        decision: 'approved',
+        snapshotNames: ['a', 'b', 'c'],
+        reason: null,
+        by: { id: 'u1', name: 'Ada' },
+      },
+    ])
+    expect(items).toMatchObject([
+      { status: 'rejected', actor: 'Ada', text: 'rejected home', quote: 'wrong red' },
+      { status: 'approved', actor: 'Ada', text: 'approved 3 snapshots', quote: 'a, b, c' },
+    ])
+  })
+})

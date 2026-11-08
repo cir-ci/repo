@@ -146,8 +146,8 @@ is edited by the lead.
 typecheck && test && build` was green; external services are faked at their edge). Gaps the agents
 found, to pick up in a follow-up wave:
 
-- No per-snapshot approval route: Triage's "Accept as baseline" and the Command menu's "approve"
-  approve the whole build.
+- ~~No per-snapshot approval route~~ (done 2026-11-09: reviews are per snapshot, `POST …/builds/:n/snapshots/review`;
+  the build's review status is derived, an approved default-branch snapshot is its baseline at once).
 - No snapshot-history endpoint: Triage's filmstrip fetches up to five build details.
 - No bulk request-review route (C4 loops over the builds), no workspace-wide builds list (saved views
   with no team show an empty state), no author or reviewer suggestions, no server-side sort or
@@ -233,8 +233,8 @@ the matching B items. D needs A, C0 and its listed B items.
 
 Gaps still open from the reports:
 
-- No per-snapshot approval route (Triage's "Accept as baseline" and the Command menu's approve
-  approve the whole build); no server-side sort or group on the builds list; a workspace-wide
+- ~~No per-snapshot approval route~~ (done 2026-11-09: decisions are stored per snapshot in
+  `snapshot_reviews`, the build's status is derived from them); no server-side sort or group on the builds list; a workspace-wide
   builds list (saved view with no team) has no bulk bar, because bulk decisions are one team's
   transaction.
 - ~~Rules cannot be reordered~~ (done 2026-11-09: `PUT …/rules/order`, Up and Down buttons).
@@ -255,9 +255,17 @@ Gaps still open from the reports:
 - ~~Moving a team between installations~~: `mapTeam` was already one transaction that writes the
   new mapping before dropping the old; a failure-injection test now pins it.
 - The account menu's theme radio group changes on Enter or Space, not on an arrow key (accepted).
-- Deleting a workspace stays disabled in the dashboard (ask whoever runs the server): only teams
-  can be deleted (owners and admins, typed confirmation). A deleted team's screenshot files are
+- ~~Deleting a workspace stays disabled in the dashboard~~ (done 2026-11-09: owners delete with the
+  workspace's name typed back; soft delete, hidden at once, purged by retention after 30 days;
+  instance admins see it in Instance › Workspaces with Restore and "Delete permanently now").
+  Teams can still be deleted by owners and admins; a deleted team's screenshot files are
   collected by retention after the grace period; there is no immediate purge.
+- ~~No per-workspace GitHub or Google sign-in switch~~ (done 2026-11-09: Workspace › Sign-in and
+  domains; refused for invitations, domain auto-join and, from the session's recorded provider,
+  every workspace route; sessions from before the provider was recorded count as plain
+  single sign-on and are not refused).
+- ~~Create account could only show a generated password~~ (done 2026-11-09: "Email a sign-in
+  code" when mail is configured; `mailConfigured` is in `GET /api/capabilities`).
 - Jira's issue type is a text field on the team's mapping (default Task); it is not checked against
   the project's types until an issue is filed.
 - The team Create route takes `defaultBranch` and `repository` for git integrations that need no

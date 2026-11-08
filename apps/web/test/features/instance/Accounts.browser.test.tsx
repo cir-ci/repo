@@ -148,6 +148,46 @@ describe('creating an account', () => {
     await expect.element(page.getByText('Password for lior@acme.dev')).not.toBeInTheDocument()
   })
 
+  it('offers an emailed sign-in code only when the instance can send mail', async () => {
+    fakeApi({ ...LIST, 'GET /api/capabilities': { body: { mailConfigured: false } } })
+    await show()
+    await page.getByRole('button', { name: 'Create account' }).click()
+    await expect
+      .element(page.getByLabelText('Password (leave empty to generate one)'))
+      .toBeVisible()
+    expect(page.getByRole('button', { name: 'Email a sign-in code' }).elements()).toHaveLength(0)
+  })
+
+  it('creates an account that is mailed a sign-in code instead of a password', async () => {
+    const fake = fakeApi({
+      ...LIST,
+      'GET /api/capabilities': { body: { mailConfigured: true } },
+      'POST /api/instance/accounts': {
+        status: 201,
+        body: {
+          account: account({ email: 'lior@acme.dev' }),
+          password: null,
+          signInCodeSentTo: 'lior@acme.dev',
+        },
+      },
+    })
+    await show()
+    await page.getByRole('button', { name: 'Create account' }).click()
+    await page.getByRole('textbox', { name: 'Name' }).fill('Lior')
+    await page.getByRole('textbox', { name: 'Email' }).fill('lior@acme.dev')
+    await page.getByRole('button', { name: 'Email a sign-in code' }).click()
+    expect(page.getByLabelText('Password (leave empty to generate one)').elements()).toHaveLength(0)
+    await page.getByRole('dialog').getByRole('button', { name: 'Create account' }).click()
+    await expect
+      .element(page.getByText('Created the account for lior@acme.dev and emailed a sign-in code.'))
+      .toBeVisible()
+    expect(fake.of('POST')[0]?.body).toEqual({
+      name: 'Lior',
+      email: 'lior@acme.dev',
+      signInCode: true,
+    })
+  })
+
   it('checks the fields before asking the server', async () => {
     const fake = fakeApi(LIST)
     await show()

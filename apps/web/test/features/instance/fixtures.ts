@@ -35,6 +35,8 @@ export const workspace = (
   teamCount: 3,
   storageBytes: 1_500_000,
   createdAt: '2026-09-12T10:00:00.000Z',
+  deletedAt: null,
+  daysLeft: null,
   ...over,
 })
 

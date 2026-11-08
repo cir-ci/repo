@@ -48,7 +48,7 @@ const workspaceParams = z.object({ workspace: z.string() })
 export const dashboardWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   async function canCreateWorkspace(user: { id: string; method: SessionMethod }): Promise<boolean> {
     // Someone signed in through a workspace's own provider belongs to that workspace only.
-    if (typeof user.method === 'object') return false
+    if (typeof user.method === 'object' && 'scopedTo' in user.method) return false
     return deps.workspaceCreation === 'anyone' || (await isInstanceAdmin(deps.db, user.id))
   }
 
@@ -61,7 +61,10 @@ export const dashboardWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
       deps.db,
       currentUser(req).id,
       currentUser(req).method,
+      (deps.sso ?? []).map((p) => p.id),
     ),
+    /** Whether the instance can send mail (SMTP is set up). */
+    mailConfigured: deps.instance?.mailer !== undefined,
     /** Where this person may create teams. */
     manageableWorkspaces: await listManageableWorkspaces(
       deps.db,

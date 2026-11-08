@@ -70,7 +70,7 @@ describe('upload, diff and review (local-disk storage)', () => {
     expect(d.diffs.find((x) => x.name === 'home')).toMatchObject({ status: 'unchanged' })
   })
 
-  it('rejecting through the UI asks first, then marks the build rejected everywhere', async () => {
+  it('rejecting through the UI asks first, then marks the snapshot and so the build rejected', async () => {
     const { stack, setup } = ctx
     const page = await browser.as(setup.session)
     await page.goto(`${stack.url}/${setup.workspace.slug}/${team.slug}/builds/${buildNumber}`)
@@ -78,7 +78,7 @@ describe('upload, diff and review (local-disk storage)', () => {
 
     const dialog = page
       .locator('[role=dialog], [role=alertdialog]')
-      .filter({ hasText: `Reject build #${buildNumber}?` })
+      .filter({ hasText: 'Reject login?' })
     await dialog.waitFor()
     // Cancelling changes nothing.
     await dialog.getByRole('button', { name: 'Cancel' }).click()
@@ -106,14 +106,14 @@ describe('upload, diff and review (local-disk storage)', () => {
     await expect
       .poll(() => page.getByRole('button', { name: 'Reject', exact: true }).count())
       .toBe(0)
-    await page.getByRole('button', { name: 'Approve all' }).waitFor()
+    await page.getByRole('button', { name: 'Approve', exact: true }).waitFor()
   })
 
   it('approving through the UI changes the decision, and a re-run of the commit is approved at once', async () => {
     const { stack, setup } = ctx
     const page = await browser.as(setup.session)
     await page.goto(`${stack.url}/${setup.workspace.slug}/${team.slug}/builds/${buildNumber}`)
-    await page.getByRole('button', { name: 'Approve all' }).click()
+    await page.getByRole('button', { name: 'Approve', exact: true }).click()
 
     await expect.poll(async () => (await detail()).build.reviewStatus).toBe('approved')
     expect((await detail()).reviews.map((r) => r.state)).toEqual(['approved', 'rejected'])

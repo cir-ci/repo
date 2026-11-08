@@ -5,8 +5,10 @@ import {
   type Database,
   type LoginMethod,
   noteDevice,
+  isSwitchableProvider,
   workspacesForEmailDomain,
   recordSessionMethod,
+  type SessionMethod,
   schema,
 } from '@circi/db'
 import { and, eq } from 'drizzle-orm'
@@ -75,14 +77,18 @@ async function warnAboutNewDevice(
 async function joinByVerifiedDomain(
   db: Database,
   userId: string,
-  options: { requireVerifiedEmail?: boolean } = {},
+  options: { requireVerifiedEmail?: boolean; method?: SessionMethod } = {},
 ): Promise<void> {
   const [user] = await db
     .select({ email: schema.user.email, emailVerified: schema.user.emailVerified })
     .from(schema.user)
     .where(eq(schema.user.id, userId))
   if (!user || (options.requireVerifiedEmail && !user.emailVerified)) return
-  for (const { workspaceId, role } of await workspacesForEmailDomain(db, user.email)) {
+  for (const { workspaceId, role } of await workspacesForEmailDomain(
+    db,
+    user.email,
+    options.method,
+  )) {
     // Written directly, like better-auth's own addMember would; an existing seat is left alone.
     // eslint-disable-next-line no-await-in-loop -- a handful of workspaces at most
     const [existing] = await db
@@ -115,14 +121,19 @@ export function onSessionCreated(options: AuthOptions) {
       scopeWorkspaceId = await providerWorkspace(options.db, context)
       if (!scopeWorkspaceId) method = 'oidc'
     }
-    await recordSessionMethod(options.db, created.id, method, scopeWorkspaceId)
+    const provider = method === 'oidc' ? ssoProviderOf(context) : undefined
+    await recordSessionMethod(options.db, created.id, method, scopeWorkspaceId, provider)
     await warnAboutNewDevice(options, created, method)
     // An emailed code proves the person owns the address, so a verified domain claim may add
     // them to its workspace. (A password or a workspace's own identity provider proves
     // nothing about the address, so they never do.)
     if (method === 'email') await joinByVerifiedDomain(options.db, created.userId)
     if (method === 'oidc' && isTrusted(options.sso, ssoProviderOf(context))) {
-      await joinByVerifiedDomain(options.db, created.userId, { requireVerifiedEmail: true })
+      // A workspace that switched GitHub or Google off is not joined through it.
+      await joinByVerifiedDomain(options.db, created.userId, {
+        requireVerifiedEmail: true,
+        ...(isSwitchableProvider(provider) ? { method: { oidcProvider: provider } } : {}),
+      })
     }
   }
 }

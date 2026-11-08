@@ -1,5 +1,7 @@
 import type { View } from '@circi/api'
 
+import type { Order } from './display-options.ts'
+
 /** The filters of a builds list: the same keys as the API's query and a saved view's JSON. */
 export type BuildFilters = View.Filters
 
@@ -58,18 +60,22 @@ export function toSearch(filters: BuildFilters, before?: number): BuildsSearch {
   return { ...parseFilters({ ...filters }), ...(before ? { before } : {}) }
 }
 
-/** The query string of the builds request (with its leading `?`, or empty). */
-export function toQuery(filters: BuildFilters, before?: number): string {
+/**
+ * The query string of the builds request (with its leading `?`, or empty): the filters, the page
+ * cursor (a build number) and the order, which is left out for the default newest first.
+ */
+export function toQuery(filters: BuildFilters, before?: number, order?: Order): string {
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(toSearch(filters, before)))
     params.set(key, String(value))
+  if (order && order !== 'newest') params.set('order', order)
   const text = params.toString()
   return text ? `?${text}` : ''
 }
 
-/** The query string of the workspace-wide builds request: the filters, and the page cursor (a build id). */
-export function toWorkspaceQuery(filters: BuildFilters, before?: string): string {
-  const params = new URLSearchParams(toQuery(filters))
+/** The query string of the workspace-wide builds request: the filters, the order and the page cursor (a build id). */
+export function toWorkspaceQuery(filters: BuildFilters, before?: string, order?: Order): string {
+  const params = new URLSearchParams(toQuery(filters, undefined, order))
   if (before) params.set('before', before)
   const text = params.toString()
   return text ? `?${text}` : ''

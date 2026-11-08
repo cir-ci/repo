@@ -1,5 +1,11 @@
 import { createBuild, schema } from '@circi/db'
-import { addTestMember, createTestDb, seedTeam, seedUser } from '@circi/testing'
+import {
+  addTestMember,
+  createTestDb,
+  seedTeam,
+  seedUser,
+  seedChangedSnapshots,
+} from '@circi/testing'
 import { and, asc, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -192,6 +198,7 @@ describe('reject reason', () => {
       .update(schema.builds)
       .set({ status: 'complete', conclusion: 'changes_detected' })
       .where(eq(schema.builds.id, build.id))
+    await seedChangedSnapshots(t.db, build.id)
     await reviewBuild(t.db, {
       buildId: build.id,
       userId: owner.id,

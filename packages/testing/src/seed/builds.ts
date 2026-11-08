@@ -12,6 +12,11 @@ export namespace seedBuild {
     reviewStatus?: Build['reviewStatus']
     completedAt?: Date
     createdAt?: Date
+    /**
+     * Names of changed snapshots (diff rows) a build gets, so it has something
+     * to review. Default none.
+     */
+    changedSnapshots?: readonly string[]
   }
 }
 
@@ -22,7 +27,16 @@ export async function seedBuild(
   input: seedBuild.Input = {},
 ): Promise<Build> {
   n += 1
-  const { status, conclusion, reviewStatus, completedAt, createdAt, commitSha, ...rest } = input
+  const {
+    status,
+    conclusion,
+    reviewStatus,
+    completedAt,
+    createdAt,
+    commitSha,
+    changedSnapshots,
+    ...rest
+  } = input
   const build = await createBuild(db, {
     ...rest,
     teamId,
@@ -35,6 +49,9 @@ export async function seedBuild(
     ...(completedAt ? { completedAt } : {}),
     ...(createdAt ? { createdAt } : {}),
   }
+  if (conclusion === 'changes_detected') {
+    await seedChangedSnapshots(db, build.id, changedSnapshots ?? [])
+  }
   if (Object.keys(set).length === 0) return build
   const [updated] = await db
     .update(schema.builds)
@@ -42,4 +59,27 @@ export async function seedBuild(
     .where(eq(schema.builds.id, build.id))
     .returning()
   return updated ?? build
+}
+
+/**
+ * Gives a build changed snapshots (`changed` diff rows) to review, for tests that mark a build
+ * `changes_detected` by hand. Names that already have a row are left as they are.
+ */
+export async function seedChangedSnapshots(
+  db: Database,
+  buildId: string,
+  names: readonly string[] = ['home'],
+): Promise<void> {
+  if (names.length === 0) return
+  await db
+    .insert(schema.screenshotDiffs)
+    .values(
+      names.map((name) => ({
+        buildId,
+        name,
+        status: 'changed' as const,
+        jobStatus: 'done' as const,
+      })),
+    )
+    .onConflictDoNothing()
 }

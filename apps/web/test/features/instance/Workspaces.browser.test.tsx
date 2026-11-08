@@ -42,6 +42,65 @@ describe('the workspaces page', () => {
     await expect.element(page.getByText('Instance admins only')).toBeVisible()
   })
 
+  it('marks a deleted workspace with its days left, and restores it', async () => {
+    let deleted = true
+    const fake = fakeApi({
+      'GET /api/instance/workspaces': () => ({
+        body: {
+          workspaces: [
+            workspace({
+              id: 'w9',
+              name: 'Old Co',
+              slug: 'old-co',
+              ...(deleted ? { deletedAt: '2026-11-01T00:00:00.000Z', daysLeft: 22 } : {}),
+            }),
+          ],
+        },
+      }),
+      'GET /api/instance/settings': { body: settingsFixture() },
+      'POST /api/instance/workspaces/w9/restore': () => {
+        deleted = false
+        return { body: { workspace: workspace({ id: 'w9' }) } }
+      },
+    })
+    await show()
+    await expect.element(page.getByText('Deleted · 22 days left')).toBeVisible()
+    await page.getByRole('button', { name: 'Restore' }).click()
+    await expect.poll(() => fake.of('POST')).toHaveLength(1)
+    await expect.element(page.getByText('Deleted · 22 days left')).not.toBeInTheDocument()
+    await expect.element(page.getByText('Restored the workspace Old Co.')).toBeVisible()
+  })
+
+  it('purges a deleted workspace at once after its address is typed', async () => {
+    const fake = fakeApi({
+      'GET /api/instance/workspaces': {
+        body: {
+          workspaces: [
+            workspace({
+              id: 'w9',
+              name: 'Old Co',
+              slug: 'old-co',
+              deletedAt: '2026-11-01T00:00:00.000Z',
+              daysLeft: 1,
+            }),
+          ],
+        },
+      },
+      'GET /api/instance/settings': { body: settingsFixture() },
+      'POST /api/instance/workspaces/w9/purge': { status: 204 },
+    })
+    await show()
+    await expect.element(page.getByText('Deleted · 1 day left')).toBeVisible()
+    await page.getByRole('button', { name: 'Delete permanently now' }).click()
+    const confirm = page
+      .getByRole('alertdialog')
+      .getByRole('button', { name: 'Delete permanently' })
+    await expect.element(confirm).toBeDisabled()
+    await page.getByRole('alertdialog').getByRole('textbox').fill('old-co')
+    await confirm.click()
+    await expect.poll(() => fake.of('POST')).toHaveLength(1)
+  })
+
   it('says so to someone who is not an instance admin', async () => {
     fakeApi({ 'GET /api/instance/workspaces': { status: 403, body: { error: 'Forbidden' } } })
     await show()

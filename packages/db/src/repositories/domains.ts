@@ -8,6 +8,8 @@ import { workspaceDomains } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { ConflictError, isUniqueViolation, NotFoundError } from '#src/errors.ts'
 
+import { workspaceAccepts, type SessionMethod } from './auth-settings.ts'
+
 /** Email domains a workspace claims, and the DNS proof that makes a claim count (PLAN §7.8). */
 
 export type WorkspaceDomain = typeof workspaceDomains.$inferSelect
@@ -108,16 +110,26 @@ export async function verifyWorkspaceDomain(
   return true
 }
 
-/** Workspaces whose *verified* domain list contains the address's domain. */
+/**
+ * Workspaces whose *verified* domain list contains the address's domain, not deleted, and (with
+ * `method`) whose sign-in switches accept how the person signed in.
+ */
 export async function workspacesForEmailDomain(
   db: Database,
   email: string,
+  method?: SessionMethod,
 ): Promise<{ workspaceId: string; role: 'member' }[]> {
   const domain = email.trim().toLowerCase().split('@')[1]
   if (!domain) return []
   const rows = await db
     .select({ workspaceId: workspaceDomains.workspaceId })
     .from(workspaceDomains)
-    .where(and(eq(workspaceDomains.domain, domain), isNotNull(workspaceDomains.verifiedAt)))
+    .where(
+      and(
+        eq(workspaceDomains.domain, domain),
+        isNotNull(workspaceDomains.verifiedAt),
+        workspaceAccepts(workspaceDomains.workspaceId, method),
+      ),
+    )
   return rows.map((r) => ({ workspaceId: r.workspaceId, role: 'member' as const }))
 }

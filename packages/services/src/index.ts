@@ -55,10 +55,18 @@ export {
   requestReviews,
   reviewBuild,
   reviewBuilds,
+  reviewSnapshots,
   snoozeReviewRequest,
   unsnoozeReviewRequest,
 } from './reviews.ts'
 export { updateTeamAppearance } from './teams.ts'
+export {
+  deleteWorkspace,
+  purgeDueWorkspaces,
+  purgeWorkspace,
+  restoreWorkspace,
+  WorkspaceDeleteForbiddenError,
+} from './workspaces.ts'
 export {
   assignTriage,
   createIgnoreRegion,

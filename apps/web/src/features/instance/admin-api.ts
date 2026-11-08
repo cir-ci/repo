@@ -24,6 +24,8 @@ export interface AccountDraft {
   instanceAdmin: boolean
   /** Empty: CirCI generates one and shows it once. */
   password: string
+  /** `password`: a password is shown once. `code`: no password; a sign-in code is mailed. */
+  delivery: 'password' | 'code'
 }
 
 export const emptyAccountDraft = (): AccountDraft => ({
@@ -31,6 +33,7 @@ export const emptyAccountDraft = (): AccountDraft => ({
   email: '',
   instanceAdmin: false,
   password: '',
+  delivery: 'password',
 })
 
 /** What is wrong with each field of an account, by field; empty when it can be created. */
@@ -38,7 +41,11 @@ export function accountProblems(draft: AccountDraft): Partial<Record<keyof Accou
   const problems: Partial<Record<keyof AccountDraft, string>> = {}
   if (!draft.name.trim()) problems.name = 'Enter a name'
   if (!EMAIL.test(draft.email.trim())) problems.email = 'Enter a valid email address'
-  if (draft.password && draft.password.length < MIN_PASSWORD_LENGTH)
+  if (
+    draft.delivery === 'password' &&
+    draft.password &&
+    draft.password.length < MIN_PASSWORD_LENGTH
+  )
     problems.password = `Use at least ${MIN_PASSWORD_LENGTH} characters, or leave it empty`
   return problems
 }
@@ -48,7 +55,11 @@ export const accountBody = (draft: AccountDraft) => ({
   name: draft.name.trim(),
   email: draft.email.trim(),
   ...(draft.instanceAdmin ? { instanceAdmin: true } : {}),
-  ...(draft.password ? { password: draft.password } : {}),
+  ...(draft.delivery === 'code'
+    ? { signInCode: true }
+    : draft.password
+      ? { password: draft.password }
+      : {}),
 })
 
 /** What a person fills in to ban an account; `days` empty is permanent. */
@@ -352,6 +363,40 @@ export function useCreateWorkspace() {
         '/api/instance/workspaces',
         workspaceBody(draft),
       ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['instance-workspaces'] }),
+  })
+}
+
+/** What a deleted workspace's row says: it is purged when the days run out. */
+export function deletedLabel(daysLeft: number | null): string {
+  if (daysLeft === null) return ''
+  if (daysLeft <= 0) return 'Deleted · being purged'
+  return `Deleted · ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} left`
+}
+
+/** Brings a deleted workspace back with everything in it. */
+export function useRestoreWorkspace() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) =>
+      post<{ workspace: InstanceAdmin.Workspace }>(
+        `/api/instance/workspaces/${seg(id)}/restore`,
+        {},
+      ),
+    onSuccess: () =>
+      Promise.all(
+        [['instance-workspaces'], ['teams'], ['sidebar'], ['capabilities']].map((queryKey) =>
+          queryClient.invalidateQueries({ queryKey }),
+        ),
+      ),
+  })
+}
+
+/** "Delete permanently now": only for a workspace that was already deleted. */
+export function usePurgeWorkspace() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => post<void>(`/api/instance/workspaces/${seg(id)}/purge`, {}),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['instance-workspaces'] }),
   })
 }

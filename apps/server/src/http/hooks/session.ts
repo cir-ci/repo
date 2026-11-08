@@ -1,6 +1,14 @@
 import { type Auth, fromNodeHeaders } from '@circi/auth'
-import { type Database, getSessionMethod } from '@circi/db'
-import type { FastifyRequest, onRequestAsyncHookHandler } from 'fastify'
+import {
+  type Database,
+  getMemberRole,
+  getSessionMethod,
+  isInstanceAdmin,
+  providerRefusal,
+  schema,
+} from '@circi/db'
+import { eq } from 'drizzle-orm'
+import type { FastifyRequest, onRequestAsyncHookHandler, preHandlerAsyncHookHandler } from 'fastify'
 
 /**
  * Dashboard authentication: the better-auth session cookie. A valid session puts the user on
@@ -11,7 +19,15 @@ export function requireSession(auth: Auth, db: Database): onRequestAsyncHookHand
     const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) })
     if (!session) return reply.code(401).send({ error: 'Sign in to continue' })
     // Workspaces may refuse some login methods, so the session's method travels with it.
-    const method = (await getSessionMethod(db, session.session.id)) ?? 'unknown'
+    let method = (await getSessionMethod(db, session.session.id)) ?? 'unknown'
+    // Instance admins are never locked out by a workspace's GitHub or Google switch.
+    if (
+      typeof method === 'object' &&
+      'oidcProvider' in method &&
+      (await isInstanceAdmin(db, session.user.id))
+    ) {
+      method = 'oidc'
+    }
     req.user = {
       id: session.user.id,
       email: session.user.email,
@@ -27,4 +43,32 @@ export function requireSession(auth: Auth, db: Database): onRequestAsyncHookHand
 export function currentUser(req: FastifyRequest): NonNullable<FastifyRequest['user']> {
   if (!req.user) throw new Error('unauthenticated request reached a handler')
   return req.user
+}
+
+/**
+ * A member whose session signed in through GitHub or Google gets 403, with the reason, on the
+ * routes of a workspace that switched that provider off. (Lists that span workspaces, such as
+ * the sidebar, simply leave such a workspace out: see `workspaceAccepts`.) Add it after
+ * `requireSession`.
+ */
+export function refuseBlockedProvider(db: Database): preHandlerAsyncHookHandler {
+  return async (req, reply) => {
+    const { user } = req
+    const params: unknown = req.params
+    const slug =
+      typeof params === 'object' && params !== null ? Reflect.get(params, 'workspace') : undefined
+    if (!user || typeof slug !== 'string') return undefined
+    if (typeof user.method !== 'object' || !('oidcProvider' in user.method)) return undefined
+    const [found] = await db
+      .select({ id: schema.workspace.id })
+      .from(schema.workspace)
+      .where(eq(schema.workspace.slug, slug))
+    if (!found) return undefined
+    // Anyone who is not a member just gets the route's own "not found".
+    if ((await getMemberRole(db, { userId: user.id, workspaceId: found.id })) === undefined) {
+      return undefined
+    }
+    const message = await providerRefusal(db, { workspaceId: found.id, method: user.method })
+    return message ? reply.code(403).send({ error: message }) : undefined
+  }
 }

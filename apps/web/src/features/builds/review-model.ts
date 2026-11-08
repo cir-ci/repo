@@ -1,6 +1,6 @@
-import type { Build } from '@circi/api'
+import type { Build, ReviewStatus } from '@circi/api'
 
-import type { ShotKind } from './diff-status.ts'
+import { shotDecision, type ShotKind } from './diff-status.ts'
 
 /**
  * Review order (docs/design-gaps.md §7): what needs a decision first, then what doesn't. Only
@@ -82,3 +82,23 @@ export function changeSummary(diff: Pick<Build.DiffItem, 'score' | 'sizeChanged'
 /** A finished build with changes is the only kind that can be approved or rejected. */
 export const isReviewable = (build: Pick<Build.ListItem, 'status' | 'conclusion'>): boolean =>
   build.status === 'complete' && build.conclusion === 'changes_detected'
+
+/** A snapshot that differs from the baseline needs a decision; an unchanged one needs none. */
+export const needsDecision = (diff: Pick<Build.DiffItem, 'status'>): boolean =>
+  diff.status !== null && diff.status !== 'unchanged'
+
+/** How many of the snapshots that need a decision have one ("2 of 5 reviewed"). */
+export function reviewProgress(
+  diffs: readonly Build.DiffItem[],
+  build: ReviewStatus,
+): { reviewed: number; total: number } {
+  const needing = diffs.filter(needsDecision)
+  return {
+    total: needing.length,
+    reviewed: needing.filter((d) => shotDecision(d, build) !== 'pending').length,
+  }
+}
+
+/** The names of the snapshots that still wait for a decision: what Approve all decides. */
+export const undecidedNames = (diffs: readonly Build.DiffItem[], build: ReviewStatus): string[] =>
+  diffs.filter((d) => needsDecision(d) && shotDecision(d, build) === 'pending').map((d) => d.name)

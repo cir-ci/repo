@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 
 import { requireSameOrigin } from '#http/hooks/same-origin.ts'
-import { requireSession } from '#http/hooks/session.ts'
+import { refuseBlockedProvider, requireSession } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
 import { jsonErrorHandler } from '#http/lib/errors.ts'
 import { authRoutes } from '#http/routes/auth.ts'
@@ -90,6 +90,7 @@ export const dashboardRoutes: FastifyPluginAsync<Deps.Dashboard> = async (dash, 
 const sessionApi: FastifyPluginAsync<Deps.Dashboard> = async (api, deps) => {
   api.addHook('onRequest', requireSameOrigin(deps.publicOrigin))
   api.addHook('onRequest', requireSession(deps.auth, deps.db))
+  api.addHook('preHandler', refuseBlockedProvider(deps.db))
   await api.register(dashboardTeamRoutes, deps)
   await api.register(dashboardSettingsRoutes, deps)
   await api.register(dashboardWorkspaceRoutes, deps)

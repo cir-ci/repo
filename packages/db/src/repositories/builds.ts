@@ -1,5 +1,5 @@
 import { checkBuildInput, MAX_PARALLEL_SHARDS, resolveBaseline, ValidationError } from '@circi/core'
-import { and, desc, eq, inArray, lt, ne, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull, lt, ne, sql } from 'drizzle-orm'
 
 import {
   type BaselineSource,
@@ -9,6 +9,7 @@ import {
   files,
   teams,
   reviews,
+  snapshotReviews,
   screenshotDiffs,
   screenshots,
   uploadClaims,
@@ -16,6 +17,8 @@ import {
 import type { Database } from '#src/client.ts'
 import { ConflictError, isUniqueViolation, NotFoundError } from '#src/errors.ts'
 import type { Build } from '#src/types.ts'
+
+import { approveChangedSnapshots, supersedeSnapshotReviews } from './reviews.ts'
 
 /** Build lifecycle: create (or join a parallel build), finalize shards, baseline, finish. */
 
@@ -359,11 +362,21 @@ export namespace getBuildCounts {
   }
 }
 
-/** Possible baselines: same team and name, finished, not the build itself. */
+/** A possible baseline, with the snapshots it has current decisions on. */
+export type BaselineCandidate = Build & {
+  approvedSnapshots: string[]
+  rejectedSnapshots: string[]
+}
+
+/**
+ * Possible baselines: same team and name, finished, not the build itself. Each carries the
+ * names of its approved and rejected snapshots, so one approved snapshot of a build still
+ * waiting on review can be a baseline (`resolveBaseline` in `@circi/core`).
+ */
 export async function listBaselineCandidates(
   db: Database,
   build: Pick<Build, 'teamId' | 'name' | 'ancestorShas'> & { id?: string },
-): Promise<Build[]> {
+): Promise<BaselineCandidate[]> {
   const conditions = [
     eq(builds.teamId, build.teamId),
     eq(builds.name, build.name),
@@ -393,7 +406,36 @@ export async function listBaselineCandidates(
     .limit(50)
   const seen = new Map<string, Build>()
   for (const b of [...byAncestry, ...recentDefault]) seen.set(b.id, b)
-  return [...seen.values()]
+  const candidates = [...seen.values()]
+  const decisions =
+    candidates.length === 0
+      ? []
+      : await db
+          .select({
+            buildId: snapshotReviews.buildId,
+            name: snapshotReviews.snapshotName,
+            decision: snapshotReviews.decision,
+          })
+          .from(snapshotReviews)
+          .where(
+            and(
+              inArray(
+                snapshotReviews.buildId,
+                candidates.map((c) => c.id),
+              ),
+              isNull(snapshotReviews.supersededAt),
+            ),
+          )
+  return candidates.map((c) =>
+    Object.assign(c, {
+      approvedSnapshots: decisions
+        .filter((d) => d.buildId === c.id && d.decision === 'approved')
+        .map((d) => d.name),
+      rejectedSnapshots: decisions
+        .filter((d) => d.buildId === c.id && d.decision === 'rejected')
+        .map((d) => d.name),
+    }),
+  )
 }
 
 export async function setBuildBaseline(
@@ -438,6 +480,7 @@ export async function setBuildResult(
         state: 'approved',
         source: result.approval === 'rerun' ? 'rerun' : 'auto',
       })
+      await approveChangedSnapshots(tx, build.id, result.approval === 'rerun' ? 'rerun' : 'auto')
     }
     const [done] = await tx.select().from(builds).where(eq(builds.id, build.id))
     if (!done) throw new NotFoundError('Build not found')
@@ -522,6 +565,7 @@ export async function resetBuild(db: Database, buildId: string): Promise<Build> 
     .where(and(eq(builds.id, buildId), inArray(builds.status, ['complete', 'error'])))
     .returning()
   if (!updated) throw new NotFoundError('Build not found, or still processing')
+  await supersedeSnapshotReviews(db, buildId)
   return updated
 }
 

@@ -1,12 +1,7 @@
 import type { Build } from '@circi/api'
 import { describe, expect, it } from 'vitest'
 
-import {
-  DEFAULT_DISPLAY,
-  groupBuilds,
-  orderBuilds,
-  parseDisplay,
-} from '#features/teams/display-options.ts'
+import { DEFAULT_DISPLAY, groupBuilds, parseDisplay } from '#features/teams/display-options.ts'
 
 const item = (number: number, branch: string | null = 'main'): Build.ListItem => ({
   id: `b${number}`,
@@ -37,12 +32,6 @@ describe('display options', () => {
     expect(options.groupBy).toBe('branch')
     expect(options.order).toBe('newest')
     expect(options.show).toEqual({ ...DEFAULT_DISPLAY.show, counts: false })
-  })
-
-  it('orders by build number', () => {
-    const builds = [item(2), item(5), item(3)]
-    expect(orderBuilds(builds, 'newest').map((b) => b.number)).toEqual([5, 3, 2])
-    expect(orderBuilds(builds, 'oldest').map((b) => b.number)).toEqual([2, 3, 5])
   })
 
   it('groups in order of first appearance', () => {

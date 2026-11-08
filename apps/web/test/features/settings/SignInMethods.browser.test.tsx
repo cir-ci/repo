@@ -8,8 +8,13 @@ import { renderPage } from '#test/support/render.tsx'
 const PATH = '/api/workspaces/acme/auth'
 const auth = (over: { password?: boolean; email?: boolean; instance?: object } = {}) => ({
   canManage: true,
-  settings: { passwordLoginEnabled: over.password ?? true, emailLoginEnabled: over.email ?? false },
-  instance: { password: true, email: true, ...over.instance },
+  settings: {
+    passwordLoginEnabled: over.password ?? true,
+    emailLoginEnabled: over.email ?? false,
+    signinGithub: true,
+    signinGoogle: false,
+  },
+  instance: { password: true, email: true, github: false, google: false, ...over.instance },
 })
 
 afterEach(() => restoreFetch())
@@ -29,6 +34,35 @@ describe('SignInMethods', () => {
     await expect.element(page.getByRole('heading', { name: 'Sign-in methods' })).toBeVisible()
     await expect.element(page.getByRole('switch', { name: /^Password/ })).toBeChecked()
     await expect.element(page.getByRole('switch', { name: /^Email code/ })).not.toBeChecked()
+  })
+
+  it('shows the GitHub and Google switches only for providers the instance has', async () => {
+    await page.viewport(1000, 800)
+    fakeFetch({ [`GET ${PATH}`]: auth({ instance: { github: true } }) })
+    await renderPage(<SignInMethods workspace="acme" />)
+    await expect.element(page.getByRole('switch', { name: /^GitHub/ })).toBeChecked()
+    expect(page.getByRole('switch', { name: /^Google/ }).elements()).toHaveLength(0)
+  })
+
+  it('saves a provider switch as it flips, with only that field', async () => {
+    await page.viewport(1000, 800)
+    const calls = fakeFetch({
+      [`GET ${PATH}`]: auth({ instance: { github: true, google: true } }),
+      [`PATCH ${PATH}`]: { settings: {} },
+    })
+    await renderPage(<SignInMethods workspace="acme" />)
+    await page.getByRole('switch', { name: /^GitHub/ }).click()
+    await expect
+      .poll(() => calls.find((c) => c.method === 'PATCH')?.body)
+      .toEqual({
+        signinGithub: false,
+      })
+    await page.getByRole('switch', { name: /^Google/ }).click()
+    await expect
+      .poll(() => calls.findLast((c) => c.method === 'PATCH')?.body)
+      .toEqual({
+        signinGoogle: true,
+      })
   })
 
   it('disables a method the instance does not offer, and says so', async () => {

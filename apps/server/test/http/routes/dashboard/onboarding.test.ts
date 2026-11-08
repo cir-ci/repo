@@ -96,6 +96,7 @@ describe('first-run setup', () => {
       canCreateWorkspace: true,
       instanceAdmin: true,
       refusingWorkspaces: [],
+      mailConfigured: false,
       manageableWorkspaces: [{ slug: 'acme-inc', name: 'Acme Inc' }],
     })
 
@@ -147,6 +148,7 @@ describe('creating workspaces and teams', () => {
       instanceAdmin: false,
       manageableWorkspaces: [],
       refusingWorkspaces: [],
+      mailConfigured: false,
     })
     await app.close()
   })

@@ -14,6 +14,7 @@ import {
 import type { Database } from '#src/client.ts'
 import type { Build } from '#src/types.ts'
 
+import { workspaceIsLive } from './auth-settings.ts'
 import { enqueueJob } from './jobs.ts'
 
 /**
@@ -366,6 +367,8 @@ export async function findGitTeams(
         eq(integrations.kind, kind),
         matches,
         sql`lower(${integrationTeams.externalRef}) = ${repoRef.toLowerCase()}`,
+        // A deleted workspace's teams hear nothing from the host.
+        workspaceIsLive(teams.workspaceId),
       ),
     )
 }

@@ -1,4 +1,11 @@
-import { getSessionMethod, workspaceAcceptsSession, schema, takeEmailCodeSlot } from '@circi/db'
+import {
+  getSessionMethod,
+  isInstanceAdmin,
+  providerRefusal,
+  workspaceAcceptsSession,
+  schema,
+  takeEmailCodeSlot,
+} from '@circi/db'
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
 import { eq } from 'drizzle-orm'
 
@@ -19,7 +26,10 @@ function workspaceRef(source: unknown): { id?: string; slug?: string } | undefin
  *
  * - sign-in code requests are limited per address, on top of better-auth's per-IP limit;
  * - better-auth's own organization endpoints (CirCI's workspaces: members, invitations) obey a workspace's
- *   login-method rules like the rest of the dashboard: a refused session gets "not found".
+ *   login-method rules like the rest of the dashboard: a refused session gets "not found", and
+ *   one that signed in with a GitHub or Google the workspace switched off gets 403 with the
+ *   reason (instance admins are never refused that way). Accepting an invitation counts too,
+ *   so nobody joins a workspace through a method it does not allow.
  */
 export function requestGuard(options: Pick<AuthOptions, 'db'>) {
   return createAuthMiddleware(async (ctx) => {
@@ -34,7 +44,17 @@ export function requestGuard(options: Pick<AuthOptions, 'db'>) {
       return
     }
     if (!ctx.path.startsWith('/organization/')) return
-    const ref = workspaceRef(ctx.body) ?? workspaceRef(ctx.query)
+    let ref = workspaceRef(ctx.body) ?? workspaceRef(ctx.query)
+    if (!ref && ctx.path === '/organization/accept-invitation') {
+      const invitationId: unknown = ctx.body?.invitationId
+      if (typeof invitationId === 'string') {
+        const [invitation] = await options.db
+          .select({ workspaceId: schema.invitation.workspaceId })
+          .from(schema.invitation)
+          .where(eq(schema.invitation.id, invitationId))
+        if (invitation) ref = { id: invitation.workspaceId }
+      }
+    }
     if (!ref) return
     const session = await getSessionFromCtx(ctx)
     if (!session) return
@@ -44,6 +64,10 @@ export function requestGuard(options: Pick<AuthOptions, 'db'>) {
       .where(ref.id ? eq(schema.workspace.id, ref.id) : eq(schema.workspace.slug, ref.slug ?? ''))
     if (!workspace) return
     const method = (await getSessionMethod(options.db, session.session.id)) ?? 'unknown'
+    if (!(await isInstanceAdmin(options.db, session.user.id))) {
+      const refusal = await providerRefusal(options.db, { workspaceId: workspace.id, method })
+      if (refusal) throw new APIError('FORBIDDEN', { message: refusal })
+    }
     if (!(await workspaceAcceptsSession(options.db, workspace.id, method))) {
       throw new APIError('NOT_FOUND', { message: 'Workspace not found' })
     }

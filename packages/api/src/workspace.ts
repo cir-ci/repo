@@ -5,13 +5,21 @@ export namespace Workspace {
     instanceAdmin: boolean
     manageableWorkspaces: { slug: string; name: string }[]
     /** Workspaces that won't show their content to the way this session signed in. */
-    refusingWorkspaces: { name: string; accepts: ('password' | 'email')[] }[]
+    refusingWorkspaces: { name: string; accepts: ('password' | 'email' | 'github' | 'google')[] }[]
+    /** The instance can send mail (SMTP is set up): email notifications and sign-in codes work. */
+    mailConfigured: boolean
   }
 
   export interface Auth {
     canManage: boolean
-    settings: { emailLoginEnabled: boolean; passwordLoginEnabled: boolean }
-    instance: { password: boolean; email: boolean }
+    settings: {
+      emailLoginEnabled: boolean
+      passwordLoginEnabled: boolean
+      signinGithub: boolean
+      signinGoogle: boolean
+    }
+    /** What the instance offers; a provider that is not set up gets no switch. */
+    instance: { password: boolean; email: boolean; github: boolean; google: boolean }
   }
 
   /** A workspace's defaults for its teams. */
@@ -25,8 +33,16 @@ export namespace Workspace {
   /** `GET /api/workspaces/:workspace`: what the General page shows. */
   export interface General {
     canManage: boolean
+    /** Owners may delete the workspace. */
+    isOwner: boolean
     name: string
     slug: string
+  }
+
+  /** `DELETE /api/workspaces/:workspace` (owners; body `{ confirm: <the workspace's name> }`). */
+  export interface Deleted {
+    /** When the workspace will be purged for good. */
+    purgeAt: string
   }
 
   export interface SettingsResponse {

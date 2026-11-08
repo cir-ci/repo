@@ -5,7 +5,7 @@ import type { Database } from '#src/client.ts'
 import { NotFoundError } from '#src/errors.ts'
 import type { Workspace } from '#src/types.ts'
 
-import { workspaceAccepts, type SessionMethod } from './auth-settings.ts'
+import { workspaceAccepts, workspaceIsLive, type SessionMethod } from './auth-settings.ts'
 
 /**
  * Read access to workspaces and memberships. They're owned by better-auth's organization
@@ -27,7 +27,7 @@ export async function listUserWorkspaceIds(db: Database, userId: string): Promis
   const rows = await db
     .select({ id: member.workspaceId })
     .from(member)
-    .where(eq(member.userId, userId))
+    .where(and(eq(member.userId, userId), workspaceIsLive(member.workspaceId)))
   return rows.map((r) => r.id)
 }
 

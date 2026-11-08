@@ -103,3 +103,54 @@ describe('reviewing a build', () => {
     expect(res.json().error).toMatch(/no changes to review/)
   })
 })
+
+const decide = (
+  payload: object,
+  options: { cookie?: string; workspace?: string; build?: number } = {},
+) =>
+  fx.app.inject({
+    method: 'POST',
+    url: `/api/teams/${options.workspace ?? acme.workspaceSlug}/web/builds/${options.build ?? 2}/snapshots/review`,
+    headers: {
+      'content-type': 'application/json',
+      cookie: options.cookie ?? acmeCookie,
+    },
+    payload,
+  })
+const homeReview = async () =>
+  (await buildDetail(acmeCookie)).json().diffs.find((d: { name: string }) => d.name === 'home')
+    .review
+
+describe('reviewing snapshots', () => {
+  it('decides one snapshot, shows who and why, and derives the build status', async () => {
+    const rejected = await decide({
+      snapshotNames: ['home'],
+      decision: 'rejected',
+      reason: 'wrong red',
+    })
+    expect(rejected.statusCode).toBe(200)
+    expect(rejected.json().build).toMatchObject({ number: 2, reviewStatus: 'rejected' })
+    expect(await homeReview()).toMatchObject({
+      decision: 'rejected',
+      reason: 'wrong red',
+      reviewer: { name: expect.stringMatching(/^Owner \d+$/) },
+      at: expect.any(String),
+    })
+
+    const approved = await decide({ snapshotNames: ['home'], decision: 'approved' })
+    expect(approved.json().build.reviewStatus).toBe('approved')
+    expect(await homeReview()).toMatchObject({ decision: 'approved', reason: null })
+  })
+
+  it('answers a stranger like a missing build, and refuses a snapshot that did not change', async () => {
+    const body = { snapshotNames: ['home'], decision: 'rejected' }
+    const theirs = await decide(body, { cookie: rivalCookie })
+    const missing = await decide(body, { cookie: rivalCookie, build: 99 })
+    expect([theirs.statusCode, missing.statusCode]).toEqual([404, 404])
+    expect(await homeReview()).toMatchObject({ decision: 'approved' })
+
+    const unchanged = await decide({ snapshotNames: ['about'], decision: 'approved' })
+    expect(unchanged.statusCode).toBe(409)
+    expect((await decide({ snapshotNames: [], decision: 'approved' })).statusCode).toBe(400)
+  })
+})

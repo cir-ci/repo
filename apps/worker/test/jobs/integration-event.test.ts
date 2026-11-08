@@ -14,7 +14,14 @@ import {
 import type { IntegrationDefinition } from '@circi/integrations'
 import { notifyOverdueReviews, requestReview, reviewBuild } from '@circi/services'
 import { FsStorage } from '@circi/storage'
-import { addTestMember, createTestDb, seedTeam, seedReviewRequest, seedUser } from '@circi/testing'
+import {
+  addTestMember,
+  createTestDb,
+  seedTeam,
+  seedReviewRequest,
+  seedUser,
+  seedChangedSnapshots,
+} from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -48,6 +55,7 @@ async function setup(options: { events?: string[]; mapped?: boolean } = {}) {
     .update(schema.builds)
     .set({ status: 'complete', conclusion: 'changes_detected' })
     .where(eq(schema.builds.id, build.id))
+  await seedChangedSnapshots(t.db, build.id)
   const integration = await createIntegration(t.db, {
     workspaceId: workspace.id,
     kind: 'slack',

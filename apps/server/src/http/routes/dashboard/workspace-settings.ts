@@ -1,5 +1,6 @@
 import type { Storage, Workspace } from '@circi/api'
 import { updateWorkspace } from '@circi/auth'
+import { ValidationError, workspacePurgeAt } from '@circi/core'
 import {
   getMemberRole,
   getWorkspaceStorage,
@@ -9,6 +10,7 @@ import {
   workspaceAcceptsSession,
   setWorkspaceSettings,
 } from '@circi/db'
+import { deleteWorkspace } from '@circi/services'
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
@@ -21,6 +23,7 @@ const body = z
   .object({ flakyBlocksMerge: z.boolean(), retentionDays: z.number() })
   .partial()
   .strict()
+const deleteBody = z.object({ confirm: z.string().max(200) }).strict()
 const generalBody = z
   .object({ name: z.string().max(100), slug: z.string().max(100) })
   .partial()
@@ -53,7 +56,7 @@ export const dashboardWorkspaceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard
       await reply.code(404).send({ error: 'Workspace not found' })
       return undefined
     }
-    return { workspace, canManage: role === 'owner' || role === 'admin' }
+    return { workspace, role, canManage: role === 'owner' || role === 'admin' }
   }
 
   const MANAGE = 'Only owners and admins can change workspace settings'
@@ -63,6 +66,7 @@ export const dashboardWorkspaceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard
     if (!found) return reply
     return {
       canManage: found.canManage,
+      isOwner: found.role === 'owner',
       name: found.workspace.name,
       slug: found.workspace.slug,
     }
@@ -90,6 +94,27 @@ export const dashboardWorkspaceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard
       canManage: found.canManage,
       ...(await getWorkspaceStorage(deps.db, found.workspace.id)),
     }
+  })
+
+  /**
+   * Deletes the workspace (owners only), with its name typed as the confirmation. It disappears
+   * at once, for everyone, and is purged after 30 days unless an instance admin restores it.
+   */
+  app.delete('/workspaces/:workspace', async (req, reply): Promise<Workspace.Deleted | void> => {
+    const found = await load(req, reply)
+    if (!found) return reply
+    if (found.role !== 'owner') {
+      return reply.code(403).send({ error: 'Only an owner can delete the workspace' })
+    }
+    const { confirm } = parse(deleteBody, req.body)
+    if (confirm.trim() !== found.workspace.name) {
+      throw new ValidationError('Type the workspace’s name to confirm')
+    }
+    const { deletedAt } = await deleteWorkspace(deps.db, {
+      workspaceId: found.workspace.id,
+      userId: currentUser(req).id,
+    })
+    return { purgeAt: workspacePurgeAt(deletedAt).toISOString() }
   })
 
   app.get('/workspaces/:workspace/settings', async (req, reply) => {

@@ -1,5 +1,5 @@
 import { resolveBaseline } from '@circi/core'
-import { createTestDb, seedTeam, seedUser } from '@circi/testing'
+import { createTestDb, seedChangedSnapshots, seedTeam, seedUser } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -8,8 +8,10 @@ import {
   createBuild,
   listBaselineCandidates,
   listBuildReviews,
+  listSnapshotReviews,
   NotFoundError,
   recordReview,
+  recordSnapshotReviews,
   schema,
 } from '#src/index.ts'
 
@@ -23,7 +25,10 @@ afterAll(async () => {
 })
 
 /** A build as the worker leaves it: complete, with changes, waiting for a decision. */
-async function buildWithChanges(overrides: Partial<typeof schema.builds.$inferInsert> = {}) {
+async function buildWithChanges(
+  overrides: Partial<typeof schema.builds.$inferInsert> = {},
+  snapshots = ['home'],
+) {
   const { team, owner } = await seedTeam(t.db)
   const build = await createBuild(t.db, {
     teamId: team.id,
@@ -34,6 +39,7 @@ async function buildWithChanges(overrides: Partial<typeof schema.builds.$inferIn
     .update(schema.builds)
     .set({ status: 'complete', conclusion: 'changes_detected', ...overrides })
     .where(eq(schema.builds.id, build.id))
+  await seedChangedSnapshots(t.db, build.id, snapshots)
   return { team, owner, buildId: build.id }
 }
 
@@ -106,6 +112,79 @@ describe('recordReview', () => {
     expect(await listBuildReviews(t.db, buildId)).toMatchObject([
       { state: 'rejected', userName: null },
     ])
+  })
+})
+
+const decide = (
+  buildId: string,
+  userId: string,
+  decision: 'approved' | 'rejected',
+  snapshotNames: recordSnapshotReviews.Input['snapshotNames'],
+  reason?: string,
+) =>
+  recordSnapshotReviews(t.db, {
+    buildId,
+    userId,
+    decision,
+    snapshotNames,
+    ...(reason ? { reason } : {}),
+  })
+
+describe('recordSnapshotReviews', () => {
+  it('derives the build status: pending until every changed snapshot is approved', async () => {
+    const { owner, buildId } = await buildWithChanges({}, ['a', 'b'])
+    const first = await decide(buildId, owner.id, 'approved', ['a'])
+    expect(first).toMatchObject({
+      changed: false,
+      decided: ['a'],
+      build: { reviewStatus: 'pending' },
+    })
+    const second = await decide(buildId, owner.id, 'approved', ['b'])
+    expect(second).toMatchObject({ changed: true, build: { reviewStatus: 'approved' } })
+    expect(await listBuildReviews(t.db, buildId)).toHaveLength(1)
+  })
+
+  it('rejects the build on any rejection, and approves again once that snapshot is approved', async () => {
+    const { owner, buildId } = await buildWithChanges({}, ['a', 'b'])
+    await decide(buildId, owner.id, 'approved', ['a'])
+    const rejected = await decide(buildId, owner.id, 'rejected', ['b'], 'too wide')
+    expect(rejected).toMatchObject({
+      changed: true,
+      reasons: ['too wide'],
+      build: { reviewStatus: 'rejected' },
+    })
+    const fixed = await decide(buildId, owner.id, 'approved', ['b'])
+    expect(fixed).toMatchObject({
+      changed: true,
+      previousStatus: 'rejected',
+      build: { reviewStatus: 'approved' },
+    })
+    // The rejection stays in the timeline; only the latest decision is current.
+    const rows = await t.db
+      .select()
+      .from(schema.snapshotReviews)
+      .where(eq(schema.snapshotReviews.buildId, buildId))
+    expect(rows).toHaveLength(3)
+    expect((await listSnapshotReviews(t.db, buildId)).map((r) => [r.name, r.decision])).toEqual([
+      ['a', 'approved'],
+      ['b', 'approved'],
+    ])
+  })
+
+  it('approves every undecided snapshot and is idempotent, leaving a rejection alone', async () => {
+    const { owner, buildId } = await buildWithChanges({}, ['a', 'b', 'c'])
+    await decide(buildId, owner.id, 'rejected', ['a'])
+    const some = await decide(buildId, owner.id, 'approved', 'undecided')
+    expect(some).toMatchObject({ decided: ['b', 'c'], build: { reviewStatus: 'rejected' } })
+    const again = await decide(buildId, owner.id, 'approved', 'undecided')
+    expect(again).toMatchObject({ changed: false, decided: [] })
+  })
+
+  it('refuses a snapshot that did not change', async () => {
+    const { owner, buildId } = await buildWithChanges({}, ['a'])
+    await expect(decide(buildId, owner.id, 'approved', ['nope'])).rejects.toBeInstanceOf(
+      ConflictError,
+    )
   })
 })
 

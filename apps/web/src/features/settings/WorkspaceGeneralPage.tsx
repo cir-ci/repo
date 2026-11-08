@@ -8,6 +8,7 @@ import { useDocumentTitle } from '#lib/document-title.ts'
 import { workspaceGeneralQuery, useSaveWorkspaceGeneral } from './api.ts'
 import { Box, BoxRow } from './Box.tsx'
 import { BuildSettings } from './BuildSettings.tsx'
+import { DeleteWorkspaceSection } from './DeleteWorkspaceSection.tsx'
 import { Frame } from './Frame.tsx'
 import { generalDirty, generalPatch, generalProblems } from './model.ts'
 
@@ -43,20 +44,7 @@ export function WorkspaceGeneralPage() {
             canManage={data.canManage}
           />
           <BuildSettings workspace={workspace} />
-          <section className={styles.section} aria-labelledby="danger">
-            <SectionHeader title={<span id="danger">Danger zone</span>} />
-            <Box danger>
-              <BoxRow
-                top
-                title="Delete workspace"
-                help={`Deleting ${data.name} would remove its teams, builds, screenshots and hosted sites, and everyone’s access. CirCI can’t do this from the dashboard yet: ask whoever runs this server.`}
-              >
-                <Button variant="danger" disabled>
-                  Delete workspace
-                </Button>
-              </BoxRow>
-            </Box>
-          </section>
+          <DeleteWorkspaceSection workspace={workspace} name={data.name} isOwner={data.isOwner} />
         </>
       ) : null}
     </Frame>

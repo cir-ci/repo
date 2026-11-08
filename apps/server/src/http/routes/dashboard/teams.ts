@@ -1,4 +1,5 @@
 import type { Snapshot } from '@circi/api'
+import { BUILD_ORDERS } from '@circi/core'
 import {
   findTeamForMember,
   getBuildDetail,
@@ -20,7 +21,9 @@ import { parse } from '#http/lib/validation.ts'
 const teamParams = z.object({ workspace: z.string(), team: z.string() })
 const buildParams = teamParams.extend({ number: z.string() })
 const buildsQuery = z.object({
+  /** The build number the page starts after, in `order`. */
   before: z.string().optional(),
+  order: z.enum(BUILD_ORDERS).default('newest'),
   ...buildFilterShape,
 })
 
@@ -64,6 +67,7 @@ export const dashboardTeamRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
     const builds = await listBuildsForTeam(deps.db, team.id, {
       limit: PAGE_SIZE,
       filters,
+      order: q.order,
       ...(Number.isInteger(before) && before > 0 ? { beforeNumber: before } : {}),
     })
     const attention = await getTeamGitAttention(deps.db, team.id, gitKinds())

@@ -7,10 +7,13 @@ import {
   formatPercent,
   groupShots,
   isReviewable,
+  needsDecision,
   neighbour,
   orderShots,
+  reviewProgress,
   shotBadge,
   shotKind,
+  undecidedNames,
 } from '#features/builds/review-model.ts'
 
 let id = 0
@@ -26,6 +29,7 @@ const diff = (name: string, status: Build.DiffItem['status'], over: Partial<Buil
     head: null,
     base: null,
     diff: null,
+    review: null,
     ...over,
   }) satisfies Build.DiffItem
 
@@ -145,5 +149,36 @@ describe('isReviewable', () => {
     expect(isReviewable({ status: 'complete', conclusion: 'changes_detected' })).toBe(true)
     expect(isReviewable({ status: 'complete', conclusion: 'no_changes' })).toBe(false)
     expect(isReviewable({ status: 'processing', conclusion: null })).toBe(false)
+  })
+})
+
+const decided = (decision: 'approved' | 'rejected') => ({
+  decision,
+  reviewer: null,
+  at: '2026-01-01T00:00:00Z',
+  reason: null,
+})
+
+describe('per-snapshot review', () => {
+  const reviewed = [
+    diff('a', 'changed', { review: decided('approved') }),
+    diff('b', 'added'),
+    diff('c', 'changed', { review: decided('rejected') }),
+    diff('d', 'unchanged'),
+  ]
+
+  it('needs a decision for everything but unchanged and not yet compared snapshots', () => {
+    expect(reviewed.map(needsDecision)).toEqual([true, true, true, false])
+    expect(needsDecision(diff('x', null))).toBe(false)
+  })
+
+  it('counts the decided ones, and lists the undecided', () => {
+    expect(reviewProgress(reviewed, 'pending')).toEqual({ reviewed: 2, total: 3 })
+    expect(undecidedNames(reviewed, 'pending')).toEqual(['b'])
+  })
+
+  it('treats snapshots of an approved build as decided', () => {
+    expect(reviewProgress([diff('a', 'changed')], 'approved')).toEqual({ reviewed: 1, total: 1 })
+    expect(undecidedNames([diff('a', 'changed')], 'approved')).toEqual([])
   })
 })

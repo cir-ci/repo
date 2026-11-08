@@ -67,6 +67,7 @@ describe('migrations', () => {
       'site_hostnames',
       'site_sessions',
       'site_tokens',
+      'snapshot_reviews',
       'sso_provider',
       'static_site_files',
       'static_sites',
@@ -82,6 +83,7 @@ describe('migrations', () => {
       'webhooks',
       'workspace',
       'workspace_auth_settings',
+      'workspace_deletions',
       'workspace_domains',
       'workspace_settings',
     ])

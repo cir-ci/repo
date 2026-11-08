@@ -9,13 +9,7 @@ import styles from './Discussion.module.css'
  * Rejecting holds back the merge, so it asks why: the reason is required, is posted with the
  * review and is shown to the author in the activity. ⌘↵ sends it from the text field.
  */
-export function RejectDialog({
-  open,
-  buildNumber,
-  pending,
-  onCancel,
-  onReject,
-}: RejectDialog.Props) {
+export function RejectDialog({ open, subject, pending, onCancel, onReject }: RejectDialog.Props) {
   const [reason, setReason] = useState('')
   const [touched, setTouched] = useState(false)
   const fieldId = useId()
@@ -43,8 +37,8 @@ export function RejectDialog({
           onCancel()
         }
       }}
-      title={`Reject build #${buildNumber}?`}
-      description="The build is marked rejected and stays that way until someone approves it. Later builds are not compared with it."
+      title={`Reject ${subject}?`}
+      description="The snapshot is marked rejected, which holds back the build’s merge until it is approved. It never becomes a baseline."
       actions={
         <>
           <Button type="button" onClick={onCancel}>
@@ -95,7 +89,8 @@ export function RejectDialog({
 export namespace RejectDialog {
   export interface Props {
     open: boolean
-    buildNumber: number
+    /** What is being rejected: the snapshot's name. */
+    subject: string
     pending: boolean
     onCancel: () => void
     onReject: (reason: string) => void

@@ -1,6 +1,7 @@
 import { reviewDueAt, type SnoozeChoice, snoozeUntil, ValidationError } from '@circi/core'
 import {
   type Build,
+  buildsInDeletedWorkspaces,
   closeReviewRequestsForBuild,
   type Database,
   dismissReviewRequest as dismissRequest,
@@ -14,7 +15,8 @@ import {
   openReviewRequest,
   queueGitNotify,
   queueWebhookEvent,
-  recordReview,
+  type recordReview,
+  recordSnapshotReviews,
   type ReviewRequest,
   setReviewRequestSnooze,
 } from '@circi/db'
@@ -24,59 +26,94 @@ import { queueIntegrationEvent } from './integration-events.ts'
 import { notify } from './notifications.ts'
 
 /**
- * Approves or rejects a build, and tells webhooks and the git host when the decision actually
- * changed something. Deciding the same thing twice is a no-op with no notices. Whoever was asked
- * to review the build no longer needs to: its open review requests close as done, in the same
- * transaction.
+ * Approves or rejects snapshots of a build, in one transaction. A decision is stored per
+ * snapshot and the build's review status is derived from them (all changed snapshots approved:
+ * approved; any rejected: rejected; otherwise still pending). Webhooks, the git host check, the
+ * author's inbox and chat events follow only when that derived status actually moves, exactly
+ * once, in the same transaction (the outbox). Deciding what was already decided is a no-op.
+ * Whoever was asked to review the build no longer needs to once it is decided: its open review
+ * requests close as done.
  */
-export async function reviewBuild(db: Database, input: reviewBuild.Input): Promise<Build> {
+export async function reviewSnapshots(db: Database, input: reviewSnapshots.Input): Promise<Build> {
   return db.transaction(async (tx) => {
-    const { reason, ...decision } = input
-    const { build, changed, reviewerName } = await recordReview(tx, {
+    const { reason, userId, ...decision } = input
+    const { build, changed, reasons, reviewerName } = await recordSnapshotReviews(tx, {
       ...decision,
+      userId,
       ...(reason ? { reason } : {}),
     })
-    const closed = await closeReviewRequestsForBuild(tx, build.id)
-    // Deciding settles the build for its reviewer; the others' "please review" notices end with
-    // their requests.
-    await markBuildNotificationsRead(tx, { userId: input.userId, buildId: build.id })
-    for (const request of closed) {
-      if (request.reviewerId === input.userId) continue
-      // eslint-disable-next-line no-await-in-loop -- a few reviewers, one transaction
-      await markBuildNotificationsRead(tx, {
-        userId: request.reviewerId,
-        buildId: build.id,
-        kinds: REQUEST_KINDS,
-      })
+    if (build.reviewStatus !== 'pending') {
+      const closed = await closeReviewRequestsForBuild(tx, build.id)
+      // Deciding settles the build for its reviewer; the others' "please review" notices end
+      // with their requests.
+      await markBuildNotificationsRead(tx, { userId, buildId: build.id })
+      for (const request of closed) {
+        if (request.reviewerId === userId) continue
+        // eslint-disable-next-line no-await-in-loop -- a few reviewers, one transaction
+        await markBuildNotificationsRead(tx, {
+          userId: request.reviewerId,
+          buildId: build.id,
+          kinds: REQUEST_KINDS,
+        })
+      }
     }
-    if (changed) {
+    if (!changed) return build
+    if (build.reviewStatus !== 'pending') {
+      const state = build.reviewStatus
+      const rejectionReason = state === 'rejected' && reasons.length > 0 ? reasons.join('\n') : null
       if (build.authorUserId) {
         await notify(tx, {
           userId: build.authorUserId,
-          kind: input.state === 'approved' ? 'build_approved' : 'build_rejected',
+          kind: state === 'approved' ? 'build_approved' : 'build_rejected',
           buildId: build.id,
-          actorId: input.userId,
-          payload: input.state === 'rejected' && reason ? { reason } : {},
+          actorId: userId,
+          payload: rejectionReason ? { reason: rejectionReason } : {},
         })
       }
       await queueIntegrationEvent(tx, {
-        type: input.state === 'approved' ? 'build.approved' : 'build.rejected',
+        type: state === 'approved' ? 'build.approved' : 'build.rejected',
         buildId: build.id,
-        reviewerId: input.userId,
-        reason: input.state === 'rejected' ? (reason ?? null) : null,
+        reviewerId: userId,
+        reason: rejectionReason,
       })
       await queueWebhookEvent(tx, {
         build,
         event: 'build.reviewed',
-        review: { state: input.state, source: input.source ?? 'ui', userName: reviewerName },
+        review: { state, source: input.source ?? 'ui', userName: reviewerName },
       })
-      await queueGitNotify(tx, build, gitKinds())
     }
+    // The check on the pull request follows every move, including back to "needs review".
+    await queueGitNotify(tx, build, gitKinds())
     return build
   })
 }
+export namespace reviewSnapshots {
+  export interface Input {
+    buildId: string
+    userId: string
+    decision: recordSnapshotReviews.Input['decision']
+    /** Names to decide; `all` decides every changed snapshot, `undecided` those with no decision. */
+    snapshotNames: recordSnapshotReviews.Input['snapshotNames']
+    source?: recordSnapshotReviews.Input['source']
+    /** Why the snapshots were rejected; goes to the build's author once the build is rejected. */
+    reason?: string | null
+  }
+}
+
+/**
+ * Approves or rejects every changed snapshot of a build: `reviewSnapshots` for all of them,
+ * replacing earlier decisions.
+ */
+export async function reviewBuild(db: Database, input: reviewBuild.Input): Promise<Build> {
+  const { state, ...rest } = input
+  return reviewSnapshots(db, { ...rest, decision: state, snapshotNames: 'all' })
+}
 export namespace reviewBuild {
-  export type Input = recordReview.Input & {
+  export interface Input {
+    buildId: string
+    userId: string
+    state: recordReview.Input['state']
+    source?: recordReview.Input['source']
     /** Why the changes were rejected; goes to the build's author in their inbox. */
     reason?: string | null
   }
@@ -344,7 +381,13 @@ export async function notifyOverdueReviews(
 ): Promise<number> {
   const now = input.now ?? new Date()
   return db.transaction(async (tx) => {
-    const requests = await lockOverdueUnnotifiedRequests(tx, now)
+    const locked = await lockOverdueUnnotifiedRequests(tx, now)
+    // A deleted workspace's requests stay quiet (and un-notified, so a restore tells them).
+    const hidden = await buildsInDeletedWorkspaces(
+      tx,
+      locked.map((r) => r.buildId),
+    )
+    const requests = locked.filter((r) => !hidden.has(r.buildId))
     for (const request of requests) {
       // eslint-disable-next-line no-await-in-loop -- one transaction, one connection
       await notify(tx, {

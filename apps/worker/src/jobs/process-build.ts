@@ -77,6 +77,33 @@ export async function processBuild(
   // 2. Pair by name.
   const head = await listBuildScreenshots(db, build.id)
   const base = baseBuild ? await listBuildScreenshots(db, baseBuild.id) : []
+  // A snapshot approved (or rejected) on its own can have a better baseline than the build's:
+  // compare each such name against the build `resolveBaseline` picks for that name alone.
+  const decidedNames = new Set(
+    candidates.flatMap((c) => [...c.approvedSnapshots, ...c.rejectedSnapshots]),
+  )
+  const shotsByBuild = new Map<string, Screenshot[]>()
+  for (const shot of head) {
+    if (!decidedNames.has(shot.name)) continue
+    const own = resolveBaseline(
+      { ancestorShas: build.ancestorShas, defaultBranch: team.defaultBranch },
+      candidates,
+      shot.name,
+    )
+    const ownBuild = own.via === 'none' ? undefined : own.build
+    if (ownBuild?.id === baseBuild?.id) continue
+    const at = base.findIndex((b) => b.name === shot.name)
+    if (at >= 0) base.splice(at, 1)
+    if (!ownBuild) continue
+    let shots = shotsByBuild.get(ownBuild.id)
+    if (!shots) {
+      // oxlint-disable-next-line no-await-in-loop -- one lookup per distinct build, usually none
+      shots = await listBuildScreenshots(db, ownBuild.id)
+      shotsByBuild.set(ownBuild.id, shots)
+    }
+    const found = shots.find((b) => b.name === shot.name)
+    if (found) base.push(found)
+  }
   const pairs = pairScreenshots(head, base)
   const rows: NewScreenshotDiff[] = pairs.map((p) => ({
     buildId: build.id,

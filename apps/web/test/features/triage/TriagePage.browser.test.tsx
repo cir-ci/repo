@@ -113,7 +113,7 @@ function server() {
       gone(field(field(body, 'resolves'), 'key'))
       return { status: 201, body: {} }
     },
-    [`POST ${BASE}/builds/12/review`]: { body: { build: { reviewStatus: 'approved' } } },
+    [`POST ${BASE}/builds/12/snapshots/review`]: { body: { build: { reviewStatus: 'approved' } } },
   }
   return fakeApi(routes)
 }
@@ -179,14 +179,17 @@ describe('TriagePage', () => {
       .not.toBeInTheDocument()
   })
 
-  it('accepts the build as baseline with B', async () => {
+  it('accepts the snapshot as baseline with B, approving just that snapshot', async () => {
     const api = server()
     await show()
     await expect.element(page.getByRole('button', { name: 'Accept as baseline' })).toBeVisible()
     await userEvent.keyboard('b')
     await vi.waitFor(() =>
-      expect(api.of('POST').find((c) => c.path === `${BASE}/builds/12/review`)?.body).toEqual({
-        state: 'approved',
+      expect(
+        api.of('POST').find((c) => c.path === `${BASE}/builds/12/snapshots/review`)?.body,
+      ).toEqual({
+        snapshotNames: ['home'],
+        decision: 'approved',
       }),
     )
   })

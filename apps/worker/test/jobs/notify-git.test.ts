@@ -13,7 +13,14 @@ import {
 } from '@circi/db'
 import { GithubApiError, GithubInstallationRevokedError } from '@circi/providers'
 import { completeBuild, reviewBuild } from '@circi/services'
-import { createTestDb, seedBuild, seedDiff, seedGitLink, seedTeam } from '@circi/testing'
+import {
+  createTestDb,
+  seedBuild,
+  seedDiff,
+  seedGitLink,
+  seedTeam,
+  seedChangedSnapshots,
+} from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -116,6 +123,7 @@ const failing = (error: Error) => ({
 describe('notifyGit', () => {
   it('reports a finished build as a check run and a pull request comment, then updates them', async () => {
     const { owner, build } = await linkedBuild(5)
+    await seedChangedSnapshots(t.db, build.id)
     await completeBuild(t.db, build, { conclusion: 'changes_detected', approval: 'none' })
     const fake = fakeGithub()
     const deps = { db: t.db, github: fake.github, publicOrigin: 'https://ci.acme.io' }

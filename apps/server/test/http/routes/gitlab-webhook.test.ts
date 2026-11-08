@@ -2,7 +2,13 @@ import { sealSecret } from '@circi/core'
 import { getBuild, listBuildReviews } from '@circi/db'
 import { gitlabCredentials, gitlabWebhookVerifier, providerRegistry } from '@circi/providers'
 import { completeBuild } from '@circi/services'
-import { createTestDb, seedAccount, seedBuild, seedGitLink } from '@circi/testing'
+import {
+  createTestDb,
+  seedAccount,
+  seedBuild,
+  seedGitLink,
+  seedChangedSnapshots,
+} from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -80,6 +86,7 @@ async function changedBuild(mr: number) {
     prNumber: mr,
     status: 'processing',
   })
+  await seedChangedSnapshots(t.db, build.id)
   await completeBuild(
     t.db,
     { ...build, status: 'processing' },

@@ -26,6 +26,7 @@ import {
   teams,
   user,
   workspace,
+  workspaceDeletions,
 } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
@@ -135,12 +136,17 @@ export namespace listInstanceWorkspaces {
     teamCount: number
     storageBytes: number
     createdAt: Date
+    /** When an owner deleted it (it is purged 30 days later); null while it is live. */
+    deletedAt: Date | null
   }
 }
 
-/** Every workspace by name, with member and team counts and the bytes its builds refer to. */
+/** Every workspace by name (deleted ones too, marked), with member and team counts and the bytes its builds refer to. */
 export async function listInstanceWorkspaces(db: Database): Promise<listInstanceWorkspaces.Item[]> {
   const rows = await db.select().from(workspace).orderBy(asc(workspace.name), asc(workspace.slug))
+  const deletions = new Map(
+    (await db.select().from(workspaceDeletions)).map((r) => [r.workspaceId, r.deletedAt]),
+  )
   const members = new Map(
     (
       await db
@@ -193,6 +199,7 @@ export async function listInstanceWorkspaces(db: Database): Promise<listInstance
     teamCount: teamCounts.get(w.id) ?? 0,
     storageBytes: bytes.get(w.id) ?? 0,
     createdAt: w.createdAt,
+    deletedAt: deletions.get(w.id) ?? null,
   }))
 }
 

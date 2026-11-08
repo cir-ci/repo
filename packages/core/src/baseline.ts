@@ -12,8 +12,18 @@
  * Without the second rule, no-change builds would never become baselines when auto-approve
  * is off, and comparisons would drift further and further back.
  */
-export function isEligibleBaseline(c: resolveBaseline.Candidate): boolean {
+export function isEligibleBaseline(
+  c: resolveBaseline.Candidate,
+  snapshot?: { name: string; defaultBranch: string },
+): boolean {
   if (c.status !== 'complete') return false
+  // One snapshot of a default-branch build: its own decision counts even while the build as a
+  // whole is still pending ("accept as baseline"). Rejected never counts; no decision falls back
+  // to the build's rule. Other branches only count once the whole build is approved.
+  if (snapshot && c.branch === snapshot.defaultBranch) {
+    if (c.rejectedSnapshots?.includes(snapshot.name)) return false
+    if (c.approvedSnapshots?.includes(snapshot.name)) return true
+  }
   if (c.reviewStatus === 'approved') return true
   return c.conclusion === 'no_changes' && c.reviewStatus !== 'rejected'
 }
@@ -21,8 +31,14 @@ export function isEligibleBaseline(c: resolveBaseline.Candidate): boolean {
 export function resolveBaseline<C extends resolveBaseline.Candidate>(
   input: resolveBaseline.Input,
   candidates: readonly C[],
+  /** Resolve for one snapshot name: its own decisions count (see `isEligibleBaseline`). */
+  snapshotName?: string,
 ): resolveBaseline.Resolution<C> {
-  const eligible = candidates.filter(isEligibleBaseline)
+  const snapshot =
+    snapshotName === undefined
+      ? undefined
+      : { name: snapshotName, defaultBranch: input.defaultBranch }
+  const eligible = candidates.filter((c) => isEligibleBaseline(c, snapshot))
   if (eligible.length === 0) return { via: 'none' }
 
   // Several eligible builds on one commit happen with CI re-runs; the newest wins.
@@ -54,6 +70,9 @@ export namespace resolveBaseline {
     reviewStatus: string
     conclusion: string | null
     createdAt: Date
+    /** Snapshot names whose current decision is approved / rejected (any build state). */
+    approvedSnapshots?: readonly string[]
+    rejectedSnapshots?: readonly string[]
   }
 
   export interface Input {

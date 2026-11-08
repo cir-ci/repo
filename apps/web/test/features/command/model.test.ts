@@ -106,8 +106,9 @@ describe('the empty query', () => {
     const labels = actions.map((e) => e.label)
     expect(labels).toEqual(
       expect.arrayContaining([
-        'Approve all changes',
-        'Reject the build, with a reason',
+        'Approve snapshot',
+        'Approve all',
+        'Reject snapshot, with a reason',
         'Copy link to this page',
       ]),
     )

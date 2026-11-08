@@ -4,8 +4,10 @@ import {
   fromNodeHeaders,
   generatePassword,
   MIN_PASSWORD_LENGTH,
+  sendSignInCode,
   setUserPassword,
 } from '@circi/auth'
+import { ValidationError } from '@circi/core'
 import {
   ConflictError,
   countInstanceAdmins,
@@ -30,8 +32,10 @@ const createBody = z.object({
   email: z.email().max(254),
   name: z.string().trim().min(1).max(100),
   instanceAdmin: z.boolean().optional(),
-  /** Omitted: CirCI generates one and returns it once. */
+  /** Omitted: CirCI generates one and returns it once (unless `signInCode`). */
   password: z.string().min(MIN_PASSWORD_LENGTH).max(128).optional(),
+  /** No password at all: mail the person a one-time sign-in code and link instead. */
+  signInCode: z.boolean().optional(),
 })
 const resetBody = z.object({ password: z.string().min(MIN_PASSWORD_LENGTH).max(128).optional() })
 const patchBody = z.object({ instanceAdmin: z.boolean() })
@@ -76,9 +80,31 @@ export const dashboardInstanceAccountRoutes: FastifyPluginAsync<Deps.Dashboard> 
     return { accounts: accounts.map(wire), total, page: q.page, pageSize: q.pageSize }
   })
 
-  /** An account with a password: the one given, else a generated one that is returned once. */
+  /**
+   * An account with a password: the one given, else a generated one that is returned once. Or,
+   * with `signInCode` (when the instance has mail), one without any password that is mailed a
+   * one-time sign-in code, the same code "Email me a code" sends.
+   */
   app.post('/instance/accounts', async (req, reply) => {
     const body = parse(createBody, req.body)
+    if (body.signInCode) {
+      if (body.password) throw new ValidationError('Give a password or a sign-in code, not both')
+      if (!deps.instance?.mailer || deps.emailLogin !== true) {
+        throw new ConflictError('Email sign-in is not set up on this instance (it needs SMTP)')
+      }
+      const created = await createUser(deps.auth, {
+        email: body.email,
+        name: body.name,
+        ...(body.instanceAdmin ? { instanceAdmin: true } : {}),
+      })
+      await sendSignInCode(deps.auth, created.email)
+      const result: InstanceAdmin.CreatedAccount = {
+        account: wire(await load(created.id)),
+        password: null,
+        signInCodeSentTo: created.email,
+      }
+      return reply.code(201).send(result)
+    }
     const password = body.password ?? generatePassword()
     const created = await createUser(deps.auth, {
       email: body.email,

@@ -136,8 +136,22 @@ describe('display options', () => {
     expect(localStorage.getItem('circi.builds.display')).toContain('"groupBy":"branch"')
   })
 
+  it('asks the server for the chosen order and remembers it', async () => {
+    const fake = api([build(3), build(2)])
+    await show()
+    await expect.element(page.getByRole('link', { name: /Build #3/ })).toBeVisible()
+    expect(fake.urls.some((u) => u.includes('order='))).toBe(false)
+    await page.getByRole('button', { name: 'Display' }).click()
+    await page
+      .getByRole('dialog', { name: 'Display options' })
+      .getByRole('button', { name: 'Most changes' })
+      .click()
+    await expect.poll(() => fake.urls.some((u) => u.includes('order=most-changes'))).toBe(true)
+    expect(localStorage.getItem('circi.builds.display')).toContain('"order":"most-changes"')
+  })
+
   it('hides a property and reads the saved options on the next visit', async () => {
-    api([build(3), build(2)])
+    const fake = api([build(3), build(2)])
     await show('/acme/web', async () => {
       localStorage.setItem(
         'circi.builds.display',
@@ -147,8 +161,11 @@ describe('display options', () => {
     })
     await expect.element(page.getByRole('link', { name: /Build #3/ })).toBeVisible()
     expect(page.getByText('2 changed').elements()).toHaveLength(0)
+    // The server orders the list: the saved order is asked for, and the rows keep its sequence.
+    await expect.poll(() => fake.urls.length).toBeGreaterThan(0)
     const links = page.getByRole('link', { name: /Build #/ }).elements()
-    expect(links[0]?.textContent).toContain('Build #2')
+    expect(links[0]?.textContent).toContain('Build #3')
+    expect(fake.urls.some((u) => u.includes('order=oldest'))).toBe(true)
   })
 })
 

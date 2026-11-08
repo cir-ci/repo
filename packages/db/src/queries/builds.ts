@@ -1,9 +1,15 @@
 import { ISSUE_LINK_KIND } from '@circi/core'
-import { aliasedTable, and, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm'
+import type { BuildOrder } from '@circi/core'
+import { aliasedTable, and, eq, gt, gte, inArray, lt, sql } from 'drizzle-orm'
 
 import type { getBuildCounts } from '#repositories/builds.ts'
 import { listBuildLinks } from '#repositories/integration-links.ts'
-import { listBuildReviews, type ReviewEntry } from '#repositories/reviews.ts'
+import {
+  listBuildReviews,
+  listSnapshotReviews,
+  type ReviewEntry,
+  type SnapshotReviewEntry,
+} from '#repositories/reviews.ts'
 import {
   type AncestryStatus,
   type BaselineSource,
@@ -20,6 +26,7 @@ import {
 } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
+import { buildAfterCursor, buildOrderBy, teamTie } from './builds-order.ts'
 import { figmaFramesForSnapshots } from './figma.ts'
 
 /** Build read models for the dashboard: shaped for the UI, read-only, free to join widely. */
@@ -97,8 +104,17 @@ export function buildFilterConditions(f: listBuildsForTeam.Filters) {
 export async function listBuildsForTeam(
   db: Database,
   teamId: string,
-  options: { limit: number; beforeNumber?: number; filters?: listBuildsForTeam.Filters },
+  options: {
+    limit: number
+    /** The build number the page starts after, in `order`. */
+    beforeNumber?: number
+    filters?: listBuildsForTeam.Filters
+    /** Default newest first. */
+    order?: BuildOrder
+  },
 ): Promise<listBuildsForTeam.Item[]> {
+  const order = options.order ?? 'newest'
+  const after = options.beforeNumber
   const found = await db
     .select({ build: builds, member: { name: user.name, image: user.image } })
     .from(builds)
@@ -106,11 +122,21 @@ export async function listBuildsForTeam(
     .where(
       and(
         eq(builds.teamId, teamId),
-        options.beforeNumber ? lt(builds.number, options.beforeNumber) : undefined,
+        after === undefined
+          ? undefined
+          : order === 'newest'
+            ? lt(builds.number, after)
+            : order === 'oldest'
+              ? gt(builds.number, after)
+              : buildAfterCursor(
+                  order,
+                  teamTie,
+                  (c) => sql`${c.teamId} = ${teamId} and ${c.number} = ${after}`,
+                ),
         ...buildFilterConditions(options.filters ?? {}),
       ),
     )
-    .orderBy(desc(builds.number))
+    .orderBy(...buildOrderBy(order, teamTie))
     .limit(options.limit)
   return hydrateBuildList(db, found)
 }
@@ -189,6 +215,8 @@ export namespace getBuildDetail {
     diff: getBuildDetail.ImageRef | null
     /** The Figma frame the snapshot is linked to, if any. */
     figma: figmaFramesForSnapshots.Frame | null
+    /** The current decision on the snapshot, if any. */
+    review: Omit<SnapshotReviewEntry, 'name'> | null
   }
 
   export interface Detail {
@@ -255,6 +283,9 @@ export async function getBuildDetail(
     .orderBy(screenshotDiffs.name)
 
   const decisions = await listBuildReviews(db, build.id)
+  const snapshotDecisions = new Map(
+    (await listSnapshotReviews(db, build.id)).map(({ name, ...r }) => [name, r]),
+  )
   const frames = await figmaFramesForSnapshots(
     db,
     teamId,
@@ -322,6 +353,7 @@ export async function getBuildDetail(
           }
         : null,
       figma: frames.get(r.diff.name) ?? null,
+      review: snapshotDecisions.get(r.diff.name) ?? null,
     })),
   }
 }

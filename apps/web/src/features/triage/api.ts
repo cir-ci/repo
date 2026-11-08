@@ -283,16 +283,16 @@ export function useDismissTriage(workspace: string, team: string) {
 }
 
 /**
- * Accept as baseline: the existing build review, approved. There is no per-snapshot approval, so
- * this approves the item's whole build (the item leaves the queue once the server recomputes it).
+ * Accept as baseline: approves that one snapshot of the item's build. On the default branch an
+ * approved snapshot is the baseline for its name at once, even while the build waits on the rest.
  */
 export function useAcceptBaseline(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (v: { ref: Ref; buildNumber: number }) =>
+    mutationFn: (v: { ref: Ref; buildNumber: number; snapshotName: string }) =>
       post<{ build: { reviewStatus: string } }>(
-        `${base(workspace, team)}/builds/${v.buildNumber}/review`,
-        { state: 'approved' },
+        `${base(workspace, team)}/builds/${v.buildNumber}/snapshots/review`,
+        { snapshotNames: [v.snapshotName], decision: 'approved' },
       ),
     onSuccess: async (_data, v) => {
       await Promise.all([

@@ -6,7 +6,7 @@ import {
   QUEUES,
   schema,
 } from '@circi/db'
-import { createTestDb, seedGitLink, seedTeam, sha } from '@circi/testing'
+import { createTestDb, seedGitLink, seedTeam, sha, seedChangedSnapshots } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -114,6 +114,7 @@ describe('completeBuild, failBuild and requeueBuild', () => {
       .update(schema.builds)
       .set({ status: 'processing' })
       .where(eq(schema.builds.id, build.id))
+    await seedChangedSnapshots(t.db, build.id)
     await completeBuild(
       t.db,
       { ...build, status: 'processing' },
@@ -143,6 +144,7 @@ describe('completeBuild, failBuild and requeueBuild', () => {
       .update(schema.builds)
       .set({ status: 'processing' })
       .where(eq(schema.builds.id, build.id))
+    await seedChangedSnapshots(t.db, build.id)
     await completeBuild(
       t.db,
       { ...build, status: 'processing' },
@@ -167,6 +169,7 @@ describe('reviewBuild', () => {
       .update(schema.builds)
       .set({ status: 'processing' })
       .where(eq(schema.builds.id, build.id))
+    await seedChangedSnapshots(t.db, build.id)
     await completeBuild(
       t.db,
       { ...build, status: 'processing' },

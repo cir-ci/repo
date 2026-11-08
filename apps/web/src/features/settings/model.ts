@@ -70,3 +70,7 @@ function isWebAddress(value: string): boolean {
     return false
   }
 }
+
+/** Whether what was typed is the workspace's name (surrounding spaces don't count; case does). */
+export const nameConfirmed = (typed: string, name: string): boolean =>
+  name !== '' && typed.trim() === name
