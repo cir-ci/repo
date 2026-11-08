@@ -33,6 +33,14 @@ const envSchema = z.object({
   S3_FORCE_PATH_STYLE: z.preprocess(emptyToUndefined, bool.optional()),
   S3_ACCESS_KEY_ID: z.preprocess(emptyToUndefined, z.string().optional()),
   S3_SECRET_ACCESS_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
+  S3_CONNECT_TIMEOUT_SECONDS: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().min(1).max(600).default(10),
+  ),
+  S3_REQUEST_TIMEOUT_SECONDS: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().min(1).max(3600).default(60),
+  ),
   SMTP_HOST: z.preprocess(emptyToUndefined, z.string().optional()),
   SMTP_PORT: z.preprocess(emptyToUndefined, z.coerce.number().int().min(1).max(65535).optional()),
   SMTP_SECURE: z.preprocess(emptyToUndefined, bool.optional()),
@@ -106,6 +114,10 @@ export type StorageConfig =
       endpoint?: string
       forcePathStyle: boolean
       credentials?: { accessKeyId: string; secretAccessKey: string }
+      /** Give up connecting after this long (`S3_CONNECT_TIMEOUT_SECONDS`). */
+      connectTimeoutMs: number
+      /** Give up when a request's socket is silent this long (`S3_REQUEST_TIMEOUT_SECONDS`). */
+      requestTimeoutMs: number
     }
 
 export interface SmtpConfig {
@@ -216,6 +228,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       region: e.S3_REGION,
       ...(e.S3_ENDPOINT ? { endpoint: e.S3_ENDPOINT } : {}),
       forcePathStyle: e.S3_FORCE_PATH_STYLE ?? Boolean(e.S3_ENDPOINT),
+      connectTimeoutMs: Math.round(e.S3_CONNECT_TIMEOUT_SECONDS * 1000),
+      requestTimeoutMs: Math.round(e.S3_REQUEST_TIMEOUT_SECONDS * 1000),
       ...(e.S3_ACCESS_KEY_ID && e.S3_SECRET_ACCESS_KEY
         ? {
             credentials: {

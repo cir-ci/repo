@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto'
+import { createServer as createNetServer, type Socket } from 'node:net'
 import { text } from 'node:stream/consumers'
 
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { ChecksumMismatchError, hexToBase64, S3Storage } from '../src/index.ts'
 
@@ -132,5 +133,51 @@ describe('S3Storage.healthCheck failures say what to fix', () => {
       credentials: { accessKeyId: 'a', secretAccessKey: 'b' },
     })
     await expect(storage.healthCheck()).rejects.toThrow(/Cannot reach S3.*S3_ENDPOINT/)
+  })
+})
+
+describe('S3Storage timeouts (a server that accepts and never answers)', () => {
+  const sockets = new Set<Socket>()
+  const silentServer = createNetServer((socket) => {
+    sockets.add(socket)
+    socket.on('error', () => {})
+    socket.on('close', () => sockets.delete(socket))
+  })
+  let silentEndpoint = ''
+
+  beforeAll(async () => {
+    await new Promise<void>((resolve) => silentServer.listen(0, '127.0.0.1', resolve))
+    const address = silentServer.address()
+    if (address === null || typeof address === 'string') throw new Error('not listening')
+    silentEndpoint = `http://127.0.0.1:${address.port}`
+  })
+  afterAll(async () => {
+    for (const s of sockets) s.destroy()
+    await new Promise((resolve) => silentServer.close(resolve))
+  })
+
+  const silent = () =>
+    new S3Storage({
+      bucket: 'circi',
+      region: 'us-east-1',
+      endpoint: silentEndpoint,
+      forcePathStyle: true,
+      credentials: { accessKeyId: 'test', secretAccessKey: 'test' },
+      connectTimeoutMs: 200,
+      requestTimeoutMs: 200,
+    })
+
+  it('fails a read within the request timeout instead of hanging', async () => {
+    const started = Date.now()
+    await expect(silent().head('aa/bb/key')).rejects.toMatchObject({ name: 'TimeoutError' })
+    expect(Date.now() - started).toBeLessThan(8000)
+  })
+
+  it('the health check says it timed out and what to raise', async () => {
+    const started = Date.now()
+    await expect(silent().healthCheck()).rejects.toThrow(
+      /did not answer in time.*S3_REQUEST_TIMEOUT_SECONDS/,
+    )
+    expect(Date.now() - started).toBeLessThan(8000)
   })
 })

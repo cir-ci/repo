@@ -1,4 +1,7 @@
+import { createServer } from 'node:net'
+
 import { loadConfig } from '@circi/config'
+import { createStorage } from '@circi/storage'
 import { describe, expect, it } from 'vitest'
 
 import { domainCookies, parentDomain, runDoctor } from '../../src/cli/doctor.ts'
@@ -95,5 +98,36 @@ describe('doctor', () => {
     expect(bad.find((f) => f.level === 'warn')?.message).toContain('does not exist')
     const good = await runDoctor(config, none, { kind: 'fs', healthCheck: async () => {} })
     expect(good.find((f) => f.message.includes('Storage (fs)'))?.level).toBe('ok')
+  })
+
+  it('says clearly that an S3 that never answers timed out', async () => {
+    const sockets: { destroy(): void }[] = []
+    const silent = createServer((socket) => {
+      sockets.push(socket)
+      socket.on('error', () => {})
+    })
+    await new Promise<void>((resolve) => silent.listen(0, '127.0.0.1', resolve))
+    const address = silent.address()
+    if (address === null || typeof address === 'string') throw new Error('not listening')
+    const port = address.port
+    try {
+      const storage = createStorage({
+        driver: 's3',
+        bucket: 'circi',
+        region: 'us-east-1',
+        endpoint: `http://127.0.0.1:${port}`,
+        forcePathStyle: true,
+        credentials: { accessKeyId: 'a', secretAccessKey: 'b' },
+        connectTimeoutMs: 200,
+        requestTimeoutMs: 200,
+      })
+      const out = await runDoctor(loadConfig(base), none, storage)
+      const warn = out.find((f) => f.level === 'warn')
+      expect(warn?.message).toContain('did not answer in time')
+      expect(warn?.message).toContain('S3_REQUEST_TIMEOUT_SECONDS')
+    } finally {
+      for (const s of sockets) s.destroy()
+      await new Promise((resolve) => silent.close(resolve))
+    }
   })
 })

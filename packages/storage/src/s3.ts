@@ -36,7 +36,14 @@ export interface S3StorageOptions {
   credentials?: { accessKeyId: string; secretAccessKey: string }
   /** Optional prefix inside the bucket, e.g. "circi/". */
   prefix?: string
+  /** Give up connecting after this many ms. Default 10 s. */
+  connectTimeoutMs?: number
+  /** Give up when a request's socket is silent for this many ms. Default 60 s. */
+  requestTimeoutMs?: number
 }
+
+export const DEFAULT_S3_CONNECT_TIMEOUT_MS = 10_000
+export const DEFAULT_S3_REQUEST_TIMEOUT_MS = 60_000
 
 const DEFAULT_PRESIGN_TTL = 15 * 60
 
@@ -55,6 +62,14 @@ export class S3Storage implements StorageDriver {
         region: options.region,
         ...(options.endpoint ? { endpoint: options.endpoint } : {}),
         forcePathStyle: options.forcePathStyle ?? false,
+        // Without these a silently dropped connection hangs a request (or a worker job) forever.
+        // The SDK turns this object into a NodeHttpHandler. socketTimeout is the idle time of the
+        // request's socket, so a big download that keeps flowing is never cut off (the handler's
+        // requestTimeout is a total time that only logs a warning unless throwOnRequestTimeout).
+        requestHandler: {
+          connectionTimeout: options.connectTimeoutMs ?? DEFAULT_S3_CONNECT_TIMEOUT_MS,
+          socketTimeout: options.requestTimeoutMs ?? DEFAULT_S3_REQUEST_TIMEOUT_MS,
+        },
         ...(options.credentials ? { credentials: options.credentials } : {}),
         // We always send an explicit SHA-256 checksum. The SDK's default (WHEN_SUPPORTED) would
         // also add a CRC32 of the *empty* body to presigned URLs, which makes real uploads fail.
@@ -188,11 +203,24 @@ export function describeS3Failure(err: unknown, bucket: string): string {
   if (status === 401 || status === 403) {
     return `S3 refused access to bucket "${bucket}" (HTTP ${status}). Check S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY and that they may read, write and delete in this bucket.`
   }
+  if (isTimeout(err)) {
+    return `S3 did not answer in time for bucket "${bucket}" (timed out: ${err instanceof Error ? err.message : String(err)}). Check S3_ENDPOINT, the network and firewalls, or raise S3_CONNECT_TIMEOUT_SECONDS / S3_REQUEST_TIMEOUT_SECONDS.`
+  }
   if (status === undefined || code === 'ECONNREFUSED' || code === 'ENOTFOUND') {
     const reason = err instanceof Error ? err.message : String(err)
     return `Cannot reach S3 for bucket "${bucket}": ${reason}. Check S3_ENDPOINT and the network.`
   }
   return `S3 bucket "${bucket}" is not usable (HTTP ${status}): ${err instanceof Error ? err.message : String(err)}`
+}
+
+function isTimeout(err: unknown): boolean {
+  let e: unknown = err
+  for (let i = 0; i < 4 && e instanceof Error; i++) {
+    if (e.name === 'TimeoutError' || /timed out|timeout/i.test(e.message)) return true
+    if ('code' in e && e.code === 'ETIMEDOUT') return true
+    e = e.cause
+  }
+  return false
 }
 
 function isNotFound(err: unknown): boolean {

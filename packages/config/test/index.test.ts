@@ -100,6 +100,21 @@ describe('loadConfig', () => {
     })
   })
 
+  it('has S3 timeouts, in seconds in the environment and milliseconds in the config', () => {
+    const s3 = { ...base, STORAGE_DRIVER: 's3', S3_BUCKET: 'b' }
+    expect(loadConfig(s3).storage).toMatchObject({
+      connectTimeoutMs: 10_000,
+      requestTimeoutMs: 60_000,
+    })
+    expect(
+      loadConfig({ ...s3, S3_CONNECT_TIMEOUT_SECONDS: '3', S3_REQUEST_TIMEOUT_SECONDS: '120' })
+        .storage,
+    ).toMatchObject({ connectTimeoutMs: 3000, requestTimeoutMs: 120_000 })
+    expect(() => loadConfig({ ...s3, S3_CONNECT_TIMEOUT_SECONDS: '0' })).toThrow(
+      /S3_CONNECT_TIMEOUT_SECONDS/,
+    )
+  })
+
   it('omits credentials so the AWS chain (IAM role) is used', () => {
     const c = loadConfig({ ...base, STORAGE_DRIVER: 's3', S3_BUCKET: 'b', S3_ACCESS_KEY_ID: '' })
     expect(c.storage).not.toHaveProperty('credentials')

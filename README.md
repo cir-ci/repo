@@ -123,6 +123,8 @@ Anyone you add to an organization sees its projects, builds and screenshots, and
 | `STORAGE_PATH` | `/var/lib/circi/files` | For `fs` |
 | `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_FORCE_PATH_STYLE` | | For `s3`; endpoint for R2/B2/MinIO, omit for AWS |
 | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | | Omit both to use the AWS credential chain (e.g. an IAM role) |
+| `S3_CONNECT_TIMEOUT_SECONDS` | `10` | Give up connecting to S3 after this long, so a dropped connection cannot hang a request or job |
+| `S3_REQUEST_TIMEOUT_SECONDS` | `60` | Give up when S3 sends or accepts nothing for this long (idle time, not total: big files keep flowing) |
 
 ## Development
 
