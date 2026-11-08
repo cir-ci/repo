@@ -1,0 +1,193 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1160px;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.filters {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 10px;
+  background: var(--circi-surface-raised);
+}
+
+.value {
+  font-size: 28px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.pill {
+  display: inline-flex;
+  align-self: flex-start;
+  height: 20px;
+  padding: 0 7px;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--circi-action-selected);
+  color: var(--circi-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.pill[data-tone='good'] {
+  background: color-mix(in srgb, var(--circi-state-approved) 16%, transparent);
+  color: var(--circi-state-approved);
+}
+
+.pill[data-tone='bad'] {
+  background: color-mix(in srgb, var(--circi-state-rejected) 16%, transparent);
+  color: var(--circi-state-rejected);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
+  gap: 12px;
+}
+
+.card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 10px;
+  background: var(--circi-surface-raised);
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.chart {
+  width: 100%;
+  height: auto;
+}
+
+.gridline {
+  stroke: var(--circi-line-subtle);
+}
+
+.chart .axis {
+  stroke: var(--circi-line-strong);
+}
+
+.tick {
+  fill: var(--circi-text-tertiary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bar {
+  fill: var(--circi-accent-main);
+}
+
+.line {
+  fill: none;
+  stroke: var(--circi-accent-main);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dot {
+  fill: var(--circi-accent-main);
+  stroke: var(--circi-surface-raised);
+  stroke-width: 2;
+}
+
+.axisTitle {
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
+}
+
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hbar {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr) 72px;
+  gap: 10px;
+  align-items: center;
+  min-height: 30px;
+}
+
+.track {
+  height: 12px;
+}
+
+.fill {
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+  background: var(--circi-accent-main);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.table th {
+  padding: 0 8px 8px;
+  border-bottom: 1px solid var(--circi-line-subtle);
+  color: var(--circi-text-tertiary);
+  font-weight: 500;
+  text-align: left;
+}
+
+.table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--circi-line-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.table td:not(:first-child),
+.table th:not(:first-child) {
+  text-align: right;
+}

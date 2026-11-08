@@ -140,6 +140,23 @@ Outcome: the Screens page is real, in ship order, in both schemes. Logic lives i
 wave 3 = C7, C8, C9. Each wave runs as separate agents (disjoint feature folders); the router file
 is edited by the lead.
 
+**Status (2026-11-08): Phases B and C are built** (each merged only after `pnpm format && lint &&
+typecheck && test && build` was green; external services are faked at their edge). Gaps the agents
+found, to pick up in a follow-up wave:
+
+- No per-snapshot approval route: Triage's "Accept as baseline" and the Command menu's "approve"
+  approve the whole build.
+- No snapshot-history endpoint: Triage's filmstrip fetches up to five build details.
+- No bulk request-review route (C4 loops over the builds), no org-wide builds list (saved views
+  with no project show an empty state), no author or reviewer suggestions, no server-side sort or
+  group on the builds list.
+- No org rename or org-level retention endpoint (Organisation › General and Storage are read-only).
+- Rules cannot be reordered; the Sites page lost its sidebar entry (still linked from the project).
+- Triage's snooze list and `countOpenTriage` (one triage query per project) are not optimised.
+- Keyboard: no way to draw a comment region without a mouse; J/K cannot enter a collapsed group.
+- Canvas Foundations note still says crimson/amber "still need to land in theme.ts" (A0 is
+  merged): update it.
+
 ## 7. Phase D: integrations
 
 Outcome: organisation-level Integrations page and Add dialog, with GitHub, GitLab, Bitbucket,

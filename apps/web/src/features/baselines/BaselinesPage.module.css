@@ -1,0 +1,35 @@
+.groups {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.groupHeader {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.thumb {
+  flex: none;
+  width: 56px;
+  height: 40px;
+  object-fit: cover;
+  object-position: top;
+  background: var(--circi-surface-sunken, transparent);
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 4px;
+}
+
+.thumbEmpty {
+  display: inline-block;
+}
+
+.filter {
+  max-width: 320px;
+}

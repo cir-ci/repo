@@ -16,13 +16,6 @@ const placeholder = <const Path extends string>(path: Path, title: string) =>
   })
 
 export const placeholderRoutes = [
-  placeholder('organizations/$org/insights', 'Insights'),
-  placeholder('$org/$project/baselines', 'Baselines'),
   // Settings pages.
-  placeholder('account/notifications', 'Notifications'),
-  placeholder('account/appearance', 'Appearance'),
-  placeholder('organizations/$org/settings', 'General'),
   placeholder('organizations/$org/settings/integrations', 'Integrations'),
-  placeholder('organizations/$org/settings/storage', 'Storage'),
-  placeholder('$org/$project/settings/reviews', 'Reviews and triage'),
 ]

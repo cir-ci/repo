@@ -1,11 +1,14 @@
 import { createRouter, type RouterHistory } from '@tanstack/react-router'
 
 import { accountRoutes } from '../features/account/routes.ts'
+import { baselinesRoutes } from '../features/baselines/routes.ts'
 import { buildsRoutes } from '../features/builds/routes.ts'
 import { inboxRoutes } from '../features/inbox/routes.ts'
+import { insightsRoutes } from '../features/insights/routes.ts'
 import { membersRoutes } from '../features/members/routes.ts'
 import { projectsRoutes } from '../features/projects/routes.ts'
 import { reviewsRoutes } from '../features/reviews/routes.ts'
+import { settingsRoutes } from '../features/settings/routes.ts'
 import { sitesRoutes } from '../features/sites/routes.ts'
 import { triageRoutes } from '../features/triage/routes.ts'
 import { viewsRoutes } from '../features/views/routes.ts'
@@ -22,7 +25,10 @@ const routeTree = rootRoute.addChildren([
   ...reviewsRoutes,
   ...viewsRoutes,
   ...triageRoutes,
+  ...insightsRoutes,
+  ...baselinesRoutes,
   ...accountRoutes,
+  ...settingsRoutes,
   ...placeholderRoutes,
 ])
 
