@@ -3,32 +3,35 @@ import {
   type Build,
   buildChangesAreFlakyOnly,
   type Database,
-  getOrgSettings,
-  getProjectById,
+  getWorkspaceSettings,
+  getTeamById,
   NotFoundError,
 } from '@circi/db'
 
 /**
- * What decides a build's merge gate besides the build itself: the project's blocking switch,
- * whether flaky screenshots block (the project's own value, else the organization's), and whether
+ * What decides a build's merge gate besides the build itself: the team's blocking switch,
+ * whether flaky screenshots block (the team's own value, else the workspace's), and whether
  * this build's only changes are flaky ones. Read when the gate is evaluated (the status endpoint,
  * the git notice), so a changed setting applies to the next evaluation of an existing build.
  */
 export async function gateInputs(
   db: Database,
-  build: Pick<Build, 'id' | 'projectId' | 'status' | 'conclusion' | 'reviewStatus'>,
+  build: Pick<Build, 'id' | 'teamId' | 'status' | 'conclusion' | 'reviewStatus'>,
 ): Promise<gateInputs.Result> {
-  const project = await getProjectById(db, build.projectId)
-  if (!project) throw new NotFoundError('Project not found')
-  const org = await getOrgSettings(db, project.orgId)
-  const flakyBlocksMerge = resolveFlakyBlocksMerge(org.flakyBlocksMerge, project.flakyBlocksMerge)
+  const team = await getTeamById(db, build.teamId)
+  if (!team) throw new NotFoundError('Team not found')
+  const workspace = await getWorkspaceSettings(db, team.workspaceId)
+  const flakyBlocksMerge = resolveFlakyBlocksMerge(
+    workspace.flakyBlocksMerge,
+    team.flakyBlocksMerge,
+  )
   // Only a finished, unreviewed build with changes can be held, so only then look at flakiness.
   const reviewable =
     build.status === 'complete' &&
     build.conclusion === 'changes_detected' &&
     build.reviewStatus === 'pending'
   return {
-    blockMergeOnChanges: project.blockMergeOnChanges,
+    blockMergeOnChanges: team.blockMergeOnChanges,
     flakyBlocksMerge,
     flakyOnly: reviewable && !flakyBlocksMerge ? await buildChangesAreFlakyOnly(db, build) : false,
   }
@@ -37,7 +40,7 @@ export async function gateInputs(
 export namespace gateInputs {
   export interface Result {
     blockMergeOnChanges: boolean
-    /** The effective setting for this project. */
+    /** The effective setting for this team. */
     flakyBlocksMerge: boolean
     /** Every change in the build is a flaky screenshot. Only looked up when it can matter. */
     flakyOnly: boolean

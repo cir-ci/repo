@@ -34,11 +34,11 @@
 }
 
 .root[data-tone='approved'] {
-  color: var(--circi-state-approved);
+  color: var(--circi-state-approved-text);
 }
 
 .root[data-tone='review'] {
-  color: var(--circi-state-review);
+  color: var(--circi-state-review-text);
 }
 
 .root[data-tone='processing'] {
@@ -46,7 +46,7 @@
 }
 
 .root[data-tone='rejected'] {
-  color: var(--circi-state-rejected);
+  color: var(--circi-state-rejected-text);
 }
 
 .root[data-truncate] {

@@ -35,7 +35,7 @@ describe('fresh stack, local-disk storage', () => {
     await page.getByLabel('Your name').fill(admin.name)
     await page.getByLabel('Email').fill(admin.email)
     await page.getByLabel('Password').fill(admin.password)
-    await page.getByLabel('Organization name').fill('Acme Inc')
+    await page.getByLabel('Workspace name').fill('Acme Inc')
     await page.getByRole('button', { name: 'Create account' }).click()
     await page.getByText('That setup code is wrong').waitFor()
     expect(await (await fetch(`${stack.url}/api/setup`)).json()).toEqual({ needed: true })
@@ -44,10 +44,10 @@ describe('fresh stack, local-disk storage', () => {
     await page.getByRole('button', { name: 'Create account' }).click()
     await page.getByRole('button', { name: `Account menu for ${admin.name}` }).waitFor()
 
-    // The instance now has its admin and organization; setup is closed for good.
+    // The instance now has its admin and workspace; setup is closed for good.
     expect(await (await fetch(`${stack.url}/api/setup`)).json()).toEqual({ needed: false })
     const session = await signIn(stack, admin.email, admin.password)
-    expect(await session.get('/api/capabilities')).toMatchObject({ canCreateOrganization: true })
+    expect(await session.get('/api/capabilities')).toMatchObject({ canCreateWorkspace: true })
     const retry = await fetch(`${stack.url}/api/setup`, {
       method: 'POST',
       headers: { origin: stack.url, 'content-type': 'application/json' },
@@ -56,7 +56,7 @@ describe('fresh stack, local-disk storage', () => {
         name: 'Mallory',
         email: 'mallory@e2e.test',
         password: 'long-enough-password-1',
-        organizationName: 'Evil',
+        workspaceName: 'Evil',
       }),
     })
     expect(retry.status).toBe(404)

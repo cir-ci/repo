@@ -3,7 +3,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it } from 'vitest'
 
 import { buildQuery, fileUrl, isActive } from '#features/builds/api.ts'
-import { projectQuery } from '#features/projects/api.ts'
+import { teamQuery } from '#features/teams/api.ts'
 
 const interval = (options: { refetchInterval?: unknown }, data: unknown) => {
   const fn = options.refetchInterval
@@ -35,12 +35,12 @@ describe('query options', () => {
   })
 
   it('polls the builds list while any build is active', () => {
-    expect(interval(projectQuery('a', 'b'), list('complete', 'processing'))).toBe(3_000)
-    expect(interval(projectQuery('a', 'b'), list('complete', 'error'))).toBe(false)
+    expect(interval(teamQuery('a', 'b'), list('complete', 'processing'))).toBe(3_000)
+    expect(interval(teamQuery('a', 'b'), list('complete', 'error'))).toBe(false)
   })
 
   it('escapes path segments and keys builds per page', () => {
-    expect(projectQuery('a b', 'c/d', 5).queryKey).toEqual(['project', 'a b', 'c/d', 5])
+    expect(teamQuery('a b', 'c/d', 5).queryKey).toEqual(['team', 'a b', 'c/d', 5])
     expect(fileUrl('abc')).toBe('/api/files/abc')
   })
 })

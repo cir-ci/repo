@@ -12,7 +12,7 @@ let n = 0
 export async function seedSite(
   db: Database,
   input: {
-    projectId: string
+    teamId: string
     name?: string
     kind?: string
     commitSha?: string
@@ -24,9 +24,9 @@ export async function seedSite(
   n += 1
   const slug = `site${n}`
   const [site] = await db
-    .insert(schema.projectSites)
+    .insert(schema.teamSites)
     .values({
-      projectId: input.projectId,
+      teamId: input.teamId,
       name: input.name ?? `site-${n}`,
       kind: input.kind ?? 'generic',
       slug,
@@ -36,7 +36,7 @@ export async function seedSite(
   const [version] = await db
     .insert(schema.staticSites)
     .values({
-      projectSiteId: site?.id ?? '',
+      teamSiteId: site?.id ?? '',
       commitSha: input.commitSha ?? 'abcdef012345',
       branch: input.branch ?? null,
       totalBytes: siteFiles.reduce((sum, f) => sum + (f.size ?? 1), 0),
@@ -61,7 +61,7 @@ export async function seedSite(
   if (label) {
     await db.insert(schema.siteHostnames).values({
       label,
-      projectSiteId: site.id,
+      teamSiteId: site.id,
       linkKind: 'commit',
       staticSiteId: version.id,
     })

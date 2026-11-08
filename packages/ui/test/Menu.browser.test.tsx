@@ -1,4 +1,5 @@
 import { MoreHorizontal, Trash2 } from 'lucide-react'
+import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
@@ -131,5 +132,69 @@ describe('Menu', () => {
     page.getByRole('button', { name: 'Light' }).element().focus()
     await userEvent.keyboard('{ArrowRight}')
     await expect.element(page.getByRole('button', { name: 'Dark' })).toHaveFocus()
+  })
+})
+
+function Theme(props: { onChange: (value: string) => void }) {
+  const [value, setValue] = useState('system')
+  return (
+    <Menu
+      trigger={<IconButton label="Account menu">…</IconButton>}
+      items={[
+        { label: 'Account' },
+        {
+          type: 'radio-group',
+          name: 'Theme',
+          value,
+          onValueChange: (next) => {
+            setValue(next)
+            props.onChange(next)
+          },
+          options: [
+            { value: 'system', label: 'System' },
+            { value: 'light', label: 'Light' },
+            { value: 'dark', label: 'Dark' },
+          ],
+        },
+      ]}
+    />
+  )
+}
+
+describe('Menu radio group', () => {
+  it('is a radiogroup of menuitemradio items with the chosen one checked', async () => {
+    await render(<Theme onChange={() => undefined} />)
+    await page.getByRole('button', { name: 'Account menu' }).click()
+    await expect.element(page.getByRole('group', { name: 'Theme' })).toBeInTheDocument()
+    expect(page.getByRole('menuitemradio').elements()).toHaveLength(3)
+    await expect
+      .element(page.getByRole('menuitemradio', { name: 'System' }))
+      .toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('moves with the arrow keys, picks with Enter, stays open and reports the change', async () => {
+    const onChange = vi.fn<(value: string) => void>()
+    await render(<Theme onChange={onChange} />)
+    const trigger = page.getByRole('button', { name: 'Account menu' })
+    await trigger.click()
+    await userEvent.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}')
+    await expect.element(page.getByRole('menuitemradio', { name: 'Light' })).toHaveFocus()
+    await userEvent.keyboard('{Enter}')
+    expect(onChange).toHaveBeenCalledWith('light')
+    await expect
+      .element(page.getByRole('menuitemradio', { name: 'Light' }))
+      .toHaveAttribute('aria-checked', 'true')
+    await userEvent.keyboard('{Escape}')
+    await expect.element(page.getByRole('menu')).not.toBeInTheDocument()
+    await expect.element(trigger).toHaveFocus()
+  })
+
+  it('shows a focus ring on the item the keyboard reached', async () => {
+    await render(<Theme onChange={() => undefined} />)
+    await page.getByRole('button', { name: 'Account menu' }).click()
+    await userEvent.keyboard('{ArrowDown}')
+    const style = getComputedStyle(page.getByRole('menuitem', { name: 'Account' }).element())
+    expect(style.outlineStyle).toBe('solid')
+    expect(style.outlineWidth).toBe('2px')
   })
 })

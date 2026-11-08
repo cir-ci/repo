@@ -22,7 +22,7 @@ export async function identifyAccount(
   }
 }
 
-/** The teams or projects an issue can go to, as the mapping's targets. */
+/** The Linear teams or Jira projects an issue can go to, as the mapping's targets. */
 export async function trackerTargets(
   tracker: IssueTracker | undefined,
 ): Promise<IntegrationDefinition.Target[]> {

@@ -1,4 +1,4 @@
-import { createTestDb, seedProject } from '@circi/testing'
+import { createTestDb, seedTeam } from '@circi/testing'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'
@@ -45,7 +45,7 @@ describe('migrations', () => {
       'ignore_regions',
       'instance_settings',
       'integration_links',
-      'integration_projects',
+      'integration_teams',
       'integrations',
       'invitation',
       'jobs',
@@ -53,13 +53,7 @@ describe('migrations', () => {
       'member',
       'notification_preferences',
       'notifications',
-      'org_auth_settings',
-      'org_domains',
-      'org_settings',
-      'organization',
       'pr_comments',
-      'project_sites',
-      'projects',
       'provider_deliveries',
       'review_requests',
       'review_rule_reviewers',
@@ -76,13 +70,19 @@ describe('migrations', () => {
       'sso_provider',
       'static_site_files',
       'static_sites',
+      'team_sites',
+      'teams',
       'triage_items',
       'triage_rotation_members',
       'upload_claims',
       'user',
-      'user_pinned_projects',
+      'user_pinned_teams',
       'verification',
       'webhooks',
+      'workspace',
+      'workspace_auth_settings',
+      'workspace_domains',
+      'workspace_settings',
     ])
   })
 
@@ -120,10 +120,10 @@ describe('schema constraints from the plan', () => {
     })
   })
 
-  it('collapses concurrent shards into one build per (project, name, commit, nonce)', async () => {
-    const { project } = await seedProject(t.db)
+  it('collapses concurrent shards into one build per (team, name, commit, nonce)', async () => {
+    const { team } = await seedTeam(t.db)
     const build = {
-      projectId: project.id,
+      teamId: team.id,
       commitSha: 'c0ffee',
       parallelNonce: 'run-1',
       parallelTotal: 3,
@@ -135,7 +135,7 @@ describe('schema constraints from the plan', () => {
           .values({ ...build, number: n })
           .onConflictDoNothing({
             target: [
-              schema.builds.projectId,
+              schema.builds.teamId,
               schema.builds.name,
               schema.builds.commitSha,
               schema.builds.parallelNonce,
@@ -146,37 +146,30 @@ describe('schema constraints from the plan', () => {
       ),
     )
     expect(inserted.flat()).toHaveLength(1)
-    const rows = await t.db
-      .select()
-      .from(schema.builds)
-      .where(eq(schema.builds.projectId, project.id))
+    const rows = await t.db.select().from(schema.builds).where(eq(schema.builds.teamId, team.id))
     expect(rows).toHaveLength(1)
 
     // Non-parallel builds of the same commit are separate builds (re-runs).
-    await t.db
-      .insert(schema.builds)
-      .values({ projectId: project.id, commitSha: 'c0ffee', number: 10 })
-    await t.db
-      .insert(schema.builds)
-      .values({ projectId: project.id, commitSha: 'c0ffee', number: 11 })
+    await t.db.insert(schema.builds).values({ teamId: team.id, commitSha: 'c0ffee', number: 10 })
+    await t.db.insert(schema.builds).values({ teamId: team.id, commitSha: 'c0ffee', number: 11 })
   })
 
   it('requires parallel nonce and total together', async () => {
-    const { project } = await seedProject(t.db)
+    const { team } = await seedTeam(t.db)
     const code = await failCode(() =>
       t.db
         .insert(schema.builds)
-        .values({ projectId: project.id, commitSha: 'x', number: 1, parallelNonce: 'n' }),
+        .values({ teamId: team.id, commitSha: 'x', number: 1, parallelNonce: 'n' }),
     )
     expect(code).toBe('23514')
   })
 
   it('upserts a retried shard instead of counting it twice', async () => {
-    const { project } = await seedProject(t.db)
+    const { team } = await seedTeam(t.db)
     const [build] = await t.db
       .insert(schema.builds)
       .values({
-        projectId: project.id,
+        teamId: team.id,
         commitSha: 'x',
         number: 1,
         parallelNonce: 'n',
@@ -202,10 +195,10 @@ describe('schema constraints from the plan', () => {
   })
 
   it('blocks deleting a file that an upload claim still relies on', async () => {
-    const { project } = await seedProject(t.db)
+    const { team } = await seedTeam(t.db)
     const [build] = await t.db
       .insert(schema.builds)
-      .values({ projectId: project.id, commitSha: 'x', number: 1 })
+      .values({ teamId: team.id, commitSha: 'x', number: 1 })
       .returning()
     if (!build) throw new Error('no build')
     await t.db.insert(schema.files).values({ sha256: h('c'), storageKey: 'k3', kind: 'screenshot' })
@@ -216,48 +209,41 @@ describe('schema constraints from the plan', () => {
     expect(code).toBe('23001') // restrict_violation (ON DELETE RESTRICT)
   })
 
-  it('only lets a project belong to an existing organization', async () => {
+  it('only lets a team belong to an existing workspace', async () => {
     const code = await failCode(() =>
-      t.db.insert(schema.projects).values({ orgId: 'no-such-org', slug: 'p', name: 'p' }),
+      t.db.insert(schema.teams).values({ workspaceId: 'no-such-workspace', slug: 'p', name: 'p' }),
     )
     expect(code).toBe('23503')
   })
 
-  it('deletes an organization’s projects and builds with it', async () => {
-    const { project, org } = await seedProject(t.db)
-    await t.db
-      .insert(schema.builds)
-      .values({ projectId: project.id, commitSha: 'abc1234', number: 1 })
-    await t.db.delete(schema.organization).where(eq(schema.organization.id, org.id))
+  it('deletes a workspace’s teams and builds with it', async () => {
+    const { team, workspace } = await seedTeam(t.db)
+    await t.db.insert(schema.builds).values({ teamId: team.id, commitSha: 'abc1234', number: 1 })
+    await t.db.delete(schema.workspace).where(eq(schema.workspace.id, workspace.id))
+    expect(await t.db.select().from(schema.teams).where(eq(schema.teams.id, team.id))).toEqual([])
     expect(
-      await t.db.select().from(schema.projects).where(eq(schema.projects.id, project.id)),
-    ).toEqual([])
-    expect(
-      await t.db.select().from(schema.builds).where(eq(schema.builds.projectId, project.id)),
+      await t.db.select().from(schema.builds).where(eq(schema.builds.teamId, team.id)),
     ).toEqual([])
   })
 
-  it('keeps a project when its CI key is deleted, with no token', async () => {
-    const { project } = await seedProject(t.db)
+  it('keeps a team when its CI key is deleted, with no token', async () => {
+    const { team } = await seedTeam(t.db)
     const [key] = await t.db
       .insert(schema.apikey)
       .values({
         id: 'key-1',
-        referenceId: project.orgId,
+        referenceId: team.workspaceId,
         key: 'hashed',
         createdAt: new Date(),
         updatedAt: new Date(),
       })
       .returning()
     await t.db
-      .update(schema.projects)
+      .update(schema.teams)
       .set({ ciKeyId: key?.id ?? null })
-      .where(eq(schema.projects.id, project.id))
+      .where(eq(schema.teams.id, team.id))
     await t.db.delete(schema.apikey).where(eq(schema.apikey.id, 'key-1'))
-    const [after] = await t.db
-      .select()
-      .from(schema.projects)
-      .where(eq(schema.projects.id, project.id))
+    const [after] = await t.db.select().from(schema.teams).where(eq(schema.teams.id, team.id))
     expect(after?.ciKeyId).toBeNull()
   })
 })

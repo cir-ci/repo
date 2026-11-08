@@ -5,7 +5,7 @@ import {
   groupItems,
   isGroupFilter,
   integrationLabel,
-  projectCountLabel,
+  teamCountLabel,
   unavailableNote,
 } from '#features/integrations/api.ts'
 
@@ -70,7 +70,7 @@ describe('small helpers', () => {
     )
     expect(integrationLabel({ kindName: 'Mystery', name: 'X' })).toBe('Mystery (X)')
   })
-  it('names the project count', () => {
-    expect([0, 1, 3].map(projectCountLabel)).toEqual(['No projects yet', '1 project', '3 projects'])
+  it('names the team count', () => {
+    expect([0, 1, 3].map(teamCountLabel)).toEqual(['No teams yet', '1 team', '3 teams'])
   })
 })

@@ -59,14 +59,27 @@ Dependencies point downwards: apps → services → db → core, and services �
   `git-notify` jobs, the catalog and the dashboard's connect form, mapping page and links table are generic and
   read the registry: adding an integration touches no route, table, job or page. `integrations.kind` is not a
   CHECK constraint; the registry validates it. A git host is an integration with the `git` capability: its
-  repository is the project's `integration_projects` row, its webhook is one shared route and one shared handler
-  (`handleGitEvents` in `@circi/services`) fed normalised events. What an integration attaches to a project or
+  repository is the team's `integration_teams` row, its webhook is one shared route and one shared handler
+  (`handleGitEvents` in `@circi/services`) fed normalised events. What an integration attaches to a team or
   build (Figma frames, issues) is a row of `integration_links`. A service queues a domain event once with
   `queueIntegrationEvent`; the worker delivers it. Nothing is custom any more (docs/integration-sdk.md).
 - **Better-auth's tables** (`schema/auth.ts`) are generated (`pnpm db:auth-schema`, then
   `pnpm db:generate`), never edited by hand. Writes to them go through better-auth's API.
 - **Fastify scopes** receive exactly their dependencies. Register a scope with a prefix through a
   wrapper plugin (see `app.ts`) so the plugin's options never carry `prefix`.
+
+## Vocabulary
+
+The code, UI, API, database and docs say **team** (never "project") and **workspace** (never
+"organization" or "org"). Third parties keep their own words, and so do we when we talk to them:
+a Jira project, a GitLab project, a GitHub organization, a Linear team, a Slack workspace, a
+Bitbucket workspace (CirCI fields for it are `bitbucketWorkspace`), a Vitest or Docker Compose
+project, Argos's `GET /v2/project`, the `--org` flag of `circi admin` (it takes a workspace slug),
+and better-auth's own `organization` API: `/api/auth/organization/…`, `authClient.organization.*`,
+the `organizationId` / `organizationSlug` request fields and `activeOrganizationId`. Only
+better-auth's *API* keeps the word; its tables and columns are `workspace`, `member.workspace_id`,
+`invitation.workspace_id`, `session.active_workspace_id` and `sso_provider.workspace_id`, mapped
+through the plugins' `schema` options (`packages/auth/src/plugins/`).
 
 ## Types: namespaces for the types that belong to something
 
@@ -75,7 +88,7 @@ Type-only namespaces (erasable, so they work with `erasableSyntaxOnly` and Node'
 - A function's input/result types are merged into it: `createBuild.Input`, `finalizeBuild.Result`,
   `planUploads.File`. Use `import type { createBuild }` when only the types are needed.
 - A component's props: `export namespace Row { export interface Props { … } }` next to `Row`.
-- The API's wire types, one namespace per resource: `Build.Detail`, `Project.Settings`, `Org.Domain`
+- The API's wire types, one namespace per resource: `Build.Detail`, `Team.Settings`, `Workspace.Domain`
   (`@circi/api`). Dates are ISO strings there.
 
 A namespace must contain only types. Never put a value in one.

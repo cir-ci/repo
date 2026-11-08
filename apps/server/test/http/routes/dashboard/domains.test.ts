@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { createUser, type Mailer } from '@circi/auth'
-import { listOrgDomains } from '@circi/db'
+import { listWorkspaceDomains } from '@circi/db'
 import { FsStorage } from '@circi/storage'
 import { createTestDb } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
@@ -94,7 +94,7 @@ async function codeSignIn(email: string): Promise<{ status: number; cookie: stri
   return { status: res.statusCode, cookie }
 }
 
-const base = () => `/api/organizations/${acme.orgSlug}/domains`
+const base = () => `/api/workspaces/${acme.workspaceSlug}/domains`
 
 describe('claiming an email domain', () => {
   let domainId = ''
@@ -135,8 +135,8 @@ describe('claiming an email domain', () => {
     // Ann has an account but the domain isn't verified, so signing in doesn't add her.
     const { status, cookie } = await codeSignIn('ann@corp.test')
     expect(status).toBe(200)
-    const projects = await call('GET', '/api/projects', cookie)
-    expect(projects.json().projects).toEqual([])
+    const teams = await call('GET', '/api/teams', cookie)
+    expect(teams.json().teams).toEqual([])
   })
 
   it('verifies with the right record (even split into chunks), then new sign-ins join', async () => {
@@ -149,16 +149,16 @@ describe('claiming an email domain', () => {
 
     const { status, cookie } = await codeSignIn('ann@corp.test')
     expect(status).toBe(200)
-    const projects = (await call('GET', '/api/projects', cookie)).json().projects
-    expect(projects).toHaveLength(1)
-    expect(projects[0].org.slug).toBe(acme.orgSlug)
+    const teams = (await call('GET', '/api/teams', cookie)).json().teams
+    expect(teams).toHaveLength(1)
+    expect(teams[0].workspace.slug).toBe(acme.workspaceSlug)
   })
 
   it('lets a person with no account on a verified domain create one with a code', async () => {
     const { status, cookie } = await codeSignIn('newhire@corp.test')
     expect(status).toBe(200)
-    const projects = (await call('GET', '/api/projects', cookie)).json().projects
-    expect(projects).toHaveLength(1)
+    const teams = (await call('GET', '/api/teams', cookie)).json().teams
+    expect(teams).toHaveLength(1)
   })
 
   it('gives nothing to strangers or to other domains', async () => {
@@ -166,8 +166,8 @@ describe('claiming an email domain', () => {
     expect(status).toBe(0) // no mail was sent at all
   })
 
-  it('lets only one organization hold a verified domain', async () => {
-    const other = `/api/organizations/${rival.orgSlug}/domains`
+  it('lets only one workspace hold a verified domain', async () => {
+    const other = `/api/workspaces/${rival.workspaceSlug}/domains`
     const added = (await call('POST', other, rivalCookie, { domain: 'corp.test' })).json().domain
     dns.set('_circi-verify.corp.test', [[added.dnsValue]])
     const res = await call('POST', `${other}/${added.id}/verify`, rivalCookie, {})
@@ -175,7 +175,7 @@ describe('claiming an email domain', () => {
     expect(res.json().error).toMatch(/already verified/)
   })
 
-  it('is for owners and admins of the organization only', async () => {
+  it('is for owners and admins of the workspace only', async () => {
     expect((await call('GET', base(), rivalCookie)).statusCode).toBe(404)
     expect((await call('POST', base(), rivalCookie, { domain: 'x.test' })).statusCode).toBe(404)
     const { cookie: annCookie } = await codeSignIn('ann@corp.test')
@@ -185,7 +185,7 @@ describe('claiming an email domain', () => {
 
   it('removes a domain', async () => {
     expect((await call('DELETE', `${base()}/${domainId}`, ownerCookie)).statusCode).toBe(204)
-    expect(await listOrgDomains(t.db, acme.project.orgId)).toHaveLength(0)
+    expect(await listWorkspaceDomains(t.db, acme.team.workspaceId)).toHaveLength(0)
     expect((await call('DELETE', `${base()}/${domainId}`, ownerCookie)).statusCode).toBe(404)
   })
 })

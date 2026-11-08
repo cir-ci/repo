@@ -1,7 +1,7 @@
 import type { Build } from '@circi/api'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { approveBuild, createProject, type CreatedProject } from '#src/admin.ts'
+import { approveBuild, createTeam, type CreatedTeam } from '#src/admin.ts'
 import { Repo } from '#src/git-repo.ts'
 import { uploadOrThrow } from '#src/upload.ts'
 import { useBrowser, useStack } from '#src/vitest.ts'
@@ -14,7 +14,7 @@ describe('upload, diff and review (local-disk storage)', () => {
   const ctx = useStack({ profile: 'default', setup: true })
   const browser = useBrowser()
   let repo: Repo
-  let project: CreatedProject
+  let team: CreatedTeam
   let buildNumber: number
 
   beforeAll(async () => {
@@ -26,16 +26,16 @@ describe('upload, diff and review (local-disk storage)', () => {
 
   const detail = () =>
     ctx.setup.session.get<Build.Detail>(
-      `/api/projects/${ctx.setup.organization.slug}/${project.slug}/builds/${buildNumber}`,
+      `/api/teams/${ctx.setup.workspace.slug}/${team.slug}/builds/${buildNumber}`,
     )
 
   it('a baseline on main passes and a changed pull request build is held for review', async () => {
     const { stack, setup } = ctx
-    project = await createProject(setup.session, setup.organization.slug, 'Web app')
+    team = await createTeam(setup.session, setup.workspace.slug, 'Web app')
 
     await repo.writeShots({ home: {}, login: { dot: { x: 40, y: 40 } } })
     await repo.commit('first')
-    const baseline = await uploadOrThrow({ stack, token: project.token, repo, wait: true })
+    const baseline = await uploadOrThrow({ stack, token: team.token, repo, wait: true })
     // No baseline yet, so even on main the first build waits for someone to approve it.
     expect(baseline.exitCode).toBe(1)
     expect(baseline.status?.outcome).toMatchObject({ state: 'fail' })
@@ -43,18 +43,18 @@ describe('upload, diff and review (local-disk storage)', () => {
     expect(
       (
         await ctx.setup.session.get<Build.Detail>(
-          `/api/projects/${setup.organization.slug}/${project.slug}/builds/${baseline.build.number}`,
+          `/api/teams/${setup.workspace.slug}/${team.slug}/builds/${baseline.build.number}`,
         )
       ).build.reviewStatus,
     ).toBe('pending')
-    await approveBuild(setup.session, setup.organization.slug, project.slug, baseline.build.number)
+    await approveBuild(setup.session, setup.workspace.slug, team.slug, baseline.build.number)
 
     await repo.checkout('feature', { create: true })
     await repo.writeShots({ login: { dot: { x: 300, y: 200 } } })
     await repo.commit('move the button')
     const changed = await uploadOrThrow({
       stack,
-      token: project.token,
+      token: team.token,
       repo,
       wait: true,
       pr: { number: 12 },
@@ -73,7 +73,7 @@ describe('upload, diff and review (local-disk storage)', () => {
   it('rejecting through the UI asks first, then marks the build rejected everywhere', async () => {
     const { stack, setup } = ctx
     const page = await browser.as(setup.session)
-    await page.goto(`${stack.url}/${setup.organization.slug}/${project.slug}/builds/${buildNumber}`)
+    await page.goto(`${stack.url}/${setup.workspace.slug}/${team.slug}/builds/${buildNumber}`)
     await page.getByRole('button', { name: 'Reject', exact: true }).click()
 
     const dialog = page
@@ -112,7 +112,7 @@ describe('upload, diff and review (local-disk storage)', () => {
   it('approving through the UI changes the decision, and a re-run of the commit is approved at once', async () => {
     const { stack, setup } = ctx
     const page = await browser.as(setup.session)
-    await page.goto(`${stack.url}/${setup.organization.slug}/${project.slug}/builds/${buildNumber}`)
+    await page.goto(`${stack.url}/${setup.workspace.slug}/${team.slug}/builds/${buildNumber}`)
     await page.getByRole('button', { name: 'Approve all' }).click()
 
     await expect.poll(async () => (await detail()).build.reviewStatus).toBe('approved')
@@ -123,7 +123,7 @@ describe('upload, diff and review (local-disk storage)', () => {
     // new build is approved at once, by "rerun", and does not block the merge.
     const again = await uploadOrThrow({
       stack,
-      token: project.token,
+      token: team.token,
       repo,
       wait: true,
       pr: { number: 12 },
@@ -131,7 +131,7 @@ describe('upload, diff and review (local-disk storage)', () => {
     expect(again.build.number).toBeGreaterThan(buildNumber)
     expect(again.status?.outcome).toMatchObject({ state: 'pass' })
     const rerun = await ctx.setup.session.get<Build.Detail>(
-      `/api/projects/${setup.organization.slug}/${project.slug}/builds/${again.build.number}`,
+      `/api/teams/${setup.workspace.slug}/${team.slug}/builds/${again.build.number}`,
     )
     expect(rerun.build.reviewStatus).toBe('approved')
     expect(rerun.reviews[0]).toMatchObject({ state: 'approved', source: 'rerun' })

@@ -1,5 +1,5 @@
 import { createBuild, schema } from '@circi/db'
-import { addTestMember, createTestDb, seedProject, seedUser } from '@circi/testing'
+import { addTestMember, createTestDb, seedTeam, seedUser } from '@circi/testing'
 import { and, asc, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -24,16 +24,16 @@ const handle = (u: { email: string }) => u.email.split('@')[0] ?? ''
 
 /** Handles are the email's local part: `ann@…` is `@ann`. */
 async function setup() {
-  const { project, org, owner } = await seedProject(t.db)
+  const { team, workspace, owner } = await seedTeam(t.db)
   const ann = await seedUser(t.db, `ann${Math.random().toString(36).slice(2, 8)}@example.com`)
   const bob = await seedUser(t.db, `bob${Math.random().toString(36).slice(2, 8)}@example.com`)
   const outsider = await seedUser(t.db, `zed${Math.random().toString(36).slice(2, 8)}@example.com`)
   for (const u of [ann, bob]) {
     // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
-    await addTestMember(t.db, { orgId: org.id, userId: u.id })
+    await addTestMember(t.db, { workspaceId: workspace.id, userId: u.id })
   }
-  const build = await createBuild(t.db, { projectId: project.id, commitSha: 'abc1234' })
-  return { project, org, owner, ann, bob, outsider, build }
+  const build = await createBuild(t.db, { teamId: team.id, commitSha: 'abc1234' })
+  return { team, workspace, owner, ann, bob, outsider, build }
 }
 
 describe('addComment mentions', () => {
@@ -64,7 +64,7 @@ describe('addComment mentions', () => {
     expect(await mentions(bob.id)).toHaveLength(1)
   })
 
-  it('ignores people outside the organization, emails and unknown names', async () => {
+  it('ignores people outside the workspace, emails and unknown names', async () => {
     const { owner, outsider, build } = await setup()
     await addComment(t.db, {
       buildId: build.id,
@@ -182,9 +182,9 @@ describe('comment structure and permissions', () => {
 
 describe('reject reason', () => {
   it('is stored on the review and sent to the author', async () => {
-    const { project, ann, owner } = await setup()
+    const { team, ann, owner } = await setup()
     const build = await createBuild(t.db, {
-      projectId: project.id,
+      teamId: team.id,
       commitSha: 'def5678',
       author: { login: 'ann', userId: ann.id },
     })

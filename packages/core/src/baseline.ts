@@ -1,7 +1,7 @@
 /**
  * Baseline resolution (PLAN §7.2): which earlier build a new build is compared against.
  *
- * Pure function over candidates the caller has already narrowed to the same project and the
+ * Pure function over candidates the caller has already narrowed to the same team and the
  * same build name, excluding the build being resolved. Kept free of I/O so it can be tested
  * exhaustively; getting this wrong is the fastest way for a visual testing tool to lose trust.
  */

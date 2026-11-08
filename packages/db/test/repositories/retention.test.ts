@@ -2,7 +2,7 @@ import {
   createTestDb,
   seedBuild,
   seedFile,
-  seedProject,
+  seedTeam,
   seedScreenshot,
   seedSite,
   sha,
@@ -34,26 +34,26 @@ const DAY = 86_400_000
 const now = new Date('2026-06-01T00:00:00Z')
 const daysAgo = (n: number) => new Date(now.getTime() - n * DAY)
 
-async function projectWithRetention(days: number) {
-  const seeded = await seedProject(t.db)
+async function teamWithRetention(days: number) {
+  const seeded = await seedTeam(t.db)
   await t.db
-    .update(schema.projects)
+    .update(schema.teams)
     .set({ retentionDays: days })
-    .where(eq(schema.projects.id, seeded.project.id))
-  return seeded.project
+    .where(eq(schema.teams.id, seeded.team.id))
+  return seeded.team
 }
 
 describe('expireBuilds', () => {
   it('expires old finished builds and their screenshots, but not young or running ones', async () => {
-    const project = await projectWithRetention(30)
-    const old = await seedBuild(t.db, project.id, {
+    const team = await teamWithRetention(30)
+    const old = await seedBuild(t.db, team.id, {
       branch: 'feature',
       status: 'complete',
       createdAt: daysAgo(40),
     })
     await seedScreenshot(t.db, { buildId: old.id, fileSha256: sha('a') })
-    const young = await seedBuild(t.db, project.id, { status: 'complete', createdAt: daysAgo(5) })
-    const running = await seedBuild(t.db, project.id, { createdAt: daysAgo(40) })
+    const young = await seedBuild(t.db, team.id, { status: 'complete', createdAt: daysAgo(5) })
+    const running = await seedBuild(t.db, team.id, { createdAt: daysAgo(40) })
 
     expect(await expireBuilds(t.db, now)).toBe(1)
     const status = async (id: string) =>
@@ -65,24 +65,21 @@ describe('expireBuilds', () => {
   })
 
   it('keeps the newest approved default-branch build, which later builds compare against', async () => {
-    const project = await projectWithRetention(30)
-    const baseline = await seedBuild(t.db, project.id, {
-      branch: project.defaultBranch,
+    const team = await teamWithRetention(30)
+    const baseline = await seedBuild(t.db, team.id, {
+      branch: team.defaultBranch,
       status: 'complete',
       conclusion: 'no_changes',
       createdAt: daysAgo(60),
     })
-    const older = await seedBuild(t.db, project.id, {
-      branch: project.defaultBranch,
+    const older = await seedBuild(t.db, team.id, {
+      branch: team.defaultBranch,
       status: 'complete',
       conclusion: 'no_changes',
       createdAt: daysAgo(90),
     })
     await expireBuilds(t.db, now)
-    const rows = await t.db
-      .select()
-      .from(schema.builds)
-      .where(eq(schema.builds.projectId, project.id))
+    const rows = await t.db.select().from(schema.builds).where(eq(schema.builds.teamId, team.id))
     const byId = new Map(rows.map((b) => [b.id, b.status]))
     expect(byId.get(baseline.id)).toBe('complete')
     expect(byId.get(older.id)).toBe('expired')
@@ -91,8 +88,8 @@ describe('expireBuilds', () => {
 
 describe('expireSites', () => {
   it('drops stale branch addresses and unserved old versions, never the default branch’s', async () => {
-    const project = await projectWithRetention(30)
-    const stale = await seedSite(t.db, { projectId: project.id, commitSha: 'a'.repeat(12) })
+    const team = await teamWithRetention(30)
+    const stale = await seedSite(t.db, { teamId: team.id, commitSha: 'a'.repeat(12) })
     await t.db
       .update(schema.staticSites)
       .set({ createdAt: daysAgo(60) })
@@ -100,7 +97,7 @@ describe('expireSites', () => {
     await t.db.insert(schema.siteHostnames).values([
       {
         label: 'stale-branch',
-        projectSiteId: stale.site.id,
+        teamSiteId: stale.site.id,
         linkKind: 'branch',
         branch: 'feature',
         staticSiteId: stale.version.id,
@@ -108,9 +105,9 @@ describe('expireSites', () => {
       },
       {
         label: 'main-branch',
-        projectSiteId: stale.site.id,
+        teamSiteId: stale.site.id,
         linkKind: 'branch',
-        branch: project.defaultBranch,
+        branch: team.defaultBranch,
         staticSiteId: stale.version.id,
         updatedAt: daysAgo(60),
       },
@@ -130,8 +127,8 @@ describe('expireSites', () => {
 
 describe('garbage collection of files', () => {
   it('marks unreferenced files, un-marks revived ones, and collects after the grace period', async () => {
-    const project = await projectWithRetention(30)
-    const build = await seedBuild(t.db, project.id)
+    const team = await teamWithRetention(30)
+    const build = await seedBuild(t.db, team.id)
     await seedFile(t.db, { sha256: sha('1') })
     await seedFile(t.db, { sha256: sha('2') })
     await seedScreenshot(t.db, { buildId: build.id, fileSha256: sha('3') })
@@ -204,8 +201,8 @@ describe('storageUsage', () => {
 
 describe('previewCollection', () => {
   it('reports what a collection would delete, and changes nothing', async () => {
-    const project = await projectWithRetention(30)
-    const build = await seedBuild(t.db, project.id, { branch: 'main' })
+    const team = await teamWithRetention(30)
+    const build = await seedBuild(t.db, team.id, { branch: 'main' })
     const used = sha('f1')
     const due = sha('f2')
     const recent = sha('f3')

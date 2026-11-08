@@ -1,6 +1,6 @@
 import { verifyWebhookSignature } from '@circi/core'
 import { claimJob, createWebhook, enqueueJob, QUEUES, type Job } from '@circi/db'
-import { seedProject } from '@circi/testing'
+import { seedTeam } from '@circi/testing'
 import { createTestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -24,8 +24,8 @@ async function jobFor(webhookId: string): Promise<Job> {
       event: 'build.completed',
       createdAt: '2026-01-01T00:00:00.000Z',
       data: {
-        organization: { slug: 'acme' },
-        project: { slug: 'web' },
+        workspace: { slug: 'acme' },
+        team: { slug: 'web' },
         build: { number: 7 },
       },
     },
@@ -44,9 +44,9 @@ const publicDns = async () => ['93.184.216.34']
 
 describe('deliverWebhook', () => {
   it('posts the signed body, with a link to the build', async () => {
-    const { project } = await seedProject(t.db)
+    const { team } = await seedTeam(t.db)
     const hook = await createWebhook(t.db, {
-      projectId: project.id,
+      teamId: team.id,
       url: 'https://hooks.acme.io/x',
       events: ['build.completed'],
     })
@@ -84,9 +84,9 @@ describe('deliverWebhook', () => {
   })
 
   it('throws on a non-2xx answer (so the queue retries) and on a redirect', async () => {
-    const { project } = await seedProject(t.db)
+    const { team } = await seedTeam(t.db)
     const hook = await createWebhook(t.db, {
-      projectId: project.id,
+      teamId: team.id,
       url: 'https://hooks.acme.io/x',
       events: ['build.completed'],
     })
@@ -107,9 +107,9 @@ describe('deliverWebhook', () => {
   })
 
   it('skips a receiver whose name now points at a private address', async () => {
-    const { project } = await seedProject(t.db)
+    const { team } = await seedTeam(t.db)
     const hook = await createWebhook(t.db, {
-      projectId: project.id,
+      teamId: team.id,
       url: 'https://hooks.acme.io/x',
       events: ['build.completed'],
     })

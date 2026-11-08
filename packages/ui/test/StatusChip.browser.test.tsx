@@ -27,3 +27,27 @@ describe('StatusChip', () => {
     expect(page.getByRole('img', { name: 'Unchanged' }).elements()).toHaveLength(0)
   })
 })
+
+describe('StatusChip text colour', () => {
+  it('uses the text variants of the state colours, never the glyph colour', async () => {
+    await render(
+      <>
+        <StatusChip status="approved" />
+        <StatusChip status="rejected" />
+      </>,
+    )
+    const root = getComputedStyle(document.documentElement)
+    const colourOf = (variable: string) => {
+      const probe = document.createElement('span')
+      probe.style.color = root.getPropertyValue(variable)
+      document.body.append(probe)
+      const colour = getComputedStyle(probe).color
+      probe.remove()
+      return colour
+    }
+    const approved = page.getByText('Approved').element()
+    const rejected = page.getByText('Rejected').element()
+    expect(getComputedStyle(approved).color).toBe(colourOf('--circi-state-approved-text'))
+    expect(getComputedStyle(rejected).color).toBe(colourOf('--circi-state-rejected-text'))
+  })
+})

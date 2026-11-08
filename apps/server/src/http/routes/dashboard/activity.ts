@@ -4,20 +4,20 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
 import type { Deps } from '#http/lib/deps.ts'
-import { loadProject } from '#http/lib/project-access.ts'
+import { loadTeam } from '#http/lib/team-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
-const params = z.object({ org: z.string(), project: z.string(), number: z.string() })
+const params = z.object({ workspace: z.string(), team: z.string(), number: z.string() })
 
 /** `GET …/builds/:number/activity`: what happened to a build, oldest first. Members only. */
 export const dashboardActivityRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
-  app.get('/projects/:org/:project/builds/:number/activity', async (req, reply) => {
-    const access = await loadProject(deps, req, reply)
+  app.get('/teams/:workspace/:team/builds/:number/activity', async (req, reply) => {
+    const access = await loadTeam(deps, req, reply)
     if (!access) return reply
-    const { project } = access
+    const { team } = access
     const number = Number(parse(params, req.params).number)
     const build = Number.isInteger(number)
-      ? await getBuildByNumber(deps.db, project.id, number)
+      ? await getBuildByNumber(deps.db, team.id, number)
       : undefined
     if (!build) return reply.code(404).send({ error: 'Build not found' })
     const events = await listBuildActivity(deps.db, build.id)

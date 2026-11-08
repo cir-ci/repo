@@ -1,6 +1,6 @@
 import { buildOutcome } from '@circi/core'
-import { setOrgSettings, updateProjectSettings } from '@circi/db'
-import { createTestDb, seedBuild, seedDiff, seedProject } from '@circi/testing'
+import { setWorkspaceSettings, updateTeamSettings } from '@circi/db'
+import { createTestDb, seedBuild, seedDiff, seedTeam } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { gateInputs } from '#src/index.ts'
@@ -14,18 +14,18 @@ afterAll(async () => {
 })
 
 let n = 0
-/** A project whose `wobble` screenshot is flaky, and a pull request build that changed only it. */
+/** A team whose `wobble` screenshot is flaky, and a pull request build that changed only it. */
 async function flakyPr(over: { changed?: string[] } = {}) {
-  const seeded = await seedProject(t.db)
-  const { project } = seeded
+  const seeded = await seedTeam(t.db)
+  const { team } = seeded
   for (let i = 0; i < 3; i += 1) {
     n += 1
     // oxlint-disable-next-line no-await-in-loop -- builds are numbered in order
-    const main = await seedBuild(t.db, project.id, { branch: 'main', status: 'complete' })
+    const main = await seedBuild(t.db, team.id, { branch: 'main', status: 'complete' })
     // oxlint-disable-next-line no-await-in-loop
     await seedDiff(t.db, { buildId: main.id, name: 'wobble', status: 'changed' })
   }
-  const build = await seedBuild(t.db, project.id, {
+  const build = await seedBuild(t.db, team.id, {
     branch: 'feature',
     prNumber: 3,
     status: 'complete',
@@ -52,9 +52,9 @@ describe('gateInputs', () => {
     expect(await outcomeOf(build)).toMatchObject({ state: 'fail' })
   })
 
-  it('passes a flaky-only change once the organization stops blocking on flaky screenshots', async () => {
-    const { build, org } = await flakyPr()
-    await setOrgSettings(t.db, org.id, { flakyBlocksMerge: false })
+  it('passes a flaky-only change once the workspace stops blocking on flaky screenshots', async () => {
+    const { build, workspace } = await flakyPr()
+    await setWorkspaceSettings(t.db, workspace.id, { flakyBlocksMerge: false })
     expect(await gateInputs(t.db, build)).toMatchObject({
       flakyBlocksMerge: false,
       flakyOnly: true,
@@ -66,26 +66,26 @@ describe('gateInputs', () => {
   })
 
   it('still blocks when the change is not only flaky', async () => {
-    const { build, org } = await flakyPr({ changed: ['wobble', 'steady'] })
-    await setOrgSettings(t.db, org.id, { flakyBlocksMerge: false })
+    const { build, workspace } = await flakyPr({ changed: ['wobble', 'steady'] })
+    await setWorkspaceSettings(t.db, workspace.id, { flakyBlocksMerge: false })
     expect(await gateInputs(t.db, build)).toMatchObject({ flakyOnly: false })
     expect(await outcomeOf(build)).toMatchObject({ state: 'fail' })
   })
 
-  it('lets a project override the organization either way', async () => {
-    const { build, org, project } = await flakyPr()
-    await setOrgSettings(t.db, org.id, { flakyBlocksMerge: false })
-    await updateProjectSettings(t.db, project.id, { flakyBlocksMerge: true })
+  it('lets a team override the workspace either way', async () => {
+    const { build, workspace, team } = await flakyPr()
+    await setWorkspaceSettings(t.db, workspace.id, { flakyBlocksMerge: false })
+    await updateTeamSettings(t.db, team.id, { flakyBlocksMerge: true })
     expect(await gateInputs(t.db, build)).toMatchObject({ flakyBlocksMerge: true })
     expect(await outcomeOf(build)).toMatchObject({ state: 'fail' })
 
-    await setOrgSettings(t.db, org.id, { flakyBlocksMerge: true })
-    await updateProjectSettings(t.db, project.id, { flakyBlocksMerge: false })
+    await setWorkspaceSettings(t.db, workspace.id, { flakyBlocksMerge: true })
+    await updateTeamSettings(t.db, team.id, { flakyBlocksMerge: false })
     expect(await gateInputs(t.db, build)).toMatchObject({ flakyBlocksMerge: false })
     expect(await outcomeOf(build)).toMatchObject({ state: 'pass' })
 
-    // Back to null: the organization's value applies again.
-    await updateProjectSettings(t.db, project.id, { flakyBlocksMerge: null })
+    // Back to null: the workspace's value applies again.
+    await updateTeamSettings(t.db, team.id, { flakyBlocksMerge: null })
     expect(await gateInputs(t.db, build)).toMatchObject({ flakyBlocksMerge: true })
   })
 })

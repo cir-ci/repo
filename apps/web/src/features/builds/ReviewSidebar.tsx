@@ -36,9 +36,9 @@ export function tabForKey(current: SidebarTab, key: string): SidebarTab | undefi
 /** Details / Activity / Comments beside the viewer: a tablist with roving focus. */
 export function ReviewSidebar(props: ReviewSidebar.Props) {
   const { data, tab, onTab } = props
-  const { project, build } = data
+  const { team, build } = data
   const id = useId()
-  const comments = useQuery(commentsQuery(project.orgSlug, project.slug, build.number))
+  const comments = useQuery(commentsQuery(team.workspaceSlug, team.slug, build.number))
   const count = commentCount(comments.data?.comments ?? [])
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
@@ -80,15 +80,15 @@ export function ReviewSidebar(props: ReviewSidebar.Props) {
           <DetailsTab data={data} onRequestReview={props.onRequestReview} />
         ) : tab === 'activity' ? (
           <ActivityTab
-            org={project.orgSlug}
-            project={project.slug}
+            workspace={team.workspaceSlug}
+            team={team.slug}
             number={build.number}
             onOpenComment={props.onOpenComment}
           />
         ) : (
           <CommentsTab
-            org={project.orgSlug}
-            project={project.slug}
+            workspace={team.workspaceSlug}
+            team={team.slug}
             number={build.number}
             snapshotName={props.snapshotName}
             pendingRegion={props.pendingRegion}

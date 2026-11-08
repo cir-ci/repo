@@ -15,7 +15,7 @@ import { useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { fileUrl } from '#features/builds/api.ts'
-import { useLoadingAnnouncement } from '#features/projects/loading.ts'
+import { useLoadingAnnouncement } from '#features/teams/loading.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
@@ -38,10 +38,10 @@ import listStyles from '#lib/ListPage.module.css'
 import styles from './BaselinesPage.module.css'
 
 export function BaselinesPage() {
-  const { org, project } = useParams({ from: ROUTE })
-  useDocumentTitle('Baselines', project)
+  const { workspace, team } = useParams({ from: ROUTE })
+  useDocumentTitle('Baselines', team)
   const clientLink = useClientLink()
-  const { data, error, refetch } = useQuery(baselinesQuery(org, project))
+  const { data, error, refetch } = useQuery(baselinesQuery(workspace, team))
   useLoadingAnnouncement(!data && !error, 'Loading baselines')
   const [filter, setFilter] = useState('')
   const [selectedId, setSelectedId] = useState<string>()
@@ -60,26 +60,26 @@ export function BaselinesPage() {
   return (
     <>
       <PanelHeader>
-        <Breadcrumbs items={[{ label: project }, { label: 'Baselines' }]} />
+        <Breadcrumbs items={[{ label: team }, { label: 'Baselines' }]} />
       </PanelHeader>
       <div className={listStyles['page']}>
         <div className={listStyles['body']}>
           {error ? (
-            <ErrorState error={error} onRetry={() => void refetch()} notFound="Project not found" />
+            <ErrorState error={error} onRetry={() => void refetch()} notFound="Team not found" />
           ) : !data ? (
             <Delayed>
               <ListSkeleton rows={4} />
             </Delayed>
           ) : all.length === 0 ? (
             <EmptyState title="No baselines yet">
-              Once a build of {data.project.defaultBranch} finishes, its screenshots become the
+              Once a build of {data.team.defaultBranch} finishes, its screenshots become the
               baselines new builds are compared against.
             </EmptyState>
           ) : (
             <>
               <div className={listStyles['toolbar']}>
                 <span role="status" className={listStyles['count']}>
-                  {countLabel(items.length, all.length)} on {data.project.defaultBranch}
+                  {countLabel(items.length, all.length)} on {data.team.defaultBranch}
                 </span>
                 <TextField
                   className={styles.filter}
@@ -110,8 +110,8 @@ export function BaselinesPage() {
                               density="two-line"
                               selected={baselineId(item) === selectedId}
                               {...clientLink({
-                                to: '/$org/$project/builds/$number',
-                                params: { org, project, number: String(item.buildNumber) },
+                                to: '/$workspace/$team/builds/$number',
+                                params: { workspace, team, number: String(item.buildNumber) },
                               })}
                               leading={
                                 item.thumbnailSha256 || item.fileSha256 ? (

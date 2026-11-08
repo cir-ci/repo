@@ -1,3 +1,123 @@
+CREATE TABLE "account" (
+	"id" text PRIMARY KEY NOT NULL,
+	"account_id" text NOT NULL,
+	"provider_id" text NOT NULL,
+	"user_id" text NOT NULL,
+	"access_token" text,
+	"refresh_token" text,
+	"id_token" text,
+	"access_token_expires_at" timestamp,
+	"refresh_token_expires_at" timestamp,
+	"scope" text,
+	"password" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "apikey" (
+	"id" text PRIMARY KEY NOT NULL,
+	"config_id" text DEFAULT 'default' NOT NULL,
+	"name" text,
+	"start" text,
+	"reference_id" text NOT NULL,
+	"prefix" text,
+	"key" text NOT NULL,
+	"refill_interval" integer,
+	"refill_amount" integer,
+	"last_refill_at" timestamp,
+	"enabled" boolean DEFAULT true,
+	"rate_limit_enabled" boolean DEFAULT true,
+	"rate_limit_time_window" integer DEFAULT 86400000,
+	"rate_limit_max" integer DEFAULT 10,
+	"request_count" integer DEFAULT 0,
+	"remaining" integer,
+	"last_request" timestamp,
+	"expires_at" timestamp,
+	"created_at" timestamp NOT NULL,
+	"updated_at" timestamp NOT NULL,
+	"permissions" text,
+	"metadata" text
+);
+--> statement-breakpoint
+CREATE TABLE "invitation" (
+	"id" text PRIMARY KEY NOT NULL,
+	"workspace_id" text NOT NULL,
+	"email" text NOT NULL,
+	"role" text,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"expires_at" timestamp NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"inviter_id" text NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "member" (
+	"id" text PRIMARY KEY NOT NULL,
+	"workspace_id" text NOT NULL,
+	"user_id" text NOT NULL,
+	"role" text DEFAULT 'member' NOT NULL,
+	"created_at" timestamp NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "session" (
+	"id" text PRIMARY KEY NOT NULL,
+	"expires_at" timestamp NOT NULL,
+	"token" text NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp NOT NULL,
+	"ip_address" text,
+	"user_agent" text,
+	"user_id" text NOT NULL,
+	"impersonated_by" text,
+	"active_workspace_id" text,
+	CONSTRAINT "session_token_unique" UNIQUE("token")
+);
+--> statement-breakpoint
+CREATE TABLE "sso_provider" (
+	"id" text PRIMARY KEY NOT NULL,
+	"issuer" text NOT NULL,
+	"oidc_config" text,
+	"saml_config" text,
+	"user_id" text NOT NULL,
+	"provider_id" text NOT NULL,
+	"workspace_id" text,
+	"domain" text NOT NULL,
+	CONSTRAINT "sso_provider_provider_id_unique" UNIQUE("provider_id")
+);
+--> statement-breakpoint
+CREATE TABLE "user" (
+	"id" text PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
+	"email" text NOT NULL,
+	"email_verified" boolean DEFAULT false NOT NULL,
+	"image" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"role" text,
+	"banned" boolean DEFAULT false,
+	"ban_reason" text,
+	"ban_expires" timestamp,
+	CONSTRAINT "user_email_unique" UNIQUE("email")
+);
+--> statement-breakpoint
+CREATE TABLE "verification" (
+	"id" text PRIMARY KEY NOT NULL,
+	"identifier" text NOT NULL,
+	"value" text NOT NULL,
+	"expires_at" timestamp NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "workspace" (
+	"id" text PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
+	"slug" text NOT NULL,
+	"logo" text,
+	"created_at" timestamp NOT NULL,
+	"metadata" text,
+	CONSTRAINT "workspace_slug_unique" UNIQUE("slug")
+);
+--> statement-breakpoint
 CREATE TABLE "build_shards" (
 	"build_id" uuid NOT NULL,
 	"shard_index" text NOT NULL,
@@ -7,7 +127,7 @@ CREATE TABLE "build_shards" (
 --> statement-breakpoint
 CREATE TABLE "builds" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"project_id" uuid NOT NULL,
+	"team_id" uuid NOT NULL,
 	"number" integer NOT NULL,
 	"name" text DEFAULT 'default' NOT NULL,
 	"commit_sha" text NOT NULL,
@@ -17,6 +137,7 @@ CREATE TABLE "builds" (
 	"merge_base_sha" text,
 	"ancestor_shas" text[] DEFAULT '{}'::text[] NOT NULL,
 	"ancestry_status" text DEFAULT 'missing' NOT NULL,
+	"history_source" text DEFAULT 'cli' NOT NULL,
 	"baseline_source" text,
 	"base_build_id" uuid,
 	"status" text DEFAULT 'pending' NOT NULL,
@@ -24,6 +145,12 @@ CREATE TABLE "builds" (
 	"parallel_total" integer,
 	"conclusion" text,
 	"review_status" text DEFAULT 'pending' NOT NULL,
+	"error_message" text,
+	"author_login" text,
+	"author_email" text,
+	"author_user_id" text,
+	"finalized_at" timestamp with time zone,
+	"completed_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "builds_status_check" CHECK (status in ('pending', 'uploading', 'processing', 'complete', 'error', 'expired')),
 	CONSTRAINT "builds_review_status_check" CHECK (review_status in ('pending', 'approved', 'rejected')),
@@ -34,12 +161,33 @@ CREATE TABLE "builds" (
 );
 --> statement-breakpoint
 CREATE TABLE "commit_ancestry" (
-	"project_id" uuid NOT NULL,
+	"team_id" uuid NOT NULL,
 	"commit_sha" text NOT NULL,
 	"merge_base_sha" text,
 	"ancestor_shas" text[] NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "commit_ancestry_project_id_commit_sha_pk" PRIMARY KEY("project_id","commit_sha")
+	CONSTRAINT "commit_ancestry_team_id_commit_sha_pk" PRIMARY KEY("team_id","commit_sha")
+);
+--> statement-breakpoint
+CREATE TABLE "comments" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"build_id" uuid NOT NULL,
+	"snapshot_name" text,
+	"region_x" double precision,
+	"region_y" double precision,
+	"region_width" double precision,
+	"region_height" double precision,
+	"body" text NOT NULL,
+	"author_id" text,
+	"parent_id" uuid,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"edited_at" timestamp with time zone,
+	"deleted_at" timestamp with time zone,
+	CONSTRAINT "comments_region_check" CHECK (("comments"."region_x" is null and "comments"."region_y" is null and "comments"."region_width" is null and "comments"."region_height" is null)
+        or ("comments"."snapshot_name" is not null
+          and "comments"."region_x" >= 0 and "comments"."region_y" >= 0
+          and "comments"."region_width" > 0 and "comments"."region_height" > 0
+          and "comments"."region_x" + "comments"."region_width" <= 1 and "comments"."region_y" + "comments"."region_height" <= 1))
 );
 --> statement-breakpoint
 CREATE TABLE "files" (
@@ -61,53 +209,223 @@ CREATE TABLE "files" (
 	CONSTRAINT "files_verified_check" CHECK (("files"."status" = 'verified') = ("files"."verified_at" is not null))
 );
 --> statement-breakpoint
-CREATE TABLE "memberships" (
-	"org_id" uuid NOT NULL,
-	"user_id" uuid NOT NULL,
-	"role" text NOT NULL,
+CREATE TABLE "upload_claims" (
+	"build_id" uuid NOT NULL,
+	"file_sha256" text NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "memberships_org_id_user_id_pk" PRIMARY KEY("org_id","user_id"),
-	CONSTRAINT "memberships_role_check" CHECK (role in ('owner', 'admin', 'member', 'viewer'))
+	CONSTRAINT "upload_claims_build_id_file_sha256_pk" PRIMARY KEY("build_id","file_sha256")
 );
 --> statement-breakpoint
-CREATE TABLE "organizations" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"slug" text NOT NULL,
-	"name" text NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "organizations_slug_unique" UNIQUE("slug")
+CREATE TABLE "build_checks" (
+	"build_id" uuid PRIMARY KEY NOT NULL,
+	"check_run_id" text NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "projects" (
+CREATE TABLE "pr_comments" (
+	"team_id" uuid NOT NULL,
+	"pr_number" integer NOT NULL,
+	"comment_id" text NOT NULL,
+	CONSTRAINT "pr_comments_team_id_pr_number_pk" PRIMARY KEY("team_id","pr_number")
+);
+--> statement-breakpoint
+CREATE TABLE "provider_deliveries" (
+	"delivery_id" text PRIMARY KEY NOT NULL,
+	"received_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "instance_settings" (
+	"key" text PRIMARY KEY NOT NULL,
+	"value" text NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "integration_links" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"org_id" uuid NOT NULL,
+	"integration_id" uuid NOT NULL,
+	"team_id" uuid,
+	"build_id" uuid,
+	"subject" text,
+	"kind" text NOT NULL,
+	"external_ref" text NOT NULL,
+	"url" text,
+	"title" text,
+	"payload" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"created_by" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "integration_teams" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"integration_id" uuid NOT NULL,
+	"team_id" uuid NOT NULL,
+	"external_ref" text NOT NULL,
+	"extra" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "integration_teams_key" UNIQUE("integration_id","team_id")
+);
+--> statement-breakpoint
+CREATE TABLE "integrations" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"workspace_id" text NOT NULL,
+	"kind" text NOT NULL,
+	"display_name" text NOT NULL,
+	"external_id" text NOT NULL,
+	"encrypted_credentials" text,
+	"needs_attention" boolean DEFAULT false NOT NULL,
+	"needs_attention_reason" text,
+	"needs_attention_at" timestamp with time zone,
+	"created_by" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "integrations_workspace_kind_external_key" UNIQUE("workspace_id","kind","external_id")
+);
+--> statement-breakpoint
+CREATE TABLE "jobs" (
+	"id" bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "jobs_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1),
+	"queue" text NOT NULL,
+	"payload" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"dedupe_key" text,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"run_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"attempts" integer DEFAULT 0 NOT NULL,
+	"max_attempts" integer DEFAULT 5 NOT NULL,
+	"locked_until" timestamp with time zone,
+	"last_error" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"finished_at" timestamp with time zone,
+	CONSTRAINT "jobs_status_check" CHECK (status in ('pending', 'running', 'done', 'failed'))
+);
+--> statement-breakpoint
+CREATE TABLE "notification_preferences" (
+	"user_id" text PRIMARY KEY NOT NULL,
+	"email_review_requested" boolean DEFAULT true NOT NULL,
+	"email_review_overdue" boolean DEFAULT true NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "notifications" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" text NOT NULL,
+	"kind" text NOT NULL,
+	"build_id" uuid,
+	"actor_id" text,
+	"payload" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"read_at" timestamp with time zone,
+	"snoozed_until" timestamp with time zone,
+	"deleted_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "notifications_kind_check" CHECK (kind in ('review_requested', 'review_re_requested', 'mentioned', 'build_approved', 'build_rejected', 'review_overdue', 'connection_needs_attention', 'flaky_detected'))
+);
+--> statement-breakpoint
+CREATE TABLE "session_methods" (
+	"session_id" text PRIMARY KEY NOT NULL,
+	"method" text NOT NULL,
+	"scope_workspace_id" text,
+	CONSTRAINT "session_methods_method_check" CHECK (method in ('password', 'email', 'oidc', 'workspace-oidc'))
+);
+--> statement-breakpoint
+CREATE TABLE "workspace_auth_settings" (
+	"workspace_id" text PRIMARY KEY NOT NULL,
+	"email_login_enabled" boolean DEFAULT true NOT NULL,
+	"password_login_enabled" boolean DEFAULT true NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "workspace_domains" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"workspace_id" text NOT NULL,
+	"domain" text NOT NULL,
+	"verification_token" text NOT NULL,
+	"verified_at" timestamp with time zone,
+	"auto_join_role" text DEFAULT 'member' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "workspace_domains_auto_join_role_check" CHECK (auto_join_role in ('member'))
+);
+--> statement-breakpoint
+CREATE TABLE "workspace_settings" (
+	"workspace_id" text PRIMARY KEY NOT NULL,
+	"flaky_blocks_merge" boolean DEFAULT true NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "teams" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"workspace_id" text NOT NULL,
 	"slug" text NOT NULL,
 	"name" text NOT NULL,
-	"token_hash" text NOT NULL,
-	"token_hint" text NOT NULL,
-	"token_created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"ci_key_id" text,
 	"default_branch" text DEFAULT 'main' NOT NULL,
 	"diff_threshold" real DEFAULT 0 NOT NULL,
 	"auto_approve_default_branch" boolean DEFAULT true NOT NULL,
 	"block_merge_on_changes" boolean DEFAULT true NOT NULL,
+	"flaky_blocks_merge" boolean,
 	"retention_days" integer DEFAULT 30 NOT NULL,
+	"review_target_hours" integer DEFAULT 24,
+	"triage_rotation_starts_on" timestamp with time zone,
 	"static_hosting_enabled" boolean DEFAULT false NOT NULL,
 	"build_counter" integer DEFAULT 0 NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "projects_token_hash_unique" UNIQUE("token_hash"),
-	CONSTRAINT "projects_diff_threshold_check" CHECK ("projects"."diff_threshold" >= 0 and "projects"."diff_threshold" <= 1),
-	CONSTRAINT "projects_retention_days_check" CHECK ("projects"."retention_days" >= 1)
+	CONSTRAINT "teams_ci_key_id_unique" UNIQUE("ci_key_id"),
+	CONSTRAINT "teams_diff_threshold_check" CHECK ("teams"."diff_threshold" >= 0 and "teams"."diff_threshold" <= 1),
+	CONSTRAINT "teams_retention_days_check" CHECK ("teams"."retention_days" >= 1),
+	CONSTRAINT "teams_review_target_hours_check" CHECK ("teams"."review_target_hours" is null or "teams"."review_target_hours" >= 1)
+);
+--> statement-breakpoint
+CREATE TABLE "review_requests" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"build_id" uuid NOT NULL,
+	"reviewer_id" text NOT NULL,
+	"requested_by_id" text,
+	"state" text DEFAULT 'open' NOT NULL,
+	"due_at" timestamp with time zone,
+	"snoozed_until" timestamp with time zone,
+	"snooze_kind" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"closed_at" timestamp with time zone,
+	CONSTRAINT "review_requests_state_check" CHECK (state in ('open', 'done', 'superseded', 'dismissed')),
+	CONSTRAINT "review_requests_snooze_kind_check" CHECK (snooze_kind is null or snooze_kind in ('next_push', 'tomorrow', 'next_week', 'date'))
+);
+--> statement-breakpoint
+CREATE TABLE "review_rule_reviewers" (
+	"rule_id" uuid NOT NULL,
+	"user_id" text NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "review_rule_reviewers_rule_id_user_id_pk" PRIMARY KEY("rule_id","user_id")
+);
+--> statement-breakpoint
+CREATE TABLE "review_rules" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"team_id" uuid NOT NULL,
+	"kind" text NOT NULL,
+	"pattern" text NOT NULL,
+	"position" integer DEFAULT 0 NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "review_rules_kind_check" CHECK (kind in ('snapshot-name', 'build-name')),
+	CONSTRAINT "review_rules_pattern_check" CHECK (length(btrim("review_rules"."pattern")) > 0)
 );
 --> statement-breakpoint
 CREATE TABLE "reviews" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"build_id" uuid NOT NULL,
-	"user_id" uuid,
+	"user_id" text,
 	"state" text NOT NULL,
 	"source" text NOT NULL,
+	"reason" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "reviews_state_check" CHECK (state in ('approved', 'rejected')),
-	CONSTRAINT "reviews_source_check" CHECK (source in ('ui', 'github-check', 'github-comment', 'auto'))
+	CONSTRAINT "reviews_source_check" CHECK (source in ('ui', 'github-check', 'github-comment', 'gitlab-comment', 'gitlab-status', 'bitbucket-comment', 'bitbucket-status', 'auto', 'rerun'))
+);
+--> statement-breakpoint
+CREATE TABLE "ignore_regions" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"team_id" uuid NOT NULL,
+	"name" text NOT NULL,
+	"x" integer NOT NULL,
+	"y" integer NOT NULL,
+	"width" integer NOT NULL,
+	"height" integer NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "ignore_regions_size_check" CHECK ("ignore_regions"."width" > 0 and "ignore_regions"."height" > 0 and "ignore_regions"."x" >= 0 and "ignore_regions"."y" >= 0)
 );
 --> statement-breakpoint
 CREATE TABLE "screenshot_diffs" (
@@ -115,8 +433,12 @@ CREATE TABLE "screenshot_diffs" (
 	"build_id" uuid NOT NULL,
 	"base_screenshot_id" uuid,
 	"head_screenshot_id" uuid,
+	"name" text NOT NULL,
 	"status" text,
 	"score" real,
+	"changed_pixels" integer,
+	"size_changed" boolean DEFAULT false NOT NULL,
+	"error_message" text,
 	"diff_file_sha256" text,
 	"job_status" text DEFAULT 'pending' NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -131,51 +453,259 @@ CREATE TABLE "screenshots" (
 	"name" text NOT NULL,
 	"file_sha256" text NOT NULL,
 	"metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"thumbnail_sha256" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "upload_claims" (
-	"build_id" uuid NOT NULL,
-	"file_sha256" text NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "upload_claims_build_id_file_sha256_pk" PRIMARY KEY("build_id","file_sha256")
-);
---> statement-breakpoint
-CREATE TABLE "users" (
+CREATE TABLE "email_code_requests" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"email" text NOT NULL,
-	"name" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "known_devices" (
+	"user_id" text NOT NULL,
+	"fingerprint" text NOT NULL,
+	"first_seen" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "known_devices_user_id_fingerprint_pk" PRIMARY KEY("user_id","fingerprint")
+);
+--> statement-breakpoint
+CREATE TABLE "site_hostnames" (
+	"label" text PRIMARY KEY NOT NULL,
+	"team_site_id" uuid NOT NULL,
+	"link_kind" text NOT NULL,
+	"branch" text,
+	"static_site_id" uuid NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "site_hostnames_kind_check" CHECK (link_kind in ('commit', 'branch'))
+);
+--> statement-breakpoint
+CREATE TABLE "site_sessions" (
+	"id" text PRIMARY KEY NOT NULL,
+	"label" text NOT NULL,
+	"user_id" text NOT NULL,
+	"auth_session_id" text NOT NULL,
+	"expires_at" timestamp with time zone NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "site_tokens" (
+	"token_hash" text PRIMARY KEY NOT NULL,
+	"label" text NOT NULL,
+	"user_id" text NOT NULL,
+	"auth_session_id" text NOT NULL,
+	"expires_at" timestamp with time zone NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "static_site_files" (
+	"static_site_id" uuid NOT NULL,
+	"path" text NOT NULL,
+	"sha256" text NOT NULL,
+	"size" integer NOT NULL,
+	"content_type" text NOT NULL,
+	CONSTRAINT "static_site_files_static_site_id_path_pk" PRIMARY KEY("static_site_id","path")
+);
+--> statement-breakpoint
+CREATE TABLE "static_sites" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"team_site_id" uuid NOT NULL,
+	"commit_sha" text NOT NULL,
+	"branch" text,
+	"entry_path" text DEFAULT 'index.html' NOT NULL,
+	"total_bytes" integer NOT NULL,
+	"file_count" integer NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "team_sites" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"team_id" uuid NOT NULL,
+	"name" text NOT NULL,
+	"kind" text NOT NULL,
+	"slug" text NOT NULL,
+	"spa" boolean DEFAULT false NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "team_sites_kind_check" CHECK (kind in ('storybook', 'vitest-report', 'playwright-report', 'coverage', 'docs', 'generic'))
+);
+--> statement-breakpoint
+CREATE TABLE "triage_items" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"team_id" uuid NOT NULL,
+	"kind" text NOT NULL,
+	"key" text NOT NULL,
+	"assignee_id" text,
+	"snoozed_until" timestamp with time zone,
+	"snooze_kind" text,
+	"snoozed_after_build" integer,
+	"dismissed_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "triage_items_kind_check" CHECK (kind in ('flaky', 'no_baseline', 'failed')),
+	CONSTRAINT "triage_items_snooze_kind_check" CHECK (snooze_kind is null or snooze_kind in ('next_push', 'tomorrow', 'next_week', 'date'))
+);
+--> statement-breakpoint
+CREATE TABLE "triage_rotation_members" (
+	"team_id" uuid NOT NULL,
+	"user_id" text NOT NULL,
+	"position" integer NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "triage_rotation_members_team_id_user_id_pk" PRIMARY KEY("team_id","user_id")
+);
+--> statement-breakpoint
+CREATE TABLE "saved_views" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" text NOT NULL,
+	"workspace_id" text NOT NULL,
+	"team_id" uuid,
+	"name" text NOT NULL,
+	"filters" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"pinned" boolean DEFAULT false NOT NULL,
+	"position" integer DEFAULT 0 NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "saved_views_user_workspace_name_unique" UNIQUE("user_id","workspace_id","name"),
+	CONSTRAINT "saved_views_name_check" CHECK (length(btrim("saved_views"."name")) > 0)
+);
+--> statement-breakpoint
+CREATE TABLE "user_pinned_teams" (
+	"user_id" text NOT NULL,
+	"team_id" uuid NOT NULL,
+	"position" integer DEFAULT 0 NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "user_pinned_teams_user_id_team_id_pk" PRIMARY KEY("user_id","team_id")
+);
+--> statement-breakpoint
+CREATE TABLE "webhooks" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"team_id" uuid NOT NULL,
+	"url" text NOT NULL,
+	"secret" text NOT NULL,
+	"events" text[] DEFAULT '{}'::text[] NOT NULL,
+	"enabled" boolean DEFAULT true NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "webhooks_events_check" CHECK (cardinality("webhooks"."events") > 0)
+);
+--> statement-breakpoint
+ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "invitation" ADD CONSTRAINT "invitation_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "invitation" ADD CONSTRAINT "invitation_inviter_id_user_id_fk" FOREIGN KEY ("inviter_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "member" ADD CONSTRAINT "member_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "member" ADD CONSTRAINT "member_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "sso_provider" ADD CONSTRAINT "sso_provider_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "build_shards" ADD CONSTRAINT "build_shards_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "builds" ADD CONSTRAINT "builds_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "builds" ADD CONSTRAINT "builds_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "builds" ADD CONSTRAINT "builds_base_build_id_builds_id_fk" FOREIGN KEY ("base_build_id") REFERENCES "public"."builds"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "commit_ancestry" ADD CONSTRAINT "commit_ancestry_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "memberships" ADD CONSTRAINT "memberships_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "memberships" ADD CONSTRAINT "memberships_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "projects" ADD CONSTRAINT "projects_org_id_organizations_id_fk" FOREIGN KEY ("org_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "builds" ADD CONSTRAINT "builds_author_user_id_user_id_fk" FOREIGN KEY ("author_user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "commit_ancestry" ADD CONSTRAINT "commit_ancestry_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "comments" ADD CONSTRAINT "comments_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "comments" ADD CONSTRAINT "comments_author_id_user_id_fk" FOREIGN KEY ("author_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "comments" ADD CONSTRAINT "comments_parent_id_comments_id_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."comments"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "upload_claims" ADD CONSTRAINT "upload_claims_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "upload_claims" ADD CONSTRAINT "upload_claims_file_sha256_files_sha256_fk" FOREIGN KEY ("file_sha256") REFERENCES "public"."files"("sha256") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "build_checks" ADD CONSTRAINT "build_checks_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "pr_comments" ADD CONSTRAINT "pr_comments_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "integration_links" ADD CONSTRAINT "integration_links_integration_id_integrations_id_fk" FOREIGN KEY ("integration_id") REFERENCES "public"."integrations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "integration_links" ADD CONSTRAINT "integration_links_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "integration_links" ADD CONSTRAINT "integration_links_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "integration_links" ADD CONSTRAINT "integration_links_created_by_user_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "integration_teams" ADD CONSTRAINT "integration_teams_integration_id_integrations_id_fk" FOREIGN KEY ("integration_id") REFERENCES "public"."integrations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "integration_teams" ADD CONSTRAINT "integration_teams_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "integrations" ADD CONSTRAINT "integrations_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "integrations" ADD CONSTRAINT "integrations_created_by_user_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "notification_preferences" ADD CONSTRAINT "notification_preferences_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "notifications" ADD CONSTRAINT "notifications_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "notifications" ADD CONSTRAINT "notifications_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "notifications" ADD CONSTRAINT "notifications_actor_id_user_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "session_methods" ADD CONSTRAINT "session_methods_session_id_session_id_fk" FOREIGN KEY ("session_id") REFERENCES "public"."session"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "workspace_auth_settings" ADD CONSTRAINT "workspace_auth_settings_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "workspace_domains" ADD CONSTRAINT "workspace_domains_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "workspace_settings" ADD CONSTRAINT "workspace_settings_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "teams" ADD CONSTRAINT "teams_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "teams" ADD CONSTRAINT "teams_ci_key_id_apikey_id_fk" FOREIGN KEY ("ci_key_id") REFERENCES "public"."apikey"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "review_requests" ADD CONSTRAINT "review_requests_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "review_requests" ADD CONSTRAINT "review_requests_reviewer_id_user_id_fk" FOREIGN KEY ("reviewer_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "review_requests" ADD CONSTRAINT "review_requests_requested_by_id_user_id_fk" FOREIGN KEY ("requested_by_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "review_rule_reviewers" ADD CONSTRAINT "review_rule_reviewers_rule_id_review_rules_id_fk" FOREIGN KEY ("rule_id") REFERENCES "public"."review_rules"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "review_rule_reviewers" ADD CONSTRAINT "review_rule_reviewers_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "review_rules" ADD CONSTRAINT "review_rules_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reviews" ADD CONSTRAINT "reviews_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "reviews" ADD CONSTRAINT "reviews_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "reviews" ADD CONSTRAINT "reviews_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ignore_regions" ADD CONSTRAINT "ignore_regions_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "screenshot_diffs" ADD CONSTRAINT "screenshot_diffs_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "screenshot_diffs" ADD CONSTRAINT "screenshot_diffs_base_screenshot_id_screenshots_id_fk" FOREIGN KEY ("base_screenshot_id") REFERENCES "public"."screenshots"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "screenshot_diffs" ADD CONSTRAINT "screenshot_diffs_head_screenshot_id_screenshots_id_fk" FOREIGN KEY ("head_screenshot_id") REFERENCES "public"."screenshots"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "screenshot_diffs" ADD CONSTRAINT "screenshot_diffs_diff_file_sha256_files_sha256_fk" FOREIGN KEY ("diff_file_sha256") REFERENCES "public"."files"("sha256") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "screenshots" ADD CONSTRAINT "screenshots_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "screenshots" ADD CONSTRAINT "screenshots_file_sha256_files_sha256_fk" FOREIGN KEY ("file_sha256") REFERENCES "public"."files"("sha256") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "upload_claims" ADD CONSTRAINT "upload_claims_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "upload_claims" ADD CONSTRAINT "upload_claims_file_sha256_files_sha256_fk" FOREIGN KEY ("file_sha256") REFERENCES "public"."files"("sha256") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-CREATE UNIQUE INDEX "builds_project_number_key" ON "builds" USING btree ("project_id","number");--> statement-breakpoint
-CREATE UNIQUE INDEX "builds_parallel_key" ON "builds" USING btree ("project_id","name","commit_sha","parallel_nonce") WHERE "builds"."parallel_nonce" is not null;--> statement-breakpoint
-CREATE INDEX "builds_project_branch_idx" ON "builds" USING btree ("project_id","branch","created_at");--> statement-breakpoint
-CREATE INDEX "builds_project_name_commit_idx" ON "builds" USING btree ("project_id","name","commit_sha");--> statement-breakpoint
+ALTER TABLE "screenshots" ADD CONSTRAINT "screenshots_thumbnail_sha256_files_sha256_fk" FOREIGN KEY ("thumbnail_sha256") REFERENCES "public"."files"("sha256") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "known_devices" ADD CONSTRAINT "known_devices_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "site_hostnames" ADD CONSTRAINT "site_hostnames_team_site_id_team_sites_id_fk" FOREIGN KEY ("team_site_id") REFERENCES "public"."team_sites"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "site_hostnames" ADD CONSTRAINT "site_hostnames_static_site_id_static_sites_id_fk" FOREIGN KEY ("static_site_id") REFERENCES "public"."static_sites"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "site_sessions" ADD CONSTRAINT "site_sessions_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "site_sessions" ADD CONSTRAINT "site_sessions_auth_session_id_session_id_fk" FOREIGN KEY ("auth_session_id") REFERENCES "public"."session"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "site_tokens" ADD CONSTRAINT "site_tokens_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "site_tokens" ADD CONSTRAINT "site_tokens_auth_session_id_session_id_fk" FOREIGN KEY ("auth_session_id") REFERENCES "public"."session"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "static_site_files" ADD CONSTRAINT "static_site_files_static_site_id_static_sites_id_fk" FOREIGN KEY ("static_site_id") REFERENCES "public"."static_sites"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "static_site_files" ADD CONSTRAINT "static_site_files_sha256_files_sha256_fk" FOREIGN KEY ("sha256") REFERENCES "public"."files"("sha256") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "static_sites" ADD CONSTRAINT "static_sites_team_site_id_team_sites_id_fk" FOREIGN KEY ("team_site_id") REFERENCES "public"."team_sites"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "team_sites" ADD CONSTRAINT "team_sites_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "triage_items" ADD CONSTRAINT "triage_items_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "triage_items" ADD CONSTRAINT "triage_items_assignee_id_user_id_fk" FOREIGN KEY ("assignee_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "triage_rotation_members" ADD CONSTRAINT "triage_rotation_members_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "triage_rotation_members" ADD CONSTRAINT "triage_rotation_members_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "saved_views" ADD CONSTRAINT "saved_views_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "saved_views" ADD CONSTRAINT "saved_views_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "saved_views" ADD CONSTRAINT "saved_views_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_pinned_teams" ADD CONSTRAINT "user_pinned_teams_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_pinned_teams" ADD CONSTRAINT "user_pinned_teams_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "webhooks" ADD CONSTRAINT "webhooks_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "account_userId_idx" ON "account" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "apikey_configId_idx" ON "apikey" USING btree ("config_id");--> statement-breakpoint
+CREATE INDEX "apikey_referenceId_idx" ON "apikey" USING btree ("reference_id");--> statement-breakpoint
+CREATE INDEX "apikey_key_idx" ON "apikey" USING btree ("key");--> statement-breakpoint
+CREATE INDEX "invitation_workspaceId_idx" ON "invitation" USING btree ("workspace_id");--> statement-breakpoint
+CREATE INDEX "invitation_email_idx" ON "invitation" USING btree ("email");--> statement-breakpoint
+CREATE INDEX "member_workspaceId_idx" ON "member" USING btree ("workspace_id");--> statement-breakpoint
+CREATE INDEX "member_userId_idx" ON "member" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "session_userId_idx" ON "session" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");--> statement-breakpoint
+CREATE UNIQUE INDEX "builds_team_number_key" ON "builds" USING btree ("team_id","number");--> statement-breakpoint
+CREATE UNIQUE INDEX "builds_parallel_key" ON "builds" USING btree ("team_id","name","commit_sha","parallel_nonce") WHERE "builds"."parallel_nonce" is not null;--> statement-breakpoint
+CREATE INDEX "builds_team_branch_idx" ON "builds" USING btree ("team_id","branch","created_at");--> statement-breakpoint
+CREATE INDEX "builds_team_name_commit_idx" ON "builds" USING btree ("team_id","name","commit_sha");--> statement-breakpoint
+CREATE INDEX "comments_build_idx" ON "comments" USING btree ("build_id","created_at");--> statement-breakpoint
+CREATE INDEX "comments_parent_idx" ON "comments" USING btree ("parent_id");--> statement-breakpoint
 CREATE INDEX "files_gc_marked_idx" ON "files" USING btree ("gc_marked_at") WHERE "files"."gc_marked_at" is not null;--> statement-breakpoint
-CREATE INDEX "memberships_user_idx" ON "memberships" USING btree ("user_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "projects_org_slug_key" ON "projects" USING btree ("org_id","slug");--> statement-breakpoint
+CREATE INDEX "upload_claims_file_idx" ON "upload_claims" USING btree ("file_sha256");--> statement-breakpoint
+CREATE INDEX "integration_links_build_idx" ON "integration_links" USING btree ("build_id","created_at");--> statement-breakpoint
+CREATE INDEX "integration_links_integration_idx" ON "integration_links" USING btree ("integration_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "integration_links_team_subject_key" ON "integration_links" USING btree ("team_id","kind","subject") WHERE "integration_links"."build_id" is null and "integration_links"."team_id" is not null;--> statement-breakpoint
+CREATE INDEX "jobs_claim_idx" ON "jobs" USING btree ("queue","run_at") WHERE "jobs"."status" in ('pending', 'running');--> statement-breakpoint
+CREATE UNIQUE INDEX "jobs_dedupe_key" ON "jobs" USING btree ("queue","dedupe_key") WHERE "jobs"."dedupe_key" is not null and "jobs"."status" in ('pending', 'running');--> statement-breakpoint
+CREATE INDEX "notifications_user_idx" ON "notifications" USING btree ("user_id","created_at");--> statement-breakpoint
+CREATE INDEX "notifications_build_idx" ON "notifications" USING btree ("build_id","user_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "workspace_domains_workspace_domain_key" ON "workspace_domains" USING btree ("workspace_id","domain");--> statement-breakpoint
+CREATE UNIQUE INDEX "workspace_domains_verified_domain_key" ON "workspace_domains" USING btree ("domain") WHERE "workspace_domains"."verified_at" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "teams_workspace_slug_key" ON "teams" USING btree ("workspace_id","slug");--> statement-breakpoint
+CREATE UNIQUE INDEX "review_requests_open_key" ON "review_requests" USING btree ("build_id","reviewer_id") WHERE "review_requests"."state" = 'open';--> statement-breakpoint
+CREATE INDEX "review_requests_reviewer_idx" ON "review_requests" USING btree ("reviewer_id","state");--> statement-breakpoint
+CREATE INDEX "review_requests_requester_idx" ON "review_requests" USING btree ("requested_by_id","state");--> statement-breakpoint
+CREATE INDEX "review_rule_reviewers_user_idx" ON "review_rule_reviewers" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "review_rules_team_idx" ON "review_rules" USING btree ("team_id","position");--> statement-breakpoint
 CREATE INDEX "reviews_build_idx" ON "reviews" USING btree ("build_id","created_at");--> statement-breakpoint
-CREATE INDEX "screenshot_diffs_build_idx" ON "screenshot_diffs" USING btree ("build_id");--> statement-breakpoint
+CREATE INDEX "ignore_regions_team_idx" ON "ignore_regions" USING btree ("team_id","name");--> statement-breakpoint
+CREATE UNIQUE INDEX "screenshot_diffs_build_name_key" ON "screenshot_diffs" USING btree ("build_id","name");--> statement-breakpoint
 CREATE INDEX "screenshot_diffs_diff_file_idx" ON "screenshot_diffs" USING btree ("diff_file_sha256");--> statement-breakpoint
 CREATE UNIQUE INDEX "screenshots_build_name_key" ON "screenshots" USING btree ("build_id","name");--> statement-breakpoint
 CREATE INDEX "screenshots_file_idx" ON "screenshots" USING btree ("file_sha256");--> statement-breakpoint
-CREATE INDEX "upload_claims_file_idx" ON "upload_claims" USING btree ("file_sha256");--> statement-breakpoint
-CREATE UNIQUE INDEX "users_email_lower_key" ON "users" USING btree (lower("email"));
+CREATE INDEX "screenshots_thumbnail_idx" ON "screenshots" USING btree ("thumbnail_sha256");--> statement-breakpoint
+CREATE INDEX "email_code_requests_email_idx" ON "email_code_requests" USING btree ("email","created_at");--> statement-breakpoint
+CREATE INDEX "site_hostnames_site_idx" ON "site_hostnames" USING btree ("team_site_id");--> statement-breakpoint
+CREATE INDEX "site_sessions_expires_idx" ON "site_sessions" USING btree ("expires_at");--> statement-breakpoint
+CREATE INDEX "static_site_files_sha_idx" ON "static_site_files" USING btree ("sha256");--> statement-breakpoint
+CREATE UNIQUE INDEX "static_sites_commit_key" ON "static_sites" USING btree ("team_site_id","commit_sha");--> statement-breakpoint
+CREATE UNIQUE INDEX "team_sites_team_name_key" ON "team_sites" USING btree ("team_id","name");--> statement-breakpoint
+CREATE UNIQUE INDEX "team_sites_slug_key" ON "team_sites" USING btree ("slug");--> statement-breakpoint
+CREATE UNIQUE INDEX "triage_items_key" ON "triage_items" USING btree ("team_id","kind","key");--> statement-breakpoint
+CREATE INDEX "triage_items_assignee_idx" ON "triage_items" USING btree ("assignee_id");--> statement-breakpoint
+CREATE INDEX "saved_views_user_workspace_idx" ON "saved_views" USING btree ("user_id","workspace_id","position");--> statement-breakpoint
+CREATE INDEX "webhooks_team_idx" ON "webhooks" USING btree ("team_id");

@@ -2,28 +2,28 @@ import {
   createIntegration,
   type Database,
   findIntegrationByExternalId,
-  getProjectById,
-  setIntegrationProject,
+  getTeamById,
+  setIntegrationTeam,
 } from '@circi/db'
 
 /**
- * A git host connection of an organisation (an `integrations` row), the way connecting one leaves
+ * A git host connection of a workspace (an `integrations` row), the way connecting one leaves
  * it. Connecting the same account again returns the same integration.
  */
 export async function seedGitConnection(
   db: Database,
   input: {
-    orgId: string
+    workspaceId: string
     kind?: string
     externalId: string
     encryptedCredentials?: string | null
   },
 ): Promise<{ id: string }> {
   const kind = input.kind ?? 'github'
-  const existing = await findIntegrationByExternalId(db, input.orgId, kind, input.externalId)
+  const existing = await findIntegrationByExternalId(db, input.workspaceId, kind, input.externalId)
   if (existing) return existing
   return createIntegration(db, {
-    orgId: input.orgId,
+    workspaceId: input.workspaceId,
     kind,
     displayName: kind === 'github' ? `Installation ${input.externalId}` : input.externalId,
     externalId: input.externalId,
@@ -31,10 +31,10 @@ export async function seedGitConnection(
   })
 }
 
-/** Points a project at a repository on a git host connection of its organisation (made if needed). */
+/** Points a team at a repository on a git host connection of its workspace (made if needed). */
 export async function seedGitLink(
   db: Database,
-  projectId: string,
+  teamId: string,
   input: {
     kind?: string
     externalId: string
@@ -42,12 +42,12 @@ export async function seedGitLink(
     encryptedCredentials?: string | null
   },
 ): Promise<{ integrationId: string }> {
-  const project = await getProjectById(db, projectId)
-  if (!project) throw new Error('Project not found')
-  const connection = await seedGitConnection(db, { ...input, orgId: project.orgId })
-  await setIntegrationProject(db, {
+  const team = await getTeamById(db, teamId)
+  if (!team) throw new Error('Team not found')
+  const connection = await seedGitConnection(db, { ...input, workspaceId: team.workspaceId })
+  await setIntegrationTeam(db, {
     integrationId: connection.id,
-    projectId,
+    teamId,
     externalRef: input.repoRef,
     extra: { name: input.repoRef },
   })

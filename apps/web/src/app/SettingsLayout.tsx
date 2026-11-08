@@ -3,25 +3,25 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
-import { capabilitiesQuery, projectsQuery } from '#features/projects/api.ts'
+import { capabilitiesQuery, teamsQuery } from '#features/teams/api.ts'
 
 import { NavLink } from './NavLink.tsx'
-import { listOrgs, pickOrg, readRememberedOrg } from './shell-model.ts'
+import { listWorkspaces, pickWorkspace, readRememberedWorkspace } from './shell-model.ts'
 
 import styles from './SettingsLayout.module.css'
 
 /**
- * The frame of every settings page: one nav with three sections (Account, Organisation, Project)
- * beside the page. The organisation is the one in the address, else the last chosen; the Project
- * section shows only on a project's pages.
+ * The frame of every settings page: one nav with three sections (Account, Workspace, Team)
+ * beside the page. The workspace is the one in the address, else the last chosen; the Team
+ * section shows only on a team's pages.
  */
 export function SettingsLayout({ children }: SettingsLayout.Props) {
   const params = useParams({ strict: false })
-  const { data: overview } = useQuery(projectsQuery())
+  const { data: overview } = useQuery(teamsQuery())
   const { data: caps } = useQuery(capabilitiesQuery())
-  const orgs = listOrgs(overview?.projects, caps?.manageableOrganizations, params.org)
-  const org = pickOrg(orgs, params.org, readRememberedOrg())
-  const project = params.project
+  const workspaces = listWorkspaces(overview?.teams, caps?.manageableWorkspaces, params.workspace)
+  const workspace = pickWorkspace(workspaces, params.workspace, readRememberedWorkspace())
+  const team = params.team
 
   return (
     <div className={styles.root}>
@@ -31,28 +31,40 @@ export function SettingsLayout({ children }: SettingsLayout.Props) {
           <NavLink to="/account/notifications">Notifications</NavLink>
           <NavLink to="/account/appearance">Appearance</NavLink>
         </NavSection>
-        {org ? (
-          <NavSection label={`Organisation · ${org.name}`}>
-            <NavLink to="/organizations/$org/settings" params={{ org: org.slug }}>
+        {workspace ? (
+          <NavSection label={`Workspace · ${workspace.name}`}>
+            <NavLink to="/workspaces/$workspace/settings" params={{ workspace: workspace.slug }}>
               General
             </NavLink>
-            <NavLink to="/organizations/$org/settings/members" params={{ org: org.slug }}>
+            <NavLink
+              to="/workspaces/$workspace/settings/members"
+              params={{ workspace: workspace.slug }}
+            >
               Members
             </NavLink>
-            <NavLink to="/organizations/$org/settings/integrations" params={{ org: org.slug }}>
+            <NavLink
+              to="/workspaces/$workspace/settings/integrations"
+              params={{ workspace: workspace.slug }}
+            >
               Integrations
             </NavLink>
-            <NavLink to="/organizations/$org/settings/storage" params={{ org: org.slug }}>
+            <NavLink
+              to="/workspaces/$workspace/settings/storage"
+              params={{ workspace: workspace.slug }}
+            >
               Storage
             </NavLink>
           </NavSection>
         ) : null}
-        {org && project ? (
-          <NavSection label={`Project · ${project}`}>
-            <NavLink to="/$org/$project/settings/reviews" params={{ org: org.slug, project }}>
+        {workspace && team ? (
+          <NavSection label={`Team · ${team}`}>
+            <NavLink
+              to="/$workspace/$team/settings/reviews"
+              params={{ workspace: workspace.slug, team }}
+            >
               Reviews and triage
             </NavLink>
-            <NavLink to="/$org/$project/settings" params={{ org: org.slug, project }}>
+            <NavLink to="/$workspace/$team/settings" params={{ workspace: workspace.slug, team }}>
               General
             </NavLink>
           </NavSection>

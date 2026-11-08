@@ -3,7 +3,7 @@ import { Avatar, Banner, Button, EmptyState, ReviewIcon, Text, useAnnounce } fro
 import { useQuery } from '@tanstack/react-query'
 import { type Ref, useEffect, useRef, useState } from 'react'
 
-import { organizationQuery } from '#features/members/api.ts'
+import { workspaceQuery } from '#features/members/api.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import { Composer } from './Composer.tsx'
@@ -19,13 +19,13 @@ import styles from './Discussion.module.css'
  * it) and, when a region was just drawn on a snapshot, the comment is pinned to it.
  */
 export function CommentsTab(props: CommentsTab.Props) {
-  const { org, project, number, snapshotName, pendingRegion, focusedId } = props
-  const { data, error, isPending } = useQuery(commentsQuery(org, project, number))
-  const organization = useQuery(organizationQuery(org))
-  const add = useAddComment(org, project, number)
+  const { workspace, team, number, snapshotName, pendingRegion, focusedId } = props
+  const { data, error, isPending } = useQuery(commentsQuery(workspace, team, number))
+  const workspaceInfo = useQuery(workspaceQuery(workspace))
+  const add = useAddComment(workspace, team, number)
   const announce = useAnnounce()
 
-  const members: Mention.Member[] = (organization.data?.members ?? []).map((m) => ({
+  const members: Mention.Member[] = (workspaceInfo.data?.members ?? []).map((m) => ({
     userId: m.userId,
     name: m.user.name,
     email: m.user.email,
@@ -90,8 +90,8 @@ export function CommentsTab(props: CommentsTab.Props) {
               members={members}
               number={numbering.get(t.root.id)}
               focused={t.root.id === focusedId}
-              org={org}
-              project={project}
+              workspace={workspace}
+              team={team}
               build={number}
               onShow={props.onShowSnapshot}
             />
@@ -104,8 +104,8 @@ export function CommentsTab(props: CommentsTab.Props) {
 
 export namespace CommentsTab {
   export interface Props {
-    org: string
-    project: string
+    workspace: string
+    team: string
     number: number
     /** The snapshot on screen: a region drawn on it is pinned to this name. */
     snapshotName: string | null
@@ -124,13 +124,13 @@ function ThreadView({
   members,
   number,
   focused,
-  org,
-  project,
+  workspace,
+  team,
   build,
   onShow,
 }: ThreadView.Props) {
   const [replying, setReplying] = useState(false)
-  const add = useAddComment(org, project, build)
+  const add = useAddComment(workspace, team, build)
   const { root, replies } = thread
   const card = useRef<HTMLDivElement>(null)
   // A marker or an activity line points here: scroll to the thread and move focus into it.
@@ -148,7 +148,7 @@ function ThreadView({
       data-focused={focused ? '' : undefined}
       tabIndex={-1}
     >
-      <CommentView comment={root} members={members} org={org} project={project} build={build}>
+      <CommentView comment={root} members={members} workspace={workspace} team={team} build={build}>
         {root.snapshotName && root.region ? (
           <button
             type="button"
@@ -162,7 +162,13 @@ function ThreadView({
       </CommentView>
       {replies.map((r) => (
         <div key={r.id} className={styles.reply}>
-          <CommentView comment={r} members={members} org={org} project={project} build={build} />
+          <CommentView
+            comment={r}
+            members={members}
+            workspace={workspace}
+            team={team}
+            build={build}
+          />
         </div>
       ))}
       {replying ? (
@@ -196,17 +202,17 @@ namespace ThreadView {
     members: readonly Mention.Member[]
     number: number | undefined
     focused: boolean
-    org: string
-    project: string
+    workspace: string
+    team: string
     build: number
     onShow: (snapshotName: string, commentId: string) => void
   }
 }
 
-function CommentView({ comment, members, org, project, build, children }: CommentView.Props) {
+function CommentView({ comment, members, workspace, team, build, children }: CommentView.Props) {
   const [editing, setEditing] = useState(false)
-  const edit = useEditComment(org, project, build)
-  const remove = useDeleteComment(org, project, build)
+  const edit = useEditComment(workspace, team, build)
+  const remove = useDeleteComment(workspace, team, build)
   const name = comment.author?.name ?? 'Someone who has left'
   const deleted = comment.deletedAt !== null
   return (
@@ -276,8 +282,8 @@ namespace CommentView {
   export interface Props {
     comment: Comment.Item
     members: readonly Mention.Member[]
-    org: string
-    project: string
+    workspace: string
+    team: string
     build: number
     children?: React.ReactNode
   }

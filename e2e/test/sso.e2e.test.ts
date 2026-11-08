@@ -2,11 +2,11 @@ import type { Page } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
-  createOrganization,
+  createWorkspace,
   type Session,
-  createProject,
+  createTeam,
   createUserViaCli,
-  fullOrganization,
+  fullWorkspace,
   newAccount,
   type FakeIdp,
   startFakeIdp,
@@ -35,7 +35,7 @@ async function disconnect(page: Page, issuer: string) {
   await page.getByLabel('Issuer address').waitFor()
 }
 
-describe('an organization’s own single sign-on', () => {
+describe('a workspace’s own single sign-on', () => {
   let idp: FakeIdp
   const CLIENT_ID = 'circi-e2e'
   const SECRET = 'right-secret-1234'
@@ -47,37 +47,39 @@ describe('an organization’s own single sign-on', () => {
   })
   const ctx = useStack({ profile: 'default' })
   const browser = useBrowser()
-  const membersUrl = (org: string) => `${ctx.stack.url}/organizations/${org}/members`
-  /** An organization's own provider row (its id is `<slug>-sso`): the instance has many. */
-  const providers = async (org: string) =>
+  const membersUrl = (workspace: string) => `${ctx.stack.url}/workspaces/${workspace}/members`
+  /** A workspace's own provider row (its id is `<slug>-sso`): the instance has many. */
+  const providers = async (workspace: string) =>
     (
-      await ctx.stack.sql(`select count(*) from sso_provider where provider_id = '${org}-sso'`)
+      await ctx.stack.sql(
+        `select count(*) from sso_provider where provider_id = '${workspace}-sso'`,
+      )
     )[0]?.[0]
   /** A tenant of its own, so no test depends on another's provider. */
-  const freshOrg = async () => {
+  const freshWorkspace = async () => {
     const t = await ctx.tenant()
-    return { ...t, org: t.organization.slug }
+    return { ...t, workspace: t.workspace.slug }
   }
-  /** Connects the fake provider to the organization through the API. */
-  const connect = (session: Session, org: string) =>
-    session.post(`/api/organizations/${org}/sso`, {
+  /** Connects the fake provider to the workspace through the API. */
+  const connect = (session: Session, workspace: string) =>
+    session.post(`/api/workspaces/${workspace}/sso`, {
       issuer: idp.issuer,
       clientId: CLIENT_ID,
       clientSecret: SECRET,
     })
 
-  /** The sign-in page's "through your organization" path, up to the provider's redirect back. */
+  /** The sign-in page's "through your workspace" path, up to the provider's redirect back. */
   async function ssoLogin(page: Page, slug: string) {
     await page.goto(`${ctx.stack.url}/login`)
-    await page.getByRole('button', { name: 'Sign in through your organization' }).click()
-    await page.getByLabel('Organization').fill(slug)
+    await page.getByRole('button', { name: 'Sign in through your workspace' }).click()
+    await page.getByLabel('Workspace').fill(slug)
     await page.getByRole('button', { name: 'Continue' }).click()
   }
 
   it('shows the provider form without autofill, and refuses bad input with messages', async () => {
-    const { session, org } = await freshOrg()
+    const { session, workspace } = await freshWorkspace()
     const page = await browser.as(session)
-    await page.goto(membersUrl(org))
+    await page.goto(membersUrl(workspace))
     await page.getByRole('heading', { name: 'Single sign-on' }).waitFor()
     // Chromium's password manager only autofills what is not marked otherwise: these are the
     // attributes that fixed the earlier bug (the user's own login landing in these fields).
@@ -99,26 +101,26 @@ describe('an organization’s own single sign-on', () => {
       .getByText(/Couldn’t|failed|Invalid|could not|discovery/i)
       .first()
       .waitFor()
-    expect(await providers(org)).toBe('0')
+    expect(await providers(workspace)).toBe('0')
     // A private address is refused for an https-only server; here the stack allows private ones,
     // but an unreachable one still fails cleanly.
     await page.getByLabel('Issuer address').fill('http://host.docker.internal:9')
     await page.getByRole('button', { name: 'Connect provider' }).click()
-    await expect.poll(() => providers(org)).toBe('0')
+    await expect.poll(() => providers(workspace)).toBe('0')
   })
 
   it('a wrong client secret is accepted at registration but fails at sign-in with a message; disconnecting asks first', async () => {
     const { stack } = ctx
-    const { session, org } = await freshOrg()
+    const { session, workspace } = await freshWorkspace()
     const page = await browser.as(session)
-    await page.goto(membersUrl(org))
+    await page.goto(membersUrl(workspace))
     await page.getByRole('heading', { name: 'Single sign-on' }).waitFor()
     await fillProvider(page, idp.issuer, CLIENT_ID, 'wrong-secret')
     await page.getByText('Connected', { exact: true }).waitFor()
 
     idp.identity = { sub: 'bad-secret', email: newAccount('x').email, name: 'Nobody' }
     await withBrowser(browser.browser, {}, async (p) => {
-      await ssoLogin(p, org)
+      await ssoLogin(p, workspace)
       await p.getByText('Signing in with that provider didn’t work.').waitFor()
       expect(await p.getByRole('button', { name: /^Account menu for / }).count()).toBe(0)
     })
@@ -130,29 +132,29 @@ describe('an organization’s own single sign-on', () => {
     await page.getByRole('button', { name: `Remove ${idp.issuer}` }).click()
     const dialog = page.getByRole('alertdialog').or(page.getByRole('dialog'))
     await dialog.getByRole('button', { name: 'Cancel' }).click()
-    expect(await providers(org)).toBe('1')
+    expect(await providers(workspace)).toBe('1')
     await disconnect(page, idp.issuer)
-    expect(await providers(org)).toBe('0')
+    expect(await providers(workspace)).toBe('0')
   })
 
-  it('connects a provider (showing where to register it, never the secret), and signs a new person in as a member of that organization only', async () => {
+  it('connects a provider (showing where to register it, never the secret), and signs a new person in as a member of that workspace only', async () => {
     const { stack } = ctx
-    const setup = await freshOrg()
-    const org = setup.org
-    const other = await createOrganization(setup.session, 'Other Org')
-    await createProject(setup.session, other.slug, 'Hidden')
-    const shown = await createProject(setup.session, org, 'Visible')
+    const setup = await freshWorkspace()
+    const workspace = setup.workspace
+    const other = await createWorkspace(setup.session, 'Other Workspace')
+    await createTeam(setup.session, other.slug, 'Hidden')
+    const shown = await createTeam(setup.session, workspace, 'Visible')
 
     const page = await browser.as(setup.session)
-    await page.goto(membersUrl(org))
+    await page.goto(membersUrl(workspace))
     await page.getByRole('heading', { name: 'Single sign-on' }).waitFor()
     await fillProvider(page, idp.issuer, CLIENT_ID, SECRET)
     await page.getByText('Connected', { exact: true }).waitFor()
-    await page.getByText(`${stack.url}/api/auth/sso/callback/${org}-sso`).waitFor()
-    const listed = await setup.session.get(`/api/organizations/${org}/sso`)
+    await page.getByText(`${stack.url}/api/auth/sso/callback/${workspace}-sso`).waitFor()
+    const listed = await setup.session.get(`/api/workspaces/${workspace}/sso`)
     expect(JSON.stringify(listed)).not.toContain(SECRET)
     expect(await page.content()).not.toContain(SECRET)
-    // The form is replaced by the connected provider (one per organization).
+    // The form is replaced by the connected provider (one per workspace).
     expect(await page.getByLabel('Client secret').count()).toBe(0)
 
     const ann = {
@@ -162,7 +164,7 @@ describe('an organization’s own single sign-on', () => {
     }
     idp.identity = ann
     await withBrowser(browser.browser, {}, async (p) => {
-      await ssoLogin(p, org)
+      await ssoLogin(p, workspace)
       await p.getByRole('button', { name: `Account menu for ${ann.name}` }).waitFor()
       // Her session opens Acme and nothing else.
       const get = async (path: string) =>
@@ -170,19 +172,19 @@ describe('an organization’s own single sign-on', () => {
           const r = await fetch(u)
           return { status: r.status, body: await r.text() }
         }, path)
-      const projects = JSON.parse((await get('/api/projects')).body) as {
-        projects: { org: { slug: string }; project: { slug: string } }[]
+      const teams = JSON.parse((await get('/api/teams')).body) as {
+        teams: { workspace: { slug: string }; team: { slug: string } }[]
       }
-      expect(projects.projects.map((x) => x.org.slug)).toEqual([org])
-      expect(projects.projects.map((x) => x.project.slug)).toEqual([shown.slug])
-      expect((await get(`/api/projects/${other.slug}/hidden`)).status).toBe(404)
+      expect(teams.teams.map((x) => x.workspace.slug)).toEqual([workspace])
+      expect(teams.teams.map((x) => x.team.slug)).toEqual([shown.slug])
+      expect((await get(`/api/teams/${other.slug}/hidden`)).status).toBe(404)
       expect(JSON.parse((await get('/api/capabilities')).body)).toMatchObject({
-        canCreateOrganization: false,
+        canCreateWorkspace: false,
       })
-      expect((await get(`/api/organizations/${other.slug}/domains`)).status).toBe(404)
+      expect((await get(`/api/workspaces/${other.slug}/domains`)).status).toBe(404)
       await p.getByText('Visible').first().waitFor()
     })
-    const members = (await fullOrganization(setup.session, org)).members
+    const members = (await fullWorkspace(setup.session, workspace)).members
     expect(members.find((m) => m.user.email === ann.email)).toMatchObject({ role: 'member' })
     const otherMembers = await stack.sql(
       `select count(*) from member m join "user" u on u.id = m.user_id where u.email = '${ann.email}'`,
@@ -195,7 +197,7 @@ describe('an organization’s own single sign-on', () => {
 
     // Back again later: the same provider identity signs into the same account.
     await withBrowser(browser.browser, {}, async (p) => {
-      await ssoLogin(p, org)
+      await ssoLogin(p, workspace)
       await p.getByRole('button', { name: `Account menu for ${ann.name}` }).waitFor()
     })
     expect(await stack.sql(`select count(*) from "user" where email = '${ann.email}'`)).toEqual([
@@ -203,20 +205,20 @@ describe('an organization’s own single sign-on', () => {
     ])
   })
 
-  it('refuses an address that already has an account, and an organization without single sign-on', async () => {
+  it('refuses an address that already has an account, and a workspace without single sign-on', async () => {
     const { stack } = ctx
-    const setup = await freshOrg()
-    const org = setup.org
-    await connect(setup.session, org)
+    const setup = await freshWorkspace()
+    const workspace = setup.workspace
+    await connect(setup.session, workspace)
     const existing = await createUserViaCli(stack, { account: newAccount('existing') })
     idp.identity = { sub: 'emp-clash', email: existing.email, name: 'Clash' }
-    const before = (await fullOrganization(setup.session, org)).members.length
+    const before = (await fullWorkspace(setup.session, workspace)).members.length
     await withBrowser(browser.browser, {}, async (p) => {
-      await ssoLogin(p, org)
+      await ssoLogin(p, workspace)
       await p.getByText('Signing in with that provider didn’t work.').waitFor()
       expect(await p.getByRole('button', { name: /^Account menu for / }).count()).toBe(0)
     })
-    expect((await fullOrganization(setup.session, org)).members).toHaveLength(before)
+    expect((await fullWorkspace(setup.session, workspace)).members).toHaveLength(before)
     // Nothing was linked to the existing account.
     expect(
       await stack.sql(
@@ -225,23 +227,23 @@ describe('an organization’s own single sign-on', () => {
     ).toEqual([['0']])
 
     await withBrowser(browser.browser, {}, async (p) => {
-      await ssoLogin(p, 'no-such-org')
-      await p.getByText('That organization has no single sign-on set up.').waitFor()
+      await ssoLogin(p, 'no-such-workspace')
+      await p.getByText('That workspace has no single sign-on set up.').waitFor()
     })
   })
 
   it('disconnecting removes the provider: nobody can sign in through it any more', async () => {
-    const setup = await freshOrg()
-    const org = setup.org
-    await connect(setup.session, org)
+    const setup = await freshWorkspace()
+    const workspace = setup.workspace
+    await connect(setup.session, workspace)
     const page = await browser.as(setup.session)
-    await page.goto(membersUrl(org))
+    await page.goto(membersUrl(workspace))
     await disconnect(page, idp.issuer)
-    expect(await providers(org)).toBe('0')
+    expect(await providers(workspace)).toBe('0')
     idp.identity = { sub: 'emp-ann', email: 'whoever@acme-corp.e2e.test', name: 'Ann Employee' }
     await withBrowser(browser.browser, {}, async (p) => {
-      await ssoLogin(p, org)
-      await p.getByText('That organization has no single sign-on set up.').waitFor()
+      await ssoLogin(p, workspace)
+      await p.getByText('That workspace has no single sign-on set up.').waitFor()
     })
   })
 })
@@ -288,11 +290,11 @@ describe('instance-wide OpenID Connect (AUTH_OIDC_*)', () => {
     ).toEqual([['0']])
 
     // Invited: the provider may now create the account.
-    const org = await fullOrganization(setup.session, setup.organization.slug)
+    const workspace = await fullWorkspace(setup.session, setup.workspace.slug)
     await setup.session.post('/api/auth/organization/invite-member', {
       email: stranger.email,
       role: 'member',
-      organizationId: org.id,
+      organizationId: workspace.id,
     })
     await withBrowser(browser.browser, {}, async (p) => {
       await p.goto(`${stack.url}/login`)

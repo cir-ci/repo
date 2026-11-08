@@ -1,5 +1,5 @@
 import type { Auth } from '@circi/auth'
-import type { Database, SessionMethod, getProjectContext } from '@circi/db'
+import type { Database, SessionMethod, getTeamContext } from '@circi/db'
 import type { IntegrationDefinition, IntegrationRegistry } from '@circi/integrations'
 import type { ProviderRegistry } from '@circi/providers'
 import type { StorageDriver } from '@circi/storage'
@@ -21,7 +21,7 @@ export namespace Deps {
 
   /** What the CI API (`/v1`) needs. */
   export interface V1 extends Deps.Base {
-    /** This instance has a GitHub App: a linked project's check is then the merge gate. */
+    /** This instance has a GitHub App: a linked team's check is then the merge gate. */
     githubApp?: boolean
     /** Whether a GitHub App exists now, also one created in the dashboard (the one-click flow). */
     githubAppNow?: () => boolean
@@ -55,7 +55,7 @@ export namespace Deps {
     /** Looks up TXT records for domain verification; replaceable in tests. Default: real DNS. */
     resolveTxt?: (name: string) => Promise<string[][]>
     /**
-     * This instance's GitHub App comes from the environment (`GITHUB_APP_*`), so projects can be
+     * This instance's GitHub App comes from the environment (`GITHUB_APP_*`), so teams can be
      * linked to repositories and the one-click setup is off. An App created in the dashboard
      * lives in `integrations.config.github` instead.
      */
@@ -72,8 +72,8 @@ export namespace Deps {
     integrations?: Deps.IntegrationsOption
     /** Static site hosting, when `STATIC_SITES_HOST` is set. */
     sites?: Deps.Sites
-    /** Who may create organizations in the dashboard. Default: instance admins only. */
-    orgCreation?: 'admin' | 'anyone'
+    /** Who may create workspaces in the dashboard. Default: instance admins only. */
+    workspaceCreation?: 'admin' | 'anyone'
     /** The instance secret, from which the first-run setup code is derived. */
     authSecret?: string
     /** Built web app (apps/web/dist). Missing: the API still works, pages explain how to build. */
@@ -83,8 +83,8 @@ export namespace Deps {
 
 declare module 'fastify' {
   interface FastifyRequest {
-    /** The project whose CI token authenticated this `/v1` request. */
-    project?: getProjectContext.Context
+    /** The team whose CI token authenticated this `/v1` request. */
+    team?: getTeamContext.Context
     /** The signed-in user, inside the session-protected dashboard API. */
     user?: { id: string; email: string; name: string; method: SessionMethod; sessionId: string }
   }

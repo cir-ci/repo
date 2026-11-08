@@ -10,7 +10,7 @@ import { listen } from './http.ts'
  * container and from the browser: `host.docker.internal` (default).
  */
 export interface FakeIdp {
-  /** The issuer URL: set `AUTH_OIDC_ISSUER` / the org SSO provider to this. */
+  /** The issuer URL: set `AUTH_OIDC_ISSUER` / the workspace SSO provider to this. */
   issuer: string
   port: number
   /** Who the next login signs in as. */

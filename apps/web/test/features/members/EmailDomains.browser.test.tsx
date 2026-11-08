@@ -6,7 +6,7 @@ import { EmailDomains } from '#features/members/EmailDomains.tsx'
 import { fakeFetch, pending as hang, restoreFetch } from '#test/features/fetch-routes.ts'
 import { renderPage } from '#test/support/render.tsx'
 
-const BASE = '/api/organizations/acme/domains'
+const BASE = '/api/workspaces/acme/domains'
 const verified = { id: 'd1', domain: 'acme.test', verified: true }
 const pending = {
   id: 'd2',
@@ -19,7 +19,7 @@ const pending = {
 const show = () =>
   renderPage(
     <AnnouncerProvider>
-      <EmailDomains org="acme" />
+      <EmailDomains workspace="acme" />
     </AnnouncerProvider>,
   )
 

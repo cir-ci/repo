@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto'
 
 import { getBuild, listBuildReviews, schema, setCheckRunId } from '@circi/db'
 import { githubWebhookVerifier, providerRegistry } from '@circi/providers'
-import { completeBuild, linkProjectToGithub } from '@circi/services'
+import { completeBuild, linkTeamToGithub } from '@circi/services'
 import { createTestDb, seedAccount, seedBuild } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
@@ -25,7 +25,7 @@ beforeAll(async () => {
   t = await createTestDb()
   const auth = createTestAuth(t.db)
   acme = await seedTenant(auth, t.db)
-  await linkProjectToGithub(t.db, acme.project.id, { installationId: '99', repoRef: 'Acme/Web' })
+  await linkTeamToGithub(t.db, acme.team.id, { installationId: '99', repoRef: 'Acme/Web' })
   // The owner linked their GitHub login.
   await seedAccount(t.db, { userId: acme.owner.id, accountId: GITHUB_ID })
   app = buildServer({
@@ -60,7 +60,7 @@ afterAll(async () => {
 /** A finished build with changes on PR `pr`, with a check run id. */
 async function changedBuild(pr: number) {
   n += 1
-  const build = await seedBuild(t.db, acme.project.id, {
+  const build = await seedBuild(t.db, acme.team.id, {
     commitSha: `abc${1000 + n}`,
     branch: 'feature',
     prNumber: pr,
@@ -119,7 +119,7 @@ const reviewState = async (id: string) => (await getBuild(t.db, id))?.reviewStat
 describe('GitHub webhook', () => {
   it('the pull request author replaces the login CI sent', async () => {
     n += 1
-    const build = await seedBuild(t.db, acme.project.id, {
+    const build = await seedBuild(t.db, acme.team.id, {
       commitSha: `def${2000 + n}`,
       branch: 'feature',
       prNumber: 31,

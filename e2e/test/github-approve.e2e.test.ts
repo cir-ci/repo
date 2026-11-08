@@ -7,9 +7,9 @@ import {
   checkRunPayload,
   commentPayload,
   createGithubUser,
-  createLinkedProject,
+  createLinkedTeam,
   linkGithubIdentity,
-  type LinkedProject,
+  type LinkedTeam,
   type PrBuild,
   uploadPr,
 } from '#src/github-helpers.ts'
@@ -31,8 +31,8 @@ describe('approving from GitHub, and GitHub failing (fake GitHub)', () => {
   beforeAll(() => {
     gh = ctx.github
   })
-  let p: LinkedProject
-  let org = ''
+  let p: LinkedTeam
+  let workspace = ''
   let n = 50
   const REPO = 'acme/approve'
   const LINKED = { id: 7001, login: 'linked-member' }
@@ -67,16 +67,16 @@ describe('approving from GitHub, and GitHub failing (fake GitHub)', () => {
     }
   }
 
-  it('sets up a blocking project and three GitHub identities', async () => {
+  it('sets up a blocking team and three GitHub identities', async () => {
     const { stack, setup } = ctx
-    org = setup.organization.slug
-    p = await createLinkedProject(stack, setup.session, org, 'Approve', {
+    workspace = setup.workspace.slug
+    p = await createLinkedTeam(stack, setup.session, workspace, 'Approve', {
       repoRef: REPO,
       blockMergeOnChanges: true,
     })
-    const member = await createGithubUser(stack, { githubUserId: String(LINKED.id), org })
+    const member = await createGithubUser(stack, { githubUserId: String(LINKED.id), workspace })
     expect(member.email).toContain('@')
-    // Linked to a CirCI account that belongs to no organization with this project.
+    // Linked to a CirCI account that belongs to no workspace with this team.
     const lonely = await createUserViaCli(stack)
     await linkGithubIdentity(stack, lonely.email, String(OUTSIDER.id))
   })
@@ -110,7 +110,7 @@ describe('approving from GitHub, and GitHub failing (fake GitHub)', () => {
     expect(checkFor(pr.sha)?.conclusion).toBe('action_required')
   })
 
-  it('a linked user outside the organization is refused the same way', async () => {
+  it('a linked user outside the workspace is refused the same way', async () => {
     const pr = await pending()
     const before = gh.comments.filter((c) => c.prNumber === pr.number).length
     await press(pr, 'approve', OUTSIDER)
@@ -211,7 +211,7 @@ describe('approving from GitHub, and GitHub failing (fake GitHub)', () => {
     expect(gh.checkRuns.filter((c) => c.headSha === pr.sha)).toHaveLength(1)
   })
 
-  it('a revoked installation (401) neither crashes the worker nor the build, is not retried, and is flagged on the project', async () => {
+  it('a revoked installation (401) neither crashes the worker nor the build, is not retried, and is flagged on the team', async () => {
     const { stack, setup } = ctx
     n += 1
     gh.revokeInstallation('4242')
@@ -221,7 +221,7 @@ describe('approving from GitHub, and GitHub failing (fake GitHub)', () => {
     const attention = async () =>
       (
         await setup.session.get<{ gitAttention: { reason: string } | null }>(
-          `/api/projects/${org}/${p.slug}`,
+          `/api/teams/${workspace}/${p.slug}`,
         )
       ).gitAttention?.reason
     await poll(attention, { timeout: 30_000 }).toBe('installation_revoked')

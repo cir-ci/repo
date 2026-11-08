@@ -17,7 +17,7 @@ import { FILE_KINDS, FILE_STATUSES, type FileKind, type FileStatus } from './enu
 
 /** Stored bytes, and the claims that keep GC away from files an upload is relying on. */
 
-/** Content-addressed blobs shared across builds and orgs (PLAN §8 "verify before dedup"). */
+/** Content-addressed blobs shared across builds and workspaces (PLAN §8 "verify before dedup"). */
 export const files = pgTable(
   'files',
   {

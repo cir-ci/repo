@@ -5,7 +5,7 @@
   height: 18px;
   padding-inline: 5px;
   border: 1px solid var(--circi-line-subtle);
-  border-radius: 4px;
+  border-radius: var(--circi-radius-inline);
   background: var(--circi-action-selected);
   color: var(--circi-text-secondary);
   font-family: var(--circi-font-mono);

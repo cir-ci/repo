@@ -8,7 +8,7 @@ export interface Recorded {
 }
 
 export interface FakeCirciOptions {
-  /** What `GET /v1/project` returns. */
+  /** What `GET /v1/team` returns. */
   defaultBranch?: string
   /** Outcome states returned by `GET /v1/builds/:id/status`, one per poll (the last repeats). */
   outcomes?: ('pending' | 'pass' | 'fail')[]
@@ -103,9 +103,9 @@ export class FakeCirci {
       res.end(json === undefined ? '' : JSON.stringify(json))
     }
     const path = url.pathname
-    if (method === 'GET' && path === '/v1/project') {
+    if (method === 'GET' && path === '/v1/team') {
       reply(200, {
-        org: 'acme',
+        workspace: 'acme',
         slug: 'web',
         name: 'Web',
         defaultBranch: this.options.defaultBranch ?? 'main',

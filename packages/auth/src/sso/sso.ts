@@ -33,7 +33,7 @@ export const isSsoPath = (path: string | undefined): boolean =>
 /**
  * May a single sign-on login create a brand new account? Not just because the provider knows
  * the person: only if they were invited, or the provider is trusted for email and the address
- * is on a domain an organization has verified.
+ * is on a domain a workspace has verified.
  */
 export function mayCreateSsoAccount(input: {
   trusted: boolean

@@ -5,7 +5,7 @@ import { SignInMethods } from '#features/members/SignInMethods.tsx'
 import { fakeFetch, pending, restoreFetch } from '#test/features/fetch-routes.ts'
 import { renderPage } from '#test/support/render.tsx'
 
-const PATH = '/api/organizations/acme/auth'
+const PATH = '/api/workspaces/acme/auth'
 const auth = (over: { password?: boolean; email?: boolean; instance?: object } = {}) => ({
   canManage: true,
   settings: { passwordLoginEnabled: over.password ?? true, emailLoginEnabled: over.email ?? false },
@@ -18,14 +18,14 @@ describe('SignInMethods', () => {
   it('renders nothing until the settings are known', async () => {
     await page.viewport(1000, 800)
     fakeFetch({ [`GET ${PATH}`]: () => pending() })
-    await renderPage(<SignInMethods org="acme" />)
+    await renderPage(<SignInMethods workspace="acme" />)
     expect(page.getByRole('heading', { name: 'Sign-in methods' }).elements()).toHaveLength(0)
   })
 
   it('shows each method as a checkbox in its current state', async () => {
     await page.viewport(1000, 800)
     fakeFetch({ [`GET ${PATH}`]: auth() })
-    await renderPage(<SignInMethods org="acme" />)
+    await renderPage(<SignInMethods workspace="acme" />)
     await expect.element(page.getByRole('heading', { name: 'Sign-in methods' })).toBeVisible()
     await expect.element(page.getByRole('checkbox', { name: 'Password' })).toBeChecked()
     await expect.element(page.getByRole('checkbox', { name: 'Email code' })).not.toBeChecked()
@@ -34,7 +34,7 @@ describe('SignInMethods', () => {
   it('disables a method the instance does not offer, and says so', async () => {
     await page.viewport(1000, 800)
     fakeFetch({ [`GET ${PATH}`]: auth({ email: true, instance: { email: false } }) })
-    await renderPage(<SignInMethods org="acme" />)
+    await renderPage(<SignInMethods workspace="acme" />)
     const email = page.getByRole('checkbox', { name: /Email code/ })
     await expect.element(email).toBeDisabled()
     // Enabled in the settings, but not usable here, so it is not shown as on.
@@ -52,7 +52,7 @@ describe('SignInMethods', () => {
         return { settings }
       },
     })
-    await renderPage(<SignInMethods org="acme" />)
+    await renderPage(<SignInMethods workspace="acme" />)
     await page.getByRole('checkbox', { name: 'Email code' }).click()
     await expect.element(page.getByRole('checkbox', { name: 'Email code' })).toBeChecked()
     expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ emailLoginEnabled: true })
@@ -65,7 +65,7 @@ describe('SignInMethods', () => {
       [`PATCH ${PATH}`]: () =>
         Response.json({ error: 'An owner must be able to sign in' }, { status: 409 }),
     })
-    await renderPage(<SignInMethods org="acme" />)
+    await renderPage(<SignInMethods workspace="acme" />)
     await page.getByRole('checkbox', { name: 'Password' }).click()
     await expect
       .element(page.getByRole('alert'))

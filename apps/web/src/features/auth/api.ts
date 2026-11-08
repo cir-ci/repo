@@ -23,5 +23,5 @@ export const submitSetup = (input: {
   name: string
   email: string
   password: string
-  organizationName: string
+  workspaceName: string
 }) => post<{ email: string }>('/api/setup', input)

@@ -7,8 +7,8 @@ export namespace ApiClient {
     fetch?: typeof fetch
   }
 
-  export interface Project {
-    org: string
+  export interface Team {
+    workspace: string
     slug: string
     name: string
     defaultBranch: string
@@ -30,7 +30,7 @@ export namespace ApiClient {
     url: string
     method: 'PUT'
     headers: Record<string, string>
-    /** `token`: send the project token too (uploads through the API, local-disk storage). */
+    /** `token`: send the team token too (uploads through the API, local-disk storage). */
     auth: 'token' | 'none'
   }
 
@@ -80,8 +80,8 @@ export class ApiClient {
     this.fetchImpl = options.fetch ?? fetch
   }
 
-  project(): Promise<ApiClient.Project> {
-    return this.json('GET', '/v1/project')
+  team(): Promise<ApiClient.Team> {
+    return this.json('GET', '/v1/team')
   }
 
   createBuild(

@@ -1,4 +1,4 @@
-import { createTestDb, seedProject } from '@circi/testing'
+import { createTestDb, seedTeam } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { deviceFingerprint, noteDevice, takeEmailCodeSlot } from '#src/index.ts'
@@ -32,7 +32,7 @@ describe('email code limit', () => {
 
 describe('known devices', () => {
   it('tells the first sign-in from a new device from a known one', async () => {
-    const { owner } = await seedProject(t.db)
+    const { owner } = await seedTeam(t.db)
     const laptop = deviceFingerprint('Firefox on macOS')
     const phone = deviceFingerprint('Safari on iOS')
     expect(await noteDevice(t.db, owner.id, laptop)).toBe('first')

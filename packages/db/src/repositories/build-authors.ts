@@ -1,44 +1,44 @@
 import { and, eq, sql } from 'drizzle-orm'
 
-import { account, builds, member, projects, user } from '#schema/index.ts'
+import { account, builds, member, teams, user } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
 /** Who authored a build: lookups of the members it could be, and the store for a PR's author. */
 
 /**
- * The users of the project's organization whose linked sign-in account at `providerId` (GitHub's
+ * The users of the team's workspace whose linked sign-in account at `providerId` (GitHub's
  * `github`, …) has this provider-side id. Account ids are unique per provider, so more than one
  * row means something is off and the caller must not guess.
  */
 export async function findMembersByAccount(
   db: Database,
-  projectId: string,
+  teamId: string,
   providerId: string,
   accountId: string,
 ): Promise<string[]> {
   const rows = await db
     .selectDistinct({ userId: account.userId })
     .from(account)
-    .innerJoin(projects, eq(projects.id, projectId))
+    .innerJoin(teams, eq(teams.id, teamId))
     .innerJoin(
       member,
-      and(eq(member.userId, account.userId), eq(member.organizationId, projects.orgId)),
+      and(eq(member.userId, account.userId), eq(member.workspaceId, teams.workspaceId)),
     )
     .where(and(eq(account.providerId, providerId), eq(account.accountId, accountId)))
   return rows.map((r) => r.userId)
 }
 
-/** The project's organization members with this verified email (compared case-insensitively). */
+/** The team's workspace members with this verified email (compared case-insensitively). */
 export async function findMembersByVerifiedEmail(
   db: Database,
-  projectId: string,
+  teamId: string,
   email: string,
 ): Promise<string[]> {
   const rows = await db
     .selectDistinct({ userId: user.id })
     .from(user)
-    .innerJoin(projects, eq(projects.id, projectId))
-    .innerJoin(member, and(eq(member.userId, user.id), eq(member.organizationId, projects.orgId)))
+    .innerJoin(teams, eq(teams.id, teamId))
+    .innerJoin(member, and(eq(member.userId, user.id), eq(member.workspaceId, teams.workspaceId)))
     .where(and(eq(user.emailVerified, true), sql`lower(${user.email}) = ${email.toLowerCase()}`))
   return rows.map((r) => r.userId)
 }
@@ -58,13 +58,13 @@ export async function setPullRequestAuthor(
       authorLogin: input.login,
       authorUserId: input.userId,
     })
-    .where(and(eq(builds.projectId, input.projectId), eq(builds.prNumber, input.prNumber)))
+    .where(and(eq(builds.teamId, input.teamId), eq(builds.prNumber, input.prNumber)))
     .returning({ id: builds.id })
   return rows.length
 }
 export namespace setPullRequestAuthor {
   export interface Input {
-    projectId: string
+    teamId: string
     prNumber: number
     login: string
     userId: string | null

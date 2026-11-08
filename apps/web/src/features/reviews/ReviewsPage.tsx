@@ -18,7 +18,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 
-import { useLoadingAnnouncement } from '#features/projects/loading.ts'
+import { useLoadingAnnouncement } from '#features/teams/loading.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { focusRow, leavesKeyToFocus, nextAfterRemoval } from '#lib/list-keys.ts'
@@ -49,8 +49,8 @@ import styles from '#lib/ListPage.module.css'
 
 export function ReviewsPage() {
   useDocumentTitle('Reviews')
-  const { org } = useParams({ from: '/organizations/$org/reviews' })
-  const { tab } = useSearch({ from: '/organizations/$org/reviews' })
+  const { workspace } = useParams({ from: '/workspaces/$workspace/reviews' })
+  const { tab } = useSearch({ from: '/workspaces/$workspace/reviews' })
   const navigate = useNavigate()
   const announce = useAnnounce()
   const clientLink = useClientLink()
@@ -71,8 +71,8 @@ export function ReviewsPage() {
   const dismiss = useDismissRequest()
   const requestReview = useRequestReview()
 
-  // This page is one organization's reviews; the list spans all of the person's.
-  const requests = (data?.requests ?? []).filter((r) => r.org.slug === org)
+  // This page is one workspace's reviews; the list spans all of the person's.
+  const requests = (data?.requests ?? []).filter((r) => r.workspace.slug === workspace)
   const selected = requests.find((r) => r.id === selectedId) ?? requests[0]
   const can = { approve: tab !== 'created', snooze: tab === 'for-you', unsnooze: tab === 'snoozed' }
 
@@ -89,8 +89,8 @@ export function ReviewsPage() {
 
   const openSelected = (r: Review.Request) =>
     void navigate({
-      to: '/$org/$project/builds/$number',
-      params: { org: r.org.slug, project: r.project.slug, number: String(r.build.number) },
+      to: '/$workspace/$team/builds/$number',
+      params: { workspace: r.workspace.slug, team: r.team.slug, number: String(r.build.number) },
     })
 
   /** Runs `act` for the selected request, then moves to the next item and keeps focus in the list. */
@@ -149,8 +149,8 @@ export function ReviewsPage() {
           onChange={(next) => {
             setSelectedId(undefined)
             void navigate({
-              to: '/organizations/$org/reviews',
-              params: { org },
+              to: '/workspaces/$workspace/reviews',
+              params: { workspace },
               search: { tab: next },
               replace: true,
             })
@@ -231,10 +231,10 @@ export function ReviewsPage() {
                             density="two-line"
                             selected={r.id === selected?.id}
                             {...clientLink({
-                              to: '/$org/$project/builds/$number',
+                              to: '/$workspace/$team/builds/$number',
                               params: {
-                                org: r.org.slug,
-                                project: r.project.slug,
+                                workspace: r.workspace.slug,
+                                team: r.team.slug,
                                 number: String(r.build.number),
                               },
                             })}
@@ -256,7 +256,7 @@ export function ReviewsPage() {
                           >
                             <span className={styles.title}>
                               <Text truncate>
-                                Build #{r.build.number} · {r.project.name}
+                                Build #{r.build.number} · {r.team.name}
                               </Text>
                               <Text variant="mono" tone="secondary" truncate>
                                 {requestRef(r.build)}
@@ -286,10 +286,10 @@ export function ReviewsPage() {
                           size="sm"
                           variant="primary"
                           {...clientLink({
-                            to: '/$org/$project/builds/$number',
+                            to: '/$workspace/$team/builds/$number',
                             params: {
-                              org: selected.org.slug,
-                              project: selected.project.slug,
+                              workspace: selected.workspace.slug,
+                              team: selected.team.slug,
                               number: String(selected.build.number),
                             },
                           })}
@@ -308,7 +308,7 @@ export function ReviewsPage() {
         </TabList>
       </div>
       <MemberPicker
-        org={org}
+        workspace={workspace}
         open={picking}
         onOpenChange={setPicking}
         onPick={(member) => {
@@ -333,7 +333,7 @@ function RequestDetail({ request: r }: { request: Review.Request }) {
   return (
     <div className={styles.detail}>
       <Text>
-        {r.project.name} · build #{r.build.number}
+        {r.team.name} · build #{r.build.number}
       </Text>
       <dl>
         <dt>Branch</dt>

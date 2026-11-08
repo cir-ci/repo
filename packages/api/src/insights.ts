@@ -6,7 +6,7 @@ export namespace Insights {
     p90ReviewHours: number | null
     /** Builds whose first review (by a person) fell in the range. */
     buildsReviewed: number
-    /** Of those, how many waited longer than their project's review target. */
+    /** Of those, how many waited longer than their team's review target. */
     reviewedOverTarget: number
     /** Finished builds in the range, and how many of them had changes. */
     buildsFinished: number
@@ -26,8 +26,8 @@ export namespace Insights {
   }
 
   export interface Storage {
-    /** Bytes of distinct stored files each project's builds refer to. */
-    projects: { slug: string; name: string; bytes: number }[]
+    /** Bytes of distinct stored files each team's builds refer to. */
+    teams: { slug: string; name: string; bytes: number }[]
     totalBytes: number
   }
 
@@ -44,11 +44,11 @@ export namespace Insights {
     medianResponseHours: number | null
   }
 
-  /** `GET /api/orgs/:org/insights?project=&from=&to=`. */
+  /** `GET /api/workspaces/:workspace/insights?team=&from=&to=`. */
   export interface Report {
-    org: { slug: string; name: string }
-    /** The project slug when narrowed to one; null for the whole organization. */
-    project: string | null
+    workspace: { slug: string; name: string }
+    /** The team slug when narrowed to one; null for the whole workspace. */
+    team: string | null
     range: { from: string; to: string }
     summary: Summary
     /** The same numbers for the stretch of equal length just before `range`. */

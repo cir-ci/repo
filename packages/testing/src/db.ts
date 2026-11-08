@@ -1,9 +1,9 @@
 import {
-  createProject,
+  createTeam,
   type Database,
   type ListenFn,
   migrationsFolder,
-  type Organization,
+  type Workspace,
   schema,
   type User,
 } from '@circi/db'
@@ -37,42 +37,47 @@ export async function createTestDb(): Promise<createTestDb.Result> {
 
 let n = 0
 
-export namespace seedOrg {
+export namespace seedWorkspace {
   export interface Result {
-    org: Organization
+    workspace: Workspace
     owner: User
   }
 }
 
 /**
- * Inserts a user, an organization and an owner membership directly. Production code creates
+ * Inserts a user, a workspace and an owner membership directly. Production code creates
  * these through better-auth (`@circi/auth`); the db package can't depend on it, and its tests
  * only need rows that look the way better-auth leaves them.
  */
-export async function seedOrg(db: Database): Promise<seedOrg.Result> {
+export async function seedWorkspace(db: Database): Promise<seedWorkspace.Result> {
   n += 1
   return db.transaction(async (tx) => {
     const [owner] = await tx
       .insert(schema.user)
       .values({ id: `user-${n}`, name: `Owner ${n}`, email: `owner${n}@example.com` })
       .returning()
-    const [org] = await tx
-      .insert(schema.organization)
-      .values({ id: `org-${n}`, name: `Org ${n}`, slug: `org-${n}`, createdAt: new Date() })
+    const [workspace] = await tx
+      .insert(schema.workspace)
+      .values({
+        id: `workspace-${n}`,
+        name: `Workspace ${n}`,
+        slug: `workspace-${n}`,
+        createdAt: new Date(),
+      })
       .returning()
-    if (!owner || !org) throw new Error('seed insert returned no row')
+    if (!owner || !workspace) throw new Error('seed insert returned no row')
     await tx.insert(schema.member).values({
       id: `member-${n}`,
-      organizationId: org.id,
+      workspaceId: workspace.id,
       userId: owner.id,
       role: 'owner',
       createdAt: new Date(),
     })
-    return { org, owner }
+    return { workspace, owner }
   })
 }
 
-/** A user who belongs to no organization yet. */
+/** A user who belongs to no workspace yet. */
 export async function seedUser(db: Database, email?: string): Promise<User> {
   n += 1
   const [user] = await db
@@ -85,30 +90,30 @@ export async function seedUser(db: Database, email?: string): Promise<User> {
 
 export async function addTestMember(
   db: Database,
-  input: { orgId: string; userId: string; role?: 'owner' | 'admin' | 'member' },
+  input: { workspaceId: string; userId: string; role?: 'owner' | 'admin' | 'member' },
 ): Promise<void> {
   n += 1
   await db.insert(schema.member).values({
     id: `member-${n}`,
-    organizationId: input.orgId,
+    workspaceId: input.workspaceId,
     userId: input.userId,
     role: input.role ?? 'member',
     createdAt: new Date(),
   })
 }
 
-/** A new organization (with an owner) and a project in it. */
-export async function seedProject(
+/** A new workspace (with an owner) and a team in it. */
+export async function seedTeam(
   db: Database,
-  options: { defaultBranch?: string; slug?: string; org?: seedOrg.Result } = {},
+  options: { defaultBranch?: string; slug?: string; workspace?: seedWorkspace.Result } = {},
 ) {
-  const seeded = options.org ?? (await seedOrg(db))
-  const project = await createProject(db, {
-    orgSlug: seeded.org.slug,
+  const seeded = options.workspace ?? (await seedWorkspace(db))
+  const team = await createTeam(db, {
+    workspaceSlug: seeded.workspace.slug,
     name: options.slug ?? 'web',
     ...(options.defaultBranch ? { defaultBranch: options.defaultBranch } : {}),
   })
-  return { project, org: seeded.org, owner: seeded.owner }
+  return { team, workspace: seeded.workspace, owner: seeded.owner }
 }
 
 /** A fake sha256 made of one repeated hex digit. */

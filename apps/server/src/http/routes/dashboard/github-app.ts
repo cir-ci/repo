@@ -23,8 +23,8 @@ import {
 } from '#http/lib/github-app.ts'
 import { INSTALL_FLOW } from '#http/lib/install-state.ts'
 import { integrationContext } from '#http/lib/integration-context.ts'
-import { loadOrg } from '#http/lib/org-access.ts'
 import { parse } from '#http/lib/validation.ts'
+import { loadWorkspace } from '#http/lib/workspace-access.ts'
 
 /**
  * Creating the instance's GitHub App with one click (GitHub's App Manifest flow); nothing is
@@ -33,7 +33,7 @@ import { parse } from '#http/lib/validation.ts'
  *   GET  /api/instance/github-app            status (no secrets)
  *   POST /api/instance/github-app/manifest   instance admin: the manifest and the address to post it to
  *   GET  /api/instance/github-app/callback   GitHub's redirect with a one-time `code`: stores the App, then sends the admin to install it
- *   GET  /api/orgs/:org/integrations/github/install   the install address for a workspace
+ *   GET  /api/workspaces/:workspace/integrations/github/install   the install address for a workspace
  *
  * Every `state` is signed, expires, and names the user it was issued to. The installation's own
  * return (`/api/integrations/github/setup`) is in `integrations-generic.ts`, which shares the
@@ -55,7 +55,7 @@ const callbackQuery = z.object({
   code: z.string().optional(),
   state: z.string().optional(),
 })
-const orgParams = z.object({ org: z.string() })
+const workspaceParams = z.object({ workspace: z.string() })
 
 export const dashboardGithubAppRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   const adminOnly = 'Only instance admins can set up the GitHub App'
@@ -165,13 +165,13 @@ export const dashboardGithubAppRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
   })
 
   /** Where a workspace admin goes to install the App on GitHub; `state` names the workspace and the user. */
-  app.get('/orgs/:org/integrations/github/install', async (req, reply) => {
-    const found = await loadOrg(deps, req, reply)
+  app.get('/workspaces/:workspace/integrations/github/install', async (req, reply) => {
+    const found = await loadWorkspace(deps, req, reply)
     if (!found) return reply
-    const { org: slug } = parse(orgParams, req.params)
+    const { workspace: slug } = parse(workspaceParams, req.params)
     const role = await getMemberRole(deps.db, {
       userId: found.user.id,
-      organizationId: found.org.id,
+      workspaceId: found.workspace.id,
     })
     if (role !== 'owner' && role !== 'admin') {
       return reply.code(403).send({ error: 'Only owners and admins can manage integrations' })
@@ -195,8 +195,8 @@ export const dashboardGithubAppRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
       kind: 'github',
       flow: INSTALL_FLOW,
       userId: found.user.id,
-      orgId: found.org.id,
-      orgSlug: slug,
+      workspaceId: found.workspace.id,
+      workspaceSlug: slug,
     })
     const payload: Integration.Install = {
       url: `${htmlUrl}/installations/new?state=${encodeURIComponent(state)}`,

@@ -43,10 +43,10 @@ export async function sendNotificationEmail(
 function compose(data: getNotificationEmailData.Data, origin: string) {
   const { build, actorName, recipient } = data
   const what = build
-    ? `build #${build.number}${build.branch ? ` (${build.branch})` : ''} of ${build.projectName}`
+    ? `build #${build.number}${build.branch ? ` (${build.branch})` : ''} of ${build.teamName}`
     : 'a build'
   const link = build
-    ? `${origin}/${build.orgSlug}/${build.projectSlug}/builds/${build.number}`
+    ? `${origin}/${build.workspaceSlug}/${build.teamSlug}/builds/${build.number}`
     : origin
   const overdue = data.notification.kind === 'review_overdue'
   const again = data.notification.kind === 'review_re_requested'

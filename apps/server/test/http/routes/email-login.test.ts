@@ -99,7 +99,7 @@ describe('email login', () => {
       .flat()
       .map((c) => String(c).split(';')[0])
       .join('; ')
-    const me = await on.inject({ url: '/api/projects', headers: { cookie } })
+    const me = await on.inject({ url: '/api/teams', headers: { cookie } })
     expect(me.statusCode).toBe(200)
     // Signing in with a code must not cost an operator-created account its password.
     await signIn(on, tenant.owner.email, tenant.owner.password)
@@ -152,18 +152,18 @@ const cookieOf = (res: { headers: Record<string, unknown> }) =>
 
 async function invite(email: string, role = 'member') {
   const ownerCookie = await signIn(on, tenant.owner.email, tenant.owner.password)
-  const org = await on.inject({
+  const workspace = await on.inject({
     method: 'GET',
     url: '/api/auth/organization/get-full-organization',
     headers: { cookie: ownerCookie, origin: ORIGIN },
-    query: { organizationSlug: tenant.orgSlug },
+    query: { organizationSlug: tenant.workspaceSlug },
   })
   sent.length = 0
   const res = await on.inject({
     method: 'POST',
     url: '/api/auth/organization/invite-member',
     headers: { cookie: ownerCookie, ...json },
-    payload: { email, role, organizationId: org.json().id },
+    payload: { email, role, organizationId: workspace.json().id },
   })
   expect(res.statusCode).toBe(200)
   await vi.waitFor(() => expect(sent).toHaveLength(1))
@@ -184,8 +184,8 @@ describe('invitations', () => {
     expect(res.statusCode).toBe(200)
     const cookie = cookieOf(res)
 
-    const before = await on.inject({ url: '/api/projects', headers: { cookie } })
-    expect(before.json().projects).toHaveLength(0)
+    const before = await on.inject({ url: '/api/teams', headers: { cookie } })
+    expect(before.json().teams).toHaveLength(0)
     const accepted = await on.inject({
       method: 'POST',
       url: '/api/auth/organization/accept-invitation',
@@ -193,8 +193,8 @@ describe('invitations', () => {
       payload: { invitationId },
     })
     expect(accepted.statusCode).toBe(200)
-    const after = await on.inject({ url: '/api/projects', headers: { cookie } })
-    expect(after.json().projects).toHaveLength(1)
+    const after = await on.inject({ url: '/api/teams', headers: { cookie } })
+    expect(after.json().teams).toHaveLength(1)
   })
 
   it('does not let another address use the invitation', async () => {

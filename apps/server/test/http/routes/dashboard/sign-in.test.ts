@@ -9,13 +9,13 @@ afterAll(() => fx.close())
 
 describe('signing in', () => {
   it('needs a session for the dashboard API', async () => {
-    const res = await get('/api/projects', '')
+    const res = await get('/api/teams', '')
     expect(res.statusCode).toBe(401)
     expect(res.json()).toEqual({ error: 'Sign in to continue' })
   })
 
   it('signs in with email and password, and the cookie works', async () => {
-    const res = await get('/api/projects', acmeCookie)
+    const res = await get('/api/teams', acmeCookie)
     expect(res.statusCode).toBe(200)
   })
 
@@ -62,8 +62,8 @@ describe('signing in', () => {
       },
     })
     expect(res.statusCode).toBeGreaterThanOrEqual(400)
-    const projects = await get('/api/projects', '')
-    expect(projects.statusCode).toBe(401)
+    const teams = await get('/api/teams', '')
+    expect(teams.statusCode).toBe(401)
   })
 
   it('reports who is signed in, and nobody when signed out', async () => {
@@ -79,7 +79,7 @@ describe('signing in', () => {
 
   it('stops working after signing out', async () => {
     const cookie = await signIn(app, acme.owner.email, acme.owner.password)
-    expect((await get('/api/projects', cookie)).statusCode).toBe(200)
+    expect((await get('/api/teams', cookie)).statusCode).toBe(200)
     const out = await app.inject({
       method: 'POST',
       url: '/api/auth/sign-out',
@@ -87,13 +87,13 @@ describe('signing in', () => {
       payload: {},
     })
     expect(out.statusCode).toBe(200)
-    expect((await get('/api/projects', cookie)).statusCode).toBe(401)
+    expect((await get('/api/teams', cookie)).statusCode).toBe(401)
   })
 
   it('does not accept a CI token as a dashboard session', async () => {
     const res = await app.inject({
       method: 'GET',
-      url: '/api/projects',
+      url: '/api/teams',
       headers: { authorization: `Bearer ${acme.token}` },
     })
     expect(res.statusCode).toBe(401)

@@ -6,13 +6,13 @@ import { issuePreview } from '#features/builds/issues-api.ts'
 const image = (sha256: string) => ({ sha256, width: 10, height: 10 })
 
 const data = (over: Partial<Pick<Build.Detail, 'reviews' | 'diffs'>> = {}) => ({
-  project: {
+  team: {
     id: 'p1',
     slug: 'web-app',
     name: 'web-app',
     defaultBranch: 'main',
-    orgSlug: 'acme',
-    orgName: 'Acme',
+    workspaceSlug: 'acme',
+    workspaceName: 'Acme',
   },
   build: {
     number: 7,

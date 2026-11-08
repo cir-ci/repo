@@ -7,21 +7,21 @@ const fx = await startDashboard()
 const { acme, rival, acmeCookie, rivalCookie, get, app, db } = fx
 afterAll(() => fx.close())
 
-// The fixture: Acme's `web` project has builds 1 (approved) and 2 (main, auto-approved), each
+// The fixture: Acme's `web` team has builds 1 (approved) and 2 (main, auto-approved), each
 // with screenshots `home` and `about`. Rival has nothing.
 
-const search = (org: string, q: string, cookie?: string) =>
-  get(`/api/orgs/${org}/search?q=${encodeURIComponent(q)}`, cookie)
+const search = (workspace: string, q: string, cookie?: string) =>
+  get(`/api/workspaces/${workspace}/search?q=${encodeURIComponent(q)}`, cookie)
 
 const list = async (query: string): Promise<number[]> =>
-  (await get(`/api/projects/${acme.orgSlug}/web${query}`))
+  (await get(`/api/teams/${acme.workspaceSlug}/web${query}`))
     .json()
     .builds.map((b: { number: number }) => b.number)
 
-const post = (payload: object, options: { org?: string; cookie?: string } = {}) =>
+const post = (payload: object, options: { workspace?: string; cookie?: string } = {}) =>
   app.inject({
     method: 'POST',
-    url: `/api/projects/${options.org ?? acme.orgSlug}/web/builds/review`,
+    url: `/api/teams/${options.workspace ?? acme.workspaceSlug}/web/builds/review`,
     headers: {
       'content-type': 'application/json',
       cookie: options.cookie ?? acmeCookie,
@@ -33,32 +33,32 @@ const post = (payload: object, options: { org?: string; cookie?: string } = {}) 
 async function numbersOf(): Promise<Record<number, string>> {
   const rows = await db.query.builds.findMany()
   return Object.fromEntries(
-    rows.filter((b) => b.projectId === acme.project.id).map((b) => [b.number, b.reviewStatus]),
+    rows.filter((b) => b.teamId === acme.team.id).map((b) => [b.number, b.reviewStatus]),
   )
 }
 
-describe('GET /api/orgs/:org/search', () => {
-  it('finds builds, branches, projects and snapshots', async () => {
-    const byNumber = (await search(acme.orgSlug, '#2')).json()
-    expect(byNumber.builds).toMatchObject([{ projectSlug: 'web', number: 2 }])
-    const byName = (await search(acme.orgSlug, 'ab')).json()
+describe('GET /api/workspaces/:workspace/search', () => {
+  it('finds builds, branches, teams and snapshots', async () => {
+    const byNumber = (await search(acme.workspaceSlug, '#2')).json()
+    expect(byNumber.builds).toMatchObject([{ teamSlug: 'web', number: 2 }])
+    const byName = (await search(acme.workspaceSlug, 'ab')).json()
     expect(byName.snapshots).toMatchObject([{ name: 'about', latestBuildNumber: 2 }])
-    expect((await search(acme.orgSlug, 'mai')).json().branches).toMatchObject([
+    expect((await search(acme.workspaceSlug, 'mai')).json().branches).toMatchObject([
       { branch: 'main', latestBuildNumber: 2 },
     ])
-    expect((await search(acme.orgSlug, 'we')).json().projects).toMatchObject([{ slug: 'web' }])
-    expect((await search(acme.orgSlug, '')).json().builds).toEqual([])
+    expect((await search(acme.workspaceSlug, 'we')).json().teams).toMatchObject([{ slug: 'web' }])
+    expect((await search(acme.workspaceSlug, '')).json().builds).toEqual([])
   })
 
   it('is not found for a non-member, and rejects an over-long query', async () => {
-    expect((await search(acme.orgSlug, 'web', rivalCookie)).statusCode).toBe(404)
-    expect((await search(rival.orgSlug, 'web')).statusCode).toBe(404)
-    expect((await search(acme.orgSlug, 'x'.repeat(101))).statusCode).toBe(400)
-    expect((await search(acme.orgSlug, 'web', '')).statusCode).toBe(401)
+    expect((await search(acme.workspaceSlug, 'web', rivalCookie)).statusCode).toBe(404)
+    expect((await search(rival.workspaceSlug, 'web')).statusCode).toBe(404)
+    expect((await search(acme.workspaceSlug, 'x'.repeat(101))).statusCode).toBe(400)
+    expect((await search(acme.workspaceSlug, 'web', '')).statusCode).toBe(401)
   })
 })
 
-describe('GET /api/projects/:org/:project with filters', () => {
+describe('GET /api/teams/:workspace/:team with filters', () => {
   it('keeps the unfiltered list and narrows by each filter', async () => {
     expect(await list('')).toEqual([2, 1])
     expect(await list('?review=pending')).toEqual([])
@@ -73,12 +73,12 @@ describe('GET /api/projects/:org/:project with filters', () => {
   it('rejects unknown values', async () => {
     for (const q of ['?status=bogus', '?review=maybe', '?from=yesterday', '?branch=']) {
       // eslint-disable-next-line no-await-in-loop
-      expect((await get(`/api/projects/${acme.orgSlug}/web${q}`)).statusCode).toBe(400)
+      expect((await get(`/api/teams/${acme.workspaceSlug}/web${q}`)).statusCode).toBe(400)
     }
   })
 })
 
-describe('POST /api/projects/:org/:project/builds/review', () => {
+describe('POST /api/teams/:workspace/:team/builds/review', () => {
   it('rejects the bad bodies with 400', async () => {
     const id = '00000000-0000-4000-8000-000000000000'
     expect((await post({ buildIds: [], decision: 'approved' })).statusCode).toBe(400)
@@ -90,7 +90,7 @@ describe('POST /api/projects/:org/:project/builds/review', () => {
     ).toBe(400)
   })
 
-  it('is not found for a non-member and for ids outside the project, changing nothing', async () => {
+  it('is not found for a non-member and for ids outside the team, changing nothing', async () => {
     const real = (await db.query.builds.findFirst({ where: (b, { eq }) => eq(b.number, 2) }))!
     expect(
       (await post({ buildIds: [real.id], decision: 'rejected' }, { cookie: rivalCookie }))
@@ -104,7 +104,7 @@ describe('POST /api/projects/:org/:project/builds/review', () => {
   })
 
   it('rejects several builds at once', async () => {
-    const rows = (await db.query.builds.findMany()).filter((b) => b.projectId === acme.project.id)
+    const rows = (await db.query.builds.findMany()).filter((b) => b.teamId === acme.team.id)
     const res = await post({ buildIds: rows.map((b) => b.id), decision: 'rejected', reason: 'no' })
     expect(res.statusCode).toBe(200)
     expect(res.json().builds.map((b: { reviewStatus: string }) => b.reviewStatus)).toEqual([

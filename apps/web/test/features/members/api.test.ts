@@ -16,9 +16,9 @@ import {
   changeMemberRole,
   domainsQuery,
   inviteMember,
-  orgAuthQuery,
-  organizationQuery,
-  orgSsoQuery,
+  workspaceAuthQuery,
+  workspaceQuery,
+  workspaceSsoQuery,
   removeMember,
 } from '#features/members/api.ts'
 import { HttpError } from '#lib/http.ts'
@@ -31,40 +31,40 @@ const fetchQuery = (options: Parameters<QueryClient['fetchQuery']>[0]) =>
   new QueryClient().fetchQuery(options)
 
 describe('the read queries', () => {
-  it('fetch the organization’s settings from its own paths, escaped', async () => {
+  it('fetch the workspace’s settings from its own paths, escaped', async () => {
     const calls = fakeFetch({
-      'GET /api/organizations/a%2Fb/auth': { settings: {}, instance: {} },
-      'GET /api/organizations/a%2Fb/domains': { domains: [] },
-      'GET /api/organizations/a%2Fb/sso': { providers: [] },
+      'GET /api/workspaces/a%2Fb/auth': { settings: {}, instance: {} },
+      'GET /api/workspaces/a%2Fb/domains': { domains: [] },
+      'GET /api/workspaces/a%2Fb/sso': { providers: [] },
     })
-    await fetchQuery(orgAuthQuery('a/b'))
+    await fetchQuery(workspaceAuthQuery('a/b'))
     await fetchQuery(domainsQuery('a/b'))
-    await fetchQuery(orgSsoQuery('a/b'))
+    await fetchQuery(workspaceSsoQuery('a/b'))
     expect(calls.map((c) => c.path)).toEqual([
-      '/api/organizations/a%2Fb/auth',
-      '/api/organizations/a%2Fb/domains',
-      '/api/organizations/a%2Fb/sso',
+      '/api/workspaces/a%2Fb/auth',
+      '/api/workspaces/a%2Fb/domains',
+      '/api/workspaces/a%2Fb/sso',
     ])
   })
 
-  it('keys each by organization so one org never shows another’s data', () => {
-    expect(orgAuthQuery('a').queryKey).not.toEqual(orgAuthQuery('b').queryKey)
+  it('keys each by workspace so one workspace never shows another’s data', () => {
+    expect(workspaceAuthQuery('a').queryKey).not.toEqual(workspaceAuthQuery('b').queryKey)
     expect(domainsQuery('a').queryKey).not.toEqual(domainsQuery('b').queryKey)
-    expect(orgSsoQuery('a').queryKey).not.toEqual(orgSsoQuery('b').queryKey)
+    expect(workspaceSsoQuery('a').queryKey).not.toEqual(workspaceSsoQuery('b').queryKey)
   })
 })
 
-describe('organizationQuery', () => {
-  it('returns the organization asked for by slug', async () => {
-    const org = { id: 'o1', name: 'Acme', members: [], invitations: [] }
-    auth.getFullOrganization.mockResolvedValue({ data: org, error: null })
-    expect(await fetchQuery(organizationQuery('acme'))).toBe(org)
+describe('workspaceQuery', () => {
+  it('returns the workspace asked for by slug', async () => {
+    const workspace = { id: 'o1', name: 'Acme', members: [], invitations: [] }
+    auth.getFullOrganization.mockResolvedValue({ data: workspace, error: null })
+    expect(await fetchQuery(workspaceQuery('acme'))).toBe(workspace)
     expect(auth.getFullOrganization).toHaveBeenCalledWith({ query: { organizationSlug: 'acme' } })
   })
 
-  it('is a 404 when there is no such organization', async () => {
+  it('is a 404 when there is no such workspace', async () => {
     auth.getFullOrganization.mockResolvedValue({ data: null, error: null })
-    await expect(fetchQuery(organizationQuery('nope'))).rejects.toMatchObject({
+    await expect(fetchQuery(workspaceQuery('nope'))).rejects.toMatchObject({
       name: 'HttpError',
       status: 404,
     })
@@ -75,16 +75,16 @@ describe('organizationQuery', () => {
       data: null,
       error: { status: 503, message: 'Try later' },
     })
-    const failure = await fetchQuery(organizationQuery('acme')).catch((e: unknown) => e)
+    const failure = await fetchQuery(workspaceQuery('acme')).catch((e: unknown) => e)
     expect(failure).toBeInstanceOf(HttpError)
     expect(failure).toMatchObject({ status: 503, message: 'Try later' })
   })
 
   it('treats a failure without a status as a server error', async () => {
     auth.getFullOrganization.mockResolvedValue({ data: null, error: {} })
-    await expect(fetchQuery(organizationQuery('acme'))).rejects.toMatchObject({
+    await expect(fetchQuery(workspaceQuery('acme'))).rejects.toMatchObject({
       status: 500,
-      message: 'Couldn’t load the organization',
+      message: 'Couldn’t load the workspace',
     })
   })
 })
@@ -92,19 +92,23 @@ describe('organizationQuery', () => {
 describe('member operations', () => {
   it('inviteMember passes the invitation through', async () => {
     auth.inviteMember.mockResolvedValue({ data: {}, error: null })
-    const input = { email: 'a@b.test', role: 'admin' as const, organizationId: 'o1' }
+    const input = { email: 'a@b.test', role: 'admin' as const, workspaceId: 'o1' }
     await inviteMember(input)
-    expect(auth.inviteMember).toHaveBeenCalledWith(input)
+    expect(auth.inviteMember).toHaveBeenCalledWith({
+      email: 'a@b.test',
+      role: 'admin',
+      organizationId: 'o1',
+    })
   })
 
   it('inviteMember surfaces the server’s message, or its own', async () => {
     auth.inviteMember.mockResolvedValueOnce({ error: { message: 'Already a member' } })
     await expect(
-      inviteMember({ email: 'a@b.test', role: 'member', organizationId: 'o1' }),
+      inviteMember({ email: 'a@b.test', role: 'member', workspaceId: 'o1' }),
     ).rejects.toThrow('Already a member')
     auth.inviteMember.mockResolvedValueOnce({ error: {} })
     await expect(
-      inviteMember({ email: 'a@b.test', role: 'member', organizationId: 'o1' }),
+      inviteMember({ email: 'a@b.test', role: 'member', workspaceId: 'o1' }),
     ).rejects.toThrow('Couldn’t send the invitation.')
   })
 
@@ -116,19 +120,19 @@ describe('member operations', () => {
     await expect(cancelInvitation('i1')).rejects.toThrow('Couldn’t withdraw the invitation')
   })
 
-  it('removeMember removes by member id within the organization', async () => {
+  it('removeMember removes by member id within the workspace', async () => {
     auth.removeMember.mockResolvedValueOnce({ data: {}, error: null })
-    await removeMember({ memberId: 'm2', organizationId: 'o1' })
+    await removeMember({ memberId: 'm2', workspaceId: 'o1' })
     expect(auth.removeMember).toHaveBeenCalledWith({ memberIdOrEmail: 'm2', organizationId: 'o1' })
     auth.removeMember.mockResolvedValueOnce({ error: {} })
-    await expect(removeMember({ memberId: 'm2', organizationId: 'o1' })).rejects.toThrow(
+    await expect(removeMember({ memberId: 'm2', workspaceId: 'o1' })).rejects.toThrow(
       'Couldn’t remove this member',
     )
   })
 
   it('changeMemberRole sets the role, and fails with the server’s words', async () => {
     auth.updateMemberRole.mockResolvedValueOnce({ data: {}, error: null })
-    await changeMemberRole({ memberId: 'm2', role: 'admin', organizationId: 'o1' })
+    await changeMemberRole({ memberId: 'm2', role: 'admin', workspaceId: 'o1' })
     expect(auth.updateMemberRole).toHaveBeenCalledWith({
       memberId: 'm2',
       role: 'admin',
@@ -136,11 +140,11 @@ describe('member operations', () => {
     })
     auth.updateMemberRole.mockResolvedValueOnce({ error: { message: 'Not allowed' } })
     await expect(
-      changeMemberRole({ memberId: 'm2', role: 'member', organizationId: 'o1' }),
+      changeMemberRole({ memberId: 'm2', role: 'member', workspaceId: 'o1' }),
     ).rejects.toThrow('Not allowed')
     auth.updateMemberRole.mockResolvedValueOnce({ error: {} })
     await expect(
-      changeMemberRole({ memberId: 'm2', role: 'member', organizationId: 'o1' }),
+      changeMemberRole({ memberId: 'm2', role: 'member', workspaceId: 'o1' }),
     ).rejects.toThrow('Couldn’t change this member’s role')
   })
 })

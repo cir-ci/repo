@@ -9,8 +9,8 @@ import { timelineItems } from './timeline.ts'
 import styles from './Discussion.module.css'
 
 /** What happened to the build, oldest first: uploads, checks, requests, reviews and comments. */
-export function ActivityTab({ org, project, number, onOpenComment }: ActivityTab.Props) {
-  const { data, error, isPending } = useQuery(activityQuery(org, project, number))
+export function ActivityTab({ workspace, team, number, onOpenComment }: ActivityTab.Props) {
+  const { data, error, isPending } = useQuery(activityQuery(workspace, team, number))
   if (error) return <Banner tone="danger">{error.message}</Banner>
   if (isPending) {
     return (
@@ -62,8 +62,8 @@ export function ActivityTab({ org, project, number, onOpenComment }: ActivityTab
 
 export namespace ActivityTab {
   export interface Props {
-    org: string
-    project: string
+    workspace: string
+    team: string
     number: number
     /** A comment line was chosen: show it in the Comments tab. */
     onOpenComment: (commentId: string) => void

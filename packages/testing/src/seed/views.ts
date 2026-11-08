@@ -3,8 +3,8 @@ import { type Database, schema } from '@circi/db'
 export namespace seedSavedView {
   export interface Input {
     userId: string
-    orgId: string
-    projectId?: string | null
+    workspaceId: string
+    teamId?: string | null
     name?: string
     filters?: typeof schema.savedViews.$inferInsert.filters
     pinned?: boolean
@@ -21,8 +21,8 @@ export async function seedSavedView(db: Database, input: seedSavedView.Input) {
     .insert(schema.savedViews)
     .values({
       userId: input.userId,
-      orgId: input.orgId,
-      projectId: input.projectId ?? null,
+      workspaceId: input.workspaceId,
+      teamId: input.teamId ?? null,
       name: input.name ?? `View ${n}`,
       filters: input.filters ?? {},
       pinned: input.pinned ?? false,
@@ -33,10 +33,10 @@ export async function seedSavedView(db: Database, input: seedSavedView.Input) {
   return row
 }
 
-/** Pins a project for a user at a position. */
-export async function seedPinnedProject(
+/** Pins a team for a user at a position. */
+export async function seedPinnedTeam(
   db: Database,
-  input: { userId: string; projectId: string; position?: number },
+  input: { userId: string; teamId: string; position?: number },
 ): Promise<void> {
-  await db.insert(schema.userPinnedProjects).values({ ...input, position: input.position ?? 0 })
+  await db.insert(schema.userPinnedTeams).values({ ...input, position: input.position ?? 0 })
 }

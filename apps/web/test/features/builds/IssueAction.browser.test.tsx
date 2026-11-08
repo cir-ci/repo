@@ -11,7 +11,7 @@ import { detail } from './fake-build-api.tsx'
 
 afterEach(() => restoreFetch())
 
-const ISSUES = '/api/projects/acme/web-app/builds/7/issues'
+const ISSUES = '/api/teams/acme/web-app/builds/7/issues'
 const jira: Issue.Tracker = {
   integrationId: 'i1',
   kind: 'jira',
@@ -26,7 +26,7 @@ const show = (snapshotName: string | null = 'checkout / payment') =>
   )
 
 describe('IssueAction', () => {
-  it('shows nothing when the project has no tracker mapped', async () => {
+  it('shows nothing when the team has no tracker mapped', async () => {
     const fake = fakeApi({ [`GET ${ISSUES}`]: { body: { issues: [], trackers: [] } } })
     await show()
     await expect.poll(() => fake.of('GET')).toHaveLength(1)

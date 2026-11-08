@@ -8,7 +8,7 @@ afterAll(() => fx.close())
 
 describe('web app', () => {
   it('serves the app shell to everyone, so it can show the sign-in page', async () => {
-    const res = await get(`/${acme.orgSlug}/web/builds/2`, '')
+    const res = await get(`/${acme.workspaceSlug}/web/builds/2`, '')
     expect(res.statusCode).toBe(200)
     expect(res.body).toContain('id="root"')
     expect(res.headers['cache-control']).toBe('no-cache')

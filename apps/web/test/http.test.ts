@@ -21,11 +21,11 @@ describe('request', () => {
   })
 
   it("turns the server's error message into an HttpError with the status", async () => {
-    stubFetch(Response.json({ error: 'Project not found' }, { status: 404 }))
+    stubFetch(Response.json({ error: 'Team not found' }, { status: 404 }))
     await expect(request('/api/x')).rejects.toMatchObject({
       name: 'HttpError',
       status: 404,
-      message: 'Project not found',
+      message: 'Team not found',
     })
   })
 

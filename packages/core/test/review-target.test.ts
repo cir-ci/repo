@@ -12,7 +12,7 @@ describe('reviewDueAt', () => {
     expect(reviewDueAt(from, 1)).toEqual(new Date('2026-01-01T13:00:00.000Z'))
   })
 
-  it('is null when the project has no review target', () => {
+  it('is null when the team has no review target', () => {
     expect(reviewDueAt(new Date(), null)).toBeNull()
   })
 })

@@ -32,7 +32,7 @@
   max-width: 100%;
   max-height: 100%;
   border: 1px solid var(--circi-line-strong);
-  border-radius: 10px;
+  border-radius: var(--circi-radius-panel);
   background: var(--circi-surface-overlay);
   color: var(--circi-text-primary);
   font-size: 13px;
@@ -81,7 +81,7 @@
 
 .phrase {
   padding: 1px 4px;
-  border-radius: 4px;
+  border-radius: var(--circi-radius-inline);
   background: var(--circi-action-selected);
   color: var(--circi-text-primary);
   font-family: var(--circi-font-mono);

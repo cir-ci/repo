@@ -113,9 +113,9 @@ export function flakySummary(weeks: readonly Insights.Week[]): string {
   return `Open flaky snapshots ${move}${last === first ? ` at ${last}` : ` from ${first} to ${last}`} over ${weeks.length} weeks.`
 }
 
-/** Storage bars: each project's share of the largest. */
+/** Storage bars: each team's share of the largest. */
 export function storageBars(storage: Insights.Storage) {
-  const sorted = storage.projects.toSorted((a, b) => b.bytes - a.bytes)
+  const sorted = storage.teams.toSorted((a, b) => b.bytes - a.bytes)
   const max = sorted[0]?.bytes ?? 0
   return sorted.map((p) => ({
     slug: p.slug,

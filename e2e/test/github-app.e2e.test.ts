@@ -1,13 +1,13 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import type { FakeGithub } from '#fakes/fake-github.ts'
-import { createProject } from '#src/admin.ts'
+import { createTeam } from '#src/admin.ts'
 import {
   buildDetail,
   checkRunPayload,
-  createLinkedProject,
+  createLinkedTeam,
   INSTALLATION,
-  type LinkedProject,
+  type LinkedTeam,
   uploadPr,
 } from '#src/github-helpers.ts'
 import { useBrowser, useStack } from '#src/vitest.ts'
@@ -28,22 +28,22 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     gh = ctx.github
   })
   const browser = useBrowser()
-  let linked: LinkedProject
-  let orgSlug = ''
+  let linked: LinkedTeam
+  let workspaceSlug = ''
 
   const deliveries = async () =>
     Number((await ctx.stack.sql('select count(*) from provider_deliveries'))[0]?.[0])
 
-  it('connects GitHub in Integrations, links a repository to a project there and unlinks it', async () => {
+  it('connects GitHub in Integrations, links a repository to a team there and unlinks it', async () => {
     const { stack, setup } = ctx
-    orgSlug = setup.organization.slug
-    const project = await createProject(setup.session, orgSlug, 'Linked in UI')
+    workspaceSlug = setup.workspace.slug
+    const team = await createTeam(setup.session, workspaceSlug, 'Linked in UI')
     const page = await browser.as(setup.session)
-    await page.goto(`${stack.url}/organizations/${orgSlug}/settings/integrations`)
+    await page.goto(`${stack.url}/workspaces/${workspaceSlug}/settings/integrations`)
     await page.getByRole('button', { name: 'Add integration' }).click()
     await page.getByRole('button', { name: 'Add GitHub' }).click()
     await page.getByRole('button', { name: 'Advanced: connect by installation id' }).click()
-    // An installation of its own: one installation belongs to one organization, and the other
+    // An installation of its own: one installation belongs to one workspace, and the other
     // files of this stack link theirs to the default one.
     await page.getByLabel('GitHub App installation id').fill(UI_INSTALLATION)
     await page.getByRole('button', { name: 'Connect GitHub' }).click()
@@ -58,7 +58,7 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
 
     const settings = await setup.session.get<{
       github: { configured: boolean; link: { installationId: string; repoRef: string } | null }
-    }>(`/api/projects/${orgSlug}/${project.slug}/settings`)
+    }>(`/api/teams/${workspaceSlug}/${team.slug}/settings`)
     expect(settings.github).toMatchObject({
       configured: true,
       link: { installationId: UI_INSTALLATION, repoRef: 'acme/ui-linked' },
@@ -72,17 +72,17 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
       .getByRole('button', { name: 'Save' })
       .waitFor()
     const after = await setup.session.get<{ github: { link: unknown } }>(
-      `/api/projects/${orgSlug}/${project.slug}/settings`,
+      `/api/teams/${workspaceSlug}/${team.slug}/settings`,
     )
     expect(after.github.link).toBeNull()
   })
 
   it('refuses a malformed repository or installation id', async () => {
     const { setup } = ctx
-    const project = await createProject(setup.session, orgSlug, 'Bad link')
+    const team = await createTeam(setup.session, workspaceSlug, 'Bad link')
     const bad = await setup.session.request(
       'PUT',
-      `/api/projects/${orgSlug}/${project.slug}/github`,
+      `/api/teams/${workspaceSlug}/${team.slug}/github`,
       {
         installationId: 'abc',
         repoRef: 'nope',
@@ -93,7 +93,7 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
 
   it('rejects a bad or missing signature with no side effects, and accepts a signed one', async () => {
     const { stack, setup } = ctx
-    linked = await createLinkedProject(stack, setup.session, orgSlug, 'Web', {
+    linked = await createLinkedTeam(stack, setup.session, workspaceSlug, 'Web', {
       repoRef: 'acme/web',
       blockMergeOnChanges: true,
     })
@@ -175,7 +175,7 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
       title: '1 changed: review required',
     })
     expect(run.summary).toContain('Approve or reject the changes here')
-    expect(run.summary).toContain(`/${orgSlug}/${linked.slug}/builds/${pr.buildNumber}`)
+    expect(run.summary).toContain(`/${workspaceSlug}/${linked.slug}/builds/${pr.buildNumber}`)
     expect(run.actions.map((a) => a.identifier)).toEqual(['approve', 'reject'])
     // It was announced as in progress before it completed (create, then patches).
     const statuses = run.history.map((h) => (h as { status?: string }).status)
@@ -217,17 +217,17 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     expect(gh.find('PATCH /repos/acme/web/issues/comments/').length).toBeGreaterThan(0)
   })
 
-  it('a 401 for the installation puts a banner on the project and its settings, until the link is saved again', async () => {
+  it('a 401 for the installation puts a banner on the team and its settings, until the link is saved again', async () => {
     const { stack, setup } = ctx
     // An installation of its own: the others in this file keep working.
     const REVOKED = '9191'
-    const p = await createLinkedProject(stack, setup.session, orgSlug, 'Revoked', {
+    const p = await createLinkedTeam(stack, setup.session, workspaceSlug, 'Revoked', {
       repoRef: 'acme/revoked',
       installationId: REVOKED,
     })
-    const projectUrl = `${stack.url}/${orgSlug}/${p.slug}`
+    const teamUrl = `${stack.url}/${workspaceSlug}/${p.slug}`
     const attention = async () =>
-      (await setup.session.get<{ gitAttention: unknown }>(`/api/projects/${orgSlug}/${p.slug}`))
+      (await setup.session.get<{ gitAttention: unknown }>(`/api/teams/${workspaceSlug}/${p.slug}`))
         .gitAttention
     expect(await attention()).toBeNull()
 
@@ -254,31 +254,31 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     expect(gh.checkRuns.find((c) => c.headSha === pr.sha)).toBeUndefined()
 
     const page = await browser.as(setup.session)
-    await page.goto(projectUrl)
-    await page.getByText(/can.t reach GitHub for this project/).waitFor()
+    await page.goto(teamUrl)
+    await page.getByText(/can.t reach GitHub for this team/).waitFor()
     await page.getByText(/GitHub App was removed or suspended/).waitFor()
-    await page.goto(`${projectUrl}/settings`)
-    await page.getByText(/can.t reach GitHub for this project/).waitFor()
+    await page.goto(`${teamUrl}/settings`)
+    await page.getByText(/can.t reach GitHub for this team/).waitFor()
 
     // Reinstalled: saving the repository again on the GitHub integration's page clears the banner.
     gh.restoreInstallation(REVOKED)
     const listed = await setup.session.get<{
       integrations: { id: string; kind: string; name: string }[]
-    }>(`/api/orgs/${orgSlug}/integrations`)
+    }>(`/api/workspaces/${workspaceSlug}/integrations`)
     const integration = listed.integrations.find((i) => i.name === `Installation ${REVOKED}`)
     await page.goto(
-      `${stack.url}/organizations/${orgSlug}/settings/integrations/github/${integration?.id}`,
+      `${stack.url}/workspaces/${workspaceSlug}/settings/integrations/github/${integration?.id}`,
     )
     await page
       .getByRole('form', { name: 'Revoked' })
       .getByRole('button', { name: 'Update' })
       .click()
-    await page.goto(`${projectUrl}/settings`)
-    await page.getByText(/can.t reach GitHub for this project/).waitFor({ state: 'detached' })
+    await page.goto(`${teamUrl}/settings`)
+    await page.getByText(/can.t reach GitHub for this team/).waitFor({ state: 'detached' })
     expect(await attention()).toBeNull()
-    await page.goto(projectUrl)
+    await page.goto(teamUrl)
     await page.getByRole('heading', { name: 'Builds' }).waitFor()
-    expect(await page.getByText(/can.t reach GitHub for this project/).count()).toBe(0)
+    expect(await page.getByText(/can.t reach GitHub for this team/).count()).toBe(0)
   })
 
   it('tokens and the private key never reach the logs', async () => {

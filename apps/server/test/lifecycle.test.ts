@@ -1,6 +1,6 @@
 import { setupCode } from '@circi/auth'
 import { loadConfig } from '@circi/config'
-import { createTestDb, seedOrg } from '@circi/testing'
+import { createTestDb, seedWorkspace } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { serverOptionsFor, type ServerRuntime } from '#lifecycle/server-options.ts'
@@ -41,7 +41,7 @@ describe('announceStartup', () => {
     await announceStartup({ db: { db: t.db }, config, logger: first.logger }, { http: true })
     expect(first.warnings.some((w) => w.includes(setupCode(config.authSecret)))).toBe(true)
 
-    await seedOrg(t.db)
+    await seedWorkspace(t.db)
     const second = capturingLogger()
     await announceStartup({ db: { db: t.db }, config, logger: second.logger }, { http: true })
     expect(second.warnings.some((w) => w.includes('setup code'))).toBe(false)
@@ -158,7 +158,7 @@ describe('serverOptionsFor', () => {
       emailLogin: false,
       sso: [{ id: 'github', name: 'GitHub' }],
       webDist: '/web',
-      orgCreation: 'admin',
+      workspaceCreation: 'admin',
     })
     expect(o.api?.githubApp).toBe(false)
     expect(o.gitWebhook?.integrations?.config.github).toBeUndefined()

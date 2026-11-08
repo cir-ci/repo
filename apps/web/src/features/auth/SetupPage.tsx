@@ -12,7 +12,7 @@ import styles from './AuthForms.module.css'
 
 /**
  * Shown instead of the sign-in form while the instance has no accounts: creates the first one
- * (an instance admin) and its organization. The setup code comes from the server's log.
+ * (an instance admin) and its workspace. The setup code comes from the server's log.
  */
 export function SetupPage() {
   useDocumentTitle('Set up')
@@ -32,7 +32,7 @@ export function SetupPage() {
         name: text(form, 'name').trim(),
         email,
         password,
-        organizationName: text(form, 'organizationName').trim(),
+        workspaceName: text(form, 'workspaceName').trim(),
       })
       // On success the session store updates and the app replaces this page by itself.
       await authClient.signIn.email({ email, password })
@@ -46,7 +46,7 @@ export function SetupPage() {
   return (
     <AuthPanel
       title="Set up CirCI"
-      description="Create the first account, which becomes the instance admin, and its organization."
+      description="Create the first account, which becomes the instance admin, and its workspace."
     >
       <form className={styles.form} onSubmit={(e) => void submit(e)} noValidate>
         {error ? <Banner tone="danger">{error}</Banner> : null}
@@ -68,7 +68,7 @@ export function SetupPage() {
           autoComplete="new-password"
           description="At least 12 characters."
         />
-        <TextField name="organizationName" label="Organization name" required />
+        <TextField name="workspaceName" label="Workspace name" required />
         <Button type="submit" variant="primary" loading={busy} className={styles.block}>
           {busy ? 'Setting up…' : 'Create account'}
         </Button>

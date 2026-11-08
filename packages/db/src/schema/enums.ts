@@ -53,10 +53,10 @@ export const NOTIFICATION_KINDS = [
 ] as const
 export const WEBHOOK_EVENTS = ['build.completed', 'build.reviewed'] as const
 /**
- * How someone signed in: `oidc` is an instance-wide single sign-on provider, `org-oidc` one an
- * organization added itself (and which only opens that organization).
+ * How someone signed in: `oidc` is an instance-wide single sign-on provider, `workspace-oidc` one an
+ * workspace added itself (and which only opens that workspace).
  */
-export const LOGIN_METHODS = ['password', 'email', 'oidc', 'org-oidc'] as const
+export const LOGIN_METHODS = ['password', 'email', 'oidc', 'workspace-oidc'] as const
 /**
  * Git hosts a connection can be to. GitLab and Bitbucket are added here (a CHECK swap in a
  * migration, no data change) by the work that implements their providers.

@@ -34,7 +34,16 @@
     "--circi-glow": "color-mix(in srgb, var(--circi-brand-maroon) 55%, transparent)",
     "--circi-scrim": "rgba(0, 0, 0, 0.5)",
     "--circi-shadow-popup": "none",
-    "--circi-stage": "#0f0d0c"
+    "--circi-stage": "#0f0d0c",
+    "--circi-state-approved-text": "#5cb8a8",
+    "--circi-state-rejected-text": "#ff3b4c",
+    "--circi-tile-text": "#0c0a09",
+    "--circi-team-slate": "#5d80a8",
+    "--circi-team-olive": "#768441",
+    "--circi-team-plum": "#a369a3",
+    "--circi-team-moss": "#54895b",
+    "--circi-team-mauve": "#a86b85",
+    "--circi-team-graphite": "#837c76"
   },
   "light": {
     "--circi-surface-chrome": "#f3efed",
@@ -51,7 +60,7 @@
     "--circi-accent-on-accent": "#ffffff",
     "--circi-accent-subtle": "rgba(180, 87, 63, 0.10)",
     "--circi-state-approved": "#17806f",
-    "--circi-state-review": "#b38d05",
+    "--circi-state-review": "#9a7703",
     "--circi-state-review-text": "#6b4c00",
     "--circi-state-processing": "#4f5bd5",
     "--circi-state-rejected": "#930028",
@@ -70,6 +79,15 @@
     "--circi-glow": "color-mix(in srgb, var(--circi-brand-maroon) 14%, transparent)",
     "--circi-scrim": "rgba(0, 0, 0, 0.3)",
     "--circi-shadow-popup": "0 8px 24px rgba(28, 15, 12, 0.14)",
-    "--circi-stage": "#ebe5e2"
+    "--circi-stage": "#ebe5e2",
+    "--circi-state-approved-text": "#157364",
+    "--circi-state-rejected-text": "#930028",
+    "--circi-tile-text": "#ffffff",
+    "--circi-team-slate": "#53749a",
+    "--circi-team-olive": "#6b783b",
+    "--circi-team-plum": "#985d98",
+    "--circi-team-moss": "#4d7d53",
+    "--circi-team-mauve": "#a05e79",
+    "--circi-team-graphite": "#77716c"
   }
 }

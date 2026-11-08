@@ -4,8 +4,8 @@ import type {
   files,
   jobs,
   notifications,
-  organization,
-  projects,
+  workspace,
+  teams,
   reviewRequests,
   screenshotDiffs,
   screenshots,
@@ -14,9 +14,9 @@ import type {
 
 /** Row types, as read from and written to the database. */
 
-export type Organization = typeof organization.$inferSelect
+export type Workspace = typeof workspace.$inferSelect
 export type User = typeof user.$inferSelect
-export type Project = typeof projects.$inferSelect
+export type Team = typeof teams.$inferSelect
 export type Build = typeof builds.$inferSelect
 export type Screenshot = typeof screenshots.$inferSelect
 export type ScreenshotDiff = typeof screenshotDiffs.$inferSelect

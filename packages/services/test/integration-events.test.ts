@@ -4,9 +4,9 @@ import {
   QUEUES,
   schema,
   setIntegrationAttention,
-  setIntegrationProject,
+  setIntegrationTeam,
 } from '@circi/db'
-import { addTestMember, createTestDb, seedProject, seedUser } from '@circi/testing'
+import { addTestMember, createTestDb, seedTeam, seedUser } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -37,11 +37,11 @@ const typeOf = (event: unknown) =>
 
 async function setup(options: { events?: string[] } = {}) {
   await t.db.delete(schema.jobs)
-  const { project, org, owner } = await seedProject(t.db)
+  const { team, workspace, owner } = await seedTeam(t.db)
   const reviewer = await seedUser(t.db)
-  await addTestMember(t.db, { orgId: org.id, userId: reviewer.id })
+  await addTestMember(t.db, { workspaceId: workspace.id, userId: reviewer.id })
   const build = await createBuild(t.db, {
-    projectId: project.id,
+    teamId: team.id,
     commitSha: 'abc1234',
     branch: 'f',
   })
@@ -50,19 +50,19 @@ async function setup(options: { events?: string[] } = {}) {
     .set({ status: 'complete', conclusion: 'changes_detected' })
     .where(eq(schema.builds.id, build.id))
   const integration = await createIntegration(t.db, {
-    orgId: org.id,
+    workspaceId: workspace.id,
     kind: 'slack',
     displayName: 'Acme',
     externalId: `T${Math.random().toString(36).slice(2, 8)}`,
     encryptedCredentials: 'sealed',
   })
-  await setIntegrationProject(t.db, {
+  await setIntegrationTeam(t.db, {
     integrationId: integration.id,
-    projectId: project.id,
+    teamId: team.id,
     externalRef: 'C1',
     extra: { name: 'reviews', ...(options.events ? { events: options.events } : {}) },
   })
-  return { project, owner, reviewer, build, integration }
+  return { team, owner, reviewer, build, integration }
 }
 
 describe('integration events (outbox)', () => {
@@ -154,7 +154,7 @@ describe('integration events (outbox)', () => {
   })
 
   it('queues nothing for an event no definition handles, or for a kind the registry does not know', async () => {
-    const { owner, build, project, integration } = await setup()
+    const { owner, build, team, integration } = await setup()
     // Slack does not handle build.completed.
     expect(await queueIntegrationEvent(t.db, { type: 'build.completed', buildId: build.id })).toBe(
       0,
@@ -165,24 +165,24 @@ describe('integration events (outbox)', () => {
       .where(eq(schema.integrations.id, integration.id))
     await reviewBuild(t.db, { buildId: build.id, userId: owner.id, state: 'rejected' })
     expect(await eventJobs()).toEqual([])
-    expect(project.id).toBeTruthy()
+    expect(team.id).toBeTruthy()
   })
 
   it('queues one job per integration, and the same event for the same build only once', async () => {
-    const { owner, build, project, integration } = await setup()
-    const org = await t.db
-      .select({ orgId: schema.integrations.orgId })
+    const { owner, build, team, integration } = await setup()
+    const workspace = await t.db
+      .select({ workspaceId: schema.integrations.workspaceId })
       .from(schema.integrations)
       .where(eq(schema.integrations.id, integration.id))
     const second = await createIntegration(t.db, {
-      orgId: org[0]?.orgId ?? '',
+      workspaceId: workspace[0]?.workspaceId ?? '',
       kind: 'slack',
       displayName: 'Second',
       externalId: `T${Math.random().toString(36).slice(2, 8)}`,
     })
-    await setIntegrationProject(t.db, {
+    await setIntegrationTeam(t.db, {
       integrationId: second.id,
-      projectId: project.id,
+      teamId: team.id,
       externalRef: 'C2',
       extra: {},
     })

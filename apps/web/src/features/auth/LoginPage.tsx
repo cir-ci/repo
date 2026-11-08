@@ -8,10 +8,10 @@ import { authMethodsQuery, setupQuery } from './api.ts'
 import { AuthPanel } from './AuthPanel.tsx'
 import { EmailForm } from './EmailForm.tsx'
 import { readInvitedEmail, readLink } from './login-helpers.ts'
-import { OrgSsoSignIn } from './OrgSsoSignIn.tsx'
 import { PasswordForm } from './PasswordForm.tsx'
 import { SetupPage } from './SetupPage.tsx'
 import { SsoButtons } from './SsoButtons.tsx'
+import { WorkspaceSsoSignIn } from './WorkspaceSsoSignIn.tsx'
 
 import styles from './AuthForms.module.css'
 
@@ -51,7 +51,7 @@ export function LoginPage() {
       )}
       <div className={styles.form}>
         <SsoButtons providers={methods.data?.sso ?? []} />
-        <OrgSsoSignIn />
+        <WorkspaceSsoSignIn />
       </div>
       <Text as="p" variant="small" tone="secondary" className={styles.center}>
         No account? Ask the person who runs CirCI for one.

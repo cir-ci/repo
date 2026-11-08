@@ -4,8 +4,8 @@ import {
   getBuild,
   getBuildDetail,
   createIntegrationLink,
-  getProjectContext,
-  getProjectIntegration,
+  getTeamContext,
+  getTeamIntegration,
   type IntegrationLink,
   listBuildReviews,
   NotFoundError,
@@ -26,23 +26,23 @@ export async function createIssueFromBuild(
 ): Promise<IntegrationLink.Row> {
   const build = await getBuild(db, input.buildId)
   if (!build) throw new NotFoundError('Build not found')
-  const context = await getProjectContext(db, build.projectId)
+  const context = await getTeamContext(db, build.teamId)
   if (!context) throw new NotFoundError('Build not found')
-  const mapped = await getProjectIntegration(db, build.projectId, input.integrationId)
-  if (!mapped) throw new NotFoundError('This project does not file issues in that tracker')
+  const mapped = await getTeamIntegration(db, build.teamId, input.integrationId)
+  if (!mapped) throw new NotFoundError('This team does not file issues in that tracker')
   const tracker = input.openTracker(mapped.integration)
   if (!tracker) {
     throw new ValidationError('That tracker connection cannot be used; connect it again')
   }
 
   const snapshotName = input.snapshotName ?? null
-  const detail = await getBuildDetail(db, build.projectId, build.number)
+  const detail = await getBuildDetail(db, build.teamId, build.number)
   const shot = snapshotName ? detail?.diffs.find((d) => d.name === snapshotName) : undefined
   if (snapshotName && !shot) throw new NotFoundError('Snapshot not found')
   const imageSha = shot?.diff?.sha256 ?? shot?.head?.sha256 ?? null
 
   const rejection = (await listBuildReviews(db, build.id)).find((r) => r.state === 'rejected')
-  const buildUrl = `${input.publicOrigin}/${context.orgSlug}/${context.project.slug}/builds/${build.number}`
+  const buildUrl = `${input.publicOrigin}/${context.workspaceSlug}/${context.team.slug}/builds/${build.number}`
   const title = input.title?.trim() || defaultIssueTitle(snapshotName, build.number)
   if (title.length > MAX_ISSUE_TITLE_LENGTH) {
     throw new ValidationError(`title: at most ${MAX_ISSUE_TITLE_LENGTH} characters`)
@@ -53,7 +53,7 @@ export async function createIssueFromBuild(
     title,
     description: issueDescription({
       number: build.number,
-      project: `${context.orgSlug}/${context.project.slug}`,
+      team: `${context.workspaceSlug}/${context.team.slug}`,
       branch: build.branch,
       prNumber: build.prNumber,
       commitSha: build.commitSha,
@@ -92,7 +92,7 @@ export namespace createIssueFromBuild {
     buildId: string
     /** The screenshot the issue is about; the whole build when absent. */
     snapshotName?: string | undefined
-    /** The tracker integration; the project must be mapped to it. */
+    /** The tracker integration; the team must be mapped to it. */
     integrationId: string
     /** Default: `Visual regression: <snapshot> in build #N`. */
     title?: string | undefined

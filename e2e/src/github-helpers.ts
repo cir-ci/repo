@@ -4,7 +4,7 @@ import {
   type Account,
   addMemberViaCli,
   approveBuild,
-  createProject,
+  createTeam,
   createUserViaCli,
 } from './admin.ts'
 import type { Session } from './admin.ts'
@@ -16,9 +16,9 @@ import { uploadBuild, type uploadOrThrow } from './upload.ts'
 /** The fake's installation id used by these tests. */
 export const INSTALLATION = '4242'
 
-/** A project linked to `repoRef` through the GitHub App, with a baseline uploaded on `main`. */
-export interface LinkedProject {
-  org: string
+/** A team linked to `repoRef` through the GitHub App, with a baseline uploaded on `main`. */
+export interface LinkedTeam {
+  workspace: string
   slug: string
   token: string
   repoRef: string
@@ -37,37 +37,37 @@ export interface PrBuild {
 }
 
 /**
- * A new project in the first organization, linked to a fake repository, with a two-screenshot
+ * A new team in the first workspace, linked to a fake repository, with a two-screenshot
  * baseline (`home`, `login`) uploaded from `main`.
  */
-export async function createLinkedProject(
+export async function createLinkedTeam(
   stack: Stack,
   session: Session,
-  org: string,
+  workspace: string,
   name: string,
   options: { repoRef: string; blockMergeOnChanges?: boolean; installationId?: string },
-): Promise<LinkedProject> {
-  const project = await createProject(session, org, name)
-  await session.put(`/api/projects/${org}/${project.slug}/github`, {
+): Promise<LinkedTeam> {
+  const team = await createTeam(session, workspace, name)
+  await session.put(`/api/teams/${workspace}/${team.slug}/github`, {
     installationId: options.installationId ?? INSTALLATION,
     repoRef: options.repoRef,
   })
   if (options.blockMergeOnChanges !== undefined) {
-    await session.patch(`/api/projects/${org}/${project.slug}/settings`, {
+    await session.patch(`/api/teams/${workspace}/${team.slug}/settings`, {
       blockMergeOnChanges: options.blockMergeOnChanges,
     })
   }
   const repo = await Repo.create()
   await repo.writeShots({ home: {}, login: { dot: { x: 40, y: 40 } } })
   const baselineSha = await repo.commit('baseline')
-  const up = await uploadBuild({ stack, token: project.token, repo, wait: true })
+  const up = await uploadBuild({ stack, token: team.token, repo, wait: true })
   if (up.exitCode !== 0) throw new Error(`baseline upload failed: ${up.stderr}\n${up.stdout}`)
   // The first build has no baseline, so it waits for review: approve it to make it the baseline.
-  await approveBuild(session, org, project.slug, up.result?.build.number ?? 0)
+  await approveBuild(session, workspace, team.slug, up.result?.build.number ?? 0)
   return {
-    org,
-    slug: project.slug,
-    token: project.token,
+    workspace,
+    slug: team.slug,
+    token: team.token,
     repoRef: options.repoRef,
     repo,
     baselineSha,
@@ -80,7 +80,7 @@ export async function createLinkedProject(
  */
 export async function uploadPr(
   stack: Stack,
-  p: LinkedProject,
+  p: LinkedTeam,
   prNumber: number,
   shots: Record<string, ScreenshotSpec | Buffer>,
   options: Partial<Pick<uploadBuild.Options, 'gate' | 'wait' | 'args'>> & { branch?: string } = {},
@@ -109,8 +109,8 @@ export async function uploadPr(
   }
 }
 
-export const buildDetail = (session: Session, p: { org: string; slug: string }, n: number) =>
-  session.get<Build.Detail>(`/api/projects/${p.org}/${p.slug}/builds/${n}`)
+export const buildDetail = (session: Session, p: { workspace: string; slug: string }, n: number) =>
+  session.get<Build.Detail>(`/api/teams/${p.workspace}/${p.slug}/builds/${n}`)
 
 /** Links a CirCI user to a GitHub login the way "link GitHub" on the Account page does (an `account` row). */
 export async function linkGithubIdentity(
@@ -126,14 +126,14 @@ export async function linkGithubIdentity(
   )
 }
 
-/** A CirCI user (optionally a member of `org`) whose GitHub identity is `githubUserId`. */
+/** A CirCI user (optionally a member of `workspace`) whose GitHub identity is `githubUserId`. */
 export async function createGithubUser(
   stack: Stack,
-  options: { githubUserId: string; org?: string; role?: 'owner' | 'admin' | 'member' },
+  options: { githubUserId: string; workspace?: string; role?: 'owner' | 'admin' | 'member' },
 ): Promise<Account> {
   const account = await createUserViaCli(stack)
-  if (options.org)
-    await addMemberViaCli(stack, options.org, account.email, options.role ?? 'member')
+  if (options.workspace)
+    await addMemberViaCli(stack, options.workspace, account.email, options.role ?? 'member')
   await linkGithubIdentity(stack, account.email, options.githubUserId)
   return account
 }

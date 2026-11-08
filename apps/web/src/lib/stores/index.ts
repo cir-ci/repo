@@ -1,4 +1,4 @@
-import { DISPLAY_KEY } from '#features/projects/display-options.ts'
+import { DISPLAY_KEY } from '#features/teams/display-options.ts'
 
 import { useDisplayStore } from './display-store.ts'
 import { useListStore } from './list-store.ts'

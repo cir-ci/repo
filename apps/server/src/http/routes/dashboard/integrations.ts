@@ -1,35 +1,35 @@
 import type { Integration } from '@circi/api'
-import { deleteIntegration, getMemberRole, listOrgIntegrations } from '@circi/db'
+import { deleteIntegration, getMemberRole, listWorkspaceIntegrations } from '@circi/db'
 import { buildCatalog, integrationRegistry, resolveKind } from '@circi/integrations'
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
 import type { Deps } from '#http/lib/deps.ts'
 import { integrationContext } from '#http/lib/integration-context.ts'
-import { loadOrg } from '#http/lib/org-access.ts'
 import { parse } from '#http/lib/validation.ts'
+import { loadWorkspace } from '#http/lib/workspace-access.ts'
 
-const idParams = z.object({ org: z.string(), id: z.uuid() })
+const idParams = z.object({ workspace: z.string(), id: z.uuid() })
 
-const wire = (i: listOrgIntegrations.Item): Integration.Item => ({
+const wire = (i: listWorkspaceIntegrations.Item): Integration.Item => ({
   ...i,
   createdAt: i.createdAt.toISOString(),
 })
 
 /**
- * An organisation's integrations (git hosts and other services) and the catalog to add from. Every
- * member can look; owners and admins remove (anyone outside the organisation gets "not found").
+ * A workspace's integrations (git hosts and other services) and the catalog to add from. Every
+ * member can look; owners and admins remove (anyone outside the workspace gets "not found").
  * Connecting and mapping are the generic routes (`integrations-generic.ts`).
  */
 export const dashboardIntegrationRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   async function load(req: FastifyRequest, reply: FastifyReply) {
-    const found = await loadOrg(deps, req, reply)
+    const found = await loadWorkspace(deps, req, reply)
     if (!found) return undefined
     const role = await getMemberRole(deps.db, {
       userId: found.user.id,
-      organizationId: found.org.id,
+      workspaceId: found.workspace.id,
     })
-    return { org: found.org, canManage: role === 'owner' || role === 'admin' }
+    return { workspace: found.workspace, canManage: role === 'owner' || role === 'admin' }
   }
 
   async function loadForManager(req: FastifyRequest, reply: FastifyReply) {
@@ -38,18 +38,20 @@ export const dashboardIntegrationRoutes: FastifyPluginAsync<Deps.Dashboard> = as
       await reply.code(403).send({ error: 'Only owners and admins can manage integrations' })
       return undefined
     }
-    return found?.org
+    return found?.workspace
   }
 
   const registry = deps.integrations?.registry ?? integrationRegistry
 
-  app.get('/orgs/:org/integrations', async (req, reply) => {
+  app.get('/workspaces/:workspace/integrations', async (req, reply) => {
     const found = await load(req, reply)
     if (!found) return reply
     const payload: Integration.ListResponse = {
       canManage: found.canManage,
       integrations: (
-        await listOrgIntegrations(deps.db, found.org.id, (kind) => resolveKind(registry, kind))
+        await listWorkspaceIntegrations(deps.db, found.workspace.id, (kind) =>
+          resolveKind(registry, kind),
+        )
       ).map(wire),
       catalog: buildCatalog(
         registry.all(),
@@ -68,12 +70,12 @@ export const dashboardIntegrationRoutes: FastifyPluginAsync<Deps.Dashboard> = as
     return payload
   })
 
-  /** Removes an integration; every project mapped to it stops using it (a git host: stops reporting). */
-  app.delete('/orgs/:org/integrations/:id', async (req, reply) => {
-    const org = await loadForManager(req, reply)
-    if (!org) return reply
+  /** Removes an integration; every team mapped to it stops using it (a git host: stops reporting). */
+  app.delete('/workspaces/:workspace/integrations/:id', async (req, reply) => {
+    const workspace = await loadForManager(req, reply)
+    if (!workspace) return reply
     const { id } = parse(idParams, req.params)
-    const removed = await deleteIntegration(deps.db, org.id, id)
+    const removed = await deleteIntegration(deps.db, workspace.id, id)
     if (!removed) return reply.code(404).send({ error: 'Integration not found' })
     return reply.code(204).send()
   })

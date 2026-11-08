@@ -6,8 +6,8 @@ import { invitationMail } from '#src/mail.ts'
 import type { PluginOptions } from '#src/options.ts'
 
 import { emailLoginPlugin } from './email-login.ts'
-import { orgSsoPlugin } from './org-sso.ts'
 import { ssoPlugins } from './sso.ts'
+import { workspaceSsoPlugin } from './workspace-sso.ts'
 
 /**
  * Plugins, shared with `schema-config.ts` so the generated tables always match what runs.
@@ -21,14 +21,22 @@ export function authPlugins(options: PluginOptions = {}) {
       allowUserToCreateOrganization: false,
       invitationExpiresIn: INVITATION_TTL_SECONDS,
       cancelPendingInvitationsOnReInvite: true,
-      sendInvitationEmail: async ({ email, organization: org, inviter, role, id }) => {
+      // better-auth's `organization` plugin is CirCI's workspace: its tables and columns are renamed
+      // here, while its API (`/organization/…`, `organizationId`, `activeOrganizationId`) keeps its names.
+      schema: {
+        session: { fields: { activeOrganizationId: 'activeWorkspaceId' } },
+        organization: { modelName: 'workspace' },
+        member: { fields: { organizationId: 'workspaceId' } },
+        invitation: { fields: { organizationId: 'workspaceId' } },
+      },
+      sendInvitationEmail: async ({ email, organization: workspace, inviter, role, id }) => {
         if (!options.mailer || !options.baseURL) return
         void options.mailer
           .send(
             invitationMail({
               to: email,
               invitationId: id,
-              organizationName: org.name,
+              workspaceName: workspace.name,
               inviterName: inviter.user.name,
               role,
               origin: options.baseURL,
@@ -38,7 +46,7 @@ export function authPlugins(options: PluginOptions = {}) {
       },
     }),
     ...ssoPlugins(options.sso ?? []),
-    orgSsoPlugin(),
+    workspaceSsoPlugin(),
     apiKey([
       {
         configId: CI_KEY_CONFIG,

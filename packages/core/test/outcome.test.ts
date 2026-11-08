@@ -66,15 +66,15 @@ describe('flaky-only changes', () => {
 
 describe('resolveFlakyBlocksMerge', () => {
   it.each([
-    // [org, project, effective]
+    // [workspace, team, effective]
     [true, null, true],
     [false, null, false],
     [true, false, false],
     [false, true, true],
     [true, true, true],
     [false, false, false],
-  ] as const)('org %s, project %s → %s', (org, project, effective) => {
-    expect(resolveFlakyBlocksMerge(org, project)).toBe(effective)
+  ] as const)('workspace %s, team %s → %s', (workspace, team, effective) => {
+    expect(resolveFlakyBlocksMerge(workspace, team)).toBe(effective)
   })
 })
 

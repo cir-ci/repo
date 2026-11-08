@@ -1,6 +1,6 @@
 export namespace View {
   /**
-   * The filters of a builds list: the query parameters of `GET /api/projects/:org/:project`
+   * The filters of a builds list: the query parameters of `GET /api/teams/:workspace/:team`
    * (`@circi/core`'s `BuildFilterValues` is the server-side twin; the contract check ties them).
    */
   export interface Filters {
@@ -15,40 +15,40 @@ export namespace View {
     to?: string
   }
 
-  /** A saved view of the signed-in user's, in an organization. */
+  /** A saved view of the signed-in user's, in a workspace. */
   export interface Item {
     id: string
     name: string
     filters: Filters
     pinned: boolean
     position: number
-    /** Null for a view across the whole organization. */
-    project: { slug: string; name: string } | null
+    /** Null for a view across the whole workspace. */
+    team: { slug: string; name: string } | null
     createdAt: string
   }
 
-  /** `GET /api/orgs/:org/views`. */
+  /** `GET /api/workspaces/:workspace/views`. */
   export interface List {
     views: Item[]
   }
 
-  /** `POST /api/orgs/:org/views`. */
+  /** `POST /api/workspaces/:workspace/views`. */
   export interface CreateBody {
     name: string
-    /** A project's slug; omit for a view across the organization. */
-    project?: string
+    /** A team's slug; omit for a view across the workspace. */
+    team?: string
     filters: Filters
     pinned?: boolean
   }
 
-  /** `PATCH /api/orgs/:org/views/:id`: any of these. */
+  /** `PATCH /api/workspaces/:workspace/views/:id`: any of these. */
   export interface UpdateBody {
     name?: string
     filters?: Filters
     pinned?: boolean
   }
 
-  /** `PUT /api/orgs/:org/views/order`: every one of the user's views, in the new order. */
+  /** `PUT /api/workspaces/:workspace/views/order`: every one of the user's views, in the new order. */
   export interface OrderBody {
     ids: string[]
   }

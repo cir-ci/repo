@@ -16,7 +16,7 @@ import { createdAt, id, inList, inListOrNull } from './_columns.ts'
 import { builds } from './builds.ts'
 import { DIFF_JOB_STATUSES, DIFF_STATUSES, type DiffJobStatus, type DiffStatus } from './enums.ts'
 import { files } from './files.ts'
-import { projects } from './projects.ts'
+import { teams } from './teams.ts'
 
 /** A build's screenshots, and the comparison of each against the baseline. */
 
@@ -83,16 +83,16 @@ export const screenshotDiffs = pgTable(
 )
 
 /**
- * A rectangle to ignore when comparing the screenshots with this name in a project: something
+ * A rectangle to ignore when comparing the screenshots with this name in a team: something
  * that legitimately differs every run (a clock, an ad, a random avatar).
  */
 export const ignoreRegions = pgTable(
   'ignore_regions',
   {
     id: id(),
-    projectId: uuid('project_id')
+    teamId: uuid('team_id')
       .notNull()
-      .references(() => projects.id, { onDelete: 'cascade' }),
+      .references(() => teams.id, { onDelete: 'cascade' }),
     /** The screenshot name it applies to (exact match). */
     name: text('name').notNull(),
     x: integer('x').notNull(),
@@ -102,7 +102,7 @@ export const ignoreRegions = pgTable(
     createdAt: createdAt(),
   },
   (t) => [
-    index('ignore_regions_project_idx').on(t.projectId, t.name),
+    index('ignore_regions_team_idx').on(t.teamId, t.name),
     check(
       'ignore_regions_size_check',
       sql`${t.width} > 0 and ${t.height} > 0 and ${t.x} >= 0 and ${t.y} >= 0`,

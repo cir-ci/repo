@@ -5,7 +5,7 @@
   z-index: var(--circi-z-skip);
   padding: 8px 16px;
   border: 1px solid var(--circi-line-strong);
-  border-radius: 6px;
+  border-radius: var(--circi-radius-control);
   background: var(--circi-surface-overlay);
   color: var(--circi-text-primary);
   font-size: 13px;

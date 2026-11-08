@@ -67,7 +67,7 @@ export async function integrationEvent(
   const chat = definition?.capabilities.chat
   if (!definition || !chat) return { status: 'skipped', reason: 'integration kind cannot send' }
   if (data.integration.needsAttention) return { status: 'skipped', reason: 'needs attention' }
-  if (!data.mapping) return { status: 'skipped', reason: 'project is not mapped' }
+  if (!data.mapping) return { status: 'skipped', reason: 'team is not mapped' }
   if (!mappingHandles(definition, data.mapping.extra, event.type)) {
     return { status: 'skipped', reason: 'event switched off' }
   }
@@ -85,10 +85,10 @@ export async function integrationEvent(
       {
         event,
         build: {
-          projectName: data.build.projectName,
+          teamName: data.build.teamName,
           number: data.build.number,
           branch: data.build.branch,
-          url: `${deps.context.publicOrigin}/${data.build.orgSlug}/${data.build.projectSlug}/builds/${data.build.number}`,
+          url: `${deps.context.publicOrigin}/${data.build.workspaceSlug}/${data.build.teamSlug}/builds/${data.build.number}`,
         },
         reviewer: data.reviewerName,
         actor: data.actorName,

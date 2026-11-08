@@ -21,13 +21,13 @@ export namespace Integration {
         label: string
         /** The domain events a person can switch on; `event` is the stored value. */
         options: { event: string; label: string }[]
-        /** On for a newly mapped project. */
+        /** On for a newly mapped team. */
         defaults: string[]
       }
     | { kind: 'text'; key: string; label: string; placeholder?: string; optional: boolean }
     | { kind: 'toggle'; key: string; label: string; default: boolean }
 
-  /** How a project maps to an integration, from the definition. */
+  /** How a team maps to an integration, from the definition. */
   export interface MappingSpec {
     description?: string
     /** What the target is called (`Channel`, `Team`) and how it is chosen. */
@@ -37,7 +37,7 @@ export namespace Integration {
     fields: MappingField[]
   }
 
-  /** The links section of a definition (project-wide links such as Figma's snapshot-to-frame table). */
+  /** The links section of a definition (team-wide links such as Figma's snapshot-to-frame table). */
   export interface LinksSpec {
     /** The stored link kind (`figma-frame`). */
     kind: string
@@ -64,8 +64,8 @@ export namespace Integration {
     /** CirCI can't use the connection and a person has to act. */
     needsAttention: boolean
     attentionReason: string | null
-    /** Projects of the organisation that use it (a repository, channel, team or file each). */
-    projectCount: number
+    /** Teams of the workspace that use it (a repository, channel, team or file each). */
+    teamCount: number
     createdAt: string
   }
 
@@ -86,25 +86,25 @@ export namespace Integration {
     credentials: CredentialField[]
     /** Connecting goes through the provider's OAuth install instead of (or besides) the form. */
     oauth: boolean
-    /** How a project maps to it; null when it has no mapping or is not generic. */
+    /** How a team maps to it; null when it has no mapping or is not generic. */
     mapping: MappingSpec | null
-    /** The project-wide links it keeps; null when it has none. */
+    /** The team-wide links it keeps; null when it has none. */
     links: LinksSpec | null
   }
 
-  /** `GET /api/orgs/:org/integrations`. */
+  /** `GET /api/workspaces/:workspace/integrations`. */
   export interface ListResponse {
     canManage: boolean
     integrations: Item[]
     catalog: CatalogEntry[]
   }
 
-  /** `GET /api/orgs/:org/integrations/:kind/install`: where to send the browser to install the app. */
+  /** `GET /api/workspaces/:workspace/integrations/:kind/install`: where to send the browser to install the app. */
   export interface Install {
     url: string
   }
 
-  /** What a project can be pointed at: a Slack channel, a Linear team, a repository. */
+  /** What a team can be pointed at: a Slack channel, a Linear team, a repository. */
   export interface Target {
     id: string
     /** Stored beside the mapping so the page can show it without asking the provider. */
@@ -113,20 +113,20 @@ export namespace Integration {
     label?: string
   }
 
-  /** A project's mapping on an integration. */
+  /** A team's mapping on an integration. */
   export interface Mapping {
     ref: string
     name: string | null
     extra: Record<string, unknown>
   }
 
-  export interface MappingProject {
+  export interface MappingTeam {
     slug: string
     name: string
     mapping: Mapping | null
   }
 
-  /** `GET /api/orgs/:org/integrations/:id/projects`: one integration and how each project maps to it. */
+  /** `GET /api/workspaces/:workspace/integrations/:id/teams`: one integration and how each team maps to it. */
   export interface MappingPage {
     canManage: boolean
     /** The instance can reach the provider (an OAuth app is configured), so reinstalling works. */
@@ -144,17 +144,17 @@ export namespace Integration {
      * only; null for a host whose webhook secret is configured elsewhere). Null for any other integration.
      */
     webhook: { url: string; secret: string | null } | null
-    projects: MappingProject[]
+    teams: MappingTeam[]
   }
 
-  /** `PUT /api/orgs/:org/integrations/:id/projects/:project`. */
+  /** `PUT /api/workspaces/:workspace/integrations/:id/teams/:team`. */
   export interface MappingInput {
     ref: string
     name?: string
     extra?: Record<string, unknown>
   }
 
-  /** One project-wide link of an integration (`GET …/:id/projects/:project/links`). */
+  /** One team-wide link of an integration (`GET …/:id/teams/:team/links`). */
   export interface Link {
     id: string
     /** What it is about: the snapshot pattern. */
@@ -182,7 +182,7 @@ export namespace Integration {
   export interface AutoLinkResult {
     /** Links added now. */
     created: number
-    /** Snapshots the project has uploaded that still have no link. */
+    /** Snapshots the team has uploaded that still have no link. */
     unlinked: number
     /** Frames the file has. */
     frames: number

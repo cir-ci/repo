@@ -37,12 +37,12 @@ export function weeksBetween(from: Date, to: Date): Date[] {
   return weeks
 }
 
-/** Same defaults as the project's flaky list: changed in 3 of the last 10 default-branch builds. */
+/** Same defaults as the team's flaky list: changed in 3 of the last 10 default-branch builds. */
 export const FLAKY_WINDOW = 10
 export const FLAKY_MIN_CHANGES = 3
 
 /**
- * The screenshots that are flaky after `history`, the project's finished default-branch builds
+ * The screenshots that are flaky after `history`, the team's finished default-branch builds
  * up to some moment, oldest first, each with the names it changed.
  */
 export function flakyNames(

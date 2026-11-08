@@ -42,7 +42,7 @@ export namespace uploadOrThrow {
 export namespace uploadBuild {
   export interface Options {
     stack: Pick<Stack, 'url'>
-    /** The project's CI token. */
+    /** The team's CI token. */
     token: string
     repo: Repo
     /** Folder to upload (default: the repo's `screenshots/`). */

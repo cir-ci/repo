@@ -6,8 +6,8 @@
 const HOUR_MS = 3_600_000
 
 /**
- * When a request made at `from` is due under a project's target of `targetHours`. Null when the
- * project has no review target, so nothing it asks for can become overdue.
+ * When a request made at `from` is due under a team's target of `targetHours`. Null when the
+ * team has no review target, so nothing it asks for can become overdue.
  */
 export function reviewDueAt(from: Date, targetHours: number | null): Date | null {
   return targetHours === null ? null : new Date(from.getTime() + targetHours * HOUR_MS)

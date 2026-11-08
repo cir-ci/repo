@@ -1,7 +1,7 @@
 export namespace Search {
   export interface Build {
-    projectSlug: string
-    projectName: string
+    teamSlug: string
+    teamName: string
     number: number
     name: string
     branch: string | null
@@ -11,30 +11,30 @@ export namespace Search {
   }
 
   export interface Branch {
-    projectSlug: string
-    projectName: string
+    teamSlug: string
+    teamName: string
     branch: string
     latestBuildNumber: number
   }
 
-  export interface Project {
+  export interface Team {
     slug: string
     name: string
   }
 
   export interface Snapshot {
-    projectSlug: string
-    projectName: string
+    teamSlug: string
+    teamName: string
     name: string
     latestBuildNumber: number
   }
 
-  /** `GET /api/orgs/:org/search?q=`: matches grouped, each group limited. */
+  /** `GET /api/workspaces/:workspace/search?q=`: matches grouped, each group limited. */
   export interface Results {
     query: string
     builds: Build[]
     branches: Branch[]
-    projects: Project[]
+    teams: Team[]
     snapshots: Snapshot[]
   }
 }

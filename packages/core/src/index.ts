@@ -13,8 +13,8 @@ export { assertValidSlug, isValidSlug, slugify } from './slug.ts'
 export {
   hashToken,
   type IssuedToken,
-  issueProjectToken,
-  looksLikeProjectToken,
+  issueTeamToken,
+  looksLikeTeamToken,
   tokenHint,
 } from './token.ts'
 export { isEligibleBaseline, resolveBaseline } from './baseline.ts'

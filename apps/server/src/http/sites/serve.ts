@@ -93,17 +93,17 @@ export function siteHostHook(deps: siteHostHook.Options): onRequestAsyncHookHand
   async function hasAccess(
     req: FastifyRequest,
     label: string,
-    orgId: string | undefined,
+    workspaceId: string | undefined,
   ): Promise<string | undefined> {
     const raw = parseCookies(req.headers.cookie).get(cookie)
     const id = raw ? readCookieValue(deps.secret, raw, label) : undefined
-    if (!id || !orgId) return undefined
+    if (!id || !workspaceId) return undefined
     const key = `${id}\0${label}`
     const last = confirmed.get(key)
     if (last !== undefined && Date.now() - last < (deps.revalidateMs ?? REVALIDATE_MS)) return id
-    // Logging out, revoking the session or leaving the organization ends access here, within
+    // Logging out, revoking the session or leaving the workspace ends access here, within
     // a minute: this is where the cookie is checked against them again.
-    if (!(await siteSessionValid(deps.db, { id, label, orgId }))) {
+    if (!(await siteSessionValid(deps.db, { id, label, workspaceId }))) {
       confirmed.delete(key)
       return undefined
     }
@@ -149,7 +149,7 @@ export function siteHostHook(deps: siteHostHook.Options): onRequestAsyncHookHand
         .send()
     }
 
-    const session = await hasAccess(req, label, found?.org.id)
+    const session = await hasAccess(req, label, found?.workspace.id)
     if (!found || !session) return signIn(reply, label, `${url.pathname}${url.search}`)
 
     // Everything under /_circi/ is CirCI's, never the upload's.

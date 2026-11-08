@@ -48,7 +48,7 @@ export function requestRef(build: Review.Request['build']): string {
 /** What a row is called for screen readers: "Build 12 of Acme / Web on main, asked by Ada, overdue 3h". */
 export function requestName(r: Review.Request): string {
   return [
-    `Build ${r.build.number} of ${r.project.name} on ${requestRef(r.build)}`,
+    `Build ${r.build.number} of ${r.team.name} on ${requestRef(r.build)}`,
     r.requestedBy ? `asked by ${r.requestedBy.name}` : undefined,
     overdueLabel(r.overdueByMs)?.toLowerCase(),
   ]
@@ -59,10 +59,10 @@ export function requestName(r: Review.Request): string {
 /** "3 reviews", "1 review"; what the list announces. */
 export const requestCount = (n: number) => `${n} ${n === 1 ? 'review' : 'reviews'}`
 
-const projectPath = (r: Review.Request) => `/api/projects/${seg(r.org.slug)}/${seg(r.project.slug)}`
+const teamPath = (r: Review.Request) => `/api/teams/${seg(r.workspace.slug)}/${seg(r.team.slug)}`
 
 /** Every list that shows the same facts a review changes; refetched after each of them. */
-const AFFECTED = [['reviews'], ['inbox'], ['sidebar'], ['projects']] as const
+const AFFECTED = [['reviews'], ['inbox'], ['sidebar'], ['teams']] as const
 
 function useRefresh() {
   const queryClient = useQueryClient()
@@ -77,8 +77,8 @@ export function useApproveRequest() {
   const refresh = useRefresh()
   return useMutation({
     mutationFn: (r: Review.Request) =>
-      post(`${projectPath(r)}/builds/${r.build.number}/review`, { state: 'approved' }),
-    onSuccess: (_data, r) => refresh([['build', r.org.slug, r.project.slug, r.build.number]]),
+      post(`${teamPath(r)}/builds/${r.build.number}/review`, { state: 'approved' }),
+    onSuccess: (_data, r) => refresh([['build', r.workspace.slug, r.team.slug, r.build.number]]),
   })
 }
 
@@ -86,7 +86,7 @@ export function useSnoozeRequest() {
   const refresh = useRefresh()
   return useMutation({
     mutationFn: ({ request, choice }: { request: Review.Request; choice: SnoozeChoice }) =>
-      post(`${projectPath(request)}/review-requests/${seg(request.id)}/snooze`, choice),
+      post(`${teamPath(request)}/review-requests/${seg(request.id)}/snooze`, choice),
     onSuccess: () => refresh(),
   })
 }
@@ -95,7 +95,7 @@ export function useUnsnoozeRequest() {
   const refresh = useRefresh()
   return useMutation({
     mutationFn: (r: Review.Request) =>
-      post(`${projectPath(r)}/review-requests/${seg(r.id)}/unsnooze`, {}),
+      post(`${teamPath(r)}/review-requests/${seg(r.id)}/unsnooze`, {}),
     onSuccess: () => refresh(),
   })
 }
@@ -104,7 +104,7 @@ export function useDismissRequest() {
   const refresh = useRefresh()
   return useMutation({
     mutationFn: (r: Review.Request) =>
-      post(`${projectPath(r)}/review-requests/${seg(r.id)}/dismiss`, {}),
+      post(`${teamPath(r)}/review-requests/${seg(r.id)}/dismiss`, {}),
     onSuccess: () => refresh(),
   })
 }
@@ -114,7 +114,7 @@ export function useRequestReview() {
   return useMutation({
     mutationFn: ({ request, reviewerId }: { request: Review.Request; reviewerId: string }) =>
       post<Review.Requested>(
-        `${projectPath(request)}/builds/${request.build.number}/review-requests`,
+        `${teamPath(request)}/builds/${request.build.number}/review-requests`,
         {
           reviewerId,
         },

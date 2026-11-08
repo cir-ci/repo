@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 
 /**
  * A small signed, expiring token for the `state` of an OAuth redirect: it carries the values the
- * callback needs (which organisation, which user) and proves CirCI issued it. `<payload>.<mac>`,
+ * callback needs (which workspace, which user) and proves CirCI issued it. `<payload>.<mac>`,
  * both base64url; the payload is JSON `{ ...claims, exp }` with `exp` in epoch milliseconds. The
  * key is derived from the instance secret, separate from the key that seals credentials.
  */

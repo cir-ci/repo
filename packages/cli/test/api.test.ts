@@ -25,11 +25,11 @@ const instruction = (
 })
 
 describe('ApiClient', () => {
-  it('trims trailing slashes from the base URL and sends the project token', async () => {
-    const info = await client().project()
-    expect(info).toMatchObject({ org: 'acme', slug: 'web', defaultBranch: 'main' })
+  it('trims trailing slashes from the base URL and sends the team token', async () => {
+    const info = await client().team()
+    expect(info).toMatchObject({ workspace: 'acme', slug: 'web', defaultBranch: 'main' })
     const request = fake.requests.at(-1)
-    expect(request?.path).toBe('/v1/project')
+    expect(request?.path).toBe('/v1/team')
     expect(request?.headers.authorization).toBe('Bearer circi_secret')
   })
 
@@ -40,13 +40,13 @@ describe('ApiClient', () => {
 
   it('turns an error response into an ApiError with the server’s message and body', async () => {
     const err = await new ApiClient({ baseUrl: `${fake.url}/nope`, token: 't' })
-      .project()
+      .team()
       .catch((e: unknown) => e)
     expect(err).toBeInstanceOf(ApiError)
     expect(err).toMatchObject({
       status: 404,
-      message: 'no route GET /nope/v1/project',
-      body: { error: 'no route GET /nope/v1/project' },
+      message: 'no route GET /nope/v1/team',
+      body: { error: 'no route GET /nope/v1/team' },
     })
   })
 

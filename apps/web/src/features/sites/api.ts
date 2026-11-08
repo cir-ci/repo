@@ -3,10 +3,10 @@ import { queryOptions } from '@tanstack/react-query'
 
 import { getJson, post, seg } from '#lib/http.ts'
 
-export const projectSitesQuery = (org: string, project: string) =>
+export const teamSitesQuery = (workspace: string, team: string) =>
   queryOptions({
-    queryKey: ['project-sites', org, project],
-    queryFn: () => getJson<Site.List>(`/api/projects/${seg(org)}/${seg(project)}/sites`),
+    queryKey: ['team-sites', workspace, team],
+    queryFn: () => getJson<Site.List>(`/api/teams/${seg(workspace)}/${seg(team)}/sites`),
   })
 
 /** Asks for access to one site address; the answer says where to go to open it. */

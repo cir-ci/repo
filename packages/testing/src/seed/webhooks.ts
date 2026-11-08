@@ -8,15 +8,15 @@ import {
 
 let n = 0
 
-/** An enabled webhook of `projectId` for every event unless `events` narrows it. */
+/** An enabled webhook of `teamId` for every event unless `events` narrows it. */
 export function seedWebhook(
   db: Database,
-  projectId: string,
+  teamId: string,
   input: { url?: string; events?: readonly WebhookEvent[] } = {},
 ): Promise<Webhook> {
   n += 1
   return createWebhook(db, {
-    projectId,
+    teamId,
     url: input.url ?? `https://hooks.example.com/${n}`,
     events: input.events ?? WEBHOOK_EVENTS,
   })

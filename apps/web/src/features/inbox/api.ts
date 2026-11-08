@@ -41,10 +41,10 @@ export function notificationText(item: Inbox.Item): { title: string; detail?: st
     build_rejected: { title: `${who} rejected${build}`, detail: text(item.payload['reason']) },
     review_overdue: { title: `Your review of${build} is overdue` },
     connection_needs_attention: {
-      title: `${item.project?.name ?? 'A project'}’s git connection needs attention`,
+      title: `${item.team?.name ?? 'A team'}’s git connection needs attention`,
     },
     flaky_detected: {
-      title: `Flaky screenshots found${item.project ? ` in ${item.project.name}` : ''}`,
+      title: `Flaky screenshots found${item.team ? ` in ${item.team.name}` : ''}`,
     },
   }
   const { title, detail } = kinds[item.kind]
@@ -54,7 +54,7 @@ export function notificationText(item: Inbox.Item): { title: string; detail?: st
 /** A row's screen-reader name: unread state, the text and where. */
 export function notificationName(item: Inbox.Item): string {
   const { title } = notificationText(item)
-  return [item.readAt ? undefined : 'Unread', title, item.project?.name].filter(Boolean).join(', ')
+  return [item.readAt ? undefined : 'Unread', title, item.team?.name].filter(Boolean).join(', ')
 }
 
 /** "3 unread of 12", "12 notifications", "No notifications": what the list announces. */
@@ -64,22 +64,22 @@ export function inboxCount(items: readonly Inbox.Item[]): string {
   return unread > 0 ? `${all}, ${unread} unread` : all
 }
 
-/** Where a notification leads: its build, else its project, else nowhere. */
+/** Where a notification leads: its build, else its team, else nowhere. */
 export function notificationTarget(item: Inbox.Item):
   | {
-      to: '/$org/$project/builds/$number'
-      params: { org: string; project: string; number: string }
+      to: '/$workspace/$team/builds/$number'
+      params: { workspace: string; team: string; number: string }
     }
-  | { to: '/$org/$project'; params: { org: string; project: string } }
+  | { to: '/$workspace/$team'; params: { workspace: string; team: string } }
   | undefined {
-  if (!item.org || !item.project) return undefined
-  const base = { org: item.org.slug, project: item.project.slug }
+  if (!item.workspace || !item.team) return undefined
+  const base = { workspace: item.workspace.slug, team: item.team.slug }
   return item.build
     ? {
-        to: '/$org/$project/builds/$number',
+        to: '/$workspace/$team/builds/$number',
         params: { ...base, number: String(item.build.number) },
       }
-    : { to: '/$org/$project', params: base }
+    : { to: '/$workspace/$team', params: base }
 }
 
 /** Every list showing the unread count or the same entry: refetched after a change. */

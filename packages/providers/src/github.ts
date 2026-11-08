@@ -31,7 +31,7 @@ export class GithubApiError extends ProviderApiError {
 
 /**
  * GitHub says the installation is gone: uninstalled or suspended. Retrying cannot help until
- * someone reinstalls the App, so callers stop and record that the project needs attention.
+ * someone reinstalls the App, so callers stop and record that the team needs attention.
  * `status` is what GitHub answered (401, 404, or 403 for a suspended installation).
  */
 export class GithubInstallationRevokedError extends GithubApiError {

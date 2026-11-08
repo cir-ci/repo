@@ -13,10 +13,11 @@ const lou = await createUser(auth, {
   name: 'Lou',
   password: 'lou-password-long-1',
 })
-await addMember(auth, db, { orgSlug: acme.orgSlug, email: lou.email, role: 'member' })
+await addMember(auth, db, { workspaceSlug: acme.workspaceSlug, email: lou.email, role: 'member' })
 const louCookie = await signIn(app, lou.email, 'lou-password-long-1')
 
-const base = (org = acme.orgSlug, build = 2) => `/api/projects/${org}/web/builds/${build}`
+const base = (workspace = acme.workspaceSlug, build = 2) =>
+  `/api/teams/${workspace}/web/builds/${build}`
 const send = (
   method: 'POST' | 'PATCH' | 'DELETE',
   url: string,
@@ -46,8 +47,8 @@ describe('comment routes', () => {
     })
     expect(post.statusCode).toBe(404)
     expect((await get(`${base()}/activity`, rivalCookie)).statusCode).toBe(404)
-    expect((await get(`${base(acme.orgSlug, 99)}/comments`)).statusCode).toBe(404)
-    expect((await get(`${base(rival.orgSlug)}/comments`)).statusCode).toBe(404)
+    expect((await get(`${base(acme.workspaceSlug, 99)}/comments`)).statusCode).toBe(404)
+    expect((await get(`${base(rival.workspaceSlug)}/comments`)).statusCode).toBe(404)
   })
 
   it('creates comments and replies, mentions notify, and lists them oldest first', async () => {

@@ -34,7 +34,7 @@ export const session = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     impersonatedBy: text('impersonated_by'),
-    activeOrganizationId: text('active_organization_id'),
+    activeWorkspaceId: text('active_workspace_id'),
   },
   (table) => [index('session_userId_idx').on(table.userId)],
 )
@@ -79,7 +79,7 @@ export const verification = pgTable(
   (table) => [index('verification_identifier_idx').on(table.identifier)],
 )
 
-export const organization = pgTable('organization', {
+export const workspace = pgTable('workspace', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   slug: text('slug').notNull().unique(),
@@ -92,9 +92,9 @@ export const member = pgTable(
   'member',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id')
+    workspaceId: text('workspace_id')
       .notNull()
-      .references(() => organization.id, { onDelete: 'cascade' }),
+      .references(() => workspace.id, { onDelete: 'cascade' }),
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
@@ -102,7 +102,7 @@ export const member = pgTable(
     createdAt: timestamp('created_at').notNull(),
   },
   (table) => [
-    index('member_organizationId_idx').on(table.organizationId),
+    index('member_workspaceId_idx').on(table.workspaceId),
     index('member_userId_idx').on(table.userId),
   ],
 )
@@ -111,9 +111,9 @@ export const invitation = pgTable(
   'invitation',
   {
     id: text('id').primaryKey(),
-    organizationId: text('organization_id')
+    workspaceId: text('workspace_id')
       .notNull()
-      .references(() => organization.id, { onDelete: 'cascade' }),
+      .references(() => workspace.id, { onDelete: 'cascade' }),
     email: text('email').notNull(),
     role: text('role'),
     status: text('status').default('pending').notNull(),
@@ -124,7 +124,7 @@ export const invitation = pgTable(
       .references(() => user.id, { onDelete: 'cascade' }),
   },
   (table) => [
-    index('invitation_organizationId_idx').on(table.organizationId),
+    index('invitation_workspaceId_idx').on(table.workspaceId),
     index('invitation_email_idx').on(table.email),
   ],
 )
@@ -138,7 +138,7 @@ export const ssoProvider = pgTable('sso_provider', {
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),
   providerId: text('provider_id').notNull().unique(),
-  organizationId: text('organization_id'),
+  workspaceId: text('workspace_id'),
   domain: text('domain').notNull(),
 })
 
@@ -197,15 +197,15 @@ export const accountRelations = relations(account, ({ one }) => ({
   }),
 }))
 
-export const organizationRelations = relations(organization, ({ many }) => ({
+export const workspaceRelations = relations(workspace, ({ many }) => ({
   members: many(member),
   invitations: many(invitation),
 }))
 
 export const memberRelations = relations(member, ({ one }) => ({
-  organization: one(organization, {
-    fields: [member.organizationId],
-    references: [organization.id],
+  workspace: one(workspace, {
+    fields: [member.workspaceId],
+    references: [workspace.id],
   }),
   user: one(user, {
     fields: [member.userId],
@@ -214,9 +214,9 @@ export const memberRelations = relations(member, ({ one }) => ({
 }))
 
 export const invitationRelations = relations(invitation, ({ one }) => ({
-  organization: one(organization, {
-    fields: [invitation.organizationId],
-    references: [organization.id],
+  workspace: one(workspace, {
+    fields: [invitation.workspaceId],
+    references: [workspace.id],
   }),
   user: one(user, {
     fields: [invitation.inviterId],

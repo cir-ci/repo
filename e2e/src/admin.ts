@@ -147,7 +147,7 @@ export function newAccount(label = 'user'): Account {
 export namespace completeSetup {
   export interface Result {
     account: Account
-    organization: { name: string; slug: string }
+    workspace: { name: string; slug: string }
     session: Session
   }
 }
@@ -155,14 +155,14 @@ export namespace completeSetup {
 /**
  * First-run setup through the real HTTP flow: the setup code comes from `circi admin setup-code`
  * in the container (the same value the server log prints), `POST /api/setup` creates the first
- * account, an instance admin, and its organization; then it signs in.
+ * account, an instance admin, and its workspace; then it signs in.
  */
 export async function completeSetup(
   stack: Stack,
-  options: { account?: Account; organizationName?: string } = {},
+  options: { account?: Account; workspaceName?: string } = {},
 ): Promise<completeSetup.Result> {
   const account = options.account ?? newAccount('admin')
-  const organizationName = options.organizationName ?? 'Acme'
+  const workspaceName = options.workspaceName ?? 'Acme'
   const code = await stack.setupCode()
   const res = await fetch(`${stack.url}/api/setup`, {
     method: 'POST',
@@ -176,61 +176,58 @@ export async function completeSetup(
       name: account.name,
       email: account.email,
       password: account.password,
-      organizationName,
+      workspaceName,
     }),
   })
   if (res.status !== 201) throw new Error(`setup failed: ${res.status} ${await res.text()}`)
-  const body = (await res.json()) as { organization: { slug: string } }
+  const body = (await res.json()) as { workspace: { slug: string } }
   const session = await signIn(stack, account.email, account.password)
   return {
     account,
-    organization: { name: organizationName, slug: body.organization.slug },
+    workspace: { name: workspaceName, slug: body.workspace.slug },
     session,
   }
 }
 
 /**
- * Approves a build through the dashboard API, as a member would. A project's first build has no
+ * Approves a build through the dashboard API, as a member would. A team's first build has no
  * baseline and is never approved automatically, so tests approve it before relying on it.
  */
 export function approveBuild(
   session: Session,
-  org: string,
+  workspace: string,
   slug: string,
   buildNumber: number,
 ): Promise<unknown> {
-  return session.post(`/api/projects/${org}/${slug}/builds/${buildNumber}/review`, {
+  return session.post(`/api/teams/${workspace}/${slug}/builds/${buildNumber}/review`, {
     state: 'approved',
   })
 }
 
-export interface CreatedProject {
+export interface CreatedTeam {
   slug: string
   name: string
   /** The CI token (`CIRCI_TOKEN`), shown once. */
   token: string
 }
 
-/** `POST /api/organizations/:org/projects`, as the dashboard's "New project" dialog does. */
-export async function createProject(
+/** `POST /api/workspaces/:workspace/teams`, as the dashboard's "New team" dialog does. */
+export async function createTeam(
   session: Session,
-  orgSlug: string,
+  workspaceSlug: string,
   name: string,
-): Promise<CreatedProject> {
-  const res = await session.post<{ project: { slug: string; name: string }; token: string }>(
-    `/api/organizations/${encodeURIComponent(orgSlug)}/projects`,
+): Promise<CreatedTeam> {
+  const res = await session.post<{ team: { slug: string; name: string }; token: string }>(
+    `/api/workspaces/${encodeURIComponent(workspaceSlug)}/teams`,
     { name },
   )
-  return { slug: res.project.slug, name: res.project.name, token: res.token }
+  return { slug: res.team.slug, name: res.team.name, token: res.token }
 }
 
-/** `POST /api/organizations` (instance admins, or anyone with `ORG_CREATION=anyone`). */
-export async function createOrganization(
-  session: Session,
-  name: string,
-): Promise<{ slug: string }> {
-  const res = await session.post<{ organization: { slug: string } }>('/api/organizations', { name })
-  return { slug: res.organization.slug }
+/** `POST /api/workspaces` (instance admins, or anyone with `WORKSPACE_CREATION=anyone`). */
+export async function createWorkspace(session: Session, name: string): Promise<{ slug: string }> {
+  const res = await session.post<{ workspace: { slug: string } }>('/api/workspaces', { name })
+  return { slug: res.workspace.slug }
 }
 
 /** Creates an account with `circi admin user create` (there is no self sign-up). */
@@ -256,51 +253,51 @@ export async function createUserViaCli(
 /** `circi admin member add`. */
 export async function addMemberViaCli(
   stack: Stack,
-  org: string,
+  workspace: string,
   email: string,
   role: 'owner' | 'admin' | 'member' = 'member',
 ): Promise<void> {
-  await stack.cli('member', 'add', '--org', org, '--email', email, '--role', role)
+  await stack.cli('member', 'add', '--org', workspace, '--email', email, '--role', role)
 }
 
-/** Invites an email address to an organization through better-auth's organization API. */
+/** Invites an email address to a workspace through better-auth's organization API. */
 export async function inviteMember(
   session: Session,
-  orgSlug: string,
+  workspaceSlug: string,
   email: string,
   role: 'admin' | 'member' = 'member',
 ): Promise<{ id: string }> {
-  const org = await session.get<{ id: string }>(
-    `/api/auth/organization/get-full-organization?organizationSlug=${encodeURIComponent(orgSlug)}`,
+  const workspace = await session.get<{ id: string }>(
+    `/api/auth/organization/get-full-organization?organizationSlug=${encodeURIComponent(workspaceSlug)}`,
   )
   return session.post<{ id: string }>('/api/auth/organization/invite-member', {
     email,
     role,
-    organizationId: org.id,
+    organizationId: workspace.id,
   })
 }
 
 export namespace createTenant {
   export interface Options {
-    /** Base of the organization name; a unique tag is appended (default `Acme`). */
+    /** Base of the workspace name; a unique tag is appended (default `Acme`). */
     name?: string
     /** The owner is an instance admin like the first-run account (default true). */
     instanceAdmin?: boolean
-    /** Also create a project with this name. */
-    project?: string
+    /** Also create a team with this name. */
+    team?: string
   }
 }
 
-/** A tenant of a (possibly shared) stack: its own organization, owner account and signed-in session. */
+/** A tenant of a (possibly shared) stack: its own workspace, owner account and signed-in session. */
 export interface Tenant extends completeSetup.Result {
-  project: CreatedProject | undefined
+  team: CreatedTeam | undefined
 }
 
 /**
- * A fresh organization with its own owner and, optionally, a project, all through the real API
+ * A fresh workspace with its own owner and, optionally, a team, all through the real API
  * and CLI: tests that do this cannot see each other's data, so many can share one stack.
  * `admin` is an instance admin session of the stack (the first-run account); it creates the
- * organization when the owner is not an instance admin itself.
+ * workspace when the owner is not an instance admin itself.
  */
 export async function createTenant(
   stack: Stack,
@@ -310,13 +307,13 @@ export async function createTenant(
   const instanceAdmin = options.instanceAdmin ?? true
   const account = newAccount('owner')
   const tag = /owner(\d+-\w+)@/.exec(account.email)?.[1] ?? ''
-  const organizationName = `${options.name ?? 'Acme'} ${tag}`.trim()
+  const workspaceName = `${options.name ?? 'Acme'} ${tag}`.trim()
   await createUserViaCli(stack, { account, instanceAdmin })
   let creator = admin
   if (instanceAdmin) creator = await signIn(stack, account.email, account.password)
-  const { slug } = await createOrganization(creator, organizationName)
+  const { slug } = await createWorkspace(creator, workspaceName)
   if (!instanceAdmin) await addMemberViaCli(stack, slug, account.email, 'owner')
   const session = instanceAdmin ? creator : await signIn(stack, account.email, account.password)
-  const project = options.project ? await createProject(session, slug, options.project) : undefined
-  return { account, organization: { name: organizationName, slug }, session, project }
+  const team = options.team ? await createTeam(session, slug, options.team) : undefined
+  return { account, workspace: { name: workspaceName, slug }, session, team }
 }

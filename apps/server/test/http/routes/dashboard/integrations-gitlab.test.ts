@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { addMember, createUser } from '@circi/auth'
 import { openSecret } from '@circi/core'
-import { getOrganizationBySlug, listIntegrations, schema } from '@circi/db'
+import { getWorkspaceBySlug, listIntegrations, schema } from '@circi/db'
 import { derivedWebhookSecret } from '@circi/integrations'
 import { GitlabProvider, providerRegistry } from '@circi/providers'
 import { FsStorage } from '@circi/storage'
@@ -51,7 +51,7 @@ const lou = await createUser(auth, {
   name: 'Lou',
   password: 'lou-password-long-1',
 })
-await addMember(auth, t.db, { orgSlug: acme.orgSlug, email: lou.email, role: 'member' })
+await addMember(auth, t.db, { workspaceSlug: acme.workspaceSlug, email: lou.email, role: 'member' })
 const louCookie = await signIn(app, lou.email, 'lou-password-long-1')
 
 const call = (
@@ -71,18 +71,18 @@ const call = (
     ...(payload === undefined ? {} : { payload: JSON.stringify(payload) }),
   })
 
-const base = `/api/orgs/${acme.orgSlug}/integrations`
-const org = await getOrganizationBySlug(t.db, acme.orgSlug)
+const base = `/api/workspaces/${acme.workspaceSlug}/integrations`
+const workspace = await getWorkspaceBySlug(t.db, acme.workspaceSlug)
 const connect = { baseUrl: 'https://gitlab.example.com/', token: 'good' }
 
-describe('POST /api/orgs/:org/integrations/gitlab/connect', () => {
-  it('needs a session, an organization you belong to, and an owner or admin', async () => {
+describe('POST /api/workspaces/:workspace/integrations/gitlab/connect', () => {
+  it('needs a session, a workspace you belong to, and an owner or admin', async () => {
     expect((await call('POST', `${base}/gitlab/connect`, '', connect)).statusCode).toBe(401)
     expect((await call('POST', `${base}/gitlab/connect`, rivalCookie, connect)).statusCode).toBe(
       404,
     )
     expect((await call('POST', `${base}/gitlab/connect`, louCookie, connect)).statusCode).toBe(403)
-    expect(await listIntegrations(t.db, org.id)).toEqual([])
+    expect(await listIntegrations(t.db, workspace.id)).toEqual([])
   })
 
   it('validates the body and the address', async () => {
@@ -114,7 +114,7 @@ describe('POST /api/orgs/:org/integrations/gitlab/connect', () => {
       502,
     )
     fake.setDown(false)
-    expect(await listIntegrations(t.db, org.id)).toEqual([])
+    expect(await listIntegrations(t.db, workspace.id)).toEqual([])
   })
 
   it('verifies through the provider, then stores address and token sealed under host#user', async () => {
@@ -123,7 +123,7 @@ describe('POST /api/orgs/:org/integrations/gitlab/connect', () => {
     const [row] = await t.db
       .select()
       .from(schema.integrations)
-      .where(eq(schema.integrations.orgId, org.id))
+      .where(eq(schema.integrations.workspaceId, workspace.id))
     expect(row).toMatchObject({
       kind: 'gitlab',
       externalId: 'gitlab.example.com#7',
@@ -139,12 +139,12 @@ describe('POST /api/orgs/:org/integrations/gitlab/connect', () => {
   it('connecting the same principal again keeps one connection', async () => {
     const res = await call('POST', `${base}/gitlab/connect`, ownerCookie, connect)
     expect(res.statusCode).toBe(201)
-    expect((await listIntegrations(t.db, org.id)).filter((c) => c.kind === 'gitlab')).toHaveLength(
-      1,
-    )
+    expect(
+      (await listIntegrations(t.db, workspace.id)).filter((c) => c.kind === 'gitlab'),
+    ).toHaveLength(1)
   })
 
-  it('supports several connections, and refuses a principal another organization has', async () => {
+  it('supports several connections, and refuses a principal another workspace has', async () => {
     const second = await call('POST', `${base}/gitlab/connect`, ownerCookie, {
       baseUrl: 'https://gitlab.example.com',
       token: 'other',
@@ -152,7 +152,7 @@ describe('POST /api/orgs/:org/integrations/gitlab/connect', () => {
     expect(second.statusCode).toBe(201)
     const taken = await call(
       'POST',
-      `/api/orgs/${rival.orgSlug}/integrations/gitlab/connect`,
+      `/api/workspaces/${rival.workspaceSlug}/integrations/gitlab/connect`,
       rivalCookie,
       connect,
     )
@@ -160,7 +160,7 @@ describe('POST /api/orgs/:org/integrations/gitlab/connect', () => {
     // The same token on another instance is another principal.
     const elsewhere = await call(
       'POST',
-      `/api/orgs/${rival.orgSlug}/integrations/gitlab/connect`,
+      `/api/workspaces/${rival.workspaceSlug}/integrations/gitlab/connect`,
       rivalCookie,
       { baseUrl: 'https://git.other.example', token: 'good' },
     )
@@ -170,13 +170,13 @@ describe('POST /api/orgs/:org/integrations/gitlab/connect', () => {
 
 const connections = async () =>
   (await t.db.select().from(schema.integrations))
-    .filter((i) => i.orgId === org.id && i.kind === 'gitlab')
+    .filter((i) => i.workspaceId === workspace.id && i.kind === 'gitlab')
     .toSorted((a, b) => a.externalId.localeCompare(b.externalId))
 
-describe('GitLab mapping page and project mapping', () => {
+describe('GitLab mapping page and team mapping', () => {
   it('shows members the page without the webhook secret, managers with it', async () => {
     const [first] = await connections()
-    const url = `${base}/${first?.id}/projects`
+    const url = `${base}/${first?.id}/teams`
     const manager = (await call('GET', url, ownerCookie)).json()
     expect(manager).toMatchObject({
       canManage: true,
@@ -186,7 +186,7 @@ describe('GitLab mapping page and project mapping', () => {
         url: `${ORIGIN}/webhooks/gitlab`,
         secret: derivedWebhookSecret(AUTH_SECRET, 'gitlab'),
       },
-      projects: [{ slug: 'web', mapping: null }],
+      teams: [{ slug: 'web', mapping: null }],
     })
     const member = (await call('GET', url, louCookie)).json()
     expect(member).toMatchObject({ canManage: false, webhook: { secret: null } })
@@ -195,7 +195,7 @@ describe('GitLab mapping page and project mapping', () => {
     expect((await call('GET', url, '')).statusCode).toBe(401)
   })
 
-  it('lists projects through the connection own token', async () => {
+  it('lists teams through the connection own token', async () => {
     const [first] = await connections()
     const res = await call('GET', `${base}/${first?.id}/targets`, ownerCookie)
     expect(res.json()).toEqual({
@@ -206,61 +206,60 @@ describe('GitLab mapping page and project mapping', () => {
     })
   })
 
-  it('maps a project to a GitLab project with a namespace path, and unmaps it', async () => {
+  it('maps a team to a GitLab project with a namespace path, and unmaps it', async () => {
     const [first] = await connections()
-    const url = `${base}/${first?.id}/projects/web`
+    const url = `${base}/${first?.id}/teams/web`
     const body = { ref: 'acme/tools/oss' }
     expect((await call('PUT', url, louCookie, body)).statusCode).toBe(403)
     expect((await call('PUT', url, rivalCookie, body)).statusCode).toBe(404)
     expect((await call('PUT', url, ownerCookie, { ref: 'nonsense' })).statusCode).toBe(400)
     expect(
-      (await call('PUT', `${base}/${crypto.randomUUID()}/projects/web`, ownerCookie, body))
-        .statusCode,
+      (await call('PUT', `${base}/${crypto.randomUUID()}/teams/web`, ownerCookie, body)).statusCode,
     ).toBe(404)
     expect(
-      (await call('PUT', `${base}/${first?.id}/projects/nope`, ownerCookie, body)).statusCode,
+      (await call('PUT', `${base}/${first?.id}/teams/nope`, ownerCookie, body)).statusCode,
     ).toBe(404)
     expect((await call('PUT', url, ownerCookie, body)).statusCode).toBe(204)
-    const page = (await call('GET', `${base}/${first?.id}/projects`, ownerCookie)).json()
-    expect(page.projects).toMatchObject([
+    const page = (await call('GET', `${base}/${first?.id}/teams`, ownerCookie)).json()
+    expect(page.teams).toMatchObject([
       { slug: 'web', mapping: { ref: 'acme/tools/oss', name: 'acme/tools/oss' } },
     ])
     expect((await call('DELETE', url, louCookie)).statusCode).toBe(403)
     expect((await call('DELETE', url, ownerCookie)).statusCode).toBe(204)
     expect(
-      (await call('GET', `${base}/${first?.id}/projects`, ownerCookie)).json().projects[0].mapping,
+      (await call('GET', `${base}/${first?.id}/teams`, ownerCookie)).json().teams[0].mapping,
     ).toBeNull()
   })
 
-  it('moves a project from one GitLab connection to the other instead of keeping both', async () => {
+  it('moves a team from one GitLab connection to the other instead of keeping both', async () => {
     const [first, second] = await connections()
     const body = { ref: 'acme/web' }
     expect(
-      (await call('PUT', `${base}/${first?.id}/projects/web`, ownerCookie, body)).statusCode,
+      (await call('PUT', `${base}/${first?.id}/teams/web`, ownerCookie, body)).statusCode,
     ).toBe(204)
     expect(
-      (await call('PUT', `${base}/${second?.id}/projects/web`, ownerCookie, body)).statusCode,
+      (await call('PUT', `${base}/${second?.id}/teams/web`, ownerCookie, body)).statusCode,
     ).toBe(204)
     const mapped = async (id: string | undefined) =>
-      (await call('GET', `${base}/${id}/projects`, ownerCookie)).json().projects[0].mapping
+      (await call('GET', `${base}/${id}/teams`, ownerCookie)).json().teams[0].mapping
     expect(await mapped(first?.id)).toBeNull()
     expect(await mapped(second?.id)).toMatchObject({ ref: 'acme/web' })
   })
 
-  it('moves a project from a GitHub installation to GitLab: one git host per project', async () => {
-    const github = await seedGitLink(t.db, acme.project.id, {
+  it('moves a team from a GitHub installation to GitLab: one git host per team', async () => {
+    const github = await seedGitLink(t.db, acme.team.id, {
       externalId: '4242',
       repoRef: 'acme/web',
     })
     const [first] = await connections()
     expect(
-      (await call('PUT', `${base}/${first?.id}/projects/web`, ownerCookie, { ref: 'acme/web' }))
+      (await call('PUT', `${base}/${first?.id}/teams/web`, ownerCookie, { ref: 'acme/web' }))
         .statusCode,
     ).toBe(204)
     const [row] = await t.db
       .select()
-      .from(schema.integrationProjects)
-      .where(eq(schema.integrationProjects.integrationId, github.integrationId))
+      .from(schema.integrationTeams)
+      .where(eq(schema.integrationTeams.integrationId, github.integrationId))
     expect(row).toBeUndefined()
   })
 

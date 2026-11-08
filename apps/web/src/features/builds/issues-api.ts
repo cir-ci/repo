@@ -6,26 +6,26 @@ import { getJson, post, seg } from '#lib/http.ts'
 
 import { fileUrl } from './api.ts'
 
-const base = (org: string, project: string, number: number) =>
-  `/api/projects/${seg(org)}/${seg(project)}/builds/${number}/issues`
+const base = (workspace: string, team: string, number: number) =>
+  `/api/teams/${seg(workspace)}/${seg(team)}/builds/${number}/issues`
 
-/** The issues created from a build and the trackers its project files issues in (none: no "Create issue"). */
-export const issuesQuery = (org: string, project: string, number: number) =>
+/** The issues created from a build and the trackers its team files issues in (none: no "Create issue"). */
+export const issuesQuery = (workspace: string, team: string, number: number) =>
   queryOptions({
-    queryKey: ['issues', org, project, number],
-    queryFn: () => getJson<Issue.List>(base(org, project, number)),
+    queryKey: ['issues', workspace, team, number],
+    queryFn: () => getJson<Issue.List>(base(workspace, team, number)),
   })
 
 /** Creates an issue; the build page, its issues and its activity refresh afterwards. */
-export function useCreateIssue(org: string, project: string, number: number) {
+export function useCreateIssue(workspace: string, team: string, number: number) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (input: Issue.Create) => post<Issue.Ref>(base(org, project, number), input),
+    mutationFn: (input: Issue.Create) => post<Issue.Ref>(base(workspace, team, number), input),
     onSuccess: () =>
       Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['issues', org, project, number] }),
-        queryClient.invalidateQueries({ queryKey: ['build', org, project, number] }),
-        queryClient.invalidateQueries({ queryKey: ['activity', org, project, number] }),
+        queryClient.invalidateQueries({ queryKey: ['issues', workspace, team, number] }),
+        queryClient.invalidateQueries({ queryKey: ['build', workspace, team, number] }),
+        queryClient.invalidateQueries({ queryKey: ['activity', workspace, team, number] }),
       ]),
   })
 }
@@ -36,20 +36,20 @@ export function useCreateIssue(org: string, project: string, number: number) {
  * served (the server uses its configured public address, which is the same place).
  */
 export function issuePreview(
-  data: Pick<Build.Detail, 'project' | 'build' | 'reviews' | 'diffs'>,
+  data: Pick<Build.Detail, 'team' | 'build' | 'reviews' | 'diffs'>,
   snapshotName: string | null,
   origin: string,
 ): { title: string; description: string } {
-  const { build, project } = data
+  const { build, team } = data
   const shot = snapshotName ? data.diffs.find((d) => d.name === snapshotName) : undefined
   const sha = shot?.diff?.sha256 ?? shot?.head?.sha256 ?? null
-  const buildUrl = `${origin}/${project.orgSlug}/${project.slug}/builds/${build.number}`
+  const buildUrl = `${origin}/${team.workspaceSlug}/${team.slug}/builds/${build.number}`
   const rejection = data.reviews.find((r) => r.state === 'rejected')
   return {
     title: defaultIssueTitle(snapshotName, build.number),
     description: issueDescription({
       number: build.number,
-      project: `${project.orgSlug}/${project.slug}`,
+      team: `${team.workspaceSlug}/${team.slug}`,
       branch: build.branch,
       prNumber: build.prNumber,
       commitSha: build.commitSha,

@@ -5,7 +5,7 @@ import {
   type Database,
   type LoginMethod,
   noteDevice,
-  organizationsForEmailDomain,
+  workspacesForEmailDomain,
   recordSessionMethod,
   schema,
 } from '@circi/db'
@@ -21,12 +21,12 @@ function loginMethodOf(path: string | undefined): LoginMethod | undefined {
   if (path === '/sign-in/email') return 'password'
   if (path === '/sign-in/email-otp') return 'email'
   if (path.startsWith('/callback/')) return 'oidc'
-  // An organization's own provider (registered through the SSO plugin).
-  if (path.startsWith('/sso/callback')) return 'org-oidc'
+  // A workspace's own provider (registered through the SSO plugin).
+  if (path.startsWith('/sso/callback')) return 'workspace-oidc'
   return undefined
 }
 
-async function providerOrganization(
+async function providerWorkspace(
   db: Database,
   context: { params?: unknown } | null,
 ): Promise<string | undefined> {
@@ -35,10 +35,10 @@ async function providerOrganization(
     typeof params === 'object' && params !== null ? Reflect.get(params, 'providerId') : undefined
   if (typeof providerId !== 'string') return undefined
   const [row] = await db
-    .select({ organizationId: schema.ssoProvider.organizationId })
+    .select({ workspaceId: schema.ssoProvider.workspaceId })
     .from(schema.ssoProvider)
     .where(eq(schema.ssoProvider.providerId, providerId))
-  return row?.organizationId ?? undefined
+  return row?.workspaceId ?? undefined
 }
 
 /** Mails the account's owner when someone signs in from a browser it hasn't been used from. */
@@ -71,7 +71,7 @@ async function warnAboutNewDevice(
     .catch((err: unknown) => options.onMailError?.(err))
 }
 
-/** Adds the user to every organization that claimed (and proved) their email's domain. */
+/** Adds the user to every workspace that claimed (and proved) their email's domain. */
 async function joinByVerifiedDomain(
   db: Database,
   userId: string,
@@ -82,23 +82,23 @@ async function joinByVerifiedDomain(
     .from(schema.user)
     .where(eq(schema.user.id, userId))
   if (!user || (options.requireVerifiedEmail && !user.emailVerified)) return
-  for (const { orgId, role } of await organizationsForEmailDomain(db, user.email)) {
+  for (const { workspaceId, role } of await workspacesForEmailDomain(db, user.email)) {
     // Written directly, like better-auth's own addMember would; an existing seat is left alone.
-    // eslint-disable-next-line no-await-in-loop -- a handful of organizations at most
+    // eslint-disable-next-line no-await-in-loop -- a handful of workspaces at most
     const [existing] = await db
       .select({ id: schema.member.id })
       .from(schema.member)
-      .where(and(eq(schema.member.organizationId, orgId), eq(schema.member.userId, userId)))
+      .where(and(eq(schema.member.workspaceId, workspaceId), eq(schema.member.userId, userId)))
     if (existing) continue
     // eslint-disable-next-line no-await-in-loop
     await db
       .insert(schema.member)
-      .values({ id: randomUUID(), organizationId: orgId, userId, role, createdAt: new Date() })
+      .values({ id: randomUUID(), workspaceId: workspaceId, userId, role, createdAt: new Date() })
   }
 }
 
 /**
- * After a session is created: remember how it signed in (an organization may refuse some
+ * After a session is created: remember how it signed in (a workspace may refuse some
  * methods), warn about a new device, and join verified email domains.
  */
 export function onSessionCreated(options: AuthOptions) {
@@ -108,17 +108,17 @@ export function onSessionCreated(options: AuthOptions) {
   ) => {
     let method = loginMethodOf(context?.path)
     if (!method) return
-    let scopeOrgId: string | undefined
-    if (method === 'org-oidc') {
-      // A provider an instance admin registered has no organization: it behaves like the
-      // instance-wide ones. One an organization registered opens only that organization.
-      scopeOrgId = await providerOrganization(options.db, context)
-      if (!scopeOrgId) method = 'oidc'
+    let scopeWorkspaceId: string | undefined
+    if (method === 'workspace-oidc') {
+      // A provider an instance admin registered has no workspace: it behaves like the
+      // instance-wide ones. One a workspace registered opens only that workspace.
+      scopeWorkspaceId = await providerWorkspace(options.db, context)
+      if (!scopeWorkspaceId) method = 'oidc'
     }
-    await recordSessionMethod(options.db, created.id, method, scopeOrgId)
+    await recordSessionMethod(options.db, created.id, method, scopeWorkspaceId)
     await warnAboutNewDevice(options, created, method)
     // An emailed code proves the person owns the address, so a verified domain claim may add
-    // them to its organization. (A password or an organization's own identity provider proves
+    // them to its workspace. (A password or a workspace's own identity provider proves
     // nothing about the address, so they never do.)
     if (method === 'email') await joinByVerifiedDomain(options.db, created.userId)
     if (method === 'oidc' && isTrusted(options.sso, ssoProviderOf(context))) {

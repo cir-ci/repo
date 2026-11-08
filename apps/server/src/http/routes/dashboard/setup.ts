@@ -1,4 +1,4 @@
-import { createOrganization, createUser, isSetupCode } from '@circi/auth'
+import { createWorkspace, createUser, isSetupCode } from '@circi/auth'
 import { countUsers } from '@circi/db'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
@@ -12,12 +12,12 @@ const body = z.object({
   name: z.string().min(1).max(100),
   email: z.string().max(320),
   password: z.string().max(256),
-  organizationName: z.string().min(1).max(100),
+  workspaceName: z.string().min(1).max(100),
 })
 
 /**
  * First-run setup, so a fresh install needs no command line: while there are no accounts at
- * all, `POST /api/setup` creates the first one (an instance admin) and its organization. It
+ * all, `POST /api/setup` creates the first one (an instance admin) and its workspace. It
  * needs the setup code from the server's log, so a stranger who finds the dashboard first
  * can't claim it. Once any account exists the endpoint answers "not found" for good.
  */
@@ -43,11 +43,11 @@ export const dashboardSetupRoutes: FastifyPluginAsync<
         password: input.password,
         instanceAdmin: true,
       })
-      const org = await createOrganization(deps.auth, deps.db, {
-        name: input.organizationName,
+      const workspace = await createWorkspace(deps.auth, deps.db, {
+        name: input.workspaceName,
         ownerEmail: user.email,
       })
-      return reply.code(201).send({ email: user.email, organization: { slug: org.slug } })
+      return reply.code(201).send({ email: user.email, workspace: { slug: workspace.slug } })
     },
   )
 }

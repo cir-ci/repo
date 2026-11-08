@@ -1,29 +1,29 @@
 import { and, desc, eq, ilike, max, or, sql } from 'drizzle-orm'
 
-import { orgAccepts, type SessionMethod } from '#repositories/auth-settings.ts'
+import { workspaceAccepts, type SessionMethod } from '#repositories/auth-settings.ts'
 import {
   type BuildStatus,
   builds,
   member,
-  organization,
-  projects,
+  workspace,
+  teams,
   type ReviewStatus,
   screenshots,
 } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
 /**
- * Search for the command menu: one query string against an organization's builds, branches,
- * projects and screenshot names, grouped and limited per group. Limited to organizations the
+ * Search for the command menu: one query string against a workspace's builds, branches,
+ * teams and screenshot names, grouped and limited per group. Limited to workspaces the
  * user belongs to. Pull request titles are not stored, so a pull request matches by number only.
  */
 
 export const SEARCH_LIMIT = 5
 
-export namespace searchOrganization {
+export namespace searchWorkspace {
   export interface Build {
-    projectSlug: string
-    projectName: string
+    teamSlug: string
+    teamName: string
     number: number
     name: string
     branch: string | null
@@ -33,21 +33,21 @@ export namespace searchOrganization {
   }
 
   export interface Branch {
-    projectSlug: string
-    projectName: string
+    teamSlug: string
+    teamName: string
     branch: string
     /** The newest build on it. */
     latestBuildNumber: number
   }
 
-  export interface Project {
+  export interface Team {
     slug: string
     name: string
   }
 
   export interface Snapshot {
-    projectSlug: string
-    projectName: string
+    teamSlug: string
+    teamName: string
     name: string
     /** The newest build that has a screenshot of this name. */
     latestBuildNumber: number
@@ -55,10 +55,10 @@ export namespace searchOrganization {
 
   export interface Results {
     query: string
-    builds: searchOrganization.Build[]
-    branches: searchOrganization.Branch[]
-    projects: searchOrganization.Project[]
-    snapshots: searchOrganization.Snapshot[]
+    builds: searchWorkspace.Build[]
+    branches: searchWorkspace.Branch[]
+    teams: searchWorkspace.Team[]
+    snapshots: searchWorkspace.Snapshot[]
   }
 }
 
@@ -67,33 +67,32 @@ function contains(text: string) {
   return `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`
 }
 
-export async function searchOrganization(
+export async function searchWorkspace(
   db: Database,
   input: {
     userId: string
-    orgSlug: string
+    workspaceSlug: string
     query: string
     limit?: number
     method?: SessionMethod
   },
-): Promise<searchOrganization.Results | undefined> {
-  const [org] = await db
-    .select({ id: organization.id })
-    .from(organization)
-    .innerJoin(
-      member,
-      and(eq(member.organizationId, organization.id), eq(member.userId, input.userId)),
+): Promise<searchWorkspace.Results | undefined> {
+  const [found] = await db
+    .select({ id: workspace.id })
+    .from(workspace)
+    .innerJoin(member, and(eq(member.workspaceId, workspace.id), eq(member.userId, input.userId)))
+    .where(
+      and(eq(workspace.slug, input.workspaceSlug), workspaceAccepts(workspace.id, input.method)),
     )
-    .where(and(eq(organization.slug, input.orgSlug), orgAccepts(organization.id, input.method)))
-  if (!org) return undefined
+  if (!found) return undefined
 
   const q = input.query.trim()
   const limit = input.limit ?? SEARCH_LIMIT
-  const empty: searchOrganization.Results = {
+  const empty: searchWorkspace.Results = {
     query: q,
     builds: [],
     branches: [],
-    projects: [],
+    teams: [],
     snapshots: [],
   }
   if (q === '') return empty
@@ -102,13 +101,13 @@ export async function searchOrganization(
   // "#148" and "148" both mean build 148 (and pull request 148).
   const numeric = /^#?(\d{1,9})$/.exec(q)
   const n = numeric ? Number(numeric[1]) : undefined
-  const inOrg = eq(projects.orgId, org.id)
+  const inWorkspace = eq(teams.workspaceId, found.id)
 
-  const [buildRows, branchRows, projectRows, snapshotRows] = await Promise.all([
+  const [buildRows, branchRows, teamRows, snapshotRows] = await Promise.all([
     db
       .select({
-        projectSlug: projects.slug,
-        projectName: projects.name,
+        teamSlug: teams.slug,
+        teamName: teams.name,
         number: builds.number,
         name: builds.name,
         branch: builds.branch,
@@ -117,44 +116,47 @@ export async function searchOrganization(
         reviewStatus: builds.reviewStatus,
       })
       .from(builds)
-      .innerJoin(projects, eq(projects.id, builds.projectId))
+      .innerJoin(teams, eq(teams.id, builds.teamId))
       .where(
-        and(inOrg, n === undefined ? sql`false` : or(eq(builds.number, n), eq(builds.prNumber, n))),
+        and(
+          inWorkspace,
+          n === undefined ? sql`false` : or(eq(builds.number, n), eq(builds.prNumber, n)),
+        ),
       )
       .orderBy(desc(builds.createdAt), desc(builds.number))
       .limit(limit),
     db
       .select({
-        projectSlug: projects.slug,
-        projectName: projects.name,
+        teamSlug: teams.slug,
+        teamName: teams.name,
         branch: builds.branch,
         latestBuildNumber: max(builds.number),
         latest: max(builds.createdAt),
       })
       .from(builds)
-      .innerJoin(projects, eq(projects.id, builds.projectId))
-      .where(and(inOrg, ilike(builds.branch, like)))
-      .groupBy(projects.slug, projects.name, builds.branch)
-      .orderBy(desc(max(builds.createdAt)), projects.slug)
+      .innerJoin(teams, eq(teams.id, builds.teamId))
+      .where(and(inWorkspace, ilike(builds.branch, like)))
+      .groupBy(teams.slug, teams.name, builds.branch)
+      .orderBy(desc(max(builds.createdAt)), teams.slug)
       .limit(limit),
     db
-      .select({ slug: projects.slug, name: projects.name })
-      .from(projects)
-      .where(and(inOrg, or(ilike(projects.name, like), ilike(projects.slug, like))))
-      .orderBy(projects.slug)
+      .select({ slug: teams.slug, name: teams.name })
+      .from(teams)
+      .where(and(inWorkspace, or(ilike(teams.name, like), ilike(teams.slug, like))))
+      .orderBy(teams.slug)
       .limit(limit),
     db
       .select({
-        projectSlug: projects.slug,
-        projectName: projects.name,
+        teamSlug: teams.slug,
+        teamName: teams.name,
         name: screenshots.name,
         latestBuildNumber: max(builds.number),
       })
       .from(screenshots)
       .innerJoin(builds, eq(builds.id, screenshots.buildId))
-      .innerJoin(projects, eq(projects.id, builds.projectId))
-      .where(and(inOrg, ilike(screenshots.name, like)))
-      .groupBy(projects.slug, projects.name, screenshots.name)
+      .innerJoin(teams, eq(teams.id, builds.teamId))
+      .where(and(inWorkspace, ilike(screenshots.name, like)))
+      .groupBy(teams.slug, teams.name, screenshots.name)
       .orderBy(desc(max(builds.createdAt)), screenshots.name)
       .limit(limit),
   ])
@@ -165,7 +167,7 @@ export async function searchOrganization(
     branches: branchRows.flatMap(({ latest: _latest, branch, latestBuildNumber, ...rest }) =>
       branch === null || latestBuildNumber === null ? [] : [{ ...rest, branch, latestBuildNumber }],
     ),
-    projects: projectRows,
+    teams: teamRows,
     snapshots: snapshotRows.flatMap((r) =>
       r.latestBuildNumber === null ? [] : [{ ...r, latestBuildNumber: r.latestBuildNumber }],
     ),

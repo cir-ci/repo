@@ -60,7 +60,7 @@ export async function upload(options: upload.Options): Promise<upload.Result> {
   const shots = await collectScreenshots(options.dir)
   if (shots.length === 0) throw new UsageError(`No .png files found in ${options.dir}`)
 
-  const project = await client.project()
+  const team = await client.team()
   const git = gitRunner(cwd)
   const ci = detectCi(env, (path) => JSON.parse(readFileSync(path, 'utf8')))
   if (options.author?.trim()) ci.author = { login: options.author.trim() }
@@ -76,16 +76,16 @@ export async function upload(options: upload.Options): Promise<upload.Result> {
     )
   }
 
-  const isBaseBranchBuild = !ci.prNumber && ci.branch === project.defaultBranch
+  const isBaseBranchBuild = !ci.prNumber && ci.branch === team.defaultBranch
   const ancestry = await collectAncestry(git, {
     headSha: ci.commitSha,
-    baseBranch: ci.baseBranch ?? project.defaultBranch,
+    baseBranch: ci.baseBranch ?? team.defaultBranch,
     isBaseBranchBuild,
     fetch: options.fetch ?? true,
   })
   if (ancestry.warning) {
     log(
-      `warning: ${ancestry.warning}. CirCI will compare against the latest ${project.defaultBranch} build instead.`,
+      `warning: ${ancestry.warning}. CirCI will compare against the latest ${team.defaultBranch} build instead.`,
     )
   }
 
@@ -122,7 +122,7 @@ export async function upload(options: upload.Options): Promise<upload.Result> {
     ...(options.name ? { name: options.name } : {}),
     branch: ci.branch ?? null,
     prNumber: ci.prNumber ?? null,
-    baseBranch: ci.baseBranch ?? (isBaseBranchBuild ? null : project.defaultBranch),
+    baseBranch: ci.baseBranch ?? (isBaseBranchBuild ? null : team.defaultBranch),
     mergeBaseSha: ancestry.mergeBaseSha ?? null,
     ancestorShas: ancestry.ancestorShas,
     ancestryStatus: ancestry.status,

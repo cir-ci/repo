@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createProject, type CreatedProject } from '#src/admin.ts'
+import { createTeam, type CreatedTeam } from '#src/admin.ts'
 import { Repo } from '#src/git-repo.ts'
 import { COMPOSE_FILE } from '#src/paths.ts'
 import { s3Env } from '#src/s3.ts'
@@ -55,7 +55,7 @@ const migrated = (out: string) => {
 describe('storage usage and migrate', () => {
   const ctx = useStack({ dedicated: true, setup: true, localstack: true })
   let repo: Repo
-  let project: CreatedProject
+  let team: CreatedTeam
   const originals = new Map<string, number>() // sha -> size of every screenshot uploaded
 
   const s3 = () => {
@@ -63,11 +63,11 @@ describe('storage usage and migrate', () => {
     if (!bucket) throw new Error('no bucket')
     return bucket
   }
-  const upload = () => uploadOrThrow({ stack: ctx.stack, token: project.token, repo, wait: true })
+  const upload = () => uploadOrThrow({ stack: ctx.stack, token: team.token, repo, wait: true })
 
   beforeAll(async () => {
     repo = await Repo.create()
-    project = await createProject(ctx.setup.session, ctx.setup.organization.slug, 'Docs')
+    team = await createTeam(ctx.setup.session, ctx.setup.workspace.slug, 'Docs')
   })
   afterAll(async () => {
     await repo.destroy()
@@ -167,7 +167,7 @@ describe('storage usage and migrate', () => {
       [
         'compose',
         '-p',
-        ctx.stack.project,
+        ctx.stack.composeProject,
         '-f',
         COMPOSE_FILE,
         'exec',
@@ -180,7 +180,7 @@ describe('storage usage and migrate', () => {
       {
         env: {
           ...process.env,
-          COMPOSE_PROJECT_NAME: ctx.stack.project,
+          COMPOSE_PROJECT_NAME: ctx.stack.composeProject,
           E2E_PUBLIC_URL: ctx.stack.url,
         },
         stdio: 'ignore',

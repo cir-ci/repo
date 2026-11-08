@@ -17,8 +17,8 @@ const item = (id: string, over: Record<string, unknown> = {}) => ({
   payload: {},
   actor: { id: 'u2', name: 'Ada' },
   build: { number: 12, branch: 'main', prNumber: null, commitSha: 'abcdef1234567' },
-  project: { slug: 'web', name: 'Web' },
-  org: { slug: 'acme', name: 'Acme' },
+  team: { slug: 'web', name: 'Web' },
+  workspace: { slug: 'acme', name: 'Acme' },
   alsoInReviews: false,
   ...over,
 })

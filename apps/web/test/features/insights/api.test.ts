@@ -18,12 +18,12 @@ import {
 describe('insights search', () => {
   it('defaults to 30 days and drops junk', () => {
     expect(validateInsightsSearch({})).toEqual({ range: 30 })
-    expect(validateInsightsSearch({ range: '7', project: 'web' })).toEqual({
+    expect(validateInsightsSearch({ range: '7', team: 'web' })).toEqual({
       range: 7,
-      project: 'web',
+      team: 'web',
     })
     expect(validateInsightsSearch({ range: 90 })).toEqual({ range: 90 })
-    expect(validateInsightsSearch({ range: '12', project: 3 })).toEqual({ range: 30 })
+    expect(validateInsightsSearch({ range: '12', team: 3 })).toEqual({ range: 30 })
   })
 
   it('bounds the range at the current hour', () => {
@@ -106,7 +106,7 @@ describe('chart data', () => {
     ).toContain('fell from 12 to 7')
     const bars = storageBars({
       totalBytes: 3,
-      projects: [
+      teams: [
         { slug: 'a', name: 'A', bytes: 1 },
         { slug: 'b', name: 'B', bytes: 2 },
       ],

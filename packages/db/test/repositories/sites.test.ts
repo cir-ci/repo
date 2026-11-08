@@ -2,7 +2,7 @@ import { ValidationError } from '@circi/core'
 import {
   addTestMember,
   createTestDb,
-  seedProject,
+  seedTeam,
   seedSession,
   seedSite,
   seedUser,
@@ -19,7 +19,7 @@ import {
   ensureAssetFiles,
   findSiteByLabel,
   getSiteFile,
-  listProjectSites,
+  listTeamSites,
   publishSiteVersion,
   schema,
   servedCommitForBranch,
@@ -52,7 +52,7 @@ const addressing = {
 }
 
 async function publish(
-  projectId: string,
+  teamId: string,
   over: Partial<publishSiteVersion.Input> & { content?: string } = {},
 ) {
   const { content = 'e', ...rest } = over
@@ -61,7 +61,7 @@ async function publish(
     { sha256: hash, size: 5, storageKey: `files/${hash}`, contentType: 'text/html' },
   ])
   return publishSiteVersion(t.db, {
-    projectId,
+    teamId,
     name: 'docs',
     kind: 'generic',
     spa: false,
@@ -78,8 +78,8 @@ async function publish(
 
 describe('publishing and serving', () => {
   it('creates a site with commit and branch addresses that serve the version’s files', async () => {
-    const { project, org } = await seedProject(t.db)
-    const result = await publish(project.id)
+    const { team, workspace } = await seedTeam(t.db)
+    const result = await publish(team.id)
     expect(result.replaced).toBe(false)
     expect(result.branchLabel).toBeDefined()
 
@@ -88,8 +88,8 @@ describe('publishing and serving', () => {
       linkKind: 'commit',
       commitSha: SHA_A,
       site: { name: 'docs' },
-      org: { id: org.id },
-      project: { id: project.id },
+      workspace: { id: workspace.id },
+      team: { id: team.id },
     })
     expect(await findSiteByLabel(t.db, 'unknown')).toBeUndefined()
     expect((await findSiteByLabel(t.db, result.branchLabel ?? ''))?.linkKind).toBe('branch')
@@ -104,50 +104,50 @@ describe('publishing and serving', () => {
   })
 
   it('replaces a re-run of the same commit in place and moves the branch address on a new one', async () => {
-    const { project } = await seedProject(t.db)
-    const first = await publish(project.id, { content: '1' })
-    const rerun = await publish(project.id, { content: '2' })
+    const { team } = await seedTeam(t.db)
+    const first = await publish(team.id, { content: '1' })
+    const rerun = await publish(team.id, { content: '2' })
     expect(rerun.replaced).toBe(true)
     expect(rerun.version.id).toBe(first.version.id)
     expect(rerun.commitLabel).toBe(first.commitLabel)
     expect((await getSiteFile(t.db, first.version.id, 'index.html'))?.sha256).toBe(sha('2'))
 
-    const next = await publish(project.id, { commitSha: SHA_B, content: '3' })
+    const next = await publish(team.id, { commitSha: SHA_B, content: '3' })
     expect(next.branchLabel).toBe(first.branchLabel)
-    expect(await servedCommitForBranch(t.db, project.id, 'docs', 'main')).toBe(SHA_B)
-    expect(await servedCommitForBranch(t.db, project.id, 'docs', 'other')).toBeUndefined()
+    expect(await servedCommitForBranch(t.db, team.id, 'docs', 'main')).toBe(SHA_B)
+    expect(await servedCommitForBranch(t.db, team.id, 'docs', 'other')).toBeUndefined()
   })
 
   it('leaves the branch address where it is unless told to move it', async () => {
-    const { project } = await seedProject(t.db)
-    await publish(project.id)
-    await publish(project.id, { commitSha: SHA_B, moveBranch: false })
-    expect(await servedCommitForBranch(t.db, project.id, 'docs', 'main')).toBe(SHA_A)
+    const { team } = await seedTeam(t.db)
+    await publish(team.id)
+    await publish(team.id, { commitSha: SHA_B, moveBranch: false })
+    expect(await servedCommitForBranch(t.db, team.id, 'docs', 'main')).toBe(SHA_A)
   })
 
   it('needs a full commit SHA', async () => {
-    const { project } = await seedProject(t.db)
-    await expect(publish(project.id, { commitSha: 'abc' })).rejects.toBeInstanceOf(ValidationError)
+    const { team } = await seedTeam(t.db)
+    await expect(publish(team.id, { commitSha: 'abc' })).rejects.toBeInstanceOf(ValidationError)
   })
 
-  it('lists a project’s sites with versions and branch addresses', async () => {
-    const { project } = await seedProject(t.db)
-    const first = await publish(project.id)
-    await publish(project.id, { commitSha: SHA_B })
-    const [listing] = await listProjectSites(t.db, project.id)
+  it('lists a team’s sites with versions and branch addresses', async () => {
+    const { team } = await seedTeam(t.db)
+    const first = await publish(team.id)
+    await publish(team.id, { commitSha: SHA_B })
+    const [listing] = await listTeamSites(t.db, team.id)
     expect(listing).toMatchObject({ name: 'docs', kind: 'generic' })
     expect(listing?.versions.map((v) => v.commitSha).toSorted()).toEqual([SHA_A, SHA_B])
     expect(listing?.versions.find((v) => v.commitSha === SHA_A)?.commitLabel).toBe(
       first.commitLabel,
     )
     expect(listing?.branches).toMatchObject([{ branch: 'main', commitSha: SHA_B }])
-    expect(await listProjectSites(t.db, (await seedProject(t.db)).project.id)).toEqual([])
+    expect(await listTeamSites(t.db, (await seedTeam(t.db)).team.id)).toEqual([])
   })
 
   it('serves what the seeder inserts, so other packages can rely on it', async () => {
-    const { project } = await seedProject(t.db)
+    const { team } = await seedTeam(t.db)
     const seeded = await seedSite(t.db, {
-      projectId: project.id,
+      teamId: team.id,
       files: [{ path: 'index.html', sha256: sha('7') }],
     })
     expect((await findSiteByLabel(t.db, seeded.label ?? ''))?.site.id).toBe(seeded.site.id)
@@ -155,9 +155,9 @@ describe('publishing and serving', () => {
 })
 
 async function signedIn() {
-  const { project, org, owner } = await seedProject(t.db)
+  const { team, workspace, owner } = await seedTeam(t.db)
   const auth = await seedSession(t.db, owner.id)
-  return { project, org, owner, auth }
+  return { team, workspace, owner, auth }
 }
 
 describe('sign-in handoff', () => {
@@ -188,26 +188,36 @@ describe('sign-in handoff', () => {
   })
 
   it('accepts a site session only for its address, a live dashboard session and a current member', async () => {
-    const { org, owner, auth } = await signedIn()
+    const { workspace, owner, auth } = await signedIn()
     const id = await createSiteSession(t.db, {
       label: 'addr',
       userId: owner.id,
       authSessionId: auth.id,
     })
-    expect(await siteSessionValid(t.db, { id, label: 'addr', orgId: org.id })).toBe(true)
-    expect(await siteSessionValid(t.db, { id, label: 'other', orgId: org.id })).toBe(false)
-    expect(await siteSessionValid(t.db, { id: 'nope', label: 'addr', orgId: org.id })).toBe(false)
+    expect(await siteSessionValid(t.db, { id, label: 'addr', workspaceId: workspace.id })).toBe(
+      true,
+    )
+    expect(await siteSessionValid(t.db, { id, label: 'other', workspaceId: workspace.id })).toBe(
+      false,
+    )
+    expect(
+      await siteSessionValid(t.db, { id: 'nope', label: 'addr', workspaceId: workspace.id }),
+    ).toBe(false)
 
     const stranger = await seedUser(t.db)
-    await addTestMember(t.db, { orgId: org.id, userId: stranger.id }) // a second member is fine
-    const otherOrg = (await seedProject(t.db)).org
-    expect(await siteSessionValid(t.db, { id, label: 'addr', orgId: otherOrg.id })).toBe(false)
+    await addTestMember(t.db, { workspaceId: workspace.id, userId: stranger.id }) // a second member is fine
+    const otherWorkspace = (await seedTeam(t.db)).workspace
+    expect(
+      await siteSessionValid(t.db, { id, label: 'addr', workspaceId: otherWorkspace.id }),
+    ).toBe(false)
 
     await t.db
       .update(schema.session)
       .set({ expiresAt: new Date(Date.now() - 1000) })
       .where(eq(schema.session.id, auth.id))
-    expect(await siteSessionValid(t.db, { id, label: 'addr', orgId: org.id })).toBe(false)
+    expect(await siteSessionValid(t.db, { id, label: 'addr', workspaceId: workspace.id })).toBe(
+      false,
+    )
   })
 
   it('slides a site session’s expiry forward', async () => {

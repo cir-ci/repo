@@ -1,21 +1,21 @@
 import { boolean, jsonb, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core'
 
 import { createdAt, id } from './_columns.ts'
-import { organization, user } from './auth.ts'
-import { projects } from './projects.ts'
+import { workspace, user } from './auth.ts'
+import { teams } from './teams.ts'
 
 /**
- * A connection of an organisation to an external account: a git host installation, workspace or
+ * A connection of a workspace to an external account: a git host installation, workspace or
  * token (GitHub, GitLab, Bitbucket), a Slack workspace, a Linear or Jira site, a Figma account.
- * Integrations belong to the organisation; projects only use them through `integration_projects`.
+ * Integrations belong to the workspace; teams only use them through `integration_teams`.
  */
 export const integrations = pgTable(
   'integrations',
   {
     id: id(),
-    orgId: text('org_id')
+    workspaceId: text('workspace_id')
       .notNull()
-      .references(() => organization.id, { onDelete: 'cascade' }),
+      .references(() => workspace.id, { onDelete: 'cascade' }),
     /**
      * The integration's id in the registry (`@circi/integrations`): `slack`, `linear`… Not a CHECK:
      * the registry validates it, so adding an integration needs no migration.
@@ -34,27 +34,29 @@ export const integrations = pgTable(
     createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
     createdAt: createdAt(),
   },
-  (t) => [unique('integrations_org_kind_external_key').on(t.orgId, t.kind, t.externalId)],
+  (t) => [
+    unique('integrations_workspace_kind_external_key').on(t.workspaceId, t.kind, t.externalId),
+  ],
 )
 
 /**
- * What a project uses an integration for: its repository-like target (a repository, a Slack
+ * What a team uses an integration for: its repository-like target (a repository, a Slack
  * channel, a Linear team, a Jira project, a Figma file) in `external_ref`, anything more in `extra`. At most one per
- * project and integration.
+ * team and integration.
  */
-export const integrationProjects = pgTable(
-  'integration_projects',
+export const integrationTeams = pgTable(
+  'integration_teams',
   {
     id: id(),
     integrationId: uuid('integration_id')
       .notNull()
       .references(() => integrations.id, { onDelete: 'cascade' }),
-    projectId: uuid('project_id')
+    teamId: uuid('team_id')
       .notNull()
-      .references(() => projects.id, { onDelete: 'cascade' }),
+      .references(() => teams.id, { onDelete: 'cascade' }),
     externalRef: text('external_ref').notNull(),
     extra: jsonb('extra').$type<Record<string, unknown>>().notNull().default({}),
     createdAt: createdAt(),
   },
-  (t) => [unique('integration_projects_key').on(t.integrationId, t.projectId)],
+  (t) => [unique('integration_teams_key').on(t.integrationId, t.teamId)],
 )

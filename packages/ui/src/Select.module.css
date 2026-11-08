@@ -80,7 +80,7 @@
 }
 
 .error {
-  color: var(--circi-state-rejected);
+  color: var(--circi-state-rejected-text);
 }
 
 /* Above a Dialog (1400) while MUI still exists. */
@@ -131,7 +131,10 @@
   border-radius: var(--circi-radius-control);
   cursor: default;
   user-select: none;
-  outline: none;
+}
+
+.item:focus-visible {
+  outline-offset: -2px;
 }
 
 .item[data-highlighted] {

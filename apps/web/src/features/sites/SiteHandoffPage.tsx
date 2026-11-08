@@ -34,7 +34,7 @@ export function SiteHandoffPage() {
       title="Not found"
       description="This address doesn’t exist, or you don’t have access to it."
     >
-      <RouterLink to="/">Go to projects</RouterLink>
+      <RouterLink to="/">Go to teams</RouterLink>
     </AuthPanel>
   ) : (
     <AuthPanel title="Opening the site…">

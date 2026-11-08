@@ -1,10 +1,10 @@
 # Migrating from Argos
 
-CirCI speaks the upload protocol of the Argos SDKs under `/v2`, so a project that uploads with `@argos-ci/playwright`, `@argos-ci/cypress`, `@argos-ci/storybook` or `@argos-ci/cli` can switch by changing two values:
+CirCI speaks the upload protocol of the Argos SDKs under `/v2`, so a team that uploads with `@argos-ci/playwright`, `@argos-ci/cypress`, `@argos-ci/storybook` or `@argos-ci/cli` can switch by changing two values:
 
 ```sh
 ARGOS_API_BASE_URL=https://ci.acme.io/v2
-ARGOS_TOKEN=circi_…          # a CirCI project token
+ARGOS_TOKEN=circi_…          # a CirCI team token
 ```
 
 `circi argos-env` prints exactly these two lines from `CIRCI_API_URL` and `CIRCI_TOKEN`.
@@ -13,7 +13,7 @@ ARGOS_TOKEN=circi_…          # a CirCI project token
 
 ## What works
 
-- Project lookup, baseline lookup from commit history the SDK collected, build creation, the file upload target, updates in chunks, parallel builds (`parallel`/`parallelNonce`/`parallelIndex`/`parallelTotal`), build names.
+- Team lookup, baseline lookup from commit history the SDK collected, build creation, the file upload target, updates in chunks, parallel builds (`parallel`/`parallelNonce`/`parallelIndex`/`parallelTotal`), build names.
 - History from the SDK is used to find the baseline (`baseline_source: sdk` on the build page).
 - Pull request number, branch and reference branch/commit.
 

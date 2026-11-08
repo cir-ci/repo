@@ -4,7 +4,7 @@ import { and, asc, eq, inArray, max } from 'drizzle-orm'
 import {
   builds,
   member,
-  projects,
+  teams,
   TRIAGE_KINDS,
   triageItems,
   triageRotationMembers,
@@ -14,7 +14,7 @@ import type { SnoozeKind, TriageKind } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
 /**
- * Triage state: what people did about a project's problems (assigned, snoozed, dismissed), and
+ * Triage state: what people did about a team's problems (assigned, snoozed, dismissed), and
  * who takes turns being on triage. The problems themselves are derived when read, see
  * `listTriage` in `queries/triage.ts`. Data only; the services in `@circi/services` pick the
  * snooze end time and own the transaction.
@@ -24,7 +24,7 @@ export namespace TriageItem {
   export type Row = typeof triageItems.$inferSelect
 
   export interface Ref {
-    projectId: string
+    teamId: string
     kind: string
     key: string
   }
@@ -45,9 +45,9 @@ async function upsertItem(
   const kind = checkRef(ref)
   const [row] = await db
     .insert(triageItems)
-    .values({ projectId: ref.projectId, kind, key: ref.key, ...set })
+    .values({ teamId: ref.teamId, kind, key: ref.key, ...set })
     .onConflictDoUpdate({
-      target: [triageItems.projectId, triageItems.kind, triageItems.key],
+      target: [triageItems.teamId, triageItems.kind, triageItems.key],
       set,
     })
     .returning()
@@ -55,12 +55,12 @@ async function upsertItem(
   return row
 }
 
-/** Assigns an item to an organization member, or to nobody (`assigneeId: null`). */
+/** Assigns an item to a workspace member, or to nobody (`assigneeId: null`). */
 export async function assignTriageItem(
   db: Database,
   input: TriageItem.Ref & { assigneeId: string | null },
 ): Promise<TriageItem.Row> {
-  if (input.assigneeId !== null) await assertMembers(db, input.projectId, [input.assigneeId])
+  if (input.assigneeId !== null) await assertMembers(db, input.teamId, [input.assigneeId])
   return upsertItem(db, input, { assigneeId: input.assigneeId })
 }
 
@@ -90,113 +90,109 @@ export async function dismissTriageItem(
   return upsertItem(db, ref, { dismissedAt: new Date() })
 }
 
-/** The newest default-branch build number of a project (0 when it has none). */
+/** The newest default-branch build number of a team (0 when it has none). */
 export async function latestDefaultBranchBuildNumber(
   db: Database,
-  projectId: string,
+  teamId: string,
 ): Promise<number> {
   const [row] = await db
     .select({ n: max(builds.number) })
     .from(builds)
-    .innerJoin(projects, eq(projects.id, builds.projectId))
-    .where(and(eq(builds.projectId, projectId), eq(builds.branch, projects.defaultBranch)))
+    .innerJoin(teams, eq(teams.id, builds.teamId))
+    .where(and(eq(builds.teamId, teamId), eq(builds.branch, teams.defaultBranch)))
   return row?.n ?? 0
 }
 
-async function assertMembers(db: Database, projectId: string, userIds: string[]): Promise<void> {
+async function assertMembers(db: Database, teamId: string, userIds: string[]): Promise<void> {
   const found = await db
     .select({ id: member.userId })
     .from(member)
-    .innerJoin(projects, eq(projects.orgId, member.organizationId))
-    .where(and(eq(projects.id, projectId), inArray(member.userId, userIds)))
+    .innerJoin(teams, eq(teams.workspaceId, member.workspaceId))
+    .where(and(eq(teams.id, teamId), inArray(member.userId, userIds)))
   if (new Set(found.map((r) => r.id)).size !== new Set(userIds).size) {
-    throw new ValidationError('Choose a member of this organization')
+    throw new ValidationError('Choose a member of this workspace')
   }
 }
 
 export namespace getTriageRotation {
   export interface Rotation {
-    /** Any moment of the first week; null when the project has no rotation. */
+    /** Any moment of the first week; null when the team has no rotation. */
     startsOn: Date | null
     members: { id: string; name: string }[]
   }
 }
 
-/** The project's rotation: its members in turn order. */
+/** The team's rotation: its members in turn order. */
 export async function getTriageRotation(
   db: Database,
-  projectId: string,
+  teamId: string,
 ): Promise<getTriageRotation.Rotation> {
-  const [project] = await db
-    .select({ startsOn: projects.triageRotationStartsOn })
-    .from(projects)
-    .where(eq(projects.id, projectId))
+  const [team] = await db
+    .select({ startsOn: teams.triageRotationStartsOn })
+    .from(teams)
+    .where(eq(teams.id, teamId))
   const members = await db
     .select({ id: user.id, name: user.name })
     .from(triageRotationMembers)
     .innerJoin(user, eq(user.id, triageRotationMembers.userId))
-    .where(eq(triageRotationMembers.projectId, projectId))
+    .where(eq(triageRotationMembers.teamId, teamId))
     .orderBy(asc(triageRotationMembers.position))
-  return { startsOn: members.length > 0 ? (project?.startsOn ?? null) : null, members }
+  return { startsOn: members.length > 0 ? (team?.startsOn ?? null) : null, members }
 }
 
 /**
- * Replaces the project's rotation. Everyone must be an organization member; an empty list
+ * Replaces the team's rotation. Everyone must be a workspace member; an empty list
  * switches the rotation off. `startsOn` defaults to now.
  */
 export async function setTriageRotation(
   db: Database,
-  input: { projectId: string; memberIds: string[]; startsOn?: Date },
+  input: { teamId: string; memberIds: string[]; startsOn?: Date },
 ): Promise<getTriageRotation.Rotation> {
   const memberIds = [...new Set(input.memberIds)]
   if (memberIds.length > 50) throw new ValidationError('That is too many people for a rotation')
-  if (memberIds.length > 0) await assertMembers(db, input.projectId, memberIds)
+  if (memberIds.length > 0) await assertMembers(db, input.teamId, memberIds)
   await db.transaction(async (tx) => {
-    await tx
-      .delete(triageRotationMembers)
-      .where(eq(triageRotationMembers.projectId, input.projectId))
+    await tx.delete(triageRotationMembers).where(eq(triageRotationMembers.teamId, input.teamId))
     if (memberIds.length > 0) {
       await tx
         .insert(triageRotationMembers)
-        .values(
-          memberIds.map((userId, position) => ({ projectId: input.projectId, userId, position })),
-        )
+        .values(memberIds.map((userId, position) => ({ teamId: input.teamId, userId, position })))
     }
     await tx
-      .update(projects)
+      .update(teams)
       .set({
         triageRotationStartsOn: memberIds.length > 0 ? (input.startsOn ?? new Date()) : null,
       })
-      .where(eq(projects.id, input.projectId))
+      .where(eq(teams.id, input.teamId))
   })
-  return getTriageRotation(db, input.projectId)
+  return getTriageRotation(db, input.teamId)
 }
 
 /**
  * The rotation as `rotationFor` wants it: member ids in turn order, leaving out people who are
- * no longer in the organization. Null `startsOn` (no rotation) comes back with no ids.
+ * no longer in the workspace. Null `startsOn` (no rotation) comes back with no ids.
  */
 export async function getRotationForResolution(
   db: Database,
-  projectId: string,
+  teamId: string,
 ): Promise<{ startsOn: Date; memberIds: string[] } | null> {
-  const [project] = await db
-    .select({ startsOn: projects.triageRotationStartsOn })
-    .from(projects)
-    .where(eq(projects.id, projectId))
-  if (!project?.startsOn) return null
+  const [team] = await db
+    .select({ startsOn: teams.triageRotationStartsOn })
+    .from(teams)
+    .where(eq(teams.id, teamId))
+  if (!team?.startsOn) return null
   const rows = await db
     .select({ id: triageRotationMembers.userId })
     .from(triageRotationMembers)
-    .innerJoin(projects, eq(projects.id, triageRotationMembers.projectId))
+    .innerJoin(teams, eq(teams.id, triageRotationMembers.teamId))
     .innerJoin(
       member,
       and(
-        eq(member.organizationId, projects.orgId),
+        eq(member.workspaceId, teams.workspaceId),
         eq(member.userId, triageRotationMembers.userId),
       ),
     )
-    .where(eq(triageRotationMembers.projectId, projectId))
+    .where(eq(triageRotationMembers.teamId, teamId))
     .orderBy(asc(triageRotationMembers.position))
-  return rows.length === 0 ? null : { startsOn: project.startsOn, memberIds: rows.map((r) => r.id) }
+  return rows.length === 0 ? null : { startsOn: team.startsOn, memberIds: rows.map((r) => r.id) }
 }

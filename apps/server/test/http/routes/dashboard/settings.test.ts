@@ -5,8 +5,8 @@ import { join } from 'node:path'
 import { addMember, createUser } from '@circi/auth'
 import type { Auth } from '@circi/auth'
 import {
-  getOrgSettings,
-  getProjectById,
+  getWorkspaceSettings,
+  getTeamById,
   listWebhooks,
   markInstallationNeedsAttention,
 } from '@circi/db'
@@ -52,7 +52,11 @@ beforeAll(async () => {
     name: 'Plain',
     password: 'plain-password-long-1',
   })
-  await addMember(auth, t.db, { orgSlug: acme.orgSlug, email: plain.email, role: 'member' })
+  await addMember(auth, t.db, {
+    workspaceSlug: acme.workspaceSlug,
+    email: plain.email,
+    role: 'member',
+  })
   ownerCookie = await signIn(app, acme.owner.email, acme.owner.password)
   memberCookie = await signIn(app, plain.email, 'plain-password-long-1')
   rivalCookie = await signIn(app, rival.owner.email, rival.owner.password)
@@ -63,7 +67,7 @@ afterAll(async () => {
   await rm(dir, { recursive: true, force: true })
 })
 
-const base = () => `/api/projects/${acme.orgSlug}/web`
+const base = () => `/api/teams/${acme.workspaceSlug}/web`
 const call = (
   method: 'GET' | 'PATCH' | 'POST' | 'PUT' | 'DELETE',
   url: string,
@@ -81,7 +85,7 @@ const call = (
     ...(body === undefined ? {} : { payload: JSON.stringify(body) }),
   })
 
-describe('project settings', () => {
+describe('team settings', () => {
   it('shows settings to members, and whether they can change them', async () => {
     const owner = (await call('GET', `${base()}/settings`, ownerCookie)).json()
     expect(owner.canManage).toBe(true)
@@ -107,7 +111,7 @@ describe('project settings', () => {
       diffThreshold: 0.01,
       defaultBranch: 'main',
     })
-    expect((await getProjectById(t.db, acme.project.id))?.blockMergeOnChanges).toBe(false)
+    expect((await getTeamById(t.db, acme.team.id))?.blockMergeOnChanges).toBe(false)
   })
 
   it('rejects invalid values and unknown fields', async () => {
@@ -135,21 +139,21 @@ describe('project settings', () => {
     await call('PATCH', `${base()}/settings`, ownerCookie, { reviewTargetHours: 24 })
   })
 
-  it('lets a project inherit the organization on flaky screenshots, or set its own', async () => {
+  it('lets a team inherit the workspace on flaky screenshots, or set its own', async () => {
     const got = (await call('GET', `${base()}/settings`, memberCookie)).json()
-    // Nothing set: the project inherits, and the organization blocks, as before.
+    // Nothing set: the team inherits, and the workspace blocks, as before.
     expect(got.settings.flakyBlocksMerge).toBeNull()
-    expect(got.org).toEqual({ flakyBlocksMerge: true })
+    expect(got.workspace).toEqual({ flakyBlocksMerge: true })
 
     const off = await call('PATCH', `${base()}/settings`, ownerCookie, { flakyBlocksMerge: false })
     expect(off.json().settings.flakyBlocksMerge).toBe(false)
-    expect((await getProjectById(t.db, acme.project.id))?.flakyBlocksMerge).toBe(false)
+    expect((await getTeamById(t.db, acme.team.id))?.flakyBlocksMerge).toBe(false)
 
     const inherit = await call('PATCH', `${base()}/settings`, ownerCookie, {
       flakyBlocksMerge: null,
     })
     expect(inherit.json().settings.flakyBlocksMerge).toBeNull()
-    expect((await getProjectById(t.db, acme.project.id))?.flakyBlocksMerge).toBeNull()
+    expect((await getTeamById(t.db, acme.team.id))?.flakyBlocksMerge).toBeNull()
 
     const bad = await call('PATCH', `${base()}/settings`, ownerCookie, { flakyBlocksMerge: 'no' })
     expect(bad.statusCode).toBe(400)
@@ -166,7 +170,7 @@ describe('project settings', () => {
   })
 })
 
-describe('project webhooks', () => {
+describe('team webhooks', () => {
   it('creates a webhook and shows the secret once', async () => {
     const res = await call('POST', `${base()}/webhooks`, ownerCookie, {
       url: 'https://hooks.acme.io/circi',
@@ -208,14 +212,14 @@ describe('project webhooks', () => {
       expect(res.statusCode).toBe(400)
       expect(res.json().error).toBe('Choose at least one event for the webhook to receive')
     }
-    expect(await listWebhooks(t.db, acme.project.id)).toHaveLength(1)
+    expect(await listWebhooks(t.db, acme.team.id)).toHaveLength(1)
   })
 
   it('keeps plain members and outsiders from adding or removing webhooks', async () => {
     const body = { url: 'https://hooks.acme.io/other' }
     expect((await call('POST', `${base()}/webhooks`, memberCookie, body)).statusCode).toBe(403)
     expect((await call('POST', `${base()}/webhooks`, rivalCookie, body)).statusCode).toBe(404)
-    const [hook] = await listWebhooks(t.db, acme.project.id)
+    const [hook] = await listWebhooks(t.db, acme.team.id)
     expect((await call('DELETE', `${base()}/webhooks/${hook?.id}`, memberCookie)).statusCode).toBe(
       403,
     )
@@ -225,11 +229,11 @@ describe('project webhooks', () => {
   })
 
   it('deletes a webhook, and answers 404 for a missing or malformed id', async () => {
-    const [hook] = await listWebhooks(t.db, acme.project.id)
+    const [hook] = await listWebhooks(t.db, acme.team.id)
     expect((await call('DELETE', `${base()}/webhooks/${hook?.id}`, ownerCookie)).statusCode).toBe(
       204,
     )
-    expect(await listWebhooks(t.db, acme.project.id)).toHaveLength(0)
+    expect(await listWebhooks(t.db, acme.team.id)).toHaveLength(0)
     expect((await call('DELETE', `${base()}/webhooks/${hook?.id}`, ownerCookie)).statusCode).toBe(
       404,
     )
@@ -240,7 +244,7 @@ describe('project webhooks', () => {
 const put = (cookie: string, payload: unknown) => call('PUT', `${base()}/github`, cookie, payload)
 
 describe('GitHub link', () => {
-  it('links a project to a repository and shows it in the settings', async () => {
+  it('links a team to a repository and shows it in the settings', async () => {
     const before = (await call('GET', `${base()}/settings`, memberCookie)).json().github
     expect(before).toEqual({
       configured: true,
@@ -266,7 +270,7 @@ describe('GitHub link', () => {
     expect((await put(rivalCookie, { installationId: '1', repoRef: 'a/b' })).statusCode).toBe(404)
   })
 
-  it('shows that GitHub refuses the installation, on the settings and the project page, until it is linked again', async () => {
+  it('shows that GitHub refuses the installation, on the settings and the team page, until it is linked again', async () => {
     await put(ownerCookie, { installationId: '4243', repoRef: 'acme/web' })
     const settings = async () =>
       (await call('GET', `${base()}/settings`, memberCookie)).json().github.link.attention
@@ -280,9 +284,9 @@ describe('GitHub link', () => {
       since: expect.stringMatching(/^\d{4}-\d\d-\d\dT/),
     })
     expect(await page()).toEqual(await settings())
-    // Another organization's project is not told.
+    // Another workspace's team is not told.
     expect(
-      (await call('GET', `/api/projects/${rival.orgSlug}/web`, rivalCookie)).json().gitAttention,
+      (await call('GET', `/api/teams/${rival.workspaceSlug}/web`, rivalCookie)).json().gitAttention,
     ).toBeNull()
 
     expect(
@@ -299,29 +303,31 @@ describe('GitHub link', () => {
   })
 })
 
-const orgUrl = () => `/api/organizations/${acme.orgSlug}/settings`
+const workspaceUrl = () => `/api/workspaces/${acme.workspaceSlug}/settings`
 
-describe('organization settings', () => {
+describe('workspace settings', () => {
   it('shows the defaults to members, and whether they can change them', async () => {
-    const owner = (await call('GET', orgUrl(), ownerCookie)).json()
+    const owner = (await call('GET', workspaceUrl(), ownerCookie)).json()
     expect(owner).toEqual({ canManage: true, settings: { flakyBlocksMerge: true } })
-    expect((await call('GET', orgUrl(), memberCookie)).json().canManage).toBe(false)
+    expect((await call('GET', workspaceUrl(), memberCookie)).json().canManage).toBe(false)
   })
 
-  it('lets an owner change them, and projects that inherit see the new value', async () => {
-    const res = await call('PATCH', orgUrl(), ownerCookie, { flakyBlocksMerge: false })
+  it('lets an owner change them, and teams that inherit see the new value', async () => {
+    const res = await call('PATCH', workspaceUrl(), ownerCookie, { flakyBlocksMerge: false })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toEqual({ settings: { flakyBlocksMerge: false } })
-    expect(await getOrgSettings(t.db, acme.project.orgId)).toEqual({ flakyBlocksMerge: false })
-    const project = (await call('GET', `${base()}/settings`, memberCookie)).json()
-    expect(project.org).toEqual({ flakyBlocksMerge: false })
-    expect(project.settings.flakyBlocksMerge).toBeNull()
+    expect(await getWorkspaceSettings(t.db, acme.team.workspaceId)).toEqual({
+      flakyBlocksMerge: false,
+    })
+    const team = (await call('GET', `${base()}/settings`, memberCookie)).json()
+    expect(team.workspace).toEqual({ flakyBlocksMerge: false })
+    expect(team.settings.flakyBlocksMerge).toBeNull()
   })
 
   it('rejects invalid values and unknown fields', async () => {
     const codes = await Promise.all(
       [{ flakyBlocksMerge: 'yes' }, { flakyBlocksMerge: null }, { other: true }].map(
-        async (body) => (await call('PATCH', orgUrl(), ownerCookie, body)).statusCode,
+        async (body) => (await call('PATCH', workspaceUrl(), ownerCookie, body)).statusCode,
       ),
     )
     expect(codes).toEqual([400, 400, 400])
@@ -329,12 +335,14 @@ describe('organization settings', () => {
 
   it('refuses plain members with 403 and outsiders with 404', async () => {
     expect(
-      (await call('PATCH', orgUrl(), memberCookie, { flakyBlocksMerge: true })).statusCode,
+      (await call('PATCH', workspaceUrl(), memberCookie, { flakyBlocksMerge: true })).statusCode,
     ).toBe(403)
-    expect((await call('GET', orgUrl(), rivalCookie)).statusCode).toBe(404)
+    expect((await call('GET', workspaceUrl(), rivalCookie)).statusCode).toBe(404)
     expect(
-      (await call('PATCH', orgUrl(), rivalCookie, { flakyBlocksMerge: true })).statusCode,
+      (await call('PATCH', workspaceUrl(), rivalCookie, { flakyBlocksMerge: true })).statusCode,
     ).toBe(404)
-    expect(await getOrgSettings(t.db, acme.project.orgId)).toEqual({ flakyBlocksMerge: false })
+    expect(await getWorkspaceSettings(t.db, acme.team.workspaceId)).toEqual({
+      flakyBlocksMerge: false,
+    })
   })
 })

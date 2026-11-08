@@ -25,7 +25,7 @@ export async function png(color: string): Promise<Buffer> {
 }
 
 /**
- * The dashboard server the dashboard route tests share: two unrelated organizations (`acme` has
+ * The dashboard server the dashboard route tests share: two unrelated workspaces (`acme` has
  * two builds, `rival` is someone else), both signed in, over a real PGlite database and local
  * file storage.
  */
@@ -51,13 +51,13 @@ export async function startDashboard() {
   const rivalCookie = await signIn(app, rival.owner.email, rival.owner.password)
 
   async function buildWith(
-    projectId: string,
+    teamId: string,
     commitSha: string,
     ancestors: string[],
     shots: Record<string, Buffer>,
   ) {
     const b = await createBuild(t.db, {
-      projectId,
+      teamId,
       commitSha,
       branch: 'main',
       ancestorShas: ancestors,
@@ -87,14 +87,14 @@ export async function startDashboard() {
     return b
   }
 
-  // A project's first build has no baseline, so it waits for review: someone approves it once.
+  // A team's first build has no baseline, so it waits for review: someone approves it once.
   // Build 2 then has that baseline, and on the default branch it is approved automatically.
-  const first = await buildWith(acme.project.id, 'aaaa001', [], {
+  const first = await buildWith(acme.team.id, 'aaaa001', [], {
     home: await png('#ffffff'),
     about: await png('#eeeeee'),
   })
   await reviewBuild(t.db, { buildId: first.id, userId: acme.owner.id, state: 'approved' })
-  await buildWith(acme.project.id, 'aaaa002', ['aaaa001'], {
+  await buildWith(acme.team.id, 'aaaa002', ['aaaa001'], {
     home: await png('#ff0000'),
     about: await png('#eeeeee'),
   })
@@ -103,8 +103,8 @@ export async function startDashboard() {
   const get = (url: string, cookie: string = acmeCookie) =>
     app.inject({ method: 'GET', url, headers: cookie ? { cookie } : {} })
 
-  async function buildDetail(cookie: string, orgSlug = acme.orgSlug) {
-    return get(`/api/projects/${orgSlug}/web/builds/2`, cookie)
+  async function buildDetail(cookie: string, workspaceSlug = acme.workspaceSlug) {
+    return get(`/api/teams/${workspaceSlug}/web/builds/2`, cookie)
   }
 
   const review = (
@@ -112,14 +112,14 @@ export async function startDashboard() {
     options: {
       cookie?: string
       origin?: string | null
-      org?: string
+      workspace?: string
       build?: number
       headers?: Record<string, string>
     } = {},
   ) =>
     app.inject({
       method: 'POST',
-      url: `/api/projects/${options.org ?? acme.orgSlug}/web/builds/${options.build ?? 2}/review`,
+      url: `/api/teams/${options.workspace ?? acme.workspaceSlug}/web/builds/${options.build ?? 2}/review`,
       headers: {
         'content-type': 'application/json',
         ...(options.cookie === '' ? {} : { cookie: options.cookie ?? acmeCookie }),

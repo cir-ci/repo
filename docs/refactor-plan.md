@@ -3,7 +3,7 @@
 Status: **done** (2026-11-08); decisions in §6. Everything is committed on `main`: the light scheme
 (§4.0); the Base UI design system (`6a8a8c3`, `docs/base-ui-plan.md`); back-end layout and test
 moves in every package (§2.2, §3.1; `7a69f94`, `9bd87e3`, `8a935e8`, `ad817af`); `@circi/api` and
-`db/queries` split (queries are `{builds,projects,files}.ts`; there was nothing for orgs/sites);
+`db/queries` split (queries are `{builds,teams,files}.ts`; there was nothing for workspaces/sites);
 seeders in `@circi/testing`; the missing test files of §3.2; Testing Library removed; the `apps/web`
 layout (§2.3), shell, every page and the removal of MUI (`012190e`); the real-stack e2e suite
 (`75dbd7f`). What is left (all in `docs/remaining-work.md`): six test files that still hand-insert
@@ -54,11 +54,11 @@ component and builds with tsdown, `docs/tsdown-plan.md`, not `tsc -b`).
 | `apps/server` | Move the lifecycle files (`runtime`, `services`, `startup`, `server-options`, `shutdown`) into `src/lifecycle/`; keep `main.ts` and `contract-check.ts` at the root. Move `http/{deps,errors,pages,presenters,streams,validation}.ts` into `http/lib/`. Update the `CLAUDE.md` layout line. | S |
 | `apps/worker` | Fine. Only tests move (§3). | XS |
 | `apps/web` | Largest change; see §2.3. | L |
-| `packages/api` | **Decided: now.** Split the 211-line `index.ts` into one file per namespace (`build.ts`, `project.ts`, `org.ts`, …) re-exported from `index.ts`. Wire types stay types-only. | S |
+| `packages/api` | **Decided: now.** Split the 211-line `index.ts` into one file per namespace (`build.ts`, `team.ts`, `workspace.ts`, …) re-exported from `index.ts`. Wire types stay types-only. | S |
 | `packages/auth` | `sso.ts` vs `plugins/sso.ts` and `admin.ts`/`accounts.ts`/`setup.ts` are ambiguous at the root. Move the admin operations to `src/operations/{admin,accounts,setup}.ts`, the SSO helpers to `src/sso/` beside `trusted-issuers.ts`. Keep `hooks/` and `plugins/`. | S |
 | `packages/cli` | Fine. `index.ts` (library surface) vs `main.ts` (bin) is right; add a comment saying so. | XS |
 | `packages/config`, `core`, `diff`, `storage`, `vitest` | Fine. Tests only (§3). | XS |
-| `packages/db` | **Decided: now.** Split `queries/dashboard.ts` (309 lines) per resource to match `@circi/api`: `queries/{builds,projects,orgs,sites}.ts`. `contract-check.ts` follows. | S |
+| `packages/db` | **Decided: now.** Split `queries/dashboard.ts` (309 lines) per resource to match `@circi/api`: `queries/{builds,teams,workspaces,sites}.ts`. `contract-check.ts` follows. | S |
 | `packages/providers` | Fine for one host. When GitLab/Gitea land: `src/github/{client,checks,render}.ts`, one folder per host. Not now. | — |
 | `packages/services` | Fine. `test/events.test.ts` tests `completeBuild`/`reviewBuild` outbox behaviour: rename to `outbox.test.ts`. | XS |
 | `packages/sites` | Fine. Tests only (§3). | XS |
@@ -78,11 +78,11 @@ src/
 ```
 
 Done (2026-11-08), with differences from the sketch: `app/` also holds `root-route.ts` (the root
-route, apart from `router.tsx`), `Sidebar.tsx`, `OrgSwitcher.tsx`, `NavLink.tsx` and `shell-model.ts`;
+route, apart from `router.tsx`), `Sidebar.tsx`, `WorkspaceSwitcher.tsx`, `NavLink.tsx` and `shell-model.ts`;
 `lib/` holds `http.ts`, `auth-client.ts`, `router-link.ts`, `use-client-link.ts`, `document-title.ts`,
 `relative-time.ts` and the shared `ErrorState.tsx` and `RelativeTime.tsx`; `buildState()` is
 `features/builds/build-state.ts`. `primitives/`, `components.tsx` and `theme.ts` are gone. Routes:
-`routes.ts` in account, builds, members, projects and sites (auth and instance have none, as they
+`routes.ts` in account, builds, members, teams and sites (auth and instance have none, as they
 have no routes of their own); the router assembles them.
 
 - Delete `primitives/`, `components.tsx` and `theme.ts` once nothing imports them (§4). What is
@@ -101,7 +101,7 @@ Done (the `events.test.ts` rename is `packages/services/test/outbox.test.ts`).
 
 | From | To |
 | --- | --- |
-| `apps/server/test/routes/{dashboard,domains,org-auth,org-sso,settings,onboarding,sites}.test.ts` | `test/http/routes/dashboard/<file>.test.ts`, matching `src/http/routes/dashboard/` (split `dashboard.test.ts` by its `describe` blocks: sign-in, isolation, API, web app, reviewing) |
+| `apps/server/test/routes/{dashboard,domains,workspace-auth,workspace-sso,settings,onboarding,sites}.test.ts` | `test/http/routes/dashboard/<file>.test.ts`, matching `src/http/routes/dashboard/` (split `dashboard.test.ts` by its `describe` blocks: sign-in, isolation, API, web app, reviewing) |
 | `apps/server/test/routes/{argos,v1,health,github-webhook,…}.test.ts` | `test/http/routes/…` |
 | `apps/server/test/{helpers,fake-idp}.ts`, `packages/sites/test/tar-helper.ts` | `test/support/` |
 | `apps/worker/test/*.test.ts` | `test/jobs/*.test.ts` |
@@ -119,10 +119,10 @@ Original list:
 
  (each item is a missing test file by the mirror rule; check before writing that it isn't already covered elsewhere)
 
-- **web:** `api.ts` of `projects`, `members`, `sites`, `instance`, `auth`; `auth/login-helpers.ts`.
+- **web:** `api.ts` of `teams`, `members`, `sites`, `instance`, `auth`; `auth/login-helpers.ts`.
   Add `test/support/render.tsx`: `renderPage()` wrapping `CirciTheme`, a fresh `QueryClient`,
   and a memory-history router.
-- **server:** `http/hooks/{session,same-origin,project-token}`, `cli/admin` storage commands.
+- **server:** `http/hooks/{session,same-origin,team-token}`, `cli/admin` storage commands.
 - **worker:** `lib/{concurrency,files}`, `runner.ts`.
 - **cli:** `upload.ts`, `site.ts`, `api.ts` against a fake server (`test/support/fake-circi.ts`).
 - **db:** repositories without a test: `auth-settings`, `domains`, `git`, `retention`,
@@ -196,13 +196,13 @@ plus Chrome) then the e2e suite. design-sync was re-run locally; the attended up
    `EmptyState`, `Skeleton`/`ListSkeleton`, `Breadcrumbs`, `SectionHeader`, `Ref` (mono, copyable),
    and wrappers for every MUI control the app uses, plus the icons it needs (MUI boundary).
    Each with a test and a design-sync preview in both schemes.
-2. **Shell:** replace the header frame with `AppFrame` + sidebar (org switcher, nav, project
+2. **Shell:** replace the header frame with `AppFrame` + sidebar (workspace switcher, nav, team
    list, user menu). Every page renders inside it unchanged; ship.
 3. **Pages, one commit each (decided),** simplest first so the patterns settle before the hard screen:
-   Account → Members → Projects list → Project (builds list) → Project settings → Sites →
+   Account → Members → Teams list → Team (builds list) → Team settings → Sites →
    Build review. Login, Setup and Site handoff (outside the shell) last.
 4. Delete `primitives/`, `components.tsx`, `theme.ts`; add the import rule to `layers.test.ts`.
-5. Re-verify in Chrome (setup, project, build, approve, settings, members, account were verified
+5. Re-verify in Chrome (setup, team, build, approve, settings, members, account were verified
    on the old UI) and re-run design-sync.
 
 ## 5. Sequencing
@@ -247,11 +247,11 @@ Without these the migration either invents design or stalls at step 4.2.1.
 2. **Forms:** text field, select, checkbox, radio, switch; label placement, help text, error
    text; the layout of a settings page (label column vs stacked).
 3. **Feedback:** banners (invitation, address change), inline errors, toasts or not, destructive
-   confirmations (delete project/webhook/member).
-4. **Overlays:** dialog (create project/org), menu (user menu, row actions), tooltip.
+   confirmations (delete team/webhook/member).
+4. **Overlays:** dialog (create team/workspace), menu (user menu, row actions), tooltip.
 5. **Empty, loading and error states**, including the 404 page.
-6. **Sidebar content:** org switcher, project list (all? pinned? recent?), where the user menu
-   and account live, what the sidebar shows inside a project. Mobile: below 820px the sidebar
+6. **Sidebar content:** workspace switcher, team list (all? pinned? recent?), where the user menu
+   and account live, what the sidebar shows inside a team. Mobile: below 820px the sidebar
    stacks above the panel; is that the intended phone design, or a drawer?
 7. **Build review screen** (the main screen): layout of screenshot list vs viewer, grouping
    (Changed / Added / Removed / Unchanged / Flaky), viewer toolbar (mode, zoom, ignore regions),

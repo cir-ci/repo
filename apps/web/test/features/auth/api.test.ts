@@ -35,10 +35,10 @@ describe('submitSetup', () => {
     name: 'Ada',
     email: 'ada@example.com',
     password: 'correct horse battery',
-    organizationName: 'Acme',
+    workspaceName: 'Acme',
   }
 
-  it('posts the first account and its organization', async () => {
+  it('posts the first account and its workspace', async () => {
     const calls = fakeFetch({ 'POST /api/setup': { email: 'ada@example.com' } })
     expect(await submitSetup(input)).toEqual({ email: 'ada@example.com' })
     expect(calls[0]?.body).toEqual(input)

@@ -21,7 +21,7 @@ export function connectNote(
 ): { tone: 'success' | 'danger'; text: string } | null {
   switch (result) {
     case 'connected':
-      return { tone: 'success', text: `${name} is connected. Choose what each project uses.` }
+      return { tone: 'success', text: `${name} is connected. Choose what each team uses.` }
     case 'denied':
       return { tone: 'danger', text: `${name} was not connected: the install was cancelled.` }
     case 'failed':
@@ -154,50 +154,51 @@ export function mappingSummary(
 
 // ---- Server state -----------------------------------------------------------------------------
 
-const base = (org: string) => `/api/orgs/${seg(org)}/integrations`
+const base = (workspace: string) => `/api/workspaces/${seg(workspace)}/integrations`
 
-export const mappingPageQuery = (org: string, id: string) =>
+export const mappingPageQuery = (workspace: string, id: string) =>
   queryOptions({
-    queryKey: ['integrations', org, 'mapping', id],
-    queryFn: () => getJson<Integration.MappingPage>(`${base(org)}/${seg(id)}/projects`),
+    queryKey: ['integrations', workspace, 'mapping', id],
+    queryFn: () => getJson<Integration.MappingPage>(`${base(workspace)}/${seg(id)}/teams`),
   })
 
-export const targetsQuery = (org: string, id: string) =>
+export const targetsQuery = (workspace: string, id: string) =>
   queryOptions({
-    queryKey: ['integrations', org, 'targets', id],
-    queryFn: () => getJson<{ targets: Integration.Target[] }>(`${base(org)}/${seg(id)}/targets`),
+    queryKey: ['integrations', workspace, 'targets', id],
+    queryFn: () =>
+      getJson<{ targets: Integration.Target[] }>(`${base(workspace)}/${seg(id)}/targets`),
     staleTime: 60_000,
     retry: false,
   })
 
 /** Asks the server for the provider's install address and goes there; it sends the browser back. */
-export function useInstall(org: string) {
+export function useInstall(workspace: string) {
   return useMutation({
     mutationFn: async (kind: string) => {
-      const { url } = await getJson<Integration.Install>(`${base(org)}/${seg(kind)}/install`)
+      const { url } = await getJson<Integration.Install>(`${base(workspace)}/${seg(kind)}/install`)
       navigation.assign(url)
     },
   })
 }
 
 /** Connects with the form's values; the answer is the new integration's id. */
-export function useConnect(org: string, kind: string) {
+export function useConnect(workspace: string, kind: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (values: Record<string, string>) =>
-      post<{ id: string }>(`${base(org)}/${seg(kind)}/connect`, values),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations', org] }),
+      post<{ id: string }>(`${base(workspace)}/${seg(kind)}/connect`, values),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations', workspace] }),
   })
 }
 
-export function useMapping(org: string, id: string) {
+export function useMapping(workspace: string, id: string) {
   const queryClient = useQueryClient()
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['integrations', org] })
-  const url = (project: string) => `${base(org)}/${seg(id)}/projects/${seg(project)}`
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['integrations', workspace] })
+  const url = (team: string) => `${base(workspace)}/${seg(id)}/teams/${seg(team)}`
   return {
     save: useMutation({
-      mutationFn: (input: { project: string } & Integration.MappingInput) =>
-        send<undefined>('PUT', url(input.project), {
+      mutationFn: (input: { team: string } & Integration.MappingInput) =>
+        send<undefined>('PUT', url(input.team), {
           ref: input.ref,
           ...(input.name ? { name: input.name } : {}),
           extra: input.extra ?? {},
@@ -205,30 +206,30 @@ export function useMapping(org: string, id: string) {
       onSuccess: refresh,
     }),
     clear: useMutation({
-      mutationFn: (project: string) => send<undefined>('DELETE', url(project)),
+      mutationFn: (team: string) => send<undefined>('DELETE', url(team)),
       onSuccess: refresh,
     }),
   }
 }
 
-const linksUrl = (org: string, id: string, project: string) =>
-  `${base(org)}/${seg(id)}/projects/${seg(project)}/links`
+const linksUrl = (workspace: string, id: string, team: string) =>
+  `${base(workspace)}/${seg(id)}/teams/${seg(team)}/links`
 
-export const linksQuery = (org: string, id: string, project: string) =>
+export const linksQuery = (workspace: string, id: string, team: string) =>
   queryOptions({
-    queryKey: ['integrations', org, 'links', id, project],
-    queryFn: () => getJson<Integration.LinkList>(linksUrl(org, id, project)),
+    queryKey: ['integrations', workspace, 'links', id, team],
+    queryFn: () => getJson<Integration.LinkList>(linksUrl(workspace, id, team)),
   })
 
-/** A project's links: add one by hand, remove one, or link by name (when the definition offers it). */
-export function useLinks(org: string, id: string) {
+/** A team's links: add one by hand, remove one, or link by name (when the definition offers it). */
+export function useLinks(workspace: string, id: string) {
   const queryClient = useQueryClient()
   const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: ['integrations', org, 'links', id] })
+    queryClient.invalidateQueries({ queryKey: ['integrations', workspace, 'links', id] })
   return {
     create: useMutation({
-      mutationFn: (input: { project: string; values: Record<string, string> }) =>
-        post<Integration.Link>(linksUrl(org, id, input.project), {
+      mutationFn: (input: { team: string; values: Record<string, string> }) =>
+        post<Integration.Link>(linksUrl(workspace, id, input.team), {
           values: Object.fromEntries(
             Object.entries(input.values).map(([key, value]) => [key, value.trim()]),
           ),
@@ -236,13 +237,13 @@ export function useLinks(org: string, id: string) {
       onSuccess: refresh,
     }),
     remove: useMutation({
-      mutationFn: (input: { project: string; linkId: string }) =>
-        send<undefined>('DELETE', `${linksUrl(org, id, input.project)}/${seg(input.linkId)}`),
+      mutationFn: (input: { team: string; linkId: string }) =>
+        send<undefined>('DELETE', `${linksUrl(workspace, id, input.team)}/${seg(input.linkId)}`),
       onSuccess: refresh,
     }),
     auto: useMutation({
-      mutationFn: (project: string) =>
-        post<Integration.AutoLinkResult>(`${linksUrl(org, id, project)}/auto`, {}),
+      mutationFn: (team: string) =>
+        post<Integration.AutoLinkResult>(`${linksUrl(workspace, id, team)}/auto`, {}),
       onSuccess: refresh,
     }),
   }

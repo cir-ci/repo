@@ -5,8 +5,8 @@ import { listFlakyScreenshots } from '#repositories/flaky.ts'
 import { getTriageRotation, latestDefaultBranchBuildNumber } from '#repositories/triage.ts'
 import {
   builds,
-  organization,
-  projects,
+  workspace,
+  teams,
   screenshotDiffs,
   type SnoozeKind,
   type TriageKind,
@@ -17,7 +17,7 @@ import type { Database } from '#src/client.ts'
 import type { Build } from '#src/types.ts'
 
 /**
- * A project's triage queue: the problems on its default branch that nobody has dealt with.
+ * A team's triage queue: the problems on its default branch that nobody has dealt with.
  * They are derived from builds each time (nothing is stored until someone acts on one):
  *
  *   flaky        a screenshot that keeps changing on the default branch (see `listFlakyScreenshots`);
@@ -27,7 +27,7 @@ import type { Build } from '#src/types.ts'
  *                completed
  *
  * Integration problems (a git connection that needs attention) are not queue items: they belong
- * to the organization, which has its own banner and the Inbox, not to one project's triage.
+ * to the workspace, which has its own banner and the Inbox, not to one team's triage.
  */
 
 export namespace listTriage {
@@ -37,7 +37,7 @@ export namespace listTriage {
     key: string
     /** The screenshot it is about; null for a failed build. */
     snapshotName: string | null
-    project: { slug: string; name: string }
+    team: { slug: string; name: string }
     build: {
       number: number
       branch: string | null
@@ -72,17 +72,17 @@ type BuildRef = listTriage.Item['build']
 /** Dismissed items are left out; snoozed ones are included and marked. Newest problems first. */
 export async function listTriage(
   db: Database,
-  input: { projectId: string; now: Date },
+  input: { teamId: string; now: Date },
 ): Promise<listTriage.Queue> {
   const [row] = await db
-    .select({ project: projects, orgSlug: organization.slug })
-    .from(projects)
-    .innerJoin(organization, eq(organization.id, projects.orgId))
-    .where(eq(projects.id, input.projectId))
+    .select({ team: teams, workspaceSlug: workspace.slug })
+    .from(teams)
+    .innerJoin(workspace, eq(workspace.id, teams.workspaceId))
+    .where(eq(teams.id, input.teamId))
   if (!row) return { items: [], rotation: { members: [], onTriage: null, until: null } }
-  const { project } = row
-  const projectRef = { slug: project.slug, name: project.name }
-  const branch = project.defaultBranch
+  const { team } = row
+  const teamRef = { slug: team.slug, name: team.name }
+  const branch = team.defaultBranch
 
   const found: { kind: TriageKind; key: string; snapshotName: string | null; build: BuildRef }[] =
     []
@@ -96,7 +96,7 @@ export async function listTriage(
   }
 
   // Flaky: the latest default-branch build in which each flaky name changed.
-  const { flaky } = await listFlakyScreenshots(db, project.id)
+  const { flaky } = await listFlakyScreenshots(db, team.id)
   if (flaky.length > 0) {
     const rows = await db
       .selectDistinctOn([screenshotDiffs.name], { name: screenshotDiffs.name, build: buildRef })
@@ -104,7 +104,7 @@ export async function listTriage(
       .innerJoin(builds, eq(builds.id, screenshotDiffs.buildId))
       .where(
         and(
-          eq(builds.projectId, project.id),
+          eq(builds.teamId, team.id),
           eq(builds.branch, branch),
           eq(builds.status, 'complete'),
           eq(screenshotDiffs.status, 'changed'),
@@ -130,7 +130,7 @@ export async function listTriage(
     .innerJoin(builds, eq(builds.id, screenshotDiffs.buildId))
     .where(
       and(
-        eq(builds.projectId, project.id),
+        eq(builds.teamId, team.id),
         eq(builds.branch, branch),
         eq(builds.status, 'complete'),
         eq(builds.baselineSource, 'none'),
@@ -142,7 +142,7 @@ export async function listTriage(
             .innerJoin(later, eq(later.id, laterDiff.buildId))
             .where(
               and(
-                eq(later.projectId, project.id),
+                eq(later.teamId, team.id),
                 eq(later.branch, branch),
                 eq(later.status, 'complete'),
                 gt(later.number, builds.number),
@@ -163,7 +163,7 @@ export async function listTriage(
     .from(builds)
     .where(
       and(
-        eq(builds.projectId, project.id),
+        eq(builds.teamId, team.id),
         eq(builds.branch, branch),
         eq(builds.status, 'error'),
         notExists(
@@ -172,7 +172,7 @@ export async function listTriage(
             .from(later)
             .where(
               and(
-                eq(later.projectId, project.id),
+                eq(later.teamId, team.id),
                 eq(later.branch, branch),
                 eq(later.status, 'complete'),
                 gt(later.number, builds.number),
@@ -191,9 +191,9 @@ export async function listTriage(
     .select({ item: triageItems, assignee: { id: user.id, name: user.name } })
     .from(triageItems)
     .leftJoin(user, eq(user.id, triageItems.assigneeId))
-    .where(eq(triageItems.projectId, project.id))
+    .where(eq(triageItems.teamId, team.id))
   const stateOf = new Map(states.map((s) => [`${s.item.kind}\u0000${s.item.key}`, s]))
-  const latestPush = found.length > 0 ? await latestDefaultBranchBuildNumber(db, project.id) : 0
+  const latestPush = found.length > 0 ? await latestDefaultBranchBuildNumber(db, team.id) : 0
 
   const items: listTriage.Item[] = []
   for (const f of found) {
@@ -210,7 +210,7 @@ export async function listTriage(
       kind: f.kind,
       key: f.key,
       snapshotName: f.snapshotName,
-      project: projectRef,
+      team: teamRef,
       build: f.build,
       assignee: s?.assignee?.id ? { id: s.assignee.id, name: s.assignee.name } : null,
       snoozedUntil: snoozed ? until : null,
@@ -225,7 +225,7 @@ export async function listTriage(
       a.key.localeCompare(b.key),
   )
 
-  const rotation = await getTriageRotation(db, project.id)
+  const rotation = await getTriageRotation(db, team.id)
   const onTriage = rotation.startsOn
     ? rotationFor(input.now, rotation.members, rotation.startsOn)
     : null
@@ -239,10 +239,10 @@ export async function listTriage(
   }
 }
 
-/** How many items wait in a project's queue: not snoozed, not dismissed. */
+/** How many items wait in a team's queue: not snoozed, not dismissed. */
 export async function countOpenTriage(
   db: Database,
-  input: { projectId: string; now: Date },
+  input: { teamId: string; now: Date },
 ): Promise<number> {
   const queue = await listTriage(db, input)
   return queue.items.filter((i) => !i.snoozed).length

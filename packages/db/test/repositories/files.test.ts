@@ -1,4 +1,4 @@
-import { createTestDb, seedProject, sha } from '@circi/testing'
+import { createTestDb, seedTeam, sha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -17,13 +17,13 @@ const keyFor = (s: string) => `${s.slice(0, 2)}/${s}/gen`
 const png = (s: string) => ({ sha256: s, size: 10, contentType: 'image/png' })
 
 async function newBuild(overrides: Partial<Parameters<typeof createBuild>[1]> = {}) {
-  const { project } = await seedProject(t.db)
+  const { team } = await seedTeam(t.db)
   const build = await createBuild(t.db, {
-    projectId: project.id,
+    teamId: team.id,
     commitSha: 'abc1234',
     ...overrides,
   })
-  return { project, build }
+  return { team, build }
 }
 
 describe('planUploads (verify before dedup)', () => {

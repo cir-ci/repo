@@ -14,7 +14,7 @@ import { render } from 'vitest-browser-react'
 import { resetStores } from '#lib/stores/index.ts'
 
 export interface RenderPageOptions {
-  /** The route's path pattern ("/$org/$project/sites"); "/" by default. */
+  /** The route's path pattern ("/$workspace/$team/sites"); "/" by default. */
   route?: string
   /** The address to open ("/acme/web/sites?x=1"); the route itself by default. */
   url?: string

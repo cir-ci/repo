@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { createUser, setupCode, verifyProjectToken } from '@circi/auth'
+import { createUser, setupCode, verifyTeamToken } from '@circi/auth'
 import type { Auth } from '@circi/auth'
 import { countUsers, recordPublicUrl } from '@circi/db'
 import { FsStorage } from '@circi/storage'
@@ -22,7 +22,7 @@ let dir: string
 let auth: Auth
 let dir2: string
 
-async function serverWith(orgCreation?: 'admin' | 'anyone'): Promise<FastifyInstance> {
+async function serverWith(workspaceCreation?: 'admin' | 'anyone'): Promise<FastifyInstance> {
   const app = buildServer({
     logger: pino({ level: 'silent' }),
     checks: [],
@@ -32,7 +32,7 @@ async function serverWith(orgCreation?: 'admin' | 'anyone'): Promise<FastifyInst
       storage: new FsStorage({ path: join(dir, 'files') }),
       publicOrigin: ORIGIN,
       authSecret: SECRET,
-      ...(orgCreation ? { orgCreation } : {}),
+      ...(workspaceCreation ? { workspaceCreation } : {}),
     },
   })
   await app.ready()
@@ -70,7 +70,7 @@ describe('first-run setup', () => {
       name: 'First Admin',
       email: 'Admin@Acme.test',
       password: PASSWORD,
-      organizationName: 'Acme Inc',
+      workspaceName: 'Acme Inc',
     }
     const wrong = await post(app, '/api/setup', { ...input, code: 'nope' })
     expect(wrong.statusCode).toBe(403)
@@ -86,15 +86,15 @@ describe('first-run setup', () => {
 
     const ok = await post(app, '/api/setup', { ...input, code: setupCode(SECRET) })
     expect(ok.statusCode).toBe(201)
-    expect(ok.json()).toEqual({ email: 'admin@acme.test', organization: { slug: 'acme-inc' } })
+    expect(ok.json()).toEqual({ email: 'admin@acme.test', workspace: { slug: 'acme-inc' } })
 
-    // The new account signs in and owns the organization.
+    // The new account signs in and owns the workspace.
     const cookie = await signIn(app, 'admin@acme.test', PASSWORD)
     const caps = await app.inject({ method: 'GET', url: '/api/capabilities', headers: { cookie } })
     expect(caps.json()).toEqual({
-      canCreateOrganization: true,
-      refusingOrganizations: [],
-      manageableOrganizations: [{ slug: 'acme-inc', name: 'Acme Inc' }],
+      canCreateWorkspace: true,
+      refusingWorkspaces: [],
+      manageableWorkspaces: [{ slug: 'acme-inc', name: 'Acme Inc' }],
     })
 
     // Setup is gone for good.
@@ -123,85 +123,85 @@ describe('first-run setup', () => {
   })
 })
 
-describe('creating organizations and projects', () => {
-  it('limits organization creation to instance admins by default', async () => {
+describe('creating workspaces and teams', () => {
+  it('limits workspace creation to instance admins by default', async () => {
     const app = await serverWith()
     const admin = await signIn(app, 'admin@acme.test', PASSWORD)
     await createUser(auth, { email: 'plain@acme.test', name: 'Plain', password: PASSWORD })
     const plain = await signIn(app, 'plain@acme.test', PASSWORD)
 
-    const denied = await post(app, '/api/organizations', { name: 'Mine' }, plain)
+    const denied = await post(app, '/api/workspaces', { name: 'Mine' }, plain)
     expect(denied.statusCode).toBe(403)
-    const allowed = await post(app, '/api/organizations', { name: 'Second Org' }, admin)
+    const allowed = await post(app, '/api/workspaces', { name: 'Second Workspace' }, admin)
     expect(allowed.statusCode).toBe(201)
-    expect(allowed.json().organization).toEqual({ slug: 'second-org', name: 'Second Org' })
+    expect(allowed.json().workspace).toEqual({ slug: 'second-workspace', name: 'Second Workspace' })
     const caps = await app.inject({
       method: 'GET',
       url: '/api/capabilities',
       headers: { cookie: plain },
     })
     expect(caps.json()).toEqual({
-      canCreateOrganization: false,
-      manageableOrganizations: [],
-      refusingOrganizations: [],
+      canCreateWorkspace: false,
+      manageableWorkspaces: [],
+      refusingWorkspaces: [],
     })
     await app.close()
   })
 
-  it('lets anyone create one with ORG_CREATION=anyone, and they own it', async () => {
+  it('lets anyone create one with WORKSPACE_CREATION=anyone, and they own it', async () => {
     const app = await serverWith('anyone')
     const plain = await signIn(app, 'plain@acme.test', PASSWORD)
-    const res = await post(app, '/api/organizations', { name: 'Plain Org' }, plain)
+    const res = await post(app, '/api/workspaces', { name: 'Plain Workspace' }, plain)
     expect(res.statusCode).toBe(201)
-    const project = await post(
+    const team = await post(
       app,
-      '/api/organizations/plain-org/projects',
+      '/api/workspaces/plain-workspace/teams',
       { name: 'Web App' },
       plain,
     )
-    expect(project.statusCode).toBe(201)
-    expect(project.json().project).toEqual({ slug: 'web-app', name: 'Web App' })
-    expect(project.json().token).toMatch(/^circi_/)
+    expect(team.statusCode).toBe(201)
+    expect(team.json().team).toEqual({ slug: 'web-app', name: 'Web App' })
+    expect(team.json().token).toMatch(/^circi_/)
     await app.close()
   })
 
-  it('creates projects only for owners and admins, hiding other organizations', async () => {
+  it('creates teams only for owners and admins, hiding other workspaces', async () => {
     const app = await serverWith()
     const admin = await signIn(app, 'admin@acme.test', PASSWORD)
     const plain = await signIn(app, 'plain@acme.test', PASSWORD)
-    // `plain` is not in acme-inc at all: same answer as for a missing organization.
+    // `plain` is not in acme-inc at all: same answer as for a missing workspace.
     expect(
-      (await post(app, '/api/organizations/acme-inc/projects', { name: 'X' }, plain)).statusCode,
+      (await post(app, '/api/workspaces/acme-inc/teams', { name: 'X' }, plain)).statusCode,
     ).toBe(404)
+    expect((await post(app, '/api/workspaces/nope/teams', { name: 'X' }, plain)).statusCode).toBe(
+      404,
+    )
     expect(
-      (await post(app, '/api/organizations/nope/projects', { name: 'X' }, plain)).statusCode,
-    ).toBe(404)
-    expect(
-      (await post(app, '/api/organizations/acme-inc/projects', { name: 'Site' }, admin)).statusCode,
+      (await post(app, '/api/workspaces/acme-inc/teams', { name: 'Site' }, admin)).statusCode,
     ).toBe(201)
     // Same name twice: a conflict, not a crash.
     expect(
-      (await post(app, '/api/organizations/acme-inc/projects', { name: 'Site' }, admin)).statusCode,
+      (await post(app, '/api/workspaces/acme-inc/teams', { name: 'Site' }, admin)).statusCode,
     ).toBe(409)
     await app.close()
   })
 
-  it('rotates a project token, and the old one stops working', async () => {
+  it('rotates a team token, and the old one stops working', async () => {
     const app = await serverWith('anyone')
     const plain = await signIn(app, 'plain@acme.test', PASSWORD)
     const created = (
-      await post(app, '/api/organizations/plain-org/projects', { name: 'Rotating' }, plain)
+      await post(app, '/api/workspaces/plain-workspace/teams', { name: 'Rotating' }, plain)
     ).json()
-    const rotated = await post(app, '/api/projects/plain-org/rotating/token', {}, plain)
+    const rotated = await post(app, '/api/teams/plain-workspace/rotating/token', {}, plain)
     expect(rotated.statusCode).toBe(200)
     expect(rotated.json().token).toMatch(/^circi_/)
     expect(rotated.json().token).not.toBe(created.token)
-    expect(await verifyProjectToken(auth, t.db, created.token)).toBeUndefined()
-    expect(await verifyProjectToken(auth, t.db, rotated.json().token)).toBeDefined()
+    expect(await verifyTeamToken(auth, t.db, created.token)).toBeUndefined()
+    expect(await verifyTeamToken(auth, t.db, rotated.json().token)).toBeDefined()
     const admin = await signIn(app, 'admin@acme.test', PASSWORD)
-    expect((await post(app, '/api/projects/plain-org/rotating/token', {}, admin)).statusCode).toBe(
-      404,
-    )
+    expect(
+      (await post(app, '/api/teams/plain-workspace/rotating/token', {}, admin)).statusCode,
+    ).toBe(404)
     await app.close()
   })
 })

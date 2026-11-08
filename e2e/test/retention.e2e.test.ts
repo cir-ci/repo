@@ -1,7 +1,7 @@
 import type { Build } from '@circi/api'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createProject, type CreatedProject } from '#src/admin.ts'
+import { createTeam, type CreatedTeam } from '#src/admin.ts'
 import { Repo } from '#src/git-repo.ts'
 import { fileRows, noisePng, parseJsonOutput, sha256Hex } from '#src/storage.ts'
 import { uploadOrThrow } from '#src/upload.ts'
@@ -27,7 +27,7 @@ describe('retention and garbage collection', () => {
   const ctx = useStack({ dedicated: true, setup: true })
   const browser = useBrowser()
   let repo: Repo
-  let project: CreatedProject
+  let team: CreatedTeam
   const shots = {
     shared: undefined as Buffer | undefined,
     mine: undefined as Buffer | undefined,
@@ -43,11 +43,11 @@ describe('retention and garbage collection', () => {
     parseJsonOutput<Retention>(await ctx.stack.cli('storage', 'gc', '--grace-hours', '1'))
   const rowOf = async (bytes: Buffer) =>
     (await fileRows(ctx.stack, `sha256 = '${sha256Hex(bytes)}'`))[0]
-  const upload = () => uploadOrThrow({ stack: ctx.stack, token: project.token, repo, wait: true })
+  const upload = () => uploadOrThrow({ stack: ctx.stack, token: team.token, repo, wait: true })
   const status = async (n: number) =>
     (
       await ctx.setup.session.get<Build.Detail>(
-        `/api/projects/${ctx.setup.organization.slug}/${project.slug}/builds/${n}`,
+        `/api/teams/${ctx.setup.workspace.slug}/${team.slug}/builds/${n}`,
       )
     ).build.status
   const backdateBuild = (sha: string) =>
@@ -57,11 +57,10 @@ describe('retention and garbage collection', () => {
 
   beforeAll(async () => {
     repo = await Repo.create()
-    project = await createProject(ctx.setup.session, ctx.setup.organization.slug, 'Retained')
-    await ctx.setup.session.patch(
-      `/api/projects/${ctx.setup.organization.slug}/${project.slug}/settings`,
-      { retentionDays: 7 },
-    )
+    team = await createTeam(ctx.setup.session, ctx.setup.workspace.slug, 'Retained')
+    await ctx.setup.session.patch(`/api/teams/${ctx.setup.workspace.slug}/${team.slug}/settings`, {
+      retentionDays: 7,
+    })
   })
   afterAll(async () => {
     await repo.destroy()
@@ -117,11 +116,11 @@ describe('retention and garbage collection', () => {
   it('shows an expired build as expired in the dashboard', async () => {
     const page = await browser.as(ctx.setup.session)
     await page.goto(
-      `${ctx.stack.url}/${ctx.setup.organization.slug}/${project.slug}/builds/${first.build.number}`,
+      `${ctx.stack.url}/${ctx.setup.workspace.slug}/${team.slug}/builds/${first.build.number}`,
     )
     await page.getByText('This build has expired').waitFor()
     await page
-      .getByText('Its screenshots were deleted under the project’s retention policy.')
+      .getByText('Its screenshots were deleted under the team’s retention policy.')
       .waitFor()
     expect(await page.getByRole('navigation', { name: 'Screenshots' }).count()).toBe(0)
   })

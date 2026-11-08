@@ -30,7 +30,7 @@ function fakeTrackers(options: { down?: boolean } = {}) {
       const query = String(Reflect.get(Object(body), 'query'))
       if (query.includes('viewer')) {
         return Response.json({
-          data: { viewer: { id: 'u1', organization: { id: 'org-1', name: 'Acme Linear' } } },
+          data: { viewer: { id: 'u1', organization: { id: 'workspace-1', name: 'Acme Linear' } } },
         })
       }
       return Response.json({
@@ -58,7 +58,7 @@ describe('linear', () => {
     const { ctx, calls } = fakeTrackers()
     const connected = await linear.connect?.({ apiKey: 'lin_good' }, ctx)
     expect(connected).toEqual({
-      externalId: 'org-1',
+      externalId: 'workspace-1',
       displayName: 'Acme Linear',
       credentials: JSON.stringify({ kind: 'linear', apiKey: 'lin_good' }),
     })
@@ -75,7 +75,7 @@ describe('linear', () => {
     ).rejects.toBeInstanceOf(IntegrationUnreachableError)
   })
 
-  it('lists the teams as targets and builds its tracker from the stored credentials', async () => {
+  it('lists the Jira projects as targets and builds its tracker from the stored credentials', async () => {
     const { ctx } = fakeTrackers()
     const credentials = JSON.stringify({ kind: 'linear', apiKey: 'lin_good' })
     expect(await linear.mapping?.listTargets?.(credentials, ctx)).toEqual([
@@ -140,7 +140,7 @@ describe('jira', () => {
     )
   })
 
-  it('lists the projects as targets', async () => {
+  it('lists the Jira projects as targets', async () => {
     const credentials = JSON.stringify({
       kind: 'jira',
       siteUrl: 'https://acme.atlassian.net',

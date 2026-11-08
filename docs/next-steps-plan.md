@@ -23,10 +23,10 @@ given while planning:
 | Build author | The CLI sends it at upload (`GITHUB_ACTOR`, the CI's own variable, or `--author`); a connected git host's PR author replaces it; matched to a member through their linked sign-in account |
 | Email | In-app by default. Email only for "review requested" and "overdue", only when SMTP is configured, and each user can turn it off |
 | After approving from Inbox or Reviews | Move to the next item |
-| Figma comments | Posted through the organisation's connection, naming the reviewer in the text. Per-user Figma sign-in later |
+| Figma comments | Posted through the workspace's connection, naming the reviewer in the text. Per-user Figma sign-in later |
 | Design difference | Never fails the check |
 | Frame as first baseline | No approval of its own; linking is enough; the first approved build replaces it |
-| Triage rotation | Per project |
+| Triage rotation | Per team |
 
 Colour, type, radii, row heights, status glyphs, keys, words, navigation and integration groups
 are as on the canvas and are not repeated here.
@@ -46,9 +46,9 @@ path. These points differ from it or need noting:
 3. **Flaky is amber on the canvas, neutral in code.** The Status board maps a flaky snapshot to
    needs-review (amber ~). `screenshotStatus` in `apps/web/src/features/builds/diff-status.ts` and
    `design-gaps.md` §8 map it to neutral. This plan follows the canvas.
-4. **Project colours borrow state colours.** Foundations says chart ink is neutral, and Insights
-   uses teal and crimson only for better/worse. But the project tiles (Figma integration page, the
-   sidebar) colour projects with accent, teal and periwinkle, so a project can look "approved".
+4. **Team colours borrow state colours.** Foundations says chart ink is neutral, and Insights
+   uses teal and crimson only for better/worse. But the team tiles (Figma integration page, the
+   sidebar) colour teams with accent, teal and periwinkle, so a team can look "approved".
    See risk R6.
 5. **The canvas uses nine tokens `theme.ts` lacks:** `accent-hover`, `state-review-text`,
    `annotation`, `annotation-text`, `avatar-text`, `scrim`, `shadow-popup`, `stage`, `glow`.
@@ -104,14 +104,14 @@ layers). Ordered by the ship order.
 
 | # | Item | Files | Depends on | Size | Tests |
 |---|---|---|---|---|---|
-| B0 | **Spike: review requests.** `review_requests` (build, reviewer, requested by, state open, done, superseded or dismissed, `due_at` from the project's review target, snooze fields). `requestReview` and auto-close of superseded requests in `finalizeBuild` (same branch, newer build). `reviewBuild` closes the build's requests. Overdue rule in `@circi/core` (pure). Dashboard routes and `Review.Request` wire types | `packages/db/src/schema/review-requests.ts`, `repositories/review-requests.ts`, `queries/reviews.ts`; `packages/services/src/reviews.ts`, `builds.ts`; `packages/core/src/review-target.ts`; `apps/server/src/http/routes/dashboard/reviews.ts`; `packages/api/src/review.ts`; seeders in `packages/testing/src/seed/reviews.ts` | — | M | Services test: request, then a newer build supersedes it, then approve closes it; core unit test for overdue at boundaries; route test via `app.inject` signed in through `/api/auth`; `layers.test.ts` still passes |
+| B0 | **Spike: review requests.** `review_requests` (build, reviewer, requested by, state open, done, superseded or dismissed, `due_at` from the team's review target, snooze fields). `requestReview` and auto-close of superseded requests in `finalizeBuild` (same branch, newer build). `reviewBuild` closes the build's requests. Overdue rule in `@circi/core` (pure). Dashboard routes and `Review.Request` wire types | `packages/db/src/schema/review-requests.ts`, `repositories/review-requests.ts`, `queries/reviews.ts`; `packages/services/src/reviews.ts`, `builds.ts`; `packages/core/src/review-target.ts`; `apps/server/src/http/routes/dashboard/reviews.ts`; `packages/api/src/review.ts`; seeders in `packages/testing/src/seed/reviews.ts` | — | M | Services test: request, then a newer build supersedes it, then approve closes it; core unit test for overdue at boundaries; route test via `app.inject` signed in through `/api/auth`; `layers.test.ts` still passes |
 | B1 | **Build author.** `builds.author_login`, `author_email`, `author_user_id` (nullable). CLI reads `GITHUB_ACTOR`, `GITLAB_USER_LOGIN`, `BITBUCKET_STEP_TRIGGERER_UUID`, plus `--author`. The v1 and Argos routes accept it; the GitHub `pull_request` payload overrides it; matched to a member by better-auth `account` | `schema/builds.ts`, `repositories/builds.ts`, `packages/cli/src/ci-env.ts`, `upload.ts`, `routes/v1`, `routes/argos`, `github-webhook.ts`, `packages/api/src/build.ts` | — | S | CLI unit test per CI env; route test that the author lands; webhook test that PR author wins; Argos compat test unchanged |
 | B2 | **Notifications.** `notifications` (user, kind, build, actor, payload, `read_at`, `snoozed_until`, `deleted_at`). Kinds: review requested or re-requested, mentioned, your build approved or rejected (with reason), overdue, connection needs attention, flaky detected. Written inside services' transactions. Cross-clearing: acting on a build in Reviews marks its notifications read; acting in Inbox closes the request. Per-user email preferences; worker email job (SMTP only) | `schema/notifications.ts`, `repositories/notifications.ts`, `queries/inbox.ts`, `services/src/notifications.ts` (+ hooks in `reviews.ts`, `builds.ts`), `apps/worker/src/jobs/send-email.ts`, `routes/dashboard/inbox.ts`, `packages/api/src/notification.ts` | B0, B1 | M | Services test per kind: notification exists exactly when the change commits (roll back → none); cross-clearing both ways; worker test with the SMTP fake |
 | B3 | **Overdue sweep and snooze.** Periodic worker job marking overdue requests and notifying once; snooze (until next push, tomorrow, next week, date) for requests, notifications and triage items, one core helper | `apps/worker/src/jobs/review-sweep.ts`, `packages/core/src/snooze.ts`, `runner.ts` | B0, B2 | S | Core tests for each snooze option ("until next push" wakes on the next build on the branch); worker test that a sweep notifies once |
-| B4 | **Search, filters, saved views, bulk, pins.** One search query (build number, branch, PR, project, snapshot name) for ⌘K. Builds query filters (status, branch, author, reviewer, build name, date) as URL params. `saved_views` (user, org, name, filter JSON, pinned). `reviewBuilds` bulk service in one transaction. `user_pinned_projects` | `queries/search.ts`, `queries/builds.ts`, `schema/views.ts`, `repositories/views.ts`, `services/src/reviews.ts` (bulk), routes | B1 | M | Query tests on seeded data per filter; bulk approve of 3 builds queues exactly 3 sets of notices; saved-view CRUD route tests |
-| B5 | **Review rules and triage.** `review_rules` (project, snapshot-name or build-name glob, reviewers) resolved in `finalizeBuild` into review requests. Triage rotation on the project (members, weekly). Triage read model (flaky, no baseline, failed); `triage_items` state (assignee, snoozed, dismissed). Ignore-region writes from the dashboard | `schema/review-rules.ts`, `schema/triage.ts`, repositories, `queries/triage.ts`, `services/src/builds.ts`, `routes/dashboard/{rules,triage,ignore-regions}.ts`, `packages/core/src/rules.ts` | B0 | L | Core glob-matching tests; services test: rule → request on finalize; rotation picks this week's person; triage query on seeded flaky, orphan and failed builds |
+| B4 | **Search, filters, saved views, bulk, pins.** One search query (build number, branch, PR, team, snapshot name) for ⌘K. Builds query filters (status, branch, author, reviewer, build name, date) as URL params. `saved_views` (user, workspace, name, filter JSON, pinned). `reviewBuilds` bulk service in one transaction. `user_pinned_teams` | `queries/search.ts`, `queries/builds.ts`, `schema/views.ts`, `repositories/views.ts`, `services/src/reviews.ts` (bulk), routes | B1 | M | Query tests on seeded data per filter; bulk approve of 3 builds queues exactly 3 sets of notices; saved-view CRUD route tests |
+| B5 | **Review rules and triage.** `review_rules` (team, snapshot-name or build-name glob, reviewers) resolved in `finalizeBuild` into review requests. Triage rotation on the team (members, weekly). Triage read model (flaky, no baseline, failed); `triage_items` state (assignee, snoozed, dismissed). Ignore-region writes from the dashboard | `schema/review-rules.ts`, `schema/triage.ts`, repositories, `queries/triage.ts`, `services/src/builds.ts`, `routes/dashboard/{rules,triage,ignore-regions}.ts`, `packages/core/src/rules.ts` | B0 | L | Core glob-matching tests; services test: rule → request on finalize; rotation picks this week's person; triage query on seeded flaky, orphan and failed builds |
 | B6 | **Comments and activity.** `comments` (build, snapshot name, region rect, body, author, parent) with @mentions → notifications. Reject reason on `reviews`. Activity timeline query from `reviews.source`, `build_checks`, jobs and comments | `schema/comments.ts`, `schema/reviews.ts`, repositories, `queries/activity.ts`, `services/src/comments.ts`, routes, `packages/api/src/comment.ts` | B2 | M | Mention parsing in core; services test: a mention notifies, a self-mention doesn't; timeline query order |
-| B7 | **Baselines and Insights.** Baselines read model (snapshots on the default branch with their source build). Insights aggregates: time to review, builds reviewed, change rate, flaky trend, storage per project, reviewer load | `queries/baselines.ts`, `queries/insights.ts`, routes, `packages/api/src/insights.ts` | B0, B1 | M | Query tests on seeded history with known answers |
+| B7 | **Baselines and Insights.** Baselines read model (snapshots on the default branch with their source build). Insights aggregates: time to review, builds reviewed, change rate, flaky trend, storage per team, reviewer load | `queries/baselines.ts`, `queries/insights.ts`, routes, `packages/api/src/insights.ts` | B0, B1 | M | Query tests on seeded history with known answers |
 
 **Parallel:** B0 alone (gate). Then B1, B5 and B7 start at once; B2 starts when B1 lands; B3, B4
 and B6 follow B2/B1. In practice: wave 1 = B1, B5, B7; wave 2 = B2, B4; wave 3 = B3, B6. The lead
@@ -125,7 +125,7 @@ Outcome: the Screens page is real, in ship order, in both schemes. Logic lives i
 
 | # | Item | Files | Depends on | Size | Tests |
 |---|---|---|---|---|---|
-| C0 | **Spike: the shell and keyboard layer.** Sidebar to the canvas order (Search, Inbox, Reviews, Projects, Insights, Settings; pinned then A–Z projects with Builds, Triage, Baselines, Settings; Your views). Settings layout with the sectioned SettingsNav on every settings page; Members moves under Organisation. One shortcut registry: G-chords, `?`, ⌘K, J/K moving selection and focus together, ⌘⇧C | `apps/web/src/app/{Sidebar,Shell,router,shell-model}.tsx`, new `src/app/SettingsLayout.tsx`, `src/lib/shortcuts.ts` (from `features/builds/shortcuts.ts`), route moves in `features/members`, `features/account` | A, B4 (pins) | M | `shell-model` logic tests (ordering, counts); browser tests: G I goes to Inbox, J/K moves focus, settings pages share the nav |
+| C0 | **Spike: the shell and keyboard layer.** Sidebar to the canvas order (Search, Inbox, Reviews, Teams, Insights, Settings; pinned then A–Z teams with Builds, Triage, Baselines, Settings; Your views). Settings layout with the sectioned SettingsNav on every settings page; Members moves under Workspace. One shortcut registry: G-chords, `?`, ⌘K, J/K moving selection and focus together, ⌘⇧C | `apps/web/src/app/{Sidebar,Shell,router,shell-model}.tsx`, new `src/app/SettingsLayout.tsx`, `src/lib/shortcuts.ts` (from `features/builds/shortcuts.ts`), route moves in `features/members`, `features/account` | A, B4 (pins) | M | `shell-model` logic tests (ordering, counts); browser tests: G I goes to Inbox, J/K moves focus, settings pages share the nav |
 | C1 | **Reviews.** Tabs (for you, created by you, snoozed), overdue badge, snooze menu, request review ⇧R, next item after approving | `features/reviews/` | C0, B0, B3 | M | `api.ts` tests; browser test: approve moves to the next item and clears the Inbox entry |
 | C2 | **Inbox.** For you or Everything, read/unread (U), snooze (H), delete (⌫), "Also in Reviews" tag, Snoozed view, Pane | `features/inbox/` | C0, B2, B3 | M | Same pattern as C1 |
 | C3 | **Build review updates.** Details, Activity and Comments tabs; region comments; reject with a reason; ⇧R; the new glyphs; Design mode slot (empty until D5) | `features/builds/*` | C0, B6 | M | Browser tests for the reject dialog and a comment on a region |
@@ -133,7 +133,7 @@ Outcome: the Screens page is real, in ship order, in both schemes. Logic lives i
 | C5 | **⌘K and shortcuts help.** Command menu (jump, actions in context, quick look); `?` dialog grouped, generated from the registry | `features/command/`, `features/builds/ShortcutsDialog.tsx` → `src/app/` | C0, B4 | M | Registry test: every shortcut appears in help; browser test: ⌘K, type "#148", enter |
 | C6 | **Triage.** Queue groups, filmstrip (with ~ glyphs for A3 of the review), accept, ignore region (I), assign to me (M), snooze (H), rotation chip | `features/triage/` | C0, B5 | M | Browser test for each action key |
 | C7 | **Baselines** page | `features/baselines/` | C0, B7 | S | Browser test |
-| C8 | **Settings pages.** Reviews and triage (rules, review target, auto-close); Account › Notifications and Appearance; Organisation › Storage and retention | `features/settings/*` | C0, B2, B5 | M | Form logic tests; browser tests for save |
+| C8 | **Settings pages.** Reviews and triage (rules, review target, auto-close); Account › Notifications and Appearance; Workspace › Storage and retention | `features/settings/*` | C0, B2, B5 | M | Form logic tests; browser tests for save |
 | C9 | **Insights** | `features/insights/` | C0, B7 | M | Chart data shaping in `lib/` tested in Node; one browser test |
 
 **Parallel:** C0 alone (gate). Then by ship order: wave 1 = C1, C2, C3; wave 2 = C4, C5, C6;
@@ -147,35 +147,35 @@ found, to pick up in a follow-up wave:
 - No per-snapshot approval route: Triage's "Accept as baseline" and the Command menu's "approve"
   approve the whole build.
 - No snapshot-history endpoint: Triage's filmstrip fetches up to five build details.
-- No bulk request-review route (C4 loops over the builds), no org-wide builds list (saved views
-  with no project show an empty state), no author or reviewer suggestions, no server-side sort or
+- No bulk request-review route (C4 loops over the builds), no workspace-wide builds list (saved views
+  with no team show an empty state), no author or reviewer suggestions, no server-side sort or
   group on the builds list.
-- No org rename or org-level retention endpoint (Organisation › General and Storage are read-only).
-- Rules cannot be reordered; the Sites page lost its sidebar entry (still linked from the project).
-- Triage's snooze list and `countOpenTriage` (one triage query per project) are not optimised.
+- No workspace rename or workspace-level retention endpoint (Workspace › General and Storage are read-only).
+- Rules cannot be reordered; the Sites page lost its sidebar entry (still linked from the team).
+- Triage's snooze list and `countOpenTriage` (one triage query per team) are not optimised.
 - Keyboard: no way to draw a comment region without a mouse; J/K cannot enter a collapsed group.
 - Canvas Foundations note still says crimson/amber "still need to land in theme.ts" (A0 is
   merged): update it.
 
 ## 7. Phase D: integrations
 
-Outcome: organisation-level Integrations page and Add dialog, with GitHub, GitLab, Bitbucket,
+Outcome: workspace-level Integrations page and Add dialog, with GitHub, GitLab, Bitbucket,
 Slack, Linear, Jira and Figma working. Azure DevOps, Teams and Penpot show as Planned. Every
 external service is tested against a fake at its edge, and the docs say so.
 
 **Missing designs first.** The canvas has a page for Figma only. Before D1, D3 and D4, the canvas
-needs: git-host repository-to-project mapping, Slack channel mapping, and the Linear/Jira
-team-or-project mapping and the "Create issue" dialog. That is a design task on the canvas
+needs: git-host repository-to-team mapping, Slack channel mapping, and the Linear/Jira
+team-or-team mapping and the "Create issue" dialog. That is a design task on the canvas
 (not part of this plan's code work).
 
 | # | Item | Files | Depends on | Size | Tests |
 |---|---|---|---|---|---|
-| D0 | **Spike: the integration model.** `GitProvider` interface (report status, upsert summary comment, verify webhooks, list repositories); `github.ts` implements it with no behaviour change. `provider_connections`: generic `external_id` and encrypted credentials (reuse the encryption the org OIDC secrets use). `integrations` and `integration_projects` tables. Integrations page and Add dialog listing GitHub; the project-level GitHub section goes | `packages/providers/src/{provider,github}.ts`, `schema/git.ts`, `schema/integrations.ts`, repositories, `apps/worker/src/jobs/notify-git.ts`, `features/integrations/`, remove `features/projects/GithubSection.tsx` | A, C0 | L | All existing GitHub tests pass unchanged; new interface contract test that any provider runs; route tests for the list |
-| D1 | **GitLab.** MR status, one summary note, webhook verify, project mapping, sign-in (better-auth provider) | `packages/providers/src/gitlab.ts`, routes, `features/integrations/gitlab/` | D0, design | L | Contract test against a GitLab fake; e2e host fake |
+| D0 | **Spike: the integration model.** `GitProvider` interface (report status, upsert summary comment, verify webhooks, list repositories); `github.ts` implements it with no behaviour change. `provider_connections`: generic `external_id` and encrypted credentials (reuse the encryption the workspace OIDC secrets use). `integrations` and `integration_teams` tables. Integrations page and Add dialog listing GitHub; the team-level GitHub section goes | `packages/providers/src/{provider,github}.ts`, `schema/git.ts`, `schema/integrations.ts`, repositories, `apps/worker/src/jobs/notify-git.ts`, `features/integrations/`, remove `features/teams/GithubSection.tsx` | A, C0 | L | All existing GitHub tests pass unchanged; new interface contract test that any provider runs; route tests for the list |
+| D1 | **GitLab.** MR status, one summary note, webhook verify, team mapping, sign-in (better-auth provider) | `packages/providers/src/gitlab.ts`, routes, `features/integrations/gitlab/` | D0, design | L | Contract test against a GitLab fake; e2e host fake |
 | D2 | **Bitbucket.** Same shape as D1 | `bitbucket.ts`, … | D0, design | L | Same |
-| D3 | **Slack.** OAuth install, channel per project, review requested, overdue and rejected notices through the outbox | `packages/providers/src/slack.ts` (or a new `packages/integrations`), worker job, `features/integrations/slack/` | D0, B2, design | M | Message formatting unit tests; worker test against a Slack fake |
+| D3 | **Slack.** OAuth install, channel per team, review requested, overdue and rejected notices through the outbox | `packages/providers/src/slack.ts` (or a new `packages/integrations`), worker job, `features/integrations/slack/` | D0, B2, design | M | Message formatting unit tests; worker test against a Slack fake |
 | D4 | **Linear and Jira.** "Create issue" on a rejected snapshot with the diff attached; `issue_links` so the build shows the issue | `linear.ts`, `jira.ts`, `schema/issue-links.ts`, build review action | D0, B6, design | M | Fakes for both APIs; services test that the link is stored |
-| D5a | **Figma: connect and link.** Connect, file per project, `figma_links` (pattern, file and node, how linked), auto-link by name; frame in the snapshot header and Peek | `figma.ts`, `schema/figma.ts`, `features/integrations/figma/` | D0 | M | Name-matching tests in core; route tests with a Figma fake |
+| D5a | **Figma: connect and link.** Connect, file per team, `figma_links` (pattern, file and node, how linked), auto-link by name; frame in the snapshot header and Peek | `figma.ts`, `schema/figma.ts`, `features/integrations/figma/` | D0 | M | Name-matching tests in core; route tests with a Figma fake |
 | D5b | **Figma: Design compare.** Worker job exports a frame as PNG at the snapshot's size, cached by frame version; design diff reuses the comparison with its own threshold (default 2%), never blocking; the fifth viewer mode (key 5) | `apps/worker/src/jobs/render-figma.ts`, `packages/core` threshold, `DiffViewer.tsx` | D5a, C3 | L | Worker test with fixture PNGs; core test that design diffs never change the build's conclusion |
 | D5c | **Figma: frames as first baselines.** A new snapshot with no baseline on main compares against its frame | baseline resolution (`packages/core` baselines, process-build) | D5b | M | Baseline-resolution tests: frame used only when no baseline exists; replaced on first approval |
 | D5d | **Figma: post results.** Approve or reject comments on linked frames, through the outbox | `services/src/reviews.ts`, worker job | D5a, B2 | S | Outbox test with the Figma fake |
@@ -205,7 +205,7 @@ the matching B items. D needs A, C0 and its listed B items.
 | R3 | **Parallel migrations collide** on Drizzle's journal | Lead-only migration generation per wave (section 3) |
 | R4 | **Gravatar leaks email hashes** to a third party from a self-hosted instance, and needs `img-src` in the CSP | Instance setting (default on, off for air-gapped installs); computed on the server; the sign-in account picture always wins |
 | R5 | **Dark rejected is borderline for deuteranopia** (ΔE 8.0 from clay) | Shape carries it (filled cross); the A0 separation test pins it so it can't get worse |
-| R6 | **Project tiles reuse state colours**, against "state colour only for state" | Add a small categorical project palette (4–6 tokens, not state hues) in A0, and update the canvas later |
+| R6 | **Team tiles reuse state colours**, against "state colour only for state" | Add a small categorical team palette (4–6 tokens, not state hues) in A0, and update the canvas later |
 | R7 | **Subscriptions** (feature 11) overlap with notifications and Slack | Cut; Slack channels and notifications cover it |
 | R8 | **Interactive boards were never click-tested** in every state; Overlays popup clipping untested | Treat board behaviour as intent; the browser tests in Phase C are the real check |
 | R9 | **Visual baselines churn** with every palette and radius change | Regenerate once per phase (A5, end of each C wave), reviewed by you |

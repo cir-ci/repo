@@ -17,8 +17,8 @@ import styles from './BuildPage.module.css'
 export function BuildPage() {
   const params = useParams({ from: ROUTE })
   const number = Number(params.number)
-  const { data, error, refetch } = useQuery(buildQuery(params.org, params.project, number))
-  useDocumentTitle(`Build #${number}`, params.project)
+  const { data, error, refetch } = useQuery(buildQuery(params.workspace, params.team, number))
+  useDocumentTitle(`Build #${number}`, params.team)
   useProcessingAnnouncement(data)
 
   if (data) return <BuildReview data={data} />
@@ -27,7 +27,7 @@ export function BuildPage() {
   return (
     <div className={styles.page}>
       <PanelHeader>
-        <BuildBreadcrumbs org={params.org} project={params.project} number={number} />
+        <BuildBreadcrumbs workspace={params.workspace} team={params.team} number={number} />
       </PanelHeader>
       {error ? (
         <ErrorState

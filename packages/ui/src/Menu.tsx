@@ -2,6 +2,7 @@ import { Menu as BaseMenu } from '@base-ui/react/menu'
 import type { ReactElement, ReactNode } from 'react'
 
 import { cx } from './cx.ts'
+import { CheckIcon } from './icons.ts'
 
 import styles from './Menu.module.css'
 
@@ -22,7 +23,9 @@ export function Menu({ trigger, items, align = 'start', className, ...rest }: Me
         ? `separator-${items.slice(0, index).filter((e) => e.type === 'separator').length}`
         : entry.type === 'content'
           ? `content-${entry.name}`
-          : `item-${entry.label}`,
+          : entry.type === 'radio-group'
+            ? `radio-group-${entry.name}`
+            : `item-${entry.label}`,
   }))
   return (
     <BaseMenu.Root {...rest}>
@@ -49,6 +52,27 @@ export function Menu({ trigger, items, align = 'start', className, ...rest }: Me
                 >
                   {entry.node}
                 </div>
+              ) : entry.type === 'radio-group' ? (
+                <BaseMenu.RadioGroup
+                  key={key}
+                  aria-label={entry.name}
+                  value={entry.value}
+                  onValueChange={(value) => entry.onValueChange(String(value))}
+                >
+                  {entry.options.map((option) => (
+                    <BaseMenu.RadioItem
+                      key={option.value}
+                      value={option.value}
+                      closeOnClick={entry.closeOnClick}
+                      className={styles.item}
+                    >
+                      <span className={styles.label}>{option.label}</span>
+                      <BaseMenu.RadioItemIndicator className={styles.check}>
+                        <CheckIcon size={14} />
+                      </BaseMenu.RadioItemIndicator>
+                    </BaseMenu.RadioItem>
+                  ))}
+                </BaseMenu.RadioGroup>
               ) : (
                 <BaseMenu.Item
                   key={key}
@@ -105,7 +129,19 @@ export namespace Menu {
     node: ReactNode
   }
 
-  export type Entry = Item | Separator | Content
+  /** A group of mutually exclusive choices (theme: System, Light, Dark). The chosen one shows a check; arrow keys move, Space or Enter picks. */
+  export interface RadioGroup {
+    type: 'radio-group'
+    /** The group's accessible name and its key. */
+    name: string
+    value: string
+    onValueChange: (value: string) => void
+    options: ReadonlyArray<{ value: string; label: string }>
+    /** Close the menu after a pick (default: it stays open, so a theme can be tried). */
+    closeOnClick?: boolean
+  }
+
+  export type Entry = Item | Separator | Content | RadioGroup
 
   export interface Props extends Omit<BaseMenu.Root.Props, 'children'> {
     trigger: ReactElement<Record<string, unknown>>

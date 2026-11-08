@@ -1,12 +1,12 @@
 import { isSnoozed, overdueBy } from '@circi/core'
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, not, or, sql } from 'drizzle-orm'
 
-import { orgAccepts, type SessionMethod } from '#repositories/auth-settings.ts'
+import { workspaceAccepts, type SessionMethod } from '#repositories/auth-settings.ts'
 import {
   builds,
   member,
-  organization,
-  projects,
+  workspace,
+  teams,
   type ReviewRequestState,
   reviewRequests,
   type SnoozeKind,
@@ -16,8 +16,8 @@ import type { Database } from '#src/client.ts'
 import type { Build } from '#src/types.ts'
 
 /**
- * The review requests a person sees on the Reviews page, across the organizations they belong
- * to (PLAN §8: org isolation). Open requests only; closed ones are history.
+ * The review requests a person sees on the Reviews page, across the workspaces they belong
+ * to (PLAN §8: workspace isolation). Open requests only; closed ones are history.
  */
 
 /** `for-you`: asked of you and awake. `created`: asked by you. `snoozed`: asked of you, put off. */
@@ -29,7 +29,7 @@ export namespace listReviewRequests {
     id: string
     state: ReviewRequestState
     createdAt: Date
-    /** When the project's review target runs out; null when the project has none. */
+    /** When the team's review target runs out; null when the team has none. */
     dueAt: Date | null
     /** Milliseconds past `dueAt`; 0 when on time, snoozed or without a target. */
     overdueByMs: number
@@ -47,8 +47,8 @@ export namespace listReviewRequests {
       conclusion: Build['conclusion']
       reviewStatus: Build['reviewStatus']
     }
-    project: { slug: string; name: string }
-    org: { slug: string; name: string }
+    team: { slug: string; name: string }
+    workspace: { slug: string; name: string }
   }
 }
 
@@ -86,19 +86,18 @@ export async function listReviewRequests(
         conclusion: builds.conclusion,
         reviewStatus: builds.reviewStatus,
       },
-      project: { slug: projects.slug, name: projects.name },
-      org: { slug: organization.slug, name: organization.name },
+      team: { slug: teams.slug, name: teams.name },
+      workspace: { slug: workspace.slug, name: workspace.name },
     })
     .from(reviewRequests)
     .innerJoin(builds, eq(builds.id, reviewRequests.buildId))
-    .innerJoin(projects, eq(projects.id, builds.projectId))
-    .innerJoin(organization, eq(organization.id, projects.orgId))
-    .innerJoin(
-      member,
-      and(eq(member.organizationId, organization.id), eq(member.userId, input.userId)),
-    )
+    .innerJoin(teams, eq(teams.id, builds.teamId))
+    .innerJoin(workspace, eq(workspace.id, teams.workspaceId))
+    .innerJoin(member, and(eq(member.workspaceId, workspace.id), eq(member.userId, input.userId)))
     .innerJoin(user, eq(user.id, reviewRequests.reviewerId))
-    .where(and(eq(reviewRequests.state, 'open'), scope, orgAccepts(organization.id, input.method)))
+    .where(
+      and(eq(reviewRequests.state, 'open'), scope, workspaceAccepts(workspace.id, input.method)),
+    )
     .orderBy(
       sql`${reviewRequests.dueAt} asc nulls last`,
       desc(reviewRequests.createdAt),
@@ -132,8 +131,8 @@ export async function listReviewRequests(
       reviewer: r.reviewer,
       requestedBy: askerOf(r.request.requestedById, askers),
       build: r.build,
-      project: r.project,
-      org: r.org,
+      team: r.team,
+      workspace: r.workspace,
     }
   })
 }

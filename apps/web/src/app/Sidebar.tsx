@@ -18,24 +18,24 @@ import type { SessionUser } from '#lib/auth-client.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 
 import { NavLink } from './NavLink.tsx'
-import { OrgSwitcher } from './OrgSwitcher.tsx'
 import {
   countOrUndefined,
   currentSection,
-  type OrgRef,
+  type WorkspaceRef,
   pinnedViews,
-  readRememberedOrg,
-  rememberOrg,
-  SIDEBAR_PROJECT_LIMIT,
-  sidebarProjects,
+  readRememberedWorkspace,
+  rememberWorkspace,
+  SIDEBAR_TEAM_LIMIT,
+  sidebarTeams,
 } from './shell-model.ts'
-import { useOrgs } from './use-orgs.ts'
+import { useWorkspaces } from './use-workspaces.ts'
+import { WorkspaceSwitcher } from './WorkspaceSwitcher.tsx'
 
 import styles from './Sidebar.module.css'
 
 /**
- * Top to bottom (docs/linear-features-plan.md): the organization switcher, Search, Inbox, Reviews,
- * Projects, Insights, Settings, "Your views", the organization's projects (the open one expands to
+ * Top to bottom (docs/linear-features-plan.md): the workspace switcher, Search, Inbox, Reviews,
+ * Teams, Insights, Settings, "Your views", the workspace's teams (the open one expands to
  * its pages) and the signed-in person. `AppFrame` wraps this in the Main navigation on wide
  * screens; the `Drawer` does on narrow ones.
  */
@@ -45,21 +45,21 @@ export function Sidebar({ user }: Sidebar.Props) {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const section = currentSection(pathname)
   const setCommandMenuOpen = useOverlayStore((s) => s.setCommandMenuOpen)
-  const [chosen, setChosen] = useState(readRememberedOrg)
-  const { orgs, org } = useOrgs(chosen)
-  const { data: model } = useSidebarModel(org?.slug)
-  const { shown, total } = sidebarProjects(model?.projects, SIDEBAR_PROJECT_LIMIT, params.project)
+  const [chosen, setChosen] = useState(readRememberedWorkspace)
+  const { workspaces, workspace } = useWorkspaces(chosen)
+  const { data: model } = useSidebarModel(workspace?.slug)
+  const { shown, total } = sidebarTeams(model?.teams, SIDEBAR_TEAM_LIMIT, params.team)
   const views = pinnedViews(model?.views)
 
-  function switchOrg(next: OrgRef) {
-    rememberOrg(next.slug)
+  function switchWorkspace(next: WorkspaceRef) {
+    rememberWorkspace(next.slug)
     setChosen(next.slug)
     void navigate({ to: '/' })
   }
 
   return (
     <>
-      <OrgSwitcher orgs={orgs} current={org} onSelect={switchOrg} />
+      <WorkspaceSwitcher workspaces={workspaces} current={workspace} onSelect={switchWorkspace} />
       <NavItem
         icon={<SearchIcon />}
         trailing={<Kbd>⌘K</Kbd>}
@@ -75,10 +75,10 @@ export function Sidebar({ user }: Sidebar.Props) {
       >
         Inbox
       </NavLink>
-      {org ? (
+      {workspace ? (
         <NavLink
-          to="/organizations/$org/reviews"
-          params={{ org: org.slug }}
+          to="/workspaces/$workspace/reviews"
+          params={{ workspace: workspace.slug }}
           icon={<ReviewIcon />}
           selected={section === 'reviews'}
           {...counted(model?.reviews, 'waiting')}
@@ -86,23 +86,23 @@ export function Sidebar({ user }: Sidebar.Props) {
           Reviews
         </NavLink>
       ) : null}
-      <NavLink to="/" icon={<FolderOpenIcon />} selected={section === 'projects'}>
-        Projects
+      <NavLink to="/" icon={<FolderOpenIcon />} selected={section === 'teams'}>
+        Teams
       </NavLink>
-      {org ? (
+      {workspace ? (
         <NavLink
-          to="/organizations/$org/insights"
-          params={{ org: org.slug }}
+          to="/workspaces/$workspace/insights"
+          params={{ workspace: workspace.slug }}
           icon={<InsightsIcon />}
           selected={section === 'insights'}
         >
           Insights
         </NavLink>
       ) : null}
-      {org ? (
+      {workspace ? (
         <NavLink
-          to="/organizations/$org/settings"
-          params={{ org: org.slug }}
+          to="/workspaces/$workspace/settings"
+          params={{ workspace: workspace.slug }}
           icon={<SettingsIcon />}
           selected={section === 'settings' || section === 'account'}
         >
@@ -113,13 +113,13 @@ export function Sidebar({ user }: Sidebar.Props) {
           Settings
         </NavLink>
       )}
-      {org && views.length > 0 ? (
+      {workspace && views.length > 0 ? (
         <NavSection label="Your views">
           {views.map((view) => (
             <NavLink
               key={view.id}
-              to="/organizations/$org/views/$view"
-              params={{ org: org.slug, view: view.id }}
+              to="/workspaces/$workspace/views/$view"
+              params={{ workspace: workspace.slug, view: view.id }}
               selected={params.view === view.id}
             >
               {view.name}
@@ -127,20 +127,18 @@ export function Sidebar({ user }: Sidebar.Props) {
           ))}
         </NavSection>
       ) : null}
-      {org && shown.length > 0 ? (
-        <NavSection label="Projects">
-          {shown.map((project) => (
-            <ProjectEntry
-              key={project.slug}
-              org={org.slug}
-              project={project}
-              open={params.project === project.slug && params.org === org.slug}
+      {workspace && shown.length > 0 ? (
+        <NavSection label="Teams">
+          {shown.map((team) => (
+            <TeamEntry
+              key={team.slug}
+              workspace={workspace.slug}
+              team={team}
+              open={params.team === team.slug && params.workspace === workspace.slug}
               section={section}
             />
           ))}
-          {total > SIDEBAR_PROJECT_LIMIT ? (
-            <NavLink to="/">{`All projects (${total})`}</NavLink>
-          ) : null}
+          {total > SIDEBAR_TEAM_LIMIT ? <NavLink to="/">{`All teams (${total})`}</NavLink> : null}
         </NavSection>
       ) : null}
       <div className={styles.footer}>
@@ -156,21 +154,21 @@ const counted = (n: number | undefined, label: string) => {
   return count === undefined ? {} : { count, countTone: 'accent' as const, countLabel: label }
 }
 
-function ProjectEntry({ org, project, open, section }: ProjectEntry.Props) {
-  const params = { org, project: project.slug }
-  const triage = countOrUndefined(project.triage)
+function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
+  const params = { workspace, team: team.slug }
+  const triage = countOrUndefined(team.triage)
   return (
     <>
-      <NavLink to="/$org/$project" params={params} selected={false}>
-        {project.name}
+      <NavLink to="/$workspace/$team" params={params} selected={false}>
+        {team.name}
       </NavLink>
       {open ? (
         <>
-          <NavLink to="/$org/$project" params={params} sub selected={section === 'builds'}>
+          <NavLink to="/$workspace/$team" params={params} sub selected={section === 'builds'}>
             Builds
           </NavLink>
           <NavLink
-            to="/$org/$project/triage"
+            to="/$workspace/$team/triage"
             params={params}
             sub
             selected={section === 'triage'}
@@ -181,7 +179,7 @@ function ProjectEntry({ org, project, open, section }: ProjectEntry.Props) {
             Triage
           </NavLink>
           <NavLink
-            to="/$org/$project/baselines"
+            to="/$workspace/$team/baselines"
             params={params}
             sub
             selected={section === 'baselines'}
@@ -189,10 +187,10 @@ function ProjectEntry({ org, project, open, section }: ProjectEntry.Props) {
             Baselines
           </NavLink>
           <NavLink
-            to="/$org/$project/settings"
+            to="/$workspace/$team/settings"
             params={params}
             sub
-            selected={section === 'project-settings'}
+            selected={section === 'team-settings'}
           >
             Settings
           </NavLink>
@@ -202,10 +200,10 @@ function ProjectEntry({ org, project, open, section }: ProjectEntry.Props) {
   )
 }
 
-namespace ProjectEntry {
+namespace TeamEntry {
   export interface Props {
-    org: string
-    project: { slug: string; name: string; triage: number }
+    workspace: string
+    team: { slug: string; name: string; triage: number }
     open: boolean
     section: ReturnType<typeof currentSection>
   }

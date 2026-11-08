@@ -32,7 +32,7 @@ export async function deliverWebhook(
     deliveryId?: string
     event?: string
     createdAt?: string
-    data?: { organization: { slug: string }; project: { slug: string }; build: { number: number } }
+    data?: { workspace: { slug: string }; team: { slug: string }; build: { number: number } }
   }
   if (!webhookId || !deliveryId || !event || !createdAt || !data) {
     return { status: 'skipped', reason: 'malformed job' }
@@ -53,7 +53,7 @@ export async function deliverWebhook(
 
   const link = deps.publicOrigin
     ? {
-        url: `${deps.publicOrigin}/${data.organization.slug}/${data.project.slug}/builds/${data.build.number}`,
+        url: `${deps.publicOrigin}/${data.workspace.slug}/${data.team.slug}/builds/${data.build.number}`,
       }
     : {}
   const body = JSON.stringify({ id: deliveryId, event, createdAt, ...link, ...data })

@@ -14,28 +14,28 @@ const appearanceRoute = createRoute({
   component: lazyRouteComponent(() => import('./AppearancePage.tsx'), 'AppearancePage'),
 })
 
-const orgGeneralRoute = createRoute({
+const workspaceGeneralRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: 'organizations/$org/settings',
-  component: lazyRouteComponent(() => import('./OrgGeneralPage.tsx'), 'OrgGeneralPage'),
+  path: 'workspaces/$workspace/settings',
+  component: lazyRouteComponent(() => import('./WorkspaceGeneralPage.tsx'), 'WorkspaceGeneralPage'),
 })
 
-const orgStorageRoute = createRoute({
+const workspaceStorageRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: 'organizations/$org/settings/storage',
-  component: lazyRouteComponent(() => import('./OrgStoragePage.tsx'), 'OrgStoragePage'),
+  path: 'workspaces/$workspace/settings/storage',
+  component: lazyRouteComponent(() => import('./WorkspaceStoragePage.tsx'), 'WorkspaceStoragePage'),
 })
 
 const reviewsRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '$org/$project/settings/reviews',
+  path: '$workspace/$team/settings/reviews',
   component: lazyRouteComponent(() => import('./ReviewsSettingsPage.tsx'), 'ReviewsSettingsPage'),
 })
 
 export const settingsRoutes = [
   notificationsRoute,
   appearanceRoute,
-  orgGeneralRoute,
-  orgStorageRoute,
+  workspaceGeneralRoute,
+  workspaceStorageRoute,
   reviewsRoute,
 ]

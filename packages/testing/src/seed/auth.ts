@@ -23,11 +23,11 @@ export async function seedAccount(
   return row
 }
 
-/** A pending invitation to `orgId`, valid for an hour unless `expiresAt` says otherwise. */
+/** A pending invitation to `workspaceId`, valid for an hour unless `expiresAt` says otherwise. */
 export async function seedInvitation(
   db: Database,
   input: {
-    orgId: string
+    workspaceId: string
     inviterId: string
     email: string
     role?: string
@@ -40,7 +40,7 @@ export async function seedInvitation(
     .insert(schema.invitation)
     .values({
       id: `invitation-${n}`,
-      organizationId: input.orgId,
+      workspaceId: input.workspaceId,
       email: input.email,
       role: input.role ?? 'member',
       status: input.status ?? 'pending',
@@ -52,16 +52,16 @@ export async function seedInvitation(
   return row
 }
 
-/** An email domain claimed by `orgId`; verified now unless `verified` is false. */
-export async function seedOrgDomain(
+/** An email domain claimed by `workspaceId`; verified now unless `verified` is false. */
+export async function seedWorkspaceDomain(
   db: Database,
-  input: { orgId: string; domain: string; verified?: boolean },
+  input: { workspaceId: string; domain: string; verified?: boolean },
 ) {
   n += 1
   const [row] = await db
-    .insert(schema.orgDomains)
+    .insert(schema.workspaceDomains)
     .values({
-      orgId: input.orgId,
+      workspaceId: input.workspaceId,
       domain: input.domain,
       verificationToken: `token-${n}`,
       ...(input.verified === false ? {} : { verifiedAt: new Date() }),
@@ -71,10 +71,16 @@ export async function seedOrgDomain(
   return row
 }
 
-/** A registered single sign-on provider of `orgId`, with `userId` as its registrant. */
+/** A registered single sign-on provider of `workspaceId`, with `userId` as its registrant. */
 export async function seedSsoProvider(
   db: Database,
-  input: { orgId: string; userId: string; issuer: string; domain?: string; providerId?: string },
+  input: {
+    workspaceId: string
+    userId: string
+    issuer: string
+    domain?: string
+    providerId?: string
+  },
 ) {
   n += 1
   const providerId = input.providerId ?? `provider-${n}`
@@ -85,7 +91,7 @@ export async function seedSsoProvider(
       issuer: input.issuer,
       userId: input.userId,
       providerId,
-      organizationId: input.orgId,
+      workspaceId: input.workspaceId,
       domain: input.domain ?? 'sso.example.com',
     })
     .returning()

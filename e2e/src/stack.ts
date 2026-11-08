@@ -38,7 +38,7 @@ export interface Stack {
   /** The dashboard / API address as the browser and the CLI use it (`PUBLIC_URL`). */
   url: string
   /** Compose project name: `docker compose -p <project> ...` works while the stack is up. */
-  project: string
+  composeProject: string
   ports: { http: number; mail: number; s3: number | undefined }
   storage: 'fs' | 's3'
   sitesHost: string | undefined
@@ -268,7 +268,7 @@ export async function startStack(options: Stack.Options = {}): Promise<Stack> {
 
   return {
     url,
-    project,
+    composeProject: project,
     ports: { http, mail, s3: s3Port },
     storage,
     sitesHost: options.sitesHost,

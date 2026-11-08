@@ -34,7 +34,7 @@ type Editing = { id: string | null; draft: RuleDraft } | null
 
 /** Who is asked to review which snapshots or builds. A rule is a glob and its reviewers. */
 export function RulesSection(props: RulesSection.Props) {
-  const actions = useRuleActions(props.org, props.project)
+  const actions = useRuleActions(props.workspace, props.team)
   const announce = useAnnounce()
   const [editing, setEditing] = useState<Editing>(null)
   const [deleting, setDeleting] = useState<ReviewRule.Item | null>(null)
@@ -230,8 +230,8 @@ namespace RuleEditor {
 
 export namespace RulesSection {
   export interface Props {
-    org: string
-    project: string
+    workspace: string
+    team: string
     rules: ReviewRule.Item[]
     people: { id: string; name: string }[]
     canManage: boolean

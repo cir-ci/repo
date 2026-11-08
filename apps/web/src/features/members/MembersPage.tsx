@@ -26,13 +26,13 @@ import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
-import { cancelInvitation, changeMemberRole, organizationQuery, removeMember } from './api.ts'
+import { cancelInvitation, changeMemberRole, workspaceQuery, removeMember } from './api.ts'
 import { BuildSettings } from './BuildSettings.tsx'
 import { EmailDomains } from './EmailDomains.tsx'
 import { InviteForm } from './InviteForm.tsx'
 import { canManageMembers, invitationCount, peopleCount, pendingInvitations } from './model.ts'
-import { OrgSso } from './OrgSso.tsx'
 import { SignInMethods } from './SignInMethods.tsx'
+import { WorkspaceSso } from './WorkspaceSso.tsx'
 
 import styles from './MembersPage.module.css'
 
@@ -43,15 +43,15 @@ const ROLES = [
 
 const ROLE_LABEL: Record<string, string> = { owner: 'Owner', admin: 'Admin', member: 'Member' }
 
-/** Who is in an organization, and (for owners and admins) inviting people and removing them. */
+/** Who is in a workspace, and (for owners and admins) inviting people and removing them. */
 export function MembersPage() {
-  const { org } = useParams({ from: '/organizations/$org/settings/members' })
+  const { workspace } = useParams({ from: '/workspaces/$workspace/settings/members' })
   const { data: session } = authClient.useSession()
   const queryClient = useQueryClient()
   const announce = useAnnounce()
-  useDocumentTitle('Members', org)
+  useDocumentTitle('Members', workspace)
 
-  const query = organizationQuery(org)
+  const query = workspaceQuery(workspace)
   const { data, error, refetch } = useQuery(query)
   const [removing, setRemoving] = useState<{ id: string; name: string; email: string } | null>(null)
 
@@ -92,14 +92,14 @@ export function MembersPage() {
   return (
     <>
       <PanelHeader>
-        <Breadcrumbs items={[{ label: data?.name ?? org }, { label: 'Members' }]} />
+        <Breadcrumbs items={[{ label: data?.name ?? workspace }, { label: 'Members' }]} />
       </PanelHeader>
       <div className={styles.page}>
         {error ? (
           <ErrorState
             error={error}
             onRetry={() => void refetch()}
-            notFound="This organization doesn’t exist"
+            notFound="This workspace doesn’t exist"
           />
         ) : !data ? (
           <Delayed>
@@ -107,7 +107,7 @@ export function MembersPage() {
           </Delayed>
         ) : (
           <>
-            {canManage ? <InviteForm organizationId={data.id} onInvited={refresh} /> : null}
+            {canManage ? <InviteForm workspaceId={data.id} onInvited={refresh} /> : null}
             {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
             <section className={styles.section}>
               <SectionHeader title="Members" description={peopleCount(data.members.length)} />
@@ -138,7 +138,7 @@ export function MembersPage() {
                                   changeRole.mutate({
                                     memberId: m.id,
                                     role: role === 'admin' ? 'admin' : 'member',
-                                    organizationId: data.id,
+                                    workspaceId: data.id,
                                   })
                                 }
                               }}
@@ -158,7 +158,7 @@ export function MembersPage() {
                               }
                               items={[
                                 {
-                                  label: 'Remove from organization',
+                                  label: 'Remove from workspace',
                                   tone: 'danger',
                                   onSelect: () =>
                                     setRemoving({
@@ -182,10 +182,10 @@ export function MembersPage() {
                 </EmptyState>
               ) : null}
             </section>
-            {canManage ? <BuildSettings org={org} /> : null}
-            {canManage ? <SignInMethods org={org} /> : null}
-            {canManage ? <EmailDomains org={org} /> : null}
-            {canManage ? <OrgSso org={org} /> : null}
+            {canManage ? <BuildSettings workspace={workspace} /> : null}
+            {canManage ? <SignInMethods workspace={workspace} /> : null}
+            {canManage ? <EmailDomains workspace={workspace} /> : null}
+            {canManage ? <WorkspaceSso workspace={workspace} /> : null}
             {pending.length > 0 ? (
               <section className={styles.section}>
                 <SectionHeader
@@ -230,11 +230,11 @@ export function MembersPage() {
           if (!open) setRemoving(null)
         }}
         title={`Remove ${removing?.name ?? 'this member'}?`}
-        description={`${removing?.email ?? 'They'} will lose access to ${data?.name ?? org} and its projects. You can invite them again later.`}
+        description={`${removing?.email ?? 'They'} will lose access to ${data?.name ?? workspace} and its teams. You can invite them again later.`}
         confirmLabel="Remove"
         loading={remove.isPending}
         onConfirm={() => {
-          if (removing && data) remove.mutate({ memberId: removing.id, organizationId: data.id })
+          if (removing && data) remove.mutate({ memberId: removing.id, workspaceId: data.id })
         }}
       />
     </>

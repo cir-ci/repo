@@ -27,7 +27,7 @@ describe('GitHub App: created from the manifest, used without a restart', () => 
   it('creates the App, installs it on a workspace and receives its webhooks', async () => {
     const { stack, setup } = ctx
     const admin = setup.session
-    const org = setup.organization.slug
+    const workspace = setup.workspace.slug
     const webhook = () => gh.sendWebhook(stack.url, 'ping', { zen: 'keep it logically awesome' })
 
     expect(await admin.get('/api/instance/github-app')).toMatchObject({
@@ -71,7 +71,9 @@ describe('GitHub App: created from the manifest, used without a restart', () => 
     expect((await gh.sendWebhook(stack.url, 'ping', {}, { secret: 'wrong' })).status).toBe(401)
 
     // ... and the install's return connects the installation to the workspace the state names.
-    const { url } = await admin.get<{ url: string }>(`/api/orgs/${org}/integrations/github/install`)
+    const { url } = await admin.get<{ url: string }>(
+      `/api/workspaces/${workspace}/integrations/github/install`,
+    )
     const installState = new URL(url).searchParams.get('state') ?? ''
     const installed = await admin.request(
       'GET',
@@ -79,7 +81,7 @@ describe('GitHub App: created from the manifest, used without a restart', () => 
     )
     expect(installed.status).toBe(302)
     expect(installed.headers.get('location')).toContain(
-      `/organizations/${org}/settings/integrations/github/`,
+      `/workspaces/${workspace}/settings/integrations/github/`,
     )
     expect(gh.find('POST /app/installations/9001/access_tokens')).toHaveLength(1)
 

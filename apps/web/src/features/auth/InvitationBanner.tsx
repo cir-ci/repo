@@ -6,7 +6,7 @@ import { authClient } from '#lib/auth-client.ts'
 
 import styles from './InvitationBanner.module.css'
 
-type Invitation = { id: string; organizationName: string; role: string; email: string }
+type Invitation = { id: string; workspaceName: string; role: string; email: string }
 
 /**
  * An invitation link (`/#invite=<id>`) opened while signed in: shows who invited you to what,
@@ -32,7 +32,7 @@ export function InvitationBanner({ userEmail }: InvitationBanner.Props) {
         }
         setInvitation({
           id,
-          organizationName: data.organizationName,
+          workspaceName: data.organizationName,
           role: data.role,
           email: data.email,
         })
@@ -81,7 +81,7 @@ export function InvitationBanner({ userEmail }: InvitationBanner.Props) {
         {error ??
           (invitation
             ? invitation.email.toLowerCase() === userEmail.toLowerCase()
-              ? `You’re invited to join ${invitation.organizationName} as ${invitation.role}.`
+              ? `You’re invited to join ${invitation.workspaceName} as ${invitation.role}.`
               : `This invitation is for ${invitation.email}, but you’re signed in as ${userEmail}. Sign out and use that address.`
             : 'Checking your invitation…')}
       </Banner>

@@ -10,7 +10,7 @@ export function requireSession(auth: Auth, db: Database): onRequestAsyncHookHand
   return async (req, reply) => {
     const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) })
     if (!session) return reply.code(401).send({ error: 'Sign in to continue' })
-    // Organizations may refuse some login methods, so the session's method travels with it.
+    // Workspaces may refuse some login methods, so the session's method travels with it.
     const method = (await getSessionMethod(db, session.session.id)) ?? 'unknown'
     req.user = {
       id: session.user.id,

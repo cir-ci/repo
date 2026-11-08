@@ -17,7 +17,7 @@ export namespace Issue {
     createdBy: string | null
   }
 
-  /** A tracker the project files issues in. */
+  /** A tracker the team files issues in. */
   export interface Tracker {
     integrationId: string
     kind: string
@@ -27,10 +27,10 @@ export namespace Issue {
     target: string
   }
 
-  /** `GET /api/projects/:org/:project/builds/:number/issues`. */
+  /** `GET /api/teams/:workspace/:team/builds/:number/issues`. */
   export interface List {
     issues: Link[]
-    /** Empty when the project has no tracker mapped: the dashboard then hides "Create issue". */
+    /** Empty when the team has no tracker mapped: the dashboard then hides "Create issue". */
     trackers: Tracker[]
   }
 

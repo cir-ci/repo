@@ -30,8 +30,8 @@ export namespace Inbox {
       prNumber: number | null
       commitSha: string
     } | null
-    project: { slug: string; name: string } | null
-    org: { slug: string; name: string } | null
+    team: { slug: string; name: string } | null
+    workspace: { slug: string; name: string } | null
     /** The same build also waits for your review on the Reviews page. */
     alsoInReviews: boolean
   }

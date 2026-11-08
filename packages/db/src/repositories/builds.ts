@@ -7,7 +7,7 @@ import {
   buildShards,
   builds,
   files,
-  projects,
+  teams,
   reviews,
   screenshotDiffs,
   screenshots,
@@ -21,7 +21,7 @@ import type { Build } from '#src/types.ts'
 
 /**
  * Creates a build, or joins the existing one for parallel shards (PLAN §7.1 step 4): shards
- * that start at the same moment hit the unique (project, name, commit, nonce) index and all
+ * that start at the same moment hit the unique (team, name, commit, nonce) index and all
  * get the same build.
  */
 export async function createBuild(db: Database, input: createBuild.Input): Promise<Build> {
@@ -33,7 +33,7 @@ export async function createBuild(db: Database, input: createBuild.Input): Promi
   })
 
   const values = {
-    projectId: input.projectId,
+    teamId: input.teamId,
     name,
     commitSha,
     branch: input.branch ?? null,
@@ -55,7 +55,7 @@ export async function createBuild(db: Database, input: createBuild.Input): Promi
     if (input.parallel) {
       const existing = await findParallelBuild(
         tx,
-        input.projectId,
+        input.teamId,
         name,
         commitSha,
         input.parallel.nonce,
@@ -63,17 +63,17 @@ export async function createBuild(db: Database, input: createBuild.Input): Promi
       if (existing) return existing
     }
     const [counter] = await tx
-      .update(projects)
-      .set({ buildCounter: sql`${projects.buildCounter} + 1` })
-      .where(eq(projects.id, input.projectId))
-      .returning({ number: projects.buildCounter })
-    if (!counter) throw new NotFoundError('project not found')
+      .update(teams)
+      .set({ buildCounter: sql`${teams.buildCounter} + 1` })
+      .where(eq(teams.id, input.teamId))
+      .returning({ number: teams.buildCounter })
+    if (!counter) throw new NotFoundError('team not found')
 
     const [created] = await tx
       .insert(builds)
       .values({ ...values, number: counter.number })
       .onConflictDoNothing({
-        target: [builds.projectId, builds.name, builds.commitSha, builds.parallelNonce],
+        target: [builds.teamId, builds.name, builds.commitSha, builds.parallelNonce],
         where: sql`${builds.parallelNonce} is not null`,
       })
       .returning()
@@ -81,7 +81,7 @@ export async function createBuild(db: Database, input: createBuild.Input): Promi
     // Lost the race to a concurrent shard: join its build. (The bumped number stays unused.)
     const joined =
       input.parallel &&
-      (await findParallelBuild(tx, input.projectId, name, commitSha, input.parallel.nonce))
+      (await findParallelBuild(tx, input.teamId, name, commitSha, input.parallel.nonce))
     if (!joined) throw new Error('parallel build vanished after conflict')
     return joined
   })
@@ -89,7 +89,7 @@ export async function createBuild(db: Database, input: createBuild.Input): Promi
 
 export namespace createBuild {
   export interface Input {
-    projectId: string
+    teamId: string
     name?: string
     commitSha: string
     branch?: string | null
@@ -108,7 +108,7 @@ export namespace createBuild {
 
 async function findParallelBuild(
   db: Database,
-  projectId: string,
+  teamId: string,
   name: string,
   commitSha: string,
   nonce: string,
@@ -118,7 +118,7 @@ async function findParallelBuild(
     .from(builds)
     .where(
       and(
-        eq(builds.projectId, projectId),
+        eq(builds.teamId, teamId),
         eq(builds.name, name),
         eq(builds.commitSha, commitSha),
         eq(builds.parallelNonce, nonce),
@@ -132,41 +132,41 @@ export async function getBuild(db: Database, buildId: string): Promise<Build | u
   return row
 }
 
-/** The builds among `buildIds` that belong to `projectId` (ids of other projects are left out). */
-export async function listProjectBuildsByIds(
+/** The builds among `buildIds` that belong to `teamId` (ids of other teams are left out). */
+export async function listTeamBuildsByIds(
   db: Database,
-  projectId: string,
+  teamId: string,
   buildIds: string[],
 ): Promise<Build[]> {
   if (buildIds.length === 0) return []
   return db
     .select()
     .from(builds)
-    .where(and(eq(builds.projectId, projectId), inArray(builds.id, buildIds)))
+    .where(and(eq(builds.teamId, teamId), inArray(builds.id, buildIds)))
 }
 
-/** A build by its per-project number, the number people see in URLs and on screen. */
+/** A build by its per-team number, the number people see in URLs and on screen. */
 export async function getBuildByNumber(
   db: Database,
-  projectId: string,
+  teamId: string,
   number: number,
 ): Promise<Build | undefined> {
   const [row] = await db
     .select()
     .from(builds)
-    .where(and(eq(builds.projectId, projectId), eq(builds.number, number)))
+    .where(and(eq(builds.teamId, teamId), eq(builds.number, number)))
   return row
 }
 
-export async function getProjectBuild(
+export async function getTeamBuild(
   db: Database,
-  projectId: string,
+  teamId: string,
   buildId: string,
 ): Promise<Build | undefined> {
   const [row] = await db
     .select()
     .from(builds)
-    .where(and(eq(builds.id, buildId), eq(builds.projectId, projectId)))
+    .where(and(eq(builds.id, buildId), eq(builds.teamId, teamId)))
   return row
 }
 
@@ -359,23 +359,23 @@ export namespace getBuildCounts {
   }
 }
 
-/** Possible baselines: same project and name, finished, not the build itself. */
+/** Possible baselines: same team and name, finished, not the build itself. */
 export async function listBaselineCandidates(
   db: Database,
-  build: Pick<Build, 'projectId' | 'name' | 'ancestorShas'> & { id?: string },
+  build: Pick<Build, 'teamId' | 'name' | 'ancestorShas'> & { id?: string },
 ): Promise<Build[]> {
   const conditions = [
-    eq(builds.projectId, build.projectId),
+    eq(builds.teamId, build.teamId),
     eq(builds.name, build.name),
     eq(builds.status, 'complete'),
     ...(build.id ? [ne(builds.id, build.id)] : []),
   ]
   const shas = [...new Set(build.ancestorShas)]
-  const project = await db
-    .select({ defaultBranch: projects.defaultBranch })
-    .from(projects)
-    .where(eq(projects.id, build.projectId))
-  const defaultBranch = project[0]?.defaultBranch ?? 'main'
+  const team = await db
+    .select({ defaultBranch: teams.defaultBranch })
+    .from(teams)
+    .where(eq(teams.id, build.teamId))
+  const defaultBranch = team[0]?.defaultBranch ?? 'main'
 
   // Builds on ancestor commits, plus recent default-branch builds for the fallback.
   const byAncestry =
@@ -408,7 +408,7 @@ export async function setBuildBaseline(
 }
 
 /**
- * Finishes a build. On the project's default branch with auto-approve on, a build with changes
+ * Finishes a build. On the team's default branch with auto-approve on, a build with changes
  * is approved automatically (recorded as an `auto` review) so it becomes the next baseline.
  */
 /**
@@ -450,7 +450,7 @@ export namespace setBuildResult {
 }
 
 /**
- * The earlier build that makes this one an approved re-run, if any: same project, build name and
+ * The earlier build that makes this one an approved re-run, if any: same team, build name and
  * commit, currently approved, with exactly the same screenshots (same names, same bytes). This
  * is what lets "approve in the dashboard, then re-run the CI job" go green: the re-run is a new
  * build, but nothing in it is new to the reviewer. A different commit, a different screenshot or
@@ -462,7 +462,7 @@ export async function findApprovedRerunOf(db: Database, build: Build): Promise<s
     .from(builds)
     .where(
       and(
-        eq(builds.projectId, build.projectId),
+        eq(builds.teamId, build.teamId),
         eq(builds.name, build.name),
         eq(builds.commitSha, build.commitSha),
         eq(builds.status, 'complete'),
@@ -542,24 +542,24 @@ export async function setParallelTotal(
 }
 
 /**
- * The baseline an Argos SDK asks for: the newest eligible build of this project and build name
+ * The baseline an Argos SDK asks for: the newest eligible build of this team and build name
  * on one of `commits` (nearest first), if any.
  */
 export async function findBaselineByCommits(
   db: Database,
-  input: { projectId: string; name: string; commits: string[] },
+  input: { teamId: string; name: string; commits: string[] },
 ): Promise<{ id: string; commitSha: string; branch: string | null } | undefined> {
   const candidates = await listBaselineCandidates(db, {
-    projectId: input.projectId,
+    teamId: input.teamId,
     name: input.name,
     ancestorShas: input.commits,
   })
-  const project = await db
-    .select({ defaultBranch: projects.defaultBranch })
-    .from(projects)
-    .where(eq(projects.id, input.projectId))
+  const team = await db
+    .select({ defaultBranch: teams.defaultBranch })
+    .from(teams)
+    .where(eq(teams.id, input.teamId))
   const resolved = resolveBaseline(
-    { ancestorShas: input.commits, defaultBranch: project[0]?.defaultBranch ?? 'main' },
+    { ancestorShas: input.commits, defaultBranch: team[0]?.defaultBranch ?? 'main' },
     candidates,
   )
   return resolved.via === 'none' ? undefined : resolved.build

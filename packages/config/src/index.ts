@@ -81,7 +81,7 @@ const envSchema = z.object({
   AUTH_OIDC_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),
   AUTH_OIDC_NAME: z.preprocess(emptyToUndefined, z.string().optional()),
   AUTH_OIDC_TRUSTED_FOR_EMAIL: z.preprocess(emptyToUndefined, bool.optional()),
-  ORG_CREATION: z.preprocess(emptyToUndefined, z.enum(['admin', 'anyone']).default('admin')),
+  WORKSPACE_CREATION: z.preprocess(emptyToUndefined, z.enum(['admin', 'anyone']).default('admin')),
 })
 
 export namespace Config {
@@ -195,8 +195,8 @@ export interface Config {
   /** Email + password sign-in is offered (`AUTH_PASSWORD_ENABLED`, default on). */
   passwordLogin: boolean
   webhookAllowPrivate: boolean
-  /** Who may create organizations in the dashboard: instance admins only, or any member. */
-  orgCreation: 'admin' | 'anyone'
+  /** Who may create workspaces in the dashboard: instance admins only, or any member. */
+  workspaceCreation: 'admin' | 'anyone'
 }
 
 export class ConfigError extends Error {
@@ -422,7 +422,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     webhookAllowPrivate: e.WEBHOOK_ALLOW_PRIVATE_ADDRESSES === true,
     uploadTimeoutMinutes: e.UPLOAD_TIMEOUT_MINUTES,
     gcGraceHours: e.GC_GRACE_HOURS,
-    orgCreation: e.ORG_CREATION,
+    workspaceCreation: e.WORKSPACE_CREATION,
   }
 }
 

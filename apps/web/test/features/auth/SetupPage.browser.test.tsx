@@ -12,7 +12,7 @@ async function fillIn() {
   await page.getByRole('textbox', { name: 'Your name' }).fill('Ada Lovelace')
   await page.getByRole('textbox', { name: 'Email' }).fill('ada@example.com')
   await page.getByLabelText('Password').fill('correct horse battery')
-  await page.getByRole('textbox', { name: 'Organization name' }).fill('Acme')
+  await page.getByRole('textbox', { name: 'Workspace name' }).fill('Acme')
 }
 
 describe('SetupPage', () => {
@@ -47,7 +47,7 @@ describe('SetupPage', () => {
         name: 'Ada Lovelace',
         email: 'ada@example.com',
         password: 'correct horse battery',
-        organizationName: 'Acme',
+        workspaceName: 'Acme',
       },
     })
   })

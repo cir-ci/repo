@@ -13,7 +13,7 @@ const lou = await createUser(auth, {
   name: 'Lou',
   password: 'lou-password-long-1',
 })
-await addMember(auth, db, { orgSlug: acme.orgSlug, email: lou.email, role: 'member' })
+await addMember(auth, db, { workspaceSlug: acme.workspaceSlug, email: lou.email, role: 'member' })
 const louCookie = await signIn(app, lou.email, 'lou-password-long-1')
 
 const send = (
@@ -32,7 +32,7 @@ const send = (
     ...(method === 'DELETE' ? {} : { payload: options.payload ?? {} }),
   })
 
-const base = (org = acme.orgSlug) => `/api/projects/${org}/web`
+const base = (workspace = acme.workspaceSlug) => `/api/teams/${workspace}/web`
 
 describe('review rules', () => {
   let ruleId = ''
@@ -100,16 +100,16 @@ describe('review rules', () => {
     expect((await get(`${base()}/rules`, '')).statusCode).toBe(401)
   })
 
-  it('does not let a rival organization reach the rule, or name its member', async () => {
+  it('does not let a rival workspace reach the rule, or name its member', async () => {
     const mine = await send('POST', `${base()}/rules`, {
       payload: { kind: 'snapshot-name', pattern: 'y', reviewerIds: [lou.id] },
     })
-    const foreign = await send('PUT', `${base(rival.orgSlug)}/rules/${mine.json().id}`, {
+    const foreign = await send('PUT', `${base(rival.workspaceSlug)}/rules/${mine.json().id}`, {
       cookie: rivalCookie,
       payload: { kind: 'snapshot-name', pattern: 'y', reviewerIds: [rival.owner.id] },
     })
     expect(foreign.statusCode).toBe(404)
-    const outsider = await send('POST', `${base(rival.orgSlug)}/rules`, {
+    const outsider = await send('POST', `${base(rival.workspaceSlug)}/rules`, {
       cookie: rivalCookie,
       payload: { kind: 'snapshot-name', pattern: 'y', reviewerIds: [lou.id] },
     })
@@ -169,7 +169,7 @@ describe('triage', () => {
     expect(dismissed.json()).toMatchObject({ dismissed: true })
   })
 
-  it('rejects assignees outside the organization and unknown kinds', async () => {
+  it('rejects assignees outside the workspace and unknown kinds', async () => {
     const outsider = await send('POST', `${base()}/triage/assign`, {
       payload: { kind: 'flaky', key: 'home', assigneeId: rival.owner.id },
     })

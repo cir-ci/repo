@@ -2,7 +2,7 @@ import { ValidationError } from './errors.ts'
 
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/
 
-/** Reserved because they collide with dashboard routes (`<PUBLIC_URL>/<org>/…`). */
+/** Reserved because they collide with dashboard routes (`<PUBLIC_URL>/<workspace>/…`). */
 const RESERVED = new Set([
   'admin',
   'api',

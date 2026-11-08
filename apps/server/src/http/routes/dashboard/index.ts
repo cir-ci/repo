@@ -19,12 +19,6 @@ import { dashboardInstanceRoutes } from './instance.ts'
 import { dashboardGenericIntegrationRoutes } from './integrations-generic.ts'
 import { dashboardIntegrationRoutes } from './integrations.ts'
 import { dashboardIssueTrackerRoutes } from './issue-trackers.ts'
-import { dashboardOrgAuthRoutes } from './org-auth.ts'
-import { dashboardOrgSettingsRoutes } from './org-settings.ts'
-import { dashboardOrgSsoRoutes } from './org-sso.ts'
-import { dashboardOrganizationRoutes } from './organizations.ts'
-import { dashboardProjectSitesRoutes } from './project-sites.ts'
-import { dashboardProjectRoutes } from './projects.ts'
 import {
   dashboardBulkReviewRoutes,
   dashboardReviewRequestRoutes,
@@ -35,9 +29,15 @@ import { dashboardSearchRoutes } from './search.ts'
 import { dashboardSettingsRoutes } from './settings.ts'
 import { dashboardSetupRoutes } from './setup.ts'
 import { dashboardSiteHandoffRoutes } from './site-handoff.ts'
+import { dashboardTeamSitesRoutes } from './team-sites.ts'
+import { dashboardTeamRoutes } from './teams.ts'
 import { dashboardTriageRoutes } from './triage.ts'
 import { dashboardViewRoutes } from './views.ts'
 import { webAppRoutes } from './web-app.ts'
+import { dashboardWorkspaceAuthRoutes } from './workspace-auth.ts'
+import { dashboardWorkspaceSettingsRoutes } from './workspace-settings.ts'
+import { dashboardWorkspaceSsoRoutes } from './workspace-sso.ts'
+import { dashboardWorkspaceRoutes } from './workspaces.ts'
 
 /**
  * The dashboard, in three parts:
@@ -85,20 +85,20 @@ export const dashboardRoutes: FastifyPluginAsync<Deps.Dashboard> = async (dash, 
 const sessionApi: FastifyPluginAsync<Deps.Dashboard> = async (api, deps) => {
   api.addHook('onRequest', requireSameOrigin(deps.publicOrigin))
   api.addHook('onRequest', requireSession(deps.auth, deps.db))
-  await api.register(dashboardProjectRoutes, deps)
+  await api.register(dashboardTeamRoutes, deps)
   await api.register(dashboardSettingsRoutes, deps)
-  await api.register(dashboardOrganizationRoutes, deps)
+  await api.register(dashboardWorkspaceRoutes, deps)
   await api.register(dashboardInstanceRoutes, deps)
   await api.register(dashboardGithubAppRoutes, deps)
-  await api.register(dashboardOrgAuthRoutes, deps)
-  await api.register(dashboardOrgSettingsRoutes, deps)
+  await api.register(dashboardWorkspaceAuthRoutes, deps)
+  await api.register(dashboardWorkspaceSettingsRoutes, deps)
   await api.register(dashboardDomainRoutes, deps)
-  await api.register(dashboardOrgSsoRoutes, deps)
+  await api.register(dashboardWorkspaceSsoRoutes, deps)
   await api.register(dashboardIntegrationRoutes, deps)
   await api.register(dashboardGenericIntegrationRoutes, deps)
   await api.register(dashboardIssueTrackerRoutes, deps)
   await api.register(dashboardSiteHandoffRoutes, deps)
-  await api.register(dashboardProjectSitesRoutes, deps)
+  await api.register(dashboardTeamSitesRoutes, deps)
   await api.register(dashboardBulkReviewRoutes, deps)
   await api.register(dashboardReviewRoutes, deps)
   await api.register(dashboardReviewRequestRoutes, deps)

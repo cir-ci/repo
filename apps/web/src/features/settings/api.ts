@@ -83,19 +83,19 @@ export function reviewerNames(rule: Pick<ReviewRule.Item, 'reviewers'>): string 
   return `${names.slice(0, 2).join(', ')} and ${others} other${others === 1 ? '' : 's'}`
 }
 
-export const rulesQuery = (org: string, project: string) =>
+export const rulesQuery = (workspace: string, team: string) =>
   queryOptions({
-    queryKey: ['rules', org, project],
-    queryFn: () => getJson<ReviewRule.Settings>(`/api/projects/${seg(org)}/${seg(project)}/rules`),
+    queryKey: ['rules', workspace, team],
+    queryFn: () => getJson<ReviewRule.Settings>(`/api/teams/${seg(workspace)}/${seg(team)}/rules`),
   })
 
-export function useRuleActions(org: string, project: string) {
+export function useRuleActions(workspace: string, team: string) {
   const queryClient = useQueryClient()
-  const base = `/api/projects/${seg(org)}/${seg(project)}`
+  const base = `/api/teams/${seg(workspace)}/${seg(team)}`
   const refresh = () =>
     Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['rules', org, project] }),
-      queryClient.invalidateQueries({ queryKey: ['triage', org, project] }),
+      queryClient.invalidateQueries({ queryKey: ['rules', workspace, team] }),
+      queryClient.invalidateQueries({ queryKey: ['triage', workspace, team] }),
     ])
   return {
     create: useMutation({
@@ -235,10 +235,10 @@ export function useSetPreference() {
 
 // ---- Storage ----------------------------------------------------------------------------------
 
-export const storageQuery = (org: string) =>
+export const storageQuery = (workspace: string) =>
   queryOptions({
-    queryKey: ['org-storage', org],
-    queryFn: () => getJson<Insights.Report>(`/api/orgs/${seg(org)}/insights`),
+    queryKey: ['workspace-storage', workspace],
+    queryFn: () => getJson<Insights.Report>(`/api/workspaces/${seg(workspace)}/insights`),
   })
 
 const UNITS = ['B', 'KB', 'MB', 'GB', 'TB'] as const
@@ -255,9 +255,9 @@ export function formatBytes(bytes: number): string {
   return `${text.replace(/\.0$/, '')} ${UNITS[unit]}`
 }
 
-/** The projects by size, biggest first, each with its share of the total (0 to 1). */
+/** The teams by size, biggest first, each with its share of the total (0 to 1). */
 export function storageRows(storage: Insights.Storage) {
-  return storage.projects
+  return storage.teams
     .toSorted((a, b) => b.bytes - a.bytes || a.name.localeCompare(b.name))
     .map((p) =>
       Object.assign({}, p, { share: storage.totalBytes > 0 ? p.bytes / storage.totalBytes : 0 }),

@@ -123,13 +123,21 @@ const member = await createUser(auth, {
   name: 'Member',
   password: 'member-password-long-1',
 })
-await addMember(auth, t.db, { orgSlug: acme.orgSlug, email: member.email, role: 'member' })
+await addMember(auth, t.db, {
+  workspaceSlug: acme.workspaceSlug,
+  email: member.email,
+  role: 'member',
+})
 const adminCookie = await signIn(app, 'instance-admin@acme.test', 'admin-password-long-1')
 const memberCookie = await signIn(app, member.email, 'member-password-long-1')
 const ownerCookie = await signIn(app, acme.owner.email, acme.owner.password)
 const rivalCookie = await signIn(app, rival.owner.email, rival.owner.password)
 // The instance admin administers a workspace of their own (installation owner for the 409 test).
-await addMember(auth, t.db, { orgSlug: acme.orgSlug, email: admin.email, role: 'owner' })
+await addMember(auth, t.db, {
+  workspaceSlug: acme.workspaceSlug,
+  email: admin.email,
+  role: 'owner',
+})
 
 const get = (url: string, cookie?: string) =>
   app.inject({ method: 'GET', url, headers: cookie ? { cookie } : {} })
@@ -163,8 +171,8 @@ const callback = (state: string, code = 'good-code', cookie = adminCookie) =>
 const manifestState = (userId: string, options?: { now?: number; ttlMs?: number }) =>
   signState(SECRET, { kind: 'github-manifest', userId }, options)
 
-const installState = async (cookie: string, org: string) => {
-  const res = await get(`/api/orgs/${org}/integrations/github/install`, cookie)
+const installState = async (cookie: string, workspace: string) => {
+  const res = await get(`/api/workspaces/${workspace}/integrations/github/install`, cookie)
   expect(res.statusCode).toBe(200)
   const url = new URL(String(res.json().url))
   expect(`${url.origin}${url.pathname}`).toBe(
@@ -198,7 +206,7 @@ describe('the manifest', () => {
     expect(verifyState(SECRET, body.state)).toEqual({ kind: 'github-manifest', userId: admin.id })
   })
 
-  it('takes an editable name and posts to an organization when one is named', async () => {
+  it('takes an editable name and posts to a GitHub organization when one is named', async () => {
     const res = await post('/api/instance/github-app/manifest', adminCookie, {
       name: 'CirCI at Acme',
       organization: 'acme-inc',
@@ -286,7 +294,9 @@ describe('the callback', () => {
         payload: body,
       })
     expect((await deliver('whsec-from-github', 'd0')).statusCode).toBe(404)
-    const before = (await get(`/api/orgs/${acme.orgSlug}/integrations`, ownerCookie)).json()
+    const before = (
+      await get(`/api/workspaces/${acme.workspaceSlug}/integrations`, ownerCookie)
+    ).json()
     expect(before.catalog.find((e: { kind: string }) => e.kind === 'github').connectable).toBe(
       false,
     )
@@ -320,7 +330,9 @@ describe('the callback', () => {
     expect(await readStoredGithubApp(t.db, 'another-secret-entirely')).toBeUndefined()
 
     // After: usable without a restart.
-    const after = (await get(`/api/orgs/${acme.orgSlug}/integrations`, ownerCookie)).json()
+    const after = (
+      await get(`/api/workspaces/${acme.workspaceSlug}/integrations`, ownerCookie)
+    ).json()
     expect(after.catalog.find((e: { kind: string }) => e.kind === 'github').connectable).toBe(true)
     expect((await deliver('wrong-secret', 'd1')).statusCode).toBe(401)
     expect((await deliver('whsec-from-github', 'd2')).statusCode).toBe(200)
@@ -352,31 +364,32 @@ describe('the callback', () => {
 
 describe('installing the App in a workspace', () => {
   it('names the workspace in a signed state, for owners and admins only', async () => {
-    const state = await installState(ownerCookie, acme.orgSlug)
+    const state = await installState(ownerCookie, acme.workspaceSlug)
     expect(verifyState(SECRET, state)).toMatchObject({
       kind: 'github',
       flow: 'install',
       userId: acme.owner.id,
-      orgSlug: acme.orgSlug,
+      workspaceSlug: acme.workspaceSlug,
     })
     expect(
-      (await get(`/api/orgs/${acme.orgSlug}/integrations/github/install`, memberCookie)).statusCode,
+      (await get(`/api/workspaces/${acme.workspaceSlug}/integrations/github/install`, memberCookie))
+        .statusCode,
     ).toBe(403)
   })
 
   it('connects the installation to that workspace, through the same checks as the manual form', async () => {
-    const state = await installState(ownerCookie, acme.orgSlug)
+    const state = await installState(ownerCookie, acme.workspaceSlug)
     const res = await setup(
       `installation_id=501&setup_action=install&state=${encodeURIComponent(state)}`,
       ownerCookie,
     )
     expect(res.statusCode).toBe(302)
-    const connected = (await listIntegrations(t.db, await orgId(acme.orgSlug))).find(
+    const connected = (await listIntegrations(t.db, await workspaceId(acme.workspaceSlug))).find(
       (i) => i.kind === 'github',
     )
     expect(connected).toMatchObject({ displayName: 'Installation 501' })
     expect(res.headers.location).toBe(
-      `/organizations/${acme.orgSlug}/settings/integrations/github/${connected?.id}?connect=connected`,
+      `/workspaces/${acme.workspaceSlug}/settings/integrations/github/${connected?.id}?connect=connected`,
     )
     // GitHub is asked for a token and the repositories: the App must really be installed.
     expect(requests).toContain('POST /app/installations/501/access_tokens')
@@ -394,8 +407,8 @@ describe('installing the App in a workspace', () => {
       kind: 'github',
       flow: 'install',
       userId: rival.owner.id,
-      orgId: await orgId(rival.orgSlug),
-      orgSlug: rival.orgSlug,
+      workspaceId: await workspaceId(rival.workspaceSlug),
+      workspaceSlug: rival.workspaceSlug,
     })
     const taken = await setup(
       `installation_id=501&state=${encodeURIComponent(rivalState)}`,
@@ -403,7 +416,7 @@ describe('installing the App in a workspace', () => {
     )
     expect(taken.statusCode).toBe(409)
 
-    const state = await installState(ownerCookie, acme.orgSlug)
+    const state = await installState(ownerCookie, acme.workspaceSlug)
     const missing = await setup(
       `installation_id=999&state=${encodeURIComponent(state)}`,
       ownerCookie,
@@ -414,8 +427,8 @@ describe('installing the App in a workspace', () => {
       kind: 'github',
       flow: 'install',
       userId: member.id,
-      orgId: await orgId(acme.orgSlug),
-      orgSlug: acme.orgSlug,
+      workspaceId: await workspaceId(acme.workspaceSlug),
+      workspaceSlug: acme.workspaceSlug,
     })
     const denied = await setup(
       `installation_id=502&state=${encodeURIComponent(memberState)}`,
@@ -425,7 +438,7 @@ describe('installing the App in a workspace', () => {
   })
 
   it('rejects a forged, expired or someone else’s state, and needs a session', async () => {
-    const state = await installState(ownerCookie, acme.orgSlug)
+    const state = await installState(ownerCookie, acme.workspaceSlug)
     expect((await setup(`installation_id=502&state=${state}x`, ownerCookie)).statusCode).toBe(400)
     // Started by the owner, followed by another signed-in user.
     expect(
@@ -516,10 +529,10 @@ describe('an App from the environment', () => {
   })
 })
 
-async function orgId(slug: string): Promise<string> {
+async function workspaceId(slug: string): Promise<string> {
   const [row] = await t.db
-    .select({ id: schema.organization.id })
-    .from(schema.organization)
-    .where(eq(schema.organization.slug, slug))
+    .select({ id: schema.workspace.id })
+    .from(schema.workspace)
+    .where(eq(schema.workspace.slug, slug))
   return row?.id ?? ''
 }

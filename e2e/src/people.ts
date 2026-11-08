@@ -60,8 +60,8 @@ export async function withSessionPage<T>(
   }
 }
 
-/** better-auth's full organization (members and invitations), as the dashboard loads it. */
-export interface FullOrganization {
+/** better-auth's full workspace (members and invitations), as the dashboard loads it. */
+export interface FullWorkspace {
   id: string
   name: string
   slug: string
@@ -69,9 +69,9 @@ export interface FullOrganization {
   invitations: { id: string; email: string; role: string; status: string; expiresAt: string }[]
 }
 
-export function fullOrganization(session: Session, orgSlug: string): Promise<FullOrganization> {
-  return session.get<FullOrganization>(
-    `/api/auth/organization/get-full-organization?organizationSlug=${encodeURIComponent(orgSlug)}`,
+export function fullWorkspace(session: Session, workspaceSlug: string): Promise<FullWorkspace> {
+  return session.get<FullWorkspace>(
+    `/api/auth/organization/get-full-organization?organizationSlug=${encodeURIComponent(workspaceSlug)}`,
   )
 }
 

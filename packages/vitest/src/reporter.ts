@@ -10,7 +10,7 @@ export namespace CirciReporter {
   export interface Options {
     /** CirCI address. Default: `CIRCI_API_URL`. */
     apiUrl?: string
-    /** Project CI token. Default: `CIRCI_TOKEN`. */
+    /** Team CI token. Default: `CIRCI_TOKEN`. */
     token?: string
     /** Build name; give each browser project its own (`vitest-chromium`). Default `vitest`. */
     name?: string

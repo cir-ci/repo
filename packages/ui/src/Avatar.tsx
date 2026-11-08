@@ -31,7 +31,12 @@ export function Avatar({ name, src, size = 24, className, style, ...rest }: Avat
       aria-label={name}
       data-size={size}
       className={cx(styles.root, className)}
-      style={{ ...style, width: size, height: size, fontSize: Math.round(size * 0.42) }}
+      style={{
+        ...style,
+        width: size,
+        height: size,
+        fontSize: Math.max(11, Math.round(size * 0.42)),
+      }}
     >
       {src ? <BaseAvatar.Image src={src} alt="" className={styles.image} /> : null}
       <BaseAvatar.Fallback className={styles.fallback}>{initials(name)}</BaseAvatar.Fallback>

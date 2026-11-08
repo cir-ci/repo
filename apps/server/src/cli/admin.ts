@@ -1,10 +1,10 @@
 import {
   addMember,
-  createOrganization,
-  createProjectWithToken,
+  createWorkspace,
+  createTeamWithToken,
   createUser,
   generatePassword,
-  rotateProjectToken,
+  rotateTeamToken,
   setupCode,
   setUserPassword,
 } from '@circi/auth'
@@ -12,25 +12,25 @@ import { webhookUrlProblem } from '@circi/core'
 import {
   createWebhook,
   deleteWebhook,
-  getOrganizationBySlug,
-  getProjectBySlugs,
+  getWorkspaceBySlug,
+  getTeamBySlugs,
   addIgnoreRegion,
   listIgnoreRegions,
   removeIgnoreRegion,
   isWebhookEvent,
-  listOrganizations,
-  listProjects,
+  listWorkspaces,
+  listTeams,
   listWebhooks,
-  setOrgAuthSettings,
+  setWorkspaceAuthSettings,
   storageUsage,
   WEBHOOK_EVENTS,
 } from '@circi/db'
 import {
-  linkProjectToGithub,
+  linkTeamToGithub,
   migrateStorage,
   previewRetention,
   runRetention,
-  unlinkProjectFromGit,
+  unlinkTeamFromGit,
 } from '@circi/services'
 import { createStorage } from '@circi/storage'
 import type { Command } from 'commander'
@@ -38,17 +38,17 @@ import type { Command } from 'commander'
 import type { Runtime } from '#lifecycle/runtime.ts'
 
 import { httpFetcher, runDoctor } from './doctor.ts'
-import { printJson, printPassword, printToken, publicProject, withRuntime } from './output.ts'
+import { printJson, printPassword, printToken, publicTeam, withRuntime } from './output.ts'
 
-/** `circi admin user|org|member|project …`, run on the server. */
+/** `circi admin user|workspace|member|team …`, run on the server. */
 export function addAdminCommands(program: Command): void {
   const admin = program.command('admin').description('administration commands (run on the server)')
   addUserCommands(admin.command('user').description('manage accounts'))
-  addOrgCommands(admin.command('org').description('manage organizations'))
-  addMemberCommands(admin.command('member').description('manage organization members'))
-  addProjectCommands(admin.command('project').description('manage projects and their CI tokens'))
+  addWorkspaceCommands(admin.command('workspace').description('manage workspaces'))
+  addMemberCommands(admin.command('member').description('manage workspace members'))
+  addTeamCommands(admin.command('team').description('manage teams and their CI tokens'))
   addMailCommands(admin.command('mail').description('check outgoing mail'))
-  addGithubCommands(admin.command('github').description('link projects to GitHub repositories'))
+  addGithubCommands(admin.command('github').description('link teams to GitHub repositories'))
   admin
     .command('doctor')
     .description('check the deployment for what CirCI cannot enforce (cookie scope of the domains)')
@@ -66,7 +66,7 @@ export function addAdminCommands(program: Command): void {
     admin.command('ignore').description('regions to ignore when comparing screenshots'),
   )
   addStorageCommands(admin.command('storage').description('what is stored, and cleaning up'))
-  addAuthCommands(admin.command('auth').description('login methods of an organization'))
+  addAuthCommands(admin.command('auth').description('login methods of a workspace'))
   admin
     .command('setup-code')
     .description('print the code that first-run setup in the dashboard asks for')
@@ -76,7 +76,7 @@ export function addAdminCommands(program: Command): void {
         return Promise.resolve()
       }),
     )
-  addWebhookCommands(admin.command('webhook').description('manage outgoing webhooks of a project'))
+  addWebhookCommands(admin.command('webhook').description('manage outgoing webhooks of a team'))
 }
 
 function addUserCommands(user: Command): void {
@@ -135,38 +135,36 @@ function addUserCommands(user: Command): void {
     )
 }
 
-function addOrgCommands(org: Command): void {
-  org
+function addWorkspaceCommands(workspace: Command): void {
+  workspace
     .command('create')
-    .description('create an organization')
+    .description('create a workspace')
     .requiredOption('--name <name>', 'display name, e.g. "Acme Inc"')
     .requiredOption('--owner <email>', 'email of an existing account that will own it')
     .option('--slug <slug>', 'URL name (default: derived from --name)')
     .option('--json', 'print JSON')
     .action((opts: { name: string; owner: string; slug?: string; json?: boolean }) =>
       withRuntime(async (rt) => {
-        const created = await createOrganization(rt.auth, rt.db.db, {
+        const created = await createWorkspace(rt.auth, rt.db.db, {
           name: opts.name,
           ownerEmail: opts.owner,
           ...(opts.slug ? { slug: opts.slug } : {}),
         })
         if (opts.json) return printJson(created)
-        console.log(
-          `Created organization "${created.name}" (${created.slug}), owned by ${opts.owner}`,
-        )
+        console.log(`Created workspace "${created.name}" (${created.slug}), owned by ${opts.owner}`)
       }),
     )
 
-  org
+  workspace
     .command('list')
-    .description('list organizations')
+    .description('list workspaces')
     .option('--json', 'print JSON')
     .action((opts: { json?: boolean }) =>
       withRuntime(async (rt) => {
-        const orgs = await listOrganizations(rt.db.db)
-        if (opts.json) return printJson(orgs)
-        if (orgs.length === 0) return console.log('No organizations yet.')
-        for (const o of orgs) console.log(`${o.slug}\t${o.name}`)
+        const workspaces = await listWorkspaces(rt.db.db)
+        if (opts.json) return printJson(workspaces)
+        if (workspaces.length === 0) return console.log('No workspaces yet.')
+        for (const o of workspaces) console.log(`${o.slug}\t${o.name}`)
       }),
     )
 }
@@ -174,7 +172,7 @@ function addOrgCommands(org: Command): void {
 function addMemberCommands(member: Command): void {
   member
     .command('add')
-    .description('add an existing account to an organization')
+    .description('add an existing account to a workspace')
     .requiredOption('--org <slug>', 'organization slug')
     .requiredOption('--email <email>', 'account email')
     .option('--role <role>', 'owner, admin or member', 'member')
@@ -184,7 +182,7 @@ function addMemberCommands(member: Command): void {
           throw new Error(`--role must be owner, admin or member (got "${opts.role}")`)
         }
         await addMember(rt.auth, rt.db.db, {
-          orgSlug: opts.org,
+          workspaceSlug: opts.org,
           email: opts.email,
           role: opts.role,
         })
@@ -193,10 +191,10 @@ function addMemberCommands(member: Command): void {
     )
 }
 
-function addProjectCommands(project: Command): void {
-  project
+function addTeamCommands(team: Command): void {
+  team
     .command('create')
-    .description('create a project and print its CI token')
+    .description('create a team and print its CI token')
     .requiredOption('--org <slug>', 'organization slug')
     .requiredOption('--name <name>', 'display name, e.g. "Web app"')
     .option('--slug <slug>', 'URL name (default: derived from --name)')
@@ -205,48 +203,48 @@ function addProjectCommands(project: Command): void {
     .action(
       (opts: { org: string; name: string; slug?: string; defaultBranch: string; json?: boolean }) =>
         withRuntime(async (rt) => {
-          const { project: p, token } = await createProjectWithToken(rt.auth, rt.db.db, {
-            orgSlug: opts.org,
+          const { team: p, token } = await createTeamWithToken(rt.auth, rt.db.db, {
+            workspaceSlug: opts.org,
             name: opts.name,
             defaultBranch: opts.defaultBranch,
             ...(opts.slug ? { slug: opts.slug } : {}),
           })
-          if (opts.json) return printJson({ project: publicProject(p), token })
-          console.log(`Created project ${opts.org}/${p.slug} (default branch: ${p.defaultBranch})`)
+          if (opts.json) return printJson({ team: publicTeam(p), token })
+          console.log(`Created team ${opts.org}/${p.slug} (default branch: ${p.defaultBranch})`)
           printToken(token)
         }),
     )
 
-  project
+  team
     .command('list')
-    .description("list an organization's projects")
+    .description("list a workspace's teams")
     .requiredOption('--org <slug>', 'organization slug')
     .option('--json', 'print JSON')
     .action((opts: { org: string; json?: boolean }) =>
       withRuntime(async (rt) => {
-        const projects = await listProjects(rt.db.db, opts.org)
-        if (opts.json) return printJson(projects.map(publicProject))
-        if (projects.length === 0) return console.log(`No projects in ${opts.org} yet.`)
-        for (const p of projects) {
+        const teams = await listTeams(rt.db.db, opts.org)
+        if (opts.json) return printJson(teams.map(publicTeam))
+        if (teams.length === 0) return console.log(`No teams in ${opts.org} yet.`)
+        for (const p of teams) {
           const token = p.ciKeyId ? 'token set' : 'no token (run rotate-token)'
           console.log(`${p.slug}\t${p.name}\tbranch=${p.defaultBranch}\t${token}`)
         }
       }),
     )
 
-  project
+  team
     .command('rotate-token')
-    .description('replace a project CI token (the old one stops working immediately)')
+    .description('replace a team CI token (the old one stops working immediately)')
     .requiredOption('--org <slug>', 'organization slug')
-    .requiredOption('--project <slug>', 'project slug')
+    .requiredOption('--team <slug>', 'team slug')
     .option('--json', 'print JSON (includes the token)')
-    .action((opts: { org: string; project: string; json?: boolean }) =>
+    .action((opts: { org: string; team: string; json?: boolean }) =>
       withRuntime(async (rt) => {
-        const { project: p, token } = await rotateProjectToken(rt.auth, rt.db.db, {
-          orgSlug: opts.org,
-          projectSlug: opts.project,
+        const { team: p, token } = await rotateTeamToken(rt.auth, rt.db.db, {
+          workspaceSlug: opts.org,
+          teamSlug: opts.team,
         })
-        if (opts.json) return printJson({ project: publicProject(p), token })
+        if (opts.json) return printJson({ team: publicTeam(p), token })
         console.log(
           `Rotated the CI token for ${opts.org}/${p.slug}. The old token no longer works.`,
         )
@@ -258,13 +256,13 @@ function addProjectCommands(project: Command): void {
 function addWebhookCommands(webhook: Command): void {
   webhook
     .command('add')
-    .description('send signed events of a project to a URL (the secret is printed once)')
+    .description('send signed events of a team to a URL (the secret is printed once)')
     .requiredOption('--org <slug>', 'organization slug')
-    .requiredOption('--project <slug>', 'project slug')
+    .requiredOption('--team <slug>', 'team slug')
     .requiredOption('--url <url>', 'http(s) address that receives POSTs')
     .requiredOption('--events <list>', `comma-separated, from: ${WEBHOOK_EVENTS.join(', ')}`)
     .option('--json', 'print JSON (includes the secret)')
-    .action((opts: { org: string; project: string; url: string; events: string; json?: boolean }) =>
+    .action((opts: { org: string; team: string; url: string; events: string; json?: boolean }) =>
       withRuntime(async (rt) => {
         const problem = webhookUrlProblem(opts.url, {
           allowPrivate: rt.config.webhookAllowPrivate,
@@ -278,9 +276,9 @@ function addWebhookCommands(webhook: Command): void {
         if (events.length === 0) throw new Error('--events: choose at least one event')
         const unknown = events.filter((e) => !isWebhookEvent(e))
         if (unknown.length > 0) throw new Error(`Unknown event(s): ${unknown.join(', ')}`)
-        const project = await projectOf(rt, opts.org, opts.project)
+        const team = await teamOf(rt, opts.org, opts.team)
         const created = await createWebhook(rt.db.db, {
-          projectId: project.id,
+          teamId: team.id,
           url: url.toString(),
           events: events.filter(isWebhookEvent),
         })
@@ -293,13 +291,13 @@ function addWebhookCommands(webhook: Command): void {
 
   webhook
     .command('list')
-    .description("list a project's webhooks")
+    .description("list a team's webhooks")
     .requiredOption('--org <slug>', 'organization slug')
-    .requiredOption('--project <slug>', 'project slug')
-    .action((opts: { org: string; project: string }) =>
+    .requiredOption('--team <slug>', 'team slug')
+    .action((opts: { org: string; team: string }) =>
       withRuntime(async (rt) => {
-        const project = await projectOf(rt, opts.org, opts.project)
-        const hooks = await listWebhooks(rt.db.db, project.id)
+        const team = await teamOf(rt, opts.org, opts.team)
+        const hooks = await listWebhooks(rt.db.db, team.id)
         if (hooks.length === 0) return console.log('No webhooks yet.')
         for (const h of hooks) console.log(`${h.id}\t${h.url}\t${h.events.join(',')}`)
       }),
@@ -309,19 +307,19 @@ function addWebhookCommands(webhook: Command): void {
     .command('remove')
     .description('stop sending to a webhook')
     .requiredOption('--org <slug>', 'organization slug')
-    .requiredOption('--project <slug>', 'project slug')
+    .requiredOption('--team <slug>', 'team slug')
     .requiredOption('--id <id>', 'webhook id from `webhook list`')
-    .action((opts: { org: string; project: string; id: string }) =>
+    .action((opts: { org: string; team: string; id: string }) =>
       withRuntime(async (rt) => {
-        const project = await projectOf(rt, opts.org, opts.project)
-        await deleteWebhook(rt.db.db, project.id, opts.id)
+        const team = await teamOf(rt, opts.org, opts.team)
+        await deleteWebhook(rt.db.db, team.id, opts.id)
         console.log('Removed.')
       }),
     )
 }
 
-function projectOf(rt: Runtime, org: string, slug: string) {
-  return getProjectBySlugs(rt.db.db, { orgSlug: org, projectSlug: slug })
+function teamOf(rt: Runtime, workspace: string, slug: string) {
+  return getTeamBySlugs(rt.db.db, { workspaceSlug: workspace, teamSlug: slug })
 }
 
 function addMailCommands(mail: Command): void {
@@ -348,8 +346,8 @@ function addAuthCommands(auth: Command): void {
       .command(`${action} <method>`)
       .description(
         action === 'enable'
-          ? 'accept a login method (email or password) in an organization again; the way back in when it was locked down'
-          : 'stop accepting a login method (email or password) in an organization',
+          ? 'accept a login method (email or password) in a workspace again; the way back in when it was locked down'
+          : 'stop accepting a login method (email or password) in a workspace',
       )
       .requiredOption('--org <slug>', 'organization slug')
       .action((method: string, opts: { org: string }) =>
@@ -357,12 +355,12 @@ function addAuthCommands(auth: Command): void {
           if (method !== 'email' && method !== 'password') {
             throw new Error('method must be "email" or "password"')
           }
-          const org = await getOrganizationBySlug(rt.db.db, opts.org)
+          const workspace = await getWorkspaceBySlug(rt.db.db, opts.org)
           const value = action === 'enable'
           // This is the break-glass command, so the lockout guard doesn't apply to it.
-          const settings = await setOrgAuthSettings(
+          const settings = await setWorkspaceAuthSettings(
             rt.db.db,
-            org.id,
+            workspace.id,
             method === 'email' ? { emailLoginEnabled: value } : { passwordLoginEnabled: value },
             {
               force: true,
@@ -374,7 +372,7 @@ function addAuthCommands(auth: Command): void {
             },
           )
           console.log(
-            `${org.slug}: email login ${settings.emailLoginEnabled ? 'on' : 'off'}, password login ${settings.passwordLoginEnabled ? 'on' : 'off'}`,
+            `${workspace.slug}: email login ${settings.emailLoginEnabled ? 'on' : 'off'}, password login ${settings.passwordLoginEnabled ? 'on' : 'off'}`,
           )
         }),
       )
@@ -385,37 +383,37 @@ function addGithubCommands(github: Command): void {
   github
     .command('link')
     .description(
-      'report a project’s builds to a GitHub repository (needs the GitHub App installed on it)',
+      'report a team’s builds to a GitHub repository (needs the GitHub App installed on it)',
     )
     .requiredOption('--org <slug>', 'organization slug')
-    .requiredOption('--project <slug>', 'project slug')
+    .requiredOption('--team <slug>', 'team slug')
     .requiredOption('--repo <owner/name>', 'the repository')
     .requiredOption('--installation <id>', 'the GitHub App installation id (see its URL on GitHub)')
-    .action((opts: { org: string; project: string; repo: string; installation: string }) =>
+    .action((opts: { org: string; team: string; repo: string; installation: string }) =>
       withRuntime(async (rt) => {
         if (!rt.config.github) throw new Error('No GitHub App is configured (GITHUB_APP_*)')
         if (!/^[\w.-]+\/[\w.-]+$/.test(opts.repo))
           throw new Error('--repo must look like owner/name')
         if (!/^\d+$/.test(opts.installation)) throw new Error('--installation must be a number')
-        const project = await projectOf(rt, opts.org, opts.project)
-        await linkProjectToGithub(rt.db.db, project.id, {
+        const team = await teamOf(rt, opts.org, opts.team)
+        await linkTeamToGithub(rt.db.db, team.id, {
           installationId: opts.installation,
           repoRef: opts.repo,
         })
-        console.log(`${opts.org}/${opts.project} now reports to ${opts.repo}`)
+        console.log(`${opts.org}/${opts.team} now reports to ${opts.repo}`)
       }),
     )
 
   github
     .command('unlink')
-    .description('stop reporting a project to GitHub')
+    .description('stop reporting a team to GitHub')
     .requiredOption('--org <slug>', 'organization slug')
-    .requiredOption('--project <slug>', 'project slug')
-    .action((opts: { org: string; project: string }) =>
+    .requiredOption('--team <slug>', 'team slug')
+    .action((opts: { org: string; team: string }) =>
       withRuntime(async (rt) => {
-        const project = await projectOf(rt, opts.org, opts.project)
-        await unlinkProjectFromGit(rt.db.db, project.id)
-        console.log(`${opts.org}/${opts.project} no longer reports to GitHub`)
+        const team = await teamOf(rt, opts.org, opts.team)
+        await unlinkTeamFromGit(rt.db.db, team.id)
+        console.log(`${opts.org}/${opts.team} no longer reports to GitHub`)
       }),
     )
 }
@@ -546,17 +544,17 @@ function addIgnoreCommands(ignore: Command): void {
     .command('add')
     .description('ignore a rectangle (pixels from the top left) in the screenshots with this name')
     .requiredOption('--org <slug>', 'organization slug')
-    .requiredOption('--project <slug>', 'project slug')
+    .requiredOption('--team <slug>', 'team slug')
     .requiredOption('--name <name>', 'the screenshot name, as shown in the build')
     .requiredOption('--region <x,y,width,height>', 'the rectangle')
-    .action((opts: { org: string; project: string; name: string; region: string }) =>
+    .action((opts: { org: string; team: string; name: string; region: string }) =>
       withRuntime(async (rt) => {
         const [x, y, width, height] = opts.region.split(',').map((n) => Number(n.trim()))
         if ([x, y, width, height].some((n) => n === undefined || Number.isNaN(n))) {
           throw new Error('--region must look like 10,20,300,40')
         }
-        const project = await projectOf(rt, opts.org, opts.project)
-        const added = await addIgnoreRegion(rt.db.db, project.id, {
+        const team = await teamOf(rt, opts.org, opts.team)
+        const added = await addIgnoreRegion(rt.db.db, team.id, {
           name: opts.name,
           x: x ?? 0,
           y: y ?? 0,
@@ -572,13 +570,13 @@ function addIgnoreCommands(ignore: Command): void {
 
   ignore
     .command('list')
-    .description('list a project’s ignored regions')
+    .description('list a team’s ignored regions')
     .requiredOption('--org <slug>', 'organization slug')
-    .requiredOption('--project <slug>', 'project slug')
-    .action((opts: { org: string; project: string }) =>
+    .requiredOption('--team <slug>', 'team slug')
+    .action((opts: { org: string; team: string }) =>
       withRuntime(async (rt) => {
-        const project = await projectOf(rt, opts.org, opts.project)
-        for (const r of await listIgnoreRegions(rt.db.db, project.id)) {
+        const team = await teamOf(rt, opts.org, opts.team)
+        for (const r of await listIgnoreRegions(rt.db.db, team.id)) {
           console.log(`${r.id}  ${r.name}  ${r.x},${r.y} ${r.width}x${r.height}`)
         }
       }),
@@ -588,11 +586,11 @@ function addIgnoreCommands(ignore: Command): void {
     .command('remove <id>')
     .description('stop ignoring a region')
     .requiredOption('--org <slug>', 'organization slug')
-    .requiredOption('--project <slug>', 'project slug')
-    .action((id: string, opts: { org: string; project: string }) =>
+    .requiredOption('--team <slug>', 'team slug')
+    .action((id: string, opts: { org: string; team: string }) =>
       withRuntime(async (rt) => {
-        const project = await projectOf(rt, opts.org, opts.project)
-        await removeIgnoreRegion(rt.db.db, project.id, id)
+        const team = await teamOf(rt, opts.org, opts.team)
+        await removeIgnoreRegion(rt.db.db, team.id, id)
         console.log('Removed.')
       }),
     )

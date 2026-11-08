@@ -18,12 +18,12 @@ import {
 import { getJson, post, seg } from '#lib/http.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 
-export const triageKey = (org: string, project: string) => ['triage', org, project] as const
+export const triageKey = (workspace: string, team: string) => ['triage', workspace, team] as const
 
-export const triageQuery = (org: string, project: string) =>
+export const triageQuery = (workspace: string, team: string) =>
   queryOptions({
-    queryKey: triageKey(org, project),
-    queryFn: () => getJson<Triage.Queue>(`/api/projects/${seg(org)}/${seg(project)}/triage`),
+    queryKey: triageKey(workspace, team),
+    queryFn: () => getJson<Triage.Queue>(`/api/teams/${seg(workspace)}/${seg(team)}/triage`),
   })
 
 export const KIND_LABEL: Record<TriageKind, string> = {
@@ -203,20 +203,20 @@ export function frameOf(detail: Frame.Source, name: string, itemKind: TriageKind
   }
 }
 
-const buildDetailQuery = (org: string, project: string, number: number) =>
+const buildDetailQuery = (workspace: string, team: string, number: number) =>
   queryOptions({
-    queryKey: ['build', org, project, number],
+    queryKey: ['build', workspace, team, number],
     queryFn: () =>
-      getJson<Build.Detail>(`/api/projects/${seg(org)}/${seg(project)}/builds/${number}`),
+      getJson<Build.Detail>(`/api/teams/${seg(workspace)}/${seg(team)}/builds/${number}`),
     retry: false,
   })
 
 /** The recent builds' frames of a snapshot, newest first; builds that can't be read are left out. */
-export function useFilmstrip(org: string, project: string, item: Triage.Item | undefined) {
+export function useFilmstrip(workspace: string, team: string, item: Triage.Item | undefined) {
   const name = item?.snapshotName ?? undefined
   const numbers = item && name ? filmstripNumbers(item.build.number) : []
   const results = useQueries({
-    queries: numbers.map((n) => buildDetailQuery(org, project, n)),
+    queries: numbers.map((n) => buildDetailQuery(workspace, team, n)),
   })
   const kind = item?.kind
   const frames =
@@ -226,9 +226,9 @@ export function useFilmstrip(org: string, project: string, item: Triage.Item | u
 
 // -- Mutations -----------------------------------------------------------------------------------
 
-async function refresh(queryClient: QueryClient, org: string, project: string) {
+async function refresh(queryClient: QueryClient, workspace: string, team: string) {
   await Promise.all([
-    queryClient.invalidateQueries({ queryKey: triageKey(org, project) }),
+    queryClient.invalidateQueries({ queryKey: triageKey(workspace, team) }),
     queryClient.invalidateQueries({ queryKey: ['sidebar'] }),
   ])
 }
@@ -238,13 +238,13 @@ async function refresh(queryClient: QueryClient, org: string, project: string) {
  * `apply` is how the queue looks after the change.
  */
 function useOptimistic<V extends { ref: Ref }>(
-  org: string,
-  project: string,
+  workspace: string,
+  team: string,
   apply: (queue: Triage.Queue, vars: V) => Triage.Queue,
   mutationFn: (vars: V) => Promise<unknown>,
 ) {
   const queryClient = useQueryClient()
-  const key = triageKey(org, project)
+  const key = triageKey(workspace, team)
   return useMutation({
     mutationFn,
     onMutate: async (vars: V) => {
@@ -256,45 +256,45 @@ function useOptimistic<V extends { ref: Ref }>(
     onError: (_error, _vars, context) => {
       if (context?.previous) queryClient.setQueryData(key, context.previous)
     },
-    onSettled: () => refresh(queryClient, org, project),
+    onSettled: () => refresh(queryClient, workspace, team),
   })
 }
 
-const base = (org: string, project: string) => `/api/projects/${seg(org)}/${seg(project)}`
+const base = (workspace: string, team: string) => `/api/teams/${seg(workspace)}/${seg(team)}`
 
-export function useAssignTriage(org: string, project: string) {
+export function useAssignTriage(workspace: string, team: string) {
   return useOptimistic(
-    org,
-    project,
+    workspace,
+    team,
     (queue, v: { ref: Ref; assignee: Triage.Item['assignee'] }) =>
       withAssignee(queue, v.ref, v.assignee),
     (v) =>
-      post<Triage.ItemState>(`${base(org, project)}/triage/assign`, {
+      post<Triage.ItemState>(`${base(workspace, team)}/triage/assign`, {
         ...refOf(v.ref),
         assigneeId: v.assignee?.id ?? null,
       }),
   )
 }
 
-export function useSnoozeTriage(org: string, project: string) {
+export function useSnoozeTriage(workspace: string, team: string) {
   return useOptimistic(
-    org,
-    project,
+    workspace,
+    team,
     (queue, v: { ref: Ref; choice: SnoozeChoice }) => withoutItem(queue, v.ref),
     (v) =>
       post<Triage.ItemState>(
-        `${base(org, project)}/triage/snooze`,
+        `${base(workspace, team)}/triage/snooze`,
         snoozeBody(refOf(v.ref), v.choice),
       ),
   )
 }
 
-export function useDismissTriage(org: string, project: string) {
+export function useDismissTriage(workspace: string, team: string) {
   return useOptimistic(
-    org,
-    project,
+    workspace,
+    team,
     (queue, v: { ref: Ref }) => withoutItem(queue, v.ref),
-    (v) => post<Triage.ItemState>(`${base(org, project)}/triage/dismiss`, refOf(v.ref)),
+    (v) => post<Triage.ItemState>(`${base(workspace, team)}/triage/dismiss`, refOf(v.ref)),
   )
 }
 
@@ -302,20 +302,20 @@ export function useDismissTriage(org: string, project: string) {
  * Accept as baseline: the existing build review, approved. There is no per-snapshot approval, so
  * this approves the item's whole build (the item leaves the queue once the server recomputes it).
  */
-export function useAcceptBaseline(org: string, project: string) {
+export function useAcceptBaseline(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (v: { ref: Ref; buildNumber: number }) =>
       post<{ build: { reviewStatus: string } }>(
-        `${base(org, project)}/builds/${v.buildNumber}/review`,
+        `${base(workspace, team)}/builds/${v.buildNumber}/review`,
         { state: 'approved' },
       ),
     onSuccess: async (_data, v) => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['build', org, project, v.buildNumber] }),
-        queryClient.invalidateQueries({ queryKey: ['project', org, project] }),
-        queryClient.invalidateQueries({ queryKey: ['projects'] }),
-        refresh(queryClient, org, project),
+        queryClient.invalidateQueries({ queryKey: ['build', workspace, team, v.buildNumber] }),
+        queryClient.invalidateQueries({ queryKey: ['team', workspace, team] }),
+        queryClient.invalidateQueries({ queryKey: ['teams'] }),
+        refresh(queryClient, workspace, team),
       ])
     },
   })
@@ -328,13 +328,13 @@ export interface NewRegion {
 }
 
 /** Add an ignore region on a snapshot; `resolves` has the server dismiss the item with it. */
-export function useAddIgnoreRegion(org: string, project: string) {
+export function useAddIgnoreRegion(workspace: string, team: string) {
   return useOptimistic(
-    org,
-    project,
+    workspace,
+    team,
     (queue, v: NewRegion) => withoutItem(queue, v.ref),
     (v) =>
-      post(`${base(org, project)}/ignore-regions`, {
+      post(`${base(workspace, team)}/ignore-regions`, {
         name: v.name,
         ...v.rect,
         resolves: refOf(v.ref),

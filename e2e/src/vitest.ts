@@ -10,20 +10,20 @@ import { startStack, type Stack } from './stack.ts'
 export interface StackContext {
   readonly stack: Stack
   /**
-   * With `setup: true`: a dedicated stack's first admin, its organization and a signed-in API
-   * session; on a shared stack, this file's own tenant (a fresh organization and owner, an instance
+   * With `setup: true`: a dedicated stack's first admin, its workspace and a signed-in API
+   * session; on a shared stack, this file's own tenant (a fresh workspace and owner, an instance
    * admin like the first-run account).
    */
   readonly setup: completeSetup.Result
   /** An instance admin's session (the first-run account). Needs `setup: true` or a shared stack. */
   readonly admin: Session
-  /** Another fresh organization with its own owner (and optionally a project), through the API. */
+  /** Another fresh workspace with its own owner (and optionally a team), through the API. */
   tenant(options?: createTenant.Options): Promise<Tenant>
   /** The fake GitHub of the `github` profile, reset for this file. */
   readonly github: FakeGithub
 }
 
-type SetupOption = boolean | { account?: Account; organizationName?: string }
+type SetupOption = boolean | { account?: Account; workspaceName?: string }
 
 const testFileName = () => expect.getState().testPath?.split('/').at(-1) ?? ''
 
@@ -34,8 +34,8 @@ type UseStackOptions =
        * tenant, so the stack is never configured per file: pass only the profile.
        */
       profile: Profile
-      /** Make this file's tenant (`ctx.setup`); `organizationName` is the base of its name. */
-      setup?: boolean | { organizationName?: string }
+      /** Make this file's tenant (`ctx.setup`); `workspaceName` is the base of its name. */
+      setup?: boolean | { workspaceName?: string }
       dedicated?: false
     }
   | (Omit<Stack.Options, 'env' | 'profile' | 'pooled'> & {
@@ -76,7 +76,7 @@ export function useStack(options: UseStackOptions = { dedicated: true }): StackC
       github = entry.github
       github?.reset()
       if (options.setup) {
-        const base = typeof options.setup === 'object' ? options.setup.organizationName : undefined
+        const base = typeof options.setup === 'object' ? options.setup.workspaceName : undefined
         const tenant = await createTenant(stack, admin, base ? { name: base } : {})
         setup = tenant
       }
@@ -108,7 +108,7 @@ export function useStack(options: UseStackOptions = { dedicated: true }): StackC
   })
   afterAll(async () => {
     if (!stack) return
-    if (failed) console.log(`[e2e] logs of ${stack.project}: ${await stack.saveLogs()}`)
+    if (failed) console.log(`[e2e] logs of ${stack.composeProject}: ${await stack.saveLogs()}`)
     // A shared stack stays for the next file of this worker (the pool removes it).
     if (!shared) await stack.stop()
   })
@@ -119,7 +119,7 @@ export function useStack(options: UseStackOptions = { dedicated: true }): StackC
       return stack
     },
     get setup() {
-      if (!setup) throw new Error('pass `setup: true` to useStack() to get an organization')
+      if (!setup) throw new Error('pass `setup: true` to useStack() to get a workspace')
       return setup
     },
     get admin() {

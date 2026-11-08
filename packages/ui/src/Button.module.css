@@ -7,7 +7,7 @@
   height: 28px;
   padding-inline: 10px;
   border: 1px solid var(--circi-line-strong);
-  border-radius: 6px;
+  border-radius: var(--circi-radius-control);
   background: var(--circi-surface-raised);
   color: var(--circi-text-primary);
   font: inherit;
@@ -39,7 +39,7 @@
 }
 
 .root[data-variant='danger'] {
-  color: var(--circi-state-rejected);
+  color: var(--circi-state-rejected-text);
 }
 
 .root[data-variant='ghost'] {

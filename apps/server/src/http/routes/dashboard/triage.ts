@@ -5,7 +5,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
 import type { Deps } from '#http/lib/deps.ts'
-import { loadProject } from '#http/lib/project-access.ts'
+import { loadTeam } from '#http/lib/team-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const ref = { kind: z.enum(schema.TRIAGE_KINDS), key: z.string().min(1).max(500) }
@@ -36,14 +36,14 @@ function state(item: {
 }
 
 /**
- * A project's triage queue and what members do with it: assign, snooze, dismiss. Any member of
- * the organization may; everyone else gets "not found".
+ * A team's triage queue and what members do with it: assign, snooze, dismiss. Any member of
+ * the workspace may; everyone else gets "not found".
  */
 export const dashboardTriageRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
-  app.get('/projects/:org/:project/triage', async (req, reply) => {
-    const found = await loadProject(deps, req, reply)
+  app.get('/teams/:workspace/:team/triage', async (req, reply) => {
+    const found = await loadTeam(deps, req, reply)
     if (!found) return reply
-    const queue = await listTriage(deps.db, { projectId: found.project.id, now: new Date() })
+    const queue = await listTriage(deps.db, { teamId: found.team.id, now: new Date() })
     const payload: Triage.Queue = {
       items: queue.items.map((i) =>
         Object.assign({}, i, {
@@ -59,29 +59,29 @@ export const dashboardTriageRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
     return payload
   })
 
-  app.post('/projects/:org/:project/triage/assign', async (req, reply) => {
-    const found = await loadProject(deps, req, reply)
+  app.post('/teams/:workspace/:team/triage/assign', async (req, reply) => {
+    const found = await loadTeam(deps, req, reply)
     if (!found) return reply
     const body = parse(assignBody, req.body)
-    return state(await assignTriage(deps.db, { projectId: found.project.id, ...body }))
+    return state(await assignTriage(deps.db, { teamId: found.team.id, ...body }))
   })
 
-  app.post('/projects/:org/:project/triage/snooze', async (req, reply) => {
-    const found = await loadProject(deps, req, reply)
+  app.post('/teams/:workspace/:team/triage/snooze', async (req, reply) => {
+    const found = await loadTeam(deps, req, reply)
     if (!found) return reply
     const { date, ...body } = parse(snoozeBody, req.body)
     const { item } = await snoozeTriage(deps.db, {
-      projectId: found.project.id,
+      teamId: found.team.id,
       ...body,
       ...(date ? { date: new Date(date) } : {}),
     })
     return state(item)
   })
 
-  app.post('/projects/:org/:project/triage/dismiss', async (req, reply) => {
-    const found = await loadProject(deps, req, reply)
+  app.post('/teams/:workspace/:team/triage/dismiss', async (req, reply) => {
+    const found = await loadTeam(deps, req, reply)
     if (!found) return reply
     const body = parse(dismissBody, req.body)
-    return state(await dismissTriage(deps.db, { projectId: found.project.id, ...body }))
+    return state(await dismissTriage(deps.db, { teamId: found.team.id, ...body }))
   })
 }

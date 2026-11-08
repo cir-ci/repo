@@ -7,7 +7,7 @@ import { reportPhases, startStack, type Stack } from './stack.ts'
  * Shared stacks. A profile is a stack configuration (`default`, `s3`, `github`); the first
  * test file of a Vitest worker that asks for a profile boots it, later files of that worker reuse
  * it. Files of one worker run one after another, so a shared stack is never used by two at once;
- * every file makes its own tenant (organization, owner, project) on it, which keeps the files'
+ * every file makes its own tenant (workspace, owner, project) on it, which keeps the files'
  * data apart. Needs `isolate: false` for the e2e project (see vitest.config.ts), otherwise every
  * file gets a fresh module scope and with it an empty pool.
  *
@@ -59,26 +59,26 @@ async function boot(profile: Profile, label: string): Promise<PoolEntry> {
     await github?.close()
     throw err
   }
-  liveProjects.add(stack.project)
+  liveProjects.add(stack.composeProject)
   const began = Date.now()
   let setup
   try {
-    setup = await completeSetup(stack, { organizationName: 'Pool admin' })
+    setup = await completeSetup(stack, { workspaceName: 'Pool admin' })
   } catch (err) {
     await github?.close()
     await stack.stop()
-    liveProjects.delete(stack.project)
+    liveProjects.delete(stack.composeProject)
     throw err
   }
   stack.phases.setup = Date.now() - began
-  reportPhases(stack.project, stack.phases, label, profile)
+  reportPhases(stack.composeProject, stack.phases, label, profile)
   return { profile, stack, admin: setup.session, github }
 }
 
 async function release(entry: PoolEntry): Promise<void> {
   await entry.github?.close()
   await entry.stack.stop()
-  liveProjects.delete(entry.stack.project)
+  liveProjects.delete(entry.stack.composeProject)
 }
 
 function installExitHook(): void {

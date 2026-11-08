@@ -24,7 +24,7 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
   const [group, setGroup] = useState<GroupFilter>('all')
   // A generic integration whose connect form is open (one with credential fields).
   const [generic, setGeneric] = useState<Integration.CatalogEntry | null>(null)
-  const install = useInstall(props.org)
+  const install = useInstall(props.workspace)
   const tiles = filterCatalog(props.catalog, { query, group })
 
   function close(open: boolean) {
@@ -52,9 +52,9 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
     >
       {generic ? (
         generic.kind === 'github' ? (
-          <GithubAddPanel entry={generic} org={props.org} onDone={() => close(false)} />
+          <GithubAddPanel entry={generic} workspace={props.workspace} onDone={() => close(false)} />
         ) : (
-          <ConnectForm entry={generic} org={props.org} onDone={() => close(false)} />
+          <ConnectForm entry={generic} workspace={props.workspace} onDone={() => close(false)} />
         )
       ) : (
         <>
@@ -118,11 +118,11 @@ const canAdd = (entry: Integration.CatalogEntry) =>
 
 export namespace AddIntegrationDialog {
   export interface Props {
-    org: string
+    workspace: string
     open: boolean
     onOpenChange: (open: boolean) => void
     catalog: Integration.CatalogEntry[]
-    /** Kinds the organisation already has, tagged "Added". */
+    /** Kinds the workspace already has, tagged "Added". */
     added: string[]
   }
 }

@@ -12,7 +12,7 @@ describe('reviewing a build', () => {
   it('starts approved on the default branch once there is a baseline, and says it was automatic', async () => {
     // The fixture approved build 1 by hand (a first build is never automatic); build 2 compares
     // with it and is approved without anyone looking.
-    const first = (await get(`/api/projects/${acme.orgSlug}/web/builds/1`)).json()
+    const first = (await get(`/api/teams/${acme.workspaceSlug}/web/builds/1`)).json()
     expect(first.reviews).toMatchObject([{ state: 'approved', source: 'ui' }])
     expect((await buildDetail(acmeCookie)).json().baseline).toMatchObject({ number: 1 })
     expect(await reviewStatus()).toBe('approved')
@@ -41,9 +41,7 @@ describe('reviewing a build', () => {
       userName: expect.stringMatching(/^Owner \d+$/),
       createdAt: expect.any(String),
     })
-    expect((await get('/api/projects')).json().projects[0].latestBuild.reviewStatus).toBe(
-      'rejected',
-    )
+    expect((await get('/api/teams')).json().teams[0].latestBuild.reviewStatus).toBe('rejected')
   })
 
   it('lets them change their mind, keeping the history', async () => {
@@ -64,7 +62,7 @@ describe('reviewing a build', () => {
     expect(await reviewStatus()).toBe('approved')
   })
 
-  it('keeps other organizations out, with the same answer as for a missing build', async () => {
+  it('keeps other workspaces out, with the same answer as for a missing build', async () => {
     const theirs = await review('rejected', { cookie: rivalCookie })
     const missing = await review('rejected', { cookie: rivalCookie, build: 99 })
     expect([theirs.statusCode, missing.statusCode]).toEqual([404, 404])
@@ -96,7 +94,7 @@ describe('reviewing a build', () => {
 
   it('refuses a build with no changes to decide on', async () => {
     // Same screenshots as build 1 (approved), so build 3 matches its baseline exactly.
-    await buildWith(acme.project.id, 'aaaa003', ['aaaa001'], {
+    await buildWith(acme.team.id, 'aaaa003', ['aaaa001'], {
       home: await png('#ffffff'),
       about: await png('#eeeeee'),
     })

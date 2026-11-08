@@ -20,7 +20,7 @@ const item = (over: Partial<Triage.Item> = {}): Triage.Item => ({
   kind: 'flaky',
   key: 'home',
   snapshotName: 'home',
-  project: { slug: 'web', name: 'Web' },
+  team: { slug: 'web', name: 'Web' },
   build: {
     number: 12,
     branch: 'main',

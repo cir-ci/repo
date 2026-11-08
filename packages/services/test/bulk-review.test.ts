@@ -1,9 +1,9 @@
 import { createWebhook, GIT_NOTIFY_QUEUE, QUEUES, schema } from '@circi/db'
-import { createTestDb, seedBuild, seedProject } from '@circi/testing'
+import { createTestDb, seedBuild, seedTeam } from '@circi/testing'
 import { eq, inArray } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
-import { linkProjectToGithub, MAX_BULK_REVIEW, reviewBuilds } from '#src/index.ts'
+import { linkTeamToGithub, MAX_BULK_REVIEW, reviewBuilds } from '#src/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -22,20 +22,20 @@ const jobsIn = async (queue: string) =>
 const done = { status: 'complete', conclusion: 'changes_detected' } as const
 
 async function setup(count = 3) {
-  const { project, owner } = await seedProject(t.db)
-  await linkProjectToGithub(t.db, project.id, { installationId: '1', repoRef: 'acme/web' })
+  const { team, owner } = await seedTeam(t.db)
+  await linkTeamToGithub(t.db, team.id, { installationId: '1', repoRef: 'acme/web' })
   await createWebhook(t.db, {
-    projectId: project.id,
+    teamId: team.id,
     url: 'https://hooks.acme.io/x',
     events: ['build.reviewed'],
   })
   const list = []
   for (let i = 0; i < count; i += 1) {
     // eslint-disable-next-line no-await-in-loop -- sequential numbering
-    list.push(await seedBuild(t.db, project.id, done))
+    list.push(await seedBuild(t.db, team.id, done))
   }
   await t.db.delete(schema.jobs)
-  return { project, owner, list }
+  return { team, owner, list }
 }
 
 const reviewStatuses = async (ids: string[]) =>
@@ -49,9 +49,9 @@ const reviewStatuses = async (ids: string[]) =>
 
 describe('reviewBuilds', () => {
   it('approves three builds and queues one set of notices per build', async () => {
-    const { project, owner, list } = await setup()
+    const { team, owner, list } = await setup()
     const result = await reviewBuilds(t.db, {
-      projectId: project.id,
+      teamId: team.id,
       buildIds: list.map((b) => b.id),
       userId: owner.id,
       state: 'approved',
@@ -73,13 +73,13 @@ describe('reviewBuilds', () => {
   })
 
   it('queues nothing for a build that already had the decision', async () => {
-    const { project, owner, list } = await setup(2)
+    const { team, owner, list } = await setup(2)
     await t.db
       .update(schema.builds)
       .set({ reviewStatus: 'rejected' })
       .where(eq(schema.builds.id, list[0]!.id))
     await reviewBuilds(t.db, {
-      projectId: project.id,
+      teamId: team.id,
       buildIds: list.map((b) => b.id),
       userId: owner.id,
       state: 'rejected',
@@ -89,14 +89,14 @@ describe('reviewBuilds', () => {
     expect(await jobsIn(GIT_NOTIFY_QUEUE)).toHaveLength(1)
   })
 
-  it('changes nothing when one id belongs to another project', async () => {
-    const { project, owner, list } = await setup()
-    const other = await seedProject(t.db)
-    const foreign = await seedBuild(t.db, other.project.id, done)
+  it('changes nothing when one id belongs to another team', async () => {
+    const { team, owner, list } = await setup()
+    const other = await seedTeam(t.db)
+    const foreign = await seedBuild(t.db, other.team.id, done)
     await t.db.delete(schema.jobs)
     await expect(
       reviewBuilds(t.db, {
-        projectId: project.id,
+        teamId: team.id,
         buildIds: [...list.map((b) => b.id), foreign.id],
         userId: owner.id,
         state: 'approved',
@@ -112,12 +112,12 @@ describe('reviewBuilds', () => {
   })
 
   it('rolls back the earlier builds when a later one cannot be reviewed', async () => {
-    const { project, owner, list } = await setup(2)
-    const unfinished = await seedBuild(t.db, project.id)
+    const { team, owner, list } = await setup(2)
+    const unfinished = await seedBuild(t.db, team.id)
     await t.db.delete(schema.jobs)
     await expect(
       reviewBuilds(t.db, {
-        projectId: project.id,
+        teamId: team.id,
         buildIds: [...list.map((b) => b.id), unfinished.id],
         userId: owner.id,
         state: 'approved',
@@ -131,8 +131,8 @@ describe('reviewBuilds', () => {
   })
 
   it('refuses an empty list and more than the maximum', async () => {
-    const { project, owner } = await setup(1)
-    const base = { projectId: project.id, userId: owner.id, state: 'approved' as const }
+    const { team, owner } = await setup(1)
+    const base = { teamId: team.id, userId: owner.id, state: 'approved' as const }
     await expect(reviewBuilds(t.db, { ...base, buildIds: [] })).rejects.toThrow('at least one')
     const many = Array.from({ length: MAX_BULK_REVIEW + 1 }, (_, i) => String(i))
     await expect(reviewBuilds(t.db, { ...base, buildIds: many })).rejects.toThrow('at most')

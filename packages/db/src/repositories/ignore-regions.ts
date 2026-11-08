@@ -5,7 +5,7 @@ import { ignoreRegions } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { NotFoundError } from '#src/errors.ts'
 
-/** Rectangles ignored when comparing a project's screenshots by name (PLAN M4). */
+/** Rectangles ignored when comparing a team's screenshots by name (PLAN M4). */
 
 export interface Region {
   x: number
@@ -28,7 +28,7 @@ function assertRegion(r: Region): void {
 
 export async function addIgnoreRegion(
   db: Database,
-  projectId: string,
+  teamId: string,
   input: Region & { name: string },
 ): Promise<IgnoreRegionRow> {
   const name = input.name.trim()
@@ -36,20 +36,17 @@ export async function addIgnoreRegion(
   assertRegion({ x: input.x, y: input.y, width: input.width, height: input.height })
   const [row] = await db
     .insert(ignoreRegions)
-    .values({ projectId, name, x: input.x, y: input.y, width: input.width, height: input.height })
+    .values({ teamId, name, x: input.x, y: input.y, width: input.width, height: input.height })
     .returning()
   if (!row) throw new Error('insert returned no row')
   return { id: row.id, name: row.name, x: row.x, y: row.y, width: row.width, height: row.height }
 }
 
-export async function listIgnoreRegions(
-  db: Database,
-  projectId: string,
-): Promise<IgnoreRegionRow[]> {
+export async function listIgnoreRegions(db: Database, teamId: string): Promise<IgnoreRegionRow[]> {
   const rows = await db
     .select()
     .from(ignoreRegions)
-    .where(eq(ignoreRegions.projectId, projectId))
+    .where(eq(ignoreRegions.teamId, teamId))
     .orderBy(asc(ignoreRegions.name), asc(ignoreRegions.createdAt))
   return rows.map((r) => ({
     id: r.id,
@@ -61,25 +58,21 @@ export async function listIgnoreRegions(
   }))
 }
 
-export async function removeIgnoreRegion(
-  db: Database,
-  projectId: string,
-  id: string,
-): Promise<void> {
+export async function removeIgnoreRegion(db: Database, teamId: string, id: string): Promise<void> {
   const rows = await db
     .delete(ignoreRegions)
-    .where(and(eq(ignoreRegions.projectId, projectId), eq(ignoreRegions.id, id)))
+    .where(and(eq(ignoreRegions.teamId, teamId), eq(ignoreRegions.id, id)))
     .returning({ id: ignoreRegions.id })
   if (rows.length === 0) throw new NotFoundError('Ignore region not found')
 }
 
-/** The regions of a project grouped by screenshot name, for the worker. */
+/** The regions of a team grouped by screenshot name, for the worker. */
 export async function ignoreRegionsByName(
   db: Database,
-  projectId: string,
+  teamId: string,
 ): Promise<Map<string, Region[]>> {
   const map = new Map<string, Region[]>()
-  for (const r of await listIgnoreRegions(db, projectId)) {
+  for (const r of await listIgnoreRegions(db, teamId)) {
     const list = map.get(r.name) ?? []
     list.push({ x: r.x, y: r.y, width: r.width, height: r.height })
     map.set(r.name, list)

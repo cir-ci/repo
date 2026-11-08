@@ -1,6 +1,6 @@
 import { and, asc, eq, isNull } from 'drizzle-orm'
 
-import { builds, comments, member, projects, user } from '#schema/index.ts'
+import { builds, comments, member, teams, user } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import type { Comment } from '#src/types.ts'
 
@@ -66,19 +66,22 @@ export async function softDeleteComment(db: Database, id: string): Promise<Comme
   return row
 }
 
-export interface OrgMember {
+export interface WorkspaceMember {
   userId: string
   name: string
   email: string
 }
 
-/** The members of the organization that owns a build's project, for matching @mentions. */
-export async function listBuildOrgMembers(db: Database, buildId: string): Promise<OrgMember[]> {
+/** The members of the workspace that owns a build's team, for matching @mentions. */
+export async function listBuildWorkspaceMembers(
+  db: Database,
+  buildId: string,
+): Promise<WorkspaceMember[]> {
   return db
     .select({ userId: user.id, name: user.name, email: user.email })
     .from(builds)
-    .innerJoin(projects, eq(projects.id, builds.projectId))
-    .innerJoin(member, eq(member.organizationId, projects.orgId))
+    .innerJoin(teams, eq(teams.id, builds.teamId))
+    .innerJoin(member, eq(member.workspaceId, teams.workspaceId))
     .innerJoin(user, eq(user.id, member.userId))
     .where(eq(builds.id, buildId))
     .orderBy(asc(user.id))

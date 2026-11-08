@@ -7,9 +7,9 @@ import { useSidebarModel } from '#features/sidebar/api.ts'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 
-import { goPath, readRememberedOrg } from './shell-model.ts'
+import { goPath, readRememberedWorkspace } from './shell-model.ts'
 import { ShortcutsDialog } from './ShortcutsDialog.tsx'
-import { useOrgs } from './use-orgs.ts'
+import { useWorkspaces } from './use-workspaces.ts'
 
 /**
  * Binds the global shortcuts (G-chords, ⌘K, `?`, ⌘⇧C) once for the signed-in app, and renders the
@@ -19,8 +19,8 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
   const router = useRouter()
   const params = useParams({ strict: false })
   const announce = useAnnounce()
-  const { org } = useOrgs(readRememberedOrg())
-  const { data: sidebar } = useSidebarModel(org?.slug)
+  const { workspace } = useWorkspaces(readRememberedWorkspace())
+  const { data: sidebar } = useSidebarModel(workspace?.slug)
   const commandOpen = useOverlayStore((s) => s.commandMenuOpen)
   const setCommandOpen = useOverlayStore((s) => s.setCommandMenuOpen)
   const helpOpen = useOverlayStore((s) => s.helpOpen)
@@ -29,10 +29,10 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
   useShortcutHandlers({
     go: ({ to }) => {
       const path = goPath(to, {
-        org: org?.slug,
-        // A project in the address only counts when it belongs to the organization being shown.
-        project: params.org === org?.slug ? params.project : undefined,
-        projects: sidebar?.projects,
+        workspace: workspace?.slug,
+        // A team in the address only counts when it belongs to the workspace being shown.
+        team: params.workspace === workspace?.slug ? params.team : undefined,
+        teams: sidebar?.teams,
       })
       if (path) router.history.push(path)
     },
@@ -52,8 +52,8 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
       <CommandMenu
         open={commandOpen}
         onOpenChange={setCommandOpen}
-        org={org?.slug}
-        projects={sidebar?.projects}
+        workspace={workspace?.slug}
+        teams={sidebar?.teams}
         views={sidebar?.views}
       />
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />

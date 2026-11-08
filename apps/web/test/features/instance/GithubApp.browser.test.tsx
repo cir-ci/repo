@@ -129,7 +129,7 @@ describe('the Add dialog’s GitHub tile', () => {
   const open = () =>
     renderPage(
       <AddIntegrationDialog
-        org="acme"
+        workspace="acme"
         open
         onOpenChange={() => {}}
         catalog={[github]}
@@ -141,7 +141,7 @@ describe('the Add dialog’s GitHub tile', () => {
     const assign = vi.spyOn(navigation, 'assign').mockImplementation(() => {})
     fakeApi({
       'GET /api/instance/github-app': { body: { ...APP, source: 'manifest', canManage: false } },
-      'GET /api/orgs/acme/integrations/github/install': {
+      'GET /api/workspaces/acme/integrations/github/install': {
         body: { url: 'https://github.com/apps/circi/installations/new?state=s' },
       },
     })

@@ -11,7 +11,7 @@ const ROLES = [
   { value: 'admin', label: 'Admin' },
 ]
 
-export function InviteForm({ organizationId, onInvited }: InviteForm.Props) {
+export function InviteForm({ workspaceId, onInvited }: InviteForm.Props) {
   const announce = useAnnounce()
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<AssignableRole>('member')
@@ -28,7 +28,7 @@ export function InviteForm({ organizationId, onInvited }: InviteForm.Props) {
     setBusy(true)
     setMessage(null)
     try {
-      await inviteMember({ email: address, role, organizationId })
+      await inviteMember({ email: address, role, workspaceId })
     } catch (failure) {
       setMessage({
         tone: 'danger',
@@ -80,7 +80,7 @@ export function InviteForm({ organizationId, onInvited }: InviteForm.Props) {
 
 export namespace InviteForm {
   export interface Props {
-    organizationId: string
+    workspaceId: string
     onInvited: () => Promise<unknown>
   }
 }

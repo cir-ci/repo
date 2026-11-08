@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { startWebhookReceiver, type WebhookReceiver } from '#fakes/webhook-receiver.ts'
-import { createProject, type CreatedProject } from '#src/admin.ts'
+import { createTeam, type CreatedTeam } from '#src/admin.ts'
 import { Repo } from '#src/git-repo.ts'
 import { uploadOrThrow } from '#src/upload.ts'
 import { useBrowser, useStack } from '#src/vitest.ts'
@@ -20,7 +20,7 @@ describe('webhook address guard (private addresses refused)', () => {
   const browser = useBrowser()
   let receiver: WebhookReceiver
   let repo: Repo
-  let project: CreatedProject
+  let team: CreatedTeam
 
   beforeAll(async () => {
     receiver = await startWebhookReceiver()
@@ -31,7 +31,7 @@ describe('webhook address guard (private addresses refused)', () => {
     await repo.destroy()
   })
 
-  const base = () => `/api/projects/${ctx.setup.organization.slug}/${project.slug}/webhooks`
+  const base = () => `/api/teams/${ctx.setup.workspace.slug}/${team.slug}/webhooks`
   const add = (url: string) =>
     ctx.setup.session.request<{ error?: string }>('POST', base(), {
       url,
@@ -41,13 +41,13 @@ describe('webhook address guard (private addresses refused)', () => {
     Number(
       (
         await ctx.stack.sql(
-          `select count(*) from webhooks where project_id in (select id from projects where slug = '${project.slug}')`,
+          `select count(*) from webhooks where team_id in (select id from teams where slug = '${team.slug}')`,
         )
       )[0]?.[0],
     )
 
   it('refuses private, loopback, link-local and metadata addresses when a webhook is added', async () => {
-    project = await createProject(ctx.setup.session, ctx.setup.organization.slug, 'Guarded')
+    team = await createTeam(ctx.setup.session, ctx.setup.workspace.slug, 'Guarded')
     const refused = [
       'http://127.0.0.1:8080/hook',
       'http://127.1/hook',
@@ -90,7 +90,7 @@ describe('webhook address guard (private addresses refused)', () => {
   it('shows the reason in the settings page when the address is refused', async () => {
     const { stack, setup } = ctx
     const page = await browser.as(setup.session)
-    await page.goto(`${stack.url}/${setup.organization.slug}/${project.slug}/settings`)
+    await page.goto(`${stack.url}/${setup.workspace.slug}/${team.slug}/settings`)
     await page.getByRole('textbox', { name: 'Address' }).fill('http://169.254.169.254/latest/')
     await page.getByRole('button', { name: 'Add webhook' }).click()
     await page.getByText('That address is on a private network').waitFor()
@@ -104,8 +104,8 @@ describe('webhook address guard (private addresses refused)', () => {
     // or a changed instance setting could have left it.
     const id = (
       await stack.sql(
-        `insert into webhooks (project_id, url, secret, events)
-         select id, '${receiver.url}/leak', 'whsec_test', '{build.completed}' from projects where slug = '${project.slug}'
+        `insert into webhooks (team_id, url, secret, events)
+         select id, '${receiver.url}/leak', 'whsec_test', '{build.completed}' from teams where slug = '${team.slug}'
          returning id`,
       )
     )[0]?.[0]
@@ -114,7 +114,7 @@ describe('webhook address guard (private addresses refused)', () => {
 
     await repo.writeShots({ home: {} })
     await repo.commit('first')
-    await uploadOrThrow({ stack, token: project.token, repo, wait: true })
+    await uploadOrThrow({ stack, token: team.token, repo, wait: true })
 
     await expect
       .poll(
@@ -151,14 +151,14 @@ describe('webhook address guard (private addresses refused)', () => {
     expect(created.status).toBe(201)
     const hook = (
       await ctx.setup.session.get<{ webhooks: { id: string; url: string }[] }>(
-        `/api/projects/${ctx.setup.organization.slug}/${project.slug}/settings`,
+        `/api/teams/${ctx.setup.workspace.slug}/${team.slug}/settings`,
       )
     ).webhooks.find((h) => h.url.includes('nip.io'))
     expect(hook).toBeDefined()
 
     await repo.writeShots({ home: { dot: { x: 5, y: 5 } } })
     await repo.commit('second')
-    await uploadOrThrow({ stack, token: project.token, repo, wait: true })
+    await uploadOrThrow({ stack, token: team.token, repo, wait: true })
     // ...and refused when it is delivered.
     await expect
       .poll(

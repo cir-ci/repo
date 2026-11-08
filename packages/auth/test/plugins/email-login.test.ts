@@ -1,5 +1,5 @@
 import { schema } from '@circi/db'
-import { createTestDb, seedOrg, seedUser } from '@circi/testing'
+import { createTestDb, seedWorkspace, seedUser } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { type Auth, createAuth, type Mailer } from '#src/index.ts'
@@ -47,10 +47,10 @@ describe('email login plugin', () => {
   })
 
   it('mails an invited address', async () => {
-    const { org, owner } = await seedOrg(t.db)
+    const { workspace, owner } = await seedWorkspace(t.db)
     await t.db.insert(schema.invitation).values({
       id: 'inv-login',
-      organizationId: org.id,
+      workspaceId: workspace.id,
       email: 'invited@acme.test',
       role: 'member',
       status: 'pending',
@@ -62,10 +62,10 @@ describe('email login plugin', () => {
     expect(sent).toHaveLength(before + 1)
   })
 
-  it('mails an address on a verified organization domain', async () => {
-    const { org } = await seedOrg(t.db)
-    await t.db.insert(schema.orgDomains).values({
-      orgId: org.id,
+  it('mails an address on a verified workspace domain', async () => {
+    const { workspace } = await seedWorkspace(t.db)
+    await t.db.insert(schema.workspaceDomains).values({
+      workspaceId: workspace.id,
       domain: 'corp.test',
       verificationToken: 't',
       verifiedAt: new Date(),

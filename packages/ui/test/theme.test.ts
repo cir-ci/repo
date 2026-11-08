@@ -51,6 +51,18 @@ function deltaE(first: Rgb, second: Rgb) {
   return Math.hypot(l1 - l2, a1 - a2, b1 - b2)
 }
 
+/** `fg` at `alpha` over `bg`, as `#rrggbb`. */
+function blend(fg: string, bg: string, alpha: number) {
+  const mixed = [1, 3, 5].map((i) => {
+    const f = Number.parseInt(fg.slice(i, i + 2), 16)
+    const b = Number.parseInt(bg.slice(i, i + 2), 16)
+    return Math.round(f * alpha + b * (1 - alpha))
+      .toString(16)
+      .padStart(2, '0')
+  })
+  return `#${mixed.join('')}`
+}
+
 const SCHEMES: ColorScheme[] = ['dark', 'light']
 
 describe('palettes', () => {
@@ -66,22 +78,59 @@ describe('palettes', () => {
       }
     })
 
-    it(`${scheme}: state colours stand out at 3:1 on every surface (glyphs, not text)`, () => {
+    it(`${scheme}: state colours stand out at 3:1 on every surface (glyphs, not text; review included in light)`, () => {
       for (const surface of surfaces) {
         for (const [name, ink] of Object.entries(p.state)) {
-          if (name === 'reviewText') continue
-          // The canvas's light review amber (#b38d05) is 2.7:1 on chrome and 2.5:1 on highest. It
-          // is only drawn on panel and raised (rows, build header); see docs/next-steps-plan.md R11.
-          if (
-            scheme === 'light' &&
-            name === 'review' &&
-            surface !== p.surface.panel &&
-            surface !== p.surface.raised
-          )
-            continue
+          if (name.endsWith('Text')) continue
           expect(contrast(ink, surface), `${ink} on ${surface}`).toBeGreaterThanOrEqual(3)
         }
       }
+    })
+
+    it(`${scheme}: badge text reads at 4.5:1 on a 14% tint of its own colour over raised`, () => {
+      const texts = {
+        approved: p.state.approvedText,
+        review: p.state.reviewText,
+        processing: p.state.processing,
+        rejected: p.state.rejectedText,
+      }
+      for (const [name, ink] of Object.entries(texts)) {
+        // The tint is the glyph colour, not the text colour.
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- `name` is a key of `texts`, which are state names
+        const tint = blend(p.state[name as keyof typeof texts], p.surface.raised, 0.14)
+        expect(contrast(ink, tint), `${name} text ${ink} on ${tint}`).toBeGreaterThanOrEqual(4.5)
+      }
+    })
+
+    it(`${scheme}: tile text reads at 4.5:1 on every team colour`, () => {
+      for (const [name, fill] of Object.entries(p.team)) {
+        expect(contrast(p.other.tileText, fill), `tile text on ${name}`).toBeGreaterThanOrEqual(4.5)
+      }
+    })
+
+    it(`${scheme}: team colours are ΔE 15 from state colours, accent, annotation and each other`, () => {
+      const others: [string, string][] = [
+        ...Object.entries(p.state)
+          .filter(([name]) => !name.endsWith('Text'))
+          .map(([name, hex]): [string, string] => [`state.${name}`, hex]),
+        ['accent.main', p.accent.main],
+        ['annotation', p.other.annotation],
+      ]
+      const team = Object.entries(p.team)
+      const failures: string[] = []
+      for (const [name, hex] of team) {
+        for (const [otherName, otherHex] of others) {
+          const d = deltaE(toLinear(hex), toLinear(otherHex))
+          if (d < 15) failures.push(`${scheme} team.${name} vs ${otherName}: ${d.toFixed(1)}`)
+        }
+      }
+      for (const [i, [name, hex]] of team.entries()) {
+        for (const [otherName, otherHex] of team.slice(i + 1)) {
+          const d = deltaE(toLinear(hex), toLinear(otherHex))
+          if (d < 15) failures.push(`${scheme} team.${name} vs team.${otherName}: ${d.toFixed(1)}`)
+        }
+      }
+      expect(failures).toEqual([])
     })
 
     it(`${scheme}: review text reads at 4.5:1 on the panel and raised surfaces`, () => {

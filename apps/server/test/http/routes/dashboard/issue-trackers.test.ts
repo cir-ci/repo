@@ -6,7 +6,7 @@ import { addMember, createUser } from '@circi/auth'
 import { openSecret } from '@circi/core'
 import {
   createBuild,
-  getOrganizationBySlug,
+  getWorkspaceBySlug,
   listBuildLinks,
   listIntegrations,
   schema,
@@ -34,7 +34,7 @@ interface Created {
 
 /**
  * Linear's and Jira's HTTP edges in one `fetch`, behind the real definitions: one account each, a
- * team or project each, issues counted up, 401 for a key or token that is not in `validKeys`.
+ * Linear team or Jira project each, issues counted up, 401 for a key or token that is not in `validKeys`.
  */
 const fake = {
   validKeys: new Set(['lin_good', 'jira-token']),
@@ -134,7 +134,7 @@ const lou = await createUser(auth, {
   name: 'Lou',
   password: 'lou-password-long-1',
 })
-await addMember(auth, t.db, { orgSlug: acme.orgSlug, email: lou.email, role: 'member' })
+await addMember(auth, t.db, { workspaceSlug: acme.workspaceSlug, email: lou.email, role: 'member' })
 const louCookie = await signIn(app, lou.email, 'lou-password-long-1')
 
 const call = (
@@ -154,10 +154,10 @@ const call = (
     ...(payload === undefined ? {} : { payload: JSON.stringify(payload) }),
   })
 
-const org = await getOrganizationBySlug(t.db, acme.orgSlug)
-const base = `/api/orgs/${acme.orgSlug}/integrations`
+const workspace = await getWorkspaceBySlug(t.db, acme.workspaceSlug)
+const base = `/api/workspaces/${acme.workspaceSlug}/integrations`
 const stored = async (kind: string) =>
-  (await listIntegrations(t.db, org.id)).filter((i) => i.kind === kind)
+  (await listIntegrations(t.db, workspace.id)).filter((i) => i.kind === kind)
 
 describe('connecting a tracker', () => {
   it('verifies Linear with the tracker and stores the key sealed', async () => {
@@ -167,7 +167,11 @@ describe('connecting a tracker', () => {
       .select()
       .from(schema.integrations)
       .where(eq(schema.integrations.id, res.json().id))
-    expect(row).toMatchObject({ kind: 'linear', displayName: 'Acme Linear', orgId: org.id })
+    expect(row).toMatchObject({
+      kind: 'linear',
+      displayName: 'Acme Linear',
+      workspaceId: workspace.id,
+    })
     expect(row?.encryptedCredentials).not.toContain('lin_good')
     expect(openSecret(SECRET, row?.encryptedCredentials ?? '')).toBe(
       JSON.stringify({ kind: 'linear', apiKey: 'lin_good' }),
@@ -223,7 +227,7 @@ describe('connecting a tracker', () => {
     expect(fake.seenAuth.length).toBe(calls)
   })
 
-  it('is for owners and admins of the organization only', async () => {
+  it('is for owners and admins of the workspace only', async () => {
     const body = { apiKey: 'lin_good' }
     expect((await call('POST', `${base}/linear/connect`, louCookie, body)).statusCode).toBe(403)
     expect((await call('POST', `${base}/linear/connect`, rivalCookie, body)).statusCode).toBe(404)
@@ -234,8 +238,8 @@ describe('connecting a tracker', () => {
   })
 })
 
-describe('mapping projects', () => {
-  it('lists targets, maps a project, shows it on the page and clears it', async () => {
+describe('mapping teams', () => {
+  it('lists targets, maps a team, shows it on the page and clears it', async () => {
     const [linear] = await stored('linear')
     const id = linear?.id ?? ''
     const targets = await call('GET', `${base}/${id}/targets`, ownerCookie)
@@ -243,23 +247,21 @@ describe('mapping projects', () => {
     expect((await call('GET', `${base}/${id}/targets`, louCookie)).statusCode).toBe(403)
     expect((await call('GET', `${base}/${id}/targets`, rivalCookie)).statusCode).toBe(404)
 
-    const url = `${base}/${id}/projects/web`
+    const url = `${base}/${id}/teams/web`
     const team = { ref: 'team-1', name: 'Web (WEB)' }
     expect((await call('PUT', url, louCookie, team)).statusCode).toBe(403)
-    expect((await call('PUT', `${base}/${id}/projects/ghost`, ownerCookie, team)).statusCode).toBe(
-      404,
-    )
+    expect((await call('PUT', `${base}/${id}/teams/ghost`, ownerCookie, team)).statusCode).toBe(404)
     expect((await call('PUT', url, ownerCookie, team)).statusCode).toBe(204)
 
     for (const cookie of [ownerCookie, louCookie]) {
       // eslint-disable-next-line no-await-in-loop -- two viewers
-      const page = await call('GET', `${base}/${id}/projects`, cookie)
+      const page = await call('GET', `${base}/${id}/teams`, cookie)
       expect(page.statusCode).toBe(200)
       expect(page.json()).toMatchObject({
         canManage: cookie === ownerCookie,
         integration: { id, kind: 'linear', name: 'Acme Linear', needsAttention: false },
         definition: { mapping: { targetLabel: 'Team', targetKind: 'select' } },
-        projects: [
+        teams: [
           {
             slug: 'web',
             mapping: { ref: 'team-1', name: 'Web (WEB)', extra: { name: 'Web (WEB)' } },
@@ -267,11 +269,11 @@ describe('mapping projects', () => {
         ],
       })
     }
-    expect((await call('GET', `${base}/${id}/projects`, rivalCookie)).statusCode).toBe(404)
+    expect((await call('GET', `${base}/${id}/teams`, rivalCookie)).statusCode).toBe(404)
 
     expect((await call('DELETE', url, ownerCookie)).statusCode).toBe(204)
-    const after = await call('GET', `${base}/${id}/projects`, ownerCookie)
-    expect(after.json().projects[0]).toMatchObject({ slug: 'web', mapping: null })
+    const after = await call('GET', `${base}/${id}/teams`, ownerCookie)
+    expect(after.json().teams[0]).toMatchObject({ slug: 'web', mapping: null })
   })
 
   it('flags the connection when the tracker rejects the saved key while listing targets', async () => {
@@ -289,11 +291,11 @@ describe('mapping projects', () => {
   })
 })
 
-const buildUrl = (n: number) => `/api/projects/${acme.orgSlug}/web/builds/${n}`
+const buildUrl = (n: number) => `/api/teams/${acme.workspaceSlug}/web/builds/${n}`
 
 async function setup() {
   const build = await createBuild(t.db, {
-    projectId: acme.project.id,
+    teamId: acme.team.id,
     commitSha: `c${Math.random().toString(16).slice(2, 9)}`,
     branch: 'feat/x',
   })
@@ -307,7 +309,7 @@ async function setup() {
 }
 
 describe('issues from a build', () => {
-  it('hides the action until the project has a tracker, then creates and lists issues', async () => {
+  it('hides the action until the team has a tracker, then creates and lists issues', async () => {
     const build = await setup()
     const [jira] = await stored('jira')
     const url = `${buildUrl(build.number)}/issues`
@@ -316,7 +318,7 @@ describe('issues from a build', () => {
     const early = await call('POST', url, ownerCookie, { integrationId: jira?.id })
     expect(early.statusCode).toBe(404)
 
-    await call('PUT', `${base}/${jira?.id}/projects/web`, ownerCookie, {
+    await call('PUT', `${base}/${jira?.id}/teams/web`, ownerCookie, {
       ref: 'WEB',
       name: 'Website (WEB)',
     })
@@ -337,7 +339,9 @@ describe('issues from a build', () => {
       title: `Visual regression: home in build #${build.number}`,
     })
     expect(sent?.text).toContain(`${ORIGIN}/api/files/${sha('e')}`)
-    expect(sent?.text).toContain(`${ORIGIN}/${acme.orgSlug}/web/builds/${build.number}?shot=home`)
+    expect(sent?.text).toContain(
+      `${ORIGIN}/${acme.workspaceSlug}/web/builds/${build.number}?shot=home`,
+    )
 
     const list = (await call('GET', url, ownerCookie)).json()
     expect(list.issues).toMatchObject([
@@ -382,7 +386,7 @@ describe('issues from a build', () => {
     ).toEqual([])
   })
 
-  it('is for members of the organization only, and validates the body', async () => {
+  it('is for members of the workspace only, and validates the body', async () => {
     const build = await setup()
     const [jira] = await stored('jira')
     const url = `${buildUrl(build.number)}/issues`

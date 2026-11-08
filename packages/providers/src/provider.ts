@@ -47,7 +47,7 @@ export interface GitProvider {
   /** Whether a webhook delivery really came from the host: checks its signature or token. */
   verifyWebhook(rawBody: Buffer | string, headers: GitProvider.WebhookHeaders): boolean
 
-  /** The repositories the connection can see, for choosing one per project. */
+  /** The repositories the connection can see, for choosing one per team. */
   listRepositories(externalId: string, credentials?: string): Promise<GitProvider.Repository[]>
 }
 

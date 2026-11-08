@@ -4,16 +4,16 @@ import {
   createBuild,
   GIT_NOTIFY_QUEUE,
   getCheckRunId,
-  getProjectGitAttention,
+  getTeamGitAttention,
   getPrCommentId,
   type Job,
   schema,
-  setOrgSettings,
-  updateProjectSettings,
+  setWorkspaceSettings,
+  updateTeamSettings,
 } from '@circi/db'
 import { GithubApiError, GithubInstallationRevokedError } from '@circi/providers'
-import { completeBuild, linkProjectToGithub, reviewBuild } from '@circi/services'
-import { createTestDb, seedBuild, seedDiff, seedProject } from '@circi/testing'
+import { completeBuild, linkTeamToGithub, reviewBuild } from '@circi/services'
+import { createTestDb, seedBuild, seedDiff, seedTeam } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -79,10 +79,10 @@ async function nextJob(): Promise<Job> {
 
 async function linkedBuild(prNumber: number | null) {
   await t.db.delete(schema.jobs)
-  const { project, owner } = await seedProject(t.db)
-  await linkProjectToGithub(t.db, project.id, { installationId: '99', repoRef: 'acme/web' })
+  const { team, owner } = await seedTeam(t.db)
+  await linkTeamToGithub(t.db, team.id, { installationId: '99', repoRef: 'acme/web' })
   const build = await createBuild(t.db, {
-    projectId: project.id,
+    teamId: team.id,
     commitSha: 'abc1234',
     branch: 'feature',
     ...(prNumber ? { prNumber } : {}),
@@ -91,7 +91,7 @@ async function linkedBuild(prNumber: number | null) {
     .update(schema.builds)
     .set({ status: 'processing' })
     .where(eq(schema.builds.id, build.id))
-  return { project, owner, build: { ...build, status: 'processing' as const } }
+  return { team, owner, build: { ...build, status: 'processing' as const } }
 }
 
 const publicOrigin = 'https://ci.acme.io'
@@ -100,7 +100,7 @@ const revoked = () =>
 
 async function setup() {
   const linked = await linkedBuild(null)
-  await linkProjectToGithub(t.db, linked.project.id, {
+  await linkTeamToGithub(t.db, linked.team.id, {
     installationId: '77',
     repoRef: 'acme/web',
   })
@@ -137,7 +137,7 @@ describe('notifyGit', () => {
 
     expect(fake.comments[0]?.pr).toBe(5)
     expect(fake.comments[0]?.body).toContain('CirCI visual tests')
-    expect(await getPrCommentId(t.db, build.projectId, 5)).toBe('7001')
+    expect(await getPrCommentId(t.db, build.teamId, 5)).toBe('7001')
 
     // Approving queues another job, which updates the same check run and comment.
     await reviewBuild(t.db, { buildId: build.id, userId: owner.id, state: 'approved' })
@@ -147,17 +147,17 @@ describe('notifyGit', () => {
     expect(fake.comments[1]?.existing).toBe('7001')
   })
 
-  it('passes a flaky-only change when flaky screenshots do not block merges (org default, project override)', async () => {
+  it('passes a flaky-only change when flaky screenshots do not block merges (workspace default, team override)', async () => {
     await t.db.delete(schema.jobs)
-    const { project, org } = await seedProject(t.db)
-    await linkProjectToGithub(t.db, project.id, { installationId: '99', repoRef: 'acme/web' })
+    const { team, workspace } = await seedTeam(t.db)
+    await linkTeamToGithub(t.db, team.id, { installationId: '99', repoRef: 'acme/web' })
     for (let i = 0; i < 3; i += 1) {
       // oxlint-disable-next-line no-await-in-loop -- builds are numbered in order
-      const main = await seedBuild(t.db, project.id, { branch: 'main', status: 'complete' })
+      const main = await seedBuild(t.db, team.id, { branch: 'main', status: 'complete' })
       // oxlint-disable-next-line no-await-in-loop
       await seedDiff(t.db, { buildId: main.id, name: 'wobble', status: 'changed' })
     }
-    const pr = await seedBuild(t.db, project.id, {
+    const pr = await seedBuild(t.db, team.id, {
       branch: 'feature',
       prNumber: 4,
       status: 'complete',
@@ -179,13 +179,13 @@ describe('notifyGit', () => {
     }
 
     expect(await conclusion()).toBe('action_required') // the default: flaky changes block
-    await setOrgSettings(t.db, org.id, { flakyBlocksMerge: false })
+    await setWorkspaceSettings(t.db, workspace.id, { flakyBlocksMerge: false })
     expect(await conclusion()).toBe('success')
     expect(fake.checks.at(-1)?.input.report).toMatchObject({
       title: 'Only flaky screenshots changed (1 changed)',
     })
-    await updateProjectSettings(t.db, project.id, { flakyBlocksMerge: true })
-    expect(await conclusion()).toBe('action_required') // the project overrides the organization
+    await updateTeamSettings(t.db, team.id, { flakyBlocksMerge: true })
+    expect(await conclusion()).toBe('action_required') // the team overrides the workspace
   })
 
   it('serializes concurrent jobs, so one build gets one check run and one comment', async () => {
@@ -237,10 +237,10 @@ describe('notifyGit', () => {
     expect(fake.comments).toHaveLength(0)
   })
 
-  it('queues nothing for a project that is not linked, and skips without a GitHub App', async () => {
+  it('queues nothing for a team that is not linked, and skips without a GitHub App', async () => {
     await t.db.delete(schema.jobs)
-    const { project } = await seedProject(t.db)
-    const build = await createBuild(t.db, { projectId: project.id, commitSha: 'def5678' })
+    const { team } = await seedTeam(t.db)
+    const build = await createBuild(t.db, { teamId: team.id, commitSha: 'def5678' })
     await t.db
       .update(schema.builds)
       .set({ status: 'processing' })
@@ -263,15 +263,15 @@ describe('notifyGit', () => {
   })
 
   describe('a revoked installation', () => {
-    it('stops retrying, records that the project needs attention, and clears it when GitHub answers again', async () => {
-      const { project, build } = await setup()
-      expect(await getProjectGitAttention(t.db, project.id, ['github'])).toBeUndefined()
+    it('stops retrying, records that the team needs attention, and clears it when GitHub answers again', async () => {
+      const { team, build } = await setup()
+      expect(await getTeamGitAttention(t.db, team.id, ['github'])).toBeUndefined()
 
       const job = await nextJob()
       const result = await notifyGit({ db: t.db, github: failing(revoked()), publicOrigin }, job)
       // Returned, not thrown: the queue marks the job done instead of retrying five times.
       expect(result).toMatchObject({ status: 'skipped', reason: expect.stringContaining('77') })
-      expect(await getProjectGitAttention(t.db, project.id, ['github'])).toMatchObject({
+      expect(await getTeamGitAttention(t.db, team.id, ['github'])).toMatchObject({
         reason: 'installation_revoked',
       })
 
@@ -282,7 +282,7 @@ describe('notifyGit', () => {
           job,
         ),
       ).rejects.toThrow('bad gateway')
-      expect(await getProjectGitAttention(t.db, project.id, ['github'])).toBeDefined()
+      expect(await getTeamGitAttention(t.db, team.id, ['github'])).toBeDefined()
 
       // The App was reinstalled: the next call works and the warning goes away.
       const fake = fakeGithub()
@@ -290,16 +290,16 @@ describe('notifyGit', () => {
         status: 'notified',
       })
       expect(fake.checks).toHaveLength(1)
-      expect(await getProjectGitAttention(t.db, project.id, ['github'])).toBeUndefined()
+      expect(await getTeamGitAttention(t.db, team.id, ['github'])).toBeUndefined()
       expect(await getCheckRunId(t.db, build.id)).toBe('9001')
     })
 
-    it('is cleared by linking the project to the installation again', async () => {
-      const { project } = await setup()
+    it('is cleared by linking the team to the installation again', async () => {
+      const { team } = await setup()
       await notifyGit({ db: t.db, github: failing(revoked()), publicOrigin }, await nextJob())
-      expect(await getProjectGitAttention(t.db, project.id, ['github'])).toBeDefined()
-      await linkProjectToGithub(t.db, project.id, { installationId: '77', repoRef: 'acme/web' })
-      expect(await getProjectGitAttention(t.db, project.id, ['github'])).toBeUndefined()
+      expect(await getTeamGitAttention(t.db, team.id, ['github'])).toBeDefined()
+      await linkTeamToGithub(t.db, team.id, { installationId: '77', repoRef: 'acme/web' })
+      expect(await getTeamGitAttention(t.db, team.id, ['github'])).toBeUndefined()
     })
   })
 })

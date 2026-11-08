@@ -11,3 +11,20 @@
   font-weight: 500;
   white-space: nowrap;
 }
+
+/* Words use the text variants of the state colours; the glyph keeps the glyph colour. */
+.root[data-status='approved'] {
+  color: var(--circi-state-approved-text);
+}
+
+.root[data-status='needs-review'] {
+  color: var(--circi-state-review-text);
+}
+
+.root[data-status='processing'] {
+  color: var(--circi-state-processing);
+}
+
+.root[data-status='rejected'] {
+  color: var(--circi-state-rejected-text);
+}

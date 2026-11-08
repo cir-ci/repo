@@ -1,14 +1,14 @@
 import { type BuildFilterValues, ValidationError } from '@circi/core'
 import { and, asc, eq, sql } from 'drizzle-orm'
 
-import { projects, savedViews, userPinnedProjects } from '#schema/index.ts'
+import { teams, savedViews, userPinnedTeams } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { ConflictError, isUniqueViolation, NotFoundError } from '#src/errors.ts'
 
 /**
- * Saved views and pinned projects: a person's own sidebar. Every function takes the owner and
+ * Saved views and pinned teams: a person's own sidebar. Every function takes the owner and
  * only ever touches that person's rows, so someone else's view is "not found". The caller has
- * already checked that the person belongs to the organization.
+ * already checked that the person belongs to the workspace.
  */
 
 export interface SavedViewRow {
@@ -17,8 +17,8 @@ export interface SavedViewRow {
   filters: BuildFilterValues
   pinned: boolean
   position: number
-  /** Null for a view across the whole organization. */
-  project: { slug: string; name: string } | null
+  /** Null for a view across the whole workspace. */
+  team: { slug: string; name: string } | null
   createdAt: Date
 }
 
@@ -39,36 +39,36 @@ const viewColumns = {
   pinned: savedViews.pinned,
   position: savedViews.position,
   createdAt: savedViews.createdAt,
-  project: { slug: projects.slug, name: projects.name },
+  team: { slug: teams.slug, name: teams.name },
 }
 
-/** A person's views in an organization, in their order. */
+/** A person's views in a workspace, in their order. */
 export async function listSavedViews(
   db: Database,
-  input: { userId: string; orgId: string },
+  input: { userId: string; workspaceId: string },
 ): Promise<SavedViewRow[]> {
   const rows = await db
     .select(viewColumns)
     .from(savedViews)
-    .leftJoin(projects, eq(projects.id, savedViews.projectId))
-    .where(and(eq(savedViews.userId, input.userId), eq(savedViews.orgId, input.orgId)))
+    .leftJoin(teams, eq(teams.id, savedViews.teamId))
+    .where(and(eq(savedViews.userId, input.userId), eq(savedViews.workspaceId, input.workspaceId)))
     .orderBy(asc(savedViews.position), asc(savedViews.createdAt), asc(savedViews.id))
   return rows
 }
 
 async function getSavedView(
   db: Database,
-  input: { userId: string; orgId: string; id: string },
+  input: { userId: string; workspaceId: string; id: string },
 ): Promise<SavedViewRow> {
   const [row] = await db
     .select(viewColumns)
     .from(savedViews)
-    .leftJoin(projects, eq(projects.id, savedViews.projectId))
+    .leftJoin(teams, eq(teams.id, savedViews.teamId))
     .where(
       and(
         eq(savedViews.id, input.id),
         eq(savedViews.userId, input.userId),
-        eq(savedViews.orgId, input.orgId),
+        eq(savedViews.workspaceId, input.workspaceId),
       ),
     )
   if (!row) throw new NotFoundError('View not found')
@@ -81,14 +81,17 @@ export async function createSavedView(
   input: createSavedView.Input,
 ): Promise<SavedViewRow> {
   const name = checkName(input.name)
-  if (input.projectId) {
+  if (input.teamId) {
     const [p] = await db
-      .select({ id: projects.id })
-      .from(projects)
-      .where(and(eq(projects.id, input.projectId), eq(projects.orgId, input.orgId)))
-    if (!p) throw new ValidationError('That project is not in this organization')
+      .select({ id: teams.id })
+      .from(teams)
+      .where(and(eq(teams.id, input.teamId), eq(teams.workspaceId, input.workspaceId)))
+    if (!p) throw new ValidationError('That team is not in this workspace')
   }
-  const scope = and(eq(savedViews.userId, input.userId), eq(savedViews.orgId, input.orgId))
+  const scope = and(
+    eq(savedViews.userId, input.userId),
+    eq(savedViews.workspaceId, input.workspaceId),
+  )
   const [stats] = await db
     .select({
       count: sql<number>`count(*)::int`,
@@ -102,8 +105,8 @@ export async function createSavedView(
       .insert(savedViews)
       .values({
         userId: input.userId,
-        orgId: input.orgId,
-        projectId: input.projectId ?? null,
+        workspaceId: input.workspaceId,
+        teamId: input.teamId ?? null,
         name,
         filters: input.filters,
         pinned: input.pinned ?? false,
@@ -120,8 +123,8 @@ export async function createSavedView(
 export namespace createSavedView {
   export interface Input {
     userId: string
-    orgId: string
-    projectId?: string | null
+    workspaceId: string
+    teamId?: string | null
     name: string
     filters: BuildFilterValues
     pinned?: boolean
@@ -146,7 +149,7 @@ export async function updateSavedView(
           and(
             eq(savedViews.id, input.id),
             eq(savedViews.userId, input.userId),
-            eq(savedViews.orgId, input.orgId),
+            eq(savedViews.workspaceId, input.workspaceId),
           ),
         )
         .returning({ id: savedViews.id })
@@ -161,7 +164,7 @@ export async function updateSavedView(
 export namespace updateSavedView {
   export interface Input {
     userId: string
-    orgId: string
+    workspaceId: string
     id: string
     name?: string
     filters?: BuildFilterValues
@@ -172,13 +175,15 @@ export namespace updateSavedView {
 /** Puts the person's views in the given order; `ids` must be exactly their views here. */
 export async function reorderSavedViews(
   db: Database,
-  input: { userId: string; orgId: string; ids: string[] },
+  input: { userId: string; workspaceId: string; ids: string[] },
 ): Promise<SavedViewRow[]> {
   await db.transaction(async (tx) => {
     const current = await tx
       .select({ id: savedViews.id })
       .from(savedViews)
-      .where(and(eq(savedViews.userId, input.userId), eq(savedViews.orgId, input.orgId)))
+      .where(
+        and(eq(savedViews.userId, input.userId), eq(savedViews.workspaceId, input.workspaceId)),
+      )
     const ids = new Set(input.ids)
     if (
       ids.size !== input.ids.length ||
@@ -198,7 +203,7 @@ export async function reorderSavedViews(
 
 export async function deleteSavedView(
   db: Database,
-  input: { userId: string; orgId: string; id: string },
+  input: { userId: string; workspaceId: string; id: string },
 ): Promise<void> {
   const rows = await db
     .delete(savedViews)
@@ -206,53 +211,48 @@ export async function deleteSavedView(
       and(
         eq(savedViews.id, input.id),
         eq(savedViews.userId, input.userId),
-        eq(savedViews.orgId, input.orgId),
+        eq(savedViews.workspaceId, input.workspaceId),
       ),
     )
     .returning({ id: savedViews.id })
   if (rows.length === 0) throw new NotFoundError('View not found')
 }
 
-/** Pins a project after the person's other pins. Returns false when it was already pinned. */
-export async function pinProject(
+/** Pins a team after the person's other pins. Returns false when it was already pinned. */
+export async function pinTeam(
   db: Database,
-  input: { userId: string; projectId: string },
+  input: { userId: string; teamId: string },
 ): Promise<boolean> {
   const [last] = await db
-    .select({ max: sql<number>`coalesce(max(${userPinnedProjects.position}), -1)` })
-    .from(userPinnedProjects)
-    .where(eq(userPinnedProjects.userId, input.userId))
+    .select({ max: sql<number>`coalesce(max(${userPinnedTeams.position}), -1)` })
+    .from(userPinnedTeams)
+    .where(eq(userPinnedTeams.userId, input.userId))
   const rows = await db
-    .insert(userPinnedProjects)
+    .insert(userPinnedTeams)
     .values({ ...input, position: (last?.max ?? -1) + 1 })
     .onConflictDoNothing()
-    .returning({ projectId: userPinnedProjects.projectId })
+    .returning({ teamId: userPinnedTeams.teamId })
   return rows.length > 0
 }
 
-/** Unpins a project. Returns false when it was not pinned. */
-export async function unpinProject(
+/** Unpins a team. Returns false when it was not pinned. */
+export async function unpinTeam(
   db: Database,
-  input: { userId: string; projectId: string },
+  input: { userId: string; teamId: string },
 ): Promise<boolean> {
   const rows = await db
-    .delete(userPinnedProjects)
-    .where(
-      and(
-        eq(userPinnedProjects.userId, input.userId),
-        eq(userPinnedProjects.projectId, input.projectId),
-      ),
-    )
-    .returning({ projectId: userPinnedProjects.projectId })
+    .delete(userPinnedTeams)
+    .where(and(eq(userPinnedTeams.userId, input.userId), eq(userPinnedTeams.teamId, input.teamId)))
+    .returning({ teamId: userPinnedTeams.teamId })
   return rows.length > 0
 }
 
-/** The ids of the projects a person pinned, in pin order. */
-export async function listPinnedProjectIds(db: Database, userId: string): Promise<string[]> {
+/** The ids of the teams a person pinned, in pin order. */
+export async function listPinnedTeamIds(db: Database, userId: string): Promise<string[]> {
   const rows = await db
-    .select({ id: userPinnedProjects.projectId })
-    .from(userPinnedProjects)
-    .where(eq(userPinnedProjects.userId, userId))
-    .orderBy(asc(userPinnedProjects.position), asc(userPinnedProjects.createdAt))
+    .select({ id: userPinnedTeams.teamId })
+    .from(userPinnedTeams)
+    .where(eq(userPinnedTeams.userId, userId))
+    .orderBy(asc(userPinnedTeams.position), asc(userPinnedTeams.createdAt))
   return rows.map((r) => r.id)
 }

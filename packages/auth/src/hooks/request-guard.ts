@@ -1,11 +1,11 @@
-import { getSessionMethod, orgAcceptsSession, schema, takeEmailCodeSlot } from '@circi/db'
+import { getSessionMethod, workspaceAcceptsSession, schema, takeEmailCodeSlot } from '@circi/db'
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
 import { eq } from 'drizzle-orm'
 
 import type { AuthOptions } from '#src/options.ts'
 
-/** The organization a request names, by id or slug. */
-function organizationRef(source: unknown): { id?: string; slug?: string } | undefined {
+/** The workspace a request names, by id or slug. */
+function workspaceRef(source: unknown): { id?: string; slug?: string } | undefined {
   if (typeof source !== 'object' || source === null) return undefined
   const id: unknown = Reflect.get(source, 'organizationId')
   const slug: unknown = Reflect.get(source, 'organizationSlug')
@@ -18,7 +18,7 @@ function organizationRef(source: unknown): { id?: string; slug?: string } | unde
  * Runs before better-auth handles a request:
  *
  * - sign-in code requests are limited per address, on top of better-auth's per-IP limit;
- * - better-auth's own organization endpoints (members, invitations) obey an organization's
+ * - better-auth's own organization endpoints (CirCI's workspaces: members, invitations) obey a workspace's
  *   login-method rules like the rest of the dashboard: a refused session gets "not found".
  */
 export function requestGuard(options: Pick<AuthOptions, 'db'>) {
@@ -34,20 +34,18 @@ export function requestGuard(options: Pick<AuthOptions, 'db'>) {
       return
     }
     if (!ctx.path.startsWith('/organization/')) return
-    const ref = organizationRef(ctx.body) ?? organizationRef(ctx.query)
+    const ref = workspaceRef(ctx.body) ?? workspaceRef(ctx.query)
     if (!ref) return
     const session = await getSessionFromCtx(ctx)
     if (!session) return
-    const [org] = await options.db
-      .select({ id: schema.organization.id })
-      .from(schema.organization)
-      .where(
-        ref.id ? eq(schema.organization.id, ref.id) : eq(schema.organization.slug, ref.slug ?? ''),
-      )
-    if (!org) return
+    const [workspace] = await options.db
+      .select({ id: schema.workspace.id })
+      .from(schema.workspace)
+      .where(ref.id ? eq(schema.workspace.id, ref.id) : eq(schema.workspace.slug, ref.slug ?? ''))
+    if (!workspace) return
     const method = (await getSessionMethod(options.db, session.session.id)) ?? 'unknown'
-    if (!(await orgAcceptsSession(options.db, org.id, method))) {
-      throw new APIError('NOT_FOUND', { message: 'Organization not found' })
+    if (!(await workspaceAcceptsSession(options.db, workspace.id, method))) {
+      throw new APIError('NOT_FOUND', { message: 'Workspace not found' })
     }
   })
 }

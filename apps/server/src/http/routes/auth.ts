@@ -3,7 +3,7 @@ import { fromNodeHeaders } from '@circi/auth'
 import type { FastifyPluginAsync } from 'fastify'
 
 /**
- * Hands `/api/auth/*` (sign in, sign out, session, organizations…) to better-auth. Fastify's
+ * Hands `/api/auth/*` (sign in, sign out, session, workspaces…) to better-auth. Fastify's
  * request becomes a Web `Request` built against the configured public origin, not the Host
  * header, so redirects and origin checks stay right behind a reverse proxy.
  */

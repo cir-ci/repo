@@ -1,4 +1,4 @@
-import { createTestDb, seedInvitation, seedOrg, seedOrgDomain } from '@circi/testing'
+import { createTestDb, seedInvitation, seedWorkspace, seedWorkspaceDomain } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { beforeUserCreate } from '#hooks/user-create.ts'
@@ -44,8 +44,12 @@ describe('beforeUserCreate', () => {
   })
 
   it('allows it for an invited address', async () => {
-    const { org, owner } = await seedOrg(t.db)
-    await seedInvitation(t.db, { orgId: org.id, inviterId: owner.id, email: 'Invited@Acme.test' })
+    const { workspace, owner } = await seedWorkspace(t.db)
+    await seedInvitation(t.db, {
+      workspaceId: workspace.id,
+      inviterId: owner.id,
+      email: 'Invited@Acme.test',
+    })
     await expect(
       beforeUserCreate(options())(
         { email: 'invited@acme.test', name: 'Ivy', emailVerified: true },
@@ -55,7 +59,10 @@ describe('beforeUserCreate', () => {
   })
 
   it('names an account created by a code after the part of its address before the @ (no blank names)', async () => {
-    await seedOrgDomain(t.db, { orgId: (await seedOrg(t.db)).org.id, domain: 'named.test' })
+    await seedWorkspaceDomain(t.db, {
+      workspaceId: (await seedWorkspace(t.db)).workspace.id,
+      domain: 'named.test',
+    })
     await expect(
       beforeUserCreate(options())(
         { email: 'grace.hopper@named.test', name: '', emailVerified: true },
@@ -83,8 +90,8 @@ describe('beforeUserCreate', () => {
       /No account/,
     )
 
-    const { org } = await seedOrg(t.db)
-    await seedOrgDomain(t.db, { orgId: org.id, domain: 'corp.test' })
+    const { workspace } = await seedWorkspace(t.db)
+    await seedWorkspaceDomain(t.db, { workspaceId: workspace.id, domain: 'corp.test' })
     const colleague = { email: 'ann@corp.test', emailVerified: true }
     await expect(
       beforeUserCreate(options())(colleague, callback('github')),

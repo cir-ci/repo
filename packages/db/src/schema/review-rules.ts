@@ -4,11 +4,11 @@ import { check, index, integer, pgTable, primaryKey, text, uuid } from 'drizzle-
 import { createdAt, id, inList } from './_columns.ts'
 import { user } from './auth.ts'
 import { REVIEW_RULE_KINDS, type ReviewRuleKind } from './enums.ts'
-import { projects } from './projects.ts'
+import { teams } from './teams.ts'
 
 /**
  * Who is asked to review a build, by what it contains: a rule matches a glob against the
- * project's snapshot names or against the build's name, and asks its reviewers. Rules are
+ * team's snapshot names or against the build's name, and asks its reviewers. Rules are
  * resolved when a build's last shard arrives (`finalizeBuild`), in `position` order.
  */
 
@@ -16,9 +16,9 @@ export const reviewRules = pgTable(
   'review_rules',
   {
     id: id(),
-    projectId: uuid('project_id')
+    teamId: uuid('team_id')
       .notNull()
-      .references(() => projects.id, { onDelete: 'cascade' }),
+      .references(() => teams.id, { onDelete: 'cascade' }),
     kind: text('kind').$type<ReviewRuleKind>().notNull(),
     /** A glob (`*`, `**`, `?`); see `globMatches` in `@circi/core`. */
     pattern: text('pattern').notNull(),
@@ -26,7 +26,7 @@ export const reviewRules = pgTable(
     createdAt: createdAt(),
   },
   (t) => [
-    index('review_rules_project_idx').on(t.projectId, t.position),
+    index('review_rules_team_idx').on(t.teamId, t.position),
     check('review_rules_kind_check', inList('kind', REVIEW_RULE_KINDS)),
     check('review_rules_pattern_check', sql`length(btrim(${t.pattern})) > 0`),
   ],

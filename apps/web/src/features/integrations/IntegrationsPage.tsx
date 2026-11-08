@@ -22,7 +22,7 @@ import {
   groupItems,
   integrationLabel,
   integrationsQuery,
-  projectCountLabel,
+  teamCountLabel,
   useRemoveIntegration,
 } from './api.ts'
 import { connectNote } from './generic-api.ts'
@@ -31,16 +31,16 @@ import { ProviderLogo } from './logos.tsx'
 import styles from './Integrations.module.css'
 
 /**
- * Organisation settings › Integrations: what the organisation has connected, under its group
- * headings. Projects have no integration settings of their own; each integration's page says which
- * projects use it. Owners and admins add and remove; everyone else can look.
+ * Workspace settings › Integrations: what the workspace has connected, under its group
+ * headings. Teams have no integration settings of their own; each integration's page says which
+ * teams use it. Owners and admins add and remove; everyone else can look.
  */
 export function IntegrationsPage() {
-  const { org } = useParams({ from: '/organizations/$org/settings/integrations' })
-  useDocumentTitle('Integrations', org)
+  const { workspace } = useParams({ from: '/workspaces/$workspace/settings/integrations' })
+  useDocumentTitle('Integrations', workspace)
   const search: { connect?: unknown; kind?: unknown } = useSearch({ strict: false })
-  const { data, error, refetch } = useQuery(integrationsQuery(org))
-  const remove = useRemoveIntegration(org)
+  const { data, error, refetch } = useQuery(integrationsQuery(workspace))
+  const remove = useRemoveIntegration(workspace)
   const announce = useAnnounce()
   const [adding, setAdding] = useState(false)
   const [removing, setRemoving] = useState<Integration.Item | null>(null)
@@ -54,11 +54,11 @@ export function IntegrationsPage() {
 
   return (
     <Frame
-      crumbs={[org, 'Integrations']}
+      crumbs={[workspace, 'Integrations']}
       loading={!data && !error}
       error={error}
       onRetry={() => void refetch()}
-      notFound="This organization doesn’t exist"
+      notFound="This workspace doesn’t exist"
       readOnlyNote={
         data && !data.canManage && 'Only owners and admins can add or remove integrations.'
       }
@@ -69,7 +69,7 @@ export function IntegrationsPage() {
             <div className={styles.head}>
               <SectionHeader
                 title="Integrations"
-                description={`Tools connected to ${org}. Each integration’s settings say which projects use it and how.`}
+                description={`Tools connected to ${workspace}. Each integration’s settings say which teams use it and how.`}
               />
               {data.canManage ? (
                 <Button variant="primary" onClick={() => setAdding(true)}>
@@ -95,7 +95,7 @@ export function IntegrationsPage() {
                     {g.items.map((item) => (
                       <li key={item.id}>
                         <Row
-                          org={org}
+                          workspace={workspace}
                           item={item}
                           logo={data.catalog.find((e) => e.kind === item.kind)?.logo ?? item.kind}
                           canManage={data.canManage}
@@ -112,7 +112,7 @@ export function IntegrationsPage() {
             Missing a tool? Webhooks send every CirCI event as signed JSON.
           </Text>
           <AddIntegrationDialog
-            org={org}
+            workspace={workspace}
             open={adding}
             onOpenChange={setAdding}
             catalog={data.catalog}
@@ -126,8 +126,8 @@ export function IntegrationsPage() {
             title={removing ? `Remove ${integrationLabel(removing)}?` : 'Remove integration?'}
             description={
               removing?.group === 'git'
-                ? 'The projects that report to it stop showing build status on pull requests. You can connect it again later.'
-                : 'Projects stop using it. You can connect it again later.'
+                ? 'The teams that report to it stop showing build status on pull requests. You can connect it again later.'
+                : 'Teams stop using it. You can connect it again later.'
             }
             confirmLabel="Remove"
             loading={remove.isPending}
@@ -146,7 +146,7 @@ export function IntegrationsPage() {
 }
 
 function Row(props: {
-  org: string
+  workspace: string
   item: Integration.Item
   logo: string
   canManage: boolean
@@ -161,7 +161,7 @@ function Row(props: {
         <div className={styles.name}>
           <Text>{item.name}</Text>
           <Text variant="small" tone="secondary">
-            {projectCountLabel(item.projectCount)}
+            {teamCountLabel(item.teamCount)}
           </Text>
         </div>
         <div className={styles.trailing}>
@@ -173,8 +173,8 @@ function Row(props: {
             <Badge shape="tag">Connected</Badge>
           )}
           <Link
-            to="/organizations/$org/settings/integrations/$kind/$id"
-            params={{ org: props.org, kind: item.kind, id: item.id }}
+            to="/workspaces/$workspace/settings/integrations/$kind/$id"
+            params={{ workspace: props.workspace, kind: item.kind, id: item.id }}
             aria-label={`Configure ${label}`}
           >
             Configure

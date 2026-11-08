@@ -1,13 +1,7 @@
 import { createBuild, type Job, QUEUES, setNotificationPreferences } from '@circi/db'
 import { schema } from '@circi/db'
 import { notify } from '@circi/services'
-import {
-  addTestMember,
-  createTestDb,
-  seedNotification,
-  seedProject,
-  seedUser,
-} from '@circi/testing'
+import { addTestMember, createTestDb, seedNotification, seedTeam, seedUser } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -33,11 +27,11 @@ function fakeMailer() {
 }
 
 async function setup() {
-  const { project, org, owner } = await seedProject(t.db)
+  const { team, workspace, owner } = await seedTeam(t.db)
   const reviewer = await seedUser(t.db)
-  await addTestMember(t.db, { orgId: org.id, userId: reviewer.id })
+  await addTestMember(t.db, { workspaceId: workspace.id, userId: reviewer.id })
   const build = await createBuild(t.db, {
-    projectId: project.id,
+    teamId: team.id,
     commitSha: 'abc1234',
     branch: 'f',
   })
@@ -48,7 +42,7 @@ async function setup() {
     actorId: owner.id,
   })
   if (!notification) throw new Error('no notification')
-  return { project, org, owner, reviewer, build, notification }
+  return { team, workspace, owner, reviewer, build, notification }
 }
 const jobFor = (notificationId: string): Job => ({
   id: 1,
@@ -67,7 +61,7 @@ const jobFor = (notificationId: string): Job => ({
 
 describe('sendNotificationEmail', () => {
   it('mails the reviewer a link to the build', async () => {
-    const { org, project, owner, reviewer, build, notification } = await setup()
+    const { workspace, team, owner, reviewer, build, notification } = await setup()
     const { mailer, sent } = fakeMailer()
     const result = await sendNotificationEmail(
       { db: t.db, mailer, publicOrigin: 'https://ci.acme.io' },
@@ -78,7 +72,7 @@ describe('sendNotificationEmail', () => {
     expect(sent[0]?.to).toBe(reviewer.email)
     expect(sent[0]?.subject).toContain(owner.name)
     expect(sent[0]?.text).toContain(
-      `https://ci.acme.io/${org.slug}/${project.slug}/builds/${build.number}`,
+      `https://ci.acme.io/${workspace.slug}/${team.slug}/builds/${build.number}`,
     )
   })
 

@@ -2,7 +2,7 @@
  * What `connect` (and an OAuth exchange) throws, so the generic route can answer without knowing
  * the provider: `InvalidCredentialsError` is the person's to fix (400), `IntegrationUnreachableError`
  * is the provider being down or confused (502), `IntegrationConflictError` is an account another
- * organisation of this instance already uses (409). Anything else is a bug and answers 500.
+ * workspace of this instance already uses (409). Anything else is a bug and answers 500.
  */
 
 export class IntegrationError extends Error {

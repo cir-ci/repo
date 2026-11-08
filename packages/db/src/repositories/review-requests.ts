@@ -13,7 +13,7 @@ import {
   sql,
 } from 'drizzle-orm'
 
-import { builds, member, notifications, projects, reviewRequests } from '#schema/index.ts'
+import { builds, member, notifications, teams, reviewRequests } from '#schema/index.ts'
 import type { SnoozeKind } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { ConflictError, NotFoundError } from '#src/errors.ts'
@@ -28,7 +28,7 @@ import type { ReviewRequest } from '#src/types.ts'
 
 /**
  * Opens a request for `reviewerId` on a build. The reviewer must belong to the build's
- * organization, and the build must still be reviewable (not failed or expired, and with changes).
+ * workspace, and the build must still be reviewable (not failed or expired, and with changes).
  * Asking again while a request is open changes nothing (`created: false`); once it is closed,
  * asking makes a new one.
  */
@@ -43,10 +43,10 @@ export async function openReviewRequest(
         number: builds.number,
         status: builds.status,
         conclusion: builds.conclusion,
-        orgId: projects.orgId,
+        workspaceId: teams.workspaceId,
       })
       .from(builds)
-      .innerJoin(projects, eq(projects.id, builds.projectId))
+      .innerJoin(teams, eq(teams.id, builds.teamId))
       .where(eq(builds.id, input.buildId))
       .for('update', { of: builds })
     if (!build) throw new NotFoundError('Build not found')
@@ -59,8 +59,8 @@ export async function openReviewRequest(
     const [reviewer] = await tx
       .select({ id: member.userId })
       .from(member)
-      .where(and(eq(member.organizationId, build.orgId), eq(member.userId, input.reviewerId)))
-    if (!reviewer) throw new ConflictError('The reviewer is not a member of this organization')
+      .where(and(eq(member.workspaceId, build.workspaceId), eq(member.userId, input.reviewerId)))
+    if (!reviewer) throw new ConflictError('The reviewer is not a member of this workspace')
 
     const [created] = await tx
       .insert(reviewRequests)
@@ -96,7 +96,7 @@ export namespace openReviewRequest {
     reviewerId: string
     /** Null when the system asked (a review rule or the triage rotation). */
     requestedById: string | null
-    /** From the project's review target; null when it has none. */
+    /** From the team's review target; null when it has none. */
     dueAt: Date | null
   }
 
@@ -120,19 +120,19 @@ export async function closeReviewRequestsForBuild(
 }
 
 /**
- * Closes the open requests on builds older than `beforeNumber` on the same branch of a project as
+ * Closes the open requests on builds older than `beforeNumber` on the same branch of a team as
  * `superseded` (a newer build replaced them). Returns the ones it closed.
  */
 export async function supersedeReviewRequests(
   db: Database,
-  input: { projectId: string; branch: string; beforeNumber: number },
+  input: { teamId: string; branch: string; beforeNumber: number },
 ): Promise<ReviewRequest[]> {
   const older = db
     .select({ id: builds.id })
     .from(builds)
     .where(
       and(
-        eq(builds.projectId, input.projectId),
+        eq(builds.teamId, input.teamId),
         eq(builds.branch, input.branch),
         lt(builds.number, input.beforeNumber),
       ),
@@ -145,18 +145,15 @@ export async function supersedeReviewRequests(
 }
 
 /**
- * Drops an open request of a build in `projectId`. Only the reviewer or whoever asked may. Returns
+ * Drops an open request of a build in `teamId`. Only the reviewer or whoever asked may. Returns
  * the closed request, or undefined when there is nothing of theirs to dismiss (unknown, already
- * closed, in another project, or someone else's).
+ * closed, in another team, or someone else's).
  */
 export async function dismissReviewRequest(
   db: Database,
-  input: { projectId: string; requestId: string; userId: string },
+  input: { teamId: string; requestId: string; userId: string },
 ): Promise<ReviewRequest | undefined> {
-  const inProject = db
-    .select({ id: builds.id })
-    .from(builds)
-    .where(eq(builds.projectId, input.projectId))
+  const inTeam = db.select({ id: builds.id }).from(builds).where(eq(builds.teamId, input.teamId))
   const [row] = await db
     .update(reviewRequests)
     .set({ state: 'dismissed', closedAt: sql`now()` })
@@ -164,7 +161,7 @@ export async function dismissReviewRequest(
       and(
         eq(reviewRequests.id, input.requestId),
         eq(reviewRequests.state, 'open'),
-        inArray(reviewRequests.buildId, inProject),
+        inArray(reviewRequests.buildId, inTeam),
         or(
           eq(reviewRequests.reviewerId, input.userId),
           eq(reviewRequests.requestedById, input.userId),
@@ -177,23 +174,20 @@ export async function dismissReviewRequest(
 
 /**
  * Sets (`until` and `kind`) or clears (`kind: null`) the snooze of an open request of a build in
- * `projectId`. Only the reviewer may. Returns the request, or undefined when there is nothing of
- * theirs to change (unknown, closed, in another project, or someone else's).
+ * `teamId`. Only the reviewer may. Returns the request, or undefined when there is nothing of
+ * theirs to change (unknown, closed, in another team, or someone else's).
  */
 export async function setReviewRequestSnooze(
   db: Database,
   input: {
-    projectId: string
+    teamId: string
     requestId: string
     userId: string
     kind: SnoozeKind | null
     until: Date | null
   },
 ): Promise<ReviewRequest | undefined> {
-  const inProject = db
-    .select({ id: builds.id })
-    .from(builds)
-    .where(eq(builds.projectId, input.projectId))
+  const inTeam = db.select({ id: builds.id }).from(builds).where(eq(builds.teamId, input.teamId))
   const [row] = await db
     .update(reviewRequests)
     .set({
@@ -205,7 +199,7 @@ export async function setReviewRequestSnooze(
         eq(reviewRequests.id, input.requestId),
         eq(reviewRequests.state, 'open'),
         eq(reviewRequests.reviewerId, input.userId),
-        inArray(reviewRequests.buildId, inProject),
+        inArray(reviewRequests.buildId, inTeam),
       ),
     )
     .returning()

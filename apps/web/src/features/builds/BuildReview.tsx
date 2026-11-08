@@ -53,7 +53,7 @@ import styles from './BuildReview.module.css'
  * a strip of context, then the screenshot list (280px, its own scroll) beside the viewer.
  */
 export function BuildReview({ data, designEnabled = false }: BuildReview.Props) {
-  const { build, baseline, project } = data
+  const { build, baseline, team } = data
   const params = useParams({ from: ROUTE })
   const search = useSearch({ from: ROUTE })
   const navigate = useNavigate({ from: ROUTE })
@@ -70,7 +70,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
 
   // Flaky screenshots are set aside, but the page works without knowing them.
   const { data: flakyReport } = useQuery({
-    ...flakyQuery(project.orgSlug, project.slug),
+    ...flakyQuery(team.workspaceSlug, team.slug),
     enabled: !active,
   })
   const flaky = useMemo(() => new Set(flakyReport?.flaky.map((f) => f.name) ?? []), [flakyReport])
@@ -106,7 +106,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
     onSelect: goToShot,
   })
 
-  const comments = useQuery(commentsQuery(project.orgSlug, project.slug, build.number))
+  const comments = useQuery(commentsQuery(team.workspaceSlug, team.slug, build.number))
   const pinned = selected ? regionThreads(comments.data?.comments ?? [], selected.name) : []
 
   // C: open the Comments tab and put the cursor in its field once it is on screen.
@@ -161,8 +161,8 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
         }
       >
         <BuildBreadcrumbs
-          org={project.orgSlug}
-          project={project.slug}
+          workspace={team.workspaceSlug}
+          team={team.slug}
           number={build.number}
           name={build.name}
         />
@@ -185,7 +185,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
 
       {build.status === 'expired' ? (
         <EmptyState icon={<HourglassIcon size={32} />} title="This build has expired">
-          Its screenshots were deleted under the project’s retention policy.
+          Its screenshots were deleted under the team’s retention policy.
         </EmptyState>
       ) : ordered.length === 0 ? (
         active ? null : (
@@ -294,8 +294,8 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
       <RequestReviewDialog
         open={requesting}
         onClose={() => setRequesting(false)}
-        org={project.orgSlug}
-        project={project.slug}
+        workspace={team.workspaceSlug}
+        team={team.slug}
         number={build.number}
       />
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} designEnabled={designEnabled} />

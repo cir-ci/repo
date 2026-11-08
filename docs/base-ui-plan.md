@@ -74,7 +74,7 @@ in 7 files.
 | `Typography` | — | `Text`, `Heading` |
 | `Button`, `IconButton` | `button` | `Button` (`primary`/`secondary`/`danger`/`ghost`), `IconButton` |
 | `TextField` | `field`, `input` | `TextField` (label, description, error) |
-| `TextField select` + `MenuItem` (create project, invite) | `select` | `Select` |
+| `TextField select` + `MenuItem` (create team, invite) | `select` | `Select` |
 | `Checkbox`, `FormControlLabel`, `FormGroup` | `checkbox`, `checkbox-group`, `fieldset` | `Checkbox`, `CheckboxGroup` |
 | `Dialog*` (create dialogs) | `dialog`, `alert-dialog` | `Dialog`, `ConfirmDialog` (destructive actions) |
 | `Menu`, `MenuItem`, `Avatar` (user menu) | `menu`, `avatar` | `Menu`, `Avatar` |
@@ -113,7 +113,7 @@ Each step is one or more commits with all checks green.
 4. **New components** from §4, each with a test, a design-sync preview in both schemes, and
    provisional styling where the design is missing (refactor-plan §6), marked as provisional in
    its doc comment.
-5. **Pages** (refactor-plan §4.2): shell, then Account → Members → Projects → Project → Project
+5. **Pages** (refactor-plan §4.2): shell, then Account → Members → Teams → Team → Team
    settings → Sites → Build review → Login/Setup/Site handoff. `layers.test.ts` holds an allowlist
    of files still importing `@mui/*`; it only shrinks.
 6. **Remove MUI.** When the allowlist is empty: our own scheme manager replaces MUI's

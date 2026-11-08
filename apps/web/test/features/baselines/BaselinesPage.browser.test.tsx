@@ -7,10 +7,10 @@ import { renderPage } from '#test/support/render.tsx'
 
 afterEach(() => restoreFetch())
 
-const PATH = '/api/projects/acme/web/baselines'
+const PATH = '/api/teams/acme/web/baselines'
 const open = () =>
   renderPage(<BaselinesPage />, {
-    route: '/$org/$project/baselines',
+    route: '/$workspace/$team/baselines',
     url: '/acme/web/baselines',
     announcer: true,
   })
@@ -29,7 +29,7 @@ const item = (name: string, buildName: string, buildNumber: number) => ({
 })
 
 const list = (baselines: unknown[]) => ({
-  project: { slug: 'web', name: 'Web', defaultBranch: 'main' },
+  team: { slug: 'web', name: 'Web', defaultBranch: 'main' },
   baselines,
 })
 

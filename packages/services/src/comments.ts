@@ -5,9 +5,9 @@ import {
   ForbiddenError,
   getComment,
   insertComment,
-  listBuildOrgMembers,
+  listBuildWorkspaceMembers,
   NotFoundError,
-  type OrgMember,
+  type WorkspaceMember,
   softDeleteComment,
   updateCommentBody,
 } from '@circi/db'
@@ -28,7 +28,10 @@ const SNIPPET_LENGTH = 140
  * case-insensitively. A token that fits nobody, or fits two members, mentions no one: guessing
  * would notify the wrong person. Tokens that are not members are simply dropped.
  */
-export function matchMentions(tokens: readonly string[], members: readonly OrgMember[]): string[] {
+export function matchMentions(
+  tokens: readonly string[],
+  members: readonly WorkspaceMember[],
+): string[] {
   const owners = new Map<string, Set<string>>()
   const add = (handle: string, userId: string) => {
     if (!handle) return
@@ -49,7 +52,7 @@ export function matchMentions(tokens: readonly string[], members: readonly OrgMe
   return [...matched]
 }
 
-const mentioned = (body: string, members: readonly OrgMember[]) =>
+const mentioned = (body: string, members: readonly WorkspaceMember[]) =>
   matchMentions(parseMentions(body), members)
 
 function checkBody(raw: string): string {
@@ -81,7 +84,7 @@ async function notifyMentions(
 /**
  * Adds a comment, or a reply when `parentId` is set (threads are one level deep; a reply
  * belongs to its parent's snapshot and has no region of its own). Everyone @mentioned who is a
- * member of the organization is notified, except the author.
+ * member of the workspace is notified, except the author.
  */
 export async function addComment(db: Database, input: addComment.Input): Promise<Comment> {
   const body = checkBody(input.body)
@@ -107,7 +110,7 @@ export async function addComment(db: Database, input: addComment.Input): Promise
       region: input.region ?? null,
       parentId: input.parentId ?? null,
     })
-    const members = await listBuildOrgMembers(tx, input.buildId)
+    const members = await listBuildWorkspaceMembers(tx, input.buildId)
     await notifyMentions(tx, comment, mentioned(body, members))
     return comment
   })
@@ -136,7 +139,7 @@ export async function editComment(db: Database, input: editComment.Input): Promi
     }
     const updated = await updateCommentBody(tx, before.id, body)
     if (!updated) throw new NotFoundError('Comment not found')
-    const members = await listBuildOrgMembers(tx, input.buildId)
+    const members = await listBuildWorkspaceMembers(tx, input.buildId)
     const already = new Set(mentioned(before.body, members))
     await notifyMentions(
       tx,
@@ -155,7 +158,7 @@ export namespace editComment {
   }
 }
 
-/** Deletes a comment: its author may, and so may an organization owner or admin (`asAdmin`). */
+/** Deletes a comment: its author may, and so may a workspace owner or admin (`asAdmin`). */
 export async function deleteComment(db: Database, input: deleteComment.Input): Promise<void> {
   await db.transaction(async (tx) => {
     const comment = await ownComment(tx, input.buildId, input.commentId)
@@ -170,7 +173,7 @@ export namespace deleteComment {
     buildId: string
     commentId: string
     userId: string
-    /** The caller is an owner or admin of the organization. */
+    /** The caller is an owner or admin of the workspace. */
     asAdmin: boolean
   }
 }

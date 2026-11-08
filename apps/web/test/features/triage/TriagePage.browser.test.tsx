@@ -20,13 +20,13 @@ import { renderPage } from '#test/support/render.tsx'
 
 afterEach(() => restoreFetch())
 
-const BASE = '/api/projects/acme/web'
+const BASE = '/api/teams/acme/web'
 
 const item = (key: string, over: Record<string, unknown> = {}) => ({
   kind: 'flaky',
   key,
   snapshotName: key,
-  project: { slug: 'web', name: 'Web' },
+  team: { slug: 'web', name: 'Web' },
   build: {
     number: 12,
     branch: 'main',
@@ -51,7 +51,7 @@ const queue = (items: unknown[], onTriage: { id: string; name: string } | null =
 })
 
 const detail = {
-  project: { slug: 'web', name: 'Web' },
+  team: { slug: 'web', name: 'Web' },
   build: { number: 12, status: 'complete', reviewStatus: 'pending' },
   diffs: [
     {
@@ -66,7 +66,7 @@ const detail = {
 
 const show = () =>
   renderPage(<TriagePage />, {
-    route: '/$org/$project/triage',
+    route: '/$workspace/$team/triage',
     url: '/acme/web/triage',
     announcer: true,
   })

@@ -196,10 +196,10 @@ describe('BETTER_AUTH_SECRET', () => {
     )
   })
 
-  it('lets only instance admins create organizations unless told otherwise', () => {
-    expect(loadConfig(base).orgCreation).toBe('admin')
-    expect(loadConfig({ ...base, ORG_CREATION: 'anyone' }).orgCreation).toBe('anyone')
-    expect(() => loadConfig({ ...base, ORG_CREATION: 'sometimes' })).toThrow(ConfigError)
+  it('lets only instance admins create workspaces unless told otherwise', () => {
+    expect(loadConfig(base).workspaceCreation).toBe('admin')
+    expect(loadConfig({ ...base, WORKSPACE_CREATION: 'anyone' }).workspaceCreation).toBe('anyone')
+    expect(() => loadConfig({ ...base, WORKSPACE_CREATION: 'sometimes' })).toThrow(ConfigError)
   })
 
   it('refuses private webhook addresses unless allowed', () => {

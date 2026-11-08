@@ -1,4 +1,4 @@
-import { createTestDb, seedBuild, seedDiff, seedProject, seedScreenshot, sha } from '@circi/testing'
+import { createTestDb, seedBuild, seedDiff, seedTeam, seedScreenshot, sha } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
@@ -6,7 +6,7 @@ import {
   createIntegrationLink,
   figmaFramesForSnapshots,
   getBuildDetail,
-  listProjectSnapshotNames,
+  listTeamSnapshotNames,
 } from '#src/index.ts'
 
 let t: createTestDb.Result
@@ -18,25 +18,25 @@ afterAll(async () => {
 })
 
 async function seedFigma() {
-  const { org, project } = await seedProject(t.db)
+  const { workspace, team } = await seedTeam(t.db)
   const integration = await createIntegration(t.db, {
-    orgId: org.id,
+    workspaceId: workspace.id,
     kind: 'figma',
     displayName: 'Michael',
-    externalId: `u-${org.id}`,
+    externalId: `u-${workspace.id}`,
     encryptedCredentials: 'sealed',
   })
-  return { org, project, integration }
+  return { workspace, team, integration }
 }
 
 /** A `figma-frame` link as the Figma definition stores it. */
 const frameLink = (
-  input: { integrationId: string; projectId: string },
+  input: { integrationId: string; teamId: string },
   link: { pattern: string; nodeId: string; source: 'auto' | 'manual'; title?: string },
 ) =>
   createIntegrationLink(t.db, {
     integrationId: input.integrationId,
-    projectId: input.projectId,
+    teamId: input.teamId,
     kind: 'figma-frame',
     subject: link.pattern,
     externalRef: `FileKey12345:${link.nodeId}`,
@@ -45,12 +45,12 @@ const frameLink = (
   })
 
 describe('snapshot names', () => {
-  it('lists the names a project uploaded', async () => {
-    const { project } = await seedFigma()
-    const build = await seedBuild(t.db, project.id)
+  it('lists the names a team uploaded', async () => {
+    const { team } = await seedFigma()
+    const build = await seedBuild(t.db, team.id)
     await seedScreenshot(t.db, { buildId: build.id, fileSha256: sha('a'), name: 'checkout/cart' })
     await seedScreenshot(t.db, { buildId: build.id, fileSha256: sha('b'), name: 'home' })
-    expect((await listProjectSnapshotNames(t.db, project.id)).toSorted()).toEqual([
+    expect((await listTeamSnapshotNames(t.db, team.id)).toSorted()).toEqual([
       'checkout/cart',
       'home',
     ])
@@ -59,8 +59,8 @@ describe('snapshot names', () => {
 
 describe('figma frames on snapshots', () => {
   it('gives each snapshot the most specific matching link, with a Figma address', async () => {
-    const { project, integration } = await seedFigma()
-    const base = { integrationId: integration.id, projectId: project.id }
+    const { team, integration } = await seedFigma()
+    const base = { integrationId: integration.id, teamId: team.id }
     await frameLink(base, { pattern: 'checkout/*', nodeId: '1:1', source: 'auto' })
     await frameLink(base, {
       pattern: 'checkout/cart',
@@ -68,7 +68,7 @@ describe('figma frames on snapshots', () => {
       source: 'manual',
       title: 'Cart',
     })
-    const frames = await figmaFramesForSnapshots(t.db, project.id, [
+    const frames = await figmaFramesForSnapshots(t.db, team.id, [
       'checkout/cart',
       'checkout/pay',
       'home',
@@ -85,10 +85,10 @@ describe('figma frames on snapshots', () => {
   })
 
   it('ignores links of other kinds, and a link without a frame', async () => {
-    const { project, integration } = await seedFigma()
+    const { team, integration } = await seedFigma()
     await createIntegrationLink(t.db, {
       integrationId: integration.id,
-      projectId: project.id,
+      teamId: team.id,
       kind: 'other',
       subject: 'home',
       externalRef: 'x',
@@ -96,24 +96,24 @@ describe('figma frames on snapshots', () => {
     })
     await createIntegrationLink(t.db, {
       integrationId: integration.id,
-      projectId: project.id,
+      teamId: team.id,
       kind: 'figma-frame',
       subject: 'cart',
       externalRef: 'broken',
     })
-    expect((await figmaFramesForSnapshots(t.db, project.id, ['home', 'cart'])).size).toBe(0)
+    expect((await figmaFramesForSnapshots(t.db, team.id, ['home', 'cart'])).size).toBe(0)
   })
 
   it('shows up on the build detail, and is null without a link', async () => {
-    const { project, integration } = await seedFigma()
+    const { team, integration } = await seedFigma()
     await frameLink(
-      { integrationId: integration.id, projectId: project.id },
+      { integrationId: integration.id, teamId: team.id },
       { pattern: 'cart', nodeId: '1:2', source: 'manual' },
     )
-    const build = await seedBuild(t.db, project.id)
+    const build = await seedBuild(t.db, team.id)
     await seedDiff(t.db, { buildId: build.id, name: 'cart' })
     await seedDiff(t.db, { buildId: build.id, name: 'home' })
-    const detail = await getBuildDetail(t.db, project.id, build.number)
+    const detail = await getBuildDetail(t.db, team.id, build.number)
     expect(detail?.diffs.map((d) => [d.name, d.figma?.nodeId ?? null])).toEqual([
       ['cart', '1:2'],
       ['home', null],

@@ -23,7 +23,7 @@ it is in the `Host` header the server matches and in the cookie scope.
   site, returning the site's `circi_site=...` cookie.
 - **Cookies**: the dashboard's cookies live on `127.0.0.1`, a site's on its own host. Over plain
   http the site cookie is `circi_site` (`__Host-circi_site` only over https).
-- **Hosting is per project**: `PATCH /api/projects/<org>/<project>/settings
+- **Hosting is per team**: `PATCH /api/teams/<workspace>/<team>/settings
   { staticHostingEnabled: true }` before uploading (until then the upload is refused with a
   message saying so).
 
@@ -43,7 +43,7 @@ it is in the `Host` header the server matches and in the cookie scope.
 - `STATIC_SITES_MAX_MB` is at least 1; the security file runs with 1 so a ~1.6 MB random file
   exceeds it.
 - Expiry: retention removes site versions and non-default-branch addresses older than the
-  project's retention days (`circi admin storage gc --grace-hours 0`, after back-dating rows with
+  team's retention days (`circi admin storage gc --grace-hours 0`, after back-dating rows with
   `stack.sql`). Rows are deleted, so an expired address answers like one that never existed.
 - Containment is checked inside the container: a canary file and an `find -newer` marker outside
   `/var/lib/circi/files`.

@@ -29,12 +29,12 @@ const gitOf = (def: IntegrationDefinition) => {
 }
 
 describe('the git hosts of the registry', () => {
-  it('are the definitions with the git capability, and map projects to repositories', () => {
+  it('are the definitions with the git capability, and map teams to repositories', () => {
     expect(integrationRegistry.gitKinds().toSorted()).toEqual(['bitbucket', 'github', 'gitlab'])
     for (const def of [github, gitlab, bitbucket]) {
       expect(def.group).toBe('git')
       expect(def.mapping?.target.kind).toBe('repository')
-      expect(def.exclusive).toEqual({ account: true, project: 'group' })
+      expect(def.exclusive).toEqual({ account: true, team: 'group' })
       expect(def.events).toEqual([])
     }
   })
@@ -65,7 +65,7 @@ describe('the git hosts of the registry', () => {
         capabilities: { git: gitOf(github) },
         mapping: { target: { label: 'Repo', kind: 'text' } },
       }),
-    ).toThrow(/maps projects to repositories/)
+    ).toThrow(/maps teams to repositories/)
     expect(definitionProblems(github)).toEqual([])
   })
 })
@@ -298,12 +298,12 @@ describe('Bitbucket', () => {
   })
 
   it('wants a workspace id, lowercases it, and takes an optional username', () => {
-    expect(bitbucket.credentials.parse({ workspace: 'Acme-WS', token: 't' })).toEqual({
-      workspace: 'acme-ws',
+    expect(bitbucket.credentials.parse({ bitbucketWorkspace: 'Acme-WS', token: 't' })).toEqual({
+      bitbucketWorkspace: 'acme-ws',
       token: 't',
     })
-    expect(bitbucket.credentials.safeParse({ workspace: 'has space', token: 't' }).success).toBe(
-      false,
-    )
+    expect(
+      bitbucket.credentials.safeParse({ bitbucketWorkspace: 'has space', token: 't' }).success,
+    ).toBe(false)
   })
 })

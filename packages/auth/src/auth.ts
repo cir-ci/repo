@@ -18,10 +18,10 @@ import { trustedOriginsFor } from './sso/trusted-issuers.ts'
  *
  * - **Accounts and sessions** for the dashboard: email + password, httpOnly session cookies.
  *   Self sign-up is off (PLAN §8: invite-only by default); accounts come from the admin CLI.
- * - **Organizations** (organization plugin): orgs, members with owner/admin/member roles,
- *   invitations. Projects belong to an organization.
- * - **CI tokens** (api-key plugin, config `ci`): keys owned by an organization, prefixed `circi_`,
- *   stored hashed, with the project id in their metadata.
+ * - **Workspaces** (better-auth's organization plugin): workspaces, members with owner/admin/member roles,
+ *   invitations. Teams belong to a workspace.
+ * - **CI tokens** (api-key plugin, config `ci`): keys owned by a workspace, prefixed `circi_`,
+ *   stored hashed, with the team id in their metadata.
  * - **Instance admins** (admin plugin): the operator role, and server-side user creation.
  *
  * This file only composes: plugins live in `plugins/`, the rules around sign-in in `hooks/`.
@@ -35,14 +35,14 @@ export function createAuth(options: AuthOptions) {
     trustedOrigins: trustedOriginsFor(options.db),
     database: drizzleAdapter(options.db, {
       provider: 'pg',
-      // Needed by the organization single sign-on plugin, which resolves users in a transaction.
+      // Needed by the workspace single sign-on plugin, which resolves users in a transaction.
       transaction: true,
       schema: {
         user: schema.user,
         session: schema.session,
         account: schema.account,
         verification: schema.verification,
-        organization: schema.organization,
+        workspace: schema.workspace,
         member: schema.member,
         invitation: schema.invitation,
         apikey: schema.apikey,

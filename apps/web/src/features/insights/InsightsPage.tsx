@@ -11,8 +11,8 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 
-import { useLoadingAnnouncement } from '#features/projects/loading.ts'
 import { useSidebarModel } from '#features/sidebar/api.ts'
+import { useLoadingAnnouncement } from '#features/teams/loading.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 
@@ -35,22 +35,23 @@ import styles from './Insights.module.css'
 const ALL = '__all__'
 
 export function InsightsPage() {
-  const { org } = useParams({ from: ROUTE })
+  const { workspace } = useParams({ from: ROUTE })
   const search = useSearch({ from: ROUTE })
   const navigate = useNavigate()
-  useDocumentTitle('Insights', org)
-  const { data, error, refetch } = useQuery(insightsQuery(org, search))
+  useDocumentTitle('Insights', workspace)
+  const { data, error, refetch } = useQuery(insightsQuery(workspace, search))
   useLoadingAnnouncement(!data && !error, 'Loading insights')
-  const { data: sidebar } = useSidebarModel(org)
+  const { data: sidebar } = useSidebarModel(workspace)
 
-  const go = (next: InsightsSearch) => void navigate({ to: ROUTE, params: { org }, search: next })
-  const projects = sidebar?.projects ?? []
-  const projectItems = [
-    { value: ALL, label: 'All projects' },
-    ...projects.map((p) => ({ value: p.slug, label: p.name })),
+  const go = (next: InsightsSearch) =>
+    void navigate({ to: ROUTE, params: { workspace }, search: next })
+  const teams = sidebar?.teams ?? []
+  const teamItems = [
+    { value: ALL, label: 'All teams' },
+    ...teams.map((p) => ({ value: p.slug, label: p.name })),
   ]
-  if (search.project && !projects.some((p) => p.slug === search.project)) {
-    projectItems.push({ value: search.project, label: search.project })
+  if (search.team && !teams.some((p) => p.slug === search.team)) {
+    teamItems.push({ value: search.team, label: search.team })
   }
 
   return (
@@ -59,13 +60,11 @@ export function InsightsPage() {
         actions={
           <div className={styles.filters}>
             <Select
-              label="Project"
+              label="Team"
               hideLabel
-              items={projectItems}
-              value={search.project ?? ALL}
-              onValueChange={(v) =>
-                go({ range: search.range, ...(v === ALL ? {} : { project: v }) })
-              }
+              items={teamItems}
+              value={search.team ?? ALL}
+              onValueChange={(v) => go({ range: search.range, ...(v === ALL ? {} : { team: v }) })}
             />
             <SegmentedControl
               label="Time range"
@@ -76,15 +75,11 @@ export function InsightsPage() {
           </div>
         }
       >
-        <Breadcrumbs items={[{ label: org }, { label: 'Insights' }]} />
+        <Breadcrumbs items={[{ label: workspace }, { label: 'Insights' }]} />
       </PanelHeader>
       <div className={styles.body}>
         {error ? (
-          <ErrorState
-            error={error}
-            onRetry={() => void refetch()}
-            notFound="Organization not found"
-          />
+          <ErrorState error={error} onRetry={() => void refetch()} notFound="Workspace not found" />
         ) : !data ? (
           <Delayed>
             <ListSkeleton rows={4} />
@@ -121,7 +116,7 @@ export function InsightsPage() {
                 <FlakyChart weeks={data.weeks} />
               </section>
               <section className={styles.card} aria-labelledby="ins-storage">
-                <h2 id="ins-storage">Storage by project</h2>
+                <h2 id="ins-storage">Storage by team</h2>
                 <Text variant="small" tone="secondary">
                   {formatBytes(data.storage.totalBytes)} total
                 </Text>

@@ -6,7 +6,7 @@ import { RouterLink } from '#lib/router-link.ts'
 export function NotFound() {
   return (
     <EmptyState title="This page doesn’t exist">
-      Check the address, or start again from the <RouterLink to="/">list of projects</RouterLink>.
+      Check the address, or start again from the <RouterLink to="/">list of teams</RouterLink>.
     </EmptyState>
   )
 }

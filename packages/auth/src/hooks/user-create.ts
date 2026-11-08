@@ -1,4 +1,4 @@
-import { organizationsForEmailDomain } from '@circi/db'
+import { workspacesForEmailDomain } from '@circi/db'
 import { APIError } from 'better-auth/api'
 
 import { hasPendingInvitation } from '#operations/accounts.ts'
@@ -7,7 +7,7 @@ import { isSsoPath, isTrusted, mayCreateSsoAccount, ssoProviderOf } from '#sso/s
 
 /**
  * Accounts are never created by self sign-up. Only an email-code sign-in may create one on its
- * own, for invitees and for people on a domain some organization has verified; single sign-on
+ * own, for invitees and for people on a domain some workspace has verified; single sign-on
  * follows the stricter rules in `mayCreateSsoAccount`.
  */
 export function beforeUserCreate(options: Pick<AuthOptions, 'db' | 'sso'>) {
@@ -17,7 +17,7 @@ export function beforeUserCreate(options: Pick<AuthOptions, 'db' | 'sso'>) {
   ): Promise<{ data: { emailVerified?: boolean; name?: string } } | undefined> => {
     const email = typeof user.email === 'string' ? user.email : ''
     if (context?.path?.startsWith('/sso/callback')) {
-      // An organization's own provider may bring its people in, but its word about an email
+      // A workspace's own provider may bring its people in, but its word about an email
       // address proves nothing: the account starts out unverified.
       return { data: { emailVerified: false } }
     }
@@ -26,7 +26,7 @@ export function beforeUserCreate(options: Pick<AuthOptions, 'db' | 'sso'>) {
         trusted: isTrusted(options.sso, ssoProviderOf(context)),
         emailVerified: user.emailVerified,
         invited: await hasPendingInvitation(options.db, email),
-        onVerifiedDomain: (await organizationsForEmailDomain(options.db, email)).length > 0,
+        onVerifiedDomain: (await workspacesForEmailDomain(options.db, email)).length > 0,
       })
       // `code` makes better-auth's callback redirect to the error URL (`?error=<code>`) so the
       // sign-in page can say so; without one the browser would be left on a bare 403.
@@ -41,7 +41,7 @@ export function beforeUserCreate(options: Pick<AuthOptions, 'db' | 'sso'>) {
     if (context?.path !== '/sign-in/email-otp') return undefined
     if (
       !(await hasPendingInvitation(options.db, email)) &&
-      (await organizationsForEmailDomain(options.db, email)).length === 0
+      (await workspacesForEmailDomain(options.db, email)).length === 0
     ) {
       throw new APIError('FORBIDDEN', { message: 'No account for this address' })
     }

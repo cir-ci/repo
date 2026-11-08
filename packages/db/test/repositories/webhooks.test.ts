@@ -1,5 +1,5 @@
 import { ValidationError } from '@circi/core'
-import { createTestDb, seedProject } from '@circi/testing'
+import { createTestDb, seedTeam } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
@@ -22,29 +22,29 @@ afterAll(async () => {
 
 describe('webhooks', () => {
   it('creates a webhook with a secret and the events it asked for', async () => {
-    const { project } = await seedProject(t.db)
+    const { team } = await seedTeam(t.db)
     const hook = await createWebhook(t.db, {
-      projectId: project.id,
+      teamId: team.id,
       url: 'https://hooks.acme.io/x',
       events: ['build.reviewed'],
     })
     expect(hook.secret).toMatch(/^whsec_/)
     expect(hook.events).toEqual(['build.reviewed'])
-    expect(await listWebhooks(t.db, project.id)).toHaveLength(1)
+    expect(await listWebhooks(t.db, team.id)).toHaveLength(1)
   })
 
   it('refuses a webhook without events: an empty list does not mean "all"', async () => {
-    const { project } = await seedProject(t.db)
+    const { team } = await seedTeam(t.db)
     await expect(
-      createWebhook(t.db, { projectId: project.id, url: 'https://hooks.acme.io/x', events: [] }),
+      createWebhook(t.db, { teamId: team.id, url: 'https://hooks.acme.io/x', events: [] }),
     ).rejects.toThrow(ValidationError)
-    expect(await listWebhooks(t.db, project.id)).toHaveLength(0)
+    expect(await listWebhooks(t.db, team.id)).toHaveLength(0)
   })
 
   it('has no way to store an empty list either (the table rejects it)', async () => {
-    const { project } = await seedProject(t.db)
+    const { team } = await seedTeam(t.db)
     const insert = t.db.insert(schema.webhooks).values({
-      projectId: project.id,
+      teamId: team.id,
       url: 'https://hooks.acme.io/x',
       secret: 'whsec_x',
       events: [],
@@ -56,16 +56,16 @@ describe('webhooks', () => {
     expect(pgErrorCode(err)).toBe('23514') // check_violation: webhooks_events_check
   })
 
-  it("deletes only the project's own webhook", async () => {
-    const { project } = await seedProject(t.db)
-    const other = await seedProject(t.db)
+  it("deletes only the team's own webhook", async () => {
+    const { team } = await seedTeam(t.db)
+    const other = await seedTeam(t.db)
     const hook = await createWebhook(t.db, {
-      projectId: project.id,
+      teamId: team.id,
       url: 'https://hooks.acme.io/x',
       events: ['build.completed'],
     })
-    await expect(deleteWebhook(t.db, other.project.id, hook.id)).rejects.toThrow(NotFoundError)
-    await deleteWebhook(t.db, project.id, hook.id)
-    expect(await listWebhooks(t.db, project.id)).toHaveLength(0)
+    await expect(deleteWebhook(t.db, other.team.id, hook.id)).rejects.toThrow(NotFoundError)
+    await deleteWebhook(t.db, team.id, hook.id)
+    expect(await listWebhooks(t.db, team.id)).toHaveLength(0)
   })
 })

@@ -155,10 +155,10 @@ describe('storage', () => {
     expect(formatBytes(230_000_000)).toBe('230 MB')
   })
 
-  it('sorts projects by size with their share', () => {
+  it('sorts teams by size with their share', () => {
     const rows = storageRows({
       totalBytes: 400,
-      projects: [
+      teams: [
         { slug: 'a', name: 'A', bytes: 100 },
         { slug: 'b', name: 'B', bytes: 300 },
       ],
@@ -168,7 +168,7 @@ describe('storage', () => {
       ['a', 0.25],
     ])
     expect(
-      storageRows({ totalBytes: 0, projects: [{ slug: 'a', name: 'A', bytes: 0 }] })[0]?.share,
+      storageRows({ totalBytes: 0, teams: [{ slug: 'a', name: 'A', bytes: 0 }] })[0]?.share,
     ).toBe(0)
   })
 })

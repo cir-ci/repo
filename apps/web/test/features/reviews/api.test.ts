@@ -29,8 +29,8 @@ const request = (over: Partial<Review.Request> = {}): Review.Request => ({
     conclusion: 'changed',
     reviewStatus: 'pending',
   },
-  project: { slug: 'web', name: 'Web' },
-  org: { slug: 'acme', name: 'Acme' },
+  team: { slug: 'web', name: 'Web' },
+  workspace: { slug: 'acme', name: 'Acme' },
   ...over,
 })
 

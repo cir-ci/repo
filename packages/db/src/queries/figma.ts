@@ -1,6 +1,6 @@
 import { FIGMA_FRAME_LINK_KIND, figmaFrameUrl, globMatches, pickFigmaLink } from '@circi/core'
 
-import { listProjectLinks } from '#repositories/integration-links.ts'
+import { listTeamLinks } from '#repositories/integration-links.ts'
 import type { Database } from '#src/client.ts'
 
 export namespace figmaFramesForSnapshots {
@@ -24,12 +24,12 @@ const text = (value: unknown): string | undefined => (typeof value === 'string' 
  */
 export async function figmaFramesForSnapshots(
   db: Database,
-  projectId: string,
+  teamId: string,
   snapshotNames: readonly string[],
 ): Promise<Map<string, figmaFramesForSnapshots.Frame>> {
   const out = new Map<string, figmaFramesForSnapshots.Frame>()
   if (snapshotNames.length === 0) return out
-  const links = (await listProjectLinks(db, projectId, FIGMA_FRAME_LINK_KIND)).flatMap((l) => {
+  const links = (await listTeamLinks(db, teamId, FIGMA_FRAME_LINK_KIND)).flatMap((l) => {
     const fileKey = text(l.payload.fileKey)
     const nodeId = text(l.payload.nodeId)
     return fileKey && nodeId && l.subject

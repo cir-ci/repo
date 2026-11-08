@@ -14,7 +14,7 @@
 }
 
 .root[data-tone='rejected'] .icon {
-  color: var(--circi-state-rejected);
+  color: var(--circi-state-rejected-text);
 }
 
 .title {

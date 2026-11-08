@@ -11,7 +11,7 @@ import { ReviewsSettingsPage } from '#features/settings/ReviewsSettingsPage.tsx'
 import { fakeApi, type ReplyHandler, restoreFetch } from '#test/features/fetch-routes.ts'
 import { renderPage } from '#test/support/render.tsx'
 
-const API = '/api/projects/acme/web'
+const API = '/api/teams/acme/web'
 
 const settings = {
   name: 'Web App',
@@ -59,7 +59,7 @@ function api(over: Record<string, unknown> = {}, extra: Record<string, ReplyHand
 const show = async () => {
   await page.viewport(1000, 1400)
   await renderPage(<ReviewsSettingsPage />, {
-    route: '/$org/$project/settings/reviews',
+    route: '/$workspace/$team/settings/reviews',
     url: '/acme/web/settings/reviews',
   })
 }

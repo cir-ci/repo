@@ -3,7 +3,7 @@ import {
   createTestDb,
   seedBuild,
   seedComment,
-  seedProject,
+  seedTeam,
   seedReview,
   seedReviewRequest,
   seedUser,
@@ -25,10 +25,10 @@ const at = (minute: number) => new Date(Date.UTC(2026, 2, 10, 12, minute))
 
 describe('listBuildActivity', () => {
   it('merges every source into one list, oldest first, whatever order it was written in', async () => {
-    const { project, org, owner } = await seedProject(t.db)
+    const { team, workspace, owner } = await seedTeam(t.db)
     const bob = await seedUser(t.db)
-    await addTestMember(t.db, { orgId: org.id, userId: bob.id })
-    const build = await seedBuild(t.db, project.id, {
+    await addTestMember(t.db, { workspaceId: workspace.id, userId: bob.id })
+    const build = await seedBuild(t.db, team.id, {
       status: 'complete',
       conclusion: 'changes_detected',
       createdAt: at(0),
@@ -115,8 +115,8 @@ describe('listBuildActivity', () => {
   })
 
   it('shows a failed build as failed, with its message', async () => {
-    const { project } = await seedProject(t.db)
-    const build = await seedBuild(t.db, project.id, {
+    const { team } = await seedTeam(t.db)
+    const build = await seedBuild(t.db, team.id, {
       status: 'error',
       createdAt: at(0),
       completedAt: at(2),

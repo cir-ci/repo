@@ -8,8 +8,8 @@ import type { Deps } from '#http/lib/deps.ts'
 /**
  * `GET /api/files/:sha256`: screenshots, diffs and thumbnails by content hash. The bytes behind a
  * hash never change, so browsers may cache them for good (unlike hosted sites, PLAN §7.6).
- * Files are shared across organizations by hash, so each request checks the file belongs to a
- * build in one of the signed-in user's organizations.
+ * Files are shared across workspaces by hash, so each request checks the file belongs to a
+ * build in one of the signed-in user's workspaces.
  */
 export const dashboardFileRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   app.get<{ Params: { sha256: string } }>('/files/:sha256', async (req, reply) => {

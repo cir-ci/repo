@@ -3,8 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 
 import { useConnect } from '#features/integrations/generic-api.ts'
-import { capabilitiesQuery } from '#features/projects/api.ts'
 import { Frame } from '#features/settings/Frame.tsx'
+import { capabilitiesQuery } from '#features/teams/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 
 /**
@@ -29,13 +29,13 @@ export function GithubSetupPage() {
       </Heading>
       {installation === '' ? (
         <Banner tone="danger">GitHub did not say which installation to connect.</Banner>
-      ) : (data?.manageableOrganizations.length ?? 0) === 0 ? (
+      ) : (data?.manageableWorkspaces.length ?? 0) === 0 ? (
         <Banner>Only workspace owners and admins can connect GitHub.</Banner>
       ) : (
         <>
           <Text tone="secondary">Choose the workspace this GitHub installation belongs to.</Text>
-          {data?.manageableOrganizations.map((org) => (
-            <Pick key={org.slug} org={org} installation={installation} />
+          {data?.manageableWorkspaces.map((workspace) => (
+            <Pick key={workspace.slug} workspace={workspace} installation={installation} />
           ))}
         </>
       )}
@@ -43,8 +43,8 @@ export function GithubSetupPage() {
   )
 }
 
-function Pick(props: { org: { slug: string; name: string }; installation: string }) {
-  const connect = useConnect(props.org.slug, 'github')
+function Pick(props: { workspace: { slug: string; name: string }; installation: string }) {
+  const connect = useConnect(props.workspace.slug, 'github')
   const navigate = useNavigate()
   return (
     <div>
@@ -56,14 +56,14 @@ function Pick(props: { org: { slug: string; name: string }; installation: string
             {
               onSuccess: ({ id }) =>
                 void navigate({
-                  to: '/organizations/$org/settings/integrations/$kind/$id',
-                  params: { org: props.org.slug, kind: 'github', id },
+                  to: '/workspaces/$workspace/settings/integrations/$kind/$id',
+                  params: { workspace: props.workspace.slug, kind: 'github', id },
                 }),
             },
           )
         }
       >
-        {props.org.name}
+        {props.workspace.name}
       </Button>
       {connect.error ? <Banner tone="danger">{connect.error.message}</Banner> : null}
     </div>

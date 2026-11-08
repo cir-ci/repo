@@ -12,7 +12,7 @@ export namespace Review {
     id: string
     state: ReviewRequestState
     createdAt: string
-    /** When the project's review target runs out; null when the project has none. */
+    /** When the team's review target runs out; null when the team has none. */
     dueAt: string | null
     /** Milliseconds past `dueAt`; 0 when on time, snoozed or without a target. */
     overdueByMs: number
@@ -30,8 +30,8 @@ export namespace Review {
       conclusion: BuildConclusion | null
       reviewStatus: ReviewStatus
     }
-    project: { slug: string; name: string }
-    org: { slug: string; name: string }
+    team: { slug: string; name: string }
+    workspace: { slug: string; name: string }
   }
 
   /** `GET /api/reviews?tab=…`: one tab of the Reviews page, most urgent first. */

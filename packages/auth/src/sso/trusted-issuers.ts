@@ -2,7 +2,7 @@ import type { Database } from '@circi/db'
 import { schema } from '@circi/db'
 
 /**
- * better-auth only talks to origins it trusts. An organization's identity provider is, by
+ * better-auth only talks to origins it trusts. A workspace's identity provider is, by
  * design, somewhere we don't know in advance, so the trusted origins are the issuers already
  * registered (read per request, so every server process agrees), plus, for the length of one
  * registration, the issuer being registered (`withTrustedIssuer`). The route that registers has

@@ -8,7 +8,7 @@ export { type BuildSearch, ROUTE, type ViewMode } from './search.ts'
 
 export const buildRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '$org/$project/builds/$number',
+  path: '$workspace/$team/builds/$number',
   validateSearch: validateBuildSearch,
   component: lazyRouteComponent(() => import('./BuildPage.tsx'), 'BuildPage'),
 })

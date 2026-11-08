@@ -7,7 +7,7 @@ import {
   schema,
   storageUsage,
 } from '@circi/db'
-import { createTestDb, seedProject, seedUploadClaim, sha } from '@circi/testing'
+import { createTestDb, seedTeam, seedUploadClaim, sha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -31,13 +31,13 @@ const retention = (over: { now?: Date; graceMs?: number } = {}) =>
 let counter = 0
 /** A completed build with one screenshot, created `days` ago. */
 async function oldBuild(
-  project: { id: string },
+  team: { id: string },
   options: { days: number; branch?: string; hash?: string; approved?: boolean },
 ) {
   counter += 1
   const hash = options.hash ?? sha(counter.toString(16))
   const build = await createBuild(t.db, {
-    projectId: project.id,
+    teamId: team.id,
     commitSha: `abc${counter.toString().padStart(4, '0')}0`,
     branch: options.branch ?? 'feature',
   })
@@ -69,9 +69,9 @@ const statusOf = async (id: string) =>
 
 describe('expiring builds', () => {
   it('expires builds past retention, drops their screenshots, and keeps recent ones', async () => {
-    const { project } = await seedProject(t.db)
-    const old = await oldBuild(project, { days: 40 })
-    const recent = await oldBuild(project, { days: 5 })
+    const { team } = await seedTeam(t.db)
+    const old = await oldBuild(team, { days: 40 })
+    const recent = await oldBuild(team, { days: 5 })
     const result = await retention()
     expect(result.expiredBuilds).toBeGreaterThanOrEqual(1)
     expect(await statusOf(old.build.id)).toBe('expired')
@@ -84,21 +84,18 @@ describe('expiring builds', () => {
   })
 
   it('never expires the newest baseline on the default branch, however old', async () => {
-    const { project } = await seedProject(t.db)
-    const oldest = await oldBuild(project, { days: 100, branch: 'main', approved: true })
-    const newer = await oldBuild(project, { days: 60, branch: 'main', approved: true })
+    const { team } = await seedTeam(t.db)
+    const oldest = await oldBuild(team, { days: 100, branch: 'main', approved: true })
+    const newer = await oldBuild(team, { days: 60, branch: 'main', approved: true })
     await retention()
     expect(await statusOf(newer.build.id)).toBe('complete') // the baseline later builds compare to
     expect(await statusOf(oldest.build.id)).toBe('expired')
   })
 
-  it('respects each project’s own retention period', async () => {
-    const { project } = await seedProject(t.db)
-    await t.db
-      .update(schema.projects)
-      .set({ retentionDays: 90 })
-      .where(eq(schema.projects.id, project.id))
-    const build = await oldBuild(project, { days: 60 })
+  it('respects each team’s own retention period', async () => {
+    const { team } = await seedTeam(t.db)
+    await t.db.update(schema.teams).set({ retentionDays: 90 }).where(eq(schema.teams.id, team.id))
+    const build = await oldBuild(team, { days: 60 })
     await retention()
     expect(await statusOf(build.build.id)).toBe('complete')
   })
@@ -106,8 +103,8 @@ describe('expiring builds', () => {
 
 describe('collecting files', () => {
   it('marks unreferenced files, waits out the grace period, then deletes them and their objects', async () => {
-    const { project } = await seedProject(t.db)
-    const gone = await oldBuild(project, { days: 40 })
+    const { team } = await seedTeam(t.db)
+    const gone = await oldBuild(team, { days: 40 })
     deleted.length = 0
 
     const first = await retention()
@@ -128,22 +125,22 @@ describe('collecting files', () => {
   })
 
   it('never marks a file something still points at', async () => {
-    const { project } = await seedProject(t.db)
-    const live = await oldBuild(project, { days: 1 })
+    const { team } = await seedTeam(t.db)
+    const live = await oldBuild(team, { days: 1 })
     await retention({ now: new Date(Date.now() + 10 * DAY), graceMs: 0 })
     const [row] = await t.db.select().from(schema.files).where(eq(schema.files.sha256, live.hash))
     expect(row?.gcMarkedAt ?? null).toBeNull()
   })
 
   it('keeps a marked file that a build started using during the grace period', async () => {
-    const { project } = await seedProject(t.db)
-    const old = await oldBuild(project, { days: 40 })
+    const { team } = await seedTeam(t.db)
+    const old = await oldBuild(team, { days: 40 })
     await retention() // expires the build, marks its now-unreferenced file
     const [marked] = await t.db.select().from(schema.files).where(eq(schema.files.sha256, old.hash))
     expect(marked?.gcMarkedAt).not.toBeNull()
 
     // A new build is told "we already have that file": it claims it. Dedup racing the collector.
-    const fresh = await createBuild(t.db, { projectId: project.id, commitSha: 'dddd0001' })
+    const fresh = await createBuild(t.db, { teamId: team.id, commitSha: 'dddd0001' })
     const planned = await planUploads(t.db, {
       buildId: fresh.id,
       kind: 'screenshot',
@@ -162,15 +159,15 @@ describe('collecting files', () => {
   })
 
   it('treats a claim made between marking and collecting as a reference (the re-check)', async () => {
-    const { project } = await seedProject(t.db)
-    const old = await oldBuild(project, { days: 40 })
+    const { team } = await seedTeam(t.db)
+    const old = await oldBuild(team, { days: 40 })
     await retention()
     // Marked long ago as far as the collector is concerned, but claimed just before it runs.
     await t.db
       .update(schema.files)
       .set({ gcMarkedAt: ago(5) })
       .where(eq(schema.files.sha256, old.hash))
-    const fresh = await createBuild(t.db, { projectId: project.id, commitSha: 'eeee0001' })
+    const fresh = await createBuild(t.db, { teamId: team.id, commitSha: 'eeee0001' })
     await seedUploadClaim(t.db, { buildId: fresh.id, fileSha256: old.hash })
     const { collectMarkedFiles } = await import('@circi/db')
     const result = await collectMarkedFiles(t.db, { now: new Date(), graceMs: DAY, deleteObject })
@@ -181,8 +178,8 @@ describe('collecting files', () => {
   })
 
   it('collects a file that was announced but never uploaded', async () => {
-    const { project } = await seedProject(t.db)
-    const build = await createBuild(t.db, { projectId: project.id, commitSha: 'ffff0001' })
+    const { team } = await seedTeam(t.db)
+    const build = await createBuild(t.db, { teamId: team.id, commitSha: 'ffff0001' })
     const hash = sha('ba')
     await planUploads(t.db, {
       buildId: build.id,
@@ -207,7 +204,7 @@ describe('expiring sites', () => {
   }
 
   async function site(
-    projectId: string,
+    teamId: string,
     input: { commit: string; branch: string; move: boolean; label: string },
   ) {
     counter += 1
@@ -216,7 +213,7 @@ describe('expiring sites', () => {
       { sha256: hash, size: 5, storageKey: `files/${hash}/s`, contentType: 'text/html' },
     ])
     return publishSiteVersion(t.db, {
-      projectId,
+      teamId,
       name: `s${counter}`,
       kind: 'generic',
       spa: false,
@@ -235,15 +232,15 @@ describe('expiring sites', () => {
   }
 
   it('removes stale branch addresses and old versions, but never the default branch’s or a served one', async () => {
-    const { project } = await seedProject(t.db)
-    const stale = await site(project.id, {
+    const { team } = await seedTeam(t.db)
+    const stale = await site(team.id, {
       commit: 'a1',
       branch: 'feature/old',
       move: true,
       label: 'stale',
     })
-    const main = await site(project.id, { commit: 'b2', branch: 'main', move: true, label: 'main' })
-    const fresh = await site(project.id, {
+    const main = await site(team.id, { commit: 'b2', branch: 'main', move: true, label: 'main' })
+    const fresh = await site(team.id, {
       commit: 'c3',
       branch: 'feature/new',
       move: true,
@@ -253,11 +250,11 @@ describe('expiring sites', () => {
     await t.db
       .update(schema.siteHostnames)
       .set({ updatedAt: longAgo })
-      .where(eq(schema.siteHostnames.projectSiteId, stale.site.id))
+      .where(eq(schema.siteHostnames.teamSiteId, stale.site.id))
     await t.db
       .update(schema.siteHostnames)
       .set({ updatedAt: longAgo })
-      .where(eq(schema.siteHostnames.projectSiteId, main.site.id))
+      .where(eq(schema.siteHostnames.teamSiteId, main.site.id))
     await t.db.update(schema.staticSites).set({ createdAt: longAgo })
 
     const result = await retention()
@@ -278,8 +275,8 @@ describe('expiring sites', () => {
 
 describe('storage usage', () => {
   it('totals what is stored by kind, and what waits to be collected', async () => {
-    const { project } = await seedProject(t.db)
-    await oldBuild(project, { days: 1 })
+    const { team } = await seedTeam(t.db)
+    await oldBuild(team, { days: 1 })
     const usage = await storageUsage(t.db)
     expect(usage.files.find((f) => f.kind === 'screenshot')?.count).toBeGreaterThanOrEqual(1)
     expect(usage.totalBytes).toBeGreaterThan(0)

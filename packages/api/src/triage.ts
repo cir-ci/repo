@@ -5,14 +5,14 @@ export type TriageKind = 'flaky' | 'no_baseline' | 'failed'
 export type ReviewRuleKind = 'snapshot-name' | 'build-name'
 
 export namespace Triage {
-  /** A problem nobody has dealt with yet, on a project's default branch. */
+  /** A problem nobody has dealt with yet, on a team's default branch. */
   export interface Item {
     kind: TriageKind
     /** Identifies the problem within its kind: the snapshot name, or `build:<number>`. */
     key: string
     /** The screenshot it is about; null for a failed build. */
     snapshotName: string | null
-    project: { slug: string; name: string }
+    team: { slug: string; name: string }
     build: {
       number: number
       branch: string | null
@@ -42,7 +42,7 @@ export namespace Triage {
 
   /** The rotation as edited in settings. */
   export interface Rotation {
-    /** Any moment of the first week; null when the project has no rotation. */
+    /** Any moment of the first week; null when the team has no rotation. */
     startsOn: string | null
     members: { id: string; name: string }[]
   }

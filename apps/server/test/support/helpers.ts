@@ -2,8 +2,8 @@ import {
   type Auth,
   type Mailer,
   createAuth,
-  createOrganization,
-  createProjectWithToken,
+  createWorkspace,
+  createTeamWithToken,
   createUser,
 } from '@circi/auth'
 import type { Database } from '@circi/db'
@@ -31,13 +31,13 @@ let n = 0
 
 export interface Tenant {
   owner: { id: string; email: string; password: string }
-  orgSlug: string
-  project: Awaited<ReturnType<typeof createProjectWithToken>>['project']
-  /** The project's CI token. */
+  workspaceSlug: string
+  team: Awaited<ReturnType<typeof createTeamWithToken>>['team']
+  /** The team's CI token. */
   token: string
 }
 
-/** A user who owns a new organization with one project, created the way the admin CLI does. */
+/** A user who owns a new workspace with one team, created the way the admin CLI does. */
 export async function seedTenant(
   auth: Auth,
   db: Database,
@@ -50,14 +50,18 @@ export async function seedTenant(
     name: `Owner ${n}`,
     password,
   })
-  const orgSlug = `org-${n}`
-  await createOrganization(auth, db, { name: `Org ${n}`, slug: orgSlug, ownerEmail: owner.email })
-  const { project, token } = await createProjectWithToken(auth, db, {
-    orgSlug,
+  const workspaceSlug = `workspace-${n}`
+  await createWorkspace(auth, db, {
+    name: `Workspace ${n}`,
+    slug: workspaceSlug,
+    ownerEmail: owner.email,
+  })
+  const { team, token } = await createTeamWithToken(auth, db, {
+    workspaceSlug,
     name: 'web',
     ...(options.defaultBranch ? { defaultBranch: options.defaultBranch } : {}),
   })
-  return { owner: { id: owner.id, email: owner.email, password }, orgSlug, project, token }
+  return { owner: { id: owner.id, email: owner.email, password }, workspaceSlug, team, token }
 }
 
 /** Signs in through the server's own `/api/auth` route; returns a `cookie` header value. */

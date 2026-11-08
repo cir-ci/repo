@@ -1,14 +1,14 @@
 import { Banner, Checkbox, SectionHeader } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 
-import { orgAuthQuery, useSaveOrgAuth } from './api.ts'
+import { workspaceAuthQuery, useSaveWorkspaceAuth } from './api.ts'
 
 import styles from './SignInMethods.module.css'
 
-/** Which login methods this organization accepts; the server keeps at least one usable by an owner. */
-export function SignInMethods({ org }: SignInMethods.Props) {
-  const { data } = useQuery(orgAuthQuery(org))
-  const save = useSaveOrgAuth(org)
+/** Which login methods this workspace accepts; the server keeps at least one usable by an owner. */
+export function SignInMethods({ workspace }: SignInMethods.Props) {
+  const { data } = useQuery(workspaceAuthQuery(workspace))
+  const save = useSaveWorkspaceAuth(workspace)
   if (!data) return null
   const { settings, instance } = data
   const toggle = (patch: Partial<typeof settings>) => save.mutate(patch)
@@ -16,7 +16,7 @@ export function SignInMethods({ org }: SignInMethods.Props) {
     <section className={styles.root}>
       <SectionHeader
         title="Sign-in methods"
-        description="People sign in with any method the instance offers, but this organization only shows its projects to sessions that used a method you accept here."
+        description="People sign in with any method the instance offers, but this workspace only shows its teams to sessions that used a method you accept here."
       />
       <div className={styles.methods}>
         <Checkbox
@@ -40,6 +40,6 @@ export function SignInMethods({ org }: SignInMethods.Props) {
 
 export namespace SignInMethods {
   export interface Props {
-    org: string
+    workspace: string
   }
 }

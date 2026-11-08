@@ -20,8 +20,8 @@ const summary = (over: Record<string, unknown> = {}) => ({
 })
 
 const report = {
-  org: { slug: 'acme', name: 'Acme' },
-  project: null,
+  workspace: { slug: 'acme', name: 'Acme' },
+  team: null,
   range: { from: '2026-10-09T00:00:00.000Z', to: '2026-11-08T00:00:00.000Z' },
   summary: summary(),
   previous: summary({ medianReviewHours: 6.1, buildsReviewed: 166 }),
@@ -31,7 +31,7 @@ const report = {
   ],
   storage: {
     totalBytes: 3 * 1024 ** 3,
-    projects: [
+    teams: [
       { slug: 'web', name: 'Web', bytes: 2 * 1024 ** 3 },
       { slug: 'docs', name: 'Docs', bytes: 1024 ** 3 },
     ],
@@ -48,9 +48,9 @@ const report = {
   ],
 }
 
-const show = (url = '/organizations/acme/insights') =>
+const show = (url = '/workspaces/acme/insights') =>
   renderPage(<InsightsPage />, {
-    route: '/organizations/$org/insights',
+    route: '/workspaces/$workspace/insights',
     url,
     announcer: true,
     validateSearch: validateInsightsSearch,
@@ -59,10 +59,10 @@ const show = (url = '/organizations/acme/insights') =>
 describe('InsightsPage', () => {
   it('shows tiles with their change, charts as text, storage and reviewers', async () => {
     const calls = fakeFetch({
-      'GET /api/orgs/acme/insights': report,
-      'GET /api/orgs/acme/sidebar': { projects: [], views: [], inboxUnread: 0, reviews: 0 },
+      'GET /api/workspaces/acme/insights': report,
+      'GET /api/workspaces/acme/sidebar': { teams: [], views: [], inboxUnread: 0, reviews: 0 },
     })
-    await show('/organizations/acme/insights?range=7')
+    await show('/workspaces/acme/insights?range=7')
     await expect.element(page.getByText('3.4h')).toBeVisible()
     await expect.element(page.getByLabelText('Down 44%, better')).toBeVisible()
     await expect
@@ -75,7 +75,7 @@ describe('InsightsPage', () => {
       .toBeVisible()
     await expect.element(page.getByRole('cell', { name: 'Ada Lovelace' })).toBeVisible()
     await expect.element(page.getByText('3.0 GB total')).toBeVisible()
-    const request = calls.find((c) => c.path === '/api/orgs/acme/insights')
+    const request = calls.find((c) => c.path === '/api/workspaces/acme/insights')
     expect(request).toBeDefined()
     await userEvent.click(page.getByRole('button', { name: '90 days' }))
     await expect
@@ -85,14 +85,14 @@ describe('InsightsPage', () => {
 
   it('says so when there is nothing to show', async () => {
     fakeFetch({
-      'GET /api/orgs/acme/insights': {
+      'GET /api/workspaces/acme/insights': {
         ...report,
         summary: summary({ buildsFinished: 0, buildsReviewed: 0, changeRate: null }),
-        storage: { totalBytes: 0, projects: [] },
+        storage: { totalBytes: 0, teams: [] },
         reviewers: [],
         weeks: [],
       },
-      'GET /api/orgs/acme/sidebar': { projects: [], views: [], inboxUnread: 0, reviews: 0 },
+      'GET /api/workspaces/acme/sidebar': { teams: [], views: [], inboxUnread: 0, reviews: 0 },
     })
     await show()
     await expect.element(page.getByRole('heading', { name: 'No data yet' })).toBeVisible()

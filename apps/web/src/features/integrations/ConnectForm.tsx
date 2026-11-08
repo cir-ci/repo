@@ -13,9 +13,9 @@ import styles from './Integrations.module.css'
  * integration has an OAuth install, a button for it. The server checks the values with the provider
  * before it stores anything; then the person lands on the integration's page.
  */
-export function ConnectForm({ entry, org, onDone }: ConnectForm.Props) {
-  const connect = useConnect(org, entry.kind)
-  const install = useInstall(org)
+export function ConnectForm({ entry, workspace, onDone }: ConnectForm.Props) {
+  const connect = useConnect(workspace, entry.kind)
+  const install = useInstall(workspace)
   const navigate = useNavigate()
   const [values, setValues] = useState<Record<string, string>>({})
   const complete = credentialsComplete(entry.credentials, values)
@@ -27,8 +27,8 @@ export function ConnectForm({ entry, org, onDone }: ConnectForm.Props) {
       onSuccess: ({ id }) => {
         onDone()
         void navigate({
-          to: '/organizations/$org/settings/integrations/$kind/$id',
-          params: { org, kind: entry.kind, id },
+          to: '/workspaces/$workspace/settings/integrations/$kind/$id',
+          params: { workspace, kind: entry.kind, id },
         })
       },
     })
@@ -76,7 +76,7 @@ export function ConnectForm({ entry, org, onDone }: ConnectForm.Props) {
 export namespace ConnectForm {
   export interface Props {
     entry: Integration.CatalogEntry
-    org: string
+    workspace: string
     onDone: () => void
   }
 }

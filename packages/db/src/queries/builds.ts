@@ -24,7 +24,7 @@ import { figmaFramesForSnapshots } from './figma.ts'
 
 /** Build read models for the dashboard: shaped for the UI, read-only, free to join widely. */
 
-export namespace listBuildsForProject {
+export namespace listBuildsForTeam {
   export interface Item {
     id: string
     number: number
@@ -37,7 +37,7 @@ export namespace listBuildsForProject {
     reviewStatus: ReviewStatus
     createdAt: Date
     counts: getBuildCounts.Counts
-    author: listBuildsForProject.Author | null
+    author: listBuildsForTeam.Author | null
   }
 
   /** Who made a build: the login the CI or git host gave, and the member it matched, if any. */
@@ -49,7 +49,7 @@ export namespace listBuildsForProject {
     avatarUrl: string | null
   }
 
-  /** Narrows a project's builds list; every field given must match. */
+  /** Narrows a team's builds list; every field given must match. */
   export interface Filters {
     /** The build's own status (uploading, complete, error…). */
     status?: BuildStatus
@@ -60,7 +60,7 @@ export namespace listBuildsForProject {
     author?: string
     /** A member's user id: builds with an open review request for them. */
     reviewer?: string
-    /** The build's name (a project can upload several per commit). */
+    /** The build's name (a team can upload several per commit). */
     name?: string
     /** Created at or after. */
     from?: Date
@@ -72,12 +72,12 @@ export namespace listBuildsForProject {
 function toAuthor(
   build: { authorLogin: string | null },
   member: { name: string; image: string | null } | null,
-): listBuildsForProject.Author | null {
+): listBuildsForTeam.Author | null {
   const login = build.authorLogin ?? member?.name
   return login ? { login, name: member?.name ?? null, avatarUrl: member?.image ?? null } : null
 }
 
-function filterConditions(f: listBuildsForProject.Filters) {
+function filterConditions(f: listBuildsForTeam.Filters) {
   return [
     f.status ? eq(builds.status, f.status) : undefined,
     f.reviewStatus ? eq(builds.reviewStatus, f.reviewStatus) : undefined,
@@ -94,18 +94,18 @@ function filterConditions(f: listBuildsForProject.Filters) {
   ]
 }
 
-export async function listBuildsForProject(
+export async function listBuildsForTeam(
   db: Database,
-  projectId: string,
-  options: { limit: number; beforeNumber?: number; filters?: listBuildsForProject.Filters },
-): Promise<listBuildsForProject.Item[]> {
+  teamId: string,
+  options: { limit: number; beforeNumber?: number; filters?: listBuildsForTeam.Filters },
+): Promise<listBuildsForTeam.Item[]> {
   const found = await db
     .select({ build: builds, member: { name: user.name, image: user.image } })
     .from(builds)
     .leftJoin(user, eq(user.id, builds.authorUserId))
     .where(
       and(
-        eq(builds.projectId, projectId),
+        eq(builds.teamId, teamId),
         options.beforeNumber ? lt(builds.number, options.beforeNumber) : undefined,
         ...filterConditions(options.filters ?? {}),
       ),
@@ -181,7 +181,7 @@ export namespace getBuildDetail {
   }
 
   export interface Detail {
-    build: Omit<listBuildsForProject.Item, 'counts'> & {
+    build: Omit<listBuildsForTeam.Item, 'counts'> & {
       baseBranch: string | null
       ancestryStatus: AncestryStatus
       baselineSource: BaselineSource | null
@@ -200,15 +200,15 @@ export namespace getBuildDetail {
 
 export async function getBuildDetail(
   db: Database,
-  projectId: string,
+  teamId: string,
   number: number,
 ): Promise<getBuildDetail.Detail | undefined> {
   const [build] = await db
     .select()
     .from(builds)
-    .where(and(eq(builds.projectId, projectId), eq(builds.number, number)))
+    .where(and(eq(builds.teamId, teamId), eq(builds.number, number)))
   if (!build) return undefined
-  const [list] = await listBuildsForProject(db, projectId, { limit: 1, beforeNumber: number + 1 })
+  const [list] = await listBuildsForTeam(db, teamId, { limit: 1, beforeNumber: number + 1 })
   const counts = list?.id === build.id ? list.counts : emptyCounts()
 
   const baseline = build.baseBuildId
@@ -246,7 +246,7 @@ export async function getBuildDetail(
   const decisions = await listBuildReviews(db, build.id)
   const frames = await figmaFramesForSnapshots(
     db,
-    projectId,
+    teamId,
     rows.map((r) => r.diff.name),
   )
   const issues = (await listBuildLinks(db, build.id, ISSUE_LINK_KIND)).map((l) => ({

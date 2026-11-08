@@ -12,7 +12,7 @@
   height: 28px;
   padding-inline: 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--circi-radius-control);
   background: transparent;
   color: var(--circi-text-secondary);
   font: inherit;

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
-// The auth client is the edge to better-auth (it lists the organization's members): a fake stands in.
+// The auth client is the edge to better-auth (it lists the workspace's members): a fake stands in.
 const auth = vi.hoisted(() => ({
   getFullOrganization: vi.fn<(arg: unknown) => Promise<unknown>>(),
 }))
@@ -33,21 +33,21 @@ const request = (id: string, number: number, over: Record<string, unknown> = {})
     conclusion: 'changed',
     reviewStatus: 'pending',
   },
-  project: { slug: 'web', name: 'Web' },
-  org: { slug: 'acme', name: 'Acme' },
+  team: { slug: 'web', name: 'Web' },
+  workspace: { slug: 'acme', name: 'Acme' },
   ...over,
 })
 
-const show = (url = '/organizations/acme/reviews') =>
+const show = (url = '/workspaces/acme/reviews') =>
   renderPage(<ReviewsPage />, {
-    route: '/organizations/$org/reviews',
+    route: '/workspaces/$workspace/reviews',
     url,
     announcer: true,
     validateSearch: validateReviewsSearch,
   })
 
 describe('ReviewsPage', () => {
-  it('lists the requests with their build, project, branch, requester and overdue badge', async () => {
+  it('lists the requests with their build, team, branch, requester and overdue badge', async () => {
     fakeApi({
       'GET /api/reviews': {
         body: {
@@ -71,7 +71,7 @@ describe('ReviewsPage', () => {
 
   it('shows the empty state per tab, a loading state and an error with retry', async () => {
     fakeApi({ 'GET /api/reviews': { body: { tab: 'snoozed', requests: [] } } })
-    await show('/organizations/acme/reviews?tab=snoozed')
+    await show('/workspaces/acme/reviews?tab=snoozed')
     await expect.element(page.getByRole('heading', { name: 'Nothing snoozed' })).toBeVisible()
     restoreFetch()
 
@@ -95,7 +95,7 @@ describe('ReviewsPage', () => {
           requests: approved ? [request('r2', 13)] : [request('r1', 12), request('r2', 13)],
         },
       }),
-      'POST /api/projects/acme/web/builds/12/review': () => {
+      'POST /api/teams/acme/web/builds/12/review': () => {
         approved = true
         return { body: { build: { number: 12, reviewStatus: 'approved' } } }
       },
@@ -121,7 +121,7 @@ describe('ReviewsPage', () => {
   it('opens the snooze menu with H and sends the choice', async () => {
     const api = fakeApi({
       'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } },
-      'POST /api/projects/acme/web/review-requests/r1/snooze': {
+      'POST /api/teams/acme/web/review-requests/r1/snooze': {
         body: { id: 'r1', snoozeKind: 'tomorrow', snoozedUntil: '2026-11-09T09:00:00.000Z' },
       },
     })
@@ -138,14 +138,14 @@ describe('ReviewsPage', () => {
   it('asks a member for a review with shift+R', async () => {
     const api = fakeApi({
       'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } },
-      'POST /api/projects/acme/web/builds/12/review-requests': {
+      'POST /api/teams/acme/web/builds/12/review-requests': {
         status: 201,
         body: { id: 'q1', state: 'open', dueAt: null, created: true },
       },
     })
     auth.getFullOrganization.mockResolvedValue({
       data: {
-        id: 'org1',
+        id: 'workspace1',
         members: [
           {
             id: 'm1',
@@ -175,7 +175,7 @@ describe('ReviewsPage', () => {
   it('dismisses a request and peeks at one with space', async () => {
     const api = fakeApi({
       'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } },
-      'POST /api/projects/acme/web/review-requests/r1/dismiss': {
+      'POST /api/teams/acme/web/review-requests/r1/dismiss': {
         body: { id: 'r1', state: 'dismissed' },
       },
     })
@@ -198,7 +198,7 @@ describe('ReviewsPage', () => {
         },
       },
     })
-    await show('/organizations/acme/reviews?tab=created')
+    await show('/workspaces/acme/reviews?tab=created')
     await expect.element(page.getByText('Asked of Bo')).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Approve' })).not.toBeInTheDocument()
     await expect.element(page.getByRole('button', { name: 'Snooze' })).not.toBeInTheDocument()

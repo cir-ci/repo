@@ -1,5 +1,5 @@
 import { resolveBaseline } from '@circi/core'
-import { createTestDb, seedProject, seedUser } from '@circi/testing'
+import { createTestDb, seedTeam, seedUser } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -24,9 +24,9 @@ afterAll(async () => {
 
 /** A build as the worker leaves it: complete, with changes, waiting for a decision. */
 async function buildWithChanges(overrides: Partial<typeof schema.builds.$inferInsert> = {}) {
-  const { project, owner } = await seedProject(t.db)
+  const { team, owner } = await seedTeam(t.db)
   const build = await createBuild(t.db, {
-    projectId: project.id,
+    teamId: team.id,
     commitSha: 'abc1234',
     branch: 'feature',
   })
@@ -34,7 +34,7 @@ async function buildWithChanges(overrides: Partial<typeof schema.builds.$inferIn
     .update(schema.builds)
     .set({ status: 'complete', conclusion: 'changes_detected', ...overrides })
     .where(eq(schema.builds.id, build.id))
-  return { project, owner, buildId: build.id }
+  return { team, owner, buildId: build.id }
 }
 
 /** The decision's effect on the build; announcing it is the service layer's job. */
@@ -111,9 +111,9 @@ describe('recordReview', () => {
 
 describe('what a decision changes for later builds', () => {
   it('turns an approved build into a baseline, and a rejected one stays out', async () => {
-    const { project, owner, buildId } = await buildWithChanges({ branch: 'main' })
+    const { team, owner, buildId } = await buildWithChanges({ branch: 'main' })
     const next = await createBuild(t.db, {
-      projectId: project.id,
+      teamId: team.id,
       commitSha: 'def5678',
       branch: 'main',
     })

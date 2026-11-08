@@ -49,10 +49,10 @@ a fake of the provider's HTTP edge); the definition only wires them to the SDK.
 | `needsAttention(error)` | The reason to show when an error means a person has to act (revoked token, uninstalled app); `null` for anything else (the job retries). |
 | `events` | The domain events it handles (below). |
 | `capabilities` | Typed optional members: `chat.send(message, ctx)` (the event pipeline), `tracker.create(credentials, ctx)` (an `IssueTracker`: "Create issue" on a build), `design` (`listFrames`, `render`, `comment`, `linkFor`: Figma), `git` (a git host: below). |
-| `mapping` | How a project maps (below). Required by `tracker`, `design` and `git`. |
-| `links` | Project-wide links it keeps, rendered as a table on the generic page (below). Needs a `mapping`. |
-| `exclusive` | `{ account?: true, project?: 'kind' \| 'group' }`. `account`: the same external account connects in ONE organisation of the instance (a second one gets a 409). `project`: a project maps to one connection of the kind (`kind`) or to one git host of the group (`group`); mapping to another moves it. Figma: `account`; Linear and Jira: `project: 'kind'`; the git hosts: both (`group`). |
-| `replaceOnReconnect` | Connecting an account the organisation already has replaces its credentials and clears "needs attention" (a rotated token, a reinstalled App) instead of a 409. The git hosts. |
+| `mapping` | How a team maps (below). Required by `tracker`, `design` and `git`. |
+| `links` | Team-wide links it keeps, rendered as a table on the generic page (below). Needs a `mapping`. |
+| `exclusive` | `{ account?: true, team?: 'kind' \| 'group' }`. `account`: the same external account connects in ONE workspace of the instance (a second one gets a 409). `team`: a team maps to one connection of the kind (`kind`) or to one git host of the group (`group`); mapping to another moves it. Figma: `account`; Linear and Jira: `team: 'kind'`; the git hosts: both (`group`). |
+| `replaceOnReconnect` | Connecting an account the workspace already has replaces its credentials and clears "needs attention" (a rotated token, a reinstalled App) instead of a 409. The git hosts. |
 | `secretless` | The connection keeps no secret (GitHub: the App's credentials are instance configuration, the installation id is the external id). Nothing is sealed; capabilities get `''` as credentials. |
 
 `ctx` is `{ authSecret, publicOrigin, config, fetch? }`: the instance, never a database. `fetch`
@@ -60,11 +60,11 @@ exists so tests point the provider's client at a fake.
 
 ### Mapping
 
-One target per project and integration, stored in `integration_projects.external_ref`, with the
+One target per team and integration, stored in `integration_teams.external_ref`, with the
 settings below in `extra` (and the target's name in `extra.name`).
 
 - `target`: `{ label, kind: 'text' | 'select' | 'repository', placeholder?, validate?(ref), resolve?(ref, { credentials }, ctx) }`.
-  A `select` target needs `listTargets(credentials, ctx)` (the channels, teams or projects the
+  A `select` target needs `listTargets(credentials, ctx)` (the channels, Linear teams or Jira projects the
   account offers). A `repository` target (the git hosts, and only they: it needs the `git`
   capability) is typed as `owner/name`, with the repositories `git.provider(ctx).listRepositories`
   offers as suggestions (the page falls back to plain typing when the host cannot list them); its
@@ -73,7 +73,7 @@ settings below in `extra` (and the target's name in `extra.name`).
   file address into the file key and reads the file's name). It throws `IntegrationError`s
   (`InvalidInputError` for "that is not usable", 400) or whatever `needsAttention` recognises.
 - `fields`: settings besides the target, each rendered as a control: `events` (checkboxes over domain
-  events, with `defaults` for a newly mapped project), `text`, `toggle`. The server builds a strict
+  events, with `defaults` for a newly mapped team), `text`, `toggle`. The server builds a strict
   zod schema from them and fills defaults.
 - `handles(extra, event)`: optional. Default: with an `events` field, the stored list (or the
   defaults); without one, every event the definition handles.
@@ -91,7 +91,7 @@ transaction:
 await queueIntegrationEvent(tx, { type: 'build.rejected', buildId, reviewerId, reason })
 ```
 
-It fans out to each integration of the project's organisation that is healthy (not "needs
+It fans out to each integration of the team's workspace that is healthy (not "needs
 attention"), whose definition handles the event and whose mapping wants it: one `integration-event`
 job each, deduplicated, committed with the change (a transactional outbox: no job if the
 transaction rolls back). The worker (`apps/worker/src/jobs/integration-event.ts`) re-reads the
@@ -106,10 +106,10 @@ it, and list it in the `events` of the definitions that handle it.
 - Credentials are sealed with the instance secret (`sealSecret`) before storage and never sent to the
   dashboard. The worker and the target-listing route open them and hand the plaintext to the
   definition.
-- A form-connected integration: `POST /orgs/:org/integrations/:kind/connect` validates the body with
+- A form-connected integration: `POST /workspaces/:workspace/integrations/:kind/connect` validates the body with
   `credentials`, calls `connect`, seals, stores (409 on the same account), owners and admins only.
 - An OAuth integration: `GET .../:kind/install` returns the provider's address (state binds
-  organisation, user and kind); the provider returns to `/api/integrations/:kind/callback`, which
+  workspace, user and kind); the provider returns to `/api/integrations/:kind/callback`, which
   redirects to the integration's generic page (`?connect=connected`) or back to the list
   (`?connect=denied|failed&kind=`).
 - Needs attention: when listing targets or delivering an event fails with an error that
@@ -120,44 +120,44 @@ it, and list it in the `events` of the definitions that handle it.
 ## Routes (all generic)
 
 ```
-POST   /orgs/:org/integrations/:kind/connect            connect with the form
-GET    /orgs/:org/integrations/:kind/install            OAuth install address
+POST   /workspaces/:workspace/integrations/:kind/connect            connect with the form
+GET    /workspaces/:workspace/integrations/:kind/install            OAuth install address
 GET    /integrations/:kind/callback                     OAuth callback (under /api)
 POST   /integrations/:kind/webhook                      git host webhook (under /api, no session); also POST /webhooks/:kind
-GET    /orgs/:org/integrations/:id/targets              what a project can be pointed at (a git host: its repositories)
-GET    /orgs/:org/integrations/:id/projects             the integration, its spec, every project's mapping
-PUT    /orgs/:org/integrations/:id/projects/:project    map a project
-DELETE /orgs/:org/integrations/:id/projects/:project    stop
-GET    /orgs/:org/integrations/:id/projects/:project/links           the project's links (members)
-POST   /orgs/:org/integrations/:id/projects/:project/links           add one: { values } by field key
-DELETE /orgs/:org/integrations/:id/projects/:project/links/:linkId   remove one
-POST   /orgs/:org/integrations/:id/projects/:project/links/auto      link by name (`links.autoLink`)
-DELETE /orgs/:org/integrations/:id                      remove (any kind; its mappings go with it)
+GET    /workspaces/:workspace/integrations/:id/targets              what a team can be pointed at (a git host: its repositories)
+GET    /workspaces/:workspace/integrations/:id/teams             the integration, its spec, every team's mapping
+PUT    /workspaces/:workspace/integrations/:id/teams/:team    map a team
+DELETE /workspaces/:workspace/integrations/:id/teams/:team    stop
+GET    /workspaces/:workspace/integrations/:id/teams/:team/links           the team's links (members)
+POST   /workspaces/:workspace/integrations/:id/teams/:team/links           add one: { values } by field key
+DELETE /workspaces/:workspace/integrations/:id/teams/:team/links/:linkId   remove one
+POST   /workspaces/:workspace/integrations/:id/teams/:team/links/auto      link by name (`links.autoLink`)
+DELETE /workspaces/:workspace/integrations/:id                      remove (any kind; its mappings go with it)
 
-GET    /projects/:org/:project/builds/:number/issues    issues made from a build + the project's trackers
-POST   /projects/:org/:project/builds/:number/issues    "Create issue" through the `tracker` capability
+GET    /teams/:workspace/:team/builds/:number/issues    issues made from a build + the team's trackers
+POST   /teams/:workspace/:team/builds/:number/issues    "Create issue" through the `tracker` capability
 ```
 
-The dashboard page is `organizations/$org/settings/integrations/$kind/$id`
+The dashboard page is `workspaces/$workspace/settings/integrations/$kind/$id`
 (`GenericIntegrationPage`); the Add dialog renders `ConnectForm` from the credential specs.
 
 ## Links
 
-`integration_links` is the one table for what an integration attaches to a project or build:
-`integration_id`, `project_id` and `build_id` (both nullable), `subject` (a snapshot pattern or
-name), `kind`, `external_ref`, `url`, `title`, `payload` (jsonb). A row with a project and no build
-is project-wide, unique per project, kind and subject (`createIntegrationLink` upserts it). It
+`integration_links` is the one table for what an integration attaches to a team or build:
+`integration_id`, `team_id` and `build_id` (both nullable), `subject` (a snapshot pattern or
+name), `kind`, `external_ref`, `url`, `title`, `payload` (jsonb). A row with a team and no build
+is team-wide, unique per team, kind and subject (`createIntegrationLink` upserts it). It
 replaced `figma_links` and `issue_links` (migration 0026 moved their rows). Two kinds exist:
 
 - `issue`: per build; `external_ref` the issue key, `url`, `title`, `payload.snapshotName`. Written
   by `createIssueFromBuild` after the tracker answered; read by the build detail and the activity.
-- `figma-frame`: project-wide; `subject` the snapshot pattern, `external_ref` `fileKey:nodeId`,
+- `figma-frame`: team-wide; `subject` the snapshot pattern, `external_ref` `fileKey:nodeId`,
   `title` the frame's name, `payload` `{ fileKey, nodeId, source: 'auto' | 'manual', scope }`.
 
 ### The `links` section
 
-A definition that keeps project-wide links declares it, and the generic page renders it under each
-mapped project: a table (subject, what was linked, how: Auto or Manual, Remove), an add form, and
+A definition that keeps team-wide links declares it, and the generic page renders it under each
+mapped team: a table (subject, what was linked, how: Auto or Manual, Remove), an add form, and
 an optional "Link automatically" button.
 
 ```ts
@@ -171,14 +171,14 @@ links: {
 ```
 
 - `resolve` turns the form's values into the link (parsing a pasted address, asking the provider for
-  a name); the services store it (`addProjectLink`) with `payload.source: 'manual'`.
-- `autoLink` matches the project's snapshot names to `design.listFrames(...)` by name
+  a name); the services store it (`addTeamLink`) with `payload.source: 'manual'`.
+- `autoLink` matches the team's snapshot names to `design.listFrames(...)` by name
   (`matchFramesToSnapshots` in `@circi/core`: case and separators ignored, ambiguous names get no
   link, existing links are never replaced) and stores what `design.linkFor(fileRef, frame)` says
-  with `source: 'auto'` (`autoLinkProject`).
-- Changing a project's target drops the automatic links made for the old one (`payload.scope` is
-  the target they were made for); clearing it drops them all; manual ones stay (`mapProject`,
-  `unmapProject` in `@circi/services`, which the generic mapping routes call).
+  with `source: 'auto'` (`autoLinkTeam`).
+- Changing a team's target drops the automatic links made for the old one (`payload.scope` is
+  the target they were made for); clearing it drops them all; manual ones stay (`mapTeam`,
+  `unmapTeam` in `@circi/services`, which the generic mapping routes call).
 
 ## Git hosts
 
@@ -199,14 +199,14 @@ git: {
 
 - **Connection.** One connection is an `integrations` row: GitHub the App installation id (verified
   with GitHub when connecting: a token is minted and the repositories listed, so the App must really
-  be installed there; no other organisation may use it), GitLab `<host>#<user id>` of the token's
+  be installed there; no other workspace may use it), GitLab `<host>#<user id>` of the token's
   principal, Bitbucket the workspace slug. Sealed credentials are the host's JSON (GitLab address and
   token, Bitbucket token and optional username); GitHub keeps none. `needsAttention(error)` turns a
   revoked token or uninstalled App into the reason the dashboard shows (`GitAttentionBanner`); the
-  `git-notify` worker flags it, and mapping a project again (or reconnecting) clears it.
-- **Mapping.** The project's repository is `integration_projects.external_ref` of its mapping on the
-  connection. `exclusive: { account: true, project: 'group' }` keeps one account in one organisation
-  and a project on one git host.
+  `git-notify` worker flags it, and mapping a team again (or reconnecting) clears it.
+- **Mapping.** The team's repository is `integration_teams.external_ref` of its mapping on the
+  connection. `exclusive: { account: true, team: 'group' }` keeps one account in one workspace
+  and a team on one git host.
 - **Pipeline.** The `git-notify` job reads the build's git target (`getGitTarget`), asks the
   definition for its `git.provider(ctx)`, and writes the status and the one summary comment. Which
   kinds are git hosts is `integrationRegistry.gitKinds()`; repository functions that need it take the
@@ -220,7 +220,7 @@ git: {
   the actor's host account id) and `check_action` (Approve or Reject pressed on a GitHub check run).
   The handler remembers authors, links builds to pull requests, reviews or reruns for the member the
   host account belongs to (matched by account id, exactly one member; never by email), and has the
-  definition `respond`. A repository is found by `findGitProjects` (the connection by external id, or
+  definition `respond`. A repository is found by `findGitTeams` (the connection by external id, or
   by its prefix for GitLab's `host#`; the repository case-insensitively).
 - **Webhook secret.** GitHub's is the App's, from `GITHUB_APP_WEBHOOK_SECRET` or created by the one-click setup (below). GitLab's and
   Bitbucket's are derived from the instance secret (`derivedWebhookSecret(authSecret, kind)`), shown
@@ -231,14 +231,14 @@ git: {
 ## The GitHub App: one-click setup (manifest flow)
 
 A self-hoster does not create the App by hand. **Instance admins** open `/instance` in the dashboard
-and press *Create GitHub App* (optionally naming a GitHub organisation; the App name is editable).
+and press *Create GitHub App* (optionally naming a GitHub organization; the App name is editable).
 Nothing is hosted outside the instance:
 
 1. `POST /api/instance/github-app/manifest` builds the manifest from `PUBLIC_URL` (name
    `CirCI (<host>)`, webhook `<PUBLIC_URL>/api/integrations/github/webhook`, redirect
    `<PUBLIC_URL>/api/instance/github-app/callback`, setup `<PUBLIC_URL>/api/integrations/github/setup`
    with `setup_on_update`, `public: false`) and returns it with GitHub's "new App" address
-   (`https://github.com/settings/apps/new`, or `/organizations/<org>/settings/apps/new`; for GitHub
+   (`https://github.com/settings/apps/new`, or `/organizations/<organization>/settings/apps/new`; for GitHub
    Enterprise Server set `GITHUB_API_URL=https://ghe.example.com/api/v3`) and a signed, 30-minute
    `state` bound to the admin. The page posts both to GitHub in a hidden form.
 2. GitHub redirects to `GET /api/instance/github-app/callback?code&state`. The state and the admin
@@ -277,9 +277,9 @@ catalog fails the registry test). GitLab and Bitbucket sign-in (auth providers) 
 
 ## Known gaps
 
-- An organisation can connect several Figma accounts (it used to be one); an account is still
-  connectable in one organisation (`exclusive.account`).
+- A workspace can connect several Figma accounts (it used to be one); an account is still
+  connectable in one workspace (`exclusive.account`).
 - Selecting a `select` target is not checked against `listTargets` when saving (the page only offers
   what the account lists), and a `repository` is not checked against the host's list.
-- Linking a project through the project settings page or `circi-admin github link` records the
-  installation without asking GitHub (the organisation's Integrations page does verify it).
+- Linking a team through the team settings page or `circi-admin github link` records the
+  installation without asking GitHub (the workspace's Integrations page does verify it).

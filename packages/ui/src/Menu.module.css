@@ -39,7 +39,11 @@
   border-radius: var(--circi-radius-control);
   cursor: default;
   user-select: none;
-  outline: none;
+}
+
+/* Keyboard focus keeps the ring, inside the item so the popup doesn't clip it. */
+.item:focus-visible {
+  outline-offset: -2px;
 }
 
 .item[data-highlighted] {
@@ -47,7 +51,7 @@
 }
 
 .item[data-tone='danger'] {
-  color: var(--circi-state-rejected);
+  color: var(--circi-state-rejected-text);
 }
 
 .item[data-disabled] {
@@ -70,6 +74,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.check {
+  display: inline-flex;
+  flex: none;
+  color: var(--circi-accent-text);
 }
 
 .shortcut {

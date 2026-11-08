@@ -1,9 +1,9 @@
 import type { Comment } from '@circi/api'
 import {
   getBuildByNumber,
-  getProjectMemberRole,
+  getTeamMemberRole,
   listBuildComments,
-  type findProjectForMember,
+  type findTeamForMember,
 } from '@circi/db'
 import { addComment, deleteComment, editComment, MAX_COMMENT_LENGTH } from '@circi/services'
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
@@ -11,10 +11,10 @@ import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
-import { loadProject } from '#http/lib/project-access.ts'
+import { loadTeam } from '#http/lib/team-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
-const buildParams = z.object({ org: z.string(), project: z.string(), number: z.string() })
+const buildParams = z.object({ workspace: z.string(), team: z.string(), number: z.string() })
 const commentParams = buildParams.extend({ id: z.uuid() })
 const fraction = z.number().min(0).max(1)
 const createBody = z.object({
@@ -31,36 +31,36 @@ const createBody = z.object({
 const editBody = z.object({ body: z.string().trim().min(1).max(MAX_COMMENT_LENGTH) })
 
 /**
- * Comments on a build. Any member of the project's organization may read and write them;
+ * Comments on a build. Any member of the team's workspace may read and write them;
  * everyone else gets "not found". You edit only your own; you delete your own, and owners and
  * admins may delete anyone's.
  */
 export const dashboardCommentRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   async function loadBuild(req: FastifyRequest, reply: FastifyReply) {
-    const access = await loadProject(deps, req, reply)
+    const access = await loadTeam(deps, req, reply)
     if (!access) return undefined
-    const { project } = access
+    const { team } = access
     const number = Number(parse(buildParams, req.params).number)
     const build = Number.isInteger(number)
-      ? await getBuildByNumber(deps.db, project.id, number)
+      ? await getBuildByNumber(deps.db, team.id, number)
       : undefined
     if (!build) {
       await reply.code(404).send({ error: 'Build not found' })
       return undefined
     }
-    return { project, build }
+    return { team, build }
   }
 
-  const isAdmin = async (project: findProjectForMember.Visible, userId: string) => {
-    const role = await getProjectMemberRole(deps.db, project.id, userId)
+  const isAdmin = async (team: findTeamForMember.Visible, userId: string) => {
+    const role = await getTeamMemberRole(deps.db, team.id, userId)
     return role === 'owner' || role === 'admin'
   }
 
-  app.get('/projects/:org/:project/builds/:number/comments', async (req, reply) => {
+  app.get('/teams/:workspace/:team/builds/:number/comments', async (req, reply) => {
     const found = await loadBuild(req, reply)
     if (!found) return reply
     const user = currentUser(req)
-    const admin = await isAdmin(found.project, user.id)
+    const admin = await isAdmin(found.team, user.id)
     const items = await listBuildComments(deps.db, found.build.id)
     const payload: Comment.List = {
       comments: items.map((c) => {
@@ -77,7 +77,7 @@ export const dashboardCommentRoutes: FastifyPluginAsync<Deps.Dashboard> = async 
     return payload
   })
 
-  app.post('/projects/:org/:project/builds/:number/comments', async (req, reply) => {
+  app.post('/teams/:workspace/:team/builds/:number/comments', async (req, reply) => {
     const found = await loadBuild(req, reply)
     if (!found) return reply
     const input = parse(createBody, req.body)
@@ -93,7 +93,7 @@ export const dashboardCommentRoutes: FastifyPluginAsync<Deps.Dashboard> = async 
     return reply.code(201).send({ id: created.id })
   })
 
-  app.patch('/projects/:org/:project/builds/:number/comments/:id', async (req, reply) => {
+  app.patch('/teams/:workspace/:team/builds/:number/comments/:id', async (req, reply) => {
     const found = await loadBuild(req, reply)
     if (!found) return reply
     const { id } = parse(commentParams, req.params)
@@ -107,7 +107,7 @@ export const dashboardCommentRoutes: FastifyPluginAsync<Deps.Dashboard> = async 
     return { id: updated.id, body: updated.body, editedAt: updated.editedAt?.toISOString() ?? null }
   })
 
-  app.delete('/projects/:org/:project/builds/:number/comments/:id', async (req, reply) => {
+  app.delete('/teams/:workspace/:team/builds/:number/comments/:id', async (req, reply) => {
     const found = await loadBuild(req, reply)
     if (!found) return reply
     const { id } = parse(commentParams, req.params)
@@ -116,7 +116,7 @@ export const dashboardCommentRoutes: FastifyPluginAsync<Deps.Dashboard> = async 
       buildId: found.build.id,
       commentId: id,
       userId: user.id,
-      asAdmin: await isAdmin(found.project, user.id),
+      asAdmin: await isAdmin(found.team, user.id),
     })
     return reply.code(204).send()
   })

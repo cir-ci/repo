@@ -24,7 +24,7 @@ beforeAll(async () => {
   t = await createTestDb()
   const auth = createTestAuth(t.db)
   acme = await seedTenant(auth, t.db)
-  await seedGitLink(t.db, acme.project.id, {
+  await seedGitLink(t.db, acme.team.id, {
     kind: 'gitlab',
     externalId: 'gitlab.example.com#7',
     repoRef: 'Acme/Tools/Web',
@@ -74,7 +74,7 @@ afterAll(async () => {
 
 async function changedBuild(mr: number) {
   n += 1
-  const build = await seedBuild(t.db, acme.project.id, {
+  const build = await seedBuild(t.db, acme.team.id, {
     commitSha: `abc${1000 + n}`,
     branch: 'feature',
     prNumber: mr,
@@ -135,7 +135,7 @@ describe('GitLab webhook', () => {
 
   it('the merge request author replaces the login CI sent', async () => {
     n += 1
-    const build = await seedBuild(t.db, acme.project.id, {
+    const build = await seedBuild(t.db, acme.team.id, {
       commitSha: `def${2000 + n}`,
       branch: 'feature',
       prNumber: 31,
@@ -156,7 +156,7 @@ describe('GitLab webhook', () => {
 
   it('ignores merge request updates and repositories nobody linked', async () => {
     n += 1
-    const build = await seedBuild(t.db, acme.project.id, {
+    const build = await seedBuild(t.db, acme.team.id, {
       commitSha: `abc${3000 + n}`,
       branch: 'feature',
       prNumber: 32,

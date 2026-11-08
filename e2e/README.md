@@ -38,7 +38,7 @@ host ports that Docker assigns itself (published as `127.0.0.1::<port>` and read
 `E2E_WORKERS` Vitest workers (default 3; about 2.4 GB at the measured peak, see Timings). The image
 is built once in `global-setup.ts` before any worker starts. The run always removes its stacks
 (`docker compose down -v`), also on failure and Ctrl-C (`global-setup.ts`, which finds them by
-project-name prefix). Do not use ports 3000 or 5432 for anything here: they are the dev stack's.
+compose project-name prefix). Do not use ports 3000 or 5432 for anything here: they are the dev stack's.
 
 ### Shared stacks
 
@@ -51,12 +51,12 @@ Booting a stack is the biggest cost (7 s, 12 s with LocalStack), so most files s
   A worker keeps at most `E2E_POOL_MAX` (default 2) stacks and removes the least recently used one
   when a third profile is asked for; the rest go when the run ends. The `vitest.config.ts` setting
   `isolate: false` is what keeps a worker's pool alive between files.
-- Every file gets **its own tenant** on a shared stack: `ctx.setup` is a fresh organization with
+- Every file gets **its own tenant** on a shared stack: `ctx.setup` is a fresh workspace with
   its own owner (an instance admin, like the first-run account) and a signed-in session, so files
-  never see each other's data. `await ctx.tenant({ project: 'Web' })` makes more of them (a test
-  that needs two organizations, or its own provider or domain); `ctx.admin` is the first-run admin.
-  Anything global that a test creates needs a name of its own: an organization email domain, a
-  GitHub user id, a repository (`org/name`), a client address.
+  never see each other's data. `await ctx.tenant({ team: 'Web' })` makes more of them (a test
+  that needs two workspaces, or its own provider or domain); `ctx.admin` is the first-run admin.
+  Anything global that a test creates needs a name of its own: a workspace email domain, a
+  GitHub user id, a repository (`owner/name`), a client address.
 - The `github` profile owns a fake GitHub (`ctx.github`, under `/api/v3`, as GitHub Enterprise
   serves it); it is `reset()` at the start of every file. The github.com form (the API address
   with no path) is covered by `github-root-url.e2e.test.ts`, which runs its own fake on a dedicated
@@ -71,7 +71,7 @@ Which file uses what (this list is the decision record; keep it current):
 
 | File | Stack | Why |
 | --- | --- | --- |
-| review, flaky, dogfood, email-login, invitations, webhooks, sso (organization part) | `default`, shared | everything is scoped to the file's organization; email-login's limiter test and the domain test use their own addresses and domain |
+| review, flaky, dogfood, email-login, invitations, webhooks, sso (workspace part) | `default`, shared | everything is scoped to the file's workspace; email-login's limiter test and the domain test use their own addresses and domain |
 | github-root-url | dedicated | the shared fake serves `/api/v3` (Enterprise form); this file's own fake answers at the root, as `https://api.github.com` does, which needs `GITHUB_API_URL` set differently |
 | github-app, github-approve, merge-gate, host-fakes | `github`, shared | one fake GitHub per worker, reset per file; each file uses repositories and GitHub user ids of its own |
 | s3, storage-s3-doctor, sites (the S3 describe) | `s3`, shared | LocalStack for the worker; the files use content of their own (the bucket is shared) |
@@ -91,10 +91,10 @@ Which file uses what (this list is the decision record; keep it current):
 e2e/
   compose.yml          postgres, localstack (profile s3), mailpit, edge (the published port), circi
   src/
-    stack.ts           startStack(): project, Docker-assigned ports, override env, up --wait, exec/cli/sql/logs, stop
+    stack.ts           startStack(): compose project, Docker-assigned ports, override env, up --wait, exec/cli/sql/logs, stop
     pool.ts            the shared stacks of a Vitest worker (profiles, acquire, eviction, exit cleanup)
     vitest.ts          useStack(), useBrowser(): the hooks most test files need
-    admin.ts           Session (cookie jar), signIn, completeSetup, createTenant, createProject, invite, CLI users
+    admin.ts           Session (cookie jar), signIn, completeSetup, createTenant, createTeam, invite, CLI users
     upload.ts          uploadBuild()/uploadOrThrow(): the real CLI against the stack
     git-repo.ts        Repo: scratch git repo, real commits and branches, origin = itself
     images.ts          screenshot(): deterministic PNGs with sharp
@@ -112,20 +112,20 @@ e2e/
 
 ```ts
 import { describe, expect, it } from 'vitest'
-import { createProject, Repo, uploadOrThrow, useBrowser, useStack } from '../src/index.ts'
+import { createTeam, Repo, uploadOrThrow, useBrowser, useStack } from '../src/index.ts'
 
 describe('my feature', () => {
-  const ctx = useStack({ profile: 'default', setup: true }) // shared stack + this file's own organization, owner and session
+  const ctx = useStack({ profile: 'default', setup: true }) // shared stack + this file's own workspace, owner and session
   const browser = useBrowser() // fresh page per test; trace + screenshot only on failure
   it('does the thing', async () => {
     const { stack, setup } = ctx
-    const project = await createProject(setup.session, setup.organization.slug, 'Web')
+    const team = await createTeam(setup.session, setup.workspace.slug, 'Web')
     const repo = await Repo.create()
     await repo.writeShots({ home: {} })
     await repo.commit('first')
-    const up = await uploadOrThrow({ stack, token: project.token, repo, wait: true })
+    const up = await uploadOrThrow({ stack, token: team.token, repo, wait: true })
     const page = await browser.as(setup.session) // a page already signed in
-    await page.goto(`${stack.url}/${setup.organization.slug}/${project.slug}/builds/${up.build.number}`)
+    await page.goto(`${stack.url}/${setup.workspace.slug}/${team.slug}/builds/${up.build.number}`)
     expect(up.exitCode).toBe(0)
   })
 })
@@ -139,10 +139,10 @@ Rules of thumb:
   created for you, `stack.s3`), `{ sitesHost: 'sites.localhost' }` (static sites; the dashboard is
   then `http://127.0.0.1:<port>`
   because the sites domain must be unrelated to the dashboard host), `{ env: { ... } }` (any
-  server variable, e.g. `GC_GRACE_HOURS`, `ORG_CREATION`, `AUTH_OIDC_*`).
+  server variable, e.g. `GC_GRACE_HOURS`, `WORKSPACE_CREATION`, `AUTH_OIDC_*`).
   Defaults the stack sets: `SMTP_*` to Mailpit, `WEBHOOK_ALLOW_PRIVATE_ADDRESSES=true`,
   `GC_GRACE_HOURS=0`, `UPLOAD_TIMEOUT_MINUTES=0`.
-- `stack.cli('org', 'create', ...)` runs `circi admin ...` in the container; `stack.sql(...)` runs
+- `stack.cli('workspace', 'create', ...)` runs `circi admin ...` in the container; `stack.sql(...)` runs
   SQL (e.g. to back-date a build for retention); `stack.exec(service, [...])` runs anything;
   `stack.logs('circi')` reads logs; `stack.restart('circi')`.
 - Email: `await stack.mail.waitFor({ to })`, then `extractCode(msg)` / `extractLinks(msg)`.
@@ -159,7 +159,7 @@ Rules of thumb:
   (`PLAYWRIGHT_TIMEOUT_MS`). A test that really waits says so: `it(name, { timeout: ... }, fn)`.
 - The tests of one file run in order and share the file's tenant (and its stack), so use unique
   names (`newAccount()`) and don't count what is instance-wide (`select count(*) from sso_provider`:
-  scope it to the file's organization). Files are independent of each other; tests within a file may
+  scope it to the file's workspace). Files are independent of each other; tests within a file may
   build on earlier ones, so shuffle files (`--sequence.shuffle.files`), not tests.
 
 ## Timings
@@ -222,7 +222,7 @@ with `--host-resolver-rules="MAP host.docker.internal 127.0.0.1"`, and the host-
   `sendWebhook(stack.url, 'check_run', payload)` sends a GitHub-signed webhook to CirCI. Start the
   stack with `env: gh.env()`.
 - **`startFakeIdp(clientId)`**: an OIDC provider whose `/authorize` signs `idp.identity` in
-  immediately. Use `idp.issuer` as `AUTH_OIDC_ISSUER` (or the org SSO provider's issuer).
+  immediately. Use `idp.issuer` as `AUTH_OIDC_ISSUER` (or the workspace SSO provider's issuer).
 - **`startWebhookReceiver()`**: records deliveries, verifies `CirCI-Signature` with
   `@circi/core` (`setSecret(secret)` with the secret CirCI shows when the webhook is created),
   `failWith(500, 2)` fails the next two, `waitFor(...)`.
@@ -234,7 +234,7 @@ Close fakes in `afterAll`. Only the edge is fake: say so in a test that depends 
 - A failing test saves a screenshot and Playwright trace to `e2e/.artifacts/browser/<test>/`
   (`pnpm exec playwright show-trace <trace.zip>`) and its stack's logs to
   `e2e/.artifacts/<project>/<service>.log`. The folder is gitignored.
-- `E2E_KEEP=1`: stacks are not removed. Each prints its project name and URL when its file ends, e.g.
+- `E2E_KEEP=1`: stacks are not removed. Each prints its compose project name and URL when its file ends, e.g.
   `left circi-e2e-ab12cd-1-9f3e running at http://localhost:54213`. Open the URL, read mail at the
   printed Mailpit URL, `docker compose -p <project> logs -f circi`, and clean up with
   `docker compose -p <project> down -v`.

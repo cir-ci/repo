@@ -1,4 +1,4 @@
-import type { Org } from '@circi/api'
+import type { Workspace } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { authClient } from '#lib/auth-client.ts'
@@ -7,21 +7,21 @@ import { getJson, HttpError, post, send, seg } from '#lib/http.ts'
 /** Roles the page can hand out; an owner is made elsewhere. */
 export type AssignableRole = 'admin' | 'member'
 
-/** The organization with its members and invitations (better-auth). A missing one is a 404. */
-export const organizationQuery = (org: string) =>
+/** The workspace with its members and invitations (better-auth). A missing one is a 404. */
+export const workspaceQuery = (workspace: string) =>
   queryOptions({
-    queryKey: ['organization', org],
+    queryKey: ['workspace', workspace],
     queryFn: async () => {
       const { data, error } = await authClient.organization.getFullOrganization({
-        query: { organizationSlug: org },
+        query: { organizationSlug: workspace },
       })
       if (error) {
         throw new HttpError(
           error.status === 404 ? 404 : (error.status ?? 500),
-          error.message ?? 'Couldn’t load the organization',
+          error.message ?? 'Couldn’t load the workspace',
         )
       }
-      if (!data) throw new HttpError(404, 'Organization not found')
+      if (!data) throw new HttpError(404, 'Workspace not found')
       return data
     },
   })
@@ -30,9 +30,13 @@ export const organizationQuery = (org: string) =>
 export async function inviteMember(input: {
   email: string
   role: AssignableRole
-  organizationId: string
+  workspaceId: string
 }) {
-  const { error } = await authClient.organization.inviteMember(input)
+  const { error } = await authClient.organization.inviteMember({
+    email: input.email,
+    role: input.role,
+    organizationId: input.workspaceId,
+  })
   if (error) throw new Error(error.message ?? 'Couldn’t send the invitation.')
 }
 
@@ -41,10 +45,10 @@ export async function cancelInvitation(invitationId: string) {
   if (error) throw new Error('Couldn’t withdraw the invitation')
 }
 
-export async function removeMember(input: { memberId: string; organizationId: string }) {
+export async function removeMember(input: { memberId: string; workspaceId: string }) {
   const { error } = await authClient.organization.removeMember({
     memberIdOrEmail: input.memberId,
-    organizationId: input.organizationId,
+    organizationId: input.workspaceId,
   })
   if (error) throw new Error('Couldn’t remove this member')
 }
@@ -52,64 +56,75 @@ export async function removeMember(input: { memberId: string; organizationId: st
 export async function changeMemberRole(input: {
   memberId: string
   role: AssignableRole
-  organizationId: string
+  workspaceId: string
 }) {
-  const { error } = await authClient.organization.updateMemberRole(input)
+  const { error } = await authClient.organization.updateMemberRole({
+    memberId: input.memberId,
+    role: input.role,
+    organizationId: input.workspaceId,
+  })
   if (error) throw new Error(error.message ?? 'Couldn’t change this member’s role')
 }
 
-export const orgAuthQuery = (org: string) =>
+export const workspaceAuthQuery = (workspace: string) =>
   queryOptions({
-    queryKey: ['org-auth', org],
-    queryFn: () => getJson<Org.Auth>(`/api/organizations/${seg(org)}/auth`),
+    queryKey: ['workspace-auth', workspace],
+    queryFn: () => getJson<Workspace.Auth>(`/api/workspaces/${seg(workspace)}/auth`),
   })
 
-export function useSaveOrgAuth(org: string) {
+export function useSaveWorkspaceAuth(workspace: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (patch: Partial<Org.Auth['settings']>) =>
-      send<{ settings: Org.Auth['settings'] }>(
+    mutationFn: (patch: Partial<Workspace.Auth['settings']>) =>
+      send<{ settings: Workspace.Auth['settings'] }>(
         'PATCH',
-        `/api/organizations/${seg(org)}/auth`,
+        `/api/workspaces/${seg(workspace)}/auth`,
         patch,
       ),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['org-auth', org] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['workspace-auth', workspace] }),
   })
 }
 
-export const orgSettingsQuery = (org: string) =>
+export const workspaceSettingsQuery = (workspace: string) =>
   queryOptions({
-    queryKey: ['org-settings', org],
-    queryFn: () => getJson<Org.SettingsResponse>(`/api/organizations/${seg(org)}/settings`),
+    queryKey: ['workspace-settings', workspace],
+    queryFn: () =>
+      getJson<Workspace.SettingsResponse>(`/api/workspaces/${seg(workspace)}/settings`),
   })
 
-export function useSaveOrgSettings(org: string) {
+export function useSaveWorkspaceSettings(workspace: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (patch: Partial<Org.Settings>) =>
-      send<{ settings: Org.Settings }>('PATCH', `/api/organizations/${seg(org)}/settings`, patch),
-    // Projects that inherit a setting show the organization's value, so refresh theirs too.
+    mutationFn: (patch: Partial<Workspace.Settings>) =>
+      send<{ settings: Workspace.Settings }>(
+        'PATCH',
+        `/api/workspaces/${seg(workspace)}/settings`,
+        patch,
+      ),
+    // Teams that inherit a setting show the workspace's value, so refresh theirs too.
     onSuccess: () =>
       Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['org-settings', org] }),
+        queryClient.invalidateQueries({ queryKey: ['workspace-settings', workspace] }),
         queryClient.invalidateQueries({ queryKey: ['settings'] }),
       ]),
   })
 }
 
-export const domainsQuery = (org: string) =>
+export const domainsQuery = (workspace: string) =>
   queryOptions({
-    queryKey: ['org-domains', org],
-    queryFn: () => getJson<{ domains: Org.Domain[] }>(`/api/organizations/${seg(org)}/domains`),
+    queryKey: ['workspace-domains', workspace],
+    queryFn: () =>
+      getJson<{ domains: Workspace.Domain[] }>(`/api/workspaces/${seg(workspace)}/domains`),
   })
 
-export function useDomainActions(org: string) {
+export function useDomainActions(workspace: string) {
   const queryClient = useQueryClient()
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['org-domains', org] })
-  const base = `/api/organizations/${seg(org)}/domains`
+  const refresh = () =>
+    queryClient.invalidateQueries({ queryKey: ['workspace-domains', workspace] })
+  const base = `/api/workspaces/${seg(workspace)}/domains`
   return {
     add: useMutation({
-      mutationFn: (domain: string) => post<{ domain: Org.Domain }>(base, { domain }),
+      mutationFn: (domain: string) => post<{ domain: Workspace.Domain }>(base, { domain }),
       onSuccess: refresh,
     }),
     verify: useMutation({
@@ -123,20 +138,21 @@ export function useDomainActions(org: string) {
   }
 }
 
-export const orgSsoQuery = (org: string) =>
+export const workspaceSsoQuery = (workspace: string) =>
   queryOptions({
-    queryKey: ['org-sso', org],
-    queryFn: () => getJson<{ providers: Org.SsoProvider[] }>(`/api/organizations/${seg(org)}/sso`),
+    queryKey: ['workspace-sso', workspace],
+    queryFn: () =>
+      getJson<{ providers: Workspace.SsoProvider[] }>(`/api/workspaces/${seg(workspace)}/sso`),
   })
 
-export function useOrgSso(org: string) {
+export function useWorkspaceSso(workspace: string) {
   const queryClient = useQueryClient()
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['org-sso', org] })
-  const base = `/api/organizations/${seg(org)}/sso`
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['workspace-sso', workspace] })
+  const base = `/api/workspaces/${seg(workspace)}/sso`
   return {
     register: useMutation({
       mutationFn: (input: { issuer: string; clientId: string; clientSecret: string }) =>
-        post<{ provider: Org.SsoProvider }>(base, input),
+        post<{ provider: Workspace.SsoProvider }>(base, input),
       onSuccess: refresh,
     }),
     remove: useMutation({

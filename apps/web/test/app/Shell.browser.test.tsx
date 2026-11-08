@@ -31,23 +31,23 @@ vi.mock('#lib/auth-client.ts', () => ({
 
 import { Shell } from '#app/Shell.tsx'
 
-const overview = (org: string, orgName: string, project: string) => ({
-  org: { slug: org, name: orgName },
-  project: { slug: project, name: project, defaultBranch: 'main' },
+const overview = (workspace: string, workspaceName: string, team: string) => ({
+  workspace: { slug: workspace, name: workspaceName },
+  team: { slug: team, name: team, defaultBranch: 'main' },
   latestBuild: null,
 })
 
 // The data API is the other edge: answers by path.
 const API: Record<string, unknown> = {
-  '/api/projects': {
-    projects: [
+  '/api/teams': {
+    teams: [
       overview('acme', 'Acme', 'web-app'),
       overview('acme', 'Acme', 'storybook'),
       overview('globex', 'Globex', 'portal'),
     ],
   },
-  '/api/orgs/acme/sidebar': {
-    projects: [
+  '/api/workspaces/acme/sidebar': {
+    teams: [
       { slug: 'web-app', name: 'web-app', pinned: true, triage: 4 },
       { slug: 'storybook', name: 'storybook', pinned: false, triage: 0 },
       { slug: 'api', name: 'api', pinned: false, triage: 0 },
@@ -59,7 +59,7 @@ const API: Record<string, unknown> = {
         filters: {},
         pinned: true,
         position: 0,
-        project: null,
+        team: null,
         createdAt: '2026-01-01T00:00:00.000Z',
       },
       {
@@ -68,23 +68,23 @@ const API: Record<string, unknown> = {
         filters: {},
         pinned: false,
         position: 1,
-        project: null,
+        team: null,
         createdAt: '2026-01-01T00:00:00.000Z',
       },
     ],
     inboxUnread: 3,
     reviews: 2,
   },
-  '/api/orgs/globex/sidebar': {
-    projects: [{ slug: 'portal', name: 'portal', pinned: false, triage: 0 }],
+  '/api/workspaces/globex/sidebar': {
+    teams: [{ slug: 'portal', name: 'portal', pinned: false, triage: 0 }],
     views: [],
     inboxUnread: 0,
     reviews: 0,
   },
   '/api/capabilities': {
-    canCreateOrganization: false,
-    manageableOrganizations: [],
-    refusingOrganizations: [],
+    canCreateWorkspace: false,
+    manageableWorkspaces: [],
+    refusingWorkspaces: [],
   },
   '/api/instance/notices': {},
   '/api/setup': { needed: false },
@@ -96,47 +96,47 @@ const text = (content: string) => () => <p>{content}</p>
 async function renderShell(path: string) {
   const root = createRootRoute({ component: Shell })
   const routes = [
-    createRoute({ getParentRoute: () => root, path: '/', component: text('Projects page') }),
+    createRoute({ getParentRoute: () => root, path: '/', component: text('Teams page') }),
     createRoute({ getParentRoute: () => root, path: 'account', component: text('Account page') }),
     createRoute({
       getParentRoute: () => root,
-      path: 'organizations/$org/settings/members',
+      path: 'workspaces/$workspace/settings/members',
       component: text('Members page'),
     }),
     createRoute({ getParentRoute: () => root, path: 'inbox', component: text('Inbox page') }),
     createRoute({
       getParentRoute: () => root,
-      path: 'organizations/$org/reviews',
+      path: 'workspaces/$workspace/reviews',
       component: text('Reviews page'),
     }),
     createRoute({
       getParentRoute: () => root,
-      path: 'organizations/$org/insights',
+      path: 'workspaces/$workspace/insights',
       component: text('Insights page'),
     }),
     createRoute({
       getParentRoute: () => root,
-      path: 'organizations/$org/settings',
-      component: text('Org settings page'),
+      path: 'workspaces/$workspace/settings',
+      component: text('Workspace settings page'),
     }),
     createRoute({
       getParentRoute: () => root,
-      path: '$org/$project/settings',
-      component: text('Project settings page'),
+      path: '$workspace/$team/settings',
+      component: text('Team settings page'),
     }),
     createRoute({
       getParentRoute: () => root,
-      path: '$org/$project/triage',
+      path: '$workspace/$team/triage',
       component: text('Triage page'),
     }),
     createRoute({
       getParentRoute: () => root,
-      path: '$org/$project',
+      path: '$workspace/$team',
       component: text('Builds page'),
     }),
     createRoute({
       getParentRoute: () => root,
-      path: '$org/$project/sites',
+      path: '$workspace/$team/sites',
       component: text('Sites page'),
     }),
     createRoute({
@@ -184,19 +184,19 @@ afterEach(() => {
 })
 
 describe('Shell, wide', () => {
-  it('shows the sidebar navigation, the org’s projects and the page in the panel', async () => {
+  it('shows the sidebar navigation, the workspace’s teams and the page in the panel', async () => {
     await page.viewport(1280, 800)
     await renderShell('/')
     const nav = page.getByRole('navigation', { name: 'Main' })
     await expect.element(nav).toBeVisible()
     await expect.element(nav.getByRole('button', { name: /Search/ })).toBeVisible()
-    await expect.element(nav.getByRole('link', { name: 'Projects', exact: true })).toBeVisible()
+    await expect.element(nav.getByRole('link', { name: 'Teams', exact: true })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: 'Insights' })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: 'Settings' })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: 'storybook' })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: 'web-app' })).toBeVisible()
     expect(nav.getByRole('link', { name: 'portal' }).elements()).toHaveLength(0)
-    await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
+    await expect.element(page.getByRole('main')).toHaveTextContent('Teams page')
   })
 
   it('shows the Inbox and Reviews counts and the pinned views', async () => {
@@ -209,13 +209,13 @@ describe('Shell, wide', () => {
     expect(nav.getByRole('link', { name: 'Not pinned' }).elements()).toHaveLength(0)
   })
 
-  it('lists pinned projects first, then the rest A to Z', async () => {
+  it('lists pinned teams first, then the rest A to Z', async () => {
     await page.viewport(1280, 800)
     await renderShell('/')
     const nav = page.getByRole('navigation', { name: 'Main' })
     await expect.element(nav.getByRole('link', { name: 'api' })).toBeVisible()
     const names = nav
-      .getByRole('region', { name: 'Projects' })
+      .getByRole('region', { name: 'Teams' })
       .getByRole('link')
       .elements()
       .map((el) => el.textContent)
@@ -224,17 +224,17 @@ describe('Shell, wide', () => {
 
   it('marks the current page with aria-current', async () => {
     await page.viewport(1280, 800)
-    await renderShell('/organizations/acme/reviews')
+    await renderShell('/workspaces/acme/reviews')
     const nav = page.getByRole('navigation', { name: 'Main' })
     await expect
       .element(nav.getByRole('link', { name: 'Reviews , 2 waiting' }))
       .toHaveAttribute('aria-current', 'page')
     await expect
-      .element(nav.getByRole('link', { name: 'Projects', exact: true }))
+      .element(nav.getByRole('link', { name: 'Teams', exact: true }))
       .not.toHaveAttribute('aria-current')
   })
 
-  it('opens the open project’s pages under it, with the Triage count', async () => {
+  it('opens the open team’s pages under it, with the Triage count', async () => {
     await page.viewport(1280, 800)
     await renderShell('/acme/web-app/triage')
     const nav = page.getByRole('navigation', { name: 'Main' })
@@ -243,9 +243,9 @@ describe('Shell, wide', () => {
       .toHaveAttribute('aria-current', 'page')
     await expect.element(nav.getByRole('link', { name: 'Builds' })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: 'Baselines' })).toBeVisible()
-    // Settings twice: the top-level entry and the project's.
+    // Settings twice: the top-level entry and the team's.
     expect(nav.getByRole('link', { name: 'Settings' }).elements()).toHaveLength(2)
-    // Other projects stay collapsed.
+    // Other teams stay collapsed.
     expect(nav.getByRole('link', { name: 'Builds' }).elements()).toHaveLength(1)
   })
 
@@ -257,32 +257,32 @@ describe('Shell, wide', () => {
       .getByRole('link', { name: 'Insights' })
       .click()
     await expect.element(page.getByRole('main')).toHaveTextContent('Insights page')
-    expect(router.state.location.pathname).toBe('/organizations/acme/insights')
+    expect(router.state.location.pathname).toBe('/workspaces/acme/insights')
   })
 
-  it('lists the organizations in the switcher and follows the one chosen', async () => {
+  it('lists the workspaces in the switcher and follows the one chosen', async () => {
     await page.viewport(1280, 800)
     const { router } = await renderShell('/acme/web-app')
-    const trigger = page.getByRole('button', { name: 'Organization: Acme' })
+    const trigger = page.getByRole('button', { name: 'Workspace: Acme' })
     await trigger.click()
     expect(page.getByRole('menuitem').elements()).toHaveLength(2)
     await page.getByRole('menuitem', { name: 'Globex' }).click()
-    await expect.element(page.getByRole('button', { name: 'Organization: Globex' })).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Workspace: Globex' })).toBeVisible()
     await expect
       .element(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'portal' }))
       .toBeVisible()
     expect(router.state.location.pathname).toBe('/')
   })
 
-  it('still shows the name when there is only one organization', async () => {
+  it('still shows the name when there is only one workspace', async () => {
     await page.viewport(1280, 800)
-    API['/api/projects'] = { projects: [overview('acme', 'Acme', 'web-app')] }
+    API['/api/teams'] = { teams: [overview('acme', 'Acme', 'web-app')] }
     try {
       await renderShell('/')
-      await expect.element(page.getByRole('button', { name: 'Organization: Acme' })).toBeVisible()
+      await expect.element(page.getByRole('button', { name: 'Workspace: Acme' })).toBeVisible()
     } finally {
-      API['/api/projects'] = {
-        projects: [
+      API['/api/teams'] = {
+        teams: [
           overview('acme', 'Acme', 'web-app'),
           overview('acme', 'Acme', 'storybook'),
           overview('globex', 'Globex', 'portal'),
@@ -326,16 +326,16 @@ describe('Shell, keyboard', () => {
   it('goes to the Inbox with G then I', async () => {
     await page.viewport(1280, 800)
     const { router } = await renderShell('/')
-    await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
+    await expect.element(page.getByRole('main')).toHaveTextContent('Teams page')
     await userEvent.keyboard('gi')
     await expect.poll(() => router.state.location.pathname).toBe('/inbox')
     await userEvent.keyboard('gr')
-    await expect.poll(() => router.state.location.pathname).toBe('/organizations/acme/reviews')
+    await expect.poll(() => router.state.location.pathname).toBe('/workspaces/acme/reviews')
     await userEvent.keyboard('gs')
-    await expect.poll(() => router.state.location.pathname).toBe('/organizations/acme/settings')
+    await expect.poll(() => router.state.location.pathname).toBe('/workspaces/acme/settings')
   })
 
-  it('goes to the first project with Triage work on G then T', async () => {
+  it('goes to the first team with Triage work on G then T', async () => {
     await page.viewport(1280, 800)
     const { router } = await renderShell('/')
     await expect
@@ -350,7 +350,7 @@ describe('Shell, keyboard', () => {
   it('does not take G while typing in a field', async () => {
     await page.viewport(1280, 800)
     const { router } = await renderShell('/')
-    await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
+    await expect.element(page.getByRole('main')).toHaveTextContent('Teams page')
     const field = document.createElement('input')
     document.body.append(field)
     field.focus()
@@ -363,7 +363,7 @@ describe('Shell, keyboard', () => {
     await page.viewport(1280, 800)
     const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined)
     await renderShell('/')
-    await expect.element(page.getByRole('main')).toHaveTextContent('Projects page')
+    await expect.element(page.getByRole('main')).toHaveTextContent('Teams page')
     window.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'C', metaKey: true, shiftKey: true, bubbles: true }),
     )
@@ -375,19 +375,19 @@ describe('Shell, keyboard', () => {
 describe('Shell, settings', () => {
   it('shows the sectioned settings nav on the members page, which sits inside it', async () => {
     await page.viewport(1280, 800)
-    await renderShell('/organizations/acme/settings/members')
+    await renderShell('/workspaces/acme/settings/members')
     const nav = page.getByRole('navigation', { name: 'Settings' })
     await expect.element(nav).toBeVisible()
     await expect.element(nav.getByRole('region', { name: 'Account' })).toBeVisible()
-    await expect.element(nav.getByRole('region', { name: 'Organisation · Acme' })).toBeVisible()
+    await expect.element(nav.getByRole('region', { name: 'Workspace · Acme' })).toBeVisible()
     await expect
       .element(nav.getByRole('link', { name: 'Members' }))
       .toHaveAttribute('aria-current', 'page')
     await expect.element(page.getByText('Members page')).toBeVisible()
-    expect(nav.getByRole('region', { name: /^Project/ }).elements()).toHaveLength(0)
+    expect(nav.getByRole('region', { name: /^Team/ }).elements()).toHaveLength(0)
   })
 
-  it('shares the nav with the account page, and adds the project section on a project’s', async () => {
+  it('shares the nav with the account page, and adds the team section on a team’s', async () => {
     await page.viewport(1280, 800)
     const { router } = await renderShell('/account')
     const nav = page.getByRole('navigation', { name: 'Settings' })
@@ -395,10 +395,10 @@ describe('Shell, settings', () => {
       .element(nav.getByRole('link', { name: 'Profile' }))
       .toHaveAttribute('aria-current', 'page')
     await router.navigate({
-      to: '/$org/$project/settings',
-      params: { org: 'acme', project: 'web-app' },
+      to: '/$workspace/$team/settings',
+      params: { workspace: 'acme', team: 'web-app' },
     })
-    await expect.element(nav.getByRole('region', { name: 'Project · web-app' })).toBeVisible()
+    await expect.element(nav.getByRole('region', { name: 'Team · web-app' })).toBeVisible()
     await expect
       .element(nav.getByRole('link', { name: 'General' }).last())
       .toHaveAttribute('aria-current', 'page')
@@ -432,7 +432,7 @@ describe('Shell, outside the dashboard', () => {
 describe('Shell, narrow', () => {
   it('replaces the sidebar with a top bar and a menu button that opens it as a drawer', async () => {
     await page.viewport(390, 800)
-    await renderShell('/organizations/acme/reviews')
+    await renderShell('/workspaces/acme/reviews')
     expect(page.getByRole('navigation', { name: 'Main' }).elements()).toHaveLength(0)
     await expect.element(page.getByText('Reviews').first()).toBeVisible()
     await page.getByRole('button', { name: 'Open navigation' }).click()

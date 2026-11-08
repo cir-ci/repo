@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  createProject,
+  createTeam,
   createUserViaCli,
-  fullOrganization,
+  fullWorkspace,
   newAccount,
   signIn,
   signInWithCode,
@@ -25,8 +25,8 @@ import { useBrowser, useStack } from '#src/vitest.ts'
 describe('invitations and members', () => {
   const ctx = useStack({ profile: 'default', setup: true })
   const browser = useBrowser()
-  const org = () => ctx.setup.organization.slug
-  const membersUrl = () => `${ctx.stack.url}/organizations/${org()}/members`
+  const workspace = () => ctx.setup.workspace.slug
+  const membersUrl = () => `${ctx.stack.url}/workspaces/${workspace()}/members`
 
   /** Sends an invitation through the form on the Members page. */
   async function inviteInBrowser(
@@ -55,7 +55,7 @@ describe('invitations and members', () => {
     await page.getByLabel('Email', { exact: true }).fill('not-an-address')
     await page.getByRole('button', { name: 'Send invitation' }).click()
     await page.getByText('That doesn’t look like an email address').waitFor()
-    expect((await fullOrganization(setup.session, org())).invitations).toHaveLength(0)
+    expect((await fullWorkspace(setup.session, workspace())).invitations).toHaveLength(0)
 
     // Inviting the same address twice, and inviting someone who is already a member.
     const twice = newAccount('twice')
@@ -65,7 +65,7 @@ describe('invitations and members', () => {
     // better-auth cancels the earlier invitation when the same address is invited again.
     await expect
       .poll(async () => {
-        const invitations = (await fullOrganization(setup.session, org())).invitations
+        const invitations = (await fullWorkspace(setup.session, workspace())).invitations
         return invitations.filter((i) => i.email === twice.email && i.status === 'pending').length
       })
       .toBe(1)
@@ -90,11 +90,11 @@ describe('invitations and members', () => {
 
     const mail = await stack.mail.waitFor({ to: guest.email })
     expect(mail.Subject).toBe(
-      `${setup.account.name} invited you to ${setup.organization.name} on CirCI`,
+      `${setup.account.name} invited you to ${setup.workspace.name} on CirCI`,
     )
     expect(mail.To.map((t) => t.Address)).toEqual([guest.email])
     const links = extractLinks(mail)
-    const invite = (await fullOrganization(setup.session, org())).invitations.find(
+    const invite = (await fullWorkspace(setup.session, workspace())).invitations.find(
       (i) => i.email === guest.email && i.status === 'pending',
     )
     expect(invite).toBeDefined()
@@ -138,15 +138,15 @@ describe('invitations and members', () => {
       await page.getByRole('button', { name: /^Account menu for / }).waitFor()
       // Signed in; the invitation is still waiting for one click.
       await page
-        .getByText(`You’re invited to join ${ctx.setup.organization.name} as member.`)
+        .getByText(`You’re invited to join ${ctx.setup.workspace.name} as member.`)
         .waitFor()
       await page.getByRole('button', { name: 'Join' }).click()
       await page
-        .getByText(`You’re invited to join ${ctx.setup.organization.name} as member.`)
+        .getByText(`You’re invited to join ${ctx.setup.workspace.name} as member.`)
         .waitFor({ state: 'detached' })
     })
 
-    const joined = (await fullOrganization(setup.session, org())).members.find(
+    const joined = (await fullWorkspace(setup.session, workspace())).members.find(
       (m) => m.user.email === guest.email,
     )
     expect(joined).toMatchObject({ role: 'member' })
@@ -163,21 +163,21 @@ describe('invitations and members', () => {
 
     await withSessionPage(browser.browser, session, async (p) => {
       await p.goto(link ?? '')
-      await p.getByText(`You’re invited to join ${ctx.setup.organization.name} as admin.`).waitFor()
-      // Before accepting, the new organization is not theirs to see.
-      expect((await session.get<{ projects: unknown[] }>('/api/projects')).projects).toEqual([])
+      await p.getByText(`You’re invited to join ${ctx.setup.workspace.name} as admin.`).waitFor()
+      // Before accepting, the new workspace is not theirs to see.
+      expect((await session.get<{ teams: unknown[] }>('/api/teams')).teams).toEqual([])
       await p.getByRole('button', { name: 'Join' }).click()
       await p
-        .getByText(`You’re invited to join ${ctx.setup.organization.name} as admin.`)
+        .getByText(`You’re invited to join ${ctx.setup.workspace.name} as admin.`)
         .waitFor({ state: 'detached' })
     })
-    const member = (await fullOrganization(setup.session, org())).members.find(
+    const member = (await fullWorkspace(setup.session, workspace())).members.find(
       (m) => m.user.email === erin.email,
     )
     expect(member?.role).toBe('admin')
-    // Now an admin: may create projects here.
-    const project = await createProject(session, org(), 'By Erin')
-    expect(project.slug).toBe('by-erin')
+    // Now an admin: may create teams here.
+    const team = await createTeam(session, workspace(), 'By Erin')
+    expect(team.slug).toBe('by-erin')
   })
 
   it('refuses an invitation opened by someone else, and one for another address', async () => {
@@ -207,7 +207,7 @@ describe('invitations and members', () => {
         .getByText('This invitation is not for this account, has expired, or was withdrawn.')
         .waitFor()
     })
-    const members = (await fullOrganization(setup.session, org())).members
+    const members = (await fullWorkspace(setup.session, workspace())).members
     expect(members.some((m) => m.user.email === other.email)).toBe(false)
   })
 
@@ -224,7 +224,7 @@ describe('invitations and members', () => {
       .locator('xpath=ancestor::div[.//button[normalize-space()="Withdraw"]][1]')
     await row.getByRole('button', { name: 'Withdraw' }).click()
     await row.waitFor({ state: 'detached' })
-    const invitation = (await fullOrganization(setup.session, org())).invitations.find(
+    const invitation = (await fullWorkspace(setup.session, workspace())).invitations.find(
       (i) => i.email === erin.email,
     )
     expect(invitation?.status).toBe('canceled')
@@ -245,7 +245,7 @@ describe('invitations and members', () => {
       ).status,
     ).toBeGreaterThanOrEqual(400)
     expect(
-      (await fullOrganization(setup.session, org())).members.some(
+      (await fullWorkspace(setup.session, workspace())).members.some(
         (m) => m.user.email === erin.email,
       ),
     ).toBe(false)
@@ -273,7 +273,7 @@ describe('invitations and members', () => {
     })
     expect(res.status).toBeGreaterThanOrEqual(400)
     expect(
-      (await fullOrganization(setup.session, org())).members.some(
+      (await fullWorkspace(setup.session, workspace())).members.some(
         (m) => m.user.email === erin.email,
       ),
     ).toBe(false)
@@ -282,14 +282,15 @@ describe('invitations and members', () => {
   it('changes a role from the Members page, and keeps at least one owner', async () => {
     const { stack, setup } = ctx
     const mia = await createUserViaCli(stack, { account: newAccount('mia') })
-    await stack.cli('member', 'add', '--org', org(), '--email', mia.email, '--role', 'member')
+    await stack.cli('member', 'add', '--org', workspace(), '--email', mia.email, '--role', 'member')
     const miaSession = await signIn(stack, mia.email, mia.password)
     const roleOf = async () =>
-      (await fullOrganization(setup.session, org())).members.find((m) => m.user.email === mia.email)
-        ?.role
+      (await fullWorkspace(setup.session, workspace())).members.find(
+        (m) => m.user.email === mia.email,
+      )?.role
 
     // A plain member can't manage anything: the API refuses, the UI shows no controls.
-    const before = await fullOrganization(setup.session, org())
+    const before = await fullWorkspace(setup.session, workspace())
     const miaMember = before.members.find((m) => m.user.email === mia.email)
     const adminMember = before.members.find((m) => m.user.email === setup.account.email)
     expect(
@@ -302,8 +303,9 @@ describe('invitations and members', () => {
       ).status,
     ).toBeGreaterThanOrEqual(400)
     expect(
-      (await fullOrganization(setup.session, org())).members.find((m) => m.id === adminMember?.id)
-        ?.role,
+      (await fullWorkspace(setup.session, workspace())).members.find(
+        (m) => m.id === adminMember?.id,
+      )?.role,
     ).toBe('owner')
 
     const page = await browser.as(setup.session)
@@ -313,14 +315,14 @@ describe('invitations and members', () => {
     await page.getByRole('option', { name: 'Admin' }).click()
     await expect.poll(roleOf).toBe('admin')
     await page.getByText(`${mia.name} is now Admin`).first().waitFor({ state: 'attached' })
-    // And she really is one now: she can create a project.
-    await createProject(miaSession, org(), 'Mia made this')
+    // And she really is one now: she can create a team.
+    await createTeam(miaSession, workspace(), 'Mia made this')
     await select.click()
     await page.getByRole('option', { name: 'Member' }).click()
     await expect.poll(roleOf).toBe('member')
     // Demoted: the same call is refused again.
     expect(
-      (await miaSession.request('POST', `/api/organizations/${org()}/projects`, { name: 'Nope' }))
+      (await miaSession.request('POST', `/api/workspaces/${workspace()}/teams`, { name: 'Nope' }))
         .status,
     ).toBe(403)
 
@@ -349,8 +351,9 @@ describe('invitations and members', () => {
     )
     expect(removeOwner.status).toBeGreaterThanOrEqual(400)
     expect(
-      (await fullOrganization(setup.session, org())).members.find((m) => m.id === adminMember?.id)
-        ?.role,
+      (await fullWorkspace(setup.session, workspace())).members.find(
+        (m) => m.id === adminMember?.id,
+      )?.role,
     ).toBe('owner')
     // An admin can't touch an owner either.
     await setup.session.post('/api/auth/organization/update-member-role', {
@@ -372,49 +375,49 @@ describe('invitations and members', () => {
 
   it('removing a member asks first, and their open session loses access at once', async () => {
     const { stack, setup } = ctx
-    const project = await createProject(setup.session, org(), 'Secret')
+    const team = await createTeam(setup.session, workspace(), 'Secret')
     const lou = await createUserViaCli(stack, { account: newAccount('lou') })
-    await stack.cli('member', 'add', '--org', org(), '--email', lou.email, '--role', 'member')
+    await stack.cli('member', 'add', '--org', workspace(), '--email', lou.email, '--role', 'member')
     const louSession = await signIn(stack, lou.email, lou.password)
     expect(
-      (
-        await louSession.get<{ projects: { project: { slug: string } }[] }>('/api/projects')
-      ).projects.map((p) => p.project.slug),
-    ).toContain(project.slug)
+      (await louSession.get<{ teams: { team: { slug: string } }[] }>('/api/teams')).teams.map(
+        (p) => p.team.slug,
+      ),
+    ).toContain(team.slug)
 
     const page = await browser.as(setup.session)
-    expect((await louSession.request('GET', `/api/projects/${org()}/${project.slug}`)).status).toBe(
+    expect((await louSession.request('GET', `/api/teams/${workspace()}/${team.slug}`)).status).toBe(
       200,
     )
     await withSessionPage(browser.browser, louSession, async (loPage) => {
-      await loPage.goto(`${stack.url}/${org()}/${project.slug}`)
+      await loPage.goto(`${stack.url}/${workspace()}/${team.slug}`)
       await loPage.getByText('Secret', { exact: true }).first().waitFor()
 
       await page.goto(membersUrl())
       await page.getByRole('button', { name: `Actions for ${lou.name}` }).click()
-      await page.getByRole('menuitem', { name: 'Remove from organization' }).click()
+      await page.getByRole('menuitem', { name: 'Remove from workspace' }).click()
       const dialog = page.getByRole('alertdialog').or(page.getByRole('dialog'))
       await dialog.getByText(`Remove ${lou.name}?`).waitFor()
       // Cancelling keeps them.
       await dialog.getByRole('button', { name: 'Cancel' }).click()
       expect(
-        (await fullOrganization(setup.session, org())).members.some(
+        (await fullWorkspace(setup.session, workspace())).members.some(
           (m) => m.user.email === lou.email,
         ),
       ).toBe(true)
       expect(
-        (await louSession.request('GET', `/api/projects/${org()}/${project.slug}`)).status,
+        (await louSession.request('GET', `/api/teams/${workspace()}/${team.slug}`)).status,
       ).toBe(200)
 
       await page.getByRole('button', { name: `Actions for ${lou.name}` }).click()
-      await page.getByRole('menuitem', { name: 'Remove from organization' }).click()
+      await page.getByRole('menuitem', { name: 'Remove from workspace' }).click()
       await dialog.getByRole('button', { name: 'Remove', exact: true }).click()
       // Wait for the server's answer, not for the page: while the confirmation dialog is open the
       // rest of the page is aria-hidden, so "the Actions button is gone" is true at once and
       // would let the next request race the removal.
       await expect
         .poll(async () =>
-          (await fullOrganization(setup.session, org())).members.some(
+          (await fullWorkspace(setup.session, workspace())).members.some(
             (m) => m.user.email === lou.email,
           ),
         )
@@ -425,14 +428,16 @@ describe('invitations and members', () => {
         .waitFor({ state: 'detached' })
 
       // The session is still valid, but the data is gone: nothing but "not found".
-      const get = await louSession.request('GET', `/api/projects/${org()}/${project.slug}`)
+      const get = await louSession.request('GET', `/api/teams/${workspace()}/${team.slug}`)
       expect([403, 404]).toContain(get.status)
       expect(JSON.stringify(get.body)).not.toContain('Secret')
-      const list = await louSession.get<{ projects: unknown[] }>('/api/projects')
-      expect(list.projects).toEqual([])
-      expect((await louSession.request('GET', `/api/organizations/${org()}/auth`)).status).toBe(404)
+      const list = await louSession.get<{ teams: unknown[] }>('/api/teams')
+      expect(list.teams).toEqual([])
+      expect((await louSession.request('GET', `/api/workspaces/${workspace()}/auth`)).status).toBe(
+        404,
+      )
       await loPage.reload()
-      await loPage.getByText('This project doesn’t exist').waitFor()
+      await loPage.getByText('This team doesn’t exist').waitFor()
       expect(await loPage.getByText('Secret', { exact: true }).count()).toBe(0)
     })
     // They can be invited again.
@@ -445,7 +450,7 @@ describe('invitations and members', () => {
     await setup.session.post('/api/auth/organization/invite-member', {
       email: guest.email,
       role: 'member',
-      organizationId: (await fullOrganization(setup.session, org())).id,
+      organizationId: (await fullWorkspace(setup.session, workspace())).id,
     })
     const session = await signInWithCode(stack.url, stack.mail, guest.email)
     const me = await session.get<{ user: { email: string } }>('/api/auth/get-session')

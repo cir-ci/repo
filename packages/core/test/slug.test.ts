@@ -15,8 +15,8 @@ describe('slugs', () => {
   )
 
   it('throws a ValidationError that says when a name is reserved', () => {
-    expect(() => assertValidSlug('settings', 'org slug')).toThrow(ValidationError)
-    expect(() => assertValidSlug('settings', 'org slug')).toThrow(/reserved/)
+    expect(() => assertValidSlug('settings', 'workspace slug')).toThrow(ValidationError)
+    expect(() => assertValidSlug('settings', 'workspace slug')).toThrow(/reserved/)
   })
 
   it('slugifies display names', () => {

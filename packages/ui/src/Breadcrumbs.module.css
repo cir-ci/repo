@@ -36,7 +36,7 @@
 }
 
 .link:focus-visible {
-  border-radius: 3px;
+  border-radius: var(--circi-radius-inline);
   outline: 2px solid var(--circi-accent-text);
   outline-offset: 2px;
 }

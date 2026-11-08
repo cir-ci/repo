@@ -1,5 +1,5 @@
 export namespace Site {
-  /** A hosted site of a project, with the addresses that open it. */
+  /** A hosted site of a team, with the addresses that open it. */
   export interface Listing {
     name: string
     kind: string

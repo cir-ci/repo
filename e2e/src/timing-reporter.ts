@@ -13,7 +13,7 @@ import { ARTIFACTS_DIR, REPO_ROOT } from './paths.ts'
  */
 
 interface StackPhases {
-  project: string
+  team: string
   file?: string
   /** Set for a stack shared through the pool. */
   profile?: string

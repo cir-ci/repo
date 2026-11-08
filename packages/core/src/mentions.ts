@@ -1,5 +1,5 @@
 /**
- * @mentions in a comment. This only finds the tokens (`@ann`, `@ann.lee`); which organization
+ * @mentions in a comment. This only finds the tokens (`@ann`, `@ann.lee`); which workspace
  * member a token means is decided by whoever has the member list (`@circi/services`).
  */
 

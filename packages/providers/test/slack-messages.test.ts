@@ -11,7 +11,7 @@ import {
 } from '#src/index.ts'
 
 const build = {
-  projectName: 'Web',
+  teamName: 'Web',
   number: 12,
   branch: 'feature/login',
   url: 'https://ci.acme.io/acme/web/builds/12',
@@ -60,7 +60,7 @@ describe('reviewRequestedMessage', () => {
 
   it('escapes names and branches that carry mrkdwn characters', () => {
     const m = reviewRequestedMessage({
-      build: { ...build, projectName: 'A & <B>', branch: 'fix/<x>&`y`' },
+      build: { ...build, teamName: 'A & <B>', branch: 'fix/<x>&`y`' },
       reviewer: '<!channel> & co',
       requestedBy: '<@U1>',
     })

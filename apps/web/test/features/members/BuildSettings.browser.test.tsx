@@ -5,7 +5,7 @@ import { BuildSettings } from '#features/members/BuildSettings.tsx'
 import { fakeFetch, pending, restoreFetch } from '#test/features/fetch-routes.ts'
 import { renderPage } from '#test/support/render.tsx'
 
-const PATH = '/api/organizations/acme/settings'
+const PATH = '/api/workspaces/acme/settings'
 const answer = (flakyBlocksMerge: boolean, canManage = true) => ({
   canManage,
   settings: { flakyBlocksMerge },
@@ -18,14 +18,14 @@ describe('BuildSettings', () => {
   it('renders nothing until the settings are known', async () => {
     await page.viewport(1000, 800)
     fakeFetch({ [`GET ${PATH}`]: () => pending() })
-    await renderPage(<BuildSettings org="acme" />)
+    await renderPage(<BuildSettings workspace="acme" />)
     expect(page.getByRole('heading', { name: 'Build defaults' }).elements()).toHaveLength(0)
   })
 
   it('shows the setting as it is saved', async () => {
     await page.viewport(1000, 800)
     fakeFetch({ [`GET ${PATH}`]: answer(true) })
-    await renderPage(<BuildSettings org="acme" />)
+    await renderPage(<BuildSettings workspace="acme" />)
     await expect.element(page.getByRole('heading', { name: 'Build defaults' })).toBeVisible()
     await expect.element(control()).toBeChecked()
   })
@@ -40,7 +40,7 @@ describe('BuildSettings', () => {
         return { settings: { flakyBlocksMerge: false } }
       },
     })
-    await renderPage(<BuildSettings org="acme" />)
+    await renderPage(<BuildSettings workspace="acme" />)
     await control().click()
     await expect.element(control()).not.toBeChecked()
     expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ flakyBlocksMerge: false })
@@ -49,7 +49,7 @@ describe('BuildSettings', () => {
   it('is read-only for members', async () => {
     await page.viewport(1000, 800)
     fakeFetch({ [`GET ${PATH}`]: answer(false, false) })
-    await renderPage(<BuildSettings org="acme" />)
+    await renderPage(<BuildSettings workspace="acme" />)
     await expect.element(control()).toHaveAttribute('data-disabled')
     await expect.element(control()).not.toBeChecked()
   })
@@ -60,14 +60,14 @@ describe('BuildSettings', () => {
       [`GET ${PATH}`]: answer(true),
       [`PATCH ${PATH}`]: () =>
         Response.json(
-          { error: 'Only owners and admins can change organization settings' },
+          { error: 'Only owners and admins can change workspace settings' },
           { status: 403 },
         ),
     })
-    await renderPage(<BuildSettings org="acme" />)
+    await renderPage(<BuildSettings workspace="acme" />)
     await control().click()
     await expect
       .element(page.getByRole('alert'))
-      .toHaveTextContent('Only owners and admins can change organization settings')
+      .toHaveTextContent('Only owners and admins can change workspace settings')
   })
 })

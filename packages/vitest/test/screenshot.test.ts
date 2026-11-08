@@ -47,7 +47,7 @@ describe('settlePage and circiScreenshot', () => {
         { dir: 'shots', root: '/proj', ready: () => void calls.push('ready') },
       )
       expect(path).toBe('shots/home/hero.png')
-      // Absolute: Vitest resolves a relative `path` against the test file, not the project, where
+      // Absolute: Vitest resolves a relative `path` against the test file, not the team, where
       // the reporter would not look (found by the first real browser-mode run).
       expect(calls).toEqual(['ready', '/proj/shots/home/hero.png'])
     } finally {

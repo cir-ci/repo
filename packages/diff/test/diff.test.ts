@@ -59,7 +59,7 @@ describe('diffImages', () => {
     expect(await readPngInfo(res.diffPng ?? Buffer.alloc(0))).toEqual({ width: 100, height: 100 })
   })
 
-  it('treats changes within the project threshold as unchanged', async () => {
+  it('treats changes within the team threshold as unchanged', async () => {
     const base = await png(100, 100)
     const head = await png(100, 100, { rect: { x: 0, y: 0, w: 1, h: 1, color: '#000000' } })
     expect((await diffImages(base, head, { threshold: 0.001 })).changed).toBe(false)

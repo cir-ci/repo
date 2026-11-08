@@ -1,7 +1,7 @@
 .root {
   box-sizing: border-box;
   border: 1px solid var(--circi-line-subtle);
-  border-radius: 8px;
+  border-radius: var(--circi-radius-popup);
   background: var(--circi-surface-panel);
   color: var(--circi-text-primary);
 }
@@ -12,7 +12,7 @@
 }
 
 .root[data-variant='panel'] {
-  border-radius: 10px;
+  border-radius: var(--circi-radius-panel);
 }
 
 .root[data-variant='raised'] {

@@ -6,7 +6,7 @@ import { validateReviewsSearch } from './api.ts'
 
 const reviewsRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: 'organizations/$org/reviews',
+  path: 'workspaces/$workspace/reviews',
   validateSearch: validateReviewsSearch,
   component: lazyRouteComponent(() => import('./ReviewsPage.tsx'), 'ReviewsPage'),
 })

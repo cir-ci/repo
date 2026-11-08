@@ -8,13 +8,16 @@ import { request, seg } from '#lib/http.ts'
 export const SEARCH_DEBOUNCE_MS = 200
 
 /** The search route. React Query hands over an abort signal and fires it when the query is no longer wanted, so a stale request is dropped. */
-export const searchQuery = (org: string, q: string) =>
+export const searchQuery = (workspace: string, q: string) =>
   queryOptions({
-    queryKey: ['search', org, q],
+    queryKey: ['search', workspace, q],
     queryFn: ({ signal }) =>
-      request<Search.Results>(`/api/orgs/${seg(org)}/search?q=${encodeURIComponent(q)}`, {
-        signal,
-      }),
+      request<Search.Results>(
+        `/api/workspaces/${seg(workspace)}/search?q=${encodeURIComponent(q)}`,
+        {
+          signal,
+        },
+      ),
     staleTime: 30_000,
   })
 
@@ -29,11 +32,11 @@ export function useDebounced<T>(value: T, ms = SEARCH_DEBOUNCE_MS): T {
 }
 
 /** The results for what has been typed (debounced); the previous ones stay while the next load. */
-export function useSearchResults(org: string | undefined, query: string) {
+export function useSearchResults(workspace: string | undefined, query: string) {
   const q = useDebounced(query)
-  const active = org !== undefined && q !== ''
+  const active = workspace !== undefined && q !== ''
   const result = useQuery({
-    ...searchQuery(org ?? '', q),
+    ...searchQuery(workspace ?? '', q),
     enabled: active,
     placeholderData: keepPreviousData,
   })

@@ -6,7 +6,7 @@ import {
   QUEUES,
   schema,
 } from '@circi/db'
-import { createTestDb, seedProject, sha } from '@circi/testing'
+import { createTestDb, seedTeam, sha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -18,7 +18,7 @@ import {
   finalizeBuild,
   requeueBuild,
   reviewBuild,
-  linkProjectToGithub,
+  linkTeamToGithub,
 } from '#src/index.ts'
 
 let t: createTestDb.Result
@@ -36,16 +36,16 @@ const jobsIn = async (queue: string) =>
   t.db.select().from(schema.jobs).where(eq(schema.jobs.queue, queue))
 
 async function newBuild(options: { linked?: boolean; parallelTotal?: number } = {}) {
-  const { project, owner } = await seedProject(t.db)
+  const { team, owner } = await seedTeam(t.db)
   if (options.linked) {
-    await linkProjectToGithub(t.db, project.id, { installationId: '1', repoRef: 'acme/web' })
+    await linkTeamToGithub(t.db, team.id, { installationId: '1', repoRef: 'acme/web' })
   }
   const build = await createBuild(t.db, {
-    projectId: project.id,
+    teamId: team.id,
     commitSha: 'abc1234',
     ...(options.parallelTotal ? { parallel: { nonce: 'n', total: options.parallelTotal } } : {}),
   })
-  return { project, owner, build }
+  return { team, owner, build }
 }
 
 async function verified(buildId: string, hash: string) {
@@ -90,7 +90,7 @@ describe('finalizeBuild', () => {
     expect(await jobsIn(QUEUES.processBuild)).toHaveLength(0)
   })
 
-  it('tells the git host the build is processing, when the project is linked', async () => {
+  it('tells the git host the build is processing, when the team is linked', async () => {
     const { build } = await newBuild({ linked: true })
     await verified(build.id, sha('4'))
     await finalizeBuild(t.db, { buildId: build.id, screenshots: [{ name: 'x', sha256: sha('4') }] })

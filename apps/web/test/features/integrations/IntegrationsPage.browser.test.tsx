@@ -10,7 +10,7 @@ import { CATALOG, item } from './fixtures.ts'
 
 afterEach(() => restoreFetch())
 
-const LIST = '/api/orgs/acme/integrations'
+const LIST = '/api/workspaces/acme/integrations'
 
 const list = (over: { canManage?: boolean; integrations?: ReturnType<typeof item>[] } = {}) => ({
   body: {
@@ -22,8 +22,8 @@ const list = (over: { canManage?: boolean; integrations?: ReturnType<typeof item
 
 const show = () =>
   renderPage(<IntegrationsPage />, {
-    route: '/organizations/$org/settings/integrations',
-    url: '/organizations/acme/settings/integrations',
+    route: '/workspaces/$workspace/settings/integrations',
+    url: '/workspaces/acme/settings/integrations',
   })
 
 describe('IntegrationsPage', () => {
@@ -36,7 +36,7 @@ describe('IntegrationsPage', () => {
             kind: 'github',
             id: 'c1',
             name: 'Installation 501',
-            projectCount: 2,
+            teamCount: 2,
             needsAttention: true,
             attentionReason: 'installation_revoked',
           }),
@@ -47,7 +47,7 @@ describe('IntegrationsPage', () => {
     await show()
     const git = page.getByRole('region', { name: 'Git hosts' })
     await expect.element(git.getByText('Installation 501')).toBeVisible()
-    await expect.element(git.getByText('2 projects')).toBeVisible()
+    await expect.element(git.getByText('2 teams')).toBeVisible()
     await expect.element(git.getByText('Needs attention')).toBeVisible()
     await expect.element(git.getByRole('link', { name: /Configure/ })).toBeVisible()
     const chat = page.getByRole('region', { name: 'Chat' })
@@ -123,7 +123,7 @@ const APP = {
 const openAdd = (added: string[] = []) =>
   renderPage(
     <AddIntegrationDialog
-      org="acme"
+      workspace="acme"
       open
       onOpenChange={() => {}}
       catalog={CATALOG}
@@ -166,7 +166,7 @@ describe('AddIntegrationDialog', () => {
     await page.viewport(1000, 800)
     const fake = fakeApi({
       'GET /api/instance/github-app': { body: APP },
-      'POST /api/orgs/acme/integrations/github/connect': { status: 201, body: { id: 'c1' } },
+      'POST /api/workspaces/acme/integrations/github/connect': { status: 201, body: { id: 'c1' } },
     })
     await openAdd()
     await page.getByRole('button', { name: 'Add GitHub' }).click()

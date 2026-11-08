@@ -1,8 +1,8 @@
-import type { Project } from '@circi/api'
+import type { Team } from '@circi/api'
 import { Banner, Button, Checkbox, SectionHeader, Switch, TextField, useAnnounce } from '@circi/ui'
 import { useState } from 'react'
 
-import { useSaveSettings } from '#features/projects/api.ts'
+import { useSaveSettings } from '#features/teams/api.ts'
 
 import { describeHours, targetDirty, targetProblem, targetText, targetValue } from './api.ts'
 
@@ -10,7 +10,7 @@ import styles from './Settings.module.css'
 
 /** How long a review request may wait, and the (fixed) rule that a newer build closes older requests. */
 export function ReviewTargetSection(props: ReviewTargetSection.Props) {
-  const save = useSaveSettings(props.org, props.project)
+  const save = useSaveSettings(props.workspace, props.team)
   const announce = useAnnounce()
   const saved = props.settings.reviewTargetHours
   const [enabled, setEnabled] = useState(saved !== null)
@@ -98,9 +98,9 @@ export function ReviewTargetSection(props: ReviewTargetSection.Props) {
 
 export namespace ReviewTargetSection {
   export interface Props {
-    org: string
-    project: string
-    settings: Pick<Project.Settings, 'reviewTargetHours'>
+    workspace: string
+    team: string
+    settings: Pick<Team.Settings, 'reviewTargetHours'>
     canManage: boolean
   }
 }

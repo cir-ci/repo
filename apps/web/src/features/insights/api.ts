@@ -10,17 +10,17 @@ export const RANGE_OPTIONS = RANGES.map((d) => ({ value: String(d), label: `${d}
 
 export interface InsightsSearch {
   range: RangeDays
-  project?: string
+  team?: string
 }
 
 export const parseRange = (value: unknown): RangeDays =>
   RANGES.find((d) => String(d) === String(value)) ?? 30
 
-/** `?range=7|30|90` (default 30) and `?project=slug`; anything else is dropped. */
+/** `?range=7|30|90` (default 30) and `?team=slug`; anything else is dropped. */
 export function validateInsightsSearch(search: Record<string, unknown>): InsightsSearch {
   const range = parseRange(search['range'])
-  const project = search['project']
-  return typeof project === 'string' && project ? { range, project } : { range }
+  const team = search['team']
+  return typeof team === 'string' && team ? { range, team } : { range }
 }
 
 const HOUR = 3_600_000
@@ -31,13 +31,13 @@ export function rangeBounds(days: RangeDays, now: number): { from: string; to: s
   return { from: new Date(to - days * 24 * HOUR).toISOString(), to: new Date(to).toISOString() }
 }
 
-export const insightsQuery = (org: string, search: InsightsSearch, now = Date.now()) => {
+export const insightsQuery = (workspace: string, search: InsightsSearch, now = Date.now()) => {
   const { from, to } = rangeBounds(search.range, now)
   const params = new URLSearchParams({ from, to })
-  if (search.project) params.set('project', search.project)
+  if (search.team) params.set('team', search.team)
   return queryOptions({
-    queryKey: ['insights', org, search.project ?? null, from, to],
-    queryFn: () => getJson<Insights.Report>(`/api/orgs/${seg(org)}/insights?${params}`),
+    queryKey: ['insights', workspace, search.team ?? null, from, to],
+    queryFn: () => getJson<Insights.Report>(`/api/workspaces/${seg(workspace)}/insights?${params}`),
   })
 }
 
@@ -151,7 +151,7 @@ export function tiles(report: Insights.Report, days: number): Tile[] {
       title: 'Reviews over target',
       value: String(s.reviewedOverTarget),
       delta: delta(s.reviewedOverTarget, p.reviewedOverTarget, { better: 'lower' }),
-      note: `of ${s.buildsReviewed} reviewed, waited past the project's target`,
+      note: `of ${s.buildsReviewed} reviewed, waited past the team's target`,
     },
   ]
 }

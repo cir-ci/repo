@@ -1,12 +1,6 @@
 import { createBuild, schema } from '@circi/db'
 import { snoozeReviewRequest } from '@circi/services'
-import {
-  addTestMember,
-  createTestDb,
-  seedProject,
-  seedReviewRequest,
-  seedUser,
-} from '@circi/testing'
+import { addTestMember, createTestDb, seedTeam, seedReviewRequest, seedUser } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -24,11 +18,11 @@ const due = new Date('2026-03-10T12:00:00.000Z')
 const after = new Date('2026-03-10T15:00:00.000Z')
 
 async function setup(dueAt: Date | null = due) {
-  const { project, org } = await seedProject(t.db)
+  const { team, workspace } = await seedTeam(t.db)
   const reviewer = await seedUser(t.db)
-  await addTestMember(t.db, { orgId: org.id, userId: reviewer.id })
+  await addTestMember(t.db, { workspaceId: workspace.id, userId: reviewer.id })
   const build = await createBuild(t.db, {
-    projectId: project.id,
+    teamId: team.id,
     commitSha: 'abc1234',
     branch: 'f',
   })
@@ -37,7 +31,7 @@ async function setup(dueAt: Date | null = due) {
     reviewerId: reviewer.id,
     dueAt,
   })
-  return { project, reviewer, build, request }
+  return { team, reviewer, build, request }
 }
 
 const overdueFor = (userId: string) =>
@@ -74,9 +68,9 @@ describe('reviewSweep', () => {
   })
 
   it('stays quiet while snoozed, and tells them after the snooze ends', async () => {
-    const { project, reviewer, request } = await setup()
+    const { team, reviewer, request } = await setup()
     await snoozeReviewRequest(t.db, {
-      projectId: project.id,
+      teamId: team.id,
       requestId: request.id,
       userId: reviewer.id,
       kind: 'tomorrow',

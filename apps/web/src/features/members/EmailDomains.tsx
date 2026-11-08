@@ -19,10 +19,10 @@ import { validateDomain } from './model.ts'
 
 import styles from './EmailDomains.module.css'
 
-/** Email domains this organization claims: people signing in with a code on one join as members. */
-export function EmailDomains({ org }: EmailDomains.Props) {
-  const { data, error, refetch } = useQuery(domainsQuery(org))
-  const { add, verify, remove } = useDomainActions(org)
+/** Email domains this workspace claims: people signing in with a code on one join as members. */
+export function EmailDomains({ workspace }: EmailDomains.Props) {
+  const { data, error, refetch } = useQuery(domainsQuery(workspace))
+  const { add, verify, remove } = useDomainActions(workspace)
   const announce = useAnnounce()
   const [checked, setChecked] = useState<string | null>(null)
   const [domain, setDomain] = useState('')
@@ -49,7 +49,7 @@ export function EmailDomains({ org }: EmailDomains.Props) {
     <section className={styles.root}>
       <SectionHeader
         title="Email domains"
-        description="Once a domain is verified, anyone who signs in with an emailed code on an address at that domain joins this organization as a member, with no invitation."
+        description="Once a domain is verified, anyone who signs in with an emailed code on an address at that domain joins this workspace as a member, with no invitation."
       />
       {error ? (
         <Banner
@@ -149,7 +149,7 @@ export function EmailDomains({ org }: EmailDomains.Props) {
           if (!open) setRemoving(null)
         }}
         title={`Remove ${removing?.domain ?? 'this domain'}?`}
-        description="People with an address at this domain will no longer join this organization when they sign in with a code. Members who already joined stay."
+        description="People with an address at this domain will no longer join this workspace when they sign in with a code. Members who already joined stay."
         confirmLabel="Remove"
         loading={remove.isPending}
         onConfirm={() => {
@@ -167,6 +167,6 @@ export function EmailDomains({ org }: EmailDomains.Props) {
 
 export namespace EmailDomains {
   export interface Props {
-    org: string
+    workspace: string
   }
 }

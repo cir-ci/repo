@@ -1,5 +1,5 @@
 import { schema } from '@circi/db'
-import { createTestDb, seedOrg } from '@circi/testing'
+import { createTestDb, seedWorkspace } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -24,7 +24,7 @@ const sso = (id: SsoProvider['id'], trustedForEmail: boolean): SsoProvider => ({
 const options = () => ({ db: t.db, sso: [sso('github', true), sso('oidc', false)] })
 
 async function userAged(ms: number) {
-  const { owner } = await seedOrg(t.db)
+  const { owner } = await seedWorkspace(t.db)
   await t.db
     .update(schema.user)
     .set({ createdAt: new Date(Date.now() - ms) })

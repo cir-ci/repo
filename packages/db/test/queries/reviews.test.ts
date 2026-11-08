@@ -2,7 +2,7 @@ import {
   addTestMember,
   createTestDb,
   seedBuild,
-  seedProject,
+  seedTeam,
   seedReviewRequest,
   seedUser,
 } from '@circi/testing'
@@ -21,18 +21,18 @@ afterAll(async () => {
 const now = new Date('2026-03-10T12:00:00.000Z')
 const hoursFromNow = (h: number) => new Date(now.getTime() + h * 3_600_000)
 
-/** An organization with an owner (the reviewer), a teammate who asks, and one build to review. */
+/** A workspace with an owner (the reviewer), a teammate who asks, and one build to review. */
 async function setup() {
-  const { project, org, owner } = await seedProject(t.db)
+  const { team, workspace, owner } = await seedTeam(t.db)
   const teammate = await seedUser(t.db)
-  await addTestMember(t.db, { orgId: org.id, userId: teammate.id })
-  const build = await seedBuild(t.db, project.id, { branch: 'feature/x', prNumber: 7 })
-  return { project, org, owner, teammate, build }
+  await addTestMember(t.db, { workspaceId: workspace.id, userId: teammate.id })
+  const build = await seedBuild(t.db, team.id, { branch: 'feature/x', prNumber: 7 })
+  return { team, workspace, owner, teammate, build }
 }
 
 describe('listReviewRequests', () => {
-  it('shows what is asked of you with the build and project, and how overdue it is', async () => {
-    const { project, org, owner, teammate, build } = await setup()
+  it('shows what is asked of you with the build and team, and how overdue it is', async () => {
+    const { team, workspace, owner, teammate, build } = await setup()
     await seedReviewRequest(t.db, {
       buildId: build.id,
       reviewerId: owner.id,
@@ -52,14 +52,14 @@ describe('listReviewRequests', () => {
       reviewer: { id: owner.id },
       requestedBy: { id: teammate.id, name: teammate.name },
       build: { number: 1, branch: 'feature/x', prNumber: 7 },
-      project: { slug: project.slug },
-      org: { slug: org.slug },
+      team: { slug: team.slug },
+      workspace: { slug: workspace.slug },
     })
   })
 
   it('is not overdue on time or without a review target', async () => {
     const { owner, build, teammate } = await setup()
-    const b2 = await seedBuild(t.db, build.projectId)
+    const b2 = await seedBuild(t.db, build.teamId)
     await seedReviewRequest(t.db, {
       buildId: build.id,
       reviewerId: owner.id,
@@ -76,9 +76,9 @@ describe('listReviewRequests', () => {
 
   it('splits for you, created by you and snoozed, and leaves closed requests out', async () => {
     const { owner, teammate, build } = await setup()
-    const b2 = await seedBuild(t.db, build.projectId)
-    const b3 = await seedBuild(t.db, build.projectId)
-    const b4 = await seedBuild(t.db, build.projectId)
+    const b2 = await seedBuild(t.db, build.teamId)
+    const b3 = await seedBuild(t.db, build.teamId)
+    const b4 = await seedBuild(t.db, build.teamId)
     await seedReviewRequest(t.db, {
       buildId: build.id,
       reviewerId: owner.id,
@@ -136,11 +136,11 @@ describe('listReviewRequests', () => {
     expect(item?.overdueByMs).toBe(0)
   })
 
-  it("never shows another organization's requests", async () => {
+  it("never shows another workspace's requests", async () => {
     const mine = await setup()
     const theirs = await setup()
     await seedReviewRequest(t.db, { buildId: theirs.build.id, reviewerId: theirs.owner.id })
-    // Even a request that names me as the reviewer is invisible once I am not in its organization.
+    // Even a request that names me as the reviewer is invisible once I am not in its workspace.
     await seedReviewRequest(t.db, {
       buildId: theirs.build.id,
       reviewerId: mine.owner.id,

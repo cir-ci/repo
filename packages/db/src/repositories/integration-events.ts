@@ -1,18 +1,11 @@
 import { and, eq } from 'drizzle-orm'
 
-import {
-  builds,
-  integrationProjects,
-  integrations,
-  organization,
-  projects,
-  user,
-} from '#schema/index.ts'
+import { builds, integrationTeams, integrations, workspace, teams, user } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
 /**
  * What delivering a domain event to integrations needs from the database: which integrations a
- * project's events could go to, and the facts a message is written from. Data only; deciding who
+ * team's events could go to, and the facts a message is written from. Data only; deciding who
  * wants an event and queueing the job is `queueIntegrationEvent` in `@circi/services`, and
  * delivering it is the worker's `integration-event` job.
  */
@@ -22,32 +15,30 @@ export namespace listIntegrationEventTargets {
     integrationId: string
     /** The integration's registry id (`slack`). */
     kind: string
-    /** The project's mapping: `integration_projects.external_ref` and `extra`. */
+    /** The team's mapping: `integration_teams.external_ref` and `extra`. */
     externalRef: string
     extra: Record<string, unknown>
   }
 }
 
 /**
- * The integrations a project is mapped to, healthy ones only (an integration that needs attention
- * has credentials that no longer work). A project without a mapping has no targets.
+ * The integrations a team is mapped to, healthy ones only (an integration that needs attention
+ * has credentials that no longer work). A team without a mapping has no targets.
  */
 export async function listIntegrationEventTargets(
   db: Database,
-  projectId: string,
+  teamId: string,
 ): Promise<listIntegrationEventTargets.Target[]> {
   return db
     .select({
       integrationId: integrations.id,
       kind: integrations.kind,
-      externalRef: integrationProjects.externalRef,
-      extra: integrationProjects.extra,
+      externalRef: integrationTeams.externalRef,
+      extra: integrationTeams.extra,
     })
-    .from(integrationProjects)
-    .innerJoin(integrations, eq(integrations.id, integrationProjects.integrationId))
-    .where(
-      and(eq(integrationProjects.projectId, projectId), eq(integrations.needsAttention, false)),
-    )
+    .from(integrationTeams)
+    .innerJoin(integrations, eq(integrations.id, integrationTeams.integrationId))
+    .where(and(eq(integrationTeams.teamId, teamId), eq(integrations.needsAttention, false)))
 }
 
 export namespace getIntegrationSendData {
@@ -58,15 +49,15 @@ export namespace getIntegrationSendData {
       encryptedCredentials: string | null
       needsAttention: boolean
     }
-    /** The project's mapping now (it may have changed since the job was queued). */
+    /** The team's mapping now (it may have changed since the job was queued). */
     mapping: { externalRef: string; extra: Record<string, unknown> } | null
     build: {
       id: string
       number: number
       branch: string | null
-      projectName: string
-      projectSlug: string
-      orgSlug: string
+      teamName: string
+      teamSlug: string
+      workspaceSlug: string
     }
     reviewerName: string | null
     actorName: string | null
@@ -97,23 +88,23 @@ export async function getIntegrationSendData(
       id: builds.id,
       number: builds.number,
       branch: builds.branch,
-      projectId: projects.id,
-      projectName: projects.name,
-      projectSlug: projects.slug,
-      orgSlug: organization.slug,
+      teamId: teams.id,
+      teamName: teams.name,
+      teamSlug: teams.slug,
+      workspaceSlug: workspace.slug,
     })
     .from(builds)
-    .innerJoin(projects, eq(projects.id, builds.projectId))
-    .innerJoin(organization, eq(organization.id, projects.orgId))
+    .innerJoin(teams, eq(teams.id, builds.teamId))
+    .innerJoin(workspace, eq(workspace.id, teams.workspaceId))
     .where(eq(builds.id, input.buildId))
   if (!integration || !build) return undefined
   const [mapping] = await db
-    .select({ externalRef: integrationProjects.externalRef, extra: integrationProjects.extra })
-    .from(integrationProjects)
+    .select({ externalRef: integrationTeams.externalRef, extra: integrationTeams.extra })
+    .from(integrationTeams)
     .where(
       and(
-        eq(integrationProjects.integrationId, integration.id),
-        eq(integrationProjects.projectId, build.projectId),
+        eq(integrationTeams.integrationId, integration.id),
+        eq(integrationTeams.teamId, build.teamId),
       ),
     )
   const nameOf = async (id: string | null | undefined) => {
@@ -121,7 +112,7 @@ export async function getIntegrationSendData(
     const [row] = await db.select({ name: user.name }).from(user).where(eq(user.id, id))
     return row?.name ?? null
   }
-  const { projectId: _projectId, ...shown } = build
+  const { teamId: _teamId, ...shown } = build
   return {
     integration,
     mapping: mapping ?? null,

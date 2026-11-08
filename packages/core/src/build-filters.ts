@@ -1,5 +1,5 @@
 /**
- * The filters of a builds list: the query parameters of `GET /api/projects/:org/:project`, and
+ * The filters of a builds list: the query parameters of `GET /api/teams/:workspace/:team`, and
  * the filter JSON of a saved view. One definition for both; the server's zod schema is built
  * from these constants, and `@circi/api`'s `View.Filters` is checked against the type.
  */

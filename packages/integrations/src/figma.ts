@@ -11,7 +11,7 @@ import {
 } from './errors.ts'
 
 /**
- * Figma: connected with an access token (verified with `/v1/me`); a project maps to the Figma FILE
+ * Figma: connected with an access token (verified with `/v1/me`); a team maps to the Figma FILE
  * it is designed in, and keeps a table of links from snapshot-name patterns to that file's frames
  * (`links`, rendered by the generic page; "Link automatically" matches names). The client is in
  * `@circi/providers`, the address parsing and name matching in `@circi/core`. The stored
@@ -85,7 +85,7 @@ export const figma = defineIntegration({
 
   mapping: {
     description:
-      'Choose the Figma file each project is designed in. A project without a file does not use Figma.',
+      'Choose the Figma file each team is designed in. A team without a file does not use Figma.',
     target: {
       label: 'File',
       kind: 'text',

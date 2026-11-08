@@ -1,7 +1,7 @@
 import type { View } from './view.ts'
 
 export namespace Sidebar {
-  export interface Project {
+  export interface Team {
     slug: string
     name: string
     pinned: boolean
@@ -9,18 +9,18 @@ export namespace Sidebar {
     triage: number
   }
 
-  /** `GET /api/orgs/:org/sidebar`. */
+  /** `GET /api/workspaces/:workspace/sidebar`. */
   export interface Model {
-    /** Pinned projects first (in pin order), then the rest A to Z. */
-    projects: Project[]
+    /** Pinned teams first (in pin order), then the rest A to Z. */
+    teams: Team[]
     views: View.Item[]
-    /** Unread, awake notifications (across all of the person's organizations). */
+    /** Unread, awake notifications (across all of the person's workspaces). */
     inboxUnread: number
-    /** Open, awake review requests asked of the person in this organization. */
+    /** Open, awake review requests asked of the person in this workspace. */
     reviews: number
   }
 
-  /** `PUT`/`DELETE /api/orgs/:org/pinned-projects/:project`. */
+  /** `PUT`/`DELETE /api/workspaces/:workspace/pinned-teams/:team`. */
   export interface PinResult {
     pinned: boolean
     /** Whether anything changed (false when it was already so). */

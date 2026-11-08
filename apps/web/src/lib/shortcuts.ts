@@ -26,7 +26,7 @@ export namespace Shortcut {
 
   export type Group = 'Navigation' | 'General' | 'Lists' | 'Inbox' | 'Triage' | 'Build review'
 
-  export type GoTarget = 'inbox' | 'reviews' | 'projects' | 'triage' | 'settings'
+  export type GoTarget = 'inbox' | 'reviews' | 'teams' | 'triage' | 'settings'
 
   export type Action =
     | { type: 'next' }
@@ -73,7 +73,7 @@ export const MODE_OPTIONS = VIEW_MODES.map((value) => ({ value, label: MODE_NAME
 const GO: readonly [string, Shortcut.GoTarget, string][] = [
   ['g i', 'inbox', 'Go to Inbox'],
   ['g r', 'reviews', 'Go to Reviews'],
-  ['g p', 'projects', 'Go to Projects'],
+  ['g p', 'teams', 'Go to Teams'],
   ['g t', 'triage', 'Go to Triage'],
   ['g s', 'settings', 'Go to Settings'],
 ]

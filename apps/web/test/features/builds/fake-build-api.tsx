@@ -49,13 +49,13 @@ export function detail(
   ]
   const count = (s: string) => diffs.filter((d) => d.status === s).length
   const result: Build.Detail = {
-    project: {
+    team: {
       id: 'p1',
       slug: 'web-app',
       name: 'web-app',
       defaultBranch: 'main',
-      orgSlug: 'acme',
-      orgName: 'Acme',
+      workspaceSlug: 'acme',
+      workspaceName: 'Acme',
     },
     build: {
       id: 'b7',
@@ -109,7 +109,7 @@ export interface FakeApi {
   commentPosts: Comment.Create[]
   /** The bodies of the review-request POSTs, in order. */
   requests: unknown[]
-  /** The organization's members, as better-auth returns them. */
+  /** The workspace's members, as better-auth returns them. */
   members: { id: string; userId: string; user: { name: string; email: string } }[]
   fetch: ReturnType<typeof vi.fn<typeof fetch>>
 }
@@ -132,7 +132,7 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
     fetch: vi.fn<typeof fetch>((input, init) => {
       const url = new URL(input instanceof Request ? input.url : String(input), 'http://localhost')
       const method = init?.method ?? 'GET'
-      if (url.pathname === '/api/projects/acme/web-app/builds/7/review' && method === 'POST') {
+      if (url.pathname === '/api/teams/acme/web-app/builds/7/review' && method === 'POST') {
         if (api.reviewError) return json({ error: api.reviewError }, 500)
         const body = typeof init?.body === 'string' ? init.body : ''
         api.reviews.push(body)
@@ -140,7 +140,7 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
         api.build = { ...api.build, build: { ...api.build.build, reviewStatus: state } }
         return json({ build: { reviewStatus: state } })
       }
-      const root = '/api/projects/acme/web-app/builds/7'
+      const root = '/api/teams/acme/web-app/builds/7'
       if (url.pathname === `${root}/comments` && method === 'POST') {
         const body = JSON.parse(typeof init?.body === 'string' ? init.body : '{}')
         api.commentPosts.push(body)
@@ -167,14 +167,14 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
       }
       if (url.pathname === '/api/auth/organization/get-full-organization')
         return json({
-          id: 'org1',
+          id: 'workspace1',
           name: 'Acme',
           slug: 'acme',
           members: api.members,
           invitations: [],
         })
       if (url.pathname === root) return json(api.build)
-      if (url.pathname === '/api/projects/acme/web-app/flaky')
+      if (url.pathname === '/api/teams/acme/web-app/flaky')
         return json({ builds: 10, flaky: api.flaky })
       return json({ error: 'not found' }, 404)
     }),
@@ -186,7 +186,7 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
 /** Renders the real build page at its route, with the theme, announcer, query client and router. */
 export async function renderBuild(url = '/acme/web-app/builds/7') {
   const { router } = await renderPage(<BuildPage />, {
-    route: '$org/$project/builds/$number',
+    route: '$workspace/$team/builds/$number',
     url,
     announcer: true,
     validateSearch: validateBuildSearch,

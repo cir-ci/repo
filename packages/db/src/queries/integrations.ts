@@ -3,7 +3,7 @@ import { catalogEntry, INTEGRATION_GROUPS, type IntegrationCatalog } from '@circ
 import { listIntegrations } from '#repositories/integrations.ts'
 import type { Database } from '#src/client.ts'
 
-export namespace listOrgIntegrations {
+export namespace listWorkspaceIntegrations {
   /** What the caller knows about a kind: the registry's definitions plus the static catalog. */
   export interface Kind {
     group: IntegrationCatalog.Group
@@ -13,7 +13,7 @@ export namespace listOrgIntegrations {
   /** Looks a stored kind up; undefined for one nobody lists (its rows are left out). */
   export type Resolve = (kind: string) => Kind | undefined
 
-  /** One row of the organisation's Integrations page. */
+  /** One row of the workspace's Integrations page. */
   export interface Item {
     id: string
     kind: string
@@ -23,29 +23,29 @@ export namespace listOrgIntegrations {
     name: string
     needsAttention: boolean
     attentionReason: string | null
-    projectCount: number
+    teamCount: number
     createdAt: Date
   }
 }
 
 /** The static catalog's kinds, all configured on their own pages. */
-const staticKind: listOrgIntegrations.Resolve = (kind) => {
+const staticKind: listWorkspaceIntegrations.Resolve = (kind) => {
   const entry = catalogEntry(kind)
   return entry ? { group: entry.group, name: entry.name } : undefined
 }
 
 /**
- * Everything the organisation has connected, git hosts and other integrations in one list, grouped
+ * Everything the workspace has connected, git hosts and other integrations in one list, grouped
  * by kind for display (git hosts first, then chat, design tools, trackers), oldest first within
  * a group. Rows whose kind the catalog doesn't know are left out.
  */
-export async function listOrgIntegrations(
+export async function listWorkspaceIntegrations(
   db: Database,
-  orgId: string,
-  resolve: listOrgIntegrations.Resolve = staticKind,
-): Promise<listOrgIntegrations.Item[]> {
-  const others = await listIntegrations(db, orgId)
-  const items: listOrgIntegrations.Item[] = []
+  workspaceId: string,
+  resolve: listWorkspaceIntegrations.Resolve = staticKind,
+): Promise<listWorkspaceIntegrations.Item[]> {
+  const others = await listIntegrations(db, workspaceId)
+  const items: listWorkspaceIntegrations.Item[] = []
   for (const i of others) {
     const known = resolve(i.kind)
     if (!known) continue
@@ -57,7 +57,7 @@ export async function listOrgIntegrations(
       name: i.displayName,
       needsAttention: i.needsAttention,
       attentionReason: i.needsAttentionReason,
-      projectCount: i.projectCount,
+      teamCount: i.teamCount,
       createdAt: i.createdAt,
     })
   }

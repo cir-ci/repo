@@ -67,7 +67,7 @@ export function signInMail(email: string, code: string, origin: string): Mailer.
 export function invitationMail(input: {
   to: string
   invitationId: string
-  organizationName: string
+  workspaceName: string
   inviterName: string
   role: string
   origin: string
@@ -75,9 +75,9 @@ export function invitationMail(input: {
   const link = `${input.origin}/#invite=${encodeURIComponent(input.invitationId)}&email=${encodeURIComponent(input.to)}`
   return {
     to: input.to,
-    subject: `${input.inviterName} invited you to ${input.organizationName} on CirCI`,
+    subject: `${input.inviterName} invited you to ${input.workspaceName} on CirCI`,
     text: [
-      `${input.inviterName} invited you to join ${input.organizationName} on CirCI as ${input.role}.`,
+      `${input.inviterName} invited you to join ${input.workspaceName} on CirCI as ${input.role}.`,
       '',
       'Open this link and sign in with this email address to accept (the invitation is valid for 7 days):',
       link,

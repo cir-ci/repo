@@ -1,5 +1,5 @@
 import { createBuild, createWebhook, QUEUES, schema } from '@circi/db'
-import { createTestDb, seedProject } from '@circi/testing'
+import { createTestDb, seedTeam } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -21,9 +21,9 @@ async function queued() {
 
 async function setup() {
   await t.db.delete(schema.jobs)
-  const { project, owner } = await seedProject(t.db)
+  const { team, owner } = await seedTeam(t.db)
   const build = await createBuild(t.db, {
-    projectId: project.id,
+    teamId: team.id,
     commitSha: 'abc1234',
     branch: 'feature',
   })
@@ -32,14 +32,14 @@ async function setup() {
     .set({ status: 'processing' })
     .where(eq(schema.builds.id, build.id))
   const processing = { ...build, status: 'processing' as const }
-  return { project, owner, build: processing }
+  return { team, owner, build: processing }
 }
 
 describe('webhook events', () => {
-  it('queues build.completed with the build and project details', async () => {
-    const { project, build } = await setup()
+  it('queues build.completed with the build and team details', async () => {
+    const { team, build } = await setup()
     const hook = await createWebhook(t.db, {
-      projectId: project.id,
+      teamId: team.id,
       url: 'https://hooks.acme.io/x',
       events: ['build.completed', 'build.reviewed'],
     })
@@ -50,7 +50,7 @@ describe('webhook events', () => {
       webhookId: hook.id,
       event: 'build.completed',
       data: {
-        project: { slug: project.slug },
+        team: { slug: team.slug },
         build: {
           number: 1,
           status: 'complete',
@@ -62,9 +62,9 @@ describe('webhook events', () => {
   })
 
   it('queues build.reviewed with the reviewer', async () => {
-    const { project, owner, build } = await setup()
+    const { team, owner, build } = await setup()
     await createWebhook(t.db, {
-      projectId: project.id,
+      teamId: team.id,
       url: 'https://hooks.acme.io/x',
       events: ['build.reviewed'],
     })
@@ -81,16 +81,16 @@ describe('webhook events', () => {
     })
   })
 
-  it('skips disabled webhooks and other projects', async () => {
-    const { project, build } = await setup()
-    const other = await seedProject(t.db)
+  it('skips disabled webhooks and other teams', async () => {
+    const { team, build } = await setup()
+    const other = await seedTeam(t.db)
     const hook = await createWebhook(t.db, {
-      projectId: project.id,
+      teamId: team.id,
       url: 'https://hooks.acme.io/x',
       events: ['build.completed'],
     })
     await createWebhook(t.db, {
-      projectId: other.project.id,
+      teamId: other.team.id,
       url: 'https://hooks.other.io/x',
       events: ['build.completed'],
     })

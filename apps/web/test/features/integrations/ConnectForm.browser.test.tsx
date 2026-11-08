@@ -35,9 +35,9 @@ const definition = entry({
 })
 
 const show = (e = definition) =>
-  renderPage(<ConnectForm entry={e} org="acme" onDone={() => {}} />, {
-    route: '/organizations/$org/settings/integrations',
-    url: '/organizations/acme/settings/integrations',
+  renderPage(<ConnectForm entry={e} workspace="acme" onDone={() => {}} />, {
+    route: '/workspaces/$workspace/settings/integrations',
+    url: '/workspaces/acme/settings/integrations',
   })
 
 describe('ConnectForm', () => {
@@ -59,7 +59,7 @@ describe('ConnectForm', () => {
   it('connects with the typed values, leaving an empty optional field out', async () => {
     await page.viewport(1000, 900)
     const fake = fakeApi({
-      'POST /api/orgs/acme/integrations/tokenchat/connect': { body: { id: 'new-id' } },
+      'POST /api/workspaces/acme/integrations/tokenchat/connect': { body: { id: 'new-id' } },
     })
     await show()
     const submit = page.getByRole('button', { name: 'Connect Token chat' })
@@ -79,7 +79,7 @@ describe('ConnectForm', () => {
   it('shows the server’s reason when the provider refuses the credentials', async () => {
     await page.viewport(1000, 900)
     fakeApi({
-      'POST /api/orgs/acme/integrations/tokenchat/connect': {
+      'POST /api/workspaces/acme/integrations/tokenchat/connect': {
         status: 400,
         body: { error: 'Token chat did not accept that token' },
       },
@@ -96,7 +96,7 @@ describe('ConnectForm', () => {
     await page.viewport(1000, 900)
     const assign = vi.spyOn(navigation, 'assign').mockImplementation(() => {})
     fakeApi({
-      'GET /api/orgs/acme/integrations/tokenchat/install': {
+      'GET /api/workspaces/acme/integrations/tokenchat/install': {
         body: { url: 'https://chat.test/oauth' },
       },
     })

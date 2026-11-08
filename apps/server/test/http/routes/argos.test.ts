@@ -157,7 +157,7 @@ const shard = async (index: number, bytes: Buffer, name: string) => {
 }
 
 describe('Argos-compatible API', () => {
-  it('describes the project for the SDK', async () => {
+  it('describes the team for the SDK', async () => {
     const res = await app.inject({ url: '/v2/project', headers: auth() })
     expect(res.json()).toMatchObject({ defaultBaseBranch: 'main', hasRemoteContentAccess: false })
     expect((await app.inject({ url: '/v2/project' })).statusCode).toBe(401)
@@ -172,7 +172,7 @@ describe('Argos-compatible API', () => {
     expect(a.put.statusCode).toBe(200)
     expect(a.put.json().build.url).toContain('/builds/')
     expect((await processBuild({ db: t.db, storage }, a.buildId)).status).toBe('complete')
-    // The project's first build waits for review; until it is approved it is no baseline.
+    // The team's first build waits for review; until it is approved it is no baseline.
     const early = await app.inject({
       method: 'POST',
       url: '/v2/baseline',

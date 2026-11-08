@@ -3,13 +3,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { ValidationError } from '@circi/core'
 import { and, eq, sql } from 'drizzle-orm'
 
-import {
-  organization,
-  projects,
-  WEBHOOK_EVENTS,
-  type WebhookEvent,
-  webhooks,
-} from '#schema/index.ts'
+import { workspace, teams, WEBHOOK_EVENTS, type WebhookEvent, webhooks } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { NotFoundError } from '#src/errors.ts'
 import type { Build } from '#src/types.ts'
@@ -17,7 +11,7 @@ import type { Build } from '#src/types.ts'
 import { enqueueJob, QUEUES } from './jobs.ts'
 import type { ReviewEntry } from './reviews.ts'
 
-/** A project's outgoing webhooks (PLAN §7.4): managing them and queueing the deliveries. */
+/** A team's outgoing webhooks (PLAN §7.4): managing them and queueing the deliveries. */
 
 export { WEBHOOK_EVENTS, type WebhookEvent }
 
@@ -29,14 +23,14 @@ export function isWebhookEvent(value: string): value is WebhookEvent {
 
 export async function createWebhook(
   db: Database,
-  input: { projectId: string; url: string; events: readonly WebhookEvent[] },
+  input: { teamId: string; url: string; events: readonly WebhookEvent[] },
 ): Promise<Webhook> {
   // No "empty means every event": a webhook says what it wants to hear.
   if (input.events.length === 0) throw new ValidationError('A webhook needs at least one event')
   const [row] = await db
     .insert(webhooks)
     .values({
-      projectId: input.projectId,
+      teamId: input.teamId,
       url: input.url,
       secret: `whsec_${randomBytes(24).toString('base64url')}`,
       events: [...new Set(input.events)],
@@ -46,12 +40,8 @@ export async function createWebhook(
   return row
 }
 
-export async function listWebhooks(db: Database, projectId: string): Promise<Webhook[]> {
-  return db
-    .select()
-    .from(webhooks)
-    .where(eq(webhooks.projectId, projectId))
-    .orderBy(webhooks.createdAt)
+export async function listWebhooks(db: Database, teamId: string): Promise<Webhook[]> {
+  return db.select().from(webhooks).where(eq(webhooks.teamId, teamId)).orderBy(webhooks.createdAt)
 }
 
 export async function getWebhook(db: Database, id: string): Promise<Webhook | undefined> {
@@ -59,10 +49,10 @@ export async function getWebhook(db: Database, id: string): Promise<Webhook | un
   return row
 }
 
-export async function deleteWebhook(db: Database, projectId: string, id: string): Promise<void> {
+export async function deleteWebhook(db: Database, teamId: string, id: string): Promise<void> {
   const deleted = await db
     .delete(webhooks)
-    .where(and(eq(webhooks.id, id), eq(webhooks.projectId, projectId)))
+    .where(and(eq(webhooks.id, id), eq(webhooks.teamId, teamId)))
     .returning({ id: webhooks.id })
   if (deleted.length === 0) throw new NotFoundError('Webhook not found')
 }
@@ -70,8 +60,8 @@ export async function deleteWebhook(db: Database, projectId: string, id: string)
 export namespace queueWebhookEvent {
   /** What a receiver gets, besides `id`, `event`, `createdAt` and the dashboard `url`. */
   export interface Data {
-    organization: { slug: string }
-    project: { id: string; slug: string; name: string }
+    workspace: { slug: string }
+    team: { id: string; slug: string; name: string }
     build: {
       id: string
       number: number
@@ -88,7 +78,7 @@ export namespace queueWebhookEvent {
 }
 
 /**
- * Queues one delivery job per enabled webhook of the build's project that listens to `event`.
+ * Queues one delivery job per enabled webhook of the build's team that listens to `event`.
  * Call it inside the transaction that changed the build, so a delivery is queued exactly when
  * the change is committed. The body is built when the job runs (it needs the dashboard address).
  */
@@ -98,7 +88,7 @@ export async function queueWebhookEvent(
     build: Pick<
       Build,
       | 'id'
-      | 'projectId'
+      | 'teamId'
       | 'number'
       | 'name'
       | 'status'
@@ -116,16 +106,16 @@ export async function queueWebhookEvent(
   const targets = await db
     .select({
       id: webhooks.id,
-      projectSlug: projects.slug,
-      projectName: projects.name,
-      orgSlug: organization.slug,
+      teamSlug: teams.slug,
+      teamName: teams.name,
+      workspaceSlug: workspace.slug,
     })
     .from(webhooks)
-    .innerJoin(projects, eq(projects.id, webhooks.projectId))
-    .innerJoin(organization, eq(organization.id, projects.orgId))
+    .innerJoin(teams, eq(teams.id, webhooks.teamId))
+    .innerJoin(workspace, eq(workspace.id, teams.workspaceId))
     .where(
       and(
-        eq(webhooks.projectId, build.projectId),
+        eq(webhooks.teamId, build.teamId),
         eq(webhooks.enabled, true),
         sql`${event} = any(${webhooks.events})`,
       ),
@@ -133,8 +123,8 @@ export async function queueWebhookEvent(
   const createdAt = new Date().toISOString()
   for (const target of targets) {
     const data: queueWebhookEvent.Data = {
-      organization: { slug: target.orgSlug },
-      project: { id: build.projectId, slug: target.projectSlug, name: target.projectName },
+      workspace: { slug: target.workspaceSlug },
+      team: { id: build.teamId, slug: target.teamSlug, name: target.teamName },
       build: {
         id: build.id,
         number: build.number,
@@ -156,7 +146,7 @@ export async function queueWebhookEvent(
           }
         : {}),
     }
-    // oxlint-disable-next-line no-await-in-loop -- a handful of webhooks per project
+    // oxlint-disable-next-line no-await-in-loop -- a handful of webhooks per team
     await enqueueJob(db, {
       queue: QUEUES.webhook,
       payload: { webhookId: target.id, deliveryId: randomUUID(), event, createdAt, data },

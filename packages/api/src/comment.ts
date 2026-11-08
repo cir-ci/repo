@@ -30,7 +30,7 @@ export namespace Comment {
     deletedAt: string | null
     /** The caller wrote it. */
     mine: boolean
-    /** The caller may delete it: their own, or any as an organization owner or admin. */
+    /** The caller may delete it: their own, or any as a workspace owner or admin. */
     canDelete: boolean
   }
 

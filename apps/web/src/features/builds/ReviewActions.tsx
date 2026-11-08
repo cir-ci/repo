@@ -29,8 +29,8 @@ export interface ReviewControls {
  * change your mind, and the other way round. A result is announced to screen readers.
  */
 export function useReviewControls(data: Build.Detail): ReviewControls {
-  const { build, project } = data
-  const review = useReviewBuild(project.orgSlug, project.slug, build.number)
+  const { build, team } = data
+  const review = useReviewBuild(team.workspaceSlug, team.slug, build.number)
   const announce = useAnnounce()
   const [rejecting, setRejecting] = useState(false)
   const reviewable = isReviewable(build)

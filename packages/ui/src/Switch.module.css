@@ -38,6 +38,13 @@
   transition: background-color 120ms ease-out;
 }
 
+/* The track is 18px high; its hit area is 24px. */
+.track::before {
+  content: '';
+  position: absolute;
+  inset: -3px 0;
+}
+
 .track[data-checked] {
   background: var(--circi-accent-main);
 }

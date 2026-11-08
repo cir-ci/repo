@@ -1,7 +1,7 @@
 /**
  * The domain events integrations can hear about: a closed union, so a definition lists the ones it
  * handles and the compiler catches a typo. A service queues an event once (`queueIntegrationEvent`
- * in `@circi/services`) and CirCI fans it out to every integration of the organisation that
+ * in `@circi/services`) and CirCI fans it out to every integration of the workspace that
  * handles it and whose mapping wants it. Pure and free of Node APIs.
  */
 

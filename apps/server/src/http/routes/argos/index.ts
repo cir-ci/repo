@@ -2,7 +2,7 @@ import { COMMIT_SHA_RE, isSha256, MAX_PARALLEL_SHARDS, ValidationError } from '@
 import {
   findBaselineByCommits,
   getFile,
-  getProjectBuild,
+  getTeamBuild,
   hasUploadClaim,
   markFileVerified,
   planUploads,
@@ -14,7 +14,7 @@ import multipart from '@fastify/multipart'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
-import { requireProjectToken, currentProject } from '#http/hooks/project-token.ts'
+import { requireTeamToken, currentTeam } from '#http/hooks/team-token.ts'
 import type { Deps } from '#http/lib/deps.ts'
 import { jsonErrorHandler } from '#http/lib/errors.ts'
 import { describeBuild } from '#http/lib/presenters.ts'
@@ -22,11 +22,11 @@ import { parse } from '#http/lib/validation.ts'
 import { MAX_SCREENSHOT_BYTES } from '#http/routes/v1/schemas.ts'
 
 /**
- * The Argos upload protocol (`/v2`), so projects that already use the Argos SDKs (Playwright,
+ * The Argos upload protocol (`/v2`), so teams that already use the Argos SDKs (Playwright,
  * Cypress, Storybook…) can point them at CirCI by changing the API address and token. Shapes
  * follow `@argos-ci/core`'s `upload()`:
  *
- *   GET  /project          what the SDK needs to know about the project
+ *   GET  /project          what the SDK needs to know about the team
  *   POST /baseline         the SDK found the commit history itself and asks which build it maps to
  *   POST /builds           create the build, learn which files to upload
  *   POST /uploads/…        the "presigned" upload target (multipart form with the file)
@@ -89,7 +89,7 @@ function buildName(raw: string | null | undefined): string | undefined {
 export const argosRoutes: FastifyPluginAsync<Deps.V2> = async (v2, deps) => {
   v2.setErrorHandler(jsonErrorHandler)
 
-  // The upload target is called without the project token (as a presigned URL would be): the
+  // The upload target is called without the team token (as a presigned URL would be): the
   // file's hash is the credential, because the bytes are stored only if they match it.
   await v2.register(async (uploads) => {
     await uploads.register(multipart, { limits: { fileSize: MAX_SCREENSHOT_BYTES, files: 1 } })
@@ -132,20 +132,20 @@ export const argosRoutes: FastifyPluginAsync<Deps.V2> = async (v2, deps) => {
   })
 
   await v2.register(async (api) => {
-    api.addHook('onRequest', requireProjectToken(deps.auth, deps.db))
+    api.addHook('onRequest', requireTeamToken(deps.auth, deps.db))
 
     api.get('/project', async (req) => {
-      const { project } = currentProject(req)
+      const { team } = currentTeam(req)
       return {
-        id: project.id,
-        defaultBaseBranch: project.defaultBranch,
+        id: team.id,
+        defaultBaseBranch: team.defaultBranch,
         // We can't read the repository ourselves, so SDKs must send their own history.
         hasRemoteContentAccess: false,
       }
     })
 
     api.post('/baseline', async (req) => {
-      const { project } = currentProject(req)
+      const { team } = currentTeam(req)
       const body = parse(baselineBody, req.body)
       // The first entry is the commit itself; the baseline is searched among its ancestors.
       const commits = body.commits
@@ -153,7 +153,7 @@ export const argosRoutes: FastifyPluginAsync<Deps.V2> = async (v2, deps) => {
         .filter((c) => COMMIT_SHA_RE.test(c))
         .map((c) => c.toLowerCase())
       const found = await findBaselineByCommits(deps.db, {
-        projectId: project.id,
+        teamId: team.id,
         name: buildName(body.name) ?? 'default',
         commits,
       })
@@ -170,7 +170,7 @@ export const argosRoutes: FastifyPluginAsync<Deps.V2> = async (v2, deps) => {
     })
 
     api.post('/builds', { bodyLimit: JSON_LIMIT }, async (req, reply) => {
-      const ctx = currentProject(req)
+      const ctx = currentTeam(req)
       const body = parse(createBody, req.body)
       const keys = [...new Set(body.screenshots.map((s) => s.key))]
       const bad = keys.find((k) => !isSha256(k))
@@ -190,7 +190,7 @@ export const argosRoutes: FastifyPluginAsync<Deps.V2> = async (v2, deps) => {
       const ancestorShas = [...new Set(history)]
       const name = buildName(body.name)
       const build = await startBuild(deps.db, {
-        projectId: ctx.project.id,
+        teamId: ctx.team.id,
         commitSha: commit,
         ...(name ? { name } : {}),
         branch: body.branch ?? null,
@@ -229,10 +229,10 @@ export const argosRoutes: FastifyPluginAsync<Deps.V2> = async (v2, deps) => {
     })
 
     api.put('/builds/:id', { bodyLimit: JSON_LIMIT }, async (req, reply) => {
-      const ctx = currentProject(req)
+      const ctx = currentTeam(req)
       const { id } = parse(z.object({ id: z.uuid() }), req.params)
       const body = parse(updateBody, req.body)
-      const build = await getProjectBuild(deps.db, ctx.project.id, id)
+      const build = await getTeamBuild(deps.db, ctx.team.id, id)
       if (!build) return reply.code(404).send({ error: 'Build not found' })
 
       if (body.parallelTotal !== undefined && body.parallelTotal !== null) {
@@ -261,7 +261,7 @@ export const argosRoutes: FastifyPluginAsync<Deps.V2> = async (v2, deps) => {
           missing: result.missing,
         })
       }
-      const updated = (await getProjectBuild(deps.db, ctx.project.id, id)) ?? build
+      const updated = (await getTeamBuild(deps.db, ctx.team.id, id)) ?? build
       const described = describeBuild(ctx, updated, deps.publicOrigin)
       return {
         build: {

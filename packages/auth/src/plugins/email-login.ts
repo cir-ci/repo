@@ -1,4 +1,4 @@
-import { organizationsForEmailDomain } from '@circi/db'
+import { workspacesForEmailDomain } from '@circi/db'
 import { emailOTP } from 'better-auth/plugins'
 
 import { hasAccount, hasPendingInvitation } from '#operations/accounts.ts'
@@ -28,7 +28,7 @@ export function emailLoginPlugin(options: PluginOptions) {
       if (
         !(await hasAccount(options.db, email)) &&
         !(await hasPendingInvitation(options.db, email)) &&
-        (await organizationsForEmailDomain(options.db, email)).length === 0
+        (await workspacesForEmailDomain(options.db, email)).length === 0
       ) {
         return
       }

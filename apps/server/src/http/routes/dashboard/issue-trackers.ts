@@ -3,9 +3,9 @@ import { openSecret, ISSUE_LINK_KIND } from '@circi/core'
 import {
   getBuildByNumber,
   getIntegration,
-  getOrganizationBySlug,
+  getWorkspaceBySlug,
   listBuildLinks,
-  listProjectIntegrations,
+  listTeamIntegrations,
   setIntegrationAttention,
 } from '@circi/db'
 import { type IntegrationDefinition, integrationRegistry } from '@circi/integrations'
@@ -16,10 +16,10 @@ import { z } from 'zod'
 
 import type { Deps } from '#http/lib/deps.ts'
 import { integrationContext } from '#http/lib/integration-context.ts'
-import { loadProject } from '#http/lib/project-access.ts'
+import { loadTeam } from '#http/lib/team-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
-const buildParams = z.object({ org: z.string(), project: z.string(), number: z.string() })
+const buildParams = z.object({ workspace: z.string(), team: z.string(), number: z.string() })
 const createBody = z.strictObject({
   integrationId: z.uuid(),
   snapshotName: z.string().min(1).max(500).optional(),
@@ -32,7 +32,7 @@ const createBody = z.strictObject({
 /**
  * Issues created from a build, through the `tracker` capability of the registry's integrations
  * (Linear, Jira, …): connecting and mapping them is generic (`integrations-generic.ts`). Members
- * of the organisation read and create issues. The tracker is called before anything is stored,
+ * of the workspace read and create issues. The tracker is called before anything is stored,
  * so a failed call leaves no trace (502).
  */
 export const dashboardIssueTrackerRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
@@ -69,11 +69,11 @@ export const dashboardIssueTrackerRoutes: FastifyPluginAsync<Deps.Dashboard> = a
   }
 
   async function loadBuild(req: FastifyRequest, reply: FastifyReply) {
-    const access = await loadProject(deps, req, reply)
+    const access = await loadTeam(deps, req, reply)
     if (!access) return undefined
     const number = Number(parse(buildParams, req.params).number)
     const build = Number.isInteger(number)
-      ? await getBuildByNumber(deps.db, access.project.id, number)
+      ? await getBuildByNumber(deps.db, access.team.id, number)
       : undefined
     if (!build) {
       await reply.code(404).send({ error: 'Build not found' })
@@ -82,13 +82,13 @@ export const dashboardIssueTrackerRoutes: FastifyPluginAsync<Deps.Dashboard> = a
     return { ...access, build }
   }
 
-  /** The issues created from a build, and the trackers its project files issues in. */
-  app.get('/projects/:org/:project/builds/:number/issues', async (req, reply) => {
+  /** The issues created from a build, and the trackers its team files issues in. */
+  app.get('/teams/:workspace/:team/builds/:number/issues', async (req, reply) => {
     const found = await loadBuild(req, reply)
     if (!found) return reply
     const [links, mapped] = await Promise.all([
       listBuildLinks(deps.db, found.build.id, ISSUE_LINK_KIND),
-      listProjectIntegrations(deps.db, found.project.id, trackerKinds),
+      listTeamIntegrations(deps.db, found.team.id, trackerKinds),
     ])
     const payload: Issue.List = {
       issues: links.map((l) => {
@@ -116,7 +116,7 @@ export const dashboardIssueTrackerRoutes: FastifyPluginAsync<Deps.Dashboard> = a
     return payload
   })
 
-  app.post('/projects/:org/:project/builds/:number/issues', async (req, reply) => {
+  app.post('/teams/:workspace/:team/builds/:number/issues', async (req, reply) => {
     const found = await loadBuild(req, reply)
     if (!found) return reply
     const input = parse(createBody, req.body)
@@ -138,8 +138,8 @@ export const dashboardIssueTrackerRoutes: FastifyPluginAsync<Deps.Dashboard> = a
       return reply.code(201).send(issue)
     } catch (err) {
       if (!(err instanceof ProviderApiError)) throw err
-      const org = await getOrganizationBySlug(deps.db, found.project.orgSlug)
-      const integration = await getIntegration(deps.db, org.id, input.integrationId)
+      const workspace = await getWorkspaceBySlug(deps.db, found.team.workspaceSlug)
+      const integration = await getIntegration(deps.db, workspace.id, input.integrationId)
       if (integration) {
         return trackerFailed(req, reply, integration, registry.get(integration.kind), err)
       }

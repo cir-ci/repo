@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm'
 let n = 0
 
 export namespace seedBuild {
-  export interface Input extends Omit<createBuild.Input, 'projectId' | 'commitSha'> {
+  export interface Input extends Omit<createBuild.Input, 'teamId' | 'commitSha'> {
     commitSha?: string
     /** Set after creation, for builds that should already be past `uploading`. */
     status?: Build['status']
@@ -15,17 +15,17 @@ export namespace seedBuild {
   }
 }
 
-/** A build in `projectId`, created through `createBuild` (so numbering and counters are real). */
+/** A build in `teamId`, created through `createBuild` (so numbering and counters are real). */
 export async function seedBuild(
   db: Database,
-  projectId: string,
+  teamId: string,
   input: seedBuild.Input = {},
 ): Promise<Build> {
   n += 1
   const { status, conclusion, reviewStatus, completedAt, createdAt, commitSha, ...rest } = input
   const build = await createBuild(db, {
     ...rest,
-    projectId,
+    teamId,
     commitSha: commitSha ?? `abc${String(n).padStart(6, '0')}`,
   })
   const set = {

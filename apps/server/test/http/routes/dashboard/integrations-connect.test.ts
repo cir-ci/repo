@@ -6,8 +6,8 @@ import { addMember, createUser } from '@circi/auth'
 import { openSecret } from '@circi/core'
 import {
   getIntegration,
-  getOrganizationBySlug,
-  listIntegrationProjects,
+  getWorkspaceBySlug,
+  listIntegrationTeams,
   listIntegrations,
 } from '@circi/db'
 import {
@@ -86,9 +86,9 @@ const lou = await createUser(auth, {
   name: 'Lou',
   password: 'lou-password-long-1',
 })
-await addMember(auth, t.db, { orgSlug: acme.orgSlug, email: lou.email, role: 'member' })
+await addMember(auth, t.db, { workspaceSlug: acme.workspaceSlug, email: lou.email, role: 'member' })
 const louCookie = await signIn(app, lou.email, 'lou-password-long-1')
-const org = await getOrganizationBySlug(t.db, acme.orgSlug)
+const workspace = await getWorkspaceBySlug(t.db, acme.workspaceSlug)
 
 const call = (
   method: 'GET' | 'POST' | 'PUT' | 'DELETE',
@@ -107,24 +107,24 @@ const call = (
     ...(payload === undefined ? {} : { payload: JSON.stringify(payload) }),
   })
 
-const base = `/api/orgs/${acme.orgSlug}/integrations`
+const base = `/api/workspaces/${acme.workspaceSlug}/integrations`
 
-describe('POST /orgs/:org/integrations/:kind/connect', () => {
-  it('is for owners and admins of the organisation only', async () => {
+describe('POST /workspaces/:workspace/integrations/:kind/connect', () => {
+  it('is for owners and admins of the workspace only', async () => {
     const body = { token: 'abc' }
     expect((await call('POST', `${base}/tokenchat/connect`, '', body)).statusCode).toBe(401)
     expect((await call('POST', `${base}/tokenchat/connect`, rivalCookie, body)).statusCode).toBe(
       404,
     )
     expect((await call('POST', `${base}/tokenchat/connect`, louCookie, body)).statusCode).toBe(403)
-    expect(await listIntegrations(t.db, org.id)).toEqual([])
+    expect(await listIntegrations(t.db, workspace.id)).toEqual([])
   })
 
   it('validates the body against the definition’s credentials schema', async () => {
     const res = await call('POST', `${base}/tokenchat/connect`, ownerCookie, { site: 'x' })
     expect(res.statusCode).toBe(400)
     expect(res.json().error).toContain('token')
-    expect(await listIntegrations(t.db, org.id)).toEqual([])
+    expect(await listIntegrations(t.db, workspace.id)).toEqual([])
   })
 
   it('maps the definition’s typed errors: 400 for credentials, 502 for the provider', async () => {
@@ -133,13 +133,13 @@ describe('POST /orgs/:org/integrations/:kind/connect', () => {
     expect(bad.json().error).toBe('Token chat did not accept that token')
     const down = await call('POST', `${base}/tokenchat/connect`, ownerCookie, { token: 'down' })
     expect(down.statusCode).toBe(502)
-    expect(await listIntegrations(t.db, org.id)).toEqual([])
+    expect(await listIntegrations(t.db, workspace.id)).toEqual([])
   })
 
   it('stores the account with its credentials sealed, and answers 409 for the same account', async () => {
     const res = await call('POST', `${base}/tokenchat/connect`, ownerCookie, { token: 'good' })
     expect(res.statusCode).toBe(201)
-    const stored = await getIntegration(t.db, org.id, res.json().id)
+    const stored = await getIntegration(t.db, workspace.id, res.json().id)
     expect(stored).toMatchObject({
       kind: 'tokenchat',
       displayName: 'Chat good',
@@ -151,7 +151,7 @@ describe('POST /orgs/:org/integrations/:kind/connect', () => {
     const again = await call('POST', `${base}/tokenchat/connect`, ownerCookie, { token: 'good' })
     expect(again.statusCode).toBe(409)
     expect(
-      (await listIntegrations(t.db, org.id)).filter((i) => i.kind === 'tokenchat'),
+      (await listIntegrations(t.db, workspace.id)).filter((i) => i.kind === 'tokenchat'),
     ).toHaveLength(1)
   })
 
@@ -229,22 +229,22 @@ describe('the catalog and the list, from the registry', () => {
 })
 
 describe('mapping a text target', () => {
-  it('maps a project by the typed id, has no targets to list, and clears it', async () => {
-    const id = (await listIntegrations(t.db, org.id))[0]?.id ?? ''
+  it('maps a team by the typed id, has no targets to list, and clears it', async () => {
+    const id = (await listIntegrations(t.db, workspace.id))[0]?.id ?? ''
     expect((await call('GET', `${base}/${id}/targets`, ownerCookie)).statusCode).toBe(404)
-    const url = `${base}/${id}/projects/web`
+    const url = `${base}/${id}/teams/web`
     expect((await call('PUT', url, ownerCookie, {})).statusCode).toBe(400)
     expect((await call('PUT', url, ownerCookie, { ref: 'room-1' })).statusCode).toBe(204)
-    expect(await listIntegrationProjects(t.db, id)).toMatchObject([
+    expect(await listIntegrationTeams(t.db, id)).toMatchObject([
       { slug: 'web', externalRef: 'room-1', extra: {} },
     ])
-    const page = (await call('GET', `${base}/${id}/projects`, louCookie)).json()
+    const page = (await call('GET', `${base}/${id}/teams`, louCookie)).json()
     expect(page).toMatchObject({
       canManage: false,
       configured: false,
-      projects: [{ slug: 'web', mapping: { ref: 'room-1', name: null } }],
+      teams: [{ slug: 'web', mapping: { ref: 'room-1', name: null } }],
     })
     expect((await call('DELETE', url, ownerCookie)).statusCode).toBe(204)
-    expect(await listIntegrationProjects(t.db, id)).toEqual([])
+    expect(await listIntegrationTeams(t.db, id)).toEqual([])
   })
 })

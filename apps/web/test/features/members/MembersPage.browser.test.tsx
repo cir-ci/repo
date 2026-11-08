@@ -41,8 +41,8 @@ const invitation = {
   status: 'pending',
   expiresAt: new Date(Date.now() + 3 * 86_400_000),
 }
-const org = (over: object = {}) => ({
-  id: 'org1',
+const workspace = (over: object = {}) => ({
+  id: 'workspace1',
   name: 'Acme',
   slug: 'acme',
   members: [ada, grace],
@@ -53,16 +53,16 @@ const org = (over: object = {}) => ({
   ...over,
 })
 
-// The route is `organizations/$org/members`; the test route's path is that literal, so the slug is "$org".
-const PATH = '/organizations/$org/settings/members'
+// The route is `workspaces/$workspace/members`; the test route's path is that literal, so the slug is "$workspace".
+const PATH = '/workspaces/$workspace/settings/members'
 const SETTINGS = {
-  'GET /api/organizations/%24org/auth': {
+  'GET /api/workspaces/%24workspace/auth': {
     canManage: true,
     settings: { emailLoginEnabled: true, passwordLoginEnabled: true },
     instance: { password: true, email: true },
   },
-  'GET /api/organizations/%24org/domains': { domains: [] },
-  'GET /api/organizations/%24org/sso': { providers: [] },
+  'GET /api/workspaces/%24workspace/domains': { domains: [] },
+  'GET /api/workspaces/%24workspace/sso': { providers: [] },
 }
 
 const show = () =>
@@ -76,13 +76,13 @@ const show = () =>
 beforeEach(() => {
   vi.resetAllMocks()
   auth.userId = 'u1'
-  auth.getFullOrganization.mockResolvedValue({ data: org(), error: null })
+  auth.getFullOrganization.mockResolvedValue({ data: workspace(), error: null })
   fakeFetch(SETTINGS)
 })
 afterEach(() => restoreFetch())
 
 describe('MembersPage', () => {
-  it('shows a skeleton while loading, announces it, and the header names the organization after', async () => {
+  it('shows a skeleton while loading, announces it, and the header names the workspace after', async () => {
     await page.viewport(1000, 800)
     auth.getFullOrganization.mockReturnValue(new Promise(() => {}))
     await show()
@@ -124,7 +124,7 @@ describe('MembersPage', () => {
     await expect.element(page.getByRole('heading', { name: 'Pending invitations' })).toBeVisible()
     await expect.element(page.getByText('alan@example.test')).toBeVisible()
     expect(page.getByText('old@example.test').elements()).toHaveLength(0)
-    expect(document.title).toBe('Members · $org · CirCI')
+    expect(document.title).toBe('Members · $workspace · CirCI')
   })
 
   it('offers the management sections to owners and admins', async () => {
@@ -153,7 +153,7 @@ describe('MembersPage', () => {
 
   it('says so when you are the only member', async () => {
     await page.viewport(1000, 800)
-    auth.getFullOrganization.mockResolvedValue({ data: org({ members: [ada] }), error: null })
+    auth.getFullOrganization.mockResolvedValue({ data: workspace({ members: [ada] }), error: null })
     await show()
     await expect.element(page.getByText('1 person')).toBeVisible()
     await expect
@@ -161,12 +161,12 @@ describe('MembersPage', () => {
       .toBeVisible()
   })
 
-  it('says the organization doesn’t exist for an unknown slug', async () => {
+  it('says the workspace doesn’t exist for an unknown slug', async () => {
     await page.viewport(1000, 800)
     auth.getFullOrganization.mockResolvedValue({ data: null, error: null })
     await show()
     await expect
-      .element(page.getByRole('heading', { name: 'This organization doesn’t exist' }))
+      .element(page.getByRole('heading', { name: 'This workspace doesn’t exist' }))
       .toBeVisible()
   })
 
@@ -192,7 +192,7 @@ describe('MembersPage', () => {
     expect(auth.updateMemberRole).toHaveBeenCalledWith({
       memberId: 'm2',
       role: 'admin',
-      organizationId: 'org1',
+      organizationId: 'workspace1',
     })
     await expect
       .element(page.getByRole('status').filter({ hasText: 'Grace Hopper is now Admin' }))
@@ -218,7 +218,7 @@ describe('MembersPage', () => {
     auth.removeMember.mockResolvedValue({ data: {}, error: null })
     await show()
     await page.getByRole('button', { name: 'Actions for Grace Hopper' }).click()
-    await page.getByRole('menuitem', { name: 'Remove from organization' }).click()
+    await page.getByRole('menuitem', { name: 'Remove from workspace' }).click()
     const dialog = page.getByRole('alertdialog', { name: 'Remove Grace Hopper?' })
     await expect.element(dialog).toBeVisible()
     await expect
@@ -232,11 +232,11 @@ describe('MembersPage', () => {
     expect(auth.removeMember).not.toHaveBeenCalled()
 
     await page.getByRole('button', { name: 'Actions for Grace Hopper' }).click()
-    await page.getByRole('menuitem', { name: 'Remove from organization' }).click()
+    await page.getByRole('menuitem', { name: 'Remove from workspace' }).click()
     await page.getByRole('alertdialog').getByRole('button', { name: 'Remove' }).click()
     expect(auth.removeMember).toHaveBeenCalledWith({
       memberIdOrEmail: 'm2',
-      organizationId: 'org1',
+      organizationId: 'workspace1',
     })
     await expect.element(page.getByRole('alertdialog')).not.toBeInTheDocument()
     await expect
@@ -249,7 +249,7 @@ describe('MembersPage', () => {
     auth.removeMember.mockResolvedValue({ data: null, error: {} })
     await show()
     await page.getByRole('button', { name: 'Actions for Grace Hopper' }).click()
-    await page.getByRole('menuitem', { name: 'Remove from organization' }).click()
+    await page.getByRole('menuitem', { name: 'Remove from workspace' }).click()
     await page.getByRole('alertdialog').getByRole('button', { name: 'Remove' }).click()
     await expect.element(page.getByRole('alert')).toHaveTextContent('Couldn’t remove this member')
     await expect.element(page.getByRole('alertdialog')).not.toBeInTheDocument()
@@ -276,7 +276,7 @@ describe('MembersPage', () => {
     expect(auth.inviteMember).toHaveBeenCalledWith({
       email: 'new@example.test',
       role: 'member',
-      organizationId: 'org1',
+      organizationId: 'workspace1',
     })
     await vi.waitFor(() => expect(auth.getFullOrganization).toHaveBeenCalledTimes(2))
   })

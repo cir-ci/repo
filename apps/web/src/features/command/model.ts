@@ -14,7 +14,7 @@ export const GROUP_ORDER = [
   'Jump to',
   'Builds',
   'Branches',
-  'Projects',
+  'Teams',
   'Snapshots',
 ] as const
 
@@ -22,7 +22,7 @@ export interface Entry {
   id: string
   group: Entry.Group
   label: string
-  /** Grey text after the label (the project of a build). */
+  /** Grey text after the label (the team of a build). */
   detail?: string
   /** The registry key spec shown as caps (`g i`, `mod+shift+c`). */
   hint?: string
@@ -67,9 +67,9 @@ export function wrapIndex(length: number, current: number, delta: 1 | -1): numbe
 // Paths ----------------------------------------------------------------------------------
 
 const enc = encodeURIComponent
-const projectPath = (org: string, project: string) => `/${enc(org)}/${enc(project)}`
-export const buildPath = (org: string, project: string, number: number) =>
-  `${projectPath(org, project)}/builds/${number}`
+const teamPath = (workspace: string, team: string) => `/${enc(workspace)}/${enc(team)}`
+export const buildPath = (workspace: string, team: string, number: number) =>
+  `${teamPath(workspace, team)}/builds/${number}`
 
 // Context ----------------------------------------------------------------------------------
 
@@ -116,8 +116,8 @@ const goHint = (to: Shortcut.GoTarget) =>
   SHORTCUTS.find((s) => s.action.type === 'go' && s.action.to === to)?.key
 
 export interface JumpInput {
-  org: string | undefined
-  projects: readonly Sidebar.Project[] | undefined
+  workspace: string | undefined
+  teams: readonly Sidebar.Team[] | undefined
   views: readonly View.Item[] | undefined
 }
 
@@ -132,27 +132,27 @@ const page = (id: string, label: string, path: string, to?: Shortcut.GoTarget): 
   }
 }
 
-/** Pages, the pinned projects and the saved views. */
-export function jumpEntries({ org, projects, views }: JumpInput): Entry[] {
+/** Pages, the pinned teams and the saved views. */
+export function jumpEntries({ workspace, teams, views }: JumpInput): Entry[] {
   const entries: Entry[] = [page('inbox', 'Inbox', '/inbox', 'inbox')]
-  if (org) {
-    entries.push(page('reviews', 'Reviews', `/organizations/${enc(org)}/reviews`, 'reviews'))
+  if (workspace) {
+    entries.push(page('reviews', 'Reviews', `/workspaces/${enc(workspace)}/reviews`, 'reviews'))
   }
-  entries.push(page('projects', 'Projects', '/', 'projects'))
-  if (org) {
-    entries.push(page('insights', 'Insights', `/organizations/${enc(org)}/insights`))
-    entries.push(page('settings', 'Settings', `/organizations/${enc(org)}/settings`, 'settings'))
+  entries.push(page('teams', 'Teams', '/', 'teams'))
+  if (workspace) {
+    entries.push(page('insights', 'Insights', `/workspaces/${enc(workspace)}/insights`))
+    entries.push(page('settings', 'Settings', `/workspaces/${enc(workspace)}/settings`, 'settings'))
   } else {
     entries.push(page('settings', 'Settings', '/account', 'settings'))
   }
-  if (org) {
-    for (const p of (projects ?? []).filter((project) => project.pinned)) {
+  if (workspace) {
+    for (const p of (teams ?? []).filter((team) => team.pinned)) {
       entries.push({
-        id: `project:${p.slug}`,
+        id: `team:${p.slug}`,
         group: 'Jump to',
         label: p.name,
-        detail: 'Pinned project',
-        target: { type: 'path', path: projectPath(org, p.slug) },
+        detail: 'Pinned team',
+        target: { type: 'path', path: teamPath(workspace, p.slug) },
       })
     }
     for (const v of views ?? []) {
@@ -161,7 +161,7 @@ export function jumpEntries({ org, projects, views }: JumpInput): Entry[] {
         group: 'Jump to',
         label: v.name,
         detail: 'Saved view',
-        target: { type: 'path', path: `/organizations/${enc(org)}/views/${enc(v.id)}` },
+        target: { type: 'path', path: `/workspaces/${enc(workspace)}/views/${enc(v.id)}` },
       })
     }
   }
@@ -181,18 +181,18 @@ const REVIEW_LABEL: Record<Search.Build['reviewStatus'], string> = {
   rejected: 'Rejected',
 }
 
-const buildEntry = (org: string, b: Search.Build): Entry => ({
-  id: `build:${b.projectSlug}:${b.number}`,
+const buildEntry = (workspace: string, b: Search.Build): Entry => ({
+  id: `build:${b.teamSlug}:${b.number}`,
   group: 'Builds',
   label: `#${b.number} ${b.name}`.trim(),
-  detail: [b.projectName, b.branch, b.prNumber === null ? null : `PR #${b.prNumber}`]
+  detail: [b.teamName, b.branch, b.prNumber === null ? null : `PR #${b.prNumber}`]
     .filter(Boolean)
     .join(' · '),
-  target: { type: 'path', path: buildPath(org, b.projectSlug, b.number) },
+  target: { type: 'path', path: buildPath(workspace, b.teamSlug, b.number) },
   preview: {
     title: `#${b.number} ${b.name}`.trim(),
     rows: [
-      { label: 'Project', value: b.projectName },
+      { label: 'Team', value: b.teamName },
       ...(b.branch ? [{ label: 'Branch', value: b.branch }] : []),
       ...(b.prNumber === null ? [] : [{ label: 'Pull request', value: `#${b.prNumber}` }]),
       { label: 'Build', value: b.status },
@@ -203,72 +203,72 @@ const buildEntry = (org: string, b: Search.Build): Entry => ({
 
 /**
  * Search results as entries, in group order. A query that is a build number puts the builds
- * numbered so first, ahead of those that only match as a pull request; and when a project is
+ * numbered so first, ahead of those that only match as a pull request; and when a team is
  * open, jumps straight to that build there even before the answer arrives.
  */
 export function searchEntries(
-  org: string,
+  workspace: string,
   query: string,
   results: Search.Results | undefined,
-  project?: { slug: string; name: string },
+  team?: { slug: string; name: string },
 ): Entry[] {
   const number = parseBuildQuery(query)
   const builds = (results?.builds ?? []).toSorted(
     (a, b) => Number(b.number === number) - Number(a.number === number),
   )
-  const entries: Entry[] = builds.map((b) => buildEntry(org, b))
+  const entries: Entry[] = builds.map((b) => buildEntry(workspace, b))
   if (
     number !== undefined &&
-    project &&
-    !builds.some((b) => b.projectSlug === project.slug && b.number === number)
+    team &&
+    !builds.some((b) => b.teamSlug === team.slug && b.number === number)
   ) {
     entries.unshift({
-      id: `build:${project.slug}:${number}`,
+      id: `build:${team.slug}:${number}`,
       group: 'Builds',
       label: `Build #${number}`,
-      detail: project.name,
-      target: { type: 'path', path: buildPath(org, project.slug, number) },
+      detail: team.name,
+      target: { type: 'path', path: buildPath(workspace, team.slug, number) },
     })
   }
   for (const b of results?.branches ?? []) {
     entries.push({
-      id: `branch:${b.projectSlug}:${b.branch}`,
+      id: `branch:${b.teamSlug}:${b.branch}`,
       group: 'Branches',
       label: b.branch,
-      detail: b.projectName,
-      target: { type: 'path', path: buildPath(org, b.projectSlug, b.latestBuildNumber) },
+      detail: b.teamName,
+      target: { type: 'path', path: buildPath(workspace, b.teamSlug, b.latestBuildNumber) },
       preview: {
         title: b.branch,
         rows: [
-          { label: 'Project', value: b.projectName },
+          { label: 'Team', value: b.teamName },
           { label: 'Latest build', value: `#${b.latestBuildNumber}` },
         ],
       },
     })
   }
-  for (const p of results?.projects ?? []) {
+  for (const p of results?.teams ?? []) {
     entries.push({
-      id: `project:${p.slug}`,
-      group: 'Projects',
+      id: `team:${p.slug}`,
+      group: 'Teams',
       label: p.name,
-      target: { type: 'path', path: projectPath(org, p.slug) },
+      target: { type: 'path', path: teamPath(workspace, p.slug) },
       preview: { title: p.name, rows: [{ label: 'Slug', value: p.slug }] },
     })
   }
   for (const s of results?.snapshots ?? []) {
     entries.push({
-      id: `snapshot:${s.projectSlug}:${s.name}`,
+      id: `snapshot:${s.teamSlug}:${s.name}`,
       group: 'Snapshots',
       label: s.name,
-      detail: s.projectName,
+      detail: s.teamName,
       target: {
         type: 'path',
-        path: `${buildPath(org, s.projectSlug, s.latestBuildNumber)}?shot=${enc(s.name)}`,
+        path: `${buildPath(workspace, s.teamSlug, s.latestBuildNumber)}?shot=${enc(s.name)}`,
       },
       preview: {
         title: s.name,
         rows: [
-          { label: 'Project', value: s.projectName },
+          { label: 'Team', value: s.teamName },
           { label: 'Latest build', value: `#${s.latestBuildNumber}` },
         ],
       },

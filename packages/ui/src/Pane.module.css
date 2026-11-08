@@ -6,7 +6,7 @@
   min-width: 0;
   max-width: 420px;
   border: 1px solid var(--circi-line-subtle);
-  border-radius: 8px;
+  border-radius: var(--circi-radius-popup);
   background: var(--circi-surface-panel);
   color: var(--circi-text-primary);
 }

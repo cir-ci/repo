@@ -17,7 +17,7 @@ import { parse } from '#http/lib/validation.ts'
  * normalised events; `handleGitEvents` in `@circi/services` is the one handler for all hosts.
  *
  * Deliveries are verified before anything is read, handled once per delivery id, and acted on only
- * for host accounts that a CirCI member of the project's organisation linked to their sign-in.
+ * for host accounts that a CirCI member of the team's workspace linked to their sign-in.
  */
 
 export namespace integrationWebhookRoutes {

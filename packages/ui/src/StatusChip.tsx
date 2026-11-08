@@ -8,7 +8,7 @@ import styles from './StatusChip.module.css'
  * (No changes, Uploading, Failed, Expired, No baseline) over the nearest glyph. */
 export function StatusChip(props: StatusChip.Props) {
   return (
-    <span className={styles.root}>
+    <span className={styles.root} data-status={props.status}>
       {/* With custom text the glyph is decoration: "Expired" shouldn't read "Unchanged Expired". */}
       <StatusIcon
         status={props.status}

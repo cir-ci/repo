@@ -13,7 +13,7 @@ const lou = await createUser(auth, {
   name: 'Lou',
   password: 'lou-password-long-1',
 })
-await addMember(auth, db, { orgSlug: acme.orgSlug, email: lou.email, role: 'member' })
+await addMember(auth, db, { workspaceSlug: acme.workspaceSlug, email: lou.email, role: 'member' })
 const louCookie = await signIn(app, lou.email, 'lou-password-long-1')
 
 const post = (
@@ -31,8 +31,8 @@ const post = (
     payload: options.payload ?? {},
   })
 
-const requestUrl = (org = acme.orgSlug, build = 2) =>
-  `/api/projects/${org}/web/builds/${build}/review-requests`
+const requestUrl = (workspace = acme.workspaceSlug, build = 2) =>
+  `/api/teams/${workspace}/web/builds/${build}/review-requests`
 const list = async (tab: string, cookie = acmeCookie) =>
   (await get(`/api/reviews?tab=${tab}`, cookie)).json()
 const ids = (body: { requests: { id: string }[] }) => body.requests.map((r) => r.id)
@@ -44,7 +44,7 @@ describe('review requests', () => {
     const first = await post(requestUrl(), { payload: { reviewerId: lou.id } })
     expect(first.statusCode).toBe(201)
     expect(first.json()).toMatchObject({ state: 'open', created: true })
-    // The project has the default 24 hour review target.
+    // The team has the default 24 hour review target.
     expect(Date.parse(first.json().dueAt) - Date.now()).toBeGreaterThan(23 * 3_600_000)
     requestId = first.json().id
 
@@ -64,8 +64,8 @@ describe('review requests', () => {
         reviewer: { id: lou.id, name: 'Lou' },
         requestedBy: { id: acme.owner.id },
         build: { number: 2, branch: 'main' },
-        project: { slug: 'web' },
-        org: { slug: acme.orgSlug },
+        team: { slug: 'web' },
+        workspace: { slug: acme.workspaceSlug },
       },
     ])
     expect(ids(await list('created'))).toEqual([requestId])
@@ -74,13 +74,13 @@ describe('review requests', () => {
     expect(ids(await list('snoozed', louCookie))).toEqual([])
   })
 
-  it('keeps other organizations out of the lists and the actions', async () => {
+  it('keeps other workspaces out of the lists and the actions', async () => {
     for (const tab of ['for-you', 'created', 'snoozed']) {
       // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
       expect((await list(tab, rivalCookie)).requests).toEqual([])
     }
     const asked = await post(requestUrl(), { cookie: rivalCookie, payload: { reviewerId: lou.id } })
-    const missing = await post(requestUrl(acme.orgSlug, 99), {
+    const missing = await post(requestUrl(acme.workspaceSlug, 99), {
       cookie: rivalCookie,
       payload: { reviewerId: lou.id },
     })
@@ -88,14 +88,14 @@ describe('review requests', () => {
     expect(asked.json()).toEqual(missing.json())
 
     const dismissed = await post(
-      `/api/projects/${acme.orgSlug}/web/review-requests/${requestId}/dismiss`,
+      `/api/teams/${acme.workspaceSlug}/web/review-requests/${requestId}/dismiss`,
       { cookie: rivalCookie },
     )
     expect(dismissed.statusCode).toBe(404)
     expect(ids(await list('for-you', louCookie))).toEqual([requestId])
   })
 
-  it('refuses a reviewer from another organization', async () => {
+  it('refuses a reviewer from another workspace', async () => {
     const res = await post(requestUrl(), { payload: { reviewerId: rival.owner.id } })
     expect(res.statusCode).toBe(409)
     expect(res.json().error).toMatch(/not a member/)
@@ -117,7 +117,7 @@ describe('review requests', () => {
   })
 
   it('lets the reviewer dismiss it, once', async () => {
-    const url = `/api/projects/${acme.orgSlug}/web/review-requests/${requestId}/dismiss`
+    const url = `/api/teams/${acme.workspaceSlug}/web/review-requests/${requestId}/dismiss`
     const res = await post(url, { cookie: louCookie })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toEqual({ id: requestId, state: 'dismissed' })
@@ -129,7 +129,7 @@ describe('review requests', () => {
     const made = await post(requestUrl(), { payload: { reviewerId: lou.id } })
     expect(made.statusCode).toBe(201)
     expect(ids(await list('for-you', louCookie))).toEqual([made.json().id])
-    const reviewed = await post(`/api/projects/${acme.orgSlug}/web/builds/2/review`, {
+    const reviewed = await post(`/api/teams/${acme.workspaceSlug}/web/builds/2/review`, {
       cookie: louCookie,
       payload: { state: 'rejected' },
     })
@@ -140,7 +140,7 @@ describe('review requests', () => {
   it('lets only the reviewer snooze and unsnooze a request', async () => {
     const made = await post(requestUrl(), { payload: { reviewerId: lou.id } })
     const id = made.json().id
-    const base = `/api/projects/${acme.orgSlug}/web/review-requests/${id}`
+    const base = `/api/teams/${acme.workspaceSlug}/web/review-requests/${id}`
 
     expect((await post(`${base}/snooze`, { payload: { kind: 'tomorrow' } })).statusCode).toBe(404)
     expect(

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { DEFAULT_DISPLAY, DISPLAY_KEY } from '#features/projects/display-options.ts'
+import { DEFAULT_DISPLAY, DISPLAY_KEY } from '#features/teams/display-options.ts'
 import { useDisplayStore } from '#lib/stores/display-store.ts'
 
 const items = new Map<string, string>()

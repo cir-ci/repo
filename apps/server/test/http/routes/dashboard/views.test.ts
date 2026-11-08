@@ -1,4 +1,4 @@
-import { getOrganizationBySlug } from '@circi/db'
+import { getWorkspaceBySlug } from '@circi/db'
 import { addTestMember, seedSavedView, seedUser } from '@circi/testing'
 import { afterAll, describe, expect, it } from 'vitest'
 
@@ -25,35 +25,40 @@ const send = (
     ...(method === 'DELETE' ? {} : { payload: options.payload ?? {} }),
   })
 
-const views = `/api/orgs/${acme.orgSlug}/views`
+const views = `/api/workspaces/${acme.workspaceSlug}/views`
 const bad = (payload: unknown) => send('POST', views, { payload })
 
 describe('saved view routes', () => {
-  it('needs a session, and an organization you belong to', async () => {
+  it('needs a session, and a workspace you belong to', async () => {
     expect((await get(views, '')).statusCode).toBe(401)
     expect((await get(views, rivalCookie)).statusCode).toBe(404)
-    expect((await get('/api/orgs/nope/views')).statusCode).toBe(404)
+    expect((await get('/api/workspaces/nope/views')).statusCode).toBe(404)
     expect(
       (await send('POST', views, { cookie: rivalCookie, payload: { name: 'x', filters: {} } }))
         .statusCode,
     ).toBe(404)
-    expect((await get(`/api/orgs/${acme.orgSlug}/sidebar`, rivalCookie)).statusCode).toBe(404)
     expect(
-      (await send('PUT', `/api/orgs/${acme.orgSlug}/pinned-projects/web`, { cookie: rivalCookie }))
-        .statusCode,
+      (await get(`/api/workspaces/${acme.workspaceSlug}/sidebar`, rivalCookie)).statusCode,
+    ).toBe(404)
+    expect(
+      (
+        await send('PUT', `/api/workspaces/${acme.workspaceSlug}/pinned-teams/web`, {
+          cookie: rivalCookie,
+        })
+      ).statusCode,
     ).toBe(404)
   })
 
   it('creates, lists, patches and deletes a view', async () => {
     const created = await send('POST', views, {
-      payload: { name: 'Failing', project: 'web', filters: { status: 'error', branch: 'main' } },
+      payload: { name: 'Failing', team: 'web', filters: { status: 'error', branch: 'main' } },
     })
     expect(created.statusCode).toBe(201)
     const view = created.json()
     expect(view).toMatchObject({
       name: 'Failing',
       pinned: false,
-      project: { slug: 'web' },
+      team: { slug: 'web' },
       filters: { status: 'error', branch: 'main' },
     })
     expect((await get(views)).json().views.map((v: { id: string }) => v.id)).toEqual([view.id])
@@ -77,7 +82,7 @@ describe('saved view routes', () => {
     expect((await bad({ name: 'x', filters: { colour: 'red' } })).statusCode).toBe(400)
     expect((await bad({ name: 'x', filters: { from: 'yesterday' } })).statusCode).toBe(400)
     expect((await bad({ name: '', filters: {} })).statusCode).toBe(400)
-    expect((await bad({ name: 'x', project: 'missing', filters: {} })).statusCode).toBe(404)
+    expect((await bad({ name: 'x', team: 'missing', filters: {} })).statusCode).toBe(404)
     expect((await bad({ name: 'Dup', filters: {} })).statusCode).toBe(201)
     expect((await bad({ name: 'Dup', filters: {} })).statusCode).toBe(409)
   })
@@ -86,7 +91,7 @@ describe('saved view routes', () => {
     const mate = await addMate()
     const theirs = await seedSavedView(db, {
       userId: mate.id,
-      orgId: await orgId(),
+      workspaceId: await workspaceId(),
       name: 'Theirs',
     })
     expect((await get(views)).json().views.map((v: { name: string }) => v.name)).not.toContain(
@@ -96,11 +101,11 @@ describe('saved view routes', () => {
       (await send('PATCH', `${views}/${theirs.id}`, { payload: { name: 'Mine now' } })).statusCode,
     ).toBe(404)
     expect((await send('DELETE', `${views}/${theirs.id}`)).statusCode).toBe(404)
-    // A view of the rival's, addressed through the rival's own organization, is not reachable here.
+    // A view of the rival's, addressed through the rival's own workspace, is not reachable here.
     const ours = (await send('POST', views, { payload: { name: 'Ours', filters: {} } })).json()
     expect(
       (
-        await send('PATCH', `/api/orgs/${rival.orgSlug}/views/${ours.id}`, {
+        await send('PATCH', `/api/workspaces/${rival.workspaceSlug}/views/${ours.id}`, {
           cookie: rivalCookie,
           payload: { name: 'x' },
         })
@@ -119,27 +124,29 @@ describe('saved view routes', () => {
     ).toBe(400)
   })
 
-  it('pins and unpins a project, and the sidebar reflects it', async () => {
-    const pin = `/api/orgs/${acme.orgSlug}/pinned-projects/web`
+  it('pins and unpins a team, and the sidebar reflects it', async () => {
+    const pin = `/api/workspaces/${acme.workspaceSlug}/pinned-teams/web`
     expect((await send('PUT', pin)).json()).toEqual({ pinned: true, changed: true })
     expect((await send('PUT', pin)).json()).toEqual({ pinned: true, changed: false })
-    const bar = (await get(`/api/orgs/${acme.orgSlug}/sidebar`)).json()
-    expect(bar.projects).toEqual([{ slug: 'web', name: 'web', pinned: true, triage: 0 }])
+    const bar = (await get(`/api/workspaces/${acme.workspaceSlug}/sidebar`)).json()
+    expect(bar.teams).toEqual([{ slug: 'web', name: 'web', pinned: true, triage: 0 }])
     expect(bar).toMatchObject({ inboxUnread: 0, reviews: 0 })
     expect(bar.views.length).toBeGreaterThan(0)
     expect((await send('DELETE', pin)).json()).toEqual({ pinned: false, changed: true })
-    expect((await get(`/api/orgs/${acme.orgSlug}/sidebar`)).json().projects[0].pinned).toBe(false)
-    expect((await send('PUT', `/api/orgs/${acme.orgSlug}/pinned-projects/nope`)).statusCode).toBe(
-      404,
-    )
+    expect(
+      (await get(`/api/workspaces/${acme.workspaceSlug}/sidebar`)).json().teams[0].pinned,
+    ).toBe(false)
+    expect(
+      (await send('PUT', `/api/workspaces/${acme.workspaceSlug}/pinned-teams/nope`)).statusCode,
+    ).toBe(404)
   })
 })
 
-async function orgId() {
-  return (await getOrganizationBySlug(db, acme.orgSlug)).id
+async function workspaceId() {
+  return (await getWorkspaceBySlug(db, acme.workspaceSlug)).id
 }
 async function addMate() {
   const u = await seedUser(db)
-  await addTestMember(db, { orgId: await orgId(), userId: u.id })
+  await addTestMember(db, { workspaceId: await workspaceId(), userId: u.id })
   return u
 }

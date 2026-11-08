@@ -18,7 +18,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 
-import { useLoadingAnnouncement } from '#features/projects/loading.ts'
+import { useLoadingAnnouncement } from '#features/teams/loading.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { focusRow, leavesKeyToFocus, nextAfterRemoval } from '#lib/list-keys.ts'
@@ -268,7 +268,7 @@ export function InboxPage() {
                             <Text truncate>{title}</Text>
                             <span className={styles.meta}>
                               {detail ? <span>{detail}</span> : null}
-                              {item.project ? <span>{item.project.name}</span> : null}
+                              {item.team ? <span>{item.team.name}</span> : null}
                             </span>
                           </ListRow>
                         </li>
@@ -309,7 +309,7 @@ function OpenButton({ item, onOpen }: { item: Inbox.Item; onOpen: (item: Inbox.I
         link.onClick(event)
       }}
     >
-      {item.build ? 'Open build' : 'Open project'}
+      {item.build ? 'Open build' : 'Open team'}
     </Button>
   )
 }
@@ -333,10 +333,10 @@ function ItemDetail({ item }: { item: Inbox.Item }) {
       <Text>{title}</Text>
       {detail ? <Text tone="secondary">{detail}</Text> : null}
       <dl>
-        {item.project ? (
+        {item.team ? (
           <>
-            <dt>Project</dt>
-            <dd>{item.project.name}</dd>
+            <dt>Team</dt>
+            <dd>{item.team.name}</dd>
           </>
         ) : null}
         {item.build ? (

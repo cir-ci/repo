@@ -9,16 +9,16 @@ import { issuePreview, issuesQuery, useCreateIssue } from './issues-api.ts'
 
 /**
  * "Create issue" in the review header, for the selected snapshot (the whole build when none is
- * selected). Shown only when the project has a tracker (Linear or Jira) mapped, so a project
+ * selected). Shown only when the team has a tracker (Linear or Jira) mapped, so a team
  * without one sees nothing.
  */
 export function IssueAction({ data, snapshotName }: IssueAction.Props) {
-  const { project, build } = data
+  const { team, build } = data
   const { data: issues } = useQuery({
-    ...issuesQuery(project.orgSlug, project.slug, build.number),
+    ...issuesQuery(team.workspaceSlug, team.slug, build.number),
     enabled: !isActive(build.status) && build.status !== 'expired',
   })
-  const create = useCreateIssue(project.orgSlug, project.slug, build.number)
+  const create = useCreateIssue(team.workspaceSlug, team.slug, build.number)
   const [open, setOpen] = useState(false)
   if (!issues || issues.trackers.length === 0) return null
   const preview = issuePreview(data, snapshotName, window.location.origin)

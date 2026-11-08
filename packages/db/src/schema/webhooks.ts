@@ -2,10 +2,10 @@ import { sql } from 'drizzle-orm'
 import { boolean, check, index, pgTable, text, uuid } from 'drizzle-orm/pg-core'
 
 import { createdAt, id } from './_columns.ts'
-import { projects } from './projects.ts'
+import { teams } from './teams.ts'
 
 /**
- * A project's outgoing webhooks (PLAN §7.4). Deliveries run on the job queue, signed with the
+ * A team's outgoing webhooks (PLAN §7.4). Deliveries run on the job queue, signed with the
  * webhook's secret. The secret is kept as is: signing needs it, and it only protects a receiver
  * from forged calls.
  */
@@ -13,9 +13,9 @@ export const webhooks = pgTable(
   'webhooks',
   {
     id: id(),
-    projectId: uuid('project_id')
+    teamId: uuid('team_id')
       .notNull()
-      .references(() => projects.id, { onDelete: 'cascade' }),
+      .references(() => teams.id, { onDelete: 'cascade' }),
     url: text('url').notNull(),
     secret: text('secret').notNull(),
     /** Event names from WEBHOOK_EVENTS (checked in code: a new event needs no migration). */
@@ -27,7 +27,7 @@ export const webhooks = pgTable(
     createdAt: createdAt(),
   },
   (t) => [
-    index('webhooks_project_idx').on(t.projectId),
+    index('webhooks_team_idx').on(t.teamId),
     check('webhooks_events_check', sql`cardinality(${t.events}) > 0`),
   ],
 )

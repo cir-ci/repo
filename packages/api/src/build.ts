@@ -1,5 +1,5 @@
 import type { Figma } from './figma.ts'
-import type { Project } from './project.ts'
+import type { Team } from './team.ts'
 
 export type BuildStatus = 'pending' | 'uploading' | 'processing' | 'complete' | 'error' | 'expired'
 export type BuildConclusion = 'no_changes' | 'changes_detected'
@@ -82,7 +82,7 @@ export namespace Build {
   }
 
   export interface Detail {
-    project: Project.Info
+    team: Team.Info
     build: ListItem & {
       baseBranch: string | null
       ancestryStatus: 'ok' | 'missing' | 'truncated'

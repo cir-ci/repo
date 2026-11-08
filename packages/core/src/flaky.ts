@@ -1,19 +1,19 @@
 /**
  * Flaky screenshots and the merge gate. A flaky screenshot is one that keeps changing on the
  * default branch (it is a dashboard grouping: the build still lists it as changed). Whether a
- * pull request whose only changes are flaky ones holds the merge is a setting: the organization
- * sets it, and a project may override it.
+ * pull request whose only changes are flaky ones holds the merge is a setting: the workspace
+ * sets it, and a team may override it.
  */
 
 /**
- * The effective "flaky screenshots block merges" value. The project's own value wins; `null`
- * means "inherit from the organization".
+ * The effective "flaky screenshots block merges" value. The team's own value wins; `null`
+ * means "inherit from the workspace".
  */
-export function resolveFlakyBlocksMerge(org: boolean, project: boolean | null): boolean {
-  return project ?? org
+export function resolveFlakyBlocksMerge(workspace: boolean, team: boolean | null): boolean {
+  return team ?? workspace
 }
 
-/** What an organization says when it has never been asked: flaky changes block like any other. */
+/** What a workspace says when it has never been asked: flaky changes block like any other. */
 export const DEFAULT_FLAKY_BLOCKS_MERGE = true
 
 /**
@@ -33,7 +33,7 @@ export namespace onlyFlakyChanges {
     counts: { added: number; removed: number; changed: number; failed: number }
     /** Names of the screenshots whose status is `changed`. */
     changed: readonly string[]
-    /** Names the project currently flags as flaky. */
+    /** Names the team currently flags as flaky. */
     flaky: readonly string[]
   }
 }

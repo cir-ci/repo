@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { listen } from '#fakes/http.ts'
 import { startWebhookReceiver, type WebhookReceiver } from '#fakes/webhook-receiver.ts'
-import { createProject, type CreatedProject, type Session } from '#src/admin.ts'
+import { createTeam, type CreatedTeam, type Session } from '#src/admin.ts'
 import { Repo } from '#src/git-repo.ts'
 import type { Stack } from '#src/stack.ts'
 import { uploadOrThrow } from '#src/upload.ts'
@@ -13,7 +13,7 @@ import { useBrowser, useStack } from '#src/vitest.ts'
 
 /**
  * Outgoing webhooks on the real stack (private addresses allowed, as the harness sets): added in
- * the project settings, signed deliveries to a receiver on the host, event filters, retries with
+ * the team settings, signed deliveries to a receiver on the host, event filters, retries with
  * backoff and giving up, redirects not followed, removal. The receiver is a fake at the edge;
  * the worker, the job queue and the signing are CirCI's own.
  */
@@ -45,8 +45,8 @@ interface HookView {
   events: string[]
   enabled: boolean
 }
-const hooksOf = async (session: Session, org: string, project: string) =>
-  (await session.get<{ webhooks: HookView[] }>(`/api/projects/${org}/${project}/settings`)).webhooks
+const hooksOf = async (session: Session, workspace: string, team: string) =>
+  (await session.get<{ webhooks: HookView[] }>(`/api/teams/${workspace}/${team}/settings`)).webhooks
 
 /** The worker's log lines about one webhook's failed deliveries (they survive the job's own rows changing). */
 const failures = async (stack: Stack, webhookId: string) =>
@@ -71,7 +71,7 @@ describe('webhooks (private addresses allowed)', () => {
   let completedOnly: WebhookReceiver
   let reviewedOnly: WebhookReceiver
   let repo: Repo
-  let project: CreatedProject
+  let team: CreatedTeam
   let completedHookId = ''
   let reviewedHookId = ''
   let prBuildNumber = 0
@@ -90,12 +90,11 @@ describe('webhooks (private addresses allowed)', () => {
     await repo.destroy()
   })
 
-  const settingsUrl = () =>
-    `${ctx.stack.url}/${ctx.setup.organization.slug}/${project.slug}/settings`
-  const hooks = () => hooksOf(ctx.setup.session, ctx.setup.organization.slug, project.slug)
+  const settingsUrl = () => `${ctx.stack.url}/${ctx.setup.workspace.slug}/${team.slug}/settings`
+  const hooks = () => hooksOf(ctx.setup.session, ctx.setup.workspace.slug, team.slug)
   const apiAdd = (url: string, events: string[]) =>
     ctx.setup.session.post<{ webhook: HookView; secret: string }>(
-      `/api/projects/${ctx.setup.organization.slug}/${project.slug}/webhooks`,
+      `/api/teams/${ctx.setup.workspace.slug}/${team.slug}/webhooks`,
       { url, events },
     )
 
@@ -113,7 +112,7 @@ describe('webhooks (private addresses allowed)', () => {
 
   it('adds a webhook in the settings page: the signing secret is shown once, never again', async () => {
     const { setup } = ctx
-    project = await createProject(setup.session, setup.organization.slug, 'Hooked')
+    team = await createTeam(setup.session, setup.workspace.slug, 'Hooked')
     const page = await browser.as(setup.session)
 
     const secret = await addThroughUi(page, `${completedOnly.url}/hooks/completed`, [
@@ -149,10 +148,10 @@ describe('webhooks (private addresses allowed)', () => {
 
   it('delivers build.completed with the documented payload, signed with the shown secret', async () => {
     const { stack, setup } = ctx
-    const org = setup.organization.slug
+    const workspace = setup.workspace.slug
     await repo.writeShots({ home: {}, login: { dot: { x: 40, y: 40 } } })
     const sha = await repo.commit('first')
-    const up = await uploadOrThrow({ stack, token: project.token, repo, wait: true })
+    const up = await uploadOrThrow({ stack, token: team.token, repo, wait: true })
 
     const d = await completedOnly.waitFor((x) => x.event === 'build.completed')
     expect(d.path).toBe('/hooks/completed')
@@ -163,9 +162,9 @@ describe('webhooks (private addresses allowed)', () => {
     expect(body).toMatchObject({
       id: d.deliveryId,
       event: 'build.completed',
-      url: `${stack.url}/${org}/${project.slug}/builds/${up.build.number}`,
-      organization: { slug: org },
-      project: { slug: project.slug, name: 'Hooked' },
+      url: `${stack.url}/${workspace}/${team.slug}/builds/${up.build.number}`,
+      workspace: { slug: workspace },
+      team: { slug: team.slug, name: 'Hooked' },
       build: {
         id: up.build.id,
         number: up.build.number,
@@ -178,7 +177,7 @@ describe('webhooks (private addresses allowed)', () => {
     })
     expect(d.deliveryId).toMatch(/^[0-9a-f-]{36}$/)
     expect(Number.isNaN(Date.parse(String(body['createdAt'])))).toBe(false)
-    expect((body['project'] as { id: string }).id).toMatch(/^[0-9a-f-]{36}$/)
+    expect((body['team'] as { id: string }).id).toMatch(/^[0-9a-f-]{36}$/)
     expect(body).not.toHaveProperty('review')
     // A forged or tampered request would not verify.
     const header = String(d.headers['circi-signature'])
@@ -195,13 +194,13 @@ describe('webhooks (private addresses allowed)', () => {
 
   it('a pull request build and its review: each webhook gets only its events', async () => {
     const { stack, setup } = ctx
-    const org = setup.organization.slug
+    const workspace = setup.workspace.slug
     await repo.checkout('feature', { create: true })
     await repo.writeShots({ login: { dot: { x: 300, y: 200 } } })
     await repo.commit('move the button')
     const up = await uploadOrThrow({
       stack,
-      token: project.token,
+      token: team.token,
       repo,
       wait: true,
       pr: { number: 12 },
@@ -223,7 +222,7 @@ describe('webhooks (private addresses allowed)', () => {
 
     // Approve in the browser.
     const page = await browser.as(setup.session)
-    await page.goto(`${stack.url}/${org}/${project.slug}/builds/${prBuildNumber}`)
+    await page.goto(`${stack.url}/${workspace}/${team.slug}/builds/${prBuildNumber}`)
     await page.getByRole('button', { name: 'Approve all' }).click()
 
     const reviewed = await reviewedOnly.waitFor((x) => x.event === 'build.reviewed')
@@ -237,13 +236,13 @@ describe('webhooks (private addresses allowed)', () => {
 
     // Deciding the same thing again changes nothing, so nothing is sent. Changing the decision is.
     await setup.session.post(
-      `/api/projects/${org}/${project.slug}/builds/${prBuildNumber}/review`,
+      `/api/teams/${workspace}/${team.slug}/builds/${prBuildNumber}/review`,
       {
         state: 'approved',
       },
     )
     await setup.session.post(
-      `/api/projects/${org}/${project.slug}/builds/${prBuildNumber}/review`,
+      `/api/teams/${workspace}/${team.slug}/builds/${prBuildNumber}/review`,
       {
         state: 'rejected',
       },
@@ -271,15 +270,15 @@ describe('webhooks (private addresses allowed)', () => {
       )[0]?.[0],
     ).toBe('0')
     const detail = await setup.session.get<Build.Detail>(
-      `/api/projects/${org}/${project.slug}/builds/${prBuildNumber}`,
+      `/api/teams/${workspace}/${team.slug}/builds/${prBuildNumber}`,
     )
     expect(detail.build.reviewStatus).toBe('rejected')
   })
 
   it('a webhook needs at least one event: empty or missing is refused, in the API and in the form', async () => {
     const { setup } = ctx
-    const org = setup.organization.slug
-    const url = `/api/projects/${org}/${project.slug}/webhooks`
+    const workspace = setup.workspace.slug
+    const url = `/api/teams/${workspace}/${team.slug}/webhooks`
     for (const body of [
       { url: 'https://example.com/none' },
       { url: 'https://example.com/none', events: [] },
@@ -320,7 +319,7 @@ describe('webhooks (private addresses allowed)', () => {
     await repo.checkout('main')
     await repo.writeShots({ home: { dot: { x: 9, y: 9 } } })
     await repo.commit('main again')
-    await uploadOrThrow({ stack, token: project.token, repo, wait: true })
+    await uploadOrThrow({ stack, token: team.token, repo, wait: true })
 
     // Two failures, then the third attempt is accepted: one delivery id, the same signed body.
     await expect.poll(() => flaky.deliveries.length, { timeout: 60_000 }).toBe(3)
@@ -355,7 +354,7 @@ describe('webhooks (private addresses allowed)', () => {
 
       await repo.writeShots({ home: { dot: { x: 20, y: 20 } } })
       await repo.commit('another main')
-      await uploadOrThrow({ stack, token: project.token, repo, wait: true })
+      await uploadOrThrow({ stack, token: team.token, repo, wait: true })
 
       // The first attempts run on their real schedule (2 s, 4 s, 8 s) ...
       await expect.poll(() => down.deliveries.length, { timeout: 90_000 }).toBeGreaterThanOrEqual(4)
@@ -387,7 +386,7 @@ describe('webhooks (private addresses allowed)', () => {
       const abandoned = down.deliveries[0]?.deliveryId
       await repo.writeShots({ home: { dot: { x: 21, y: 21 } } })
       await repo.commit('after giving up')
-      await uploadOrThrow({ stack, token: project.token, repo, wait: true })
+      await uploadOrThrow({ stack, token: team.token, repo, wait: true })
       await expect.poll(() => down.deliveries.length, { timeout: 30_000 }).toBeGreaterThan(8)
       expect(down.deliveries.filter((d) => d.deliveryId === abandoned)).toHaveLength(8)
       expect(down.deliveries.at(-1)?.respondedWith).toBe(200)
@@ -416,7 +415,7 @@ describe('webhooks (private addresses allowed)', () => {
 
     await repo.writeShots({ home: { dot: { x: 30, y: 30 } } })
     await repo.commit('main for failures')
-    await uploadOrThrow({ stack, token: project.token, repo, wait: true })
+    await uploadOrThrow({ stack, token: team.token, repo, wait: true })
 
     await expect
       .poll(async () => (await failures(stack, refused.webhook.id))[0], { timeout: 60_000 })
@@ -453,7 +452,7 @@ describe('webhooks (private addresses allowed)', () => {
 
     await repo.writeShots({ home: { dot: { x: 50, y: 50 } } })
     await repo.commit('main for redirect')
-    await uploadOrThrow({ stack, token: project.token, repo, wait: true })
+    await uploadOrThrow({ stack, token: team.token, repo, wait: true })
 
     await expect
       .poll(async () => (await hookJobs(stack, created.webhook.id))[0], { timeout: 30_000 })
@@ -496,7 +495,7 @@ describe('webhooks (private addresses allowed)', () => {
     expect(before).toBe(jobsBefore)
     await repo.writeShots({ home: { dot: { x: 70, y: 70 } } })
     await repo.commit('main after removal')
-    const up = await uploadOrThrow({ stack, token: project.token, repo, wait: true })
+    const up = await uploadOrThrow({ stack, token: team.token, repo, wait: true })
     expect(up.status?.build.status).toBe('complete')
     // Nothing was queued for it and nothing arrived.
     expect((await hookJobs(stack, completedHookId)).length).toBe(jobsBefore)
@@ -504,7 +503,7 @@ describe('webhooks (private addresses allowed)', () => {
     // Removing it again, or one that never existed, is a 404.
     const again = await setup.session.request(
       'DELETE',
-      `/api/projects/${setup.organization.slug}/${project.slug}/webhooks/${completedHookId}`,
+      `/api/teams/${setup.workspace.slug}/${team.slug}/webhooks/${completedHookId}`,
     )
     expect(again.status).toBe(404)
   })

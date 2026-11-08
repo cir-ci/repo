@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  createProject,
+  createTeam,
   createUserViaCli,
   extractCode,
   extractLinks,
   freshIp,
-  fullOrganization,
+  fullWorkspace,
   mailIds,
   newAccount,
   requestCode,
@@ -21,13 +21,13 @@ import {
 import { useBrowser, useStack } from '#src/vitest.ts'
 
 /**
- * Emailed sign-in codes, organization email domains and per-organization sign-in methods on the
+ * Emailed sign-in codes, workspace email domains and per-workspace sign-in methods on the
  * real stack (mail is Mailpit; nothing is faked except the DNS proof of a domain, see below).
  */
 describe('email-code sign-in', () => {
   const ctx = useStack({ profile: 'default', setup: true })
   const browser = useBrowser()
-  const org = () => ctx.setup.organization.slug
+  const workspace = () => ctx.setup.workspace.slug
   const SIGN_IN_MAIL = 'sign-in code'
 
   /** A member of Acme with a password (created by the operator) who also signs in by code. */
@@ -37,7 +37,7 @@ describe('email-code sign-in', () => {
       'member',
       'add',
       '--org',
-      org(),
+      workspace(),
       '--email',
       account.email,
       '--role',
@@ -246,22 +246,22 @@ describe('email-code sign-in', () => {
     expect(await warnings()).toHaveLength(1)
   })
 
-  it('Acme can turn the password off: password sessions stop seeing its projects, code sessions keep them', async () => {
+  it('Acme can turn the password off: password sessions stop seeing its teams, code sessions keep them', async () => {
     const { stack, setup } = ctx
-    const project = await createProject(setup.session, org(), 'Methods')
+    const team = await createTeam(setup.session, workspace(), 'Methods')
     const sam = await member('sam')
     const viaPassword = await signIn(stack, sam.email, sam.password)
     const viaCode = await signInWithCode(stack.url, stack.mail, sam.email)
     const slugs = async (s: typeof viaCode) =>
-      (await s.get<{ projects: { project: { slug: string } }[] }>('/api/projects')).projects.map(
-        (p) => p.project.slug,
+      (await s.get<{ teams: { team: { slug: string } }[] }>('/api/teams')).teams.map(
+        (p) => p.team.slug,
       )
-    expect(await slugs(viaPassword)).toContain(project.slug)
+    expect(await slugs(viaPassword)).toContain(team.slug)
 
     // The owner unticks "Password" on the Members page.
     const adminByCode = await signInWithCode(stack.url, stack.mail, setup.account.email)
     const page = await browser.as(adminByCode)
-    await page.goto(`${stack.url}/organizations/${org()}/members`)
+    await page.goto(`${stack.url}/workspaces/${workspace()}/members`)
     const box = page.getByRole('checkbox', { name: 'Password' })
     await box.waitFor()
     await box.click()
@@ -270,58 +270,58 @@ describe('email-code sign-in', () => {
         async () =>
           (
             await adminByCode.get<{ settings: { passwordLoginEnabled: boolean } }>(
-              `/api/organizations/${org()}/auth`,
+              `/api/workspaces/${workspace()}/auth`,
             )
           ).settings.passwordLoginEnabled,
       )
       .toBe(false)
 
-    // Sam's password session no longer sees the organization; the emailed-code one does.
-    expect(await slugs(viaPassword)).not.toContain(project.slug)
+    // Sam's password session no longer sees the workspace; the emailed-code one does.
+    expect(await slugs(viaPassword)).not.toContain(team.slug)
     expect(
-      (await viaPassword.request('GET', `/api/projects/${org()}/${project.slug}`)).status,
+      (await viaPassword.request('GET', `/api/teams/${workspace()}/${team.slug}`)).status,
     ).toBe(404)
     const caps = await viaPassword.get<{
-      refusingOrganizations: { name: string; accepts: string[] }[]
+      refusingWorkspaces: { name: string; accepts: string[] }[]
     }>('/api/capabilities')
-    expect(caps.refusingOrganizations).toEqual([
-      { name: setup.organization.name, accepts: ['email'] },
-    ])
-    expect(await slugs(viaCode)).toContain(project.slug)
+    expect(caps.refusingWorkspaces).toEqual([{ name: setup.workspace.name, accepts: ['email'] }])
+    expect(await slugs(viaCode)).toContain(team.slug)
     // better-auth's own endpoints obey the rule too.
     expect(
       (
         await viaPassword.request(
           'GET',
-          `/api/auth/organization/get-full-organization?organizationSlug=${org()}`,
+          `/api/auth/organization/get-full-organization?organizationSlug=${workspace()}`,
         )
       ).status,
     ).toBe(404)
 
     // Turning both off would lock everyone out: refused.
-    const both = await adminByCode.request('PATCH', `/api/organizations/${org()}/auth`, {
+    const both = await adminByCode.request('PATCH', `/api/workspaces/${workspace()}/auth`, {
       emailLoginEnabled: false,
     })
     expect(both.status).toBeGreaterThanOrEqual(400)
     // Back on.
-    await adminByCode.patch(`/api/organizations/${org()}/auth`, { passwordLoginEnabled: true })
-    expect(await slugs(viaPassword)).toContain(project.slug)
+    await adminByCode.patch(`/api/workspaces/${workspace()}/auth`, { passwordLoginEnabled: true })
+    expect(await slugs(viaPassword)).toContain(team.slug)
   })
 })
 
-describe('organization email domains', () => {
+describe('workspace email domains', () => {
   const ctx = useStack({ profile: 'default', setup: true })
   const browser = useBrowser()
-  const org = () => ctx.setup.organization.slug
-  // Its own domain: a verified domain belongs to one organization of the whole instance.
+  const workspace = () => ctx.setup.workspace.slug
+  // Its own domain: a verified domain belongs to one workspace of the whole instance.
   const domain = `corp-${Math.random().toString(36).slice(2, 8)}.e2e.test`
   const domainRows = async () =>
-    (await ctx.stack.sql(`select count(*) from org_domains where domain = '${domain}'`))[0]?.[0]
+    (
+      await ctx.stack.sql(`select count(*) from workspace_domains where domain = '${domain}'`)
+    )[0]?.[0]
 
   it('validates, adds, cannot prove a domain without DNS, joins people once verified, and stops when removed', async () => {
     const { stack, setup } = ctx
     const page = await browser.as(setup.session)
-    await page.goto(`${stack.url}/organizations/${org()}/members`)
+    await page.goto(`${stack.url}/workspaces/${workspace()}/members`)
     await page.getByRole('heading', { name: 'Email domains' }).waitFor()
     const field = page.getByLabel('Domain', { exact: true })
 
@@ -353,18 +353,18 @@ describe('organization email domains', () => {
     // The DNS proof can't be produced inside the stack: this is the one fake here. The database
     // row is set the way a successful lookup does (the lookup itself is covered by the server's
     // route test with an injected resolver).
-    await stack.sql(`update org_domains set verified_at = now() where domain = '${domain}'`)
+    await stack.sql(`update workspace_domains set verified_at = now() where domain = '${domain}'`)
     await page.reload()
     await page.getByText('Verified', { exact: true }).waitFor()
 
     const joiner = newAccountAt(domain, 'joiner')
     const session = await signInWithCode(stack.url, stack.mail, joiner)
-    const members = (await fullOrganization(setup.session, org())).members
+    const members = (await fullWorkspace(setup.session, workspace())).members
     expect(members.find((m) => m.user.email === joiner)?.role).toBe('member')
-    expect((await session.get<{ projects: unknown[] }>('/api/projects')).projects).toBeDefined()
+    expect((await session.get<{ teams: unknown[] }>('/api/teams')).teams).toBeDefined()
     // No invitation was needed, and none exists for them.
     expect(
-      (await fullOrganization(setup.session, org())).invitations.some((i) => i.email === joiner),
+      (await fullWorkspace(setup.session, workspace())).invitations.some((i) => i.email === joiner),
     ).toBe(false)
 
     // A password-less colleague on another domain still gets nothing.
@@ -388,7 +388,9 @@ describe('organization email domains', () => {
     expect((await tryCode(stack.url, late, '123456')).status).toBeGreaterThanOrEqual(400)
     expect(await stack.mail.to(late)).toHaveLength(0)
     expect(
-      (await fullOrganization(setup.session, org())).members.some((m) => m.user.email === joiner),
+      (await fullWorkspace(setup.session, workspace())).members.some(
+        (m) => m.user.email === joiner,
+      ),
     ).toBe(true)
   })
 })

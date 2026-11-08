@@ -26,7 +26,7 @@ import {
   REVIEW_STATUSES,
   type ReviewStatus,
 } from './enums.ts'
-import { projects } from './projects.ts'
+import { teams } from './teams.ts'
 
 /** Builds, their shards, and git history registered ahead of a build. */
 
@@ -34,9 +34,9 @@ export const builds = pgTable(
   'builds',
   {
     id: id(),
-    projectId: uuid('project_id')
+    teamId: uuid('team_id')
       .notNull()
-      .references(() => projects.id, { onDelete: 'cascade' }),
+      .references(() => teams.id, { onDelete: 'cascade' }),
     number: integer('number').notNull(),
     name: text('name').notNull().default('default'),
     commitSha: text('commit_sha').notNull(),
@@ -72,13 +72,13 @@ export const builds = pgTable(
     createdAt: createdAt(),
   },
   (t) => [
-    uniqueIndex('builds_project_number_key').on(t.projectId, t.number),
+    uniqueIndex('builds_team_number_key').on(t.teamId, t.number),
     // Shards that start at the same moment all join one build (PLAN §7.1 step 4).
     uniqueIndex('builds_parallel_key')
-      .on(t.projectId, t.name, t.commitSha, t.parallelNonce)
+      .on(t.teamId, t.name, t.commitSha, t.parallelNonce)
       .where(sql`${t.parallelNonce} is not null`),
-    index('builds_project_branch_idx').on(t.projectId, t.branch, t.createdAt),
-    index('builds_project_name_commit_idx').on(t.projectId, t.name, t.commitSha),
+    index('builds_team_branch_idx').on(t.teamId, t.branch, t.createdAt),
+    index('builds_team_name_commit_idx').on(t.teamId, t.name, t.commitSha),
     check('builds_status_check', inList('status', BUILD_STATUSES)),
     check('builds_review_status_check', inList('review_status', REVIEW_STATUSES)),
     check('builds_ancestry_status_check', inList('ancestry_status', ANCESTRY_STATUSES)),
@@ -108,13 +108,13 @@ export const buildShards = pgTable(
 export const commitAncestry = pgTable(
   'commit_ancestry',
   {
-    projectId: uuid('project_id')
+    teamId: uuid('team_id')
       .notNull()
-      .references(() => projects.id, { onDelete: 'cascade' }),
+      .references(() => teams.id, { onDelete: 'cascade' }),
     commitSha: text('commit_sha').notNull(),
     mergeBaseSha: text('merge_base_sha'),
     ancestorShas: text('ancestor_shas').array().notNull(),
     createdAt: createdAt(),
   },
-  (t) => [primaryKey({ columns: [t.projectId, t.commitSha] })],
+  (t) => [primaryKey({ columns: [t.teamId, t.commitSha] })],
 )

@@ -3,19 +3,19 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
-import { parseFilters, type BuildFilters } from '#features/projects/builds-filters.ts'
-import { BuildsBrowser } from '#features/projects/BuildsBrowser.tsx'
+import { parseFilters, type BuildFilters } from '#features/teams/builds-filters.ts'
+import { BuildsBrowser } from '#features/teams/BuildsBrowser.tsx'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 
 import { findView, viewsQuery } from './api.ts'
 
-import styles from '#features/projects/ProjectPage.module.css'
+import styles from '#features/teams/TeamPage.module.css'
 
-/** A saved view: its project's builds list with the view's filters applied (editable for this visit only). */
+/** A saved view: its team's builds list with the view's filters applied (editable for this visit only). */
 export function ViewPage() {
-  const { org, view: id } = useParams({ from: '/organizations/$org/views/$view' })
-  const { data, error, refetch } = useQuery(viewsQuery(org))
+  const { workspace, view: id } = useParams({ from: '/workspaces/$workspace/views/$view' })
+  const { data, error, refetch } = useQuery(viewsQuery(workspace))
   const view = findView(data?.views, id)
   useDocumentTitle(view?.name ?? 'View')
 
@@ -35,17 +35,17 @@ export function ViewPage() {
           <EmptyState title="This view doesn’t exist">
             It may have been deleted, or it belongs to someone else.
           </EmptyState>
-        ) : view.project ? (
+        ) : view.team ? (
           // Keyed by view, so opening another view starts from its own filters.
           <ViewBuilds
             key={view.id}
-            org={org}
-            project={view.project.slug}
+            workspace={workspace}
+            team={view.team.slug}
             filters={parseFilters({ ...view.filters })}
           />
         ) : (
           <EmptyState title={view.name}>
-            This view spans the whole organization, which the builds list can’t show yet.
+            This view spans the whole workspace, which the builds list can’t show yet.
           </EmptyState>
         )}
       </div>
@@ -54,19 +54,19 @@ export function ViewPage() {
 }
 
 function ViewBuilds({
-  org,
-  project,
+  workspace,
+  team,
   filters: initial,
 }: {
-  org: string
-  project: string
+  workspace: string
+  team: string
   filters: BuildFilters
 }) {
   const [filters, setFilters] = useState(initial)
   return (
     <BuildsBrowser
-      org={org}
-      project={project}
+      workspace={workspace}
+      team={team}
       filters={filters}
       onFiltersChange={setFilters}
       canSave={false}

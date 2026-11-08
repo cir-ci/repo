@@ -2,16 +2,16 @@ import { randomBytes } from 'node:crypto'
 
 import { assertValidSlug, slugify, ValidationError } from '@circi/core'
 import {
-  createProject,
+  createTeam,
   type Database,
-  findOrganizationOwnerId,
-  getOrganizationBySlug,
-  getProjectBySlugs,
-  getProjectContext,
+  findWorkspaceOwnerId,
+  getWorkspaceBySlug,
+  getTeamBySlugs,
+  getTeamContext,
   NotFoundError,
-  type Project,
+  type Team,
   schema,
-  setProjectCiKey,
+  setTeamCiKey,
 } from '@circi/db'
 import { eq } from 'drizzle-orm'
 
@@ -19,8 +19,8 @@ import type { Auth } from '#src/auth.ts'
 import { CI_KEY_CONFIG, CI_KEY_PREFIX, MIN_PASSWORD_LENGTH } from '#src/constants.ts'
 
 /**
- * Operations that span better-auth and CirCI's own data: accounts, organizations, members, and
- * each project's CI key. Used by the admin CLI and the CI API. Writes to better-auth's tables
+ * Operations that span better-auth and CirCI's own data: accounts, workspaces, members, and
+ * each team's CI key. Used by the admin CLI and the CI API. Writes to better-auth's tables
  * always go through its API, so its invariants (hashing, ids, hooks) hold.
  */
 
@@ -76,116 +76,116 @@ function assertPasswordLength(password: string): void {
   }
 }
 
-/** Creates an organization with `ownerEmail` as its owner. */
-export async function createOrganization(
+/** Creates a workspace with `ownerEmail` as its owner. */
+export async function createWorkspace(
   auth: Auth,
   db: Database,
   input: { name: string; slug?: string; ownerEmail: string },
 ) {
   const name = input.name.trim()
-  if (!name) throw new ValidationError('Organization name is required')
+  if (!name) throw new ValidationError('Workspace name is required')
   const slug = input.slug ?? slugify(name)
-  assertValidSlug(slug, 'organization slug')
+  assertValidSlug(slug, 'workspace slug')
   const userId = await getUserIdByEmail(db, input.ownerEmail)
-  const org = await auth.api.createOrganization({ body: { name, slug, userId } })
-  if (!org) throw new Error('better-auth returned no organization')
-  return org
+  const workspace = await auth.api.createOrganization({ body: { name, slug, userId } })
+  if (!workspace) throw new Error('better-auth returned no workspace')
+  return workspace
 }
 
 export async function addMember(
   auth: Auth,
   db: Database,
-  input: { orgSlug: string; email: string; role: 'owner' | 'admin' | 'member' },
+  input: { workspaceSlug: string; email: string; role: 'owner' | 'admin' | 'member' },
 ) {
-  const org = await getOrganizationBySlug(db, input.orgSlug)
+  const workspace = await getWorkspaceBySlug(db, input.workspaceSlug)
   const userId = await getUserIdByEmail(db, input.email)
-  return auth.api.addMember({ body: { userId, organizationId: org.id, role: input.role } })
+  return auth.api.addMember({ body: { userId, organizationId: workspace.id, role: input.role } })
 }
 
 export interface IssuedToken {
-  project: Project
+  team: Team
   /** The CI token, shown exactly once. better-auth stores only its hash. */
   token: string
 }
 
-/** Creates a project and its first CI token. */
-export async function createProjectWithToken(
+/** Creates a team and its first CI token. */
+export async function createTeamWithToken(
   auth: Auth,
   db: Database,
-  input: { orgSlug: string; name: string; slug?: string; defaultBranch?: string },
+  input: { workspaceSlug: string; name: string; slug?: string; defaultBranch?: string },
 ): Promise<IssuedToken> {
-  const project = await createProject(db, input)
-  return issueToken(auth, db, input.orgSlug, project)
+  const team = await createTeam(db, input)
+  return issueToken(auth, db, input.workspaceSlug, team)
 }
 
-/** Replaces a project's CI token. The old one stops working immediately. */
-export async function rotateProjectToken(
+/** Replaces a team's CI token. The old one stops working immediately. */
+export async function rotateTeamToken(
   auth: Auth,
   db: Database,
-  input: { orgSlug: string; projectSlug: string },
+  input: { workspaceSlug: string; teamSlug: string },
 ): Promise<IssuedToken> {
-  const project = await getProjectBySlugs(db, input)
-  return issueToken(auth, db, input.orgSlug, project)
+  const team = await getTeamBySlugs(db, input)
+  return issueToken(auth, db, input.workspaceSlug, team)
 }
 
 async function issueToken(
   auth: Auth,
   db: Database,
-  orgSlug: string,
-  project: Project,
+  workspaceSlug: string,
+  team: Team,
 ): Promise<IssuedToken> {
-  const previousKeyId = project.ciKeyId
-  // Organization-owned keys are issued on behalf of a user who may manage them: an owner.
-  const ownerId = await findOrganizationOwnerId(db, project.orgId)
+  const previousKeyId = team.ciKeyId
+  // Workspace-owned keys are issued on behalf of a user who may manage them: an owner.
+  const ownerId = await findWorkspaceOwnerId(db, team.workspaceId)
   if (!ownerId) {
-    throw new NotFoundError(`Organization "${orgSlug}" has no owner to issue CI tokens for`)
+    throw new NotFoundError(`Workspace "${workspaceSlug}" has no owner to issue CI tokens for`)
   }
   const key = await auth.api.createApiKey({
     body: {
       userId: ownerId,
       configId: CI_KEY_CONFIG,
-      organizationId: project.orgId,
-      name: `${orgSlug}/${project.slug}`.slice(0, 32),
+      organizationId: team.workspaceId,
+      name: `${workspaceSlug}/${team.slug}`.slice(0, 32),
       prefix: CI_KEY_PREFIX,
-      metadata: { projectId: project.id },
+      metadata: { teamId: team.id },
     },
   })
-  await setProjectCiKey(db, project.id, key.id)
-  // The project now points at the new key; remove the old one so it can't be used either.
+  await setTeamCiKey(db, team.id, key.id)
+  // The team now points at the new key; remove the old one so it can't be used either.
   if (previousKeyId) await db.delete(schema.apikey).where(eq(schema.apikey.id, previousKeyId))
-  return { project: { ...project, ciKeyId: key.id }, token: key.key }
+  return { team: { ...team, ciKeyId: key.id }, token: key.key }
 }
 
 /**
- * Resolves a CI token to its project. Valid only if better-auth accepts the key, it's the
- * project's *current* key, and the key belongs to the project's organization.
+ * Resolves a CI token to its team. Valid only if better-auth accepts the key, it's the
+ * team's *current* key, and the key belongs to the team's workspace.
  */
-export async function verifyProjectToken(
+export async function verifyTeamToken(
   auth: Auth,
   db: Database,
   token: string,
-): Promise<getProjectContext.Context | undefined> {
+): Promise<getTeamContext.Context | undefined> {
   if (!token.startsWith(CI_KEY_PREFIX)) return undefined
   const result = await auth.api.verifyApiKey({ body: { key: token, configId: CI_KEY_CONFIG } })
   if (!result.valid || !result.key) return undefined
-  const projectId = readProjectId(result.key.metadata)
-  if (!projectId) return undefined
-  const ctx = await getProjectContext(db, projectId)
+  const teamId = readTeamId(result.key.metadata)
+  if (!teamId) return undefined
+  const ctx = await getTeamContext(db, teamId)
   if (
     !ctx ||
-    ctx.project.ciKeyId !== result.key.id ||
-    ctx.project.orgId !== result.key.referenceId
+    ctx.team.ciKeyId !== result.key.id ||
+    ctx.team.workspaceId !== result.key.referenceId
   ) {
     return undefined
   }
   return ctx
 }
 
-function readProjectId(metadata: unknown): string | undefined {
+function readTeamId(metadata: unknown): string | undefined {
   const value: unknown = typeof metadata === 'string' ? safeJson(metadata) : metadata
   if (typeof value !== 'object' || value === null) return undefined
-  const projectId: unknown = Reflect.get(value, 'projectId')
-  return typeof projectId === 'string' ? projectId : undefined
+  const teamId: unknown = Reflect.get(value, 'teamId')
+  return typeof teamId === 'string' ? teamId : undefined
 }
 
 function safeJson(text: string): unknown {

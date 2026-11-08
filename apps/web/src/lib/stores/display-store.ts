@@ -6,7 +6,7 @@ import {
   DISPLAY_KEY,
   type DisplayOptions,
   parseDisplay,
-} from '#features/projects/display-options.ts'
+} from '#features/teams/display-options.ts'
 
 /**
  * The builds list's display options (grouping, order, shown properties), kept in localStorage.

@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { FakeGithub } from '#fakes/fake-github.ts'
 import { startWebhookReceiver, type WebhookReceiver } from '#fakes/webhook-receiver.ts'
-import { createProject, type CreatedProject, inviteMember, newAccount } from '#src/admin.ts'
+import { createTeam, type CreatedTeam, inviteMember, newAccount } from '#src/admin.ts'
 import { Repo } from '#src/git-repo.ts'
 import { extractLinks } from '#src/mail.ts'
 import { uploadOrThrow } from '#src/upload.ts'
@@ -18,7 +18,7 @@ describe('host fakes and mail, seen from the real stack', () => {
   let gh: FakeGithub
   let receiver: WebhookReceiver
   let repo: Repo
-  let project: CreatedProject
+  let team: CreatedTeam
   let prBuild = 0
   beforeAll(async () => {
     receiver = await startWebhookReceiver()
@@ -36,17 +36,17 @@ describe('host fakes and mail, seen from the real stack', () => {
 
   it('delivers a signed webhook to a receiver on the host', async () => {
     const { stack, setup } = ctx
-    const org = setup.organization.slug
-    project = await createProject(setup.session, org, 'Hooked')
+    const workspace = setup.workspace.slug
+    team = await createTeam(setup.session, workspace, 'Hooked')
     const created = await setup.session.post<{ secret: string }>(
-      `/api/projects/${org}/${project.slug}/webhooks`,
+      `/api/teams/${workspace}/${team.slug}/webhooks`,
       { url: `${receiver.url}/hook`, events: ['build.completed'] },
     )
     receiver.setSecret(created.secret)
 
     await repo.writeShots({ home: {} })
     await repo.commit('first')
-    const up = await uploadOrThrow({ stack, token: project.token, repo, wait: true })
+    const up = await uploadOrThrow({ stack, token: team.token, repo, wait: true })
 
     const delivery = await receiver.waitFor((d) => d.event === 'build.completed')
     expect(delivery.signatureValid).toBe(true)
@@ -58,8 +58,8 @@ describe('host fakes and mail, seen from the real stack', () => {
 
   it('reports a pull request build to GitHub: installation token, check run with Approve/Reject, comment', async () => {
     const { stack, setup } = ctx
-    const org = setup.organization.slug
-    await setup.session.put(`/api/projects/${org}/${project.slug}/github`, {
+    const workspace = setup.workspace.slug
+    await setup.session.put(`/api/teams/${workspace}/${team.slug}/github`, {
       installationId: '77',
       repoRef: 'acme/hooked',
     })
@@ -69,7 +69,7 @@ describe('host fakes and mail, seen from the real stack', () => {
     const sha = await repo.commit('change')
     const up = await uploadOrThrow({
       stack,
-      token: project.token,
+      token: team.token,
       repo,
       wait: true,
       pr: { number: 3 },
@@ -83,7 +83,7 @@ describe('host fakes and mail, seen from the real stack', () => {
     const check = gh.checkRuns.find((c) => c.headSha === sha)
     expect(check).toMatchObject({ repo: 'acme/hooked', conclusion: 'action_required' })
     expect(check?.actions.map((a) => a.identifier)).toEqual(['approve', 'reject'])
-    expect(check?.detailsUrl).toContain(`/${org}/${project.slug}/builds/${up.build.number}`)
+    expect(check?.detailsUrl).toContain(`/${workspace}/${team.slug}/builds/${up.build.number}`)
     // The app JWT was signed with this run's private key and accepted.
     expect(gh.find('POST /app/installations/77/access_tokens')[0]?.auth).toBe('app')
     // One check run and one comment for the build, however many notices were queued for it.
@@ -93,11 +93,11 @@ describe('host fakes and mail, seen from the real stack', () => {
 
   it('a GitHub user not linked to a CirCI member cannot approve from the check run', async () => {
     const { stack, setup } = ctx
-    const org = setup.organization.slug
+    const workspace = setup.workspace.slug
     const check = gh.checkRuns.at(-1)
     expect(check).toBeDefined()
     const detail = () =>
-      setup.session.get<Build.Detail>(`/api/projects/${org}/${project.slug}/builds/${prBuild}`)
+      setup.session.get<Build.Detail>(`/api/teams/${workspace}/${team.slug}/builds/${prBuild}`)
     // A correctly signed webhook, but the sender's GitHub login is linked to no member: ignored.
     const res = await gh.sendWebhook(stack.url, 'check_run', {
       action: 'requested_action',
@@ -114,7 +114,7 @@ describe('host fakes and mail, seen from the real stack', () => {
   it('sends invitation mail through the stack to Mailpit', async () => {
     const { stack, setup } = ctx
     const guest = newAccount('guest')
-    await inviteMember(setup.session, setup.organization.slug, guest.email, 'member')
+    await inviteMember(setup.session, setup.workspace.slug, guest.email, 'member')
     const mail = await stack.mail.waitFor({ to: guest.email })
     expect(mail.Subject.length).toBeGreaterThan(0)
     expect(extractLinks(mail).some((l) => l.startsWith(stack.url))).toBe(true)

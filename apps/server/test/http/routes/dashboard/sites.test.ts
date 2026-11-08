@@ -66,9 +66,9 @@ beforeAll(async () => {
   acme = await seedTenant(auth, t.db)
   rival = await seedTenant(auth, t.db)
   await t.db
-    .update(schema.projects)
+    .update(schema.teams)
     .set({ staticHostingEnabled: true })
-    .where(eq(schema.projects.id, acme.project.id))
+    .where(eq(schema.teams.id, acme.team.id))
   ownerCookie = await signIn(app, acme.owner.email, acme.owner.password)
   rivalCookie = await signIn(app, rival.owner.email, rival.owner.password)
 })
@@ -144,7 +144,7 @@ async function openSite(label: string, cookie = ownerCookie, path = '/') {
 }
 
 describe('uploading a site', () => {
-  it('needs hosting switched on for the project, and refuses non-archives', async () => {
+  it('needs hosting switched on for the team, and refuses non-archives', async () => {
     const off = await upload(STORYBOOK, { name: 'storybook' }, rival.token)
     expect(off.statusCode).toBe(403)
     const res = await app.inject({
@@ -364,7 +364,7 @@ describe('opening a site', () => {
     ownerCookie = await signIn(app, acme.owner.email, acme.owner.password)
   })
 
-  it('ends access when the person leaves the organization', async () => {
+  it('ends access when the person leaves the workspace', async () => {
     const { siteCookie } = await openSite(label)
     expect((await siteGet(label, '/', { cookie: siteCookie })).statusCode).toBe(200)
     const [seat] = await t.db
@@ -374,7 +374,11 @@ describe('opening a site', () => {
     await t.db.delete(schema.member).where(eq(schema.member.userId, acme.owner.id))
     expect((await siteGet(label, '/', { cookie: siteCookie })).statusCode).toBe(302)
     if (seat)
-      await addTestMember(t.db, { orgId: seat.organizationId, userId: seat.userId, role: 'owner' }) // the later tests need the seat back
+      await addTestMember(t.db, {
+        workspaceId: seat.workspaceId,
+        userId: seat.userId,
+        role: 'owner',
+      }) // the later tests need the seat back
   })
 })
 
@@ -516,7 +520,7 @@ describe('circi site upload', () => {
   })
 })
 
-describe('the project’s Sites page API', () => {
+describe('the team’s Sites page API', () => {
   it('lists sites with their branch and commit addresses, only for members', async () => {
     await upload(STORYBOOK, {
       name: 'listed',
@@ -525,7 +529,7 @@ describe('the project’s Sites page API', () => {
       branch_tip: '7'.repeat(40),
     })
     const res = await app.inject({
-      url: `/api/projects/${acme.orgSlug}/web/sites`,
+      url: `/api/teams/${acme.workspaceSlug}/web/sites`,
       headers: { cookie: ownerCookie },
     })
     expect(res.statusCode).toBe(200)
@@ -541,7 +545,7 @@ describe('the project’s Sites page API', () => {
     expect(site.versions[0].address).toMatch(/^https:\/\/777777777777-/)
 
     const outsider = await app.inject({
-      url: `/api/projects/${acme.orgSlug}/web/sites`,
+      url: `/api/teams/${acme.workspaceSlug}/web/sites`,
       headers: { cookie: rivalCookie },
     })
     expect(outsider.statusCode).toBe(404)
@@ -551,13 +555,13 @@ describe('the project’s Sites page API', () => {
 describe('the flaky screenshots API', () => {
   it('answers for members with a report, and with "not found" for outsiders', async () => {
     const own = await app.inject({
-      url: `/api/projects/${acme.orgSlug}/web/flaky`,
+      url: `/api/teams/${acme.workspaceSlug}/web/flaky`,
       headers: { cookie: ownerCookie },
     })
     expect(own.statusCode).toBe(200)
     expect(own.json()).toMatchObject({ flaky: expect.any(Array), builds: expect.any(Number) })
     const outsider = await app.inject({
-      url: `/api/projects/${acme.orgSlug}/web/flaky`,
+      url: `/api/teams/${acme.workspaceSlug}/web/flaky`,
       headers: { cookie: rivalCookie },
     })
     expect(outsider.statusCode).toBe(404)

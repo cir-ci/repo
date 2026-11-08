@@ -45,25 +45,25 @@ export function unavailableNote(entry: Integration.CatalogEntry): string | null 
 export const integrationLabel = (item: Pick<Integration.Item, 'kindName' | 'name'>) =>
   `${item.kindName} (${item.name})`
 
-/** "3 projects", "1 project", "No projects yet". */
-export const projectCountLabel = (count: number) =>
-  count === 0 ? 'No projects yet' : `${count} ${count === 1 ? 'project' : 'projects'}`
+/** "3 teams", "1 team", "No teams yet". */
+export const teamCountLabel = (count: number) =>
+  count === 0 ? 'No teams yet' : `${count} ${count === 1 ? 'team' : 'teams'}`
 
 // ---- Server state -----------------------------------------------------------------------------
 
-const base = (org: string) => `/api/orgs/${seg(org)}/integrations`
+const base = (workspace: string) => `/api/workspaces/${seg(workspace)}/integrations`
 
-export const integrationsQuery = (org: string) =>
+export const integrationsQuery = (workspace: string) =>
   queryOptions({
-    queryKey: ['integrations', org],
-    queryFn: () => getJson<Integration.ListResponse>(base(org)),
+    queryKey: ['integrations', workspace],
+    queryFn: () => getJson<Integration.ListResponse>(base(workspace)),
   })
 
-export function useRemoveIntegration(org: string) {
+export function useRemoveIntegration(workspace: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (item: Pick<Integration.Item, 'id'>) =>
-      send<undefined>('DELETE', `${base(org)}/${seg(item.id)}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations', org] }),
+      send<undefined>('DELETE', `${base(workspace)}/${seg(item.id)}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations', workspace] }),
   })
 }

@@ -3,10 +3,10 @@ import { queryOptions } from '@tanstack/react-query'
 
 import { getJson, seg } from '#lib/http.ts'
 
-export const baselinesQuery = (org: string, project: string) =>
+export const baselinesQuery = (workspace: string, team: string) =>
   queryOptions({
-    queryKey: ['baselines', org, project] as const,
-    queryFn: () => getJson<Baseline.List>(`/api/projects/${seg(org)}/${seg(project)}/baselines`),
+    queryKey: ['baselines', workspace, team] as const,
+    queryFn: () => getJson<Baseline.List>(`/api/teams/${seg(workspace)}/${seg(team)}/baselines`),
   })
 
 /** The identity of a baseline: a name is unique within a build name. */

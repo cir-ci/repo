@@ -1,8 +1,8 @@
-import type { Build, getProjectContext } from '@circi/db'
+import type { Build, getTeamContext } from '@circi/db'
 
 /** The build summary every `/v1` response uses, with a link to its dashboard page. */
 export function describeBuild(
-  ctx: getProjectContext.Context,
+  ctx: getTeamContext.Context,
   build: Pick<Build, 'id' | 'number' | 'name' | 'status' | 'conclusion' | 'reviewStatus'>,
   publicOrigin: string,
 ) {
@@ -13,6 +13,6 @@ export function describeBuild(
     status: build.status,
     conclusion: build.conclusion,
     reviewStatus: build.reviewStatus,
-    url: `${publicOrigin}/${ctx.orgSlug}/${ctx.project.slug}/builds/${build.number}`,
+    url: `${publicOrigin}/${ctx.workspaceSlug}/${ctx.team.slug}/builds/${build.number}`,
   }
 }

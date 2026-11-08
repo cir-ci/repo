@@ -6,9 +6,9 @@ import { addMember, createUser } from '@circi/auth'
 import { openSecret } from '@circi/core'
 import {
   getBuildDetail,
-  getOrganizationBySlug,
+  getWorkspaceBySlug,
   listIntegrations,
-  listProjectLinks,
+  listTeamLinks,
   schema,
 } from '@circi/db'
 import { FsStorage } from '@circi/storage'
@@ -98,7 +98,7 @@ const lou = await createUser(auth, {
   name: 'Lou',
   password: 'lou-password-long-1',
 })
-await addMember(auth, t.db, { orgSlug: acme.orgSlug, email: lou.email, role: 'member' })
+await addMember(auth, t.db, { workspaceSlug: acme.workspaceSlug, email: lou.email, role: 'member' })
 const louCookie = await signIn(app, lou.email, 'lou-password-long-1')
 
 const call = (
@@ -118,26 +118,30 @@ const call = (
     ...(payload === undefined ? {} : { payload: JSON.stringify(payload) }),
   })
 
-const org = await getOrganizationBySlug(t.db, acme.orgSlug)
-const orgBase = `/api/orgs/${acme.orgSlug}/integrations`
+const workspace = await getWorkspaceBySlug(t.db, acme.workspaceSlug)
+const workspaceBase = `/api/workspaces/${acme.workspaceSlug}/integrations`
 const FILE = 'https://www.figma.com/design/FileKey12345/Checkout?node-id=1-2'
 const FRAME = (node: string) => `https://www.figma.com/design/FileKey12345/x?node-id=${node}`
 
-/** The one Figma integration of the organisation (set by the connect test). */
+/** The one Figma integration of the workspace (set by the connect test). */
 let id = ''
-const mappingUrl = () => `${orgBase}/${id}/projects/web`
-const storedLinks = () => listProjectLinks(t.db, acme.project.id, 'figma-frame')
+const mappingUrl = () => `${workspaceBase}/${id}/teams/web`
+const storedLinks = () => listTeamLinks(t.db, acme.team.id, 'figma-frame')
 
 describe('connecting Figma', () => {
   it('needs a session, membership, and an admin for writes', async () => {
     const body = { token: 'figd_michael' }
-    expect((await call('POST', `${orgBase}/figma/connect`, '', body)).statusCode).toBe(401)
-    expect((await call('POST', `${orgBase}/figma/connect`, louCookie, body)).statusCode).toBe(403)
-    expect((await call('POST', `${orgBase}/figma/connect`, rivalCookie, body)).statusCode).toBe(404)
+    expect((await call('POST', `${workspaceBase}/figma/connect`, '', body)).statusCode).toBe(401)
+    expect((await call('POST', `${workspaceBase}/figma/connect`, louCookie, body)).statusCode).toBe(
+      403,
+    )
+    expect(
+      (await call('POST', `${workspaceBase}/figma/connect`, rivalCookie, body)).statusCode,
+    ).toBe(404)
   })
 
   it('rejects a bad token and a Figma outage, storing nothing', async () => {
-    const connect = `${orgBase}/figma/connect`
+    const connect = `${workspaceBase}/figma/connect`
     const bad = await call('POST', connect, ownerCookie, { token: 'figd_wrongtoken' })
     expect(bad.statusCode).toBe(400)
     expect(bad.json().error).toMatch(/rejected/)
@@ -147,11 +151,11 @@ describe('connecting Figma', () => {
     )
     fake.down = false
     expect((await call('POST', connect, ownerCookie, { token: 'x' })).statusCode).toBe(400)
-    expect(await listIntegrations(t.db, org.id)).toEqual([])
+    expect(await listIntegrations(t.db, workspace.id)).toEqual([])
   })
 
   it('connects with a verified token, stored sealed, and lists Figma in the catalog as a generic integration', async () => {
-    const res = await call('POST', `${orgBase}/figma/connect`, ownerCookie, {
+    const res = await call('POST', `${workspaceBase}/figma/connect`, ownerCookie, {
       token: 'figd_michael',
     })
     expect(res.statusCode).toBe(201)
@@ -162,7 +166,7 @@ describe('connecting Figma', () => {
       .where(eq(schema.integrations.id, id))
     expect(row).toMatchObject({ kind: 'figma', displayName: 'michael', externalId: 'fu-1' })
     expect(openSecret(SECRET, row?.encryptedCredentials ?? '')).toBe('figd_michael')
-    const list = await call('GET', orgBase, louCookie)
+    const list = await call('GET', workspaceBase, louCookie)
     expect(list.json().catalog.find((e: { kind: string }) => e.kind === 'figma')).toMatchObject({
       built: true,
       connectable: true,
@@ -170,24 +174,24 @@ describe('connecting Figma', () => {
       links: { kind: 'figma-frame', autoLink: true, subject: 'pattern' },
     })
     expect(JSON.stringify(list.json())).not.toContain('figd_michael')
-    expect(list.json().integrations).toMatchObject([{ kind: 'figma', projectCount: 0 }])
+    expect(list.json().integrations).toMatchObject([{ kind: 'figma', teamCount: 0 }])
   })
 
   it('answers 409 for the same account again', async () => {
-    const again = await call('POST', `${orgBase}/figma/connect`, ownerCookie, {
+    const again = await call('POST', `${workspaceBase}/figma/connect`, ownerCookie, {
       token: 'figd_michael',
     })
     expect(again.statusCode).toBe(409)
   })
 })
 
-describe('a project’s Figma file', () => {
-  it('lists every project with no file first', async () => {
-    const page = (await call('GET', `${orgBase}/${id}/projects`, louCookie)).json()
+describe('a team’s Figma file', () => {
+  it('lists every team with no file first', async () => {
+    const page = (await call('GET', `${workspaceBase}/${id}/teams`, louCookie)).json()
     expect(page).toMatchObject({
       canManage: false,
       integration: { name: 'michael', needsAttention: false },
-      projects: [{ slug: 'web', mapping: null }],
+      teams: [{ slug: 'web', mapping: null }],
     })
   })
 
@@ -204,13 +208,13 @@ describe('a project’s Figma file', () => {
     expect(bad.statusCode).toBe(400)
     expect(bad.json().error).toBe('That is not a Figma file address')
     expect((await call('PUT', mappingUrl(), ownerCookie, { ref: FILE })).statusCode).toBe(204)
-    const page = (await call('GET', `${orgBase}/${id}/projects`, louCookie)).json()
-    expect(page.projects[0].mapping).toMatchObject({ ref: 'FileKey12345', name: 'Checkout v3' })
+    const page = (await call('GET', `${workspaceBase}/${id}/teams`, louCookie)).json()
+    expect(page.teams[0].mapping).toMatchObject({ ref: 'FileKey12345', name: 'Checkout v3' })
   })
 
-  it('404s for a project that isn’t in the organisation', async () => {
+  it('404s for a team that isn’t in the workspace', async () => {
     expect(
-      (await call('PUT', `${orgBase}/${id}/projects/nope`, ownerCookie, { ref: 'FileKey12345' }))
+      (await call('PUT', `${workspaceBase}/${id}/teams/nope`, ownerCookie, { ref: 'FileKey12345' }))
         .statusCode,
     ).toBe(404)
   })
@@ -220,7 +224,7 @@ describe('a project’s Figma file', () => {
     const res = await call('PUT', mappingUrl(), ownerCookie, { ref: FILE })
     fake.revoked.clear()
     expect(res.statusCode).toBe(409)
-    expect((await listIntegrations(t.db, org.id))[0]).toMatchObject({
+    expect((await listIntegrations(t.db, workspace.id))[0]).toMatchObject({
       needsAttention: true,
       needsAttentionReason: expect.stringMatching(/token was rejected/),
     })
@@ -232,7 +236,7 @@ describe('a project’s Figma file', () => {
 })
 
 describe('links', () => {
-  const links = `${orgBase}/__ID__/projects/web/links`
+  const links = `${workspaceBase}/__ID__/teams/web/links`
   const url = (path = '') => `${links.replace('__ID__', id)}${path}`
 
   it('creates a manual link from a pasted frame address, naming the frame', async () => {
@@ -270,7 +274,7 @@ describe('links', () => {
   })
 
   it('links automatically by name without overwriting the manual link', async () => {
-    const build = await seedBuild(t.db, acme.project.id)
+    const build = await seedBuild(t.db, acme.team.id)
     await seedScreenshot(t.db, { buildId: build.id, fileSha256: sha('a'), name: 'home' })
     await seedScreenshot(t.db, { buildId: build.id, fileSha256: sha('b'), name: 'cart' })
     await seedScreenshot(t.db, { buildId: build.id, fileSha256: sha('c'), name: 'pricing' })
@@ -294,7 +298,7 @@ describe('links', () => {
   })
 
   it('puts the frame on the build detail’s snapshots', async () => {
-    const detail = await call('GET', `/api/projects/${acme.orgSlug}/web/builds/1`, louCookie)
+    const detail = await call('GET', `/api/teams/${acme.workspaceSlug}/web/builds/1`, louCookie)
     expect(detail.statusCode).toBe(200)
     expect(
       detail
@@ -307,12 +311,10 @@ describe('links', () => {
       ['cart', '1:2'],
       ['home', '1:1'],
     ])
-    expect((await getBuildDetail(t.db, acme.project.id, 1))?.diffs[0]?.figma?.frameName).toBe(
-      'Cart',
-    )
+    expect((await getBuildDetail(t.db, acme.team.id, 1))?.diffs[0]?.figma?.frameName).toBe('Cart')
   })
 
-  it('links only what the signed-in organisation can see', async () => {
+  it('links only what the signed-in workspace can see', async () => {
     expect((await call('GET', url(), rivalCookie)).statusCode).toBe(404)
     expect((await call('GET', url(), '')).statusCode).toBe(401)
     expect((await call('POST', url('/auto'), rivalCookie)).statusCode).toBe(404)
@@ -340,8 +342,8 @@ describe('links', () => {
     expect((await storedLinks()).map((l) => [l.subject, l.payload.source])).toEqual([
       ['manual-one', 'manual'],
     ])
-    const page = (await call('GET', `${orgBase}/${id}/projects`, louCookie)).json()
-    expect(page.projects[0].mapping).toBeNull()
+    const page = (await call('GET', `${workspaceBase}/${id}/teams`, louCookie)).json()
+    expect(page.teams[0].mapping).toBeNull()
   })
 
   it('wants a mapped file to link automatically', async () => {
@@ -351,8 +353,8 @@ describe('links', () => {
   })
 
   it('removing the integration forgets its links', async () => {
-    expect((await call('DELETE', `${orgBase}/${id}`, ownerCookie)).statusCode).toBe(204)
+    expect((await call('DELETE', `${workspaceBase}/${id}`, ownerCookie)).statusCode).toBe(204)
     expect(await storedLinks()).toEqual([])
-    expect(await listIntegrations(t.db, org.id)).toEqual([])
+    expect(await listIntegrations(t.db, workspace.id)).toEqual([])
   })
 })

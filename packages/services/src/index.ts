@@ -23,16 +23,16 @@ export {
   MAX_COMMENT_LENGTH,
 } from './comments.ts'
 export {
-  addProjectLink,
-  autoLinkProject,
+  addTeamLink,
+  autoLinkTeam,
   type LinkedIntegration,
-  mapProject,
-  unmapProject,
+  mapTeam,
+  unmapTeam,
 } from './integration-links.ts'
 export { gateInputs } from './gate.ts'
 export { handleGitEvents } from './git-events.ts'
 export { gitKinds } from './git-kinds.ts'
-export { linkProjectToGithub, unlinkProjectFromGit } from './git-links.ts'
+export { linkTeamToGithub, unlinkTeamFromGit } from './git-links.ts'
 export { createIssueFromBuild, MAX_ISSUE_TITLE_LENGTH } from './issues.ts'
 export { migrateStorage } from './migrate-storage.ts'
 export {
@@ -66,11 +66,11 @@ export {
 export {
   createView,
   deleteView,
-  pinProject,
+  pinTeam,
   renameView,
   reorderViews,
   setViewPinned,
-  unpinProject,
+  unpinTeam,
   updateView,
   updateViewFilters,
 } from './views.ts'

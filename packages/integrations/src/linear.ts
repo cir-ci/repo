@@ -6,7 +6,7 @@ import type { IntegrationDefinition } from './definition.ts'
 import { identifyAccount, trackerAttention, trackerTargets } from './tracker-support.ts'
 
 /**
- * Linear: connected with an API key; a project's issues go to one team. The adapter
+ * Linear: connected with an API key; a CirCI team's issues go to one Linear team. The adapter
  * (`LinearTracker`) is in `@circi/providers`; this file wires it to the SDK. The stored
  * credentials are the JSON `{ kind: 'linear', apiKey }`.
  */
@@ -20,7 +20,7 @@ export const linear = defineIntegration({
   name: 'Linear',
   description: 'Create an issue from a rejected snapshot, with the diff attached.',
   logo: 'linear',
-  exclusive: { project: 'kind' },
+  exclusive: { team: 'kind' },
   credentials: z.object({
     apiKey: z.string().trim().min(1).max(500).meta({
       label: 'API key',
@@ -51,7 +51,7 @@ export const linear = defineIntegration({
 
   mapping: {
     description:
-      'Choose the team each project files issues in. A project without a team has no “Create issue”.',
+      'Choose the Linear team each CirCI team files issues in. A team without one has no “Create issue”.',
     target: { label: 'Team', kind: 'select' },
     listTargets: (credentials, ctx) => trackerTargets(trackerOf(credentials, ctx)),
   },

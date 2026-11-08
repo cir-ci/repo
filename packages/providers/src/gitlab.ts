@@ -15,7 +15,7 @@ import { PR_COMMENT_MARKER } from './render.ts'
  *   base URL belongs to the credentials because every call needs both together.
  * - `integrations.external_id` is `<host>#<user id>` of the token's principal (a project
  *   access token's bot user has its own id), from `GET /user`, so the same token principal on the
- *   same instance cannot be connected to two organisations.
+ *   same instance cannot be connected to two workspaces.
  * - Webhooks: GitLab sends the secret token it was configured with in `X-Gitlab-Token`; the
  *   instance has one, derived from the instance secret and shown to admins on the GitLab page.
  */

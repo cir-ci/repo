@@ -28,8 +28,8 @@ import styles from './Settings.module.css'
 
 /** Who takes turns on triage, week by week, from a start date. An empty list turns it off. */
 export function RotationSection(props: RotationSection.Props) {
-  const { rotation: save } = useRuleActions(props.org, props.project)
-  const { data: queue } = useQuery(triageQuery(props.org, props.project))
+  const { rotation: save } = useRuleActions(props.workspace, props.team)
+  const { data: queue } = useQuery(triageQuery(props.workspace, props.team))
   const announce = useAnnounce()
   const [ids, setIds] = useState(() => props.rotation.members.map((m) => m.id))
   const [date, setDate] = useState(startDateOf(props.rotation))
@@ -116,8 +116,8 @@ export function RotationSection(props: RotationSection.Props) {
 
 export namespace RotationSection {
   export interface Props {
-    org: string
-    project: string
+    workspace: string
+    team: string
     rotation: Triage.Rotation
     people: { id: string; name: string }[]
     canManage: boolean

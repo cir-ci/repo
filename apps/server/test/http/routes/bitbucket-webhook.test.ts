@@ -26,7 +26,7 @@ let n = 0
 beforeAll(async () => {
   t = await createTestDb()
   acme = await seedTenant(createTestAuth(t.db), t.db)
-  await seedGitLink(t.db, acme.project.id, {
+  await seedGitLink(t.db, acme.team.id, {
     kind: 'bitbucket',
     externalId: 'acme',
     repoRef: 'acme/Web',
@@ -69,7 +69,7 @@ afterAll(async () => {
 
 async function changedBuild(pr: number, extra: { branch?: string } = {}) {
   n += 1
-  const build = await seedBuild(t.db, acme.project.id, {
+  const build = await seedBuild(t.db, acme.team.id, {
     commitSha: `abcdef${1000 + n}`,
     branch: extra.branch ?? 'feature',
     prNumber: pr,
@@ -134,16 +134,16 @@ describe('Bitbucket webhook', () => {
 
   it('gives builds of the commit or branch their pull request number, and the author', async () => {
     n += 1
-    const byCommit = await seedBuild(t.db, acme.project.id, {
+    const byCommit = await seedBuild(t.db, acme.team.id, {
       commitSha: `accdef${1000 + n}`,
       branch: 'other',
       author: { login: 'ci-pusher' },
     })
-    const byBranch = await seedBuild(t.db, acme.project.id, {
+    const byBranch = await seedBuild(t.db, acme.team.id, {
       commitSha: `adcdef${1000 + n}`,
       branch: 'feature/x',
     })
-    const unrelated = await seedBuild(t.db, acme.project.id, {
+    const unrelated = await seedBuild(t.db, acme.team.id, {
       commitSha: `aecdef${1000 + n}`,
       branch: 'main',
     })
@@ -208,7 +208,7 @@ describe('Bitbucket webhook', () => {
     expect(posted[0]?.[1]).toMatch(/Link your Bitbucket account/)
   })
 
-  it('ignores repositories no project is linked to', async () => {
+  it('ignores repositories no team is linked to', async () => {
     const build = await changedBuild(54)
     posted.length = 0
     await deliver('pullrequest:comment_created', {

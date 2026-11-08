@@ -1,24 +1,24 @@
-import type { Project } from '@circi/api'
-import { rotateProjectToken } from '@circi/auth'
+import type { Team } from '@circi/api'
+import { rotateTeamToken } from '@circi/auth'
 import { INSTALLATION_ID_RE, ValidationError, webhookUrlProblem } from '@circi/core'
 import {
   createWebhook,
   type Database,
   deleteWebhook,
-  findProjectForMember,
-  getOrgSettings,
-  getProjectById,
-  getProjectGitAttention,
-  getProjectLink,
-  getProjectMemberRole,
+  findTeamForMember,
+  getWorkspaceSettings,
+  getTeamById,
+  getTeamGitAttention,
+  getTeamLink,
+  getTeamMemberRole,
   isWebhookEvent,
   listWebhooks,
-  projectSettings,
-  updateProjectSettings,
+  teamSettings,
+  updateTeamSettings,
   WEBHOOK_EVENTS,
   type Webhook,
 } from '@circi/db'
-import { gitKinds, linkProjectToGithub, unlinkProjectFromGit } from '@circi/services'
+import { gitKinds, linkTeamToGithub, unlinkTeamFromGit } from '@circi/services'
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
@@ -27,8 +27,8 @@ import type { Deps } from '#http/lib/deps.ts'
 import { githubConfigured } from '#http/lib/github-app.ts'
 import { parse } from '#http/lib/validation.ts'
 
-const projectParams = z.object({ org: z.string(), project: z.string() })
-const hookParams = projectParams.extend({ id: z.string() })
+const teamParams = z.object({ workspace: z.string(), team: z.string() })
+const hookParams = teamParams.extend({ id: z.string() })
 
 const settingsBody = z
   .object({
@@ -37,7 +37,7 @@ const settingsBody = z
     diffThreshold: z.number(),
     autoApproveDefaultBranch: z.boolean(),
     blockMergeOnChanges: z.boolean(),
-    /** null: inherit the organization's setting. */
+    /** null: inherit the workspace's setting. */
     flakyBlocksMerge: z.boolean().nullable(),
     retentionDays: z.number(),
     /** null: no review target. */
@@ -60,10 +60,10 @@ const webhookBody = z.object({
 const NO_EVENTS = 'Choose at least one event for the webhook to receive'
 
 /** A webhook as the dashboard sees it: the signing secret is only shown when it's created. */
-async function githubLink(db: Database, projectId: string): Promise<Project.GithubLink | null> {
-  const link = await getProjectLink(db, projectId, gitKinds())
+async function githubLink(db: Database, teamId: string): Promise<Team.GithubLink | null> {
+  const link = await getTeamLink(db, teamId, gitKinds())
   if (!link) return null
-  const attention = await getProjectGitAttention(db, projectId, gitKinds())
+  const attention = await getTeamGitAttention(db, teamId, gitKinds())
   return {
     ...link,
     attention: attention
@@ -83,97 +83,97 @@ function present(hook: Webhook) {
 }
 
 /**
- * A project's settings and webhooks. Every member can look; owners and admins can change
- * things, and anyone outside the organization gets "not found" like everywhere else.
+ * A team's settings and webhooks. Every member can look; owners and admins can change
+ * things, and anyone outside the workspace gets "not found" like everywhere else.
  */
 export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   const allowPrivate = deps.webhookAllowPrivate === true
 
   async function load(req: FastifyRequest, reply: FastifyReply) {
-    const p = parse(projectParams, req.params)
+    const p = parse(teamParams, req.params)
     const user = currentUser(req)
-    const visible = await findProjectForMember(deps.db, {
-      orgSlug: p.org,
-      projectSlug: p.project,
+    const visible = await findTeamForMember(deps.db, {
+      workspaceSlug: p.workspace,
+      teamSlug: p.team,
       userId: user.id,
       method: user.method,
     })
-    const project = visible ? await getProjectById(deps.db, visible.id) : undefined
-    if (!visible || !project) {
-      await reply.code(404).send({ error: 'Project not found' })
+    const team = visible ? await getTeamById(deps.db, visible.id) : undefined
+    if (!visible || !team) {
+      await reply.code(404).send({ error: 'Team not found' })
       return undefined
     }
-    const role = await getProjectMemberRole(deps.db, project.id, user.id)
-    return { project, canManage: role === 'owner' || role === 'admin' }
+    const role = await getTeamMemberRole(deps.db, team.id, user.id)
+    return { team, canManage: role === 'owner' || role === 'admin' }
   }
 
   async function loadForManager(req: FastifyRequest, reply: FastifyReply) {
     const found = await load(req, reply)
     if (found && !found.canManage) {
-      await reply.code(403).send({ error: 'Only owners and admins can change project settings' })
+      await reply.code(403).send({ error: 'Only owners and admins can change team settings' })
       return undefined
     }
-    return found?.project
+    return found?.team
   }
 
-  app.get('/projects/:org/:project/settings', async (req, reply) => {
+  app.get('/teams/:workspace/:team/settings', async (req, reply) => {
     const found = await load(req, reply)
     if (!found) return reply
     return {
       canManage: found.canManage,
-      settings: projectSettings(found.project),
-      // What a project that inherits gets, so the form can say so.
-      org: await getOrgSettings(deps.db, found.project.orgId),
-      webhooks: (await listWebhooks(deps.db, found.project.id)).map(present),
+      settings: teamSettings(found.team),
+      // What a team that inherits gets, so the form can say so.
+      workspace: await getWorkspaceSettings(deps.db, found.team.workspaceId),
+      webhooks: (await listWebhooks(deps.db, found.team.id)).map(present),
       webhookEvents: WEBHOOK_EVENTS,
       sitesConfigured: deps.sites !== undefined,
       github: {
         configured: githubConfigured(deps),
         webhookUrl: `${deps.publicOrigin}/webhooks/github`,
-        link: await githubLink(deps.db, found.project.id),
+        link: await githubLink(deps.db, found.team.id),
       },
     }
   })
 
-  app.patch('/projects/:org/:project/settings', async (req, reply) => {
-    const project = await loadForManager(req, reply)
-    if (!project) return reply
+  app.patch('/teams/:workspace/:team/settings', async (req, reply) => {
+    const team = await loadForManager(req, reply)
+    if (!team) return reply
     const patch = parse(settingsBody, req.body)
-    return { settings: await updateProjectSettings(deps.db, project.id, patch) }
+    return { settings: await updateTeamSettings(deps.db, team.id, patch) }
   })
 
   /** A new CI token. The old one stops working at once; the new one is shown only here. */
-  app.post('/projects/:org/:project/token', async (req, reply) => {
-    const project = await loadForManager(req, reply)
-    if (!project) return reply
-    const p = parse(projectParams, req.params)
-    const issued = await rotateProjectToken(deps.auth, deps.db, {
-      orgSlug: p.org,
-      projectSlug: project.slug,
+  app.post('/teams/:workspace/:team/token', async (req, reply) => {
+    const team = await loadForManager(req, reply)
+    if (!team) return reply
+    const p = parse(teamParams, req.params)
+    const issued = await rotateTeamToken(deps.auth, deps.db, {
+      workspaceSlug: p.workspace,
+      teamSlug: team.slug,
     })
     return { token: issued.token }
   })
 
-  app.put('/projects/:org/:project/github', async (req, reply) => {
-    const project = await loadForManager(req, reply)
-    if (!project) return reply
+  app.put('/teams/:workspace/:team/github', async (req, reply) => {
+    const team = await loadForManager(req, reply)
+    if (!team) return reply
     if (!githubConfigured(deps))
       throw new ValidationError('This instance has no GitHub App configured')
     const link = parse(githubBody, req.body)
-    await linkProjectToGithub(deps.db, project.id, link)
+    await linkTeamToGithub(deps.db, team.id, link)
     return { link: { ...link, attention: null } }
   })
 
-  app.delete('/projects/:org/:project/github', async (req, reply) => {
-    const project = await loadForManager(req, reply)
-    if (!project) return reply
-    await unlinkProjectFromGit(deps.db, project.id)
+  app.delete('/teams/:workspace/:team/github', async (req, reply) => {
+    const team = await loadForManager(req, reply)
+    if (!team) return reply
+    await unlinkTeamFromGit(deps.db, team.id)
     return reply.code(204).send()
   })
 
-  app.post('/projects/:org/:project/webhooks', async (req, reply) => {
-    const project = await loadForManager(req, reply)
-    if (!project) return reply
+  app.post('/teams/:workspace/:team/webhooks', async (req, reply) => {
+    const team = await loadForManager(req, reply)
+    if (!team) return reply
     const body = parse(webhookBody, req.body)
     const url = body.url.trim()
     const problem = webhookUrlProblem(url, { allowPrivate })
@@ -183,20 +183,20 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
     const unknown = events.filter((e) => !isWebhookEvent(e))
     if (unknown.length > 0) throw new ValidationError(`Unknown event(s): ${unknown.join(', ')}`)
     const created = await createWebhook(deps.db, {
-      projectId: project.id,
+      teamId: team.id,
       url: new URL(url).toString(),
       events: events.filter(isWebhookEvent),
     })
     return reply.code(201).send({ webhook: present(created), secret: created.secret })
   })
 
-  app.delete('/projects/:org/:project/webhooks/:id', async (req, reply) => {
-    const project = await loadForManager(req, reply)
-    if (!project) return reply
+  app.delete('/teams/:workspace/:team/webhooks/:id', async (req, reply) => {
+    const team = await loadForManager(req, reply)
+    if (!team) return reply
     const { id } = parse(hookParams, req.params)
     // A malformed id can't match a row; keep the database from rejecting it as a bad uuid.
     if (!z.uuid().safeParse(id).success) return reply.code(404).send({ error: 'Webhook not found' })
-    await deleteWebhook(deps.db, project.id, id)
+    await deleteWebhook(deps.db, team.id, id)
     return reply.code(204).send()
   })
 }

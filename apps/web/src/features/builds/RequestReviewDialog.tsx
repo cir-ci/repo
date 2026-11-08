@@ -2,24 +2,24 @@ import { Avatar, Banner, Dialog, Text, TextField, useAnnounce } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { organizationQuery } from '#features/members/api.ts'
+import { workspaceQuery } from '#features/members/api.ts'
 
 import { useRequestReview } from './discussion-api.ts'
 import { matchMembers } from './mentions.ts'
 
 import styles from './Discussion.module.css'
 
-/** ⇧R: pick an organization member to ask for a review of this build. */
+/** ⇧R: pick a workspace member to ask for a review of this build. */
 export function RequestReviewDialog({
   open,
   onClose,
-  org,
-  project,
+  workspace,
+  team,
   number,
 }: RequestReviewDialog.Props) {
   const [filter, setFilter] = useState('')
-  const members = useQuery({ ...organizationQuery(org), enabled: open })
-  const request = useRequestReview(org, project, number)
+  const members = useQuery({ ...workspaceQuery(workspace), enabled: open })
+  const request = useRequestReview(workspace, team, number)
   const announce = useAnnounce()
 
   const people = (members.data?.members ?? []).map((m) => ({
@@ -106,8 +106,8 @@ export namespace RequestReviewDialog {
   export interface Props {
     open: boolean
     onClose: () => void
-    org: string
-    project: string
+    workspace: string
+    team: string
     number: number
   }
 }

@@ -5,11 +5,11 @@ import {
   type Database,
   dismissReviewRequest as dismissRequest,
   getBuild,
-  getProjectById,
+  getTeamById,
   lockOverdueUnnotifiedRequests,
   hasClosedReviewRequest,
   markBuildNotificationsRead,
-  listProjectBuildsByIds,
+  listTeamBuildsByIds,
   NotFoundError,
   openReviewRequest,
   queueGitNotify,
@@ -86,8 +86,8 @@ export namespace reviewBuild {
 const REQUEST_KINDS = ['review_requested', 'review_re_requested', 'review_overdue'] as const
 
 /**
- * Asks `reviewerId` to review a build. The request is due when the project's review target runs
- * out (never, for a project without one). Asking again while the request is open returns it
+ * Asks `reviewerId` to review a build. The request is due when the team's review target runs
+ * out (never, for a team without one). Asking again while the request is open returns it
  * unchanged; asking after it closed opens a new one.
  */
 export async function requestReview(
@@ -96,13 +96,13 @@ export async function requestReview(
 ): Promise<requestReview.Result> {
   return db.transaction(async (tx) => {
     const build = await getBuild(tx, input.buildId)
-    const project = build ? await getProjectById(tx, build.projectId) : undefined
-    if (!build || !project) throw new NotFoundError('Build not found')
+    const team = build ? await getTeamById(tx, build.teamId) : undefined
+    if (!build || !team) throw new NotFoundError('Build not found')
     const result = await openReviewRequest(tx, {
       buildId: build.id,
       reviewerId: input.reviewerId,
       requestedById: input.requestedById,
-      dueAt: reviewDueAt(input.now ?? new Date(), project.reviewTargetHours),
+      dueAt: reviewDueAt(input.now ?? new Date(), team.reviewTargetHours),
     })
     if (result.created) await notifyReviewRequested(tx, result.request, input.requestedById)
     return result
@@ -120,12 +120,12 @@ export namespace requestReview {
 }
 
 /**
- * Drops a review request of a build in `projectId`. Only its reviewer or whoever asked may;
+ * Drops a review request of a build in `teamId`. Only its reviewer or whoever asked may;
  * returns the request, or undefined when there was nothing of theirs to drop.
  */
 export async function dismissReviewRequest(
   db: Database,
-  input: { projectId: string; requestId: string; userId: string },
+  input: { teamId: string; requestId: string; userId: string },
 ): Promise<ReviewRequest | undefined> {
   return db.transaction(async (tx) => {
     const dismissed = await dismissRequest(tx, input)
@@ -179,9 +179,9 @@ export async function notifyReviewRequested(
 export const MAX_BULK_REVIEW = 50
 
 /**
- * Approves or rejects several builds of one project at once, in a single transaction: every
+ * Approves or rejects several builds of one team at once, in a single transaction: every
  * build goes through `reviewBuild` (so each one that changed queues its own webhook and git
- * notices, and each one's review requests close), and if any id is not a build of the project, or
+ * notices, and each one's review requests close), and if any id is not a build of the team, or
  * any build cannot be reviewed, nothing changes at all. `reason` is stored with a rejection
  * and goes to each build's author.
  */
@@ -195,7 +195,7 @@ export async function reviewBuilds(
     throw new ValidationError(`buildIds: at most ${MAX_BULK_REVIEW} builds at once`)
   }
   return db.transaction(async (tx) => {
-    const own = await listProjectBuildsByIds(tx, input.projectId, ids)
+    const own = await listTeamBuildsByIds(tx, input.teamId, ids)
     if (own.length !== ids.length) throw new NotFoundError('Build not found')
     const reviewed: Build[] = []
     for (const id of ids) {
@@ -215,7 +215,7 @@ export async function reviewBuilds(
 }
 export namespace reviewBuilds {
   export interface Input {
-    projectId: string
+    teamId: string
     buildIds: string[]
     userId: string
     state: reviewBuild.Input['state']
@@ -231,12 +231,12 @@ export namespace reviewBuilds {
  * Puts an open request of yours off. `next_push` lasts until a newer build on the branch
  * (finalizing it supersedes the request, which ends the snooze with it); the other choices end at
  * a time (`date` is the end for `choice: 'date'`). Overdue reminders pause while it lasts.
- * Throws NotFoundError when the request is not an open one of yours in the project.
+ * Throws NotFoundError when the request is not an open one of yours in the team.
  */
 export async function snoozeReviewRequest(
   db: Database,
   input: {
-    projectId: string
+    teamId: string
     requestId: string
     userId: string
     kind: SnoozeChoice
@@ -246,7 +246,7 @@ export async function snoozeReviewRequest(
 ): Promise<ReviewRequest> {
   const until = snoozeUntil(input.kind, input.now ?? new Date(), input.date)
   const row = await setReviewRequestSnooze(db, {
-    projectId: input.projectId,
+    teamId: input.teamId,
     requestId: input.requestId,
     userId: input.userId,
     kind: input.kind,
@@ -259,7 +259,7 @@ export async function snoozeReviewRequest(
 /** Brings a snoozed request back to For you now. */
 export async function unsnoozeReviewRequest(
   db: Database,
-  input: { projectId: string; requestId: string; userId: string },
+  input: { teamId: string; requestId: string; userId: string },
 ): Promise<ReviewRequest> {
   const row = await setReviewRequestSnooze(db, { ...input, kind: null, until: null })
   if (!row) throw new NotFoundError('Review request not found')

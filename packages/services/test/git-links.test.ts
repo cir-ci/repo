@@ -1,17 +1,17 @@
 import {
   getIntegration,
-  getProjectGitAttention,
-  getProjectLink,
-  listProjectIntegrations,
+  getTeamGitAttention,
+  getTeamLink,
+  listTeamIntegrations,
   markInstallationNeedsAttention,
   NotFoundError,
   schema,
 } from '@circi/db'
 import { integrationRegistry } from '@circi/integrations'
-import { createTestDb, seedGitLink, seedProject } from '@circi/testing'
+import { createTestDb, seedGitLink, seedTeam } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { gitKinds, linkProjectToGithub, mapProject, unlinkProjectFromGit } from '#src/index.ts'
+import { gitKinds, linkTeamToGithub, mapTeam, unlinkTeamFromGit } from '#src/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -27,78 +27,80 @@ describe('git hosts and the registry', () => {
   })
 })
 
-describe('linkProjectToGithub', () => {
+describe('linkTeamToGithub', () => {
   it('connects the installation if it is new, reuses it, and unlinks', async () => {
-    const { project, org, owner } = await seedProject(t.db)
-    const second = await seedProject(t.db, { org: { org, owner }, slug: 'backend' })
-    expect(await getProjectLink(t.db, project.id, gitKinds())).toBeUndefined()
+    const { team, workspace, owner } = await seedTeam(t.db)
+    const second = await seedTeam(t.db, { workspace: { workspace, owner }, slug: 'backend' })
+    expect(await getTeamLink(t.db, team.id, gitKinds())).toBeUndefined()
 
-    await linkProjectToGithub(t.db, project.id, { installationId: '42', repoRef: 'Acme/Web' })
-    await linkProjectToGithub(t.db, second.project.id, {
+    await linkTeamToGithub(t.db, team.id, { installationId: '42', repoRef: 'Acme/Web' })
+    await linkTeamToGithub(t.db, second.team.id, {
       installationId: '42',
       repoRef: 'acme/api',
     })
-    expect(await getProjectLink(t.db, project.id, gitKinds())).toEqual({
+    expect(await getTeamLink(t.db, team.id, gitKinds())).toEqual({
       installationId: '42',
       repoRef: 'Acme/Web',
     })
     const connections = (await t.db.select().from(schema.integrations)).filter(
-      (i) => i.orgId === org.id,
+      (i) => i.workspaceId === workspace.id,
     )
     expect(connections).toHaveLength(1)
     expect(connections[0]).toMatchObject({ kind: 'github', displayName: 'Installation 42' })
 
-    await unlinkProjectFromGit(t.db, project.id)
-    expect(await getProjectLink(t.db, project.id, gitKinds())).toBeUndefined()
-    expect(await getProjectLink(t.db, second.project.id, gitKinds())).toBeDefined()
+    await unlinkTeamFromGit(t.db, team.id)
+    expect(await getTeamLink(t.db, team.id, gitKinds())).toBeUndefined()
+    expect(await getTeamLink(t.db, second.team.id, gitKinds())).toBeDefined()
   })
 
   it('clears a needs-attention mark, as saying "I reinstalled the App" does', async () => {
-    const { project } = await seedProject(t.db)
-    await linkProjectToGithub(t.db, project.id, { installationId: '555', repoRef: 'a/one' })
+    const { team } = await seedTeam(t.db)
+    await linkTeamToGithub(t.db, team.id, { installationId: '555', repoRef: 'a/one' })
     await markInstallationNeedsAttention(t.db, 'github', '555', 'gone')
-    expect(await getProjectGitAttention(t.db, project.id, gitKinds())).toBeDefined()
-    await linkProjectToGithub(t.db, project.id, { installationId: '555', repoRef: 'a/one' })
-    expect(await getProjectGitAttention(t.db, project.id, gitKinds())).toBeUndefined()
+    expect(await getTeamGitAttention(t.db, team.id, gitKinds())).toBeDefined()
+    await linkTeamToGithub(t.db, team.id, { installationId: '555', repoRef: 'a/one' })
+    expect(await getTeamGitAttention(t.db, team.id, gitKinds())).toBeUndefined()
   })
 
-  it('refuses a project that does not exist', async () => {
+  it('refuses a team that does not exist', async () => {
     await expect(
-      linkProjectToGithub(t.db, '00000000-0000-0000-0000-000000000000', {
+      linkTeamToGithub(t.db, '00000000-0000-0000-0000-000000000000', {
         installationId: '1',
         repoRef: 'a/b',
       }),
     ).rejects.toBeInstanceOf(NotFoundError)
   })
 
-  it('moves a project that reported to another git host: one git host per project', async () => {
-    const { project } = await seedProject(t.db)
-    await seedGitLink(t.db, project.id, { kind: 'gitlab', externalId: 'h#1', repoRef: 'g/h' })
-    await linkProjectToGithub(t.db, project.id, { installationId: '9', repoRef: 'a/b' })
-    expect(
-      (await listProjectIntegrations(t.db, project.id, gitKinds())).map((i) => i.kind),
-    ).toEqual(['github'])
+  it('moves a team that reported to another git host: one git host per team', async () => {
+    const { team } = await seedTeam(t.db)
+    await seedGitLink(t.db, team.id, { kind: 'gitlab', externalId: 'h#1', repoRef: 'g/h' })
+    await linkTeamToGithub(t.db, team.id, { installationId: '9', repoRef: 'a/b' })
+    expect((await listTeamIntegrations(t.db, team.id, gitKinds())).map((i) => i.kind)).toEqual([
+      'github',
+    ])
   })
 })
 
-describe('mapProject with exclusive', () => {
-  it('moves a project between connections of a kind, clearing attention of the git host it maps to', async () => {
-    const { project } = await seedProject(t.db)
+describe('mapTeam with exclusive', () => {
+  it('moves a team between connections of a kind, clearing attention of the git host it maps to', async () => {
+    const { team } = await seedTeam(t.db)
     const github = integrationRegistry.get('github')
     if (!github) throw new Error('github is registered')
-    const a = await seedGitLink(t.db, project.id, { externalId: '1', repoRef: 'x/y' })
-    const b = await seedGitLink(t.db, project.id, { externalId: '2', repoRef: 'x/y' })
+    const a = await seedGitLink(t.db, team.id, { externalId: '1', repoRef: 'x/y' })
+    const b = await seedGitLink(t.db, team.id, { externalId: '2', repoRef: 'x/y' })
     await markInstallationNeedsAttention(t.db, 'github', '2', 'gone')
-    await mapProject(t.db, {
+    await mapTeam(t.db, {
       definition: github,
       integrationId: b.integrationId,
-      projectId: project.id,
+      teamId: team.id,
       ref: 'x/z',
       extra: {},
     })
-    const mapped = await listProjectIntegrations(t.db, project.id, ['github'])
+    const mapped = await listTeamIntegrations(t.db, team.id, ['github'])
     expect(mapped.map((m) => [m.integrationId, m.externalRef])).toEqual([[b.integrationId, 'x/z']])
-    expect((await getIntegration(t.db, project.orgId, b.integrationId))?.needsAttention).toBe(false)
-    expect(await getIntegration(t.db, project.orgId, a.integrationId)).toBeDefined()
+    expect((await getIntegration(t.db, team.workspaceId, b.integrationId))?.needsAttention).toBe(
+      false,
+    )
+    expect(await getIntegration(t.db, team.workspaceId, a.integrationId)).toBeDefined()
   })
 })

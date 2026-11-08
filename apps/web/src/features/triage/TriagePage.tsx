@@ -21,7 +21,7 @@ import { useEffect, useState } from 'react'
 
 import { fileUrl } from '#features/builds/api.ts'
 import { RegionLayer } from '#features/builds/RegionLayer.tsx'
-import { useLoadingAnnouncement } from '#features/projects/loading.ts'
+import { useLoadingAnnouncement } from '#features/teams/loading.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
@@ -61,10 +61,10 @@ import styles from './TriagePage.module.css'
 const hasSnapshot = (item: Triage.Item | undefined) => !!item?.snapshotName
 
 export function TriagePage() {
-  const { org, project } = useParams({ from: ROUTE })
-  useDocumentTitle('Triage', project)
+  const { workspace, team } = useParams({ from: ROUTE })
+  useDocumentTitle('Triage', team)
   const announce = useAnnounce()
-  const { data, error, refetch } = useQuery(triageQuery(org, project))
+  const { data, error, refetch } = useQuery(triageQuery(workspace, team))
   useLoadingAnnouncement(!data && !error, 'Loading triage')
   const { data: session } = authClient.useSession()
   const me = session?.user
@@ -76,16 +76,16 @@ export function TriagePage() {
   const [drawing, setDrawing] = useState(false)
   const [pending, setPending] = useState<Comment.Region | null>(null)
 
-  const assign = useAssignTriage(org, project)
-  const snooze = useSnoozeTriage(org, project)
-  const dismiss = useDismissTriage(org, project)
-  const accept = useAcceptBaseline(org, project)
-  const addRegion = useAddIgnoreRegion(org, project)
+  const assign = useAssignTriage(workspace, team)
+  const snooze = useSnoozeTriage(workspace, team)
+  const dismiss = useDismissTriage(workspace, team)
+  const accept = useAcceptBaseline(workspace, team)
+  const addRegion = useAddIgnoreRegion(workspace, team)
 
   const groups = groupItems(data?.items ?? [])
   const items = flatten(groups)
   const selected = items.find((i) => itemId(i) === selectedId) ?? items[0]
-  const { frames, loading: framesLoading } = useFilmstrip(org, project, selected)
+  const { frames, loading: framesLoading } = useFilmstrip(workspace, team, selected)
 
   const { listRef, rowProps } = useListNavigation({
     items,
@@ -176,12 +176,12 @@ export function TriagePage() {
           ) : undefined
         }
       >
-        <Breadcrumbs items={[{ label: project }, { label: 'Triage' }]} />
+        <Breadcrumbs items={[{ label: team }, { label: 'Triage' }]} />
       </PanelHeader>
       <div className={listStyles['page']}>
         <div className={listStyles['body']}>
           {error ? (
-            <ErrorState error={error} onRetry={() => void refetch()} notFound="Project not found" />
+            <ErrorState error={error} onRetry={() => void refetch()} notFound="Team not found" />
           ) : !data ? (
             <Delayed>
               <ListSkeleton rows={4} />

@@ -5,31 +5,31 @@ import {
   account,
   type LoginMethod,
   member,
-  orgAuthSettings,
-  organization,
+  workspaceAuthSettings,
+  workspace,
   sessionMethods,
 } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { ConflictError } from '#src/errors.ts'
 
 /**
- * Login methods per organization (PLAN §7.8). The instance switches are the outer limit;
- * an organization can only narrow them. The method a session signed in with is remembered, and
- * an organization's content is only shown to sessions whose method it accepts.
+ * Login methods per workspace (PLAN §7.8). The instance switches are the outer limit;
+ * a workspace can only narrow them. The method a session signed in with is remembered, and
+ * a workspace's content is only shown to sessions whose method it accepts.
  */
 
 export type { LoginMethod }
 
 export namespace SessionMethod {
   /** A session's login method, or `unknown` for sessions that predate the record. */
-  /** An organization's own single sign-on opens that organization and nothing else. */
-  export interface OrgScoped {
+  /** A workspace's own single sign-on opens that workspace and nothing else. */
+  export interface WorkspaceScoped {
     scopedTo: string
   }
 }
-export type SessionMethod = LoginMethod | 'unknown' | SessionMethod.OrgScoped
+export type SessionMethod = LoginMethod | 'unknown' | SessionMethod.WorkspaceScoped
 
-export namespace getOrgAuthSettings {
+export namespace getWorkspaceAuthSettings {
   /** What the instance offers; the caller derives it from config. */
   export interface Instance {
     password: boolean
@@ -43,13 +43,19 @@ export namespace getOrgAuthSettings {
   }
 }
 
-const DEFAULTS: getOrgAuthSettings.Result = { emailLoginEnabled: true, passwordLoginEnabled: true }
+const DEFAULTS: getWorkspaceAuthSettings.Result = {
+  emailLoginEnabled: true,
+  passwordLoginEnabled: true,
+}
 
-export async function getOrgAuthSettings(
+export async function getWorkspaceAuthSettings(
   db: Database,
-  orgId: string,
-): Promise<getOrgAuthSettings.Result> {
-  const [row] = await db.select().from(orgAuthSettings).where(eq(orgAuthSettings.orgId, orgId))
+  workspaceId: string,
+): Promise<getWorkspaceAuthSettings.Result> {
+  const [row] = await db
+    .select()
+    .from(workspaceAuthSettings)
+    .where(eq(workspaceAuthSettings.workspaceId, workspaceId))
   return row
     ? { emailLoginEnabled: row.emailLoginEnabled, passwordLoginEnabled: row.passwordLoginEnabled }
     : DEFAULTS
@@ -59,13 +65,16 @@ export async function recordSessionMethod(
   db: Database,
   sessionId: string,
   method: LoginMethod,
-  scopeOrgId?: string,
+  scopeWorkspaceId?: string,
 ): Promise<void> {
-  const scope = method === 'org-oidc' ? (scopeOrgId ?? null) : null
+  const scope = method === 'workspace-oidc' ? (scopeWorkspaceId ?? null) : null
   await db
     .insert(sessionMethods)
-    .values({ sessionId, method, scopeOrgId: scope })
-    .onConflictDoUpdate({ target: sessionMethods.sessionId, set: { method, scopeOrgId: scope } })
+    .values({ sessionId, method, scopeWorkspaceId: scope })
+    .onConflictDoUpdate({
+      target: sessionMethods.sessionId,
+      set: { method, scopeWorkspaceId: scope },
+    })
 }
 
 /** How a session signed in; `undefined` for sessions that predate the record. */
@@ -74,60 +83,60 @@ export async function getSessionMethod(
   sessionId: string,
 ): Promise<SessionMethod | undefined> {
   const [row] = await db
-    .select({ method: sessionMethods.method, scope: sessionMethods.scopeOrgId })
+    .select({ method: sessionMethods.method, scope: sessionMethods.scopeWorkspaceId })
     .from(sessionMethods)
     .where(eq(sessionMethods.sessionId, sessionId))
   const method = row?.method
-  if (method === 'org-oidc') return row?.scope ? { scopedTo: row.scope } : undefined
+  if (method === 'workspace-oidc') return row?.scope ? { scopedTo: row.scope } : undefined
   return method === 'password' || method === 'email' || method === 'oidc' ? method : undefined
 }
 
 /**
- * SQL: the organization in `orgId` accepts a session that signed in with `method`. Single
+ * SQL: the workspace in `workspaceId` accepts a session that signed in with `method`. Single
  * sign-on is always accepted; a session of unknown method only where nothing is restricted.
  * `undefined` (not a dashboard session, e.g. the CLI) applies no restriction.
  */
-export function orgAccepts(orgId: AnyPgColumn, method: SessionMethod | undefined): SQL {
+export function workspaceAccepts(workspaceId: AnyPgColumn, method: SessionMethod | undefined): SQL {
   if (method === undefined || method === 'oidc') return sql`true`
-  if (typeof method === 'object') return sql`${orgId} = ${method.scopedTo}`
+  if (typeof method === 'object') return sql`${workspaceId} = ${method.scopedTo}`
   const restricted =
     method === 'password'
-      ? sql`${orgAuthSettings.passwordLoginEnabled} = false`
+      ? sql`${workspaceAuthSettings.passwordLoginEnabled} = false`
       : method === 'email'
-        ? sql`${orgAuthSettings.emailLoginEnabled} = false`
-        : sql`(${orgAuthSettings.passwordLoginEnabled} = false or ${orgAuthSettings.emailLoginEnabled} = false)`
-  return sql`not exists (select 1 from ${orgAuthSettings} where ${orgAuthSettings.orgId} = ${orgId} and ${restricted})`
+        ? sql`${workspaceAuthSettings.emailLoginEnabled} = false`
+        : sql`(${workspaceAuthSettings.passwordLoginEnabled} = false or ${workspaceAuthSettings.emailLoginEnabled} = false)`
+  return sql`not exists (select 1 from ${workspaceAuthSettings} where ${workspaceAuthSettings.workspaceId} = ${workspaceId} and ${restricted})`
 }
 
-/** Whether the organization accepts a session that signed in with `method`. */
-export async function orgAcceptsSession(
+/** Whether the workspace accepts a session that signed in with `method`. */
+export async function workspaceAcceptsSession(
   db: Database,
-  orgId: string,
+  workspaceId: string,
   method: SessionMethod | undefined,
 ): Promise<boolean> {
   const [row] = await db
-    .select({ id: organization.id })
-    .from(organization)
-    .where(and(eq(organization.id, orgId), orgAccepts(organization.id, method)))
+    .select({ id: workspace.id })
+    .from(workspace)
+    .where(and(eq(workspace.id, workspaceId), workspaceAccepts(workspace.id, method)))
   return row !== undefined
 }
 
-/** Organizations the user belongs to but whose rules refuse this session's login method. */
-export async function listRefusingOrganizations(
+/** Workspaces the user belongs to but whose rules refuse this session's login method. */
+export async function listRefusingWorkspaces(
   db: Database,
   userId: string,
   method: SessionMethod,
 ): Promise<{ name: string; accepts: ('password' | 'email')[] }[]> {
   const rows = await db
     .select({
-      name: organization.name,
-      email: orgAuthSettings.emailLoginEnabled,
-      password: orgAuthSettings.passwordLoginEnabled,
+      name: workspace.name,
+      email: workspaceAuthSettings.emailLoginEnabled,
+      password: workspaceAuthSettings.passwordLoginEnabled,
     })
     .from(member)
-    .innerJoin(organization, eq(organization.id, member.organizationId))
-    .innerJoin(orgAuthSettings, eq(orgAuthSettings.orgId, organization.id))
-    .where(and(eq(member.userId, userId), sql`not (${orgAccepts(organization.id, method)})`))
+    .innerJoin(workspace, eq(workspace.id, member.workspaceId))
+    .innerJoin(workspaceAuthSettings, eq(workspaceAuthSettings.workspaceId, workspace.id))
+    .where(and(eq(member.userId, userId), sql`not (${workspaceAccepts(workspace.id, method)})`))
   return rows.map((r) => ({
     name: r.name,
     accepts: [
@@ -137,17 +146,17 @@ export async function listRefusingOrganizations(
   }))
 }
 
-/** Whether any owner of the org could still sign in, given which methods are on. */
+/** Whether any owner of the workspace could still sign in, given which methods are on. */
 async function ownerCanSignIn(
   db: Database,
-  orgId: string,
+  workspaceId: string,
   on: { password: boolean; email: boolean; oidc: boolean },
 ): Promise<boolean> {
   if (on.email) return true // any account can ask for a code
   const owners = await db
     .select({ userId: member.userId })
     .from(member)
-    .where(and(eq(member.organizationId, orgId), eq(member.role, 'owner')))
+    .where(and(eq(member.workspaceId, workspaceId), eq(member.role, 'owner')))
   for (const owner of owners) {
     // eslint-disable-next-line no-await-in-loop -- a handful of owners
     const accounts = await db
@@ -161,31 +170,34 @@ async function ownerCanSignIn(
 }
 
 /**
- * Saves an organization's switches. Refused when it would leave no owner able to sign in with
+ * Saves a workspace's switches. Refused when it would leave no owner able to sign in with
  * any method that's on (the lockout guard); `force` skips that, for the break-glass CLI.
  */
-export async function setOrgAuthSettings(
+export async function setWorkspaceAuthSettings(
   db: Database,
-  orgId: string,
-  patch: Partial<getOrgAuthSettings.Result>,
-  options: { instance: getOrgAuthSettings.Instance; force?: boolean },
-): Promise<getOrgAuthSettings.Result> {
-  const next = { ...(await getOrgAuthSettings(db, orgId)), ...patch }
+  workspaceId: string,
+  patch: Partial<getWorkspaceAuthSettings.Result>,
+  options: { instance: getWorkspaceAuthSettings.Instance; force?: boolean },
+): Promise<getWorkspaceAuthSettings.Result> {
+  const next = { ...(await getWorkspaceAuthSettings(db, workspaceId)), ...patch }
   if (!options.force) {
     const on = {
       password: options.instance.password && next.passwordLoginEnabled,
       email: options.instance.email && next.emailLoginEnabled,
       oidc: options.instance.oidc,
     }
-    if (!(await ownerCanSignIn(db, orgId, on))) {
+    if (!(await ownerCanSignIn(db, workspaceId, on))) {
       throw new ConflictError(
         'That would leave no owner able to sign in. Keep a method on that an owner can use.',
       )
     }
   }
   await db
-    .insert(orgAuthSettings)
-    .values({ orgId, ...next })
-    .onConflictDoUpdate({ target: orgAuthSettings.orgId, set: { ...next, updatedAt: new Date() } })
+    .insert(workspaceAuthSettings)
+    .values({ workspaceId, ...next })
+    .onConflictDoUpdate({
+      target: workspaceAuthSettings.workspaceId,
+      set: { ...next, updatedAt: new Date() },
+    })
   return next
 }

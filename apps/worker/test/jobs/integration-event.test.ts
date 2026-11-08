@@ -9,18 +9,12 @@ import {
   getIntegration,
   QUEUES,
   schema,
-  setIntegrationProject,
+  setIntegrationTeam,
 } from '@circi/db'
 import type { IntegrationDefinition } from '@circi/integrations'
 import { notifyOverdueReviews, requestReview, reviewBuild } from '@circi/services'
 import { FsStorage } from '@circi/storage'
-import {
-  addTestMember,
-  createTestDb,
-  seedProject,
-  seedReviewRequest,
-  seedUser,
-} from '@circi/testing'
+import { addTestMember, createTestDb, seedTeam, seedReviewRequest, seedUser } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -42,11 +36,11 @@ afterAll(async () => {
 
 async function setup(options: { events?: string[]; mapped?: boolean } = {}) {
   await t.db.delete(schema.jobs)
-  const { project, org, owner } = await seedProject(t.db)
+  const { team, workspace, owner } = await seedTeam(t.db)
   const reviewer = await seedUser(t.db)
-  await addTestMember(t.db, { orgId: org.id, userId: reviewer.id })
+  await addTestMember(t.db, { workspaceId: workspace.id, userId: reviewer.id })
   const build = await createBuild(t.db, {
-    projectId: project.id,
+    teamId: team.id,
     commitSha: 'abc1234',
     branch: 'f',
   })
@@ -55,21 +49,21 @@ async function setup(options: { events?: string[]; mapped?: boolean } = {}) {
     .set({ status: 'complete', conclusion: 'changes_detected' })
     .where(eq(schema.builds.id, build.id))
   const integration = await createIntegration(t.db, {
-    orgId: org.id,
+    workspaceId: workspace.id,
     kind: 'slack',
     displayName: 'Acme',
     externalId: `T${Math.random().toString(36).slice(2, 8)}`,
     encryptedCredentials: sealSecret(SECRET, 'xoxb-good'),
   })
   if (options.mapped !== false) {
-    await setIntegrationProject(t.db, {
+    await setIntegrationTeam(t.db, {
       integrationId: integration.id,
-      projectId: project.id,
+      teamId: team.id,
       externalRef: 'C123',
       extra: { name: 'reviews', ...(options.events ? { events: options.events } : {}) },
     })
   }
-  return { project, org, owner, reviewer, build, integration }
+  return { team, workspace, owner, reviewer, build, integration }
 }
 
 const jobs = () =>
@@ -89,8 +83,8 @@ async function drain(edge: Edge) {
 }
 
 describe('integrationEvent (Slack)', () => {
-  it('posts a review request once, to the project channel, with a link to the build', async () => {
-    const { owner, reviewer, build, project, org } = await setup()
+  it('posts a review request once, to the team channel, with a link to the build', async () => {
+    const { owner, reviewer, build, team, workspace } = await setup()
     const host = fakeSlackHost(['xoxb-good'])
     await requestReview(t.db, {
       buildId: build.id,
@@ -102,7 +96,7 @@ describe('integrationEvent (Slack)', () => {
     expect(host.posted[0]).toMatchObject({ channel: 'C123', token: 'xoxb-good' })
     expect(host.posted[0]?.text).toContain('Review requested')
     expect(JSON.stringify(host.posted[0]?.blocks)).toContain(
-      `${ORIGIN}/${org.slug}/${project.slug}/builds/${build.number}`,
+      `${ORIGIN}/${workspace.slug}/${team.slug}/builds/${build.number}`,
     )
     expect(JSON.stringify(host.posted[0]?.blocks)).toContain(reviewer.name)
   })
@@ -144,7 +138,7 @@ describe('integrationEvent (Slack)', () => {
     expect(host.posted.map((m) => m.text)).toEqual([expect.stringContaining('Review overdue')])
   })
 
-  it('sends nothing when the project has no channel', async () => {
+  it('sends nothing when the team has no channel', async () => {
     const { owner, reviewer, build } = await setup({ mapped: false })
     const host = fakeSlackHost(['xoxb-good'])
     await requestReview(t.db, {
@@ -158,7 +152,7 @@ describe('integrationEvent (Slack)', () => {
   })
 
   it('sends only the events the mapping lists, and re-checks the mapping when the job runs', async () => {
-    const { owner, reviewer, build, integration, project } = await setup({
+    const { owner, reviewer, build, integration, team } = await setup({
       events: ['build.rejected'],
     })
     const host = fakeSlackHost(['xoxb-good'])
@@ -171,11 +165,9 @@ describe('integrationEvent (Slack)', () => {
     await reviewBuild(t.db, { buildId: build.id, userId: owner.id, state: 'rejected' })
     expect(await jobs()).toHaveLength(1)
     // The channel is cleared before the worker gets to it.
-    await t.db
-      .delete(schema.integrationProjects)
-      .where(eq(schema.integrationProjects.projectId, project.id))
+    await t.db.delete(schema.integrationTeams).where(eq(schema.integrationTeams.teamId, team.id))
     expect(await drain(host.integrations)).toEqual([
-      { status: 'skipped', reason: 'project is not mapped' },
+      { status: 'skipped', reason: 'team is not mapped' },
     ])
     expect(host.posted).toHaveLength(0)
     expect(integration.id).toBeTruthy()
@@ -194,7 +186,7 @@ describe('integrationEvent (Slack)', () => {
     await reviewBuild(t.db, { buildId: build.id, userId: owner.id, state: 'rejected' })
     const [result] = await drain(host.integrations)
     expect(result).toMatchObject({ status: 'needs-attention' })
-    const after = await getIntegration(t.db, integration.orgId, integration.id)
+    const after = await getIntegration(t.db, integration.workspaceId, integration.id)
     expect(after).toMatchObject({ needsAttention: true })
     expect(after?.needsAttentionReason).toContain('token_revoked')
     // Further events create no jobs for it until it is reinstalled.

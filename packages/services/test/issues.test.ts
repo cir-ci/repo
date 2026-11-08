@@ -3,9 +3,9 @@ import {
   createIntegration,
   listBuildActivity,
   listBuildLinks,
-  setIntegrationProject,
+  setIntegrationTeam,
 } from '@circi/db'
-import { createTestDb, seedDiff, seedProject, seedReview, sha } from '@circi/testing'
+import { createTestDb, seedDiff, seedTeam, seedReview, sha } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { createIssueFromBuild } from '#src/index.ts'
@@ -33,21 +33,21 @@ function fakeTracker(fail = false) {
 }
 
 async function setup() {
-  const { project, org, owner } = await seedProject(t.db)
+  const { team, workspace, owner } = await seedTeam(t.db)
   const integration = await createIntegration(t.db, {
-    orgId: org.id,
+    workspaceId: workspace.id,
     kind: 'jira',
     displayName: 'acme.atlassian.net',
     externalId: `acme-${Math.random().toString(36).slice(2)}`,
     encryptedCredentials: 'sealed',
   })
-  await setIntegrationProject(t.db, {
+  await setIntegrationTeam(t.db, {
     integrationId: integration.id,
-    projectId: project.id,
+    teamId: team.id,
     externalRef: 'WEB',
   })
   const build = await createBuild(t.db, {
-    projectId: project.id,
+    teamId: team.id,
     commitSha: 'abcdef1234',
     branch: 'feat/x',
   })
@@ -63,12 +63,12 @@ async function setup() {
     state: 'rejected',
     reason: 'cut off',
   })
-  return { project, org, owner, integration, build }
+  return { team, workspace, owner, integration, build }
 }
 
 describe('createIssueFromBuild', () => {
   it('files the issue with the build facts and stores the link, which shows in the activity', async () => {
-    const { owner, integration, build, org, project } = await setup()
+    const { owner, integration, build, workspace, team } = await setup()
     const { tracker, calls } = fakeTracker()
     const link = await createIssueFromBuild(t.db, {
       buildId: build.id,
@@ -93,7 +93,7 @@ describe('createIssueFromBuild', () => {
       imageUrl: `https://ci.test/api/files/${sha('d')}`,
     })
     expect(call?.description).toContain(
-      `https://ci.test/${org.slug}/${project.slug}/builds/${build.number}?shot=home`,
+      `https://ci.test/${workspace.slug}/${team.slug}/builds/${build.number}?shot=home`,
     )
     expect(call?.description).toContain('feat/x')
     expect(call?.description).toContain('cut off')
@@ -136,10 +136,10 @@ describe('createIssueFromBuild', () => {
     expect(await listBuildLinks(t.db, build.id, 'issue')).toEqual([])
   })
 
-  it('refuses a tracker the project is not mapped to, an unknown snapshot and unusable credentials', async () => {
-    const { owner, integration, build, org } = await setup()
+  it('refuses a tracker the team is not mapped to, an unknown snapshot and unusable credentials', async () => {
+    const { owner, integration, build, workspace } = await setup()
     const other = await createIntegration(t.db, {
-      orgId: org.id,
+      workspaceId: workspace.id,
       kind: 'linear',
       displayName: 'Acme',
       externalId: 'lin-1',

@@ -31,7 +31,7 @@ export namespace collectAncestry {
   export interface Options {
     /** The commit being uploaded: the PR head, never a synthetic merge commit (PLAN §7.1). */
     headSha: string
-    /** Branch whose history holds the baselines: the PR's base, or the project's default branch. */
+    /** Branch whose history holds the baselines: the PR's base, or the team's default branch. */
     baseBranch: string
     /** True for builds on the default branch itself: history starts at the head's parent. */
     isBaseBranchBuild: boolean

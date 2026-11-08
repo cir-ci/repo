@@ -2,8 +2,8 @@ import { buildOutcome } from '@circi/core'
 import {
   getBuildCounts,
   getFile,
-  getProjectBuild,
-  getProjectLink,
+  getTeamBuild,
+  getTeamLink,
   markFileVerified,
   planUploads,
 } from '@circi/db'
@@ -12,7 +12,7 @@ import { contentKey } from '@circi/storage'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
-import { currentProject } from '#http/hooks/project-token.ts'
+import { currentTeam } from '#http/hooks/team-token.ts'
 import type { Deps } from '#http/lib/deps.ts'
 import { describeBuild } from '#http/lib/presenters.ts'
 import { parse } from '#http/lib/validation.ts'
@@ -27,10 +27,10 @@ const statusQuery = z.object({ gate: z.enum(['status', 'exit-code']).optional() 
  */
 export const buildRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
   app.post('/builds', { bodyLimit: JSON_BODY_LIMIT }, async (req, reply) => {
-    const ctx = currentProject(req)
+    const ctx = currentTeam(req)
     const body = parse(createBuildBody, req.body)
     const build = await startBuild(deps.db, {
-      projectId: ctx.project.id,
+      teamId: ctx.team.id,
       commitSha: body.commitSha,
       ...(body.name ? { name: body.name } : {}),
       branch: body.branch ?? null,
@@ -53,10 +53,10 @@ export const buildRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
   })
 
   app.post('/builds/:id/finalize', { bodyLimit: JSON_BODY_LIMIT }, async (req, reply) => {
-    const ctx = currentProject(req)
+    const ctx = currentTeam(req)
     const { id } = parse(buildIdParams, req.params)
     const body = parse(finalizeBody, req.body)
-    const build = await getProjectBuild(deps.db, ctx.project.id, id)
+    const build = await getTeamBuild(deps.db, ctx.team.id, id)
     if (!build) return reply.code(404).send({ error: 'Build not found' })
 
     // Direct-to-storage uploads: confirm the stored object's checksum before trusting it.
@@ -75,7 +75,7 @@ export const buildRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
         missing: result.missing,
       })
     }
-    const updated = (await getProjectBuild(deps.db, ctx.project.id, id)) ?? build
+    const updated = (await getTeamBuild(deps.db, ctx.team.id, id)) ?? build
     return {
       build: describeBuild(ctx, updated, deps.publicOrigin),
       complete: result.complete,
@@ -85,16 +85,16 @@ export const buildRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
   })
 
   app.get('/builds/:id/status', async (req, reply) => {
-    const ctx = currentProject(req)
+    const ctx = currentTeam(req)
     const { id } = parse(buildIdParams, req.params)
     const { gate: requested } = parse(statusQuery, req.query)
-    const build = await getProjectBuild(deps.db, ctx.project.id, id)
+    const build = await getTeamBuild(deps.db, ctx.team.id, id)
     if (!build) return reply.code(404).send({ error: 'Build not found' })
-    // Who blocks the merge (PLAN §7.4): the check on the git host when this project reports to
+    // Who blocks the merge (PLAN §7.4): the check on the git host when this team reports to
     // one, otherwise this CI job. The CLI's `--gate` overrides the choice.
     const linked =
       (deps.githubApp === true || deps.githubAppNow?.() === true) &&
-      (await getProjectLink(deps.db, ctx.project.id, gitKinds()))
+      (await getTeamLink(deps.db, ctx.team.id, gitKinds()))
     const gate = requested ?? (linked ? 'status' : 'exit-code')
     return {
       build: describeBuild(ctx, build, deps.publicOrigin),
@@ -108,7 +108,7 @@ export const buildRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
 
 /**
  * How the CLI should send one file: a checksum-bound presigned URL with S3, or a PUT through
- * this API (with the project token) for local-disk storage.
+ * this API (with the team token) for local-disk storage.
  */
 async function uploadInstruction(
   deps: Deps.V1,

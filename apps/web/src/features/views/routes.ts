@@ -4,7 +4,7 @@ import { rootRoute } from '#app/root-route.ts'
 
 const viewRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: 'organizations/$org/views/$view',
+  path: 'workspaces/$workspace/views/$view',
   component: lazyRouteComponent(() => import('./ViewPage.tsx'), 'ViewPage'),
 })
 

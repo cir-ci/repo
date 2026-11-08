@@ -1,4 +1,4 @@
-import { createSiteToken, findSiteByLabel, getMemberRole, orgAcceptsSession } from '@circi/db'
+import { createSiteToken, findSiteByLabel, getMemberRole, workspaceAcceptsSession } from '@circi/db'
 import { parseLabel } from '@circi/sites'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
@@ -14,7 +14,7 @@ const body = z.object({
 
 /**
  * Step two of opening a hosted site (PLAN §7.6): the person is signed in to the dashboard, and
- * asks for access to one address. If they belong to the site's organization (and their sign-in
+ * asks for access to one address. If they belong to the site's workspace (and their sign-in
  * method is accepted there) they get a one-minute, single-use token for that address. Everyone
  * else, and every address that doesn't exist, gets the same "not found".
  */
@@ -27,9 +27,9 @@ export const dashboardSiteHandoffRoutes: FastifyPluginAsync<Deps.Dashboard> = as
     const found = parseLabel(label) ? await findSiteByLabel(deps.db, label) : undefined
     const allowed =
       found !== undefined &&
-      (await getMemberRole(deps.db, { userId: user.id, organizationId: found.org.id })) !==
+      (await getMemberRole(deps.db, { userId: user.id, workspaceId: found.workspace.id })) !==
         undefined &&
-      (await orgAcceptsSession(deps.db, found.org.id, user.method))
+      (await workspaceAcceptsSession(deps.db, found.workspace.id, user.method))
     if (!found || !allowed) return reply.code(404).send({ error: 'Not found' })
 
     const token = await createSiteToken(deps.db, {

@@ -30,18 +30,18 @@ export function slugify(text: string, max = MAX_SLUG_LENGTH): string {
 }
 
 /**
- * The slug for a project's site, trying in order: `<project>-<name>`, then with the
- * organization appended, then numbered. The first one `taken` doesn't claim wins; each is cut to
+ * The slug for a team's site, trying in order: `<team>-<name>`, then with the
+ * workspace appended, then numbered. The first one `taken` doesn't claim wins; each is cut to
  * 46 characters *before* its suffix, so a suffix never pushes it over.
  */
 export function chooseSlug(
-  input: { project: string; name: string; org: string },
+  input: { team: string; name: string; workspace: string },
   taken: (slug: string) => boolean,
 ): string {
-  const base = slugify(`${input.project}-${input.name}`)
+  const base = slugify(`${input.team}-${input.name}`)
   if (!taken(base)) return base
-  const withOrg = `${slugify(`${input.project}-${input.name}`, MAX_SLUG_LENGTH - 1 - input.org.length)}-${slugify(input.org)}`
-  const trimmed = withOrg.slice(0, MAX_SLUG_LENGTH).replace(/-+$/, '')
+  const withWorkspace = `${slugify(`${input.team}-${input.name}`, MAX_SLUG_LENGTH - 1 - input.workspace.length)}-${slugify(input.workspace)}`
+  const trimmed = withWorkspace.slice(0, MAX_SLUG_LENGTH).replace(/-+$/, '')
   if (!taken(trimmed)) return trimmed
   for (let n = 2; n < 1000; n += 1) {
     const suffix = `-${n}`

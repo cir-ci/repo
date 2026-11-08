@@ -30,40 +30,40 @@ import {
   useInstall,
   useMapping,
 } from './generic-api.ts'
-import { ProjectLinks } from './ProjectLinks.tsx'
+import { TeamLinks } from './TeamLinks.tsx'
 
 import styles from './Integrations.module.css'
 
 /**
- * The one page for every integration: each project maps to one target
+ * The one page for every integration: each team maps to one target
  * of the integration (a select of what the account offers, or a typed id) with the settings the
  * definition lists (event toggles, text, switches). Nothing here knows any
- * integration: it renders the definition's mapping spec from the API. A project without a target
+ * integration: it renders the definition's mapping spec from the API. A team without a target
  * uses nothing.
  */
 export function GenericIntegrationPage() {
-  const { org, id } = useParams({ from: '/organizations/$org/settings/integrations/$kind/$id' })
+  const { workspace, id } = useParams({
+    from: '/workspaces/$workspace/settings/integrations/$kind/$id',
+  })
   const search: { connect?: unknown } = useSearch({ strict: false })
-  const { data, error, refetch } = useQuery(mappingPageQuery(org, id))
+  const { data, error, refetch } = useQuery(mappingPageQuery(workspace, id))
   const name = data?.definition.name ?? 'Integration'
-  useDocumentTitle(name, 'Integrations', org)
-  const mapping = useMapping(org, id)
-  const install = useInstall(org)
+  useDocumentTitle(name, 'Integrations', workspace)
+  const mapping = useMapping(workspace, id)
+  const install = useInstall(workspace)
   const note = connectNote(search.connect, name)
   const spec = data?.definition.mapping ?? null
   const links = data?.definition.links ?? null
 
   return (
     <Frame
-      crumbs={[org, 'Integrations', name]}
+      crumbs={[workspace, 'Integrations', name]}
       loading={!data && !error}
       error={error}
       onRetry={() => void refetch()}
       notFound="This integration doesn’t exist"
       readOnlyNote={
-        data &&
-        !data.canManage &&
-        `Only owners and admins can change what projects use ${name} for.`
+        data && !data.canManage && `Only owners and admins can change what teams use ${name} for.`
       }
     >
       {data ? (
@@ -118,30 +118,30 @@ export function GenericIntegrationPage() {
           ) : null}
           {spec === null ? (
             <EmptyState title="Nothing to set up">
-              {data.definition.name} has no per-project settings.
+              {data.definition.name} has no per-team settings.
             </EmptyState>
           ) : (
-            <ul className={styles.list} aria-label={`${spec.targetLabel} by project`}>
-              {data.projects.map((p) => (
+            <ul className={styles.list} aria-label={`${spec.targetLabel} by team`}>
+              {data.teams.map((p) => (
                 <li key={p.slug}>
-                  <ProjectMapping
+                  <TeamMapping
                     // Start over when the saved mapping changes (after saving, or removing it).
                     key={`${p.mapping?.ref ?? ''}:${JSON.stringify(p.mapping?.extra ?? {})}`}
-                    org={org}
+                    workspace={workspace}
                     integrationId={id}
                     spec={spec}
-                    project={p}
+                    team={p}
                     canManage={data.canManage}
                     saving={mapping.save.isPending}
-                    onSave={(input) => mapping.save.mutate({ project: p.slug, ...input })}
+                    onSave={(input) => mapping.save.mutate({ team: p.slug, ...input })}
                     onClear={() => mapping.clear.mutate(p.slug)}
                   />
                   {links && (p.mapping || data.canManage) ? (
-                    <ProjectLinks
-                      org={org}
+                    <TeamLinks
+                      workspace={workspace}
                       integrationId={id}
                       spec={links}
-                      project={p}
+                      team={p}
                       canManage={data.canManage}
                     />
                   ) : null}
@@ -155,18 +155,18 @@ export function GenericIntegrationPage() {
   )
 }
 
-function ProjectMapping(props: {
-  org: string
+function TeamMapping(props: {
+  workspace: string
   integrationId: string
   spec: Integration.MappingSpec
-  project: Integration.MappingProject
+  team: Integration.MappingTeam
   canManage: boolean
   saving: boolean
   onSave: (input: Integration.MappingInput) => void
   onClear: () => void
 }) {
-  const { spec, project } = props
-  const saved = project.mapping
+  const { spec, team } = props
+  const saved = team.mapping
   const [ref, setRef] = useState(saved?.ref ?? '')
   const [values, setValues] = useState<ExtraValues>(() => initialExtra(spec.fields, saved?.extra))
   const selecting = spec.targetKind === 'select'
@@ -174,7 +174,7 @@ function ProjectMapping(props: {
   const suggesting = spec.targetKind === 'repository'
   const listId = useId()
   const targets = useQuery({
-    ...targetsQuery(props.org, props.integrationId),
+    ...targetsQuery(props.workspace, props.integrationId),
     enabled: (selecting || suggesting) && props.canManage,
     retry: suggesting ? false : undefined,
   })
@@ -190,7 +190,7 @@ function ProjectMapping(props: {
       <ListRow density="two-line">
         <div className={styles.row}>
           <div className={styles.name}>
-            <Text>{project.name}</Text>
+            <Text>{team.name}</Text>
             <Text variant="small" tone="secondary">
               {saved ? (summary ?? 'In use') : 'Not set up'}
             </Text>
@@ -219,11 +219,11 @@ function ProjectMapping(props: {
 
   return (
     <ListRow density="two-line">
-      <form onSubmit={submit} noValidate className={styles.form} aria-label={project.name}>
+      <form onSubmit={submit} noValidate className={styles.form} aria-label={team.name}>
         {selecting ? (
           <Select
             className={styles.repoField}
-            label={`${project.name} ${targetName}`}
+            label={`${team.name} ${targetName}`}
             items={items}
             value={ref}
             placeholder={targets.isPending ? `Loading ${targetName}s…` : `Choose a ${targetName}`}
@@ -233,7 +233,7 @@ function ProjectMapping(props: {
         ) : (
           <>
             <TextField
-              label={`${project.name} ${targetName}`}
+              label={`${team.name} ${targetName}`}
               value={ref}
               onChange={(e) => setRef(e.target.value)}
               {...(suggesting ? { list: listId } : {})}
@@ -255,7 +255,7 @@ function ProjectMapping(props: {
               <div
                 key={field.key}
                 role="group"
-                aria-label={`${project.name} ${field.label.toLowerCase()}`}
+                aria-label={`${team.name} ${field.label.toLowerCase()}`}
                 className={styles.form}
               >
                 {field.options.map((o) => (
@@ -291,7 +291,7 @@ function ProjectMapping(props: {
           return (
             <TextField
               key={field.key}
-              label={`${project.name} ${field.label.toLowerCase()}`}
+              label={`${team.name} ${field.label.toLowerCase()}`}
               value={typeof values[field.key] === 'string' ? String(values[field.key]) : ''}
               onChange={(e) => setValue(field.key, e.target.value)}
               required={!field.optional}
@@ -312,7 +312,7 @@ function ProjectMapping(props: {
             <Button
               variant="danger"
               onClick={props.onClear}
-              aria-label={`Remove ${project.name} ${targetName}`}
+              aria-label={`Remove ${team.name} ${targetName}`}
             >
               Remove
             </Button>

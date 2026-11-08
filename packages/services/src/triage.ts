@@ -12,12 +12,12 @@ import {
 } from '@circi/db'
 
 /**
- * What people do with a project's triage queue. Each function owns its transaction; the queue
+ * What people do with a team's triage queue. Each function owns its transaction; the queue
  * itself is derived from builds (`listTriage`), so these only record who has it, when it comes
  * back, and that it is done with.
  */
 
-/** Hands an item to an organization member, or to nobody. */
+/** Hands an item to a workspace member, or to nobody. */
 export async function assignTriage(
   db: Database,
   input: TriageItem.Ref & { assigneeId: string | null },
@@ -37,14 +37,14 @@ export async function snoozeTriage(
   const until = snoozeUntil(input.choice, input.now ?? new Date(), input.date)
   return db.transaction(async (tx) => {
     const item = await snoozeTriageItem(tx, {
-      projectId: input.projectId,
+      teamId: input.teamId,
       kind: input.kind,
       key: input.key,
       snoozeKind: input.choice,
       snoozedUntil: until,
       snoozedAfterBuild:
         input.choice === 'next_push'
-          ? await latestDefaultBranchBuildNumber(tx, input.projectId)
+          ? await latestDefaultBranchBuildNumber(tx, input.teamId)
           : null,
     })
     return { item, until }
@@ -64,7 +64,7 @@ export async function dismissTriage(db: Database, ref: TriageItem.Ref): Promise<
 export async function createIgnoreRegion(
   db: Database,
   input: {
-    projectId: string
+    teamId: string
     name: string
     x: number
     y: number
@@ -74,18 +74,14 @@ export async function createIgnoreRegion(
   },
 ): Promise<IgnoreRegionRow> {
   return db.transaction(async (tx) => {
-    const { projectId, resolves, ...region } = input
-    const added = await addIgnoreRegion(tx, projectId, region)
-    if (resolves) await dismissTriageItem(tx, { projectId, ...resolves })
+    const { teamId, resolves, ...region } = input
+    const added = await addIgnoreRegion(tx, teamId, region)
+    if (resolves) await dismissTriageItem(tx, { teamId, ...resolves })
     return added
   })
 }
 
-/** Stops ignoring a region (throws `NotFoundError` when the project has no such region). */
-export async function deleteIgnoreRegion(
-  db: Database,
-  projectId: string,
-  id: string,
-): Promise<void> {
-  await db.transaction((tx) => removeIgnoreRegion(tx, projectId, id))
+/** Stops ignoring a region (throws `NotFoundError` when the team has no such region). */
+export async function deleteIgnoreRegion(db: Database, teamId: string, id: string): Promise<void> {
+  await db.transaction((tx) => removeIgnoreRegion(tx, teamId, id))
 }

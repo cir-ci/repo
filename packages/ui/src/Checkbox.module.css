@@ -22,13 +22,21 @@
   box-sizing: border-box;
   width: 14px;
   height: 14px;
+  position: relative;
   margin: 3px 0 0;
   padding: 0;
   border: 1px solid var(--circi-line-strong);
-  border-radius: 3px;
+  border-radius: var(--circi-radius-inline);
   background: var(--circi-surface-raised);
   color: var(--circi-accent-on-accent);
   cursor: pointer;
+}
+
+/* The box is 14px; its hit area is 24px. */
+.box::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
 }
 
 .box[data-checked],

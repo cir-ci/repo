@@ -33,13 +33,13 @@ export function definitionProblems(def: IntegrationDefinition): string[] {
     bad('a repository mapping target needs the `git` capability (it lists the repositories)')
   }
   if (def.capabilities.git && def.mapping?.target.kind !== 'repository') {
-    bad('a git host maps projects to repositories: its `mapping.target.kind` is `repository`')
+    bad('a git host maps teams to repositories: its `mapping.target.kind` is `repository`')
   }
   if (def.capabilities.tracker && !def.mapping)
-    bad('a tracker needs a `mapping` (its team or project)')
+    bad('a tracker needs a `mapping` (its Linear team or Jira project)')
   if (def.capabilities.design && !def.mapping) bad('a design tool needs a `mapping` (its file)')
   if (def.links) {
-    if (!def.mapping) bad('`links` belong to a mapped project: it needs a `mapping`')
+    if (!def.mapping) bad('`links` belong to a mapped team: it needs a `mapping`')
     if (!def.links.fields.some((f) => f.key === def.links?.subject)) {
       bad(`links.subject ${def.links.subject} is not one of its fields`)
     }

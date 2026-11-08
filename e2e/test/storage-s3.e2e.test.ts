@@ -2,7 +2,7 @@ import { HeadObjectCommand } from '@aws-sdk/client-s3'
 import type { Build } from '@circi/api'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createProject, type CreatedProject } from '#src/admin.ts'
+import { createTeam, type CreatedTeam } from '#src/admin.ts'
 import { run } from '#src/docker.ts'
 import { Repo } from '#src/git-repo.ts'
 import { screenshot } from '#src/images.ts'
@@ -14,7 +14,7 @@ import { useStack } from '#src/vitest.ts'
 describe('S3 storage', () => {
   const ctx = useStack({ dedicated: true, storage: 's3', setup: true })
   let repo: Repo
-  let project: CreatedProject
+  let team: CreatedTeam
 
   const s3 = () => {
     const bucket = ctx.stack.s3
@@ -23,14 +23,13 @@ describe('S3 storage', () => {
   }
   const build = (n: number) =>
     ctx.setup.session.get<Build.Detail>(
-      `/api/projects/${ctx.setup.organization.slug}/${project.slug}/builds/${n}`,
+      `/api/teams/${ctx.setup.workspace.slug}/${team.slug}/builds/${n}`,
     )
-  const upload = (wait = true) =>
-    uploadOrThrow({ stack: ctx.stack, token: project.token, repo, wait })
+  const upload = (wait = true) => uploadOrThrow({ stack: ctx.stack, token: team.token, repo, wait })
 
   beforeAll(async () => {
     repo = await Repo.create()
-    project = await createProject(ctx.setup.session, ctx.setup.organization.slug, 'Shop')
+    team = await createTeam(ctx.setup.session, ctx.setup.workspace.slug, 'Shop')
   })
   afterAll(async () => {
     await repo.destroy()
@@ -122,7 +121,7 @@ describe('S3 storage', () => {
     'fails an upload clearly while S3 is down, and recovers when it is back',
     { timeout: 120_000 },
     async () => {
-      const container = `${ctx.stack.project}-localstack-1`
+      const container = `${ctx.stack.composeProject}-localstack-1`
       // Docker is sometimes slow to stop a container on a busy machine: retry, then kill.
       for (const args of [['stop', '-t', '1'], ['kill'], ['kill']]) {
         await run('docker', [...args, container], { allowFail: true })
@@ -135,7 +134,7 @@ describe('S3 storage', () => {
         })
         await repo.commit('while s3 is down')
         const started = Date.now()
-        const down = await uploadBuild({ stack: ctx.stack, token: project.token, repo, wait: true })
+        const down = await uploadBuild({ stack: ctx.stack, token: team.token, repo, wait: true })
         expect(down.exitCode).toBeGreaterThan(1)
         expect(Date.now() - started).toBeLessThan(120_000)
         expect(down.stderr + down.stdout).not.toBe('')

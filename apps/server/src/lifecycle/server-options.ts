@@ -65,7 +65,7 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): buildServe
       passwordLogin: config.passwordLogin,
       sso: config.sso.map((p) => ({ id: p.id, name: p.name })),
       webhookAllowPrivate: config.webhookAllowPrivate,
-      orgCreation: config.orgCreation,
+      workspaceCreation: config.workspaceCreation,
       githubApp: config.github !== undefined,
       ...(config.githubApiUrl ? { githubApiUrl: config.githubApiUrl } : {}),
       integrations: { config: integrations },

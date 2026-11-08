@@ -20,12 +20,12 @@ import {
 import styles from './CommandMenu.module.css'
 
 /**
- * The command menu (⌘K): jump to a page, project or saved view and run the actions of the page
+ * The command menu (⌘K): jump to a page, team or saved view and run the actions of the page
  * you are on (from the shortcut registry, with their keys) while the field is empty; search builds,
- * branches, projects and snapshots when it is not. ↑ ↓ move, ↵ chooses, → opens a quick look
+ * branches, teams and snapshots when it is not. ↑ ↓ move, ↵ chooses, → opens a quick look
  * of the highlighted result, Esc closes.
  */
-export function CommandMenu({ open, onOpenChange, org, projects, views }: CommandMenu.Props) {
+export function CommandMenu({ open, onOpenChange, workspace, teams, views }: CommandMenu.Props) {
   const router = useRouter()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const params = useParams({ strict: false })
@@ -37,16 +37,16 @@ export function CommandMenu({ open, onOpenChange, org, projects, views }: Comman
   const listId = useId()
 
   const q = normalizeQuery(query)
-  const { results, pending, failed } = useSearchResults(org, q)
-  const openProject =
-    org !== undefined && params.org === org && params.project
-      ? projects?.find((p) => p.slug === params.project)
+  const { results, pending, failed } = useSearchResults(workspace, q)
+  const openTeam =
+    workspace !== undefined && params.workspace === workspace && params.team
+      ? teams?.find((p) => p.slug === params.team)
       : undefined
   const entries =
     q === ''
-      ? emptyQueryEntries(pathname, { org, projects, views })
-      : org
-        ? searchEntries(org, q, results, openProject)
+      ? emptyQueryEntries(pathname, { workspace, teams, views })
+      : workspace
+        ? searchEntries(workspace, q, results, openTeam)
         : []
   const groups = groupEntries(entries)
   const flat = flatten(groups)
@@ -126,7 +126,7 @@ export function CommandMenu({ open, onOpenChange, org, projects, views }: Comman
             aria-autocomplete="list"
             autoComplete="off"
             spellCheck={false}
-            placeholder="Search builds, branches, projects, or type a command"
+            placeholder="Search builds, branches, teams, or type a command"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value)
@@ -207,9 +207,9 @@ export namespace CommandMenu {
   export interface Props {
     open: boolean
     onOpenChange: (open: boolean) => void
-    /** The organization searched and jumped around in. */
-    org: string | undefined
-    projects: readonly Sidebar.Project[] | undefined
+    /** The workspace searched and jumped around in. */
+    workspace: string | undefined
+    teams: readonly Sidebar.Team[] | undefined
     views: readonly View.Item[] | undefined
   }
 }

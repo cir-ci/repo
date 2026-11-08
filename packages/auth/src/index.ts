@@ -14,14 +14,14 @@ export { createSmtpMailer, type Mailer, signInMail, invitationMail } from './mai
 
 export {
   addMember,
-  createOrganization,
-  createProjectWithToken,
+  createWorkspace,
+  createTeamWithToken,
   createUser,
   generatePassword,
   type IssuedToken,
-  rotateProjectToken,
+  rotateTeamToken,
   setUserPassword,
-  verifyProjectToken,
+  verifyTeamToken,
 } from './operations/admin.ts'
 
 export { isAPIError as isAuthApiError } from 'better-auth/api'

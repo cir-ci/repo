@@ -39,7 +39,7 @@ describe('connectNote', () => {
   it('says how an install ended, naming the integration', () => {
     expect(connectNote('connected', 'Slack')).toEqual({
       tone: 'success',
-      text: 'Slack is connected. Choose what each project uses.',
+      text: 'Slack is connected. Choose what each team uses.',
     })
     expect(connectNote('denied', 'Slack')?.text).toContain('cancelled')
     expect(connectNote('failed', 'Slack')?.tone).toBe('danger')

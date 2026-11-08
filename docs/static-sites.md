@@ -1,6 +1,6 @@
 # Hosting Storybook and reports
 
-CirCI can host the built Storybook, Playwright/Vitest report, coverage report or docs of a commit, so reviewers open the real thing next to the screenshots. It is off until you set `STATIC_SITES_HOST` and switch it on per project (project settings → **Host static sites**).
+CirCI can host the built Storybook, Playwright/Vitest report, coverage report or docs of a commit, so reviewers open the real thing next to the screenshots. It is off until you set `STATIC_SITES_HOST` and switch it on per team (team settings → **Host static sites**).
 
 ```sh
 circi storybook upload ./storybook-static           # a Storybook
@@ -17,7 +17,7 @@ Every upload belongs to a commit and gets two addresses on the sites domain:
 
 A branch address only moves when the upload is the branch's tip (`git ls-remote`, or a local check that the commit descends from what the address serves) and never for a fork's pull request. A CI re-run of a commit replaces that commit's files and keeps its address.
 
-Every request to a site needs sign-in: opening one sends you to the dashboard, which hands the site a one-minute single-use token if you belong to the project's organization. The site then sets its own cookie (host-only, `HttpOnly`) and checks it against your dashboard session at least once a minute, so signing out or leaving the organization ends access within a minute. An address that doesn't exist, has expired or isn't yours gets the same answer.
+Every request to a site needs sign-in: opening one sends you to the dashboard, which hands the site a one-minute single-use token if you belong to the team's workspace. The site then sets its own cookie (host-only, `HttpOnly`) and checks it against your dashboard session at least once a minute, so signing out or leaving the workspace ends access within a minute. An address that doesn't exist, has expired or isn't yours gets the same answer.
 
 ## ⚠️ Step: check domain and cookie rules
 

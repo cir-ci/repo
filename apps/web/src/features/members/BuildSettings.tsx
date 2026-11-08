@@ -1,20 +1,20 @@
 import { Banner, Checkbox, SectionHeader } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 
-import { orgSettingsQuery, useSaveOrgSettings } from './api.ts'
+import { workspaceSettingsQuery, useSaveWorkspaceSettings } from './api.ts'
 
 import styles from './BuildSettings.module.css'
 
-/** Defaults for the organization's projects; each project may override them in its settings. */
-export function BuildSettings({ org }: BuildSettings.Props) {
-  const { data } = useQuery(orgSettingsQuery(org))
-  const save = useSaveOrgSettings(org)
+/** Defaults for the workspace's teams; each team may override them in its settings. */
+export function BuildSettings({ workspace }: BuildSettings.Props) {
+  const { data } = useQuery(workspaceSettingsQuery(workspace))
+  const save = useSaveWorkspaceSettings(workspace)
   if (!data) return null
   return (
     <section className={styles.root}>
       <SectionHeader
         title="Build defaults"
-        description="Projects use these unless their own settings say otherwise."
+        description="Teams use these unless their own settings say otherwise."
       />
       <Checkbox
         label="Flaky screenshots block merges"
@@ -30,6 +30,6 @@ export function BuildSettings({ org }: BuildSettings.Props) {
 
 export namespace BuildSettings {
   export interface Props {
-    org: string
+    workspace: string
   }
 }

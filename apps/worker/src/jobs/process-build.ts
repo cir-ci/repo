@@ -3,7 +3,7 @@ import {
   type Database,
   getBuild,
   findApprovedRerunOf,
-  getProjectById,
+  getTeamById,
   ignoreRegionsByName,
   listBaselineCandidates,
   listBuildDiffs,
@@ -53,13 +53,13 @@ export async function processBuild(
   if (!build) return { status: 'skipped', reason: 'build no longer exists' }
   if (build.status !== 'processing')
     return { status: 'skipped', reason: `build is ${build.status}` }
-  const project = await getProjectById(db, build.projectId)
-  if (!project) return { status: 'skipped', reason: 'project no longer exists' }
+  const team = await getTeamById(db, build.teamId)
+  if (!team) return { status: 'skipped', reason: 'team no longer exists' }
 
   // 1. Baseline.
   const candidates = await listBaselineCandidates(db, build)
   const resolution = resolveBaseline(
-    { ancestorShas: build.ancestorShas, defaultBranch: project.defaultBranch },
+    { ancestorShas: build.ancestorShas, defaultBranch: team.defaultBranch },
     candidates,
   )
   const baseBuild = resolution.via === 'none' ? undefined : resolution.build
@@ -103,7 +103,7 @@ export async function processBuild(
 
   // 4. Pixel diffs for same-name pairs with different bytes.
   const diffRows = await listBuildDiffs(db, build.id)
-  const ignored = await ignoreRegionsByName(db, build.projectId)
+  const ignored = await ignoreRegionsByName(db, build.teamId)
   const byName = new Map(diffRows.map((r) => [r.name, r]))
   const statuses: string[] = []
   await mapLimit(pairs, concurrency, async (pair) => {
@@ -133,7 +133,7 @@ export async function processBuild(
         loader(pair.head.fileSha256),
       ])
       const res = await diffImages(basePng, headPng, {
-        threshold: project.diffThreshold,
+        threshold: team.diffThreshold,
         ...(ignored.has(pair.name) ? { ignore: ignored.get(pair.name) ?? [] } : {}),
       })
       let diffFileSha256: string | null = null
@@ -167,15 +167,15 @@ export async function processBuild(
   })
 
   // 5. Conclusion. Added, removed and unreadable screenshots all need a human look. A build with
-  // no baseline (a project's first) is never auto-approved: someone reviews every screenshot once.
+  // no baseline (a team's first) is never auto-approved: someone reviews every screenshot once.
   const conclusion = statuses.every((s) => s === 'unchanged') ? 'no_changes' : 'changes_detected'
   let approval: completeBuild.Approval = 'none'
   if (conclusion === 'changes_detected') {
     if (
       baseBuild !== undefined &&
-      project.autoApproveDefaultBranch &&
+      team.autoApproveDefaultBranch &&
       build.prNumber === null &&
-      build.branch === project.defaultBranch
+      build.branch === team.defaultBranch
     ) {
       approval = 'default-branch'
     } else if (await findApprovedRerunOf(db, build)) {

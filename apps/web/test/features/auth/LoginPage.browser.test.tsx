@@ -155,18 +155,18 @@ describe('LoginPage', () => {
     })
   })
 
-  it('signs in through an organization: reveals a field, and says when it has no SSO', async () => {
+  it('signs in through a workspace: reveals a field, and says when it has no SSO', async () => {
     const calls = fakeFetch({
       ...methods(),
       'POST /api/auth/sign-in/sso': json({ error: 'none' }, 404),
     })
     await renderPage(<LoginPage />)
-    await page.getByRole('button', { name: 'Sign in through your organization' }).click()
-    await page.getByRole('textbox', { name: 'Organization' }).fill(' Acme ')
+    await page.getByRole('button', { name: 'Sign in through your workspace' }).click()
+    await page.getByRole('textbox', { name: 'Workspace' }).fill(' Acme ')
     await page.getByRole('button', { name: 'Continue' }).click()
     await expect
       .element(page.getByRole('alert'))
-      .toHaveTextContent('That organization has no single sign-on set up.')
+      .toHaveTextContent('That workspace has no single sign-on set up.')
     expect(calls.find((c) => c.path.endsWith('sign-in/sso'))?.body).toMatchObject({
       organizationSlug: 'acme',
     })

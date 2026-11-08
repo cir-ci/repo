@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { type FakeGithub, startFakeGithub } from '#fakes/fake-github.ts'
-import { buildDetail, createLinkedProject, uploadPr } from '#src/github-helpers.ts'
+import { buildDetail, createLinkedTeam, uploadPr } from '#src/github-helpers.ts'
 import { useStack } from '#src/vitest.ts'
 
 /**
@@ -26,8 +26,8 @@ describe('GitHub App with a github.com style API address (fake GitHub at the roo
     const { stack, setup } = ctx
     expect(new URL(gh.apiUrl).pathname).toBe('/')
     expect(new URL(ctx.stack.url).origin).toBeTruthy()
-    const org = setup.organization.slug
-    const linked = await createLinkedProject(stack, setup.session, org, 'Root form', {
+    const workspace = setup.workspace.slug
+    const linked = await createLinkedTeam(stack, setup.session, workspace, 'Root form', {
       repoRef: 'acme/root',
     })
     const pr = await uploadPr(stack, linked, 7, { login: { dot: { x: 200, y: 100 } } })

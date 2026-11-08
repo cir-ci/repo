@@ -5,7 +5,7 @@ import type { z } from 'zod'
 /**
  * The one description of an integration. A definition file (`slack.ts`) declares everything CirCI
  * needs to offer it: its name and logo, the form that connects it, how it checks it still works,
- * which domain events it handles, what a project maps to, and the typed capabilities (chat, git,
+ * which domain events it handles, what a team maps to, and the typed capabilities (chat, git,
  * tracker, design) it implements. The registry (`registry.ts`) is the only list of definitions;
  * the catalog, the server routes, the worker job and (as plain data, never code) the dashboard
  * all read it. See docs/integration-sdk.md.
@@ -48,7 +48,7 @@ export namespace IntegrationDefinition {
 
   /** What `connect` and an OAuth exchange return: the account, and what to seal and store. */
   export interface ConnectResult {
-    /** The provider's id for the account; one organisation connects it once. */
+    /** The provider's id for the account; one workspace connects it once. */
     externalId: string
     /** What a person calls it (workspace or site name). */
     displayName: string
@@ -65,7 +65,7 @@ export namespace IntegrationDefinition {
     exchange(ctx: Context, input: { code: string; redirectUri: string }): Promise<ConnectResult>
   }
 
-  /** A person-visible name for something a project can be pointed at (a channel, a team). */
+  /** A person-visible name for something a team can be pointed at (a channel, a Linear team). */
   export interface Target {
     id: string
     name: string
@@ -80,15 +80,15 @@ export namespace IntegrationDefinition {
         label: string
         /** Domain events a person can switch on, each with the text beside its checkbox. */
         options: readonly { event: IntegrationEvent.Type; label: string }[]
-        /** On for a newly mapped project. */
+        /** On for a newly mapped team. */
         defaults: readonly IntegrationEvent.Type[]
       }
     | { kind: 'text'; key: string; label: string; placeholder?: string; optional?: boolean }
     | { kind: 'toggle'; key: string; label: string; default: boolean }
 
   /**
-   * How a project maps to the integration: one target per project, stored in
-   * `integration_projects.external_ref`, with the settings of `fields` in `extra` (and the target's
+   * How a team maps to the integration: one target per team, stored in
+   * `integration_teams.external_ref`, with the settings of `fields` in `extra` (and the target's
    * name in `extra.name`).
    */
   export interface Mapping {
@@ -133,12 +133,12 @@ export namespace IntegrationDefinition {
   /** What a chat integration is given to say something about a build. */
   export interface ChatMessage {
     event: IntegrationEvent.Payload
-    build: { projectName: string; number: number; branch: string | null; url: string }
+    build: { teamName: string; number: number; branch: string | null; url: string }
     /** Who was asked to review, or who decided. */
     reviewer: string | null
     /** Who asked. */
     actor: string | null
-    /** The project's mapping: the channel and the settings. */
+    /** The team's mapping: the channel and the settings. */
     target: { ref: string; extra: Record<string, unknown> }
     /** The opened credentials. */
     credentials: string
@@ -147,7 +147,7 @@ export namespace IntegrationDefinition {
   /** The connection a webhook delivery is about: its external id, or the start of it (GitLab: `host#`). */
   export type GitConnectionMatch = { externalId: string } | { externalIdPrefix: string }
 
-  /** A repository a delivery names, and which of the organisations' connections it is on. */
+  /** A repository a delivery names, and which of the workspaces' connections it is on. */
   export interface GitRepo {
     /** The host's name for it: `owner/name`, a GitLab path with namespace. */
     ref: string
@@ -195,7 +195,7 @@ export namespace IntegrationDefinition {
   /** How the one shared handler's verdict is told to the person on the host. */
   export interface GitAnswer {
     event: Extract<GitEvent, { type: 'command' | 'check_action' }>
-    /** What happened: done, the person is not a CirCI member of the project, or nothing applied. */
+    /** What happened: done, the person is not a CirCI member of the team, or nothing applied. */
     outcome: 'acted' | 'refused' | 'ignored'
     /** The pull request, when the event itself does not carry it (a check action's build). */
     prNumber?: number
@@ -244,7 +244,7 @@ export namespace IntegrationDefinition {
   }
 
   /**
-   * A design tool, called with the opened credentials and the project's mapped file (`fileRef`,
+   * A design tool, called with the opened credentials and the team's mapped file (`fileRef`,
    * the mapping's `external_ref`). Calls throw; callers classify them with `needsAttention`.
    */
   export interface Design {
@@ -295,10 +295,10 @@ export namespace IntegrationDefinition {
   }
 
   /**
-   * Project-wide links an integration keeps for a mapped project (Figma: snapshot patterns to
+   * Team-wide links an integration keeps for a mapped team (Figma: snapshot patterns to
    * frames), stored as `integration_links` rows of `kind`. The generic page renders a table with
    * add and remove, and an optional "Link automatically" button (`autoLink`, which needs the
-   * `design` capability and its `linkFor`): CirCI matches the project's snapshots to the file's frames.
+   * `design` capability and its `linkFor`): CirCI matches the team's snapshots to the file's frames.
    */
   export interface Links {
     /** The stored `integration_links.kind`: `figma-frame`. */
@@ -308,7 +308,7 @@ export namespace IntegrationDefinition {
     description?: string
     /** The add form's inputs, text only. */
     fields: readonly LinkField[]
-    /** Which field is the link's subject (the snapshot pattern); unique per project. */
+    /** Which field is the link's subject (the snapshot pattern); unique per team. */
     subject: string
     /** Turns the form's values into the link to store; may check with the provider. Throws `IntegrationError`s. */
     resolve(
@@ -358,12 +358,12 @@ export namespace IntegrationDefinition {
     events: readonly IntegrationEvent.Type[]
     capabilities: Capabilities
     mapping?: Mapping
-    /** Project-wide links it keeps (needs a `mapping`). */
+    /** Team-wide links it keeps (needs a `mapping`). */
     links?: Links
     /**
-     * Rules that keep an external account or a project's mapping to one place. `account`: the same
-     * external account connects in ONE organisation of the instance (a second organisation gets
-     * a 409). `project`: a project maps to one connection of the kind (`kind`) or to one git host
+     * Rules that keep an external account or a team's mapping to one place. `account`: the same
+     * external account connects in ONE workspace of the instance (a second workspace gets
+     * a 409). `team`: a team maps to one connection of the kind (`kind`) or to one git host
      * of the group (`group`); mapping to another moves it.
      */
     exclusive?: Exclusive
@@ -374,7 +374,7 @@ export namespace IntegrationDefinition {
      */
     secretless?: true
     /**
-     * Connecting an account the organisation already has replaces its credentials and clears
+     * Connecting an account the workspace already has replaces its credentials and clears
      * "needs attention" (a rotated token, a reinstalled App) instead of answering 409.
      */
     replaceOnReconnect?: true
@@ -382,7 +382,7 @@ export namespace IntegrationDefinition {
 
   export interface Exclusive {
     account?: true
-    project?: 'kind' | 'group'
+    team?: 'kind' | 'group'
   }
 }
 

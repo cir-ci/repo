@@ -1,15 +1,15 @@
-import { ConflictError, listPinnedProjectIds, listSavedViews, NotFoundError } from '@circi/db'
-import { addTestMember, createTestDb, seedProject, seedUser } from '@circi/testing'
+import { ConflictError, listPinnedTeamIds, listSavedViews, NotFoundError } from '@circi/db'
+import { addTestMember, createTestDb, seedTeam, seedUser } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
   createView,
   deleteView,
-  pinProject,
+  pinTeam,
   renameView,
   reorderViews,
   setViewPinned,
-  unpinProject,
+  unpinTeam,
   updateView,
   updateViewFilters,
 } from '#src/index.ts'
@@ -23,36 +23,41 @@ afterAll(async () => {
 })
 
 async function setup() {
-  const { project, org, owner } = await seedProject(t.db)
+  const { team, workspace, owner } = await seedTeam(t.db)
   const mate = await seedUser(t.db)
-  await addTestMember(t.db, { orgId: org.id, userId: mate.id })
-  const mine = { userId: owner.id, orgId: org.id }
-  return { project, org, owner, mate, mine }
+  await addTestMember(t.db, { workspaceId: workspace.id, userId: mate.id })
+  const mine = { userId: owner.id, workspaceId: workspace.id }
+  return { team, workspace, owner, mate, mine }
 }
 
 describe('saved views', () => {
-  it('creates views in order, with and without a project', async () => {
-    const { project, mine } = await setup()
+  it('creates views in order, with and without a team', async () => {
+    const { team, mine } = await setup()
     const a = await createView(t.db, { ...mine, name: 'Failing', filters: { status: 'error' } })
     const b = await createView(t.db, {
       ...mine,
       name: 'Mine',
-      projectId: project.id,
+      teamId: team.id,
       filters: { author: 'me' },
     })
-    expect(a).toMatchObject({ name: 'Failing', position: 0, pinned: false, project: null })
-    expect(b).toMatchObject({ position: 1, project: { slug: project.slug } })
+    expect(a).toMatchObject({ name: 'Failing', position: 0, pinned: false, team: null })
+    expect(b).toMatchObject({ position: 1, team: { slug: team.slug } })
     expect((await listSavedViews(t.db, mine)).map((v) => v.name)).toEqual(['Failing', 'Mine'])
   })
 
-  it('keeps a name unique per person and organization', async () => {
-    const { mine, mate, org } = await setup()
+  it('keeps a name unique per person and workspace', async () => {
+    const { mine, mate, workspace } = await setup()
     await createView(t.db, { ...mine, name: 'Same', filters: {} })
     await expect(createView(t.db, { ...mine, name: ' Same ', filters: {} })).rejects.toBeInstanceOf(
       ConflictError,
     )
     // Someone else may use the name.
-    await createView(t.db, { userId: mate.id, orgId: org.id, name: 'Same', filters: {} })
+    await createView(t.db, {
+      userId: mate.id,
+      workspaceId: workspace.id,
+      name: 'Same',
+      filters: {},
+    })
     const other = await createView(t.db, { ...mine, name: 'Other', filters: {} })
     await expect(renameView(t.db, { ...mine, id: other.id, name: 'Same' })).rejects.toBeInstanceOf(
       ConflictError,
@@ -60,12 +65,12 @@ describe('saved views', () => {
     await expect(createView(t.db, { ...mine, name: '  ', filters: {} })).rejects.toThrow(/name/)
   })
 
-  it('refuses a project from another organization', async () => {
+  it('refuses a team from another workspace', async () => {
     const { mine } = await setup()
-    const { project: foreign } = await seedProject(t.db)
+    const { team: foreign } = await seedTeam(t.db)
     await expect(
-      createView(t.db, { ...mine, name: 'x', projectId: foreign.id, filters: {} }),
-    ).rejects.toThrow(/not in this organization/)
+      createView(t.db, { ...mine, name: 'x', teamId: foreign.id, filters: {} }),
+    ).rejects.toThrow(/not in this workspace/)
   })
 
   it('renames, changes filters, pins and unpins', async () => {
@@ -83,9 +88,9 @@ describe('saved views', () => {
   })
 
   it("is the owner's only: someone else's view is not found", async () => {
-    const { mine, mate, org } = await setup()
+    const { mine, mate, workspace } = await setup()
     const v = await createView(t.db, { ...mine, name: 'Private', filters: {} })
-    const theirs = { userId: mate.id, orgId: org.id, id: v.id }
+    const theirs = { userId: mate.id, workspaceId: workspace.id, id: v.id }
     await expect(renameView(t.db, { ...theirs, name: 'Hijack' })).rejects.toBeInstanceOf(
       NotFoundError,
     )
@@ -93,7 +98,7 @@ describe('saved views', () => {
       NotFoundError,
     )
     await expect(deleteView(t.db, theirs)).rejects.toBeInstanceOf(NotFoundError)
-    expect(await listSavedViews(t.db, { userId: mate.id, orgId: org.id })).toEqual([])
+    expect(await listSavedViews(t.db, { userId: mate.id, workspaceId: workspace.id })).toEqual([])
     expect(await listSavedViews(t.db, mine)).toHaveLength(1)
   })
 
@@ -119,17 +124,17 @@ describe('saved views', () => {
   })
 })
 
-describe('pinned projects', () => {
+describe('pinned teams', () => {
   it('pins in order, reports what changed, and unpins', async () => {
-    const { project, org, owner } = await setup()
-    const second = await seedProject(t.db, { org: { org, owner }, slug: 'second' })
+    const { team, workspace, owner } = await setup()
+    const second = await seedTeam(t.db, { workspace: { workspace, owner }, slug: 'second' })
     const input = { userId: owner.id }
-    expect(await pinProject(t.db, { ...input, projectId: second.project.id })).toBe(true)
-    expect(await pinProject(t.db, { ...input, projectId: project.id })).toBe(true)
-    expect(await pinProject(t.db, { ...input, projectId: project.id })).toBe(false)
-    expect(await listPinnedProjectIds(t.db, owner.id)).toEqual([second.project.id, project.id])
-    expect(await unpinProject(t.db, { ...input, projectId: second.project.id })).toBe(true)
-    expect(await unpinProject(t.db, { ...input, projectId: second.project.id })).toBe(false)
-    expect(await listPinnedProjectIds(t.db, owner.id)).toEqual([project.id])
+    expect(await pinTeam(t.db, { ...input, teamId: second.team.id })).toBe(true)
+    expect(await pinTeam(t.db, { ...input, teamId: team.id })).toBe(true)
+    expect(await pinTeam(t.db, { ...input, teamId: team.id })).toBe(false)
+    expect(await listPinnedTeamIds(t.db, owner.id)).toEqual([second.team.id, team.id])
+    expect(await unpinTeam(t.db, { ...input, teamId: second.team.id })).toBe(true)
+    expect(await unpinTeam(t.db, { ...input, teamId: second.team.id })).toBe(false)
+    expect(await listPinnedTeamIds(t.db, owner.id)).toEqual([team.id])
   })
 })

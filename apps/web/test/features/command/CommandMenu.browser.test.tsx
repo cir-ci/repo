@@ -11,39 +11,37 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-const api = (
-  search: unknown = { query: '', builds: [], branches: [], projects: [], snapshots: [] },
-) =>
+const api = (search: unknown = { query: '', builds: [], branches: [], teams: [], snapshots: [] }) =>
   fakeApi({
-    'GET /api/projects': {
+    'GET /api/teams': {
       body: {
-        projects: [
+        teams: [
           {
-            org: { slug: 'acme', name: 'Acme' },
-            project: { slug: 'web', name: 'Web', defaultBranch: 'main' },
+            workspace: { slug: 'acme', name: 'Acme' },
+            team: { slug: 'web', name: 'Web', defaultBranch: 'main' },
             latestBuild: null,
           },
         ],
       },
     },
-    'GET /api/capabilities': { body: { manageableOrganizations: [] } },
-    'GET /api/orgs/acme/sidebar': {
+    'GET /api/capabilities': { body: { manageableWorkspaces: [] } },
+    'GET /api/workspaces/acme/sidebar': {
       body: {
-        projects: [{ slug: 'web', name: 'Web', pinned: true, triage: 0 }],
+        teams: [{ slug: 'web', name: 'Web', pinned: true, triage: 0 }],
         views: [],
         inboxUnread: 0,
         reviews: 0,
       },
     },
-    'GET /api/orgs/acme/search': { body: search },
+    'GET /api/workspaces/acme/search': { body: search },
   })
 
 const result = {
   query: '#148',
   builds: [
     {
-      projectSlug: 'web',
-      projectName: 'Web',
+      teamSlug: 'web',
+      teamName: 'Web',
       number: 148,
       name: 'Checkout',
       branch: 'main',
@@ -53,7 +51,7 @@ const result = {
     },
   ],
   branches: [],
-  projects: [{ slug: 'web', name: 'Web' }],
+  teams: [{ slug: 'web', name: 'Web' }],
   snapshots: [],
 }
 
@@ -87,7 +85,7 @@ describe('the command menu', () => {
     await expect.element(field).toHaveFocus()
     await userEvent.type(field, '#148')
     await expect.element(page.getByRole('option', { name: /#148 Checkout/ })).toBeVisible()
-    expect(calls.calls.some((c) => c.path === '/api/orgs/acme/search')).toBe(true)
+    expect(calls.calls.some((c) => c.path === '/api/workspaces/acme/search')).toBe(true)
     await userEvent.keyboard('{Enter}')
     await vi.waitFor(() => expect(router.state.location.pathname).toBe('/acme/web/builds/148'))
   })
@@ -110,12 +108,12 @@ describe('the command menu', () => {
     await expect.element(page.getByText('Awaiting review')).toBeVisible()
   })
 
-  it('lists the jump-to entries and pinned projects while the field is empty', async () => {
+  it('lists the jump-to entries and pinned teams while the field is empty', async () => {
     api()
     await show()
     await userEvent.keyboard('{Meta>}k{/Meta}')
     await Promise.all(
-      ['Inbox', 'Reviews', 'Projects', 'Insights', 'Settings'].map((name) =>
+      ['Inbox', 'Reviews', 'Teams', 'Insights', 'Settings'].map((name) =>
         seen(page.getByRole('option', { name: new RegExp(`^${name}`) })),
       ),
     )

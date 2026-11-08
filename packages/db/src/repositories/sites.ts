@@ -6,9 +6,9 @@ import { and, desc, eq, gt, inArray, like, lt, sql } from 'drizzle-orm'
 import {
   files,
   member,
-  organization,
-  projects,
-  projectSites,
+  workspace,
+  teams,
+  teamSites,
   session,
   siteHostnames,
   siteSessions,
@@ -86,28 +86,28 @@ export async function publishSiteVersion(
     // 1. The site: found by name, or created with a free slug.
     let [site] = await tx
       .select()
-      .from(projectSites)
-      .where(and(eq(projectSites.projectId, input.projectId), eq(projectSites.name, input.name)))
+      .from(teamSites)
+      .where(and(eq(teamSites.teamId, input.teamId), eq(teamSites.name, input.name)))
     if (site) {
       if (site.kind !== input.kind || site.spa !== input.spa) {
         ;[site] = await tx
-          .update(projectSites)
+          .update(teamSites)
           .set({ kind: input.kind, spa: input.spa })
-          .where(eq(projectSites.id, site.id))
+          .where(eq(teamSites.id, site.id))
           .returning()
       }
     } else {
       const probe = input.slugPrefix
       const rows = await tx
-        .select({ slug: projectSites.slug })
-        .from(projectSites)
-        .where(like(projectSites.slug, `${probe}%`))
+        .select({ slug: teamSites.slug })
+        .from(teamSites)
+        .where(like(teamSites.slug, `${probe}%`))
       const used = new Set(rows.map((r) => r.slug))
       const slug = input.addressing.chooseSlug((s) => used.has(s))
       ;[site] = await tx
-        .insert(projectSites)
+        .insert(teamSites)
         .values({
-          projectId: input.projectId,
+          teamId: input.teamId,
           name: input.name,
           kind: input.kind,
           slug,
@@ -123,9 +123,7 @@ export async function publishSiteVersion(
     const [existing] = await tx
       .select()
       .from(staticSites)
-      .where(
-        and(eq(staticSites.projectSiteId, site.id), eq(staticSites.commitSha, input.commitSha)),
-      )
+      .where(and(eq(staticSites.teamSiteId, site.id), eq(staticSites.commitSha, input.commitSha)))
     let version = existing
     if (version) {
       await tx.delete(staticSiteFiles).where(eq(staticSiteFiles.staticSiteId, version.id))
@@ -144,7 +142,7 @@ export async function publishSiteVersion(
       ;[version] = await tx
         .insert(staticSites)
         .values({
-          projectSiteId: site.id,
+          teamSiteId: site.id,
           commitSha: input.commitSha,
           branch: input.branch,
           entryPath: input.entryPath,
@@ -188,7 +186,7 @@ export async function publishSiteVersion(
       commitLabel = input.addressing.commitLabel(site.slug, (l) => taken.has(l))
       await tx.insert(siteHostnames).values({
         label: commitLabel,
-        projectSiteId: site.id,
+        teamSiteId: site.id,
         linkKind: 'commit',
         staticSiteId: versionId,
       })
@@ -201,7 +199,7 @@ export async function publishSiteVersion(
         .from(siteHostnames)
         .where(
           and(
-            eq(siteHostnames.projectSiteId, site.id),
+            eq(siteHostnames.teamSiteId, site.id),
             eq(siteHostnames.linkKind, 'branch'),
             eq(siteHostnames.branch, input.branch),
           ),
@@ -219,7 +217,7 @@ export async function publishSiteVersion(
         branchLabel = input.addressing.branchLabel(input.branch, site.slug, (l) => taken.has(l))
         await tx.insert(siteHostnames).values({
           label: branchLabel,
-          projectSiteId: site.id,
+          teamSiteId: site.id,
           linkKind: 'branch',
           branch: input.branch,
           staticSiteId: versionId,
@@ -243,7 +241,7 @@ export async function publishSiteVersion(
 
 export namespace publishSiteVersion {
   export interface Input {
-    projectId: string
+    teamId: string
     name: string
     kind: string
     spa: boolean
@@ -277,8 +275,8 @@ export namespace findSiteByLabel {
     commitSha: string
     entryPath: string
     site: { id: string; name: string; kind: string; slug: string; spa: boolean }
-    project: { id: string; slug: string; name: string }
-    org: { id: string; slug: string; name: string }
+    team: { id: string; slug: string; name: string }
+    workspace: { id: string; slug: string; name: string }
   }
 }
 
@@ -293,15 +291,15 @@ export async function findSiteByLabel(
       versionId: staticSites.id,
       commitSha: staticSites.commitSha,
       entryPath: staticSites.entryPath,
-      site: projectSites,
-      project: projects,
-      org: organization,
+      site: teamSites,
+      team: teams,
+      workspace: workspace,
     })
     .from(siteHostnames)
     .innerJoin(staticSites, eq(staticSites.id, siteHostnames.staticSiteId))
-    .innerJoin(projectSites, eq(projectSites.id, siteHostnames.projectSiteId))
-    .innerJoin(projects, eq(projects.id, projectSites.projectId))
-    .innerJoin(organization, eq(organization.id, projects.orgId))
+    .innerJoin(teamSites, eq(teamSites.id, siteHostnames.teamSiteId))
+    .innerJoin(teams, eq(teams.id, teamSites.teamId))
+    .innerJoin(workspace, eq(workspace.id, teams.workspaceId))
     .where(eq(siteHostnames.label, label))
   if (!row) return undefined
   return {
@@ -317,8 +315,8 @@ export async function findSiteByLabel(
       slug: row.site.slug,
       spa: row.site.spa,
     },
-    project: { id: row.project.id, slug: row.project.slug, name: row.project.name },
-    org: { id: row.org.id, slug: row.org.slug, name: row.org.name },
+    team: { id: row.team.id, slug: row.team.slug, name: row.team.name },
+    workspace: { id: row.workspace.id, slug: row.workspace.slug, name: row.workspace.name },
   }
 }
 
@@ -352,7 +350,7 @@ export async function commitLabelOfVersion(
   return row?.label
 }
 
-export namespace listProjectSites {
+export namespace listTeamSites {
   export interface Listing {
     name: string
     kind: string
@@ -368,26 +366,26 @@ export namespace listProjectSites {
   }
 }
 
-/** Every site of a project with its newest versions and the branches that have an address. */
-export async function listProjectSites(
+/** Every site of a team with its newest versions and the branches that have an address. */
+export async function listTeamSites(
   db: Database,
-  projectId: string,
-): Promise<listProjectSites.Listing[]> {
-  const sites = await db.select().from(projectSites).where(eq(projectSites.projectId, projectId))
-  const result: listProjectSites.Listing[] = []
+  teamId: string,
+): Promise<listTeamSites.Listing[]> {
+  const sites = await db.select().from(teamSites).where(eq(teamSites.teamId, teamId))
+  const result: listTeamSites.Listing[] = []
   for (const site of sites) {
-    // eslint-disable-next-line no-await-in-loop -- a project has a handful of sites
+    // eslint-disable-next-line no-await-in-loop -- a team has a handful of sites
     const versions = await db
       .select()
       .from(staticSites)
-      .where(eq(staticSites.projectSiteId, site.id))
+      .where(eq(staticSites.teamSiteId, site.id))
       .orderBy(desc(staticSites.createdAt))
       .limit(30)
     // eslint-disable-next-line no-await-in-loop
     const hostnames = await db
       .select()
       .from(siteHostnames)
-      .where(eq(siteHostnames.projectSiteId, site.id))
+      .where(eq(siteHostnames.teamSiteId, site.id))
     const byVersion = new Map(
       hostnames.filter((h) => h.linkKind === 'commit').map((h) => [h.staticSiteId, h.label]),
     )
@@ -420,19 +418,19 @@ export async function listProjectSites(
 /** The commit a branch address serves now, for a CLI deciding whether to move it. */
 export async function servedCommitForBranch(
   db: Database,
-  projectId: string,
+  teamId: string,
   name: string,
   branch: string,
 ): Promise<string | undefined> {
   const [row] = await db
     .select({ commitSha: staticSites.commitSha })
     .from(siteHostnames)
-    .innerJoin(projectSites, eq(projectSites.id, siteHostnames.projectSiteId))
+    .innerJoin(teamSites, eq(teamSites.id, siteHostnames.teamSiteId))
     .innerJoin(staticSites, eq(staticSites.id, siteHostnames.staticSiteId))
     .where(
       and(
-        eq(projectSites.projectId, projectId),
-        eq(projectSites.name, name),
+        eq(teamSites.teamId, teamId),
+        eq(teamSites.name, name),
         eq(siteHostnames.linkKind, 'branch'),
         eq(siteHostnames.branch, branch),
       ),
@@ -505,11 +503,11 @@ export async function createSiteSession(
 /**
  * Whether a site session still stands for a person who may open this address: the session
  * exists for this address and hasn't expired, the dashboard session behind it is still valid,
- * and the person still belongs to the site's organization.
+ * and the person still belongs to the site's workspace.
  */
 export async function siteSessionValid(
   db: Database,
-  input: { id: string; label: string; orgId: string },
+  input: { id: string; label: string; workspaceId: string },
 ): Promise<boolean> {
   const [row] = await db
     .select({ userId: siteSessions.userId })
@@ -517,7 +515,7 @@ export async function siteSessionValid(
     .innerJoin(session, eq(session.id, siteSessions.authSessionId))
     .innerJoin(
       member,
-      and(eq(member.userId, siteSessions.userId), eq(member.organizationId, input.orgId)),
+      and(eq(member.userId, siteSessions.userId), eq(member.workspaceId, input.workspaceId)),
     )
     .where(
       and(

@@ -12,7 +12,7 @@ it('renders a page at its route inside the theme, query client and router', asyn
 
 it('opens `url` on a route pattern, and can wrap the page in the announcer', async () => {
   const { router } = await renderPage(<h1>Params</h1>, {
-    route: '/$org/$project',
+    route: '/$workspace/$team',
     url: '/acme/web?x=1',
     announcer: true,
   })

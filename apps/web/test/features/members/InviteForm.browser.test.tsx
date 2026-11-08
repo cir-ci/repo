@@ -11,7 +11,7 @@ import { renderPage } from '#test/support/render.tsx'
 const show = (onInvited = vi.fn<() => Promise<unknown>>(async () => {})) =>
   renderPage(
     <AnnouncerProvider>
-      <InviteForm organizationId="org1" onInvited={onInvited} />
+      <InviteForm workspaceId="workspace1" onInvited={onInvited} />
     </AnnouncerProvider>,
   ).then(() => onInvited)
 
@@ -29,7 +29,7 @@ describe('InviteForm', () => {
     expect(auth.inviteMember).toHaveBeenCalledWith({
       email: 'ada@example.test',
       role: 'admin',
-      organizationId: 'org1',
+      organizationId: 'workspace1',
     })
     await expect.element(page.getByText('Invitation sent to ada@example.test.')).toBeVisible()
     await expect.element(page.getByRole('textbox', { name: 'Email' })).toHaveValue('')

@@ -55,7 +55,7 @@ function fakeSlack() {
   return { posts, ctx }
 }
 
-const build = { projectName: 'Web', number: 7, branch: 'main', url: 'https://ci.acme.io/b' }
+const build = { teamName: 'Web', number: 7, branch: 'main', url: 'https://ci.acme.io/b' }
 const message = (
   type: IntegrationEvent.Type,
   over: Partial<IntegrationEvent.Payload> = {},

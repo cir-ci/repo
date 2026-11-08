@@ -1,7 +1,7 @@
 import { onlyFlakyChanges } from '@circi/core'
 import { and, count, desc, eq, gte, inArray } from 'drizzle-orm'
 
-import { builds, projects, screenshotDiffs } from '#schema/index.ts'
+import { builds, teams, screenshotDiffs } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
 /**
@@ -18,21 +18,21 @@ export interface FlakyScreenshot {
 
 export async function listFlakyScreenshots(
   db: Database,
-  projectId: string,
+  teamId: string,
   options: {
     /** Recent default-branch builds to look at. Default 10. */ window?: number
     /** Changed in at least this many. Default 3. */ minChanges?: number
   } = {},
 ): Promise<{ builds: number; flaky: FlakyScreenshot[] }> {
-  const [project] = await db.select().from(projects).where(eq(projects.id, projectId))
-  if (!project) return { builds: 0, flaky: [] }
+  const [team] = await db.select().from(teams).where(eq(teams.id, teamId))
+  if (!team) return { builds: 0, flaky: [] }
   const recent = await db
     .select({ id: builds.id })
     .from(builds)
     .where(
       and(
-        eq(builds.projectId, projectId),
-        eq(builds.branch, project.defaultBranch),
+        eq(builds.teamId, teamId),
+        eq(builds.branch, team.defaultBranch),
         eq(builds.status, 'complete'),
       ),
     )
@@ -59,11 +59,11 @@ export async function listFlakyScreenshots(
 
 /**
  * Whether the build's only differences are flaky screenshots (see `onlyFlakyChanges`): the
- * project's current flaky list against what this build changed.
+ * team's current flaky list against what this build changed.
  */
 export async function buildChangesAreFlakyOnly(
   db: Database,
-  build: { id: string; projectId: string },
+  build: { id: string; teamId: string },
 ): Promise<boolean> {
   const diffs = await db
     .select({ name: screenshotDiffs.name, status: screenshotDiffs.status })
@@ -81,6 +81,6 @@ export async function buildChangesAreFlakyOnly(
   }
   // Skip the flaky query for the common case of a build that is plainly not flaky-only.
   if (counts.changed === 0 || counts.added + counts.removed + counts.failed > 0) return false
-  const { flaky } = await listFlakyScreenshots(db, build.projectId)
+  const { flaky } = await listFlakyScreenshots(db, build.teamId)
   return onlyFlakyChanges({ counts, changed, flaky: flaky.map((f) => f.name) })
 }

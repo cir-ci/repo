@@ -1,5 +1,5 @@
 import { schema } from '@circi/db'
-import { createTestDb, seedOrg, seedSsoProvider } from '@circi/testing'
+import { createTestDb, seedWorkspace, seedSsoProvider } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { trustedOriginsFor, withTrustedIssuer } from '#sso/trusted-issuers.ts'
@@ -14,15 +14,15 @@ afterAll(async () => {
 
 describe('trustedOriginsFor', () => {
   it('lists the origins of registered issuers, ignoring malformed ones', async () => {
-    const { owner, org } = await seedOrg(t.db)
+    const { owner, workspace } = await seedWorkspace(t.db)
     await seedSsoProvider(t.db, {
-      orgId: org.id,
+      workspaceId: workspace.id,
       userId: owner.id,
       issuer: 'https://login.acme.io/realms/x',
       domain: 'login.acme.io',
     })
     await seedSsoProvider(t.db, {
-      orgId: org.id,
+      workspaceId: workspace.id,
       userId: owner.id,
       issuer: 'not a url',
       domain: 'x',
