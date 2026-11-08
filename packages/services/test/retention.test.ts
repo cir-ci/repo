@@ -7,7 +7,7 @@ import {
   schema,
   storageUsage,
 } from '@circi/db'
-import { createTestDb, seedProject, sha, type TestDb } from '@circi/testing'
+import { createTestDb, seedProject, seedUploadClaim, sha, type TestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -171,7 +171,7 @@ describe('collecting files', () => {
       .set({ gcMarkedAt: ago(5) })
       .where(eq(schema.files.sha256, old.hash))
     const fresh = await createBuild(t.db, { projectId: project.id, commitSha: 'eeee0001' })
-    await t.db.insert(schema.uploadClaims).values({ buildId: fresh.id, fileSha256: old.hash })
+    await seedUploadClaim(t.db, { buildId: fresh.id, fileSha256: old.hash })
     const { collectMarkedFiles } = await import('@circi/db')
     const result = await collectMarkedFiles(t.db, { now: new Date(), graceMs: DAY, deleteObject })
     expect(result.kept).toBeGreaterThanOrEqual(1)

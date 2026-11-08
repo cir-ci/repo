@@ -1,5 +1,5 @@
 import { schema } from '@circi/db'
-import { createTestDb, seedOrg, type TestDb } from '@circi/testing'
+import { createTestDb, seedOrg, seedSsoProvider, type TestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { trustedOriginsFor, withTrustedIssuer } from '../../src/sso/trusted-issuers.ts'
@@ -15,24 +15,18 @@ afterAll(async () => {
 describe('trustedOriginsFor', () => {
   it('lists the origins of registered issuers, ignoring malformed ones', async () => {
     const { owner, org } = await seedOrg(t.db)
-    await t.db.insert(schema.ssoProvider).values([
-      {
-        id: 'p1',
-        issuer: 'https://login.acme.io/realms/x',
-        userId: owner.id,
-        providerId: 'p1',
-        organizationId: org.id,
-        domain: 'login.acme.io',
-      },
-      {
-        id: 'p2',
-        issuer: 'not a url',
-        userId: owner.id,
-        providerId: 'p2',
-        organizationId: org.id,
-        domain: 'x',
-      },
-    ])
+    await seedSsoProvider(t.db, {
+      orgId: org.id,
+      userId: owner.id,
+      issuer: 'https://login.acme.io/realms/x',
+      domain: 'login.acme.io',
+    })
+    await seedSsoProvider(t.db, {
+      orgId: org.id,
+      userId: owner.id,
+      issuer: 'not a url',
+      domain: 'x',
+    })
     expect(await trustedOriginsFor(t.db)()).toEqual(['https://login.acme.io'])
   })
 

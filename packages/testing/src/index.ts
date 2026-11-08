@@ -4,6 +4,7 @@
  * import it as `@circi/testing` instead of reaching into another package's `test/` folder.
  */
 export * from './db.ts'
+export * from './seed/auth.ts'
 export * from './seed/builds.ts'
 export * from './seed/screenshots.ts'
 export * from './seed/sites.ts'

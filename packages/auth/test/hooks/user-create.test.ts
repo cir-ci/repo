@@ -1,5 +1,4 @@
-import { schema } from '@circi/db'
-import { createTestDb, seedOrg, type TestDb } from '@circi/testing'
+import { createTestDb, seedInvitation, seedOrg, seedOrgDomain, type TestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { beforeUserCreate } from '../../src/hooks/user-create.ts'
@@ -46,15 +45,7 @@ describe('beforeUserCreate', () => {
 
   it('allows it for an invited address', async () => {
     const { org, owner } = await seedOrg(t.db)
-    await t.db.insert(schema.invitation).values({
-      id: 'inv-1',
-      organizationId: org.id,
-      email: 'Invited@Acme.test',
-      role: 'member',
-      status: 'pending',
-      expiresAt: new Date(Date.now() + 3600_000),
-      inviterId: owner.id,
-    })
+    await seedInvitation(t.db, { orgId: org.id, inviterId: owner.id, email: 'Invited@Acme.test' })
     await expect(
       beforeUserCreate(options())(
         { email: 'invited@acme.test', name: 'Ivy', emailVerified: true },
@@ -64,12 +55,7 @@ describe('beforeUserCreate', () => {
   })
 
   it('names an account created by a code after the part of its address before the @ (no blank names)', async () => {
-    await t.db.insert(schema.orgDomains).values({
-      orgId: (await seedOrg(t.db)).org.id,
-      domain: 'named.test',
-      verificationToken: 't2',
-      verifiedAt: new Date(),
-    })
+    await seedOrgDomain(t.db, { orgId: (await seedOrg(t.db)).org.id, domain: 'named.test' })
     await expect(
       beforeUserCreate(options())(
         { email: 'grace.hopper@named.test', name: '', emailVerified: true },
@@ -98,12 +84,7 @@ describe('beforeUserCreate', () => {
     )
 
     const { org } = await seedOrg(t.db)
-    await t.db.insert(schema.orgDomains).values({
-      orgId: org.id,
-      domain: 'corp.test',
-      verificationToken: 't',
-      verifiedAt: new Date(),
-    })
+    await seedOrgDomain(t.db, { orgId: org.id, domain: 'corp.test' })
     const colleague = { email: 'ann@corp.test', emailVerified: true }
     await expect(
       beforeUserCreate(options())(colleague, callback('github')),

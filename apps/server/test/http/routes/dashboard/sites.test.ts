@@ -8,7 +8,7 @@ import { type Auth } from '@circi/auth'
 import { packSite as packWithCli, uploadSite } from '@circi/cli'
 import { schema } from '@circi/db'
 import { FsStorage } from '@circi/storage'
-import { createTestDb, type TestDb } from '@circi/testing'
+import { addTestMember, createTestDb, type TestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
@@ -373,7 +373,8 @@ describe('opening a site', () => {
       .where(eq(schema.member.userId, acme.owner.id))
     await t.db.delete(schema.member).where(eq(schema.member.userId, acme.owner.id))
     expect((await siteGet(label, '/', { cookie: siteCookie })).statusCode).toBe(302)
-    if (seat) await t.db.insert(schema.member).values(seat) // the later tests need the seat back
+    if (seat)
+      await addTestMember(t.db, { orgId: seat.organizationId, userId: seat.userId, role: 'owner' }) // the later tests need the seat back
   })
 })
 

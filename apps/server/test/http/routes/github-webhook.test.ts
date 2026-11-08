@@ -1,15 +1,8 @@
 import { createHmac } from 'node:crypto'
 
-import {
-  createBuild,
-  getBuild,
-  linkProjectToGithub,
-  listBuildReviews,
-  schema,
-  setCheckRunId,
-} from '@circi/db'
+import { getBuild, linkProjectToGithub, listBuildReviews, schema, setCheckRunId } from '@circi/db'
 import { completeBuild } from '@circi/services'
-import { createTestDb, type TestDb } from '@circi/testing'
+import { createTestDb, seedAccount, seedBuild, type TestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
@@ -33,14 +26,7 @@ beforeAll(async () => {
   acme = await seedTenant(auth, t.db)
   await linkProjectToGithub(t.db, acme.project.id, { installationId: '99', repoRef: 'Acme/Web' })
   // The owner linked their GitHub login.
-  await t.db.insert(schema.account).values({
-    id: 'acc-1',
-    accountId: GITHUB_ID,
-    providerId: 'github',
-    userId: acme.owner.id,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  })
+  await seedAccount(t.db, { userId: acme.owner.id, accountId: GITHUB_ID })
   app = buildServer({
     logger: pino({ level: 'silent' }),
     checks: [],
@@ -69,16 +55,12 @@ afterAll(async () => {
 /** A finished build with changes on PR `pr`, with a check run id. */
 async function changedBuild(pr: number) {
   n += 1
-  const build = await createBuild(t.db, {
-    projectId: acme.project.id,
+  const build = await seedBuild(t.db, acme.project.id, {
     commitSha: `abc${1000 + n}`,
     branch: 'feature',
     prNumber: pr,
+    status: 'processing',
   })
-  await t.db
-    .update(schema.builds)
-    .set({ status: 'processing' })
-    .where(eq(schema.builds.id, build.id))
   await completeBuild(
     t.db,
     { ...build, status: 'processing' },

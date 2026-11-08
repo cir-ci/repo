@@ -6,7 +6,7 @@ import { createUser } from '@circi/auth'
 import type { Auth } from '@circi/auth'
 import { schema } from '@circi/db'
 import { FsStorage } from '@circi/storage'
-import { createTestDb, type TestDb } from '@circi/testing'
+import { addTestMember, createTestDb, type TestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
@@ -137,19 +137,11 @@ describe('an organization’s own single sign-on', () => {
       .select()
       .from(schema.user)
       .where(eq(schema.user.email, 'ann@acme-corp.test'))
-    await t.db.insert(schema.member).values({
-      id: 'extra-member',
-      organizationId:
-        (
-          await t.db
-            .select()
-            .from(schema.organization)
-            .where(eq(schema.organization.slug, rival.orgSlug))
-        )[0]?.id ?? '',
-      userId: user?.id ?? '',
-      role: 'member',
-      createdAt: new Date(),
-    })
+    const [rivalOrg] = await t.db
+      .select()
+      .from(schema.organization)
+      .where(eq(schema.organization.slug, rival.orgSlug))
+    await addTestMember(t.db, { orgId: rivalOrg?.id ?? '', userId: user?.id ?? '' })
     const { cookie } = await ssoSignIn(acme.orgSlug)
     const projects = (await app.inject({ url: '/api/projects', headers: { cookie } })).json()
       .projects

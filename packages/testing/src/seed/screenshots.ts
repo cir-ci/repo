@@ -67,3 +67,11 @@ export async function seedDiff(
   if (!row) throw new Error('seed insert returned no row')
   return row
 }
+
+/** A claim that `buildId` uses the file `fileSha256` (the file row must exist). */
+export async function seedUploadClaim(
+  db: Database,
+  input: { buildId: string; fileSha256: string },
+): Promise<void> {
+  await db.insert(schema.uploadClaims).values(input)
+}
