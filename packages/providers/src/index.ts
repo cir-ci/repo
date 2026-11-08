@@ -17,6 +17,19 @@ export {
   verifyGithubSignature,
 } from './github.ts'
 export {
+  buildGithubManifest,
+  convertGithubManifestCode,
+  defaultGithubAppName,
+  GITHUB_APP_EVENTS,
+  GITHUB_APP_NAME_MAX,
+  GITHUB_APP_PERMISSIONS,
+  type GithubAppCredentials,
+  GithubManifestError,
+  githubManifestPostUrl,
+  githubWebBase,
+  type GithubManifest,
+} from './github-manifest.ts'
+export {
   GitlabApiError,
   type GitlabCredentials,
   type GitlabOptions,

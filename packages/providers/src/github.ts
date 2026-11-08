@@ -190,6 +190,17 @@ export class GithubApp implements GitProvider {
     }
   }
 
+  /** The App itself (`GET /app`, as the App): its slug and public page. */
+  async appInfo(): Promise<{ slug: string; name: string; htmlUrl: string }> {
+    const { data } = await this.#call(this.appJwt(), 'GET', '/app')
+    const field = (key: string) => {
+      const value: unknown =
+        typeof data === 'object' && data !== null ? Reflect.get(data, key) : undefined
+      return typeof value === 'string' ? value : ''
+    }
+    return { slug: field('slug'), name: field('name'), htmlUrl: field('html_url') }
+  }
+
   verifyWebhook(rawBody: Buffer | string, headers: GitProvider.WebhookHeaders): boolean {
     const secret = this.#options.webhookSecret
     return secret !== undefined && githubWebhookVerifier(secret).verifyWebhook(rawBody, headers)

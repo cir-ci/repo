@@ -5,6 +5,7 @@ import { baselinesRoutes } from '#features/baselines/routes.ts'
 import { buildsRoutes } from '#features/builds/routes.ts'
 import { inboxRoutes } from '#features/inbox/routes.ts'
 import { insightsRoutes } from '#features/insights/routes.ts'
+import { instanceRoutes } from '#features/instance/routes.ts'
 import { integrationsRoutes } from '#features/integrations/routes.ts'
 import { membersRoutes } from '#features/members/routes.ts'
 import { projectsRoutes } from '#features/projects/routes.ts'
@@ -32,6 +33,7 @@ const routeTree = rootRoute.addChildren([
   ...accountRoutes,
   ...settingsRoutes,
   ...integrationsRoutes,
+  ...instanceRoutes,
   ...placeholderRoutes,
 ])
 

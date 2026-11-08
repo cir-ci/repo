@@ -24,6 +24,7 @@ import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
+import { githubConfigured } from '#http/lib/github-app.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const projectParams = z.object({ org: z.string(), project: z.string() })
@@ -127,7 +128,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
       webhookEvents: WEBHOOK_EVENTS,
       sitesConfigured: deps.sites !== undefined,
       github: {
-        configured: deps.githubApp === true,
+        configured: githubConfigured(deps),
         webhookUrl: `${deps.publicOrigin}/webhooks/github`,
         link: await githubLink(deps.db, found.project.id),
       },
@@ -156,7 +157,8 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
   app.put('/projects/:org/:project/github', async (req, reply) => {
     const project = await loadForManager(req, reply)
     if (!project) return reply
-    if (!deps.githubApp) throw new ValidationError('This instance has no GitHub App configured')
+    if (!githubConfigured(deps))
+      throw new ValidationError('This instance has no GitHub App configured')
     const link = parse(githubBody, req.body)
     await linkProjectToGithub(deps.db, project.id, link)
     return { link: { ...link, attention: null } }

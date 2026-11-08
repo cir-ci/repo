@@ -109,6 +109,17 @@ describe('IntegrationsPage', () => {
   })
 })
 
+const APP = {
+  source: 'manifest',
+  canManage: true,
+  appId: '1',
+  slug: 'circi',
+  htmlUrl: 'https://github.com/apps/circi',
+  warning: null,
+  blocked: null,
+  defaultName: 'CirCI (ci.acme.io)',
+}
+
 const openAdd = (added: string[] = []) =>
   renderPage(
     <AddIntegrationDialog
@@ -154,10 +165,12 @@ describe('AddIntegrationDialog', () => {
   it('connects GitHub by installation id, from the form its definition describes', async () => {
     await page.viewport(1000, 800)
     const fake = fakeApi({
+      'GET /api/instance/github-app': { body: APP },
       'POST /api/orgs/acme/integrations/github/connect': { status: 201, body: { id: 'c1' } },
     })
     await openAdd()
     await page.getByRole('button', { name: 'Add GitHub' }).click()
+    await page.getByRole('button', { name: 'Advanced: connect by installation id' }).click()
     const field = page.getByRole('textbox', { name: 'GitHub App installation id' })
     await expect.element(page.getByRole('button', { name: 'Connect GitHub' })).toBeDisabled()
     await field.fill(' 4242 ')

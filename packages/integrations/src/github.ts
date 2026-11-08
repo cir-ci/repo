@@ -142,6 +142,9 @@ export const github = defineIntegration({
 
   available: (ctx) => githubApp(ctx) !== undefined,
 
+  // GitHub's `setup_url` return: `?installation_id=…&setup_action=install|update`.
+  setup: (query) => (query.installation_id ? { installationId: query.installation_id } : undefined),
+
   async connect(input, ctx) {
     const app = githubApp(ctx)
     if (!app) throw new InvalidInputError('This instance has no GitHub App configured')

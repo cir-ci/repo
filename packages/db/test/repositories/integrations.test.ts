@@ -5,8 +5,10 @@ import {
   seedGitLink,
   seedProject,
 } from '@circi/testing'
+import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { integrationLinks } from '#schema/integration-links.ts'
 import { ConflictError } from '#src/errors.ts'
 import {
   createIntegration,
@@ -264,16 +266,28 @@ describe('integration link helpers', () => {
   it('lists a build’s links oldest first with their integration and author', async () => {
     const { project, made } = await seedFigma()
     const build = await seedBuild(t.db, project.id)
+    const created: { id: string }[] = []
     for (const key of ['WEB-1', 'WEB-2']) {
       // oxlint-disable-next-line no-await-in-loop -- order matters
-      await createIntegrationLink(t.db, {
+      const link = await createIntegrationLink(t.db, {
         integrationId: made.id,
         buildId: build.id,
         kind: 'issue',
         externalRef: key,
         payload: { snapshotName: null },
       })
+      created.push(link)
     }
+    // Inserts in quick succession can share a timestamp: spell the order out.
+    const [first, second] = created
+    await t.db
+      .update(integrationLinks)
+      .set({ createdAt: new Date('2026-01-01T00:00:00Z') })
+      .where(eq(integrationLinks.id, first?.id ?? ''))
+    await t.db
+      .update(integrationLinks)
+      .set({ createdAt: new Date('2026-01-02T00:00:00Z') })
+      .where(eq(integrationLinks.id, second?.id ?? ''))
     await createIntegrationLink(t.db, {
       integrationId: made.id,
       buildId: build.id,

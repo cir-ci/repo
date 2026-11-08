@@ -5,6 +5,7 @@ import { startWorker } from '@circi/worker'
 import type { FastifyInstance } from 'fastify'
 
 import { buildServer } from '#http/app.ts'
+import { useStoredGithubApp } from '#http/lib/github-app.ts'
 
 import { integrationConfig } from './integration-config.ts'
 import { createRuntime } from './runtime.ts'
@@ -48,6 +49,13 @@ export async function runServices(options: runServices.Options): Promise<void> {
     if (options.migrate) {
       logger.info('applying database migrations')
       await runMigrations(rt.db)
+    }
+    // An App created in the dashboard (the environment's wins), before anything reads the config.
+    if (!rt.config.github) {
+      const live = integrationConfig(rt.config)
+      if (await useStoredGithubApp(rt.db.db, rt.config.authSecret, live)) {
+        logger.info('using the GitHub App created in the dashboard')
+      }
     }
     await announceStartup(rt, options)
     if (options.worker) {

@@ -119,3 +119,26 @@ async function startOtherKey(): Promise<string> {
     privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
   }).privateKey
 }
+
+describe('fake GitHub: the App manifest conversion and the App itself', () => {
+  it('converts a manifest code once, without authentication, into this fake’s App', async () => {
+    const code = gh.issueManifestCode()
+    const url = `${gh.apiUrl}/app-manifests/${code}/conversions`
+    const first = await fetch(url, { method: 'POST' })
+    expect(first.status).toBe(201)
+    expect(await first.json()).toMatchObject({
+      id: Number(gh.appId),
+      slug: gh.slug,
+      webhook_secret: gh.webhookSecret,
+      pem: gh.privateKey,
+    })
+    expect((await fetch(url, { method: 'POST' })).status).toBe(404)
+    expect(
+      (await fetch(`${gh.apiUrl}/app-manifests/nope/conversions`, { method: 'POST' })).status,
+    ).toBe(404)
+  })
+
+  it('tells the App about itself (`GET /app`), the real GithubApp reading it', async () => {
+    expect(await app.appInfo()).toMatchObject({ slug: gh.slug, name: 'CirCI' })
+  })
+})

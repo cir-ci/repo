@@ -11,6 +11,7 @@ import { dashboardBaselineRoutes } from './baselines.ts'
 import { dashboardCommentRoutes } from './comments.ts'
 import { dashboardDomainRoutes } from './domains.ts'
 import { dashboardFileRoutes } from './files.ts'
+import { dashboardGithubAppRoutes } from './github-app.ts'
 import { dashboardIgnoreRegionRoutes } from './ignore-regions.ts'
 import { dashboardInboxRoutes } from './inbox.ts'
 import { dashboardInsightsRoutes } from './insights.ts'
@@ -88,6 +89,7 @@ const sessionApi: FastifyPluginAsync<Deps.Dashboard> = async (api, deps) => {
   await api.register(dashboardSettingsRoutes, deps)
   await api.register(dashboardOrganizationRoutes, deps)
   await api.register(dashboardInstanceRoutes, deps)
+  await api.register(dashboardGithubAppRoutes, deps)
   await api.register(dashboardOrgAuthRoutes, deps)
   await api.register(dashboardOrgSettingsRoutes, deps)
   await api.register(dashboardDomainRoutes, deps)

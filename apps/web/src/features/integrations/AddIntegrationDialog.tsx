@@ -2,6 +2,8 @@ import type { Integration } from '@circi/api'
 import { Badge, Banner, Button, Dialog, SegmentedControl, Text, TextField } from '@circi/ui'
 import { useState } from 'react'
 
+import { GithubAddPanel } from '#features/instance/GithubAddPanel.tsx'
+
 import { type GroupFilter, filterCatalog, GROUPS, isGroupFilter, unavailableNote } from './api.ts'
 import { ConnectForm } from './ConnectForm.tsx'
 import { useInstall } from './generic-api.ts'
@@ -49,7 +51,11 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
       }
     >
       {generic ? (
-        <ConnectForm entry={generic} org={props.org} onDone={() => close(false)} />
+        generic.kind === 'github' ? (
+          <GithubAddPanel entry={generic} org={props.org} onDone={() => close(false)} />
+        ) : (
+          <ConnectForm entry={generic} org={props.org} onDone={() => close(false)} />
+        )
       ) : (
         <>
           <div className={styles.filters}>
@@ -82,7 +88,7 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
                     {entry.status === 'planned' ? <Badge shape="tag">Planned</Badge> : null}
                   </div>
                   <Text variant="small" tone="secondary">
-                    {unavailableNote(entry) ?? entry.description}
+                    {(canAdd(entry) ? null : unavailableNote(entry)) ?? entry.description}
                   </Text>
                   <Button
                     disabled={!canAdd(entry)}
@@ -107,7 +113,8 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
 }
 
 /** Only built, set-up kinds can be picked: planned and not-set-up ones are disabled. */
-const canAdd = (entry: Integration.CatalogEntry) => unavailableNote(entry) === null
+const canAdd = (entry: Integration.CatalogEntry) =>
+  unavailableNote(entry) === null || (entry.kind === 'github' && entry.built)
 
 export namespace AddIntegrationDialog {
   export interface Props {

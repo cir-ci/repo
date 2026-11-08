@@ -21,6 +21,14 @@ describe('loadConfig', () => {
     expect(c.env).toBe('production')
   })
 
+  it('keeps GITHUB_API_URL for the one-click GitHub App setup, with or without an App', () => {
+    expect(loadConfig(base).githubApiUrl).toBeUndefined()
+    const ghe = loadConfig({ ...base, GITHUB_API_URL: 'https://ghe.example.com/api/v3/' })
+    expect(ghe.githubApiUrl).toBe('https://ghe.example.com/api/v3')
+    expect(ghe.github).toBeUndefined()
+    expect(() => loadConfig({ ...base, GITHUB_API_URL: 'ghe.example.com' })).toThrow(ConfigError)
+  })
+
   it('trusts no proxy by default, and parses TRUSTED_PROXIES', () => {
     expect(loadConfig(base).trustedProxies).toEqual([])
     expect(loadConfig({ ...base, TRUSTED_PROXIES: '' }).trustedProxies).toEqual([])

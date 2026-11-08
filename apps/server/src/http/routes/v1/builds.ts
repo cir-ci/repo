@@ -93,7 +93,8 @@ export const buildRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
     // Who blocks the merge (PLAN §7.4): the check on the git host when this project reports to
     // one, otherwise this CI job. The CLI's `--gate` overrides the choice.
     const linked =
-      deps.githubApp === true && (await getProjectLink(deps.db, ctx.project.id, gitKinds()))
+      (deps.githubApp === true || deps.githubAppNow?.() === true) &&
+      (await getProjectLink(deps.db, ctx.project.id, gitKinds()))
     const gate = requested ?? (linked ? 'status' : 'exit-code')
     return {
       build: describeBuild(ctx, build, deps.publicOrigin),

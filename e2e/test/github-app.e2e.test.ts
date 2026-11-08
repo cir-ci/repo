@@ -42,6 +42,7 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     await page.goto(`${stack.url}/organizations/${orgSlug}/settings/integrations`)
     await page.getByRole('button', { name: 'Add integration' }).click()
     await page.getByRole('button', { name: 'Add GitHub' }).click()
+    await page.getByRole('button', { name: 'Advanced: connect by installation id' }).click()
     // An installation of its own: one installation belongs to one organization, and the other
     // files of this stack link theirs to the default one.
     await page.getByLabel('GitHub App installation id').fill(UI_INSTALLATION)

@@ -56,6 +56,13 @@ export interface FakeGithub {
   /** `repo/login` -> permission (`admin`, `maintain`, `write`, `read`, `none`) for the collaborator check. */
   permissions: Map<string, string>
   setPermission(repo: string, login: string, permission: string): void
+  /**
+   * A code as GitHub hands it to the manifest redirect: `POST /app-manifests/<code>/conversions`
+   * (no authentication) returns this fake's App credentials once, then 404s, as GitHub does.
+   */
+  issueManifestCode(): string
+  /** The App's slug as the conversion and `GET /app` report it. */
+  slug: string
   /** Answers the next `times` requests whose "METHOD /path" contains `match` with `status`. */
   failNext(match: string, status: number, times?: number): void
   /** Like `failNext`, with response headers (e.g. `retry-after`, `x-ratelimit-remaining`) and a message. */
@@ -129,6 +136,9 @@ export async function startFakeGithub(
   }[] = []
   const delays: { match: string; ms: number; remaining: number }[] = []
   const revoked = new Set<string>()
+  const manifestCodes = new Set<string>()
+  const slug = 'circi-e2e'
+  let codeCounter = 0
   const prefix = (options.pathPrefix ?? '').replace(/\/$/, '')
   const tokens = new Set<string>()
   let nextId = 1000
@@ -203,8 +213,31 @@ export async function startFakeGithub(
       if (revokedMatch && revoked.has(revokedMatch[1] ?? '')) {
         return sendJson(res, 401, { message: 'Bad credentials (installation revoked)' })
       }
+      const conversion = /^\/app-manifests\/([^/]+)\/conversions$/.exec(url.pathname)
+      if (conversion && method === 'POST') {
+        const code = decodeURIComponent(conversion[1] ?? '')
+        if (!manifestCodes.delete(code)) return sendJson(res, 404, { message: 'Not Found' })
+        return sendJson(res, 201, {
+          id: Number(appId),
+          slug,
+          name: 'CirCI',
+          client_id: 'Iv1.e2e',
+          client_secret: 'e2e-client-secret',
+          webhook_secret: webhookSecret,
+          pem: privateKey,
+          html_url: `http://${req.headers.host ?? 'github.invalid'}${prefix}/apps/${slug}`,
+        })
+      }
       if (auth === 'invalid' || auth === 'none') {
         return sendJson(res, 401, { message: 'Bad credentials' })
+      }
+      if (url.pathname === '/app' && method === 'GET' && auth === 'app') {
+        return sendJson(res, 200, {
+          id: Number(appId),
+          slug,
+          name: 'CirCI',
+          html_url: `http://${req.headers.host ?? 'github.invalid'}${prefix}/apps/${slug}`,
+        })
       }
       const obj = (body ?? {}) as Record<string, unknown>
       let m: RegExpExecArray | null
@@ -349,6 +382,13 @@ export async function startFakeGithub(
       comments.push(comment)
       return comment
     },
+    slug,
+    issueManifestCode() {
+      codeCounter += 1
+      const code = `manifest-code-${codeCounter}-${Math.random().toString(36).slice(2)}`
+      manifestCodes.add(code)
+      return code
+    },
     issuedTokens: () => [...tokens],
     revokeInstallation: (id) => void revoked.add(id),
     restoreInstallation: (id) => void revoked.delete(id),
@@ -392,6 +432,7 @@ export async function startFakeGithub(
       failures.length = 0
       delays.length = 0
       revoked.clear()
+      manifestCodes.clear()
     },
     close: () => listening.close(),
   }

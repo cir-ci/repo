@@ -342,6 +342,13 @@ export namespace IntegrationDefinition {
     /** Connects through the provider's OAuth install. */
     oauth?: OAuth
     /**
+     * An app the provider installs on its own site and sends the browser back from (`setup_url`
+     * on a GitHub App): turns the query of that return into the connect form's values, or
+     * undefined when it carries nothing to connect. The generic `/api/integrations/:kind/setup`
+     * route then runs `connect` for the workspace named in the signed `state`.
+     */
+    setup?(query: Readonly<Record<string, string>>): z.input<S> | undefined
+    /**
      * Whether an error from the provider means a person has to act (revoked token, uninstalled
      * app): the reason to show, and the integration is flagged. Null for any other error (the job
      * retries).

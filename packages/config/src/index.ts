@@ -183,6 +183,11 @@ export interface Config {
   /** Webhooks may point at private/loopback addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
   /** The GitHub App: absent when none is configured. */
   github?: Config.GithubApp
+  /**
+   * `GITHUB_API_URL` when set, with or without an App configured: the GitHub the manifest flow
+   * creates the App on (GitHub Enterprise Server). Absent means github.com.
+   */
+  githubApiUrl?: string
   /** The Slack app: absent when none is configured, and Slack then cannot be added. */
   slack?: Config.Slack
   /** Single sign-on providers, empty when none is configured or `AUTH_SSO_ENABLED=false`. */
@@ -301,6 +306,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       }
     }
   }
+  const githubApiUrl = e.GITHUB_API_URL?.replace(/\/$/, '')
+  if (githubApiUrl && !/^https?:\/\//.test(githubApiUrl)) {
+    if (!githubParts.some(Boolean)) issues.push('GITHUB_API_URL: must be an http(s) address')
+  }
   let slack: Config.Slack | undefined
   if (e.SLACK_CLIENT_ID || e.SLACK_CLIENT_SECRET) {
     if (!(e.SLACK_CLIENT_ID && e.SLACK_CLIENT_SECRET)) {
@@ -408,6 +417,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     sso: ssoOn,
     ...(staticSites ? { staticSites } : {}),
     ...(github ? { github } : {}),
+    ...(githubApiUrl ? { githubApiUrl } : {}),
     ...(slack ? { slack } : {}),
     webhookAllowPrivate: e.WEBHOOK_ALLOW_PRIVATE_ADDRESSES === true,
     uploadTimeoutMinutes: e.UPLOAD_TIMEOUT_MINUTES,

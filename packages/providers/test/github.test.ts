@@ -316,3 +316,33 @@ describe('GithubApp', () => {
     expect(await app.canWrite('99', 'acme/web', 'eve')).toBe(false)
   })
 })
+
+describe('GithubApp.appInfo', () => {
+  it('asks GitHub for the App as the App', async () => {
+    const calls: { path: string; auth: string | null }[] = []
+    const app = new GithubApp({
+      apiUrl: 'https://api.github.com',
+      appId: '1',
+      privateKey,
+      fetch: async (input, init) => {
+        const req = new Request(input, init)
+        calls.push({ path: new URL(req.url).pathname, auth: req.headers.get('authorization') })
+        return new Response(
+          JSON.stringify({
+            slug: 'circi',
+            name: 'CirCI',
+            html_url: 'https://github.com/apps/circi',
+          }),
+        )
+      },
+    })
+    expect(await app.appInfo()).toEqual({
+      slug: 'circi',
+      name: 'CirCI',
+      htmlUrl: 'https://github.com/apps/circi',
+    })
+    expect(calls).toHaveLength(1)
+    expect(calls[0]?.path).toBe('/app')
+    expect(calls[0]?.auth).toMatch(/^Bearer [\w-]+\.[\w-]+\.[\w-]+$/)
+  })
+})

@@ -222,11 +222,51 @@ git: {
   host account belongs to (matched by account id, exactly one member; never by email), and has the
   definition `respond`. A repository is found by `findGitProjects` (the connection by external id, or
   by its prefix for GitLab's `host#`; the repository case-insensitively).
-- **Webhook secret.** GitHub's is the App's, configured with `GITHUB_APP_WEBHOOK_SECRET`. GitLab's and
+- **Webhook secret.** GitHub's is the App's, from `GITHUB_APP_WEBHOOK_SECRET` or created by the one-click setup (below). GitLab's and
   Bitbucket's are derived from the instance secret (`derivedWebhookSecret(authSecret, kind)`), shown
   with the webhook address on the integration's page to owners and admins.
 - **Tests.** A test fakes a host's edge with `Context.gitProviders` (by definition id), or with the
   provider's `fetch`; nothing talks to a real host.
+
+## The GitHub App: one-click setup (manifest flow)
+
+A self-hoster does not create the App by hand. **Instance admins** open `/instance` in the dashboard
+and press *Create GitHub App* (optionally naming a GitHub organisation; the App name is editable).
+Nothing is hosted outside the instance:
+
+1. `POST /api/instance/github-app/manifest` builds the manifest from `PUBLIC_URL` (name
+   `CirCI (<host>)`, webhook `<PUBLIC_URL>/api/integrations/github/webhook`, redirect
+   `<PUBLIC_URL>/api/instance/github-app/callback`, setup `<PUBLIC_URL>/api/integrations/github/setup`
+   with `setup_on_update`, `public: false`) and returns it with GitHub's "new App" address
+   (`https://github.com/settings/apps/new`, or `/organizations/<org>/settings/apps/new`; for GitHub
+   Enterprise Server set `GITHUB_API_URL=https://ghe.example.com/api/v3`) and a signed, 30-minute
+   `state` bound to the admin. The page posts both to GitHub in a hidden form.
+2. GitHub redirects to `GET /api/instance/github-app/callback?code&state`. The state and the admin
+   are checked again, the code is exchanged (`POST /app-manifests/{code}/conversions`, once), and the
+   App id, slug, client id and secret, private key and webhook secret are stored in
+   `instance_settings` (`github_app`), the secrets sealed with the instance secret. The running
+   server, webhook and worker use the App at once (they share one live `InstanceConfig` object; a
+   restart reloads it from the database). Then the admin is sent to install the App.
+3. Installing returns to `GET /api/integrations/:kind/setup?installation_id&setup_action&state`
+   (generic: a definition's `setup` turns the return's query into its connect values). With the
+   `state` the Add dialog issued, the installation is connected to that workspace by the same
+   `connect` and `store` as the manual form (verified with GitHub, 409 for an installation another
+   workspace uses, 403 unless the signed-in user still owns or administers the workspace). Without
+   a state (installed from GitHub itself) the person picks the workspace on
+   `/integrations/github/setup`.
+
+`GITHUB_APP_*` in the environment always wins: the page then only shows the App (id and slug) and the
+button is hidden. The environment is also the manual path: create the App by hand with the
+permissions below, then set `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_WEBHOOK_SECRET`.
+Plain-http addresses other than localhost are refused (GitHub only delivers webhooks to https);
+localhost works for trying it, with a warning that GitHub cannot reach it. Several replicas pick up
+an App created on another replica when they restart.
+
+**Permissions and events** (`GITHUB_APP_PERMISSIONS` / `GITHUB_APP_EVENTS` in
+`packages/providers/src/github-manifest.ts`; keep the manual setup identical): Checks (write: the
+CirCI check run and its Approve and Reject buttons), Pull requests (write: the summary comment and
+its reactions), Metadata (read). Events: `check_run`, `issue_comment` (`/circi` commands) and
+`pull_request` (remembers who opened it).
 
 ## What stays custom
 

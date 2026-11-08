@@ -23,6 +23,8 @@ export namespace Deps {
   export interface V1 extends Deps.Base {
     /** This instance has a GitHub App: a linked project's check is then the merge gate. */
     githubApp?: boolean
+    /** Whether a GitHub App exists now, also one created in the dashboard (the one-click flow). */
+    githubAppNow?: () => boolean
     /** Static site hosting, when `STATIC_SITES_HOST` is set. */
     sites?: Deps.Sites
   }
@@ -52,8 +54,14 @@ export namespace Deps {
     webhookAllowPrivate?: boolean
     /** Looks up TXT records for domain verification; replaceable in tests. Default: real DNS. */
     resolveTxt?: (name: string) => Promise<string[][]>
-    /** This instance has a GitHub App, so projects can be linked to repositories. */
+    /**
+     * This instance's GitHub App comes from the environment (`GITHUB_APP_*`), so projects can be
+     * linked to repositories and the one-click setup is off. An App created in the dashboard
+     * lives in `integrations.config.github` instead.
+     */
     githubApp?: boolean
+    /** `GITHUB_API_URL` (GitHub Enterprise Server): where the one-click flow creates the App. */
+    githubApiUrl?: string
     /** Stands in for the git host adapters by connection kind (tests fake the host's edge); production uses the definitions'. */
     providers?: ProviderRegistry<object>
     /**

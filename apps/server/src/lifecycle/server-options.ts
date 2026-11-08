@@ -22,6 +22,7 @@ export interface ServerRuntime {
 export function serverOptionsFor(rt: ServerRuntime, webDist: string): buildServer.Options {
   const { config } = rt
   const sites = config.staticSites ? sitesDeps(config.staticSites, config.publicUrl) : undefined
+  const integrations = integrationConfig(config)
   const base = {
     db: rt.db.db,
     auth: rt.auth,
@@ -37,7 +38,7 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): buildServe
       db: rt.db.db,
       authSecret: config.authSecret,
       publicOrigin: config.publicUrl.origin,
-      integrations: { config: integrationConfig(config) },
+      integrations: { config: integrations },
       webhookAllowPrivate: config.webhookAllowPrivate,
       logger: rt.logger,
     },
@@ -55,6 +56,7 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): buildServe
     api: {
       ...base,
       githubApp: config.github !== undefined,
+      githubAppNow: () => integrations.github !== undefined,
       ...(sites ? { sites } : {}),
     },
     dashboard: {
@@ -65,7 +67,8 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): buildServe
       webhookAllowPrivate: config.webhookAllowPrivate,
       orgCreation: config.orgCreation,
       githubApp: config.github !== undefined,
-      integrations: { config: integrationConfig(config) },
+      ...(config.githubApiUrl ? { githubApiUrl: config.githubApiUrl } : {}),
+      integrations: { config: integrations },
       ...(sites ? { sites } : {}),
       authSecret: config.authSecret,
       webDist,

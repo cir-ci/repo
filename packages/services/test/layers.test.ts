@@ -72,7 +72,12 @@ describe('the integration SDK', () => {
   })
 
   it('has no per-integration route, repository or page left: only definitions know a provider', () => {
-    expect(named('apps/server/src/http/routes')).toEqual([])
+    // `dashboard/github-app.ts` is the instance's GitHub App setup (the manifest flow): the
+    // instance-level app an integration may need (docs/integration-sdk.md, "Adding an
+    // integration" step 4), not a route that connects or maps anything.
+    expect(
+      named('apps/server/src/http/routes').filter((f) => f !== 'dashboard/github-app.ts'),
+    ).toEqual([])
     expect(named('packages/db/src/repositories')).toEqual([])
     expect(named('apps/web/src/features/integrations').filter((f) => f !== 'logos.tsx')).toEqual([])
   })

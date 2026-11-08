@@ -29,6 +29,7 @@ import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
+import { INSTALL_FLOW } from '#http/lib/install-state.ts'
 import { integrationContext } from '#http/lib/integration-context.ts'
 import { loadOrg } from '#http/lib/org-access.ts'
 import { parse } from '#http/lib/validation.ts'
@@ -48,6 +49,12 @@ const mappingBody = z.strictObject({
   ref: z.string().trim().min(1).max(1000),
   name: z.string().trim().min(1).max(200).optional(),
   extra: z.record(z.string(), z.unknown()).optional(),
+})
+
+const setupQuery = z.object({
+  installation_id: z.string().optional(),
+  setup_action: z.string().optional(),
+  state: z.string().optional(),
 })
 
 const callbackPath = (kind: string) => `/integrations/${kind}/callback`
@@ -598,6 +605,65 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
     } catch (err) {
       req.log.warn({ err }, `could not finish the ${definition.name} install`)
       return failed('failed')
+    }
+  })
+
+  /**
+   * Where a provider sends the browser after its app is installed (`setup_url`; also when it is
+   * installed from the provider's own site). With a `state` this instance issued (the install
+   * started in a workspace's Add dialog) the installation is connected to that workspace by the
+   * same `connect` and `store` as the manual form: the provider must really have the app
+   * installed, an `exclusive` account may be used by no other workspace (409), and the signed-in
+   * user must still own or administer the workspace. Without a `state` the person picks the
+   * workspace on a dashboard page that connects through the same endpoint.
+   */
+  app.get('/integrations/:kind/setup', async (req, reply) => {
+    const { kind } = parse(callbackParams, req.params)
+    const query = parse(setupQuery, req.query)
+    const user = currentUser(req)
+    const definition = registry.get(kind)
+    const ctx = integrationContext(deps)
+    if (!definition?.connect || !definition.setup || !ctx) {
+      return reply.code(404).send({ error: 'Integration not found' })
+    }
+    const claims = query.state ? verifyState(ctx.authSecret, query.state) : undefined
+    if (query.state && (claims?.kind !== kind || claims.flow !== INSTALL_FLOW)) {
+      return reply
+        .code(400)
+        .send({ error: 'This install link is invalid or has expired; start again' })
+    }
+    if (claims && claims.userId !== user.id) {
+      return reply.code(400).send({ error: 'This install link was started by someone else' })
+    }
+    const orgId = claims?.orgId
+    const orgSlug = claims?.orgSlug
+    const list = orgSlug
+      ? `/organizations/${encodeURIComponent(orgSlug)}/settings/integrations`
+      : '/'
+    const values = definition.setup(Object.fromEntries(Object.entries(query)))
+    if (!values) {
+      // A request to install, or an update that changed nothing: nothing to connect.
+      return reply.redirect(
+        orgSlug ? `${list}?connect=denied&kind=${encodeURIComponent(kind)}` : '/',
+      )
+    }
+    if (!orgId || !orgSlug) {
+      const rest = new URLSearchParams(Object.entries(query).filter(([k]) => k !== 'state'))
+      return reply.redirect(`/integrations/${encodeURIComponent(kind)}/setup?${rest.toString()}`)
+    }
+    const role = await getMemberRole(deps.db, { userId: user.id, organizationId: orgId })
+    if (role !== 'owner' && role !== 'admin') {
+      return reply.code(403).send({ error: 'Only owners and admins can manage integrations' })
+    }
+    if (definition.available && !definition.available(ctx)) {
+      return reply.code(400).send({ error: `This instance has no ${definition.name} set up` })
+    }
+    try {
+      const connected = await definition.connect(parse(definition.credentials, values), ctx)
+      const id = await store(orgId, user.id, definition, connected, ctx, { replace: false })
+      return reply.redirect(`${list}/${encodeURIComponent(kind)}/${id}?connect=connected`)
+    } catch (err) {
+      return replyConnectError(req, reply, err)
     }
   })
 
