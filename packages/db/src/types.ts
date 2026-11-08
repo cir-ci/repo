@@ -2,6 +2,7 @@ import type {
   builds,
   files,
   jobs,
+  notifications,
   organization,
   projects,
   reviewRequests,
@@ -22,3 +23,4 @@ export type NewScreenshotDiff = typeof screenshotDiffs.$inferInsert
 export type FileRow = typeof files.$inferSelect
 export type ReviewRequest = typeof reviewRequests.$inferSelect
 export type Job = typeof jobs.$inferSelect
+export type Notification = typeof notifications.$inferSelect

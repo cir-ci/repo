@@ -1,4 +1,5 @@
 import {
+  type BuildFilters,
   findProjectForMember,
   getBuildDetail,
   getProjectGitAttention,
@@ -14,7 +15,17 @@ import { parse } from '../../lib/validation.ts'
 
 const projectParams = z.object({ org: z.string(), project: z.string() })
 const buildParams = projectParams.extend({ number: z.string() })
-const buildsQuery = z.object({ before: z.string().optional() })
+const buildsQuery = z.object({
+  before: z.string().optional(),
+  status: z.enum(['pending', 'uploading', 'processing', 'complete', 'error', 'expired']).optional(),
+  review: z.enum(['pending', 'approved', 'rejected']).optional(),
+  branch: z.string().min(1).optional(),
+  author: z.string().min(1).optional(),
+  reviewer: z.string().min(1).optional(),
+  name: z.string().min(1).optional(),
+  from: z.iso.datetime().optional(),
+  to: z.iso.datetime().optional(),
+})
 
 /** Builds list page size; the web app shows "Older builds" when a page is full. */
 const PAGE_SIZE = 50
@@ -37,9 +48,21 @@ export const dashboardProjectRoutes: FastifyPluginAsync<DashboardDeps> = async (
       method: currentUser(req).method,
     })
     if (!project) return reply.code(404).send({ error: 'Project not found' })
-    const before = Number(parse(buildsQuery, req.query).before)
+    const q = parse(buildsQuery, req.query)
+    const before = Number(q.before)
+    const filters: BuildFilters = {
+      ...(q.status ? { status: q.status } : {}),
+      ...(q.review ? { reviewStatus: q.review } : {}),
+      ...(q.branch ? { branch: q.branch } : {}),
+      ...(q.author ? { author: q.author } : {}),
+      ...(q.reviewer ? { reviewer: q.reviewer } : {}),
+      ...(q.name ? { name: q.name } : {}),
+      ...(q.from ? { from: new Date(q.from) } : {}),
+      ...(q.to ? { to: new Date(q.to) } : {}),
+    }
     const builds = await listBuildsForProject(deps.db, project.id, {
       limit: PAGE_SIZE,
+      filters,
       ...(Number.isInteger(before) && before > 0 ? { beforeNumber: before } : {}),
     })
     const attention = await getProjectGitAttention(deps.db, project.id)

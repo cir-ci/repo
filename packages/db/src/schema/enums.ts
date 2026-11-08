@@ -30,6 +30,17 @@ export const SNOOZE_KINDS = ['next_push', 'tomorrow', 'next_week', 'date'] as co
 export const REVIEW_RULE_KINDS = ['snapshot-name', 'build-name'] as const
 /** What kind of problem a triage item is. (Integration problems are not recorded yet.) */
 export const TRIAGE_KINDS = ['flaky', 'no_baseline', 'failed'] as const
+/** What an inbox notification is about. */
+export const NOTIFICATION_KINDS = [
+  'review_requested',
+  'review_re_requested',
+  'mentioned',
+  'build_approved',
+  'build_rejected',
+  'review_overdue',
+  'connection_needs_attention',
+  'flaky_detected',
+] as const
 export const WEBHOOK_EVENTS = ['build.completed', 'build.reviewed'] as const
 /**
  * How someone signed in: `oidc` is an instance-wide single sign-on provider, `org-oidc` one an
@@ -57,5 +68,6 @@ export type ReviewRequestState = (typeof REVIEW_REQUEST_STATES)[number]
 export type SnoozeKind = (typeof SNOOZE_KINDS)[number]
 export type ReviewRuleKind = (typeof REVIEW_RULE_KINDS)[number]
 export type TriageKind = (typeof TRIAGE_KINDS)[number]
+export type NotificationKind = (typeof NOTIFICATION_KINDS)[number]
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number]
 export type JobStatus = (typeof JOB_STATUSES)[number]

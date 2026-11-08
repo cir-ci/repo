@@ -58,6 +58,7 @@ export async function runServices(options: ServiceOptions): Promise<void> {
         uploadTimeoutMinutes: rt.config.uploadTimeoutMinutes,
         gcGraceHours: rt.config.gcGraceHours,
         ...(rt.github ? { github: rt.github } : {}),
+        ...(rt.mailer ? { mailer: rt.mailer } : {}),
       })
     }
     if (options.http) {

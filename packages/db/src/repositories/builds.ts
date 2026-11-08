@@ -132,6 +132,19 @@ export async function getBuild(db: Database, buildId: string): Promise<Build | u
   return row
 }
 
+/** The builds among `buildIds` that belong to `projectId` (ids of other projects are left out). */
+export async function listProjectBuildsByIds(
+  db: Database,
+  projectId: string,
+  buildIds: string[],
+): Promise<Build[]> {
+  if (buildIds.length === 0) return []
+  return db
+    .select()
+    .from(builds)
+    .where(and(eq(builds.projectId, projectId), inArray(builds.id, buildIds)))
+}
+
 /** A build by its per-project number, the number people see in URLs and on screen. */
 export async function getBuildByNumber(
   db: Database,

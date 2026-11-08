@@ -1,4 +1,4 @@
-import { aliasedTable, and, desc, eq, inArray, lt, sql } from 'drizzle-orm'
+import { aliasedTable, and, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm'
 
 import type { Database } from '../client.ts'
 import type { getBuildCounts } from '../repositories/builds.ts'
@@ -13,6 +13,7 @@ import {
   user,
   type ReviewStatus,
   files,
+  reviewRequests,
   screenshotDiffs,
   screenshots,
 } from '../schema/index.ts'
@@ -51,10 +52,46 @@ function toAuthor(
   return login ? { login, name: member?.name ?? null, avatarUrl: member?.image ?? null } : null
 }
 
+/** Narrows a project's builds list; every field given must match. */
+export interface BuildFilters {
+  /** The build's own status (uploading, complete, error…). */
+  status?: BuildStatus
+  /** The review state. */
+  reviewStatus?: ReviewStatus
+  branch?: string
+  /** A login (any case) or a member's user id. */
+  author?: string
+  /** A member's user id: builds with an open review request for them. */
+  reviewer?: string
+  /** The build's name (a project can upload several per commit). */
+  name?: string
+  /** Created at or after. */
+  from?: Date
+  /** Created before. */
+  to?: Date
+}
+
+function filterConditions(f: BuildFilters) {
+  return [
+    f.status ? eq(builds.status, f.status) : undefined,
+    f.reviewStatus ? eq(builds.reviewStatus, f.reviewStatus) : undefined,
+    f.branch === undefined ? undefined : eq(builds.branch, f.branch),
+    f.name === undefined ? undefined : eq(builds.name, f.name),
+    f.author === undefined
+      ? undefined
+      : sql`(lower(${builds.authorLogin}) = lower(${f.author}) or ${builds.authorUserId} = ${f.author})`,
+    f.reviewer === undefined
+      ? undefined
+      : sql`exists (select 1 from ${reviewRequests} where ${reviewRequests.buildId} = ${builds.id} and ${reviewRequests.reviewerId} = ${f.reviewer} and ${reviewRequests.state} = 'open')`,
+    f.from ? gte(builds.createdAt, f.from) : undefined,
+    f.to ? lt(builds.createdAt, f.to) : undefined,
+  ]
+}
+
 export async function listBuildsForProject(
   db: Database,
   projectId: string,
-  options: { limit: number; beforeNumber?: number },
+  options: { limit: number; beforeNumber?: number; filters?: BuildFilters },
 ): Promise<BuildListItem[]> {
   const found = await db
     .select({ build: builds, member: { name: user.name, image: user.image } })
@@ -64,6 +101,7 @@ export async function listBuildsForProject(
       and(
         eq(builds.projectId, projectId),
         options.beforeNumber ? lt(builds.number, options.beforeNumber) : undefined,
+        ...filterConditions(options.filters ?? {}),
       ),
     )
     .orderBy(desc(builds.number))

@@ -47,6 +47,8 @@ describe('migrations', () => {
       'jobs',
       'known_devices',
       'member',
+      'notification_preferences',
+      'notifications',
       'org_auth_settings',
       'org_domains',
       'org_settings',

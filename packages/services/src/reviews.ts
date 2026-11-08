@@ -1,4 +1,4 @@
-import { reviewDueAt } from '@circi/core'
+import { reviewDueAt, ValidationError } from '@circi/core'
 import {
   type Build,
   closeReviewRequestsForBuild,
@@ -6,6 +6,9 @@ import {
   dismissReviewRequest as dismissRequest,
   getBuild,
   getProjectById,
+  hasClosedReviewRequest,
+  markBuildNotificationsRead,
+  listProjectBuildsByIds,
   NotFoundError,
   openReviewRequest,
   queueGitNotify,
@@ -13,6 +16,8 @@ import {
   recordReview,
   type ReviewRequest,
 } from '@circi/db'
+
+import { notify } from './notifications.ts'
 
 /**
  * Approves or rejects a build, and tells webhooks and the git host when the decision actually
@@ -22,9 +27,31 @@ import {
  */
 export async function reviewBuild(db: Database, input: reviewBuild.Input): Promise<Build> {
   return db.transaction(async (tx) => {
-    const { build, changed, reviewerName } = await recordReview(tx, input)
-    await closeReviewRequestsForBuild(tx, build.id)
+    const { reason, ...decision } = input
+    const { build, changed, reviewerName } = await recordReview(tx, decision)
+    const closed = await closeReviewRequestsForBuild(tx, build.id)
+    // Deciding settles the build for its reviewer; the others' "please review" notices end with
+    // their requests.
+    await markBuildNotificationsRead(tx, { userId: input.userId, buildId: build.id })
+    for (const request of closed) {
+      if (request.reviewerId === input.userId) continue
+      // eslint-disable-next-line no-await-in-loop -- a few reviewers, one transaction
+      await markBuildNotificationsRead(tx, {
+        userId: request.reviewerId,
+        buildId: build.id,
+        kinds: REQUEST_KINDS,
+      })
+    }
     if (changed) {
+      if (build.authorUserId) {
+        await notify(tx, {
+          userId: build.authorUserId,
+          kind: input.state === 'approved' ? 'build_approved' : 'build_rejected',
+          buildId: build.id,
+          actorId: input.userId,
+          payload: input.state === 'rejected' && reason ? { reason } : {},
+        })
+      }
       await queueWebhookEvent(tx, {
         build,
         event: 'build.reviewed',
@@ -36,8 +63,14 @@ export async function reviewBuild(db: Database, input: reviewBuild.Input): Promi
   })
 }
 export namespace reviewBuild {
-  export type Input = recordReview.Input
+  export type Input = recordReview.Input & {
+    /** Why the changes were rejected; goes to the build's author in their inbox. */
+    reason?: string | null
+  }
 }
+
+/** The notification kinds that ask someone to review; they end when the request does. */
+const REQUEST_KINDS = ['review_requested', 'review_re_requested', 'review_overdue'] as const
 
 /**
  * Asks `reviewerId` to review a build. The request is due when the project's review target runs
@@ -52,12 +85,14 @@ export async function requestReview(
     const build = await getBuild(tx, input.buildId)
     const project = build ? await getProjectById(tx, build.projectId) : undefined
     if (!build || !project) throw new NotFoundError('Build not found')
-    return openReviewRequest(tx, {
+    const result = await openReviewRequest(tx, {
       buildId: build.id,
       reviewerId: input.reviewerId,
       requestedById: input.requestedById,
       dueAt: reviewDueAt(input.now ?? new Date(), project.reviewTargetHours),
     })
+    if (result.created) await notifyReviewRequested(tx, result.request, input.requestedById)
+    return result
   })
 }
 export namespace requestReview {
@@ -79,5 +114,89 @@ export async function dismissReviewRequest(
   db: Database,
   input: { projectId: string; requestId: string; userId: string },
 ): Promise<ReviewRequest | undefined> {
-  return db.transaction(async (tx) => dismissRequest(tx, input))
+  return db.transaction(async (tx) => {
+    const dismissed = await dismissRequest(tx, input)
+    if (dismissed) {
+      await markBuildNotificationsRead(tx, {
+        userId: dismissed.reviewerId,
+        buildId: dismissed.buildId,
+        kinds: REQUEST_KINDS,
+      })
+    }
+    return dismissed
+  })
+}
+
+/**
+ * Tells a reviewer they were asked. It is a re-request when they had a request for this build
+ * before that has since closed. `actorId` is null when the system asked (a rule or the rotation).
+ */
+export async function notifyReviewRequested(
+  db: Database,
+  request: ReviewRequest,
+  actorId: string | null,
+): Promise<void> {
+  const again = await hasClosedReviewRequest(db, {
+    buildId: request.buildId,
+    reviewerId: request.reviewerId,
+    exceptId: request.id,
+  })
+  await notify(db, {
+    userId: request.reviewerId,
+    kind: again ? 'review_re_requested' : 'review_requested',
+    buildId: request.buildId,
+    actorId,
+    payload: request.dueAt ? { dueAt: request.dueAt.toISOString() } : {},
+  })
+}
+
+/** Most builds one bulk decision may cover. */
+export const MAX_BULK_REVIEW = 50
+
+/**
+ * Approves or rejects several builds of one project at once, in a single transaction: every
+ * build goes through `reviewBuild` (so each one that changed queues its own webhook and git
+ * notices, and each one's review requests close), and if any id is not a build of the project, or
+ * any build cannot be reviewed, nothing changes at all. `reason` is carried for when decisions
+ * can store one (comments, B6); it is not saved yet.
+ */
+export async function reviewBuilds(
+  db: Database,
+  input: reviewBuilds.Input,
+): Promise<reviewBuilds.Result> {
+  const ids = [...new Set(input.buildIds)]
+  if (ids.length === 0) throw new ValidationError('buildIds: pick at least one build')
+  if (ids.length > MAX_BULK_REVIEW) {
+    throw new ValidationError(`buildIds: at most ${MAX_BULK_REVIEW} builds at once`)
+  }
+  return db.transaction(async (tx) => {
+    const own = await listProjectBuildsByIds(tx, input.projectId, ids)
+    if (own.length !== ids.length) throw new NotFoundError('Build not found')
+    const reviewed: Build[] = []
+    for (const id of ids) {
+      // Sequential on purpose: one transaction, one connection.
+      // eslint-disable-next-line no-await-in-loop
+      const build = await reviewBuild(tx, {
+        buildId: id,
+        userId: input.userId,
+        state: input.state,
+        ...(input.source ? { source: input.source } : {}),
+      })
+      reviewed.push(build)
+    }
+    return { builds: reviewed }
+  })
+}
+export namespace reviewBuilds {
+  export interface Input {
+    projectId: string
+    buildIds: string[]
+    userId: string
+    state: reviewBuild.Input['state']
+    source?: reviewBuild.Input['source']
+    reason?: string
+  }
+  export interface Result {
+    builds: Build[]
+  }
 }

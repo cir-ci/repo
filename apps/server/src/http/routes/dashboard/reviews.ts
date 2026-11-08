@@ -1,6 +1,12 @@
 import type { Review } from '@circi/api'
 import { findProjectForMember, getBuildByNumber, listReviewRequests, REVIEW_TABS } from '@circi/db'
-import { dismissReviewRequest, requestReview, reviewBuild } from '@circi/services'
+import {
+  dismissReviewRequest,
+  MAX_BULK_REVIEW,
+  requestReview,
+  reviewBuild,
+  reviewBuilds,
+} from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
@@ -9,7 +15,11 @@ import type { DashboardDeps } from '../../lib/deps.ts'
 import { parse } from '../../lib/validation.ts'
 
 const params = z.object({ org: z.string(), project: z.string(), number: z.string() })
-const body = z.object({ state: z.enum(['approved', 'rejected']) })
+const body = z.object({
+  state: z.enum(['approved', 'rejected']),
+  /** Why the changes were rejected; the build's author sees it in their inbox. */
+  reason: z.string().trim().max(2000).optional(),
+})
 
 /**
  * `POST …/builds/:number/review`: approve or reject a build's changes. Any member of the
@@ -19,7 +29,7 @@ const body = z.object({ state: z.enum(['approved', 'rejected']) })
 export const dashboardReviewRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
   app.post('/projects/:org/:project/builds/:number/review', async (req, reply) => {
     const p = parse(params, req.params)
-    const { state } = parse(body, req.body)
+    const { state, reason } = parse(body, req.body)
     const user = currentUser(req)
     const project = await findProjectForMember(deps.db, {
       orgSlug: p.org,
@@ -34,7 +44,12 @@ export const dashboardReviewRoutes: FastifyPluginAsync<DashboardDeps> = async (a
         : undefined
     if (!build) return reply.code(404).send({ error: 'Build not found' })
 
-    const updated = await reviewBuild(deps.db, { buildId: build.id, userId: user.id, state })
+    const updated = await reviewBuild(deps.db, {
+      buildId: build.id,
+      userId: user.id,
+      state,
+      ...(reason ? { reason } : {}),
+    })
     return {
       build: {
         number: updated.number,
@@ -42,6 +57,47 @@ export const dashboardReviewRoutes: FastifyPluginAsync<DashboardDeps> = async (a
         conclusion: updated.conclusion,
         reviewStatus: updated.reviewStatus,
       },
+    }
+  })
+}
+
+const bulkBody = z.object({
+  buildIds: z.array(z.string().uuid()).min(1).max(MAX_BULK_REVIEW),
+  decision: z.enum(['approved', 'rejected']),
+  reason: z.string().max(2000).optional(),
+})
+const bulkParams = z.object({ org: z.string(), project: z.string() })
+
+/**
+ * `POST …/builds/review`: approve or reject several builds of a project at once. All or
+ * nothing: an id that isn't a build of the project (or can't be reviewed) fails the call.
+ */
+export const dashboardBulkReviewRoutes: FastifyPluginAsync<DashboardDeps> = async (app, deps) => {
+  app.post('/projects/:org/:project/builds/review', async (req, reply) => {
+    const p = parse(bulkParams, req.params)
+    const input = parse(bulkBody, req.body)
+    const user = currentUser(req)
+    const project = await findProjectForMember(deps.db, {
+      orgSlug: p.org,
+      projectSlug: p.project,
+      userId: user.id,
+      method: user.method,
+    })
+    if (!project) return reply.code(404).send({ error: 'Project not found' })
+    const { builds } = await reviewBuilds(deps.db, {
+      projectId: project.id,
+      buildIds: input.buildIds,
+      userId: user.id,
+      state: input.decision,
+      ...(input.reason === undefined ? {} : { reason: input.reason }),
+    })
+    return {
+      builds: builds.map((b) => ({
+        number: b.number,
+        status: b.status,
+        conclusion: b.conclusion,
+        reviewStatus: b.reviewStatus,
+      })),
     }
   })
 }

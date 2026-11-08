@@ -16,6 +16,7 @@ import type { StorageDriver } from '@circi/storage'
 import { deliverWebhook } from './jobs/deliver-webhook.ts'
 import { notifyGit } from './jobs/notify-git.ts'
 import { processBuild } from './jobs/process-build.ts'
+import { type EmailSender, sendNotificationEmail } from './jobs/send-email.ts'
 import { interruptibleSleep } from './lib/concurrency.ts'
 
 /** The worker process: polls the job queue and runs each job. */
@@ -34,6 +35,8 @@ export interface WorkerDeps {
   publicOrigin?: string
   /** The GitHub App, when configured: builds are then reported to linked repositories. */
   github?: GithubApp
+  /** Sends notification emails; absent without SMTP, and such jobs are then skipped. */
+  mailer?: EmailSender
   /** Webhooks may point at private addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
   webhookAllowPrivate?: boolean
   /** Startup check of the database connection. */
@@ -228,13 +231,15 @@ async function claimNext(db: Database, lockSeconds: number): Promise<Job | undef
   return (
     (await claimJob(db, QUEUES.processBuild, lockSeconds)) ??
     (await claimJob(db, GIT_NOTIFY_QUEUE, lockSeconds)) ??
-    (await claimJob(db, QUEUES.webhook, lockSeconds))
+    (await claimJob(db, QUEUES.webhook, lockSeconds)) ??
+    (await claimJob(db, QUEUES.notificationEmail, lockSeconds))
   )
 }
 
 async function runJob(deps: WorkerDeps, job: Job): Promise<void> {
   if (job.queue === QUEUES.webhook) return runWebhookJob(deps, job)
   if (job.queue === GIT_NOTIFY_QUEUE) return runGitNotifyJob(deps, job)
+  if (job.queue === QUEUES.notificationEmail) return runEmailJob(deps, job)
   const buildId = typeof job.payload.buildId === 'string' ? job.payload.buildId : undefined
   const started = Date.now()
   try {
@@ -298,6 +303,31 @@ async function runGitNotifyJob(deps: WorkerDeps, job: Job): Promise<void> {
     deps.logger[willRetry ? 'warn' : 'error'](
       { ...fields, attempt: job.attempts, err: message },
       willRetry ? 'could not notify the git host, will retry' : 'could not notify the git host',
+    )
+  }
+}
+
+async function runEmailJob(deps: WorkerDeps, job: Job): Promise<void> {
+  const fields = { jobId: job.id, notificationId: job.payload.notificationId }
+  try {
+    const result = await sendNotificationEmail(
+      {
+        db: deps.db,
+        ...(deps.mailer ? { mailer: deps.mailer } : {}),
+        ...(deps.publicOrigin ? { publicOrigin: deps.publicOrigin } : {}),
+      },
+      job,
+    )
+    await completeJob(deps.db, job.id)
+    deps.logger.info({ ...fields, ...result }, 'notification email processed')
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    const willRetry = await failJob(deps.db, job, message).catch(() => true)
+    deps.logger[willRetry ? 'warn' : 'error'](
+      { ...fields, attempt: job.attempts, err: message },
+      willRetry
+        ? 'could not send a notification email, will retry'
+        : 'could not send a notification email',
     )
   }
 }

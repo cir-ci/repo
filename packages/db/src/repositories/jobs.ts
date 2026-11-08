@@ -11,6 +11,8 @@ export const QUEUES = {
   processBuild: 'process-build',
   /** Send one outgoing webhook delivery (PLAN §7.4). */
   webhook: 'webhook',
+  /** Email one person about one notification (only when the instance has SMTP). */
+  notificationEmail: 'notification-email',
 } as const
 
 /** The Postgres channel a worker LISTENs on; the payload is the queue name. */

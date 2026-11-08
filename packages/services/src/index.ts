@@ -17,8 +17,23 @@ export {
 } from './builds.ts'
 export { gateInputs } from './gate.ts'
 export { migrateStorage } from './migrate-storage.ts'
+export {
+  markInboxRead,
+  markNotificationRead,
+  notify,
+  removeNotification,
+  snoozeNotification,
+  unsnoozeNotification,
+  updateNotificationPreferences,
+} from './notifications.ts'
 export { previewRetention, runRetention } from './retention.ts'
-export { dismissReviewRequest, requestReview, reviewBuild } from './reviews.ts'
+export {
+  dismissReviewRequest,
+  MAX_BULK_REVIEW,
+  requestReview,
+  reviewBuild,
+  reviewBuilds,
+} from './reviews.ts'
 export {
   assignTriage,
   createIgnoreRegion,

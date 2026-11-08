@@ -13,16 +13,20 @@ import {
   listRulesForResolution,
   listScreenshotNames,
   listStalledBuilds,
+  markBuildNotificationsRead,
   openReviewRequest,
   QUEUES,
   queueGitNotify,
   queueWebhookEvent,
   resetBuild,
+  type ReviewRequest,
   setBuildError,
   setBuildResult,
   setPullRequestAuthor,
   supersedeReviewRequests,
 } from '@circi/db'
+
+import { notifyReviewRequested } from './reviews.ts'
 
 /**
  * What happens when a build changes state (PLAN §7.4). Each function owns one transaction: the
@@ -52,11 +56,12 @@ export async function finalizeBuild(
       await queueGitNotify(tx, result.build)
       // A newer build on the branch replaces the older builds' review requests.
       if (result.build.branch !== null) {
-        await supersedeReviewRequests(tx, {
+        const superseded = await supersedeReviewRequests(tx, {
           projectId: result.build.projectId,
           branch: result.build.branch,
           beforeNumber: result.build.number,
         })
+        await clearRequestNotices(tx, superseded)
       }
       await requestRuleReviewers(tx, result.build, options.now ?? new Date())
     }
@@ -87,7 +92,26 @@ async function requestRuleReviewers(db: Database, build: Build, now: Date): Prom
   const dueAt = reviewDueAt(now, project.reviewTargetHours)
   for (const reviewerId of reviewerIds) {
     // eslint-disable-next-line no-await-in-loop -- one transaction, a few reviewers
-    await openReviewRequest(db, { buildId: build.id, reviewerId, requestedById: null, dueAt })
+    const { request, created } = await openReviewRequest(db, {
+      buildId: build.id,
+      reviewerId,
+      requestedById: null,
+      dueAt,
+    })
+    // eslint-disable-next-line no-await-in-loop -- one transaction, a few reviewers
+    if (created) await notifyReviewRequested(db, request, null)
+  }
+}
+
+/** Requests that closed on their own no longer need their "please review" notices. */
+async function clearRequestNotices(db: Database, closed: ReviewRequest[]): Promise<void> {
+  for (const request of closed) {
+    // eslint-disable-next-line no-await-in-loop -- one transaction, a few reviewers
+    await markBuildNotificationsRead(db, {
+      userId: request.reviewerId,
+      buildId: request.buildId,
+      kinds: ['review_requested', 'review_re_requested', 'review_overdue'],
+    })
   }
 }
 
@@ -106,7 +130,7 @@ export async function completeBuild(
     const done = await setBuildResult(tx, build, result)
     // Nothing to review (no changes, or approved on its own): requests made at upload close.
     if (done.conclusion === 'no_changes' || done.reviewStatus === 'approved') {
-      await closeReviewRequestsForBuild(tx, done.id)
+      await clearRequestNotices(tx, await closeReviewRequestsForBuild(tx, done.id))
     }
     await queueWebhookEvent(tx, { build: done, event: 'build.completed' })
     await queueGitNotify(tx, done)

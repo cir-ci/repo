@@ -2,10 +2,12 @@ import type {
   Baseline,
   Build,
   IgnoreRegion,
+  Inbox,
   Insights,
   Project,
   Review,
   ReviewRule,
+  Search,
   Triage,
 } from '@circi/api'
 import type {
@@ -13,6 +15,9 @@ import type {
   BuildDetail,
   GitAttention,
   IgnoreRegionRow,
+  InboxItem,
+  InboxList,
+  NotificationPreferences,
   InsightsReport,
   InsightsReviewer,
   InsightsSummary,
@@ -20,6 +25,7 @@ import type {
   ProjectOverview,
   ReviewRequestItem,
   ReviewRuleRow,
+  SearchResults,
   TriageQueue,
   TriageRotation,
   VisibleProject,
@@ -59,10 +65,18 @@ export type ContractChecks = [
   Fits<Json<TriageRotation>, Triage.Rotation>,
   Fits<ReviewRuleRow, ReviewRule.Item>,
   Fits<IgnoreRegionRow, IgnoreRegion.Item>,
+  Fits<Json<InboxItem>, Inbox.Item>,
+  Fits<Json<InboxList>, Inbox.List>,
+  Fits<NotificationPreferences, Inbox.Preferences>,
+  Fits<SearchResults, Search.Results>,
 ]
 
 /** Each entry must be `true`; a mismatch above makes its entry `never`, and this line fails. */
 export const contractChecks: ContractChecks = [
+  true,
+  true,
+  true,
+  true,
   true,
   true,
   true,
