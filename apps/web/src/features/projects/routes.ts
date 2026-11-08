@@ -1,6 +1,7 @@
 import { createRoute, lazyRouteComponent } from '@tanstack/react-router'
 
 import { rootRoute } from '../../app/root-route.ts'
+import { parseBuildsSearch } from './builds-filters.ts'
 
 // Each page is its own chunk, loaded on first visit (and preloaded when a link is hovered).
 const projectsRoute = createRoute({
@@ -12,10 +13,7 @@ const projectsRoute = createRoute({
 const projectRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '$org/$project',
-  validateSearch: (search: Record<string, unknown>): { before?: number } => {
-    const before = Number(search.before)
-    return Number.isInteger(before) && before > 1 ? { before } : {}
-  },
+  validateSearch: parseBuildsSearch,
   component: lazyRouteComponent(() => import('./ProjectPage.tsx'), 'ProjectPage'),
 })
 

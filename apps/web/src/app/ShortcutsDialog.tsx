@@ -1,8 +1,8 @@
 import { Dialog, Kbd, Text } from '@circi/ui'
 
-import { keyCaps, shortcutGroups } from '../../lib/shortcuts.ts'
+import { keyCaps, shortcutGroups } from '../lib/shortcuts.ts'
 
-import styles from './BuildReview.module.css'
+import styles from './ShortcutsDialog.module.css'
 
 /** Every keyboard shortcut, from the registry, opened with `?`. */
 export function ShortcutsDialog({

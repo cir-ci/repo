@@ -29,6 +29,7 @@ const baseUiDeps = [
   'fieldset',
   'input',
   'menu',
+  'popover',
   'select',
   'slider',
   'switch',

@@ -3,6 +3,7 @@ import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query
 
 import { getJson, post, send, seg } from '../../lib/http.ts'
 import { isActive } from '../builds/api.ts'
+import { type BuildFilters, hasFilters, toQuery, toSearch } from './builds-filters.ts'
 
 /** Page size of the builds list (the server returns at most this many). */
 export const BUILDS_PAGE_SIZE = 50
@@ -13,12 +14,24 @@ export const projectsQuery = () =>
     queryFn: () => getJson<{ projects: Project.Overview[] }>('/api/projects'),
   })
 
-export const projectQuery = (org: string, project: string, before?: number) =>
+export const projectQuery = (
+  org: string,
+  project: string,
+  before?: number,
+  filters: BuildFilters = {},
+) =>
   queryOptions({
-    queryKey: ['project', org, project, before ?? null],
+    // Each page and each set of filters is cached on its own.
+    queryKey: [
+      'project',
+      org,
+      project,
+      before ?? null,
+      ...(hasFilters(filters) ? [toSearch(filters)] : []),
+    ],
     queryFn: () =>
       getJson<Project.BuildsResponse>(
-        `/api/projects/${seg(org)}/${seg(project)}${before ? `?before=${before}` : ''}`,
+        `/api/projects/${seg(org)}/${seg(project)}${toQuery(filters, before)}`,
       ),
     refetchInterval: (q) => (q.state.data?.builds.some((b) => isActive(b.status)) ? 3_000 : false),
   })
@@ -128,3 +141,42 @@ export const flakyQuery = (org: string, project: string) =>
     queryFn: () => getJson<Flaky.Report>(`/api/projects/${seg(org)}/${seg(project)}/flaky`),
     staleTime: 60_000,
   })
+
+/** Approves or rejects several builds of a project in one request (all or nothing). */
+export function useBulkReview(org: string, project: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: {
+      buildIds: string[]
+      decision: 'approved' | 'rejected'
+      reason?: string
+    }) => post(`/api/projects/${seg(org)}/${seg(project)}/builds/review`, input),
+    onSuccess: () =>
+      Promise.all(
+        [['project', org, project], ['sidebar'], ['reviews'], ['inbox'], ['projects']].map(
+          (queryKey) => queryClient.invalidateQueries({ queryKey }),
+        ),
+      ),
+  })
+}
+
+/** Asks one person to review each of several builds (one request per build; there is no bulk route). */
+export function useBulkRequestReview(org: string, project: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { numbers: number[]; reviewerId: string }) =>
+      Promise.all(
+        input.numbers.map((n) =>
+          post(`/api/projects/${seg(org)}/${seg(project)}/builds/${n}/review-requests`, {
+            reviewerId: input.reviewerId,
+          }),
+        ),
+      ),
+    onSuccess: () =>
+      Promise.all(
+        [['sidebar'], ['reviews'], ['inbox']].map((queryKey) =>
+          queryClient.invalidateQueries({ queryKey }),
+        ),
+      ),
+  })
+}

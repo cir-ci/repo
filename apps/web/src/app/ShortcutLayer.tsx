@@ -1,41 +1,43 @@
 import { useAnnounce } from '@circi/ui'
 import { useParams, useRouter } from '@tanstack/react-router'
-import { createContext, type ReactNode, useContext, useMemo } from 'react'
+import { createContext, type ReactNode, useContext, useMemo, useState } from 'react'
 
+import { CommandMenu } from '../features/command/CommandMenu.tsx'
 import { useSidebarModel } from '../features/sidebar/api.ts'
 import { useShortcutHandlers } from '../lib/shortcuts.ts'
 import { goPath, readRememberedOrg } from './shell-model.ts'
+import { ShortcutsDialog } from './ShortcutsDialog.tsx'
 import { useOrgs } from './use-orgs.ts'
 
-const noop = () => {}
-
 interface Callbacks {
-  /** Opens the command menu (⌘K, the sidebar's Search). A placeholder until the menu exists (C5). */
+  /** Opens the command menu (⌘K, the sidebar's Search). */
   openCommandMenu: () => void
-  /** Opens the shortcuts help (`?`). A placeholder until the dialog is global (C5). */
+  /** Opens the shortcuts help (`?`). */
   openHelp: () => void
 }
 
+const noop = () => {}
+
 const ShortcutLayerContext = createContext<Callbacks>({ openCommandMenu: noop, openHelp: noop })
 
-/** The callbacks the shortcut layer exposes, for the sidebar's Search button and later the menu itself. */
+/** The callbacks the shortcut layer exposes, for the sidebar's Search button. */
 export const useShortcutLayer = (): Callbacks => useContext(ShortcutLayerContext)
 
 /**
- * Binds the global shortcuts (G-chords, ⌘K, `?`, ⌘⇧C) once for the signed-in app. The command menu
- * and help dialog are not built yet: pass their openers as `openCommandMenu` / `openHelp` when
- * they are (C5); until then those keys do nothing.
+ * Binds the global shortcuts (G-chords, ⌘K, `?`, ⌘⇧C) once for the signed-in app, and owns the
+ * two dialogs they open: the command menu and the shortcuts help.
  */
-export function ShortcutLayer({
-  openCommandMenu = noop,
-  openHelp = noop,
-  children,
-}: ShortcutLayer.Props) {
+export function ShortcutLayer({ children }: ShortcutLayer.Props) {
   const router = useRouter()
   const params = useParams({ strict: false })
   const announce = useAnnounce()
   const { org } = useOrgs(readRememberedOrg())
   const { data: sidebar } = useSidebarModel(org?.slug)
+  const [commandOpen, setCommandOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
+
+  const openCommandMenu = () => setCommandOpen(true)
+  const openHelp = () => setHelpOpen(true)
 
   useShortcutHandlers({
     go: ({ to }) => {
@@ -57,14 +59,27 @@ export function ShortcutLayer({
     },
   })
 
-  const callbacks = useMemo(() => ({ openCommandMenu, openHelp }), [openCommandMenu, openHelp])
-  return <ShortcutLayerContext value={callbacks}>{children}</ShortcutLayerContext>
+  const callbacks = useMemo(
+    () => ({ openCommandMenu: () => setCommandOpen(true), openHelp: () => setHelpOpen(true) }),
+    [],
+  )
+  return (
+    <ShortcutLayerContext value={callbacks}>
+      {children}
+      <CommandMenu
+        open={commandOpen}
+        onOpenChange={setCommandOpen}
+        org={org?.slug}
+        projects={sidebar?.projects}
+        views={sidebar?.views}
+      />
+      <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
+    </ShortcutLayerContext>
+  )
 }
 
 export namespace ShortcutLayer {
   export interface Props {
-    openCommandMenu?: () => void
-    openHelp?: () => void
     children: ReactNode
   }
 }

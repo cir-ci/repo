@@ -7,6 +7,8 @@ import { membersRoutes } from '../features/members/routes.ts'
 import { projectsRoutes } from '../features/projects/routes.ts'
 import { reviewsRoutes } from '../features/reviews/routes.ts'
 import { sitesRoutes } from '../features/sites/routes.ts'
+import { triageRoutes } from '../features/triage/routes.ts'
+import { viewsRoutes } from '../features/views/routes.ts'
 import { placeholderRoutes } from './placeholder-routes.tsx'
 import { rootRoute } from './root-route.ts'
 
@@ -18,6 +20,8 @@ const routeTree = rootRoute.addChildren([
   ...sitesRoutes,
   ...inboxRoutes,
   ...reviewsRoutes,
+  ...viewsRoutes,
+  ...triageRoutes,
   ...accountRoutes,
   ...placeholderRoutes,
 ])

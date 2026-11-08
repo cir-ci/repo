@@ -16,6 +16,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
+import { ShortcutsDialog } from '../../app/ShortcutsDialog.tsx'
 import { RouterLink } from '../../lib/router-link.ts'
 import { isAvailable, SHORTCUTS, useShortcutHandlers } from '../../lib/shortcuts.ts'
 import { useListNavigation } from '../../lib/use-list-navigation.ts'
@@ -41,7 +42,6 @@ import {
 import { ReviewActions, ReviewNote, useReviewControls } from './ReviewActions.tsx'
 import { ReviewSidebar, type SidebarTab } from './ReviewSidebar.tsx'
 import { ROUTE, type ViewMode } from './search.ts'
-import { ShortcutsDialog } from './ShortcutsDialog.tsx'
 
 import page from './BuildPage.module.css'
 import styles from './BuildReview.module.css'

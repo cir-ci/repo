@@ -1,0 +1,40 @@
+.positioner {
+  z-index: var(--circi-z-popup);
+  outline: none;
+}
+
+.popup {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 200px;
+  max-width: 320px;
+  padding: 8px;
+  border: 1px solid var(--circi-line-strong);
+  border-radius: var(--circi-radius-popup);
+  background: var(--circi-surface-overlay);
+  color: var(--circi-text-primary);
+  font-size: 13px;
+  outline: none;
+  transform-origin: var(--transform-origin);
+  transition:
+    opacity 120ms ease-out,
+    scale 120ms ease-out;
+}
+
+:root[data-circi-color-scheme='light'] .popup {
+  box-shadow: 0 8px 24px rgb(28 15 12 / 14%);
+}
+
+.popup[data-starting-style],
+.popup[data-ending-style] {
+  opacity: 0;
+  scale: 0.98;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popup {
+    transition: none;
+  }
+}

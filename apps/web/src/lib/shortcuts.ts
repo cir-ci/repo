@@ -12,9 +12,9 @@ import { DESIGN_MODE, VIEW_MODES, type ViewMode } from '../features/builds/searc
  */
 
 /** Where a shortcut applies: everywhere, in a list of rows, or on the build review screen. */
-export type ShortcutScope = 'global' | 'list' | 'inbox' | 'build-review'
+export type ShortcutScope = 'global' | 'list' | 'inbox' | 'triage' | 'build-review'
 
-export type ShortcutGroup = 'Navigation' | 'General' | 'Lists' | 'Inbox' | 'Build review'
+export type ShortcutGroup = 'Navigation' | 'General' | 'Lists' | 'Inbox' | 'Triage' | 'Build review'
 
 export type GoTarget = 'inbox' | 'reviews' | 'projects' | 'triage' | 'settings'
 
@@ -23,10 +23,17 @@ export type ShortcutAction =
   | { type: 'previous' }
   | { type: 'open' }
   | { type: 'peek' }
+  | { type: 'filter' }
+  | { type: 'display' }
+  | { type: 'select' }
   | { type: 'snooze' }
   | { type: 'requestReview' }
   | { type: 'toggleRead' }
   | { type: 'remove' }
+  | { type: 'acceptBaseline' }
+  | { type: 'ignoreRegion' }
+  | { type: 'assignMe' }
+  | { type: 'dismiss' }
   | { type: 'approve' }
   | { type: 'reject' }
   | { type: 'comment' }
@@ -122,6 +129,27 @@ export const SHORTCUTS: readonly Shortcut[] = [
     action: { type: 'peek' },
   },
   {
+    key: 'f',
+    scope: 'list',
+    group: 'Lists',
+    description: 'Filter the list',
+    action: { type: 'filter' },
+  },
+  {
+    key: 'shift+v',
+    scope: 'list',
+    group: 'Lists',
+    description: 'Display options',
+    action: { type: 'display' },
+  },
+  {
+    key: 'x',
+    scope: 'list',
+    group: 'Lists',
+    description: 'Select or deselect the item',
+    action: { type: 'select' },
+  },
+  {
     key: 'h',
     scope: 'list',
     group: 'Lists',
@@ -148,6 +176,34 @@ export const SHORTCUTS: readonly Shortcut[] = [
     group: 'Inbox',
     description: 'Delete the notification',
     action: { type: 'remove' },
+  },
+  {
+    key: 'b',
+    scope: 'triage',
+    group: 'Triage',
+    description: 'Accept as baseline',
+    action: { type: 'acceptBaseline' },
+  },
+  {
+    key: 'i',
+    scope: 'triage',
+    group: 'Triage',
+    description: 'Add an ignore region',
+    action: { type: 'ignoreRegion' },
+  },
+  {
+    key: 'm',
+    scope: 'triage',
+    group: 'Triage',
+    description: 'Assign to me',
+    action: { type: 'assignMe' },
+  },
+  {
+    key: 'd',
+    scope: 'triage',
+    group: 'Triage',
+    description: 'Dismiss',
+    action: { type: 'dismiss' },
   },
   {
     key: 'a',

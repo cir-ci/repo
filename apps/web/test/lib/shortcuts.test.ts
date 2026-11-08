@@ -92,3 +92,21 @@ describe('stepIndex', () => {
     expect(stepIndex(0, -1, 1)).toBeUndefined()
   })
 })
+
+describe('the help and the command menu', () => {
+  it('lists every shortcut, with its description, under a group', () => {
+    const listed = shortcutGroups(true).flatMap((g) =>
+      g.shortcuts.map((s) => `${s.scope}:${s.key}`),
+    )
+    expect(listed.toSorted()).toEqual(SHORTCUTS.map((s) => `${s.scope}:${s.key}`).toSorted())
+  })
+
+  it('declares ⌘K and ? with a description and a group', () => {
+    for (const key of ['mod+k', '?']) {
+      const s = SHORTCUTS.find((x) => x.key === key)
+      expect(s?.scope).toBe('global')
+      expect(s?.description).not.toBe('')
+      expect(shortcutGroups().some((g) => g.shortcuts.includes(s!))).toBe(true)
+    }
+  })
+})

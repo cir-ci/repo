@@ -29,7 +29,7 @@ describe('shortcutFor', () => {
   })
 
   it('ignores other keys and lists each key once', () => {
-    expect(shortcutFor('x')).toBeUndefined()
+    expect(shortcutFor('z')).toBeUndefined()
     expect(new Set(SHORTCUTS.map((s) => s.key)).size).toBe(SHORTCUTS.length)
   })
 })

@@ -1,52 +1,59 @@
-import {
-  Banner,
-  Button,
-  CollectionsIcon,
-  Delayed,
-  EmptyState,
-  ListRow,
-  ListSkeleton,
-  PanelHeader,
-  Ref,
-  SectionHeader,
-  StatusIcon,
-  Surface,
-  Text,
-} from '@circi/ui'
+import { Banner, Button, PanelHeader, Ref, Text, useAnnounce } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
-import { useParams, useSearch } from '@tanstack/react-router'
+import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 
 import { useDocumentTitle } from '../../lib/document-title.ts'
-import { ErrorState } from '../../lib/ErrorState.tsx'
 import { useClientLink } from '../../lib/use-client-link.ts'
-import { buildState } from '../builds/build-state.ts'
-import { BuildMeta } from '../builds/BuildMeta.tsx'
-import { CountsSummary } from '../builds/CountsSummary.tsx'
-import { shotReview } from '../builds/diff-status.ts'
-import { BUILDS_PAGE_SIZE, flakyQuery, projectQuery } from './api.ts'
+import { useSidebarModel } from '../sidebar/api.ts'
+import { usePinProject } from '../views/api.ts'
+import { flakyQuery, projectQuery } from './api.ts'
+import { type BuildFilters, parseBuildsSearch, toSearch } from './builds-filters.ts'
+import { BuildsBrowser } from './BuildsBrowser.tsx'
 import { GitAttentionBanner } from './GitAttentionBanner.tsx'
-import { useLoadingAnnouncement } from './loading.ts'
 import { ProjectBreadcrumbs } from './ProjectBreadcrumbs.tsx'
 
 import styles from './ProjectPage.module.css'
 
 export function ProjectPage() {
   const { org, project } = useParams({ from: '/$org/$project' })
-  const { before } = useSearch({ from: '/$org/$project' })
+  const search = parseBuildsSearch(useSearch({ from: '/$org/$project' }))
+  const { before, ...filters } = search
   const clientLink = useClientLink()
-  const { data, error, refetch } = useQuery(projectQuery(org, project, before))
+  const navigate = useNavigate()
+  const announce = useAnnounce()
+  const { data } = useQuery(projectQuery(org, project, before, filters))
   const { data: flaky } = useQuery(flakyQuery(org, project))
+  const { data: sidebar } = useSidebarModel(org)
+  const pin = usePinProject(org, project)
+  const pinned = sidebar?.projects.find((p) => p.slug === project)?.pinned
   useDocumentTitle(before ? 'Older builds' : 'Builds', data?.project.name ?? project)
-  useLoadingAnnouncement(!data && !error, 'Loading builds')
 
-  const builds = data?.builds ?? []
-  const oldest = builds.at(-1)?.number
+  const setFilters = (next: BuildFilters) =>
+    void navigate({
+      to: '/$org/$project',
+      params: { org, project },
+      search: toSearch(next),
+      replace: true,
+    })
 
   return (
     <>
       <PanelHeader
         actions={
           <>
+            {pinned === undefined ? null : (
+              <Button
+                size="sm"
+                loading={pin.isPending}
+                onClick={() =>
+                  pin.mutate(!pinned, {
+                    onSuccess: () => announce(pinned ? 'Unpinned project' : 'Pinned project'),
+                  })
+                }
+              >
+                {pinned ? 'Unpin project' : 'Pin project'}
+              </Button>
+            )}
             <Button
               size="sm"
               {...clientLink({ to: '/$org/$project/sites', params: { org, project } })}
@@ -96,96 +103,13 @@ export function ProjectPage() {
             .
           </Banner>
         ) : null}
-        <SectionHeader title={before ? 'Older builds' : 'Builds'} />
-        {error ? (
-          <ErrorState
-            error={error}
-            onRetry={() => void refetch()}
-            notFound="This project doesn’t exist"
-          />
-        ) : !data ? (
-          <Delayed>
-            <ListSkeleton />
-          </Delayed>
-        ) : builds.length === 0 ? (
-          <EmptyState
-            icon={<CollectionsIcon size={32} />}
-            title={before ? 'No older builds' : 'No builds yet'}
-            action={
-              before ? undefined : (
-                <Surface variant="raised" className={styles['command']}>
-                  <Text as="code" variant="mono">
-                    {`CIRCI_TOKEN=… CIRCI_API_URL=${window.location.origin} \\\n  npx circi upload ./screenshots --wait`}
-                  </Text>
-                </Surface>
-              )
-            }
-          >
-            {before
-              ? undefined
-              : 'Upload screenshots from your CI job. Builds appear here as soon as they’re processed.'}
-          </EmptyState>
-        ) : (
-          <>
-            <ul aria-label="Builds" className={styles['list']}>
-              {builds.map((b) => {
-                const state = buildState(b)
-                return (
-                  <li key={b.id}>
-                    <ListRow
-                      className={styles['row']}
-                      {...clientLink({
-                        to: '/$org/$project/builds/$number',
-                        params: { org, project, number: String(b.number) },
-                      })}
-                      leading={<StatusIcon status={state.status} label={state.label} />}
-                      trailing={
-                        <span className={styles['trailing']}>
-                          <CountsSummary
-                            counts={b.counts}
-                            review={shotReview(b)}
-                            includeUnchanged={false}
-                          />
-                        </span>
-                      }
-                    >
-                      <span className={styles['title']}>
-                        Build #{b.number}
-                        {b.name !== 'default' ? (
-                          <span className={styles['name']}> · {b.name}</span>
-                        ) : null}
-                      </span>
-                      <div className={styles['meta']}>
-                        <BuildMeta build={b} />
-                      </div>
-                    </ListRow>
-                  </li>
-                )
-              })}
-            </ul>
-            {/* Primer: pagination sits directly below the collection it pages. */}
-            <div className={styles['pager']}>
-              {before ? (
-                <Button
-                  {...clientLink({ to: '/$org/$project', params: { org, project }, search: {} })}
-                >
-                  Newest builds
-                </Button>
-              ) : null}
-              {builds.length === BUILDS_PAGE_SIZE && oldest ? (
-                <Button
-                  {...clientLink({
-                    to: '/$org/$project',
-                    params: { org, project },
-                    search: { before: oldest },
-                  })}
-                >
-                  Older builds
-                </Button>
-              ) : null}
-            </div>
-          </>
-        )}
+        <BuildsBrowser
+          org={org}
+          project={project}
+          filters={filters}
+          onFiltersChange={setFilters}
+          before={before}
+        />
       </div>
     </>
   )

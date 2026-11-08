@@ -1,0 +1,102 @@
+.groups {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.groupHeader {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.title {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.sinceText {
+  color: var(--circi-text-secondary);
+  font-size: 12px;
+}
+
+.chip {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.paneBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.filmstrip {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  list-style: none;
+}
+
+.frame {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  width: 64px;
+  font-size: 11px;
+}
+
+.thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 64px;
+  height: 48px;
+  overflow: hidden;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 4px;
+  background: var(--circi-surface-sunken, transparent);
+}
+
+.thumb img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.frameMeta {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.canvas {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+}
+
+.canvas img {
+  display: block;
+  max-width: 100%;
+}
+
+.drawActions {
+  display: flex;
+  gap: 8px;
+}
