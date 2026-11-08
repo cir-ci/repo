@@ -13,6 +13,8 @@
     "packages/*/test/**/*.ts",
     "e2e/src/**/*.ts",
     "e2e/test/**/*.ts",
+    "packages/cli/tsdown.config.ts",
+    "packages/vitest/tsdown.config.ts",
     "vitest.config.ts"
   ],
   "exclude": ["apps/web", "packages/ui"]

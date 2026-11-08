@@ -16,7 +16,7 @@ export default defineConfig({
       '@circi/ui': fileURLToPath(new URL('../../packages/ui/src/index.ts', import.meta.url)),
     },
   },
-  // @circi/ui's CSS modules are compiled here (the `development` condition resolves its source).
+  // @circi/ui's CSS modules are compiled here (the `@circi/source` condition resolves its source).
   server: {
     proxy: { '/api': 'http://localhost:3000' },
   },

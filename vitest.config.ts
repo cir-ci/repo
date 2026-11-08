@@ -12,8 +12,10 @@ import { circiTokensCss } from './packages/ui/tokens-css.ts'
 export default defineConfig({
   // Fills the token variables into @circi/ui's global.css, as the real builds do.
   plugins: [circiTokensCss()],
+  // Workspace packages that Vitest runs through Node itself (e.g. @circi/testing) need the condition too.
+  ssr: { resolve: { externalConditions: ['node', '@circi/source'] } },
   resolve: {
-    conditions: ['development'],
+    conditions: ['@circi/source'],
   },
   test: {
     testTimeout: 30_000,

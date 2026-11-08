@@ -50,7 +50,7 @@ Base UI marks state with data attributes (`data-open`, `data-pressed`, `data-dis
 - **Build:** `tsc` can't process CSS modules, so `@circi/ui` builds with **Vite in library mode**
   (`dist/index.js` + one `dist/styles.css`) and `tsc --emitDeclarationOnly` for `dist/*.d.ts`
   (design-sync needs the `.d.ts`). A `src/css-modules.d.ts` declares `*.module.css` for the type
-  check. `apps/web` keeps using the `development` condition (source), so Vite handles the modules
+  check. `apps/web` keeps using the source condition (`@circi/source`) (source), so Vite handles the modules
   directly in dev and in the app build; `main.tsx` imports `@circi/ui/styles.css` only for the
   built package (dist).
 - design-sync: the converter gets `dist/styles.css` (config entry checked in the spike).

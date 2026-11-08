@@ -164,6 +164,9 @@ settings:
 
 catalogs:
   default:
+    '@arethetypeswrong/core':
+      specifier: 0.18.5
+      version: 0.18.5
     '@aws-sdk/client-s3':
       specifier: 3.1161.0
       version: 3.1161.0
@@ -272,6 +275,9 @@ catalogs:
     playwright:
       specifier: 1.64.1
       version: 1.64.1
+    publint:
+      specifier: 0.3.25
+      version: 0.3.25
     react:
       specifier: 19.3.1
       version: 19.3.1
@@ -282,8 +288,8 @@ catalogs:
       specifier: 0.35.5
       version: 0.35.5
     tar:
-      specifier: 7.5.2
-      version: 7.5.2
+      specifier: 7.5.22
+      version: 7.5.22
     tsdown:
       specifier: 0.23.5
       version: 0.23.5
@@ -400,7 +406,7 @@ importers:
         version: 0.35.5(@types/node@26.6.6)
       tar:
         specifier: 'catalog:'
-        version: 7.5.2
+        version: 7.5.22
 
   apps/web:
     dependencies:
@@ -565,7 +571,17 @@ importers:
         version: 15.0.0
       tar:
         specifier: 'catalog:'
-        version: 7.5.2
+        version: 7.5.22
+    devDependencies:
+      '@arethetypeswrong/core':
+        specifier: 'catalog:'
+        version: 0.18.5
+      publint:
+        specifier: 'catalog:'
+        version: 0.3.25
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.23.5(@arethetypeswrong/core@0.18.5)(@tsdown/css@0.23.5)(publint@0.3.25)(tsx@4.23.15)(typescript@7.0.2)
 
   packages/config:
     dependencies:
@@ -631,7 +647,7 @@ importers:
     dependencies:
       tar:
         specifier: 'catalog:'
-        version: 7.5.2
+        version: 7.5.22
 
   packages/storage:
     dependencies:
@@ -680,7 +696,7 @@ importers:
         version: 19.3.1(react@19.3.1)
       tsdown:
         specifier: 'catalog:'
-        version: 0.23.5(@tsdown/css@0.23.5)(tsx@4.23.15)(typescript@7.0.2)
+        version: 0.23.5(@arethetypeswrong/core@0.18.5)(@tsdown/css@0.23.5)(publint@0.3.25)(tsx@4.23.15)(typescript@7.0.2)
       vite:
         specifier: 'catalog:'
         version: 8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)
@@ -690,11 +706,31 @@ importers:
 
   packages/vitest:
     dependencies:
+      tar:
+        specifier: 'catalog:'
+        version: 7.5.22
+    devDependencies:
+      '@arethetypeswrong/core':
+        specifier: 'catalog:'
+        version: 0.18.5
       '@circi/cli':
         specifier: workspace:*
         version: link:../cli
+      publint:
+        specifier: 'catalog:'
+        version: 0.3.25
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.23.5(@arethetypeswrong/core@0.18.5)(@tsdown/css@0.23.5)(publint@0.3.25)(tsx@4.23.15)(typescript@7.0.2)
 
 packages:
+
+  '@andrewbranch/untar.js@1.0.4':
+    resolution: {integrity: sha512-pVXSwPsLuw8IGLo2Di0EaOfsk+ntVvpkk942J/sHYIkwvtKUakEcPh7HBgZ6tuimgzKSEHgCvO4XgQ05DEbwDw==}
+
+  '@arethetypeswrong/core@0.18.5':
+    resolution: {integrity: sha512-9ytjzGwxjm9Uz7I9avfbt5vlQt6uk9uRRESzJjqrznl6WKvI6dwYTo+vJ3U02Wrq/mR3iql/PzhvHhKdJIAjDQ==}
+    engines: {node: '>=20'}
 
   '@authenio/xml-encryption@6.0.2':
     resolution: {integrity: sha512-/jv5qO935fH4Ma+fxh5rJLRYZvUM57fd/I74IiSoR8cFm+sgjszXFEEn1PkqZhhBD4MVkH2YT+/UDY+pnW0S0Q==}
@@ -1059,6 +1095,9 @@ packages:
 
   '@blazediff/core@1.10.0':
     resolution: {integrity: sha512-AOQff0zgR7cGsZL+4E7hVkmujoPUpm0J9xzWGWZj5wCjd3gmxESXAPfKyuzs93VdpQNFhHlBhfOjrcZ+XTERtQ==}
+
+  '@braidai/lang@1.1.2':
+    resolution: {integrity: sha512-qBcknbBufNHlui137Hft8xauQMTZDKdophmLFv05r2eNmdIv/MlPuP4TdUknHG68UdWLgVZwgxVe735HzJNIwA==}
 
   '@chevrotain/cst-dts-gen@12.0.0':
     resolution: {integrity: sha512-fSL4KXjTl7cDgf0B5Rip9Q05BOrYvkJV/RrBTE/bKDN096E4hN/ySpcBK5B24T76dlQ2i32Zc3PAE27jFnFrKg==}
@@ -1783,6 +1822,9 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
+  '@loaderkit/resolve@1.0.6':
+    resolution: {integrity: sha512-G8FdIoF5CypfwmD9rl8BXod5HDn8JqB0CCNBXDTaRZ+yRYhARrrSToX1zg1zy9jX3zLqigsELwhT4gNtkdQAUg==}
+
   '@lukeed/ms@2.0.2':
     resolution: {integrity: sha512-9I2Zn6+NJLfaGoz9jN3lpwDgAYvfGeNYdbAIjJOqzs4Tpc+VU3Jqq4IofSUBKajiDS8k9fZIg18/z13mpk1bsA==}
     engines: {node: '>=8'}
@@ -2084,6 +2126,10 @@ packages:
 
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
+
+  '@publint/pack@0.1.7':
+    resolution: {integrity: sha512-4EDEmvxWtgsCnnVeBvtFIFZtUhPPt1+bA9JrSwU4Sa//6oKtzCSlGGXYJr44OD9aGISymbieJ4mCKHUygUDU+g==}
+    engines: {node: '>=18'}
 
   '@quansync/fs@1.1.0':
     resolution: {integrity: sha512-qAPG/t3HqML1TlN7sY/pTbEjzFVAKsMjNNMGheyDosro+kT4iw2KCUoHcVdmliwWjorm4elZbgNQyU2eD97eDg==}
@@ -2690,6 +2736,9 @@ packages:
     resolution: {integrity: sha512-+IxzY9BZOQd/XuYPRmrvEVjF/nqj5kgT4kEq7VofrDoM1MxoRjEWkrCC3EtLi59TVawxTAn+orJwFQcrqEN1+g==}
     engines: {node: '>=18'}
 
+  cjs-module-lexer@1.4.3:
+    resolution: {integrity: sha512-9z8TZaGM1pfswYeXrUpzPrkx8UnWYdhJclsiYMm6x/w5+nN+8Tf/LnAgfLGQCm59qAOxU8WwHEq2vNwF6i4j+Q==}
+
   commander@15.0.0:
     resolution: {integrity: sha512-z67u4ZhzCL/Tydu1lJARtEZYWbWaN7oYLHbsuzocr6y4N6WZAagG3RQ4FW61V1/0+jImpj293XfrcYnd1qxtPg==}
     engines: {node: '>=22.12.0'}
@@ -3216,6 +3265,10 @@ packages:
     resolution: {integrity: sha512-KZxYo1BUkWD2TVFLr0MQoM8vUUigWD3LlD83a/75BqC+4qE0Hb1Vo5v1FgcfaNXvfXzr+5EhQ6ing/CaBijTlw==}
     engines: {node: '>= 18'}
 
+  mri@1.2.0:
+    resolution: {integrity: sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA==}
+    engines: {node: '>=4'}
+
   mrmime@2.0.1:
     resolution: {integrity: sha512-Y3wQdFg2Va6etvQ5I82yUhGdsKrcYox6p7FfL1LbK2J4V01F9TGlepTIhnK24t7koZibmg82KGglhA1XK5IsLQ==}
     engines: {node: '>=10'}
@@ -3284,6 +3337,9 @@ packages:
         optional: true
       vite-plus:
         optional: true
+
+  package-manager-detector@1.9.0:
+    resolution: {integrity: sha512-zAMfbta9nPA8AKkA4WdmNAT8R8s6Dk0/xwPsqNnRidMFcLo1YkLuPDTgs2f64XdzS8vbLNnoJ+uUIkgbz7oRHA==}
 
   path-expression-matcher@1.6.2:
     resolution: {integrity: sha512-enSlaiat05iasnzmgNxRj8reFdj3puY2QpNgP1aPIaVfT6nn9ICuPoFlKHk8EN22HcwewshO+mN2DGbkCEOtqQ==}
@@ -3459,6 +3515,11 @@ packages:
     resolution: {integrity: sha512-NxNv/kLguCA7p3jE8oL2aEBsrJWgAakBpgmgK6lpPWV+WuOmY6r2/zbAVnP+T8bQlA0nzHXSJSJW0Hq7ylaD2Q==}
     engines: {node: '>= 6'}
 
+  publint@0.3.25:
+    resolution: {integrity: sha512-WMMbn/d7JqRlfXQL/JUI4n5skC8cJ5WVr8/wT5mmiYWkUdENkZr1I5rgs2+dQPVRgoJd+JRYtB46MTsuDylw9g==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   quansync@1.0.0:
     resolution: {integrity: sha512-5xZacEEufv3HSTPQuchrvV6soaiACMFnq1H8wkVioctoH3TRha9Sz66lOxRwPK/qZj7HPiSveih9yAyh98gvqA==}
 
@@ -3534,6 +3595,10 @@ packages:
   run-applescript@7.1.0:
     resolution: {integrity: sha512-DPe5pVFaAsinSaV6QjQ6gdiedWDcRCbUuiQfQa2wmWV7+xC9bGulGI8+TdRmoFkAPaBXk8CrAbnlY2ISniJ47Q==}
     engines: {node: '>=18'}
+
+  sade@1.8.1:
+    resolution: {integrity: sha512-xal3CZX1Xlo/k4ApwCFrHVACi9fBqJ7V+mwhBsuf/1IOKbBy098Fex+Wa/5QMubw09pSZ/u8EY8PWgevJsXp1A==}
+    engines: {node: '>=6'}
 
   safe-regex2@5.1.2:
     resolution: {integrity: sha512-tAtCGFPPP02VroDVzp4daGi6bC7jWG+41D47GKf18FeH/ubvKQHT9VmhAkvtjNOmJwqtApzWeUpEhkyEYULvmw==}
@@ -3624,10 +3689,9 @@ packages:
   strnum@2.5.1:
     resolution: {integrity: sha512-UM4nTLWzQiDBseVxUGxN0wJzIk0UU89Qi7pKXz9qISo+lhviJikTuikBsK/oFRlpvYHvSdz0TVoLyQ+sEpYwxA==}
 
-  tar@7.5.2:
-    resolution: {integrity: sha512-7NyxrTE4Anh8km8iEy7o0QYPs+0JKBTj5ZaqHg6B39erLg0qYXN3BijtShwbsNSvQ+LN75+KV+C4QR/f6Gwnpg==}
+  tar@7.5.22:
+    resolution: {integrity: sha512-MFO/QzvtAOmJbkhOaCTvbGcFN9L9b+JunIsDwaKljSOdcLMea3NJ1k9Usz/rjdfSXTq4dfzfeS7W4p4YOAAHeA==}
     engines: {node: '>=18'}
-    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   thread-stream@4.2.1:
     resolution: {integrity: sha512-Stg6edJXC/6/xqGwSXwFokrUhChJ18amEjpKH89WrQQ0oVFDF+pUUcTpiwWhFUrE89Vf16FBOlwhaw+lescxMQ==}
@@ -3717,6 +3781,11 @@ packages:
     engines: {node: '>=18.0.0'}
     hasBin: true
 
+  typescript@5.6.1-rc:
+    resolution: {integrity: sha512-E3b2+1zEFu84jB0YQi9BORDjz9+jGbwwy1Zi3G0LUNw7a7cePUrHMRNy8aPh53nXpkFGVHSxIZo5vKTfYaFiBQ==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
   typescript@7.0.2:
     resolution: {integrity: sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA==}
     engines: {node: '>=16.20.0'}
@@ -3741,6 +3810,10 @@ packages:
 
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
+
+  validate-npm-package-name@5.0.1:
+    resolution: {integrity: sha512-OljLrQ9SQdOUqTaQxqL5dEfZWrXExyyWsozYlAWFawPVNuD83igl7uJD2RTkNMbniIYgt8l81eCJGIdQF7avLQ==}
+    engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
 
   verkit@0.5.0:
     resolution: {integrity: sha512-u4J1hr6Y+C/hit34GwL3eIcUf3wngT8TlYUjK7tk0jxydKLAq3sYvifjdTDA6U3KCKRcQCQDGf/srjxfZF3l7g==}
@@ -3923,6 +3996,19 @@ packages:
     resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
 
 snapshots:
+
+  '@andrewbranch/untar.js@1.0.4': {}
+
+  '@arethetypeswrong/core@0.18.5':
+    dependencies:
+      '@andrewbranch/untar.js': 1.0.4
+      '@loaderkit/resolve': 1.0.6
+      cjs-module-lexer: 1.4.3
+      fflate: 0.8.3
+      lru-cache: 11.5.3
+      semver: 7.8.6
+      typescript: 5.6.1-rc
+      validate-npm-package-name: 5.0.1
 
   '@authenio/xml-encryption@6.0.2':
     dependencies:
@@ -4431,6 +4517,8 @@ snapshots:
 
   '@blazediff/core@1.10.0': {}
 
+  '@braidai/lang@1.1.2': {}
+
   '@chevrotain/cst-dts-gen@12.0.0':
     dependencies:
       '@chevrotain/gast': 12.0.0
@@ -4904,6 +4992,10 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
+  '@loaderkit/resolve@1.0.6':
+    dependencies:
+      '@braidai/lang': 1.1.2
+
   '@lukeed/ms@2.0.2': {}
 
   '@mrleebo/prisma-ast@0.16.0':
@@ -5055,6 +5147,10 @@ snapshots:
 
   '@polka/url@1.0.0-next.29': {}
 
+  '@publint/pack@0.1.7':
+    dependencies:
+      tinyexec: 1.3.1
+
   '@quansync/fs@1.1.0':
     dependencies:
       quansync: 1.0.0
@@ -5182,7 +5278,7 @@ snapshots:
       lightningcss: 1.33.0
       postcss-load-config: 6.0.1(jiti@2.7.0)(postcss@8.5.32)(tsx@4.23.15)
       rolldown: 1.2.16
-      tsdown: 0.23.5(@tsdown/css@0.23.5)(tsx@4.23.15)(typescript@7.0.2)
+      tsdown: 0.23.5(@arethetypeswrong/core@0.18.5)(@tsdown/css@0.23.5)(publint@0.3.25)(tsx@4.23.15)(typescript@7.0.2)
     optionalDependencies:
       postcss: 8.5.32
       postcss-modules: 9.0.1(postcss@8.5.32)
@@ -5553,6 +5649,8 @@ snapshots:
       '@chevrotain/utils': 12.0.0
 
   chownr@3.0.0: {}
+
+  cjs-module-lexer@1.4.3: {}
 
   commander@15.0.0: {}
 
@@ -5988,6 +6086,8 @@ snapshots:
     dependencies:
       minipass: 7.1.3
 
+  mri@1.2.0: {}
+
   mrmime@2.0.1: {}
 
   ms@2.1.3: {}
@@ -6068,6 +6168,8 @@ snapshots:
       '@oxlint/binding-win32-ia32-msvc': 1.91.0
       '@oxlint/binding-win32-x64-msvc': 1.91.0
       oxlint-tsgolint: 7.0.2005
+
+  package-manager-detector@1.9.0: {}
 
   path-expression-matcher@1.6.2: {}
 
@@ -6237,6 +6339,13 @@ snapshots:
       kleur: 3.0.3
       sisteransi: 1.0.5
 
+  publint@0.3.25:
+    dependencies:
+      '@publint/pack': 0.1.7
+      package-manager-detector: 1.9.0
+      picocolors: 1.1.1
+      sade: 1.8.1
+
   quansync@1.0.0: {}
 
   quick-format-unescaped@4.0.4: {}
@@ -6304,6 +6413,10 @@ snapshots:
   rou3@0.9.2: {}
 
   run-applescript@7.1.0: {}
+
+  sade@1.8.1:
+    dependencies:
+      mri: 1.2.0
 
   safe-regex2@5.1.2:
     dependencies:
@@ -6405,7 +6518,7 @@ snapshots:
     dependencies:
       anynum: 1.0.1
 
-  tar@7.5.2:
+  tar@7.5.22:
     dependencies:
       '@isaacs/fs-minipass': 4.0.1
       chownr: 3.0.0
@@ -6444,7 +6557,7 @@ snapshots:
 
   totalist@3.0.1: {}
 
-  tsdown@0.23.5(@tsdown/css@0.23.5)(tsx@4.23.15)(typescript@7.0.2):
+  tsdown@0.23.5(@arethetypeswrong/core@0.18.5)(@tsdown/css@0.23.5)(publint@0.3.25)(tsx@4.23.15)(typescript@7.0.2):
     dependencies:
       cac: 7.1.0
       defu: 6.1.7
@@ -6461,7 +6574,9 @@ snapshots:
       unconfig-core: 7.5.0
       verkit: 0.5.0
     optionalDependencies:
+      '@arethetypeswrong/core': 0.18.5
       '@tsdown/css': 0.23.5(jiti@2.7.0)(postcss-modules@9.0.1(postcss@8.5.32))(postcss@8.5.32)(tsdown@0.23.5)(tsx@4.23.15)
+      publint: 0.3.25
       tsx: 4.23.15
       typescript: 7.0.2
     transitivePeerDependencies:
@@ -6479,6 +6594,8 @@ snapshots:
       esbuild: 0.28.2
     optionalDependencies:
       fsevents: 2.3.3
+
+  typescript@5.6.1-rc: {}
 
   typescript@7.0.2:
     optionalDependencies:
@@ -6522,6 +6639,8 @@ snapshots:
 
   util-deprecate@1.0.2:
     optional: true
+
+  validate-npm-package-name@5.0.1: {}
 
   verkit@0.5.0: {}
 

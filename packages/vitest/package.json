@@ -3,18 +3,35 @@
   "version": "0.0.0",
   "private": true,
   "description": "Vitest integration: screenshot helper, reporter that uploads to CirCI",
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "exports": {
     ".": {
-      "development": "./src/index.ts",
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "@circi/source": "./src/index.ts",
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      }
     }
   },
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsdown"
   },
   "dependencies": {
-    "@circi/cli": "workspace:*"
+    "tar": "catalog:"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/core": "catalog:",
+    "@circi/cli": "workspace:*",
+    "publint": "catalog:",
+    "tsdown": "catalog:"
   }
 }

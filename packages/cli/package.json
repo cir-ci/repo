@@ -4,22 +4,39 @@
   "private": true,
   "description": "Upload screenshots from CI to a CirCI server",
   "bin": {
-    "circi": "./dist/main.js"
+    "circi": "./dist/main.mjs"
   },
+  "files": [
+    "dist",
+    "!dist/main.d.mts"
+  ],
   "type": "module",
   "exports": {
     ".": {
-      "development": "./src/index.ts",
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "@circi/source": "./src/index.ts",
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      }
     }
   },
   "scripts": {
-    "build": "tsc -b",
-    "dev": "node --conditions=development src/main.ts"
+    "build": "tsdown",
+    "dev": "node --conditions=@circi/source src/main.ts"
   },
   "dependencies": {
     "commander": "catalog:",
     "tar": "catalog:"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/core": "catalog:",
+    "publint": "catalog:",
+    "tsdown": "catalog:"
   }
 }

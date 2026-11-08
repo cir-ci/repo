@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander'
 
+import pkg from '../package.json' with { type: 'json' }
 import { ApiError } from './api.ts'
 import { uploadSite } from './site.ts'
 import { upload, UsageError } from './upload.ts'
@@ -16,6 +17,7 @@ for (const stream of [process.stdout, process.stderr]) {
 const program = new Command()
   .name('circi')
   .description('Upload screenshots from CI to a CirCI server')
+  .version(pkg.version)
   .showHelpAfterError()
 
 program

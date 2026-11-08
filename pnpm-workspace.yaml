@@ -9,6 +9,7 @@ minimumReleaseAgeExclude:
   - '@tsdown/*'
 catalog:
   '@base-ui/react': 1.9.0
+  '@arethetypeswrong/core': 0.18.5
   '@aws-sdk/client-s3': 3.1161.0
   '@aws-sdk/s3-request-presigner': 3.1161.0
   '@better-auth/api-key': 1.7.15
@@ -43,11 +44,12 @@ catalog:
   pg: 8.23.1
   pino: 10.4.0
   playwright: 1.64.1
+  publint: 0.3.25
   pixelmatch: 8.0.0
   react-dom: 19.3.1
   react: 19.3.1
   sharp: 0.35.5
-  tar: 7.5.2
+  tar: 7.5.22
   tsdown: 0.23.5
   typescript: 7.0.2
   vite: 8.3.5

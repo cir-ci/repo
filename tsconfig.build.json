@@ -29,12 +29,6 @@
       "path": "packages/providers"
     },
     {
-      "path": "packages/cli"
-    },
-    {
-      "path": "packages/vitest"
-    },
-    {
       "path": "apps/worker"
     },
     {

@@ -3,7 +3,7 @@
 These tests run against the **real Docker stack**: Postgres, the `circi:e2e` image built from
 `deploy/Dockerfile` (server + worker + dashboard, command `all`), Mailpit for mail and, when a
 test asks for S3, LocalStack. The test process drives it from the outside the way users do: the
-real CLI (`packages/cli/dist/main.js`) uploads, Playwright's Chromium clicks, `/api/auth` signs in.
+real CLI (`packages/cli/dist/main.mjs`) uploads, Playwright's Chromium clicks, `/api/auth` signs in.
 Fakes for what lives outside the stack (GitHub, an OIDC provider, a webhook receiver) run on the
 host.
 

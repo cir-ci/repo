@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc -b",
     "start": "node dist/main.js",
-    "dev": "node --conditions=development src/main.ts"
+    "dev": "node --conditions=@circi/source src/main.ts"
   },
   "dependencies": {
     "@circi/api": "workspace:*",

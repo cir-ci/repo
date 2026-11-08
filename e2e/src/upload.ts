@@ -67,15 +67,20 @@ export interface UploadOptions {
   timeoutSeconds?: number
 }
 
-/** Rebuilds the CLI when its sources are newer than `dist/main.js`; throws if it can't. */
+/** Rebuilds the CLI when its sources are newer than `dist/main.mjs` (or its build config); throws if it can't. */
 export async function ensureCliBuilt(): Promise<void> {
   const newest = (dir: string): number =>
     readdirSync(dir, { withFileTypes: true }).reduce((max, e) => {
       const p = join(dir, e.name)
       return Math.max(max, e.isDirectory() ? newest(p) : statSync(p).mtimeMs)
     }, 0)
-  const src = join(REPO_ROOT, 'packages', 'cli', 'src')
-  if (!existsSync(CLI_MAIN) || statSync(CLI_MAIN).mtimeMs < newest(src)) {
+  const cli = join(REPO_ROOT, 'packages', 'cli')
+  const inputs = Math.max(
+    newest(join(cli, 'src')),
+    statSync(join(cli, 'tsdown.config.ts')).mtimeMs,
+    statSync(join(cli, 'package.json')).mtimeMs,
+  )
+  if (!existsSync(CLI_MAIN) || statSync(CLI_MAIN).mtimeMs < inputs) {
     await run('pnpm', ['--filter', '@circi/cli', 'build'], { cwd: REPO_ROOT, timeoutMs: 180_000 })
   }
 }
@@ -103,7 +108,7 @@ function cliEnv(options: UploadOptions): Record<string, string> {
   }
 }
 
-/** Runs the real, built `circi` CLI (`packages/cli/dist/main.js`) with an arbitrary command line. */
+/** Runs the real, built `circi` CLI (`packages/cli/dist/main.mjs`) with an arbitrary command line. */
 export function runCli(
   args: string[],
   options: { cwd: string; env: Record<string, string>; timeoutMs?: number },
