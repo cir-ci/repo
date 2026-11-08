@@ -13,8 +13,8 @@ export const QUEUES = {
   webhook: 'webhook',
   /** Email one person about one notification (only when the instance has SMTP). */
   notificationEmail: 'notification-email',
-  /** Post one message to a project's Slack channel. */
-  slack: 'send-slack',
+  /** Hand one domain event to one integration (Slack message…); see `queueIntegrationEvent`. */
+  integrationEvent: 'integration-event',
 } as const
 
 /** The Postgres channel a worker LISTENs on; the payload is the queue name. */

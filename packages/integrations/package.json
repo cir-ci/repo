@@ -1,0 +1,16 @@
+{
+  "name": "@circi/integrations",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#src/*": "./src/*"
+  },
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@circi/api": "workspace:*",
+    "@circi/core": "workspace:*",
+    "@circi/providers": "workspace:*",
+    "zod": "catalog:"
+  }
+}

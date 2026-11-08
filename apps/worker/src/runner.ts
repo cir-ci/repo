@@ -9,16 +9,17 @@ import {
   type ListenFn,
   QUEUES,
 } from '@circi/db'
-import type { GithubApp, ProviderRegistry, SlackClient } from '@circi/providers'
+import type { IntegrationDefinition } from '@circi/integrations'
+import type { GithubApp, ProviderRegistry } from '@circi/providers'
 import { expireStalledBuilds, failBuild, runRetention } from '@circi/services'
 import type { StorageDriver } from '@circi/storage'
 
 import { deliverWebhook } from './jobs/deliver-webhook.ts'
+import { integrationEvent } from './jobs/integration-event.ts'
 import { notifyGit } from './jobs/notify-git.ts'
 import { processBuild } from './jobs/process-build.ts'
 import { reviewSweep } from './jobs/review-sweep.ts'
 import { sendNotificationEmail } from './jobs/send-email.ts'
-import { sendSlack } from './jobs/send-slack.ts'
 import { interruptibleSleep } from './lib/concurrency.ts'
 
 /** The worker process: polls the job queue and runs each job. */
@@ -44,8 +45,11 @@ export namespace startWorker {
     authSecret?: string
     /** Sends notification emails; absent without SMTP, and such jobs are then skipped. */
     mailer?: sendNotificationEmail.Sender
-    /** Slack's Web API client; absent in tests that do not send Slack messages (such jobs are then dropped). */
-    slack?: Pick<SlackClient, 'postMessage'>
+    /**
+     * Instance settings of the integrations (`config`: the Slack app…) and a replaceable `fetch`.
+     * Absent in tests that do not deliver integration events (such jobs are then dropped).
+     */
+    integrations?: Pick<IntegrationDefinition.Context, 'config' | 'fetch'>
     /** Webhooks may point at private addresses (`WEBHOOK_ALLOW_PRIVATE_ADDRESSES`). */
     webhookAllowPrivate?: boolean
     /** Startup check of the database connection. */
@@ -260,7 +264,7 @@ async function claimNext(db: Database, lockSeconds: number): Promise<Job | undef
     (await claimJob(db, GIT_NOTIFY_QUEUE, lockSeconds)) ??
     (await claimJob(db, QUEUES.webhook, lockSeconds)) ??
     (await claimJob(db, QUEUES.notificationEmail, lockSeconds)) ??
-    (await claimJob(db, QUEUES.slack, lockSeconds))
+    (await claimJob(db, QUEUES.integrationEvent, lockSeconds))
   )
 }
 
@@ -268,7 +272,7 @@ async function runJob(deps: startWorker.Deps, job: Job): Promise<void> {
   if (job.queue === QUEUES.webhook) return runWebhookJob(deps, job)
   if (job.queue === GIT_NOTIFY_QUEUE) return runGitNotifyJob(deps, job)
   if (job.queue === QUEUES.notificationEmail) return runEmailJob(deps, job)
-  if (job.queue === QUEUES.slack) return runSlackJob(deps, job)
+  if (job.queue === QUEUES.integrationEvent) return runIntegrationEventJob(deps, job)
   const buildId = typeof job.payload.buildId === 'string' ? job.payload.buildId : undefined
   const started = Date.now()
   try {
@@ -367,31 +371,44 @@ async function runEmailJob(deps: startWorker.Deps, job: Job): Promise<void> {
   }
 }
 
-async function runSlackJob(deps: startWorker.Deps, job: Job): Promise<void> {
-  const fields = { jobId: job.id, buildId: job.payload.buildId, event: job.payload.event }
+async function runIntegrationEventJob(deps: startWorker.Deps, job: Job): Promise<void> {
+  const event: unknown = job.payload.event
+  const fields = {
+    jobId: job.id,
+    integrationId: job.payload.integrationId,
+    event: typeof event === 'object' && event !== null && 'type' in event ? event.type : undefined,
+  }
   try {
-    if (!deps.slack || !deps.authSecret) {
+    if (!deps.integrations || !deps.authSecret) {
       await completeJob(deps.db, job.id)
-      deps.logger.info(fields, 'slack message skipped: Slack is not set up in this worker')
+      deps.logger.info(
+        fields,
+        'integration event skipped: integrations are not set up in this worker',
+      )
       return
     }
-    const result = await sendSlack(
+    const result = await integrationEvent(
       {
         db: deps.db,
-        slack: deps.slack,
-        authSecret: deps.authSecret,
-        publicOrigin: deps.publicOrigin ?? '',
+        context: {
+          authSecret: deps.authSecret,
+          publicOrigin: deps.publicOrigin ?? '',
+          config: deps.integrations.config,
+          ...(deps.integrations.fetch ? { fetch: deps.integrations.fetch } : {}),
+        },
       },
       job,
     )
     await completeJob(deps.db, job.id)
-    deps.logger.info({ ...fields, ...result }, 'slack message processed')
+    deps.logger.info({ ...fields, ...result }, 'integration event processed')
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     const willRetry = await failJob(deps.db, job, message).catch(() => true)
     deps.logger[willRetry ? 'warn' : 'error'](
       { ...fields, attempt: job.attempts, err: message },
-      willRetry ? 'could not send a slack message, will retry' : 'could not send a slack message',
+      willRetry
+        ? 'could not deliver an integration event, will retry'
+        : 'could not deliver an integration event',
     )
   }
 }

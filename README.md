@@ -162,7 +162,8 @@ packages/config  environment parsing and validation
 packages/core    shared logic: baselines, pairing, build outcomes, limits, slugs
 packages/db      Drizzle schema, migrations, repositories, dashboard queries
 packages/diff    PNG validation, pixel diffs, thumbnails
-packages/providers  GitHub App client and what CirCI shows on a git host
+packages/integrations  the integration SDK: one definition per integration, one registry
+packages/providers  clients of external services (GitHub, Slack, …) and what CirCI shows on a git host
 packages/services  the service layer: build state changes with their jobs and notices, atomically
 packages/storage local-disk and S3 drivers with checksum-verified writes
 packages/testing PGlite test database and seeders

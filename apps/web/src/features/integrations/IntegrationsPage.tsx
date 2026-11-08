@@ -11,7 +11,7 @@ import {
   useAnnounce,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
-import { Link, useParams } from '@tanstack/react-router'
+import { Link, useParams, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { Frame } from '#features/settings/Frame.tsx'
@@ -26,6 +26,7 @@ import {
   projectCountLabel,
   useRemoveIntegration,
 } from './api.ts'
+import { connectNote } from './generic-api.ts'
 import { ProviderLogo } from './logos.tsx'
 
 import styles from './Integrations.module.css'
@@ -38,12 +39,19 @@ import styles from './Integrations.module.css'
 export function IntegrationsPage() {
   const { org } = useParams({ from: '/organizations/$org/settings/integrations' })
   useDocumentTitle('Integrations', org)
+  const search: { connect?: unknown; kind?: unknown } = useSearch({ strict: false })
   const { data, error, refetch } = useQuery(integrationsQuery(org))
   const remove = useRemoveIntegration(org)
   const announce = useAnnounce()
   const [adding, setAdding] = useState(false)
   const [removing, setRemoving] = useState<Integration.Item | null>(null)
   const groups = data ? groupItems(data.integrations) : []
+  // An OAuth install that did not finish lands here (a finished one lands on the new page).
+  const failedKind = typeof search.kind === 'string' ? search.kind : ''
+  const note = connectNote(
+    search.connect,
+    data?.catalog.find((e) => e.kind === failedKind)?.name ?? failedKind,
+  )
 
   return (
     <Frame
@@ -70,6 +78,9 @@ export function IntegrationsPage() {
                 </Button>
               ) : null}
             </div>
+            {note && search.connect !== 'connected' ? (
+              <Banner tone={note.tone}>{note.text}</Banner>
+            ) : null}
             {remove.error ? <Banner tone="danger">{remove.error.message}</Banner> : null}
             {groups.length === 0 ? (
               <EmptyState title="No integrations yet">
@@ -87,6 +98,7 @@ export function IntegrationsPage() {
                         <Row
                           org={org}
                           item={item}
+                          logo={data.catalog.find((e) => e.kind === item.kind)?.logo ?? item.kind}
                           canManage={data.canManage}
                           onRemove={() => setRemoving(item)}
                         />
@@ -137,6 +149,7 @@ export function IntegrationsPage() {
 function Row(props: {
   org: string
   item: Integration.Item
+  logo: string
   canManage: boolean
   onRemove: () => void
 }) {
@@ -146,7 +159,7 @@ function Row(props: {
   return (
     <ListRow density="two-line">
       <div className={styles.row}>
-        <ProviderLogo kind={item.kind} />
+        <ProviderLogo kind={props.logo} />
         <div className={styles.name}>
           <Text>{item.name}</Text>
           <Text variant="small" tone="secondary">
@@ -210,10 +223,10 @@ function Row(props: {
               Configure
             </Link>
           ) : null}
-          {item.kind === 'slack' ? (
+          {item.pageStyle === 'generic' ? (
             <Link
-              to="/organizations/$org/settings/integrations/slack"
-              params={{ org: props.org }}
+              to="/organizations/$org/settings/integrations/$kind/$id"
+              params={{ org: props.org, kind: item.kind, id: item.id }}
               aria-label={`Configure ${label}`}
             >
               Configure

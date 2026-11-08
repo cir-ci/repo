@@ -11,7 +11,7 @@ import {
   schema,
   setIntegrationProject,
 } from '@circi/db'
-import type { SlackClient } from '@circi/providers'
+import type { IntegrationDefinition } from '@circi/integrations'
 import { notifyOverdueReviews, requestReview, reviewBuild } from '@circi/services'
 import { FsStorage } from '@circi/storage'
 import {
@@ -24,7 +24,7 @@ import {
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { sendSlack } from '#jobs/send-slack.ts'
+import { integrationEvent } from '#jobs/integration-event.ts'
 import { startWorker } from '#src/index.ts'
 
 import { fakeSlackHost } from '../support/fake-slack-host.ts'
@@ -72,20 +72,23 @@ async function setup(options: { events?: string[]; mapped?: boolean } = {}) {
   return { project, org, owner, reviewer, build, integration }
 }
 
-const jobs = () => t.db.select().from(schema.jobs).where(eq(schema.jobs.queue, QUEUES.slack))
+const jobs = () =>
+  t.db.select().from(schema.jobs).where(eq(schema.jobs.queue, QUEUES.integrationEvent))
 
-/** Runs every queued Slack job the way the worker would. */
-async function drain(slack: Pick<SlackClient, 'postMessage'>) {
+type Edge = Pick<IntegrationDefinition.Context, 'config' | 'fetch'>
+
+/** Runs every queued integration job the way the worker would. */
+async function drain(edge: Edge) {
   const results = []
   for (const job of await jobs()) {
-    const deps = { db: t.db, slack, authSecret: SECRET, publicOrigin: ORIGIN }
+    const deps = { db: t.db, context: { ...edge, authSecret: SECRET, publicOrigin: ORIGIN } }
     // oxlint-disable-next-line no-await-in-loop -- in order
-    results.push(await sendSlack(deps, job))
+    results.push(await integrationEvent(deps, job))
   }
   return results
 }
 
-describe('sendSlack', () => {
+describe('integrationEvent (Slack)', () => {
   it('posts a review request once, to the project channel, with a link to the build', async () => {
     const { owner, reviewer, build, project, org } = await setup()
     const host = fakeSlackHost(['xoxb-good'])
@@ -94,7 +97,7 @@ describe('sendSlack', () => {
       reviewerId: reviewer.id,
       requestedById: owner.id,
     })
-    expect(await drain(host.client)).toEqual([{ status: 'sent', channel: 'C123' }])
+    expect(await drain(host.integrations)).toEqual([{ status: 'sent', kind: 'slack' }])
     expect(host.posted).toHaveLength(1)
     expect(host.posted[0]).toMatchObject({ channel: 'C123', token: 'xoxb-good' })
     expect(host.posted[0]?.text).toContain('Review requested')
@@ -120,7 +123,7 @@ describe('sendSlack', () => {
       state: 'rejected',
       reason: 'again',
     })
-    await drain(host.client)
+    await drain(host.integrations)
     expect(host.posted).toHaveLength(1)
     expect(host.posted[0]?.text).toContain('Changes rejected')
     expect(JSON.stringify(host.posted[0]?.blocks)).toContain('Logo &lt;overlaps&gt;')
@@ -137,7 +140,7 @@ describe('sendSlack', () => {
     const now = new Date('2026-03-10T15:00:00Z')
     await notifyOverdueReviews(t.db, { now })
     await notifyOverdueReviews(t.db, { now })
-    await drain(host.client)
+    await drain(host.integrations)
     expect(host.posted.map((m) => m.text)).toEqual([expect.stringContaining('Review overdue')])
   })
 
@@ -156,7 +159,7 @@ describe('sendSlack', () => {
 
   it('sends only the events the mapping lists, and re-checks the mapping when the job runs', async () => {
     const { owner, reviewer, build, integration, project } = await setup({
-      events: ['build_rejected'],
+      events: ['build.rejected'],
     })
     const host = fakeSlackHost(['xoxb-good'])
     await requestReview(t.db, {
@@ -171,8 +174,8 @@ describe('sendSlack', () => {
     await t.db
       .delete(schema.integrationProjects)
       .where(eq(schema.integrationProjects.projectId, project.id))
-    expect(await drain(host.client)).toEqual([
-      { status: 'skipped', reason: 'project has no channel' },
+    expect(await drain(host.integrations)).toEqual([
+      { status: 'skipped', reason: 'project is not mapped' },
     ])
     expect(host.posted).toHaveLength(0)
     expect(integration.id).toBeTruthy()
@@ -189,7 +192,7 @@ describe('sendSlack', () => {
     const host = fakeSlackHost(['xoxb-good'])
     host.revoke('xoxb-good')
     await reviewBuild(t.db, { buildId: build.id, userId: owner.id, state: 'rejected' })
-    const [result] = await drain(host.client)
+    const [result] = await drain(host.integrations)
     expect(result).toMatchObject({ status: 'needs-attention' })
     const after = await getIntegration(t.db, integration.orgId, integration.id)
     expect(after).toMatchObject({ needsAttention: true })
@@ -202,10 +205,11 @@ describe('sendSlack', () => {
 
   it('throws for other Slack failures so the queue retries', async () => {
     const { owner, build } = await setup()
-    const broken: Pick<SlackClient, 'postMessage'> = {
-      postMessage: async () => {
-        throw new Error('Slack: ratelimited')
+    const broken: Edge = {
+      config: {
+        slack: { clientId: 'cid', clientSecret: 'csecret', apiUrl: 'https://slack.test/api' },
       },
+      fetch: async () => Response.json({ ok: false, error: 'ratelimited' }),
     }
     await reviewBuild(t.db, { buildId: build.id, userId: owner.id, state: 'rejected' })
     await expect(drain(broken)).rejects.toThrow('ratelimited')
@@ -222,7 +226,7 @@ describe('the worker', () => {
       db: t.db,
       storage: new FsStorage({ path: dir }),
       logger: { info() {}, warn() {}, error() {} },
-      slack: host.client,
+      integrations: host.integrations,
       authSecret: SECRET,
       publicOrigin: ORIGIN,
       pollIntervalMs: 20,

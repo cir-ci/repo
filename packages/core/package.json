@@ -10,8 +10,7 @@
     ".": "./src/index.ts",
     "./figma": "./src/figma.ts",
     "./integrations": "./src/integrations.ts",
-    "./issues": "./src/issues.ts",
-    "./slack": "./src/slack.ts"
+    "./issues": "./src/issues.ts"
   },
   "dependencies": {}
 }

@@ -35,7 +35,7 @@ export {
   unsnoozeNotification,
   updateNotificationPreferences,
 } from './notifications.ts'
-export { queueSlackNotice } from './slack.ts'
+export { queueIntegrationEvent } from './integration-events.ts'
 export { previewRetention, runRetention } from './retention.ts'
 export {
   dismissReviewRequest,

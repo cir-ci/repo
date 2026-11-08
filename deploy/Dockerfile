@@ -23,6 +23,7 @@ COPY packages/config/package.json packages/config/
 COPY packages/core/package.json packages/core/
 COPY packages/db/package.json packages/db/
 COPY packages/diff/package.json packages/diff/
+COPY packages/integrations/package.json packages/integrations/
 COPY packages/providers/package.json packages/providers/
 COPY packages/services/package.json packages/services/
 COPY packages/sites/package.json packages/sites/

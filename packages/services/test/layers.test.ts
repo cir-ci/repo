@@ -35,6 +35,31 @@ describe('layers', () => {
   })
 })
 
+describe('the integration SDK', () => {
+  it('keeps @circi/integrations free of the database, services and apps', () => {
+    expect(
+      importsOf('packages/integrations/src', ['@circi/db', '@circi/services', '@circi/worker']),
+    ).toEqual([])
+  })
+
+  it('keeps the database, core and providers from importing the SDK', () => {
+    expect(importsOf('packages/db/src', ['@circi/integrations'])).toEqual([])
+    expect(importsOf('packages/core/src', ['@circi/integrations'])).toEqual([])
+    expect(importsOf('packages/providers/src', ['@circi/integrations'])).toEqual([])
+  })
+
+  it('keeps the web app from importing definitions (it reads their public data from the API)', () => {
+    expect(importsOf('apps/web/src', ['@circi/integrations'])).toEqual([])
+  })
+
+  it('has no integration route, job or page named after one integration in the generic files', () => {
+    const generic = ['apps/server/src/http/routes/dashboard/integrations-generic.ts']
+    for (const file of generic) {
+      expect(readFileSync(join(root, file), 'utf8')).not.toMatch(/slack/i)
+    }
+  })
+})
+
 describe('UI imports', () => {
   it('keeps the web app on @circi/ui: no MUI, emotion or lucide-react in apps/web/src', () => {
     expect(importsOf('apps/web/src', [MUI, EMOTION, 'lucide-react'])).toEqual([])

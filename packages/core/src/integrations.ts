@@ -1,12 +1,13 @@
 /**
- * The integrations CirCI knows about: every provider an organisation can add, and the ones that are
- * only planned. Static and pure, so the server, the web app and the tests read one list.
+ * The integration groups and the part of the catalog that is not a registry definition yet. The
+ * catalog the dashboard shows is `integrationCatalog` in `@circi/integrations`: one entry per
+ * definition in the registry (built, connectable, with its connect and mapping specs), then the
+ * entries below for what has no definition. Static and pure.
  *
- * Whether an `available` entry is actually built in this release is the server's call (it has a
- * registered provider and an add route); the catalog only says what CirCI intends to offer.
- *
- * Adding a provider: add its entry here (status `available`), its kind to `GIT_PROVIDER_KINDS`
- * or `INTEGRATION_KINDS` in `@circi/db`, and a logo in `apps/web/src/features/integrations/`.
+ * `INTEGRATION_CATALOG` holds two kinds of entry: `planned` ones (nothing is built) and `available`
+ * ones that still use the older, hand-written flow (git hosts, trackers, Figma). Migrating an
+ * integration to the SDK means writing its definition (docs/integration-sdk.md) and DELETING its
+ * entry here; a kind in both is a mistake the registry test catches.
  */
 
 export const INTEGRATION_GROUPS = ['git', 'chat', 'design', 'tracker'] as const
@@ -72,13 +73,6 @@ export const INTEGRATION_CATALOG: readonly IntegrationCatalog.Entry[] = [
     name: 'Azure DevOps',
     description: 'Build status on the pull request.',
     status: 'planned',
-  },
-  {
-    kind: 'slack',
-    group: 'chat',
-    name: 'Slack',
-    description: 'Review requested, overdue and rejected notices in a channel per project.',
-    status: 'available',
   },
   {
     kind: 'teams',

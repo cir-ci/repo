@@ -1,5 +1,5 @@
 import type { Integration } from '@circi/api'
-import { INSTALLATION_ID_RE, INTEGRATION_CATALOG } from '@circi/core'
+import { INSTALLATION_ID_RE } from '@circi/core'
 import {
   connectGithub,
   deleteIntegration,
@@ -11,12 +11,14 @@ import {
   listProjectRepoLinks,
   removeGitConnection,
 } from '@circi/db'
+import { buildCatalog, integrationRegistry, resolveKind } from '@circi/integrations'
 import { isConnectionRevoked } from '@circi/providers'
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
 import { openConnectionCredentials } from '#http/lib/connection-credentials.ts'
 import type { Deps } from '#http/lib/deps.ts'
+import { integrationContext } from '#http/lib/integration-context.ts'
 import { loadOrg } from '#http/lib/org-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
@@ -34,7 +36,8 @@ const wire = (i: listOrgIntegrations.Item): Integration.Item => ({
 /**
  * An organisation's integrations: the git hosts and other services it connected. Every member can
  * look; owners and admins add and remove (anyone outside the organisation gets "not found").
- * Non-git kinds have no add route yet; each one adds its own when its provider is built.
+ * Integrations of the registry are connected through the generic routes (`integrations-generic.ts`);
+ * the kinds not migrated yet (git hosts, trackers, Figma) keep their own routes.
  */
 export const dashboardIntegrationRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   async function load(req: FastifyRequest, reply: FastifyReply) {
@@ -56,33 +59,46 @@ export const dashboardIntegrationRoutes: FastifyPluginAsync<Deps.Dashboard> = as
     return found?.org
   }
 
-  /** Kinds this instance can connect now: GitHub when its App is configured, plus registered hosts. */
+  /**
+   * Whether an integration that is not in the registry yet can be connected now (GitHub when its
+   * App is configured, registered hosts, tokens). Each integration migrated to the SDK leaves this.
+   */
   const connectable = (kind: string) =>
     (kind === 'github' && deps.githubApp === true) ||
-    (kind === 'slack' && deps.slack !== undefined) ||
     (kind === 'figma' && deps.figma !== undefined && deps.authSecret !== undefined) ||
     ((kind === 'linear' || kind === 'jira') && deps.authSecret !== undefined) ||
     deps.providers?.get(kind) !== undefined
-  /** Kinds with an add flow in this build: GitHub's routes, or a registered provider. */
+  /** Not-yet-migrated kinds with an add flow in this build: GitHub's routes, or a registered provider. */
   const built = (kind: string) =>
     kind === 'github' ||
-    kind === 'slack' ||
     kind === 'figma' ||
     kind === 'linear' ||
     kind === 'jira' ||
     deps.providers?.get(kind) !== undefined
+
+  const registry = deps.integrations?.registry ?? integrationRegistry
 
   app.get('/orgs/:org/integrations', async (req, reply) => {
     const found = await load(req, reply)
     if (!found) return reply
     const payload: Integration.ListResponse = {
       canManage: found.canManage,
-      integrations: (await listOrgIntegrations(deps.db, found.org.id)).map(wire),
-      catalog: INTEGRATION_CATALOG.map((e) =>
-        Object.assign({}, e, {
-          built: e.status === 'available' && built(e.kind),
-          connectable: e.status === 'available' && connectable(e.kind),
-        }),
+      integrations: (
+        await listOrgIntegrations(deps.db, found.org.id, (kind) => resolveKind(registry, kind))
+      ).map(wire),
+      catalog: buildCatalog(
+        registry.all(),
+        integrationContext(deps) ?? {
+          authSecret: '',
+          publicOrigin: deps.publicOrigin,
+          config: deps.integrations?.config ?? {},
+        },
+        (e) => ({ built: built(e.kind), connectable: connectable(e.kind) }),
+      ).map((e) =>
+        // Registered integrations are connectable only on an instance that can seal credentials.
+        registry.has(e.kind) && deps.authSecret === undefined
+          ? Object.assign({}, e, { connectable: false })
+          : e,
       ),
     }
     return payload

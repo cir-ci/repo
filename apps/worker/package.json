@@ -13,6 +13,7 @@
     "@circi/core": "workspace:*",
     "@circi/db": "workspace:*",
     "@circi/diff": "workspace:*",
+    "@circi/integrations": "workspace:*",
     "@circi/providers": "workspace:*",
     "@circi/services": "workspace:*",
     "@circi/storage": "workspace:*"

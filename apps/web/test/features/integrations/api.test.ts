@@ -72,10 +72,10 @@ describe('small helpers', () => {
     expect(isInstallationId('12a')).toBe(false)
   })
   it('names an integration by its provider and account', () => {
-    expect(integrationLabel({ kind: 'github', name: 'Installation 501' })).toBe(
+    expect(integrationLabel({ kindName: 'GitHub', name: 'Installation 501' })).toBe(
       'GitHub (Installation 501)',
     )
-    expect(integrationLabel({ kind: 'mystery', name: 'X' })).toBe('mystery (X)')
+    expect(integrationLabel({ kindName: 'Mystery', name: 'X' })).toBe('Mystery (X)')
   })
   it('names the project count and the integration page', () => {
     expect([0, 1, 3].map(projectCountLabel)).toEqual(['No projects yet', '1 project', '3 projects'])

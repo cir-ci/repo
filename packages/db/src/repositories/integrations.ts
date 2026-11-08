@@ -1,11 +1,6 @@
 import { and, asc, eq, sql } from 'drizzle-orm'
 
-import {
-  type INTEGRATION_KINDS,
-  integrationProjects,
-  integrations,
-  projects,
-} from '#schema/index.ts'
+import { integrationProjects, integrations, projects } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { ConflictError, isUniqueViolation } from '#src/errors.ts'
 
@@ -34,7 +29,8 @@ export namespace OrgIntegration {
 export namespace createIntegration {
   export interface Input {
     orgId: string
-    kind: (typeof INTEGRATION_KINDS)[number]
+    /** An id from the integration registry (`@circi/integrations`); validated there. */
+    kind: string
     displayName: string
     externalId: string
     encryptedCredentials?: string | null
@@ -191,4 +187,80 @@ export async function listIntegrationProjects(
     .innerJoin(projects, eq(projects.id, integrationProjects.projectId))
     .where(eq(integrationProjects.integrationId, integrationId))
     .orderBy(asc(projects.name), asc(projects.slug))
+}
+
+/** The organisation's integration of a kind for an external account, if it connected that one already. */
+export async function findIntegrationByExternalId(
+  db: Database,
+  orgId: string,
+  kind: string,
+  externalId: string,
+): Promise<{ id: string } | undefined> {
+  const [row] = await db
+    .select({ id: integrations.id })
+    .from(integrations)
+    .where(
+      and(
+        eq(integrations.orgId, orgId),
+        eq(integrations.kind, kind),
+        eq(integrations.externalId, externalId),
+      ),
+    )
+  return row
+}
+
+/** Stores fresh credentials for an integration (a reinstall) and clears "needs attention". */
+export async function replaceIntegrationCredentials(
+  db: Database,
+  integrationId: string,
+  input: { displayName: string; encryptedCredentials: string },
+): Promise<void> {
+  await db
+    .update(integrations)
+    .set({
+      displayName: input.displayName,
+      encryptedCredentials: input.encryptedCredentials,
+      needsAttention: false,
+      needsAttentionReason: null,
+    })
+    .where(eq(integrations.id, integrationId))
+}
+
+export namespace listOrgProjectMappings {
+  export interface Row {
+    slug: string
+    name: string
+    /** The project's mapping on the integration; null when it has none. */
+    mapping: { externalRef: string; extra: Record<string, unknown> } | null
+  }
+}
+
+/** Every project of the organisation with its mapping (if any) on one integration, by project name. */
+export async function listOrgProjectMappings(
+  db: Database,
+  orgId: string,
+  integrationId: string,
+): Promise<listOrgProjectMappings.Row[]> {
+  const rows = await db
+    .select({
+      slug: projects.slug,
+      name: projects.name,
+      externalRef: integrationProjects.externalRef,
+      extra: integrationProjects.extra,
+    })
+    .from(projects)
+    .leftJoin(
+      integrationProjects,
+      and(
+        eq(integrationProjects.projectId, projects.id),
+        eq(integrationProjects.integrationId, integrationId),
+      ),
+    )
+    .where(eq(projects.orgId, orgId))
+    .orderBy(asc(projects.name), asc(projects.slug))
+  return rows.map((r) => ({
+    slug: r.slug,
+    name: r.name,
+    mapping: r.externalRef === null ? null : { externalRef: r.externalRef, extra: r.extra ?? {} },
+  }))
 }

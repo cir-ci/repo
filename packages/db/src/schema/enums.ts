@@ -64,8 +64,6 @@ export const LOGIN_METHODS = ['password', 'email', 'oidc', 'org-oidc'] as const
 export const GIT_PROVIDER_KINDS = ['github', 'gitlab', 'bitbucket'] as const
 /** How a Figma link was made. */
 export const FIGMA_LINK_SOURCES = ['auto', 'manual'] as const
-/** Non-git integrations of an organisation (`integrations.kind`); more are added the same way. */
-export const INTEGRATION_KINDS = ['slack', 'linear', 'jira', 'figma'] as const
 /** Why a git connection needs a person to look at it. */
 export const CONNECTION_ATTENTION = ['installation_revoked'] as const
 export const JOB_STATUSES = ['pending', 'running', 'done', 'failed'] as const

@@ -1,0 +1,195 @@
+import type { Integration } from '@circi/api'
+import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
+
+import { getJson, post, seg, send } from '#lib/http.ts'
+
+// ---- Logic (tested in Node) -------------------------------------------------------------------
+// Everything here works from a definition's public spec (`Integration.CatalogEntry`): the same code
+// serves every integration that has `pageStyle: 'generic'`.
+
+/** Where the browser goes; a seam so tests can watch it instead of leaving the page. */
+export const navigation = {
+  assign(url: string) {
+    window.location.assign(url)
+  },
+}
+
+/** What the OAuth callback says in `?connect=`, as a sentence; null for nothing to say. */
+export function connectNote(
+  result: unknown,
+  name: string,
+): { tone: 'success' | 'danger'; text: string } | null {
+  switch (result) {
+    case 'connected':
+      return { tone: 'success', text: `${name} is connected. Choose what each project uses.` }
+    case 'denied':
+      return { tone: 'danger', text: `${name} was not connected: the install was cancelled.` }
+    case 'failed':
+      return {
+        tone: 'danger',
+        text: `${name} was not connected: ${name} did not accept the install. Try again.`,
+      }
+    default:
+      return null
+  }
+}
+
+/** The connect form's values, trimmed, leaving out optional fields that were left empty. */
+export function credentialValues(
+  fields: readonly Integration.CredentialField[],
+  values: Readonly<Record<string, string>>,
+): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const f of fields) {
+    const v = (values[f.name] ?? '').trim()
+    if (v !== '' || !f.optional) out[f.name] = v
+  }
+  return out
+}
+
+/** Whether every required field has a value. */
+export const credentialsComplete = (
+  fields: readonly Integration.CredentialField[],
+  values: Readonly<Record<string, string>>,
+) => fields.every((f) => f.optional || (values[f.name] ?? '').trim() !== '')
+
+export type ExtraValues = Record<string, unknown>
+
+/** A mapping's settings as the form starts: what is saved, or the field's defaults. */
+export function initialExtra(
+  fields: readonly Integration.MappingField[],
+  saved: Readonly<ExtraValues> | null | undefined,
+): ExtraValues {
+  const out: ExtraValues = {}
+  for (const f of fields) {
+    const value = saved?.[f.key]
+    if (f.kind === 'events') {
+      out[f.key] = Array.isArray(value) ? [...value] : [...f.defaults]
+    } else if (f.kind === 'toggle') {
+      out[f.key] = typeof value === 'boolean' ? value : f.default
+    } else {
+      out[f.key] = typeof value === 'string' ? value : ''
+    }
+  }
+  return out
+}
+
+/** The settings to send: text fields left empty are dropped. */
+export function extraToSend(
+  fields: readonly Integration.MappingField[],
+  values: Readonly<ExtraValues>,
+): ExtraValues {
+  const out: ExtraValues = {}
+  for (const f of fields) {
+    const v = values[f.key]
+    if (f.kind === 'text') {
+      if (typeof v === 'string' && v.trim() !== '') out[f.key] = v.trim()
+    } else if (v !== undefined) {
+      out[f.key] = v
+    }
+  }
+  return out
+}
+
+/** Whether the form can be saved: a target, and every required text field. */
+export function canSave(
+  spec: Integration.MappingSpec,
+  ref: string,
+  values: Readonly<ExtraValues>,
+): boolean {
+  return (
+    ref.trim() !== '' &&
+    spec.fields.every(
+      (f) =>
+        f.kind !== 'text' ||
+        f.optional ||
+        (typeof values[f.key] === 'string' && values[f.key] !== ''),
+    )
+  )
+}
+
+/** The picker's items: the account's targets, plus the saved one if it is gone. */
+export function targetItems(
+  targets: readonly Integration.Target[],
+  current: { ref: string; name: string | null } | null,
+): { value: string; label: string; name: string }[] {
+  const items = targets.map((t) => ({ value: t.id, label: t.label ?? t.name, name: t.name }))
+  if (current && !items.some((i) => i.value === current.ref)) {
+    const name = current.name ?? current.ref
+    items.unshift({ value: current.ref, label: name, name })
+  }
+  return items
+}
+
+/** "Review requested, Build rejected", or "No events"; other settings add nothing to the line. */
+export function mappingSummary(
+  spec: Integration.MappingSpec,
+  extra: Readonly<ExtraValues>,
+): string | null {
+  const events = spec.fields.find((f) => f.kind === 'events')
+  if (!events || events.kind !== 'events') return null
+  const stored = Array.isArray(extra[events.key]) ? extra[events.key] : events.defaults
+  const labels = events.options
+    .filter((o) => Array.isArray(stored) && stored.includes(o.event))
+    .map((o) => o.label)
+  return labels.length === 0 ? 'No events' : labels.join(', ')
+}
+
+// ---- Server state -----------------------------------------------------------------------------
+
+const base = (org: string) => `/api/orgs/${seg(org)}/integrations`
+
+export const mappingPageQuery = (org: string, id: string) =>
+  queryOptions({
+    queryKey: ['integrations', org, 'mapping', id],
+    queryFn: () => getJson<Integration.MappingPage>(`${base(org)}/${seg(id)}/projects`),
+  })
+
+export const targetsQuery = (org: string, id: string) =>
+  queryOptions({
+    queryKey: ['integrations', org, 'targets', id],
+    queryFn: () => getJson<{ targets: Integration.Target[] }>(`${base(org)}/${seg(id)}/targets`),
+    staleTime: 60_000,
+    retry: false,
+  })
+
+/** Asks the server for the provider's install address and goes there; it sends the browser back. */
+export function useInstall(org: string) {
+  return useMutation({
+    mutationFn: async (kind: string) => {
+      const { url } = await getJson<Integration.Install>(`${base(org)}/${seg(kind)}/install`)
+      navigation.assign(url)
+    },
+  })
+}
+
+/** Connects with the form's values; the answer is the new integration's id. */
+export function useConnect(org: string, kind: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (values: Record<string, string>) =>
+      post<{ id: string }>(`${base(org)}/${seg(kind)}/connect`, values),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations', org] }),
+  })
+}
+
+export function useMapping(org: string, id: string) {
+  const queryClient = useQueryClient()
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['integrations', org] })
+  const url = (project: string) => `${base(org)}/${seg(id)}/projects/${seg(project)}`
+  return {
+    save: useMutation({
+      mutationFn: (input: { project: string } & Integration.MappingInput) =>
+        send<undefined>('PUT', url(input.project), {
+          ref: input.ref,
+          ...(input.name ? { name: input.name } : {}),
+          extra: input.extra ?? {},
+        }),
+      onSuccess: refresh,
+    }),
+    clear: useMutation({
+      mutationFn: (project: string) => send<undefined>('DELETE', url(project)),
+      onSuccess: refresh,
+    }),
+  }
+}

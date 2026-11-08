@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { signState, slackEventsOf, verifyState } from '#src/index.ts'
+import { signState, verifyState } from '#src/index.ts'
 
 describe('signState / verifyState', () => {
   const secret = 'a-long-instance-secret-for-tests-0123456789'
@@ -27,24 +27,5 @@ describe('signState / verifyState', () => {
     expect(verifyState(secret, `${payload}.`)).toBeUndefined()
     expect(verifyState(secret, 'garbage')).toBeUndefined()
     expect(verifyState(secret, '')).toBeUndefined()
-  })
-})
-
-describe('slackEventsOf', () => {
-  it('sends the defaults (not approvals) when the mapping has no list', () => {
-    expect(slackEventsOf({ name: 'general' })).toEqual([
-      'review_requested',
-      'review_overdue',
-      'build_rejected',
-    ])
-    expect(slackEventsOf(null)).toHaveLength(3)
-  })
-
-  it('keeps the stored events in canonical order and drops unknown names', () => {
-    expect(slackEventsOf({ events: ['build_approved', 'nonsense', 'review_overdue'] })).toEqual([
-      'review_overdue',
-      'build_approved',
-    ])
-    expect(slackEventsOf({ events: [] })).toEqual([])
   })
 })

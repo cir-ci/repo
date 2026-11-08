@@ -12,7 +12,6 @@ import {
   listIntegrationProjects,
   setIntegrationAttention,
 } from '@circi/db'
-import { SlackClient } from '@circi/providers'
 import { FsStorage } from '@circi/storage'
 import { createTestDb } from '@circi/testing'
 import { pino } from 'pino'
@@ -67,10 +66,11 @@ const app = buildServer({
     storage: new FsStorage({ path: dir }),
     publicOrigin: ORIGIN,
     authSecret: SECRET,
-    slack: {
-      clientId: 'cid',
-      clientSecret: 'csecret',
-      client: new SlackClient({ fetch: fetcher, apiUrl: 'https://slack.test/api' }),
+    integrations: {
+      config: {
+        slack: { clientId: 'cid', clientSecret: 'csecret', apiUrl: 'https://slack.test/api' },
+      },
+      fetch: fetcher,
     },
   },
 })
@@ -94,7 +94,12 @@ await addMember(auth, t.db, { orgSlug: acme.orgSlug, email: lou.email, role: 'me
 const louCookie = await signIn(app, lou.email, 'lou-password-long-1')
 const org = await getOrganizationBySlug(t.db, acme.orgSlug)
 
-const call = (method: 'GET' | 'PUT' | 'DELETE', url: string, cookie: string, payload?: unknown) =>
+const call = (
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+  url: string,
+  cookie: string,
+  payload?: unknown,
+) =>
   app.inject({
     method,
     url,
@@ -106,12 +111,13 @@ const call = (method: 'GET' | 'PUT' | 'DELETE', url: string, cookie: string, pay
     ...(payload === undefined ? {} : { payload: JSON.stringify(payload) }),
   })
 
-const base = `/api/orgs/${acme.orgSlug}/integrations/slack`
+const orgBase = `/api/orgs/${acme.orgSlug}/integrations`
+const base = `${orgBase}/slack`
 const callback = (query: string, cookie = ownerCookie) =>
   call('GET', `/api/integrations/slack/callback?${query}`, cookie)
 const stateFor = (claims: Record<string, string>, options?: { now?: number; ttlMs?: number }) =>
   signState(SECRET, claims, options)
-const goodClaims = { orgId: org.id, orgSlug: acme.orgSlug, userId: acme.owner.id }
+const goodClaims = { kind: 'slack', orgId: org.id, orgSlug: acme.orgSlug, userId: acme.owner.id }
 
 describe('the catalog', () => {
   it('offers Slack as connectable when the server has the Slack app configured', async () => {
@@ -147,13 +153,13 @@ describe('GET .../slack/install', () => {
 })
 
 describe('GET /api/integrations/slack/callback', () => {
-  it('stores the workspace with its bot token sealed, then goes back to the Slack page', async () => {
+  it('stores the workspace with its bot token sealed, then goes to its page', async () => {
     const res = await callback(`code=good&state=${encodeURIComponent(stateFor(goodClaims))}`)
     expect(res.statusCode).toBe(302)
-    expect(res.headers.location).toBe(
-      `/organizations/${acme.orgSlug}/settings/integrations/slack?slack=connected`,
-    )
     const row = (await listIntegrations(t.db, org.id)).find((i) => i.kind === 'slack')
+    expect(res.headers.location).toBe(
+      `/organizations/${acme.orgSlug}/settings/integrations/slack/${row?.id}?connect=connected`,
+    )
     expect(row).toMatchObject({ displayName: 'Acme Workspace', needsAttention: false })
     const stored = await getIntegration(t.db, org.id, row?.id ?? '')
     expect(stored?.externalId).toBe('T42')
@@ -201,88 +207,101 @@ describe('GET /api/integrations/slack/callback', () => {
   it('goes back with denied/failed instead of storing anything', async () => {
     const state = encodeURIComponent(stateFor(goodClaims))
     const denied = await callback(`error=access_denied&state=${state}`)
-    expect(denied.headers.location).toContain('slack=denied')
+    expect(denied.headers.location).toBe(
+      `/organizations/${acme.orgSlug}/settings/integrations?connect=denied&kind=slack`,
+    )
     const failed = await callback(`code=bad&state=${state}`)
     expect(failed.statusCode).toBe(302)
-    expect(failed.headers.location).toContain('slack=failed')
+    expect(failed.headers.location).toContain('connect=failed')
   })
 })
 
 const integrationId = async () =>
   (await listIntegrations(t.db, org.id)).find((i) => i.kind === 'slack')?.id ?? ''
 
-describe('the Slack page, channels and project mapping', () => {
-  it('lets every member look, and says who can manage', async () => {
+describe('the mapping page, targets and project mapping', () => {
+  it('lists the integration with its definition and every project, for every member', async () => {
+    const id = await integrationId()
     for (const [cookie, manage] of [
       [ownerCookie, true],
       [louCookie, false],
     ] as const) {
       // eslint-disable-next-line no-await-in-loop -- two viewers
-      const res = await call('GET', base, cookie)
+      const res = await call('GET', `${orgBase}/${id}/projects`, cookie)
       expect(res.statusCode).toBe(200)
       expect(res.json()).toMatchObject({
         canManage: manage,
         configured: true,
-        workspaces: [{ name: 'Acme Workspace', needsAttention: false }],
-        projects: [{ slug: 'web', channelId: null, events: [] }],
+        integration: { id, kind: 'slack', name: 'Acme Workspace', needsAttention: false },
+        definition: {
+          kind: 'slack',
+          pageStyle: 'generic',
+          oauth: true,
+          credentials: [],
+          mapping: { targetKind: 'select', fields: [{ kind: 'events', key: 'events' }] },
+        },
+        projects: [{ slug: 'web', mapping: null }],
       })
     }
-    expect((await call('GET', base, rivalCookie)).statusCode).toBe(404)
-    expect((await call('GET', base, '')).statusCode).toBe(401)
+    expect((await call('GET', `${orgBase}/${id}/projects`, rivalCookie)).statusCode).toBe(404)
+    expect((await call('GET', `${orgBase}/${id}/projects`, '')).statusCode).toBe(401)
   })
 
-  it('lists the channels for admins only', async () => {
+  it('lists the targets for admins only', async () => {
     const id = await integrationId()
-    expect((await call('GET', `${base}/${id}/channels`, louCookie)).statusCode).toBe(403)
-    expect((await call('GET', `${base}/${id}/channels`, rivalCookie)).statusCode).toBe(404)
-    const res = await call('GET', `${base}/${id}/channels`, ownerCookie)
+    expect((await call('GET', `${orgBase}/${id}/targets`, louCookie)).statusCode).toBe(403)
+    expect((await call('GET', `${orgBase}/${id}/targets`, rivalCookie)).statusCode).toBe(404)
+    const res = await call('GET', `${orgBase}/${id}/targets`, ownerCookie)
     expect(res.statusCode).toBe(200)
-    expect(res.json().channels).toEqual([
-      { id: 'G01DSGN', name: 'design', private: true },
-      { id: 'C02WEB1', name: 'web-reviews', private: false },
+    expect(res.json().targets).toEqual([
+      { id: 'G01DSGN', name: 'design', label: 'design (private)' },
+      { id: 'C02WEB1', name: 'web-reviews', label: '#web-reviews' },
     ])
   })
 
   it('maps a project to a channel with events, replaces it, and clears it', async () => {
     const id = await integrationId()
-    const url = `${base}/${id}/projects/web`
+    const url = `${orgBase}/${id}/projects/web`
     const body = {
-      channelId: 'C02WEB1',
-      channelName: 'web-reviews',
-      events: ['build_rejected', 'review_requested'],
+      ref: 'C02WEB1',
+      name: 'web-reviews',
+      extra: { events: ['build.rejected', 'review.requested'] },
     }
     expect((await call('PUT', url, louCookie, body)).statusCode).toBe(403)
     expect((await call('PUT', url, rivalCookie, body)).statusCode).toBe(404)
-    expect((await call('PUT', url, ownerCookie, { ...body, channelId: 'nope' })).statusCode).toBe(
-      400,
-    )
-    expect((await call('PUT', url, ownerCookie, { ...body, events: ['spam'] })).statusCode).toBe(
-      400,
-    )
-    expect((await call('PUT', `${base}/${id}/projects/ghost`, ownerCookie, body)).statusCode).toBe(
-      404,
-    )
+    expect((await call('PUT', url, ownerCookie, { ...body, ref: 'nope' })).statusCode).toBe(400)
+    expect((await call('PUT', url, ownerCookie, { ref: 'C02WEB1' })).statusCode).toBe(400)
+    expect(
+      (await call('PUT', url, ownerCookie, { ...body, extra: { events: ['spam'] } })).statusCode,
+    ).toBe(400)
+    expect(
+      (await call('PUT', url, ownerCookie, { ...body, extra: { other: true } })).statusCode,
+    ).toBe(400)
+    expect(
+      (await call('PUT', `${orgBase}/${id}/projects/ghost`, ownerCookie, body)).statusCode,
+    ).toBe(404)
     expect((await call('PUT', url, ownerCookie, body)).statusCode).toBe(204)
     expect(await listIntegrationProjects(t.db, id)).toMatchObject([
       {
         slug: 'web',
         externalRef: 'C02WEB1',
-        extra: { name: 'web-reviews', events: ['review_requested', 'build_rejected'] },
+        extra: { name: 'web-reviews', events: ['review.requested', 'build.rejected'] },
       },
     ])
-    const page = (await call('GET', base, louCookie)).json()
-    expect(page.projects[0]).toMatchObject({
-      channelId: 'C02WEB1',
-      channelName: 'web-reviews',
-      events: ['review_requested', 'build_rejected'],
+    const page = (await call('GET', `${orgBase}/${id}/projects`, louCookie)).json()
+    expect(page.projects[0].mapping).toEqual({
+      ref: 'C02WEB1',
+      name: 'web-reviews',
+      extra: { name: 'web-reviews', events: ['review.requested', 'build.rejected'] },
     })
-    await call('PUT', url, ownerCookie, {
-      ...body,
-      channelId: 'G01DSGN',
-      channelName: 'design',
-      events: [],
-    })
-    expect(await listIntegrationProjects(t.db, id)).toMatchObject([{ externalRef: 'G01DSGN' }])
+    // Without settings the definition's defaults apply; the channel is replaced.
+    await call('PUT', url, ownerCookie, { ref: 'G01DSGN', name: 'design' })
+    expect(await listIntegrationProjects(t.db, id)).toMatchObject([
+      {
+        externalRef: 'G01DSGN',
+        extra: { events: ['review.requested', 'review.overdue', 'build.rejected'] },
+      },
+    ])
     expect((await call('DELETE', url, louCookie)).statusCode).toBe(403)
     expect((await call('DELETE', url, ownerCookie)).statusCode).toBe(204)
     expect(await listIntegrationProjects(t.db, id)).toEqual([])
@@ -291,7 +310,7 @@ describe('the Slack page, channels and project mapping', () => {
   it('flags the workspace when Slack says the token is gone', async () => {
     const id = await integrationId()
     revoked = true
-    const res = await call('GET', `${base}/${id}/channels`, ownerCookie)
+    const res = await call('GET', `${orgBase}/${id}/targets`, ownerCookie)
     revoked = false
     expect(res.statusCode).toBe(409)
     const row = (await listIntegrations(t.db, org.id)).find((i) => i.kind === 'slack')
@@ -306,12 +325,31 @@ describe('the Slack page, channels and project mapping', () => {
       displayName: 'Rival',
       externalId: 'T99',
     })
-    expect((await call('GET', `${base}/${other.id}/channels`, ownerCookie)).statusCode).toBe(404)
-    const put = await call('PUT', `${base}/${other.id}/projects/web`, ownerCookie, {
-      channelId: 'C02WEB1',
-      channelName: 'x',
-      events: [],
+    expect((await call('GET', `${orgBase}/${other.id}/targets`, ownerCookie)).statusCode).toBe(404)
+    expect((await call('GET', `${orgBase}/${other.id}/projects`, ownerCookie)).statusCode).toBe(404)
+    const put = await call('PUT', `${orgBase}/${other.id}/projects/web`, ownerCookie, {
+      ref: 'C02WEB1',
+      name: 'x',
     })
     expect(put.statusCode).toBe(404)
+  })
+
+  it('answers 404 for an integration whose kind is not in the registry', async () => {
+    const unknown = await createIntegration(t.db, {
+      orgId: org.id,
+      kind: 'not-registered',
+      displayName: 'Ghost',
+      externalId: 'g1',
+    })
+    expect((await call('GET', `${orgBase}/${unknown.id}/projects`, ownerCookie)).statusCode).toBe(
+      404,
+    )
+  })
+})
+
+describe('connecting with a form', () => {
+  it('refuses a kind that is not registered, and an OAuth-only one', async () => {
+    expect((await call('POST', `${orgBase}/nope/connect`, ownerCookie, {})).statusCode).toBe(404)
+    expect((await call('POST', `${base}/connect`, ownerCookie, {})).statusCode).toBe(400)
   })
 })

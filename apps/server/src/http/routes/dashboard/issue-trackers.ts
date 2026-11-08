@@ -35,6 +35,8 @@ import { loadOrg } from '#http/lib/org-access.ts'
 import { loadProject } from '#http/lib/project-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
+import { genericMappingHandlers } from './integrations-generic.ts'
+
 const orgParams = z.object({ org: z.string() })
 const mappingParams = orgParams.extend({ id: z.uuid(), project: z.string() })
 const buildParams = z.object({ org: z.string(), project: z.string(), number: z.string() })
@@ -89,6 +91,10 @@ export const dashboardIssueTrackerRoutes: FastifyPluginAsync<Deps.Dashboard> = a
   deps,
 ) => {
   const trackers = deps.trackers ?? createTrackerFactory()
+  // TRANSITIONAL: these three paths are the generic mapping routes too (Fastify takes a path once),
+  // so an integration of the registry is handed to them. Delete this and the three `claims` lines
+  // when Linear and Jira are migrated to the SDK.
+  const generic = genericMappingHandlers(deps)
 
   /** The adapter for an integration's sealed credentials; undefined when they cannot be opened. */
   function openTracker(integration: {
@@ -233,6 +239,7 @@ export const dashboardIssueTrackerRoutes: FastifyPluginAsync<Deps.Dashboard> = a
 
   /** The teams or projects an issue can go to, for mapping a project. */
   app.get('/orgs/:org/integrations/:id/targets', async (req, reply) => {
+    if (await generic.claims(req)) return generic.targets(req, reply)
     const org = await loadForManager(req, reply)
     if (!org) return reply
     const { id } = parse(z.object({ org: z.string(), id: z.uuid() }), req.params)
@@ -252,6 +259,7 @@ export const dashboardIssueTrackerRoutes: FastifyPluginAsync<Deps.Dashboard> = a
 
   /** Files a project's issues in a team or project of the tracker (replacing any earlier mapping of that kind). */
   app.put('/orgs/:org/integrations/:id/projects/:project', async (req, reply) => {
+    if (await generic.claims(req)) return generic.put(req, reply)
     const org = await loadForManager(req, reply)
     if (!org) return reply
     const params = parse(mappingParams, req.params)
@@ -291,6 +299,7 @@ export const dashboardIssueTrackerRoutes: FastifyPluginAsync<Deps.Dashboard> = a
   })
 
   app.delete('/orgs/:org/integrations/:id/projects/:project', async (req, reply) => {
+    if (await generic.claims(req)) return generic.remove(req, reply)
     const org = await loadForManager(req, reply)
     if (!org) return reply
     const params = parse(mappingParams, req.params)

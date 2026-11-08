@@ -26,6 +26,7 @@ import {
   supersedeReviewRequests,
 } from '@circi/db'
 
+import { queueIntegrationEvent } from './integration-events.ts'
 import { notifyReviewRequested } from './reviews.ts'
 
 /**
@@ -133,6 +134,7 @@ export async function completeBuild(
       await clearRequestNotices(tx, await closeReviewRequestsForBuild(tx, done.id))
     }
     await queueWebhookEvent(tx, { build: done, event: 'build.completed' })
+    await queueIntegrationEvent(tx, { type: 'build.completed', buildId: done.id })
     await queueGitNotify(tx, done)
   })
 }

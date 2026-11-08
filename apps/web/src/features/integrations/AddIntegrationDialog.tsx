@@ -14,10 +14,11 @@ import {
 } from './api.ts'
 import { ConnectBitbucket } from './ConnectBitbucket.tsx'
 import { ConnectFigma } from './ConnectFigma.tsx'
+import { ConnectForm } from './ConnectForm.tsx'
 import { ConnectGitlab } from './ConnectGitlab.tsx'
 import { ConnectTracker } from './ConnectTracker.tsx'
+import { useInstall } from './generic-api.ts'
 import { ProviderLogo } from './logos.tsx'
-import { useSlackInstall } from './slack-api.ts'
 import { isTrackerKind, TRACKER_NAME, type TrackerKind } from './trackers-api.ts'
 
 import styles from './Integrations.module.css'
@@ -36,7 +37,9 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
   const [connecting, setConnecting] = useState<'github' | 'gitlab' | 'bitbucket' | null>(null)
   const [tracker, setTracker] = useState<TrackerKind | null>(null)
   const [figma, setFigma] = useState(false)
-  const slackInstall = useSlackInstall(props.org)
+  // A generic integration whose connect form is open (one with credential fields).
+  const [generic, setGeneric] = useState<Integration.CatalogEntry | null>(null)
+  const install = useInstall(props.org)
   const tiles = filterCatalog(props.catalog, { query, group })
 
   function close(open: boolean) {
@@ -44,6 +47,7 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
       setConnecting(null)
       setTracker(null)
       setFigma(false)
+      setGeneric(null)
       setQuery('')
       setGroup('all')
     }
@@ -55,26 +59,29 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
       open={props.open}
       onOpenChange={close}
       title={
-        figma
-          ? 'Connect Figma'
-          : tracker
-            ? `Connect ${TRACKER_NAME[tracker]}`
-            : connecting === 'github'
-              ? 'Connect GitHub'
-              : connecting === 'gitlab'
-                ? 'Connect GitLab'
-                : connecting === 'bitbucket'
-                  ? 'Connect Bitbucket'
-                  : 'Add an integration'
+        generic
+          ? `Connect ${generic.name}`
+          : figma
+            ? 'Connect Figma'
+            : tracker
+              ? `Connect ${TRACKER_NAME[tracker]}`
+              : connecting === 'github'
+                ? 'Connect GitHub'
+                : connecting === 'gitlab'
+                  ? 'Connect GitLab'
+                  : connecting === 'bitbucket'
+                    ? 'Connect Bitbucket'
+                    : 'Add an integration'
       }
       size="wide"
       actions={
-        connecting || tracker || figma ? (
+        connecting || tracker || figma || generic ? (
           <Button
             onClick={() => {
               setConnecting(null)
               setTracker(null)
               setFigma(false)
+              setGeneric(null)
             }}
           >
             Back
@@ -84,7 +91,9 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
         )
       }
     >
-      {figma ? (
+      {generic ? (
+        <ConnectForm entry={generic} org={props.org} onDone={() => close(false)} />
+      ) : figma ? (
         <ConnectFigma org={props.org} onDone={() => close(false)} />
       ) : tracker ? (
         <ConnectTracker kind={tracker} org={props.org} onDone={() => close(false)} />
@@ -112,7 +121,7 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
               }}
             />
           </div>
-          {slackInstall.error ? <Banner tone="danger">{slackInstall.error.message}</Banner> : null}
+          {install.error ? <Banner tone="danger">{install.error.message}</Banner> : null}
           {tiles.length === 0 ? (
             <Text tone="secondary">No integrations match “{query.trim()}”.</Text>
           ) : (
@@ -120,7 +129,7 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
               {tiles.map((entry) => (
                 <li key={entry.kind} className={styles.tile} data-disabled={!canAdd(entry)}>
                   <div className={styles.tileHead}>
-                    <ProviderLogo kind={entry.kind} />
+                    <ProviderLogo kind={entry.logo} />
                     <Text className={styles.tileTitle}>{entry.name}</Text>
                     {props.added.includes(entry.kind) ? <Badge shape="tag">Added</Badge> : null}
                     {entry.status === 'planned' ? <Badge shape="tag">Planned</Badge> : null}
@@ -131,11 +140,17 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
                   <Button
                     disabled={!canAdd(entry)}
                     onClick={() => {
+                      if (entry.pageStyle === 'generic') {
+                        // Nothing to type, only an install: go straight to the provider.
+                        if (entry.credentials.length === 0 && entry.oauth) {
+                          install.mutate(entry.kind)
+                        } else setGeneric(entry)
+                        return
+                      }
                       if (isTrackerKind(entry.kind)) setTracker(entry.kind)
                       if (entry.kind === 'github') setConnecting('github')
                       if (entry.kind === 'gitlab') setConnecting('gitlab')
                       if (entry.kind === 'bitbucket') setConnecting('bitbucket')
-                      if (entry.kind === 'slack') slackInstall.mutate()
                       if (entry.kind === 'figma') setFigma(true)
                     }}
                     aria-label={`Add ${entry.name}`}
@@ -152,13 +167,13 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
   )
 }
 
-/** Only kinds with an add flow can be picked: planned and not-set-up ones are disabled. */
+/** Only kinds with an add flow can be picked (every generic one has): planned and not-set-up ones are disabled. */
 const canAdd = (entry: Integration.CatalogEntry) =>
   unavailableNote(entry) === null &&
-  (entry.kind === 'github' ||
+  (entry.pageStyle === 'generic' ||
+    entry.kind === 'github' ||
     entry.kind === 'gitlab' ||
     entry.kind === 'bitbucket' ||
-    entry.kind === 'slack' ||
     entry.kind === 'figma' ||
     isTrackerKind(entry.kind))
 

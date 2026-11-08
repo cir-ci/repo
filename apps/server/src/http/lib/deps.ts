@@ -1,10 +1,10 @@
 import type { Auth } from '@circi/auth'
 import type { Database, SessionMethod, getProjectContext } from '@circi/db'
+import type { IntegrationDefinition, IntegrationRegistry } from '@circi/integrations'
 import type {
   FigmaClient,
   GitProvider,
   ProviderRegistry,
-  SlackClient,
   GitlabProvider,
   TrackerFactory,
 } from '@circi/providers'
@@ -26,13 +26,6 @@ export namespace Deps {
     githubApp?: boolean
     /** Static site hosting, when `STATIC_SITES_HOST` is set. */
     sites?: Deps.Sites
-  }
-
-  /** The Slack app's credentials and the client that talks to Slack. */
-  export interface Slack {
-    clientId: string
-    clientSecret: string
-    client: Pick<SlackClient, 'authorizeUrl' | 'exchangeCode' | 'listChannels'>
   }
 
   /** Hosted static sites: where they live and who may open them (PLAN §7.6). */
@@ -68,8 +61,14 @@ export namespace Deps {
     figma?: Pick<FigmaClient, 'me' | 'getFile' | 'listFrames' | 'getNodeNames'>
     /** The GitLab adapter, which also identifies a token's principal when a connection is added. */
     gitlab?: Pick<GitlabProvider, 'identify' | 'listRepositories'>
-    /** The Slack app that installs into workspaces; absent unless `SLACK_CLIENT_ID` is set. */
-    slack?: Deps.Slack
+    /**
+     * Instance settings of the registry's integrations (`config`: the Slack app, set by
+     * `SLACK_CLIENT_ID`…) and a replaceable `fetch` for their HTTP calls (tests). `registry`
+     * replaces the real one in tests of the generic routes.
+     */
+    integrations?: Pick<IntegrationDefinition.Context, 'config' | 'fetch'> & {
+      registry?: IntegrationRegistry
+    }
     /** Builds Linear and Jira adapters from stored credentials; replaceable in tests. Default: the real ones. */
     trackers?: TrackerFactory
     /** Static site hosting, when `STATIC_SITES_HOST` is set. */

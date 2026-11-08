@@ -53,10 +53,14 @@ const gitlabRoute = createRoute({
   ),
 })
 
-const slackRoute = createRoute({
+/** Every integration with `pageStyle: 'generic'`: one page, rendered from its definition's spec. */
+const genericRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: 'organizations/$org/settings/integrations/slack',
-  component: lazyRouteComponent(() => import('./SlackIntegrationPage.tsx'), 'SlackIntegrationPage'),
+  path: 'organizations/$org/settings/integrations/$kind/$id',
+  component: lazyRouteComponent(
+    () => import('./GenericIntegrationPage.tsx'),
+    'GenericIntegrationPage',
+  ),
 })
 
 const figmaRoute = createRoute({
@@ -70,7 +74,7 @@ export const integrationsRoutes = [
   integrationsRoute,
   githubRoute,
   bitbucketRoute,
-  slackRoute,
+  genericRoute,
   linearRoute,
   jiraRoute,
   gitlabRoute,

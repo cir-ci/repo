@@ -5,7 +5,10 @@ import { ConflictError } from '#src/errors.ts'
 import {
   connectGithub,
   createIntegration,
+  createIntegrationLink,
   deleteIntegration,
+  deleteIntegrationLink,
+  findIntegrationByExternalId,
   getGitConnection,
   getIntegration,
   getProjectLink,
@@ -14,10 +17,13 @@ import {
   listIntegrationProjects,
   listIntegrations,
   listOrgIntegrations,
+  listOrgProjectMappings,
+  listProjectLinks,
   listProjectRepoLinks,
   markInstallationNeedsAttention,
   removeGitConnection,
   removeIntegrationProject,
+  replaceIntegrationCredentials,
   setIntegrationAttention,
   setIntegrationProject,
 } from '#src/index.ts'
@@ -100,17 +106,96 @@ describe('integrations', () => {
     expect(await listIntegrations(t.db, org.id)).toEqual([])
   })
 
-  it('refuses kinds the table does not allow', async () => {
+  it('stores any kind: the registry validates kinds, not the table', async () => {
     const { org } = await seedProject(t.db)
-    await expect(
-      createIntegration(t.db, {
-        orgId: org.id,
-        // @ts-expect-error not an integration kind (yet)
-        kind: 'teams',
-        displayName: 'x',
-        externalId: 'x',
-      }),
-    ).rejects.toThrow(/insert into "integrations"/)
+    const row = await createIntegration(t.db, {
+      orgId: org.id,
+      kind: 'teams',
+      displayName: 'x',
+      externalId: 'x',
+    })
+    expect(row.kind).toBe('teams')
+  })
+
+  it('finds an integration by its external account and replaces its credentials', async () => {
+    const { org } = await seedProject(t.db)
+    const made = await createIntegration(t.db, {
+      orgId: org.id,
+      kind: 'slack',
+      displayName: 'Old',
+      externalId: 'T-find',
+      encryptedCredentials: 'a',
+    })
+    expect(await findIntegrationByExternalId(t.db, org.id, 'slack', 'T-find')).toEqual({
+      id: made.id,
+    })
+    expect(await findIntegrationByExternalId(t.db, org.id, 'jira', 'T-find')).toBeUndefined()
+    await setIntegrationAttention(t.db, made.id, 'revoked')
+    await replaceIntegrationCredentials(t.db, made.id, {
+      displayName: 'New',
+      encryptedCredentials: 'b',
+    })
+    expect(await getIntegration(t.db, org.id, made.id)).toMatchObject({
+      displayName: 'New',
+      encryptedCredentials: 'b',
+      needsAttention: false,
+    })
+  })
+
+  it('lists every project of the organisation with its mapping on one integration', async () => {
+    const { org, project, owner } = await seedProject(t.db)
+    const second = await seedProject(t.db, { org: { org, owner }, slug: 'backend' })
+    const made = await createIntegration(t.db, {
+      orgId: org.id,
+      kind: 'slack',
+      displayName: 'Acme',
+      externalId: 'T-map',
+    })
+    await setIntegrationProject(t.db, {
+      integrationId: made.id,
+      projectId: second.project.id,
+      externalRef: 'C1',
+      extra: { name: 'web', events: ['build.rejected'] },
+    })
+    const rows = await listOrgProjectMappings(t.db, org.id, made.id)
+    expect(rows.map((r) => [r.slug, r.mapping?.externalRef ?? null])).toEqual([
+      ['backend', 'C1'],
+      [project.slug, null],
+    ])
+    expect(rows[0]?.mapping?.extra).toEqual({ name: 'web', events: ['build.rejected'] })
+  })
+})
+
+describe('integration links', () => {
+  it('keeps one project-wide link per kind and subject, and any number per build', async () => {
+    const { org, project } = await seedProject(t.db)
+    const made = await createIntegration(t.db, {
+      orgId: org.id,
+      kind: 'figma',
+      displayName: 'Figma',
+      externalId: 'F1',
+    })
+    const first = await createIntegrationLink(t.db, {
+      integrationId: made.id,
+      projectId: project.id,
+      kind: 'figma-frame',
+      subject: 'checkout/*',
+      externalRef: 'file:1',
+      payload: { source: 'manual' },
+    })
+    const again = await createIntegrationLink(t.db, {
+      integrationId: made.id,
+      projectId: project.id,
+      kind: 'figma-frame',
+      subject: 'checkout/*',
+      externalRef: 'file:2',
+    })
+    expect(again.id).toBe(first.id)
+    expect(again.externalRef).toBe('file:2')
+    expect(await listProjectLinks(t.db, project.id, 'figma-frame')).toHaveLength(1)
+    expect(await deleteIntegrationLink(t.db, made.id, first.id)).toBe(true)
+    expect(await deleteIntegrationLink(t.db, made.id, first.id)).toBe(false)
+    expect(await listProjectLinks(t.db, project.id, 'figma-frame')).toEqual([])
   })
 })
 
@@ -173,12 +258,17 @@ describe('git connections as integrations', () => {
       externalId: 's',
     })
     await connectGithub(t.db, org.id, '9')
-    expect((await listOrgIntegrations(t.db, org.id)).map((i) => [i.kind, i.group, i.name])).toEqual(
-      [
-        ['github', 'git', 'Installation 9'],
-        ['slack', 'chat', 'Chat'],
-        ['figma', 'design', 'Design'],
-      ],
-    )
+    // Kinds are looked up by the caller (the server asks the registry, then the static catalog).
+    const kinds = new Map<string, listOrgIntegrations.Kind>([
+      ['github', { group: 'git', name: 'GitHub', pageStyle: 'custom' }],
+      ['slack', { group: 'chat', name: 'Slack', pageStyle: 'generic' }],
+      ['figma', { group: 'design', name: 'Figma', pageStyle: 'custom' }],
+    ])
+    const listed = await listOrgIntegrations(t.db, org.id, (kind) => kinds.get(kind))
+    expect(listed.map((i) => [i.kind, i.group, i.name])).toEqual([
+      ['github', 'git', 'Installation 9'],
+      ['slack', 'chat', 'Chat'],
+      ['figma', 'design', 'Design'],
+    ])
   })
 })

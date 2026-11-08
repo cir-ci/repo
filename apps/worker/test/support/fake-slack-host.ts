@@ -1,5 +1,3 @@
-import { SlackClient } from '@circi/providers'
-
 export interface PostedMessage {
   token: string
   channel: string
@@ -10,7 +8,7 @@ export interface PostedMessage {
 /**
  * A stateful fake of Slack's HTTP edge: `chat.postMessage` for the tokens it knows, `invalid_auth`
  * for others, and `token_revoked` once `revoke` was called on a token. Records every message.
- * Used through a real `SlackClient`, so the client's request and error handling is exercised.
+ * Used through the Slack definition's real `SlackClient`, so the client's request and error handling is exercised.
  */
 export function fakeSlackHost(validTokens: string[]) {
   const posted: PostedMessage[] = []
@@ -36,7 +34,13 @@ export function fakeSlackHost(validTokens: string[]) {
     return Response.json({ ok: false, error: 'unknown_method' })
   }
   return {
-    client: new SlackClient({ fetch: fetcher, apiUrl: 'https://slack.test/api' }),
+    /** The integration context for this host: Slack's API address and `fetch` point at the fake. */
+    integrations: {
+      config: {
+        slack: { clientId: 'cid', clientSecret: 'csecret', apiUrl: 'https://slack.test/api' },
+      },
+      fetch: fetcher,
+    },
     posted,
     revoke: (token: string) => revoked.add(token),
   }

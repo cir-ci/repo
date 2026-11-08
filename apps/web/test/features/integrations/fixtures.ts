@@ -1,10 +1,22 @@
 import type { Integration } from '@circi/api'
 
+const NAMES: Record<string, string> = {
+  github: 'GitHub',
+  gitlab: 'GitLab',
+  bitbucket: 'Bitbucket',
+  slack: 'Slack',
+  figma: 'Figma',
+  linear: 'Linear',
+  jira: 'Jira',
+}
+
 export const item = (over: Partial<Integration.Item> & Pick<Integration.Item, 'kind'>) =>
   ({
     id: over.id ?? `id-${over.kind}`,
     source: 'integration',
     group: 'git',
+    kindName: NAMES[over.kind] ?? over.kind,
+    pageStyle: over.kind === 'slack' ? 'generic' : 'custom',
     name: over.kind,
     needsAttention: false,
     attentionReason: null,
@@ -21,6 +33,11 @@ export const entry = (
   status: 'available',
   built: true,
   connectable: true,
+  pageStyle: 'custom',
+  logo: over.kind,
+  credentials: [],
+  oauth: false,
+  mapping: null,
   ...over,
 })
 

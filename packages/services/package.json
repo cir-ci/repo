@@ -10,6 +10,7 @@
   "dependencies": {
     "@circi/core": "workspace:*",
     "@circi/db": "workspace:*",
+    "@circi/integrations": "workspace:*",
     "@circi/storage": "workspace:*"
   },
   "devDependencies": {

@@ -19,8 +19,8 @@ import {
   setReviewRequestSnooze,
 } from '@circi/db'
 
+import { queueIntegrationEvent } from './integration-events.ts'
 import { notify } from './notifications.ts'
-import { queueSlackNotice } from './slack.ts'
 
 /**
  * Approves or rejects a build, and tells webhooks and the git host when the decision actually
@@ -58,8 +58,8 @@ export async function reviewBuild(db: Database, input: reviewBuild.Input): Promi
           payload: input.state === 'rejected' && reason ? { reason } : {},
         })
       }
-      await queueSlackNotice(tx, {
-        event: input.state === 'approved' ? 'build_approved' : 'build_rejected',
+      await queueIntegrationEvent(tx, {
+        type: input.state === 'approved' ? 'build.approved' : 'build.rejected',
         buildId: build.id,
         reviewerId: input.userId,
         reason: input.state === 'rejected' ? (reason ?? null) : null,
@@ -162,13 +162,13 @@ export async function notifyReviewRequested(
   })
   // A person asking themselves is not news for the channel.
   if (actorId !== request.reviewerId) {
-    await queueSlackNotice(db, {
-      event: 'review_requested',
+    await queueIntegrationEvent(db, {
+      type: 'review.requested',
       buildId: request.buildId,
       reviewerId: request.reviewerId,
       actorId,
       requestId: request.id,
-      dueAt: request.dueAt,
+      dueAt: request.dueAt?.toISOString() ?? null,
       again,
     })
   }
@@ -292,12 +292,12 @@ export async function notifyOverdueReviews(
         },
       })
       // eslint-disable-next-line no-await-in-loop -- one transaction, one connection
-      await queueSlackNotice(tx, {
-        event: 'review_overdue',
+      await queueIntegrationEvent(tx, {
+        type: 'review.overdue',
         buildId: request.buildId,
         reviewerId: request.reviewerId,
         requestId: request.id,
-        dueAt: request.dueAt,
+        dueAt: request.dueAt?.toISOString() ?? null,
       })
     }
     return requests.length

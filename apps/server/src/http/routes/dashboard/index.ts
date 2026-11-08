@@ -17,6 +17,7 @@ import { dashboardInboxRoutes } from './inbox.ts'
 import { dashboardInsightsRoutes } from './insights.ts'
 import { dashboardInstanceRoutes } from './instance.ts'
 import { dashboardBitbucketIntegrationRoutes } from './integrations-bitbucket.ts'
+import { dashboardGenericIntegrationRoutes } from './integrations-generic.ts'
 import { dashboardGitlabIntegrationRoutes } from './integrations-gitlab.ts'
 import { dashboardIntegrationRoutes } from './integrations.ts'
 import { dashboardIssueTrackerRoutes } from './issue-trackers.ts'
@@ -36,7 +37,6 @@ import { dashboardSearchRoutes } from './search.ts'
 import { dashboardSettingsRoutes } from './settings.ts'
 import { dashboardSetupRoutes } from './setup.ts'
 import { dashboardSiteHandoffRoutes } from './site-handoff.ts'
-import { dashboardSlackRoutes } from './slack.ts'
 import { dashboardTriageRoutes } from './triage.ts'
 import { dashboardViewRoutes } from './views.ts'
 import { webAppRoutes } from './web-app.ts'
@@ -96,11 +96,11 @@ const sessionApi: FastifyPluginAsync<Deps.Dashboard> = async (api, deps) => {
   await api.register(dashboardDomainRoutes, deps)
   await api.register(dashboardOrgSsoRoutes, deps)
   await api.register(dashboardIntegrationRoutes, deps)
+  await api.register(dashboardGenericIntegrationRoutes, deps)
   await api.register(dashboardIssueTrackerRoutes, deps)
   await api.register(dashboardFigmaRoutes, deps)
   await api.register(dashboardBitbucketIntegrationRoutes, deps)
   await api.register(dashboardGitlabIntegrationRoutes, deps)
-  await api.register(dashboardSlackRoutes, deps)
   await api.register(dashboardSiteHandoffRoutes, deps)
   await api.register(dashboardProjectSitesRoutes, deps)
   await api.register(dashboardBulkReviewRoutes, deps)

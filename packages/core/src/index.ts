@@ -75,12 +75,9 @@ export {
 } from './figma.ts'
 export { openSecret, sealSecret } from './secrets.ts'
 export {
-  isSlackEvent,
-  SLACK_CHANNEL_ID_RE,
-  SLACK_DEFAULT_EVENTS,
-  SLACK_EVENT_LABEL,
-  SLACK_EVENTS,
-  type SlackEvent,
-  slackEventsOf,
-} from './slack.ts'
+  INTEGRATION_EVENT_LABEL,
+  INTEGRATION_EVENTS,
+  type IntegrationEvent,
+  isIntegrationEvent,
+} from './events.ts'
 export { signState, verifyState } from './signed-state.ts'

@@ -6,7 +6,6 @@ import type {
   FigmaClient,
   GithubApp,
   ProviderRegistry,
-  SlackClient,
   GitlabProvider,
 } from '@circi/providers'
 import type { StorageDriver } from '@circi/storage'
@@ -15,6 +14,8 @@ import type { Logger } from 'pino'
 import type { buildServer } from '#http/app.ts'
 import type { Deps } from '#http/lib/deps.ts'
 import { gitlabWebhookSecret } from '#http/lib/gitlab-secret.ts'
+
+import { integrationConfig } from './integration-config.ts'
 
 /** What `serverOptionsFor` needs from the runtime. */
 export interface ServerRuntime {
@@ -27,7 +28,6 @@ export interface ServerRuntime {
   gitlab?: GitlabProvider
   providers?: ProviderRegistry
   bitbucket?: BitbucketCloud
-  slack?: SlackClient
   figma?: FigmaClient
 }
 
@@ -104,15 +104,7 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): buildServe
       ...(rt.providers ? { providers: rt.providers } : {}),
       ...(rt.gitlab ? { gitlab: rt.gitlab } : {}),
       ...(rt.figma ? { figma: rt.figma } : {}),
-      ...(config.slack && rt.slack
-        ? {
-            slack: {
-              clientId: config.slack.clientId,
-              clientSecret: config.slack.clientSecret,
-              client: rt.slack,
-            },
-          }
-        : {}),
+      integrations: { config: integrationConfig(config) },
       ...(sites ? { sites } : {}),
       authSecret: config.authSecret,
       webDist,

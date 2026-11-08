@@ -1,8 +1,7 @@
-import { boolean, check, jsonb, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core'
+import { boolean, jsonb, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core'
 
-import { createdAt, id, inList } from './_columns.ts'
+import { createdAt, id } from './_columns.ts'
 import { organization, user } from './auth.ts'
-import { INTEGRATION_KINDS } from './enums.ts'
 import { projects } from './projects.ts'
 
 /**
@@ -17,6 +16,10 @@ export const integrations = pgTable(
     orgId: text('org_id')
       .notNull()
       .references(() => organization.id, { onDelete: 'cascade' }),
+    /**
+     * The integration's id in the registry (`@circi/integrations`): `slack`, `linear`… Not a CHECK:
+     * the registry validates it, so adding an integration needs no migration.
+     */
     kind: text('kind').notNull(),
     /** What a person calls it: the workspace or site name. */
     displayName: text('display_name').notNull(),
@@ -29,10 +32,7 @@ export const integrations = pgTable(
     createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
     createdAt: createdAt(),
   },
-  (t) => [
-    check('integrations_kind_check', inList(t.kind.name, INTEGRATION_KINDS)),
-    unique('integrations_org_kind_external_key').on(t.orgId, t.kind, t.externalId),
-  ],
+  (t) => [unique('integrations_org_kind_external_key').on(t.orgId, t.kind, t.externalId)],
 )
 
 /**

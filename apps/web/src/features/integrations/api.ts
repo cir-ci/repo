@@ -4,7 +4,6 @@ import {
   INTEGRATION_GROUP_LABEL,
   INTEGRATION_GROUPS,
   isInstallationId,
-  catalogEntry,
 } from '@circi/core/integrations'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
@@ -44,10 +43,10 @@ export function unavailableNote(entry: Integration.CatalogEntry): string | null 
  * How an added integration is named in labels and titles: the provider's display name, then the
  * account it is connected to ("GitHub (Installation 501)", "Slack (Acme Slack)").
  */
-export const integrationLabel = (item: Pick<Integration.Item, 'kind' | 'name'>) =>
-  `${catalogEntry(item.kind)?.name ?? item.kind} (${item.name})`
+export const integrationLabel = (item: Pick<Integration.Item, 'kindName' | 'name'>) =>
+  `${item.kindName} (${item.name})`
 
-/** Where an added integration's own page is, if it has one yet. */
+/** Where a `custom` integration's own page is, if it has one yet (generic ones share a page). */
 export const integrationPage = (kind: string): 'github' | 'gitlab' | 'bitbucket' | 'figma' | null =>
   kind === 'github' || kind === 'gitlab' || kind === 'bitbucket' || kind === 'figma' ? kind : null
 

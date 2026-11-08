@@ -28,7 +28,6 @@ describe('integration catalog', () => {
       'gitlab',
     ])
     expect(filterCatalog(INTEGRATION_CATALOG, { group: 'chat' }).map((e) => e.kind)).toEqual([
-      'slack',
       'teams',
     ])
     expect(filterCatalog(INTEGRATION_CATALOG, { group: 'all' })).toHaveLength(
