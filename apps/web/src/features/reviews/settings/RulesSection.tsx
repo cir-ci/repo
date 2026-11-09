@@ -7,8 +7,8 @@ import {
   ConfirmDialog,
   EmptyState,
   ListRow,
-  SectionHeader,
   Select,
+  SettingsSection,
   Text,
   TextField,
   useAnnounce,
@@ -52,80 +52,84 @@ export function RulesSection(props: RulesSection.Props) {
   }
 
   return (
-    <section className={styles.section}>
-      <SectionHeader
-        title="Review rules"
-        description="When a build has a screenshot or a name that matches, these people are asked to review it. Use * within a name and ** across folders. The first rule that matches wins, so order them with Up and Down."
-        action={
-          props.canManage && !editing ? (
-            <Button onClick={() => setEditing({ id: null, draft: emptyDraft() })}>Add rule</Button>
-          ) : undefined
-        }
-      />
+    <SettingsSection
+      title="Review rules"
+      description="When a build has a screenshot or a name that matches, these people are asked to review it. Use * within a name and ** across folders. The first rule that matches wins, so order them with Up and Down."
+      actions={
+        props.canManage && !editing ? (
+          <Button onClick={() => setEditing({ id: null, draft: emptyDraft() })}>Add rule</Button>
+        ) : undefined
+      }
+      bare
+    >
       {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
       {props.rules.length === 0 && !editing ? (
         <EmptyState title="No review rules">
           Without rules, nobody is asked to review automatically.
         </EmptyState>
       ) : null}
-      <ul className={styles.list} aria-label="Review rules">
-        {props.rules.map((rule, index) =>
-          editing?.id === rule.id ? (
-            <li key={rule.id}>
-              <RuleEditor {...editorProps(props, editing, setEditing, actions, announce, rule)} />
-            </li>
-          ) : (
-            <li key={rule.id}>
-              <ListRow
-                density="two-line"
-                trailing={
-                  props.canManage ? (
-                    <div className={styles.actions}>
-                      <Button
-                        aria-label={`Move rule ${rule.pattern} up`}
-                        disabled={index === 0 || actions.reorder.isPending}
-                        onClick={() => move(rule, -1)}
-                      >
-                        Up
-                      </Button>
-                      <Button
-                        aria-label={`Move rule ${rule.pattern} down`}
-                        disabled={index === props.rules.length - 1 || actions.reorder.isPending}
-                        onClick={() => move(rule, 1)}
-                      >
-                        Down
-                      </Button>
-                      <Button
-                        aria-label={`Edit rule ${rule.pattern}`}
-                        onClick={() => setEditing({ id: rule.id, draft: draftOf(rule) })}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        aria-label={`Delete rule ${rule.pattern}`}
-                        onClick={() => setDeleting(rule)}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  ) : undefined
-                }
-              >
-                <div className={styles.who}>
-                  <Text variant="mono" truncate>
-                    {rule.pattern}
-                  </Text>
-                  <Text variant="small" tone="secondary" truncate>
-                    {kindLabel(rule.kind)} · {reviewerNames(rule)}
-                  </Text>
-                </div>
-              </ListRow>
-            </li>
-          ),
-        )}
-      </ul>
+      {props.rules.length > 0 ? (
+        <ul className={styles.listBox} aria-label="Review rules">
+          {props.rules.map((rule, index) =>
+            editing?.id === rule.id ? (
+              <li key={rule.id}>
+                <RuleEditor {...editorProps(props, editing, setEditing, actions, announce, rule)} />
+              </li>
+            ) : (
+              <li key={rule.id}>
+                <ListRow
+                  density="two-line"
+                  trailing={
+                    props.canManage ? (
+                      <div className={styles.actions}>
+                        <Button
+                          aria-label={`Move rule ${rule.pattern} up`}
+                          disabled={index === 0 || actions.reorder.isPending}
+                          onClick={() => move(rule, -1)}
+                        >
+                          Up
+                        </Button>
+                        <Button
+                          aria-label={`Move rule ${rule.pattern} down`}
+                          disabled={index === props.rules.length - 1 || actions.reorder.isPending}
+                          onClick={() => move(rule, 1)}
+                        >
+                          Down
+                        </Button>
+                        <Button
+                          aria-label={`Edit rule ${rule.pattern}`}
+                          onClick={() => setEditing({ id: rule.id, draft: draftOf(rule) })}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          aria-label={`Delete rule ${rule.pattern}`}
+                          onClick={() => setDeleting(rule)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    ) : undefined
+                  }
+                >
+                  <div className={styles.who}>
+                    <Text variant="mono" truncate>
+                      {rule.pattern}
+                    </Text>
+                    <Text variant="small" tone="secondary" truncate>
+                      {kindLabel(rule.kind)} · {reviewerNames(rule)}
+                    </Text>
+                  </div>
+                </ListRow>
+              </li>
+            ),
+          )}
+        </ul>
+      ) : null}
       {editing && editing.id === null ? (
-        <RuleEditor {...editorProps(props, editing, setEditing, actions, announce)} />
+        <div className={styles.listBox}>
+          <RuleEditor {...editorProps(props, editing, setEditing, actions, announce)} />
+        </div>
       ) : null}
       <ConfirmDialog
         open={deleting !== null}
@@ -143,7 +147,7 @@ export function RulesSection(props: RulesSection.Props) {
           })
         }}
       />
-    </section>
+    </SettingsSection>
   )
 }
 

@@ -17,7 +17,10 @@
 }
 
 .list {
-  composes: box from '../../lib/Box.module.css';
+  overflow: hidden;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 10px;
+  background: var(--circi-surface-raised);
 }
 
 .option {
@@ -140,4 +143,12 @@
 
 .problem {
   grid-column: 1 / -1;
+}
+
+/* The stage panel: a bordered box. */
+.panel {
+  overflow: hidden;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 10px;
+  background: var(--circi-surface-raised);
 }

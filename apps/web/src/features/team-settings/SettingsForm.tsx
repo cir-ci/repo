@@ -5,6 +5,8 @@ import {
   Checkbox,
   ConfirmDialog,
   Select,
+  SettingsRow,
+  SettingsSection,
   Text,
   TextField,
   useAnnounce,
@@ -86,9 +88,8 @@ export function SettingsForm(props: SettingsForm.Props) {
 
   return (
     <form onSubmit={submit} noValidate className={styles.form}>
-      <section className={styles.section} aria-labelledby="team-basics">
-        <h2 id="team-basics">Team</h2>
-        <div className={styles.box}>
+      <SettingsSection title="Team">
+        <SettingsRow>
           <div className={styles.fields} key={version}>
             <TextField name="name" label="Name" defaultValue={s.name} disabled={disabled} />
             <TextField
@@ -99,31 +100,18 @@ export function SettingsForm(props: SettingsForm.Props) {
               description="Its approved builds are the baselines."
             />
           </div>
-        </div>
-      </section>
+        </SettingsRow>
+      </SettingsSection>
 
-      <section className={styles.section} aria-labelledby="team-repo">
-        <div>
-          <h2 id="team-repo">Repository</h2>
-          <Text as="p" variant="small" tone="secondary" className={styles.lead}>
-            With a linked repository, CirCI posts a check and one summary comment on each pull
-            request. Git hosts are connected in the workspace’s integrations.
-          </Text>
-        </div>
-        <div className={styles.box}>
-          <div className={styles.row}>
-            <span className={styles.rowText}>
-              {link ? (
-                <>
-                  <Text variant="mono">{link.repoRef}</Text>
-                  <Text variant="small" tone="tertiary">
-                    GitHub · checks named CirCI / &lt;build name&gt;
-                  </Text>
-                </>
-              ) : (
-                <Text tone="secondary">No repository linked</Text>
-              )}
-            </span>
+      <div className={styles.group}>
+        <SettingsSection
+          title="Repository"
+          description="With a linked repository, CirCI posts a check and one summary comment on each pull request. Git hosts are connected in the workspace’s integrations."
+        >
+          <SettingsRow
+            label={link ? <Text variant="mono">{link.repoRef}</Text> : 'No repository linked'}
+            detail={link ? 'GitHub · checks named CirCI / <build name>' : undefined}
+          >
             <Button size="sm" {...integrations}>
               {link ? 'Change' : 'Link a repository'}
             </Button>
@@ -139,14 +127,13 @@ export function SettingsForm(props: SettingsForm.Props) {
                 Unlink
               </Button>
             ) : null}
-          </div>
-        </div>
+          </SettingsRow>
+        </SettingsSection>
         {unlink.error && !unlinking ? <Banner tone="danger">{unlink.error.message}</Banner> : null}
-      </section>
+      </div>
 
-      <section className={styles.section} aria-labelledby="team-compare">
-        <h2 id="team-compare">Comparison</h2>
-        <div className={styles.box}>
+      <SettingsSection title="Comparison">
+        <SettingsRow>
           <div className={styles.fields} key={version}>
             <TextField
               name="diffThresholdPercent"
@@ -170,67 +157,60 @@ export function SettingsForm(props: SettingsForm.Props) {
               description="Older builds and their hosted sites expire. The newest approved baseline on the default branch never does."
             />
           </div>
-        </div>
-      </section>
+        </SettingsRow>
+      </SettingsSection>
 
-      <section className={styles.section} aria-labelledby="team-gate">
-        <div>
-          <h2 id="team-gate">Merge gate</h2>
-          <Text as="p" variant="small" tone="secondary" className={styles.lead}>
-            What the check on a pull request says while changes wait for review. It only blocks
-            merging if the repository marks it as required.
-          </Text>
-        </div>
-        <div className={styles.box}>
-          <div className={styles.stack}>
-            <Checkbox
-              label="Block merging until changes are approved"
-              description="With this off, `circi upload --wait` passes even when visual changes need review."
-              checked={blockMerge}
-              onCheckedChange={setBlockMerge}
-              disabled={disabled}
-            />
-            <Select
-              label="Flaky screenshots block merges"
-              description="A flaky screenshot keeps changing on the default branch. With this off, a pull request whose only changes are flaky ones passes the gate; the build still lists them as flaky."
-              items={flakyChoices(props.workspaceFlakyBlocksMerge)}
-              value={flaky}
-              onValueChange={(next) => {
-                if (isFlakyChoice(next)) setFlaky(next)
-              }}
-              disabled={disabled}
-            />
-            <Checkbox
-              label="Approve builds on the default branch automatically"
-              description="Applies once there is an approved baseline: a team's first build always waits for someone to review it."
-              checked={autoApprove}
-              onCheckedChange={setAutoApprove}
-              disabled={disabled}
-            />
-          </div>
-        </div>
-      </section>
+      <SettingsSection
+        title="Merge gate"
+        description="What the check on a pull request says while changes wait for review. It only blocks merging if the repository marks it as required."
+      >
+        <SettingsRow>
+          <Checkbox
+            label="Block merging until changes are approved"
+            description="With this off, `circi upload --wait` passes even when visual changes need review."
+            checked={blockMerge}
+            onCheckedChange={setBlockMerge}
+            disabled={disabled}
+          />
+        </SettingsRow>
+        <SettingsRow>
+          <Select
+            label="Flaky screenshots block merges"
+            description="A flaky screenshot keeps changing on the default branch. With this off, a pull request whose only changes are flaky ones passes the gate; the build still lists them as flaky."
+            items={flakyChoices(props.workspaceFlakyBlocksMerge)}
+            value={flaky}
+            onValueChange={(next) => {
+              if (isFlakyChoice(next)) setFlaky(next)
+            }}
+            disabled={disabled}
+          />
+        </SettingsRow>
+        <SettingsRow>
+          <Checkbox
+            label="Approve builds on the default branch automatically"
+            description="Applies once there is an approved baseline: a team's first build always waits for someone to review it."
+            checked={autoApprove}
+            onCheckedChange={setAutoApprove}
+            disabled={disabled}
+          />
+        </SettingsRow>
+      </SettingsSection>
 
       {props.sitesConfigured ? (
-        <section className={styles.section} aria-labelledby="team-sites">
-          <div>
-            <h2 id="team-sites">Hosted sites</h2>
-            <Text as="p" variant="small" tone="secondary" className={styles.lead}>
-              Storybook, test reports and docs for each commit, behind sign-in.
-            </Text>
-          </div>
-          <div className={styles.box}>
-            <div className={styles.stack}>
-              <Checkbox
-                label="Host static sites (Storybook, reports) for this team"
-                description="Upload with `circi site upload`. Sites are served from the sites domain and need sign-in; only members of this workspace can open them."
-                checked={hosting}
-                onCheckedChange={setHosting}
-                disabled={disabled}
-              />
-            </div>
-          </div>
-        </section>
+        <SettingsSection
+          title="Hosted sites"
+          description="Storybook, test reports and docs for each commit, behind sign-in."
+        >
+          <SettingsRow>
+            <Checkbox
+              label="Host static sites (Storybook, reports) for this team"
+              description="Upload with `circi site upload`. Sites are served from the sites domain and need sign-in; only members of this workspace can open them."
+              checked={hosting}
+              onCheckedChange={setHosting}
+              disabled={disabled}
+            />
+          </SettingsRow>
+        </SettingsSection>
       ) : null}
 
       {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}

@@ -1,59 +1,5 @@
-.root {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.list {
-  composes: listBox from '../../lib/Box.module.css';
-}
-
-.list > :last-child {
-  border-bottom: 0;
-}
-
-.trailing {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.domain {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  padding-block: 4px;
-}
-
 .record {
   overflow-wrap: anywhere;
-}
-
-.check {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px 12px;
-}
-
-@media (max-width: 559.98px) {
-  .row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .trailing {
-    justify-content: flex-start;
-  }
 }
 
 .form {
@@ -61,6 +7,7 @@
   flex-wrap: wrap;
   align-items: flex-start;
   gap: 12px;
+  width: 100%;
 }
 
 .field {

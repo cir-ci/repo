@@ -1,8 +1,15 @@
-import { Banner, Button, Dialog, SectionHeader, TextField, useAnnounce } from '@circi/ui'
+import {
+  Banner,
+  Button,
+  Dialog,
+  SettingsRow,
+  SettingsSection,
+  TextField,
+  useAnnounce,
+} from '@circi/ui'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 
-import { Box, BoxRow } from '#features/workspace-settings/Box.tsx'
 import { authClient } from '#lib/auth-client.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
@@ -60,23 +67,22 @@ export function PasswordSection() {
   })
 
   return (
-    <section className={styles.section} aria-labelledby="password">
-      <SectionHeader
-        title={<span id="password">Password</span>}
+    <>
+      <SettingsSection
+        title="Password"
         description={`At least ${MIN_PASSWORD_LENGTH} characters. Changing it keeps this device signed in.`}
-      />
-      <Box>
-        <BoxRow
-          title="Password"
-          help={
+      >
+        <SettingsRow
+          label="Password"
+          detail={
             <>
               Last changed <RelativeTime iso={new Date(password.updatedAt).toISOString()} />
             </>
           }
         >
           <Button onClick={() => setOpen(true)}>Change password</Button>
-        </BoxRow>
-      </Box>
+        </SettingsRow>
+      </SettingsSection>
       <Dialog
         open={open}
         onOpenChange={close}
@@ -125,6 +131,6 @@ export function PasswordSection() {
           {change.error ? <Banner tone="danger">{change.error.message}</Banner> : null}
         </form>
       </Dialog>
-    </section>
+    </>
   )
 }

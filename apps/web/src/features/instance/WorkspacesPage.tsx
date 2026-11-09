@@ -74,7 +74,7 @@ export function WorkspacesPage() {
       </Intro>
       {created ? <Banner tone="success">{created}</Banner> : null}
       {restore.error ? <Banner tone="danger">{restore.error.message}</Banner> : null}
-      <section className={styles.section} aria-label="All workspaces">
+      <SettingsSection title="All workspaces">
         {data && data.workspaces.length === 0 ? (
           <EmptyState title="No workspaces yet">
             Create one for an existing account to get started.
@@ -141,7 +141,7 @@ export function WorkspacesPage() {
             ))}
           </ul>
         )}
-      </section>
+      </SettingsSection>
       {settings.data ? (
         <SettingsSection
           title="Who can create workspaces"

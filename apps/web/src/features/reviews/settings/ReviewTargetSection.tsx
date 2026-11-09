@@ -1,5 +1,14 @@
 import type { Team } from '@circi/api'
-import { Banner, Button, Checkbox, SectionHeader, Switch, TextField, useAnnounce } from '@circi/ui'
+import {
+  Banner,
+  Button,
+  Checkbox,
+  SettingsRow,
+  SettingsSection,
+  Switch,
+  TextField,
+  useAnnounce,
+} from '@circi/ui'
 import { useState } from 'react'
 
 import { useSaveSettings } from '#features/teams/api/index.ts'
@@ -23,7 +32,7 @@ export function ReviewTargetSection(props: ReviewTargetSection.Props) {
 
   return (
     <form
-      className={styles.section}
+      className={styles.form}
       noValidate
       onSubmit={(e) => {
         e.preventDefault()
@@ -41,57 +50,62 @@ export function ReviewTargetSection(props: ReviewTargetSection.Props) {
         )
       }}
     >
-      <SectionHeader
+      <SettingsSection
         title="Review target"
         description={
           saved === null
             ? 'Review requests never become overdue.'
             : `A review request is overdue after ${describeHours(saved)}.`
         }
-      />
-      <div className={styles.fields}>
-        <Checkbox
-          label="Set a review target"
-          description="Overdue requests are flagged in Reviews and notify the reviewer."
-          checked={enabled}
-          onCheckedChange={(on) => {
-            setEnabled(on)
-            setDone(false)
-          }}
-          disabled={disabled}
-        />
-        {enabled ? (
-          <TextField
-            name="reviewTargetHours"
-            label="Overdue after (hours)"
-            type="number"
-            min={1}
-            step={1}
-            value={hours}
-            disabled={disabled}
-            onChange={(e) => {
-              setHours(e.target.value)
+      >
+        <SettingsRow>
+          <Checkbox
+            label="Set a review target"
+            description="Overdue requests are flagged in Reviews and notify the reviewer."
+            checked={enabled}
+            onCheckedChange={(on) => {
+              setEnabled(on)
               setDone(false)
             }}
-            error={touched && problem ? problem : undefined}
+            disabled={disabled}
           />
+        </SettingsRow>
+        {enabled ? (
+          <SettingsRow>
+            <TextField
+              name="reviewTargetHours"
+              label="Overdue after (hours)"
+              type="number"
+              min={1}
+              step={1}
+              value={hours}
+              disabled={disabled}
+              onChange={(e) => {
+                setHours(e.target.value)
+                setDone(false)
+              }}
+              error={touched && problem ? problem : undefined}
+            />
+          </SettingsRow>
         ) : null}
-        <Switch
-          label="Close superseded review requests"
-          description="Always on: when a newer build replaces one on the same branch, the older build’s review requests close."
-          checked
-          disabled
-        />
-        {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
-        {done && !dirty ? <Banner tone="success">Review target saved.</Banner> : null}
-        {props.canManage ? (
-          <div className={styles.actions}>
-            <Button type="submit" variant="primary" loading={save.isPending} disabled={!dirty}>
-              {save.isPending ? 'Saving…' : 'Save review target'}
-            </Button>
-          </div>
-        ) : null}
-      </div>
+        <SettingsRow>
+          <Switch
+            label="Close superseded review requests"
+            description="Always on: when a newer build replaces one on the same branch, the older build’s review requests close."
+            checked
+            disabled
+          />
+        </SettingsRow>
+      </SettingsSection>
+      {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
+      {done && !dirty ? <Banner tone="success">Review target saved.</Banner> : null}
+      {props.canManage ? (
+        <div className={styles.footer}>
+          <Button type="submit" variant="primary" loading={save.isPending} disabled={!dirty}>
+            {save.isPending ? 'Saving…' : 'Save review target'}
+          </Button>
+        </div>
+      ) : null}
     </form>
   )
 }

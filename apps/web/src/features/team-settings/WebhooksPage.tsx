@@ -8,6 +8,7 @@ import {
   Dialog,
   ListRow,
   SecretBox,
+  SettingsSection,
   Text,
   TextField,
   useAnnounce,
@@ -21,7 +22,6 @@ import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { TeamSettingsFrame } from './TeamSettingsFrame.tsx'
 import { describeDelivery, eventDescription, webhookProblems } from './webhook-events.ts'
 
-import shared from './TeamSettings.module.css'
 import styles from './WebhooksPage.module.css'
 
 /** A team's webhooks: signed build events sent to its own services. */
@@ -86,21 +86,18 @@ function Webhooks(props: Webhooks.Props) {
 
   return (
     <>
-      <div className={styles.head}>
-        <div className={styles.headText}>
-          <Text as="p" variant="small" tone="secondary">
-            Send {props.name}’s build events as signed JSON to your own services. Failed deliveries
-            are retried with backoff.
-          </Text>
-        </div>
-        {props.canManage ? (
-          <Button variant="primary" onClick={open}>
-            Add webhook
-          </Button>
-        ) : null}
-      </div>
-
-      <section className={shared.section} aria-label="Webhooks">
+      <SettingsSection
+        title="Webhooks"
+        description={`Send ${props.name}’s build events as signed JSON to your own services. Failed deliveries are retried with backoff.`}
+        actions={
+          props.canManage ? (
+            <Button variant="primary" onClick={open}>
+              Add webhook
+            </Button>
+          ) : undefined
+        }
+        bare
+      >
         <ul aria-label="Webhooks" className={styles.list}>
           {props.hooks.length === 0 ? (
             <li>
@@ -189,12 +186,13 @@ function Webhooks(props: Webhooks.Props) {
         </ul>
         {remove.error && !removing ? <Banner tone="danger">{remove.error.message}</Banner> : null}
         {test.error ? <Banner tone="danger">{test.error.message}</Banner> : null}
-      </section>
+      </SettingsSection>
 
-      <section className={shared.section} aria-labelledby="wh-verify">
-        <div>
-          <h2 id="wh-verify">Checking a delivery</h2>
-          <Text as="p" variant="small" tone="secondary" className={shared.lead}>
+      <SettingsSection
+        title="Checking a delivery"
+        bare
+        description={
+          <>
             Each request carries{' '}
             <Text as="code" variant="mono">
               CirCI-Event
@@ -213,9 +211,9 @@ function Webhooks(props: Webhooks.Props) {
             </Text>{' '}
             with the webhook’s secret. Reject signatures older than a few minutes. Any answer other
             than 2xx is retried; redirects are not followed.
-          </Text>
-        </div>
-      </section>
+          </>
+        }
+      />
 
       <Dialog
         open={adding}

@@ -1,11 +1,7 @@
-import { Banner, SectionHeader, Switch, Text } from '@circi/ui'
+import { Banner, SettingsRow, SettingsSection, Switch, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 
 import { workspaceAuthQuery, useSaveWorkspaceAuth } from '#features/members/api.ts'
-
-import { Box, BoxRow } from './Box.tsx'
-
-import styles from './Settings.module.css'
 
 /** Which login methods this workspace accepts; the server keeps at least one usable by an owner. */
 export function SignInMethods({ workspace }: SignInMethods.Props) {
@@ -15,13 +11,12 @@ export function SignInMethods({ workspace }: SignInMethods.Props) {
   const { settings, instance } = data
   const locked = !data.canManage || save.isPending
   return (
-    <section className={styles.section}>
-      <SectionHeader
+    <>
+      <SettingsSection
         title="Sign-in methods"
         description="People sign in with any method the instance offers, but this workspace only shows its teams to sessions that used a method you accept here. Switches apply instantly."
-      />
-      <Box>
-        <BoxRow>
+      >
+        <SettingsRow>
           <Switch
             label="Password"
             description="Email and password."
@@ -29,8 +24,8 @@ export function SignInMethods({ workspace }: SignInMethods.Props) {
             disabled={!instance.password || locked}
             onCheckedChange={(on) => save.mutate({ passwordLoginEnabled: on })}
           />
-        </BoxRow>
-        <BoxRow>
+        </SettingsRow>
+        <SettingsRow>
           <Switch
             label="Email code"
             description={
@@ -42,9 +37,9 @@ export function SignInMethods({ workspace }: SignInMethods.Props) {
             disabled={!instance.email || locked}
             onCheckedChange={(on) => save.mutate({ emailLoginEnabled: on })}
           />
-        </BoxRow>
+        </SettingsRow>
         {instance.github ? (
-          <BoxRow>
+          <SettingsRow>
             <Switch
               label="GitHub"
               description="Sign-in with a GitHub account. Also covers joining by invitation or verified domain."
@@ -52,10 +47,10 @@ export function SignInMethods({ workspace }: SignInMethods.Props) {
               disabled={locked}
               onCheckedChange={(on) => save.mutate({ signinGithub: on })}
             />
-          </BoxRow>
+          </SettingsRow>
         ) : null}
         {instance.google ? (
-          <BoxRow>
+          <SettingsRow>
             <Switch
               label="Google"
               description="Sign-in with a Google account. Also covers joining by invitation or verified domain."
@@ -63,9 +58,9 @@ export function SignInMethods({ workspace }: SignInMethods.Props) {
               disabled={locked}
               onCheckedChange={(on) => save.mutate({ signinGoogle: on })}
             />
-          </BoxRow>
+          </SettingsRow>
         ) : null}
-      </Box>
+      </SettingsSection>
       <Banner>
         You can’t turn off the last method an owner can sign in with. If everyone is ever locked
         out, an admin can switch one back on from the server with{' '}
@@ -75,7 +70,7 @@ export function SignInMethods({ workspace }: SignInMethods.Props) {
         .
       </Banner>
       {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
-    </section>
+    </>
   )
 }
 

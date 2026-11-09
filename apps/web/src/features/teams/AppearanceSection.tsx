@@ -1,5 +1,14 @@
 import type { Team } from '@circi/api'
-import { Banner, Button, Text, TeamTile, TextField, useAnnounce } from '@circi/ui'
+import {
+  Banner,
+  Button,
+  SettingsRow,
+  SettingsSection,
+  Text,
+  TeamTile,
+  TextField,
+  useAnnounce,
+} from '@circi/ui'
 import { useState } from 'react'
 
 import { useSaveAppearance } from '#features/teams/api/index.ts'
@@ -16,7 +25,6 @@ import {
   type TeamIconName,
 } from './appearance.ts'
 
-import shared from '#features/team-settings/TeamSettings.module.css'
 import styles from './AppearanceSection.module.css'
 
 /** The tile's colour and icon. Each pick is saved at once (owners and admins). */
@@ -41,26 +49,18 @@ export function AppearanceSection({
   }
 
   return (
-    <section className={shared.section} aria-labelledby="team-appearance">
-      <div>
-        <h2 id="team-appearance">Icon and colour</h2>
-        <Text as="p" variant="small" tone="secondary" className={shared.lead}>
-          How {name} shows in the sidebar, the switchers and every list. The colour only tells teams
-          apart: it never means a build’s state.
-        </Text>
-      </div>
-      <div className={shared.box}>
-        <div className={shared.row}>
-          <TeamTile name={name} color={color} {...(icon ? { icon } : {})} size={40} labelled />
-          <span className={shared.rowText}>
-            <Text>{name}</Text>
-            <Text variant="small" tone="tertiary">
-              {colourLabel(color)} with {icon ? `the ${iconLabel(icon)} icon` : 'its first letter'}.
-              New teams get a colour from their name; change it here.
-            </Text>
-          </span>
-        </div>
-        {canManage ? (
+    <SettingsSection
+      title="Icon and colour"
+      description={`How ${name} shows in the sidebar, the switchers and every list. The colour only tells teams apart: it never means a build’s state.`}
+    >
+      <SettingsRow
+        label={name}
+        detail={`${colourLabel(color)} with ${icon ? `the ${iconLabel(icon)} icon` : 'its first letter'}. New teams get a colour from their name; change it here.`}
+      >
+        <TeamTile name={name} color={color} {...(icon ? { icon } : {})} size={40} labelled />
+      </SettingsRow>
+      {canManage ? (
+        <SettingsRow>
           <div className={styles.pickers}>
             {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
             <fieldset className={styles.swatches}>
@@ -123,9 +123,9 @@ export function AppearanceSection({
               </Text>
             ) : null}
           </div>
-        ) : null}
-      </div>
-    </section>
+        </SettingsRow>
+      ) : null}
+    </SettingsSection>
   )
 }
 

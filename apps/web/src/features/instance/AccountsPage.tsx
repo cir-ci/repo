@@ -15,6 +15,7 @@ import {
   RowMenuIcon,
   SearchIcon,
   SegmentedControl,
+  SettingsSection,
   Text,
   TextField,
 } from '@circi/ui'
@@ -104,11 +105,12 @@ export function AccountsPage() {
       </Intro>
       {failure ? <Banner tone="danger">{failure}</Banner> : null}
       {done ? <Banner tone="success">{done}</Banner> : null}
-      <section className={styles.section} aria-label="All accounts">
-        <div className={styles.toolbar}>
-          <Text tone="secondary">
-            {data ? `${data.total} ${data.total === 1 ? 'account' : 'accounts'}` : ''}
-          </Text>
+      <SettingsSection
+        title="All accounts"
+        description={
+          data ? `${data.total} ${data.total === 1 ? 'account' : 'accounts'}` : undefined
+        }
+        actions={
           <TextField
             className={styles.search}
             label="Search accounts"
@@ -118,7 +120,8 @@ export function AccountsPage() {
             onChange={(e) => setTyped(e.target.value)}
             autoComplete="off"
           />
-        </div>
+        }
+      >
         {data && data.accounts.length === 0 ? (
           <EmptyState icon={<SearchIcon size={32} />} title="No accounts found">
             {q ? `Nothing matches “${q}”.` : 'There are no accounts yet.'}
@@ -158,7 +161,7 @@ export function AccountsPage() {
           same actions are in <code>circi admin user</code> on the server. Showing up to {PAGE_SIZE}{' '}
           per page.
         </Text>
-      </section>
+      </SettingsSection>
 
       <CreateAccountDialog
         open={creating}

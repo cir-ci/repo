@@ -35,7 +35,6 @@ import {
 } from './ignore-regions.ts'
 import { RegionStage } from './RegionStage.tsx'
 
-import shared from '#features/team-settings/TeamSettings.module.css'
 import styles from './IgnoreRegionsPage.module.css'
 
 /** Parts of a screenshot CirCI blanks out before comparing: grouped by screenshot name. */
@@ -139,7 +138,7 @@ function Workbench({ workspace, team, teamName, defaultBranch }: Workbench.Props
           ))}
         </div>
 
-        <div className={shared.box}>
+        <div className={styles.panel}>
           <div className={styles.bar}>
             <Text variant="mono" className={styles.barName}>
               {snapshot.name}

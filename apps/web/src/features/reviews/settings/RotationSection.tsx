@@ -4,7 +4,8 @@ import {
   Button,
   Checkbox,
   CheckboxGroup,
-  SectionHeader,
+  SettingsRow,
+  SettingsSection,
   Text,
   TextField,
   useAnnounce,
@@ -41,7 +42,7 @@ export function RotationSection(props: RotationSection.Props) {
 
   return (
     <form
-      className={styles.section}
+      className={styles.form}
       noValidate
       onSubmit={(e) => {
         e.preventDefault()
@@ -55,61 +56,66 @@ export function RotationSection(props: RotationSection.Props) {
         })
       }}
     >
-      <SectionHeader
+      <SettingsSection
         title="Triage rotation"
         description="One person at a time is on triage for the week and is the default owner of what turns up. People take turns in the order they were added."
-      />
-      <div className={styles.fields}>
-        {onTriage ? (
-          <Text>
-            On triage this week: <strong>{onTriage.name}</strong>
-            {queue?.rotation.until ? (
-              <>
-                {' '}
-                (until <RelativeTime iso={queue.rotation.until} />)
-              </>
-            ) : null}
-          </Text>
-        ) : (
-          <Text tone="secondary">No one is on triage: there is no rotation.</Text>
-        )}
-        <CheckboxGroup legend="People in the rotation" disabled={disabled}>
-          {props.people.map((p) => (
-            <Checkbox
-              key={p.id}
-              label={p.name}
-              checked={ids.includes(p.id)}
-              onCheckedChange={(on) => {
-                setIds((current) => toggleMember(current, p.id, on))
-                setDone(false)
-              }}
-              disabled={disabled}
-            />
-          ))}
-        </CheckboxGroup>
-        <TextField
-          name="startsOn"
-          label="First week starts"
-          type="date"
-          value={date}
-          disabled={disabled || ids.length === 0}
-          onChange={(e) => {
-            setDate(e.target.value)
-            setDone(false)
-          }}
-          error={problem ?? undefined}
-          description="Any day in the first week. Leave empty to start now."
-        />
-        {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
-        {done && !dirty ? <Banner tone="success">Triage rotation saved.</Banner> : null}
-        {props.canManage ? (
-          <div className={styles.actions}>
-            <Button type="submit" variant="primary" loading={save.isPending} disabled={!dirty}>
-              {save.isPending ? 'Saving…' : 'Save rotation'}
-            </Button>
-          </div>
-        ) : null}
-      </div>
+      >
+        <SettingsRow>
+          {onTriage ? (
+            <Text>
+              On triage this week: <strong>{onTriage.name}</strong>
+              {queue?.rotation.until ? (
+                <>
+                  {' '}
+                  (until <RelativeTime iso={queue.rotation.until} />)
+                </>
+              ) : null}
+            </Text>
+          ) : (
+            <Text tone="secondary">No one is on triage: there is no rotation.</Text>
+          )}
+        </SettingsRow>
+        <SettingsRow>
+          <CheckboxGroup legend="People in the rotation" disabled={disabled}>
+            {props.people.map((p) => (
+              <Checkbox
+                key={p.id}
+                label={p.name}
+                checked={ids.includes(p.id)}
+                onCheckedChange={(on) => {
+                  setIds((current) => toggleMember(current, p.id, on))
+                  setDone(false)
+                }}
+                disabled={disabled}
+              />
+            ))}
+          </CheckboxGroup>
+        </SettingsRow>
+        <SettingsRow>
+          <TextField
+            name="startsOn"
+            label="First week starts"
+            type="date"
+            value={date}
+            disabled={disabled || ids.length === 0}
+            onChange={(e) => {
+              setDate(e.target.value)
+              setDone(false)
+            }}
+            error={problem ?? undefined}
+            description="Any day in the first week. Leave empty to start now."
+          />
+        </SettingsRow>
+      </SettingsSection>
+      {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
+      {done && !dirty ? <Banner tone="success">Triage rotation saved.</Banner> : null}
+      {props.canManage ? (
+        <div className={styles.footer}>
+          <Button type="submit" variant="primary" loading={save.isPending} disabled={!dirty}>
+            {save.isPending ? 'Saving…' : 'Save rotation'}
+          </Button>
+        </div>
+      ) : null}
     </form>
   )
 }

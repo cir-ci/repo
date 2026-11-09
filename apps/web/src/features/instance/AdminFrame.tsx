@@ -5,7 +5,7 @@ import { PageFrame } from '#lib/PageFrame.tsx'
 
 import { isForbidden } from './api/admin.ts'
 
-import styles from './Admin.module.css'
+import styles from './AdminFrame.module.css'
 
 /**
  * The frame every Instance page shares: the header (Instance, then the page's title as the `<h1>`)

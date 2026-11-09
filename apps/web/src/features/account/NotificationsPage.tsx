@@ -1,9 +1,8 @@
-import { Banner, SectionHeader, Switch, Text } from '@circi/ui'
+import { Banner, SettingsRow, SettingsSection, Switch, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
-import { Box, BoxRow } from '#features/workspace-settings/Box.tsx'
 import { Frame } from '#features/workspace-settings/Frame.tsx'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
@@ -64,60 +63,52 @@ export function NotificationsPage() {
             . Review requests also show in Reviews; acting in either one clears both.
           </Text>
 
-          <section className={styles.section} aria-labelledby="email">
-            <SectionHeader
-              title={<span id="email">Email</span>}
-              description="Only the two things that need you soon can be emailed. Switches apply at once."
-            />
+          <SettingsSection
+            title="Email"
+            description="Only the two things that need you soon can be emailed. Switches apply at once."
+            bare={!mailConfigured}
+          >
             {mailConfigured ? (
-              <>
-                <Box label="Email notifications">
-                  {PREFERENCE_ROWS.map((row) => (
-                    <BoxRow key={row.key}>
-                      <Switch
-                        label={row.label}
-                        description={row.description}
-                        checked={data[row.key]}
-                        onCheckedChange={(on) => set.mutate({ [row.key]: on })}
-                      />
-                    </BoxRow>
-                  ))}
-                </Box>
-                {session ? (
-                  <Text variant="small" tone="tertiary">
-                    Mail goes to {session.user.email}.
-                  </Text>
-                ) : null}
-              </>
+              PREFERENCE_ROWS.map((row) => (
+                <SettingsRow key={row.key}>
+                  <Switch
+                    label={row.label}
+                    description={row.description}
+                    checked={data[row.key]}
+                    onCheckedChange={(on) => set.mutate({ [row.key]: on })}
+                  />
+                </SettingsRow>
+              ))
             ) : (
               <Banner>
                 This server can’t send mail yet, so there are no email notifications to switch on.
                 Ask an admin to set up outgoing mail.
               </Banner>
             )}
-            {set.error ? (
-              <Banner tone="danger">Couldn’t save that: {set.error.message}</Banner>
-            ) : null}
-          </section>
+          </SettingsSection>
+          {mailConfigured && session ? (
+            <Text variant="small" tone="tertiary">
+              Mail goes to {session.user.email}.
+            </Text>
+          ) : null}
+          {set.error ? (
+            <Banner tone="danger">Couldn’t save that: {set.error.message}</Banner>
+          ) : null}
 
-          <section className={styles.section} aria-labelledby="inapp">
-            <SectionHeader
-              title={<span id="inapp">In your Inbox</span>}
-              description="Always on. Snooze or delete single items from the Inbox instead."
-            />
-            <Box label="Notifications in your Inbox">
-              {IN_INBOX.map((n) => (
-                <BoxRow key={n.title} title={n.title} help={n.help} />
-              ))}
-            </Box>
-          </section>
+          <SettingsSection
+            title="In your Inbox"
+            description="Always on. Snooze or delete single items from the Inbox instead."
+          >
+            {IN_INBOX.map((n) => (
+              <SettingsRow key={n.title} label={n.title} detail={n.help} />
+            ))}
+          </SettingsSection>
 
-          <section className={styles.section} aria-labelledby="team-channels">
-            <SectionHeader title={<span id="team-channels">Team channels</span>} />
+          <SettingsSection title="Team channels" bare>
             <Banner>
               Slack channels for a team are set by an admin in workspace integrations, not here.
             </Banner>
-          </section>
+          </SettingsSection>
         </>
       ) : null}
     </Frame>

@@ -1,7 +1,8 @@
 import {
   type ColorMode,
   palettes,
-  SectionHeader,
+  SettingsRow,
+  SettingsSection,
   Text,
   useColorScheme,
   visuallyHidden,
@@ -51,57 +52,55 @@ export function AppearancePage() {
   const { mode, setMode } = useColorScheme()
   return (
     <Frame crumbs={['Account', 'Appearance']}>
-      <section className={styles.section}>
-        <SectionHeader
-          title="Theme"
-          description="Dark keeps the screenshots the brightest thing on screen. Light suits bright rooms."
-        />
-        <fieldset className={styles.cards}>
-          <legend style={visuallyHidden}>Theme</legend>
-          {CHOICES.map((c) => (
-            <label
-              key={c.mode}
-              className={styles.card}
-              {...(mode === c.mode ? { 'data-checked': '' } : {})}
-            >
-              <input
-                type="radio"
-                name="theme"
-                value={c.mode}
-                checked={mode === c.mode}
-                className={styles.cardInput}
-                onChange={() => setMode(c.mode)}
-              />
-              <span className={styles.mock} aria-hidden="true" style={{ padding: 0, gap: 0 }}>
-                {c.mode === 'system' ? (
-                  <>
-                    <Mock scheme="dark" />
-                    <Mock scheme="light" />
-                  </>
-                ) : (
-                  <Mock scheme={c.mode} />
-                )}
-              </span>
-              <span className={styles.cardLabel}>
-                <span className={styles.dot} aria-hidden="true" />
-                {c.label}
-              </span>
-              <Text variant="small" tone="tertiary">
-                {c.help}
-              </Text>
-            </label>
-          ))}
-        </fieldset>
-        <Text variant="small" tone="tertiary">
-          Saved in this browser. Screenshots under review always show on white.
-        </Text>
-      </section>
-      <section className={styles.section}>
-        <SectionHeader
-          title="Switch quickly"
-          description="Press ⌘K and type “theme”, or use the account menu at the bottom of the sidebar."
-        />
-      </section>
+      <SettingsSection
+        title="Theme"
+        description="Dark keeps the screenshots the brightest thing on screen. Light suits bright rooms."
+      >
+        <SettingsRow>
+          <fieldset className={styles.cards}>
+            <legend style={visuallyHidden}>Theme</legend>
+            {CHOICES.map((c) => (
+              <label
+                key={c.mode}
+                className={styles.card}
+                {...(mode === c.mode ? { 'data-checked': '' } : {})}
+              >
+                <input
+                  type="radio"
+                  name="theme"
+                  value={c.mode}
+                  checked={mode === c.mode}
+                  className={styles.cardInput}
+                  onChange={() => setMode(c.mode)}
+                />
+                <span className={styles.mock} aria-hidden="true" style={{ padding: 0, gap: 0 }}>
+                  {c.mode === 'system' ? (
+                    <>
+                      <Mock scheme="dark" />
+                      <Mock scheme="light" />
+                    </>
+                  ) : (
+                    <Mock scheme={c.mode} />
+                  )}
+                </span>
+                <span className={styles.cardLabel}>
+                  <span className={styles.dot} aria-hidden="true" />
+                  {c.label}
+                </span>
+                <Text variant="small" tone="tertiary">
+                  {c.help}
+                </Text>
+              </label>
+            ))}
+          </fieldset>
+        </SettingsRow>
+        <SettingsRow detail="Saved in this browser. Screenshots under review always show on white." />
+      </SettingsSection>
+      <SettingsSection
+        title="Switch quickly"
+        description="Press ⌘K and type “theme”, or use the account menu at the bottom of the sidebar."
+        bare
+      />
     </Frame>
   )
 }

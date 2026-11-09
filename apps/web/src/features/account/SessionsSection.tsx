@@ -1,16 +1,21 @@
-import { Badge, Banner, Button, ConfirmDialog, SectionHeader, useAnnounce } from '@circi/ui'
+import {
+  Badge,
+  Banner,
+  Button,
+  ConfirmDialog,
+  SettingsRow,
+  SettingsSection,
+  useAnnounce,
+} from '@circi/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { Box, BoxRow } from '#features/workspace-settings/Box.tsx'
 import { authClient } from '#lib/auth-client.ts'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import { sessionsKey, sessionsQuery } from './api.ts'
 import { describeAgent } from './model.ts'
-
-import styles from '#features/workspace-settings/Settings.module.css'
 
 /** Every browser signed in as you, with a way to sign any of them out. */
 export function SessionsSection({ currentToken }: SessionsSection.Props) {
@@ -46,56 +51,53 @@ export function SessionsSection({ currentToken }: SessionsSection.Props) {
   const failure = revoke.error ?? revokeOthers.error
 
   return (
-    <section className={styles.section} aria-labelledby="sessions">
-      <SectionHeader
-        title={<span id="sessions">Sessions</span>}
+    <>
+      <SettingsSection
+        title="Sessions"
         description="Every browser signed in as you. Signing one out also cuts off its access to hosted sites within a minute."
-        action={
+        actions={
           others.length > 0 ? (
             <Button variant="danger" onClick={() => setConfirmingOthers(true)}>
               Sign out everywhere else
             </Button>
           ) : undefined
         }
-      />
-      <QueryBoundary query={query} rows={3}>
-        {(loaded) => (
-          <>
-            {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
-            <Box label="Signed-in devices">
-              {loaded.map((s) => {
-                const isCurrent = s.token === currentToken
-                return (
-                  <BoxRow
-                    key={s.id}
-                    title={describeAgent(s.userAgent)}
-                    help={
-                      <>
-                        {s.ipAddress ? `${s.ipAddress} · ` : ''}signed in{' '}
-                        <RelativeTime iso={new Date(s.createdAt).toISOString()} />
-                      </>
-                    }
-                  >
-                    {isCurrent ? (
-                      <Badge tone="accent" shape="tag">
-                        This device
-                      </Badge>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        disabled={revoke.isPending}
-                        onClick={() => revoke.mutate(s.token)}
-                      >
-                        Sign out
-                      </Button>
-                    )}
-                  </BoxRow>
-                )
-              })}
-            </Box>
-          </>
-        )}
-      </QueryBoundary>
+      >
+        <QueryBoundary query={query} rows={3}>
+          {(loaded) =>
+            loaded.map((s) => {
+              const isCurrent = s.token === currentToken
+              return (
+                <SettingsRow
+                  key={s.id}
+                  label={describeAgent(s.userAgent)}
+                  detail={
+                    <>
+                      {s.ipAddress ? `${s.ipAddress} · ` : ''}signed in{' '}
+                      <RelativeTime iso={new Date(s.createdAt).toISOString()} />
+                    </>
+                  }
+                >
+                  {isCurrent ? (
+                    <Badge tone="accent" shape="tag">
+                      This device
+                    </Badge>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      disabled={revoke.isPending}
+                      onClick={() => revoke.mutate(s.token)}
+                    >
+                      Sign out
+                    </Button>
+                  )}
+                </SettingsRow>
+              )
+            })
+          }
+        </QueryBoundary>
+      </SettingsSection>
+      {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
       <ConfirmDialog
         open={confirmingOthers}
         onOpenChange={setConfirmingOthers}
@@ -105,7 +107,7 @@ export function SessionsSection({ currentToken }: SessionsSection.Props) {
         loading={revokeOthers.isPending}
         onConfirm={() => revokeOthers.mutate()}
       />
-    </section>
+    </>
   )
 }
 

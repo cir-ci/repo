@@ -1,9 +1,3 @@
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
 .form {
   display: flex;
   flex-direction: column;
@@ -62,24 +56,22 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 12px 0;
+  padding: 16px;
 }
 
-/* The board's bordered box: rows separated by hairlines, on the raised surface. */
-.box {
-  composes: box from '../../lib/Box.module.css';
+/* A bordered list of rows or editors, hairlines between. */
+.listBox {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 10px;
+  background: var(--circi-surface-raised);
+  list-style: none;
 }
 
-.boxDanger {
-  border-color: color-mix(in srgb, var(--circi-state-rejected) 40%, transparent);
-}
-
-.boxRow {
-  composes: boxRow from '../../lib/Box.module.css';
-}
-
-.boxRow[data-top] {
-  align-items: flex-start;
+.listBox > li:last-child > * {
+  border-bottom: 0;
 }
 
 .rowText {
@@ -152,6 +144,7 @@
 
 .cards {
   display: grid;
+  flex: 1 1 100%;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
   min-width: 0;
@@ -257,36 +250,23 @@
   font-weight: 500;
 }
 
-.shortcutGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 8px 32px;
-}
-
-.shortcutRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 32px;
-  border-bottom: 1px solid var(--circi-line-subtle);
-}
-
-.shortcutRow dd {
-  flex: 1;
-  margin: 0;
-}
-
-.shortcutRow dt {
-  display: flex;
-  flex: none;
-  gap: 4px;
-  min-width: 72px;
-}
-
 .avatarRow {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 14px;
-  padding: 16px 16px 0;
+  width: 100%;
+}
+
+/* A settings row of side-by-side fields. */
+.rowFields {
+  display: grid;
+  flex: 1 1 100%;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.keys {
+  display: inline-flex;
+  gap: 4px;
 }

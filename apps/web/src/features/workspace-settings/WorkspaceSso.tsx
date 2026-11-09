@@ -2,8 +2,8 @@ import {
   Banner,
   Button,
   ConfirmDialog,
-  ListRow,
-  SectionHeader,
+  SettingsRow,
+  SettingsSection,
   StatusChip,
   Text,
   TextField,
@@ -60,92 +60,95 @@ export function WorkspaceSso({ workspace }: WorkspaceSso.Props) {
 
   const clear = (name: keyof Problems) => () => setProblems((p) => ({ ...p, [name]: undefined }))
 
+  const ready = data !== undefined && !error
+
   return (
-    <section className={styles.root}>
-      <SectionHeader
+    <>
+      <SettingsSection
         title="Single sign-on"
         description={`Connect your own OpenID Connect provider (Okta, Entra ID, Keycloak…). People sign in from the sign-in page with “${workspace}” and join as members. Their session opens this workspace only, and an address that already has an account elsewhere is refused.`}
-      />
-      {error ? (
-        <Banner
-          tone="danger"
-          action={
-            <Button size="sm" onClick={() => void refetch()}>
-              Try again
-            </Button>
-          }
-        >
-          Couldn’t load the single sign-on settings: {error.message}
-        </Banner>
-      ) : !data ? (
-        <QuerySkeleton rows={1} />
-      ) : null}
-      {providers.length > 0 ? (
-        <div className={styles.list}>
-          {providers.map((p) => (
-            <ListRow key={p.providerId}>
-              <div className={styles.row}>
-                <div className={styles.provider}>
-                  <Text>{p.issuer}</Text>
-                  <Text variant="small" tone="secondary" className={styles.redirect}>
+        bare={!ready}
+      >
+        {error ? (
+          <Banner
+            tone="danger"
+            action={
+              <Button size="sm" onClick={() => void refetch()}>
+                Try again
+              </Button>
+            }
+          >
+            Couldn’t load the single sign-on settings: {error.message}
+          </Banner>
+        ) : !data ? (
+          <QuerySkeleton rows={1} />
+        ) : (
+          <>
+            {providers.map((p) => (
+              <SettingsRow
+                key={p.providerId}
+                label={p.issuer}
+                detail={
+                  <>
                     Redirect address to register at the provider:{' '}
                     <Text as="code" variant="mono">
                       {p.redirectUri}
                     </Text>
-                  </Text>
-                </div>
-                <div className={styles.trailing}>
-                  <StatusChip status="approved">Connected</StatusChip>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    aria-label={`Remove ${p.issuer}`}
-                    onClick={() => setRemoving({ providerId: p.providerId, issuer: p.issuer })}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              </div>
-            </ListRow>
-          ))}
-        </div>
-      ) : null}
-      {data && providers.length === 0 ? (
-        <form onSubmit={(e) => void submit(e)} noValidate className={styles.form}>
-          <TextField
-            name="issuer"
-            label="Issuer address"
-            placeholder="https://login.example.com"
-            required
-            error={problems.issuer}
-            onChange={clear('issuer')}
-          />
-          <TextField
-            name="clientId"
-            label="Client id"
-            required
-            autoComplete="off"
-            error={problems.clientId}
-            onChange={clear('clientId')}
-          />
-          <TextField
-            name="clientSecret"
-            label="Client secret"
-            type="password"
-            required
-            // `off` is ignored for password fields: a password manager would fill in the user's own
-            // login here. `new-password` tells it this is a new secret.
-            autoComplete="new-password"
-            error={problems.clientSecret}
-            onChange={clear('clientSecret')}
-          />
-          <div>
-            <Button type="submit" loading={register.isPending}>
-              Connect provider
-            </Button>
-          </div>
-        </form>
-      ) : null}
+                  </>
+                }
+              >
+                <StatusChip status="approved">Connected</StatusChip>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  aria-label={`Remove ${p.issuer}`}
+                  onClick={() => setRemoving({ providerId: p.providerId, issuer: p.issuer })}
+                >
+                  Remove
+                </Button>
+              </SettingsRow>
+            ))}
+            {providers.length === 0 ? (
+              <SettingsRow>
+                <form onSubmit={(e) => void submit(e)} noValidate className={styles.form}>
+                  <TextField
+                    name="issuer"
+                    label="Issuer address"
+                    placeholder="https://login.example.com"
+                    required
+                    error={problems.issuer}
+                    onChange={clear('issuer')}
+                  />
+                  <TextField
+                    name="clientId"
+                    label="Client id"
+                    required
+                    autoComplete="off"
+                    error={problems.clientId}
+                    onChange={clear('clientId')}
+                  />
+                  <TextField
+                    name="clientSecret"
+                    label="Client secret"
+                    type="password"
+                    required
+                    // `off` is ignored for password fields: a password manager would fill in the
+                    // user's own login here. `new-password` tells it this is a new secret.
+                    autoComplete="new-password"
+                    error={problems.clientSecret}
+                    onChange={clear('clientSecret')}
+                  />
+                  <div>
+                    <Button type="submit" loading={register.isPending}>
+                      Connect provider
+                    </Button>
+                  </div>
+                </form>
+              </SettingsRow>
+            ) : null}
+          </>
+        )}
+      </SettingsSection>
       {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
       <ConfirmDialog
         open={removing !== null}
@@ -165,7 +168,7 @@ export function WorkspaceSso({ workspace }: WorkspaceSso.Props) {
           }
         }}
       />
-    </section>
+    </>
   )
 }
 

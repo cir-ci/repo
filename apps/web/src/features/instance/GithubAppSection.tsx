@@ -1,4 +1,4 @@
-import { Badge, Banner, Button, SectionHeader, Text, TextField } from '@circi/ui'
+import { Badge, Banner, Button, SettingsSection, Text, TextField } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useState } from 'react'
 
@@ -33,11 +33,11 @@ export function GithubAppSection({ result }: GithubAppSection.Props) {
   }
 
   return (
-    <section className={styles.section} aria-label="GitHub App">
-      <SectionHeader
-        title="GitHub App"
-        description="Checks and pull request comments, and installing CirCI on GitHub."
-      />
+    <SettingsSection
+      title="GitHub App"
+      description="Checks and pull request comments, and installing CirCI on GitHub."
+      bare
+    >
       {note ? <Banner tone="danger">{note}</Banner> : null}
       {error ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
@@ -117,7 +117,7 @@ export function GithubAppSection({ result }: GithubAppSection.Props) {
           ) : null}
         </>
       )}
-    </section>
+    </SettingsSection>
   )
 }
 

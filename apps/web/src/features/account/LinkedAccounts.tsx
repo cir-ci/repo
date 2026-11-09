@@ -1,16 +1,22 @@
-import { Badge, Banner, Button, ConfirmDialog, SectionHeader, Text, useAnnounce } from '@circi/ui'
+import {
+  Badge,
+  Banner,
+  Button,
+  ConfirmDialog,
+  SettingsRow,
+  SettingsSection,
+  Text,
+  useAnnounce,
+} from '@circi/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { authMethodsQuery } from '#features/auth/api.ts'
-import { Box, BoxRow } from '#features/workspace-settings/Box.tsx'
 import { authClient } from '#lib/auth-client.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 
 import { accountsKey, accountsQuery } from './api.ts'
 import { providerRows } from './model.ts'
-
-import styles from '#features/workspace-settings/Settings.module.css'
 
 /** The accounts you can sign in with: unlink one, or link a provider this instance offers. */
 export function LinkedAccounts() {
@@ -49,21 +55,21 @@ export function LinkedAccounts() {
   const failure = unlink.error ?? link.error
 
   return (
-    <section className={styles.section} aria-labelledby="linked">
-      <SectionHeader
-        title={<span id="linked">Signed in with</span>}
+    <>
+      <SettingsSection
+        title="Signed in with"
         description="Accounts you can sign in with. Linking GitHub also lets you approve and reject from GitHub checks and pull request comments."
-      />
-      {accounts.error ? (
-        <ErrorState error={accounts.error} onRetry={() => void accounts.refetch()} />
-      ) : accounts.data && rows.length === 0 ? (
-        <Text tone="secondary">
-          You sign in with your password. No other sign-in accounts are available on this server.
-        </Text>
-      ) : accounts.data ? (
-        <Box label="Signed-in accounts">
-          {rows.map((r) => (
-            <BoxRow key={r.id} title={r.name} help={r.account ? 'Linked' : 'Not linked'}>
+        bare={!(accounts.data && rows.length > 0)}
+      >
+        {accounts.error ? (
+          <ErrorState error={accounts.error} onRetry={() => void accounts.refetch()} />
+        ) : accounts.data && rows.length === 0 ? (
+          <Text tone="secondary">
+            You sign in with your password. No other sign-in accounts are available on this server.
+          </Text>
+        ) : accounts.data ? (
+          rows.map((r) => (
+            <SettingsRow key={r.id} label={r.name} detail={r.account ? 'Linked' : 'Not linked'}>
               {r.account ? (
                 <>
                   <Badge tone="state" state="approved" shape="tag">
@@ -93,10 +99,10 @@ export function LinkedAccounts() {
                   Link {r.name}
                 </Button>
               )}
-            </BoxRow>
-          ))}
-        </Box>
-      ) : null}
+            </SettingsRow>
+          ))
+        ) : null}
+      </SettingsSection>
       {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
       <ConfirmDialog
         open={unlinking !== undefined}
@@ -113,6 +119,6 @@ export function LinkedAccounts() {
           }
         }}
       />
-    </section>
+    </>
   )
 }

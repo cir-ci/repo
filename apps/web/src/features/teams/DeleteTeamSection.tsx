@@ -1,4 +1,12 @@
-import { Banner, Button, Dialog, Text, TextField, useAnnounce } from '@circi/ui'
+import {
+  Banner,
+  Button,
+  Dialog,
+  SettingsRow,
+  SettingsSection,
+  TextField,
+  useAnnounce,
+} from '@circi/ui'
 import { useNavigate } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
 
@@ -41,23 +49,21 @@ export function DeleteTeamSection({ workspace, team, name, canManage }: DeleteTe
   }
 
   return (
-    <section className={shared.section} aria-labelledby="team-danger">
-      <h2 id="team-danger">Danger zone</h2>
-      <div className={`${shared.box} ${shared.boxDanger}`}>
-        <div className={shared.row}>
-          <span className={shared.rowText}>
-            <Text>Delete team</Text>
-            <Text variant="small" tone="tertiary">
-              {canManage
-                ? `Removes ${name} with its builds, screenshots, hosted sites, rules and webhooks, and stops its CI token working. Screenshot files are cleaned up by retention afterwards.`
-                : 'Only owners and admins can delete a team.'}
-            </Text>
-          </span>
+    <>
+      <SettingsSection title="Danger zone" tone="danger">
+        <SettingsRow
+          label="Delete team"
+          detail={
+            canManage
+              ? `Removes ${name} with its builds, screenshots, hosted sites, rules and webhooks, and stops its CI token working. Screenshot files are cleaned up by retention afterwards.`
+              : 'Only owners and admins can delete a team.'
+          }
+        >
           <Button variant="danger" disabled={!canManage} onClick={() => setOpen(true)}>
             Delete team
           </Button>
-        </div>
-      </div>
+        </SettingsRow>
+      </SettingsSection>
       <Dialog
         open={open}
         onOpenChange={close}
@@ -89,7 +95,7 @@ export function DeleteTeamSection({ workspace, team, name, canManage }: DeleteTe
           {remove.error ? <Banner tone="danger">{remove.error.message}</Banner> : null}
         </form>
       </Dialog>
-    </section>
+    </>
   )
 }
 

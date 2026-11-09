@@ -2,8 +2,8 @@ import {
   Banner,
   Button,
   ConfirmDialog,
-  ListRow,
-  SectionHeader,
+  SettingsRow,
+  SettingsSection,
   StatusChip,
   Text,
   TextField,
@@ -45,101 +45,104 @@ export function EmailDomains({ workspace }: EmailDomains.Props) {
     )
   }
 
+  const ready = data !== undefined && !error
+
   return (
-    <section className={styles.root}>
-      <SectionHeader
+    <>
+      <SettingsSection
         title="Email domains"
         description="Once a domain is verified, anyone who signs in with an emailed code on an address at that domain joins this workspace as a member, with no invitation."
-      />
-      {error ? (
-        <Banner
-          tone="danger"
-          action={
-            <Button size="sm" onClick={() => void refetch()}>
-              Try again
-            </Button>
-          }
-        >
-          Couldn’t load the email domains: {error.message}
-        </Banner>
-      ) : !data ? (
-        <QuerySkeleton rows={2} />
-      ) : data.domains.length > 0 ? (
-        <div className={styles.list}>
-          {data.domains.map((d) => (
-            <ListRow key={d.id}>
-              <div className={styles.row}>
-                <div className={styles.domain}>
-                  <Text>{d.domain}</Text>
-                  {d.verified ? null : (
+        bare={!ready}
+      >
+        {error ? (
+          <Banner
+            tone="danger"
+            action={
+              <Button size="sm" onClick={() => void refetch()}>
+                Try again
+              </Button>
+            }
+          >
+            Couldn’t load the email domains: {error.message}
+          </Banner>
+        ) : !data ? (
+          <QuerySkeleton rows={2} />
+        ) : (
+          <>
+            {data.domains.map((d) => (
+              <SettingsRow
+                key={d.id}
+                label={d.domain}
+                detail={
+                  d.verified ? undefined : (
                     <>
-                      <Text variant="small" tone="secondary">
-                        Add this DNS TXT record, then check:
-                      </Text>
+                      <span>Add this DNS TXT record, then check:</span>{' '}
                       <Text as="code" variant="mono" className={styles.record}>
                         {d.dnsName} TXT {d.dnsValue}
                       </Text>
-                      <div className={styles.check}>
-                        <Button
-                          size="sm"
-                          loading={verify.isPending && verify.variables === d.id}
-                          disabled={verify.isPending}
-                          onClick={() =>
-                            verify.mutate(d.id, {
-                              onSuccess: (r) => {
-                                setChecked(r.verified ? null : d.id)
-                                if (r.verified) announce(`${d.domain} is verified`)
-                              },
-                            })
-                          }
-                        >
-                          Check now
-                        </Button>
-                        {checked === d.id ? (
-                          <Text variant="small" tone="secondary">
-                            Not found yet. DNS can take a few minutes to spread.
-                          </Text>
-                        ) : null}
-                      </div>
+                      {checked === d.id ? (
+                        <>
+                          <br />
+                          <span>Not found yet. DNS can take a few minutes to spread.</span>
+                        </>
+                      ) : null}
                     </>
-                  )}
-                </div>
-                <div className={styles.trailing}>
-                  <StatusChip status={d.verified ? 'approved' : 'neutral'}>
-                    {d.verified ? 'Verified' : 'Not verified'}
-                  </StatusChip>
+                  )
+                }
+              >
+                <StatusChip status={d.verified ? 'approved' : 'neutral'}>
+                  {d.verified ? 'Verified' : 'Not verified'}
+                </StatusChip>
+                {d.verified ? null : (
                   <Button
                     size="sm"
-                    variant="danger"
-                    aria-label={`Remove ${d.domain}`}
-                    onClick={() => setRemoving({ id: d.id, domain: d.domain })}
+                    loading={verify.isPending && verify.variables === d.id}
+                    disabled={verify.isPending}
+                    onClick={() =>
+                      verify.mutate(d.id, {
+                        onSuccess: (r) => {
+                          setChecked(r.verified ? null : d.id)
+                          if (r.verified) announce(`${d.domain} is verified`)
+                        },
+                      })
+                    }
                   >
-                    Remove
+                    Check now
                   </Button>
-                </div>
-              </div>
-            </ListRow>
-          ))}
-        </div>
-      ) : null}
-      <form onSubmit={(e) => void submit(e)} noValidate className={styles.form}>
-        <TextField
-          className={styles.field}
-          name="domain"
-          label="Domain"
-          placeholder="example.com"
-          required
-          value={domain}
-          error={problem}
-          onChange={(e) => {
-            setDomain(e.target.value)
-            setProblem(undefined)
-          }}
-        />
-        <Button type="submit" loading={add.isPending} className={styles.submit}>
-          Add domain
-        </Button>
-      </form>
+                )}
+                <Button
+                  size="sm"
+                  variant="danger"
+                  aria-label={`Remove ${d.domain}`}
+                  onClick={() => setRemoving({ id: d.id, domain: d.domain })}
+                >
+                  Remove
+                </Button>
+              </SettingsRow>
+            ))}
+            <SettingsRow>
+              <form onSubmit={(e) => void submit(e)} noValidate className={styles.form}>
+                <TextField
+                  className={styles.field}
+                  name="domain"
+                  label="Domain"
+                  placeholder="example.com"
+                  required
+                  value={domain}
+                  error={problem}
+                  onChange={(e) => {
+                    setDomain(e.target.value)
+                    setProblem(undefined)
+                  }}
+                />
+                <Button type="submit" loading={add.isPending} className={styles.submit}>
+                  Add domain
+                </Button>
+              </form>
+            </SettingsRow>
+          </>
+        )}
+      </SettingsSection>
       {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
       <ConfirmDialog
         open={removing !== null}
@@ -159,7 +162,7 @@ export function EmailDomains({ workspace }: EmailDomains.Props) {
           }
         }}
       />
-    </section>
+    </>
   )
 }
 
