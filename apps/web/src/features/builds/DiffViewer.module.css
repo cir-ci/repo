@@ -28,11 +28,9 @@
 }
 
 .name {
+  composes: truncate from '@circi/ui/utilities.module.css';
   min-width: 0;
   margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .summary {
@@ -40,16 +38,14 @@
 }
 
 .figmaChip {
+  composes: truncate from '@circi/ui/utilities.module.css';
   flex: none;
   max-width: 220px;
-  overflow: hidden;
   padding: 0 6px;
   border: 1px solid var(--circi-border, currentColor);
   border-radius: 4px;
   font-size: 11px;
   line-height: 18px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .controls {

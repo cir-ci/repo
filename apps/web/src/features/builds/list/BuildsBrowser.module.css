@@ -6,13 +6,11 @@
 }
 
 .list {
+  composes: listBox from '../../../lib/Box.module.css';
   flex: 1;
   min-width: 0;
   margin: 0;
   padding: 0;
-  overflow: hidden;
-  border: 1px solid var(--circi-line-subtle);
-  border-radius: 8px;
   list-style: none;
 }
 

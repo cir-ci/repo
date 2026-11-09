@@ -22,17 +22,7 @@
 }
 
 .boxRow {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  min-height: 52px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--circi-line-subtle);
-}
-
-.boxRow:last-child {
-  border-bottom: 0;
+  composes: boxRow from '../../lib/Box.module.css';
 }
 
 .grow {

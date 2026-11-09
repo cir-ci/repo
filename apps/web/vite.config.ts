@@ -11,9 +11,14 @@ export default defineConfig({
     // `vite build` picks the `production` condition and would resolve @circi/ui to its dist (JS
     // without the compiled styles: the web CSS shrinks from 55 kB to 21 kB). Pin the source so dev
     // and build are the same and Vite compiles the CSS modules.
-    alias: {
-      '@circi/ui': fileURLToPath(new URL('../../packages/ui/src/index.ts', import.meta.url)),
-    },
+    // An exact match: `@circi/ui/utilities.module.css` (composed by the CSS modules) resolves
+    // through the package's `exports`.
+    alias: [
+      {
+        find: /^@circi\/ui$/,
+        replacement: fileURLToPath(new URL('../../packages/ui/src/index.ts', import.meta.url)),
+      },
+    ],
   },
   // @circi/ui's CSS modules are compiled here (the `@circi/source` condition resolves its source).
   server: {

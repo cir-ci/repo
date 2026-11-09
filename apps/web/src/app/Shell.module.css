@@ -7,12 +7,10 @@
 }
 
 .barTitle {
+  composes: truncate from '@circi/ui/utilities.module.css';
   flex: 1;
   min-width: 0;
-  overflow: hidden;
   font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .drawerNav {

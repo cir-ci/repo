@@ -64,20 +64,16 @@
 }
 
 .label {
+  composes: truncate from '@circi/ui/utilities.module.css';
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .detail {
+  composes: truncate from '@circi/ui/utilities.module.css';
   flex: 1;
   min-width: 0;
-  overflow: hidden;
   color: var(--circi-text-tertiary);
   font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .caps {

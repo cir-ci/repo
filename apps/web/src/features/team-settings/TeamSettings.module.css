@@ -17,25 +17,12 @@
 }
 
 .box {
-  overflow: hidden;
-  border: 1px solid var(--circi-line-subtle);
-  border-radius: 10px;
-  background: var(--circi-surface-raised);
+  composes: box from '../../lib/Box.module.css';
 }
 
 .row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
+  composes: boxRow from '../../lib/Box.module.css';
   box-sizing: border-box;
-  min-height: 52px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--circi-line-subtle);
-}
-
-.row:last-child {
-  border-bottom: 0;
 }
 
 .rowText {

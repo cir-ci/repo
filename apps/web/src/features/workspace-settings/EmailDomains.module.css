@@ -5,9 +5,7 @@
 }
 
 .list {
-  overflow: hidden;
-  border: 1px solid var(--circi-line-subtle);
-  border-radius: 8px;
+  composes: listBox from '../../lib/Box.module.css';
 }
 
 .list > :last-child {

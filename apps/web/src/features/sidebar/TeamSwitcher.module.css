@@ -88,11 +88,9 @@
 }
 
 .name {
+  composes: truncate from '@circi/ui/utilities.module.css';
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .none {

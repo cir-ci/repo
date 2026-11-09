@@ -17,10 +17,7 @@
 }
 
 .list {
-  overflow: hidden;
-  border: 1px solid var(--circi-line-subtle);
-  border-radius: 10px;
-  background: var(--circi-surface-raised);
+  composes: box from '../../lib/Box.module.css';
 }
 
 .option {
@@ -69,13 +66,11 @@
 }
 
 .optionName {
+  composes: truncate from '@circi/ui/utilities.module.css';
   flex: 1;
   min-width: 0;
-  overflow: hidden;
   font-family: var(--circi-font-mono);
   font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .bar {
