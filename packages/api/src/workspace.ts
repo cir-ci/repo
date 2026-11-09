@@ -3,7 +3,7 @@ export namespace Workspace {
     canCreateWorkspace: boolean
     /** Whether this person runs the instance (its admin pages and menu entries). */
     instanceAdmin: boolean
-    manageableWorkspaces: { slug: string; name: string }[]
+    manageableWorkspaces: { slug: string; name: string; picture: string | null }[]
     /** Workspaces that won't show their content to the way this session signed in. */
     refusingWorkspaces: { name: string; accepts: ('password' | 'email' | 'github' | 'google')[] }[]
     /** The instance can send mail (SMTP is set up): email notifications and sign-in codes work. */
@@ -37,6 +37,24 @@ export namespace Workspace {
     isOwner: boolean
     name: string
     slug: string
+    /** Where the workspace's picture is served from; null: it has none (the first letter shows). */
+    picture: string | null
+  }
+
+  /** `PUT /api/workspaces/:workspace/picture`: the picture now in use. */
+  export interface Picture {
+    picture: string | null
+  }
+
+  /** How one member can sign in: `password`, `sso`, or a linked provider (`github`, `google`, `oidc`…). */
+  export interface MemberSignIn {
+    userId: string
+    methods: string[]
+  }
+
+  /** `GET /api/workspaces/:workspace/members/sign-in`. */
+  export interface MembersSignIn {
+    members: MemberSignIn[]
   }
 
   /** `DELETE /api/workspaces/:workspace` (owners; body `{ confirm: <the workspace's slug> }`). */

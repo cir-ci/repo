@@ -134,6 +134,8 @@ export namespace InstanceAdmin {
   export interface AddressChecklist {
     publicUrl: string
     steps: AddressStep[]
+    /** An admin dismissed the checklist for this address; it comes back when `PUBLIC_URL` changes. */
+    dismissed: boolean
   }
 
   export interface QueueDepth {

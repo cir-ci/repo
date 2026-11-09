@@ -162,3 +162,10 @@ export function useWorkspaceSso(workspace: string) {
     }),
   }
 }
+
+/** How each member can sign in (owners and admins only: the server answers 403 to others). */
+export const memberSignInQuery = (workspace: string) =>
+  queryOptions({
+    queryKey: keys.memberSignIn(workspace),
+    queryFn: () => getJson<Workspace.MembersSignIn>(workspacePath(workspace, 'members', 'sign-in')),
+  })

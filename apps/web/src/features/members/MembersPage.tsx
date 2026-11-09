@@ -1,5 +1,6 @@
 import {
   Avatar,
+  Badge,
   Banner,
   Button,
   ConfirmDialog,
@@ -29,11 +30,18 @@ import {
   cancelInvitation,
   changeMemberRole,
   inviteMember,
+  memberSignInQuery,
   removeMember,
   workspaceQuery,
 } from './api.ts'
 import { InviteForm } from './InviteForm.tsx'
-import { canManageMembers, invitationCount, peopleCount, pendingInvitations } from './model.ts'
+import {
+  canManageMembers,
+  invitationCount,
+  peopleCount,
+  pendingInvitations,
+  signInTags,
+} from './model.ts'
 
 import styles from './MembersPage.module.css'
 
@@ -91,6 +99,9 @@ export function MembersPage() {
   })
 
   const canManage = canManageMembers(data?.members ?? [], session?.user.id)
+  // Only owners and admins may see how people sign in; the tags are left out while loading or on error.
+  const signIn = useQuery({ ...memberSignInQuery(workspace), enabled: canManage })
+  const methodsOf = new Map((signIn.data?.members ?? []).map((m) => [m.userId, m.methods]))
   const pending = pendingInvitations(data?.invitations ?? [])
   const failure = cancel.error ?? resend.error ?? remove.error ?? changeRole.error
 
@@ -138,6 +149,18 @@ export function MembersPage() {
                             <Text variant="small" tone="secondary" truncate>
                               {m.user.email}
                             </Text>
+                            {signInTags(methodsOf.get(m.userId) ?? []).length > 0 ? (
+                              <ul
+                                className={styles.tags}
+                                aria-label={`How ${m.user.name} signs in`}
+                              >
+                                {signInTags(methodsOf.get(m.userId) ?? []).map((tag) => (
+                                  <li key={tag}>
+                                    <Badge shape="tag">{tag}</Badge>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : null}
                           </div>
                           <div
                             className={styles.controls}

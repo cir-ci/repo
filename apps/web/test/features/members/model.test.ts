@@ -5,6 +5,7 @@ import {
   pendingInvitations,
   invitationCount,
   peopleCount,
+  signInTags,
   validateInvite,
 } from '#features/members/model.ts'
 
@@ -64,5 +65,14 @@ describe('validateInvite', () => {
   )
   it('accepts an address', () => {
     expect(validateInvite('ada@example.test')).toEqual({})
+  })
+})
+
+describe('signInTags', () => {
+  it('names each method once, in the server’s order', () => {
+    expect(signInTags(['password', 'github', 'google'])).toEqual(['Password', 'GitHub', 'Google'])
+    expect(signInTags(['sso', 'oidc'])).toEqual(['SSO'])
+    expect(signInTags(['acme'])).toEqual(['Acme'])
+    expect(signInTags([])).toEqual([])
   })
 })

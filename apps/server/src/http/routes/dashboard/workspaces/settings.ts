@@ -1,9 +1,10 @@
 import type { Storage, Workspace } from '@circi/api'
 import { updateWorkspace } from '@circi/auth'
-import { ValidationError, workspacePurgeAt } from '@circi/core'
+import { ValidationError, workspacePictureUrl, workspacePurgeAt } from '@circi/core'
 import {
   getWorkspaceStorage,
   getWorkspaceSettings,
+  listMemberSignIn,
   listTeamFlakyOverrides,
 } from '@circi/db/queries'
 import { deleteWorkspace, isWorkspaceOwner, updateWorkspaceSettings } from '@circi/services'
@@ -43,6 +44,7 @@ export const dashboardWorkspaceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard
       isOwner: isWorkspaceOwner(found),
       name: found.workspace.name,
       slug: found.workspace.slug,
+      picture: workspacePictureUrl(found.workspace.slug, found.workspace.logo),
     }
   })
 
@@ -57,6 +59,15 @@ export const dashboardWorkspaceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard
     })
     return { name: updated.name, slug: updated.slug }
   })
+
+  /** How each member can sign in (password, SSO, GitHub…): for owners and admins. */
+  app.get(
+    '/workspaces/:workspace/members/sign-in',
+    async (req): Promise<Workspace.MembersSignIn | void> => {
+      const found = await loadWorkspace(deps, req, { manage: true, forbidden: MANAGE })
+      return { members: await listMemberSignIn(deps.db, found.workspace.id) }
+    },
+  )
 
   /** What the workspace's builds and hosted sites take up, by kind and by team. */
   app.get('/workspaces/:workspace/storage', async (req): Promise<Storage.Usage | void> => {

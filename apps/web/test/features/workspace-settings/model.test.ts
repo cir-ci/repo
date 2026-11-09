@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   generalDirty,
+  pictureProblem,
   generalPatch,
   generalProblems,
   inheritance,
@@ -124,5 +125,17 @@ describe('inheritance', () => {
       summary: '1 team inherits this',
       overrides: [],
     })
+  })
+})
+
+describe('pictureProblem', () => {
+  it('accepts PNG, JPEG and WebP up to 1 MB and says what is wrong otherwise', () => {
+    for (const type of ['image/png', 'image/jpeg', 'image/webp']) {
+      expect(pictureProblem({ type, size: 1024 * 1024 })).toBeNull()
+    }
+    expect(pictureProblem({ type: 'image/gif', size: 10 })).toBe('Use a PNG, JPEG or WebP image')
+    expect(pictureProblem({ type: 'image/png', size: 1024 * 1024 + 1 })).toBe(
+      'Use an image of at most 1 MB',
+    )
   })
 })

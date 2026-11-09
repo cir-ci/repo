@@ -216,14 +216,17 @@ const DOCTOR_REMINDER = 'reminder'
  * dashboard's and the sites domain's addresses and cookies. The reminder line is dropped (the page
  * words its own note), and each group is sorted warnings first.
  */
+/** The findings about what CirCI runs on (shown under Services): storage, its disk, the database and mail. */
+const SERVICE_IDS = new Set(['storage', 'disk', 'database', 'mail'])
+
 export function groupFindings(findings: InstanceAdmin.Finding[]): {
   services: InstanceAdmin.Finding[]
   domains: InstanceAdmin.Finding[]
 } {
   const shown = findings.filter((f) => f.id !== DOCTOR_REMINDER)
   return {
-    services: sortFindings(shown.filter((f) => f.id === 'storage')),
-    domains: sortFindings(shown.filter((f) => f.id !== 'storage')),
+    services: sortFindings(shown.filter((f) => SERVICE_IDS.has(f.id))),
+    domains: sortFindings(shown.filter((f) => !SERVICE_IDS.has(f.id))),
   }
 }
 
@@ -337,6 +340,19 @@ export const checklistQuery = () =>
     queryFn: () =>
       getJson<InstanceAdmin.AddressChecklist>(instancePath('health', 'address-checklist')),
   })
+
+/** Hides the "Moving to …" checklist for the current address, or shows it again. */
+export function useDismissChecklist() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (dismissed: boolean) =>
+      send<void>(
+        dismissed ? 'PUT' : 'DELETE',
+        instancePath('health', 'address-checklist', 'dismissed'),
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['instance-health'] }),
+  })
+}
 
 export const queuesQuery = () =>
   queryOptions({

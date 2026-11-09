@@ -12,7 +12,7 @@ export namespace Team {
   }
 
   export interface Overview {
-    workspace: { slug: string; name: string }
+    workspace: { slug: string; name: string; picture: string | null }
     team: { slug: string; name: string; defaultBranch: string; color: Color; icon: string | null }
     latestBuild: Build.ListItem | null
   }

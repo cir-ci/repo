@@ -1,4 +1,4 @@
-import { isValidSlug } from '@circi/core'
+import { isValidSlug, WORKSPACE_PICTURE_MAX_BYTES, WORKSPACE_PICTURE_TYPES } from '@circi/core'
 
 /** What the workspace General page edits: the name and the address. */
 export interface GeneralDraft {
@@ -96,3 +96,12 @@ export function inheritance(teams: readonly { name: string; flakyBlocksMerge: bo
 /** Whether what was typed is the workspace's address (surrounding spaces don't count; case does). */
 export const slugConfirmed = (typed: string, slug: string): boolean =>
   slug !== '' && typed.trim() === slug
+
+/** What is wrong with a file chosen as the workspace's picture, or null when it can be sent. */
+export function pictureProblem(file: { type: string; size: number }): string | null {
+  if (!(WORKSPACE_PICTURE_TYPES as readonly string[]).includes(file.type)) {
+    return 'Use a PNG, JPEG or WebP image'
+  }
+  if (file.size > WORKSPACE_PICTURE_MAX_BYTES) return 'Use an image of at most 1 MB'
+  return null
+}

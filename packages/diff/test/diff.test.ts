@@ -1,7 +1,13 @@
 import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
 
-import { diffImages, InvalidImageError, makeThumbnail, readPngInfo } from '#src/index.ts'
+import {
+  diffImages,
+  InvalidImageError,
+  makeThumbnail,
+  makeWorkspacePicture,
+  readPngInfo,
+} from '#src/index.ts'
 
 /** A solid-colour PNG, optionally with a filled rectangle on top. */
 async function png(
@@ -137,5 +143,46 @@ describe('makeThumbnail', () => {
 
   it('never enlarges small screenshots', async () => {
     expect(await makeThumbnail(await png(200, 100))).toMatchObject({ width: 200, height: 100 })
+  })
+})
+
+describe('makeWorkspacePicture', () => {
+  it('crops a wide PNG to the centre square and resizes it, keeping transparency', async () => {
+    const wide = await sharp({
+      create: {
+        width: 600,
+        height: 300,
+        channels: 4,
+        background: { r: 200, g: 0, b: 0, alpha: 0.5 },
+      },
+    })
+      .png()
+      .toBuffer()
+    const { png: out, format } = await makeWorkspacePicture(wide, 256)
+    expect(format).toBe('png')
+    const meta = await sharp(out).metadata()
+    expect([meta.format, meta.width, meta.height, meta.hasAlpha]).toEqual(['png', 256, 256, true])
+  })
+
+  it('takes JPEG and WebP, and always answers a PNG', async () => {
+    const raw = { create: { width: 40, height: 80, channels: 3 as const, background: '#336699' } }
+    const inputs = [await sharp(raw).jpeg().toBuffer(), await sharp(raw).webp().toBuffer()]
+    const metas = await Promise.all(
+      inputs.map(async (input) => sharp((await makeWorkspacePicture(input, 64)).png).metadata()),
+    )
+    expect(metas.map((m) => [m.format, m.width, m.height])).toEqual([
+      ['png', 64, 64],
+      ['png', 64, 64],
+    ])
+  })
+
+  it('refuses other image types and bytes that are no image', async () => {
+    const gif = await sharp({ create: { width: 4, height: 4, channels: 3, background: '#000' } })
+      .gif()
+      .toBuffer()
+    await expect(makeWorkspacePicture(gif, 64)).rejects.toThrow(/PNG, JPEG or WebP image, got gif/)
+    await expect(makeWorkspacePicture(Buffer.from('<svg/>'), 64)).rejects.toBeInstanceOf(
+      InvalidImageError,
+    )
   })
 })

@@ -3,6 +3,7 @@
 exports[`the route table > has not changed (method and url, sorted) 1`] = `
 "DELETE /api/auth/sign-in/email-otp
 DELETE /api/inbox/:id
+DELETE /api/instance/health/address-checklist/dismissed
 DELETE /api/teams/:workspace/:team
 DELETE /api/teams/:workspace/:team/builds/:number/comments/:id
 DELETE /api/teams/:workspace/:team/github
@@ -15,6 +16,7 @@ DELETE /api/workspaces/:workspace/domains/:id
 DELETE /api/workspaces/:workspace/integrations/:id|:kind
 DELETE /api/workspaces/:workspace/integrations/:id|:kind/teams/:team
 DELETE /api/workspaces/:workspace/integrations/:id|:kind/teams/:team/links/:linkId
+DELETE /api/workspaces/:workspace/picture
 DELETE /api/workspaces/:workspace/pinned-teams/:team
 DELETE /api/workspaces/:workspace/sso/:providerId
 DELETE /api/workspaces/:workspace/views/:id
@@ -65,6 +67,8 @@ GET /api/workspaces/:workspace/integrations/:id|:kind/targets
 GET /api/workspaces/:workspace/integrations/:id|:kind/teams
 GET /api/workspaces/:workspace/integrations/:id|:kind/teams/:team/links
 GET /api/workspaces/:workspace/integrations/github/install
+GET /api/workspaces/:workspace/members/sign-in
+GET /api/workspaces/:workspace/picture
 GET /api/workspaces/:workspace/search
 GET /api/workspaces/:workspace/settings
 GET /api/workspaces/:workspace/sidebar
@@ -125,6 +129,8 @@ HEAD /api/workspaces/:workspace/integrations/:id|:kind/targets
 HEAD /api/workspaces/:workspace/integrations/:id|:kind/teams
 HEAD /api/workspaces/:workspace/integrations/:id|:kind/teams/:team/links
 HEAD /api/workspaces/:workspace/integrations/github/install
+HEAD /api/workspaces/:workspace/members/sign-in
+HEAD /api/workspaces/:workspace/picture
 HEAD /api/workspaces/:workspace/search
 HEAD /api/workspaces/:workspace/settings
 HEAD /api/workspaces/:workspace/sidebar
@@ -204,12 +210,14 @@ POST /v2/uploads/:buildId/:sha256
 POST /webhooks/:kind
 PUT /api/auth/sign-in/email-otp
 PUT /api/inbox/preferences
+PUT /api/instance/health/address-checklist/dismissed
 PUT /api/teams/:workspace/:team/github
 PUT /api/teams/:workspace/:team/rules/:id
 PUT /api/teams/:workspace/:team/rules/order
 PUT /api/teams/:workspace/:team/sites/:site/domain
 PUT /api/teams/:workspace/:team/triage-rotation
 PUT /api/workspaces/:workspace/integrations/:id|:kind/teams/:team
+PUT /api/workspaces/:workspace/picture
 PUT /api/workspaces/:workspace/pinned-teams/:team
 PUT /api/workspaces/:workspace/views/order
 PUT /v1/files/:sha256

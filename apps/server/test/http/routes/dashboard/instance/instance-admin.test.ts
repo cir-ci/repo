@@ -14,6 +14,7 @@ import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { instanceProbes } from '#composition/doctor-probes.ts'
 import { runDoctor } from '#composition/doctor.ts'
 import { buildServer } from '#http/app.ts'
 import { caller } from '#test/support/client.ts'
@@ -336,15 +337,26 @@ describe('settings and mail', () => {
   })
 })
 
+const shape = (f: { id: string; level: string }) => `${f.id}:${f.level}`
+const checklist = async () =>
+  (
+    await asAdmin('GET', '/api/instance/health/address-checklist')
+  ).json<InstanceAdmin.AddressChecklist>()
+
 describe('health', () => {
   it('runs the same doctor checks as the CLI', async () => {
     const res = await asAdmin('GET', '/api/instance/health/checks')
     expect(res.statusCode).toBe(200)
-    const expected = await runDoctor(config, fetchHost, new FsStorage({ path: dir }))
-    const body = res.json<InstanceAdmin.Checks>()
-    expect(body.findings.map(({ fix, ...f }) => ({ ...f, ...(fix ? { fix } : {}) }))).toEqual(
-      expected,
+    const expected = await runDoctor(
+      config,
+      fetchHost,
+      new FsStorage({ path: dir }),
+      instanceProbes({ db: t.db, config, mailer }),
     )
+    const body = res.json<InstanceAdmin.Checks>()
+    // Free disk space changes between two calls, so compare what each check is and finds.
+    expect(body.findings.map(shape)).toEqual(expected.map(shape))
+    expect(body.findings.map((f) => f.id)).toEqual(expect.arrayContaining(['database', 'mail']))
     expect(body.warned).toBe(expected.some((f) => f.level === 'warn'))
   })
 
@@ -358,6 +370,20 @@ describe('health', () => {
     )
     expect(body.steps.find((s) => s.id === 'dns')?.values).toContain(`PUBLIC_URL=${ORIGIN}`)
     expect(body.steps.some((s) => s.id === 'github-app')).toBe(false)
+  })
+
+  it('dismisses the move checklist for this address, and shows it again', async () => {
+    expect((await checklist()).dismissed).toBe(false)
+    const url = '/api/instance/health/address-checklist/dismissed'
+    expect((await call('PUT', url, memberCookie)).statusCode).toBe(403)
+    expect((await call('DELETE', url, memberCookie)).statusCode).toBe(403)
+    expect((await checklist()).dismissed).toBe(false)
+    expect((await call('PUT', url, adminCookie)).statusCode).toBe(204)
+    const hidden = await checklist()
+    expect(hidden.dismissed).toBe(true)
+    expect(hidden.steps.length).toBeGreaterThan(0)
+    expect((await call('DELETE', url, adminCookie)).statusCode).toBe(204)
+    expect((await checklist()).dismissed).toBe(false)
   })
 
   it('counts jobs per queue', async () => {

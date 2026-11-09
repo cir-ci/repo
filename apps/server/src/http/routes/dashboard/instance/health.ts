@@ -1,7 +1,9 @@
 import type { InstanceAdmin } from '@circi/api'
-import { getQueueDepth } from '@circi/db/queries'
+import { getMoveChecklistDismissedFor, getQueueDepth } from '@circi/db/queries'
+import { dismissMoveChecklist, restoreMoveChecklist } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 
+import { instanceProbes } from '#composition/doctor-probes.ts'
 import { httpFetcher, runDoctor } from '#composition/doctor.ts'
 import { addressChecklist } from '#composition/instance-settings.ts'
 import { requireInstanceAdmin } from '#http/hooks/instance-admin.ts'
@@ -21,6 +23,7 @@ export const dashboardInstanceHealthRoutes: FastifyPluginAsync<Deps.Dashboard> =
       deps.instance.config,
       deps.instance.fetchHost ?? httpFetcher,
       deps.storage,
+      instanceProbes({ db: deps.db, config: deps.instance.config, mailer: deps.instance.mailer }),
     )
     const checks: InstanceAdmin.Checks = {
       findings: found.map((f): InstanceAdmin.Finding => ({
@@ -36,8 +39,26 @@ export const dashboardInstanceHealthRoutes: FastifyPluginAsync<Deps.Dashboard> =
 
   app.get('/instance/health/address-checklist', async (_req, reply) => {
     if (!deps.instance) return reply.code(501).send({ error: 'The checklist is not available' })
-    const checklist: InstanceAdmin.AddressChecklist = addressChecklist(deps.instance, deps)
-    return checklist
+    const checklist = addressChecklist(deps.instance, deps)
+    const dismissedFor = await getMoveChecklistDismissedFor(deps.db)
+    const result: InstanceAdmin.AddressChecklist = {
+      ...checklist,
+      dismissed: dismissedFor === checklist.publicUrl,
+    }
+    return result
+  })
+
+  /** Hides the checklist for the current address; a different `PUBLIC_URL` brings it back. */
+  app.put('/instance/health/address-checklist/dismissed', async (_req, reply) => {
+    if (!deps.instance) return reply.code(501).send({ error: 'The checklist is not available' })
+    await dismissMoveChecklist(deps.db, deps.instance.config.publicUrl.origin)
+    return reply.code(204).send()
+  })
+
+  /** Shows the checklist again. */
+  app.delete('/instance/health/address-checklist/dismissed', async (_req, reply) => {
+    await restoreMoveChecklist(deps.db)
+    return reply.code(204).send()
   })
 
   app.get('/instance/health/queues', async (): Promise<InstanceAdmin.Queues> => {

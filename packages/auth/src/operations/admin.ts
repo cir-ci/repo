@@ -136,13 +136,13 @@ export async function createWorkspace(
 
 /**
  * Renames a workspace and/or changes its slug (the address `<PUBLIC_URL>/<slug>/…`; old
- * addresses do not redirect). The slug follows the same rules as at creation (reserved words,
+ * addresses do not redirect). `logo` (the picture's key, or null to remove it) is optional. The slug follows the same rules as at creation (reserved words,
  * shape) and must be free. Written through better-auth's adapter, which owns the table.
  */
 export async function updateWorkspace(
   auth: Auth,
   db: Database,
-  input: { workspaceId: string; name?: string; slug?: string },
+  input: { workspaceId: string; name?: string; slug?: string; logo?: string | null },
 ): Promise<{ name: string; slug: string }> {
   const [current] = await db
     .select()
@@ -160,12 +160,13 @@ export async function updateWorkspace(
       .where(eq(schema.workspace.slug, slug))
     if (taken) throw new ConflictError(`The address "${slug}" is already taken`)
   }
-  if (name !== current.name || slug !== current.slug) {
+  const logoChanged = input.logo !== undefined && input.logo !== current.logo
+  if (name !== current.name || slug !== current.slug || logoChanged) {
     const context = await auth.$context
     await context.adapter.update({
       model: 'organization',
       where: [{ field: 'id', value: input.workspaceId }],
-      update: { name, slug },
+      update: { name, slug, ...(logoChanged ? { logo: input.logo } : {}) },
     })
   }
   return { name, slug }

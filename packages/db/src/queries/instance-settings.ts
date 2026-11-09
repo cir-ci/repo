@@ -29,6 +29,13 @@ export async function getPublicUrlChange(db: Database): Promise<PublicUrlChange 
   }
 }
 
+export const MOVE_CHECKLIST_DISMISSED_KEY = 'move_checklist_dismissed'
+
+/** The `PUBLIC_URL` origin the "Moving to …" checklist was dismissed for, if it was. */
+export async function getMoveChecklistDismissedFor(db: Database): Promise<string | undefined> {
+  return getSetting(db, MOVE_CHECKLIST_DISMISSED_KEY)
+}
+
 /** The steps to finish after moving the dashboard (PLAN §7.9), for the log and the admin banner. */
 export function publicUrlChecklist(change: Pick<PublicUrlChange, 'from' | 'to'>): string[] {
   return [

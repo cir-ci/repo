@@ -11,6 +11,7 @@ const general = (canManage = true, over: object = {}) => ({
   isOwner: canManage,
   name: 'Acme Inc',
   slug: 'acme',
+  picture: null,
   ...over,
 })
 const settings = (canManage = true) => ({
@@ -26,6 +27,82 @@ const slug = () => page.getByRole('textbox', { name: 'URL slug' })
 const save = () => page.getByRole('button', { name: 'Save changes' })
 
 describe('WorkspaceGeneralPage', () => {
+  it('shows the picture row: the first letter without a picture, Upload for a manager', async () => {
+    await page.viewport(1000, 900)
+    fakeApi({
+      'GET /api/workspaces/acme': { body: general() },
+      'GET /api/workspaces/acme/settings': { body: settings() },
+    })
+    await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    await expect.element(page.getByText('Picture', { exact: true })).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Upload picture' })).toBeEnabled()
+    expect(page.getByRole('button', { name: 'Remove' }).elements()).toHaveLength(0)
+  })
+
+  it('shows the picture, replaces it and removes it', async () => {
+    await page.viewport(1000, 900)
+    const api = fakeApi({
+      'GET /api/workspaces/acme': {
+        body: general(true, { picture: '/api/workspaces/acme/picture?v=abc' }),
+      },
+      'GET /api/workspaces/acme/settings': { body: settings() },
+      'PUT /api/workspaces/acme/picture': {
+        body: { picture: '/api/workspaces/acme/picture?v=def' },
+      },
+      'DELETE /api/workspaces/acme/picture': { body: { picture: null } },
+    })
+    await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    await expect.element(page.getByRole('button', { name: 'Replace picture' })).toBeVisible()
+    expect(document.querySelector('img[src="/api/workspaces/acme/picture?v=abc"]')).not.toBeNull()
+
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]')
+    const file = new File([new Uint8Array([137, 80, 78, 71])], 'logo.png', { type: 'image/png' })
+    const transfer = new DataTransfer()
+    transfer.items.add(file)
+    if (!input) throw new Error('no file input')
+    input.files = transfer.files
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+    await expect.poll(() => api.of('PUT')).toHaveLength(1)
+
+    await page.getByRole('button', { name: 'Remove' }).click()
+    await expect.poll(() => api.of('DELETE')).toHaveLength(1)
+  })
+
+  it('refuses a file of the wrong type or size before sending it', async () => {
+    await page.viewport(1000, 900)
+    const api = fakeApi({
+      'GET /api/workspaces/acme': { body: general() },
+      'GET /api/workspaces/acme/settings': { body: settings() },
+      'PUT /api/workspaces/acme/picture': { body: { picture: 'x' } },
+    })
+    await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    await expect.element(page.getByRole('button', { name: 'Upload picture' })).toBeVisible()
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]')
+    if (!input) throw new Error('no file input')
+    const send = (file: File) => {
+      const transfer = new DataTransfer()
+      transfer.items.add(file)
+      input.files = transfer.files
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+    }
+    send(new File(['<svg/>'], 'logo.svg', { type: 'image/svg+xml' }))
+    await expect.element(page.getByText('Use a PNG, JPEG or WebP image')).toBeVisible()
+    send(new File([new Uint8Array(1024 * 1024 + 1)], 'big.png', { type: 'image/png' }))
+    await expect.element(page.getByText('Use an image of at most 1 MB')).toBeVisible()
+    expect(api.of('PUT')).toHaveLength(0)
+  })
+
+  it('hides Upload from people who cannot manage the workspace', async () => {
+    await page.viewport(1000, 900)
+    fakeApi({
+      'GET /api/workspaces/acme': { body: general(false) },
+      'GET /api/workspaces/acme/settings': { body: settings(false) },
+    })
+    await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    await expect.element(page.getByText('Picture', { exact: true })).toBeVisible()
+    expect(page.getByRole('button', { name: 'Upload picture' }).elements()).toHaveLength(0)
+  })
+
   it('shows the name, address, merge defaults and a danger zone', async () => {
     await page.viewport(1000, 900)
     fakeApi({

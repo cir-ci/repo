@@ -18,6 +18,7 @@ import { BuildSettings } from './BuildSettings.tsx'
 import { DeleteWorkspaceSection } from './DeleteWorkspaceSection.tsx'
 import { Frame } from './Frame.tsx'
 import { generalDirty, generalPatch, generalProblems } from './model.ts'
+import { PictureRow } from './PictureRow.tsx'
 
 import styles from './Settings.module.css'
 
@@ -49,6 +50,7 @@ export function WorkspaceGeneralPage() {
             key={`${data.name}/${data.slug}`}
             workspace={workspace}
             saved={{ name: data.name, slug: data.slug }}
+            picture={data.picture}
             canManage={data.canManage}
           />
           <BuildSettings workspace={workspace} />
@@ -59,7 +61,7 @@ export function WorkspaceGeneralPage() {
   )
 }
 
-function IdentityForm({ workspace, saved, canManage }: IdentityForm.Props) {
+function IdentityForm({ workspace, saved, picture, canManage }: IdentityForm.Props) {
   const navigate = useNavigate()
   const announce = useAnnounce()
   const save = useSaveWorkspaceGeneral(workspace)
@@ -94,6 +96,12 @@ function IdentityForm({ workspace, saved, canManage }: IdentityForm.Props) {
         title={<span id="identity">Workspace</span>}
         description="Shown in the sidebar, in invitations and in pull request comments."
       >
+        <PictureRow
+          workspace={workspace}
+          name={saved.name}
+          picture={picture}
+          canManage={canManage}
+        />
         <SettingsRow>
           <div className={styles.fieldRow}>
             <TextField
@@ -151,6 +159,7 @@ namespace IdentityForm {
   export interface Props {
     workspace: string
     saved: { name: string; slug: string }
+    picture: string | null
     canManage: boolean
   }
 }

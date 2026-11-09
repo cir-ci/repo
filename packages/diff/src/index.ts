@@ -186,3 +186,40 @@ export async function makeThumbnail(png: Buffer): Promise<makeThumbnail.Result> 
     .toBuffer({ resolveWithObject: true })
   return { webp: data, width: out.width, height: out.height }
 }
+
+export namespace makeWorkspacePicture {
+  export interface Result {
+    /** A PNG, `size` pixels square. */
+    png: Buffer
+    /** What the upload was (`png`, `jpeg` or `webp`). */
+    format: string
+  }
+}
+
+/**
+ * A workspace's picture from an upload: checks the bytes really are a PNG, JPEG or WebP (whatever
+ * the client claimed), crops to the centre square and resizes to `size` pixels. Transparency is
+ * kept; the result is always a PNG, and EXIF rotation is applied.
+ */
+export async function makeWorkspacePicture(
+  input: Buffer,
+  size: number,
+): Promise<makeWorkspacePicture.Result> {
+  let format: string | undefined
+  try {
+    format = (await sharp(input, { limitInputPixels: MAX_INPUT_PIXELS }).metadata()).format
+  } catch (err) {
+    throw new InvalidImageError(
+      `Not a readable image: ${err instanceof Error ? err.message : String(err)}`,
+    )
+  }
+  if (format !== 'png' && format !== 'jpeg' && format !== 'webp') {
+    throw new InvalidImageError(`Expected a PNG, JPEG or WebP image, got ${format ?? 'unknown'}`)
+  }
+  const png = await sharp(input, { limitInputPixels: MAX_INPUT_PIXELS })
+    .rotate()
+    .resize(size, size, { fit: 'cover', position: 'centre' })
+    .png()
+    .toBuffer()
+  return { png, format }
+}

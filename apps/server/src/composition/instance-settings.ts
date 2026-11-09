@@ -54,7 +54,10 @@ export function describeSettings(instance: Instance, scope: Scope): InstanceAdmi
  * What to change when `PUBLIC_URL` changes, computed from the current configuration: only the
  * parts this instance uses are listed. The same facts as `publicUrlChecklist`, with the values.
  */
-export function addressChecklist(instance: Instance, scope: Scope): InstanceAdmin.AddressChecklist {
+export function addressChecklist(
+  instance: Instance,
+  scope: Scope,
+): Omit<InstanceAdmin.AddressChecklist, 'dismissed'> {
   const { config } = instance
   const origin = config.publicUrl.origin
   const steps: InstanceAdmin.AddressStep[] = [

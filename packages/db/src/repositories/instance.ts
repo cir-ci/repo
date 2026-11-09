@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 
 import {
   getSetting,
+  MOVE_CHECKLIST_DISMISSED_KEY,
   PUBLIC_URL_CHANGE_KEY,
   type PublicUrlChange,
 } from '#queries/instance-settings.ts'
@@ -43,4 +44,14 @@ export async function recordPublicUrl(
 
 export async function dismissPublicUrlChange(db: Database): Promise<void> {
   await deleteSetting(db, PUBLIC_URL_CHANGE_KEY)
+}
+
+/** Hides the "Moving to …" checklist for `origin`; a different `PUBLIC_URL` later shows it again. */
+export async function dismissMoveChecklist(db: Database, origin: string): Promise<void> {
+  await setSetting(db, MOVE_CHECKLIST_DISMISSED_KEY, origin)
+}
+
+/** Shows the "Moving to …" checklist again. */
+export async function restoreMoveChecklist(db: Database): Promise<void> {
+  await deleteSetting(db, MOVE_CHECKLIST_DISMISSED_KEY)
 }

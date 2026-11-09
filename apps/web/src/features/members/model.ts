@@ -32,3 +32,20 @@ export function validateInvite(email: string): Problems<'email'> {
     return { email: 'That doesn’t look like an email address' }
   return {}
 }
+
+const METHOD_LABEL: Record<string, string> = {
+  password: 'Password',
+  sso: 'SSO',
+  oidc: 'SSO',
+  github: 'GitHub',
+  google: 'Google',
+  gitlab: 'GitLab',
+}
+
+/** The tags of one member's sign-in methods ("Password", "GitHub"…), one per label, in the server's order. */
+export function signInTags(methods: readonly string[]): string[] {
+  const labels = methods.map(
+    (m) => METHOD_LABEL[m] ?? (m ? m.charAt(0).toUpperCase() + m.slice(1) : m),
+  )
+  return [...new Set(labels)]
+}

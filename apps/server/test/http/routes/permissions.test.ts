@@ -54,6 +54,8 @@ const MEMBER_WRITABLE = new Set([
 
 /** Writes only owners and admins may make (members get 403). */
 const ADMIN_ONLY = new Set([
+  `PUT ${WORKSPACE}/picture`,
+  `DELETE ${WORKSPACE}/picture`,
   `DELETE ${TEAM}`,
   `PATCH ${TEAM}/settings`,
   `PATCH ${TEAM}/appearance`,

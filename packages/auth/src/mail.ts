@@ -20,6 +20,8 @@ export namespace Mailer {
 
 export interface Mailer {
   send(mail: Mailer.Mail): Promise<void>
+  /** Connects and logs in to the mail server without sending anything; rejects with the reason. */
+  verify?(): Promise<void>
 }
 
 export function createSmtpMailer(options: Mailer.SmtpOptions): Mailer {
@@ -34,6 +36,9 @@ export function createSmtpMailer(options: Mailer.SmtpOptions): Mailer {
   return {
     async send(mail) {
       await transport.sendMail({ from: options.from, ...mail })
+    },
+    async verify() {
+      await transport.verify()
     },
   }
 }

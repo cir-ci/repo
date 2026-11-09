@@ -18,3 +18,12 @@ export {
   workspacePurgeAt,
   workspacePurgeCutoff,
 } from './workspace-deletion.ts'
+export {
+  WORKSPACE_PICTURE_MAX_BYTES,
+  WORKSPACE_PICTURE_PREFIX,
+  WORKSPACE_PICTURE_SIZE,
+  WORKSPACE_PICTURE_TYPES,
+  workspacePictureKey,
+  workspacePictureSha,
+  workspacePictureUrl,
+} from './workspace-picture.ts'

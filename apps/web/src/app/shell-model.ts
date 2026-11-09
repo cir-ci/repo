@@ -7,6 +7,8 @@ import type { Shortcut } from '#lib/shortcuts.ts'
 export interface WorkspaceRef {
   slug: string
   name: string
+  /** Where the workspace's picture is served from; absent or null: the first letter shows. */
+  picture?: string | null
 }
 
 /** How many of the workspace's teams the sidebar lists before "All teams". */
@@ -23,8 +25,18 @@ export function listWorkspaces(
 ): WorkspaceRef[] {
   const bySlug = new Map<string, WorkspaceRef>()
   for (const p of teams ?? [])
-    bySlug.set(p.workspace.slug, { slug: p.workspace.slug, name: p.workspace.name })
-  for (const o of manageable ?? []) bySlug.set(o.slug, { slug: o.slug, name: o.name })
+    bySlug.set(p.workspace.slug, {
+      slug: p.workspace.slug,
+      name: p.workspace.name,
+      picture: p.workspace.picture,
+    })
+  for (const o of manageable ?? []) {
+    bySlug.set(o.slug, {
+      slug: o.slug,
+      name: o.name,
+      picture: o.picture ?? bySlug.get(o.slug)?.picture,
+    })
+  }
   if (routeWorkspace && !bySlug.has(routeWorkspace))
     bySlug.set(routeWorkspace, { slug: routeWorkspace, name: routeWorkspace })
   return [...bySlug.values()].toSorted((a, b) => a.name.localeCompare(b.name))

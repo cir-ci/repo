@@ -26,6 +26,7 @@ describe('workspace name, address and default retention', () => {
       isOwner: false,
       name: expect.any(String),
       slug: acme.workspaceSlug,
+      picture: null,
     })
     const res = await call('PATCH', workspace(), ownerCookie, { name: 'Acme Inc' })
     expect(res.statusCode).toBe(200)

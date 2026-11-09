@@ -202,6 +202,18 @@ describe('health', () => {
     expect(groups.domains.map((x) => x.id)).toEqual(['public-url', 'host:acme.io'])
   })
 
+  it('puts storage, disk, database and mail under services', () => {
+    const groups = groupFindings([
+      f('mail', 'info'),
+      f('host:acme.io', 'ok'),
+      f('disk', 'warn'),
+      f('database', 'ok'),
+      f('storage', 'ok'),
+    ])
+    expect(groups.services.map((x) => x.id)).toEqual(['disk', 'mail', 'database', 'storage'])
+    expect(groups.domains.map((x) => x.id)).toEqual(['host:acme.io'])
+  })
+
   it('counts passing, warned and noted findings, leaving the reminder out', () => {
     expect(
       findingCounts([

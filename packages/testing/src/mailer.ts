@@ -9,6 +9,12 @@ export namespace fakeMailer {
     /** Every mail "sent", in order. */
     sent: Mail[]
     send(mail: Mail): Promise<void>
+    /** Stands in for the SMTP check: resolves, or rejects with `verifyError` when set. */
+    verify(): Promise<void>
+    /** Makes `verify` reject with this error (as a mail server that refuses the login would). */
+    verifyError?: Error
+    /** How many times `verify` ran (it never sends). */
+    verified: number
     /** Resolves when every send started so far has finished. */
     idle(): Promise<void>
   }
@@ -18,8 +24,13 @@ export namespace fakeMailer {
 export function fakeMailer(): fakeMailer.Result {
   const sent: fakeMailer.Mail[] = []
   const pending = new Set<Promise<void>>()
-  return {
+  const mailer: fakeMailer.Result = {
     sent,
+    verified: 0,
+    async verify() {
+      mailer.verified += 1
+      if (mailer.verifyError) throw mailer.verifyError
+    },
     send(mail) {
       const p = Promise.resolve().then(() => {
         sent.push(mail)
@@ -32,4 +43,5 @@ export function fakeMailer(): fakeMailer.Result {
       await Promise.all(pending)
     },
   }
+  return mailer
 }

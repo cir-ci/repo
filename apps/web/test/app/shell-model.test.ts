@@ -23,7 +23,7 @@ import {
 } from '#app/shell-model.ts'
 
 const overview = (workspace: string, team: string): Team.Overview => ({
-  workspace: { slug: workspace, name: workspace.toUpperCase() },
+  workspace: { slug: workspace, name: workspace.toUpperCase(), picture: null },
   team: { slug: team, name: team, defaultBranch: 'main', color: 'slate', icon: null },
   latestBuild: null,
 })
@@ -32,7 +32,7 @@ describe('listWorkspaces', () => {
   it('collects the workspaces of the teams, the manageable ones and the one in the address', () => {
     const workspaces = listWorkspaces(
       [overview('beta', 'x'), overview('beta', 'y'), overview('alpha', 'z')],
-      [{ slug: 'gamma', name: 'Gamma' }],
+      [{ slug: 'gamma', name: 'Gamma', picture: null }],
       'delta',
     )
     expect(workspaces.map((o) => o.slug)).toEqual(['alpha', 'beta', 'delta', 'gamma'])

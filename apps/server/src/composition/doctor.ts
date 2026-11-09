@@ -1,10 +1,14 @@
+import { statfs } from 'node:fs/promises'
+
 import type { Config } from '@circi/config'
 
 /**
  * Best-effort checks of the things CirCI can't enforce (PLAN §7.6): cookies that other hosts on
  * the dashboard's domain or the sites domain set for a whole domain, and anything served on the
  * sites domain's apex. It only sees the hosts it asks about, so it always ends with a reminder.
- * Shared by `circi admin doctor` and the dashboard's Instance › Health page.
+ * Shared by `circi admin doctor` and the dashboard's Instance › Health page. With `probes` it also
+ * checks the instance itself: the database (reachable, migrated), mail (SMTP accepts a login,
+ * nothing is sent) and, for local storage, free disk space.
  */
 
 export namespace runDoctor {
@@ -16,6 +20,141 @@ export namespace runDoctor {
     message: string
     /** What to do about a `warn` (and sometimes an `info`). */
     fix?: string
+  }
+
+  /** What the checks that need more than the configuration ask of the running instance. */
+  export interface Probes {
+    /** The mailer; its `verify` connects to the SMTP server without sending. */
+    mailer?: { verify?(): Promise<void> }
+    /** The database: a ping and how many migrations are applied against how many ship. */
+    database?: {
+      ping(): Promise<void>
+      migrations(): Promise<{ applied: number; available: number }>
+    }
+    /** Free space at a path; default `fs.statfs`. */
+    diskSpace?: (path: string) => Promise<{ free: number; total: number }>
+  }
+}
+
+/** Below this share of the disk free, or this many bytes, the storage disk is called low. */
+export const DISK_LOW_SHARE = 0.1
+export const DISK_LOW_BYTES = 2 * 1024 ** 3
+
+const GB = 1024 ** 3
+const gb = (bytes: number) => `${(bytes / GB).toFixed(bytes < 10 * GB ? 1 : 0)} GB`
+
+/** Free and total bytes at `path` (what a non-root process may use). */
+export async function statDisk(path: string): Promise<{ free: number; total: number }> {
+  const s = await statfs(path)
+  return { free: s.bavail * s.bsize, total: s.blocks * s.bsize }
+}
+
+/** The mail check: connect to the SMTP server and log in, without sending anything. */
+export async function checkMail(
+  config: Pick<Config, 'smtp'>,
+  mailer: runDoctor.Probes['mailer'],
+): Promise<runDoctor.Finding> {
+  const { smtp } = config
+  if (!smtp) {
+    return {
+      id: 'mail',
+      level: 'info',
+      message:
+        'Mail is not set up (SMTP_HOST is not set): sign-in codes, invitations and email notifications are off.',
+    }
+  }
+  const where = `${smtp.host}:${smtp.port}`
+  if (!mailer?.verify) {
+    return {
+      id: 'mail',
+      level: 'info',
+      message: `Mail (${where}) is configured but was not tested.`,
+    }
+  }
+  try {
+    await mailer.verify()
+    return { id: 'mail', level: 'ok', message: `Mail server ${where} accepted the connection.` }
+  } catch (err) {
+    return {
+      id: 'mail',
+      level: 'warn',
+      message: `Mail server ${where} did not accept the connection: ${err instanceof Error ? err.message : String(err)}`,
+      fix: 'Check SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER and SMTP_PASSWORD (`circi admin mail test --to <address>` sends a real test mail).',
+    }
+  }
+}
+
+/** The database check: reachable, and migrated as far as this version expects. */
+export async function checkDatabase(
+  database: NonNullable<runDoctor.Probes['database']>,
+): Promise<runDoctor.Finding> {
+  try {
+    await database.ping()
+  } catch (err) {
+    return {
+      id: 'database',
+      level: 'warn',
+      message: `The database is not reachable: ${err instanceof Error ? err.message : String(err)}`,
+      fix: 'Check DATABASE_URL and that Postgres is running.',
+    }
+  }
+  try {
+    const { applied, available } = await database.migrations()
+    if (applied < available) {
+      return {
+        id: 'database',
+        level: 'warn',
+        message: `The database is reachable, but only ${applied} of ${available} migrations are applied.`,
+        fix: 'Run `circi migrate`, or restart the server (it migrates on start unless --no-migrate is set).',
+      }
+    }
+    if (applied > available) {
+      return {
+        id: 'database',
+        level: 'warn',
+        message: `The database has ${applied} migrations applied, but this version of CirCI knows ${available}: it was migrated by a newer version.`,
+        fix: 'Run the same version of CirCI everywhere, or roll the database back from a backup.',
+      }
+    }
+    return {
+      id: 'database',
+      level: 'ok',
+      message: `The database is reachable and all ${available} migrations are applied.`,
+    }
+  } catch (err) {
+    return {
+      id: 'database',
+      level: 'info',
+      message: `The database is reachable, but its migrations could not be counted: ${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
+}
+
+/** The disk check for local storage: warns below 10% free or 2 GB. */
+export async function checkDisk(
+  path: string,
+  diskSpace: NonNullable<runDoctor.Probes['diskSpace']>,
+): Promise<runDoctor.Finding> {
+  try {
+    const { free, total } = await diskSpace(path)
+    const share = total > 0 ? free / total : 0
+    const text = `${gb(free)} free of ${gb(total)} (${Math.round(share * 100)}%) at ${path}`
+    if (share < DISK_LOW_SHARE || free < DISK_LOW_BYTES) {
+      return {
+        id: 'disk',
+        level: 'warn',
+        message: `Storage disk is running low: ${text}.`,
+        fix: 'Free space (`circi admin storage gc`), lower the teams’ retention, grow the volume or move to S3 (`circi admin storage migrate`).',
+      }
+    }
+    return { id: 'disk', level: 'ok', message: `Storage disk has room: ${text}.` }
+  } catch (err) {
+    return {
+      id: 'disk',
+      level: 'warn',
+      message: `Free space at ${path} could not be read: ${err instanceof Error ? err.message : String(err)}`,
+      fix: 'Check that STORAGE_PATH exists.',
+    }
   }
 }
 
@@ -33,9 +172,10 @@ export function domainCookies(setCookies: readonly string[]): string[] {
 export type Fetcher = (url: string) => Promise<{ status: number; setCookies: string[] } | undefined>
 
 export async function runDoctor(
-  config: Pick<Config, 'publicUrl' | 'staticSites'>,
+  config: Pick<Config, 'publicUrl' | 'staticSites'> & Partial<Pick<Config, 'smtp' | 'storage'>>,
   fetchHost: Fetcher,
   storage?: { kind: string; healthCheck(): Promise<void> },
+  probes?: runDoctor.Probes,
 ): Promise<runDoctor.Finding[]> {
   const findings: runDoctor.Finding[] = []
   if (storage) {
@@ -57,6 +197,14 @@ export async function runDoctor(
             : 'Check that STORAGE_PATH exists and the server may write to it.',
       })
     }
+  }
+  // The checks that ask the running instance (disk, database, mail) run when probes are given.
+  if (probes) {
+    if (config.storage?.driver === 'fs') {
+      findings.push(await checkDisk(config.storage.path, probes.diskSpace ?? statDisk))
+    }
+    if (probes.database) findings.push(await checkDatabase(probes.database))
+    findings.push(await checkMail({ smtp: config.smtp }, probes.mailer))
   }
   const dashboard = config.publicUrl.hostname
   if (config.publicUrl.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(dashboard)) {

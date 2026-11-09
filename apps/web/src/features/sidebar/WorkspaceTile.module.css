@@ -32,3 +32,15 @@
   background: var(--circi-surface-highest);
   color: var(--circi-text-primary);
 }
+
+.root[data-picture] {
+  overflow: hidden;
+  background: transparent;
+}
+
+.picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

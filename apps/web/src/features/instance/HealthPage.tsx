@@ -29,6 +29,7 @@ import {
   queuesQuery,
   queueTotals,
   stepDone,
+  useDismissChecklist,
 } from './api/admin.ts'
 
 /** The doctor's checks in groups, the address-change checklist, the job queues and the setup code. */
@@ -190,11 +191,26 @@ function FindingRow({ finding: f }: { finding: InstanceAdmin.Finding }) {
 
 function ChecklistSection(props: { checklist: InstanceAdmin.AddressChecklist | undefined }) {
   const { checklist } = props
+  const dismiss = useDismissChecklist()
   if (!checklist) return null
+  if (checklist.dismissed) {
+    return (
+      <Text variant="small" tone="tertiary">
+        <Button variant="link" onClick={() => dismiss.mutate(false)}>
+          Show the move checklist
+        </Button>
+      </Text>
+    )
+  }
   return (
     <SettingsSection
       title={`Moving to ${hostOf(checklist.publicUrl)}`}
       description={`CirCI is at ${checklist.publicUrl}. When PUBLIC_URL changes, old links redirect, but a few registrations outside CirCI still name the old address.`}
+      actions={
+        <Button variant="ghost" loading={dismiss.isPending} onClick={() => dismiss.mutate(true)}>
+          Dismiss
+        </Button>
+      }
     >
       {checklist.steps.map((step, i) => {
         const done = stepDone(step)

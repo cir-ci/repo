@@ -51,6 +51,12 @@ const SETTINGS = {
     settings: { emailLoginEnabled: true, passwordLoginEnabled: true },
     instance: { password: true, email: true },
   },
+  'GET /api/workspaces/%24workspace/members/sign-in': {
+    members: [
+      { userId: 'u1', methods: ['password', 'sso'] },
+      { userId: 'u2', methods: ['github', 'google', 'oidc'] },
+    ],
+  },
   'GET /api/workspaces/%24workspace/domains': { domains: [] },
   'GET /api/workspaces/%24workspace/sso': { providers: [] },
 }
@@ -83,6 +89,34 @@ describe('MembersPage', () => {
     await expect
       .element(page.getByRole('status').filter({ hasText: 'Loading members' }))
       .toBeInTheDocument()
+  })
+
+  it('tags each member with how they sign in: one tag per method, SSO once', async () => {
+    await page.viewport(1000, 800)
+    await show()
+    const adaTags = page.getByRole('list', { name: 'How Ada Lovelace signs in' })
+    await expect.element(adaTags).toBeVisible()
+    expect(
+      adaTags
+        .getByRole('listitem')
+        .elements()
+        .map((e) => e.textContent),
+    ).toEqual(['Password', 'SSO'])
+    const graceTags = page.getByRole('list', { name: 'How Grace Hopper signs in' })
+    expect(
+      graceTags
+        .getByRole('listitem')
+        .elements()
+        .map((e) => e.textContent),
+    ).toEqual(['GitHub', 'Google', 'SSO'])
+  })
+
+  it('shows no tags to people who may not see them', async () => {
+    await page.viewport(1000, 800)
+    setSignedInUser({ ...ADA, id: 'u2' })
+    await show()
+    await expect.element(page.getByText('Grace Hopper')).toBeVisible()
+    expect(page.getByRole('list', { name: /signs in/ }).elements()).toHaveLength(0)
   })
 
   it('lists members with avatar, name, email and role, and the pending invitations', async () => {

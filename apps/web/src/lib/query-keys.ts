@@ -41,6 +41,7 @@ export const keys = {
   // Workspaces.
   workspace: (workspace: string) => ['workspace', workspace] as const,
   workspaceGeneral: (workspace: string) => ['workspace-general', workspace] as const,
+  memberSignIn: (workspace: string) => ['member-sign-in', workspace] as const,
   workspaceStorage: (workspace: string) => ['workspace-storage', workspace] as const,
   workspaceAuth: (workspace: string) => ['workspace-auth', workspace] as const,
   workspaceSettings: (workspace: string) => ['workspace-settings', workspace] as const,

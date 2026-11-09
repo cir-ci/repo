@@ -47,6 +47,7 @@ const ROUTES = {
   'GET /api/instance/health/address-checklist': {
     body: {
       publicUrl: 'https://ci.acme.io',
+      dismissed: false,
       steps: [
         {
           id: 'dns',
@@ -163,5 +164,74 @@ describe('the health page', () => {
     await show()
     await expect.element(page.getByText('Health checks are not available')).toBeVisible()
     await expect.element(page.getByText('14 waiting · 3 running · 1 failed')).toBeVisible()
+  })
+
+  it('lists Mail, Database and Disk with the storage check under Services, each with a badge', async () => {
+    fakeApi({
+      ...ROUTES,
+      'GET /api/instance/health/checks': {
+        body: {
+          warned: true,
+          findings: [
+            { id: 'storage', level: 'ok', message: 'Storage (fs) is writable.', fix: null },
+            {
+              id: 'disk',
+              level: 'warn',
+              message: 'Storage disk is running low: 1.0 GB free of 8.0 GB (13%).',
+              fix: 'Free space.',
+            },
+            {
+              id: 'database',
+              level: 'ok',
+              message: 'The database is reachable and all 3 migrations are applied.',
+              fix: null,
+            },
+            {
+              id: 'mail',
+              level: 'info',
+              message: 'Mail is not set up (SMTP_HOST is not set).',
+              fix: null,
+            },
+          ],
+        },
+      },
+    })
+    await show()
+    const services = page.getByRole('region', { name: 'Services' })
+    await expect.element(services.getByText(/Storage disk is running low/)).toBeVisible()
+    await expect.element(services.getByText(/all 3 migrations are applied/)).toBeVisible()
+    await expect.element(services.getByText(/Mail is not set up/)).toBeVisible()
+    await expect.element(services.getByText('Check', { exact: true })).toBeVisible()
+    await expect.element(services.getByText('Note', { exact: true })).toBeVisible()
+    // Warnings first inside the section.
+    const text = services.element().textContent ?? ''
+    expect(text.indexOf('running low')).toBeLessThan(text.indexOf('Storage (fs)'))
+  })
+
+  it('dismisses the move checklist, and brings it back with a link', async () => {
+    const api = fakeApi({
+      ...ROUTES,
+      'PUT /api/instance/health/address-checklist/dismissed': { status: 204 },
+      'DELETE /api/instance/health/address-checklist/dismissed': { status: 204 },
+    })
+    await show()
+    await page.getByRole('button', { name: 'Dismiss' }).click()
+    await expect.poll(() => api.of('PUT')).toHaveLength(1)
+
+    api.set('GET /api/instance/health/address-checklist', {
+      body: { ...ROUTES['GET /api/instance/health/address-checklist'].body, dismissed: true },
+    })
+    await page.getByRole('button', { name: 'Run checks again' }).click()
+    await expect
+      .element(page.getByRole('button', { name: 'Show the move checklist' }))
+      .toBeVisible()
+    expect(page.getByRole('region', { name: 'Moving to ci.acme.io' }).elements()).toHaveLength(0)
+
+    api.set('GET /api/instance/health/address-checklist', {
+      body: ROUTES['GET /api/instance/health/address-checklist'].body,
+    })
+    await page.getByRole('button', { name: 'Show the move checklist' }).click()
+    await expect.poll(() => api.of('DELETE')).toHaveLength(1)
+    await expect.element(page.getByRole('region', { name: 'Moving to ci.acme.io' })).toBeVisible()
   })
 })

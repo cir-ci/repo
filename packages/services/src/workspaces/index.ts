@@ -11,3 +11,4 @@ export {
   restoreWorkspace,
   WorkspaceDeleteForbiddenError,
 } from './delete.ts'
+export { storeWorkspacePicture } from './picture.ts'

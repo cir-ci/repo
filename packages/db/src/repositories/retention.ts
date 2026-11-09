@@ -1,3 +1,4 @@
+import { WORKSPACE_PICTURE_PREFIX } from '@circi/core'
 import { and, eq, inArray, isNotNull, isNull, lt, sql } from 'drizzle-orm'
 
 import {
@@ -9,6 +10,7 @@ import {
   siteHostnames,
   staticSites,
   uploadClaims,
+  workspace,
 } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { isForeignKeyViolation } from '#src/errors.ts'
@@ -33,12 +35,13 @@ function column(result: unknown, name: string): string[] {
   return rows.map((row: unknown) => String(Reflect.get(Object(row), name)))
 }
 
-/** A file is referenced if anything at all points at it. */
+/** A file is referenced if anything at all points at it (a workspace's picture is named by its `logo`). */
 const isReferenced = (sha: typeof files.sha256) => sql`(
   exists (select 1 from ${screenshots} where ${screenshots.fileSha256} = ${sha} or ${screenshots.thumbnailSha256} = ${sha})
   or exists (select 1 from ${screenshotDiffs} where ${screenshotDiffs.diffFileSha256} = ${sha})
   or exists (select 1 from static_site_files where static_site_files.sha256 = ${sha})
   or exists (select 1 from ${uploadClaims} where ${uploadClaims.fileSha256} = ${sha})
+  or exists (select 1 from ${workspace} where ${workspace.logo} = ${WORKSPACE_PICTURE_PREFIX}::text || ${sha})
 )`
 
 /**

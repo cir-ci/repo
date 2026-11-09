@@ -2,7 +2,7 @@ import type { Storage, Workspace } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { workspacePath } from '#lib/api-paths.ts'
-import { getJson, send } from '#lib/http.ts'
+import { getJson, HttpError, send } from '#lib/http.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
 
 // ---- Workspace General ------------------------------------------------------------------------
@@ -20,6 +20,44 @@ export function useSaveWorkspaceGeneral(workspace: string) {
     mutationFn: (patch: { name?: string; slug?: string }) =>
       send<{ name: string; slug: string }>('PATCH', workspacePath(workspace), patch),
     // The name and address show in the sidebar, the switcher and every page header.
+    onSuccess: () => queryClient.invalidateQueries(),
+  })
+}
+
+/** Sets the workspace's picture from a file (the server resizes it); the error is the server's words. */
+export async function uploadWorkspacePicture(
+  workspace: string,
+  file: File,
+): Promise<Workspace.Picture> {
+  const res = await fetch(workspacePath(workspace, 'picture'), {
+    method: 'PUT',
+    headers: { 'content-type': file.type, accept: 'application/json' },
+    body: file,
+  })
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`
+    try {
+      const body: unknown = await res.json()
+      if (typeof body === 'object' && body !== null && 'error' in body) {
+        message = String(body.error)
+      }
+    } catch {
+      // Keep the status line.
+    }
+    throw new HttpError(res.status, message)
+  }
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+  return (await res.json()) as Workspace.Picture
+}
+
+/** Sets or removes the picture (`null`); it shows in the sidebar and the switcher at once. */
+export function useSaveWorkspacePicture(workspace: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (file: File | null) =>
+      file
+        ? uploadWorkspacePicture(workspace, file)
+        : send<Workspace.Picture>('DELETE', workspacePath(workspace, 'picture')),
     onSuccess: () => queryClient.invalidateQueries(),
   })
 }
