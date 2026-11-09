@@ -33,7 +33,7 @@ describe('SignInPage', () => {
         await expect.element(page.getByRole('heading', { name })).toBeVisible()
       }),
     )
-    await expect.element(page.getByRole('switch', { name: /Password/ })).toBeChecked()
+    await expect.element(page.getByRole('checkbox', { name: /Password/ })).toBeChecked()
     // Single sign-on is a row of the methods, not a section: a Configure button.
     await expect.element(page.getByText('Single sign-on', { exact: true })).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Configure' })).toBeVisible()
@@ -44,7 +44,7 @@ describe('SignInPage', () => {
     await page.viewport(1000, 1000)
     fakeApi(routes(false))
     await renderPage(<SignInPage />, ROUTE)
-    await expect.element(page.getByRole('switch', { name: /Password/ })).toBeDisabled()
+    await expect.element(page.getByRole('checkbox', { name: /Password/ })).toBeDisabled()
     await expect
       .element(page.getByText(/Only owners and admins can change sign-in settings/))
       .toBeVisible()

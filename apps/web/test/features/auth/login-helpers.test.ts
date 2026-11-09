@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest'
 import {
   describeCodeFailure,
   describeFailure,
+  isOriginRefusal,
+  ORIGIN_REFUSED,
   readInvitedEmail,
   readLink,
   ssoErrorMessage,
@@ -95,5 +97,22 @@ describe('withoutSignInLink', () => {
     expect(withoutSignInLink('#invite=abc&email=a%40b.test&code=123456')).toBe(
       '#invite=abc&email=a%40b.test',
     )
+  })
+})
+
+describe('refused origins', () => {
+  it('knows better-auth’s INVALID_ORIGIN, by code or by its 403 message', () => {
+    expect(isOriginRefusal({ status: 403, code: 'INVALID_ORIGIN' })).toBe(true)
+    expect(isOriginRefusal({ status: 403, message: 'Invalid origin' })).toBe(true)
+    expect(isOriginRefusal({ status: 403, message: 'Forbidden' })).toBe(false)
+    expect(isOriginRefusal({ status: 500 })).toBe(false)
+  })
+
+  it('says so for a password and for a code, instead of blaming the connection', () => {
+    const refused = { status: 403, code: 'INVALID_ORIGIN' }
+    expect(describeFailure(refused)).toBe(ORIGIN_REFUSED)
+    expect(describeCodeFailure(refused)).toBe(ORIGIN_REFUSED)
+    expect(ORIGIN_REFUSED).toMatch(/doesn’t accept sign-ins from this address/)
+    expect(describeFailure(500)).toMatch(/Check your connection/)
   })
 })

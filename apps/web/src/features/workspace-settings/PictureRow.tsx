@@ -2,6 +2,7 @@ import { Button, SettingsRow, Text, useAnnounce } from '@circi/ui'
 import { useRef, useState, type ChangeEvent } from 'react'
 
 import { workspaceLetter } from '#app/shell-model.ts'
+import { SaveNote } from '#lib/SaveNote.tsx'
 
 import { useSaveWorkspacePicture } from './api.ts'
 import { pictureProblem } from './model.ts'
@@ -44,10 +45,11 @@ export function PictureRow({ workspace, name, picture, canManage }: PictureRow.P
             </Text>
           ) : (
             <Text variant="small" tone="tertiary">
-              Square, at least 128 px, PNG, JPEG or WebP up to 1 MB. Without one, CirCI shows the
-              first letter.
+              At least 128 px on the short side; it’s cropped to a square. PNG, JPEG or WebP up to 1
+              MB. Without one, CirCI shows the first letter. Saved as soon as you choose it.
             </Text>
           )}
+          {save.isPending || save.isSuccess ? <SaveNote mutation={save} /> : null}
         </div>
         {canManage ? (
           <div className={styles.actions}>

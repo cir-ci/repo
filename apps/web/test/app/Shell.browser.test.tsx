@@ -74,6 +74,7 @@ const API: Record<string, unknown> = {
   '/api/teams': {
     teams: [
       overview('acme', 'Acme', 'web-app'),
+      overview('acme', 'Acme', 'api'),
       overview('acme', 'Acme', 'storybook'),
       overview('globex', 'Globex', 'portal'),
     ],
@@ -321,6 +322,7 @@ describe('Shell, wide', () => {
       API['/api/teams'] = {
         teams: [
           overview('acme', 'Acme', 'web-app'),
+          overview('acme', 'Acme', 'api'),
           overview('acme', 'Acme', 'storybook'),
           overview('globex', 'Globex', 'portal'),
         ],

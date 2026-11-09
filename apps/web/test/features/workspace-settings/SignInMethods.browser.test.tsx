@@ -26,46 +26,55 @@ describe('SignInMethods', () => {
     expect(page.getByRole('heading', { name: 'Sign-in methods' }).elements()).toHaveLength(0)
   })
 
-  it('shows each method as a switch in its current state', async () => {
+  it('shows each method as a checkbox in its current state', async () => {
     await page.viewport(1000, 800)
     fakeFetch({ [`GET ${SSO}`]: { providers: [] }, [`GET ${PATH}`]: auth() })
     await renderPage(<SignInMethods workspace="acme" />)
     await expect.element(page.getByRole('heading', { name: 'Sign-in methods' })).toBeVisible()
-    await expect.element(page.getByRole('switch', { name: /^Password/ })).toBeChecked()
-    await expect.element(page.getByRole('switch', { name: /^Email code/ })).not.toBeChecked()
+    await expect.element(page.getByRole('checkbox', { name: /^Password/ })).toBeChecked()
+    await expect.element(page.getByRole('checkbox', { name: /^Email code/ })).not.toBeChecked()
   })
 
-  it('shows the GitHub and Google switches only for providers the instance has', async () => {
+  it('shows the GitHub and Google checkboxes only for providers the instance has', async () => {
     await page.viewport(1000, 800)
     fakeFetch({
       [`GET ${SSO}`]: { providers: [] },
       [`GET ${PATH}`]: auth({ instance: { github: true } }),
     })
     await renderPage(<SignInMethods workspace="acme" />)
-    await expect.element(page.getByRole('switch', { name: /^GitHub/ })).toBeChecked()
-    expect(page.getByRole('switch', { name: /^Google/ }).elements()).toHaveLength(0)
+    await expect.element(page.getByRole('checkbox', { name: /^GitHub/ })).toBeChecked()
+    expect(page.getByRole('checkbox', { name: /^Google/ }).elements()).toHaveLength(0)
   })
 
-  it('saves a provider switch as it flips, with only that field', async () => {
+  it('saves provider changes together on Save, with only the fields that changed', async () => {
     await page.viewport(1000, 800)
     const calls = fakeFetch({
       [`GET ${SSO}`]: { providers: [] },
       [`GET ${PATH}`]: auth({ instance: { github: true, google: true } }),
       [`PATCH ${PATH}`]: { settings: {} },
     })
-    await renderPage(<SignInMethods workspace="acme" />)
-    await page.getByRole('switch', { name: /^GitHub/ }).click()
+    await renderPage(<SignInMethods workspace="acme" />, { announcer: true })
+    const save = page.getByRole('button', { name: 'Save changes' })
+    await expect.element(save).toBeDisabled()
+    await page.getByRole('checkbox', { name: /^GitHub/ }).click()
+    await page.getByRole('checkbox', { name: /^Google/ }).click()
+    // Turning a way of signing in off can lock people out: nothing is sent until Save.
+    expect(calls.some((c) => c.method === 'PATCH')).toBe(false)
+    await save.click()
     await expect
       .poll(() => calls.find((c) => c.method === 'PATCH')?.body)
-      .toEqual({
-        signinGithub: false,
-      })
-    await page.getByRole('switch', { name: /^Google/ }).click()
-    await expect
-      .poll(() => calls.findLast((c) => c.method === 'PATCH')?.body)
-      .toEqual({
-        signinGoogle: true,
-      })
+      .toEqual({ signinGithub: false, signinGoogle: true })
+  })
+
+  it('puts the saved methods back on Discard', async () => {
+    await page.viewport(1000, 800)
+    const calls = fakeFetch({ [`GET ${SSO}`]: { providers: [] }, [`GET ${PATH}`]: auth() })
+    await renderPage(<SignInMethods workspace="acme" />)
+    await page.getByRole('checkbox', { name: /^Password/ }).click()
+    await expect.element(page.getByRole('checkbox', { name: /^Password/ })).not.toBeChecked()
+    await page.getByRole('button', { name: 'Discard' }).click()
+    await expect.element(page.getByRole('checkbox', { name: /^Password/ })).toBeChecked()
+    expect(calls.some((c) => c.method === 'PATCH')).toBe(false)
   })
 
   it('disables a method the instance does not offer, and says so', async () => {
@@ -75,7 +84,7 @@ describe('SignInMethods', () => {
       [`GET ${PATH}`]: auth({ email: true, instance: { email: false } }),
     })
     await renderPage(<SignInMethods workspace="acme" />)
-    const email = page.getByRole('switch', { name: /Email code/ })
+    const email = page.getByRole('checkbox', { name: /Email code/ })
     await expect.element(email).toBeDisabled()
     // Enabled in the settings, but not usable here, so it is not shown as on.
     await expect.element(email).not.toBeChecked()
@@ -94,9 +103,12 @@ describe('SignInMethods', () => {
       },
     })
     await renderPage(<SignInMethods workspace="acme" />)
-    await page.getByRole('switch', { name: /^Email code/ }).click()
-    await expect.element(page.getByRole('switch', { name: /^Email code/ })).toBeChecked()
-    expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ emailLoginEnabled: true })
+    await page.getByRole('checkbox', { name: /^Email code/ }).click()
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect
+      .poll(() => calls.find((c) => c.method === 'PATCH')?.body)
+      .toEqual({ emailLoginEnabled: true })
+    await expect.element(page.getByRole('checkbox', { name: /^Email code/ })).toBeChecked()
   })
 
   it('shows why a change was refused', async () => {
@@ -108,7 +120,8 @@ describe('SignInMethods', () => {
         Response.json({ error: 'An owner must be able to sign in' }, { status: 409 }),
     })
     await renderPage(<SignInMethods workspace="acme" />)
-    await page.getByRole('switch', { name: /^Password/ }).click()
+    await page.getByRole('checkbox', { name: /^Password/ }).click()
+    await page.getByRole('button', { name: 'Save changes' }).click()
     await expect
       .element(page.getByRole('alert'))
       .toHaveTextContent('An owner must be able to sign in')

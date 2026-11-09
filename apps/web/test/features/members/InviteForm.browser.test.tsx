@@ -41,6 +41,42 @@ describe('InviteForm', () => {
     expect(onInvited).toHaveBeenCalledTimes(1)
   })
 
+  it('says it replaced the earlier invitation when the address already had one pending', async () => {
+    await page.viewport(1000, 800)
+    auth.inviteMember.mockResolvedValue({
+      data: { id: 'i2', replaced: true, replacedRole: 'member' },
+      error: null,
+    })
+    await renderPage(
+      <AnnouncerProvider>
+        <InviteForm workspaceId="workspace1" onInvited={async () => {}} />
+      </AnnouncerProvider>,
+    )
+    await page.getByRole('textbox', { name: 'Email' }).fill('Grace@Example.test')
+    await page.getByRole('button', { name: 'Send invite' }).click()
+    await expect
+      .element(
+        page.getByText(
+          'Invitation sent to Grace@Example.test. Replaced the earlier invitation (member) to Grace@Example.test; its link no longer works.',
+        ),
+      )
+      .toBeVisible()
+  })
+
+  it('does not mention a replacement for a new address', async () => {
+    await page.viewport(1000, 800)
+    auth.inviteMember.mockResolvedValue({ data: { id: 'i3' }, error: null })
+    await renderPage(
+      <AnnouncerProvider>
+        <InviteForm workspaceId="workspace1" onInvited={async () => {}} />
+      </AnnouncerProvider>,
+    )
+    await page.getByRole('textbox', { name: 'Email' }).fill('ada@example.test')
+    await page.getByRole('button', { name: 'Send invite' }).click()
+    await expect.element(page.getByText('Invitation sent to ada@example.test.')).toBeVisible()
+    expect(page.getByText(/Replaced the earlier/).elements()).toHaveLength(0)
+  })
+
   it('defaults to a member', async () => {
     await page.viewport(1000, 800)
     await show()

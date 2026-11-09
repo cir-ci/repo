@@ -114,10 +114,12 @@ describe('WorkspaceGeneralPage', () => {
     await expect.element(slug()).toHaveValue('acme')
     await expect.element(page.getByRole('navigation', { name: 'Breadcrumb' })).toBeVisible()
     await expect
-      .element(page.getByRole('switch', { name: /Flaky screenshots block merges/ }))
+      .element(page.getByRole('checkbox', { name: /Flaky screenshots block merges/ }))
       .toBeChecked()
     await expect.element(page.getByRole('button', { name: 'Delete workspace' })).toBeEnabled()
-    await expect.element(save()).toBeDisabled()
+    // Nothing to save yet, in the address form or the merge gate defaults.
+    for (const button of page.getByRole('button', { name: 'Save changes' }).elements())
+      expect(button).toBeDisabled()
     // The merge gate default says who follows it and who overrides it.
     await expect.element(page.getByText('1 team inherits this, 1 overrides it')).toBeVisible()
     await expect.element(page.getByText('marketing-site: off')).toBeVisible()
@@ -183,7 +185,10 @@ describe('WorkspaceGeneralPage', () => {
     await renderPage(<WorkspaceGeneralPage />, ROUTE)
     await slug().fill('acme-co')
     await expect.element(page.getByText(/stop working, including bookmarks/)).toBeVisible()
-    await page.getByRole('button', { name: 'Discard' }).click()
+    await page
+      .getByRole('form', { name: 'Address' })
+      .getByRole('button', { name: 'Discard' })
+      .click()
     await expect.element(slug()).toHaveValue('acme')
     await expect
       .element(page.getByText(/stop working, including bookmarks/))
@@ -198,7 +203,7 @@ describe('WorkspaceGeneralPage', () => {
     })
     await renderPage(<WorkspaceGeneralPage />, ROUTE)
     await slug().fill('Not Valid')
-    await save().click()
+    await save().first().click()
     await expect
       .element(page.getByText(/lowercase letters, digits or single hyphens/))
       .toBeVisible()
@@ -220,7 +225,7 @@ describe('WorkspaceGeneralPage', () => {
     })
     const { router } = await renderPage(<WorkspaceGeneralPage />, ROUTE)
     await slug().fill('acme-co')
-    await save().click()
+    await save().first().click()
     await expect.poll(() => router.state.location.pathname).toBe('/workspaces/acme-co/settings')
     expect(api.of('PATCH')[0]?.body).toEqual({ slug: 'acme-co' })
     await expect.element(slug()).toHaveValue('acme-co')
@@ -234,9 +239,56 @@ describe('WorkspaceGeneralPage', () => {
       'PATCH /api/workspaces/acme': { status: 409, body: { error: 'That address is taken' } },
     })
     await renderPage(<WorkspaceGeneralPage />, ROUTE)
-    await name().fill('Acme Corp')
-    await save().click()
+    await slug().fill('taken')
+    await save().first().click()
     await expect.element(page.getByRole('alert')).toHaveTextContent('That address is taken')
+  })
+
+  it('saves the name by itself when the field is left, with a Saved note', async () => {
+    await page.viewport(1000, 900)
+    const api = fakeApi({
+      'GET /api/workspaces/acme': { body: general() },
+      'GET /api/workspaces/acme/settings': { body: settings() },
+      'PATCH /api/workspaces/acme': { body: { name: 'Acme Corp', slug: 'acme' } },
+    })
+    await renderPage(<WorkspaceGeneralPage />, { ...ROUTE, announcer: true })
+    await expect.element(name()).toHaveValue('Acme Inc')
+    await name().fill('Acme Corp')
+    expect(api.of('PATCH')).toHaveLength(0)
+    await slug().click()
+    await expect.poll(() => api.of('PATCH')).toHaveLength(1)
+    // Only the name: the address waits for its own Save.
+    expect(api.of('PATCH')[0]?.body).toEqual({ name: 'Acme Corp' })
+    await expect.element(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible()
+  })
+
+  it('keeps an address being typed when the name is saved, and shows a failed name in line', async () => {
+    await page.viewport(1000, 900)
+    fakeApi({
+      'GET /api/workspaces/acme': { body: general() },
+      'GET /api/workspaces/acme/settings': { body: settings() },
+      'PATCH /api/workspaces/acme': { status: 400, body: { error: 'Name is too long' } },
+    })
+    await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    await slug().fill('acme-co')
+    await name().fill('Acme Corp')
+    await slug().click()
+    await expect.element(page.getByRole('alert')).toHaveTextContent('Name is too long')
+    await expect.element(slug()).toHaveValue('acme-co')
+    await expect.element(page.getByText(/stop working, including bookmarks/)).toBeVisible()
+  })
+
+  it('refuses an empty name on the field without asking the server', async () => {
+    await page.viewport(1000, 900)
+    const api = fakeApi({
+      'GET /api/workspaces/acme': { body: general() },
+      'GET /api/workspaces/acme/settings': { body: settings() },
+    })
+    await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    await name().fill('  ')
+    await slug().click()
+    await expect.element(page.getByText('Enter a name')).toBeVisible()
+    expect(api.of('PATCH')).toHaveLength(0)
   })
 
   it('is read-only for members, with a note', async () => {
@@ -252,6 +304,9 @@ describe('WorkspaceGeneralPage', () => {
     await expect.element(name()).toBeDisabled()
     await expect.element(slug()).toBeDisabled()
     expect(page.getByRole('button', { name: 'Save changes' }).elements()).toHaveLength(0)
+    await expect
+      .element(page.getByRole('checkbox', { name: /Flaky screenshots block merges/ }))
+      .toBeInTheDocument()
   })
 
   it('says the workspace doesn’t exist for a 404', async () => {

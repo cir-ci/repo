@@ -78,6 +78,8 @@ describe('review target', () => {
     expect(targetProblem('1.5')).not.toBeNull()
     expect(targetProblem('')).not.toBeNull()
     expect(targetProblem('99999')).not.toBeNull()
+    expect(targetProblem('720')).toBeNull()
+    expect(targetProblem('721')).toBe('Enter a whole number of hours from 1 to 720')
   })
 
   it('saves null when off and detects changes', () => {
@@ -123,6 +125,13 @@ describe('triage rotation', () => {
     expect(startDateProblem('2026-11-02')).toBeNull()
     expect(startDateProblem('2026-13-45')).not.toBeNull()
     expect(startDateProblem('soon')).not.toBeNull()
+    // A day that does not exist is not rolled over to the next month.
+    expect(startDateProblem('2026-02-31')).toBe('Enter a valid date')
+    expect(startDateProblem('2026-04-31')).toBe('Enter a valid date')
+    expect(startDateProblem('2028-02-29')).toBeNull()
+    expect(startDateProblem('2026-02-29')).toBe('Enter a valid date')
+    // The date input says its text is not a date: its value is empty, which is not "start now".
+    expect(startDateProblem('', true)).toBe('Enter a valid date')
   })
 
   it('is dirty when members, their order or the date change', () => {

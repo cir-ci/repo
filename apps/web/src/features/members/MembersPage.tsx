@@ -27,6 +27,7 @@ import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import {
+  type AssignableRole,
   cancelInvitation,
   changeMemberRole,
   inviteMember,
@@ -63,6 +64,11 @@ export function MembersPage() {
   const query = workspaceQuery(workspace)
   const result = useQuery(query)
   const { data } = result
+  const [roleChange, setRoleChange] = useState<{
+    memberId: string
+    name: string
+    role: AssignableRole
+  } | null>(null)
   const [removing, setRemoving] = useState<{ id: string; name: string; email: string } | null>(null)
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: query.queryKey })
@@ -175,11 +181,12 @@ export function MembersPage() {
                                 value={m.role}
                                 disabled={changeRole.isPending}
                                 onValueChange={(role) => {
+                                  // A role decides what the person can change: ask before applying it.
                                   if (role !== m.role) {
-                                    changeRole.mutate({
+                                    setRoleChange({
                                       memberId: m.id,
+                                      name: m.user.name,
                                       role: role === 'admin' ? 'admin' : 'member',
-                                      workspaceId: loaded.id,
                                     })
                                   }
                                 }}
@@ -277,6 +284,9 @@ export function MembersPage() {
                   </div>
                 </SettingsSection>
               ) : null}
+              {resend.isSuccess ? (
+                <Banner tone="success">Invitation sent again to {resend.variables.email}.</Banner>
+              ) : null}
               <Text variant="small" tone="tertiary">
                 Sign-in methods and email domains are in{' '}
                 <Link to="/workspaces/$workspace/settings/sign-in" params={{ workspace }}>
@@ -288,6 +298,27 @@ export function MembersPage() {
           )}
         </QueryBoundary>
       </SettingsPage>
+      <ConfirmDialog
+        open={roleChange !== null}
+        onOpenChange={(open) => {
+          if (!open) setRoleChange(null)
+        }}
+        title={`Make ${roleChange?.name ?? 'this member'} ${roleChange?.role === 'admin' ? 'an admin' : 'a member'}?`}
+        description={
+          roleChange?.role === 'admin'
+            ? 'Admins can invite and remove people, change roles and change every team’s settings.'
+            : 'They will no longer be able to invite or remove people, or change settings.'
+        }
+        confirmLabel="Change role"
+        loading={changeRole.isPending}
+        onConfirm={() => {
+          if (!roleChange || !data) return
+          changeRole.mutate(
+            { memberId: roleChange.memberId, role: roleChange.role, workspaceId: data.id },
+            { onSettled: () => setRoleChange(null) },
+          )
+        }}
+      />
       <ConfirmDialog
         open={removing !== null}
         onOpenChange={(open) => {

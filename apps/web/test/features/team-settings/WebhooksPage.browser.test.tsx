@@ -86,6 +86,47 @@ describe('WebhooksPage', () => {
     await expect.element(page.getByText('Test event queued')).toBeInTheDocument()
   })
 
+  it('says the test was sent, then polls until its delivery shows up', async () => {
+    const fake = api(
+      { webhooks: [hook('h1', 'https://a.test/hook')] },
+      { [`POST ${API}/webhooks/h1/test`]: { status: 202, body: { deliveryId: 'dx' } } },
+    )
+    await show()
+    await page.getByRole('button', { name: 'Send test to https://a.test/hook' }).click()
+    await expect.element(page.getByText(/Test sent to https:\/\/a\.test\/hook/)).toBeVisible()
+    // The worker delivers a moment later: the next poll picks it up, no reload.
+    fake.set(`GET ${API}/settings`, {
+      body: {
+        canManage: true,
+        settings: { name: 'Web App' },
+        appearance: { color: 'slate', icon: null },
+        workspace: { flakyBlocksMerge: true },
+        webhooks: [
+          {
+            ...hook('h1', 'https://a.test/hook'),
+            deliveries: [
+              {
+                deliveryId: 'dx',
+                event: 'webhook.test',
+                test: true,
+                attempt: 1,
+                statusCode: 200,
+                error: null,
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          },
+        ],
+        webhookEvents: ['build.completed', 'build.reviewed'],
+        github: { configured: false, webhookUrl: '', link: null },
+        sitesConfigured: false,
+      },
+    })
+    const table = page.getByRole('table', { name: 'Deliveries to https://a.test/hook' })
+    await expect.element(table.getByText('webhook.test (test)'), { timeout: 5000 }).toBeVisible()
+    await expect.element(page.getByText(/Test delivered/)).toBeVisible()
+  })
+
   it('shows each webhook as a row with event tags and a delivery badge', async () => {
     const failing = {
       ...hook('h2', 'https://deploy.test/gate', ['build.reviewed']),

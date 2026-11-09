@@ -1,26 +1,14 @@
-import {
-  Avatar,
-  Banner,
-  Button,
-  SettingsRow,
-  SettingsSection,
-  Text,
-  TextField,
-  useAnnounce,
-} from '@circi/ui'
+import { Avatar, SettingsRow, SettingsSection, Text, TextField, useAnnounce } from '@circi/ui'
 import { useMutation } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
 
 import { authClient } from '#lib/auth-client.ts'
-
-import { nameDirty } from './model.ts'
+import { InstantTextField } from '#lib/InstantTextField.tsx'
 
 import styles from '#features/workspace-settings/Settings.module.css'
 
-/** Your name and email, and where your picture comes from. */
+/** Your name and email, and where your picture comes from. The name saves as soon as you leave the field. */
 export function YouSection({ user }: YouSection.Props) {
   const announce = useAnnounce()
-  const [name, setName] = useState(user.name)
   const save = useMutation({
     mutationFn: async (next: string) => {
       const { error } = await authClient.updateUser({ name: next })
@@ -29,16 +17,11 @@ export function YouSection({ user }: YouSection.Props) {
     onSuccess: () => announce('Name saved'),
   })
 
-  function submit(e: FormEvent) {
-    e.preventDefault()
-    if (nameDirty(user.name, name)) save.mutate(name.trim())
-  }
-
   return (
-    <form className={styles.form} onSubmit={submit} noValidate>
+    <div className={styles.form}>
       <SettingsSection
         title="You"
-        description="How you appear on builds, reviews and comments in every workspace you belong to."
+        description="How you appear on builds, reviews and comments in every workspace you belong to. Your name is saved as soon as you change it."
       >
         <SettingsRow>
           <div className={styles.avatarRow}>
@@ -51,12 +34,14 @@ export function YouSection({ user }: YouSection.Props) {
         </SettingsRow>
         <SettingsRow>
           <div className={styles.rowFields}>
-            <TextField
+            <InstantTextField
               label="Name"
               name="name"
               autoComplete="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              saved={user.name}
+              mutation={save}
+              validate={(next) => (next ? null : 'Enter your name')}
+              onCommit={(next) => save.mutate(next)}
             />
             <TextField
               label="Email"
@@ -68,18 +53,7 @@ export function YouSection({ user }: YouSection.Props) {
           </div>
         </SettingsRow>
       </SettingsSection>
-      {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
-      <div className={styles.footer}>
-        <Button
-          type="submit"
-          variant="primary"
-          loading={save.isPending}
-          disabled={!nameDirty(user.name, name)}
-        >
-          Save name
-        </Button>
-      </div>
-    </form>
+    </div>
   )
 }
 

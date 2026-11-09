@@ -8,7 +8,7 @@ import { describeFailure, text } from './login-helpers.ts'
 
 import styles from './AuthForms.module.css'
 
-export function PasswordForm({ onEmail }: PasswordForm.Props) {
+export function PasswordForm({ email, onEmailChange, onEmail }: PasswordForm.Props) {
   const [error, setError] = useState<string | undefined>(undefined)
   const [busy, setBusy] = useState(false)
 
@@ -24,7 +24,7 @@ export function PasswordForm({ onEmail }: PasswordForm.Props) {
     setBusy(false)
     // On success the session store updates and the app replaces this page by itself.
     // On failure the fields keep what was typed: the form is the same element.
-    if (failure) setError(describeFailure(failure.status))
+    if (failure) setError(describeFailure(failure))
   }
 
   return (
@@ -35,6 +35,8 @@ export function PasswordForm({ onEmail }: PasswordForm.Props) {
         label="Email"
         size="lg"
         placeholder="you@company.com"
+        value={email}
+        onChange={(e) => onEmailChange(e.target.value)}
         autoComplete="username"
         autoFocus
         required
@@ -67,6 +69,9 @@ export function PasswordForm({ onEmail }: PasswordForm.Props) {
 
 export namespace PasswordForm {
   export interface Props {
+    /** What is typed in the email field, kept by the page so it survives switching forms. */
+    email: string
+    onEmailChange: (email: string) => void
     /** Switches to the mailed code; the link shows only when email codes are available. */
     onEmail: (() => void) | undefined
   }

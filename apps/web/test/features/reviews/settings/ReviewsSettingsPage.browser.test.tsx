@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { page } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 
 // The auth client is the edge to better-auth: a fake stands in for it.
 vi.mock('#lib/auth-client.ts', () =>
@@ -89,9 +89,10 @@ describe('ReviewsSettingsPage', () => {
     await expect.element(page.getByRole('spinbutton', { name: /Overdue after/ })).toHaveValue(24)
     await expect.element(page.getByText('checkout/**')).toBeVisible()
     await expect.element(page.getByRole('strong').filter({ hasText: 'Ada Lovelace' })).toBeVisible()
-    const superseded = page.getByRole('switch', { name: /superseded/ })
-    await expect.element(superseded).toBeChecked()
-    await expect.element(superseded).toHaveAttribute('data-disabled')
+    // Fixed behaviour is listed as fact, not as switches that look like settings in a Save form.
+    expect(page.getByRole('switch').elements()).toHaveLength(0)
+    await expect.element(page.getByText(/Close review requests when a newer build/)).toBeVisible()
+    expect(page.getByText('Always on', { exact: true }).elements()).toHaveLength(2)
   })
 
   it('follows the board’s order under one lead and ends with one Save', async () => {
@@ -136,7 +137,11 @@ describe('ReviewsSettingsPage', () => {
     await expect.element(page.getByText(/whole number of hours/)).toBeVisible()
     expect(calls.of('PATCH')).toHaveLength(0)
     await page.getByRole('spinbutton', { name: /Overdue after/ }).fill('9000')
-    await expect.element(page.getByText(/at most one year/)).toBeVisible()
+    await expect
+      .element(page.getByText('Enter a whole number of hours from 1 to 720'))
+      .toBeVisible()
+    await page.getByRole('spinbutton', { name: /Overdue after/ }).fill('720')
+    await expect.element(page.getByText(/whole number of hours/)).not.toBeInTheDocument()
   })
 
   it('saves the target and the rotation from one Save, one after the other', async () => {
@@ -162,6 +167,23 @@ describe('ReviewsSettingsPage', () => {
     await expect.element(field).toHaveValue(24)
     await expect.element(page.getByRole('button', { name: 'Save changes' })).toBeDisabled()
     expect(calls.of('PATCH')).toHaveLength(0)
+  })
+
+  it('refuses a typed date that does not exist, on the field, instead of falling back to now', async () => {
+    const calls = api({}, { [`PUT ${API}/triage-rotation`]: { body: {} } })
+    await show()
+    const date = page.getByLabelText('First week starts')
+    await expect.element(date).toHaveValue('2026-11-02')
+    // A date input holds nothing for 31 February: its value goes empty, but its text stays.
+    date.element().focus()
+    await userEvent.keyboard('02312026')
+    await expect.element(page.getByText('Enter a valid date')).toBeVisible()
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    expect(calls.of('PUT')).toHaveLength(0)
+    expect(calls.of('PATCH')).toHaveLength(0)
+    // Typing a real day clears it, and Discard also puts the saved date back.
+    await date.fill('2026-02-28')
+    await expect.element(page.getByText('Enter a valid date')).not.toBeInTheDocument()
   })
 
   it('turns the rotation off by saving an empty list', async () => {

@@ -1,4 +1,4 @@
-import { Banner, SettingsRow, SettingsSection, Switch, Text } from '@circi/ui'
+import { Banner, SettingsRow, SettingsSection, Switch, Text, useAnnounce } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 
@@ -6,6 +6,7 @@ import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { Frame } from '#features/workspace-settings/Frame.tsx'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
+import { SaveNote } from '#lib/SaveNote.tsx'
 
 import { PREFERENCE_ROWS, preferencesQuery, useSetPreference } from './api.ts'
 
@@ -43,6 +44,7 @@ export function NotificationsPage() {
   const { data, error, refetch } = useQuery(preferencesQuery())
   const capabilities = useQuery(capabilitiesQuery())
   const set = useSetPreference()
+  const announce = useAnnounce()
   // Email notifications need the server to send mail (SMTP).
   const mailConfigured = capabilities.data?.mailConfigured === true
 
@@ -65,7 +67,7 @@ export function NotificationsPage() {
 
           <SettingsSection
             title="Email"
-            description="Only the two things that need you soon can be emailed. Switches apply at once."
+            description="Only the two things that need you soon can be emailed. Switches save as soon as you flip them."
             bare={!mailConfigured}
           >
             {mailConfigured ? (
@@ -75,7 +77,12 @@ export function NotificationsPage() {
                     label={row.label}
                     description={row.description}
                     checked={data[row.key]}
-                    onCheckedChange={(on) => set.mutate({ [row.key]: on })}
+                    onCheckedChange={(on) =>
+                      set.mutate(
+                        { [row.key]: on },
+                        { onSuccess: () => announce(`${row.label} ${on ? 'on' : 'off'}, saved`) },
+                      )
+                    }
                   />
                 </SettingsRow>
               ))
@@ -91,9 +98,7 @@ export function NotificationsPage() {
               Mail goes to {session.user.email}.
             </Text>
           ) : null}
-          {set.error ? (
-            <Banner tone="danger">Couldn’t save that: {set.error.message}</Banner>
-          ) : null}
+          {mailConfigured ? <SaveNote mutation={set} /> : null}
 
           <SettingsSection
             title="In your Inbox"

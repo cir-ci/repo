@@ -262,6 +262,23 @@ export function pickSettingsTeam<T extends { slug: string }>(
   )
 }
 
+/**
+ * The teams the settings nav may offer for a workspace: the sidebar's teams, kept to those the
+ * teams list (refreshed on a rename) also knows in that workspace. A slug that was renamed, or a
+ * team of another workspace in a stale cache, is never offered. When the teams list knows nothing
+ * of the workspace (a manager with no team of their own) the sidebar's teams stand as they are.
+ */
+export function settingsTeams<T extends { slug: string }>(
+  inSidebar: readonly T[],
+  overview: readonly Team.Overview[] | undefined,
+  workspace: string,
+): T[] {
+  const known = (overview ?? []).filter((o) => o.workspace.slug === workspace)
+  if (known.length === 0) return [...inSidebar]
+  const slugs = new Set(known.map((o) => o.team.slug))
+  return inSidebar.filter((t) => slugs.has(t.slug))
+}
+
 const REMEMBERED_TEAM_KEY = 'circi-settings-team'
 
 export function readRememberedTeam(workspace: string): string | undefined {
@@ -278,4 +295,9 @@ export function rememberTeam(workspace: string, team: string): void {
   } catch {
     // Storage blocked: the choice lasts until the page reloads.
   }
+}
+
+/** A team's slug changed: what was remembered under the old one now points at the new one. */
+export function renameRememberedTeam(workspace: string, from: string, to: string): void {
+  if (readRememberedTeam(workspace) === from) rememberTeam(workspace, to)
 }

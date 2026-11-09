@@ -3,6 +3,7 @@ import { Banner, Button, useAnnounce } from '@circi/ui'
 import { type FormEvent, useState } from 'react'
 
 import { useSaveSettings } from '#features/teams/api/index.ts'
+import { HttpError } from '#lib/http.ts'
 
 import {
   rotationBody,
@@ -36,13 +37,14 @@ export function ReviewsForm(props: ReviewsForm.Props) {
   const [hours, setHours] = useState(targetText(savedHours))
   const [ids, setIds] = useState(() => props.rotation.members.map((m) => m.id))
   const [date, setDate] = useState(startDateOf(props.rotation))
+  const [dateUnreadable, setDateUnreadable] = useState(false)
   const [touched, setTouched] = useState(false)
   const [done, setDone] = useState(false)
   const [failure, setFailure] = useState<Error | null>(null)
   const [saving, setSaving] = useState(false)
 
   const targetChanged = targetDirty(savedHours, enabled, hours)
-  const rotationChanged = rotationDirty(props.rotation, ids, date)
+  const rotationChanged = rotationDirty(props.rotation, ids, date) || dateUnreadable
   const dirty = targetChanged || rotationChanged
   const disabled = !props.canManage
 
@@ -58,6 +60,7 @@ export function ReviewsForm(props: ReviewsForm.Props) {
     setHours(targetText(savedHours))
     setIds(props.rotation.members.map((m) => m.id))
     setDate(startDateOf(props.rotation))
+    setDateUnreadable(false)
     setTouched(false)
     setDone(false)
     setFailure(null)
@@ -66,7 +69,7 @@ export function ReviewsForm(props: ReviewsForm.Props) {
   async function submit(e: FormEvent) {
     e.preventDefault()
     setTouched(true)
-    if ((enabled && targetProblem(hours)) || startDateProblem(date)) return
+    if ((enabled && targetProblem(hours)) || startDateProblem(date, dateUnreadable)) return
     setDone(false)
     setFailure(null)
     setSaving(true)
@@ -91,6 +94,7 @@ export function ReviewsForm(props: ReviewsForm.Props) {
         enabled={enabled}
         hours={hours}
         touched={touched}
+        serverProblem={failure instanceof HttpError ? failure.fields.reviewTargetHours : undefined}
         disabled={disabled}
         onEnabledChange={edited(setEnabled)}
         onHoursChange={edited(setHours)}
@@ -105,10 +109,17 @@ export function ReviewsForm(props: ReviewsForm.Props) {
         date={date}
         disabled={disabled}
         onIdsChange={edited(setIds)}
-        onDateChange={edited(setDate)}
+        dateUnreadable={dateUnreadable}
+        onDateChange={(next, unreadable) => {
+          setDate(next)
+          setDateUnreadable(unreadable)
+          setDone(false)
+        }}
       />
       <NotifySection workspace={props.workspace} team={props.team} />
-      {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
+      {failure && !(failure instanceof HttpError && failure.fields.reviewTargetHours) ? (
+        <Banner tone="danger">{failure.message}</Banner>
+      ) : null}
       {done ? <Banner tone="success">Settings saved.</Banner> : null}
       {props.canManage ? (
         <div className={teamStyles.footer}>

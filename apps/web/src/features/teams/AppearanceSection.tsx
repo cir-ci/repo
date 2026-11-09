@@ -1,6 +1,5 @@
 import type { Team } from '@circi/api'
 import {
-  Banner,
   Button,
   SettingsRow,
   SettingsSection,
@@ -11,7 +10,9 @@ import {
 } from '@circi/ui'
 import { useState } from 'react'
 
-import { useSaveAppearance } from '#features/teams/api/index.ts'
+import { useSaveAppearance, useSaveSettings } from '#features/teams/api/index.ts'
+import { InstantTextField } from '#lib/InstantTextField.tsx'
+import { SaveNote } from '#lib/SaveNote.tsx'
 
 import {
   appearancePatch,
@@ -27,7 +28,10 @@ import {
 
 import styles from './AppearanceSection.module.css'
 
-/** The tile's colour and icon. Each pick is saved at once (owners and admins). */
+/**
+ * The team's name, colour and icon: what it is called and how it looks. None of it changes how
+ * builds are judged, so each change is saved at once (owners and admins), with no Save button.
+ */
 export function AppearanceSection({
   workspace,
   team,
@@ -36,6 +40,7 @@ export function AppearanceSection({
   canManage,
 }: AppearanceSection.Props) {
   const save = useSaveAppearance(workspace, team)
+  const rename = useSaveSettings(workspace, team)
   const announce = useAnnounce()
   const [query, setQuery] = useState('')
   const color: TeamColor = isTeamColor(appearance.color) ? appearance.color : 'slate'
@@ -50,9 +55,22 @@ export function AppearanceSection({
 
   return (
     <SettingsSection
-      title="Icon and colour"
-      description={`How ${name} shows in the sidebar, the switchers and every list. The colour only tells teams apart: it never means a build’s state.`}
+      title="Name, icon and colour"
+      description={`How ${name} is called, and how it shows in the sidebar, the switchers and every list. Saved as soon as you change them. The colour only tells teams apart: it never means a build’s state.`}
     >
+      <SettingsRow>
+        <InstantTextField
+          label="Name"
+          name="name"
+          saved={name}
+          disabled={!canManage}
+          mutation={rename}
+          validate={(next) => (next ? null : 'Enter a name')}
+          onCommit={(next) =>
+            rename.mutate({ name: next }, { onSuccess: () => announce('Team name saved') })
+          }
+        />
+      </SettingsRow>
       <SettingsRow
         label={name}
         detail={`${colourLabel(color)} with ${icon ? `the ${iconLabel(icon)} icon` : 'its first letter'}. New teams get a colour from their name; change it here.`}
@@ -62,7 +80,6 @@ export function AppearanceSection({
       {canManage ? (
         <SettingsRow>
           <div className={styles.pickers}>
-            {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
             <fieldset className={styles.swatches}>
               <legend className={styles.legend}>Colour</legend>
               {TEAM_COLORS.map((c) => (
@@ -122,6 +139,7 @@ export function AppearanceSection({
                 No icon matches “{query}”.
               </Text>
             ) : null}
+            <SaveNote mutation={save} />
           </div>
         </SettingsRow>
       ) : null}

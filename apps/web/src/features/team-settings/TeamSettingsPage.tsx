@@ -32,8 +32,9 @@ export function TeamSettingsPage() {
             canManage={data.canManage}
           />
           <SettingsForm
-            // A fresh form whenever the saved values change, so it never shows stale input.
-            key={JSON.stringify(data.settings)}
+            // A fresh form whenever the saved values change, so it never shows stale input. The
+            // name saves by itself above and is not in this form, so it must not reset it.
+            key={JSON.stringify({ ...data.settings, name: undefined })}
             workspace={workspace}
             team={team}
             settings={data.settings}

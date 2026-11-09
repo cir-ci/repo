@@ -27,8 +27,9 @@ export function InviteForm({ workspaceId, onInvited }: InviteForm.Props) {
     if (problems.email) return
     setBusy(true)
     setMessage(null)
+    let replaced: Awaited<ReturnType<typeof inviteMember>>
     try {
-      await inviteMember({ email: address, role, workspaceId })
+      replaced = await inviteMember({ email: address, role, workspaceId })
     } catch (failure) {
       setMessage({
         tone: 'danger',
@@ -39,8 +40,12 @@ export function InviteForm({ workspaceId, onInvited }: InviteForm.Props) {
       setBusy(false)
     }
     setEmail('')
-    announce(`Invitation sent to ${address}`)
-    setMessage({ tone: 'success', text: `Invitation sent to ${address}.` })
+    // A new invitation to an address that already has one replaces it: say so.
+    const text = replaced
+      ? `Invitation sent to ${address}. Replaced the earlier invitation${replaced.replacedRole ? ` (${replaced.replacedRole})` : ''} to ${address}; its link no longer works.`
+      : `Invitation sent to ${address}.`
+    announce(text)
+    setMessage({ tone: 'success', text })
     await onInvited()
   }
 

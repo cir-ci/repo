@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { page } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 
 import { ProfilePage } from '#features/account/ProfilePage.tsx'
 import { fakeFetch, json, pending } from '#test/support/fetch.ts'
@@ -190,30 +190,45 @@ describe('ProfilePage', () => {
     })
   })
 
-  it('saves a changed name, and leaves the email read-only', async () => {
+  it('saves a changed name when the field is left, with a Saved note and no Save button', async () => {
     const calls = fakeFetch({
       ...signedIn,
       'GET /api/auth/list-sessions': sessions,
       'POST /api/auth/update-user': { status: true },
     })
-    await renderPage(<ProfilePage />)
-    const save = page.getByRole('button', { name: 'Save name' })
-    await expect.element(save).toBeDisabled()
+    await renderPage(<ProfilePage />, { announcer: true })
+    expect(page.getByRole('button', { name: 'Save name' }).elements()).toHaveLength(0)
     await page.getByRole('textbox', { name: 'Name' }).fill('Ada King')
-    await save.click()
+    expect(calls.some((c) => c.path.endsWith('update-user'))).toBe(false)
+    await userEvent.keyboard('{Enter}')
     await expect
       .poll(() => calls.find((c) => c.path.endsWith('update-user'))?.body)
       .toEqual({
         name: 'Ada King',
       })
+    await expect.element(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible()
     await expect.element(page.getByRole('textbox', { name: 'Email' })).toHaveAttribute('readonly')
   })
 
-  it('can’t save an empty name', async () => {
-    fakeFetch({ ...signedIn, 'GET /api/auth/list-sessions': sessions })
+  it('shows why the name could not be saved, in line', async () => {
+    fakeFetch({
+      ...signedIn,
+      'GET /api/auth/list-sessions': sessions,
+      'POST /api/auth/update-user': json({ message: 'Name is too long' }, 400),
+    })
+    await renderPage(<ProfilePage />)
+    await page.getByRole('textbox', { name: 'Name' }).fill('Ada King')
+    await page.getByRole('textbox', { name: 'Email' }).click()
+    await expect.element(page.getByRole('alert')).toHaveTextContent('Name is too long')
+  })
+
+  it('does not send an empty name', async () => {
+    const calls = fakeFetch({ ...signedIn, 'GET /api/auth/list-sessions': sessions })
     await renderPage(<ProfilePage />)
     await page.getByRole('textbox', { name: 'Name' }).fill('   ')
-    await expect.element(page.getByRole('button', { name: 'Save name' })).toBeDisabled()
+    await page.getByRole('textbox', { name: 'Email' }).click()
+    await expect.element(page.getByText('Enter your name')).toBeVisible()
+    expect(calls.some((c) => c.path.endsWith('update-user'))).toBe(false)
   })
 
   it('changes the password from a dialog after checking it locally', async () => {

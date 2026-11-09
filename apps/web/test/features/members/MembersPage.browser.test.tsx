@@ -215,6 +215,12 @@ describe('MembersPage', () => {
     await show()
     await page.getByRole('combobox', { name: 'Role of Grace Hopper' }).click()
     await page.getByRole('option', { name: 'Admin' }).click()
+    // A role decides what the person can change: nothing happens until it is confirmed.
+    const dialog = page.getByRole('alertdialog', { name: 'Make Grace Hopper an admin?' })
+    await expect.element(dialog).toBeVisible()
+    expect(auth.updateMemberRole).not.toHaveBeenCalled()
+    await dialog.getByRole('button', { name: 'Change role' }).click()
+    await vi.waitFor(() => expect(auth.updateMemberRole).toHaveBeenCalled())
     expect(auth.updateMemberRole).toHaveBeenCalledWith({
       memberId: 'm2',
       role: 'admin',
@@ -236,7 +242,18 @@ describe('MembersPage', () => {
     await show()
     await page.getByRole('combobox', { name: 'Role of Grace Hopper' }).click()
     await page.getByRole('option', { name: 'Admin' }).click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Change role' }).click()
     await expect.element(page.getByRole('alert')).toHaveTextContent('Only owners can do that')
+  })
+
+  it('does not change a role when the confirmation is cancelled', async () => {
+    await page.viewport(1000, 800)
+    await show()
+    await page.getByRole('combobox', { name: 'Role of Grace Hopper' }).click()
+    await page.getByRole('option', { name: 'Admin' }).click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel' }).click()
+    await expect.element(page.getByRole('alertdialog')).not.toBeInTheDocument()
+    expect(auth.updateMemberRole).not.toHaveBeenCalled()
   })
 
   it('removes a member only after confirming', async () => {
@@ -304,11 +321,48 @@ describe('MembersPage', () => {
       organizationId: 'workspace1',
       resend: true,
     })
+    // Said on the page, next to the invitations, and announced.
     await expect
       .element(
-        page.getByRole('status').filter({ hasText: 'Invitation sent again to alan@example.test' }),
+        page
+          .getByRole('status')
+          .filter({ hasText: /^Invitation sent again to alan@example\.test\.$/ }),
+      )
+      .toBeVisible()
+    await expect
+      .element(
+        page
+          .getByRole('status')
+          .filter({ hasText: /^Invitation sent again to alan@example\.test$/ }),
       )
       .toBeInTheDocument()
+  })
+
+  it('says nothing was sent again when the resend fails', async () => {
+    await page.viewport(1000, 800)
+    auth.inviteMember.mockResolvedValue({ data: null, error: { message: 'Mail is down' } })
+    await show()
+    await page.getByRole('button', { name: 'Resend' }).click()
+    await expect.element(page.getByRole('alert')).toHaveTextContent('Mail is down')
+    expect(page.getByText(/Invitation sent again/).elements()).toHaveLength(0)
+  })
+
+  it('says a re-invite replaced the earlier invitation, from the server’s answer', async () => {
+    await page.viewport(1000, 800)
+    auth.inviteMember.mockResolvedValue({
+      data: { id: 'i9', replaced: true, replacedRole: 'member' },
+      error: null,
+    })
+    await show()
+    await page.getByRole('textbox', { name: 'Email' }).fill('Alan@example.test')
+    await page.getByRole('button', { name: 'Send invite' }).click()
+    await expect
+      .element(
+        page.getByText(
+          'Invitation sent to Alan@example.test. Replaced the earlier invitation (member) to Alan@example.test; its link no longer works.',
+        ),
+      )
+      .toBeVisible()
   })
 
   it('marks your own row with "you" and nobody else’s', async () => {

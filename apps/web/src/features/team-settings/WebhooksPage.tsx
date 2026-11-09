@@ -17,10 +17,11 @@ import {
 import { useParams } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 
-import { useAddWebhook, useDeleteWebhook, useTestWebhook } from '#features/teams/api/index.ts'
+import { useAddWebhook, useDeleteWebhook } from '#features/teams/api/index.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import { TeamSettingsFrame } from './TeamSettingsFrame.tsx'
+import { useWebhookTest } from './use-webhook-test.ts'
 import {
   attemptLabel,
   deliveryAnswer,
@@ -53,8 +54,11 @@ export function WebhooksPage() {
 function Webhooks(props: Webhooks.Props) {
   const add = useAddWebhook(props.workspace, props.team)
   const remove = useDeleteWebhook(props.workspace, props.team)
-  const test = useTestWebhook(props.workspace, props.team)
   const announce = useAnnounce()
+  const test = useWebhookTest(props.workspace, props.team, props.hooks, {
+    queued: () => announce('Test event queued'),
+    delivered: (d) => announce(`Webhook test delivered: ${deliveryAnswer(d).text}`),
+  })
   const [adding, setAdding] = useState(false)
   const [secret, setSecret] = useState<{ url: string; value: string } | null>(null)
   const [picked, setPicked] = useState<string[]>(props.events)
@@ -124,12 +128,8 @@ function Webhooks(props: Webhooks.Props) {
                           <Button
                             size="sm"
                             aria-label={`Send test to ${h.url}`}
-                            loading={test.isPending && test.variables === h.id}
-                            onClick={() =>
-                              test.mutate(h.id, {
-                                onSuccess: () => announce('Test event queued'),
-                              })
-                            }
+                            loading={test.isSending(h.id)}
+                            onClick={() => test.send(h.id)}
                           >
                             Send test
                           </Button>
@@ -163,6 +163,7 @@ function Webhooks(props: Webhooks.Props) {
         </ul>
         {remove.error && !removing ? <Banner tone="danger">{remove.error.message}</Banner> : null}
         {test.error ? <Banner tone="danger">{test.error.message}</Banner> : null}
+        <TestResult state={test.state} hooks={props.hooks} />
       </SettingsSection>
 
       {props.hooks
@@ -334,6 +335,34 @@ function Webhooks(props: Webhooks.Props) {
         }}
       />
     </>
+  )
+}
+
+/** Under the list: the test was sent, then what the worker's delivery got. */
+function TestResult({
+  state,
+  hooks,
+}: {
+  state: useWebhookTest.State | undefined
+  hooks: readonly Webhooks.Hook[]
+}) {
+  if (!state) return null
+  const url = hooks.find((h) => h.id === state.hookId)?.url
+  if (!url) return null
+  if (state.delivery) {
+    const answer = deliveryAnswer(state.delivery)
+    return (
+      <Banner tone={answer.ok ? 'success' : 'danger'}>
+        Test delivered to {url}: {answer.text}
+      </Banner>
+    )
+  }
+  return (
+    <Banner tone="info">
+      {state.gaveUp
+        ? `Test sent to ${url}. No result yet: reload in a moment to see its delivery.`
+        : `Test sent to ${url}. Waiting for its delivery…`}
+    </Banner>
   )
 }
 

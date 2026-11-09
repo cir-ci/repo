@@ -2,11 +2,24 @@
 
 export class HttpError extends Error {
   readonly status: number
-  constructor(status: number, message: string) {
+  /** Messages keyed by the field they are about, when the server says (`{ error, fields }`). */
+  readonly fields: Readonly<Record<string, string>>
+  constructor(status: number, message: string, fields: Record<string, string> = {}) {
     super(message)
     this.name = 'HttpError'
     this.status = status
+    this.fields = fields
   }
+}
+
+/** `{ field: 'message' }` from a reply's `fields`; anything else is ignored. */
+export function fieldMessages(value: unknown): Record<string, string> {
+  const out: Record<string, string> = {}
+  if (typeof value !== 'object' || value === null) return out
+  for (const [key, message] of Object.entries(value)) {
+    if (typeof message === 'string') out[key] = message
+  }
+  return out
 }
 
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -19,6 +32,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   })
   if (!res.ok) {
     let message = `HTTP ${res.status}`
+    let fields: Record<string, string> = {}
     try {
       const body: unknown = await res.json()
       if (
@@ -29,10 +43,12 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
       ) {
         message = body.error
       }
+      if (typeof body === 'object' && body !== null && 'fields' in body)
+        fields = fieldMessages(body.fields)
     } catch {
       // Non-JSON error body: keep the status line.
     }
-    throw new HttpError(res.status, message)
+    throw new HttpError(res.status, message, fields)
   }
   // No-content answers (deletes) carry nothing to parse; callers of those ask for `undefined`.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion

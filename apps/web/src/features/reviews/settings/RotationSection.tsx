@@ -16,7 +16,7 @@ export function RotationSection(props: RotationSection.Props) {
   const { data: queue } = useQuery(triageQuery(props.workspace, props.team))
   const { ids, date, disabled } = props
   const onTriage = queue?.rotation.onTriage ?? null
-  const problem = startDateProblem(date)
+  const problem = startDateProblem(date, props.dateUnreadable)
 
   return (
     <SettingsSection
@@ -58,7 +58,7 @@ export function RotationSection(props: RotationSection.Props) {
           type="date"
           value={date}
           disabled={disabled || ids.length === 0}
-          onChange={(e) => props.onDateChange(e.target.value)}
+          onChange={(e) => props.onDateChange(e.target.value, e.target.validity.badInput)}
           error={problem ?? undefined}
           description="Any day in the first week. Leave empty to start now."
         />
@@ -80,6 +80,8 @@ export namespace RotationSection {
     date: string
     disabled: boolean
     onIdsChange: (ids: string[]) => void
-    onDateChange: (date: string) => void
+    /** The date input holds text that is not a date (its value is then empty). */
+    dateUnreadable: boolean
+    onDateChange: (date: string, unreadable: boolean) => void
   }
 }

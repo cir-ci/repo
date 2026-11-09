@@ -11,7 +11,7 @@ const answer = (flakyBlocksMerge: boolean, canManage = true) => ({
   settings: { flakyBlocksMerge },
   teams: [],
 })
-const control = () => page.getByRole('switch', { name: /^Flaky screenshots block merges/ })
+const control = () => page.getByRole('checkbox', { name: /^Flaky screenshots block merges/ })
 
 describe('BuildSettings', () => {
   it('renders nothing until the settings are known', async () => {
@@ -29,7 +29,7 @@ describe('BuildSettings', () => {
     await expect.element(control()).toBeChecked()
   })
 
-  it('saves a change with one field and shows the new state', async () => {
+  it('waits for Save, sends one field, and shows the new state', async () => {
     await page.viewport(1000, 800)
     let flaky = true
     const calls = fakeFetch({
@@ -40,9 +40,29 @@ describe('BuildSettings', () => {
       },
     })
     await renderPage(<BuildSettings workspace="acme" />)
+    const save = page.getByRole('button', { name: 'Save changes' })
+    await expect.element(save).toBeDisabled()
     await control().click()
     await expect.element(control()).not.toBeChecked()
-    expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ flakyBlocksMerge: false })
+    // The merge gate changes what a pull request's check says: nothing is sent until Save.
+    expect(calls.some((c) => c.method === 'PATCH')).toBe(false)
+    await save.click()
+    await expect
+      .poll(() => calls.find((c) => c.method === 'PATCH')?.body)
+      .toEqual({ flakyBlocksMerge: false })
+    await expect.element(control()).not.toBeChecked()
+    await expect.element(save).toBeDisabled()
+  })
+
+  it('puts the saved value back on Discard', async () => {
+    await page.viewport(1000, 800)
+    const calls = fakeFetch({ [`GET ${PATH}`]: answer(true) })
+    await renderPage(<BuildSettings workspace="acme" />)
+    await control().click()
+    await expect.element(control()).not.toBeChecked()
+    await page.getByRole('button', { name: 'Discard' }).click()
+    await expect.element(control()).toBeChecked()
+    expect(calls.some((c) => c.method === 'PATCH')).toBe(false)
   })
 
   it('is read-only for members', async () => {
@@ -51,6 +71,7 @@ describe('BuildSettings', () => {
     await renderPage(<BuildSettings workspace="acme" />)
     await expect.element(control()).toHaveAttribute('data-disabled')
     await expect.element(control()).not.toBeChecked()
+    expect(page.getByRole('button', { name: 'Save changes' }).elements()).toHaveLength(0)
   })
 
   it('shows why a change was refused', async () => {
@@ -65,6 +86,7 @@ describe('BuildSettings', () => {
     })
     await renderPage(<BuildSettings workspace="acme" />)
     await control().click()
+    await page.getByRole('button', { name: 'Save changes' }).click()
     await expect
       .element(page.getByRole('alert'))
       .toHaveTextContent('Only owners and admins can change workspace settings')

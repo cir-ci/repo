@@ -42,20 +42,49 @@ export function text(form: FormData, name: string): string {
   return typeof value === 'string' ? value : ''
 }
 
+/** What better-auth's client reports for a refused call (the parts the page reads). */
+export interface AuthFailure {
+  status: number
+  code?: string | undefined
+  message?: string | undefined
+}
+
+const asFailure = (failure: number | AuthFailure): AuthFailure =>
+  typeof failure === 'number' ? { status: failure } : failure
+
+/**
+ * Better-auth refuses a sign-in from an address other than the one the server is set up for
+ * (`INVALID_ORIGIN`, 403): opening CirCI by an old name, an IP or a proxy's own host does it.
+ */
+export const isOriginRefusal = (failure: AuthFailure): boolean =>
+  failure.code === 'INVALID_ORIGIN' ||
+  (failure.status === 403 && /invalid origin/i.test(failure.message ?? ''))
+
+/** The page does not know the instance's public address (only admins do), so it says it without one. */
+export const ORIGIN_REFUSED =
+  'This server doesn’t accept sign-ins from this address. Open CirCI at the address it was set up with, or ask whoever runs it.'
+
 /** Says what went wrong without helping anyone guess which emails have accounts. */
-export function describeFailure(status: number): string {
-  if (status === 401 || status === 400) return 'Incorrect email or password.'
-  if (status === 429) return 'Too many attempts. Wait a minute and try again.'
+export function describeFailure(failure: number | AuthFailure): string {
+  const f = asFailure(failure)
+  if (isOriginRefusal(f)) return ORIGIN_REFUSED
+  if (f.status === 401 || f.status === 400) return 'Incorrect email or password.'
+  if (f.status === 429) return 'Too many attempts. Wait a minute and try again.'
   return 'Couldn’t sign in. Check your connection and try again.'
 }
 
-export function describeCodeFailure(status: number): string {
-  if (status === 429) return 'Too many attempts. Wait a minute and try again.'
-  if (status === 400 || status === 401 || status === 403) {
-    return 'That code is wrong or has expired. Check it, or ask for a new one.'
+export function describeCodeFailure(failure: number | AuthFailure): string {
+  const f = asFailure(failure)
+  if (isOriginRefusal(f)) return ORIGIN_REFUSED
+  if (f.status === 429) return 'Too many attempts. Wait a minute and try again.'
+  if (f.status === 400 || f.status === 401 || f.status === 403) {
+    return 'That code is wrong or has expired. Check it, or send a new one.'
   }
   return 'Couldn’t sign in. Check your connection and try again.'
 }
+
+/** Asking for a code again waits this long (the server also limits how many it will send). */
+export const RESEND_COOLDOWN_SECONDS = 30
 
 /** What the sign-in page says when a provider login came back refused (`?error=…`). */
 export function ssoErrorMessage(search: string = window.location.search): string | undefined {

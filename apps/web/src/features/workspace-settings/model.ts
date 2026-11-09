@@ -105,3 +105,21 @@ export function pictureProblem(file: { type: string; size: number }): string | n
   if (file.size > WORKSPACE_PICTURE_MAX_BYTES) return 'Use an image of at most 1 MB'
   return null
 }
+
+/** The sign-in methods as the page shows them: on or off. */
+export interface MethodsDraft {
+  password: boolean
+  email: boolean
+  github: boolean
+  google: boolean
+}
+
+/** The request body: only the methods that changed, under the names the server uses. */
+export function methodsPatch(saved: MethodsDraft, draft: MethodsDraft) {
+  return {
+    ...(saved.password === draft.password ? {} : { passwordLoginEnabled: draft.password }),
+    ...(saved.email === draft.email ? {} : { emailLoginEnabled: draft.email }),
+    ...(saved.github === draft.github ? {} : { signinGithub: draft.github }),
+    ...(saved.google === draft.google ? {} : { signinGoogle: draft.google }),
+  }
+}

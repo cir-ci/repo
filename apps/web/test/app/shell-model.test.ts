@@ -14,6 +14,7 @@ import {
   pickWorkspace,
   pinnedViews,
   sectionLabel,
+  settingsTeams,
   sidebarTeams,
   TEAM_SETTINGS_PAGES,
   teamSettingsKey,
@@ -258,5 +259,19 @@ describe('team settings pages', () => {
     expect(pickSettingsTeam(teams, undefined, 'web')?.slug).toBe('web')
     expect(pickSettingsTeam(teams, 'gone', 'gone')?.slug).toBe('api')
     expect(pickSettingsTeam([], 'web', 'web')).toBeUndefined()
+  })
+})
+
+describe('settingsTeams', () => {
+  const teams = [{ slug: 'qa-team' }, { slug: 'web' }]
+
+  it('keeps the sidebar teams the teams list knows in that workspace', () => {
+    const known = [overview('acme', 'web'), overview('other', 'qa-team')]
+    expect(settingsTeams(teams, known, 'acme')).toEqual([{ slug: 'web' }])
+  })
+
+  it('trusts the sidebar when the teams list knows nothing of the workspace', () => {
+    expect(settingsTeams(teams, [overview('other', 'qa')], 'acme')).toEqual(teams)
+    expect(settingsTeams(teams, undefined, 'acme')).toEqual(teams)
   })
 })

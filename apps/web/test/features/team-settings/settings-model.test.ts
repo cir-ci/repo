@@ -9,7 +9,7 @@ import {
   toFractions,
   toPixels,
 } from '#features/regions/ignore-regions.ts'
-import { buildSettingsPatch } from '#features/team-settings/settings-patch.ts'
+import { buildSettingsPatch, settingsProblems } from '#features/team-settings/settings-patch.ts'
 import { webhookProblems } from '#features/team-settings/webhook-events.ts'
 import { appearancePatch, filterIcons, iconLabel } from '#features/teams/appearance.ts'
 
@@ -35,7 +35,6 @@ describe('team appearance', () => {
 
 describe('General settings patch', () => {
   const fields = {
-    name: 'Web',
     slug: 'web',
     defaultBranch: 'main',
     diffThresholdPercent: '2.5',
@@ -47,7 +46,6 @@ describe('General settings patch', () => {
   }
   it('converts the percentage and inherits the flaky setting', () => {
     expect(buildSettingsPatch(fields, false)).toEqual({
-      name: 'Web',
       slug: 'web',
       defaultBranch: 'main',
       diffThreshold: 0.025,
@@ -59,6 +57,47 @@ describe('General settings patch', () => {
   })
   it('includes hosting only when the instance can host sites', () => {
     expect(buildSettingsPatch(fields, true)).toMatchObject({ staticHostingEnabled: true })
+  })
+})
+
+describe('General settings problems', () => {
+  const ok = {
+    slug: 'web',
+    defaultBranch: 'main',
+    diffThresholdPercent: '2.5',
+    retentionDays: '30',
+  }
+
+  it('has none for sensible values', () => {
+    expect(settingsProblems(ok)).toEqual({})
+    expect(settingsProblems({ ...ok, diffThresholdPercent: '0', retentionDays: '3650' })).toEqual(
+      {},
+    )
+    expect(settingsProblems({ ...ok, diffThresholdPercent: '100', retentionDays: '1' })).toEqual({})
+  })
+
+  it('keeps the threshold between 0 and 100 percent', () => {
+    for (const bad of ['', '-0.1', '100.5', '150', 'abc'])
+      expect(settingsProblems({ ...ok, diffThresholdPercent: bad }).diffThreshold).toBe(
+        'Enter a percentage from 0 to 100',
+      )
+  })
+
+  it('keeps retention a whole number of days from 1 to 3650', () => {
+    for (const bad of ['', '0', '3651', '1.5', '-3', 'x'])
+      expect(settingsProblems({ ...ok, retentionDays: bad }).retentionDays).toBe(
+        'Enter a whole number of days from 1 to 3650',
+      )
+  })
+
+  it('wants an address and a branch, and leaves an old address alone until it is edited', () => {
+    expect(settingsProblems({ ...ok, slug: ' ', defaultBranch: ' ' })).toEqual({
+      slug: 'Enter an address',
+      defaultBranch: 'Enter a branch name',
+    })
+    expect(settingsProblems({ ...ok, slug: 'Old_Slug' }).slug).toMatch(/lowercase/)
+    expect(settingsProblems({ ...ok, slug: 'Old_Slug' }, 'Old_Slug').slug).toBeUndefined()
+    expect(settingsProblems({ ...ok, slug: 'settings' }).slug).toMatch(/lowercase/)
   })
 })
 

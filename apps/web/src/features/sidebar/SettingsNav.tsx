@@ -30,12 +30,13 @@ import {
   pickSettingsTeam,
   readRememberedTeam,
   readRememberedWorkspace,
+  settingsTeams,
   TEAM_SETTINGS_PAGES,
   teamSettingsKey,
   type TeamSettingsKey,
 } from '#app/shell-model.ts'
 import { useSidebarModel } from '#features/sidebar/api.ts'
-import { capabilitiesQuery } from '#features/teams/api/index.ts'
+import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
 import { isTeamIconName } from '#features/teams/appearance.ts'
 
 import { TeamSwitcher } from './TeamSwitcher.tsx'
@@ -72,7 +73,11 @@ export function SettingsNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { workspace } = useWorkspaces(readRememberedWorkspace())
   const { data: model } = useSidebarModel(workspace?.slug)
-  const teams = orderTeams(model?.teams ?? [])
+  const { data: overview } = useQuery(teamsQuery())
+  // Only teams that exist in this workspace now: never one remembered from, or cached for, another.
+  const teams = orderTeams(
+    settingsTeams(model?.teams ?? [], overview?.teams, workspace?.slug ?? ''),
+  )
   const team = workspace
     ? pickSettingsTeam(
         teams,

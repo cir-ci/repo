@@ -1,5 +1,7 @@
 import { Checkbox, SettingsRow, SettingsSection, Text, TextField } from '@circi/ui'
 
+import { REVIEW_TARGET_HOURS_MAX } from '#features/team-settings/settings-patch.ts'
+
 import { describeHours, targetProblem } from './api.ts'
 
 /**
@@ -36,11 +38,12 @@ export function ReviewTargetSection(props: ReviewTargetSection.Props) {
               hideLabel
               type="number"
               min={1}
+              max={REVIEW_TARGET_HOURS_MAX}
               step={1}
               value={hours}
               disabled={disabled}
               onChange={(e) => props.onHoursChange(e.target.value)}
-              error={touched && problem ? problem : undefined}
+              error={(touched && problem ? problem : undefined) ?? props.serverProblem}
             />
             <Text tone="secondary">hours</Text>
           </div>
@@ -58,6 +61,8 @@ export namespace ReviewTargetSection {
     hours: string
     /** Show the problem with the hours (after a first try to save). */
     touched: boolean
+    /** What the server said about the hours, when it says which field. */
+    serverProblem?: string | undefined
     disabled: boolean
     onEnabledChange: (enabled: boolean) => void
     onHoursChange: (hours: string) => void

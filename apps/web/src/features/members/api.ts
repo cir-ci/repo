@@ -36,13 +36,23 @@ export async function inviteMember(input: {
   /** Send the mail again for the pending invitation to this address (and extend its expiry). */
   resend?: boolean
 }) {
-  const { error } = await authClient.organization.inviteMember({
+  const { data, error } = await authClient.organization.inviteMember({
     email: input.email,
     role: input.role,
     organizationId: input.workspaceId,
     ...(input.resend ? { resend: true } : {}),
   })
   if (error) throw new Error(error.message ?? 'Couldn’t send the invitation.')
+  return replacement(data)
+}
+
+/** The server marks an invitation that replaced an open one to the same address. */
+function replacement(data: unknown): { replacedRole: string | null } | null {
+  if (typeof data !== 'object' || data === null || Reflect.get(data, 'replaced') !== true) {
+    return null
+  }
+  const role: unknown = Reflect.get(data, 'replacedRole')
+  return { replacedRole: typeof role === 'string' ? role : null }
 }
 
 export async function cancelInvitation(invitationId: string) {

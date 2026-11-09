@@ -42,6 +42,19 @@ describe('NotificationsPage', () => {
     expect(api.of('PUT')[0]?.body).toEqual({ emailReviewOverdue: true })
   })
 
+  it('says Saved next to the switch once it is saved, with no Save button', async () => {
+    await page.viewport(1000, 800)
+    fakeApi({
+      [`GET ${PATH}`]: { body: { emailReviewRequested: true, emailReviewOverdue: false } },
+      'GET /api/capabilities': MAIL,
+      [`PUT ${PATH}`]: { body: { emailReviewRequested: true, emailReviewOverdue: true } },
+    })
+    await renderPage(<NotificationsPage />)
+    await overdue().click()
+    await expect.element(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible()
+    expect(page.getByRole('button', { name: /^Save/ }).elements()).toHaveLength(0)
+  })
+
   it('puts the switch back and says why when the save fails', async () => {
     await page.viewport(1000, 800)
     fakeApi({
@@ -51,9 +64,7 @@ describe('NotificationsPage', () => {
     })
     await renderPage(<NotificationsPage />)
     await overdue().click()
-    await expect
-      .element(page.getByRole('alert'))
-      .toHaveTextContent('Couldn’t save that: Database is down')
+    await expect.element(page.getByRole('alert')).toHaveTextContent('Database is down')
     await expect.element(overdue()).not.toBeChecked()
   })
 
@@ -96,5 +107,19 @@ describe('AppearancePage', () => {
     await light.click()
     await expect.element(light).toBeChecked()
     expect(document.documentElement.getAttribute('data-circi-color-scheme')).toBe('light')
+  })
+
+  it('says Saved at once after a choice: there is no Save button for a theme', async () => {
+    await page.viewport(1000, 800)
+    await renderPage(<AppearancePage />, { announcer: true })
+    expect(
+      page
+        .getByRole('status')
+        .filter({ hasText: /^Saved$/ })
+        .elements(),
+    ).toHaveLength(0)
+    await page.getByRole('radio', { name: /Dark/ }).click()
+    await expect.element(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible()
+    expect(page.getByRole('button', { name: /^Save/ }).elements()).toHaveLength(0)
   })
 })

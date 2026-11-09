@@ -1,6 +1,7 @@
 import type { ReviewRule, ReviewRuleKind, Triage } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
+import { REVIEW_TARGET_HOURS_MAX } from '#features/team-settings/settings-patch.ts'
 import { teamPath } from '#lib/api-paths.ts'
 import { getJson, post, send } from '#lib/http.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
@@ -143,11 +144,12 @@ export function useRuleActions(workspace: string, team: string) {
 
 // ---- Review target ----------------------------------------------------------------------------
 
-/** Why the hours can't be saved, or null. The server wants a whole number, at least 1. */
+/** Why the hours can't be saved, or null. The server wants a whole number from 1 to 720 (30 days). */
 export function targetProblem(text: string): string | null {
   const t = text.trim()
-  if (!/^\d+$/.test(t) || Number(t) < 1) return 'Enter a whole number of hours, at least 1'
-  if (Number(t) > 24 * 365) return 'Use at most one year (8760 hours)'
+  if (!/^\d+$/.test(t) || Number(t) < 1 || Number(t) > REVIEW_TARGET_HOURS_MAX) {
+    return `Enter a whole number of hours from 1 to ${REVIEW_TARGET_HOURS_MAX}`
+  }
   return null
 }
 
@@ -174,11 +176,23 @@ export function describeHours(hours: number): string {
 /** The date input's value for a saved start: "2026-11-02", or "" without a rotation. */
 export const startDateOf = (rotation: Triage.Rotation) => rotation.startsOn?.slice(0, 10) ?? ''
 
-export function startDateProblem(date: string): string | null {
+/** Whether "2026-02-31" names a day that exists (the date parser rolls it over to March). */
+export function isCalendarDate(date: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date)
+  if (!m) return false
+  const [year, month, day] = [Number(m[1]), Number(m[2]), Number(m[3])]
+  const at = new Date(Date.UTC(year, month - 1, day))
+  return at.getUTCFullYear() === year && at.getUTCMonth() === month - 1 && at.getUTCDate() === day
+}
+
+/**
+ * Why the start date can't be used, or null. `unreadable` is the date input saying that what is
+ * typed in it is not a date (its value is then empty, which must not pass for "start now").
+ */
+export function startDateProblem(date: string, unreadable = false): string | null {
+  if (unreadable) return 'Enter a valid date'
   if (date === '') return null
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) {
-    return 'Enter a valid date'
-  }
+  if (!isCalendarDate(date)) return 'Enter a valid date'
   return null
 }
 

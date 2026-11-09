@@ -4,10 +4,11 @@ import {
   SettingsRow,
   SettingsSection,
   Text,
+  useAnnounce,
   useColorScheme,
   visuallyHidden,
 } from '@circi/ui'
-import type { CSSProperties } from 'react'
+import { type CSSProperties, useState } from 'react'
 
 import { Frame } from '#features/workspace-settings/Frame.tsx'
 import { useDocumentTitle } from '#lib/document-title.ts'
@@ -50,6 +51,8 @@ function Mock({ scheme }: { scheme: 'light' | 'dark' }) {
 export function AppearancePage() {
   useDocumentTitle('Appearance')
   const { mode, setMode } = useColorScheme()
+  const announce = useAnnounce()
+  const [saved, setSaved] = useState(false)
   return (
     <Frame crumbs={['Account', 'Appearance']}>
       <SettingsSection
@@ -71,7 +74,11 @@ export function AppearancePage() {
                   value={c.mode}
                   checked={mode === c.mode}
                   className={styles.cardInput}
-                  onChange={() => setMode(c.mode)}
+                  onChange={() => {
+                    setMode(c.mode)
+                    setSaved(true)
+                    announce(`Theme saved: ${c.label}`)
+                  }}
                 />
                 <span className={styles.mock} aria-hidden="true" style={{ padding: 0, gap: 0 }}>
                   {c.mode === 'system' ? (
@@ -94,7 +101,13 @@ export function AppearancePage() {
             ))}
           </fieldset>
         </SettingsRow>
-        <SettingsRow detail="Saved in this browser. Screenshots under review always show on white." />
+        <SettingsRow detail="Saved as soon as you choose, in this browser. Screenshots under review always show on white.">
+          {saved ? (
+            <Text variant="small" tone="approved" role="status">
+              Saved
+            </Text>
+          ) : null}
+        </SettingsRow>
       </SettingsSection>
       <SettingsSection
         title="Switch quickly"

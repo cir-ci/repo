@@ -149,6 +149,26 @@ describe('LoginPage', () => {
     await expect.element(page.getByLabelText('Password')).toBeVisible()
   })
 
+  it('keeps the typed email when switching to a code after a wrong password, and back', async () => {
+    fakeFetch({
+      ...methods({ email: true }),
+      'POST /api/auth/sign-in/email': json({ message: 'Invalid' }, 401),
+    })
+    await renderPage(<LoginPage />)
+    await page.getByRole('textbox', { name: 'Email' }).fill('ada@example.com')
+    await page.getByLabelText('Password').fill('nope')
+    await page.getByRole('button', { name: 'Sign in' }).click()
+    await expect.element(page.getByRole('alert')).toHaveTextContent('Incorrect email or password.')
+    await page.getByRole('button', { name: 'Email me a code' }).click()
+    await expect
+      .element(page.getByRole('textbox', { name: 'Email' }))
+      .toHaveValue('ada@example.com')
+    await page.getByRole('button', { name: 'Use a password instead' }).click()
+    await expect
+      .element(page.getByRole('textbox', { name: 'Email' }))
+      .toHaveValue('ada@example.com')
+  })
+
   it('goes straight to the code step from a mailed link and clears the link after sign-in', async () => {
     window.location.hash = '#signin-email=ada%40example.com&code=123456'
     const calls = fakeFetch({
@@ -191,8 +211,81 @@ describe('LoginPage', () => {
     await renderPage(<LoginPage />)
     await page.getByRole('button', { name: 'Sign in' }).click()
     await expect
-      .element(page.getByText('That code is wrong or has expired. Check it, or ask for a new one.'))
+      .element(page.getByText('That code is wrong or has expired. Check it, or send a new one.'))
       .toBeVisible()
+  })
+
+  it('lets you send a new code from the code step, after a wait', async () => {
+    const calls = fakeFetch({
+      ...methods({ email: true, password: false }),
+      'POST /api/auth/email-otp/send-verification-otp': { success: true },
+      'POST /api/auth/sign-in/email-otp': json({ message: 'bad' }, 400),
+    })
+    await renderPage(<LoginPage />)
+    await page.getByRole('textbox', { name: 'Email' }).fill('ada@example.com')
+    await page.getByRole('button', { name: 'Email me a code' }).click()
+    await page.getByLabelText('6-digit code').fill('000000')
+    await page.getByRole('button', { name: 'Sign in' }).click()
+    await expect
+      .element(page.getByText('That code is wrong or has expired. Check it, or send a new one.'))
+      .toBeVisible()
+    // Just sent one: the server limits how many it will send, so the button waits.
+    const again = page.getByRole('button', { name: /^Send a new code/ })
+    await expect.element(again).toBeDisabled()
+    await expect.poll(() => again.element().textContent).toMatch(/Send\s+a\s+new\s+code\s+in/)
+    expect(calls.filter((c) => c.path.endsWith('send-verification-otp'))).toHaveLength(1)
+  })
+
+  it('sends a new code once the wait is over, and says so', async () => {
+    window.location.hash = '#signin-email=ada%40example.com&code=000000'
+    const calls = fakeFetch({
+      ...methods({ email: true }),
+      'POST /api/auth/email-otp/send-verification-otp': { success: true },
+    })
+    await renderPage(<LoginPage />)
+    // Arriving by the mailed link starts no wait: nothing was requested from this page.
+    const again = page.getByRole('button', { name: 'Send a new code' })
+    await expect.element(again).toBeEnabled()
+    await again.click()
+    await expect.element(page.getByText(/We sent a new code to ada@example\.com/)).toBeVisible()
+    expect(calls.filter((c) => c.path.endsWith('send-verification-otp'))).toHaveLength(1)
+    expect(calls.find((c) => c.path.endsWith('send-verification-otp'))?.body).toEqual({
+      email: 'ada@example.com',
+      type: 'sign-in',
+    })
+    await expect.element(page.getByRole('button', { name: /Send a new code in/ })).toBeDisabled()
+  })
+
+  it('shows the rate limit when asking for a new code is refused', async () => {
+    window.location.hash = '#signin-email=ada%40example.com&code=000000'
+    fakeFetch({
+      ...methods({ email: true }),
+      'POST /api/auth/email-otp/send-verification-otp': json({ message: 'Too many' }, 429),
+    })
+    await renderPage(<LoginPage />)
+    await page.getByRole('button', { name: 'Send a new code' }).click()
+    await expect
+      .element(page.getByText('Too many attempts. Wait a minute and try again.'))
+      .toBeVisible()
+    await expect.element(page.getByRole('button', { name: /Send a new code in/ })).toBeDisabled()
+  })
+
+  it('says the address is the wrong one when the server refuses the origin', async () => {
+    fakeFetch({
+      ...methods(),
+      'POST /api/auth/sign-in/email': json(
+        { code: 'INVALID_ORIGIN', message: 'Invalid origin' },
+        403,
+      ),
+    })
+    await renderPage(<LoginPage />)
+    await page.getByRole('textbox', { name: 'Email' }).fill('ada@example.com')
+    await page.getByLabelText('Password').fill('hunter2hunter2')
+    await page.getByRole('button', { name: 'Sign in' }).click()
+    await expect
+      .poll(() => page.getByRole('alert').element().textContent)
+      .toMatch(/This server doesn.t accept sign-ins from this address\./)
+    expect(page.getByText(/Check your connection/).elements()).toHaveLength(0)
   })
 
   it('offers one button per single sign-on provider and reports a refusal', async () => {

@@ -2,11 +2,11 @@ import { type Team } from '@circi/api'
 import {
   Banner,
   Button,
+  Checkbox,
   ConfirmDialog,
   Select,
   SettingsRow,
   SettingsSection,
-  Switch,
   Text,
   TextField,
   useAnnounce,
@@ -14,19 +14,25 @@ import {
 import { type FormEvent, useState } from 'react'
 
 import { type useSaveSettings, useUnlinkRepository } from '#features/teams/api/index.ts'
+import { HttpError } from '#lib/http.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 
 import { choiceOf, flakyChoices, type FlakyChoice, isFlakyChoice } from './flaky-setting.ts'
-import { buildSettingsPatch } from './settings-patch.ts'
+import {
+  buildSettingsPatch,
+  RETENTION_DAYS_MAX,
+  SETTINGS_FIELDS,
+  settingsProblems,
+  type SettingsField,
+} from './settings-patch.ts'
 
 import styles from './TeamSettings.module.css'
 
-const text = (form: FormData, key: string) => {
-  const v = form.get(key)
-  return typeof v === 'string' ? v : ''
-}
-
-/** The General page below the appearance: team, repository, comparison, gate, sites. */
+/**
+ * The General page below the name, icon and colour (which save at once): the settings that change
+ * how builds are judged or where links point, saved together with one Save (and Discard):
+ * address, default branch, repository, comparison, merge gate, sites.
+ */
 export function SettingsForm(props: SettingsForm.Props) {
   // The page owns the save and its confirmation: saving refetches the settings, which remounts
   // this form (it is keyed by them), and a remounted form would lose both.
@@ -35,9 +41,13 @@ export function SettingsForm(props: SettingsForm.Props) {
   const announce = useAnnounce()
   const clientLink = useClientLink()
   const [unlinking, setUnlinking] = useState(false)
-  // Discard remounts the fields from the saved values.
-  const [version, setVersion] = useState(0)
   const s = props.settings
+  const percent = () => String(Number((s.diffThreshold * 100).toFixed(4)))
+  const [branch, setBranch] = useState(s.defaultBranch)
+  const [threshold, setThreshold] = useState(percent)
+  const [retention, setRetention] = useState(String(s.retentionDays))
+  // Fields the person has left, or all of them after a try to save: only then are problems shown.
+  const [touched, setTouched] = useState<ReadonlySet<SettingsField>>(new Set())
   const [blockMerge, setBlockMerge] = useState(s.blockMergeOnChanges)
   const [flaky, setFlaky] = useState<FlakyChoice>(choiceOf(s.flakyBlocksMerge))
   const [autoApprove, setAutoApprove] = useState(s.autoApproveDefaultBranch)
@@ -45,18 +55,41 @@ export function SettingsForm(props: SettingsForm.Props) {
   const [slug, setSlug] = useState(s.slug)
   const disabled = !props.canManage
 
+  const found = settingsProblems(
+    {
+      slug,
+      defaultBranch: branch,
+      diffThresholdPercent: threshold,
+      retentionDays: retention,
+    },
+    s.slug,
+  )
+  // What the server refused, by field, when it says which (otherwise the banner below says it).
+  const served = save.error instanceof HttpError ? save.error.fields : {}
+  const shown = (field: SettingsField) =>
+    (touched.has(field) ? found[field] : undefined) ?? served[field]
+  const fieldErrors = Object.keys(served).some((field) =>
+    SETTINGS_FIELDS.some((known) => known === field),
+  )
+  const touch = (field: SettingsField) => () => setTouched((t) => new Set(t).add(field))
+  // Typing clears what the server said about that field.
+  const edited = () => {
+    if (save.isError) save.reset()
+    setSaved(false)
+  }
+
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const form = new FormData(e.currentTarget)
+    setTouched(new Set(SETTINGS_FIELDS))
+    if (Object.keys(found).length > 0) return
     setSaved(false)
     save.mutate(
       buildSettingsPatch(
         {
-          name: text(form, 'name'),
-          slug: text(form, 'slug'),
-          defaultBranch: text(form, 'defaultBranch'),
-          diffThresholdPercent: text(form, 'diffThresholdPercent'),
-          retentionDays: text(form, 'retentionDays'),
+          slug,
+          defaultBranch: branch,
+          diffThresholdPercent: threshold,
+          retentionDays: retention,
           autoApprove,
           blockMerge,
           flaky,
@@ -81,9 +114,12 @@ export function SettingsForm(props: SettingsForm.Props) {
     setAutoApprove(s.autoApproveDefaultBranch)
     setHosting(s.staticHostingEnabled)
     setSlug(s.slug)
+    setBranch(s.defaultBranch)
+    setThreshold(percent())
+    setRetention(String(s.retentionDays))
+    setTouched(new Set())
     setSaved(false)
     save.reset()
-    setVersion((v) => v + 1)
   }
 
   const link = props.link
@@ -94,16 +130,23 @@ export function SettingsForm(props: SettingsForm.Props) {
 
   return (
     <form onSubmit={submit} noValidate className={styles.form}>
-      <SettingsSection title="Team">
+      <SettingsSection
+        title="Address and branch"
+        description="Saved together with the settings below, when you press Save changes."
+      >
         <SettingsRow>
-          <div className={styles.fields} key={version}>
-            <TextField name="name" label="Name" defaultValue={s.name} disabled={disabled} />
+          <div className={styles.fields}>
             <TextField
               name="slug"
               label="Slug"
               value={slug}
-              onChange={(e) => setSlug(e.target.value)}
+              onChange={(e) => {
+                setSlug(e.target.value)
+                edited()
+              }}
+              onBlur={touch('slug')}
               disabled={disabled}
+              error={shown('slug')}
               description={
                 <>
                   Used in addresses and in <Text variant="mono">circi admin</Text> commands.
@@ -113,8 +156,14 @@ export function SettingsForm(props: SettingsForm.Props) {
             <TextField
               name="defaultBranch"
               label="Default branch"
-              defaultValue={s.defaultBranch}
+              value={branch}
+              onChange={(e) => {
+                setBranch(e.target.value)
+                edited()
+              }}
+              onBlur={touch('defaultBranch')}
               disabled={disabled}
+              error={shown('defaultBranch')}
               description="Its approved builds are the baselines."
             />
           </div>
@@ -167,13 +216,19 @@ export function SettingsForm(props: SettingsForm.Props) {
           label="Diff threshold"
           detail="A screenshot counts as changed when more than this share of its pixels differ. A change of size is always a change, whatever the threshold."
         >
-          <div className={styles.number} key={version}>
+          <div className={styles.number}>
             <TextField
               name="diffThresholdPercent"
               label="Diff threshold"
               hideLabel
               type="number"
-              defaultValue={Number((s.diffThreshold * 100).toFixed(4))}
+              value={threshold}
+              onChange={(e) => {
+                setThreshold(e.target.value)
+                edited()
+              }}
+              onBlur={touch('diffThreshold')}
+              error={shown('diffThreshold')}
               disabled={disabled}
               min={0}
               max={100}
@@ -186,15 +241,22 @@ export function SettingsForm(props: SettingsForm.Props) {
           label="Keep builds for"
           detail="Older builds and their hosted sites expire. The newest approved baseline on the default branch never does."
         >
-          <div className={styles.number} key={version}>
+          <div className={styles.number}>
             <TextField
               name="retentionDays"
               label="Keep builds for (days)"
               hideLabel
               type="number"
-              defaultValue={s.retentionDays}
+              value={retention}
+              onChange={(e) => {
+                setRetention(e.target.value)
+                edited()
+              }}
+              onBlur={touch('retentionDays')}
+              error={shown('retentionDays')}
               disabled={disabled}
               min={1}
+              max={RETENTION_DAYS_MAX}
               step={1}
             />
             <Text tone="secondary">days</Text>
@@ -207,7 +269,7 @@ export function SettingsForm(props: SettingsForm.Props) {
         description="What the check on a pull request says while changes wait for review. It only blocks merging if the repository marks it as required."
       >
         <SettingsRow>
-          <Switch
+          <Checkbox
             label="Unreviewed changes block merging"
             description="The check stays pending until someone approves. Off: it passes with a “changes to review” summary."
             checked={blockMerge}
@@ -228,7 +290,7 @@ export function SettingsForm(props: SettingsForm.Props) {
           />
         </SettingsRow>
         <SettingsRow>
-          <Switch
+          <Checkbox
             label="Approve default-branch builds automatically"
             description="Builds on the default branch become the new baseline without a review. Needs an approved baseline to compare with, so a team’s first build is always reviewed."
             checked={autoApprove}
@@ -244,7 +306,7 @@ export function SettingsForm(props: SettingsForm.Props) {
           description="Storybook, test reports and docs for each commit, behind sign-in. Needs the sites domain set on the server."
         >
           <SettingsRow>
-            <Switch
+            <Checkbox
               label="Host static sites"
               description={
                 <>
@@ -260,7 +322,7 @@ export function SettingsForm(props: SettingsForm.Props) {
         </SettingsSection>
       ) : null}
 
-      {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
+      {save.error && !fieldErrors ? <Banner tone="danger">{save.error.message}</Banner> : null}
       {saved ? <Banner tone="success">Settings saved.</Banner> : null}
       {props.canManage ? (
         <div className={styles.footer}>

@@ -27,6 +27,8 @@ export function LoginPage() {
   const [mode, setMode] = useState<'password' | 'email'>(
     fromLink || invitedEmail ? 'email' : 'password',
   )
+  // The typed email is kept here, so switching between the password and the code keeps it.
+  const [email, setEmail] = useState(fromLink?.email ?? invitedEmail ?? '')
   const [workspaceStep, setWorkspaceStep] = useState(false)
   const emailOn = methods.data?.email === true || Boolean(fromLink) || Boolean(invitedEmail)
   const showsSignIn = setup.data !== undefined && !setup.data.needed
@@ -62,11 +64,16 @@ export function LoginPage() {
           {(mode === 'email' || !passwordOn) && emailOn ? (
             <EmailForm
               initial={fromLink}
-              invitedEmail={invitedEmail}
+              email={email}
+              onEmailChange={setEmail}
               onBack={passwordOn ? () => setMode('password') : undefined}
             />
           ) : (
-            <PasswordForm onEmail={emailOn ? () => setMode('email') : undefined} />
+            <PasswordForm
+              email={email}
+              onEmailChange={setEmail}
+              onEmail={emailOn ? () => setMode('email') : undefined}
+            />
           )}
         </>
       )}

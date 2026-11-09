@@ -17,6 +17,8 @@ function show(
     route?: string
     instanceAdmin?: boolean
     teams?: ReturnType<typeof sidebarTeam>[]
+    /** The teams list's teams (`/api/teams`); by default the sidebar's own. */
+    overviewTeams?: ReturnType<typeof overview>[]
     remember?: Record<string, string>
   } = {},
 ) {
@@ -42,7 +44,14 @@ function show(
           mailConfigured: false,
         },
       },
-      'GET /api/teams': { body: { teams: [overview('acme', 'Acme', 'web')] } },
+      'GET /api/teams': {
+        body: {
+          teams: options.overviewTeams ?? [
+            overview('acme', 'Acme', 'web'),
+            ...teams.filter((t) => t.slug !== 'web').map((t) => overview('acme', 'Acme', t.slug)),
+          ],
+        },
+      },
       'GET /api/workspaces/acme/sidebar': { body: sidebarModel({ teams }) },
     },
   })
@@ -103,6 +112,27 @@ describe('SettingsNav', () => {
       remember: { 'circi-settings-team:acme': 'api' },
     })
     await expect.element(page.getByRole('region', { name: 'Team · API' })).toBeVisible()
+  })
+
+  it('never offers a team that is not in this workspace, even one remembered or cached', async () => {
+    // After a slug rename in another workspace: the cache and the remembered team still say qa-team,
+    // the teams list knows only what exists in Acme.
+    await show({
+      route: '/instance/workspaces',
+      url: '/instance/workspaces',
+      teams: [
+        sidebarTeam({ slug: 'qa-team', name: 'QA team' }),
+        sidebarTeam({ slug: 'web', name: 'Web App' }),
+      ],
+      overviewTeams: [overview('acme', 'Acme', 'web'), overview('other', 'Other', 'qa')],
+      remember: { 'circi-settings-team:acme': 'qa-team' },
+    })
+    const team = page.getByRole('region', { name: 'Team · Web App' })
+    await expect.element(team).toBeVisible()
+    await expect
+      .element(team.getByRole('link', { name: 'General' }))
+      .toHaveAttribute('href', '/acme/web/settings')
+    expect(page.getByRole('region', { name: 'Team · QA team' }).elements()).toHaveLength(0)
   })
 
   it('has no Team section when the workspace has no teams', async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { page } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 
 import { TeamSettingsPage } from '#features/team-settings/TeamSettingsPage.tsx'
 import { fakeApi, hangingFetch, type ReplyHandler } from '#test/support/fetch.ts'
@@ -94,13 +94,15 @@ describe('TeamSettingsPage', () => {
       .toHaveValue(30)
     await expect.element(page.getByRole('textbox', { name: 'Slug' })).toHaveValue('web')
     await expect
-      .element(page.getByRole('switch', { name: /^Unreviewed changes block merging/ }))
+      .element(page.getByRole('checkbox', { name: /^Unreviewed changes block merging/ }))
       .toBeChecked()
     await expect
-      .element(page.getByRole('switch', { name: /^Approve default-branch builds automatically/ }))
+      .element(page.getByRole('checkbox', { name: /^Approve default-branch builds automatically/ }))
       .not.toBeChecked()
-    // No static hosting switch (and no section) unless the instance can host sites.
-    expect(page.getByRole('switch', { name: /Host static sites/ }).elements()).toHaveLength(0)
+    // Nothing in the Save form is a switch: switches are for settings that apply at once.
+    expect(page.getByRole('switch').elements()).toHaveLength(0)
+    // No static hosting checkbox (and no section) unless the instance can host sites.
+    expect(page.getByRole('checkbox', { name: /Host static sites/ }).elements()).toHaveLength(0)
     expect(page.getByRole('heading', { name: 'Hosted sites' }).elements()).toHaveLength(0)
   })
 
@@ -131,6 +133,31 @@ describe('TeamSettingsPage', () => {
     await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app/settings')
   })
 
+  it('follows a slug rename in the settings nav: the remembered team and the sidebar', async () => {
+    localStorage.setItem('circi-settings-team:acme', 'web')
+    api(
+      {},
+      {
+        [`PATCH ${API}/settings`]: { body: { settings: { ...settings, slug: 'web-app' } } },
+        'GET /api/workspaces/acme/sidebar': { body: { teams: [], views: [], inboxUnread: 0 } },
+      },
+    )
+    const { queryClient } = await show()
+    // The settings nav has read the sidebar of the workspace: a rename makes it stale.
+    await queryClient.fetchQuery({
+      queryKey: ['sidebar', 'acme'],
+      queryFn: () => fetch('/api/workspaces/acme/sidebar').then((r) => r.json()),
+    })
+    expect(queryClient.getQueryState(['sidebar', 'acme'])?.isInvalidated).toBe(false)
+    await expect.element(page.getByRole('textbox', { name: 'Slug' })).toHaveValue('web')
+    await page.getByRole('textbox', { name: 'Slug' }).fill('web-app')
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect.poll(() => localStorage.getItem('circi-settings-team:acme')).toBe('web-app')
+    await expect
+      .poll(() => queryClient.getQueryState(['sidebar', 'acme'])?.isInvalidated)
+      .toBe(true)
+  })
+
   it('shows the server’s refusal of a taken slug and stays put', async () => {
     api(
       {},
@@ -153,13 +180,18 @@ describe('TeamSettingsPage', () => {
     await show()
     // Edit only once the form shows the saved values: the form is keyed by them and remounts
     // (dropping what was typed, and the per-save callbacks) if they arrive after the first edit.
-    await expect.element(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Web App')
-    await expect.element(page.getByRole('switch', { name: /Host static sites/ })).not.toBeChecked()
-    await page.getByRole('textbox', { name: 'Name' }).fill('Web')
+    await expect.element(page.getByRole('textbox', { name: 'Default branch' })).toHaveValue('main')
+    await expect
+      .element(page.getByRole('checkbox', { name: /Host static sites/ }))
+      .not.toBeChecked()
     await page.getByRole('spinbutton', { name: 'Diff threshold' }).fill('2.5')
     await page.getByRole('spinbutton', { name: 'Keep builds for (days)' }).fill('90')
-    await page.getByRole('switch', { name: /^Approve default-branch builds automatically/ }).click()
-    await page.getByRole('switch', { name: /Host static sites/ }).click()
+    await page
+      .getByRole('checkbox', { name: /^Approve default-branch builds automatically/ })
+      .click()
+    await page.getByRole('checkbox', { name: /Host static sites/ }).click()
+    // Nothing is sent until Save.
+    expect(fake.of('PATCH')).toHaveLength(0)
     await page.getByRole('button', { name: 'Save changes' }).click()
     await expect.element(page.getByText('Settings saved.')).toBeVisible()
     await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
@@ -168,7 +200,6 @@ describe('TeamSettingsPage', () => {
         method: 'PATCH',
         path: `${API}/settings`,
         body: {
-          name: 'Web',
           slug: 'web',
           defaultBranch: 'main',
           diffThreshold: 0.025,
@@ -185,6 +216,126 @@ describe('TeamSettingsPage', () => {
       .toBeVisible()
   })
 
+  it('discards what was edited, back to the saved values', async () => {
+    const fake = api()
+    await show()
+    await page.getByRole('spinbutton', { name: 'Keep builds for (days)' }).fill('90')
+    await page.getByRole('checkbox', { name: /^Unreviewed changes block merging/ }).click()
+    await page.getByRole('button', { name: 'Discard' }).click()
+    await expect
+      .element(page.getByRole('spinbutton', { name: 'Keep builds for (days)' }))
+      .toHaveValue(30)
+    await expect
+      .element(page.getByRole('checkbox', { name: /^Unreviewed changes block merging/ }))
+      .toBeChecked()
+    expect(fake.of('PATCH')).toHaveLength(0)
+  })
+
+  it('saves the name by itself when the field is left, with a Saved note', async () => {
+    const fake = api()
+    await show()
+    await expect.element(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Web App')
+    await page.getByRole('textbox', { name: 'Name' }).fill('Web')
+    await page.getByRole('textbox', { name: 'Default branch' }).click()
+    await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
+    // Only the name: the workflow settings stay with the Save button.
+    expect(fake.of('PATCH')[0]).toMatchObject({ path: `${API}/settings`, body: { name: 'Web' } })
+    expect(fake.of('PATCH')[0]?.body).toEqual({ name: 'Web' })
+    await expect.element(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible()
+    await expect
+      .element(page.getByRole('status').filter({ hasText: /^Team name saved$/ }))
+      .toBeInTheDocument()
+  })
+
+  it('saves the name on Enter, and shows why it could not be saved', async () => {
+    const fake = api()
+    fake.set(`PATCH ${API}/settings`, { status: 400, body: { error: 'Name is too long' } })
+    await show()
+    await expect.element(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Web App')
+    await page.getByRole('textbox', { name: 'Name' }).fill('Webby')
+    await userEvent.keyboard('{Enter}')
+    await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
+    await expect.element(page.getByRole('alert')).toHaveTextContent('Name is too long')
+  })
+
+  it('does not reset what is typed in the form when the name is saved', async () => {
+    let saved = settings
+    fakeApi({
+      [`GET ${API}/settings`]: () => ({ body: response({ settings: saved }) }),
+      [`PATCH ${API}/settings`]: (body) => {
+        const name = typeof body === 'object' && body && 'name' in body ? String(body.name) : ''
+        saved = { ...settings, name }
+        return { body: { settings: saved } }
+      },
+    })
+    await show()
+    await page.getByRole('spinbutton', { name: 'Keep builds for (days)' }).fill('90')
+    await page.getByRole('textbox', { name: 'Name' }).fill('Web')
+    await page.getByRole('textbox', { name: 'Default branch' }).click()
+    await expect.element(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible()
+    await expect
+      .element(page.getByRole('spinbutton', { name: 'Keep builds for (days)' }))
+      .toHaveValue(90)
+  })
+
+  describe('checks before saving', () => {
+    it('refuses a threshold outside 0 to 100 on the field, and sends nothing', async () => {
+      const fake = api()
+      await show()
+      await page.getByRole('spinbutton', { name: 'Diff threshold' }).fill('150')
+      await page.getByRole('button', { name: 'Save changes' }).click()
+      await expect.element(page.getByText('Enter a percentage from 0 to 100')).toBeVisible()
+      await page.getByRole('spinbutton', { name: 'Diff threshold' }).fill('-1')
+      await expect.element(page.getByText('Enter a percentage from 0 to 100')).toBeVisible()
+      await page.getByRole('spinbutton', { name: 'Diff threshold' }).fill('100')
+      await expect
+        .element(page.getByText('Enter a percentage from 0 to 100'))
+        .not.toBeInTheDocument()
+      expect(fake.of('PATCH')).toHaveLength(0)
+    })
+
+    it('refuses retention outside 1 to 3650 days, as soon as the field is left', async () => {
+      const fake = api()
+      await show()
+      await page.getByRole('spinbutton', { name: 'Keep builds for (days)' }).fill('5000')
+      await page.getByRole('textbox', { name: 'Default branch' }).click()
+      await expect
+        .element(page.getByText('Enter a whole number of days from 1 to 3650'))
+        .toBeVisible()
+      await page.getByRole('spinbutton', { name: 'Keep builds for (days)' }).fill('0')
+      await page.getByRole('button', { name: 'Save changes' }).click()
+      await expect
+        .element(page.getByText('Enter a whole number of days from 1 to 3650'))
+        .toBeVisible()
+      expect(fake.of('PATCH')).toHaveLength(0)
+    })
+
+    it('shows the server’s field errors on their fields, without a banner', async () => {
+      const fake = api()
+      fake.set(`PATCH ${API}/settings`, {
+        status: 400,
+        body: {
+          error: 'Invalid settings',
+          fields: { retentionDays: 'Retention is capped at 3650' },
+        },
+      })
+      await show()
+      await page.getByRole('spinbutton', { name: 'Keep builds for (days)' }).fill('90')
+      await page.getByRole('button', { name: 'Save changes' }).click()
+      await expect.element(page.getByText('Retention is capped at 3650')).toBeVisible()
+      expect(page.getByText('Invalid settings').elements()).toHaveLength(0)
+    })
+
+    it('keeps the banner when the server names no field', async () => {
+      const fake = api()
+      fake.set(`PATCH ${API}/settings`, { status: 400, body: { error: 'Something is off' } })
+      await show()
+      await page.getByRole('spinbutton', { name: 'Keep builds for (days)' }).fill('90')
+      await page.getByRole('button', { name: 'Save changes' }).click()
+      await expect.element(page.getByRole('alert')).toHaveTextContent('Something is off')
+    })
+  })
+
   it('still confirms the save when the server answers with the new values', async () => {
     // A real server returns what was saved, so the refetch changes the form's key and remounts
     // it: the confirmation must survive that.
@@ -192,17 +343,26 @@ describe('TeamSettingsPage', () => {
     fakeApi({
       [`GET ${API}/settings`]: () => ({ body: response({ settings: saved }) }),
       [`PATCH ${API}/settings`]: (body) => {
-        if (typeof body === 'object' && body && 'name' in body && typeof body.name === 'string') {
-          saved = { ...settings, name: body.name }
+        if (
+          typeof body === 'object' &&
+          body &&
+          'retentionDays' in body &&
+          typeof body.retentionDays === 'number'
+        ) {
+          saved = { ...settings, retentionDays: body.retentionDays }
         }
         return { body: { settings: saved } }
       },
     })
     await show()
-    await expect.element(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Web App')
-    await page.getByRole('textbox', { name: 'Name' }).fill('Web')
+    await expect
+      .element(page.getByRole('spinbutton', { name: 'Keep builds for (days)' }))
+      .toHaveValue(30)
+    await page.getByRole('spinbutton', { name: 'Keep builds for (days)' }).fill('60')
     await page.getByRole('button', { name: 'Save changes' }).click()
-    await expect.element(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Web')
+    await expect
+      .element(page.getByRole('spinbutton', { name: 'Keep builds for (days)' }))
+      .toHaveValue(60)
     await expect.element(page.getByText('Settings saved.')).toBeVisible()
     await expect
       .element(page.getByRole('status').filter({ hasText: /^Settings saved$/ }))
@@ -277,7 +437,7 @@ describe('TeamSettingsPage', () => {
       .toBeVisible()
     await expect.element(page.getByRole('textbox', { name: 'Name' })).toBeDisabled()
     await expect
-      .element(page.getByRole('switch', { name: /^Unreviewed changes block merging/ }))
+      .element(page.getByRole('checkbox', { name: /^Unreviewed changes block merging/ }))
       .toHaveAttribute('data-disabled')
     expect(page.getByRole('button', { name: 'Save changes' }).elements()).toHaveLength(0)
   })
@@ -361,6 +521,16 @@ describe('TeamSettingsPage', () => {
         path: `${API}/appearance`,
         body: { color: 'plum' },
       })
+    })
+
+    it('confirms a saved pick inline, with no Save button in sight', async () => {
+      api(
+        { appearance: ARIA },
+        { [`PATCH ${API}/appearance`]: { body: { appearance: { color: 'plum', icon: null } } } },
+      )
+      await show()
+      await page.getByRole('radio', { name: 'Plum' }).click()
+      await expect.element(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible()
     })
 
     it('searches the 31 icons and saves a picked one, or null for the first letter', async () => {
