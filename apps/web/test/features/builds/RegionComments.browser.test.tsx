@@ -101,6 +101,37 @@ describe('region comments in the enlarged view', () => {
     await expect.element(enlarged()).not.toBeInTheDocument()
   })
 
+  it('Esc in the middle of a drag cancels the drag and keeps the dialog open', async () => {
+    await ready()
+    await enlargeBaseline()
+    // Hold the button down mid-drag. Chromium refuses pointer capture for synthetic pointers.
+    const capture = vi
+      .spyOn(Element.prototype, 'setPointerCapture')
+      .mockImplementation(() => undefined)
+    try {
+      const layer = overlay().element()
+      const rect = layer.getBoundingClientRect()
+      const at = (type: string, x: number, y: number) =>
+        layer.dispatchEvent(
+          new PointerEvent(type, {
+            bubbles: true,
+            button: 0,
+            pointerId: 1,
+            clientX: rect.left + x,
+            clientY: rect.top + y,
+          }),
+        )
+      at('pointerdown', 40, 30)
+      at('pointermove', 200, 150)
+      await userEvent.keyboard('{Escape}')
+      await expect.element(enlarged()).toBeVisible()
+      at('pointerup', 200, 150)
+      await expect.element(popover()).not.toBeInTheDocument()
+    } finally {
+      capture.mockRestore()
+    }
+  })
+
   it('a plain click in the dialog neither closes it nor starts a region', async () => {
     await ready()
     await enlargeBaseline()

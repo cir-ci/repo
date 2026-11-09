@@ -76,11 +76,16 @@ export function useRegionGesture(annotations: Annotations | undefined): Gesture 
 
   useEffect(() => {
     if (!dragging) return undefined
+    // In the capture phase, and stopped there: Esc during a drag cancels the drag only, and never
+    // reaches a dialog the image is in (which would close).
     const onKeyDown = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'Escape') setDrag(null)
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      e.stopPropagation()
+      setDrag(null)
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
   }, [dragging])
 
   return {
