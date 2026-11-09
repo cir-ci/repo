@@ -1,7 +1,7 @@
 import type { IntegrationDefinition } from '@circi/integrations'
 import { createTestDb } from '@circi/testing'
 import { pino } from 'pino'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 import { githubAppSync, storeGithubApp } from '#http/lib/github-app.ts'
@@ -11,6 +11,9 @@ const SECRET = 'sync-test-secret-sync-test-secret'
 let t: createTestDb.Result
 beforeAll(async () => {
   t = await createTestDb()
+})
+beforeEach(async () => {
+  await t.reset()
 })
 afterAll(async () => {
   await t.close()

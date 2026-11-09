@@ -212,7 +212,7 @@ describe('invitations', () => {
   it('still creates no account for an address nobody invited', async () => {
     sent.length = 0
     await requestCode(on, 'stranger@acme.test')
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    // The mail (if any) is sent before the request is answered, so nothing is still to come.
     expect(sent).toHaveLength(0)
     expect((await signInWithCode(on, 'stranger@acme.test', '123456')).statusCode).not.toBe(200)
   })
@@ -247,7 +247,8 @@ describe('abuse limits and new-device mail', () => {
   })
 
   it('mails the owner once per browser the account has not been used from before', async () => {
-    // Earlier tests already signed this account in from the default test client.
+    // The account has been used before, from the default test client.
+    await signIn(on, tenant.owner.email, tenant.owner.password)
     sent.length = 0
     expect((await signInFrom('Firefox/130 (Macintosh)')).statusCode).toBe(200)
     await vi.waitFor(() => expect(newSignInMails()).toHaveLength(1))

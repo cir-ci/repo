@@ -18,10 +18,11 @@ import { createTestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 import { caller } from '#test/support/client.ts'
+import { snapshotDb } from '#test/support/db-snapshot.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
 
 /** Installations GitHub knows; `9500` is one it cannot be asked about right now. */
@@ -49,6 +50,7 @@ let rival: Tenant
 let ownerCookie: string
 let memberCookie: string
 let rivalCookie: string
+let reset: () => Promise<void>
 
 beforeAll(async () => {
   t = await createTestDb()
@@ -84,7 +86,9 @@ beforeAll(async () => {
   ownerCookie = await signIn(app, acme.owner.email, acme.owner.password)
   memberCookie = await signIn(app, plain.email, 'plain-password-long-1')
   rivalCookie = await signIn(app, rival.owner.email, rival.owner.password)
+  reset = await snapshotDb(t)
 })
+beforeEach(() => reset())
 afterAll(async () => {
   await app.close()
   await t.close()
@@ -179,6 +183,17 @@ describe('team settings', () => {
   })
 })
 
+/** Adds a webhook to Acme's team as its owner. */
+async function addHook(url = 'https://hooks.acme.io/circi') {
+  const res = await call('POST', `${base()}/webhooks`, ownerCookie, {
+    url,
+    events: ['build.reviewed'],
+  })
+  expect(res.statusCode).toBe(201)
+  const { webhook }: { webhook: { id: string } } = res.json()
+  return webhook
+}
+
 describe('team webhooks', () => {
   it('creates a webhook and shows the secret once', async () => {
     const res = await call('POST', `${base()}/webhooks`, ownerCookie, {
@@ -214,6 +229,7 @@ describe('team webhooks', () => {
   })
 
   it('refuses a webhook with no events: missing or empty does not mean "all"', async () => {
+    await addHook()
     const url = 'https://hooks.acme.io/none'
     for (const body of [{ url }, { url, events: [] }]) {
       // eslint-disable-next-line no-await-in-loop -- two requests
@@ -225,10 +241,10 @@ describe('team webhooks', () => {
   })
 
   it('keeps plain members and outsiders from adding or removing webhooks', async () => {
+    const hook = await addHook()
     const body = { url: 'https://hooks.acme.io/other' }
     expect((await call('POST', `${base()}/webhooks`, memberCookie, body)).statusCode).toBe(403)
     expect((await call('POST', `${base()}/webhooks`, rivalCookie, body)).statusCode).toBe(404)
-    const [hook] = await listWebhooks(t.db, acme.team.id)
     expect((await call('DELETE', `${base()}/webhooks/${hook?.id}`, memberCookie)).statusCode).toBe(
       403,
     )
@@ -238,8 +254,8 @@ describe('team webhooks', () => {
   })
 
   it('queues a signed test event for owners and admins, and lists recent deliveries', async () => {
-    const [hook] = await listWebhooks(t.db, acme.team.id)
-    const url = `${base()}/webhooks/${hook?.id}/test`
+    const hook = await addHook()
+    const url = `${base()}/webhooks/${hook.id}/test`
     const res = await call('POST', url, ownerCookie)
     expect(res.statusCode).toBe(202)
     const { deliveryId } = res.json()
@@ -282,7 +298,7 @@ describe('team webhooks', () => {
   })
 
   it('deletes a webhook, and answers 404 for a missing or malformed id', async () => {
-    const [hook] = await listWebhooks(t.db, acme.team.id)
+    const hook = await addHook()
     expect((await call('DELETE', `${base()}/webhooks/${hook?.id}`, ownerCookie)).statusCode).toBe(
       204,
     )
@@ -423,6 +439,7 @@ describe('workspace settings', () => {
   })
 
   it('refuses plain members with 403 and outsiders with 404', async () => {
+    await call('PATCH', workspaceUrl(), ownerCookie, { flakyBlocksMerge: false })
     expect(
       (await call('PATCH', workspaceUrl(), memberCookie, { flakyBlocksMerge: true })).statusCode,
     ).toBe(403)

@@ -2,7 +2,7 @@ import { createBuild, schema } from '@circi/db'
 import { snoozeReviewRequest } from '@circi/services'
 import { addTestMember, createTestDb, seedTeam, seedReviewRequest, seedUser } from '@circi/testing'
 import { eq } from 'drizzle-orm'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { reviewSweep } from '#jobs/review-sweep.ts'
 
@@ -12,6 +12,9 @@ beforeAll(async () => {
 })
 afterAll(async () => {
   await t.close()
+})
+beforeEach(async () => {
+  await t.reset()
 })
 
 const due = new Date('2026-03-10T12:00:00.000Z')

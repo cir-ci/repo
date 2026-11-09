@@ -15,10 +15,11 @@ import { FsStorage } from '@circi/storage'
 import { createTestDb, seedBuild, seedDiff, seedScreenshot, fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { pino } from 'pino'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 import { caller } from '#test/support/client.ts'
+import { snapshotDb } from '#test/support/db-snapshot.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 
 const SECRET = 'test-secret-that-is-long-enough-1234'
@@ -109,10 +110,55 @@ const workspaceBase = `/api/workspaces/${acme.workspaceSlug}/integrations`
 const FILE = 'https://www.figma.com/design/FileKey12345/Checkout?node-id=1-2'
 const FRAME = (node: string) => `https://www.figma.com/design/FileKey12345/x?node-id=${node}`
 
-/** The one Figma integration of the workspace (set by the connect test). */
+const reset = await snapshotDb(t)
+beforeEach(async () => {
+  await reset()
+  Object.assign(fake, { down: false, requests: 0 })
+  fake.revoked.clear()
+  id = ''
+})
+
+/** The one Figma integration of the workspace (set by `connected`). */
 let id = ''
 const mappingUrl = () => `${workspaceBase}/${id}/teams/web`
 const storedLinks = () => listTeamLinks(t.db, acme.team.id, 'figma-frame')
+const links = (path = '') => `${workspaceBase}/${id}/teams/web/links${path}`
+
+/** Connects Figma for Acme as its owner. */
+async function connected() {
+  const res = await call('POST', `${workspaceBase}/figma/connect`, ownerCookie, {
+    token: 'figd_michael',
+  })
+  expect(res.statusCode).toBe(201)
+  id = res.json().id
+  return res
+}
+
+/** Connected, with the `web` team mapped to the file. */
+async function mapped() {
+  await connected()
+  expect((await call('PUT', mappingUrl(), ownerCookie, { ref: FILE })).statusCode).toBe(204)
+}
+
+const addLink = (pattern: string, frame: string) =>
+  call('POST', links(), ownerCookie, { values: { pattern, url: FRAME(frame) } })
+
+/** Mapped, with a manual link `cart*` and an automatic one for `home`, on Acme's first build. */
+async function autoLinked() {
+  await mapped()
+  expect((await addLink('cart*', '1-2')).statusCode).toBe(201)
+  const build = await seedBuild(t.db, acme.team.id)
+  await seedScreenshot(t.db, { buildId: build.id, fileSha256: fakeSha('a'), name: 'home' })
+  await seedScreenshot(t.db, { buildId: build.id, fileSha256: fakeSha('b'), name: 'cart' })
+  await seedScreenshot(t.db, { buildId: build.id, fileSha256: fakeSha('c'), name: 'pricing' })
+  await seedDiff(t.db, { buildId: build.id, name: 'home', status: 'changed' })
+  await seedDiff(t.db, { buildId: build.id, name: 'cart', status: 'changed' })
+  expect((await call('POST', links('/auto'), louCookie)).statusCode).toBe(403)
+  const res = await call('POST', links('/auto'), ownerCookie)
+  expect(res.statusCode).toBe(200)
+  expect(res.json()).toEqual({ created: 1, unlinked: 1, frames: 2 })
+  return build
+}
 
 describe('connecting Figma', () => {
   it('needs a session, membership, and an admin for writes', async () => {
@@ -141,11 +187,7 @@ describe('connecting Figma', () => {
   })
 
   it('connects with a verified token, stored sealed, and lists Figma in the catalog as a generic integration', async () => {
-    const res = await call('POST', `${workspaceBase}/figma/connect`, ownerCookie, {
-      token: 'figd_michael',
-    })
-    expect(res.statusCode).toBe(201)
-    id = res.json().id
+    await connected()
     const [row] = await t.db
       .select()
       .from(schema.integrations)
@@ -164,6 +206,7 @@ describe('connecting Figma', () => {
   })
 
   it('answers 409 for the same account again', async () => {
+    await connected()
     const again = await call('POST', `${workspaceBase}/figma/connect`, ownerCookie, {
       token: 'figd_michael',
     })
@@ -173,6 +216,7 @@ describe('connecting Figma', () => {
 
 describe('a team’s Figma file', () => {
   it('lists every team with no file first', async () => {
+    await connected()
     const page = (await call('GET', `${workspaceBase}/${id}/teams`, louCookie)).json()
     expect(page).toMatchObject({
       canManage: false,
@@ -182,6 +226,7 @@ describe('a team’s Figma file', () => {
   })
 
   it('is set by admins from an address or a key, after Figma confirms it', async () => {
+    await connected()
     expect((await call('PUT', mappingUrl(), louCookie, { ref: 'FileKey12345' })).statusCode).toBe(
       403,
     )
@@ -199,6 +244,7 @@ describe('a team’s Figma file', () => {
   })
 
   it('404s for a team that isn’t in the workspace', async () => {
+    await connected()
     expect(
       (await call('PUT', `${workspaceBase}/${id}/teams/nope`, ownerCookie, { ref: 'FileKey12345' }))
         .statusCode,
@@ -206,6 +252,7 @@ describe('a team’s Figma file', () => {
   })
 
   it('flags the connection when Figma stops accepting the token', async () => {
+    await mapped()
     fake.revoked.add('figd_michael')
     const res = await call('PUT', mappingUrl(), ownerCookie, { ref: FILE })
     fake.revoked.clear()
@@ -214,18 +261,14 @@ describe('a team’s Figma file', () => {
       needsAttention: true,
       needsAttentionReason: expect.stringMatching(/token was rejected/),
     })
-    await t.db
-      .update(schema.integrations)
-      .set({ needsAttention: false, needsAttentionReason: null })
-      .where(eq(schema.integrations.id, id))
   })
 })
 
 describe('links', () => {
-  const links = `${workspaceBase}/__ID__/teams/web/links`
-  const url = (path = '') => `${links.replace('__ID__', id)}${path}`
+  const url = links
 
   it('creates a manual link from a pasted frame address, naming the frame', async () => {
+    await mapped()
     const body = { values: { pattern: 'cart', url: FRAME('1-2') } }
     expect((await call('POST', url(), louCookie, body)).statusCode).toBe(403)
     const noNode = await call('POST', url(), ownerCookie, {
@@ -250,26 +293,18 @@ describe('links', () => {
   })
 
   it('replaces the link of a pattern added again', async () => {
+    await mapped()
+    expect((await addLink('cart*', '1-2')).statusCode).toBe(201)
     const again = await call('POST', url(), ownerCookie, {
       values: { pattern: 'cart*', url: FRAME('1-1') },
     })
     expect(again.statusCode).toBe(201)
     expect(again.json()).toMatchObject({ ref: 'FileKey12345:1:1', title: 'Home' })
     expect(await storedLinks()).toHaveLength(1)
-    await call('POST', url(), ownerCookie, { values: { pattern: 'cart*', url: FRAME('1-2') } })
   })
 
   it('links automatically by name without overwriting the manual link', async () => {
-    const build = await seedBuild(t.db, acme.team.id)
-    await seedScreenshot(t.db, { buildId: build.id, fileSha256: fakeSha('a'), name: 'home' })
-    await seedScreenshot(t.db, { buildId: build.id, fileSha256: fakeSha('b'), name: 'cart' })
-    await seedScreenshot(t.db, { buildId: build.id, fileSha256: fakeSha('c'), name: 'pricing' })
-    await seedDiff(t.db, { buildId: build.id, name: 'home', status: 'changed' })
-    await seedDiff(t.db, { buildId: build.id, name: 'cart', status: 'changed' })
-    expect((await call('POST', url('/auto'), louCookie)).statusCode).toBe(403)
-    const res = await call('POST', url('/auto'), ownerCookie)
-    expect(res.statusCode).toBe(200)
-    expect(res.json()).toEqual({ created: 1, unlinked: 1, frames: 2 })
+    await autoLinked()
     const listed = (await call('GET', url(), louCookie)).json().links
     expect(
       listed.map((l: { subject: string; source: string; title: string }) => [
@@ -284,6 +319,7 @@ describe('links', () => {
   })
 
   it('puts the frame on the build detail’s snapshots', async () => {
+    await autoLinked()
     const detail = await call('GET', `/api/teams/${acme.workspaceSlug}/web/builds/1`, louCookie)
     expect(detail.statusCode).toBe(200)
     expect(
@@ -301,12 +337,14 @@ describe('links', () => {
   })
 
   it('links only what the signed-in workspace can see', async () => {
+    await mapped()
     expect((await call('GET', url(), rivalCookie)).statusCode).toBe(404)
     expect((await call('GET', url(), '')).statusCode).toBe(401)
     expect((await call('POST', url('/auto'), rivalCookie)).statusCode).toBe(404)
   })
 
   it('removes a link (admins), 404 for unknown ids', async () => {
+    await autoLinked()
     const [link] = await storedLinks()
     expect((await call('DELETE', url(`/${link?.id}`), louCookie)).statusCode).toBe(403)
     expect((await call('DELETE', url('/not-a-uuid'), ownerCookie)).statusCode).toBe(404)
@@ -316,8 +354,8 @@ describe('links', () => {
   })
 
   it('changing the file drops automatic links and keeps manual ones; clearing it does too', async () => {
+    await autoLinked()
     await call('POST', url(), ownerCookie, { values: { pattern: 'manual-one', url: FRAME('1-1') } })
-    await call('POST', url('/auto'), ownerCookie)
     const before = (await storedLinks()).length
     expect((await storedLinks()).map((l) => l.payload.source)).toContain('auto')
     // The same file again leaves every link.
@@ -325,7 +363,12 @@ describe('links', () => {
     expect(await storedLinks()).toHaveLength(before)
     expect((await call('DELETE', mappingUrl(), louCookie)).statusCode).toBe(403)
     expect((await call('DELETE', mappingUrl(), ownerCookie)).statusCode).toBe(204)
-    expect((await storedLinks()).map((l) => [l.subject, l.payload.source])).toEqual([
+    expect(
+      (await storedLinks())
+        .map((l) => [l.subject, l.payload.source])
+        .toSorted(([x], [y]) => String(x).localeCompare(String(y))),
+    ).toEqual([
+      ['cart*', 'manual'],
       ['manual-one', 'manual'],
     ])
     const page = (await call('GET', `${workspaceBase}/${id}/teams`, louCookie)).json()
@@ -333,12 +376,16 @@ describe('links', () => {
   })
 
   it('wants a mapped file to link automatically', async () => {
+    await connected()
     const res = await call('POST', url('/auto'), ownerCookie)
     expect(res.statusCode).toBe(400)
     expect(res.json().error).toMatch(/Choose a file/)
   })
 
   it('removing the integration forgets its links', async () => {
+    await mapped()
+    expect((await addLink('cart*', '1-2')).statusCode).toBe(201)
+    expect(await storedLinks()).toHaveLength(1)
     expect((await call('DELETE', `${workspaceBase}/${id}`, ownerCookie)).statusCode).toBe(204)
     expect(await storedLinks()).toEqual([])
     expect(await listIntegrations(t.db, workspace.id)).toEqual([])

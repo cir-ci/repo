@@ -15,6 +15,7 @@ import sharp from 'sharp'
 import { buildServer } from '#http/app.ts'
 
 import { clientFor, signedInClient, type Client } from './client.ts'
+import { snapshotDb } from './db-snapshot.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from './helpers.ts'
 
 const logger = pino({ level: 'silent' })
@@ -163,6 +164,11 @@ export async function startDashboard() {
     acmeCookie,
     rivalCookie,
     buildWith,
+    /**
+     * Remembers the database as it is now (call it after the file's own setup) and returns the
+     * function that puts it back: `const reset = await fx.snapshot(); beforeEach(reset)`.
+     */
+    snapshot: () => snapshotDb(t),
     get,
     buildDetail,
     review,

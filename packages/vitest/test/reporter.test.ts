@@ -61,6 +61,7 @@ describe('CirciReporter', () => {
     }).onTestRunEnd([], [], 'passed')
     expect(called).toBe(0)
 
+    await touch('.circi/screenshots/a.png')
     const lines: string[] = []
     const failing = new CirciReporter({
       apiUrl: 'https://x',

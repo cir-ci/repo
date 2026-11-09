@@ -1,6 +1,6 @@
 import { addMember, createTeamWithToken, createUser } from '@circi/auth'
 import { seedBuild } from '@circi/testing'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { startDashboard } from '#test/support/dashboard-fixture.ts'
 import { signIn } from '#test/support/helpers.ts'
@@ -38,6 +38,9 @@ const url = (query = '', workspace = acme.workspaceSlug) =>
   `/api/workspaces/${workspace}/builds${query}`
 const listed = async (query = '', cookie?: string) => (await get(url(query), cookie)).json()
 const ids = (body: { builds: { id: string }[] }) => body.builds.map((b) => b.id)
+
+const reset = await fx.snapshot()
+beforeEach(reset)
 
 describe('GET /api/workspaces/:workspace/builds', () => {
   it('lists the builds of every team, newest first, each with its team', async () => {

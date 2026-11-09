@@ -8,10 +8,11 @@ import { FsStorage } from '@circi/storage'
 import { createTestDb } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 import { caller, JSON_HEADERS } from '#test/support/client.ts'
+import { snapshotDb } from '#test/support/db-snapshot.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
 
 let t: createTestDb.Result
@@ -74,12 +75,15 @@ describe('per-workspace login methods', () => {
   let acme: Tenant
   let passwordCookie: string
   let emailCookie: string
+  let reset: () => Promise<void>
 
   beforeAll(async () => {
     acme = await seedTenant(tenantAuth, t.db)
     passwordCookie = await signIn(withEmail, acme.owner.email, acme.owner.password)
     emailCookie = await codeSignIn(withEmail, acme.owner.email)
+    reset = await snapshotDb(t)
   })
+  beforeEach(() => reset())
 
   it('remembers how each session signed in', async () => {
     const sessions = await t.db.query.session.findMany()
@@ -142,6 +146,14 @@ describe('per-workspace login methods', () => {
   })
 
   it('refuses to turn off the last method an owner can use', async () => {
+    // Narrowed to email only (as the owner's email session): email is the last method left.
+    const narrowed = await caller(withEmail)(
+      'PATCH',
+      `/api/workspaces/${acme.workspaceSlug}/auth`,
+      emailCookie,
+      { passwordLoginEnabled: false },
+    )
+    expect(narrowed.statusCode).toBe(200)
     const res = await caller(withEmail)(
       'PATCH',
       `/api/workspaces/${acme.workspaceSlug}/auth`,

@@ -9,6 +9,7 @@ import { pino } from 'pino'
 
 import { buildServer } from '#http/app.ts'
 
+import { snapshotDb } from './db-snapshot.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from './helpers.ts'
 
 /**
@@ -51,6 +52,8 @@ export async function startPages() {
     ownerCookie: await signIn(app, acme.owner.email, acme.owner.password),
     memberCookie: await signIn(app, plain.email, 'plain-password-long-1'),
     rivalCookie: await signIn(app, rival.owner.email, rival.owner.password),
+    /** Remembers the database as it is now and returns the function that restores it (use in `beforeEach`). */
+    snapshot: () => snapshotDb(t),
     async close() {
       await app.close()
       await t.close()

@@ -7,7 +7,7 @@ import { Readable } from 'node:stream'
 import { ensureAssetFiles } from '@circi/db'
 import { FsStorage, type StorageDriver } from '@circi/storage'
 import { createTestDb } from '@circi/testing'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { migrateStorage } from '#src/index.ts'
 
@@ -15,15 +15,23 @@ let t: createTestDb.Result
 let dir: string
 let from: FsStorage
 let to: FsStorage
-const stored: { sha: string; key: string }[] = []
+let stored: { sha: string; key: string }[]
 
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex')
 
 beforeAll(async () => {
   t = await createTestDb()
+})
+afterAll(async () => {
+  await t.close()
+})
+// Every test gets its own database rows and its own pair of directories, three files in the source.
+beforeEach(async () => {
+  await t.reset()
   dir = await mkdtemp(join(tmpdir(), 'circi-migrate-'))
   from = new FsStorage({ path: join(dir, 'from') })
   to = new FsStorage({ path: join(dir, 'to') })
+  stored = []
   await Promise.all(
     ['one', 'two', 'three'].map(async (text) => {
       const sha = sha256(text)
@@ -36,8 +44,7 @@ beforeAll(async () => {
     }),
   )
 })
-afterAll(async () => {
-  await t.close()
+afterEach(async () => {
   await rm(dir, { recursive: true, force: true })
 })
 
@@ -50,12 +57,14 @@ describe('migrateStorage', () => {
   })
 
   it('does nothing the second time, so an interrupted run resumes', async () => {
+    await migrateStorage(t.db, { from, to })
     expect(await migrateStorage(t.db, { from, to })).toMatchObject({ copied: 0, skipped: 3 })
   })
 
   it('reports a file the source no longer has instead of stopping', async () => {
     const lost = stored[0]
     if (!lost) throw new Error('no files')
+    await migrateStorage(t.db, { from, to })
     await to.delete(lost.key)
     await from.delete(lost.key)
     const result = await migrateStorage(t.db, { from, to })
@@ -72,6 +81,7 @@ describe('migrateStorage', () => {
   it('copies again an object whose recorded checksum is not the file’s (a corrupt target)', async () => {
     const victim = stored[1]
     if (!victim) throw new Error('no files')
+    await migrateStorage(t.db, { from, to })
     const size = (await to.head(victim.key))?.size ?? 0
     // A target like S3 that knows each object's checksum: this one holds same-size wrong bytes.
     const checksummed: StorageDriver = {

@@ -1,14 +1,16 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { ApiClient, ApiError } from '#src/api.ts'
 
 import { FakeCirci } from './support/fake-circi.ts'
 
-const fake = new FakeCirci({ servedCommit: 'abc123', failUploads: 1 })
-beforeAll(async () => {
-  await fake.start()
+// A fresh server per test: `failUploads` counts down, so a shared one would fail whichever test
+// uploads first.
+let fake: FakeCirci
+beforeEach(async () => {
+  fake = await new FakeCirci({ servedCommit: 'abc123', failUploads: 1 }).start()
 })
-afterAll(async () => {
+afterEach(async () => {
   await fake.stop()
 })
 

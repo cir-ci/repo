@@ -14,10 +14,11 @@ import { createTestDb, seedInvitation } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 import { caller } from '#test/support/client.ts'
+import { snapshotDb } from '#test/support/db-snapshot.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
 
 /**
@@ -75,13 +76,16 @@ describe('per-workspace GitHub and Google sign-in', () => {
   let other: Tenant
   let passwordCookie: string
   let githubCookie: string
+  let reset: () => Promise<void>
 
   beforeAll(async () => {
     acme = await seedTenant(auth, t.db)
     other = await seedTenant(auth, t.db)
     passwordCookie = await signIn(app, acme.owner.email, acme.owner.password)
     githubCookie = await signInVia(acme.owner.email, acme.owner.password, 'github')
+    reset = await snapshotDb(t)
   })
+  beforeEach(() => reset())
 
   it('shows the switches only for providers the instance has, on by default', async () => {
     const res = await caller(app)(
@@ -142,6 +146,12 @@ describe('per-workspace GitHub and Google sign-in', () => {
   })
 
   it('turns it back on', async () => {
+    await caller(app)('PATCH', `/api/workspaces/${acme.workspaceSlug}/auth`, passwordCookie, {
+      signinGithub: false,
+    })
+    expect(
+      (await caller(app)('GET', `/api/teams/${acme.workspaceSlug}/web`, githubCookie)).statusCode,
+    ).toBe(403)
     await caller(app)('PATCH', `/api/workspaces/${acme.workspaceSlug}/auth`, passwordCookie, {
       signinGithub: true,
     })

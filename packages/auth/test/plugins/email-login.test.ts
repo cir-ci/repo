@@ -1,6 +1,6 @@
 import { schema } from '@circi/db'
 import { createTestDb, seedWorkspace, seedUser } from '@circi/testing'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { type Auth, createAuth, type Mailer } from '#src/index.ts'
 
@@ -26,6 +26,11 @@ beforeAll(async () => {
 })
 afterAll(async () => {
   await t.close()
+})
+beforeEach(async () => {
+  await t.reset()
+  sent.length = 0
+  mailErrors.length = 0
 })
 
 const requestCode = (email: string) =>

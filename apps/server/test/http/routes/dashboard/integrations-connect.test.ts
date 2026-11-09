@@ -19,11 +19,12 @@ import {
 import { FsStorage } from '@circi/storage'
 import { createTestDb } from '@circi/testing'
 import { pino } from 'pino'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
 import { buildServer } from '#http/app.ts'
 import { caller } from '#test/support/client.ts'
+import { snapshotDb } from '#test/support/db-snapshot.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 
 const SECRET = 'a-long-instance-secret-for-tests-0123456789'
@@ -94,6 +95,9 @@ const workspace = await getWorkspaceBySlug(t.db, acme.workspaceSlug)
 const call = caller(() => app)
 
 const base = `/api/workspaces/${acme.workspaceSlug}/integrations`
+
+const reset = await snapshotDb(t)
+beforeEach(reset)
 
 describe('POST /workspaces/:workspace/integrations/:kind/connect', () => {
   it('is for owners and admins of the workspace only', async () => {
@@ -175,8 +179,16 @@ async function call2(server: typeof app, url: string, payload: unknown) {
   })
 }
 
+/** Connects Acme to Token chat as its owner; returns the integration's id. */
+async function connectTokenchat(): Promise<string> {
+  const res = await call('POST', `${base}/tokenchat/connect`, ownerCookie, { token: 'good' })
+  expect(res.statusCode).toBe(201)
+  return res.json().id
+}
+
 describe('the catalog and the list, from the registry', () => {
   it('describes the definition for the dashboard: credentials, mapping, never code or secrets', async () => {
+    await connectTokenchat()
     const res = await call('GET', base, ownerCookie)
     expect(res.statusCode).toBe(200)
     const entry = res.json().catalog.find((e: { kind: string }) => e.kind === 'tokenchat')
@@ -216,7 +228,7 @@ describe('the catalog and the list, from the registry', () => {
 
 describe('mapping a text target', () => {
   it('maps a team by the typed id, has no targets to list, and clears it', async () => {
-    const id = (await listIntegrations(t.db, workspace.id))[0]?.id ?? ''
+    const id = await connectTokenchat()
     expect((await call('GET', `${base}/${id}/targets`, ownerCookie)).statusCode).toBe(404)
     const url = `${base}/${id}/teams/web`
     expect((await call('PUT', url, ownerCookie, {})).statusCode).toBe(400)

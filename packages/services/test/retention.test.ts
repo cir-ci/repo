@@ -9,7 +9,7 @@ import {
 } from '@circi/db'
 import { createTestDb, seedTeam, seedUploadClaim, fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { completeBuild, finalizeBuild, runRetention } from '#src/index.ts'
 
@@ -19,6 +19,11 @@ beforeAll(async () => {
 })
 afterAll(async () => {
   await t.close()
+})
+// Retention sweeps every build in the database: each test starts from an empty one.
+beforeEach(async () => {
+  await t.reset()
+  deleted.length = 0
 })
 
 const DAY = 86_400_000

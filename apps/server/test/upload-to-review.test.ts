@@ -12,10 +12,11 @@ import { startWorker } from '@circi/worker'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import sharp from 'sharp'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 
+import { snapshotDb } from './support/db-snapshot.ts'
 import { createTestAuth, seedTenant } from './support/helpers.ts'
 
 /**
@@ -44,6 +45,7 @@ let worker: startWorker.Running
 let apiUrl: string
 let token: string
 let ownerId: string
+let reset: () => Promise<void>
 
 async function screenshot(path: string, dot?: { x: number; y: number }) {
   const page = sharp({ create: { width: 400, height: 300, channels: 4, background: '#f8fafc' } })
@@ -87,7 +89,11 @@ beforeAll(async () => {
   const tenant = await seedTenant(betterAuth, t.db)
   token = tenant.token
   ownerId = tenant.owner.id
+  reset = await snapshotDb(t)
 })
+
+// Every test starts with the tenant and nothing else: no builds, no baselines, no known files.
+beforeEach(() => reset())
 
 afterAll(async () => {
   await worker.stop()
@@ -175,6 +181,22 @@ describe('circi upload → server → worker → --wait', () => {
     await screenshot(join(right, 'login.png'), { x: 10, y: 10 })
     await git(repo, 'add', '.')
     await git(repo, 'commit', '-q', '-m', 'sharded')
+
+    // The team already has an approved main build to compare with, so the sharded run is
+    // approved automatically (a first build never is).
+    const baseline = await upload({
+      apiUrl,
+      token,
+      cwd: repo,
+      fetch: false,
+      pollIntervalMs: 50,
+      log: () => {},
+      dir: left,
+      env: {},
+      wait: true,
+    })
+    await reviewBuild(t.db, { buildId: baseline.build.id, userId: ownerId, state: 'approved' })
+    await git(repo, 'commit', '-q', '--allow-empty', '-m', 'sharded run')
     const env = { GITHUB_RUN_ID: '991', GITHUB_RUN_ATTEMPT: '1' }
     const common = { apiUrl, token, cwd: repo, fetch: false, pollIntervalMs: 50, log: () => {} }
 

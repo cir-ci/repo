@@ -14,10 +14,11 @@ import { ProviderApiError, providerRegistry } from '@circi/providers'
 import { FsStorage } from '@circi/storage'
 import { createTestDb, seedGitConnection, seedGitLink } from '@circi/testing'
 import { pino } from 'pino'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 import { caller } from '#test/support/client.ts'
+import { snapshotDb } from '#test/support/db-snapshot.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 
 const t = await createTestDb()
@@ -71,6 +72,9 @@ const call = caller(() => app)
 
 const base = `/api/workspaces/${acme.workspaceSlug}/integrations`
 const workspace = await getWorkspaceBySlug(t.db, acme.workspaceSlug)
+
+const reset = await snapshotDb(t)
+beforeEach(reset)
 
 describe('GET /api/workspaces/:workspace/integrations', () => {
   it('needs a session, and a workspace you belong to', async () => {
@@ -139,6 +143,7 @@ describe('GET /api/workspaces/:workspace/integrations', () => {
 
 describe('removing an integration', () => {
   it('is for admins; members get 403 and strangers 404', async () => {
+    await seedGitConnection(t.db, { workspaceId: workspace.id, externalId: '501' })
     const [github] = (await call('GET', base, ownerCookie)).json().integrations
     expect((await call('DELETE', `${base}/${github.id}`, louCookie)).statusCode).toBe(403)
     expect((await call('DELETE', `${base}/${github.id}`, rivalCookie)).statusCode).toBe(404)
@@ -146,6 +151,14 @@ describe('removing an integration', () => {
   })
 
   it('removes a chat integration, and 404s for unknown ids', async () => {
+    await seedGitConnection(t.db, { workspaceId: workspace.id, externalId: '501' })
+    await createIntegration(t.db, {
+      workspaceId: workspace.id,
+      kind: 'slack',
+      displayName: 'Acme Slack',
+      externalId: 'T1',
+      encryptedCredentials: 'sealed-secret',
+    })
     const slack = (await listIntegrations(t.db, workspace.id)).find((i) => i.kind === 'slack')
     expect((await call('DELETE', `${base}/${slack?.id}`, ownerCookie)).statusCode).toBe(204)
     expect((await listIntegrations(t.db, workspace.id)).map((i) => i.kind)).toEqual(['github'])
@@ -223,6 +236,11 @@ describe('the GitHub integration', () => {
   })
 
   it('moves a team to the repository of another installation instead of keeping both', async () => {
+    const mappedTo7 = (await connect(ownerCookie, '7')).json().id
+    expect(
+      (await call('PUT', `${base}/${mappedTo7}/teams/web`, ownerCookie, { ref: 'acme/web' }))
+        .statusCode,
+    ).toBe(204)
     const other = (await connect(ownerCookie, '501')).json().id
     const first = (await t.db.select().from(schema.integrations)).find(
       (i) => i.workspaceId === workspace.id && i.externalId === '7',
@@ -243,9 +261,7 @@ describe('the GitHub integration', () => {
   })
 
   it('lists the repositories an installation can see, for admins', async () => {
-    const id = (await t.db.select().from(schema.integrations)).find(
-      (i) => i.workspaceId === workspace.id && i.externalId === '7',
-    )?.id
+    const id = (await connect(ownerCookie, '7')).json().id
     const url = `${base}/${id}/targets`
     expect((await call('GET', url, ownerCookie)).json()).toEqual({
       targets: [{ id: 'acme/web-7', name: 'acme/web-7' }],

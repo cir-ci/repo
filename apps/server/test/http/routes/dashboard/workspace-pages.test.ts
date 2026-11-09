@@ -1,6 +1,6 @@
 import { teamColorFor } from '@circi/core'
 import { seedBuild, seedScreenshot, seedSite, fakeSha } from '@circi/testing'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { caller } from '#test/support/client.ts'
 import { startPages } from '#test/support/pages-fixture.ts'
@@ -10,6 +10,8 @@ import { startPages } from '#test/support/pages-fixture.ts'
 const fx = await startPages()
 const { app, t, acme, rival, ownerCookie, memberCookie, rivalCookie } = fx
 afterAll(() => fx.close())
+const reset = await fx.snapshot()
+beforeEach(reset)
 
 const team = () => `/api/teams/${acme.workspaceSlug}/web`
 const workspace = () => `/api/workspaces/${acme.workspaceSlug}`
@@ -74,6 +76,10 @@ describe('workspace name, address and default retention', () => {
 
 describe('storage usage', () => {
   it('reports bytes by kind and by team with the retention settings, to members only', async () => {
+    expect(
+      (await call('PATCH', `${workspace()}/settings`, ownerCookie, { retentionDays: 90 }))
+        .statusCode,
+    ).toBe(200)
     const build = await seedBuild(t.db, acme.team.id)
     await seedScreenshot(t.db, {
       buildId: build.id,

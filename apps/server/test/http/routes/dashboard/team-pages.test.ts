@@ -3,7 +3,7 @@ import { teamColorFor } from '@circi/core'
 import { schema } from '@circi/db'
 import { seedBuild, seedScreenshot, fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { caller } from '#test/support/client.ts'
 import { startPages } from '#test/support/pages-fixture.ts'
@@ -13,6 +13,8 @@ import { startPages } from '#test/support/pages-fixture.ts'
 const fx = await startPages()
 const { app, t, auth, acme, ownerCookie, memberCookie, rivalCookie } = fx
 afterAll(() => fx.close())
+const reset = await fx.snapshot()
+beforeEach(reset)
 
 const team = () => `/api/teams/${acme.workspaceSlug}/web`
 const workspace = () => `/api/workspaces/${acme.workspaceSlug}`
@@ -42,6 +44,9 @@ describe('team colour and icon', () => {
   })
 
   it('refuses a colour or icon outside the lists, unknown fields, members (403) and outsiders (404)', async () => {
+    expect(
+      (await call('PATCH', `${team()}/appearance`, ownerCookie, { color: 'plum' })).statusCode,
+    ).toBe(200)
     for (const body of [{ color: 'red' }, { icon: 'trash' }, { size: 3 }]) {
       // eslint-disable-next-line no-await-in-loop
       expect((await call('PATCH', `${team()}/appearance`, ownerCookie, body)).statusCode).toBe(400)

@@ -12,11 +12,12 @@ import { createTestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 import { readStoredGithubApp, useStoredGithubApp } from '#http/lib/github-app.ts'
 import { clientFor } from '#test/support/client.ts'
+import { snapshotDb } from '#test/support/db-snapshot.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 
 /**
@@ -179,6 +180,20 @@ const setup = (query: string, cookie: string) =>
 
 const stateOf = (location: string | undefined) =>
   new URL(location ?? '', 'https://x.test').searchParams.get('state') ?? ''
+
+const resetDb = await snapshotDb(t)
+beforeEach(async () => {
+  await resetDb()
+  // The live configuration, the fake GitHub's memory: back to "no App yet, nothing asked".
+  delete config.github
+  usedCodes.clear()
+  requests.length = 0
+})
+
+/** Has the instance admin create the App through the manifest callback, as the dashboard does. */
+async function installApp() {
+  expect((await callback(manifestState(admin.id))).statusCode).toBe(302)
+}
 
 describe('the manifest', () => {
   it('has exactly the permissions, events and addresses the App needs', async () => {
@@ -373,6 +388,7 @@ describe('the callback', () => {
 
 describe('installing the App in a workspace', () => {
   it('names the workspace in a signed state, for owners and admins only', async () => {
+    await installApp()
     const state = await installState(ownerCookie, acme.workspaceSlug)
     expect(verifyState(SECRET, state)).toMatchObject({
       kind: 'github',
@@ -387,6 +403,7 @@ describe('installing the App in a workspace', () => {
   })
 
   it('connects the installation to that workspace, through the same checks as the manual form', async () => {
+    await installApp()
     const state = await installState(ownerCookie, acme.workspaceSlug)
     const res = await setup(
       `installation_id=501&setup_action=install&state=${encodeURIComponent(state)}`,
@@ -412,6 +429,13 @@ describe('installing the App in a workspace', () => {
   })
 
   it('refuses an installation another workspace uses (409), one GitHub does not have (404) and a non-admin (403)', async () => {
+    await installApp()
+    // Acme connects installation 501 first.
+    const acmeState = await installState(ownerCookie, acme.workspaceSlug)
+    expect(
+      (await setup(`installation_id=501&state=${encodeURIComponent(acmeState)}`, ownerCookie))
+        .statusCode,
+    ).toBe(302)
     const rivalState = signState(SECRET, {
       kind: 'github',
       flow: 'install',
@@ -447,6 +471,7 @@ describe('installing the App in a workspace', () => {
   })
 
   it('rejects a forged, expired or someone else’s state, and needs a session', async () => {
+    await installApp()
     const state = await installState(ownerCookie, acme.workspaceSlug)
     expect((await setup(`installation_id=502&state=${state}x`, ownerCookie)).statusCode).toBe(400)
     // Started by the owner, followed by another signed-in user.

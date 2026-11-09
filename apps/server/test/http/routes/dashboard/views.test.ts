@@ -1,7 +1,7 @@
 import { teamColorFor } from '@circi/core'
 import { getWorkspaceBySlug } from '@circi/db'
 import { addTestMember, seedSavedView, seedUser } from '@circi/testing'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { sender } from '#test/support/client.ts'
 import { startDashboard } from '#test/support/dashboard-fixture.ts'
@@ -14,6 +14,9 @@ const send = sender(() => app, acmeCookie)
 
 const views = `/api/workspaces/${acme.workspaceSlug}/views`
 const bad = (payload: unknown) => send('POST', views, { payload })
+
+const reset = await fx.snapshot()
+beforeEach(reset)
 
 describe('saved view routes', () => {
   it('needs a session, and a workspace you belong to', async () => {
@@ -101,6 +104,10 @@ describe('saved view routes', () => {
   })
 
   it('reorders views', async () => {
+    for (const name of ['One', 'Two', 'Three']) {
+      // oxlint-disable-next-line no-await-in-loop -- created in order
+      expect((await send('POST', views, { payload: { name, filters: {} } })).statusCode).toBe(201)
+    }
     const list: { id: string }[] = (await get(views)).json().views
     const ids = list.map((v) => v.id).toReversed()
     const out = await send('PUT', `${views}/order`, { payload: { ids } })
@@ -113,6 +120,9 @@ describe('saved view routes', () => {
 
   it('pins and unpins a team, and the sidebar reflects it', async () => {
     const pin = `/api/workspaces/${acme.workspaceSlug}/pinned-teams/web`
+    expect(
+      (await send('POST', views, { payload: { name: 'Failing', filters: {} } })).statusCode,
+    ).toBe(201)
     expect((await send('PUT', pin)).json()).toEqual({ pinned: true, changed: true })
     expect((await send('PUT', pin)).json()).toEqual({ pinned: true, changed: false })
     const bar = (await get(`/api/workspaces/${acme.workspaceSlug}/sidebar`)).json()

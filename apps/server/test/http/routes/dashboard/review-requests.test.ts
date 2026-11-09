@@ -1,5 +1,5 @@
 import { addMember, createUser } from '@circi/auth'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { sender } from '#test/support/client.ts'
 import { startDashboard } from '#test/support/dashboard-fixture.ts'
@@ -29,16 +29,24 @@ const list = async (tab: string, cookie = acmeCookie) =>
   (await get(`/api/reviews?tab=${tab}`, cookie)).json()
 const ids = (body: { requests: { id: string }[] }) => body.requests.map((r) => r.id)
 
-describe('review requests', () => {
-  let requestId = ''
+const reset = await fx.snapshot()
+beforeEach(reset)
 
+/** Acme's owner asks Lou to review build 2; returns the request's id. */
+async function ask(): Promise<string> {
+  const res = await post(requestUrl(), { payload: { reviewerId: lou.id } })
+  expect(res.statusCode).toBe(201)
+  return res.json().id
+}
+
+describe('review requests', () => {
   it('lets a member ask a teammate, and asking twice finds the same request', async () => {
     const first = await post(requestUrl(), { payload: { reviewerId: lou.id } })
     expect(first.statusCode).toBe(201)
     expect(first.json()).toMatchObject({ state: 'open', created: true })
     // The team has the default 24 hour review target.
     expect(Date.parse(first.json().dueAt) - Date.now()).toBeGreaterThan(23 * 3_600_000)
-    requestId = first.json().id
+    const requestId = first.json().id
 
     const again = await post(requestUrl(), { payload: { reviewerId: lou.id } })
     expect(again.statusCode).toBe(200)
@@ -46,6 +54,7 @@ describe('review requests', () => {
   })
 
   it('shows it to the reviewer under For you, and to the asker under Created by you', async () => {
+    const requestId = await ask()
     const forLou = await list('for-you', louCookie)
     expect(forLou.tab).toBe('for-you')
     expect(forLou.requests).toMatchObject([
@@ -67,6 +76,7 @@ describe('review requests', () => {
   })
 
   it('keeps other workspaces out of the lists and the actions', async () => {
+    const requestId = await ask()
     for (const tab of ['for-you', 'created', 'snoozed']) {
       // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
       expect((await list(tab, rivalCookie)).requests).toEqual([])
@@ -109,6 +119,7 @@ describe('review requests', () => {
   })
 
   it('lets the reviewer dismiss it, once', async () => {
+    const requestId = await ask()
     const url = `/api/teams/${acme.workspaceSlug}/web/review-requests/${requestId}/dismiss`
     const res = await post(url, { cookie: louCookie })
     expect(res.statusCode).toBe(200)

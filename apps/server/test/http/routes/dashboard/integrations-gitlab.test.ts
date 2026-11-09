@@ -12,10 +12,11 @@ import { createTestDb, seedGitLink } from '@circi/testing'
 import { fakeGitlabUsersHost } from '@circi/testing/hosts'
 import { eq } from 'drizzle-orm'
 import { pino } from 'pino'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 import { caller } from '#test/support/client.ts'
+import { snapshotDb } from '#test/support/db-snapshot.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 
 const AUTH_SECRET = 'instance-secret-long-enough-for-test'
@@ -60,6 +61,15 @@ const call = caller(() => app)
 const base = `/api/workspaces/${acme.workspaceSlug}/integrations`
 const workspace = await getWorkspaceBySlug(t.db, acme.workspaceSlug)
 const connect = { baseUrl: 'https://gitlab.example.com/', token: 'good' }
+
+const reset = await snapshotDb(t)
+beforeEach(reset)
+
+/** Connects Acme to GitLab as its owner. */
+async function connectAcme(body: Record<string, unknown> = connect) {
+  const res = await call('POST', `${base}/gitlab/connect`, ownerCookie, body)
+  expect(res.statusCode).toBe(201)
+}
 
 describe('POST /api/workspaces/:workspace/integrations/gitlab/connect', () => {
   it('needs a session, a workspace you belong to, and an owner or admin', async () => {
@@ -123,6 +133,7 @@ describe('POST /api/workspaces/:workspace/integrations/gitlab/connect', () => {
   })
 
   it('connecting the same principal again keeps one connection', async () => {
+    await connectAcme()
     const res = await call('POST', `${base}/gitlab/connect`, ownerCookie, connect)
     expect(res.statusCode).toBe(201)
     expect(
@@ -131,6 +142,7 @@ describe('POST /api/workspaces/:workspace/integrations/gitlab/connect', () => {
   })
 
   it('supports several connections, and refuses a principal another workspace has', async () => {
+    await connectAcme()
     const second = await call('POST', `${base}/gitlab/connect`, ownerCookie, {
       baseUrl: 'https://gitlab.example.com',
       token: 'other',
@@ -160,6 +172,12 @@ const connections = async () =>
     .toSorted((a, b) => a.externalId.localeCompare(b.externalId))
 
 describe('GitLab mapping page and team mapping', () => {
+  // Two connections: the token of one principal and the token of another on the same instance.
+  beforeEach(async () => {
+    await connectAcme()
+    await connectAcme({ baseUrl: 'https://gitlab.example.com', token: 'other' })
+  })
+
   it('shows members the page without the webhook secret, managers with it', async () => {
     const [first] = await connections()
     const url = `${base}/${first?.id}/teams`

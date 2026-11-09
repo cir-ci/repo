@@ -44,15 +44,11 @@ async function enqueueProbe(queue = 'process-build', runAt?: Date) {
 const attemptsOf = async (id: number) =>
   (await t.db.select().from(schema.jobs).where(eq(schema.jobs.id, id)))[0]?.attempts
 
+/** Waits until the worker has claimed the job; resolves with how long that took, fails on timeout. */
 async function untilClaimed(id: number, timeout: number): Promise<number> {
   const start = Date.now()
-  while (Date.now() - start < timeout) {
-    // oxlint-disable-next-line no-await-in-loop -- polling
-    if (((await attemptsOf(id)) ?? 0) > 0) return Date.now() - start
-    // oxlint-disable-next-line no-await-in-loop -- polling
-    await new Promise((r) => setTimeout(r, 5))
-  }
-  return -1
+  await expect.poll(() => attemptsOf(id), { timeout, interval: 5 }).toBeGreaterThan(0)
+  return Date.now() - start
 }
 
 describe('worker wake-up by NOTIFY', () => {
@@ -65,7 +61,6 @@ describe('worker wake-up by NOTIFY', () => {
       listen: t.listen,
     })
     try {
-      await new Promise((r) => setTimeout(r, 100)) // let the lanes go idle
       const id = await enqueueProbe()
       const ms = await untilClaimed(id, 2_000)
       console.log(`notify pickup latency: ${ms} ms`)
@@ -86,12 +81,11 @@ describe('worker wake-up by NOTIFY', () => {
           throw new Error('rollback')
         }),
       ).rejects.toThrow('rollback')
-      await new Promise((r) => setTimeout(r, 100))
-      expect(received).toEqual([])
       expect(
         await t.db.select().from(schema.jobs).where(eq(schema.jobs.queue, 'rolled-back')),
       ).toEqual([])
       await enqueueJob(t.db, { queue: 'committed', payload: {} })
+      // Notifications arrive in order: a notice from the rolled-back transaction would come first.
       await expect.poll(() => received).toEqual(['committed'])
     } finally {
       await unsub()

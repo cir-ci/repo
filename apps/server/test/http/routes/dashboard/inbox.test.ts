@@ -1,5 +1,5 @@
 import { seedNotification } from '@circi/testing'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { sender } from '#test/support/client.ts'
 import { startDashboard } from '#test/support/dashboard-fixture.ts'
@@ -14,6 +14,9 @@ const inbox = async (tab: string, cookie = acmeCookie) =>
   (await get(`/api/inbox?tab=${tab}`, cookie)).json()
 const unread = async (cookie = acmeCookie) =>
   (await get('/api/inbox/unread-count', cookie)).json().unread
+
+const reset = await fx.snapshot()
+beforeEach(reset)
 
 describe('inbox routes', () => {
   it('needs a session', async () => {

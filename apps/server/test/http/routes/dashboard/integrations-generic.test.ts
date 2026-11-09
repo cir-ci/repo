@@ -15,10 +15,11 @@ import {
 import { FsStorage } from '@circi/storage'
 import { createTestDb } from '@circi/testing'
 import { pino } from 'pino'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 import { caller } from '#test/support/client.ts'
+import { snapshotDb } from '#test/support/db-snapshot.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 
 const SECRET = 'a-long-instance-secret-for-tests-0123456789'
@@ -110,6 +111,9 @@ const goodClaims = {
   userId: acme.owner.id,
 }
 
+const reset = await snapshotDb(t)
+beforeEach(reset)
+
 describe('the catalog', () => {
   it('offers Slack as connectable when the server has the Slack app configured', async () => {
     const res = await call('GET', `/api/workspaces/${acme.workspaceSlug}/integrations`, ownerCookie)
@@ -160,8 +164,8 @@ describe('GET /api/integrations/slack/callback', () => {
   })
 
   it('reinstalling the same workspace replaces the token and clears needs-attention', async () => {
-    const row = (await listIntegrations(t.db, workspace.id)).find((i) => i.kind === 'slack')
-    await setIntegrationAttention(t.db, row?.id ?? '', 'token_revoked')
+    const installed = await installSlack()
+    await setIntegrationAttention(t.db, installed, 'token_revoked')
     await callback(`code=good&state=${encodeURIComponent(stateFor(goodClaims))}`)
     const slack = (await listIntegrations(t.db, workspace.id)).filter((i) => i.kind === 'slack')
     expect(slack).toHaveLength(1)
@@ -207,12 +211,16 @@ describe('GET /api/integrations/slack/callback', () => {
   })
 })
 
-const integrationId = async () =>
-  (await listIntegrations(t.db, workspace.id)).find((i) => i.kind === 'slack')?.id ?? ''
+/** Installs the fake Slack workspace for Acme through the callback; returns the integration's id. */
+async function installSlack(): Promise<string> {
+  const res = await callback(`code=good&state=${encodeURIComponent(stateFor(goodClaims))}`)
+  expect(res.statusCode).toBe(302)
+  return (await listIntegrations(t.db, workspace.id)).find((i) => i.kind === 'slack')?.id ?? ''
+}
 
 describe('the mapping page, targets and team mapping', () => {
   it('lists the integration with its definition and every team, for every member', async () => {
-    const id = await integrationId()
+    const id = await installSlack()
     for (const [cookie, manage] of [
       [ownerCookie, true],
       [louCookie, false],
@@ -238,7 +246,7 @@ describe('the mapping page, targets and team mapping', () => {
   })
 
   it('lists the targets for admins only', async () => {
-    const id = await integrationId()
+    const id = await installSlack()
     expect((await call('GET', `${workspaceBase}/${id}/targets`, louCookie)).statusCode).toBe(403)
     expect((await call('GET', `${workspaceBase}/${id}/targets`, rivalCookie)).statusCode).toBe(404)
     const res = await call('GET', `${workspaceBase}/${id}/targets`, ownerCookie)
@@ -250,7 +258,7 @@ describe('the mapping page, targets and team mapping', () => {
   })
 
   it('maps a team to a channel with events, replaces it, and clears it', async () => {
-    const id = await integrationId()
+    const id = await installSlack()
     const url = `${workspaceBase}/${id}/teams/web`
     const body = {
       ref: 'C02WEB1',
@@ -298,7 +306,7 @@ describe('the mapping page, targets and team mapping', () => {
   })
 
   it('flags the workspace when Slack says the token is gone', async () => {
-    const id = await integrationId()
+    const id = await installSlack()
     revoked = true
     const res = await call('GET', `${workspaceBase}/${id}/targets`, ownerCookie)
     revoked = false

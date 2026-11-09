@@ -2,15 +2,15 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { afterAll, beforeAll } from 'vitest'
+import { afterEach, beforeEach } from 'vitest'
 
-/** A temporary project root for the length of one test file, and a way to drop fake pictures in it. */
+/** A temporary project root for the length of one test, and a way to drop fake pictures in it. */
 export function useTempRoot() {
   let root = ''
-  beforeAll(async () => {
+  beforeEach(async () => {
     root = await mkdtemp(join(tmpdir(), 'circi-vitest-'))
   })
-  afterAll(async () => {
+  afterEach(async () => {
     await rm(root, { recursive: true, force: true })
   })
   return {

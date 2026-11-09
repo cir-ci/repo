@@ -1,5 +1,5 @@
 import { addMember, createUser } from '@circi/auth'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { sender } from '#test/support/client.ts'
 import { startDashboard } from '#test/support/dashboard-fixture.ts'
@@ -19,10 +19,13 @@ const louCookie = await signIn(app, lou.email, 'lou-password-long-1')
 
 const base = (workspace = acme.workspaceSlug, build = 2) =>
   `/api/teams/${workspace}/web/builds/${build}`
+const build = `/api/teams/${acme.workspaceSlug}/web/builds/2`
+const reset = await fx.snapshot()
+beforeEach(reset)
 const send = sender(() => app, acmeCookie)
-const comments = async (cookie = acmeCookie) => (await get(`${base()}/comments`, cookie)).json()
+const comments = async (cookie = acmeCookie) => (await get(`${build}/comments`, cookie)).json()
 
-const bad = (payload: unknown) => send('POST', `${base()}/comments`, { payload })
+const bad = (payload: unknown) => send('POST', `${build}/comments`, { payload })
 
 describe('comment routes', () => {
   it('hides the build from non-members and signed-out visitors', async () => {
@@ -39,7 +42,7 @@ describe('comment routes', () => {
   })
 
   it('creates comments and replies, mentions notify, and lists them oldest first', async () => {
-    const top = await send('POST', `${base()}/comments`, {
+    const top = await send('POST', `${build}/comments`, {
       payload: {
         body: '@lou is this intended?',
         snapshotName: 'home',
@@ -47,7 +50,7 @@ describe('comment routes', () => {
       },
     })
     expect(top.statusCode).toBe(201)
-    const reply = await send('POST', `${base()}/comments`, {
+    const reply = await send('POST', `${build}/comments`, {
       cookie: louCookie,
       payload: { body: 'yes', parentId: top.json().id },
     })
@@ -93,19 +96,19 @@ describe('comment routes', () => {
   })
 
   it('lets only the author edit, and the author or an admin delete', async () => {
-    const mine = await send('POST', `${base()}/comments`, {
+    const mine = await send('POST', `${build}/comments`, {
       cookie: louCookie,
       payload: { body: 'from lou' },
     })
-    const url = `${base()}/comments/${mine.json().id}`
+    const url = `${build}/comments/${mine.json().id}`
     expect((await send('PATCH', url, { payload: { body: 'hijack' } })).statusCode).toBe(403)
     const edited = await send('PATCH', url, { cookie: louCookie, payload: { body: 'fixed' } })
     expect(edited.statusCode).toBe(200)
     expect(edited.json()).toMatchObject({ body: 'fixed' })
     expect(edited.json().editedAt).not.toBeNull()
 
-    const theirs = await send('POST', `${base()}/comments`, { payload: { body: 'from owner' } })
-    const theirsUrl = `${base()}/comments/${theirs.json().id}`
+    const theirs = await send('POST', `${build}/comments`, { payload: { body: 'from owner' } })
+    const theirsUrl = `${build}/comments/${theirs.json().id}`
     expect((await send('DELETE', theirsUrl, { cookie: louCookie })).statusCode).toBe(403)
     expect((await send('DELETE', theirsUrl, { cookie: rivalCookie })).statusCode).toBe(404)
     // Lou's own comment: the owner (an admin) may delete it, and it stays as a blank placeholder.
@@ -118,11 +121,18 @@ describe('comment routes', () => {
   })
 
   it('shows decisions with their reason and comments in the activity timeline', async () => {
-    const reject = await send('POST', `${base()}/review`, {
+    const top = await send('POST', `${build}/comments`, { payload: { body: 'is this intended?' } })
+    await send('POST', `${build}/comments`, {
+      cookie: louCookie,
+      payload: { body: 'yes', parentId: top.json().id },
+    })
+    const gone = await send('POST', `${build}/comments`, { payload: { body: 'oops' } })
+    await send('DELETE', `${build}/comments/${gone.json().id}`)
+    const reject = await send('POST', `${build}/review`, {
       payload: { state: 'rejected', reason: 'hero is cropped' },
     })
     expect(reject.statusCode).toBe(200)
-    const { events } = (await get(`${base()}/activity`, louCookie)).json()
+    const { events } = (await get(`${build}/activity`, louCookie)).json()
     const types = events.map((e: { type: string }) => e.type)
     expect(types[0]).toBe('uploaded')
     expect(types).toContain('comment')

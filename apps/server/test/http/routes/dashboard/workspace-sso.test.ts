@@ -11,10 +11,11 @@ import { fakeIdp, type FakeIdp } from '@circi/testing/hosts'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 import { JSON_HEADERS } from '#test/support/client.ts'
+import { snapshotDb } from '#test/support/db-snapshot.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
 
 let t: createTestDb.Result
@@ -25,6 +26,7 @@ let idp: FakeIdp
 let acme: Tenant
 let rival: Tenant
 let ownerCookie: string
+let reset: () => Promise<void>
 
 beforeAll(async () => {
   t = await createTestDb()
@@ -47,7 +49,9 @@ beforeAll(async () => {
   acme = await seedTenant(auth, t.db)
   rival = await seedTenant(auth, t.db)
   ownerCookie = await signIn(app, acme.owner.email, acme.owner.password)
+  reset = await snapshotDb(t)
 })
+beforeEach(() => reset())
 afterAll(async () => {
   await app.close()
   await idp.close()
@@ -85,14 +89,20 @@ async function ssoSignIn(slug: string): Promise<{ cookie: string; location: stri
   return { cookie: session, location: done.headers.location ?? '' }
 }
 
+/** Registers the fake provider for Acme as its owner. */
+const registerProvider = () =>
+  app.inject({
+    method: 'POST',
+    url: base(),
+    headers: { ...JSON_HEADERS, cookie: ownerCookie },
+    payload: { issuer: idp.issuer, clientId: 'client-1', clientSecret: 'shh' },
+  })
+
+const ann = { sub: 'emp-1', email: 'ann@acme-corp.test', name: 'Ann', email_verified: true }
+
 describe('a workspace’s own single sign-on', () => {
   it('lets an owner register a provider, showing the address to register, never the secret', async () => {
-    const res = await app.inject({
-      method: 'POST',
-      url: base(),
-      headers: { ...JSON_HEADERS, cookie: ownerCookie },
-      payload: { issuer: idp.issuer, clientId: 'client-1', clientSecret: 'shh' },
-    })
+    const res = await registerProvider()
     expect(res.statusCode).toBe(201)
     expect(res.json().provider.redirectUri).toBe(
       `${ORIGIN}/api/auth/sso/callback/${acme.workspaceSlug}-sso`,
@@ -104,7 +114,8 @@ describe('a workspace’s own single sign-on', () => {
   })
 
   it('signs a new person in, as an unverified member of that workspace only', async () => {
-    idp.identity = { sub: 'emp-1', email: 'ann@acme-corp.test', name: 'Ann', email_verified: true }
+    expect((await registerProvider()).statusCode).toBe(201)
+    idp.identity = ann
     const { cookie, location } = await ssoSignIn(acme.workspaceSlug)
     expect(location).not.toContain('failed')
     expect(cookie).not.toBe('')
@@ -128,6 +139,9 @@ describe('a workspace’s own single sign-on', () => {
   })
 
   it('opens only its own workspace, even if the person also belongs to another', async () => {
+    expect((await registerProvider()).statusCode).toBe(201)
+    idp.identity = ann
+    expect((await ssoSignIn(acme.workspaceSlug)).cookie).not.toBe('')
     const [user] = await t.db
       .select()
       .from(schema.user)
@@ -151,6 +165,9 @@ describe('a workspace’s own single sign-on', () => {
   })
 
   it('matches people by their identity, not by email: a returning person is the same account', async () => {
+    expect((await registerProvider()).statusCode).toBe(201)
+    idp.identity = ann
+    expect((await ssoSignIn(acme.workspaceSlug)).cookie).not.toBe('')
     idp.identity = {
       sub: 'emp-1',
       email: 'ann.new-name@acme-corp.test',
@@ -164,6 +181,7 @@ describe('a workspace’s own single sign-on', () => {
   })
 
   it('refuses a provider claiming an address that already belongs to another account', async () => {
+    expect((await registerProvider()).statusCode).toBe(201)
     await createUser(auth, {
       email: 'victim@corp.test',
       name: 'Victim',
@@ -203,6 +221,7 @@ describe('a workspace’s own single sign-on', () => {
   })
 
   it('removes the provider, after which nobody can sign in through it', async () => {
+    expect((await registerProvider()).statusCode).toBe(201)
     const del = await app.inject({
       method: 'DELETE',
       url: `${base()}/${acme.workspaceSlug}-sso`,

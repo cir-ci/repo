@@ -11,10 +11,11 @@ import { FsStorage } from '@circi/storage'
 import { createTestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { pino } from 'pino'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 import { caller } from '#test/support/client.ts'
+import { snapshotDb } from '#test/support/db-snapshot.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 
 const AUTH_SECRET = 'instance-secret-long-enough-for-test'
@@ -67,6 +68,17 @@ const call = caller(() => app)
 
 const base = `/api/workspaces/${acme.workspaceSlug}/integrations`
 const workspace = await getWorkspaceBySlug(t.db, acme.workspaceSlug)
+
+const reset = await snapshotDb(t)
+beforeEach(reset)
+
+/** Connects Acme to the `acme-ws` Bitbucket workspace as its owner. */
+async function connectAcme(
+  body: Record<string, unknown> = { bitbucketWorkspace: 'acme-ws', token: 'good' },
+) {
+  const res = await call('POST', `${base}/bitbucket/connect`, ownerCookie, body)
+  expect(res.statusCode).toBe(201)
+}
 
 describe('POST /api/workspaces/:workspace/integrations/bitbucket/connect', () => {
   const connect = { bitbucketWorkspace: 'Acme-WS', token: 'good' }
@@ -133,6 +145,7 @@ describe('POST /api/workspaces/:workspace/integrations/bitbucket/connect', () =>
   })
 
   it('connecting again replaces the token without a second connection', async () => {
+    await connectAcme()
     const res = await call('POST', `${base}/bitbucket/connect`, ownerCookie, {
       bitbucketWorkspace: 'acme-ws',
       token: 'newer',
@@ -150,6 +163,7 @@ describe('POST /api/workspaces/:workspace/integrations/bitbucket/connect', () =>
   })
 
   it('refuses a workspace another workspace already connected', async () => {
+    await connectAcme()
     const res = await call(
       'POST',
       `/api/workspaces/${rival.workspaceSlug}/integrations/bitbucket/connect`,
@@ -169,6 +183,8 @@ const connection = async () =>
   )
 
 describe('Bitbucket mapping page and team mapping', () => {
+  beforeEach(() => connectAcme({ bitbucketWorkspace: 'acme-ws', token: 'newer', username: 'ann' }))
+
   it('shows members the page without the webhook secret, and managers with it', async () => {
     const id = (await connection())?.id
     const url = `${base}/${id}/teams`

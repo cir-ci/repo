@@ -7,10 +7,11 @@ import { FsStorage } from '@circi/storage'
 import { createTestDb, seedFile, sha256 } from '@circi/testing'
 import { Command } from 'commander'
 import { eq } from 'drizzle-orm'
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { addAdminCommands } from '#cli/admin.ts'
 import type * as RuntimeModule from '#lifecycle/runtime.ts'
+import { snapshotDb } from '#test/support/db-snapshot.ts'
 
 /** What the mocked runtime hands the commands: the test database and storage. */
 const world = vi.hoisted(() => ({ db: undefined as unknown, storage: undefined as unknown }))
@@ -37,6 +38,7 @@ const bytes = Buffer.from('a')
 let t: createTestDb.Result
 let dir: string
 let storage: FsStorage
+let reset: () => Promise<void>
 
 beforeAll(async () => {
   t = await createTestDb()
@@ -50,12 +52,14 @@ beforeAll(async () => {
   vi.stubEnv('STORAGE_PATH', join(dir, 'files'))
   await storage.put(`k/${sha256(bytes)}`, bytes)
   await seedFile(t.db, { sha256: sha256(bytes) })
+  reset = await snapshotDb(t)
 })
 afterAll(async () => {
   vi.unstubAllEnvs()
   await t.close()
   await rm(dir, { recursive: true, force: true })
 })
+beforeEach(() => reset())
 afterEach(() => {
   vi.restoreAllMocks()
   process.exitCode = undefined

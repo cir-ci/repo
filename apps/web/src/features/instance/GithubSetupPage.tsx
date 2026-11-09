@@ -14,7 +14,11 @@ import { useDocumentTitle } from '#lib/document-title.ts'
 export function GithubSetupPage() {
   useDocumentTitle('Connect GitHub')
   const search: { installation_id?: unknown } = useSearch({ strict: false })
-  const installation = typeof search.installation_id === 'string' ? search.installation_id : ''
+  // The router parses `?installation_id=4242` (what GitHub sends) into a number.
+  const installation =
+    typeof search.installation_id === 'string' || typeof search.installation_id === 'number'
+      ? String(search.installation_id)
+      : ''
   const { data, error, refetch } = useQuery(capabilitiesQuery())
 
   return (

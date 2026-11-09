@@ -15,10 +15,11 @@ import { FsStorage } from '@circi/storage'
 import { createTestDb, seedDiff, fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { pino } from 'pino'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 import { caller } from '#test/support/client.ts'
+import { snapshotDb } from '#test/support/db-snapshot.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 
 const SECRET = 'test-secret-that-is-long-enough-1234'
@@ -148,6 +149,36 @@ const base = `/api/workspaces/${acme.workspaceSlug}/integrations`
 const stored = async (kind: string) =>
   (await listIntegrations(t.db, workspace.id)).filter((i) => i.kind === kind)
 
+const reset = await snapshotDb(t)
+beforeEach(reset)
+
+/** Connects Acme's Linear as its owner; returns the integration's id. */
+async function connectLinear(): Promise<string> {
+  const res = await call('POST', `${base}/linear/connect`, ownerCookie, { apiKey: 'lin_good' })
+  expect(res.statusCode).toBe(201)
+  return res.json().id
+}
+
+/** Connects Acme's Jira as its owner; returns the integration's id. */
+async function connectJira(): Promise<string> {
+  const res = await call('POST', `${base}/jira/connect`, ownerCookie, {
+    siteUrl: 'acme.atlassian.net/',
+    email: 'ann@acme.test',
+    apiToken: 'jira-token',
+  })
+  expect(res.statusCode).toBe(201)
+  return res.json().id
+}
+
+/** Maps Acme's `web` team to the Jira project WEB. */
+async function mapJira(id: string) {
+  const res = await call('PUT', `${base}/${id}/teams/web`, ownerCookie, {
+    ref: 'WEB',
+    name: 'Website (WEB)',
+  })
+  expect(res.statusCode).toBe(204)
+}
+
 describe('connecting a tracker', () => {
   it('verifies Linear with the tracker and stores the key sealed', async () => {
     const res = await call('POST', `${base}/linear/connect`, ownerCookie, { apiKey: 'lin_good' })
@@ -229,8 +260,7 @@ describe('connecting a tracker', () => {
 
 describe('mapping teams', () => {
   it('lists targets, maps a team, shows it on the page and clears it', async () => {
-    const [linear] = await stored('linear')
-    const id = linear?.id ?? ''
+    const id = await connectLinear()
     const targets = await call('GET', `${base}/${id}/targets`, ownerCookie)
     expect(targets.json()).toEqual({ targets: [{ id: 'team-1', name: 'Web (WEB)' }] })
     expect((await call('GET', `${base}/${id}/targets`, louCookie)).statusCode).toBe(403)
@@ -300,7 +330,7 @@ async function setup() {
 describe('issues from a build', () => {
   it('hides the action until the team has a tracker, then creates and lists issues', async () => {
     const build = await setup()
-    const [jira] = await stored('jira')
+    const jira = { id: await connectJira() }
     const url = `${buildUrl(build.number)}/issues`
     expect((await call('GET', url, ownerCookie)).json()).toEqual({ issues: [], trackers: [] })
     // Not mapped yet.
@@ -351,7 +381,7 @@ describe('issues from a build', () => {
 
   it('files the issue as the type chosen on the team’s mapping', async () => {
     const build = await setup()
-    const [jira] = await stored('jira')
+    const jira = { id: await connectJira() }
     const mapped = await call('PUT', `${base}/${jira?.id}/teams/web`, ownerCookie, {
       ref: 'WEB',
       name: 'Website (WEB)',
@@ -371,7 +401,8 @@ describe('issues from a build', () => {
 
   it('answers 502 and stores nothing when the tracker fails', async () => {
     const build = await setup()
-    const [jira] = await stored('jira')
+    const jira = { id: await connectJira() }
+    await mapJira(jira.id)
     fake.failCreate = true
     const res = await call('POST', `${buildUrl(build.number)}/issues`, ownerCookie, {
       integrationId: jira?.id,
@@ -383,7 +414,8 @@ describe('issues from a build', () => {
 
   it('flags the connection when the tracker rejects the saved credentials', async () => {
     const build = await setup()
-    const [jira] = await stored('jira')
+    const jira = { id: await connectJira() }
+    await mapJira(jira.id)
     fake.validKeys.delete('jira-token')
     const res = await call('POST', `${buildUrl(build.number)}/issues`, ownerCookie, {
       integrationId: jira?.id,
@@ -399,7 +431,7 @@ describe('issues from a build', () => {
 
   it('is for members of the workspace only, and validates the body', async () => {
     const build = await setup()
-    const [jira] = await stored('jira')
+    const jira = { id: await connectJira() }
     const url = `${buildUrl(build.number)}/issues`
     expect((await call('GET', url, rivalCookie)).statusCode).toBe(404)
     expect((await call('POST', url, rivalCookie, { integrationId: jira?.id })).statusCode).toBe(404)

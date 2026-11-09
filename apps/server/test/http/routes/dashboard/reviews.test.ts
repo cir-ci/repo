@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { png, startDashboard } from '#test/support/dashboard-fixture.ts'
 
@@ -7,6 +7,9 @@ const { acme, acmeCookie, rivalCookie, get, buildDetail, review, buildWith } = f
 afterAll(() => fx.close())
 
 const reviewStatus = async () => (await buildDetail(acmeCookie)).json().build.reviewStatus
+
+const reset = await fx.snapshot()
+beforeEach(reset)
 
 describe('reviewing a build', () => {
   it('starts approved on the default branch once there is a baseline, and says it was automatic', async () => {
@@ -45,6 +48,7 @@ describe('reviewing a build', () => {
   })
 
   it('lets them change their mind, keeping the history', async () => {
+    expect((await review('rejected')).statusCode).toBe(200)
     expect((await review('approved')).json().build.reviewStatus).toBe('approved')
     expect(
       (await buildDetail(acmeCookie))

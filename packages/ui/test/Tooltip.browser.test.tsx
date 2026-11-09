@@ -27,13 +27,12 @@ describe('Tooltip', () => {
 
   it('opens on hover only after its delay, and closes when the pointer leaves', async () => {
     await page.viewport(800, 600)
-    await render(<Harness />)
+    await render(<Harness delay={1500} />)
     const button = page.getByRole('button', { name: 'Close' })
     await userEvent.hover(button)
-    // Nothing yet: the delay is 500ms.
-    await new Promise((resolve) => setTimeout(resolve, 200))
+    // Nothing yet: the delay is long enough that the hover call returns well inside it.
     expect(page.getByText('Close the panel').query()).toBeNull()
-    await expect.element(page.getByText('Close the panel'), { timeout: 3000 }).toBeVisible()
+    await expect.element(page.getByText('Close the panel'), { timeout: 5000 }).toBeVisible()
     await userEvent.unhover(button)
     await expect.element(page.getByText('Close the panel')).not.toBeInTheDocument()
   })

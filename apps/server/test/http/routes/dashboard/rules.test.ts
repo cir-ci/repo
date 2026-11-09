@@ -1,5 +1,5 @@
 import { addMember, createUser } from '@circi/auth'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { sender } from '#test/support/client.ts'
 import { startDashboard } from '#test/support/dashboard-fixture.ts'
@@ -20,6 +20,9 @@ const louCookie = await signIn(app, lou.email, 'lou-password-long-1')
 const send = sender(() => app, acmeCookie)
 
 const base = (workspace = acme.workspaceSlug) => `/api/teams/${workspace}/web`
+
+const reset = await fx.snapshot()
+beforeEach(reset)
 
 describe('review rules', () => {
   let ruleId = ''

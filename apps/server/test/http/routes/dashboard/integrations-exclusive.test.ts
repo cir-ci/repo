@@ -11,11 +11,12 @@ import {
 import { FsStorage } from '@circi/storage'
 import { createTestDb } from '@circi/testing'
 import { pino } from 'pino'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
 import { buildServer } from '#http/app.ts'
 import { caller } from '#test/support/client.ts'
+import { snapshotDb } from '#test/support/db-snapshot.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 
 /**
@@ -89,6 +90,9 @@ const base = (slug: string) => `/api/workspaces/${slug}/integrations`
 const connect = (slug: string, cookie: string, kind: string, token: string) =>
   call('POST', `${base(slug)}/${kind}/connect`, cookie, { token })
 
+const reset = await snapshotDb(t)
+beforeEach(reset)
+
 describe('exclusive.account', () => {
   it('refuses an account another workspace already connected (409), but not its own again', async () => {
     expect((await connect(acme.workspaceSlug, ownerCookie, 'exclusive', 'one')).statusCode).toBe(
@@ -127,6 +131,10 @@ describe('replaceOnReconnect', () => {
 
 describe('exclusive.team', () => {
   it('moves a team to the second connection of the kind, and only within the kind', async () => {
+    expect((await connect(acme.workspaceSlug, ownerCookie, 'exclusive', 'one')).statusCode).toBe(
+      201,
+    )
+    expect((await connect(acme.workspaceSlug, ownerCookie, 'plain', 'one')).statusCode).toBe(201)
     const two = await connect(acme.workspaceSlug, ownerCookie, 'exclusive', 'second-account')
     const all = await listIntegrations(t.db, workspace.id)
     const first = all.find((i) => i.kind === 'exclusive' && i.displayName === 'one')

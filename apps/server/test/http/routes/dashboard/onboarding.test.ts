@@ -10,7 +10,7 @@ import { FsStorage } from '@circi/storage'
 import { createTestDb } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 import { clientFor } from '#test/support/client.ts'
@@ -46,6 +46,9 @@ beforeAll(async () => {
   auth = createTestAuth(t.db)
   dir = await mkdtemp(join(tmpdir(), 'circi-onboarding-'))
   dir2 = dir
+})
+beforeEach(async () => {
+  await t.reset()
 })
 afterAll(async () => {
   await t.close()
@@ -122,12 +125,28 @@ describe('first-run setup', () => {
   })
 })
 
+/** A claimed instance (the setup route ran: `admin@acme.test` is its admin) plus a plain account. */
+async function claimedInstance(workspaceCreation?: 'admin' | 'anyone') {
+  const app = await serverWith(workspaceCreation)
+  const claimed = await post(app, '/api/setup', {
+    name: 'First Admin',
+    email: 'admin@acme.test',
+    password: PASSWORD,
+    workspaceName: 'Acme Inc',
+    code: setupCode(SECRET),
+  })
+  expect(claimed.statusCode).toBe(201)
+  await createUser(auth, { email: 'plain@acme.test', name: 'Plain', password: PASSWORD })
+  return {
+    app,
+    admin: await signIn(app, 'admin@acme.test', PASSWORD),
+    plain: await signIn(app, 'plain@acme.test', PASSWORD),
+  }
+}
+
 describe('creating workspaces and teams', () => {
   it('limits workspace creation to instance admins by default', async () => {
-    const app = await serverWith()
-    const admin = await signIn(app, 'admin@acme.test', PASSWORD)
-    await createUser(auth, { email: 'plain@acme.test', name: 'Plain', password: PASSWORD })
-    const plain = await signIn(app, 'plain@acme.test', PASSWORD)
+    const { app, admin, plain } = await claimedInstance()
 
     const denied = await post(app, '/api/workspaces', { name: 'Mine' }, plain)
     expect(denied.statusCode).toBe(403)
@@ -150,8 +169,7 @@ describe('creating workspaces and teams', () => {
   })
 
   it('lets anyone create one with WORKSPACE_CREATION=anyone, and they own it', async () => {
-    const app = await serverWith('anyone')
-    const plain = await signIn(app, 'plain@acme.test', PASSWORD)
+    const { app, plain } = await claimedInstance('anyone')
     const res = await post(app, '/api/workspaces', { name: 'Plain Workspace' }, plain)
     expect(res.statusCode).toBe(201)
     const team = await post(
@@ -172,9 +190,7 @@ describe('creating workspaces and teams', () => {
   })
 
   it('creates teams only for owners and admins, hiding other workspaces', async () => {
-    const app = await serverWith()
-    const admin = await signIn(app, 'admin@acme.test', PASSWORD)
-    const plain = await signIn(app, 'plain@acme.test', PASSWORD)
+    const { app, admin, plain } = await claimedInstance()
     // `plain` is not in acme-inc at all: same answer as for a missing workspace.
     expect(
       (await post(app, '/api/workspaces/acme-inc/teams', { name: 'X' }, plain)).statusCode,
@@ -193,8 +209,10 @@ describe('creating workspaces and teams', () => {
   })
 
   it('rotates a team token, and the old one stops working', async () => {
-    const app = await serverWith('anyone')
-    const plain = await signIn(app, 'plain@acme.test', PASSWORD)
+    const { app, admin, plain } = await claimedInstance('anyone')
+    expect(
+      (await post(app, '/api/workspaces', { name: 'Plain Workspace' }, plain)).statusCode,
+    ).toBe(201)
     const created = (
       await post(app, '/api/workspaces/plain-workspace/teams', { name: 'Rotating' }, plain)
     ).json()
@@ -204,7 +222,6 @@ describe('creating workspaces and teams', () => {
     expect(rotated.json().token).not.toBe(created.token)
     expect(await verifyTeamToken(auth, t.db, created.token)).toBeUndefined()
     expect(await verifyTeamToken(auth, t.db, rotated.json().token)).toBeDefined()
-    const admin = await signIn(app, 'admin@acme.test', PASSWORD)
     expect(
       (await post(app, '/api/teams/plain-workspace/rotating/token', {}, admin)).statusCode,
     ).toBe(404)
@@ -214,11 +231,9 @@ describe('creating workspaces and teams', () => {
 
 describe('instance notices', () => {
   it('tells instance admins about a moved dashboard, until dismissed', async () => {
-    const app = await serverWith()
+    const { app, admin, plain } = await claimedInstance()
     await recordPublicUrl(t.db, 'https://ci.old.io')
     await recordPublicUrl(t.db, ORIGIN)
-    const admin = await signIn(app, 'admin@acme.test', PASSWORD)
-    const plain = await signIn(app, 'plain@acme.test', PASSWORD)
     const get = (cookie: string) =>
       app.inject({ method: 'GET', url: '/api/instance/notices', headers: { cookie } })
 

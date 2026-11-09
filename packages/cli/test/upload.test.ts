@@ -11,6 +11,8 @@ import { FakeCirci, type FakeCirciOptions } from './support/fake-circi.ts'
 let dir: string
 let cwd: string
 let fake: FakeCirci
+// Every server a test started: a test that starts none (pollDelay) has nothing to stop.
+let started: FakeCirci[] = []
 let lines: string[]
 
 beforeAll(async () => {
@@ -28,7 +30,8 @@ beforeEach(() => {
   lines = []
 })
 afterEach(async () => {
-  await fake.stop()
+  await Promise.all(started.map((s) => s.stop()))
+  started = []
 })
 
 const env = {
@@ -41,6 +44,7 @@ const env = {
 
 async function run(options: Partial<upload.Options> = {}, server: FakeCirciOptions = {}) {
   fake = await new FakeCirci(server).start()
+  started.push(fake)
   return upload({
     dir,
     apiUrl: fake.url,

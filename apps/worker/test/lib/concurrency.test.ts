@@ -1,19 +1,26 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { interruptibleSleep, mapLimit } from '#lib/concurrency.ts'
 
 describe('mapLimit', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('runs every item, never more than `limit` at once', async () => {
     let inFlight = 0
     let peak = 0
     const done: number[] = []
-    await mapLimit([1, 2, 3, 4, 5, 6, 7], 3, async (n) => {
+    vi.useFakeTimers()
+    const finished = mapLimit([1, 2, 3, 4, 5, 6, 7], 3, async (n) => {
       inFlight += 1
       peak = Math.max(peak, inFlight)
       await new Promise((r) => setTimeout(r, 5))
       inFlight -= 1
       done.push(n)
     })
+    await vi.runAllTimersAsync()
+    await finished
     expect(done.toSorted((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7])
     expect(peak).toBe(3)
   })
@@ -37,27 +44,41 @@ describe('mapLimit', () => {
 })
 
 describe('interruptibleSleep', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('sleeps for the time given', async () => {
+    vi.useFakeTimers()
     const s = interruptibleSleep()
-    const start = Date.now()
-    await s.sleep(30)
-    expect(Date.now() - start).toBeGreaterThanOrEqual(25)
+    let woke = false
+    const sleeping = s.sleep(30).then(() => (woke = true))
+    await vi.advanceTimersByTimeAsync(29)
+    expect(woke).toBe(false)
+    await vi.advanceTimersByTimeAsync(1)
+    await sleeping
+    expect(woke).toBe(true)
   })
 
   it('wake() cuts the sleep short', async () => {
+    vi.useFakeTimers()
     const s = interruptibleSleep()
-    const start = Date.now()
     const sleeping = s.sleep(10_000)
     s.wake()
     await sleeping
-    expect(Date.now() - start).toBeLessThan(1_000)
+    expect(vi.getTimerCount()).toBe(0)
   })
 
   it('wake() with nobody asleep is harmless, and the next sleep still lasts', async () => {
+    vi.useFakeTimers()
     const s = interruptibleSleep()
     s.wake()
-    const start = Date.now()
-    await s.sleep(30)
-    expect(Date.now() - start).toBeGreaterThanOrEqual(25)
+    let woke = false
+    const sleeping = s.sleep(30).then(() => (woke = true))
+    await vi.advanceTimersByTimeAsync(29)
+    expect(woke).toBe(false)
+    await vi.advanceTimersByTimeAsync(1)
+    await sleeping
+    expect(woke).toBe(true)
   })
 })
