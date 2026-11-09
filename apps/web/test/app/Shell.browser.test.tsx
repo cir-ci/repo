@@ -696,8 +696,16 @@ describe('Shell, outside the dashboard', () => {
   it('shows the site handoff without the sidebar', async () => {
     await page.viewport(1280, 800)
     await renderShell('/_sso/site')
-    await expect.element(page.getByRole('main')).toHaveTextContent('Handoff page')
+    await expect.element(page.getByText('Handoff page')).toBeVisible()
     expect(page.getByRole('navigation', { name: 'Main' }).elements()).toHaveLength(0)
+  })
+
+  it('shows the site handoff without the old logo bar: the page brings its own layout', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/_sso/site')
+    await expect.element(page.getByText('Handoff page')).toBeVisible()
+    expect(page.getByRole('link', { name: 'CirCI home' }).elements()).toHaveLength(0)
+    expect(page.getByRole('banner').elements()).toHaveLength(0)
   })
 })
 

@@ -18,6 +18,7 @@ import type { StorageDriver } from '@circi/storage'
 import type { FastifyReply, FastifyRequest, onRequestAsyncHookHandler } from 'fastify'
 
 import type { Deps } from '#http/lib/deps.ts'
+import { PAGE_CSP, standalonePage } from '#http/lib/pages.ts'
 
 import {
   cleanupCookies,
@@ -63,11 +64,20 @@ const REVALIDATE_MS = 60_000
 /** A host name worth a custom-domain lookup: dotted, ending in letters (so not an IP or `circi:3000`). */
 const DOMAIN_LIKE = /^[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,63}$/
 
-const NOT_FOUND_PAGE = `<!doctype html><meta charset="utf-8"><title>Not found</title>
-<body style="font:16px system-ui;margin:4rem auto;max-width:28rem;text-align:center"><h1>Not found</h1></body>`
+/** Self-contained (inline style and logo, no link to the dashboard): the sites domain stays separate. */
+const NOT_FOUND_PAGE = standalonePage(
+  'Site not found',
+  'No site is published at this address. It may have expired, or the link is wrong.',
+)
 
 function notFound(reply: FastifyReply) {
-  return reply.code(404).header('content-type', 'text/html; charset=utf-8').send(NOT_FOUND_PAGE)
+  // The page's one stylesheet is inline: its CSP allows exactly that (by hash) and nothing else.
+  return reply
+    .code(404)
+    .header('content-type', 'text/html; charset=utf-8')
+    .header('content-security-policy', PAGE_CSP)
+    .header('x-content-type-options', 'nosniff')
+    .send(NOT_FOUND_PAGE)
 }
 
 /** Only same-site paths: never `//host`, never a backslash, never a scheme. */

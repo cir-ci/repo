@@ -13,9 +13,19 @@ describe('SiteHandoffPage', () => {
     const calls = fakeFetch({ 'POST /api/site-handoff': pending })
     await open('?host=acme--web.sites.test&return=%2Fdocs')
     await expect.element(page.getByRole('heading', { name: 'Opening the site…' })).toBeVisible()
+    await expect.element(page.getByText('acme--web.sites.test')).toBeVisible()
+    await expect.element(page.getByRole('status')).toHaveTextContent('Checking your access.')
     await vi.waitFor(() =>
       expect(calls[0]?.body).toEqual({ label: 'acme--web.sites.test', returnPath: '/docs' }),
     )
+  })
+
+  it('goes to the address it is given once access is granted', async () => {
+    // A hash-only address, so `location.replace` moves within the test page instead of leaving it.
+    const target = `${window.location.pathname}${window.location.search}#handed-off`
+    fakeFetch({ 'POST /api/site-handoff': json({ url: target }) })
+    await open('?host=acme--web.sites.test')
+    await vi.waitFor(() => expect(window.location.hash).toBe('#handed-off'))
   })
 
   it('is "not found" without an address, and asks for nothing', async () => {

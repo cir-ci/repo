@@ -1,0 +1,15 @@
+/* "Checking your access.": the spinner and its words, centred under the title. */
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--circi-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* The way back: a secondary link-button across the column. */
+.back {
+  width: 100%;
+}

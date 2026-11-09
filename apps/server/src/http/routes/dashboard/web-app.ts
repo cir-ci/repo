@@ -5,7 +5,7 @@ import fastifyStatic from '@fastify/static'
 import type { FastifyPluginAsync } from 'fastify'
 
 import type { Deps } from '#http/lib/deps.ts'
-import { isApiPath, noticePage } from '#http/lib/pages.ts'
+import { isApiPath, noticePage, PAGE_CSP } from '#http/lib/pages.ts'
 
 /**
  * The built web app (apps/web/dist): static files, and the app shell for every client-side
@@ -18,6 +18,7 @@ export const webAppRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps
       if (isApiPath(req.url)) return reply.code(404).send({ error: 'Not found' })
       return reply
         .type('text/html; charset=utf-8')
+        .header('content-security-policy', PAGE_CSP)
         .send(
           noticePage(
             'Web app not built',

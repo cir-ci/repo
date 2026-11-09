@@ -21,38 +21,3 @@
   box-sizing: border-box;
   padding: 10px 8px;
 }
-
-.plain {
-  min-height: 100vh;
-  color: var(--circi-text-primary);
-}
-
-.plainBar {
-  display: flex;
-  align-items: center;
-  min-height: 56px;
-  padding: 0 16px;
-}
-
-.logo {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  gap: 8px;
-  color: inherit;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.mark {
-  box-sizing: border-box;
-  width: 20px;
-  height: 20px;
-  border: 4px solid var(--circi-text-primary);
-  border-right-color: transparent;
-  border-radius: 50%;
-}
-
-.main {
-  outline: none;
-}

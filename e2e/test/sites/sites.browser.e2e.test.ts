@@ -253,7 +253,7 @@ describe('static sites (local-disk storage)', () => {
     ]) {
       const res = await get(path)
       expect(res.status, path).toBe(404)
-      expect(res.text, path).toContain('Not found')
+      expect(res.text, path).toContain('Site not found')
     }
     // Sites are read-only.
     const post = await siteRequest(stack, commitAddress, '/', { method: 'POST', cookie })

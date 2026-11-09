@@ -8,7 +8,6 @@ import { AddressChangeBanner } from '#features/instance/AddressChangeBanner.tsx'
 import { SettingsNav } from '#features/sidebar/SettingsNav.tsx'
 import { TeamDialogs } from '#features/teams/TeamDialogs.tsx'
 import { authClient, type SessionUser } from '#lib/auth-client.ts'
-import { RouterLink } from '#lib/router-link.ts'
 
 import { currentSection, isOutsideFrame, isSettingsSection, sectionLabel } from './shell-model.ts'
 import { ShortcutLayer } from './ShortcutLayer.tsx'
@@ -27,7 +26,7 @@ const COMPACT_QUERY = '(max-width: 819.98px)'
 /**
  * The frame around every page. Signed in: the sidebar and one panel (`AppFrame`), with a top bar
  * and a drawer instead of the sidebar below 820px. Not signed in: the sign-in page. A site's
- * sign-in handoff is shown without the sidebar. Pages only render (and fetch) once there is a session.
+ * sign-in handoff is its own full-viewport page, without the sidebar or banners. Pages only render (and fetch) once there is a session.
  */
 export function Shell() {
   const { data: session, isPending } = authClient.useSession()
@@ -47,12 +46,9 @@ export function Shell() {
       </Suspense>
     )
   } else if (isOutsideFrame(pathname)) {
-    content = (
-      <PlainFrame>
-        <Notices email={user.email} />
-        <Outlet />
-      </PlainFrame>
-    )
+    // A handoff page is its own full-viewport layout like the sign-in page: it provides the
+    // `main#content`, and no invitation or address banners (it is a step on the way to a site).
+    content = <Outlet />
   } else {
     content = <SignedInFrame user={sessionUser(user)} />
   }
@@ -75,23 +71,6 @@ function Notices({ email }: { email: string }) {
       <InvitationBanner userEmail={email} />
       <AddressChangeBanner />
     </>
-  )
-}
-
-/** The ground and the logo for pages that live outside the sidebar frame. */
-function PlainFrame({ children }: { children: ReactNode }) {
-  return (
-    <div className={styles.plain}>
-      <header className={styles.plainBar}>
-        <RouterLink to="/" className={styles.logo} aria-label="CirCI home">
-          <span className={styles.mark} aria-hidden="true" />
-          CirCI
-        </RouterLink>
-      </header>
-      <main id="content" tabIndex={-1} className={styles.main}>
-        {children}
-      </main>
-    </div>
   )
 }
 

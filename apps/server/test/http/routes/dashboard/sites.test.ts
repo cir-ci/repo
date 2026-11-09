@@ -385,6 +385,20 @@ describe('opening a site', () => {
 const healthAt = (host: string) => app.inject({ url: '/healthz', headers: { host } })
 
 describe('the sites domain', () => {
+  it('answers a missing site with a self-contained "Site not found" page', async () => {
+    const res = await healthAt(SITES)
+    expect(res.statusCode).toBe(404)
+    expect(res.headers['content-type']).toBe('text/html; charset=utf-8')
+    expect(res.body).toContain('<h1>Site not found</h1>')
+    expect(res.body).toContain('No site is published at this address.')
+    // Nothing from the dashboard domain: no link, no script, no request; only its inline style.
+    expect(res.body).not.toMatch(/<(a|script|link|img)\b|href=|src=/)
+    expect(res.body).not.toContain(DASH)
+    expect(res.headers['content-security-policy']).toMatch(
+      /^default-src 'none'; style-src 'sha256-/,
+    )
+  })
+
   it('serves nothing at its apex or on look-alike or deeper names, and leaves other hosts alone', async () => {
     expect((await healthAt(SITES)).statusCode).toBe(404)
     expect((await healthAt(`a.b.${SITES}`)).statusCode).toBe(404)
