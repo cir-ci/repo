@@ -24,7 +24,7 @@ export namespace Shortcut {
   /** Where a shortcut applies: everywhere, in a list of rows, or on the build review screen. */
   export type Scope = 'global' | 'list' | 'inbox' | 'triage' | 'build-review'
 
-  export type Group = 'Navigation' | 'General' | 'Lists' | 'Inbox' | 'Triage' | 'Build review'
+  export type Group = 'General' | 'Navigation' | 'Lists' | 'Inbox' | 'Build review' | 'Triage'
 
   export type GoTarget = 'inbox' | 'reviews' | 'teams' | 'triage' | 'settings'
 
@@ -277,7 +277,17 @@ export const isSubmitKey = (
 export const shortcutFor = (key: string): Shortcut | undefined =>
   SHORTCUTS.find((s) => s.key === key)
 
-/** The shortcuts under their group headings, for the help dialog. */
+/** The groups in the order the help and the shortcuts page show them: every `Shortcut.Group`, once. */
+export const GROUP_ORDER: readonly Shortcut.Group[] = [
+  'General',
+  'Navigation',
+  'Lists',
+  'Inbox',
+  'Build review',
+  'Triage',
+]
+
+/** The shortcuts under their group headings in `GROUP_ORDER`, for the help dialog and the page. */
 export function shortcutGroups(
   designEnabled = false,
 ): { group: Shortcut.Group; shortcuts: Shortcut[] }[] {
@@ -288,7 +298,7 @@ export function shortcutGroups(
     if (found) found.shortcuts.push(shortcut)
     else groups.push({ group: shortcut.group, shortcuts: [shortcut] })
   }
-  return groups
+  return groups.toSorted((a, b) => GROUP_ORDER.indexOf(a.group) - GROUP_ORDER.indexOf(b.group))
 }
 
 const KEY_LABEL: Record<string, string> = {

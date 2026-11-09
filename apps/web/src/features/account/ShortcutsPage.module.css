@@ -1,0 +1,58 @@
+.intro {
+  margin: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--circi-line-strong);
+  border-radius: 10px;
+  background: var(--circi-surface-raised);
+}
+
+.title {
+  margin: 0 0 4px;
+  color: var(--circi-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.rows {
+  margin: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 32px;
+  border-bottom: 1px solid var(--circi-line-subtle);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.action {
+  flex: 1;
+  min-width: 0;
+  color: var(--circi-text-secondary);
+}
+
+.keys {
+  display: inline-flex;
+  flex: none;
+  gap: 4px;
+  margin: 0;
+}

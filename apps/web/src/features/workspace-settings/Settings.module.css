@@ -265,8 +265,3 @@
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
 }
-
-.keys {
-  display: inline-flex;
-  gap: 4px;
-}

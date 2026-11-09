@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { keyCaps, keyToken, SHORTCUTS, shortcutGroups } from '#lib/shortcuts.ts'
+import { GROUP_ORDER, keyCaps, keyToken, SHORTCUTS, shortcutGroups } from '#lib/shortcuts.ts'
 import { stepIndex } from '#lib/use-list-navigation.ts'
 
 describe('the shortcut registry', () => {
@@ -25,6 +25,17 @@ describe('the shortcut registry', () => {
     const listed = shortcutGroups(true).flatMap((g) => g.shortcuts)
     expect(listed).toHaveLength(SHORTCUTS.length)
     expect(shortcutGroups().flatMap((g) => g.shortcuts)).toHaveLength(SHORTCUTS.length - 1)
+  })
+
+  it('puts every shortcut in exactly one group, in the page order', () => {
+    const groups = shortcutGroups(true)
+    const keys = groups.flatMap((g) => g.shortcuts.map((s) => `${s.scope}:${s.key}`))
+    expect(keys.toSorted()).toEqual(SHORTCUTS.map((s) => `${s.scope}:${s.key}`).toSorted())
+    expect(new Set(keys).size).toBe(keys.length)
+    expect(new Set(groups.map((g) => g.group)).size).toBe(groups.length)
+    // Every group a shortcut names is in the order, and the order lists nothing else.
+    expect(GROUP_ORDER.toSorted()).toEqual([...new Set(SHORTCUTS.map((s) => s.group))].toSorted())
+    expect(groups.map((g) => g.group)).toEqual(GROUP_ORDER)
   })
 
   it('declares the global keys', () => {
