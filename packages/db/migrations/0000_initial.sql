@@ -320,6 +320,7 @@ CREATE TABLE "notifications" (
 CREATE TABLE "session_methods" (
 	"session_id" text PRIMARY KEY NOT NULL,
 	"method" text NOT NULL,
+	"provider" text,
 	"scope_workspace_id" text,
 	CONSTRAINT "session_methods_method_check" CHECK (method in ('password', 'email', 'oidc', 'workspace-oidc'))
 );
@@ -328,7 +329,15 @@ CREATE TABLE "workspace_auth_settings" (
 	"workspace_id" text PRIMARY KEY NOT NULL,
 	"email_login_enabled" boolean DEFAULT true NOT NULL,
 	"password_login_enabled" boolean DEFAULT true NOT NULL,
+	"signin_github" boolean DEFAULT true NOT NULL,
+	"signin_google" boolean DEFAULT true NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "workspace_deletions" (
+	"workspace_id" text PRIMARY KEY NOT NULL,
+	"deleted_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"deleted_by" text
 );
 --> statement-breakpoint
 CREATE TABLE "workspace_domains" (
@@ -345,7 +354,9 @@ CREATE TABLE "workspace_domains" (
 CREATE TABLE "workspace_settings" (
 	"workspace_id" text PRIMARY KEY NOT NULL,
 	"flaky_blocks_merge" boolean DEFAULT true NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+	"retention_days" integer DEFAULT 30 NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "workspace_settings_retention_days_check" CHECK ("workspace_settings"."retention_days" >= 1)
 );
 --> statement-breakpoint
 CREATE TABLE "teams" (
@@ -354,6 +365,9 @@ CREATE TABLE "teams" (
 	"slug" text NOT NULL,
 	"name" text NOT NULL,
 	"ci_key_id" text,
+	"ci_key_created_by" text,
+	"color" text DEFAULT 'slate' NOT NULL,
+	"icon" text,
 	"default_branch" text DEFAULT 'main' NOT NULL,
 	"diff_threshold" real DEFAULT 0 NOT NULL,
 	"auto_approve_default_branch" boolean DEFAULT true NOT NULL,
@@ -367,6 +381,7 @@ CREATE TABLE "teams" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "teams_ci_key_id_unique" UNIQUE("ci_key_id"),
 	CONSTRAINT "teams_diff_threshold_check" CHECK ("teams"."diff_threshold" >= 0 and "teams"."diff_threshold" <= 1),
+	CONSTRAINT "teams_color_check" CHECK (color in ('slate', 'olive', 'plum', 'moss', 'mauve', 'graphite')),
 	CONSTRAINT "teams_retention_days_check" CHECK ("teams"."retention_days" >= 1),
 	CONSTRAINT "teams_review_target_hours_check" CHECK ("teams"."review_target_hours" is null or "teams"."review_target_hours" >= 1)
 );
@@ -416,6 +431,20 @@ CREATE TABLE "reviews" (
 	CONSTRAINT "reviews_source_check" CHECK (source in ('ui', 'github-check', 'github-comment', 'gitlab-comment', 'gitlab-status', 'bitbucket-comment', 'bitbucket-status', 'auto', 'rerun'))
 );
 --> statement-breakpoint
+CREATE TABLE "snapshot_reviews" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"build_id" uuid NOT NULL,
+	"snapshot_name" text NOT NULL,
+	"decision" text NOT NULL,
+	"user_id" text,
+	"source" text NOT NULL,
+	"reason" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"superseded_at" timestamp with time zone,
+	CONSTRAINT "snapshot_reviews_decision_check" CHECK (decision in ('approved', 'rejected')),
+	CONSTRAINT "snapshot_reviews_source_check" CHECK (source in ('ui', 'github-check', 'github-comment', 'gitlab-comment', 'gitlab-status', 'bitbucket-comment', 'bitbucket-status', 'auto', 'rerun'))
+);
+--> statement-breakpoint
 CREATE TABLE "ignore_regions" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"team_id" uuid NOT NULL,
@@ -424,6 +453,7 @@ CREATE TABLE "ignore_regions" (
 	"y" integer NOT NULL,
 	"width" integer NOT NULL,
 	"height" integer NOT NULL,
+	"created_by" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "ignore_regions_size_check" CHECK ("ignore_regions"."width" > 0 and "ignore_regions"."height" > 0 and "ignore_regions"."x" >= 0 and "ignore_regions"."y" >= 0)
 );
@@ -573,6 +603,18 @@ CREATE TABLE "user_pinned_teams" (
 	CONSTRAINT "user_pinned_teams_user_id_team_id_pk" PRIMARY KEY("user_id","team_id")
 );
 --> statement-breakpoint
+CREATE TABLE "webhook_deliveries" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"webhook_id" uuid NOT NULL,
+	"delivery_id" text NOT NULL,
+	"event" text NOT NULL,
+	"test" boolean DEFAULT false NOT NULL,
+	"attempt" integer NOT NULL,
+	"status_code" integer,
+	"error" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "webhooks" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"team_id" uuid NOT NULL,
@@ -617,10 +659,12 @@ ALTER TABLE "notifications" ADD CONSTRAINT "notifications_build_id_builds_id_fk"
 ALTER TABLE "notifications" ADD CONSTRAINT "notifications_actor_id_user_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session_methods" ADD CONSTRAINT "session_methods_session_id_session_id_fk" FOREIGN KEY ("session_id") REFERENCES "public"."session"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "workspace_auth_settings" ADD CONSTRAINT "workspace_auth_settings_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "workspace_deletions" ADD CONSTRAINT "workspace_deletions_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "workspace_domains" ADD CONSTRAINT "workspace_domains_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "workspace_settings" ADD CONSTRAINT "workspace_settings_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "teams" ADD CONSTRAINT "teams_workspace_id_workspace_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspace"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "teams" ADD CONSTRAINT "teams_ci_key_id_apikey_id_fk" FOREIGN KEY ("ci_key_id") REFERENCES "public"."apikey"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "teams" ADD CONSTRAINT "teams_ci_key_created_by_user_id_fk" FOREIGN KEY ("ci_key_created_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "review_requests" ADD CONSTRAINT "review_requests_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "review_requests" ADD CONSTRAINT "review_requests_reviewer_id_user_id_fk" FOREIGN KEY ("reviewer_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "review_requests" ADD CONSTRAINT "review_requests_requested_by_id_user_id_fk" FOREIGN KEY ("requested_by_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -629,7 +673,10 @@ ALTER TABLE "review_rule_reviewers" ADD CONSTRAINT "review_rule_reviewers_user_i
 ALTER TABLE "review_rules" ADD CONSTRAINT "review_rules_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reviews" ADD CONSTRAINT "reviews_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reviews" ADD CONSTRAINT "reviews_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "snapshot_reviews" ADD CONSTRAINT "snapshot_reviews_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "snapshot_reviews" ADD CONSTRAINT "snapshot_reviews_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "ignore_regions" ADD CONSTRAINT "ignore_regions_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "ignore_regions" ADD CONSTRAINT "ignore_regions_created_by_user_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "screenshot_diffs" ADD CONSTRAINT "screenshot_diffs_build_id_builds_id_fk" FOREIGN KEY ("build_id") REFERENCES "public"."builds"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "screenshot_diffs" ADD CONSTRAINT "screenshot_diffs_base_screenshot_id_screenshots_id_fk" FOREIGN KEY ("base_screenshot_id") REFERENCES "public"."screenshots"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "screenshot_diffs" ADD CONSTRAINT "screenshot_diffs_head_screenshot_id_screenshots_id_fk" FOREIGN KEY ("head_screenshot_id") REFERENCES "public"."screenshots"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -657,6 +704,7 @@ ALTER TABLE "saved_views" ADD CONSTRAINT "saved_views_workspace_id_workspace_id_
 ALTER TABLE "saved_views" ADD CONSTRAINT "saved_views_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_pinned_teams" ADD CONSTRAINT "user_pinned_teams_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_pinned_teams" ADD CONSTRAINT "user_pinned_teams_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "webhook_deliveries" ADD CONSTRAINT "webhook_deliveries_webhook_id_webhooks_id_fk" FOREIGN KEY ("webhook_id") REFERENCES "public"."webhooks"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "webhooks" ADD CONSTRAINT "webhooks_team_id_teams_id_fk" FOREIGN KEY ("team_id") REFERENCES "public"."teams"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "account_userId_idx" ON "account" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "apikey_configId_idx" ON "apikey" USING btree ("config_id");--> statement-breakpoint
@@ -692,6 +740,8 @@ CREATE INDEX "review_requests_requester_idx" ON "review_requests" USING btree ("
 CREATE INDEX "review_rule_reviewers_user_idx" ON "review_rule_reviewers" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "review_rules_team_idx" ON "review_rules" USING btree ("team_id","position");--> statement-breakpoint
 CREATE INDEX "reviews_build_idx" ON "reviews" USING btree ("build_id","created_at");--> statement-breakpoint
+CREATE UNIQUE INDEX "snapshot_reviews_current_key" ON "snapshot_reviews" USING btree ("build_id","snapshot_name") WHERE "snapshot_reviews"."superseded_at" is null;--> statement-breakpoint
+CREATE INDEX "snapshot_reviews_build_idx" ON "snapshot_reviews" USING btree ("build_id","created_at");--> statement-breakpoint
 CREATE INDEX "ignore_regions_team_idx" ON "ignore_regions" USING btree ("team_id","name");--> statement-breakpoint
 CREATE UNIQUE INDEX "screenshot_diffs_build_name_key" ON "screenshot_diffs" USING btree ("build_id","name");--> statement-breakpoint
 CREATE INDEX "screenshot_diffs_diff_file_idx" ON "screenshot_diffs" USING btree ("diff_file_sha256");--> statement-breakpoint
@@ -708,4 +758,5 @@ CREATE UNIQUE INDEX "team_sites_slug_key" ON "team_sites" USING btree ("slug");-
 CREATE UNIQUE INDEX "triage_items_key" ON "triage_items" USING btree ("team_id","kind","key");--> statement-breakpoint
 CREATE INDEX "triage_items_assignee_idx" ON "triage_items" USING btree ("assignee_id");--> statement-breakpoint
 CREATE INDEX "saved_views_user_workspace_idx" ON "saved_views" USING btree ("user_id","workspace_id","position");--> statement-breakpoint
+CREATE INDEX "webhook_deliveries_hook_idx" ON "webhook_deliveries" USING btree ("webhook_id","created_at");--> statement-breakpoint
 CREATE INDEX "webhooks_team_idx" ON "webhooks" USING btree ("team_id");

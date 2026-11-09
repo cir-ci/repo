@@ -5,36 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1794171137032,
+      "when": 1794212003085,
       "tag": "0000_initial",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1794172566792,
-      "tag": "0001_team_appearance",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1794177194230,
-      "tag": "0002_unique_the_phantom",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1794179341865,
-      "tag": "0003_lean_morgan_stark",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1794179390429,
-      "tag": "0004_harsh_maria_hill",
       "breakpoints": true
     }
   ]

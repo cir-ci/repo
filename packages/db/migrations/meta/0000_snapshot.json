@@ -1,5 +1,5 @@
 {
-  "id": "fe5e0843-a69c-4e7e-876d-76cff380022c",
+  "id": "2078bbf4-4fbb-4593-8438-264c92f72887",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -2765,6 +2765,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "scope_workspace_id": {
           "name": "scope_workspace_id",
           "type": "text",
@@ -2823,6 +2829,20 @@
           "notNull": true,
           "default": true
         },
+        "signin_github": {
+          "name": "signin_github",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "signin_google": {
+          "name": "signin_google",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
@@ -2836,6 +2856,52 @@
         "workspace_auth_settings_workspace_id_workspace_id_fk": {
           "name": "workspace_auth_settings_workspace_id_workspace_id_fk",
           "tableFrom": "workspace_auth_settings",
+          "tableTo": "workspace",
+          "columnsFrom": [
+            "workspace_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.workspace_deletions": {
+      "name": "workspace_deletions",
+      "schema": "",
+      "columns": {
+        "workspace_id": {
+          "name": "workspace_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "deleted_by": {
+          "name": "deleted_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "workspace_deletions_workspace_id_workspace_id_fk": {
+          "name": "workspace_deletions_workspace_id_workspace_id_fk",
+          "tableFrom": "workspace_deletions",
           "tableTo": "workspace",
           "columnsFrom": [
             "workspace_id"
@@ -2985,6 +3051,13 @@
           "notNull": true,
           "default": true
         },
+        "retention_days": {
+          "name": "retention_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 30
+        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp with time zone",
@@ -3012,7 +3085,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "workspace_settings_retention_days_check": {
+          "name": "workspace_settings_retention_days_check",
+          "value": "\"workspace_settings\".\"retention_days\" >= 1"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.teams": {
@@ -3046,6 +3124,25 @@
         },
         "ci_key_id": {
           "name": "ci_key_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ci_key_created_by": {
+          "name": "ci_key_created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "color": {
+          "name": "color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'slate'"
+        },
+        "icon": {
+          "name": "icon",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -3175,6 +3272,19 @@
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
+        },
+        "teams_ci_key_created_by_user_id_fk": {
+          "name": "teams_ci_key_created_by_user_id_fk",
+          "tableFrom": "teams",
+          "tableTo": "user",
+          "columnsFrom": [
+            "ci_key_created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3192,6 +3302,10 @@
         "teams_diff_threshold_check": {
           "name": "teams_diff_threshold_check",
           "value": "\"teams\".\"diff_threshold\" >= 0 and \"teams\".\"diff_threshold\" <= 1"
+        },
+        "teams_color_check": {
+          "name": "teams_color_check",
+          "value": "color in ('slate', 'olive', 'plum', 'moss', 'mauve', 'graphite')"
         },
         "teams_retention_days_check": {
           "name": "teams_retention_days_check",
@@ -3689,6 +3803,155 @@
       },
       "isRLSEnabled": false
     },
+    "public.snapshot_reviews": {
+      "name": "snapshot_reviews",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "build_id": {
+          "name": "build_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "snapshot_name": {
+          "name": "snapshot_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decision": {
+          "name": "decision",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "superseded_at": {
+          "name": "superseded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "snapshot_reviews_current_key": {
+          "name": "snapshot_reviews_current_key",
+          "columns": [
+            {
+              "expression": "build_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "snapshot_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"snapshot_reviews\".\"superseded_at\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "snapshot_reviews_build_idx": {
+          "name": "snapshot_reviews_build_idx",
+          "columns": [
+            {
+              "expression": "build_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "snapshot_reviews_build_id_builds_id_fk": {
+          "name": "snapshot_reviews_build_id_builds_id_fk",
+          "tableFrom": "snapshot_reviews",
+          "tableTo": "builds",
+          "columnsFrom": [
+            "build_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "snapshot_reviews_user_id_user_id_fk": {
+          "name": "snapshot_reviews_user_id_user_id_fk",
+          "tableFrom": "snapshot_reviews",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "snapshot_reviews_decision_check": {
+          "name": "snapshot_reviews_decision_check",
+          "value": "decision in ('approved', 'rejected')"
+        },
+        "snapshot_reviews_source_check": {
+          "name": "snapshot_reviews_source_check",
+          "value": "source in ('ui', 'github-check', 'github-comment', 'gitlab-comment', 'gitlab-status', 'bitbucket-comment', 'bitbucket-status', 'auto', 'rerun')"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.ignore_regions": {
       "name": "ignore_regions",
       "schema": "",
@@ -3736,6 +3999,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -3779,6 +4048,19 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "ignore_regions_created_by_user_id_fk": {
+          "name": "ignore_regions_created_by_user_id_fk",
+          "tableFrom": "ignore_regions",
+          "tableTo": "user",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -5272,6 +5554,112 @@
           ]
         }
       },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.webhook_deliveries": {
+      "name": "webhook_deliveries",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "webhook_id": {
+          "name": "webhook_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "delivery_id": {
+          "name": "delivery_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "event": {
+          "name": "event",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "test": {
+          "name": "test",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "attempt": {
+          "name": "attempt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status_code": {
+          "name": "status_code",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "webhook_deliveries_hook_idx": {
+          "name": "webhook_deliveries_hook_idx",
+          "columns": [
+            {
+              "expression": "webhook_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "webhook_deliveries_webhook_id_webhooks_id_fk": {
+          "name": "webhook_deliveries_webhook_id_webhooks_id_fk",
+          "tableFrom": "webhook_deliveries",
+          "tableTo": "webhooks",
+          "columnsFrom": [
+            "webhook_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
