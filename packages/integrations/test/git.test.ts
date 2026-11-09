@@ -103,16 +103,16 @@ describe('GitHub', () => {
       throw new ProviderApiError(404, 'Not Found', { revoked: true })
     })
     await expect(github.connect?.({ installationId: '9' }, revoked)).rejects.toMatchObject({
-      status: 404,
+      code: 'not_found',
     })
     const down = app(async () => {
       throw new Error('boom')
     })
     await expect(github.connect?.({ installationId: '9' }, down)).rejects.toMatchObject({
-      status: 502,
+      code: 'unreachable',
     })
     await expect(github.connect?.({ installationId: '9' }, ctx())).rejects.toMatchObject({
-      status: 400,
+      code: 'invalid_input',
     })
   })
 
@@ -261,11 +261,11 @@ describe('GitLab', () => {
 
   it('refuses addresses that are not GitLab servers before asking anyone', async () => {
     await expect(gitlab.connect?.({ baseUrl: 'ftp://x', token: 't' }, ctx())).rejects.toMatchObject(
-      { status: 400 },
+      { code: 'invalid_input' },
     )
     await expect(
       gitlab.connect?.({ baseUrl: 'http://10.0.0.5', token: 't' }, ctx()),
-    ).rejects.toMatchObject({ status: 400 })
+    ).rejects.toMatchObject({ code: 'invalid_input' })
   })
 })
 

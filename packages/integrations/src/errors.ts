@@ -1,51 +1,58 @@
 /**
  * What `connect` (and an OAuth exchange) throws, so the generic route can answer without knowing
- * the provider: `InvalidCredentialsError` is the person's to fix (400), `IntegrationUnreachableError`
+ * the provider: `InvalidCredentialsError` is the person's to fix, `IntegrationUnreachableError`
  * is the provider being down or confused (502), `IntegrationConflictError` is an account another
  * workspace of this instance already uses (409). Anything else is a bug and answers 500.
  */
 
+export type IntegrationErrorCode =
+  | 'invalid_credentials'
+  | 'unreachable'
+  | 'conflict'
+  | 'invalid_input'
+  | 'not_found'
+
 export class IntegrationError extends Error {
-  /** The HTTP status the generic route answers with. */
-  readonly status: 400 | 404 | 409 | 502
-  constructor(status: 400 | 404 | 409 | 502, message: string, options?: ErrorOptions) {
+  /** What went wrong, for whoever maps it to a response (the server keeps the one table). */
+  readonly code: IntegrationErrorCode
+  constructor(code: IntegrationErrorCode, message: string, options?: ErrorOptions) {
     super(message, options)
     this.name = new.target.name
-    this.status = status
+    this.code = code
   }
 }
 
 /** The provider refused the credentials (wrong token, no access). The message is shown to the person. */
 export class InvalidCredentialsError extends IntegrationError {
   constructor(message: string, options?: ErrorOptions) {
-    super(400, message, options)
+    super('invalid_credentials', message, options)
   }
 }
 
 /** The provider did not answer sensibly; trying again may help. */
 export class IntegrationUnreachableError extends IntegrationError {
   constructor(message: string, options?: ErrorOptions) {
-    super(502, message, options)
+    super('unreachable', message, options)
   }
 }
 
 /** The account is already connected, here or elsewhere. */
 export class IntegrationConflictError extends IntegrationError {
   constructor(message: string, options?: ErrorOptions) {
-    super(409, message, options)
+    super('conflict', message, options)
   }
 }
 
 /** What a person typed cannot be used (not an address of this provider); the message says why. */
 export class InvalidInputError extends IntegrationError {
   constructor(message: string, options?: ErrorOptions) {
-    super(400, message, options)
+    super('invalid_input', message, options)
   }
 }
 
 /** What was named does not exist on the provider (a GitHub App installation id nobody installed). */
 export class IntegrationNotFoundError extends IntegrationError {
   constructor(message: string, options?: ErrorOptions) {
-    super(404, message, options)
+    super('not_found', message, options)
   }
 }

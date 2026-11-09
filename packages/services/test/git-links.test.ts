@@ -78,7 +78,7 @@ describe('linkTeamToGithub', () => {
     const before = (await t.db.select().from(schema.integrations)).length
     await expect(
       linkTeamToGithub(t.db, team.id, { installationId: '777', repoRef: 'a/b' }, ctx),
-    ).rejects.toMatchObject({ status: 502 })
+    ).rejects.toMatchObject({ code: 'unreachable' })
     expect((await t.db.select().from(schema.integrations)).length).toBe(before)
     expect(await getTeamLink(t.db, team.id, gitKinds())).toBeUndefined()
   })
@@ -90,7 +90,7 @@ describe('linkTeamToGithub', () => {
     await linkTeamToGithub(t.db, theirs.team.id, { installationId: '888', repoRef: 'o/x' }, ctx)
     await expect(
       linkTeamToGithub(t.db, mine.team.id, { installationId: '888', repoRef: 'o/y' }, ctx),
-    ).rejects.toMatchObject({ status: 409 })
+    ).rejects.toMatchObject({ code: 'conflict' })
     expect(await getTeamLink(t.db, mine.team.id, gitKinds())).toBeUndefined()
     expect(
       (await t.db.select().from(schema.integrations)).filter(
@@ -104,12 +104,12 @@ describe('linkTeamToGithub', () => {
     const { ctx, asked } = githubFake(['1'])
     await expect(
       linkTeamToGithub(t.db, team.id, { installationId: 'abc', repoRef: 'a/b' }, ctx),
-    ).rejects.toMatchObject({ status: 400 })
+    ).rejects.toMatchObject({ code: 'invalid_input' })
     expect(asked).toEqual([])
     const bare: IntegrationDefinition.Context = { ...ctx, gitProviders: {} }
     await expect(
       linkTeamToGithub(t.db, team.id, { installationId: '1', repoRef: 'a/b' }, bare),
-    ).rejects.toMatchObject({ status: 400 })
+    ).rejects.toMatchObject({ code: 'invalid_input' })
   })
 
   it('clears a needs-attention mark, as saying "I reinstalled the App" does', async () => {

@@ -18,11 +18,11 @@ import {
 } from '@circi/ui'
 import { type CSSProperties, type ReactNode, useState } from 'react'
 
+import { fileUrl } from '#features/builds/api/index.ts'
+import { type Annotations, RegionLayer } from '#features/regions/RegionLayer.tsx'
 import { MODE_OPTIONS } from '#lib/shortcuts.ts'
 
-import { fileUrl } from './api.ts'
 import { screenshotLabel, screenshotStatus, type ShotKind } from './diff-status.ts'
-import { type Annotations, RegionLayer } from './RegionLayer.tsx'
 import { changeSummary } from './review-model.ts'
 import { DESIGN_MODE, type ViewMode, VIEW_MODES } from './search.ts'
 import { type Zoom, stepZoom, zoomedWidth, zoomLabel } from './zoom.ts'

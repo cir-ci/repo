@@ -16,6 +16,11 @@
       "@circi/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./tokens-css": "./tokens-css.ts",
+    "./team-icons": "./src/team-icons.ts",
+    "./css-modules": {
+      "types": "./src/css-modules.d.ts"
     }
   },
   "scripts": {

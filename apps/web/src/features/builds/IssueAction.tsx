@@ -3,9 +3,10 @@ import { Button } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { isActive } from './api.ts'
+import { isActive } from '#features/builds/api/index.ts'
+import { issuePreview, issuesQuery, useCreateIssue } from '#features/builds/api/issues.ts'
+
 import { CreateIssueDialog } from './CreateIssueDialog.tsx'
-import { issuePreview, issuesQuery, useCreateIssue } from './issues-api.ts'
 
 /**
  * "Create issue" in the review header, for the selected snapshot (the whole build when none is

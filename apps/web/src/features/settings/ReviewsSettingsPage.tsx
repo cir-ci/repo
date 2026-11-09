@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
 import { workspaceQuery } from '#features/members/api.ts'
-import { TeamSettingsFrame } from '#features/teams/TeamSettingsFrame.tsx'
+import { TeamSettingsFrame } from '#features/team-settings/TeamSettingsFrame.tsx'
 import { ErrorState } from '#lib/ErrorState.tsx'
 
 import { rulesQuery } from './api.ts'

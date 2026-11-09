@@ -2,8 +2,8 @@ import { Delayed, EmptyState, ListSkeleton, SegmentedControl, Select, Text } fro
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 
+import { useLoadingAnnouncement } from '#features/builds/list/loading.ts'
 import { useSidebarModel } from '#features/sidebar/api.ts'
-import { useLoadingAnnouncement } from '#features/teams/loading.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { PageHeading, workspaceCrumb } from '#lib/PageHeading.tsx'

@@ -2,9 +2,9 @@ import { Avatar, Banner, Dialog, Text, TextField, useAnnounce } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
+import { useRequestReview } from '#features/builds/api/discussion.ts'
 import { workspaceQuery } from '#features/members/api.ts'
 
-import { useRequestReview } from './discussion-api.ts'
 import { matchMembers } from './mentions.ts'
 
 import styles from './Discussion.module.css'

@@ -8,7 +8,7 @@ import {
   type QueryClient,
 } from '@tanstack/react-query'
 
-import { fileUrl } from '#features/builds/api.ts'
+import { fileUrl } from '#features/builds/api/index.ts'
 import {
   type ShotKind,
   screenshotLabel,

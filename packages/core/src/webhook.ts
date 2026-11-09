@@ -1,5 +1,25 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
+import { ValidationError } from './errors.ts'
+
+/** The events a team webhook can subscribe to. */
+export const WEBHOOK_EVENTS = ['build.completed', 'build.reviewed'] as const
+export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number]
+
+export function isWebhookEvent(value: string): value is WebhookEvent {
+  return (WEBHOOK_EVENTS as readonly string[]).includes(value)
+}
+
+/** The subscribed events, checked: at least one, all known. Throws `ValidationError` otherwise. */
+export function checkWebhookEvents(events: readonly string[]): WebhookEvent[] {
+  if (events.length === 0) {
+    throw new ValidationError('Choose at least one event for the webhook to receive')
+  }
+  const unknown = events.filter((e) => !isWebhookEvent(e))
+  if (unknown.length > 0) throw new ValidationError(`Unknown event(s): ${unknown.join(', ')}`)
+  return events.filter(isWebhookEvent)
+}
+
 /**
  * Webhook signatures: `CirCI-Signature: t=<unix seconds>,v1=<hex>`, where `v1` is
  * HMAC-SHA256(secret, `<t>.<raw body>`). The timestamp is signed so a captured request can't be

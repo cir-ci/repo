@@ -2,9 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 
 import { readRememberedWorkspace } from '#app/shell-model.ts'
 import { useWorkspaces } from '#app/use-workspaces.ts'
+import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 
-import { capabilitiesQuery } from './api.ts'
 import { NewWorkspaceDialog } from './CreateDialogs.tsx'
 import { NewTeamDialog } from './NewTeamDialog.tsx'
 

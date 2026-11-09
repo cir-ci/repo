@@ -1,6 +1,6 @@
 import type { Storage, Workspace } from '@circi/api'
 import { updateWorkspace } from '@circi/auth'
-import { ValidationError, workspacePurgeAt } from '@circi/core'
+import { ValidationError, workspacePurgeAt, canManage } from '@circi/core'
 import {
   getMemberRole,
   getWorkspaceStorage,
@@ -56,7 +56,7 @@ export const dashboardWorkspaceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard
       await reply.code(404).send({ error: 'Workspace not found' })
       return undefined
     }
-    return { workspace, role, canManage: role === 'owner' || role === 'admin' }
+    return { workspace, role, canManage: canManage(role) }
   }
 
   const MANAGE = 'Only owners and admins can change workspace settings'

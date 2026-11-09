@@ -21,7 +21,7 @@ import { useState } from 'react'
 
 import { UserMenu } from '#features/auth/UserMenu.tsx'
 import { useSidebarModel } from '#features/sidebar/api.ts'
-import { capabilitiesQuery } from '#features/teams/api.ts'
+import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { isTeamIconName } from '#features/teams/appearance.ts'
 import type { SessionUser } from '#lib/auth-client.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'

@@ -1,4 +1,5 @@
 import type { ReviewRule, Triage } from '@circi/api'
+import { canManage } from '@circi/core'
 import {
   createReviewRule,
   deleteReviewRule,
@@ -45,7 +46,7 @@ export const dashboardRuleRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
     if (!found) return reply
     const role = await getTeamMemberRole(deps.db, found.team.id, found.user.id)
     const settings: ReviewRule.Settings = {
-      canManage: role === 'owner' || role === 'admin',
+      canManage: canManage(role),
       rules: await listReviewRules(deps.db, found.team.id),
       rotation: presentRotation(await getTriageRotation(deps.db, found.team.id)),
     }

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
-import { capabilitiesQuery, teamsQuery } from '#features/teams/api.ts'
+import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
 
 import { listWorkspaces, type WorkspaceRef, pickWorkspace } from './shell-model.ts'
 

@@ -2,10 +2,11 @@ import { Banner, Button, Dialog, Text, TextField, useAnnounce } from '@circi/ui'
 import { useNavigate } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
 
-import { useDeleteTeam } from './api.ts'
+import { useDeleteTeam } from '#features/teams/api/index.ts'
+
 import { deleteConfirmed, deletePhrase } from './delete-team.ts'
 
-import shared from './TeamSettings.module.css'
+import shared from '#features/team-settings/TeamSettings.module.css'
 
 /**
  * The danger zone of Team General: deleting the team, after typing `workspace/team` back. Owners

@@ -2,7 +2,7 @@ import type { Team } from '@circi/api'
 import { Banner, Button, Checkbox, SectionHeader, Switch, TextField, useAnnounce } from '@circi/ui'
 import { useState } from 'react'
 
-import { useSaveSettings } from '#features/teams/api.ts'
+import { useSaveSettings } from '#features/teams/api/index.ts'
 
 import { describeHours, targetDirty, targetProblem, targetText, targetValue } from './api.ts'
 

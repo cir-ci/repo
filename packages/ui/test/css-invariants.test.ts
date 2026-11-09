@@ -63,7 +63,7 @@ const OUTLINE_ALLOWED: Record<string, string> = {
   'packages/ui/src/ConfirmDialog.module.css .popup:focus-visible': 'as Dialog',
   'packages/ui/src/CommandDialog.module.css .popup:focus-visible': 'as Dialog',
   'packages/ui/src/Drawer.module.css .popup:focus-visible': 'as Dialog',
-  'apps/web/src/features/builds/RegionLayer.module.css .tool':
+  'apps/web/src/features/regions/RegionLayer.module.css .tool':
     'a non-interactive drawing preview (pointer-events: none)',
   'apps/web/src/features/command/CommandMenu.module.css .input:focus-visible':
     'the palette input is the only control in its dialog; the dialog frames it (candidate to fix: add a border colour)',

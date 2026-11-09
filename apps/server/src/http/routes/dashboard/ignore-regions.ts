@@ -1,5 +1,6 @@
 import type { IgnoreRegion } from '@circi/api'
-import { listIgnoreRegions, listIgnoreRegionSnapshots, schema } from '@circi/db'
+import { TRIAGE_KINDS } from '@circi/core'
+import { listIgnoreRegions, listIgnoreRegionSnapshots } from '@circi/db'
 import { createIgnoreRegion, deleteIgnoreRegion, editIgnoreRegion } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
@@ -15,9 +16,7 @@ const regionBody = z.object({
   width: z.number(),
   height: z.number(),
   /** The triage item this region answers; it is dismissed with the region added. */
-  resolves: z
-    .object({ kind: z.enum(schema.TRIAGE_KINDS), key: z.string().min(1).max(500) })
-    .optional(),
+  resolves: z.object({ kind: z.enum(TRIAGE_KINDS), key: z.string().min(1).max(500) }).optional(),
 })
 const editBody = z
   .object({

@@ -1,9 +1,8 @@
 import { fileURLToPath } from 'node:url'
 
+import { circiTokensCss } from '@circi/ui/tokens-css'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
-
-import { circiTokensCss } from '../../packages/ui/tokens-css.ts'
 
 // `pnpm dev` here proxies the API to a CirCI server on :3000 (pnpm circi all).
 export default defineConfig({

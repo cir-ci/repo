@@ -3,13 +3,18 @@ import { Avatar, Banner, Button, EmptyState, ReviewIcon, Text, useAnnounce } fro
 import { useQuery } from '@tanstack/react-query'
 import { type Ref, useEffect, useRef, useState } from 'react'
 
+import {
+  commentsQuery,
+  useAddComment,
+  useDeleteComment,
+  useEditComment,
+} from '#features/builds/api/discussion.ts'
 import { workspaceQuery } from '#features/members/api.ts'
+import { regionThreads } from '#features/regions/geometry.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import { Composer } from './Composer.tsx'
-import { commentsQuery, useAddComment, useDeleteComment, useEditComment } from './discussion-api.ts'
 import type { Mention } from './mentions.ts'
-import { regionThreads } from './regions.ts'
 import { groupThreads, type Thread } from './timeline.ts'
 
 import styles from './Discussion.module.css'

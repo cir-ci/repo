@@ -8,9 +8,11 @@ import { insightsRoutes } from '#features/insights/routes.ts'
 import { instanceRoutes } from '#features/instance/routes.ts'
 import { integrationsRoutes } from '#features/integrations/routes.ts'
 import { membersRoutes } from '#features/members/routes.ts'
+import { regionsRoutes } from '#features/regions/routes.ts'
 import { reviewsRoutes } from '#features/reviews/routes.ts'
 import { settingsRoutes } from '#features/settings/routes.ts'
 import { sitesRoutes } from '#features/sites/routes.ts'
+import { teamSettingsRoutes } from '#features/team-settings/routes.ts'
 import { teamsRoutes } from '#features/teams/routes.ts'
 import { triageRoutes } from '#features/triage/routes.ts'
 import { viewsRoutes } from '#features/views/routes.ts'
@@ -21,6 +23,8 @@ import { rootRoute } from './root-route.ts'
 /** The route tree: each feature declares its own routes; this only assembles them. */
 const routeTree = rootRoute.addChildren([
   ...teamsRoutes,
+  ...teamSettingsRoutes,
+  ...regionsRoutes,
   ...buildsRoutes,
   ...membersRoutes,
   ...sitesRoutes,

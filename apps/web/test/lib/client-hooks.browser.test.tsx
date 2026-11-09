@@ -2,7 +2,7 @@ import { AnnouncerProvider } from '@circi/ui'
 import { describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
-import { useLoadingAnnouncement } from '#features/teams/loading.ts'
+import { useLoadingAnnouncement } from '#features/builds/list/loading.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 import { renderPage } from '#test/support/render.tsx'

@@ -2,10 +2,9 @@ import type { Build } from '@circi/api'
 import { Link, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 
+import { issuesQuery } from '#features/builds/api/issues.ts'
 import { ProviderLogo } from '#features/integrations/logos.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
-
-import { issuesQuery } from './issues-api.ts'
 
 import styles from './Discussion.module.css'
 import issueStyles from './Issues.module.css'

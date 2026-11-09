@@ -1,6 +1,13 @@
 import type { Team } from '@circi/api'
 import { deleteTeamWithToken, rotateTeamToken } from '@circi/auth'
-import { INSTALLATION_ID_RE, ValidationError, webhookUrlProblem } from '@circi/core'
+import {
+  checkWebhookEvents,
+  INSTALLATION_ID_RE,
+  ValidationError,
+  WEBHOOK_EVENTS,
+  webhookUrlProblem,
+  canManage,
+} from '@circi/core'
 import {
   createWebhook,
   type Database,
@@ -13,17 +20,14 @@ import {
   getTeamMemberRole,
   getTeamTokenInfo,
   getWebhook,
-  isWebhookEvent,
   listWebhookDeliveries,
   listWebhooks,
   queueTestWebhook,
   type WebhookDelivery,
   teamSettings,
   updateTeamSettings,
-  WEBHOOK_EVENTS,
   type Webhook,
 } from '@circi/db'
-import { IntegrationError } from '@circi/integrations'
 import {
   gitKinds,
   linkTeamToGithub,
@@ -78,8 +82,6 @@ const webhookBody = z.object({
   events: z.array(z.string()).optional(),
 })
 
-const NO_EVENTS = 'Choose at least one event for the webhook to receive'
-
 /** A webhook as the dashboard sees it: the signing secret is only shown when it's created. */
 async function githubLink(db: Database, teamId: string): Promise<Team.GithubLink | null> {
   const link = await getTeamLink(db, teamId, gitKinds())
@@ -93,10 +95,10 @@ async function githubLink(db: Database, teamId: string): Promise<Team.GithubLink
   }
 }
 
-async function tokenInfo(db: Database, teamId: string, canManage: boolean): Promise<Team.Token> {
+async function tokenInfo(db: Database, teamId: string, manageable: boolean): Promise<Team.Token> {
   const info = await getTeamTokenInfo(db, teamId)
   return {
-    canManage,
+    canManage: manageable,
     hint: info.hint,
     createdAt: info.createdAt?.toISOString() ?? null,
     createdBy: info.createdBy,
@@ -158,7 +160,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
       return undefined
     }
     const role = await getTeamMemberRole(deps.db, team.id, user.id)
-    return { team, canManage: role === 'owner' || role === 'admin' }
+    return { team, canManage: canManage(role) }
   }
 
   async function loadForManager(req: FastifyRequest, reply: FastifyReply) {
@@ -244,16 +246,8 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
     const link = parse(githubBody, req.body)
     const ctx = integrationContext(deps)
     if (!ctx) return reply.code(400).send({ error: 'This instance cannot store credentials' })
-    try {
-      // Verified with GitHub like the integration's Add flow: nothing is stored when it fails.
-      await linkTeamToGithub(deps.db, team.id, link, ctx)
-    } catch (err) {
-      if (err instanceof IntegrationError) {
-        if (err.status === 502) req.log.warn({ err }, 'could not verify the GitHub installation')
-        return reply.code(err.status).send({ error: err.message })
-      }
-      throw err
-    }
+    // Verified with GitHub like the integration's Add flow: nothing is stored when it fails.
+    await linkTeamToGithub(deps.db, team.id, link, ctx)
     return { link: { ...link, attention: null } }
   })
 
@@ -271,14 +265,11 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
     const url = body.url.trim()
     const problem = webhookUrlProblem(url, { allowPrivate })
     if (problem) throw new ValidationError(problem)
-    const events = body.events ?? []
-    if (events.length === 0) throw new ValidationError(NO_EVENTS)
-    const unknown = events.filter((e) => !isWebhookEvent(e))
-    if (unknown.length > 0) throw new ValidationError(`Unknown event(s): ${unknown.join(', ')}`)
+    const events = checkWebhookEvents(body.events ?? [])
     const created = await createWebhook(deps.db, {
       teamId: team.id,
       url: new URL(url).toString(),
-      events: events.filter(isWebhookEvent),
+      events,
     })
     return reply.code(201).send({ webhook: present(created), secret: created.secret })
   })

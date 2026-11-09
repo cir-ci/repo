@@ -4,11 +4,11 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useEffect, useRef } from 'react'
 
+import { buildQuery, isActive } from '#features/builds/api/index.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { PageHeading, teamCrumb } from '#lib/PageHeading.tsx'
 
-import { buildQuery, isActive } from './api.ts'
 import { buildTitle } from './build-title.ts'
 import { BuildReview } from './BuildReview.tsx'
 import { ROUTE } from './search.ts'

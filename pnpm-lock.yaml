@@ -325,6 +325,9 @@ importers:
       '@circi/ui':
         specifier: workspace:*
         version: link:packages/ui
+      '@circi/vitest':
+        specifier: workspace:*
+        version: link:packages/vitest
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.6

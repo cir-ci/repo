@@ -1,18 +1,12 @@
 import type { InstanceAdmin } from '@circi/api'
 import { callbackUrl } from '@circi/auth'
-import { schema } from '@circi/db'
+import { DEFAULT_TEAM_RETENTION_DAYS } from '@circi/core'
 
 import type { Deps } from './deps.ts'
 import { githubAppSource } from './github-app.ts'
 
 type Instance = Deps.Instance
 type Scope = Pick<Deps.Dashboard, 'githubApp' | 'integrations'>
-
-/** What a new team's retention starts at: the column's own default, so this never drifts. */
-function defaultTeamRetentionDays(): number {
-  const value: unknown = schema.teams.retentionDays.default
-  return typeof value === 'number' ? value : 30
-}
 
 /** The effective settings from the environment; secrets (SMTP login, client secrets, keys) never appear. */
 export function describeSettings(instance: Instance, scope: Scope): InstanceAdmin.Settings {
@@ -36,7 +30,7 @@ export function describeSettings(instance: Instance, scope: Scope): InstanceAdmi
     },
     workspaceCreation: config.workspaceCreation,
     retention: {
-      defaultTeamRetentionDays: defaultTeamRetentionDays(),
+      defaultTeamRetentionDays: DEFAULT_TEAM_RETENTION_DAYS,
       gcGraceHours: config.gcGraceHours,
       uploadTimeoutMinutes: config.uploadTimeoutMinutes,
     },

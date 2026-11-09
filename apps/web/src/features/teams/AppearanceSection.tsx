@@ -2,7 +2,8 @@ import type { Team } from '@circi/api'
 import { Banner, Button, Text, TeamTile, TextField, useAnnounce } from '@circi/ui'
 import { useState } from 'react'
 
-import { useSaveAppearance } from './api.ts'
+import { useSaveAppearance } from '#features/teams/api/index.ts'
+
 import {
   appearancePatch,
   colourLabel,
@@ -15,8 +16,8 @@ import {
   type TeamIconName,
 } from './appearance.ts'
 
+import shared from '#features/team-settings/TeamSettings.module.css'
 import styles from './AppearanceSection.module.css'
-import shared from './TeamSettings.module.css'
 
 /** The tile's colour and icon. Each pick is saved at once (owners and admins). */
 export function AppearanceSection({

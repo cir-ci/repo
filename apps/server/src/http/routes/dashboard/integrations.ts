@@ -1,4 +1,5 @@
 import type { Integration } from '@circi/api'
+import { canManage } from '@circi/core'
 import { deleteIntegration, getMemberRole, listWorkspaceIntegrations } from '@circi/db'
 import { buildCatalog, integrationRegistry, resolveKind } from '@circi/integrations'
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
@@ -29,7 +30,7 @@ export const dashboardIntegrationRoutes: FastifyPluginAsync<Deps.Dashboard> = as
       userId: found.user.id,
       workspaceId: found.workspace.id,
     })
-    return { workspace: found.workspace, canManage: role === 'owner' || role === 'admin' }
+    return { workspace: found.workspace, canManage: canManage(role) }
   }
 
   async function loadForManager(req: FastifyRequest, reply: FastifyReply) {

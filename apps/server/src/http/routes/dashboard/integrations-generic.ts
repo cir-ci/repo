@@ -1,5 +1,12 @@
 import type { Integration } from '@circi/api'
-import { openSecret, sealSecret, signState, ValidationError, verifyState } from '@circi/core'
+import {
+  openSecret,
+  sealSecret,
+  signState,
+  ValidationError,
+  verifyState,
+  canManage,
+} from '@circi/core'
 import {
   createIntegration,
   deleteIntegrationLink,
@@ -66,15 +73,6 @@ function wireTarget(t: IntegrationDefinition.Target): Integration.Target {
   return out
 }
 
-/** Replies for an error thrown by a definition's connect or exchange; rethrows unknown ones. */
-async function replyConnectError(req: FastifyRequest, reply: FastifyReply, err: unknown) {
-  if (err instanceof IntegrationError) {
-    if (err.status === 502) req.log.warn({ err }, 'could not connect the integration')
-    return reply.code(err.status).send({ error: err.message })
-  }
-  throw err
-}
-
 /** The repositories a git host's connection can see, as targets. */
 async function listRepositories(
   git: NonNullable<IntegrationDefinition['capabilities']['git']>,
@@ -135,7 +133,7 @@ function webhookOf(
 ): Integration.MappingPage['webhook'] {
   const git = definition.capabilities.git
   if (!git) return null
-  const canSee = role === 'owner' || role === 'admin'
+  const canSee = canManage(role)
   return {
     url: `${publicOrigin}/webhooks/${definition.id}`,
     secret: canSee && ctx ? (git.webhook.secret?.(ctx) ?? null) : null,
@@ -245,7 +243,7 @@ function createGeneric(deps: Deps.Dashboard) {
     err: unknown,
   ) {
     const { integration, definition } = loaded
-    if (err instanceof IntegrationError) return reply.code(err.status).send({ error: err.message })
+    if (err instanceof IntegrationError) throw err // the error handler maps it by its code
     const reason = definition.needsAttention(err)
     if (reason) {
       await setIntegrationAttention(deps.db, integration.id, reason)
@@ -523,15 +521,12 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
       return reply.code(400).send({ error: `This instance has no ${definition.name} set up` })
     }
     const input = parse(definition.credentials, req.body ?? {})
-    try {
-      const connected = await definition.connect(input, ctx)
-      const id = await store(found.workspace.id, found.user.id, definition, connected, ctx, {
-        replace: false,
-      })
-      return reply.code(201).send({ id })
-    } catch (err) {
-      return replyConnectError(req, reply, err)
-    }
+    // An IntegrationError it throws is answered by the error handler (400, 409, 502…).
+    const connected = await definition.connect(input, ctx)
+    const id = await store(found.workspace.id, found.user.id, definition, connected, ctx, {
+      replace: false,
+    })
+    return reply.code(201).send({ id })
   })
 
   /** The address to send the browser to for installing the app; `state` binds workspace, user and kind. */
@@ -667,13 +662,9 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
     if (definition.available && !definition.available(ctx)) {
       return reply.code(400).send({ error: `This instance has no ${definition.name} set up` })
     }
-    try {
-      const connected = await definition.connect(parse(definition.credentials, values), ctx)
-      const id = await store(workspaceId, user.id, definition, connected, ctx, { replace: false })
-      return reply.redirect(`${list}/${encodeURIComponent(kind)}/${id}?connect=connected`)
-    } catch (err) {
-      return replyConnectError(req, reply, err)
-    }
+    const connected = await definition.connect(parse(definition.credentials, values), ctx)
+    const id = await store(workspaceId, user.id, definition, connected, ctx, { replace: false })
+    return reply.redirect(`${list}/${encodeURIComponent(kind)}/${id}?connect=connected`)
   })
 
   /** The integration, its definition's public spec, and how each team of the workspace maps to it. */
@@ -690,7 +681,7 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
     })
     const ctx = integrationContext(deps)
     const payload: Integration.MappingPage = {
-      canManage: role === 'owner' || role === 'admin',
+      canManage: canManage(role),
       configured: ctx !== undefined && (definition.oauth?.available(ctx) ?? false),
       integration: {
         id: integration.id,

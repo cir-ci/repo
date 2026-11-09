@@ -2,18 +2,22 @@ import { Banner, Button, Ref, TeamTile, Text, useAnnounce } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 
+import {
+  type BuildFilters,
+  parseBuildsSearch,
+  toSearch,
+} from '#features/builds/list/builds-filters.ts'
+import { BuildsBrowser } from '#features/builds/list/BuildsBrowser.tsx'
+import { GitAttentionBanner } from '#features/builds/list/GitAttentionBanner.tsx'
 import { useSidebarModel } from '#features/sidebar/api.ts'
+import { flakyQuery, teamQuery } from '#features/teams/api/index.ts'
 import { usePinTeam } from '#features/views/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { PageHeading, workspaceCrumb } from '#lib/PageHeading.tsx'
 import { useDisplayStore } from '#lib/stores/display-store.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 
-import { flakyQuery, teamQuery } from './api.ts'
 import { isTeamColor, isTeamIconName } from './appearance.ts'
-import { type BuildFilters, parseBuildsSearch, toSearch } from './builds-filters.ts'
-import { BuildsBrowser } from './BuildsBrowser.tsx'
-import { GitAttentionBanner } from './GitAttentionBanner.tsx'
 
 import styles from './TeamPage.module.css'
 

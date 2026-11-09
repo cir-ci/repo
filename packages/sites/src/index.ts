@@ -9,7 +9,7 @@ export {
   MAX_SLUG_LENGTH,
   parseLabel,
   pickLabel,
-  slugify,
+  siteSlug,
 } from './addresses.ts'
 export { detectKind, isSiteKindId, KINDS, SITE_KIND_IDS, type SiteKind } from './kinds.ts'
 export { requestPath, RESERVED_PREFIX, safeEntryPath, UnsafePathError } from './paths.ts'

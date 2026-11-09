@@ -1,0 +1,388 @@
+import { describe, expect, it } from 'vitest'
+import { page } from 'vitest/browser'
+
+import { TeamSettingsPage } from '#features/team-settings/TeamSettingsPage.tsx'
+import { fakeApi, hangingFetch, type ReplyHandler } from '#test/support/fetch.ts'
+import { renderPage } from '#test/support/render.tsx'
+
+const settings = {
+  name: 'Web App',
+  defaultBranch: 'main',
+  diffThreshold: 0.001,
+  autoApproveDefaultBranch: false,
+  blockMergeOnChanges: true,
+  flakyBlocksMerge: null as boolean | null,
+  retentionDays: 30,
+  reviewTargetHours: 24 as number | null,
+  staticHostingEnabled: false,
+}
+
+function response(over: Record<string, unknown> = {}) {
+  return {
+    canManage: true,
+    settings,
+    appearance: { color: 'slate', icon: null },
+    workspace: { flakyBlocksMerge: true },
+    webhooks: [],
+    webhookEvents: ['build.completed', 'build.reviewed'],
+    github: { configured: false, webhookUrl: 'https://circi.test/webhooks/github', link: null },
+    sitesConfigured: false,
+    ...over,
+  }
+}
+
+const API = '/api/teams/acme/web'
+const control = () => page.getByRole('combobox', { name: 'Flaky screenshots block merges' })
+
+function api(over: Record<string, unknown> = {}, extra: Record<string, ReplyHandler> = {}) {
+  return fakeApi({
+    [`GET ${API}/settings`]: { body: response(over) },
+    [`PATCH ${API}/settings`]: { body: { settings } },
+    ...extra,
+  })
+}
+
+const github = (link: unknown) => ({
+  configured: true,
+  webhookUrl: 'https://circi.test/webhooks/github',
+  link,
+})
+
+const show = () =>
+  renderPage(<TeamSettingsPage />, {
+    route: '/$workspace/$team/settings',
+    url: '/acme/web/settings',
+    announcer: true,
+  })
+const heading = (name: string) => page.getByRole('heading', { name })
+
+async function openDelete() {
+  await page.getByRole('button', { name: 'Delete team' }).click()
+  return page.getByRole('dialog', { name: 'Delete Web App?' })
+}
+
+describe('TeamSettingsPage', () => {
+  it('shows its breadcrumb while loading and announces a slow load', async () => {
+    hangingFetch()
+    await show()
+    const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
+    await expect.poll(() => crumbs.element().textContent).toBe('TeamsacmewebSettingsGeneral')
+    await expect.element(page.getByRole('status').first()).toHaveTextContent('Loading general')
+  })
+
+  it('links the breadcrumb back to the team and shows its name once loaded', async () => {
+    api()
+    await show()
+    await expect
+      .element(page.getByRole('link', { name: 'Web App' }))
+      .toHaveAttribute('href', '/acme/web/settings')
+    expect(document.title).toBe('General · web · CirCI')
+  })
+
+  it('fills the form from the saved settings, converting the threshold to a percentage', async () => {
+    api()
+    await show()
+    await expect.element(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Web App')
+    await expect.element(page.getByRole('textbox', { name: 'Default branch' })).toHaveValue('main')
+    await expect
+      .element(page.getByRole('spinbutton', { name: 'Ignore differences below (% of pixels)' }))
+      .toHaveValue(0.1)
+    await expect
+      .element(page.getByRole('spinbutton', { name: 'Keep builds for (days)' }))
+      .toHaveValue(30)
+    await expect
+      .element(page.getByRole('checkbox', { name: 'Block merging until changes are approved' }))
+      .toBeChecked()
+    await expect
+      .element(
+        page.getByRole('checkbox', { name: 'Approve builds on the default branch automatically' }),
+      )
+      .not.toBeChecked()
+    // No static hosting switch unless the instance can host sites.
+    expect(page.getByRole('checkbox', { name: /Host static sites/ }).elements()).toHaveLength(0)
+  })
+
+  it('saves what was edited, announces it and shows a confirmation', async () => {
+    const fake = api({ sitesConfigured: true })
+    await show()
+    await page.getByRole('textbox', { name: 'Name' }).fill('Web')
+    await page
+      .getByRole('spinbutton', { name: 'Ignore differences below (% of pixels)' })
+      .fill('2.5')
+    await page.getByRole('spinbutton', { name: 'Keep builds for (days)' }).fill('90')
+    await page
+      .getByRole('checkbox', { name: 'Approve builds on the default branch automatically' })
+      .click()
+    await page
+      .getByRole('checkbox', { name: 'Host static sites (Storybook, reports) for this team' })
+      .click()
+    await page.getByRole('button', { name: 'Save settings' }).click()
+    await expect.element(page.getByText('Settings saved.')).toBeVisible()
+    expect(fake.of('PATCH')).toEqual([
+      {
+        method: 'PATCH',
+        path: `${API}/settings`,
+        body: {
+          name: 'Web',
+          defaultBranch: 'main',
+          diffThreshold: 0.025,
+          retentionDays: 90,
+          autoApproveDefaultBranch: true,
+          blockMergeOnChanges: true,
+          flakyBlocksMerge: null,
+          staticHostingEnabled: true,
+        },
+      },
+    ])
+    await expect
+      .element(page.getByRole('status').filter({ hasText: /^Settings saved$/ }))
+      .toBeVisible()
+  })
+
+  describe('flaky screenshots block merges', () => {
+    it('inherits the workspace by default, and says what that currently means', async () => {
+      api()
+      await show()
+      await expect.element(control()).toHaveTextContent('Inherit from workspace (currently: on)')
+    })
+
+    it('shows the workspace’s current value when it is off', async () => {
+      api({ workspace: { flakyBlocksMerge: false } })
+      await show()
+      await expect.element(control()).toHaveTextContent('Inherit from workspace (currently: off)')
+    })
+
+    it('shows an explicit value of its own', async () => {
+      api({ settings: { ...settings, flakyBlocksMerge: false } })
+      await show()
+      await expect.element(control()).toHaveTextContent('Off')
+    })
+
+    it('saves an explicit choice, and null to inherit again', async () => {
+      const fake = api()
+      await show()
+      await control().click()
+      await page.getByRole('option', { name: 'Off' }).click()
+      await page.getByRole('button', { name: 'Save settings' }).click()
+      await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
+      expect(fake.of('PATCH')[0]?.body).toMatchObject({ flakyBlocksMerge: false })
+
+      await control().click()
+      await page.getByRole('option', { name: 'On', exact: true }).click()
+      await page.getByRole('button', { name: 'Save settings' }).click()
+      await expect.poll(() => fake.of('PATCH')).toHaveLength(2)
+      expect(fake.of('PATCH')[1]?.body).toMatchObject({ flakyBlocksMerge: true })
+
+      await control().click()
+      await page.getByRole('option', { name: /^Inherit from workspace/ }).click()
+      await page.getByRole('button', { name: 'Save settings' }).click()
+      await expect.poll(() => fake.of('PATCH')).toHaveLength(3)
+      expect(fake.of('PATCH')[2]?.body).toMatchObject({ flakyBlocksMerge: null })
+    })
+
+    it('is read-only for members', async () => {
+      api({ canManage: false })
+      await show()
+      await expect.element(control()).toBeDisabled()
+    })
+  })
+
+  it('shows the server’s refusal when saving fails', async () => {
+    const fake = api()
+    fake.set(`PATCH ${API}/settings`, {
+      status: 400,
+      body: { error: 'Default branch is required' },
+    })
+    await show()
+    await page.getByRole('button', { name: 'Save settings' }).click()
+    await expect.element(page.getByRole('alert')).toHaveTextContent('Default branch is required')
+    expect(page.getByText('Settings saved.').elements()).toHaveLength(0)
+  })
+
+  it('lets members look but not change anything', async () => {
+    api({ canManage: false })
+    await show()
+    await expect
+      .element(page.getByText('Only owners and admins can change these settings.'))
+      .toBeVisible()
+    await expect.element(page.getByRole('textbox', { name: 'Name' })).toBeDisabled()
+    await expect
+      .element(page.getByRole('checkbox', { name: 'Block merging until changes are approved' }))
+      .toHaveAttribute('data-disabled')
+    expect(page.getByRole('button', { name: 'Save settings' }).elements()).toHaveLength(0)
+  })
+
+  it('says the team doesn’t exist for a 404, and retries other errors', async () => {
+    fakeApi({ [`GET ${API}/settings`]: { status: 404, body: { error: 'Team not found' } } })
+    await show()
+    await expect.element(heading('This team doesn’t exist')).toBeVisible()
+  })
+
+  it('shows other errors and retries', async () => {
+    const fake = fakeApi({ [`GET ${API}/settings`]: { status: 500, body: { error: 'db down' } } })
+    await show()
+    await expect.element(page.getByText('db down')).toBeVisible()
+    fake.set(`GET ${API}/settings`, { body: response() })
+    await page.getByRole('button', { name: 'Try again' }).click()
+    await expect.element(page.getByRole('textbox', { name: 'Name' })).toBeVisible()
+  })
+
+  describe('GitHub', () => {
+    it('warns at the top while GitHub refuses the installation', async () => {
+      api({
+        github: github({
+          installationId: '4242',
+          repoRef: 'acme/web',
+          attention: { reason: 'installation_revoked', since: new Date().toISOString() },
+        }),
+      })
+      await show()
+      const banner = page.getByRole('alert')
+      await expect.element(banner.getByText(/reach GitHub for this team/)).toBeVisible()
+      await expect.element(banner.getByText(/GitHub App was removed or suspended/)).toBeVisible()
+      await expect.element(banner.getByText(/Integrations/)).toBeVisible()
+    })
+
+    it('shows no warning for a healthy link, and names the linked repository', async () => {
+      api({ github: github({ installationId: '4242', repoRef: 'acme/web', attention: null }) })
+      await show()
+      await expect.element(page.getByText('acme/web')).toBeVisible()
+      expect(page.getByRole('alert').elements()).toHaveLength(0)
+      expect(page.getByRole('textbox', { name: 'Repository' }).elements()).toHaveLength(0)
+    })
+
+    it('links to the workspace integrations to change the repository', async () => {
+      api({ github: github({ installationId: '4242', repoRef: 'acme/web', attention: null }) })
+      await show()
+      await expect
+        .element(page.getByRole('link', { name: 'Change' }))
+        .toHaveAttribute('href', '/workspaces/acme/settings/integrations')
+    })
+
+    it('unlinks only after confirming', async () => {
+      const fake = api(
+        { github: github({ installationId: '4242', repoRef: 'acme/web', attention: null }) },
+        { [`DELETE ${API}/github`]: { status: 204 } },
+      )
+      await show()
+      await page.getByRole('button', { name: 'Unlink' }).click()
+      await page.getByRole('button', { name: 'Cancel' }).click()
+      await expect.element(page.getByRole('alertdialog')).not.toBeInTheDocument()
+      expect(fake.of('DELETE')).toHaveLength(0)
+      await page.getByRole('button', { name: 'Unlink' }).click()
+      await page.getByRole('alertdialog').getByRole('button', { name: 'Unlink' }).click()
+      await expect.poll(() => fake.of('DELETE')).toHaveLength(1)
+    })
+  })
+
+  describe('icon and colour', () => {
+    const ARIA = { color: 'slate', icon: null as string | null }
+
+    it('shows the tile and saves a picked colour at once', async () => {
+      const fake = api(
+        { appearance: ARIA },
+        { [`PATCH ${API}/appearance`]: { body: { appearance: { color: 'plum', icon: null } } } },
+      )
+      await show()
+      await expect.element(page.getByRole('img', { name: 'Web App' })).toBeVisible()
+      await page.getByRole('radio', { name: 'Plum' }).click()
+      await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
+      expect(fake.of('PATCH')[0]).toMatchObject({
+        path: `${API}/appearance`,
+        body: { color: 'plum' },
+      })
+    })
+
+    it('searches the 31 icons and saves a picked one, or null for the first letter', async () => {
+      const fake = api(
+        { appearance: { color: 'slate', icon: 'globe' } },
+        { [`PATCH ${API}/appearance`]: { body: { appearance: { color: 'slate', icon: null } } } },
+      )
+      await show()
+      const group = page.getByRole('group', { name: 'Icon' })
+      // The first letter plus every icon.
+      await expect.element(group).toBeVisible()
+      expect(group.getByRole('button').elements()).toHaveLength(32)
+      await expect
+        .element(group.getByRole('button', { name: 'globe' }))
+        .toHaveAttribute('aria-pressed', 'true')
+      await page.getByRole('textbox', { name: 'Find an icon' }).fill('rock')
+      await page.getByRole('button', { name: 'rocket' }).click()
+      await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
+      expect(fake.of('PATCH')[0]?.body).toEqual({ icon: 'rocket' })
+      await page.getByRole('textbox', { name: 'Find an icon' }).fill('zzz')
+      await expect.element(page.getByText('No icon matches “zzz”.')).toBeVisible()
+      await page.getByRole('textbox', { name: 'Find an icon' }).fill('')
+      await page.getByRole('button', { name: 'First letter' }).click()
+      await expect.poll(() => fake.of('PATCH')).toHaveLength(2)
+      expect(fake.of('PATCH')[1]?.body).toEqual({ icon: null })
+    })
+
+    it('shows the server’s refusal', async () => {
+      const fake = api({ appearance: ARIA })
+      fake.set(`PATCH ${API}/appearance`, { status: 400, body: { error: 'Unknown icon' } })
+      await show()
+      await page.getByRole('radio', { name: 'Moss' }).click()
+      await expect.element(page.getByRole('alert')).toHaveTextContent('Unknown icon')
+    })
+
+    it('is read-only for members: the tile shows, no pickers', async () => {
+      api({ canManage: false, appearance: ARIA })
+      await show()
+      await expect.element(page.getByRole('img', { name: 'Web App' })).toBeVisible()
+      expect(page.getByRole('radio').elements()).toHaveLength(0)
+    })
+  })
+
+  describe('danger zone', () => {
+    it('deletes the team once its address is typed back, then goes to the teams list', async () => {
+      const fake = api({}, { [`DELETE ${API}`]: { status: 204 } })
+      const { router } = await show()
+      const dialog = await openDelete()
+      const confirm = dialog.getByRole('button', { name: 'Delete team' })
+      await expect.element(confirm).toBeDisabled()
+      await dialog.getByRole('textbox', { name: 'Type acme/web to confirm' }).fill('acme/other')
+      await expect.element(confirm).toBeDisabled()
+      await dialog.getByRole('textbox', { name: 'Type acme/web to confirm' }).fill('acme/web')
+      await confirm.click()
+      await expect.poll(() => fake.of('DELETE')).toHaveLength(1)
+      await expect.poll(() => router.state.location.pathname).toBe('/')
+    })
+
+    it('shows the server’s refusal and keeps the dialog', async () => {
+      api(
+        {},
+        {
+          [`DELETE ${API}`]: {
+            status: 403,
+            body: { error: 'Only owners and admins can change this' },
+          },
+        },
+      )
+      await show()
+      const dialog = await openDelete()
+      await dialog.getByRole('textbox', { name: 'Type acme/web to confirm' }).fill('acme/web')
+      await dialog.getByRole('button', { name: 'Delete team' }).click()
+      await expect
+        .element(dialog.getByRole('alert'))
+        .toHaveTextContent('Only owners and admins can change this')
+    })
+
+    it('is disabled for members, with the reason', async () => {
+      api({ canManage: false })
+      await show()
+      await expect.element(page.getByRole('button', { name: 'Delete team' })).toBeDisabled()
+      await expect
+        .element(page.getByText('Only owners and admins can delete a team.'))
+        .toBeVisible()
+    })
+  })
+
+  it('has no CI token or webhooks on this page: they have their own', async () => {
+    api()
+    await show()
+    await expect.element(page.getByRole('textbox', { name: 'Name' })).toBeVisible()
+    expect(heading('CI token').elements()).toHaveLength(0)
+    expect(heading('Webhooks').elements()).toHaveLength(0)
+  })
+})

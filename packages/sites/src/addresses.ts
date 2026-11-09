@@ -20,7 +20,7 @@ export function branchHash(branch: string, length = HASH_LENGTH): string {
 }
 
 /** A site slug candidate: lowercase letters, digits and single hyphens, cut and tidied. */
-export function slugify(text: string, max = MAX_SLUG_LENGTH): string {
+export function siteSlug(text: string, max = MAX_SLUG_LENGTH): string {
   return text
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
@@ -38,9 +38,9 @@ export function chooseSlug(
   input: { team: string; name: string; workspace: string },
   taken: (slug: string) => boolean,
 ): string {
-  const base = slugify(`${input.team}-${input.name}`)
+  const base = siteSlug(`${input.team}-${input.name}`)
   if (!taken(base)) return base
-  const withWorkspace = `${slugify(`${input.team}-${input.name}`, MAX_SLUG_LENGTH - 1 - input.workspace.length)}-${slugify(input.workspace)}`
+  const withWorkspace = `${siteSlug(`${input.team}-${input.name}`, MAX_SLUG_LENGTH - 1 - input.workspace.length)}-${siteSlug(input.workspace)}`
   const trimmed = withWorkspace.slice(0, MAX_SLUG_LENGTH).replace(/-+$/, '')
   if (!taken(trimmed)) return trimmed
   for (let n = 2; n < 1000; n += 1) {

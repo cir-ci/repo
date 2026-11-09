@@ -4,6 +4,18 @@
  * inside a transaction.
  */
 
+// Lists the core rules also need live in `@circi/core`; the CHECK constraints use the same values.
+export {
+  REVIEW_SOURCES,
+  SNOOZE_KINDS,
+  TRIAGE_KINDS,
+  WEBHOOK_EVENTS,
+  type ReviewSource,
+  type SnoozeKind,
+  type TriageKind,
+  type WebhookEvent,
+} from '@circi/core'
+
 export const FILE_KINDS = ['screenshot', 'diff', 'thumbnail', 'asset'] as const
 export const FILE_STATUSES = ['pending', 'verified'] as const
 export const BUILD_STATUSES = [
@@ -21,25 +33,10 @@ export const BASELINE_SOURCES = ['cli', 'sdk', 'provider', 'fallback', 'none'] a
 export const DIFF_STATUSES = ['added', 'removed', 'changed', 'unchanged', 'failed'] as const
 export const DIFF_JOB_STATUSES = ['pending', 'running', 'done', 'failed'] as const
 export const REVIEW_STATES = ['approved', 'rejected'] as const
-export const REVIEW_SOURCES = [
-  'ui',
-  'github-check',
-  'github-comment',
-  'gitlab-comment',
-  'gitlab-status',
-  'bitbucket-comment',
-  'bitbucket-status',
-  'auto',
-  'rerun',
-] as const
 /** Where a review request stands: waiting on the reviewer, or closed for one of three reasons. */
 export const REVIEW_REQUEST_STATES = ['open', 'done', 'superseded', 'dismissed'] as const
-/** How a request was snoozed; `next_push` wakes on the next build of the branch (no end time). */
-export const SNOOZE_KINDS = ['next_push', 'tomorrow', 'next_week', 'date'] as const
 /** What a review rule's pattern is matched against. */
 export const REVIEW_RULE_KINDS = ['snapshot-name', 'build-name'] as const
-/** What kind of problem a triage item is. (Integration problems are not recorded yet.) */
-export const TRIAGE_KINDS = ['flaky', 'no_baseline', 'failed'] as const
 /** What an inbox notification is about. */
 export const NOTIFICATION_KINDS = [
   'review_requested',
@@ -51,7 +48,6 @@ export const NOTIFICATION_KINDS = [
   'connection_needs_attention',
   'flaky_detected',
 ] as const
-export const WEBHOOK_EVENTS = ['build.completed', 'build.reviewed'] as const
 /**
  * How someone signed in: `oidc` is an instance-wide single sign-on provider, `workspace-oidc` one an
  * workspace added itself (and which only opens that workspace).
@@ -76,11 +72,7 @@ export type BaselineSource = (typeof BASELINE_SOURCES)[number]
 export type DiffStatus = (typeof DIFF_STATUSES)[number]
 export type DiffJobStatus = (typeof DIFF_JOB_STATUSES)[number]
 export type ReviewState = (typeof REVIEW_STATES)[number]
-export type ReviewSource = (typeof REVIEW_SOURCES)[number]
 export type ReviewRequestState = (typeof REVIEW_REQUEST_STATES)[number]
-export type SnoozeKind = (typeof SNOOZE_KINDS)[number]
 export type ReviewRuleKind = (typeof REVIEW_RULE_KINDS)[number]
-export type TriageKind = (typeof TRIAGE_KINDS)[number]
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number]
-export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number]
 export type JobStatus = (typeof JOB_STATUSES)[number]

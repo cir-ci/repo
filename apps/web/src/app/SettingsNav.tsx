@@ -25,7 +25,7 @@ import { useRouterState, useParams } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
 import { useSidebarModel } from '#features/sidebar/api.ts'
-import { capabilitiesQuery } from '#features/teams/api.ts'
+import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { isTeamIconName } from '#features/teams/appearance.ts'
 
 import { NavLink } from './NavLink.tsx'

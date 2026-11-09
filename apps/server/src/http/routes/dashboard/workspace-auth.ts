@@ -1,3 +1,4 @@
+import { canManage } from '@circi/core'
 import {
   getMemberRole,
   getWorkspaceBySlug,
@@ -57,7 +58,7 @@ export const dashboardWorkspaceAuthRoutes: FastifyPluginAsync<Deps.Dashboard> = 
       await reply.code(404).send({ error: 'Workspace not found' })
       return undefined
     }
-    return { workspace, canManage: role === 'owner' || role === 'admin' }
+    return { workspace, canManage: canManage(role) }
   }
 
   app.get('/workspaces/:workspace/auth', async (req, reply) => {

@@ -1,12 +1,12 @@
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 
+import { circiTokensCss } from '@circi/ui/tokens-css'
+import { CirciReporter } from '@circi/vitest'
 import { playwright } from '@vitest/browser-playwright'
 import { defineConfig } from 'vitest/config'
 
 import { E2eTimingReporter } from './e2e/src/timing-reporter.ts'
-import { circiTokensCss } from './packages/ui/tokens-css.ts'
-import { CirciReporter } from './packages/vitest/src/index.ts'
 
 const uiRequire = createRequire(resolve(import.meta.dirname, 'packages/ui/package.json'))
 

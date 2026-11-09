@@ -1,4 +1,4 @@
-import { openSecret } from '@circi/core'
+import { openSecret, REVIEW_SOURCES } from '@circi/core'
 import {
   type Database,
   findBuildByCheckRun,
@@ -6,7 +6,6 @@ import {
   findMembersByAccount,
   latestBuildsForPr,
   linkBuildsToPullRequest,
-  schema,
 } from '@circi/db'
 import type { IntegrationDefinition } from '@circi/integrations'
 
@@ -42,7 +41,7 @@ type ReviewSource = NonNullable<reviewBuild.Input['source']>
 
 /** The review source a kind's comments or check buttons are recorded as (`<kind>-comment`). */
 function reviewSource(kind: string, how: 'comment' | 'check'): ReviewSource {
-  const found = schema.REVIEW_SOURCES.find((s) => s === `${kind}-${how}`)
+  const found = REVIEW_SOURCES.find((s) => s === `${kind}-${how}`)
   if (!found) throw new Error(`No review source for ${kind} ${how}s`)
   return found
 }

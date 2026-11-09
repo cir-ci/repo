@@ -1,8 +1,15 @@
-export { ValidationError } from './errors.ts'
+export {
+  ConflictError,
+  DomainError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from './errors.ts'
 export {
   BUILD_NAME_RE,
   checkBuildInput,
   COMMIT_SHA_RE,
+  DEFAULT_TEAM_RETENTION_DAYS,
   isCommitSha,
   isSha256,
   MAX_ANCESTORS,
@@ -19,7 +26,17 @@ export {
 } from './token.ts'
 export { isEligibleBaseline, resolveBaseline } from './baseline.ts'
 export { pairScreenshots } from './pairing.ts'
-export { signWebhook, verifyWebhookSignature } from './webhook.ts'
+export {
+  checkWebhookEvents,
+  isWebhookEvent,
+  signWebhook,
+  verifyWebhookSignature,
+  WEBHOOK_EVENTS,
+  type WebhookEvent,
+} from './webhook.ts'
+export { canManage } from './roles.ts'
+export { REVIEW_SOURCES, type ReviewSource } from './review-sources.ts'
+export { SNOOZE_KINDS, TRIAGE_KINDS, type SnoozeKind, type TriageKind } from './triage.ts'
 export { isPrivateAddress, webhookUrlProblem } from './webhook-url.ts'
 export { DEFAULT_FLAKY_BLOCKS_MERGE, onlyFlakyChanges, resolveFlakyBlocksMerge } from './flaky.ts'
 export {

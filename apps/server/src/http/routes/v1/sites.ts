@@ -13,7 +13,7 @@ import {
   KINDS,
   pickLabel,
   SITE_KIND_IDS,
-  slugify,
+  siteSlug,
 } from '@circi/sites'
 import { contentKey } from '@circi/storage'
 import type { FastifyPluginAsync } from 'fastify'
@@ -138,7 +138,7 @@ export const siteRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
         moveBranch,
         entryPath,
         files,
-        slugPrefix: slugify(`${ctx.team.slug}-${q.name}`).slice(0, 10),
+        slugPrefix: siteSlug(`${ctx.team.slug}-${q.name}`).slice(0, 10),
         addressing: {
           chooseSlug: (taken) =>
             chooseSlug({ team: ctx.team.slug, name: q.name, workspace: ctx.workspaceSlug }, taken),

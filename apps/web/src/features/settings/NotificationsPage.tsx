@@ -2,7 +2,7 @@ import { Banner, SectionHeader, Switch, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 
-import { capabilitiesQuery } from '#features/teams/api.ts'
+import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 

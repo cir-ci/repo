@@ -1,9 +1,9 @@
 import { Avatar, Banner, StatusIcon, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 
+import { activityQuery } from '#features/builds/api/discussion.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
-import { activityQuery } from './discussion-api.ts'
 import { timelineItems } from './timeline.ts'
 
 import styles from './Discussion.module.css'

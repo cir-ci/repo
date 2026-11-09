@@ -1,16 +1,9 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 
-import { ValidationError } from '@circi/core'
+import { isWebhookEvent, ValidationError, WEBHOOK_EVENTS, type WebhookEvent } from '@circi/core'
 import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 
-import {
-  workspace,
-  teams,
-  WEBHOOK_EVENTS,
-  type WebhookEvent,
-  webhookDeliveries,
-  webhooks,
-} from '#schema/index.ts'
+import { workspace, teams, webhookDeliveries, webhooks } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { NotFoundError } from '#src/errors.ts'
 import type { Build } from '#src/types.ts'
@@ -20,13 +13,9 @@ import type { ReviewEntry } from './reviews.ts'
 
 /** A team's outgoing webhooks (PLAN §7.4): managing them and queueing the deliveries. */
 
-export { WEBHOOK_EVENTS, type WebhookEvent }
+export { isWebhookEvent, WEBHOOK_EVENTS, type WebhookEvent }
 
 export type Webhook = typeof webhooks.$inferSelect
-
-export function isWebhookEvent(value: string): value is WebhookEvent {
-  return (WEBHOOK_EVENTS as readonly string[]).includes(value)
-}
 
 export async function createWebhook(
   db: Database,

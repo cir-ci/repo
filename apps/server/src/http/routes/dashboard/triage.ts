@@ -1,5 +1,6 @@
 import type { Triage } from '@circi/api'
-import { listTriage, schema } from '@circi/db'
+import { TRIAGE_KINDS } from '@circi/core'
+import { listTriage } from '@circi/db'
 import { assignTriage, dismissTriage, snoozeTriage } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
@@ -8,7 +9,7 @@ import type { Deps } from '#http/lib/deps.ts'
 import { loadTeam } from '#http/lib/team-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
-const ref = { kind: z.enum(schema.TRIAGE_KINDS), key: z.string().min(1).max(500) }
+const ref = { kind: z.enum(TRIAGE_KINDS), key: z.string().min(1).max(500) }
 const assignBody = z.object({ ...ref, assigneeId: z.string().min(1).nullable() })
 const snoozeBody = z.object({
   ...ref,

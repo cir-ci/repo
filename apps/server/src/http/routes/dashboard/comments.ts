@@ -1,4 +1,5 @@
 import type { Comment } from '@circi/api'
+import { canManage } from '@circi/core'
 import {
   getBuildByNumber,
   getTeamMemberRole,
@@ -53,7 +54,7 @@ export const dashboardCommentRoutes: FastifyPluginAsync<Deps.Dashboard> = async 
 
   const isAdmin = async (team: findTeamForMember.Visible, userId: string) => {
     const role = await getTeamMemberRole(deps.db, team.id, userId)
-    return role === 'owner' || role === 'admin'
+    return canManage(role)
   }
 
   app.get('/teams/:workspace/:team/builds/:number/comments', async (req, reply) => {

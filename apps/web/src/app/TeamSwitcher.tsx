@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useRouter, useRouterState } from '@tanstack/react-router'
 import { type KeyboardEvent, type MouseEvent, useRef, useState } from 'react'
 
-import { capabilitiesQuery } from '#features/teams/api.ts'
+import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { isTeamIconName } from '#features/teams/appearance.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 

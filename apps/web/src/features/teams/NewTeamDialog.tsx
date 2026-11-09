@@ -2,10 +2,10 @@ import { Banner, Button, Dialog, Select, Text, TextField, WarningIcon } from '@c
 import { useNavigate } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 
+import { type CreatedTeam, useCreateTeam, useRepoChoices } from '#features/teams/api/new-team.ts'
 import { TabList } from '#lib/TabList.tsx'
 
 import { SecretBox } from './CreateDialogs.tsx'
-import { type CreatedTeam, useCreateTeam, useRepoChoices } from './new-team-api.ts'
 import {
   CI_EXAMPLES,
   type CiKey,

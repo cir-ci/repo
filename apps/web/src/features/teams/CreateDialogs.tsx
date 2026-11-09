@@ -1,7 +1,7 @@
 import { Banner, Button, Dialog, Ref, Text, TextField, useAnnounce } from '@circi/ui'
 import { type FormEvent, useState } from 'react'
 
-import { useCreateWorkspace } from './api.ts'
+import { useCreateWorkspace } from '#features/teams/api/index.ts'
 
 import styles from './CreateDialogs.module.css'
 

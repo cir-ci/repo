@@ -1,4 +1,4 @@
-import { TEAM_COLORS, type TeamColor } from '@circi/core'
+import { DEFAULT_TEAM_RETENTION_DAYS, TEAM_COLORS, type TeamColor } from '@circi/core'
 import { sql } from 'drizzle-orm'
 import {
   boolean,
@@ -42,7 +42,7 @@ export const teams = pgTable(
      * workspace's setting (`workspace_settings`).
      */
     flakyBlocksMerge: boolean('flaky_blocks_merge'),
-    retentionDays: integer('retention_days').notNull().default(30),
+    retentionDays: integer('retention_days').notNull().default(DEFAULT_TEAM_RETENTION_DAYS),
     /** Hours a review request may wait before it is overdue; null means no review target. */
     reviewTargetHours: integer('review_target_hours').default(24),
     /**

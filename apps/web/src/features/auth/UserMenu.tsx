@@ -11,7 +11,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 
-import { capabilitiesQuery } from '#features/teams/api.ts'
+import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { authClient, type SessionUser } from '#lib/auth-client.ts'
 
 import styles from './UserMenu.module.css'

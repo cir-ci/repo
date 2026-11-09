@@ -3,11 +3,11 @@ import { Badge, Button, Kbd, Stack, StatusIcon, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { type KeyboardEvent, type Ref, useId } from 'react'
 
+import { commentsQuery } from '#features/builds/api/discussion.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import { ActivityTab } from './ActivityTab.tsx'
 import { CommentsTab } from './CommentsTab.tsx'
-import { commentsQuery } from './discussion-api.ts'
 import { LinkedIssues } from './LinkedIssues.tsx'
 import { commentCount } from './timeline.ts'
 

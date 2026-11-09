@@ -8,7 +8,7 @@ import {
   MAX_SLUG_LENGTH,
   parseLabel,
   pickLabel,
-  slugify,
+  siteSlug,
 } from '#src/addresses.ts'
 
 describe('addresses', () => {
@@ -40,8 +40,8 @@ describe('addresses', () => {
   })
 
   it('slugifies', () => {
-    expect(slugify('Web App / Storybook!')).toBe('web-app-storybook')
-    expect(slugify('--x--')).toBe('x')
+    expect(siteSlug('Web App / Storybook!')).toBe('web-app-storybook')
+    expect(siteSlug('--x--')).toBe('x')
   })
 
   it('parses addresses and refuses look-alikes', () => {

@@ -8,6 +8,7 @@ export type { EventsField, IntegrationDefinition } from './definition.ts'
 export {
   IntegrationConflictError,
   IntegrationError,
+  type IntegrationErrorCode,
   IntegrationNotFoundError,
   IntegrationUnreachableError,
   InvalidCredentialsError,
