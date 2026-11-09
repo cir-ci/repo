@@ -41,7 +41,7 @@ describe('invitations and members', () => {
       await page.getByRole('combobox', { name: 'Role', exact: true }).click()
       await page.getByRole('option', { name: role }).click()
     }
-    await page.getByRole('button', { name: 'Send invitation' }).click()
+    await page.getByRole('button', { name: 'Send invite' }).click()
     await page.getByText(`Invitation sent to ${email}.`).waitFor()
   }
 
@@ -50,10 +50,10 @@ describe('invitations and members', () => {
     const page = await browser.as(setup.session)
     await page.goto(membersUrl())
     await page.getByRole('heading', { name: 'Invite someone' }).waitFor()
-    await page.getByRole('button', { name: 'Send invitation' }).click()
+    await page.getByRole('button', { name: 'Send invite' }).click()
     await page.getByText('Enter an email address').waitFor()
     await page.getByLabel('Email', { exact: true }).fill('not-an-address')
-    await page.getByRole('button', { name: 'Send invitation' }).click()
+    await page.getByRole('button', { name: 'Send invite' }).click()
     await page.getByText('That doesn’t look like an email address').waitFor()
     expect((await fullWorkspace(setup.session, workspace())).invitations).toHaveLength(0)
 
@@ -61,7 +61,7 @@ describe('invitations and members', () => {
     const twice = newAccount('twice')
     await inviteInBrowser(page, twice.email)
     await page.getByLabel('Email', { exact: true }).fill(twice.email)
-    await page.getByRole('button', { name: 'Send invitation' }).click()
+    await page.getByRole('button', { name: 'Send invite' }).click()
     // better-auth cancels the earlier invitation when the same address is invited again.
     await expect
       .poll(async () => {
@@ -72,7 +72,7 @@ describe('invitations and members', () => {
     // Wait for the form to reset after that send, or it would clear what is typed next.
     await expect.poll(() => page.getByLabel('Email', { exact: true }).inputValue()).toBe('')
     await page.getByLabel('Email', { exact: true }).fill(setup.account.email)
-    await page.getByRole('button', { name: 'Send invitation' }).click()
+    await page.getByRole('button', { name: 'Send invite' }).click()
     await page.getByText(/already a member/i).waitFor()
   })
 
@@ -221,8 +221,8 @@ describe('invitations and members', () => {
 
     const row = page
       .getByText(erin.email, { exact: true })
-      .locator('xpath=ancestor::div[.//button[normalize-space()="Withdraw"]][1]')
-    await row.getByRole('button', { name: 'Withdraw' }).click()
+      .locator('xpath=ancestor::div[.//button[normalize-space()="Revoke"]][1]')
+    await row.getByRole('button', { name: 'Revoke' }).click()
     await row.waitFor({ state: 'detached' })
     const invitation = (await fullWorkspace(setup.session, workspace())).invitations.find(
       (i) => i.email === erin.email,
