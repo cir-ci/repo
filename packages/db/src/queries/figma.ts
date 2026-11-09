@@ -1,7 +1,8 @@
 import { FIGMA_FRAME_LINK_KIND, figmaFrameUrl, globMatches, pickFigmaLink } from '@circi/core'
 
-import { listTeamLinks } from '#shared/integration-links.ts'
 import type { Database } from '#src/client.ts'
+
+import { listTeamLinks } from './integration-links.ts'
 
 export namespace figmaFramesForSnapshots {
   export interface Frame {

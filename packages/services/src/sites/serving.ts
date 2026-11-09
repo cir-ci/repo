@@ -1,21 +1,11 @@
 import {
-  commitLabelOfVersion,
   consumeSiteToken,
   createSiteSession,
   type Database,
-  findSiteByLabel,
   getSiteFile,
   siteSessionValid,
   touchSiteSession,
 } from '@circi/db'
-
-/** What an address serves, with who owns it. */
-export async function findSite(
-  db: Database,
-  label: string,
-): Promise<findSiteByLabel.Site | undefined> {
-  return findSiteByLabel(db, label)
-}
 
 /**
  * The token handoff from the dashboard: spends the single-use token for this address and, if it
@@ -69,12 +59,4 @@ export async function findSiteFile(
     file = await getSiteFile(db, versionId, entryPath)
   }
   return file
-}
-
-/** The commit address currently serving a version (for service-worker kinds on a branch address). */
-export async function commitAddressOf(
-  db: Database,
-  versionId: string,
-): Promise<string | undefined> {
-  return commitLabelOfVersion(db, versionId)
 }

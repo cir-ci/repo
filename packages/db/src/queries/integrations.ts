@@ -1,7 +1,8 @@
 import { catalogEntry, INTEGRATION_GROUPS, type IntegrationCatalog } from '@circi/core'
 
-import { listIntegrations } from '#shared/integrations.ts'
 import type { Database } from '#src/client.ts'
+
+import { listIntegrations } from './workspace-integrations.ts'
 
 export namespace listWorkspaceIntegrations {
   /** What the caller knows about a kind: the registry's definitions plus the static catalog. */

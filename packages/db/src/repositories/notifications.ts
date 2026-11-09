@@ -1,5 +1,6 @@
 import { and, eq, inArray, isNull, ne, sql } from 'drizzle-orm'
 
+import { getNotificationPreferences } from '#queries/inbox.ts'
 import {
   builds,
   type NotificationKind,
@@ -29,18 +30,6 @@ export function emailPreferenceFor(
     : kind === 'review_overdue'
       ? 'emailReviewOverdue'
       : undefined
-}
-
-export namespace getNotificationPreferences {
-  export interface Preferences {
-    emailReviewRequested: boolean
-    emailReviewOverdue: boolean
-  }
-}
-
-export const DEFAULT_NOTIFICATION_PREFERENCES: getNotificationPreferences.Preferences = {
-  emailReviewRequested: true,
-  emailReviewOverdue: true,
 }
 
 export async function createNotification(
@@ -178,22 +167,6 @@ export async function hasClosedReviewRequest(
     )
     .limit(1)
   return row !== undefined
-}
-
-export async function getNotificationPreferences(
-  db: Database,
-  userId: string,
-): Promise<getNotificationPreferences.Preferences> {
-  const [row] = await db
-    .select()
-    .from(notificationPreferences)
-    .where(eq(notificationPreferences.userId, userId))
-  return row
-    ? {
-        emailReviewRequested: row.emailReviewRequested,
-        emailReviewOverdue: row.emailReviewOverdue,
-      }
-    : { ...DEFAULT_NOTIFICATION_PREFERENCES }
 }
 
 /** Changes the given preferences; the others keep their value (default on). */

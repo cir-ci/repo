@@ -1,6 +1,7 @@
 import { RULE_KINDS, ValidationError } from '@circi/core'
 import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 
+import { listReviewRules, type ReviewRuleRow } from '#queries/review-rules.ts'
 import {
   member,
   teams,
@@ -8,7 +9,6 @@ import {
   reviewRules,
   type ReviewRuleKind,
   screenshots,
-  user,
 } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { NotFoundError } from '#src/errors.ts'
@@ -17,14 +17,6 @@ import { NotFoundError } from '#src/errors.ts'
  * Review rules: which glob of snapshot or build names asks which people to review. Data only;
  * turning a matching rule into review requests is `finalizeBuild` in `@circi/services`.
  */
-
-export interface ReviewRuleRow {
-  id: string
-  kind: ReviewRuleKind
-  pattern: string
-  position: number
-  reviewers: { id: string; name: string }[]
-}
 
 const MAX_PATTERN = 200
 const MAX_REVIEWERS = 20
@@ -54,34 +46,6 @@ function checkInput(input: { kind: string; pattern: string; reviewerIds: string[
   if (reviewerIds.length === 0) throw new ValidationError('Choose at least one reviewer')
   if (reviewerIds.length > MAX_REVIEWERS) throw new ValidationError('That is too many reviewers')
   return { kind, pattern, reviewerIds }
-}
-
-/** A team's rules in the order they apply, each with its reviewers (by name). */
-export async function listReviewRules(db: Database, teamId: string): Promise<ReviewRuleRow[]> {
-  const rules = await db
-    .select()
-    .from(reviewRules)
-    .where(eq(reviewRules.teamId, teamId))
-    .orderBy(asc(reviewRules.position), asc(reviewRules.createdAt), asc(reviewRules.id))
-  if (rules.length === 0) return []
-  const links = await db
-    .select({ ruleId: reviewRuleReviewers.ruleId, id: user.id, name: user.name })
-    .from(reviewRuleReviewers)
-    .innerJoin(user, eq(user.id, reviewRuleReviewers.userId))
-    .where(
-      inArray(
-        reviewRuleReviewers.ruleId,
-        rules.map((r) => r.id),
-      ),
-    )
-    .orderBy(asc(reviewRuleReviewers.createdAt), asc(user.name), asc(user.id))
-  return rules.map((r) => ({
-    id: r.id,
-    kind: r.kind,
-    pattern: r.pattern,
-    position: r.position,
-    reviewers: links.filter((l) => l.ruleId === r.id).map((l) => ({ id: l.id, name: l.name })),
-  }))
 }
 
 /**

@@ -1,9 +1,8 @@
 import { and, eq, isNull, sql } from 'drizzle-orm'
 
+import type { IntegrationLink } from '#queries/integration-links.ts'
 import { integrationLinks } from '#schema/index.ts'
-import type { IntegrationLink } from '#shared/integration-links.ts'
 import type { Database } from '#src/client.ts'
-export * from '#shared/integration-links.ts'
 
 /**
  * `integration_links`: what any integration attached to a team or a build (a Figma frame for a

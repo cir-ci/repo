@@ -1,10 +1,9 @@
 import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm'
 
+import { type WorkspaceIntegration } from '#queries/workspace-integrations.ts'
 import { integrationTeams, integrations, teams } from '#schema/index.ts'
-import type { WorkspaceIntegration } from '#shared/integrations.ts'
 import type { Database } from '#src/client.ts'
 import { ConflictError, isUniqueViolation } from '#src/errors.ts'
-export * from '#shared/integrations.ts'
 
 /**
  * A workspace's integrations (git hosts, Slack, Linear, Jira, Figma) and the teams that use
@@ -47,19 +46,6 @@ export async function createIntegration(
     if (isUniqueViolation(err)) throw new ConflictError('This account is already connected')
     throw err
   }
-}
-
-/** An integration of the workspace (undefined for another workspace's). */
-export async function getIntegration(
-  db: Database,
-  workspaceId: string,
-  integrationId: string,
-): Promise<WorkspaceIntegration.Record | undefined> {
-  const [row] = await db
-    .select()
-    .from(integrations)
-    .where(and(eq(integrations.workspaceId, workspaceId), eq(integrations.id, integrationId)))
-  return row
 }
 
 /** Removes an integration and, with it, every team mapping. False when it isn't the workspace's. */
@@ -245,77 +231,6 @@ export async function removeOtherTeamMappings(
     )
     .returning({ integrationId: integrationTeams.integrationId })
   return rows.map((r) => r.integrationId)
-}
-
-export namespace listWorkspaceTeamMappings {
-  export interface Row {
-    slug: string
-    name: string
-    /** The team's mapping on the integration; null when it has none. */
-    mapping: { externalRef: string; extra: Record<string, unknown> } | null
-  }
-}
-
-/** Every team of the workspace with its mapping (if any) on one integration, by team name. */
-export async function listWorkspaceTeamMappings(
-  db: Database,
-  workspaceId: string,
-  integrationId: string,
-): Promise<listWorkspaceTeamMappings.Row[]> {
-  const rows = await db
-    .select({
-      slug: teams.slug,
-      name: teams.name,
-      externalRef: integrationTeams.externalRef,
-      extra: integrationTeams.extra,
-    })
-    .from(teams)
-    .leftJoin(
-      integrationTeams,
-      and(eq(integrationTeams.teamId, teams.id), eq(integrationTeams.integrationId, integrationId)),
-    )
-    .where(eq(teams.workspaceId, workspaceId))
-    .orderBy(asc(teams.name), asc(teams.slug))
-  return rows.map((r) => ({
-    slug: r.slug,
-    name: r.name,
-    mapping: r.externalRef === null ? null : { externalRef: r.externalRef, extra: r.extra ?? {} },
-  }))
-}
-
-export namespace listTeamIntegrations {
-  /** An integration a team is mapped to, with the mapping. */
-  export interface Row {
-    integrationId: string
-    kind: string
-    displayName: string
-    /** The mapping's target: a Linear team id, a Jira project key, a Figma file key. */
-    externalRef: string
-    extra: Record<string, unknown>
-    needsAttention: boolean
-  }
-}
-
-/** The integrations of the given kinds a team is mapped to, oldest first. */
-export async function listTeamIntegrations(
-  db: Database,
-  teamId: string,
-  kinds: readonly string[],
-): Promise<listTeamIntegrations.Row[]> {
-  if (kinds.length === 0) return []
-  return db
-    .select({
-      integrationId: integrations.id,
-      kind: integrations.kind,
-      displayName: integrations.displayName,
-      externalRef: integrationTeams.externalRef,
-      extra: integrationTeams.extra,
-      needsAttention: integrations.needsAttention,
-    })
-    .from(integrationTeams)
-    .innerJoin(integrations, eq(integrations.id, integrationTeams.integrationId))
-    .where(and(eq(integrationTeams.teamId, teamId), inArray(integrations.kind, [...kinds])))
-    .orderBy(asc(integrations.createdAt), asc(integrations.id))
 }
 
 /** An integration with the team's mapping, sealed credentials included; undefined if the team is not mapped to it. */

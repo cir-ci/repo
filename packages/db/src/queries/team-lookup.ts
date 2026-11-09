@@ -1,0 +1,145 @@
+import type { TeamColor } from '@circi/core'
+import { and, asc, eq } from 'drizzle-orm'
+
+import { member, teams, workspace } from '#schema/index.ts'
+import { type SessionMethod, workspaceAccepts, workspaceIsLive } from '#shared/session-method.ts'
+import type { Database } from '#src/client.ts'
+import { NotFoundError } from '#src/errors.ts'
+import type { Team } from '#src/types.ts'
+
+import { getWorkspaceBySlug } from './workspaces.ts'
+
+/** Finding teams: by slugs, by id, and the role a user holds in a team's workspace. */
+
+export async function listTeams(db: Database, workspaceSlug: string): Promise<Team[]> {
+  const found = await getWorkspaceBySlug(db, workspaceSlug)
+  return db.select().from(teams).where(eq(teams.workspaceId, found.id)).orderBy(asc(teams.slug))
+}
+
+export async function getTeamBySlugs(
+  db: Database,
+  input: { workspaceSlug: string; teamSlug: string },
+): Promise<Team> {
+  const [row] = await db
+    .select({ team: teams })
+    .from(teams)
+    .innerJoin(workspace, eq(workspace.id, teams.workspaceId))
+    .where(and(eq(workspace.slug, input.workspaceSlug), eq(teams.slug, input.teamSlug)))
+  if (!row) throw new NotFoundError(`Team "${input.workspaceSlug}/${input.teamSlug}" not found`)
+  return row.team
+}
+
+export async function getTeamById(db: Database, teamId: string): Promise<Team | undefined> {
+  const [row] = await db.select().from(teams).where(eq(teams.id, teamId))
+  return row
+}
+
+export namespace getTeamContext {
+  export interface Context {
+    team: Team
+    workspaceSlug: string
+  }
+}
+
+/** A team plus its workspace slug, which dashboard URLs need; none if its workspace is deleted. */
+export async function getTeamContext(
+  db: Database,
+  teamId: string,
+): Promise<getTeamContext.Context | undefined> {
+  const [row] = await db
+    .select({ team: teams, workspaceSlug: workspace.slug })
+    .from(teams)
+    .innerJoin(workspace, eq(workspace.id, teams.workspaceId))
+    .where(and(eq(teams.id, teamId), workspaceIsLive(workspace.id)))
+  return row
+}
+
+export namespace findTeamForMember {
+  export interface Visible {
+    id: string
+    slug: string
+    name: string
+    defaultBranch: string
+    color: TeamColor
+    icon: string | null
+    workspaceSlug: string
+    workspaceName: string
+  }
+}
+
+/**
+ * A team by its URL slugs, only if `userId` is a member of its workspace. Anyone else
+ * gets the same "not found" as for a team that doesn't exist (PLAN §8: workspace isolation).
+ */
+export async function findTeamForMember(
+  db: Database,
+  input: { workspaceSlug: string; teamSlug: string; userId: string; method?: SessionMethod },
+): Promise<findTeamForMember.Visible | undefined> {
+  const [row] = await db
+    .select({
+      id: teams.id,
+      slug: teams.slug,
+      name: teams.name,
+      defaultBranch: teams.defaultBranch,
+      color: teams.color,
+      icon: teams.icon,
+      workspaceSlug: workspace.slug,
+      workspaceName: workspace.name,
+    })
+    .from(teams)
+    .innerJoin(workspace, eq(workspace.id, teams.workspaceId))
+    .innerJoin(member, and(eq(member.workspaceId, workspace.id), eq(member.userId, input.userId)))
+    .where(
+      and(
+        eq(workspace.slug, input.workspaceSlug),
+        eq(teams.slug, input.teamSlug),
+        workspaceAccepts(workspace.id, input.method),
+      ),
+    )
+  return row
+}
+
+/** The member's role in the team's workspace (`owner`, `admin`, `member`), if they belong. */
+export async function getTeamMemberRole(
+  db: Database,
+  teamId: string,
+  userId: string,
+): Promise<string | undefined> {
+  const [row] = await db
+    .select({ role: member.role })
+    .from(teams)
+    .innerJoin(member, and(eq(member.workspaceId, teams.workspaceId), eq(member.userId, userId)))
+    .where(eq(teams.id, teamId))
+  return row?.role
+}
+
+export namespace teamSettings {
+  export interface Settings {
+    name: string
+    defaultBranch: string
+    diffThreshold: number
+    autoApproveDefaultBranch: boolean
+    blockMergeOnChanges: boolean
+    /** Whether flaky-only changes block the merge; null inherits the workspace's setting. */
+    flakyBlocksMerge: boolean | null
+    retentionDays: number
+    /** Hours a review request may wait before it is overdue; null means no review target. */
+    reviewTargetHours: number | null
+    /** Whether CI may upload static sites for this team (needs `STATIC_SITES_HOST`). */
+    staticHostingEnabled: boolean
+  }
+}
+
+export function teamSettings(team: Team): teamSettings.Settings {
+  return {
+    name: team.name,
+    defaultBranch: team.defaultBranch,
+    diffThreshold: team.diffThreshold,
+    autoApproveDefaultBranch: team.autoApproveDefaultBranch,
+    blockMergeOnChanges: team.blockMergeOnChanges,
+    flakyBlocksMerge: team.flakyBlocksMerge,
+    retentionDays: team.retentionDays,
+    reviewTargetHours: team.reviewTargetHours,
+    staticHostingEnabled: team.staticHostingEnabled,
+  }
+}

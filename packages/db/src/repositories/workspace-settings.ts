@@ -1,9 +1,8 @@
 import { ValidationError } from '@circi/core'
 
+import { type WorkspaceSettings, getWorkspaceSettings } from '#queries/workspace-settings.ts'
 import { workspaceSettings } from '#schema/index.ts'
-import { type WorkspaceSettings, getWorkspaceSettings } from '#shared/workspace-settings.ts'
 import type { Database } from '#src/client.ts'
-export * from '#shared/workspace-settings.ts'
 
 /** A workspace's defaults for its teams (a team may override each one). */
 

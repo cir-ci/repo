@@ -10,6 +10,7 @@ import {
   canReadWorkspace,
   canWriteTeam,
   isInstanceAdmin,
+  isWorkspaceOwner,
 } from '#src/index.ts'
 
 const actor = (role: string | undefined, instanceAdmin = false): Actor => ({
@@ -78,5 +79,14 @@ describe('assertAllowed', () => {
     expect(() => assertAllowed(canWriteTeam(actor('member')), messages)).toThrow(
       'Only owners and admins',
     )
+  })
+})
+
+describe('isWorkspaceOwner', () => {
+  it('is true for owners only', () => {
+    expect(isWorkspaceOwner(actor('owner'))).toBe(true)
+    expect(isWorkspaceOwner(actor('admin'))).toBe(false)
+    expect(isWorkspaceOwner(actor('member'))).toBe(false)
+    expect(isWorkspaceOwner(actor(undefined))).toBe(false)
   })
 })

@@ -2,12 +2,12 @@ import type { TeamColor } from '@circi/core'
 import { and, asc, eq } from 'drizzle-orm'
 
 import { teams } from '#schema/index.ts'
-import { listPinnedTeamIds, listSavedViews, type SavedViewRow } from '#shared/saved-views.ts'
 import type { SessionMethod } from '#shared/session-method.ts'
 import type { Database } from '#src/client.ts'
 
 import { countUnreadNotifications } from './inbox.ts'
 import { listReviewRequests } from './reviews.ts'
+import { listPinnedTeamIds, listSavedViews, type SavedViewRow } from './saved-views.ts'
 import { countOpenTriage } from './triage.ts'
 
 /** What the sidebar shows for one workspace, in the order it shows it. */

@@ -52,6 +52,20 @@ export async function createUser(
 }
 
 /**
+ * Makes an account an instance admin, or an ordinary user again. `headers` are the requesting
+ * admin's: better-auth checks that they may change roles.
+ */
+export async function setInstanceAdmin(
+  auth: Auth,
+  input: { userId: string; instanceAdmin: boolean; headers: Headers },
+): Promise<void> {
+  await auth.api.setRole({
+    body: { userId: input.userId, role: input.instanceAdmin ? 'admin' : 'user' },
+    headers: input.headers,
+  })
+}
+
+/**
  * Mails the address a one-time sign-in code and link: exactly what "Email me a code" on the
  * sign-in page does (same code, same mail, same expiry). Sent only when the instance has mail.
  */

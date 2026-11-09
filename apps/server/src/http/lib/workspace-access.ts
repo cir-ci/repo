@@ -1,7 +1,7 @@
 import { NotFoundError } from '@circi/core'
 import {
   getMemberRole,
-  getWorkspaceBySlug,
+  findWorkspaceBySlug,
   workspaceAcceptsSession,
   type Workspace,
 } from '@circi/db'
@@ -54,10 +54,7 @@ export async function loadWorkspace(
 ): Promise<loadWorkspace.Found> {
   const { workspace: slug } = parse(workspaceParams, req.params)
   const user = currentUser(req)
-  const workspace = await getWorkspaceBySlug(deps.db, slug).catch((err: unknown) => {
-    if (err instanceof NotFoundError) return undefined
-    throw err
-  })
+  const workspace = await findWorkspaceBySlug(deps.db, slug)
   const visible =
     workspace !== undefined && (await workspaceAcceptsSession(deps.db, workspace.id, user.method))
   const role = visible

@@ -1,8 +1,9 @@
 import { and, eq, exists, or, sql } from 'drizzle-orm'
 
-import { builds, member, teams, screenshotDiffs, screenshots } from '#schema/index.ts'
+import { builds, files, member, teams, screenshotDiffs, screenshots } from '#schema/index.ts'
 import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
 import type { Database } from '#src/client.ts'
+import type { FileRow } from '#src/types.ts'
 
 /**
  * Whether `userId` may download a stored file. Files are shared across workspaces by content
@@ -46,4 +47,9 @@ export async function canUserAccessFile(
     )
     .limit(1)
   return Boolean(viaDiff)
+}
+
+export async function getFile(db: Database, sha256: string): Promise<FileRow | undefined> {
+  const [row] = await db.select().from(files).where(eq(files.sha256, sha256))
+  return row
 }

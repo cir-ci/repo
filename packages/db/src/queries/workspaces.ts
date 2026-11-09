@@ -1,11 +1,10 @@
 import { and, asc, eq, inArray } from 'drizzle-orm'
 
 import { member, workspace } from '#schema/index.ts'
+import { workspaceAccepts, workspaceIsLive, type SessionMethod } from '#shared/session-method.ts'
 import type { Database } from '#src/client.ts'
 import { NotFoundError } from '#src/errors.ts'
 import type { Workspace } from '#src/types.ts'
-
-import { workspaceAccepts, workspaceIsLive, type SessionMethod } from './auth-settings.ts'
 
 /**
  * Read access to workspaces and memberships. They're owned by better-auth's organization
@@ -16,8 +15,17 @@ export async function listWorkspaces(db: Database): Promise<Workspace[]> {
   return db.select().from(workspace).orderBy(asc(workspace.slug))
 }
 
-export async function getWorkspaceBySlug(db: Database, slug: string): Promise<Workspace> {
+/** The workspace with this slug, or undefined. */
+export async function findWorkspaceBySlug(
+  db: Database,
+  slug: string,
+): Promise<Workspace | undefined> {
   const [found] = await db.select().from(workspace).where(eq(workspace.slug, slug))
+  return found
+}
+
+export async function getWorkspaceBySlug(db: Database, slug: string): Promise<Workspace> {
+  const found = await findWorkspaceBySlug(db, slug)
   if (!found) throw new NotFoundError(`Workspace "${slug}" not found`)
   return found
 }

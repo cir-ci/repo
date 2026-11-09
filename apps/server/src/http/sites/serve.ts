@@ -1,11 +1,5 @@
-import type { Database } from '@circi/db'
-import {
-  commitAddressOf,
-  confirmSiteSession,
-  findSite,
-  findSiteFile,
-  openSiteSession,
-} from '@circi/services'
+import { commitLabelOfVersion, type Database, findSiteByLabel } from '@circi/db'
+import { confirmSiteSession, findSiteFile, openSiteSession } from '@circi/services'
 import {
   labelOf,
   parseLabel,
@@ -127,7 +121,7 @@ export function siteHostHook(deps: siteHostHook.Options): onRequestAsyncHookHand
     if (cleanup.length > 0) void reply.header('set-cookie', cleanup)
 
     const url = new URL(req.url, 'http://x')
-    const found = parseLabel(label) ? await findSite(deps.db, label) : undefined
+    const found = parseLabel(label) ? await findSiteByLabel(deps.db, label) : undefined
 
     // The token handoff from the dashboard: spend it, start a site session, set the cookie.
     if (url.pathname === '/_circi/auth') {
@@ -163,7 +157,7 @@ export function siteHostHook(deps: siteHostHook.Options): onRequestAsyncHookHand
       return notFound(reply)
     }
     if (kind.serviceWorker && found.linkKind === 'branch') {
-      const commit = await commitAddressOf(deps.db, found.versionId)
+      const commit = await commitLabelOfVersion(deps.db, found.versionId)
       if (commit) {
         return reply
           .code(302)

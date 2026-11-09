@@ -1,5 +1,5 @@
 import type { Review } from '@circi/api'
-import { findTeamForMember, getBuildByNumber, listReviewRequests, REVIEW_TABS } from '@circi/db'
+import { listReviewRequests, REVIEW_TABS } from '@circi/db'
 import {
   dismissReviewRequest,
   MAX_BULK_REQUEST_REVIEW,
@@ -17,10 +17,9 @@ import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
-import { loadTeam } from '#http/lib/team-access.ts'
+import { loadBuild, loadTeam } from '#http/lib/team-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
-const params = z.object({ workspace: z.string(), team: z.string(), number: z.string() })
 const body = z.object({
   state: z.enum(['approved', 'rejected']),
   /** Why the changes were rejected; the build's author sees it in their inbox. */
@@ -33,22 +32,9 @@ const body = z.object({
  * that doesn't exist. Decisions can be changed, and the latest one counts.
  */
 export const dashboardReviewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
-  app.post('/teams/:workspace/:team/builds/:number/review', async (req, reply) => {
-    const p = parse(params, req.params)
+  app.post('/teams/:workspace/:team/builds/:number/review', async (req) => {
     const { state, reason } = parse(body, req.body)
-    const user = currentUser(req)
-    const team = await findTeamForMember(deps.db, {
-      workspaceSlug: p.workspace,
-      teamSlug: p.team,
-      userId: user.id,
-      method: user.method,
-    })
-    const number = Number(p.number)
-    const build =
-      team && Number.isInteger(number)
-        ? await getBuildByNumber(deps.db, team.id, number)
-        : undefined
-    if (!build) return reply.code(404).send({ error: 'Build not found' })
+    const { build, user } = await loadBuild(deps, req, { notFound: 'Build not found' })
 
     const updated = await reviewBuild(deps.db, {
       buildId: build.id,
@@ -70,22 +56,9 @@ export const dashboardReviewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
    * `POST …/builds/:number/snapshots/review`: approve or reject some snapshots of a build.
    * Members decide as for the whole build; the build's status follows from the decisions.
    */
-  app.post('/teams/:workspace/:team/builds/:number/snapshots/review', async (req, reply) => {
-    const p = parse(params, req.params)
+  app.post('/teams/:workspace/:team/builds/:number/snapshots/review', async (req) => {
     const { snapshotNames, decision, reason } = parse(snapshotsBody, req.body)
-    const user = currentUser(req)
-    const team = await findTeamForMember(deps.db, {
-      workspaceSlug: p.workspace,
-      teamSlug: p.team,
-      userId: user.id,
-      method: user.method,
-    })
-    const number = Number(p.number)
-    const build =
-      team && Number.isInteger(number)
-        ? await getBuildByNumber(deps.db, team.id, number)
-        : undefined
-    if (!build) return reply.code(404).send({ error: 'Build not found' })
+    const { build, user } = await loadBuild(deps, req, { notFound: 'Build not found' })
 
     const updated = await reviewSnapshots(deps.db, {
       buildId: build.id,
@@ -212,21 +185,8 @@ export const dashboardReviewRequestRoutes: FastifyPluginAsync<Deps.Dashboard> = 
 
   /** Any member may ask any member of the workspace (including themselves) to review. */
   app.post('/teams/:workspace/:team/builds/:number/review-requests', async (req, reply) => {
-    const p = parse(teamParams.extend({ number: z.string() }), req.params)
     const { reviewerId } = parse(requestBody, req.body)
-    const user = currentUser(req)
-    const team = await findTeamForMember(deps.db, {
-      workspaceSlug: p.workspace,
-      teamSlug: p.team,
-      userId: user.id,
-      method: user.method,
-    })
-    const number = Number(p.number)
-    const build =
-      team && Number.isInteger(number)
-        ? await getBuildByNumber(deps.db, team.id, number)
-        : undefined
-    if (!build) return reply.code(404).send({ error: 'Build not found' })
+    const { build, user } = await loadBuild(deps, req, { notFound: 'Build not found' })
 
     const { request, created } = await requestReview(deps.db, {
       buildId: build.id,
@@ -245,20 +205,12 @@ export const dashboardReviewRequestRoutes: FastifyPluginAsync<Deps.Dashboard> = 
   /** The reviewer or whoever asked may drop an open request. */
   app.post('/teams/:workspace/:team/review-requests/:id/dismiss', async (req, reply) => {
     const p = parse(dismissParams, req.params)
-    const user = currentUser(req)
-    const team = await findTeamForMember(deps.db, {
-      workspaceSlug: p.workspace,
-      teamSlug: p.team,
+    const { team, user } = await loadTeam(deps, req, { notFound: 'Review request not found' })
+    const dismissed = await dismissReviewRequest(deps.db, {
+      teamId: team.id,
+      requestId: p.id,
       userId: user.id,
-      method: user.method,
     })
-    const dismissed = team
-      ? await dismissReviewRequest(deps.db, {
-          teamId: team.id,
-          requestId: p.id,
-          userId: user.id,
-        })
-      : undefined
     if (!dismissed) return reply.code(404).send({ error: 'Review request not found' })
     return { id: dismissed.id, state: dismissed.state }
   })
@@ -269,17 +221,10 @@ export const dashboardReviewRequestRoutes: FastifyPluginAsync<Deps.Dashboard> = 
   })
 
   /** Only the reviewer may put an open request off, or bring it back. */
-  app.post('/teams/:workspace/:team/review-requests/:id/snooze', async (req, reply) => {
+  app.post('/teams/:workspace/:team/review-requests/:id/snooze', async (req) => {
     const p = parse(dismissParams, req.params)
     const { kind, date } = parse(snoozeBody, req.body)
-    const user = currentUser(req)
-    const team = await findTeamForMember(deps.db, {
-      workspaceSlug: p.workspace,
-      teamSlug: p.team,
-      userId: user.id,
-      method: user.method,
-    })
-    if (!team) return reply.code(404).send({ error: 'Review request not found' })
+    const { team, user } = await loadTeam(deps, req, { notFound: 'Review request not found' })
     const row = await snoozeReviewRequest(deps.db, {
       teamId: team.id,
       requestId: p.id,
@@ -294,16 +239,9 @@ export const dashboardReviewRequestRoutes: FastifyPluginAsync<Deps.Dashboard> = 
     }
   })
 
-  app.post('/teams/:workspace/:team/review-requests/:id/unsnooze', async (req, reply) => {
+  app.post('/teams/:workspace/:team/review-requests/:id/unsnooze', async (req) => {
     const p = parse(dismissParams, req.params)
-    const user = currentUser(req)
-    const team = await findTeamForMember(deps.db, {
-      workspaceSlug: p.workspace,
-      teamSlug: p.team,
-      userId: user.id,
-      method: user.method,
-    })
-    if (!team) return reply.code(404).send({ error: 'Review request not found' })
+    const { team, user } = await loadTeam(deps, req, { notFound: 'Review request not found' })
     const row = await unsnoozeReviewRequest(deps.db, {
       teamId: team.id,
       requestId: p.id,

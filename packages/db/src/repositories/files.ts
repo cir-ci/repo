@@ -1,9 +1,9 @@
 import { SHA256_RE } from '@circi/core'
 import { and, eq, gt, inArray, isNull } from 'drizzle-orm'
 
+import { getFile } from '#queries/files.ts'
 import { type FileKind, files, uploadClaims } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
-import type { FileRow } from '#src/types.ts'
 
 /** Content-addressed files: upload planning (verify before dedup, PLAN §8) and bookkeeping. */
 
@@ -112,11 +112,6 @@ export namespace planUploads {
     size: number
     contentType: string
   }
-}
-
-export async function getFile(db: Database, sha256: string): Promise<FileRow | undefined> {
-  const [row] = await db.select().from(files).where(eq(files.sha256, sha256))
-  return row
 }
 
 /** Marks a file verified once its bytes are proven to match its hash. Idempotent. */

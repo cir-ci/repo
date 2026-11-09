@@ -8,4 +8,5 @@ export {
   canWriteTeam,
   type Decision,
   isInstanceAdmin,
+  isWorkspaceOwner,
 } from './policies.ts'

@@ -1,13 +1,12 @@
 import { type Auth, fromNodeHeaders } from '@circi/auth'
 import {
   type Database,
+  findWorkspaceBySlug,
   getMemberRole,
   getSessionMethod,
   isInstanceAdmin,
   providerRefusal,
-  schema,
 } from '@circi/db'
-import { eq } from 'drizzle-orm'
 import type { FastifyRequest, onRequestAsyncHookHandler, preHandlerAsyncHookHandler } from 'fastify'
 
 /**
@@ -59,10 +58,7 @@ export function refuseBlockedProvider(db: Database): preHandlerAsyncHookHandler 
       typeof params === 'object' && params !== null ? Reflect.get(params, 'workspace') : undefined
     if (!user || typeof slug !== 'string') return undefined
     if (typeof user.method !== 'object' || !('oidcProvider' in user.method)) return undefined
-    const [found] = await db
-      .select({ id: schema.workspace.id })
-      .from(schema.workspace)
-      .where(eq(schema.workspace.slug, slug))
+    const found = await findWorkspaceBySlug(db, slug)
     if (!found) return undefined
     // Anyone who is not a member just gets the route's own "not found".
     if ((await getMemberRole(db, { userId: user.id, workspaceId: found.id })) === undefined) {

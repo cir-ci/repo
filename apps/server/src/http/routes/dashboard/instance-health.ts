@@ -1,5 +1,5 @@
 import type { InstanceAdmin } from '@circi/api'
-import { getQueueDepth, QUEUES } from '@circi/db'
+import { getQueueDepth } from '@circi/db'
 import type { FastifyPluginAsync } from 'fastify'
 
 import { requireInstanceAdmin } from '#http/hooks/instance-admin.ts'
@@ -41,7 +41,7 @@ export const dashboardInstanceHealthRoutes: FastifyPluginAsync<Deps.Dashboard> =
   })
 
   app.get('/instance/health/queues', async (): Promise<InstanceAdmin.Queues> => {
-    const depth = await getQueueDepth(deps.db, Object.values(QUEUES))
+    const depth = await getQueueDepth(deps.db)
     return {
       queues: depth.map((q): InstanceAdmin.QueueDepth => ({
         queue: q.queue,

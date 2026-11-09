@@ -18,6 +18,8 @@ export namespace loadTeam {
     manage?: boolean
     /** The 403 message for `manage`. */
     forbidden?: string
+    /** The 404 message for a team the user can't see (and, in `loadBuild`, for a missing build). */
+    notFound?: string
   }
   export interface Found {
     team: findTeamForMember.Visible
@@ -46,7 +48,7 @@ export async function loadTeam(
     method: user.method,
   })
   const messages = {
-    notFound: 'Team not found',
+    notFound: options.notFound ?? 'Team not found',
     forbidden: options.forbidden ?? 'Only owners and admins can change this',
   }
   if (!team) {
@@ -66,7 +68,10 @@ export namespace loadBuild {
   }
 }
 
-/** The team (see `loadTeam`) and its build named by `:number`; `NotFoundError('Build not found')` otherwise. */
+/**
+ * The team (see `loadTeam`) and its build named by `:number`; otherwise `NotFoundError` with
+ * `options.notFound`, or 'Build not found' for a missing build.
+ */
 export async function loadBuild(
   deps: Pick<Deps.Dashboard, 'db'>,
   req: FastifyRequest,
@@ -77,6 +82,6 @@ export async function loadBuild(
   const build = Number.isInteger(number)
     ? await getBuildByNumber(deps.db, found.team.id, number)
     : undefined
-  if (!build) throw new NotFoundError('Build not found')
+  if (!build) throw new NotFoundError(options.notFound ?? 'Build not found')
   return { ...found, build }
 }

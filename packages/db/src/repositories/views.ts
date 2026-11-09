@@ -1,11 +1,10 @@
 import { type BuildFilterValues, ValidationError } from '@circi/core'
 import { and, eq, sql } from 'drizzle-orm'
 
+import { type SavedViewRow, viewColumns, listSavedViews } from '#queries/saved-views.ts'
 import { teams, savedViews, userPinnedTeams } from '#schema/index.ts'
-import { type SavedViewRow, viewColumns, listSavedViews } from '#shared/saved-views.ts'
 import type { Database } from '#src/client.ts'
 import { ConflictError, isUniqueViolation, NotFoundError } from '#src/errors.ts'
-export * from '#shared/saved-views.ts'
 
 /**
  * Saved views and pinned teams: a person's own sidebar. Every function takes the owner and

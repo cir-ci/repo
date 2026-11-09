@@ -82,11 +82,3 @@ export namespace publishSite {
     addressing: publishSiteVersion.Addressing
   }
 }
-
-/** The commit a branch address serves now, for a CLI deciding whether it may move it. */
-export async function servedCommit(
-  db: Database,
-  input: { teamId: string; name: string; branch: string },
-): Promise<string | undefined> {
-  return servedCommitForBranch(db, input.teamId, input.name, input.branch)
-}

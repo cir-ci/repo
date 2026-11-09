@@ -1,10 +1,9 @@
 import { onlyFlakyChanges } from '@circi/core'
 import { eq } from 'drizzle-orm'
 
+import { listFlakyScreenshots } from '#queries/flaky.ts'
 import { screenshotDiffs } from '#schema/index.ts'
-import { listFlakyScreenshots } from '#shared/flaky.ts'
 import type { Database } from '#src/client.ts'
-export * from '#shared/flaky.ts'
 
 /**
  * Flaky screenshots (PLAN M4): ones that keep showing up as changed on the default branch.

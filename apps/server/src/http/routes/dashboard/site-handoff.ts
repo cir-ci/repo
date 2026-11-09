@@ -1,5 +1,4 @@
-import { createSiteToken, findSiteByLabel, getMemberRole, workspaceAcceptsSession } from '@circi/db'
-import { parseLabel } from '@circi/sites'
+import { handOffToSite } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
@@ -24,19 +23,13 @@ export const dashboardSiteHandoffRoutes: FastifyPluginAsync<Deps.Dashboard> = as
     if (!sites) return reply.code(404).send({ error: 'Not found' })
     const { label, returnPath } = parse(body, req.body)
     const user = currentUser(req)
-    const found = parseLabel(label) ? await findSiteByLabel(deps.db, label) : undefined
-    const allowed =
-      found !== undefined &&
-      (await getMemberRole(deps.db, { userId: user.id, workspaceId: found.workspace.id })) !==
-        undefined &&
-      (await workspaceAcceptsSession(deps.db, found.workspace.id, user.method))
-    if (!found || !allowed) return reply.code(404).send({ error: 'Not found' })
-
-    const token = await createSiteToken(deps.db, {
+    const token = await handOffToSite(deps.db, {
       label,
       userId: user.id,
-      authSessionId: user.sessionId,
+      sessionId: user.sessionId,
+      method: user.method,
     })
+    if (!token) return reply.code(404).send({ error: 'Not found' })
     const url = new URL('/_circi/auth', sites.originFor(label))
     url.searchParams.set('t', token)
     url.searchParams.set(

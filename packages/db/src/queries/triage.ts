@@ -11,10 +11,11 @@ import {
   triageItems,
   user,
 } from '#schema/index.ts'
-import { listFlakyScreenshots } from '#shared/flaky.ts'
-import { getTriageRotation, latestDefaultBranchBuildNumber } from '#shared/triage.ts'
 import type { Database } from '#src/client.ts'
 import type { Build } from '#src/types.ts'
+
+import { listFlakyScreenshots } from './flaky.ts'
+import { getTriageRotation, latestDefaultBranchBuildNumber } from './triage-rotation.ts'
 
 /**
  * A team's triage queue: the problems on its default branch that nobody has dealt with.

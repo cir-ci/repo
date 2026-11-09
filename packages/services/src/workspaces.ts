@@ -38,14 +38,16 @@ export async function deleteWorkspace(
   const role = await getMemberRole(db, { userId: input.userId, workspaceId: input.workspaceId })
   if (role !== 'owner') throw new WorkspaceDeleteForbiddenError()
   const now = input.now ?? new Date()
-  await markWorkspaceDeleted(db, { workspaceId: input.workspaceId, deletedBy: input.userId, now })
-  const deletedAt = await getWorkspaceDeletedAt(db, input.workspaceId)
-  return { deletedAt: deletedAt ?? now }
+  return db.transaction(async (tx) => {
+    await markWorkspaceDeleted(tx, { workspaceId: input.workspaceId, deletedBy: input.userId, now })
+    const deletedAt = await getWorkspaceDeletedAt(tx, input.workspaceId)
+    return { deletedAt: deletedAt ?? now }
+  })
 }
 
 /** Brings a deleted workspace back, with everything in it. */
 export async function restoreWorkspace(db: Database, workspaceId: string): Promise<void> {
-  if (!(await clearWorkspaceDeletion(db, workspaceId))) {
+  if (!(await db.transaction((tx) => clearWorkspaceDeletion(tx, workspaceId)))) {
     throw new ConflictError('This workspace is not deleted')
   }
 }
@@ -63,8 +65,10 @@ export async function purgeWorkspace(
   const deletedAt = await getWorkspaceDeletedAt(db, input.workspaceId)
   if (!deletedAt) throw new NotFoundError('This workspace is not deleted')
   if (input.onlyIfDue && !isWorkspacePurgeDue(deletedAt, now)) return
-  await purgeWorkspaceRows(db, input.workspaceId)
-  await markUnreferencedFiles(db, now)
+  await db.transaction(async (tx) => {
+    await purgeWorkspaceRows(tx, input.workspaceId)
+    await markUnreferencedFiles(tx, now)
+  })
 }
 
 /** Purges every deleted workspace whose 30 days are over; returns how many. */
@@ -73,7 +77,7 @@ export async function purgeDueWorkspaces(db: Database, now: Date): Promise<numbe
   let purged = 0
   for (const workspaceId of due) {
     // eslint-disable-next-line no-await-in-loop -- one workspace at a time, each in its own transaction
-    if (await purgeWorkspaceRows(db, workspaceId)) purged += 1
+    if (await db.transaction((tx) => purgeWorkspaceRows(tx, workspaceId))) purged += 1
   }
   return purged
 }

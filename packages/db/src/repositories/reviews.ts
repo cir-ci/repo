@@ -14,7 +14,6 @@ import {
 import type { Database } from '#src/client.ts'
 import { ConflictError, NotFoundError } from '#src/errors.ts'
 import type { Build } from '#src/types.ts'
-export * from '#shared/reviews.ts'
 
 /**
  * Approving and rejecting snapshots and builds (PLAN §7.4). A decision is stored per snapshot

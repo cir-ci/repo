@@ -716,9 +716,15 @@ importers:
       '@circi/db':
         specifier: workspace:*
         version: link:../db
+      '@circi/diff':
+        specifier: workspace:*
+        version: link:../diff
       '@circi/integrations':
         specifier: workspace:*
         version: link:../integrations
+      '@circi/providers':
+        specifier: workspace:*
+        version: link:../providers
       '@circi/storage':
         specifier: workspace:*
         version: link:../storage

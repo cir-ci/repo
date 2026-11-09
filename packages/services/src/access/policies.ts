@@ -47,6 +47,11 @@ export function canDeleteWorkspace(actor: Actor): Decision {
   return actor.role === 'owner' ? ALLOW : deny('not-owner')
 }
 
+/** Whether the member is an owner of the workspace (what the settings page shows as `isOwner`). */
+export function isWorkspaceOwner(actor: Pick<Actor, 'role'>): boolean {
+  return actor.role === 'owner'
+}
+
 /** Instance admins run the whole instance. */
 export function isInstanceAdmin(actor: Pick<Actor, 'instanceAdmin'>): Decision {
   return actor.instanceAdmin ? ALLOW : deny('not-instance-admin')

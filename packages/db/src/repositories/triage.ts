@@ -1,11 +1,10 @@
 import { ValidationError } from '@circi/core'
 import { and, asc, eq, inArray } from 'drizzle-orm'
 
+import { getTriageRotation } from '#queries/triage-rotation.ts'
 import { member, teams, TRIAGE_KINDS, triageItems, triageRotationMembers } from '#schema/index.ts'
 import type { SnoozeKind, TriageKind } from '#schema/index.ts'
-import { getTriageRotation } from '#shared/triage.ts'
 import type { Database } from '#src/client.ts'
-export * from '#shared/triage.ts'
 
 /**
  * Triage state: what people did about a team's problems (assigned, snoozed, dismissed), and

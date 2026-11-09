@@ -1,8 +1,3 @@
-export { publishSite, servedCommit } from './publish.ts'
-export {
-  commitAddressOf,
-  confirmSiteSession,
-  findSite,
-  findSiteFile,
-  openSiteSession,
-} from './serving.ts'
+export { handOffToSite } from './handoff.ts'
+export { publishSite } from './publish.ts'
+export { confirmSiteSession, findSiteFile, openSiteSession } from './serving.ts'

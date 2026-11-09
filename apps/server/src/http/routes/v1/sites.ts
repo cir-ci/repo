@@ -1,7 +1,8 @@
 import { Readable } from 'node:stream'
 
 import { ValidationError } from '@circi/core'
-import { publishSite, servedCommit } from '@circi/services'
+import { servedCommitForBranch } from '@circi/db'
+import { publishSite } from '@circi/services'
 import {
   branchHash,
   chooseSlug,
@@ -143,9 +144,7 @@ export const siteRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
     const ctx = currentTeam(req)
     const q = parse(z.object({ name: z.string().default('site'), branch: z.string() }), req.query)
     return {
-      commit:
-        (await servedCommit(deps.db, { teamId: ctx.team.id, name: q.name, branch: q.branch })) ??
-        null,
+      commit: (await servedCommitForBranch(deps.db, ctx.team.id, q.name, q.branch)) ?? null,
     }
   })
 }

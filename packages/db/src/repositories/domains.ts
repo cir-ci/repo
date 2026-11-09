@@ -2,8 +2,9 @@ import { randomBytes } from 'node:crypto'
 import { resolveTxt } from 'node:dns/promises'
 
 import { ValidationError } from '@circi/core'
-import { and, asc, eq, isNotNull } from 'drizzle-orm'
+import { and, eq, isNotNull } from 'drizzle-orm'
 
+import { verificationName, verificationValue, type WorkspaceDomain } from '#queries/domains.ts'
 import { workspaceDomains } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { ConflictError, isUniqueViolation, NotFoundError } from '#src/errors.ts'
@@ -11,15 +12,6 @@ import { ConflictError, isUniqueViolation, NotFoundError } from '#src/errors.ts'
 import { workspaceAccepts, type SessionMethod } from './auth-settings.ts'
 
 /** Email domains a workspace claims, and the DNS proof that makes a claim count (PLAN §7.8). */
-
-export type WorkspaceDomain = typeof workspaceDomains.$inferSelect
-
-/** The DNS name that must hold the verification token. */
-export const verificationName = (domain: string) => `_circi-verify.${domain}`
-
-/** What the TXT record must contain. */
-export const verificationValue = (domain: WorkspaceDomain) =>
-  `circi-verify=${domain.verificationToken}`
 
 const DOMAIN_RE = /^(?=.{4,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/
 
@@ -48,17 +40,6 @@ export async function addWorkspaceDomain(
     if (isUniqueViolation(err)) throw new ConflictError(`${domain} is already on this list`)
     throw err
   }
-}
-
-export async function listWorkspaceDomains(
-  db: Database,
-  workspaceId: string,
-): Promise<WorkspaceDomain[]> {
-  return db
-    .select()
-    .from(workspaceDomains)
-    .where(eq(workspaceDomains.workspaceId, workspaceId))
-    .orderBy(asc(workspaceDomains.domain))
 }
 
 export async function removeWorkspaceDomain(

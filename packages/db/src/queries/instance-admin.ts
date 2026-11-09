@@ -15,6 +15,7 @@ import {
 } from 'drizzle-orm'
 import { union } from 'drizzle-orm/pg-core'
 
+import { QUEUES } from '#queue/jobs.ts'
 import {
   builds,
   files,
@@ -216,7 +217,7 @@ export namespace getQueueDepth {
 /** Jobs not yet done, per queue; `known` queues are listed even when empty. */
 export async function getQueueDepth(
   db: Database,
-  known: readonly string[] = [],
+  known: readonly string[] = Object.values(QUEUES),
 ): Promise<getQueueDepth.Item[]> {
   const rows = await db
     .select({

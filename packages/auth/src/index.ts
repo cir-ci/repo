@@ -26,6 +26,7 @@ export {
   type IssuedToken,
   rotateTeamToken,
   sendSignInCode,
+  setInstanceAdmin,
   setUserPassword,
   updateWorkspace,
   verifyTeamToken,

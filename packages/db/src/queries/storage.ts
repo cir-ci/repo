@@ -2,8 +2,9 @@ import type { TeamColor } from '@circi/core'
 import { eq, isNotNull, sql } from 'drizzle-orm'
 
 import { files, teams } from '#schema/index.ts'
-import { getWorkspaceSettings } from '#shared/workspace-settings.ts'
 import type { Database } from '#src/client.ts'
+
+import { getWorkspaceSettings } from './workspace-settings.ts'
 
 /** What is stored, for the whole instance (`circi admin storage usage`) and for one workspace. */
 

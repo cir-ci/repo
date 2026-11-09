@@ -10,28 +10,28 @@ import {
 } from '@circi/auth'
 import { webhookUrlProblem } from '@circi/core'
 import {
-  createWebhook,
-  deleteWebhook,
   getWorkspaceBySlug,
   getTeamBySlugs,
-  addIgnoreRegion,
   listIgnoreRegions,
-  removeIgnoreRegion,
   isWebhookEvent,
   listWorkspaces,
   listTeams,
   listWebhooks,
-  setWorkspaceAuthSettings,
   instanceAuthMethods,
   storageUsage,
   WEBHOOK_EVENTS,
 } from '@circi/db'
 import {
+  addWebhook,
+  createIgnoreRegion,
+  deleteIgnoreRegion,
   linkTeamToGithub,
   migrateStorage,
   previewRetention,
+  removeWebhook,
   runRetention,
   unlinkTeamFromGit,
+  updateWorkspaceSignIn,
 } from '@circi/services'
 import { createStorage } from '@circi/storage'
 import type { Command } from 'commander'
@@ -280,7 +280,7 @@ function addWebhookCommands(webhook: Command): void {
         const unknown = events.filter((e) => !isWebhookEvent(e))
         if (unknown.length > 0) throw new Error(`Unknown event(s): ${unknown.join(', ')}`)
         const team = await teamOf(rt, opts.org, opts.team)
-        const created = await createWebhook(rt.db.db, {
+        const created = await addWebhook(rt.db.db, {
           teamId: team.id,
           url: url.toString(),
           events: events.filter(isWebhookEvent),
@@ -315,7 +315,7 @@ function addWebhookCommands(webhook: Command): void {
     .action((opts: { org: string; team: string; id: string }) =>
       withRuntime(async (rt) => {
         const team = await teamOf(rt, opts.org, opts.team)
-        await deleteWebhook(rt.db.db, team.id, opts.id)
+        await removeWebhook(rt.db.db, team.id, opts.id)
         console.log('Removed.')
       }),
     )
@@ -361,7 +361,7 @@ function addAuthCommands(auth: Command): void {
           const workspace = await getWorkspaceBySlug(rt.db.db, opts.org)
           const value = action === 'enable'
           // This is the break-glass command, so the lockout guard doesn't apply to it.
-          const settings = await setWorkspaceAuthSettings(
+          const settings = await updateWorkspaceSignIn(
             rt.db.db,
             workspace.id,
             method === 'email' ? { emailLoginEnabled: value } : { passwordLoginEnabled: value },
@@ -569,7 +569,8 @@ function addIgnoreCommands(ignore: Command): void {
           throw new Error('--region must look like 10,20,300,40')
         }
         const team = await teamOf(rt, opts.org, opts.team)
-        const added = await addIgnoreRegion(rt.db.db, team.id, {
+        const added = await createIgnoreRegion(rt.db.db, {
+          teamId: team.id,
           name: opts.name,
           x: x ?? 0,
           y: y ?? 0,
@@ -605,7 +606,7 @@ function addIgnoreCommands(ignore: Command): void {
     .action((id: string, opts: { org: string; team: string }) =>
       withRuntime(async (rt) => {
         const team = await teamOf(rt, opts.org, opts.team)
-        await removeIgnoreRegion(rt.db.db, team.id, id)
+        await deleteIgnoreRegion(rt.db.db, team.id, id)
         console.log('Removed.')
       }),
     )

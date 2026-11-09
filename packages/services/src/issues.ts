@@ -69,16 +69,18 @@ export async function createIssueFromBuild(
       ? { issueType: mapped.extra.issueType }
       : {}),
   })
-  return createIntegrationLink(db, {
-    integrationId: input.integrationId,
-    buildId: build.id,
-    kind: ISSUE_LINK_KIND,
-    externalRef: created.key,
-    url: created.url,
-    title: created.title,
-    payload: { snapshotName },
-    createdBy: input.userId,
-  })
+  return db.transaction((tx) =>
+    createIntegrationLink(tx, {
+      integrationId: input.integrationId,
+      buildId: build.id,
+      kind: ISSUE_LINK_KIND,
+      externalRef: created.key,
+      url: created.url,
+      title: created.title,
+      payload: { snapshotName },
+      createdBy: input.userId,
+    }),
+  )
 }
 
 export namespace createIssueFromBuild {

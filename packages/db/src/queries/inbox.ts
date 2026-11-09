@@ -4,6 +4,7 @@ import {
   builds,
   member,
   type NotificationKind,
+  notificationPreferences,
   notifications,
   workspace,
   teams,
@@ -183,4 +184,32 @@ function visibleWhere(input: { userId: string; method?: SessionMethod }): SQL {
 
 function not(condition: SQL | undefined): SQL {
   return sql`not coalesce(${condition}, false)`
+}
+
+export namespace getNotificationPreferences {
+  export interface Preferences {
+    emailReviewRequested: boolean
+    emailReviewOverdue: boolean
+  }
+}
+
+export async function getNotificationPreferences(
+  db: Database,
+  userId: string,
+): Promise<getNotificationPreferences.Preferences> {
+  const [row] = await db
+    .select()
+    .from(notificationPreferences)
+    .where(eq(notificationPreferences.userId, userId))
+  return row
+    ? {
+        emailReviewRequested: row.emailReviewRequested,
+        emailReviewOverdue: row.emailReviewOverdue,
+      }
+    : { ...DEFAULT_NOTIFICATION_PREFERENCES }
+}
+
+export const DEFAULT_NOTIFICATION_PREFERENCES: getNotificationPreferences.Preferences = {
+  emailReviewRequested: true,
+  emailReviewOverdue: true,
 }

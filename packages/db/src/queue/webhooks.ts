@@ -1,10 +1,11 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 
 import { isWebhookEvent, ValidationError, WEBHOOK_EVENTS, type WebhookEvent } from '@circi/core'
-import { and, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 
+import type { ReviewEntry } from '#queries/review-decisions.ts'
+import { type Webhook } from '#queries/webhooks.ts'
 import { workspace, teams, webhookDeliveries, webhooks } from '#schema/index.ts'
-import type { ReviewEntry } from '#shared/reviews.ts'
 import type { Database } from '#src/client.ts'
 import { NotFoundError } from '#src/errors.ts'
 import type { Build } from '#src/types.ts'
@@ -14,8 +15,6 @@ import { enqueueJob, QUEUES } from './jobs.ts'
 /** A team's outgoing webhooks (PLAN §7.4): managing them and queueing the deliveries. */
 
 export { isWebhookEvent, WEBHOOK_EVENTS, type WebhookEvent }
-
-export type Webhook = typeof webhooks.$inferSelect
 
 export async function createWebhook(
   db: Database,
@@ -34,10 +33,6 @@ export async function createWebhook(
     .returning()
   if (!row) throw new Error('insert returned no row')
   return row
-}
-
-export async function listWebhooks(db: Database, teamId: string): Promise<Webhook[]> {
-  return db.select().from(webhooks).where(eq(webhooks.teamId, teamId)).orderBy(webhooks.createdAt)
 }
 
 export async function getWebhook(db: Database, id: string): Promise<Webhook | undefined> {
@@ -192,11 +187,8 @@ export async function queueTestWebhook(db: Database, webhookId: string): Promise
   return deliveryId
 }
 
-export type WebhookDelivery = typeof webhookDeliveries.$inferSelect
-
 /** How many attempts are kept per webhook; the dashboard shows the newest `RECENT_DELIVERIES`. */
 const KEPT_DELIVERIES = 50
-export const RECENT_DELIVERIES = 20
 
 /** About one insert in this many also prunes: the table stays small without a delete per attempt. */
 const PRUNE_ONE_IN = 20
@@ -228,32 +220,4 @@ export async function pruneWebhookDeliveries(db: Database, webhookId: string): P
     delete from webhook_deliveries where webhook_id = ${webhookId} and id in (
       select id from webhook_deliveries where webhook_id = ${webhookId}
       order by created_at desc, id desc offset ${KEPT_DELIVERIES})`)
-}
-
-/** The newest attempts (at most `limit`, default 20) of each of the given webhooks, newest first. */
-export async function listWebhookDeliveries(
-  db: Database,
-  webhookIds: readonly string[],
-  limit = RECENT_DELIVERIES,
-): Promise<Map<string, WebhookDelivery[]>> {
-  const byHook = new Map<string, WebhookDelivery[]>(webhookIds.map((id) => [id, []]))
-  if (webhookIds.length === 0) return byHook
-  const ranked = db
-    .select({
-      id: webhookDeliveries.id,
-      rank: sql<number>`row_number() over (partition by ${webhookDeliveries.webhookId} order by ${webhookDeliveries.createdAt} desc, ${webhookDeliveries.id} desc)`.as(
-        'rank',
-      ),
-    })
-    .from(webhookDeliveries)
-    .where(inArray(webhookDeliveries.webhookId, [...webhookIds]))
-    .as('ranked')
-  const rows = await db
-    .select({ row: webhookDeliveries })
-    .from(webhookDeliveries)
-    .innerJoin(ranked, eq(ranked.id, webhookDeliveries.id))
-    .where(sql`${ranked.rank} <= ${limit}`)
-    .orderBy(desc(webhookDeliveries.createdAt), desc(webhookDeliveries.id))
-  for (const { row } of rows) byHook.get(row.webhookId)?.push(row)
-  return byHook
 }

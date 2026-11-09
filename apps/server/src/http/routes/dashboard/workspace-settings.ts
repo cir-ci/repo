@@ -2,7 +2,7 @@ import type { Storage, Workspace } from '@circi/api'
 import { updateWorkspace } from '@circi/auth'
 import { ValidationError, workspacePurgeAt } from '@circi/core'
 import { getWorkspaceStorage, getWorkspaceSettings } from '@circi/db'
-import { deleteWorkspace, updateWorkspaceSettings } from '@circi/services'
+import { deleteWorkspace, isWorkspaceOwner, updateWorkspaceSettings } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
@@ -36,7 +36,7 @@ export const dashboardWorkspaceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard
     const found = await loadWorkspace(deps, req)
     return {
       canManage: found.canManage,
-      isOwner: found.role === 'owner',
+      isOwner: isWorkspaceOwner(found),
       name: found.workspace.name,
       slug: found.workspace.slug,
     }

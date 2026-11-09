@@ -31,7 +31,7 @@ export async function runRetention(
   const builds = await expireBuilds(db, now)
   const sites = await expireSites(db, now)
   const unmarked = await unmarkReferencedFiles(db)
-  const marked = await markUnreferencedFiles(db, now)
+  const marked = await db.transaction((tx) => markUnreferencedFiles(tx, now))
   const collected = await collectMarkedFiles(db, {
     now,
     graceMs: options.graceMs ?? 24 * 3600_000,

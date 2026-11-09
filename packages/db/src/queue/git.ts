@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 
-import type { CONNECTION_ATTENTION } from '#schema/enums.ts'
+import { getGitMapping, type GitKinds, type GitLink } from '#queries/git-links.ts'
 import {
   buildChecks,
   builds,
@@ -26,42 +26,6 @@ import { enqueueJob } from './jobs.ts'
  */
 
 export const GIT_NOTIFY_QUEUE = 'git-notify'
-
-/** The ids of the integration kinds that are git hosts. */
-export type GitKinds = readonly string[]
-
-export interface GitLink {
-  /** The connection's external id (the GitHub App installation id). */
-  installationId: string
-  repoRef: string
-}
-
-export namespace getTeamGitAttention {
-  /** What the dashboard shows when CirCI can't use a team's git connection. */
-  export interface Attention {
-    reason: getTeamGitAttention.Kind
-    since: Date
-  }
-
-  /** Why a connection needs a person's attention. */
-  export type Kind = (typeof CONNECTION_ATTENTION)[number]
-}
-
-/** A team's mapping on one of its git connections: the connection and the repository. */
-async function gitMapping(db: Database, teamId: string, kinds: GitKinds) {
-  if (kinds.length === 0) return undefined
-  const [row] = await db
-    .select({
-      integration: integrations,
-      repoRef: integrationTeams.externalRef,
-    })
-    .from(integrationTeams)
-    .innerJoin(integrations, eq(integrations.id, integrationTeams.integrationId))
-    .where(and(eq(integrationTeams.teamId, teamId), inArray(integrations.kind, [...kinds])))
-    .orderBy(integrationTeams.createdAt)
-    .limit(1)
-  return row
-}
 
 /** Stops a team reporting to any git host (the repository mapping goes; the connection stays). */
 export async function unlinkTeam(db: Database, teamId: string, kinds: GitKinds): Promise<void> {
@@ -118,29 +82,6 @@ export async function clearInstallationNeedsAttention(
         eq(integrations.needsAttention, true),
       ),
     )
-}
-
-/** Whether CirCI can't use the team's git connection; undefined when it works or there is none. */
-export async function getTeamGitAttention(
-  db: Database,
-  teamId: string,
-  kinds: GitKinds,
-): Promise<getTeamGitAttention.Attention | undefined> {
-  const mapping = await gitMapping(db, teamId, kinds)
-  const since = mapping?.integration.needsAttentionAt
-  if (!mapping?.integration.needsAttention || !since) return undefined
-  return { reason: 'installation_revoked', since }
-}
-
-export async function getTeamLink(
-  db: Database,
-  teamId: string,
-  kinds: GitKinds,
-): Promise<GitLink | undefined> {
-  const mapping = await gitMapping(db, teamId, kinds)
-  return mapping
-    ? { installationId: mapping.integration.externalId, repoRef: mapping.repoRef }
-    : undefined
 }
 
 export namespace getGitTarget {
@@ -218,7 +159,7 @@ export async function queueGitNotify(
   build: Pick<Build, 'id' | 'teamId' | 'status' | 'conclusion' | 'reviewStatus'>,
   kinds: GitKinds,
 ): Promise<void> {
-  if (!(await gitMapping(db, build.teamId, kinds))) return
+  if (!(await getGitMapping(db, build.teamId, kinds))) return
   await enqueueJob(db, {
     queue: GIT_NOTIFY_QUEUE,
     payload: { buildId: build.id },

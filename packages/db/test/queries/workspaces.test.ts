@@ -2,6 +2,7 @@ import { addTestMember, createTestDb, seedWorkspace, seedUser } from '@circi/tes
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
+  findWorkspaceBySlug,
   findWorkspaceOwnerId,
   getMemberRole,
   getWorkspaceBySlug,
@@ -25,6 +26,12 @@ describe('workspaces and memberships (read side; better-auth owns the writes)', 
     expect(await getWorkspaceBySlug(t.db, workspace.slug)).toMatchObject({ id: workspace.id })
     await expect(getWorkspaceBySlug(t.db, 'nope')).rejects.toBeInstanceOf(NotFoundError)
     expect((await listWorkspaces(t.db)).map((o) => o.slug)).toContain(workspace.slug)
+  })
+
+  it('finds a workspace by slug without throwing when there is none', async () => {
+    const { workspace } = await seedWorkspace(t.db)
+    expect(await findWorkspaceBySlug(t.db, workspace.slug)).toMatchObject({ id: workspace.id })
+    expect(await findWorkspaceBySlug(t.db, 'nope')).toBeUndefined()
   })
 
   it('lists exactly the workspaces a user belongs to', async () => {

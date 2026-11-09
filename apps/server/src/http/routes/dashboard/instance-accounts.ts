@@ -5,6 +5,7 @@ import {
   generatePassword,
   MIN_PASSWORD_LENGTH,
   sendSignInCode,
+  setInstanceAdmin,
   setUserPassword,
 } from '@circi/auth'
 import { ValidationError } from '@circi/core'
@@ -126,8 +127,9 @@ export const dashboardInstanceAccountRoutes: FastifyPluginAsync<Deps.Dashboard> 
     if (account.instanceAdmin && !instanceAdmin && (await countInstanceAdmins(deps.db)) <= 1) {
       throw new ConflictError('This is the last instance admin: make someone else one first')
     }
-    await deps.auth.api.setRole({
-      body: { userId: id, role: instanceAdmin ? 'admin' : 'user' },
+    await setInstanceAdmin(deps.auth, {
+      userId: id,
+      instanceAdmin,
       headers: fromNodeHeaders(req.headers),
     })
     return { account: wire(await load(id)) }

@@ -13,8 +13,9 @@ import {
   type ReviewState,
   user,
 } from '#schema/index.ts'
-import { listBuildLinks } from '#shared/integration-links.ts'
 import type { Database } from '#src/client.ts'
+
+import { listBuildLinks } from './integration-links.ts'
 
 /**
  * A build's activity: one list, oldest first, put together from the tables that each keep their
