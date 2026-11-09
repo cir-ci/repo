@@ -27,12 +27,19 @@ async function fillProvider(page: Page, issuer: string, clientId: string, secret
   await page.getByRole('button', { name: 'Connect provider' }).click()
 }
 
+/** Single sign-on is a row on the sign-in settings page; Configure opens its dialog. */
+async function configure(page: Page) {
+  await page.getByRole('button', { name: 'Configure' }).click()
+  await page.getByRole('dialog', { name: 'Single sign-on' }).waitFor()
+}
+
 async function disconnect(page: Page, issuer: string) {
+  await configure(page)
   await page.getByRole('button', { name: `Remove ${issuer}` }).click()
-  const dialog = page.getByRole('alertdialog').or(page.getByRole('dialog'))
-  await dialog.getByText('Disconnect single sign-on?').waitFor()
-  await dialog.getByRole('button', { name: 'Remove provider' }).click()
-  await page.getByLabel('Issuer address').waitFor()
+  const confirm = page.getByRole('alertdialog')
+  await confirm.getByText('Disconnect single sign-on?').waitFor()
+  await confirm.getByRole('button', { name: 'Remove provider' }).click()
+  await page.getByText('Connected', { exact: true }).waitFor({ state: 'detached' })
 }
 
 describe('a workspace’s own single sign-on', () => {
@@ -81,7 +88,7 @@ describe('a workspace’s own single sign-on', () => {
     const { session, workspace } = await freshWorkspace()
     const page = await browser.as(session)
     await page.goto(signInUrl(workspace))
-    await page.getByRole('heading', { name: 'Single sign-on' }).waitFor()
+    await configure(page)
     // Chromium's password manager only autofills what is not marked otherwise: these are the
     // attributes that fixed the earlier bug (the user's own login landing in these fields).
     expect(await page.getByLabel('Client id').getAttribute('autocomplete')).toBe('off')
@@ -115,7 +122,7 @@ describe('a workspace’s own single sign-on', () => {
     const { session, workspace } = await freshWorkspace()
     const page = await browser.as(session)
     await page.goto(signInUrl(workspace))
-    await page.getByRole('heading', { name: 'Single sign-on' }).waitFor()
+    await configure(page)
     await fillProvider(page, idp.issuer, CLIENT_ID, 'wrong-secret')
     await page.getByText('Connected', { exact: true }).waitFor()
 
@@ -130,10 +137,14 @@ describe('a workspace’s own single sign-on', () => {
     ).toEqual([['0']])
 
     // Cancel keeps it, confirm removes it.
+    await configure(page)
     await page.getByRole('button', { name: `Remove ${idp.issuer}` }).click()
-    const dialog = page.getByRole('alertdialog').or(page.getByRole('dialog'))
-    await dialog.getByRole('button', { name: 'Cancel' }).click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Cancel' }).click()
     expect(await providers(workspace)).toBe('1')
+    await page
+      .getByRole('dialog', { name: 'Single sign-on' })
+      .getByRole('button', { name: 'Done' })
+      .click()
     await disconnect(page, idp.issuer)
     expect(await providers(workspace)).toBe('0')
   })
@@ -148,9 +159,10 @@ describe('a workspace’s own single sign-on', () => {
 
     const page = await browser.as(setup.session)
     await page.goto(signInUrl(workspace))
-    await page.getByRole('heading', { name: 'Single sign-on' }).waitFor()
+    await configure(page)
     await fillProvider(page, idp.issuer, CLIENT_ID, SECRET)
     await page.getByText('Connected', { exact: true }).waitFor()
+    await configure(page)
     await page.getByText(`${stack.url}/api/auth/sso/callback/${workspace}-sso`).waitFor()
     const listed = await setup.session.get(`/api/workspaces/${workspace}/sso`)
     expect(JSON.stringify(listed)).not.toContain(SECRET)
