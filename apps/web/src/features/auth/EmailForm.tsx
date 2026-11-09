@@ -1,8 +1,9 @@
-import { Banner, Button, TextField } from '@circi/ui'
+import { Button, TextField } from '@circi/ui'
 import { useState, type FormEvent } from 'react'
 
 import { authClient } from '#lib/auth-client.ts'
 
+import { BannerSlot } from './BannerSlot.tsx'
 import { clearLink, describeCodeFailure, describeFailure, text } from './login-helpers.ts'
 
 import styles from './AuthForms.module.css'
@@ -46,21 +47,23 @@ export function EmailForm({ initial, invitedEmail, onBack }: EmailForm.Props) {
   if (!sent) {
     return (
       <form className={styles.form} onSubmit={(e) => void request(e)} noValidate>
-        {error ? <Banner tone="danger">{error}</Banner> : null}
+        <BannerSlot>{error}</BannerSlot>
         <TextField
           name="email"
           type="email"
           label="Email"
+          size="lg"
+          placeholder="you@company.com"
           defaultValue={invitedEmail ?? ''}
           autoComplete="username"
           autoFocus
           required
         />
-        <Button type="submit" variant="primary" loading={busy} className={styles.block}>
+        <Button type="submit" variant="primary" size="lg" loading={busy} className={styles.submit}>
           {busy ? 'Sending…' : 'Email me a code'}
         </Button>
         {onBack ? (
-          <Button variant="ghost" className={styles.center} onClick={onBack}>
+          <Button variant="link" className={styles.center} onClick={onBack}>
             Use a password instead
           </Button>
         ) : null}
@@ -70,28 +73,34 @@ export function EmailForm({ initial, invitedEmail, onBack }: EmailForm.Props) {
 
   return (
     <form className={styles.form} onSubmit={(e) => void confirm(e)} noValidate>
-      <Banner tone="info">
-        If {email} has an account, we sent it a 6-digit code. It works for 10 minutes.
-      </Banner>
-      {error ? <Banner tone="danger">{error}</Banner> : null}
+      {error ? (
+        <BannerSlot>{error}</BannerSlot>
+      ) : (
+        <BannerSlot tone="info">
+          If {email} has an account, we sent it a 6-digit code. It works for 10 minutes.
+        </BannerSlot>
+      )}
       <TextField
         name="code"
         label="6-digit code"
+        size="lg"
         defaultValue={initial?.code ?? ''}
         autoComplete="one-time-code"
         autoFocus
         required
         inputMode="numeric"
         pattern="[0-9 ]*"
+        invalid={Boolean(error)}
       />
-      <Button type="submit" variant="primary" loading={busy} className={styles.block}>
+      <Button type="submit" variant="primary" size="lg" loading={busy} className={styles.submit}>
         {busy ? 'Signing in…' : 'Sign in'}
       </Button>
       <Button
-        variant="ghost"
+        variant="link"
         className={styles.center}
         onClick={() => {
           clearLink()
+          setError(undefined)
           setSent(false)
         }}
       >

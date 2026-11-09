@@ -1,8 +1,9 @@
-import { Banner, Button, TextField } from '@circi/ui'
+import { Button, TextField } from '@circi/ui'
 import { type FormEvent, useState } from 'react'
 
 import { authClient } from '#lib/auth-client.ts'
 
+import { BannerSlot } from './BannerSlot.tsx'
 import { describeFailure, text } from './login-helpers.ts'
 
 import styles from './AuthForms.module.css'
@@ -22,41 +23,50 @@ export function PasswordForm({ onEmail }: PasswordForm.Props) {
     })
     setBusy(false)
     // On success the session store updates and the app replaces this page by itself.
+    // On failure the fields keep what was typed: the form is the same element.
     if (failure) setError(describeFailure(failure.status))
   }
 
   return (
     <form className={styles.form} onSubmit={(e) => void submit(e)} noValidate>
-      {error ? <Banner tone="danger">{error}</Banner> : null}
+      <BannerSlot>{error}</BannerSlot>
       <TextField
         name="email"
         type="email"
         label="Email"
+        size="lg"
+        placeholder="you@company.com"
         autoComplete="username"
         autoFocus
         required
+        invalid={Boolean(error)}
       />
       <TextField
         name="password"
         type="password"
         label="Password"
+        size="lg"
         autoComplete="current-password"
         required
+        invalid={Boolean(error)}
+        labelAction={
+          onEmail ? (
+            <Button variant="link" onClick={onEmail}>
+              Email me a code
+            </Button>
+          ) : undefined
+        }
       />
-      <Button type="submit" variant="primary" loading={busy} className={styles.block}>
+      <Button type="submit" variant="primary" size="lg" loading={busy} className={styles.submit}>
         {busy ? 'Signing in…' : 'Sign in'}
       </Button>
-      {onEmail ? (
-        <Button variant="ghost" className={styles.center} onClick={onEmail}>
-          Email me a code
-        </Button>
-      ) : null}
     </form>
   )
 }
 
 export namespace PasswordForm {
   export interface Props {
+    /** Switches to the mailed code; the link shows only when email codes are available. */
     onEmail: (() => void) | undefined
   }
 }

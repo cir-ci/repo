@@ -5,6 +5,13 @@
   min-width: 0;
 }
 
+.labelRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .label {
   color: var(--circi-text-secondary);
   font-size: 12px;
@@ -32,6 +39,18 @@
 .control:focus-visible {
   outline: 2px solid var(--circi-accent-text);
   outline-offset: 2px;
+}
+
+/* The large size (sign-in and setup): 36px, and focus is an accent border with a soft ring. */
+.control[data-size='lg'] {
+  height: 36px;
+  padding-inline: 12px;
+}
+
+.control[data-size='lg']:focus-visible {
+  border-color: var(--circi-accent-main);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--circi-accent-subtle);
 }
 
 .control[data-invalid] {

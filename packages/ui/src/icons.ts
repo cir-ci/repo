@@ -127,6 +127,7 @@ import {
   Database,
   Keyboard,
   KeyRound,
+  Lock,
   ListFilter,
   Pin,
   Plus,
@@ -147,6 +148,7 @@ export const ChevronLeftIcon = icon(ChevronLeft, 'ChevronLeftIcon')
 export const DatabaseIcon = icon(Database, 'DatabaseIcon')
 export const KeyboardIcon = icon(Keyboard, 'KeyboardIcon')
 export const KeyIcon = icon(KeyRound, 'KeyIcon')
+export const LockIcon = icon(Lock, 'LockIcon')
 export const ListFilterIcon = icon(ListFilter, 'ListFilterIcon')
 export const PinIcon = icon(Pin, 'PinIcon')
 export const PlusIcon = icon(Plus, 'PlusIcon')

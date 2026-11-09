@@ -1,16 +1,17 @@
-import { Banner, Button, TextField } from '@circi/ui'
+import { Button, TextField } from '@circi/ui'
 import { type FormEvent, useState } from 'react'
 
 import { post } from '#lib/http.ts'
 
+import { BannerSlot } from './BannerSlot.tsx'
+
 import styles from './AuthForms.module.css'
 
 /**
- * Sign in through a workspace's own identity provider: type the workspace's name (its
- * short address name) and the browser goes to that provider.
+ * The "Continue with SSO" step: type the workspace's name (its short address name) and the
+ * browser goes to that workspace's identity provider.
  */
-export function WorkspaceSsoSignIn() {
-  const [open, setOpen] = useState(false)
+export function WorkspaceSsoSignIn({ onBack }: WorkspaceSsoSignIn.Props) {
   const [error, setError] = useState<string | undefined>(undefined)
   const [busy, setBusy] = useState(false)
 
@@ -33,24 +34,32 @@ export function WorkspaceSsoSignIn() {
     }
   }
 
-  if (!open) {
-    return (
-      <Button variant="ghost" className={styles.center} onClick={() => setOpen(true)}>
-        Sign in through your workspace
-      </Button>
-    )
-  }
   return (
-    <form
-      className={`${styles.form} ${styles.compact}`}
-      onSubmit={(e) => void submit(e)}
-      noValidate
-    >
-      {error ? <Banner tone="danger">{error}</Banner> : null}
-      <TextField name="workspace" label="Workspace" placeholder="acme" required autoFocus />
-      <Button type="submit" loading={busy} className={styles.block}>
+    <form className={styles.form} onSubmit={(e) => void submit(e)} noValidate>
+      <BannerSlot>{error}</BannerSlot>
+      <TextField
+        name="workspace"
+        label="Workspace"
+        size="lg"
+        placeholder="acme"
+        description="The short name in your workspace’s address."
+        required
+        autoFocus
+        invalid={Boolean(error)}
+      />
+      <Button type="submit" variant="primary" size="lg" loading={busy} className={styles.submit}>
         Continue
+      </Button>
+      <Button variant="link" className={styles.center} onClick={onBack}>
+        Back to sign in
       </Button>
     </form>
   )
+}
+
+export namespace WorkspaceSsoSignIn {
+  export interface Props {
+    /** Returns to the main sign-in step. */
+    onBack: () => void
+  }
 }

@@ -53,12 +53,12 @@ export function Shell() {
       </PlainFrame>
     )
   } else if (!user) {
+    // The sign-in and setup pages are their own full-viewport layout (no logo bar); the page
+    // provides the `main#content` the skip link points at.
     content = (
-      <PlainFrame>
-        <Suspense fallback={null}>
-          <LoginPage />
-        </Suspense>
-      </PlainFrame>
+      <Suspense fallback={null}>
+        <LoginPage />
+      </Suspense>
     )
   } else if (isOutsideFrame(pathname)) {
     content = (

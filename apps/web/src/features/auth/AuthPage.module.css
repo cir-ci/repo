@@ -1,0 +1,60 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 48px 16px;
+  background:
+    radial-gradient(800px 480px at 50% -10%, var(--circi-glow), transparent 70%),
+    var(--circi-surface-chrome);
+  color: var(--circi-text-primary);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  width: 100%;
+  max-width: 360px;
+  outline: none;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.logo {
+  display: block;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 1px var(--circi-brand-blush),
+    0 0 0 5px color-mix(in srgb, var(--circi-brand-maroon) 50%, transparent);
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  color: var(--circi-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.foot {
+  margin: 56px 0 0;
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
+}

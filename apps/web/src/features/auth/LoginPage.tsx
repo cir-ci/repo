@@ -1,11 +1,8 @@
-import { Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
-
-import { useDocumentTitle } from '#lib/document-title.ts'
+import { useEffect, useState } from 'react'
 
 import { authMethodsQuery, setupQuery } from './api.ts'
-import { AuthPanel } from './AuthPanel.tsx'
+import { AuthPage } from './AuthPage.tsx'
 import { EmailForm } from './EmailForm.tsx'
 import { readInvitedEmail, readLink } from './login-helpers.ts'
 import { PasswordForm } from './PasswordForm.tsx'
@@ -16,15 +13,13 @@ import { WorkspaceSsoSignIn } from './WorkspaceSsoSignIn.tsx'
 import styles from './AuthForms.module.css'
 
 /**
- * Sign-in, outside the sidebar frame (docs/design-gaps.md §10): one centred panel, one task.
- * There's no sign-up link because accounts are created by an administrator
- * (`circi admin user create`). With email login on, a second way in: a 6-digit code (or the
- * link in the same mail).
+ * Sign-in, outside the sidebar frame: one centred column on the page's glow (no card, no top
+ * bar). Provider buttons first, then the email form: a password, or with email login on a
+ * 6-digit code (or the link in the same mail). There's no sign-up link because accounts are
+ * created by an administrator (`circi admin user create`) or by an invitation.
  */
 export function LoginPage() {
   const setup = useQuery(setupQuery())
-  // The setup page takes over when no account exists yet: the tab title must say what is shown.
-  useDocumentTitle(setup.data?.needed ? 'Set up' : 'Sign in')
   const methods = useQuery(authMethodsQuery())
   const fromLink = readLink()
   const invitedEmail = readInvitedEmail()
@@ -32,30 +27,51 @@ export function LoginPage() {
   const [mode, setMode] = useState<'password' | 'email'>(
     fromLink || invitedEmail ? 'email' : 'password',
   )
+  const [workspaceStep, setWorkspaceStep] = useState(false)
   const emailOn = methods.data?.email === true || Boolean(fromLink) || Boolean(invitedEmail)
+  const showsSignIn = setup.data !== undefined && !setup.data.needed
+
+  // The tab says "Sign in to CirCI" (the setup page sets its own title).
+  useEffect(() => {
+    if (!showsSignIn) return undefined
+    const before = document.title
+    document.title = 'Sign in to CirCI'
+    return () => {
+      document.title = before
+    }
+  }, [showsSignIn])
 
   // Don't flash the sign-in form at someone who is about to see the setup page.
   if (setup.isPending) return null
   if (setup.data?.needed) return <SetupPage />
 
+  const providers = methods.data?.sso ?? []
+
   return (
-    <AuthPanel title="Sign in to CirCI">
-      {(mode === 'email' || !passwordOn) && emailOn ? (
-        <EmailForm
-          initial={fromLink}
-          invitedEmail={invitedEmail}
-          onBack={passwordOn ? () => setMode('password') : undefined}
-        />
+    <AuthPage
+      title="Sign in to CirCI"
+      subtitle={workspaceStep ? 'Sign in through your workspace' : window.location.host}
+    >
+      {workspaceStep ? (
+        <WorkspaceSsoSignIn onBack={() => setWorkspaceStep(false)} />
       ) : (
-        <PasswordForm onEmail={emailOn ? () => setMode('email') : undefined} />
+        <>
+          <SsoButtons providers={providers} onWorkspace={() => setWorkspaceStep(true)} />
+          <div className={styles.divider}>or with email</div>
+          {(mode === 'email' || !passwordOn) && emailOn ? (
+            <EmailForm
+              initial={fromLink}
+              invitedEmail={invitedEmail}
+              onBack={passwordOn ? () => setMode('password') : undefined}
+            />
+          ) : (
+            <PasswordForm onEmail={emailOn ? () => setMode('email') : undefined} />
+          )}
+        </>
       )}
-      <div className={styles.form}>
-        <SsoButtons providers={methods.data?.sso ?? []} />
-        <WorkspaceSsoSignIn />
-      </div>
-      <Text as="p" variant="small" tone="secondary" className={styles.center}>
-        No account? Ask the person who runs CirCI for one.
-      </Text>
-    </AuthPanel>
+      <p className={styles.note}>
+        Got an invitation? Open the link in the email to join your team.
+      </p>
+    </AuthPage>
   )
 }

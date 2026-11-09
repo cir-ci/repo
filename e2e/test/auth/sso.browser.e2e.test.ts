@@ -72,7 +72,7 @@ describe('a workspace’s own single sign-on', () => {
   /** The sign-in page's "through your workspace" path, up to the provider's redirect back. */
   async function ssoLogin(page: Page, slug: string) {
     await page.goto(`${ctx.stack.url}/login`)
-    await page.getByRole('button', { name: 'Sign in through your workspace' }).click()
+    await page.getByRole('button', { name: 'Continue with SSO' }).click()
     await page.getByLabel('Workspace').fill(slug)
     await page.getByRole('button', { name: 'Continue' }).click()
   }

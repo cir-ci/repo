@@ -1,12 +1,37 @@
-/* Arranges the sign-in and setup forms: one column of fields with 16px between them. */
+/* The sign-in and setup forms: one column of fields, 14px apart. */
 .form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
-.compact {
+/* Provider buttons and the "or with email" divider above the form. */
+.providers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
   gap: 12px;
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--circi-line-subtle);
+}
+
+/* Room for one banner (10px padding twice, a 20px line, a 1px border twice), so a failed
+   attempt doesn't push the fields down. */
+.slot {
+  min-height: 42px;
 }
 
 .center {
@@ -15,4 +40,16 @@
 
 .block {
   width: 100%;
+}
+
+.submit {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.note {
+  margin: 0;
+  text-align: center;
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
 }

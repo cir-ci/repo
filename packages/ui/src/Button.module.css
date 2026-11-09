@@ -24,6 +24,12 @@
   height: 24px;
 }
 
+.root[data-size='lg'] {
+  height: 36px;
+  gap: 8px;
+  font-size: 13px;
+}
+
 .root:hover {
   background: var(--circi-surface-overlay);
 }

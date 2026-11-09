@@ -58,4 +58,29 @@ describe('TextField', () => {
     await userEvent.keyboard('{Enter}')
     expect(onSubmit).toHaveBeenCalledTimes(1)
   })
+
+  it('has a 36px large size with an accent border and ring on focus, and a link on the label row', async () => {
+    await render(
+      <TextField
+        label="Password"
+        type="password"
+        size="lg"
+        labelAction={<button type="button">Email me a code</button>}
+      />,
+    )
+    const input = page.getByLabelText('Password')
+    const style = getComputedStyle(input.element())
+    expect(style.height).toBe('36px')
+    expect(style.paddingLeft).toBe('12px')
+    await expect.element(page.getByRole('button', { name: 'Email me a code' })).toBeVisible()
+    await userEvent.tab()
+    await userEvent.tab()
+    await expect.element(input).toHaveFocus()
+    expect(getComputedStyle(input.element()).boxShadow).not.toBe('none')
+  })
+
+  it('marks a field invalid without a message', async () => {
+    await render(<TextField label="Email" invalid />)
+    await expect.element(page.getByRole('textbox', { name: 'Email' })).toBeInvalid()
+  })
 })

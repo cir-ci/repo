@@ -1,16 +1,21 @@
-import { Banner, Button } from '@circi/ui'
+import { Banner, Button, LockIcon } from '@circi/ui'
 import { useState } from 'react'
 
 import { authClient } from '#lib/auth-client.ts'
 
 import { ssoErrorMessage } from './login-helpers.ts'
+import { ProviderIcon } from './ProviderIcon.tsx'
 
 import styles from './AuthForms.module.css'
 
-/** One button per single sign-on provider the operator set up. */
-export function SsoButtons({ providers }: SsoButtons.Props) {
+/**
+ * The buttons above the email form: one "Continue with <name>" per provider the operator set up
+ * (GitHub, Google, OpenID Connect), then "Continue with SSO" for a workspace's own identity
+ * provider, which opens the workspace step (`onWorkspace`).
+ */
+export function SsoButtons({ providers, onWorkspace }: SsoButtons.Props) {
   const [error, setError] = useState<string | undefined>(ssoErrorMessage)
-  if (providers.length === 0 && !error) return null
+  if (providers.length === 0 && !onWorkspace && !error) return null
 
   async function go(id: string) {
     setError(undefined)
@@ -21,13 +26,24 @@ export function SsoButtons({ providers }: SsoButtons.Props) {
   }
 
   return (
-    <div className={`${styles.form} ${styles.compact}`}>
+    <div className={styles.providers}>
       {error ? <Banner tone="danger">{error}</Banner> : null}
       {providers.map((p) => (
-        <Button key={p.id} className={styles.block} onClick={() => void go(p.id)}>
+        <Button
+          key={p.id}
+          size="lg"
+          className={styles.block}
+          leading={<ProviderIcon id={p.id} />}
+          onClick={() => void go(p.id)}
+        >
           Continue with {p.name}
         </Button>
       ))}
+      {onWorkspace ? (
+        <Button size="lg" className={styles.block} leading={<LockIcon />} onClick={onWorkspace}>
+          Continue with SSO
+        </Button>
+      ) : null}
     </div>
   )
 }
@@ -35,5 +51,7 @@ export function SsoButtons({ providers }: SsoButtons.Props) {
 export namespace SsoButtons {
   export interface Props {
     providers: { id: string; name: string }[]
+    /** Opens the workspace step. Left out when workspace single sign-on isn't available. */
+    onWorkspace?: (() => void) | undefined
   }
 }

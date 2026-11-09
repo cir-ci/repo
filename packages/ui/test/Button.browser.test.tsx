@@ -84,6 +84,12 @@ describe('Button', () => {
     await expect.poll(() => getComputedStyle(button.element()).textDecorationLine).toBe('underline')
   })
 
+  it('is 36px high at size lg', async () => {
+    await render(<Button size="lg">Sign in</Button>)
+    const button = page.getByRole('button', { name: 'Sign in' })
+    expect(getComputedStyle(button.element()).height).toBe('36px')
+  })
+
   it('is a real link with href, and hands onClick the event for client-side routing', async () => {
     const onClick = vi.fn<(event: MouseEvent<HTMLElement>) => void>((e) => e.preventDefault())
     await render(

@@ -94,8 +94,8 @@ export namespace Button {
       | 'toggle'
       | 'filter'
       | 'select-trigger'
-    /** `md` is 28px high, `sm` 24px. */
-    size?: 'md' | 'sm'
+    /** `md` is 28px high, `sm` 24px, `lg` 36px (the sign-in and setup pages). */
+    size?: 'md' | 'sm' | 'lg'
     /** Show a spinner and disable the button while the action runs. */
     loading?: boolean
     /** An icon before the label (16px; replaced by the spinner while loading). */

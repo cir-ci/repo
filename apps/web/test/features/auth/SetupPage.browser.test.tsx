@@ -29,6 +29,18 @@ describe('SetupPage', () => {
       .toHaveAccessibleDescription('At least 12 characters.')
   })
 
+  it('renders the frameless column with the six pieces of the first-run form', async () => {
+    await renderPage(<SetupPage />)
+    await expect.element(page.getByRole('textbox', { name: 'Setup code' })).toBeVisible()
+    await expect.element(page.getByRole('textbox', { name: 'Your name' })).toBeVisible()
+    await expect.element(page.getByRole('textbox', { name: 'Email' })).toBeVisible()
+    await expect.element(page.getByRole('textbox', { name: 'Workspace name' })).toBeVisible()
+    await expect.element(page.getByLabelText('Password')).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Create account' })).toBeVisible()
+    await expect.element(page.getByText('Self-hosted CirCI')).toBeVisible()
+    expect(page.getByRole('main').element().getBoundingClientRect().width).toBeLessThanOrEqual(360)
+  })
+
   it('creates the account with trimmed values, then signs in', async () => {
     const calls = fakeFetch({
       'POST /api/setup': { email: 'ada@example.com' },

@@ -29,22 +29,64 @@ describe('LoginPage', () => {
     await expect.poll(() => document.title).toBe('Set up · CirCI')
   })
 
-  it('is one 400px panel: title, password form and the no-account note', async () => {
+  it('is one frameless 360px column: logo, title, host, form, invitation note, footer', async () => {
     fakeFetch(methods())
     await renderPage(<LoginPage />)
-    await expect
-      .element(page.getByRole('heading', { name: 'Sign in to CirCI', level: 1 }))
-      .toBeVisible()
+    const title = page.getByRole('heading', { name: 'Sign in to CirCI', level: 1 })
+    await expect.element(title).toBeVisible()
+    await expect.element(page.getByText(window.location.host, { exact: true })).toBeVisible()
     await expect.element(page.getByRole('textbox', { name: 'Email' })).toHaveFocus()
     await expect.element(page.getByLabelText('Password')).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
     await expect
-      .element(page.getByText('No account? Ask the person who runs CirCI for one.'))
+      .element(page.getByText('Got an invitation? Open the link in the email to join your team.'))
       .toBeVisible()
-    await expect.element(page.getByRole('button', { name: /sign-in code/ })).not.toBeInTheDocument()
-    const panel = page.getByRole('heading', { name: 'Sign in to CirCI' }).element()
-      .parentElement?.parentElement
-    expect(panel?.getBoundingClientRect().width).toBeLessThanOrEqual(400)
+    await expect.element(page.getByText('Self-hosted CirCI')).toBeVisible()
+    const column = page.getByRole('main').element()
+    expect(column.getBoundingClientRect().width).toBeLessThanOrEqual(360)
+    expect(column.id).toBe('content')
+    // No card: the column's own box has no border or fill.
+    expect(getComputedStyle(column).backgroundColor).toBe('rgba(0, 0, 0, 0)')
+    // 36px controls.
+    expect(getComputedStyle(page.getByLabelText('Password').element()).height).toBe('36px')
+    expect(getComputedStyle(page.getByRole('button', { name: 'Sign in' }).element()).height).toBe(
+      '36px',
+    )
+    await expect.poll(() => document.title).toBe('Sign in to CirCI')
+  })
+
+  it('hides the provider buttons when none are configured, and shows one per provider', async () => {
+    fakeFetch(methods())
+    const { screen } = await renderPage(<LoginPage />)
+    await expect
+      .element(page.getByRole('button', { name: /Continue with (GitHub|Google)/ }))
+      .not.toBeInTheDocument()
+    await screen.unmount()
+    fakeFetch(
+      methods({
+        sso: [
+          { id: 'github', name: 'GitHub' },
+          { id: 'google', name: 'Google' },
+        ],
+      }),
+    )
+    await renderPage(<LoginPage />)
+    await expect.element(page.getByRole('button', { name: 'Continue with GitHub' })).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
+    await expect.element(page.getByText('or with email')).toBeVisible()
+  })
+
+  it('offers “Email me a code” beside the password only when email login is on', async () => {
+    fakeFetch(methods())
+    const { screen } = await renderPage(<LoginPage />)
+    await expect.element(page.getByLabelText('Password')).toBeVisible()
+    await expect
+      .element(page.getByRole('button', { name: 'Email me a code' }))
+      .not.toBeInTheDocument()
+    await screen.unmount()
+    fakeFetch(methods({ email: true }))
+    await renderPage(<LoginPage />)
+    await expect.element(page.getByRole('button', { name: 'Email me a code' })).toBeVisible()
   })
 
   it('signs in with the typed email and password', async () => {
@@ -74,6 +116,26 @@ describe('LoginPage', () => {
     await page.getByLabelText('Password').fill('nope')
     await page.getByRole('button', { name: 'Sign in' }).click()
     await expect.element(page.getByRole('alert')).toHaveTextContent('Incorrect email or password.')
+    // The banner's room is reserved, and the fields keep what was typed.
+    await expect
+      .element(page.getByRole('textbox', { name: 'Email' }))
+      .toHaveValue('ada@example.com')
+    await expect.element(page.getByLabelText('Password')).toHaveValue('nope')
+  })
+
+  it('reserves room for the error banner, so the fields do not move when it appears', async () => {
+    fakeFetch({
+      ...methods(),
+      'POST /api/auth/sign-in/email': json({ message: 'Invalid' }, 401),
+    })
+    await renderPage(<LoginPage />)
+    const field = page.getByRole('textbox', { name: 'Email' })
+    await expect.element(field).toBeVisible()
+    const before = field.element().getBoundingClientRect().top
+    await page.getByLabelText('Password').fill('nope')
+    await page.getByRole('button', { name: 'Sign in' }).click()
+    await expect.element(page.getByRole('alert')).toBeVisible()
+    expect(field.element().getBoundingClientRect().top).toBe(before)
   })
 
   it('switches to a mailed code and back, when email login is on', async () => {
@@ -154,13 +216,18 @@ describe('LoginPage', () => {
     })
   })
 
-  it('signs in through a workspace: reveals a field, and says when it has no SSO', async () => {
+  it('opens the workspace step from “Continue with SSO”, and says when it has no SSO', async () => {
     const calls = fakeFetch({
-      ...methods(),
+      ...methods({ sso: [{ id: 'github', name: 'GitHub' }] }),
       'POST /api/auth/sign-in/sso': json({ error: 'none' }, 404),
     })
     await renderPage(<LoginPage />)
-    await page.getByRole('button', { name: 'Sign in through your workspace' }).click()
+    await page.getByRole('button', { name: 'Continue with SSO' }).click()
+    // The step replaces the buttons and the email form.
+    await expect
+      .element(page.getByRole('button', { name: 'Continue with GitHub' }))
+      .not.toBeInTheDocument()
+    await expect.element(page.getByLabelText('Password')).not.toBeInTheDocument()
     await page.getByRole('textbox', { name: 'Workspace' }).fill(' Acme ')
     await page.getByRole('button', { name: 'Continue' }).click()
     await expect
@@ -169,5 +236,7 @@ describe('LoginPage', () => {
     expect(calls.find((c) => c.path.endsWith('sign-in/sso'))?.body).toMatchObject({
       organizationSlug: 'acme',
     })
+    await page.getByRole('button', { name: 'Back to sign in' }).click()
+    await expect.element(page.getByLabelText('Password')).toBeVisible()
   })
 })

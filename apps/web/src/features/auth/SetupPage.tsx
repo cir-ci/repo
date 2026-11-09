@@ -1,11 +1,12 @@
-import { Banner, Button, TextField } from '@circi/ui'
+import { Button, TextField } from '@circi/ui'
 import { useState, type FormEvent } from 'react'
 
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 
 import { submitSetup } from './api.ts'
-import { AuthPanel } from './AuthPanel.tsx'
+import { AuthPage } from './AuthPage.tsx'
+import { BannerSlot } from './BannerSlot.tsx'
 import { text } from './login-helpers.ts'
 
 import styles from './AuthForms.module.css'
@@ -44,35 +45,51 @@ export function SetupPage() {
   }
 
   return (
-    <AuthPanel
+    <AuthPage
       title="Set up CirCI"
-      description="Create the first account, which becomes the instance admin, and its workspace."
+      subtitle="Create the first account, which becomes the instance admin, and its workspace."
     >
       <form className={styles.form} onSubmit={(e) => void submit(e)} noValidate>
-        {error ? <Banner tone="danger">{error}</Banner> : null}
+        <BannerSlot>{error}</BannerSlot>
         <TextField
           name="code"
           label="Setup code"
+          size="lg"
           required
           autoFocus
           autoComplete="off"
           description="Printed in the server log at startup, or run: circi admin setup-code"
         />
-        <TextField name="name" label="Your name" required autoComplete="name" />
-        <TextField name="email" type="email" label="Email" required autoComplete="username" />
+        <TextField name="name" label="Your name" size="lg" required autoComplete="name" />
+        <TextField
+          name="email"
+          type="email"
+          label="Email"
+          size="lg"
+          placeholder="you@company.com"
+          required
+          autoComplete="username"
+        />
         <TextField
           name="password"
           type="password"
           label="Password"
+          size="lg"
           required
           autoComplete="new-password"
           description="At least 12 characters."
         />
-        <TextField name="workspaceName" label="Workspace name" required />
-        <Button type="submit" variant="primary" loading={busy} className={styles.block}>
+        <TextField
+          name="workspaceName"
+          label="Workspace name"
+          size="lg"
+          placeholder="Acme"
+          required
+        />
+        <Button type="submit" variant="primary" size="lg" loading={busy} className={styles.submit}>
           {busy ? 'Setting up…' : 'Create account'}
         </Button>
       </form>
-    </AuthPanel>
+    </AuthPage>
   )
 }
