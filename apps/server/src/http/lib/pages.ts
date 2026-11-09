@@ -1,24 +1,50 @@
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+
+import { monoFont, sansFont, tokenVariables } from '@circi/ui/theme'
 
 import { LOGO_SVG } from './logo-svg.ts'
 
+const FILE = new URL('./standalone-page.css', import.meta.url)
+
 /**
- * The page's one stylesheet, inline so a notice needs no request to anything. The values are the
- * design tokens (packages/ui/src/theme.ts): light by default, dark under the system preference.
- * It is the sign-in page's look: the glow ground, a 360px column, the 56px logo with its ring.
+ * The CSS custom properties the stylesheet defines from the design tokens, for the one scheme:
+ * only the `--circi-…` variables it uses (and the ones those refer to), the fonts included.
  */
-const STYLE = `
-:root{--bg:#f3efed;--raised:#fff;--text:#1f1a18;--text2:#5e5450;--text3:#6f6560;--line:rgba(28,15,12,.08);--maroon:#724039;--glow:color-mix(in srgb,var(--maroon) 14%,transparent)}
-@media(prefers-color-scheme:dark){:root{--bg:#0c0a09;--raised:#1a1716;--text:#ede6e3;--text2:#a89d98;--text3:#998e89;--line:rgba(255,255,255,.07);--glow:color-mix(in srgb,var(--maroon) 55%,transparent)}}
-*{box-sizing:border-box}
-body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 16px;background:radial-gradient(800px 480px at 50% -10%,var(--glow),transparent 70%),var(--bg);color:var(--text);font:400 13px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
-main{width:100%;max-width:360px;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center}
-.logo{display:block;width:56px;height:56px;border-radius:12px;box-shadow:0 0 0 5px color-mix(in srgb,var(--maroon) 50%,transparent)}
-h1{margin:0;font-size:20px;font-weight:600;letter-spacing:-.01em}
-p{margin:4px 0 0;color:var(--text2)}
-code{font:400 12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;padding:1px 6px;border-radius:4px;border:1px solid var(--line);background:var(--raised);color:var(--text)}
-footer{margin:56px 0 0;color:var(--text3);font-size:12px}
-`
+function tokenBlock(scheme: 'light' | 'dark', used: ReadonlySet<string>, indent: string): string {
+  const all: Record<string, string> = {
+    ...tokenVariables(scheme),
+    '--circi-font-sans': sansFont,
+    '--circi-font-mono': monoFont,
+  }
+  const wanted = new Set(used)
+  // A value can point at another variable (`--circi-glow` mixes `--circi-brand-maroon`).
+  for (const name of wanted) {
+    for (const match of (all[name] ?? '').matchAll(/var\((--circi-[\w-]+)\)/g)) {
+      if (match[1] !== undefined) wanted.add(match[1])
+    }
+  }
+  return Object.entries(all)
+    .filter(([name]) => wanted.has(name))
+    .map(([name, value]) => `${indent}${name}: ${value};`)
+    .join('\n')
+}
+
+/**
+ * The page's one stylesheet, inline so a notice needs no request to anything: `standalone-page.css`
+ * behind the token variables, light by default and dark under the system preference. Read once at
+ * start: from `src/` when Node runs the source, from next to the bundle (tsdown copies it) in the image.
+ */
+export function buildStyle(css: string = readFileSync(FILE, 'utf8')): string {
+  const used = new Set(css.match(/--circi-[\w-]+/g))
+  return [
+    `:root {\n${tokenBlock('light', used, '  ')}\n}`,
+    `@media (prefers-color-scheme: dark) {\n  :root {\n${tokenBlock('dark', used, '    ')}\n  }\n}`,
+    css,
+  ].join('\n')
+}
+
+const STYLE = buildStyle()
 
 /**
  * The Content-Security-Policy for these pages: nothing may load, and the one inline stylesheet is

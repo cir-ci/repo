@@ -35,6 +35,7 @@
     "@circi/sites": "workspace:*",
     "@circi/storage": "workspace:*",
     "@circi/testing": "workspace:*",
+    "@circi/ui": "workspace:*",
     "@circi/worker": "workspace:*",
     "@electric-sql/pglite": "catalog:",
     "@fastify/multipart": "catalog:",

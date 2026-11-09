@@ -1,0 +1,72 @@
+/*
+ * The server-rendered pages' one stylesheet (404 on the sites domain, "Web app not built"). It is
+ * inlined into each page, so a notice needs no request. The `--circi-…` variables it uses are
+ * defined by pages.ts from @circi/ui's theme, in front of this file. The look is the sign-in
+ * page's (apps/web/src/features/auth/AuthPage.module.css): glow ground, a 360px column, the 56px
+ * logo with its translucent ring.
+ */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  margin: 0;
+  padding: 48px 16px;
+  background:
+    radial-gradient(800px 480px at 50% -10%, var(--circi-glow), transparent 70%),
+    var(--circi-surface-chrome);
+  color: var(--circi-text-primary);
+  font: 400 13px/1.5 var(--circi-font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 360px;
+  text-align: center;
+}
+
+/* The inline logo (logo-svg.ts) is the one svg on the page. */
+main > svg {
+  display: block;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--circi-brand-maroon) 50%, transparent);
+}
+
+h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+p {
+  margin: 4px 0 0;
+  color: var(--circi-text-secondary);
+}
+
+code {
+  padding: 1px 6px;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 4px;
+  background: var(--circi-surface-raised);
+  color: var(--circi-text-primary);
+  font: 400 12px var(--circi-font-mono);
+}
+
+footer {
+  margin: 56px 0 0;
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
+}

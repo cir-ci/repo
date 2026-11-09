@@ -413,6 +413,9 @@ importers:
       '@circi/testing':
         specifier: workspace:*
         version: link:../../packages/testing
+      '@circi/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@circi/worker':
         specifier: workspace:*
         version: link:../worker

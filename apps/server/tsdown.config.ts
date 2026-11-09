@@ -14,6 +14,9 @@ export default defineConfig({
   platform: 'node',
   dts: false,
   sourcemap: true,
+  // The server-rendered pages' stylesheet: pages.ts reads it next to itself in the source and next
+  // to the bundle here (the image copies all of dist).
+  copy: ({ outDir }) => [{ from: 'src/http/lib/standalone-page.css', to: outDir }],
   outputOptions: {
     // Stack traces resolve `sources` against the bundle's own folder, which is /app/dist in the
     // image but apps/server/dist in the repo. Write them relative to the repo root, one level up
