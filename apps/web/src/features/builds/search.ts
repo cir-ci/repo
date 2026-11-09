@@ -2,12 +2,12 @@
 export const ROUTE = '/$workspace/$team/builds/$number'
 
 /** The compare modes that need nothing but the build (keys 1 to 4). */
-export type ImageMode = 'side' | 'overlay' | 'diff' | 'swipe'
+export type ImageMode = 'side' | 'overlay' | 'diff' | 'slider'
 
 /** `design` (key 5) compares with a Figma frame; it is only offered once the integration is on (Phase D). */
 export type ViewMode = ImageMode | 'design'
 
-export const VIEW_MODES: readonly ImageMode[] = ['side', 'overlay', 'diff', 'swipe']
+export const VIEW_MODES: readonly ImageMode[] = ['side', 'overlay', 'diff', 'slider']
 
 export const DESIGN_MODE: ViewMode = 'design'
 
@@ -21,6 +21,8 @@ const isViewMode = (value: unknown): value is ViewMode =>
   value === DESIGN_MODE || VIEW_MODES.some((mode) => mode === value)
 
 export function validateBuildSearch(search: Record<string, unknown>): BuildSearch {
+  // Links made while the mode was called "swipe" keep working.
+  if (search.mode === 'swipe') search = { ...search, mode: 'slider' }
   return {
     ...(typeof search.shot === 'string' && search.shot ? { shot: search.shot } : {}),
     ...(isViewMode(search.mode) ? { mode: search.mode } : {}),

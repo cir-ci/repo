@@ -24,6 +24,7 @@ import { fileUrl } from '#features/builds/api/index.ts'
 import {
   type Annotations,
   RegionLayer,
+  RegionOverlay,
   type RegionComposer,
   useRegionGesture,
 } from '#features/regions/RegionLayer.tsx'
@@ -87,7 +88,8 @@ export function Viewer({
     : MODE_OPTIONS
   // Regions are drawn on this build's image, so they need one.
   const annotatable = regions !== undefined && diff.head !== null && mode !== 'design'
-  const annotationsFor = (side: RegionSide): Annotations | undefined => {
+  // Only one comment box at a time: while the enlarged view is open it owns the selection.
+  const annotationsFor = (side: RegionSide, inDialog = false): Annotations | undefined => {
     if (!regions || !annotatable) return undefined
     const draft = draftRegion(regions.draft, diff.id, side)
     return {
@@ -95,7 +97,7 @@ export function Viewer({
       threads: regions.threads.filter((t) => apiSide(side) === t.side),
       pending: draft,
       focusedId: regions.focusedId,
-      drawing: side === 'build' && keyboardTool,
+      drawing: !inDialog && side === 'build' && keyboardTool,
       onDrawingChange: setKeyboardTool,
       onDraw: (region) => {
         setKeyboardTool(false)
@@ -103,7 +105,7 @@ export function Viewer({
       },
       onMarker: regions.onMarker,
       alwaysDraw: true,
-      composer: draft ? regions.composer : undefined,
+      composer: draft && inDialog === (enlarged !== null) ? regions.composer : undefined,
     }
   }
   const summary = changeSummary(diff)
@@ -113,11 +115,22 @@ export function Viewer({
     : 'Baseline'
   const buildCaption = commitSha ? `This build · ${commitSha.slice(0, 7)}` : 'This build'
   // What the enlarged view can show: the baseline, this build and, in Diff mode, the changed pixels.
-  const enlargeable: { key: string; image: Build.ImageRef; caption: string }[] = [
-    ...(diff.base ? [{ key: 'baseline', image: diff.base, caption: baselineCaption }] : []),
-    ...(diff.head ? [{ key: 'build', image: diff.head, caption: buildCaption }] : []),
+  const enlargeable: { key: string; image: Build.ImageRef; caption: string; label: string }[] = [
+    ...(diff.base
+      ? [{ key: 'baseline', image: diff.base, caption: baselineCaption, label: 'Baseline' }]
+      : []),
+    ...(diff.head
+      ? [{ key: 'build', image: diff.head, caption: buildCaption, label: 'This build' }]
+      : []),
     ...(mode === 'diff' && diff.diff
-      ? [{ key: 'diff', image: diff.diff, caption: 'Changed pixels in red' }]
+      ? [
+          {
+            key: 'diff',
+            image: diff.diff,
+            caption: 'Changed pixels in red',
+            label: 'Changed pixels',
+          },
+        ]
       : []),
   ]
   const enlargedAt = enlargeable.findIndex((e) => e.key === enlarged)
@@ -169,13 +182,13 @@ export function Viewer({
               />
             </span>
           ) : null}
-          {comparable && mode === 'swipe' ? (
+          {comparable && mode === 'slider' ? (
             <span className={styles.slider}>
               <Text variant="small" tone="secondary">
-                Swipe
+                Slider
               </Text>
               <Slider
-                label="Swipe position"
+                label="Slider position"
                 min={0}
                 max={100}
                 step={1}
@@ -190,15 +203,18 @@ export function Viewer({
               : 'Click an image to enlarge'}
           </Text>
           {annotatable ? (
-            <Tooltip content="Mark a region with the keyboard: arrow keys move it, Shift and arrow keys resize it, Enter confirms">
-              <IconButton
-                label="Mark a region with the keyboard"
-                aria-pressed={keyboardTool}
-                onClick={() => setKeyboardTool(!keyboardTool)}
-              >
-                <span aria-hidden="true">⌖</span>
-              </IconButton>
-            </Tooltip>
+            // The board's toolbar has no button for it: the keyboard path stays, shown only while it has focus.
+            <span className={styles.keyTool} data-on={keyboardTool ? '' : undefined}>
+              <Tooltip content="Mark a region with the keyboard: arrow keys move it, Shift and arrow keys resize it, Enter confirms">
+                <IconButton
+                  label="Mark a region with the keyboard"
+                  aria-pressed={keyboardTool}
+                  onClick={() => setKeyboardTool(!keyboardTool)}
+                >
+                  <span aria-hidden="true">⌖</span>
+                </IconButton>
+              </Tooltip>
+            </span>
           ) : null}
           <div className={styles.group}>
             <SegmentedControl
@@ -326,7 +342,7 @@ export function Viewer({
           </figure>
         ) : null}
 
-        {mode === 'swipe' && diff.base && diff.head ? (
+        {mode === 'slider' && diff.base && diff.head ? (
           <figure className={styles.figure}>
             <Text as="small" variant="small" tone="secondary" className={styles.caption}>
               {baselineLabel} on the left, this build on the right
@@ -370,8 +386,18 @@ export function Viewer({
         images={enlargeable.map((e) => ({
           src: fileUrl(e.image.sha256),
           caption: e.caption,
+          label: e.label,
           ...(e.image.width ? { width: e.image.width } : {}),
           ...(e.image.height ? { height: e.image.height } : {}),
+          ...(annotatable && enlarged === e.key
+            ? {
+                overlay: (
+                  <RegionOverlay
+                    annotations={annotationsFor(e.key === 'baseline' ? 'baseline' : 'build', true)!}
+                  />
+                ),
+              }
+            : {}),
         }))}
         open={enlarged !== null && enlargedAt >= 0}
         index={Math.max(enlargedAt, 0)}

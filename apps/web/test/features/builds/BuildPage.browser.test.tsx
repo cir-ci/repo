@@ -327,17 +327,17 @@ describe('view modes', () => {
     await page.getByRole('button', { name: 'Diff', exact: true }).click()
     expect(router.state.location.search).toMatchObject({ mode: 'diff' })
     await expect.element(page.getByRole('img', { name: 'Changed pixels in red' })).toBeVisible()
-    await page.getByRole('button', { name: 'Swipe' }).click()
-    expect(router.state.location.search).toMatchObject({ mode: 'swipe' })
+    await page.getByRole('button', { name: 'Slider' }).click()
+    expect(router.state.location.search).toMatchObject({ mode: 'slider' })
     await expect
       .element(page.getByRole('img', { name: 'checkout / payment in the baseline' }))
       .toBeVisible()
   })
 
-  it('moves the swipe divider with the keyboard', async () => {
+  it('moves the slider divider with the keyboard', async () => {
     fakeBuildApi(detail())
-    await renderBuild('/acme/web-app/builds/7?mode=swipe')
-    const slider = page.getByRole('slider', { name: 'Swipe position' })
+    await renderBuild('/acme/web-app/builds/7?mode=slider')
+    const slider = page.getByRole('slider', { name: 'Slider position' })
     await expect.element(slider).toHaveAttribute('aria-valuenow', '50')
     const head = page.getByRole('img', { name: 'checkout / payment in this build' })
     await expect.element(head).toHaveStyle({ clipPath: 'inset(0px 0px 0px 50%)' })
@@ -427,7 +427,7 @@ describe('keyboard shortcuts', () => {
     await userEvent.keyboard('2')
     await vi.waitFor(() => expect(router.state.location.search).toMatchObject({ mode: 'overlay' }))
     await userEvent.keyboard('4')
-    await vi.waitFor(() => expect(router.state.location.search).toMatchObject({ mode: 'swipe' }))
+    await vi.waitFor(() => expect(router.state.location.search).toMatchObject({ mode: 'slider' }))
     await userEvent.keyboard('1')
     await vi.waitFor(() => expect(router.state.location.search).toMatchObject({ mode: 'side' }))
   })
@@ -607,7 +607,7 @@ describe('approving and rejecting', () => {
 })
 
 describe('layout', () => {
-  it('puts the list beside the viewer on a wide screen, 280px wide', async () => {
+  it('puts the list beside the viewer on a wide screen, 240px wide', async () => {
     fakeBuildApi(detail())
     await renderBuild()
     await expect.element(viewerTitle()).toBeVisible()
@@ -616,7 +616,7 @@ describe('layout', () => {
       .element()
       .getBoundingClientRect()
     const viewer = page.getByRole('region').element().getBoundingClientRect()
-    expect(list.width).toBe(280)
+    expect(list.width).toBe(240)
     expect(viewer.left).toBeGreaterThanOrEqual(list.right)
   })
 
@@ -661,5 +661,37 @@ describe('the linked Figma frame', () => {
     await renderBuild()
     await expect.element(viewerTitle()).toBeVisible()
     expect(page.getByRole('link', { name: /Figma frame/ }).elements()).toHaveLength(0)
+  })
+})
+
+const frames = () => ({
+  baseline: page
+    .getByRole('img', { name: /^Baseline/ })
+    .element()
+    .getBoundingClientRect(),
+  build: page
+    .getByRole('img', { name: /^This build/ })
+    .element()
+    .getBoundingClientRect(),
+})
+
+describe('side by side', () => {
+  it('puts the baseline and this build next to each other at desktop widths', async () => {
+    await page.viewport(1512, 900)
+    fakeBuildApi(detail())
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    const { baseline, build } = frames()
+    expect(Math.abs(baseline.top - build.top)).toBeLessThan(2)
+    expect(build.left).toBeGreaterThan(baseline.right)
+  })
+
+  it('stacks them only when the viewer has no room for two', async () => {
+    await page.viewport(420, 900)
+    fakeBuildApi(detail())
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    const { baseline, build } = frames()
+    expect(build.top).toBeGreaterThan(baseline.bottom)
   })
 })

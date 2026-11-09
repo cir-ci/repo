@@ -1,3 +1,11 @@
+.overlay {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
 .layer {
   position: absolute;
   inset: 0;
@@ -10,13 +18,14 @@
   cursor: crosshair;
 }
 
-/* Regions: an outlined box in the annotation colour with a numbered tab at its corner. */
+/* Regions: an outlined box in the annotation colour with a numbered teardrop pin at its top-right. */
 .marker {
   position: absolute;
   box-sizing: border-box;
   padding: 0;
-  border: 2px solid var(--circi-annotation);
-  background: color-mix(in srgb, var(--circi-annotation) 14%, transparent);
+  border: 1.5px solid var(--circi-annotation);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--circi-annotation) 16%, transparent);
   cursor: pointer;
 }
 
@@ -31,16 +40,35 @@
   pointer-events: none;
 }
 
-.number {
+/* The pin: a teardrop at the region's top-right corner, pointing down at it (the board's .pin). */
+.pin {
   position: absolute;
-  top: -2px;
-  left: -2px;
-  min-width: 16px;
-  padding: 0 4px;
-  background: var(--circi-annotation);
-  color: var(--circi-annotation-text);
-  font-size: 11px;
-  line-height: 16px;
+  top: 0;
+  left: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  margin: -12px 0 0 -12px;
+  border: 1px solid var(--circi-line-strong);
+  border-radius: 50% 50% 50% 0;
+  background: var(--circi-surface-highest);
+  color: var(--circi-text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  transform: rotate(-45deg);
+}
+
+.pin > span {
+  transform: rotate(45deg);
+}
+
+.marker[data-focused] .pin {
+  border-color: var(--circi-annotation-text);
+  box-shadow: 0 0 0 2px var(--circi-annotation);
 }
 
 .layer[data-drawing] .marker:not([data-pending]) {
@@ -92,6 +120,14 @@
   line-height: 1.5;
   cursor: auto;
   pointer-events: auto;
+}
+
+.who {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 :root[data-circi-color-scheme='light'] .popover {

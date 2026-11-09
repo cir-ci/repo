@@ -1,6 +1,7 @@
 import type { Build } from '@circi/api'
 import {
   Banner,
+  Button,
   Collapsible,
   EmptyState,
   CollectionsIcon,
@@ -20,6 +21,7 @@ import { ShortcutsDialog } from '#app/ShortcutsDialog.tsx'
 import { commentsQuery, useAddComment } from '#features/builds/api/discussion.ts'
 import { flakyQuery, isActive } from '#features/builds/api/index.ts'
 import { regionThreads } from '#features/regions/geometry.ts'
+import { authClient } from '#lib/auth-client.ts'
 import { crumbsFor, PageHeading, teamBuildsCrumb } from '#lib/PageHeading.tsx'
 import { RouterLink } from '#lib/router-link.ts'
 import { isAvailable, SHORTCUTS, useShortcutHandlers } from '#lib/shortcuts.ts'
@@ -34,7 +36,7 @@ import { Viewer } from './DiffViewer.tsx'
 import { IssueAction } from './IssueAction.tsx'
 import { SnapshotIssues } from './LinkedIssues.tsx'
 import { apiSide, draftOf, type RegionDraft } from './region-draft.ts'
-import { RequestReviewDialog } from './RequestReviewDialog.tsx'
+import { RequestReviewPicker } from './RequestReviewPicker.tsx'
 import {
   defaultShot,
   GROUP_ORDER,
@@ -54,7 +56,7 @@ import styles from './BuildReview.module.css'
 
 /**
  * The build review screen (docs/design-gaps.md §7, provisional): the header with the decision,
- * a strip of context, then the screenshot list (280px, its own scroll) beside the viewer.
+ * a strip of context, then the screenshot list (240px, its own scroll) beside the viewer.
  */
 export function BuildReview({ data, designEnabled = false }: BuildReview.Props) {
   const { build, baseline, team } = data
@@ -85,6 +87,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const review = useReviewControls(data, selected)
   const addComment = useAddComment(team.workspaceSlug, team.slug, build.number)
   const announce = useAnnounce()
+  const { data: session } = authClient.useSession()
   // Another screenshot has none of this one's regions: the selection and its unsent text go.
   if (draft && draftOf(draft, selected?.id) === null) setDraft(null)
 
@@ -178,6 +181,14 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
           <>
             <BuildStateLabel build={build} hasBaseline={hasBaseline} />
             <IssueAction data={data} snapshotName={selected?.name ?? null} />
+            <RequestReviewPicker
+              open={requesting}
+              onOpenChange={setRequesting}
+              trigger={<Button variant="ghost">Request review</Button>}
+              workspace={team.workspaceSlug}
+              team={team.slug}
+              number={build.number}
+            />
             {isReviewable(build) ? (
               <ReviewActions review={review} snapshotName={selected?.name} />
             ) : null}
@@ -321,6 +332,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
                     addComment.reset()
                     setDraft(null)
                   },
+                  author: session?.user.name,
                   sending: addComment.isPending,
                   error: addComment.error?.message,
                 },
@@ -346,13 +358,6 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
           />
         </div>
       )}
-      <RequestReviewDialog
-        open={requesting}
-        onClose={() => setRequesting(false)}
-        workspace={team.workspaceSlug}
-        team={team.slug}
-        number={build.number}
-      />
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} designEnabled={designEnabled} />
     </div>
   )

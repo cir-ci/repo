@@ -140,14 +140,14 @@ The main screen, and the least designed. **Provisional:**
 - List: groups Changed / Added / Removed / Flaky / Failed / Unchanged (collapsed, with a count),
   each row 36 high: `StatusIcon`-like glyph, name (truncated, full name in a tooltip), diff % on
   the right in mono.
-- Viewer toolbar (36 high): `SegmentedControl` Side by side / Overlay / Diff / Swipe, zoom
+- Viewer toolbar (36 high): `SegmentedControl` Side by side / Overlay / Diff / Slider, zoom
   (fit, 100%, +/−), ignore-region toggle, prev/next with `Kbd` j/k.
 - Viewer ground: a checkerboard so transparent pixels show; images never scaled up past 100% at
   "fit".
 - `?` opens a shortcut help dialog.
 
 **Built, with deviations (2026-11-08):** the page has the list and viewer, the four modes
-(side by side, overlay, diff, swipe), fit/zoom, j/k, `a`/`r` (reject and "sign out everywhere"
+(side by side, overlay, diff, slider), fit/zoom, j/k, `a`/`r` (reject and "sign out everywhere"
 ask for confirmation) and the `?` shortcut dialog. Dropped or not built: the ignore-region toggle
 (the build API sends no region data), list thumbnails, the narrow-screen "All screenshots" link,
 per-screenshot approve, a resizable list, synced zoom/pan; the list's Flaky group is set aside

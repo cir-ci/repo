@@ -8,7 +8,15 @@
   background: var(--circi-stage);
 }
 
-/* Fits inside the viewport: the dialog's chrome and the switcher take roughly 220px. */
+/* Shrinks to the image, so an overlay positioned inside it covers exactly the image. */
+.frame {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+}
+
+/* Fits inside the viewport: the dialog's header and footer take roughly 220px. */
 .image {
   display: block;
   max-width: 100%;
@@ -18,14 +26,13 @@
   object-fit: contain;
 }
 
-.switcher {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+.size {
+  color: var(--circi-text-tertiary);
+  font-family: var(--circi-font-mono, monospace);
+  font-size: 12px;
 }
 
-.position {
+.hint {
   color: var(--circi-text-tertiary);
   font-size: 12px;
 }

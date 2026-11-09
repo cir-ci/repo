@@ -124,8 +124,8 @@ const ImageDialogOpen = () => (
     onIndexChange={() => {}}
     onOpenChange={() => {}}
     images={[
-      { src: SHOT, caption: 'Baseline · build #1 on main' },
-      { src: SHOT, caption: 'This build · a0f30cf' },
+      { src: SHOT, caption: 'Baseline · build #1 on main', label: 'Baseline' },
+      { src: SHOT, caption: 'This build · a0f30cf', label: 'This build' },
     ]}
   />
 )

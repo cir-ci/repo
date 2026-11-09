@@ -1,5 +1,5 @@
 import type { Comment } from '@circi/api'
-import { Button, Kbd, useAnnounce, visuallyHidden } from '@circi/ui'
+import { Avatar, Button, Kbd, useAnnounce, visuallyHidden } from '@circi/ui'
 import {
   type KeyboardEvent,
   type PointerEvent,
@@ -152,8 +152,8 @@ export function RegionLayer({ annotations, gesture }: RegionLayer.Props) {
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => annotations.onMarker(t.id)}
         >
-          <span aria-hidden="true" className={styles.number}>
-            {t.number}
+          <span aria-hidden="true" className={styles.pin}>
+            <span>{t.number}</span>
           </span>
         </button>
       ))}
@@ -186,6 +186,25 @@ export function RegionLayer({ annotations, gesture }: RegionLayer.Props) {
 }
 
 /**
+ * A region layer with its own drag handling, filling whatever positioned parent it is put in
+ * (the enlarged image in the dialog). The same gesture and markers as the inline images.
+ */
+export function RegionOverlay({ annotations }: RegionOverlay.Props) {
+  const gesture = useRegionGesture(annotations)
+  return (
+    <div className={styles.overlay} data-testid="region-overlay" {...gesture.bind}>
+      <RegionLayer annotations={annotations} gesture={gesture} />
+    </div>
+  )
+}
+
+export namespace RegionOverlay {
+  export interface Props {
+    annotations: Annotations
+  }
+}
+
+/**
  * The comment box for a region that was just selected: 232px wide, below the region with its left
  * edge on the region's, or above it when there is less than 200px of room below. The field has
  * focus on open; Esc cancels, ⌘/Ctrl+Enter sends, and Send waits for some text.
@@ -197,6 +216,7 @@ function RegionComposer({
   onCancel,
   sending = false,
   error,
+  author,
 }: RegionComposer.Props) {
   const [body, setBody] = useState('')
   const [side, setSide] = useState<'below' | 'above'>('below')
@@ -244,6 +264,10 @@ function RegionComposer({
         }
       }}
     >
+      <div className={styles.who}>
+        {author ? <Avatar name={author} size={20} /> : null}
+        <span>Comment on this region</span>
+      </div>
       <textarea
         ref={field}
         className={styles.field}
@@ -278,6 +302,8 @@ export namespace RegionComposer {
     onCancel: () => void
     sending?: boolean
     error?: string | undefined
+    /** Whose avatar heads the popover: the signed-in user. */
+    author?: string | undefined
   }
 
   export interface Props extends Callbacks {

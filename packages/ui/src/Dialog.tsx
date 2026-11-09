@@ -20,6 +20,7 @@ export function Dialog({
   size = 'form',
   actions,
   hideClose = false,
+  headerEnd,
   dismissible = true,
   children,
   ...rest
@@ -32,6 +33,7 @@ export function Dialog({
           <BaseDialog.Popup className={styles.popup} data-size={size}>
             <header className={styles.header}>
               <BaseDialog.Title className={styles.title}>{title}</BaseDialog.Title>
+              {headerEnd ? <div className={styles.headerEnd}>{headerEnd}</div> : null}
               {hideClose ? null : (
                 <BaseDialog.Close className={styles.close} aria-label="Close">
                   <CloseIcon />
@@ -64,6 +66,8 @@ export namespace Dialog {
     size?: 'form' | 'wide' | 'catalog' | 'image'
     /** The footer buttons, right-aligned; put the primary one last. */
     actions?: ReactNode
+    /** Extra header content, right-aligned before the close button (the lightbox's size and switch). */
+    headerEnd?: ReactNode
     /** Omit the header's close button (a dialog the user must answer). */
     hideClose?: boolean
     /** `false`: a click on the backdrop does not close it (Escape still does). */

@@ -8,8 +8,8 @@ import { EnlargeTrigger, ImageDialog } from '#src/index.ts'
 const PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
 const IMAGES: ImageDialog.Image[] = [
-  { src: PIXEL, caption: 'Baseline · build #1 on main' },
-  { src: PIXEL, caption: 'This build · a0f30cf' },
+  { src: PIXEL, caption: 'Baseline · build #1 on main', label: 'Baseline' },
+  { src: PIXEL, caption: 'This build · a0f30cf', label: 'This build', width: 1280, height: 960 },
 ]
 
 function Harness(props: { images?: ImageDialog.Image[] }) {
@@ -43,9 +43,11 @@ describe('ImageDialog', () => {
     await expect.element(dialog).toBeVisible()
     await expect.element(dialog.getByRole('img')).toBeVisible()
     expect(getComputedStyle(dialog.element()).width).toBe('960px')
+    // The board's lightbox has no "Open full size": the header shows the size instead.
+    await expect.element(dialog.getByText('1280 × 960')).toBeVisible()
     await expect
       .element(dialog.getByRole('link', { name: 'Open full size' }))
-      .toHaveAttribute('target', '_blank')
+      .not.toBeInTheDocument()
   })
 
   it('switches between the images with ← and →, and wraps', async () => {
@@ -64,22 +66,28 @@ describe('ImageDialog', () => {
       .toBeVisible()
   })
 
-  it('switches with its buttons', async () => {
+  it('switches with the header button, which names the other image', async () => {
     await render(<Harness />)
     await trigger().click()
-    await page.getByRole('button', { name: 'Previous image' }).click()
-    await expect
-      .element(page.getByRole('dialog', { name: 'Baseline · build #1 on main' }))
-      .toBeVisible()
-    await page.getByRole('button', { name: 'Next image' }).click()
+    const dialog = page.getByRole('dialog', { name: 'This build · a0f30cf' })
+    await expect.element(dialog).toBeVisible()
+    // Two images: the button always names the one that is not shown.
+    await dialog.getByRole('button', { name: /^Baseline/ }).click()
+    const baseline = page.getByRole('dialog', { name: 'Baseline · build #1 on main' })
+    await expect.element(baseline).toBeVisible()
+    await baseline.getByRole('button', { name: /^This build/ }).click()
     await expect.element(page.getByRole('dialog', { name: 'This build · a0f30cf' })).toBeVisible()
+    // The footer has no Previous / Next buttons.
+    await expect
+      .element(page.getByRole('button', { name: 'Previous image' }))
+      .not.toBeInTheDocument()
   })
 
   it('has no switching controls for a single image', async () => {
     await render(<Harness images={IMAGES.slice(1)} />)
     await trigger().click()
     await expect.element(page.getByRole('dialog')).toBeVisible()
-    await expect.element(page.getByRole('button', { name: 'Next image' })).not.toBeInTheDocument()
+    await expect.element(page.getByRole('button', { name: /→/ })).not.toBeInTheDocument()
   })
 
   it('closes on Escape and returns focus to the trigger', async () => {

@@ -230,35 +230,6 @@
   background: var(--circi-accent-subtle);
 }
 
-.people {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.person {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  width: 100%;
-  padding: 6px 8px;
-  border: 0;
-  border-radius: 6px;
-  background: none;
-  color: var(--circi-text-primary);
-  font: inherit;
-  text-align: start;
-  cursor: pointer;
-}
-
-.person:hover,
-.person:focus-visible {
-  background: var(--circi-action-hover);
-}
-
 /* Below 1100px the sidebar drops under the viewer instead of squeezing it. */
 @media (max-width: 1099.98px) {
   .sidebar {

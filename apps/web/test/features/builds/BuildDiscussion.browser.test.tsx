@@ -198,7 +198,7 @@ describe('requesting a review', () => {
     await renderBuild()
     await expect.element(viewerTitle()).toBeVisible()
     await userEvent.keyboard('{Shift>}R{/Shift}')
-    const dialog = page.getByRole('dialog', { name: 'Request a review' })
+    const dialog = page.getByRole('dialog', { name: 'Request review from' })
     await expect.element(dialog).toBeVisible()
     await dialog.getByRole('button', { name: /Grace Hopper/ }).click()
     await vi.waitFor(() => expect(api.requests).toEqual([{ reviewerId: 'u2' }]))

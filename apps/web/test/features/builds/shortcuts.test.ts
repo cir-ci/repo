@@ -25,7 +25,7 @@ describe('shortcutFor', () => {
       { type: 'mode', mode: 'side' },
       { type: 'mode', mode: 'overlay' },
       { type: 'mode', mode: 'diff' },
-      { type: 'mode', mode: 'swipe' },
+      { type: 'mode', mode: 'slider' },
     ])
   })
 
@@ -73,10 +73,14 @@ describe('isHandledElsewhere', () => {
 
 describe('validateBuildSearch', () => {
   it('keeps a screenshot name and a known mode', () => {
-    expect(validateBuildSearch({ shot: 'login', mode: 'swipe' })).toEqual({
+    expect(validateBuildSearch({ shot: 'login', mode: 'slider' })).toEqual({
       shot: 'login',
-      mode: 'swipe',
+      mode: 'slider',
     })
+  })
+
+  it('reads the old "swipe" mode as the slider', () => {
+    expect(validateBuildSearch({ mode: 'slider' })).toEqual({ mode: 'slider' })
   })
 
   it('drops anything else', () => {

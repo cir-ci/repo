@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
+vi.mock('#lib/auth-client.ts', () =>
+  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
+)
+
 import { detail, fakeBuildApi, renderBuild } from './fake-build-api.tsx'
 
 beforeEach(async () => {
@@ -30,11 +34,81 @@ async function ready(api = fakeBuildApi(detail())) {
   return api
 }
 
+/** The keyboard way in: focus the (otherwise hidden) button and press Enter. */
+async function startKeyboardTool() {
+  page.getByRole('button', { name: 'Mark a region with the keyboard' }).element().focus()
+  await userEvent.keyboard('{Enter}')
+}
+
 const drag = (name: 'Baseline' | 'This build', from = { x: 40, y: 30 }, to = { x: 200, y: 150 }) =>
   userEvent.dragAndDrop(trigger(name), trigger(name), {
     sourcePosition: from,
     targetPosition: to,
   })
+
+const enlarged = () => page.getByRole('dialog', { name: 'Baseline · build #6 on main' })
+const overlay = () => page.getByTestId('region-overlay')
+
+async function enlargeBaseline() {
+  await trigger('Baseline').click()
+  await expect.element(enlarged()).toBeVisible()
+  const image = enlarged().getByRole('img').element()
+  image.style.width = '400px'
+  image.style.height = '300px'
+}
+
+const dragInDialog = () =>
+  userEvent.dragAndDrop(overlay(), overlay(), {
+    sourcePosition: { x: 40, y: 30 },
+    targetPosition: { x: 200, y: 150 },
+  })
+
+describe('region comments in the enlarged view', () => {
+  it('a drag opens the focused popover; Send posts the side drawn on, and the pin shows inline too', async () => {
+    const api = await ready()
+    await enlargeBaseline()
+    await dragInDialog()
+    const box = popover().getByRole('textbox', { name: 'Comment' })
+    await expect.element(box).toHaveFocus()
+    await expect.element(popover().getByText('Comment on this region')).toBeVisible()
+    // One comment box at a time: the inline image shows none while the dialog is open.
+    expect(popover().elements()).toHaveLength(1)
+    const send = popover().getByRole('button', { name: /^Send/ })
+    await expect.element(send).toBeDisabled()
+    // Arrow keys belong to the box while it has focus: no image switch.
+    await userEvent.keyboard('{ArrowRight}Wrong colour')
+    await expect.element(enlarged()).toBeVisible()
+    await send.click()
+    await vi.waitFor(() => expect(api.commentPosts).toHaveLength(1))
+    expect(api.commentPosts[0]?.regionSide).toBe('baseline')
+    expect(api.commentPosts[0]?.region?.x).toBeCloseTo(0.1, 1)
+    // The pin is in the dialog and, once it is closed, on the inline baseline image.
+    await expect.element(enlarged().getByRole('button', { name: 'Comment 1' })).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(enlarged()).not.toBeInTheDocument()
+    await expect.element(page.getByRole('button', { name: 'Comment 1' })).toBeVisible()
+  })
+
+  it('Esc cancels the selection first; the next Esc closes the dialog', async () => {
+    await ready()
+    await enlargeBaseline()
+    await dragInDialog()
+    await expect.element(popover()).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(popover()).not.toBeInTheDocument()
+    await expect.element(enlarged()).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(enlarged()).not.toBeInTheDocument()
+  })
+
+  it('a plain click in the dialog neither closes it nor starts a region', async () => {
+    await ready()
+    await enlargeBaseline()
+    await overlay().click({ position: { x: 50, y: 50 } })
+    await expect.element(enlarged()).toBeVisible()
+    expect(popover().elements()).toHaveLength(0)
+  })
+})
 
 describe('region comments are always on', () => {
   it('has no toggle, says how to comment, and offers the keyboard way', async () => {
@@ -45,9 +119,13 @@ describe('region comments are always on', () => {
         page.getByText('Drag on an image to comment on a region · click an image to enlarge'),
       )
       .toBeVisible()
-    await expect
-      .element(page.getByRole('button', { name: 'Mark a region with the keyboard' }))
-      .toBeVisible()
+    // The toolbar shows no icon for it (the board has none): it appears only while it has focus.
+    const key = page.getByRole('button', { name: 'Mark a region with the keyboard' })
+    // Clipped to a pixel by its wrapper until focused.
+    expect(key.element().parentElement?.getBoundingClientRect().width).toBeLessThanOrEqual(1)
+    key.element().focus()
+    await expect.element(key).toBeVisible()
+    expect(key.element().parentElement?.getBoundingClientRect().width).toBeGreaterThan(16)
   })
 
   it('a drag selects a region: the popover opens with focus in its box, and Send needs text', async () => {
@@ -55,6 +133,9 @@ describe('region comments are always on', () => {
     await drag('This build')
     const box = popover().getByRole('textbox', { name: 'Comment' })
     await expect.element(box).toHaveFocus()
+    // The board's header row: the signed-in user's avatar and what the box is for.
+    await expect.element(popover().getByText('Comment on this region')).toBeVisible()
+    await expect.element(popover().getByRole('img', { name: 'Ada Lovelace' })).toBeVisible()
     const send = popover().getByRole('button', { name: /^Send/ })
     await expect.element(send).toBeDisabled()
     await userEvent.keyboard('Padding is wrong here')
@@ -75,6 +156,13 @@ describe('region comments are always on', () => {
     const marker = page.getByRole('button', { name: 'Comment 1' })
     await expect.element(marker).toBeVisible()
     await expect.element(popover()).not.toBeInTheDocument()
+    // The pin is a teardrop at the region's top-right corner, not a tab at its top-left.
+    const markerBox = marker.element().getBoundingClientRect()
+    const pin = marker.element().querySelector('span')!
+    const pinBox = pin.getBoundingClientRect()
+    expect(getComputedStyle(pin).borderRadius).toBe('50% 50% 50% 0px')
+    expect(Math.abs(pinBox.left + pinBox.width / 2 - markerBox.right)).toBeLessThan(4)
+    expect(Math.abs(pinBox.top + pinBox.height / 2 - markerBox.top)).toBeLessThan(4)
     await marker.click()
     await expect
       .element(page.getByRole('tab', { name: /^Comments/ }))
@@ -163,7 +251,7 @@ describe('region comments are always on', () => {
 
   it('places a region from the keyboard: arrows move, Enter confirms into the popover', async () => {
     const api = await ready()
-    await page.getByRole('button', { name: 'Mark a region with the keyboard' }).click()
+    await startKeyboardTool()
     await expect.element(page.getByRole('group', { name: 'Region to mark' })).toHaveFocus()
     await userEvent.keyboard('{ArrowRight}{ArrowRight}{ArrowDown}')
     await userEvent.keyboard('{Shift>}{ArrowRight}{ArrowRight}{ArrowDown}{/Shift}')
@@ -182,7 +270,7 @@ describe('region comments are always on', () => {
   it('cancels the keyboard region with Escape and returns focus to the button', async () => {
     await ready()
     const toggle = page.getByRole('button', { name: 'Mark a region with the keyboard' })
-    await toggle.click()
+    await startKeyboardTool()
     await expect.element(page.getByRole('group', { name: 'Region to mark' })).toHaveFocus()
     await userEvent.keyboard('{Escape}')
     await expect

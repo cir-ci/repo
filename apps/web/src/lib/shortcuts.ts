@@ -65,7 +65,7 @@ const MODE_NAME: Record<ViewMode, string> = {
   side: 'Side by side',
   overlay: 'Overlay',
   diff: 'Diff',
-  swipe: 'Swipe',
+  slider: 'Slider',
   design: 'Design',
 }
 

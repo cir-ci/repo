@@ -1,4 +1,4 @@
-import type { Build, ReviewStatus } from '@circi/api'
+import type { Activity, Build, ReviewStatus } from '@circi/api'
 
 import { shotDecision, type ShotKind } from './diff-status.ts'
 
@@ -102,3 +102,13 @@ export function reviewProgress(
 /** The names of the snapshots that still wait for a decision: what Approve all decides. */
 export const undecidedNames = (diffs: readonly Build.DiffItem[], build: ReviewStatus): string[] =>
   diffs.filter((d) => needsDecision(d) && shotDecision(d, build) === 'pending').map((d) => d.name)
+
+/** The people with an open review request on the build: asked, and the request not closed since. */
+export const openReviewers = (events: readonly Activity.Event[]): Set<string> => {
+  const open = new Set<string>()
+  for (const e of events) {
+    if (e.type === 'review_requested' && e.reviewer) open.add(e.reviewer.id)
+    else if (e.type === 'review_request_closed' && e.reviewer) open.delete(e.reviewer.id)
+  }
+  return open
+}
