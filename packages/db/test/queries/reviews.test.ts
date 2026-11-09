@@ -2,13 +2,16 @@ import {
   addTestMember,
   createTestDb,
   seedBuild,
+  seedDiff,
   seedTeam,
   seedReviewRequest,
   seedUser,
 } from '@circi/db/testing'
+import { and, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { listReviewRequests } from '#src/queries/index.ts'
+import * as schema from '#src/schema/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -31,6 +34,34 @@ async function setup() {
 }
 
 describe('listReviewRequests', () => {
+  it("counts the build's changes and picks the two largest changed screenshots", async () => {
+    const { owner, build } = await setup()
+    await seedReviewRequest(t.db, { buildId: build.id, reviewerId: owner.id })
+    for (const [name, status, score] of [
+      ['a', 'changed', 0.01],
+      ['b', 'changed', 0.2],
+      ['c', 'changed', 0.05],
+      ['d', 'added', null],
+      ['e', 'unchanged', 0],
+    ] as const) {
+      // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
+      await seedDiff(t.db, { buildId: build.id, name, status })
+      // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
+      await t.db
+        .update(schema.screenshotDiffs)
+        .set({ score })
+        .where(
+          and(eq(schema.screenshotDiffs.buildId, build.id), eq(schema.screenshotDiffs.name, name)),
+        )
+    }
+    const [item] = await listReviewRequests(t.db, { userId: owner.id, tab: 'for-you', now })
+    expect(item?.changes).toEqual({ changed: 3, added: 1, removed: 0, unchanged: 1 })
+    expect(item?.largestChanges.map((c) => [c.name, c.score])).toEqual([
+      ['b', 0.2],
+      ['c', 0.05],
+    ])
+  })
+
   it('shows what is asked of you with the build and team, and how overdue it is', async () => {
     const { team, workspace, owner, teammate, build } = await setup()
     await seedReviewRequest(t.db, {

@@ -1,35 +1,23 @@
 import type { Review } from '@circi/api'
-import {
-  Avatar,
-  Badge,
-  Button,
-  EmptyState,
-  ListRow,
-  Pane,
-  ReviewIcon,
-  Text,
-  useAnnounce,
-  TabList,
-} from '@circi/ui'
+import { Button, Kbd, ReviewIcon, Text, useAnnounce } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { useDocumentTitle } from '#lib/document-title.ts'
+import { focusRow, leavesKeyToFocus, nextAfterRemoval } from '#lib/list-keys.ts'
 import { PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
-import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
 import { useClientLink } from '#lib/use-client-link.ts'
-import { useSelectableList } from '#lib/use-selectable-list.ts'
+import { useListNavigation } from '#lib/use-list-navigation.ts'
 
 import {
-  overdueLabel,
+  groupRequests,
   requestCount,
   requestName,
-  requestRef,
-  REVIEW_TABS,
+  isProcessing,
   reviewsQuery,
   useApproveRequest,
   useDismissRequest,
@@ -38,13 +26,22 @@ import {
   useUnsnoozeRequest,
 } from './api.ts'
 import { MemberPicker } from './MemberPicker.tsx'
+import { ReviewDetail } from './ReviewDetail.tsx'
+import { ReviewList } from './ReviewList.tsx'
 
-import styles from '#lib/ListPage.module.css'
+import styles from './Reviews.module.css'
 
+const ROUTE = '/workspaces/$workspace/reviews' as const
+
+/**
+ * Reviews, Linear style: the list of review requests (340px) beside the selected one. The
+ * selection is the `?review=` of the address, so it can be linked; J / K move it, Enter opens the
+ * build. On a phone the list and the review take turns.
+ */
 export function ReviewsPage() {
   useDocumentTitle('Reviews')
-  const { workspace } = useParams({ from: '/workspaces/$workspace/reviews' })
-  const { tab } = useSearch({ from: '/workspaces/$workspace/reviews' })
+  const { workspace } = useParams({ from: ROUTE })
+  const { tab, review } = useSearch({ from: ROUTE })
   const navigate = useNavigate()
   const announce = useAnnounce()
   const clientLink = useClientLink()
@@ -62,20 +59,46 @@ export function ReviewsPage() {
 
   // This page is one workspace's reviews; the list spans all of the person's.
   const requests = (data?.requests ?? []).filter((r) => r.workspace.slug === workspace)
-  const can = { approve: tab !== 'created', snooze: tab === 'for-you', unsnooze: tab === 'snoozed' }
+  const groups = groupRequests(requests, tab)
+  const items = groups.flatMap((g) => g.items)
+  // No review in the address means none is selected: the panel invites a choice.
+  const selected = items.find((r) => r.id === review)
+  const can = {
+    approve: tab !== 'created' && selected !== undefined && !isProcessing(selected.build),
+    snooze: tab === 'for-you',
+    unsnooze: tab === 'snoozed',
+  }
 
-  const openSelected = (r: Review.Request) =>
+  const searchFor = (next: { tab?: Review.Tab; review?: string }) => ({
+    to: ROUTE,
+    params: { workspace },
+    search: { tab: next.tab ?? tab, ...(next.review ? { review: next.review } : {}) },
+  })
+  const select = (id: string | undefined, replace = true) =>
+    void navigate({ ...searchFor(id ? { review: id } : {}), replace })
+
+  const { listRef, rowProps } = useListNavigation({
+    items,
+    getId: (r) => r.id,
+    selectedId: selected?.id,
+    onSelect: (r) => select(r.id),
+  })
+
+  const openBuild = (r: Review.Request) =>
     void navigate({
       to: '/$workspace/$team/builds/$number',
       params: { workspace: r.workspace.slug, team: r.team.slug, number: String(r.build.number) },
     })
 
-  const { selected, setSelectedId, peek, listRef, rowProps, settle } = useSelectableList({
-    items: requests,
-    getId: (r) => r.id,
-    onOpen: openSelected,
-  })
-
+  /** Runs `act` for a request about to leave the list; once done, announces and selects the next. */
+  const settle = (r: Review.Request, message: string, act: (done: () => void) => void) => {
+    const next = nextAfterRemoval(items, (item) => item.id, r.id)
+    act(() => {
+      announce(message)
+      select(next)
+      if (next) focusRow(document.getElementById('reviews-list'), next)
+    })
+  }
   const doApprove = (r: Review.Request) =>
     settle(r, `Approved ${requestName(r)}`, (done) => approve.mutate(r, { onSuccess: done }))
   const doSnooze = (r: Review.Request, choice: Parameters<typeof snooze.mutate>[0]['choice']) =>
@@ -88,6 +111,14 @@ export function ReviewsPage() {
     settle(r, `Dismissed ${requestName(r)}`, (done) => dismiss.mutate(r, { onSuccess: done }))
 
   useShortcutHandlers({
+    // Enter on a row opens the build (the row's own link would only select it); on a button
+    // or a link elsewhere it keeps its meaning.
+    open: (_action, event) => {
+      const inRow = event.target instanceof Element && event.target.closest('[data-row-id]')
+      if ((!inRow && leavesKeyToFocus(event)) || !selected) return false
+      openBuild(selected)
+      return undefined
+    },
     snooze: () => {
       if (selected && can.snooze) setSnoozeOpen(true)
     },
@@ -97,178 +128,113 @@ export function ReviewsPage() {
   })
 
   const failed = [approve, snooze, unsnooze, dismiss, requestReview].find((m) => m.error)?.error
+  const buildLink = selected
+    ? clientLink({
+        to: '/$workspace/$team/builds/$number',
+        params: {
+          workspace: selected.workspace.slug,
+          team: selected.team.slug,
+          number: String(selected.build.number),
+        },
+      })
+    : undefined
+  const back = clientLink(searchFor({}))
 
   return (
     <>
-      <PageHeading title="Reviews" />
-      <div className={styles.page}>
-        <TabList
-          label="Reviews"
-          tabs={REVIEW_TABS}
-          value={tab}
-          onChange={(next) => {
-            setSelectedId(undefined)
-            void navigate({
-              to: '/workspaces/$workspace/reviews',
-              params: { workspace },
-              search: { tab: next },
-              replace: true,
-            })
-          }}
-        >
-          <div className={styles.body}>
-            <QueryBoundary query={query} announce="Loading reviews" rows={4}>
-              {() =>
-                requests.length === 0 ? (
-                  <EmptyState icon={<ReviewIcon size={32} />} title={EMPTY[tab].title}>
-                    {EMPTY[tab].text}
-                  </EmptyState>
-                ) : (
-                  <>
-                    <div className={styles.toolbar}>
-                      <span role="status" className={styles.count}>
-                        {requestCount(requests.length)}
-                      </span>
-                      {selected && can.approve ? (
-                        <Button
-                          size="sm"
-                          variant="primary"
-                          loading={approve.isPending}
-                          onClick={() => doApprove(selected)}
-                        >
-                          Approve
-                        </Button>
-                      ) : null}
-                      {selected && can.snooze ? (
-                        <SnoozeMenu
-                          open={snoozeOpen}
-                          onOpenChange={setSnoozeOpen}
-                          onSnooze={(choice) => doSnooze(selected, choice)}
-                          trigger={
-                            <Button size="sm" aria-keyshortcuts="h">
-                              Snooze
-                            </Button>
-                          }
-                        />
-                      ) : null}
-                      {selected && can.unsnooze ? (
-                        <Button size="sm" onClick={() => doUnsnooze(selected)}>
-                          Unsnooze
-                        </Button>
-                      ) : null}
-                      {selected ? (
-                        <Button
-                          size="sm"
-                          aria-keyshortcuts="shift+r"
-                          onClick={() => setPicking(true)}
-                        >
-                          Request review
-                        </Button>
-                      ) : null}
-                      {selected ? (
-                        <Button size="sm" onClick={() => doDismiss(selected)}>
-                          Dismiss
-                        </Button>
-                      ) : null}
-                    </div>
-                    {failed ? (
-                      <Text tone="rejected" role="alert">
-                        {failed.message}
-                      </Text>
-                    ) : null}
-                    <div className={styles.split}>
-                      <ul
-                        aria-label={REVIEW_TABS.find((t) => t.value === tab)?.label ?? 'Reviews'}
-                        className={styles.list}
-                        ref={listRef}
-                      >
-                        {requests.map((r) => {
-                          const overdue = overdueLabel(r.overdueByMs)
-                          const person = tab === 'created' ? r.reviewer : r.requestedBy
-                          return (
-                            <li key={r.id} {...rowProps(r.id)}>
-                              <ListRow
-                                density="two-line"
-                                selected={r.id === selected?.id}
-                                {...clientLink({
-                                  to: '/$workspace/$team/builds/$number',
-                                  params: {
-                                    workspace: r.workspace.slug,
-                                    team: r.team.slug,
-                                    number: String(r.build.number),
-                                  },
-                                })}
-                                leading={person ? <Avatar name={person.name} /> : undefined}
-                                trailing={
-                                  <span className={styles.trailing}>
-                                    {overdue ? (
-                                      <Badge tone="state" state="rejected" shape="tag">
-                                        {overdue}
-                                      </Badge>
-                                    ) : null}
-                                    {r.snoozedUntil ? (
-                                      <Text variant="small" tone="secondary">
-                                        Until <RelativeTime iso={r.snoozedUntil} />
-                                      </Text>
-                                    ) : null}
-                                  </span>
-                                }
-                              >
-                                <span className={styles.title}>
-                                  <Text truncate>
-                                    Build #{r.build.number} · {r.team.name}
-                                  </Text>
-                                  <Text variant="mono" tone="secondary" truncate>
-                                    {requestRef(r.build)}
-                                  </Text>
-                                </span>
-                                <span className={styles.meta}>
-                                  <span>
-                                    {tab === 'created'
-                                      ? `Asked of ${r.reviewer.name}`
-                                      : r.requestedBy
-                                        ? `Requested by ${r.requestedBy.name}`
-                                        : 'Requested'}
-                                  </span>
-                                  <RelativeTime iso={r.createdAt} />
-                                </span>
-                              </ListRow>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                      {peek && selected ? (
-                        <Pane
-                          label="Preview"
-                          context={`#${selected.build.number}`}
-                          actions={
-                            <Button
-                              size="sm"
-                              variant="primary"
-                              {...clientLink({
-                                to: '/$workspace/$team/builds/$number',
-                                params: {
-                                  workspace: selected.workspace.slug,
-                                  team: selected.team.slug,
-                                  number: String(selected.build.number),
-                                },
-                              })}
-                            >
-                              Open build
-                            </Button>
-                          }
-                        >
-                          <RequestDetail request={selected} />
-                        </Pane>
-                      ) : null}
-                    </div>
-                  </>
-                )
+      <PageHeading
+        title="Reviews"
+        actions={
+          selected ? (
+            <>
+              {can.snooze ? (
+                <SnoozeMenu
+                  open={snoozeOpen}
+                  onOpenChange={setSnoozeOpen}
+                  onSnooze={(choice) => doSnooze(selected, choice)}
+                  trigger={
+                    <Button size="sm" aria-keyshortcuts="h">
+                      Snooze
+                    </Button>
+                  }
+                />
+              ) : null}
+              {buildLink ? (
+                <Button size="sm" {...buildLink}>
+                  Open review
+                </Button>
+              ) : null}
+              {tab !== 'created' ? (
+                <Button
+                  size="sm"
+                  variant="primary"
+                  disabled={!can.approve}
+                  loading={approve.isPending}
+                  onClick={() => doApprove(selected)}
+                >
+                  Approve all
+                </Button>
+              ) : null}
+            </>
+          ) : undefined
+        }
+      />
+      <QueryBoundary query={query} announce="Loading reviews" rows={4}>
+        {() => (
+          <div className={styles.layout} data-selected={selected ? 'true' : 'false'}>
+            <ReviewList
+              workspace={workspace}
+              tab={tab}
+              total={requestCount(requests.length)}
+              groups={groups}
+              selectedId={selected?.id}
+              listRef={listRef}
+              rowProps={rowProps}
+              linkTo={(id) => clientLink(searchFor({ review: id }))}
+              onTab={(next) =>
+                void navigate({ ...searchFor({ tab: next }), search: { tab: next } })
               }
-            </QueryBoundary>
+            />
+            <section className={styles.detail} aria-label="Selected review">
+              {failed ? (
+                <Text tone="rejected" role="alert">
+                  {failed.message}
+                </Text>
+              ) : null}
+              {selected ? (
+                <ReviewDetail request={selected} backHref={back.href} onBack={back.onClick}>
+                  {can.unsnooze ? (
+                    <Button size="sm" onClick={() => doUnsnooze(selected)}>
+                      Unsnooze
+                    </Button>
+                  ) : null}
+                  <Button size="sm" aria-keyshortcuts="shift+r" onClick={() => setPicking(true)}>
+                    Request review
+                  </Button>
+                  <Button size="sm" onClick={() => doDismiss(selected)}>
+                    Dismiss
+                  </Button>
+                </ReviewDetail>
+              ) : (
+                <div className={styles.empty}>
+                  <ReviewIcon size={40} />
+                  <p className={styles.emptyTitle}>
+                    {items.length === 0 ? 'All caught up' : 'Select a review'}
+                  </p>
+                  <p className={styles.emptyText}>
+                    {items.length === 0
+                      ? 'Nothing is waiting on you. New review requests appear in the list on the left.'
+                      : 'Pick a build from the list to read it here.'}
+                  </p>
+                  <span className={styles.hints}>
+                    <Kbd>J</Kbd> <Kbd>K</Kbd> move through the list · <Kbd>↵</Kbd> open the build
+                  </span>
+                </div>
+              )}
+            </section>
           </div>
-        </TabList>
-      </div>
+        )}
+      </QueryBoundary>
       <MemberPicker
         workspace={workspace}
         open={picking}
@@ -282,39 +248,5 @@ export function ReviewsPage() {
         }}
       />
     </>
-  )
-}
-
-const EMPTY: Record<Review.Tab, { title: string; text: string }> = {
-  'for-you': { title: 'Nothing to review', text: 'Review requests asked of you appear here.' },
-  created: { title: 'No requests from you', text: 'Reviews you ask others for appear here.' },
-  snoozed: { title: 'Nothing snoozed', text: 'Requests you put off wait here until they wake.' },
-}
-
-function RequestDetail({ request: r }: { request: Review.Request }) {
-  return (
-    <div className={styles.detail}>
-      <Text>
-        {r.team.name} · build #{r.build.number}
-      </Text>
-      <dl>
-        <dt>Branch</dt>
-        <dd>{requestRef(r.build)}</dd>
-        <dt>Commit</dt>
-        <dd>{r.build.commitSha.slice(0, 7)}</dd>
-        <dt>Requested by</dt>
-        <dd>{r.requestedBy?.name ?? 'Someone who has left'}</dd>
-        <dt>Reviewer</dt>
-        <dd>{r.reviewer.name}</dd>
-        {r.dueAt ? (
-          <>
-            <dt>Due</dt>
-            <dd>
-              <RelativeTime iso={r.dueAt} />
-            </dd>
-          </>
-        ) : null}
-      </dl>
-    </div>
   )
 }

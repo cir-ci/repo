@@ -7,7 +7,7 @@ import styles from './Dialog.module.css'
 
 /**
  * Provisional (docs/design-gaps.md §4): a modal on Base UI's `Dialog`. 440px wide for forms
- * (`size="wide"`: 560), a 44px header with the title and a close button, and a footer for the
+ * (`size="wide"`: 560, `size="catalog"`: 880 for a grid of choices), a 44px header with the title and a close button, and a footer for the
  * actions (primary last). Focus is trapped, Escape and a click on the backdrop close it, and
  * focus returns to what opened it.
  *
@@ -60,8 +60,8 @@ export namespace Dialog {
     title: ReactNode
     /** One line under the header; becomes the dialog's accessible description. */
     description?: ReactNode
-    /** `form` is 440px wide, `wide` 560px, `image` 960px (see `ImageDialog`). */
-    size?: 'form' | 'wide' | 'image'
+    /** `form` is 440px wide, `wide` 560px, `catalog` 880px, `image` 960px (see `ImageDialog`). */
+    size?: 'form' | 'wide' | 'catalog' | 'image'
     /** The footer buttons, right-aligned; put the primary one last. */
     actions?: ReactNode
     /** Omit the header's close button (a dialog the user must answer). */

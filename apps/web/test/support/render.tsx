@@ -31,6 +31,8 @@ export interface RenderPageOptions {
   user?: SessionUser | null
   /** Dashboard API answers keyed "METHOD /path", as `fakeApi` takes them (faked before render). */
   api?: Record<string, ReplyHandler>
+  /** Other route patterns that exist in the app ("/$workspace/$team/builds/$number"), so links to them resolve; they render nothing. */
+  otherRoutes?: string[]
   /** The browser viewport ([width, height]) to render at. */
   viewport?: [number, number]
   /** A ready router (e.g. the app's own) to render instead of a single route for `ui`. */
@@ -61,8 +63,11 @@ export async function renderPage(ui: ReactNode, options: RenderPageOptions = {})
         validateSearch: options.validateSearch,
         component: () => ui,
       })
+      const others = (options.otherRoutes ?? []).map((path) =>
+        createRoute({ getParentRoute: () => root, path, component: () => null }),
+      )
       return createRouter({
-        routeTree: root.addChildren([page]),
+        routeTree: root.addChildren([page, ...others]),
         history: createMemoryHistory({ initialEntries: [options.url ?? route] }),
       })
     })()

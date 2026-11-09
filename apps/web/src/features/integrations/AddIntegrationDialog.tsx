@@ -51,7 +51,7 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
       open={props.open}
       onOpenChange={close}
       title={generic ? `Connect ${generic.name}` : 'Add an integration'}
-      size="wide"
+      size="catalog"
       actions={
         generic ? (
           <Button onClick={() => setGeneric(null)}>Back</Button>

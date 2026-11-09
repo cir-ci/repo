@@ -32,6 +32,17 @@ export namespace Review {
     }
     team: { slug: string; name: string }
     workspace: { slug: string; name: string }
+    /** How the build's screenshots compare with the baseline. */
+    changes: { changed: number; added: number; removed: number; unchanged: number }
+    /** The (up to two) changed screenshots with the highest diff score, biggest first. */
+    largestChanges: {
+      name: string
+      /** Fraction of the screenshot that differs, 0 to 1; null when not measured. */
+      score: number | null
+      /** The head image and its thumbnail; null when the screenshot has no head image. */
+      sha256: string | null
+      thumbnail: string | null
+    }[]
   }
 
   /** `GET /api/reviews?tab=…`: one tab of the Reviews page, most urgent first. */

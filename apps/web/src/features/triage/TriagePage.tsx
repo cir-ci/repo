@@ -12,20 +12,21 @@ import {
   visuallyHidden,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
-import { useParams } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { type NavigateOptions, useNavigate, useParams } from '@tanstack/react-router'
+import { type MouseEventHandler, useEffect, useState } from 'react'
 
 import { fileUrl } from '#features/builds/api/index.ts'
 import { RegionLayer } from '#features/regions/RegionLayer.tsx'
 import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
-import { focusRow, nextAfterRemoval } from '#lib/list-keys.ts'
+import { focusRow, leavesKeyToFocus, nextAfterRemoval } from '#lib/list-keys.ts'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
+import { useClientLink } from '#lib/use-client-link.ts'
 import { useSelectableList } from '#lib/use-selectable-list.ts'
 
 import {
@@ -53,6 +54,17 @@ import { ROUTE } from './routes.ts'
 import listStyles from '#lib/ListPage.module.css'
 import styles from './TriagePage.module.css'
 
+/** The build page, with the item's screenshot selected (`?shot=`) when it has one. */
+export const openInBuild = (
+  workspace: string,
+  team: string,
+  item: { build: { number: number }; snapshotName: string | null },
+): NavigateOptions => ({
+  to: '/$workspace/$team/builds/$number',
+  params: { workspace, team, number: String(item.build.number) },
+  ...(item.snapshotName ? { search: { shot: item.snapshotName } } : {}),
+})
+
 /** Accepting a baseline and ignoring a region are about a screenshot; a failed build has none. */
 const hasSnapshot = (item: Triage.Item | undefined) => !!item?.snapshotName
 
@@ -61,6 +73,8 @@ export function TriagePage() {
   const names = useCrumbNames(workspace, team)
   useDocumentTitle('Triage', team)
   const announce = useAnnounce()
+  const navigate = useNavigate()
+  const clientLink = useClientLink()
   const query = useQuery(triageQuery(workspace, team))
   const { data } = query
   const { data: session } = authClient.useSession()
@@ -134,7 +148,17 @@ export function TriagePage() {
     )
   }
 
+  const open = (item: Triage.Item) => void navigate(openInBuild(workspace, team, item))
+
   useShortcutHandlers({
+    // Enter on a row opens the item in its build; on a button or link elsewhere it keeps its meaning.
+    open: (_action, event) => {
+      const inRow = event.target instanceof Element && event.target.closest('[data-row-id]')
+      // While an ignore region is being drawn, Enter belongs to that tool.
+      if (drawing || (!inRow && leavesKeyToFocus(event)) || !selected) return false
+      open(selected)
+      return undefined
+    },
     acceptBaseline: () => {
       if (selected && hasSnapshot(selected)) doAccept(selected)
     },
@@ -249,7 +273,17 @@ export function TriagePage() {
                             className={listStyles['list']}
                           >
                             {group.items.map((item) => (
-                              <li key={itemId(item)} {...rowProps(itemId(item))}>
+                              <li
+                                key={itemId(item)}
+                                className={styles.row}
+                                data-selected={
+                                  itemId(item) === (selected ? itemId(selected) : '')
+                                    ? ''
+                                    : undefined
+                                }
+                                {...rowProps(itemId(item))}
+                                onDoubleClick={() => open(item)}
+                              >
                                 <ListRow
                                   density="two-line"
                                   selected={itemId(item) === (selected ? itemId(selected) : '')}
@@ -267,9 +301,22 @@ export function TriagePage() {
                                     />
                                   }
                                   trailing={
-                                    item.assignee ? (
-                                      <Avatar name={item.assignee.name} size={20} />
-                                    ) : undefined
+                                    <>
+                                      {/* Enter and a double click do the same; the chip says so (and is a click target for a mouse). */}
+                                      <span
+                                        className={styles.openChip}
+                                        aria-hidden="true"
+                                        onClick={(event) => {
+                                          event.stopPropagation()
+                                          open(item)
+                                        }}
+                                      >
+                                        Open in build ↗
+                                      </span>
+                                      {item.assignee ? (
+                                        <Avatar name={item.assignee.name} size={20} />
+                                      ) : null}
+                                    </>
                                   }
                                 >
                                   <span style={visuallyHidden}>{`${itemName(item)}. `}</span>
@@ -306,11 +353,27 @@ export function TriagePage() {
                             {selected.assignee ? `. Assigned to ${selected.assignee.name}` : ''}
                           </Text>
                           {selected.snapshotName ? (
-                            <Filmstrip
-                              name={selected.snapshotName}
-                              frames={frames}
-                              loading={framesLoading}
-                            />
+                            <>
+                              <Preview
+                                name={selected.snapshotName}
+                                frame={frames.find((f) => f.number === selected.build.number)}
+                                loading={framesLoading}
+                                link={clientLink(openInBuild(workspace, team, selected))}
+                              />
+                              <Filmstrip
+                                name={selected.snapshotName}
+                                frames={frames}
+                                loading={framesLoading}
+                                linkOf={(frame) =>
+                                  clientLink(
+                                    openInBuild(workspace, team, {
+                                      snapshotName: selected.snapshotName,
+                                      build: { number: frame.number },
+                                    }),
+                                  )
+                                }
+                              />
+                            </>
                           ) : null}
                           {drawing && selected.snapshotName ? (
                             <Drawing
@@ -355,14 +418,55 @@ function Since({ iso }: { iso: string }) {
   return <>{sinceText(iso, now)}</>
 }
 
+/**
+ * The screenshot at a size you can judge it by, as a link to the same place in the build, with a
+ * pill that says so (the outline on hover is the pointer's cue).
+ */
+function Preview({
+  name,
+  frame,
+  loading,
+  link,
+}: {
+  name: string
+  frame: Frame | undefined
+  loading: boolean
+  link: { href: string; onClick: MouseEventHandler<HTMLElement> }
+}) {
+  if (!frame?.sha256) {
+    return loading ? (
+      <Text variant="small" tone="secondary">
+        Loading the screenshot
+      </Text>
+    ) : null
+  }
+  return (
+    <a
+      className={styles.preview}
+      href={link.href}
+      onClick={link.onClick}
+      aria-label={`Open ${name} in build #${frame.number}`}
+    >
+      <span className={styles.previewImage}>
+        <img src={fileUrl(frame.sha256)} alt="" />
+      </span>
+      <span className={styles.pill} aria-hidden="true">
+        Open in build ↗
+      </span>
+    </a>
+  )
+}
+
 function Filmstrip({
   name,
   frames,
   loading,
+  linkOf,
 }: {
   name: string
   frames: readonly Frame[]
   loading: boolean
+  linkOf: (frame: Frame) => { href: string; onClick: MouseEventHandler<HTMLElement> }
 }) {
   if (frames.length === 0) {
     return loading ? (
@@ -373,14 +477,26 @@ function Filmstrip({
   }
   return (
     <ol aria-label={`Recent builds of ${name}`} className={styles.filmstrip}>
-      {frames.map((frame) => (
-        <li key={frame.number} className={styles.frame}>
-          <span className={styles.thumb}>{frame.src ? <img src={frame.src} alt="" /> : null}</span>
-          <span className={styles.frameMeta}>
-            <StatusIcon status={frame.status} label={frame.label} size={12} />#{frame.number}
-          </span>
-        </li>
-      ))}
+      {frames.map((frame) => {
+        const link = linkOf(frame)
+        return (
+          <li key={frame.number}>
+            <a
+              className={styles.frame}
+              href={link.href}
+              onClick={link.onClick}
+              aria-label={`Open ${name} in build #${frame.number}`}
+            >
+              <span className={styles.thumb}>
+                {frame.src ? <img src={frame.src} alt="" /> : null}
+              </span>
+              <span className={styles.frameMeta}>
+                <StatusIcon status={frame.status} label={frame.label} size={12} />#{frame.number}
+              </span>
+            </a>
+          </li>
+        )
+      })}
     </ol>
   )
 }

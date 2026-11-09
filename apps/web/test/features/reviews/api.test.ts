@@ -2,10 +2,14 @@ import type { Review } from '@circi/api'
 import { describe, expect, it } from 'vitest'
 
 import {
+  changeSummary,
+  groupRequests,
   overdueLabel,
   requestCount,
   requestName,
   requestRef,
+  requestStatus,
+  scoreLabel,
   validateReviewsSearch,
 } from '#features/reviews/api.ts'
 import { nextAfterRemoval } from '#lib/list-keys.ts'
@@ -31,6 +35,8 @@ const request = (over: Partial<Review.Request> = {}): Review.Request => ({
   },
   team: { slug: 'web', name: 'Web' },
   workspace: { slug: 'acme', name: 'Acme' },
+  changes: { changed: 2, added: 1, removed: 0, unchanged: 5 },
+  largestChanges: [],
   ...over,
 })
 
@@ -76,6 +82,12 @@ describe('validateReviewsSearch', () => {
     expect(validateReviewsSearch({ tab: 'nope' })).toEqual({ tab: 'for-you' })
     expect(validateReviewsSearch({})).toEqual({ tab: 'for-you' })
   })
+
+  it('keeps the selected review', () => {
+    expect(validateReviewsSearch({ review: 'r1' })).toEqual({ tab: 'for-you', review: 'r1' })
+    expect(validateReviewsSearch({ review: '' })).toEqual({ tab: 'for-you' })
+    expect(validateReviewsSearch({ review: 5 })).toEqual({ tab: 'for-you' })
+  })
 })
 
 describe('nextAfterRemoval', () => {
@@ -91,5 +103,50 @@ describe('nextAfterRemoval', () => {
   it('has none for the only item or an unknown one', () => {
     expect(next('a', ['a'])).toBeUndefined()
     expect(next('zzz')).toBeUndefined()
+  })
+})
+
+describe('groupRequests', () => {
+  const processing = request({ id: 'r2', build: { ...request().build, status: 'processing' } })
+
+  it('splits what needs review from what is still processing', () => {
+    const groups = groupRequests([request(), processing], 'for-you')
+    expect(groups.map((g) => [g.label, g.items.map((r) => r.id)])).toEqual([
+      ['Needs your review', ['r1']],
+      ['Still processing', ['r2']],
+    ])
+  })
+
+  it('has one group on the other tabs, and none when empty', () => {
+    expect(groupRequests([request()], 'created').map((g) => g.label)).toEqual([
+      'Waiting on reviewers',
+    ])
+    expect(groupRequests([request()], 'snoozed').map((g) => g.label)).toEqual(['Snoozed'])
+    expect(groupRequests([], 'for-you')).toEqual([])
+  })
+
+  it('gives each request its status', () => {
+    expect(requestStatus(request())).toEqual({ status: 'needs-review', label: 'Needs review' })
+    expect(requestStatus(processing).status).toBe('processing')
+    expect(
+      requestStatus(request({ build: { ...request().build, reviewStatus: 'approved' } })).status,
+    ).toBe('approved')
+  })
+})
+
+describe('change summary', () => {
+  it('lists the kinds that have screenshots', () => {
+    expect(changeSummary({ changed: 4, added: 1, removed: 0, unchanged: 3 })).toEqual([
+      '4 changed',
+      '1 added',
+    ])
+    expect(changeSummary({ changed: 0, added: 0, removed: 0, unchanged: 3 })).toEqual([])
+  })
+
+  it('writes a diff score as a percentage', () => {
+    expect(scoreLabel(0.024)).toBe('2.4%')
+    expect(scoreLabel(0.0001)).toBe('<0.1%')
+    expect(scoreLabel(0)).toBe('0%')
+    expect(scoreLabel(null)).toBe('')
   })
 })

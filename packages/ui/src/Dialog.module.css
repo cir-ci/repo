@@ -52,6 +52,10 @@
   width: 560px;
 }
 
+.popup[data-size='catalog'] {
+  width: 880px;
+}
+
 .popup[data-size='image'] {
   width: 960px;
 }

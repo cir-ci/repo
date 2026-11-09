@@ -73,6 +73,7 @@ const show = () =>
   renderPage(<TriagePage />, {
     route: '/$workspace/$team/triage',
     url: '/acme/web/triage',
+    otherRoutes: ['/$workspace/$team/builds/$number'],
     announcer: true,
   })
 
@@ -305,5 +306,37 @@ describe('TriagePage', () => {
     await expect
       .element(page.getByRole('region', { name: 'Details' }).getByText('home', { exact: true }))
       .toBeVisible()
+  })
+
+  it('shows the screenshot as a preview linking to its build, with an Open in build pill', async () => {
+    server()
+    await show()
+    const preview = page.getByRole('link', { name: 'Open home in build #12' }).first()
+    await expect.element(preview).toBeVisible()
+    await expect.element(preview).toHaveAttribute('href', '/acme/web/builds/12?shot=home')
+    expect(preview.element().textContent).toContain('Open in build')
+    // The filmstrip's frames link to their own builds.
+    await expect
+      .element(page.getByRole('link', { name: 'Open home in build #11' }))
+      .toHaveAttribute('href', '/acme/web/builds/11?shot=home')
+  })
+
+  it('opens the item in its build on a double click and on Enter, with the screenshot selected', async () => {
+    server()
+    const { router } = await show()
+    await expect.element(page.getByRole('region', { name: 'Details' })).toBeVisible()
+    await page.getByRole('button', { name: /pricing/ }).dblClick()
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web/builds/12')
+    expect(router.state.location.search).toMatchObject({ shot: 'pricing' })
+  })
+
+  it('opens the selected item with Enter from the list', async () => {
+    server()
+    const { router } = await show()
+    await expect.element(page.getByRole('region', { name: 'Details' })).toBeVisible()
+    await userEvent.keyboard('j')
+    await userEvent.keyboard('{Enter}')
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web/builds/12')
+    expect(router.state.location.search).toMatchObject({ shot: 'pricing' })
   })
 })

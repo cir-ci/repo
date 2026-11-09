@@ -8,6 +8,8 @@ import {
   teams,
   type ReviewRequestState,
   reviewRequests,
+  screenshotDiffs,
+  screenshots,
   type SnoozeKind,
   user,
 } from '#schema/index.ts'
@@ -49,6 +51,26 @@ export namespace listReviewRequests {
     }
     team: { slug: string; name: string }
     workspace: { slug: string; name: string }
+    /** How the build's screenshots compare with the baseline. */
+    changes: Changes
+    /** The (up to two) changed screenshots with the highest diff score, biggest first. */
+    largestChanges: LargestChange[]
+  }
+
+  export interface Changes {
+    changed: number
+    added: number
+    removed: number
+    unchanged: number
+  }
+
+  export interface LargestChange {
+    name: string
+    /** Fraction of the screenshot that differs, 0 to 1; null when not measured. */
+    score: number | null
+    /** The head image and its thumbnail; null for a screenshot with no head image. */
+    sha256: string | null
+    thumbnail: string | null
   }
 }
 
@@ -118,6 +140,9 @@ export async function listReviewRequests(
         ).map((u) => [u.id, u.name]),
   )
 
+  const buildIds = [...new Set(rows.map((r) => r.request.buildId))]
+  const { changes, largest } = await loadChanges(db, buildIds)
+
   return rows.map((r) => {
     const asleep = isSnoozed(r.request, input.now)
     return {
@@ -133,8 +158,61 @@ export async function listReviewRequests(
       build: r.build,
       team: r.team,
       workspace: r.workspace,
+      changes: changes.get(r.request.buildId) ?? { changed: 0, added: 0, removed: 0, unchanged: 0 },
+      largestChanges: largest.get(r.request.buildId) ?? [],
     }
   })
+}
+
+/** Counts by diff status, and the two highest-scoring changed screenshots, per build. */
+async function loadChanges(db: Database, buildIds: string[]) {
+  const changes = new Map<string, listReviewRequests.Changes>()
+  const largest = new Map<string, listReviewRequests.LargestChange[]>()
+  if (buildIds.length === 0) return { changes, largest }
+
+  const counts = await db
+    .select({
+      buildId: screenshotDiffs.buildId,
+      status: screenshotDiffs.status,
+      n: sql<number>`count(*)::int`,
+    })
+    .from(screenshotDiffs)
+    .where(inArray(screenshotDiffs.buildId, buildIds))
+    .groupBy(screenshotDiffs.buildId, screenshotDiffs.status)
+  for (const c of counts) {
+    const entry = changes.get(c.buildId) ?? { changed: 0, added: 0, removed: 0, unchanged: 0 }
+    if (c.status === 'changed' || c.status === 'added' || c.status === 'removed') {
+      entry[c.status] += c.n
+    } else if (c.status === 'unchanged') entry.unchanged += c.n
+    changes.set(c.buildId, entry)
+  }
+
+  const ranked = db
+    .select({
+      buildId: screenshotDiffs.buildId,
+      name: screenshotDiffs.name,
+      score: screenshotDiffs.score,
+      sha256: screenshots.fileSha256,
+      thumbnail: screenshots.thumbnailSha256,
+      rank: sql<number>`row_number() over (partition by ${screenshotDiffs.buildId} order by ${screenshotDiffs.score} desc nulls last, ${screenshotDiffs.name})`.as(
+        'rank',
+      ),
+    })
+    .from(screenshotDiffs)
+    .leftJoin(screenshots, eq(screenshots.id, screenshotDiffs.headScreenshotId))
+    .where(and(inArray(screenshotDiffs.buildId, buildIds), eq(screenshotDiffs.status, 'changed')))
+    .as('ranked')
+  const top = await db
+    .select()
+    .from(ranked)
+    .where(sql`${ranked.rank} <= 2`)
+    .orderBy(asc(ranked.buildId), asc(ranked.rank))
+  for (const t of top) {
+    const list = largest.get(t.buildId) ?? []
+    list.push({ name: t.name, score: t.score, sha256: t.sha256, thumbnail: t.thumbnail })
+    largest.set(t.buildId, list)
+  }
+  return { changes, largest }
 }
 
 function askerOf(id: string | null, names: Map<string, string>) {
