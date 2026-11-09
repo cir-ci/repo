@@ -1,7 +1,7 @@
 import { workspacesForEmailDomain } from '@circi/db/repositories'
 import { emailOTP } from 'better-auth/plugins'
 
-import { hasAccount, hasPendingInvitation } from '#operations/accounts.ts'
+import { hasAccount, hasPendingInvitation, isBanned } from '#operations/accounts.ts'
 import { EMAIL_CODE_TTL_SECONDS } from '#src/constants.ts'
 import { signInMail } from '#src/mail.ts'
 import type { PluginOptions } from '#src/options.ts'
@@ -32,6 +32,9 @@ export function emailLoginPlugin(options: PluginOptions) {
       ) {
         return
       }
+      // A banned account gets no code, and the same answer as anyone else, so a ban cannot be
+      // told from outside.
+      if (await isBanned(options.db, email)) return
       void options.mailer
         .send(signInMail(email, otp, options.baseURL))
         .catch((err: unknown) => options.onMailError?.(err))

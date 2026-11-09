@@ -135,6 +135,16 @@ describe('accounts', () => {
     expect((await asAdmin('GET', '/api/instance/accounts?page=0')).statusCode).toBe(400)
   })
 
+  it('refuses a blank or oversized name in plain words, naming the field', async () => {
+    for (const name of ['', '   ', 'x'.repeat(101)]) {
+      // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
+      const res = await asAdmin('POST', '/api/instance/accounts', { email: 'n@acme.test', name })
+      expect(res.statusCode).toBe(400)
+      expect(res.json().error).not.toContain('expected')
+      expect(res.json().fields.name).toEqual(expect.any(String))
+    }
+  })
+
   it('creates an account with a one-time password, or with the one the admin chose', async () => {
     const res = await asAdmin('POST', '/api/instance/accounts', {
       email: 'New.Person@acme.test',

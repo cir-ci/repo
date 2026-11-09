@@ -109,7 +109,7 @@ describe('POST /workspaces/:workspace/integrations/:kind/connect', () => {
   it('validates the body against the definition’s credentials schema', async () => {
     const res = await call('POST', `${base}/tokenchat/connect`, ownerCookie, { site: 'x' })
     expect(res.statusCode).toBe(400)
-    expect(res.json().error).toContain('token')
+    expect(res.json().error).toContain('Token is required')
     expect(await listIntegrations(t.db, workspace.id)).toEqual([])
   })
 

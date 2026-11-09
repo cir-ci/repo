@@ -1,3 +1,4 @@
+import { ACCOUNT_NAME_MAX, accountNameProblem } from '@circi/core'
 import { workspacesForEmailDomain } from '@circi/db/repositories'
 import { APIError } from 'better-auth/api'
 
@@ -11,6 +12,55 @@ import type { AuthOptions } from '#src/options.ts'
  * follows the stricter rules in `mayCreateSsoAccount`.
  */
 export function beforeUserCreate(options: Pick<AuthOptions, 'db' | 'sso'>) {
+  const create = beforeUserCreateRules(options)
+  return async (
+    user: { email?: unknown; name?: unknown; emailVerified: boolean },
+    context: { path?: string; params?: unknown } | null,
+  ): Promise<{ data: { emailVerified?: boolean; name?: string } } | undefined> => {
+    // A name that comes with a login (a provider's, or none at all) is tidied rather than
+    // refused, or the person could not sign in; one somebody typed must pass the name rule.
+    const lenient =
+      isSsoPath(context?.path) ||
+      context?.path?.startsWith('/sso/callback') === true ||
+      context?.path === '/sign-in/email-otp'
+    let tidy: string | undefined
+    if (typeof user.name === 'string') {
+      if (lenient) {
+        tidy = Array.from(user.name.trim()).slice(0, ACCOUNT_NAME_MAX).join('')
+      } else {
+        assertAccountName(user.name)
+        tidy = user.name.trim()
+      }
+    }
+    const result = await create(user, context)
+    if (
+      tidy === undefined ||
+      tidy === '' ||
+      tidy === user.name ||
+      result?.data.name !== undefined
+    ) {
+      return result
+    }
+    return { data: { ...result?.data, name: tidy } }
+  }
+}
+
+/** Refuses a name that breaks the account name rule (400, with the rule's message). */
+export function assertAccountName(name: string): void {
+  const problem = accountNameProblem(name)
+  if (problem) throw new APIError('BAD_REQUEST', { message: problem })
+}
+
+/** The same rule for a name being changed: the person's own, or an admin's. */
+export function beforeUserUpdate() {
+  return async (user: { name?: unknown }): Promise<{ data: { name: string } } | undefined> => {
+    if (typeof user.name !== 'string') return undefined
+    assertAccountName(user.name)
+    return { data: { name: user.name.trim() } }
+  }
+}
+
+function beforeUserCreateRules(options: Pick<AuthOptions, 'db' | 'sso'>) {
   return async (
     user: { email?: unknown; name?: unknown; emailVerified: boolean },
     context: { path?: string; params?: unknown } | null,

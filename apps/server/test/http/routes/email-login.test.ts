@@ -3,8 +3,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import type { Mailer } from '@circi/auth'
+import * as schema from '@circi/db/schema'
 import { createTestDb } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
+import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -135,6 +137,21 @@ describe('email login', () => {
     expect(sent.map((m) => m.to)).toEqual([tenant.owner.email])
     // And no account was created for them.
     expect((await signInWithCode(on, 'nobody@acme.test', '123456')).statusCode).not.toBe(200)
+  })
+
+  it('sends a banned account no code, answering exactly as for anyone else', async () => {
+    const banned = await seedTenant(createTestAuth(t.db), t.db)
+    await t.db
+      .update(schema.user)
+      .set({ banned: true, banExpires: null })
+      .where(eq(schema.user.email, banned.owner.email))
+    sent.length = 0
+    const known = await requestCode(on, tenant.owner.email)
+    const ban = await requestCode(on, banned.owner.email)
+    expect(ban.statusCode).toBe(known.statusCode)
+    expect(ban.json()).toEqual(known.json())
+    await vi.waitFor(() => expect(sent).toHaveLength(1))
+    expect(sent.map((m) => m.to)).toEqual([tenant.owner.email])
   })
 
   it('has no email-code endpoints when switched off', async () => {

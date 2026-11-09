@@ -37,7 +37,9 @@ export function jsonErrorHandler(
     if (err instanceof IntegrationError && status >= 500) {
       req.log.warn({ err }, 'integration provider call failed')
     }
-    return reply.code(status).send({ error: err.message })
+    // `fields` is there for forms that mark the field; `error` always says it all.
+    const fields = err instanceof ValidationError ? err.fields : undefined
+    return reply.code(status).send({ error: err.message, ...(fields ? { fields } : {}) })
   }
   if (
     'statusCode' in err &&

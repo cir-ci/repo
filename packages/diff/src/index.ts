@@ -199,15 +199,21 @@ export namespace makeWorkspacePicture {
 /**
  * A workspace's picture from an upload: checks the bytes really are a PNG, JPEG or WebP (whatever
  * the client claimed), crops to the centre square and resizes to `size` pixels. Transparency is
- * kept; the result is always a PNG, and EXIF rotation is applied.
+ * kept; the result is always a PNG, and EXIF rotation is applied. With `minSide`, an image whose
+ * shorter side is smaller is refused.
  */
 export async function makeWorkspacePicture(
   input: Buffer,
   size: number,
+  options: { minSide?: number } = {},
 ): Promise<makeWorkspacePicture.Result> {
   let format: string | undefined
+  let width: number | undefined
+  let height: number | undefined
   try {
-    format = (await sharp(input, { limitInputPixels: MAX_INPUT_PIXELS }).metadata()).format
+    ;({ format, width, height } = await sharp(input, {
+      limitInputPixels: MAX_INPUT_PIXELS,
+    }).metadata())
   } catch (err) {
     throw new InvalidImageError(
       `Not a readable image: ${err instanceof Error ? err.message : String(err)}`,
@@ -215,6 +221,11 @@ export async function makeWorkspacePicture(
   }
   if (format !== 'png' && format !== 'jpeg' && format !== 'webp') {
     throw new InvalidImageError(`Expected a PNG, JPEG or WebP image, got ${format ?? 'unknown'}`)
+  }
+  if (options.minSide !== undefined && Math.min(width ?? 0, height ?? 0) < options.minSide) {
+    throw new InvalidImageError(
+      `The picture is ${width ?? 0} × ${height ?? 0} px; its shorter side must be at least ${options.minSide} px`,
+    )
   }
   const png = await sharp(input, { limitInputPixels: MAX_INPUT_PIXELS })
     .rotate()

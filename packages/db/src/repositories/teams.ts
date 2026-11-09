@@ -1,4 +1,8 @@
 import {
+  assertBranchName,
+  assertDiffThreshold,
+  assertRetentionDays,
+  assertReviewTargetHours,
   assertTeamColor,
   assertTeamIcon,
   assertValidSlug,
@@ -42,6 +46,7 @@ export async function createTeam(
   const slug = input.slug ?? slugify(name)
   assertValidSlug(slug, 'team slug')
   const defaultBranch = input.defaultBranch?.trim() || 'main'
+  assertBranchName(defaultBranch)
   const color = input.color ?? teamColorFor(name)
   assertTeamColor(color)
   const icon = input.icon ?? null
@@ -128,28 +133,19 @@ export async function updateTeamSettings(
   }
   if (patch.defaultBranch !== undefined) {
     const branch = patch.defaultBranch.trim()
-    if (!branch) throw new ValidationError('Default branch is required')
+    assertBranchName(branch)
     set.defaultBranch = branch
   }
   if (patch.diffThreshold !== undefined) {
-    if (!(patch.diffThreshold >= 0 && patch.diffThreshold <= 1)) {
-      throw new ValidationError('Diff threshold must be between 0 and 1')
-    }
+    assertDiffThreshold(patch.diffThreshold)
     set.diffThreshold = patch.diffThreshold
   }
   if (patch.retentionDays !== undefined) {
-    if (!Number.isInteger(patch.retentionDays) || patch.retentionDays < 1) {
-      throw new ValidationError('Retention must be at least 1 day')
-    }
+    assertRetentionDays(patch.retentionDays)
     set.retentionDays = patch.retentionDays
   }
   if (patch.reviewTargetHours !== undefined) {
-    if (
-      patch.reviewTargetHours !== null &&
-      (!Number.isInteger(patch.reviewTargetHours) || patch.reviewTargetHours < 1)
-    ) {
-      throw new ValidationError('The review target must be at least 1 hour, or empty for none')
-    }
+    if (patch.reviewTargetHours !== null) assertReviewTargetHours(patch.reviewTargetHours)
     set.reviewTargetHours = patch.reviewTargetHours
   }
   if (patch.autoApproveDefaultBranch !== undefined) {

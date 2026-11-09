@@ -10,7 +10,18 @@ export class DomainError extends Error {
 }
 
 /** Bad input from a user or client. Safe to show the message as-is. */
-export class ValidationError extends DomainError {}
+export class ValidationError extends DomainError {
+  /** Messages by field (dotted path), when the problem is in named fields of the request. */
+  readonly fields: Readonly<Record<string, string>> | undefined
+
+  constructor(
+    message: string,
+    options?: ErrorOptions & { fields?: Readonly<Record<string, string>> },
+  ) {
+    super(message, options)
+    this.fields = options?.fields
+  }
+}
 
 /** What was asked for does not exist (or is not visible to the caller). */
 export class NotFoundError extends DomainError {}

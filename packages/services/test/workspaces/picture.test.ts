@@ -62,6 +62,22 @@ describe('storeWorkspacePicture', () => {
     expect(await t.db.select().from(schema.files)).toHaveLength(1)
   })
 
+  it('refuses an image under 128 px on its short side, and accepts a wide one', async () => {
+    for (const [width, height] of [
+      [64, 64],
+      [300, 100],
+    ] as const) {
+      // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
+      const bytes = await imageBytes({ format: 'png', color: '#336699', width, height })
+      // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
+      await expect(storeWorkspacePicture(t.db, storage, { bytes })).rejects.toThrow(
+        /shorter side must be at least 128 px/,
+      )
+    }
+    const wide = await imageBytes({ format: 'png', color: '#336699', width: 400, height: 128 })
+    await expect(storeWorkspacePicture(t.db, storage, { bytes: wide })).resolves.toBeDefined()
+  })
+
   it('refuses empty uploads, anything over 1 MB, and what is not a PNG, JPEG or WebP', async () => {
     await expect(storeWorkspacePicture(t.db, storage, { bytes: Buffer.alloc(0) })).rejects.toThrow(
       ValidationError,

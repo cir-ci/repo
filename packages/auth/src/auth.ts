@@ -5,9 +5,10 @@ import { betterAuth } from 'better-auth'
 import { MIN_PASSWORD_LENGTH } from './constants.ts'
 import { hostCookies } from './cookies.ts'
 import { beforeAccountCreate } from './hooks/account-create.ts'
+import { afterOrganizationRequest } from './hooks/invitations.ts'
 import { requestGuard } from './hooks/request-guard.ts'
 import { onSessionCreated } from './hooks/session-created.ts'
-import { beforeUserCreate } from './hooks/user-create.ts'
+import { beforeUserCreate, beforeUserUpdate } from './hooks/user-create.ts'
 import type { AuthOptions } from './options.ts'
 import { authPlugins } from './plugins/index.ts'
 import { socialProviders } from './plugins/sso/plugin.ts'
@@ -66,11 +67,14 @@ export function createAuth(options: AuthOptions) {
       cookiePrefix: 'circi',
       ...hostCookies(options.baseURL),
     },
-    hooks: { before: requestGuard(options) },
+    hooks: { before: requestGuard(options), after: afterOrganizationRequest() },
     databaseHooks: {
       session: { create: { after: onSessionCreated(options) } },
       account: { create: { before: beforeAccountCreate(options) } },
-      user: { create: { before: beforeUserCreate(options) } },
+      user: {
+        create: { before: beforeUserCreate(options) },
+        update: { before: beforeUserUpdate() },
+      },
     },
     plugins: authPlugins(options),
   })

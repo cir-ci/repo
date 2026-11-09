@@ -43,10 +43,10 @@ describe('workspace settings', () => {
       retentionDays: 90,
     })
     await expect(setWorkspaceSettings(t.db, workspace.id, { retentionDays: 0 })).rejects.toThrow(
-      /at least 1 day/,
+      /between 1 and 3650 days/,
     )
     await expect(setWorkspaceSettings(t.db, workspace.id, { retentionDays: 1.5 })).rejects.toThrow(
-      /at least 1 day/,
+      /between 1 and 3650 days/,
     )
     const after = await createTeam(t.db, { workspaceSlug: workspace.slug, name: 'after' })
     expect(after.retentionDays).toBe(90)

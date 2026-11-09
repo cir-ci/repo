@@ -22,9 +22,8 @@ const send = sender(() => app, acmeCookie)
 const base = (workspace = acme.workspaceSlug) => `/api/teams/${workspace}/web`
 
 describe('ignore regions', () => {
-  it('lets a member add and remove a region, and dismisses the triage item it answers', async () => {
+  it('lets a manager add and remove a region, and dismisses the triage item it answers', async () => {
     const created = await send('POST', `${base()}/ignore-regions`, {
-      cookie: louCookie,
       payload: {
         name: 'home',
         x: 10,
@@ -37,12 +36,10 @@ describe('ignore regions', () => {
     expect(created.statusCode).toBe(201)
     expect(created.json()).toMatchObject({ name: 'home', x: 10, y: 20, width: 120, height: 18 })
 
-    const list = await get(`${base()}/ignore-regions`, louCookie)
+    const list = await get(`${base()}/ignore-regions`)
     expect(list.json().regions).toMatchObject([{ id: created.json().id, name: 'home' }])
 
-    const removed = await send('DELETE', `${base()}/ignore-regions/${created.json().id}`, {
-      cookie: louCookie,
-    })
+    const removed = await send('DELETE', `${base()}/ignore-regions/${created.json().id}`)
     expect(removed.statusCode).toBe(204)
     expect((await get(`${base()}/ignore-regions`)).json().regions).toEqual([])
     expect((await send('DELETE', `${base()}/ignore-regions/${created.json().id}`)).statusCode).toBe(
@@ -63,6 +60,25 @@ describe('ignore regions', () => {
         400,
       )
     }
+  })
+
+  it('answers 403 to a plain member on every write, and lets them read', async () => {
+    const payload = { name: 'home', x: 0, y: 0, width: 5, height: 5 }
+    const owned = await send('POST', `${base()}/ignore-regions`, { payload })
+    expect(owned.statusCode).toBe(201)
+    const url = `${base()}/ignore-regions`
+    expect((await send('POST', url, { cookie: louCookie, payload })).statusCode).toBe(403)
+    expect(
+      (await send('PATCH', `${url}/${owned.json().id}`, { cookie: louCookie, payload: { x: 1 } }))
+        .statusCode,
+    ).toBe(403)
+    expect(
+      (await send('DELETE', `${url}/${owned.json().id}`, { cookie: louCookie })).statusCode,
+    ).toBe(403)
+    const list = await get(url, louCookie)
+    expect(list.statusCode).toBe(200)
+    expect(list.json().regions).toHaveLength(1)
+    expect(list.json().regions[0]).toMatchObject({ x: 0 })
   })
 
   it('is hidden from non-members', async () => {

@@ -28,6 +28,7 @@ const editBody = z
   })
   .partial()
   .strict()
+const FORBIDDEN = 'Only owners and admins can change ignore regions'
 const idParams = z.object({ id: z.string() })
 
 const present = (r: Awaited<ReturnType<typeof listIgnoreRegions>>[number]): IgnoreRegion.Item => ({
@@ -36,9 +37,8 @@ const present = (r: Awaited<ReturnType<typeof listIgnoreRegions>>[number]): Igno
 })
 
 /**
- * Regions to ignore when comparing a team's screenshots by name. Any member may add, move or
- * remove one, as they may from triage; everyone
- * outside the workspace gets "not found". A region is checked for a whole-number rectangle by
+ * Regions to ignore when comparing a team's screenshots by name. Any member may read them; only owners
+ * and admins add, move or remove one (members get 403); everyone outside the workspace gets "not found". A region is checked for a whole-number rectangle by
  * the repository (400 otherwise).
  */
 export const dashboardIgnoreRegionRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
@@ -55,7 +55,7 @@ export const dashboardIgnoreRegionRoutes: FastifyPluginAsync<Deps.Dashboard> = a
   })
 
   app.post('/teams/:workspace/:team/ignore-regions', async (req, reply) => {
-    const found = await loadTeam(deps, req)
+    const found = await loadTeam(deps, req, { manage: true, forbidden: FORBIDDEN })
     const body = parse(regionBody, req.body)
     const region = await createIgnoreRegion(deps.db, {
       teamId: found.team.id,
@@ -66,7 +66,7 @@ export const dashboardIgnoreRegionRoutes: FastifyPluginAsync<Deps.Dashboard> = a
   })
 
   app.patch('/teams/:workspace/:team/ignore-regions/:id', async (req, reply) => {
-    const found = await loadTeam(deps, req)
+    const found = await loadTeam(deps, req, { manage: true, forbidden: FORBIDDEN })
     const { id } = parse(idParams, req.params)
     if (!z.uuid().safeParse(id).success) {
       return reply.code(404).send({ error: 'Ignore region not found' })
@@ -76,7 +76,7 @@ export const dashboardIgnoreRegionRoutes: FastifyPluginAsync<Deps.Dashboard> = a
   })
 
   app.delete('/teams/:workspace/:team/ignore-regions/:id', async (req, reply) => {
-    const found = await loadTeam(deps, req)
+    const found = await loadTeam(deps, req, { manage: true, forbidden: FORBIDDEN })
     const { id } = parse(idParams, req.params)
     if (!z.uuid().safeParse(id).success) {
       return reply.code(404).send({ error: 'Ignore region not found' })

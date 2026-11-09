@@ -114,10 +114,24 @@ describe('workspace picture', () => {
     expect((await upload(outsiderCookie, png, 'image/png')).statusCode).toBe(404)
     const ok = await upload(
       adminCookie,
-      await imageBytes({ format: 'webp', color: '#00ff00' }),
+      await imageBytes({ format: 'webp', width: 200, height: 200, color: '#00ff00' }),
       'image/webp',
     )
     expect(ok.statusCode).toBe(200)
+  })
+
+  it('refuses an image under 128 px on its short side, saying so', async () => {
+    for (const [width, height] of [
+      [64, 64],
+      [300, 100],
+    ] as const) {
+      // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
+      const bytes = await imageBytes({ format: 'png', width, height })
+      // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
+      const res = await upload(ownerCookie, bytes, 'image/png')
+      expect(res.statusCode).toBe(400)
+      expect(res.json<{ error: string }>().error).toMatch(/at least 128 px/)
+    }
   })
 
   it('refuses other types, bad bytes and anything over 1 MB with a clear 400', async () => {

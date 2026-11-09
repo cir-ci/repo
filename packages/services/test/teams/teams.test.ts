@@ -41,7 +41,7 @@ describe('changeTeamSettings', () => {
     expect(saved.diffThreshold).toBe(0.5)
     await expect(
       changeTeamSettings(t.db, team.id, { name: 'Other', defaultBranch: '  ' }),
-    ).rejects.toThrow(/Default branch/)
+    ).rejects.toThrow(/branch name is required/)
     expect((await getTeamById(t.db, team.id))?.name).toBe('Web')
   })
 })

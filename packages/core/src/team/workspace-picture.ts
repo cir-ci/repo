@@ -12,6 +12,8 @@ export const WORKSPACE_PICTURE_PREFIX = 'picture:'
 export const WORKSPACE_PICTURE_MAX_BYTES = 1024 * 1024
 /** The stored picture is a square this many pixels wide. */
 export const WORKSPACE_PICTURE_SIZE = 256
+/** The shorter side of an upload must be at least this many pixels. */
+export const WORKSPACE_PICTURE_MIN_SIDE = 128
 /** The image types an upload may have. */
 export const WORKSPACE_PICTURE_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
 

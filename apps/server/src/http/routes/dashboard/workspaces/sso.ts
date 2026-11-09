@@ -15,6 +15,18 @@ import { loadWorkspace } from '#http/lib/workspace-access.ts'
 
 const workspaceParams = z.object({ workspace: z.string() })
 const providerParams = workspaceParams.extend({ providerId: z.string() })
+/**
+ * Registering fetches the issuer's discovery document. A host that doesn't answer (DNS, refused
+ * connection, timeout) is the person's typo or firewall, not our fault: say so with a 400.
+ */
+function issuerFailure(err: unknown, issuer: string): unknown {
+  const status =
+    typeof err === 'object' && err !== null ? Reflect.get(err, 'statusCode') : undefined
+  const unreachable = typeof status === 'number' && status >= 500
+  if (!unreachable || err instanceof ValidationError) return err
+  return new ValidationError(`Couldn't reach that issuer: ${new URL(issuer).host} didn't answer.`)
+}
+
 const registerBody = z.object({
   issuer: z.url().max(2048),
   clientId: z.string().min(1).max(512),
@@ -65,24 +77,28 @@ export const dashboardWorkspaceSsoRoutes: FastifyPluginAsync<Deps.Dashboard> = a
       throw new ValidationError('Issuer: use an https address')
     }
     const providerId = `${workspace.slug}-sso`
-    await withTrustedIssuer(deps.auth, body.issuer, () =>
-      deps.auth.api.registerSSOProvider({
-        headers: fromNodeHeaders(req.headers),
-        body: {
-          providerId,
-          issuer: body.issuer,
-          // Routing by email domain isn't used: people start from the workspace's name.
-          domain: new URL(body.issuer).hostname,
-          organizationId: workspace.id,
-          oidcConfig: {
-            clientId: body.clientId,
-            clientSecret: body.clientSecret,
-            pkce: true,
-            scopes: ['openid', 'email', 'profile'],
+    try {
+      await withTrustedIssuer(deps.auth, body.issuer, () =>
+        deps.auth.api.registerSSOProvider({
+          headers: fromNodeHeaders(req.headers),
+          body: {
+            providerId,
+            issuer: body.issuer,
+            // Routing by email domain isn't used: people start from the workspace's name.
+            domain: new URL(body.issuer).hostname,
+            organizationId: workspace.id,
+            oidcConfig: {
+              clientId: body.clientId,
+              clientSecret: body.clientSecret,
+              pkce: true,
+              scopes: ['openid', 'email', 'profile'],
+            },
           },
-        },
-      }),
-    )
+        }),
+      )
+    } catch (err) {
+      throw issuerFailure(err, body.issuer)
+    }
     return reply
       .code(201)
       .send({ provider: { providerId, issuer: body.issuer, redirectUri: redirectUri(providerId) } })

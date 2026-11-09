@@ -65,7 +65,7 @@ describe('workspace settings', () => {
     expect(next.flakyBlocksMerge).toBe(true)
     expect(await getWorkspaceSettings(t.db, workspace.id)).toEqual(next)
     await expect(updateWorkspaceSettings(t.db, workspace.id, { retentionDays: 0 })).rejects.toThrow(
-      /at least 1 day/,
+      /between 1 and 3650 days/,
     )
   })
 })

@@ -28,3 +28,14 @@ export async function hasAccount(db: Database, email: string): Promise<boolean> 
     .limit(1)
   return row !== undefined
 }
+
+/** Whether the address belongs to an account that is banned right now (a ban may expire). */
+export async function isBanned(db: Database, email: string): Promise<boolean> {
+  const [row] = await db
+    .select({ banned: schema.user.banned, banExpires: schema.user.banExpires })
+    .from(schema.user)
+    .where(sql`lower(${schema.user.email}) = ${email.toLowerCase()}`)
+    .limit(1)
+  if (!row?.banned) return false
+  return row.banExpires === null || row.banExpires > new Date()
+}

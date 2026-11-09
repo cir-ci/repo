@@ -1,4 +1,4 @@
-import { ValidationError } from '@circi/core'
+import { assertRetentionDays } from '@circi/core'
 
 import { type WorkspaceSettings, getWorkspaceSettings } from '#queries/workspace-settings.ts'
 import { workspaceSettings } from '#schema/index.ts'
@@ -12,12 +12,7 @@ export async function setWorkspaceSettings(
   workspaceId: string,
   patch: Partial<WorkspaceSettings>,
 ): Promise<WorkspaceSettings> {
-  if (
-    patch.retentionDays !== undefined &&
-    (!Number.isInteger(patch.retentionDays) || patch.retentionDays < 1)
-  ) {
-    throw new ValidationError('Retention must be at least 1 day')
-  }
+  if (patch.retentionDays !== undefined) assertRetentionDays(patch.retentionDays)
   const next = { ...(await getWorkspaceSettings(db, workspaceId)), ...patch }
   await db
     .insert(workspaceSettings)

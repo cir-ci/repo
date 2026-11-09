@@ -132,9 +132,12 @@ describe('ignore regions page', () => {
       height: 800,
     })
     const region = { name: 'checkout/summary', x: 10, y: 20, width: 30, height: 40 }
-    const created = await call('POST', `${team()}/ignore-regions`, memberCookie, region)
+    const created = await call('POST', `${team()}/ignore-regions`, ownerCookie, region)
     expect(created.statusCode).toBe(201)
-    expect(created.json()).toMatchObject({ ...region, createdBy: { name: 'Plain' } })
+    expect(created.json()).toMatchObject({
+      ...region,
+      createdBy: { name: expect.stringContaining('Owner') },
+    })
 
     const list = (await call('GET', `${team()}/ignore-regions`, ownerCookie)).json()
     expect(list.regions).toHaveLength(1)
@@ -158,7 +161,7 @@ describe('ignore regions page', () => {
       y: 20,
       width: 50,
       height: 40,
-      createdBy: { name: 'Plain' },
+      createdBy: { name: expect.stringContaining('Owner') },
     })
     expect(
       (await call('PATCH', `${team()}/ignore-regions/${id}`, ownerCookie, { width: 0 })).statusCode,

@@ -220,6 +220,21 @@ describe('a workspace’s own single sign-on', () => {
     expect(del.statusCode).toBe(404)
   })
 
+  it('answers 400, saying so, when the issuer cannot be reached', async () => {
+    for (const issuer of ['https://unreachable.invalid', 'http://127.0.0.1:9']) {
+      // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
+      const res = await app.inject({
+        method: 'POST',
+        url: base(),
+        headers: { ...JSON_HEADERS, cookie: ownerCookie },
+        payload: { issuer, clientId: 'client-1', clientSecret: 'shh' },
+      })
+      expect(res.statusCode).toBe(400)
+      expect(res.json().error).toContain("Couldn't reach that issuer")
+      expect(res.json().error).toContain(new URL(issuer).host)
+    }
+  })
+
   it('removes the provider, after which nobody can sign in through it', async () => {
     expect((await registerProvider()).statusCode).toBe(201)
     const del = await app.inject({

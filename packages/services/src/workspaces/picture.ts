@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import {
   ValidationError,
   WORKSPACE_PICTURE_MAX_BYTES,
+  WORKSPACE_PICTURE_MIN_SIDE,
   WORKSPACE_PICTURE_SIZE,
   workspacePictureKey,
 } from '@circi/core'
@@ -17,7 +18,7 @@ import { contentKey, type StorageDriver } from '@circi/storage'
  * caller sets it through better-auth. Nothing deletes the picture it replaces: with nothing
  * naming it any more, storage GC marks and collects it like any other unused file.
  *
- * A refused upload (too big, not an image, not a PNG, JPEG or WebP) is a `ValidationError`.
+ * A refused upload (too big, shorter than 128 px on its short side, not an image, not a PNG, JPEG or WebP) is a `ValidationError`.
  */
 export async function storeWorkspacePicture(
   db: Database,
@@ -30,7 +31,9 @@ export async function storeWorkspacePicture(
   }
   let png: Buffer
   try {
-    ;({ png } = await makeWorkspacePicture(input.bytes, WORKSPACE_PICTURE_SIZE))
+    ;({ png } = await makeWorkspacePicture(input.bytes, WORKSPACE_PICTURE_SIZE, {
+      minSide: WORKSPACE_PICTURE_MIN_SIDE,
+    }))
   } catch (err) {
     if (err instanceof InvalidImageError) throw new ValidationError(err.message)
     throw err

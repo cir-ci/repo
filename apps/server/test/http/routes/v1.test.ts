@@ -236,7 +236,7 @@ describe('upload flow (local-disk storage)', () => {
       },
     })
     expect(jpeg.statusCode).toBe(400)
-    expect(jpeg.json().error).toMatch(/files\.0\.contentType/)
+    expect(jpeg.json().error).toMatch(/Content type/)
     const badSha = await app.inject({
       method: 'POST',
       url: '/v1/builds',
