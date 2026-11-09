@@ -47,3 +47,19 @@
   font-size: 12px;
   overflow-wrap: anywhere;
 }
+
+.theme {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 200px;
+  padding-bottom: 4px;
+}
+
+.themeLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--circi-text-secondary);
+  font-weight: 500;
+}

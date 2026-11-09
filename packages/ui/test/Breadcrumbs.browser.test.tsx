@@ -74,8 +74,21 @@ describe('Breadcrumbs', () => {
         items={[{ label: 'Acme', href: '/inbox', tooltip: 'Go to Inbox' }, { label: 'Builds' }]}
       />,
     )
+    const link = page.getByRole('link', { name: 'Acme' })
     await userEvent.tab()
-    await expect.element(page.getByRole('link', { name: 'Acme' })).toHaveFocus()
+    await expect.element(link).toHaveFocus()
+    // Base UI opens a focus tooltip only from a real focus event on a document that has focus, and
+    // ignores a focus that arrives while the window is blurred (parallel browser pages on a busy
+    // machine take focus from each other). `toHaveFocus` only reads `document.activeElement`, so
+    // when the tooltip hasn't opened, move focus off and back with the keyboard, as a user would.
+    await expect
+      .poll(async () => {
+        if (page.getByText('Go to Inbox').elements().length > 0) return true
+        link.element().blur()
+        await userEvent.tab()
+        return page.getByText('Go to Inbox').elements().length > 0
+      })
+      .toBe(true)
     await expect.element(page.getByText('Go to Inbox')).toBeVisible()
   })
 })

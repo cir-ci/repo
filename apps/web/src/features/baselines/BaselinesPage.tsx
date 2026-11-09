@@ -1,10 +1,9 @@
 import type { Baseline } from '@circi/api'
-import { EmptyState, ListRow, Text, TextField, visuallyHidden } from '@circi/ui'
+import { EmptyState, ListRow, SearchIcon, StatusIcon, Text, TextField } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
-import { fileUrl } from '#features/builds/api/index.ts'
 import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
@@ -16,16 +15,12 @@ import { useListNavigation } from '#lib/use-list-navigation.ts'
 import {
   baselineId,
   baselinesQuery,
-  countLabel,
-  dimensionsLabel,
   filterBaselines,
   flattenGroups,
   groupBaselines,
-  sizeLabel,
 } from './api.ts'
 import { ROUTE } from './routes.ts'
 
-import listStyles from '#lib/ListPage.module.css'
 import styles from './BaselinesPage.module.css'
 
 export function BaselinesPage() {
@@ -51,84 +46,95 @@ export function BaselinesPage() {
 
   return (
     <>
-      <PageHeading crumbs={crumbsFor(names)} title="Baselines" />
-      <div className={listStyles['page']}>
-        <div className={listStyles['body']}>
-          <QueryBoundary
-            query={query}
-            announce="Loading baselines"
-            notFound="Team not found"
-            rows={4}
-          >
-            {(loaded) =>
-              all.length === 0 ? (
-                <EmptyState title="No baselines yet">
-                  Once a build of {loaded.team.defaultBranch} finishes, its screenshots become the
-                  baselines new builds are compared against.
-                </EmptyState>
-              ) : (
-                <>
-                  <div className={listStyles['toolbar']}>
-                    <span role="status" className={listStyles['count']}>
-                      {countLabel(items.length, all.length)} on {loaded.team.defaultBranch}
-                    </span>
-                    <TextField
-                      className={styles.filter}
-                      label="Filter"
-                      placeholder="Name, build or commit"
-                      value={filter}
-                      onChange={(e) => setFilter(e.target.value)}
-                    />
-                  </div>
-                  {items.length === 0 ? (
-                    <EmptyState title="No matching baselines">
-                      Nothing matches “{filter.trim()}”.
-                    </EmptyState>
-                  ) : (
-                    <div className={styles.groups} ref={listRef}>
-                      {groups.map((group) => (
-                        <section
-                          key={group.buildName}
-                          aria-labelledby={`baselines-${group.buildName}`}
-                        >
-                          <h2 className={styles.groupHeader} id={`baselines-${group.buildName}`}>
-                            {group.buildName}
+      <PageHeading
+        crumbs={crumbsFor(names)}
+        title="Baselines"
+        after={
+          data && all.length > 0 ? (
+            <Text variant="small" tone="tertiary" role="status">
+              {items.length} on {data.team.defaultBranch}
+            </Text>
+          ) : null
+        }
+        actions={
+          data && all.length > 0 ? (
+            <span className={styles.search}>
+              <SearchIcon size={14} className={styles.searchIcon} aria-hidden="true" />
+              <TextField
+                label="Search baselines"
+                hideLabel
+                placeholder="Search snapshots"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+              />
+            </span>
+          ) : null
+        }
+      />
+      <div className={styles.page}>
+        <QueryBoundary
+          query={query}
+          announce="Loading baselines"
+          notFound="Team not found"
+          rows={4}
+        >
+          {(loaded) =>
+            all.length === 0 ? (
+              <EmptyState title="No baselines yet">
+                Once a build of {loaded.team.defaultBranch} finishes, its screenshots become the
+                baselines new builds are compared against.
+              </EmptyState>
+            ) : (
+              <>
+                <div className={styles.cols} aria-hidden="true">
+                  <span className={styles.snapshot}>Snapshot</span>
+                  <span className={styles.build}>Build</span>
+                  <span className={styles.age}>Age</span>
+                </div>
+                {items.length === 0 ? (
+                  <Text as="p" tone="tertiary" className={styles.none}>
+                    No baseline matches “{filter.trim()}”
+                  </Text>
+                ) : (
+                  <div className={styles.groups} ref={listRef}>
+                    {groups.map((group) => {
+                      const title = group.prefix ?? 'Ungrouped'
+                      const id = `baselines-${group.prefix ?? '(ungrouped)'}`
+                      return (
+                        <section key={id} aria-labelledby={id}>
+                          <h2 className={styles.groupHeader} id={id}>
+                            <span>{title}</span>
+                            <span className={styles.groupCount}>{group.items.length}</span>
                           </h2>
-                          <ul
-                            aria-label={`${group.buildName}, ${group.items.length} baselines`}
-                            className={listStyles['list']}
-                          >
+                          <ul className={styles.list}>
                             {group.items.map((item) => (
                               <li key={baselineId(item)} {...rowProps(baselineId(item))}>
                                 <ListRow
-                                  density="two-line"
+                                  density="compact"
                                   selected={baselineId(item) === selectedId}
                                   {...clientLink({
                                     to: '/$workspace/$team/builds/$number',
                                     params: { workspace, team, number: String(item.buildNumber) },
                                   })}
                                   leading={
-                                    item.thumbnailSha256 || item.fileSha256 ? (
-                                      <img
-                                        className={styles.thumb}
-                                        src={fileUrl(item.thumbnailSha256 ?? item.fileSha256)}
-                                        alt=""
-                                        loading="lazy"
-                                      />
-                                    ) : undefined
+                                    <StatusIcon
+                                      status="approved"
+                                      label={`Baseline on ${loaded.team.defaultBranch}`}
+                                    />
                                   }
                                 >
-                                  <Text truncate>{item.name}</Text>
-                                  <span className={listStyles['meta']}>
-                                    <span>Build #{item.buildNumber}</span>
-                                    {dimensionsLabel(item) ? (
-                                      <span>{dimensionsLabel(item)}</span>
-                                    ) : null}
-                                    {sizeLabel(item.sizeBytes) ? (
-                                      <span>{sizeLabel(item.sizeBytes)}</span>
-                                    ) : null}
-                                    <span>
-                                      <span style={visuallyHidden}>Approved </span>
+                                  <span className={styles.rowGrid}>
+                                    <Text truncate className={styles.snapshot}>
+                                      {item.name}
+                                      {item.buildName === 'default' ? null : (
+                                        <span className={styles.buildName}>
+                                          {' '}
+                                          · {item.buildName}
+                                        </span>
+                                      )}
+                                    </Text>
+                                    <span className={styles.build}>#{item.buildNumber}</span>
+                                    <span className={styles.age}>
                                       <RelativeTime iso={item.approvedAt} />
                                     </span>
                                   </span>
@@ -137,14 +143,14 @@ export function BaselinesPage() {
                             ))}
                           </ul>
                         </section>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )
-            }
-          </QueryBoundary>
-        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </>
+            )
+          }
+        </QueryBoundary>
       </div>
     </>
   )

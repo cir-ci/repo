@@ -77,25 +77,6 @@
   overflow-wrap: anywhere;
 }
 
-.tile {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  background: var(--circi-surface-highest);
-  color: var(--circi-text-primary);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.num {
-  flex: 0 0 88px;
-  color: var(--circi-text-secondary);
-}
-
 .form {
   display: flex;
   flex-direction: column;

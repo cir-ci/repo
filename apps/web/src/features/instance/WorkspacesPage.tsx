@@ -6,11 +6,11 @@ import {
   ConfirmDialog,
   Dialog,
   EmptyState,
-  ListRow,
   SettingsRow,
   SettingsSection,
   Text,
   TextField,
+  visuallyHidden,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useState } from 'react'
@@ -34,6 +34,7 @@ import {
 } from './api/admin.ts'
 
 import styles from './Admin.module.css'
+import rows from './WorkspacesPage.module.css'
 
 const emptyDraft = (): WorkspaceDraft => ({ name: '', ownerEmail: '' })
 
@@ -80,52 +81,25 @@ export function WorkspacesPage() {
             Create one for an existing account to get started.
           </EmptyState>
         ) : (
-          <ul className={styles.list} aria-label="Workspaces">
-            {data?.workspaces.map((w) => (
-              <li key={w.id}>
-                <ListRow
-                  density="two-line"
-                  leading={
-                    <span className={styles.tile} aria-hidden="true">
-                      {w.name.slice(0, 1).toUpperCase()}
-                    </span>
-                  }
-                  trailing={
-                    <>
-                      {w.deletedAt ? (
-                        <>
-                          <Button
-                            size="sm"
-                            loading={restore.isPending && restore.variables === w.id}
-                            onClick={() =>
-                              restore.mutate(w.id, {
-                                onSuccess: () => setCreated(`Restored the workspace ${w.name}.`),
-                              })
-                            }
-                          >
-                            Restore
-                          </Button>
-                          <Button size="sm" variant="danger" onClick={() => setPurging(w)}>
-                            Delete permanently now
-                          </Button>
-                        </>
-                      ) : null}
-                      <Text className={styles.num} variant="small">
-                        {w.memberCount} {w.memberCount === 1 ? 'member' : 'members'}
-                      </Text>
-                      <Text className={styles.num} variant="small">
-                        {w.teamCount} {w.teamCount === 1 ? 'team' : 'teams'}
-                      </Text>
-                      <Text className={styles.num} variant="small">
-                        {formatBytes(w.storageBytes)}
-                      </Text>
-                    </>
-                  }
-                >
-                  <div className={styles.grow}>
+          <div className={rows.box}>
+            <div className={rows.head} aria-hidden="true">
+              <span className={rows.tileSpacer} />
+              <span className={rows.name}>Workspace</span>
+              <span className={rows.num}>Members</span>
+              <span className={rows.num}>Teams</span>
+              <span className={rows.num}>Created</span>
+              <span className={rows.action} />
+            </div>
+            <ul className={rows.list} aria-label="Workspaces">
+              {data?.workspaces.map((w) => (
+                <li key={w.id} className={rows.row}>
+                  <span className={rows.tile} aria-hidden="true">
+                    {w.name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className={rows.name}>
                     <Text>{w.name}</Text>
                     <Text tone="tertiary" variant="small">
-                      <Text variant="mono">{w.slug}</Text> · created {formatDay(w.createdAt)}
+                      <Text variant="mono">{w.slug}</Text> · {formatBytes(w.storageBytes)}
                       {w.deletedAt ? (
                         <>
                           {' · '}
@@ -135,11 +109,43 @@ export function WorkspacesPage() {
                         </>
                       ) : null}
                     </Text>
-                  </div>
-                </ListRow>
-              </li>
-            ))}
-          </ul>
+                  </span>
+                  <Text className={rows.num} variant="small">
+                    <span style={visuallyHidden}>Members </span>
+                    {w.memberCount}
+                  </Text>
+                  <Text className={rows.num} variant="small">
+                    <span style={visuallyHidden}>Teams </span>
+                    {w.teamCount}
+                  </Text>
+                  <Text className={rows.num} variant="small">
+                    <span style={visuallyHidden}>Created </span>
+                    {formatDay(w.createdAt)}
+                  </Text>
+                  <span className={rows.action}>
+                    {w.deletedAt ? (
+                      <>
+                        <Button
+                          size="sm"
+                          loading={restore.isPending && restore.variables === w.id}
+                          onClick={() =>
+                            restore.mutate(w.id, {
+                              onSuccess: () => setCreated(`Restored the workspace ${w.name}.`),
+                            })
+                          }
+                        >
+                          Restore
+                        </Button>
+                        <Button size="sm" variant="danger" onClick={() => setPurging(w)}>
+                          Delete permanently now
+                        </Button>
+                      </>
+                    ) : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </SettingsSection>
       {settings.data ? (
@@ -151,8 +157,8 @@ export function WorkspacesPage() {
             label={WORKSPACE_CREATION_TEXT[settings.data.workspaceCreation]}
             detail={
               settings.data.workspaceCreation === 'admin'
-                ? 'Everyone else joins through an invitation or a verified email domain.'
-                : 'Every signed-in account can create a workspace.'
+                ? 'Everyone else joins through an invitation or a verified email domain. Set WORKSPACE_CREATION=anyone to let every signed-in account create one.'
+                : 'Every signed-in account can create a workspace. Set WORKSPACE_CREATION=admin to limit it to instance admins.'
             }
             value={`WORKSPACE_CREATION=${settings.data.workspaceCreation}`}
           />

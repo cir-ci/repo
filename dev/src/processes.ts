@@ -1,4 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process'
+import { connect } from 'node:net'
 import { createInterface } from 'node:readline'
 
 import { REPO_ROOT } from './config.ts'
@@ -81,4 +82,54 @@ export async function waitForHttp(url: string, timeoutMs: number): Promise<void>
     await new Promise((r) => setTimeout(r, 500))
   }
   throw new Error(`${url} did not become ready within ${timeoutMs / 1000}s (${last})`)
+}
+
+/** True when something already accepts connections on `port` (IPv4 or IPv6 loopback). */
+export async function isPortTaken(port: number): Promise<boolean> {
+  const tryHost = (host: string) =>
+    new Promise<boolean>((resolve) => {
+      const socket = connect({ port, host })
+      socket.setTimeout(1000)
+      socket.once('connect', () => (socket.destroy(), resolve(true)))
+      socket.once('timeout', () => (socket.destroy(), resolve(false)))
+      socket.once('error', () => resolve(false))
+    })
+  return (await tryHost('127.0.0.1')) || (await tryHost('::1'))
+}
+
+/**
+ * Which process listens on `port`, as `lsof` prints it (command, pid, user), or null when nothing
+ * does or `lsof` is not installed (Windows, minimal containers): the caller just skips the line.
+ */
+export async function portHolder(port: number): Promise<string | null> {
+  try {
+    const out = await run('lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN'])
+    return out.length > 0 ? out : null
+  } catch {
+    return null
+  }
+}
+
+export namespace explainPortTaken {
+  export interface Input {
+    /** What wanted the port: "the server", "the dashboard (Vite)". */
+    what: string
+    port: number
+    /** The variable that picks another port. */
+    envVar: string
+  }
+}
+
+/** The lines to print when `what` could not start because `port` is taken. */
+export async function explainPortTaken({
+  what,
+  port,
+  envVar,
+}: explainPortTaken.Input): Promise<string[]> {
+  const holder = await portHolder(port)
+  return [
+    `Port ${port} is already in use, so ${what} cannot start.`,
+    ...(holder ? ['It is held by:', ...holder.split('\n').map((line) => `  ${line}`)] : []),
+    `Stop that process, or pick another port: ${envVar}=<port> pnpm dev`,
+  ]
 }

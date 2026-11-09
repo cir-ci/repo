@@ -7,6 +7,9 @@ import { renderPage } from '#test/support/render.tsx'
 
 import { settingsFixture, workspace } from './fixtures.ts'
 
+const text = (name: string) =>
+  page.getByRole('listitem').filter({ hasText: name }).element().textContent
+
 const show = () => renderPage(<WorkspacesPage />, { route: '/instance/workspaces' })
 
 const LIST = {
@@ -33,11 +36,11 @@ describe('the workspaces page', () => {
     fakeApi(LIST)
     await show()
     await expect.element(page.getByRole('heading', { level: 1, name: 'Workspaces' })).toBeVisible()
-    await expect.element(page.getByText('6 members')).toBeVisible()
-    await expect.element(page.getByText('3 teams')).toBeVisible()
-    await expect.element(page.getByText('1.5 MB')).toBeVisible()
-    await expect.element(page.getByText('1 member', { exact: true })).toBeVisible()
+    await expect.element(page.getByText(/1\.5 MB/)).toBeVisible()
+    expect(text('acme')).toMatch(/Members 6\s*Teams 3\s*Created Sep 12/)
+    expect(text('design-guild')).toMatch(/Members 1\s*Teams 0/)
     await expect.element(page.getByText('Instance admins only')).toBeVisible()
+    await expect.element(page.getByText(/Set WORKSPACE_CREATION=anyone/)).toBeVisible()
   })
 
   it('marks a deleted workspace with its days left, and restores it', async () => {

@@ -9,6 +9,7 @@ import {
   PLOT,
   reviewBars,
   reviewSummary,
+  tickLabel,
   yAt,
 } from './chart.ts'
 
@@ -51,7 +52,7 @@ function Frame(props: {
               y={yAt(PLOT, t, props.top) + 4}
               textAnchor="end"
             >
-              {t}
+              {tickLabel(t)}
             </text>
           </g>
         ))}
@@ -93,7 +94,7 @@ const WeekTable = (props: {
 )
 
 export function ReviewChart({ weeks }: { weeks: readonly Insights.Week[] }) {
-  const { top, ticks, bars } = reviewBars(weeks)
+  const { top, ticks, bars, unit } = reviewBars(weeks)
   const keep = labelIndexes(bars.length)
   const slot = (PLOT.width - PLOT.left - PLOT.right) / Math.max(1, bars.length)
   const width = Math.min(28, slot * 0.6)
@@ -103,7 +104,7 @@ export function ReviewChart({ weeks }: { weeks: readonly Insights.Week[] }) {
       summary={reviewSummary(weeks)}
       ticks={ticks}
       top={top}
-      yLabel="Hours"
+      yLabel={unit === 'hours' ? 'Hours' : 'Minutes'}
       labels={bars.flatMap((b, i) => (keep.has(i) ? [{ x: b.x, text: b.label }] : []))}
       table={
         <WeekTable

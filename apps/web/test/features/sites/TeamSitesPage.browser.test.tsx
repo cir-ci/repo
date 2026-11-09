@@ -86,7 +86,10 @@ describe('TeamSitesPage', () => {
   })
 
   it('says when hosting is not configured on the server', async () => {
-    fakeFetch({ [API]: { configured: false, dnsTarget: null, canManage: true, sites: [] } })
+    fakeFetch({
+      [API]: { configured: false, dnsTarget: null, canManage: true, sites: [] },
+      'GET /api/capabilities': { instanceAdmin: true },
+    })
     await open()
     await expect
       .element(
@@ -95,6 +98,16 @@ describe('TeamSitesPage', () => {
         ),
       )
       .toBeVisible()
+  })
+
+  it('does not show the variable name to people who cannot change server settings', async () => {
+    fakeFetch({
+      [API]: { configured: false, dnsTarget: null, canManage: true, sites: [] },
+      'GET /api/capabilities': { instanceAdmin: false },
+    })
+    await open()
+    await expect.element(page.getByText(/Ask an instance admin to turn it on/)).toBeVisible()
+    expect(document.body.textContent).not.toContain('STATIC_SITES_HOST')
   })
 
   it('shows an empty state with the upload command', async () => {

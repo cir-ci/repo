@@ -32,25 +32,29 @@ const list = (baselines: unknown[]) => ({
 })
 
 describe('BaselinesPage', () => {
-  it('lists baselines by build name, links to the build and filters', async () => {
+  it('groups baselines by name prefix, links to the build and searches', async () => {
     fakeFetch({
-      [`GET ${PATH}`]: list([item('home', 'default', 12), item('button', 'storybook', 9)]),
+      [`GET ${PATH}`]: list([
+        item('checkout/payment', 'default', 12),
+        item('checkout/summary', 'default', 11),
+        item('home', 'default', 9),
+      ]),
     })
     await open()
-    await expect.element(page.getByRole('heading', { name: 'default' })).toBeVisible()
-    await expect.element(page.getByRole('heading', { name: 'storybook' })).toBeVisible()
-    await expect.element(page.getByText('2 baselines on main')).toBeVisible()
-    const link = page.getByRole('link', { name: /home/ })
+    await expect.element(page.getByRole('heading', { name: /checkout/ })).toBeVisible()
+    await expect.element(page.getByRole('heading', { name: /Ungrouped/ })).toBeVisible()
+    await expect.element(page.getByText('3 on main')).toBeVisible()
+    const link = page.getByRole('link', { name: /checkout\/payment/ })
     await expect.element(link).toHaveAttribute('href', '/acme/web/builds/12')
-    await expect.element(page.getByText('400 × 300').first()).toBeVisible()
-    await expect.element(page.getByText('20 kB').first()).toBeVisible()
 
-    await userEvent.fill(page.getByRole('textbox', { name: 'Filter' }), 'butt')
-    await expect.element(page.getByText('1 of 2 baselines on main')).toBeVisible()
-    await expect.element(page.getByRole('link', { name: /home/ })).not.toBeInTheDocument()
+    const search = page.getByRole('textbox', { name: 'Search baselines' })
+    await expect.element(search).toHaveAttribute('placeholder', 'Search snapshots')
+    await userEvent.fill(search, 'home')
+    await expect.element(page.getByText('1 on main')).toBeVisible()
+    await expect.element(page.getByRole('link', { name: /checkout/ })).not.toBeInTheDocument()
 
-    await userEvent.fill(page.getByRole('textbox', { name: 'Filter' }), 'zzz')
-    await expect.element(page.getByText('No matching baselines')).toBeVisible()
+    await userEvent.fill(search, 'zzz')
+    await expect.element(page.getByText('No baseline matches “zzz”')).toBeVisible()
   })
 
   it('says so when there are none', async () => {

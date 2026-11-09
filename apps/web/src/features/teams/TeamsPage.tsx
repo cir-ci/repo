@@ -1,17 +1,17 @@
-import { Banner, Button, ListRow, StatusIcon, Text } from '@circi/ui'
+import { Banner, Button, ListRow, StatusIcon, TeamTile, Text, visuallyHidden } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 
 import { buildState } from '#features/builds/build-state.ts'
-import { BuildMeta } from '#features/builds/BuildMeta.tsx'
-import { CountsSummary } from '#features/builds/CountsSummary.tsx'
-import { shotReview } from '#features/builds/diff-status.ts'
 import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
+import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 
+import { isTeamIconName } from './appearance.ts'
+import { changesCell } from './list.ts'
 import { TeamsEmpty } from './TeamsEmpty.tsx'
 
 import styles from './TeamsPage.module.css'
@@ -31,25 +31,28 @@ export function TeamsPage() {
   const setNewTeamOpen = useOverlayStore((s) => s.setNewTeamOpen)
   const canCreateTeam = (caps?.manageableWorkspaces.length ?? 0) > 0
   const canCreateWorkspace = caps?.canCreateWorkspace === true
+  const teams = query.data?.teams
 
   return (
     <>
       <PageHeading
         title="Teams"
+        after={
+          teams ? (
+            <Text variant="small" tone="tertiary" aria-label={`${teams.length} teams`}>
+              {teams.length}
+            </Text>
+          ) : null
+        }
         actions={
-          <>
-            {canCreateTeam ? (
-              <Button size="sm" variant="primary" onClick={() => setNewTeamOpen(true)}>
-                New team
-              </Button>
-            ) : null}
-          </>
+          canCreateTeam ? (
+            <Button size="sm" variant="primary" onClick={() => setNewTeamOpen(true)}>
+              New team
+            </Button>
+          ) : null
         }
       />
       <div className={styles.content}>
-        <Text as="p" variant="small" tone="secondary">
-          Each team receives screenshot builds from one repository’s CI.
-        </Text>
         {caps?.refusingWorkspaces.map((o) => (
           <Banner key={o.name}>
             {o.name} only shows its teams to people who signed in with{' '}
@@ -64,54 +67,104 @@ export function TeamsPage() {
             data.teams.length === 0 ? (
               <TeamsEmpty canCreateTeam={canCreateTeam} canCreateWorkspace={canCreateWorkspace} />
             ) : (
-              <ul aria-label="Teams" className={styles.list}>
-                {data.teams.map(({ workspace, team, latestBuild }) => {
-                  const state = latestBuild ? buildState(latestBuild) : null
-                  return (
-                    <li key={`${workspace.slug}/${team.slug}`}>
-                      <ListRow
-                        className={styles.row}
-                        {...clientLink({
-                          to: '/$workspace/$team',
-                          params: { workspace: workspace.slug, team: team.slug },
-                        })}
-                        leading={
-                          state ? (
-                            <StatusIcon status={state.status} label={state.label} />
-                          ) : (
-                            <StatusIcon status="neutral" label="No builds yet" />
-                          )
-                        }
-                        trailing={
-                          latestBuild ? (
-                            <span className={styles.trailing}>
-                              <CountsSummary
-                                counts={latestBuild.counts}
-                                review={shotReview(latestBuild)}
-                                includeUnchanged={false}
+              <>
+                <div className={styles.head} aria-hidden="true">
+                  <span className={styles.nameCol}>Name</span>
+                  <span className={styles.latest}>Latest build</span>
+                  <span className={styles.changes}>Changes</span>
+                  <span className={styles.updated}>Updated</span>
+                </div>
+                <ul aria-label="Teams" className={styles.list}>
+                  {data.teams.map(({ workspace, team, latestBuild }) => {
+                    const state = latestBuild ? buildState(latestBuild) : null
+                    const cell = latestBuild ? changesCell(latestBuild) : null
+                    return (
+                      <li key={`${workspace.slug}/${team.slug}`}>
+                        <ListRow
+                          className={styles.row}
+                          {...clientLink({
+                            to: '/$workspace/$team',
+                            params: { workspace: workspace.slug, team: team.slug },
+                          })}
+                        >
+                          <span className={styles.grid}>
+                            <span className={styles.nameCol}>
+                              <TeamTile
+                                size={24}
+                                name={team.name}
+                                color={team.color}
+                                {...(isTeamIconName(team.icon) ? { icon: team.icon } : {})}
                               />
+                              <span className={styles.names}>
+                                <span className={styles.title}>{team.name}</span>
+                                <span className={styles.subtitle}>
+                                  {workspace.slug}/{team.slug}
+                                </span>
+                              </span>
                             </span>
-                          ) : undefined
-                        }
-                      >
-                        <span className={styles.title}>
-                          <span className={styles.workspace}>{workspace.name} / </span>
-                          {team.name}
-                        </span>
-                        <div className={styles.meta}>
-                          {latestBuild ? (
-                            <BuildMeta build={latestBuild} />
-                          ) : (
-                            <Text variant="small" tone="secondary">
-                              No builds yet
-                            </Text>
-                          )}
-                        </div>
-                      </ListRow>
-                    </li>
-                  )
-                })}
-              </ul>
+                            <span className={styles.latest}>
+                              {latestBuild && state ? (
+                                <>
+                                  <StatusIcon status={state.status} label={state.label} />
+                                  <span>#{latestBuild.number}</span>
+                                  {latestBuild.branch ? (
+                                    <span className={styles.branch}>{latestBuild.branch}</span>
+                                  ) : null}
+                                </>
+                              ) : (
+                                <>
+                                  <StatusIcon status="neutral" label="No builds yet" />
+                                  <Text variant="small" tone="secondary">
+                                    No builds yet
+                                  </Text>
+                                </>
+                              )}
+                            </span>
+                            <span className={styles.changes}>
+                              {cell?.kind === 'counts' ? (
+                                <span className={styles.counts}>
+                                  {cell.counts.map((c) => (
+                                    <span key={c.glyph} title={c.title}>
+                                      <span aria-hidden="true">
+                                        {c.glyph}
+                                        {c.count}
+                                      </span>
+                                      <span style={visuallyHidden}>{c.title}</span>
+                                    </span>
+                                  ))}
+                                </span>
+                              ) : cell ? (
+                                <Text variant="small" tone="tertiary">
+                                  {cell.text}
+                                </Text>
+                              ) : null}
+                            </span>
+                            <span className={styles.updated}>
+                              {latestBuild ? (
+                                <Text variant="small" tone="tertiary">
+                                  <RelativeTime iso={latestBuild.createdAt} />
+                                </Text>
+                              ) : null}
+                            </span>
+                          </span>
+                        </ListRow>
+                      </li>
+                    )
+                  })}
+                </ul>
+                {data.teams.some((t) => t.latestBuild === null) ? (
+                  <section className={styles.connect} aria-labelledby="teams-connect">
+                    <p id="teams-connect" className={styles.connectTitle}>
+                      Connect a CI job
+                    </p>
+                    <Text as="p" variant="small" tone="secondary">
+                      Each team gets a token. Upload screenshots after your tests run and CirCI
+                      compares them with the default branch.
+                    </Text>
+                    <pre className={styles.code}>npx circi upload ./screenshots --wait</pre>
+                  </section>
+                ) : null}
+              </>
             )
           }
         </QueryBoundary>

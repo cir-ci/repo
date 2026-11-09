@@ -12,6 +12,7 @@ export function SegmentedControl(props: SegmentedControl.Props) {
   return (
     <ToggleGroup
       className={styles.root}
+      data-fill={props.fill ? '' : undefined}
       aria-label={props.label}
       value={[props.value]}
       onValueChange={(next) => {
@@ -39,5 +40,7 @@ export namespace SegmentedControl {
     onChange: (value: string) => void
     /** Accessible name of the group. */
     label: string
+    /** Stretch to the width of the container, the options sharing it equally. */
+    fill?: boolean
   }
 }

@@ -1,0 +1,102 @@
+/* The Workspaces list: one line per workspace, columns that line up with the header. */
+.box {
+  overflow: hidden;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 10px;
+  background: var(--circi-surface-raised);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.head,
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 10px 16px;
+}
+
+.head {
+  min-height: 36px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--circi-line-subtle);
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
+}
+
+.row {
+  min-height: 56px;
+  border-bottom: 1px solid var(--circi-line-subtle);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.tile {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--circi-surface-highest);
+  color: var(--circi-text-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Keeps the header's columns over the rows' columns: as wide as the tile. */
+.tileSpacer {
+  flex: none;
+  width: 28px;
+}
+
+.name {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.num {
+  flex: 0 0 64px;
+  color: var(--circi-text-secondary);
+  font-size: 12px;
+}
+
+.action {
+  display: flex;
+  flex: 0 0 96px;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* A deleted workspace has two buttons: the cell grows to hold them instead of wrapping the row. */
+.action:has(button + button) {
+  flex-basis: auto;
+}
+
+@media (max-width: 600px) {
+  .num {
+    display: none;
+  }
+
+  .action {
+    flex-basis: auto;
+  }
+}

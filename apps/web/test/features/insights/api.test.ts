@@ -5,6 +5,7 @@ import {
   formatBytes,
   formatHours,
   rangeBounds,
+  tiles,
   validateInsightsSearch,
 } from '#features/insights/api.ts'
 import {
@@ -13,6 +14,7 @@ import {
   niceScale,
   reviewBars,
   storageBars,
+  tickLabel,
 } from '#features/insights/chart.ts'
 
 describe('insights search', () => {
@@ -95,6 +97,14 @@ describe('chart data', () => {
     expect(bars[0]?.label).toBe('Nov 2')
   })
 
+  it('draws medians under an hour in minutes, with ticks that fit the axis', () => {
+    const { unit, ticks } = reviewBars([week('2026-11-02T00:00:00Z', 0.0005)])
+    expect(unit).toBe('minutes')
+    expect(ticks.map(tickLabel)).toEqual(['1', '2', '3'])
+    expect(tickLabel(0.30000000000000004)).toBe('0.3')
+    expect(reviewBars([week('2026-11-02T00:00:00Z', 3)]).unit).toBe('hours')
+  })
+
   it('thins labels, keeping the last', () => {
     expect([...labelIndexes(13, 7)].toSorted((a, b) => a - b)).toEqual([0, 2, 4, 6, 8, 10, 12])
     expect(labelIndexes(3).size).toBe(3)
@@ -115,5 +125,42 @@ describe('chart data', () => {
       ['b', 1],
       ['a', 0.5],
     ])
+  })
+})
+
+const report = (over: { reviewed: number; median: number | null; before: number | null }) =>
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- only the fields the tiles read
+  ({
+    summary: {
+      medianReviewHours: over.median,
+      p90ReviewHours: over.median,
+      buildsReviewed: over.reviewed,
+      buildsWithChanges: 0,
+      buildsFinished: 0,
+      changeRate: null,
+      reviewedOverTarget: 0,
+    },
+    previous: {
+      medianReviewHours: over.before,
+      p90ReviewHours: over.before,
+      buildsReviewed: 0,
+      changeRate: null,
+      reviewedOverTarget: 0,
+    },
+  }) as unknown as Parameters<typeof tiles>[0]
+
+describe('summary tiles', () => {
+  it('writes whole sentences, with no dangling comparison', () => {
+    const [withBefore] = tiles(report({ reviewed: 4, median: 2, before: 4 }), 30)
+    expect(withBefore?.note).toBe('90th percentile 2.0h, vs the 30 days before')
+    const [firstPeriod] = tiles(report({ reviewed: 4, median: 2, before: null }), 30)
+    expect(firstPeriod?.note).toBe('90th percentile 2.0h')
+    expect(firstPeriod?.delta.text).toBe('● no comparison')
+  })
+
+  it('shows no median, instead of 0m, when nothing was reviewed', () => {
+    const [none] = tiles(report({ reviewed: 0, median: 0, before: null }), 7)
+    expect(none?.value).toBe('–')
+    expect(none?.note).toBe('No reviews in the last 7 days')
   })
 })

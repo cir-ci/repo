@@ -6,6 +6,18 @@
   background: var(--circi-surface-chrome);
 }
 
+.root[data-fill] {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.root[data-fill] .item {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-inline: 4px;
+}
+
 .item {
   box-sizing: border-box;
   height: 26px;

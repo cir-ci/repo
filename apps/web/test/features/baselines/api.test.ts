@@ -2,12 +2,10 @@ import type { Baseline } from '@circi/api'
 import { describe, expect, it } from 'vitest'
 
 import {
-  countLabel,
-  dimensionsLabel,
   filterBaselines,
   flattenGroups,
   groupBaselines,
-  sizeLabel,
+  namePrefix,
 } from '#features/baselines/api.ts'
 
 const item = (name: string, buildName = 'default', over: Partial<Baseline.Item> = {}) => ({
@@ -25,15 +23,24 @@ const item = (name: string, buildName = 'default', over: Partial<Baseline.Item> 
 })
 
 describe('baselines', () => {
-  it('groups by build name, default first, sorted by name', () => {
+  it('groups by the name prefix before the first slash, ungrouped last, sorted by name', () => {
     const groups = groupBaselines([
-      item('b', 'storybook'),
-      item('z'),
-      item('a', 'storybook'),
-      item('c'),
+      item('nav/header'),
+      item('home'),
+      item('checkout/summary'),
+      item('checkout/a/b'),
+      item('/odd'),
     ])
-    expect(groups.map((g) => g.buildName)).toEqual(['default', 'storybook'])
-    expect(flattenGroups(groups).map((i) => i.name)).toEqual(['c', 'z', 'a', 'b'])
+    expect(groups.map((g) => g.prefix)).toEqual(['checkout', 'nav', null])
+    expect(flattenGroups(groups).map((i) => i.name)).toEqual([
+      'checkout/a/b',
+      'checkout/summary',
+      'nav/header',
+      '/odd',
+      'home',
+    ])
+    expect(namePrefix('a/b/c')).toBe('a')
+    expect(namePrefix('plain')).toBeNull()
   })
 
   it('filters by name, build name, commit or build number', () => {
@@ -47,16 +54,5 @@ describe('baselines', () => {
     expect(filterBaselines(list, 'ffee').length).toBe(1)
     expect(filterBaselines(list, '#9').length).toBe(1)
     expect(filterBaselines(list, 'nope')).toEqual([])
-  })
-
-  it('labels sizes and counts', () => {
-    expect(sizeLabel(null)).toBe('')
-    expect(sizeLabel(100)).toBe('1 kB')
-    expect(sizeLabel(3 * 1024 * 1024)).toBe('3.0 MB')
-    expect(dimensionsLabel({ width: 1280, height: 720 })).toBe('1280 × 720')
-    expect(dimensionsLabel({ width: null, height: null })).toBe('')
-    expect(countLabel(3, 3)).toBe('3 baselines')
-    expect(countLabel(1, 1)).toBe('1 baseline')
-    expect(countLabel(1, 3)).toBe('1 of 3 baselines')
   })
 })

@@ -108,6 +108,12 @@ describe('TeamSettingsPage', () => {
   it('saves what was edited, announces it and shows a confirmation', async () => {
     const fake = api({ sitesConfigured: true })
     await show()
+    // Edit only once the form shows the saved values: the form is keyed by them and remounts
+    // (dropping what was typed, and the per-save callbacks) if they arrive after the first edit.
+    await expect.element(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Web App')
+    await expect
+      .element(page.getByRole('checkbox', { name: /Host static sites/ }))
+      .not.toBeChecked()
     await page.getByRole('textbox', { name: 'Name' }).fill('Web')
     await page
       .getByRole('spinbutton', { name: 'Ignore differences below (% of pixels)' })
@@ -121,6 +127,7 @@ describe('TeamSettingsPage', () => {
       .click()
     await page.getByRole('button', { name: 'Save settings' }).click()
     await expect.element(page.getByText('Settings saved.')).toBeVisible()
+    await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
     expect(fake.of('PATCH')).toEqual([
       {
         method: 'PATCH',

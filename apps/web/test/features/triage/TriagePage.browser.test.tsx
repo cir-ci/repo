@@ -109,6 +109,26 @@ function server() {
   return fakeApi(routes)
 }
 
+/**
+ * The test files are not served, so the image has no size: give it the one it would have. The
+ * image's failed load settles (and may re-render it) at a time that depends on how busy the
+ * machine is, so apply the size until the layer over it has been measured at the image's size, instead of
+ * once, and draw only then.
+ */
+async function sizeImage(layer: { element: () => Element }) {
+  await expect
+    .poll(() => {
+      const image = page.getByRole('img', { name: 'home in build #12' }).element()
+      image.style.width = '400px'
+      image.style.height = '300px'
+      const box = layer.element().getBoundingClientRect()
+      const shown = image.getBoundingClientRect()
+      // The layer is exactly as big as the image (the pane may clamp its width a little).
+      return box.height === 300 && box.width > 300 && box.width === shown.width
+    })
+    .toBe(true)
+}
+
 describe('TriagePage', () => {
   it('groups the queue under labelled lists with counts and names rows by kind and snapshot', async () => {
     server()
@@ -234,11 +254,8 @@ describe('TriagePage', () => {
     await show()
     await expect.element(page.getByRole('button', { name: 'Add ignore region' })).toBeVisible()
     await userEvent.keyboard('i')
-    // The test files are not served: give the image the size it would have.
-    const image = page.getByRole('img', { name: 'home in build #12' }).element()
-    image.style.width = '400px'
-    image.style.height = '300px'
     const layer = page.getByTestId('region-layer')
+    await sizeImage(layer)
     await userEvent.dragAndDrop(layer, layer, {
       sourcePosition: { x: 40, y: 30 },
       targetPosition: { x: 200, y: 150 },
@@ -262,9 +279,7 @@ describe('TriagePage', () => {
     await show()
     await expect.element(page.getByRole('button', { name: 'Add ignore region' })).toBeVisible()
     await userEvent.keyboard('i')
-    const image = page.getByRole('img', { name: 'home in build #12' }).element()
-    image.style.width = '400px'
-    image.style.height = '300px'
+    await sizeImage(page.getByTestId('region-layer'))
     await expect.element(page.getByRole('group', { name: 'Region to mark' })).toHaveFocus()
     await userEvent.keyboard('{ArrowLeft}{Shift>}{ArrowRight}{/Shift}')
     await userEvent.keyboard('{Enter}')

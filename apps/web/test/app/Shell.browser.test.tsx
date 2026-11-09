@@ -336,7 +336,8 @@ describe('Shell, wide', () => {
     await expect.element(page.getByRole('menuitem', { name: 'Profile and sessions' })).toBeVisible()
     await expect.element(page.getByRole('menuitem', { name: 'Notifications' })).toBeVisible()
     await expect.element(page.getByRole('menuitem', { name: /Keyboard shortcuts/ })).toBeVisible()
-    await expect.element(page.getByRole('menuitemradio', { name: 'Dark' })).toBeVisible()
+    await expect.element(page.getByRole('group', { name: 'Theme' })).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Dark' })).toBeVisible()
     // Only people who run the instance see its admin pages.
     expect(page.getByRole('menuitem', { name: 'Instance admin' }).elements()).toHaveLength(0)
     await page.getByRole('menuitem', { name: 'Sign out' }).click()
@@ -572,21 +573,27 @@ describe('Shell, menus', () => {
     await expect.element(trigger).toHaveFocus()
   })
 
-  it('changes the theme from the menu’s radio group on a key press, and marks <html>', async () => {
+  it('changes the theme from the menu’s picker, which fits the menu, and marks <html>', async () => {
     await page.viewport(1280, 800)
     await renderShell('/')
     await page.getByRole('button', { name: 'Account menu for Ada Lovelace' }).click()
-    const dark = page.getByRole('menuitemradio', { name: 'Dark' })
-    const light = page.getByRole('menuitemradio', { name: 'Light' })
-    light.element().focus()
-    await userEvent.keyboard('{Enter}')
+    const dark = page.getByRole('button', { name: 'Dark' })
+    const light = page.getByRole('button', { name: 'Light' })
+    // The three buttons are equal and none of them leaves the menu.
+    const menu = page.getByRole('menu').element().getBoundingClientRect()
+    const rects = [page.getByRole('button', { name: 'System' }), light, dark].map((b) =>
+      b.element().getBoundingClientRect(),
+    )
+    expect(Math.abs(rects[0]!.width - rects[1]!.width)).toBeLessThan(1)
+    expect(Math.abs(rects[1]!.width - rects[2]!.width)).toBeLessThan(1)
+    expect(rects[2]!.right).toBeLessThanOrEqual(menu.right)
+    await light.click()
     await expect.poll(() => document.documentElement.dataset.circiColorScheme).toBe('light')
-    await expect.element(light).toBeChecked()
+    await expect.element(light).toHaveAttribute('aria-pressed', 'true')
     expect(getComputedStyle(document.documentElement).colorScheme).toBe('light')
-    dark.element().focus()
-    await userEvent.keyboard('{Enter}')
+    await dark.click()
     await expect.poll(() => document.documentElement.dataset.circiColorScheme).toBe('dark')
-    await expect.element(dark).toBeChecked()
+    await expect.element(dark).toHaveAttribute('aria-pressed', 'true')
     expect(getComputedStyle(document.documentElement).colorScheme).toBe('dark')
     expect(localStorage.getItem('circi-color-mode')).toBe('dark')
   })

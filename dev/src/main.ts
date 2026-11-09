@@ -20,10 +20,22 @@ import {
   WEB_DIR,
   serverEnv,
 } from './config.ts'
-import { log, run, start, waitForHttp } from './processes.ts'
+import { explainPortTaken, isPortTaken, log, run, start, waitForHttp } from './processes.ts'
 import { ensureSeeded } from './seed.ts'
 
 const children: ChildProcess[] = []
+
+/** The two ports `pnpm dev` binds itself (Postgres and Mailpit's are Docker's, and say so on their own). */
+const OWN_PORTS = [
+  { name: 'server', what: 'the server', port: PORTS.server, envVar: 'CIRCI_DEV_PORT' },
+  { name: 'web', what: 'the dashboard (Vite)', port: PORTS.web, envVar: 'CIRCI_DEV_WEB_PORT' },
+] as const
+
+async function reportPortTaken(entry: (typeof OWN_PORTS)[number]): Promise<boolean> {
+  if (!(await isPortTaken(entry.port))) return false
+  for (const line of await explainPortTaken(entry)) log('dev', line)
+  return true
+}
 
 const compose = (args: string[], inherit = false) =>
   run('docker', ['compose', '-f', COMPOSE_FILE, ...args], {
@@ -48,6 +60,10 @@ async function up(): Promise<void> {
   } catch {
     throw new Error('Docker is not running: pnpm dev needs it for Postgres and Mailpit')
   }
+  // Before anything starts: a taken port is the usual reason `pnpm dev` fails, and the child's own
+  // error ("EADDRINUSE", "Port 5173 is in use") does not say who holds it.
+  const taken = await Promise.all(OWN_PORTS.map((entry) => reportPortTaken(entry)))
+  if (taken.includes(true)) process.exit(1)
   log('dev', 'Starting Postgres and Mailpit')
   await compose(['up', '--detach', '--wait'], true)
   await mkdir(join(STATE_DIR, 'files'), { recursive: true })
@@ -68,10 +84,13 @@ async function up(): Promise<void> {
   const supervise = (name: string, child: ChildProcess) => {
     children.push(child)
     child.on('exit', (code) => {
-      if (!stopping) {
-        log('dev', `${name} exited (${code ?? 'signal'}); stopping`)
-        stop(1)
-      }
+      if (stopping) return
+      log('dev', `${name} exited (${code ?? 'signal'}); stopping`)
+      // It may have lost a race for its port after the check above: say who holds it.
+      const entry = OWN_PORTS.find((e) => e.name === name)
+      void (entry && code !== 0 ? reportPortTaken(entry) : Promise.resolve(false)).finally(() =>
+        stop(1),
+      )
     })
   }
 

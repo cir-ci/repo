@@ -125,14 +125,18 @@ export interface Tile {
 export function tiles(report: Insights.Report, days: number): Tile[] {
   const s = report.summary
   const p = report.previous
-  const earlier = `than the ${days} days before`
+  const hasReviews = s.buildsReviewed > 0
+  const median = hasReviews ? s.medianReviewHours : null
+  const earlier = `vs the ${days} days before`
   return [
     {
       id: 'median',
       title: 'Median time to review',
-      value: formatHours(s.medianReviewHours),
-      delta: delta(s.medianReviewHours, p.medianReviewHours, { better: 'lower' }),
-      note: `90th percentile ${formatHours(s.p90ReviewHours)}, ${earlier}`,
+      value: formatHours(median),
+      delta: delta(median, p.medianReviewHours, { better: 'lower' }),
+      note: hasReviews
+        ? `90th percentile ${formatHours(s.p90ReviewHours)}${p.medianReviewHours === null ? '' : `, ${earlier}`}`
+        : `No reviews in the last ${days} days`,
     },
     {
       id: 'reviewed',

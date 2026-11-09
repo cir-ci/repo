@@ -16,7 +16,8 @@ export const baselineId = (item: Pick<Baseline.Item, 'buildName' | 'name'>) =>
   `${item.buildName}:${item.name}`
 
 export interface BaselineGroup {
-  buildName: string
+  /** The part of the name before its first "/"; null for the screenshots that have none. */
+  prefix: string | null
   items: Baseline.Item[]
 }
 
@@ -31,17 +32,27 @@ export function filterBaselines(items: readonly Baseline.Item[], query: string):
   )
 }
 
-/** Groups by build name (the usual "default" first, then alphabetical), each group sorted by name. */
+/** The part of a snapshot name before its first "/", or null when there is none (or nothing before it). */
+export function namePrefix(name: string): string | null {
+  const i = name.indexOf('/')
+  const prefix = i > 0 ? name.slice(0, i).trim() : ''
+  return prefix === '' ? null : prefix
+}
+
+/**
+ * Groups by name prefix (alphabetical), each group sorted by name; the screenshots without a
+ * prefix come last in a group of their own.
+ */
 export function groupBaselines(items: readonly Baseline.Item[]): BaselineGroup[] {
-  const byBuild = new Map<string, Baseline.Item[]>()
-  for (const item of items)
-    byBuild.set(item.buildName, [...(byBuild.get(item.buildName) ?? []), item])
-  return [...byBuild.entries()]
-    .toSorted(([a], [b]) =>
-      a === b ? 0 : a === 'default' ? -1 : b === 'default' ? 1 : a.localeCompare(b),
-    )
-    .map(([buildName, list]) => ({
-      buildName,
+  const byPrefix = new Map<string | null, Baseline.Item[]>()
+  for (const item of items) {
+    const key = namePrefix(item.name)
+    byPrefix.set(key, [...(byPrefix.get(key) ?? []), item])
+  }
+  return [...byPrefix.entries()]
+    .toSorted(([a], [b]) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : a.localeCompare(b)))
+    .map(([prefix, list]) => ({
+      prefix,
       items: list.toSorted((a, b) => a.name.localeCompare(b.name)),
     }))
 }
@@ -49,21 +60,3 @@ export function groupBaselines(items: readonly Baseline.Item[]): BaselineGroup[]
 /** The groups as one list in on-screen order, for J / K. */
 export const flattenGroups = (groups: readonly BaselineGroup[]): Baseline.Item[] =>
   groups.flatMap((g) => g.items)
-
-/** "1280 × 720", or nothing when the size is unknown. */
-export const dimensionsLabel = (item: Pick<Baseline.Item, 'width' | 'height'>) =>
-  item.width && item.height ? `${item.width} × ${item.height}` : ''
-
-/** "12 kB" up to a megabyte, then "1.4 MB"; nothing when unknown. */
-export const sizeLabel = (bytes: number | null) =>
-  bytes === null
-    ? ''
-    : bytes < 1024 * 1024
-      ? `${Math.max(1, Math.round(bytes / 1024))} kB`
-      : `${(bytes / 1024 / 1024).toFixed(1)} MB`
-
-/** "3 baselines", or "2 of 3 baselines" while a filter hides some. */
-export const countLabel = (shown: number, total: number) => {
-  const noun = total === 1 ? 'baseline' : 'baselines'
-  return shown === total ? `${total} ${noun}` : `${shown} of ${total} ${noun}`
-}

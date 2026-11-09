@@ -12,6 +12,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
+import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
@@ -33,6 +34,8 @@ const UPLOAD_EXAMPLE =
 export function TeamSitesPage() {
   const { workspace, team } = useParams({ from: '/$workspace/$team/sites' })
   const query = useQuery(teamSitesQuery(workspace, team))
+  const caps = useQuery(capabilitiesQuery())
+  const canChangeServer = caps.data?.instanceAdmin === true
   useDocumentTitle('Sites', team)
   const names = useCrumbNames(workspace, team)
 
@@ -49,10 +52,13 @@ export function TeamSitesPage() {
         <QueryBoundary query={query} notFound="This team doesn’t exist" rows={3}>
           {(data) =>
             !data.configured ? (
-              <Banner tone="info">
-                Static site hosting isn’t set up on this server. Set STATIC_SITES_HOST to a separate
-                domain to turn it on.
-              </Banner>
+              caps.isPending ? null : (
+                <Banner tone="info">
+                  {canChangeServer
+                    ? 'Static site hosting isn’t set up on this server. Set STATIC_SITES_HOST to a separate domain to turn it on.'
+                    : 'Static site hosting isn’t set up on this server. Ask an instance admin to turn it on.'}
+                </Banner>
+              )
             ) : data.sites.length === 0 ? (
               <EmptyState
                 icon={<GlobeIcon size={32} />}

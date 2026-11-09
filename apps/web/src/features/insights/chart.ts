@@ -24,7 +24,7 @@ export interface Plot {
   right: number
 }
 
-export const PLOT: Plot = { width: 480, height: 200, left: 36, bottom: 24, top: 8, right: 8 }
+export const PLOT: Plot = { width: 480, height: 200, left: 44, bottom: 24, top: 8, right: 8 }
 
 /** Maps a value (0 to `top`) to a y in the plot's SVG space. */
 export const yAt = (plot: Plot, value: number, top: number) =>
@@ -35,6 +35,9 @@ export const xAt = (plot: Plot, index: number, count: number) => {
   const inner = plot.width - plot.left - plot.right
   return plot.left + (inner / count) * (index + 0.5)
 }
+
+/** An axis label: no float noise ("0.30000000000000004"), no trailing zeros. */
+export const tickLabel = (value: number) => String(Number(value.toFixed(2)))
 
 export const weekLabel = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
@@ -60,14 +63,20 @@ export function reviewBars(weeks: readonly Insights.Week[]): {
   top: number
   ticks: number[]
   bars: Bar[]
+  unit: 'hours' | 'minutes'
 } {
-  const { top, ticks } = niceScale(Math.max(0, ...weeks.map((w) => w.medianReviewHours ?? 0)))
+  const maxHours = Math.max(0, ...weeks.map((w) => w.medianReviewHours ?? 0))
+  // Medians under an hour are drawn in minutes, so the axis reads "5, 10, 15", not "0.08, 0.17".
+  const unit = maxHours >= 1 ? 'hours' : 'minutes'
+  const factor = unit === 'hours' ? 1 : 60
+  const { top, ticks } = niceScale(Math.max(unit === 'hours' ? 1 : 3, maxHours * factor))
   const base = PLOT.height - PLOT.bottom
   return {
     top,
     ticks,
+    unit,
     bars: weeks.map((w, i) => {
-      const y = w.medianReviewHours === null ? base : yAt(PLOT, w.medianReviewHours, top)
+      const y = w.medianReviewHours === null ? base : yAt(PLOT, w.medianReviewHours * factor, top)
       return {
         label: weekLabel(w.weekStart),
         x: xAt(PLOT, i, weeks.length),

@@ -516,6 +516,11 @@ describe('GenericIntegrationPage for a git host', () => {
     await expect.poll(() => fake.of('PUT')).toHaveLength(1)
     expect(fake.of('PUT')[0]?.body).toEqual({ ref: 'acme/docs', extra: {} })
 
+    // The first select's popup fades out and stays in the DOM until its exit transition ends; its
+    // "Not linked" option would answer the next query too (a strict-mode violation on a slow
+    // machine). Wait for it to go before opening the other select.
+    await expect.poll(() => page.getByRole('option').elements()).toHaveLength(0)
+
     // "Not linked" lets the team go.
     await page.getByRole('combobox', { name: 'Team for acme/web' }).click()
     await page.getByRole('option', { name: 'Not linked' }).click()

@@ -1,12 +1,13 @@
 import {
   Avatar,
   BellIcon,
+  ColorSchemeControl,
   KeyboardIcon,
   LogOutIcon,
   Menu,
   ShieldCheckIcon,
+  SunIcon,
   UserIcon,
-  useColorScheme,
 } from '@circi/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
@@ -16,22 +17,15 @@ import { authClient, type SessionUser } from '#lib/auth-client.ts'
 
 import styles from './UserMenu.module.css'
 
-const THEMES = [
-  { value: 'system', label: 'System' },
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-] as const
-
 /**
  * The account button at the bottom of the sidebar and the menu it opens: who you are, profile
- * and sessions, notifications, the theme (a radio group: arrow keys move, Enter or Space picks, and
- * the page changes at once), keyboard shortcuts, the instance's admin pages when you run it, and
+ * and sessions, notifications, the theme (System, Light, Dark in a segmented picker under its own line; the page
+ * changes at once), keyboard shortcuts, the instance's admin pages when you run it, and
  * sign out. A Base UI menu: Escape closes it and focus returns to the button.
  */
 export function UserMenu({ user }: UserMenu.Props) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const { mode, setMode } = useColorScheme()
   const { data: caps } = useQuery(capabilitiesQuery())
 
   async function signOut() {
@@ -76,14 +70,19 @@ export function UserMenu({ user }: UserMenu.Props) {
           onSelect: () => void navigate({ to: '/account/notifications' }),
         },
         {
-          type: 'radio-group',
-          name: 'Theme',
-          value: mode,
-          options: THEMES,
-          onValueChange: (value) => {
-            const next = THEMES.find((t) => t.value === value)
-            if (next) setMode(next.value)
-          },
+          // "Theme" on its own line, the picker full width below it: three buttons in the menu's
+          // 228px (the old inline picker clipped at the right edge).
+          type: 'content',
+          name: 'theme',
+          node: (
+            <div className={styles.theme}>
+              <span className={styles.themeLabel}>
+                <SunIcon aria-hidden="true" />
+                Theme
+              </span>
+              <ColorSchemeControl fill />
+            </div>
+          ),
         },
         {
           label: 'Keyboard shortcuts',

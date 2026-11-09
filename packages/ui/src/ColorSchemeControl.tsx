@@ -9,11 +9,12 @@ const OPTIONS = [
 ] as const
 
 /** Lets the viewer pick light, dark, or the system's scheme. Must sit inside `CirciTheme`. */
-export function ColorSchemeControl() {
+export function ColorSchemeControl({ fill = false }: ColorSchemeControl.Props) {
   const { mode, setMode } = useColorScheme()
   return (
     <SegmentedControl
       label="Theme"
+      fill={fill}
       options={OPTIONS}
       value={mode}
       onChange={(v) => {
@@ -21,4 +22,11 @@ export function ColorSchemeControl() {
       }}
     />
   )
+}
+
+export namespace ColorSchemeControl {
+  export interface Props {
+    /** Fill the width of the container, the three options equal (the account menu). */
+    fill?: boolean
+  }
 }
