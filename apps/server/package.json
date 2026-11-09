@@ -9,7 +9,7 @@
   "imports": {
     "#cli/*": "./src/cli/*",
     "#http/*": "./src/http/*",
-    "#lifecycle/*": "./src/lifecycle/*",
+    "#composition/*": "./src/composition/*",
     "#test/*": "./test/*"
   },
   "scripts": {

@@ -11,7 +11,7 @@ container. CirCI refuses a sites domain that is the dashboard's host, its parent
 `localhost` is the parent of `*.localhost`, so with `sitesHost` the harness addresses the dashboard
 by IP: `PUBLIC_URL=http://127.0.0.1:<random port>` (`stack.url`). Site addresses are then built by
 the server as `http://<hash>-<slug>.sites.localhost:<same port>` (scheme and port are the
-dashboard's, see `sitesDeps` in `apps/server/src/lifecycle/server-options.ts`). The port matters:
+dashboard's, see `sitesDeps` in `apps/server/src/composition/server-options.ts`). The port matters:
 it is in the `Host` header the server matches and in the cookie scope.
 
 - **Chromium** resolves every `*.localhost` name to loopback by itself, so browser tests just open

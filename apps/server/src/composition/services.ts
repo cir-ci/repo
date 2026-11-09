@@ -1,12 +1,13 @@
 import { fileURLToPath } from 'node:url'
 
+import type { Config } from '@circi/config'
 import { runMigrations } from '@circi/db'
 import { startWorker } from '@circi/worker'
 import type { FastifyInstance } from 'fastify'
 
 import { buildServer } from '#http/app.ts'
-import { GITHUB_APP_TTL_MS, githubAppSync, useStoredGithubApp } from '#http/lib/github-app.ts'
 
+import { GITHUB_APP_TTL_MS, githubAppSync, useStoredGithubApp } from './github-app.ts'
 import { integrationConfig } from './integration-config.ts'
 import { createRuntime } from './runtime.ts'
 import { serverOptionsFor } from './server-options.ts'
@@ -51,7 +52,7 @@ export async function runServices(options: runServices.Options): Promise<void> {
   try {
     if (options.migrate) {
       logger.info('applying database migrations')
-      await runMigrations(rt.db)
+      await runMigrations(rt.db, rt.config.migrationsFolder)
     }
     // An App created in the dashboard (the environment's wins), before anything reads the config.
     if (!rt.config.github) {
@@ -96,7 +97,7 @@ export async function runServices(options: runServices.Options): Promise<void> {
     }
     if (options.http) {
       app = buildServer(
-        serverOptionsFor({ ...rt, ...(githubSync ? { githubSync } : {}) }, webDistPath()),
+        serverOptionsFor({ ...rt, ...(githubSync ? { githubSync } : {}) }, webDistPath(rt.config)),
       )
       await app.listen({ host: rt.config.http.host, port: rt.config.http.port })
       logger.info(
@@ -119,11 +120,11 @@ export async function runServices(options: runServices.Options): Promise<void> {
 }
 
 /**
- * apps/web/dist, found from src/lifecycle/ (two folders below apps/server) in development. The
+ * apps/web/dist, found from src/composition/ (two folders below apps/server) in development. The
  * server bundle is one file elsewhere, so the image points `CIRCI_WEB_DIST` at the copy it ships
- * (deploy/Dockerfile). Moving this file means changing the path; `test/lifecycle.test.ts`
+ * (deploy/Dockerfile). Moving this file means changing the path; `test/composition.test.ts`
  * pins the result.
  */
-export function webDistPath(): string {
-  return process.env.CIRCI_WEB_DIST ?? fileURLToPath(new URL('../../../web/dist', import.meta.url))
+export function webDistPath(config: Pick<Config, 'webDist'> = {}): string {
+  return config.webDist ?? fileURLToPath(new URL('../../../web/dist', import.meta.url))
 }

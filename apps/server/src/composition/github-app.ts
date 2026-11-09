@@ -1,6 +1,6 @@
 import { GithubApp } from '@circi/providers'
 
-import type { Deps } from './deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 
 // The stored App (instance_settings), its replica sync and the address check live in the service
 // layer; this file keeps what reads the dashboard's `Deps`.

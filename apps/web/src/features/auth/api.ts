@@ -2,18 +2,19 @@ import type { Instance } from '@circi/api'
 import { queryOptions } from '@tanstack/react-query'
 
 import { getJson, post } from '#lib/http.ts'
+import { keys } from '#lib/query-keys.ts'
 
 /** What the sign-in page can offer. Public. */
 export const authMethodsQuery = () =>
   queryOptions({
-    queryKey: ['auth-methods'],
+    queryKey: keys.authMethods(),
     queryFn: () => getJson<Instance.AuthMethods>('/api/auth-methods'),
     staleTime: 5 * 60_000,
   })
 
 export const setupQuery = () =>
   queryOptions({
-    queryKey: ['setup'],
+    queryKey: keys.setup(),
     queryFn: () => getJson<{ needed: boolean }>('/api/setup'),
     staleTime: 0,
   })

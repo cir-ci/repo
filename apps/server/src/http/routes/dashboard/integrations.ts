@@ -5,8 +5,8 @@ import { removeIntegration } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
+import { integrationContext } from '#composition/integration-context.ts'
 import type { Deps } from '#http/lib/deps.ts'
-import { integrationContext } from '#http/lib/integration-context.ts'
 import { parse } from '#http/lib/validation.ts'
 import { loadWorkspace } from '#http/lib/workspace-access.ts'
 

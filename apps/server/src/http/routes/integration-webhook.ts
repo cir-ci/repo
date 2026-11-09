@@ -5,8 +5,8 @@ import { claimWebhookDelivery, handleGitEvents } from '@circi/services'
 import type { FastifyBaseLogger, FastifyPluginAsync, RouteHandlerMethod } from 'fastify'
 import { z } from 'zod'
 
+import { integrationContext } from '#composition/integration-context.ts'
 import type { Deps as HttpDeps } from '#http/lib/deps.ts'
-import { integrationContext } from '#http/lib/integration-context.ts'
 import { parse } from '#http/lib/validation.ts'
 
 /**

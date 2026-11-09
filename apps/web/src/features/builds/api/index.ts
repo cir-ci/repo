@@ -1,7 +1,9 @@
 import type { Build, Flaky, ReviewState } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { getJson, post, seg } from '#lib/http.ts'
+import { teamPath } from '#lib/api-paths.ts'
+import { getJson, post } from '#lib/http.ts'
+import { invalidateAll, keys } from '#lib/query-keys.ts'
 
 /** Builds still being uploaded or processed; their pages poll until they finish. */
 export const isActive = (status: string) =>
@@ -9,9 +11,8 @@ export const isActive = (status: string) =>
 
 export const buildQuery = (workspace: string, team: string, number: number) =>
   queryOptions({
-    queryKey: ['build', workspace, team, number],
-    queryFn: () =>
-      getJson<Build.Detail>(`/api/teams/${seg(workspace)}/${seg(team)}/builds/${number}`),
+    queryKey: keys.build(workspace, team, number),
+    queryFn: () => getJson<Build.Detail>(teamPath(workspace, team, 'builds', number)),
     refetchInterval: (q) => (q.state.data && isActive(q.state.data.build.status) ? 2_000 : false),
   })
 
@@ -21,8 +22,8 @@ export const buildQuery = (workspace: string, team: string, number: number) =>
  */
 export const flakyQuery = (workspace: string, team: string) =>
   queryOptions({
-    queryKey: ['flaky', workspace, team],
-    queryFn: () => getJson<Flaky.Report>(`/api/teams/${seg(workspace)}/${seg(team)}/flaky`),
+    queryKey: keys.flaky(workspace, team),
+    queryFn: () => getJson<Flaky.Report>(teamPath(workspace, team, 'flaky')),
   })
 
 export const fileUrl = (sha256: string) => `/api/files/${sha256}`
@@ -49,16 +50,17 @@ export function useReviewSnapshots(workspace: string, team: string, number: numb
   return useMutation({
     mutationFn: ({ snapshotNames, decision, reason }: SnapshotDecision) =>
       post<{ build: { reviewStatus: string } }>(
-        `/api/teams/${seg(workspace)}/${seg(team)}/builds/${number}/snapshots/review`,
+        teamPath(workspace, team, 'builds', number, 'snapshots', 'review'),
         reason ? { snapshotNames, decision, reason } : { snapshotNames, decision },
       ),
     onSuccess: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['build', workspace, team, number] }),
-        queryClient.invalidateQueries({ queryKey: ['team', workspace, team] }),
-        queryClient.invalidateQueries({ queryKey: ['teams'] }),
-        queryClient.invalidateQueries({ queryKey: ['triage', workspace, team] }),
-      ]),
+      invalidateAll(
+        queryClient,
+        keys.build(workspace, team, number),
+        keys.team(workspace, team),
+        keys.teams(),
+        keys.triage(workspace, team),
+      ),
   })
 }
 
@@ -71,14 +73,15 @@ export function useReviewBuild(workspace: string, team: string, number: number) 
   return useMutation({
     mutationFn: ({ state, reason }: Decision) =>
       post<{ build: { reviewStatus: ReviewState } }>(
-        `/api/teams/${seg(workspace)}/${seg(team)}/builds/${number}/review`,
+        teamPath(workspace, team, 'builds', number, 'review'),
         reason ? { state, reason } : { state },
       ),
     onSuccess: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['build', workspace, team, number] }),
-        queryClient.invalidateQueries({ queryKey: ['team', workspace, team] }),
-        queryClient.invalidateQueries({ queryKey: ['teams'] }),
-      ]),
+      invalidateAll(
+        queryClient,
+        keys.build(workspace, team, number),
+        keys.team(workspace, team),
+        keys.teams(),
+      ),
   })
 }

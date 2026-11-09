@@ -1,13 +1,15 @@
 import type { Sidebar } from '@circi/api'
 import { queryOptions, useQuery } from '@tanstack/react-query'
 
-import { getJson, seg } from '#lib/http.ts'
+import { workspacePath } from '#lib/api-paths.ts'
+import { getJson } from '#lib/http.ts'
+import { keys } from '#lib/query-keys.ts'
 
 /** Refetched on focus and every minute, so the Inbox and Reviews counts stay close to true. */
 export const sidebarQuery = (workspace: string) =>
   queryOptions({
-    queryKey: ['sidebar', workspace],
-    queryFn: () => getJson<Sidebar.Model>(`/api/workspaces/${seg(workspace)}/sidebar`),
+    queryKey: keys.sidebar(workspace),
+    queryFn: () => getJson<Sidebar.Model>(workspacePath(workspace, 'sidebar')),
     refetchInterval: 60_000,
   })
 

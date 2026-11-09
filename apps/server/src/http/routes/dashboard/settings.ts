@@ -34,10 +34,10 @@ import {
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
+import { githubConfigured } from '#composition/github-app.ts'
+import { integrationContext } from '#composition/integration-context.ts'
 import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
-import { githubConfigured } from '#http/lib/github-app.ts'
-import { integrationContext } from '#http/lib/integration-context.ts'
 import { loadTeam } from '#http/lib/team-access.ts'
 import { parse } from '#http/lib/validation.ts'
 

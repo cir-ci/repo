@@ -2,17 +2,19 @@ import type { Build, Issue } from '@circi/api'
 import { defaultIssueTitle, issueDescription } from '@circi/core/issues'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { getJson, post, seg } from '#lib/http.ts'
+import { teamPath } from '#lib/api-paths.ts'
+import { getJson, post } from '#lib/http.ts'
+import { invalidateAll, keys } from '#lib/query-keys.ts'
 
 import { fileUrl } from './index.ts'
 
 const base = (workspace: string, team: string, number: number) =>
-  `/api/teams/${seg(workspace)}/${seg(team)}/builds/${number}/issues`
+  teamPath(workspace, team, 'builds', number, 'issues')
 
 /** The issues created from a build and the trackers its team files issues in (none: no "Create issue"). */
 export const issuesQuery = (workspace: string, team: string, number: number) =>
   queryOptions({
-    queryKey: ['issues', workspace, team, number],
+    queryKey: keys.issues(workspace, team, number),
     queryFn: () => getJson<Issue.List>(base(workspace, team, number)),
   })
 
@@ -22,11 +24,12 @@ export function useCreateIssue(workspace: string, team: string, number: number) 
   return useMutation({
     mutationFn: (input: Issue.Create) => post<Issue.Ref>(base(workspace, team, number), input),
     onSuccess: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['issues', workspace, team, number] }),
-        queryClient.invalidateQueries({ queryKey: ['build', workspace, team, number] }),
-        queryClient.invalidateQueries({ queryKey: ['activity', workspace, team, number] }),
-      ]),
+      invalidateAll(
+        queryClient,
+        keys.issues(workspace, team, number),
+        keys.build(workspace, team, number),
+        keys.activity(workspace, team, number),
+      ),
   })
 }
 

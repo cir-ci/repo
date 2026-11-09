@@ -1,7 +1,9 @@
 import type { Inbox, NotificationKind } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
+import { inboxPath } from '#lib/api-paths.ts'
 import { getJson, post, send, seg } from '#lib/http.ts'
+import { invalidateAll, keys } from '#lib/query-keys.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 
 export const INBOX_TABS: readonly { value: Inbox.Tab; label: string }[] = [
@@ -22,7 +24,7 @@ export function validateInboxSearch(search: Record<string, unknown>): InboxSearc
 
 export const inboxQuery = (tab: Inbox.Tab) =>
   queryOptions({
-    queryKey: ['inbox', tab],
+    queryKey: keys.inbox(tab),
     queryFn: () => getJson<Inbox.List>(`/api/inbox?tab=${seg(tab)}`),
   })
 
@@ -85,17 +87,14 @@ export function notificationTarget(item: Inbox.Item):
 /** Every list showing the unread count or the same entry: refetched after a change. */
 function useRefresh() {
   const queryClient = useQueryClient()
-  return () =>
-    Promise.all(
-      [['inbox'], ['sidebar']].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
-    )
+  return () => invalidateAll(queryClient, keys.inbox(), keys.sidebar())
 }
 
 export function useSetRead() {
   const refresh = useRefresh()
   return useMutation({
     mutationFn: ({ id, read }: { id: string; read: boolean }) =>
-      post<Inbox.State>(`/api/inbox/${seg(id)}/read`, { read }),
+      post<Inbox.State>(inboxPath(id, 'read'), { read }),
     onSuccess: refresh,
   })
 }
@@ -104,7 +103,7 @@ export function useSnoozeNotification() {
   const refresh = useRefresh()
   return useMutation({
     mutationFn: ({ id, choice }: { id: string; choice: SnoozeChoice }) =>
-      post<Inbox.State>(`/api/inbox/${seg(id)}/snooze`, snoozeBody(choice)),
+      post<Inbox.State>(inboxPath(id, 'snooze'), snoozeBody(choice)),
     onSuccess: refresh,
   })
 }
@@ -121,7 +120,7 @@ export function snoozeBody(
 export function useUnsnoozeNotification() {
   const refresh = useRefresh()
   return useMutation({
-    mutationFn: (id: string) => post<Inbox.State>(`/api/inbox/${seg(id)}/unsnooze`, {}),
+    mutationFn: (id: string) => post<Inbox.State>(inboxPath(id, 'unsnooze'), {}),
     onSuccess: refresh,
   })
 }
@@ -129,7 +128,7 @@ export function useUnsnoozeNotification() {
 export function useRemoveNotification() {
   const refresh = useRefresh()
   return useMutation({
-    mutationFn: (id: string) => send<undefined>('DELETE', `/api/inbox/${seg(id)}`),
+    mutationFn: (id: string) => send<undefined>('DELETE', inboxPath(id)),
     onSuccess: refresh,
   })
 }

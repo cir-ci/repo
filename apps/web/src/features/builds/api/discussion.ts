@@ -1,38 +1,39 @@
 import type { Activity, Comment, Review } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { getJson, post, send, seg } from '#lib/http.ts'
-
-const base = (workspace: string, team: string, number: number) =>
-  `/api/teams/${seg(workspace)}/${seg(team)}/builds/${number}`
+import { teamPath } from '#lib/api-paths.ts'
+import { getJson, post, send } from '#lib/http.ts'
+import { invalidateAll, keys } from '#lib/query-keys.ts'
 
 export const commentsQuery = (workspace: string, team: string, number: number) =>
   queryOptions({
-    queryKey: ['comments', workspace, team, number],
-    queryFn: () => getJson<Comment.List>(`${base(workspace, team, number)}/comments`),
+    queryKey: keys.comments(workspace, team, number),
+    queryFn: () => getJson<Comment.List>(teamPath(workspace, team, 'builds', number, 'comments')),
   })
 
 export const activityQuery = (workspace: string, team: string, number: number) =>
   queryOptions({
-    queryKey: ['activity', workspace, team, number],
-    queryFn: () => getJson<Activity.Timeline>(`${base(workspace, team, number)}/activity`),
+    queryKey: keys.activity(workspace, team, number),
+    queryFn: () =>
+      getJson<Activity.Timeline>(teamPath(workspace, team, 'builds', number, 'activity')),
   })
 
 /** A comment changes the thread list, and shows up in the build's activity. */
 function useRefreshDiscussion(workspace: string, team: string, number: number) {
   const queryClient = useQueryClient()
   return () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['comments', workspace, team, number] }),
-      queryClient.invalidateQueries({ queryKey: ['activity', workspace, team, number] }),
-    ])
+    invalidateAll(
+      queryClient,
+      keys.comments(workspace, team, number),
+      keys.activity(workspace, team, number),
+    )
 }
 
 export function useAddComment(workspace: string, team: string, number: number) {
   const refresh = useRefreshDiscussion(workspace, team, number)
   return useMutation({
     mutationFn: (input: Comment.Create) =>
-      post<{ id: string }>(`${base(workspace, team, number)}/comments`, input),
+      post<{ id: string }>(teamPath(workspace, team, 'builds', number, 'comments'), input),
     onSuccess: refresh,
   })
 }
@@ -41,7 +42,7 @@ export function useEditComment(workspace: string, team: string, number: number) 
   const refresh = useRefreshDiscussion(workspace, team, number)
   return useMutation({
     mutationFn: ({ id, body }: { id: string } & Comment.Edit) =>
-      send<{ id: string }>('PATCH', `${base(workspace, team, number)}/comments/${seg(id)}`, {
+      send<{ id: string }>('PATCH', teamPath(workspace, team, 'builds', number, 'comments', id), {
         body,
       }),
     onSuccess: refresh,
@@ -52,7 +53,7 @@ export function useDeleteComment(workspace: string, team: string, number: number
   const refresh = useRefreshDiscussion(workspace, team, number)
   return useMutation({
     mutationFn: (id: string) =>
-      send<undefined>('DELETE', `${base(workspace, team, number)}/comments/${seg(id)}`),
+      send<undefined>('DELETE', teamPath(workspace, team, 'builds', number, 'comments', id)),
     onSuccess: refresh,
   })
 }
@@ -62,11 +63,10 @@ export function useRequestReview(workspace: string, team: string, number: number
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (reviewerId: string) =>
-      post<Review.Requested>(`${base(workspace, team, number)}/review-requests`, { reviewerId }),
+      post<Review.Requested>(teamPath(workspace, team, 'builds', number, 'review-requests'), {
+        reviewerId,
+      }),
     onSuccess: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['activity', workspace, team, number] }),
-        queryClient.invalidateQueries({ queryKey: ['reviews'] }),
-      ]),
+      invalidateAll(queryClient, keys.activity(workspace, team, number), keys.reviews()),
   })
 }

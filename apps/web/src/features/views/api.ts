@@ -1,12 +1,14 @@
 import type { Sidebar, View } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { getJson, post, send, seg } from '#lib/http.ts'
+import { workspacePath } from '#lib/api-paths.ts'
+import { getJson, post, send } from '#lib/http.ts'
+import { invalidateAll, keys } from '#lib/query-keys.ts'
 
 export const viewsQuery = (workspace: string) =>
   queryOptions({
-    queryKey: ['views', workspace],
-    queryFn: () => getJson<View.List>(`/api/workspaces/${seg(workspace)}/views`),
+    queryKey: keys.views(workspace),
+    queryFn: () => getJson<View.List>(workspacePath(workspace, 'views')),
   })
 
 /** The view with `id` in a list of the person's views. */
@@ -18,12 +20,8 @@ export function useSaveView(workspace: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: { name: string; team?: string | undefined; filters: View.Filters }) =>
-      post<View.Item>(`/api/workspaces/${seg(workspace)}/views`, { ...input, pinned: true }),
-    onSuccess: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['sidebar', workspace] }),
-        queryClient.invalidateQueries({ queryKey: ['views', workspace] }),
-      ]),
+      post<View.Item>(workspacePath(workspace, 'views'), { ...input, pinned: true }),
+    onSuccess: () => invalidateAll(queryClient, keys.sidebar(workspace), keys.views(workspace)),
   })
 }
 
@@ -34,8 +32,8 @@ export function usePinTeam(workspace: string, team: string) {
     mutationFn: (pinned: boolean) =>
       send<Sidebar.PinResult>(
         pinned ? 'PUT' : 'DELETE',
-        `/api/workspaces/${seg(workspace)}/pinned-teams/${seg(team)}`,
+        workspacePath(workspace, 'pinned-teams', team),
       ),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sidebar', workspace] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.sidebar(workspace) }),
   })
 }

@@ -1,12 +1,14 @@
 import type { Baseline } from '@circi/api'
 import { queryOptions } from '@tanstack/react-query'
 
-import { getJson, seg } from '#lib/http.ts'
+import { teamPath } from '#lib/api-paths.ts'
+import { getJson } from '#lib/http.ts'
+import { keys } from '#lib/query-keys.ts'
 
 export const baselinesQuery = (workspace: string, team: string) =>
   queryOptions({
-    queryKey: ['baselines', workspace, team] as const,
-    queryFn: () => getJson<Baseline.List>(`/api/teams/${seg(workspace)}/${seg(team)}/baselines`),
+    queryKey: keys.baselines(workspace, team),
+    queryFn: () => getJson<Baseline.List>(teamPath(workspace, team, 'baselines')),
   })
 
 /** The identity of a baseline: a name is unique within a build name. */

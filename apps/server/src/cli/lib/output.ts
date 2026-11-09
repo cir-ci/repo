@@ -1,4 +1,4 @@
-import { createRuntime, type Runtime } from '#lifecycle/runtime.ts'
+import { createRuntime, type Runtime } from '#composition/runtime.ts'
 
 /** Output and runtime helpers shared by the one-shot commands (`migrate`, `admin …`). */
 

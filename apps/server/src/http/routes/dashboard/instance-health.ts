@@ -2,10 +2,10 @@ import type { InstanceAdmin } from '@circi/api'
 import { getQueueDepth } from '@circi/db'
 import type { FastifyPluginAsync } from 'fastify'
 
+import { httpFetcher, runDoctor } from '#composition/doctor.ts'
+import { addressChecklist } from '#composition/instance-settings.ts'
 import { requireInstanceAdmin } from '#http/hooks/instance-admin.ts'
 import type { Deps } from '#http/lib/deps.ts'
-import { addressChecklist } from '#http/lib/instance-settings.ts'
-import { httpFetcher, runDoctor } from '#lifecycle/doctor.ts'
 
 /** `/api/instance/health/…`: the doctor's checks, the address-change checklist, job queue depth. */
 export const dashboardInstanceHealthRoutes: FastifyPluginAsync<Deps.Dashboard> = async (

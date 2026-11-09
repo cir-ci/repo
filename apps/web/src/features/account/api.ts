@@ -3,11 +3,12 @@ import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query
 
 import { authClient } from '#lib/auth-client.ts'
 import { getJson, send } from '#lib/http.ts'
+import { keys } from '#lib/query-keys.ts'
 
 import type { LinkedAccount } from './model.ts'
 
-export const sessionsKey = ['sessions'] as const
-export const accountsKey = ['linked-accounts'] as const
+export const sessionsKey = keys.sessions()
+export const accountsKey = keys.linkedAccounts()
 
 export const sessionsQuery = () =>
   queryOptions({
@@ -50,7 +51,7 @@ export const PREFERENCE_ROWS: readonly {
 
 export const preferencesQuery = () =>
   queryOptions({
-    queryKey: ['notification-preferences'],
+    queryKey: keys.notificationPreferences(),
     queryFn: () => getJson<Inbox.Preferences>('/api/inbox/preferences'),
   })
 

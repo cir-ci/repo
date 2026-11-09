@@ -1,7 +1,9 @@
 import type { ReviewRule, ReviewRuleKind, Triage } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { getJson, post, send, seg } from '#lib/http.ts'
+import { teamPath } from '#lib/api-paths.ts'
+import { getJson, post, send } from '#lib/http.ts'
+import { invalidateAll, keys } from '#lib/query-keys.ts'
 
 // ---- Review rules -----------------------------------------------------------------------------
 
@@ -104,39 +106,36 @@ export function reviewerNames(rule: Pick<ReviewRule.Item, 'reviewers'>): string 
 
 export const rulesQuery = (workspace: string, team: string) =>
   queryOptions({
-    queryKey: ['rules', workspace, team],
-    queryFn: () => getJson<ReviewRule.Settings>(`/api/teams/${seg(workspace)}/${seg(team)}/rules`),
+    queryKey: keys.rules(workspace, team),
+    queryFn: () => getJson<ReviewRule.Settings>(teamPath(workspace, team, 'rules')),
   })
 
 export function useRuleActions(workspace: string, team: string) {
   const queryClient = useQueryClient()
-  const base = `/api/teams/${seg(workspace)}/${seg(team)}`
+  const base = (...rest: string[]) => teamPath(workspace, team, ...rest)
   const refresh = () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['rules', workspace, team] }),
-      queryClient.invalidateQueries({ queryKey: ['triage', workspace, team] }),
-    ])
+    invalidateAll(queryClient, keys.rules(workspace, team), keys.triage(workspace, team))
   return {
     create: useMutation({
-      mutationFn: (draft: RuleDraft) => post<unknown>(`${base}/rules`, ruleBody(draft)),
+      mutationFn: (draft: RuleDraft) => post<unknown>(base('rules'), ruleBody(draft)),
       onSuccess: refresh,
     }),
     update: useMutation({
       mutationFn: (input: { id: string; draft: RuleDraft }) =>
-        send<unknown>('PUT', `${base}/rules/${seg(input.id)}`, ruleBody(input.draft)),
+        send<unknown>('PUT', base('rules', input.id), ruleBody(input.draft)),
       onSuccess: refresh,
     }),
     remove: useMutation({
-      mutationFn: (id: string) => send<void>('DELETE', `${base}/rules/${seg(id)}`),
+      mutationFn: (id: string) => send<void>('DELETE', base('rules', id)),
       onSuccess: refresh,
     }),
     reorder: useMutation({
-      mutationFn: (ruleIds: string[]) => send<unknown>('PUT', `${base}/rules/order`, { ruleIds }),
+      mutationFn: (ruleIds: string[]) => send<unknown>('PUT', base('rules', 'order'), { ruleIds }),
       onSuccess: refresh,
     }),
     rotation: useMutation({
       mutationFn: (body: ReturnType<typeof rotationBody>) =>
-        send<Triage.Rotation>('PUT', `${base}/triage-rotation`, body),
+        send<Triage.Rotation>('PUT', base('triage-rotation'), body),
       onSuccess: refresh,
     }),
   }

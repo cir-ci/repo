@@ -11,8 +11,6 @@ import {
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
-import { currentUser } from '#http/hooks/session.ts'
-import type { Deps } from '#http/lib/deps.ts'
 import {
   githubApiUrl,
   githubAppSource,
@@ -20,9 +18,11 @@ import {
   readStoredGithubApp,
   resolveGithubApp,
   storeGithubApp,
-} from '#http/lib/github-app.ts'
-import { INSTALL_FLOW } from '#http/lib/install-state.ts'
-import { integrationContext } from '#http/lib/integration-context.ts'
+} from '#composition/github-app.ts'
+import { INSTALL_FLOW } from '#composition/install-state.ts'
+import { integrationContext } from '#composition/integration-context.ts'
+import { currentUser } from '#http/hooks/session.ts'
+import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 import { loadWorkspace } from '#http/lib/workspace-access.ts'
 

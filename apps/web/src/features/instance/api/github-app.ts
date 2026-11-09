@@ -1,7 +1,9 @@
 import type { Instance } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
+import { instancePath } from '#lib/api-paths.ts'
 import { getJson, post } from '#lib/http.ts'
+import { keys } from '#lib/query-keys.ts'
 
 // ---- Logic (tested in Node) -------------------------------------------------------------------
 
@@ -55,8 +57,8 @@ export const formPost = {
 
 export const githubAppQuery = () =>
   queryOptions({
-    queryKey: ['instance-github-app'],
-    queryFn: () => getJson<Instance.GithubApp>('/api/instance/github-app'),
+    queryKey: keys.instanceGithubApp(),
+    queryFn: () => getJson<Instance.GithubApp>(instancePath('github-app')),
   })
 
 /** Asks for the manifest and posts it to GitHub (the browser leaves this page; GitHub sends it back). */
@@ -69,11 +71,11 @@ export function useCreateGithubApp() {
         ...(input.organization?.trim() ? { organization: input.organization.trim() } : {}),
       }
       const { manifest, postUrl, state } = await post<Instance.GithubManifest>(
-        '/api/instance/github-app/manifest',
+        instancePath('github-app', 'manifest'),
         body,
       )
       formPost.submit(postUrl, { manifest: JSON.stringify(manifest), state })
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['instance-github-app'] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: keys.instanceGithubApp() }),
   })
 }

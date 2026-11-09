@@ -1,10 +1,10 @@
 import type { InstanceAdmin } from '@circi/api'
 import type { FastifyPluginAsync } from 'fastify'
 
+import { describeSettings } from '#composition/instance-settings.ts'
 import { requireInstanceAdmin } from '#http/hooks/instance-admin.ts'
 import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
-import { describeSettings } from '#http/lib/instance-settings.ts'
 
 /** `/api/instance/settings` and `/api/instance/mail/test`: read-only, from the environment. */
 export const dashboardInstanceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async (

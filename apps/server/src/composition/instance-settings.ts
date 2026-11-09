@@ -2,7 +2,8 @@ import type { InstanceAdmin } from '@circi/api'
 import { callbackUrl } from '@circi/auth'
 import { DEFAULT_TEAM_RETENTION_DAYS } from '@circi/core'
 
-import type { Deps } from './deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
+
 import { githubAppSource } from './github-app.ts'
 
 type Instance = Deps.Instance

@@ -15,15 +15,15 @@ import {
   screenshotStatus,
   shotReview,
 } from '#features/builds/diff-status.ts'
-import { getJson, post, seg } from '#lib/http.ts'
+import { teamPath } from '#lib/api-paths.ts'
+import { getJson, post } from '#lib/http.ts'
+import { invalidateAll, keys } from '#lib/query-keys.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
-
-export const triageKey = (workspace: string, team: string) => ['triage', workspace, team] as const
 
 export const triageQuery = (workspace: string, team: string) =>
   queryOptions({
-    queryKey: triageKey(workspace, team),
-    queryFn: () => getJson<Triage.Queue>(`/api/teams/${seg(workspace)}/${seg(team)}/triage`),
+    queryKey: keys.triage(workspace, team),
+    queryFn: () => getJson<Triage.Queue>(teamPath(workspace, team, 'triage')),
   })
 
 export const KIND_LABEL: Record<TriageKind, string> = {
@@ -186,10 +186,10 @@ export const snapshotHistoryQuery = (
   build: number,
 ) =>
   queryOptions({
-    queryKey: ['snapshot-history', workspace, team, name, build],
+    queryKey: keys.snapshotHistory(workspace, team, name, build),
     queryFn: () =>
       getJson<Snapshot.History>(
-        `/api/teams/${seg(workspace)}/${seg(team)}/snapshots/${seg(name)}/history?limit=${FILMSTRIP_LENGTH}&build=${build}`,
+        `${teamPath(workspace, team, 'snapshots', name, 'history')}?limit=${FILMSTRIP_LENGTH}&build=${build}`,
       ),
   })
 
@@ -211,10 +211,7 @@ export function useFilmstrip(workspace: string, team: string, item: Triage.Item 
 // -- Mutations -----------------------------------------------------------------------------------
 
 async function refresh(queryClient: QueryClient, workspace: string, team: string) {
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: triageKey(workspace, team) }),
-    queryClient.invalidateQueries({ queryKey: ['sidebar'] }),
-  ])
+  await invalidateAll(queryClient, keys.triage(workspace, team), keys.sidebar())
 }
 
 /**
@@ -228,7 +225,7 @@ function useOptimistic<V extends { ref: Ref }>(
   mutationFn: (vars: V) => Promise<unknown>,
 ) {
   const queryClient = useQueryClient()
-  const key = triageKey(workspace, team)
+  const key = keys.triage(workspace, team)
   return useMutation({
     mutationFn,
     onMutate: async (vars: V) => {
@@ -244,8 +241,6 @@ function useOptimistic<V extends { ref: Ref }>(
   })
 }
 
-const base = (workspace: string, team: string) => `/api/teams/${seg(workspace)}/${seg(team)}`
-
 export function useAssignTriage(workspace: string, team: string) {
   return useOptimistic(
     workspace,
@@ -253,7 +248,7 @@ export function useAssignTriage(workspace: string, team: string) {
     (queue, v: { ref: Ref; assignee: Triage.Item['assignee'] }) =>
       withAssignee(queue, v.ref, v.assignee),
     (v) =>
-      post<Triage.ItemState>(`${base(workspace, team)}/triage/assign`, {
+      post<Triage.ItemState>(teamPath(workspace, team, 'triage', 'assign'), {
         ...refOf(v.ref),
         assigneeId: v.assignee?.id ?? null,
       }),
@@ -267,7 +262,7 @@ export function useSnoozeTriage(workspace: string, team: string) {
     (queue, v: { ref: Ref; choice: SnoozeChoice }) => withoutItem(queue, v.ref),
     (v) =>
       post<Triage.ItemState>(
-        `${base(workspace, team)}/triage/snooze`,
+        teamPath(workspace, team, 'triage', 'snooze'),
         snoozeBody(refOf(v.ref), v.choice),
       ),
   )
@@ -278,7 +273,7 @@ export function useDismissTriage(workspace: string, team: string) {
     workspace,
     team,
     (queue, v: { ref: Ref }) => withoutItem(queue, v.ref),
-    (v) => post<Triage.ItemState>(`${base(workspace, team)}/triage/dismiss`, refOf(v.ref)),
+    (v) => post<Triage.ItemState>(teamPath(workspace, team, 'triage', 'dismiss'), refOf(v.ref)),
   )
 }
 
@@ -291,14 +286,14 @@ export function useAcceptBaseline(workspace: string, team: string) {
   return useMutation({
     mutationFn: (v: { ref: Ref; buildNumber: number; snapshotName: string }) =>
       post<{ build: { reviewStatus: string } }>(
-        `${base(workspace, team)}/builds/${v.buildNumber}/snapshots/review`,
+        teamPath(workspace, team, 'builds', v.buildNumber, 'snapshots', 'review'),
         { snapshotNames: [v.snapshotName], decision: 'approved' },
       ),
     onSuccess: async (_data, v) => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['build', workspace, team, v.buildNumber] }),
-        queryClient.invalidateQueries({ queryKey: ['team', workspace, team] }),
-        queryClient.invalidateQueries({ queryKey: ['teams'] }),
+        queryClient.invalidateQueries({ queryKey: keys.build(workspace, team, v.buildNumber) }),
+        queryClient.invalidateQueries({ queryKey: keys.team(workspace, team) }),
+        queryClient.invalidateQueries({ queryKey: keys.teams() }),
         refresh(queryClient, workspace, team),
       ])
     },
@@ -318,7 +313,7 @@ export function useAddIgnoreRegion(workspace: string, team: string) {
     team,
     (queue, v: NewRegion) => withoutItem(queue, v.ref),
     (v) =>
-      post(`${base(workspace, team)}/ignore-regions`, {
+      post(teamPath(workspace, team, 'ignore-regions'), {
         name: v.name,
         ...v.rect,
         resolves: refOf(v.ref),

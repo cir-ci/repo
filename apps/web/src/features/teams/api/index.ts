@@ -10,14 +10,16 @@ import {
   toWorkspaceQuery,
 } from '#features/builds/list/builds-filters.ts'
 import type { Order } from '#features/builds/list/display-options.ts'
-import { getJson, post, send, seg } from '#lib/http.ts'
+import { teamPath, workspacePath } from '#lib/api-paths.ts'
+import { getJson, post, send } from '#lib/http.ts'
+import { invalidateAll, keys } from '#lib/query-keys.ts'
 
 /** Page size of the builds list (the server returns at most this many). */
 export const BUILDS_PAGE_SIZE = 50
 
 export const teamsQuery = () =>
   queryOptions({
-    queryKey: ['teams'],
+    queryKey: keys.teams(),
     queryFn: () => getJson<{ teams: Team.Overview[] }>('/api/teams'),
   })
 
@@ -30,24 +32,23 @@ export const teamQuery = (
 ) =>
   queryOptions({
     // Each page, each set of filters and each order is cached on its own.
-    queryKey: [
-      'team',
+    queryKey: keys.team(
       workspace,
       team,
       before ?? null,
       ...(hasFilters(filters) ? [toSearch(filters)] : []),
       ...(order === 'newest' ? [] : [order]),
-    ],
+    ),
     queryFn: () =>
       getJson<Team.BuildsResponse>(
-        `/api/teams/${seg(workspace)}/${seg(team)}${toQuery(filters, before, order)}`,
+        `${teamPath(workspace, team)}${toQuery(filters, before, order)}`,
       ),
     refetchInterval: (q) => (q.state.data?.builds.some((b) => isActive(b.status)) ? 3_000 : false),
   })
 
 export const capabilitiesQuery = () =>
   queryOptions({
-    queryKey: ['capabilities'],
+    queryKey: keys.capabilities(),
     queryFn: () => getJson<Workspace.Capabilities>('/api/capabilities'),
   })
 
@@ -56,15 +57,14 @@ export function useCreateWorkspace() {
   return useMutation({
     mutationFn: (name: string) =>
       post<{ workspace: { slug: string; name: string } }>('/api/workspaces', { name }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['capabilities'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.capabilities() }),
   })
 }
 
 export const settingsQuery = (workspace: string, team: string) =>
   queryOptions({
-    queryKey: ['settings', workspace, team],
-    queryFn: () =>
-      getJson<Team.SettingsResponse>(`/api/teams/${seg(workspace)}/${seg(team)}/settings`),
+    queryKey: keys.teamSettings(workspace, team),
+    queryFn: () => getJson<Team.SettingsResponse>(teamPath(workspace, team, 'settings')),
   })
 
 /** Saves some team settings, then refreshes everything that shows them. */
@@ -72,17 +72,14 @@ export function useSaveSettings(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (patch: Partial<Team.Settings>) =>
-      send<{ settings: Team.Settings }>(
-        'PATCH',
-        `/api/teams/${seg(workspace)}/${seg(team)}/settings`,
-        patch,
-      ),
+      send<{ settings: Team.Settings }>('PATCH', teamPath(workspace, team, 'settings'), patch),
     onSuccess: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['settings', workspace, team] }),
-        queryClient.invalidateQueries({ queryKey: ['team', workspace, team] }),
-        queryClient.invalidateQueries({ queryKey: ['teams'] }),
-      ]),
+      invalidateAll(
+        queryClient,
+        keys.teamSettings(workspace, team),
+        keys.team(workspace, team),
+        keys.teams(),
+      ),
   })
 }
 
@@ -90,11 +87,9 @@ export function useAddWebhook(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: { url: string; events: string[] }) =>
-      post<{ webhook: Team.Webhook; secret: string }>(
-        `/api/teams/${seg(workspace)}/${seg(team)}/webhooks`,
-        input,
-      ),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', workspace, team] }),
+      post<{ webhook: Team.Webhook; secret: string }>(teamPath(workspace, team, 'webhooks'), input),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: keys.teamSettings(workspace, team) }),
   })
 }
 
@@ -103,11 +98,9 @@ export function useTestWebhook(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) =>
-      post<{ deliveryId: string }>(
-        `/api/teams/${seg(workspace)}/${seg(team)}/webhooks/${seg(id)}/test`,
-        {},
-      ),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', workspace, team] }),
+      post<{ deliveryId: string }>(teamPath(workspace, team, 'webhooks', id, 'test'), {}),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: keys.teamSettings(workspace, team) }),
   })
 }
 
@@ -115,24 +108,24 @@ export function useDeleteWebhook(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) =>
-      send<undefined>('DELETE', `/api/teams/${seg(workspace)}/${seg(team)}/webhooks/${seg(id)}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', workspace, team] }),
+      send<undefined>('DELETE', teamPath(workspace, team, 'webhooks', id)),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: keys.teamSettings(workspace, team) }),
   })
 }
 
 export const tokenQuery = (workspace: string, team: string) =>
   queryOptions({
-    queryKey: ['token', workspace, team],
-    queryFn: () => getJson<Team.Token>(`/api/teams/${seg(workspace)}/${seg(team)}/token`),
+    queryKey: keys.token(workspace, team),
+    queryFn: () => getJson<Team.Token>(teamPath(workspace, team, 'token')),
   })
 
 /** Makes a new CI token (the old one stops working); the response carries it, once. */
 export function useRotateToken(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: () =>
-      post<Team.TokenRotated>(`/api/teams/${seg(workspace)}/${seg(team)}/token`, {}),
-    onSuccess: (rotated) => queryClient.setQueryData(['token', workspace, team], rotated.info),
+    mutationFn: () => post<Team.TokenRotated>(teamPath(workspace, team, 'token'), {}),
+    onSuccess: (rotated) => queryClient.setQueryData(keys.token(workspace, team), rotated.info),
   })
 }
 
@@ -143,14 +136,16 @@ export function useSaveAppearance(workspace: string, team: string) {
     mutationFn: (patch: Partial<Team.Appearance>) =>
       send<{ appearance: Team.Appearance }>(
         'PATCH',
-        `/api/teams/${seg(workspace)}/${seg(team)}/appearance`,
+        teamPath(workspace, team, 'appearance'),
         patch,
       ),
     onSuccess: () =>
-      Promise.all(
-        [['settings', workspace, team], ['team', workspace, team], ['teams'], ['sidebar']].map(
-          (queryKey) => queryClient.invalidateQueries({ queryKey }),
-        ),
+      invalidateAll(
+        queryClient,
+        keys.teamSettings(workspace, team),
+        keys.team(workspace, team),
+        keys.teams(),
+        keys.sidebar(),
       ),
   })
 }
@@ -159,15 +154,11 @@ export function useSaveAppearance(workspace: string, team: string) {
 export function useDeleteTeam(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: () => send<void>('DELETE', `/api/teams/${seg(workspace)}/${seg(team)}`),
+    mutationFn: () => send<void>('DELETE', teamPath(workspace, team)),
     onSuccess: () => {
-      queryClient.removeQueries({ queryKey: ['team', workspace, team] })
-      queryClient.removeQueries({ queryKey: ['settings', workspace, team] })
-      return Promise.all(
-        [['teams'], ['sidebar'], ['capabilities']].map((queryKey) =>
-          queryClient.invalidateQueries({ queryKey }),
-        ),
-      )
+      queryClient.removeQueries({ queryKey: keys.team(workspace, team) })
+      queryClient.removeQueries({ queryKey: keys.teamSettings(workspace, team) })
+      return invalidateAll(queryClient, keys.teams(), keys.sidebar(), keys.capabilities())
     },
   })
 }
@@ -176,16 +167,16 @@ export function useDeleteTeam(workspace: string, team: string) {
 export function useUnlinkRepository(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: () => send<undefined>('DELETE', `/api/teams/${seg(workspace)}/${seg(team)}/github`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['settings', workspace, team] }),
+    mutationFn: () => send<undefined>('DELETE', teamPath(workspace, team, 'github')),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: keys.teamSettings(workspace, team) }),
   })
 }
 
 export const ignoreRegionsQuery = (workspace: string, team: string) =>
   queryOptions({
-    queryKey: ['ignore-regions', workspace, team],
-    queryFn: () =>
-      getJson<IgnoreRegion.List>(`/api/teams/${seg(workspace)}/${seg(team)}/ignore-regions`),
+    queryKey: keys.ignoreRegions(workspace, team),
+    queryFn: () => getJson<IgnoreRegion.List>(teamPath(workspace, team, 'ignore-regions')),
   })
 
 export type RegionRect = Pick<IgnoreRegion.Item, 'x' | 'y' | 'width' | 'height'>
@@ -194,9 +185,9 @@ export function useAddIgnoreRegion(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: RegionRect & { name: string }) =>
-      post<IgnoreRegion.Item>(`/api/teams/${seg(workspace)}/${seg(team)}/ignore-regions`, input),
+      post<IgnoreRegion.Item>(teamPath(workspace, team, 'ignore-regions'), input),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ['ignore-regions', workspace, team] }),
+      queryClient.invalidateQueries({ queryKey: keys.ignoreRegions(workspace, team) }),
   })
 }
 
@@ -206,11 +197,11 @@ export function useEditIgnoreRegion(workspace: string, team: string) {
     mutationFn: (input: { id: string; rect: RegionRect }) =>
       send<IgnoreRegion.Item>(
         'PATCH',
-        `/api/teams/${seg(workspace)}/${seg(team)}/ignore-regions/${seg(input.id)}`,
+        teamPath(workspace, team, 'ignore-regions', input.id),
         input.rect,
       ),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ['ignore-regions', workspace, team] }),
+      queryClient.invalidateQueries({ queryKey: keys.ignoreRegions(workspace, team) }),
   })
 }
 
@@ -218,19 +209,16 @@ export function useDeleteIgnoreRegion(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) =>
-      send<undefined>(
-        'DELETE',
-        `/api/teams/${seg(workspace)}/${seg(team)}/ignore-regions/${seg(id)}`,
-      ),
+      send<undefined>('DELETE', teamPath(workspace, team, 'ignore-regions', id)),
     onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ['ignore-regions', workspace, team] }),
+      queryClient.invalidateQueries({ queryKey: keys.ignoreRegions(workspace, team) }),
   })
 }
 
 export const flakyQuery = (workspace: string, team: string) =>
   queryOptions({
-    queryKey: ['flaky', workspace, team],
-    queryFn: () => getJson<Flaky.Report>(`/api/teams/${seg(workspace)}/${seg(team)}/flaky`),
+    queryKey: keys.flaky(workspace, team),
+    queryFn: () => getJson<Flaky.Report>(teamPath(workspace, team, 'flaky')),
     staleTime: 60_000,
   })
 
@@ -242,16 +230,15 @@ export const workspaceBuildsQuery = (
   order: Order = 'newest',
 ) =>
   queryOptions({
-    queryKey: [
-      'workspace-builds',
+    queryKey: keys.workspaceBuilds(
       workspace,
       before ?? null,
       ...(hasFilters(filters) ? [toSearch(filters)] : []),
       ...(order === 'newest' ? [] : [order]),
-    ],
+    ),
     queryFn: () =>
       getJson<WorkspaceBuilds.List>(
-        `/api/workspaces/${seg(workspace)}/builds${toWorkspaceQuery(filters, before, order)}`,
+        `${workspacePath(workspace, 'builds')}${toWorkspaceQuery(filters, before, order)}`,
       ),
     refetchInterval: (q) => (q.state.data?.builds.some((b) => isActive(b.status)) ? 3_000 : false),
   })
@@ -259,10 +246,10 @@ export const workspaceBuildsQuery = (
 /** People to offer while typing an author or reviewer filter. */
 export const suggestionsQuery = (workspace: string, field: 'author' | 'reviewer', text: string) =>
   queryOptions({
-    queryKey: ['build-suggestions', workspace, field, text],
+    queryKey: keys.buildSuggestions(workspace, field, text),
     queryFn: () =>
       getJson<WorkspaceBuilds.Suggestions>(
-        `/api/workspaces/${seg(workspace)}/builds/suggestions?${new URLSearchParams({ field, q: text })}`,
+        `${workspacePath(workspace, 'builds', 'suggestions')}?${new URLSearchParams({ field, q: text })}`,
       ),
     staleTime: 30_000,
   })
@@ -275,12 +262,15 @@ export function useBulkReview(workspace: string, team: string) {
       buildIds: string[]
       decision: 'approved' | 'rejected'
       reason?: string
-    }) => post(`/api/teams/${seg(workspace)}/${seg(team)}/builds/review`, input),
+    }) => post(teamPath(workspace, team, 'builds', 'review'), input),
     onSuccess: () =>
-      Promise.all(
-        [['team', workspace, team], ['sidebar'], ['reviews'], ['inbox'], ['teams']].map(
-          (queryKey) => queryClient.invalidateQueries({ queryKey }),
-        ),
+      invalidateAll(
+        queryClient,
+        keys.team(workspace, team),
+        keys.sidebar(),
+        keys.reviews(),
+        keys.inbox(),
+        keys.teams(),
       ),
   })
 }
@@ -290,15 +280,7 @@ export function useBulkRequestReview(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: { buildIds: string[]; reviewerIds: string[] }) =>
-      post<Review.BulkRequested>(
-        `/api/teams/${seg(workspace)}/${seg(team)}/builds/request-review`,
-        input,
-      ),
-    onSuccess: () =>
-      Promise.all(
-        [['sidebar'], ['reviews'], ['inbox']].map((queryKey) =>
-          queryClient.invalidateQueries({ queryKey }),
-        ),
-      ),
+      post<Review.BulkRequested>(teamPath(workspace, team, 'builds', 'request-review'), input),
+    onSuccess: () => invalidateAll(queryClient, keys.sidebar(), keys.reviews(), keys.inbox()),
   })
 }

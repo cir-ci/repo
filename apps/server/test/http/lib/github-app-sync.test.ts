@@ -3,8 +3,8 @@ import { createTestDb } from '@circi/testing'
 import { pino } from 'pino'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { githubAppSync, storeGithubApp } from '#composition/github-app.ts'
 import { buildServer } from '#http/app.ts'
-import { githubAppSync, storeGithubApp } from '#http/lib/github-app.ts'
 
 const SECRET = 'sync-test-secret-sync-test-secret'
 

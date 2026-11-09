@@ -5,7 +5,7 @@ import type { IntegrationDefinition, IntegrationRegistry } from '@circi/integrat
 import type { ProviderRegistry } from '@circi/providers'
 import type { StorageDriver } from '@circi/storage'
 
-import type { Fetcher } from '#lifecycle/doctor.ts'
+import type { Fetcher } from '#composition/doctor.ts'
 
 export namespace Deps {
   /** Instance settings of the registry's integrations, a replaceable `fetch`, and (tests) another registry. */

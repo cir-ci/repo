@@ -1,7 +1,7 @@
 import type { IntegrationDefinition } from '@circi/integrations'
 import type { ProviderRegistry } from '@circi/providers'
 
-import type { Deps } from './deps.ts'
+import type { Deps } from '#http/lib/deps.ts'
 
 /**
  * What an integration definition's functions get, from the dashboard's dependencies; undefined

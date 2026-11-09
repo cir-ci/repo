@@ -85,6 +85,10 @@ export interface Config {
   /** Settings that work but are probably a mistake; logged at startup. */
   warnings: string[]
   database: { url: string; poolMax: number }
+  /** Where the image ships the migrations (`CIRCI_MIGRATIONS`); absent: the source tree's. */
+  migrationsFolder?: string
+  /** Where the image ships the dashboard (`CIRCI_WEB_DIST`); absent: apps/web/dist. */
+  webDist?: string
   storage: Config.Storage
   /** Outgoing mail (`SMTP_*`); absent when no SMTP server is configured. */
   smtp?: Config.Smtp

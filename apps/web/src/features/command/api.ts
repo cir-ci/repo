@@ -2,7 +2,9 @@ import type { Search } from '@circi/api'
 import { keepPreviousData, queryOptions, useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
-import { request, seg } from '#lib/http.ts'
+import { workspacePath } from '#lib/api-paths.ts'
+import { request } from '#lib/http.ts'
+import { keys } from '#lib/query-keys.ts'
 
 /** How long typing pauses before a search is sent. */
 export const SEARCH_DEBOUNCE_MS = 200
@@ -10,14 +12,11 @@ export const SEARCH_DEBOUNCE_MS = 200
 /** The search route. React Query hands over an abort signal and fires it when the query is no longer wanted, so a stale request is dropped. */
 export const searchQuery = (workspace: string, q: string) =>
   queryOptions({
-    queryKey: ['search', workspace, q],
+    queryKey: keys.search(workspace, q),
     queryFn: ({ signal }) =>
-      request<Search.Results>(
-        `/api/workspaces/${seg(workspace)}/search?q=${encodeURIComponent(q)}`,
-        {
-          signal,
-        },
-      ),
+      request<Search.Results>(`${workspacePath(workspace, 'search')}?q=${encodeURIComponent(q)}`, {
+        signal,
+      }),
     staleTime: 30_000,
   })
 

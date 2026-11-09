@@ -1,9 +1,8 @@
 import { runMigrations } from '@circi/db'
 import type { Command } from 'commander'
 
-import { runServices } from '#lifecycle/services.ts'
-
-import { withRuntime } from './output.ts'
+import { withRuntime } from '#cli/lib/output.ts'
+import { runServices } from '#composition/services.ts'
 
 /** Long-running processes (`serve`, `worker`, `all`) and `migrate`. */
 export function addServerCommands(program: Command): void {
@@ -29,7 +28,7 @@ export function addServerCommands(program: Command): void {
     .description('apply database migrations and exit')
     .action(() =>
       withRuntime(async (rt) => {
-        await runMigrations(rt.db)
+        await runMigrations(rt.db, rt.config.migrationsFolder)
         console.log('Migrations applied.')
       }),
     )

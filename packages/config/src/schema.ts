@@ -18,6 +18,8 @@ export const envSchema = z.object({
     .string({ error: 'is required (generate one with: openssl rand -base64 32)' })
     .min(32, 'must be at least 32 characters (generate one with: openssl rand -base64 32)'),
   DATABASE_URL: z.string({ error: 'is required' }).min(1, 'is required'),
+  CIRCI_MIGRATIONS: z.preprocess(emptyToUndefined, z.string().optional()),
+  CIRCI_WEB_DIST: z.preprocess(emptyToUndefined, z.string().optional()),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).default(10),
   STORAGE_DRIVER: z.enum(['fs', 's3']).default('fs'),
   STORAGE_PATH: z.string().default('/var/lib/circi/files'),

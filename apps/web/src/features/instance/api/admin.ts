@@ -2,7 +2,9 @@ import type { InstanceAdmin } from '@circi/api'
 import { slugify } from '@circi/core/slug'
 import { keepPreviousData, queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { getJson, HttpError, post, send, seg } from '#lib/http.ts'
+import { instancePath } from '#lib/api-paths.ts'
+import { getJson, HttpError, post, send } from '#lib/http.ts'
+import { invalidateAll, keys } from '#lib/query-keys.ts'
 import { formatRelative } from '#lib/relative-time.ts'
 
 // ---- Logic (tested in Node) -------------------------------------------------------------------
@@ -258,56 +260,56 @@ export interface AccountSearch {
 
 export const accountsQuery = (search: AccountSearch) =>
   queryOptions({
-    queryKey: ['instance-accounts', search],
+    queryKey: keys.instanceAccounts(search),
     queryFn: () => {
       const params = new URLSearchParams({ page: String(search.page), pageSize: String(PAGE_SIZE) })
       if (search.q.trim()) params.set('q', search.q.trim())
-      return getJson<InstanceAdmin.AccountList>(`/api/instance/accounts?${params}`)
+      return getJson<InstanceAdmin.AccountList>(`${instancePath('accounts')}?${params}`)
     },
     placeholderData: keepPreviousData,
   })
 
 export const workspacesQuery = () =>
   queryOptions({
-    queryKey: ['instance-workspaces'],
-    queryFn: () => getJson<InstanceAdmin.WorkspaceList>('/api/instance/workspaces'),
+    queryKey: keys.instanceWorkspaces(),
+    queryFn: () => getJson<InstanceAdmin.WorkspaceList>(instancePath('workspaces')),
   })
 
 export const settingsQuery = () =>
   queryOptions({
-    queryKey: ['instance-settings'],
-    queryFn: () => getJson<InstanceAdmin.Settings>('/api/instance/settings'),
+    queryKey: keys.instanceSettings(),
+    queryFn: () => getJson<InstanceAdmin.Settings>(instancePath('settings')),
   })
 
 export const checksQuery = () =>
   queryOptions({
-    queryKey: ['instance-health', 'checks'],
-    queryFn: () => getJson<InstanceAdmin.Checks>('/api/instance/health/checks'),
+    queryKey: keys.instanceHealth('checks'),
+    queryFn: () => getJson<InstanceAdmin.Checks>(instancePath('health', 'checks')),
     // The checks ask other hosts: a result stays until the admin asks again.
     staleTime: Infinity,
   })
 
 export const checklistQuery = () =>
   queryOptions({
-    queryKey: ['instance-health', 'checklist'],
+    queryKey: keys.instanceHealth('checklist'),
     queryFn: () =>
-      getJson<InstanceAdmin.AddressChecklist>('/api/instance/health/address-checklist'),
+      getJson<InstanceAdmin.AddressChecklist>(instancePath('health', 'address-checklist')),
   })
 
 export const queuesQuery = () =>
   queryOptions({
-    queryKey: ['instance-health', 'queues'],
-    queryFn: () => getJson<InstanceAdmin.Queues>('/api/instance/health/queues'),
+    queryKey: keys.instanceHealth('queues'),
+    queryFn: () => getJson<InstanceAdmin.Queues>(instancePath('health', 'queues')),
   })
 
 /** Every account list, whatever its search and page. */
-const ACCOUNTS = ['instance-accounts'] as const
+const ACCOUNTS = keys.instanceAccounts()
 
 export function useCreateAccount() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (draft: AccountDraft) =>
-      post<InstanceAdmin.CreatedAccount>('/api/instance/accounts', accountBody(draft)),
+      post<InstanceAdmin.CreatedAccount>(instancePath('accounts'), accountBody(draft)),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ACCOUNTS }),
   })
 }
@@ -315,7 +317,7 @@ export function useCreateAccount() {
 export function useResetPassword() {
   return useMutation({
     mutationFn: (id: string) =>
-      post<InstanceAdmin.PasswordReset>(`/api/instance/accounts/${seg(id)}/reset-password`, {}),
+      post<InstanceAdmin.PasswordReset>(instancePath('accounts', id, 'reset-password'), {}),
   })
 }
 
@@ -323,7 +325,7 @@ export function useSetInstanceAdmin() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: { id: string; instanceAdmin: boolean }) =>
-      send<unknown>('PATCH', `/api/instance/accounts/${seg(input.id)}`, {
+      send<unknown>('PATCH', instancePath('accounts', input.id), {
         instanceAdmin: input.instanceAdmin,
       }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ACCOUNTS }),
@@ -334,7 +336,7 @@ export function useBanAccount() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: { id: string; draft: BanDraft }) =>
-      post<unknown>(`/api/instance/accounts/${seg(input.id)}/ban`, banBody(input.draft)),
+      post<unknown>(instancePath('accounts', input.id, 'ban'), banBody(input.draft)),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ACCOUNTS }),
   })
 }
@@ -342,7 +344,7 @@ export function useBanAccount() {
 export function useUnbanAccount() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => post<unknown>(`/api/instance/accounts/${seg(id)}/unban`, {}),
+    mutationFn: (id: string) => post<unknown>(instancePath('accounts', id, 'unban'), {}),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ACCOUNTS }),
   })
 }
@@ -350,7 +352,7 @@ export function useUnbanAccount() {
 export function useSignOutEverywhere() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => post<undefined>(`/api/instance/accounts/${seg(id)}/sign-out`, {}),
+    mutationFn: (id: string) => post<undefined>(instancePath('accounts', id, 'sign-out'), {}),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ACCOUNTS }),
   })
 }
@@ -360,10 +362,10 @@ export function useCreateWorkspace() {
   return useMutation({
     mutationFn: (draft: WorkspaceDraft) =>
       post<{ workspace: InstanceAdmin.Workspace }>(
-        '/api/instance/workspaces',
+        instancePath('workspaces'),
         workspaceBody(draft),
       ),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['instance-workspaces'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.instanceWorkspaces() }),
   })
 }
 
@@ -379,15 +381,14 @@ export function useRestoreWorkspace() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) =>
-      post<{ workspace: InstanceAdmin.Workspace }>(
-        `/api/instance/workspaces/${seg(id)}/restore`,
-        {},
-      ),
+      post<{ workspace: InstanceAdmin.Workspace }>(instancePath('workspaces', id, 'restore'), {}),
     onSuccess: () =>
-      Promise.all(
-        [['instance-workspaces'], ['teams'], ['sidebar'], ['capabilities']].map((queryKey) =>
-          queryClient.invalidateQueries({ queryKey }),
-        ),
+      invalidateAll(
+        queryClient,
+        keys.instanceWorkspaces(),
+        keys.teams(),
+        keys.sidebar(),
+        keys.capabilities(),
       ),
   })
 }
@@ -396,13 +397,13 @@ export function useRestoreWorkspace() {
 export function usePurgeWorkspace() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => post<void>(`/api/instance/workspaces/${seg(id)}/purge`, {}),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['instance-workspaces'] }),
+    mutationFn: (id: string) => post<void>(instancePath('workspaces', id, 'purge'), {}),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.instanceWorkspaces() }),
   })
 }
 
 export function useSendTestMail() {
   return useMutation({
-    mutationFn: () => post<InstanceAdmin.MailTest>('/api/instance/mail/test', {}),
+    mutationFn: () => post<InstanceAdmin.MailTest>(instancePath('mail', 'test'), {}),
   })
 }

@@ -1,14 +1,16 @@
 import type { Storage, Workspace } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { getJson, send, seg } from '#lib/http.ts'
+import { workspacePath } from '#lib/api-paths.ts'
+import { getJson, send } from '#lib/http.ts'
+import { invalidateAll, keys } from '#lib/query-keys.ts'
 
 // ---- Workspace General ------------------------------------------------------------------------
 
 export const workspaceGeneralQuery = (workspace: string) =>
   queryOptions({
-    queryKey: ['workspace-general', workspace],
-    queryFn: () => getJson<Workspace.General>(`/api/workspaces/${seg(workspace)}`),
+    queryKey: keys.workspaceGeneral(workspace),
+    queryFn: () => getJson<Workspace.General>(workspacePath(workspace)),
   })
 
 /** Renames the workspace and/or changes its address (the old address stops working). */
@@ -16,7 +18,7 @@ export function useSaveWorkspaceGeneral(workspace: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (patch: { name?: string; slug?: string }) =>
-      send<{ name: string; slug: string }>('PATCH', `/api/workspaces/${seg(workspace)}`, patch),
+      send<{ name: string; slug: string }>('PATCH', workspacePath(workspace), patch),
     // The name and address show in the sidebar, the switcher and every page header.
     onSuccess: () => queryClient.invalidateQueries(),
   })
@@ -27,14 +29,9 @@ export function useDeleteWorkspace(workspace: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (confirm: string) =>
-      send<Workspace.Deleted>('DELETE', `/api/workspaces/${seg(workspace)}`, { confirm }),
+      send<Workspace.Deleted>('DELETE', workspacePath(workspace), { confirm }),
     // The workspace leaves the sidebar, the switcher and the capabilities at once.
-    onSuccess: () =>
-      Promise.all(
-        [['teams'], ['sidebar'], ['capabilities']].map((queryKey) =>
-          queryClient.invalidateQueries({ queryKey }),
-        ),
-      ),
+    onSuccess: () => invalidateAll(queryClient, keys.teams(), keys.sidebar(), keys.capabilities()),
   })
 }
 
@@ -42,8 +39,8 @@ export function useDeleteWorkspace(workspace: string) {
 
 export const storageQuery = (workspace: string) =>
   queryOptions({
-    queryKey: ['workspace-storage', workspace],
-    queryFn: () => getJson<Storage.Usage>(`/api/workspaces/${seg(workspace)}/storage`),
+    queryKey: keys.workspaceStorage(workspace),
+    queryFn: () => getJson<Storage.Usage>(workspacePath(workspace, 'storage')),
   })
 
 export const KIND_LABEL: Record<Storage.Kind, string> = {

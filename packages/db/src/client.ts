@@ -19,10 +19,10 @@ export type Database = PgDatabase<PgQueryResultHKT, Schema>
 /**
  * `packages/db/migrations` when running from the source tree (this file sits one level below the
  * package root). The server bundle moves this code, so the image points `CIRCI_MIGRATIONS` at the
- * copy it ships (deploy/Dockerfile); `test/migrations-path.test.ts` pins both.
+ * copy it ships (deploy/Dockerfile); `@circi/config` reads it and the caller passes it to
+ * `runMigrations`. `test/migrations-path.test.ts` pins the default.
  */
-export const migrationsFolder =
-  process.env.CIRCI_MIGRATIONS ?? fileURLToPath(new URL('../migrations', import.meta.url))
+export const migrationsFolder = fileURLToPath(new URL('../migrations', import.meta.url))
 
 /**
  * Subscribes to a Postgres NOTIFY channel on a dedicated connection. Resolves once LISTEN is
@@ -109,12 +109,15 @@ export function createDb(options: {
 /** Arbitrary constant; serializes migrations when several containers start at once. */
 const MIGRATION_LOCK_KEY = 7_340_183_311
 
-export async function runMigrations(handle: DbHandle): Promise<void> {
+export async function runMigrations(
+  handle: DbHandle,
+  folder: string = migrationsFolder,
+): Promise<void> {
   const client = await handle.pool.connect()
   try {
     await client.query('select pg_advisory_lock($1)', [MIGRATION_LOCK_KEY])
     try {
-      await migrate(drizzle({ client }), { migrationsFolder })
+      await migrate(drizzle({ client }), { migrationsFolder: folder })
     } finally {
       await client.query('select pg_advisory_unlock($1)', [MIGRATION_LOCK_KEY])
     }

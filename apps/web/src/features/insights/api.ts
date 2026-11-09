@@ -1,7 +1,9 @@
 import type { Insights } from '@circi/api'
 import { queryOptions } from '@tanstack/react-query'
 
-import { getJson, seg } from '#lib/http.ts'
+import { workspacePath } from '#lib/api-paths.ts'
+import { getJson } from '#lib/http.ts'
+import { keys } from '#lib/query-keys.ts'
 
 export const RANGES = [7, 30, 90] as const
 export type RangeDays = (typeof RANGES)[number]
@@ -36,8 +38,8 @@ export const insightsQuery = (workspace: string, search: InsightsSearch, now = D
   const params = new URLSearchParams({ from, to })
   if (search.team) params.set('team', search.team)
   return queryOptions({
-    queryKey: ['insights', workspace, search.team ?? null, from, to],
-    queryFn: () => getJson<Insights.Report>(`/api/workspaces/${seg(workspace)}/insights?${params}`),
+    queryKey: keys.insights(workspace, search.team ?? null, from, to),
+    queryFn: () => getJson<Insights.Report>(`${workspacePath(workspace, 'insights')}?${params}`),
   })
 }
 

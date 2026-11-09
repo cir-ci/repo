@@ -4,7 +4,7 @@ import { loadConfig } from '@circi/config'
 import { createStorage } from '@circi/storage'
 import { describe, expect, it } from 'vitest'
 
-import { domainCookies, parentDomain, runDoctor } from '#lifecycle/doctor.ts'
+import { domainCookies, parentDomain, runDoctor } from '#composition/doctor.ts'
 
 const base = {
   DATABASE_URL: 'postgres://localhost/circi',

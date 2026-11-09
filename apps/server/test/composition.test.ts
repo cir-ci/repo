@@ -3,12 +3,12 @@ import { resolve } from 'node:path'
 import { setupCode } from '@circi/auth'
 import { loadConfig } from '@circi/config'
 import { createTestDb, seedWorkspace } from '@circi/testing'
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { serverOptionsFor, type ServerRuntime } from '#lifecycle/server-options.ts'
-import { webDistPath } from '#lifecycle/services.ts'
-import { createShutdown } from '#lifecycle/shutdown.ts'
-import { announceStartup } from '#lifecycle/startup.ts'
+import { serverOptionsFor, type ServerRuntime } from '#composition/server-options.ts'
+import { webDistPath } from '#composition/services.ts'
+import { createShutdown } from '#composition/shutdown.ts'
+import { announceStartup } from '#composition/startup.ts'
 
 const env = {
   DATABASE_URL: 'postgres://localhost/circi',
@@ -189,20 +189,12 @@ describe('serverOptionsFor', () => {
 })
 
 describe('webDistPath', () => {
-  const saved = process.env.CIRCI_WEB_DIST
-  afterEach(() => {
-    if (saved === undefined) delete process.env.CIRCI_WEB_DIST
-    else process.env.CIRCI_WEB_DIST = saved
-  })
-
   it('points at apps/web/dist, wherever this file sits in apps/server', () => {
-    delete process.env.CIRCI_WEB_DIST
     // test → apps/server → apps → web/dist
-    expect(webDistPath()).toBe(resolve(import.meta.dirname, '../../web/dist'))
+    expect(webDistPath({})).toBe(resolve(import.meta.dirname, '../../web/dist'))
   })
 
-  it('can be overridden with CIRCI_WEB_DIST', () => {
-    process.env.CIRCI_WEB_DIST = '/srv/web'
-    expect(webDistPath()).toBe('/srv/web')
+  it('can be overridden by config (CIRCI_WEB_DIST)', () => {
+    expect(webDistPath({ webDist: '/srv/web' })).toBe('/srv/web')
   })
 })

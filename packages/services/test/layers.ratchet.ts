@@ -30,11 +30,11 @@ export const RATCHET: Partial<Record<RuleId, string[]>> = {
     'packages/services/src/pipeline/files.ts',
     'packages/services/src/pipeline/process.ts',
   ],
-  '8': ['apps/worker/src/runner.ts'],
+  '8': [],
   '9b': [],
   '10': [],
   '12b': [],
-  '13': ['apps/server/src/lifecycle/services.ts', 'packages/db/src/client.ts'],
+  '13': [],
   '14': [],
   '15': [
     'apps/server/src/http/routes/dashboard/integrations-generic.ts',

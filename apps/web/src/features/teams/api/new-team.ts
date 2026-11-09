@@ -4,7 +4,9 @@ import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/rea
 import { targetsQuery } from '#features/integrations/api/generic.ts'
 import { integrationsQuery } from '#features/integrations/api/index.ts'
 import { branchToSet, type RepoChoice, repoChoices } from '#features/teams/new-team.ts'
-import { post, seg } from '#lib/http.ts'
+import { workspacePath } from '#lib/api-paths.ts'
+import { post } from '#lib/http.ts'
+import { invalidateAll, keys } from '#lib/query-keys.ts'
 
 /** The repositories the workspace's git integrations can see, for the Repository field. */
 export function useRepoChoices(workspace: string, enabled: boolean): RepoChoice[] {
@@ -49,7 +51,7 @@ export function useCreateTeam() {
     mutationFn: async (input: CreateTeamInput): Promise<CreatedTeam> => {
       const branch = branchToSet(input.defaultBranch)
       const { team, token } = await post<{ team: { slug: string; name: string }; token: string }>(
-        `/api/workspaces/${seg(input.workspace)}/teams`,
+        workspacePath(input.workspace, 'teams'),
         {
           name: input.name,
           ...(branch ? { defaultBranch: branch } : {}),
@@ -72,11 +74,6 @@ export function useCreateTeam() {
         linked: input.repo !== undefined,
       }
     },
-    onSuccess: () =>
-      Promise.all(
-        [['teams'], ['sidebar'], ['capabilities']].map((queryKey) =>
-          queryClient.invalidateQueries({ queryKey }),
-        ),
-      ),
+    onSuccess: () => invalidateAll(queryClient, keys.teams(), keys.sidebar(), keys.capabilities()),
   })
 }

@@ -1,7 +1,9 @@
 import type { Integration } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
+import { workspacePath } from '#lib/api-paths.ts'
 import { getJson, post, seg, send } from '#lib/http.ts'
+import { keys } from '#lib/query-keys.ts'
 
 // ---- Logic (tested in Node) -------------------------------------------------------------------
 // Everything here works from a definition's public spec (`Integration.CatalogEntry`): the same code
@@ -217,19 +219,19 @@ export function connectionLine(
 
 // ---- Server state -----------------------------------------------------------------------------
 
-const base = (workspace: string) => `/api/workspaces/${seg(workspace)}/integrations`
+const base = (workspace: string, ...rest: string[]) =>
+  workspacePath(workspace, 'integrations', ...rest)
 
 export const mappingPageQuery = (workspace: string, id: string) =>
   queryOptions({
-    queryKey: ['integrations', workspace, 'mapping', id],
-    queryFn: () => getJson<Integration.MappingPage>(`${base(workspace)}/${seg(id)}/teams`),
+    queryKey: keys.integrations(workspace, 'mapping', id),
+    queryFn: () => getJson<Integration.MappingPage>(base(workspace, id, 'teams')),
   })
 
 export const targetsQuery = (workspace: string, id: string) =>
   queryOptions({
-    queryKey: ['integrations', workspace, 'targets', id],
-    queryFn: () =>
-      getJson<{ targets: Integration.Target[] }>(`${base(workspace)}/${seg(id)}/targets`),
+    queryKey: keys.integrations(workspace, 'targets', id),
+    queryFn: () => getJson<{ targets: Integration.Target[] }>(base(workspace, id, 'targets')),
     staleTime: 60_000,
     retry: false,
   })
@@ -238,7 +240,7 @@ export const targetsQuery = (workspace: string, id: string) =>
 export function useInstall(workspace: string) {
   return useMutation({
     mutationFn: async (kind: string) => {
-      const { url } = await getJson<Integration.Install>(`${base(workspace)}/${seg(kind)}/install`)
+      const { url } = await getJson<Integration.Install>(base(workspace, kind, 'install'))
       navigation.assign(url)
     },
   })
@@ -249,15 +251,15 @@ export function useConnect(workspace: string, kind: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (values: Record<string, string>) =>
-      post<{ id: string }>(`${base(workspace)}/${seg(kind)}/connect`, values),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations', workspace] }),
+      post<{ id: string }>(base(workspace, kind, 'connect'), values),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.integrations(workspace) }),
   })
 }
 
 export function useMapping(workspace: string, id: string) {
   const queryClient = useQueryClient()
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['integrations', workspace] })
-  const url = (team: string) => `${base(workspace)}/${seg(id)}/teams/${seg(team)}`
+  const refresh = () => queryClient.invalidateQueries({ queryKey: keys.integrations(workspace) })
+  const url = (team: string) => base(workspace, id, 'teams', team)
   return {
     save: useMutation({
       mutationFn: (input: { team: string } & Integration.MappingInput) =>
@@ -276,11 +278,11 @@ export function useMapping(workspace: string, id: string) {
 }
 
 const linksUrl = (workspace: string, id: string, team: string) =>
-  `${base(workspace)}/${seg(id)}/teams/${seg(team)}/links`
+  base(workspace, id, 'teams', team, 'links')
 
 export const linksQuery = (workspace: string, id: string, team: string) =>
   queryOptions({
-    queryKey: ['integrations', workspace, 'links', id, team],
+    queryKey: keys.integrations(workspace, 'links', id, team),
     queryFn: () => getJson<Integration.LinkList>(linksUrl(workspace, id, team)),
   })
 
@@ -288,7 +290,7 @@ export const linksQuery = (workspace: string, id: string, team: string) =>
 export function useLinks(workspace: string, id: string) {
   const queryClient = useQueryClient()
   const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: ['integrations', workspace, 'links', id] })
+    queryClient.invalidateQueries({ queryKey: keys.integrations(workspace, 'links', id) })
   return {
     create: useMutation({
       mutationFn: (input: { team: string; values: Record<string, string> }) =>

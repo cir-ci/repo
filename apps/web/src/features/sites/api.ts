@@ -1,12 +1,14 @@
 import type { Site } from '@circi/api'
 import { queryOptions } from '@tanstack/react-query'
 
-import { getJson, post, seg } from '#lib/http.ts'
+import { teamPath } from '#lib/api-paths.ts'
+import { getJson, post } from '#lib/http.ts'
+import { keys } from '#lib/query-keys.ts'
 
 export const teamSitesQuery = (workspace: string, team: string) =>
   queryOptions({
-    queryKey: ['team-sites', workspace, team],
-    queryFn: () => getJson<Site.List>(`/api/teams/${seg(workspace)}/${seg(team)}/sites`),
+    queryKey: keys.sites(workspace, team),
+    queryFn: () => getJson<Site.List>(teamPath(workspace, team, 'sites')),
   })
 
 /** Asks for access to one site address; the answer says where to go to open it. */

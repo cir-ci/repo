@@ -13,8 +13,8 @@ import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { runDoctor } from '#composition/doctor.ts'
 import { buildServer } from '#http/app.ts'
-import { runDoctor } from '#lifecycle/doctor.ts'
 import { caller } from '#test/support/client.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 

@@ -19,8 +19,8 @@ Commit messages end with the `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthrop
 ## Layout and layers
 
 ```
-apps/server     HTTP routes (http/, shared helpers in http/lib/), admin CLI, process lifecycle
-                (lifecycle/services.ts composes lifecycle/{startup,server-options,shutdown}.ts);
+apps/server     HTTP routes (http/, shared request helpers in http/lib/), admin CLI, process wiring
+                (composition/services.ts composes composition/{startup,server-options,shutdown}.ts, and holds the wiring that needs Deps/providers/auth);
                 built with tsdown into one bundle for the image (deploy/README.md)
 apps/worker     background jobs (process-build, webhook delivery, git-notify, integration-event); no build, the server bundle inlines it
 apps/web        the dashboard: src/app/ (router, shell, sidebar), src/lib/ (http, auth client, shared bits),

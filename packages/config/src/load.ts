@@ -216,6 +216,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     warnings,
     authSecret: e.BETTER_AUTH_SECRET,
     database: { url: e.DATABASE_URL, poolMax: e.DATABASE_POOL_MAX },
+    ...(e.CIRCI_MIGRATIONS ? { migrationsFolder: e.CIRCI_MIGRATIONS } : {}),
+    ...(e.CIRCI_WEB_DIST ? { webDist: e.CIRCI_WEB_DIST } : {}),
     storage,
     ...(smtp ? { smtp } : {}),
     emailLogin,

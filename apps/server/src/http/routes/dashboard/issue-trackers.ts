@@ -15,8 +15,8 @@ import {
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
+import { integrationContext } from '#composition/integration-context.ts'
 import type { Deps } from '#http/lib/deps.ts'
-import { integrationContext } from '#http/lib/integration-context.ts'
 import { loadBuild } from '#http/lib/team-access.ts'
 import { parse } from '#http/lib/validation.ts'
 

@@ -373,13 +373,8 @@ const RULES: Rule[] = [
   },
   {
     id: '10',
-    title: 'the worker imports repositories only in the claim loop (runner.ts)',
-    offenders: () =>
-      offendersOf(
-        ['apps/worker/src'],
-        reachesRepositories,
-        (f) => f === 'apps/worker/src/runner.ts',
-      ),
+    title: 'the worker imports no repository (it claims jobs through services)',
+    offenders: () => offendersOf(['apps/worker/src'], reachesRepositories),
   },
   {
     id: '11',

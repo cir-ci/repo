@@ -1,7 +1,9 @@
 import type { Review } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
+import { teamPath } from '#lib/api-paths.ts'
 import { getJson, post, seg } from '#lib/http.ts'
+import { invalidateAll, keys } from '#lib/query-keys.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 
 export const REVIEW_TABS: readonly { value: Review.Tab; label: string }[] = [
@@ -22,7 +24,7 @@ export function validateReviewsSearch(search: Record<string, unknown>): ReviewsS
 
 export const reviewsQuery = (tab: Review.Tab) =>
   queryOptions({
-    queryKey: ['reviews', tab],
+    queryKey: keys.reviews(tab),
     queryFn: () => getJson<Review.List>(`/api/reviews?tab=${seg(tab)}`),
   })
 
@@ -59,17 +61,16 @@ export function requestName(r: Review.Request): string {
 /** "3 reviews", "1 review"; what the list announces. */
 export const requestCount = (n: number) => `${n} ${n === 1 ? 'review' : 'reviews'}`
 
-const teamPath = (r: Review.Request) => `/api/teams/${seg(r.workspace.slug)}/${seg(r.team.slug)}`
+const requestPath = (r: Review.Request, ...rest: (string | number)[]) =>
+  teamPath(r.workspace.slug, r.team.slug, ...rest)
 
 /** Every list that shows the same facts a review changes; refetched after each of them. */
-const AFFECTED = [['reviews'], ['inbox'], ['sidebar'], ['teams']] as const
+const AFFECTED = [keys.reviews(), keys.inbox(), keys.sidebar(), keys.teams()] as const
 
 function useRefresh() {
   const queryClient = useQueryClient()
   return (extra: readonly (readonly unknown[])[] = []) =>
-    Promise.all(
-      [...AFFECTED, ...extra].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
-    )
+    invalidateAll(queryClient, ...AFFECTED, ...extra)
 }
 
 /** Approves the request's build. The server also clears the Inbox entry, so both lists are refetched. */
@@ -77,8 +78,8 @@ export function useApproveRequest() {
   const refresh = useRefresh()
   return useMutation({
     mutationFn: (r: Review.Request) =>
-      post(`${teamPath(r)}/builds/${r.build.number}/review`, { state: 'approved' }),
-    onSuccess: (_data, r) => refresh([['build', r.workspace.slug, r.team.slug, r.build.number]]),
+      post(requestPath(r, 'builds', r.build.number, 'review'), { state: 'approved' }),
+    onSuccess: (_data, r) => refresh([keys.build(r.workspace.slug, r.team.slug, r.build.number)]),
   })
 }
 
@@ -86,7 +87,7 @@ export function useSnoozeRequest() {
   const refresh = useRefresh()
   return useMutation({
     mutationFn: ({ request, choice }: { request: Review.Request; choice: SnoozeChoice }) =>
-      post(`${teamPath(request)}/review-requests/${seg(request.id)}/snooze`, choice),
+      post(requestPath(request, 'review-requests', request.id, 'snooze'), choice),
     onSuccess: () => refresh(),
   })
 }
@@ -95,7 +96,7 @@ export function useUnsnoozeRequest() {
   const refresh = useRefresh()
   return useMutation({
     mutationFn: (r: Review.Request) =>
-      post(`${teamPath(r)}/review-requests/${seg(r.id)}/unsnooze`, {}),
+      post(requestPath(r, 'review-requests', r.id, 'unsnooze'), {}),
     onSuccess: () => refresh(),
   })
 }
@@ -103,8 +104,7 @@ export function useUnsnoozeRequest() {
 export function useDismissRequest() {
   const refresh = useRefresh()
   return useMutation({
-    mutationFn: (r: Review.Request) =>
-      post(`${teamPath(r)}/review-requests/${seg(r.id)}/dismiss`, {}),
+    mutationFn: (r: Review.Request) => post(requestPath(r, 'review-requests', r.id, 'dismiss'), {}),
     onSuccess: () => refresh(),
   })
 }
@@ -114,7 +114,7 @@ export function useRequestReview() {
   return useMutation({
     mutationFn: ({ request, reviewerId }: { request: Review.Request; reviewerId: string }) =>
       post<Review.Requested>(
-        `${teamPath(request)}/builds/${request.build.number}/review-requests`,
+        requestPath(request, 'builds', request.build.number, 'review-requests'),
         {
           reviewerId,
         },

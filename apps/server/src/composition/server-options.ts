@@ -4,9 +4,9 @@ import type { Database } from '@circi/db'
 import type { StorageDriver } from '@circi/storage'
 import type { Logger } from 'pino'
 
+import type { githubAppSync } from '#composition/github-app.ts'
 import type { buildServer } from '#http/app.ts'
 import type { Deps } from '#http/lib/deps.ts'
-import type { githubAppSync } from '#http/lib/github-app.ts'
 
 import { integrationConfig } from './integration-config.ts'
 

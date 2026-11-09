@@ -6,7 +6,9 @@ import {
 } from '@circi/core/integrations'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { getJson, seg, send } from '#lib/http.ts'
+import { workspacePath } from '#lib/api-paths.ts'
+import { getJson, send } from '#lib/http.ts'
+import { keys } from '#lib/query-keys.ts'
 
 // ---- Logic (tested in Node) -------------------------------------------------------------------
 
@@ -51,11 +53,12 @@ export const teamCountLabel = (count: number) =>
 
 // ---- Server state -----------------------------------------------------------------------------
 
-const base = (workspace: string) => `/api/workspaces/${seg(workspace)}/integrations`
+const base = (workspace: string, ...rest: string[]) =>
+  workspacePath(workspace, 'integrations', ...rest)
 
 export const integrationsQuery = (workspace: string) =>
   queryOptions({
-    queryKey: ['integrations', workspace],
+    queryKey: keys.integrations(workspace),
     queryFn: () => getJson<Integration.ListResponse>(base(workspace)),
   })
 
@@ -63,7 +66,7 @@ export function useRemoveIntegration(workspace: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (item: Pick<Integration.Item, 'id'>) =>
-      send<undefined>('DELETE', `${base(workspace)}/${seg(item.id)}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations', workspace] }),
+      send<undefined>('DELETE', base(workspace, item.id)),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.integrations(workspace) }),
   })
 }

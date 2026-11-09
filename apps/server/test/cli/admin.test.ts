@@ -10,7 +10,7 @@ import { eq } from 'drizzle-orm'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { addAdminCommands } from '#cli/admin.ts'
-import type * as RuntimeModule from '#lifecycle/runtime.ts'
+import type * as RuntimeModule from '#composition/runtime.ts'
 import { snapshotDb } from '#test/support/db-snapshot.ts'
 
 /** What the mocked runtime hands the commands: the test database and storage. */
@@ -18,7 +18,7 @@ const world = vi.hoisted(() => ({ db: undefined as unknown, storage: undefined a
 
 // The commands open a runtime from the environment (a real Postgres pool). Keep the real one, and
 // swap in the PGlite database and a temp-dir storage; nothing else about the commands is faked.
-vi.mock('#lifecycle/runtime.ts', async (importOriginal) => {
+vi.mock('#composition/runtime.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof RuntimeModule>()
   return {
     ...actual,
