@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 
-import { ValidationError } from '@circi/core'
+import { ValidationError, assertFound } from '@circi/core'
 import { isWebhookEvent, WEBHOOK_EVENTS, type WebhookEvent } from '@circi/core/node'
 import { and, eq, sql } from 'drizzle-orm'
 
@@ -8,7 +8,6 @@ import type { ReviewEntry } from '#queries/review-decisions.ts'
 import { type Webhook } from '#queries/webhooks.ts'
 import { workspace, teams, webhookDeliveries, webhooks } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
-import { NotFoundError } from '#src/errors.ts'
 import type { Build } from '#src/types.ts'
 
 import { enqueueJob, QUEUES } from './jobs.ts'
@@ -46,7 +45,7 @@ export async function deleteWebhook(db: Database, teamId: string, id: string): P
     .delete(webhooks)
     .where(and(eq(webhooks.id, id), eq(webhooks.teamId, teamId)))
     .returning({ id: webhooks.id })
-  if (deleted.length === 0) throw new NotFoundError('Webhook not found')
+  assertFound(deleted[0], 'Webhook not found')
 }
 
 export namespace queueWebhookEvent {
@@ -168,7 +167,7 @@ export async function queueTestWebhook(db: Database, webhookId: string): Promise
     .innerJoin(teams, eq(teams.id, webhooks.teamId))
     .innerJoin(workspace, eq(workspace.id, teams.workspaceId))
     .where(eq(webhooks.id, webhookId))
-  if (!target) throw new NotFoundError('Webhook not found')
+  assertFound(target, 'Webhook not found')
   const deliveryId = randomUUID()
   await enqueueJob(db, {
     queue: QUEUES.webhook,

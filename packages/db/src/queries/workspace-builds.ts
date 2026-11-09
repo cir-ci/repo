@@ -4,7 +4,7 @@ import { and, asc, eq, ilike, isNotNull, isNull, sql } from 'drizzle-orm'
 import { builds, member, teams, user, workspace } from '#schema/index.ts'
 import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
 import type { Database } from '#src/client.ts'
-import { NotFoundError } from '#src/errors.ts'
+import { assertFound } from '#src/errors.ts'
 
 import { buildAfterCursor, buildOrderBy, workspaceTie } from './builds-order.ts'
 import { buildFilterConditions, hydrateBuildList, type listBuildsForTeam } from './builds.ts'
@@ -71,7 +71,7 @@ export async function listBuildsForWorkspace(
       .from(builds)
       .innerJoin(teams, eq(teams.id, builds.teamId))
       .where(and(eq(builds.id, input.before), eq(teams.workspaceId, ws.id)))
-    if (!row) throw new NotFoundError('Page not found')
+    assertFound(row, 'Page not found')
   }
   const found = await db
     .select({

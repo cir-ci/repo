@@ -16,7 +16,7 @@ import {
 import { builds, member, notifications, teams, reviewRequests } from '#schema/index.ts'
 import type { SnoozeKind } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
-import { ConflictError, NotFoundError } from '#src/errors.ts'
+import { assertFound, ConflictError } from '#src/errors.ts'
 import type { ReviewRequest } from '#src/types.ts'
 
 /**
@@ -49,7 +49,7 @@ export async function openReviewRequest(
       .innerJoin(teams, eq(teams.id, builds.teamId))
       .where(eq(builds.id, input.buildId))
       .for('update', { of: builds })
-    if (!build) throw new NotFoundError('Build not found')
+    assertFound(build, 'Build not found')
     if (build.status === 'error' || build.status === 'expired') {
       throw new ConflictError(`Build #${build.number} is ${build.status}; it can't be reviewed`)
     }

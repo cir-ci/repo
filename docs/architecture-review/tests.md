@@ -474,7 +474,7 @@ dominates, and almost all of it is `startDashboard`/`createTestDb` + better-auth
 hashing in `createUser`/`signIn`: use a cheap hasher in tests via `createAuth({ password: { hash, verify } })`
 set in `createTestAuth`; each `seedTenant` signs up and each `signIn` verifies a password).
 
-Load-sensitive, from this repo's history (docs/next-steps-plan.md:268; git log `bbf8d2f` same-instant inserts,
+Load-sensitive, from this repo's history (docs/plans/next-steps-plan.md:268; git log `bbf8d2f` same-instant inserts,
 `bfa5707` link ordering; hook timeouts): `ProfilePage.browser.test.tsx` (sign-out buttons re-render
 while the session refetches; real `Date.now()`; asserts relative minutes), `WorkspaceStoragePage`
 (timeouts at default 1 s `expect.element` while a size formatter and queries settle), tests that

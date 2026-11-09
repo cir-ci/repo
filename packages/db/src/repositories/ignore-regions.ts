@@ -1,4 +1,4 @@
-import { ValidationError } from '@circi/core'
+import { ValidationError, assertFound } from '@circi/core'
 import { and, eq } from 'drizzle-orm'
 
 import {
@@ -9,7 +9,6 @@ import {
 } from '#queries/ignore-region-list.ts'
 import { ignoreRegions } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
-import { NotFoundError } from '#src/errors.ts'
 
 /** Rectangles ignored when comparing a team's screenshots by name (PLAN M4). */
 
@@ -76,7 +75,7 @@ export async function removeIgnoreRegion(db: Database, teamId: string, id: strin
     .delete(ignoreRegions)
     .where(and(eq(ignoreRegions.teamId, teamId), eq(ignoreRegions.id, id)))
     .returning({ id: ignoreRegions.id })
-  if (rows.length === 0) throw new NotFoundError('Ignore region not found')
+  assertFound(rows[0], 'Ignore region not found')
 }
 
 /** The regions of a team grouped by screenshot name, for the worker. */

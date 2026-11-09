@@ -1,4 +1,10 @@
-import { reviewDueAt, type SnoozeChoice, snoozeUntil, ValidationError } from '@circi/core'
+import {
+  reviewDueAt,
+  type SnoozeChoice,
+  snoozeUntil,
+  ValidationError,
+  assertFound,
+} from '@circi/core'
 import { type Build, type Database, NotFoundError, type ReviewRequest } from '@circi/db'
 import { getBuild, getTeamById, listTeamBuildsByIds } from '@circi/db/queries'
 import { queueGitNotify, queueWebhookEvent } from '@circi/db/queue'
@@ -14,8 +20,8 @@ import {
   recordSnapshotReviews,
   setReviewRequestSnooze,
 } from '@circi/db/repositories'
+import { integrationRegistry } from '@circi/integrations'
 
-import { gitKinds } from '#src/git/kinds.ts'
 import { queueIntegrationEvent } from '#src/integration-admin/events.ts'
 import { notify } from '#src/notifications/notifications.ts'
 
@@ -77,7 +83,7 @@ export async function reviewSnapshots(db: Database, input: reviewSnapshots.Input
       })
     }
     // The check on the pull request follows every move, including back to "needs review".
-    await queueGitNotify(tx, build, gitKinds())
+    await queueGitNotify(tx, build, integrationRegistry.gitKinds())
     return build
   })
 }
@@ -349,7 +355,7 @@ export async function snoozeReviewRequest(
     kind: input.kind,
     until,
   })
-  if (!row) throw new NotFoundError('Review request not found')
+  assertFound(row, 'Review request not found')
   return row
 }
 
@@ -359,7 +365,7 @@ export async function unsnoozeReviewRequest(
   input: { teamId: string; requestId: string; userId: string },
 ): Promise<ReviewRequest> {
   const row = await setReviewRequestSnooze(db, { ...input, kind: null, until: null })
-  if (!row) throw new NotFoundError('Review request not found')
+  assertFound(row, 'Review request not found')
   return row
 }
 

@@ -85,7 +85,7 @@ Anyone you add to a workspace sees its teams, builds and screenshots, and nothin
 | `circi serve` / `circi worker` | Run them separately, to scale independently |
 | `circi migrate` | Apply database migrations and exit (`serve`/`worker`/`all` also migrate on start unless `--no-migrate`) |
 | `circi admin user create\|set-password` | Create accounts and reset passwords (generated passwords are printed once) |
-| `circi admin workspace create\|list` | Manage workspaces (`create` needs `--owner <email>`). Commands that act inside a workspace keep the flag name `--org <slug>`; it takes the workspace slug |
+| `circi admin workspace create\|list` | Manage workspaces (`create` needs `--owner <email>`). Commands that act inside a workspace keep the flag name `--org <slug>` for compatibility (from when workspaces were called organisations); it takes the workspace slug |
 | `circi admin member add` | Add an existing account to a workspace (`--role owner\|admin\|member`) |
 | `circi admin team create\|list\|rotate-token` | Manage teams and their CI tokens |
 | `circi admin auth enable\|disable <email\|password> --org <slug>` | Change a workspace's accepted sign-in methods (skips the lockout guard: break-glass) |

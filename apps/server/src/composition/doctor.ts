@@ -122,7 +122,7 @@ export async function runDoctor(
     id: 'reminder',
     level: 'info',
     message:
-      'This check only sees the hosts above. Also make sure nothing else on the dashboard’s parent domain sets cookies for the whole domain, and that the sites domain hosts nothing else (docs/static-sites.md).',
+      'This check only sees the hosts above. Also make sure nothing else on the dashboard’s parent domain sets cookies for the whole domain, and that the sites domain hosts nothing else (docs/reference/static-sites.md).',
   })
   return findings
 }

@@ -19,8 +19,8 @@ import {
   setPullRequestAuthor,
   supersedeReviewRequests,
 } from '@circi/db/repositories'
+import { integrationRegistry } from '@circi/integrations'
 
-import { gitKinds } from '#src/git/kinds.ts'
 import { queueIntegrationEvent } from '#src/integration-admin/events.ts'
 import { notifyReviewRequested } from '#src/reviews/reviews.ts'
 
@@ -49,7 +49,7 @@ export async function finalizeBuild(
         payload: { buildId: result.build.id },
         dedupeKey: result.build.id,
       })
-      await queueGitNotify(tx, result.build, gitKinds())
+      await queueGitNotify(tx, result.build, integrationRegistry.gitKinds())
       // A newer build on the branch replaces the older builds' review requests.
       if (result.build.branch !== null) {
         const superseded = await supersedeReviewRequests(tx, {
@@ -130,7 +130,7 @@ export async function completeBuild(
     }
     await queueWebhookEvent(tx, { build: done, event: 'build.completed' })
     await queueIntegrationEvent(tx, { type: 'build.completed', buildId: done.id })
-    await queueGitNotify(tx, done, gitKinds())
+    await queueGitNotify(tx, done, integrationRegistry.gitKinds())
   })
 }
 export namespace completeBuild {
@@ -142,7 +142,7 @@ export namespace completeBuild {
 export async function failBuild(db: Database, buildId: string, message: string): Promise<void> {
   await db.transaction(async (tx) => {
     const failed = await setBuildError(tx, buildId, message)
-    if (failed) await queueGitNotify(tx, failed, gitKinds())
+    if (failed) await queueGitNotify(tx, failed, integrationRegistry.gitKinds())
   })
 }
 
@@ -151,7 +151,7 @@ export async function requeueBuild(db: Database, buildId: string): Promise<void>
   await db.transaction(async (tx) => {
     const build = await resetBuild(tx, buildId)
     await enqueueJob(tx, { queue: QUEUES.processBuild, payload: { buildId } })
-    await queueGitNotify(tx, build, gitKinds())
+    await queueGitNotify(tx, build, integrationRegistry.gitKinds())
   })
 }
 

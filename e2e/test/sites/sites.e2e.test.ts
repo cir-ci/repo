@@ -27,7 +27,7 @@ import { Repo } from '#github/git-repo.ts'
 import { useBrowser, useStack } from '#stack/vitest.ts'
 
 /**
- * Hosted static sites on the real stack (docs/static-sites.md, PLAN §7.6): the real CLI packs and
+ * Hosted static sites on the real stack (docs/reference/static-sites.md, PLAN §7.6): the real CLI packs and
  * uploads a built site, the dashboard lists it, and a real Chromium opens it on its own hostname
  * `<hash>-<slug>.sites.localhost:<port>` through the sign-in handoff. See e2e/README.sites.md.
  */

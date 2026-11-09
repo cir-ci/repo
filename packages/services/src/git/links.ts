@@ -1,4 +1,5 @@
-import { type Database, NotFoundError } from '@circi/db'
+import { assertFound } from '@circi/core'
+import { type Database } from '@circi/db'
 import { getTeamById } from '@circi/db/queries'
 import { unlinkTeam } from '@circi/db/queue'
 import {
@@ -14,7 +15,6 @@ import {
   InvalidInputError,
 } from '@circi/integrations'
 
-import { gitKinds } from '#src/git/kinds.ts'
 import { mapTeam } from '#src/integration-admin/links.ts'
 
 /**
@@ -42,7 +42,7 @@ export async function linkTeamToGithub(
   ctx: IntegrationDefinition.Context,
 ): Promise<void> {
   const team = await getTeamById(db, teamId)
-  if (!team) throw new NotFoundError('Team not found')
+  assertFound(team, 'Team not found')
   const definition = integrationRegistry.get('github')
   if (!definition?.connect) throw new Error('GitHub is not registered')
   if (definition.available && !definition.available(ctx)) {
@@ -90,5 +90,5 @@ export async function linkTeamToGithub(
 
 /** Stops a team reporting to its git host (the connection stays). */
 export async function unlinkTeamFromGit(db: Database, teamId: string): Promise<void> {
-  await unlinkTeam(db, teamId, gitKinds())
+  await unlinkTeam(db, teamId, integrationRegistry.gitKinds())
 }

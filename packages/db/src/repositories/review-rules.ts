@@ -1,4 +1,4 @@
-import { RULE_KINDS, ValidationError } from '@circi/core'
+import { RULE_KINDS, ValidationError, assertFound } from '@circi/core'
 import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 
 import { listReviewRules, type ReviewRuleRow } from '#queries/review-rules.ts'
@@ -11,7 +11,6 @@ import {
   screenshots,
 } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
-import { NotFoundError } from '#src/errors.ts'
 
 /**
  * Review rules: which glob of snapshot or build names asks which people to review. Data only;
@@ -129,7 +128,7 @@ export async function updateReviewRule(
       .set({ kind, pattern })
       .where(and(eq(reviewRules.id, input.id), eq(reviewRules.teamId, input.teamId)))
       .returning({ id: reviewRules.id })
-    if (rows.length === 0) throw new NotFoundError('Review rule not found')
+    assertFound(rows[0], 'Review rule not found')
     await tx.delete(reviewRuleReviewers).where(eq(reviewRuleReviewers.ruleId, input.id))
     await tx
       .insert(reviewRuleReviewers)
@@ -150,7 +149,7 @@ export async function deleteReviewRule(db: Database, teamId: string, id: string)
     .delete(reviewRules)
     .where(and(eq(reviewRules.id, id), eq(reviewRules.teamId, teamId)))
     .returning({ id: reviewRules.id })
-  if (rows.length === 0) throw new NotFoundError('Review rule not found')
+  assertFound(rows[0], 'Review rule not found')
 }
 
 /**

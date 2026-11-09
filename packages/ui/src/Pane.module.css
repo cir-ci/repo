@@ -43,12 +43,10 @@
 }
 
 .context {
+  composes: truncate from './utilities.module.css';
   min-width: 0;
-  overflow: hidden;
   color: var(--circi-text-tertiary);
   font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .body {

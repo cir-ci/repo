@@ -9,13 +9,13 @@ import {
   type WebhookDelivery,
   type Webhook,
 } from '@circi/db/queries'
-import { gitKinds } from '@circi/services'
+import { integrationRegistry } from '@circi/integrations'
 
 /** A webhook as the dashboard sees it: the signing secret is only shown when it's created. */
 export async function githubLink(db: Database, teamId: string): Promise<Team.GithubLink | null> {
-  const link = await getTeamLink(db, teamId, gitKinds())
+  const link = await getTeamLink(db, teamId, integrationRegistry.gitKinds())
   if (!link) return null
-  const attention = await getTeamGitAttention(db, teamId, gitKinds())
+  const attention = await getTeamGitAttention(db, teamId, integrationRegistry.gitKinds())
   return {
     ...link,
     attention: attention

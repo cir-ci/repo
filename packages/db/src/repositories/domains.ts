@@ -1,13 +1,13 @@
 import { randomBytes } from 'node:crypto'
 import { resolveTxt } from 'node:dns/promises'
 
-import { ValidationError } from '@circi/core'
+import { ValidationError, assertFound } from '@circi/core'
 import { and, eq, isNotNull } from 'drizzle-orm'
 
 import { verificationName, verificationValue, type WorkspaceDomain } from '#queries/domains.ts'
 import { workspaceDomains } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
-import { ConflictError, isUniqueViolation, NotFoundError } from '#src/errors.ts'
+import { ConflictError, isUniqueViolation } from '#src/errors.ts'
 
 import { workspaceAccepts, type SessionMethod } from './auth-settings.ts'
 
@@ -51,7 +51,7 @@ export async function removeWorkspaceDomain(
     .delete(workspaceDomains)
     .where(and(eq(workspaceDomains.workspaceId, workspaceId), eq(workspaceDomains.id, id)))
     .returning({ id: workspaceDomains.id })
-  if (rows.length === 0) throw new NotFoundError('Domain not found')
+  assertFound(rows[0], 'Domain not found')
 }
 
 /** Looks up TXT records; replaceable in tests. */
@@ -71,7 +71,7 @@ export async function verifyWorkspaceDomain(
     .select()
     .from(workspaceDomains)
     .where(and(eq(workspaceDomains.workspaceId, workspaceId), eq(workspaceDomains.id, id)))
-  if (!row) throw new NotFoundError('Domain not found')
+  assertFound(row, 'Domain not found')
   if (row.verifiedAt) return true
   const records = await lookup(verificationName(row.domain)).catch(() => [] as string[][])
   const expected = verificationValue(row)

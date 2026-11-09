@@ -1,29 +1,9 @@
 .backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: var(--circi-z-dialog);
-  background: rgb(0 0 0 / 50%);
-  opacity: 1;
-  transition: opacity 120ms ease-out;
-}
-
-:root[data-circi-color-scheme='light'] .backdrop {
-  background: rgb(0 0 0 / 30%);
-}
-
-.backdrop[data-starting-style],
-.backdrop[data-ending-style] {
-  opacity: 0;
+  composes: backdrop from './Dialog.module.css';
 }
 
 .viewport {
-  position: fixed;
-  inset: 0;
-  z-index: var(--circi-z-dialog);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
+  composes: viewport from './Dialog.module.css';
 }
 
 .popup {

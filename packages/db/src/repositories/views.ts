@@ -1,10 +1,10 @@
-import { type BuildFilterValues, ValidationError } from '@circi/core'
+import { type BuildFilterValues, ValidationError, assertFound } from '@circi/core'
 import { and, eq, sql } from 'drizzle-orm'
 
 import { type SavedViewRow, viewColumns, listSavedViews } from '#queries/saved-views.ts'
 import { teams, savedViews, userPinnedTeams } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
-import { ConflictError, isUniqueViolation, NotFoundError } from '#src/errors.ts'
+import { ConflictError, isUniqueViolation } from '#src/errors.ts'
 
 /**
  * Saved views and pinned teams: a person's own sidebar. Every function takes the owner and
@@ -37,7 +37,7 @@ async function getSavedView(
         eq(savedViews.workspaceId, input.workspaceId),
       ),
     )
-  if (!row) throw new NotFoundError('View not found')
+  assertFound(row, 'View not found')
   return row
 }
 
@@ -119,7 +119,7 @@ export async function updateSavedView(
           ),
         )
         .returning({ id: savedViews.id })
-      if (rows.length === 0) throw new NotFoundError('View not found')
+      assertFound(rows[0], 'View not found')
     } catch (err) {
       if (isUniqueViolation(err)) throw new ConflictError('You already have a view with that name')
       throw err
@@ -181,7 +181,7 @@ export async function deleteSavedView(
       ),
     )
     .returning({ id: savedViews.id })
-  if (rows.length === 0) throw new NotFoundError('View not found')
+  assertFound(rows[0], 'View not found')
 }
 
 /** Pins a team after the person's other pins. Returns false when it was already pinned. */

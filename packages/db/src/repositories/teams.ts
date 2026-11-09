@@ -6,6 +6,7 @@ import {
   teamColorFor,
   type TeamColor,
   ValidationError,
+  assertFound,
 } from '@circi/core'
 import { eq } from 'drizzle-orm'
 
@@ -14,7 +15,7 @@ import { getWorkspaceSettings } from '#queries/workspace-settings.ts'
 import { getWorkspaceBySlug } from '#queries/workspaces.ts'
 import { teams } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
-import { ConflictError, isUniqueViolation, NotFoundError } from '#src/errors.ts'
+import { ConflictError, isUniqueViolation } from '#src/errors.ts'
 import type { Team } from '#src/types.ts'
 
 /**
@@ -86,11 +87,11 @@ export async function setTeamAppearance(
   }
   if (Object.keys(set).length === 0) {
     const current = await getTeamById(db, teamId)
-    if (!current) throw new NotFoundError('Team not found')
+    assertFound(current, 'Team not found')
     return { color: current.color, icon: current.icon }
   }
   const [row] = await db.update(teams).set(set).where(eq(teams.id, teamId)).returning()
-  if (!row) throw new NotFoundError('Team not found')
+  assertFound(row, 'Team not found')
   return { color: row.color, icon: row.icon }
 }
 
@@ -151,11 +152,11 @@ export async function updateTeamSettings(
     set.staticHostingEnabled = patch.staticHostingEnabled
   if (Object.keys(set).length === 0) {
     const current = await getTeamById(db, teamId)
-    if (!current) throw new NotFoundError('Team not found')
+    assertFound(current, 'Team not found')
     return teamSettings(current)
   }
   const [row] = await db.update(teams).set(set).where(eq(teams.id, teamId)).returning()
-  if (!row) throw new NotFoundError('Team not found')
+  assertFound(row, 'Team not found')
   return teamSettings(row)
 }
 
@@ -166,6 +167,6 @@ export async function updateTeamSettings(
  */
 export async function deleteTeam(db: Database, teamId: string): Promise<string | null> {
   const [row] = await db.delete(teams).where(eq(teams.id, teamId)).returning({ key: teams.ciKeyId })
-  if (!row) throw new NotFoundError('Team not found')
+  assertFound(row, 'Team not found')
   return row.key
 }

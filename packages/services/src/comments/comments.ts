@@ -1,4 +1,4 @@
-import { parseMentions, ValidationError } from '@circi/core'
+import { parseMentions, ValidationError, assertFound } from '@circi/core'
 import { type Comment, type Database, ForbiddenError, NotFoundError } from '@circi/db'
 import {
   getComment,
@@ -135,7 +135,7 @@ export async function editComment(db: Database, input: editComment.Input): Promi
       throw new ForbiddenError('You can only edit your own comments')
     }
     const updated = await updateCommentBody(tx, before.id, body)
-    if (!updated) throw new NotFoundError('Comment not found')
+    assertFound(updated, 'Comment not found')
     const members = await listBuildWorkspaceMembers(tx, input.buildId)
     const already = new Set(mentioned(before.body, members))
     await notifyMentions(

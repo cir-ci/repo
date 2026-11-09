@@ -1,4 +1,5 @@
 export {
+  assertFound,
   ConflictError,
   DomainError,
   ForbiddenError,

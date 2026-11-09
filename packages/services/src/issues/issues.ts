@@ -1,4 +1,10 @@
-import { defaultIssueTitle, ISSUE_LINK_KIND, issueDescription, ValidationError } from '@circi/core'
+import {
+  defaultIssueTitle,
+  ISSUE_LINK_KIND,
+  issueDescription,
+  ValidationError,
+  assertFound,
+} from '@circi/core'
 import { type Database, NotFoundError } from '@circi/db'
 import {
   getBuild,
@@ -23,11 +29,11 @@ export async function createIssueFromBuild(
   input: createIssueFromBuild.Input,
 ): Promise<IntegrationLink.Row> {
   const build = await getBuild(db, input.buildId)
-  if (!build) throw new NotFoundError('Build not found')
+  assertFound(build, 'Build not found')
   const context = await getTeamContext(db, build.teamId)
-  if (!context) throw new NotFoundError('Build not found')
+  assertFound(context, 'Build not found')
   const mapped = await getTeamIntegration(db, build.teamId, input.integrationId)
-  if (!mapped) throw new NotFoundError('This team does not file issues in that tracker')
+  assertFound(mapped, 'This team does not file issues in that tracker')
   const tracker = input.openTracker(mapped.integration)
   if (!tracker) {
     throw new ValidationError('That tracker connection cannot be used; connect it again')

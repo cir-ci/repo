@@ -3,7 +3,7 @@ import { and, asc, eq, inArray } from 'drizzle-orm'
 import { member, workspace } from '#schema/index.ts'
 import { workspaceAccepts, workspaceIsLive, type SessionMethod } from '#shared/session-method.ts'
 import type { Database } from '#src/client.ts'
-import { NotFoundError } from '#src/errors.ts'
+import { assertFound } from '#src/errors.ts'
 import type { Workspace } from '#src/types.ts'
 
 /**
@@ -26,7 +26,7 @@ export async function findWorkspaceBySlug(
 
 export async function getWorkspaceBySlug(db: Database, slug: string): Promise<Workspace> {
   const found = await findWorkspaceBySlug(db, slug)
-  if (!found) throw new NotFoundError(`Workspace "${slug}" not found`)
+  assertFound(found, `Workspace "${slug}" not found`)
   return found
 }
 

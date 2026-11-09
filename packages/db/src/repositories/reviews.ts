@@ -1,4 +1,4 @@
-import { deriveReviewStatus } from '@circi/core'
+import { deriveReviewStatus, assertFound } from '@circi/core'
 import { and, eq, isNull, ne } from 'drizzle-orm'
 
 import {
@@ -12,7 +12,7 @@ import {
   user,
 } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
-import { ConflictError, NotFoundError } from '#src/errors.ts'
+import { ConflictError } from '#src/errors.ts'
 import type { Build } from '#src/types.ts'
 
 /**
@@ -37,7 +37,7 @@ export async function recordSnapshotReviews(
 ): Promise<recordSnapshotReviews.Result> {
   return db.transaction(async (tx) => {
     const [build] = await tx.select().from(builds).where(eq(builds.id, input.buildId)).for('update')
-    if (!build) throw new NotFoundError('Build not found')
+    assertFound(build, 'Build not found')
     if (build.status !== 'complete') {
       throw new ConflictError(
         `Build #${build.number} is ${build.status}; it can be reviewed once it's complete`,

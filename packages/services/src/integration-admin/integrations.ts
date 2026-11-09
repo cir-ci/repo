@@ -1,4 +1,4 @@
-import { NotFoundError } from '@circi/core'
+import { assertFound } from '@circi/core'
 import { sealSecret } from '@circi/core/node'
 import { type Database } from '@circi/db'
 import {
@@ -85,7 +85,7 @@ export async function removeIntegration(
   const removed = await db.transaction((tx) =>
     deleteIntegration(tx, input.workspaceId, input.integrationId),
   )
-  if (!removed) throw new NotFoundError('Integration not found')
+  assertFound(removed, 'Integration not found')
 }
 
 /** Removes one of a team's links of the integration. Throws when there is no such link. */
@@ -96,7 +96,7 @@ export async function removeTeamLink(
   const removed = await db.transaction((tx) =>
     deleteIntegrationLink(tx, input.integrationId, input.linkId, input.teamId),
   )
-  if (!removed) throw new NotFoundError('Link not found')
+  assertFound(removed, 'Link not found')
 }
 
 export namespace flagFailedIntegration {

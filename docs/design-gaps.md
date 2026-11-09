@@ -8,7 +8,7 @@ designed yet.
 
 Each gap has a **provisional spec** derived from the existing conventions (dense, quiet, hairlines
 not shadows, 13px Inter, 28px controls, 44px rows, tokens only). Components get built to it now
-(decision in `docs/base-ui-plan.md`) and are marked `Provisional` in their doc comment until a
+(decision in `docs/plans/archive/base-ui-plan.md`) and are marked `Provisional` in their doc comment until a
 designer signs them off. **Needs a decision** lists what the spec can't settle by itself.
 
 Sizes in px. Colours are token names (`surface.raised` = `var(--circi-surface-raised)`).

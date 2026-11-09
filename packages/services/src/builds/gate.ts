@@ -1,5 +1,5 @@
-import { resolveFlakyBlocksMerge } from '@circi/core'
-import { type Build, type Database, NotFoundError } from '@circi/db'
+import { resolveFlakyBlocksMerge, assertFound } from '@circi/core'
+import { type Build, type Database } from '@circi/db'
 import { getWorkspaceSettings, getTeamById } from '@circi/db/queries'
 import { buildChangesAreFlakyOnly } from '@circi/db/repositories'
 
@@ -14,7 +14,7 @@ export async function gateInputs(
   build: Pick<Build, 'id' | 'teamId' | 'status' | 'conclusion' | 'reviewStatus'>,
 ): Promise<gateInputs.Result> {
   const team = await getTeamById(db, build.teamId)
-  if (!team) throw new NotFoundError('Team not found')
+  assertFound(team, 'Team not found')
   const workspace = await getWorkspaceSettings(db, team.workspaceId)
   const flakyBlocksMerge = resolveFlakyBlocksMerge(
     workspace.flakyBlocksMerge,

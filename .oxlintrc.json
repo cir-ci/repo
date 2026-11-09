@@ -72,8 +72,25 @@
           {
             "patterns": [
               {
-                "group": ["@circi/db", "@circi/db/*", "@circi/services", "@circi/auth"],
+                "group": [
+                  "@circi/db",
+                  "@circi/db/*",
+                  "@circi/services",
+                  "@circi/auth",
+                  "@circi/integrations",
+                  "@circi/integrations/*",
+                  "@circi/storage",
+                  "@circi/diff",
+                  "@circi/sites",
+                  "@circi/config",
+                  "@circi/server",
+                  "@circi/worker"
+                ],
                 "message": "The web app talks to the server through @circi/api types and HTTP."
+              },
+              {
+                "group": ["@circi/core/node", "@circi/core/node/*"],
+                "message": "@circi/core/node holds Node-only secrets, tokens and signing: the browser imports the @circi/core root only."
               },
               {
                 "group": ["node:*"],
@@ -102,16 +119,34 @@
       }
     },
     {
-      // Core is pure: it imports no @circi package and no I/O.
+      // Core is pure: it imports no @circi package and no I/O. The root is also browser-safe, so no Node built-ins at all.
       "files": ["packages/core/src/**/*.ts"],
+      "excludeFiles": ["packages/core/src/node/**"],
       "rules": {
         "no-restricted-imports": [
           "error",
           {
             "patterns": [
               {
-                "group": ["@circi/*", "drizzle-orm", "drizzle-orm/*", "pg", "node:fs", "node:http"],
-                "message": "@circi/core is pure shared logic: no packages, no I/O."
+                "group": ["@circi/*", "drizzle-orm", "drizzle-orm/*", "pg", "node:*"],
+                "message": "@circi/core is pure shared logic: no packages, no I/O, no Node built-ins (those go in src/node/)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // @circi/core/node (secrets, tokens, signing): Node built-ins are fine, still no @circi package or database.
+      "files": ["packages/core/src/node/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@circi/*", "drizzle-orm", "drizzle-orm/*", "pg"],
+                "message": "@circi/core/node imports no package and no database."
               }
             ]
           }

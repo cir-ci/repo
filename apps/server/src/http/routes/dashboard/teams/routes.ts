@@ -8,7 +8,7 @@ import {
   listBuildsForTeam,
   listTeamsOverview,
 } from '@circi/db/queries'
-import { gitKinds } from '@circi/services'
+import { integrationRegistry } from '@circi/integrations'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
@@ -70,7 +70,7 @@ export const dashboardTeamRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
       order: q.order,
       ...(Number.isInteger(before) && before > 0 ? { beforeNumber: before } : {}),
     })
-    const attention = await getTeamGitAttention(deps.db, team.id, gitKinds())
+    const attention = await getTeamGitAttention(deps.db, team.id, integrationRegistry.gitKinds())
     return {
       team,
       builds,

@@ -1,4 +1,4 @@
-export { ConflictError, ForbiddenError, NotFoundError } from '@circi/core'
+export { assertFound, ConflictError, ForbiddenError, NotFoundError } from '@circi/core'
 
 /** Postgres SQLSTATE, whether the driver error is thrown directly or wrapped by drizzle. */
 export function pgErrorCode(err: unknown): string | undefined {

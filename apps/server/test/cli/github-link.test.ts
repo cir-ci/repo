@@ -2,7 +2,7 @@ import { generateKeyPairSync } from 'node:crypto'
 
 import { getTeamLink } from '@circi/db/queries'
 import * as schema from '@circi/db/schema'
-import { gitKinds } from '@circi/services'
+import { integrationRegistry } from '@circi/integrations'
 import { createTestDb, seedTeam } from '@circi/testing'
 import { fakeGithubInstallationsHost } from '@circi/testing/hosts'
 import { Command } from 'commander'
@@ -95,7 +95,7 @@ describe('circi admin github link', () => {
     const lines = await link(workspace.slug, team.slug, '55')
     expect(github.asked()).toEqual(['55'])
     expect(lines[0]).toContain('now reports to acme/web')
-    expect(await getTeamLink(t.db, team.id, gitKinds())).toEqual({
+    expect(await getTeamLink(t.db, team.id, integrationRegistry.gitKinds())).toEqual({
       installationId: '55',
       repoRef: 'acme/web',
     })
@@ -106,7 +106,7 @@ describe('circi admin github link', () => {
     fakeGithub()
     await expect(link(workspace.slug, team.slug, '56')).rejects.toThrow(/not installed/)
     await expect(link(workspace.slug, team.slug, '57')).rejects.toThrow(/did not answer/)
-    expect(await getTeamLink(t.db, team.id, gitKinds())).toBeUndefined()
+    expect(await getTeamLink(t.db, team.id, integrationRegistry.gitKinds())).toBeUndefined()
     expect(
       (await t.db.select().from(schema.integrations)).filter((i) => i.workspaceId === workspace.id),
     ).toEqual([])
@@ -120,6 +120,6 @@ describe('circi admin github link', () => {
     await expect(link(mine.workspace.slug, mine.team.slug, '58')).rejects.toThrow(
       /already connected to another workspace/,
     )
-    expect(await getTeamLink(t.db, mine.team.id, gitKinds())).toBeUndefined()
+    expect(await getTeamLink(t.db, mine.team.id, integrationRegistry.gitKinds())).toBeUndefined()
   })
 })

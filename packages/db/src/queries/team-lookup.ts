@@ -4,7 +4,7 @@ import { and, asc, eq } from 'drizzle-orm'
 import { member, teams, workspace } from '#schema/index.ts'
 import { type SessionMethod, workspaceAccepts, workspaceIsLive } from '#shared/session-method.ts'
 import type { Database } from '#src/client.ts'
-import { NotFoundError } from '#src/errors.ts'
+import { assertFound } from '#src/errors.ts'
 import type { Team } from '#src/types.ts'
 
 import { getWorkspaceBySlug } from './workspaces.ts'
@@ -25,7 +25,7 @@ export async function getTeamBySlugs(
     .from(teams)
     .innerJoin(workspace, eq(workspace.id, teams.workspaceId))
     .where(and(eq(workspace.slug, input.workspaceSlug), eq(teams.slug, input.teamSlug)))
-  if (!row) throw new NotFoundError(`Team "${input.workspaceSlug}/${input.teamSlug}" not found`)
+  assertFound(row, `Team "${input.workspaceSlug}/${input.teamSlug}" not found`)
   return row.team
 }
 

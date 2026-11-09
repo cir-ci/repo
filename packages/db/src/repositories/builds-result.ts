@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, ne } from 'drizzle-orm'
 
 import { type BuildConclusion, builds, reviews, screenshots } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
-import { NotFoundError } from '#src/errors.ts'
+import { assertFound } from '#src/errors.ts'
 import type { Build } from '#src/types.ts'
 
 import { approveChangedSnapshots, supersedeSnapshotReviews } from './reviews.ts'
@@ -43,7 +43,7 @@ export async function setBuildResult(
       await approveChangedSnapshots(tx, build.id, result.approval === 'rerun' ? 'rerun' : 'auto')
     }
     const [done] = await tx.select().from(builds).where(eq(builds.id, build.id))
-    if (!done) throw new NotFoundError('Build not found')
+    assertFound(done, 'Build not found')
     return done
   })
 }
@@ -125,7 +125,7 @@ export async function resetBuild(db: Database, buildId: string): Promise<Build> 
     })
     .where(and(eq(builds.id, buildId), inArray(builds.status, ['complete', 'error'])))
     .returning()
-  if (!updated) throw new NotFoundError('Build not found, or still processing')
+  assertFound(updated, 'Build not found, or still processing')
   await supersedeSnapshotReviews(db, buildId)
   return updated
 }

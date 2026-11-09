@@ -1,9 +1,8 @@
-import { checkBuildInput } from '@circi/core'
+import { checkBuildInput, assertFound } from '@circi/core'
 import { and, eq, sql } from 'drizzle-orm'
 
 import { builds, teams } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
-import { NotFoundError } from '#src/errors.ts'
 import type { Build } from '#src/types.ts'
 
 /** Creating a build, or joining the parallel build of the same commit. */
@@ -56,7 +55,7 @@ export async function createBuild(db: Database, input: createBuild.Input): Promi
       .set({ buildCounter: sql`${teams.buildCounter} + 1` })
       .where(eq(teams.id, input.teamId))
       .returning({ number: teams.buildCounter })
-    if (!counter) throw new NotFoundError('team not found')
+    assertFound(counter, 'team not found')
 
     const [created] = await tx
       .insert(builds)

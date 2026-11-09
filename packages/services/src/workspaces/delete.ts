@@ -1,5 +1,5 @@
-import { isWorkspacePurgeDue } from '@circi/core'
-import { ConflictError, type Database, NotFoundError } from '@circi/db'
+import { isWorkspacePurgeDue, assertFound } from '@circi/core'
+import { ConflictError, type Database } from '@circi/db'
 import { getMemberRole } from '@circi/db/queries'
 import {
   clearWorkspaceDeletion,
@@ -61,7 +61,7 @@ export async function purgeWorkspace(
 ): Promise<void> {
   const now = input.now ?? new Date()
   const deletedAt = await getWorkspaceDeletedAt(db, input.workspaceId)
-  if (!deletedAt) throw new NotFoundError('This workspace is not deleted')
+  assertFound(deletedAt, 'This workspace is not deleted')
   if (input.onlyIfDue && !isWorkspacePurgeDue(deletedAt, now)) return
   await db.transaction(async (tx) => {
     await purgeWorkspaceRows(tx, input.workspaceId)

@@ -15,7 +15,7 @@ import { extraCases } from './cases.tsx'
 
 /**
  * CirCI tests its own design system: every `@circi/ui` component, in both colour schemes, is
- * screenshotted with `@circi/vitest` (run with `pnpm test:visual`, see docs/vitest.md).
+ * screenshotted with `@circi/vitest` (run with `pnpm test:visual`, see docs/reference/vitest.md).
  *
  * The cases are the design-sync previews (`.design-sync/previews/*.tsx`, one file per component)
  * plus `./cases.tsx` for the components without a preview. A preview that pins its own schemes

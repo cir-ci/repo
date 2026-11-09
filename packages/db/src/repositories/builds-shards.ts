@@ -1,9 +1,9 @@
-import { MAX_PARALLEL_SHARDS, ValidationError } from '@circi/core'
+import { MAX_PARALLEL_SHARDS, ValidationError, assertFound } from '@circi/core'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 
 import { buildShards, builds, files, screenshots, uploadClaims } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
-import { ConflictError, isUniqueViolation, NotFoundError } from '#src/errors.ts'
+import { ConflictError, isUniqueViolation } from '#src/errors.ts'
 import type { Build } from '#src/types.ts'
 
 /** Parallel shards: storing one shard's screenshots and counting the shards. */
@@ -44,7 +44,7 @@ export async function finalizeShard(
 
   return db.transaction(async (tx) => {
     const [build] = await tx.select().from(builds).where(eq(builds.id, input.buildId)).for('update')
-    if (!build) throw new NotFoundError('build not found')
+    assertFound(build, 'build not found')
     if (build.status !== 'uploading' && build.status !== 'pending') {
       throw new ConflictError(
         `Build #${build.number} is already ${build.status}; it can't take more screenshots`,

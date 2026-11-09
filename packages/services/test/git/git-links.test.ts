@@ -12,7 +12,7 @@ import { createTestDb, seedGitConnection, seedGitLink, seedTeam } from '@circi/t
 import { sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { gitKinds, linkTeamToGithub, mapTeam, unlinkTeamFromGit } from '#src/index.ts'
+import { linkTeamToGithub, mapTeam, unlinkTeamFromGit } from '#src/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -24,7 +24,7 @@ afterAll(async () => {
 
 describe('git hosts and the registry', () => {
   it('knows the git kinds from the definitions', () => {
-    expect(gitKinds().toSorted()).toEqual(['bitbucket', 'github', 'gitlab'])
+    expect(integrationRegistry.gitKinds().toSorted()).toEqual(['bitbucket', 'github', 'gitlab'])
   })
 })
 
@@ -52,12 +52,12 @@ describe('linkTeamToGithub', () => {
     const { team, workspace, owner } = await seedTeam(t.db)
     const second = await seedTeam(t.db, { workspace: { workspace, owner }, slug: 'backend' })
     const { ctx, asked } = githubFake(['42'])
-    expect(await getTeamLink(t.db, team.id, gitKinds())).toBeUndefined()
+    expect(await getTeamLink(t.db, team.id, integrationRegistry.gitKinds())).toBeUndefined()
 
     await linkTeamToGithub(t.db, team.id, { installationId: '42', repoRef: 'Acme/Web' }, ctx)
     await linkTeamToGithub(t.db, second.team.id, { installationId: '42', repoRef: 'acme/api' }, ctx)
     expect(asked).toEqual(['42', '42'])
-    expect(await getTeamLink(t.db, team.id, gitKinds())).toEqual({
+    expect(await getTeamLink(t.db, team.id, integrationRegistry.gitKinds())).toEqual({
       installationId: '42',
       repoRef: 'Acme/Web',
     })
@@ -68,8 +68,8 @@ describe('linkTeamToGithub', () => {
     expect(connections[0]).toMatchObject({ kind: 'github', displayName: 'Installation 42' })
 
     await unlinkTeamFromGit(t.db, team.id)
-    expect(await getTeamLink(t.db, team.id, gitKinds())).toBeUndefined()
-    expect(await getTeamLink(t.db, second.team.id, gitKinds())).toBeDefined()
+    expect(await getTeamLink(t.db, team.id, integrationRegistry.gitKinds())).toBeUndefined()
+    expect(await getTeamLink(t.db, second.team.id, integrationRegistry.gitKinds())).toBeDefined()
   })
 
   it('stores nothing when GitHub does not know the installation or does not answer', async () => {
@@ -80,7 +80,7 @@ describe('linkTeamToGithub', () => {
       linkTeamToGithub(t.db, team.id, { installationId: '777', repoRef: 'a/b' }, ctx),
     ).rejects.toMatchObject({ code: 'unreachable' })
     expect((await t.db.select().from(schema.integrations)).length).toBe(before)
-    expect(await getTeamLink(t.db, team.id, gitKinds())).toBeUndefined()
+    expect(await getTeamLink(t.db, team.id, integrationRegistry.gitKinds())).toBeUndefined()
   })
 
   it('refuses an installation another workspace already uses (409), changing nothing', async () => {
@@ -91,7 +91,7 @@ describe('linkTeamToGithub', () => {
     await expect(
       linkTeamToGithub(t.db, mine.team.id, { installationId: '888', repoRef: 'o/y' }, ctx),
     ).rejects.toMatchObject({ code: 'conflict' })
-    expect(await getTeamLink(t.db, mine.team.id, gitKinds())).toBeUndefined()
+    expect(await getTeamLink(t.db, mine.team.id, integrationRegistry.gitKinds())).toBeUndefined()
     expect(
       (await t.db.select().from(schema.integrations)).filter(
         (i) => i.workspaceId === mine.workspace.id,
@@ -117,9 +117,9 @@ describe('linkTeamToGithub', () => {
     const { ctx } = githubFake(['555'])
     await linkTeamToGithub(t.db, team.id, { installationId: '555', repoRef: 'a/one' }, ctx)
     await markInstallationNeedsAttention(t.db, 'github', '555', 'gone')
-    expect(await getTeamGitAttention(t.db, team.id, gitKinds())).toBeDefined()
+    expect(await getTeamGitAttention(t.db, team.id, integrationRegistry.gitKinds())).toBeDefined()
     await linkTeamToGithub(t.db, team.id, { installationId: '555', repoRef: 'a/one' }, ctx)
-    expect(await getTeamGitAttention(t.db, team.id, gitKinds())).toBeUndefined()
+    expect(await getTeamGitAttention(t.db, team.id, integrationRegistry.gitKinds())).toBeUndefined()
   })
 
   it('refuses a team that does not exist', async () => {
@@ -139,9 +139,11 @@ describe('linkTeamToGithub', () => {
     const { ctx } = githubFake(['9'])
     await seedGitLink(t.db, team.id, { kind: 'gitlab', externalId: 'h#1', repoRef: 'g/h' })
     await linkTeamToGithub(t.db, team.id, { installationId: '9', repoRef: 'a/b' }, ctx)
-    expect((await listTeamIntegrations(t.db, team.id, gitKinds())).map((i) => i.kind)).toEqual([
-      'github',
-    ])
+    expect(
+      (await listTeamIntegrations(t.db, team.id, integrationRegistry.gitKinds())).map(
+        (i) => i.kind,
+      ),
+    ).toEqual(['github'])
   })
 })
 
@@ -197,9 +199,11 @@ describe('mapTeam with exclusive', () => {
     }
     // Still exactly the old mapping: never none, never both.
     expect(
-      (await listTeamIntegrations(t.db, team.id, gitKinds())).map((m) => m.integrationId),
+      (await listTeamIntegrations(t.db, team.id, integrationRegistry.gitKinds())).map(
+        (m) => m.integrationId,
+      ),
     ).toEqual([a.integrationId])
-    expect(await getTeamLink(t.db, team.id, gitKinds())).toEqual({
+    expect(await getTeamLink(t.db, team.id, integrationRegistry.gitKinds())).toEqual({
       installationId: '11',
       repoRef: 'x/y',
     })
@@ -212,7 +216,9 @@ describe('mapTeam with exclusive', () => {
       extra: {},
     })
     expect(
-      (await listTeamIntegrations(t.db, team.id, gitKinds())).map((m) => m.integrationId),
+      (await listTeamIntegrations(t.db, team.id, integrationRegistry.gitKinds())).map(
+        (m) => m.integrationId,
+      ),
     ).toEqual([b.id])
   })
 })

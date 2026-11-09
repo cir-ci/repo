@@ -6,13 +6,11 @@
 }
 
 .value {
+  composes: truncate from './utilities.module.css';
   min-width: 0;
-  overflow: hidden;
   color: var(--circi-text-primary);
   font-family: var(--circi-font-mono);
   font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* A smaller button than the 28px default, so a Ref fits in a row's text line. */

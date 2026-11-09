@@ -2,7 +2,7 @@ import { and, asc, eq } from 'drizzle-orm'
 
 import { ignoreRegions, user } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
-import { NotFoundError } from '#src/errors.ts'
+import { assertFound } from '#src/errors.ts'
 
 /** Rectangles ignored when comparing a team's screenshots by name (PLAN M4). */
 
@@ -67,7 +67,7 @@ export async function getIgnoreRegion(
     .from(ignoreRegions)
     .leftJoin(user, eq(user.id, ignoreRegions.createdBy))
     .where(and(eq(ignoreRegions.teamId, teamId), eq(ignoreRegions.id, id)))
-  if (!row) throw new NotFoundError('Ignore region not found')
+  assertFound(row, 'Ignore region not found')
   return present(row)
 }
 

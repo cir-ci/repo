@@ -1,4 +1,4 @@
-import { snoozeUntil, type SnoozeChoice } from '@circi/core'
+import { snoozeUntil, type SnoozeChoice, assertFound } from '@circi/core'
 import { type Database, type Notification, NotFoundError } from '@circi/db'
 import { getNotificationPreferences } from '@circi/db/queries'
 import { enqueueJob, QUEUES } from '@circi/db/queue'
@@ -47,7 +47,7 @@ export async function markNotificationRead(
   input: { userId: string; id: string; read: boolean },
 ): Promise<Notification> {
   const row = await setNotificationRead(db, input)
-  if (!row) throw new NotFoundError('Notification not found')
+  assertFound(row, 'Notification not found')
   return row
 }
 
@@ -67,7 +67,7 @@ export async function snoozeNotification(
 ): Promise<Notification> {
   const until = snoozeUntil(input.choice, input.now ?? new Date(), input.date)
   const row = await snoozeRow(db, { userId: input.userId, id: input.id, until })
-  if (!row) throw new NotFoundError('Notification not found')
+  assertFound(row, 'Notification not found')
   return row
 }
 
@@ -77,7 +77,7 @@ export async function unsnoozeNotification(
   input: { userId: string; id: string },
 ): Promise<Notification> {
   const row = await snoozeRow(db, { ...input, until: null })
-  if (!row) throw new NotFoundError('Notification not found')
+  assertFound(row, 'Notification not found')
   return row
 }
 
