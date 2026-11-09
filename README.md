@@ -113,6 +113,8 @@ Anyone you add to a workspace sees its teams, builds and screenshots, and nothin
 | `STATIC_SITES_HOST`, `STATIC_SITES_MAX_MB` | | Static site hosting: a dedicated domain, and the largest site in MB (default 200) |
 | `GC_GRACE_HOURS` | `24` | Files nothing uses any more are deleted after this long. Old builds and sites expire after the team's retention (days) |
 | `UPLOAD_TIMEOUT_MINUTES` | `60` | Builds still uploading after this long fail, naming the missing shards; `0` never |
+| `JOB_RETRY_BASE_SECONDS`, `JOB_RETRY_MAX_SECONDS` | `2`, `300` | Wait before a failed job (webhook, git check, email) is retried, doubling each time up to the maximum; mostly for tests |
+| `WEBHOOK_TIMEOUT_SECONDS`, `GITHUB_API_TIMEOUT_SECONDS` | `10`, `15` | How long a webhook receiver, and one GitHub API request, may take to answer |
 | `AUTH_SSO_ENABLED` | `true` | Set `false` to hide single sign-on even with providers configured |
 | `AUTH_GITHUB_*`, `AUTH_GOOGLE_*`, `AUTH_OIDC_*` | | Single sign-on providers, see above |
 | `AUTH_EMAIL_ENABLED` | `true` | Email sign-in codes; only offered when SMTP is configured. `false` turns them off |

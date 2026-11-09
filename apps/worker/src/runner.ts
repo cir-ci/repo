@@ -1,3 +1,4 @@
+import type { RetryBackoff } from '@circi/core'
 import type { Database, ListenFn } from '@circi/db'
 import type { IntegrationDefinition } from '@circi/integrations'
 import { type ProviderRegistry } from '@circi/integrations/git'
@@ -62,6 +63,10 @@ export namespace startWorker {
     maintenanceIntervalMs?: number
     /** How long a claimed job stays locked before another worker may retry it. Default 10 min. */
     lockSeconds?: number
+    /** Waits between attempts of a failed job (default 2 s doubling, up to 5 minutes). */
+    retryBackoff?: RetryBackoff
+    /** How long a webhook receiver may take to answer (default 10 s). */
+    webhookTimeoutMs?: number
   }
 
   export interface Running {

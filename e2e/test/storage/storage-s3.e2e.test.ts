@@ -121,6 +121,10 @@ describe('S3 storage', () => {
     'fails an upload clearly while S3 is down, and recovers when it is back',
     { timeout: 120_000 },
     async () => {
+      // A repository of its own. LocalStack keeps nothing across a restart, so every file an
+      // earlier test stored is gone from the bucket; a build that still listed them could not be
+      // processed (its job would fail and back off for about 30 s before giving up).
+      const outage = await Repo.create()
       const container = `${ctx.stack.composeProject}-localstack-1`
       // Docker is sometimes slow to stop a container on a busy machine: retry, then kill.
       for (const args of [['stop', '-t', '1'], ['kill'], ['kill']]) {
@@ -129,12 +133,17 @@ describe('S3 storage', () => {
         if (state.stdout.trim() === 'false') break
       }
       try {
-        await repo.writeShots({
+        await outage.writeShots({
           down: await screenshot({ background: '#abcdef', dot: { x: 1, y: 2 } }),
         })
-        await repo.commit('while s3 is down')
+        await outage.commit('while s3 is down')
         const started = Date.now()
-        const down = await uploadBuild({ stack: ctx.stack, token: team.token, repo, wait: true })
+        const down = await uploadBuild({
+          stack: ctx.stack,
+          token: team.token,
+          repo: outage,
+          wait: true,
+        })
         expect(down.exitCode).toBeGreaterThan(1)
         expect(Date.now() - started).toBeLessThan(120_000)
         expect(down.stderr + down.stdout).not.toBe('')
@@ -164,12 +173,20 @@ describe('S3 storage', () => {
       await expect
         .poll(async () => (await fetch(`${ctx.stack.url}/readyz`)).status, { timeout: 30_000 })
         .toBe(200)
-      await repo.writeShots({
+      await outage.writeShots({
         back: await screenshot({ background: '#fedcba', dot: { x: 3, y: 4 } }),
       })
-      await repo.commit('s3 is back')
-      const up = await upload()
+      await outage.commit('s3 is back')
+      const up = await uploadOrThrow({
+        stack: ctx.stack,
+        token: team.token,
+        repo: outage,
+        wait: true,
+      })
       expect(up.uploaded).toBeGreaterThanOrEqual(1)
+      // The build is processed from the restored bucket, not left failed.
+      expect(up.status?.build.status).toBe('complete')
+      await outage.destroy()
     },
   )
 })

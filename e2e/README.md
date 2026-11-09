@@ -9,6 +9,16 @@ host.
 
 They are **not** part of `pnpm test` (which never starts Docker).
 
+Two groups, told apart by file name (two Vitest projects, `e2e-api` and `e2e-browser`; a test in
+`e2e/test/fakes/e2e-groups.test.ts` fails when a file that drives Chromium, through Playwright or
+`pnpm test:visual`, lacks the `.browser.e2e.test.ts` suffix or the reverse). `pnpm gate:full` runs
+them as the cached turbo tasks `//#e2e:api` and `//#e2e:browser` (2 workers each, so both fit the
+Docker VM together; `E2E_WORKERS` overrides). Both need the whole image, so both rerun when server,
+worker, a server-side package, `deploy/Dockerfile` or `e2e/src` changes; the browser group alone
+also reruns for `apps/web`, `packages/ui` and `packages/vitest`. A passing run is cached by the
+hash of those inputs; a failing one never is. The Chromium build and the Docker daemon are not
+part of the hash.
+
 ## Running
 
 Requirements: a running Docker daemon with Compose v2, Chromium for Playwright
@@ -17,11 +27,13 @@ network is needed after the images are pulled once (`postgres:18-alpine`,
 `localstack/localstack:4.9`, `axllent/mailpit:v1.27`).
 
 ```sh
-pnpm test:e2e                                   # everything
-pnpm test:e2e e2e/test/platform/review.e2e.test.ts       # one file
+pnpm test:e2e                                   # everything (both groups)
+pnpm test:e2e:api                               # only the files that never open a browser
+pnpm test:e2e:browser                           # only *.browser.e2e.test.ts
+pnpm test:e2e e2e/test/platform/review.browser.e2e.test.ts       # one file
 pnpm test:e2e -t "rejecting"                    # by test name
 E2E_SKIP_BUILD=1 pnpm test:e2e                  # reuse the existing circi:e2e image
-E2E_KEEP=1 pnpm test:e2e e2e/test/platform/smoke.e2e.test.ts   # leave the stack up (see Debugging)
+E2E_KEEP=1 pnpm test:e2e e2e/test/platform/smoke.browser.e2e.test.ts   # leave the stack up (see Debugging)
 E2E_HEADED=1 pnpm test:e2e ...                  # watch the browser
 E2E_WORKERS=1 pnpm test:e2e                     # one file at a time (default 3 in parallel)
 pnpm test:e2e --sequence.shuffle.files          # random file order (add --sequence.seed=N to repeat one)
@@ -82,6 +94,7 @@ Which file uses what (this list is the decision record; keep it current):
 | storage-s3 | dedicated | stops LocalStack, compares the bucket with every file row of the instance |
 | sites (local describe) | dedicated | `STATIC_SITES_HOST`, and a test that runs `storage gc` |
 | sites-security | dedicated | `STATIC_SITES_MAX_MB=1`, probes the container's file system |
+| webhooks-retry | dedicated | `JOB_RETRY_BASE_SECONDS=0.5`, `WEBHOOK_TIMEOUT_SECONDS=2`: the retry schedule runs on a scaled clock, which would break the shared stack's other webhook tests |
 | webhooks-ssrf | dedicated | `WEBHOOK_ALLOW_PRIVATE_ADDRESSES=false` |
 
 
@@ -154,8 +167,13 @@ Rules of thumb:
 - Sign-in and code requests are rate-limited per client address. Every `Session` and every browser
   context has its own address (`freshIp()` and `clientAddressHeaders()` in `src/clients/client-address.ts`, the
   `X-Forwarded-For` header), so tests never wait the limiter out; the one test that sends several
-  requests from one address is the limiter test in `email-login.e2e.test.ts`. Never sleep for a
+  requests from one address is the limiter test in `email-login.browser.e2e.test.ts`. Never sleep for a
   limit: give the request its own address.
+- Waiting for a retry: scale the clock, do not wait for the production one. The server and worker
+  read `JOB_RETRY_BASE_SECONDS` / `JOB_RETRY_MAX_SECONDS` (job retries, default 2 s doubling up to
+  300 s), `WEBHOOK_TIMEOUT_SECONDS` (10) and `GITHUB_API_TIMEOUT_SECONDS` (15; the `github` profile
+  sets 4); the defaults are pinned by unit tests (`packages/core/test/retry.test.ts`,
+  `packages/config/test`). A stack that scales them (see `webhooks-retry`) must be dedicated.
 - No fixed sleeps in `test/` (oxlint bans `setTimeout` and `waitForTimeout` there; the fakes in
   `src/fakes` may delay). To prove "nothing more happens", send a later event that would be
   processed and wait for it, then assert. `stack.jobs.runNow(queue, { payloadField: value })` makes
@@ -212,6 +230,12 @@ Peak memory is the sum over the `circi-e2e-*` containers, sampled by the reporte
 needs it, so the count depends on how files land on workers (15 to 17 in the runs above). The
 critical path is now the longest files (storage-s3, webhooks), whose time is mostly real waiting
 (LocalStack stopped and restarted, the webhook backoff schedule).
+
+After the speed-ups of 2026-11-09 (retry clocks scaled by `JOB_RETRY_BASE_SECONDS`,
+`WEBHOOK_TIMEOUT_SECONDS`, `GITHUB_API_TIMEOUT_SECONDS`; the S3 outage test given a repository
+of its own, 37 s to 6 s; two groups): `pnpm test:e2e` 205 s (from 218 s), 23 files, 156 of 156
+tests; `pnpm gate:full` cold 198 s with both groups at 2 workers in parallel. The remaining time
+is mostly stack boots (about 12 s each, 18 to 21 per run).
 
 ## The fakes (all on the host, reachable from the container as `host.docker.internal`)
 

@@ -8,8 +8,17 @@ Node 26 via nvm, pnpm 12. Before committing: `pnpm format`, then `pnpm gate` (Tu
 build in parallel where independent, each cached by its inputs; a second run on an unchanged tree is instant). The old chain
 `pnpm lint && pnpm typecheck && pnpm test && pnpm build` still works. `pnpm build` is `turbo run build`: per-package
 caching of `dist/**`, with a `transit` task so a package's build is invalidated by changes in the packages it depends on, but
-not by unrelated ones. Tests, lint and typecheck stay single root commands (one vitest process with projects) and are cached as
-root tasks (`//#test`, `//#lint`, `//#typecheck` in `turbo.json`); end-to-end (`pnpm test:e2e`) and visual runs are never cached.
+not by unrelated ones. Lint and typecheck are single root commands cached as root tasks (`//#lint`, `//#typecheck` in `turbo.json`); the tests are
+one root task per Vitest project, each cached on its own inputs: `//#test:node` (the Node project: logic tests of every app and
+package, which read most of the tree, so it reruns on almost any change), `//#test:ui` (packages/ui only) and
+`//#test:web-browser` (apps/web, ui, api, core). `pnpm test` still runs every project in one Vitest process. Caveat: the root
+package depends on `@circi/testing` (hence on `db`), and Turborepo counts root dependencies as dependencies of every package, so a
+change in `db` or `core` invalidates every task, builds included; only a change in `apps/web` or `packages/ui` leaves some cached.
+`pnpm gate:full` is `gate` plus the two end-to-end groups as cached root tasks, `//#e2e:api` (the server, worker and CLI image,
+no browser) and `//#e2e:browser` (also the dashboard and the design system); both need Docker and Chromium, so the default
+`pnpm gate` stays Docker-free. End-to-end files are named `*.browser.e2e.test.ts` when they drive Chromium (checked by
+`e2e/test/fakes/e2e-groups.test.ts`); `pnpm test:e2e` runs both groups, `test:e2e:api` / `test:e2e:browser` one. Visual runs are never
+cached.
 What emits what: `tsc` only type-checks (`pnpm typecheck`, `noEmit`). `pnpm build` runs tsdown for
 `@circi/ui` (`dist`, browser), `@circi/cli` and `@circi/vitest` (published, `dist`) and `apps/server`
 (one bundle for the image), then Vite for `apps/web`. The other packages have no build: their
@@ -123,7 +132,7 @@ A namespace must contain only types. Never put a value in one.
   `api.ts` / `lib/` so it's testable without rendering; page tests render through
   `apps/web/test/support/render.tsx`.
 - `e2e/` runs against the real Docker stack (Postgres, LocalStack S3, Mailpit, the built image) with
-  `pnpm test:e2e`, never in `pnpm test`; GitHub, the OIDC provider and webhook receivers are host
+  `pnpm test:e2e` (or `pnpm gate:full`), never in `pnpm test`; GitHub, the OIDC provider and webhook receivers are host
   fakes. A bug only the real stack finds gets a regression test in its owning package. See
   `e2e/README.md`.
 - External services (GitHub, SMTP, OIDC) are faked at their edge; say so when something has only been

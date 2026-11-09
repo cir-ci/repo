@@ -28,7 +28,7 @@ export async function runJob(deps: startWorker.Deps, job: Job): Promise<void> {
     deps.logger.info({ ...fields, ...result }, message ?? handler.done)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    const willRetry = await failJob(deps.db, job, message).catch(() => true)
+    const willRetry = await failJob(deps.db, job, message, deps.retryBackoff).catch(() => true)
     deps.logger[willRetry ? 'warn' : 'error'](
       { ...fields, attempt: job.attempts, err: message },
       willRetry ? handler.retry : handler.failed,

@@ -132,7 +132,7 @@ describe('merge gate (against a fake GitHub)', () => {
     ctx.setup.session.patch(`/api/workspaces/${workspace}/settings`, { flakyBlocksMerge })
 
   describe('a pull request that only changes a flaky screenshot', () => {
-    // `login` changes in 3 builds on main, so it is flagged as flaky (see flaky.e2e.test.ts); the
+    // `login` changes in 3 builds on main, so it is flagged as flaky (see flaky.browser.e2e.test.ts); the
     // pull requests below change nothing else. The workspace's switch is global to this file's
     // workspace, so it is put back at the end.
     let flaky: LinkedTeam

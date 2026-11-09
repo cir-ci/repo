@@ -1,6 +1,6 @@
 # Static sites in the end-to-end harness
 
-Tests: `e2e/test/sites/sites.e2e.test.ts` (upload, Sites page, sign-in handoff, access, kinds, branch
+Tests: `e2e/test/sites/sites.browser.e2e.test.ts` (upload, Sites page, sign-in handoff, access, kinds, branch
 address, expiry, S3) and `e2e/test/sites/sites-security.e2e.test.ts` (hostile and oversized archives).
 Helpers: `e2e/src/clients/sites.ts` (import it directly; it is not re-exported from `index.ts`).
 

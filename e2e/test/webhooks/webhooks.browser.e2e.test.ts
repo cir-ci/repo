@@ -5,10 +5,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { createTeam, type CreatedTeam, type Session } from '#clients/admin.ts'
 import { uploadOrThrow } from '#clients/upload.ts'
+import { hookJobs } from '#clients/webhook-jobs.ts'
 import { listen } from '#fakes/http.ts'
 import { startWebhookReceiver, type WebhookReceiver } from '#fakes/webhook-receiver.ts'
 import { Repo } from '#github/git-repo.ts'
-import type { Stack } from '#stack/stack.ts'
 import { useBrowser, useStack } from '#stack/vitest.ts'
 
 /**
@@ -18,27 +18,6 @@ import { useBrowser, useStack } from '#stack/vitest.ts'
  * the worker, the job queue and the signing are CirCI's own.
  */
 
-interface JobRow {
-  status: string
-  attempts: number
-  error: string
-  /** Seconds until the job is due again (negative: already due). */
-  dueIn: number
-}
-
-const hookJobs = async (stack: Stack, webhookId: string): Promise<JobRow[]> =>
-  (
-    await stack.sql(
-      `select status, attempts, coalesce(last_error, ''), extract(epoch from (run_at - now()))::int
-       from jobs where queue = 'webhook' and payload->>'webhookId' = '${webhookId}' order by id`,
-    )
-  ).map(([status = '', attempts = '0', error = '', dueIn = '0']) => ({
-    status,
-    attempts: Number(attempts),
-    error,
-    dueIn: Number(dueIn),
-  }))
-
 interface HookView {
   id: string
   url: string
@@ -47,23 +26,6 @@ interface HookView {
 }
 const hooksOf = async (session: Session, workspace: string, team: string) =>
   (await session.get<{ webhooks: HookView[] }>(`/api/teams/${workspace}/${team}/settings`)).webhooks
-
-/** The worker's log lines about one webhook's failed deliveries (they survive the job's own rows changing). */
-const failures = async (stack: Stack, webhookId: string) =>
-  (await stack.logs('circi'))
-    .split('\n')
-    .filter((l) => l.includes(webhookId) && l.includes('webhook delivery failed'))
-    .map((l) => String((JSON.parse(l.slice(l.indexOf('{'))) as { err?: string }).err))
-
-const disable = (stack: Stack, ...ids: string[]) =>
-  stack.sql(
-    `update webhooks set enabled = false where id in (${ids.map((i) => `'${i}'`).join(',')})`,
-  )
-
-const gapsOf = (r: WebhookReceiver) =>
-  r.deliveries
-    .slice(1)
-    .map((d, i) => d.receivedAt.getTime() - (r.deliveries[i]?.receivedAt.getTime() ?? 0))
 
 /** The page's Add webhook button opens the dialog with the form. */
 async function openAddDialog(page: Page) {
@@ -318,130 +280,6 @@ describe('webhooks (private addresses allowed)', () => {
     expect(await refused({ url: 'https://user:pw@example.com/x', events })).toBe(400)
     expect(await refused({ url: `https://example.com/${'a'.repeat(2100)}`, events })).toBe(400)
     expect(await hooks()).toHaveLength(2)
-  })
-
-  it('a failing receiver is retried with exponential backoff and the same delivery id, until it recovers', async () => {
-    const { stack } = ctx
-    const flaky = await startWebhookReceiver()
-    closers.push(() => flaky.close())
-    const created = await apiAdd(`${flaky.url}/retry`, ['build.completed'])
-    flaky.setSecret(created.secret)
-    flaky.failWith(500, 2)
-
-    await repo.checkout('main')
-    await repo.writeShots({ home: { dot: { x: 9, y: 9 } } })
-    await repo.commit('main again')
-    await uploadOrThrow({ stack, token: team.token, repo, wait: true })
-
-    // Two failures, then the third attempt is accepted: one delivery id, the same signed body.
-    await expect.poll(() => flaky.deliveries.length, { timeout: 60_000 }).toBe(3)
-    expect(flaky.deliveries.map((d) => d.respondedWith)).toEqual([500, 500, 200])
-    expect(new Set(flaky.deliveries.map((d) => d.deliveryId)).size).toBe(1)
-    expect(flaky.deliveries.every((d) => d.signatureValid)).toBe(true)
-    expect(new Set(flaky.deliveries.map((d) => d.rawBody)).size).toBe(1)
-    // Backoff 2 s, then 4 s.
-    const [g1 = 0, g2 = 0] = gapsOf(flaky)
-    expect(g1).toBeGreaterThanOrEqual(1_500)
-    expect(g2).toBeGreaterThanOrEqual(3_500)
-    expect(g2).toBeGreaterThan(g1)
-    await expect
-      .poll(async () => (await hookJobs(stack, created.webhook.id))[0])
-      .toMatchObject({ status: 'done', attempts: 3, error: '' })
-    expect(await failures(stack, created.webhook.id)).toHaveLength(2)
-    await disable(stack, created.webhook.id)
-  })
-
-  // Long timeout: the first attempts run on their real backoff (2 s, 4 s, 8 s).
-  it(
-    'gives up after 8 attempts (backoff doubling) and keeps the last error',
-    { timeout: 90_000 },
-    async () => {
-      const { stack } = ctx
-      const down = await startWebhookReceiver()
-      closers.push(() => down.close())
-      const created = await apiAdd(`${down.url}/down`, ['build.completed'])
-      down.setSecret(created.secret)
-      down.failWith(503)
-      const id = created.webhook.id
-
-      await repo.writeShots({ home: { dot: { x: 20, y: 20 } } })
-      await repo.commit('another main')
-      await uploadOrThrow({ stack, token: team.token, repo, wait: true })
-
-      // The first attempts run on their real schedule (2 s, 4 s, 8 s) ...
-      await expect.poll(() => down.deliveries.length, { timeout: 90_000 }).toBeGreaterThanOrEqual(4)
-      const [g1 = 0, g2 = 0, g3 = 0] = gapsOf(down)
-      expect(g1).toBeGreaterThanOrEqual(1_500)
-      expect(g2).toBeGreaterThanOrEqual(3_500)
-      expect(g3).toBeGreaterThanOrEqual(7_500)
-      // ... then the clock is wound forward past the longer waits.
-      await expect
-        .poll(
-          async () => {
-            await stack.jobs.runNow('webhook', { webhookId: id })
-            return (await hookJobs(stack, id))[0]?.status
-          },
-          { timeout: 120_000, interval: 500 },
-        )
-        .toBe('failed')
-      const [final] = await hookJobs(stack, id)
-      expect(final).toMatchObject({ status: 'failed', attempts: 8 })
-      expect(final?.error).toContain('answered 503')
-      expect(down.deliveries).toHaveLength(8)
-      expect(new Set(down.deliveries.map((d) => d.deliveryId)).size).toBe(1)
-      expect(await stack.logs('circi')).toContain('webhook delivery failed for good')
-
-      // Given up means given up: a recovered receiver is not called for the abandoned delivery.
-      // Barrier instead of a sleep: the receiver recovers and a later event is sent to it. Once
-      // that one has arrived, the worker has certainly had its chance to retry the old delivery.
-      down.succeed()
-      const abandoned = down.deliveries[0]?.deliveryId
-      await repo.writeShots({ home: { dot: { x: 21, y: 21 } } })
-      await repo.commit('after giving up')
-      await uploadOrThrow({ stack, token: team.token, repo, wait: true })
-      await expect.poll(() => down.deliveries.length, { timeout: 30_000 }).toBeGreaterThan(8)
-      expect(down.deliveries.filter((d) => d.deliveryId === abandoned)).toHaveLength(8)
-      expect(down.deliveries.at(-1)?.respondedWith).toBe(200)
-      await disable(stack, id)
-    },
-  )
-
-  it('a refused connection and a receiver that never answers are retried too', async () => {
-    const { stack } = ctx
-    // Connection refused: a port that was listening a moment ago.
-    const gone = await listen((_req, res) => res.end())
-    const gonePort = gone.port
-    await gone.close()
-    const refused = await apiAdd(`http://host.docker.internal:${gonePort}/gone`, [
-      'build.completed',
-    ])
-    // Never answers: the connection stays open until CirCI's 10 s timeout.
-    let hits = 0
-    const silent = await listen(() => {
-      hits += 1
-    })
-    closers.push(() => silent.close())
-    const slow = await apiAdd(`http://host.docker.internal:${silent.port}/slow`, [
-      'build.completed',
-    ])
-
-    await repo.writeShots({ home: { dot: { x: 30, y: 30 } } })
-    await repo.commit('main for failures')
-    await uploadOrThrow({ stack, token: team.token, repo, wait: true })
-
-    await expect
-      .poll(async () => (await failures(stack, refused.webhook.id))[0], { timeout: 60_000 })
-      .toMatch(/fetch failed|ECONNREFUSED/)
-    await expect
-      .poll(async () => (await failures(stack, slow.webhook.id))[0], { timeout: 90_000 })
-      .toMatch(/timeout|aborted/i)
-    expect(hits).toBeGreaterThanOrEqual(1)
-    expect((await hookJobs(stack, refused.webhook.id))[0]).toMatchObject({
-      attempts: expect.any(Number),
-    })
-    // Both are still waiting for another attempt, not abandoned after one.
-    expect((await hookJobs(stack, refused.webhook.id))[0]?.status).toBe('pending')
-    await disable(stack, refused.webhook.id, slow.webhook.id)
   })
 
   it('does not follow a redirect: the signed body never goes anywhere the owner did not configure', async () => {

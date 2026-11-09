@@ -23,8 +23,8 @@ export function integrationConfig(
     out.slack = { clientId, clientSecret, apiUrl }
   }
   if (config.github) {
-    const { apiUrl, appId, privateKey, webhookSecret } = config.github
-    out.github = { apiUrl, appId, privateKey, webhookSecret }
+    const { apiUrl, appId, privateKey, webhookSecret, timeoutMs } = config.github
+    out.github = { apiUrl, appId, privateKey, webhookSecret, timeoutMs }
   }
   built.set(config, out)
   return out

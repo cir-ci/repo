@@ -5,6 +5,22 @@ import { join } from 'node:path'
 import { assertDocker, removeRunProjectsSync, run } from './docker.ts'
 import { ARTIFACTS_DIR, REPO_ROOT } from './paths.ts'
 
+let imageBuild: Promise<void> | undefined
+
+async function buildImage(): Promise<void> {
+  const started = Date.now()
+  console.log('[e2e] building circi:e2e (docker layer cache applies)...')
+  const built = await run(
+    'docker',
+    ['build', '-q', '-f', 'deploy/Dockerfile', '-t', 'circi:e2e', '.'],
+    { cwd: REPO_ROOT, timeoutMs: 30 * 60_000, allowFail: true },
+  )
+  if (built.code !== 0) {
+    throw new Error(`docker build of circi:e2e failed:\n${built.stderr || built.stdout}`)
+  }
+  console.log(`[e2e] image ready in ${Math.round((Date.now() - started) / 1000)}s`)
+}
+
 /**
  * Runs once per `pnpm test:e2e`, in the main process:
  *  1. fails fast, with a clear message, when Docker is not available;
@@ -21,19 +37,8 @@ export default async function setup(): Promise<() => Promise<void>> {
   // The per-stack phase timings of this run (see stack.ts and timing-reporter.ts).
   rmSync(join(ARTIFACTS_DIR, 'stack-phases.jsonl'), { force: true })
 
-  if (!process.env['E2E_SKIP_BUILD']) {
-    const started = Date.now()
-    console.log('[e2e] building circi:e2e (docker layer cache applies)...')
-    const built = await run(
-      'docker',
-      ['build', '-q', '-f', 'deploy/Dockerfile', '-t', 'circi:e2e', '.'],
-      { cwd: REPO_ROOT, timeoutMs: 30 * 60_000, allowFail: true },
-    )
-    if (built.code !== 0) {
-      throw new Error(`docker build of circi:e2e failed:\n${built.stderr || built.stdout}`)
-    }
-    console.log(`[e2e] image ready in ${Math.round((Date.now() - started) / 1000)}s`)
-  }
+  // Both e2e projects (`e2e-api`, `e2e-browser`) list this file, so a run of both calls it twice.
+  if (!process.env['E2E_SKIP_BUILD']) await (imageBuild ??= buildImage())
 
   const keep = Boolean(process.env['E2E_KEEP'])
   const cleanup = () => {

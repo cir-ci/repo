@@ -20,7 +20,14 @@ export namespace IntegrationDefinition {
   export interface InstanceConfig {
     slack?: { clientId: string; clientSecret: string; apiUrl?: string }
     /** The instance's GitHub App (its credentials; installations are the connections). */
-    github?: { apiUrl: string; appId: string; privateKey: string; webhookSecret: string }
+    github?: {
+      apiUrl: string
+      appId: string
+      privateKey: string
+      webhookSecret: string
+      /** Give up on one API request after this long; default 15 s. */
+      timeoutMs?: number
+    }
   }
 
   /** What a definition's functions get: the instance, never a database. */

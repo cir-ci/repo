@@ -19,7 +19,7 @@ left is listed below by kind.
   deploy and e2e compose). Default trusts no proxy; regression tests in
   `apps/server/test/http/routes/client-address.test.ts`.
 - **SSO e2e coupling**: each workspace SSO test now takes its own tenant (`freshWorkspace` in
-  `e2e/test/sso.e2e.test.ts`, `75dbd7f`); a single test can run with `-t`.
+  `e2e/test/auth/sso.browser.e2e.test.ts`, `75dbd7f`); a single test can run with `-t`.
 - **`serve.ts-E` deleted, stale `dist/` folders gone**: the only `dist/` folders are the five real
   build outputs; no `*-E` files remain.
 - **Decisions of 2026-11-08, built in `4a4b138`**:
@@ -61,7 +61,7 @@ left is listed below by kind.
   `@circi/ui` component, 40 of 40, in light and dark with `@circi/vitest` in Vitest browser mode
   (103 pictures from 57 cases: the `.design-sync` previews, plus cases for Button, TextField, Dialog,
   ColorSchemeControl and the icons); without `CIRCI_*` it only saves to `.circi/screenshots`.
-  `e2e/test/dogfood.e2e.test.ts` runs it against the real stack: first build all `added` and pending,
+  `e2e/test/platform/dogfood.browser.e2e.test.ts` runs it against the real stack: first build all `added` and pending,
   approve, second run on the same commit `no_changes`. Three runs locally were byte-identical. Not
   covered: open Menu, Select and Tooltip popups (previews show them closed), hover/focus/pressed
   states, the web app's own pages, other browsers (Firefox, WebKit), CI on Linux (fonts and

@@ -1,3 +1,4 @@
+import type { RetryBackoff } from '@circi/core'
 import type { Database, Job } from '@circi/db'
 import * as queue from '@circi/db/queue'
 import { jobIsForDeletedWorkspace } from '@circi/db/repositories'
@@ -23,8 +24,13 @@ export async function completeJob(db: Database, id: number): Promise<void> {
 }
 
 /** Records a failure; resolves to whether the job will be retried (until `maxAttempts`). */
-export async function failJob(db: Database, job: Job, error: string): Promise<boolean> {
-  return queue.failJob(db, job, error)
+export async function failJob(
+  db: Database,
+  job: Job,
+  error: string,
+  backoff?: RetryBackoff,
+): Promise<boolean> {
+  return queue.failJob(db, job, error, backoff)
 }
 
 /** Whether the job belongs to a deleted workspace (nothing is sent for those). */

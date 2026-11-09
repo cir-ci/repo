@@ -107,28 +107,36 @@ export default defineConfig({
       },
       // End-to-end tests against the real Docker stack are registered only with E2E=1
       // (`pnpm test:e2e`), so a plain `vitest run` / `pnpm test` can never start Docker.
+      // Two projects, by file name: `*.browser.e2e.test.ts` drives Chromium (Playwright, or the
+      // dashboard through the CLI's host-side Vitest), every other `*.e2e.test.ts` only talks
+      // HTTP, the CLI and the fakes. `pnpm test:e2e` runs both; `test:e2e:api` and
+      // `test:e2e:browser` one each (the turbo tasks `//#e2e:api` and `//#e2e:browser`).
+      // e2e/test/fakes/e2e-groups.test.ts keeps the names honest.
       ...(process.env['E2E']
-        ? [
-            {
-              extends: true,
-              test: {
-                name: 'e2e',
-                include: ['e2e/test/**/*.e2e.test.ts'],
-                globalSetup: ['e2e/src/stack/global-setup.ts'],
-                // Fail fast: a broken test costs seconds, not minutes. The few tests that
-                // really wait (retry backoff, a whole migration) say so themselves.
-                testTimeout: 60_000,
-                hookTimeout: 120_000,
-                // Files run in parallel, one stack pool per worker (e2e/src/stack/pool.ts). `isolate:
-                // false` keeps a worker's module scope between files, which is what lets the
-                // next file find the pool's stacks; the tests keep their state in the stack and
-                // their own tenant, not in modules.
-                fileParallelism: true,
-                maxWorkers: Number(process.env['E2E_WORKERS'] ?? 3) || 3,
-                isolate: false,
-              },
+        ? (['api', 'browser'] as const).map((group) => ({
+            extends: true,
+            test: {
+              name: `e2e-${group}`,
+              include: [
+                group === 'browser'
+                  ? 'e2e/test/**/*.browser.e2e.test.ts'
+                  : 'e2e/test/**/*.e2e.test.ts',
+              ],
+              exclude: group === 'api' ? ['e2e/test/**/*.browser.e2e.test.ts'] : [],
+              globalSetup: ['e2e/src/stack/global-setup.ts'],
+              // Fail fast: a broken test costs seconds, not minutes. The few tests that
+              // really wait (retry backoff, a whole migration) say so themselves.
+              testTimeout: 60_000,
+              hookTimeout: 120_000,
+              // Files run in parallel, one stack pool per worker (e2e/src/stack/pool.ts). `isolate:
+              // false` keeps a worker's module scope between files, which is what lets the
+              // next file find the pool's stacks; the tests keep their state in the stack and
+              // their own tenant, not in modules.
+              fileParallelism: true,
+              maxWorkers: Number(process.env['E2E_WORKERS'] ?? 3) || 3,
+              isolate: false,
             },
-          ]
+          }))
         : []),
       // The design system's own visual tests (`pnpm test:visual`): every @circi/ui component in
       // both colour schemes, screenshotted by @circi/vitest. Registered only with VISUAL=1, so

@@ -54,6 +54,23 @@ describe('job queue', () => {
     expect(row).toMatchObject({ status: 'failed', lastError: 'boom again' })
   })
 
+  it('waits the configured backoff before a retry (the default is 2 s for the first)', async () => {
+    const dueIn = async (id: number) => {
+      const [row] = await t.db.select().from(schema.jobs).where(eq(schema.jobs.id, id))
+      return (row?.runAt.getTime() ?? 0) - Date.now()
+    }
+    await enqueueJob(t.db, { queue: 'qb1', payload: {} })
+    const slow = await claimJob(t.db, 'qb1', 60)
+    if (!slow) throw new Error('no job')
+    await failJob(t.db, slow, 'x')
+    expect(await dueIn(slow.id)).toBeGreaterThan(1_000)
+    await enqueueJob(t.db, { queue: 'qb2', payload: {} })
+    const fast = await claimJob(t.db, 'qb2', 60)
+    if (!fast) throw new Error('no job')
+    await failJob(t.db, fast, 'x', { baseMs: 100, maxMs: 1_000 })
+    expect(await dueIn(fast.id)).toBeLessThan(500)
+  })
+
   it('picks up a running job whose lock expired (crashed worker)', async () => {
     await enqueueJob(t.db, { queue: 'q4', payload: {} })
     const job = await claimJob(t.db, 'q4', 60)

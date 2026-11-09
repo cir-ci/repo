@@ -1,3 +1,4 @@
+import { DEFAULT_RETRY_BACKOFF, retryDelayMs, type RetryBackoff } from '@circi/core'
 import { and, eq, lt, lte, or, sql } from 'drizzle-orm'
 
 import { jobs } from '#schema/index.ts'
@@ -101,19 +102,24 @@ export async function completeJob(db: Database, id: number): Promise<void> {
 }
 
 /**
- * Records a failure. Retries with exponential backoff (2s, 4s, 8s, … capped at 5 min) until
- * `max_attempts`, then marks the job `failed`. Returns whether it will be retried.
+ * Records a failure. Retries with exponential backoff (2s, 4s, 8s, … capped at 5 min by default)
+ * until `max_attempts`, then marks the job `failed`. Returns whether it will be retried.
  */
-export async function failJob(db: Database, job: Job, error: string): Promise<boolean> {
+export async function failJob(
+  db: Database,
+  job: Job,
+  error: string,
+  backoff: RetryBackoff = DEFAULT_RETRY_BACKOFF,
+): Promise<boolean> {
   const retry = job.attempts < job.maxAttempts
-  const backoffSeconds = Math.min(300, 2 ** job.attempts)
+  const backoffMs = retryDelayMs(job.attempts, backoff)
   await db
     .update(jobs)
     .set(
       retry
         ? {
             status: 'pending',
-            runAt: new Date(Date.now() + backoffSeconds * 1000),
+            runAt: new Date(Date.now() + backoffMs),
             lockedUntil: null,
             lastError: error.slice(0, 4000),
           }

@@ -109,6 +109,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
         privateKey: (e.GITHUB_APP_PRIVATE_KEY ?? '').replace(/\\n/g, '\n'),
         webhookSecret: e.GITHUB_APP_WEBHOOK_SECRET ?? '',
         apiUrl,
+        timeoutMs: Math.round(e.GITHUB_API_TIMEOUT_SECONDS * 1000),
       }
     }
   }
@@ -227,6 +228,11 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     ...(github ? { github } : {}),
     ...(githubApiUrl ? { githubApiUrl } : {}),
     ...(slack ? { slack } : {}),
+    jobRetry: {
+      baseMs: Math.round(e.JOB_RETRY_BASE_SECONDS * 1000),
+      maxMs: Math.round(e.JOB_RETRY_MAX_SECONDS * 1000),
+    },
+    webhookTimeoutMs: Math.round(e.WEBHOOK_TIMEOUT_SECONDS * 1000),
     webhookAllowPrivate: e.WEBHOOK_ALLOW_PRIVATE_ADDRESSES === true,
     uploadTimeoutMinutes: e.UPLOAD_TIMEOUT_MINUTES,
     gcGraceHours: e.GC_GRACE_HOURS,

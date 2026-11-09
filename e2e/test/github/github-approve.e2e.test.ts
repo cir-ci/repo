@@ -194,9 +194,11 @@ describe('approving from GitHub, and GitHub failing (fake GitHub)', () => {
   it('a slow GitHub (timeout) is retried too', async () => {
     const { stack } = ctx
     n += 1
-    gh.delayNext('POST /repos/acme/approve/check-runs', 20_000, 1)
+    // The github profile's stack gives GitHub 4 s per request (GITHUB_API_TIMEOUT_SECONDS; 15 s in
+    // production): the first create outlasts it, times out and is retried after the 2 s backoff.
+    gh.delayNext('POST /repos/acme/approve/check-runs', 6_000, 1)
     const pr = await uploadPr(stack, p, n, { login: { dot: { x: 300 + n, y: 90 } } })
-    await poll(() => checkFor(pr.sha)?.conclusion, { timeout: 90_000 }).toBe('action_required')
+    await poll(() => checkFor(pr.sha)?.conclusion, { timeout: 30_000 }).toBe('action_required')
     expect(gh.checkRuns.filter((c) => c.headSha === pr.sha).length).toBeGreaterThanOrEqual(1)
     await poll(() => gh.comments.filter((c) => c.prNumber === n).length).toBe(1)
   })

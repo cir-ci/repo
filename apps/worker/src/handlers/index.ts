@@ -60,6 +60,7 @@ const webhook: Handler = {
           warn,
           ...(publicOrigin ? { publicOrigin } : {}),
           ...(allowPrivate ? { allowPrivate } : {}),
+          ...(deps.webhookTimeoutMs ? { timeoutMs: deps.webhookTimeoutMs } : {}),
         },
         job,
       ),

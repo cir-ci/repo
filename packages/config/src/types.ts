@@ -19,6 +19,8 @@ export namespace Config {
     webhookSecret: string
     /** `https://api.github.com`, or a GitHub Enterprise Server's `https://host/api/v3`. */
     apiUrl: string
+    /** Give up on one API request after this long (`GITHUB_API_TIMEOUT_SECONDS`, default 15 s). */
+    timeoutMs: number
   }
 
   /** The Slack app that installs into workspaces (`SLACK_CLIENT_ID` / `SLACK_CLIENT_SECRET`). */
@@ -115,6 +117,10 @@ export interface Config {
   /** Email + password sign-in is offered (`AUTH_PASSWORD_ENABLED`, default on). */
   passwordLogin: boolean
   webhookAllowPrivate: boolean
+  /** Waits between attempts of a failed job: `baseMs` doubling each time, never above `maxMs`. */
+  jobRetry: { baseMs: number; maxMs: number }
+  /** A webhook receiver that takes longer than this to answer has failed (`WEBHOOK_TIMEOUT_SECONDS`). */
+  webhookTimeoutMs: number
   /** Who may create workspaces in the dashboard: instance admins only, or any member. */
   workspaceCreation: 'admin' | 'anyone'
 }

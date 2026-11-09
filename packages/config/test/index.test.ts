@@ -21,6 +21,36 @@ describe('loadConfig', () => {
     expect(c.env).toBe('production')
   })
 
+  it('keeps the production waits unless asked: job retries 2 s up to 5 min, webhook 10 s, GitHub 15 s', () => {
+    const c = loadConfig(base)
+    expect(c.jobRetry).toEqual({ baseMs: 2_000, maxMs: 300_000 })
+    expect(c.webhookTimeoutMs).toBe(10_000)
+    const gh = loadConfig({
+      ...base,
+      GITHUB_APP_ID: '1',
+      GITHUB_APP_PRIVATE_KEY: 'k',
+      GITHUB_APP_WEBHOOK_SECRET: 's',
+    })
+    expect(gh.github?.timeoutMs).toBe(15_000)
+  })
+
+  it('scales the waits for tests (JOB_RETRY_*, WEBHOOK_TIMEOUT_SECONDS, GITHUB_API_TIMEOUT_SECONDS)', () => {
+    const c = loadConfig({
+      ...base,
+      JOB_RETRY_BASE_SECONDS: '0.25',
+      JOB_RETRY_MAX_SECONDS: '2',
+      WEBHOOK_TIMEOUT_SECONDS: '1.5',
+      GITHUB_API_TIMEOUT_SECONDS: '4',
+      GITHUB_APP_ID: '1',
+      GITHUB_APP_PRIVATE_KEY: 'k',
+      GITHUB_APP_WEBHOOK_SECRET: 's',
+    })
+    expect(c.jobRetry).toEqual({ baseMs: 250, maxMs: 2_000 })
+    expect(c.webhookTimeoutMs).toBe(1_500)
+    expect(c.github?.timeoutMs).toBe(4_000)
+    expect(() => loadConfig({ ...base, JOB_RETRY_BASE_SECONDS: '0' })).toThrow(ConfigError)
+  })
+
   it('keeps GITHUB_API_URL for the one-click GitHub App setup, with or without an App', () => {
     expect(loadConfig(base).githubApiUrl).toBeUndefined()
     const ghe = loadConfig({ ...base, GITHUB_API_URL: 'https://ghe.example.com/api/v3/' })

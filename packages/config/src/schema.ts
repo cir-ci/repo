@@ -62,6 +62,26 @@ export const envSchema = z.object({
     emptyToUndefined,
     z.coerce.number().int().min(0).default(60),
   ),
+  /** First wait before a failed job is retried; each further wait doubles (2, 4, 8, ...). */
+  JOB_RETRY_BASE_SECONDS: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().min(0.01).max(3600).default(2),
+  ),
+  /** The longest wait between two attempts of a job. */
+  JOB_RETRY_MAX_SECONDS: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().min(0.01).max(86_400).default(300),
+  ),
+  /** How long a webhook receiver may take to answer a delivery. */
+  WEBHOOK_TIMEOUT_SECONDS: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().min(0.1).max(600).default(10),
+  ),
+  /** How long one GitHub API request may take (the App from GITHUB_APP_*). */
+  GITHUB_API_TIMEOUT_SECONDS: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().min(0.1).max(600).default(15),
+  ),
   AUTH_PASSWORD_ENABLED: z.preprocess(emptyToUndefined, bool.optional()),
   AUTH_SSO_ENABLED: z.preprocess(emptyToUndefined, bool.optional()),
   AUTH_GITHUB_CLIENT_ID: z.preprocess(emptyToUndefined, z.string().optional()),

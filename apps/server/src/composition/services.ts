@@ -91,6 +91,8 @@ export async function runServices(options: runServices.Options): Promise<void> {
         webhookAllowPrivate: rt.config.webhookAllowPrivate,
         uploadTimeoutMinutes: rt.config.uploadTimeoutMinutes,
         gcGraceHours: rt.config.gcGraceHours,
+        retryBackoff: rt.config.jobRetry,
+        webhookTimeoutMs: rt.config.webhookTimeoutMs,
         integrations: { config: integrationConfig(rt.config) },
         ...(rt.mailer ? { mailer: rt.mailer } : {}),
       })

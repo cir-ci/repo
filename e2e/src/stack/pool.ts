@@ -51,7 +51,8 @@ async function boot(profile: Profile, label: string): Promise<PoolEntry> {
   try {
     stack = await startStack({
       ...options,
-      ...(github ? { env: github.env() } : {}),
+      // GitHub gets 4 s per request here (production: 15 s), so a "slow GitHub" test is short.
+      ...(github ? { env: { ...github.env(), GITHUB_API_TIMEOUT_SECONDS: '4' } } : {}),
       label,
       profile,
       pooled: true,

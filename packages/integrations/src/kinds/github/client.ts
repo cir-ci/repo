@@ -18,6 +18,8 @@ export interface GithubAppOptions {
   privateKey: string
   /** The App's webhook secret, for `verifyWebhook`. */
   webhookSecret?: string
+  /** Give up on one API request after this long (default 15 s). */
+  timeoutMs?: number
   /** Replaceable in tests. */
   fetch?: typeof fetch
   now?: () => number
@@ -85,6 +87,7 @@ export class GithubApp implements GitProvider {
     this.#options = options
     this.#http = createHttpClient({
       baseUrl: options.apiUrl,
+      ...(options.timeoutMs ? { timeoutMs: options.timeoutMs } : {}),
       ...(options.fetch ? { fetch: options.fetch } : {}),
       headers: { accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28' },
       fail: ({ status, data, method, path }) =>
