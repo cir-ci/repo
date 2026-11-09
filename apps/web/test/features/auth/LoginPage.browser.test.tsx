@@ -55,12 +55,14 @@ describe('LoginPage', () => {
     await expect.poll(() => document.title).toBe('Sign in to CirCI')
   })
 
-  it('hides the provider buttons when none are configured, and shows one per provider', async () => {
+  it('hides the provider buttons and the divider when none are configured, and shows one per provider', async () => {
     fakeFetch(methods())
     const { screen } = await renderPage(<LoginPage />)
+    await expect.element(page.getByLabelText('Password')).toBeVisible()
     await expect
       .element(page.getByRole('button', { name: /Continue with (GitHub|Google)/ }))
       .not.toBeInTheDocument()
+    await expect.element(page.getByText('or with email')).not.toBeInTheDocument()
     await screen.unmount()
     fakeFetch(
       methods({

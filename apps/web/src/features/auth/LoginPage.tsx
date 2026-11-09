@@ -57,7 +57,8 @@ export function LoginPage() {
       ) : (
         <>
           <SsoButtons providers={providers} onWorkspace={() => setWorkspaceStep(true)} />
-          <div className={styles.divider}>or with email</div>
+          {/* Only between provider buttons and the form: "Continue with SSO" alone needs none. */}
+          {providers.length > 0 ? <div className={styles.divider}>or with email</div> : null}
           {(mode === 'email' || !passwordOn) && emailOn ? (
             <EmailForm
               initial={fromLink}
