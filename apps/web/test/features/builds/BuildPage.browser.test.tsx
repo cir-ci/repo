@@ -3,6 +3,12 @@ import { type Locator, page, userEvent } from 'vitest/browser'
 
 import { decision, detail, fakeBuildApi, renderBuild, shot } from './fake-build-api.tsx'
 
+// The build review reads the session (avatar, reviewer picker): the fake client, signed in as
+// Ada, so better-auth's own session store never refetches outside a test's fake.
+vi.mock('#lib/auth-client.ts', () =>
+  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
+)
+
 beforeEach(async () => {
   await page.viewport(1280, 900)
 })
