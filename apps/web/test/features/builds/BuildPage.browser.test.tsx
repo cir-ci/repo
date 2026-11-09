@@ -681,9 +681,16 @@ describe('side by side', () => {
     fakeBuildApi(detail())
     await renderBuild()
     await expect.element(viewerTitle()).toBeVisible()
-    const { baseline, build } = frames()
-    expect(Math.abs(baseline.top - build.top)).toBeLessThan(2)
-    expect(build.left).toBeGreaterThan(baseline.right)
+    // Measured once layout settles (images load and the container query applies after the title).
+    await expect
+      .poll(
+        () => {
+          const { baseline, build } = frames()
+          return Math.abs(baseline.top - build.top) < 2 && build.left > baseline.right
+        },
+        { timeout: 5000 },
+      )
+      .toBe(true)
   })
 
   it('stacks them only when the viewer has no room for two', async () => {
@@ -691,7 +698,14 @@ describe('side by side', () => {
     fakeBuildApi(detail())
     await renderBuild()
     await expect.element(viewerTitle()).toBeVisible()
-    const { baseline, build } = frames()
-    expect(build.top).toBeGreaterThan(baseline.bottom)
+    await expect
+      .poll(
+        () => {
+          const { baseline, build } = frames()
+          return build.top > baseline.bottom
+        },
+        { timeout: 5000 },
+      )
+      .toBe(true)
   })
 })
