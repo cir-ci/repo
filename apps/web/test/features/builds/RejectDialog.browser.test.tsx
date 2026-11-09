@@ -29,6 +29,13 @@ describe('RejectDialog', () => {
     await expect.element(dialog().getByRole('textbox', { name: 'Reason' })).toBeRequired()
   })
 
+  it('puts the cursor in the Reason box when it opens, so the reason can be typed at once', async () => {
+    await show().ready
+    await expect.element(dialog().getByRole('textbox', { name: 'Reason' })).toHaveFocus()
+    await userEvent.keyboard('Too tight')
+    await expect.element(dialog().getByRole('textbox', { name: 'Reason' })).toHaveValue('Too tight')
+  })
+
   it('refuses an empty or blank reason and says why', async () => {
     const { ready, onReject } = show()
     await ready

@@ -119,10 +119,24 @@ describe('the empty query', () => {
     }
   })
 
-  it('offers list actions, not review ones, on a list', () => {
+  it('offers no action that nothing on the page would handle', () => {
+    // A team's Builds page binds neither snooze nor request review (they need a selected request).
     const labels = contextActions('/acme/web').map((e) => e.label)
-    expect(labels).toContain('Request review')
-    expect(labels).not.toContain('Approve all changes')
+    expect(labels).not.toContain('Request review')
+    expect(labels).not.toContain('Snooze')
+    expect(labels).not.toContain('Approve all')
+    expect(labels).toContain('Copy link to this page')
+  })
+
+  it('offers Request review on a build, and Snooze on the pages that snooze', () => {
+    const onBuild = contextActions('/acme/web/builds/148').map((e) => e.label)
+    expect(onBuild).toContain('Request review')
+    expect(onBuild).not.toContain('Snooze')
+    expect(contextActions('/workspaces/acme/reviews').map((e) => e.label)).toEqual(
+      expect.arrayContaining(['Snooze', 'Request review']),
+    )
+    expect(contextActions('/inbox').map((e) => e.label)).toContain('Snooze')
+    expect(contextActions('/acme/web/triage').map((e) => e.label)).toContain('Snooze')
   })
 
   it('puts the actions before the places to jump to', () => {

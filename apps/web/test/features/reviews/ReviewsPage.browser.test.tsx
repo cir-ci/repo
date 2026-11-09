@@ -58,6 +58,37 @@ const show = (url = '/workspaces/acme/reviews', viewport: [number, number] = [12
     validateSearch: validateReviewsSearch,
   })
 
+describe('ReviewsPage list header', () => {
+  it('fits every tab in the 340px list, so none is clipped', async () => {
+    fakeApi({ 'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } } })
+    await show()
+    const group = page.getByRole('group', { name: 'Which reviews' })
+    await expect.element(group).toBeVisible()
+    const box = group.element().getBoundingClientRect()
+    expect(group.element().scrollWidth).toBeLessThanOrEqual(group.element().clientWidth)
+    for (const tab of group.getByRole('button').elements()) {
+      const r = tab.getBoundingClientRect()
+      expect(r.left).toBeGreaterThanOrEqual(box.left)
+      expect(r.right).toBeLessThanOrEqual(box.right)
+    }
+  })
+
+  it('says how long a snoozed request is put off', async () => {
+    const until = new Date(Date.now() + 18 * 3600_000 + 60_000).toISOString()
+    fakeApi({
+      'GET /api/reviews': {
+        body: {
+          tab: 'snoozed',
+          requests: [request('r1', 12, { snoozedUntil: until, snoozeKind: 'tomorrow' })],
+        },
+      },
+    })
+    await show('/workspaces/acme/reviews?tab=snoozed')
+    await expect.element(page.getByText('Snoozed for 18 hours')).toBeVisible()
+    expect(page.getByText(/Until in/).elements()).toHaveLength(0)
+  })
+})
+
 describe('ReviewsPage', () => {
   it('lists the requests with status, team, branch, requester and the overdue chip', async () => {
     fakeApi({

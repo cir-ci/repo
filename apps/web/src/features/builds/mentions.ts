@@ -7,6 +7,13 @@ export namespace Mention {
     email: string
   }
 
+  /** A stretch of a comment: plain text, or (with `member`) a mention of them. `at` is where it starts. */
+  export interface Piece {
+    at: number
+    text: string
+    member?: Member
+  }
+
   export interface Token {
     /** Index of the `@`. */
     start: number
@@ -66,6 +73,45 @@ export function matchMembers<T extends Mention.Member>(
     .toSorted((a, b) => a.r - b.r || a.i - b.i)
     .slice(0, limit)
     .map((x) => x.m)
+}
+
+/** `@token` as the server finds it (`parseMentions` in `@circi/core`), with where it sits. */
+const MENTION = /(^|[^\p{L}\p{N}_@.+-])@([\p{L}\p{N}][\p{L}\p{N}._-]*)/gu
+
+/** Every word a member can be mentioned by: their email's local part, or their name as one word. */
+function handlesOf(m: Mention.Member): string[] {
+  const words = m.name.toLowerCase().split(/\s+/).filter(Boolean)
+  return [handleOf(m), ...['', '-', '.', '_'].map((joiner) => words.join(joiner))].filter(Boolean)
+}
+
+/**
+ * A comment's text in pieces: plain text, and `@token`s that name exactly one member. The server
+ * resolves mentions the same way, so what is drawn as a mention is what notified someone; an
+ * unknown or ambiguous token stays plain text.
+ */
+export function splitMentions(body: string, members: readonly Mention.Member[]): Mention.Piece[] {
+  const owners = new Map<string, Set<Mention.Member>>()
+  for (const m of members) {
+    for (const h of handlesOf(m)) owners.set(h, (owners.get(h) ?? new Set()).add(m))
+  }
+  const pieces: Mention.Piece[] = []
+  let from = 0
+  const push = (at: number, text: string, member?: Mention.Member) => {
+    if (text) pieces.push(member ? { at, text, member } : { at, text })
+  }
+  for (const match of body.matchAll(MENTION)) {
+    const lead = match[1] ?? ''
+    const token = (match[2] ?? '').replace(/[._-]+$/, '')
+    const set = owners.get(token.toLowerCase())
+    const only = set?.size === 1 ? [...set][0] : undefined
+    if (!only) continue
+    const start = match.index + lead.length
+    push(from, body.slice(from, start))
+    push(start, `@${token}`, only)
+    from = start + 1 + token.length
+  }
+  push(from, body.slice(from))
+  return pieces
 }
 
 /** `text` with the token replaced by `@handle ` and where the caret goes after it. */

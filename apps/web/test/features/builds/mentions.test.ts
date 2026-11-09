@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { insertMention, matchMembers, mentionAt, mentionHandle } from '#features/builds/mentions.ts'
+import {
+  insertMention,
+  matchMembers,
+  mentionAt,
+  mentionHandle,
+  splitMentions,
+} from '#features/builds/mentions.ts'
 
 const ada = { userId: 'u1', name: 'Ada Lovelace', email: 'ada@example.test' }
 const grace = { userId: 'u2', name: 'Grace Hopper', email: 'grace@example.test' }
@@ -57,5 +63,32 @@ describe('mentionHandle', () => {
   it('uses the email’s local part when it is unique, else the name as one word', () => {
     expect(mentionHandle(grace, [ada, grace])).toBe('grace')
     expect(mentionHandle(ada, [ada, grace, other])).toBe('ada-lovelace')
+  })
+})
+
+describe('splitMentions', () => {
+  it('marks the tokens that name a member, by handle or by name as one word', () => {
+    expect(splitMentions('Hi @ada and @grace-hopper, ok?', [ada, grace])).toEqual([
+      { at: 0, text: 'Hi ' },
+      { at: 3, text: '@ada', member: ada },
+      { at: 7, text: ' and ' },
+      { at: 12, text: '@grace-hopper', member: grace },
+      { at: 25, text: ', ok?' },
+    ])
+  })
+
+  it('leaves unknown, ambiguous and email-like tokens as plain text', () => {
+    expect(splitMentions('@nobody mail ann@example.com', [ada])).toEqual([
+      { at: 0, text: '@nobody mail ann@example.com' },
+    ])
+    expect(splitMentions('@ada', [ada, other])).toEqual([{ at: 0, text: '@ada' }])
+  })
+
+  it('does not take a sentence-ending dot as part of the handle', () => {
+    expect(splitMentions('thanks @ada.', [ada])).toEqual([
+      { at: 0, text: 'thanks ' },
+      { at: 7, text: '@ada', member: ada },
+      { at: 11, text: '.' },
+    ])
   })
 })

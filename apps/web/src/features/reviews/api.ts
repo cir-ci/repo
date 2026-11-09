@@ -174,6 +174,20 @@ export function overdueLabel(overdueByMs: number): string | undefined {
   return `Overdue ${Math.floor(overdueByMs / DAY)}d`
 }
 
+const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? '' : 's'}`
+
+/**
+ * What a snoozed row says: "Snoozed for 18 hours", "Snoozed for 3 days" (the time left, rounded
+ * down); plain "Snoozed" once the time has come and it is about to wake.
+ */
+export function snoozedLabel(untilIso: string, now: number): string {
+  const left = Date.parse(untilIso) - now
+  if (!(left >= 60_000)) return 'Snoozed'
+  if (left < HOUR) return `Snoozed for ${plural(Math.floor(left / 60_000), 'minute')}`
+  if (left < 2 * DAY) return `Snoozed for ${plural(Math.floor(left / HOUR), 'hour')}`
+  return `Snoozed for ${plural(Math.floor(left / DAY), 'day')}`
+}
+
 /** The branch the row shows: the branch, else the pull request, else the short commit. */
 export function requestRef(build: Review.Request['build']): string {
   return (

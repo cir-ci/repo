@@ -330,15 +330,33 @@ export function keyToken(
   return [mod ? 'mod' : '', shift ? 'shift' : '', key].filter(Boolean).join('+')
 }
 
-/** Keys typed into a field, or inside a dialog, belong to that; so do ones with a modifier. */
+/** Anything a person types into: fields, selects, any contenteditable and the text-entry roles. */
+const EDITABLE =
+  'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"], [role="searchbox"]'
+
+/** Whether typing here edits text, so every plain key (and every letter) is the writer's. */
+export function isEditable(el: Element): boolean {
+  return (el instanceof HTMLElement && el.isContentEditable) || el.closest(EDITABLE) !== null
+}
+
+/**
+ * Keys typed into a field, or inside a dialog, belong to that; so do ones with a modifier. A key
+ * sent to the window (not to an element) is judged by the focused element.
+ */
 export function isHandledElsewhere(
   target: EventTarget | null,
   event: Pick<KeyboardEvent, 'metaKey' | 'ctrlKey' | 'altKey'>,
 ): boolean {
   if (event.metaKey || event.ctrlKey || event.altKey) return true
-  if (!(target instanceof Element)) return false
-  if (target.closest('input, textarea, select, [contenteditable="true"]')) return true
-  return target.closest('[role="dialog"], [role="alertdialog"]') !== null
+  const where =
+    typeof Element !== 'undefined' && target instanceof Element
+      ? target
+      : typeof document === 'undefined'
+        ? null
+        : document.activeElement
+  if (!where) return false
+  if (isEditable(where)) return true
+  return where.closest('[role="dialog"], [role="alertdialog"]') !== null
 }
 
 /** How long after a chord's first key (`g`) its second one still counts. */
@@ -365,7 +383,11 @@ export function handleKeydown(event: KeyboardEvent, now = Date.now()): void {
   const token = keyToken(event)
   if (token === undefined) return
   // A shortcut with ⌘/Ctrl is meant to work anywhere; the rest leave typing and dialogs alone.
-  if (!token.startsWith('mod+') && isHandledElsewhere(event.target, event)) return
+  if (!token.startsWith('mod+')) {
+    if (isHandledElsewhere(event.target, event) || event.isComposing) return
+    // An open comment or reply box with unsent text keeps every plain key, wherever focus is.
+    if (useShortcutStore.getState().drafting.size > 0) return
+  }
   const { pending, setPending } = useShortcutStore.getState()
   const chord = pending && now - pending.at <= CHORD_MS ? `${pending.prefix} ${token}` : undefined
   setPending(undefined)

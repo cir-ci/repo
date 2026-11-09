@@ -66,22 +66,27 @@ export function inboxCount(items: readonly Inbox.Item[]): string {
   return unread > 0 ? `${all}, ${unread} unread` : all
 }
 
-/** Where a notification leads: its build, else its team, else nowhere. */
+/**
+ * Where a notification leads: its build, else its team, else nowhere. A mention goes to the
+ * build's Comments tab at the comment (the page picks its snapshot, if it is pinned to one).
+ */
 export function notificationTarget(item: Inbox.Item):
   | {
       to: '/$workspace/$team/builds/$number'
       params: { workspace: string; team: string; number: string }
+      search?: { sidebar: 'comments'; comment: string }
     }
   | { to: '/$workspace/$team'; params: { workspace: string; team: string } }
   | undefined {
   if (!item.workspace || !item.team) return undefined
   const base = { workspace: item.workspace.slug, team: item.team.slug }
-  return item.build
-    ? {
-        to: '/$workspace/$team/builds/$number',
-        params: { ...base, number: String(item.build.number) },
-      }
-    : { to: '/$workspace/$team', params: base }
+  if (!item.build) return { to: '/$workspace/$team', params: base }
+  const target = {
+    to: '/$workspace/$team/builds/$number' as const,
+    params: { ...base, number: String(item.build.number) },
+  }
+  const comment = item.kind === 'mentioned' ? text(item.payload['commentId']) : undefined
+  return comment ? { ...target, search: { sidebar: 'comments' as const, comment } } : target
 }
 
 /** Every list showing the unread count or the same entry: refetched after a change. */

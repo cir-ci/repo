@@ -1,5 +1,5 @@
 import { FormDialog, Text } from '@circi/ui'
-import { type ReactNode, useId, useState } from 'react'
+import { type ReactNode, useId, useRef, useState } from 'react'
 
 import { isSubmitKey } from '#lib/shortcuts.ts'
 
@@ -24,6 +24,7 @@ export function ReasonDialog({
   const [reason, setReason] = useState('')
   const [touched, setTouched] = useState(false)
   const fieldId = useId()
+  const field = useRef<HTMLTextAreaElement>(null)
   const errorId = `${fieldId}-error`
   const trimmed = reason.trim()
   const invalid = touched && trimmed === ''
@@ -54,6 +55,7 @@ export function ReasonDialog({
       submitLabel={confirmLabel}
       submitVariant="danger"
       pending={pending}
+      initialFocus={field}
       formClassName={styles.form}
     >
       <label htmlFor={fieldId} className={styles.label}>
@@ -61,6 +63,7 @@ export function ReasonDialog({
       </label>
       <textarea
         id={fieldId}
+        ref={field}
         className={styles.textarea}
         value={reason}
         rows={4}

@@ -13,6 +13,7 @@ import {
   requestRef,
   requestStatus,
   scoreLabel,
+  snoozedLabel,
   validateReviewsSearch,
 } from '#features/reviews/api.ts'
 import { nextAfterRemoval } from '#lib/list-keys.ts'
@@ -45,6 +46,22 @@ const request = (over: Partial<Review.Request> = {}): Review.Request => ({
   changes: { changed: 2, added: 1, removed: 0, unchanged: 5 },
   largestChanges: [],
   ...over,
+})
+
+describe('snoozedLabel', () => {
+  const now = Date.parse('2026-11-09T09:00:00.000Z')
+  const after = (ms: number) => new Date(now + ms).toISOString()
+
+  it('says how long a request is put off, never "Until in …"', () => {
+    expect(snoozedLabel(after(18 * 3600_000), now)).toBe('Snoozed for 18 hours')
+    expect(snoozedLabel(after(3600_000), now)).toBe('Snoozed for 1 hour')
+    expect(snoozedLabel(after(25 * 60_000), now)).toBe('Snoozed for 25 minutes')
+    expect(snoozedLabel(after(3 * 24 * 3600_000), now)).toBe('Snoozed for 3 days')
+  })
+
+  it('says only "Snoozed" once the time has come', () => {
+    expect(snoozedLabel(after(-1000), now)).toBe('Snoozed')
+  })
 })
 
 describe('overdueLabel', () => {

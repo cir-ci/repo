@@ -36,6 +36,7 @@ import { Viewer } from './DiffViewer.tsx'
 import { IssueAction } from './IssueAction.tsx'
 import { SnapshotIssues } from './LinkedIssues.tsx'
 import { apiSide, draftOf, type RegionDraft } from './region-draft.ts'
+import { RequestedReviewers } from './RequestedReviewers.tsx'
 import { RequestReviewPicker } from './RequestReviewPicker.tsx'
 import {
   defaultShot,
@@ -67,7 +68,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const active = isActive(build.status)
   const [helpOpen, setHelpOpen] = useState(false)
   const [requesting, setRequesting] = useState(false)
-  const [tab, setTab] = useState<SidebarTab>('details')
+  const [tab, setTab] = useState<SidebarTab>(search.sidebar ?? 'details')
   // The region selected on an image and not yet sent: it belongs to one snapshot and one side.
   const [draft, setDraft] = useState<RegionDraft | null>(null)
   const [focusedComment, setFocusedComment] = useState<string | null>(null)
@@ -126,6 +127,29 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const comments = useQuery(commentsQuery(team.workspaceSlug, team.slug, build.number))
   const pinned = selected ? regionThreads(comments.data?.comments ?? [], selected.name) : []
 
+  // A link to a comment (the inbox's "mentioned you"): once the comments are in, show the
+  // thread's snapshot and mark the thread. Done once per link.
+  const linked = search.comment
+  const [linkedDone, setLinkedDone] = useState<string | undefined>(undefined)
+  const allComments = comments.data?.comments
+  const linkedComment = linked ? allComments?.find((c) => c.id === linked) : undefined
+  const linkedRoot = linkedComment
+    ? (allComments?.find((c) => c.id === linkedComment.parentId) ?? linkedComment)
+    : undefined
+  if (linked && linkedRoot && linkedDone !== linked) {
+    setLinkedDone(linked)
+    setTab('comments')
+    setFocusedComment(linkedRoot.id)
+  }
+  const linkedShot = linkedRoot?.snapshotName
+  const shotShown = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (!linked || !linkedShot || shotShown.current === linked) return
+    if (!ordered.some((d) => d.name === linkedShot)) return
+    shotShown.current = linked
+    void navigate({ search: (prev) => ({ ...prev, shot: linkedShot }), replace: true })
+  }, [linked, linkedShot, ordered, navigate])
+
   // C: open the Comments tab and put the cursor in its field once it is on screen.
   const [wantsComposer, setWantsComposer] = useState(0)
   useEffect(() => {
@@ -181,6 +205,11 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
           <>
             <BuildStateLabel build={build} hasBaseline={hasBaseline} />
             <IssueAction data={data} snapshotName={selected?.name ?? null} />
+            <RequestedReviewers
+              workspace={team.workspaceSlug}
+              team={team.slug}
+              number={build.number}
+            />
             <RequestReviewPicker
               open={requesting}
               onOpenChange={setRequesting}

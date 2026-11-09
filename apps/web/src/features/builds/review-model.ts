@@ -104,11 +104,27 @@ export const undecidedNames = (diffs: readonly Build.DiffItem[], build: ReviewSt
   diffs.filter((d) => needsDecision(d) && shotDecision(d, build) === 'pending').map((d) => d.name)
 
 /** The people with an open review request on the build: asked, and the request not closed since. */
-export const openReviewers = (events: readonly Activity.Event[]): Set<string> => {
-  const open = new Set<string>()
+export const openReviewers = (events: readonly Activity.Event[]): Set<string> =>
+  new Set(openReviewerPeople(events).map((p) => p.id))
+
+/** The same people, with their names, in the order they were asked. */
+export function openReviewerPeople(
+  events: readonly Activity.Event[],
+): { id: string; name: string }[] {
+  const open = new Map<string, { id: string; name: string }>()
   for (const e of events) {
-    if (e.type === 'review_requested' && e.reviewer) open.add(e.reviewer.id)
+    if (e.type === 'review_requested' && e.reviewer) open.set(e.reviewer.id, e.reviewer)
     else if (e.type === 'review_request_closed' && e.reviewer) open.delete(e.reviewer.id)
   }
-  return open
+  return [...open.values()]
+}
+
+/** "Requested from Dana", "Requested from Dana and Omer", "Requested from 3 people". */
+export function requestedFromLabel(people: readonly { name: string }[]): string | undefined {
+  const [first, second] = people
+  if (!first) return undefined
+  if (!second) return `Requested from ${first.name}`
+  return people.length === 2
+    ? `Requested from ${first.name} and ${second.name}`
+    : `Requested from ${people.length} people`
 }

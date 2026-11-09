@@ -15,6 +15,10 @@ export interface BuildSearch {
   /** Selected screenshot, so a link can point straight at one change. */
   shot?: string
   mode?: ViewMode
+  /** `comments` opens the sidebar on its Comments tab (a link to a discussion). */
+  sidebar?: 'comments'
+  /** A comment to show: its thread is focused, and its snapshot selected if it is pinned to one. */
+  comment?: string
 }
 
 const isViewMode = (value: unknown): value is ViewMode =>
@@ -26,5 +30,7 @@ export function validateBuildSearch(search: Record<string, unknown>): BuildSearc
   return {
     ...(typeof search.shot === 'string' && search.shot ? { shot: search.shot } : {}),
     ...(isViewMode(search.mode) ? { mode: search.mode } : {}),
+    ...(search.sidebar === 'comments' ? { sidebar: 'comments' as const } : {}),
+    ...(typeof search.comment === 'string' && search.comment ? { comment: search.comment } : {}),
   }
 }

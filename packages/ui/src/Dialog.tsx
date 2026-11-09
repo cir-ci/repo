@@ -22,6 +22,7 @@ export function Dialog({
   hideClose = false,
   headerEnd,
   dismissible = true,
+  initialFocus,
   children,
   ...rest
 }: Dialog.Props) {
@@ -30,7 +31,11 @@ export function Dialog({
       <BaseDialog.Portal>
         <BaseDialog.Backdrop className={styles.backdrop} />
         <BaseDialog.Viewport className={styles.viewport}>
-          <BaseDialog.Popup className={styles.popup} data-size={size}>
+          <BaseDialog.Popup
+            className={styles.popup}
+            data-size={size}
+            {...(initialFocus === undefined ? {} : { initialFocus })}
+          >
             <header className={styles.header}>
               <BaseDialog.Title className={styles.title}>{title}</BaseDialog.Title>
               {headerEnd ? <div className={styles.headerEnd}>{headerEnd}</div> : null}
@@ -72,6 +77,8 @@ export namespace Dialog {
     hideClose?: boolean
     /** `false`: a click on the backdrop does not close it (Escape still does). */
     dismissible?: boolean
+    /** What takes focus when it opens: a ref to the field to type in (default: the first control, the close button). */
+    initialFocus?: BaseDialog.Popup.Props['initialFocus']
     children?: ReactNode
   }
 }

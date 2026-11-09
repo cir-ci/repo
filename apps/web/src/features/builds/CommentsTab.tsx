@@ -1,7 +1,7 @@
 import type { Comment } from '@circi/api'
 import { Avatar, Banner, Button, EmptyState, ReviewIcon, Text, useAnnounce } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
-import { type Ref, useEffect, useRef, useState } from 'react'
+import { Fragment, type Ref, useEffect, useRef, useState } from 'react'
 
 import {
   commentsQuery,
@@ -14,7 +14,7 @@ import { regionThreads } from '#features/regions/geometry.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import { Composer } from './Composer.tsx'
-import type { Mention } from './mentions.ts'
+import { type Mention, splitMentions } from './mentions.ts'
 import { groupThreads, type Thread } from './timeline.ts'
 
 import styles from './Discussion.module.css'
@@ -165,6 +165,7 @@ function ThreadView({
           <Composer
             members={members}
             label="Reply"
+            autoFocus
             submitLabel="Reply"
             pending={add.isPending}
             error={add.error?.message}
@@ -224,6 +225,7 @@ function CommentView({ comment, members, workspace, team, build, children }: Com
           <Composer
             members={members}
             label="Edit comment"
+            autoFocus
             initial={comment.body}
             submitLabel="Save"
             pending={edit.isPending}
@@ -235,7 +237,22 @@ function CommentView({ comment, members, workspace, team, build, children }: Com
           />
         ) : (
           <p className={styles.commentBody}>
-            <Text>{comment.body}</Text>
+            <Text>
+              {splitMentions(comment.body, members).map((piece) =>
+                piece.member ? (
+                  <span
+                    key={piece.at}
+                    className={styles.mention}
+                    data-mention=""
+                    title={piece.member.name}
+                  >
+                    {piece.text}
+                  </span>
+                ) : (
+                  <Fragment key={piece.at}>{piece.text}</Fragment>
+                ),
+              )}
+            </Text>
           </p>
         )}
         {!deleted && !editing && (comment.mine || comment.canDelete) ? (

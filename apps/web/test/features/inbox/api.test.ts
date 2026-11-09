@@ -89,6 +89,18 @@ describe('notification rows', () => {
     })
     expect(notificationTarget(item({ build: null, team: null, workspace: null }))).toBeUndefined()
   })
+
+  it('opens a mention on the Comments tab, at its comment', () => {
+    expect(
+      notificationTarget(item({ kind: 'mentioned', payload: { commentId: 'c9', snippet: 'hi' } })),
+    ).toEqual({
+      to: '/$workspace/$team/builds/$number',
+      params: { workspace: 'acme', team: 'web', number: '12' },
+      search: { sidebar: 'comments', comment: 'c9' },
+    })
+    // Without a comment id (an older notice) it is the plain build.
+    expect(notificationTarget(item({ kind: 'mentioned' }))).not.toHaveProperty('search')
+  })
 })
 
 describe('inbox tabs and snoozing', () => {

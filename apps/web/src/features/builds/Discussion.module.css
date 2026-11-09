@@ -146,6 +146,15 @@
   white-space: pre-wrap;
 }
 
+/* An @mention that names a member: the same words that notified them. */
+.mention {
+  padding: 0 3px;
+  border-radius: 4px;
+  background: var(--circi-accent-subtle);
+  color: var(--circi-accent-text);
+  font-weight: 500;
+}
+
 .actions {
   display: flex;
   gap: 8px;

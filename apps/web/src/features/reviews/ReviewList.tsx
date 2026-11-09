@@ -13,6 +13,7 @@ import {
   requestRef,
   requestStatus,
   REVIEW_TABS,
+  snoozedLabel,
   type RequestGroup,
 } from './api.ts'
 
@@ -132,7 +133,12 @@ export function ReviewList({
                               ) : null}
                               {r.snoozedUntil ? (
                                 <Badge shape="tag">
-                                  Until <RelativeTime iso={r.snoozedUntil} />
+                                  <time
+                                    dateTime={r.snoozedUntil}
+                                    title={`Until ${new Date(r.snoozedUntil).toLocaleString()}`}
+                                  >
+                                    {snoozedLabel(r.snoozedUntil, Date.now())}
+                                  </time>
                                 </Badge>
                               ) : null}
                             </span>

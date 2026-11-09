@@ -1,7 +1,8 @@
 import { Avatar, Button, Kbd, Text } from '@circi/ui'
-import { type Ref, useId, useState } from 'react'
+import { type Ref, useEffect, useId, useState } from 'react'
 
 import { isSubmitKey } from '#lib/shortcuts.ts'
+import { useShortcutStore } from '#lib/stores/shortcut-store.ts'
 
 import { insertMention, matchMembers, mentionAt, type Mention, mentionHandle } from './mentions.ts'
 
@@ -20,6 +21,24 @@ export function Composer(props: Composer.Props) {
   const [dismissedAt, setDismissedAt] = useState<number | null>(null)
   const id = useId()
   const listId = `${id}-mentions`
+  const { autoFocus = false } = props
+
+  // A box opened on purpose (Reply, Edit) takes the cursor, so what is typed next lands in it.
+  useEffect(() => {
+    if (!autoFocus) return
+    const field = document.getElementById(id)
+    if (!(field instanceof HTMLTextAreaElement)) return
+    field.focus()
+    field.setSelectionRange(field.value.length, field.value.length)
+  }, [autoFocus, id])
+
+  // While this box holds unsent text, the shortcut layer keeps every plain key out of the page.
+  const drafting = text.trim() !== ''
+  useEffect(() => {
+    const { setDrafting } = useShortcutStore.getState()
+    setDrafting(id, drafting)
+    return () => setDrafting(id, false)
+  }, [id, drafting])
 
   const token = mentionAt(text, caret)
   const options = token && dismissedAt !== token.start ? matchMembers(members, token.query) : []
@@ -158,6 +177,8 @@ export namespace Composer {
     onSubmit: (body: string, clear: () => void) => void
     onCancel?: () => void
     inputRef?: Ref<HTMLTextAreaElement>
+    /** Put the cursor in the field when it appears (a reply or an edit that was just opened). */
+    autoFocus?: boolean
     /** Shown between the label and the field (the region a comment is pinned to). */
     context?: React.ReactNode
   }

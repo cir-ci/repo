@@ -103,12 +103,33 @@ const entryOfShortcut = (s: Shortcut): Entry => ({
   target: { type: 'key', key: s.key },
 })
 
+/**
+ * Whether anything on the page handles this action. Most list actions work on a list of rows
+ * wherever one is; snooze and request review need a selected item to act on, so they are only
+ * offered where a page binds them (a menu entry that does nothing is worse than none).
+ */
+function appliesOn(type: Shortcut.Action['type'], pathname: string): boolean {
+  const parts = pathname.split('/').filter(Boolean)
+  const onBuild = parts.length === 4 && parts[2] === 'builds'
+  const onReviews = parts[0] === 'workspaces' && parts[2] === 'reviews'
+  if (type === 'requestReview') return onBuild || onReviews
+  if (type === 'snooze') {
+    return onReviews || parts[0] === 'inbox' || (parts.length === 3 && parts[2] === 'triage')
+  }
+  return true
+}
+
 /** The registry's actions for this page, in registry order. */
 export function contextActions(pathname: string): Entry[] {
   const scopes = new Set<Shortcut.Scope>([...contextScopes(pathname), 'global'])
-  return SHORTCUTS.filter((s) => scopes.has(s.scope) && MENU_ACTIONS.has(s.action.type)).map(
-    entryOfShortcut,
-  )
+  const onBuild = scopes.has('build-review')
+  return SHORTCUTS.filter(
+    (s) =>
+      // Request review is declared for lists, and works on the build page too.
+      (scopes.has(s.scope) || (onBuild && s.action.type === 'requestReview')) &&
+      MENU_ACTIONS.has(s.action.type) &&
+      appliesOn(s.action.type, pathname),
+  ).map(entryOfShortcut)
 }
 
 // Jump to ----------------------------------------------------------------------------------

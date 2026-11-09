@@ -191,7 +191,115 @@ describe('comments', () => {
   })
 })
 
+describe('replying', () => {
+  it('moves focus into the reply box, so typing never reaches a shortcut', async () => {
+    const api = fakeBuildApi(detail())
+    api.members = [ada, grace]
+    api.comments = [comment('a')]
+    await renderBuild()
+    await page.getByRole('tab', { name: /^Comments/ }).click()
+    await page.getByRole('button', { name: 'Reply' }).click()
+    const box = page.getByRole('combobox', { name: 'Reply' })
+    await expect.element(box).toHaveFocus()
+    // The QA path: type without clicking the box. A capital A is Approve all.
+    await userEvent.keyboard('A reply')
+    await expect.element(box).toHaveValue('A reply')
+    expect(api.reviews).toEqual([])
+  })
+
+  it('ignores shortcut keys while a reply has text, even with focus elsewhere', async () => {
+    const api = fakeBuildApi(detail())
+    api.members = [ada, grace]
+    api.comments = [comment('a')]
+    await renderBuild()
+    await page.getByRole('tab', { name: /^Comments/ }).click()
+    await page.getByRole('button', { name: 'Reply' }).click()
+    const box = page.getByRole('combobox', { name: 'Reply' })
+    await box.fill('half a thought')
+    // Focus leaves the box (a click on the page background); the unsent text still holds the keys.
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+    await userEvent.keyboard('{Shift>}A{/Shift}')
+    expect(api.reviews).toEqual([])
+    await expect.element(page.getByRole('dialog', { name: /Reject/ })).not.toBeInTheDocument()
+  })
+})
+
+describe('mentions in a comment', () => {
+  it('are drawn as mentions, and plain text stays plain', async () => {
+    const api = fakeBuildApi(detail())
+    api.members = [ada, grace]
+    api.comments = [comment('a', { body: 'Please look, @grace, and @nobody too' })]
+    await renderBuild()
+    await page.getByRole('tab', { name: /^Comments/ }).click()
+    await expect
+      .element(page.getByText('@grace', { exact: true }))
+      .toHaveAttribute('data-mention', '')
+    await expect.element(page.getByText(/@nobody/)).toBeVisible()
+    expect(
+      page
+        .getByText('@nobody')
+        .elements()
+        .every((e) => !e.hasAttribute('data-mention')),
+    ).toBe(true)
+  })
+})
+
+describe('a link to a comment', () => {
+  it('opens the Comments tab, shows the comment’s snapshot and marks the thread', async () => {
+    const api = fakeBuildApi(detail())
+    api.members = [ada, grace]
+    api.comments = [
+      comment('a'),
+      comment('c1', {
+        snapshotName: 'checkout / address',
+        region: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
+        body: 'Pinned here',
+      }),
+    ]
+    await renderBuild('/acme/web-app/builds/7?sidebar=comments&comment=c1')
+    await expect
+      .element(page.getByRole('tab', { name: /^Comments/ }))
+      .toHaveAttribute('aria-selected', 'true')
+    await expect
+      .element(page.getByRole('link', { name: /checkout \/ address/ }))
+      .toHaveAttribute('aria-current', 'page')
+    await expect.element(page.getByText('Pinned here')).toBeVisible()
+    await expect
+      .element(
+        page
+          .getByRole('list', { name: /^Comments/ })
+          .getByRole('listitem')
+          .nth(1),
+      )
+      .toHaveAttribute('data-focused', '')
+  })
+})
+
 describe('requesting a review', () => {
+  it('shows who was asked on the header button once the request is made', async () => {
+    const api = fakeBuildApi(detail())
+    api.members = [ada, grace]
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    expect(page.getByText(/Requested from/).elements()).toHaveLength(0)
+    await userEvent.keyboard('{Shift>}R{/Shift}')
+    const dialog = page.getByRole('dialog', { name: 'Request review from' })
+    // The server records the request; the activity the picker reads then lists it.
+    api.activity = [
+      {
+        type: 'review_requested',
+        at: new Date().toISOString(),
+        reviewer: { id: 'u2', name: 'Grace Hopper' },
+        by: { id: 'u1', name: 'Ada Lovelace' },
+      },
+    ]
+    await dialog.getByRole('button', { name: /Grace Hopper/ }).click()
+    await expect.element(dialog).not.toBeInTheDocument()
+    await expect.element(page.getByText('Requested from Grace Hopper')).toBeVisible()
+  })
+})
+
+describe('requesting a review, the picker', () => {
   it('shift-r opens a member picker and asks the chosen member', async () => {
     const api = fakeBuildApi(detail())
     api.members = [ada, grace]
