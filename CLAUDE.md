@@ -127,6 +127,13 @@ A namespace must contain only types. Never put a value in one.
   not as separate top-level names.
 - **State:** state that changes or is needed across large areas, or is complex, goes in a global
   store (zustand), not scattered `useState`/context. Local, simple UI state stays in `useState`.
+- **Saving settings:** a change that doesn't affect anyone's workflow saves as soon as it is made,
+  with no Save button: a display name, a team's colour or icon, a workspace picture, the theme,
+  personal notification preferences. A change that does (merge gate, thresholds, retention, review
+  rules and targets, sign-in methods, members and roles, tokens, webhooks, and slugs, which break
+  links) waits for an explicit Save (or a confirmation), with Discard to revert. Don't mix the two in
+  one form: an instant-save control never sits under a Save/Discard footer it isn't part of. Use a
+  `Switch` for an instant setting and a `Checkbox` for one that waits for Save.
 
 ## Tests
 
