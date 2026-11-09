@@ -1,9 +1,9 @@
-import { Button, Popover, Switch, Text, TextField } from '@circi/ui'
-import { useQuery } from '@tanstack/react-query'
+import { Autocomplete, Button, Popover, Switch, Text, TextField } from '@circi/ui'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { type FormEvent, useDeferredValue, useState } from 'react'
 
 import { workspaceQuery } from '#features/members/api.ts'
-import { suggestionsQuery } from '#features/teams/api/index.ts'
+import { branchesQuery, suggestionsQuery } from '#features/teams/api/index.ts'
 
 import {
   type BuildFilters,
@@ -16,6 +16,7 @@ import {
   STATE_OPTIONS,
   activeState,
   withDates,
+  withBranch,
   withState,
   withText,
   without,
@@ -35,6 +36,7 @@ import styles from './BuildFilterBar.module.css'
 /** A chip for each filter (a dashed button that fills in once set), the display options and Save view. */
 export function BuildFilterBar({
   workspace,
+  team,
   filters,
   onFiltersChange,
   display,
@@ -71,7 +73,13 @@ export function BuildFilterBar({
               </Button>
             }
           >
-            <FieldEditor workspace={workspace} field={field} filters={filters} onChange={set} />
+            <FieldEditor
+              workspace={workspace}
+              team={team}
+              field={field}
+              filters={filters}
+              onChange={set}
+            />
             {active ? (
               <Button size="sm" variant="ghost" onClick={() => set(without(filters, field))}>
                 Clear {label.toLowerCase()}
@@ -113,6 +121,8 @@ export function BuildFilterBar({
 export namespace BuildFilterBar {
   export interface Props {
     workspace: string
+    /** The team whose branches the Branch picker offers; without one, the workspace's. */
+    team?: string | undefined
     filters: BuildFilters
     onFiltersChange: (filters: BuildFilters) => void
     display: DisplayOptions
@@ -127,11 +137,13 @@ export namespace BuildFilterBar {
 
 function FieldEditor({
   workspace,
+  team,
   field,
   filters,
   onChange,
 }: {
   workspace: string
+  team: string | undefined
   field: FilterField
   filters: BuildFilters
   onChange: (filters: BuildFilters) => void
@@ -155,6 +167,9 @@ function FieldEditor({
     )
   }
   if (field === 'date') return <DateEditor filters={filters} onChange={onChange} />
+  if (field === 'branch') {
+    return <BranchEditor workspace={workspace} team={team} filters={filters} onChange={onChange} />
+  }
   return <TextEditor workspace={workspace} field={field} filters={filters} onChange={onChange} />
 }
 
@@ -165,7 +180,7 @@ function TextEditor({
   onChange,
 }: {
   workspace: string
-  field: 'branch' | 'author' | 'reviewer' | 'name'
+  field: 'author' | 'reviewer' | 'name'
   filters: BuildFilters
   onChange: (filters: BuildFilters) => void
 }) {
@@ -189,6 +204,59 @@ function TextEditor({
           onPick={(value) => onChange(withText(filters, field, value))}
         />
       ) : null}
+    </form>
+  )
+}
+
+/**
+ * The Branch chip's picker, like GitHub's branch select: the branches builds were made on, most
+ * recent first, narrowed as you type (the server matches any part of the name, in any case),
+ * with arrow keys and Enter. Picking one filters to exactly that branch; text that is not a
+ * branch filters by branches that contain it.
+ */
+function BranchEditor({
+  workspace,
+  team,
+  filters,
+  onChange,
+}: {
+  workspace: string
+  team: string | undefined
+  filters: BuildFilters
+  onChange: (filters: BuildFilters) => void
+}) {
+  const [text, setText] = useState(filters.branch ?? filters.branchContains ?? '')
+  const typed = useDeferredValue(text.trim())
+  const { data } = useQuery({
+    ...branchesQuery(workspace, team, typed),
+    placeholderData: keepPreviousData,
+  })
+  const names = (data?.branches ?? []).map((b) => b.name)
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault()
+        onChange(withBranch(filters, text, { known: names }))
+      }}
+      className={styles.form}
+    >
+      <Autocomplete
+        label="Branch"
+        value={text}
+        autoFocus
+        onValueChange={setText}
+        items={names}
+        onPick={(name) => onChange(withBranch(filters, name, { picked: true }))}
+        listLabel="Branches"
+        emptyText={
+          data
+            ? 'No branch matches; Apply filters by names containing the text'
+            : 'Loading branches'
+        }
+      />
+      <Button type="submit" size="sm" variant="primary">
+        Apply
+      </Button>
     </form>
   )
 }

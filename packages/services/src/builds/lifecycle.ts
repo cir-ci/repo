@@ -120,7 +120,7 @@ export namespace finalizeBuild {
 export async function completeBuild(
   db: Database,
   build: Build,
-  result: { conclusion: NonNullable<Build['conclusion']>; approval: setBuildResult.Approval },
+  result: setBuildResult.Input,
 ): Promise<void> {
   await db.transaction(async (tx) => {
     const done = await setBuildResult(tx, build, result)

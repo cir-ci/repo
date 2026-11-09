@@ -140,3 +140,36 @@ describe('GET /api/workspaces/:workspace/builds/suggestions', () => {
     expect((await suggest('branch')).statusCode).toBe(400)
   })
 })
+
+const branchesOf = async (query = '', cookie?: string) =>
+  (await get(`${url('/branches')}${query}`, cookie))
+    .json()
+    .branches.map((b: { name: string }) => b.name)
+
+describe('GET /api/workspaces/:workspace/builds/branches', () => {
+  it('lists the branches, most recently built first, for the workspace or one team', async () => {
+    const all = await branchesOf()
+    // The docs builds are dated 2030: `main` (day 3) leads, then `feature` (day 2), then the fixture's.
+    expect(all.slice(0, 2)).toEqual(['main', 'feature'])
+    expect(await branchesOf(`?team=${docs.slug}`)).toEqual(['main', 'feature'])
+    expect(await branchesOf(`?team=${docs.slug}&limit=1`)).toEqual(['main'])
+  })
+
+  it('narrows by what is typed, in any case', async () => {
+    expect(await branchesOf(`?team=${docs.slug}&q=FEAT`)).toEqual(['feature'])
+    expect(await branchesOf('?q=zzz')).toEqual([])
+  })
+
+  it('filters the builds list by contains, and exact still means exact', async () => {
+    expect(ids(await listed('?branchContains=FEAT'))).toHaveLength(1)
+    expect(ids(await listed('?branch=feat'))).toHaveLength(0)
+    expect(ids(await listed('?branch=feature'))).toHaveLength(1)
+  })
+
+  it('is not found for a non-member or an unknown team, and rejects a bad limit', async () => {
+    expect((await get(url('/branches'), rivalCookie)).statusCode).toBe(404)
+    expect((await get(url('/branches?team=nope'))).statusCode).toBe(404)
+    expect((await get(url('/branches'), '')).statusCode).toBe(401)
+    expect((await get(url('/branches?limit=0'))).statusCode).toBe(400)
+  })
+})

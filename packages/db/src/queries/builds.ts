@@ -1,6 +1,6 @@
 import { ISSUE_LINK_KIND } from '@circi/core'
 import type { BuildOrder } from '@circi/core'
-import { aliasedTable, and, eq, gt, gte, inArray, lt, sql } from 'drizzle-orm'
+import { aliasedTable, and, eq, gt, gte, ilike, inArray, lt, sql } from 'drizzle-orm'
 
 import {
   type AncestryStatus,
@@ -17,6 +17,7 @@ import {
   screenshots,
 } from '#schema/index.ts'
 import type { getBuildCounts } from '#shared/build-counts.ts'
+import { containsPattern } from '#shared/like.ts'
 import type { Database } from '#src/client.ts'
 
 import { buildAfterCursor, buildOrderBy, teamTie } from './builds-order.ts'
@@ -62,7 +63,10 @@ export namespace listBuildsForTeam {
     status?: BuildStatus
     /** The review state. */
     reviewStatus?: ReviewStatus
+    /** Exactly this branch. */
     branch?: string
+    /** A branch whose name contains this text, in any case. */
+    branchContains?: string
     /** A login (any case) or a member's user id. */
     author?: string
     /** A member's user id: builds with an open review request for them. */
@@ -89,6 +93,9 @@ export function buildFilterConditions(f: listBuildsForTeam.Filters) {
     f.status ? eq(builds.status, f.status) : undefined,
     f.reviewStatus ? eq(builds.reviewStatus, f.reviewStatus) : undefined,
     f.branch === undefined ? undefined : eq(builds.branch, f.branch),
+    f.branchContains === undefined
+      ? undefined
+      : ilike(builds.branch, containsPattern(f.branchContains)),
     f.name === undefined ? undefined : eq(builds.name, f.name),
     f.author === undefined
       ? undefined

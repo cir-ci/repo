@@ -52,6 +52,8 @@ export const keys = {
     ['workspace-builds', workspace, ...page] as const,
   buildSuggestions: (workspace: string, field: string, text: string) =>
     ['build-suggestions', workspace, field, text] as const,
+  branches: (workspace: string, team: string | null, text: string) =>
+    ['branches', workspace, team, text] as const,
   views: (workspace: string) => ['views', workspace] as const,
   /** The sidebar of one workspace, or (no argument) of all of them. */
   sidebar: (workspace?: string) =>

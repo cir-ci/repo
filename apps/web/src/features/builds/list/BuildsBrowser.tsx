@@ -141,6 +141,7 @@ export function BuildsBrowser({
       {data && (builds.length > 0 || filtered) ? (
         <BuildFilterBar
           workspace={workspace}
+          team={team}
           filters={filters}
           onFiltersChange={onFiltersChange}
           display={display}

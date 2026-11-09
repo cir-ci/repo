@@ -11,6 +11,7 @@ import {
   toQuery,
   toWorkspaceQuery,
   toSearch,
+  withBranch,
   withDates,
   withState,
   withText,
@@ -104,6 +105,37 @@ describe('chips', () => {
     expect(dayEnd('2026-11-08')).toBe('2026-11-08T23:59:59.999Z')
     expect(dayStart('nope')).toBeUndefined()
     expect(without({ ...dated, branch: 'x' }, 'date')).toEqual({ branch: 'x' })
+  })
+})
+
+describe('the branch filter', () => {
+  it('keeps an exact branch and a contains search apart, in the URL and on the chip', () => {
+    expect(parseFilters({ branch: 'qa/pr20', branchContains: 'qa' })).toEqual({
+      branch: 'qa/pr20',
+      branchContains: 'qa',
+    })
+    expect(toQuery({ branchContains: 'qa' })).toBe('?branchContains=qa')
+    expect(hasFilters({ branchContains: 'qa' })).toBe(true)
+    expect(chipName('branch', { branchContains: 'qa' })).toBe('Branch: contains qa')
+    expect(without({ branch: 'a', branchContains: 'b', review: 'pending' }, 'branch')).toEqual({
+      review: 'pending',
+    })
+  })
+
+  it('sets the exact branch when picked or typed as a known one, else contains, else clears', () => {
+    const base = { review: 'pending' as const, branchContains: 'old' }
+    expect(withBranch(base, 'qa/pr20', { picked: true })).toEqual({
+      review: 'pending',
+      branch: 'qa/pr20',
+    })
+    expect(withBranch(base, ' main ', { known: ['main', 'qa/pr20'] })).toEqual({
+      review: 'pending',
+      branch: 'main',
+    })
+    expect(withBranch({ branch: 'main' }, 'qa', { known: ['main'] })).toEqual({
+      branchContains: 'qa',
+    })
+    expect(withBranch(base, '  ')).toEqual({ review: 'pending' })
   })
 })
 

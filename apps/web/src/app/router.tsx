@@ -1,4 +1,4 @@
-import { createRouter, type RouterHistory } from '@tanstack/react-router'
+import { createRoute, createRouter, type RouterHistory } from '@tanstack/react-router'
 
 import { accountRoutes } from '#features/account/routes.ts'
 import { baselinesRoutes } from '#features/baselines/routes.ts'
@@ -18,6 +18,16 @@ import { viewsRoutes } from '#features/views/routes.ts'
 import { workspaceSettingsRoutes } from '#features/workspace-settings/routes.ts'
 
 import { rootRoute } from './root-route.ts'
+import { WorkspaceRedirect } from './WorkspaceRedirect.tsx'
+
+/** `/reviews` and `/insights` alone belong to a workspace: they open it in the one chosen last, else the first. */
+const workspaceRedirects = (['reviews', 'insights'] as const).map((page) =>
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: page,
+    component: () => <WorkspaceRedirect page={page} />,
+  }),
+)
 
 /** The route tree: each feature declares its own routes; this only assembles them. */
 const routeTree = rootRoute.addChildren([
@@ -37,6 +47,7 @@ const routeTree = rootRoute.addChildren([
   ...workspaceSettingsRoutes,
   ...integrationsRoutes,
   ...instanceRoutes,
+  ...workspaceRedirects,
 ])
 
 /** The router; tests pass a memory `history` so they don't touch the address bar. */

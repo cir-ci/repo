@@ -8,7 +8,7 @@ import {
   WEEK_MS,
   weeksBetween,
 } from '@circi/core'
-import { and, count, eq, gte, inArray, isNotNull, lt, min, ne, sql, sum } from 'drizzle-orm'
+import { and, eq, gte, inArray, isNotNull, lt, min, ne, sql, sum } from 'drizzle-orm'
 import { union } from 'drizzle-orm/pg-core'
 
 import {
@@ -21,6 +21,7 @@ import {
   reviews,
   screenshotDiffs,
   screenshots,
+  snapshotReviews,
   user,
 } from '#schema/index.ts'
 import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
@@ -344,8 +345,19 @@ async function reviewerLoad(
     ]),
   )
   if (input.teamIds.length > 0) {
-    const decisions = await db
-      .select({ userId: reviews.userId, n: count() })
+    // A person's load is the builds they decided on in the range: a build-level decision, or a
+    // decision on any of its snapshots. A build's `reviews` row is only written by whoever
+    // moves its status, so counting those alone left out everyone who decided some snapshots
+    // and someone else finished (or decided the same way as a person before them).
+    const decided = new Map<string, Set<string>>()
+    const add = (userId: string | null, buildId: string) => {
+      if (!userId) return
+      const set = decided.get(userId) ?? new Set<string>()
+      set.add(buildId)
+      decided.set(userId, set)
+    }
+    const buildLevel = await db
+      .selectDistinct({ userId: reviews.userId, buildId: reviews.buildId })
       .from(reviews)
       .innerJoin(builds, eq(builds.id, reviews.buildId))
       .where(
@@ -357,10 +369,23 @@ async function reviewerLoad(
           lt(reviews.createdAt, input.to),
         ),
       )
-      .groupBy(reviews.userId)
-    for (const d of decisions) {
-      const row = d.userId ? load.get(d.userId) : undefined
-      if (row) row.reviews = d.n
+    const perSnapshot = await db
+      .selectDistinct({ userId: snapshotReviews.userId, buildId: snapshotReviews.buildId })
+      .from(snapshotReviews)
+      .innerJoin(builds, eq(builds.id, snapshotReviews.buildId))
+      .where(
+        and(
+          inArray(builds.teamId, input.teamIds),
+          isNotNull(snapshotReviews.userId),
+          ne(snapshotReviews.source, 'auto'),
+          gte(snapshotReviews.createdAt, input.from),
+          lt(snapshotReviews.createdAt, input.to),
+        ),
+      )
+    for (const d of [...buildLevel, ...perSnapshot]) add(d.userId, d.buildId)
+    for (const [userId, set] of decided) {
+      const row = load.get(userId)
+      if (row) row.reviews = set.size
     }
 
     const requests = await db

@@ -1,11 +1,24 @@
 import { rotationFor, rotationHandover } from '@circi/core'
-import { aliasedTable, and, desc, eq, gt, inArray, notExists, sql } from 'drizzle-orm'
+import {
+  aliasedTable,
+  and,
+  desc,
+  eq,
+  gt,
+  inArray,
+  isNull,
+  ne,
+  notExists,
+  or,
+  sql,
+} from 'drizzle-orm'
 
 import {
   builds,
   workspace,
   teams,
   screenshotDiffs,
+  snapshotReviews,
   type SnoozeKind,
   type TriageKind,
   triageItems,
@@ -129,6 +142,14 @@ export async function listTriage(
     .selectDistinctOn([screenshotDiffs.name], { name: screenshotDiffs.name, build: buildRef })
     .from(screenshotDiffs)
     .innerJoin(builds, eq(builds.id, screenshotDiffs.buildId))
+    .leftJoin(
+      snapshotReviews,
+      and(
+        eq(snapshotReviews.buildId, screenshotDiffs.buildId),
+        eq(snapshotReviews.snapshotName, screenshotDiffs.name),
+        isNull(snapshotReviews.supersededAt),
+      ),
+    )
     .where(
       and(
         eq(builds.teamId, team.id),
@@ -136,6 +157,20 @@ export async function listTriage(
         eq(builds.status, 'complete'),
         eq(builds.baselineSource, 'none'),
         eq(screenshotDiffs.status, 'added'),
+        // Not already a baseline: the same rule as `listBaselines` (a snapshot approved on its
+        // own, or undecided in a build that was approved or had no changes and was not rejected).
+        or(
+          eq(snapshotReviews.decision, 'rejected'),
+          and(
+            isNull(snapshotReviews.decision),
+            ne(builds.reviewStatus, 'approved'),
+            or(
+              isNull(builds.conclusion),
+              ne(builds.conclusion, 'no_changes'),
+              eq(builds.reviewStatus, 'rejected'),
+            ),
+          ),
+        ),
         notExists(
           db
             .select({ one: sql`1` })
@@ -257,7 +292,7 @@ export async function countOpenTriage(
       select id, default_branch from teams where workspace_id = ${input.workspaceId}
     ),
     main_builds as (
-      select b.id, b.team_id, b.number, b.status, b.baseline_source
+      select b.id, b.team_id, b.number, b.status, b.baseline_source, b.review_status, b.conclusion
       from builds b join ws_teams t on t.id = b.team_id and b.branch = t.default_branch
     ),
     latest_push as (
@@ -281,6 +316,16 @@ export async function countOpenTriage(
       select mb.team_id, 'no_baseline', d.name
       from screenshot_diffs d join main_builds mb on mb.id = d.build_id
       where mb.status = 'complete' and mb.baseline_source = 'none' and d.status = 'added'
+        and not exists (
+          select 1 from snapshot_reviews sr
+          where sr.build_id = mb.id and sr.snapshot_name = d.name and sr.superseded_at is null
+            and sr.decision = 'approved')
+        and not (mb.review_status = 'approved' and not exists (
+          select 1 from snapshot_reviews sr
+          where sr.build_id = mb.id and sr.snapshot_name = d.name and sr.superseded_at is null))
+        and not (coalesce(mb.conclusion, '') = 'no_changes' and mb.review_status <> 'rejected' and not exists (
+          select 1 from snapshot_reviews sr
+          where sr.build_id = mb.id and sr.snapshot_name = d.name and sr.superseded_at is null))
         and not exists (
           select 1 from screenshot_diffs ld join main_builds lb on lb.id = ld.build_id
           where lb.team_id = mb.team_id and lb.status = 'complete'

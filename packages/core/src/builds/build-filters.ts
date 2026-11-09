@@ -17,7 +17,10 @@ export const BUILD_FILTER_REVIEWS = ['pending', 'approved', 'rejected'] as const
 export interface BuildFilterValues {
   status?: (typeof BUILD_FILTER_STATUSES)[number]
   review?: (typeof BUILD_FILTER_REVIEWS)[number]
+  /** Exactly this branch. */
   branch?: string
+  /** A branch whose name contains this text, in any case. */
+  branchContains?: string
   author?: string
   reviewer?: string
   name?: string

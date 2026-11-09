@@ -257,6 +257,17 @@ export const suggestionsQuery = (workspace: string, field: 'author' | 'reviewer'
     staleTime: 30_000,
   })
 
+/** The branches builds were made on, most recent first, narrowed by the typed text (a team's, or the workspace's). */
+export const branchesQuery = (workspace: string, team: string | undefined, text: string) =>
+  queryOptions({
+    queryKey: keys.branches(workspace, team ?? null, text),
+    queryFn: () =>
+      getJson<WorkspaceBuilds.Branches>(
+        `${workspacePath(workspace, 'builds', 'branches')}?${new URLSearchParams({ q: text, ...(team ? { team } : {}) })}`,
+      ),
+    staleTime: 30_000,
+  })
+
 /** Approves or rejects several builds of a team in one request (all or nothing). */
 export function useBulkReview(workspace: string, team: string) {
   const queryClient = useQueryClient()

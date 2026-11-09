@@ -27,9 +27,12 @@ export function validateInsightsSearch(search: Record<string, unknown>): Insight
 
 const HOUR = 3_600_000
 
-/** The query's `from` and `to`; `to` is the current hour, so the cache key holds for an hour. */
+/**
+ * The query's `from` and `to`; `to` is the end of the current hour, so the cache key holds for an
+ * hour and builds and reviews from the last minutes are inside the range (the end is exclusive).
+ */
 export function rangeBounds(days: RangeDays, now: number): { from: string; to: string } {
-  const to = Math.floor(now / HOUR) * HOUR
+  const to = (Math.floor(now / HOUR) + 1) * HOUR
   return { from: new Date(to - days * 24 * HOUR).toISOString(), to: new Date(to).toISOString() }
 }
 

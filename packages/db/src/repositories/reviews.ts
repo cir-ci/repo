@@ -222,6 +222,49 @@ export async function approveChangedSnapshots(
   )
 }
 
+/**
+ * Carries the current decisions of an earlier build (a rejected one the new build is a re-run of)
+ * onto the new build's changed snapshots, as `rerun` decisions with no person behind them, and
+ * says what the build's status becomes. Nothing is written unless it comes out `rejected`: a
+ * rejection that no longer applies (the baseline moved, so the rejected snapshot is unchanged)
+ * is not carried.
+ */
+export async function carryRejection(
+  db: Database,
+  input: { fromBuildId: string; toBuildId: string },
+): Promise<{ status: ReviewStatus; reasons: string[] }> {
+  const changed = await listChangedSnapshotNames(db, input.toBuildId)
+  const earlier = await currentDecisions(db, input.fromBuildId)
+  const carried = changed.filter((n) => earlier.has(n))
+  const status = deriveReviewStatus({
+    changed,
+    decisions: new Map(carried.map((n) => [n, earlier.get(n)?.decision ?? 'approved'])),
+  })
+  if (status !== 'rejected') return { status: 'pending', reasons: [] }
+  await db.insert(snapshotReviews).values(
+    carried.map((snapshotName) => {
+      const d = earlier.get(snapshotName)
+      return {
+        buildId: input.toBuildId,
+        snapshotName,
+        decision: d?.decision ?? 'approved',
+        userId: null,
+        source: 'rerun' as const,
+        reason: d?.decision === 'rejected' ? d.reason : null,
+      }
+    }),
+  )
+  const reasons = [
+    ...new Set(
+      carried
+        .map((n) => earlier.get(n))
+        .filter((d) => d?.decision === 'rejected' && d.reason)
+        .map((d) => d?.reason ?? ''),
+    ),
+  ]
+  return { status: 'rejected', reasons }
+}
+
 /** Puts every current snapshot decision of a build into history (the build is being re-diffed). */
 export async function supersedeSnapshotReviews(db: Database, buildId: string): Promise<void> {
   await db

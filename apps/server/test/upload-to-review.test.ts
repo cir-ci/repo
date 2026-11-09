@@ -168,6 +168,19 @@ describe('circi upload → server → worker → --wait', () => {
     })
     expect(second.exitCode).toBe(1)
     expect(lines.some((l) => l.includes(`/builds/${second.build.number}`))).toBe(true)
+
+    // 3. The PR is rejected; re-running the CI job on the same commit (same images) stays
+    // rejected: the build says so, `--wait` fails the job, and nothing was approved by itself.
+    await reviewBuild(t.db, { buildId: second.build.id, userId: ownerId, state: 'rejected' })
+    const rerun = await upload({
+      ...common,
+      env: { CIRCI_PR_NUMBER: '12', CIRCI_BASE_BRANCH: 'main' },
+    })
+    expect(rerun.build.number).toBeGreaterThan(second.build.number)
+    expect(rerun.status?.build).toMatchObject({ status: 'complete', reviewStatus: 'rejected' })
+    expect(rerun.status?.outcome).toMatchObject({ state: 'fail', summary: 'Changes rejected' })
+    expect(rerun.exitCode).toBe(1)
+    expect(lines.some((l) => l.startsWith('Changes rejected:'))).toBe(true)
   })
 
   it('joins the shards of one CI run into a single build, finished by the last one', async () => {

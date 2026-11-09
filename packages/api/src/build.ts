@@ -167,6 +167,18 @@ export namespace WorkspaceBuilds {
     kind: 'member' | 'login'
   }
 
+  /** One branch of the branch picker. */
+  export interface Branch {
+    name: string
+    /** ISO datetime of the newest build on it. */
+    lastBuildAt: string
+  }
+
+  /** `GET /api/workspaces/:workspace/builds/branches?team=&q=&limit=`, most recently built first. */
+  export interface Branches {
+    branches: Branch[]
+  }
+
   /** `GET /api/workspaces/:workspace/builds/suggestions?field=&q=`. */
   export interface Suggestions {
     suggestions: Suggestion[]

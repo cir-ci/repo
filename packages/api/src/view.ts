@@ -6,7 +6,10 @@ export namespace View {
   export interface Filters {
     status?: 'pending' | 'uploading' | 'processing' | 'complete' | 'error' | 'expired'
     review?: 'pending' | 'approved' | 'rejected'
+    /** Exactly this branch. */
     branch?: string
+    /** A branch whose name contains this text, in any case. */
+    branchContains?: string
     author?: string
     reviewer?: string
     name?: string

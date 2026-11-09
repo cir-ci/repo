@@ -34,6 +34,7 @@ import type {
   listIgnoreRegionSnapshots,
   getSidebar,
   getSnapshotHistory,
+  listBranches,
   listBuildFilterSuggestions,
   listBuildsForWorkspace,
   WebhookDelivery,
@@ -107,6 +108,7 @@ export type ContractChecks = [
   Fits<Json<getSnapshotHistory.Result>, Snapshot.History>,
   Fits<Json<listBuildsForWorkspace.Item>, WorkspaceBuilds.Item>,
   Fits<listBuildFilterSuggestions.Item, WorkspaceBuilds.Suggestion>,
+  Fits<Json<listBranches.Item>, WorkspaceBuilds.Branch>,
   Fits<Json<WebhookDelivery>, Team.WebhookDelivery>,
   Fits<BuildFilterValues, View.Filters>,
   Fits<View.Filters, BuildFilterValues>,
@@ -114,6 +116,7 @@ export type ContractChecks = [
 
 /** Each entry must be `true`; a mismatch above makes its entry `never`, and this line fails. */
 export const contractChecks: ContractChecks = [
+  true,
   true,
   true,
   true,

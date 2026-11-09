@@ -1,6 +1,11 @@
 import type { WorkspaceBuilds } from '@circi/api'
 import { BUILD_ORDERS } from '@circi/core'
-import { listBuildFilterSuggestions, listBuildsForWorkspace } from '@circi/db/queries'
+import {
+  BRANCH_LIMIT,
+  listBranches,
+  listBuildFilterSuggestions,
+  listBuildsForWorkspace,
+} from '@circi/db/queries'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
@@ -18,6 +23,12 @@ const listQuery = z.object({
 const suggestQuery = z.object({
   field: z.enum(['author', 'reviewer']),
   q: z.string().max(100).default(''),
+})
+
+const branchQuery = z.object({
+  team: z.string().optional(),
+  q: z.string().max(255).default(''),
+  limit: z.coerce.number().int().min(1).max(100).default(BRANCH_LIMIT),
 })
 
 /** Page size of the workspace-wide builds list; the same as a team's. */
@@ -73,6 +84,27 @@ export const dashboardWorkspaceBuildsRoutes: FastifyPluginAsync<Deps.Dashboard> 
       })
       if (!found) return reply.code(404).send({ error: 'Workspace not found' })
       return { suggestions: found }
+    },
+  )
+
+  app.get(
+    '/workspaces/:workspace/builds/branches',
+    async (req, reply): Promise<WorkspaceBuilds.Branches | void> => {
+      const p = parse(params, req.params)
+      const q = parse(branchQuery, req.query)
+      const user = currentUser(req)
+      const found = await listBranches(deps.db, {
+        userId: user.id,
+        workspaceSlug: p.workspace,
+        method: user.method,
+        teamSlug: q.team,
+        query: q.q,
+        limit: q.limit,
+      })
+      if (!found) return reply.code(404).send({ error: 'Workspace or team not found' })
+      return {
+        branches: found.map((b) => ({ name: b.name, lastBuildAt: b.lastBuildAt.toISOString() })),
+      }
     },
   )
 }

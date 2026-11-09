@@ -1,0 +1,110 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.label {
+  color: var(--circi-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.control {
+  box-sizing: border-box;
+  width: 100%;
+  height: 32px;
+  padding-inline: 10px;
+  border: 1px solid var(--circi-line-strong);
+  border-radius: var(--circi-radius-control);
+  background: var(--circi-surface-raised);
+  color: var(--circi-text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+
+.control::placeholder {
+  color: var(--circi-text-tertiary);
+}
+
+.control:focus-visible {
+  outline: 2px solid var(--circi-accent-text);
+  outline-offset: 2px;
+}
+
+.control[data-invalid] {
+  border-color: var(--circi-state-rejected);
+}
+
+.control[data-disabled] {
+  opacity: 0.45;
+}
+
+/* The suggestions scroll after about eight rows. */
+.list {
+  box-sizing: border-box;
+  max-height: 232px;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  border: 1px solid var(--circi-line-strong);
+  border-radius: var(--circi-radius-popup);
+  background: var(--circi-surface-overlay);
+  font-size: 13px;
+  outline: none;
+}
+
+.list:empty {
+  display: none;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 28px;
+  padding-inline: 8px;
+  border-radius: var(--circi-radius-control);
+  color: var(--circi-text-primary);
+  cursor: default;
+  user-select: none;
+}
+
+.item[data-highlighted] {
+  background: var(--circi-action-hover);
+}
+
+.itemText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty {
+  margin: 0;
+  padding: 4px 2px;
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
+}
+
+.empty:empty {
+  display: none;
+}
+
+.description,
+.error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.description {
+  color: var(--circi-text-tertiary);
+}
+
+.error {
+  color: var(--circi-state-rejected-text);
+}

@@ -2,6 +2,7 @@ import type { BuildOrder } from '@circi/core'
 import { and, asc, eq, ilike, isNotNull, isNull, sql } from 'drizzle-orm'
 
 import { builds, member, teams, user, workspace } from '#schema/index.ts'
+import { containsPattern as contains } from '#shared/like.ts'
 import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
 import type { Database } from '#src/client.ts'
 import { assertFound } from '#src/errors.ts'
@@ -29,7 +30,7 @@ export namespace listBuildsForWorkspace {
 }
 
 /** The workspace if the person belongs to it, else undefined. */
-async function visibleWorkspace(
+export async function visibleWorkspace(
   db: Database,
   input: { userId: string; workspaceSlug: string; method?: SessionMethod | undefined },
 ) {
@@ -117,9 +118,6 @@ export namespace listBuildFilterSuggestions {
 }
 
 export const SUGGESTION_LIMIT = 8
-
-/** Escapes `%`, `_` and `\` so the typed text matches literally inside `ilike`. */
-const contains = (text: string) => `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`
 
 /**
  * People to offer while someone types an author or reviewer filter: the workspace's members by

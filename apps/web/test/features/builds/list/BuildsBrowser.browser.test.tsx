@@ -74,13 +74,88 @@ describe('filters', () => {
       .toHaveAttribute('aria-pressed', 'true')
 
     await page.getByRole('button', { name: 'Branch' }).click()
-    await page.getByRole('textbox', { name: 'Branch' }).fill('main')
+    await page.getByRole('combobox', { name: 'Branch' }).fill('main')
     await userEvent.keyboard('{Enter}')
-    expect(router.state.location.search).toEqual({ review: 'approved', branch: 'main' })
-    await expect.poll(() => fake.urls).toContain('/api/teams/acme/web?review=approved&branch=main')
+    expect(router.state.location.search).toEqual({ review: 'approved', branchContains: 'main' })
+    await expect
+      .poll(() => fake.urls)
+      .toContain('/api/teams/acme/web?review=approved&branchContains=main')
 
     await page.getByRole('button', { name: 'Clear filters' }).click()
     expect(router.state.location.search).toEqual({})
+  })
+
+  describe('the branch picker', () => {
+    const branches = {
+      'GET /api/workspaces/acme/builds/branches': {
+        body: {
+          branches: [
+            { name: 'main', lastBuildAt: '2026-11-08T10:00:00.000Z' },
+            { name: 'qa/pr20', lastBuildAt: '2026-11-07T10:00:00.000Z' },
+            { name: 'feature/login', lastBuildAt: '2026-11-06T10:00:00.000Z' },
+          ],
+        },
+      },
+    }
+
+    it('lists the team’s branches in the order given, and asks the server as you type', async () => {
+      const fake = api([build(3)], branches)
+      await show()
+      await page.getByRole('button', { name: 'Branch' }).click()
+      const options = page.getByRole('option')
+      await expect.element(options.first()).toHaveTextContent('main')
+      expect(options.elements().map((o) => o.textContent)).toEqual([
+        'main',
+        'qa/pr20',
+        'feature/login',
+      ])
+      expect(fake.urls).toContain('/api/workspaces/acme/builds/branches?q=&team=web')
+      await page.getByRole('combobox', { name: 'Branch' }).fill('QA')
+      await expect
+        .poll(() => fake.urls)
+        .toContain('/api/workspaces/acme/builds/branches?q=QA&team=web')
+    })
+
+    it('filters to exactly the branch picked, with the mouse', async () => {
+      const fake = api([build(3)], branches)
+      const { router } = await show()
+      await page.getByRole('button', { name: 'Branch' }).click()
+      await page.getByRole('option', { name: 'qa/pr20' }).click()
+      expect(router.state.location.search).toEqual({ branch: 'qa/pr20' })
+      await expect.poll(() => fake.urls).toContain('/api/teams/acme/web?branch=qa%2Fpr20')
+      await expect.element(page.getByRole('button', { name: 'Branch: qa/pr20' })).toBeVisible()
+    })
+
+    it('picks with the arrow keys and Enter', async () => {
+      api([build(3)], branches)
+      const { router } = await show()
+      await page.getByRole('button', { name: 'Branch' }).click()
+      await expect.element(page.getByRole('option', { name: 'main' })).toBeVisible()
+      await page.getByRole('combobox', { name: 'Branch' }).click()
+      await userEvent.keyboard('{ArrowDown}{ArrowDown}{Enter}')
+      expect(router.state.location.search).toEqual({ branch: 'qa/pr20' })
+    })
+
+    it('filters by names containing free text that is not a branch, and shows it on the chip', async () => {
+      const fake = api([build(3)], branches)
+      const { router } = await show()
+      await page.getByRole('button', { name: 'Branch' }).click()
+      await page.getByRole('combobox', { name: 'Branch' }).fill('pr2')
+      await userEvent.keyboard('{Enter}')
+      expect(router.state.location.search).toEqual({ branchContains: 'pr2' })
+      await expect.poll(() => fake.urls).toContain('/api/teams/acme/web?branchContains=pr2')
+      await expect.element(page.getByRole('button', { name: 'Branch: contains pr2' })).toBeVisible()
+    })
+
+    it('treats text typed exactly as a listed branch as that branch', async () => {
+      api([build(3)], branches)
+      const { router } = await show()
+      await page.getByRole('button', { name: 'Branch' }).click()
+      await expect.element(page.getByRole('option', { name: 'main' })).toBeVisible()
+      await page.getByRole('combobox', { name: 'Branch' }).fill('main')
+      await userEvent.keyboard('{Enter}')
+      expect(router.state.location.search).toEqual({ branch: 'main' })
+    })
   })
 
   it('says no builds match, and clears the filters from there', async () => {

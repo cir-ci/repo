@@ -14,6 +14,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { getInsights } from '#src/queries/index.ts'
 import { createTeam } from '#src/repositories/index.ts'
+import * as schemaTables from '#src/schema/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -221,6 +222,73 @@ describe('getInsights', () => {
         },
       ].toSorted((a, b) => a.name.localeCompare(b.name)),
     )
+  })
+
+  it('counts a member for every build they decided snapshots on, even when someone else finished it', async () => {
+    const { team, workspace, owner } = await seedTeam(t.db)
+    const mia = await seedUser(t.db)
+    await addTestMember(t.db, { workspaceId: workspace.id, userId: mia.id })
+    const at0 = at('03-10T10:00')
+    const mk = (ready: string) =>
+      seedBuild(t.db, team.id, {
+        branch: 'feature/x',
+        status: 'complete',
+        conclusion: 'changes_detected',
+        createdAt: at(ready),
+        completedAt: at(ready),
+      })
+    const b1 = await mk('03-10T08:00')
+    const b2 = await mk('03-11T08:00')
+    const decide = (
+      buildId: string,
+      userId: string,
+      name: string,
+      decision: 'approved' | 'rejected',
+    ) =>
+      t.db.insert(schemaTables.snapshotReviews).values({
+        buildId,
+        snapshotName: name,
+        decision,
+        userId,
+        source: 'ui',
+        createdAt: at0,
+      })
+    // b1: Owner rejects `a`, then Mia approves `b`; the build's status only moved once, to rejected
+    // by Owner, so only Owner has a build-level review row.
+    await decide(b1.id, owner.id, 'a', 'rejected')
+    await decide(b1.id, mia.id, 'b', 'approved')
+    await seedReview(t.db, { buildId: b1.id, userId: owner.id, state: 'rejected', createdAt: at0 })
+    // b2: Mia approves two snapshots; Owner approves a third and so finishes it.
+    await decide(b2.id, mia.id, 'a', 'approved')
+    await decide(b2.id, mia.id, 'b', 'approved')
+    await decide(b2.id, owner.id, 'c', 'approved')
+    await seedReview(t.db, { buildId: b2.id, userId: owner.id, createdAt: at0 })
+    const r = await getInsights(t.db, { userId: owner.id, workspaceSlug: workspace.slug, ...range })
+    expect(Object.fromEntries(r?.reviewers.map((m) => [m.id, m.reviews]) ?? [])).toEqual({
+      [owner.id]: 2,
+      [mia.id]: 2,
+    })
+  })
+
+  it('counts what happened in the last minutes before `to`', async () => {
+    const { team, workspace, owner } = await seedTeam(t.db)
+    const made = at('03-22T23:50')
+    const b = await seedBuild(t.db, team.id, {
+      branch: 'feature/x',
+      status: 'complete',
+      conclusion: 'changes_detected',
+      createdAt: made,
+      completedAt: made,
+    })
+    await seedReview(t.db, { buildId: b.id, userId: owner.id, createdAt: at('03-22T23:55') })
+    const r = await getInsights(t.db, {
+      userId: owner.id,
+      workspaceSlug: workspace.slug,
+      from: at('03-09T00:00'),
+      to: at('03-23T00:00'),
+    })
+    expect(r?.summary).toMatchObject({ buildsFinished: 1, buildsWithChanges: 1, buildsReviewed: 1 })
+    expect(r?.reviewers.find((m) => m.id === owner.id)?.reviews).toBe(1)
   })
 
   it('narrows to one team', async () => {

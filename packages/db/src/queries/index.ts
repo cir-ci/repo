@@ -2,6 +2,7 @@
 export * from './activity.ts'
 export * from './auth-settings.ts'
 export * from './baselines.ts'
+export * from './branches.ts'
 export * from './builds-lookup.ts'
 export * from './builds-order.ts'
 export * from './builds.ts'

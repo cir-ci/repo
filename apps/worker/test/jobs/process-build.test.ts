@@ -522,6 +522,101 @@ describe('re-runs of an approved commit', () => {
   })
 })
 
+const outcomeOf = async (id: string) => {
+  const build = await getBuild(t.db, id)
+  return buildOutcome({ ...build!, ...(await gateInputs(t.db, build!)) })
+}
+
+describe('re-runs of a rejected commit', () => {
+  it('stays rejected: the re-run carries the rejection and the merge stays blocked', async () => {
+    const { team, owner, changed } = await prSetup()
+    const first = await uploadBuild(team.id, pr(), { home: changed })
+    await processBuild({ db: t.db, storage }, first.id)
+    await reviewBuild(t.db, {
+      buildId: first.id,
+      userId: owner.id,
+      state: 'rejected',
+      reason: 'the header moved',
+    })
+
+    const rerun = await uploadBuild(team.id, pr(), { home: changed })
+    expect(await processBuild({ db: t.db, storage }, rerun.id)).toMatchObject({
+      conclusion: 'changes_detected',
+      autoApproved: false,
+    })
+    expect(await getBuild(t.db, rerun.id)).toMatchObject({
+      status: 'complete',
+      reviewStatus: 'rejected',
+    })
+    expect(await listBuildReviews(t.db, rerun.id)).toMatchObject([
+      { state: 'rejected', source: 'rerun', userName: null, reason: 'the header moved' },
+    ])
+    expect(await outcomeOf(rerun.id)).toMatchObject({ state: 'fail', summary: 'Changes rejected' })
+
+    // Another re-run of the re-run is still rejected.
+    const again = await uploadBuild(team.id, pr(), { home: changed })
+    await processBuild({ db: t.db, storage }, again.id)
+    expect(await getBuild(t.db, again.id)).toMatchObject({ reviewStatus: 'rejected' })
+  })
+
+  it('carries each snapshot decision, as an approval does', async () => {
+    const { team, owner, home, changed } = await prSetup()
+    const other = await png(200, 100, { x: 90, y: 10 })
+    const first = await uploadBuild(team.id, pr(), { home: changed, about: other })
+    await processBuild({ db: t.db, storage }, first.id)
+    await reviewSnapshots(t.db, {
+      buildId: first.id,
+      userId: owner.id,
+      decision: 'approved',
+      snapshotNames: ['about'],
+    })
+    await reviewSnapshots(t.db, {
+      buildId: first.id,
+      userId: owner.id,
+      decision: 'rejected',
+      snapshotNames: ['home'],
+      reason: 'nope',
+    })
+    expect(await getBuild(t.db, first.id)).toMatchObject({ reviewStatus: 'rejected' })
+
+    const rerun = await uploadBuild(team.id, pr(), { home: changed, about: other })
+    await processBuild({ db: t.db, storage }, rerun.id)
+    expect(await getBuild(t.db, rerun.id)).toMatchObject({ reviewStatus: 'rejected' })
+    const decisions = await t.db.query.snapshotReviews.findMany({
+      where: (r, { and, eq, isNull }) => and(eq(r.buildId, rerun.id), isNull(r.supersededAt)),
+    })
+    expect(
+      decisions
+        .map((d) => [d.snapshotName, d.decision, d.source, d.userId, d.reason])
+        .toSorted((a, b) => String(a[0]).localeCompare(String(b[0]))),
+    ).toEqual([
+      ['about', 'approved', 'rerun', null, null],
+      ['home', 'rejected', 'rerun', null, 'nope'],
+    ])
+    expect(home).toBeDefined()
+  })
+
+  it('is decided again by approving, and by changing an image', async () => {
+    const { team, owner, changed } = await prSetup()
+    const first = await uploadBuild(team.id, pr(), { home: changed })
+    await processBuild({ db: t.db, storage }, first.id)
+    await reviewBuild(t.db, { buildId: first.id, userId: owner.id, state: 'rejected' })
+
+    const different = await png(200, 100, { x: 120, y: 10 })
+    const edited = await uploadBuild(team.id, pr(), { home: different })
+    await processBuild({ db: t.db, storage }, edited.id)
+    expect(await getBuild(t.db, edited.id)).toMatchObject({ reviewStatus: 'pending' })
+
+    // Someone approves the rejected build: the next re-run is approved.
+    await reviewBuild(t.db, { buildId: first.id, userId: owner.id, state: 'approved' })
+    const rerun = await uploadBuild(team.id, pr(), { home: changed })
+    expect(await processBuild({ db: t.db, storage }, rerun.id)).toMatchObject({
+      autoApproved: true,
+    })
+    expect(await getBuild(t.db, rerun.id)).toMatchObject({ reviewStatus: 'approved' })
+  })
+})
+
 describe('startWorker', () => {
   it('picks up the job finalize enqueued and completes the build', async () => {
     const { team } = await seedTeam(t.db)

@@ -28,12 +28,13 @@ describe('insights search', () => {
     expect(validateInsightsSearch({ range: '12', team: 3 })).toEqual({ range: 30 })
   })
 
-  it('bounds the range at the current hour', () => {
+  it('bounds the range at the end of the current hour, so what just happened is counted', () => {
     const now = Date.parse('2026-11-08T10:42:00Z')
     expect(rangeBounds(7, now)).toEqual({
-      from: '2026-11-01T10:00:00.000Z',
-      to: '2026-11-08T10:00:00.000Z',
+      from: '2026-11-01T11:00:00.000Z',
+      to: '2026-11-08T11:00:00.000Z',
     })
+    expect(Date.parse(rangeBounds(30, now).to)).toBeGreaterThan(now)
   })
 })
 

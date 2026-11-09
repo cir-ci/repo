@@ -99,6 +99,34 @@ describe('listTriage', () => {
     expect((await listTriage(t.db, { teamId: team.id, now })).items).toEqual([])
   })
 
+  it("does not list a first build's screenshots once its approval made them baselines", async () => {
+    const { team, workspace } = await seedTeam(t.db)
+    const first = await mainBuild(team.id, { baselineSource: 'none' })
+    await seedDiff(t.db, { buildId: first.id, name: 'home', status: 'added' })
+    await seedDiff(t.db, { buildId: first.id, name: 'about', status: 'added' })
+    await seedDiff(t.db, { buildId: first.id, name: 'pricing', status: 'added' })
+    const keys = async () =>
+      (await listTriage(t.db, { teamId: team.id, now })).items.map((i) => i.key).toSorted()
+    const open = async () => [
+      ...(await countOpenTriage(t.db, { workspaceId: workspace.id, now })).values(),
+    ]
+    expect(await keys()).toEqual(['about', 'home', 'pricing'])
+    // `home` accepted on its own, `about` rejected, `pricing` undecided: only `home` is a baseline.
+    await t.db.insert(schema.snapshotReviews).values([
+      { buildId: first.id, snapshotName: 'home', decision: 'approved', source: 'ui' },
+      { buildId: first.id, snapshotName: 'about', decision: 'rejected', source: 'ui' },
+    ])
+    expect(await keys()).toEqual(['about', 'pricing'])
+    expect(await open()).toEqual([2])
+    // The whole build approved: `pricing` is a baseline too; the rejected `about` is not.
+    await t.db
+      .update(schema.builds)
+      .set({ reviewStatus: 'approved' })
+      .where(eq(schema.builds.id, first.id))
+    expect(await keys()).toEqual(['about'])
+    expect(await open()).toEqual([1])
+  })
+
   it('leaves dismissed items out and marks snoozed ones', async () => {
     const { team } = await seedTeam(t.db)
     const a = await mainBuild(team.id, { status: 'error' })

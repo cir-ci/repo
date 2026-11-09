@@ -10,7 +10,7 @@ export type BuildsSearch = BuildFilters & { before?: number }
 
 const STATUSES = ['pending', 'uploading', 'processing', 'complete', 'error', 'expired'] as const
 const REVIEWS = ['pending', 'approved', 'rejected'] as const
-const TEXT_KEYS = ['branch', 'author', 'reviewer', 'name'] as const
+const TEXT_KEYS = ['branch', 'branchContains', 'author', 'reviewer', 'name'] as const
 
 /** An ISO datetime in the one form the API accepts (UTC, with the `Z`), or nothing. */
 function isoOrUndefined(value: unknown): string | undefined {
@@ -149,6 +149,23 @@ export function withText(
   return value.trim() === '' ? rest : { ...rest, [key]: value.trim() }
 }
 
+/**
+ * `filters` with the Branch chip set from what the Branch picker gave: a branch picked from the
+ * list (or typed exactly as one of `known`) filters to that branch; other text filters by
+ * branches that contain it, in any case; empty clears the chip.
+ */
+export function withBranch(
+  filters: BuildFilters,
+  text: string,
+  options: { picked?: boolean; known?: readonly string[] } = {},
+): BuildFilters {
+  const { branch: _b, branchContains: _c, ...rest } = filters
+  const value = text.trim()
+  if (value === '') return rest
+  if (options.picked || options.known?.includes(value)) return { ...rest, branch: value }
+  return { ...rest, branchContains: value }
+}
+
 /** `filters` with the date range set; an empty or invalid day leaves that end open. */
 export function withDates(filters: BuildFilters, from: string, to: string): BuildFilters {
   const { from: _f, to: _t, ...rest } = filters
@@ -159,7 +176,7 @@ export function withDates(filters: BuildFilters, from: string, to: string): Buil
 
 const FIELD_KEYS: Record<FilterField, readonly (keyof BuildFilters)[]> = {
   status: ['status', 'review'],
-  branch: ['branch'],
+  branch: ['branch', 'branchContains'],
   author: ['author'],
   reviewer: ['reviewer'],
   name: ['name'],
@@ -199,6 +216,11 @@ export function fieldValue(
       const value = filters[field]
       return value === undefined ? undefined : (labels?.get(value) ?? value)
     }
+    case 'branch':
+      return (
+        filters.branch ??
+        (filters.branchContains === undefined ? undefined : `contains ${filters.branchContains}`)
+      )
     default:
       return filters[field]
   }

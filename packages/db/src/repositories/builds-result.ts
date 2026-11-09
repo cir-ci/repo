@@ -5,7 +5,7 @@ import type { Database } from '#src/client.ts'
 import { assertFound } from '#src/errors.ts'
 import type { Build } from '#src/types.ts'
 
-import { approveChangedSnapshots, supersedeSnapshotReviews } from './reviews.ts'
+import { approveChangedSnapshots, carryRejection, supersedeSnapshotReviews } from './reviews.ts'
 
 /** Recording how a build ended, and resetting it for another run. */
 
@@ -20,10 +20,10 @@ import { approveChangedSnapshots, supersedeSnapshotReviews } from './reviews.ts'
 export async function setBuildResult(
   db: Database,
   build: Build,
-  result: { conclusion: BuildConclusion; approval: setBuildResult.Approval },
+  result: setBuildResult.Input,
 ): Promise<Build> {
   return db.transaction(async (tx) => {
-    const approved = result.approval !== 'none'
+    const approved = result.approval === 'default-branch' || result.approval === 'rerun'
     await tx
       .update(builds)
       .set({
@@ -41,6 +41,20 @@ export async function setBuildResult(
         source: result.approval === 'rerun' ? 'rerun' : 'auto',
       })
       await approveChangedSnapshots(tx, build.id, result.approval === 'rerun' ? 'rerun' : 'auto')
+    } else if (result.approval === 'rerun-rejected') {
+      const carried = await carryRejection(tx, {
+        fromBuildId: result.carriedFrom,
+        toBuildId: build.id,
+      })
+      if (carried.status === 'rejected') {
+        await tx.update(builds).set({ reviewStatus: 'rejected' }).where(eq(builds.id, build.id))
+        await tx.insert(reviews).values({
+          buildId: build.id,
+          state: 'rejected',
+          source: 'rerun',
+          reason: carried.reasons.join('\n') || null,
+        })
+      }
     }
     const [done] = await tx.select().from(builds).where(eq(builds.id, build.id))
     assertFound(done, 'Build not found')
@@ -49,20 +63,34 @@ export async function setBuildResult(
 }
 
 export namespace setBuildResult {
-  /** Why a finished build starts out approved without anyone clicking. */
-  export type Approval = 'none' | 'default-branch' | 'rerun'
+  /**
+   * Why a finished build starts out decided without anyone clicking: approved on the default
+   * branch, approved because the same commit's exact screenshots were approved, or rejected
+   * because they were rejected (`carriedFrom` is that earlier build).
+   */
+  export type Approval = Input['approval']
+  export type Input = {
+    conclusion: BuildConclusion
+  } & (
+    | { approval: 'none' | 'default-branch' | 'rerun' }
+    | { approval: 'rerun-rejected'; carriedFrom: string }
+  )
 }
 
 /**
- * The earlier build that makes this one an approved re-run, if any: same team, build name and
- * commit, currently approved, with exactly the same screenshots (same names, same bytes). This
- * is what lets "approve in the dashboard, then re-run the CI job" go green: the re-run is a new
- * build, but nothing in it is new to the reviewer. A different commit, a different screenshot or
- * a rejected earlier build never qualifies.
+ * The earlier build whose decision a re-run inherits, if any: same team, build name and commit,
+ * currently approved or rejected, with exactly the same screenshots (same names, same bytes);
+ * the newest such build decides. This is what lets "approve in the dashboard, then re-run the CI
+ * job" go green, and "reject, then re-run" stay red: the re-run is a new build, but nothing in it
+ * is new to the reviewer. A different commit or a different screenshot never qualifies, and
+ * approving (or rejecting) a build later moves the decision with it.
  */
-export async function findApprovedRerunOf(db: Database, build: Build): Promise<string | undefined> {
+export async function findDecidedRerunOf(
+  db: Database,
+  build: Build,
+): Promise<{ id: string; state: 'approved' | 'rejected' } | undefined> {
   const earlier = await db
-    .select({ id: builds.id })
+    .select({ id: builds.id, reviewStatus: builds.reviewStatus })
     .from(builds)
     .where(
       and(
@@ -70,7 +98,7 @@ export async function findApprovedRerunOf(db: Database, build: Build): Promise<s
         eq(builds.name, build.name),
         eq(builds.commitSha, build.commitSha),
         eq(builds.status, 'complete'),
-        eq(builds.reviewStatus, 'approved'),
+        inArray(builds.reviewStatus, ['approved', 'rejected']),
         ne(builds.id, build.id),
       ),
     )
@@ -89,7 +117,12 @@ export async function findApprovedRerunOf(db: Database, build: Build): Promise<s
   const mine = await signature(build.id)
   for (const candidate of earlier) {
     // oxlint-disable-next-line no-await-in-loop -- stops at the first match; there are rarely more than a couple
-    if ((await signature(candidate.id)) === mine) return candidate.id
+    if ((await signature(candidate.id)) === mine) {
+      return {
+        id: candidate.id,
+        state: candidate.reviewStatus === 'rejected' ? 'rejected' : 'approved',
+      }
+    }
   }
   return undefined
 }

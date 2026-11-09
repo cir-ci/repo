@@ -2,13 +2,14 @@ import { pairScreenshots, resolveBaseline } from '@circi/core'
 import { type Database, type NewScreenshotDiff, type Screenshot } from '@circi/db'
 import { getBuild, getTeamById } from '@circi/db/queries'
 import {
-  findApprovedRerunOf,
+  findDecidedRerunOf,
   ignoreRegionsByName,
   listBaselineCandidates,
   listBuildDiffs,
   listBuildScreenshots,
   replaceBuildDiffs,
   setBuildBaseline,
+  type setBuildResult,
   setFileDimensions,
   setScreenshotThumbnail,
   updateDiff,
@@ -205,7 +206,7 @@ export async function processBuild(
   // 5. Conclusion. Added, removed and unreadable screenshots all need a human look. A build with
   // no baseline (a team's first) is never auto-approved: someone reviews every screenshot once.
   const conclusion = statuses.every((s) => s === 'unchanged') ? 'no_changes' : 'changes_detected'
-  let approval: completeBuild.Approval = 'none'
+  let outcome: setBuildResult.Input = { conclusion, approval: 'none' }
   if (conclusion === 'changes_detected') {
     if (
       baseBuild !== undefined &&
@@ -213,14 +214,23 @@ export async function processBuild(
       build.prNumber === null &&
       build.branch === team.defaultBranch
     ) {
-      approval = 'default-branch'
-    } else if (await findApprovedRerunOf(db, build)) {
-      // A CI re-run of a commit whose exact screenshots someone already approved.
-      approval = 'rerun'
+      outcome = { conclusion, approval: 'default-branch' }
+    } else {
+      // A CI re-run of a commit whose exact screenshots someone already decided on: approved
+      // stays approved, rejected stays rejected, until someone decides again or an image changes.
+      const earlier = await findDecidedRerunOf(db, build)
+      if (earlier?.state === 'approved') outcome = { conclusion, approval: 'rerun' }
+      else if (earlier) {
+        outcome = { conclusion, approval: 'rerun-rejected', carriedFrom: earlier.id }
+      }
     }
   }
-  await completeBuild(db, build, { conclusion, approval })
-  return { status: 'complete', conclusion, autoApproved: approval !== 'none' }
+  await completeBuild(db, build, outcome)
+  return {
+    status: 'complete',
+    conclusion,
+    autoApproved: outcome.approval === 'default-branch' || outcome.approval === 'rerun',
+  }
 }
 
 async function thumbnailFor(
