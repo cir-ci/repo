@@ -17,10 +17,11 @@ import { useEffect, useState } from 'react'
 
 import { fileUrl } from '#features/builds/api/index.ts'
 import { RegionLayer } from '#features/regions/RegionLayer.tsx'
+import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { focusRow, nextAfterRemoval } from '#lib/list-keys.ts'
-import { PageHeading, teamCrumb } from '#lib/PageHeading.tsx'
+import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
@@ -57,6 +58,7 @@ const hasSnapshot = (item: Triage.Item | undefined) => !!item?.snapshotName
 
 export function TriagePage() {
   const { workspace, team } = useParams({ from: ROUTE })
+  const names = useCrumbNames(workspace, team)
   useDocumentTitle('Triage', team)
   const announce = useAnnounce()
   const query = useQuery(triageQuery(workspace, team))
@@ -154,7 +156,7 @@ export function TriagePage() {
   return (
     <>
       <PageHeading
-        crumbs={[teamCrumb(workspace, { slug: team, name: team })]}
+        crumbs={crumbsFor(names)}
         title="Triage"
         actions={
           data && chip && data.rotation.onTriage ? (

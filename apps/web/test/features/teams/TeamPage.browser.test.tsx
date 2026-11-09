@@ -29,7 +29,7 @@ describe('TeamPage', () => {
     hangingFetch()
     await show()
     const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
-    await expect.poll(() => crumbs.element().textContent).toBe('Teamsacmeweb')
+    await expect.poll(() => crumbs.element().textContent).toBe('acmeweb')
     await expect.element(page.getByText('web', { exact: true })).toBeVisible()
     expect(page.getByRole('list', { name: 'Builds' }).elements()).toHaveLength(0)
     await expect.element(page.getByRole('status').first()).toHaveTextContent('Loading builds')
@@ -42,7 +42,13 @@ describe('TeamPage', () => {
       .element(page.getByRole('navigation', { name: 'Breadcrumb' }).getByText('Web App'))
       .toBeVisible()
     await expect.element(page.getByText('Acme Inc')).toBeVisible()
-    await expect.element(page.getByRole('link', { name: 'Teams' })).toHaveAttribute('href', '/')
+    await expect
+      .element(
+        page
+          .getByRole('navigation', { name: 'Breadcrumb' })
+          .getByRole('link', { name: 'Acme Inc' }),
+      )
+      .toHaveAttribute('href', '/inbox')
     await expect.element(page.getByRole('button', { name: 'Copy default branch' })).toBeVisible()
     await expect
       .element(page.getByText(/become the baselines that pull requests are compared with/))

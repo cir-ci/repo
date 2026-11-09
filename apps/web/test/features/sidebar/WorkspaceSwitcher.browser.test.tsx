@@ -51,17 +51,17 @@ describe('WorkspaceSwitcher', () => {
     await expect.element(trigger).toHaveFocus()
   })
 
-  it('offers Create workspace only when the person may create one', async () => {
+  it('offers New workspace only when the person may create one', async () => {
     await show().ready
     await page.getByRole('button', { name: 'Workspace: Acme' }).click()
-    expect(page.getByRole('menuitem', { name: 'Create workspace' }).elements()).toHaveLength(0)
+    expect(page.getByRole('menuitem', { name: 'New workspace' }).elements()).toHaveLength(0)
   })
 
   it('creates a workspace from the menu', async () => {
     const onCreate = vi.fn<() => void>()
     await show({ onCreate }).ready
     await page.getByRole('button', { name: 'Workspace: Acme' }).click()
-    await page.getByRole('menuitem', { name: 'Create workspace' }).click()
+    await page.getByRole('menuitem', { name: 'New workspace' }).click()
     expect(onCreate).toHaveBeenCalledTimes(1)
   })
 

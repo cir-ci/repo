@@ -57,6 +57,15 @@ export function teamSettingsCrumb(workspace: string, team: string): Crumb {
   }
 }
 
+/** The "Builds" crumb of a build page (Workspace / Team / Builds / Build #N): the team's Builds page. */
+export function teamBuildsCrumb(workspace: string, team: string): Crumb {
+  return {
+    label: 'Builds',
+    link: { to: '/$workspace/$team', params: { workspace, team } },
+    tooltip: 'Go to Builds',
+  }
+}
+
 /** A workspace's "Settings" crumb, for pages below the settings home. */
 export function workspaceSettingsCrumb(workspace: string): Crumb {
   return {

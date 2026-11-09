@@ -61,7 +61,12 @@ describe('BuildPage states', () => {
     )
     await renderBuild()
     const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
+    // Display names stand in as slugs until the teams list arrives; Workspace / Team / Builds / Build #N.
+    await expect
+      .element(crumbs.getByRole('link', { name: 'acme' }))
+      .toHaveAttribute('href', '/inbox')
     await expect.element(crumbs.getByRole('link', { name: 'web-app' })).toBeVisible()
+    await expect.element(crumbs.getByRole('link', { name: 'Builds' })).toBeVisible()
     await expect.element(crumbs.getByText('Build #7')).toBeVisible()
     expect(page.getByRole('button', { name: 'Approve all' }).elements()).toHaveLength(0)
   })

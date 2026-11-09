@@ -10,8 +10,11 @@
   min-width: 0;
 }
 
-.newTeam button {
-  border: 1px dashed var(--circi-line-strong);
+.none {
+  margin: 0;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--circi-text-tertiary);
 }
 
 .pin {

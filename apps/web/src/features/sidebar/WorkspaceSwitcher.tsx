@@ -9,7 +9,7 @@ import styles from './WorkspaceSwitcher.module.css'
 
 /**
  * The workspace the sidebar is about, at its top: a menu of the workspaces the person can see
- * (the open one is marked), a way to its settings and, when allowed, "Create workspace". A Base UI
+ * (the open one is marked), a way to its settings and, when allowed, "New workspace". A Base UI
  * menu: arrow keys move, Escape closes and focus returns to the button.
  */
 export function WorkspaceSwitcher({
@@ -61,7 +61,7 @@ export function WorkspaceSwitcher({
         ...(onCreate
           ? [
               {
-                label: 'Create workspace',
+                label: 'New workspace',
                 icon: <PlusIcon />,
                 onSelect: onCreate,
               } satisfies Menu.Item,

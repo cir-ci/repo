@@ -3,8 +3,9 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 
 import { useSidebarModel } from '#features/sidebar/api.ts'
+import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
-import { PageHeading, workspaceCrumb } from '#lib/PageHeading.tsx'
+import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 
 import {
@@ -32,6 +33,7 @@ export function InsightsPage() {
   useDocumentTitle('Insights', workspace)
   const query = useQuery(insightsQuery(workspace, search))
   const { data: sidebar } = useSidebarModel(workspace)
+  const names = useCrumbNames(workspace)
 
   const go = (next: InsightsSearch) =>
     void navigate({ to: ROUTE, params: { workspace }, search: next })
@@ -47,7 +49,7 @@ export function InsightsPage() {
   return (
     <>
       <PageHeading
-        crumbs={[workspaceCrumb({ slug: workspace, name: workspace })]}
+        crumbs={crumbsFor(names)}
         title="Insights"
         actions={
           <div className={styles.filters}>

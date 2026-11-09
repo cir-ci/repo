@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 import { TeamSwitcher } from '#features/sidebar/TeamSwitcher.tsx'
-import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { sidebarTeam } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -80,18 +79,10 @@ describe('TeamSwitcher', () => {
     await expect.element(trigger).toHaveFocus()
   })
 
-  it('has no New team entry for someone who manages no workspace', async () => {
-    await show([])
-    await page.getByRole('button', { name: 'Switch team' }).click()
-    await expect.element(panel().getByRole('link', { name: 'Web App' })).toBeVisible()
-    expect(panel().getByRole('button', { name: 'New team' }).elements()).toHaveLength(0)
-  })
-
-  it('opens the New team dialog for someone who manages a workspace', async () => {
+  it('has no New team entry, even for someone who manages a workspace', async () => {
     await show([{ slug: 'acme', name: 'Acme' }])
     await page.getByRole('button', { name: 'Switch team' }).click()
-    await panel().getByRole('button', { name: 'New team' }).click()
-    expect(useOverlayStore.getState().newTeamOpen).toBe(true)
-    await expect.element(panel()).not.toBeInTheDocument()
+    await expect.element(panel().getByRole('link', { name: 'Web App' })).toBeVisible()
+    expect(page.getByRole('button', { name: 'New team' }).elements()).toHaveLength(0)
   })
 })

@@ -18,8 +18,9 @@ import { Link, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { authClient } from '#lib/auth-client.ts'
+import { workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
-import { PageHeading, workspaceCrumb } from '#lib/PageHeading.tsx'
+import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
@@ -82,13 +83,9 @@ export function MembersPage() {
   return (
     <>
       <PageHeading
-        crumbs={[
-          workspaceCrumb({ slug: workspace, name: data?.name ?? workspace }),
-          {
-            label: 'Settings',
-            link: { to: '/workspaces/$workspace/settings', params: { workspace } },
-          },
-        ]}
+        crumbs={crumbsFor({ workspace: { slug: workspace, name: data?.name ?? workspace } }, [
+          workspaceSettingsCrumb(workspace),
+        ])}
         title="Members"
       />
       <div className={styles.page}>

@@ -1,7 +1,6 @@
 import type { Sidebar as SidebarModel } from '@circi/api'
 import {
   FolderOpenIcon,
-  IconButton,
   InboxIcon,
   InsightsIcon,
   Kbd,
@@ -9,7 +8,6 @@ import {
   NavItem,
   NavSection,
   PinIcon,
-  PlusIcon,
   ReviewIcon,
   SearchIcon,
   SettingsIcon,
@@ -43,10 +41,10 @@ import {
 import styles from './Sidebar.module.css'
 
 /**
- * Top to bottom (the canvas's Sidebar board): the workspace switcher and "+" (New team), Search,
+ * Top to bottom (the canvas's Sidebar board): the workspace switcher, Search,
  * Inbox, Reviews, Teams, Insights, Settings, then the workspace's teams (Pinned, then Teams; the
  * open one expands to Builds, Triage, Baselines, Sites and Settings), "Your views", and the
- * account button. With no teams there is only a "New team" entry. `AppFrame` wraps this in the
+ * account button. With no teams the Teams section says "No teams yet"; creating a team lives on the Teams page. `AppFrame` wraps this in the
  * Main navigation on wide screens; the `Drawer` does on narrow ones.
  */
 export function Sidebar({ user }: Sidebar.Props) {
@@ -55,7 +53,6 @@ export function Sidebar({ user }: Sidebar.Props) {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const section = currentSection(pathname)
   const setCommandMenuOpen = useOverlayStore((s) => s.setCommandMenuOpen)
-  const setNewTeamOpen = useOverlayStore((s) => s.setNewTeamOpen)
   const setNewWorkspaceOpen = useOverlayStore((s) => s.setNewWorkspaceOpen)
   const [chosen, setChosen] = useState(readRememberedWorkspace)
   const { workspaces, workspace } = useWorkspaces(chosen)
@@ -65,7 +62,6 @@ export function Sidebar({ user }: Sidebar.Props) {
   const pinned = shown.filter((team) => team.pinned)
   const others = shown.filter((team) => !team.pinned)
   const views = pinnedViews(model?.views)
-  const canCreateTeam = (caps?.manageableWorkspaces.length ?? 0) > 0
   const openTeam = params.workspace === workspace?.slug ? params.team : undefined
 
   function switchWorkspace(next: WorkspaceRef) {
@@ -98,11 +94,6 @@ export function Sidebar({ user }: Sidebar.Props) {
             {...(caps?.canCreateWorkspace ? { onCreate: () => setNewWorkspaceOpen(true) } : {})}
           />
         </div>
-        {canCreateTeam ? (
-          <IconButton label="New team" onClick={() => setNewTeamOpen(true)}>
-            <PlusIcon />
-          </IconButton>
-        ) : null}
       </div>
       <NavItem
         icon={<SearchIcon />}
@@ -157,13 +148,9 @@ export function Sidebar({ user }: Sidebar.Props) {
           Settings
         </NavLink>
       )}
-      {workspace && model && shown.length === 0 && canCreateTeam ? (
+      {workspace && model && shown.length === 0 ? (
         <NavSection label="Teams">
-          <div className={styles.newTeam}>
-            <NavItem icon={<PlusIcon />} onClick={() => setNewTeamOpen(true)}>
-              New team
-            </NavItem>
-          </div>
+          <p className={styles.none}>No teams yet</p>
         </NavSection>
       ) : null}
       {pinned.length > 0 ? <NavSection label="Pinned">{teamEntries(pinned)}</NavSection> : null}

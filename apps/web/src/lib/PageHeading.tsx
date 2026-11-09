@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 import type { Crumb as CrumbType } from './crumbs.ts'
 import { useClientLink } from './use-client-link.ts'
 
-export { crumbsFor, teamCrumb, workspaceCrumb } from './crumbs.ts'
+export { crumbsFor, teamBuildsCrumb, teamCrumb, workspaceCrumb } from './crumbs.ts'
 
 const NO_CRUMBS: readonly PageHeading.Crumb[] = []
 

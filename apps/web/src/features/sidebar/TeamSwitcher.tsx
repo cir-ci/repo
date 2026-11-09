@@ -1,32 +1,26 @@
 import type { Sidebar } from '@circi/api'
-import { CheckIcon, ExpandMoreIcon, PlusIcon, Popover, TeamTile } from '@circi/ui'
-import { useQuery } from '@tanstack/react-query'
+import { CheckIcon, ExpandMoreIcon, Popover, TeamTile } from '@circi/ui'
 import { useRouter, useRouterState } from '@tanstack/react-router'
 import { type KeyboardEvent, type MouseEvent, useRef, useState } from 'react'
 
 import { matchTeams, rememberTeam, teamSettingsPath } from '#app/shell-model.ts'
-import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { isTeamIconName } from '#features/teams/appearance.ts'
-import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 
 import styles from './TeamSwitcher.module.css'
 
 /**
  * The team switcher in the Team section's header of the settings nav: a button opening a panel
- * with a search box, the workspace's teams (the current one marked) and "New team". Picking a team
+ * with a search box, the workspace's teams (the current one marked) Picking a team
  * stays on the settings page you are on. Arrow keys move between the search box and the teams,
  * Escape closes it and focus returns to the button.
  */
 export function TeamSwitcher({ workspace, teams, current }: TeamSwitcher.Props) {
   const router = useRouter()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const { data: caps } = useQuery(capabilitiesQuery())
-  const setNewTeamOpen = useOverlayStore((s) => s.setNewTeamOpen)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const panel = useRef<HTMLDivElement>(null)
   const matches = matchTeams(teams, query)
-  const canCreateTeam = (caps?.manageableWorkspaces.length ?? 0) > 0
 
   const focusables = () =>
     Array.from(panel.current?.querySelectorAll<HTMLElement>('[data-switch-item]') ?? [])
@@ -102,23 +96,6 @@ export function TeamSwitcher({ workspace, teams, current }: TeamSwitcher.Props) 
         </ul>
         {matches.length === 0 ? (
           <p className={styles.none}>{`No team matches “${query}”.`}</p>
-        ) : null}
-        {canCreateTeam ? (
-          <>
-            <hr className={styles.separator} />
-            <button
-              data-switch-item=""
-              type="button"
-              className={styles.item}
-              onClick={() => {
-                setOpen(false)
-                setNewTeamOpen(true)
-              }}
-            >
-              <PlusIcon />
-              <span className={styles.name}>New team</span>
-            </button>
-          </>
         ) : null}
       </div>
     </Popover>

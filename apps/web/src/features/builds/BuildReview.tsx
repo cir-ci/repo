@@ -19,7 +19,7 @@ import { ShortcutsDialog } from '#app/ShortcutsDialog.tsx'
 import { commentsQuery } from '#features/builds/api/discussion.ts'
 import { flakyQuery, isActive } from '#features/builds/api/index.ts'
 import { regionThreads } from '#features/regions/geometry.ts'
-import { PageHeading, teamCrumb } from '#lib/PageHeading.tsx'
+import { crumbsFor, PageHeading, teamBuildsCrumb } from '#lib/PageHeading.tsx'
 import { RouterLink } from '#lib/router-link.ts'
 import { isAvailable, SHORTCUTS, useShortcutHandlers } from '#lib/shortcuts.ts'
 import { useListNavigation } from '#lib/use-list-navigation.ts'
@@ -160,7 +160,13 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   return (
     <div className={page['page']}>
       <PageHeading
-        crumbs={[teamCrumb(team.workspaceSlug, { slug: team.slug, name: team.name })]}
+        crumbs={crumbsFor(
+          {
+            workspace: { slug: team.workspaceSlug, name: team.workspaceName },
+            team: { slug: team.slug, name: team.name },
+          },
+          [teamBuildsCrumb(team.workspaceSlug, team.slug)],
+        )}
         title={buildTitle(build.number, build.name)}
         actions={
           <>

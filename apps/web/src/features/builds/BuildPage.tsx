@@ -5,9 +5,10 @@ import { useParams } from '@tanstack/react-router'
 import { useEffect, useRef } from 'react'
 
 import { buildQuery, isActive } from '#features/builds/api/index.ts'
+import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
-import { PageHeading, teamCrumb } from '#lib/PageHeading.tsx'
+import { crumbsFor, PageHeading, teamBuildsCrumb } from '#lib/PageHeading.tsx'
 
 import { buildTitle } from './build-title.ts'
 import { BuildReview } from './BuildReview.tsx'
@@ -21,6 +22,7 @@ export function BuildPage() {
   const { data, error, refetch } = useQuery(buildQuery(params.workspace, params.team, number))
   useDocumentTitle(`Build #${number}`, params.team)
   useProcessingAnnouncement(data)
+  const names = useCrumbNames(params.workspace, params.team)
 
   if (data) return <BuildReview data={data} />
 
@@ -28,7 +30,7 @@ export function BuildPage() {
   return (
     <div className={styles.page}>
       <PageHeading
-        crumbs={[teamCrumb(params.workspace, { slug: params.team, name: params.team })]}
+        crumbs={crumbsFor(names, [teamBuildsCrumb(params.workspace, params.team)])}
         title={buildTitle(number)}
       />
       {error ? (

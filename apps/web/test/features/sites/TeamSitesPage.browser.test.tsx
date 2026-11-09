@@ -55,11 +55,13 @@ describe('TeamSitesPage', () => {
     expect(document.querySelector('[data-slot="skeleton"]')).not.toBeNull()
   })
 
-  it('has breadcrumbs back to Teams and the team', async () => {
+  it('has breadcrumbs to the workspace Inbox and the team’s Builds', async () => {
     fakeFetch({ [API]: list([site]) })
     await open()
     const trail = page.getByRole('navigation', { name: 'Breadcrumb' })
-    await expect.element(trail.getByRole('link', { name: 'Teams' })).toHaveAttribute('href', '/')
+    await expect
+      .element(trail.getByRole('link', { name: 'acme' }))
+      .toHaveAttribute('href', '/inbox')
     await expect
       .element(trail.getByRole('link', { name: 'web' }))
       .toHaveAttribute('href', '/acme/web')

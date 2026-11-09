@@ -12,8 +12,9 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
+import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
-import { PageHeading, teamCrumb } from '#lib/PageHeading.tsx'
+import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
@@ -33,16 +34,11 @@ export function TeamSitesPage() {
   const { workspace, team } = useParams({ from: '/$workspace/$team/sites' })
   const query = useQuery(teamSitesQuery(workspace, team))
   useDocumentTitle('Sites', team)
+  const names = useCrumbNames(workspace, team)
 
   return (
     <>
-      <PageHeading
-        crumbs={[
-          { label: 'Teams', link: { to: '/' } },
-          teamCrumb(workspace, { slug: team, name: team }),
-        ]}
-        title="Sites"
-      />
+      <PageHeading crumbs={crumbsFor(names)} title="Sites" />
       <div className={styles.content}>
         <div className={styles.intro}>
           <Text as="p" tone="secondary">

@@ -5,8 +5,9 @@ import { useState } from 'react'
 
 import { parseFilters, type BuildFilters } from '#features/builds/list/builds-filters.ts'
 import { BuildsBrowser } from '#features/builds/list/BuildsBrowser.tsx'
+import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
-import { PageHeading } from '#lib/PageHeading.tsx'
+import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 
 import { findView, viewsQuery } from './api.ts'
@@ -20,10 +21,11 @@ export function ViewPage() {
   const { data } = query
   const view = findView(data?.views, id)
   useDocumentTitle(view?.name ?? 'View')
+  const names = useCrumbNames(workspace)
 
   return (
     <>
-      <PageHeading crumbs={[{ label: 'Views' }]} title={view?.name ?? '…'} />
+      <PageHeading crumbs={crumbsFor(names, [{ label: 'Views' }])} title={view?.name ?? '…'} />
       <div className={styles.content}>
         <QueryBoundary query={query} rows={4}>
           {() =>

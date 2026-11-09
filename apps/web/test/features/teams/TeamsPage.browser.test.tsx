@@ -3,6 +3,7 @@ import { page, userEvent } from 'vitest/browser'
 
 import { TeamDialogs } from '#features/teams/TeamDialogs.tsx'
 import { TeamsPage } from '#features/teams/TeamsPage.tsx'
+import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -47,7 +48,7 @@ const openWorkspaceDialog = async () => {
     }),
   })
   await show()
-  await page.getByRole('button', { name: 'New workspace' }).click()
+  useOverlayStore.getState().setNewWorkspaceOpen(true)
   await expect.element(page.getByRole('dialog', { name: 'New workspace' })).toBeVisible()
   return api
 }
@@ -85,6 +86,21 @@ describe('TeamsPage', () => {
     await expect.element(page.getByText('abcdef7')).toBeVisible()
     await expect.element(page.getByText('No builds yet')).toBeVisible()
     await expect.element(page.getByRole('img', { name: 'No builds yet' })).toBeVisible()
+  })
+
+  it('has no New workspace button in the header (it lives in the workspace switcher)', async () => {
+    fakeApi({
+      'GET /api/teams': { body: { teams: [overview('acme', 'web-app')] } },
+      'GET /api/capabilities': {
+        body: caps({
+          canCreateWorkspace: true,
+          manageableWorkspaces: [{ slug: 'acme', name: 'Acme' }],
+        }),
+      },
+    })
+    await show()
+    await expect.element(page.getByRole('button', { name: 'New team' })).toBeVisible()
+    expect(page.getByRole('button', { name: 'New workspace' }).elements()).toHaveLength(0)
   })
 
   it('navigates to a team when its link is clicked', async () => {
@@ -126,7 +142,7 @@ describe('TeamsPage', () => {
       .toBeVisible()
     await expect
       .poll(() => page.getByRole('button', { name: 'New workspace' }).elements().length)
-      .toBe(2)
+      .toBe(1)
     expect(page.getByRole('button', { name: 'New team' }).elements()).toHaveLength(0)
   })
 
@@ -209,7 +225,7 @@ describe('TeamsPage', () => {
       await openWorkspaceDialog()
       await page.getByRole('button', { name: 'Cancel' }).click()
       await expect.element(page.getByRole('dialog')).not.toBeInTheDocument()
-      await page.getByRole('button', { name: 'New workspace' }).click()
+      useOverlayStore.getState().setNewWorkspaceOpen(true)
       await userEvent.keyboard('{Escape}')
       await expect.element(page.getByRole('dialog')).not.toBeInTheDocument()
     })

@@ -5,8 +5,9 @@ import { useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { fileUrl } from '#features/builds/api/index.ts'
+import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
-import { PageHeading, teamCrumb } from '#lib/PageHeading.tsx'
+import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useClientLink } from '#lib/use-client-link.ts'
@@ -29,6 +30,7 @@ import styles from './BaselinesPage.module.css'
 
 export function BaselinesPage() {
   const { workspace, team } = useParams({ from: ROUTE })
+  const names = useCrumbNames(workspace, team)
   useDocumentTitle('Baselines', team)
   const clientLink = useClientLink()
   const query = useQuery(baselinesQuery(workspace, team))
@@ -49,7 +51,7 @@ export function BaselinesPage() {
 
   return (
     <>
-      <PageHeading crumbs={[teamCrumb(workspace, { slug: team, name: team })]} title="Baselines" />
+      <PageHeading crumbs={crumbsFor(names)} title="Baselines" />
       <div className={listStyles['page']}>
         <div className={listStyles['body']}>
           <QueryBoundary

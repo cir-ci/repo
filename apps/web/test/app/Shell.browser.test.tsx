@@ -612,7 +612,7 @@ describe('Shell, menus', () => {
     await expect.poll(() => router.state.location.pathname).toBe('/workspaces/acme/settings')
   })
 
-  it('offers Create workspace when the person may create one', async () => {
+  it('offers New workspace when the person may create one', async () => {
     await page.viewport(1280, 800)
     API['/api/capabilities'] = {
       canCreateWorkspace: true,
@@ -623,7 +623,7 @@ describe('Shell, menus', () => {
     try {
       await renderShell('/')
       await page.getByRole('button', { name: 'Workspace: Acme' }).click()
-      await page.getByRole('menuitem', { name: 'Create workspace' }).click()
+      await page.getByRole('menuitem', { name: 'New workspace' }).click()
       await expect.element(page.getByRole('dialog', { name: 'New workspace' })).toBeVisible()
     } finally {
       API['/api/capabilities'] = {
@@ -637,7 +637,7 @@ describe('Shell, menus', () => {
 })
 
 describe('Shell, sidebar teams', () => {
-  it('shows only a New team entry when the workspace has no teams', async () => {
+  it('says “No teams yet” when the workspace has no teams, with no New team entry', async () => {
     await page.viewport(1280, 800)
     API['/api/capabilities'] = {
       canCreateWorkspace: false,
@@ -649,14 +649,10 @@ describe('Shell, sidebar teams', () => {
     try {
       await renderShell('/')
       const nav = page.getByRole('navigation', { name: 'Main' })
-      await expect.element(nav.getByRole('button', { name: 'New team' }).last()).toBeVisible()
+      await expect.element(nav.getByText('No teams yet')).toBeVisible()
+      expect(nav.getByRole('button', { name: 'New team' }).elements()).toHaveLength(0)
       expect(nav.getByRole('region', { name: 'Pinned' }).elements()).toHaveLength(0)
       expect(nav.getByRole('region', { name: 'Your views' }).elements()).toHaveLength(0)
-      await nav
-        .getByRole('region', { name: 'Teams' })
-        .getByRole('button', { name: 'New team' })
-        .click()
-      await expect.element(page.getByRole('dialog', { name: 'New team' })).toBeVisible()
     } finally {
       API['/api/capabilities'] = {
         canCreateWorkspace: false,
@@ -668,30 +664,7 @@ describe('Shell, sidebar teams', () => {
     }
   })
 
-  it('has a + button for New team next to the workspace name when teams can be created', async () => {
-    await page.viewport(1280, 800)
-    API['/api/capabilities'] = {
-      canCreateWorkspace: false,
-      instanceAdmin: false,
-      manageableWorkspaces: [{ slug: 'acme', name: 'Acme' }],
-      refusingWorkspaces: [],
-    }
-    try {
-      await renderShell('/')
-      const nav = page.getByRole('navigation', { name: 'Main' })
-      await nav.getByRole('button', { name: 'New team' }).click()
-      await expect.element(page.getByRole('dialog', { name: 'New team' })).toBeVisible()
-    } finally {
-      API['/api/capabilities'] = {
-        canCreateWorkspace: false,
-        instanceAdmin: false,
-        manageableWorkspaces: [],
-        refusingWorkspaces: [],
-      }
-    }
-  })
-
-  it('has no + when the person can’t create teams, and shows each team’s tile', async () => {
+  it('has no + or New team, and shows each team’s tile', async () => {
     await page.viewport(1280, 800)
     await renderShell('/')
     const nav = page.getByRole('navigation', { name: 'Main' })

@@ -29,7 +29,6 @@ export function TeamsPage() {
   const query = useQuery(teamsQuery())
   const { data: caps } = useQuery(capabilitiesQuery())
   const setNewTeamOpen = useOverlayStore((s) => s.setNewTeamOpen)
-  const setNewWorkspaceOpen = useOverlayStore((s) => s.setNewWorkspaceOpen)
   const canCreateTeam = (caps?.manageableWorkspaces.length ?? 0) > 0
   const canCreateWorkspace = caps?.canCreateWorkspace === true
 
@@ -39,11 +38,6 @@ export function TeamsPage() {
         title="Teams"
         actions={
           <>
-            {canCreateWorkspace ? (
-              <Button size="sm" onClick={() => setNewWorkspaceOpen(true)}>
-                New workspace
-              </Button>
-            ) : null}
             {canCreateTeam ? (
               <Button size="sm" variant="primary" onClick={() => setNewTeamOpen(true)}>
                 New team

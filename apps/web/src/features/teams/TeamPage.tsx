@@ -13,7 +13,7 @@ import { useSidebarModel } from '#features/sidebar/api.ts'
 import { flakyQuery, teamQuery } from '#features/teams/api/index.ts'
 import { usePinTeam } from '#features/views/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
-import { PageHeading, workspaceCrumb } from '#lib/PageHeading.tsx'
+import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { useDisplayStore } from '#lib/stores/display-store.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 
@@ -47,10 +47,9 @@ export function TeamPage() {
   return (
     <>
       <PageHeading
-        crumbs={[
-          { label: 'Teams', link: { to: '/' } },
-          workspaceCrumb({ slug: workspace, name: data?.team.workspaceName ?? workspace }),
-        ]}
+        crumbs={crumbsFor({
+          workspace: { slug: workspace, name: data?.team.workspaceName ?? workspace },
+        })}
         title={data?.team.name ?? team}
         actions={
           <>
