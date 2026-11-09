@@ -1,4 +1,4 @@
-import { addTestMember, createTestDb, seedTeam, seedUser } from '@circi/testing'
+import { addTestMember, createTestDb, seedTeam, seedUser } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { listTeamsOverview } from '#src/queries/index.ts'

@@ -1,22 +1,9 @@
 /**
- * Test support shared by every package: an in-process Postgres (PGlite) with the real
- * migrations applied, and seeders that insert rows the way better-auth leaves them. Tests
- * import it as `@circi/testing` instead of reaching into another package's `test/` folder.
+ * Test support that needs no database, shared by every package: clock, hashes, images and
+ * mailer fakes (host fakes are in `@circi/testing/hosts`). The PGlite database and seeders
+ * are `@circi/db/testing`.
  */
-export * from './db.ts'
-export * from './seed/auth.ts'
-export * from './seed/builds.ts'
-export * from './seed/comments.ts'
-export * from './seed/git.ts'
-export * from './seed/notifications.ts'
-export * from './seed/reviews.ts'
-export * from './seed/screenshots.ts'
-export * from './seed/sites.ts'
-export * from './seed/webhooks.ts'
-export * from './seed/sessions.ts'
-export * from './seed/views.ts'
 export * from './clock.ts'
-export * from './created-at.ts'
 export * from './hash.ts'
 export * from './image.ts'
 export * from './mailer.ts'

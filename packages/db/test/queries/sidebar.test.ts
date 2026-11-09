@@ -9,7 +9,7 @@ import {
   seedReviewRequest,
   seedSavedView,
   seedUser,
-} from '@circi/testing'
+} from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { getSidebar } from '#src/queries/index.ts'

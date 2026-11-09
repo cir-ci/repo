@@ -1,4 +1,4 @@
-import { createTestDb, seedUser } from '@circi/testing'
+import { createTestDb, seedUser } from '@circi/db/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 

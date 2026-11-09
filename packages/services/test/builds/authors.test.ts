@@ -1,6 +1,6 @@
 import { listBuildsForTeam } from '@circi/db/queries'
 import * as schema from '@circi/db/schema'
-import { createTestDb, seedAccount, seedTeam } from '@circi/testing'
+import { createTestDb, seedAccount, seedTeam } from '@circi/db/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 

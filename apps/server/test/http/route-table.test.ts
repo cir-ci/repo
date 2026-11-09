@@ -2,8 +2,8 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import { createTestDb } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
-import { createTestDb } from '@circi/testing'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 

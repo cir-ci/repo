@@ -5,7 +5,7 @@ import {
   listUserWorkspaceIds,
 } from '@circi/db/queries'
 import * as schema from '@circi/db/schema'
-import { createTestDb } from '@circi/testing'
+import { createTestDb } from '@circi/db/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 

@@ -3,8 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { addMember, createUser } from '@circi/auth'
+import { createTestDb } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
-import { createTestDb } from '@circi/testing'
 import { pino } from 'pino'
 
 import { buildServer } from '#http/app.ts'

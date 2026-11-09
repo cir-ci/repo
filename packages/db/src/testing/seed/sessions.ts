@@ -1,5 +1,5 @@
-import { type Database } from '@circi/db'
-import * as schema from '@circi/db/schema'
+import * as schema from '#schema/index.ts'
+import { type Database } from '#src/index.ts'
 
 let n = 0
 

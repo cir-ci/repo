@@ -1,4 +1,4 @@
-import { createTestDb, seedBuild, seedGitLink, seedTeam } from '@circi/testing'
+import { createTestDb, seedBuild, seedGitLink, seedTeam } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { getTeamGitAttention, getTeamLink } from '#src/queries/index.ts'

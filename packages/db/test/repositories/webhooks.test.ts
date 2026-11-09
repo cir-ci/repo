@@ -1,5 +1,5 @@
 import { ValidationError } from '@circi/core'
-import { createTestDb, seedTeam } from '@circi/testing'
+import { createTestDb, seedTeam } from '@circi/db/testing'
 import { eq, sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 

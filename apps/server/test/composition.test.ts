@@ -2,7 +2,7 @@ import { resolve } from 'node:path'
 
 import { setupCode } from '@circi/auth'
 import { loadConfig } from '@circi/config'
-import { createTestDb, seedWorkspace } from '@circi/testing'
+import { createTestDb, seedWorkspace } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { serverOptionsFor, type ServerRuntime } from '#composition/server-options.ts'

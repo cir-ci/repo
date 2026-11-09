@@ -7,9 +7,6 @@ import { getIntegration } from '@circi/db/queries'
 import { QUEUES } from '@circi/db/queue'
 import { createBuild, createIntegration, setIntegrationTeam } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
-import type { IntegrationDefinition } from '@circi/integrations'
-import { notifyOverdueReviews, requestReview, reviewBuild } from '@circi/services'
-import { FsStorage } from '@circi/storage'
 import {
   addTestMember,
   createTestDb,
@@ -17,7 +14,10 @@ import {
   seedReviewRequest,
   seedUser,
   seedChangedSnapshots,
-} from '@circi/testing'
+} from '@circi/db/testing'
+import type { IntegrationDefinition } from '@circi/integrations'
+import { notifyOverdueReviews, requestReview, reviewBuild } from '@circi/services'
+import { FsStorage } from '@circi/storage'
 import { fakeSlackHost } from '@circi/testing/hosts'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'

@@ -421,6 +421,7 @@ const RULES: Rule[] = [
         .filter(
           (f) =>
             !/^packages\/(config|cli|testing|vitest)\//.test(f) &&
+            !f.startsWith('packages/db/src/testing/') &&
             !f.startsWith('apps/server/src/cli/') &&
             !/(^|\/)main\.ts$/.test(f) &&
             !/\/(lifecycle|composition)\/runtime\.ts$/.test(f),

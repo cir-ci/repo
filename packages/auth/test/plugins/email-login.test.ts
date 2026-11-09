@@ -1,5 +1,5 @@
 import * as schema from '@circi/db/schema'
-import { createTestDb, seedWorkspace, seedUser } from '@circi/testing'
+import { createTestDb, seedWorkspace, seedUser } from '@circi/db/testing'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { type Auth, createAuth, type Mailer } from '#src/index.ts'

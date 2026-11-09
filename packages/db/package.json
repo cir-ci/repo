@@ -9,14 +9,16 @@
     "#repositories/*": "./src/repositories/*",
     "#schema/*": "./src/schema/*",
     "#shared/*": "./src/shared/*",
-    "#src/*": "./src/*"
+    "#src/*": "./src/*",
+    "#testing/*": "./src/testing/*"
   },
   "exports": {
     ".": "./src/index.ts",
     "./queries": "./src/queries/index.ts",
     "./repositories": "./src/repositories/index.ts",
     "./queue": "./src/queue/index.ts",
-    "./schema": "./src/schema/index.ts"
+    "./schema": "./src/schema/index.ts",
+    "./testing": "./src/testing/index.ts"
   },
   "scripts": {
     "generate": "drizzle-kit generate"
@@ -27,8 +29,10 @@
     "pg": "catalog:"
   },
   "devDependencies": {
+    "@circi/testing": "workspace:*",
     "@electric-sql/pglite": "catalog:",
     "@types/pg": "catalog:",
-    "drizzle-kit": "catalog:"
+    "drizzle-kit": "catalog:",
+    "vitest": "catalog:"
   }
 }

@@ -5,7 +5,7 @@ import {
   seedTeam,
   seedReviewRequest,
   seedUser,
-} from '@circi/testing'
+} from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { listReviewRequests } from '#src/queries/index.ts'

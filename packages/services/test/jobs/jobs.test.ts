@@ -2,14 +2,8 @@ import { type Job } from '@circi/db'
 import { listWebhookDeliveries } from '@circi/db/queries'
 import { QUEUES } from '@circi/db/queue'
 import { createBuild, setNotificationPreferences } from '@circi/db/repositories'
-import {
-  addTestMember,
-  createTestDb,
-  fakeMailer,
-  seedTeam,
-  seedUser,
-  seedWebhook,
-} from '@circi/testing'
+import { addTestMember, createTestDb, seedTeam, seedUser, seedWebhook } from '@circi/db/testing'
+import { fakeMailer } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { deliverWebhook, notify, sendNotificationEmail } from '#src/index.ts'

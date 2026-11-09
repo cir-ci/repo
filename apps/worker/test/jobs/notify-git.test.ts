@@ -9,8 +9,6 @@ import {
 } from '@circi/db/queue'
 import { createBuild, setWorkspaceSettings, updateTeamSettings } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
-import { GithubApiError, GithubInstallationRevokedError } from '@circi/integrations/github'
-import { completeBuild, reviewBuild } from '@circi/services'
 import {
   createTestDb,
   seedBuild,
@@ -18,7 +16,9 @@ import {
   seedGitLink,
   seedTeam,
   seedChangedSnapshots,
-} from '@circi/testing'
+} from '@circi/db/testing'
+import { GithubApiError, GithubInstallationRevokedError } from '@circi/integrations/github'
+import { completeBuild, reviewBuild } from '@circi/services'
 import { recordingGithub } from '@circi/testing/hosts'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'

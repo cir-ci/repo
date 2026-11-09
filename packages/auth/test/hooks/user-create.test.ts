@@ -1,4 +1,4 @@
-import { createTestDb, seedInvitation, seedWorkspace, seedWorkspaceDomain } from '@circi/testing'
+import { createTestDb, seedInvitation, seedWorkspace, seedWorkspaceDomain } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { beforeUserCreate } from '#hooks/user-create.ts'

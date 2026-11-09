@@ -1,4 +1,4 @@
-import { addTestMember, createTestDb, seedWorkspace, seedUser } from '@circi/testing'
+import { addTestMember, createTestDb, seedWorkspace, seedUser } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { NotFoundError } from '#src/index.ts'

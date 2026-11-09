@@ -1,4 +1,4 @@
-import { createTestDb } from '@circi/testing'
+import { createTestDb } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { workspaceSsoPlugin } from '#plugins/workspace-sso.ts'

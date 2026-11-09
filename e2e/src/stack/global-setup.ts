@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { withBuildLock } from './build-lock.ts'
 import { assertDocker, removeRunProjectsSync, run } from './docker.ts'
 import { ARTIFACTS_DIR, REPO_ROOT } from './paths.ts'
 
@@ -10,10 +11,14 @@ let imageBuild: Promise<void> | undefined
 async function buildImage(): Promise<void> {
   const started = Date.now()
   console.log('[e2e] building circi:e2e (docker layer cache applies)...')
-  const built = await run(
-    'docker',
-    ['build', '-q', '-f', 'deploy/Dockerfile', '-t', 'circi:e2e', '.'],
-    { cwd: REPO_ROOT, timeoutMs: 30 * 60_000, allowFail: true },
+  // `//#e2e:api` and `//#e2e:browser` run in parallel under turbo, each in its own process:
+  // the lock (keyed on the tag) lets one build while the other waits and then reuses its layers.
+  const built = await withBuildLock('circi-e2e', () =>
+    run('docker', ['build', '-q', '-f', 'deploy/Dockerfile', '-t', 'circi:e2e', '.'], {
+      cwd: REPO_ROOT,
+      timeoutMs: 30 * 60_000,
+      allowFail: true,
+    }),
   )
   if (built.code !== 0) {
     throw new Error(`docker build of circi:e2e failed:\n${built.stderr || built.stdout}`)

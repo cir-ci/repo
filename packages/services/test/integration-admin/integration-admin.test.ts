@@ -2,12 +2,12 @@ import { NotFoundError } from '@circi/core'
 import { openSecret } from '@circi/core/node'
 import { getIntegration, getSetting, listTeamLinks } from '@circi/db/queries'
 import { createIntegration, createIntegrationLink } from '@circi/db/repositories'
+import { createTestDb, seedTeam } from '@circi/db/testing'
 import {
   defineIntegration,
   IntegrationConflictError,
   type IntegrationDefinition,
 } from '@circi/integrations'
-import { createTestDb, seedTeam } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 

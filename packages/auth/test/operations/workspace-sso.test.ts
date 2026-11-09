@@ -1,4 +1,4 @@
-import { createTestDb, seedSsoProvider, seedTeam, seedUser } from '@circi/testing'
+import { createTestDb, seedSsoProvider, seedTeam, seedUser } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { findSsoProviderWorkspaceId, listWorkspaceSsoProviders } from '#src/index.ts'

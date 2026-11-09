@@ -5,8 +5,8 @@ import {
   seedTeam,
   seedScreenshot,
   seedUser,
-  fakeSha,
-} from '@circi/testing'
+} from '@circi/db/testing'
+import { fakeSha } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { canUserAccessFile } from '#src/queries/index.ts'

@@ -1,15 +1,15 @@
 import { sealSecret } from '@circi/core/node'
 import { getBuild, listBuildReviews } from '@circi/db/queries'
-import { providerRegistry } from '@circi/integrations/git'
-import { gitlabCredentials, gitlabWebhookVerifier } from '@circi/integrations/gitlab'
-import { completeBuild } from '@circi/services'
 import {
   createTestDb,
   seedAccount,
   seedBuild,
   seedGitLink,
   seedChangedSnapshots,
-} from '@circi/testing'
+} from '@circi/db/testing'
+import { providerRegistry } from '@circi/integrations/git'
+import { gitlabCredentials, gitlabWebhookVerifier } from '@circi/integrations/gitlab'
+import { completeBuild } from '@circi/services'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'

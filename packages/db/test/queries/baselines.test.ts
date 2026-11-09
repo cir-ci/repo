@@ -5,8 +5,8 @@ import {
   seedReview,
   seedScreenshot,
   seedTeam,
-  fakeSha,
-} from '@circi/testing'
+} from '@circi/db/testing'
+import { fakeSha } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { listBaselines } from '#src/queries/index.ts'

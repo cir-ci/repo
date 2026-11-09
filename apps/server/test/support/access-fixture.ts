@@ -1,6 +1,6 @@
 import { addMember, createUser } from '@circi/auth'
 import type { SessionMethod } from '@circi/db/repositories'
-import { createTestDb } from '@circi/testing'
+import { createTestDb } from '@circi/db/testing'
 import Fastify from 'fastify'
 
 import { jsonErrorHandler } from '#http/lib/errors.ts'

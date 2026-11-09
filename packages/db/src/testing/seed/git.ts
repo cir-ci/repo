@@ -1,12 +1,12 @@
-import { type Database } from '@circi/db'
-import { getTeamById } from '@circi/db/queries'
+import { getTeamById } from '#queries/index.ts'
 import {
   createIntegration,
   findIntegrationByExternalId,
   removeOtherTeamMappings,
   setIntegrationAttention,
   setIntegrationTeam,
-} from '@circi/db/repositories'
+} from '#repositories/index.ts'
+import { type Database } from '#src/index.ts'
 
 /**
  * A git host connection of a workspace (an `integrations` row), the way connecting one leaves

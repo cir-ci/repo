@@ -95,7 +95,7 @@ export default defineConfig({
         test: {
           name: 'node',
           // One migrated PGlite dump for every createTestDb(), and TZ/mocks pinned per file.
-          globalSetup: ['packages/testing/src/template-db.ts'],
+          globalSetup: ['packages/db/src/testing/template-db.ts'],
           setupFiles: ['packages/testing/src/setup-node.ts'],
           include: [
             'apps/{server,worker,web}/test/**/*.test.ts',

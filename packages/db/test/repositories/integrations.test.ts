@@ -1,4 +1,10 @@
-import { createTestDb, seedBuild, seedGitConnection, seedGitLink, seedTeam } from '@circi/testing'
+import {
+  createTestDb,
+  seedBuild,
+  seedGitConnection,
+  seedGitLink,
+  seedTeam,
+} from '@circi/db/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 

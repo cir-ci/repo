@@ -8,9 +8,6 @@
     "./hosts": "./src/hosts/index.ts"
   },
   "dependencies": {
-    "@circi/db": "workspace:*",
-    "@electric-sql/pglite": "catalog:",
-    "drizzle-orm": "catalog:",
     "sharp": "catalog:",
     "vitest": "catalog:"
   }

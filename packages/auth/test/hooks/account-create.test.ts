@@ -1,5 +1,5 @@
 import * as schema from '@circi/db/schema'
-import { createTestDb, seedWorkspace } from '@circi/testing'
+import { createTestDb, seedWorkspace } from '@circi/db/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 

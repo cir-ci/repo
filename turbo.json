@@ -123,7 +123,7 @@
       ],
       "outputs": [],
       "cache": true,
-      "env": ["E2E_SKIP_BUILD"],
+      "env": ["E2E_SKIP_BUILD", "E2E_ENV_FINGERPRINT"],
       "passThroughEnv": [
         "DOCKER_*",
         "E2E_WORKERS",
@@ -157,7 +157,7 @@
       ],
       "outputs": [],
       "cache": true,
-      "env": ["E2E_SKIP_BUILD"],
+      "env": ["E2E_SKIP_BUILD", "E2E_ENV_FINGERPRINT"],
       "passThroughEnv": [
         "DOCKER_*",
         "E2E_WORKERS",

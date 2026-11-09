@@ -11,8 +11,9 @@ import {
   listTeamLinks,
 } from '@circi/db/queries'
 import * as schema from '@circi/db/schema'
+import { createTestDb, seedBuild, seedDiff, seedScreenshot } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
-import { createTestDb, seedBuild, seedDiff, seedScreenshot, fakeSha } from '@circi/testing'
+import { fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { pino } from 'pino'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'

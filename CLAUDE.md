@@ -11,12 +11,16 @@ caching of `dist/**`, with a `transit` task so a package's build is invalidated 
 not by unrelated ones. Lint and typecheck are single root commands cached as root tasks (`//#lint`, `//#typecheck` in `turbo.json`); the tests are
 one root task per Vitest project, each cached on its own inputs: `//#test:node` (the Node project: logic tests of every app and
 package, which read most of the tree, so it reruns on almost any change), `//#test:ui` (packages/ui only) and
-`//#test:web-browser` (apps/web, ui, api, core). `pnpm test` still runs every project in one Vitest process. Caveat: the root
-package depends on `@circi/testing` (hence on `db`), and Turborepo counts root dependencies as dependencies of every package, so a
-change in `db` or `core` invalidates every task, builds included; only a change in `apps/web` or `packages/ui` leaves some cached.
+`//#test:web-browser` (apps/web, ui, api, core). `pnpm test` still runs every project in one Vitest process. `@circi/testing` has no database
+code (the PGlite test database and seeders are `@circi/db/testing`, part of `db`), so no package pair forms a cycle and the root's
+dependency on `testing` does not reach `db` or `core`: a change in `db` reruns the Node tests, lint, typecheck, format check and the
+server build, and leaves the UI/web tests and the cli, vitest, ui and web builds cached (a change in `core` also reruns what reads
+`core`: the web browser tests and the web build).
 `pnpm gate:full` is `gate` plus the two end-to-end groups as cached root tasks, `//#e2e:api` (the server, worker and CLI image,
 no browser) and `//#e2e:browser` (also the dashboard and the design system); both need Docker and Chromium, so the default
-`pnpm gate` stays Docker-free. End-to-end files are named `*.browser.e2e.test.ts` when they drive Chromium (checked by
+`pnpm gate` stays Docker-free. Both tasks also hash `E2E_ENV_FINGERPRINT` (Playwright, Chromium and Docker server versions, printed by
+`pnpm e2e:fingerprint`; `pnpm gate:full` sets it), so a new Chromium or Docker reruns them; run `turbo run //#e2e:api` directly and the
+variable is empty. They share one `docker build` of `circi:e2e` through a lock (`e2e/src/stack/build-lock.ts`). End-to-end files are named `*.browser.e2e.test.ts` when they drive Chromium (checked by
 `e2e/test/fakes/e2e-groups.test.ts`); `pnpm test:e2e` runs both groups, `test:e2e:api` / `test:e2e:browser` one. Visual runs are never
 cached.
 What emits what: `tsc` only type-checks (`pnpm typecheck`, `noEmit`). `pnpm build` runs tsdown for
@@ -44,7 +48,7 @@ the worker; `http/routes/<area>/` holds routes, schemas and presenters); `apps/w
 loop and thin job adapters, no build: the server bundle inlines it); `apps/web/src/{app,lib,features/<feature>}`;
 `packages/api` (the wire types, types only); `packages/auth` (better-auth composition);
 `packages/cli` (`circi upload`); `packages/config` (environment parsing); `packages/testing`
-(PGlite test database and seeders); `packages/ui` (design system: Base UI parts, CSS modules,
+(db-free test support: clock, hashes, fake hosts; the PGlite test database and seeders are `@circi/db/testing`); `packages/ui` (design system: Base UI parts, CSS modules,
 `var(--circi-…)` tokens, one `Name.tsx` + `Name.module.css` per component). Dependencies point
 downwards; `core` and `api` depend on nothing.
 

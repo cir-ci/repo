@@ -10,7 +10,6 @@ import {
   setIntegrationTeam,
 } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
-import type { IntegrationDefinition } from '@circi/integrations'
 import {
   addTestMember,
   createTestDb,
@@ -20,8 +19,9 @@ import {
   seedReviewRequest,
   seedTeam,
   seedUser,
-  fakeSha,
-} from '@circi/testing'
+} from '@circi/db/testing'
+import type { IntegrationDefinition } from '@circi/integrations'
+import { fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 

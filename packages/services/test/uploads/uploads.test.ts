@@ -5,8 +5,8 @@ import { join } from 'node:path'
 import { Readable } from 'node:stream'
 
 import { getFile, getTeamBuild } from '@circi/db/queries'
+import { createTestDb, seedTeam } from '@circi/db/testing'
 import { ChecksumMismatchError, FsStorage } from '@circi/storage'
-import { createTestDb, seedTeam } from '@circi/testing'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import {

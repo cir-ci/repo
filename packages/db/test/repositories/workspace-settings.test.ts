@@ -1,4 +1,4 @@
-import { createTestDb, seedWorkspace } from '@circi/testing'
+import { createTestDb, seedWorkspace } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { getTeamById, getWorkspaceSettings } from '#src/queries/index.ts'

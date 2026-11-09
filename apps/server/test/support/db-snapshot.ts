@@ -1,4 +1,4 @@
-import type { createTestDb } from '@circi/testing'
+import type { createTestDb } from '@circi/db/testing'
 
 /**
  * Remembers every row of the test database now and returns a function that puts the database

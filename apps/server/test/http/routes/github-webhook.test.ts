@@ -3,16 +3,16 @@ import { createHmac } from 'node:crypto'
 import { getBuild, listBuildReviews } from '@circi/db/queries'
 import { setCheckRunId } from '@circi/db/queue'
 import * as schema from '@circi/db/schema'
-import { providerRegistry } from '@circi/integrations/git'
-import { githubWebhookVerifier } from '@circi/integrations/github'
-import { completeBuild } from '@circi/services'
 import {
   createTestDb,
   seedAccount,
   seedBuild,
   seedGitLink,
   seedChangedSnapshots,
-} from '@circi/testing'
+} from '@circi/db/testing'
+import { providerRegistry } from '@circi/integrations/git'
+import { githubWebhookVerifier } from '@circi/integrations/github'
+import { completeBuild } from '@circi/services'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'

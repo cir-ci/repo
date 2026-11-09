@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
-import { addTestMember, createTestDb, seedBuild, seedTeam, seedUser } from '@circi/testing'
+import { addTestMember, createTestDb, seedBuild, seedTeam, seedUser } from '@circi/db/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 

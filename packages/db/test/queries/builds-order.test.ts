@@ -1,5 +1,5 @@
 import { BUILD_ORDERS, type BuildOrder } from '@circi/core'
-import { createTestDb, seedBuild, seedTeam } from '@circi/testing'
+import { createTestDb, seedBuild, seedTeam } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { listBuildsForTeam, listBuildsForWorkspace } from '#src/queries/index.ts'

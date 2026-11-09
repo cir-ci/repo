@@ -1,6 +1,6 @@
-import { type Database } from '@circi/db'
-import { upsertServerFile } from '@circi/db/repositories'
-import * as schema from '@circi/db/schema'
+import { upsertServerFile } from '#repositories/index.ts'
+import * as schema from '#schema/index.ts'
+import { type Database } from '#src/index.ts'
 
 /** A verified file row (bytes are not stored; tests that need them use a storage driver). */
 export async function seedFile(

@@ -7,8 +7,9 @@ import {
   getTeamIntegration,
   setIntegrationTeam,
 } from '@circi/db/repositories'
+import { createTestDb, seedBuild, seedTeam, seedScreenshot } from '@circi/db/testing'
 import { defineIntegration, type IntegrationDefinition } from '@circi/integrations'
-import { createTestDb, seedBuild, seedTeam, seedScreenshot, fakeSha } from '@circi/testing'
+import { fakeSha } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 

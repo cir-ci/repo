@@ -1,6 +1,6 @@
 import { listIgnoreRegions, listTriage } from '@circi/db/queries'
 import * as schema from '@circi/db/schema'
-import { addTestMember, createTestDb, seedBuild, seedTeam, seedUser } from '@circi/testing'
+import { addTestMember, createTestDb, seedBuild, seedTeam, seedUser } from '@circi/db/testing'
 import { and, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 

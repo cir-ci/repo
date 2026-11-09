@@ -1,4 +1,5 @@
-import { createTestDb, seedTeam, fakeSha } from '@circi/testing'
+import { createTestDb, seedTeam } from '@circi/db/testing'
+import { fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 

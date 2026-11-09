@@ -1,5 +1,5 @@
 import type { Auth } from '@circi/auth'
-import { createTestDb } from '@circi/testing'
+import { createTestDb } from '@circi/db/testing'
 import Fastify from 'fastify'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 

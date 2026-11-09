@@ -1,5 +1,5 @@
 import * as schema from '@circi/db/schema'
-import { createTestDb, seedWorkspace, seedSsoProvider } from '@circi/testing'
+import { createTestDb, seedWorkspace, seedSsoProvider } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { trustedOriginsFor, withTrustedIssuer } from '#plugins/sso/trusted-issuers.ts'

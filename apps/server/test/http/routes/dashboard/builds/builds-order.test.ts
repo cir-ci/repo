@@ -1,4 +1,4 @@
-import { seedBuild } from '@circi/testing'
+import { seedBuild } from '@circi/db/testing'
 import { afterAll, describe, expect, it } from 'vitest'
 
 import { startDashboard } from '#test/support/dashboard-fixture.ts'

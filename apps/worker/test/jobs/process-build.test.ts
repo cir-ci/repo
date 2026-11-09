@@ -12,9 +12,10 @@ import {
   planUploads,
   updateTeamSettings,
 } from '@circi/db/repositories'
+import { createTestDb, seedTeam } from '@circi/db/testing'
 import { finalizeBuild, gateInputs, reviewBuild, reviewSnapshots } from '@circi/services'
 import { contentKey, FsStorage } from '@circi/storage'
-import { createTestDb, seedTeam, sha256 } from '@circi/testing'
+import { sha256 } from '@circi/testing'
 import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 

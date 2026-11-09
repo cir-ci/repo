@@ -1,4 +1,5 @@
-import { createTestDb, seedBuild, seedScreenshot, seedTeam, fakeSha } from '@circi/testing'
+import { createTestDb, seedBuild, seedScreenshot, seedTeam } from '@circi/db/testing'
+import { fakeSha } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { listIgnoreRegionSnapshots } from '#src/queries/index.ts'

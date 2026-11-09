@@ -6,7 +6,8 @@ import {
 } from '@circi/db/queries'
 import { createBuild, markFileVerified, planUploads } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
-import { addTestMember, createTestDb, seedTeam, seedUser, fakeSha } from '@circi/testing'
+import { addTestMember, createTestDb, seedTeam, seedUser } from '@circi/db/testing'
+import { fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 

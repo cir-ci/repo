@@ -167,7 +167,7 @@ packages/diff    PNG validation, pixel diffs, thumbnails
 packages/integrations  the integration SDK (one definition per integration, one registry) and the clients of external services (GitHub, Slack, …), one folder per kind
 packages/services  the service layer: build state changes with their jobs and notices, atomically
 packages/storage local-disk and S3 drivers with checksum-verified writes
-packages/testing PGlite test database and seeders
+packages/testing db-free test support (clock, hashes, fake hosts); packages/db/src/testing has the PGlite test database and seeders
 deploy/          Dockerfile and docker-compose files
 ```
 

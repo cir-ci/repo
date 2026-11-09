@@ -1,5 +1,5 @@
+import { createTestDb } from '@circi/db/testing'
 import type { IntegrationDefinition } from '@circi/integrations'
-import { createTestDb } from '@circi/testing'
 import { pino } from 'pino'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 

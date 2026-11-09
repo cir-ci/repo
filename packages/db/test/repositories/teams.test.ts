@@ -1,5 +1,5 @@
 import { teamColorFor, TEAM_COLORS } from '@circi/core'
-import { addTestMember, createTestDb, seedWorkspace, seedTeam, seedUser } from '@circi/testing'
+import { addTestMember, createTestDb, seedWorkspace, seedTeam, seedUser } from '@circi/db/testing'
 import { sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 

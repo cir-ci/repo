@@ -43,7 +43,12 @@ pnpm test:e2e --shard=1/3                       # a third of the files, for CI (
 Without Docker the run fails within seconds with a message saying so. The image is rebuilt on
 every run (`docker build`, which builds only the server bundle and the web app, so the layer cache makes an unchanged tree take seconds; the first
 build on a machine takes several minutes). `circi:e2e` is a shared tag: change code, rerun, and
-the new image is what every parallel run of the same checkout sees next.
+the new image is what every parallel run of the same checkout sees next. Concurrent builds of the tag (the two turbo
+tasks `//#e2e:api` and `//#e2e:browser` start together) take a lock (`src/stack/build-lock.ts`, a `mkdir` lock in the temp directory,
+taken over when its owner died): one builds, the other waits and then finds every layer cached.
+
+Turbo hashes `E2E_ENV_FINGERPRINT` (Playwright, its pinned Chromium and the Docker server version, from `src/stack/env-fingerprint.ts`;
+`pnpm e2e:fingerprint` prints it, `pnpm gate:full` sets it) into both e2e tasks, so upgrading Chromium or Docker invalidates a cached pass.
 
 Parallel runs are safe: every stack gets its own compose project (`circi-e2e-<run>-<n>-<rand>`),
 host ports that Docker assigns itself (published as `127.0.0.1::<port>` and read back with `docker compose port`, so there is no window between picking a free port and binding it) and its own volumes. CirCI's port must be known before CirCI starts (`PUBLIC_URL`), so a small `edge` container, a TCP forwarder started first, owns it. Inside one run test files run in parallel on

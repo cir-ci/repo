@@ -5,8 +5,8 @@ import { join } from 'node:path'
 import { Readable } from 'node:stream'
 
 import { ensureAssetFiles } from '@circi/db/repositories'
+import { createTestDb } from '@circi/db/testing'
 import { FsStorage, type StorageDriver } from '@circi/storage'
-import { createTestDb } from '@circi/testing'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { migrateStorage } from '#src/index.ts'

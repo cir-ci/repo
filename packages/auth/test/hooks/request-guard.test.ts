@@ -1,6 +1,6 @@
 import { recordSessionMethod, setWorkspaceAuthSettings } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
-import { createTestDb } from '@circi/testing'
+import { createTestDb } from '@circi/db/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 

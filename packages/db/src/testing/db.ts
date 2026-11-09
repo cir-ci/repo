@@ -1,18 +1,19 @@
 import { readFile } from 'node:fs/promises'
 
+import { PGlite } from '@electric-sql/pglite'
+import { drizzle } from 'drizzle-orm/pglite'
+import { migrate } from 'drizzle-orm/pglite/migrator'
+import { inject } from 'vitest'
+
+import { createTeam } from '#repositories/index.ts'
+import * as schema from '#schema/index.ts'
 import {
   type Database,
   type ListenFn,
   migrationsFolder,
   type Workspace,
   type User,
-} from '@circi/db'
-import { createTeam } from '@circi/db/repositories'
-import * as schema from '@circi/db/schema'
-import { PGlite } from '@electric-sql/pglite'
-import { drizzle } from 'drizzle-orm/pglite'
-import { migrate } from 'drizzle-orm/pglite/migrator'
-import { inject } from 'vitest'
+} from '#src/index.ts'
 
 import { nextCreatedAt } from './created-at.ts'
 

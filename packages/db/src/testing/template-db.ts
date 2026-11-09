@@ -2,12 +2,13 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { migrationsFolder } from '@circi/db'
-import * as schema from '@circi/db/schema'
 import { PGlite } from '@electric-sql/pglite'
 import { drizzle } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'
 import type { TestProject } from 'vitest/node'
+
+import * as schema from '#schema/index.ts'
+import { migrationsFolder } from '#src/index.ts'
 
 declare module 'vitest' {
   export interface ProvidedContext {

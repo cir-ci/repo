@@ -303,7 +303,7 @@ Value: H/M/L; size: S (< 1 h, a few files), M (half a day), L (day+, many files)
 | 12 | `services`: delete `git-kinds.ts` and `teams.ts` wrappers (or document), move `instance-settings` there | L | S | `packages/services/src/**`, one server file; A8 |
 | 13 | `e2e/src` into `stack/`, `clients/`, `github/`, `reporting/`; tests into feature folders | M | M | `e2e/**`, `vitest.config.ts` import path of timing reporter; A9 |
 | 14 | `auth`: merge `sso/` into `plugins/sso/` | L | S | `packages/auth/**`; A10 |
-| 15 | Break `db <-> testing` devDep cycle or document; consistent dependency declaration for bundled apps | M | M-L | `packages/testing/**`, `packages/db/test/**` (every db test imports it: 36) |
+| 15 | (DONE: db-free `@circi/testing`, seeders and PGlite helper in `@circi/db/testing`) Break `db <-> testing` devDep cycle or document; consistent dependency declaration for bundled apps | M | M-L | `packages/testing/**`, `packages/db/test/**` (every db test imports it: 36) |
 | 16 | `no-restricted-imports` overrides to enforce layers (apps never import `providers`/repositories where services exist; web never imports Node-only core) | M | S | `.oxlintrc.json` only; best after #5/#7 |
 | 17 | Docs: `docs/plans` vs `docs/reference`, archive finished plans, `ds-sync` to `tools/` | L | S | `docs/**`, `.gitignore`, `.design-sync/**` |
 | 18 | Shared `tsdown.shared.ts` for server/cli/vitest/ui | L | S | the four `tsdown.config.ts` |

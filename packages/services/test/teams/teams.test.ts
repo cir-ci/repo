@@ -1,6 +1,6 @@
 import { NotFoundError, ValidationError } from '@circi/core'
 import { getTeamById, listWebhooks } from '@circi/db/queries'
-import { createTestDb, seedTeam } from '@circi/testing'
+import { createTestDb, seedTeam } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {

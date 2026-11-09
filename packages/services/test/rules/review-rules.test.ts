@@ -1,6 +1,6 @@
 import { NotFoundError, ValidationError } from '@circi/core'
 import { getTriageRotation, listReviewRules } from '@circi/db/queries'
-import { addTestMember, createTestDb, seedTeam, seedUser } from '@circi/testing'
+import { addTestMember, createTestDb, seedTeam, seedUser } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {

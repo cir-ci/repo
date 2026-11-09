@@ -7,7 +7,7 @@ import {
   seedUser,
   seedWorkspace,
   seedWorkspaceDomain,
-} from '@circi/testing'
+} from '@circi/db/testing'
 import { and, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 

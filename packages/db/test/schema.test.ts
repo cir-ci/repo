@@ -1,4 +1,4 @@
-import { createTestDb, seedTeam } from '@circi/testing'
+import { createTestDb, seedTeam } from '@circi/db/testing'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'

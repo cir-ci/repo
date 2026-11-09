@@ -1,7 +1,7 @@
-import { type Database } from '@circi/db'
-import { type Webhook } from '@circi/db/queries'
-import { createWebhook } from '@circi/db/queue'
-import { WEBHOOK_EVENTS, type WebhookEvent } from '@circi/db/schema'
+import { type Webhook } from '#queries/index.ts'
+import { createWebhook } from '#queue/index.ts'
+import { WEBHOOK_EVENTS, type WebhookEvent } from '#schema/index.ts'
+import { type Database } from '#src/index.ts'
 
 let n = 0
 

@@ -1,5 +1,5 @@
 import { ValidationError } from '@circi/core'
-import { createTestDb, seedWorkspace } from '@circi/testing'
+import { createTestDb, seedWorkspace } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { ConflictError, NotFoundError } from '#src/index.ts'

@@ -1,6 +1,6 @@
 import { createWebhook, GIT_NOTIFY_QUEUE, QUEUES } from '@circi/db/queue'
 import * as schema from '@circi/db/schema'
-import { createTestDb, seedBuild, seedGitLink, seedTeam } from '@circi/testing'
+import { createTestDb, seedBuild, seedGitLink, seedTeam } from '@circi/db/testing'
 import { eq, inArray } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 

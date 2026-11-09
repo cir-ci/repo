@@ -1,6 +1,7 @@
 import { listBuildActivity, listBuildLinks } from '@circi/db/queries'
 import { createBuild, createIntegration, setIntegrationTeam } from '@circi/db/repositories'
-import { createTestDb, seedDiff, seedTeam, seedReview, fakeSha } from '@circi/testing'
+import { createTestDb, seedDiff, seedTeam, seedReview } from '@circi/db/testing'
+import { fakeSha } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { createIssueFromBuild } from '#src/index.ts'

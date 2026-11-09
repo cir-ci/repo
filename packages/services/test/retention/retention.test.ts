@@ -7,7 +7,8 @@ import {
   publishSiteVersion,
 } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
-import { createTestDb, seedTeam, seedUploadClaim, fakeSha } from '@circi/testing'
+import { createTestDb, seedTeam, seedUploadClaim } from '@circi/db/testing'
+import { fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 

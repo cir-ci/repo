@@ -1,7 +1,8 @@
 import { GIT_NOTIFY_QUEUE, QUEUES } from '@circi/db/queue'
 import { createBuild, markFileVerified, planUploads } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
-import { createTestDb, seedGitLink, seedTeam, fakeSha, seedChangedSnapshots } from '@circi/testing'
+import { createTestDb, seedGitLink, seedTeam, seedChangedSnapshots } from '@circi/db/testing'
+import { fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 

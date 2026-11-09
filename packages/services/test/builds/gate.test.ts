@@ -1,6 +1,6 @@
 import { buildOutcome } from '@circi/core'
 import { setWorkspaceSettings, updateTeamSettings } from '@circi/db/repositories'
-import { createTestDb, seedBuild, seedDiff, seedTeam } from '@circi/testing'
+import { createTestDb, seedBuild, seedDiff, seedTeam } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { gateInputs } from '#src/index.ts'

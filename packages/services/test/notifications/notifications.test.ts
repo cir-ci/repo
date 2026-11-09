@@ -14,9 +14,9 @@ import {
   seedNotification,
   seedTeam,
   seedUser,
-  fakeSha,
   seedChangedSnapshots,
-} from '@circi/testing'
+} from '@circi/db/testing'
+import { fakeSha } from '@circi/testing'
 import { and, asc, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 

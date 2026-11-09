@@ -1,5 +1,6 @@
 import { teamColorFor } from '@circi/core'
-import { seedBuild, seedScreenshot, seedSite, fakeSha } from '@circi/testing'
+import { seedBuild, seedScreenshot, seedSite } from '@circi/db/testing'
+import { fakeSha } from '@circi/testing'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { caller } from '#test/support/client.ts'

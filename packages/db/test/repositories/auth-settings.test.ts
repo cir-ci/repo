@@ -1,4 +1,4 @@
-import { createTestDb, seedWorkspace, seedSession } from '@circi/testing'
+import { createTestDb, seedWorkspace, seedSession } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { ConflictError } from '#src/index.ts'

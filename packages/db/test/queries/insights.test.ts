@@ -8,8 +8,8 @@ import {
   seedReviewRequest,
   seedScreenshot,
   seedUser,
-  fakeSha,
-} from '@circi/testing'
+} from '@circi/db/testing'
+import { fakeSha } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { getInsights } from '#src/queries/index.ts'

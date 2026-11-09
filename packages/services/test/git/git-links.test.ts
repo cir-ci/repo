@@ -7,8 +7,8 @@ import {
 } from '@circi/db/queries'
 import { markInstallationNeedsAttention } from '@circi/db/queue'
 import * as schema from '@circi/db/schema'
+import { createTestDb, seedGitConnection, seedGitLink, seedTeam } from '@circi/db/testing'
 import { type IntegrationDefinition, integrationRegistry } from '@circi/integrations'
-import { createTestDb, seedGitConnection, seedGitLink, seedTeam } from '@circi/testing'
 import { sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 

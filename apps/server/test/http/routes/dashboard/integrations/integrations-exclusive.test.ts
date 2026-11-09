@@ -4,13 +4,13 @@ import { join } from 'node:path'
 
 import { getWorkspaceBySlug, listIntegrations } from '@circi/db/queries'
 import { listIntegrationTeams } from '@circi/db/repositories'
+import { createTestDb } from '@circi/db/testing'
 import {
   defineIntegration,
   type IntegrationDefinition,
   IntegrationRegistry,
 } from '@circi/integrations'
 import { FsStorage } from '@circi/storage'
-import { createTestDb } from '@circi/testing'
 import { pino } from 'pino'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'

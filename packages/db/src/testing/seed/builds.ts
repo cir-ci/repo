@@ -1,7 +1,8 @@
-import { type Build, type Database } from '@circi/db'
-import { createBuild } from '@circi/db/repositories'
-import * as schema from '@circi/db/schema'
 import { eq } from 'drizzle-orm'
+
+import { createBuild } from '#repositories/index.ts'
+import * as schema from '#schema/index.ts'
+import { type Build, type Database } from '#src/index.ts'
 
 import { nextCreatedAt } from '../created-at.ts'
 

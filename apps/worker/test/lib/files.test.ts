@@ -4,8 +4,9 @@ import { join } from 'node:path'
 import { Readable } from 'node:stream'
 
 import { getFile } from '@circi/db/queries'
+import { createTestDb, seedFile } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
-import { createTestDb, seedFile, sha256 } from '@circi/testing'
+import { sha256 } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { createLoader, readAll, storeServerFile } from '#lib/files.ts'

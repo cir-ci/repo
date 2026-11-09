@@ -1,4 +1,4 @@
-import { seedNotification } from '@circi/testing'
+import { seedNotification } from '@circi/db/testing'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { sender } from '#test/support/client.ts'

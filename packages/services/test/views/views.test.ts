@@ -1,6 +1,6 @@
 import { ConflictError, NotFoundError } from '@circi/db'
 import { listPinnedTeamIds, listSavedViews } from '@circi/db/queries'
-import { addTestMember, createTestDb, seedTeam, seedUser } from '@circi/testing'
+import { addTestMember, createTestDb, seedTeam, seedUser } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {

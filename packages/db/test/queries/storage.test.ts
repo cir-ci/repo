@@ -6,8 +6,8 @@ import {
   seedSite,
   seedTeam,
   seedWorkspace,
-  fakeSha,
-} from '@circi/testing'
+} from '@circi/db/testing'
+import { fakeSha } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { getWorkspaceStorage, storageUsage } from '#src/queries/index.ts'

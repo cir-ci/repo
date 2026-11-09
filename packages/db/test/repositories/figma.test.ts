@@ -1,11 +1,5 @@
-import {
-  createTestDb,
-  seedBuild,
-  seedDiff,
-  seedTeam,
-  seedScreenshot,
-  fakeSha,
-} from '@circi/testing'
+import { createTestDb, seedBuild, seedDiff, seedTeam, seedScreenshot } from '@circi/db/testing'
+import { fakeSha } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { figmaFramesForSnapshots, getBuildDetail } from '#src/queries/index.ts'

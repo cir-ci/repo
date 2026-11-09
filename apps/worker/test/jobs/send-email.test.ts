@@ -2,15 +2,15 @@ import { type Job } from '@circi/db'
 import { QUEUES } from '@circi/db/queue'
 import { createBuild, setNotificationPreferences } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
-import { notify } from '@circi/services'
 import {
   addTestMember,
   createTestDb,
-  fakeMailer,
   seedNotification,
   seedTeam,
   seedUser,
-} from '@circi/testing'
+} from '@circi/db/testing'
+import { notify } from '@circi/services'
+import { fakeMailer } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
