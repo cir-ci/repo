@@ -1,4 +1,4 @@
-import { Delayed, EmptyState, ListSkeleton } from '@circi/ui'
+import { EmptyState } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -6,8 +6,8 @@ import { useState } from 'react'
 import { parseFilters, type BuildFilters } from '#features/builds/list/builds-filters.ts'
 import { BuildsBrowser } from '#features/builds/list/BuildsBrowser.tsx'
 import { useDocumentTitle } from '#lib/document-title.ts'
-import { ErrorState } from '#lib/ErrorState.tsx'
 import { PageHeading } from '#lib/PageHeading.tsx'
+import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 
 import { findView, viewsQuery } from './api.ts'
 
@@ -16,7 +16,8 @@ import styles from '#features/teams/TeamPage.module.css'
 /** A saved view: its team's builds list with the view's filters applied (editable for this visit only). */
 export function ViewPage() {
   const { workspace, view: id } = useParams({ from: '/workspaces/$workspace/views/$view' })
-  const { data, error, refetch } = useQuery(viewsQuery(workspace))
+  const query = useQuery(viewsQuery(workspace))
+  const { data } = query
   const view = findView(data?.views, id)
   useDocumentTitle(view?.name ?? 'View')
 
@@ -24,31 +25,29 @@ export function ViewPage() {
     <>
       <PageHeading crumbs={[{ label: 'Views' }]} title={view?.name ?? '…'} />
       <div className={styles.content}>
-        {error ? (
-          <ErrorState error={error} onRetry={() => void refetch()} />
-        ) : !data ? (
-          <Delayed>
-            <ListSkeleton rows={4} />
-          </Delayed>
-        ) : !view ? (
-          <EmptyState title="This view doesn’t exist">
-            It may have been deleted, or it belongs to someone else.
-          </EmptyState>
-        ) : view.team ? (
-          // Keyed by view, so opening another view starts from its own filters.
-          <ViewBuilds
-            key={view.id}
-            workspace={workspace}
-            team={view.team.slug}
-            filters={parseFilters({ ...view.filters })}
-          />
-        ) : (
-          <ViewBuilds
-            key={view.id}
-            workspace={workspace}
-            filters={parseFilters({ ...view.filters })}
-          />
-        )}
+        <QueryBoundary query={query} rows={4}>
+          {() =>
+            !view ? (
+              <EmptyState title="This view doesn’t exist">
+                It may have been deleted, or it belongs to someone else.
+              </EmptyState>
+            ) : view.team ? (
+              // Keyed by view, so opening another view starts from its own filters.
+              <ViewBuilds
+                key={view.id}
+                workspace={workspace}
+                team={view.team.slug}
+                filters={parseFilters({ ...view.filters })}
+              />
+            ) : (
+              <ViewBuilds
+                key={view.id}
+                workspace={workspace}
+                filters={parseFilters({ ...view.filters })}
+              />
+            )
+          }
+        </QueryBoundary>
       </div>
     </>
   )

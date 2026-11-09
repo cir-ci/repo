@@ -1,38 +1,18 @@
-import { Banner, Delayed, ListSkeleton } from '@circi/ui'
 import type { ReactNode } from 'react'
 
-import { ErrorState } from '#lib/ErrorState.tsx'
-import { PageHeading } from '#lib/PageHeading.tsx'
+import { PageFrame } from '#lib/PageFrame.tsx'
 
 import styles from './Settings.module.css'
 
 /** The header and one column every settings page here shares, with its loading and error states. */
-export function Frame(props: Frame.Props) {
+export function Frame({ crumbs, ...rest }: Frame.Props) {
   return (
-    <>
-      <PageHeading
-        crumbs={props.crumbs.slice(0, -1).map((label) => ({ label }))}
-        title={props.crumbs.at(-1) ?? ''}
-      />
-      <div className={styles.content}>
-        {props.error ? (
-          <ErrorState
-            error={props.error}
-            {...(props.onRetry ? { onRetry: props.onRetry } : {})}
-            {...(props.notFound ? { notFound: props.notFound } : {})}
-          />
-        ) : props.loading ? (
-          <Delayed>
-            <ListSkeleton />
-          </Delayed>
-        ) : (
-          <>
-            {props.readOnlyNote ? <Banner>{props.readOnlyNote}</Banner> : null}
-            {props.children}
-          </>
-        )}
-      </div>
-    </>
+    <PageFrame
+      crumbs={crumbs.slice(0, -1).map((label) => ({ label }))}
+      title={crumbs.at(-1) ?? ''}
+      contentClassName={styles.content}
+      {...rest}
+    />
   )
 }
 

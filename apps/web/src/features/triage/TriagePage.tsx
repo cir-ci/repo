@@ -3,10 +3,8 @@ import {
   Avatar,
   Badge,
   Button,
-  Delayed,
   EmptyState,
   ListRow,
-  ListSkeleton,
   Pane,
   StatusIcon,
   Text,
@@ -18,18 +16,16 @@ import { useParams } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 
 import { fileUrl } from '#features/builds/api/index.ts'
-import { useLoadingAnnouncement } from '#features/builds/list/loading.ts'
 import { RegionLayer } from '#features/regions/RegionLayer.tsx'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
-import { ErrorState } from '#lib/ErrorState.tsx'
 import { focusRow, nextAfterRemoval } from '#lib/list-keys.ts'
 import { PageHeading, teamCrumb } from '#lib/PageHeading.tsx'
+import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
-import { useListStore } from '#lib/stores/list-store.ts'
-import { useListNavigation } from '#lib/use-list-navigation.ts'
+import { useSelectableList } from '#lib/use-selectable-list.ts'
 
 import {
   flatten,
@@ -63,14 +59,11 @@ export function TriagePage() {
   const { workspace, team } = useParams({ from: ROUTE })
   useDocumentTitle('Triage', team)
   const announce = useAnnounce()
-  const { data, error, refetch } = useQuery(triageQuery(workspace, team))
-  useLoadingAnnouncement(!data && !error, 'Loading triage')
+  const query = useQuery(triageQuery(workspace, team))
+  const { data } = query
   const { data: session } = authClient.useSession()
   const me = session?.user
 
-  const selectedId = useListStore((s) => s.cursorId)
-  const setSelectedId = useListStore((s) => s.setCursorId)
-  useEffect(() => () => useListStore.getState().reset(), [])
   const [snoozeOpen, setSnoozeOpen] = useState(false)
   const [drawing, setDrawing] = useState(false)
   const [pending, setPending] = useState<Comment.Region | null>(null)
@@ -83,21 +76,16 @@ export function TriagePage() {
 
   const groups = groupItems(data?.items ?? [])
   const items = flatten(groups)
-  const selected = items.find((i) => itemId(i) === selectedId) ?? items[0]
-  const { frames, loading: framesLoading } = useFilmstrip(workspace, team, selected)
-
-  const { listRef, rowProps } = useListNavigation({
+  const { selected, select, setSelectedId, listRef, rowProps } = useSelectableList({
     items,
     getId: itemId,
-    selectedId: selected ? itemId(selected) : undefined,
-    onSelect: (i) => select(i),
+    peekable: false,
+    onSelect: () => {
+      setDrawing(false)
+      setPending(null)
+    },
   })
-
-  function select(item: Triage.Item) {
-    setSelectedId(itemId(item))
-    setDrawing(false)
-    setPending(null)
-  }
+  const { frames, loading: framesLoading } = useFilmstrip(workspace, team, selected)
 
   /** Selects the neighbour of an item that is about to leave the queue, and says what happened. */
   const leave = (item: Triage.Item, message: string) => {
@@ -181,176 +169,174 @@ export function TriagePage() {
       />
       <div className={listStyles['page']}>
         <div className={listStyles['body']}>
-          {error ? (
-            <ErrorState error={error} onRetry={() => void refetch()} notFound="Team not found" />
-          ) : !data ? (
-            <Delayed>
-              <ListSkeleton rows={4} />
-            </Delayed>
-          ) : items.length === 0 ? (
-            <EmptyState title="Nothing to triage">
-              Flaky screenshots, missing baselines and failed builds on the default branch appear
-              here.
-            </EmptyState>
-          ) : (
-            <>
-              <div className={listStyles['toolbar']}>
-                <span role="status" className={listStyles['count']}>
-                  {queueCount(groups)}
-                </span>
-                {selected ? (
-                  <>
-                    <Button
-                      size="sm"
-                      aria-keyshortcuts="b"
-                      disabled={!hasSnapshot(selected)}
-                      loading={accept.isPending}
-                      onClick={() => doAccept(selected)}
-                    >
-                      Accept as baseline
-                    </Button>
-                    <Button
-                      size="sm"
-                      aria-keyshortcuts="i"
-                      disabled={!hasSnapshot(selected)}
-                      onClick={startDrawing}
-                    >
-                      Add ignore region
-                    </Button>
-                    <Button
-                      size="sm"
-                      aria-keyshortcuts="m"
-                      disabled={!me}
-                      onClick={() => doAssign(selected)}
-                    >
-                      {selected.assignee && selected.assignee.id === me?.id
-                        ? 'Unassign me'
-                        : 'Assign to me'}
-                    </Button>
-                    <SnoozeMenu
-                      open={snoozeOpen}
-                      onOpenChange={setSnoozeOpen}
-                      onSnooze={(choice) => doSnooze(selected, choice)}
-                      trigger={
-                        <Button size="sm" aria-keyshortcuts="h">
-                          Snooze
+          <QueryBoundary query={query} announce="Loading triage" notFound="Team not found" rows={4}>
+            {() =>
+              items.length === 0 ? (
+                <EmptyState title="Nothing to triage">
+                  Flaky screenshots, missing baselines and failed builds on the default branch
+                  appear here.
+                </EmptyState>
+              ) : (
+                <>
+                  <div className={listStyles['toolbar']}>
+                    <span role="status" className={listStyles['count']}>
+                      {queueCount(groups)}
+                    </span>
+                    {selected ? (
+                      <>
+                        <Button
+                          size="sm"
+                          aria-keyshortcuts="b"
+                          disabled={!hasSnapshot(selected)}
+                          loading={accept.isPending}
+                          onClick={() => doAccept(selected)}
+                        >
+                          Accept as baseline
                         </Button>
-                      }
-                    />
-                    <Button size="sm" aria-keyshortcuts="d" onClick={() => doDismiss(selected)}>
-                      Dismiss
-                    </Button>
-                  </>
-                ) : null}
-              </div>
-              {failed ? (
-                <Text tone="rejected" role="alert">
-                  {failed.message}
-                </Text>
-              ) : null}
-              <div className={listStyles['split']}>
-                <div className={styles.groups} id="triage-groups" ref={listRef}>
-                  {groups.map((group) => (
-                    <section key={group.kind} aria-labelledby={`triage-${group.kind}`}>
-                      <h2 className={styles.groupHeader} id={`triage-${group.kind}`}>
-                        {group.label}
-                        <Badge aria-label={`${group.items.length} items`}>
-                          {group.items.length}
-                        </Badge>
-                      </h2>
-                      <ul
-                        aria-label={`${group.label}, ${group.items.length} ${group.items.length === 1 ? 'item' : 'items'}`}
-                        className={listStyles['list']}
-                      >
-                        {group.items.map((item) => (
-                          <li key={itemId(item)} {...rowProps(itemId(item))}>
-                            <ListRow
-                              density="two-line"
-                              selected={itemId(item) === (selected ? itemId(selected) : '')}
-                              onClick={() => select(item)}
-                              leading={
-                                <StatusIcon
-                                  status={
-                                    item.kind === 'flaky'
-                                      ? 'flaky'
-                                      : item.kind === 'no_baseline'
-                                        ? 'added'
-                                        : 'rejected'
-                                  }
-                                  decorative
-                                />
-                              }
-                              trailing={
-                                item.assignee ? (
-                                  <Avatar name={item.assignee.name} size={20} />
-                                ) : undefined
-                              }
-                            >
-                              <span style={visuallyHidden}>{`${itemName(item)}. `}</span>
-                              <span className={styles.title} aria-hidden="true">
-                                <Text truncate>{itemTitle(item)}</Text>
-                              </span>
-                              <span className={listStyles['meta']} aria-hidden="true">
-                                <span>Build #{item.build.number}</span>
-                                {item.build.branch ? <span>{item.build.branch}</span> : null}
-                                <span>
-                                  <Since iso={item.build.createdAt} />
-                                </span>
-                              </span>
-                            </ListRow>
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  ))}
-                </div>
-                {selected ? (
-                  <Pane
-                    label="Details"
-                    context={selected.snapshotName ?? `Build #${selected.build.number}`}
-                    width="lg"
-                  >
-                    <div className={styles.paneBody}>
-                      <Text>
-                        {KIND_LABEL[selected.kind]} in build #{selected.build.number}
-                        {selected.build.branch ? ` on ${selected.build.branch}` : ''}
-                      </Text>
-                      <Text variant="small" tone="secondary">
-                        <Since iso={selected.build.createdAt} />
-                        {selected.assignee ? `. Assigned to ${selected.assignee.name}` : ''}
-                      </Text>
-                      {selected.snapshotName ? (
-                        <Filmstrip
-                          name={selected.snapshotName}
-                          frames={frames}
-                          loading={framesLoading}
-                        />
-                      ) : null}
-                      {drawing && selected.snapshotName ? (
-                        <Drawing
-                          name={selected.snapshotName}
-                          frame={frames.find((f) => f.number === selected.build.number)}
-                          pending={pending}
-                          onDraw={setPending}
-                          onCancel={() => {
-                            setDrawing(false)
-                            setPending(null)
-                          }}
-                          busy={addRegion.isPending}
-                          onConfirm={() =>
-                            confirmRegion(
-                              selected,
-                              frames.find((f) => f.number === selected.build.number),
-                            )
+                        <Button
+                          size="sm"
+                          aria-keyshortcuts="i"
+                          disabled={!hasSnapshot(selected)}
+                          onClick={startDrawing}
+                        >
+                          Add ignore region
+                        </Button>
+                        <Button
+                          size="sm"
+                          aria-keyshortcuts="m"
+                          disabled={!me}
+                          onClick={() => doAssign(selected)}
+                        >
+                          {selected.assignee && selected.assignee.id === me?.id
+                            ? 'Unassign me'
+                            : 'Assign to me'}
+                        </Button>
+                        <SnoozeMenu
+                          open={snoozeOpen}
+                          onOpenChange={setSnoozeOpen}
+                          onSnooze={(choice) => doSnooze(selected, choice)}
+                          trigger={
+                            <Button size="sm" aria-keyshortcuts="h">
+                              Snooze
+                            </Button>
                           }
                         />
-                      ) : null}
+                        <Button size="sm" aria-keyshortcuts="d" onClick={() => doDismiss(selected)}>
+                          Dismiss
+                        </Button>
+                      </>
+                    ) : null}
+                  </div>
+                  {failed ? (
+                    <Text tone="rejected" role="alert">
+                      {failed.message}
+                    </Text>
+                  ) : null}
+                  <div className={listStyles['split']}>
+                    <div className={styles.groups} id="triage-groups" ref={listRef}>
+                      {groups.map((group) => (
+                        <section key={group.kind} aria-labelledby={`triage-${group.kind}`}>
+                          <h2 className={styles.groupHeader} id={`triage-${group.kind}`}>
+                            {group.label}
+                            <Badge aria-label={`${group.items.length} items`}>
+                              {group.items.length}
+                            </Badge>
+                          </h2>
+                          <ul
+                            aria-label={`${group.label}, ${group.items.length} ${group.items.length === 1 ? 'item' : 'items'}`}
+                            className={listStyles['list']}
+                          >
+                            {group.items.map((item) => (
+                              <li key={itemId(item)} {...rowProps(itemId(item))}>
+                                <ListRow
+                                  density="two-line"
+                                  selected={itemId(item) === (selected ? itemId(selected) : '')}
+                                  onClick={() => select(item)}
+                                  leading={
+                                    <StatusIcon
+                                      status={
+                                        item.kind === 'flaky'
+                                          ? 'flaky'
+                                          : item.kind === 'no_baseline'
+                                            ? 'added'
+                                            : 'rejected'
+                                      }
+                                      decorative
+                                    />
+                                  }
+                                  trailing={
+                                    item.assignee ? (
+                                      <Avatar name={item.assignee.name} size={20} />
+                                    ) : undefined
+                                  }
+                                >
+                                  <span style={visuallyHidden}>{`${itemName(item)}. `}</span>
+                                  <span className={styles.title} aria-hidden="true">
+                                    <Text truncate>{itemTitle(item)}</Text>
+                                  </span>
+                                  <span className={listStyles['meta']} aria-hidden="true">
+                                    <span>Build #{item.build.number}</span>
+                                    {item.build.branch ? <span>{item.build.branch}</span> : null}
+                                    <span>
+                                      <Since iso={item.build.createdAt} />
+                                    </span>
+                                  </span>
+                                </ListRow>
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      ))}
                     </div>
-                  </Pane>
-                ) : null}
-              </div>
-            </>
-          )}
+                    {selected ? (
+                      <Pane
+                        label="Details"
+                        context={selected.snapshotName ?? `Build #${selected.build.number}`}
+                        width="lg"
+                      >
+                        <div className={styles.paneBody}>
+                          <Text>
+                            {KIND_LABEL[selected.kind]} in build #{selected.build.number}
+                            {selected.build.branch ? ` on ${selected.build.branch}` : ''}
+                          </Text>
+                          <Text variant="small" tone="secondary">
+                            <Since iso={selected.build.createdAt} />
+                            {selected.assignee ? `. Assigned to ${selected.assignee.name}` : ''}
+                          </Text>
+                          {selected.snapshotName ? (
+                            <Filmstrip
+                              name={selected.snapshotName}
+                              frames={frames}
+                              loading={framesLoading}
+                            />
+                          ) : null}
+                          {drawing && selected.snapshotName ? (
+                            <Drawing
+                              name={selected.snapshotName}
+                              frame={frames.find((f) => f.number === selected.build.number)}
+                              pending={pending}
+                              onDraw={setPending}
+                              onCancel={() => {
+                                setDrawing(false)
+                                setPending(null)
+                              }}
+                              busy={addRegion.isPending}
+                              onConfirm={() =>
+                                confirmRegion(
+                                  selected,
+                                  frames.find((f) => f.number === selected.build.number),
+                                )
+                              }
+                            />
+                          ) : null}
+                        </div>
+                      </Pane>
+                    ) : null}
+                  </div>
+                </>
+              )
+            }
+          </QueryBoundary>
         </div>
       </div>
     </>

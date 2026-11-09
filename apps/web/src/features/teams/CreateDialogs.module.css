@@ -3,20 +3,3 @@
   flex-direction: column;
   gap: 16px;
 }
-
-.secret {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-/* A token is read and checked, not truncated: let it wrap inside the dialog. */
-.secretValue {
-  align-items: flex-start;
-}
-
-.secretValue code {
-  overflow-wrap: anywhere;
-  white-space: normal;
-}

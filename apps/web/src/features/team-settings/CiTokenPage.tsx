@@ -1,4 +1,4 @@
-import { Banner, Button, ConfirmDialog, Text, useAnnounce } from '@circi/ui'
+import { Banner, Button, ConfirmDialog, SecretBox, Text, useAnnounce } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -7,7 +7,6 @@ import { tokenQuery, useRotateToken } from '#features/teams/api/index.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
-import { SecretBox } from './SecretBox.tsx'
 import { TeamSettingsFrame } from './TeamSettingsFrame.tsx'
 
 import styles from './CiTokenPage.module.css'

@@ -1,11 +1,12 @@
 import type { Team } from '@circi/api'
-import { Banner, Delayed, ListSkeleton } from '@circi/ui'
+import { Banner } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
 import { workspaceQuery } from '#features/members/api.ts'
 import { TeamSettingsFrame } from '#features/team-settings/TeamSettingsFrame.tsx'
 import { ErrorState } from '#lib/ErrorState.tsx'
+import { QuerySkeleton } from '#lib/QueryBoundary.tsx'
 
 import { rulesQuery } from './api.ts'
 import { ReviewTargetSection } from './ReviewTargetSection.tsx'
@@ -36,11 +37,7 @@ function Reviews({ workspace, team, settings }: Reviews.Props) {
   }))
   if (rules.error) return <ErrorState error={rules.error} onRetry={() => void rules.refetch()} />
   if (!rules.data) {
-    return (
-      <Delayed>
-        <ListSkeleton />
-      </Delayed>
-    )
+    return <QuerySkeleton />
   }
   const data = rules.data
   return (

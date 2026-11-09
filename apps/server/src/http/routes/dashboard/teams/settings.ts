@@ -2,29 +2,15 @@ import type { Team } from '@circi/api'
 import { deleteTeamWithToken, rotateTeamToken } from '@circi/auth'
 import {
   checkWebhookEvents,
-  INSTALLATION_ID_RE,
   NotFoundError,
   ValidationError,
   WEBHOOK_EVENTS,
   webhookUrlProblem,
 } from '@circi/core'
-import {
-  type Database,
-  getWorkspaceSettings,
-  getTeamById,
-  getTeamGitAttention,
-  getTeamLink,
-  getTeamTokenInfo,
-  listWebhookDeliveries,
-  listWebhooks,
-  type WebhookDelivery,
-  teamSettings,
-  type Webhook,
-} from '@circi/db'
+import { getWorkspaceSettings, getTeamById, teamSettings } from '@circi/db'
 import {
   addWebhook,
   changeTeamSettings,
-  gitKinds,
   linkTeamToGithub,
   removeWebhook,
   sendTestWebhook,
@@ -41,100 +27,15 @@ import type { Deps } from '#http/lib/deps.ts'
 import { loadTeam } from '#http/lib/team-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
-const teamParams = z.object({ workspace: z.string(), team: z.string() })
-const hookParams = teamParams.extend({ id: z.string() })
-
-const settingsBody = z
-  .object({
-    name: z.string().max(100),
-    defaultBranch: z.string().max(255),
-    diffThreshold: z.number(),
-    autoApproveDefaultBranch: z.boolean(),
-    blockMergeOnChanges: z.boolean(),
-    /** null: inherit the workspace's setting. */
-    flakyBlocksMerge: z.boolean().nullable(),
-    retentionDays: z.number(),
-    /** null: no review target. */
-    reviewTargetHours: z.number().nullable(),
-    staticHostingEnabled: z.boolean(),
-  })
-  .partial()
-  .strict()
-
-const appearanceBody = z
-  .object({
-    color: z.string().max(40),
-    /** null clears the icon (the tile shows the team's first letter). */
-    icon: z.string().max(40).nullable(),
-  })
-  .partial()
-  .strict()
-
-const githubBody = z.object({
-  installationId: z.string().regex(INSTALLATION_ID_RE, 'The installation id is a number'),
-  repoRef: z.string().regex(/^[\w.-]+\/[\w.-]+$/, 'Use owner/name, e.g. acme/web'),
-})
-
-const webhookBody = z.object({
-  url: z.string().max(2048),
-  events: z.array(z.string()).optional(),
-})
-
-/** A webhook as the dashboard sees it: the signing secret is only shown when it's created. */
-async function githubLink(db: Database, teamId: string): Promise<Team.GithubLink | null> {
-  const link = await getTeamLink(db, teamId, gitKinds())
-  if (!link) return null
-  const attention = await getTeamGitAttention(db, teamId, gitKinds())
-  return {
-    ...link,
-    attention: attention
-      ? { reason: attention.reason, since: attention.since.toISOString() }
-      : null,
-  }
-}
-
-async function tokenInfo(db: Database, teamId: string, manageable: boolean): Promise<Team.Token> {
-  const info = await getTeamTokenInfo(db, teamId)
-  return {
-    canManage: manageable,
-    hint: info.hint,
-    createdAt: info.createdAt?.toISOString() ?? null,
-    createdBy: info.createdBy,
-    lastUsedAt: info.lastUsedAt?.toISOString() ?? null,
-  }
-}
-
-function presentDelivery(d: WebhookDelivery): Team.WebhookDelivery {
-  return {
-    deliveryId: d.deliveryId,
-    event: d.event,
-    test: d.test,
-    attempt: d.attempt,
-    statusCode: d.statusCode,
-    error: d.error,
-    createdAt: d.createdAt.toISOString(),
-  }
-}
-
-function present(hook: Webhook, deliveries: WebhookDelivery[] = []): Team.Webhook {
-  return {
-    deliveries: deliveries.map(presentDelivery),
-    id: hook.id,
-    url: hook.url,
-    events: hook.events,
-    enabled: hook.enabled,
-    createdAt: hook.createdAt.toISOString(),
-  }
-}
-
-async function presentWebhooks(db: Database, teamId: string): Promise<Team.Webhook[]> {
-  const hooks = await listWebhooks(db, teamId)
-  const deliveries = await listWebhookDeliveries(
-    db,
-    hooks.map((h) => h.id),
-  )
-  return hooks.map((h) => present(h, deliveries.get(h.id)))
-}
+import { githubLink, present, presentWebhooks, tokenInfo } from './presenters.ts'
+import {
+  appearanceBody,
+  githubBody,
+  hookParams,
+  settingsBody,
+  teamParams,
+  webhookBody,
+} from './schemas.ts'
 
 /**
  * A team's settings and webhooks. Every member can look; owners and admins can change

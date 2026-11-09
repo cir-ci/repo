@@ -1,35 +1,19 @@
-import { Banner, Delayed, ListSkeleton } from '@circi/ui'
 import type { ReactNode } from 'react'
 
-import { ErrorState } from '#lib/ErrorState.tsx'
-import { PageHeading, workspaceCrumb } from '#lib/PageHeading.tsx'
+import { PageFrame } from '#lib/PageFrame.tsx'
+import { workspaceCrumb, type PageHeading } from '#lib/PageHeading.tsx'
 
 import styles from './Integrations.module.css'
 
 /** The header, the board's 820px column and the loading and error states every integrations page shares. */
-export function IntegrationFrame(props: IntegrationFrame.Props) {
+export function IntegrationFrame({ workspace, below, title, ...rest }: IntegrationFrame.Props) {
   return (
-    <>
-      <PageHeading crumbs={integrationCrumbs(props.workspace, props.below)} title={props.title} />
-      <div className={styles.content}>
-        {props.error ? (
-          <ErrorState
-            error={props.error}
-            {...(props.onRetry ? { onRetry: props.onRetry } : {})}
-            {...(props.notFound ? { notFound: props.notFound } : {})}
-          />
-        ) : props.loading ? (
-          <Delayed>
-            <ListSkeleton />
-          </Delayed>
-        ) : (
-          <>
-            {props.readOnlyNote ? <Banner>{props.readOnlyNote}</Banner> : null}
-            {props.children}
-          </>
-        )}
-      </div>
-    </>
+    <PageFrame
+      crumbs={integrationCrumbs(workspace, below)}
+      title={title}
+      contentClassName={styles.content}
+      {...rest}
+    />
   )
 }
 

@@ -1,13 +1,12 @@
 import type { Team } from '@circi/api'
-import { Banner, Delayed, ListSkeleton } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 
 import { useLoadingAnnouncement } from '#features/builds/list/loading.ts'
 import { settingsQuery, teamsQuery } from '#features/teams/api/index.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
-import { ErrorState } from '#lib/ErrorState.tsx'
-import { PageHeading, teamCrumb, workspaceCrumb } from '#lib/PageHeading.tsx'
+import { PageFrame } from '#lib/PageFrame.tsx'
+import { teamCrumb, workspaceCrumb } from '#lib/PageHeading.tsx'
 
 import styles from './TeamSettingsFrame.module.css'
 
@@ -34,35 +33,24 @@ export function TeamSettingsFrame({
   useLoadingAnnouncement(!data && !error, `Loading ${page.toLowerCase()}`)
 
   return (
-    <>
-      <PageHeading
-        crumbs={[
-          { label: 'Teams', link: { to: '/' } },
-          workspaceCrumb({ slug: workspace, name: workspaceName }),
-          teamCrumb(workspace, { slug: team, name: teamName }),
-          ...(page === 'Settings' ? [] : [{ label: 'Settings' }]),
-        ]}
-        title={page}
-      />
-      <div className={styles.content} data-width={width}>
-        {error ? (
-          <ErrorState
-            error={error}
-            onRetry={() => void refetch()}
-            notFound="This team doesn’t exist"
-          />
-        ) : !data ? (
-          <Delayed>
-            <ListSkeleton />
-          </Delayed>
-        ) : (
-          <>
-            {data.canManage || !readOnlyNote ? null : <Banner>{readOnlyNote}</Banner>}
-            {children(data, teamName)}
-          </>
-        )}
-      </div>
-    </>
+    <PageFrame
+      crumbs={[
+        { label: 'Teams', link: { to: '/' } },
+        workspaceCrumb({ slug: workspace, name: workspaceName }),
+        teamCrumb(workspace, { slug: team, name: teamName }),
+        ...(page === 'Settings' ? [] : [{ label: 'Settings' }]),
+      ]}
+      title={page}
+      contentClassName={styles.content}
+      width={width}
+      loading={!data}
+      error={error}
+      onRetry={() => void refetch()}
+      notFound="This team doesn’t exist"
+      readOnlyNote={data && !data.canManage ? readOnlyNote : false}
+    >
+      {data ? children(data, teamName) : null}
+    </PageFrame>
   )
 }
 

@@ -7,6 +7,7 @@ import {
   ConfirmDialog,
   Dialog,
   ListRow,
+  SecretBox,
   Text,
   TextField,
   useAnnounce,
@@ -17,7 +18,6 @@ import { type FormEvent, useState } from 'react'
 import { useAddWebhook, useDeleteWebhook, useTestWebhook } from '#features/teams/api/index.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
-import { SecretBox } from './SecretBox.tsx'
 import { TeamSettingsFrame } from './TeamSettingsFrame.tsx'
 import { describeDelivery, eventDescription, webhookProblems } from './webhook-events.ts'
 

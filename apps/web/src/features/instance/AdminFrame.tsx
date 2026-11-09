@@ -1,8 +1,7 @@
-import { Delayed, EmptyState, ListSkeleton, Text, WarningIcon } from '@circi/ui'
+import { EmptyState, Text, WarningIcon } from '@circi/ui'
 import type { ReactNode } from 'react'
 
-import { ErrorState } from '#lib/ErrorState.tsx'
-import { PageHeading } from '#lib/PageHeading.tsx'
+import { PageFrame } from '#lib/PageFrame.tsx'
 
 import { isForbidden } from './api/admin.ts'
 
@@ -13,26 +12,22 @@ import styles from './Admin.module.css'
  * and one column, with the loading and error states, and the state for someone who is not an
  * instance admin (the server answers 403 to every `/api/instance` read).
  */
-export function AdminFrame({ title, loading, error, onRetry, children }: AdminFrame.Props) {
+export function AdminFrame({ title, error, ...rest }: AdminFrame.Props) {
   return (
-    <>
-      <PageHeading crumbs={[{ label: 'Instance' }]} title={title} />
-      <div className={styles.content}>
-        {isForbidden(error) ? (
+    <PageFrame
+      crumbs={[{ label: 'Instance' }]}
+      title={title}
+      contentClassName={styles.content}
+      error={error}
+      forbidden={
+        isForbidden(error) ? (
           <EmptyState tone="rejected" icon={<WarningIcon size={32} />} title="Instance admins only">
             Only instance admins can see this page. Ask one to make you an instance admin.
           </EmptyState>
-        ) : error ? (
-          <ErrorState error={error} {...(onRetry ? { onRetry } : {})} />
-        ) : loading ? (
-          <Delayed>
-            <ListSkeleton />
-          </Delayed>
-        ) : (
-          children
-        )}
-      </div>
-    </>
+        ) : null
+      }
+      {...rest}
+    />
   )
 }
 

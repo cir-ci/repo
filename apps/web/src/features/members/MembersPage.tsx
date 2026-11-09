@@ -3,11 +3,9 @@ import {
   Banner,
   Button,
   ConfirmDialog,
-  Delayed,
   EmptyState,
   IconButton,
   ListRow,
-  ListSkeleton,
   Menu,
   RowMenuIcon,
   SectionHeader,
@@ -17,12 +15,12 @@ import {
 } from '@circi/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
-import { ErrorState } from '#lib/ErrorState.tsx'
 import { PageHeading, workspaceCrumb } from '#lib/PageHeading.tsx'
+import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import { cancelInvitation, changeMemberRole, workspaceQuery, removeMember } from './api.ts'
@@ -47,12 +45,9 @@ export function MembersPage() {
   useDocumentTitle('Members', workspace)
 
   const query = workspaceQuery(workspace)
-  const { data, error, refetch } = useQuery(query)
+  const result = useQuery(query)
+  const { data } = result
   const [removing, setRemoving] = useState<{ id: string; name: string; email: string } | null>(null)
-
-  useEffect(() => {
-    if (!data && !error) announce('Loading members')
-  }, [data, error, announce])
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: query.queryKey })
   const cancel = useMutation({
@@ -97,143 +92,142 @@ export function MembersPage() {
         title="Members"
       />
       <div className={styles.page}>
-        {error ? (
-          <ErrorState
-            error={error}
-            onRetry={() => void refetch()}
-            notFound="This workspace doesn’t exist"
-          />
-        ) : !data ? (
-          <Delayed>
-            <ListSkeleton />
-          </Delayed>
-        ) : (
-          <>
-            {canManage ? (
-              <InviteForm workspaceId={data.id} onInvited={refresh} />
-            ) : (
-              <Banner>
-                Only owners and admins can invite people, change roles or remove people.
-              </Banner>
-            )}
-            {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
-            <section className={styles.section}>
-              <SectionHeader title="Members" description={peopleCount(data.members.length)} />
-              <div className={styles.list}>
-                {data.members.map((m) => {
-                  const isMe = m.userId === session?.user.id
-                  const editable = canManage && !isMe
-                  return (
-                    <ListRow key={m.id} leading={<Avatar name={m.user.name} />}>
-                      <div className={styles.member}>
+        <QueryBoundary
+          query={result}
+          announce="Loading members"
+          notFound="This workspace doesn’t exist"
+        >
+          {(loaded) => (
+            <>
+              {canManage ? (
+                <InviteForm workspaceId={loaded.id} onInvited={refresh} />
+              ) : (
+                <Banner>
+                  Only owners and admins can invite people, change roles or remove people.
+                </Banner>
+              )}
+              {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
+              <section className={styles.section}>
+                <SectionHeader title="Members" description={peopleCount(loaded.members.length)} />
+                <div className={styles.list}>
+                  {loaded.members.map((m) => {
+                    const isMe = m.userId === session?.user.id
+                    const editable = canManage && !isMe
+                    return (
+                      <ListRow key={m.id} leading={<Avatar name={m.user.name} />}>
+                        <div className={styles.member}>
+                          <div className={styles.who}>
+                            <Text truncate>{m.user.name}</Text>
+                            <Text variant="small" tone="secondary" truncate>
+                              {m.user.email}
+                            </Text>
+                          </div>
+                          <div
+                            className={styles.controls}
+                            data-editable={editable ? '' : undefined}
+                          >
+                            {editable && m.role !== 'owner' ? (
+                              <Select
+                                className={styles.role}
+                                label={`Role of ${m.user.name}`}
+                                hideLabel
+                                items={ROLES}
+                                value={m.role}
+                                disabled={changeRole.isPending}
+                                onValueChange={(role) => {
+                                  if (role !== m.role) {
+                                    changeRole.mutate({
+                                      memberId: m.id,
+                                      role: role === 'admin' ? 'admin' : 'member',
+                                      workspaceId: loaded.id,
+                                    })
+                                  }
+                                }}
+                              />
+                            ) : (
+                              <Text variant="small" tone="secondary">
+                                {ROLE_LABEL[m.role] ?? m.role}
+                              </Text>
+                            )}
+                            {editable ? (
+                              <Menu
+                                align="end"
+                                trigger={
+                                  <IconButton label={`Actions for ${m.user.name}`}>
+                                    <RowMenuIcon />
+                                  </IconButton>
+                                }
+                                items={[
+                                  {
+                                    label: 'Remove from workspace',
+                                    tone: 'danger',
+                                    onSelect: () =>
+                                      setRemoving({
+                                        id: m.id,
+                                        name: m.user.name,
+                                        email: m.user.email,
+                                      }),
+                                  },
+                                ]}
+                              />
+                            ) : null}
+                          </div>
+                        </div>
+                      </ListRow>
+                    )
+                  })}
+                </div>
+                {canManage && loaded.members.length === 1 ? (
+                  <EmptyState title="No one else is here yet">
+                    Invite a teammate above, or let a verified email domain add people.
+                  </EmptyState>
+                ) : null}
+              </section>
+              {pending.length > 0 ? (
+                <section className={styles.section}>
+                  <SectionHeader
+                    title="Pending invitations"
+                    description={invitationCount(pending.length)}
+                  />
+                  <div className={styles.list}>
+                    {pending.map((i) => (
+                      <ListRow
+                        key={i.id}
+                        trailing={
+                          canManage ? (
+                            <Button
+                              size="sm"
+                              loading={cancel.isPending && cancel.variables === i.id}
+                              disabled={cancel.isPending}
+                              onClick={() => cancel.mutate(i.id)}
+                            >
+                              Withdraw
+                            </Button>
+                          ) : null
+                        }
+                      >
                         <div className={styles.who}>
-                          <Text truncate>{m.user.name}</Text>
-                          <Text variant="small" tone="secondary" truncate>
-                            {m.user.email}
+                          <Text truncate>{i.email}</Text>
+                          <Text variant="small" tone="secondary">
+                            {ROLE_LABEL[i.role ?? 'member'] ?? i.role} · expires{' '}
+                            <RelativeTime iso={new Date(i.expiresAt).toISOString()} />
                           </Text>
                         </div>
-                        <div className={styles.controls} data-editable={editable ? '' : undefined}>
-                          {editable && m.role !== 'owner' ? (
-                            <Select
-                              className={styles.role}
-                              label={`Role of ${m.user.name}`}
-                              hideLabel
-                              items={ROLES}
-                              value={m.role}
-                              disabled={changeRole.isPending}
-                              onValueChange={(role) => {
-                                if (role !== m.role) {
-                                  changeRole.mutate({
-                                    memberId: m.id,
-                                    role: role === 'admin' ? 'admin' : 'member',
-                                    workspaceId: data.id,
-                                  })
-                                }
-                              }}
-                            />
-                          ) : (
-                            <Text variant="small" tone="secondary">
-                              {ROLE_LABEL[m.role] ?? m.role}
-                            </Text>
-                          )}
-                          {editable ? (
-                            <Menu
-                              align="end"
-                              trigger={
-                                <IconButton label={`Actions for ${m.user.name}`}>
-                                  <RowMenuIcon />
-                                </IconButton>
-                              }
-                              items={[
-                                {
-                                  label: 'Remove from workspace',
-                                  tone: 'danger',
-                                  onSelect: () =>
-                                    setRemoving({
-                                      id: m.id,
-                                      name: m.user.name,
-                                      email: m.user.email,
-                                    }),
-                                },
-                              ]}
-                            />
-                          ) : null}
-                        </div>
-                      </div>
-                    </ListRow>
-                  )
-                })}
-              </div>
-              {canManage && data.members.length === 1 ? (
-                <EmptyState title="No one else is here yet">
-                  Invite a teammate above, or let a verified email domain add people.
-                </EmptyState>
+                      </ListRow>
+                    ))}
+                  </div>
+                </section>
               ) : null}
-            </section>
-            {pending.length > 0 ? (
-              <section className={styles.section}>
-                <SectionHeader
-                  title="Pending invitations"
-                  description={invitationCount(pending.length)}
-                />
-                <div className={styles.list}>
-                  {pending.map((i) => (
-                    <ListRow
-                      key={i.id}
-                      trailing={
-                        canManage ? (
-                          <Button
-                            size="sm"
-                            loading={cancel.isPending && cancel.variables === i.id}
-                            disabled={cancel.isPending}
-                            onClick={() => cancel.mutate(i.id)}
-                          >
-                            Withdraw
-                          </Button>
-                        ) : null
-                      }
-                    >
-                      <div className={styles.who}>
-                        <Text truncate>{i.email}</Text>
-                        <Text variant="small" tone="secondary">
-                          {ROLE_LABEL[i.role ?? 'member'] ?? i.role} · expires{' '}
-                          <RelativeTime iso={new Date(i.expiresAt).toISOString()} />
-                        </Text>
-                      </div>
-                    </ListRow>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-            <Text variant="small" tone="tertiary">
-              Sign-in methods and email domains are in{' '}
-              <Link to="/workspaces/$workspace/settings/sign-in" params={{ workspace }}>
-                Sign-in and domains
-              </Link>
-              .
-            </Text>
-          </>
-        )}
+              <Text variant="small" tone="tertiary">
+                Sign-in methods and email domains are in{' '}
+                <Link to="/workspaces/$workspace/settings/sign-in" params={{ workspace }}>
+                  Sign-in and domains
+                </Link>
+                .
+              </Text>
+            </>
+          )}
+        </QueryBoundary>
       </div>
       <ConfirmDialog
         open={removing !== null}

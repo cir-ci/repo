@@ -1,12 +1,11 @@
-import { Delayed, EmptyState, ListSkeleton, SegmentedControl, Select, Text } from '@circi/ui'
+import { EmptyState, SegmentedControl, Select, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 
-import { useLoadingAnnouncement } from '#features/builds/list/loading.ts'
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
-import { ErrorState } from '#lib/ErrorState.tsx'
 import { PageHeading, workspaceCrumb } from '#lib/PageHeading.tsx'
+import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 
 import {
   formatBytes,
@@ -31,8 +30,7 @@ export function InsightsPage() {
   const search = useSearch({ from: ROUTE })
   const navigate = useNavigate()
   useDocumentTitle('Insights', workspace)
-  const { data, error, refetch } = useQuery(insightsQuery(workspace, search))
-  useLoadingAnnouncement(!data && !error, 'Loading insights')
+  const query = useQuery(insightsQuery(workspace, search))
   const { data: sidebar } = useSidebarModel(workspace)
 
   const go = (next: InsightsSearch) =>
@@ -70,94 +68,101 @@ export function InsightsPage() {
         }
       />
       <div className={styles.body}>
-        {error ? (
-          <ErrorState error={error} onRetry={() => void refetch()} notFound="Workspace not found" />
-        ) : !data ? (
-          <Delayed>
-            <ListSkeleton rows={4} />
-          </Delayed>
-        ) : isEmpty(data) ? (
-          <EmptyState title="No data yet">
-            Nothing was built or reviewed in the last {search.range} days. Try a longer range.
-          </EmptyState>
-        ) : (
-          <>
-            <ul className={styles.tiles} aria-label="Summary">
-              {tiles(data, search.range).map((t) => (
-                <li key={t.id} className={styles.tile}>
-                  <Text variant="small" tone="secondary">
-                    {t.title}
-                  </Text>
-                  <span className={styles.value}>{t.value}</span>
-                  <span className={styles.pill} data-tone={t.delta.tone} aria-label={t.delta.label}>
-                    {t.delta.text}
-                  </span>
-                  <Text variant="small" tone="secondary">
-                    {t.note}
-                  </Text>
-                </li>
-              ))}
-            </ul>
-            <div className={styles.grid}>
-              <section className={styles.card} aria-labelledby="ins-review">
-                <h2 id="ins-review">Median time to review, per week</h2>
-                <ReviewChart weeks={data.weeks} />
-              </section>
-              <section className={styles.card} aria-labelledby="ins-flaky">
-                <h2 id="ins-flaky">Flaky snapshots</h2>
-                <FlakyChart weeks={data.weeks} />
-              </section>
-              <section className={styles.card} aria-labelledby="ins-storage">
-                <h2 id="ins-storage">Storage by team</h2>
-                <Text variant="small" tone="secondary">
-                  {formatBytes(data.storage.totalBytes)} total
-                </Text>
-                <ul className={styles.list}>
-                  {storageBars(data.storage).map((p) => (
-                    <li key={p.slug} className={styles.hbar}>
-                      <span>{p.name}</span>
-                      <div className={styles.track} aria-hidden="true">
-                        <div className={styles.fill} style={{ width: `${p.share * 100}%` }} />
-                      </div>
-                      <span className={styles.num}>{formatBytes(p.bytes)}</span>
+        <QueryBoundary
+          query={query}
+          announce="Loading insights"
+          notFound="Workspace not found"
+          rows={4}
+        >
+          {(data) =>
+            isEmpty(data) ? (
+              <EmptyState title="No data yet">
+                Nothing was built or reviewed in the last {search.range} days. Try a longer range.
+              </EmptyState>
+            ) : (
+              <>
+                <ul className={styles.tiles} aria-label="Summary">
+                  {tiles(data, search.range).map((t) => (
+                    <li key={t.id} className={styles.tile}>
+                      <Text variant="small" tone="secondary">
+                        {t.title}
+                      </Text>
+                      <span className={styles.value}>{t.value}</span>
+                      <span
+                        className={styles.pill}
+                        data-tone={t.delta.tone}
+                        aria-label={t.delta.label}
+                      >
+                        {t.delta.text}
+                      </span>
+                      <Text variant="small" tone="secondary">
+                        {t.note}
+                      </Text>
                     </li>
                   ))}
                 </ul>
-              </section>
-              <section className={styles.card} aria-labelledby="ins-who">
-                <h2 id="ins-who">Reviewer load</h2>
-                {data.reviewers.length === 0 ? (
-                  <Text variant="small" tone="secondary">
-                    No reviewers yet.
-                  </Text>
-                ) : (
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th scope="col">Reviewer</th>
-                        <th scope="col">Reviews</th>
-                        <th scope="col">Open</th>
-                        <th scope="col">Median response</th>
-                        <th scope="col">Overdue</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.reviewers.map((r) => (
-                        <tr key={r.id}>
-                          <td>{r.name}</td>
-                          <td>{r.reviews}</td>
-                          <td>{r.openRequests}</td>
-                          <td>{formatHours(r.medianResponseHours)}</td>
-                          <td>{r.overdue}</td>
-                        </tr>
+                <div className={styles.grid}>
+                  <section className={styles.card} aria-labelledby="ins-review">
+                    <h2 id="ins-review">Median time to review, per week</h2>
+                    <ReviewChart weeks={data.weeks} />
+                  </section>
+                  <section className={styles.card} aria-labelledby="ins-flaky">
+                    <h2 id="ins-flaky">Flaky snapshots</h2>
+                    <FlakyChart weeks={data.weeks} />
+                  </section>
+                  <section className={styles.card} aria-labelledby="ins-storage">
+                    <h2 id="ins-storage">Storage by team</h2>
+                    <Text variant="small" tone="secondary">
+                      {formatBytes(data.storage.totalBytes)} total
+                    </Text>
+                    <ul className={styles.list}>
+                      {storageBars(data.storage).map((p) => (
+                        <li key={p.slug} className={styles.hbar}>
+                          <span>{p.name}</span>
+                          <div className={styles.track} aria-hidden="true">
+                            <div className={styles.fill} style={{ width: `${p.share * 100}%` }} />
+                          </div>
+                          <span className={styles.num}>{formatBytes(p.bytes)}</span>
+                        </li>
                       ))}
-                    </tbody>
-                  </table>
-                )}
-              </section>
-            </div>
-          </>
-        )}
+                    </ul>
+                  </section>
+                  <section className={styles.card} aria-labelledby="ins-who">
+                    <h2 id="ins-who">Reviewer load</h2>
+                    {data.reviewers.length === 0 ? (
+                      <Text variant="small" tone="secondary">
+                        No reviewers yet.
+                      </Text>
+                    ) : (
+                      <table className={styles.table}>
+                        <thead>
+                          <tr>
+                            <th scope="col">Reviewer</th>
+                            <th scope="col">Reviews</th>
+                            <th scope="col">Open</th>
+                            <th scope="col">Median response</th>
+                            <th scope="col">Overdue</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {data.reviewers.map((r) => (
+                            <tr key={r.id}>
+                              <td>{r.name}</td>
+                              <td>{r.reviews}</td>
+                              <td>{r.openRequests}</td>
+                              <td>{formatHours(r.medianResponseHours)}</td>
+                              <td>{r.overdue}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </section>
+                </div>
+              </>
+            )
+          }
+        </QueryBoundary>
       </div>
     </>
   )

@@ -500,7 +500,12 @@ describe('the integration SDK', () => {
 
   it('has no integration route, job or page named after one integration in the generic files', () => {
     const generic = [
-      'apps/server/src/http/routes/dashboard/integrations-generic.ts',
+      'apps/server/src/http/routes/dashboard/integrations/connect.ts',
+      'apps/server/src/http/routes/dashboard/integrations/context.ts',
+      'apps/server/src/http/routes/dashboard/integrations/links.ts',
+      'apps/server/src/http/routes/dashboard/integrations/mapping.ts',
+      'apps/server/src/http/routes/dashboard/integrations/oauth.ts',
+      'apps/server/src/http/routes/dashboard/integrations/presenters.ts',
       'apps/server/src/http/routes/integration-webhook.ts',
       'packages/services/src/git-events.ts',
       'apps/web/src/features/integrations/GenericIntegrationPage.tsx',
@@ -513,11 +518,11 @@ describe('the integration SDK', () => {
   })
 
   it('has no per-integration route, repository or page left: only definitions know a provider', () => {
-    // `dashboard/github-app.ts` is the instance's GitHub App setup (the manifest flow): the
+    // `dashboard/instance/github-app.ts` is the instance's GitHub App setup (the manifest flow): the
     // instance-level app an integration may need (docs/integration-sdk.md, "Adding an
     // integration" step 4), not a route that connects or maps anything.
     expect(
-      named('apps/server/src/http/routes').filter((f) => f !== 'dashboard/github-app.ts'),
+      named('apps/server/src/http/routes').filter((f) => f !== 'dashboard/instance/github-app.ts'),
     ).toEqual([])
     expect(named('packages/db/src/repositories')).toEqual([])
     expect(named('apps/web/src/features/integrations').filter((f) => f !== 'logos.tsx')).toEqual([])

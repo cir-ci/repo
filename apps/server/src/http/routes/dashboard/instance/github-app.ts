@@ -36,7 +36,7 @@ import { loadWorkspace } from '#http/lib/workspace-access.ts'
  *   GET  /api/workspaces/:workspace/integrations/github/install   the install address for a workspace
  *
  * Every `state` is signed, expires, and names the user it was issued to. The installation's own
- * return (`/api/integrations/github/setup`) is in `integrations-generic.ts`, which shares the
+ * return (`/api/integrations/github/setup`) is in `integrations/oauth.ts`, which shares the
  * generic connect.
  */
 

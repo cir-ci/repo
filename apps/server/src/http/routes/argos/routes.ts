@@ -1,13 +1,6 @@
 import { COMMIT_SHA_RE, isSha256, MAX_PARALLEL_SHARDS, ValidationError } from '@circi/core'
-import {
-  finalizeTeamBuild,
-  findBaseline,
-  findUpload,
-  startBuildUpload,
-  storeUpload,
-} from '@circi/services'
-import { ChecksumMismatchError, contentKey } from '@circi/storage'
-import multipart from '@fastify/multipart'
+import { finalizeTeamBuild, findBaseline, startBuildUpload } from '@circi/services'
+import { contentKey } from '@circi/storage'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
@@ -16,9 +9,9 @@ import type { Deps } from '#http/lib/deps.ts'
 import { jsonErrorHandler } from '#http/lib/errors.ts'
 import { describeBuild } from '#http/lib/presenters.ts'
 import { parse } from '#http/lib/validation.ts'
-import { MAX_SCREENSHOT_BYTES } from '#http/routes/v1/schemas.ts'
 
 import { baselineBody, buildName, createBody, JSON_LIMIT, updateBody } from './schemas.ts'
+import { uploadRoutes } from './uploads.ts'
 
 /**
  * The Argos upload protocol (`/v2`), so teams that already use the Argos SDKs (Playwright,
@@ -38,51 +31,7 @@ import { baselineBody, buildName, createBody, JSON_LIMIT, updateBody } from './s
 export const argosRoutes: FastifyPluginAsync<Deps.V2> = async (v2, deps) => {
   v2.setErrorHandler(jsonErrorHandler)
 
-  // The upload target is called without the team token (as a presigned URL would be): the
-  // file's hash is the credential, because the bytes are stored only if they match it.
-  await v2.register(async (uploads) => {
-    await uploads.register(multipart, { limits: { fileSize: MAX_SCREENSHOT_BYTES, files: 1 } })
-    uploads.post('/uploads/:buildId/:sha256', async (req, reply) => {
-      const { buildId, sha256: hash } = parse(
-        z.object({ buildId: z.uuid(), sha256: z.string() }),
-        req.params,
-      )
-      const file = isSha256(hash)
-        ? await findUpload(deps.db, { sha256: hash, buildId })
-        : ({ state: 'unknown' } as const)
-      if (file.state === 'unknown') {
-        return reply.code(404).send({ error: 'This build did not ask for that file' })
-      }
-      if (file.state === 'verified') {
-        await req.file().catch(() => undefined)
-        return reply.code(204).send()
-      }
-      const part = await req.file()
-      if (!part) return reply.code(400).send({ error: 'Send the file as a multipart form' })
-      try {
-        const stored = await storeUpload(deps.db, deps.storage, {
-          sha256: hash,
-          storageKey: file.storageKey,
-          contentType: file.contentType,
-          content: part.file,
-          accept: () => !part.file.truncated,
-        })
-        if (stored.status === 'rejected') {
-          return reply
-            .code(413)
-            .send({ error: `Files are limited to ${MAX_SCREENSHOT_BYTES} bytes` })
-        }
-        return reply.code(204).send()
-      } catch (err) {
-        if (err instanceof ChecksumMismatchError) {
-          return reply
-            .code(422)
-            .send({ error: `The uploaded bytes hash to ${err.actual}, not ${hash}` })
-        }
-        throw err
-      }
-    })
-  })
+  await v2.register(uploadRoutes, deps)
 
   await v2.register(async (api) => {
     api.addHook('onRequest', requireTeamToken(deps.auth, deps.db))

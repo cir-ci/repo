@@ -59,7 +59,7 @@ and a few CI builds per minute.
 - **Image processing is the limit.** The worker runs 2 jobs at a time by default (`concurrency ?? 2`,
   `apps/worker/src/runner.ts`); each decodes and compares every screenshot with `sharp`. Throughput is builds per
   minute, not users; a burst of CI runs queues up.
-- **Every screenshot request streams through Node.** `dashboard/files.ts` checks access in the database, then streams
+- **Every screenshot request streams through Node.** `dashboard/builds/files.ts` checks access in the database, then streams
   the object from storage (no redirect to a signed URL). A review page opens many images, so first loads from many
   users cost bandwidth and connections. This also uses the database pool (default 10 connections).
 - **Unpaginated lists:** Reviews and Insights load whole result sets (Insights aggregates in JavaScript), which is

@@ -36,9 +36,5 @@ export const RATCHET: Partial<Record<RuleId, string[]>> = {
   '12b': [],
   '13': [],
   '14': [],
-  '15': [
-    'apps/server/src/http/routes/dashboard/integrations-generic.ts',
-    'apps/server/src/http/routes/dashboard/reviews.ts',
-    'apps/server/src/http/routes/dashboard/settings.ts',
-  ],
+  '15': [],
 }

@@ -2,9 +2,7 @@ import {
   Banner,
   Button,
   ConfirmDialog,
-  Delayed,
   ListRow,
-  ListSkeleton,
   SectionHeader,
   StatusChip,
   Text,
@@ -15,6 +13,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 
 import { workspaceSsoQuery, useWorkspaceSso } from '#features/members/api.ts'
+import { QuerySkeleton } from '#lib/QueryBoundary.tsx'
 
 import { validateSso } from './model.ts'
 
@@ -79,9 +78,7 @@ export function WorkspaceSso({ workspace }: WorkspaceSso.Props) {
           Couldn’t load the single sign-on settings: {error.message}
         </Banner>
       ) : !data ? (
-        <Delayed>
-          <ListSkeleton rows={1} />
-        </Delayed>
+        <QuerySkeleton rows={1} />
       ) : null}
       {providers.length > 0 ? (
         <div className={styles.list}>

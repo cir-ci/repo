@@ -1,5 +1,5 @@
-import { Button, Dialog, TextField } from '@circi/ui'
-import { type FormEvent, useId, useState } from 'react'
+import { FormDialog, TextField } from '@circi/ui'
+import { useState } from 'react'
 
 import {
   fieldValue,
@@ -18,15 +18,13 @@ export function SaveViewDialog({
 }: SaveViewDialog.Props) {
   const [name, setName] = useState('')
   const [touched, setTouched] = useState(false)
-  const formId = useId()
   const trimmed = name.trim()
   const summary = FILTER_FIELDS.flatMap(({ field, label }) => {
     const value = fieldValue(field, filters)
     return value ? [`${label}: ${value}`] : []
   }).join(', ')
 
-  function submit(event: FormEvent) {
-    event.preventDefault()
+  function submit() {
     if (pending) return
     if (trimmed === '') {
       setTouched(true)
@@ -36,40 +34,30 @@ export function SaveViewDialog({
   }
 
   return (
-    <Dialog
+    <FormDialog
       open={open}
-      onOpenChange={(next) => {
-        if (!next) {
-          setName('')
-          setTouched(false)
-          onCancel()
-        }
+      onClose={() => {
+        setName('')
+        setTouched(false)
+        onCancel()
       }}
+      onCancel={onCancel}
+      onSubmit={submit}
       title="Save view"
       description={summary}
-      actions={
-        <>
-          <Button type="button" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit" form={formId} variant="primary" loading={pending}>
-            Save view
-          </Button>
-        </>
-      }
+      submitLabel="Save view"
+      pending={pending}
     >
-      <form id={formId} onSubmit={submit}>
-        <TextField
-          label="Name"
-          value={name}
-          maxLength={80}
-          autoFocus
-          required
-          error={error ?? (touched && trimmed === '' ? 'Give the view a name.' : undefined)}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </form>
-    </Dialog>
+      <TextField
+        label="Name"
+        value={name}
+        maxLength={80}
+        autoFocus
+        required
+        error={error ?? (touched && trimmed === '' ? 'Give the view a name.' : undefined)}
+        onChange={(e) => setName(e.target.value)}
+      />
+    </FormDialog>
   )
 }
 

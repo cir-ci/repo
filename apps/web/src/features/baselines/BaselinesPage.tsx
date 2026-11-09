@@ -1,22 +1,13 @@
 import type { Baseline } from '@circi/api'
-import {
-  Delayed,
-  EmptyState,
-  ListRow,
-  ListSkeleton,
-  Text,
-  TextField,
-  visuallyHidden,
-} from '@circi/ui'
+import { EmptyState, ListRow, Text, TextField, visuallyHidden } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { fileUrl } from '#features/builds/api/index.ts'
-import { useLoadingAnnouncement } from '#features/builds/list/loading.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
-import { ErrorState } from '#lib/ErrorState.tsx'
 import { PageHeading, teamCrumb } from '#lib/PageHeading.tsx'
+import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useClientLink } from '#lib/use-client-link.ts'
 import { useListNavigation } from '#lib/use-list-navigation.ts'
@@ -40,8 +31,8 @@ export function BaselinesPage() {
   const { workspace, team } = useParams({ from: ROUTE })
   useDocumentTitle('Baselines', team)
   const clientLink = useClientLink()
-  const { data, error, refetch } = useQuery(baselinesQuery(workspace, team))
-  useLoadingAnnouncement(!data && !error, 'Loading baselines')
+  const query = useQuery(baselinesQuery(workspace, team))
+  const { data } = query
   const [filter, setFilter] = useState('')
   const [selectedId, setSelectedId] = useState<string>()
 
@@ -61,90 +52,96 @@ export function BaselinesPage() {
       <PageHeading crumbs={[teamCrumb(workspace, { slug: team, name: team })]} title="Baselines" />
       <div className={listStyles['page']}>
         <div className={listStyles['body']}>
-          {error ? (
-            <ErrorState error={error} onRetry={() => void refetch()} notFound="Team not found" />
-          ) : !data ? (
-            <Delayed>
-              <ListSkeleton rows={4} />
-            </Delayed>
-          ) : all.length === 0 ? (
-            <EmptyState title="No baselines yet">
-              Once a build of {data.team.defaultBranch} finishes, its screenshots become the
-              baselines new builds are compared against.
-            </EmptyState>
-          ) : (
-            <>
-              <div className={listStyles['toolbar']}>
-                <span role="status" className={listStyles['count']}>
-                  {countLabel(items.length, all.length)} on {data.team.defaultBranch}
-                </span>
-                <TextField
-                  className={styles.filter}
-                  label="Filter"
-                  placeholder="Name, build or commit"
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                />
-              </div>
-              {items.length === 0 ? (
-                <EmptyState title="No matching baselines">
-                  Nothing matches “{filter.trim()}”.
+          <QueryBoundary
+            query={query}
+            announce="Loading baselines"
+            notFound="Team not found"
+            rows={4}
+          >
+            {(loaded) =>
+              all.length === 0 ? (
+                <EmptyState title="No baselines yet">
+                  Once a build of {loaded.team.defaultBranch} finishes, its screenshots become the
+                  baselines new builds are compared against.
                 </EmptyState>
               ) : (
-                <div className={styles.groups} ref={listRef}>
-                  {groups.map((group) => (
-                    <section key={group.buildName} aria-labelledby={`baselines-${group.buildName}`}>
-                      <h2 className={styles.groupHeader} id={`baselines-${group.buildName}`}>
-                        {group.buildName}
-                      </h2>
-                      <ul
-                        aria-label={`${group.buildName}, ${group.items.length} baselines`}
-                        className={listStyles['list']}
-                      >
-                        {group.items.map((item) => (
-                          <li key={baselineId(item)} {...rowProps(baselineId(item))}>
-                            <ListRow
-                              density="two-line"
-                              selected={baselineId(item) === selectedId}
-                              {...clientLink({
-                                to: '/$workspace/$team/builds/$number',
-                                params: { workspace, team, number: String(item.buildNumber) },
-                              })}
-                              leading={
-                                item.thumbnailSha256 || item.fileSha256 ? (
-                                  <img
-                                    className={styles.thumb}
-                                    src={fileUrl(item.thumbnailSha256 ?? item.fileSha256)}
-                                    alt=""
-                                    loading="lazy"
-                                  />
-                                ) : undefined
-                              }
-                            >
-                              <Text truncate>{item.name}</Text>
-                              <span className={listStyles['meta']}>
-                                <span>Build #{item.buildNumber}</span>
-                                {dimensionsLabel(item) ? (
-                                  <span>{dimensionsLabel(item)}</span>
-                                ) : null}
-                                {sizeLabel(item.sizeBytes) ? (
-                                  <span>{sizeLabel(item.sizeBytes)}</span>
-                                ) : null}
-                                <span>
-                                  <span style={visuallyHidden}>Approved </span>
-                                  <RelativeTime iso={item.approvedAt} />
-                                </span>
-                              </span>
-                            </ListRow>
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
+                <>
+                  <div className={listStyles['toolbar']}>
+                    <span role="status" className={listStyles['count']}>
+                      {countLabel(items.length, all.length)} on {loaded.team.defaultBranch}
+                    </span>
+                    <TextField
+                      className={styles.filter}
+                      label="Filter"
+                      placeholder="Name, build or commit"
+                      value={filter}
+                      onChange={(e) => setFilter(e.target.value)}
+                    />
+                  </div>
+                  {items.length === 0 ? (
+                    <EmptyState title="No matching baselines">
+                      Nothing matches “{filter.trim()}”.
+                    </EmptyState>
+                  ) : (
+                    <div className={styles.groups} ref={listRef}>
+                      {groups.map((group) => (
+                        <section
+                          key={group.buildName}
+                          aria-labelledby={`baselines-${group.buildName}`}
+                        >
+                          <h2 className={styles.groupHeader} id={`baselines-${group.buildName}`}>
+                            {group.buildName}
+                          </h2>
+                          <ul
+                            aria-label={`${group.buildName}, ${group.items.length} baselines`}
+                            className={listStyles['list']}
+                          >
+                            {group.items.map((item) => (
+                              <li key={baselineId(item)} {...rowProps(baselineId(item))}>
+                                <ListRow
+                                  density="two-line"
+                                  selected={baselineId(item) === selectedId}
+                                  {...clientLink({
+                                    to: '/$workspace/$team/builds/$number',
+                                    params: { workspace, team, number: String(item.buildNumber) },
+                                  })}
+                                  leading={
+                                    item.thumbnailSha256 || item.fileSha256 ? (
+                                      <img
+                                        className={styles.thumb}
+                                        src={fileUrl(item.thumbnailSha256 ?? item.fileSha256)}
+                                        alt=""
+                                        loading="lazy"
+                                      />
+                                    ) : undefined
+                                  }
+                                >
+                                  <Text truncate>{item.name}</Text>
+                                  <span className={listStyles['meta']}>
+                                    <span>Build #{item.buildNumber}</span>
+                                    {dimensionsLabel(item) ? (
+                                      <span>{dimensionsLabel(item)}</span>
+                                    ) : null}
+                                    {sizeLabel(item.sizeBytes) ? (
+                                      <span>{sizeLabel(item.sizeBytes)}</span>
+                                    ) : null}
+                                    <span>
+                                      <span style={visuallyHidden}>Approved </span>
+                                      <RelativeTime iso={item.approvedAt} />
+                                    </span>
+                                  </span>
+                                </ListRow>
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )
+            }
+          </QueryBoundary>
         </div>
       </div>
     </>

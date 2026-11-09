@@ -2,7 +2,7 @@ import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify'
 
 import { redirectPreviousHosts } from './hooks/previous-hosts.ts'
 import type { Deps } from './lib/deps.ts'
-import { argosRoutes } from './routes/argos/index.ts'
+import { argosRoutes } from './routes/argos/routes.ts'
 import { dashboardRoutes } from './routes/dashboard/index.ts'
 import { healthRoutes } from './routes/health.ts'
 import { integrationWebhookRoutes } from './routes/integration-webhook.ts'

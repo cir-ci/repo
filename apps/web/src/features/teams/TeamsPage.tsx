@@ -1,15 +1,14 @@
-import { Banner, Button, Delayed, ListRow, ListSkeleton, StatusIcon, Text } from '@circi/ui'
+import { Banner, Button, ListRow, StatusIcon, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 
 import { buildState } from '#features/builds/build-state.ts'
 import { BuildMeta } from '#features/builds/BuildMeta.tsx'
 import { CountsSummary } from '#features/builds/CountsSummary.tsx'
 import { shotReview } from '#features/builds/diff-status.ts'
-import { useLoadingAnnouncement } from '#features/builds/list/loading.ts'
 import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
-import { ErrorState } from '#lib/ErrorState.tsx'
 import { PageHeading } from '#lib/PageHeading.tsx'
+import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 
@@ -27,11 +26,10 @@ const ACCEPTS_TEXT = {
 export function TeamsPage() {
   useDocumentTitle('Teams')
   const clientLink = useClientLink()
-  const { data, error, refetch } = useQuery(teamsQuery())
+  const query = useQuery(teamsQuery())
   const { data: caps } = useQuery(capabilitiesQuery())
   const setNewTeamOpen = useOverlayStore((s) => s.setNewTeamOpen)
   const setNewWorkspaceOpen = useOverlayStore((s) => s.setNewWorkspaceOpen)
-  useLoadingAnnouncement(!data && !error, 'Loading teams')
   const canCreateTeam = (caps?.manageableWorkspaces.length ?? 0) > 0
   const canCreateWorkspace = caps?.canCreateWorkspace === true
 
@@ -67,64 +65,62 @@ export function TeamsPage() {
             . Sign out and sign in that way to see them.
           </Banner>
         ))}
-        {error ? (
-          <ErrorState error={error} onRetry={() => void refetch()} />
-        ) : !data ? (
-          <Delayed>
-            <ListSkeleton rows={3} />
-          </Delayed>
-        ) : data.teams.length === 0 ? (
-          <TeamsEmpty canCreateTeam={canCreateTeam} canCreateWorkspace={canCreateWorkspace} />
-        ) : (
-          <ul aria-label="Teams" className={styles.list}>
-            {data.teams.map(({ workspace, team, latestBuild }) => {
-              const state = latestBuild ? buildState(latestBuild) : null
-              return (
-                <li key={`${workspace.slug}/${team.slug}`}>
-                  <ListRow
-                    className={styles.row}
-                    {...clientLink({
-                      to: '/$workspace/$team',
-                      params: { workspace: workspace.slug, team: team.slug },
-                    })}
-                    leading={
-                      state ? (
-                        <StatusIcon status={state.status} label={state.label} />
-                      ) : (
-                        <StatusIcon status="neutral" label="No builds yet" />
-                      )
-                    }
-                    trailing={
-                      latestBuild ? (
-                        <span className={styles.trailing}>
-                          <CountsSummary
-                            counts={latestBuild.counts}
-                            review={shotReview(latestBuild)}
-                            includeUnchanged={false}
-                          />
+        <QueryBoundary query={query} announce="Loading teams" rows={3}>
+          {(data) =>
+            data.teams.length === 0 ? (
+              <TeamsEmpty canCreateTeam={canCreateTeam} canCreateWorkspace={canCreateWorkspace} />
+            ) : (
+              <ul aria-label="Teams" className={styles.list}>
+                {data.teams.map(({ workspace, team, latestBuild }) => {
+                  const state = latestBuild ? buildState(latestBuild) : null
+                  return (
+                    <li key={`${workspace.slug}/${team.slug}`}>
+                      <ListRow
+                        className={styles.row}
+                        {...clientLink({
+                          to: '/$workspace/$team',
+                          params: { workspace: workspace.slug, team: team.slug },
+                        })}
+                        leading={
+                          state ? (
+                            <StatusIcon status={state.status} label={state.label} />
+                          ) : (
+                            <StatusIcon status="neutral" label="No builds yet" />
+                          )
+                        }
+                        trailing={
+                          latestBuild ? (
+                            <span className={styles.trailing}>
+                              <CountsSummary
+                                counts={latestBuild.counts}
+                                review={shotReview(latestBuild)}
+                                includeUnchanged={false}
+                              />
+                            </span>
+                          ) : undefined
+                        }
+                      >
+                        <span className={styles.title}>
+                          <span className={styles.workspace}>{workspace.name} / </span>
+                          {team.name}
                         </span>
-                      ) : undefined
-                    }
-                  >
-                    <span className={styles.title}>
-                      <span className={styles.workspace}>{workspace.name} / </span>
-                      {team.name}
-                    </span>
-                    <div className={styles.meta}>
-                      {latestBuild ? (
-                        <BuildMeta build={latestBuild} />
-                      ) : (
-                        <Text variant="small" tone="secondary">
-                          No builds yet
-                        </Text>
-                      )}
-                    </div>
-                  </ListRow>
-                </li>
-              )
-            })}
-          </ul>
-        )}
+                        <div className={styles.meta}>
+                          {latestBuild ? (
+                            <BuildMeta build={latestBuild} />
+                          ) : (
+                            <Text variant="small" tone="secondary">
+                              No builds yet
+                            </Text>
+                          )}
+                        </div>
+                      </ListRow>
+                    </li>
+                  )
+                })}
+              </ul>
+            )
+          }
+        </QueryBoundary>
       </div>
     </>
   )

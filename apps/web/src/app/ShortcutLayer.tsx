@@ -7,6 +7,7 @@ import { useSidebarModel } from '#features/sidebar/api.ts'
 import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
+import { useCopy } from '#lib/use-copy.ts'
 
 import { goPath, readRememberedWorkspace } from './shell-model.ts'
 import { ShortcutsDialog } from './ShortcutsDialog.tsx'
@@ -19,6 +20,7 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
   const router = useRouter()
   const params = useParams({ strict: false })
   const announce = useAnnounce()
+  const { copy } = useCopy()
   const { workspace } = useWorkspaces(readRememberedWorkspace())
   const { data: sidebar } = useSidebarModel(workspace?.slug)
   const commandOpen = useOverlayStore((s) => s.commandMenuOpen)
@@ -39,9 +41,8 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
     command: () => setCommandOpen(true),
     help: () => setHelpOpen(true),
     copyLink: () => {
-      navigator.clipboard.writeText(location.href).then(
-        () => announce('Link copied'),
-        () => announce('Could not copy the link'),
+      void copy(location.href).then((ok) =>
+        announce(ok ? 'Link copied' : 'Could not copy the link'),
       )
     },
   })

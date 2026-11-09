@@ -1,10 +1,21 @@
-import { Banner, Button, Dialog, Select, TabList, Text, TextField, WarningIcon } from '@circi/ui'
+import {
+  Banner,
+  Button,
+  Dialog,
+  FormDialog,
+  SecretBox,
+  Select,
+  TabList,
+  Text,
+  TextField,
+  WarningIcon,
+} from '@circi/ui'
 import { useNavigate } from '@tanstack/react-router'
-import { type FormEvent, useState } from 'react'
+import { useState } from 'react'
 
 import { type CreatedTeam, useCreateTeam, useRepoChoices } from '#features/teams/api/new-team.ts'
+import { useCopy } from '#lib/use-copy.ts'
 
-import { SecretBox } from './CreateDialogs.tsx'
 import {
   CI_EXAMPLES,
   type CiKey,
@@ -59,8 +70,7 @@ export function NewTeamDialog({
       })
   }
 
-  function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault()
+  function submit() {
     const trimmed = name.trim()
     if (!trimmed) {
       setNameError('Enter a name')
@@ -95,81 +105,73 @@ export function NewTeamDialog({
   }
 
   return (
-    <Dialog
+    <FormDialog
       open={open}
-      onOpenChange={(next) => {
-        if (!next) close()
-      }}
+      onClose={close}
+      onSubmit={submit}
       title="New team"
       description="Step 1 of 2"
-      actions={
-        <>
-          <Button variant="ghost" onClick={close}>
-            Cancel
-          </Button>
-          <Button type="submit" form="new-team" variant="primary" loading={create.isPending}>
-            Create team
-          </Button>
-        </>
-      }
+      submitLabel="Create team"
+      cancelVariant="ghost"
+      pending={create.isPending}
+      noValidate
+      formClassName={styles.form}
     >
-      <form id="new-team" onSubmit={submit} noValidate className={styles.form}>
-        {workspaces.length > 1 ? (
-          <Select
-            name="workspace"
-            label="Workspace"
-            items={workspaces.map((w) => ({ value: w.slug, label: w.name }))}
-            value={workspace}
-            onValueChange={(next) => {
-              setPickedWorkspace(next)
-              setRepoValue(NO_REPOSITORY)
-            }}
-          />
-        ) : null}
-        <TextField
-          name="name"
-          label="Name"
-          required
-          autoFocus
-          autoComplete="off"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          description={
-            <>
-              Address: <Text as="span" variant="mono">{`/${workspace}/${slugify(name)}`}</Text>
-            </>
-          }
-          error={nameError}
-        />
-        <TextField
-          name="defaultBranch"
-          label="Default branch"
-          autoComplete="off"
-          value={branch}
-          onChange={(e) => setBranch(e.target.value)}
-          description="Builds on this branch become the baselines other branches compare with."
-        />
+      {workspaces.length > 1 ? (
         <Select
-          name="repository"
-          label="Link a repository (optional)"
-          items={[
-            { value: NO_REPOSITORY, label: 'No repository, use the CLI exit code as the gate' },
-            ...repos.map((r) => ({ value: r.value, label: r.name })),
-          ]}
-          value={repoValue}
-          onValueChange={setRepoValue}
-          description={repoHelp(repo !== undefined)}
+          name="workspace"
+          label="Workspace"
+          items={workspaces.map((w) => ({ value: w.slug, label: w.name }))}
+          value={workspace}
+          onValueChange={(next) => {
+            setPickedWorkspace(next)
+            setRepoValue(NO_REPOSITORY)
+          }}
         />
-        {create.error ? <Banner tone="danger">{create.error.message}</Banner> : null}
-      </form>
-    </Dialog>
+      ) : null}
+      <TextField
+        name="name"
+        label="Name"
+        required
+        autoFocus
+        autoComplete="off"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        description={
+          <>
+            Address: <Text as="span" variant="mono">{`/${workspace}/${slugify(name)}`}</Text>
+          </>
+        }
+        error={nameError}
+      />
+      <TextField
+        name="defaultBranch"
+        label="Default branch"
+        autoComplete="off"
+        value={branch}
+        onChange={(e) => setBranch(e.target.value)}
+        description="Builds on this branch become the baselines other branches compare with."
+      />
+      <Select
+        name="repository"
+        label="Link a repository (optional)"
+        items={[
+          { value: NO_REPOSITORY, label: 'No repository, use the CLI exit code as the gate' },
+          ...repos.map((r) => ({ value: r.value, label: r.name })),
+        ]}
+        value={repoValue}
+        onValueChange={setRepoValue}
+        description={repoHelp(repo !== undefined)}
+      />
+      {create.error ? <Banner tone="danger">{create.error.message}</Banner> : null}
+    </FormDialog>
   )
 }
 
 /** Step two: the token, once, and the CI examples with this team's details in them. */
 function CreatedStep({ created }: { created: CreatedTeam }) {
   const [ci, setCi] = useState<CiKey>('github')
-  const [copied, setCopied] = useState(false)
+  const { copy, state, reset } = useCopy()
   const context = {
     token: created.token,
     team: `${created.workspace}/${created.slug}`,
@@ -178,15 +180,6 @@ function CreatedStep({ created }: { created: CreatedTeam }) {
   const example = CI_EXAMPLES.find((e) => e.key === ci) ?? CI_EXAMPLES[0]
   if (!example) return null
   const snippet = example.snippet(context)
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(snippet)
-    } catch {
-      return
-    }
-    setCopied(true)
-  }
 
   return (
     <div className={styles.form}>
@@ -212,17 +205,17 @@ function CreatedStep({ created }: { created: CreatedTeam }) {
         value={ci}
         onChange={(next) => {
           setCi(next)
-          setCopied(false)
+          reset()
         }}
       >
         <div className={styles.snippetBox}>
           <pre className={styles.snippet}>{snippet}</pre>
           <Button
             size="sm"
-            onClick={() => void copy()}
+            onClick={() => void copy(snippet)}
             aria-label={`Copy ${example.label} example`}
           >
-            {copied ? 'Copied' : 'Copy'}
+            {state === 'copied' ? 'Copied' : 'Copy'}
           </Button>
         </div>
         <Text as="p" variant="small" tone="tertiary">

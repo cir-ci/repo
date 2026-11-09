@@ -6,43 +6,38 @@ import type { Deps } from '#http/lib/deps.ts'
 import { jsonErrorHandler } from '#http/lib/errors.ts'
 import { authRoutes } from '#http/routes/auth.ts'
 
-import { dashboardActivityRoutes } from './activity.ts'
-import { dashboardBaselineRoutes } from './baselines.ts'
-import { dashboardCommentRoutes } from './comments.ts'
-import { dashboardDomainRoutes } from './domains.ts'
-import { dashboardFileRoutes } from './files.ts'
-import { dashboardGithubAppRoutes } from './github-app.ts'
-import { dashboardIgnoreRegionRoutes } from './ignore-regions.ts'
-import { dashboardInboxRoutes } from './inbox.ts'
-import { dashboardInsightsRoutes } from './insights.ts'
-import { dashboardInstanceAccountRoutes } from './instance-accounts.ts'
-import { dashboardInstanceHealthRoutes } from './instance-health.ts'
-import { dashboardInstanceSettingsRoutes } from './instance-settings.ts'
-import { dashboardInstanceWorkspaceRoutes } from './instance-workspaces.ts'
-import { dashboardInstanceRoutes } from './instance.ts'
-import { dashboardGenericIntegrationRoutes } from './integrations-generic.ts'
-import { dashboardIntegrationRoutes } from './integrations.ts'
-import { dashboardIssueTrackerRoutes } from './issue-trackers.ts'
-import {
-  dashboardBulkReviewRoutes,
-  dashboardReviewRequestRoutes,
-  dashboardReviewRoutes,
-} from './reviews.ts'
-import { dashboardRuleRoutes } from './rules.ts'
-import { dashboardSearchRoutes } from './search.ts'
-import { dashboardSettingsRoutes } from './settings.ts'
-import { dashboardSetupRoutes } from './setup.ts'
-import { dashboardSiteHandoffRoutes } from './site-handoff.ts'
-import { dashboardTeamSitesRoutes } from './team-sites.ts'
-import { dashboardTeamRoutes } from './teams.ts'
-import { dashboardTriageRoutes } from './triage.ts'
-import { dashboardViewRoutes } from './views.ts'
+import { dashboardActivityRoutes } from './builds/activity.ts'
+import { dashboardBaselineRoutes } from './builds/baselines.ts'
+import { dashboardCommentRoutes } from './builds/comments.ts'
+import { dashboardFileRoutes } from './builds/files.ts'
+import { dashboardBulkReviewRoutes, dashboardReviewRoutes } from './builds/reviews.ts'
+import { dashboardInboxRoutes } from './inbox/inbox.ts'
+import { dashboardInsightsRoutes } from './inbox/insights.ts'
+import { dashboardReviewRequestRoutes } from './inbox/review-requests.ts'
+import { dashboardSearchRoutes } from './inbox/search.ts'
+import { dashboardViewRoutes } from './inbox/views.ts'
+import { dashboardInstanceAccountRoutes } from './instance/accounts.ts'
+import { dashboardGithubAppRoutes } from './instance/github-app.ts'
+import { dashboardInstanceHealthRoutes } from './instance/health.ts'
+import { dashboardInstanceRoutes } from './instance/notices.ts'
+import { dashboardInstanceSettingsRoutes } from './instance/settings.ts'
+import { dashboardSetupRoutes } from './instance/setup.ts'
+import { dashboardInstanceWorkspaceRoutes } from './instance/workspaces.ts'
+import { dashboardIntegrationRoutes, dashboardIssueTrackerRoutes } from './integrations/index.ts'
+import { dashboardIgnoreRegionRoutes } from './teams/ignore-regions.ts'
+import { dashboardTeamRoutes } from './teams/routes.ts'
+import { dashboardRuleRoutes } from './teams/rules.ts'
+import { dashboardSettingsRoutes } from './teams/settings.ts'
+import { dashboardSiteHandoffRoutes } from './teams/site-handoff.ts'
+import { dashboardTeamSitesRoutes } from './teams/sites.ts'
+import { dashboardTriageRoutes } from './teams/triage.ts'
 import { webAppRoutes } from './web-app.ts'
-import { dashboardWorkspaceAuthRoutes } from './workspace-auth.ts'
-import { dashboardWorkspaceBuildsRoutes } from './workspace-builds.ts'
-import { dashboardWorkspaceSettingsRoutes } from './workspace-settings.ts'
-import { dashboardWorkspaceSsoRoutes } from './workspace-sso.ts'
-import { dashboardWorkspaceRoutes } from './workspaces.ts'
+import { dashboardWorkspaceAuthRoutes } from './workspaces/auth.ts'
+import { dashboardWorkspaceBuildsRoutes } from './workspaces/builds.ts'
+import { dashboardDomainRoutes } from './workspaces/domains.ts'
+import { dashboardWorkspaceSettingsRoutes } from './workspaces/settings.ts'
+import { dashboardWorkspaceSsoRoutes } from './workspaces/sso.ts'
+import { dashboardWorkspaceRoutes } from './workspaces/workspaces.ts'
 
 /**
  * The dashboard, in three parts:
@@ -105,7 +100,6 @@ const sessionApi: FastifyPluginAsync<Deps.Dashboard> = async (api, deps) => {
   await api.register(dashboardDomainRoutes, deps)
   await api.register(dashboardWorkspaceSsoRoutes, deps)
   await api.register(dashboardIntegrationRoutes, deps)
-  await api.register(dashboardGenericIntegrationRoutes, deps)
   await api.register(dashboardIssueTrackerRoutes, deps)
   await api.register(dashboardSiteHandoffRoutes, deps)
   await api.register(dashboardTeamSitesRoutes, deps)

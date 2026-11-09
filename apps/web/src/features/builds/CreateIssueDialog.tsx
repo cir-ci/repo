@@ -1,6 +1,6 @@
 import type { Issue } from '@circi/api'
-import { Banner, Button, Dialog, SegmentedControl, Text, TextField, useAnnounce } from '@circi/ui'
-import { type FormEvent, useId, useState } from 'react'
+import { Banner, FormDialog, SegmentedControl, Text, TextField, useAnnounce } from '@circi/ui'
+import { useState } from 'react'
 
 import styles from './Discussion.module.css'
 
@@ -14,13 +14,11 @@ export function CreateIssueDialog(props: CreateIssueDialog.Props) {
   const [title, setTitle] = useState<string | null>(null)
   const [picked, setPicked] = useState(trackers[0]?.integrationId ?? '')
   const announce = useAnnounce()
-  const formId = useId()
   const tracker = trackers.find((t) => t.integrationId === picked) ?? trackers[0]
   const shownTitle = title ?? defaultTitle
   const name = tracker ? (TRACKER_NAMES[tracker.kind] ?? tracker.kind) : 'the tracker'
 
-  function submit(e?: FormEvent) {
-    e?.preventDefault()
+  function submit() {
     if (!tracker || props.pending || shownTitle.trim() === '') return
     props.onCreate(
       {
@@ -36,14 +34,14 @@ export function CreateIssueDialog(props: CreateIssueDialog.Props) {
   }
 
   return (
-    <Dialog
+    <FormDialog
       open={props.open}
-      onOpenChange={(open) => {
-        if (!open) {
-          setTitle(null)
-          props.onCancel()
-        }
+      onClose={() => {
+        setTitle(null)
+        props.onCancel()
       }}
+      onCancel={props.onCancel}
+      onSubmit={submit}
       title="Create issue"
       description={
         snapshotName
@@ -51,64 +49,50 @@ export function CreateIssueDialog(props: CreateIssueDialog.Props) {
           : `For this build in ${name}.`
       }
       size="wide"
-      actions={
-        <>
-          <Button type="button" onClick={props.onCancel}>
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            form={`${formId}-form`}
-            variant="primary"
-            loading={props.pending}
-            disabled={shownTitle.trim() === ''}
-          >
-            Create issue
-          </Button>
-        </>
-      }
+      submitLabel="Create issue"
+      pending={props.pending}
+      submitDisabled={shownTitle.trim() === ''}
+      formClassName={styles.form}
     >
-      <form id={`${formId}-form`} onSubmit={submit} className={styles.form}>
-        {trackers.length > 1 ? (
-          <SegmentedControl
-            label="Tracker"
-            options={trackers.map((t) => ({
-              value: t.integrationId,
-              label: TRACKER_NAMES[t.kind] ?? t.kind,
-            }))}
-            value={tracker?.integrationId ?? ''}
-            onChange={setPicked}
-          />
-        ) : null}
-        {tracker?.kind === 'jira' ? (
-          <Text variant="small" tone="secondary">
-            Project{' '}
-            <Text as="code" variant="mono">
-              {tracker.target}
-            </Text>{' '}
-            in {tracker.name}
-          </Text>
-        ) : null}
-        <TextField
-          label="Title"
-          value={shownTitle}
-          onChange={(e) => setTitle(e.target.value)}
-          required
+      {trackers.length > 1 ? (
+        <SegmentedControl
+          label="Tracker"
+          options={trackers.map((t) => ({
+            value: t.integrationId,
+            label: TRACKER_NAMES[t.kind] ?? t.kind,
+          }))}
+          value={tracker?.integrationId ?? ''}
+          onChange={setPicked}
         />
-        <div>
-          <Text variant="small" tone="secondary">
-            Description
-          </Text>
-          <Text as="p" variant="small" className={styles.preview} aria-label="Description preview">
-            {description}
-          </Text>
-        </div>
-        {props.error ? <Banner tone="danger">{props.error.message}</Banner> : null}
-        <Text variant="small" tone="tertiary">
-          The issue links back to this build.
+      ) : null}
+      {tracker?.kind === 'jira' ? (
+        <Text variant="small" tone="secondary">
+          Project{' '}
+          <Text as="code" variant="mono">
+            {tracker.target}
+          </Text>{' '}
+          in {tracker.name}
         </Text>
-      </form>
-    </Dialog>
+      ) : null}
+      <TextField
+        label="Title"
+        value={shownTitle}
+        onChange={(e) => setTitle(e.target.value)}
+        required
+      />
+      <div>
+        <Text variant="small" tone="secondary">
+          Description
+        </Text>
+        <Text as="p" variant="small" className={styles.preview} aria-label="Description preview">
+          {description}
+        </Text>
+      </div>
+      {props.error ? <Banner tone="danger">{props.error.message}</Banner> : null}
+      <Text variant="small" tone="tertiary">
+        The issue links back to this build.
+      </Text>
+    </FormDialog>
   )
 }
 

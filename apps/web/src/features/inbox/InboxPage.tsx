@@ -2,11 +2,9 @@ import type { Inbox } from '@circi/api'
 import {
   Badge,
   Button,
-  Delayed,
   EmptyState,
   InboxIcon,
   ListRow,
-  ListSkeleton,
   Pane,
   Text,
   useAnnounce,
@@ -15,20 +13,17 @@ import {
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
-import { useLoadingAnnouncement } from '#features/builds/list/loading.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
-import { ErrorState } from '#lib/ErrorState.tsx'
-import { focusRow, leavesKeyToFocus, nextAfterRemoval } from '#lib/list-keys.ts'
 import { PageHeading } from '#lib/PageHeading.tsx'
+import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
-import { useListStore } from '#lib/stores/list-store.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
-import { useListNavigation } from '#lib/use-list-navigation.ts'
+import { useSelectableList } from '#lib/use-selectable-list.ts'
 
 import {
   INBOX_TABS,
@@ -51,14 +46,9 @@ export function InboxPage() {
   const navigate = useNavigate()
   const announce = useAnnounce()
   const clientLink = useClientLink()
-  const { data, error, refetch } = useQuery(inboxQuery(tab))
-  useLoadingAnnouncement(!data && !error, 'Loading your inbox')
+  const query = useQuery(inboxQuery(tab))
+  const { data } = query
 
-  const selectedId = useListStore((s) => s.cursorId)
-  const setSelectedId = useListStore((s) => s.setCursorId)
-  const peek = useListStore((s) => s.peek)
-  const togglePeek = useListStore((s) => s.togglePeek)
-  useEffect(() => () => useListStore.getState().reset(), [])
   const [snoozeOpen, setSnoozeOpen] = useState(false)
 
   const setRead = useSetRead()
@@ -68,19 +58,7 @@ export function InboxPage() {
   const markAll = useMarkAllRead()
 
   const items = data?.items ?? []
-  const selected = items.find((i) => i.id === selectedId) ?? items[0]
   const snoozedTab = tab === 'snoozed'
-
-  const {
-    ref: listElement,
-    listRef,
-    rowProps,
-  } = useListNavigation({
-    items,
-    getId: (i) => i.id,
-    selectedId: selected?.id,
-    onSelect: (i) => setSelectedId(i.id),
-  })
 
   const markRead = (item: Inbox.Item) => {
     if (!item.readAt) setRead.mutate({ id: item.id, read: true })
@@ -91,15 +69,11 @@ export function InboxPage() {
     if (target) void navigate(target)
   }
 
-  /** Runs `act` for an item that is about to leave this tab, then selects the next one. */
-  const settle = (item: Inbox.Item, message: string, act: (done: () => void) => void) => {
-    const next = nextAfterRemoval(items, (i) => i.id, item.id)
-    act(() => {
-      announce(message)
-      setSelectedId(next)
-      if (next) focusRow(listElement.current, next)
-    })
-  }
+  const { selected, setSelectedId, peek, listRef, rowProps, settle } = useSelectableList({
+    items,
+    getId: (i) => i.id,
+    onOpen: open,
+  })
 
   const toggleRead = (item: Inbox.Item) =>
     setRead.mutate(
@@ -114,16 +88,6 @@ export function InboxPage() {
     settle(item, 'Deleted', (done) => remove.mutate(item.id, { onSuccess: done }))
 
   useShortcutHandlers({
-    open: (_action, event) => {
-      if (leavesKeyToFocus(event) || !selected) return false
-      open(selected)
-      return undefined
-    },
-    peek: (_action, event) => {
-      if (leavesKeyToFocus(event) || !selected) return false
-      togglePeek()
-      return undefined
-    },
     toggleRead: () => {
       if (selected) toggleRead(selected)
     },
@@ -166,125 +130,127 @@ export function InboxPage() {
           }}
         >
           <div className={styles.body}>
-            {error ? (
-              <ErrorState error={error} onRetry={() => void refetch()} />
-            ) : !data ? (
-              <Delayed>
-                <ListSkeleton rows={4} />
-              </Delayed>
-            ) : items.length === 0 ? (
-              <EmptyState icon={<InboxIcon size={32} />} title={EMPTY[tab].title}>
-                {EMPTY[tab].text}
-              </EmptyState>
-            ) : (
-              <>
-                <div className={styles.toolbar}>
-                  <span role="status" className={styles.count}>
-                    {inboxCount(items)}
-                  </span>
-                  {selected ? (
-                    <Button size="sm" aria-keyshortcuts="u" onClick={() => toggleRead(selected)}>
-                      {selected.readAt ? 'Mark unread' : 'Mark read'}
-                    </Button>
-                  ) : null}
-                  {selected && !snoozedTab ? (
-                    <SnoozeMenu
-                      allowNextPush={false}
-                      open={snoozeOpen}
-                      onOpenChange={setSnoozeOpen}
-                      onSnooze={(choice) => doSnooze(selected, choice)}
-                      trigger={
-                        <Button size="sm" aria-keyshortcuts="h">
-                          Snooze
+            <QueryBoundary query={query} announce="Loading your inbox" rows={4}>
+              {() =>
+                items.length === 0 ? (
+                  <EmptyState icon={<InboxIcon size={32} />} title={EMPTY[tab].title}>
+                    {EMPTY[tab].text}
+                  </EmptyState>
+                ) : (
+                  <>
+                    <div className={styles.toolbar}>
+                      <span role="status" className={styles.count}>
+                        {inboxCount(items)}
+                      </span>
+                      {selected ? (
+                        <Button
+                          size="sm"
+                          aria-keyshortcuts="u"
+                          onClick={() => toggleRead(selected)}
+                        >
+                          {selected.readAt ? 'Mark unread' : 'Mark read'}
                         </Button>
-                      }
-                    />
-                  ) : null}
-                  {selected && snoozedTab ? (
-                    <Button size="sm" onClick={() => doUnsnooze(selected)}>
-                      Unsnooze
-                    </Button>
-                  ) : null}
-                  {selected ? (
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      aria-keyshortcuts="Backspace"
-                      onClick={() => doRemove(selected)}
-                    >
-                      Delete
-                    </Button>
-                  ) : null}
-                </div>
-                {failed ? (
-                  <Text tone="rejected" role="alert">
-                    {failed.message}
-                  </Text>
-                ) : null}
-                <div className={styles.split}>
-                  <ul
-                    aria-label={INBOX_TABS.find((t) => t.value === tab)?.label ?? 'Inbox'}
-                    className={styles.list}
-                    ref={listRef}
-                  >
-                    {items.map((item) => {
-                      const { title, detail } = notificationText(item)
-                      const target = notificationTarget(item)
-                      const link = target ? clientLink(target) : undefined
-                      return (
-                        <li key={item.id} {...rowProps(item.id)}>
-                          <ListRow
-                            density="two-line"
-                            selected={item.id === selected?.id}
-                            href={link?.href}
-                            onClick={(event) => {
-                              setSelectedId(item.id)
-                              if (!item.readAt) setRead.mutate({ id: item.id, read: true })
-                              link?.onClick(event)
-                            }}
-                            leading={
-                              item.readAt ? (
-                                <span className={styles.read} />
-                              ) : (
-                                <span className={styles.unread} aria-hidden="true" />
-                              )
-                            }
-                            trailing={
-                              <span className={styles.trailing}>
-                                {item.alsoInReviews ? (
-                                  <Badge shape="tag">Also in Reviews</Badge>
-                                ) : null}
-                                <Text variant="small" tone="secondary">
-                                  <RelativeTime iso={item.createdAt} />
-                                </Text>
-                              </span>
-                            }
-                          >
-                            <span style={item.readAt ? undefined : visuallyHidden}>
-                              {item.readAt ? null : 'Unread. '}
-                            </span>
-                            <Text truncate>{title}</Text>
-                            <span className={styles.meta}>
-                              {detail ? <span>{detail}</span> : null}
-                              {item.team ? <span>{item.team.name}</span> : null}
-                            </span>
-                          </ListRow>
-                        </li>
-                      )
-                    })}
-                  </ul>
-                  {peek && selected ? (
-                    <Pane
-                      label="Preview"
-                      context={selected.build ? `#${selected.build.number}` : undefined}
-                      actions={<OpenButton item={selected} onOpen={markRead} />}
-                    >
-                      <ItemDetail item={selected} />
-                    </Pane>
-                  ) : null}
-                </div>
-              </>
-            )}
+                      ) : null}
+                      {selected && !snoozedTab ? (
+                        <SnoozeMenu
+                          allowNextPush={false}
+                          open={snoozeOpen}
+                          onOpenChange={setSnoozeOpen}
+                          onSnooze={(choice) => doSnooze(selected, choice)}
+                          trigger={
+                            <Button size="sm" aria-keyshortcuts="h">
+                              Snooze
+                            </Button>
+                          }
+                        />
+                      ) : null}
+                      {selected && snoozedTab ? (
+                        <Button size="sm" onClick={() => doUnsnooze(selected)}>
+                          Unsnooze
+                        </Button>
+                      ) : null}
+                      {selected ? (
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          aria-keyshortcuts="Backspace"
+                          onClick={() => doRemove(selected)}
+                        >
+                          Delete
+                        </Button>
+                      ) : null}
+                    </div>
+                    {failed ? (
+                      <Text tone="rejected" role="alert">
+                        {failed.message}
+                      </Text>
+                    ) : null}
+                    <div className={styles.split}>
+                      <ul
+                        aria-label={INBOX_TABS.find((t) => t.value === tab)?.label ?? 'Inbox'}
+                        className={styles.list}
+                        ref={listRef}
+                      >
+                        {items.map((item) => {
+                          const { title, detail } = notificationText(item)
+                          const target = notificationTarget(item)
+                          const link = target ? clientLink(target) : undefined
+                          return (
+                            <li key={item.id} {...rowProps(item.id)}>
+                              <ListRow
+                                density="two-line"
+                                selected={item.id === selected?.id}
+                                href={link?.href}
+                                onClick={(event) => {
+                                  setSelectedId(item.id)
+                                  if (!item.readAt) setRead.mutate({ id: item.id, read: true })
+                                  link?.onClick(event)
+                                }}
+                                leading={
+                                  item.readAt ? (
+                                    <span className={styles.read} />
+                                  ) : (
+                                    <span className={styles.unread} aria-hidden="true" />
+                                  )
+                                }
+                                trailing={
+                                  <span className={styles.trailing}>
+                                    {item.alsoInReviews ? (
+                                      <Badge shape="tag">Also in Reviews</Badge>
+                                    ) : null}
+                                    <Text variant="small" tone="secondary">
+                                      <RelativeTime iso={item.createdAt} />
+                                    </Text>
+                                  </span>
+                                }
+                              >
+                                <span style={item.readAt ? undefined : visuallyHidden}>
+                                  {item.readAt ? null : 'Unread. '}
+                                </span>
+                                <Text truncate>{title}</Text>
+                                <span className={styles.meta}>
+                                  {detail ? <span>{detail}</span> : null}
+                                  {item.team ? <span>{item.team.name}</span> : null}
+                                </span>
+                              </ListRow>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                      {peek && selected ? (
+                        <Pane
+                          label="Preview"
+                          context={selected.build ? `#${selected.build.number}` : undefined}
+                          actions={<OpenButton item={selected} onOpen={markRead} />}
+                        >
+                          <ItemDetail item={selected} />
+                        </Pane>
+                      ) : null}
+                    </div>
+                  </>
+                )
+              }
+            </QueryBoundary>
           </div>
         </TabList>
       </div>

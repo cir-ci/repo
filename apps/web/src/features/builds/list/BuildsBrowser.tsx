@@ -3,10 +3,8 @@ import {
   Button,
   CheckIcon,
   CollectionsIcon,
-  Delayed,
   EmptyState,
   ListRow,
-  ListSkeleton,
   Pane,
   SectionHeader,
   StatusIcon,
@@ -16,7 +14,7 @@ import {
   visuallyHidden,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
-import { type ReactNode, useEffect, useState } from 'react'
+import { type ReactNode, useState } from 'react'
 
 import { buildState } from '#features/builds/build-state.ts'
 import { CountsSummary } from '#features/builds/CountsSummary.tsx'
@@ -31,20 +29,18 @@ import {
 } from '#features/teams/api/index.ts'
 import { useSaveView } from '#features/views/api.ts'
 import { SaveViewDialog } from '#features/views/SaveViewDialog.tsx'
-import { ErrorState } from '#lib/ErrorState.tsx'
-import { leavesKeyToFocus } from '#lib/list-keys.ts'
+import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { useDisplayStore } from '#lib/stores/display-store.ts'
 import { useListStore } from '#lib/stores/list-store.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
-import { useListNavigation } from '#lib/use-list-navigation.ts'
+import { useSelectableList } from '#lib/use-selectable-list.ts'
 
 import { BuildFilterBar } from './BuildFilterBar.tsx'
 import { type BuildFilters, type FilterField, hasFilters, toSearch } from './builds-filters.ts'
 import { BulkRejectDialog } from './BulkRejectDialog.tsx'
 import { type DisplayOptions, groupBuilds } from './display-options.ts'
-import { useLoadingAnnouncement } from './loading.ts'
 
 import styles from './BuildsBrowser.module.css'
 
@@ -79,18 +75,14 @@ export function BuildsBrowser({
     ...workspaceBuildsQuery(workspace, pageCursor, filters, display.order),
     enabled: !scoped,
   })
-  const { data, error, refetch } = scoped ? teamResult : workspaceResult
+  const query = scoped ? teamResult : workspaceResult
+  const { data } = query
   const teamOf = (b: Row) => b.team?.slug ?? team ?? ''
-  useLoadingAnnouncement(!data && !error, 'Loading builds')
 
   const setDisplay = useDisplayStore((s) => s.setDisplay)
   const clearChecked = useListStore((s) => s.clearChecked)
   const [open, setOpen] = useState<FilterField | 'display'>()
   const selected = useListStore((s) => s.checked)
-  const cursorId = useListStore((s) => s.cursorId)
-  const setCursorId = useListStore((s) => s.setCursorId)
-  const peek = useListStore((s) => s.peek)
-  useEffect(() => () => useListStore.getState().reset(), [])
   const [rejecting, setRejecting] = useState(false)
   const [picking, setPicking] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -104,23 +96,17 @@ export function BuildsBrowser({
   const oldest = builds.at(-1)?.number
   const groups = groupBuilds(builds, display.groupBy)
   const flat = groups.flatMap((g) => g.builds)
-  const cursor = flat.find((b) => b.id === cursorId) ?? flat[0]
   const chosen = flat.filter((b) => selected.has(b.id))
   const filtered = hasFilters(filters)
 
-  const { listRef, rowProps } = useListNavigation({
-    items: flat,
-    getId: (b) => b.id,
-    selectedId: cursor?.id,
-    onSelect: (b) => setCursorId(b.id),
-  })
+  const {
+    selected: cursor,
+    peek,
+    listRef,
+    rowProps,
+  } = useSelectableList({ items: flat, getId: (b) => b.id })
 
   useShortcutHandlers({
-    peek: (_action, event) => {
-      if (leavesKeyToFocus(event) || !cursor) return false
-      useListStore.getState().togglePeek()
-      return undefined
-    },
     select: () => {
       if (!cursor || !scoped) return
       const on = useListStore.getState().toggleChecked(cursor.id)
@@ -171,166 +157,174 @@ export function BuildsBrowser({
           onSaveView={canSave ? () => setSaving(true) : undefined}
         />
       ) : null}
-      {error ? (
-        <ErrorState
-          error={error}
-          onRetry={() => void refetch()}
-          notFound={scoped ? 'This team doesn’t exist' : 'This workspace doesn’t exist'}
-        />
-      ) : !data ? (
-        <Delayed>
-          <ListSkeleton />
-        </Delayed>
-      ) : builds.length === 0 ? (
-        filtered ? (
-          <EmptyState
-            icon={<CollectionsIcon size={32} />}
-            title="No builds match"
-            action={<Button onClick={() => onFiltersChange({})}>Clear filters</Button>}
-          >
-            {scoped
-              ? 'Nothing in this team fits these filters.'
-              : 'Nothing in this workspace fits these filters.'}
-          </EmptyState>
-        ) : (
-          <EmptyState
-            icon={<CollectionsIcon size={32} />}
-            title={before ? 'No older builds' : 'No builds yet'}
-            action={
-              before ? undefined : (
-                <Surface variant="raised" className={styles.command}>
-                  <Text as="code" variant="mono">
-                    {`CIRCI_TOKEN=… CIRCI_API_URL=${window.location.origin} \\\n  npx circi upload ./screenshots --wait`}
-                  </Text>
-                </Surface>
-              )
-            }
-          >
-            {before
-              ? undefined
-              : 'Upload screenshots from your CI job. Builds appear here as soon as they’re processed.'}
-          </EmptyState>
-        )
-      ) : (
-        <>
-          <div className={styles.split}>
-            <ul aria-label="Builds" className={styles.list} ref={listRef}>
-              {groups.map((group) => (
-                <GroupRows key={group.key} label={group.label} count={group.builds.length}>
-                  {group.builds.map((b) => {
-                    const state = buildState(b)
-                    const checked = selected.has(b.id)
-                    return (
-                      <li key={b.id} {...rowProps(b.id)} data-checked={checked ? '' : undefined}>
-                        <ListRow
-                          className={styles.row}
-                          selected={b.id === cursor?.id}
-                          {...clientLink({
-                            to: '/$workspace/$team/builds/$number',
-                            params: { workspace, team: teamOf(b), number: String(b.number) },
-                          })}
-                          leading={
-                            <span className={styles.lead}>
-                              {checked ? (
-                                <span className={styles.check} aria-hidden="true">
-                                  <CheckIcon size={12} strokeWidth={3} />
-                                </span>
-                              ) : null}
-                              <StatusIcon status={state.status} label={state.label} />
-                            </span>
-                          }
-                          trailing={
-                            display.show.counts ? (
-                              <span className={styles.trailing}>
-                                <CountsSummary
-                                  counts={b.counts}
-                                  review={shotReview(b)}
-                                  includeUnchanged={false}
-                                />
-                              </span>
-                            ) : undefined
-                          }
-                        >
-                          <span className={styles.title}>
-                            {checked ? <span style={visuallyHidden}>Selected, </span> : null}
-                            Build #{b.number}
-                            {b.name !== 'default' ? (
-                              <span className={styles.name}> · {b.name}</span>
-                            ) : null}
-                          </span>
-                          <div className={styles.meta}>
-                            <RowMeta build={b} show={display.show} />
-                          </div>
-                        </ListRow>
-                      </li>
-                    )
-                  })}
-                </GroupRows>
-              ))}
-            </ul>
-            {peek && cursor ? (
-              <Pane
-                label="Preview"
-                context={`#${cursor.number}`}
-                actions={
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    {...clientLink({
-                      to: '/$workspace/$team/builds/$number',
-                      params: { workspace, team: teamOf(cursor), number: String(cursor.number) },
-                    })}
-                  >
-                    Open build
-                  </Button>
+      <QueryBoundary<NonNullable<typeof data>>
+        query={query}
+        announce="Loading builds"
+        notFound={scoped ? 'This team doesn’t exist' : 'This workspace doesn’t exist'}
+      >
+        {() =>
+          builds.length === 0 ? (
+            filtered ? (
+              <EmptyState
+                icon={<CollectionsIcon size={32} />}
+                title="No builds match"
+                action={<Button onClick={() => onFiltersChange({})}>Clear filters</Button>}
+              >
+                {scoped
+                  ? 'Nothing in this team fits these filters.'
+                  : 'Nothing in this workspace fits these filters.'}
+              </EmptyState>
+            ) : (
+              <EmptyState
+                icon={<CollectionsIcon size={32} />}
+                title={before ? 'No older builds' : 'No builds yet'}
+                action={
+                  before ? undefined : (
+                    <Surface variant="raised" className={styles.command}>
+                      <Text as="code" variant="mono">
+                        {`CIRCI_TOKEN=… CIRCI_API_URL=${window.location.origin} \\\n  npx circi upload ./screenshots --wait`}
+                      </Text>
+                    </Surface>
+                  )
                 }
               >
-                <BuildPeek build={cursor} />
-              </Pane>
-            ) : null}
-          </div>
-          {/* Primer: pagination sits directly below the collection it pages. */}
-          <div className={styles.pager}>
-            {scoped ? (
-              <>
-                {before ? (
-                  <Button
-                    {...clientLink({
-                      to: '/$workspace/$team',
-                      params: { workspace, team },
-                      search: toSearch(filters),
-                    })}
+                {before
+                  ? undefined
+                  : 'Upload screenshots from your CI job. Builds appear here as soon as they’re processed.'}
+              </EmptyState>
+            )
+          ) : (
+            <>
+              <div className={styles.split}>
+                <ul aria-label="Builds" className={styles.list} ref={listRef}>
+                  {groups.map((group) => (
+                    <GroupRows key={group.key} label={group.label} count={group.builds.length}>
+                      {group.builds.map((b) => {
+                        const state = buildState(b)
+                        const checked = selected.has(b.id)
+                        return (
+                          <li
+                            key={b.id}
+                            {...rowProps(b.id)}
+                            data-checked={checked ? '' : undefined}
+                          >
+                            <ListRow
+                              className={styles.row}
+                              selected={b.id === cursor?.id}
+                              {...clientLink({
+                                to: '/$workspace/$team/builds/$number',
+                                params: { workspace, team: teamOf(b), number: String(b.number) },
+                              })}
+                              leading={
+                                <span className={styles.lead}>
+                                  {checked ? (
+                                    <span className={styles.check} aria-hidden="true">
+                                      <CheckIcon size={12} strokeWidth={3} />
+                                    </span>
+                                  ) : null}
+                                  <StatusIcon status={state.status} label={state.label} />
+                                </span>
+                              }
+                              trailing={
+                                display.show.counts ? (
+                                  <span className={styles.trailing}>
+                                    <CountsSummary
+                                      counts={b.counts}
+                                      review={shotReview(b)}
+                                      includeUnchanged={false}
+                                    />
+                                  </span>
+                                ) : undefined
+                              }
+                            >
+                              <span className={styles.title}>
+                                {checked ? <span style={visuallyHidden}>Selected, </span> : null}
+                                Build #{b.number}
+                                {b.name !== 'default' ? (
+                                  <span className={styles.name}> · {b.name}</span>
+                                ) : null}
+                              </span>
+                              <div className={styles.meta}>
+                                <RowMeta build={b} show={display.show} />
+                              </div>
+                            </ListRow>
+                          </li>
+                        )
+                      })}
+                    </GroupRows>
+                  ))}
+                </ul>
+                {peek && cursor ? (
+                  <Pane
+                    label="Preview"
+                    context={`#${cursor.number}`}
+                    actions={
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        {...clientLink({
+                          to: '/$workspace/$team/builds/$number',
+                          params: {
+                            workspace,
+                            team: teamOf(cursor),
+                            number: String(cursor.number),
+                          },
+                        })}
+                      >
+                        Open build
+                      </Button>
+                    }
                   >
-                    Newest builds
-                  </Button>
+                    <BuildPeek build={cursor} />
+                  </Pane>
                 ) : null}
-                {builds.length === BUILDS_PAGE_SIZE && oldest ? (
-                  <Button
-                    {...clientLink({
-                      to: '/$workspace/$team',
-                      params: { workspace, team },
-                      search: toSearch(filters, oldest),
-                    })}
-                  >
-                    Older builds
-                  </Button>
-                ) : null}
-              </>
-            ) : (
-              <>
-                {pageCursor ? (
-                  <Button onClick={() => onCursorChange?.(undefined)}>Newest builds</Button>
-                ) : null}
-                {workspaceResult.data?.next ? (
-                  <Button onClick={() => onCursorChange?.(workspaceResult.data?.next ?? undefined)}>
-                    Older builds
-                  </Button>
-                ) : null}
-              </>
-            )}
-          </div>
-        </>
-      )}
+              </div>
+              {/* Primer: pagination sits directly below the collection it pages. */}
+              <div className={styles.pager}>
+                {scoped ? (
+                  <>
+                    {before ? (
+                      <Button
+                        {...clientLink({
+                          to: '/$workspace/$team',
+                          params: { workspace, team },
+                          search: toSearch(filters),
+                        })}
+                      >
+                        Newest builds
+                      </Button>
+                    ) : null}
+                    {builds.length === BUILDS_PAGE_SIZE && oldest ? (
+                      <Button
+                        {...clientLink({
+                          to: '/$workspace/$team',
+                          params: { workspace, team },
+                          search: toSearch(filters, oldest),
+                        })}
+                      >
+                        Older builds
+                      </Button>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    {pageCursor ? (
+                      <Button onClick={() => onCursorChange?.(undefined)}>Newest builds</Button>
+                    ) : null}
+                    {workspaceResult.data?.next ? (
+                      <Button
+                        onClick={() => onCursorChange?.(workspaceResult.data?.next ?? undefined)}
+                      >
+                        Older builds
+                      </Button>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            </>
+          )
+        }
+      </QueryBoundary>
       {chosen.length > 0 ? (
         <div role="region" aria-label="Bulk actions" className={styles.bulk}>
           <Text variant="small">{chosen.length} selected</Text>

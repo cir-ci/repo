@@ -2,9 +2,7 @@ import {
   Banner,
   Button,
   ConfirmDialog,
-  Delayed,
   ListRow,
-  ListSkeleton,
   SectionHeader,
   StatusChip,
   Text,
@@ -15,6 +13,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 
 import { domainsQuery, useDomainActions } from '#features/members/api.ts'
+import { QuerySkeleton } from '#lib/QueryBoundary.tsx'
 
 import { validateDomain } from './model.ts'
 
@@ -64,9 +63,7 @@ export function EmailDomains({ workspace }: EmailDomains.Props) {
           Couldn’t load the email domains: {error.message}
         </Banner>
       ) : !data ? (
-        <Delayed>
-          <ListSkeleton rows={2} />
-        </Delayed>
+        <QuerySkeleton rows={2} />
       ) : data.domains.length > 0 ? (
         <div className={styles.list}>
           {data.domains.map((d) => (

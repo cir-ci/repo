@@ -1,19 +1,10 @@
-import {
-  Badge,
-  Banner,
-  Button,
-  ConfirmDialog,
-  Delayed,
-  ListSkeleton,
-  SectionHeader,
-  useAnnounce,
-} from '@circi/ui'
+import { Badge, Banner, Button, ConfirmDialog, SectionHeader, useAnnounce } from '@circi/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { Box, BoxRow } from '#features/workspace-settings/Box.tsx'
 import { authClient } from '#lib/auth-client.ts'
-import { ErrorState } from '#lib/ErrorState.tsx'
+import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import { sessionsKey, sessionsQuery } from './api.ts'
@@ -26,7 +17,8 @@ export function SessionsSection({ currentToken }: SessionsSection.Props) {
   const queryClient = useQueryClient()
   const announce = useAnnounce()
   const [confirmingOthers, setConfirmingOthers] = useState(false)
-  const { data, error, refetch } = useQuery(sessionsQuery())
+  const query = useQuery(sessionsQuery())
+  const { data } = query
 
   const revoke = useMutation({
     mutationFn: async (token: string) => {
@@ -66,48 +58,44 @@ export function SessionsSection({ currentToken }: SessionsSection.Props) {
           ) : undefined
         }
       />
-      {error ? (
-        <ErrorState error={error} onRetry={() => void refetch()} />
-      ) : !data ? (
-        <Delayed>
-          <ListSkeleton rows={3} />
-        </Delayed>
-      ) : (
-        <>
-          {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
-          <Box label="Signed-in devices">
-            {data.map((s) => {
-              const isCurrent = s.token === currentToken
-              return (
-                <BoxRow
-                  key={s.id}
-                  title={describeAgent(s.userAgent)}
-                  help={
-                    <>
-                      {s.ipAddress ? `${s.ipAddress} · ` : ''}signed in{' '}
-                      <RelativeTime iso={new Date(s.createdAt).toISOString()} />
-                    </>
-                  }
-                >
-                  {isCurrent ? (
-                    <Badge tone="accent" shape="tag">
-                      This device
-                    </Badge>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      disabled={revoke.isPending}
-                      onClick={() => revoke.mutate(s.token)}
-                    >
-                      Sign out
-                    </Button>
-                  )}
-                </BoxRow>
-              )
-            })}
-          </Box>
-        </>
-      )}
+      <QueryBoundary query={query} rows={3}>
+        {(loaded) => (
+          <>
+            {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
+            <Box label="Signed-in devices">
+              {loaded.map((s) => {
+                const isCurrent = s.token === currentToken
+                return (
+                  <BoxRow
+                    key={s.id}
+                    title={describeAgent(s.userAgent)}
+                    help={
+                      <>
+                        {s.ipAddress ? `${s.ipAddress} · ` : ''}signed in{' '}
+                        <RelativeTime iso={new Date(s.createdAt).toISOString()} />
+                      </>
+                    }
+                  >
+                    {isCurrent ? (
+                      <Badge tone="accent" shape="tag">
+                        This device
+                      </Badge>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        disabled={revoke.isPending}
+                        onClick={() => revoke.mutate(s.token)}
+                      >
+                        Sign out
+                      </Button>
+                    )}
+                  </BoxRow>
+                )
+              })}
+            </Box>
+          </>
+        )}
+      </QueryBoundary>
       <ConfirmDialog
         open={confirmingOthers}
         onOpenChange={setConfirmingOthers}

@@ -246,10 +246,7 @@ export function formatAge(iso: string, now: number): string {
   return `${Math.round(hours / 24)} days`
 }
 
-/** Where the browser copies text to; a seam so tests can watch it. */
-export const clipboard = {
-  write: (text: string) => navigator.clipboard.writeText(text),
-}
+export { clipboard } from '#lib/use-copy.ts'
 
 // ---- Server state -----------------------------------------------------------------------------
 
