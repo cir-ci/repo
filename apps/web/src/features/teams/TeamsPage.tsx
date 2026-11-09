@@ -152,18 +152,16 @@ export function TeamsPage() {
                     )
                   })}
                 </ul>
-                {data.teams.some((t) => t.latestBuild === null) ? (
-                  <section className={styles.connect} aria-labelledby="teams-connect">
-                    <p id="teams-connect" className={styles.connectTitle}>
-                      Connect a CI job
-                    </p>
-                    <Text as="p" variant="small" tone="secondary">
-                      Each team gets a token. Upload screenshots after your tests run and CirCI
-                      compares them with the default branch.
-                    </Text>
-                    <pre className={styles.code}>npx circi upload ./screenshots --wait</pre>
-                  </section>
-                ) : null}
+                <section className={styles.connect} aria-labelledby="teams-connect">
+                  <p id="teams-connect" className={styles.connectTitle}>
+                    Connect a CI job
+                  </p>
+                  <Text as="p" variant="small" tone="secondary">
+                    Each team gets a token. Upload screenshots after your tests run and CirCI
+                    compares them with the default branch.
+                  </Text>
+                  <pre className={styles.code}>npx circi upload ./screenshots --wait</pre>
+                </section>
               </>
             )
           }

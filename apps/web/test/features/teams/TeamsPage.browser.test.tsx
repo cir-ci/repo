@@ -90,6 +90,16 @@ describe('TeamsPage', () => {
     await expect.element(page.getByRole('img', { name: 'No builds yet' })).toBeVisible()
   })
 
+  it('shows the Connect a CI job panel under the list even when every team has builds', async () => {
+    fakeApi({
+      'GET /api/teams': { body: { teams: [overview('acme', 'web-app', build(7))] } },
+      'GET /api/capabilities': { body: caps() },
+    })
+    await show()
+    await expect.element(page.getByText('Connect a CI job')).toBeVisible()
+    await expect.element(page.getByText('npx circi upload ./screenshots --wait')).toBeVisible()
+  })
+
   it('has no New workspace button in the header (it lives in the workspace switcher)', async () => {
     fakeApi({
       'GET /api/teams': { body: { teams: [overview('acme', 'web-app')] } },

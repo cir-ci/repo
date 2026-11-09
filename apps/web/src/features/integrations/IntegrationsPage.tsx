@@ -39,6 +39,7 @@ export function IntegrationsPage() {
     <IntegrationFrame
       workspace={workspace}
       title="Integrations"
+      headingInPage={Boolean(data) && !error}
       loading={!data && !error}
       error={error}
       onRetry={() => void refetch()}
@@ -48,10 +49,15 @@ export function IntegrationsPage() {
       {data ? (
         <>
           <div className={styles.sectionHead}>
-            <Text as="p" variant="small" tone="secondary">
-              Tools connected to {workspace}. Each integration’s settings say which teams use it and
-              how.
-            </Text>
+            <div>
+              <Heading level="title" as="h1">
+                Integrations
+              </Heading>
+              <Text as="p" variant="small" tone="secondary">
+                Tools connected to {workspace}. Each integration’s settings say which teams use it
+                and how.
+              </Text>
+            </div>
             {data.canManage ? (
               <Button variant="primary" onClick={() => setAdding(true)}>
                 Add integration
@@ -62,7 +68,18 @@ export function IntegrationsPage() {
             <Banner tone={note.tone}>{note.text}</Banner>
           ) : null}
           {groups.length === 0 ? (
-            <EmptyState title="No integrations yet">
+            <EmptyState
+              title="No integrations yet"
+              {...(data.canManage
+                ? {
+                    action: (
+                      <Button variant="primary" onClick={() => setAdding(true)}>
+                        Add integration
+                      </Button>
+                    ),
+                  }
+                : {})}
+            >
               Add a git host so pull requests show their visual review status.
             </EmptyState>
           ) : (

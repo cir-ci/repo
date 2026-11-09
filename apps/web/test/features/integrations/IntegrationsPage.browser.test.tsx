@@ -60,6 +60,12 @@ describe('IntegrationsPage', () => {
     fakeApi({ [`GET ${LIST}`]: list() })
     await show()
     await expect.element(page.getByText('No integrations yet')).toBeVisible()
+    await expect
+      .element(page.getByRole('heading', { level: 1, name: 'Integrations' }))
+      .toBeVisible()
+    expect(page.getByRole('heading', { level: 1 }).elements()).toHaveLength(1)
+    // The empty state has its own Add button, besides the header's.
+    expect(page.getByRole('button', { name: 'Add integration' }).elements()).toHaveLength(2)
   })
 
   it('shows members the list without Add', async () => {
@@ -81,7 +87,7 @@ describe('IntegrationsPage', () => {
     await page.viewport(1000, 800)
     fakeApi({ [`GET ${LIST}`]: list() })
     await show()
-    await page.getByRole('button', { name: 'Add integration' }).click()
+    await page.getByRole('button', { name: 'Add integration' }).first().click()
     await expect.element(page.getByRole('dialog', { name: 'Add an integration' })).toBeVisible()
   })
 })
@@ -115,6 +121,14 @@ describe('AddIntegrationDialog', () => {
     const tiles = page.getByRole('list', { name: 'Available integrations' })
     await expect.element(tiles.getByRole('listitem')).toHaveLength(CATALOG.length)
     await expect.element(page.getByText('Added')).toBeVisible()
+
+    // A visible placeholder, and the category tabs on the search's row.
+    const search = page.getByRole('searchbox', { name: 'Search integrations' })
+    await expect.element(search).toHaveAttribute('placeholder', 'Search integrations')
+    const all = page.getByRole('button', { name: 'All', exact: true }).element()
+    expect(
+      Math.abs(all.getBoundingClientRect().top - search.element().getBoundingClientRect().top),
+    ).toBeLessThan(24)
 
     await page.getByRole('searchbox', { name: 'Search integrations' }).fill('lab')
     await expect.element(tiles.getByRole('listitem')).toHaveLength(1)

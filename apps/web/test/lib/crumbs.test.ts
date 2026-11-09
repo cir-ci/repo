@@ -10,7 +10,7 @@ describe('breadcrumb rule', () => {
     expect(workspaceCrumb(acme)).toEqual({
       label: 'Acme',
       link: { to: '/inbox' },
-      tooltip: 'Go to Inbox',
+      tooltip: 'Workspace: opens the Inbox',
     })
   })
 
@@ -18,7 +18,7 @@ describe('breadcrumb rule', () => {
     expect(teamCrumb('acme', web)).toEqual({
       label: 'Web app',
       link: { to: '/$workspace/$team', params: { workspace: 'acme', team: 'web-app' } },
-      tooltip: 'Go to Builds',
+      tooltip: 'Team: opens its Builds page',
     })
   })
 
@@ -34,6 +34,10 @@ describe('breadcrumb rule', () => {
       '/$workspace/$team',
       '/$workspace/$team/settings',
     ])
-    expect(crumbs.every((c) => c.tooltip?.startsWith('Go to '))).toBe(true)
+    expect(crumbs.map((c) => c.tooltip)).toEqual([
+      'Workspace: opens the Inbox',
+      'Team: opens its Builds page',
+      undefined,
+    ])
   })
 })

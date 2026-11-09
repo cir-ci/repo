@@ -2,7 +2,9 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-width: 1160px;
+  box-sizing: border-box;
+  /* Fills the panel: a width cap left a gap on its right. */
+  width: 100%;
   padding: 24px;
   overflow-y: auto;
 }

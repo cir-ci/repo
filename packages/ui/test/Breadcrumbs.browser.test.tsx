@@ -61,17 +61,22 @@ describe('Breadcrumbs', () => {
     errors.mockRestore()
   })
 
-  it('draws the separator with CSS, outside the accessible names', async () => {
+  it('separates crumbs with a chevron icon, outside the accessible names', async () => {
     await render(<Breadcrumbs items={ITEMS} />)
     const second = page.getByRole('listitem').nth(1).element()
-    expect(getComputedStyle(second, '::before').content).toContain('/')
+    const chevron = second.querySelector('svg[data-separator]')
+    expect(chevron?.getAttribute('aria-hidden')).toBe('true')
+    expect(page.getByRole('listitem').first().element().querySelector('svg')).toBeNull()
     await expect.element(page.getByRole('listitem').nth(1)).toHaveTextContent('web-app')
   })
 
   it('names a link’s target in a tooltip on keyboard focus', async () => {
     await render(
       <Breadcrumbs
-        items={[{ label: 'Acme', href: '/inbox', tooltip: 'Go to Inbox' }, { label: 'Builds' }]}
+        items={[
+          { label: 'Acme', href: '/inbox', tooltip: 'Workspace: opens the Inbox' },
+          { label: 'Builds' },
+        ]}
       />,
     )
     const link = page.getByRole('link', { name: 'Acme' })
@@ -83,12 +88,12 @@ describe('Breadcrumbs', () => {
     // when the tooltip hasn't opened, move focus off and back with the keyboard, as a user would.
     await expect
       .poll(async () => {
-        if (page.getByText('Go to Inbox').elements().length > 0) return true
+        if (page.getByText('Workspace: opens the Inbox').elements().length > 0) return true
         link.element().blur()
         await userEvent.tab()
-        return page.getByText('Go to Inbox').elements().length > 0
+        return page.getByText('Workspace: opens the Inbox').elements().length > 0
       })
       .toBe(true)
-    await expect.element(page.getByText('Go to Inbox')).toBeVisible()
+    await expect.element(page.getByText('Workspace: opens the Inbox')).toBeVisible()
   })
 })

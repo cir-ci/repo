@@ -30,14 +30,19 @@
 
 .tabs {
   display: flex;
-  flex-wrap: wrap;
+  /* One row in the 340px list: the tabs scroll sideways rather than wrapping. */
+  flex-wrap: nowrap;
   gap: 4px;
   padding: 8px 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
   border-bottom: 1px solid var(--circi-line-subtle);
 }
 
 .tab {
   display: inline-flex;
+  flex: none;
+  white-space: nowrap;
   gap: 6px;
   align-items: center;
   height: 26px;

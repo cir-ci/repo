@@ -47,7 +47,6 @@ export function EmailForm({ initial, invitedEmail, onBack }: EmailForm.Props) {
   if (!sent) {
     return (
       <form className={styles.form} onSubmit={(e) => void request(e)} noValidate>
-        <BannerSlot>{error}</BannerSlot>
         <TextField
           name="email"
           type="email"
@@ -62,6 +61,7 @@ export function EmailForm({ initial, invitedEmail, onBack }: EmailForm.Props) {
         <Button type="submit" variant="primary" size="lg" loading={busy} className={styles.submit}>
           {busy ? 'Sending…' : 'Email me a code'}
         </Button>
+        <BannerSlot>{error}</BannerSlot>
         {onBack ? (
           <Button variant="link" className={styles.center} onClick={onBack}>
             Use a password instead

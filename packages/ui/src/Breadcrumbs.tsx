@@ -7,8 +7,8 @@ import styles from './Breadcrumbs.module.css'
 
 /**
  * A breadcrumb trail: a `nav` landmark with an ordered list; every item but the last is a link,
- * the last is plain text marked `aria-current="page"`. The separator is drawn by CSS and
- * silent for screen readers.
+ * the last is plain text marked `aria-current="page"`. The separator is a chevron icon,
+ * hidden from screen readers.
  */
 export function Breadcrumbs({
   items,
@@ -23,6 +23,22 @@ export function Breadcrumbs({
           const last = index === items.length - 1
           return (
             <li key={item.key ?? `${index}:${item.label}`} className={styles.item}>
+              {index > 0 ? (
+                <svg
+                  className={styles.separator}
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                  data-separator=""
+                >
+                  <path d="m9 18 6-6-6-6" />
+                </svg>
+              ) : null}
               {last && currentIsHeading ? (
                 <h1 className={styles.current} aria-current="page">
                   {item.label}
@@ -57,7 +73,7 @@ export namespace Breadcrumbs {
     key?: string
     /** Omit on the last item (and on a level that has no page of its own). */
     href?: string
-    /** Names the link's target on hover or focus ("Go to Inbox"); only on a link. */
+    /** Names the link's target on hover or focus ("Workspace: opens the Inbox"); only on a link. */
     tooltip?: string
     /** For client-side routing: call `preventDefault()` and navigate. */
     onClick?: MouseEventHandler<HTMLAnchorElement>

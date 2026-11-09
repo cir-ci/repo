@@ -26,7 +26,6 @@ function integrationCrumbs(
               to: '/workspaces/$workspace/settings/integrations',
               params: { workspace: workspace.slug },
             },
-            tooltip: 'Go to Integrations',
           } as const,
         ]
       : []),
@@ -40,6 +39,8 @@ export namespace IntegrationFrame {
     below?: boolean
     /** The page's `<h1>`. */
     title: string
+    /** The page shows its own visible `<h1>`; the current crumb is then plain text. */
+    headingInPage?: boolean
     loading?: boolean
     error?: Error | null
     onRetry?: () => void

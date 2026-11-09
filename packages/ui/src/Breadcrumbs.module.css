@@ -14,13 +14,15 @@
 
 .item {
   display: inline-flex;
+  align-items: center;
   min-width: 0;
 }
 
-/* Decorative: the empty alternative text keeps the slash out of the accessibility tree. */
-.item + .item::before {
-  content: '/' / '';
-  padding-inline: 8px;
+/* Decorative chevron between crumbs, hidden from the accessibility tree. */
+.separator {
+  flex: none;
+  align-self: center;
+  margin-inline: 8px;
   color: var(--circi-text-tertiary);
 }
 

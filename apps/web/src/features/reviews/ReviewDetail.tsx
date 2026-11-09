@@ -77,13 +77,18 @@ export function ReviewDetail({ request: r, backHref, onBack, children }: ReviewD
         <SettingsRow label="Reviewer">{r.reviewer.name}</SettingsRow>
         {decisionLabel(r) && r.closedAt ? (
           <SettingsRow label="Decision">
-            {decisionLabel(r)}, <RelativeTime iso={r.closedAt} />
+            <span>
+              {decisionLabel(r)}, <RelativeTime iso={r.closedAt} />
+            </span>
           </SettingsRow>
         ) : null}
         {r.dueAt ? (
           <SettingsRow label="Review target">
-            {overdue ? `${overdue}, target ` : 'Due '}
-            <RelativeTime iso={r.dueAt} />
+            {/* One inline span: the control is a flex row, which would add a gap after the text. */}
+            <span>
+              {overdue ? `${overdue}, target ` : 'Due '}
+              <RelativeTime iso={r.dueAt} />
+            </span>
           </SettingsRow>
         ) : null}
         <SettingsRow label="Branch">

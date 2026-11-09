@@ -29,7 +29,6 @@ export function PasswordForm({ onEmail }: PasswordForm.Props) {
 
   return (
     <form className={styles.form} onSubmit={(e) => void submit(e)} noValidate>
-      <BannerSlot>{error}</BannerSlot>
       <TextField
         name="email"
         type="email"
@@ -60,6 +59,8 @@ export function PasswordForm({ onEmail }: PasswordForm.Props) {
       <Button type="submit" variant="primary" size="lg" loading={busy} className={styles.submit}>
         {busy ? 'Signing in…' : 'Sign in'}
       </Button>
+      {/* Below the fields, so the room kept for an error doesn't read as a gap above them. */}
+      <BannerSlot>{error}</BannerSlot>
     </form>
   )
 }

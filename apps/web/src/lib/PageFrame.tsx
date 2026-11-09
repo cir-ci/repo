@@ -15,6 +15,7 @@ import { QuerySkeleton } from '#lib/QueryBoundary.tsx'
 export function PageFrame({
   crumbs,
   title,
+  headingInPage,
   width,
   loading,
   error,
@@ -26,7 +27,7 @@ export function PageFrame({
 }: PageFrame.Props) {
   return (
     <>
-      <PageHeading crumbs={crumbs} title={title} />
+      <PageHeading crumbs={crumbs} title={title} headingInPage={headingInPage} />
       <SettingsPage {...(width ? { width } : {})}>
         {forbidden ? (
           forbidden
@@ -55,6 +56,8 @@ export namespace PageFrame {
     crumbs: ReadonlyArray<PageHeading.Crumb>
     /** The page's `<h1>`. */
     title: string
+    /** The page puts its own visible `<h1>` in the body, so the current crumb is not one. */
+    headingInPage?: boolean | undefined
     /** `wide` is 1040px, for editors that need the room. */
     width?: 'default' | 'wide' | undefined
     loading?: boolean | undefined

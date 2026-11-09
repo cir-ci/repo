@@ -31,9 +31,9 @@ describe('PageHeading', () => {
       .toHaveAttribute('href', '/acme/web')
     await expect.element(nav.getByRole('heading', { level: 1 })).toHaveTextContent('Webhooks')
     await userEvent.tab()
-    await expect.element(page.getByText('Go to Inbox')).toBeVisible()
+    await expect.element(page.getByText('Workspace: opens the Inbox')).toBeVisible()
     await userEvent.tab()
-    await expect.element(page.getByText('Go to Builds')).toBeVisible()
+    await expect.element(page.getByText('Team: opens its Builds page')).toBeVisible()
   })
 
   it('shows the page’s actions on the right', async () => {

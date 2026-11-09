@@ -69,12 +69,16 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
       ) : (
         <>
           <div className={styles.filters}>
-            <TextField
-              label="Search integrations"
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
+            <div className={styles.search}>
+              <TextField
+                label="Search integrations"
+                hideLabel
+                placeholder="Search integrations"
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
             <SegmentedControl
               label="Group"
               options={GROUP_OPTIONS}
