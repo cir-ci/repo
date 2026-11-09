@@ -2,6 +2,8 @@ import { dirname, join, relative, resolve } from 'node:path'
 
 import { defineConfig } from 'tsdown'
 
+import { failOnUnresolvedImport, sourceConditionNames } from '../../tsdown.shared.ts'
+
 const repoRoot = resolve(import.meta.dirname, '../..')
 
 // One bundle for the Docker image. What stays external is exactly this package's `dependencies`
@@ -22,10 +24,7 @@ export default defineConfig({
   inputOptions: {
     // Resolve workspace packages to their TypeScript, so the bundle needs no built `dist` and its
     // source maps lead to the real files. Rolldown replaces its default conditions when this is set.
-    resolve: { conditionNames: ['@circi/source', 'import', 'node', 'default'] },
-    // A dependency that fails to resolve would otherwise become a bare import that breaks at runtime.
-    onLog(level, log, handler) {
-      handler(log.code === 'UNRESOLVED_IMPORT' ? 'error' : level, log)
-    },
+    resolve: { conditionNames: sourceConditionNames },
+    onLog: failOnUnresolvedImport,
   },
 })

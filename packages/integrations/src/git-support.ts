@@ -12,13 +12,15 @@ import {
 
 /** What the git host definitions share: payload reading, webhook secrets, error mapping. */
 
-/** An object payload's fields; `{}` for anything else. */
-export const record = (value: unknown): Record<string, unknown> =>
-  typeof value === 'object' && value !== null ? Object.fromEntries(Object.entries(value)) : {}
-
 /** A string or number field as a string. */
 export const str = (value: unknown): string | undefined =>
   typeof value === 'string' ? value : typeof value === 'number' ? String(value) : undefined
+
+/** `needsAttention` of a host whose revoked connection is flagged with one fixed message. */
+export const revokedAttention =
+  (message: string) =>
+  (err: unknown): string | null =>
+    isConnectionRevoked(err) ? message : null
 
 /**
  * The webhook secret of a host whose secret is not configured by hand: derived from the instance

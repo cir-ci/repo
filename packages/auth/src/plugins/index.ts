@@ -6,7 +6,7 @@ import { invitationMail } from '#src/mail.ts'
 import type { PluginOptions } from '#src/options.ts'
 
 import { emailLoginPlugin } from './email-login.ts'
-import { ssoPlugins } from './sso.ts'
+import { ssoPlugins } from './sso/plugin.ts'
 import { workspaceSsoPlugin } from './workspace-sso.ts'
 
 /**

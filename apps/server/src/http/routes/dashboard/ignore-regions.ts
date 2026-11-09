@@ -45,9 +45,8 @@ export const dashboardIgnoreRegionRoutes: FastifyPluginAsync<Deps.Dashboard> = a
   app,
   deps,
 ) => {
-  app.get('/teams/:workspace/:team/ignore-regions', async (req, reply) => {
-    const found = await loadTeam(deps, req, reply)
-    if (!found) return reply
+  app.get('/teams/:workspace/:team/ignore-regions', async (req) => {
+    const found = await loadTeam(deps, req)
     const list: IgnoreRegion.List = {
       regions: (await listIgnoreRegions(deps.db, found.team.id)).map(present),
       snapshots: await listIgnoreRegionSnapshots(deps.db, found.team.id),
@@ -56,8 +55,7 @@ export const dashboardIgnoreRegionRoutes: FastifyPluginAsync<Deps.Dashboard> = a
   })
 
   app.post('/teams/:workspace/:team/ignore-regions', async (req, reply) => {
-    const found = await loadTeam(deps, req, reply)
-    if (!found) return reply
+    const found = await loadTeam(deps, req)
     const body = parse(regionBody, req.body)
     const region = await createIgnoreRegion(deps.db, {
       teamId: found.team.id,
@@ -68,8 +66,7 @@ export const dashboardIgnoreRegionRoutes: FastifyPluginAsync<Deps.Dashboard> = a
   })
 
   app.patch('/teams/:workspace/:team/ignore-regions/:id', async (req, reply) => {
-    const found = await loadTeam(deps, req, reply)
-    if (!found) return reply
+    const found = await loadTeam(deps, req)
     const { id } = parse(idParams, req.params)
     if (!z.uuid().safeParse(id).success) {
       return reply.code(404).send({ error: 'Ignore region not found' })
@@ -79,8 +76,7 @@ export const dashboardIgnoreRegionRoutes: FastifyPluginAsync<Deps.Dashboard> = a
   })
 
   app.delete('/teams/:workspace/:team/ignore-regions/:id', async (req, reply) => {
-    const found = await loadTeam(deps, req, reply)
-    if (!found) return reply
+    const found = await loadTeam(deps, req)
     const { id } = parse(idParams, req.params)
     if (!z.uuid().safeParse(id).success) {
       return reply.code(404).send({ error: 'Ignore region not found' })

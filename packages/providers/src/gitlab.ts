@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
 
+import { apiMessage, createHttpClient } from './http.ts'
 import { type GitProvider, headerValue, ProviderApiError } from './provider.ts'
 import { PR_COMMENT_MARKER } from './render.ts'
 
@@ -120,39 +121,22 @@ export class GitlabProvider implements GitProvider {
     this.#options = options
   }
 
-  async #call(
-    creds: GitlabCredentials,
-    method: string,
-    path: string,
-    body?: unknown,
-  ): Promise<unknown> {
-    const res = await (this.#options.fetch ?? fetch)(`${creds.baseUrl}/api/v4${path}`, {
-      method,
-      headers: {
-        'private-token': creds.token,
-        'user-agent': 'CirCI',
-        ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-      },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      signal: AbortSignal.timeout(15_000),
-    })
-    const text = await res.text()
-    let data: unknown
-    try {
-      data = text ? JSON.parse(text) : undefined
-    } catch {
-      data = undefined
-    }
-    if (!res.ok) {
-      const raw = field(data, 'message') ?? field(data, 'error')
-      const message = typeof raw === 'string' ? raw : `HTTP ${res.status}`
+  #call(creds: GitlabCredentials, method: string, path: string, body?: unknown): Promise<unknown> {
+    return createHttpClient({
+      baseUrl: `${creds.baseUrl}/api/v4`,
+      ...(this.#options.fetch ? { fetch: this.#options.fetch } : {}),
+      headers: { 'private-token': creds.token },
       // 401: the token is revoked or expired. Anything else (403 scope, 404, 5xx) may be fixed
       // or transient, so it is not "the connection is gone".
-      throw new GitlabApiError(res.status, `GitLab ${method} ${path}: ${message}`, {
-        revoked: res.status === 401,
-      })
-    }
-    return data
+      fail: ({ status, data }) =>
+        new GitlabApiError(
+          status,
+          `GitLab ${method} ${path}: ${apiMessage(data, status, 'message', 'error')}`,
+          { revoked: status === 401 },
+        ),
+    })
+      .request(method, path, body === undefined ? {} : { body })
+      .then((res) => res.data)
   }
 
   verifyWebhook(_rawBody: Buffer | string, headers: GitProvider.WebhookHeaders): boolean {

@@ -10,8 +10,8 @@ import { onSessionCreated } from './hooks/session-created.ts'
 import { beforeUserCreate } from './hooks/user-create.ts'
 import type { AuthOptions } from './options.ts'
 import { authPlugins } from './plugins/index.ts'
-import { socialProviders } from './plugins/sso.ts'
-import { trustedOriginsFor } from './sso/trusted-issuers.ts'
+import { socialProviders } from './plugins/sso/plugin.ts'
+import { trustedOriginsFor } from './plugins/sso/trusted-issuers.ts'
 
 /**
  * Authentication, provided by better-auth (https://better-auth.com):

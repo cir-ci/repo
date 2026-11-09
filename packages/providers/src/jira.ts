@@ -1,3 +1,6 @@
+import { asRecord } from '@circi/core'
+
+import { createHttpClient, type HttpClient } from './http.ts'
 import { trackerError } from './tracker-error.ts'
 import type { IssueTracker } from './tracker.ts'
 
@@ -41,9 +44,6 @@ export function normalizeJiraSite(raw: string): string | undefined {
 
 const trimSlash = (s: string) => s.replace(/\/+$/, '')
 
-const asRecord = (v: unknown): Record<string, unknown> =>
-  typeof v === 'object' && v !== null ? { ...v } : {}
-
 const adfParagraph = (line: string) => {
   const content = line
     .split(/(https?:\/\/\S+)/)
@@ -66,38 +66,34 @@ export function toAdf(text: string, imageUrl?: string) {
 export class JiraTracker implements IssueTracker {
   readonly kind = 'jira'
   readonly #options: JiraTrackerOptions
+  readonly #http: HttpClient
 
   constructor(options: JiraTrackerOptions) {
     this.#options = options
-  }
-
-  #headers() {
-    const o = this.#options
     const authorization =
-      'accessToken' in o
-        ? `Bearer ${o.accessToken}`
-        : `Basic ${Buffer.from(`${o.email}:${o.apiToken}`).toString('base64')}`
-    return {
-      authorization,
-      accept: 'application/json',
-      'content-type': 'application/json',
-    }
+      'accessToken' in options
+        ? `Bearer ${options.accessToken}`
+        : `Basic ${Buffer.from(`${options.email}:${options.apiToken}`).toString('base64')}`
+    this.#http = createHttpClient({
+      baseUrl: `${trimSlash(options.siteUrl)}/rest/api/3`,
+      ...(options.fetch ? { fetch: options.fetch } : {}),
+      // Jira has never had a timeout here: keep it so.
+      timeoutMs: 0,
+      headers: { authorization, accept: 'application/json' },
+      fail: ({ status, statusText, data }) => {
+        const messages = asRecord(data).errorMessages
+        return trackerError(
+          'Jira',
+          status,
+          Array.isArray(messages) ? messages.join('; ') : statusText,
+        )
+      },
+    })
   }
 
   async #call(method: string, path: string, body?: unknown): Promise<unknown> {
-    const doFetch = this.#options.fetch ?? fetch
-    const res = await doFetch(`${trimSlash(this.#options.siteUrl)}/rest/api/3${path}`, {
-      method,
-      headers: this.#headers(),
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    })
-    const payload: unknown = await res.json().catch(() => undefined)
-    if (!res.ok) {
-      const messages = asRecord(payload).errorMessages
-      const detail = Array.isArray(messages) ? messages.join('; ') : res.statusText
-      throw trackerError('Jira', res.status, detail)
-    }
-    return payload
+    const { data } = await this.#http.request(method, path, body === undefined ? {} : { body })
+    return data
   }
 
   async identify(): Promise<IssueTracker.Account> {

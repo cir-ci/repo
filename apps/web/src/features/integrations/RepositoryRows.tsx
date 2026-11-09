@@ -3,7 +3,7 @@ import { ChevronRightIcon, Badge, Banner, Button, Select, Text, TextField } from
 import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, type ReactNode, useState } from 'react'
 
-import { repositoryRows, targetsQuery } from './generic-api.ts'
+import { repositoryRows, targetsQuery } from './api/generic.ts'
 
 import styles from './Integrations.module.css'
 

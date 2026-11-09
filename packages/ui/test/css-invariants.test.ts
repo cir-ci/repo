@@ -74,7 +74,7 @@ const RADIUS_ALLOWED: Record<string, string> = {
   'packages/ui/src/Slider.module.css': '2px: half the 4px track, so the ends are round',
   'packages/ui/src/Badge.module.css': '9px: half of the 18px badge height (a pill)',
   'packages/ui/src/Switch.module.css': '9px: half of the 18px track height (a pill)',
-  'apps/web/src/features/settings/Settings.module.css': '2px: half of thin 4px bars',
+  'apps/web/src/features/workspace-settings/Settings.module.css': '2px: half of thin 4px bars',
 }
 
 const SCALE = new Set(['0', '4px', '6px', '8px', '10px', '12px', '50%', '999px', '9999px'])

@@ -15,15 +15,15 @@ import { useState } from 'react'
 
 import { useDocumentTitle } from '#lib/document-title.ts'
 
-import { useRemoveIntegration } from './api.ts'
-import { ConnectForm } from './ConnectForm.tsx'
 import {
   connectionLine,
   connectNote,
   mappingPageQuery,
   useInstall,
   useMapping,
-} from './generic-api.ts'
+} from './api/generic.ts'
+import { useRemoveIntegration } from './api/index.ts'
+import { ConnectForm } from './ConnectForm.tsx'
 import { IntegrationFrame } from './IntegrationFrame.tsx'
 import { IntegrationHead } from './IntegrationHead.tsx'
 import { RepositoryRows } from './RepositoryRows.tsx'

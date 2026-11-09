@@ -24,6 +24,7 @@ import { type FormEvent, useEffect, useState } from 'react'
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 
+import { AdminFrame, Intro } from './AdminFrame.tsx'
 import {
   type AccountDraft,
   accountProblems,
@@ -41,8 +42,7 @@ import {
   useSetInstanceAdmin,
   useSignOutEverywhere,
   useUnbanAccount,
-} from './admin-api.ts'
-import { AdminFrame, Intro } from './AdminFrame.tsx'
+} from './api/admin.ts'
 import { OnceSecret } from './OnceSecret.tsx'
 
 import styles from './Admin.module.css'

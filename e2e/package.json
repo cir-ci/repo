@@ -5,8 +5,12 @@
   "description": "End-to-end tests against the real Docker stack (see README.md)",
   "type": "module",
   "imports": {
+    "#clients/*": "./src/clients/*",
     "#fakes/*": "./src/fakes/*",
-    "#src/*": "./src/*"
+    "#github/*": "./src/github/*",
+    "#reporting/*": "./src/reporting/*",
+    "#src/*": "./src/*",
+    "#stack/*": "./src/stack/*"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "catalog:",

@@ -1,9 +1,8 @@
-import { Banner, Button, Dialog, Select, Text, TextField, WarningIcon } from '@circi/ui'
+import { Banner, Button, Dialog, Select, TabList, Text, TextField, WarningIcon } from '@circi/ui'
 import { useNavigate } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 
 import { type CreatedTeam, useCreateTeam, useRepoChoices } from '#features/teams/api/new-team.ts'
-import { TabList } from '#lib/TabList.tsx'
 
 import { SecretBox } from './CreateDialogs.tsx'
 import {

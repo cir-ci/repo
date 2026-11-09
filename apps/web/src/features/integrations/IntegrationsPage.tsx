@@ -8,8 +8,8 @@ import { useDocumentTitle } from '#lib/document-title.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 
 import { AddIntegrationDialog } from './AddIntegrationDialog.tsx'
-import { groupItems, integrationLabel, integrationsQuery, teamCountLabel } from './api.ts'
-import { connectNote } from './generic-api.ts'
+import { connectNote } from './api/generic.ts'
+import { groupItems, integrationLabel, integrationsQuery, teamCountLabel } from './api/index.ts'
 import { IntegrationFrame } from './IntegrationFrame.tsx'
 import { ProviderLogo } from './logos.tsx'
 

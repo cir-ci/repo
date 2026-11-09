@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { PageHeading } from '#lib/PageHeading.tsx'
 
-import { isForbidden } from './admin-api.ts'
+import { isForbidden } from './api/admin.ts'
 
 import styles from './Admin.module.css'
 

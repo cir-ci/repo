@@ -2,8 +2,8 @@ import { schema } from '@circi/db'
 import { APIError } from 'better-auth/api'
 import { eq } from 'drizzle-orm'
 
+import { isSsoPath, isTrusted, mayLinkSsoAccount } from '#plugins/sso/sso.ts'
 import type { AuthOptions } from '#src/options.ts'
-import { isSsoPath, isTrusted, mayLinkSsoAccount } from '#sso/sso.ts'
 
 /**
  * A login with a provider the operator doesn't vouch for must not attach to an account that

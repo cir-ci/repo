@@ -10,14 +10,13 @@ import { integrationsRoutes } from '#features/integrations/routes.ts'
 import { membersRoutes } from '#features/members/routes.ts'
 import { regionsRoutes } from '#features/regions/routes.ts'
 import { reviewsRoutes } from '#features/reviews/routes.ts'
-import { settingsRoutes } from '#features/settings/routes.ts'
 import { sitesRoutes } from '#features/sites/routes.ts'
 import { teamSettingsRoutes } from '#features/team-settings/routes.ts'
 import { teamsRoutes } from '#features/teams/routes.ts'
 import { triageRoutes } from '#features/triage/routes.ts'
 import { viewsRoutes } from '#features/views/routes.ts'
+import { workspaceSettingsRoutes } from '#features/workspace-settings/routes.ts'
 
-import { placeholderRoutes } from './placeholder-routes.tsx'
 import { rootRoute } from './root-route.ts'
 
 /** The route tree: each feature declares its own routes; this only assembles them. */
@@ -35,10 +34,9 @@ const routeTree = rootRoute.addChildren([
   ...insightsRoutes,
   ...baselinesRoutes,
   ...accountRoutes,
-  ...settingsRoutes,
+  ...workspaceSettingsRoutes,
   ...integrationsRoutes,
   ...instanceRoutes,
-  ...placeholderRoutes,
 ])
 
 /** The router; tests pass a memory `history` so they don't touch the address bar. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { extractCode, extractLinks } from '#src/mail.ts'
+import { extractCode, extractLinks } from '#clients/mail.ts'
 
 describe('mail extraction', () => {
   it('finds the six-digit code, not a longer number or a colour', () => {

@@ -12,11 +12,11 @@ import { lazy, type ReactNode, Suspense, useEffect, useState } from 'react'
 
 import { InvitationBanner } from '#features/auth/InvitationBanner.tsx'
 import { AddressChangeBanner } from '#features/instance/AddressChangeBanner.tsx'
+import { SettingsNav } from '#features/sidebar/SettingsNav.tsx'
 import { TeamDialogs } from '#features/teams/TeamDialogs.tsx'
 import { authClient, type SessionUser } from '#lib/auth-client.ts'
 import { RouterLink } from '#lib/router-link.ts'
 
-import { SettingsNav } from './SettingsNav.tsx'
 import { currentSection, isOutsideFrame, isSettingsSection, sectionLabel } from './shell-model.ts'
 import { ShortcutLayer } from './ShortcutLayer.tsx'
 import { Sidebar } from './Sidebar.tsx'

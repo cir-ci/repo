@@ -1,8 +1,7 @@
 import type { Integration } from '@circi/api'
-import { canManage } from '@circi/core'
-import { deleteIntegration, getMemberRole, listWorkspaceIntegrations } from '@circi/db'
+import { deleteIntegration, listWorkspaceIntegrations } from '@circi/db'
 import { buildCatalog, integrationRegistry, resolveKind } from '@circi/integrations'
-import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
+import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
 import type { Deps } from '#http/lib/deps.ts'
@@ -23,30 +22,10 @@ const wire = (i: listWorkspaceIntegrations.Item): Integration.Item => ({
  * Connecting and mapping are the generic routes (`integrations-generic.ts`).
  */
 export const dashboardIntegrationRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
-  async function load(req: FastifyRequest, reply: FastifyReply) {
-    const found = await loadWorkspace(deps, req, reply)
-    if (!found) return undefined
-    const role = await getMemberRole(deps.db, {
-      userId: found.user.id,
-      workspaceId: found.workspace.id,
-    })
-    return { workspace: found.workspace, canManage: canManage(role) }
-  }
-
-  async function loadForManager(req: FastifyRequest, reply: FastifyReply) {
-    const found = await load(req, reply)
-    if (found && !found.canManage) {
-      await reply.code(403).send({ error: 'Only owners and admins can manage integrations' })
-      return undefined
-    }
-    return found?.workspace
-  }
-
   const registry = deps.integrations?.registry ?? integrationRegistry
 
-  app.get('/workspaces/:workspace/integrations', async (req, reply) => {
-    const found = await load(req, reply)
-    if (!found) return reply
+  app.get('/workspaces/:workspace/integrations', async (req) => {
+    const found = await loadWorkspace(deps, req)
     const payload: Integration.ListResponse = {
       canManage: found.canManage,
       integrations: (
@@ -73,8 +52,10 @@ export const dashboardIntegrationRoutes: FastifyPluginAsync<Deps.Dashboard> = as
 
   /** Removes an integration; every team mapped to it stops using it (a git host: stops reporting). */
   app.delete('/workspaces/:workspace/integrations/:id', async (req, reply) => {
-    const workspace = await loadForManager(req, reply)
-    if (!workspace) return reply
+    const { workspace } = await loadWorkspace(deps, req, {
+      manage: true,
+      forbidden: 'Only owners and admins can manage integrations',
+    })
     const { id } = parse(idParams, req.params)
     const removed = await deleteIntegration(deps.db, workspace.id, id)
     if (!removed) return reply.code(404).send({ error: 'Integration not found' })

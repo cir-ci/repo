@@ -1,8 +1,8 @@
 import type { Integration } from '@circi/api'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { integrationsQuery } from '#features/integrations/api.ts'
-import { targetsQuery } from '#features/integrations/generic-api.ts'
+import { targetsQuery } from '#features/integrations/api/generic.ts'
+import { integrationsQuery } from '#features/integrations/api/index.ts'
 import { branchToSet, type RepoChoice, repoChoices } from '#features/teams/new-team.ts'
 import { post, seg } from '#lib/http.ts'
 

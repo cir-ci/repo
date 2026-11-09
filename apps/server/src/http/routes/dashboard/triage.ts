@@ -41,9 +41,8 @@ function state(item: {
  * the workspace may; everyone else gets "not found".
  */
 export const dashboardTriageRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
-  app.get('/teams/:workspace/:team/triage', async (req, reply) => {
-    const found = await loadTeam(deps, req, reply)
-    if (!found) return reply
+  app.get('/teams/:workspace/:team/triage', async (req) => {
+    const found = await loadTeam(deps, req)
     const queue = await listTriage(deps.db, { teamId: found.team.id, now: new Date() })
     const payload: Triage.Queue = {
       items: queue.items.map((i) =>
@@ -60,16 +59,14 @@ export const dashboardTriageRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
     return payload
   })
 
-  app.post('/teams/:workspace/:team/triage/assign', async (req, reply) => {
-    const found = await loadTeam(deps, req, reply)
-    if (!found) return reply
+  app.post('/teams/:workspace/:team/triage/assign', async (req) => {
+    const found = await loadTeam(deps, req)
     const body = parse(assignBody, req.body)
     return state(await assignTriage(deps.db, { teamId: found.team.id, ...body }))
   })
 
-  app.post('/teams/:workspace/:team/triage/snooze', async (req, reply) => {
-    const found = await loadTeam(deps, req, reply)
-    if (!found) return reply
+  app.post('/teams/:workspace/:team/triage/snooze', async (req) => {
+    const found = await loadTeam(deps, req)
     const { date, ...body } = parse(snoozeBody, req.body)
     const { item } = await snoozeTriage(deps.db, {
       teamId: found.team.id,
@@ -79,9 +76,8 @@ export const dashboardTriageRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
     return state(item)
   })
 
-  app.post('/teams/:workspace/:team/triage/dismiss', async (req, reply) => {
-    const found = await loadTeam(deps, req, reply)
-    if (!found) return reply
+  app.post('/teams/:workspace/:team/triage/dismiss', async (req) => {
+    const found = await loadTeam(deps, req)
     const body = parse(dismissBody, req.body)
     return state(await dismissTriage(deps.db, { teamId: found.team.id, ...body }))
   })

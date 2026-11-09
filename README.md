@@ -29,11 +29,11 @@ Each build then shows as a **CirCI / <build name>** check with **Approve** and *
 
 ## Hosting Storybook and reports
 
-Set `STATIC_SITES_HOST` to a **separate, dedicated domain** and switch on *Host static sites* in a team's settings, then `circi storybook upload ./storybook-static` or `circi site upload ./report --name playwright`. Each upload gets a commit address and a branch address (`<hash>-<site>.<sites domain>`); opening one asks you to sign in, and only members of the team's workspace get in. See [docs/static-sites.md](docs/static-sites.md) for how it works, the **⚠️ domain and cookie rules you must check**, Route53/Caddy setup (`deploy/`), and what isn't built yet. `circi admin doctor` checks what it can.
+Set `STATIC_SITES_HOST` to a **separate, dedicated domain** and switch on *Host static sites* in a team's settings, then `circi storybook upload ./storybook-static` or `circi site upload ./report --name playwright`. Each upload gets a commit address and a branch address (`<hash>-<site>.<sites domain>`); opening one asks you to sign in, and only members of the team's workspace get in. See [docs/reference/static-sites.md](docs/reference/static-sites.md) for how it works, the **⚠️ domain and cookie rules you must check**, Route53/Caddy setup (`deploy/`), and what isn't built yet. `circi admin doctor` checks what it can.
 
 ## CI examples, Vitest and Argos
 
-[docs/ci-examples.md](docs/ci-examples.md) (GitHub Actions, GitLab CI, Bitbucket Pipelines, Gitea, Jenkins, sharded runs), [docs/vitest.md](docs/vitest.md) (`@circi/vitest`) and [docs/argos-migration.md](docs/argos-migration.md) (point the Argos SDKs at `/v2`).
+[docs/reference/ci-examples.md](docs/reference/ci-examples.md) (GitHub Actions, GitLab CI, Bitbucket Pipelines, Gitea, Jenkins, sharded runs), [docs/reference/vitest.md](docs/reference/vitest.md) (`@circi/vitest`) and [docs/reference/argos-migration.md](docs/reference/argos-migration.md) (point the Argos SDKs at `/v2`).
 
 ## Self-hosting (Docker)
 
@@ -135,7 +135,7 @@ nvm install && nvm use   # Node 26 from .nvmrc
 pnpm install
 pnpm exec playwright install chromium   # once: the component tests run in headless Chromium (Vitest browser mode)
 pnpm test          # Vitest; database tests run on PGlite, so no Docker needed
-pnpm test:visual   # screenshots every @circi/ui component in light and dark; uploads when CIRCI_API_URL and CIRCI_TOKEN are set (docs/vitest.md)
+pnpm test:visual   # screenshots every @circi/ui component in light and dark; uploads when CIRCI_API_URL and CIRCI_TOKEN are set (docs/reference/vitest.md)
 pnpm typecheck
 pnpm lint          # oxlint, including type-aware rules
 pnpm format        # oxfmt (pnpm format:check in CI)

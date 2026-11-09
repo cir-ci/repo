@@ -2,12 +2,12 @@ import { Avatar, Banner, Button, SectionHeader, Text, TextField, useAnnounce } f
 import { useMutation } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 
-import { Box } from '#features/settings/Box.tsx'
+import { Box } from '#features/workspace-settings/Box.tsx'
 import { authClient } from '#lib/auth-client.ts'
 
 import { nameDirty } from './model.ts'
 
-import styles from '#features/settings/Settings.module.css'
+import styles from '#features/workspace-settings/Settings.module.css'
 
 /** Your name and email, and where your picture comes from. */
 export function YouSection({ user }: YouSection.Props) {

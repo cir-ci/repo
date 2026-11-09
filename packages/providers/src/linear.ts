@@ -1,3 +1,6 @@
+import { asRecord } from '@circi/core'
+
+import { createHttpClient, type HttpClient } from './http.ts'
 import { trackerError } from './tracker-error.ts'
 import type { IssueTracker } from './tracker.ts'
 
@@ -20,9 +23,6 @@ interface GraphQlResponse {
   errors?: { message?: string; extensions?: { type?: string } }[]
 }
 
-const asRecord = (v: unknown): Record<string, unknown> =>
-  typeof v === 'object' && v !== null ? { ...v } : {}
-
 const graphQlResponse = (v: unknown): GraphQlResponse => {
   const body = asRecord(v)
   const errors = Array.isArray(body.errors)
@@ -40,25 +40,26 @@ const graphQlResponse = (v: unknown): GraphQlResponse => {
 
 export class LinearTracker implements IssueTracker {
   readonly kind = 'linear'
-  readonly #options: LinearTrackerOptions
+  readonly #http: HttpClient
 
   constructor(options: LinearTrackerOptions) {
-    this.#options = options
+    this.#http = createHttpClient({
+      baseUrl: options.apiUrl ?? 'https://api.linear.app/graphql',
+      ...(options.fetch ? { fetch: options.fetch } : {}),
+      // Linear has never had a timeout here: keep it so.
+      timeoutMs: 0,
+      headers: { authorization: options.apiKey },
+      fail: ({ status, statusText, data }) =>
+        trackerError('Linear', status, graphQlResponse(data).errors?.[0]?.message ?? statusText),
+    })
   }
 
   async #query(query: string, variables: Record<string, unknown> = {}) {
-    const doFetch = this.#options.fetch ?? fetch
-    const res = await doFetch(this.#options.apiUrl ?? 'https://api.linear.app/graphql', {
-      method: 'POST',
-      headers: {
-        authorization: this.#options.apiKey,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({ query, variables }),
+    const { data: answer, statusText } = await this.#http.request('POST', '', {
+      body: { query, variables },
     })
-    const body = graphQlResponse(await res.json().catch(() => undefined))
-    const message = body.errors?.[0]?.message ?? res.statusText
-    if (!res.ok) throw trackerError('Linear', res.status, message)
+    const body = graphQlResponse(answer)
+    const message = body.errors?.[0]?.message ?? statusText
     if (body.errors?.length) {
       const authFailure = body.errors[0]?.extensions?.type === 'authentication error'
       throw trackerError('Linear', authFailure ? 401 : 400, message)

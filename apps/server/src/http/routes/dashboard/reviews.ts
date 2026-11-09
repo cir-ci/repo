@@ -155,10 +155,9 @@ export const dashboardBulkReviewRoutes: FastifyPluginAsync<Deps.Dashboard> = asy
    * `POST …/builds/request-review`: ask each reviewer to review each build, in one transaction.
    * All or nothing, like the bulk decision above. Any member may ask.
    */
-  app.post('/teams/:workspace/:team/builds/request-review', async (req, reply) => {
+  app.post('/teams/:workspace/:team/builds/request-review', async (req) => {
     const input = parse(requestBulkBody, req.body)
-    const found = await loadTeam(deps, req, reply)
-    if (!found) return reply
+    const found = await loadTeam(deps, req)
     const { team, user } = found
     const { requests } = await requestReviews(deps.db, {
       teamId: team.id,

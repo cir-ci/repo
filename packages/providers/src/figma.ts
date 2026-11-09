@@ -1,3 +1,6 @@
+import { asRecord, items, str } from '@circi/core'
+
+import { createHttpClient, type HttpClient } from './http.ts'
 import { ProviderApiError } from './provider.ts'
 
 /**
@@ -72,15 +75,9 @@ interface RawNode {
   children: RawNode[]
 }
 
-const record = (value: unknown): Record<string, unknown> =>
-  typeof value === 'object' && value !== null ? Object.fromEntries(Object.entries(value)) : {}
-const str = (value: unknown, fallback = ''): string =>
-  typeof value === 'string' ? value : fallback
-const items = (value: unknown): unknown[] => (Array.isArray(value) ? value : [])
-
 /** A node as the API sends it, down to the children one level below (`depth=1`). */
 function node(value: unknown): RawNode {
-  const r = record(value)
+  const r = asRecord(value)
   return {
     id: str(r.id),
     name: str(r.name),
@@ -96,11 +93,25 @@ export const figmaAuthHeaders = (token: string): Record<string, string> =>
 export class FigmaClient {
   readonly kind = 'figma'
   readonly #apiUrl: string
-  readonly #fetch: typeof fetch
+  readonly #http: HttpClient
 
   constructor(options: FigmaClientOptions = {}) {
     this.#apiUrl = (options.apiUrl ?? 'https://api.figma.com').replace(/\/+$/, '')
-    this.#fetch = options.fetch ?? fetch
+    this.#http = createHttpClient({
+      baseUrl: this.#apiUrl,
+      ...(options.fetch ? { fetch: options.fetch } : {}),
+      // Figma has never had a timeout here: keep it so.
+      timeoutMs: 0,
+      unreachable: (err) => new FigmaApiError(0, `Figma could not be reached: ${String(err)}`),
+      fail: ({ status, text, data }) => {
+        const message = Reflect.get(Object(data), 'message') ?? Reflect.get(Object(data), 'err')
+        const reason = typeof message === 'string' ? message : text
+        // A token Figma no longer accepts: retrying cannot help until a person replaces it.
+        return new FigmaApiError(status, `Figma answered ${status} ${reason}`.trim(), {
+          revoked: status === 401 || (status === 403 && /token/i.test(reason)),
+        })
+      },
+    })
   }
 
   async #call(
@@ -109,37 +120,11 @@ export class FigmaClient {
     path: string,
     body?: unknown,
   ): Promise<Record<string, unknown>> {
-    let res: Response
-    try {
-      res = await this.#fetch(`${this.#apiUrl}${path}`, {
-        method,
-        headers: {
-          ...figmaAuthHeaders(token),
-          ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-        },
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      })
-    } catch (err) {
-      throw new FigmaApiError(0, `Figma could not be reached: ${String(err)}`)
-    }
-    if (!res.ok) {
-      const text = await res.text().catch(() => '')
-      const reason = (() => {
-        try {
-          const j: unknown = JSON.parse(text)
-          const m = Reflect.get(Object(j), 'message') ?? Reflect.get(Object(j), 'err')
-          return typeof m === 'string' ? m : text
-        } catch {
-          return text
-        }
-      })()
-      // A token Figma no longer accepts: retrying cannot help until a person replaces it.
-      throw new FigmaApiError(res.status, `Figma answered ${res.status} ${reason}`.trim(), {
-        revoked: res.status === 401 || (res.status === 403 && /token/i.test(reason)),
-      })
-    }
-    const data: unknown = await res.json()
-    return record(data)
+    const { data } = await this.#http.request(method, path, {
+      headers: figmaAuthHeaders(token),
+      ...(body === undefined ? {} : { body }),
+    })
+    return asRecord(data)
   }
 
   /** Who the token belongs to; also proves the token works. */
@@ -169,8 +154,8 @@ export class FigmaClient {
     const r = await this.#call(token, 'GET', `/v1/files/${encodeURIComponent(fileKey)}/nodes?${qs}`)
     // A node that doesn't exist comes back as null: leave it out.
     return new Map(
-      Object.entries(record(r.nodes)).flatMap(([id, n]) => {
-        const document = record(n).document
+      Object.entries(asRecord(r.nodes)).flatMap(([id, n]) => {
+        const document = asRecord(n).document
         return document === undefined ? [] : [[id, node(document)] as const]
       }),
     )
@@ -212,7 +197,7 @@ export class FigmaClient {
     const qs = `ids=${encodeURIComponent(nodeIds.join(','))}&format=png&scale=${options.scale ?? 1}`
     const r = await this.#call(token, 'GET', `/v1/images/${encodeURIComponent(fileKey)}?${qs}`)
     return Object.fromEntries(
-      Object.entries(record(r.images)).map(([id, url]) => [
+      Object.entries(asRecord(r.images)).map(([id, url]) => [
         id,
         typeof url === 'string' ? url : null,
       ]),

@@ -42,9 +42,8 @@ function wire(v: SavedViewRow): View.Item {
  * found"; anyone outside the workspace gets "not found" for all of it.
  */
 export const dashboardViewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
-  app.get('/workspaces/:workspace/views', async (req, reply) => {
-    const found = await loadWorkspace(deps, req, reply)
-    if (!found) return reply
+  app.get('/workspaces/:workspace/views', async (req) => {
+    const found = await loadWorkspace(deps, req)
     const payload: View.List = {
       views: (
         await listSavedViews(deps.db, { userId: found.user.id, workspaceId: found.workspace.id })
@@ -54,8 +53,7 @@ export const dashboardViewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
   })
 
   app.post('/workspaces/:workspace/views', async (req, reply) => {
-    const found = await loadWorkspace(deps, req, reply)
-    if (!found) return reply
+    const found = await loadWorkspace(deps, req)
     const body = parse(createBody, req.body)
     let teamId: string | undefined
     if (body.team) {
@@ -79,9 +77,8 @@ export const dashboardViewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
     return reply.code(201).send(wire(view))
   })
 
-  app.put('/workspaces/:workspace/views/order', async (req, reply) => {
-    const found = await loadWorkspace(deps, req, reply)
-    if (!found) return reply
+  app.put('/workspaces/:workspace/views/order', async (req) => {
+    const found = await loadWorkspace(deps, req)
     const { ids } = parse(orderBody, req.body)
     const payload: View.List = {
       views: (
@@ -91,9 +88,8 @@ export const dashboardViewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
     return payload
   })
 
-  app.patch('/workspaces/:workspace/views/:id', async (req, reply) => {
-    const found = await loadWorkspace(deps, req, reply)
-    if (!found) return reply
+  app.patch('/workspaces/:workspace/views/:id', async (req) => {
+    const found = await loadWorkspace(deps, req)
     const { id } = parse(viewParams, req.params)
     const body = parse(updateBody, req.body)
     const view = await updateView(deps.db, {
@@ -108,16 +104,14 @@ export const dashboardViewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
   })
 
   app.delete('/workspaces/:workspace/views/:id', async (req, reply) => {
-    const found = await loadWorkspace(deps, req, reply)
-    if (!found) return reply
+    const found = await loadWorkspace(deps, req)
     const { id } = parse(viewParams, req.params)
     await deleteView(deps.db, { userId: found.user.id, workspaceId: found.workspace.id, id })
     return reply.code(204).send()
   })
 
   async function pinRoute(req: FastifyRequest, reply: FastifyReply, pinned: boolean) {
-    const found = await loadWorkspace(deps, req, reply)
-    if (!found) return reply
+    const found = await loadWorkspace(deps, req)
     const p = parse(pinParams, req.params)
     const team = await findTeamForMember(deps.db, {
       workspaceSlug: found.workspace.slug,
@@ -137,9 +131,8 @@ export const dashboardViewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
     pinRoute(req, reply, false),
   )
 
-  app.get('/workspaces/:workspace/sidebar', async (req, reply) => {
-    const found = await loadWorkspace(deps, req, reply)
-    if (!found) return reply
+  app.get('/workspaces/:workspace/sidebar', async (req) => {
+    const found = await loadWorkspace(deps, req)
     const sidebar = await getSidebar(deps.db, {
       userId: found.user.id,
       workspace: { id: found.workspace.id, slug: found.workspace.slug },

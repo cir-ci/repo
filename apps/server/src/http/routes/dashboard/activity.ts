@@ -12,8 +12,7 @@ const params = z.object({ workspace: z.string(), team: z.string(), number: z.str
 /** `GET …/builds/:number/activity`: what happened to a build, oldest first. Members only. */
 export const dashboardActivityRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   app.get('/teams/:workspace/:team/builds/:number/activity', async (req, reply) => {
-    const access = await loadTeam(deps, req, reply)
-    if (!access) return reply
+    const access = await loadTeam(deps, req)
     const { team } = access
     const number = Number(parse(params, req.params).number)
     const build = Number.isInteger(number)

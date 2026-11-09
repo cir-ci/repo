@@ -1,4 +1,4 @@
-import { Frame } from '#features/settings/Frame.tsx'
+import { Frame } from '#features/workspace-settings/Frame.tsx'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 

@@ -3,7 +3,7 @@ import { Badge, Banner, Button, Text, TextField } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useState } from 'react'
 
-import { autoLinkSummary, linksQuery, linkValuesComplete, useLinks } from './generic-api.ts'
+import { autoLinkSummary, linksQuery, linkValuesComplete, useLinks } from './api/generic.ts'
 
 import styles from './Links.module.css'
 

@@ -1,11 +1,11 @@
-import { INSTALLATION_ID_RE } from '@circi/core'
-import { GithubApp, headerValue, isConnectionRevoked, parseCommand } from '@circi/providers'
+import { asRecord, INSTALLATION_ID_RE } from '@circi/core'
+import { GithubApp, headerValue, parseCommand } from '@circi/providers'
 import { z } from 'zod'
 
 import { defineIntegration } from './define.ts'
 import type { IntegrationDefinition } from './definition.ts'
 import { InvalidInputError } from './errors.ts'
-import { connectFailure, record, str, stubbed } from './git-support.ts'
+import { connectFailure, revokedAttention, str, stubbed } from './git-support.ts'
 
 /**
  * GitHub, through the instance's GitHub App. A connection is one installation of the App on an
@@ -47,8 +47,8 @@ const LINK_HELP = (origin: string) =>
   `I couldn't tell who you are in CirCI. Sign in at ${origin} with GitHub (Account and sessions → link GitHub) using a member of this team's workspace, then try again.`
 
 const repoOf = (p: Record<string, unknown>): IntegrationDefinition.GitRepo | undefined => {
-  const installation = str(record(p.installation).id)
-  const ref = str(record(p.repository).full_name)
+  const installation = str(asRecord(p.installation).id)
+  const ref = str(asRecord(p.repository).full_name)
   return installation && ref ? { ref, connection: { externalId: installation } } : undefined
 }
 
@@ -59,10 +59,10 @@ function events(
   const event = headerValue(headers, 'x-github-event')
   if (event === 'check_run') {
     if (p.action !== 'requested_action') return []
-    const identifier = str(record(p.requested_action).identifier)
-    const checkRunId = str(record(p.check_run).id)
+    const identifier = str(asRecord(p.requested_action).identifier)
+    const checkRunId = str(asRecord(p.check_run).id)
     if ((identifier !== 'approve' && identifier !== 'reject') || !checkRunId) return []
-    const sender = record(p.sender)
+    const sender = asRecord(p.sender)
     const repo = repoOf(p)
     return [
       {
@@ -76,8 +76,8 @@ function events(
   }
   if (event === 'pull_request') {
     if (p.action !== 'opened' && p.action !== 'reopened' && p.action !== 'synchronize') return []
-    const pr = record(p.pull_request)
-    const author = record(pr.user)
+    const pr = asRecord(p.pull_request)
+    const author = asRecord(pr.user)
     const login = str(author.login)
     const number = Number(pr.number)
     const repo = repoOf(p)
@@ -94,10 +94,10 @@ function events(
   }
   if (event === 'issue_comment') {
     if (p.action !== 'created') return []
-    const issue = record(p.issue)
+    const issue = asRecord(p.issue)
     if (!issue.pull_request) return []
-    const comment = record(p.comment)
-    const user = record(comment.user)
+    const comment = asRecord(p.comment)
+    const user = asRecord(comment.user)
     if (str(user.type) === 'Bot') return []
     const command = parseCommand(str(comment.body) ?? '')
     const repo = repoOf(p)
@@ -163,7 +163,7 @@ export const github = defineIntegration({
     }
   },
 
-  needsAttention: (err) => (isConnectionRevoked(err) ? REVOKED : null),
+  needsAttention: revokedAttention(REVOKED),
 
   events: [],
 

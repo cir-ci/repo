@@ -18,14 +18,14 @@ network is needed after the images are pulled once (`postgres:18-alpine`,
 
 ```sh
 pnpm test:e2e                                   # everything
-pnpm test:e2e e2e/test/review.e2e.test.ts       # one file
+pnpm test:e2e e2e/test/platform/review.e2e.test.ts       # one file
 pnpm test:e2e -t "rejecting"                    # by test name
 E2E_SKIP_BUILD=1 pnpm test:e2e                  # reuse the existing circi:e2e image
-E2E_KEEP=1 pnpm test:e2e e2e/test/smoke.e2e.test.ts   # leave the stack up (see Debugging)
+E2E_KEEP=1 pnpm test:e2e e2e/test/platform/smoke.e2e.test.ts   # leave the stack up (see Debugging)
 E2E_HEADED=1 pnpm test:e2e ...                  # watch the browser
 E2E_WORKERS=1 pnpm test:e2e                     # one file at a time (default 3 in parallel)
 pnpm test:e2e --sequence.shuffle.files          # random file order (add --sequence.seed=N to repeat one)
-pnpm test:e2e --shard=1/3                       # a third of the files, for CI (docs/ci-examples.md)
+pnpm test:e2e --shard=1/3                       # a third of the files, for CI (docs/reference/ci-examples.md)
 ```
 
 Without Docker the run fails within seconds with a message saying so. The image is rebuilt on
@@ -45,7 +45,7 @@ compose project-name prefix). Do not use ports 3000 or 5432 for anything here: t
 Booting a stack is the biggest cost (7 s, 12 s with LocalStack), so most files share one:
 
 - `useStack({ profile: 'default' | 's3' | 'github', setup: true })` asks for the stack of that
-  profile (`src/pool.ts`). The first file of a Vitest worker that needs a profile boots it (with
+  profile (`src/stack/pool.ts`). The first file of a Vitest worker that needs a profile boots it (with
   the first-run admin), later files of that worker reuse it. A worker's files run one after
   another, so a shared stack is never in use by two files; different workers have different stacks.
   A worker keeps at most `E2E_POOL_MAX` (default 2) stacks and removes the least recently used one
@@ -91,28 +91,33 @@ Which file uses what (this list is the decision record; keep it current):
 e2e/
   compose.yml          postgres, localstack (profile s3), mailpit, edge (the published port), circi
   src/
-    stack.ts           startStack(): compose project, Docker-assigned ports, override env, up --wait, exec/cli/sql/logs, stop
-    pool.ts            the shared stacks of a Vitest worker (profiles, acquire, eviction, exit cleanup)
-    vitest.ts          useStack(), useBrowser(): the hooks most test files need
-    admin.ts           Session (cookie jar), signIn, completeSetup, createTenant, createTeam, invite, CLI users
-    upload.ts          uploadBuild()/uploadOrThrow(): the real CLI against the stack
-    git-repo.ts        Repo: scratch git repo, real commits and branches, origin = itself
-    images.ts          screenshot(): deterministic PNGs with sharp
-    browser.ts         Chromium (host.docker.internal mapped), sessions, sign-in through the UI
-    mail.ts            Mailbox: Mailpit client, waitFor(), extractCode(), extractLinks()
-    s3.ts              S3Bucket: list/get/put/delete in the LocalStack bucket (AWS SDK)
+    stack/             the stack itself
+      stack.ts           startStack(): compose project, Docker-assigned ports, override env, up --wait, exec/cli/sql/logs, stop
+      pool.ts            the shared stacks of a Vitest worker (profiles, acquire, eviction, exit cleanup)
+      vitest.ts          useStack(), useBrowser(): the hooks most test files need
+      images.ts          screenshot(): deterministic PNGs with sharp
+      docker.ts, paths.ts, dns-preload.ts, global-setup.ts   compose helpers, paths, DNS for the CLI, Docker preflight + image build + teardown
+    clients/           talking to the stack
+      admin.ts           Session (cookie jar), signIn, completeSetup, createTenant, createTeam, invite, CLI users
+      upload.ts          uploadBuild()/uploadOrThrow(): the real CLI against the stack
+      browser.ts         Chromium (host.docker.internal mapped), sessions, sign-in through the UI
+      mail.ts            Mailbox: Mailpit client, waitFor(), extractCode(), extractLinks()
+      s3.ts              S3Bucket: list/get/put/delete in the LocalStack bucket (AWS SDK)
+      people.ts, sites.ts, storage.ts, client-address.ts
+    github/            git-repo.ts (Repo: scratch git repo, real commits and branches, origin = itself), github-helpers.ts
     fakes/             fake-github.ts, fake-idp.ts, webhook-receiver.ts
-    global-setup.ts    Docker preflight, image build, teardown
+    reporting/         timing-reporter.ts
   test/
     fakes/*.test.ts    tests of the fakes themselves: plain Node, no Docker (run by `pnpm test`)
-    *.e2e.test.ts      the end-to-end tests (run only by `pnpm test:e2e`)
+    {auth,github,sites,storage,webhooks,platform}/*.e2e.test.ts
+                       the end-to-end tests by feature (run only by `pnpm test:e2e`)
 ```
 
 ## Writing a test
 
 ```ts
 import { describe, expect, it } from 'vitest'
-import { createTeam, Repo, uploadOrThrow, useBrowser, useStack } from '../src/index.ts'
+import { createTeam, Repo, uploadOrThrow, useBrowser, useStack } from '../../src/index.ts'
 
 describe('my feature', () => {
   const ctx = useStack({ profile: 'default', setup: true }) // shared stack + this file's own workspace, owner and session
@@ -147,7 +152,7 @@ Rules of thumb:
   `stack.logs('circi')` reads logs; `stack.restart('circi')`.
 - Email: `await stack.mail.waitFor({ to })`, then `extractCode(msg)` / `extractLinks(msg)`.
 - Sign-in and code requests are rate-limited per client address. Every `Session` and every browser
-  context has its own address (`freshIp()` and `clientAddressHeaders()` in `src/client-address.ts`, the
+  context has its own address (`freshIp()` and `clientAddressHeaders()` in `src/clients/client-address.ts`, the
   `X-Forwarded-For` header), so tests never wait the limiter out; the one test that sends several
   requests from one address is the limiter test in `email-login.e2e.test.ts`. Never sleep for a
   limit: give the request its own address.

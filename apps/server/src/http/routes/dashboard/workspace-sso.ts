@@ -1,19 +1,13 @@
 import { fromNodeHeaders, withTrustedIssuer } from '@circi/auth'
 import { ValidationError, webhookUrlProblem } from '@circi/core'
-import {
-  getMemberRole,
-  getWorkspaceBySlug,
-  NotFoundError,
-  workspaceAcceptsSession,
-  schema,
-} from '@circi/db'
+import { schema } from '@circi/db'
 import { eq } from 'drizzle-orm'
-import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
+import type { FastifyPluginAsync, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
-import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
+import { loadWorkspace } from '#http/lib/workspace-access.ts'
 
 const workspaceParams = z.object({ workspace: z.string() })
 const providerParams = workspaceParams.extend({ providerId: z.string() })
@@ -32,37 +26,19 @@ export const dashboardWorkspaceSsoRoutes: FastifyPluginAsync<Deps.Dashboard> = a
   app,
   deps,
 ) => {
-  async function managed(req: FastifyRequest, reply: FastifyReply) {
-    const { workspace: slug } = parse(workspaceParams, req.params)
-    const user = currentUser(req)
-    const workspace = await getWorkspaceBySlug(deps.db, slug).catch((err: unknown) => {
-      if (err instanceof NotFoundError) return undefined
-      throw err
-    })
-    const role = workspace
-      ? await getMemberRole(deps.db, { userId: user.id, workspaceId: workspace.id })
-      : undefined
-    if (
-      !workspace ||
-      !role ||
-      !(await workspaceAcceptsSession(deps.db, workspace.id, user.method))
-    ) {
-      await reply.code(404).send({ error: 'Workspace not found' })
-      return undefined
-    }
-    if (role !== 'owner' && role !== 'admin') {
-      await reply.code(403).send({ error: 'Only owners and admins can manage single sign-on' })
-      return undefined
-    }
-    return workspace
-  }
+  const managed = async (req: FastifyRequest) =>
+    (
+      await loadWorkspace(deps, req, {
+        manage: true,
+        forbidden: 'Only owners and admins can manage single sign-on',
+      })
+    ).workspace
 
   const redirectUri = (providerId: string) =>
     `${deps.publicOrigin}/api/auth/sso/callback/${encodeURIComponent(providerId)}`
 
-  app.get('/workspaces/:workspace/sso', async (req, reply) => {
-    const workspace = await managed(req, reply)
-    if (!workspace) return reply
+  app.get('/workspaces/:workspace/sso', async (req) => {
+    const workspace = await managed(req)
     const rows = await deps.db
       .select({ providerId: schema.ssoProvider.providerId, issuer: schema.ssoProvider.issuer })
       .from(schema.ssoProvider)
@@ -77,8 +53,7 @@ export const dashboardWorkspaceSsoRoutes: FastifyPluginAsync<Deps.Dashboard> = a
   })
 
   app.post('/workspaces/:workspace/sso', async (req, reply) => {
-    const workspace = await managed(req, reply)
-    if (!workspace) return reply
+    const workspace = await managed(req)
     const body = parse(registerBody, req.body)
     // The server will fetch from this address, so it gets the same scrutiny as a webhook's:
     // a public https address, unless the operator allows private ones.
@@ -113,8 +88,7 @@ export const dashboardWorkspaceSsoRoutes: FastifyPluginAsync<Deps.Dashboard> = a
   })
 
   app.delete('/workspaces/:workspace/sso/:providerId', async (req, reply) => {
-    const workspace = await managed(req, reply)
-    if (!workspace) return reply
+    const workspace = await managed(req)
     const { providerId } = parse(providerParams, req.params)
     const [row] = await deps.db
       .select({ workspaceId: schema.ssoProvider.workspaceId })

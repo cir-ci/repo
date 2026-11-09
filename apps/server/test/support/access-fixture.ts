@@ -3,6 +3,7 @@ import type { SessionMethod } from '@circi/db'
 import { createTestDb } from '@circi/testing'
 import Fastify from 'fastify'
 
+import { jsonErrorHandler } from '#http/lib/errors.ts'
 import { loadTeam } from '#http/lib/team-access.ts'
 import { loadWorkspace } from '#http/lib/workspace-access.ts'
 
@@ -54,17 +55,18 @@ export async function startAccess() {
       }
     }
   })
-  app.get('/team/:workspace/:team', async (req, reply) => {
-    const found = await loadTeam(deps, req, reply)
-    return found ? { ok: true, team: found.team.slug } : reply
+  app.setErrorHandler(jsonErrorHandler)
+  app.get('/team/:workspace/:team', async (req) => {
+    const found = await loadTeam(deps, req)
+    return { ok: true, team: found.team.slug }
   })
-  app.get('/manage/:workspace/:team', async (req, reply) => {
-    const found = await loadTeam(deps, req, reply, { manage: true })
-    return found ? { ok: true, team: found.team.slug } : reply
+  app.get('/manage/:workspace/:team', async (req) => {
+    const found = await loadTeam(deps, req, { manage: true })
+    return { ok: true, team: found.team.slug }
   })
-  app.get('/workspace/:workspace', async (req, reply) => {
-    const found = await loadWorkspace(deps, req, reply)
-    return found ? { ok: true, workspace: found.workspace.slug } : reply
+  app.get('/workspace/:workspace', async (req) => {
+    const found = await loadWorkspace(deps, req)
+    return { ok: true, workspace: found.workspace.slug }
   })
   await app.ready()
 

@@ -7,8 +7,7 @@
     "#hooks/*": "./src/hooks/*",
     "#operations/*": "./src/operations/*",
     "#plugins/*": "./src/plugins/*",
-    "#src/*": "./src/*",
-    "#sso/*": "./src/sso/*"
+    "#src/*": "./src/*"
   },
   "exports": "./src/index.ts",
   "scripts": {

@@ -8,6 +8,24 @@ const profileRoute = createRoute({
   component: lazyRouteComponent(() => import('./ProfilePage.tsx'), 'ProfilePage'),
 })
 
+const notificationsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'account/notifications',
+  component: lazyRouteComponent(() => import('./NotificationsPage.tsx'), 'NotificationsPage'),
+})
+
+const appearanceRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'account/appearance',
+  component: lazyRouteComponent(() => import('./AppearancePage.tsx'), 'AppearancePage'),
+})
+
+const shortcutsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'account/shortcuts',
+  component: lazyRouteComponent(() => import('./ShortcutsPage.tsx'), 'ShortcutsPage'),
+})
+
 // `/account` used to be the profile page; old links and the sign-in return address land on the new one.
 const accountRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -17,4 +35,10 @@ const accountRoute = createRoute({
   },
 })
 
-export const accountRoutes = [accountRoute, profileRoute]
+export const accountRoutes = [
+  accountRoute,
+  profileRoute,
+  notificationsRoute,
+  appearanceRoute,
+  shortcutsRoute,
+]

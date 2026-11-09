@@ -144,19 +144,11 @@ function webhookOf(
 function createGeneric(deps: Deps.Dashboard) {
   const registry = deps.integrations?.registry ?? integrationRegistry
 
-  async function loadForManager(req: FastifyRequest, reply: FastifyReply) {
-    const found = await loadWorkspace(deps, req, reply)
-    if (!found) return undefined
-    const role = await getMemberRole(deps.db, {
-      userId: found.user.id,
-      workspaceId: found.workspace.id,
+  const loadForManager = (req: FastifyRequest) =>
+    loadWorkspace(deps, req, {
+      manage: true,
+      forbidden: 'Only owners and admins can manage integrations',
     })
-    if (role !== 'owner' && role !== 'admin') {
-      await reply.code(403).send({ error: 'Only owners and admins can manage integrations' })
-      return undefined
-    }
-    return found
-  }
 
   /** The registered definition for `:kind`, replying 404 for an unknown one. */
   async function definitionFor(kind: string, reply: FastifyReply) {
@@ -257,8 +249,7 @@ function createGeneric(deps: Deps.Dashboard) {
 
   /** What the integration's account lets a team be pointed at (channels, teams…). */
   const targets = async (req: FastifyRequest, reply: FastifyReply) => {
-    const found = await loadForManager(req, reply)
-    if (!found) return reply
+    const found = await loadForManager(req)
     const { id } = parse(idParams, req.params)
     const loaded = await integrationFor(found.workspace.id, id, reply)
     if (!loaded) return reply
@@ -285,8 +276,7 @@ function createGeneric(deps: Deps.Dashboard) {
 
   /** Points a team at a target (replacing its earlier one) with the definition's settings. */
   const put = async (req: FastifyRequest, reply: FastifyReply) => {
-    const found = await loadForManager(req, reply)
-    if (!found) return reply
+    const found = await loadForManager(req)
     const params = parse(mappingParams, req.params)
     const loaded = await integrationFor(found.workspace.id, params.id, reply)
     if (!loaded) return reply
@@ -334,8 +324,7 @@ function createGeneric(deps: Deps.Dashboard) {
 
   /** Stops a team using the integration. */
   const remove = async (req: FastifyRequest, reply: FastifyReply) => {
-    const found = await loadForManager(req, reply)
-    if (!found) return reply
+    const found = await loadForManager(req)
     const params = parse(mappingParams, req.params)
     const loaded = await integrationFor(found.workspace.id, params.id, reply)
     if (!loaded) return reply
@@ -353,10 +342,7 @@ function createGeneric(deps: Deps.Dashboard) {
 
   /** The integration `:id` and the team `:team` of the workspace, with the definition's links section; replies otherwise. */
   async function linksFor(req: FastifyRequest, reply: FastifyReply, options: { manage: boolean }) {
-    const found = options.manage
-      ? await loadForManager(req, reply)
-      : await loadWorkspace(deps, req, reply)
-    if (!found) return undefined
+    const found = options.manage ? await loadForManager(req) : await loadWorkspace(deps, req)
     const params = parse(mappingParams, req.params)
     const loaded = await integrationFor(found.workspace.id, params.id, reply)
     if (!loaded) return undefined
@@ -505,8 +491,7 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
    * account the workspace already connected is a 409.
    */
   app.post('/workspaces/:workspace/integrations/:kind/connect', async (req, reply) => {
-    const found = await loadForManager(req, reply)
-    if (!found) return reply
+    const found = await loadForManager(req)
     const { kind } = parse(kindParams, req.params)
     const definition = await definitionFor(kind, reply)
     if (!definition) return reply
@@ -531,8 +516,7 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
 
   /** The address to send the browser to for installing the app; `state` binds workspace, user and kind. */
   app.get('/workspaces/:workspace/integrations/:kind/install', async (req, reply) => {
-    const found = await loadForManager(req, reply)
-    if (!found) return reply
+    const found = await loadForManager(req)
     const { kind } = parse(kindParams, req.params)
     const definition = await definitionFor(kind, reply)
     if (!definition) return reply
@@ -592,7 +576,7 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
       return reply.code(400).send({ error: 'This install link was started by someone else' })
     }
     const role = await getMemberRole(deps.db, { userId: user.id, workspaceId: workspaceId })
-    if (role !== 'owner' && role !== 'admin') {
+    if (!canManage(role)) {
       return reply.code(403).send({ error: 'Only owners and admins can manage integrations' })
     }
     const list = `/workspaces/${encodeURIComponent(workspaceSlug)}/settings/integrations`
@@ -656,7 +640,7 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
       return reply.redirect(`/integrations/${encodeURIComponent(kind)}/setup?${rest.toString()}`)
     }
     const role = await getMemberRole(deps.db, { userId: user.id, workspaceId: workspaceId })
-    if (role !== 'owner' && role !== 'admin') {
+    if (!canManage(role)) {
       return reply.code(403).send({ error: 'Only owners and admins can manage integrations' })
     }
     if (definition.available && !definition.available(ctx)) {
@@ -669,19 +653,15 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
 
   /** The integration, its definition's public spec, and how each team of the workspace maps to it. */
   app.get('/workspaces/:workspace/integrations/:id/teams', async (req, reply) => {
-    const found = await loadWorkspace(deps, req, reply)
-    if (!found) return reply
+    const found = await loadWorkspace(deps, req)
     const { id } = parse(idParams, req.params)
     const loaded = await integrationFor(found.workspace.id, id, reply)
     if (!loaded) return reply
     const { integration, definition } = loaded
-    const role = await getMemberRole(deps.db, {
-      userId: found.user.id,
-      workspaceId: found.workspace.id,
-    })
+    const { role } = found
     const ctx = integrationContext(deps)
     const payload: Integration.MappingPage = {
-      canManage: canManage(role),
+      canManage: found.canManage,
       configured: ctx !== undefined && (definition.oauth?.available(ctx) ?? false),
       integration: {
         id: integration.id,

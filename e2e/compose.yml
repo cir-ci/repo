@@ -1,4 +1,4 @@
-# The stack the end-to-end tests run against. Never started by hand: src/stack.ts picks free host
+# The stack the end-to-end tests run against. Never started by hand: src/stack/stack.ts picks free host
 # ports, a unique project name (`circi-e2e-<run>-<n>`), writes an override file with the
 # per-run environment and runs `docker compose -p <project> -f compose.yml -f <override> up`.
 # Everything is torn down with `down -v` afterwards. To poke at one: E2E_KEEP=1 (see README.md).
@@ -139,7 +139,7 @@ services:
       # Fast: files nobody uses are collectable at once (tests that need the grace period set it).
       GC_GRACE_HOURS: '0'
       UPLOAD_TIMEOUT_MINUTES: '0'
-      # The tests send each client's address in X-Forwarded-For (e2e/src/client-address.ts). A
+      # The tests send each client's address in X-Forwarded-For (e2e/src/clients/client-address.ts). A
       # request from the host reaches the container from the compose network's gateway (e.g.
       # 172.19.0.1 on Docker Desktop), so trust Docker's private bridge ranges, and only those:
       # the test addresses themselves (10.x.x.x) stay untrusted hops, and so count as clients.

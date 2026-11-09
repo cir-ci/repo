@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { beforeAccountCreate } from '#hooks/account-create.ts'
-import type { SsoProvider } from '#sso/sso.ts'
+import type { SsoProvider } from '#plugins/sso/sso.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

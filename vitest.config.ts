@@ -6,7 +6,7 @@ import { CirciReporter } from '@circi/vitest'
 import { playwright } from '@vitest/browser-playwright'
 import { defineConfig } from 'vitest/config'
 
-import { E2eTimingReporter } from './e2e/src/timing-reporter.ts'
+import { E2eTimingReporter } from './e2e/src/reporting/timing-reporter.ts'
 
 const uiRequire = createRequire(resolve(import.meta.dirname, 'packages/ui/package.json'))
 
@@ -114,12 +114,12 @@ export default defineConfig({
               test: {
                 name: 'e2e',
                 include: ['e2e/test/**/*.e2e.test.ts'],
-                globalSetup: ['e2e/src/global-setup.ts'],
+                globalSetup: ['e2e/src/stack/global-setup.ts'],
                 // Fail fast: a broken test costs seconds, not minutes. The few tests that
                 // really wait (retry backoff, a whole migration) say so themselves.
                 testTimeout: 60_000,
                 hookTimeout: 120_000,
-                // Files run in parallel, one stack pool per worker (e2e/src/pool.ts). `isolate:
+                // Files run in parallel, one stack pool per worker (e2e/src/stack/pool.ts). `isolate:
                 // false` keeps a worker's module scope between files, which is what lets the
                 // next file find the pool's stacks; the tests keep their state in the stack and
                 // their own tenant, not in modules.

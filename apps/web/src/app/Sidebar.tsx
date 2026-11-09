@@ -21,6 +21,8 @@ import { useState } from 'react'
 
 import { UserMenu } from '#features/auth/UserMenu.tsx'
 import { useSidebarModel } from '#features/sidebar/api.ts'
+import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
+import { WorkspaceSwitcher } from '#features/sidebar/WorkspaceSwitcher.tsx'
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { isTeamIconName } from '#features/teams/appearance.ts'
 import type { SessionUser } from '#lib/auth-client.ts'
@@ -37,8 +39,6 @@ import {
   SIDEBAR_TEAM_LIMIT,
   sidebarTeams,
 } from './shell-model.ts'
-import { useWorkspaces } from './use-workspaces.ts'
-import { WorkspaceSwitcher } from './WorkspaceSwitcher.tsx'
 
 import styles from './Sidebar.module.css'
 

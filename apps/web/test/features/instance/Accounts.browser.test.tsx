@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { AccountsPage } from '#features/instance/AccountsPage.tsx'
-import { clipboard } from '#features/instance/admin-api.ts'
+import { clipboard } from '#features/instance/api/admin.ts'
 import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 

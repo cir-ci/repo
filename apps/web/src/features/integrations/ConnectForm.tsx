@@ -3,7 +3,7 @@ import { Banner, Button, TextField } from '@circi/ui'
 import { useNavigate } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 
-import { credentialsComplete, credentialValues, useConnect, useInstall } from './generic-api.ts'
+import { credentialsComplete, credentialValues, useConnect, useInstall } from './api/generic.ts'
 
 import styles from './Integrations.module.css'
 

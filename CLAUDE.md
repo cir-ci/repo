@@ -68,6 +68,16 @@ Dependencies point downwards: apps → services → db → core, and services �
 - **Fastify scopes** receive exactly their dependencies. Register a scope with a prefix through a
   wrapper plugin (see `app.ts`) so the plugin's options never carry `prefix`.
 
+## Web features
+
+- A feature folder in `apps/web/src/features` with more than one `api` file uses an `api/` folder
+  (`index.ts` plus one file per concern), as `builds`, `teams`, `instance` and `integrations` do.
+- A feature over about 25 files is split by sub-area (`list/`, `settings/`, `components/`, `lib/`) and never
+  holds another feature's pages. Settings pages sit with what they configure (`workspace-settings`,
+  `reviews/settings`, `team-settings`, `account`); the switchers and settings nav live in `sidebar`.
+- `#src/*` is for tests and sub-folders only: flat package sources import siblings with `./`.
+- No file reaches into another workspace with a relative path; expose what is shared through `exports`.
+
 ## Vocabulary
 
 The code, UI, API, database and docs say **team** (never "project") and **workspace** (never

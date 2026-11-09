@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 
+import { AdminFrame, Intro } from './AdminFrame.tsx'
 import {
   checklistQuery,
   checksQuery,
@@ -16,8 +17,7 @@ import {
   queuesQuery,
   queueTotals,
   sortFindings,
-} from './admin-api.ts'
-import { AdminFrame, Intro } from './AdminFrame.tsx'
+} from './api/admin.ts'
 
 import styles from './Admin.module.css'
 

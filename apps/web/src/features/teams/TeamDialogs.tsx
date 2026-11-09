@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 
 import { readRememberedWorkspace } from '#app/shell-model.ts'
-import { useWorkspaces } from '#app/use-workspaces.ts'
+import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 

@@ -1,7 +1,7 @@
 import { Banner, Button } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 
-import { noticesQuery, useDismissAddressChange } from './api.ts'
+import { noticesQuery, useDismissAddressChange } from './api/index.ts'
 
 import styles from './AddressChangeBanner.module.css'
 

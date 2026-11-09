@@ -1,7 +1,6 @@
 import type { Issue } from '@circi/api'
 import { openSecret, ISSUE_LINK_KIND } from '@circi/core'
 import {
-  getBuildByNumber,
   getIntegration,
   getWorkspaceBySlug,
   listBuildLinks,
@@ -16,10 +15,9 @@ import { z } from 'zod'
 
 import type { Deps } from '#http/lib/deps.ts'
 import { integrationContext } from '#http/lib/integration-context.ts'
-import { loadTeam } from '#http/lib/team-access.ts'
+import { loadBuild } from '#http/lib/team-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
-const buildParams = z.object({ workspace: z.string(), team: z.string(), number: z.string() })
 const createBody = z.strictObject({
   integrationId: z.uuid(),
   snapshotName: z.string().min(1).max(500).optional(),
@@ -68,24 +66,9 @@ export const dashboardIssueTrackerRoutes: FastifyPluginAsync<Deps.Dashboard> = a
     return reply.code(502).send({ error: `${name} did not accept the request: ${err.message}` })
   }
 
-  async function loadBuild(req: FastifyRequest, reply: FastifyReply) {
-    const access = await loadTeam(deps, req, reply)
-    if (!access) return undefined
-    const number = Number(parse(buildParams, req.params).number)
-    const build = Number.isInteger(number)
-      ? await getBuildByNumber(deps.db, access.team.id, number)
-      : undefined
-    if (!build) {
-      await reply.code(404).send({ error: 'Build not found' })
-      return undefined
-    }
-    return { ...access, build }
-  }
-
   /** The issues created from a build, and the trackers its team files issues in. */
-  app.get('/teams/:workspace/:team/builds/:number/issues', async (req, reply) => {
-    const found = await loadBuild(req, reply)
-    if (!found) return reply
+  app.get('/teams/:workspace/:team/builds/:number/issues', async (req) => {
+    const found = await loadBuild(deps, req)
     const [links, mapped] = await Promise.all([
       listBuildLinks(deps.db, found.build.id, ISSUE_LINK_KIND),
       listTeamIntegrations(deps.db, found.team.id, trackerKinds),
@@ -117,8 +100,7 @@ export const dashboardIssueTrackerRoutes: FastifyPluginAsync<Deps.Dashboard> = a
   })
 
   app.post('/teams/:workspace/:team/builds/:number/issues', async (req, reply) => {
-    const found = await loadBuild(req, reply)
-    if (!found) return reply
+    const found = await loadBuild(deps, req)
     const input = parse(createBody, req.body)
     try {
       const link = await createIssueFromBuild(deps.db, {

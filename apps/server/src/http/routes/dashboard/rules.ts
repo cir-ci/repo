@@ -41,9 +41,8 @@ const presentRotation = (r: Awaited<ReturnType<typeof getTriageRotation>>): Tria
  * workspace gets "not found".
  */
 export const dashboardRuleRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
-  app.get('/teams/:workspace/:team/rules', async (req, reply) => {
-    const found = await loadTeam(deps, req, reply)
-    if (!found) return reply
+  app.get('/teams/:workspace/:team/rules', async (req) => {
+    const found = await loadTeam(deps, req)
     const role = await getTeamMemberRole(deps.db, found.team.id, found.user.id)
     const settings: ReviewRule.Settings = {
       canManage: canManage(role),
@@ -54,25 +53,22 @@ export const dashboardRuleRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
   })
 
   app.post('/teams/:workspace/:team/rules', async (req, reply) => {
-    const found = await loadTeam(deps, req, reply, { manage: true })
-    if (!found) return reply
+    const found = await loadTeam(deps, req, { manage: true })
     const body = parse(ruleBody, req.body)
     const rule = await createReviewRule(deps.db, { teamId: found.team.id, ...body })
     return reply.code(201).send(rule)
   })
 
   /** Puts the rules in the given order (every rule once); the first match wins. */
-  app.put('/teams/:workspace/:team/rules/order', async (req, reply) => {
-    const found = await loadTeam(deps, req, reply, { manage: true })
-    if (!found) return reply
+  app.put('/teams/:workspace/:team/rules/order', async (req) => {
+    const found = await loadTeam(deps, req, { manage: true })
     const body = parse(orderBody, req.body)
     const rules: ReviewRule.Item[] = await reorderReviewRules(deps.db, found.team.id, body.ruleIds)
     return { rules }
   })
 
   app.put('/teams/:workspace/:team/rules/:id', async (req, reply) => {
-    const found = await loadTeam(deps, req, reply, { manage: true })
-    if (!found) return reply
+    const found = await loadTeam(deps, req, { manage: true })
     const { id } = parse(ruleParams, req.params)
     if (!z.uuid().safeParse(id).success) return reply.code(404).send({ error: 'Rule not found' })
     const body = parse(ruleBody, req.body)
@@ -80,8 +76,7 @@ export const dashboardRuleRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
   })
 
   app.delete('/teams/:workspace/:team/rules/:id', async (req, reply) => {
-    const found = await loadTeam(deps, req, reply, { manage: true })
-    if (!found) return reply
+    const found = await loadTeam(deps, req, { manage: true })
     const { id } = parse(ruleParams, req.params)
     if (!z.uuid().safeParse(id).success) return reply.code(404).send({ error: 'Rule not found' })
     await deleteReviewRule(deps.db, found.team.id, id)
@@ -89,9 +84,8 @@ export const dashboardRuleRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
   })
 
   /** Replaces the rotation; an empty list turns it off. */
-  app.put('/teams/:workspace/:team/triage-rotation', async (req, reply) => {
-    const found = await loadTeam(deps, req, reply, { manage: true })
-    if (!found) return reply
+  app.put('/teams/:workspace/:team/triage-rotation', async (req) => {
+    const found = await loadTeam(deps, req, { manage: true })
     const body = parse(rotationBody, req.body)
     const rotation = await setTriageRotation(deps.db, {
       teamId: found.team.id,

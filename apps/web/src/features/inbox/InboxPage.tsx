@@ -11,6 +11,7 @@ import {
   Text,
   useAnnounce,
   visuallyHidden,
+  TabList,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
@@ -26,7 +27,6 @@ import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
 import { useListStore } from '#lib/stores/list-store.ts'
-import { TabList } from '#lib/TabList.tsx'
 import { useClientLink } from '#lib/use-client-link.ts'
 import { useListNavigation } from '#lib/use-list-navigation.ts'
 

@@ -1,12 +1,11 @@
 import { createHash } from 'node:crypto'
 
-import { webhookUrlProblem } from '@circi/core'
+import { asRecord, webhookUrlProblem } from '@circi/core'
 import {
   GitlabProvider,
   gitlabCredentials,
   gitlabExternalId,
   headerValue,
-  isConnectionRevoked,
   normalizeGitlabBaseUrl,
   parseCommand,
 } from '@circi/providers'
@@ -15,7 +14,13 @@ import { z } from 'zod'
 import { defineIntegration } from './define.ts'
 import type { IntegrationDefinition } from './definition.ts'
 import { InvalidInputError } from './errors.ts'
-import { connectFailure, derivedWebhookSecret, record, str, stubbed } from './git-support.ts'
+import {
+  connectFailure,
+  derivedWebhookSecret,
+  revokedAttention,
+  str,
+  stubbed,
+} from './git-support.ts'
 
 /**
  * GitLab (gitlab.com or self-managed), through an access token with the `api` scope. A connection
@@ -39,7 +44,7 @@ const REVOKED =
 
 /** The GitLab project the event is about: its path with namespace, and the host it lives on. */
 function repoOf(p: Record<string, unknown>): IntegrationDefinition.GitRepo | undefined {
-  const project = record(p.project)
+  const project = asRecord(p.project)
   const ref = str(project.path_with_namespace)
   const webUrl = str(project.web_url)
   if (!ref || !webUrl) return undefined
@@ -60,11 +65,11 @@ function events(
   const event = headerValue(headers, 'x-gitlab-event')
   const repo = repoOf(p)
   if (event === 'Merge Request Hook') {
-    const attrs = record(p.object_attributes)
+    const attrs = asRecord(p.object_attributes)
     if (attrs.action !== 'open' && attrs.action !== 'reopen') return []
     const iid = Number(attrs.iid)
     // The user of an open or reopen event is the one who did it; they are the author on open.
-    const user = record(p.user)
+    const user = asRecord(p.user)
     const login = str(user.username)
     if (!repo || !login || !Number.isInteger(iid)) return []
     const accountId = str(attrs.author_id) ?? str(user.id)
@@ -78,14 +83,14 @@ function events(
     ]
   }
   if (event === 'Note Hook') {
-    const attrs = record(p.object_attributes)
+    const attrs = asRecord(p.object_attributes)
     if (attrs.noteable_type !== 'MergeRequest') return []
     // Edits of a note arrive as updates: act on the first mention only.
     if (attrs.action !== undefined && attrs.action !== 'create') return []
     const command = parseCommand(str(attrs.note) ?? '')
-    const iid = Number(record(p.merge_request).iid)
+    const iid = Number(asRecord(p.merge_request).iid)
     const noteId = str(attrs.id)
-    const user = record(p.user)
+    const user = asRecord(p.user)
     const actorId = str(user.id)
     if (!command || !repo || !Number.isInteger(iid) || !noteId || !actorId) return []
     return [
@@ -145,7 +150,7 @@ export const gitlab = defineIntegration({
     }
   },
 
-  needsAttention: (err) => (isConnectionRevoked(err) ? REVOKED : null),
+  needsAttention: revokedAttention(REVOKED),
 
   events: [],
 

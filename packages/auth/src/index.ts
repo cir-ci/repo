@@ -30,5 +30,5 @@ export {
 export { isAPIError as isAuthApiError } from 'better-auth/api'
 export { fromNodeHeaders } from 'better-auth/node'
 export { isSetupCode, setupCode } from './operations/setup.ts'
-export { withTrustedIssuer } from './sso/trusted-issuers.ts'
-export { callbackUrl, type SsoProvider } from './sso/sso.ts'
+export { withTrustedIssuer } from './plugins/sso/trusted-issuers.ts'
+export { callbackUrl, type SsoProvider } from './plugins/sso/sso.ts'

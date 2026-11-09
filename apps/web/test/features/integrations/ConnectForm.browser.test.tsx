@@ -2,8 +2,8 @@ import type { Integration } from '@circi/api'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
+import { navigation } from '#features/integrations/api/generic.ts'
 import { ConnectForm } from '#features/integrations/ConnectForm.tsx'
-import { navigation } from '#features/integrations/generic-api.ts'
 import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 

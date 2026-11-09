@@ -12,7 +12,7 @@ import {
   mappingSummary,
   targetItems,
   targetsQuery,
-} from './generic-api.ts'
+} from './api/generic.ts'
 
 import styles from './Integrations.module.css'
 

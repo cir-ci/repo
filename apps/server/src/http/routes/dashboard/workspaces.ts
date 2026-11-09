@@ -1,14 +1,10 @@
 import { createWorkspace, createTeamWithToken } from '@circi/auth'
 import {
-  getMemberRole,
-  workspaceAcceptsSession,
   type SessionMethod,
   listManageableWorkspaces,
   listRefusingWorkspaces,
   getIntegration,
-  getWorkspaceBySlug,
   isInstanceAdmin,
-  NotFoundError,
 } from '@circi/db'
 import {
   integrationRegistry,
@@ -23,6 +19,7 @@ import { z } from 'zod'
 import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
+import { loadWorkspace } from '#http/lib/workspace-access.ts'
 
 const nameBody = z.object({ name: z.string().min(1).max(100) })
 const teamBody = nameBody.extend({
@@ -86,21 +83,10 @@ export const dashboardWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
   app.post('/workspaces/:workspace/teams', async (req, reply) => {
     const { workspace: workspaceSlug } = parse(workspaceParams, req.params)
     const { name, color, icon, defaultBranch, repository } = parse(teamBody, req.body)
-    const workspace = await getWorkspaceBySlug(deps.db, workspaceSlug).catch((err: unknown) => {
-      if (err instanceof NotFoundError) return undefined
-      throw err
+    const { workspace } = await loadWorkspace(deps, req, {
+      manage: true,
+      forbidden: 'Only owners and admins can create teams',
     })
-    const refused = workspace
-      ? !(await workspaceAcceptsSession(deps.db, workspace.id, currentUser(req).method))
-      : false
-    const role =
-      workspace && !refused
-        ? await getMemberRole(deps.db, { userId: currentUser(req).id, workspaceId: workspace.id })
-        : undefined
-    if (!workspace || !role) return reply.code(404).send({ error: 'Workspace not found' })
-    if (role !== 'owner' && role !== 'admin') {
-      return reply.code(403).send({ error: 'Only owners and admins can create teams' })
-    }
     // The repository is checked before the team exists, so a bad one creates nothing.
     const registry = deps.integrations?.registry ?? integrationRegistry
     let mapping:

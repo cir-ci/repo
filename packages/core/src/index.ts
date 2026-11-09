@@ -34,6 +34,7 @@ export {
   WEBHOOK_EVENTS,
   type WebhookEvent,
 } from './webhook.ts'
+export { asRecord, isRecord, items, str } from './json.ts'
 export { canManage } from './roles.ts'
 export { REVIEW_SOURCES, type ReviewSource } from './review-sources.ts'
 export { SNOOZE_KINDS, TRIAGE_KINDS, type SnoozeKind, type TriageKind } from './triage.ts'

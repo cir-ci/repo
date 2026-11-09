@@ -2,14 +2,14 @@ import { Banner, Button, Dialog, SectionHeader, TextField, useAnnounce } from '@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 
-import { Box, BoxRow } from '#features/settings/Box.tsx'
+import { Box, BoxRow } from '#features/workspace-settings/Box.tsx'
 import { authClient } from '#lib/auth-client.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import { accountsQuery } from './api.ts'
 import { isPassword, MIN_PASSWORD_LENGTH, passwordProblems, type PasswordDraft } from './model.ts'
 
-import styles from '#features/settings/Settings.module.css'
+import styles from '#features/workspace-settings/Settings.module.css'
 
 const EMPTY: PasswordDraft = { current: '', next: '', confirm: '' }
 

@@ -1,7 +1,7 @@
 # TLS for the dashboard and the sites domain, with Caddy.
 #   docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
 # Needs DASHBOARD_HOST and SITES_HOST in .env, and AWS credentials for Route53 (an instance role
-# works without any variables). Read docs/static-sites.md first, including the domain warning.
+# works without any variables). Read docs/reference/static-sites.md first, including the domain warning.
 services:
   caddy:
     build: ./caddy

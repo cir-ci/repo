@@ -4,10 +4,10 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 
+import { useInstall } from '#features/integrations/api/generic.ts'
 import { ConnectForm } from '#features/integrations/ConnectForm.tsx'
-import { useInstall } from '#features/integrations/generic-api.ts'
 
-import { githubAppQuery, githubStep } from './github-app-api.ts'
+import { githubAppQuery, githubStep } from './api/github-app.ts'
 
 /**
  * The Add dialog's GitHub step. With a GitHub App (from the environment or created on the instance

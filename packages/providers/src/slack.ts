@@ -1,3 +1,6 @@
+import { isRecord } from '@circi/core'
+
+import { createHttpClient, type HttpClient } from './http.ts'
 import type { SlackMessage } from './slack-messages.ts'
 
 /**
@@ -16,8 +19,6 @@ export const SLACK_API_URL = 'https://slack.com/api'
 /** What CirCI asks the workspace for: post in channels, and list them to pick one. */
 export const SLACK_BOT_SCOPES = ['chat:write', 'chat:write.public', 'channels:read', 'groups:read']
 
-const isRecord = (v: unknown): v is Record<string, unknown> =>
-  typeof v === 'object' && v !== null && !Array.isArray(v)
 const text = (v: unknown) => (typeof v === 'string' ? v : '')
 
 const REVOKED_ERRORS = new Set(['invalid_auth', 'token_revoked', 'account_inactive'])
@@ -73,12 +74,22 @@ export namespace SlackClient {
 }
 
 export class SlackClient {
-  readonly #apiUrl: string
-  readonly #fetch: typeof fetch
+  readonly #http: HttpClient
 
   constructor(options: SlackClient.Options = {}) {
-    this.#apiUrl = (options.apiUrl ?? SLACK_API_URL).replace(/\/$/, '')
-    this.#fetch = options.fetch ?? fetch
+    this.#http = createHttpClient({
+      baseUrl: (options.apiUrl ?? SLACK_API_URL).replace(/\/$/, ''),
+      ...(options.fetch ? { fetch: options.fetch } : {}),
+      // Slack has never had a timeout here: keep it so.
+      timeoutMs: 0,
+      fail: ({ status, headers }) => {
+        if (status === 429) {
+          const wait = Number(headers.get('retry-after'))
+          return new SlackApiError('ratelimited', 429, Number.isFinite(wait) ? wait : undefined)
+        }
+        return new SlackApiError(`http_${status}`, status)
+      },
+    })
   }
 
   async #call(
@@ -86,32 +97,15 @@ export class SlackClient {
     init: { token?: string; json?: unknown; form?: Record<string, string> },
   ): Promise<Record<string, unknown>> {
     const headers: Record<string, string> = {}
-    let body: string | undefined
     if (init.token) headers.authorization = `Bearer ${init.token}`
-    if (init.json !== undefined) {
-      headers['content-type'] = 'application/json; charset=utf-8'
-      body = JSON.stringify(init.json)
-    } else if (init.form) {
-      headers['content-type'] = 'application/x-www-form-urlencoded'
-      body = new URLSearchParams(init.form).toString()
-    }
-    const res = await this.#fetch(`${this.#apiUrl}/${method}`, {
-      method: 'POST',
+    if (init.json !== undefined) headers['content-type'] = 'application/json; charset=utf-8'
+    const { status, data: parsed } = await this.#http.request('POST', `/${method}`, {
       headers,
-      ...(body === undefined ? {} : { body }),
+      ...(init.json === undefined ? (init.form ? { form: init.form } : {}) : { body: init.json }),
     })
-    if (res.status === 429) {
-      const wait = Number(res.headers.get('retry-after'))
-      throw new SlackApiError('ratelimited', 429, Number.isFinite(wait) ? wait : undefined)
-    }
-    if (!res.ok) throw new SlackApiError(`http_${res.status}`, res.status)
-    const parsed: unknown = await res.json()
     const data = isRecord(parsed) ? parsed : {}
     if (data.ok !== true) {
-      throw new SlackApiError(
-        typeof data.error === 'string' ? data.error : 'unknown_error',
-        res.status,
-      )
+      throw new SlackApiError(typeof data.error === 'string' ? data.error : 'unknown_error', status)
     }
     return data
   }

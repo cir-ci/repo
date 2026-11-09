@@ -1,7 +1,7 @@
 import type { Database } from '@circi/db'
 
 import type { Mailer } from './mail.ts'
-import type { SsoProvider } from './sso/sso.ts'
+import type { SsoProvider } from './plugins/sso/sso.ts'
 
 export interface AuthOptions {
   db: Database

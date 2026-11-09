@@ -102,8 +102,7 @@ export const dashboardTeamRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
    */
   app.get('/teams/:workspace/:team/snapshots/:name/history', async (req, reply) => {
     const params = parse(teamParams.extend({ name: z.string().min(1).max(500) }), req.params)
-    const found = await loadTeam(deps, req, reply)
-    if (!found) return reply
+    const found = await loadTeam(deps, req)
     const team = found.team
     const q = parse(historyQuery, req.query)
     const history = await getSnapshotHistory(deps.db, {

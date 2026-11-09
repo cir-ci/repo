@@ -11,7 +11,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { Box, BoxRow } from '#features/settings/Box.tsx'
+import { Box, BoxRow } from '#features/workspace-settings/Box.tsx'
 import { authClient } from '#lib/auth-client.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
@@ -19,7 +19,7 @@ import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { sessionsKey, sessionsQuery } from './api.ts'
 import { describeAgent } from './model.ts'
 
-import styles from '#features/settings/Settings.module.css'
+import styles from '#features/workspace-settings/Settings.module.css'
 
 /** Every browser signed in as you, with a way to sign any of them out. */
 export function SessionsSection({ currentToken }: SessionsSection.Props) {

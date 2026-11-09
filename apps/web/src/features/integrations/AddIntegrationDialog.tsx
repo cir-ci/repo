@@ -4,9 +4,15 @@ import { Fragment, useState } from 'react'
 
 import { GithubAddPanel } from '#features/instance/GithubAddPanel.tsx'
 
-import { type GroupFilter, filterCatalog, GROUPS, isGroupFilter, unavailableNote } from './api.ts'
+import { useInstall } from './api/generic.ts'
+import {
+  type GroupFilter,
+  filterCatalog,
+  GROUPS,
+  isGroupFilter,
+  unavailableNote,
+} from './api/index.ts'
 import { ConnectForm } from './ConnectForm.tsx'
-import { useInstall } from './generic-api.ts'
 import { ProviderLogo } from './logos.tsx'
 
 import styles from './Integrations.module.css'

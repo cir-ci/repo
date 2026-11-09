@@ -34,7 +34,7 @@ COPY e2e/package.json e2e/
 
 FROM manifests AS build
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile
-COPY tsconfig.base.json tsconfig.json ./
+COPY tsconfig.base.json tsconfig.json tsdown.shared.ts ./
 COPY apps apps
 COPY packages packages
 # Only what the image ships: the server bundle (inlines the workspace packages from source) and the

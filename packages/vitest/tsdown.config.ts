@@ -2,13 +2,11 @@ import { existsSync, readFileSync } from 'node:fs'
 
 import { defineConfig } from 'tsdown'
 
+import { failOnUnresolvedImport, publishedNodePackage } from '../../tsdown.shared.ts'
+
 export default defineConfig({
   entry: ['src/index.ts', 'src/browser.ts'],
-  platform: 'node',
-  sourcemap: true,
-  dts: true,
-  publint: true,
-  attw: { profile: 'esm-only' },
+  ...publishedNodePackage,
   plugins: [
     {
       // `@circi/cli` is inlined from its built `dist`; hand Rolldown that file's own source map so
@@ -24,8 +22,6 @@ export default defineConfig({
   inputOptions: {
     // `@circi/cli` is a devDependency inlined from its built `dist`: if that isn't built, Rolldown
     // would leave the import external and publish a package that can't load.
-    onLog(level, log, handler) {
-      handler(log.code === 'UNRESOLVED_IMPORT' ? 'error' : level, log)
-    },
+    onLog: failOnUnresolvedImport,
   },
 })

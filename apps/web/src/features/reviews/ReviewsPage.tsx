@@ -11,6 +11,7 @@ import {
   ReviewIcon,
   Text,
   useAnnounce,
+  TabList,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
@@ -25,7 +26,6 @@ import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
 import { useListStore } from '#lib/stores/list-store.ts'
-import { TabList } from '#lib/TabList.tsx'
 import { useClientLink } from '#lib/use-client-link.ts'
 import { useListNavigation } from '#lib/use-list-navigation.ts'
 

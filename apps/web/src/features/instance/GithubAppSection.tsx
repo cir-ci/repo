@@ -9,7 +9,7 @@ import {
   githubAppQuery,
   githubSourceNote,
   useCreateGithubApp,
-} from './github-app-api.ts'
+} from './api/github-app.ts'
 
 import styles from './Admin.module.css'
 

@@ -4,12 +4,12 @@ import type { ReactNode } from 'react'
 
 import { CommandMenu } from '#features/command/CommandMenu.tsx'
 import { useSidebarModel } from '#features/sidebar/api.ts'
+import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 
 import { goPath, readRememberedWorkspace } from './shell-model.ts'
 import { ShortcutsDialog } from './ShortcutsDialog.tsx'
-import { useWorkspaces } from './use-workspaces.ts'
 
 /**
  * Binds the global shortcuts (G-chords, ⌘K, `?`, ⌘⇧C) once for the signed-in app, and renders the

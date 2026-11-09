@@ -1,7 +1,7 @@
+import { asRecord } from '@circi/core'
 import {
   BitbucketCloud,
   headerValue,
-  isConnectionRevoked,
   parseCommand,
   serializeBitbucketCredentials,
 } from '@circi/providers'
@@ -9,7 +9,13 @@ import { z } from 'zod'
 
 import { defineIntegration } from './define.ts'
 import type { IntegrationDefinition } from './definition.ts'
-import { connectFailure, derivedWebhookSecret, record, str, stubbed } from './git-support.ts'
+import {
+  connectFailure,
+  derivedWebhookSecret,
+  revokedAttention,
+  str,
+  stubbed,
+} from './git-support.ts'
 
 /**
  * Bitbucket Cloud, through a workspace or repository access token (or an app password with its
@@ -38,9 +44,9 @@ const LINK_HELP = (origin: string) =>
 
 /** Where a delivery came from: the workspace and `workspace/repo`. */
 function repoOf(p: Record<string, unknown>): IntegrationDefinition.GitRepo | undefined {
-  const repository = record(p.repository)
+  const repository = asRecord(p.repository)
   const ref = str(repository.full_name)
-  const workspace = str(record(repository.workspace).slug) ?? ref?.split('/')[0]
+  const workspace = str(asRecord(repository.workspace).slug) ?? ref?.split('/')[0]
   return ref && workspace ? { ref, connection: { externalId: workspace } } : undefined
 }
 
@@ -50,16 +56,16 @@ function events(
 ): IntegrationDefinition.GitEvent[] {
   const event = headerValue(headers, 'x-event-key')
   const repo = repoOf(p)
-  const pr = record(p.pullrequest)
+  const pr = asRecord(p.pullrequest)
   const number = Number(pr.id)
   if (!repo || !Number.isInteger(number)) return []
   if (event === 'pullrequest:created' || event === 'pullrequest:updated') {
-    const author = record(pr.author)
+    const author = asRecord(pr.author)
     const login = str(author.nickname) ?? str(author.display_name)
     const accountId = str(author.uuid)
-    const source = record(pr.source)
-    const sha = str(record(source.commit).hash)
-    const branch = str(record(source.branch).name)
+    const source = asRecord(pr.source)
+    const sha = str(asRecord(source.commit).hash)
+    const branch = str(asRecord(source.branch).name)
     return [
       {
         type: 'pull_request',
@@ -71,10 +77,10 @@ function events(
     ]
   }
   if (event === 'pullrequest:comment_created') {
-    const comment = record(p.comment)
-    const command = parseCommand(str(record(comment.content).raw) ?? '')
+    const comment = asRecord(p.comment)
+    const command = parseCommand(str(asRecord(comment.content).raw) ?? '')
     if (!command) return []
-    const user = record(comment.user)
+    const user = asRecord(comment.user)
     return [
       {
         type: 'command',
@@ -139,7 +145,7 @@ export const bitbucket = defineIntegration({
     }
   },
 
-  needsAttention: (err) => (isConnectionRevoked(err) ? REVOKED : null),
+  needsAttention: revokedAttention(REVOKED),
 
   events: [],
 

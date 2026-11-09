@@ -3,14 +3,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { authMethodsQuery } from '#features/auth/api.ts'
-import { Box, BoxRow } from '#features/settings/Box.tsx'
+import { Box, BoxRow } from '#features/workspace-settings/Box.tsx'
 import { authClient } from '#lib/auth-client.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 
 import { accountsKey, accountsQuery } from './api.ts'
 import { providerRows } from './model.ts'
 
-import styles from '#features/settings/Settings.module.css'
+import styles from '#features/workspace-settings/Settings.module.css'
 
 /** The accounts you can sign in with: unlink one, or link a provider this instance offers. */
 export function LinkedAccounts() {

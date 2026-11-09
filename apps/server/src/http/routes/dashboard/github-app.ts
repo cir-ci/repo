@@ -1,6 +1,6 @@
 import type { Instance, Integration } from '@circi/api'
 import { signState, verifyState } from '@circi/core'
-import { getMemberRole, isInstanceAdmin } from '@circi/db'
+import { isInstanceAdmin } from '@circi/db'
 import {
   buildGithubManifest,
   convertGithubManifestCode,
@@ -168,16 +168,11 @@ export const dashboardGithubAppRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
 
   /** Where a workspace admin goes to install the App on GitHub; `state` names the workspace and the user. */
   app.get('/workspaces/:workspace/integrations/github/install', async (req, reply) => {
-    const found = await loadWorkspace(deps, req, reply)
-    if (!found) return reply
-    const { workspace: slug } = parse(workspaceParams, req.params)
-    const role = await getMemberRole(deps.db, {
-      userId: found.user.id,
-      workspaceId: found.workspace.id,
+    const found = await loadWorkspace(deps, req, {
+      manage: true,
+      forbidden: 'Only owners and admins can manage integrations',
     })
-    if (role !== 'owner' && role !== 'admin') {
-      return reply.code(403).send({ error: 'Only owners and admins can manage integrations' })
-    }
+    const { workspace: slug } = parse(workspaceParams, req.params)
     const ctx = integrationContext(deps)
     if (!ctx) return reply.code(400).send({ error: 'This instance cannot store credentials' })
     if (githubAppSource(deps) === 'none') {

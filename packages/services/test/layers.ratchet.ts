@@ -55,7 +55,6 @@ export const RATCHET: Partial<Record<RuleId, string[]>> = {
     'apps/server/src/http/routes/argos/index.ts',
     'apps/server/src/http/routes/dashboard/activity.ts',
     'apps/server/src/http/routes/dashboard/baselines.ts',
-    'apps/server/src/http/routes/dashboard/comments.ts',
     'apps/server/src/http/routes/dashboard/domains.ts',
     'apps/server/src/http/routes/dashboard/files.ts',
     'apps/server/src/http/routes/dashboard/github-app.ts',
@@ -109,13 +108,8 @@ export const RATCHET: Partial<Record<RuleId, string[]>> = {
   '12b': [],
   '13': ['apps/server/src/lifecycle/services.ts', 'packages/db/src/client.ts'],
   '14': [
-    'apps/server/src/http/routes/dashboard/domains.ts',
-    'apps/server/src/http/routes/dashboard/github-app.ts',
     'apps/server/src/http/routes/dashboard/instance-accounts.ts',
-    'apps/server/src/http/routes/dashboard/integrations-generic.ts',
     'apps/server/src/http/routes/dashboard/workspace-settings.ts',
-    'apps/server/src/http/routes/dashboard/workspace-sso.ts',
-    'apps/server/src/http/routes/dashboard/workspaces.ts',
   ],
   '15': [
     'apps/server/src/http/routes/argos/index.ts',

@@ -2,7 +2,7 @@ import { createTestDb, seedInvitation, seedWorkspace, seedWorkspaceDomain } from
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { beforeUserCreate } from '#hooks/user-create.ts'
-import type { SsoProvider } from '#sso/sso.ts'
+import type { SsoProvider } from '#plugins/sso/sso.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

@@ -1,7 +1,7 @@
 import { Button, CheckIcon, CopyIcon, Text } from '@circi/ui'
 import { useState } from 'react'
 
-import { clipboard } from './admin-api.ts'
+import { clipboard } from './api/admin.ts'
 
 import styles from './Admin.module.css'
 

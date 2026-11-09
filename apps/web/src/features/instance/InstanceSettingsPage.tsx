@@ -6,8 +6,8 @@ import type { ReactNode } from 'react'
 
 import { useDocumentTitle } from '#lib/document-title.ts'
 
-import { mailServer, settingsQuery, signInMethods, useSendTestMail } from './admin-api.ts'
 import { AdminFrame } from './AdminFrame.tsx'
+import { mailServer, settingsQuery, signInMethods, useSendTestMail } from './api/admin.ts'
 import { GithubAppSection } from './GithubAppSection.tsx'
 
 import styles from './Admin.module.css'

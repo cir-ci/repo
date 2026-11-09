@@ -14,9 +14,10 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useState } from 'react'
 
-import { formatBytes } from '#features/settings/api.ts'
+import { formatBytes } from '#features/workspace-settings/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 
+import { AdminFrame, Intro } from './AdminFrame.tsx'
 import {
   deletedLabel,
   formatDay,
@@ -29,8 +30,7 @@ import {
   WORKSPACE_CREATION_TEXT,
   workspacesQuery,
   workspaceProblems,
-} from './admin-api.ts'
-import { AdminFrame, Intro } from './AdminFrame.tsx'
+} from './api/admin.ts'
 
 import styles from './Admin.module.css'
 

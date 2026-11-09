@@ -1,5 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 
+import { createHttpClient } from './http.ts'
 import { type GitProvider, headerValue, ProviderApiError } from './provider.ts'
 import { PR_COMMENT_MARKER } from './render.ts'
 
@@ -103,33 +104,21 @@ export class BitbucketCloud implements GitProvider {
     const authorization = username
       ? `Basic ${Buffer.from(`${username}:${token}`).toString('base64')}`
       : `Bearer ${token}`
-    const url = path.startsWith('https://') ? path : `${this.#options.apiUrl ?? DEFAULT_API}${path}`
-    const res = await (this.#options.fetch ?? fetch)(url, {
-      method,
-      headers: {
-        accept: 'application/json',
-        authorization,
-        'user-agent': 'CirCI',
-        ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-      },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      signal: AbortSignal.timeout(15_000),
-    })
-    const raw = await res.text()
-    let data: unknown = undefined
-    try {
-      data = raw ? JSON.parse(raw) : undefined
-    } catch {
-      data = undefined
-    }
-    if (!res.ok) {
-      const message = text(obj(obj(data).error).message) ?? `HTTP ${res.status}`
+    // `next` links from Bitbucket are absolute: they are used as they are.
+    const absolute = path.startsWith('https://')
+    const res = await createHttpClient({
+      baseUrl: absolute ? '' : (this.#options.apiUrl ?? DEFAULT_API),
+      ...(this.#options.fetch ? { fetch: this.#options.fetch } : {}),
+      headers: { accept: 'application/json', authorization },
       // 401: the token is wrong, expired or revoked. Retrying cannot help.
-      throw new ProviderApiError(res.status, `Bitbucket ${method} ${path}: ${message}`, {
-        revoked: res.status === 401,
-      })
-    }
-    return data
+      fail: ({ status, data }) =>
+        new ProviderApiError(
+          status,
+          `Bitbucket ${method} ${path}: ${text(obj(obj(data).error).message) ?? `HTTP ${status}`}`,
+          { revoked: status === 401 },
+        ),
+    }).request(method, path, body === undefined ? {} : { body })
+    return res.data
   }
 
   verifyWebhook(rawBody: Buffer | string, headers: GitProvider.WebhookHeaders): boolean {

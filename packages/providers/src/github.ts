@@ -1,5 +1,6 @@
 import { createHmac, createSign, timingSafeEqual } from 'node:crypto'
 
+import { apiMessage, createHttpClient, type HttpClient } from './http.ts'
 import { type GitProvider, headerValue, ProviderApiError } from './provider.ts'
 import { PR_COMMENT_MARKER } from './render.ts'
 
@@ -78,9 +79,20 @@ export class GithubApp implements GitProvider {
   readonly kind = 'github'
   readonly #options: GithubAppOptions
   readonly #tokens = new Map<string, { token: string; expiresAt: number }>()
+  readonly #http: HttpClient
 
   constructor(options: GithubAppOptions) {
     this.#options = options
+    this.#http = createHttpClient({
+      baseUrl: options.apiUrl,
+      ...(options.fetch ? { fetch: options.fetch } : {}),
+      headers: { accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28' },
+      fail: ({ status, data, method, path }) =>
+        new GithubApiError(
+          status,
+          `GitHub ${method} ${path}: ${apiMessage(data, status, 'message')}`,
+        ),
+    })
   }
 
   #now() {
@@ -98,41 +110,16 @@ export class GithubApp implements GitProvider {
     return `${header}.${payload}.${b64url(signature)}`
   }
 
-  async #call(
+  #call(
     auth: string,
     method: string,
     path: string,
     body?: unknown,
   ): Promise<{ status: number; data: unknown }> {
-    const res = await (this.#options.fetch ?? fetch)(`${this.#options.apiUrl}${path}`, {
-      method,
-      headers: {
-        accept: 'application/vnd.github+json',
-        authorization: `Bearer ${auth}`,
-        'x-github-api-version': '2022-11-28',
-        'user-agent': 'CirCI',
-        ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-      },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      signal: AbortSignal.timeout(15_000),
+    return this.#http.request(method, path, {
+      headers: { authorization: `Bearer ${auth}` },
+      ...(body === undefined ? {} : { body }),
     })
-    const text = await res.text()
-    let data: unknown = undefined
-    try {
-      data = text ? JSON.parse(text) : undefined
-    } catch {
-      data = undefined
-    }
-    if (!res.ok) {
-      const message =
-        typeof data === 'object' &&
-        data !== null &&
-        typeof Reflect.get(data, 'message') === 'string'
-          ? String(Reflect.get(data, 'message'))
-          : `HTTP ${res.status}`
-      throw new GithubApiError(res.status, `GitHub ${method} ${path}: ${message}`)
-    }
-    return { status: res.status, data }
   }
 
   async #installationToken(installationId: string): Promise<string> {

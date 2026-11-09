@@ -3,21 +3,19 @@ import { deleteTeamWithToken, rotateTeamToken } from '@circi/auth'
 import {
   checkWebhookEvents,
   INSTALLATION_ID_RE,
+  NotFoundError,
   ValidationError,
   WEBHOOK_EVENTS,
   webhookUrlProblem,
-  canManage,
 } from '@circi/core'
 import {
   createWebhook,
   type Database,
   deleteWebhook,
-  findTeamForMember,
   getWorkspaceSettings,
   getTeamById,
   getTeamGitAttention,
   getTeamLink,
-  getTeamMemberRole,
   getTeamTokenInfo,
   getWebhook,
   listWebhookDeliveries,
@@ -34,13 +32,14 @@ import {
   unlinkTeamFromGit,
   updateTeamAppearance,
 } from '@circi/services'
-import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
+import type { FastifyPluginAsync, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
 import { githubConfigured } from '#http/lib/github-app.ts'
 import { integrationContext } from '#http/lib/integration-context.ts'
+import { loadTeam } from '#http/lib/team-access.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const teamParams = z.object({ workspace: z.string(), team: z.string() })
@@ -145,36 +144,27 @@ async function presentWebhooks(db: Database, teamId: string): Promise<Team.Webho
 export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   const allowPrivate = deps.webhookAllowPrivate === true
 
-  async function load(req: FastifyRequest, reply: FastifyReply) {
-    const p = parse(teamParams, req.params)
-    const user = currentUser(req)
-    const visible = await findTeamForMember(deps.db, {
-      workspaceSlug: p.workspace,
-      teamSlug: p.team,
-      userId: user.id,
-      method: user.method,
+  async function teamRow(teamId: string) {
+    const team = await getTeamById(deps.db, teamId)
+    if (!team) throw new NotFoundError('Team not found')
+    return team
+  }
+
+  async function load(req: FastifyRequest) {
+    const found = await loadTeam(deps, req)
+    return { team: await teamRow(found.team.id), canManage: found.canManage }
+  }
+
+  async function loadForManager(req: FastifyRequest) {
+    const found = await loadTeam(deps, req, {
+      manage: true,
+      forbidden: 'Only owners and admins can change team settings',
     })
-    const team = visible ? await getTeamById(deps.db, visible.id) : undefined
-    if (!visible || !team) {
-      await reply.code(404).send({ error: 'Team not found' })
-      return undefined
-    }
-    const role = await getTeamMemberRole(deps.db, team.id, user.id)
-    return { team, canManage: canManage(role) }
+    return teamRow(found.team.id)
   }
 
-  async function loadForManager(req: FastifyRequest, reply: FastifyReply) {
-    const found = await load(req, reply)
-    if (found && !found.canManage) {
-      await reply.code(403).send({ error: 'Only owners and admins can change team settings' })
-      return undefined
-    }
-    return found?.team
-  }
-
-  app.get('/teams/:workspace/:team/settings', async (req, reply) => {
-    const found = await load(req, reply)
-    if (!found) return reply
+  app.get('/teams/:workspace/:team/settings', async (req) => {
+    const found = await load(req)
     return {
       canManage: found.canManage,
       settings: teamSettings(found.team),
@@ -192,55 +182,46 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
     }
   })
 
-  app.patch('/teams/:workspace/:team/settings', async (req, reply) => {
-    const team = await loadForManager(req, reply)
-    if (!team) return reply
+  app.patch('/teams/:workspace/:team/settings', async (req) => {
+    const team = await loadForManager(req)
     const patch = parse(settingsBody, req.body)
     return { settings: await updateTeamSettings(deps.db, team.id, patch) }
   })
 
   /** Deletes the team and everything that belongs to it (owners and admins). */
   app.delete('/teams/:workspace/:team', async (req, reply) => {
-    const team = await loadForManager(req, reply)
-    if (!team) return reply
+    const team = await loadForManager(req)
     await deleteTeamWithToken(deps.db, team.id)
     return reply.code(204).send()
   })
 
   /** The tile colour and icon (owners and admins). */
-  app.patch('/teams/:workspace/:team/appearance', async (req, reply) => {
-    const team = await loadForManager(req, reply)
-    if (!team) return reply
+  app.patch('/teams/:workspace/:team/appearance', async (req) => {
+    const team = await loadForManager(req)
     const patch = parse(appearanceBody, req.body)
     return { appearance: await updateTeamAppearance(deps.db, team.id, patch) }
   })
 
   /** Facts about the team's current CI token (members may look); never the token itself. */
-  app.get('/teams/:workspace/:team/token', async (req, reply): Promise<Team.Token | void> => {
-    const found = await load(req, reply)
-    if (!found) return reply
+  app.get('/teams/:workspace/:team/token', async (req): Promise<Team.Token | void> => {
+    const found = await load(req)
     return tokenInfo(deps.db, found.team.id, found.canManage)
   })
 
   /** A new CI token. The old one stops working at once; the new one is shown only here. */
-  app.post(
-    '/teams/:workspace/:team/token',
-    async (req, reply): Promise<Team.TokenRotated | void> => {
-      const team = await loadForManager(req, reply)
-      if (!team) return reply
-      const p = parse(teamParams, req.params)
-      const issued = await rotateTeamToken(deps.auth, deps.db, {
-        workspaceSlug: p.workspace,
-        teamSlug: team.slug,
-        rotatedBy: currentUser(req).id,
-      })
-      return { token: issued.token, info: await tokenInfo(deps.db, team.id, true) }
-    },
-  )
+  app.post('/teams/:workspace/:team/token', async (req): Promise<Team.TokenRotated | void> => {
+    const team = await loadForManager(req)
+    const p = parse(teamParams, req.params)
+    const issued = await rotateTeamToken(deps.auth, deps.db, {
+      workspaceSlug: p.workspace,
+      teamSlug: team.slug,
+      rotatedBy: currentUser(req).id,
+    })
+    return { token: issued.token, info: await tokenInfo(deps.db, team.id, true) }
+  })
 
   app.put('/teams/:workspace/:team/github', async (req, reply) => {
-    const team = await loadForManager(req, reply)
-    if (!team) return reply
+    const team = await loadForManager(req)
     if (!githubConfigured(deps))
       throw new ValidationError('This instance has no GitHub App configured')
     const link = parse(githubBody, req.body)
@@ -252,15 +233,13 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
   })
 
   app.delete('/teams/:workspace/:team/github', async (req, reply) => {
-    const team = await loadForManager(req, reply)
-    if (!team) return reply
+    const team = await loadForManager(req)
     await unlinkTeamFromGit(deps.db, team.id)
     return reply.code(204).send()
   })
 
   app.post('/teams/:workspace/:team/webhooks', async (req, reply) => {
-    const team = await loadForManager(req, reply)
-    if (!team) return reply
+    const team = await loadForManager(req)
     const body = parse(webhookBody, req.body)
     const url = body.url.trim()
     const problem = webhookUrlProblem(url, { allowPrivate })
@@ -279,8 +258,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
    * job like a build event, so it shows in the webhook's recent deliveries once it has run.
    */
   app.post('/teams/:workspace/:team/webhooks/:id/test', async (req, reply) => {
-    const team = await loadForManager(req, reply)
-    if (!team) return reply
+    const team = await loadForManager(req)
     const { id } = parse(hookParams, req.params)
     if (!z.uuid().safeParse(id).success) return reply.code(404).send({ error: 'Webhook not found' })
     const hook = await getWebhook(deps.db, id)
@@ -291,8 +269,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
   })
 
   app.delete('/teams/:workspace/:team/webhooks/:id', async (req, reply) => {
-    const team = await loadForManager(req, reply)
-    if (!team) return reply
+    const team = await loadForManager(req)
     const { id } = parse(hookParams, req.params)
     // A malformed id can't match a row; keep the database from rejecting it as a bad uuid.
     if (!z.uuid().safeParse(id).success) return reply.code(404).send({ error: 'Webhook not found' })

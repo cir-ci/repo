@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { AddIntegrationDialog } from '#features/integrations/AddIntegrationDialog.tsx'
-import { navigation } from '#features/integrations/generic-api.ts'
+import { navigation } from '#features/integrations/api/generic.ts'
 import { GenericIntegrationPage } from '#features/integrations/GenericIntegrationPage.tsx'
 import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
