@@ -8,12 +8,12 @@ import { LOGO_SVG } from './logo-svg.ts'
  * It is the sign-in page's look: the glow ground, a 360px column, the 56px logo with its ring.
  */
 const STYLE = `
-:root{--bg:#f3efed;--raised:#fff;--text:#1f1a18;--text2:#5e5450;--text3:#6f6560;--line:rgba(28,15,12,.08);--maroon:#724039;--blush:#e4b1a7;--glow:color-mix(in srgb,var(--maroon) 14%,transparent)}
+:root{--bg:#f3efed;--raised:#fff;--text:#1f1a18;--text2:#5e5450;--text3:#6f6560;--line:rgba(28,15,12,.08);--maroon:#724039;--glow:color-mix(in srgb,var(--maroon) 14%,transparent)}
 @media(prefers-color-scheme:dark){:root{--bg:#0c0a09;--raised:#1a1716;--text:#ede6e3;--text2:#a89d98;--text3:#998e89;--line:rgba(255,255,255,.07);--glow:color-mix(in srgb,var(--maroon) 55%,transparent)}}
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 16px;background:radial-gradient(800px 480px at 50% -10%,var(--glow),transparent 70%),var(--bg);color:var(--text);font:400 13px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
 main{width:100%;max-width:360px;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center}
-.logo{display:block;width:56px;height:56px;border-radius:12px;box-shadow:0 0 0 1px var(--blush),0 0 0 5px color-mix(in srgb,var(--maroon) 50%,transparent)}
+.logo{display:block;width:56px;height:56px;border-radius:12px;box-shadow:0 0 0 5px color-mix(in srgb,var(--maroon) 50%,transparent)}
 h1{margin:0;font-size:20px;font-weight:600;letter-spacing:-.01em}
 p{margin:4px 0 0;color:var(--text2)}
 code{font:400 12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;padding:1px 6px;border-radius:4px;border:1px solid var(--line);background:var(--raised);color:var(--text)}

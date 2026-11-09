@@ -34,9 +34,7 @@
   width: 56px;
   height: 56px;
   border-radius: 12px;
-  box-shadow:
-    0 0 0 1px var(--circi-brand-blush),
-    0 0 0 5px color-mix(in srgb, var(--circi-brand-maroon) 50%, transparent);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--circi-brand-maroon) 50%, transparent);
 }
 
 .title {
