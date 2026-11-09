@@ -10,7 +10,7 @@
     "builtin": true,
     "node": true
   },
-  "ignorePatterns": ["**/dist/**", "packages/db/migrations/**"],
+  "ignorePatterns": [".claude/**", "**/dist/**", "packages/db/migrations/**"],
   "rules": {
     "typescript/no-explicit-any": "error",
     "typescript/no-floating-promises": "error",
