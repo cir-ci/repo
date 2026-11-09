@@ -33,8 +33,8 @@ storage). Facts are from the code; items marked **proposal** are not built, and 
 2. **Shorten retention** where history isn't needed (7–14 days for PR branches). **Proposal:** a shorter retention
    for non-default-branch builds than for the default branch (baselines must be kept).
 3. **Serve screenshots from a CDN with long cache lifetimes.** Objects are content-addressed, so they can be
-   `immutable`. Check what headers the image routes send today (sites and some routes send `no-store`/`private`);
-   **proposal:** short-lived signed redirects to the bucket/CDN so the app server never streams images.
+   `immutable`. Image responses are already `private, max-age=31536000, immutable` (browser cache only; `private` stops a
+   shared CDN caching them, so switch to `public` or signed redirects for CDN use). **Proposal:** short-lived signed redirects to the bucket/CDN so the app server never streams images.
 4. **Limit diff concurrency to the cores you have** and keep the worker in the same process on a 1–2 vCPU box; run a
    second worker only when queue depth (Instance › Health shows it) stays above zero.
 5. **Cap screenshot size and count per build** (limits exist in `@circi/core` limits); lower them for small plans.
@@ -49,8 +49,23 @@ storage). Facts are from the code; items marked **proposal** are not built, and 
 9. **Run on scale-to-zero when quiet:** the server is stateless apart from Postgres and storage; with LISTEN/NOTIFY
    and the sweep moved to a cron-style trigger, it can sleep outside working hours.
 
-## Capacity, roughly (to verify with a load test)
+## Capacity, roughly (from reading the code; nothing is benchmarked)
 
-A single 1 vCPU / 1 GB container serving the dashboard handles hundreds of concurrent viewers (reads are small JSON
-plus cached images). Uploads and diffs are the limit: a 50-screenshot build takes seconds of CPU, so about one build
-every few seconds per core. Measure with the e2e stack before promising numbers.
+On about 2 vCPU / 4 GB with one small Postgres: dozens to a couple of hundred people browsing the dashboard at once,
+and a few CI builds per minute.
+
+- **Browsing is cheap.** Pages are small JSON queries. Screenshots are served with
+  `private, max-age=31536000, immutable`, so a second view costs nothing. The Inbox list is capped at 200 items.
+- **Image processing is the limit.** The worker runs 2 jobs at a time by default (`concurrency ?? 2`,
+  `apps/worker/src/runner.ts`); each decodes and compares every screenshot with `sharp`. Throughput is builds per
+  minute, not users; a burst of CI runs queues up.
+- **Every screenshot request streams through Node.** `dashboard/files.ts` checks access in the database, then streams
+  the object from storage (no redirect to a signed URL). A review page opens many images, so first loads from many
+  users cost bandwidth and connections. This also uses the database pool (default 10 connections).
+- **Unpaginated lists:** Reviews and Insights load whole result sets (Insights aggregates in JavaScript), which is
+  fine for modest history and slow for large history.
+
+Cheapest ways to raise the ceiling: run the web server and the worker as separate processes; put a CDN or
+reverse-proxy cache in front of `/files/:sha256` (or use signed storage URLs); raise the pool size and add a pooler;
+set worker concurrency to the core count and cap screenshot size at upload. The number that would settle this is one
+profile of a typical build (screenshots, size, CPU seconds) on real infrastructure.
