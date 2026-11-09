@@ -75,6 +75,23 @@ describe('workspace name, address and default retention', () => {
   })
 })
 
+describe('merge gate defaults', () => {
+  it('lists each team with its own flaky setting, null when it follows the default', async () => {
+    const res = await call('GET', `${workspace()}/settings`, memberCookie)
+    expect(res.statusCode).toBe(200)
+    const { teams } = res.json()
+    expect(teams.find((p: { slug: string }) => p.slug === 'web')).toEqual({
+      slug: 'web',
+      name: expect.any(String),
+      flakyBlocksMerge: null,
+    })
+    await call('PATCH', `${team()}/settings`, ownerCookie, { flakyBlocksMerge: false })
+    const after = (await call('GET', `${workspace()}/settings`, memberCookie)).json()
+    expect(after.teams.find((p: { slug: string }) => p.slug === 'web').flakyBlocksMerge).toBe(false)
+    await call('PATCH', `${team()}/settings`, ownerCookie, { flakyBlocksMerge: null })
+  })
+})
+
 describe('storage usage', () => {
   it('reports bytes by kind and by team with the retention settings, to members only', async () => {
     expect(

@@ -30,7 +30,7 @@ describe('InviteForm', () => {
     await page.getByRole('textbox', { name: 'Email' }).fill('  ada@example.test ')
     await page.getByRole('combobox', { name: 'Role' }).click()
     await page.getByRole('option', { name: 'Admin' }).click()
-    await page.getByRole('button', { name: 'Send invitation' }).click()
+    await page.getByRole('button', { name: 'Send invite' }).click()
     expect(auth.inviteMember).toHaveBeenCalledWith({
       email: 'ada@example.test',
       role: 'admin',
@@ -50,7 +50,7 @@ describe('InviteForm', () => {
   it('asks for an address instead of sending an empty form', async () => {
     await page.viewport(1000, 800)
     await show()
-    await page.getByRole('button', { name: 'Send invitation' }).click()
+    await page.getByRole('button', { name: 'Send invite' }).click()
     await expect.element(page.getByText('Enter an email address')).toBeVisible()
     await expect.element(page.getByRole('textbox', { name: 'Email' })).toBeInvalid()
     expect(auth.inviteMember).not.toHaveBeenCalled()
@@ -61,7 +61,7 @@ describe('InviteForm', () => {
     await show()
     const email = page.getByRole('textbox', { name: 'Email' })
     await email.fill('ada')
-    await page.getByRole('button', { name: 'Send invitation' }).click()
+    await page.getByRole('button', { name: 'Send invite' }).click()
     await expect.element(page.getByText('That doesn’t look like an email address')).toBeVisible()
     await email.fill('ada@example.test')
     expect(page.getByText('That doesn’t look like an email address').elements()).toHaveLength(0)
@@ -72,7 +72,7 @@ describe('InviteForm', () => {
     auth.inviteMember.mockResolvedValue({ data: null, error: { message: 'Already a member' } })
     const onInvited = await show()
     await page.getByRole('textbox', { name: 'Email' }).fill('ada@example.test')
-    await page.getByRole('button', { name: 'Send invitation' }).click()
+    await page.getByRole('button', { name: 'Send invite' }).click()
     await expect.element(page.getByRole('alert')).toHaveTextContent('Already a member')
     await expect
       .element(page.getByRole('textbox', { name: 'Email' }))
@@ -85,7 +85,7 @@ describe('InviteForm', () => {
     auth.inviteMember.mockReturnValue(new Promise(() => {}))
     await show()
     await page.getByRole('textbox', { name: 'Email' }).fill('ada@example.test')
-    await page.getByRole('button', { name: 'Send invitation' }).click()
+    await page.getByRole('button', { name: 'Send invite' }).click()
     await expect
       .element(page.getByRole('button', { name: 'Sending…' }))
       .toHaveAttribute('aria-busy', 'true')

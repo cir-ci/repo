@@ -1,4 +1,4 @@
-import { Banner, Button, Select, SectionHeader, TextField, useAnnounce } from '@circi/ui'
+import { Banner, Button, Select, SettingsSection, TextField, useAnnounce } from '@circi/ui'
 import { useState, type FormEvent } from 'react'
 
 import { type AssignableRole, inviteMember } from './api.ts'
@@ -45,14 +45,14 @@ export function InviteForm({ workspaceId, onInvited }: InviteForm.Props) {
   }
 
   return (
-    <section className={styles.root}>
-      <SectionHeader title="Invite someone" />
+    <SettingsSection title="Invite someone" bare>
       <form onSubmit={(e) => void submit(e)} noValidate className={styles.form}>
         <TextField
           className={styles.email}
           name="email"
           type="email"
           label="Email"
+          placeholder="name@acme.dev"
           required
           value={email}
           error={problem}
@@ -70,11 +70,11 @@ export function InviteForm({ workspaceId, onInvited }: InviteForm.Props) {
           onValueChange={(next) => setRole(next === 'admin' ? 'admin' : 'member')}
         />
         <Button type="submit" variant="primary" loading={busy} className={styles.submit}>
-          {busy ? 'Sending…' : 'Send invitation'}
+          {busy ? 'Sending…' : 'Send invite'}
         </Button>
       </form>
       {message ? <Banner tone={message.tone}>{message.text}</Banner> : null}
-    </section>
+    </SettingsSection>
   )
 }
 

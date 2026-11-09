@@ -208,6 +208,51 @@ export function findingsSummary(findings: InstanceAdmin.Finding[]): string {
   return 'Everything passes'
 }
 
+/** The doctor's reminder: Health shows its own note on domains and cookies instead. */
+const DOCTOR_REMINDER = 'reminder'
+
+/**
+ * The doctor's findings in Health's groups. Storage is a service; everything else is about the
+ * dashboard's and the sites domain's addresses and cookies. The reminder line is dropped (the page
+ * words its own note), and each group is sorted warnings first.
+ */
+export function groupFindings(findings: InstanceAdmin.Finding[]): {
+  services: InstanceAdmin.Finding[]
+  domains: InstanceAdmin.Finding[]
+} {
+  const shown = findings.filter((f) => f.id !== DOCTOR_REMINDER)
+  return {
+    services: sortFindings(shown.filter((f) => f.id === 'storage')),
+    domains: sortFindings(shown.filter((f) => f.id !== 'storage')),
+  }
+}
+
+/** The counts of Health's summary: what passes, what needs a look, and what is only a note. */
+export function findingCounts(findings: InstanceAdmin.Finding[]): {
+  passing: number
+  warned: number
+  notes: number
+} {
+  const shown = findings.filter((f) => f.id !== DOCTOR_REMINDER)
+  const count = (level: InstanceAdmin.Finding['level']) =>
+    shown.filter((f) => f.level === level).length
+  return { passing: count('ok'), warned: count('warn'), notes: count('info') }
+}
+
+/** The host a `host:acme.io` finding is about, to show as its value. */
+export function findingHost(finding: InstanceAdmin.Finding): string | undefined {
+  return finding.id.startsWith('host:') ? finding.id.slice('host:'.length) : undefined
+}
+
+/**
+ * Whether a step of the move checklist is already done. The server only knows its configuration,
+ * so only the first step can be told: the old address keeps answering once it is listed in
+ * `PREVIOUS_PUBLIC_URLS` (the step shows a placeholder until then). The others are for a person.
+ */
+export function stepDone(step: InstanceAdmin.AddressStep): boolean {
+  return step.id === 'dns' && step.values.length > 0 && !step.values.some((v) => v.includes('<'))
+}
+
 export interface QueueTotals {
   pending: number
   running: number

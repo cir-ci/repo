@@ -33,18 +33,21 @@ export async function inviteMember(input: {
   email: string
   role: AssignableRole
   workspaceId: string
+  /** Send the mail again for the pending invitation to this address (and extend its expiry). */
+  resend?: boolean
 }) {
   const { error } = await authClient.organization.inviteMember({
     email: input.email,
     role: input.role,
     organizationId: input.workspaceId,
+    ...(input.resend ? { resend: true } : {}),
   })
   if (error) throw new Error(error.message ?? 'Couldn’t send the invitation.')
 }
 
 export async function cancelInvitation(invitationId: string) {
   const { error } = await authClient.organization.cancelInvitation({ invitationId })
-  if (error) throw new Error('Couldn’t withdraw the invitation')
+  if (error) throw new Error('Couldn’t revoke the invitation')
 }
 
 export async function removeMember(input: { memberId: string; workspaceId: string }) {

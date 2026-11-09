@@ -116,7 +116,7 @@ describe('member operations', () => {
     await cancelInvitation('i1')
     expect(auth.cancelInvitation).toHaveBeenCalledWith({ invitationId: 'i1' })
     auth.cancelInvitation.mockResolvedValueOnce({ error: {} })
-    await expect(cancelInvitation('i1')).rejects.toThrow('Couldn’t withdraw the invitation')
+    await expect(cancelInvitation('i1')).rejects.toThrow('Couldn’t revoke the invitation')
   })
 
   it('removeMember removes by member id within the workspace', async () => {

@@ -5,19 +5,10 @@ import { crumbsFor, workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { PageFrame } from '#lib/PageFrame.tsx'
 import type { PageHeading } from '#lib/PageHeading.tsx'
 
-import styles from './Integrations.module.css'
-
-/** The header, the board's 820px column and the loading and error states every integrations page shares. */
+/** The header, the one centred column and the loading and error states every integrations page shares. */
 export function IntegrationFrame({ workspace, below, title, ...rest }: IntegrationFrame.Props) {
   const { workspace: named } = useCrumbNames(workspace)
-  return (
-    <PageFrame
-      crumbs={integrationCrumbs(named, below)}
-      title={title}
-      contentClassName={styles.content}
-      {...rest}
-    />
-  )
+  return <PageFrame crumbs={integrationCrumbs(named, below)} title={title} {...rest} />
 }
 
 /** `Workspace › Settings` and, on an integration's own page, `› Integrations`. */

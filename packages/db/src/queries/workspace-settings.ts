@@ -1,7 +1,7 @@
 import { DEFAULT_FLAKY_BLOCKS_MERGE } from '@circi/core'
-import { eq } from 'drizzle-orm'
+import { asc, eq } from 'drizzle-orm'
 
-import { workspaceSettings } from '#schema/index.ts'
+import { teams, workspaceSettings } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
 /** A workspace's defaults for its teams (a team may override each one). */
@@ -32,4 +32,16 @@ export async function getWorkspaceSettings(
   return row
     ? { flakyBlocksMerge: row.flakyBlocksMerge, retentionDays: row.retentionDays }
     : DEFAULTS
+}
+
+/** Each team's own flaky-gate setting: null when it inherits the workspace's default. */
+export async function listTeamFlakyOverrides(
+  db: Database,
+  workspaceId: string,
+): Promise<{ slug: string; name: string; flakyBlocksMerge: boolean | null }[]> {
+  return db
+    .select({ slug: teams.slug, name: teams.name, flakyBlocksMerge: teams.flakyBlocksMerge })
+    .from(teams)
+    .where(eq(teams.workspaceId, workspaceId))
+    .orderBy(asc(teams.name))
 }

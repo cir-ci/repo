@@ -16,6 +16,10 @@ const general = (canManage = true, over: object = {}) => ({
 const settings = (canManage = true) => ({
   canManage,
   settings: { flakyBlocksMerge: true, retentionDays: 90 },
+  teams: [
+    { slug: 'web', name: 'Web app', flakyBlocksMerge: null },
+    { slug: 'marketing', name: 'marketing-site', flakyBlocksMerge: false },
+  ],
 })
 const name = () => page.getByRole('textbox', { name: 'Name' })
 const slug = () => page.getByRole('textbox', { name: 'URL slug' })
@@ -37,6 +41,24 @@ describe('WorkspaceGeneralPage', () => {
       .toBeChecked()
     await expect.element(page.getByRole('button', { name: 'Delete workspace' })).toBeEnabled()
     await expect.element(save()).toBeDisabled()
+    // The merge gate default says who follows it and who overrides it.
+    await expect.element(page.getByText('1 team inherits this, 1 overrides it')).toBeVisible()
+    await expect.element(page.getByText('marketing-site: off')).toBeVisible()
+  })
+
+  it('keeps the danger zone in its own section, after the others', async () => {
+    await page.viewport(1000, 900)
+    fakeApi({
+      'GET /api/workspaces/acme': { body: general() },
+      'GET /api/workspaces/acme/settings': { body: settings() },
+    })
+    await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    const danger = page.getByRole('region', { name: 'Danger zone' })
+    await expect.element(danger).toBeVisible()
+    await expect.element(danger).toHaveAttribute('data-tone', 'danger')
+    await expect.element(danger.getByText(/restore it/)).toBeVisible()
+    const headings = page.getByRole('heading', { level: 2 }).elements()
+    expect(headings.at(-1)?.textContent).toBe('Danger zone')
   })
 
   it('lets an admin who is not an owner see why they cannot delete', async () => {
@@ -50,7 +72,7 @@ describe('WorkspaceGeneralPage', () => {
     await expect.element(page.getByText('Only an owner can delete the workspace.')).toBeVisible()
   })
 
-  it('deletes only after the name is typed, then leaves the workspace', async () => {
+  it('deletes only after the slug is typed, then leaves the workspace', async () => {
     await page.viewport(1000, 900)
     const api = fakeApi({
       'GET /api/workspaces/acme': { body: general() },
@@ -61,13 +83,18 @@ describe('WorkspaceGeneralPage', () => {
     await page.getByRole('button', { name: 'Delete workspace' }).click()
     const dialog = page.getByRole('dialog', { name: 'Delete Acme Inc?' })
     const confirm = dialog.getByRole('button', { name: 'Delete workspace' })
+    const field = dialog.getByRole('textbox', { name: 'Type acme to confirm' })
     await expect.element(confirm).toBeDisabled()
-    await dialog.getByRole('textbox', { name: /Type Acme Inc to confirm/ }).fill('Acme')
+    // The display name is not the confirmation: the slug is.
+    await field.fill('Acme Inc')
     await expect.element(confirm).toBeDisabled()
-    await dialog.getByRole('textbox', { name: /Type Acme Inc to confirm/ }).fill('Acme Inc')
+    await field.fill('ac')
+    await expect.element(confirm).toBeDisabled()
+    await field.fill('acme')
+    await expect.element(confirm).toBeEnabled()
     await confirm.click()
     await expect.poll(() => api.of('DELETE')).toHaveLength(1)
-    expect(api.of('DELETE')[0]?.body).toEqual({ confirm: 'Acme Inc' })
+    expect(api.of('DELETE')[0]?.body).toEqual({ confirm: 'acme' })
   })
 
   it('warns that links break when the address changes, and Discard undoes the edit', async () => {

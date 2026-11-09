@@ -8,8 +8,6 @@ import { crumbsFor, teamSettingsCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { PageFrame } from '#lib/PageFrame.tsx'
 
-import styles from './TeamSettingsFrame.module.css'
-
 /**
  * What every team settings page shares: the breadcrumb (workspace, team, Settings, this page: see
  * `lib/crumbs.ts`), one column, the team's settings loaded once (the other pages read the same cache), its
@@ -19,7 +17,7 @@ export function TeamSettingsFrame({
   workspace,
   team,
   page,
-  width = 'form',
+  width = 'default',
   readOnlyNote = 'Only owners and admins can change these settings.',
   children,
 }: TeamSettingsFrame.Props) {
@@ -42,7 +40,6 @@ export function TeamSettingsFrame({
         page === 'Settings' ? [] : [teamSettingsCrumb(workspace, team)],
       )}
       title={page}
-      contentClassName={styles.content}
       width={width}
       loading={!data}
       error={error}
@@ -61,8 +58,8 @@ export namespace TeamSettingsFrame {
     team: string
     /** This page's name: the last crumb and the start of the tab title. */
     page: string
-    /** The column's width: 720 for forms, 1040 for the ignore regions workbench. */
-    width?: 'form' | 'wide'
+    /** The column's width: 720 by default, 1040 for the ignore regions workbench. */
+    width?: 'default' | 'wide'
     /** Shown to people who can't change things; `false` for a page where they can. */
     readOnlyNote?: string | false
     children: (settings: Team.SettingsResponse, teamName: string) => ReactNode

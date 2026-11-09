@@ -80,7 +80,7 @@ async function setup(): Promise<Setup> {
   }
 }
 
-const del = (s: Setup, cookie: string, confirm: string = s.name) =>
+const del = (s: Setup, cookie: string, confirm: string = s.tenant.workspaceSlug) =>
   call('DELETE', `/api/workspaces/${s.tenant.workspaceSlug}`, cookie, { confirm })
 
 const memberRoutes = (s: Setup) => [
@@ -104,11 +104,13 @@ const upload = (token: string) =>
   })
 
 describe('deleting a workspace', () => {
-  it('is for owners: a member and an admin get 403, and a wrong name changes nothing', async () => {
+  it('is for owners: a member and an admin get 403, and a wrong slug changes nothing', async () => {
     const s = await setup()
     expect((await del(s, s.memberCookie)).statusCode).toBe(403)
     expect((await del(s, s.adminMemberCookie)).statusCode).toBe(403)
-    const wrong = await del(s, s.ownerCookie, 'not the name')
+    // The display name is no longer the confirmation: the address is.
+    expect((await del(s, s.ownerCookie, s.name)).statusCode).toBe(400)
+    const wrong = await del(s, s.ownerCookie, 'not the slug')
     expect(wrong.statusCode).toBe(400)
     expect(await statuses(s.ownerCookie, memberRoutes(s))).toEqual(memberRoutes(s).map(() => 200))
   })

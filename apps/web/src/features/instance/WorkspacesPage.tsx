@@ -7,7 +7,8 @@ import {
   Dialog,
   EmptyState,
   ListRow,
-  SectionHeader,
+  SettingsRow,
+  SettingsSection,
   Text,
   TextField,
 } from '@circi/ui'
@@ -142,28 +143,20 @@ export function WorkspacesPage() {
         )}
       </section>
       {settings.data ? (
-        <section className={styles.section} aria-label="Who can create workspaces">
-          <SectionHeader
-            title="Who can create workspaces"
-            headingLevel={2}
-            description="Set on the server and changed by restarting it with a new value."
+        <SettingsSection
+          title="Who can create workspaces"
+          description="Set on the server and changed by restarting it with a new value."
+        >
+          <SettingsRow
+            label={WORKSPACE_CREATION_TEXT[settings.data.workspaceCreation]}
+            detail={
+              settings.data.workspaceCreation === 'admin'
+                ? 'Everyone else joins through an invitation or a verified email domain.'
+                : 'Every signed-in account can create a workspace.'
+            }
+            value={`WORKSPACE_CREATION=${settings.data.workspaceCreation}`}
           />
-          <div className={styles.box}>
-            <div className={styles.boxRow}>
-              <span className={styles.grow}>
-                <Text>{WORKSPACE_CREATION_TEXT[settings.data.workspaceCreation]}</Text>
-                <Text tone="tertiary" variant="small">
-                  {settings.data.workspaceCreation === 'admin'
-                    ? 'Everyone else joins through an invitation or a verified email domain.'
-                    : 'Every signed-in account can create a workspace.'}
-                </Text>
-              </span>
-              <Text variant="mono" tone="secondary">
-                WORKSPACE_CREATION={settings.data.workspaceCreation}
-              </Text>
-            </div>
-          </div>
-        </section>
+        </SettingsSection>
       ) : null}
       <ConfirmDialog
         open={purging !== null}

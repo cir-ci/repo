@@ -1,7 +1,11 @@
 import type { Storage, Workspace } from '@circi/api'
 import { updateWorkspace } from '@circi/auth'
 import { ValidationError, workspacePurgeAt } from '@circi/core'
-import { getWorkspaceStorage, getWorkspaceSettings } from '@circi/db/queries'
+import {
+  getWorkspaceStorage,
+  getWorkspaceSettings,
+  listTeamFlakyOverrides,
+} from '@circi/db/queries'
 import { deleteWorkspace, isWorkspaceOwner, updateWorkspaceSettings } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
@@ -64,7 +68,7 @@ export const dashboardWorkspaceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard
   })
 
   /**
-   * Deletes the workspace (owners only), with its name typed as the confirmation. It disappears
+   * Deletes the workspace (owners only), with its address (slug) typed as the confirmation. It disappears
    * at once, for everyone, and is purged after 30 days unless an instance admin restores it.
    */
   app.delete('/workspaces/:workspace', async (req): Promise<Workspace.Deleted | void> => {
@@ -73,8 +77,8 @@ export const dashboardWorkspaceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard
       forbidden: 'Only an owner can delete the workspace',
     })
     const { confirm } = parse(deleteBody, req.body)
-    if (confirm.trim() !== found.workspace.name) {
-      throw new ValidationError('Type the workspace’s name to confirm')
+    if (confirm.trim() !== found.workspace.slug) {
+      throw new ValidationError('Type the workspace’s address to confirm')
     }
     const { deletedAt } = await deleteWorkspace(deps.db, {
       workspaceId: found.workspace.id,
@@ -83,11 +87,12 @@ export const dashboardWorkspaceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard
     return { purgeAt: workspacePurgeAt(deletedAt).toISOString() }
   })
 
-  app.get('/workspaces/:workspace/settings', async (req) => {
+  app.get('/workspaces/:workspace/settings', async (req): Promise<Workspace.SettingsResponse> => {
     const found = await loadWorkspace(deps, req)
     return {
       canManage: found.canManage,
       settings: await getWorkspaceSettings(deps.db, found.workspace.id),
+      teams: await listTeamFlakyOverrides(deps.db, found.workspace.id),
     }
   })
 

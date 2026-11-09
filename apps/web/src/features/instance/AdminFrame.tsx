@@ -17,7 +17,6 @@ export function AdminFrame({ title, error, ...rest }: AdminFrame.Props) {
     <PageFrame
       crumbs={[{ label: 'Instance' }]}
       title={title}
-      contentClassName={styles.content}
       error={error}
       forbidden={
         isForbidden(error) ? (

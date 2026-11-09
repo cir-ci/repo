@@ -1,17 +1,25 @@
-import { Banner, Button, Dialog, SectionHeader, TextField, useAnnounce } from '@circi/ui'
+import {
+  Banner,
+  Button,
+  Dialog,
+  SettingsRow,
+  SettingsSection,
+  Text,
+  TextField,
+  useAnnounce,
+} from '@circi/ui'
 import { useNavigate } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
 
 import { useDeleteWorkspace } from './api.ts'
-import { Box, BoxRow } from './Box.tsx'
-import { nameConfirmed } from './model.ts'
+import { slugConfirmed } from './model.ts'
 
 import styles from './Settings.module.css'
 
 /**
- * The danger zone of Workspace General: deleting the workspace, after typing its name back.
- * Owners only. It is hidden at once and purged after 30 days; an instance admin can restore it
- * until then.
+ * The danger zone of Workspace General: deleting the workspace, after typing its address (slug)
+ * back. Owners only. It is hidden at once and purged after 30 days; an instance admin can restore
+ * it until then.
  */
 export function DeleteWorkspaceSection({ workspace, name, isOwner }: DeleteWorkspaceSection.Props) {
   const [open, setOpen] = useState(false)
@@ -30,8 +38,8 @@ export function DeleteWorkspaceSection({ workspace, name, isOwner }: DeleteWorks
 
   function submit(e: FormEvent) {
     e.preventDefault()
-    if (!nameConfirmed(typed, name)) return
-    remove.mutate(typed, {
+    if (!slugConfirmed(typed, workspace)) return
+    remove.mutate(typed.trim(), {
       onSuccess: () => {
         setOpen(false)
         announce(`Deleted ${name}`)
@@ -41,23 +49,28 @@ export function DeleteWorkspaceSection({ workspace, name, isOwner }: DeleteWorks
   }
 
   return (
-    <section className={styles.section} aria-labelledby="danger">
-      <SectionHeader title={<span id="danger">Danger zone</span>} />
-      <Box danger>
-        <BoxRow
-          top
-          title="Delete workspace"
-          help={
-            isOwner
-              ? `Hides ${name} for everyone at once: its teams, builds, hosted sites and CI tokens stop working. Everything is removed for good after 30 days; until then whoever runs this server can restore it.`
-              : 'Only an owner can delete the workspace.'
+    <>
+      <SettingsSection title="Danger zone" tone="danger">
+        <SettingsRow
+          label="Delete workspace"
+          detail={
+            isOwner ? (
+              <>
+                Hides {name} for everyone at once: its teams, builds, hosted sites and CI tokens
+                stop working. Everything is removed for good after 30 days; until then whoever runs
+                this server can restore it. You’ll type <Text variant="mono">{workspace}</Text> to
+                confirm. Only owners can do this.
+              </>
+            ) : (
+              'Only an owner can delete the workspace.'
+            )
           }
         >
           <Button variant="danger" disabled={!isOwner} onClick={() => setOpen(true)}>
             Delete workspace
           </Button>
-        </BoxRow>
-      </Box>
+        </SettingsRow>
+      </SettingsSection>
       <Dialog
         open={open}
         onOpenChange={close}
@@ -71,7 +84,7 @@ export function DeleteWorkspaceSection({ workspace, name, isOwner }: DeleteWorks
               form="delete-workspace"
               variant="danger"
               loading={remove.isPending}
-              disabled={!nameConfirmed(typed, name)}
+              disabled={!slugConfirmed(typed, workspace)}
             >
               Delete workspace
             </Button>
@@ -80,7 +93,7 @@ export function DeleteWorkspaceSection({ workspace, name, isOwner }: DeleteWorks
       >
         <form id="delete-workspace" onSubmit={submit} noValidate className={styles.fields}>
           <TextField
-            label={`Type ${name} to confirm`}
+            label={`Type ${workspace} to confirm`}
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
             autoComplete="off"
@@ -89,13 +102,13 @@ export function DeleteWorkspaceSection({ workspace, name, isOwner }: DeleteWorks
           {remove.error ? <Banner tone="danger">{remove.error.message}</Banner> : null}
         </form>
       </Dialog>
-    </section>
+    </>
   )
 }
 
 export namespace DeleteWorkspaceSection {
   export interface Props {
-    /** The address slug. */
+    /** The address slug: what is typed to confirm. */
     workspace: string
     name: string
     isOwner: boolean

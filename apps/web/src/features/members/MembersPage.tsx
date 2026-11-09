@@ -8,8 +8,9 @@ import {
   ListRow,
   Menu,
   RowMenuIcon,
-  SectionHeader,
   Select,
+  SettingsPage,
+  SettingsSection,
   Text,
   useAnnounce,
 } from '@circi/ui'
@@ -24,7 +25,13 @@ import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
-import { cancelInvitation, changeMemberRole, workspaceQuery, removeMember } from './api.ts'
+import {
+  cancelInvitation,
+  changeMemberRole,
+  inviteMember,
+  removeMember,
+  workspaceQuery,
+} from './api.ts'
 import { InviteForm } from './InviteForm.tsx'
 import { canManageMembers, invitationCount, peopleCount, pendingInvitations } from './model.ts'
 
@@ -54,7 +61,14 @@ export function MembersPage() {
   const cancel = useMutation({
     mutationFn: cancelInvitation,
     onSuccess: () => {
-      announce('Invitation withdrawn')
+      announce('Invitation revoked')
+      return refresh()
+    },
+  })
+  const resend = useMutation({
+    mutationFn: inviteMember,
+    onSuccess: (_, { email }) => {
+      announce(`Invitation sent again to ${email}`)
       return refresh()
     },
   })
@@ -78,7 +92,7 @@ export function MembersPage() {
 
   const canManage = canManageMembers(data?.members ?? [], session?.user.id)
   const pending = pendingInvitations(data?.invitations ?? [])
-  const failure = cancel.error ?? remove.error ?? changeRole.error
+  const failure = cancel.error ?? resend.error ?? remove.error ?? changeRole.error
 
   return (
     <>
@@ -88,7 +102,7 @@ export function MembersPage() {
         ])}
         title="Members"
       />
-      <div className={styles.page}>
+      <SettingsPage>
         <QueryBoundary
           query={result}
           announce="Loading members"
@@ -104,8 +118,11 @@ export function MembersPage() {
                 </Banner>
               )}
               {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
-              <section className={styles.section}>
-                <SectionHeader title="Members" description={peopleCount(loaded.members.length)} />
+              <SettingsSection
+                title="Members"
+                description={peopleCount(loaded.members.length)}
+                bare
+              >
                 <div className={styles.list}>
                   {loaded.members.map((m) => {
                     const isMe = m.userId === session?.user.id
@@ -114,7 +131,10 @@ export function MembersPage() {
                       <ListRow key={m.id} leading={<Avatar name={m.user.name} />}>
                         <div className={styles.member}>
                           <div className={styles.who}>
-                            <Text truncate>{m.user.name}</Text>
+                            <span className={styles.nameLine}>
+                              <Text truncate>{m.user.name}</Text>
+                              {isMe ? <Text tone="tertiary">· you</Text> : null}
+                            </span>
                             <Text variant="small" tone="secondary" truncate>
                               {m.user.email}
                             </Text>
@@ -179,27 +199,46 @@ export function MembersPage() {
                     Invite a teammate above, or let a verified email domain add people.
                   </EmptyState>
                 ) : null}
-              </section>
+              </SettingsSection>
               {pending.length > 0 ? (
-                <section className={styles.section}>
-                  <SectionHeader
-                    title="Pending invitations"
-                    description={invitationCount(pending.length)}
-                  />
+                <SettingsSection
+                  title="Pending invitations"
+                  description={invitationCount(pending.length)}
+                  bare
+                >
                   <div className={styles.list}>
                     {pending.map((i) => (
                       <ListRow
                         key={i.id}
                         trailing={
                           canManage ? (
-                            <Button
-                              size="sm"
-                              loading={cancel.isPending && cancel.variables === i.id}
-                              disabled={cancel.isPending}
-                              onClick={() => cancel.mutate(i.id)}
-                            >
-                              Withdraw
-                            </Button>
+                            <>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                loading={resend.isPending && resend.variables?.email === i.email}
+                                disabled={resend.isPending || cancel.isPending}
+                                onClick={() =>
+                                  resend.mutate({
+                                    email: i.email,
+                                    role: i.role === 'admin' ? 'admin' : 'member',
+                                    workspaceId: loaded.id,
+                                    resend: true,
+                                  })
+                                }
+                              >
+                                Resend
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                loading={cancel.isPending && cancel.variables === i.id}
+                                disabled={cancel.isPending || resend.isPending}
+                                onClick={() => cancel.mutate(i.id)}
+                              >
+                                Revoke
+                              </Button>
+                            </>
                           ) : null
                         }
                       >
@@ -213,7 +252,7 @@ export function MembersPage() {
                       </ListRow>
                     ))}
                   </div>
-                </section>
+                </SettingsSection>
               ) : null}
               <Text variant="small" tone="tertiary">
                 Sign-in methods and email domains are in{' '}
@@ -225,7 +264,7 @@ export function MembersPage() {
             </>
           )}
         </QueryBoundary>
-      </div>
+      </SettingsPage>
       <ConfirmDialog
         open={removing !== null}
         onOpenChange={(open) => {

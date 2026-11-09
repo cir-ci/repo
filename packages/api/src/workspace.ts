@@ -39,15 +39,24 @@ export namespace Workspace {
     slug: string
   }
 
-  /** `DELETE /api/workspaces/:workspace` (owners; body `{ confirm: <the workspace's name> }`). */
+  /** `DELETE /api/workspaces/:workspace` (owners; body `{ confirm: <the workspace's slug> }`). */
   export interface Deleted {
     /** When the workspace will be purged for good. */
     purgeAt: string
   }
 
+  /** A team and its own flaky-gate setting (null: it follows the workspace's default). */
+  export interface TeamOverride {
+    slug: string
+    name: string
+    flakyBlocksMerge: boolean | null
+  }
+
   export interface SettingsResponse {
     canManage: boolean
     settings: Settings
+    /** Every team, to show which follow the defaults and which override them. */
+    teams: TeamOverride[]
   }
 
   /** A workspace's own single sign-on provider. */

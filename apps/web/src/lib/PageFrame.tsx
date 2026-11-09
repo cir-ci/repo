@@ -1,4 +1,4 @@
-import { Banner } from '@circi/ui'
+import { Banner, SettingsPage } from '@circi/ui'
 import type { ReactNode } from 'react'
 
 import { ErrorState } from '#lib/ErrorState.tsx'
@@ -7,15 +7,14 @@ import { QuerySkeleton } from '#lib/QueryBoundary.tsx'
 
 /**
  * The frame of a settings-style page: its header (`PageHeading`: crumbs, then `title` as the
- * `<h1>`), one column (`contentClassName` is the feature's own CSS module class), and the column's
+ * `<h1>`), one `SettingsPage` column (720px, or 1040px with `width="wide"`), and the column's
  * states: `forbidden`, the error, the delayed skeleton, or the read-only note above `children`.
  * The feature frames (`Frame`, `IntegrationFrame`, `AdminFrame`, `TeamSettingsFrame`) only compute
- * the crumbs and pass the feature's column class.
+ * the crumbs.
  */
 export function PageFrame({
   crumbs,
   title,
-  contentClassName,
   width,
   loading,
   error,
@@ -28,7 +27,7 @@ export function PageFrame({
   return (
     <>
       <PageHeading crumbs={crumbs} title={title} />
-      <div className={contentClassName} {...(width ? { 'data-width': width } : {})}>
+      <SettingsPage {...(width ? { width } : {})}>
         {forbidden ? (
           forbidden
         ) : error ? (
@@ -45,7 +44,7 @@ export function PageFrame({
             {children}
           </>
         )}
-      </div>
+      </SettingsPage>
     </>
   )
 }
@@ -56,9 +55,8 @@ export namespace PageFrame {
     crumbs: ReadonlyArray<PageHeading.Crumb>
     /** The page's `<h1>`. */
     title: string
-    contentClassName?: string | undefined
-    /** The column's `data-width`, for the feature's CSS. */
-    width?: string | undefined
+    /** `wide` is 1040px, for editors that need the room. */
+    width?: 'default' | 'wide' | undefined
     loading?: boolean | undefined
     error?: Error | null | undefined
     onRetry?: (() => void) | undefined

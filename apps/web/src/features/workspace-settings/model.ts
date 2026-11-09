@@ -71,6 +71,28 @@ function isWebAddress(value: string): boolean {
   }
 }
 
-/** Whether what was typed is the workspace's name (surrounding spaces don't count; case does). */
-export const nameConfirmed = (typed: string, name: string): boolean =>
-  name !== '' && typed.trim() === name
+const teamCount = (n: number) => `${n} ${n === 1 ? 'team' : 'teams'}`
+
+/**
+ * How the teams relate to the merge gate default: "2 teams inherit this, 1 overrides it", and the
+ * overriding teams with their own setting ("marketing-site: off").
+ */
+export function inheritance(teams: readonly { name: string; flakyBlocksMerge: boolean | null }[]): {
+  summary: string
+  overrides: string[]
+} {
+  const overriding = teams.filter((t) => t.flakyBlocksMerge !== null)
+  const inherit = teams.length - overriding.length
+  const first = `${teamCount(inherit)} ${inherit === 1 ? 'inherits' : 'inherit'} this`
+  return {
+    summary:
+      overriding.length === 0
+        ? first
+        : `${first}, ${overriding.length} ${overriding.length === 1 ? 'overrides' : 'override'} it`,
+    overrides: overriding.map((t) => `${t.name}: ${t.flakyBlocksMerge ? 'on' : 'off'}`),
+  }
+}
+
+/** Whether what was typed is the workspace's address (surrounding spaces don't count; case does). */
+export const slugConfirmed = (typed: string, slug: string): boolean =>
+  slug !== '' && typed.trim() === slug

@@ -9,6 +9,7 @@ const PATH = '/api/workspaces/acme/settings'
 const answer = (flakyBlocksMerge: boolean, canManage = true) => ({
   canManage,
   settings: { flakyBlocksMerge },
+  teams: [],
 })
 const control = () => page.getByRole('switch', { name: /^Flaky screenshots block merges/ })
 

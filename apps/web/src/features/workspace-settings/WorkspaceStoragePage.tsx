@@ -2,7 +2,8 @@ import {
   Banner,
   Button,
   EmptyState,
-  SectionHeader,
+  SettingsRow,
+  SettingsSection,
   TeamTile,
   Text,
   TextField,
@@ -25,7 +26,6 @@ import {
   teamRows,
   workspaceGeneralQuery,
 } from './api.ts'
-import { Box, BoxRow } from './Box.tsx'
 import { Frame } from './Frame.tsx'
 import { retentionDirty, retentionProblem } from './model.ts'
 
@@ -42,7 +42,8 @@ export function WorkspaceStoragePage() {
 
   return (
     <Frame
-      crumbs={[general.data?.name ?? workspace, 'Settings', 'Storage and retention']}
+      workspace={{ slug: workspace, name: general.data?.name ?? workspace }}
+      page="Storage and retention"
       loading={!data && !error}
       error={error}
       onRetry={() => void refetch()}
@@ -51,27 +52,25 @@ export function WorkspaceStoragePage() {
     >
       {data ? (
         <>
-          <section className={styles.section} aria-labelledby="use">
-            <SectionHeader
-              title={
-                <>
-                  <span id="use">Storage used</span>{' '}
-                  <Text tone="secondary">{formatBytes(data.totalBytes)}</Text>
-                </>
-              }
-              description={`${fileCount(data.totalFiles)}. Identical files are stored once, across builds and teams, so these add up to more than the total.`}
-            />
-            <Box label="Storage by kind">
-              {kindRows(data).map((k) => (
-                <BoxRow
-                  key={k.kind}
-                  title={k.label}
-                  help={
-                    k.versions === undefined
-                      ? fileCount(k.files)
-                      : `${fileCount(k.files)}, ${k.versions} ${k.versions === 1 ? 'version' : 'versions'}`
-                  }
-                >
+          <SettingsSection
+            title={
+              <>
+                Storage used <Text tone="secondary">{formatBytes(data.totalBytes)}</Text>
+              </>
+            }
+            description={`${fileCount(data.totalFiles)}. Identical files are stored once, across builds and teams, so these add up to more than the total.`}
+          >
+            {kindRows(data).map((k) => (
+              <SettingsRow
+                key={k.kind}
+                label={k.label}
+                detail={
+                  k.versions === undefined
+                    ? fileCount(k.files)
+                    : `${fileCount(k.files)}, ${k.versions} ${k.versions === 1 ? 'version' : 'versions'}`
+                }
+              >
+                <span className={styles.usage}>
                   <span className={styles.barTrack} aria-hidden="true">
                     <span
                       className={styles.barFill}
@@ -79,40 +78,40 @@ export function WorkspaceStoragePage() {
                     />
                   </span>
                   <Text className={styles.num}>{formatBytes(k.bytes)}</Text>
-                </BoxRow>
-              ))}
-            </Box>
-          </section>
+                </span>
+              </SettingsRow>
+            ))}
+          </SettingsSection>
 
-          <section className={styles.section} aria-labelledby="by-team">
-            <SectionHeader
-              title={<span id="by-team">By team</span>}
-              description="What each team’s builds and sites refer to."
-            />
+          <SettingsSection
+            title="By team"
+            description="What each team’s builds and sites refer to."
+            bare={data.teams.length === 0}
+          >
             {data.teams.length === 0 ? (
               <EmptyState title="Nothing stored yet">
                 Upload a build to see its size here.
               </EmptyState>
             ) : (
-              <Box label="Storage by team">
-                {teamRows(data).map((t) => (
-                  <BoxRow key={t.slug}>
-                    <Link
-                      to="/$workspace/$team/settings"
-                      params={{ workspace, team: t.slug }}
-                      className={styles.teamLink}
-                    >
-                      <TeamTile
-                        name={t.name}
-                        color={t.color}
-                        size={24}
-                        {...(isTeamIconName(t.icon) ? { icon: t.icon } : {})}
-                      />
-                      <Text>{t.name}</Text>
-                    </Link>
-                    <Text variant="small" tone="tertiary">
-                      {dayCount(t.retentionDays)}
-                    </Text>
+              teamRows(data).map((t) => (
+                <SettingsRow key={t.slug}>
+                  <Link
+                    to="/$workspace/$team/settings"
+                    params={{ workspace, team: t.slug }}
+                    className={styles.teamLink}
+                  >
+                    <TeamTile
+                      name={t.name}
+                      color={t.color}
+                      size={24}
+                      {...(isTeamIconName(t.icon) ? { icon: t.icon } : {})}
+                    />
+                    <Text>{t.name}</Text>
+                  </Link>
+                  <Text variant="small" tone="tertiary">
+                    {dayCount(t.retentionDays)}
+                  </Text>
+                  <span className={styles.usage}>
                     <span className={styles.barTrack} aria-hidden="true">
                       <span
                         className={styles.barFill}
@@ -120,11 +119,11 @@ export function WorkspaceStoragePage() {
                       />
                     </span>
                     <Text className={styles.num}>{formatBytes(t.bytes)}</Text>
-                  </BoxRow>
-                ))}
-              </Box>
+                  </span>
+                </SettingsRow>
+              ))
             )}
-          </section>
+          </SettingsSection>
 
           <RetentionSection
             key={data.defaultRetentionDays}
@@ -154,17 +153,17 @@ function RetentionSection({ workspace, saved, canManage }: RetentionSection.Prop
   }
 
   return (
-    <form className={styles.section} onSubmit={submit} noValidate aria-labelledby="retention">
-      <SectionHeader
+    <form onSubmit={submit} noValidate aria-labelledby="retention" className={styles.form}>
+      <SettingsSection
         title={<span id="retention">Retention</span>}
         description="Builds and hosted site versions expire after their team’s retention. Each team can set its own in its settings."
-      />
-      <Box>
-        <BoxRow title="Default for new teams" help="Existing teams keep their own setting.">
+      >
+        <SettingsRow label="Default for new teams" detail="Existing teams keep their own setting.">
           <span className={styles.inline}>
             <TextField
               className={styles.daysField}
-              label="Days"
+              label="Default retention in days"
+              hideLabel
               name="retentionDays"
               inputMode="numeric"
               value={text}
@@ -174,18 +173,16 @@ function RetentionSection({ workspace, saved, canManage }: RetentionSection.Prop
             />
             <Text tone="secondary">days</Text>
           </span>
-        </BoxRow>
-        <BoxRow
-          top
-          title="Never deleted"
-          help="The newest approved build on the default branch for each build name (it is the baseline), and any site version a live branch link serves."
+        </SettingsRow>
+        <SettingsRow
+          label="Never deleted"
+          detail="The newest approved build on the default branch for each build name (it is the baseline), and any site version a live branch link serves."
         />
-        <BoxRow
-          top
-          title="Unused files"
-          help="A file nothing refers to any more is deleted 24 hours later, after CirCI checks again that no new upload claimed it."
+        <SettingsRow
+          label="Unused files"
+          detail="A file nothing refers to any more is deleted 24 hours later, after CirCI checks again that no new upload claimed it."
         />
-      </Box>
+      </SettingsSection>
       {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
       {canManage ? (
         <div className={styles.footer}>

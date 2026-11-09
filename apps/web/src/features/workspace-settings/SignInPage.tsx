@@ -21,7 +21,8 @@ export function SignInPage() {
 
   return (
     <Frame
-      crumbs={[general.data?.name ?? workspace, 'Settings', 'Sign-in and domains']}
+      workspace={{ slug: workspace, name: general.data?.name ?? workspace }}
+      page="Sign-in and domains"
       loading={!auth.data && !error}
       error={error}
       onRetry={() => void (general.error ? general.refetch() : auth.refetch())}

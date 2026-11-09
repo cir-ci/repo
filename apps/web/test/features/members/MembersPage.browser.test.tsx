@@ -138,7 +138,7 @@ describe('MembersPage', () => {
     await expect.element(page.getByText('Owner')).toBeVisible()
     expect(page.getByRole('combobox').elements()).toHaveLength(0)
     expect(page.getByRole('button', { name: /^Actions for/ }).elements()).toHaveLength(0)
-    expect(page.getByRole('button', { name: 'Withdraw' }).elements()).toHaveLength(0)
+    expect(page.getByRole('button', { name: 'Revoke' }).elements()).toHaveLength(0)
     expect(page.getByRole('heading', { name: 'Invite someone' }).elements()).toHaveLength(0)
     await expect.element(page.getByText(/Only owners and admins can invite/)).toBeVisible()
   })
@@ -247,16 +247,55 @@ describe('MembersPage', () => {
     await expect.element(page.getByRole('alertdialog')).not.toBeInTheDocument()
   })
 
-  it('withdraws a pending invitation', async () => {
+  it('revokes a pending invitation', async () => {
     await page.viewport(1000, 800)
     auth.cancelInvitation.mockResolvedValue({ data: {}, error: null })
     await show()
     await expect.element(page.getByText(/Admin · expires/)).toBeVisible()
-    await page.getByRole('button', { name: 'Withdraw' }).click()
+    await page.getByRole('button', { name: 'Revoke' }).click()
     expect(auth.cancelInvitation).toHaveBeenCalledWith({ invitationId: 'i1' })
     await expect
-      .element(page.getByRole('status').filter({ hasText: 'Invitation withdrawn' }))
+      .element(page.getByRole('status').filter({ hasText: 'Invitation revoked' }))
       .toBeInTheDocument()
+  })
+
+  it('resends a pending invitation to the same address and role', async () => {
+    await page.viewport(1000, 800)
+    auth.inviteMember.mockResolvedValue({ data: {}, error: null })
+    await show()
+    await page.getByRole('button', { name: 'Resend' }).click()
+    expect(auth.inviteMember).toHaveBeenCalledWith({
+      email: 'alan@example.test',
+      role: 'admin',
+      organizationId: 'workspace1',
+      resend: true,
+    })
+    await expect
+      .element(
+        page.getByRole('status').filter({ hasText: 'Invitation sent again to alan@example.test' }),
+      )
+      .toBeInTheDocument()
+  })
+
+  it('marks your own row with "you" and nobody else’s', async () => {
+    await page.viewport(1000, 800)
+    await show()
+    await expect.element(page.getByText('· you')).toBeVisible()
+    expect(page.getByText('· you').elements()).toHaveLength(1)
+  })
+
+  it('puts the invite form first, with an example address', async () => {
+    await page.viewport(1000, 800)
+    await show()
+    await expect
+      .element(page.getByRole('textbox', { name: 'Email' }))
+      .toHaveAttribute('placeholder', 'name@acme.dev')
+    const headings = page.getByRole('heading', { level: 2 }).elements()
+    expect(headings.map((h) => h.textContent)).toEqual([
+      'Invite someone',
+      'Members',
+      'Pending invitations',
+    ])
   })
 
   it('invites someone from the form on the page, then lists again', async () => {
@@ -264,7 +303,7 @@ describe('MembersPage', () => {
     auth.inviteMember.mockResolvedValue({ data: {}, error: null })
     await show()
     await page.getByRole('textbox', { name: 'Email' }).fill('new@example.test')
-    await page.getByRole('button', { name: 'Send invitation' }).click()
+    await page.getByRole('button', { name: 'Send invite' }).click()
     expect(auth.inviteMember).toHaveBeenCalledWith({
       email: 'new@example.test',
       role: 'member',

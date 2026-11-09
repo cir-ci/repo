@@ -1,5 +1,5 @@
 import type { InstanceAdmin } from '@circi/api'
-import { Badge, Banner, Button, SectionHeader, Text } from '@circi/ui'
+import { Badge, Banner, Button, SettingsRow, SettingsSection, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useSearch } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
@@ -15,23 +15,9 @@ import styles from './Admin.module.css'
 /** One read-only row: the value, what it means, and the variable that sets it. */
 function Setting(props: { title: ReactNode; note?: ReactNode; env: string; children?: ReactNode }) {
   return (
-    <div className={styles.boxRow}>
-      <span className={styles.grow}>
-        <Text>{props.title}</Text>
-        {props.note ? (
-          <Text tone="tertiary" variant="small">
-            {props.note}
-          </Text>
-        ) : null}
-        <Text className={styles.env} variant="mono">
-          {props.env}
-        </Text>
-        <Text tone="tertiary" variant="micro">
-          Set in the environment
-        </Text>
-      </span>
+    <SettingsRow label={props.title} detail={props.note} env={props.env}>
       {props.children}
-    </div>
+    </SettingsRow>
   )
 }
 
@@ -63,114 +49,102 @@ function Sections({ settings }: { settings: InstanceAdmin.Settings }) {
         change one, restart CirCI with a new value; each row names its variable.
       </Text>
 
-      <section className={styles.section} aria-label="Dashboard address">
-        <SectionHeader
-          title="Dashboard address"
-          description="Every link CirCI sends out uses it: pull request comments, checks, emails, the GitHub App’s webhook."
-        />
-        <div className={styles.box}>
-          <Setting title={<Text variant="mono">{settings.publicUrl}</Text>} env="PUBLIC_URL" />
-          <Setting
-            title="Old addresses that redirect here"
-            env="PREVIOUS_PUBLIC_URLS"
-            note={
-              settings.previousPublicHosts.length > 0
-                ? `${settings.previousPublicHosts.join(', ')} answer with a redirect to the same page here, so old links keep working.`
-                : 'None: no old address redirects here.'
-            }
-          >
-            <Link to="/instance/health" className={styles.env}>
-              See the move checklist
-            </Link>
-          </Setting>
-        </div>
-      </section>
+      <SettingsSection
+        title="Dashboard address"
+        description="Every link CirCI sends out uses it: pull request comments, checks, emails, the GitHub App’s webhook."
+      >
+        <Setting title={<Text variant="mono">{settings.publicUrl}</Text>} env="PUBLIC_URL" />
+        <Setting
+          title="Old addresses that redirect here"
+          env="PREVIOUS_PUBLIC_URLS"
+          note={
+            settings.previousPublicHosts.length > 0
+              ? `${settings.previousPublicHosts.join(', ')} answer with a redirect to the same page here, so old links keep working.`
+              : 'None: no old address redirects here.'
+          }
+        >
+          <Link to="/instance/health" className={styles.env}>
+            See the move checklist
+          </Link>
+        </Setting>
+      </SettingsSection>
 
-      <section className={styles.section} aria-label="Sign-in methods">
-        <SectionHeader
-          title="Sign-in methods allowed on this instance"
-          description="The outer limit. Each workspace can turn methods off for its own people, never on beyond this."
-        />
-        <div className={styles.box}>
-          {signInMethods(settings.auth).map((m) => (
-            <Setting key={m.key} title={m.name} note={m.description} env={m.env}>
-              <Badge shape="tag" tone="state" state={m.allowed ? 'approved' : 'review'}>
-                {m.allowed ? 'Allowed' : 'Off'}
-              </Badge>
-            </Setting>
-          ))}
-        </div>
-      </section>
+      <SettingsSection
+        title="Sign-in methods allowed on this instance"
+        description="The outer limit. Each workspace can turn methods off for its own people, never on beyond this."
+      >
+        {signInMethods(settings.auth).map((m) => (
+          <Setting key={m.key} title={m.name} note={m.description} env={m.env}>
+            <Badge shape="tag" tone="state" state={m.allowed ? 'approved' : 'review'}>
+              {m.allowed ? 'Allowed' : 'Off'}
+            </Badge>
+          </Setting>
+        ))}
+      </SettingsSection>
 
       <MailSection mail={settings.mail} />
 
-      <section className={styles.section} aria-label="Storage and limits">
-        <SectionHeader
-          title="Storage and limits"
-          description="Where files live, and how long unused ones and unfinished builds are kept."
+      <SettingsSection
+        title="Storage and limits"
+        description="Where files live, and how long unused ones and unfinished builds are kept."
+      >
+        <Setting
+          title={
+            settings.storage.driver === 's3'
+              ? `S3 bucket ${settings.storage.bucket ?? ''}`
+              : 'Local disk'
+          }
+          env="STORAGE_DRIVER"
         />
-        <div className={styles.box}>
-          <Setting
-            title={
-              settings.storage.driver === 's3'
-                ? `S3 bucket ${settings.storage.bucket ?? ''}`
-                : 'Local disk'
-            }
-            env="STORAGE_DRIVER"
-          />
-          <Setting
-            title={`New teams keep builds for ${retention.defaultTeamRetentionDays} days`}
-            note="Each team can change this in its own settings."
-            env="DEFAULT_TEAM_RETENTION_DAYS"
-          />
-          <Setting
-            title={`Unused files are deleted after ${retention.gcGraceHours} hours`}
-            env="GC_GRACE_HOURS"
-          />
-          <Setting
-            title={
-              retention.uploadTimeoutMinutes === 0
-                ? 'A build that is still uploading never times out'
-                : `A build still uploading after ${retention.uploadTimeoutMinutes} minutes fails`
-            }
-            env="UPLOAD_TIMEOUT_MINUTES"
-          />
-          <Setting
-            title={
-              settings.webhooksAllowPrivateAddresses
-                ? 'Webhooks may call private addresses'
-                : 'Webhooks may not call private addresses'
-            }
-            env="WEBHOOK_ALLOW_PRIVATE_ADDRESSES"
-          />
-        </div>
-      </section>
+        <Setting
+          title={`New teams keep builds for ${retention.defaultTeamRetentionDays} days`}
+          note="Each team can change this in its own settings."
+          env="DEFAULT_TEAM_RETENTION_DAYS"
+        />
+        <Setting
+          title={`Unused files are deleted after ${retention.gcGraceHours} hours`}
+          env="GC_GRACE_HOURS"
+        />
+        <Setting
+          title={
+            retention.uploadTimeoutMinutes === 0
+              ? 'A build that is still uploading never times out'
+              : `A build still uploading after ${retention.uploadTimeoutMinutes} minutes fails`
+          }
+          env="UPLOAD_TIMEOUT_MINUTES"
+        />
+        <Setting
+          title={
+            settings.webhooksAllowPrivateAddresses
+              ? 'Webhooks may call private addresses'
+              : 'Webhooks may not call private addresses'
+          }
+          env="WEBHOOK_ALLOW_PRIVATE_ADDRESSES"
+        />
+      </SettingsSection>
 
-      <section className={styles.section} aria-label="Hosted sites">
-        <SectionHeader
-          title="Hosted sites"
-          description="Storybooks and reports are served from their own domain so their code can never touch your sign-in cookies."
-        />
-        <div className={styles.box}>
-          {settings.staticSites ? (
-            <Setting
-              title={<Text variant="mono">{settings.staticSites.host}</Text>}
-              note={`Largest site ${settings.staticSites.maxMb} MB. Teams switch hosting on in their own settings.`}
-              env="STATIC_SITES_HOST, STATIC_SITES_MAX_MB"
-            >
-              <Link to="/instance/health" className={styles.env}>
-                Check domain rules
-              </Link>
-            </Setting>
-          ) : (
-            <Setting
-              title="Not set up"
-              note="Teams cannot host sites until a separate domain is configured."
-              env="STATIC_SITES_HOST"
-            />
-          )}
-        </div>
-      </section>
+      <SettingsSection
+        title="Hosted sites"
+        description="Storybooks and reports are served from their own domain so their code can never touch your sign-in cookies."
+      >
+        {settings.staticSites ? (
+          <Setting
+            title={<Text variant="mono">{settings.staticSites.host}</Text>}
+            note={`Largest site ${settings.staticSites.maxMb} MB. Teams switch hosting on in their own settings.`}
+            env="STATIC_SITES_HOST, STATIC_SITES_MAX_MB"
+          >
+            <Link to="/instance/health" className={styles.env}>
+              Check domain rules
+            </Link>
+          </Setting>
+        ) : (
+          <Setting
+            title="Not set up"
+            note="Teams cannot host sites until a separate domain is configured."
+            env="STATIC_SITES_HOST"
+          />
+        )}
+      </SettingsSection>
     </>
   )
 }
@@ -179,12 +153,11 @@ function MailSection({ mail }: { mail: InstanceAdmin.Settings['mail'] }) {
   const test = useSendTestMail()
   const result = test.data
   return (
-    <section className={styles.section} aria-label="Mail">
-      <SectionHeader
+    <>
+      <SettingsSection
         title="Mail"
         description="Sign-in codes, invitations, new sign-in alerts and review emails go out through this server."
-      />
-      <div className={styles.box}>
+      >
         {mail.configured ? (
           <>
             <Setting
@@ -205,17 +178,14 @@ function MailSection({ mail }: { mail: InstanceAdmin.Settings['mail'] }) {
             env="SMTP_HOST, SMTP_FROM"
           />
         )}
-        <div className={styles.boxRow}>
-          <span className={styles.grow}>
-            <Text>Send a test mail to your own address</Text>
-          </span>
+        <SettingsRow label="Send a test mail to your own address">
           <Button loading={test.isPending} onClick={() => test.mutate()}>
             Send test mail
           </Button>
-        </div>
-      </div>
+        </SettingsRow>
+      </SettingsSection>
       {test.error ? <Banner tone="danger">{test.error.message}</Banner> : null}
       {result ? <Banner tone={result.ok ? 'success' : 'danger'}>{result.message}</Banner> : null}
-    </section>
+    </>
   )
 }

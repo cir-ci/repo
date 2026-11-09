@@ -12,12 +12,19 @@ const ROUTES = {
     body: {
       warned: true,
       findings: [
-        { id: 'db', level: 'ok', message: 'Postgres answers.', fix: null },
+        { id: 'storage', level: 'ok', message: 'Storage (disk) is writable.', fix: null },
+        { id: 'host:acme-sites.io', level: 'ok', message: 'acme-sites.io: no cookies.', fix: null },
         {
-          id: 'cookies',
+          id: 'host:www.acme.io',
           level: 'warn',
           message: 'www.acme.io sets a cookie for the whole domain.',
           fix: 'Make the cookie host-only.',
+        },
+        {
+          id: 'reminder',
+          level: 'info',
+          message: 'See docs/reference/static-sites.md for the rules.',
+          fix: null,
         },
       ],
     },
@@ -36,6 +43,7 @@ const ROUTES = {
       ],
     },
   },
+  'GET /api/setup': { body: { needed: false } },
   'GET /api/instance/health/address-checklist': {
     body: {
       publicUrl: 'https://ci.acme.io',
@@ -44,8 +52,9 @@ const ROUTES = {
           id: 'dns',
           title: 'Point DNS and TLS at CirCI',
           detail: 'Keep the old address redirecting.',
-          values: ['PUBLIC_URL=https://ci.acme.io'],
+          values: ['PUBLIC_URL=https://ci.acme.io', 'PREVIOUS_PUBLIC_URLS=circi.acme.dev'],
         },
+        { id: 'sessions', title: 'People sign in again once', detail: 'Cookies.', values: [] },
       ],
     },
   },
@@ -58,18 +67,74 @@ describe('the health page', () => {
     await expect.element(page.getByRole('heading', { level: 1, name: 'Health' })).toBeVisible()
     await expect.element(page.getByText('1 check needs attention')).toBeVisible()
     await expect.element(page.getByText('How to fix: Make the cookie host-only.')).toBeVisible()
-    await expect.element(page.getByText('Check', { exact: true })).toBeVisible()
-    await expect.element(page.getByText('Passing')).toBeVisible()
     const messages = document.body.textContent ?? ''
-    expect(messages.indexOf('www.acme.io sets')).toBeLessThan(messages.indexOf('Postgres answers'))
+    expect(messages.indexOf('www.acme.io sets')).toBeLessThan(messages.indexOf('acme-sites.io: no'))
     await expect.element(page.getByText('14 waiting · 3 running · 1 failed')).toBeVisible()
-    await expect.element(page.getByText('PUBLIC_URL=https://ci.acme.io')).toBeVisible()
+    await expect.element(page.getByText(/PUBLIC_URL=https:\/\/ci\.acme\.io/)).toBeVisible()
+  })
+
+  it('groups what it finds into sections, each check a row with its badge', async () => {
+    fakeApi(ROUTES)
+    await show()
+    await expect.element(page.getByText('Storage (disk) is writable.')).toBeVisible()
+    const sections = page.getByRole('heading', { level: 2 }).elements()
+    expect(sections.map((h) => h.textContent)).toEqual([
+      'Summary',
+      'Services',
+      'Domains and cookies',
+      'Moving to ci.acme.io',
+      'Background jobs',
+      'Queues',
+      'Setup code',
+    ])
+    const services = page.getByRole('region', { name: 'Services' })
+    await expect.element(services.getByText('Storage (disk) is writable.')).toBeVisible()
+    await expect.element(services.getByText('Passing')).toBeVisible()
+    const domains = page.getByRole('region', { name: 'Domains and cookies' })
+    await expect.element(domains.getByText('www.acme.io', { exact: true })).toBeVisible()
+    await expect.element(domains.getByText('Check', { exact: true })).toBeVisible()
+    await expect.element(domains.getByText('Passing')).toBeVisible()
+    // The page says its own piece about cookies; the developer path in the doctor's reminder is gone.
+    expect(document.body.textContent).not.toContain('docs/reference')
+    await expect.element(domains.getByText(/may live on the sites domain/)).toBeVisible()
+  })
+
+  it('summarises the checks as counts with their badges', async () => {
+    fakeApi(ROUTES)
+    await show()
+    const summary = page.getByRole('region', { name: 'Summary' })
+    await expect.element(summary.getByText('Need a look')).toBeVisible()
+    const counts = summary
+      .getByRole('definition')
+      .elements()
+      .map((d) => d.textContent)
+    // Two checks pass, one needs a look, and the reminder note is not counted.
+    expect(counts).toEqual(['2', 'Passing', '1', 'Check', '0', 'Note'])
+  })
+
+  it('turns the move into numbered steps, Done where the configuration shows it', async () => {
+    fakeApi(ROUTES)
+    await show()
+    const move = page.getByRole('region', { name: 'Moving to ci.acme.io' })
+    await expect.element(move.getByText('Point DNS and TLS at CirCI')).toBeVisible()
+    await expect.element(move.getByText('Done', { exact: true })).toBeVisible()
+    await expect.element(move.getByText('To do', { exact: true })).toBeVisible()
+    await expect.element(move.getByText('1', { exact: true })).toBeVisible()
+    await expect.element(move.getByText('2', { exact: true })).toBeVisible()
+  })
+
+  it('shows whether the setup page is still open', async () => {
+    fakeApi({ ...ROUTES, 'GET /api/setup': { body: { needed: true } } })
+    await show()
+    const setup = page.getByRole('region', { name: 'Setup code' })
+    await expect.element(setup.getByText('open', { exact: true })).toBeVisible()
+    await expect.element(setup.getByText('Not set up')).toBeVisible()
   })
 
   it('runs the checks again when asked', async () => {
     const fake = fakeApi(ROUTES)
     await show()
-    await expect.element(page.getByText('Postgres answers.')).toBeVisible()
+    await expect.element(page.getByText('Storage (disk) is writable.')).toBeVisible()
     const before = fake.calls.filter((c) => c.path.endsWith('/checks')).length
     await page.getByRole('button', { name: 'Run checks again' }).click()
     await expect

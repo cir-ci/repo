@@ -4,7 +4,8 @@ import {
   generalDirty,
   generalPatch,
   generalProblems,
-  nameConfirmed,
+  inheritance,
+  slugConfirmed,
   retentionDirty,
   retentionProblem,
   validateDomain,
@@ -95,11 +96,33 @@ describe('validateSso', () => {
   })
 })
 
-describe('nameConfirmed', () => {
-  it('needs the name exactly (spaces around it are fine, case is not)', () => {
-    expect(nameConfirmed('Acme Inc', 'Acme Inc')).toBe(true)
-    expect(nameConfirmed('  Acme Inc ', 'Acme Inc')).toBe(true)
-    expect(nameConfirmed('acme inc', 'Acme Inc')).toBe(false)
-    expect(nameConfirmed('', '')).toBe(false)
+describe('slugConfirmed', () => {
+  it('needs the address exactly (spaces around it are fine, case is not)', () => {
+    expect(slugConfirmed('acme-inc', 'acme-inc')).toBe(true)
+    expect(slugConfirmed('  acme-inc ', 'acme-inc')).toBe(true)
+    expect(slugConfirmed('Acme-Inc', 'acme-inc')).toBe(false)
+    expect(slugConfirmed('Acme Inc', 'acme-inc')).toBe(false)
+    expect(slugConfirmed('', '')).toBe(false)
+  })
+})
+
+describe('inheritance', () => {
+  it('counts the teams that follow the default and names the ones that override it', () => {
+    expect(
+      inheritance([
+        { name: 'Web', flakyBlocksMerge: null },
+        { name: 'Docs', flakyBlocksMerge: null },
+        { name: 'marketing-site', flakyBlocksMerge: false },
+      ]),
+    ).toEqual({
+      summary: '2 teams inherit this, 1 overrides it',
+      overrides: ['marketing-site: off'],
+    })
+  })
+  it('has nothing to say about overrides when every team follows the default', () => {
+    expect(inheritance([{ name: 'Web', flakyBlocksMerge: null }])).toEqual({
+      summary: '1 team inherits this',
+      overrides: [],
+    })
   })
 })

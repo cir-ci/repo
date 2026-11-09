@@ -408,6 +408,7 @@ describe('workspace settings', () => {
     expect(owner).toEqual({
       canManage: true,
       settings: { flakyBlocksMerge: true, retentionDays: 30 },
+      teams: [{ slug: 'web', name: 'web', flakyBlocksMerge: null }],
     })
     expect((await call('GET', workspaceUrl(), memberCookie)).json().canManage).toBe(false)
   })

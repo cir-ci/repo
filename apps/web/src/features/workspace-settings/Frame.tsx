@@ -1,16 +1,22 @@
 import type { ReactNode } from 'react'
 
+import { crumbsFor, workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { PageFrame } from '#lib/PageFrame.tsx'
 
-import styles from './Settings.module.css'
-
-/** The header and one column every settings page here shares, with its loading and error states. */
-export function Frame({ crumbs, ...rest }: Frame.Props) {
+/**
+ * The header and the one centred column every settings page here shares, with its loading and
+ * error states. A workspace page passes `workspace` (display name and slug) and gets `Workspace /
+ * Settings / Page` (see `lib/crumbs.ts`); an account or instance page passes plain `crumbs`.
+ */
+export function Frame({ crumbs, workspace, page, ...rest }: Frame.Props) {
   return (
     <PageFrame
-      crumbs={crumbs.slice(0, -1).map((label) => ({ label }))}
-      title={crumbs.at(-1) ?? ''}
-      contentClassName={styles.content}
+      crumbs={
+        workspace
+          ? crumbsFor({ workspace }, [workspaceSettingsCrumb(workspace.slug)])
+          : (crumbs ?? []).slice(0, -1).map((label) => ({ label }))
+      }
+      title={page ?? crumbs?.at(-1) ?? ''}
       {...rest}
     />
   )
@@ -18,8 +24,13 @@ export function Frame({ crumbs, ...rest }: Frame.Props) {
 
 export namespace Frame {
   export interface Props {
-    /** The path to the page, outermost first; the last is the page's `<h1>`. */
-    crumbs: string[]
+    /** A workspace settings page: the workspace's display name and slug. */
+    workspace?: { slug: string; name: string }
+    /** The page's `<h1>` for a workspace page. */
+    page?: string
+    /** Otherwise the path to the page as plain text, outermost first; the last is the `<h1>`. */
+    crumbs?: string[]
+    width?: 'default' | 'wide'
     loading?: boolean
     error?: Error | null
     onRetry?: () => void

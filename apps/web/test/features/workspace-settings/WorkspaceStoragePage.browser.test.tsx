@@ -42,7 +42,7 @@ function daysIn(body: unknown): number {
   }
   throw new Error('no retentionDays in the request')
 }
-const days = () => page.getByRole('textbox', { name: 'Days' })
+const days = () => page.getByRole('textbox', { name: 'Default retention in days' })
 
 describe('WorkspaceStoragePage', () => {
   it('shows the total, each kind with its size, and teams by size with their retention', async () => {
@@ -50,11 +50,11 @@ describe('WorkspaceStoragePage', () => {
     fakeApi({ ...NAME, 'GET /api/workspaces/acme/storage': { body: usage() } })
     await renderPage(<WorkspaceStoragePage />, ROUTE)
     await expect.element(page.getByRole('heading', { name: 'Storage used 4 MB' })).toBeVisible()
-    const kinds = page.getByRole('group', { name: 'Storage by kind' })
+    const kinds = page.getByRole('region', { name: /^Storage used/ })
     await expect.element(kinds.getByText('Screenshots')).toBeVisible()
     await expect.element(kinds.getByText('3 MB')).toBeVisible()
     await expect.element(kinds.getByText('34 files, 5 versions')).toBeVisible()
-    const teams = page.getByRole('group', { name: 'Storage by team' })
+    const teams = page.getByRole('region', { name: 'By team' })
     const links = teams.getByRole('link')
     await expect.element(links.first()).toHaveAccessibleName('Web App')
     await expect.element(links.last()).toHaveAccessibleName('Docs')

@@ -8,9 +8,12 @@ import {
   banProblem,
   banSummary,
   emptyAccountDraft,
+  findingCounts,
+  findingHost,
   findingsSummary,
   formatAge,
   formatDay,
+  groupFindings,
   isForbidden,
   lastSeen,
   mailServer,
@@ -19,6 +22,7 @@ import {
   signInMethods,
   slugPreview,
   sortFindings,
+  stepDone,
   workspaceProblems,
 } from '#features/instance/api/admin.ts'
 import { HttpError } from '#lib/http.ts'
@@ -172,6 +176,7 @@ describe('instance settings', () => {
   })
 })
 
+const step = (values: string[]) => ({ id: 'dns', title: 't', detail: 'd', values })
 const f = (id: string, level: 'ok' | 'warn' | 'info') => ({ id, level, message: id, fix: null })
 
 describe('health', () => {
@@ -184,6 +189,42 @@ describe('health', () => {
     expect(findingsSummary([f('a', 'ok')])).toBe('Everything passes')
     expect(findingsSummary([f('a', 'warn')])).toBe('1 check needs attention')
     expect(findingsSummary([f('a', 'warn'), f('b', 'warn')])).toBe('2 checks need attention')
+  })
+
+  it('groups storage as a service and the rest as domains, without the reminder', () => {
+    const groups = groupFindings([
+      f('host:acme.io', 'ok'),
+      f('storage', 'ok'),
+      f('public-url', 'warn'),
+      f('reminder', 'info'),
+    ])
+    expect(groups.services.map((x) => x.id)).toEqual(['storage'])
+    expect(groups.domains.map((x) => x.id)).toEqual(['public-url', 'host:acme.io'])
+  })
+
+  it('counts passing, warned and noted findings, leaving the reminder out', () => {
+    expect(
+      findingCounts([
+        f('a', 'ok'),
+        f('b', 'ok'),
+        f('c', 'warn'),
+        f('d', 'info'),
+        f('reminder', 'info'),
+      ]),
+    ).toEqual({ passing: 2, warned: 1, notes: 1 })
+  })
+
+  it('names the host of a host finding', () => {
+    expect(findingHost(f('host:acme.io', 'ok'))).toBe('acme.io')
+    expect(findingHost(f('storage', 'ok'))).toBeUndefined()
+  })
+
+  it('calls the address step done only once the old address is listed', () => {
+    expect(
+      stepDone(step(['PUBLIC_URL=https://ci.acme.io', 'PREVIOUS_PUBLIC_URLS=circi.acme.dev'])),
+    ).toBe(true)
+    expect(stepDone(step(['PREVIOUS_PUBLIC_URLS=<the old address>']))).toBe(false)
+    expect(stepDone({ id: 'sessions', title: 't', detail: 'd', values: [] })).toBe(false)
   })
 
   it('totals the queues and finds the oldest waiting job', () => {

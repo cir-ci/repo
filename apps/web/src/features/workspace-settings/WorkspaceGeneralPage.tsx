@@ -1,4 +1,12 @@
-import { Banner, Button, SectionHeader, Text, TextField, useAnnounce } from '@circi/ui'
+import {
+  Banner,
+  Button,
+  SettingsRow,
+  SettingsSection,
+  Text,
+  TextField,
+  useAnnounce,
+} from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
@@ -6,7 +14,6 @@ import { useState, type FormEvent } from 'react'
 import { useDocumentTitle } from '#lib/document-title.ts'
 
 import { workspaceGeneralQuery, useSaveWorkspaceGeneral } from './api.ts'
-import { Box, BoxRow } from './Box.tsx'
 import { BuildSettings } from './BuildSettings.tsx'
 import { DeleteWorkspaceSection } from './DeleteWorkspaceSection.tsx'
 import { Frame } from './Frame.tsx'
@@ -24,7 +31,8 @@ export function WorkspaceGeneralPage() {
 
   return (
     <Frame
-      crumbs={[data?.name ?? workspace, 'Settings', 'General']}
+      workspace={{ slug: workspace, name: data?.name ?? workspace }}
+      page="General"
       loading={!data && !error}
       error={error}
       onRetry={() => void refetch()}
@@ -33,7 +41,7 @@ export function WorkspaceGeneralPage() {
     >
       {data ? (
         <>
-          <Text as="p" tone="secondary" className={styles.intro}>
+          <Text as="p" tone="secondary">
             The workspace’s name, its address in CirCI, and the defaults its teams start from.
           </Text>
           {/* Keyed by the saved values, so a save (or a rename elsewhere) resets the form. */}
@@ -81,40 +89,41 @@ function IdentityForm({ workspace, saved, canManage }: IdentityForm.Props) {
   }
 
   return (
-    <form className={styles.section} onSubmit={submit} noValidate aria-labelledby="identity">
-      <SectionHeader
+    <form onSubmit={submit} noValidate aria-labelledby="identity" className={styles.form}>
+      <SettingsSection
         title={<span id="identity">Workspace</span>}
         description="Shown in the sidebar, in invitations and in pull request comments."
-      />
-      <Box>
-        <div className={styles.fieldRow}>
-          <TextField
-            label="Name"
-            name="name"
-            value={draft.name}
-            disabled={!canManage}
-            error={problems.name}
-            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-          />
-          <TextField
-            label="URL slug"
-            name="slug"
-            value={draft.slug}
-            disabled={!canManage}
-            error={problems.slug}
-            onChange={(e) => setDraft({ ...draft, slug: e.target.value })}
-          />
-        </div>
+      >
+        <SettingsRow>
+          <div className={styles.fieldRow}>
+            <TextField
+              label="Name"
+              name="name"
+              value={draft.name}
+              disabled={!canManage}
+              error={problems.name}
+              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+            />
+            <TextField
+              label="URL slug"
+              name="slug"
+              value={draft.slug}
+              disabled={!canManage}
+              error={problems.slug}
+              onChange={(e) => setDraft({ ...draft, slug: e.target.value })}
+            />
+          </div>
+        </SettingsRow>
         {slugChanged ? (
-          <BoxRow>
-            <Banner tone="warning" className={styles.intro}>
+          <SettingsRow>
+            <Banner tone="warning">
               Links with <Text variant="mono">/{saved.slug}/</Text> in them stop working, including
               bookmarks and the links in existing pull request comments. New builds post the new
               address.
             </Banner>
-          </BoxRow>
+          </SettingsRow>
         ) : null}
-      </Box>
+      </SettingsSection>
       {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
       {canManage ? (
         <div className={styles.footer}>
