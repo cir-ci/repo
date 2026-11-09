@@ -13,7 +13,7 @@ import {
 } from '@circi/ui'
 import { type FormEvent, useState } from 'react'
 
-import { useSaveSettings, useUnlinkRepository } from '#features/teams/api/index.ts'
+import { type useSaveSettings, useUnlinkRepository } from '#features/teams/api/index.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 
 import { choiceOf, flakyChoices, type FlakyChoice, isFlakyChoice } from './flaky-setting.ts'
@@ -28,11 +28,12 @@ const text = (form: FormData, key: string) => {
 
 /** The board's General page below the appearance: team, repository, comparison, gate, sites. */
 export function SettingsForm(props: SettingsForm.Props) {
-  const save = useSaveSettings(props.workspace, props.team)
+  // The page owns the save and its confirmation: saving refetches the settings, which remounts
+  // this form (it is keyed by them), and a remounted form would lose both.
+  const { save, saved, onSavedChange: setSaved } = props
   const unlink = useUnlinkRepository(props.workspace, props.team)
   const announce = useAnnounce()
   const clientLink = useClientLink()
-  const [saved, setSaved] = useState(false)
   const [unlinking, setUnlinking] = useState(false)
   // Discard remounts the fields from the saved values.
   const [version, setVersion] = useState(0)
@@ -255,5 +256,10 @@ export namespace SettingsForm {
     workspaceFlakyBlocksMerge: boolean
     /** The instance can host sites (so the switch is shown). */
     sitesConfigured?: boolean
+    /** The save mutation, held by the page so it outlives a remount of this form. */
+    save: ReturnType<typeof useSaveSettings>
+    /** Whether to show "Settings saved." (also held by the page). */
+    saved: boolean
+    onSavedChange: (saved: boolean) => void
   }
 }

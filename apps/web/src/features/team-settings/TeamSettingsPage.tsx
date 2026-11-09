@@ -1,6 +1,8 @@
 import { useParams } from '@tanstack/react-router'
+import { useState } from 'react'
 
 import { GitAttentionBanner } from '#features/builds/list/GitAttentionBanner.tsx'
+import { useSaveSettings } from '#features/teams/api/index.ts'
 import { AppearanceSection } from '#features/teams/AppearanceSection.tsx'
 import { DeleteTeamSection } from '#features/teams/DeleteTeamSection.tsx'
 
@@ -10,6 +12,8 @@ import { TeamSettingsFrame } from './TeamSettingsFrame.tsx'
 /** A team's General settings. Owners and admins edit; members look. */
 export function TeamSettingsPage() {
   const { workspace, team } = useParams({ from: '/$workspace/$team/settings' })
+  const save = useSaveSettings(workspace, team)
+  const [saved, setSaved] = useState(false)
   return (
     <TeamSettingsFrame workspace={workspace} team={team} page="General">
       {(data, name) => (
@@ -32,6 +36,9 @@ export function TeamSettingsPage() {
             link={data.github.link}
             workspaceFlakyBlocksMerge={data.workspace.flakyBlocksMerge}
             sitesConfigured={data.sitesConfigured}
+            save={save}
+            saved={saved}
+            onSavedChange={setSaved}
           />
           <DeleteTeamSection
             workspace={workspace}

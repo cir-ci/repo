@@ -149,6 +149,30 @@ describe('TeamSettingsPage', () => {
       .toBeVisible()
   })
 
+  it('still confirms the save when the server answers with the new values', async () => {
+    // A real server returns what was saved, so the refetch changes the form's key and remounts
+    // it: the confirmation must survive that.
+    let saved = settings
+    fakeApi({
+      [`GET ${API}/settings`]: () => ({ body: response({ settings: saved }) }),
+      [`PATCH ${API}/settings`]: (body) => {
+        if (typeof body === 'object' && body && 'name' in body && typeof body.name === 'string') {
+          saved = { ...settings, name: body.name }
+        }
+        return { body: { settings: saved } }
+      },
+    })
+    await show()
+    await expect.element(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Web App')
+    await page.getByRole('textbox', { name: 'Name' }).fill('Web')
+    await page.getByRole('button', { name: 'Save settings' }).click()
+    await expect.element(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Web')
+    await expect.element(page.getByText('Settings saved.')).toBeVisible()
+    await expect
+      .element(page.getByRole('status').filter({ hasText: /^Settings saved$/ }))
+      .toBeVisible()
+  })
+
   describe('flaky screenshots block merges', () => {
     it('inherits the workspace by default, and says what that currently means', async () => {
       api()
