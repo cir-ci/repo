@@ -18,7 +18,6 @@
     "pg": "catalog:"
   },
   "devDependencies": {
-    "@circi/testing": "workspace:*",
     "@electric-sql/pglite": "catalog:",
     "@types/pg": "catalog:",
     "drizzle-kit": "catalog:"

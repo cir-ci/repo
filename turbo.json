@@ -1,0 +1,58 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "stream",
+  "globalDependencies": [
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "tsconfig.base.json",
+    "tsconfig.json",
+    "tsdown.shared.ts"
+  ],
+  "globalEnv": ["NODE_ENV"],
+  "tasks": {
+    "transit": { "dependsOn": ["^transit"] },
+    "build": {
+      "dependsOn": ["^build", "transit"],
+      "outputs": ["dist/**"]
+    },
+    "//#format:check": {
+      "inputs": [
+        "$TURBO_ROOT$/{apps,packages,e2e,docs,deploy}/**",
+        "$TURBO_ROOT$/*.{json,ts,yaml,md}",
+        "!**/node_modules/**",
+        "!**/dist/**"
+      ],
+      "outputs": []
+    },
+    "//#lint": {
+      "inputs": [
+        "$TURBO_ROOT$/{apps,packages,e2e}/**/*.{ts,tsx,json,css}",
+        "$TURBO_ROOT$/.oxlintrc.json",
+        "$TURBO_ROOT$/*.{ts,json}",
+        "!**/node_modules/**",
+        "!**/dist/**"
+      ],
+      "outputs": []
+    },
+    "//#typecheck": {
+      "inputs": [
+        "$TURBO_ROOT$/{apps,packages,e2e}/**/*.{ts,tsx,json,css,d.ts}",
+        "$TURBO_ROOT$/*.{ts,json}",
+        "!**/node_modules/**",
+        "!**/dist/**"
+      ],
+      "outputs": []
+    },
+    "//#test": {
+      "inputs": [
+        "$TURBO_ROOT$/{apps,packages}/**",
+        "$TURBO_ROOT$/vitest.config.ts",
+        "!**/node_modules/**",
+        "!**/dist/**",
+        "!**/coverage/**",
+        "!**/.vitest/**"
+      ],
+      "outputs": []
+    }
+  }
+}

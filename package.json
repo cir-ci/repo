@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "pnpm --filter @circi/ui --filter @circi/cli --filter @circi/vitest --filter @circi/server build && pnpm --filter @circi/web build",
+    "build": "turbo run build",
     "typecheck": "tsc -p tsconfig.json && tsc -p apps/web && tsc -p packages/ui && tsc -p packages/ui/tsconfig.previews.json",
     "lint": "oxlint --type-aware --deny-warnings",
     "format": "oxfmt",
@@ -16,9 +16,11 @@
     "circi": "node --conditions=@circi/source apps/server/src/main.ts",
     "clean": "rm -rf apps/*/dist packages/*/dist .vitest coverage",
     "format:check": "oxfmt --check",
-    "db:auth-schema": "pnpm --filter @circi/auth schema"
+    "db:auth-schema": "pnpm --filter @circi/auth schema",
+    "gate": "turbo run //#format:check //#lint //#typecheck //#test build"
   },
   "devDependencies": {
+    "@circi/testing": "workspace:*",
     "@circi/ui": "workspace:*",
     "@circi/vitest": "workspace:*",
     "@types/node": "catalog:",
@@ -28,6 +30,7 @@
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
     "playwright": "catalog:",
+    "turbo": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },

@@ -4,7 +4,12 @@ Self-hosted visual regression testing (see PLAN.md for the design, README.md for
 
 ## Commands
 
-Node 26 via nvm, pnpm 12. Before committing: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build`.
+Node 26 via nvm, pnpm 12. Before committing: `pnpm format`, then `pnpm gate` (Turborepo: format check, lint, typecheck, test and
+build in parallel where independent, each cached by its inputs; a second run on an unchanged tree is instant). The old chain
+`pnpm lint && pnpm typecheck && pnpm test && pnpm build` still works. `pnpm build` is `turbo run build`: per-package
+caching of `dist/**`, with a `transit` task so a package's build is invalidated by changes in the packages it depends on, but
+not by unrelated ones. Tests, lint and typecheck stay single root commands (one vitest process with projects) and are cached as
+root tasks (`//#test`, `//#lint`, `//#typecheck` in `turbo.json`); end-to-end (`pnpm test:e2e`) and visual runs are never cached.
 What emits what: `tsc` only type-checks (`pnpm typecheck`, `noEmit`). `pnpm build` runs tsdown for
 `@circi/ui` (`dist`, browser), `@circi/cli` and `@circi/vitest` (published, `dist`) and `apps/server`
 (one bundle for the image), then Vite for `apps/web`. The other packages have no build: their

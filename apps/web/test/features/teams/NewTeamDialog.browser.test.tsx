@@ -117,7 +117,9 @@ describe('New team dialog', () => {
     await expect.element(panel).not.toMatchTextContent(/circi_secret_token_value/)
 
     // Arrow keys move between the tabs; the panel follows.
-    dialog.getByRole('tab', { name: 'GitHub Actions' }).element().focus()
+    // Click (not `.focus()`) so the dialog's own focus handling has settled before the key press.
+    await dialog.getByRole('tab', { name: 'GitHub Actions' }).click()
+    await expect.poll(() => document.activeElement?.textContent).toBe('GitHub Actions')
     await userEvent.keyboard('{ArrowRight}')
     await expect
       .element(dialog.getByRole('tab', { name: 'GitLab CI' }))

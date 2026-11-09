@@ -18,3 +18,5 @@ ds-bundle/
 # visual tests (@circi/vitest)
 .circi/
 .metadata_never_index
+
+.turbo
