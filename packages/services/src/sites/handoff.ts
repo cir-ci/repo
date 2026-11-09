@@ -1,5 +1,5 @@
 import { type Database } from '@circi/db'
-import { findSiteByLabel, getMemberRole, workspaceAcceptsSession } from '@circi/db/queries'
+import { findSiteByAddress, getMemberRole, workspaceAcceptsSession } from '@circi/db/queries'
 import { createSiteToken, type SessionMethod } from '@circi/db/repositories'
 
 /**
@@ -13,8 +13,9 @@ export async function handOffToSite(
   input: handOffToSite.Input,
 ): Promise<string | undefined> {
   const { label, userId, sessionId, method } = input
-  // Only addresses that exist match: a malformed label simply finds nothing.
-  const found = await findSiteByLabel(db, label)
+  // Only addresses that exist match (a hostname label, or a verified custom domain): a
+  // malformed one simply finds nothing.
+  const found = await findSiteByAddress(db, label)
   if (!found) return undefined
   const workspaceId = found.workspace.id
   if ((await getMemberRole(db, { userId, workspaceId })) === undefined) return undefined
@@ -24,7 +25,7 @@ export async function handOffToSite(
 
 export namespace handOffToSite {
   export interface Input {
-    /** The address (site label) the person wants to open. */
+    /** The address the person wants to open: a site label, or a custom domain. */
     label: string
     userId: string
     /** The dashboard session the token is tied to. */

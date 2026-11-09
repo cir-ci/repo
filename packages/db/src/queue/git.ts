@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm'
 
 import { getGitMapping, type GitKinds, type GitLink } from '#queries/git-links.ts'
 import {
@@ -99,6 +99,8 @@ export namespace getGitTarget {
     teamName: string
     blockMergeOnChanges: boolean
     commentsEnabled: boolean
+    /** The team hosts static sites: the pull request comment lists a commit's. */
+    staticHostingEnabled: boolean
     /** The connection is marked as unusable; a successful notify clears it. */
     connectionNeedsAttention: boolean
   }
@@ -117,6 +119,7 @@ export async function getGitTarget(
       teamSlug: teams.slug,
       teamName: teams.name,
       block: teams.blockMergeOnChanges,
+      hosting: teams.staticHostingEnabled,
       repoRef: integrationTeams.externalRef,
       integrationId: integrations.id,
       installationId: integrations.externalId,
@@ -140,6 +143,7 @@ export async function getGitTarget(
     teamName: row.teamName,
     blockMergeOnChanges: row.block,
     commentsEnabled: true,
+    staticHostingEnabled: row.hosting,
     connectionNeedsAttention: row.attention,
     repoRef: row.repoRef,
     integrationId: row.integrationId,
@@ -152,19 +156,56 @@ export async function getGitTarget(
 /**
  * Queues a "tell the git host" job when the build's team is linked to a repository. Call it
  * inside the transaction that changed the build. One job per distinct state, so a change that
- * lands while an older job runs still gets reported.
+ * lands while an older job runs still gets reported. `variant` tells apart changes the build's
+ * own state doesn't show (a site uploaded for its commit, a snapshot decided): the job reads the
+ * current state either way, but a job already running has read it before the change.
  */
 export async function queueGitNotify(
   db: Database,
   build: Pick<Build, 'id' | 'teamId' | 'status' | 'conclusion' | 'reviewStatus'>,
   kinds: GitKinds,
+  variant?: string,
 ): Promise<void> {
   if (!(await getGitMapping(db, build.teamId, kinds))) return
   await enqueueJob(db, {
     queue: GIT_NOTIFY_QUEUE,
     payload: { buildId: build.id },
-    dedupeKey: `git-notify:${build.id}:${build.status}:${build.conclusion ?? '-'}:${build.reviewStatus}`,
+    dedupeKey: `git-notify:${build.id}:${build.status}:${build.conclusion ?? '-'}:${build.reviewStatus}${variant ? `:${variant}` : ''}`,
   })
+}
+
+/**
+ * Refreshes the pull request comments that list a commit's sites: one `git-notify` job for the
+ * newest build of each pull request that has this commit (the job rewrites the whole comment
+ * from the current state). Call it inside the transaction that stored the site. `commitSha` may
+ * be abbreviated like a build's.
+ */
+export async function queueGitNotifyForCommit(
+  db: Database,
+  input: { teamId: string; commitSha: string },
+  kinds: GitKinds,
+  variant: string,
+): Promise<void> {
+  const sha = input.commitSha.toLowerCase()
+  if (sha.length < 7 || !(await getGitMapping(db, input.teamId, kinds))) return
+  const rows = await db
+    .select()
+    .from(builds)
+    .where(
+      and(
+        eq(builds.teamId, input.teamId),
+        isNotNull(builds.prNumber),
+        sql`(starts_with(lower(${builds.commitSha}), ${sha}) or starts_with(${sha}, lower(${builds.commitSha})))`,
+      ),
+    )
+    .orderBy(desc(builds.number))
+  const seen = new Set<number>()
+  for (const build of rows) {
+    if (build.prNumber === null || seen.has(build.prNumber)) continue
+    seen.add(build.prNumber)
+    // eslint-disable-next-line no-await-in-loop -- a few pull requests, one transaction
+    await queueGitNotify(db, build, kinds, variant)
+  }
 }
 
 export async function getCheckRunId(db: Database, buildId: string): Promise<string | undefined> {

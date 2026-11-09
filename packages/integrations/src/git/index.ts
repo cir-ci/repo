@@ -16,4 +16,6 @@ export {
   PR_COMMENT_MARKER,
   prCommentBody,
   type ReportedBuild,
+  type ReportedReview,
+  type ReportedSite,
 } from './render.ts'

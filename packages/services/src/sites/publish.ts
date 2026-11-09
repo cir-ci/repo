@@ -1,11 +1,15 @@
 import { isSha256 } from '@circi/core'
 import { type Database } from '@circi/db'
 import { servedCommitForBranch } from '@circi/db/queries'
+import { queueGitNotifyForCommit } from '@circi/db/queue'
 import { ensureAssetFiles, publishSiteVersion } from '@circi/db/repositories'
+import { integrationRegistry } from '@circi/integrations'
 
 /**
  * Publishes an uploaded site: records its blobs, decides whether the branch address moves to
  * this version, and creates the version with its addresses, all in one transaction.
+ *
+ * The pull requests of this commit get their comment refreshed (it lists the sites).
  *
  * Whether the branch address moves (PLAN §7.6 "Branch-link rules"): only for the branch's tip,
  * never for a fork. With no tip, a local ancestry check can stand in.
@@ -39,7 +43,7 @@ export async function publishSite(
       }
     }
 
-    return publishSiteVersion(tx, {
+    const published = await publishSiteVersion(tx, {
       teamId: input.teamId,
       name: input.name,
       kind: input.kind,
@@ -52,6 +56,16 @@ export async function publishSite(
       slugPrefix: input.slugPrefix,
       addressing: input.addressing,
     })
+    // The pull request comment lists a commit's sites: the upload may land after the build's
+    // comment was written (or replace the files of an address it already links), so every pull
+    // request of this commit gets its comment rewritten, in the transaction that stored the site.
+    await queueGitNotifyForCommit(
+      tx,
+      { teamId: input.teamId, commitSha },
+      integrationRegistry.gitKinds(),
+      `site:${published.version.id}:${Date.now()}`,
+    )
+    return published
   })
 }
 

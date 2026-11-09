@@ -126,6 +126,12 @@ const comment = (pr: number, body: string, senderId = GITHUB_ID, type = 'User') 
 
 const reviewState = async (id: string) => (await getBuild(t.db, id))?.reviewStatus
 
+/** The review states the comment refresh was queued for (`git-notify` dedupe keys end with it). */
+const noticeStates = async (id: string) =>
+  (await t.db.select().from(schema.jobs).where(eq(schema.jobs.queue, 'git-notify')))
+    .filter((j) => j.payload.buildId === id)
+    .map((j) => j.dedupeKey?.split(':').at(-1))
+
 describe('GitHub webhook', () => {
   it('the pull request author replaces the login CI sent', async () => {
     n += 1
@@ -163,6 +169,8 @@ describe('GitHub webhook', () => {
     expect(await reviewState(build.id)).toBe('approved')
     const [latest] = await listBuildReviews(t.db, build.id)
     expect(latest).toMatchObject({ state: 'approved', source: 'github-check' })
+    // The comment and check follow: a notice for the approved state is queued.
+    expect(await noticeStates(build.id)).toContain('approved')
   })
 
   it('handles each delivery once', async () => {
@@ -192,8 +200,10 @@ describe('GitHub webhook', () => {
     await deliver('issue_comment', comment(20, 'Looks good\n/circi approve'))
     expect(await reviewState(build.id)).toBe('approved')
     expect(sent).toContain('react 555 +1')
+    expect(await noticeStates(build.id)).toContain('approved')
     await deliver('issue_comment', comment(20, '/circi reject'))
     expect(await reviewState(build.id)).toBe('rejected')
+    expect(await noticeStates(build.id)).toContain('rejected')
   })
 
   it('acts on the newest commit of the pull request only', async () => {

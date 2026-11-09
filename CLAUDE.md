@@ -44,7 +44,7 @@ adapters     packages/{integrations,storage,diff,sites}   talk to GitHub, Slack,
 ```
 
 Folder map: `apps/server/src/{http,cli,composition}` (`composition/` wires config, db, storage and
-the worker; `http/routes/<area>/` holds routes, schemas and presenters); `apps/worker/src` (claim
+the worker; `http/routes/<area>/` holds routes, schemas and presenters; `http/routes/internal.ts` answers the reverse proxy only, e.g. Caddy's `/internal/tls-ask` for sites' custom domains, never browsers); `apps/worker/src` (claim
 loop and thin job adapters, no build: the server bundle inlines it); `apps/web/src/{app,lib,features/<feature>}`;
 `packages/api` (the wire types, types only); `packages/auth` (better-auth composition);
 `packages/cli` (`circi upload`); `packages/config` (environment parsing); `packages/testing`

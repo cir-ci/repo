@@ -1,5 +1,6 @@
 import { openSecret } from '@circi/core/node'
 import { type Database, type Job, withAdvisoryLock } from '@circi/db'
+import { sitesForCommit } from '@circi/db/queries'
 import {
   buildsForPrSummary,
   getCheckRunId,
@@ -10,7 +11,7 @@ import {
   setCheckRunId,
   setPrCommentId,
 } from '@circi/db/queue'
-import { getBuildCounts } from '@circi/db/repositories'
+import { getBuildCounts, getBuildReviewSummary } from '@circi/db/repositories'
 import { type IntegrationDefinition, integrationRegistry } from '@circi/integrations'
 import {
   checkReport,
@@ -18,6 +19,7 @@ import {
   prCommentBody,
   type ProviderRegistry,
   type ReportedBuild,
+  type ReportedSite,
 } from '@circi/integrations/git'
 
 import { gateInputs } from '#src/builds/gate.ts'
@@ -38,8 +40,20 @@ export namespace notifyGit {
     github?: notifyGit.Provider | undefined
     /** Dashboard origin, for links back to the build. */
     publicOrigin: string
+    /**
+     * Static site hosting is on for the instance: where a site address opens, and what to call
+     * a kind. The pull request comment then lists the sites of its newest commit.
+     */
+    sites?: notifyGit.Sites | undefined
     /** The instance secret, to open a connection's sealed credentials (token hosts). */
     authSecret?: string | undefined
+  }
+
+  export interface Sites {
+    /** The full address of a site's hostname label. */
+    originFor(label: string): string
+    /** A site kind in words ("Storybook"). */
+    kindLabel(kind: string): string
   }
 
   export type Result = { status: 'skipped'; reason: string } | { status: 'notified' }
@@ -135,6 +149,9 @@ async function notifyLocked(
       errorMessage: b.errorMessage,
       counts,
       flakyOnly: gate.flakyOnly,
+      ...(b.status === 'complete' && b.conclusion === 'changes_detected'
+        ? { review: await getBuildReviewSummary(deps.db, b.id) }
+        : {}),
       url: `${deps.publicOrigin}/${target.workspaceSlug}/${target.teamSlug}/builds/${b.number}`,
     }
   }
@@ -145,7 +162,9 @@ async function notifyLocked(
 
   if (target.build.prNumber !== null && target.commentsEnabled) {
     const builds = await buildsForPrSummary(deps.db, target.build.teamId, target.build.prNumber)
-    const body = prCommentBody(await Promise.all(builds.map(reported)))
+    const body = prCommentBody(await Promise.all(builds.map(reported)), {
+      sites: await hostedSites(deps, target, builds[0]?.commitSha),
+    })
     const existing = await getPrCommentId(deps.db, target.build.teamId, target.build.prNumber)
     const commentId = await deps.provider.upsertComment(
       target.installationId,
@@ -184,4 +203,30 @@ async function setCheck(
     deps.credentials,
   )
   if (id && id !== existingId) await setCheckRunId(deps.db, target.build.id, id)
+}
+
+/**
+ * The sites uploaded for the pull request's newest commit, as the comment lists them: only when
+ * the instance hosts sites and the team has it switched on. Commit addresses only: they name
+ * exactly what this commit built.
+ */
+async function hostedSites(
+  deps: notifyGit.Deps,
+  target: NonNullable<Awaited<ReturnType<typeof getGitTarget>>>,
+  commitSha: string | undefined,
+): Promise<ReportedSite[]> {
+  const sites = deps.sites
+  if (!sites || !target.staticHostingEnabled || !commitSha) return []
+  const rows = await sitesForCommit(deps.db, target.build.teamId, commitSha)
+  return rows.flatMap((row) =>
+    row.commitLabel
+      ? [
+          {
+            name: row.name,
+            kindLabel: sites.kindLabel(row.kind),
+            url: sites.originFor(row.commitLabel),
+          },
+        ]
+      : [],
+  )
 }

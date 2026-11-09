@@ -28,6 +28,7 @@ import { dashboardIgnoreRegionRoutes } from './teams/ignore-regions.ts'
 import { dashboardTeamRoutes } from './teams/routes.ts'
 import { dashboardRuleRoutes } from './teams/rules.ts'
 import { dashboardSettingsRoutes } from './teams/settings.ts'
+import { dashboardSiteDomainRoutes } from './teams/site-domains.ts'
 import { dashboardSiteHandoffRoutes } from './teams/site-handoff.ts'
 import { dashboardTeamSitesRoutes } from './teams/sites.ts'
 import { dashboardTriageRoutes } from './teams/triage.ts'
@@ -103,6 +104,7 @@ const sessionApi: FastifyPluginAsync<Deps.Dashboard> = async (api, deps) => {
   await api.register(dashboardIssueTrackerRoutes, deps)
   await api.register(dashboardSiteHandoffRoutes, deps)
   await api.register(dashboardTeamSitesRoutes, deps)
+  await api.register(dashboardSiteDomainRoutes, deps)
   await api.register(dashboardBulkReviewRoutes, deps)
   await api.register(dashboardReviewRoutes, deps)
   await api.register(dashboardReviewRequestRoutes, deps)

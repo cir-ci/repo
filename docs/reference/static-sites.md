@@ -19,6 +19,22 @@ A branch address only moves when the upload is the branch's tip (`git ls-remote`
 
 Every request to a site needs sign-in: opening one sends you to the dashboard, which hands the site a one-minute single-use token if you belong to the team's workspace. The site then sets its own cookie (host-only, `HttpOnly`) and checks it against your dashboard session at least once a minute, so signing out or leaving the workspace ends access within a minute. An address that doesn't exist, has expired or isn't yours gets the same answer.
 
+## A custom domain for the default branch
+
+A site can have **one custom domain**, such as `storybook.acme.com`, that always serves the team's **default branch** (the team's *Default branch* setting, `main` unless changed): the newest upload that moved that branch's address. Until the default branch has an upload, the domain answers like an address that doesn't exist. Commit and branch addresses stay as they are.
+
+Set it in the dashboard (team → **Sites**, owners and admins), or with the API (`PUT`, `POST …/verify` and `DELETE` on `/api/teams/:workspace/:team/sites/:site/domain`, `:site` being the site's slug):
+
+1. Enter the domain. It must be a plain host name; CirCI refuses the dashboard host, anything related to it by the cookie rules below (the same rule as `STATIC_SITES_HOST`), the sites domain and everything under or above it, and a domain another site already holds.
+2. Add the DNS record it shows: a **CNAME** to `custom.<sites domain>` (any name under the sites domain reaches the server through the wildcard record). A domain that can't be a CNAME (an apex) can instead get `A`/`AAAA` records with the server's addresses.
+3. Press **Check DNS**. The domain is served, and gets a certificate, only once a check has seen it point at this server. A later check that no longer passes un-verifies it.
+
+Signing in works as on any site address, with the domain itself as the address: the dashboard hands the domain a one-minute single-use token, and the domain sets its own host-only `HttpOnly` cookie (`__Host-` over https). An unknown, unverified or empty domain gets the same answer as an address that doesn't exist.
+
+**Certificates** come from Caddy's on-demand TLS: the first request for the domain makes Caddy ask CirCI, `GET /internal/tls-ask?domain=<host>`, which answers `200` for a verified custom domain and `404` for everything else (empty body either way; the wildcard certificate is not involved). `deploy/Caddyfile` has the `on_demand_tls { ask … }` block and a catch-all `https://` site that uses it, and blocks `/internal/*` from the outside. The endpoint refuses requests that came through a proxy (`X-Forwarded-For`), and answers at most 300 questions a minute; keep it on the internal network (Caddy reaches it at `http://circi:3000`) and never publish it.
+
+⚠️ **Cookie scope applies to custom domains too.** The site runs uploaded JavaScript, so the domain must not share a cookie scope with the dashboard: with the dashboard on `ci.acme.io`, `storybook.acme.io` is refused (both could set cookies for `acme.io`); use another registrable domain such as `storybook.acme.com`.
+
 ## ⚠️ Step: check domain and cookie rules
 
 A hosted site runs **arbitrary JavaScript from the build you uploaded**. Two rules keep it from reaching anything else. CirCI cannot enforce them for you.
@@ -81,6 +97,10 @@ resource "aws_route53_record" "sites_wildcard" {
 
 Other DNS providers: swap `caddy-dns/route53` in `deploy/caddy/Dockerfile` and the `dns` line in the Caddyfile.
 
+## The pull request comment
+
+For a team with hosting on, the summary comment on a pull request (GitHub, GitLab and Bitbucket alike) also lists the sites uploaded for the pull request's newest commit, each linked to its **commit address**, under **Hosted sites for this commit**. The section is left out when there are none. A site uploaded after the comment was written queues the same `git-notify` job as a build change, so the comment is rewritten. The same comment shows each build's review status (pending, or approved or rejected with who decided, and per-snapshot counts when decisions are mixed) and is rewritten whenever it changes, whether from the dashboard, a check's Approve or Reject button, or `/circi approve` and `/circi reject`.
+
 ## What is not built yet
 
-Service-worker kinds, per-kind caching and isolation headers, the sign-in handoff, forks, and the address rules are in and tested. These parts of the plan are **not**: the injected site switcher, the embedded live view in the review page, deep links from screenshots to stories, the Sites row in the pull request comment, the per-file upload transport for S3, branch expiry and slug renames (`site_slug_history`), and garbage collection of old versions. Uploads are stored in the same storage as screenshots.
+Service-worker kinds, per-kind caching and isolation headers, the sign-in handoff, forks, and the address rules are in and tested. These parts of the plan are **not**: the injected site switcher, the embedded live view in the review page, deep links from screenshots to stories, the per-file upload transport for S3, branch expiry and slug renames (`site_slug_history`), and garbage collection of old versions. Uploads are stored in the same storage as screenshots.

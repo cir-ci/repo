@@ -18,9 +18,9 @@ import {
   seedChangedSnapshots,
 } from '@circi/db/testing'
 import { GithubApiError, GithubInstallationRevokedError } from '@circi/integrations/github'
-import { completeBuild, reviewBuild } from '@circi/services'
+import { completeBuild, publishSite, reviewBuild, reviewSnapshots } from '@circi/services'
 import { recordingGithub } from '@circi/testing/hosts'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { notifyGit } from '#jobs/notify-git.ts'
@@ -73,6 +73,176 @@ const failing = (error: Error) => ({
   upsertComment: async (): Promise<string> => {
     throw error
   },
+})
+
+const sitesDeps = {
+  originFor: (label: string) => `https://${label}.sites.test`,
+  kindLabel: (kind: string) => (kind === 'storybook' ? 'Storybook' : kind),
+}
+
+/** A PR build with two changed snapshots, complete, its notify job queued and waiting. */
+async function reviewableBuild(prNumber: number, commitSha = 'abc1234') {
+  await t.db.delete(schema.jobs)
+  const { team, owner } = await seedTeam(t.db)
+  await seedGitLink(t.db, team.id, { externalId: '99', repoRef: 'acme/web' })
+  const created = await createBuild(t.db, {
+    teamId: team.id,
+    commitSha,
+    branch: 'feature',
+    prNumber,
+  })
+  await t.db
+    .update(schema.builds)
+    .set({ status: 'processing' })
+    .where(eq(schema.builds.id, created.id))
+  await seedChangedSnapshots(t.db, created.id, ['home', 'pricing'])
+  await completeBuild(
+    t.db,
+    { ...created, status: 'processing' },
+    {
+      conclusion: 'changes_detected',
+      approval: 'none',
+    },
+  )
+  return { team, owner, build: created }
+}
+
+/** Queues a notice by hand, for a second look at the comment after the state changed. */
+async function queueNotice(buildId: string) {
+  await t.db.insert(schema.jobs).values({
+    queue: GIT_NOTIFY_QUEUE,
+    payload: { buildId },
+    dedupeKey: `manual-${Math.random()}`,
+  })
+}
+
+async function runNext(deps: Omit<notifyGit.Deps, 'db' | 'publicOrigin'> & object) {
+  const job = await nextJob()
+  const result = await notifyGit({ db: t.db, publicOrigin, ...deps }, job)
+  await completeJob(t.db, job.id)
+  return result
+}
+
+describe('the pull request comment', () => {
+  it('lists the sites uploaded for the head commit, and is rewritten when one is uploaded later', async () => {
+    const { team, build } = await reviewableBuild(5, 'abcdef012345')
+    await t.db
+      .update(schema.teams)
+      .set({ staticHostingEnabled: true })
+      .where(eq(schema.teams.id, team.id))
+    const fake = recordingGithub()
+    const deps = { github: fake.github, sites: sitesDeps }
+
+    await runNext(deps)
+    expect(fake.comments[0]?.body).not.toContain('Hosted sites')
+
+    await publishSite(t.db, {
+      teamId: team.id,
+      name: 'ui-sb',
+      kind: 'storybook',
+      spa: false,
+      commitSha: 'abcdef012345',
+      entryPath: 'index.html',
+      files: [{ path: 'index.html', sha256: 'a'.repeat(64), size: 3, contentType: 'text/html' }],
+      storageKeys: new Map([['a'.repeat(64), 'k/a']]),
+      fallbackKey: (sha) => `k/${sha}`,
+      slugPrefix: 'web',
+      addressing: {
+        chooseSlug: () => 'web-storybook',
+        commitLabel: (slug) => `abcdef012345-${slug}`,
+        branchLabel: (_branch, slug) => `feat-${slug}`,
+      },
+    })
+    // The upload queued the same notice as a build change: no new job kind.
+    const queued = await t.db
+      .select()
+      .from(schema.jobs)
+      .where(and(eq(schema.jobs.queue, GIT_NOTIFY_QUEUE), eq(schema.jobs.status, 'pending')))
+    expect(queued.map((j) => j.payload)).toEqual([{ buildId: build.id }])
+
+    await runNext(deps)
+    expect(fake.comments).toHaveLength(2)
+    expect(fake.comments[1]?.existing).toBe('7001')
+    expect(fake.comments[1]?.body).toContain(
+      '- [ui-sb](https://abcdef012345-web-storybook.sites.test) · Storybook',
+    )
+  })
+
+  it('leaves the section out when the team has hosting off, the instance has none, or the commit has no site', async () => {
+    const { team, build } = await reviewableBuild(6, 'abcdef012346')
+    const fake = recordingGithub()
+    const upload = (commitSha: string) =>
+      publishSite(t.db, {
+        teamId: team.id,
+        name: 'docs',
+        kind: 'generic',
+        spa: false,
+        commitSha,
+        entryPath: 'index.html',
+        files: [{ path: 'index.html', sha256: 'b'.repeat(64), size: 3, contentType: 'text/html' }],
+        storageKeys: new Map([['b'.repeat(64), 'k/b']]),
+        fallbackKey: (sha) => `k/${sha}`,
+        slugPrefix: 'web',
+        addressing: {
+          chooseSlug: () => 'web-docs',
+          commitLabel: (slug) => `${commitSha.slice(0, 12)}-${slug}`,
+          branchLabel: (_branch, slug) => `feat-${slug}`,
+        },
+      })
+    await upload('abcdef012346')
+    await t.db.delete(schema.jobs)
+    await queueNotice(build.id)
+    await t.db
+      .update(schema.teams)
+      .set({ staticHostingEnabled: false })
+      .where(eq(schema.teams.id, team.id))
+    await runNext({ github: fake.github, sites: sitesDeps })
+    expect(fake.comments.at(-1)?.body).not.toContain('Hosted sites') // hosting off for the team
+
+    await t.db
+      .update(schema.teams)
+      .set({ staticHostingEnabled: true })
+      .where(eq(schema.teams.id, team.id))
+    await queueNotice(build.id)
+    await runNext({ github: fake.github }) // the job runs with no sites configured
+    expect(fake.comments.at(-1)?.body).not.toContain('Hosted sites')
+
+    await queueNotice(build.id)
+    await runNext({ github: fake.github, sites: sitesDeps })
+    expect(fake.comments.at(-1)?.body).toContain('Hosted sites') // switched on and configured: listed
+    await upload('f'.repeat(40)) // a different commit's upload is not listed for this commit
+    await t.db.delete(schema.staticSites).where(eq(schema.staticSites.commitSha, 'abcdef012346'))
+    await queueNotice(build.id)
+    await runNext({ github: fake.github, sites: sitesDeps })
+    expect(fake.comments.at(-1)?.body).not.toContain('Hosted sites')
+  })
+
+  it('shows the review status, who decided, and the per-snapshot counts, refreshed on every change', async () => {
+    const { owner, build } = await reviewableBuild(7)
+    const fake = recordingGithub()
+    const deps = { github: fake.github }
+    await runNext(deps)
+    expect(fake.comments.at(-1)?.body).toContain('[Review](')
+
+    // One of two snapshots approved: the build is still pending, and the comment says how far.
+    await reviewSnapshots(t.db, {
+      buildId: build.id,
+      userId: owner.id,
+      decision: 'approved',
+      snapshotNames: ['home'],
+    })
+    await runNext(deps)
+    expect(fake.comments.at(-1)?.body).toContain('(1 approved · 1 pending)')
+
+    // Both approved: the build is approved, by name.
+    await reviewBuild(t.db, { buildId: build.id, userId: owner.id, state: 'approved' })
+    await runNext(deps)
+    expect(fake.comments.at(-1)?.body).toContain(`✅ Approved by ${owner.name}`)
+
+    await reviewBuild(t.db, { buildId: build.id, userId: owner.id, state: 'rejected' })
+    await runNext(deps)
+    expect(fake.comments.at(-1)?.body).toContain(`❌ Rejected by ${owner.name}`)
+  })
 })
 
 describe('notifyGit', () => {

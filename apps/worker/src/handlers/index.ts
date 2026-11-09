@@ -1,5 +1,6 @@
 import type { Job } from '@circi/db'
 import { failBuild, GIT_NOTIFY_QUEUE, QUEUES } from '@circi/services'
+import { isSiteKindId, KINDS, siteOrigin } from '@circi/sites'
 
 import { deliverWebhook } from '../jobs/deliver-webhook.ts'
 import { integrationEvent } from '../jobs/integration-event.ts'
@@ -76,8 +77,19 @@ const gitNotify: Handler = {
   async run(deps, job) {
     const { db, integrations: context, github, providers, authSecret } = deps
     const publicOrigin = deps.publicOrigin ?? ''
+    const sitesHost = deps.sitesHost
+    const sites =
+      sitesHost && publicOrigin
+        ? {
+            originFor: (label: string) => siteOrigin(publicOrigin, sitesHost, label),
+            kindLabel: (kind: string) => (isSiteKindId(kind) ? KINDS[kind].label : kind),
+          }
+        : undefined
     return {
-      result: await notifyGit({ db, context, github, providers, publicOrigin, authSecret }, job),
+      result: await notifyGit(
+        { db, context, github, providers, publicOrigin, authSecret, sites },
+        job,
+      ),
     }
   },
   done: 'git host notified',

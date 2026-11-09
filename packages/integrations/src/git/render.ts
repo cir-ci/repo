@@ -20,7 +20,27 @@ export interface ReportedBuild {
   }
   /** Every change is a flaky screenshot (only looked up while flaky ones don't block). */
   flakyOnly?: boolean
+  /** How far the review has come, once the build has changes to review. */
+  review?: ReportedReview
   /** Dashboard address of the build page. */
+  url: string
+}
+
+/** The decisions on a build's changed snapshots, and who decided last. */
+export interface ReportedReview {
+  approved: number
+  rejected: number
+  /** Changed snapshots nobody has decided yet. */
+  pending: number
+  /** Who set the build's approved or rejected status; null for an automatic approval. */
+  decidedBy: string | null
+}
+
+/** A hosted site of the pull request's newest commit, linked to its commit address. */
+export interface ReportedSite {
+  name: string
+  /** What kind it is, in words ("Storybook", "Playwright report"). */
+  kindLabel: string
   url: string
 }
 
@@ -164,15 +184,26 @@ export function checkReport(
 /** Hidden marker that lets the comment be found again and edited in place. */
 export const PR_COMMENT_MARKER = '<!-- circi:pr-summary -->'
 
+/** "2 approved · 1 pending", only when the snapshots are not all decided the same way. */
+function reviewDetail(review: ReportedReview | undefined): string {
+  if (!review) return ''
+  const parts = [
+    review.approved ? `${review.approved} approved` : '',
+    review.rejected ? `${review.rejected} rejected` : '',
+    review.pending ? `${review.pending} pending` : '',
+  ].filter(Boolean)
+  return parts.length > 1 ? ` (${parts.join(' · ')})` : ''
+}
+
 function reviewCell(b: ReportedBuild): string {
   if (b.status === 'error') return '—'
   if (b.status !== 'complete') return '…'
   if (b.conclusion !== 'changes_detected') return '—'
-  return b.reviewStatus === 'approved'
-    ? '✅ Approved'
-    : b.reviewStatus === 'rejected'
-      ? '❌ Rejected'
-      : `[Review](${b.url})`
+  const by = b.review?.decidedBy ? ` by ${b.review.decidedBy}` : ''
+  const detail = reviewDetail(b.review)
+  if (b.reviewStatus === 'approved') return `✅ Approved${by}${detail}`
+  if (b.reviewStatus === 'rejected') return `❌ Rejected${by}${detail}`
+  return `[Review](${b.url})${detail}`
 }
 
 function statusCell(b: ReportedBuild): string {
@@ -181,8 +212,27 @@ function statusCell(b: ReportedBuild): string {
   return b.conclusion === 'changes_detected' ? '🟡 Changes detected' : '✅ No changes'
 }
 
-/** The pull request comment: one row per build name. */
-export function prCommentBody(builds: ReportedBuild[]): string {
+function sitesSection(sites: ReportedSite[]): string[] {
+  if (sites.length === 0) return []
+  return [
+    '',
+    '**Hosted sites for this commit**',
+    '',
+    ...sites.map((site) => {
+      const same = site.name.toLowerCase() === site.kindLabel.toLowerCase()
+      return `- [${site.name}](${site.url})${same ? '' : ` · ${site.kindLabel}`}`
+    }),
+  ]
+}
+
+/**
+ * The pull request comment: one row per build name with its review status, and the sites hosted
+ * for the newest commit (the section is left out when there are none).
+ */
+export function prCommentBody(
+  builds: ReportedBuild[],
+  extras: { sites?: ReportedSite[] } = {},
+): string {
   const rows = builds.map(
     (b) =>
       `| [${b.name}](${b.url}) | ${statusCell(b)} | ${b.conclusion === 'changes_detected' ? describeCounts(b.counts) : '—'} | ${reviewCell(b)} |`,
@@ -194,6 +244,7 @@ export function prCommentBody(builds: ReportedBuild[]): string {
     '| Build | Status | Changes | Review |',
     '| --- | --- | --- | --- |',
     ...rows,
+    ...sitesSection(extras.sites ?? []),
     '',
     'Reply `/circi approve`, `/circi reject` or `/circi rerun` to act on the latest build.',
   ].join('\n')

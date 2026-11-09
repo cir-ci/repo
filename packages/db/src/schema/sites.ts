@@ -44,11 +44,19 @@ export const teamSites = pgTable(
     slug: text('slug').notNull(),
     /** Unknown paths get the entry page. */
     spa: boolean('spa').notNull().default(false),
+    /**
+     * One custom domain (lowercase, e.g. `storybook.acme.com`) that serves the team's default
+     * branch version of this site. Unique across the instance; only a verified one is served.
+     */
+    customDomain: text('custom_domain'),
+    /** When DNS last confirmed the domain points at this server; null until then. */
+    customDomainVerifiedAt: timestamp('custom_domain_verified_at', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [
     uniqueIndex('team_sites_team_name_key').on(t.teamId, t.name),
     uniqueIndex('team_sites_slug_key').on(t.slug),
+    uniqueIndex('team_sites_custom_domain_key').on(t.customDomain),
     check('team_sites_kind_check', inList(t.kind.name, SITE_KINDS)),
   ],
 )

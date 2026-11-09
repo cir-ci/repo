@@ -90,8 +90,10 @@ describe('reviewBuilds', () => {
       state: 'rejected',
       reason: 'wrong colours',
     })
+    // Only the build that moved is announced; the other one's snapshots were decided without
+    // moving its status, which still refreshes its pull request comment (the per-snapshot counts).
     expect(await jobsIn(QUEUES.webhook)).toHaveLength(1)
-    expect(await jobsIn(GIT_NOTIFY_QUEUE)).toHaveLength(1)
+    expect(await jobsIn(GIT_NOTIFY_QUEUE)).toHaveLength(2)
   })
 
   it('changes nothing when one id belongs to another team', async () => {

@@ -40,6 +40,8 @@ describe('doctor', () => {
     )
     expect(out.filter((f) => f.level === 'warn')).toEqual([])
     expect(out.at(-1)?.message).toContain('only sees the hosts above')
+    // With hosting on, it points at the Caddy setup custom domains need.
+    expect(out.find((f) => f.id === 'custom-domains')?.message).toContain('/internal/tls-ask')
   })
 
   it('warns about a parent domain that sets cookies for the whole domain', async () => {
@@ -87,6 +89,7 @@ describe('doctor', () => {
     )
     expect(out.some((f) => f.level === 'warn' && f.message.includes('plain http'))).toBe(true)
     expect(out.some((f) => f.message.includes('Static site hosting is off'))).toBe(true)
+    expect(out.some((f) => f.id === 'custom-domains')).toBe(false)
   })
 
   it('reports an unusable storage as a warning with the reason, and a good one as ok', async () => {

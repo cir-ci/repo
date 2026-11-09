@@ -1,5 +1,5 @@
 {
-  "id": "2078bbf4-4fbb-4593-8438-264c92f72887",
+  "id": "022c01a7-89f4-4d01-b8bf-917efbf4895e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -5031,6 +5031,18 @@
           "notNull": true,
           "default": false
         },
+        "custom_domain": {
+          "name": "custom_domain",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "custom_domain_verified_at": {
+          "name": "custom_domain_verified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -5066,6 +5078,21 @@
           "columns": [
             {
               "expression": "slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "team_sites_custom_domain_key": {
+          "name": "team_sites_custom_domain_key",
+          "columns": [
+            {
+              "expression": "custom_domain",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

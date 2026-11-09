@@ -118,6 +118,14 @@ export async function runDoctor(
       message: 'Static site hosting is off (STATIC_SITES_HOST is not set).',
     })
   }
+  if (config.staticSites) {
+    findings.push({
+      id: 'custom-domains',
+      level: 'info',
+      message:
+        'Custom domains for sites (set in the dashboard) get their certificate from Caddy on demand: the Caddyfile needs `on_demand_tls { ask http://circi:3000/internal/tls-ask }` (deploy/Caddyfile has it). CirCI refuses a custom domain that shares a cookie scope with the dashboard.',
+    })
+  }
   findings.push({
     id: 'reminder',
     level: 'info',

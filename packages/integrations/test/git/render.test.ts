@@ -109,6 +109,9 @@ describe('checkReport', () => {
   })
 })
 
+const decided = (reviewStatus: string, review: ReportedBuild['review']) =>
+  prCommentBody([build({ reviewStatus, ...(review ? { review } : {}) })])
+
 describe('pull request comment', () => {
   it('has a marker and a row per build name', () => {
     const body = prCommentBody([
@@ -120,6 +123,43 @@ describe('pull request comment', () => {
       '| [default](https://ci.acme.io/acme/web/builds/7) | 🟡 Changes detected | 3 changed · 1 added | [Review](',
     )
     expect(body).toContain('| ✅ No changes | — | — |')
+  })
+
+  it('shows who approved or rejected, and the per-snapshot counts when they are mixed', () => {
+    expect(
+      decided('approved', { approved: 4, rejected: 0, pending: 0, decidedBy: 'Ana' }),
+    ).toContain('| ✅ Approved by Ana |')
+    expect(
+      decided('approved', { approved: 4, rejected: 0, pending: 0, decidedBy: null }),
+    ).toContain('| ✅ Approved |')
+    expect(
+      decided('rejected', { approved: 2, rejected: 1, pending: 0, decidedBy: 'Bo' }),
+    ).toContain('| ❌ Rejected by Bo (2 approved · 1 rejected) |')
+    expect(decided('pending', { approved: 2, rejected: 0, pending: 3, decidedBy: null })).toContain(
+      '| [Review](https://ci.acme.io/acme/web/builds/7) (2 approved · 3 pending) |',
+    )
+    // Nothing decided: just the link, as before.
+    expect(decided('pending', { approved: 0, rejected: 0, pending: 4, decidedBy: null })).toContain(
+      '| [Review](https://ci.acme.io/acme/web/builds/7) |',
+    )
+    expect(decided('approved', undefined)).toContain('| ✅ Approved |')
+  })
+
+  it('lists the hosted sites of the commit with their kind, and leaves the section out without any', () => {
+    const sites = [
+      { name: 'web-sb', kindLabel: 'Storybook', url: 'https://abc-web-storybook.sites.test' },
+      { name: 'ui-report', kindLabel: 'Playwright report', url: 'https://abc-web-ui.sites.test' },
+      { name: 'Coverage', kindLabel: 'Coverage', url: 'https://abc-web-cov.sites.test' },
+    ]
+    const body = prCommentBody([build()], { sites })
+    expect(body).toContain('**Hosted sites for this commit**')
+    expect(body).toContain('- [web-sb](https://abc-web-storybook.sites.test) · Storybook')
+    expect(body).toContain('- [ui-report](https://abc-web-ui.sites.test) · Playwright report')
+    // The kind is not repeated when it is the name.
+    expect(body).toContain('- [Coverage](https://abc-web-cov.sites.test)\n')
+    expect(prCommentBody([build()], { sites: [] })).not.toContain('Hosted sites')
+    expect(prCommentBody([build()])).not.toContain('Hosted sites')
+    expect(body.indexOf('Hosted sites')).toBeLessThan(body.indexOf('Reply `/circi approve`'))
   })
 
   it('describes counts', () => {

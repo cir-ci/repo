@@ -25,6 +25,8 @@ export namespace startWorker {
     logger: startWorker.Logger
     /** The dashboard's origin (`PUBLIC_URL`), used for links in webhook bodies. */
     publicOrigin?: string
+    /** The sites domain (`STATIC_SITES_HOST`), when static site hosting is on: the PR comment lists a commit's sites. */
+    sitesHost?: string
     /** Stands in for the GitHub App's adapter (tests); production builds it from `integrations.config.github`. */
     github?: GithubApp
     /** Stands in for the git host adapters by connection kind (tests); production uses the definitions'. */

@@ -7,7 +7,8 @@ import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const body = z.object({
-  label: z.string().max(80),
+  /** A hostname label, or a custom domain. */
+  label: z.string().max(255),
   returnPath: z.string().max(2048).default('/'),
 })
 

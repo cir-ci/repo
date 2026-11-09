@@ -1,5 +1,10 @@
 import { type Database } from '@circi/db'
-import { commitLabelOfVersion, findSiteByLabel } from '@circi/db/queries'
+import {
+  commitLabelOfVersion,
+  findSiteByCustomDomain,
+  findSiteByLabel,
+  isVerifiedCustomDomain,
+} from '@circi/db/queries'
 import { confirmSiteSession, findSiteFile, openSiteSession } from '@circi/services'
 import {
   labelOf,
@@ -25,8 +30,14 @@ import {
 
 /**
  * Serving hosted sites (PLAN §7.6): a hook that answers every request whose Host is exactly one
- * label under the sites domain, and lets everything else through to the dashboard. The two never
- * mix: a site address never reaches a dashboard route, and the dashboard host never serves a file.
+ * label under the sites domain, or a verified custom domain, and lets everything else through to
+ * the dashboard. The two never mix: a site address never reaches a dashboard route, and the
+ * dashboard host never serves a file.
+ *
+ * A custom domain serves the team's default-branch version of its site and is its own address:
+ * its sign-in token, site session and cookie are bound to the domain itself (a hostname label
+ * never contains a dot, so the two kinds can't be confused). A verified domain whose default
+ * branch has no upload yet is answered like an address that doesn't exist.
  *
  * Every request needs the site's own cookie. Without one (or with a stale one) the visitor is
  * sent to the dashboard to sign in, *whatever the address*: live, expired or never used get the
@@ -49,6 +60,9 @@ export namespace siteHostHook {
 
 const REVALIDATE_MS = 60_000
 
+/** A host name worth a custom-domain lookup: dotted, ending in letters (so not an IP or `circi:3000`). */
+const DOMAIN_LIKE = /^[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,63}$/
+
 const NOT_FOUND_PAGE = `<!doctype html><meta charset="utf-8"><title>Not found</title>
 <body style="font:16px system-ui;margin:4rem auto;max-width:28rem;text-align:center"><h1>Not found</h1></body>`
 
@@ -68,6 +82,7 @@ function safeReturn(raw: unknown): string {
 
 export function siteHostHook(deps: siteHostHook.Options): onRequestAsyncHookHandler {
   const secure = deps.publicOrigin.startsWith('https:')
+  const dashboardHost = new URL(deps.publicOrigin).hostname.toLowerCase()
   const cookie = cookieName(secure)
   /** `session id + label` → when it was last confirmed against the dashboard session. */
   const confirmed = new Map<string, number>()
@@ -106,23 +121,37 @@ export function siteHostHook(deps: siteHostHook.Options): onRequestAsyncHookHand
   }
 
   return async (req, reply) => {
-    const label = labelOf(req.hostname, deps.sites.host)
+    const host = req.hostname.toLowerCase().replace(/:\d+$/, '')
+    let label = labelOf(host, deps.sites.host)
+    let custom = false
     if (label === undefined) {
       // The apex, deeper names and look-alikes serve nothing: the sites domain is for sites.
-      const host = req.hostname.toLowerCase()
       if (host === deps.sites.host || host.endsWith(`.${deps.sites.host}`)) return notFound(reply)
-      return undefined
+      // Anything else is the dashboard, unless the host is a verified custom domain.
+      if (host === dashboardHost || !DOMAIN_LIKE.test(host)) return undefined
+      if (!(await isVerifiedCustomDomain(deps.db, host))) return undefined
+      label = host
+      custom = true
     }
     // Hosted sites are read-only.
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       return reply.code(405).header('allow', 'GET, HEAD').send()
     }
 
-    const cleanup = cleanupCookies(req.headers.cookie, cookie, deps.sites.host, secure)
+    const cleanup = cleanupCookies(
+      req.headers.cookie,
+      cookie,
+      custom ? host : deps.sites.host,
+      secure,
+    )
     if (cleanup.length > 0) void reply.header('set-cookie', cleanup)
 
     const url = new URL(req.url, 'http://x')
-    const found = parseLabel(label) ? await findSiteByLabel(deps.db, label) : undefined
+    const found = custom
+      ? await findSiteByCustomDomain(deps.db, host)
+      : parseLabel(label)
+        ? await findSiteByLabel(deps.db, label)
+        : undefined
 
     // The token handoff from the dashboard: spend it, start a site session, set the cookie.
     if (url.pathname === '/_circi/auth') {

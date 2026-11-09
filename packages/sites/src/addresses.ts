@@ -83,3 +83,13 @@ export function labelOf(host: string, sitesHost: string): string | undefined {
   const label = bare.slice(0, -suffix.length)
   return label.length > 0 && !label.includes('.') ? label : undefined
 }
+
+/**
+ * The full address of a site address: a hostname label becomes `<label>.<sites domain>`, a custom
+ * domain (it has dots) is the host itself. Scheme and port follow the dashboard's.
+ */
+export function siteOrigin(publicOrigin: string, sitesHost: string, address: string): string {
+  const url = new URL(publicOrigin)
+  const host = address.includes('.') ? address : `${address}.${sitesHost}`
+  return `${url.protocol}//${host}${url.port ? `:${url.port}` : ''}`
+}

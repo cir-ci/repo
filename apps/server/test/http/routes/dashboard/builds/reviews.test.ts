@@ -1,3 +1,6 @@
+import * as schema from '@circi/db/schema'
+import { seedGitLink } from '@circi/db/testing'
+import { eq } from 'drizzle-orm'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { png, startDashboard } from '#test/support/dashboard-fixture.ts'
@@ -156,5 +159,27 @@ describe('reviewing snapshots', () => {
     const unchanged = await decide({ snapshotNames: ['about'], decision: 'approved' })
     expect(unchanged.statusCode).toBe(409)
     expect((await decide({ snapshotNames: [], decision: 'approved' })).statusCode).toBe(400)
+  })
+})
+
+const notices = async () =>
+  (await fx.db.select().from(schema.jobs).where(eq(schema.jobs.queue, 'git-notify')))
+    .filter((j) => j.status === 'pending')
+    .map((j) => j.dedupeKey ?? '')
+
+/** The pull request comment is rewritten from a `git-notify` job; each review move queues one. */
+describe('refreshing the pull request comment', () => {
+  it('queues a git-notify for an approval or rejection from the dashboard, and for a single snapshot', async () => {
+    await seedGitLink(fx.db, acme.team.id, { externalId: '99', repoRef: 'acme/web' })
+    await fx.db.delete(schema.jobs)
+    expect((await review('rejected')).statusCode).toBe(200)
+    expect((await notices()).some((k) => k.endsWith(':rejected'))).toBe(true)
+    expect((await review('approved')).statusCode).toBe(200)
+    expect((await notices()).some((k) => k.endsWith(':approved'))).toBe(true)
+
+    // Deciding one snapshot moves the build too (a rejection of `home` rejects the build).
+    await fx.db.delete(schema.jobs)
+    expect((await decide({ snapshotNames: ['home'], decision: 'rejected' })).statusCode).toBe(200)
+    expect((await notices()).some((k) => k.endsWith(':rejected'))).toBe(true)
   })
 })

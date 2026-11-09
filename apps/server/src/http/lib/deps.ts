@@ -5,6 +5,7 @@ import type { getTeamContext } from '@circi/db/queries'
 import type { SessionMethod } from '@circi/db/repositories'
 import type { IntegrationDefinition, IntegrationRegistry } from '@circi/integrations'
 import { type ProviderRegistry } from '@circi/integrations/git'
+import type { SiteDnsResolver } from '@circi/services'
 import type { StorageDriver } from '@circi/storage'
 
 import type { Fetcher } from '#composition/doctor.ts'
@@ -76,6 +77,8 @@ export namespace Deps {
     webhookAllowPrivate?: boolean
     /** Looks up TXT records for domain verification; replaceable in tests. Default: real DNS. */
     resolveTxt?: (name: string) => Promise<string[][]>
+    /** Looks up CNAME and address records to verify a site's custom domain; replaceable in tests. Default: real DNS. */
+    resolveDns?: SiteDnsResolver
     /**
      * This instance's GitHub App comes from the environment (`GITHUB_APP_*`), so teams can be
      * linked to repositories and the one-click setup is off. An App created in the dashboard

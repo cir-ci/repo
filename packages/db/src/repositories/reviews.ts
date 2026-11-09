@@ -1,5 +1,5 @@
 import { deriveReviewStatus, assertFound } from '@circi/core'
-import { and, eq, isNull, ne } from 'drizzle-orm'
+import { and, desc, eq, isNull, ne } from 'drizzle-orm'
 
 import {
   builds,
@@ -228,4 +228,47 @@ export async function supersedeSnapshotReviews(db: Database, buildId: string): P
     .update(snapshotReviews)
     .set({ supersededAt: new Date() })
     .where(and(eq(snapshotReviews.buildId, buildId), isNull(snapshotReviews.supersededAt)))
+}
+
+export namespace getBuildReviewSummary {
+  export interface Summary {
+    /** Changed snapshots with a current approve / reject decision, and those still undecided. */
+    approved: number
+    rejected: number
+    pending: number
+    /** Who made the decision that set the build's current status; null for automatic ones. */
+    decidedBy: string | null
+  }
+}
+
+/**
+ * How far a build's review has come, for the pull request comment: the current decisions on its
+ * changed snapshots, and the name of whoever made the latest approval or rejection.
+ */
+export async function getBuildReviewSummary(
+  db: Database,
+  buildId: string,
+): Promise<getBuildReviewSummary.Summary> {
+  const changed = await listChangedSnapshotNames(db, buildId)
+  const current = await currentDecisions(db, buildId)
+  let approved = 0
+  let rejected = 0
+  for (const name of changed) {
+    const decision = current.get(name)?.decision
+    if (decision === 'approved') approved += 1
+    else if (decision === 'rejected') rejected += 1
+  }
+  const [last] = await db
+    .select({ name: user.name })
+    .from(reviews)
+    .leftJoin(user, eq(user.id, reviews.userId))
+    .where(eq(reviews.buildId, buildId))
+    .orderBy(desc(reviews.createdAt))
+    .limit(1)
+  return {
+    approved,
+    rejected,
+    pending: changed.length - approved - rejected,
+    decidedBy: last?.name ?? null,
+  }
 }

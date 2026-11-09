@@ -46,6 +46,7 @@ beforeAll(async () => {
     logger: pino({ level: 'silent' }),
     checks: [],
     api: base,
+    tlsAsk: { db: t.db },
     gitWebhook: {
       db: t.db,
       authSecret: 'route-table-secret-long-enough-1',

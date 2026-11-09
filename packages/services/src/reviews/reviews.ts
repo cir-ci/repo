@@ -30,14 +30,16 @@ import { notify } from '#src/notifications/notifications.ts'
  * snapshot and the build's review status is derived from them (all changed snapshots approved:
  * approved; any rejected: rejected; otherwise still pending). Webhooks, the git host check, the
  * author's inbox and chat events follow only when that derived status actually moves, exactly
- * once, in the same transaction (the outbox). Deciding what was already decided is a no-op.
+ * once, in the same transaction (the outbox). The pull request comment shows each snapshot's
+ * decision, so a decision that doesn't move the status still refreshes it. Deciding what was
+ * already decided is a no-op.
  * Whoever was asked to review the build no longer needs to once it is decided: its open review
  * requests close as done.
  */
 export async function reviewSnapshots(db: Database, input: reviewSnapshots.Input): Promise<Build> {
   return db.transaction(async (tx) => {
     const { reason, userId, ...decision } = input
-    const { build, changed, reasons, reviewerName } = await recordSnapshotReviews(tx, {
+    const { build, changed, decided, reasons, reviewerName } = await recordSnapshotReviews(tx, {
       ...decision,
       userId,
       ...(reason ? { reason } : {}),
@@ -57,7 +59,14 @@ export async function reviewSnapshots(db: Database, input: reviewSnapshots.Input
         })
       }
     }
-    if (!changed) return build
+    if (!changed) {
+      // Some snapshots were decided but the build's status did not move: the comment on the
+      // pull request still shows the per-snapshot counts, so it follows too.
+      if (decided.length > 0) {
+        await queueGitNotify(tx, build, integrationRegistry.gitKinds(), `snapshots:${Date.now()}`)
+      }
+      return build
+    }
     if (build.reviewStatus !== 'pending') {
       const state = build.reviewStatus
       const rejectionReason = state === 'rejected' && reasons.length > 0 ? reasons.join('\n') : null

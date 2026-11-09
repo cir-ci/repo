@@ -18,6 +18,7 @@ import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import { formatSize, teamSitesQuery } from './api.ts'
+import { CustomDomainSection } from './CustomDomainSection.tsx'
 
 import styles from './TeamSitesPage.module.css'
 
@@ -75,6 +76,13 @@ export function TeamSitesPage() {
               data.sites.map((site) => (
                 <section key={site.slug} className={styles.site}>
                   <SectionHeader title={site.name} description={site.kindLabel} />
+                  <CustomDomainSection
+                    workspace={workspace}
+                    team={team}
+                    site={site}
+                    dnsTarget={data.dnsTarget}
+                    canManage={data.canManage}
+                  />
                   {site.branches.length > 0 ? (
                     <div className={styles.group}>
                       <Heading level="heading">

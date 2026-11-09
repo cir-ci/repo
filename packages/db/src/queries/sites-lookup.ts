@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, isNotNull, sql } from 'drizzle-orm'
 
 import {
   files,
@@ -67,6 +67,157 @@ export async function findSiteByLabel(
   }
 }
 
+/**
+ * What a verified custom domain serves: the site's version on the team's default branch, the
+ * same as that branch's address (`linkKind: 'branch'`). The site's address is the domain itself,
+ * so `label` is the domain. Undefined when the domain isn't a verified one, or the default
+ * branch has no upload yet: both are answered like an address that doesn't exist.
+ */
+export async function findSiteByCustomDomain(
+  db: Database,
+  domain: string,
+): Promise<findSiteByLabel.Site | undefined> {
+  const [row] = await db
+    .select({
+      versionId: staticSites.id,
+      commitSha: staticSites.commitSha,
+      entryPath: staticSites.entryPath,
+      site: teamSites,
+      team: teams,
+      workspace: workspace,
+    })
+    .from(teamSites)
+    .innerJoin(teams, eq(teams.id, teamSites.teamId))
+    .innerJoin(workspace, eq(workspace.id, teams.workspaceId))
+    .innerJoin(
+      siteHostnames,
+      and(
+        eq(siteHostnames.teamSiteId, teamSites.id),
+        eq(siteHostnames.linkKind, 'branch'),
+        eq(siteHostnames.branch, teams.defaultBranch),
+      ),
+    )
+    .innerJoin(staticSites, eq(staticSites.id, siteHostnames.staticSiteId))
+    .where(
+      and(
+        eq(teamSites.customDomain, domain),
+        isNotNull(teamSites.customDomainVerifiedAt),
+        isNotNull(teamSites.customDomain),
+      ),
+    )
+  if (!row) return undefined
+  return {
+    label: domain,
+    linkKind: 'branch',
+    versionId: row.versionId,
+    commitSha: row.commitSha,
+    entryPath: row.entryPath,
+    site: {
+      id: row.site.id,
+      name: row.site.name,
+      kind: row.site.kind,
+      slug: row.site.slug,
+      spa: row.site.spa,
+    },
+    team: { id: row.team.id, slug: row.team.slug, name: row.team.name },
+    workspace: { id: row.workspace.id, slug: row.workspace.slug, name: row.workspace.name },
+  }
+}
+
+/**
+ * Whether `domain` is a verified custom domain of a site (whether or not it has an upload yet):
+ * the one question a certificate authority's "may I issue?" check needs answered.
+ */
+export async function isVerifiedCustomDomain(db: Database, domain: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: teamSites.id })
+    .from(teamSites)
+    .where(
+      and(
+        eq(teamSites.customDomain, domain),
+        isNotNull(teamSites.customDomain),
+        isNotNull(teamSites.customDomainVerifiedAt),
+      ),
+    )
+  return row !== undefined
+}
+
+/**
+ * The site an address names: a custom domain (it has dots, which a label never does) or a
+ * hostname label. Every sign-in step looks addresses up through this.
+ */
+export async function findSiteByAddress(
+  db: Database,
+  address: string,
+): Promise<findSiteByLabel.Site | undefined> {
+  return address.includes('.')
+    ? findSiteByCustomDomain(db, address.toLowerCase())
+    : findSiteByLabel(db, address)
+}
+
+export namespace sitesForCommit {
+  export interface Row {
+    name: string
+    kind: string
+    slug: string
+    /** The commit address's label, when it has one. */
+    commitLabel: string | undefined
+  }
+}
+
+/**
+ * The sites a team has uploaded for a commit, by site name. `commitSha` may be abbreviated (a
+ * build's SHA can be short): it matches an upload whose SHA starts with it, or the other way
+ * round, never fewer than 7 characters.
+ */
+export async function sitesForCommit(
+  db: Database,
+  teamId: string,
+  commitSha: string,
+): Promise<sitesForCommit.Row[]> {
+  const sha = commitSha.toLowerCase()
+  if (sha.length < 7) return []
+  const rows = await db
+    .select({
+      name: teamSites.name,
+      kind: teamSites.kind,
+      slug: teamSites.slug,
+      label: siteHostnames.label,
+    })
+    .from(staticSites)
+    .innerJoin(teamSites, eq(teamSites.id, staticSites.teamSiteId))
+    .leftJoin(
+      siteHostnames,
+      and(eq(siteHostnames.staticSiteId, staticSites.id), eq(siteHostnames.linkKind, 'commit')),
+    )
+    .where(
+      and(
+        eq(teamSites.teamId, teamId),
+        sql`(starts_with(${staticSites.commitSha}, ${sha}) or starts_with(${sha}, ${staticSites.commitSha}))`,
+      ),
+    )
+    .orderBy(teamSites.name)
+  return rows.map((r) => ({
+    name: r.name,
+    kind: r.kind,
+    slug: r.slug,
+    commitLabel: r.label ?? undefined,
+  }))
+}
+
+/** A team site's custom domain and whether it is verified; undefined when the team has no such site. */
+export async function getSiteCustomDomain(
+  db: Database,
+  teamId: string,
+  slug: string,
+): Promise<{ domain: string | null; verifiedAt: Date | null } | undefined> {
+  const [row] = await db
+    .select({ domain: teamSites.customDomain, verifiedAt: teamSites.customDomainVerifiedAt })
+    .from(teamSites)
+    .where(and(eq(teamSites.teamId, teamId), eq(teamSites.slug, slug)))
+  return row
+}
+
 export async function getSiteFile(
   db: Database,
   versionId: string,
@@ -102,6 +253,7 @@ export namespace listTeamSites {
     name: string
     kind: string
     slug: string
+    customDomain: { domain: string; verifiedAt: Date | null } | null
     versions: {
       commitSha: string
       branch: string | null
@@ -141,6 +293,9 @@ export async function listTeamSites(
       name: site.name,
       kind: site.kind,
       slug: site.slug,
+      customDomain: site.customDomain
+        ? { domain: site.customDomain, verifiedAt: site.customDomainVerifiedAt }
+        : null,
       versions: versions.map((v) => ({
         commitSha: v.commitSha,
         branch: v.branch,

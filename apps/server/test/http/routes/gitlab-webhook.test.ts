@@ -1,5 +1,6 @@
 import { sealSecret } from '@circi/core/node'
 import { getBuild, listBuildReviews } from '@circi/db/queries'
+import * as schema from '@circi/db/schema'
 import {
   createTestDb,
   seedAccount,
@@ -10,6 +11,7 @@ import {
 import { providerRegistry } from '@circi/integrations/git'
 import { gitlabCredentials, gitlabWebhookVerifier } from '@circi/integrations/gitlab'
 import { completeBuild } from '@circi/services'
+import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -191,6 +193,11 @@ describe('GitLab webhook', () => {
     expect(await reviewState(build.id)).toBe('approved')
     expect(sent.at(-1)).toBe('react acme/tools/web!40 555 thumbsup tok')
     expect((await listBuildReviews(t.db, build.id))[0]).toMatchObject({ source: 'gitlab-comment' })
+    // The comment on the pull request follows the decision: a notice for the approved state.
+    const notices = await t.db.select().from(schema.jobs).where(eq(schema.jobs.queue, 'git-notify'))
+    expect(
+      notices.some((j) => j.payload.buildId === build.id && j.dedupeKey?.endsWith(':approved')),
+    ).toBe(true)
     expect(
       (await deliver('Note Hook', note(40, '/circi approve'), { uuid: 'same' })).json(),
     ).toMatchObject({

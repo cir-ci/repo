@@ -9,9 +9,16 @@ const API = 'GET /api/teams/acme/web/sites'
 const open = () =>
   renderPage(<TeamSitesPage />, { route: '/$workspace/$team/sites', url: '/acme/web/sites' })
 
+const list = (sites: unknown[], canManage = true) => ({
+  configured: true,
+  dnsTarget: 'custom.sites.test',
+  canManage,
+  sites,
+})
 const iso = (minutesAgo: number) => new Date(Date.now() - minutesAgo * 60_000).toISOString()
 const site = {
   slug: 'storybook',
+  customDomain: null,
   name: 'Storybook',
   kindLabel: 'Storybook',
   branches: [
@@ -49,7 +56,7 @@ describe('TeamSitesPage', () => {
   })
 
   it('has breadcrumbs back to Teams and the team', async () => {
-    fakeFetch({ [API]: { configured: true, sites: [site] } })
+    fakeFetch({ [API]: list([site]) })
     await open()
     const trail = page.getByRole('navigation', { name: 'Breadcrumb' })
     await expect.element(trail.getByRole('link', { name: 'Teams' })).toHaveAttribute('href', '/')
@@ -60,7 +67,7 @@ describe('TeamSitesPage', () => {
   })
 
   it('lists branches and uploads, linking out to the sites', async () => {
-    fakeFetch({ [API]: { configured: true, sites: [site] } })
+    fakeFetch({ [API]: list([site]) })
     await open()
     await expect.element(page.getByRole('heading', { name: 'Storybook', level: 2 })).toBeVisible()
     const main = page.getByRole('link', { name: 'main' })
@@ -77,7 +84,7 @@ describe('TeamSitesPage', () => {
   })
 
   it('says when hosting is not configured on the server', async () => {
-    fakeFetch({ [API]: { configured: false, sites: [] } })
+    fakeFetch({ [API]: { configured: false, dnsTarget: null, canManage: true, sites: [] } })
     await open()
     await expect
       .element(
@@ -89,7 +96,7 @@ describe('TeamSitesPage', () => {
   })
 
   it('shows an empty state with the upload command', async () => {
-    fakeFetch({ [API]: { configured: true, sites: [] } })
+    fakeFetch({ [API]: list([]) })
     await open()
     await expect.element(page.getByRole('heading', { name: 'No sites yet' })).toBeVisible()
     await expect.element(page.getByText(/npx circi storybook upload/)).toBeVisible()
@@ -104,12 +111,118 @@ describe('TeamSitesPage', () => {
   it('offers a retry for other errors', async () => {
     let fail = true
     fakeFetch({
-      [API]: () => (fail ? json({ error: 'boom' }, 500) : { configured: true, sites: [site] }),
+      [API]: () => (fail ? json({ error: 'boom' }, 500) : list([site])),
     })
     await open()
     await expect.element(page.getByText('boom')).toBeVisible()
     fail = false
     await page.getByRole('button', { name: 'Try again' }).click()
     await expect.element(page.getByRole('heading', { name: 'Storybook' })).toBeVisible()
+  })
+})
+
+const withDomain = (verified: boolean) => ({
+  ...site,
+  customDomain: {
+    domain: 'storybook.acme.com',
+    verified,
+    verifiedAt: verified ? iso(5) : null,
+    address: 'https://storybook.acme.com',
+  },
+})
+
+describe('a site’s custom domain', () => {
+  const DOMAIN_API = 'PUT /api/teams/acme/web/sites/storybook/domain'
+  const VERIFY_API = 'POST /api/teams/acme/web/sites/storybook/domain/verify'
+  const REMOVE_API = 'DELETE /api/teams/acme/web/sites/storybook/domain'
+  it('offers a form when there is no domain, and sends it', async () => {
+    let current: unknown = list([site])
+    const calls = fakeFetch({
+      [API]: () => current,
+      [DOMAIN_API]: () => {
+        current = list([withDomain(false)])
+        return withDomain(false).customDomain
+      },
+    })
+    await open()
+    await expect.element(page.getByRole('heading', { name: 'Custom domain' })).toBeVisible()
+    await page.getByRole('textbox', { name: 'Domain' }).fill(' Storybook.acme.com ')
+    await page.getByRole('button', { name: 'Save domain' }).click()
+
+    expect(calls.find((c) => c.method === 'PUT')?.body).toEqual({ domain: 'Storybook.acme.com' })
+    // Saved: it shows as not verified, with the CNAME to add and where it points.
+    await expect.element(page.getByText('Not verified')).toBeVisible()
+    const record = page.getByLabelText('DNS record')
+    await expect.element(record.getByText('CNAME')).toBeVisible()
+    await expect.element(record.getByText('storybook.acme.com')).toBeVisible()
+    await expect.element(record.getByText('custom.sites.test')).toBeVisible()
+  })
+
+  it('shows what is wrong when the server refuses the domain', async () => {
+    fakeFetch({
+      [API]: list([site]),
+      [DOMAIN_API]: json({ error: 'domain: ci.acme.io must differ from the dashboard host' }, 400),
+    })
+    await open()
+    await page.getByRole('textbox', { name: 'Domain' }).fill('ci.acme.io')
+    await page.getByRole('button', { name: 'Save domain' }).click()
+    await expect.element(page.getByText(/must differ from the dashboard host/)).toBeVisible()
+  })
+
+  it('checks DNS, says why it is not verified yet, and then shows it verified and linked', async () => {
+    let verified = false
+    fakeFetch({
+      [API]: () => list([withDomain(verified)]),
+      [VERIFY_API]: () => {
+        const answer = verified
+          ? { domain: 'storybook.acme.com', verified: true, verifiedAt: iso(0), error: null }
+          : {
+              domain: 'storybook.acme.com',
+              verified: false,
+              verifiedAt: null,
+              error: 'No DNS record found for storybook.acme.com.',
+            }
+        return answer
+      },
+    })
+    await open()
+    await expect.element(page.getByText('Not verified')).toBeVisible()
+    await page.getByRole('button', { name: 'Check DNS' }).click()
+    await expect
+      .element(page.getByText('No DNS record found for storybook.acme.com.'))
+      .toBeVisible()
+
+    verified = true
+    await page.getByRole('button', { name: 'Check DNS' }).click()
+    await expect.element(page.getByText('Verified')).toBeVisible()
+    await expect
+      .element(page.getByRole('link', { name: 'storybook.acme.com' }))
+      .toHaveAttribute('href', 'https://storybook.acme.com')
+    await expect.element(page.getByRole('button', { name: 'Check DNS' })).not.toBeInTheDocument()
+  })
+
+  it('removes the domain', async () => {
+    let current: unknown = list([withDomain(true)])
+    const calls = fakeFetch({
+      [API]: () => current,
+      [REMOVE_API]: () => {
+        current = list([site])
+        return new Response(null, { status: 204 })
+      },
+    })
+    await open()
+    await page.getByRole('button', { name: 'Remove storybook.acme.com' }).click()
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(true)
+    await expect.element(page.getByRole('textbox', { name: 'Domain' })).toBeVisible()
+  })
+
+  it('lets a plain member see the domain but not change it', async () => {
+    fakeFetch({ [API]: list([withDomain(false)], false) })
+    await open()
+    await expect.element(page.getByText('storybook.acme.com').first()).toBeVisible()
+    await expect.element(page.getByText('Not verified')).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Check DNS' })).not.toBeInTheDocument()
+    await expect.element(page.getByRole('button', { name: 'Change' })).not.toBeInTheDocument()
+    await expect.element(page.getByRole('textbox', { name: 'Domain' })).not.toBeInTheDocument()
   })
 })

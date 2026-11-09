@@ -554,6 +554,8 @@ CREATE TABLE "team_sites" (
 	"kind" text NOT NULL,
 	"slug" text NOT NULL,
 	"spa" boolean DEFAULT false NOT NULL,
+	"custom_domain" text,
+	"custom_domain_verified_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "team_sites_kind_check" CHECK (kind in ('storybook', 'vitest-report', 'playwright-report', 'coverage', 'docs', 'generic'))
 );
@@ -755,6 +757,7 @@ CREATE INDEX "static_site_files_sha_idx" ON "static_site_files" USING btree ("sh
 CREATE UNIQUE INDEX "static_sites_commit_key" ON "static_sites" USING btree ("team_site_id","commit_sha");--> statement-breakpoint
 CREATE UNIQUE INDEX "team_sites_team_name_key" ON "team_sites" USING btree ("team_id","name");--> statement-breakpoint
 CREATE UNIQUE INDEX "team_sites_slug_key" ON "team_sites" USING btree ("slug");--> statement-breakpoint
+CREATE UNIQUE INDEX "team_sites_custom_domain_key" ON "team_sites" USING btree ("custom_domain");--> statement-breakpoint
 CREATE UNIQUE INDEX "triage_items_key" ON "triage_items" USING btree ("team_id","kind","key");--> statement-breakpoint
 CREATE INDEX "triage_items_assignee_idx" ON "triage_items" USING btree ("assignee_id");--> statement-breakpoint
 CREATE INDEX "saved_views_user_workspace_idx" ON "saved_views" USING btree ("user_id","workspace_id","position");--> statement-breakpoint

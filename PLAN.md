@@ -684,7 +684,8 @@ _Status: accounts, organizations, roles, CI tokens and organization isolation ar
 - [ ] Injected Shadow-DOM switcher: not built (`/_circi/` is reserved and answers 404)
 - [x] Hardening: strict host routing, COOP/CORP, `frame-ancestors` (no X-Frame-Options), 64 KB headers and cookie-bomb cleanup on the sites domain (the dashboard's `__Host-` cookies and CSRF checks were done earlier)
 - [ ] Embedded live view with partitioned cookie + new-tab fallback: not built
-- [ ] Sites row in the PR/MR comment with commit + branch addresses: not built
+- [x] Sites section in the PR/MR comment (commit addresses of the head commit, rewritten when a site is uploaded later; branch addresses not listed), tested against fake git hosts
+- [x] Custom domain for a site's default branch (verified by a DNS check, served with the sign-in handoff bound to the domain, Caddy on-demand TLS through `/internal/tls-ask`). **Never run:** real DNS lookups, certificate issuance and Caddy `ask` were only exercised against fakes
 - [ ] Review UI: Sites panel; per-screenshot deep-link buttons; live Storybook before/after iframe: not built (sites are listed on the project's Sites page)
 - [ ] `@circi/vitest` Storybook-addon mode: not built
 - [x] Security tests: path traversal (tarball and request paths), symlink/hard-link/device tarballs, one site's cookie refused on another, cookie bombing, app/site host routing, reserved prefix, token replay and cross-address tokens. **Not covered:** cookie tossing and CSRF from a malicious site in a real browser

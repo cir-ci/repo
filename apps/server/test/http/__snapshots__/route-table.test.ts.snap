@@ -8,6 +8,7 @@ DELETE /api/teams/:workspace/:team/builds/:number/comments/:id
 DELETE /api/teams/:workspace/:team/github
 DELETE /api/teams/:workspace/:team/ignore-regions/:id
 DELETE /api/teams/:workspace/:team/rules/:id
+DELETE /api/teams/:workspace/:team/sites/:site/domain
 DELETE /api/teams/:workspace/:team/webhooks/:id
 DELETE /api/workspaces/:workspace
 DELETE /api/workspaces/:workspace/domains/:id
@@ -71,6 +72,7 @@ GET /api/workspaces/:workspace/sso
 GET /api/workspaces/:workspace/storage
 GET /api/workspaces/:workspace/views
 GET /healthz
+GET /internal/tls-ask
 GET /readyz
 GET /v1/builds/:id/status
 GET /v1/sites/served
@@ -130,6 +132,7 @@ HEAD /api/workspaces/:workspace/sso
 HEAD /api/workspaces/:workspace/storage
 HEAD /api/workspaces/:workspace/views
 HEAD /healthz
+HEAD /internal/tls-ask
 HEAD /readyz
 HEAD /v1/builds/:id/status
 HEAD /v1/sites/served
@@ -176,6 +179,7 @@ POST /api/teams/:workspace/:team/review-requests/:id/dismiss
 POST /api/teams/:workspace/:team/review-requests/:id/snooze
 POST /api/teams/:workspace/:team/review-requests/:id/unsnooze
 POST /api/teams/:workspace/:team/rules
+POST /api/teams/:workspace/:team/sites/:site/domain/verify
 POST /api/teams/:workspace/:team/token
 POST /api/teams/:workspace/:team/triage/assign
 POST /api/teams/:workspace/:team/triage/dismiss
@@ -203,6 +207,7 @@ PUT /api/inbox/preferences
 PUT /api/teams/:workspace/:team/github
 PUT /api/teams/:workspace/:team/rules/:id
 PUT /api/teams/:workspace/:team/rules/order
+PUT /api/teams/:workspace/:team/sites/:site/domain
 PUT /api/teams/:workspace/:team/triage-rotation
 PUT /api/workspaces/:workspace/integrations/:id|:kind/teams/:team
 PUT /api/workspaces/:workspace/pinned-teams/:team

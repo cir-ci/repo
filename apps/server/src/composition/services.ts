@@ -87,6 +87,7 @@ export async function runServices(options: runServices.Options): Promise<void> {
         ping: () => rt.db.ping(),
         listen: rt.db.listen,
         publicOrigin: rt.config.publicUrl.origin,
+        ...(rt.config.staticSites ? { sitesHost: rt.config.staticSites.host } : {}),
         authSecret: rt.config.authSecret,
         webhookAllowPrivate: rt.config.webhookAllowPrivate,
         uploadTimeoutMinutes: rt.config.uploadTimeoutMinutes,

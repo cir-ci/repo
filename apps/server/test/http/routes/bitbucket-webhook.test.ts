@@ -2,6 +2,7 @@ import { createHmac } from 'node:crypto'
 
 import { sealSecret } from '@circi/core/node'
 import { getBuild, listBuildReviews } from '@circi/db/queries'
+import * as schema from '@circi/db/schema'
 import {
   createTestDb,
   seedAccount,
@@ -12,6 +13,7 @@ import {
 import { BitbucketCloud, serializeBitbucketCredentials } from '@circi/integrations/bitbucket'
 import { providerRegistry } from '@circi/integrations/git'
 import { completeBuild } from '@circi/services'
+import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -191,6 +193,11 @@ describe('Bitbucket webhook', () => {
     expect(res.statusCode).toBe(200)
     expect((await getBuild(t.db, build.id))?.reviewStatus).toBe('approved')
     expect((await listBuildReviews(t.db, build.id))[0]?.source).toBe('bitbucket-comment')
+    // The comment on the pull request follows the decision: a notice for the approved state.
+    const notices = await t.db.select().from(schema.jobs).where(eq(schema.jobs.queue, 'git-notify'))
+    expect(
+      notices.some((j) => j.payload.buildId === build.id && j.dedupeKey?.endsWith(':approved')),
+    ).toBe(true)
     expect(posted).toHaveLength(1)
     expect(posted[0]?.[0]).toBe('/2.0/repositories/acme/web/pullrequests/51/comments')
     expect(posted[0]?.[1]).toMatch(/approved/)

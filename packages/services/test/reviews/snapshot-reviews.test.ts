@@ -60,7 +60,12 @@ describe('reviewSnapshots', () => {
     await decide('approved', ['b'])
     expect(await statusOf(build.id)).toBe('pending')
     expect(await jobs(QUEUES.webhook)).toHaveLength(0)
-    expect(await jobs(GIT_NOTIFY_QUEUE)).toHaveLength(0)
+    // Nothing is announced to anyone, but the pull request comment shows the per-snapshot
+    // counts, so each decision refreshes it.
+    expect(await jobs(GIT_NOTIFY_QUEUE)).toHaveLength(2)
+    expect(await jobs(GIT_NOTIFY_QUEUE)).toSatisfy((rows: { dedupeKey: string | null }[]) =>
+      rows.every((r) => r.dedupeKey?.includes(':snapshots:')),
+    )
     expect(
       await t.db
         .select()
@@ -70,7 +75,10 @@ describe('reviewSnapshots', () => {
 
     await decide('approved', ['c'])
     expect(await statusOf(build.id)).toBe('approved')
-    expect(await jobs(GIT_NOTIFY_QUEUE)).toHaveLength(1)
+    expect(await jobs(GIT_NOTIFY_QUEUE)).toHaveLength(3)
+    expect((await jobs(GIT_NOTIFY_QUEUE)).some((j) => j.dedupeKey?.endsWith(':approved'))).toBe(
+      true,
+    )
     const notices = await t.db
       .select()
       .from(schema.notifications)
@@ -78,7 +86,7 @@ describe('reviewSnapshots', () => {
     expect(notices.map((n) => [n.userId, n.kind])).toEqual([[ann.id, 'build_approved']])
 
     await decide('approved', ['c']) // repeated: nothing new
-    expect(await jobs(GIT_NOTIFY_QUEUE)).toHaveLength(1)
+    expect(await jobs(GIT_NOTIFY_QUEUE)).toHaveLength(3)
     expect(
       await t.db
         .select()

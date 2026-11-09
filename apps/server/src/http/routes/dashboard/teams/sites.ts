@@ -1,4 +1,5 @@
 import { listFlakyScreenshots, listTeamSites } from '@circi/db/queries'
+import { customDomainTarget } from '@circi/services'
 import { isSiteKindId, KINDS } from '@circi/sites'
 import type { FastifyPluginAsync } from 'fastify'
 
@@ -11,17 +12,27 @@ import { loadTeam } from '#http/lib/team-access.ts'
  */
 export const dashboardTeamSitesRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   app.get('/teams/:workspace/:team/sites', async (req) => {
-    const { team } = await loadTeam(deps, req)
+    const { team, canManage } = await loadTeam(deps, req)
     const sites = deps.sites
-    if (!sites) return { configured: false, sites: [] }
+    if (!sites) return { configured: false, dnsTarget: null, canManage, sites: [] }
     const listing = await listTeamSites(deps.db, team.id)
     return {
       configured: true,
+      dnsTarget: customDomainTarget(sites.host),
+      canManage,
       sites: listing.map((s) => ({
         name: s.name,
         kind: s.kind,
         kindLabel: isSiteKindId(s.kind) ? KINDS[s.kind].label : s.kind,
         slug: s.slug,
+        customDomain: s.customDomain
+          ? {
+              domain: s.customDomain.domain,
+              verified: s.customDomain.verifiedAt !== null,
+              verifiedAt: s.customDomain.verifiedAt?.toISOString() ?? null,
+              address: sites.originFor(s.customDomain.domain),
+            }
+          : null,
         branches: s.branches.map((b) => ({
           branch: b.branch,
           address: sites.originFor(b.label),

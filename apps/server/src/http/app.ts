@@ -6,6 +6,7 @@ import { argosRoutes } from './routes/argos/routes.ts'
 import { dashboardRoutes } from './routes/dashboard/index.ts'
 import { healthRoutes } from './routes/health.ts'
 import { integrationWebhookRoutes } from './routes/integration-webhook.ts'
+import { internalRoutes } from './routes/internal.ts'
 import { v1Routes } from './routes/v1/index.ts'
 import { siteHostHook } from './sites/serve.ts'
 
@@ -32,6 +33,8 @@ export namespace buildServer {
     gitWebhook?: integrationWebhookRoutes.Deps
     /** Static site hosting: requests for site addresses are answered before any route. */
     siteServing?: siteHostHook.Options
+    /** The reverse proxy's TLS check for custom domains (`/internal/tls-ask`); only with static site hosting. */
+    tlsAsk?: internalRoutes.Options
     /** Dashboard (`/api`, `/`). Omitted in tests that don't need it. */
     dashboard?: Deps.Dashboard
   }
@@ -42,6 +45,7 @@ export namespace buildServer {
  *
  *   (all)       redirect from previous dashboard hosts
  *   /healthz    /readyz          no auth
+ *   /internal/…  reverse proxy checks (Caddy's TLS ask), only with static site hosting
  *   /v1/…       CI API           team token
  *   /v2/…       Argos-compatible CI API   team token
  *   /webhooks/:kind   git hosts    signature or token (also /api/integrations/:kind/webhook)
@@ -90,6 +94,7 @@ export function buildServer(options: buildServer.Options): FastifyInstance {
   })
   // Each scope is registered inside a wrapper that carries its `prefix`, so the plugin itself
   // receives only its dependencies and can pass them straight on to its routes.
+  if (options.tlsAsk) void app.register(internalRoutes, options.tlsAsk)
   const { api } = options
   if (api) {
     void app.register(

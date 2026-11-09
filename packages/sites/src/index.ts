@@ -9,6 +9,7 @@ export {
   MAX_SLUG_LENGTH,
   parseLabel,
   pickLabel,
+  siteOrigin,
   siteSlug,
 } from './addresses.ts'
 export { detectKind, isSiteKindId, KINDS, SITE_KIND_IDS, type SiteKind } from './kinds.ts'

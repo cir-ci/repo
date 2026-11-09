@@ -1,6 +1,7 @@
 import type { Auth, Mailer } from '@circi/auth'
 import type { Config } from '@circi/config'
 import type { Database } from '@circi/db'
+import { siteOrigin } from '@circi/sites'
 import type { StorageDriver } from '@circi/storage'
 import type { Logger } from 'pino'
 
@@ -62,6 +63,7 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): buildServe
           },
         }
       : {}),
+    ...(sites ? { tlsAsk: { db: rt.db.db } } : {}),
     api: {
       ...base,
       githubApp: config.github !== undefined,
@@ -90,15 +92,14 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): buildServe
   }
 }
 
-/** Where sites live: `<label>.<sites domain>` with the dashboard's scheme and port. */
+/** Where sites live: `<label>.<sites domain>` (or a custom domain) with the dashboard's scheme and port. */
 function sitesDeps(
   sites: NonNullable<Config['staticSites']>,
   publicUrl: Config['publicUrl'],
 ): Deps.Sites {
-  const port = new URL(publicUrl.origin).port
   return {
     host: sites.host,
     maxBytes: sites.maxBytes,
-    originFor: (label) => `${publicUrl.protocol}//${label}.${sites.host}${port ? `:${port}` : ''}`,
+    originFor: (label) => siteOrigin(publicUrl.origin, sites.host, label),
   }
 }
