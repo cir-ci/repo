@@ -10,7 +10,6 @@ import {
   PinIcon,
   ReviewIcon,
   SearchIcon,
-  SettingsIcon,
   TeamTile,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
@@ -41,11 +40,13 @@ import {
 import styles from './Sidebar.module.css'
 
 /**
- * Top to bottom (the canvas's Sidebar board): the workspace switcher, Search,
- * Inbox, Reviews, Teams, Insights, Settings, then the workspace's teams (Pinned, then Teams; the
- * open one expands to Builds, Triage, Baselines, Sites and Settings), "Your views", and the
- * account button. With no teams the Teams section says "No teams yet"; creating a team lives on the Teams page. `AppFrame` wraps this in the
- * Main navigation on wide screens; the `Drawer` does on narrow ones.
+ * Top to bottom (the canvas's Sidebar board): the workspace switcher, Search, Inbox, Reviews,
+ * Teams, Insights, then the workspace's teams (Pinned, then Teams; the open one expands to Builds,
+ * Triage, Baselines and Sites), "Your views", and the account button. With no teams the Teams
+ * section says "No teams yet"; creating a team lives on the Teams page. No settings links:
+ * workspace settings (and from there each team's) open from the workspace menu above, account
+ * settings from the account menu. `AppFrame` wraps this in the Main navigation on wide screens;
+ * the `Drawer` does on narrow ones.
  */
 export function Sidebar({ user }: Sidebar.Props) {
   const navigate = useNavigate()
@@ -134,20 +135,6 @@ export function Sidebar({ user }: Sidebar.Props) {
           Insights
         </NavLink>
       ) : null}
-      {workspace ? (
-        <NavLink
-          to="/workspaces/$workspace/settings"
-          params={{ workspace: workspace.slug }}
-          icon={<SettingsIcon />}
-          selected={false}
-        >
-          Settings
-        </NavLink>
-      ) : (
-        <NavLink to="/account/profile" icon={<SettingsIcon />} selected={false}>
-          Settings
-        </NavLink>
-      )}
       {workspace && model && shown.length === 0 ? (
         <NavSection label="Teams">
           <p className={styles.none}>No teams yet</p>
@@ -240,14 +227,6 @@ function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
           </NavLink>
           <NavLink to="/$workspace/$team/sites" params={params} sub selected={section === 'sites'}>
             Sites
-          </NavLink>
-          <NavLink
-            to="/$workspace/$team/settings"
-            params={params}
-            sub
-            selected={section === 'team-settings'}
-          >
-            Settings
           </NavLink>
         </>
       ) : null}

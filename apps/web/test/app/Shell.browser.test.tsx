@@ -221,7 +221,8 @@ describe('Shell, wide', () => {
     await expect.element(nav.getByRole('button', { name: /Search/ })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: 'Teams', exact: true })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: 'Insights' })).toBeVisible()
-    await expect.element(nav.getByRole('link', { name: 'Settings' })).toBeVisible()
+    // Settings open from the workspace menu above, not from the sidebar.
+    expect(nav.getByRole('link', { name: 'Settings' }).elements()).toHaveLength(0)
     await expect.element(nav.getByRole('link', { name: 'storybook' })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: /^web-app/ })).toBeVisible()
     expect(nav.getByRole('link', { name: 'portal' }).elements()).toHaveLength(0)
@@ -275,8 +276,8 @@ describe('Shell, wide', () => {
     await expect.element(nav.getByRole('link', { name: 'Builds' })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: 'Baselines' })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: 'Sites' })).toBeVisible()
-    // Settings twice: the top-level entry and the team's.
-    expect(nav.getByRole('link', { name: 'Settings' }).elements()).toHaveLength(2)
+    // No Settings under the team: team settings open from the workspace menu's settings.
+    expect(nav.getByRole('link', { name: 'Settings' }).elements()).toHaveLength(0)
     // Other teams stay collapsed.
     expect(nav.getByRole('link', { name: 'Builds' }).elements()).toHaveLength(1)
   })
