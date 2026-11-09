@@ -191,6 +191,12 @@ describe('selecting and peeking', () => {
             role: 'owner',
             user: { name: 'Ada Lovelace', email: 'a@x.test' },
           },
+          {
+            id: 'm2',
+            userId: 'u2',
+            role: 'member',
+            user: { name: 'Grace Hopper', email: 'g@x.test' },
+          },
         ],
         invitations: [],
       },
@@ -206,11 +212,12 @@ describe('selecting and peeking', () => {
     await userEvent.keyboard('j')
     await userEvent.keyboard('x')
     await page.getByRole('button', { name: 'Request review' }).click()
-    await page.getByRole('dialog').getByText('Ada Lovelace').click()
+    // Ada is the signed-in user: she is not one of the choices.
+    await page.getByRole('dialog').getByText('Grace Hopper').click()
     await expect.poll(() => fake.of('POST')).toHaveLength(1)
     expect(fake.of('POST')[0]).toMatchObject({
       path: '/api/teams/acme/web/builds/request-review',
-      body: { buildIds: ['b8', 'b6'], reviewerIds: ['u1'] },
+      body: { buildIds: ['b8', 'b6'], reviewerIds: ['u2'] },
     })
   })
 

@@ -1,12 +1,25 @@
 import type { Comment } from '@circi/api'
-import { useAnnounce, visuallyHidden } from '@circi/ui'
-import { type KeyboardEvent, type PointerEvent, useEffect, useId, useRef, useState } from 'react'
+import { Button, Kbd, useAnnounce, visuallyHidden } from '@circi/ui'
+import {
+  type KeyboardEvent,
+  type PointerEvent,
+  type RefObject,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
+
+import { isSubmitKey } from '#lib/shortcuts.ts'
 
 import {
   type Box,
   describeRegion,
+  MIN_REGION_PX,
   nudgeRegion,
   type Point,
+  popoverSide,
   regionFromPoints,
   regionStyle,
   START_REGION,
@@ -21,62 +34,112 @@ export interface Annotations {
   /** The region drawn and not yet sent. */
   pending: Comment.Region | null
   focusedId: string | null
-  /** While on, a drag over the image draws a region. */
+  /** While on, a drag over the image draws a region, and the keyboard tool is shown. */
   drawing: boolean
   onDrawingChange: (drawing: boolean) => void
   onDraw: (region: Comment.Region) => void
   onMarker: (id: string) => void
+  /**
+   * Drawing is always on: a drag of at least 8 × 8 pixels draws a region (`onDraw`), a smaller
+   * one is a click (`onClick`). `drawing` then only means the keyboard tool is showing.
+   */
+  alwaysDraw?: boolean
+  onClick?: () => void
+  /** With the pending region: the comment popover anchored to it. */
+  composer?: RegionComposer.Callbacks
+}
+
+/** The pointer side of drawing: handlers for whatever element the drag happens on, and the live box. */
+export interface Gesture {
+  bind: {
+    onPointerDown: (e: PointerEvent<HTMLElement>) => void
+    onPointerMove: (e: PointerEvent<HTMLElement>) => void
+    onPointerUp: (e: PointerEvent<HTMLElement>) => void
+    onPointerCancel: () => void
+  }
+  live: Comment.Region | null
+}
+
+/**
+ * Drag to draw. Esc cancels a drag in progress. With `alwaysDraw` a drag under 8 pixels in either
+ * direction is a click, answered with `onClick`; without it nothing happens (the old tool: the
+ * caller switched drawing on first). The handlers go on the element the drag starts on: the
+ * layer itself, or a parent that also holds the image's click target.
+ */
+export function useRegionGesture(annotations: Annotations | undefined): Gesture {
+  const [drag, setDrag] = useState<{ from: Point; to: Point; box: Box } | null>(null)
+  const drawing = annotations?.drawing ?? false
+  const alwaysDraw = annotations?.alwaysDraw ?? false
+  const active = drawing || alwaysDraw
+  const minPixels = alwaysDraw ? MIN_REGION_PX : 0
+  const dragging = drag !== null
+
+  useEffect(() => {
+    if (!dragging) return undefined
+    const onKeyDown = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') setDrag(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [dragging])
+
+  return {
+    live: drag ? regionFromPoints(drag.box, drag.from, drag.to, minPixels) : null,
+    bind: {
+      onPointerDown(e) {
+        if (!active || e.button !== 0) return
+        // Always-on drawing starts on the image's own button: it keeps focus and its click.
+        if (!alwaysDraw) e.preventDefault()
+        // Drawing with the pointer: the keyboard tool's box steps aside.
+        if (
+          document.activeElement instanceof HTMLElement &&
+          document.activeElement.dataset['tool'] !== undefined
+        ) {
+          document.activeElement.blur()
+        }
+        e.currentTarget.setPointerCapture(e.pointerId)
+        const at = { x: e.clientX, y: e.clientY }
+        const { left, top, width, height } = e.currentTarget.getBoundingClientRect()
+        setDrag({ from: at, to: at, box: { left, top, width, height } })
+      },
+      onPointerMove(e) {
+        if (drag) setDrag({ ...drag, to: { x: e.clientX, y: e.clientY } })
+      },
+      onPointerUp(e) {
+        if (!drag) return
+        const to = { x: e.clientX, y: e.clientY }
+        const region = regionFromPoints(drag.box, drag.from, to, minPixels)
+        setDrag(null)
+        if (region) annotations?.onDraw(region)
+        else if (alwaysDraw) annotations?.onClick?.()
+      },
+      onPointerCancel: () => setDrag(null),
+    },
+  }
 }
 
 /**
  * A transparent layer over a snapshot image (the parent is positioned and exactly as big as the
- * image). Markers are buttons in the annotation colour; with `drawing` on, dragging draws a
- * rectangle, kept as fractions of the image so it holds at any zoom. The same tool works from
- * the keyboard (`RegionTool`): focus lands on a region in the middle of the image, the arrow keys
- * move it, Shift and the arrow keys resize it, Enter confirms and Escape cancels.
+ * image). Markers are buttons in the annotation colour; with `drawing` (or `alwaysDraw`),
+ * dragging draws a rectangle, kept as fractions of the image so it holds at any zoom. The same
+ * tool works from the keyboard (`RegionTool`): focus lands on a region in the middle of the
+ * image, the arrow keys move it, Shift and the arrow keys resize it, Enter confirms and Escape
+ * cancels.
  */
-export function RegionLayer({ annotations }: RegionLayer.Props) {
-  const [drag, setDrag] = useState<{ from: Point; to: Point; box: Box } | null>(null)
-  const { drawing } = annotations
-
-  const live = drag ? regionFromPoints(drag.box, drag.from, drag.to) : null
-
-  function down(e: PointerEvent<HTMLDivElement>) {
-    if (!drawing || e.button !== 0) return
-    e.preventDefault()
-    // Drawing with the pointer: the keyboard tool's box steps aside.
-    if (
-      document.activeElement instanceof HTMLElement &&
-      document.activeElement.dataset['tool'] !== undefined
-    ) {
-      document.activeElement.blur()
-    }
-    e.currentTarget.setPointerCapture(e.pointerId)
-    const at = { x: e.clientX, y: e.clientY }
-    const { left, top, width, height } = e.currentTarget.getBoundingClientRect()
-    setDrag({ from: at, to: at, box: { left, top, width, height } })
-  }
-
-  function move(e: PointerEvent<HTMLDivElement>) {
-    if (drag) setDrag({ ...drag, to: { x: e.clientX, y: e.clientY } })
-  }
-
-  function up(e: PointerEvent<HTMLDivElement>) {
-    if (!drag) return
-    const region = regionFromPoints(drag.box, drag.from, { x: e.clientX, y: e.clientY })
-    setDrag(null)
-    if (region) annotations.onDraw(region)
-  }
+export function RegionLayer({ annotations, gesture }: RegionLayer.Props) {
+  const own = useRegionGesture(gesture ? undefined : annotations)
+  const live = (gesture ?? own).live
+  const { drawing, alwaysDraw = false } = annotations
+  const pendingRef = useRef<HTMLSpanElement>(null)
 
   return (
     <div
       className={styles.layer}
       data-drawing={drawing ? '' : undefined}
+      data-always={alwaysDraw ? '' : undefined}
+      data-external={gesture ? '' : undefined}
       data-testid="region-layer"
-      onPointerDown={down}
-      onPointerMove={move}
-      onPointerUp={up}
-      onPointerCancel={() => setDrag(null)}
+      {...(gesture ? {} : own.bind)}
     >
       {annotations.threads.map((t) => (
         <button
@@ -95,9 +158,23 @@ export function RegionLayer({ annotations }: RegionLayer.Props) {
         </button>
       ))}
       {annotations.pending ? (
-        <span className={styles.marker} data-pending="" style={regionStyle(annotations.pending)} />
+        <span
+          ref={pendingRef}
+          className={styles.marker}
+          data-pending=""
+          style={regionStyle(annotations.pending)}
+        />
       ) : null}
       {live ? <span className={styles.marker} data-pending="" style={regionStyle(live)} /> : null}
+      {annotations.pending && annotations.composer ? (
+        <RegionComposer
+          // A new region is a new draft: the box starts empty.
+          key={`${annotations.pending.x}:${annotations.pending.y}:${annotations.pending.width}:${annotations.pending.height}`}
+          region={annotations.pending}
+          anchor={pendingRef}
+          {...annotations.composer}
+        />
+      ) : null}
       {drawing ? (
         <RegionTool
           onConfirm={annotations.onDraw}
@@ -106,6 +183,108 @@ export function RegionLayer({ annotations }: RegionLayer.Props) {
       ) : null}
     </div>
   )
+}
+
+/**
+ * The comment box for a region that was just selected: 232px wide, below the region with its left
+ * edge on the region's, or above it when there is less than 200px of room below. The field has
+ * focus on open; Esc cancels, ⌘/Ctrl+Enter sends, and Send waits for some text.
+ */
+function RegionComposer({
+  region,
+  anchor,
+  onSend,
+  onCancel,
+  sending = false,
+  error,
+}: RegionComposer.Props) {
+  const [body, setBody] = useState('')
+  const [side, setSide] = useState<'below' | 'above'>('below')
+  const field = useRef<HTMLTextAreaElement>(null)
+  const errorId = useId()
+  const text = body.trim()
+
+  // Measuring the region on screen is the one thing a render cannot know: place before paint.
+  useLayoutEffect(() => {
+    const box = anchor.current?.getBoundingClientRect()
+    // oxlint-disable-next-line react/set-state-in-effect
+    if (box) setSide(popoverSide(window.innerHeight - box.bottom))
+  }, [anchor])
+
+  useEffect(() => {
+    field.current?.focus()
+  }, [])
+
+  const send = () => {
+    if (text !== '' && !sending) onSend(text)
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-label="Comment on this region"
+      className={styles.popover}
+      data-side={side}
+      style={{
+        left: `min(${region.x * 100}%, calc(100% - 232px))`,
+        ...(side === 'below'
+          ? { top: `calc(${(region.y + region.height) * 100}% + 10px)` }
+          : { bottom: `calc(${(1 - region.y) * 100}% + 10px)` }),
+      }}
+      onPointerDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          e.stopPropagation()
+          onCancel()
+        } else if (isSubmitKey(e)) {
+          e.preventDefault()
+          e.stopPropagation()
+          send()
+        }
+      }}
+    >
+      <textarea
+        ref={field}
+        className={styles.field}
+        aria-label="Comment"
+        aria-describedby={error ? errorId : undefined}
+        placeholder="Leave a comment…"
+        rows={2}
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+      />
+      {error ? (
+        <span id={errorId} role="alert" className={styles.error}>
+          {error}
+        </span>
+      ) : null}
+      <div className={styles.actions}>
+        <Button size="sm" variant="ghost" onClick={onCancel}>
+          Cancel <Kbd>Esc</Kbd>
+        </Button>
+        <Button size="sm" variant="primary" disabled={text === ''} loading={sending} onClick={send}>
+          Send <Kbd>⌘↵</Kbd>
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+export namespace RegionComposer {
+  export interface Callbacks {
+    /** The trimmed text of the comment. */
+    onSend: (body: string) => void
+    onCancel: () => void
+    sending?: boolean
+    error?: string | undefined
+  }
+
+  export interface Props extends Callbacks {
+    region: Comment.Region
+    /** The marker of the region, to measure the room below it. */
+    anchor: RefObject<HTMLElement | null>
+  }
 }
 
 /**
@@ -183,5 +362,7 @@ namespace RegionTool {
 export namespace RegionLayer {
   export interface Props {
     annotations: Annotations
+    /** The drag handlers live on a parent (`useRegionGesture`): the layer only draws. */
+    gesture?: Gesture
   }
 }

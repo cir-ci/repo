@@ -60,7 +60,21 @@ describe('RequestReviewDialog', () => {
       dialog()
         .getByRole('button', { name: /Lovelace|Hopper|Turing/ })
         .elements(),
-    ).toHaveLength(3)
+    ).toHaveLength(2)
+  })
+
+  it('leaves the signed-in user out and says why', async () => {
+    await show().ready
+    await expect.element(dialog().getByRole('button', { name: /Grace Hopper/ })).toBeVisible()
+    // Ada (u1) is the signed-in user of every page test.
+    expect(
+      dialog()
+        .getByRole('button', { name: /Ada Lovelace/ })
+        .elements(),
+    ).toHaveLength(0)
+    await expect
+      .element(dialog().getByText('You can’t request a review from yourself.'))
+      .toBeVisible()
   })
 
   it('does not load members while closed', async () => {
@@ -108,7 +122,7 @@ describe('RequestReviewDialog', () => {
     const { ready, onClose } = show({ status: 403, body: { error: 'You cannot ask yourself' } })
     await ready
     await dialog()
-      .getByRole('button', { name: /Ada Lovelace/ })
+      .getByRole('button', { name: /Grace Hopper/ })
       .click()
     await expect.element(dialog().getByRole('alert')).toHaveTextContent('You cannot ask yourself')
     expect(onClose).not.toHaveBeenCalled()

@@ -49,7 +49,7 @@ export const dashboardReviewRequestRoutes: FastifyPluginAsync<Deps.Dashboard> = 
     }
   })
 
-  /** Any member may ask any member of the workspace (including themselves) to review. */
+  /** Any member may ask any other member of the workspace to review; asking yourself is a 400. */
   app.post('/teams/:workspace/:team/builds/:number/review-requests', async (req, reply) => {
     const { reviewerId } = parse(requestBody, req.body)
     const { build, user } = await loadBuild(deps, req, { notFound: 'Build not found' })

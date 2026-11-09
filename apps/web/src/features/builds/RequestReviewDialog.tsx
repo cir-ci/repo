@@ -4,29 +4,45 @@ import { useState } from 'react'
 
 import { useRequestReview } from '#features/builds/api/discussion.ts'
 import { workspaceQuery } from '#features/members/api.ts'
+import { authClient } from '#lib/auth-client.ts'
 
 import { matchMembers } from './mentions.ts'
 
 import styles from './Discussion.module.css'
 
-/** ⇧R: pick a workspace member to ask for a review of this build. */
-export function RequestReviewDialog({
-  open,
-  onClose,
-  workspace,
-  team,
-  number,
-}: RequestReviewDialog.Props) {
+/** ⇧R: pick a workspace member to ask for a review of this build. Never yourself. */
+export function RequestReviewDialog({ open, onClose, ...build }: RequestReviewDialog.Props) {
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose()
+      }}
+      title="Request a review"
+      description="They are notified and the build shows up on their Reviews page."
+    >
+      {/* Mounted only while open: the members and the session are fetched when someone asks. */}
+      <Choices {...build} onClose={onClose} />
+    </Dialog>
+  )
+}
+
+function Choices({ workspace, team, number, onClose }: Choices.Props) {
   const [filter, setFilter] = useState('')
-  const members = useQuery({ ...workspaceQuery(workspace), enabled: open })
+  const members = useQuery(workspaceQuery(workspace))
   const request = useRequestReview(workspace, team, number)
   const announce = useAnnounce()
+  const { data: session } = authClient.useSession()
+  const me = session?.user.id
 
-  const people = (members.data?.members ?? []).map((m) => ({
-    userId: m.userId,
-    name: m.user.name,
-    email: m.user.email,
-  }))
+  // You can't ask yourself: you are never one of the choices.
+  const people = (members.data?.members ?? [])
+    .filter((m) => m.userId !== me)
+    .map((m) => ({
+      userId: m.userId,
+      name: m.user.name,
+      email: m.user.email,
+    }))
   const shown = matchMembers(people, filter, 50)
 
   function choose(person: { userId: string; name: string }) {
@@ -37,25 +53,13 @@ export function RequestReviewDialog({
             ? `Asked ${person.name} to review.`
             : `${person.name} already has an open request.`,
         )
-        setFilter('')
         onClose()
       },
     })
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) {
-          setFilter('')
-          request.reset()
-          onClose()
-        }
-      }}
-      title="Request a review"
-      description="They are notified and the build shows up on their Reviews page."
-    >
+    <>
       <TextField
         label="Find a member"
         value={filter}
@@ -98,8 +102,20 @@ export function RequestReviewDialog({
           ))}
         </ul>
       )}
-    </Dialog>
+      <Text variant="small" tone="secondary">
+        You can’t request a review from yourself.
+      </Text>
+    </>
   )
+}
+
+namespace Choices {
+  export interface Props {
+    workspace: string
+    team: string
+    number: number
+    onClose: () => void
+  }
 }
 
 export namespace RequestReviewDialog {

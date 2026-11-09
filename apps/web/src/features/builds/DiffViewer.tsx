@@ -1,12 +1,14 @@
-import type { Build, Figma, ReviewStatus } from '@circi/api'
+import type { Build, Comment, Figma, ReviewStatus } from '@circi/api'
 import {
   Banner,
   Button,
   EmptyState,
+  EnlargeTrigger,
   ExpandLessIcon,
   ExpandMoreIcon,
   Heading,
   IconButton,
+  ImageDialog,
   Kbd,
   Link,
   ReviewIcon,
@@ -19,10 +21,16 @@ import {
 import { type CSSProperties, type ReactNode, useState } from 'react'
 
 import { fileUrl } from '#features/builds/api/index.ts'
-import { type Annotations, RegionLayer } from '#features/regions/RegionLayer.tsx'
+import {
+  type Annotations,
+  RegionLayer,
+  type RegionComposer,
+  useRegionGesture,
+} from '#features/regions/RegionLayer.tsx'
 import { MODE_OPTIONS } from '#lib/shortcuts.ts'
 
 import { screenshotLabel, screenshotStatus, type ShotKind } from './diff-status.ts'
+import { draftRegion, type RegionDraft, type RegionSide } from './region-draft.ts'
 import { changeSummary } from './review-model.ts'
 import { DESIGN_MODE, type ViewMode, VIEW_MODES } from './search.ts'
 import { type Zoom, stepZoom, zoomedWidth, zoomLabel } from './zoom.ts'
@@ -57,14 +65,19 @@ export function Viewer({
   kind,
   review,
   baselineNumber,
+  baselineBranch,
+  commitSha,
   designEnabled = false,
-  annotations,
+  regions,
   issues,
   ...props
 }: Viewer.Props) {
   const [opacity, setOpacity] = useState(70)
   const [at, setAt] = useState(50)
   const [zoom, setZoom] = useState<Zoom>('fit')
+  // The keyboard way to place a region on this build's image; dragging needs no switch.
+  const [keyboardTool, setKeyboardTool] = useState(false)
+  const [enlarged, setEnlarged] = useState<string | null>(null)
   const comparable =
     diff.status === 'changed' && diff.head !== null && diff.base !== null && diff.diff !== null
   const mode: ViewMode =
@@ -73,9 +86,42 @@ export function Viewer({
     ? [...MODE_OPTIONS, { value: DESIGN_MODE, label: 'Design' }]
     : MODE_OPTIONS
   // Regions are drawn on this build's image, so they need one.
-  const annotate = diff.head !== null && mode !== 'design' ? annotations : undefined
+  const annotatable = regions !== undefined && diff.head !== null && mode !== 'design'
+  const annotationsFor = (side: RegionSide): Annotations | undefined => {
+    if (!regions || !annotatable) return undefined
+    const draft = draftRegion(regions.draft, diff.id, side)
+    return {
+      // Sent comments are not tied to a side: they show on this build's image.
+      threads: side === 'build' ? regions.threads : [],
+      pending: draft,
+      focusedId: regions.focusedId,
+      drawing: side === 'build' && keyboardTool,
+      onDrawingChange: setKeyboardTool,
+      onDraw: (region) => {
+        setKeyboardTool(false)
+        regions.onDraw(side, region)
+      },
+      onMarker: regions.onMarker,
+      alwaysDraw: true,
+      composer: draft ? regions.composer : undefined,
+    }
+  }
   const summary = changeSummary(diff)
   const baselineLabel = baselineNumber ? `Baseline · build #${baselineNumber}` : 'Baseline'
+  const baselineCaption = baselineNumber
+    ? `Baseline · build #${baselineNumber} on ${baselineBranch ?? 'an unknown branch'}`
+    : 'Baseline'
+  const buildCaption = commitSha ? `This build · ${commitSha.slice(0, 7)}` : 'This build'
+  // What the enlarged view can show: the baseline, this build and, in Diff mode, the changed pixels.
+  const enlargeable: { key: string; image: Build.ImageRef; caption: string }[] = [
+    ...(diff.base ? [{ key: 'baseline', image: diff.base, caption: baselineCaption }] : []),
+    ...(diff.head ? [{ key: 'build', image: diff.head, caption: buildCaption }] : []),
+    ...(mode === 'diff' && diff.diff
+      ? [{ key: 'diff', image: diff.diff, caption: 'Changed pixels in red' }]
+      : []),
+  ]
+  const enlargedAt = enlargeable.findIndex((e) => e.key === enlarged)
+  const layer = annotationsFor('build')
   const zoomed = zoom !== 'fit'
 
   return (
@@ -138,16 +184,20 @@ export function Viewer({
               />
             </span>
           ) : null}
-          {annotate ? (
-            <Tooltip content="Drag over the screenshot, or use the arrow keys, to comment on a region">
-              <Button
-                variant="toggle"
-                size="sm"
-                aria-pressed={annotate.drawing}
-                onClick={() => annotate.onDrawingChange(!annotate.drawing)}
+          <Text variant="small" tone="secondary" className={styles.hint}>
+            {annotatable
+              ? 'Drag on an image to comment on a region · click an image to enlarge'
+              : 'Click an image to enlarge'}
+          </Text>
+          {annotatable ? (
+            <Tooltip content="Mark a region with the keyboard: arrow keys move it, Shift and arrow keys resize it, Enter confirms">
+              <IconButton
+                label="Mark a region with the keyboard"
+                aria-pressed={keyboardTool}
+                onClick={() => setKeyboardTool(!keyboardTool)}
               >
-                Comment on a region
-              </Button>
+                <span aria-hidden="true">⌖</span>
+              </IconButton>
             </Tooltip>
           ) : null}
           <div className={styles.group}>
@@ -227,13 +277,22 @@ export function Viewer({
 
         {mode === 'side' ? (
           <div className={styles.side} data-zoomed={zoomed ? '' : undefined}>
-            {diff.base ? <Figure label={baselineLabel} image={diff.base} zoom={zoom} /> : null}
+            {diff.base ? (
+              <Figure
+                label={baselineLabel}
+                image={diff.base}
+                zoom={zoom}
+                annotations={withClick(annotationsFor('baseline'), () => setEnlarged('baseline'))}
+                onEnlarge={() => setEnlarged('baseline')}
+              />
+            ) : null}
             {diff.head ? (
               <Figure
                 label={diff.status === 'added' ? 'New in this build' : 'This build'}
                 image={diff.head}
                 zoom={zoom}
-                annotations={annotate}
+                annotations={withClick(annotationsFor('build'), () => setEnlarged('build'))}
+                onEnlarge={() => setEnlarged('build')}
               />
             ) : null}
             {!diff.head && diff.base ? (
@@ -262,7 +321,7 @@ export function Viewer({
                 className={styles.cover}
                 style={{ opacity: opacity / 100 }}
               />
-              {annotate ? <RegionLayer annotations={annotate} /> : null}
+              {layer ? <RegionLayer annotations={layer} /> : null}
             </div>
           </figure>
         ) : null}
@@ -286,7 +345,7 @@ export function Viewer({
                 style={{ clipPath: `inset(0 0 0 ${at}%)` }}
               />
               <span aria-hidden="true" className={styles.divider} style={{ left: `${at}%` }} />
-              {annotate ? <RegionLayer annotations={annotate} /> : null}
+              {layer ? <RegionLayer annotations={layer} /> : null}
             </div>
           </figure>
         ) : null}
@@ -296,7 +355,8 @@ export function Viewer({
             label="Changed pixels in red"
             image={diff.diff}
             zoom={zoom}
-            annotations={annotate}
+            annotations={withClick(annotationsFor('build'), () => setEnlarged('diff'))}
+            onEnlarge={() => setEnlarged('diff')}
           />
         ) : null}
 
@@ -306,6 +366,20 @@ export function Viewer({
           </EmptyState>
         ) : null}
       </div>
+      <ImageDialog
+        images={enlargeable.map((e) => ({
+          src: fileUrl(e.image.sha256),
+          caption: e.caption,
+          ...(e.image.width ? { width: e.image.width } : {}),
+          ...(e.image.height ? { height: e.image.height } : {}),
+        }))}
+        open={enlarged !== null && enlargedAt >= 0}
+        index={Math.max(enlargedAt, 0)}
+        onIndexChange={(i) => setEnlarged(enlargeable[i]?.key ?? null)}
+        onOpenChange={(open) => {
+          if (!open) setEnlarged(null)
+        }}
+      />
     </section>
   )
 }
@@ -318,6 +392,10 @@ export namespace Viewer {
     review: ReviewStatus
     mode: ViewMode
     baselineNumber: number | undefined
+    /** The baseline's branch, for the enlarged view's caption. */
+    baselineBranch?: string | null | undefined
+    /** This build's commit, for the enlarged view's caption. */
+    commitSha?: string | undefined
     onMode: (m: ViewMode) => void
     /** Absent at the first / last screenshot. */
     onPrevious: (() => void) | undefined
@@ -326,42 +404,68 @@ export namespace Viewer {
     /** Offers the Design mode (key 5); false until the Figma integration exists. */
     designEnabled?: boolean
     /** Comment regions on this snapshot; absent where nobody can comment. */
-    annotations?: Annotations
+    regions?: Regions
     /** The link row for issues filed about this snapshot, right under the toolbar. */
     issues?: ReactNode
   }
 }
+
+/** The regions of the snapshot on screen: sent threads, and the one selected region with its draft. */
+export interface Regions {
+  threads: Annotations['threads']
+  focusedId: string | null
+  /** The selected region and the snapshot and side it was drawn on. */
+  draft: RegionDraft | null
+  onDraw: (side: RegionSide, region: Comment.Region) => void
+  onMarker: (id: string) => void
+  composer: RegionComposer.Callbacks
+}
+
+/** A click on an image (a press that does not draw) enlarges it. */
+const withClick = (a: Annotations | undefined, onClick: () => void): Annotations | undefined =>
+  a && { ...a, onClick }
 
 const imageStyle = (zoom: Zoom, naturalWidth: number | null): CSSProperties | undefined => {
   const width = zoomedWidth(zoom, naturalWidth)
   return width === undefined ? undefined : { width, maxWidth: 'none' }
 }
 
-function Figure({ label, image, zoom, annotations }: Figure.Props) {
+function Figure({ label, image, zoom, annotations, onEnlarge }: Figure.Props) {
+  const gesture = useRegionGesture(annotations)
+  const drawsOnPointer = annotations?.alwaysDraw === true
   return (
     <figure className={styles.figure}>
       <Text as="small" variant="small" tone="secondary" className={styles.caption}>
         {label}
       </Text>
-      {/* The layer is a sibling of the link, never inside it: markers are buttons. */}
-      <div className={styles.stage}>
-        <a
-          href={fileUrl(image.sha256)}
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Open full size"
-          className={styles.frame}
-        >
-          <img
-            src={fileUrl(image.sha256)}
-            alt={label}
-            className={styles.image}
-            style={imageStyle(zoom, image.width)}
-          />
-        </a>
+      {/* A press on the image either drags a region or, without moving, enlarges it. The layer is
+          a sibling of the trigger, never inside it: markers are buttons. */}
+      <div
+        className={styles.stage}
+        data-annotatable={drawsOnPointer ? '' : undefined}
+        {...gesture.bind}
+      >
+        <div className={styles.frame}>
+          <EnlargeTrigger
+            label={`Enlarge ${label}`}
+            onClick={(e) => {
+              // A mouse press was already told apart from a drag when it ended; a key press was not.
+              if (drawsOnPointer && e.detail !== 0) return
+              onEnlarge()
+            }}
+          >
+            <img
+              src={fileUrl(image.sha256)}
+              alt={label}
+              draggable={false}
+              className={styles.image}
+              style={imageStyle(zoom, image.width)}
+            />
+          </EnlargeTrigger>
+        </div>
         {annotations ? (
           <div className={styles.inset}>
-            <RegionLayer annotations={annotations} />
+            <RegionLayer annotations={annotations} gesture={gesture} />
           </div>
         ) : null}
       </div>
@@ -375,5 +479,6 @@ export namespace Figure {
     image: Build.ImageRef
     zoom: Zoom
     annotations?: Annotations | undefined
+    onEnlarge: () => void
   }
 }

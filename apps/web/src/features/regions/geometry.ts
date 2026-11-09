@@ -17,6 +17,9 @@ export interface Box {
 /** A drag smaller than this fraction of the image in either direction is a click, not a region. */
 export const MIN_REGION = 0.01
 
+/** With always-on drawing, a drag smaller than this many pixels in either direction is a click. */
+export const MIN_REGION_PX = 8
+
 /** Where the keyboard region tool starts: a fifth of the image, in the middle. */
 export const START_REGION: Comment.Region = { x: 0.4, y: 0.4, width: 0.2, height: 0.2 }
 
@@ -33,10 +36,17 @@ const clamp01 = (n: number) => Math.min(1, Math.max(0, n))
 /**
  * The region a drag from `a` to `b` covers on an image drawn in `box`, as fractions (0 to 1) of
  * its width and height: dragging in any direction works, a drag that leaves the image is clipped
- * to it, and one too small to mean anything gives null.
+ * to it, and one too small to mean anything (under 1% of the image, or under `minPixels` on
+ * screen) gives null.
  */
-export function regionFromPoints(box: Box, a: Point, b: Point): Comment.Region | null {
+export function regionFromPoints(
+  box: Box,
+  a: Point,
+  b: Point,
+  minPixels = 0,
+): Comment.Region | null {
   if (box.width <= 0 || box.height <= 0) return null
+  if (Math.abs(a.x - b.x) < minPixels || Math.abs(a.y - b.y) < minPixels) return null
   const fx = (p: Point) => clamp01((p.x - box.left) / box.width)
   const fy = (p: Point) => clamp01((p.y - box.top) / box.height)
   const x = Math.min(fx(a), fx(b))
@@ -70,6 +80,17 @@ export function nudgeRegion(
   const y = Math.min(1 - region.height, Math.max(0, region.y + dy * step))
   return { ...region, x: round4(x), y: round4(y) }
 }
+
+/**
+ * Where a popover for `region` goes: below it with its left edge on the region's, or above it
+ * when the room below the region (`roomBelow`, in pixels) is under `needed`.
+ */
+export function popoverSide(roomBelow: number, needed = POPOVER_ROOM): 'below' | 'above' {
+  return roomBelow < needed ? 'above' : 'below'
+}
+
+/** The room a region popover needs below its region before it flips above. */
+export const POPOVER_ROOM = 200
 
 const percent = (n: number) => `${Math.round(n * 100)}%`
 

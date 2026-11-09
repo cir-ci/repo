@@ -132,7 +132,7 @@ export namespace reviewBuild {
 const REQUEST_KINDS = ['review_requested', 'review_re_requested', 'review_overdue'] as const
 
 /**
- * Asks `reviewerId` to review a build. The request is due when the team's review target runs
+ * Asks `reviewerId` to review a build; asking yourself is refused. The request is due when the team's review target runs
  * out (never, for a team without one). Asking again while the request is open returns it
  * unchanged; asking after it closed opens a new one.
  */
@@ -140,6 +140,7 @@ export async function requestReview(
   db: Database,
   input: requestReview.Input,
 ): Promise<requestReview.Result> {
+  if (input.reviewerId === input.requestedById) throw new ValidationError(SELF_REQUEST)
   return db.transaction(async (tx) => {
     const build = await getBuild(tx, input.buildId)
     const team = build ? await getTeamById(tx, build.teamId) : undefined
@@ -164,6 +165,8 @@ export namespace requestReview {
   }
   export type Result = openReviewRequest.Result
 }
+
+const SELF_REQUEST = 'You can’t request a review from yourself.'
 
 /** Most builds, and most reviewers, one bulk request may cover. */
 export const MAX_BULK_REQUEST_REVIEW = 50
@@ -190,6 +193,7 @@ export async function requestReviews(
   if (reviewerIds.length > MAX_REQUEST_REVIEWERS) {
     throw new ValidationError(`reviewerIds: at most ${MAX_REQUEST_REVIEWERS} reviewers`)
   }
+  if (reviewerIds.includes(input.requestedById)) throw new ValidationError(SELF_REQUEST)
   return db.transaction(async (tx) => {
     const own = await listTeamBuildsByIds(tx, input.teamId, buildIds)
     if (own.length !== buildIds.length) throw new NotFoundError('Build not found')

@@ -176,9 +176,11 @@ describe('integrationEvent (Slack)', () => {
     expect(integration.id).toBeTruthy()
   })
 
-  it('does not tell the channel about someone asking themselves', async () => {
+  it('does not tell the channel about someone asking themselves: it is refused', async () => {
     const { owner, build } = await setup()
-    await requestReview(t.db, { buildId: build.id, reviewerId: owner.id, requestedById: owner.id })
+    await expect(
+      requestReview(t.db, { buildId: build.id, reviewerId: owner.id, requestedById: owner.id }),
+    ).rejects.toThrow('You can’t request a review from yourself.')
     expect(await jobs()).toHaveLength(0)
   })
 

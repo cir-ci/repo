@@ -118,15 +118,13 @@ describe('review requested', () => {
     expect(jobs.some((j) => j.payload.notificationId === notice?.id)).toBe(true)
   })
 
-  it('does not notify twice for a request that is already open, nor for asking yourself', async () => {
+  it('does not notify twice for a request that is already open', async () => {
     const { owner, bob, build } = await setup()
     const ask = () =>
       requestReview(t.db, { buildId: build.id, reviewerId: bob.id, requestedById: owner.id })
     await ask()
     await ask()
     expect(await noticesOf(bob.id)).toHaveLength(1)
-    await requestReview(t.db, { buildId: build.id, reviewerId: owner.id, requestedById: owner.id })
-    expect(await noticesOf(owner.id)).toEqual([])
   })
 
   it('is a re-request when the reviewer had a request that closed', async () => {

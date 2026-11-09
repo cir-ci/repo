@@ -193,6 +193,12 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
         api.requests.push(JSON.parse(typeof init?.body === 'string' ? init.body : '{}'))
         return json({ id: 'r1', state: 'open', dueAt: null, created: true }, 201)
       }
+      // Signed in as Ada (u1): the request-review picker leaves her out.
+      if (url.pathname === '/api/auth/get-session')
+        return json({
+          session: { id: 's1', userId: 'u1', expiresAt: '2099-01-01T00:00:00.000Z', token: 't' },
+          user: { id: 'u1', name: 'Ada Lovelace', email: 'ada@example.test', emailVerified: true },
+        })
       if (url.pathname === '/api/auth/organization/get-full-organization')
         return json({
           id: 'workspace1',

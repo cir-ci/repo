@@ -103,6 +103,17 @@ describe('review requests', () => {
     expect(res.json().error).toMatch(/not a member/)
   })
 
+  it('refuses a request from yourself with a 400 and stores nothing', async () => {
+    const res = await post(requestUrl(), { payload: { reviewerId: acme.owner.id } })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error).toBe('You can’t request a review from yourself.')
+    expect(await list('created')).toMatchObject({ requests: [] })
+    const bulk = await post(`/api/teams/${acme.workspaceSlug}/web/builds/request-review`, {
+      payload: { buildIds: ['00000000-0000-4000-8000-000000000000'], reviewerIds: [acme.owner.id] },
+    })
+    expect(bulk.statusCode).toBe(400)
+  })
+
   it('needs a session and the dashboard’s own origin', async () => {
     expect((await get('/api/reviews', '')).statusCode).toBe(401)
     expect((await post(requestUrl(), { cookie: '' })).statusCode).toBe(401)

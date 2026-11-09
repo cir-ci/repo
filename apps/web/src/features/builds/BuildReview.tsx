@@ -1,4 +1,4 @@
-import type { Build, Comment } from '@circi/api'
+import type { Build } from '@circi/api'
 import {
   Banner,
   Collapsible,
@@ -10,13 +10,14 @@ import {
   Text,
   Tooltip,
   HourglassIcon,
+  useAnnounce,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { ShortcutsDialog } from '#app/ShortcutsDialog.tsx'
-import { commentsQuery } from '#features/builds/api/discussion.ts'
+import { commentsQuery, useAddComment } from '#features/builds/api/discussion.ts'
 import { flakyQuery, isActive } from '#features/builds/api/index.ts'
 import { regionThreads } from '#features/regions/geometry.ts'
 import { crumbsFor, PageHeading, teamBuildsCrumb } from '#lib/PageHeading.tsx'
@@ -32,6 +33,7 @@ import { screenshotLabel, screenshotStatus, shotDecision, shotReview } from './d
 import { Viewer } from './DiffViewer.tsx'
 import { IssueAction } from './IssueAction.tsx'
 import { SnapshotIssues } from './LinkedIssues.tsx'
+import { draftOf, type RegionDraft } from './region-draft.ts'
 import { RequestReviewDialog } from './RequestReviewDialog.tsx'
 import {
   defaultShot,
@@ -64,8 +66,8 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const [helpOpen, setHelpOpen] = useState(false)
   const [requesting, setRequesting] = useState(false)
   const [tab, setTab] = useState<SidebarTab>('details')
-  const [drawing, setDrawing] = useState(false)
-  const [pendingRegion, setPendingRegion] = useState<Comment.Region | null>(null)
+  // The region selected on an image and not yet sent: it belongs to one snapshot and one side.
+  const [draft, setDraft] = useState<RegionDraft | null>(null)
   const [focusedComment, setFocusedComment] = useState<string | null>(null)
   const composer = useRef<HTMLTextAreaElement>(null)
 
@@ -81,6 +83,10 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const selected = fromUrl ?? defaultShot(groups)
   const selectedGroup = groups.find((g) => selected && g.items.includes(selected))?.kind
   const review = useReviewControls(data, selected)
+  const addComment = useAddComment(team.workspaceSlug, team.slug, build.number)
+  const announce = useAnnounce()
+  // Another screenshot has none of this one's regions: the selection and its unsent text go.
+  if (draft && draftOf(draft, selected?.id) === null) setDraft(null)
 
   const [open, setOpen] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(GROUP_ORDER.map((g) => [g.kind, g.open])),
@@ -260,6 +266,8 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
               review={shotDecision(selected, buildReview)}
               mode={mode}
               baselineNumber={baseline?.number}
+              baselineBranch={baseline?.branch}
+              commitSha={build.commitSha}
               onMode={(m) =>
                 void navigate({ search: (prev) => ({ ...prev, mode: m }), replace: true })
               }
@@ -275,22 +283,39 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
                   snapshotName={selected.name}
                 />
               }
-              annotations={{
+              regions={{
                 threads: pinned.flatMap((c, i) =>
                   c.region ? [{ id: c.id, number: i + 1, region: c.region }] : [],
                 ),
-                pending: pendingRegion,
                 focusedId: focusedComment,
-                drawing,
-                onDrawingChange: setDrawing,
-                onDraw: (region) => {
-                  setPendingRegion(region)
-                  setDrawing(false)
-                  openComposer()
+                draft,
+                onDraw: (side, region) => {
+                  addComment.reset()
+                  setDraft({ shotId: selected.id, side, region })
                 },
                 onMarker: (id) => {
                   setTab('comments')
                   setFocusedComment(id)
+                },
+                composer: {
+                  onSend: (body) => {
+                    if (!draft) return
+                    addComment.mutate(
+                      { body, snapshotName: selected.name, region: draft.region },
+                      {
+                        onSuccess: () => {
+                          setDraft(null)
+                          announce('Comment added.')
+                        },
+                      },
+                    )
+                  },
+                  onCancel: () => {
+                    addComment.reset()
+                    setDraft(null)
+                  },
+                  sending: addComment.isPending,
+                  error: addComment.error?.message,
                 },
               }}
             />
@@ -300,8 +325,6 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
             tab={tab}
             onTab={setTab}
             snapshotName={selected?.name ?? null}
-            pendingRegion={pendingRegion}
-            onClearRegion={() => setPendingRegion(null)}
             focusedId={focusedComment}
             composerRef={composer}
             onOpenComment={(id) => {

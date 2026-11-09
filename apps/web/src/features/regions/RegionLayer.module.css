@@ -2,9 +2,11 @@
   position: absolute;
   inset: 0;
   touch-action: none;
+  user-select: none;
 }
 
-.layer[data-drawing] {
+.layer[data-drawing],
+.layer[data-always] {
   cursor: crosshair;
 }
 
@@ -60,4 +62,91 @@
   opacity: 1;
   outline: 2px solid var(--circi-annotation-text);
   outline-offset: 2px;
+}
+
+/* The drag happens on a parent that also holds the image's click target: only markers and the popover take the pointer. */
+.layer[data-external] {
+  pointer-events: none;
+}
+
+.layer[data-external] .marker:not([data-pending]),
+.layer[data-always] .marker:not([data-pending]) {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.popover {
+  position: absolute;
+  z-index: 6;
+  box-sizing: border-box;
+  width: 232px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--circi-line-strong);
+  border-radius: 8px;
+  background: var(--circi-surface-overlay);
+  color: var(--circi-text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+  cursor: auto;
+  pointer-events: auto;
+}
+
+:root[data-circi-color-scheme='light'] .popover {
+  box-shadow: 0 8px 24px rgb(28 15 12 / 14%);
+}
+
+/* The caret points at the region. */
+.popover::before {
+  content: '';
+  position: absolute;
+  left: 18px;
+  width: 8px;
+  height: 8px;
+  background: var(--circi-surface-overlay);
+  border: 1px solid var(--circi-line-strong);
+  transform: rotate(45deg);
+}
+
+.popover[data-side='below']::before {
+  top: -5px;
+  border-right: 0;
+  border-bottom: 0;
+}
+
+.popover[data-side='above']::before {
+  bottom: -5px;
+  border-top: 0;
+  border-left: 0;
+}
+
+.field {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 10px;
+  border: 1px solid var(--circi-line-strong);
+  border-radius: 6px;
+  background: var(--circi-surface-raised);
+  color: inherit;
+  font: inherit;
+  resize: none;
+}
+
+.field:focus-visible {
+  outline: 2px solid var(--circi-accent-main);
+  outline-offset: 2px;
+}
+
+.error {
+  color: var(--circi-text-secondary);
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }

@@ -1,4 +1,4 @@
-import type { Build, Comment } from '@circi/api'
+import type { Build } from '@circi/api'
 import { Badge, Button, Kbd, Stack, StatusIcon, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { type KeyboardEvent, type Ref, useId } from 'react'
@@ -91,8 +91,6 @@ export function ReviewSidebar(props: ReviewSidebar.Props) {
             team={team.slug}
             number={build.number}
             snapshotName={props.snapshotName}
-            pendingRegion={props.pendingRegion}
-            onClearRegion={props.onClearRegion}
             focusedId={props.focusedId}
             composerRef={props.composerRef}
             onShowSnapshot={props.onShowSnapshot}
@@ -109,8 +107,6 @@ export namespace ReviewSidebar {
     tab: SidebarTab
     onTab: (tab: SidebarTab) => void
     snapshotName: string | null
-    pendingRegion: Comment.Region | null
-    onClearRegion: () => void
     focusedId: string | null
     composerRef: Ref<HTMLTextAreaElement>
     onOpenComment: (commentId: string) => void

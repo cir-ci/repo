@@ -88,12 +88,12 @@ describe('POST /api/teams/:workspace/:team/builds/request-review', () => {
     const rows = (await db.query.builds.findMany()).filter((b) => b.teamId === acme.team.id)
     const ids = rows.map((b) => b.id)
     expect(
-      (await ask({ buildIds: ids, reviewerIds: [acme.owner.id] }, { cookie: rivalCookie }))
+      (await ask({ buildIds: ids, reviewerIds: [rival.owner.id] }, { cookie: rivalCookie }))
         .statusCode,
     ).toBe(404)
     const missing = '00000000-0000-4000-8000-000000000000'
     expect(
-      (await ask({ buildIds: [...ids, missing], reviewerIds: [acme.owner.id] })).statusCode,
+      (await ask({ buildIds: [...ids, missing], reviewerIds: [rival.owner.id] })).statusCode,
     ).toBe(404)
     expect(await open()).toEqual([])
   })
@@ -102,7 +102,7 @@ describe('POST /api/teams/:workspace/:team/builds/request-review', () => {
     const rows = (await db.query.builds.findMany()).filter((b) => b.teamId === acme.team.id)
     const res = await ask({
       buildIds: rows.map((b) => b.id),
-      reviewerIds: [acme.owner.id, rival.owner.id],
+      reviewerIds: [rival.owner.id],
     })
     // Build 2 (auto-approved, no changes) cannot be asked either: a conflict, nothing stored.
     expect(res.statusCode).toBe(409)

@@ -1,3 +1,4 @@
+import { ValidationError } from '@circi/core'
 import { createBuild, markFileVerified, planUploads } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
 import {
@@ -72,6 +73,14 @@ async function pushBuild(teamId: string, branch: string, commit: string, hash: s
 }
 
 describe('requestReview', () => {
+  it('refuses a request from yourself with a validation error', async () => {
+    const { owner, build } = await setup()
+    await expect(
+      requestReview(t.db, { buildId: build.id, reviewerId: owner.id, requestedById: owner.id }),
+    ).rejects.toBeInstanceOf(ValidationError)
+    expect(await requestsOf(build.id)).toEqual([])
+  })
+
   it('opens a request due when the team review target runs out', async () => {
     const { owner, teammate, build } = await setup()
     const now = new Date('2026-03-10T12:00:00.000Z')
@@ -105,7 +114,9 @@ describe('requestReview', () => {
   })
 
   it('returns the open request when asked again, whoever asks', async () => {
-    const { owner, teammate, build } = await setup()
+    const { owner, workspace, teammate, build } = await setup()
+    const third = await seedUser(t.db)
+    await addTestMember(t.db, { workspaceId: workspace.id, userId: third.id })
     const first = await requestReview(t.db, {
       buildId: build.id,
       reviewerId: teammate.id,
@@ -114,7 +125,7 @@ describe('requestReview', () => {
     const again = await requestReview(t.db, {
       buildId: build.id,
       reviewerId: teammate.id,
-      requestedById: teammate.id,
+      requestedById: third.id,
     })
     expect(again.created).toBe(false)
     expect(again.request).toEqual(first.request)
@@ -162,7 +173,7 @@ describe('requestReview', () => {
 })
 
 async function several() {
-  const { team, owner, teammate, build } = await setup()
+  const { team, workspace, owner, teammate, build } = await setup()
   const second = await createBuild(t.db, { teamId: team.id, commitSha: 'def5678', branch: 'x' })
   await t.db
     .update(schema.builds)
@@ -170,17 +181,33 @@ async function several() {
     .where(eq(schema.builds.id, second.id))
   await seedChangedSnapshots(t.db, second.id)
   await t.db.delete(schema.notifications)
-  return { team, owner, teammate, builds: [build, second] }
+  const third = await seedUser(t.db)
+  await addTestMember(t.db, { workspaceId: workspace.id, userId: third.id })
+  return { team, owner, teammate, third, builds: [build, second] }
 }
 const notices = () => t.db.select().from(schema.notifications)
 
 describe('requestReviews', () => {
-  it('asks every reviewer about every build in one go, notifying each new request', async () => {
+  it('refuses a request from yourself, whole, changing nothing', async () => {
     const { team, owner, teammate, builds } = await several()
+    await expect(
+      requestReviews(t.db, {
+        teamId: team.id,
+        buildIds: builds.map((b) => b.id),
+        reviewerIds: [teammate.id, owner.id],
+        requestedById: owner.id,
+      }),
+    ).rejects.toThrow('You can’t request a review from yourself.')
+    expect((await Promise.all(builds.map((b) => requestsOf(b.id)))).flat()).toEqual([])
+    expect(await notices()).toEqual([])
+  })
+
+  it('asks every reviewer about every build in one go, notifying each new request', async () => {
+    const { team, owner, teammate, third, builds } = await several()
     const result = await requestReviews(t.db, {
       teamId: team.id,
       buildIds: builds.map((b) => b.id),
-      reviewerIds: [teammate.id, owner.id],
+      reviewerIds: [teammate.id, third.id],
       requestedById: owner.id,
     })
     expect(result.requests).toHaveLength(4)
@@ -327,7 +354,11 @@ describe('reviewBuild', () => {
       reviewerId: teammate.id,
       requestedById: owner.id,
     })
-    await requestReview(t.db, { buildId: build.id, reviewerId: owner.id, requestedById: owner.id })
+    await requestReview(t.db, {
+      buildId: build.id,
+      reviewerId: owner.id,
+      requestedById: teammate.id,
+    })
 
     await reviewBuild(t.db, { buildId: build.id, userId: teammate.id, state: 'approved' })
 

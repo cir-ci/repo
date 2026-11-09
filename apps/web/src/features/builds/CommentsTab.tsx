@@ -20,11 +20,11 @@ import { groupThreads, type Thread } from './timeline.ts'
 import styles from './Discussion.module.css'
 
 /**
- * The build's discussion: threads with replies, a field for a new comment (the C key focuses
- * it) and, when a region was just drawn on a snapshot, the comment is pinned to it.
+ * The build's discussion: threads with replies and a field for a new comment (the C key
+ * focuses it). A comment on a region is written in the popover on the image, not here.
  */
 export function CommentsTab(props: CommentsTab.Props) {
-  const { workspace, team, number, snapshotName, pendingRegion, focusedId } = props
+  const { workspace, team, number, snapshotName, focusedId } = props
   const { data, error, isPending } = useQuery(commentsQuery(workspace, team, number))
   const workspaceInfo = useQuery(workspaceQuery(workspace))
   const add = useAddComment(workspace, team, number)
@@ -51,26 +51,12 @@ export function CommentsTab(props: CommentsTab.Props) {
         inputRef={props.composerRef}
         pending={add.isPending}
         error={add.error?.message}
-        context={
-          pendingRegion && snapshotName ? (
-            <div className={styles.line}>
-              <Text variant="small">Pinned to a region of {snapshotName}</Text>
-              <Button size="sm" variant="ghost" onClick={props.onClearRegion}>
-                Remove pin
-              </Button>
-            </div>
-          ) : null
-        }
         onSubmit={(body, clear) =>
           add.mutate(
-            {
-              body,
-              ...(pendingRegion && snapshotName ? { snapshotName, region: pendingRegion } : {}),
-            },
+            { body },
             {
               onSuccess: () => {
                 clear()
-                props.onClearRegion()
                 announce('Comment added.')
               },
             },
@@ -114,8 +100,6 @@ export namespace CommentsTab {
     number: number
     /** The snapshot on screen: a region drawn on it is pinned to this name. */
     snapshotName: string | null
-    pendingRegion: Comment.Region | null
-    onClearRegion: () => void
     /** The thread to scroll to and focus (a marker or an activity line was chosen). */
     focusedId: string | null
     composerRef: Ref<HTMLTextAreaElement>

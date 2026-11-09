@@ -143,6 +143,8 @@
 .inset {
   position: absolute;
   inset: 1px;
+  /* The press goes to the image's button underneath; markers and the popover opt back in. */
+  pointer-events: none;
 }
 
 .image {
@@ -174,4 +176,14 @@
     flex: 1 1 100%;
     width: auto;
   }
+}
+
+.hint {
+  min-width: 0;
+}
+
+/* Drawing is always on: the image and its frame take a crosshair, the markers keep theirs. */
+.stage[data-annotatable],
+.stage[data-annotatable] > .frame > button {
+  cursor: crosshair;
 }
