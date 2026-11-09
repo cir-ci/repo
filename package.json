@@ -19,6 +19,8 @@
     "test:watch": "vitest",
     "db:generate": "pnpm --filter @circi/db generate",
     "circi": "node --conditions=@circi/source apps/server/src/main.ts",
+    "dev": "node --conditions=@circi/source dev/src/main.ts up",
+    "dev:reset": "node --conditions=@circi/source dev/src/main.ts reset",
     "clean": "rm -rf apps/*/dist packages/*/dist .vitest coverage",
     "format:check": "oxfmt --check",
     "db:auth-schema": "pnpm --filter @circi/auth schema",

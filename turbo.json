@@ -19,7 +19,7 @@
     },
     "//#format:check": {
       "inputs": [
-        "$TURBO_ROOT$/{apps,packages,e2e,docs,deploy}/**",
+        "$TURBO_ROOT$/{apps,packages,e2e,dev,docs,deploy}/**",
         "$TURBO_ROOT$/*.{json,ts,yaml,md}",
         "!**/node_modules/**",
         "!**/dist/**",
@@ -29,7 +29,7 @@
     },
     "//#lint": {
       "inputs": [
-        "$TURBO_ROOT$/{apps,packages,e2e}/**/*.{ts,tsx,json,css}",
+        "$TURBO_ROOT$/{apps,packages,e2e,dev}/**/*.{ts,tsx,json,css}",
         "$TURBO_ROOT$/.oxlintrc.json",
         "$TURBO_ROOT$/*.{ts,json}",
         "!**/node_modules/**",
@@ -40,7 +40,7 @@
     },
     "//#typecheck": {
       "inputs": [
-        "$TURBO_ROOT$/{apps,packages,e2e}/**/*.{ts,tsx,json,css,d.ts}",
+        "$TURBO_ROOT$/{apps,packages,e2e,dev}/**/*.{ts,tsx,json,css,d.ts}",
         "$TURBO_ROOT$/*.{ts,json}",
         "!**/node_modules/**",
         "!**/dist/**",

@@ -20,3 +20,6 @@ ds-bundle/
 .metadata_never_index
 
 .turbo
+
+# pnpm dev (local QA environment)
+/.dev/

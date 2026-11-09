@@ -4,7 +4,11 @@ import { circiTokensCss } from '@circi/ui/tokens-css'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-// `pnpm dev` here proxies the API to a CirCI server on :3000 (pnpm circi all).
+// The dev server proxies everything that isn't the dashboard to a CirCI server: :3000 (pnpm circi
+// all), or the one `pnpm dev` at the repository root starts (CIRCI_DEV_API_URL). Not only `/api`:
+// with local-disk storage, CI uploads go to PUBLIC_URL/v1/files, and PUBLIC_URL is this server.
+const api = process.env.CIRCI_DEV_API_URL ?? 'http://localhost:3000'
+const serverPaths = ['/api', '/v1', '/v2', '/webhooks', '/healthz', '/readyz', '/internal']
 export default defineConfig({
   plugins: [circiTokensCss(), react()],
   resolve: {
@@ -22,7 +26,7 @@ export default defineConfig({
   },
   // @circi/ui's CSS modules are compiled here (the `@circi/source` condition resolves its source).
   server: {
-    proxy: { '/api': 'http://localhost:3000' },
+    proxy: Object.fromEntries(serverPaths.map((path) => [path, api])),
   },
   build: {
     outDir: 'dist',

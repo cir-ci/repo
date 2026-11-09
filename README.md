@@ -143,6 +143,12 @@ pnpm lint          # oxlint, including type-aware rules
 pnpm format        # oxfmt (pnpm format:check in CI)
 pnpm build         # tsdown (ui, cli, vitest, server bundle) and Vite (web) → */dist; the other packages run from source
 
+# A local environment for QA (needs Docker): Postgres and Mailpit in containers, the server from
+# source (restarts on changes) and the dashboard in Vite (hot reload), seeded on first run with
+# accounts, a team and builds in every review state. It prints the address and sign-in details.
+pnpm dev           # Ctrl+C stops it and keeps the data
+pnpm dev:reset     # delete the dev database and files; the next pnpm dev seeds again
+
 # Run the server from source against your own Postgres:
 DATABASE_URL=postgres://… BETTER_AUTH_SECRET=$(openssl rand -base64 32) STORAGE_PATH=./data pnpm circi all
 ```
@@ -169,6 +175,7 @@ packages/services  the service layer: build state changes with their jobs and no
 packages/storage local-disk and S3 drivers with checksum-verified writes
 packages/testing db-free test support (clock, hashes, fake hosts); packages/db/src/testing has the PGlite test database and seeders
 deploy/          Dockerfile and docker-compose files
+dev/             pnpm dev: the local QA environment (compose file, runner, seed)
 ```
 
 See [CLAUDE.md](CLAUDE.md) for the layering rules and type conventions.

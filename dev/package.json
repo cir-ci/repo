@@ -1,0 +1,17 @@
+{
+  "name": "@circi/dev",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Local QA environment: `pnpm dev` (see README.md)",
+  "type": "module",
+  "imports": {
+    "#src/*": "./src/*"
+  },
+  "dependencies": {
+    "@circi/cli": "workspace:*",
+    "sharp": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

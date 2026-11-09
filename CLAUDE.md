@@ -27,6 +27,10 @@ What emits what: `tsc` only type-checks (`pnpm typecheck`, `noEmit`). `pnpm buil
 `@circi/ui` (`dist`, browser), `@circi/cli` and `@circi/vitest` (published, `dist`) and `apps/server`
 (one bundle for the image), then Vite for `apps/web`. The other packages have no build: their
 `exports` point at `src/*.ts`, which Node, Vitest, Vite, tsc and tsdown all read directly.
+`pnpm dev` is the local QA environment (`dev/`): Postgres and Mailpit in Docker (project `circi-dev`), `circi all` from
+source under `node --watch`, Vite for the dashboard on :5173 (PUBLIC_URL; it proxies every server path to :3000), and a
+first-run seed (owner@example.com / member@example.com, password `circi-dev-password`, workspace `acme`, team `web-app`,
+four builds in different review states); `pnpm dev:reset` deletes its data.
 Commit messages end with the `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>` line. No remote repo yet: commits stay local.
 
 ## Layers
