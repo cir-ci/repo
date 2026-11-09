@@ -11,10 +11,10 @@ import {
   teams,
   providerDeliveries,
 } from '#schema/index.ts'
+import { workspaceIsLive } from '#shared/session-method.ts'
 import type { Database } from '#src/client.ts'
 import type { Build } from '#src/types.ts'
 
-import { workspaceIsLive } from './auth-settings.ts'
 import { enqueueJob } from './jobs.ts'
 
 /**

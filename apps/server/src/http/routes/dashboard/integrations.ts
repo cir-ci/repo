@@ -1,6 +1,7 @@
 import type { Integration } from '@circi/api'
-import { deleteIntegration, listWorkspaceIntegrations } from '@circi/db'
+import { listWorkspaceIntegrations } from '@circi/db'
 import { buildCatalog, integrationRegistry, resolveKind } from '@circi/integrations'
+import { removeIntegration } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
@@ -57,8 +58,7 @@ export const dashboardIntegrationRoutes: FastifyPluginAsync<Deps.Dashboard> = as
       forbidden: 'Only owners and admins can manage integrations',
     })
     const { id } = parse(idParams, req.params)
-    const removed = await deleteIntegration(deps.db, workspace.id, id)
-    if (!removed) return reply.code(404).send({ error: 'Integration not found' })
+    await removeIntegration(deps.db, { workspaceId: workspace.id, integrationId: id })
     return reply.code(204).send()
   })
 }

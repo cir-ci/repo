@@ -1,7 +1,7 @@
 import { and, eq, exists, or, sql } from 'drizzle-orm'
 
-import { workspaceAccepts, type SessionMethod } from '#repositories/auth-settings.ts'
 import { builds, member, teams, screenshotDiffs, screenshots } from '#schema/index.ts'
+import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
 import type { Database } from '#src/client.ts'
 
 /**

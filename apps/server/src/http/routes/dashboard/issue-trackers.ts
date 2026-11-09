@@ -1,16 +1,18 @@
 import type { Issue } from '@circi/api'
 import { openSecret, ISSUE_LINK_KIND } from '@circi/core'
+import { getIntegration, getWorkspaceBySlug, listBuildLinks, listTeamIntegrations } from '@circi/db'
 import {
-  getIntegration,
-  getWorkspaceBySlug,
-  listBuildLinks,
-  listTeamIntegrations,
-  setIntegrationAttention,
-} from '@circi/db'
-import { type IntegrationDefinition, integrationRegistry } from '@circi/integrations'
+  type IntegrationDefinition,
+  IntegrationUnreachableError,
+  integrationRegistry,
+} from '@circi/integrations'
 import { ProviderApiError } from '@circi/providers'
-import { createIssueFromBuild, MAX_ISSUE_TITLE_LENGTH } from '@circi/services'
-import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
+import {
+  createIssueFromBuild,
+  flagFailedIntegration,
+  MAX_ISSUE_TITLE_LENGTH,
+} from '@circi/services'
+import type { FastifyPluginAsync, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
 import type { Deps } from '#http/lib/deps.ts'
@@ -54,16 +56,14 @@ export const dashboardIssueTrackerRoutes: FastifyPluginAsync<Deps.Dashboard> = a
 
   async function trackerFailed(
     req: FastifyRequest,
-    reply: FastifyReply,
     integration: { id: string; kind: string },
     definition: IntegrationDefinition | undefined,
     err: ProviderApiError,
   ) {
     const name = definition?.name ?? integration.kind
-    const reason = definition?.needsAttention(err)
-    if (reason) await setIntegrationAttention(deps.db, integration.id, reason)
+    await flagFailedIntegration(deps.db, { integrationId: integration.id, definition, error: err })
     req.log.warn({ err }, 'the issue tracker call failed')
-    return reply.code(502).send({ error: `${name} did not accept the request: ${err.message}` })
+    throw new IntegrationUnreachableError(`${name} did not accept the request: ${err.message}`)
   }
 
   /** The issues created from a build, and the trackers its team files issues in. */
@@ -123,7 +123,7 @@ export const dashboardIssueTrackerRoutes: FastifyPluginAsync<Deps.Dashboard> = a
       const workspace = await getWorkspaceBySlug(deps.db, found.team.workspaceSlug)
       const integration = await getIntegration(deps.db, workspace.id, input.integrationId)
       if (integration) {
-        return trackerFailed(req, reply, integration, registry.get(integration.kind), err)
+        return trackerFailed(req, integration, registry.get(integration.kind), err)
       }
       throw err
     }

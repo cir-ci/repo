@@ -1,17 +1,11 @@
 import { ValidationError } from '@circi/core'
-import { and, asc, eq, inArray, max } from 'drizzle-orm'
+import { and, asc, eq, inArray } from 'drizzle-orm'
 
-import {
-  builds,
-  member,
-  teams,
-  TRIAGE_KINDS,
-  triageItems,
-  triageRotationMembers,
-  user,
-} from '#schema/index.ts'
+import { member, teams, TRIAGE_KINDS, triageItems, triageRotationMembers } from '#schema/index.ts'
 import type { SnoozeKind, TriageKind } from '#schema/index.ts'
+import { getTriageRotation } from '#shared/triage.ts'
 import type { Database } from '#src/client.ts'
+export * from '#shared/triage.ts'
 
 /**
  * Triage state: what people did about a team's problems (assigned, snoozed, dismissed), and
@@ -90,19 +84,6 @@ export async function dismissTriageItem(
   return upsertItem(db, ref, { dismissedAt: new Date() })
 }
 
-/** The newest default-branch build number of a team (0 when it has none). */
-export async function latestDefaultBranchBuildNumber(
-  db: Database,
-  teamId: string,
-): Promise<number> {
-  const [row] = await db
-    .select({ n: max(builds.number) })
-    .from(builds)
-    .innerJoin(teams, eq(teams.id, builds.teamId))
-    .where(and(eq(builds.teamId, teamId), eq(builds.branch, teams.defaultBranch)))
-  return row?.n ?? 0
-}
-
 async function assertMembers(db: Database, teamId: string, userIds: string[]): Promise<void> {
   const found = await db
     .select({ id: member.userId })
@@ -112,32 +93,6 @@ async function assertMembers(db: Database, teamId: string, userIds: string[]): P
   if (new Set(found.map((r) => r.id)).size !== new Set(userIds).size) {
     throw new ValidationError('Choose a member of this workspace')
   }
-}
-
-export namespace getTriageRotation {
-  export interface Rotation {
-    /** Any moment of the first week; null when the team has no rotation. */
-    startsOn: Date | null
-    members: { id: string; name: string }[]
-  }
-}
-
-/** The team's rotation: its members in turn order. */
-export async function getTriageRotation(
-  db: Database,
-  teamId: string,
-): Promise<getTriageRotation.Rotation> {
-  const [team] = await db
-    .select({ startsOn: teams.triageRotationStartsOn })
-    .from(teams)
-    .where(eq(teams.id, teamId))
-  const members = await db
-    .select({ id: user.id, name: user.name })
-    .from(triageRotationMembers)
-    .innerJoin(user, eq(user.id, triageRotationMembers.userId))
-    .where(eq(triageRotationMembers.teamId, teamId))
-    .orderBy(asc(triageRotationMembers.position))
-  return { startsOn: members.length > 0 ? (team?.startsOn ?? null) : null, members }
 }
 
 /**

@@ -1,7 +1,7 @@
 import { Readable } from 'node:stream'
 
-import { isSha256, ValidationError } from '@circi/core'
-import { ensureAssetFiles, publishSiteVersion, servedCommitForBranch } from '@circi/db'
+import { ValidationError } from '@circi/core'
+import { publishSite, servedCommit } from '@circi/services'
 import {
   branchHash,
   chooseSlug,
@@ -102,47 +102,26 @@ export const siteRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
         throw new ValidationError(`A ${kind.label} needs ${entryPath} at its top level`)
       }
 
-      // Unique blobs: identical files are stored once, whatever their paths.
-      const unique = new Map(files.map((f) => [f.sha256, f]))
-      await ensureAssetFiles(
-        deps.db,
-        [...unique.values()].map((f) => ({
-          sha256: f.sha256,
-          size: f.size,
-          storageKey: keys.get(f.sha256) ?? contentKey(f.sha256),
-          contentType: f.contentType,
-        })),
-      )
-
-      // Whether the branch address moves to this version (PLAN §7.6 "Branch-link rules"): only
-      // for the branch's tip, never for a fork. With no tip, a local ancestry check can stand in.
-      const commit = q.commit.toLowerCase()
-      let moveBranch = false
-      if (q.branch && !q.fork) {
-        if (q.branch_tip && isSha256(q.branch_tip.padEnd(64, '0').slice(0, 64))) {
-          moveBranch = q.branch_tip.toLowerCase() === commit
-        } else if (q.descends) {
-          const served = await servedCommitForBranch(deps.db, ctx.team.id, q.name, q.branch)
-          // No address yet: this upload starts the branch's address.
-          moveBranch = served === undefined || q.descends
-        }
-      }
-
-      const published = await publishSiteVersion(deps.db, {
+      const published = await publishSite(deps.db, {
         teamId: ctx.team.id,
         name: q.name,
         kind: kind.id,
         spa: q.spa ?? kind.spaFallback,
-        commitSha: commit,
-        branch: q.branch ?? null,
-        moveBranch,
+        commitSha: q.commit,
+        branch: q.branch,
+        branchTip: q.branch_tip,
+        descends: q.descends,
+        fork: q.fork,
         entryPath,
         files,
+        storageKeys: keys,
+        fallbackKey: (sha256) => contentKey(sha256),
         slugPrefix: siteSlug(`${ctx.team.slug}-${q.name}`).slice(0, 10),
         addressing: {
           chooseSlug: (taken) =>
             chooseSlug({ team: ctx.team.slug, name: q.name, workspace: ctx.workspaceSlug }, taken),
-          commitLabel: (slug, exists) => pickLabel(commitHash(commit, 16), slug, exists),
+          commitLabel: (slug, exists) =>
+            pickLabel(commitHash(q.commit.toLowerCase(), 16), slug, exists),
           branchLabel: (branch, slug, exists) => pickLabel(branchHash(branch, 16), slug, exists),
         },
       })
@@ -164,7 +143,9 @@ export const siteRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
     const ctx = currentTeam(req)
     const q = parse(z.object({ name: z.string().default('site'), branch: z.string() }), req.query)
     return {
-      commit: (await servedCommitForBranch(deps.db, ctx.team.id, q.name, q.branch)) ?? null,
+      commit:
+        (await servedCommit(deps.db, { teamId: ctx.team.id, name: q.name, branch: q.branch })) ??
+        null,
     }
   })
 }

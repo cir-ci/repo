@@ -4,12 +4,12 @@ import { isWebhookEvent, ValidationError, WEBHOOK_EVENTS, type WebhookEvent } fr
 import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 
 import { workspace, teams, webhookDeliveries, webhooks } from '#schema/index.ts'
+import type { ReviewEntry } from '#shared/reviews.ts'
 import type { Database } from '#src/client.ts'
 import { NotFoundError } from '#src/errors.ts'
 import type { Build } from '#src/types.ts'
 
 import { enqueueJob, QUEUES } from './jobs.ts'
-import type { ReviewEntry } from './reviews.ts'
 
 /** A team's outgoing webhooks (PLAN §7.4): managing them and queueing the deliveries. */
 

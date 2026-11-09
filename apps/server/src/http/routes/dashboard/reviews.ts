@@ -116,24 +116,15 @@ const bulkBody = z.object({
   decision: z.enum(['approved', 'rejected']),
   reason: z.string().max(2000).optional(),
 })
-const bulkParams = z.object({ workspace: z.string(), team: z.string() })
 
 /**
  * `POST …/builds/review`: approve or reject several builds of a team at once. All or
  * nothing: an id that isn't a build of the team (or can't be reviewed) fails the call.
  */
 export const dashboardBulkReviewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
-  app.post('/teams/:workspace/:team/builds/review', async (req, reply) => {
-    const p = parse(bulkParams, req.params)
+  app.post('/teams/:workspace/:team/builds/review', async (req) => {
     const input = parse(bulkBody, req.body)
-    const user = currentUser(req)
-    const team = await findTeamForMember(deps.db, {
-      workspaceSlug: p.workspace,
-      teamSlug: p.team,
-      userId: user.id,
-      method: user.method,
-    })
-    if (!team) return reply.code(404).send({ error: 'Team not found' })
+    const { team, user } = await loadTeam(deps, req)
     const { builds } = await reviewBuilds(deps.db, {
       teamId: team.id,
       buildIds: input.buildIds,

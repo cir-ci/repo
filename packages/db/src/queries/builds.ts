@@ -2,14 +2,6 @@ import { ISSUE_LINK_KIND } from '@circi/core'
 import type { BuildOrder } from '@circi/core'
 import { aliasedTable, and, eq, gt, gte, inArray, lt, sql } from 'drizzle-orm'
 
-import type { getBuildCounts } from '#repositories/builds.ts'
-import { listBuildLinks } from '#repositories/integration-links.ts'
-import {
-  listBuildReviews,
-  listSnapshotReviews,
-  type ReviewEntry,
-  type SnapshotReviewEntry,
-} from '#repositories/reviews.ts'
 import {
   type AncestryStatus,
   type BaselineSource,
@@ -24,6 +16,14 @@ import {
   screenshotDiffs,
   screenshots,
 } from '#schema/index.ts'
+import type { getBuildCounts } from '#shared/build-counts.ts'
+import { listBuildLinks } from '#shared/integration-links.ts'
+import {
+  listBuildReviews,
+  listSnapshotReviews,
+  type ReviewEntry,
+  type SnapshotReviewEntry,
+} from '#shared/reviews.ts'
 import type { Database } from '#src/client.ts'
 
 import { buildAfterCursor, buildOrderBy, teamTie } from './builds-order.ts'

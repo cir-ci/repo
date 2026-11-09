@@ -1,26 +1,17 @@
 import { type BuildFilterValues, ValidationError } from '@circi/core'
-import { and, asc, eq, sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 
 import { teams, savedViews, userPinnedTeams } from '#schema/index.ts'
+import { type SavedViewRow, viewColumns, listSavedViews } from '#shared/saved-views.ts'
 import type { Database } from '#src/client.ts'
 import { ConflictError, isUniqueViolation, NotFoundError } from '#src/errors.ts'
+export * from '#shared/saved-views.ts'
 
 /**
  * Saved views and pinned teams: a person's own sidebar. Every function takes the owner and
  * only ever touches that person's rows, so someone else's view is "not found". The caller has
  * already checked that the person belongs to the workspace.
  */
-
-export interface SavedViewRow {
-  id: string
-  name: string
-  filters: BuildFilterValues
-  pinned: boolean
-  position: number
-  /** Null for a view across the whole workspace. */
-  team: { slug: string; name: string } | null
-  createdAt: Date
-}
 
 const MAX_NAME = 80
 const MAX_VIEWS = 100
@@ -30,30 +21,6 @@ function checkName(name: string): string {
   if (!trimmed) throw new ValidationError('A view needs a name')
   if (trimmed.length > MAX_NAME) throw new ValidationError('That name is too long')
   return trimmed
-}
-
-const viewColumns = {
-  id: savedViews.id,
-  name: savedViews.name,
-  filters: savedViews.filters,
-  pinned: savedViews.pinned,
-  position: savedViews.position,
-  createdAt: savedViews.createdAt,
-  team: { slug: teams.slug, name: teams.name },
-}
-
-/** A person's views in a workspace, in their order. */
-export async function listSavedViews(
-  db: Database,
-  input: { userId: string; workspaceId: string },
-): Promise<SavedViewRow[]> {
-  const rows = await db
-    .select(viewColumns)
-    .from(savedViews)
-    .leftJoin(teams, eq(teams.id, savedViews.teamId))
-    .where(and(eq(savedViews.userId, input.userId), eq(savedViews.workspaceId, input.workspaceId)))
-    .orderBy(asc(savedViews.position), asc(savedViews.createdAt), asc(savedViews.id))
-  return rows
 }
 
 async function getSavedView(
@@ -245,14 +212,4 @@ export async function unpinTeam(
     .where(and(eq(userPinnedTeams.userId, input.userId), eq(userPinnedTeams.teamId, input.teamId)))
     .returning({ teamId: userPinnedTeams.teamId })
   return rows.length > 0
-}
-
-/** The ids of the teams a person pinned, in pin order. */
-export async function listPinnedTeamIds(db: Database, userId: string): Promise<string[]> {
-  const rows = await db
-    .select({ id: userPinnedTeams.teamId })
-    .from(userPinnedTeams)
-    .where(eq(userPinnedTeams.userId, userId))
-    .orderBy(asc(userPinnedTeams.position), asc(userPinnedTeams.createdAt))
-  return rows.map((r) => r.id)
 }

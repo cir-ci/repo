@@ -1,8 +1,6 @@
 import { rotationFor, rotationHandover } from '@circi/core'
 import { aliasedTable, and, desc, eq, gt, inArray, notExists, sql } from 'drizzle-orm'
 
-import { listFlakyScreenshots } from '#repositories/flaky.ts'
-import { getTriageRotation, latestDefaultBranchBuildNumber } from '#repositories/triage.ts'
 import {
   builds,
   workspace,
@@ -13,6 +11,8 @@ import {
   triageItems,
   user,
 } from '#schema/index.ts'
+import { listFlakyScreenshots } from '#shared/flaky.ts'
+import { getTriageRotation, latestDefaultBranchBuildNumber } from '#shared/triage.ts'
 import type { Database } from '#src/client.ts'
 import type { Build } from '#src/types.ts'
 

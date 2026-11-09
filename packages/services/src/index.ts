@@ -59,7 +59,7 @@ export {
   snoozeReviewRequest,
   unsnoozeReviewRequest,
 } from './reviews.ts'
-export { updateTeamAppearance } from './teams.ts'
+export * from './teams/index.ts'
 export {
   deleteWorkspace,
   purgeDueWorkspaces,
@@ -87,3 +87,8 @@ export {
   updateViewFilters,
 } from './views.ts'
 export * from './access/index.ts'
+export * from './rules/index.ts'
+export * from './workspaces/index.ts'
+export * from './integration-admin/index.ts'
+export * from './sites/index.ts'
+export * from './uploads/index.ts'

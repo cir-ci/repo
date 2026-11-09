@@ -1,7 +1,6 @@
 import { ISSUE_LINK_KIND } from '@circi/core'
 import { and, aliasedTable, eq, isNull } from 'drizzle-orm'
 
-import { listBuildLinks } from '#repositories/integration-links.ts'
 import {
   builds,
   buildChecks,
@@ -14,6 +13,7 @@ import {
   type ReviewState,
   user,
 } from '#schema/index.ts'
+import { listBuildLinks } from '#shared/integration-links.ts'
 import type { Database } from '#src/client.ts'
 
 /**

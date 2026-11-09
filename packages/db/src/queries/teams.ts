@@ -1,8 +1,8 @@
 import type { TeamColor } from '@circi/core'
 import { and, eq } from 'drizzle-orm'
 
-import { workspaceAccepts, type SessionMethod } from '#repositories/auth-settings.ts'
 import { member, workspace, teams } from '#schema/index.ts'
+import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
 import type { Database } from '#src/client.ts'
 
 import { listBuildsForTeam } from './builds.ts'

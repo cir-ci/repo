@@ -1,3 +1,7 @@
+// @circi/db: the persistence layer. Subpaths (`@circi/db/queries`, `/repositories`, `/queue`,
+// `/schema`) show which layer a name comes from; this root re-exports all of them for now.
+
+// ---- connection, errors, shared types
 export {
   createDb,
   type Database,
@@ -9,55 +13,16 @@ export {
   withAdvisoryLock,
 } from './client.ts'
 export * from './errors.ts'
-export * from './queries/activity.ts'
-export * from './queries/baselines.ts'
-export * from './queries/comments.ts'
-export * from './queries/builds.ts'
-export * from './queries/figma.ts'
-export * from './queries/files.ts'
-export * from './queries/ignore-regions.ts'
-export * from './queries/inbox.ts'
-export * from './queries/instance-admin.ts'
-export * from './queries/integrations.ts'
-export * from './queries/insights.ts'
-export * from './queries/team-token.ts'
-export * from './queries/teams.ts'
-export * from './queries/workspace-builds.ts'
-export * from './queries/reviews.ts'
-export * from './queries/search.ts'
-export * from './queries/sidebar.ts'
-export * from './queries/snapshots.ts'
-export * from './queries/storage.ts'
-export * from './queries/triage.ts'
-export * from './repositories/auth-settings.ts'
-export * from './repositories/build-authors.ts'
-export * from './repositories/builds.ts'
-export * from './repositories/comments.ts'
-export * from './repositories/domains.ts'
-export * from './repositories/files.ts'
-export * from './repositories/flaky.ts'
-export * from './repositories/git.ts'
-export * from './repositories/ignore-regions.ts'
-export * from './repositories/instance.ts'
-export * from './repositories/integrations.ts'
-export * from './repositories/jobs.ts'
-export * from './repositories/notifications.ts'
-export * from './repositories/workspaces.ts'
-export * from './repositories/workspace-settings.ts'
-export * from './repositories/teams.ts'
-export * from './repositories/users.ts'
-export * from './repositories/retention.ts'
-export * from './repositories/review-requests.ts'
-export * from './repositories/review-rules.ts'
-export * from './repositories/reviews.ts'
-export * from './repositories/screenshots.ts'
-export * from './repositories/sites.ts'
-export * from './repositories/integration-events.ts'
-export * from './repositories/integration-links.ts'
-export * from './repositories/security.ts'
-export * from './repositories/triage.ts'
-export * from './repositories/views.ts'
-export * from './repositories/webhooks.ts'
-export * from './repositories/workspace-deletion.ts'
-export * as schema from './schema/index.ts'
 export type * from './types.ts'
+
+// ---- queries: read models for the dashboard
+export * from './queries/index.ts'
+
+// ---- repositories: stores and lookups
+export * from './repositories/index.ts'
+
+// ---- queue: jobs, webhook deliveries, git notices (the outbox)
+export * from './queue/index.ts'
+
+// ---- schema: the Drizzle tables
+export * as schema from './schema/index.ts'

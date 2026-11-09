@@ -1,8 +1,8 @@
 import type { Storage, Workspace } from '@circi/api'
 import { updateWorkspace } from '@circi/auth'
 import { ValidationError, workspacePurgeAt } from '@circi/core'
-import { getWorkspaceStorage, getWorkspaceSettings, setWorkspaceSettings } from '@circi/db'
-import { deleteWorkspace } from '@circi/services'
+import { getWorkspaceStorage, getWorkspaceSettings } from '@circi/db'
+import { deleteWorkspace, updateWorkspaceSettings } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
@@ -94,6 +94,6 @@ export const dashboardWorkspaceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard
   app.patch('/workspaces/:workspace/settings', async (req) => {
     const found = await loadWorkspace(deps, req, { manage: true, forbidden: MANAGE })
     const patch = parse(body, req.body)
-    return { settings: await setWorkspaceSettings(deps.db, found.workspace.id, patch) }
+    return { settings: await updateWorkspaceSettings(deps.db, found.workspace.id, patch) }
   })
 }

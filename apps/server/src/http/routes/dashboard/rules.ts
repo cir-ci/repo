@@ -1,15 +1,13 @@
 import type { ReviewRule, Triage } from '@circi/api'
 import { canManage } from '@circi/core'
+import { getTeamMemberRole, getTriageRotation, listReviewRules } from '@circi/db'
 import {
-  createReviewRule,
-  deleteReviewRule,
-  getTeamMemberRole,
-  getTriageRotation,
-  listReviewRules,
-  reorderReviewRules,
-  setTriageRotation,
-  updateReviewRule,
-} from '@circi/db'
+  addReviewRule,
+  editReviewRule,
+  orderReviewRules,
+  removeReviewRule,
+  replaceTriageRotation,
+} from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
@@ -55,7 +53,7 @@ export const dashboardRuleRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
   app.post('/teams/:workspace/:team/rules', async (req, reply) => {
     const found = await loadTeam(deps, req, { manage: true })
     const body = parse(ruleBody, req.body)
-    const rule = await createReviewRule(deps.db, { teamId: found.team.id, ...body })
+    const rule = await addReviewRule(deps.db, { teamId: found.team.id, ...body })
     return reply.code(201).send(rule)
   })
 
@@ -63,7 +61,7 @@ export const dashboardRuleRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
   app.put('/teams/:workspace/:team/rules/order', async (req) => {
     const found = await loadTeam(deps, req, { manage: true })
     const body = parse(orderBody, req.body)
-    const rules: ReviewRule.Item[] = await reorderReviewRules(deps.db, found.team.id, body.ruleIds)
+    const rules: ReviewRule.Item[] = await orderReviewRules(deps.db, found.team.id, body.ruleIds)
     return { rules }
   })
 
@@ -72,14 +70,14 @@ export const dashboardRuleRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
     const { id } = parse(ruleParams, req.params)
     if (!z.uuid().safeParse(id).success) return reply.code(404).send({ error: 'Rule not found' })
     const body = parse(ruleBody, req.body)
-    return updateReviewRule(deps.db, { teamId: found.team.id, id, ...body })
+    return editReviewRule(deps.db, { teamId: found.team.id, id, ...body })
   })
 
   app.delete('/teams/:workspace/:team/rules/:id', async (req, reply) => {
     const found = await loadTeam(deps, req, { manage: true })
     const { id } = parse(ruleParams, req.params)
     if (!z.uuid().safeParse(id).success) return reply.code(404).send({ error: 'Rule not found' })
-    await deleteReviewRule(deps.db, found.team.id, id)
+    await removeReviewRule(deps.db, found.team.id, id)
     return reply.code(204).send()
   })
 
@@ -87,7 +85,7 @@ export const dashboardRuleRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
   app.put('/teams/:workspace/:team/triage-rotation', async (req) => {
     const found = await loadTeam(deps, req, { manage: true })
     const body = parse(rotationBody, req.body)
-    const rotation = await setTriageRotation(deps.db, {
+    const rotation = await replaceTriageRotation(deps.db, {
       teamId: found.team.id,
       memberIds: body.memberIds,
       ...(body.startsOn ? { startsOn: new Date(body.startsOn) } : {}),

@@ -1,0 +1,55 @@
+import {
+  addWorkspaceDomain,
+  type Database,
+  removeWorkspaceDomain,
+  type TxtResolver,
+  verifyWorkspaceDomain,
+  type WorkspaceDomain,
+} from '@circi/db'
+
+/** Claims an email domain for a workspace (unverified until its DNS proof is found). */
+export async function addEmailDomain(
+  db: Database,
+  input: addEmailDomain.Input,
+): Promise<WorkspaceDomain> {
+  return db.transaction((tx) => addWorkspaceDomain(tx, input.workspaceId, input.domain))
+}
+export namespace addEmailDomain {
+  export interface Input {
+    workspaceId: string
+    /** As typed; normalised and checked on the way in. */
+    domain: string
+  }
+}
+
+/** Checks the DNS proof of a claimed domain; true once it is verified. */
+export async function verifyEmailDomain(
+  db: Database,
+  input: verifyEmailDomain.Input,
+): Promise<boolean> {
+  return db.transaction((tx) =>
+    verifyWorkspaceDomain(tx, input.workspaceId, input.id, input.resolveTxt),
+  )
+}
+export namespace verifyEmailDomain {
+  export interface Input {
+    workspaceId: string
+    id: string
+    /** Replaceable DNS lookup (tests). */
+    resolveTxt?: TxtResolver | undefined
+  }
+}
+
+/** Drops a claimed email domain. */
+export async function removeEmailDomain(
+  db: Database,
+  input: removeEmailDomain.Input,
+): Promise<void> {
+  await db.transaction((tx) => removeWorkspaceDomain(tx, input.workspaceId, input.id))
+}
+export namespace removeEmailDomain {
+  export interface Input {
+    workspaceId: string
+    id: string
+  }
+}

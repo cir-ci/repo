@@ -1,9 +1,9 @@
 import type { TeamColor } from '@circi/core'
 import { and, asc, eq } from 'drizzle-orm'
 
-import type { SessionMethod } from '#repositories/auth-settings.ts'
-import { listPinnedTeamIds, listSavedViews, type SavedViewRow } from '#repositories/views.ts'
 import { teams } from '#schema/index.ts'
+import { listPinnedTeamIds, listSavedViews, type SavedViewRow } from '#shared/saved-views.ts'
+import type { SessionMethod } from '#shared/session-method.ts'
 import type { Database } from '#src/client.ts'
 
 import { countUnreadNotifications } from './inbox.ts'

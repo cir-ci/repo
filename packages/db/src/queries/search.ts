@@ -1,6 +1,5 @@
 import { and, desc, eq, ilike, max, or, sql } from 'drizzle-orm'
 
-import { workspaceAccepts, type SessionMethod } from '#repositories/auth-settings.ts'
 import {
   type BuildStatus,
   builds,
@@ -10,6 +9,7 @@ import {
   type ReviewStatus,
   screenshots,
 } from '#schema/index.ts'
+import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
 import type { Database } from '#src/client.ts'
 
 /**

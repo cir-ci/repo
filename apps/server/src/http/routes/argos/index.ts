@@ -1,14 +1,11 @@
 import { COMMIT_SHA_RE, isSha256, MAX_PARALLEL_SHARDS, ValidationError } from '@circi/core'
 import {
-  findBaselineByCommits,
-  getFile,
-  getTeamBuild,
-  hasUploadClaim,
-  markFileVerified,
-  planUploads,
-  setParallelTotal,
-} from '@circi/db'
-import { finalizeBuild, startBuild } from '@circi/services'
+  finalizeTeamBuild,
+  findBaseline,
+  findUpload,
+  startBuildUpload,
+  storeUpload,
+} from '@circi/services'
 import { ChecksumMismatchError, contentKey } from '@circi/storage'
 import multipart from '@fastify/multipart'
 import type { FastifyPluginAsync } from 'fastify'
@@ -20,6 +17,8 @@ import { jsonErrorHandler } from '#http/lib/errors.ts'
 import { describeBuild } from '#http/lib/presenters.ts'
 import { parse } from '#http/lib/validation.ts'
 import { MAX_SCREENSHOT_BYTES } from '#http/routes/v1/schemas.ts'
+
+import { baselineBody, buildName, createBody, JSON_LIMIT, updateBody } from './schemas.ts'
 
 /**
  * The Argos upload protocol (`/v2`), so teams that already use the Argos SDKs (Playwright,
@@ -36,56 +35,6 @@ import { MAX_SCREENSHOT_BYTES } from '#http/routes/v1/schemas.ts'
  * ignored), merge-queue fields, and parallel builds with `total: -1` (manual finalization).
  */
 
-const JSON_LIMIT = 4 * 1024 * 1024
-
-const baselineBody = z.object({
-  commits: z.array(z.string()).max(2_000),
-  name: z.string().optional(),
-})
-
-const createBody = z.object({
-  /** Not part of Argos's API; an SDK or script may send the author's login. */
-  author: z.string().trim().min(1).max(255).nullish(),
-  commit: z.string().regex(COMMIT_SHA_RE, 'must be a commit SHA'),
-  branch: z.string().max(255).nullish(),
-  name: z.string().nullish(),
-  parallel: z.boolean().nullish(),
-  parallelNonce: z.string().min(1).max(128).nullish(),
-  prNumber: z.number().int().positive().nullish(),
-  referenceBranch: z.string().max(255).nullish(),
-  referenceCommit: z.string().nullish(),
-  parentCommits: z.array(z.string()).max(2_000).nullish(),
-  screenshots: z
-    .array(z.object({ key: z.string(), contentType: z.string().optional() }))
-    .max(10_000),
-})
-
-const updateBody = z.object({
-  screenshots: z
-    .array(
-      z.object({
-        key: z.string(),
-        name: z.string().min(1).max(512),
-        metadata: z.record(z.string(), z.unknown()).nullish(),
-      }),
-    )
-    .max(10_000),
-  parallel: z.boolean().nullish(),
-  parallelTotal: z.number().int().nullish(),
-  parallelIndex: z.number().int().nullish(),
-  final: z.boolean().nullish(),
-})
-
-/** Argos build names are free text; ours are short identifiers. */
-function buildName(raw: string | null | undefined): string | undefined {
-  if (!raw) return undefined
-  const cleaned = raw
-    .replace(/[^A-Za-z0-9._-]+/g, '-')
-    .replace(/^[^A-Za-z0-9]+/, '')
-    .slice(0, 64)
-  return cleaned || undefined
-}
-
 export const argosRoutes: FastifyPluginAsync<Deps.V2> = async (v2, deps) => {
   v2.setErrorHandler(jsonErrorHandler)
 
@@ -98,27 +47,31 @@ export const argosRoutes: FastifyPluginAsync<Deps.V2> = async (v2, deps) => {
         z.object({ buildId: z.uuid(), sha256: z.string() }),
         req.params,
       )
-      const file = isSha256(hash) ? await getFile(deps.db, hash) : undefined
-      if (!file || !(await hasUploadClaim(deps.db, buildId, hash))) {
+      const file = isSha256(hash)
+        ? await findUpload(deps.db, { sha256: hash, buildId })
+        : ({ state: 'unknown' } as const)
+      if (file.state === 'unknown') {
         return reply.code(404).send({ error: 'This build did not ask for that file' })
       }
-      if (file.status === 'verified') {
+      if (file.state === 'verified') {
         await req.file().catch(() => undefined)
         return reply.code(204).send()
       }
       const part = await req.file()
       if (!part) return reply.code(400).send({ error: 'Send the file as a multipart form' })
       try {
-        const result = await deps.storage.put(file.storageKey, part.file, {
-          expectedSha256: hash,
-          contentType: file.contentType ?? 'image/png',
+        const stored = await storeUpload(deps.db, deps.storage, {
+          sha256: hash,
+          storageKey: file.storageKey,
+          contentType: file.contentType,
+          content: part.file,
+          accept: () => !part.file.truncated,
         })
-        if (part.file.truncated) {
+        if (stored.status === 'rejected') {
           return reply
             .code(413)
             .send({ error: `Files are limited to ${MAX_SCREENSHOT_BYTES} bytes` })
         }
-        await markFileVerified(deps.db, hash, { size: result.size })
         return reply.code(204).send()
       } catch (err) {
         if (err instanceof ChecksumMismatchError) {
@@ -147,15 +100,10 @@ export const argosRoutes: FastifyPluginAsync<Deps.V2> = async (v2, deps) => {
     api.post('/baseline', async (req) => {
       const { team } = currentTeam(req)
       const body = parse(baselineBody, req.body)
-      // The first entry is the commit itself; the baseline is searched among its ancestors.
-      const commits = body.commits
-        .slice(1)
-        .filter((c) => COMMIT_SHA_RE.test(c))
-        .map((c) => c.toLowerCase())
-      const found = await findBaselineByCommits(deps.db, {
+      const found = await findBaseline(deps.db, {
         teamId: team.id,
         name: buildName(body.name) ?? 'default',
-        commits,
+        commits: body.commits,
       })
       return {
         baseline: found
@@ -189,29 +137,27 @@ export const argosRoutes: FastifyPluginAsync<Deps.V2> = async (v2, deps) => {
         .filter((c) => c !== commit)
       const ancestorShas = [...new Set(history)]
       const name = buildName(body.name)
-      const build = await startBuild(deps.db, {
-        teamId: ctx.team.id,
-        commitSha: commit,
-        ...(name ? { name } : {}),
-        branch: body.branch ?? null,
-        prNumber: body.prNumber ?? null,
-        baseBranch: body.referenceBranch ?? null,
-        mergeBaseSha:
-          body.referenceCommit && COMMIT_SHA_RE.test(body.referenceCommit)
-            ? body.referenceCommit
-            : null,
-        ancestorShas,
-        ancestryStatus: ancestorShas.length > 0 ? 'ok' : 'missing',
-        historySource: 'sdk',
-        ...(body.author ? { author: { login: body.author } } : {}),
-        // The total is only known when the last shard reports; start with the most it could be.
-        ...(body.parallel && body.parallelNonce
-          ? { parallel: { nonce: body.parallelNonce, total: MAX_PARALLEL_SHARDS } }
-          : {}),
-      })
-      const planned = await planUploads(deps.db, {
-        buildId: build.id,
-        kind: 'screenshot',
+      const { build, planned } = await startBuildUpload(deps.db, {
+        build: {
+          teamId: ctx.team.id,
+          commitSha: commit,
+          ...(name ? { name } : {}),
+          branch: body.branch ?? null,
+          prNumber: body.prNumber ?? null,
+          baseBranch: body.referenceBranch ?? null,
+          mergeBaseSha:
+            body.referenceCommit && COMMIT_SHA_RE.test(body.referenceCommit)
+              ? body.referenceCommit
+              : null,
+          ancestorShas,
+          ancestryStatus: ancestorShas.length > 0 ? 'ok' : 'missing',
+          historySource: 'sdk',
+          ...(body.author ? { author: { login: body.author } } : {}),
+          // The total is only known when the last shard reports; start with the most it could be.
+          ...(body.parallel && body.parallelNonce
+            ? { parallel: { nonce: body.parallelNonce, total: MAX_PARALLEL_SHARDS } }
+            : {}),
+        },
         files: keys.map((sha256) => ({ sha256, size: 0, contentType: 'image/png' })),
         storageKeyFor: (s) => contentKey(s),
       })
@@ -232,36 +178,32 @@ export const argosRoutes: FastifyPluginAsync<Deps.V2> = async (v2, deps) => {
       const ctx = currentTeam(req)
       const { id } = parse(z.object({ id: z.uuid() }), req.params)
       const body = parse(updateBody, req.body)
-      const build = await getTeamBuild(deps.db, ctx.team.id, id)
-      if (!build) return reply.code(404).send({ error: 'Build not found' })
-
-      if (body.parallelTotal !== undefined && body.parallelTotal !== null) {
-        if (body.parallelTotal < 1) {
-          throw new ValidationError(
-            'Parallel builds that are finalized manually (parallelTotal -1) are not supported: pass the total number of shards',
-          )
-        }
-        await setParallelTotal(deps.db, build.id, body.parallelTotal)
-      }
-      const result = await finalizeBuild(deps.db, {
-        buildId: build.id,
-        shardIndex: String(body.parallelIndex ?? 0),
-        screenshots: body.screenshots.map((s) => ({
-          name: s.name,
-          sha256: s.key,
-          ...(s.metadata ? { metadata: s.metadata } : {}),
-        })),
-        // Screenshots arrive in several requests; the shard is done with the `final` one.
-        append: true,
-        hold: body.final !== true,
+      const result = await finalizeTeamBuild(deps.db, {
+        teamId: ctx.team.id,
+        buildId: id,
+        ...(body.parallelTotal !== undefined && body.parallelTotal !== null
+          ? { parallelTotal: body.parallelTotal }
+          : {}),
+        shard: {
+          shardIndex: String(body.parallelIndex ?? 0),
+          screenshots: body.screenshots.map((s) => ({
+            name: s.name,
+            sha256: s.key,
+            ...(s.metadata ? { metadata: s.metadata } : {}),
+          })),
+          // Screenshots arrive in several requests; the shard is done with the `final` one.
+          append: true,
+          hold: body.final !== true,
+        },
       })
+      if (result.status === 'not-found') return reply.code(404).send({ error: 'Build not found' })
       if (result.status === 'missing') {
         return reply.code(400).send({
           error: `${result.missing.length} screenshot file(s) were not uploaded`,
           missing: result.missing,
         })
       }
-      const updated = (await getTeamBuild(deps.db, ctx.team.id, id)) ?? build
+      const updated = result.build
       const described = describeBuild(ctx, updated, deps.publicOrigin)
       return {
         build: {

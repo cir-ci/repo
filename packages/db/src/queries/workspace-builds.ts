@@ -1,8 +1,8 @@
 import type { BuildOrder } from '@circi/core'
 import { and, asc, eq, ilike, isNotNull, isNull, sql } from 'drizzle-orm'
 
-import { workspaceAccepts, type SessionMethod } from '#repositories/auth-settings.ts'
 import { builds, member, teams, user, workspace } from '#schema/index.ts'
+import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
 import type { Database } from '#src/client.ts'
 import { NotFoundError } from '#src/errors.ts'
 

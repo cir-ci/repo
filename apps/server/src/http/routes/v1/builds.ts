@@ -1,13 +1,4 @@
-import { buildOutcome } from '@circi/core'
-import {
-  getBuildCounts,
-  getFile,
-  getTeamBuild,
-  getTeamLink,
-  markFileVerified,
-  planUploads,
-} from '@circi/db'
-import { finalizeBuild, gateInputs, gitKinds, startBuild } from '@circi/services'
+import { finalizeTeamBuild, getBuildStatus, startBuildUpload } from '@circi/services'
 import { contentKey } from '@circi/storage'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
@@ -29,22 +20,20 @@ export const buildRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
   app.post('/builds', { bodyLimit: JSON_BODY_LIMIT }, async (req, reply) => {
     const ctx = currentTeam(req)
     const body = parse(createBuildBody, req.body)
-    const build = await startBuild(deps.db, {
-      teamId: ctx.team.id,
-      commitSha: body.commitSha,
-      ...(body.name ? { name: body.name } : {}),
-      branch: body.branch ?? null,
-      prNumber: body.prNumber ?? null,
-      baseBranch: body.baseBranch ?? null,
-      mergeBaseSha: body.mergeBaseSha ?? null,
-      ...(body.ancestorShas ? { ancestorShas: body.ancestorShas } : {}),
-      ...(body.ancestryStatus ? { ancestryStatus: body.ancestryStatus } : {}),
-      ...(body.parallel ? { parallel: body.parallel } : {}),
-      ...(body.author ? { author: body.author } : {}),
-    })
-    const planned = await planUploads(deps.db, {
-      buildId: build.id,
-      kind: 'screenshot',
+    const { build, planned } = await startBuildUpload(deps.db, {
+      build: {
+        teamId: ctx.team.id,
+        commitSha: body.commitSha,
+        ...(body.name ? { name: body.name } : {}),
+        branch: body.branch ?? null,
+        prNumber: body.prNumber ?? null,
+        baseBranch: body.baseBranch ?? null,
+        mergeBaseSha: body.mergeBaseSha ?? null,
+        ...(body.ancestorShas ? { ancestorShas: body.ancestorShas } : {}),
+        ...(body.ancestryStatus ? { ancestryStatus: body.ancestryStatus } : {}),
+        ...(body.parallel ? { parallel: body.parallel } : {}),
+        ...(body.author ? { author: body.author } : {}),
+      },
       files: body.files,
       storageKeyFor: (s) => contentKey(s),
     })
@@ -56,28 +45,25 @@ export const buildRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
     const ctx = currentTeam(req)
     const { id } = parse(buildIdParams, req.params)
     const body = parse(finalizeBody, req.body)
-    const build = await getTeamBuild(deps.db, ctx.team.id, id)
-    if (!build) return reply.code(404).send({ error: 'Build not found' })
-
-    // Direct-to-storage uploads: confirm the stored object's checksum before trusting it.
-    if (deps.storage.kind === 's3') {
-      await verifyStoredObjects(deps, [...new Set(body.screenshots.map((s) => s.sha256))])
-    }
-
-    const result = await finalizeBuild(deps.db, {
-      buildId: build.id,
-      ...(body.shardIndex ? { shardIndex: body.shardIndex } : {}),
-      screenshots: body.screenshots,
+    const result = await finalizeTeamBuild(deps.db, {
+      teamId: ctx.team.id,
+      buildId: id,
+      shard: {
+        ...(body.shardIndex ? { shardIndex: body.shardIndex } : {}),
+        screenshots: body.screenshots,
+      },
+      // Direct-to-storage uploads: the service confirms each stored object's checksum first.
+      ...(deps.storage.kind === 's3' ? { verifyIn: deps.storage } : {}),
     })
+    if (result.status === 'not-found') return reply.code(404).send({ error: 'Build not found' })
     if (result.status === 'missing') {
       return reply.code(409).send({
         error: `${result.missing.length} file(s) were not uploaded or failed verification`,
         missing: result.missing,
       })
     }
-    const updated = (await getTeamBuild(deps.db, ctx.team.id, id)) ?? build
     return {
-      build: describeBuild(ctx, updated, deps.publicOrigin),
+      build: describeBuild(ctx, result.build, deps.publicOrigin),
       complete: result.complete,
       shardsReceived: result.shardsReceived,
       shardsTotal: result.shardsTotal,
@@ -88,20 +74,19 @@ export const buildRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
     const ctx = currentTeam(req)
     const { id } = parse(buildIdParams, req.params)
     const { gate: requested } = parse(statusQuery, req.query)
-    const build = await getTeamBuild(deps.db, ctx.team.id, id)
-    if (!build) return reply.code(404).send({ error: 'Build not found' })
-    // Who blocks the merge (PLAN §7.4): the check on the git host when this team reports to
-    // one, otherwise this CI job. The CLI's `--gate` overrides the choice.
-    const linked =
-      (deps.githubApp === true || deps.githubAppNow?.() === true) &&
-      (await getTeamLink(deps.db, ctx.team.id, gitKinds()))
-    const gate = requested ?? (linked ? 'status' : 'exit-code')
+    const status = await getBuildStatus(deps.db, {
+      teamId: ctx.team.id,
+      buildId: id,
+      gate: requested,
+      gitHostReports: deps.githubApp === true || deps.githubAppNow?.() === true,
+    })
+    if (!status) return reply.code(404).send({ error: 'Build not found' })
     return {
-      build: describeBuild(ctx, build, deps.publicOrigin),
-      counts: await getBuildCounts(deps.db, build.id),
-      outcome: buildOutcome({ ...build, ...(await gateInputs(deps.db, build)) }),
-      gate,
-      errorMessage: build.errorMessage,
+      build: describeBuild(ctx, status.build, deps.publicOrigin),
+      counts: status.counts,
+      outcome: status.outcome,
+      gate: status.gate,
+      errorMessage: status.build.errorMessage,
     }
   })
 }
@@ -135,16 +120,4 @@ async function uploadInstruction(
     headers: { 'content-type': p.contentType },
     auth: 'token' as const,
   }
-}
-
-/** S3 uploads go straight to storage; verify each pending object's stored checksum at finalize. */
-async function verifyStoredObjects(deps: Deps.V1, shas: string[]): Promise<void> {
-  await Promise.all(
-    shas.map(async (hash) => {
-      const file = await getFile(deps.db, hash)
-      if (!file || file.status === 'verified') return
-      const info = await deps.storage.head(file.storageKey)
-      if (info?.sha256 === hash) await markFileVerified(deps.db, hash, { size: info.size })
-    }),
-  )
 }

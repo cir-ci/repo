@@ -1,13 +1,11 @@
+import type { Database } from '@circi/db'
 import {
-  type Database,
-  commitLabelOfVersion,
-  consumeSiteToken,
-  createSiteSession,
-  findSiteByLabel,
-  getSiteFile,
-  siteSessionValid,
-  touchSiteSession,
-} from '@circi/db'
+  commitAddressOf,
+  confirmSiteSession,
+  findSite,
+  findSiteFile,
+  openSiteSession,
+} from '@circi/services'
 import {
   labelOf,
   parseLabel,
@@ -103,13 +101,12 @@ export function siteHostHook(deps: siteHostHook.Options): onRequestAsyncHookHand
     if (last !== undefined && Date.now() - last < (deps.revalidateMs ?? REVALIDATE_MS)) return id
     // Logging out, revoking the session or leaving the workspace ends access here, within
     // a minute: this is where the cookie is checked against them again.
-    if (!(await siteSessionValid(deps.db, { id, label, workspaceId }))) {
+    if (!(await confirmSiteSession(deps.db, { id, label, workspaceId }))) {
       confirmed.delete(key)
       return undefined
     }
     confirmed.set(key, Date.now())
     if (confirmed.size > 10_000) confirmed.clear()
-    await touchSiteSession(deps.db, id)
     return id
   }
 
@@ -130,14 +127,13 @@ export function siteHostHook(deps: siteHostHook.Options): onRequestAsyncHookHand
     if (cleanup.length > 0) void reply.header('set-cookie', cleanup)
 
     const url = new URL(req.url, 'http://x')
-    const found = parseLabel(label) ? await findSiteByLabel(deps.db, label) : undefined
+    const found = parseLabel(label) ? await findSite(deps.db, label) : undefined
 
     // The token handoff from the dashboard: spend it, start a site session, set the cookie.
     if (url.pathname === '/_circi/auth') {
       const token = url.searchParams.get('t')
-      const spent = token && found ? await consumeSiteToken(deps.db, token, label) : undefined
-      if (!spent) return signIn(reply, label, safeReturn(url.searchParams.get('return')))
-      const id = await createSiteSession(deps.db, { label, ...spent })
+      const id = await openSiteSession(deps.db, { token, label, siteExists: found !== undefined })
+      if (!id) return signIn(reply, label, safeReturn(url.searchParams.get('return')))
       return reply
         .code(302)
         .header('cache-control', 'no-store')
@@ -167,7 +163,7 @@ export function siteHostHook(deps: siteHostHook.Options): onRequestAsyncHookHand
       return notFound(reply)
     }
     if (kind.serviceWorker && found.linkKind === 'branch') {
-      const commit = await commitLabelOfVersion(deps.db, found.versionId)
+      const commit = await commitAddressOf(deps.db, found.versionId)
       if (commit) {
         return reply
           .code(302)
@@ -179,19 +175,12 @@ export function siteHostHook(deps: siteHostHook.Options): onRequestAsyncHookHand
 
     const wanted = requestPath(url.pathname)
     if (wanted === undefined) return notFound(reply)
-    const candidates = [
-      wanted === '' ? found.entryPath : wanted,
-      ...(wanted === '' ? [] : [`${wanted}/index.html`]),
-    ]
-    let file
-    for (const path of candidates) {
-      // eslint-disable-next-line no-await-in-loop -- at most two lookups
-      file = await getSiteFile(deps.db, found.versionId, path)
-      if (file) break
-    }
-    if (!file && found.site.spa && !/\.[A-Za-z0-9]{1,8}$/.test(wanted)) {
-      file = await getSiteFile(deps.db, found.versionId, found.entryPath)
-    }
+    const file = await findSiteFile(deps.db, {
+      versionId: found.versionId,
+      entryPath: found.entryPath,
+      wanted,
+      spa: found.site.spa,
+    })
     if (!file) return notFound(reply)
 
     // Same caching for every kind: never stored by shared caches (every response needs login),

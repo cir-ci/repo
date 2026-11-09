@@ -1,6 +1,5 @@
 import { and, desc, eq, gt, inArray, isNotNull, isNull, lte, or, sql, type SQL } from 'drizzle-orm'
 
-import { workspaceAccepts, type SessionMethod } from '#repositories/auth-settings.ts'
 import {
   builds,
   member,
@@ -11,6 +10,7 @@ import {
   reviewRequests,
   user,
 } from '#schema/index.ts'
+import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
 import type { Database } from '#src/client.ts'
 
 /**

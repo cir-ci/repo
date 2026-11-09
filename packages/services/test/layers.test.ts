@@ -30,10 +30,6 @@ import { RATCHET, type RuleId } from './layers.ratchet.ts'
  */
 
 const root = join(import.meta.dirname, '../../..')
-const repositories = join(import.meta.dirname, '../../db/src/repositories')
-
-/** The files that write to the job queue on behalf of others: the outbox itself. */
-const OUTBOX = new Set(['jobs.ts', 'webhooks.ts', 'git.ts'])
 
 const sourcesOf = (dir: string) =>
   readdirSync(join(root, dir), { recursive: true, encoding: 'utf8' })
@@ -202,11 +198,15 @@ const offendersOf = (
 
 // ---- what @circi/db exports, by layer --------------------------------------------------------
 
-const exportedValues = (dir: string, only?: (file: string) => boolean) =>
+const exportedValues = (...dirs: string[]) =>
   new Set(
-    readdirSync(join(root, dir))
-      .filter((f) => f.endsWith('.ts') && (only?.(f) ?? true))
-      .flatMap((f) =>
+    dirs
+      .flatMap((dir) =>
+        readdirSync(join(root, dir))
+          .filter((f) => f.endsWith('.ts'))
+          .map((f) => [dir, f] as const),
+      )
+      .flatMap(([dir, f]) =>
         [
           ...stripComments(readFileSync(join(root, dir, f), 'utf8')).matchAll(
             /^export\s+(?:async\s+)?(?:function\*?|const|let|class)\s+(\w+)/gm,
@@ -214,15 +214,21 @@ const exportedValues = (dir: string, only?: (file: string) => boolean) =>
         ].map((m) => m[1] ?? ''),
       ),
   )
-const REPOSITORY_FUNCTIONS = exportedValues('packages/db/src/repositories')
-const QUEUE_FUNCTIONS = exportedValues('packages/db/src/repositories', (f) => OUTBOX.has(f))
+// Stores and lookups: `repositories/`, the helpers they share with the read models (`shared/`)
+// and the outbox (`queue/`) all count as repository functions for rules 7 and 8.
+const QUEUE_FUNCTIONS = exportedValues('packages/db/src/queue')
+const REPOSITORY_FUNCTIONS = exportedValues(
+  'packages/db/src/repositories',
+  'packages/db/src/shared',
+  'packages/db/src/queue',
+)
 
 /** The `@circi/db` entry the value import reaches (the barrel today, subpaths after step 6). */
 const fromDb = (i: Resolved) =>
   i.pkg === '@circi/db' && !i.spec.startsWith('.') && !i.spec.startsWith('#')
 const reachesRepositories = (i: Resolved) =>
   (/^@circi\/db\/(repositories|schema|queue)/.test(i.spec) ||
-    /^packages\/db\/src\/(repositories|schema)\//.test(i.file ?? '') ||
+    /^packages\/db\/src\/(repositories|schema|queue|shared)\//.test(i.file ?? '') ||
     (fromDb(i) &&
       (i.names.includes('*') ||
         i.names.some((n) => n === 'schema' || REPOSITORY_FUNCTIONS.has(n))))) &&
@@ -308,6 +314,14 @@ const RULES: Rule[] = [
     offenders: () =>
       offendersOf(['packages/db/src/queries'], (i) =>
         (i.file ?? '').startsWith('packages/db/src/repositories/'),
+      ),
+  },
+  {
+    id: '5',
+    title: 'db repositories do not import the queue (jobs, webhooks, git outbox): services queue',
+    offenders: () =>
+      offendersOf(['packages/db/src/repositories'], (i) =>
+        (i.file ?? '').startsWith('packages/db/src/queue/'),
       ),
   },
   {
@@ -433,7 +447,7 @@ const RULES: Rule[] = [
 ]
 
 /** Rules that hold today: no offender is allowed. The rest are ratcheted (see the top). */
-const ENFORCED = new Set<RuleId>(['1', '2', '3', '6', '9', '11', '12'])
+const ENFORCED = new Set<RuleId>(['1', '2', '3', '4', '5', '6', '9', '11', '12'])
 
 if (process.env.LAYERS_PRINT) {
   console.log(
@@ -471,19 +485,6 @@ const named = (dir: string) =>
   readdirSync(join(root, dir), { recursive: true, encoding: 'utf8' }).filter((f) =>
     /(github|gitlab|bitbucket|slack|linear|jira|figma)/i.test(f),
   )
-
-describe('layers', () => {
-  it('keeps repositories to storing data: only services queue jobs and notices', () => {
-    const offenders = readdirSync(repositories)
-      .filter((f) => f.endsWith('.ts') && !OUTBOX.has(f))
-      .filter((f) =>
-        /from '\.\/(jobs|webhooks|git)\.ts'/.test(readFileSync(join(repositories, f), 'utf8')),
-      )
-    // A repository that needs to trigger something must return what happened and let a
-    // function in @circi/services do the triggering, inside its own transaction.
-    expect(offenders).toEqual([])
-  })
-})
 
 describe('the integration SDK', () => {
   it('keeps @circi/integrations free of the database, services and apps', () => {

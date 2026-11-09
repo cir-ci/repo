@@ -1,30 +1,16 @@
 import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm'
 
 import { integrationTeams, integrations, teams } from '#schema/index.ts'
+import type { WorkspaceIntegration } from '#shared/integrations.ts'
 import type { Database } from '#src/client.ts'
 import { ConflictError, isUniqueViolation } from '#src/errors.ts'
+export * from '#shared/integrations.ts'
 
 /**
  * A workspace's integrations (git hosts, Slack, Linear, Jira, Figma) and the teams that use
  * them. Credentials arrive and leave sealed (`sealSecret` in `@circi/core`); nothing here reads
  * them. The git-specific lookups are in `git.ts`.
  */
-
-export namespace WorkspaceIntegration {
-  export type Record = typeof integrations.$inferSelect
-
-  export type Team = typeof integrationTeams.$inferSelect
-
-  export interface Row {
-    id: string
-    kind: string
-    displayName: string
-    needsAttention: boolean
-    needsAttentionReason: string | null
-    createdAt: Date
-    teamCount: number
-  }
-}
 
 export namespace createIntegration {
   export interface Input {
@@ -74,28 +60,6 @@ export async function getIntegration(
     .from(integrations)
     .where(and(eq(integrations.workspaceId, workspaceId), eq(integrations.id, integrationId)))
   return row
-}
-
-/** The workspace's integrations, oldest first, with how many teams use each. */
-export async function listIntegrations(
-  db: Database,
-  workspaceId: string,
-): Promise<WorkspaceIntegration.Row[]> {
-  return db
-    .select({
-      id: integrations.id,
-      kind: integrations.kind,
-      displayName: integrations.displayName,
-      needsAttention: integrations.needsAttention,
-      needsAttentionReason: integrations.needsAttentionReason,
-      createdAt: integrations.createdAt,
-      teamCount: sql<number>`count(${integrationTeams.id})::int`,
-    })
-    .from(integrations)
-    .leftJoin(integrationTeams, eq(integrationTeams.integrationId, integrations.id))
-    .where(eq(integrations.workspaceId, workspaceId))
-    .groupBy(integrations.id)
-    .orderBy(asc(integrations.createdAt), asc(integrations.id))
 }
 
 /** Removes an integration and, with it, every team mapping. False when it isn't the workspace's. */

@@ -8,6 +8,7 @@ export type RuleId =
   | '2'
   | '3'
   | '4'
+  | '5'
   | '6'
   | '7'
   | '8'
@@ -22,22 +23,6 @@ export type RuleId =
   | '15'
 
 export const RATCHET: Partial<Record<RuleId, string[]>> = {
-  '4': [
-    'packages/db/src/queries/activity.ts',
-    'packages/db/src/queries/builds.ts',
-    'packages/db/src/queries/figma.ts',
-    'packages/db/src/queries/files.ts',
-    'packages/db/src/queries/inbox.ts',
-    'packages/db/src/queries/insights.ts',
-    'packages/db/src/queries/integrations.ts',
-    'packages/db/src/queries/reviews.ts',
-    'packages/db/src/queries/search.ts',
-    'packages/db/src/queries/sidebar.ts',
-    'packages/db/src/queries/storage.ts',
-    'packages/db/src/queries/teams.ts',
-    'packages/db/src/queries/triage.ts',
-    'packages/db/src/queries/workspace-builds.ts',
-  ],
   '7': [
     'packages/services/src/integration-events.ts',
     'packages/services/src/issues.ts',
@@ -49,12 +34,9 @@ export const RATCHET: Partial<Record<RuleId, string[]>> = {
     'apps/server/src/cli/admin.ts',
     'apps/server/src/http/hooks/instance-admin.ts',
     'apps/server/src/http/hooks/session.ts',
-    'apps/server/src/http/lib/github-app.ts',
     'apps/server/src/http/lib/team-access.ts',
     'apps/server/src/http/lib/workspace-access.ts',
-    'apps/server/src/http/routes/argos/index.ts',
     'apps/server/src/http/routes/dashboard/activity.ts',
-    'apps/server/src/http/routes/dashboard/baselines.ts',
     'apps/server/src/http/routes/dashboard/domains.ts',
     'apps/server/src/http/routes/dashboard/files.ts',
     'apps/server/src/http/routes/dashboard/github-app.ts',
@@ -63,7 +45,6 @@ export const RATCHET: Partial<Record<RuleId, string[]>> = {
     'apps/server/src/http/routes/dashboard/instance-health.ts',
     'apps/server/src/http/routes/dashboard/instance.ts',
     'apps/server/src/http/routes/dashboard/integrations-generic.ts',
-    'apps/server/src/http/routes/dashboard/integrations.ts',
     'apps/server/src/http/routes/dashboard/issue-trackers.ts',
     'apps/server/src/http/routes/dashboard/reviews.ts',
     'apps/server/src/http/routes/dashboard/rules.ts',
@@ -75,13 +56,7 @@ export const RATCHET: Partial<Record<RuleId, string[]>> = {
     'apps/server/src/http/routes/dashboard/views.ts',
     'apps/server/src/http/routes/dashboard/workspace-auth.ts',
     'apps/server/src/http/routes/dashboard/workspace-settings.ts',
-    'apps/server/src/http/routes/dashboard/workspace-sso.ts',
     'apps/server/src/http/routes/dashboard/workspaces.ts',
-    'apps/server/src/http/routes/integration-webhook.ts',
-    'apps/server/src/http/routes/v1/builds.ts',
-    'apps/server/src/http/routes/v1/files.ts',
-    'apps/server/src/http/routes/v1/sites.ts',
-    'apps/server/src/http/sites/serve.ts',
     'apps/worker/src/jobs/deliver-webhook.ts',
     'apps/worker/src/jobs/integration-event.ts',
     'apps/worker/src/jobs/notify-git.ts',
@@ -94,8 +69,6 @@ export const RATCHET: Partial<Record<RuleId, string[]>> = {
     'apps/server/src/http/routes/dashboard/instance-health.ts',
     'apps/server/src/http/routes/dashboard/settings.ts',
     'apps/server/src/http/routes/dashboard/teams.ts',
-    'apps/server/src/http/routes/integration-webhook.ts',
-    'apps/server/src/http/routes/v1/builds.ts',
   ],
   '10': [
     'apps/worker/src/jobs/deliver-webhook.ts',
@@ -112,7 +85,6 @@ export const RATCHET: Partial<Record<RuleId, string[]>> = {
     'apps/server/src/http/routes/dashboard/workspace-settings.ts',
   ],
   '15': [
-    'apps/server/src/http/routes/argos/index.ts',
     'apps/server/src/http/routes/dashboard/integrations-generic.ts',
     'apps/server/src/http/routes/dashboard/reviews.ts',
     'apps/server/src/http/routes/dashboard/settings.ts',

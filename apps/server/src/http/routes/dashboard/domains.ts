@@ -1,13 +1,11 @@
 import {
-  addWorkspaceDomain,
   listWorkspaceDomains,
   type WorkspaceDomain,
-  removeWorkspaceDomain,
   type TxtResolver,
   verificationName,
   verificationValue,
-  verifyWorkspaceDomain,
 } from '@circi/db'
+import { addEmailDomain, removeEmailDomain, verifyEmailDomain } from '@circi/services'
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
@@ -54,22 +52,25 @@ export const dashboardDomainRoutes: FastifyPluginAsync<
   app.post('/workspaces/:workspace/domains', async (req, reply) => {
     const workspace = await managed(req)
     const { domain } = parse(addBody, req.body)
-    return reply
-      .code(201)
-      .send({ domain: present(await addWorkspaceDomain(deps.db, workspace.id, domain)) })
+    const added = await addEmailDomain(deps.db, { workspaceId: workspace.id, domain })
+    return reply.code(201).send({ domain: present(added) })
   })
 
   app.post('/workspaces/:workspace/domains/:id/verify', async (req) => {
     const workspace = await managed(req)
     const { id } = parse(domainParams, req.params)
-    const verified = await verifyWorkspaceDomain(deps.db, workspace.id, id, deps.resolveTxt)
+    const verified = await verifyEmailDomain(deps.db, {
+      workspaceId: workspace.id,
+      id,
+      resolveTxt: deps.resolveTxt,
+    })
     return { verified }
   })
 
   app.delete('/workspaces/:workspace/domains/:id', async (req, reply) => {
     const workspace = await managed(req)
     const { id } = parse(domainParams, req.params)
-    await removeWorkspaceDomain(deps.db, workspace.id, id)
+    await removeEmailDomain(deps.db, { workspaceId: workspace.id, id })
     return reply.code(204).send()
   })
 }

@@ -4,11 +4,20 @@
   "private": true,
   "type": "module",
   "imports": {
+    "#queries/*": "./src/queries/*",
+    "#queue/*": "./src/queue/*",
     "#repositories/*": "./src/repositories/*",
     "#schema/*": "./src/schema/*",
+    "#shared/*": "./src/shared/*",
     "#src/*": "./src/*"
   },
-  "exports": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./queries": "./src/queries/index.ts",
+    "./repositories": "./src/repositories/index.ts",
+    "./queue": "./src/queue/index.ts",
+    "./schema": "./src/schema/index.ts"
+  },
   "scripts": {
     "generate": "drizzle-kit generate"
   },

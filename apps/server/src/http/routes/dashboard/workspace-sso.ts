@@ -1,7 +1,10 @@
-import { fromNodeHeaders, withTrustedIssuer } from '@circi/auth'
+import {
+  findSsoProviderWorkspaceId,
+  fromNodeHeaders,
+  listWorkspaceSsoProviders,
+  withTrustedIssuer,
+} from '@circi/auth'
 import { ValidationError, webhookUrlProblem } from '@circi/core'
-import { schema } from '@circi/db'
-import { eq } from 'drizzle-orm'
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
@@ -39,10 +42,7 @@ export const dashboardWorkspaceSsoRoutes: FastifyPluginAsync<Deps.Dashboard> = a
 
   app.get('/workspaces/:workspace/sso', async (req) => {
     const workspace = await managed(req)
-    const rows = await deps.db
-      .select({ providerId: schema.ssoProvider.providerId, issuer: schema.ssoProvider.issuer })
-      .from(schema.ssoProvider)
-      .where(eq(schema.ssoProvider.workspaceId, workspace.id))
+    const rows = await listWorkspaceSsoProviders(deps.db, workspace.id)
     return {
       providers: rows.map((r) => ({
         providerId: r.providerId,
@@ -90,12 +90,8 @@ export const dashboardWorkspaceSsoRoutes: FastifyPluginAsync<Deps.Dashboard> = a
   app.delete('/workspaces/:workspace/sso/:providerId', async (req, reply) => {
     const workspace = await managed(req)
     const { providerId } = parse(providerParams, req.params)
-    const [row] = await deps.db
-      .select({ workspaceId: schema.ssoProvider.workspaceId })
-      .from(schema.ssoProvider)
-      .where(eq(schema.ssoProvider.providerId, providerId))
     // Another workspace's provider is "not found", like everything of theirs.
-    if (row?.workspaceId !== workspace.id)
+    if ((await findSsoProviderWorkspaceId(deps.db, providerId)) !== workspace.id)
       return reply.code(404).send({ error: 'Provider not found' })
     await deps.auth.api.deleteSSOProvider({
       headers: fromNodeHeaders(req.headers),

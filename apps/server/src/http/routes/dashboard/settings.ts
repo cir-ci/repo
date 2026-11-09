@@ -9,26 +9,25 @@ import {
   webhookUrlProblem,
 } from '@circi/core'
 import {
-  createWebhook,
   type Database,
-  deleteWebhook,
   getWorkspaceSettings,
   getTeamById,
   getTeamGitAttention,
   getTeamLink,
   getTeamTokenInfo,
-  getWebhook,
   listWebhookDeliveries,
   listWebhooks,
-  queueTestWebhook,
   type WebhookDelivery,
   teamSettings,
-  updateTeamSettings,
   type Webhook,
 } from '@circi/db'
 import {
+  addWebhook,
+  changeTeamSettings,
   gitKinds,
   linkTeamToGithub,
+  removeWebhook,
+  sendTestWebhook,
   unlinkTeamFromGit,
   updateTeamAppearance,
 } from '@circi/services'
@@ -185,7 +184,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
   app.patch('/teams/:workspace/:team/settings', async (req) => {
     const team = await loadForManager(req)
     const patch = parse(settingsBody, req.body)
-    return { settings: await updateTeamSettings(deps.db, team.id, patch) }
+    return { settings: await changeTeamSettings(deps.db, team.id, patch) }
   })
 
   /** Deletes the team and everything that belongs to it (owners and admins). */
@@ -245,7 +244,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
     const problem = webhookUrlProblem(url, { allowPrivate })
     if (problem) throw new ValidationError(problem)
     const events = checkWebhookEvents(body.events ?? [])
-    const created = await createWebhook(deps.db, {
+    const created = await addWebhook(deps.db, {
       teamId: team.id,
       url: new URL(url).toString(),
       events,
@@ -261,10 +260,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
     const team = await loadForManager(req)
     const { id } = parse(hookParams, req.params)
     if (!z.uuid().safeParse(id).success) return reply.code(404).send({ error: 'Webhook not found' })
-    const hook = await getWebhook(deps.db, id)
-    if (hook?.teamId !== team.id) return reply.code(404).send({ error: 'Webhook not found' })
-    if (!hook.enabled) throw new ValidationError('This webhook is disabled')
-    const deliveryId = await queueTestWebhook(deps.db, hook.id)
+    const deliveryId = await sendTestWebhook(deps.db, team.id, id)
     return reply.code(202).send({ deliveryId })
   })
 
@@ -273,7 +269,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
     const { id } = parse(hookParams, req.params)
     // A malformed id can't match a row; keep the database from rejecting it as a bad uuid.
     if (!z.uuid().safeParse(id).success) return reply.code(404).send({ error: 'Webhook not found' })
-    await deleteWebhook(deps.db, team.id, id)
+    await removeWebhook(deps.db, team.id, id)
     return reply.code(204).send()
   })
 }

@@ -1,4 +1,5 @@
-import { getWorkspaceAuthSettings, instanceAuthMethods, setWorkspaceAuthSettings } from '@circi/db'
+import { getWorkspaceAuthSettings, instanceAuthMethods } from '@circi/db'
+import { updateWorkspaceSignIn } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
@@ -46,7 +47,7 @@ export const dashboardWorkspaceAuthRoutes: FastifyPluginAsync<Deps.Dashboard> = 
     })
     const patch = parse(body, req.body)
     return {
-      settings: await setWorkspaceAuthSettings(deps.db, found.workspace.id, patch, { instance }),
+      settings: await updateWorkspaceSignIn(deps.db, found.workspace.id, patch, { instance }),
     }
   })
 }

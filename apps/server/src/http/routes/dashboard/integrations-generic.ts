@@ -1,36 +1,40 @@
 import type { Integration } from '@circi/api'
 import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
   openSecret,
-  sealSecret,
   signState,
   ValidationError,
   verifyState,
   canManage,
 } from '@circi/core'
 import {
-  createIntegration,
-  deleteIntegrationLink,
-  findIntegrationByExternalId,
   getIntegration,
   getMemberRole,
   getTeamBySlugs,
-  isAccountClaimedElsewhere,
   listWorkspaceTeamMappings,
   listTeamLinks,
-  replaceIntegrationCredentials,
-  setIntegrationAttention,
   type IntegrationLink,
 } from '@circi/db'
 import {
-  IntegrationConflictError,
   IntegrationError,
+  IntegrationUnreachableError,
   type IntegrationDefinition,
   integrationRegistry,
   mappingExtraSchema,
   normalizeExtra,
   describeDefinition,
 } from '@circi/integrations'
-import { addTeamLink, autoLinkTeam, mapTeam, unmapTeam } from '@circi/services'
+import {
+  addTeamLink,
+  autoLinkTeam,
+  connectIntegration,
+  flagFailedIntegration,
+  mapTeam,
+  removeTeamLink,
+  unmapTeam,
+} from '@circi/services'
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
@@ -98,11 +102,10 @@ const wireLink = (l: IntegrationLink.Row): Integration.Link => ({
 })
 
 /**
- * The integration's opened credentials, replying 409 when they cannot be read. A `secretless`
+ * The integration's opened credentials; a conflict (409) when they cannot be read. A `secretless`
  * definition (an App-based git host) keeps none: its capabilities get an empty string.
  */
-async function credentialsFor(
-  reply: FastifyReply,
+function credentialsFor(
   loaded: {
     integration: { encryptedCredentials: string | null }
     definition: IntegrationDefinition
@@ -114,9 +117,9 @@ async function credentialsFor(
     ? openSecret(ctx.authSecret, loaded.integration.encryptedCredentials)
     : undefined
   if (credentials === undefined) {
-    await reply.code(409).send({
-      error: `The ${loaded.definition.name} credentials cannot be read; connect it again`,
-    })
+    throw new ConflictError(
+      `The ${loaded.definition.name} credentials cannot be read; connect it again`,
+    )
   }
   return credentials
 }
@@ -150,119 +153,82 @@ function createGeneric(deps: Deps.Dashboard) {
       forbidden: 'Only owners and admins can manage integrations',
     })
 
-  /** The registered definition for `:kind`, replying 404 for an unknown one. */
-  async function definitionFor(kind: string, reply: FastifyReply) {
+  /** The registered definition for `:kind`; not found (404) for an unknown one. */
+  function definitionFor(kind: string) {
     const definition = registry.get(kind)
-    if (!definition) {
-      await reply.code(404).send({ error: 'Integration not found' })
-      return undefined
-    }
+    if (!definition) throw new NotFoundError('Integration not found')
     return definition
   }
 
-  /** The integration of the workspace named by `:id`, with its definition; replies 404 otherwise. */
-  async function integrationFor(workspaceId: string, id: string, reply: FastifyReply) {
+  /** The integration of the workspace named by `:id`, with its definition; not found (404) otherwise. */
+  async function integrationFor(workspaceId: string, id: string) {
     const integration = await getIntegration(deps.db, workspaceId, id)
     const definition = integration ? registry.get(integration.kind) : undefined
-    if (!integration || !definition) {
-      await reply.code(404).send({ error: 'Integration not found' })
-      return undefined
-    }
+    if (!integration || !definition) throw new NotFoundError('Integration not found')
     return { integration, definition }
   }
 
-  /** The instance context, or a 400 when it cannot seal credentials. */
-  async function contextFor(reply: FastifyReply) {
+  /** The instance context; a validation error (400) when it cannot seal credentials. */
+  function contextFor() {
     const ctx = integrationContext(deps)
-    if (!ctx) await reply.code(400).send({ error: 'This instance cannot store credentials' })
+    if (!ctx) throw new ValidationError('This instance cannot store credentials')
     return ctx
   }
 
-  /**
-   * Stores a connected account sealed. An `exclusive` definition refuses an account another
-   * workspace already uses (409). A reconnect of the same account replaces its credentials
-   * (always for an OAuth install, and for a definition with `replaceOnReconnect`); otherwise the
-   * same account twice is a 409.
-   */
-  async function store(
+  /** Stores a connected account (see `connectIntegration`); returns the integration's id. */
+  const store = (
     workspaceId: string,
     userId: string,
     definition: IntegrationDefinition,
     connected: IntegrationDefinition.ConnectResult,
     ctx: IntegrationDefinition.Context,
     options: { replace: boolean },
-  ): Promise<string> {
-    const kind = definition.id
-    if (
-      definition.exclusive?.account &&
-      (await isAccountClaimedElsewhere(deps.db, kind, connected.externalId, workspaceId))
-    ) {
-      throw new IntegrationConflictError(
-        `That ${definition.name} account is already connected to another workspace`,
-      )
-    }
-    const sealed = connected.credentials ? sealSecret(ctx.authSecret, connected.credentials) : null
-    const existing =
-      options.replace || definition.replaceOnReconnect
-        ? await findIntegrationByExternalId(deps.db, workspaceId, kind, connected.externalId)
-        : undefined
-    if (existing) {
-      await replaceIntegrationCredentials(deps.db, existing.id, {
-        displayName: connected.displayName,
-        encryptedCredentials: sealed,
-      })
-      return existing.id
-    }
-    const created = await createIntegration(deps.db, {
+  ) =>
+    connectIntegration(deps.db, {
       workspaceId,
-      kind,
-      displayName: connected.displayName,
-      externalId: connected.externalId,
-      encryptedCredentials: sealed,
-      createdBy: userId,
+      userId,
+      definition,
+      connected,
+      ctx,
+      replace: options.replace,
     })
-    return created.id
-  }
 
   /**
-   * Replies for a failed call to the provider: the definition's own errors keep their status, an
+   * Throws for a failed call to the provider: the definition's own errors keep their status, an
    * error it recognises as "a person has to act" flags the integration (409), anything else is a 502.
    */
   async function providerFailed(
     req: FastifyRequest,
-    reply: FastifyReply,
     loaded: { integration: { id: string }; definition: IntegrationDefinition },
     err: unknown,
-  ) {
+  ): Promise<never> {
     const { integration, definition } = loaded
     if (err instanceof IntegrationError) throw err // the error handler maps it by its code
-    const reason = definition.needsAttention(err)
-    if (reason) {
-      await setIntegrationAttention(deps.db, integration.id, reason)
-      return reply.code(409).send({
-        error: `${definition.name} no longer accepts this connection; reconnect it`,
-      })
+    const flagged = await flagFailedIntegration(deps.db, {
+      integrationId: integration.id,
+      definition,
+      error: err,
+    })
+    if (flagged) {
+      throw new ConflictError(`${definition.name} no longer accepts this connection; reconnect it`)
     }
     req.log.warn({ err }, `the ${definition.name} call failed`)
-    return reply.code(502).send({ error: `${definition.name} did not answer; try again shortly` })
+    throw new IntegrationUnreachableError(`${definition.name} did not answer; try again shortly`)
   }
 
   /** What the integration's account lets a team be pointed at (channels, teams…). */
-  const targets = async (req: FastifyRequest, reply: FastifyReply) => {
+  const targets = async (req: FastifyRequest) => {
     const found = await loadForManager(req)
     const { id } = parse(idParams, req.params)
-    const loaded = await integrationFor(found.workspace.id, id, reply)
-    if (!loaded) return reply
+    const loaded = await integrationFor(found.workspace.id, id)
     const { definition } = loaded
-    const ctx = await contextFor(reply)
-    if (!ctx) return reply
+    const ctx = contextFor()
     const git = definition.capabilities.git
     const isRepository = definition.mapping?.target.kind === 'repository'
     if (!definition.mapping?.listTargets && !(git && isRepository)) {
-      return reply.code(404).send({ error: `${definition.name} has no targets to choose from` })
+      throw new NotFoundError(`${definition.name} has no targets to choose from`)
     }
-    const credentials = await credentialsFor(reply, loaded, ctx)
-    if (credentials === undefined) return reply
+    const credentials = credentialsFor(loaded, ctx)
     try {
       const listed =
         git && isRepository
@@ -270,7 +236,7 @@ function createGeneric(deps: Deps.Dashboard) {
           : ((await definition.mapping?.listTargets?.(credentials, ctx)) ?? [])
       return { targets: listed.map(wireTarget) }
     } catch (err) {
-      return providerFailed(req, reply, loaded, err)
+      return providerFailed(req, loaded, err)
     }
   }
 
@@ -278,18 +244,17 @@ function createGeneric(deps: Deps.Dashboard) {
   const put = async (req: FastifyRequest, reply: FastifyReply) => {
     const found = await loadForManager(req)
     const params = parse(mappingParams, req.params)
-    const loaded = await integrationFor(found.workspace.id, params.id, reply)
-    if (!loaded) return reply
+    const loaded = await integrationFor(found.workspace.id, params.id)
     const { integration, definition } = loaded
     const mapping = definition.mapping
-    if (!mapping) return reply.code(404).send({ error: `${definition.name} has no team mapping` })
+    if (!mapping) throw new NotFoundError(`${definition.name} has no team mapping`)
     const body = parse(mappingBody, req.body)
     const invalid = mapping.target.validate?.(body.ref)
-    if (invalid) return reply.code(400).send({ error: invalid })
+    if (invalid) throw new ValidationError(invalid)
     if (mapping.target.kind === 'select' && !body.name) {
-      return reply
-        .code(400)
-        .send({ error: `name: the ${mapping.target.label.toLowerCase()}'s name is required` })
+      throw new ValidationError(
+        `name: the ${mapping.target.label.toLowerCase()}'s name is required`,
+      )
     }
     const extra = normalizeExtra(mapping, parse(mappingExtraSchema(mapping), body.extra ?? {}))
     const team = await getTeamBySlugs(deps.db, {
@@ -302,14 +267,12 @@ function createGeneric(deps: Deps.Dashboard) {
     }
     if (mapping.target.resolve) {
       // The definition checks the typed value with the provider and says what to store.
-      const ctx = await contextFor(reply)
-      if (!ctx) return reply
-      const credentials = await credentialsFor(reply, loaded, ctx)
-      if (credentials === undefined) return reply
+      const ctx = contextFor()
+      const credentials = credentialsFor(loaded, ctx)
       try {
         target = await mapping.target.resolve(body.ref, { credentials }, ctx)
       } catch (err) {
-        return providerFailed(req, reply, loaded, err)
+        return providerFailed(req, loaded, err)
       }
     }
     await mapTeam(deps.db, {
@@ -326,8 +289,7 @@ function createGeneric(deps: Deps.Dashboard) {
   const remove = async (req: FastifyRequest, reply: FastifyReply) => {
     const found = await loadForManager(req)
     const params = parse(mappingParams, req.params)
-    const loaded = await integrationFor(found.workspace.id, params.id, reply)
-    if (!loaded) return reply
+    const loaded = await integrationFor(found.workspace.id, params.id)
     const team = await getTeamBySlugs(deps.db, {
       workspaceSlug: found.workspace.slug,
       teamSlug: params.team,
@@ -340,16 +302,12 @@ function createGeneric(deps: Deps.Dashboard) {
     return reply.code(204).send()
   }
 
-  /** The integration `:id` and the team `:team` of the workspace, with the definition's links section; replies otherwise. */
-  async function linksFor(req: FastifyRequest, reply: FastifyReply, options: { manage: boolean }) {
+  /** The integration `:id` and the team `:team` of the workspace, with the definition's links section; throws otherwise. */
+  async function linksFor(req: FastifyRequest, options: { manage: boolean }) {
     const found = options.manage ? await loadForManager(req) : await loadWorkspace(deps, req)
     const params = parse(mappingParams, req.params)
-    const loaded = await integrationFor(found.workspace.id, params.id, reply)
-    if (!loaded) return undefined
-    if (!loaded.definition.links) {
-      await reply.code(404).send({ error: `${loaded.definition.name} has no links` })
-      return undefined
-    }
+    const loaded = await integrationFor(found.workspace.id, params.id)
+    if (!loaded.definition.links) throw new NotFoundError(`${loaded.definition.name} has no links`)
     const team = await getTeamBySlugs(deps.db, {
       workspaceSlug: found.workspace.slug,
       teamSlug: params.team,
@@ -414,9 +372,8 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
   app.delete('/workspaces/:workspace/integrations/:id/teams/:team', remove)
 
   /** A team's links (Figma frames), for every member. */
-  app.get('/workspaces/:workspace/integrations/:id/teams/:team/links', async (req, reply) => {
-    const found = await linksFor(req, reply, { manage: false })
-    if (!found) return reply
+  app.get('/workspaces/:workspace/integrations/:id/teams/:team/links', async (req) => {
+    const found = await linksFor(req, { manage: false })
     const payload: Integration.LinkList = {
       links: (await listTeamLinks(deps.db, found.team.id, found.links.kind))
         .filter((l) => l.integrationId === found.integration.id)
@@ -427,10 +384,8 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
 
   /** Adds a link from the values of the definition's link fields; the definition checks them with the provider. */
   app.post('/workspaces/:workspace/integrations/:id/teams/:team/links', async (req, reply) => {
-    const found = await linksFor(req, reply, { manage: true })
-    if (!found) return reply
-    const ctx = await contextFor(reply)
-    if (!ctx) return reply
+    const found = await linksFor(req, { manage: true })
+    const ctx = contextFor()
     const { values } = parse(linkBody, req.body)
     try {
       const link = await addTeamLink(deps.db, {
@@ -444,32 +399,29 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
       return reply.code(201).send(wireLink(link))
     } catch (err) {
       if (err instanceof ValidationError) throw err
-      return providerFailed(req, reply, found, err)
+      return providerFailed(req, found, err)
     }
   })
 
   app.delete(
     '/workspaces/:workspace/integrations/:id/teams/:team/links/:linkId',
     async (req, reply) => {
-      const found = await linksFor(req, reply, { manage: true })
-      if (!found) return reply
+      const found = await linksFor(req, { manage: true })
       const { linkId } = parse(linkParams, req.params)
-      if (
-        !z.uuid().safeParse(linkId).success ||
-        !(await deleteIntegrationLink(deps.db, found.integration.id, linkId, found.team.id))
-      ) {
-        return reply.code(404).send({ error: 'Link not found' })
-      }
+      if (!z.uuid().safeParse(linkId).success) throw new NotFoundError('Link not found')
+      await removeTeamLink(deps.db, {
+        integrationId: found.integration.id,
+        teamId: found.team.id,
+        linkId,
+      })
       return reply.code(204).send()
     },
   )
 
   /** Links the team's snapshots to what the mapped target offers, by name; existing links are left alone. */
-  app.post('/workspaces/:workspace/integrations/:id/teams/:team/links/auto', async (req, reply) => {
-    const found = await linksFor(req, reply, { manage: true })
-    if (!found) return reply
-    const ctx = await contextFor(reply)
-    if (!ctx) return reply
+  app.post('/workspaces/:workspace/integrations/:id/teams/:team/links/auto', async (req) => {
+    const found = await linksFor(req, { manage: true })
+    const ctx = contextFor()
     try {
       const result: Integration.AutoLinkResult = await autoLinkTeam(deps.db, {
         definition: found.definition,
@@ -481,7 +433,7 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
       return result
     } catch (err) {
       if (err instanceof ValidationError) throw err
-      return providerFailed(req, reply, found, err)
+      return providerFailed(req, found, err)
     }
   })
 
@@ -493,17 +445,13 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
   app.post('/workspaces/:workspace/integrations/:kind/connect', async (req, reply) => {
     const found = await loadForManager(req)
     const { kind } = parse(kindParams, req.params)
-    const definition = await definitionFor(kind, reply)
-    if (!definition) return reply
-    const ctx = await contextFor(reply)
-    if (!ctx) return reply
+    const definition = definitionFor(kind)
+    const ctx = contextFor()
     if (!definition.connect) {
-      return reply
-        .code(400)
-        .send({ error: `${definition.name} is connected by installing its app` })
+      throw new ValidationError(`${definition.name} is connected by installing its app`)
     }
     if (definition.available && !definition.available(ctx)) {
-      return reply.code(400).send({ error: `This instance has no ${definition.name} set up` })
+      throw new ValidationError(`This instance has no ${definition.name} set up`)
     }
     const input = parse(definition.credentials, req.body ?? {})
     // An IntegrationError it throws is answered by the error handler (400, 409, 502…).
@@ -515,20 +463,16 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
   })
 
   /** The address to send the browser to for installing the app; `state` binds workspace, user and kind. */
-  app.get('/workspaces/:workspace/integrations/:kind/install', async (req, reply) => {
+  app.get('/workspaces/:workspace/integrations/:kind/install', async (req) => {
     const found = await loadForManager(req)
     const { kind } = parse(kindParams, req.params)
-    const definition = await definitionFor(kind, reply)
-    if (!definition) return reply
-    const ctx = await contextFor(reply)
-    if (!ctx) return reply
+    const definition = definitionFor(kind)
+    const ctx = contextFor()
     if (!definition.oauth) {
-      return reply.code(400).send({ error: `${definition.name} has no install to start` })
+      throw new ValidationError(`${definition.name} has no install to start`)
     }
     if (!definition.oauth.available(ctx)) {
-      return reply
-        .code(400)
-        .send({ error: `This instance has no ${definition.name} app configured` })
+      throw new ValidationError(`This instance has no ${definition.name} app configured`)
     }
     const state = signState(ctx.authSecret, {
       kind,
@@ -568,16 +512,14 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
       !workspaceSlug ||
       claims.kind !== kind
     ) {
-      return reply
-        .code(400)
-        .send({ error: 'This install link is invalid or has expired; start again' })
+      throw new ValidationError('This install link is invalid or has expired; start again')
     }
     if (claims.userId !== user.id) {
-      return reply.code(400).send({ error: 'This install link was started by someone else' })
+      throw new ValidationError('This install link was started by someone else')
     }
     const role = await getMemberRole(deps.db, { userId: user.id, workspaceId: workspaceId })
     if (!canManage(role)) {
-      return reply.code(403).send({ error: 'Only owners and admins can manage integrations' })
+      throw new ForbiddenError('Only owners and admins can manage integrations')
     }
     const list = `/workspaces/${encodeURIComponent(workspaceSlug)}/settings/integrations`
     const failed = (result: 'denied' | 'failed') =>
@@ -612,16 +554,14 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
     const definition = registry.get(kind)
     const ctx = integrationContext(deps)
     if (!definition?.connect || !definition.setup || !ctx) {
-      return reply.code(404).send({ error: 'Integration not found' })
+      throw new NotFoundError('Integration not found')
     }
     const claims = query.state ? verifyState(ctx.authSecret, query.state) : undefined
     if (query.state && (claims?.kind !== kind || claims.flow !== INSTALL_FLOW)) {
-      return reply
-        .code(400)
-        .send({ error: 'This install link is invalid or has expired; start again' })
+      throw new ValidationError('This install link is invalid or has expired; start again')
     }
     if (claims && claims.userId !== user.id) {
-      return reply.code(400).send({ error: 'This install link was started by someone else' })
+      throw new ValidationError('This install link was started by someone else')
     }
     const workspaceId = claims?.workspaceId
     const workspaceSlug = claims?.workspaceSlug
@@ -641,10 +581,10 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
     }
     const role = await getMemberRole(deps.db, { userId: user.id, workspaceId: workspaceId })
     if (!canManage(role)) {
-      return reply.code(403).send({ error: 'Only owners and admins can manage integrations' })
+      throw new ForbiddenError('Only owners and admins can manage integrations')
     }
     if (definition.available && !definition.available(ctx)) {
-      return reply.code(400).send({ error: `This instance has no ${definition.name} set up` })
+      throw new ValidationError(`This instance has no ${definition.name} set up`)
     }
     const connected = await definition.connect(parse(definition.credentials, values), ctx)
     const id = await store(workspaceId, user.id, definition, connected, ctx, { replace: false })
@@ -652,11 +592,10 @@ export const dashboardGenericIntegrationRoutes: FastifyPluginAsync<Deps.Dashboar
   })
 
   /** The integration, its definition's public spec, and how each team of the workspace maps to it. */
-  app.get('/workspaces/:workspace/integrations/:id/teams', async (req, reply) => {
+  app.get('/workspaces/:workspace/integrations/:id/teams', async (req) => {
     const found = await loadWorkspace(deps, req)
     const { id } = parse(idParams, req.params)
-    const loaded = await integrationFor(found.workspace.id, id, reply)
-    if (!loaded) return reply
+    const loaded = await integrationFor(found.workspace.id, id)
     const { integration, definition } = loaded
     const { role } = found
     const ctx = integrationContext(deps)

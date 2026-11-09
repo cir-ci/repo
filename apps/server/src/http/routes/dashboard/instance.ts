@@ -1,9 +1,5 @@
-import {
-  dismissPublicUrlChange,
-  getPublicUrlChange,
-  isInstanceAdmin,
-  publicUrlChecklist,
-} from '@circi/db'
+import { getPublicUrlChange, isInstanceAdmin, publicUrlChecklist } from '@circi/db'
+import { dismissPublicUrlNotice } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 
 import { currentUser } from '#http/hooks/session.ts'
@@ -24,7 +20,7 @@ export const dashboardInstanceRoutes: FastifyPluginAsync<Deps.Dashboard> = async
     if (!(await isInstanceAdmin(deps.db, currentUser(req).id))) {
       return reply.code(403).send({ error: 'Only instance admins can do this' })
     }
-    await dismissPublicUrlChange(deps.db)
+    await dismissPublicUrlNotice(deps.db)
     return reply.code(204).send()
   })
 }

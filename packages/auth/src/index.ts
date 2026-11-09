@@ -7,6 +7,10 @@ export {
   MIN_PASSWORD_LENGTH,
 } from './constants.ts'
 export { hasPendingInvitation } from './operations/accounts.ts'
+export {
+  findSsoProviderWorkspaceId,
+  listWorkspaceSsoProviders,
+} from './operations/workspace-sso.ts'
 export type { AuthOptions } from './options.ts'
 export { authPlugins } from './plugins/index.ts'
 

@@ -1,29 +1,17 @@
-import { findTeamForMember, listFlakyScreenshots, listTeamSites } from '@circi/db'
+import { listFlakyScreenshots, listTeamSites } from '@circi/db'
 import { isSiteKindId, KINDS } from '@circi/sites'
 import type { FastifyPluginAsync } from 'fastify'
-import { z } from 'zod'
 
-import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
-import { parse } from '#http/lib/validation.ts'
-
-const params = z.object({ workspace: z.string(), team: z.string() })
+import { loadTeam } from '#http/lib/team-access.ts'
 
 /**
  * `GET /api/teams/:workspace/:team/sites`: the team's hosted sites and their addresses. The
  * dashboard only links out: it never serves a site's files (PLAN §7.6).
  */
 export const dashboardTeamSitesRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
-  app.get('/teams/:workspace/:team/sites', async (req, reply) => {
-    const p = parse(params, req.params)
-    const user = currentUser(req)
-    const team = await findTeamForMember(deps.db, {
-      workspaceSlug: p.workspace,
-      teamSlug: p.team,
-      userId: user.id,
-      method: user.method,
-    })
-    if (!team) return reply.code(404).send({ error: 'Team not found' })
+  app.get('/teams/:workspace/:team/sites', async (req) => {
+    const { team } = await loadTeam(deps, req)
     const sites = deps.sites
     if (!sites) return { configured: false, sites: [] }
     const listing = await listTeamSites(deps.db, team.id)
@@ -52,16 +40,8 @@ export const dashboardTeamSitesRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
   })
 
   /** Screenshots that keep changing on the default branch: probably flaky, not really changed. */
-  app.get('/teams/:workspace/:team/flaky', async (req, reply) => {
-    const p = parse(params, req.params)
-    const user = currentUser(req)
-    const team = await findTeamForMember(deps.db, {
-      workspaceSlug: p.workspace,
-      teamSlug: p.team,
-      userId: user.id,
-      method: user.method,
-    })
-    if (!team) return reply.code(404).send({ error: 'Team not found' })
+  app.get('/teams/:workspace/:team/flaky', async (req) => {
+    const { team } = await loadTeam(deps, req)
     return listFlakyScreenshots(deps.db, team.id)
   })
 }

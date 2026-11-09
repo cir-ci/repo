@@ -1,7 +1,7 @@
-import { claimDelivery, type Database } from '@circi/db'
+import type { Database } from '@circi/db'
 import { type IntegrationRegistry, integrationRegistry } from '@circi/integrations'
 import type { ProviderRegistry } from '@circi/providers'
-import { handleGitEvents } from '@circi/services'
+import { claimWebhookDelivery, handleGitEvents } from '@circi/services'
 import type { FastifyBaseLogger, FastifyPluginAsync, RouteHandlerMethod } from 'fastify'
 import { z } from 'zod'
 
@@ -62,7 +62,7 @@ export const integrationWebhookRoutes: FastifyPluginAsync<integrationWebhookRout
     }
     const delivery = git.webhook.deliveryId(req.headers, raw)
     if (!delivery) return reply.code(400).send({ error: 'Missing delivery id' })
-    if (!(await claimDelivery(deps.db, delivery))) return { ok: true, duplicate: true }
+    if (!(await claimWebhookDelivery(deps.db, delivery))) return { ok: true, duplicate: true }
 
     let payload: Record<string, unknown>
     try {
