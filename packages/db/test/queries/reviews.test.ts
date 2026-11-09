@@ -4,6 +4,7 @@ import {
   seedBuild,
   seedDiff,
   seedTeam,
+  seedReview,
   seedReviewRequest,
   seedUser,
 } from '@circi/db/testing'
@@ -178,10 +179,82 @@ describe('listReviewRequests', () => {
       requestedById: mine.owner.id,
     })
     const tabs = await Promise.all(
-      (['for-you', 'created', 'snoozed'] as const).map((tab) =>
+      (['for-you', 'created', 'snoozed', 'reviewed', 'all-open'] as const).map((tab) =>
         listReviewRequests(t.db, { userId: mine.owner.id, tab, now }),
       ),
     )
-    expect(tabs).toEqual([[], [], []])
+    expect(tabs).toEqual([[], [], [], [], []])
+  })
+
+  it("lists everyone's open requests under all-open, and your closed ones under reviewed", async () => {
+    const { owner, teammate, team, build } = await setup()
+    const b2 = await seedBuild(t.db, team.id, { branch: 'feature/y' })
+    await seedReviewRequest(t.db, { buildId: build.id, reviewerId: teammate.id })
+    const closed = await seedReviewRequest(t.db, {
+      buildId: b2.id,
+      reviewerId: owner.id,
+      state: 'done',
+      closedAt: hoursFromNow(-2),
+    })
+    const older = await seedReviewRequest(t.db, {
+      buildId: build.id,
+      reviewerId: owner.id,
+      state: 'done',
+      closedAt: hoursFromNow(-9),
+    })
+    await seedReview(t.db, { buildId: b2.id, userId: owner.id, state: 'rejected' })
+    await seedReview(t.db, { buildId: build.id, userId: owner.id, state: 'approved' })
+
+    const open = await listReviewRequests(t.db, { userId: owner.id, tab: 'all-open', now })
+    expect(open.map((i) => i.reviewer.id)).toEqual([teammate.id])
+
+    const done = await listReviewRequests(t.db, { userId: owner.id, tab: 'reviewed', now })
+    expect(done.map((i) => [i.id, i.decision])).toEqual([
+      [closed.id, 'rejected'],
+      [older.id, 'approved'],
+    ])
+    expect(done[0]?.closedAt).toEqual(hoursFromNow(-2))
+    // Nobody else's closed requests.
+    expect(await listReviewRequests(t.db, { userId: teammate.id, tab: 'reviewed', now })).toEqual(
+      [],
+    )
+  })
+
+  it('says why a request is back: a rejected earlier build of the branch, or asked again', async () => {
+    const { owner, teammate, team } = await setup()
+    const first = await seedBuild(t.db, team.id, { branch: 'fix/header' })
+    const second = await seedBuild(t.db, team.id, { branch: 'fix/header' })
+    const other = await seedBuild(t.db, team.id, { branch: 'fix/other' })
+    await seedReview(t.db, { buildId: first.id, userId: owner.id, state: 'rejected' })
+    await seedReviewRequest(t.db, { buildId: second.id, reviewerId: owner.id })
+    // A fresh branch with no history, and a build asked about twice.
+    await seedReviewRequest(t.db, {
+      buildId: other.id,
+      reviewerId: owner.id,
+      state: 'dismissed',
+      closedAt: hoursFromNow(-1),
+    })
+    await seedReviewRequest(t.db, { buildId: other.id, reviewerId: owner.id })
+    await seedReviewRequest(t.db, { buildId: first.id, reviewerId: teammate.id })
+
+    const items = await listReviewRequests(t.db, { userId: owner.id, tab: 'for-you', now })
+    const reason = (n: number) => items.find((i) => i.build.number === n)?.reason
+    expect(reason(second.number)).toEqual({ kind: 'rejected_earlier', buildNumber: first.number })
+    expect(reason(other.number)).toEqual({ kind: 're_requested' })
+    const all = await listReviewRequests(t.db, { userId: owner.id, tab: 'all-open', now })
+    // The teammate's request on the first build has no history of its own.
+    expect(all.find((i) => i.reviewer.id === teammate.id)?.reason).toBeNull()
+  })
+
+  it('names the build it was compared with', async () => {
+    const { owner, build, team } = await setup()
+    const base = await seedBuild(t.db, team.id, { branch: 'main' })
+    await t.db
+      .update(schema.builds)
+      .set({ baseBuildId: base.id })
+      .where(eq(schema.builds.id, build.id))
+    await seedReviewRequest(t.db, { buildId: build.id, reviewerId: owner.id })
+    const [item] = await listReviewRequests(t.db, { userId: owner.id, tab: 'for-you', now })
+    expect(item?.baseline).toEqual({ number: base.number, branch: 'main' })
   })
 })

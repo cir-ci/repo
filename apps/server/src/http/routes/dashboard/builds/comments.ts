@@ -20,6 +20,7 @@ const createBody = z.object({
       message: 'region must lie inside the snapshot',
     })
     .optional(),
+  regionSide: z.enum(['baseline', 'current']).optional(),
   parentId: z.uuid().optional(),
 })
 const editBody = z.object({ body: z.string().trim().min(1).max(MAX_COMMENT_LENGTH) })
@@ -60,6 +61,7 @@ export const dashboardCommentRoutes: FastifyPluginAsync<Deps.Dashboard> = async 
       body: input.body,
       ...(input.snapshotName ? { snapshotName: input.snapshotName } : {}),
       ...(input.region ? { region: input.region } : {}),
+      ...(input.regionSide ? { regionSide: input.regionSide } : {}),
       ...(input.parentId ? { parentId: input.parentId } : {}),
     })
     return reply.code(201).send({ id: created.id })

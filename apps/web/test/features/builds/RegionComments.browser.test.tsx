@@ -12,6 +12,8 @@ const popover = () => page.getByRole('dialog', { name: 'Comment on this region' 
 const trigger = (name: 'Baseline' | 'This build') =>
   page.getByRole('button', { name: new RegExp(`^Enlarge ${name}`) })
 
+const layers = () => page.getByTestId('region-layer').elements()
+
 /** The test files are not served: give the images the size they would have. */
 function sizeImages() {
   for (const name of [/^Baseline/, /^This build/]) {
@@ -129,6 +131,20 @@ describe('region comments are always on', () => {
     expect(
       page.getByTestId('region-layer').elements()[1]?.querySelector('[data-pending]'),
     ).toBeNull()
+  })
+
+  it('a comment drawn on the baseline pins on the baseline image only', async () => {
+    const api = await ready()
+    await drag('Baseline')
+    await expect.element(popover().getByRole('textbox', { name: 'Comment' })).toHaveFocus()
+    await userEvent.keyboard('Wrong colour here')
+    await popover().getByRole('button', { name: /^Send/ }).click()
+    await vi.waitFor(() => expect(api.commentPosts).toHaveLength(1))
+    expect(api.commentPosts[0]?.regionSide).toBe('baseline')
+    await expect.element(page.getByRole('button', { name: 'Comment 1' })).toBeVisible()
+    // Two images, two layers (baseline first): the pin is on the first only.
+    expect(layers()[0]?.querySelectorAll('button')).toHaveLength(1)
+    expect(layers()[1]?.querySelectorAll('button')).toHaveLength(0)
   })
 
   it('drops the selection when another screenshot is chosen, and it stays gone on return', async () => {

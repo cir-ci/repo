@@ -33,6 +33,10 @@ export const comments = pgTable(
     regionY: doublePrecision('region_y'),
     regionWidth: doublePrecision('region_width'),
     regionHeight: doublePrecision('region_height'),
+    /** Which image of the snapshot the region was drawn on; old rows and clients default to 'current'. */
+    regionSide: text('region_side', { enum: ['baseline', 'current'] })
+      .notNull()
+      .default('current'),
     body: text('body').notNull(),
     /** Null when the author's account was deleted. */
     authorId: text('author_id').references(() => user.id, { onDelete: 'set null' }),

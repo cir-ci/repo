@@ -27,6 +27,7 @@ const comment = (id: string, over: object = {}) => ({
   parentId: null,
   snapshotName: null,
   region: null,
+  regionSide: 'current' as const,
   body: `body ${id}`,
   author: { id: 'u2', name: 'Grace Hopper' },
   createdAt: at(5),

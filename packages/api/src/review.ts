@@ -4,8 +4,17 @@ export type ReviewRequestState = 'open' | 'done' | 'superseded' | 'dismissed'
 export type SnoozeKind = 'next_push' | 'tomorrow' | 'next_week' | 'date'
 
 export namespace Review {
-  /** The Reviews page's tabs: asked of you, asked by you, asked of you and put off. */
-  export type Tab = 'for-you' | 'created' | 'snoozed'
+  /**
+   * The Reviews page's tabs: asked of you, asked by you, asked of you and put off, asked of you
+   * and closed since (latest 50), every open request in the workspace.
+   */
+  export type Tab = 'for-you' | 'created' | 'snoozed' | 'reviewed' | 'all-open'
+
+  /**
+   * Why a request is not a first ask: the reviewer rejected an earlier build of the branch, or
+   * was asked about this build before.
+   */
+  export type Reason = { kind: 'rejected_earlier'; buildNumber: number } | { kind: 're_requested' }
 
   /** Someone asked to review a build. */
   export interface Request {
@@ -18,6 +27,13 @@ export namespace Review {
     overdueByMs: number
     snoozedUntil: string | null
     snoozeKind: SnoozeKind | null
+    /** When the request closed; null while it is open. */
+    closedAt: string | null
+    /** The reviewer's own last decision on the build; null while open or when someone else decided. */
+    decision: 'approved' | 'rejected' | null
+    reason: Reason | null
+    /** The build this one was compared with; null when it had no baseline. */
+    baseline: { number: number; branch: string | null } | null
     reviewer: { id: string; name: string }
     /** Null when whoever asked has since left. */
     requestedBy: { id: string; name: string } | null

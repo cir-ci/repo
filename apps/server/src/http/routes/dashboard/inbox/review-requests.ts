@@ -44,6 +44,7 @@ export const dashboardReviewRequestRoutes: FastifyPluginAsync<Deps.Dashboard> = 
           createdAt: r.createdAt.toISOString(),
           dueAt: r.dueAt?.toISOString() ?? null,
           snoozedUntil: r.snoozedUntil?.toISOString() ?? null,
+          closedAt: r.closedAt?.toISOString() ?? null,
         }),
       ),
     }

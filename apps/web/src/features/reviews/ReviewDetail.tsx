@@ -7,7 +7,15 @@ import { useTeamMark } from '#features/integrations/TeamMark.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useClientLink } from '#lib/use-client-link.ts'
 
-import { changeSummary, overdueLabel, requestRef, requestStatus, scoreLabel } from './api.ts'
+import {
+  baselineLabel,
+  changeSummary,
+  decisionLabel,
+  overdueLabel,
+  requestRef,
+  requestStatus,
+  scoreLabel,
+} from './api.ts'
 
 import styles from './Reviews.module.css'
 
@@ -67,6 +75,11 @@ export function ReviewDetail({ request: r, backHref, onBack, children }: ReviewD
           )}
         </SettingsRow>
         <SettingsRow label="Reviewer">{r.reviewer.name}</SettingsRow>
+        {decisionLabel(r) && r.closedAt ? (
+          <SettingsRow label="Decision">
+            {decisionLabel(r)}, <RelativeTime iso={r.closedAt} />
+          </SettingsRow>
+        ) : null}
         {r.dueAt ? (
           <SettingsRow label="Review target">
             {overdue ? `${overdue}, target ` : 'Due '}
@@ -76,6 +89,11 @@ export function ReviewDetail({ request: r, backHref, onBack, children }: ReviewD
         <SettingsRow label="Branch">
           <span className={styles.mono}>{requestRef(r.build)}</span>
         </SettingsRow>
+        {baselineLabel(r) ? (
+          <SettingsRow label="Compared with">
+            <span className={styles.mono}>{baselineLabel(r)}</span>
+          </SettingsRow>
+        ) : null}
         {r.build.prNumber === null ? null : (
           <SettingsRow label="Pull request">#{r.build.prNumber}</SettingsRow>
         )}

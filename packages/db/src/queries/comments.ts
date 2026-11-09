@@ -10,6 +10,8 @@ export interface CommentItem {
   parentId: string | null
   snapshotName: string | null
   region: { x: number; y: number; width: number; height: number } | null
+  /** The image of the snapshot the region is on. */
+  regionSide: 'baseline' | 'current'
   /** Empty for a deleted comment. */
   body: string
   /** Null when the author's account was deleted. */
@@ -35,6 +37,7 @@ export async function listBuildComments(db: Database, buildId: string): Promise<
       c.regionX === null || c.regionY === null || c.regionWidth === null || c.regionHeight === null
         ? null
         : { x: c.regionX, y: c.regionY, width: c.regionWidth, height: c.regionHeight },
+    regionSide: c.regionSide,
     body: c.deletedAt ? '' : c.body,
     author: c.authorId && authorName !== null ? { id: c.authorId, name: authorName } : null,
     createdAt: c.createdAt,

@@ -79,6 +79,25 @@ describe('comment routes', () => {
     ])
   })
 
+  it('remembers the side of a region comment, defaulting to current', async () => {
+    const region = { x: 0.1, y: 0.1, width: 0.2, height: 0.2 }
+    await send('POST', `${build}/comments`, {
+      payload: { body: 'old', snapshotName: 'home', region },
+    })
+    await send('POST', `${build}/comments`, {
+      payload: { body: 'base', snapshotName: 'home', region, regionSide: 'baseline' },
+    })
+    const wrong = await send('POST', `${build}/comments`, {
+      payload: { body: 'x', snapshotName: 'home', region, regionSide: 'left' },
+    })
+    expect(wrong.statusCode).toBe(400)
+    const list = await comments(louCookie)
+    expect(list.comments.map((c: { regionSide: string }) => c.regionSide)).toEqual([
+      'current',
+      'baseline',
+    ])
+  })
+
   it('rejects bad regions and empty bodies', async () => {
     expect((await bad({ body: '   ' })).statusCode).toBe(400)
     expect(

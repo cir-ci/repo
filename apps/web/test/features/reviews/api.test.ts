@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest'
 
 import {
   changeSummary,
+  baselineLabel,
+  decisionLabel,
   groupRequests,
+  reasonLabel,
   overdueLabel,
   requestCount,
   requestName,
@@ -22,6 +25,10 @@ const request = (over: Partial<Review.Request> = {}): Review.Request => ({
   overdueByMs: 0,
   snoozedUntil: null,
   snoozeKind: null,
+  closedAt: null,
+  decision: null,
+  reason: null,
+  baseline: { number: 11, branch: 'main' },
   reviewer: { id: 'u1', name: 'Me' },
   requestedBy: { id: 'u2', name: 'Ada Lovelace' },
   build: {
@@ -123,6 +130,38 @@ describe('groupRequests', () => {
     ])
     expect(groupRequests([request()], 'snoozed').map((g) => g.label)).toEqual(['Snoozed'])
     expect(groupRequests([], 'for-you')).toEqual([])
+  })
+
+  it('puts re-requested reviews in their own group, and splits All open by who was asked', () => {
+    const again = request({ id: 'r3', reason: { kind: 're_requested' } })
+    expect(groupRequests([request(), again], 'for-you').map((g) => g.label)).toEqual([
+      'Needs your review',
+      'Re-requested',
+    ])
+    const theirs = request({ id: 'r4', reviewer: { id: 'u9', name: 'Dana' } })
+    expect(
+      groupRequests([request(), theirs, processing], 'all-open', 'u1').map((g) => [
+        g.label,
+        g.items.map((r) => r.id),
+      ]),
+    ).toEqual([
+      ['Requested from you', ['r1']],
+      ['Requested from others', ['r4']],
+      ['Still processing', ['r2']],
+    ])
+    expect(groupRequests([request()], 'reviewed').map((g) => g.label)).toEqual(['Reviewed by you'])
+  })
+
+  it('words the reason chip, the decision and the baseline', () => {
+    const back = request({ reason: { kind: 'rejected_earlier', buildNumber: 143 } })
+    expect(reasonLabel(back, 'u1')).toBe('You rejected #143')
+    expect(reasonLabel(back, 'u2')).toBe('Me rejected #143')
+    expect(reasonLabel(request({ reason: { kind: 're_requested' } }))).toBe('Re-requested')
+    expect(reasonLabel(request())).toBeUndefined()
+    expect(decisionLabel(request({ decision: 'rejected' }))).toBe('Rejected by you')
+    expect(decisionLabel(request())).toBeUndefined()
+    expect(baselineLabel(request())).toBe('#11 · main')
+    expect(baselineLabel(request({ baseline: null }))).toBeUndefined()
   })
 
   it('gives each request its status', () => {

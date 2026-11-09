@@ -62,6 +62,7 @@ describe('regionThreads', () => {
     parentId: null,
     snapshotName: 'home',
     region,
+    regionSide: 'current',
     body: id,
     author: null,
     createdAt: '',

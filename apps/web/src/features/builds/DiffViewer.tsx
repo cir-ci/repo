@@ -30,7 +30,7 @@ import {
 import { MODE_OPTIONS } from '#lib/shortcuts.ts'
 
 import { screenshotLabel, screenshotStatus, type ShotKind } from './diff-status.ts'
-import { draftRegion, type RegionDraft, type RegionSide } from './region-draft.ts'
+import { apiSide, draftRegion, type RegionDraft, type RegionSide } from './region-draft.ts'
 import { changeSummary } from './review-model.ts'
 import { DESIGN_MODE, type ViewMode, VIEW_MODES } from './search.ts'
 import { type Zoom, stepZoom, zoomedWidth, zoomLabel } from './zoom.ts'
@@ -91,8 +91,8 @@ export function Viewer({
     if (!regions || !annotatable) return undefined
     const draft = draftRegion(regions.draft, diff.id, side)
     return {
-      // Sent comments are not tied to a side: they show on this build's image.
-      threads: side === 'build' ? regions.threads : [],
+      // A sent comment shows only on the image it was drawn on.
+      threads: regions.threads.filter((t) => apiSide(side) === t.side),
       pending: draft,
       focusedId: regions.focusedId,
       drawing: side === 'build' && keyboardTool,
@@ -412,7 +412,7 @@ export namespace Viewer {
 
 /** The regions of the snapshot on screen: sent threads, and the one selected region with its draft. */
 export interface Regions {
-  threads: Annotations['threads']
+  threads: (Annotations['threads'][number] & { side: Comment.RegionSide })[]
   focusedId: string | null
   /** The selected region and the snapshot and side it was drawn on. */
   draft: RegionDraft | null

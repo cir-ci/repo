@@ -22,6 +22,10 @@ const request = (id: string, number: number, over: Record<string, unknown> = {})
   overdueByMs: 0,
   snoozedUntil: null,
   snoozeKind: null,
+  closedAt: null,
+  decision: null,
+  reason: null,
+  baseline: { number: 11, branch: 'main' },
   reviewer: { id: 'me', name: 'Me' },
   requestedBy: { id: 'u2', name: 'Ada Lovelace' },
   build: {
@@ -76,6 +80,57 @@ describe('ReviewsPage', () => {
       .toHaveAttribute('aria-pressed', 'true')
     // Nothing is selected until one is chosen.
     await expect.element(page.getByText('Select a review')).toBeVisible()
+  })
+
+  it('has the five tabs of the board, and Reviewed shows the decision', async () => {
+    fakeApi({
+      'GET /api/reviews': {
+        body: {
+          tab: 'reviewed',
+          requests: [
+            request('r1', 12, {
+              state: 'done',
+              decision: 'rejected',
+              closedAt: '2026-11-08T11:00:00.000Z',
+            }),
+          ],
+        },
+      },
+    })
+    await show('/workspaces/acme/reviews?tab=reviewed&review=r1')
+    for (const name of [
+      'Requested from you',
+      'Reviewed',
+      'Created by you',
+      'All open',
+      'Snoozed',
+    ]) {
+      // oxlint-disable-next-line no-await-in-loop -- five tabs
+      await expect.element(page.getByRole('button', { name, exact: true })).toBeVisible()
+    }
+    await expect.element(page.getByRole('heading', { name: /Reviewed by you/ })).toBeVisible()
+    await expect.element(page.getByText('Rejected by you').first()).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Approve all' })).not.toBeInTheDocument()
+  })
+
+  it('shows the reason chip, and the compared-with baseline in the details', async () => {
+    fakeApi({
+      'GET /api/reviews': {
+        body: {
+          tab: 'for-you',
+          requests: [
+            request('r1', 12, { reason: { kind: 'rejected_earlier', buildNumber: 11 } }),
+            request('r2', 13, { reason: { kind: 're_requested' } }),
+          ],
+        },
+      },
+    })
+    await show('/workspaces/acme/reviews?review=r1')
+    await expect.element(page.getByRole('heading', { name: /Re-requested/ })).toBeVisible()
+    await expect.element(page.getByText('Re-requested', { exact: true }).last()).toBeVisible()
+    await expect.element(page.getByText('Me rejected #11')).toBeVisible()
+    await expect.element(page.getByText('Compared with')).toBeVisible()
+    await expect.element(page.getByText('#11 · main').first()).toBeVisible()
   })
 
   it('puts a build that is still being compared in its own group', async () => {

@@ -78,6 +78,7 @@ const comment = (id: string, over: Partial<Comment.Item> = {}): Comment.Item => 
   parentId: null,
   snapshotName: null,
   region: null,
+  regionSide: 'current',
   body: id,
   author: person,
   createdAt: at,

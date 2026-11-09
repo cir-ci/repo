@@ -176,6 +176,7 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
           parentId: body.parentId ?? null,
           snapshotName: body.snapshotName ?? null,
           region: body.region ?? null,
+          regionSide: body.regionSide ?? 'current',
           body: body.body,
           author: { id: 'u1', name: 'Ada Lovelace' },
           createdAt: new Date().toISOString(),

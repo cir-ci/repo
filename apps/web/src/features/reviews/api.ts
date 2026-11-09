@@ -7,13 +7,12 @@ import { getJson, post, seg } from '#lib/http.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 
-/**
- * The tabs the data supports today. "Reviewed" (requests you closed) and "All open" (everyone's
- * open requests in the workspace) are on the design board but need server read models first.
- */
+/** The tabs of the page, in the order of the design board. */
 export const REVIEW_TABS: readonly { value: Review.Tab; label: string }[] = [
   { value: 'for-you', label: 'Requested from you' },
+  { value: 'reviewed', label: 'Reviewed' },
   { value: 'created', label: 'Created by you' },
+  { value: 'all-open', label: 'All open' },
   { value: 'snoozed', label: 'Snoozed' },
 ]
 
@@ -52,10 +51,14 @@ export interface RequestGroup {
   items: Review.Request[]
 }
 
+const settled = (r: Review.Request) => !isProcessing(r.build)
+
 /** The tab's requests under the headings of the board, empty groups left out. */
 export function groupRequests(
   requests: readonly Review.Request[],
   tab: Review.Tab,
+  /** The signed-in person, to tell their requests from the others' on "All open". */
+  userId?: string,
 ): RequestGroup[] {
   const groups: RequestGroup[] =
     tab === 'for-you'
@@ -64,7 +67,13 @@ export function groupRequests(
             id: 'needs',
             label: 'Needs your review',
             status: 'needs-review',
-            items: requests.filter((r) => !isProcessing(r.build)),
+            items: requests.filter((r) => settled(r) && !r.reason),
+          },
+          {
+            id: 'again',
+            label: 'Re-requested',
+            status: 'needs-review',
+            items: requests.filter((r) => settled(r) && r.reason),
           },
           {
             id: 'processing',
@@ -73,17 +82,63 @@ export function groupRequests(
             items: requests.filter((r) => isProcessing(r.build)),
           },
         ]
-      : tab === 'created'
-        ? [
-            {
-              id: 'waiting',
-              label: 'Waiting on reviewers',
-              status: 'needs-review',
-              items: [...requests],
-            },
-          ]
-        : [{ id: 'snoozed', label: 'Snoozed', status: 'neutral', items: [...requests] }]
+      : tab === 'reviewed'
+        ? [{ id: 'reviewed', label: 'Reviewed by you', status: 'approved', items: [...requests] }]
+        : tab === 'all-open'
+          ? [
+              {
+                id: 'yours',
+                label: 'Requested from you',
+                status: 'needs-review',
+                items: requests.filter((r) => settled(r) && r.reviewer.id === userId),
+              },
+              {
+                id: 'others',
+                label: 'Requested from others',
+                status: 'neutral',
+                items: requests.filter((r) => settled(r) && r.reviewer.id !== userId),
+              },
+              {
+                id: 'processing',
+                label: 'Still processing',
+                status: 'processing',
+                items: requests.filter((r) => !settled(r)),
+              },
+            ]
+          : tab === 'created'
+            ? [
+                {
+                  id: 'waiting',
+                  label: 'Waiting on reviewers',
+                  status: 'needs-review',
+                  items: [...requests],
+                },
+              ]
+            : [{ id: 'snoozed', label: 'Snoozed', status: 'neutral', items: [...requests] }]
   return groups.filter((g) => g.items.length > 0)
+}
+
+/**
+ * The chip that says why a request is back: "You rejected #143" (the reviewer's own words when
+ * they are the one looking), or "Re-requested". Nothing for a first ask.
+ */
+export function reasonLabel(r: Review.Request, userId?: string): string | undefined {
+  if (!r.reason) return undefined
+  if (r.reason.kind === 're_requested') return 'Re-requested'
+  const who = r.reviewer.id === userId ? 'You' : r.reviewer.name
+  return `${who} rejected #${r.reason.buildNumber}`
+}
+
+/** "Approved by you" or "Rejected by you" for a closed request; undefined when open or decided by someone else. */
+export function decisionLabel(r: Review.Request): string | undefined {
+  if (r.decision === null) return undefined
+  return r.decision === 'approved' ? 'Approved by you' : 'Rejected by you'
+}
+
+/** "#147 · main", the build a review was compared with; undefined without a baseline. */
+export function baselineLabel(r: Review.Request): string | undefined {
+  if (!r.baseline) return undefined
+  return `#${r.baseline.number}${r.baseline.branch ? ` · ${r.baseline.branch}` : ''}`
 }
 
 /** "4 changed, 1 added, 2 removed"; nothing for a build without changes. */

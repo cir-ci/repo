@@ -105,6 +105,7 @@ export async function addComment(db: Database, input: addComment.Input): Promise
       body,
       snapshotName,
       region: input.region ?? null,
+      regionSide: input.regionSide ?? 'current',
       parentId: input.parentId ?? null,
     })
     const members = await listBuildWorkspaceMembers(tx, input.buildId)

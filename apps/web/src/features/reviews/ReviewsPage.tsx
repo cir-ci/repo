@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 
+import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { focusRow, leavesKeyToFocus, nextAfterRemoval } from '#lib/list-keys.ts'
 import { PageHeading } from '#lib/PageHeading.tsx'
@@ -45,6 +46,8 @@ export function ReviewsPage() {
   const navigate = useNavigate()
   const announce = useAnnounce()
   const clientLink = useClientLink()
+  const { data: session } = authClient.useSession()
+  const userId = session?.user.id
   const query = useQuery(reviewsQuery(tab))
   const { data } = query
 
@@ -59,12 +62,16 @@ export function ReviewsPage() {
 
   // This page is one workspace's reviews; the list spans all of the person's.
   const requests = (data?.requests ?? []).filter((r) => r.workspace.slug === workspace)
-  const groups = groupRequests(requests, tab)
+  const groups = groupRequests(requests, tab, userId)
   const items = groups.flatMap((g) => g.items)
   // No review in the address means none is selected: the panel invites a choice.
   const selected = items.find((r) => r.id === review)
   const can = {
-    approve: tab !== 'created' && selected !== undefined && !isProcessing(selected.build),
+    approve:
+      tab !== 'created' &&
+      tab !== 'reviewed' &&
+      selected !== undefined &&
+      !isProcessing(selected.build),
     snooze: tab === 'for-you',
     unsnooze: tab === 'snoozed',
   }
@@ -164,7 +171,7 @@ export function ReviewsPage() {
                   Open review
                 </Button>
               ) : null}
-              {tab !== 'created' ? (
+              {tab !== 'created' && tab !== 'reviewed' ? (
                 <Button
                   size="sm"
                   variant="primary"
@@ -184,6 +191,7 @@ export function ReviewsPage() {
           <div className={styles.layout} data-selected={selected ? 'true' : 'false'}>
             <ReviewList
               workspace={workspace}
+              userId={userId}
               tab={tab}
               total={requestCount(requests.length)}
               groups={groups}
@@ -211,9 +219,11 @@ export function ReviewsPage() {
                   <Button size="sm" aria-keyshortcuts="shift+r" onClick={() => setPicking(true)}>
                     Request review
                   </Button>
-                  <Button size="sm" onClick={() => doDismiss(selected)}>
-                    Dismiss
-                  </Button>
+                  {tab === 'reviewed' ? null : (
+                    <Button size="sm" onClick={() => doDismiss(selected)}>
+                      Dismiss
+                    </Button>
+                  )}
                 </ReviewDetail>
               ) : (
                 <div className={styles.empty}>

@@ -3,6 +3,10 @@ import type { Comment } from '@circi/api'
 /** The two images of a snapshot a region can be drawn on. */
 export type RegionSide = 'baseline' | 'build'
 
+/** The API's name for a side: the build's own image is `current`. */
+export const apiSide = (side: RegionSide): Comment.RegionSide =>
+  side === 'baseline' ? 'baseline' : 'current'
+
 /** A region selected and not yet sent: it belongs to one snapshot and one side of it. */
 export interface RegionDraft {
   shotId: string

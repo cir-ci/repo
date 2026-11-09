@@ -6,7 +6,9 @@ import { useTeamMark } from '#features/integrations/TeamMark.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import {
+  decisionLabel,
   overdueLabel,
+  reasonLabel,
   requestName,
   requestRef,
   requestStatus,
@@ -23,6 +25,7 @@ import styles from './Reviews.module.css'
  */
 export function ReviewList({
   workspace,
+  userId,
   tab,
   total,
   groups,
@@ -33,7 +36,8 @@ export function ReviewList({
   onTab,
 }: ReviewList.Props) {
   const teamMark = useTeamMark(workspace)
-  const person = (r: Review.Request) => (tab === 'created' ? r.reviewer : r.requestedBy)
+  const person = (r: Review.Request) =>
+    tab === 'created' || tab === 'all-open' ? r.reviewer : r.requestedBy
 
   return (
     <aside className={styles.sub} aria-label="Reviews">
@@ -74,6 +78,8 @@ export function ReviewList({
               <ul className={styles.items} aria-label={group.label}>
                 {group.items.map((r) => {
                   const overdue = overdueLabel(r.overdueByMs)
+                  const why = reasonLabel(r, userId)
+                  const decision = decisionLabel(r)
                   const who = person(r)
                   const link = linkTo(r.id)
                   return (
@@ -107,8 +113,18 @@ export function ReviewList({
                             <span aria-hidden="true">·</span>
                             <span className={styles.branch}>{requestRef(r.build)}</span>
                           </span>
-                          {overdue || r.snoozedUntil ? (
+                          {overdue || r.snoozedUntil || why || decision ? (
                             <span className={styles.chips}>
+                              {decision ? (
+                                <Badge
+                                  tone="state"
+                                  state={r.decision === 'approved' ? 'approved' : 'rejected'}
+                                  shape="tag"
+                                >
+                                  {decision}
+                                </Badge>
+                              ) : null}
+                              {why ? <Badge shape="tag">{why}</Badge> : null}
                               {overdue ? (
                                 <Badge tone="state" state="rejected" shape="tag">
                                   {overdue}
@@ -141,12 +157,22 @@ const EMPTY: Record<Review.Tab, { title: string; text: string }> = {
     text: 'When a build needs your review, it shows up in this list and in the sidebar count.',
   },
   created: { title: 'No requests from you', text: 'Reviews you ask others for appear here.' },
+  reviewed: {
+    title: 'Nothing reviewed yet',
+    text: 'Requests you close by approving or rejecting show up here, latest first.',
+  },
+  'all-open': {
+    title: 'No open reviews',
+    text: 'Every open review request in this workspace appears here.',
+  },
   snoozed: { title: 'Nothing snoozed', text: 'Requests you put off wait here until they wake.' },
 }
 
 export namespace ReviewList {
   export interface Props {
     workspace: string
+    /** The signed-in person, so a reason chip can say "You". */
+    userId: string | undefined
     tab: Review.Tab
     /** "3 reviews" */
     total: string

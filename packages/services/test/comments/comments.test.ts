@@ -150,6 +150,16 @@ describe('comment structure and permissions', () => {
       snapshotName: 'home',
       region: { x: 0.1, y: 0.2, width: 0.3, height: 0.4 },
     })
+    expect(top.regionSide).toBe('current')
+    const onBaseline = await addComment(t.db, {
+      buildId: build.id,
+      authorId: owner.id,
+      body: 'was here',
+      snapshotName: 'home',
+      region: { x: 0.1, y: 0.2, width: 0.3, height: 0.4 },
+      regionSide: 'baseline',
+    })
+    expect(onBaseline.regionSide).toBe('baseline')
     const reply = await addComment(t.db, {
       buildId: build.id,
       authorId: owner.id,

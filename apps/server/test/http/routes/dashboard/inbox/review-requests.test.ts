@@ -77,9 +77,30 @@ describe('review requests', () => {
     expect(ids(await list('snoozed', louCookie))).toEqual([])
   })
 
+  it('lists every open request under All open, and a decided one under Reviewed', async () => {
+    const requestId = await ask()
+    // Anyone in the workspace sees it on All open, nobody outside does.
+    expect(ids(await list('all-open'))).toEqual([requestId])
+    expect(ids(await list('all-open', louCookie))).toEqual([requestId])
+    expect((await list('all-open', rivalCookie)).requests).toEqual([])
+    expect((await list('reviewed', louCookie)).requests).toEqual([])
+
+    const review = await post(`/api/teams/${acme.workspaceSlug}/web/builds/2/review`, {
+      cookie: louCookie,
+      payload: { state: 'rejected', reason: 'No' },
+    })
+    expect(review.statusCode).toBe(200)
+    expect(await list('all-open')).toMatchObject({ requests: [] })
+    const reviewed = await list('reviewed', louCookie)
+    expect(reviewed.requests).toMatchObject([
+      { id: requestId, state: 'done', decision: 'rejected', closedAt: expect.any(String) },
+    ])
+    expect((await list('reviewed')).requests).toEqual([])
+  })
+
   it('keeps other workspaces out of the lists and the actions', async () => {
     const requestId = await ask()
-    for (const tab of ['for-you', 'created', 'snoozed']) {
+    for (const tab of ['for-you', 'created', 'snoozed', 'reviewed', 'all-open']) {
       // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
       expect((await list(tab, rivalCookie)).requests).toEqual([])
     }

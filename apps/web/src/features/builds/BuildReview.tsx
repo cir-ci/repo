@@ -33,7 +33,7 @@ import { screenshotLabel, screenshotStatus, shotDecision, shotReview } from './d
 import { Viewer } from './DiffViewer.tsx'
 import { IssueAction } from './IssueAction.tsx'
 import { SnapshotIssues } from './LinkedIssues.tsx'
-import { draftOf, type RegionDraft } from './region-draft.ts'
+import { apiSide, draftOf, type RegionDraft } from './region-draft.ts'
 import { RequestReviewDialog } from './RequestReviewDialog.tsx'
 import {
   defaultShot,
@@ -285,7 +285,9 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
               }
               regions={{
                 threads: pinned.flatMap((c, i) =>
-                  c.region ? [{ id: c.id, number: i + 1, region: c.region }] : [],
+                  c.region
+                    ? [{ id: c.id, number: i + 1, region: c.region, side: c.regionSide }]
+                    : [],
                 ),
                 focusedId: focusedComment,
                 draft,
@@ -301,7 +303,12 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
                   onSend: (body) => {
                     if (!draft) return
                     addComment.mutate(
-                      { body, snapshotName: selected.name, region: draft.region },
+                      {
+                        body,
+                        snapshotName: selected.name,
+                        region: draft.region,
+                        regionSide: apiSide(draft.side),
+                      },
                       {
                         onSuccess: () => {
                           setDraft(null)

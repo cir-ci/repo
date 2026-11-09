@@ -17,6 +17,7 @@ export async function insertComment(db: Database, input: insertComment.Input): P
       regionY: region?.y ?? null,
       regionWidth: region?.width ?? null,
       regionHeight: region?.height ?? null,
+      regionSide: input.regionSide ?? 'current',
       body: input.body,
       authorId: input.authorId,
       parentId: input.parentId ?? null,
@@ -33,6 +34,8 @@ export namespace insertComment {
     snapshotName?: string | null
     /** Fractions of the snapshot: top-left corner and size. */
     region?: { x: number; y: number; width: number; height: number } | null
+    /** The image the region is drawn on; 'current' when omitted. */
+    regionSide?: 'baseline' | 'current'
     parentId?: string | null
   }
 }

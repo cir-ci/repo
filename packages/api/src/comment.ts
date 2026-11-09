@@ -10,6 +10,9 @@ export namespace Comment {
     height: number
   }
 
+  /** The two images of a snapshot a region can be drawn on. */
+  export type RegionSide = 'baseline' | 'current'
+
   export interface Author {
     id: string
     name: string
@@ -21,6 +24,8 @@ export namespace Comment {
     parentId: string | null
     snapshotName: string | null
     region: Region | null
+    /** The image the region was drawn on; 'current' (this build) for a comment with no region. */
+    regionSide: RegionSide
     /** Empty for a deleted comment, which stays so its thread keeps its shape. */
     body: string
     /** Null when the author has since left. */
@@ -44,6 +49,8 @@ export namespace Comment {
     body: string
     snapshotName?: string
     region?: Region
+    /** Which image the region is on; defaults to 'current'. */
+    regionSide?: RegionSide
     /** Reply to this comment instead of starting a thread. */
     parentId?: string
   }
