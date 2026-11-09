@@ -120,6 +120,10 @@ A namespace must contain only types. Never put a value in one.
   siblings.
 - **CSS modules:** `styles.root`, not `styles['root']` (brackets only for names that aren't
   identifiers).
+- **CSS lives in `.css` files, never in strings:** CSS modules in the web app and `@circi/ui`; a
+  plain `.css` file for anything the server renders on its own (the sites 404, server notices),
+  inlined at runtime if the page must load nothing. Colours and sizes come from the design tokens
+  (`@circi/ui`'s theme, the `--circi-…` variables), never copied hex values.
 - **Base UI wrappers:** a component that passes props on to a Base UI part extends
   `<Part>.Props` and forwards them; it never redefines them. With extra props of its own it still
   extends the Base UI props and destructures `{ own, props, ...rest }`.
