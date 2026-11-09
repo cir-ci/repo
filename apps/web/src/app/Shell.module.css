@@ -56,9 +56,3 @@
 .main {
   outline: none;
 }
-
-.centered {
-  padding: 48px 0;
-  color: var(--circi-text-secondary);
-  text-align: center;
-}

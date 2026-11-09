@@ -1,16 +1,9 @@
-import {
-  AnnouncerProvider,
-  AppFrame,
-  Delayed,
-  Drawer,
-  IconButton,
-  MenuIcon,
-  SkipLink,
-} from '@circi/ui'
+import { AnnouncerProvider, AppFrame, Drawer, IconButton, MenuIcon, SkipLink } from '@circi/ui'
 import { Outlet, useRouterState } from '@tanstack/react-router'
 import { lazy, type ReactNode, Suspense, useEffect, useState } from 'react'
 
 import { InvitationBanner } from '#features/auth/InvitationBanner.tsx'
+import { SessionCheck } from '#features/auth/SessionCheck.tsx'
 import { AddressChangeBanner } from '#features/instance/AddressChangeBanner.tsx'
 import { SettingsNav } from '#features/sidebar/SettingsNav.tsx'
 import { TeamDialogs } from '#features/teams/TeamDialogs.tsx'
@@ -43,15 +36,8 @@ export function Shell() {
 
   let content: ReactNode
   if (isPending) {
-    // Checking a session takes well under a second, so nothing is shown at first, then a note
-    // if it drags on.
-    content = (
-      <PlainFrame>
-        <Delayed>
-          <div className={styles.centered}>Checking your session…</div>
-        </Delayed>
-      </PlainFrame>
-    )
+    // The sign-in page's ground and logo while the session is checked (a refresh lands here).
+    content = <SessionCheck />
   } else if (!user) {
     // The sign-in and setup pages are their own full-viewport layout (no logo bar); the page
     // provides the `main#content` the skip link points at.
