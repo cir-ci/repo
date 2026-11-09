@@ -1,11 +1,11 @@
 import { generateKeyPairSync } from 'node:crypto'
 
+import { fakeGithubHost } from '@circi/testing/hosts'
 import { describe, expect, it } from 'vitest'
 
 import { GithubApp, providerRegistry } from '#src/index.ts'
 
 import { type ProviderHarness, runGitProviderContract } from './support/contract.ts'
-import { fakeGithubHost } from './support/fake-github-host.ts'
 
 const { privateKey } = generateKeyPairSync('rsa', {
   modulusLength: 2048,

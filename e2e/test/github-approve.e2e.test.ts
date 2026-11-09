@@ -52,7 +52,7 @@ describe('approving from GitHub, and GitHub failing (fake GitHub)', () => {
     gh.sendWebhook(
       ctx.stack.url,
       'check_run',
-      checkRunPayload(checkFor(pr.sha)?.id ?? 0, REPO, identifier, sender),
+      checkRunPayload(checkFor(pr.sha)?.id ?? 0, REPO, identifier, sender, p.installationId),
     )
   const comment = (pr: PrBuild, body: string, user = LINKED) => {
     const c = gh.seedComment(REPO, pr.number, body)
@@ -62,7 +62,7 @@ describe('approving from GitHub, and GitHub failing (fake GitHub)', () => {
         gh.sendWebhook(
           ctx.stack.url,
           'issue_comment',
-          commentPayload(REPO, pr.number, c.id, body, user),
+          commentPayload(REPO, pr.number, c.id, body, user, p.installationId),
         ),
     }
   }
@@ -129,7 +129,14 @@ describe('approving from GitHub, and GitHub failing (fake GitHub)', () => {
     await poll(() => checkFor(pr.sha)?.conclusion).toBe('success')
     // Redelivering the very same webhook (same delivery id) changes nothing.
     const id = 'replay-approve'
-    const payload = commentPayload(REPO, pr.number, c.id, '/circi approve', LINKED)
+    const payload = commentPayload(
+      REPO,
+      pr.number,
+      c.id,
+      '/circi approve',
+      LINKED,
+      p.installationId,
+    )
     await gh.sendWebhook(ctx.stack.url, 'issue_comment', payload, { deliveryId: id })
     const again = await gh.sendWebhook(ctx.stack.url, 'issue_comment', payload, { deliveryId: id })
     expect(JSON.parse(again.body).duplicate).toBe(true)
@@ -156,11 +163,11 @@ describe('approving from GitHub, and GitHub failing (fake GitHub)', () => {
     await comment(pr, 'please /circi approve this').send()
     const bot = gh.seedComment(REPO, pr.number, '/circi approve')
     await gh.sendWebhook(ctx.stack.url, 'issue_comment', {
-      ...commentPayload(REPO, pr.number, bot.id, '/circi approve', LINKED),
+      ...commentPayload(REPO, pr.number, bot.id, '/circi approve', LINKED, p.installationId),
       comment: { id: bot.id, body: '/circi approve', user: { ...LINKED, type: 'Bot' } },
     })
     await gh.sendWebhook(ctx.stack.url, 'issue_comment', {
-      ...commentPayload(REPO, pr.number, bot.id, '/circi approve', LINKED),
+      ...commentPayload(REPO, pr.number, bot.id, '/circi approve', LINKED, p.installationId),
       issue: { number: pr.number },
     })
     expect(gh.requests.length).toBe(before)
@@ -214,7 +221,7 @@ describe('approving from GitHub, and GitHub failing (fake GitHub)', () => {
   it('a revoked installation (401) neither crashes the worker nor the build, is not retried, and is flagged on the team', async () => {
     const { stack, setup } = ctx
     n += 1
-    gh.revokeInstallation('4242')
+    gh.revokeInstallation(p.installationId)
     const pr = await uploadPr(stack, p, n, { login: { dot: { x: 300 + n, y: 170 } } })
     // The build itself is fine; the dashboard still works.
     expect((await buildDetail(setup.session, p, pr.buildNumber)).build.status).toBe('complete')
@@ -243,7 +250,7 @@ describe('approving from GitHub, and GitHub failing (fake GitHub)', () => {
     expect(checkFor(pr.sha)).toBeUndefined()
     expect((await fetch(`${stack.url}/healthz`)).status).toBe(200)
     // Once the installation works again the next build reports, and the warning goes away.
-    gh.restoreInstallation('4242')
+    gh.restoreInstallation(p.installationId)
     n += 1
     const next = await uploadPr(stack, p, n, { login: { dot: { x: 300 + n, y: 171 } } })
     await poll(() => checkFor(next.sha)?.conclusion, { timeout: 90_000 }).toBe('action_required')

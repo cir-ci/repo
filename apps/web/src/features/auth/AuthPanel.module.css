@@ -21,3 +21,11 @@
     margin-top: 64px;
   }
 }
+
+/* A lone link under the form (e.g. "Go to teams") is a 24px target, not a 20px text line. */
+.panel > a {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: 24px;
+}

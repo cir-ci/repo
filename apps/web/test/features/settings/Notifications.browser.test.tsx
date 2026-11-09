@@ -1,12 +1,10 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { AppearancePage } from '#features/settings/AppearancePage.tsx'
 import { NotificationsPage } from '#features/settings/NotificationsPage.tsx'
-import { fakeApi, restoreFetch } from '#test/features/fetch-routes.ts'
+import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
-
-afterEach(() => restoreFetch())
 
 const PATH = '/api/inbox/preferences'
 const MAIL = { body: { mailConfigured: true } }

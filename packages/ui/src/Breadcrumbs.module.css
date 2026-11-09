@@ -25,6 +25,10 @@
 }
 
 .link {
+  display: inline-flex;
+  align-items: center;
+  /* A 24px target (WCAG 2.5.8): the 13px line alone is 20px. */
+  min-height: 24px;
   color: var(--circi-text-secondary);
   text-decoration: none;
   white-space: nowrap;

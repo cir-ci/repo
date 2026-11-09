@@ -1,22 +1,14 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { TeamPage } from '#features/teams/TeamPage.tsx'
-import { fakeApi, hangingFetch, restoreFetch } from '#test/features/fetch-routes.ts'
+import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
+import { teamInfo } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 import { build } from './support.tsx'
 
-afterEach(() => restoreFetch())
-
-const info = {
-  id: 'p1',
-  slug: 'web',
-  name: 'Web App',
-  defaultBranch: 'main',
-  workspaceSlug: 'acme',
-  workspaceName: 'Acme Inc',
-}
+const info = teamInfo()
 
 function api(
   builds: unknown[],
@@ -40,9 +32,7 @@ describe('TeamPage', () => {
     await expect.poll(() => crumbs.element().textContent).toBe('Teamsacmeweb')
     await expect.element(page.getByText('web', { exact: true })).toBeVisible()
     expect(page.getByRole('list', { name: 'Builds' }).elements()).toHaveLength(0)
-    await expect.element(page.getByRole('status').first()).toHaveTextContent('Loading builds', {
-      timeout: 2_000,
-    })
+    await expect.element(page.getByRole('status').first()).toHaveTextContent('Loading builds')
   })
 
   it('names the team and its workspace once loaded, and says what the default branch is for', async () => {
@@ -65,7 +55,6 @@ describe('TeamPage', () => {
     await show()
     await expect.element(page.getByText('Web App', { exact: true }).first()).toBeVisible()
     expect(page.getByText(/can’t reach GitHub/).elements()).toHaveLength(0)
-    restoreFetch()
 
     api([build(3)], undefined, { reason: 'installation_revoked', since: new Date().toISOString() })
     await show()

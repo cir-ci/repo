@@ -1,3 +1,4 @@
+import { fakeGitlabHost } from '@circi/testing/hosts'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -14,7 +15,6 @@ import {
 } from '#src/index.ts'
 
 import { type ProviderHarness, runGitProviderContract } from './support/contract.ts'
-import { fakeGitlabHost } from './support/fake-gitlab-host.ts'
 
 const BASE = 'https://gitlab.test'
 const creds = gitlabCredentials(BASE, 'glpat-fake')

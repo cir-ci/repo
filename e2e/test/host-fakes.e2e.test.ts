@@ -5,6 +5,7 @@ import type { FakeGithub } from '#fakes/fake-github.ts'
 import { startWebhookReceiver, type WebhookReceiver } from '#fakes/webhook-receiver.ts'
 import { createTeam, type CreatedTeam, inviteMember, newAccount } from '#src/admin.ts'
 import { Repo } from '#src/git-repo.ts'
+import { uniqueInstallationId } from '#src/github-helpers.ts'
 import { extractLinks } from '#src/mail.ts'
 import { uploadOrThrow } from '#src/upload.ts'
 import { useStack } from '#src/vitest.ts'
@@ -20,6 +21,7 @@ describe('host fakes and mail, seen from the real stack', () => {
   let repo: Repo
   let team: CreatedTeam
   let prBuild = 0
+  let installationId = ''
   beforeAll(async () => {
     receiver = await startWebhookReceiver()
     repo = await Repo.create()
@@ -59,8 +61,9 @@ describe('host fakes and mail, seen from the real stack', () => {
   it('reports a pull request build to GitHub: installation token, check run with Approve/Reject, comment', async () => {
     const { stack, setup } = ctx
     const workspace = setup.workspace.slug
+    installationId = uniqueInstallationId()
     await setup.session.put(`/api/teams/${workspace}/${team.slug}/github`, {
-      installationId: '77',
+      installationId,
       repoRef: 'acme/hooked',
     })
 
@@ -85,7 +88,7 @@ describe('host fakes and mail, seen from the real stack', () => {
     expect(check?.actions.map((a) => a.identifier)).toEqual(['approve', 'reject'])
     expect(check?.detailsUrl).toContain(`/${workspace}/${team.slug}/builds/${up.build.number}`)
     // The app JWT was signed with this run's private key and accepted.
-    expect(gh.find('POST /app/installations/77/access_tokens')[0]?.auth).toBe('app')
+    expect(gh.find(`POST /app/installations/${installationId}/access_tokens`)[0]?.auth).toBe('app')
     // One check run and one comment for the build, however many notices were queued for it.
     await expect.poll(() => gh.comments.filter((c) => c.prNumber === 3).length).toBe(1)
     expect(gh.checkRuns.filter((c) => c.headSha === sha)).toHaveLength(1)
@@ -104,7 +107,7 @@ describe('host fakes and mail, seen from the real stack', () => {
       requested_action: { identifier: 'approve' },
       check_run: { id: check?.id },
       repository: { full_name: 'acme/hooked' },
-      installation: { id: 77 },
+      installation: { id: Number(installationId) },
       sender: { id: 999, login: 'stranger' },
     })
     expect(res.status).toBeLessThan(300)

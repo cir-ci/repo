@@ -3,6 +3,7 @@ import { generateKeyPairSync } from 'node:crypto'
 import { getTeamLink, schema } from '@circi/db'
 import { gitKinds } from '@circi/services'
 import { createTestDb, seedTeam } from '@circi/testing'
+import { fakeGithubInstallationsHost } from '@circi/testing/hosts'
 import { Command } from 'commander'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
@@ -53,37 +54,11 @@ afterEach(() => {
   process.exitCode = undefined
 })
 
-function reply(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': 'application/json' },
-  })
-}
-
 /** GitHub: installations 55 and 58 exist; 56 does not; 57 is down. */
 function fakeGithub() {
-  const asked: string[] = []
-  vi.stubGlobal('fetch', async (input: Parameters<typeof fetch>[0]) => {
-    const url = new URL(input instanceof Request ? input.url : String(input))
-    const token = /^\/app\/installations\/(\d+)\/access_tokens$/.exec(url.pathname)
-    if (token) {
-      const id = token[1] ?? ''
-      asked.push(id)
-      if (id === '55' || id === '58') {
-        return reply(
-          { token: 'ghs_x', expires_at: new Date(Date.now() + 3_600_000).toISOString() },
-          201,
-        )
-      }
-      if (id === '56') return reply({ message: 'Not Found' }, 404)
-      return reply({ message: 'Bad gateway' }, 502)
-    }
-    if (url.pathname === '/installation/repositories') {
-      return reply({ repositories: [{ full_name: 'acme/web' }] })
-    }
-    return reply({ message: 'unscripted' }, 500)
-  })
-  return asked
+  const host = fakeGithubInstallationsHost({ known: ['55', '58'], gone: ['56'] })
+  host.stub()
+  return host
 }
 
 async function link(org: string, team: string, installation: string): Promise<string[]> {
@@ -115,9 +90,9 @@ async function link(org: string, team: string, installation: string): Promise<st
 describe('circi admin github link', () => {
   it('verifies the installation with GitHub, then links the team', async () => {
     const { workspace, team } = await seedTeam(t.db)
-    const asked = fakeGithub()
+    const github = fakeGithub()
     const lines = await link(workspace.slug, team.slug, '55')
-    expect(asked).toEqual(['55'])
+    expect(github.asked()).toEqual(['55'])
     expect(lines[0]).toContain('now reports to acme/web')
     expect(await getTeamLink(t.db, team.id, gitKinds())).toEqual({
       installationId: '55',

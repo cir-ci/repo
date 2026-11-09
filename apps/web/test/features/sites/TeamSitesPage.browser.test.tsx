@@ -1,11 +1,9 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { TeamSitesPage } from '#features/sites/TeamSitesPage.tsx'
-import { fakeFetch, restoreFetch, json, pending } from '#test/features/fetch-routes.ts'
+import { fakeFetch, json, pending } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
-
-afterEach(() => restoreFetch())
 
 const API = 'GET /api/teams/acme/web/sites'
 const open = () =>

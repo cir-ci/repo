@@ -17,6 +17,7 @@
   "devDependencies": {
     "@circi/api": "workspace:*",
     "@circi/providers": "workspace:*",
+    "@circi/testing": "workspace:*",
     "@types/node": "catalog:",
     "vitest": "catalog:"
   }

@@ -1,15 +1,17 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
 // The auth client is the edge to better-auth: a fake stands in for it.
-const auth = vi.hoisted(() => ({
-  getFullOrganization: vi.fn<(arg: unknown) => Promise<unknown>>(),
-}))
-vi.mock('#lib/auth-client.ts', () => ({ authClient: { organization: auth } }))
+vi.mock('#lib/auth-client.ts', () =>
+  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
+)
 
 import { ReviewsSettingsPage } from '#features/settings/ReviewsSettingsPage.tsx'
-import { fakeApi, type ReplyHandler, restoreFetch } from '#test/features/fetch-routes.ts'
+import { mockAuthClient } from '#test/support/auth-client.ts'
+import { fakeApi, type ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
+
+const auth = mockAuthClient().organization
 
 const API = '/api/teams/acme/web'
 
@@ -79,8 +81,6 @@ beforeEach(() => {
     error: null,
   })
 })
-afterEach(() => restoreFetch())
-
 describe('ReviewsSettingsPage', () => {
   it('shows the target, the rules and who is on triage', async () => {
     api()

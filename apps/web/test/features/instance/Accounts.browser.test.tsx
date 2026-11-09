@@ -3,13 +3,12 @@ import { page } from 'vitest/browser'
 
 import { AccountsPage } from '#features/instance/AccountsPage.tsx'
 import { clipboard } from '#features/instance/admin-api.ts'
-import { fakeApi, hangingFetch, restoreFetch } from '#test/features/fetch-routes.ts'
+import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 import { account, accountList } from './fixtures.ts'
 
 afterEach(() => {
-  restoreFetch()
   vi.restoreAllMocks()
 })
 

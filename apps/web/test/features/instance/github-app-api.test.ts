@@ -7,7 +7,7 @@ import {
   githubSourceNote,
   githubStep,
 } from '#features/instance/github-app-api.ts'
-import { fakeFetch, restoreFetch } from '#test/features/fetch-routes.ts'
+import { fakeFetch, restoreFetch } from '#test/support/fetch.ts'
 
 afterEach(() => {
   restoreFetch()

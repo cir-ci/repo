@@ -24,7 +24,7 @@ import {
 
 const overview = (workspace: string, team: string): Team.Overview => ({
   workspace: { slug: workspace, name: workspace.toUpperCase() },
-  team: { slug: team, name: team, defaultBranch: 'main' },
+  team: { slug: team, name: team, defaultBranch: 'main', color: 'slate', icon: null },
   latestBuild: null,
 })
 
@@ -60,6 +60,8 @@ describe('pickWorkspace', () => {
 const sidebarTeam = (slug: string, over: Partial<Sidebar.Team> = {}): Sidebar.Team => ({
   slug,
   name: slug,
+  color: 'slate',
+  icon: null,
   pinned: false,
   triage: 0,
   ...over,

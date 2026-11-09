@@ -1,8 +1,8 @@
+import { fakeJiraHost, fakeLinearHost } from '@circi/testing/hosts'
 import { describe, expect, it } from 'vitest'
 
 import { createTrackerFactory, JiraTracker, LinearTracker, toAdf } from '#src/index.ts'
 
-import { fakeJiraHost, fakeLinearHost } from './support/fake-tracker-hosts.ts'
 import { runIssueTrackerContract, type TrackerHarness } from './support/tracker-contract.ts'
 
 const teams = [

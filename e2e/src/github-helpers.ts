@@ -13,8 +13,16 @@ import type { ScreenshotSpec } from './images.ts'
 import type { Stack } from './stack.ts'
 import { uploadBuild, type uploadOrThrow } from './upload.ts'
 
-/** The fake's installation id used by these tests. */
-export const INSTALLATION = '4242'
+let installationCounter = 0
+/**
+ * A GitHub App installation id no other test file, worker process or earlier run uses. One
+ * installation belongs to one workspace, so files running in parallel (each with a workspace of
+ * its own) must not share one: connecting it twice answers 409 'GitHub account already connected'.
+ */
+export function uniqueInstallationId(): string {
+  installationCounter += 1
+  return `${process.pid}${Date.now() % 10_000_000}${installationCounter}`
+}
 
 /** A team linked to `repoRef` through the GitHub App, with a baseline uploaded on `main`. */
 export interface LinkedTeam {
@@ -22,6 +30,8 @@ export interface LinkedTeam {
   slug: string
   token: string
   repoRef: string
+  /** The installation the team's repository is linked through. */
+  installationId: string
   repo: Repo
   /** The commit of the baseline on main. */
   baselineSha: string
@@ -48,8 +58,9 @@ export async function createLinkedTeam(
   options: { repoRef: string; blockMergeOnChanges?: boolean; installationId?: string },
 ): Promise<LinkedTeam> {
   const team = await createTeam(session, workspace, name)
+  const installationId = options.installationId ?? uniqueInstallationId()
   await session.put(`/api/teams/${workspace}/${team.slug}/github`, {
-    installationId: options.installationId ?? INSTALLATION,
+    installationId,
     repoRef: options.repoRef,
   })
   if (options.blockMergeOnChanges !== undefined) {
@@ -69,6 +80,7 @@ export async function createLinkedTeam(
     slug: team.slug,
     token: team.token,
     repoRef: options.repoRef,
+    installationId,
     repo,
     baselineSha,
   }
@@ -143,12 +155,13 @@ export const checkRunPayload = (
   repoRef: string,
   identifier: 'approve' | 'reject',
   sender: { id: number; login: string },
+  installationId: string,
 ) => ({
   action: 'requested_action',
   requested_action: { identifier },
   check_run: { id: checkRunId },
   repository: { full_name: repoRef },
-  installation: { id: Number(INSTALLATION) },
+  installation: { id: Number(installationId) },
   sender,
 })
 
@@ -158,11 +171,12 @@ export const commentPayload = (
   commentId: number,
   body: string,
   user: { id: number; login: string },
+  installationId: string,
 ) => ({
   action: 'created',
   issue: { number: prNumber, pull_request: { url: 'x' } },
   comment: { id: commentId, body, user: { ...user, type: 'User' } },
   repository: { full_name: repoRef },
-  installation: { id: Number(INSTALLATION) },
+  installation: { id: Number(installationId) },
   sender: user,
 })

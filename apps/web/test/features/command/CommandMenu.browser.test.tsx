@@ -3,11 +3,10 @@ import { page, userEvent } from 'vitest/browser'
 
 import { ShortcutLayer } from '#app/ShortcutLayer.tsx'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
-import { fakeApi, restoreFetch } from '#test/features/fetch-routes.ts'
+import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 afterEach(() => {
-  restoreFetch()
   vi.restoreAllMocks()
 })
 

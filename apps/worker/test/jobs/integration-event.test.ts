@@ -22,13 +22,12 @@ import {
   seedUser,
   seedChangedSnapshots,
 } from '@circi/testing'
+import { fakeSlackHost } from '@circi/testing/hosts'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { integrationEvent } from '#jobs/integration-event.ts'
 import { startWorker } from '#src/index.ts'
-
-import { fakeSlackHost } from '../support/fake-slack-host.ts'
 
 const SECRET = 'a-long-instance-secret-for-tests-0123456789'
 const ORIGIN = 'https://ci.acme.io'
@@ -235,11 +234,7 @@ describe('the worker', () => {
       uploadTimeoutMinutes: 0,
     })
     try {
-      const start = Date.now()
-      while (host.posted.length === 0 && Date.now() - start < 3_000) {
-        // eslint-disable-next-line no-await-in-loop -- polling
-        await new Promise((r) => setTimeout(r, 20))
-      }
+      await expect.poll(() => host.posted.length, { timeout: 3_000 }).toBe(1)
     } finally {
       await worker.stop()
       await rm(dir, { recursive: true, force: true })

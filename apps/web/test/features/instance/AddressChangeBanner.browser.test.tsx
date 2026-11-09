@@ -1,11 +1,9 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { AddressChangeBanner } from '#features/instance/AddressChangeBanner.tsx'
-import { fakeFetch, restoreFetch } from '#test/features/fetch-routes.ts'
+import { fakeFetch } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
-
-afterEach(() => restoreFetch())
 
 const change = {
   from: 'https://old.example.com',

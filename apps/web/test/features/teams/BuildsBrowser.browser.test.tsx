@@ -1,41 +1,27 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
-// The auth client is the edge to better-auth (it lists the workspace's members): a fake stands in.
-const auth = vi.hoisted(() => ({
-  getFullOrganization: vi.fn<(arg: unknown) => Promise<unknown>>(),
-}))
-vi.mock('#lib/auth-client.ts', () => ({ authClient: { organization: auth } }))
+// The auth client is the edge to better-auth: a fake stands in for it.
+vi.mock('#lib/auth-client.ts', () =>
+  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
+)
 
 import { parseBuildsSearch } from '#features/teams/builds-filters.ts'
 import { TeamPage } from '#features/teams/TeamPage.tsx'
 import { ViewPage } from '#features/views/ViewPage.tsx'
 import { useDisplayStore } from '#lib/stores/display-store.ts'
-import { fakeApi, restoreFetch } from '#test/features/fetch-routes.ts'
+import { mockAuthClient } from '#test/support/auth-client.ts'
+import { fakeApi } from '#test/support/fetch.ts'
+import { sidebarModel, sidebarTeam, teamInfo } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 import { build } from './support.tsx'
 
-afterEach(() => {
-  restoreFetch()
-  localStorage.clear()
-})
+const auth = mockAuthClient().organization
 
-const info = {
-  id: 'p1',
-  slug: 'web',
-  name: 'Web App',
-  defaultBranch: 'main',
-  workspaceSlug: 'acme',
-  workspaceName: 'Acme Inc',
-}
+const info = teamInfo()
 
-const sidebar = (pinned = false) => ({
-  teams: [{ slug: 'web', name: 'Web App', pinned, triage: 0 }],
-  views: [],
-  inboxUnread: 0,
-  reviews: 0,
-})
+const sidebar = (pinned = false) => sidebarModel({ teams: [sidebarTeam({ pinned })] })
 
 /** The faked API, plus every URL requested (the fake keeps only paths, and filters live in the query). */
 function api(builds: unknown[], extra: Parameters<typeof fakeApi>[0] = {}) {

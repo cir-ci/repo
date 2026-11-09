@@ -7,6 +7,3 @@ export function sha256(data: Uint8Array | string): string {
 
 /** A fake sha256 made of one repeated hex digit. */
 export const fakeSha = (c: string) => c.repeat(64).slice(0, 64)
-
-/** @deprecated the old name of `fakeSha`, kept while other test files still import it. */
-export const sha = fakeSha

@@ -1,10 +1,9 @@
+import { fakeHost, jsonResponse as json } from './types.ts'
 /**
  * Stateful fakes of Linear's and Jira's HTTP edges: just the calls the adapters make, with the
  * behaviour they depend on (keys that count up, 401 for bad credentials, errors for unknown
  * teams and projects). External services are never contacted by the tests.
  */
-
-const json = (data: unknown, status = 200) => Response.json(data, { status })
 
 const record = (v: unknown): Record<string, unknown> =>
   typeof v === 'object' && v !== null ? { ...v } : {}
@@ -25,7 +24,7 @@ export function fakeLinearHost(options: {
   const attachments: { issueId: string; url: string }[] = []
   const counters = new Map<string, number>()
 
-  const fetcher: typeof fetch = async (input, init) => {
+  const behaviour: typeof fetch = async (input, init) => {
     const req = new Request(input, init)
     if (req.headers.get('authorization') !== options.apiKey) {
       return json({ errors: [{ message: 'Authentication required' }] }, 401)
@@ -76,7 +75,7 @@ export function fakeLinearHost(options: {
   }
 
   return {
-    fetcher,
+    ...fakeHost(behaviour),
     host: {
       issues: (): FakeIssue[] => issues.map(({ id: _id, ...rest }) => rest),
       attachments: () => [...attachments],
@@ -100,7 +99,7 @@ export function fakeJiraHost(options: {
   const issueTypes: string[] = []
   const counters = new Map<string, number>()
 
-  const fetcher: typeof fetch = async (input, init) => {
+  const behaviour: typeof fetch = async (input, init) => {
     const req = new Request(input, init)
     const path = new URL(req.url).pathname.replace(/^.*(?=\/rest\/api\/3)/, '')
     if (req.headers.get('authorization') !== options.authorization) {
@@ -144,5 +143,40 @@ export function fakeJiraHost(options: {
     return json({ errorMessages: ['not found'] }, 404)
   }
 
-  return { fetcher, host: { issues: () => [...issues], issueTypes: () => [...issueTypes] } }
+  return {
+    ...fakeHost(behaviour),
+    host: { issues: () => [...issues], issueTypes: () => [...issueTypes] },
+  }
+}
+
+/** Linear's and Jira's HTTP edges in one fetch: the calls the adapters make, 401 for a bad key. */
+export function fakeTrackersHost(options: { down?: boolean } = {}) {
+  const behaviour: typeof fetch = async (input, init) => {
+    const req = new Request(input, init)
+    const url = new URL(req.url)
+    const text = await req.text()
+    const body: unknown = text ? JSON.parse(text) : undefined
+    const auth = req.headers.get('authorization')
+    if (options.down) return new Response('boom', { status: 503 })
+    if (url.host === 'api.linear.app') {
+      if (auth !== 'lin_good')
+        return Response.json({ errors: [{ message: 'no' }] }, { status: 401 })
+      const query = String(Reflect.get(Object(body), 'query'))
+      if (query.includes('viewer')) {
+        return Response.json({
+          data: { viewer: { id: 'u1', organization: { id: 'workspace-1', name: 'Acme Linear' } } },
+        })
+      }
+      return Response.json({
+        data: { teams: { nodes: [{ id: 'team-1', key: 'WEB', name: 'Web' }] } },
+      })
+    }
+    if (!auth?.startsWith('Basic ')) return Response.json({}, { status: 401 })
+    if (auth !== `Basic ${Buffer.from('me@acme.test:jira-good').toString('base64')}`) {
+      return Response.json({ errorMessages: ['bad'] }, { status: 401 })
+    }
+    if (url.pathname.endsWith('/myself')) return Response.json({ accountId: 'a1' })
+    return Response.json([{ key: 'WEB', name: 'Website' }])
+  }
+  return fakeHost(behaviour)
 }

@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { BuildSettings } from '#features/settings/BuildSettings.tsx'
-import { fakeFetch, pending, restoreFetch } from '#test/features/fetch-routes.ts'
+import { fakeFetch, pending } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 const PATH = '/api/workspaces/acme/settings'
@@ -11,8 +11,6 @@ const answer = (flakyBlocksMerge: boolean, canManage = true) => ({
   settings: { flakyBlocksMerge },
 })
 const control = () => page.getByRole('switch', { name: /^Flaky screenshots block merges/ })
-
-afterEach(() => restoreFetch())
 
 describe('BuildSettings', () => {
   it('renders nothing until the settings are known', async () => {

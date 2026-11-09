@@ -12,7 +12,7 @@ import {
   schema,
 } from '@circi/db'
 import { FsStorage } from '@circi/storage'
-import { createTestDb, seedBuild, seedDiff, seedScreenshot, sha } from '@circi/testing'
+import { createTestDb, seedBuild, seedDiff, seedScreenshot, fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { pino } from 'pino'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -261,9 +261,9 @@ describe('links', () => {
 
   it('links automatically by name without overwriting the manual link', async () => {
     const build = await seedBuild(t.db, acme.team.id)
-    await seedScreenshot(t.db, { buildId: build.id, fileSha256: sha('a'), name: 'home' })
-    await seedScreenshot(t.db, { buildId: build.id, fileSha256: sha('b'), name: 'cart' })
-    await seedScreenshot(t.db, { buildId: build.id, fileSha256: sha('c'), name: 'pricing' })
+    await seedScreenshot(t.db, { buildId: build.id, fileSha256: fakeSha('a'), name: 'home' })
+    await seedScreenshot(t.db, { buildId: build.id, fileSha256: fakeSha('b'), name: 'cart' })
+    await seedScreenshot(t.db, { buildId: build.id, fileSha256: fakeSha('c'), name: 'pricing' })
     await seedDiff(t.db, { buildId: build.id, name: 'home', status: 'changed' })
     await seedDiff(t.db, { buildId: build.id, name: 'cart', status: 'changed' })
     expect((await call('POST', url('/auto'), louCookie)).statusCode).toBe(403)

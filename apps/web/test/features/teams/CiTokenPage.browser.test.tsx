@@ -1,11 +1,9 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { CiTokenPage } from '#features/teams/CiTokenPage.tsx'
-import { fakeApi, restoreFetch } from '#test/features/fetch-routes.ts'
+import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
-
-afterEach(() => restoreFetch())
 
 const API = '/api/teams/acme/web'
 

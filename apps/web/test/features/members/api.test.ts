@@ -1,15 +1,10 @@
-import { QueryClient } from '@tanstack/react-query'
+import { type FetchQueryOptions, QueryClient, type QueryKey } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // The auth client is the edge to better-auth: a fake stands in for it.
-const auth = vi.hoisted(() => ({
-  getFullOrganization: vi.fn<(arg: unknown) => Promise<unknown>>(),
-  inviteMember: vi.fn<(arg: unknown) => Promise<unknown>>(),
-  cancelInvitation: vi.fn<(arg: unknown) => Promise<unknown>>(),
-  removeMember: vi.fn<(arg: unknown) => Promise<unknown>>(),
-  updateMemberRole: vi.fn<(arg: unknown) => Promise<unknown>>(),
-}))
-vi.mock('#lib/auth-client.ts', () => ({ authClient: { organization: auth } }))
+vi.mock('#lib/auth-client.ts', () =>
+  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
+)
 
 import {
   cancelInvitation,
@@ -22,13 +17,17 @@ import {
   removeMember,
 } from '#features/members/api.ts'
 import { HttpError } from '#lib/http.ts'
-import { fakeFetch, restoreFetch } from '#test/features/fetch-routes.ts'
+import { mockAuthClient } from '#test/support/auth-client.ts'
+import { fakeFetch, restoreFetch } from '#test/support/fetch.ts'
+
+const auth = mockAuthClient().organization
 
 beforeEach(() => vi.resetAllMocks())
 afterEach(() => restoreFetch())
 
-const fetchQuery = (options: Parameters<QueryClient['fetchQuery']>[0]) =>
-  new QueryClient().fetchQuery(options)
+const fetchQuery = <TData, TKey extends QueryKey>(
+  options: FetchQueryOptions<TData, Error, TData, TKey>,
+) => new QueryClient().fetchQuery(options)
 
 describe('the read queries', () => {
   it('fetch the workspace’s settings from its own paths, escaped', async () => {

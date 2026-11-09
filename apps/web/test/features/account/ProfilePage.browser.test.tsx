@@ -1,11 +1,9 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { ProfilePage } from '#features/account/ProfilePage.tsx'
-import { fakeFetch, restoreFetch, json, pending } from '#test/features/fetch-routes.ts'
+import { fakeFetch, json, pending } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
-
-afterEach(() => restoreFetch())
 
 const now = Date.now()
 const session = (id: string, agent: string, minutesAgo: number) => ({

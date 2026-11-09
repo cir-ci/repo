@@ -1,18 +1,18 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
-// The auth client is the edge to better-auth (it lists the workspace's members): a fake stands in.
-const auth = vi.hoisted(() => ({
-  getFullOrganization: vi.fn<(arg: unknown) => Promise<unknown>>(),
-}))
-vi.mock('#lib/auth-client.ts', () => ({ authClient: { organization: auth } }))
+// The auth client is the edge to better-auth: a fake stands in for it.
+vi.mock('#lib/auth-client.ts', () =>
+  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
+)
 
 import { validateReviewsSearch } from '#features/reviews/api.ts'
 import { ReviewsPage } from '#features/reviews/ReviewsPage.tsx'
-import { fakeApi, hangingFetch, restoreFetch } from '#test/features/fetch-routes.ts'
+import { mockAuthClient } from '#test/support/auth-client.ts'
+import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
-afterEach(() => restoreFetch())
+const auth = mockAuthClient().organization
 
 const request = (id: string, number: number, over: Record<string, unknown> = {}) => ({
   id,
@@ -73,13 +73,11 @@ describe('ReviewsPage', () => {
     fakeApi({ 'GET /api/reviews': { body: { tab: 'snoozed', requests: [] } } })
     await show('/workspaces/acme/reviews?tab=snoozed')
     await expect.element(page.getByRole('heading', { name: 'Nothing snoozed' })).toBeVisible()
-    restoreFetch()
 
     fakeApi({ 'GET /api/reviews': { status: 500, body: { error: 'Boom' } } })
     await show()
     await expect.element(page.getByText('Boom')).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Try again' })).toBeVisible()
-    restoreFetch()
 
     hangingFetch()
     await show()

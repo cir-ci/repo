@@ -1,12 +1,10 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 import { parseIgnoreRegionsSearch } from '#features/teams/ignore-regions-search.ts'
 import { IgnoreRegionsPage } from '#features/teams/IgnoreRegionsPage.tsx'
-import { fakeApi, type ReplyHandler, restoreFetch } from '#test/features/fetch-routes.ts'
+import { fakeApi, type ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
-
-afterEach(() => restoreFetch())
 
 const API = '/api/teams/acme/web'
 const NOW = new Date(Date.now() - 3_600_000).toISOString()

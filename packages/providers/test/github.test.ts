@@ -1,5 +1,6 @@
 import { createHmac, createPublicKey, createVerify, generateKeyPairSync } from 'node:crypto'
 
+import { fakeHost } from '@circi/testing/hosts'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -15,34 +16,6 @@ const { privateKey, publicKey } = generateKeyPairSync('rsa', {
   privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
   publicKeyEncoding: { type: 'spki', format: 'pem' },
 })
-
-interface Call {
-  method: string
-  path: string
-  auth: string | null
-  body: unknown
-}
-
-/** A tiny fake GitHub: records calls, answers from a script keyed by "METHOD path". */
-function fakeGithub(script: Record<string, unknown[]>) {
-  const calls: Call[] = []
-  const fetcher: typeof fetch = async (input, init) => {
-    const req = new Request(input, init)
-    const url = new URL(req.url)
-    const key = `${req.method} ${url.pathname}${url.search}`
-    calls.push({
-      method: req.method,
-      path: url.pathname + url.search,
-      auth: req.headers.get('authorization'),
-      body: req.body ? JSON.parse(await req.text()) : undefined,
-    })
-    const next = script[key]?.shift()
-    if (next === undefined) return new Response('{"message":"unscripted"}', { status: 500 })
-    if (next instanceof Response) return next
-    return Response.json(next)
-  }
-  return { calls, fetcher }
-}
 
 const report: CheckReport = {
   name: 'CirCI / default',
@@ -65,7 +38,8 @@ const tokenReply = {
 }
 
 function appWith(script: Record<string, unknown[]>) {
-  const fake = fakeGithub(script)
+  const fake = fakeHost()
+  for (const [route, answers] of Object.entries(script)) fake.script(route, ...answers)
   const app = new GithubApp({
     apiUrl: 'https://api.github.test',
     appId: '4242',
@@ -114,9 +88,9 @@ describe('GithubApp', () => {
       detailsUrl: 'https://ci/x',
     })
     expect(id).toBe('555')
-    expect(calls[0]?.auth).toMatch(/^Bearer ey/) // the app's JWT, to get a token
+    expect(calls[0]?.headers.authorization).toMatch(/^Bearer ey/) // the app's JWT, to get a token
     const create = calls[1]
-    expect(create?.auth).toBe('Bearer ghs_install')
+    expect(create?.headers.authorization).toBe('Bearer ghs_install')
     expect(create?.body).toMatchObject({
       name: 'CirCI / default',
       head_sha: 'abc1234',
@@ -168,7 +142,7 @@ describe('GithubApp', () => {
     })
     const id = await app.upsertComment('99', 'acme/web', 12, 'new body')
     expect(id).toBe('78')
-    expect(calls.map((c) => `${c.method} ${c.path}`)).toEqual([
+    expect(calls.map((c) => `${c.method} ${c.path}${c.query}`)).toEqual([
       'POST /app/installations/99/access_tokens',
       'GET /repos/acme/web/issues/12/comments?per_page=100',
       'PATCH /repos/acme/web/issues/comments/77',
@@ -225,7 +199,7 @@ describe('GithubApp', () => {
     expect(id).toBe('5')
     const runs = calls.filter((c) => c.path === '/repos/acme/web/check-runs')
     expect(runs).toHaveLength(2)
-    expect(runs[1]?.auth).toBe('Bearer ghs_second')
+    expect(runs[1]?.headers.authorization).toBe('Bearer ghs_second')
     // A 401 that persists is surfaced, not retried forever.
     const { app: again } = appWith({
       'POST /app/installations/99/access_tokens': [tokenReply, tokenReply],

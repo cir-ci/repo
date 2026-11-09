@@ -1,14 +1,12 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 import { TeamDialogs } from '#features/teams/TeamDialogs.tsx'
 import { TeamsPage } from '#features/teams/TeamsPage.tsx'
-import { fakeApi, hangingFetch, restoreFetch } from '#test/features/fetch-routes.ts'
+import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 import { build } from './support.tsx'
-
-afterEach(() => restoreFetch())
 
 const overview = (workspace: string, team: string, latestBuild: unknown = null) => ({
   workspace: { slug: workspace, name: workspace.toUpperCase() },
@@ -60,9 +58,7 @@ describe('TeamsPage', () => {
     await show()
     await expect.element(page.getByRole('navigation', { name: 'Breadcrumb' })).toBeVisible()
     expect(page.getByRole('list', { name: 'Teams' }).elements()).toHaveLength(0)
-    await expect.element(page.getByRole('status').first()).toHaveTextContent('Loading teams', {
-      timeout: 2_000,
-    })
+    await expect.element(page.getByRole('status').first()).toHaveTextContent('Loading teams')
   })
 
   it('lists teams with their latest build’s status, counts and meta, linking to the builds', async () => {

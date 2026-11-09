@@ -1,9 +1,9 @@
 import { AnnouncerProvider } from '@circi/ui'
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { EmailDomains } from '#features/settings/EmailDomains.tsx'
-import { fakeFetch, pending as hang, restoreFetch } from '#test/features/fetch-routes.ts'
+import { fakeFetch, pending as hang } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 const BASE = '/api/workspaces/acme/domains'
@@ -22,8 +22,6 @@ const show = () =>
       <EmailDomains workspace="acme" />
     </AnnouncerProvider>,
   )
-
-afterEach(() => restoreFetch())
 
 describe('EmailDomains', () => {
   it('shows a skeleton while loading', async () => {

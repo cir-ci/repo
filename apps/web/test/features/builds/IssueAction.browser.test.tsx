@@ -1,15 +1,13 @@
 import type { Issue } from '@circi/api'
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { IssueAction } from '#features/builds/IssueAction.tsx'
 import { LinkedIssues, SnapshotIssues } from '#features/builds/LinkedIssues.tsx'
-import { fakeApi, restoreFetch } from '#test/features/fetch-routes.ts'
+import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 import { detail } from './fake-build-api.tsx'
-
-afterEach(() => restoreFetch())
 
 const ISSUES = '/api/teams/acme/web-app/builds/7/issues'
 const jira: Issue.Tracker = {

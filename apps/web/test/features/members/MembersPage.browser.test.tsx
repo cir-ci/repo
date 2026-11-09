@@ -1,25 +1,15 @@
 import { AnnouncerProvider } from '@circi/ui'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
 // The auth client is the edge to better-auth: a fake stands in for it.
-const auth = vi.hoisted(() => ({
-  userId: 'u1',
-  getFullOrganization: vi.fn<(arg: unknown) => Promise<unknown>>(),
-  inviteMember: vi.fn<(arg: unknown) => Promise<unknown>>(),
-  cancelInvitation: vi.fn<(arg: unknown) => Promise<unknown>>(),
-  removeMember: vi.fn<(arg: unknown) => Promise<unknown>>(),
-  updateMemberRole: vi.fn<(arg: unknown) => Promise<unknown>>(),
-}))
-vi.mock('#lib/auth-client.ts', () => ({
-  authClient: {
-    useSession: () => ({ data: { user: { id: auth.userId } }, isPending: false }),
-    organization: auth,
-  },
-}))
+vi.mock('#lib/auth-client.ts', () =>
+  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
+)
 
 import { MembersPage } from '#features/members/MembersPage.tsx'
-import { fakeFetch, restoreFetch } from '#test/features/fetch-routes.ts'
+import { ADA, mockAuthClient, setSignedInUser } from '#test/support/auth-client.ts'
+import { fakeFetch } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 const ada = {
@@ -73,14 +63,13 @@ const show = () =>
     { route: PATH },
   )
 
+const auth = mockAuthClient().organization
+
 beforeEach(() => {
   vi.resetAllMocks()
-  auth.userId = 'u1'
   auth.getFullOrganization.mockResolvedValue({ data: workspace(), error: null })
   fakeFetch(SETTINGS)
 })
-afterEach(() => restoreFetch())
-
 describe('MembersPage', () => {
   it('shows a skeleton while loading, announces it, and the header names the workspace after', async () => {
     await page.viewport(1000, 800)
@@ -143,7 +132,7 @@ describe('MembersPage', () => {
 
   it('shows a plain member the list and nothing to manage', async () => {
     await page.viewport(1000, 800)
-    auth.userId = 'u2'
+    setSignedInUser({ ...ADA, id: 'u2' })
     await show()
     await expect.element(page.getByText('Ada Lovelace')).toBeVisible()
     await expect.element(page.getByText('Owner')).toBeVisible()

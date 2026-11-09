@@ -3,6 +3,7 @@ import { vi } from 'vitest'
 
 import { BuildPage } from '#features/builds/BuildPage.tsx'
 import { validateBuildSearch } from '#features/builds/search.ts'
+import { teamInfo } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 let nextId = 0
@@ -30,7 +31,7 @@ export function shot(
     sizeChanged: false,
     errorMessage: null,
     head: status === 'removed' ? null : { ...image(`head${n}`), thumbnail: null, metadata: {} },
-    base: status === 'added' ? null : image(`base${n}`),
+    base: status === 'added' ? null : { ...image(`base${n}`), thumbnail: null },
     diff: comparable ? image(`diff${n}`) : null,
     review: null,
     ...over,
@@ -61,14 +62,7 @@ export function detail(
   ]
   const count = (s: string) => diffs.filter((d) => d.status === s).length
   const result: Build.Detail = {
-    team: {
-      id: 'p1',
-      slug: 'web-app',
-      name: 'web-app',
-      defaultBranch: 'main',
-      workspaceSlug: 'acme',
-      workspaceName: 'Acme',
-    },
+    team: teamInfo({ slug: 'web-app', name: 'web-app', workspaceName: 'Acme' }),
     build: {
       id: 'b7',
       number: 7,
@@ -92,8 +86,9 @@ export function detail(
       ancestryStatus: 'ok',
       baselineSource: 'provider',
       errorMessage: null,
-      completedAt: new Date().toISOString(),
       ...over,
+      author: over.author ?? null,
+      completedAt: over.completedAt !== undefined ? over.completedAt : new Date().toISOString(),
     },
     baseline: { number: 6, commitSha: 'fedcba9876543210', branch: 'main' },
     reviews: [],

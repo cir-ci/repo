@@ -1,5 +1,6 @@
 import { createHmac } from 'node:crypto'
 
+import { fakeBitbucketHost } from '@circi/testing/hosts'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -14,7 +15,6 @@ import {
 } from '#src/index.ts'
 
 import { type ProviderHarness, runGitProviderContract } from './support/contract.ts'
-import { fakeBitbucketHost } from './support/fake-bitbucket-host.ts'
 
 const API = 'https://api.bitbucket.test/2.0'
 const TOKEN = 'bb-token'

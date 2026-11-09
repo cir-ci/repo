@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { SignInMethods } from '#features/settings/SignInMethods.tsx'
-import { fakeFetch, pending, restoreFetch } from '#test/features/fetch-routes.ts'
+import { fakeFetch, pending } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 const PATH = '/api/workspaces/acme/auth'
@@ -16,8 +16,6 @@ const auth = (over: { password?: boolean; email?: boolean; instance?: object } =
   },
   instance: { password: true, email: true, github: false, google: false, ...over.instance },
 })
-
-afterEach(() => restoreFetch())
 
 describe('SignInMethods', () => {
   it('renders nothing until the settings are known', async () => {

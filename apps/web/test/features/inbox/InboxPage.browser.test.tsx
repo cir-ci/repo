@@ -1,12 +1,10 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 import { validateInboxSearch } from '#features/inbox/api.ts'
 import { InboxPage } from '#features/inbox/InboxPage.tsx'
-import { fakeApi, restoreFetch } from '#test/features/fetch-routes.ts'
+import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
-
-afterEach(() => restoreFetch())
 
 const item = (id: string, over: Record<string, unknown> = {}) => ({
   id,

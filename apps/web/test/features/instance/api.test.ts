@@ -2,7 +2,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { noticesQuery } from '#features/instance/api.ts'
-import { fakeFetch, restoreFetch } from '#test/features/fetch-routes.ts'
+import { fakeFetch, restoreFetch } from '#test/support/fetch.ts'
 
 afterEach(() => restoreFetch())
 

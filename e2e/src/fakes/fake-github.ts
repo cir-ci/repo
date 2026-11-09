@@ -1,4 +1,6 @@
-import { createHmac, createPublicKey, createVerify, generateKeyPairSync } from 'node:crypto'
+import { createPublicKey, createVerify, generateKeyPairSync } from 'node:crypto'
+
+import { githubSignature } from '@circi/testing/hosts'
 
 import { listen, readBody, sendJson, waitUntil } from './http.ts'
 
@@ -403,9 +405,7 @@ export async function startFakeGithub(
     },
     async sendWebhook(circiUrl, event, payload, o = {}) {
       const raw = JSON.stringify(payload)
-      const signature = `sha256=${createHmac('sha256', o.secret ?? webhookSecret)
-        .update(raw)
-        .digest('hex')}`
+      const signature = githubSignature(o.secret ?? webhookSecret, raw)
       const res = await fetch(`${circiUrl}/webhooks/github`, {
         method: 'POST',
         headers: {

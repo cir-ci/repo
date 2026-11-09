@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto'
 
-const json = (data: unknown, status = 200) => Response.json(data, { status })
+import { fakeHost, jsonResponse as json } from './types.ts'
 
 /**
  * A stateful fake of Bitbucket Cloud's HTTP edge: the endpoints the adapter uses, with the
@@ -18,7 +18,7 @@ export function fakeBitbucketHost(options: { workspace: string; repos: string[];
     authorization: string | null
   }[] = []
 
-  const fetcher: typeof fetch = async (input, init) => {
+  const behaviour: typeof fetch = async (input, init) => {
     const req = new Request(input, init)
     const url = new URL(req.url)
     const path = url.pathname
@@ -85,7 +85,7 @@ export function fakeBitbucketHost(options: { workspace: string; repos: string[];
   }
 
   return {
-    fetcher,
+    ...fakeHost(behaviour),
     requests,
     host: {
       statusCount: () => statuses.size,

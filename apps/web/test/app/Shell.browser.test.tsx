@@ -12,25 +12,12 @@ import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
 
 // The auth client is the edge to better-auth: a fake stands in for it (nothing here talks to a server).
-const auth = vi.hoisted(() => ({
-  user: { id: 'u1', name: 'Ada Lovelace', email: 'ada@example.test' } as {
-    id: string
-    name: string
-    email: string
-  } | null,
-  signOut: vi.fn<() => Promise<void>>(),
-}))
-vi.mock('#lib/auth-client.ts', () => ({
-  authClient: {
-    useSession: () => ({ data: auth.user ? { user: auth.user } : null, isPending: false }),
-    signOut: auth.signOut,
-    $store: { notify: () => {} },
-    organization: { getInvitation: async () => ({ data: null, error: new Error('none') }) },
-  },
-}))
+vi.mock('#lib/auth-client.ts', () =>
+  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
+)
 
 import { Shell } from '#app/Shell.tsx'
-import { resetStores } from '#lib/stores/index.ts'
+import { mockAuthClient, setSignedInUser } from '#test/support/auth-client.ts'
 
 const overview = (workspace: string, workspaceName: string, team: string) => ({
   workspace: { slug: workspace, name: workspaceName },
@@ -201,11 +188,10 @@ async function renderShell(path: string) {
   return { router, queryClient }
 }
 
+const auth = mockAuthClient()
+
 beforeEach(() => {
-  resetStores()
-  auth.user = { id: 'u1', name: 'Ada Lovelace', email: 'ada@example.test' }
   auth.signOut.mockReset().mockResolvedValue(undefined)
-  localStorage.clear()
   vi.stubGlobal(
     'fetch',
     vi.fn((input: string | URL | Request) => {
@@ -720,7 +706,7 @@ describe('Shell, sidebar teams', () => {
 describe('Shell, outside the dashboard', () => {
   it('shows the sign-in page, without the sidebar, when nobody is signed in', async () => {
     await page.viewport(1280, 800)
-    auth.user = null
+    setSignedInUser(null)
     await renderShell('/')
     await expect.element(page.getByRole('heading', { name: 'Sign in to CirCI' })).toBeVisible()
     expect(page.getByRole('navigation', { name: 'Main' }).elements()).toHaveLength(0)

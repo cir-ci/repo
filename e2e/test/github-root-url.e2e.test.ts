@@ -38,7 +38,7 @@ describe('GitHub App with a github.com style API address (fake GitHub at the roo
     await expect.poll(() => gh.comments.filter((c) => c.prNumber === 7).length).toBe(1)
 
     const paths = gh.requests.map((r) => r.path)
-    expect(paths).toContain('/app/installations/4242/access_tokens')
+    expect(paths).toContain(`/app/installations/${linked.installationId}/access_tokens`)
     expect(paths).toContain('/repos/acme/root/check-runs')
     expect(paths.every((p) => !p.startsWith('/api/v3'))).toBe(true)
     expect(gh.requests.every((r) => r.auth === 'app' || r.auth === 'installation')).toBe(true)

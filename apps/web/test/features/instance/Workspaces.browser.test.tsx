@@ -1,13 +1,11 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { WorkspacesPage } from '#features/instance/WorkspacesPage.tsx'
-import { fakeApi, restoreFetch } from '#test/features/fetch-routes.ts'
+import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 import { settingsFixture, workspace } from './fixtures.ts'
-
-afterEach(() => restoreFetch())
 
 const show = () => renderPage(<WorkspacesPage />, { route: '/instance/workspaces' })
 

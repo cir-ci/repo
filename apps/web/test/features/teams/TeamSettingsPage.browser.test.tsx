@@ -1,16 +1,9 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { TeamSettingsPage } from '#features/teams/TeamSettingsPage.tsx'
-import {
-  fakeApi,
-  hangingFetch,
-  type ReplyHandler,
-  restoreFetch,
-} from '#test/features/fetch-routes.ts'
+import { fakeApi, hangingFetch, type ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
-
-afterEach(() => restoreFetch())
 
 const settings = {
   name: 'Web App',
@@ -74,9 +67,7 @@ describe('TeamSettingsPage', () => {
     await show()
     const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
     await expect.poll(() => crumbs.element().textContent).toBe('TeamsacmewebSettingsGeneral')
-    await expect.element(page.getByRole('status').first()).toHaveTextContent('Loading general', {
-      timeout: 2_000,
-    })
+    await expect.element(page.getByRole('status').first()).toHaveTextContent('Loading general')
   })
 
   it('links the breadcrumb back to the team and shows its name once loaded', async () => {

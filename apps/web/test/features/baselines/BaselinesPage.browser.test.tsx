@@ -1,11 +1,9 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 import { BaselinesPage } from '#features/baselines/BaselinesPage.tsx'
-import { fakeFetch, json, restoreFetch } from '#test/features/fetch-routes.ts'
+import { fakeFetch, json } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
-
-afterEach(() => restoreFetch())
 
 const PATH = '/api/teams/acme/web/baselines'
 const open = () =>

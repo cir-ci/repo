@@ -2,10 +2,13 @@ import { AnnouncerProvider } from '@circi/ui'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
-const auth = vi.hoisted(() => ({ inviteMember: vi.fn<(arg: unknown) => Promise<unknown>>() }))
-vi.mock('#lib/auth-client.ts', () => ({ authClient: { organization: auth } }))
+// The auth client is the edge to better-auth: a fake stands in for it.
+vi.mock('#lib/auth-client.ts', () =>
+  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
+)
 
 import { InviteForm } from '#features/members/InviteForm.tsx'
+import { mockAuthClient } from '#test/support/auth-client.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 const show = (onInvited = vi.fn<() => Promise<unknown>>(async () => {})) =>
@@ -14,6 +17,8 @@ const show = (onInvited = vi.fn<() => Promise<unknown>>(async () => {})) =>
       <InviteForm workspaceId="workspace1" onInvited={onInvited} />
     </AnnouncerProvider>,
   ).then(() => onInvited)
+
+const auth = mockAuthClient().organization
 
 beforeEach(() => vi.resetAllMocks())
 

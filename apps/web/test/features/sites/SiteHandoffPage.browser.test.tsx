@@ -1,11 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { SiteHandoffPage } from '#features/sites/SiteHandoffPage.tsx'
-import { fakeFetch, restoreFetch, json, pending } from '#test/features/fetch-routes.ts'
+import { fakeFetch, json, pending } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
-
-afterEach(() => restoreFetch())
 
 const open = (search: string) =>
   renderPage(<SiteHandoffPage />, { route: '/_sso/site', url: `/_sso/site${search}` })

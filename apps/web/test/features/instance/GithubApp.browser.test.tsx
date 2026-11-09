@@ -5,13 +5,12 @@ import { formPost } from '#features/instance/github-app-api.ts'
 import { InstanceSettingsPage } from '#features/instance/InstanceSettingsPage.tsx'
 import { AddIntegrationDialog } from '#features/integrations/AddIntegrationDialog.tsx'
 import { navigation } from '#features/integrations/generic-api.ts'
-import { fakeApi, restoreFetch } from '#test/features/fetch-routes.ts'
 import { settingsFixture } from '#test/features/instance/fixtures.ts'
 import { entry } from '#test/features/integrations/fixtures.ts'
+import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 afterEach(() => {
-  restoreFetch()
   vi.restoreAllMocks()
 })
 
@@ -131,7 +130,14 @@ describe('the Add dialog’s GitHub tile', () => {
     kind: 'github',
     name: 'GitHub',
     connectable: false,
-    credentials: [{ name: 'installationId', label: 'GitHub App installation id' }],
+    credentials: [
+      {
+        name: 'installationId',
+        label: 'GitHub App installation id',
+        secret: false,
+        optional: false,
+      },
+    ],
   })
   const open = () =>
     renderPage(

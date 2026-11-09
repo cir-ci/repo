@@ -1,7 +1,7 @@
 import { verifyTeamToken } from '@circi/auth'
 import { teamColorFor } from '@circi/core'
 import { schema } from '@circi/db'
-import { seedBuild, seedScreenshot, sha } from '@circi/testing'
+import { seedBuild, seedScreenshot, fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, describe, expect, it } from 'vitest'
 
@@ -121,7 +121,7 @@ describe('ignore regions page', () => {
     await seedScreenshot(t.db, {
       buildId: build.id,
       name: 'checkout/summary',
-      fileSha256: sha('d'),
+      fileSha256: fakeSha('d'),
       width: 1200,
       height: 800,
     })
@@ -137,7 +137,7 @@ describe('ignore regions page', () => {
       {
         name: 'checkout/summary',
         regions: 1,
-        latest: { buildNumber: build.number, sha256: sha('d'), width: 1200, height: 800 },
+        latest: { buildNumber: build.number, sha256: fakeSha('d'), width: 1200, height: 800 },
       },
     ])
 

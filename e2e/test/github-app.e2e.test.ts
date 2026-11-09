@@ -7,8 +7,8 @@ import {
   buildDetail,
   checkRunPayload,
   createLinkedTeam,
-  INSTALLATION,
   type LinkedTeam,
+  uniqueInstallationId,
   uploadPr,
 } from '#src/github-helpers.ts'
 import { useBrowser, useStack } from '#src/vitest.ts'
@@ -19,7 +19,7 @@ import { useBrowser, useStack } from '#src/vitest.ts'
  * the real github.com. `GITHUB_API_URL` points at the fake under `/api/v3`, as for GitHub Enterprise.
  */
 /** The installation the Integrations page connects in this file. */
-const UI_INSTALLATION = String(Date.now())
+const UI_INSTALLATION = uniqueInstallationId()
 
 /** The integration page's "Add a repository by name" form: saves the link for `team`. */
 async function linkByName(page: Page, repository: string, team: string) {
@@ -112,7 +112,13 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     })
     const before = await deliveries()
     const requests = gh.requests.length
-    const payload = checkRunPayload(1, 'acme/web', 'approve', { id: 9, login: 'x' })
+    const payload = checkRunPayload(
+      1,
+      'acme/web',
+      'approve',
+      { id: 9, login: 'x' },
+      linked.installationId,
+    )
 
     const wrong = await gh.sendWebhook(stack.url, 'check_run', payload, {
       secret: 'not-the-secret',
@@ -141,7 +147,7 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     const requests = gh.requests.length
     const reviews = (await ctx.stack.sql('select count(*) from reviews'))[0]?.[0]
     for (const [event, payload] of [
-      ['installation', { action: 'created', installation: { id: Number(INSTALLATION) } }],
+      ['installation', { action: 'created', installation: { id: Number(linked.installationId) } }],
       ['pull_request', { action: 'opened', number: 5, repository: { full_name: 'acme/web' } }],
       ['pull_request', { action: 'synchronize', number: 5, repository: { full_name: 'acme/web' } }],
       ['pull_request', { action: 'closed', number: 5, repository: { full_name: 'acme/web' } }],
@@ -233,7 +239,7 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
   it('a 401 for the installation puts a banner on the team and its settings, until the link is saved again', async () => {
     const { stack, setup } = ctx
     // An installation of its own: the others in this file keep working.
-    const REVOKED = '9191'
+    const REVOKED = uniqueInstallationId()
     const p = await createLinkedTeam(stack, setup.session, workspaceSlug, 'Revoked', {
       repoRef: 'acme/revoked',
       installationId: REVOKED,

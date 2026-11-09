@@ -1,4 +1,4 @@
-const json = (data: unknown, status = 200) => Response.json(data, { status })
+import { fakeHost, jsonResponse as json } from './types.ts'
 
 /**
  * A stateful fake of GitLab's REST edge (`/api/v4`): token check (401 once revoked), commit
@@ -17,7 +17,7 @@ export function fakeGitlabHost(options: {
   let revoked = false
   const requests: { method: string; path: string; body: unknown }[] = []
 
-  const fetcher: typeof fetch = async (input, init) => {
+  const behaviour: typeof fetch = async (input, init) => {
     const req = new Request(input, init)
     const url = new URL(req.url)
     const path = decodeURIComponent(url.pathname.replace(/^\/api\/v4/, ''))
@@ -80,7 +80,7 @@ export function fakeGitlabHost(options: {
   }
 
   return {
-    fetcher,
+    ...fakeHost(behaviour),
     requests,
     host: {
       statusCount: () => statuses.size,

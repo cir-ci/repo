@@ -1,9 +1,9 @@
 import { AnnouncerProvider } from '@circi/ui'
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { WorkspaceSso } from '#features/settings/WorkspaceSso.tsx'
-import { fakeFetch, pending, restoreFetch } from '#test/features/fetch-routes.ts'
+import { fakeFetch, pending } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 const BASE = '/api/workspaces/acme/sso'
@@ -25,8 +25,6 @@ const fill = async (issuer: string, clientId: string, clientSecret: string) => {
   if (clientId) await page.getByRole('textbox', { name: 'Client id' }).fill(clientId)
   if (clientSecret) await page.getByLabelText('Client secret').fill(clientSecret)
 }
-
-afterEach(() => restoreFetch())
 
 describe('WorkspaceSso', () => {
   it('shows a skeleton while loading', async () => {

@@ -20,3 +20,23 @@ it('opens `url` on a route pattern, and can wrap the page in the announcer', asy
   expect(router.state.location.pathname).toBe('/acme/web')
   await expect.element(page.getByRole('status')).toBeInTheDocument()
 })
+
+it('fakes the API before rendering and returns the requests made', async () => {
+  const { calls } = await renderPage(<h1>Api</h1>, {
+    api: { 'GET /api/ping': { body: { ok: true } } },
+    viewport: [800, 600],
+  })
+  const answer = await fetch('/api/ping')
+  expect(await answer.json()).toEqual({ ok: true })
+  expect(calls).toEqual([{ method: 'GET', path: '/api/ping', body: undefined }])
+  expect(window.innerWidth).toBe(800)
+})
+
+it('rejects a request nobody faked, naming it', async () => {
+  await expect(fetch('/api/nobody-faked-this')).rejects.toThrow(
+    'Unfaked request: GET /api/nobody-faked-this',
+  )
+  // The setup file fails a test that made one; this test made it on purpose.
+  const { takeUnfakedRequests } = await import('./fetch.ts')
+  expect(takeUnfakedRequests()).toHaveLength(1)
+})

@@ -1,8 +1,7 @@
+import { fakeFigmaHost } from '@circi/testing/hosts'
 import { describe, expect, it } from 'vitest'
 
 import { FigmaApiError, FigmaClient, figmaAuthHeaders, isConnectionRevoked } from '#src/index.ts'
-
-import { fakeFigmaHost } from './support/fake-figma-host.ts'
 
 const host = () =>
   fakeFigmaHost({

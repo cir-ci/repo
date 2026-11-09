@@ -7,6 +7,7 @@ import {
   emptyQueryEntries,
   flatten,
   groupEntries,
+  type JumpInput,
   keyEvents,
   parseBuildQuery,
   searchEntries,
@@ -63,11 +64,11 @@ describe('wrapIndex', () => {
 })
 
 describe('the empty query', () => {
-  const jump = {
+  const jump: JumpInput = {
     workspace: 'acme',
     teams: [
-      { slug: 'web', name: 'Web', pinned: true, triage: 0 },
-      { slug: 'api', name: 'API', pinned: false, triage: 0 },
+      { slug: 'web', name: 'Web', color: 'slate', icon: null, pinned: true, triage: 0 },
+      { slug: 'api', name: 'API', color: 'slate', icon: null, pinned: false, triage: 0 },
     ],
     views: [
       {

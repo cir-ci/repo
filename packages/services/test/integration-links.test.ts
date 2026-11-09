@@ -7,7 +7,7 @@ import {
   setIntegrationTeam,
 } from '@circi/db'
 import { defineIntegration, type IntegrationDefinition } from '@circi/integrations'
-import { createTestDb, seedBuild, seedTeam, seedScreenshot, sha } from '@circi/testing'
+import { createTestDb, seedBuild, seedTeam, seedScreenshot, fakeSha } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
@@ -104,7 +104,7 @@ async function seedMapped(snapshots: string[], fileRef: string | null = 'FileKey
   const build = await seedBuild(t.db, team.id)
   for (const [i, name] of snapshots.entries()) {
     // eslint-disable-next-line no-await-in-loop -- sequential seeding
-    await seedScreenshot(t.db, { buildId: build.id, fileSha256: sha(i.toString(16)), name })
+    await seedScreenshot(t.db, { buildId: build.id, fileSha256: fakeSha(i.toString(16)), name })
   }
   return { workspace, team, integration }
 }

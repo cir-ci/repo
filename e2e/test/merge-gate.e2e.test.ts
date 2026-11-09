@@ -12,6 +12,7 @@ import {
   createGithubUser,
   createLinkedTeam,
   type LinkedTeam,
+  uniqueInstallationId,
   uploadPr,
 } from '#src/github-helpers.ts'
 import { uploadBuild, uploadOrThrow } from '#src/upload.ts'
@@ -111,7 +112,14 @@ describe('merge gate (against a fake GitHub)', () => {
     const res = await gh.sendWebhook(
       stack.url,
       'issue_comment',
-      commentPayload('acme/switching', 32, comment.id, '/circi rerun', { id: 5001, login: 'maya' }),
+      commentPayload(
+        'acme/switching',
+        32,
+        comment.id,
+        '/circi rerun',
+        { id: 5001, login: 'maya' },
+        own.installationId,
+      ),
     )
     expect(res.status).toBe(200)
     await expect
@@ -390,7 +398,7 @@ describe('merge gate (against a fake GitHub)', () => {
     const { stack, setup } = ctx
     const team = await createTeam(setup.session, workspace, 'Fresh')
     await setup.session.put(`/api/teams/${workspace}/${team.slug}/github`, {
-      installationId: '4242',
+      installationId: uniqueInstallationId(),
       repoRef: 'acme/fresh',
     })
     const repo = await Repo.create()

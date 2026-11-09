@@ -2,7 +2,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { authMethodsQuery, setupQuery, submitSetup } from '#features/auth/api.ts'
-import { fakeFetch, restoreFetch, json } from '#test/features/fetch-routes.ts'
+import { fakeFetch, restoreFetch, json } from '#test/support/fetch.ts'
 
 afterEach(() => restoreFetch())
 

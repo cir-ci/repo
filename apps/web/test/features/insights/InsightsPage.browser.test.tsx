@@ -1,12 +1,11 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 import { validateInsightsSearch } from '#features/insights/api.ts'
 import { InsightsPage } from '#features/insights/InsightsPage.tsx'
-import { fakeFetch, restoreFetch } from '#test/features/fetch-routes.ts'
+import { fakeFetch } from '#test/support/fetch.ts'
+import { sidebarModel } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
-
-afterEach(() => restoreFetch())
 
 const summary = (over: Record<string, unknown> = {}) => ({
   medianReviewHours: 3.4,
@@ -60,7 +59,7 @@ describe('InsightsPage', () => {
   it('shows tiles with their change, charts as text, storage and reviewers', async () => {
     const calls = fakeFetch({
       'GET /api/workspaces/acme/insights': report,
-      'GET /api/workspaces/acme/sidebar': { teams: [], views: [], inboxUnread: 0, reviews: 0 },
+      'GET /api/workspaces/acme/sidebar': sidebarModel({ teams: [] }),
     })
     await show('/workspaces/acme/insights?range=7')
     await expect.element(page.getByText('3.4h')).toBeVisible()
@@ -92,7 +91,7 @@ describe('InsightsPage', () => {
         reviewers: [],
         weeks: [],
       },
-      'GET /api/workspaces/acme/sidebar': { teams: [], views: [], inboxUnread: 0, reviews: 0 },
+      'GET /api/workspaces/acme/sidebar': sidebarModel({ teams: [] }),
     })
     await show()
     await expect.element(page.getByRole('heading', { name: 'No data yet' })).toBeVisible()

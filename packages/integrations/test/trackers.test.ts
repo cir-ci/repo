@@ -23,7 +23,7 @@ describe('linear', () => {
       displayName: 'Acme Linear',
       credentials: JSON.stringify({ kind: 'linear', apiKey: 'lin_good' }),
     })
-    expect(calls[0]?.auth).toBe('lin_good')
+    expect(calls[0]?.headers.authorization).toBe('lin_good')
   })
 
   it('answers 400 for a refused key and 502 when Linear is down', async () => {
@@ -74,7 +74,7 @@ describe('jira', () => {
         apiToken: 'jira-good',
       }),
     })
-    expect(calls[0]?.url).toBe('acme.atlassian.net/rest/api/3/myself')
+    expect(`${calls[0]?.host}${calls[0]?.path}`).toBe('acme.atlassian.net/rest/api/3/myself')
   })
 
   it.each([

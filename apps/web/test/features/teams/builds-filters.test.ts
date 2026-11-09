@@ -29,7 +29,7 @@ describe('builds filters and the URL', () => {
       from: '2026-11-01T00:00:00.000Z',
       to: '2026-11-08T23:59:59.999Z',
     } as const
-    expect(parseBuildsSearch(toSearch(filters, 40))).toEqual({ ...filters, before: 40 })
+    expect(parseBuildsSearch({ ...toSearch(filters, 40) })).toEqual({ ...filters, before: 40 })
     const query = new URLSearchParams(toQuery(filters, 40))
     expect(parseBuildsSearch(Object.fromEntries(query))).toEqual({ ...filters, before: 40 })
   })

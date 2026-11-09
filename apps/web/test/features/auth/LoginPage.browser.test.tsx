@@ -2,11 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { LoginPage } from '#features/auth/LoginPage.tsx'
-import { fakeFetch, restoreFetch, json, pending } from '#test/features/fetch-routes.ts'
+import { fakeFetch, json, pending } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 afterEach(() => {
-  restoreFetch()
   window.history.replaceState(null, '', '/')
 })
 

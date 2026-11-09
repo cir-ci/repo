@@ -173,9 +173,15 @@ export default defineConfig({
       // Component tests run in real headless Chromium (Vitest browser mode): real portals, focus,
       // pointer events and the real compiled CSS modules.
       ...[
-        { name: 'ui', root: 'packages/ui', deps: uiOptimizeDeps },
-        { name: 'web-browser', root: 'apps/web', deps: webOptimizeDeps },
-      ].map(({ name, root, deps }) => ({
+        { name: 'ui', root: 'packages/ui', deps: uiOptimizeDeps, setupFiles: [] as string[] },
+        {
+          name: 'web-browser',
+          root: 'apps/web',
+          deps: webOptimizeDeps,
+          // Resets fetch, mocks, timers, stores and storage after each test (relative to the root).
+          setupFiles: ['test/support/setup.ts'],
+        },
+      ].map(({ name, root, deps, setupFiles }) => ({
         extends: true,
         // The package's own root, so `optimizeDeps.include` resolves from where it is installed.
         root: resolve(import.meta.dirname, root),
@@ -183,6 +189,7 @@ export default defineConfig({
         optimizeDeps: { include: deps },
         test: {
           name,
+          setupFiles,
           include: ['test/**/*.browser.test.tsx'],
           browser: {
             enabled: true,

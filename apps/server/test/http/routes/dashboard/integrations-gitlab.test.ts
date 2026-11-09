@@ -9,20 +9,20 @@ import { derivedWebhookSecret } from '@circi/integrations'
 import { GitlabProvider, providerRegistry } from '@circi/providers'
 import { FsStorage } from '@circi/storage'
 import { createTestDb, seedGitLink } from '@circi/testing'
+import { fakeGitlabUsersHost } from '@circi/testing/hosts'
 import { eq } from 'drizzle-orm'
 import { pino } from 'pino'
 import { afterAll, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 import { caller } from '#test/support/client.ts'
-import { fakeGitlab } from '#test/support/fake-gitlab.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 
 const AUTH_SECRET = 'instance-secret-long-enough-for-test'
 const t = await createTestDb()
 const dir = await mkdtemp(join(tmpdir(), 'circi-gitlab-'))
 const auth = createTestAuth(t.db)
-const fake = fakeGitlab()
+const fake = fakeGitlabUsersHost()
 const gitlab = new GitlabProvider({ fetch: fake.fetcher })
 const app = buildServer({
   logger: pino({ level: 'silent' }),

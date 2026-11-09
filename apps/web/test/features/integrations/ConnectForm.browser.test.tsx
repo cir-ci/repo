@@ -4,13 +4,12 @@ import { page } from 'vitest/browser'
 
 import { ConnectForm } from '#features/integrations/ConnectForm.tsx'
 import { navigation } from '#features/integrations/generic-api.ts'
-import { fakeApi, restoreFetch } from '#test/features/fetch-routes.ts'
+import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 import { entry } from './fixtures.ts'
 
 afterEach(() => {
-  restoreFetch()
   vi.restoreAllMocks()
 })
 

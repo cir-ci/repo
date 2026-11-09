@@ -39,6 +39,7 @@
 .logo {
   display: inline-flex;
   align-items: center;
+  min-height: 24px;
   gap: 8px;
   color: inherit;
   font-weight: 600;

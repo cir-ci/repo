@@ -12,7 +12,7 @@ import {
   schema,
 } from '@circi/db'
 import { FsStorage } from '@circi/storage'
-import { createTestDb, seedDiff, sha } from '@circi/testing'
+import { createTestDb, seedDiff, fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { pino } from 'pino'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -292,7 +292,7 @@ async function setup() {
     buildId: build.id,
     name: 'home',
     status: 'changed',
-    diffFileSha256: sha('e'),
+    diffFileSha256: fakeSha('e'),
   })
   return build
 }
@@ -329,7 +329,7 @@ describe('issues from a build', () => {
     })
     // No issue type chosen: Jira gets a Task.
     expect(sent?.issueType).toBe('Task')
-    expect(sent?.text).toContain(`${ORIGIN}/api/files/${sha('e')}`)
+    expect(sent?.text).toContain(`${ORIGIN}/api/files/${fakeSha('e')}`)
     expect(sent?.text).toContain(
       `${ORIGIN}/${acme.workspaceSlug}/web/builds/${build.number}?shot=home`,
     )

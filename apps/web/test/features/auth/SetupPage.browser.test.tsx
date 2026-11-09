@@ -1,11 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { SetupPage } from '#features/auth/SetupPage.tsx'
-import { fakeFetch, restoreFetch, json } from '#test/features/fetch-routes.ts'
+import { fakeFetch, json } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
-
-afterEach(() => restoreFetch())
 
 async function fillIn() {
   await page.getByRole('textbox', { name: 'Setup code' }).fill(' abc123 ')

@@ -12,5 +12,8 @@
     "@circi/core": "workspace:*",
     "@circi/providers": "workspace:*",
     "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@circi/testing": "workspace:*"
   }
 }

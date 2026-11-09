@@ -1,5 +1,5 @@
 import { teamColorFor } from '@circi/core'
-import { seedBuild, seedScreenshot, seedSite, sha } from '@circi/testing'
+import { seedBuild, seedScreenshot, seedSite, fakeSha } from '@circi/testing'
 import { afterAll, describe, expect, it } from 'vitest'
 
 import { caller } from '#test/support/client.ts'
@@ -77,14 +77,14 @@ describe('storage usage', () => {
     const build = await seedBuild(t.db, acme.team.id)
     await seedScreenshot(t.db, {
       buildId: build.id,
-      fileSha256: sha('a'),
+      fileSha256: fakeSha('a'),
       size: 1000,
-      thumbnailSha256: sha('b'),
+      thumbnailSha256: fakeSha('b'),
       thumbnailSize: 100,
     })
     await seedSite(t.db, {
       teamId: acme.team.id,
-      files: [{ path: 'index.html', sha256: sha('c'), size: 500 }],
+      files: [{ path: 'index.html', sha256: fakeSha('c'), size: 500 }],
     })
     const res = await call('GET', `${workspace()}/storage`, memberCookie)
     expect(res.statusCode).toBe(200)

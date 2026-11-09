@@ -7,6 +7,7 @@ import type { Auth } from '@circi/auth'
 import { schema } from '@circi/db'
 import { FsStorage } from '@circi/storage'
 import { addTestMember, createTestDb } from '@circi/testing'
+import { fakeIdp, type FakeIdp } from '@circi/testing/hosts'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
@@ -14,7 +15,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 import { JSON_HEADERS } from '#test/support/client.ts'
-import { type FakeIdp, startFakeIdp } from '#test/support/fake-idp.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
 
 let t: createTestDb.Result
@@ -28,7 +28,7 @@ let ownerCookie: string
 
 beforeAll(async () => {
   t = await createTestDb()
-  idp = await startFakeIdp('client-1')
+  idp = await fakeIdp('client-1')
   dir = await mkdtemp(join(tmpdir(), 'circi-orgsso-'))
   auth = createTestAuth(t.db)
   app = buildServer({

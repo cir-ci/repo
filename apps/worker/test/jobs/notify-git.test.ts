@@ -21,8 +21,9 @@ import {
   seedTeam,
   seedChangedSnapshots,
 } from '@circi/testing'
+import { recordingGithub } from '@circi/testing/hosts'
 import { eq } from 'drizzle-orm'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { notifyGit } from '#jobs/notify-git.ts'
 
@@ -33,50 +34,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await t.close()
 })
-
-interface CheckCall {
-  installationId: string
-  repo: string
-  input: {
-    sha: string
-    detailsUrl: string
-    existingId?: string
-    report: { conclusion?: string; actions: unknown[] }
-  }
-}
-interface CommentCall {
-  installationId: string
-  repo: string
-  pr: number
-  body: string
-  existing?: string
-}
-
-/** Records what would be sent to GitHub. */
-function fakeGithub() {
-  const checks: CheckCall[] = []
-  const comments: CommentCall[] = []
-  return {
-    checks,
-    comments,
-    github: {
-      async upsertCheckRun(installationId: string, repo: string, input: CheckCall['input']) {
-        checks.push({ installationId, repo, input })
-        return '9001'
-      },
-      async upsertComment(
-        installationId: string,
-        repo: string,
-        pr: number,
-        body: string,
-        existing?: string,
-      ) {
-        comments.push({ installationId, repo, pr, body, ...(existing ? { existing } : {}) })
-        return '7001'
-      },
-    },
-  }
-}
 
 async function nextJob(): Promise<Job> {
   const job = await claimJob(t.db, GIT_NOTIFY_QUEUE, 60)
@@ -125,7 +82,7 @@ describe('notifyGit', () => {
     const { owner, build } = await linkedBuild(5)
     await seedChangedSnapshots(t.db, build.id)
     await completeBuild(t.db, build, { conclusion: 'changes_detected', approval: 'none' })
-    const fake = fakeGithub()
+    const fake = recordingGithub()
     const deps = { db: t.db, github: fake.github, publicOrigin: 'https://ci.acme.io' }
 
     const job = await nextJob()
@@ -171,7 +128,7 @@ describe('notifyGit', () => {
     await seedDiff(t.db, { buildId: pr.id, name: 'wobble', status: 'changed' })
     await seedDiff(t.db, { buildId: pr.id, name: 'steady', status: 'unchanged' })
 
-    const fake = fakeGithub()
+    const fake = recordingGithub()
     const deps = { db: t.db, github: fake.github, publicOrigin: 'https://ci.acme.io' }
     const conclusion = async () => {
       await t.db.insert(schema.jobs).values({
@@ -206,25 +163,43 @@ describe('notifyGit', () => {
     const first = await nextJob()
     const second = await nextJob()
 
-    // A GitHub that is slow to answer, with no memory of its own beyond what it was sent.
+    // A GitHub that holds every answer until `release` is called, with no memory of its own
+    // beyond what it was sent. If the lanes were not serialized, both would reach it and wait here.
     const checks: string[] = []
     const comments: string[] = []
+    let reached = 0
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
     const github = {
       async upsertCheckRun(_i: string, _r: string, input: { existingId?: string }) {
-        await new Promise((r) => setTimeout(r, 40))
+        reached += 1
+        await gate
         if (input.existingId) return input.existingId
         checks.push('created')
         return `check-${checks.length}`
       },
       async upsertComment(_i: string, _r: string, _pr: number, _body: string, existing?: string) {
-        await new Promise((r) => setTimeout(r, 40))
+        await gate
         if (existing) return existing
         comments.push('created')
         return `comment-${comments.length}`
       },
     }
     const deps = { db: t.db, github, publicOrigin: 'https://ci.acme.io' }
-    await Promise.all([notifyGit(deps, first), notifyGit(deps, second)])
+    const both = Promise.all([notifyGit(deps, first), notifyGit(deps, second)])
+    // Give a second, unserialized lane the chance to arrive at GitHub: it would, at once.
+    await vi
+      .waitFor(
+        () => {
+          if (reached < 2) throw new Error('only one lane reached GitHub')
+        },
+        { timeout: 250 },
+      )
+      .catch(() => undefined)
+    release()
+    await both
 
     expect(checks).toEqual(['created'])
     expect(comments).toEqual(['created'])
@@ -233,7 +208,7 @@ describe('notifyGit', () => {
   it('skips the comment for builds with no pull request', async () => {
     const { build } = await linkedBuild(null)
     await completeBuild(t.db, build, { conclusion: 'no_changes', approval: 'none' })
-    const fake = fakeGithub()
+    const fake = recordingGithub()
     await notifyGit(
       { db: t.db, github: fake.github, publicOrigin: 'https://ci.acme.io' },
       await nextJob(),
@@ -290,7 +265,7 @@ describe('notifyGit', () => {
       expect(await getTeamGitAttention(t.db, team.id, ['github'])).toBeDefined()
 
       // The App was reinstalled: the next call works and the warning goes away.
-      const fake = fakeGithub()
+      const fake = recordingGithub()
       expect(await notifyGit({ db: t.db, github: fake.github, publicOrigin }, job)).toEqual({
         status: 'notified',
       })

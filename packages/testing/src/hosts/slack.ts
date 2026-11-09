@@ -1,3 +1,4 @@
+import { fakeHost } from './types.ts'
 export interface PostedMessage {
   token: string
   channel: string
@@ -13,7 +14,7 @@ export interface PostedMessage {
 export function fakeSlackHost(validTokens: string[]) {
   const posted: PostedMessage[] = []
   const revoked = new Set<string>()
-  const fetcher: typeof fetch = async (input, init) => {
+  const behaviour: typeof fetch = async (input, init) => {
     const req = new Request(input, init)
     const method = new URL(req.url).pathname.split('/').at(-1)
     const token = (req.headers.get('authorization') ?? '').replace('Bearer ', '')
@@ -33,15 +34,51 @@ export function fakeSlackHost(validTokens: string[]) {
     }
     return Response.json({ ok: false, error: 'unknown_method' })
   }
+  const base = fakeHost(behaviour)
   return {
+    ...base,
     /** The integration context for this host: Slack's API address and `fetch` point at the fake. */
     integrations: {
       config: {
         slack: { clientId: 'cid', clientSecret: 'csecret', apiUrl: 'https://slack.test/api' },
       },
-      fetch: fetcher,
+      fetch: base.fetcher,
     },
     posted,
     revoke: (token: string) => revoked.add(token),
   }
+}
+
+/** Slack's HTTP edge: records posts, answers the OAuth exchange and the channel list. */
+export function fakeSlackWorkspaceHost() {
+  const posts: Record<string, unknown>[] = []
+  const behaviour: typeof fetch = async (input, init) => {
+    const req = new Request(input, init)
+    const method = new URL(req.url).pathname.split('/').at(-1)
+    const text = await req.text()
+    if (method === 'oauth.v2.access') {
+      return new URLSearchParams(text).get('code') === 'good'
+        ? Response.json({
+            ok: true,
+            access_token: 'xoxb-1',
+            team: { id: 'T1', name: 'Acme' },
+          })
+        : Response.json({ ok: false, error: 'invalid_code' })
+    }
+    if (method === 'chat.postMessage') {
+      posts.push(JSON.parse(text))
+      return Response.json({ ok: true, ts: '1.0' })
+    }
+    if (method === 'conversations.list') {
+      return Response.json({
+        ok: true,
+        channels: [
+          { id: 'C2', name: 'zeta', is_private: false },
+          { id: 'G1', name: 'alpha', is_private: true },
+        ],
+      })
+    }
+    return new Response('boom', { status: 500 })
+  }
+  return { ...fakeHost(behaviour), posts }
 }

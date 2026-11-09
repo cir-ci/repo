@@ -1,4 +1,4 @@
-const json = (data: unknown, status = 200) => Response.json(data, { status })
+import { fakeHost, jsonResponse as json } from './types.ts'
 
 export interface FakeFigmaFile {
   key: string
@@ -20,7 +20,7 @@ export function fakeFigmaHost(options: {
     []
   const requests: { method: string; path: string; token: string | null }[] = []
 
-  const fetcher: typeof fetch = async (input, init) => {
+  const behaviour: typeof fetch = async (input, init) => {
     const req = new Request(input, init)
     const url = new URL(req.url)
     const header = req.headers.get('x-figma-token')
@@ -99,5 +99,54 @@ export function fakeFigmaHost(options: {
     return json({ status: 404, err: 'Not found' }, 404)
   }
 
-  return { fetch: fetcher, comments, requests }
+  const base = fakeHost(behaviour)
+  return { ...base, fetch: base.fetcher, comments, requests }
+}
+
+/** Figma's HTTP edge: one token, one file with a page and two frames, comments kept. */
+export function fakeFigmaFileHost(options: { down?: boolean } = {}) {
+  const comments: unknown[] = []
+  const behaviour: typeof fetch = async (input, init) => {
+    const req = new Request(input, init)
+    const url = new URL(req.url)
+    if (options.down) return new Response('boom', { status: 500 })
+    if (req.headers.get('x-figma-token') !== 'figd_good') {
+      return Response.json({ err: 'Invalid token' }, { status: 403 })
+    }
+    if (url.pathname === '/v1/me') return Response.json({ id: 'fu-1', handle: 'michael' })
+    if (url.pathname.startsWith('/v1/images/')) {
+      return Response.json({ images: { '1:2': 'https://img.test/cart.png' } })
+    }
+    if (url.pathname.endsWith('/comments')) {
+      comments.push(await req.json())
+      return Response.json({ id: 'c1' })
+    }
+    if (!url.pathname.startsWith('/v1/files/FileKey12345')) {
+      return Response.json({ err: 'Not found' }, { status: 404 })
+    }
+    if (url.pathname.endsWith('/nodes')) {
+      const ids = (url.searchParams.get('ids') ?? '').split(',')
+      const nodes = {
+        '0:1': {
+          document: {
+            id: '0:1',
+            name: 'Pages',
+            children: [
+              { id: '1:1', name: 'Home', type: 'FRAME' },
+              { id: '1:2', name: 'Cart', type: 'FRAME' },
+            ],
+          },
+        },
+        '1:2': { document: { id: '1:2', name: 'Cart', type: 'FRAME', children: [] } },
+      }
+      return Response.json({
+        nodes: Object.fromEntries(ids.map((id) => [id, Reflect.get(nodes, id) ?? null])),
+      })
+    }
+    return Response.json({
+      name: 'Checkout v3',
+      document: { id: '0:0', name: 'Document', children: [{ id: '0:1', name: 'Pages' }] },
+    })
+  }
+  return { ...fakeHost(behaviour), comments }
 }

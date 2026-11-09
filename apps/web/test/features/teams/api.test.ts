@@ -9,7 +9,7 @@ import {
   teamsQuery,
   settingsQuery,
 } from '#features/teams/api.ts'
-import { restoreFetch } from '#test/features/fetch-routes.ts'
+import { restoreFetch } from '#test/support/fetch.ts'
 
 function stubFetch(body: unknown) {
   const fetcher = vi.fn<typeof fetch>(async () => Response.json(body))

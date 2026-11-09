@@ -5,7 +5,7 @@ import {
   listBuildLinks,
   setIntegrationTeam,
 } from '@circi/db'
-import { createTestDb, seedDiff, seedTeam, seedReview, sha } from '@circi/testing'
+import { createTestDb, seedDiff, seedTeam, seedReview, fakeSha } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { createIssueFromBuild } from '#src/index.ts'
@@ -55,7 +55,7 @@ async function setup() {
     buildId: build.id,
     name: 'home',
     status: 'changed',
-    diffFileSha256: sha('d'),
+    diffFileSha256: fakeSha('d'),
   })
   await seedReview(t.db, {
     buildId: build.id,
@@ -90,7 +90,7 @@ describe('createIssueFromBuild', () => {
     expect(call).toMatchObject({
       target: 'WEB',
       title: `Visual regression: home in build #${build.number}`,
-      imageUrl: `https://ci.test/api/files/${sha('d')}`,
+      imageUrl: `https://ci.test/api/files/${fakeSha('d')}`,
     })
     expect(call?.description).toContain(
       `https://ci.test/${workspace.slug}/${team.slug}/builds/${build.number}?shot=home`,
