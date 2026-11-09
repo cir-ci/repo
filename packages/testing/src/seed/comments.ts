@@ -1,5 +1,7 @@
 import { type Comment, type Database, schema } from '@circi/db'
 
+import { nextCreatedAt } from '../created-at.ts'
+
 export namespace seedComment {
   export interface Input {
     buildId: string
@@ -30,7 +32,7 @@ export async function seedComment(db: Database, input: seedComment.Input): Promi
       parentId: input.parentId ?? null,
       editedAt: input.editedAt ?? null,
       deletedAt: input.deletedAt ?? null,
-      ...(input.createdAt ? { createdAt: input.createdAt } : {}),
+      createdAt: input.createdAt ?? nextCreatedAt(),
     })
     .returning()
   if (!row) throw new Error('seed insert returned no row')

@@ -12,6 +12,7 @@ import { pino } from 'pino'
 import { afterAll, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
+import { caller } from '#test/support/client.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 
 const t = await createTestDb()
@@ -48,17 +49,7 @@ await addMember(auth, t.db, { workspaceSlug: acme.workspaceSlug, email: lou.emai
 const louCookie = await signIn(app, lou.email, 'lou-password-long-1')
 const workspace = await getWorkspaceBySlug(t.db, acme.workspaceSlug)
 
-const call = (method: 'GET' | 'POST' | 'DELETE', url: string, cookie: string, payload?: unknown) =>
-  app.inject({
-    method,
-    url,
-    headers: {
-      ...(payload === undefined ? {} : { 'content-type': 'application/json' }),
-      cookie,
-      origin: ORIGIN,
-    },
-    ...(payload === undefined ? {} : { payload: JSON.stringify(payload) }),
-  })
+const call = caller(() => app)
 
 const createUrl = `/api/workspaces/${acme.workspaceSlug}/teams`
 const bitbucket = await createIntegration(t.db, {

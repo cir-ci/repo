@@ -1,4 +1,4 @@
-import { createTestDb, seedTeam, sha } from '@circi/testing'
+import { createTestDb, seedTeam, fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -32,15 +32,15 @@ describe('planUploads (verify before dedup)', () => {
     const planned = await planUploads(t.db, {
       buildId: build.id,
       kind: 'screenshot',
-      files: [png(sha('1')), png(sha('2')), png(sha('1'))],
+      files: [png(fakeSha('1')), png(fakeSha('2')), png(fakeSha('1'))],
       storageKeyFor: keyFor,
     })
-    expect(planned.map((p) => p.sha256).toSorted()).toEqual([sha('1'), sha('2')])
+    expect(planned.map((p) => p.sha256).toSorted()).toEqual([fakeSha('1'), fakeSha('2')])
     const [row] = await t.db
       .select()
       .from(schema.files)
-      .where(eq(schema.files.sha256, sha('1')))
-    expect(row).toMatchObject({ status: 'pending', storageKey: keyFor(sha('1')) })
+      .where(eq(schema.files.sha256, fakeSha('1')))
+    expect(row).toMatchObject({ status: 'pending', storageKey: keyFor(fakeSha('1')) })
   })
 
   it('never deduplicates against a pending file', async () => {
@@ -48,17 +48,17 @@ describe('planUploads (verify before dedup)', () => {
     await planUploads(t.db, {
       buildId: first.build.id,
       kind: 'screenshot',
-      files: [png(sha('3'))],
+      files: [png(fakeSha('3'))],
       storageKeyFor: keyFor,
     })
     const second = await newBuild()
     const planned = await planUploads(t.db, {
       buildId: second.build.id,
       kind: 'screenshot',
-      files: [png(sha('3'))],
+      files: [png(fakeSha('3'))],
       storageKeyFor: keyFor,
     })
-    expect(planned.map((p) => p.sha256)).toEqual([sha('3')])
+    expect(planned.map((p) => p.sha256)).toEqual([fakeSha('3')])
   })
 
   it('deduplicates verified files and records an upload claim for them', async () => {
@@ -66,16 +66,16 @@ describe('planUploads (verify before dedup)', () => {
     await planUploads(t.db, {
       buildId: first.build.id,
       kind: 'screenshot',
-      files: [png(sha('4'))],
+      files: [png(fakeSha('4'))],
       storageKeyFor: keyFor,
     })
-    await markFileVerified(t.db, sha('4'), { size: 10 })
+    await markFileVerified(t.db, fakeSha('4'), { size: 10 })
 
     const second = await newBuild()
     const planned = await planUploads(t.db, {
       buildId: second.build.id,
       kind: 'screenshot',
-      files: [png(sha('4'))],
+      files: [png(fakeSha('4'))],
       storageKeyFor: keyFor,
     })
     expect(planned).toEqual([])
@@ -83,7 +83,7 @@ describe('planUploads (verify before dedup)', () => {
       .select()
       .from(schema.uploadClaims)
       .where(eq(schema.uploadClaims.buildId, second.build.id))
-    expect(claims.map((c) => c.fileSha256)).toEqual([sha('4')])
+    expect(claims.map((c) => c.fileSha256)).toEqual([fakeSha('4')])
   })
 
   it('rejects malformed hashes', async () => {

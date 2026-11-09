@@ -70,6 +70,9 @@ export default defineConfig({
   },
   test: {
     testTimeout: 30_000,
+    // `beforeAll(createTestDb)` under parallel workers is where the 10 s default used to time out.
+    hookTimeout: 60_000,
+    expect: { poll: { timeout: 5_000, interval: 50 } },
     // End-to-end runs also write e2e/.artifacts/timings.json and print a timing summary.
     // Visual runs (`pnpm test:visual`) send the screenshots to CirCI when CIRCI_API_URL and
     // CIRCI_TOKEN are set, and only keep them in .circi/screenshots otherwise.
@@ -79,11 +82,21 @@ export default defineConfig({
       : {}),
     // Stopping an end-to-end stack (docker compose down -v) happens in global teardown.
     teardownTimeout: 120_000,
+    // `pnpm test:coverage` (Node project only: browser projects need their own provider setup).
+    coverage: {
+      provider: 'v8',
+      reporter: ['text-summary', 'html'],
+      include: ['apps/*/src/**/*.ts', 'packages/*/src/**/*.ts'],
+      exclude: ['**/*.d.ts', '**/dist/**', 'packages/ui/**', 'packages/db/src/migrations/**'],
+    },
     projects: [
       {
         extends: true,
         test: {
           name: 'node',
+          // One migrated PGlite dump for every createTestDb(), and TZ/mocks pinned per file.
+          globalSetup: ['packages/testing/src/template-db.ts'],
+          setupFiles: ['packages/testing/src/setup-node.ts'],
           include: [
             'apps/{server,worker,web}/test/**/*.test.ts',
             'packages/*/test/**/*.test.ts',

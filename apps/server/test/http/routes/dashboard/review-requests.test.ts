@@ -1,8 +1,9 @@
 import { addMember, createUser } from '@circi/auth'
 import { afterAll, describe, expect, it } from 'vitest'
 
+import { sender } from '#test/support/client.ts'
 import { startDashboard } from '#test/support/dashboard-fixture.ts'
-import { ORIGIN, signIn } from '#test/support/helpers.ts'
+import { signIn } from '#test/support/helpers.ts'
 
 const fx = await startDashboard()
 const { app, auth, db, acme, rival, acmeCookie, rivalCookie, get } = fx
@@ -16,20 +17,11 @@ const lou = await createUser(auth, {
 await addMember(auth, db, { workspaceSlug: acme.workspaceSlug, email: lou.email, role: 'member' })
 const louCookie = await signIn(app, lou.email, 'lou-password-long-1')
 
+const postAs = sender(() => app, acmeCookie)
 const post = (
   url: string,
   options: { cookie?: string; payload?: unknown; origin?: string | null } = {},
-) =>
-  app.inject({
-    method: 'POST',
-    url,
-    headers: {
-      'content-type': 'application/json',
-      ...(options.cookie === '' ? {} : { cookie: options.cookie ?? acmeCookie }),
-      ...(options.origin === null ? {} : { origin: options.origin ?? ORIGIN }),
-    },
-    payload: options.payload ?? {},
-  })
+) => postAs('POST', url, options)
 
 const requestUrl = (workspace = acme.workspaceSlug, build = 2) =>
   `/api/teams/${workspace}/web/builds/${build}/review-requests`

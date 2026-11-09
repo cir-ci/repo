@@ -13,6 +13,7 @@ import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
+import { JSON_HEADERS } from '#test/support/client.ts'
 import { type FakeIdp, startFakeIdp } from '#test/support/fake-idp.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
 
@@ -24,7 +25,6 @@ let idp: FakeIdp
 let acme: Tenant
 let rival: Tenant
 let ownerCookie: string
-const json = { origin: ORIGIN, 'content-type': 'application/json' }
 
 beforeAll(async () => {
   t = await createTestDb()
@@ -62,7 +62,7 @@ async function ssoSignIn(slug: string): Promise<{ cookie: string; location: stri
   const start = await app.inject({
     method: 'POST',
     url: '/api/auth/sign-in/sso',
-    headers: json,
+    headers: JSON_HEADERS,
     payload: { organizationSlug: slug, callbackURL: '/', errorCallbackURL: '/?failed' },
   })
   expect(start.statusCode).toBe(200)
@@ -90,7 +90,7 @@ describe('a workspace’s own single sign-on', () => {
     const res = await app.inject({
       method: 'POST',
       url: base(),
-      headers: { ...json, cookie: ownerCookie },
+      headers: { ...JSON_HEADERS, cookie: ownerCookie },
       payload: { issuer: idp.issuer, clientId: 'client-1', clientSecret: 'shh' },
     })
     expect(res.statusCode).toBe(201)
@@ -212,7 +212,7 @@ describe('a workspace’s own single sign-on', () => {
     const start = await app.inject({
       method: 'POST',
       url: '/api/auth/sign-in/sso',
-      headers: json,
+      headers: JSON_HEADERS,
       payload: { organizationSlug: acme.workspaceSlug, callbackURL: '/' },
     })
     expect(start.statusCode).toBeGreaterThanOrEqual(400)

@@ -11,6 +11,7 @@ import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
+import { caller, JSON_HEADERS } from '#test/support/client.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
 
 let t: createTestDb.Result
@@ -18,7 +19,6 @@ let dir: string
 let withEmail: FastifyInstance
 let passwordOnly: FastifyInstance
 const sent: Mailer.Mail[] = []
-const json = { origin: ORIGIN, 'content-type': 'application/json' }
 
 beforeAll(async () => {
   t = await createTestDb()
@@ -52,7 +52,7 @@ async function codeSignIn(app: FastifyInstance, email: string): Promise<string> 
   await app.inject({
     method: 'POST',
     url: '/api/auth/email-otp/send-verification-otp',
-    headers: json,
+    headers: JSON_HEADERS,
     payload: { email, type: 'sign-in' },
   })
   await vi.waitFor(() => expect(sent).toHaveLength(1))
@@ -60,7 +60,7 @@ async function codeSignIn(app: FastifyInstance, email: string): Promise<string> 
   const res = await app.inject({
     method: 'POST',
     url: '/api/auth/sign-in/email-otp',
-    headers: json,
+    headers: JSON_HEADERS,
     payload: { email, otp },
   })
   expect(res.statusCode).toBe(200)
@@ -69,20 +69,6 @@ async function codeSignIn(app: FastifyInstance, email: string): Promise<string> 
     .map((c) => String(c).split(';')[0])
     .join('; ')
 }
-
-const call = (
-  app: FastifyInstance,
-  method: 'GET' | 'PATCH',
-  url: string,
-  cookie: string,
-  payload?: unknown,
-) =>
-  app.inject({
-    method,
-    url,
-    headers: { ...(payload === undefined ? {} : json), cookie, origin: ORIGIN },
-    ...(payload === undefined ? {} : { payload: JSON.stringify(payload) }),
-  })
 
 describe('per-workspace login methods', () => {
   let acme: Tenant
@@ -103,8 +89,7 @@ describe('per-workspace login methods', () => {
   })
 
   it('accepts everything until a workspace narrows it', async () => {
-    const res = await call(
-      withEmail,
+    const res = await caller(withEmail)(
       'GET',
       `/api/workspaces/${acme.workspaceSlug}/auth`,
       passwordCookie,
@@ -117,8 +102,7 @@ describe('per-workspace login methods', () => {
   })
 
   it('hides the workspace from sessions that signed in a refused way', async () => {
-    const off = await call(
-      withEmail,
+    const off = await caller(withEmail)(
       'PATCH',
       `/api/workspaces/${acme.workspaceSlug}/auth`,
       emailCookie,
@@ -129,7 +113,7 @@ describe('per-workspace login methods', () => {
     expect(off.statusCode).toBe(200)
 
     // The password session can no longer see it: teams, builds, settings, members, auth.
-    const teams = (await call(withEmail, 'GET', '/api/teams', passwordCookie)).json().teams
+    const teams = (await caller(withEmail)('GET', '/api/teams', passwordCookie)).json().teams
     expect(teams).toEqual([])
     const hidden = await Promise.all(
       [
@@ -137,19 +121,18 @@ describe('per-workspace login methods', () => {
         `/api/teams/${acme.workspaceSlug}/web/settings`,
         `/api/workspaces/${acme.workspaceSlug}/auth`,
         `/api/auth/organization/get-full-organization?organizationSlug=${acme.workspaceSlug}`,
-      ].map(async (url) => (await call(withEmail, 'GET', url, passwordCookie)).statusCode),
+      ].map(async (url) => (await caller(withEmail)('GET', url, passwordCookie)).statusCode),
     )
     expect(hidden).toEqual([404, 404, 404, 404])
-    const caps = (await call(withEmail, 'GET', '/api/capabilities', passwordCookie)).json()
+    const caps = (await caller(withEmail)('GET', '/api/capabilities', passwordCookie)).json()
     expect(caps.refusingWorkspaces).toEqual([{ name: expect.any(String), accepts: ['email'] }])
     expect(caps.manageableWorkspaces).toEqual([])
 
     // The email session still sees everything.
-    expect((await call(withEmail, 'GET', '/api/teams', emailCookie)).json().teams).toHaveLength(1)
+    expect((await caller(withEmail)('GET', '/api/teams', emailCookie)).json().teams).toHaveLength(1)
     expect(
       (
-        await call(
-          withEmail,
+        await caller(withEmail)(
           'GET',
           `/api/auth/organization/get-full-organization?organizationSlug=${acme.workspaceSlug}`,
           emailCookie,
@@ -159,8 +142,7 @@ describe('per-workspace login methods', () => {
   })
 
   it('refuses to turn off the last method an owner can use', async () => {
-    const res = await call(
-      withEmail,
+    const res = await caller(withEmail)(
       'PATCH',
       `/api/workspaces/${acme.workspaceSlug}/auth`,
       emailCookie,
@@ -179,8 +161,7 @@ describe('per-workspace login methods', () => {
   it('counts the instance switches: no email on the instance means password must stay', async () => {
     const solo = await seedTenant(tenantAuth, t.db)
     const cookie = await signIn(passwordOnly, solo.owner.email, solo.owner.password)
-    const res = await call(
-      passwordOnly,
+    const res = await caller(passwordOnly)(
       'PATCH',
       `/api/workspaces/${solo.workspaceSlug}/auth`,
       cookie,
@@ -190,8 +171,7 @@ describe('per-workspace login methods', () => {
     )
     expect(res.statusCode).toBe(409)
     // Email being off in the workspace is fine: it was never available here.
-    const ok = await call(
-      passwordOnly,
+    const ok = await caller(passwordOnly)(
       'PATCH',
       `/api/workspaces/${solo.workspaceSlug}/auth`,
       cookie,
@@ -203,8 +183,7 @@ describe('per-workspace login methods', () => {
   })
 
   it('lets only owners and admins change it, and rejects unknown fields', async () => {
-    const res = await call(
-      withEmail,
+    const res = await caller(withEmail)(
       'PATCH',
       `/api/workspaces/${acme.workspaceSlug}/auth`,
       emailCookie,

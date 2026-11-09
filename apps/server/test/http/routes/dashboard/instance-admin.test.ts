@@ -15,6 +15,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 import { runDoctor } from '#lifecycle/doctor.ts'
+import { caller } from '#test/support/client.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 
 let t: createTestDb.Result
@@ -72,22 +73,7 @@ afterAll(async () => {
   await rm(dir, { recursive: true, force: true })
 })
 
-const call = (
-  method: 'GET' | 'PATCH' | 'POST',
-  url: string,
-  cookie: string | undefined,
-  body?: unknown,
-) =>
-  app.inject({
-    method,
-    url,
-    headers: {
-      origin: ORIGIN,
-      ...(cookie ? { cookie } : {}),
-      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-    },
-    ...(body === undefined ? {} : { payload: JSON.stringify(body) }),
-  })
+const call = caller(() => app)
 
 const asAdmin = (method: 'GET' | 'PATCH' | 'POST', url: string, body?: unknown) =>
   call(method, url, adminCookie, body)

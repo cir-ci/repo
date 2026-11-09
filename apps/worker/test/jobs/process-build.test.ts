@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -17,7 +16,7 @@ import {
 } from '@circi/db'
 import { finalizeBuild, gateInputs, reviewBuild, reviewSnapshots } from '@circi/services'
 import { contentKey, FsStorage } from '@circi/storage'
-import { createTestDb, seedTeam } from '@circi/testing'
+import { createTestDb, seedTeam, sha256 } from '@circi/testing'
 import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -36,8 +35,6 @@ afterAll(async () => {
   await t.close()
   await rm(dir, { recursive: true, force: true })
 })
-
-const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex')
 
 async function png(
   width: number,
@@ -72,12 +69,16 @@ async function uploadBuild(
   const planned = await planUploads(t.db, {
     buildId: created.id,
     kind: 'screenshot',
-    files: entries.map(([, b]) => ({ sha256: sha(b), size: b.length, contentType: 'image/png' })),
+    files: entries.map(([, b]) => ({
+      sha256: sha256(b),
+      size: b.length,
+      contentType: 'image/png',
+    })),
     storageKeyFor: (s) => contentKey(s),
   })
   await Promise.all(
     planned.map(async (p) => {
-      const bytes = entries.find(([, b]) => sha(b) === p.sha256)?.[1]
+      const bytes = entries.find(([, b]) => sha256(b) === p.sha256)?.[1]
       if (!bytes) throw new Error('planned file not in the build')
       await storage.put(p.storageKey, bytes, { expectedSha256: p.sha256 })
       await markFileVerified(t.db, p.sha256, { size: bytes.length })
@@ -85,7 +86,7 @@ async function uploadBuild(
   )
   const fin = await finalizeBuild(t.db, {
     buildId: created.id,
-    screenshots: entries.map(([name, b]) => ({ name, sha256: sha(b) })),
+    screenshots: entries.map(([name, b]) => ({ name, sha256: sha256(b) })),
   })
   expect(fin).toMatchObject({ status: 'ok', complete: true })
   return created
@@ -149,7 +150,7 @@ describe('processBuild', () => {
     // Thumbnails and dimensions were recorded.
     const shots = await listBuildScreenshots(t.db, b2.id)
     expect(shots.every((s) => s.thumbnailSha256)).toBe(true)
-    expect(await getFile(t.db, sha(signup))).toMatchObject({ width: 320, height: 240 })
+    expect(await getFile(t.db, sha256(signup))).toMatchObject({ width: 320, height: 240 })
 
     // 3. Main again, same screenshots as build 1: no changes, not auto-approved (nothing to approve).
     const b3 = await uploadBuild(

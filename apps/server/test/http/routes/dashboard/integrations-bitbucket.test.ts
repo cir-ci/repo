@@ -14,6 +14,7 @@ import { pino } from 'pino'
 import { afterAll, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
+import { caller } from '#test/support/client.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 
 const AUTH_SECRET = 'instance-secret-long-enough-for-test'
@@ -62,22 +63,7 @@ const lou = await createUser(auth, {
 await addMember(auth, t.db, { workspaceSlug: acme.workspaceSlug, email: lou.email, role: 'member' })
 const louCookie = await signIn(app, lou.email, 'lou-password-long-1')
 
-const call = (
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
-  url: string,
-  cookie: string,
-  payload?: unknown,
-) =>
-  app.inject({
-    method,
-    url,
-    headers: {
-      ...(payload === undefined ? {} : { 'content-type': 'application/json' }),
-      ...(cookie ? { cookie } : {}),
-      origin: ORIGIN,
-    },
-    ...(payload === undefined ? {} : { payload: JSON.stringify(payload) }),
-  })
+const call = caller(() => app)
 
 const base = `/api/workspaces/${acme.workspaceSlug}/integrations`
 const workspace = await getWorkspaceBySlug(t.db, acme.workspaceSlug)

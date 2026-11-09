@@ -1,88 +1,22 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-
-import { addMember, createUser, verifyTeamToken } from '@circi/auth'
-import type { Auth } from '@circi/auth'
+import { verifyTeamToken } from '@circi/auth'
 import { teamColorFor } from '@circi/core'
 import { schema } from '@circi/db'
-import { FsStorage } from '@circi/storage'
-import { createTestDb, seedBuild, seedScreenshot, seedSite, sha } from '@circi/testing'
+import { seedBuild, seedScreenshot, sha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
-import type { FastifyInstance } from 'fastify'
-import { pino } from 'pino'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 
-import { buildServer } from '#http/app.ts'
-import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
+import { caller } from '#test/support/client.ts'
+import { startPages } from '#test/support/pages-fixture.ts'
 
-/** The team and workspace pages' endpoints: appearance, CI token, rename, storage, ignore regions. */
+/** The team page endpoints: appearance, CI token, ignore regions. */
 
-let t: createTestDb.Result
-let dir: string
-let app: FastifyInstance
-let auth: Auth
-let acme: Tenant
-let rival: Tenant
-let ownerCookie: string
-let memberCookie: string
-let rivalCookie: string
-
-beforeAll(async () => {
-  t = await createTestDb()
-  auth = createTestAuth(t.db)
-  dir = await mkdtemp(join(tmpdir(), 'circi-pages-'))
-  app = buildServer({
-    logger: pino({ level: 'silent' }),
-    checks: [],
-    dashboard: {
-      db: t.db,
-      auth,
-      storage: new FsStorage({ path: join(dir, 'files') }),
-      publicOrigin: ORIGIN,
-    },
-  })
-  await app.ready()
-  acme = await seedTenant(auth, t.db)
-  rival = await seedTenant(auth, t.db)
-  const plain = await createUser(auth, {
-    email: 'plain@pages.test',
-    name: 'Plain',
-    password: 'plain-password-long-1',
-  })
-  await addMember(auth, t.db, {
-    workspaceSlug: acme.workspaceSlug,
-    email: plain.email,
-    role: 'member',
-  })
-  ownerCookie = await signIn(app, acme.owner.email, acme.owner.password)
-  memberCookie = await signIn(app, plain.email, 'plain-password-long-1')
-  rivalCookie = await signIn(app, rival.owner.email, rival.owner.password)
-})
-afterAll(async () => {
-  await app.close()
-  await t.close()
-  await rm(dir, { recursive: true, force: true })
-})
+const fx = await startPages()
+const { app, t, auth, acme, ownerCookie, memberCookie, rivalCookie } = fx
+afterAll(() => fx.close())
 
 const team = () => `/api/teams/${acme.workspaceSlug}/web`
 const workspace = () => `/api/workspaces/${acme.workspaceSlug}`
-const call = (
-  method: 'GET' | 'PATCH' | 'POST' | 'PUT' | 'DELETE',
-  url: string,
-  cookie: string,
-  body?: unknown,
-) =>
-  app.inject({
-    method,
-    url,
-    headers: {
-      cookie,
-      origin: ORIGIN,
-      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-    },
-    ...(body === undefined ? {} : { payload: JSON.stringify(body) }),
-  })
+const call = caller(() => app)
 
 describe('team colour and icon', () => {
   it('starts from a colour derived from the name, and shows it everywhere a team is listed', async () => {
@@ -178,100 +112,6 @@ describe('CI token page', () => {
     expect((await call('POST', `${team()}/token`, memberCookie)).statusCode).toBe(403)
     expect((await call('POST', `${team()}/token`, rivalCookie)).statusCode).toBe(404)
     expect((await call('GET', `${team()}/token`, rivalCookie)).statusCode).toBe(404)
-  })
-})
-
-describe('workspace name, address and default retention', () => {
-  it('shows the name and address to members and lets owners rename', async () => {
-    const got = (await call('GET', workspace(), memberCookie)).json()
-    expect(got).toEqual({
-      canManage: false,
-      isOwner: false,
-      name: expect.any(String),
-      slug: acme.workspaceSlug,
-    })
-    const res = await call('PATCH', workspace(), ownerCookie, { name: 'Acme Inc' })
-    expect(res.statusCode).toBe(200)
-    expect(res.json()).toEqual({ name: 'Acme Inc', slug: acme.workspaceSlug })
-    expect((await call('GET', workspace(), ownerCookie)).json().name).toBe('Acme Inc')
-  })
-
-  it('refuses members (403), outsiders (404), bad and taken addresses, then moves the address', async () => {
-    expect((await call('PATCH', workspace(), memberCookie, { name: 'x' })).statusCode).toBe(403)
-    expect((await call('PATCH', workspace(), rivalCookie, { name: 'x' })).statusCode).toBe(404)
-    expect((await call('GET', workspace(), rivalCookie)).statusCode).toBe(404)
-    expect((await call('PATCH', workspace(), ownerCookie, { name: '' })).statusCode).toBe(400)
-    expect((await call('PATCH', workspace(), ownerCookie, { slug: 'api' })).statusCode).toBe(400)
-    expect((await call('PATCH', workspace(), ownerCookie, { slug: 'No Good' })).statusCode).toBe(
-      400,
-    )
-    expect((await call('PATCH', workspace(), ownerCookie, { bogus: 1 })).statusCode).toBe(400)
-    const taken = await call('PATCH', workspace(), ownerCookie, { slug: rival.workspaceSlug })
-    expect(taken.statusCode).toBe(409)
-
-    const oldBase = workspace()
-    const moved = await call('PATCH', oldBase, ownerCookie, { slug: `${acme.workspaceSlug}-two` })
-    expect(moved.json().slug).toBe(`${acme.workspaceSlug}-two`)
-    expect((await call('GET', oldBase, ownerCookie)).statusCode).toBe(404)
-    // Put it back so the other tests keep their address.
-    const back = await call('PATCH', `${oldBase}-two`, ownerCookie, { slug: acme.workspaceSlug })
-    expect(back.statusCode).toBe(200)
-  })
-
-  it('saves the default retention for new teams and leaves existing teams alone', async () => {
-    const url = `${workspace()}/settings`
-    expect((await call('PATCH', url, ownerCookie, { retentionDays: 90 })).json().settings).toEqual({
-      flakyBlocksMerge: true,
-      retentionDays: 90,
-    })
-    expect((await call('PATCH', url, ownerCookie, { retentionDays: 0 })).statusCode).toBe(400)
-    expect((await call('PATCH', url, memberCookie, { retentionDays: 5 })).statusCode).toBe(403)
-    expect((await call('PATCH', url, rivalCookie, { retentionDays: 5 })).statusCode).toBe(404)
-    const existing = (await call('GET', `${team()}/settings`, ownerCookie)).json()
-    expect(existing.settings.retentionDays).toBe(30)
-    expect(existing.workspace.retentionDays).toBe(90)
-    await call('POST', `${workspace()}/teams`, ownerCookie, { name: 'Late team' })
-    const late = (
-      await call('GET', `${team().replace('/web', '/late-team')}/settings`, ownerCookie)
-    ).json()
-    expect(late.settings.retentionDays).toBe(90)
-  })
-})
-
-describe('storage usage', () => {
-  it('reports bytes by kind and by team with the retention settings, to members only', async () => {
-    const build = await seedBuild(t.db, acme.team.id)
-    await seedScreenshot(t.db, {
-      buildId: build.id,
-      fileSha256: sha('a'),
-      size: 1000,
-      thumbnailSha256: sha('b'),
-      thumbnailSize: 100,
-    })
-    await seedSite(t.db, {
-      teamId: acme.team.id,
-      files: [{ path: 'index.html', sha256: sha('c'), size: 500 }],
-    })
-    const res = await call('GET', `${workspace()}/storage`, memberCookie)
-    expect(res.statusCode).toBe(200)
-    const usage = res.json()
-    expect(usage).toMatchObject({ canManage: false, totalBytes: 1600, totalFiles: 3 })
-    expect(usage.kinds).toEqual([
-      { kind: 'screenshot', files: 1, bytes: 1000 },
-      { kind: 'diff', files: 0, bytes: 0 },
-      { kind: 'thumbnail', files: 1, bytes: 100 },
-      { kind: 'site', files: 1, bytes: 500, versions: 1 },
-    ])
-    const web = usage.teams.find((p: { slug: string }) => p.slug === 'web')
-    expect(web).toMatchObject({ bytes: 1600, files: 3, retentionDays: 30, color: 'plum' })
-    expect(usage.defaultRetentionDays).toBe(90)
-
-    // Outsiders get 404 and see none of it.
-    expect((await call('GET', `${workspace()}/storage`, rivalCookie)).statusCode).toBe(404)
-    const own = (
-      await call('GET', `/api/workspaces/${rival.workspaceSlug}/storage`, rivalCookie)
-    ).json()
-    expect(own.totalBytes).toBe(0)
   })
 })
 

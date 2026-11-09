@@ -13,6 +13,7 @@ import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
+import { clientFor } from '#test/support/client.ts'
 import { createTestAuth, ORIGIN, signIn } from '#test/support/helpers.ts'
 
 const SECRET = 'test-secret-that-is-long-enough-1234'
@@ -52,12 +53,7 @@ afterAll(async () => {
 })
 
 const post = (app: FastifyInstance, url: string, body: unknown, cookie = '') =>
-  app.inject({
-    method: 'POST',
-    url,
-    headers: { origin: ORIGIN, 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
-    payload: JSON.stringify(body),
-  })
+  clientFor(app, cookie).send('POST', url, body)
 
 describe('first-run setup', () => {
   it('claims a fresh install with the setup code, once', async () => {

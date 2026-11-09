@@ -6,7 +6,7 @@ import {
   QUEUES,
   schema,
 } from '@circi/db'
-import { createTestDb, seedGitLink, seedTeam, sha, seedChangedSnapshots } from '@circi/testing'
+import { createTestDb, seedGitLink, seedTeam, fakeSha, seedChangedSnapshots } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -60,10 +60,10 @@ async function verified(buildId: string, hash: string) {
 describe('finalizeBuild', () => {
   it('queues exactly one diff job when the last shard arrives', async () => {
     const { build } = await newBuild()
-    await verified(build.id, sha('1'))
+    await verified(build.id, fakeSha('1'))
     const res = await finalizeBuild(t.db, {
       buildId: build.id,
-      screenshots: [{ name: 'home', sha256: sha('1') }],
+      screenshots: [{ name: 'home', sha256: fakeSha('1') }],
     })
     expect(res).toMatchObject({ status: 'ok', complete: true })
     const queued = await jobsIn(QUEUES.processBuild)
@@ -73,17 +73,17 @@ describe('finalizeBuild', () => {
 
   it('queues nothing while shards are missing, or files are not uploaded yet', async () => {
     const { build } = await newBuild({ parallelTotal: 2 })
-    await verified(build.id, sha('2'))
+    await verified(build.id, fakeSha('2'))
     const first = await finalizeBuild(t.db, {
       buildId: build.id,
       shardIndex: '0',
-      screenshots: [{ name: 'a', sha256: sha('2') }],
+      screenshots: [{ name: 'a', sha256: fakeSha('2') }],
     })
     expect(first).toMatchObject({ complete: false })
     const missing = await finalizeBuild(t.db, {
       buildId: build.id,
       shardIndex: '1',
-      screenshots: [{ name: 'b', sha256: sha('3') }],
+      screenshots: [{ name: 'b', sha256: fakeSha('3') }],
     })
     expect(missing.status).toBe('missing')
     expect(await jobsIn(QUEUES.processBuild)).toHaveLength(0)
@@ -91,15 +91,21 @@ describe('finalizeBuild', () => {
 
   it('tells the git host the build is processing, when the team is linked', async () => {
     const { build } = await newBuild({ linked: true })
-    await verified(build.id, sha('4'))
-    await finalizeBuild(t.db, { buildId: build.id, screenshots: [{ name: 'x', sha256: sha('4') }] })
+    await verified(build.id, fakeSha('4'))
+    await finalizeBuild(t.db, {
+      buildId: build.id,
+      screenshots: [{ name: 'x', sha256: fakeSha('4') }],
+    })
     expect(await jobsIn(GIT_NOTIFY_QUEUE)).toHaveLength(1)
   })
 
   it('does not queue a second diff job for a build that is already processing', async () => {
     const { build } = await newBuild()
-    await verified(build.id, sha('5'))
-    await finalizeBuild(t.db, { buildId: build.id, screenshots: [{ name: 'x', sha256: sha('5') }] })
+    await verified(build.id, fakeSha('5'))
+    await finalizeBuild(t.db, {
+      buildId: build.id,
+      screenshots: [{ name: 'x', sha256: fakeSha('5') }],
+    })
     await expect(finalizeBuild(t.db, { buildId: build.id, screenshots: [] })).rejects.toThrow(
       /already processing/,
     )
@@ -197,11 +203,11 @@ const later = () => new Date(Date.now() + 60_000)
 describe('expireStalledBuilds', () => {
   it('fails a parallel build naming the shards that never came, and ignores recent ones', async () => {
     const { build } = await newBuild({ parallelTotal: 4 })
-    await verified(build.id, sha('7'))
+    await verified(build.id, fakeSha('7'))
     await finalizeBuild(t.db, {
       buildId: build.id,
       shardIndex: '1',
-      screenshots: [{ name: 'a', sha256: sha('7') }],
+      screenshots: [{ name: 'a', sha256: fakeSha('7') }],
     })
     // Created just now: not stalled yet.
     expect(await expireStalledBuilds(t.db, new Date(Date.now() - 3_600_000))).toBe(0)

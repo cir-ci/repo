@@ -10,6 +10,7 @@ import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
+import { JSON_HEADERS } from '#test/support/client.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
 
 let t: createTestDb.Result
@@ -18,8 +19,6 @@ let tenant: Tenant
 const sent: Mailer.Mail[] = []
 let on: FastifyInstance
 let off: FastifyInstance
-
-const json = { origin: ORIGIN, 'content-type': 'application/json' }
 
 beforeAll(async () => {
   t = await createTestDb()
@@ -51,7 +50,7 @@ const requestCode = (app: FastifyInstance, email: string) =>
   app.inject({
     method: 'POST',
     url: '/api/auth/email-otp/send-verification-otp',
-    headers: json,
+    headers: JSON_HEADERS,
     payload: { email, type: 'sign-in' },
   })
 
@@ -59,7 +58,7 @@ const signInWithCode = (app: FastifyInstance, email: string, otp: string) =>
   app.inject({
     method: 'POST',
     url: '/api/auth/sign-in/email-otp',
-    headers: json,
+    headers: JSON_HEADERS,
     payload: { email, otp },
   })
 
@@ -162,7 +161,7 @@ async function invite(email: string, role = 'member') {
   const res = await on.inject({
     method: 'POST',
     url: '/api/auth/organization/invite-member',
-    headers: { cookie: ownerCookie, ...json },
+    headers: { cookie: ownerCookie, ...JSON_HEADERS },
     payload: { email, role, organizationId: workspace.json().id },
   })
   expect(res.statusCode).toBe(200)
@@ -189,7 +188,7 @@ describe('invitations', () => {
     const accepted = await on.inject({
       method: 'POST',
       url: '/api/auth/organization/accept-invitation',
-      headers: { cookie, ...json },
+      headers: { cookie, ...JSON_HEADERS },
       payload: { invitationId },
     })
     expect(accepted.statusCode).toBe(200)
@@ -204,7 +203,7 @@ describe('invitations', () => {
     const res = await on.inject({
       method: 'POST',
       url: '/api/auth/organization/accept-invitation',
-      headers: { cookie, ...json },
+      headers: { cookie, ...JSON_HEADERS },
       payload: { invitationId },
     })
     expect(res.statusCode).not.toBe(200)
@@ -223,7 +222,7 @@ const signInFrom = (userAgent: string) =>
   on.inject({
     method: 'POST',
     url: '/api/auth/sign-in/email',
-    headers: { ...json, 'user-agent': userAgent },
+    headers: { ...JSON_HEADERS, 'user-agent': userAgent },
     payload: { email: tenant.owner.email, password: tenant.owner.password },
   })
 
@@ -238,7 +237,7 @@ describe('abuse limits and new-device mail', () => {
       const res = await on.inject({
         method: 'POST',
         url: '/api/auth/email-otp/send-verification-otp',
-        headers: { ...json, 'x-forwarded-for': `203.0.113.${i + 1}` },
+        headers: { ...JSON_HEADERS, 'x-forwarded-for': `203.0.113.${i + 1}` },
         payload: { email, type: 'sign-in' },
       })
       statuses.push(res.statusCode)

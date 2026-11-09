@@ -6,7 +6,7 @@ import {
   seedReviewRequest,
   seedScreenshot,
   seedUser,
-  sha,
+  fakeSha,
 } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -44,13 +44,13 @@ describe('searchWorkspace', () => {
     await seedScreenshot(t.db, {
       buildId: b148!.id,
       name: 'checkout-page',
-      fileSha256: sha('a'),
+      fileSha256: fakeSha('a'),
     })
     const rivalBuild = await seedBuild(t.db, rival.team.id, { branch: 'feature/checkout-x' })
     await seedScreenshot(t.db, {
       buildId: rivalBuild.id,
       name: 'checkout-rival-shot',
-      fileSha256: sha('b'),
+      fileSha256: fakeSha('b'),
     })
 
     const input = { userId: owner.id, workspaceSlug: workspace.slug }

@@ -1,4 +1,4 @@
-import { createTestDb, seedBuild, seedScreenshot, seedTeam, sha } from '@circi/testing'
+import { createTestDb, seedBuild, seedScreenshot, seedTeam, fakeSha } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { addIgnoreRegion, listIgnoreRegionSnapshots } from '#src/index.ts'
@@ -22,22 +22,22 @@ describe('listIgnoreRegionSnapshots', () => {
     const old = await seedBuild(t.db, team.id, { branch: 'main', status: 'complete' })
     const latest = await seedBuild(t.db, team.id, { branch: 'main', status: 'complete' })
     const feature = await seedBuild(t.db, team.id, { branch: 'feature', status: 'complete' })
-    await seedScreenshot(t.db, { buildId: old.id, name: 'home', fileSha256: sha('1') })
+    await seedScreenshot(t.db, { buildId: old.id, name: 'home', fileSha256: fakeSha('1') })
     await seedScreenshot(t.db, {
       buildId: latest.id,
       name: 'home',
-      fileSha256: sha('2'),
+      fileSha256: fakeSha('2'),
       width: 800,
       height: 600,
     })
-    await seedScreenshot(t.db, { buildId: feature.id, name: 'home', fileSha256: sha('3') })
+    await seedScreenshot(t.db, { buildId: feature.id, name: 'home', fileSha256: fakeSha('3') })
 
     expect(await listIgnoreRegionSnapshots(t.db, team.id)).toEqual([
       { name: 'gone', regions: 1, latest: null },
       {
         name: 'home',
         regions: 2,
-        latest: { buildNumber: latest.number, sha256: sha('2'), width: 800, height: 600 },
+        latest: { buildNumber: latest.number, sha256: fakeSha('2'), width: 800, height: 600 },
       },
     ])
   })

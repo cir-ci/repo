@@ -1,4 +1,11 @@
-import { createTestDb, seedBuild, seedDiff, seedTeam, seedScreenshot, sha } from '@circi/testing'
+import {
+  createTestDb,
+  seedBuild,
+  seedDiff,
+  seedTeam,
+  seedScreenshot,
+  fakeSha,
+} from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
@@ -48,8 +55,12 @@ describe('snapshot names', () => {
   it('lists the names a team uploaded', async () => {
     const { team } = await seedFigma()
     const build = await seedBuild(t.db, team.id)
-    await seedScreenshot(t.db, { buildId: build.id, fileSha256: sha('a'), name: 'checkout/cart' })
-    await seedScreenshot(t.db, { buildId: build.id, fileSha256: sha('b'), name: 'home' })
+    await seedScreenshot(t.db, {
+      buildId: build.id,
+      fileSha256: fakeSha('a'),
+      name: 'checkout/cart',
+    })
+    await seedScreenshot(t.db, { buildId: build.id, fileSha256: fakeSha('b'), name: 'home' })
     expect((await listTeamSnapshotNames(t.db, team.id)).toSorted()).toEqual([
       'checkout/cart',
       'home',

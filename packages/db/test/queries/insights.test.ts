@@ -8,7 +8,7 @@ import {
   seedReviewRequest,
   seedScreenshot,
   seedUser,
-  sha,
+  fakeSha,
 } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -114,18 +114,23 @@ async function history() {
   await seedScreenshot(t.db, {
     buildId: f1.id,
     name: 'home',
-    fileSha256: sha('a'),
+    fileSha256: fakeSha('a'),
     size: 1000,
-    thumbnailSha256: sha('b'),
+    thumbnailSha256: fakeSha('b'),
     thumbnailSize: 100,
   })
-  await seedScreenshot(t.db, { buildId: f3.id, name: 'home', fileSha256: sha('a'), size: 1000 })
-  await seedDiff(t.db, { buildId: f2.id, name: 'home', diffFileSha256: sha('c'), diffFileSize: 50 })
+  await seedScreenshot(t.db, { buildId: f3.id, name: 'home', fileSha256: fakeSha('a'), size: 1000 })
+  await seedDiff(t.db, {
+    buildId: f2.id,
+    name: 'home',
+    diffFileSha256: fakeSha('c'),
+    diffFileSize: 50,
+  })
   const docsBuild = await seedBuild(t.db, docs.id, { status: 'complete' })
   await seedScreenshot(t.db, {
     buildId: docsBuild.id,
     name: 'home',
-    fileSha256: sha('a'),
+    fileSha256: fakeSha('a'),
     size: 1000,
   })
   return { workspace, owner, mia }

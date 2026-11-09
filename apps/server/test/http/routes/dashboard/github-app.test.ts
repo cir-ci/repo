@@ -16,6 +16,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 import { readStoredGithubApp, useStoredGithubApp } from '#http/lib/github-app.ts'
+import { clientFor } from '#test/support/client.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 
 /**
@@ -141,13 +142,6 @@ await addMember(auth, t.db, {
 
 const get = (url: string, cookie?: string) =>
   app.inject({ method: 'GET', url, headers: cookie ? { cookie } : {} })
-const post = (url: string, cookie: string, body: unknown = {}) =>
-  app.inject({
-    method: 'POST',
-    url,
-    headers: { origin: ORIGIN, 'content-type': 'application/json', cookie },
-    payload: JSON.stringify(body),
-  })
 
 const serverAt = async (publicOrigin: string) => {
   const other = buildServer({
@@ -188,7 +182,11 @@ const stateOf = (location: string | undefined) =>
 
 describe('the manifest', () => {
   it('has exactly the permissions, events and addresses the App needs', async () => {
-    const res = await post('/api/instance/github-app/manifest', adminCookie, {})
+    const res = await clientFor(app, adminCookie).send(
+      'POST',
+      '/api/instance/github-app/manifest',
+      {},
+    )
     expect(res.statusCode).toBe(200)
     const body = res.json()
     expect(body.manifest).toEqual({
@@ -207,20 +205,31 @@ describe('the manifest', () => {
   })
 
   it('takes an editable name and posts to a GitHub organization when one is named', async () => {
-    const res = await post('/api/instance/github-app/manifest', adminCookie, {
-      name: 'CirCI at Acme',
-      organization: 'acme-inc',
-    })
+    const res = await clientFor(app, adminCookie).send(
+      'POST',
+      '/api/instance/github-app/manifest',
+      {
+        name: 'CirCI at Acme',
+        organization: 'acme-inc',
+      },
+    )
     expect(res.json().manifest.name).toBe('CirCI at Acme')
     expect(res.json().postUrl).toBe('https://github.com/organizations/acme-inc/settings/apps/new')
-    const bad = await post('/api/instance/github-app/manifest', adminCookie, {
-      organization: 'not/valid',
-    })
+    const bad = await clientFor(app, adminCookie).send(
+      'POST',
+      '/api/instance/github-app/manifest',
+      {
+        organization: 'not/valid',
+      },
+    )
     expect(bad.statusCode).toBe(400)
   })
 
   it('is for instance admins only', async () => {
-    expect((await post('/api/instance/github-app/manifest', ownerCookie)).statusCode).toBe(403)
+    expect(
+      (await clientFor(app, ownerCookie).send('POST', '/api/instance/github-app/manifest', {}))
+        .statusCode,
+    ).toBe(403)
     expect((await get('/api/instance/github-app')).statusCode).toBe(401)
     expect((await get('/api/instance/github-app', ownerCookie)).json()).toMatchObject({
       source: 'none',

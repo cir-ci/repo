@@ -6,7 +6,7 @@ import {
   seedSession,
   seedSite,
   seedUser,
-  sha,
+  fakeSha,
 } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -56,7 +56,7 @@ async function publish(
   over: Partial<publishSiteVersion.Input> & { content?: string } = {},
 ) {
   const { content = 'e', ...rest } = over
-  const hash = sha(content)
+  const hash = fakeSha(content)
   await ensureAssetFiles(t.db, [
     { sha256: hash, size: 5, storageKey: `files/${hash}`, contentType: 'text/html' },
   ])
@@ -95,9 +95,9 @@ describe('publishing and serving', () => {
     expect((await findSiteByLabel(t.db, result.branchLabel ?? ''))?.linkKind).toBe('branch')
 
     expect(await getSiteFile(t.db, result.version.id, 'index.html')).toMatchObject({
-      sha256: sha('e'),
+      sha256: fakeSha('e'),
       contentType: 'text/html',
-      storageKey: `files/${sha('e')}`,
+      storageKey: `files/${fakeSha('e')}`,
     })
     expect(await getSiteFile(t.db, result.version.id, 'missing.html')).toBeUndefined()
     expect(await commitLabelOfVersion(t.db, result.version.id)).toBe(result.commitLabel)
@@ -110,7 +110,7 @@ describe('publishing and serving', () => {
     expect(rerun.replaced).toBe(true)
     expect(rerun.version.id).toBe(first.version.id)
     expect(rerun.commitLabel).toBe(first.commitLabel)
-    expect((await getSiteFile(t.db, first.version.id, 'index.html'))?.sha256).toBe(sha('2'))
+    expect((await getSiteFile(t.db, first.version.id, 'index.html'))?.sha256).toBe(fakeSha('2'))
 
     const next = await publish(team.id, { commitSha: SHA_B, content: '3' })
     expect(next.branchLabel).toBe(first.branchLabel)
@@ -148,7 +148,7 @@ describe('publishing and serving', () => {
     const { team } = await seedTeam(t.db)
     const seeded = await seedSite(t.db, {
       teamId: team.id,
-      files: [{ path: 'index.html', sha256: sha('7') }],
+      files: [{ path: 'index.html', sha256: fakeSha('7') }],
     })
     expect((await findSiteByLabel(t.db, seeded.label ?? ''))?.site.id).toBe(seeded.site.id)
   })

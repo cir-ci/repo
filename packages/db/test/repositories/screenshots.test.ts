@@ -5,7 +5,7 @@ import {
   seedFile,
   seedTeam,
   seedScreenshot,
-  sha,
+  fakeSha,
 } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -34,13 +34,13 @@ describe('screenshots', () => {
   it('lists a build’s screenshots and records a thumbnail', async () => {
     const build = await newBuild()
     const other = await newBuild()
-    const shot = await seedScreenshot(t.db, { buildId: build.id, fileSha256: sha('1') })
-    await seedScreenshot(t.db, { buildId: other.id, fileSha256: sha('2') })
-    await seedFile(t.db, { sha256: sha('3'), kind: 'thumbnail' })
+    const shot = await seedScreenshot(t.db, { buildId: build.id, fileSha256: fakeSha('1') })
+    await seedScreenshot(t.db, { buildId: other.id, fileSha256: fakeSha('2') })
+    await seedFile(t.db, { sha256: fakeSha('3'), kind: 'thumbnail' })
 
-    await setScreenshotThumbnail(t.db, shot.id, sha('3'))
+    await setScreenshotThumbnail(t.db, shot.id, fakeSha('3'))
     const listed = await listBuildScreenshots(t.db, build.id)
-    expect(listed.map((s) => [s.id, s.thumbnailSha256])).toEqual([[shot.id, sha('3')]])
+    expect(listed.map((s) => [s.id, s.thumbnailSha256])).toEqual([[shot.id, fakeSha('3')]])
   })
 })
 
@@ -65,13 +65,13 @@ describe('diffs', () => {
   it('updates the result fields of one diff', async () => {
     const build = await newBuild()
     const diff = await seedDiff(t.db, { buildId: build.id, status: 'unchanged' })
-    await seedFile(t.db, { sha256: sha('4'), kind: 'diff' })
+    await seedFile(t.db, { sha256: fakeSha('4'), kind: 'diff' })
     await updateDiff(t.db, diff.id, {
       status: 'changed',
       score: 0.25,
       changedPixels: 12,
       sizeChanged: true,
-      diffFileSha256: sha('4'),
+      diffFileSha256: fakeSha('4'),
     })
     const [row] = await listBuildDiffs(t.db, build.id)
     expect(row).toMatchObject({
@@ -79,7 +79,7 @@ describe('diffs', () => {
       score: 0.25,
       changedPixels: 12,
       sizeChanged: true,
-      diffFileSha256: sha('4'),
+      diffFileSha256: fakeSha('4'),
     })
   })
 })

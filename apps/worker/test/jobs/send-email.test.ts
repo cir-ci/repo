@@ -1,7 +1,14 @@
 import { createBuild, type Job, QUEUES, setNotificationPreferences } from '@circi/db'
 import { schema } from '@circi/db'
 import { notify } from '@circi/services'
-import { addTestMember, createTestDb, seedNotification, seedTeam, seedUser } from '@circi/testing'
+import {
+  addTestMember,
+  createTestDb,
+  fakeMailer,
+  seedNotification,
+  seedTeam,
+  seedUser,
+} from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -14,17 +21,6 @@ beforeAll(async () => {
 afterAll(async () => {
   await t.close()
 })
-
-/** The SMTP fake: remembers each mail instead of sending it. */
-function fakeMailer() {
-  const sent: { to: string; subject: string; text: string }[] = []
-  const mailer: sendNotificationEmail.Sender = {
-    async send(mail) {
-      sent.push(mail)
-    },
-  }
-  return { mailer, sent }
-}
 
 async function setup() {
   const { team, workspace, owner } = await seedTeam(t.db)
@@ -62,7 +58,8 @@ const jobFor = (notificationId: string): Job => ({
 describe('sendNotificationEmail', () => {
   it('mails the reviewer a link to the build', async () => {
     const { workspace, team, owner, reviewer, build, notification } = await setup()
-    const { mailer, sent } = fakeMailer()
+    const mailer = fakeMailer()
+    const { sent } = mailer
     const result = await sendNotificationEmail(
       { db: t.db, mailer, publicOrigin: 'https://ci.acme.io' },
       jobFor(notification.id),
@@ -87,7 +84,8 @@ describe('sendNotificationEmail', () => {
   it('skips a person who opted out, even after the job was queued', async () => {
     const { reviewer, notification } = await setup()
     await setNotificationPreferences(t.db, reviewer.id, { emailReviewRequested: false })
-    const { mailer, sent } = fakeMailer()
+    const mailer = fakeMailer()
+    const { sent } = mailer
     expect(await sendNotificationEmail({ db: t.db, mailer }, jobFor(notification.id))).toEqual({
       status: 'skipped',
       reason: 'opted out',
@@ -101,7 +99,8 @@ describe('sendNotificationEmail', () => {
       .update(schema.notifications)
       .set({ readAt: new Date() })
       .where(eq(schema.notifications.id, notification.id))
-    const { mailer, sent } = fakeMailer()
+    const mailer = fakeMailer()
+    const { sent } = mailer
     expect(
       (await sendNotificationEmail({ db: t.db, mailer }, jobFor(notification.id))).status,
     ).toBe('skipped')

@@ -14,7 +14,7 @@ import {
   seedNotification,
   seedTeam,
   seedUser,
-  sha,
+  fakeSha,
   seedChangedSnapshots,
 } from '@circi/testing'
 import { and, asc, eq } from 'drizzle-orm'
@@ -80,7 +80,7 @@ async function setup() {
 let n = 0
 async function upload(db: Database, teamId: string, branch: string) {
   n += 1
-  const hash = sha(n.toString(16).padStart(2, '0'))
+  const hash = fakeSha(n.toString(16).padStart(2, '0'))
   const build = await createBuild(db, {
     teamId,
     commitSha: `def${String(n).padStart(4, '0')}`,

@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -6,7 +5,7 @@ import { Readable } from 'node:stream'
 
 import { getFile } from '@circi/db'
 import { FsStorage } from '@circi/storage'
-import { createTestDb, seedFile } from '@circi/testing'
+import { createTestDb, seedFile, sha256 } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { createLoader, readAll, storeServerFile } from '#lib/files.ts'
@@ -25,7 +24,6 @@ afterAll(async () => {
   await rm(dir, { recursive: true, force: true })
 })
 
-const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex')
 const meta = { kind: 'thumbnail', contentType: 'image/png', width: 2, height: 3 } as const
 
 describe('readAll', () => {
@@ -41,7 +39,7 @@ describe('storeServerFile', () => {
   it('stores bytes under their hash and records a verified file row', async () => {
     const bytes = Buffer.from('thumbnail bytes')
     const hash = await storeServerFile(t.db, storage, bytes, meta)
-    expect(hash).toBe(sha(bytes))
+    expect(hash).toBe(sha256(bytes))
     expect(await getFile(t.db, hash)).toMatchObject({
       status: 'verified',
       kind: 'thumbnail',
@@ -60,7 +58,7 @@ describe('storeServerFile', () => {
     const bytes = Buffer.from('same bytes')
     await storeServerFile(t.db, storage, bytes, meta)
     const put = vi.spyOn(storage, 'put')
-    expect(await storeServerFile(t.db, storage, bytes, meta)).toBe(sha(bytes))
+    expect(await storeServerFile(t.db, storage, bytes, meta)).toBe(sha256(bytes))
     expect(put).not.toHaveBeenCalled()
     put.mockRestore()
   })

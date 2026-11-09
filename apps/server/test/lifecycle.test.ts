@@ -1,9 +1,12 @@
+import { resolve } from 'node:path'
+
 import { setupCode } from '@circi/auth'
 import { loadConfig } from '@circi/config'
 import { createTestDb, seedWorkspace } from '@circi/testing'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { serverOptionsFor, type ServerRuntime } from '#lifecycle/server-options.ts'
+import { webDistPath } from '#lifecycle/services.ts'
 import { createShutdown } from '#lifecycle/shutdown.ts'
 import { announceStartup } from '#lifecycle/startup.ts'
 
@@ -182,5 +185,24 @@ describe('serverOptionsFor', () => {
   it('passes old dashboard hosts for redirects', () => {
     const o = serverOptionsFor(runtimeWith({ PREVIOUS_PUBLIC_URLS: 'https://old.acme.io' }), '/web')
     expect(o.previousHosts).toEqual(['old.acme.io'])
+  })
+})
+
+describe('webDistPath', () => {
+  const saved = process.env.CIRCI_WEB_DIST
+  afterEach(() => {
+    if (saved === undefined) delete process.env.CIRCI_WEB_DIST
+    else process.env.CIRCI_WEB_DIST = saved
+  })
+
+  it('points at apps/web/dist, wherever this file sits in apps/server', () => {
+    delete process.env.CIRCI_WEB_DIST
+    // test → apps/server → apps → web/dist
+    expect(webDistPath()).toBe(resolve(import.meta.dirname, '../../web/dist'))
+  })
+
+  it('can be overridden with CIRCI_WEB_DIST', () => {
+    process.env.CIRCI_WEB_DIST = '/srv/web'
+    expect(webDistPath()).toBe('/srv/web')
   })
 })

@@ -1,5 +1,7 @@
 import { type Database, schema } from '@circi/db'
 
+import { nextCreatedAt } from '../created-at.ts'
+
 let n = 0
 
 /** A linked sign-in account (by default GitHub) of `userId`, as better-auth leaves it. */
@@ -15,8 +17,8 @@ export async function seedAccount(
       accountId: input.accountId,
       providerId: input.providerId ?? 'github',
       userId: input.userId,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: nextCreatedAt(),
+      updatedAt: nextCreatedAt(),
     })
     .returning()
   if (!row) throw new Error('seed insert returned no row')

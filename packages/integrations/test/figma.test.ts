@@ -8,7 +8,8 @@ import {
   linksSpec,
   mappingSpec,
 } from '#src/index.ts'
-import type { IntegrationDefinition } from '#src/index.ts'
+
+import { fakeFigma } from './support/fakes.ts'
 
 const figma = integrationRegistry.get('figma')
 const links = figma?.links
@@ -18,60 +19,6 @@ if (!figma || !links || !design || !target?.resolve) {
   throw new Error('figma is registered with links, a file mapping and a design capability')
 }
 const resolveFile = target.resolve.bind(target)
-
-/** Figma's HTTP edge: one token, one file with a page and two frames, comments kept. */
-function fakeFigma(options: { down?: boolean } = {}) {
-  const comments: unknown[] = []
-  const fetcher: typeof fetch = async (input, init) => {
-    const req = new Request(input, init)
-    const url = new URL(req.url)
-    if (options.down) return new Response('boom', { status: 500 })
-    if (req.headers.get('x-figma-token') !== 'figd_good') {
-      return Response.json({ err: 'Invalid token' }, { status: 403 })
-    }
-    if (url.pathname === '/v1/me') return Response.json({ id: 'fu-1', handle: 'michael' })
-    if (url.pathname.startsWith('/v1/images/')) {
-      return Response.json({ images: { '1:2': 'https://img.test/cart.png' } })
-    }
-    if (url.pathname.endsWith('/comments')) {
-      comments.push(await req.json())
-      return Response.json({ id: 'c1' })
-    }
-    if (!url.pathname.startsWith('/v1/files/FileKey12345')) {
-      return Response.json({ err: 'Not found' }, { status: 404 })
-    }
-    if (url.pathname.endsWith('/nodes')) {
-      const ids = (url.searchParams.get('ids') ?? '').split(',')
-      const nodes = {
-        '0:1': {
-          document: {
-            id: '0:1',
-            name: 'Pages',
-            children: [
-              { id: '1:1', name: 'Home', type: 'FRAME' },
-              { id: '1:2', name: 'Cart', type: 'FRAME' },
-            ],
-          },
-        },
-        '1:2': { document: { id: '1:2', name: 'Cart', type: 'FRAME', children: [] } },
-      }
-      return Response.json({
-        nodes: Object.fromEntries(ids.map((id) => [id, Reflect.get(nodes, id) ?? null])),
-      })
-    }
-    return Response.json({
-      name: 'Checkout v3',
-      document: { id: '0:0', name: 'Document', children: [{ id: '0:1', name: 'Pages' }] },
-    })
-  }
-  const ctx: IntegrationDefinition.Context = {
-    authSecret: 'a-long-instance-secret-for-tests-0123456789',
-    publicOrigin: 'https://ci.acme.io',
-    config: {},
-    fetch: fetcher,
-  }
-  return { ctx, comments }
-}
 
 const FILE_URL = 'https://www.figma.com/design/FileKey12345/Checkout?node-id=1-2'
 

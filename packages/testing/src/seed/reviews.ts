@@ -1,5 +1,7 @@
 import { type Database, type ReviewRequest, schema } from '@circi/db'
 
+import { nextCreatedAt } from '../created-at.ts'
+
 export namespace seedReviewRequest {
   export interface Input {
     buildId: string
@@ -34,7 +36,7 @@ export async function seedReviewRequest(
       snoozedUntil: input.snoozedUntil ?? null,
       snoozeKind: input.snoozeKind ?? null,
       closedAt: input.closedAt ?? null,
-      ...(input.createdAt ? { createdAt: input.createdAt } : {}),
+      createdAt: input.createdAt ?? nextCreatedAt(),
     })
     .returning()
   if (!row) throw new Error('seed insert returned no row')
@@ -62,7 +64,7 @@ export async function seedReview(
       state: input.state ?? 'approved',
       source: input.source ?? (input.userId === null ? 'auto' : 'ui'),
       reason: input.reason ?? null,
-      ...(input.createdAt ? { createdAt: input.createdAt } : {}),
+      createdAt: input.createdAt ?? nextCreatedAt(),
     })
     .returning()
   if (!row) throw new Error('seed insert returned no row')

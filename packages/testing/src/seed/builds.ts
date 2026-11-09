@@ -1,6 +1,8 @@
 import { type Build, createBuild, type Database, schema } from '@circi/db'
 import { eq } from 'drizzle-orm'
 
+import { nextCreatedAt } from '../created-at.ts'
+
 let n = 0
 
 export namespace seedBuild {
@@ -47,7 +49,7 @@ export async function seedBuild(
     ...(conclusion ? { conclusion } : {}),
     ...(reviewStatus ? { reviewStatus } : {}),
     ...(completedAt ? { completedAt } : {}),
-    ...(createdAt ? { createdAt } : {}),
+    createdAt: createdAt ?? nextCreatedAt(),
   }
   if (conclusion === 'changes_detected') {
     await seedChangedSnapshots(db, build.id, changedSnapshots ?? [])

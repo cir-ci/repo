@@ -1,4 +1,4 @@
-import { createTestDb, seedTeam, sha } from '@circi/testing'
+import { createTestDb, seedTeam, fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -75,24 +75,24 @@ describe('finalizeShard', () => {
     await planUploads(t.db, {
       buildId: build.id,
       kind: 'screenshot',
-      files: [png(sha('5'))],
+      files: [png(fakeSha('5'))],
       storageKeyFor: keyFor,
     })
     const res = await finalizeShard(t.db, {
       buildId: build.id,
-      screenshots: [{ name: 'home', sha256: sha('5') }],
+      screenshots: [{ name: 'home', sha256: fakeSha('5') }],
     })
-    expect(res).toEqual({ status: 'missing', missing: [sha('5')] })
+    expect(res).toEqual({ status: 'missing', missing: [fakeSha('5')] })
   })
 
   it('moves a single-shard build to processing, and hands the build back', async () => {
     const { build } = await newBuild()
-    await uploaded(build.id, [sha('6'), sha('7')])
+    await uploaded(build.id, [fakeSha('6'), fakeSha('7')])
     const res = await finalizeShard(t.db, {
       buildId: build.id,
       screenshots: [
-        { name: 'home', sha256: sha('6') },
-        { name: 'login', sha256: sha('7'), metadata: { browser: 'chromium' } },
+        { name: 'home', sha256: fakeSha('6') },
+        { name: 'login', sha256: fakeSha('7'), metadata: { browser: 'chromium' } },
       ],
     })
     expect(res).toMatchObject({
@@ -120,23 +120,23 @@ describe('finalizeShard', () => {
 
   it('waits for every shard, and a retried shard replaces its screenshots', async () => {
     const { build } = await newBuild({ parallel: { nonce: 'n1', total: 2 } })
-    await uploaded(build.id, [sha('8'), sha('9'), sha('a')])
+    await uploaded(build.id, [fakeSha('8'), fakeSha('9'), fakeSha('a')])
     const first = await finalizeShard(t.db, {
       buildId: build.id,
       shardIndex: '0',
-      screenshots: [{ name: 'a', sha256: sha('8') }],
+      screenshots: [{ name: 'a', sha256: fakeSha('8') }],
     })
     expect(first).toMatchObject({ complete: false, shardsReceived: 1, shardsTotal: 2 })
     const retry = await finalizeShard(t.db, {
       buildId: build.id,
       shardIndex: '0',
-      screenshots: [{ name: 'a2', sha256: sha('9') }],
+      screenshots: [{ name: 'a2', sha256: fakeSha('9') }],
     })
     expect(retry).toMatchObject({ complete: false, shardsReceived: 1 })
     const last = await finalizeShard(t.db, {
       buildId: build.id,
       shardIndex: '1',
-      screenshots: [{ name: 'b', sha256: sha('a') }],
+      screenshots: [{ name: 'b', sha256: fakeSha('a') }],
     })
     expect(last).toMatchObject({ complete: true, shardsReceived: 2 })
     const shots = await t.db
@@ -148,13 +148,13 @@ describe('finalizeShard', () => {
 
   it('rejects duplicate names within a shard', async () => {
     const { build } = await newBuild()
-    await uploaded(build.id, [sha('b')])
+    await uploaded(build.id, [fakeSha('b')])
     await expect(
       finalizeShard(t.db, {
         buildId: build.id,
         screenshots: [
-          { name: 'x', sha256: sha('b') },
-          { name: 'x', sha256: sha('b') },
+          { name: 'x', sha256: fakeSha('b') },
+          { name: 'x', sha256: fakeSha('b') },
         ],
       }),
     ).rejects.toThrow(/Duplicate screenshot name/)

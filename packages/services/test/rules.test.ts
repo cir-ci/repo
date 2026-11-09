@@ -6,7 +6,7 @@ import {
   schema,
   setTriageRotation,
 } from '@circi/db'
-import { addTestMember, createTestDb, seedTeam, seedUser, sha } from '@circi/testing'
+import { addTestMember, createTestDb, seedTeam, seedUser, fakeSha } from '@circi/testing'
 import { asc, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -51,7 +51,7 @@ async function upload(
   } = {},
 ) {
   n += 1
-  const hash = sha(n.toString(16).padStart(2, '0'))
+  const hash = fakeSha(n.toString(16).padStart(2, '0'))
   const build =
     options.build ??
     (await createBuild(t.db, {

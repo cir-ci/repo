@@ -5,7 +5,7 @@ import {
   seedTeam,
   seedReviewRequest,
   seedUser,
-  sha,
+  fakeSha,
   seedChangedSnapshots,
 } from '@circi/testing'
 import { asc, eq } from 'drizzle-orm'
@@ -253,8 +253,8 @@ describe('requestReviews', () => {
 describe('a newer build on the branch', () => {
   it('supersedes the open requests of older builds on that branch, and only those', async () => {
     const { team, owner, teammate } = await setup()
-    const older = await pushBuild(team.id, 'feature', 'a000001', sha('1'))
-    const sameCommitOtherBranch = await pushBuild(team.id, 'other', 'a000002', sha('2'))
+    const older = await pushBuild(team.id, 'feature', 'a000001', fakeSha('1'))
+    const sameCommitOtherBranch = await pushBuild(team.id, 'other', 'a000002', fakeSha('2'))
     await Promise.all(
       [older, sameCommitOtherBranch].map(async (b) => {
         await t.db
@@ -275,7 +275,7 @@ describe('a newer build on the branch', () => {
       state: 'done',
     })
 
-    const newer = await pushBuild(team.id, 'feature', 'a000003', sha('3'))
+    const newer = await pushBuild(team.id, 'feature', 'a000003', fakeSha('3'))
 
     expect((await requestsOf(older.id)).map((r) => r.state).toSorted()).toEqual([
       'done',
@@ -305,14 +305,14 @@ describe('a newer build on the branch', () => {
     await planUploads(t.db, {
       buildId: waiting.id,
       kind: 'screenshot',
-      files: [{ sha256: sha('4'), size: 10, contentType: 'image/png' }],
+      files: [{ sha256: fakeSha('4'), size: 10, contentType: 'image/png' }],
       storageKeyFor: (s) => `files/${s}`,
     })
-    await markFileVerified(t.db, sha('4'), { size: 10 })
+    await markFileVerified(t.db, fakeSha('4'), { size: 10 })
     await finalizeBuild(t.db, {
       buildId: waiting.id,
       shardIndex: '0',
-      screenshots: [{ name: 'home', sha256: sha('4') }],
+      screenshots: [{ name: 'home', sha256: fakeSha('4') }],
     })
     expect((await requestsOf(build.id)).map((r) => r.state)).toEqual(['open'])
   })

@@ -121,7 +121,7 @@ export async function runServices(options: runServices.Options): Promise<void> {
 /**
  * apps/web/dist, found from src/lifecycle/ (two folders below apps/server) in development. The
  * server bundle is one file elsewhere, so the image points `CIRCI_WEB_DIST` at the copy it ships
- * (deploy/Dockerfile). Moving this file means changing the path; `test/lifecycle/web-dist.test.ts`
+ * (deploy/Dockerfile). Moving this file means changing the path; `test/lifecycle.test.ts`
  * pins the result.
  */
 export function webDistPath(): string {

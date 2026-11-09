@@ -11,6 +11,7 @@ import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
+import { caller } from '#test/support/client.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
 
 let t: createTestDb.Result
@@ -62,13 +63,7 @@ afterAll(async () => {
   await rm(dir, { recursive: true, force: true })
 })
 
-const call = (method: 'GET' | 'POST' | 'DELETE', url: string, cookie: string, payload?: unknown) =>
-  app.inject({
-    method,
-    url,
-    headers: { ...(payload === undefined ? {} : json), cookie, origin: ORIGIN },
-    ...(payload === undefined ? {} : { payload: JSON.stringify(payload) }),
-  })
+const call = caller(() => app)
 
 async function codeSignIn(email: string): Promise<{ status: number; cookie: string }> {
   sent.length = 0

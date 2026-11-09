@@ -6,7 +6,7 @@ import {
   seedSite,
   seedTeam,
   seedWorkspace,
-  sha,
+  fakeSha,
 } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -50,32 +50,47 @@ describe('getWorkspaceStorage', () => {
     await seedScreenshot(t.db, {
       buildId: b1.id,
       name: 'home',
-      fileSha256: sha('a'),
+      fileSha256: fakeSha('a'),
       size: 100,
-      thumbnailSha256: sha('b'),
+      thumbnailSha256: fakeSha('b'),
       thumbnailSize: 10,
     })
-    await seedScreenshot(t.db, { buildId: b2.id, name: 'home', fileSha256: sha('a'), size: 100 })
-    await seedScreenshot(t.db, { buildId: b2.id, name: 'about', fileSha256: sha('c'), size: 200 })
+    await seedScreenshot(t.db, {
+      buildId: b2.id,
+      name: 'home',
+      fileSha256: fakeSha('a'),
+      size: 100,
+    })
+    await seedScreenshot(t.db, {
+      buildId: b2.id,
+      name: 'about',
+      fileSha256: fakeSha('c'),
+      size: 200,
+    })
     await seedDiff(t.db, {
       buildId: b2.id,
       name: 'home',
-      diffFileSha256: sha('d'),
+      diffFileSha256: fakeSha('d'),
       diffFileSize: 50,
     })
     // docs: the same screenshot file as web (shared bytes) and a hosted site of 30 + 70 B.
     const b3 = await seedBuild(t.db, docs.team.id)
-    await seedScreenshot(t.db, { buildId: b3.id, name: 'home', fileSha256: sha('a'), size: 100 })
+    await seedScreenshot(t.db, {
+      buildId: b3.id,
+      name: 'home',
+      fileSha256: fakeSha('a'),
+      size: 100,
+    })
     await seedSite(t.db, {
       teamId: docs.team.id,
       files: [
-        { path: 'index.html', sha256: sha('e'), size: 30 },
-        { path: 'app.js', sha256: sha('f'), size: 70 },
+        { path: 'index.html', sha256: fakeSha('e'), size: 30 },
+        { path: 'app.js', sha256: fakeSha('f'), size: 70 },
       ],
     })
     // Another workspace's files never show up here.
     const b4 = await seedBuild(t.db, elsewhere.team.id)
-    await seedScreenshot(t.db, { buildId: b4.id, name: 'x', fileSha256: sha('9'), size: 999 })
+    await seedScreenshot(t.db, { buildId: b4.id, name: 'x', fileSha256: fakeSha('9'), size: 999 })
 
     const usage = await getWorkspaceStorage(t.db, workspace.id)
     expect(usage.kinds).toEqual([

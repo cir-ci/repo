@@ -8,7 +8,7 @@ import {
   schema,
   workspaceAcceptsSession,
 } from '@circi/db'
-import { addTestMember, createTestDb, seedTeam, seedUser, sha } from '@circi/testing'
+import { addTestMember, createTestDb, seedTeam, seedUser, fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -42,7 +42,7 @@ async function setup() {
   const member = await seedUser(t.db)
   await addTestMember(t.db, { workspaceId: seeded.workspace.id, userId: admin.id, role: 'admin' })
   await addTestMember(t.db, { workspaceId: seeded.workspace.id, userId: member.id })
-  const hash = sha(counter.toString(16).padStart(2, '0'))
+  const hash = fakeSha(counter.toString(16).padStart(2, '0'))
   const build = await createBuild(t.db, {
     teamId: seeded.team.id,
     commitSha: `abc${counter.toString().padStart(4, '0')}0`,

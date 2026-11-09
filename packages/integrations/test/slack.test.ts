@@ -12,48 +12,10 @@ import {
 } from '#src/index.ts'
 import type { IntegrationDefinition } from '#src/index.ts'
 
+import { fakeSlack } from './support/fakes.ts'
+
 const slack = integrationRegistry.get('slack')
 if (!slack) throw new Error('slack is registered')
-
-/** Slack's HTTP edge: records posts, answers the OAuth exchange and the channel list. */
-function fakeSlack() {
-  const posts: Record<string, unknown>[] = []
-  const fetcher: typeof fetch = async (input, init) => {
-    const req = new Request(input, init)
-    const method = new URL(req.url).pathname.split('/').at(-1)
-    const text = await req.text()
-    if (method === 'oauth.v2.access') {
-      return new URLSearchParams(text).get('code') === 'good'
-        ? Response.json({
-            ok: true,
-            access_token: 'xoxb-1',
-            team: { id: 'T1', name: 'Acme' },
-          })
-        : Response.json({ ok: false, error: 'invalid_code' })
-    }
-    if (method === 'chat.postMessage') {
-      posts.push(JSON.parse(text))
-      return Response.json({ ok: true, ts: '1.0' })
-    }
-    if (method === 'conversations.list') {
-      return Response.json({
-        ok: true,
-        channels: [
-          { id: 'C2', name: 'zeta', is_private: false },
-          { id: 'G1', name: 'alpha', is_private: true },
-        ],
-      })
-    }
-    return new Response('boom', { status: 500 })
-  }
-  const ctx: IntegrationDefinition.Context = {
-    authSecret: 'a-long-instance-secret-for-tests-0123456789',
-    publicOrigin: 'https://ci.acme.io',
-    config: { slack: { clientId: 'cid', clientSecret: 'cs', apiUrl: 'https://slack.test/api' } },
-    fetch: fetcher,
-  }
-  return { posts, ctx }
-}
 
 const build = { teamName: 'Web', number: 7, branch: 'main', url: 'https://ci.acme.io/b' }
 const message = (

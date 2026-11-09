@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -6,12 +5,11 @@ import { join } from 'node:path'
 import { schema } from '@circi/db'
 import { reviewBuild } from '@circi/services'
 import { FsStorage } from '@circi/storage'
-import { createTestDb } from '@circi/testing'
+import { createTestDb, sha256, pngBytes } from '@circi/testing'
 import { processBuild } from '@circi/worker'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
-import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
@@ -28,7 +26,6 @@ let dir: string
 let storage: FsStorage
 let app: FastifyInstance
 let tenant: Tenant
-const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex')
 const auth = () => ({ authorization: `Bearer ${tenant.token}` })
 
 beforeAll(async () => {
@@ -50,10 +47,7 @@ afterAll(async () => {
   await rm(dir, { recursive: true, force: true })
 })
 
-const png = (color: string) =>
-  sharp({ create: { width: 40, height: 30, channels: 4, background: color } })
-    .png()
-    .toBuffer()
+const png = (color: string) => pngBytes({ width: 40, height: 30, color })
 
 const commitOf = (n: number) => n.toString(16).padStart(7, '0')
 
@@ -86,7 +80,7 @@ async function argosUpload(options: {
   parents?: string[]
   extra?: Record<string, unknown>
 }) {
-  const keys = Object.fromEntries(Object.entries(options.shots).map(([n, b]) => [n, sha(b)]))
+  const keys = Object.fromEntries(Object.entries(options.shots).map(([n, b]) => [n, sha256(b)]))
   const { res, json } = await createArgosBuild({
     commit: options.commit,
     branch: options.branch,
@@ -100,7 +94,7 @@ async function argosUpload(options: {
     json.screenshots.map(
       async (target: { key: string; postUrl: string; fields: Record<string, string> }) => {
         const bytes =
-          Object.values(options.shots).find((b) => sha(b) === target.key) ?? Buffer.alloc(0)
+          Object.values(options.shots).find((b) => sha256(b) === target.key) ?? Buffer.alloc(0)
         return (await uploadTo(target, bytes)).statusCode
       },
     ),
@@ -129,7 +123,7 @@ const shard = async (index: number, bytes: Buffer, name: string) => {
     branch: 'main',
     parallel: true,
     parallelNonce: 'ci-run-1',
-    screenshots: [{ key: sha(bytes), contentType: 'image/png' }],
+    screenshots: [{ key: sha256(bytes), contentType: 'image/png' }],
   })
   await Promise.all(
     json.screenshots.map(
@@ -142,7 +136,7 @@ const shard = async (index: number, bytes: Buffer, name: string) => {
     url: `/v2/builds/${json.build.id}`,
     headers: auth(),
     payload: {
-      screenshots: [{ key: sha(bytes), name }],
+      screenshots: [{ key: sha256(bytes), name }],
       parallel: true,
       parallelTotal: 2,
       parallelIndex: index,
@@ -227,7 +221,7 @@ describe('Argos-compatible API', () => {
     const second = await createArgosBuild({
       commit: commitOf(0xb02),
       branch: 'main',
-      screenshots: [{ key: sha(shared), contentType: 'image/png' }],
+      screenshots: [{ key: sha256(shared), contentType: 'image/png' }],
     })
     expect(second.json.screenshots).toEqual([])
   })
@@ -237,12 +231,12 @@ describe('Argos-compatible API', () => {
     const { json } = await createArgosBuild({
       commit: commitOf(0xc01),
       branch: 'main',
-      screenshots: [x, y].map((b) => ({ key: sha(b), contentType: 'image/png' })),
+      screenshots: [x, y].map((b) => ({ key: sha256(b), contentType: 'image/png' })),
     })
     await Promise.all(
       json.screenshots.map(
         (target: { key: string; postUrl: string; fields: Record<string, string> }) =>
-          uploadTo(target, target.key === sha(x) ? x : y),
+          uploadTo(target, target.key === sha256(x) ? x : y),
       ),
     )
     const put = (shots: unknown[], final: boolean) =>
@@ -252,8 +246,12 @@ describe('Argos-compatible API', () => {
         headers: auth(),
         payload: { screenshots: shots, final },
       })
-    expect((await put([{ key: sha(x), name: 'one' }], false)).json().build.status).toBe('uploading')
-    expect((await put([{ key: sha(y), name: 'two' }], true)).json().build.status).toBe('processing')
+    expect((await put([{ key: sha256(x), name: 'one' }], false)).json().build.status).toBe(
+      'uploading',
+    )
+    expect((await put([{ key: sha256(y), name: 'two' }], true)).json().build.status).toBe(
+      'processing',
+    )
     const names = await t.db
       .select()
       .from(schema.screenshots)
@@ -299,13 +297,13 @@ describe('Argos-compatible API', () => {
     const real = await png('#555555')
     const { json } = await createArgosBuild({
       commit: commitOf(0xf01),
-      screenshots: [{ key: sha(real), contentType: 'image/png' }],
+      screenshots: [{ key: sha256(real), contentType: 'image/png' }],
     })
     const [target] = json.screenshots
     expect((await uploadTo(target, await png('#666666'))).statusCode).toBe(422)
     const other = await createArgosBuild({ commit: commitOf(0xf02), screenshots: [] })
     const stranger = {
-      postUrl: `${ORIGIN}/v2/uploads/${other.json.build.id}/${sha(real)}`,
+      postUrl: `${ORIGIN}/v2/uploads/${other.json.build.id}/${sha256(real)}`,
       fields: {},
     }
     expect((await uploadTo(stranger, real)).statusCode).toBe(404)

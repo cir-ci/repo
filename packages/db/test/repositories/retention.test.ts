@@ -5,7 +5,7 @@ import {
   seedTeam,
   seedScreenshot,
   seedSite,
-  sha,
+  fakeSha,
 } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -51,7 +51,7 @@ describe('expireBuilds', () => {
       status: 'complete',
       createdAt: daysAgo(40),
     })
-    await seedScreenshot(t.db, { buildId: old.id, fileSha256: sha('a') })
+    await seedScreenshot(t.db, { buildId: old.id, fileSha256: fakeSha('a') })
     const young = await seedBuild(t.db, team.id, { status: 'complete', createdAt: daysAgo(5) })
     const running = await seedBuild(t.db, team.id, { createdAt: daysAgo(40) })
 
@@ -129,9 +129,9 @@ describe('garbage collection of files', () => {
   it('marks unreferenced files, un-marks revived ones, and collects after the grace period', async () => {
     const team = await teamWithRetention(30)
     const build = await seedBuild(t.db, team.id)
-    await seedFile(t.db, { sha256: sha('1') })
-    await seedFile(t.db, { sha256: sha('2') })
-    await seedScreenshot(t.db, { buildId: build.id, fileSha256: sha('3') })
+    await seedFile(t.db, { sha256: fakeSha('1') })
+    await seedFile(t.db, { sha256: fakeSha('2') })
+    await seedScreenshot(t.db, { buildId: build.id, fileSha256: fakeSha('3') })
 
     const marked = await markUnreferencedFiles(t.db, daysAgo(3))
     expect(marked).toBeGreaterThanOrEqual(2)
@@ -140,14 +140,14 @@ describe('garbage collection of files', () => {
         await t.db
           .select()
           .from(schema.files)
-          .where(eq(schema.files.sha256, sha(h)))
+          .where(eq(schema.files.sha256, fakeSha(h)))
       )[0]?.gcMarkedAt
     expect(await gc('1')).toEqual(daysAgo(3))
     expect(await gc('3')).toBeNull()
     expect(await markUnreferencedFiles(t.db, now)).toBe(0) // already marked
 
     // File 2 gets referenced again before collection.
-    await t.db.insert(schema.uploadClaims).values({ buildId: build.id, fileSha256: sha('2') })
+    await t.db.insert(schema.uploadClaims).values({ buildId: build.id, fileSha256: fakeSha('2') })
     expect(await unmarkReferencedFiles(t.db)).toBeGreaterThanOrEqual(1)
     expect(await gc('2')).toBeNull()
 
@@ -161,13 +161,13 @@ describe('garbage collection of files', () => {
       },
     })
     expect(result.deleted).toBeGreaterThanOrEqual(1)
-    expect(deleted).toContain(`k/${sha('1')}`)
-    expect(deleted).not.toContain(`k/${sha('2')}`)
+    expect(deleted).toContain(`k/${fakeSha('1')}`)
+    expect(deleted).not.toContain(`k/${fakeSha('2')}`)
     expect(await gc('1')).toBeUndefined() // row gone
   })
 
   it('leaves files marked inside the grace period alone', async () => {
-    await seedFile(t.db, { sha256: sha('9') })
+    await seedFile(t.db, { sha256: fakeSha('9') })
     await markUnreferencedFiles(t.db, now)
     const result = await collectMarkedFiles(t.db, {
       now,
@@ -182,9 +182,9 @@ describe('storageUsage', () => {
   it('sums verified files by kind and counts those waiting for collection', async () => {
     const fresh = await createTestDb()
     try {
-      await seedFile(fresh.db, { sha256: sha('a'), kind: 'screenshot' })
-      await seedFile(fresh.db, { sha256: sha('b'), kind: 'screenshot' })
-      await seedFile(fresh.db, { sha256: sha('c'), kind: 'diff' })
+      await seedFile(fresh.db, { sha256: fakeSha('a'), kind: 'screenshot' })
+      await seedFile(fresh.db, { sha256: fakeSha('b'), kind: 'screenshot' })
+      await seedFile(fresh.db, { sha256: fakeSha('c'), kind: 'diff' })
       await markUnreferencedFiles(fresh.db, now)
       const usage = await storageUsage(fresh.db)
       expect(usage.files.toSorted((x, y) => x.kind.localeCompare(y.kind))).toEqual([
@@ -203,10 +203,10 @@ describe('previewCollection', () => {
   it('reports what a collection would delete, and changes nothing', async () => {
     const team = await teamWithRetention(30)
     const build = await seedBuild(t.db, team.id, { branch: 'main' })
-    const used = sha('f1')
-    const due = sha('f2')
-    const recent = sha('f3')
-    const fresh = sha('f4')
+    const used = fakeSha('f1')
+    const due = fakeSha('f2')
+    const recent = fakeSha('f3')
+    const fresh = fakeSha('f4')
     await seedScreenshot(t.db, { buildId: build.id, fileSha256: used })
     await Promise.all([due, recent, fresh].map((s) => seedFile(t.db, { sha256: s })))
     await t.db

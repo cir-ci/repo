@@ -1,8 +1,9 @@
 import { addMember, createUser } from '@circi/auth'
 import { afterAll, describe, expect, it } from 'vitest'
 
+import { sender } from '#test/support/client.ts'
 import { startDashboard } from '#test/support/dashboard-fixture.ts'
-import { ORIGIN, signIn } from '#test/support/helpers.ts'
+import { signIn } from '#test/support/helpers.ts'
 
 const fx = await startDashboard()
 const { app, auth, db, acme, rival, acmeCookie, rivalCookie, get } = fx
@@ -18,21 +19,7 @@ const louCookie = await signIn(app, lou.email, 'lou-password-long-1')
 
 const base = (workspace = acme.workspaceSlug, build = 2) =>
   `/api/teams/${workspace}/web/builds/${build}`
-const send = (
-  method: 'POST' | 'PATCH' | 'DELETE',
-  url: string,
-  options: { cookie?: string; payload?: unknown; origin?: string | null } = {},
-) =>
-  app.inject({
-    method,
-    url,
-    headers: {
-      ...(method === 'DELETE' ? {} : { 'content-type': 'application/json' }),
-      ...(options.cookie === '' ? {} : { cookie: options.cookie ?? acmeCookie }),
-      ...(options.origin === null ? {} : { origin: options.origin ?? ORIGIN }),
-    },
-    ...(method === 'DELETE' ? {} : { payload: options.payload ?? {} }),
-  })
+const send = sender(() => app, acmeCookie)
 const comments = async (cookie = acmeCookie) => (await get(`${base()}/comments`, cookie)).json()
 
 const bad = (payload: unknown) => send('POST', `${base()}/comments`, { payload })

@@ -1,11 +1,10 @@
-import { createHash } from 'node:crypto'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { schema } from '@circi/db'
 import { FsStorage } from '@circi/storage'
-import { createTestDb, seedFile } from '@circi/testing'
+import { createTestDb, seedFile, sha256 } from '@circi/testing'
 import { Command } from 'commander'
 import { eq } from 'drizzle-orm'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -33,7 +32,6 @@ vi.mock('#lifecycle/runtime.ts', async (importOriginal) => {
   }
 })
 
-const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex')
 const bytes = Buffer.from('a')
 
 let t: createTestDb.Result
@@ -50,8 +48,8 @@ beforeAll(async () => {
   vi.stubEnv('BETTER_AUTH_SECRET', 'test-secret-that-is-long-enough-123')
   vi.stubEnv('PUBLIC_URL', 'https://ci.acme.io')
   vi.stubEnv('STORAGE_PATH', join(dir, 'files'))
-  await storage.put(`k/${sha(bytes)}`, bytes)
-  await seedFile(t.db, { sha256: sha(bytes) })
+  await storage.put(`k/${sha256(bytes)}`, bytes)
+  await seedFile(t.db, { sha256: sha256(bytes) })
 })
 afterAll(async () => {
   vi.unstubAllEnvs()
@@ -99,7 +97,7 @@ describe('circi admin storage', () => {
     const target = join(dir, 'target')
     const lines = await run('migrate', '--to', 'fs', '--path', target)
     expect(lines[0]).toBe('Copied 1, already there 0, missing at the source 0, failed 0.')
-    expect(await readFile(join(target, 'k', sha(bytes)))).toEqual(bytes)
+    expect(await readFile(join(target, 'k', sha256(bytes)))).toEqual(bytes)
     expect(process.exitCode).toBeUndefined()
     // Run again: it resumes, copying nothing.
     const again = await run('migrate', '--to', 'fs', '--path', target)
@@ -113,13 +111,13 @@ describe('circi admin storage', () => {
 
   it('gc --dry-run lists what would be deleted and changes nothing', async () => {
     const old = Buffer.from('unused-and-old')
-    const oldKey = `k/${sha(old)}`
-    await seedFile(t.db, { sha256: sha(old) })
+    const oldKey = `k/${sha256(old)}`
+    await seedFile(t.db, { sha256: sha256(old) })
     await storage.put(oldKey, old)
     await t.db
       .update(schema.files)
       .set({ gcMarkedAt: new Date(Date.now() - 48 * 3600_000) })
-      .where(eq(schema.files.sha256, sha(old)))
+      .where(eq(schema.files.sha256, sha256(old)))
     const before = await t.db.select().from(schema.files)
 
     const lines = await run('gc', '--grace-hours', '24', '--dry-run')
@@ -131,7 +129,7 @@ describe('circi admin storage', () => {
     expect(await t.db.select().from(schema.files)).toEqual(before)
     expect(await storage.head(oldKey)).not.toBeNull()
     await storage.delete(oldKey)
-    await t.db.delete(schema.files).where(eq(schema.files.sha256, sha(old)))
+    await t.db.delete(schema.files).where(eq(schema.files.sha256, sha256(old)))
   })
 
   it('gc runs retention and prints the result as JSON', async () => {

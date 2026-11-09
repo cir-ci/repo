@@ -14,6 +14,7 @@ import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
+import { clientFor, JSON_HEADERS } from '#test/support/client.ts'
 import { createTestAuth, ORIGIN, signIn } from '#test/support/helpers.ts'
 
 /** "Email a sign-in code" when an admin creates an account. SMTP is a fake mailer. */
@@ -33,7 +34,6 @@ const env = {
   SMTP_FROM: 'CirCI <ci@acme.test>',
 }
 const admin = { email: 'root@acme.test', password: 'root-password-long-1' }
-const json = { origin: ORIGIN, 'content-type': 'application/json' }
 
 beforeAll(async () => {
   t = await createTestDb()
@@ -69,14 +69,6 @@ afterAll(async () => {
   await rm(dir, { recursive: true, force: true })
 })
 
-const post = (app: FastifyInstance, url: string, cookie: string, body: unknown) =>
-  app.inject({
-    method: 'POST',
-    url,
-    headers: { ...json, cookie },
-    payload: JSON.stringify(body),
-  })
-
 const caps = async (app: FastifyInstance, cookie: string) =>
   (
     await app.inject({ url: '/api/capabilities', headers: { cookie } })
@@ -90,7 +82,7 @@ describe('creating an account that signs in with an emailed code', () => {
 
   it('creates the account without a password, mails the code, and the code signs the person in', async () => {
     sent.length = 0
-    const res = await post(withMail, '/api/instance/accounts', adminCookie, {
+    const res = await clientFor(withMail, adminCookie).send('POST', '/api/instance/accounts', {
       email: 'newcomer@acme.test',
       name: 'Newcomer',
       signInCode: true,
@@ -121,7 +113,7 @@ describe('creating an account that signs in with an emailed code', () => {
     const signedIn = await withMail.inject({
       method: 'POST',
       url: '/api/auth/sign-in/email-otp',
-      headers: json,
+      headers: JSON_HEADERS,
       payload: { email: 'newcomer@acme.test', otp },
     })
     expect(signedIn.statusCode).toBe(200)
@@ -136,20 +128,24 @@ describe('creating an account that signs in with an emailed code', () => {
     const again = await withMail.inject({
       method: 'POST',
       url: '/api/auth/sign-in/email-otp',
-      headers: json,
+      headers: JSON_HEADERS,
       payload: { email: 'newcomer@acme.test', otp },
     })
     expect(again.statusCode).toBeGreaterThanOrEqual(400)
   })
 
   it('is refused without mail, and not together with a password', async () => {
-    const refused = await post(noMail, '/api/instance/accounts', noMailAdminCookie, {
-      email: 'nomail@acme.test',
-      name: 'No Mail',
-      signInCode: true,
-    })
+    const refused = await clientFor(noMail, noMailAdminCookie).send(
+      'POST',
+      '/api/instance/accounts',
+      {
+        email: 'nomail@acme.test',
+        name: 'No Mail',
+        signInCode: true,
+      },
+    )
     expect(refused.statusCode).toBe(409)
-    const both = await post(withMail, '/api/instance/accounts', adminCookie, {
+    const both = await clientFor(withMail, adminCookie).send('POST', '/api/instance/accounts', {
       email: 'both@acme.test',
       name: 'Both',
       signInCode: true,
@@ -159,7 +155,7 @@ describe('creating an account that signs in with an emailed code', () => {
   })
 
   it('leaves the password path as it was', async () => {
-    const res = await post(withMail, '/api/instance/accounts', adminCookie, {
+    const res = await clientFor(withMail, adminCookie).send('POST', '/api/instance/accounts', {
       email: 'pw@acme.test',
       name: 'Password',
     })

@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import { addMember as addWorkspaceMember, createUser } from '@circi/auth'
 import { createBuild, markFileVerified, planUploads } from '@circi/db'
 import { finalizeBuild, reviewBuild } from '@circi/services'
 import { contentKey, FsStorage } from '@circi/storage'
@@ -13,6 +14,7 @@ import sharp from 'sharp'
 
 import { buildServer } from '#http/app.ts'
 
+import { clientFor, signedInClient, type Client } from './client.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from './helpers.ts'
 
 const logger = pino({ level: 'silent' })
@@ -129,9 +131,32 @@ export async function startDashboard() {
       payload: { state },
     })
 
+  let people = 0
+  /**
+   * A new signed-in account for Acme's workspace: `member`, `admin` or `owner` joins it with that
+   * role; `outsider` belongs to no workspace at all.
+   */
+  async function addMember(role: 'owner' | 'admin' | 'member' | 'outsider'): Promise<Client> {
+    people += 1
+    const who = { email: `${role}${people}@acme.test`, password: `${role}-password-${people}-long` }
+    await createUser(betterAuth, { ...who, name: `${role} ${people}` })
+    if (role !== 'outsider') {
+      await addWorkspaceMember(betterAuth, t.db, {
+        workspaceSlug: acme.workspaceSlug,
+        email: who.email,
+        role,
+      })
+    }
+    return signedInClient(app, who)
+  }
+
   return {
     app,
     db: t.db,
+    /** Acme's owner and Rival's owner, as clients. */
+    client: clientFor(app, acmeCookie),
+    rivalClient: clientFor(app, rivalCookie),
+    addMember,
     auth: betterAuth,
     acme,
     rival,

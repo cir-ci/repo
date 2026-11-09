@@ -1,28 +1,14 @@
 import { seedNotification } from '@circi/testing'
 import { afterAll, describe, expect, it } from 'vitest'
 
+import { sender } from '#test/support/client.ts'
 import { startDashboard } from '#test/support/dashboard-fixture.ts'
-import { ORIGIN } from '#test/support/helpers.ts'
 
 const fx = await startDashboard()
 const { app, db, acme, rival, acmeCookie, rivalCookie, get } = fx
 afterAll(() => fx.close())
 
-const send = (
-  method: 'POST' | 'PUT' | 'DELETE',
-  url: string,
-  options: { cookie?: string; payload?: unknown; origin?: string | null } = {},
-) =>
-  app.inject({
-    method,
-    url,
-    headers: {
-      ...(method === 'DELETE' ? {} : { 'content-type': 'application/json' }),
-      ...(options.cookie === '' ? {} : { cookie: options.cookie ?? acmeCookie }),
-      ...(options.origin === null ? {} : { origin: options.origin ?? ORIGIN }),
-    },
-    ...(method === 'DELETE' ? {} : { payload: options.payload ?? {} }),
-  })
+const send = sender(() => app, acmeCookie)
 
 const inbox = async (tab: string, cookie = acmeCookie) =>
   (await get(`/api/inbox?tab=${tab}`, cookie)).json()

@@ -17,6 +17,7 @@ import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
+import { caller } from '#test/support/client.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
 
 /**
@@ -30,7 +31,6 @@ let dir: string
 let app: FastifyInstance
 let withoutGithub: FastifyInstance
 let auth: ReturnType<typeof createTestAuth>
-const json = { origin: ORIGIN, 'content-type': 'application/json' }
 const sso = [
   { id: 'github', name: 'GitHub' },
   { id: 'google', name: 'Google' },
@@ -50,20 +50,6 @@ afterAll(async () => {
   await t.close()
   await rm(dir, { recursive: true, force: true })
 })
-
-const call = (
-  server: FastifyInstance,
-  method: 'GET' | 'PATCH' | 'POST',
-  url: string,
-  cookie: string,
-  payload?: unknown,
-) =>
-  server.inject({
-    method,
-    url,
-    headers: { ...(payload === undefined ? {} : json), cookie, origin: ORIGIN },
-    ...(payload === undefined ? {} : { payload: JSON.stringify(payload) }),
-  })
 
 /** Signs in with a password, then records that session as one that came through `provider`. */
 async function signInVia(
@@ -98,13 +84,16 @@ describe('per-workspace GitHub and Google sign-in', () => {
   })
 
   it('shows the switches only for providers the instance has, on by default', async () => {
-    const res = await call(app, 'GET', `/api/workspaces/${acme.workspaceSlug}/auth`, passwordCookie)
+    const res = await caller(app)(
+      'GET',
+      `/api/workspaces/${acme.workspaceSlug}/auth`,
+      passwordCookie,
+    )
     expect(res.json()).toMatchObject({
       settings: { signinGithub: true, signinGoogle: true },
       instance: { github: true, google: true },
     })
-    const bare = await call(
-      withoutGithub,
+    const bare = await caller(withoutGithub)(
       'GET',
       `/api/workspaces/${acme.workspaceSlug}/auth`,
       await signIn(withoutGithub, acme.owner.email, acme.owner.password),
@@ -113,8 +102,7 @@ describe('per-workspace GitHub and Google sign-in', () => {
   })
 
   it('refuses a GitHub session with 403 and the reason once GitHub is off, and only there', async () => {
-    const off = await call(
-      app,
+    const off = await caller(app)(
       'PATCH',
       `/api/workspaces/${acme.workspaceSlug}/auth`,
       passwordCookie,
@@ -129,36 +117,36 @@ describe('per-workspace GitHub and Google sign-in', () => {
       `/api/workspaces/${acme.workspaceSlug}/settings`,
     ]) {
       // eslint-disable-next-line no-await-in-loop -- a few requests
-      const res = await call(app, 'GET', url, githubCookie)
+      const res = await caller(app)('GET', url, githubCookie)
       expect([url, res.statusCode]).toEqual([url, 403])
       expect(res.json().error).toBe(GITHUB_REFUSAL)
     }
     // Lists leave the workspace out, and the capabilities say why.
-    expect((await call(app, 'GET', '/api/teams', githubCookie)).json().teams).toEqual([])
-    const caps = (await call(app, 'GET', '/api/capabilities', githubCookie)).json()
+    expect((await caller(app)('GET', '/api/teams', githubCookie)).json().teams).toEqual([])
+    const caps = (await caller(app)('GET', '/api/capabilities', githubCookie)).json()
     expect(caps.refusingWorkspaces).toEqual([
       { name: expect.any(String), accepts: ['password', 'email', 'google'] },
     ])
     // The same person's password session, and other workspaces, are untouched.
     expect(
-      (await call(app, 'GET', `/api/teams/${acme.workspaceSlug}/web`, passwordCookie)).statusCode,
+      (await caller(app)('GET', `/api/teams/${acme.workspaceSlug}/web`, passwordCookie)).statusCode,
     ).toBe(200)
     const otherCookie = await signInVia(other.owner.email, other.owner.password, 'github')
     expect(
-      (await call(app, 'GET', `/api/teams/${other.workspaceSlug}/web`, otherCookie)).statusCode,
+      (await caller(app)('GET', `/api/teams/${other.workspaceSlug}/web`, otherCookie)).statusCode,
     ).toBe(200)
     // And so is a person outside the workspace: plain "not found".
     expect(
-      (await call(app, 'GET', `/api/teams/${acme.workspaceSlug}/web`, otherCookie)).statusCode,
+      (await caller(app)('GET', `/api/teams/${acme.workspaceSlug}/web`, otherCookie)).statusCode,
     ).toBe(404)
   })
 
   it('turns it back on', async () => {
-    await call(app, 'PATCH', `/api/workspaces/${acme.workspaceSlug}/auth`, passwordCookie, {
+    await caller(app)('PATCH', `/api/workspaces/${acme.workspaceSlug}/auth`, passwordCookie, {
       signinGithub: true,
     })
     expect(
-      (await call(app, 'GET', `/api/teams/${acme.workspaceSlug}/web`, githubCookie)).statusCode,
+      (await caller(app)('GET', `/api/teams/${acme.workspaceSlug}/web`, githubCookie)).statusCode,
     ).toBe(200)
   })
 
@@ -175,19 +163,19 @@ describe('per-workspace GitHub and Google sign-in', () => {
       role: 'member',
     })
     const adminCookie = await signInVia(admin.email, 'password-for-the-boss-1', 'github')
-    await call(app, 'PATCH', `/api/workspaces/${acme.workspaceSlug}/auth`, passwordCookie, {
+    await caller(app)('PATCH', `/api/workspaces/${acme.workspaceSlug}/auth`, passwordCookie, {
       signinGithub: false,
     })
     expect(
-      (await call(app, 'GET', `/api/teams/${acme.workspaceSlug}/web`, adminCookie)).statusCode,
+      (await caller(app)('GET', `/api/teams/${acme.workspaceSlug}/web`, adminCookie)).statusCode,
     ).toBe(200)
-    await call(app, 'PATCH', `/api/workspaces/${acme.workspaceSlug}/auth`, passwordCookie, {
+    await caller(app)('PATCH', `/api/workspaces/${acme.workspaceSlug}/auth`, passwordCookie, {
       signinGithub: true,
     })
   })
 
   it('refuses to accept an invitation through a method the workspace does not allow', async () => {
-    await call(app, 'PATCH', `/api/workspaces/${acme.workspaceSlug}/auth`, passwordCookie, {
+    await caller(app)('PATCH', `/api/workspaces/${acme.workspaceSlug}/auth`, passwordCookie, {
       signinGithub: false,
     })
     const workspace = await getWorkspaceBySlug(t.db, acme.workspaceSlug)
@@ -202,9 +190,14 @@ describe('per-workspace GitHub and Google sign-in', () => {
       email: guest.email,
     })
     const viaGithub = await signInVia(guest.email, 'password-for-the-guest-1', 'github')
-    const refused = await call(app, 'POST', '/api/auth/organization/accept-invitation', viaGithub, {
-      invitationId: invitation.id,
-    })
+    const refused = await caller(app)(
+      'POST',
+      '/api/auth/organization/accept-invitation',
+      viaGithub,
+      {
+        invitationId: invitation.id,
+      },
+    )
     expect(refused.statusCode).toBe(403)
     expect(refused.json().message).toBe(GITHUB_REFUSAL)
     expect(
@@ -213,7 +206,7 @@ describe('per-workspace GitHub and Google sign-in', () => {
 
     // The same invitation through a password session works.
     const viaPassword = await signIn(app, guest.email, 'password-for-the-guest-1')
-    const ok = await call(app, 'POST', '/api/auth/organization/accept-invitation', viaPassword, {
+    const ok = await caller(app)('POST', '/api/auth/organization/accept-invitation', viaPassword, {
       invitationId: invitation.id,
     })
     expect(ok.statusCode).toBe(200)

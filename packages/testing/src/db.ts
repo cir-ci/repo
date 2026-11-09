@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises'
+
 import {
   createTeam,
   type Database,
@@ -10,6 +12,9 @@ import {
 import { PGlite } from '@electric-sql/pglite'
 import { drizzle } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'
+import { inject } from 'vitest'
+
+import { nextCreatedAt } from './created-at.ts'
 
 export namespace createTestDb {
   export interface Result {
@@ -18,21 +23,49 @@ export namespace createTestDb {
     /** PGlite's LISTEN, shaped like the production `ListenFn`. */
     listen: ListenFn
     close(): Promise<void>
+    /** Empties every table the app owns (not the migration history), for a file that wants a clean slate per test. */
+    reset(): Promise<void>
   }
 }
 
-/** A fresh in-process Postgres (PGlite) with every migration applied. */
+let template: Promise<Blob | null> | undefined
+
+/** The migrated database the global setup dumped, or null when it did not run (a lone file). */
+function loadTemplate(): Promise<Blob | null> {
+  template ??= (async () => {
+    try {
+      const path = inject('templateDump')
+      return path ? new Blob([await readFile(path)]) : null
+    } catch {
+      return null
+    }
+  })()
+  return template
+}
+
+/**
+ * A fresh in-process Postgres (PGlite) with every migration applied: restored from the dump
+ * the global setup made once, or migrated here when there is none.
+ */
 export async function createTestDb(): Promise<createTestDb.Result> {
-  const client = new PGlite()
+  const dump = await loadTemplate()
+  const client = dump ? new PGlite({ loadDataDir: dump }) : new PGlite()
   const db = drizzle({ client, schema })
-  await migrate(db, { migrationsFolder })
+  if (!dump) await migrate(db, { migrationsFolder })
   const listen: ListenFn = async (channel, onNotify) => {
     const unsubscribe = await client.listen(channel, onNotify)
     return async () => {
       await unsubscribe()
     }
   }
-  return { client, db, listen, close: () => client.close() }
+  const reset = async () => {
+    const { rows } = await client.query<{ name: string }>(
+      `select format('%I.%I', schemaname, tablename) as name from pg_tables where schemaname = 'public'`,
+    )
+    if (rows.length === 0) return
+    await client.exec(`truncate ${rows.map((r) => r.name).join(', ')} restart identity cascade`)
+  }
+  return { client, db, listen, close: () => client.close(), reset }
 }
 
 let n = 0
@@ -62,7 +95,7 @@ export async function seedWorkspace(db: Database): Promise<seedWorkspace.Result>
         id: `workspace-${n}`,
         name: `Workspace ${n}`,
         slug: `workspace-${n}`,
-        createdAt: new Date(),
+        createdAt: nextCreatedAt(),
       })
       .returning()
     if (!owner || !workspace) throw new Error('seed insert returned no row')
@@ -71,7 +104,7 @@ export async function seedWorkspace(db: Database): Promise<seedWorkspace.Result>
       workspaceId: workspace.id,
       userId: owner.id,
       role: 'owner',
-      createdAt: new Date(),
+      createdAt: nextCreatedAt(),
     })
     return { workspace, owner }
   })
@@ -98,7 +131,7 @@ export async function addTestMember(
     workspaceId: input.workspaceId,
     userId: input.userId,
     role: input.role ?? 'member',
-    createdAt: new Date(),
+    createdAt: nextCreatedAt(),
   })
 }
 
@@ -115,6 +148,3 @@ export async function seedTeam(
   })
   return { team, workspace: seeded.workspace, owner: seeded.owner }
 }
-
-/** A fake sha256 made of one repeated hex digit. */
-export const sha = (c: string) => c.repeat(64).slice(0, 64)

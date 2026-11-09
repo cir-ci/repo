@@ -7,51 +7,12 @@ import {
   InvalidCredentialsError,
   mappingSpec,
 } from '#src/index.ts'
-import type { IntegrationDefinition } from '#src/index.ts'
+
+import { fakeTrackers } from './support/fakes.ts'
 
 const linear = integrationRegistry.get('linear')
 const jira = integrationRegistry.get('jira')
 if (!linear || !jira) throw new Error('the trackers are registered')
-
-/** Linear's and Jira's HTTP edges in one fetch: the calls the adapters make, 401 for a bad key. */
-function fakeTrackers(options: { down?: boolean } = {}) {
-  const calls: { url: string; auth: string | null; body: unknown }[] = []
-  const fetcher: typeof fetch = async (input, init) => {
-    const req = new Request(input, init)
-    const url = new URL(req.url)
-    const text = await req.text()
-    const body: unknown = text ? JSON.parse(text) : undefined
-    const auth = req.headers.get('authorization')
-    calls.push({ url: url.host + url.pathname, auth, body })
-    if (options.down) return new Response('boom', { status: 503 })
-    if (url.host === 'api.linear.app') {
-      if (auth !== 'lin_good')
-        return Response.json({ errors: [{ message: 'no' }] }, { status: 401 })
-      const query = String(Reflect.get(Object(body), 'query'))
-      if (query.includes('viewer')) {
-        return Response.json({
-          data: { viewer: { id: 'u1', organization: { id: 'workspace-1', name: 'Acme Linear' } } },
-        })
-      }
-      return Response.json({
-        data: { teams: { nodes: [{ id: 'team-1', key: 'WEB', name: 'Web' }] } },
-      })
-    }
-    if (!auth?.startsWith('Basic ')) return Response.json({}, { status: 401 })
-    if (auth !== `Basic ${Buffer.from('me@acme.test:jira-good').toString('base64')}`) {
-      return Response.json({ errorMessages: ['bad'] }, { status: 401 })
-    }
-    if (url.pathname.endsWith('/myself')) return Response.json({ accountId: 'a1' })
-    return Response.json([{ key: 'WEB', name: 'Website' }])
-  }
-  const ctx: IntegrationDefinition.Context = {
-    authSecret: 'a-long-instance-secret-for-tests-0123456789',
-    publicOrigin: 'https://ci.acme.io',
-    config: {},
-    fetch: fetcher,
-  }
-  return { calls, ctx }
-}
 
 describe('linear', () => {
   it('connects with an API key and stores the credentials as JSON', async () => {

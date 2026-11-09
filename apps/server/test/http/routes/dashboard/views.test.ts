@@ -3,28 +3,14 @@ import { getWorkspaceBySlug } from '@circi/db'
 import { addTestMember, seedSavedView, seedUser } from '@circi/testing'
 import { afterAll, describe, expect, it } from 'vitest'
 
+import { sender } from '#test/support/client.ts'
 import { startDashboard } from '#test/support/dashboard-fixture.ts'
-import { ORIGIN } from '#test/support/helpers.ts'
 
 const fx = await startDashboard()
 const { app, db, acme, rival, acmeCookie, rivalCookie, get } = fx
 afterAll(() => fx.close())
 
-const send = (
-  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
-  url: string,
-  options: { cookie?: string; payload?: unknown } = {},
-) =>
-  app.inject({
-    method,
-    url,
-    headers: {
-      ...(method === 'DELETE' ? {} : { 'content-type': 'application/json' }),
-      ...(options.cookie === '' ? {} : { cookie: options.cookie ?? acmeCookie }),
-      origin: ORIGIN,
-    },
-    ...(method === 'DELETE' ? {} : { payload: options.payload ?? {} }),
-  })
+const send = sender(() => app, acmeCookie)
 
 const views = `/api/workspaces/${acme.workspaceSlug}/views`
 const bad = (payload: unknown) => send('POST', views, { payload })

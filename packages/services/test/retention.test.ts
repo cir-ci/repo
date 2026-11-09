@@ -7,7 +7,7 @@ import {
   schema,
   storageUsage,
 } from '@circi/db'
-import { createTestDb, seedTeam, seedUploadClaim, sha } from '@circi/testing'
+import { createTestDb, seedTeam, seedUploadClaim, fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -35,7 +35,7 @@ async function oldBuild(
   options: { days: number; branch?: string; hash?: string; approved?: boolean },
 ) {
   counter += 1
-  const hash = options.hash ?? sha(counter.toString(16))
+  const hash = options.hash ?? fakeSha(counter.toString(16))
   const build = await createBuild(t.db, {
     teamId: team.id,
     commitSha: `abc${counter.toString().padStart(4, '0')}0`,
@@ -180,7 +180,7 @@ describe('collecting files', () => {
   it('collects a file that was announced but never uploaded', async () => {
     const { team } = await seedTeam(t.db)
     const build = await createBuild(t.db, { teamId: team.id, commitSha: 'ffff0001' })
-    const hash = sha('ba')
+    const hash = fakeSha('ba')
     await planUploads(t.db, {
       buildId: build.id,
       kind: 'screenshot',
@@ -208,7 +208,7 @@ describe('expiring sites', () => {
     input: { commit: string; branch: string; move: boolean; label: string },
   ) {
     counter += 1
-    const hash = sha((counter + 100).toString(16))
+    const hash = fakeSha((counter + 100).toString(16))
     await ensureAssetFiles(t.db, [
       { sha256: hash, size: 5, storageKey: `files/${hash}/s`, contentType: 'text/html' },
     ])

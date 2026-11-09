@@ -1,12 +1,11 @@
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { createServer as createNetServer, type Socket } from 'node:net'
 import { text } from 'node:stream/consumers'
 
+import { sha256 } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { ChecksumMismatchError, hexToBase64, S3Storage } from '#src/index.ts'
-
-const sha = (s: string) => createHash('sha256').update(s).digest('hex')
 
 describe('S3Storage.presignPut (offline)', () => {
   const storage = new S3Storage({
@@ -18,7 +17,7 @@ describe('S3Storage.presignPut (offline)', () => {
   })
 
   it('signs the checksum, length and content type as headers', async () => {
-    const hash = sha('png-bytes')
+    const hash = sha256('png-bytes')
     const presigned = await storage.presignPut('aa/bb/key', {
       sha256: hash,
       contentLength: 9,
@@ -43,7 +42,7 @@ describe('S3Storage.presignPut (offline)', () => {
 
   it('refuses to put bytes that do not match the expected hash', async () => {
     await expect(
-      storage.put('k', Buffer.from('evil'), { expectedSha256: sha('good') }),
+      storage.put('k', Buffer.from('evil'), { expectedSha256: sha256('good') }),
     ).rejects.toBeInstanceOf(ChecksumMismatchError)
   })
 })
@@ -66,7 +65,7 @@ describe.skipIf(!endpoint)('S3Storage (live)', () => {
   it('round-trips with a stored checksum', async () => {
     const key = `test/${randomUUID()}`
     await storage.put(key, Buffer.from('hello'), { contentType: 'text/plain' })
-    expect(await storage.head(key)).toMatchObject({ size: 5, sha256: sha('hello') })
+    expect(await storage.head(key)).toMatchObject({ size: 5, sha256: sha256('hello') })
     expect(await text(await storage.get(key))).toBe('hello')
     await storage.delete(key)
     expect(await storage.head(key)).toBeNull()
@@ -76,7 +75,7 @@ describe.skipIf(!endpoint)('S3Storage (live)', () => {
     const key = `test/${randomUUID()}`
     const body = 'screenshot'
     const presigned = await storage.presignPut(key, {
-      sha256: sha(body),
+      sha256: sha256(body),
       contentLength: body.length,
       contentType: 'image/png',
     })
@@ -88,7 +87,7 @@ describe.skipIf(!endpoint)('S3Storage (live)', () => {
     expect(bad.ok).toBe(false)
     const good = await fetch(presigned.url, { method: 'PUT', headers: presigned.headers, body })
     expect(good.ok).toBe(true)
-    expect(await storage.head(key)).toMatchObject({ sha256: sha(body) })
+    expect(await storage.head(key)).toMatchObject({ sha256: sha256(body) })
     await storage.delete(key)
   })
 })

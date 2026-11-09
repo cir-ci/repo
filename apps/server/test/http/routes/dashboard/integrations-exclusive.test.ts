@@ -15,6 +15,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
 import { buildServer } from '#http/app.ts'
+import { caller } from '#test/support/client.ts'
 import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
 
 /**
@@ -82,13 +83,7 @@ const ownerCookie = await signIn(app, acme.owner.email, acme.owner.password)
 const rivalCookie = await signIn(app, rival.owner.email, rival.owner.password)
 const workspace = await getWorkspaceBySlug(t.db, acme.workspaceSlug)
 
-const call = (method: 'GET' | 'POST' | 'PUT', url: string, cookie: string, payload?: unknown) =>
-  app.inject({
-    method,
-    url,
-    headers: { 'content-type': 'application/json', cookie, origin: ORIGIN },
-    ...(payload === undefined ? {} : { payload: JSON.stringify(payload) }),
-  })
+const call = caller(() => app)
 
 const base = (slug: string) => `/api/workspaces/${slug}/integrations`
 const connect = (slug: string, cookie: string, kind: string, token: string) =>

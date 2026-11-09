@@ -1,8 +1,9 @@
 import { addMember, createUser } from '@circi/auth'
 import { afterAll, describe, expect, it } from 'vitest'
 
+import { sender } from '#test/support/client.ts'
 import { startDashboard } from '#test/support/dashboard-fixture.ts'
-import { ORIGIN, signIn } from '#test/support/helpers.ts'
+import { signIn } from '#test/support/helpers.ts'
 
 const fx = await startDashboard()
 const { app, auth, db, acme, rival, acmeCookie, rivalCookie, get } = fx
@@ -16,21 +17,7 @@ const lou = await createUser(auth, {
 await addMember(auth, db, { workspaceSlug: acme.workspaceSlug, email: lou.email, role: 'member' })
 const louCookie = await signIn(app, lou.email, 'lou-password-long-1')
 
-const send = (
-  method: 'POST' | 'PUT' | 'DELETE',
-  url: string,
-  options: { cookie?: string; payload?: unknown } = {},
-) =>
-  app.inject({
-    method,
-    url,
-    headers: {
-      ...(method === 'DELETE' ? {} : { 'content-type': 'application/json' }),
-      cookie: options.cookie ?? acmeCookie,
-      origin: ORIGIN,
-    },
-    ...(method === 'DELETE' ? {} : { payload: options.payload ?? {} }),
-  })
+const send = sender(() => app, acmeCookie)
 
 const base = (workspace = acme.workspaceSlug) => `/api/teams/${workspace}/web`
 
@@ -165,115 +152,5 @@ describe('triage rotation', () => {
     expect(queue.rotation.members).toHaveLength(2)
     expect(queue.rotation.onTriage).not.toBeNull()
     expect(typeof queue.rotation.until).toBe('string')
-  })
-})
-
-describe('triage', () => {
-  it('lists the queue to members only', async () => {
-    const queue = await get(`${base()}/triage`, louCookie)
-    expect(queue.statusCode).toBe(200)
-    expect(queue.json().items).toBeInstanceOf(Array)
-    expect((await get(`${base()}/triage`, rivalCookie)).statusCode).toBe(404)
-    expect((await get(`${base()}/triage`, '')).statusCode).toBe(401)
-  })
-
-  it('lets any member assign, snooze and dismiss an item', async () => {
-    const item = { kind: 'flaky', key: 'home' }
-    const assigned = await send('POST', `${base()}/triage/assign`, {
-      cookie: louCookie,
-      payload: { ...item, assigneeId: lou.id },
-    })
-    expect(assigned.json()).toMatchObject({ ...item, assigneeId: lou.id, dismissed: false })
-
-    const snoozed = await send('POST', `${base()}/triage/snooze`, {
-      cookie: louCookie,
-      payload: { ...item, choice: 'tomorrow' },
-    })
-    expect(snoozed.statusCode).toBe(200)
-    expect(snoozed.json()).toMatchObject({ snoozeKind: 'tomorrow' })
-    expect(Date.parse(snoozed.json().snoozedUntil)).toBeGreaterThan(Date.now())
-
-    const past = await send('POST', `${base()}/triage/snooze`, {
-      payload: { ...item, choice: 'date', date: '2020-01-01T00:00:00Z' },
-    })
-    expect(past.statusCode).toBe(400)
-
-    const dismissed = await send('POST', `${base()}/triage/dismiss`, { payload: item })
-    expect(dismissed.json()).toMatchObject({ dismissed: true })
-  })
-
-  it('rejects assignees outside the workspace and unknown kinds', async () => {
-    const outsider = await send('POST', `${base()}/triage/assign`, {
-      payload: { kind: 'flaky', key: 'home', assigneeId: rival.owner.id },
-    })
-    expect(outsider.statusCode).toBe(400)
-    const unknown = await send('POST', `${base()}/triage/dismiss`, {
-      payload: { kind: 'weird', key: 'home' },
-    })
-    expect(unknown.statusCode).toBe(400)
-  })
-
-  it('answers 404 to non-members on every action', async () => {
-    for (const action of ['assign', 'snooze', 'dismiss']) {
-      // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
-      const res = await send('POST', `${base()}/triage/${action}`, {
-        cookie: rivalCookie,
-        payload: { kind: 'flaky', key: 'home', assigneeId: null, choice: 'tomorrow' },
-      })
-      expect(res.statusCode).toBe(404)
-    }
-  })
-})
-
-describe('ignore regions', () => {
-  it('lets a member add and remove a region, and dismisses the triage item it answers', async () => {
-    const created = await send('POST', `${base()}/ignore-regions`, {
-      cookie: louCookie,
-      payload: {
-        name: 'home',
-        x: 10,
-        y: 20,
-        width: 120,
-        height: 18,
-        resolves: { kind: 'flaky', key: 'about' },
-      },
-    })
-    expect(created.statusCode).toBe(201)
-    expect(created.json()).toMatchObject({ name: 'home', x: 10, y: 20, width: 120, height: 18 })
-
-    const list = await get(`${base()}/ignore-regions`, louCookie)
-    expect(list.json().regions).toMatchObject([{ id: created.json().id, name: 'home' }])
-
-    const removed = await send('DELETE', `${base()}/ignore-regions/${created.json().id}`, {
-      cookie: louCookie,
-    })
-    expect(removed.statusCode).toBe(204)
-    expect((await get(`${base()}/ignore-regions`)).json().regions).toEqual([])
-    expect((await send('DELETE', `${base()}/ignore-regions/${created.json().id}`)).statusCode).toBe(
-      404,
-    )
-    expect((await send('DELETE', `${base()}/ignore-regions/nope`)).statusCode).toBe(404)
-  })
-
-  it('rejects an invalid rectangle with 400', async () => {
-    for (const bad of [
-      { name: 'home', x: 0, y: 0, width: 0, height: 5 },
-      { name: 'home', x: -1, y: 0, width: 5, height: 5 },
-      { name: 'home', x: 0.5, y: 0, width: 5, height: 5 },
-      { name: '  ', x: 0, y: 0, width: 5, height: 5 },
-    ]) {
-      // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
-      expect((await send('POST', `${base()}/ignore-regions`, { payload: bad })).statusCode).toBe(
-        400,
-      )
-    }
-  })
-
-  it('is hidden from non-members', async () => {
-    const payload = { name: 'home', x: 0, y: 0, width: 5, height: 5 }
-    expect(
-      (await send('POST', `${base()}/ignore-regions`, { cookie: rivalCookie, payload })).statusCode,
-    ).toBe(404)
-    expect((await get(`${base()}/ignore-regions`, rivalCookie)).statusCode).toBe(404)
   })
 })

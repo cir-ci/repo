@@ -1,5 +1,7 @@
 import { type Database, type Notification, schema } from '@circi/db'
 
+import { nextCreatedAt } from '../created-at.ts'
+
 export namespace seedNotification {
   export interface Input {
     userId: string
@@ -30,7 +32,7 @@ export async function seedNotification(
       readAt: input.readAt ?? null,
       snoozedUntil: input.snoozedUntil ?? null,
       deletedAt: input.deletedAt ?? null,
-      ...(input.createdAt ? { createdAt: input.createdAt } : {}),
+      createdAt: input.createdAt ?? nextCreatedAt(),
     })
     .returning()
   if (!row) throw new Error('seed insert returned no row')

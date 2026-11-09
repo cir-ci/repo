@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -8,7 +7,7 @@ import type { Auth } from '@circi/auth'
 import { rotateTeamToken } from '@circi/auth'
 import { getBuild, getFile } from '@circi/db'
 import { FsStorage, type StorageDriver } from '@circi/storage'
-import { createTestDb, seedAccount } from '@circi/testing'
+import { createTestDb, seedAccount, sha256 } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'
 import { pino } from 'pino'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -17,7 +16,6 @@ import { buildServer } from '#http/app.ts'
 import { createTestAuth, ORIGIN, seedTenant } from '#test/support/helpers.ts'
 
 const logger = pino({ level: 'silent' })
-const sha256 = (b: Buffer) => createHash('sha256').update(b).digest('hex')
 const png = (text: string) => Buffer.from(`\x89PNG fake ${text}`)
 
 let t: createTestDb.Result
