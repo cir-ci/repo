@@ -107,6 +107,7 @@ export function AccountsPage() {
       {done ? <Banner tone="success">{done}</Banner> : null}
       <SettingsSection
         title="All accounts"
+        bare
         description={
           data ? `${data.total} ${data.total === 1 ? 'account' : 'accounts'}` : undefined
         }
@@ -122,27 +123,29 @@ export function AccountsPage() {
           />
         }
       >
-        {data && data.accounts.length === 0 ? (
-          <EmptyState icon={<SearchIcon size={32} />} title="No accounts found">
-            {q ? `Nothing matches “${q}”.` : 'There are no accounts yet.'}
-          </EmptyState>
-        ) : (
-          <ul className={styles.list} aria-label="Accounts" aria-busy={isFetching}>
-            {data?.accounts.map((account) => (
-              <li key={account.id}>
-                <AccountRow
-                  account={account}
-                  now={now}
-                  onAction={(kind) => {
-                    setFailure(null)
-                    setDone(null)
-                    setPending({ kind, account })
-                  }}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className={styles.box}>
+          {data && data.accounts.length === 0 ? (
+            <EmptyState icon={<SearchIcon size={32} />} title="No accounts found">
+              {q ? `Nothing matches “${q}”.` : 'There are no accounts yet.'}
+            </EmptyState>
+          ) : (
+            <ul className={styles.list} aria-label="Accounts" aria-busy={isFetching}>
+              {data?.accounts.map((account) => (
+                <li key={account.id}>
+                  <AccountRow
+                    account={account}
+                    now={now}
+                    onAction={(kind) => {
+                      setFailure(null)
+                      setDone(null)
+                      setPending({ kind, account })
+                    }}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         {data && pages > 1 ? (
           <nav className={styles.pager} aria-label="Pages">
             <Text tone="secondary">
@@ -213,7 +216,12 @@ function AccountRow(props: {
       leading={<Avatar name={account.name} size={28} />}
       trailing={
         <>
-          <Text tone="tertiary" variant="small">
+          <Text className={styles.workspacesCol} tone="tertiary" variant="small">
+            {account.workspaceCount === 0
+              ? 'No workspace'
+              : `${account.workspaceCount} ${account.workspaceCount === 1 ? 'workspace' : 'workspaces'}`}
+          </Text>
+          <Text className={styles.when} tone="tertiary" variant="small">
             {lastSeen(account, props.now)}
           </Text>
           <Menu
@@ -239,7 +247,7 @@ function AccountRow(props: {
         </>
       }
     >
-      <div className={styles.grow}>
+      <div className={styles.identity}>
         <span>
           <Text>{account.name}</Text>{' '}
           {account.instanceAdmin ? (
@@ -261,11 +269,6 @@ function AccountRow(props: {
             {ban}
           </Text>
         ) : null}
-        <Text tone="tertiary" variant="small">
-          {account.workspaceCount === 0
-            ? 'No workspace'
-            : `${account.workspaceCount} ${account.workspaceCount === 1 ? 'workspace' : 'workspaces'}`}
-        </Text>
       </div>
     </ListRow>
   )

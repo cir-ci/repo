@@ -2,8 +2,9 @@ import {
   Banner,
   Button,
   ConfirmDialog,
+  Dialog,
+  FormDialog,
   SettingsRow,
-  SettingsSection,
   StatusChip,
   Text,
   TextField,
@@ -13,7 +14,6 @@ import { useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 
 import { workspaceSsoQuery, useWorkspaceSso } from '#features/members/api.ts'
-import { QuerySkeleton } from '#lib/QueryBoundary.tsx'
 
 import { validateSso } from './model.ts'
 
@@ -22,20 +22,22 @@ import styles from './WorkspaceSso.module.css'
 type Problems = ReturnType<typeof validateSso>
 
 /**
- * The workspace's own OpenID Connect provider. People it signs in join this workspace and
- * can open nothing else; the workspace's name is how they find it on the sign-in page.
+ * The "Single sign-on" row of the sign-in methods: the workspace's own OpenID Connect provider,
+ * "Connected" with a Configure button. Configure opens a dialog: the form to connect a provider,
+ * or, once one is connected, its issuer, the redirect address to register and Remove. People it
+ * signs in join this workspace and can open nothing else; the workspace's name is how they find
+ * it on the sign-in page. Render it inside the methods' `SettingsSection`.
  */
 export function WorkspaceSso({ workspace }: WorkspaceSso.Props) {
   const { data, error, refetch } = useQuery(workspaceSsoQuery(workspace))
   const { register, remove } = useWorkspaceSso(workspace)
   const announce = useAnnounce()
   const [problems, setProblems] = useState<Problems>({})
-  const [removing, setRemoving] = useState<{ providerId: string; issuer: string } | null>(null)
-  const failure = register.error ?? remove.error
-  const providers = data?.providers ?? []
+  const [configuring, setConfiguring] = useState(false)
+  const [removing, setRemoving] = useState(false)
+  const provider = data?.providers[0]
 
   async function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault()
     const form = e.currentTarget
     const field = (k: string) => {
       const v = new FormData(form).get(k)
@@ -52,6 +54,7 @@ export function WorkspaceSso({ workspace }: WorkspaceSso.Props) {
     await register.mutateAsync(input).then(
       () => {
         form.reset()
+        setConfiguring(false)
         announce('Single sign-on provider connected')
       },
       () => {},
@@ -60,110 +63,135 @@ export function WorkspaceSso({ workspace }: WorkspaceSso.Props) {
 
   const clear = (name: keyof Problems) => () => setProblems((p) => ({ ...p, [name]: undefined }))
 
-  const ready = data !== undefined && !error
+  function close() {
+    setConfiguring(false)
+    setProblems({})
+    register.reset()
+  }
+
+  if (error) {
+    return (
+      <SettingsRow>
+        <Banner
+          tone="danger"
+          action={
+            <Button size="sm" onClick={() => void refetch()}>
+              Try again
+            </Button>
+          }
+        >
+          Couldn’t load the single sign-on settings: {error.message}
+        </Banner>
+      </SettingsRow>
+    )
+  }
 
   return (
     <>
-      <SettingsSection
-        title="Single sign-on"
-        description={`Connect your own OpenID Connect provider (Okta, Entra ID, Keycloak…). People sign in from the sign-in page with “${workspace}” and join as members. Their session opens this workspace only, and an address that already has an account elsewhere is refused.`}
-        bare={!ready}
+      <SettingsRow
+        label="Single sign-on"
+        detail={
+          !data
+            ? 'Loading…'
+            : provider
+              ? `${provider.issuer}. Signs people into ${workspace} only.`
+              : 'Your own OpenID Connect provider (Okta, Entra ID, Keycloak…). Signs people into this workspace only.'
+        }
       >
-        {error ? (
-          <Banner
-            tone="danger"
-            action={
-              <Button size="sm" onClick={() => void refetch()}>
-                Try again
-              </Button>
-            }
-          >
-            Couldn’t load the single sign-on settings: {error.message}
-          </Banner>
-        ) : !data ? (
-          <QuerySkeleton rows={1} />
-        ) : (
-          <>
-            {providers.map((p) => (
-              <SettingsRow
-                key={p.providerId}
-                label={p.issuer}
-                detail={
-                  <>
-                    Redirect address to register at the provider:{' '}
-                    <Text as="code" variant="mono">
-                      {p.redirectUri}
-                    </Text>
-                  </>
-                }
+        {provider ? <StatusChip status="approved">Connected</StatusChip> : null}
+        <Button size="sm" disabled={!data} onClick={() => setConfiguring(true)}>
+          Configure
+        </Button>
+      </SettingsRow>
+      {data && !provider ? (
+        <FormDialog
+          open={configuring}
+          onClose={close}
+          title="Single sign-on"
+          description={`Connect your own OpenID Connect provider. People sign in from the sign-in page with “${workspace}” and join as members. Their session opens this workspace only, and an address that already has an account elsewhere is refused.`}
+          submitLabel="Connect provider"
+          pending={register.isPending}
+          noValidate
+          formClassName={styles.form}
+          onSubmit={(e) => void submit(e)}
+        >
+          <TextField
+            name="issuer"
+            label="Issuer address"
+            placeholder="https://login.example.com"
+            required
+            error={problems.issuer}
+            onChange={clear('issuer')}
+          />
+          <TextField
+            name="clientId"
+            label="Client id"
+            required
+            autoComplete="off"
+            error={problems.clientId}
+            onChange={clear('clientId')}
+          />
+          <TextField
+            name="clientSecret"
+            label="Client secret"
+            type="password"
+            required
+            // `off` is ignored for password fields: a password manager would fill in the
+            // user's own login here. `new-password` tells it this is a new secret.
+            autoComplete="new-password"
+            error={problems.clientSecret}
+            onChange={clear('clientSecret')}
+          />
+          {register.error ? <Banner tone="danger">{register.error.message}</Banner> : null}
+        </FormDialog>
+      ) : null}
+      {provider ? (
+        <Dialog
+          open={configuring}
+          onOpenChange={(open) => {
+            if (!open) close()
+          }}
+          title="Single sign-on"
+          description={`${provider.issuer} is connected. People who sign in through it join ${workspace} as members.`}
+          actions={
+            <>
+              <Button
+                variant="danger"
+                aria-label={`Remove ${provider.issuer}`}
+                onClick={() => setRemoving(true)}
               >
-                <StatusChip status="approved">Connected</StatusChip>
-                <Button
-                  size="sm"
-                  variant="danger"
-                  aria-label={`Remove ${p.issuer}`}
-                  onClick={() => setRemoving({ providerId: p.providerId, issuer: p.issuer })}
-                >
-                  Remove
-                </Button>
-              </SettingsRow>
-            ))}
-            {providers.length === 0 ? (
-              <SettingsRow>
-                <form onSubmit={(e) => void submit(e)} noValidate className={styles.form}>
-                  <TextField
-                    name="issuer"
-                    label="Issuer address"
-                    placeholder="https://login.example.com"
-                    required
-                    error={problems.issuer}
-                    onChange={clear('issuer')}
-                  />
-                  <TextField
-                    name="clientId"
-                    label="Client id"
-                    required
-                    autoComplete="off"
-                    error={problems.clientId}
-                    onChange={clear('clientId')}
-                  />
-                  <TextField
-                    name="clientSecret"
-                    label="Client secret"
-                    type="password"
-                    required
-                    // `off` is ignored for password fields: a password manager would fill in the
-                    // user's own login here. `new-password` tells it this is a new secret.
-                    autoComplete="new-password"
-                    error={problems.clientSecret}
-                    onChange={clear('clientSecret')}
-                  />
-                  <div>
-                    <Button type="submit" loading={register.isPending}>
-                      Connect provider
-                    </Button>
-                  </div>
-                </form>
-              </SettingsRow>
-            ) : null}
-          </>
-        )}
-      </SettingsSection>
-      {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
+                Remove
+              </Button>
+              <Button onClick={close}>Done</Button>
+            </>
+          }
+        >
+          <Text variant="small" tone="secondary">
+            Redirect address to register at the provider:{' '}
+            <Text as="code" variant="mono">
+              {provider.redirectUri}
+            </Text>
+          </Text>
+          {remove.error ? <Banner tone="danger">{remove.error.message}</Banner> : null}
+        </Dialog>
+      ) : null}
       <ConfirmDialog
-        open={removing !== null}
+        open={removing}
         onOpenChange={(open) => {
-          if (!open) setRemoving(null)
+          if (!open) setRemoving(false)
         }}
         title="Disconnect single sign-on?"
-        description={`People who sign in through ${removing?.issuer ?? 'this provider'} will no longer be able to open ${workspace}. Their accounts stay until you remove them as members.`}
+        description={`People who sign in through ${provider?.issuer ?? 'this provider'} will no longer be able to open ${workspace}. Their accounts stay until you remove them as members.`}
         confirmLabel="Remove provider"
         loading={remove.isPending}
         onConfirm={() => {
-          if (removing) {
-            remove.mutate(removing.providerId, {
-              onSuccess: () => announce('Single sign-on provider removed'),
-              onSettled: () => setRemoving(null),
+          if (provider) {
+            remove.mutate(provider.providerId, {
+              onSuccess: () => {
+                setConfiguring(false)
+                announce('Single sign-on provider removed')
+              },
+              onSettled: () => setRemoving(false),
             })
           }
         }}

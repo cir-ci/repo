@@ -714,6 +714,14 @@ describe('Shell, narrow', () => {
       .toHaveAttribute('aria-current', 'page')
   })
 
+  it('does not repeat "Settings" in the top bar above a settings page', async () => {
+    await page.viewport(390, 800)
+    await renderShell('/workspaces/acme/settings')
+    await expect.element(page.getByRole('main')).toHaveTextContent('Workspace settings page')
+    await expect.element(page.getByRole('button', { name: 'Open navigation' })).toBeVisible()
+    expect(page.getByText('Settings', { exact: true }).elements()).toHaveLength(0)
+  })
+
   it('closes the drawer once a page is chosen', async () => {
     await page.viewport(390, 800)
     const { router } = await renderShell('/')

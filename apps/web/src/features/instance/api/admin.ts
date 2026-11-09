@@ -94,6 +94,20 @@ const DATE = new Intl.DateTimeFormat('en', {
 /** "Sep 12, 2026" (UTC, so every viewer reads the same day). */
 export const formatDay = (iso: string) => DATE.format(new Date(iso))
 
+const SHORT_DATE = new Intl.DateTimeFormat('en', {
+  month: 'short',
+  day: 'numeric',
+  timeZone: 'UTC',
+})
+
+/** "Nov 9", with the year ("Nov 9, 2025") only when it is not the current one (UTC). */
+export function formatShortDay(iso: string, now: number): string {
+  const date = new Date(iso)
+  return date.getUTCFullYear() === new Date(now).getUTCFullYear()
+    ? SHORT_DATE.format(date)
+    : DATE.format(date)
+}
+
 /** When the account last signed in, or a plain word for never. */
 export function lastSeen(account: Pick<InstanceAdmin.Account, 'lastSignInAt'>, now: number) {
   return account.lastSignInAt ? formatRelative(account.lastSignInAt, now) : 'Never signed in'
@@ -183,29 +197,24 @@ export const WORKSPACE_CREATION_TEXT: Record<InstanceAdmin.Settings['workspaceCr
     anyone: 'Every signed-in account',
   }
 
-/** How serious a doctor finding is, as a word and a badge state. */
+/** How serious a doctor finding is, as a word and a badge state (a note is a neutral tag). */
 export const FINDING_LEVEL: Record<
   InstanceAdmin.Finding['level'],
-  { label: string; state: 'approved' | 'review' | 'processing' }
+  { label: string; state: 'approved' | 'review' | 'processing' | 'rejected' }
 > = {
   ok: { label: 'Passing', state: 'approved' },
   warn: { label: 'Check', state: 'review' },
+  fail: { label: 'Failing', state: 'rejected' },
   info: { label: 'Note', state: 'processing' },
 }
 
-/** Warnings first, then notes, then what passes; the server's order within each. */
+/** Failures first, then warnings, notes, and what passes; the server's order within each. */
 export function sortFindings(findings: InstanceAdmin.Finding[]): InstanceAdmin.Finding[] {
-  const rank = { warn: 0, info: 1, ok: 2 } as const
+  const rank = { fail: 0, warn: 1, info: 2, ok: 3 } as const
   return findings
     .map((finding, index) => ({ finding, index }))
     .toSorted((a, b) => rank[a.finding.level] - rank[b.finding.level] || a.index - b.index)
     .map((x) => x.finding)
-}
-
-export function findingsSummary(findings: InstanceAdmin.Finding[]): string {
-  const warned = findings.filter((f) => f.level === 'warn').length
-  if (warned > 0) return `${warned} ${warned === 1 ? 'check needs' : 'checks need'} attention`
-  return 'Everything passes'
 }
 
 /** The doctor's reminder: Health shows its own note on domains and cookies instead. */
@@ -230,22 +239,21 @@ export function groupFindings(findings: InstanceAdmin.Finding[]): {
   }
 }
 
-/** The counts of Health's summary: what passes, what needs a look, and what is only a note. */
+/** The counts of Health's summary: what passes, what needs a look, and what fails. Notes are not counted. */
 export function findingCounts(findings: InstanceAdmin.Finding[]): {
   passing: number
   warned: number
-  notes: number
+  failing: number
 } {
   const shown = findings.filter((f) => f.id !== DOCTOR_REMINDER)
   const count = (level: InstanceAdmin.Finding['level']) =>
     shown.filter((f) => f.level === level).length
-  return { passing: count('ok'), warned: count('warn'), notes: count('info') }
+  return { passing: count('ok'), warned: count('warn'), failing: count('fail') }
 }
 
-/** The host a `host:acme.io` finding is about, to show as its value. */
-export function findingHost(finding: InstanceAdmin.Finding): string | undefined {
-  return finding.id.startsWith('host:') ? finding.id.slice('host:'.length) : undefined
-}
+/** Whether an address move is in progress: the old addresses are listed in `PREVIOUS_PUBLIC_URLS`. */
+export const isMoving = (checklist: Pick<InstanceAdmin.AddressChecklist, 'previousHosts'>) =>
+  checklist.previousHosts.length > 0
 
 /**
  * Whether a step of the move checklist is already done. The server only knows its configuration,
@@ -260,6 +268,10 @@ export interface QueueTotals {
   pending: number
   running: number
   failed: number
+  /** Jobs waiting for another attempt after failing. */
+  retrying: number
+  /** The retrying job furthest along: "webhook · attempt 3 of 8"; null with none retrying. */
+  retryingDetail: string | null
   /** The oldest waiting job across queues; null with none waiting. */
   oldestPendingAt: string | null
   oldestQueue: string | null
@@ -274,10 +286,18 @@ export function queueTotals(queues: InstanceAdmin.QueueDepth[]): QueueTotals {
     )
       oldest = q
   }
+  let furthest: InstanceAdmin.QueueDepth | null = null
+  for (const q of queues) {
+    if (q.mostRetried && q.mostRetried.attempt > (furthest?.mostRetried?.attempt ?? 0)) furthest = q
+  }
   return {
     pending: queues.reduce((n, q) => n + q.pending, 0),
     running: queues.reduce((n, q) => n + q.running, 0),
     failed: queues.reduce((n, q) => n + q.failed, 0),
+    retrying: queues.reduce((n, q) => n + q.retrying, 0),
+    retryingDetail: furthest?.mostRetried
+      ? `${furthest.queue} · attempt ${furthest.mostRetried.attempt} of ${furthest.mostRetried.maxAttempts}`
+      : null,
     oldestPendingAt: oldest?.oldestPendingAt ?? null,
     oldestQueue: oldest?.queue ?? null,
   }

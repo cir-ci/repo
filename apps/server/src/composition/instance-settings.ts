@@ -57,7 +57,7 @@ export function describeSettings(instance: Instance, scope: Scope): InstanceAdmi
 export function addressChecklist(
   instance: Instance,
   scope: Scope,
-): Omit<InstanceAdmin.AddressChecklist, 'dismissed'> {
+): Omit<InstanceAdmin.AddressChecklist, 'dismissed' | 'previousHosts'> {
   const { config } = instance
   const origin = config.publicUrl.origin
   const steps: InstanceAdmin.AddressStep[] = [

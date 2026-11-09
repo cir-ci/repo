@@ -10,6 +10,8 @@ import { settingsFixture, workspace } from './fixtures.ts'
 const text = (name: string) =>
   page.getByRole('listitem').filter({ hasText: name }).element().textContent
 
+const left = (el: Element) => Math.round(el.getBoundingClientRect().left)
+
 const show = () => renderPage(<WorkspacesPage />, { route: '/instance/workspaces' })
 
 const LIST = {
@@ -41,6 +43,29 @@ describe('the workspaces page', () => {
     expect(text('design-guild')).toMatch(/Members 1\s*Teams 0/)
     await expect.element(page.getByText('Instance admins only')).toBeVisible()
     await expect.element(page.getByText(/Set WORKSPACE_CREATION=anyone/)).toBeVisible()
+  })
+
+  it('keeps each row on one line with its columns under their headers', async () => {
+    await page.viewport(1000, 800)
+    fakeApi(LIST)
+    await show()
+    await expect.element(page.getByRole('listitem').filter({ hasText: 'acme' })).toBeVisible()
+    const header = (name: string) =>
+      left(
+        [...document.querySelectorAll('[aria-hidden="true"] > span')].find(
+          (e) => e.textContent === name,
+        )!,
+      )
+    const row = page.getByRole('listitem').filter({ hasText: 'acme' }).element()
+    const cells = row.querySelectorAll(':scope > span')
+    // tile, name, Members, Teams, Created, action
+    expect(left(cells[2]!)).toBe(header('Members'))
+    expect(left(cells[3]!)).toBe(header('Teams'))
+    expect(left(cells[4]!)).toBe(header('Created'))
+    // One line: the date does not wrap ("Sep 12", with the year only for another year).
+    const created = cells[4]!.getBoundingClientRect()
+    expect(created.height).toBeLessThan(24)
+    expect(row.getBoundingClientRect().height).toBeLessThan(80)
   })
 
   it('marks a deleted workspace with its days left, and restores it', async () => {

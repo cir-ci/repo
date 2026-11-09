@@ -1,3 +1,4 @@
+import type { InstanceAdmin } from '@circi/api'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -9,8 +10,8 @@ import {
   banSummary,
   emptyAccountDraft,
   findingCounts,
-  findingHost,
-  findingsSummary,
+  formatShortDay,
+  isMoving,
   formatAge,
   formatDay,
   groupFindings,
@@ -108,6 +109,10 @@ describe('banning', () => {
 describe('formatting', () => {
   it('writes days in UTC', () => {
     expect(formatDay('2026-09-12T23:30:00.000Z')).toBe('Sep 12, 2026')
+    const now = Date.parse('2026-11-09T12:00:00Z')
+    // The year only when it is not this one.
+    expect(formatShortDay('2026-11-09T23:30:00.000Z', now)).toBe('Nov 9')
+    expect(formatShortDay('2025-11-09T10:00:00.000Z', now)).toBe('Nov 9, 2025')
   })
 
   it('says when someone last signed in, or that they never did', () => {
@@ -177,18 +182,36 @@ describe('instance settings', () => {
 })
 
 const step = (values: string[]) => ({ id: 'dns', title: 't', detail: 'd', values })
-const f = (id: string, level: 'ok' | 'warn' | 'info') => ({ id, level, message: id, fix: null })
+const f = (id: string, level: 'ok' | 'warn' | 'info' | 'fail'): InstanceAdmin.Finding => ({
+  id,
+  level,
+  label: id,
+  detail: `${id} detail`,
+  value: null,
+  message: id,
+  fix: null,
+})
+const queue = (over: Partial<InstanceAdmin.QueueDepth>): InstanceAdmin.QueueDepth => ({
+  queue: 'diff',
+  pending: 0,
+  running: 0,
+  failed: 0,
+  oldestPendingAt: null,
+  retrying: 0,
+  mostRetried: null,
+  ...over,
+})
 
 describe('health', () => {
-  it('puts warnings first, then notes, then passes, keeping the server’s order', () => {
-    const sorted = sortFindings([f('a', 'ok'), f('b', 'warn'), f('c', 'info'), f('d', 'warn')])
-    expect(sorted.map((x) => x.id)).toEqual(['b', 'd', 'c', 'a'])
-  })
-
-  it('summarises the findings', () => {
-    expect(findingsSummary([f('a', 'ok')])).toBe('Everything passes')
-    expect(findingsSummary([f('a', 'warn')])).toBe('1 check needs attention')
-    expect(findingsSummary([f('a', 'warn'), f('b', 'warn')])).toBe('2 checks need attention')
+  it('puts failures first, then warnings, notes and passes, keeping the server’s order', () => {
+    const sorted = sortFindings([
+      f('a', 'ok'),
+      f('b', 'warn'),
+      f('c', 'info'),
+      f('d', 'warn'),
+      f('e', 'fail'),
+    ])
+    expect(sorted.map((x) => x.id)).toEqual(['e', 'b', 'd', 'c', 'a'])
   })
 
   it('groups storage as a service and the rest as domains, without the reminder', () => {
@@ -214,21 +237,22 @@ describe('health', () => {
     expect(groups.domains.map((x) => x.id)).toEqual(['host:acme.io'])
   })
 
-  it('counts passing, warned and noted findings, leaving the reminder out', () => {
+  it('counts passing, warned and failing findings; notes and the reminder are not counted', () => {
     expect(
       findingCounts([
         f('a', 'ok'),
         f('b', 'ok'),
         f('c', 'warn'),
         f('d', 'info'),
+        f('e', 'fail'),
         f('reminder', 'info'),
       ]),
-    ).toEqual({ passing: 2, warned: 1, notes: 1 })
+    ).toEqual({ passing: 2, warned: 1, failing: 1 })
   })
 
-  it('names the host of a host finding', () => {
-    expect(findingHost(f('host:acme.io', 'ok'))).toBe('acme.io')
-    expect(findingHost(f('storage', 'ok'))).toBeUndefined()
+  it('is moving only while old addresses are listed', () => {
+    expect(isMoving({ previousHosts: ['circi.acme.dev'] })).toBe(true)
+    expect(isMoving({ previousHosts: [] })).toBe(false)
   })
 
   it('calls the address step done only once the old address is listed', () => {
@@ -239,33 +263,38 @@ describe('health', () => {
     expect(stepDone({ id: 'sessions', title: 't', detail: 'd', values: [] })).toBe(false)
   })
 
-  it('totals the queues and finds the oldest waiting job', () => {
+  it('totals the queues, finds the oldest waiting job and the job furthest into its retries', () => {
     expect(
       queueTotals([
-        {
+        queue({
           queue: 'diff',
           pending: 2,
           running: 1,
-          failed: 0,
           oldestPendingAt: '2026-11-08T10:00:00Z',
-        },
-        {
+          retrying: 1,
+          mostRetried: { attempt: 2, maxAttempts: 5 },
+        }),
+        queue({
           queue: 'webhook',
           pending: 1,
-          running: 0,
           failed: 3,
           oldestPendingAt: '2026-11-08T09:00:00Z',
-        },
-        { queue: 'idle', pending: 0, running: 0, failed: 0, oldestPendingAt: null },
+          retrying: 1,
+          mostRetried: { attempt: 3, maxAttempts: 8 },
+        }),
+        queue({ queue: 'idle' }),
       ]),
     ).toEqual({
       pending: 3,
       running: 1,
       failed: 3,
+      retrying: 2,
+      retryingDetail: 'webhook · attempt 3 of 8',
       oldestPendingAt: '2026-11-08T09:00:00Z',
       oldestQueue: 'webhook',
     })
     expect(queueTotals([]).oldestPendingAt).toBeNull()
+    expect(queueTotals([queue({})]).retryingDetail).toBeNull()
   })
 })
 

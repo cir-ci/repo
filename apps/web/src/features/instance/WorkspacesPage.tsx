@@ -21,7 +21,7 @@ import { useDocumentTitle } from '#lib/document-title.ts'
 import { AdminFrame, Intro } from './AdminFrame.tsx'
 import {
   deletedLabel,
-  formatDay,
+  formatShortDay,
   settingsQuery,
   slugPreview,
   useCreateWorkspace,
@@ -49,6 +49,7 @@ export function WorkspacesPage() {
   const restore = useRestoreWorkspace()
   const purge = usePurgeWorkspace()
   const [purging, setPurging] = useState<InstanceAdmin.Workspace | null>(null)
+  const [now] = useState(() => Date.now())
 
   return (
     <AdminFrame
@@ -83,7 +84,7 @@ export function WorkspacesPage() {
         ) : (
           <div className={rows.box}>
             <div className={rows.head} aria-hidden="true">
-              <span className={rows.tileSpacer} />
+              <span />
               <span className={rows.name}>Workspace</span>
               <span className={rows.num}>Members</span>
               <span className={rows.num}>Teams</span>
@@ -120,7 +121,7 @@ export function WorkspacesPage() {
                   </Text>
                   <Text className={rows.num} variant="small">
                     <span style={visuallyHidden}>Created </span>
-                    {formatDay(w.createdAt)}
+                    {formatShortDay(w.createdAt, now)}
                   </Text>
                   <span className={rows.action}>
                     {w.deletedAt ? (

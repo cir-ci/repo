@@ -2,6 +2,8 @@ import type { InstanceAdmin } from '@circi/api'
 import {
   Badge,
   Button,
+  CloseIcon,
+  IconButton,
   RefreshIcon,
   SettingsRow,
   SettingsSection,
@@ -14,18 +16,18 @@ import { Fragment, useState } from 'react'
 import { setupQuery } from '#features/auth/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
+import { formatRelative } from '#lib/relative-time.ts'
 
 import { AdminFrame, Intro } from './AdminFrame.tsx'
 import {
   checklistQuery,
   checksQuery,
   findingCounts,
-  findingHost,
   FINDING_LEVEL,
-  findingsSummary,
   formatAge,
   groupFindings,
   isForbidden,
+  isMoving,
   queuesQuery,
   queueTotals,
   stepDone,
@@ -64,7 +66,14 @@ export function HealthPage() {
           </Button>
         }
       >
-        The same checks as circi admin doctor on the server.
+        Same checks as{' '}
+        <Text as="code" variant="mono">
+          circi admin doctor
+        </Text>
+        .{' '}
+        {checks.dataUpdatedAt
+          ? `Last run ${formatRelative(new Date(checks.dataUpdatedAt).toISOString(), now)}.`
+          : null}
       </Intro>
       <SummarySection checks={checks.data} loading={checks.isFetching} />
       {checks.error && !checks.data ? (
@@ -75,7 +84,7 @@ export function HealthPage() {
       {groups && groups.services.length > 0 ? (
         <SettingsSection
           title="Services"
-          description="What CirCI needs running to build and store."
+          description="What CirCI needs running to build, store and mail."
         >
           {groups.services.map((f) => (
             <FindingRow key={f.id} finding={f} />
@@ -119,11 +128,9 @@ function SummarySection(props: { checks: InstanceAdmin.Checks | undefined; loadi
     <SettingsSection
       title="Summary"
       description={
-        checks
-          ? findingsSummary(checks.findings)
-          : props.loading
-            ? 'Running the checks. They ask other hosts, so this can take a few seconds.'
-            : undefined
+        !checks && props.loading
+          ? 'Running the checks. They ask other hosts, so this can take a few seconds.'
+          : undefined
       }
       bare
     >
@@ -160,11 +167,11 @@ function SummaryCounts(props: { findings: InstanceAdmin.Finding[] }) {
           ),
         },
         {
-          label: 'Notes',
-          value: counts.notes,
+          label: 'Failing',
+          value: counts.failing,
           extra: (
-            <Badge shape="tag" tone="state" state="processing">
-              Note
+            <Badge shape="tag" tone="state" state="rejected">
+              Failing
             </Badge>
           ),
         },
@@ -174,12 +181,11 @@ function SummaryCounts(props: { findings: InstanceAdmin.Finding[] }) {
 }
 
 function FindingRow({ finding: f }: { finding: InstanceAdmin.Finding }) {
-  const host = findingHost(f)
   return (
     <SettingsRow
-      label={f.message}
-      detail={f.fix ? `How to fix: ${f.fix}` : undefined}
-      value={host}
+      label={f.label}
+      detail={f.fix ? `${f.detail} How to fix: ${f.fix}` : f.detail}
+      value={f.value ?? undefined}
       status={
         <Badge shape="tag" tone="state" state={FINDING_LEVEL[f.level].state}>
           {FINDING_LEVEL[f.level].label}
@@ -192,7 +198,8 @@ function FindingRow({ finding: f }: { finding: InstanceAdmin.Finding }) {
 function ChecklistSection(props: { checklist: InstanceAdmin.AddressChecklist | undefined }) {
   const { checklist } = props
   const dismiss = useDismissChecklist()
-  if (!checklist) return null
+  // Only while an address change is in progress: the old address is listed in PREVIOUS_PUBLIC_URLS.
+  if (!checklist || !isMoving(checklist)) return null
   if (checklist.dismissed) {
     return (
       <Text variant="small" tone="tertiary">
@@ -205,11 +212,15 @@ function ChecklistSection(props: { checklist: InstanceAdmin.AddressChecklist | u
   return (
     <SettingsSection
       title={`Moving to ${hostOf(checklist.publicUrl)}`}
-      description={`CirCI is at ${checklist.publicUrl}. When PUBLIC_URL changes, old links redirect, but a few registrations outside CirCI still name the old address.`}
+      description={`Old links to ${checklist.previousHosts.join(', ')} redirect. A few registrations outside CirCI still name the old address.`}
       actions={
-        <Button variant="ghost" loading={dismiss.isPending} onClick={() => dismiss.mutate(true)}>
-          Dismiss
-        </Button>
+        <IconButton
+          label="Dismiss the move checklist"
+          disabled={dismiss.isPending}
+          onClick={() => dismiss.mutate(true)}
+        >
+          <CloseIcon />
+        </IconButton>
       }
     >
       {checklist.steps.map((step, i) => {
@@ -269,7 +280,7 @@ function QueuesSection(props: {
     <>
       <SettingsSection
         title="Background jobs"
-        description="Diffs, thumbnails, checks and webhooks wait here for a worker."
+        description="Diffs, thumbnails, checks, webhooks and integration messages wait here for a worker."
         bare
       >
         <SettingsSummary
@@ -281,7 +292,11 @@ function QueuesSection(props: {
               value: totals.oldestPendingAt ? formatAge(totals.oldestPendingAt, props.now) : 'None',
               extra: totals.oldestQueue ?? undefined,
             },
-            { label: 'Failed', value: totals.failed },
+            {
+              label: 'Retrying',
+              value: totals.retrying,
+              extra: totals.retryingDetail ?? undefined,
+            },
           ]}
         />
       </SettingsSection>
@@ -290,10 +305,23 @@ function QueuesSection(props: {
           <SettingsRow
             key={q.queue}
             label={q.queue}
+            detail={queueDetail(q, props.now)}
             value={`${q.pending} waiting · ${q.running} running · ${q.failed} failed`}
           />
         ))}
       </SettingsSection>
     </>
   )
+}
+
+/** "Oldest waiting 42 seconds · 1 retrying (attempt 3 of 8)": what is behind a queue's counts. */
+function queueDetail(q: InstanceAdmin.QueueDepth, now: number): string | undefined {
+  const parts: string[] = []
+  if (q.oldestPendingAt) parts.push(`Oldest waiting ${formatAge(q.oldestPendingAt, now)}`)
+  if (q.retrying > 0 && q.mostRetried) {
+    parts.push(
+      `${q.retrying} retrying (attempt ${q.mostRetried.attempt} of ${q.mostRetried.maxAttempts})`,
+    )
+  }
+  return parts.length > 0 ? parts.join(' · ') : undefined
 }

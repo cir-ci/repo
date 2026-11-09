@@ -357,7 +357,31 @@ describe('health', () => {
     // Free disk space changes between two calls, so compare what each check is and finds.
     expect(body.findings.map(shape)).toEqual(expected.map(shape))
     expect(body.findings.map((f) => f.id)).toEqual(expect.arrayContaining(['database', 'mail']))
-    expect(body.warned).toBe(expected.some((f) => f.level === 'warn'))
+    expect(body.warned).toBe(expected.some((f) => f.level === 'warn' || f.level === 'fail'))
+  })
+
+  it('gives every finding a label, a detail and an optional mono value', async () => {
+    const body = (await asAdmin('GET', '/api/instance/health/checks')).json<InstanceAdmin.Checks>()
+    for (const f of body.findings) {
+      expect(f.label).not.toBe('')
+      expect(f.detail).not.toBe('')
+      expect(f.message).toContain(f.label)
+    }
+    const by = Object.fromEntries(body.findings.map((f) => [f.id, f]))
+    expect(by['database']).toMatchObject({
+      level: 'ok',
+      label: 'Database',
+      detail: 'Reachable. Migrations are current.',
+      value: expect.stringMatching(/^\d+ migrations?$/),
+    })
+    expect(by['storage']).toMatchObject({
+      level: 'ok',
+      label: 'Storage',
+      detail: 'Reachable and writable.',
+      value: config.storage.driver === 'fs' ? config.storage.path : undefined,
+    })
+    // The mail server accepts nothing here (the fake mailer has no `verify`): a note, with the server as value.
+    expect(by['mail']).toMatchObject({ label: 'Mail', value: 'smtp.acme.test:587' })
   })
 
   it('lists what changes with the address, from the configuration', async () => {
@@ -370,6 +394,8 @@ describe('health', () => {
     )
     expect(body.steps.find((s) => s.id === 'dns')?.values).toContain(`PUBLIC_URL=${ORIGIN}`)
     expect(body.steps.some((s) => s.id === 'github-app')).toBe(false)
+    // No move is in progress: PREVIOUS_PUBLIC_URLS is not set.
+    expect(body.previousHosts).toEqual([])
   })
 
   it('dismisses the move checklist for this address, and shows it again', async () => {
@@ -398,7 +424,18 @@ describe('health', () => {
     const by = Object.fromEntries(body.queues.map((q) => [q.queue, q]))
     expect(by[QUEUES.webhook]).toMatchObject({ pending: 2, running: 0, failed: 0 })
     expect(by[QUEUES.webhook]?.oldestPendingAt).toEqual(expect.any(String))
+    expect(by[QUEUES.webhook]).toMatchObject({ retrying: 0, mostRetried: null })
     expect(by['odd-queue']).toMatchObject({ pending: 0, failed: 1 })
     expect(by[QUEUES.processBuild]).toMatchObject({ pending: 0, running: 0, failed: 0 })
+  })
+
+  it('counts pending jobs that failed before as retrying, with their next attempt', async () => {
+    await t.db
+      .update(schema.jobs)
+      .set({ attempts: 2, maxAttempts: 8 })
+      .where(eq(schema.jobs.queue, QUEUES.webhook))
+    const body = (await asAdmin('GET', '/api/instance/health/queues')).json<InstanceAdmin.Queues>()
+    const webhook = body.queues.find((q) => q.queue === QUEUES.webhook)
+    expect(webhook).toMatchObject({ retrying: 2, mostRetried: { attempt: 3, maxAttempts: 8 } })
   })
 })

@@ -58,10 +58,18 @@ describe('doctor', () => {
         'acme-sites.com': { status: 404, setCookies: [] },
       }),
     )
-    expect(out.find((f) => f.level === 'warn')?.message).toContain(
-      'acme.io sets cookies for a whole domain (tracker)',
-    )
-    expect(out.some((f) => f.message.includes('www.acme.io: could not be reached'))).toBe(true)
+    expect(out.find((f) => f.level === 'warn')).toMatchObject({
+      id: 'host:acme.io',
+      label: 'Cookies on acme.io',
+      detail: expect.stringContaining('Sets cookies for a whole domain'),
+      value: 'acme.io sets tracker with a Domain attribute',
+    })
+    expect(byId(out, 'host:www.acme.io')).toMatchObject({
+      level: 'info',
+      label: 'Cookies on www.acme.io',
+      value: 'www.acme.io',
+    })
+    expect(byId(out, 'host:www.acme.io')?.detail).toContain('Could not be reached')
   })
 
   it('warns when the sites domain serves content or sets any domain cookie', async () => {
@@ -93,19 +101,27 @@ describe('doctor', () => {
       answers({}),
     )
     expect(out.some((f) => f.level === 'warn' && f.message.includes('plain http'))).toBe(true)
-    expect(out.some((f) => f.message.includes('Static site hosting is off'))).toBe(true)
+    expect(byId(out, 'static-sites')).toMatchObject({
+      label: 'Static sites',
+      detail: 'Hosting is off.',
+    })
     expect(out.some((f) => f.id === 'custom-domains')).toBe(false)
   })
 
-  it('reports an unusable storage as a warning with the reason, and a good one as ok', async () => {
+  it('reports an unusable storage as failing with the reason, and a good one as ok', async () => {
     const config = loadConfig(base)
     const bad = await runDoctor(config, none, {
       kind: 's3',
       healthCheck: () => Promise.reject(new Error('S3 bucket "x" does not exist')),
     })
-    expect(bad.find((f) => f.level === 'warn')?.message).toContain('does not exist')
+    expect(byId(bad, 'storage')).toMatchObject({ level: 'fail', label: 'Storage' })
+    expect(byId(bad, 'storage')?.detail).toContain('does not exist')
     const good = await runDoctor(config, none, { kind: 'fs', healthCheck: async () => {} })
-    expect(good.find((f) => f.message.includes('Storage (fs)'))?.level).toBe('ok')
+    expect(byId(good, 'storage')).toMatchObject({
+      level: 'ok',
+      label: 'Storage',
+      detail: 'Reachable and writable.',
+    })
   })
 
   it('says clearly that an S3 that never answers timed out', async () => {
@@ -130,9 +146,10 @@ describe('doctor', () => {
         requestTimeoutMs: 200,
       })
       const out = await runDoctor(loadConfig(base), none, storage)
-      const warn = out.find((f) => f.level === 'warn')
-      expect(warn?.message).toContain('did not answer in time')
-      expect(warn?.message).toContain('S3_REQUEST_TIMEOUT_SECONDS')
+      const failed = byId(out, 'storage')
+      expect(failed?.level).toBe('fail')
+      expect(failed?.detail).toContain('did not answer in time')
+      expect(failed?.detail).toContain('S3_REQUEST_TIMEOUT_SECONDS')
     } finally {
       for (const s of sockets) s.destroy()
       await new Promise((resolve) => silent.close(resolve))
@@ -152,7 +169,7 @@ describe('doctor', () => {
       expect(mailer.sent).toEqual([])
       mailer.verifyError = new Error('Invalid login: 535 authentication failed')
       const bad = await runDoctor(loadConfig(smtp), none, undefined, { mailer })
-      expect(byId(bad, 'mail')).toMatchObject({ level: 'warn' })
+      expect(byId(bad, 'mail')).toMatchObject({ level: 'fail', label: 'Mail' })
       expect(byId(bad, 'mail')?.message).toContain('535 authentication failed')
       expect(mailer.sent).toEqual([])
     })
@@ -170,12 +187,19 @@ describe('doctor', () => {
     it('pings the database and compares applied migrations with those shipped', async () => {
       const ok = await runDoctor(loadConfig(base), none, undefined, { database: dbOk })
       expect(byId(ok, 'database')).toMatchObject({ level: 'ok' })
-      expect(byId(ok, 'database')?.message).toContain('all 3 migrations')
+      // Structured: a label, what was found and the fact behind it (the CLI prints them as one line).
+      expect(byId(ok, 'database')).toMatchObject({
+        label: 'Database',
+        detail: 'Reachable. Migrations are current.',
+        value: '3 migrations',
+        message: 'Database: Reachable. Migrations are current. (3 migrations)',
+      })
       const behind = await runDoctor(loadConfig(base), none, undefined, {
         database: { ...dbOk, migrations: async () => ({ applied: 2, available: 3 }) },
       })
-      expect(byId(behind, 'database')?.message).toContain('only 2 of 3 migrations')
-      expect(byId(behind, 'database')?.level).toBe('warn')
+      expect(byId(behind, 'database')?.detail).toContain('only 2 of 3 migrations')
+      expect(byId(behind, 'database')?.value).toBe('2 of 3 migrations')
+      expect(byId(behind, 'database')?.level).toBe('fail')
       const ahead = await runDoctor(loadConfig(base), none, undefined, {
         database: { ...dbOk, migrations: async () => ({ applied: 4, available: 3 }) },
       })
@@ -186,7 +210,7 @@ describe('doctor', () => {
           migrations: async () => ({ applied: 0, available: 3 }),
         },
       })
-      expect(byId(down, 'database')).toMatchObject({ level: 'warn' })
+      expect(byId(down, 'database')).toMatchObject({ level: 'fail' })
       expect(byId(down, 'database')?.message).toContain('ECONNREFUSED')
     })
 

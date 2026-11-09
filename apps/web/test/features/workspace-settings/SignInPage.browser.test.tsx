@@ -29,11 +29,15 @@ describe('SignInPage', () => {
     await renderPage(<SignInPage />, ROUTE)
     await expect.element(page.getByRole('navigation', { name: 'Breadcrumb' })).toBeVisible()
     await Promise.all(
-      ['Sign-in methods', 'Single sign-on', 'Email domains'].map(async (name) => {
+      ['Sign-in methods', 'Email domains'].map(async (name) => {
         await expect.element(page.getByRole('heading', { name })).toBeVisible()
       }),
     )
     await expect.element(page.getByRole('switch', { name: /Password/ })).toBeChecked()
+    // Single sign-on is a row of the methods, not a section: a Configure button.
+    await expect.element(page.getByText('Single sign-on', { exact: true })).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Configure' })).toBeVisible()
+    expect(page.getByRole('heading', { name: 'Single sign-on' }).elements()).toHaveLength(0)
   })
 
   it('shows members the methods read-only and hides domains and single sign-on', async () => {
@@ -45,7 +49,7 @@ describe('SignInPage', () => {
       .element(page.getByText(/Only owners and admins can change sign-in settings/))
       .toBeVisible()
     expect(page.getByRole('heading', { name: 'Email domains' }).elements()).toHaveLength(0)
-    expect(page.getByRole('heading', { name: 'Single sign-on' }).elements()).toHaveLength(0)
+    expect(page.getByRole('button', { name: 'Configure' }).elements()).toHaveLength(0)
   })
 
   it('says the workspace doesn’t exist for a 404', async () => {

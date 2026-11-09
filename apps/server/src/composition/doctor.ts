@@ -15,8 +15,15 @@ export namespace runDoctor {
   export interface Finding {
     /** Stable name of the check (`storage`, `public-url`, `host:acme.io`…). */
     id: string
-    /** The severity: `warn` is a problem, `info` a note, `ok` a pass. */
-    level: 'ok' | 'warn' | 'info'
+    /** The severity: `fail` is something CirCI needs that does not work, `warn` a problem to look at, `info` a note, `ok` a pass. */
+    level: 'ok' | 'warn' | 'info' | 'fail'
+    /** What was checked, as a name: `Database`, `Mail`, `Sites domain`. */
+    label: string
+    /** What was found, in a sentence or two. */
+    detail: string
+    /** The fact behind it, short and for a mono font: a host, a path, `2 of 3 migrations`. */
+    value?: string
+    /** `label`, `detail` and `value` as one sentence: what `circi admin doctor` prints. */
     message: string
     /** What to do about a `warn` (and sometimes an `info`). */
     fix?: string
@@ -33,6 +40,19 @@ export namespace runDoctor {
     }
     /** Free space at a path; default `fs.statfs`. */
     diskSpace?: (path: string) => Promise<{ free: number; total: number }>
+  }
+}
+
+/** A finding from its parts; `message` is `label`, `detail` and `value` as one line. */
+export function finding(
+  input: Pick<runDoctor.Finding, 'id' | 'level' | 'label' | 'detail'> &
+    Partial<Pick<runDoctor.Finding, 'value' | 'fix'>>,
+): runDoctor.Finding {
+  const { value, ...rest } = input
+  return {
+    ...rest,
+    ...(value ? { value } : {}),
+    message: `${input.label}: ${input.detail}${value ? ` (${value})` : ''}`,
   }
 }
 
@@ -56,31 +76,42 @@ export async function checkMail(
 ): Promise<runDoctor.Finding> {
   const { smtp } = config
   if (!smtp) {
-    return {
+    return finding({
       id: 'mail',
       level: 'info',
-      message:
-        'Mail is not set up (SMTP_HOST is not set): sign-in codes, invitations and email notifications are off.',
-    }
+      label: 'Mail',
+      detail: 'Not set up: sign-in codes, invitations and email notifications are off.',
+      value: 'SMTP_HOST is not set',
+    })
   }
   const where = `${smtp.host}:${smtp.port}`
   if (!mailer?.verify) {
-    return {
+    return finding({
       id: 'mail',
       level: 'info',
-      message: `Mail (${where}) is configured but was not tested.`,
-    }
+      label: 'Mail',
+      detail: 'Configured, but not tested.',
+      value: where,
+    })
   }
   try {
     await mailer.verify()
-    return { id: 'mail', level: 'ok', message: `Mail server ${where} accepted the connection.` }
-  } catch (err) {
-    return {
+    return finding({
       id: 'mail',
-      level: 'warn',
-      message: `Mail server ${where} did not accept the connection: ${err instanceof Error ? err.message : String(err)}`,
+      level: 'ok',
+      label: 'Mail',
+      detail: 'Accepted a test connection.',
+      value: where,
+    })
+  } catch (err) {
+    return finding({
+      id: 'mail',
+      level: 'fail',
+      label: 'Mail',
+      detail: `Did not accept the connection: ${err instanceof Error ? err.message : String(err)}`,
+      value: where,
       fix: 'Check SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER and SMTP_PASSWORD (`circi admin mail test --to <address>` sends a real test mail).',
-    }
+    })
   }
 }
 
@@ -91,42 +122,50 @@ export async function checkDatabase(
   try {
     await database.ping()
   } catch (err) {
-    return {
+    return finding({
       id: 'database',
-      level: 'warn',
-      message: `The database is not reachable: ${err instanceof Error ? err.message : String(err)}`,
+      level: 'fail',
+      label: 'Database',
+      detail: `Not reachable: ${err instanceof Error ? err.message : String(err)}`,
       fix: 'Check DATABASE_URL and that Postgres is running.',
-    }
+    })
   }
   try {
     const { applied, available } = await database.migrations()
     if (applied < available) {
-      return {
+      return finding({
         id: 'database',
-        level: 'warn',
-        message: `The database is reachable, but only ${applied} of ${available} migrations are applied.`,
+        level: 'fail',
+        label: 'Database',
+        detail: `Reachable, but only ${applied} of ${available} migrations are applied.`,
+        value: `${applied} of ${available} migrations`,
         fix: 'Run `circi migrate`, or restart the server (it migrates on start unless --no-migrate is set).',
-      }
+      })
     }
     if (applied > available) {
-      return {
+      return finding({
         id: 'database',
-        level: 'warn',
-        message: `The database has ${applied} migrations applied, but this version of CirCI knows ${available}: it was migrated by a newer version.`,
+        level: 'fail',
+        label: 'Database',
+        detail: `Migrated by a newer version of CirCI: ${applied} migrations are applied, this version knows ${available}.`,
+        value: `${applied} of ${available} migrations`,
         fix: 'Run the same version of CirCI everywhere, or roll the database back from a backup.',
-      }
+      })
     }
-    return {
+    return finding({
       id: 'database',
       level: 'ok',
-      message: `The database is reachable and all ${available} migrations are applied.`,
-    }
+      label: 'Database',
+      detail: 'Reachable. Migrations are current.',
+      value: `${available} ${available === 1 ? 'migration' : 'migrations'}`,
+    })
   } catch (err) {
-    return {
+    return finding({
       id: 'database',
       level: 'info',
-      message: `The database is reachable, but its migrations could not be counted: ${err instanceof Error ? err.message : String(err)}`,
-    }
+      label: 'Database',
+      detail: `Reachable, but its migrations could not be counted: ${err instanceof Error ? err.message : String(err)}`,
+    })
   }
 }
 
@@ -138,23 +177,33 @@ export async function checkDisk(
   try {
     const { free, total } = await diskSpace(path)
     const share = total > 0 ? free / total : 0
-    const text = `${gb(free)} free of ${gb(total)} (${Math.round(share * 100)}%) at ${path}`
+    const value = `${path} · ${gb(free)} free of ${gb(total)} (${Math.round(share * 100)}%)`
     if (share < DISK_LOW_SHARE || free < DISK_LOW_BYTES) {
-      return {
+      return finding({
         id: 'disk',
         level: 'warn',
-        message: `Storage disk is running low: ${text}.`,
+        label: 'Disk space',
+        detail: 'The storage disk is running low.',
+        value,
         fix: 'Free space (`circi admin storage gc`), lower the teams’ retention, grow the volume or move to S3 (`circi admin storage migrate`).',
-      }
+      })
     }
-    return { id: 'disk', level: 'ok', message: `Storage disk has room: ${text}.` }
+    return finding({
+      id: 'disk',
+      level: 'ok',
+      label: 'Disk space',
+      detail: 'The storage disk has room.',
+      value,
+    })
   } catch (err) {
-    return {
+    return finding({
       id: 'disk',
       level: 'warn',
-      message: `Free space at ${path} could not be read: ${err instanceof Error ? err.message : String(err)}`,
+      label: 'Disk space',
+      detail: `Free space could not be read: ${err instanceof Error ? err.message : String(err)}`,
+      value: path,
       fix: 'Check that STORAGE_PATH exists.',
-    }
+    })
   }
 }
 
@@ -179,23 +228,37 @@ export async function runDoctor(
 ): Promise<runDoctor.Finding[]> {
   const findings: runDoctor.Finding[] = []
   if (storage) {
+    const where =
+      config.storage?.driver === 's3'
+        ? `s3 · ${config.storage.bucket}`
+        : config.storage?.driver === 'fs'
+          ? config.storage.path
+          : storage.kind
     try {
       await storage.healthCheck()
-      findings.push({
-        id: 'storage',
-        level: 'ok',
-        message: `Storage (${storage.kind}) is reachable and writable.`,
-      })
+      findings.push(
+        finding({
+          id: 'storage',
+          level: 'ok',
+          label: 'Storage',
+          detail: 'Reachable and writable.',
+          value: where,
+        }),
+      )
     } catch (err) {
-      findings.push({
-        id: 'storage',
-        level: 'warn',
-        message: `Storage (${storage.kind}) is not usable: ${err instanceof Error ? err.message : String(err)}`,
-        fix:
-          storage.kind === 's3'
-            ? 'Check S3_BUCKET, S3_ENDPOINT, the credentials and that the bucket exists.'
-            : 'Check that STORAGE_PATH exists and the server may write to it.',
-      })
+      findings.push(
+        finding({
+          id: 'storage',
+          level: 'fail',
+          label: 'Storage',
+          detail: `Not usable: ${err instanceof Error ? err.message : String(err)}`,
+          value: where,
+          fix:
+            storage.kind === 's3'
+              ? 'Check S3_BUCKET, S3_ENDPOINT, the credentials and that the bucket exists.'
+              : 'Check that STORAGE_PATH exists and the server may write to it.',
+        }),
+      )
     }
   }
   // The checks that ask the running instance (disk, database, mail) run when probes are given.
@@ -208,12 +271,16 @@ export async function runDoctor(
   }
   const dashboard = config.publicUrl.hostname
   if (config.publicUrl.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(dashboard)) {
-    findings.push({
-      id: 'public-url',
-      level: 'warn',
-      message: `PUBLIC_URL is plain http (${config.publicUrl.origin}): sign-in cookies need https.`,
-      fix: `Put a TLS proxy such as Caddy in front and set PUBLIC_URL to https://${config.publicUrl.host}.`,
-    })
+    findings.push(
+      finding({
+        id: 'public-url',
+        level: 'warn',
+        label: 'Dashboard address',
+        detail: 'PUBLIC_URL is plain http: sign-in cookies need https.',
+        value: config.publicUrl.origin,
+        fix: `Put a TLS proxy such as Caddy in front and set PUBLIC_URL to https://${config.publicUrl.host}.`,
+      }),
+    )
   }
 
   const targets = new Set<string>()
@@ -225,67 +292,97 @@ export async function runDoctor(
   if (config.staticSites) targets.add(config.staticSites.host)
 
   for (const host of targets) {
+    const isSites = config.staticSites !== undefined && host === config.staticSites.host
+    const label = isSites ? 'Sites domain' : `Cookies on ${host}`
     // eslint-disable-next-line no-await-in-loop -- a handful of hosts, in order
     const res = await fetchHost(`https://${host}/`)
     if (!res) {
-      findings.push({
-        id: `host:${host}`,
-        level: 'info',
-        message: `${host}: could not be reached, so it wasn't checked.`,
-      })
+      findings.push(
+        finding({
+          id: `host:${host}`,
+          level: 'info',
+          label,
+          detail: 'Could not be reached, so it was not checked.',
+          value: host,
+        }),
+      )
       continue
     }
     const bad = domainCookies(res.setCookies)
     if (bad.length > 0) {
-      findings.push({
-        id: `host:${host}`,
-        level: 'warn',
-        fix: `Make ${host} set its cookies for its own host only (no Domain attribute).`,
-        message: `${host} sets cookies for a whole domain (${bad.join(', ')}). Every such cookie reaches the dashboard${config.staticSites && host.endsWith(config.staticSites.host) ? ', and the sites domain must never set cookies' : ''}. Keep them host-only.`,
-      })
-    } else if (config.staticSites && host === config.staticSites.host && res.status < 400) {
-      findings.push({
-        id: `host:${host}`,
-        level: 'warn',
-        fix: `Serve nothing on ${host} itself: only the sites under its subdomains.`,
-        message: `${host} (the sites domain's apex) serves content (HTTP ${res.status}). The sites domain must serve nothing but CirCI's sites.`,
-      })
+      findings.push(
+        finding({
+          id: `host:${host}`,
+          level: 'warn',
+          label,
+          detail: `Sets cookies for a whole domain. Every such cookie reaches the dashboard${config.staticSites && host.endsWith(config.staticSites.host) ? ', and the sites domain must never set cookies' : ''}. Keep them host-only.`,
+          value: `${host} sets ${bad.join(', ')} with a Domain attribute`,
+          fix: `Make ${host} set its cookies for its own host only (no Domain attribute).`,
+        }),
+      )
+    } else if (isSites && res.status < 400) {
+      findings.push(
+        finding({
+          id: `host:${host}`,
+          level: 'warn',
+          label,
+          detail: `Serves content at its apex (HTTP ${res.status}). The sites domain must serve nothing but CirCI’s sites.`,
+          value: host,
+          fix: `Serve nothing on ${host} itself: only the sites under its subdomains.`,
+        }),
+      )
     } else {
-      findings.push({
-        id: `host:${host}`,
-        level: 'ok',
-        message: `${host}: no domain-wide cookies${res.status < 400 ? '' : ' and nothing served'}.`,
-      })
+      findings.push(
+        finding({
+          id: `host:${host}`,
+          level: 'ok',
+          label,
+          detail: isSites
+            ? 'Serves nothing at its apex and sets no domain-wide cookies.'
+            : `Sets no domain-wide cookies${res.status < 400 ? '' : ' and serves nothing'}.`,
+          value: host,
+        }),
+      )
     }
   }
 
   if (!config.staticSites) {
-    findings.push({
-      id: 'static-sites',
-      level: 'info',
-      message: 'Static site hosting is off (STATIC_SITES_HOST is not set).',
-    })
+    findings.push(
+      finding({
+        id: 'static-sites',
+        level: 'info',
+        label: 'Static sites',
+        detail: 'Hosting is off.',
+        value: 'STATIC_SITES_HOST is not set',
+      }),
+    )
   }
   if (config.staticSites) {
-    findings.push({
-      id: 'custom-domains',
-      level: 'info',
-      message:
-        'Custom domains for sites (set in the dashboard) get their certificate from Caddy on demand: the Caddyfile needs `on_demand_tls { ask http://circi:3000/internal/tls-ask }` (deploy/Caddyfile has it). CirCI refuses a custom domain that shares a cookie scope with the dashboard.',
-    })
+    findings.push(
+      finding({
+        id: 'custom-domains',
+        level: 'info',
+        label: 'Custom domains',
+        detail:
+          'Custom domains for sites (set in the dashboard) get their certificate from Caddy on demand: the Caddyfile needs `on_demand_tls { ask http://circi:3000/internal/tls-ask }` (deploy/Caddyfile has it). CirCI refuses a custom domain that shares a cookie scope with the dashboard.',
+      }),
+    )
   }
-  findings.push({
-    id: 'reminder',
-    level: 'info',
-    message:
-      'This check only sees the hosts above. Also make sure nothing else on the dashboard’s parent domain sets cookies for the whole domain, and that the sites domain hosts nothing else (docs/reference/static-sites.md).',
-  })
+  findings.push(
+    finding({
+      id: 'reminder',
+      level: 'info',
+      label: 'Reminder',
+      detail:
+        'This check only sees the hosts above. Also make sure nothing else on the dashboard’s parent domain sets cookies for the whole domain, and that the sites domain hosts nothing else (docs/reference/static-sites.md).',
+    }),
+  )
   return findings
 }
 
-/** The line `circi admin doctor` prints for a finding (a fix hint goes on the next line). */
+/** The line `circi admin doctor` prints for a finding, built from its fields (a fix hint goes on the next line). */
 export function formatFinding(f: runDoctor.Finding): string {
-  const mark = f.level === 'ok' ? '✓' : f.level === 'warn' ? '⚠' : '·'
+  const mark = f.level === 'ok' ? '✓' : f.level === 'info' ? '·' : '⚠'
   return `${mark} ${f.message}${f.fix ? `\n    fix: ${f.fix}` : ''}`
 }
 

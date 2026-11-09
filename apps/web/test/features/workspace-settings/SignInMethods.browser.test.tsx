@@ -6,6 +6,7 @@ import { fakeFetch, pending } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 const PATH = '/api/workspaces/acme/auth'
+const SSO = '/api/workspaces/acme/sso'
 const auth = (over: { password?: boolean; email?: boolean; instance?: object } = {}) => ({
   canManage: true,
   settings: {
@@ -20,14 +21,14 @@ const auth = (over: { password?: boolean; email?: boolean; instance?: object } =
 describe('SignInMethods', () => {
   it('renders nothing until the settings are known', async () => {
     await page.viewport(1000, 800)
-    fakeFetch({ [`GET ${PATH}`]: () => pending() })
+    fakeFetch({ [`GET ${SSO}`]: { providers: [] }, [`GET ${PATH}`]: () => pending() })
     await renderPage(<SignInMethods workspace="acme" />)
     expect(page.getByRole('heading', { name: 'Sign-in methods' }).elements()).toHaveLength(0)
   })
 
   it('shows each method as a switch in its current state', async () => {
     await page.viewport(1000, 800)
-    fakeFetch({ [`GET ${PATH}`]: auth() })
+    fakeFetch({ [`GET ${SSO}`]: { providers: [] }, [`GET ${PATH}`]: auth() })
     await renderPage(<SignInMethods workspace="acme" />)
     await expect.element(page.getByRole('heading', { name: 'Sign-in methods' })).toBeVisible()
     await expect.element(page.getByRole('switch', { name: /^Password/ })).toBeChecked()
@@ -36,7 +37,10 @@ describe('SignInMethods', () => {
 
   it('shows the GitHub and Google switches only for providers the instance has', async () => {
     await page.viewport(1000, 800)
-    fakeFetch({ [`GET ${PATH}`]: auth({ instance: { github: true } }) })
+    fakeFetch({
+      [`GET ${SSO}`]: { providers: [] },
+      [`GET ${PATH}`]: auth({ instance: { github: true } }),
+    })
     await renderPage(<SignInMethods workspace="acme" />)
     await expect.element(page.getByRole('switch', { name: /^GitHub/ })).toBeChecked()
     expect(page.getByRole('switch', { name: /^Google/ }).elements()).toHaveLength(0)
@@ -45,6 +49,7 @@ describe('SignInMethods', () => {
   it('saves a provider switch as it flips, with only that field', async () => {
     await page.viewport(1000, 800)
     const calls = fakeFetch({
+      [`GET ${SSO}`]: { providers: [] },
       [`GET ${PATH}`]: auth({ instance: { github: true, google: true } }),
       [`PATCH ${PATH}`]: { settings: {} },
     })
@@ -65,7 +70,10 @@ describe('SignInMethods', () => {
 
   it('disables a method the instance does not offer, and says so', async () => {
     await page.viewport(1000, 800)
-    fakeFetch({ [`GET ${PATH}`]: auth({ email: true, instance: { email: false } }) })
+    fakeFetch({
+      [`GET ${SSO}`]: { providers: [] },
+      [`GET ${PATH}`]: auth({ email: true, instance: { email: false } }),
+    })
     await renderPage(<SignInMethods workspace="acme" />)
     const email = page.getByRole('switch', { name: /Email code/ })
     await expect.element(email).toBeDisabled()
@@ -78,6 +86,7 @@ describe('SignInMethods', () => {
     await page.viewport(1000, 800)
     let settings = { passwordLoginEnabled: true, emailLoginEnabled: false }
     const calls = fakeFetch({
+      [`GET ${SSO}`]: { providers: [] },
       [`GET ${PATH}`]: () => ({ ...auth(), settings }),
       [`PATCH ${PATH}`]: () => {
         settings = { ...settings, emailLoginEnabled: true }
@@ -93,6 +102,7 @@ describe('SignInMethods', () => {
   it('shows why a change was refused', async () => {
     await page.viewport(1000, 800)
     fakeFetch({
+      [`GET ${SSO}`]: { providers: [] },
       [`GET ${PATH}`]: auth(),
       [`PATCH ${PATH}`]: () =>
         Response.json({ error: 'An owner must be able to sign in' }, { status: 409 }),

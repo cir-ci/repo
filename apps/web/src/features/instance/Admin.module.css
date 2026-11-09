@@ -1,10 +1,39 @@
 /* Shared by the Instance pages: the list sections, toolbars, the once-only secret. */
 
-.grow {
+/* A list of rows in its own bordered box (when the section is `bare`, so notes can sit outside). */
+.box {
+  overflow: hidden;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 10px;
+  background: var(--circi-surface-raised);
+}
+
+/* The name, badges and email of an account row; the row itself makes it grow. */
+.identity {
   display: flex;
-  flex: 1 1 220px;
   flex-direction: column;
   min-width: 0;
+}
+
+/* Right-hand columns of an account row: how many workspaces, and when last seen. */
+.workspacesCol {
+  flex: 0 0 110px;
+  text-align: right;
+}
+
+.when {
+  flex: 0 0 110px;
+  text-align: right;
+}
+
+@media (max-width: 600px) {
+  .workspacesCol {
+    display: none;
+  }
+
+  .when {
+    flex-basis: auto;
+  }
 }
 
 .env {

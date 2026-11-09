@@ -21,7 +21,7 @@ export function addDoctorCommand(admin: Command): void {
           instanceProbes({ db: rt.db.db, config: rt.config, mailer: rt.mailer }),
         )) {
           console.log(formatFinding(f))
-          warned ||= f.level === 'warn'
+          warned ||= f.level === 'warn' || f.level === 'fail'
         }
         if (warned) process.exitCode = 1
       }),

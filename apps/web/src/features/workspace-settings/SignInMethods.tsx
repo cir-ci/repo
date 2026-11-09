@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 
 import { workspaceAuthQuery, useSaveWorkspaceAuth } from '#features/members/api.ts'
 
+import { WorkspaceSso } from './WorkspaceSso.tsx'
+
 /** Which login methods this workspace accepts; the server keeps at least one usable by an owner. */
 export function SignInMethods({ workspace }: SignInMethods.Props) {
   const { data } = useQuery(workspaceAuthQuery(workspace))
@@ -38,6 +40,7 @@ export function SignInMethods({ workspace }: SignInMethods.Props) {
             onCheckedChange={(on) => save.mutate({ emailLoginEnabled: on })}
           />
         </SettingsRow>
+        {data.canManage ? <WorkspaceSso workspace={workspace} /> : null}
         {instance.github ? (
           <SettingsRow>
             <Switch

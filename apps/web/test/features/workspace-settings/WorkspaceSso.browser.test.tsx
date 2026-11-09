@@ -1,4 +1,4 @@
-import { AnnouncerProvider } from '@circi/ui'
+import { AnnouncerProvider, SettingsSection } from '@circi/ui'
 import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
@@ -16,9 +16,13 @@ const provider = {
 const show = () =>
   renderPage(
     <AnnouncerProvider>
-      <WorkspaceSso workspace="acme" />
+      <SettingsSection title="Sign-in methods">
+        <WorkspaceSso workspace="acme" />
+      </SettingsSection>
     </AnnouncerProvider>,
   )
+
+const configure = () => page.getByRole('button', { name: 'Configure' }).click()
 
 const fill = async (issuer: string, clientId: string, clientSecret: string) => {
   if (issuer) await page.getByRole('textbox', { name: 'Issuer address' }).fill(issuer)
@@ -27,19 +31,21 @@ const fill = async (issuer: string, clientId: string, clientSecret: string) => {
 }
 
 describe('WorkspaceSso', () => {
-  it('shows a skeleton while loading', async () => {
+  it('is a row with Configure disabled while loading', async () => {
     await page.viewport(1000, 800)
     fakeFetch({ [`GET ${BASE}`]: () => pending() })
     await show()
-    await expect.element(page.getByRole('heading', { name: 'Single sign-on' })).toBeVisible()
-    expect(document.querySelector('[data-slot="skeleton-list"]')).not.toBeNull()
-    expect(page.getByRole('button', { name: 'Connect provider' }).elements()).toHaveLength(0)
+    await expect.element(page.getByText('Single sign-on', { exact: true })).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Configure' })).toBeDisabled()
   })
 
-  it('names the workspace in the explanation and offers the form when nothing is connected', async () => {
+  it('offers Configure with the form behind it when nothing is connected', async () => {
     await page.viewport(1000, 800)
     fakeFetch({ [`GET ${BASE}`]: { providers: [] } })
     await show()
+    expect(page.getByText('Connected').elements()).toHaveLength(0)
+    expect(page.getByRole('textbox').elements()).toHaveLength(0)
+    await configure()
     await expect.element(page.getByText(/with “acme” and join as members/)).toBeVisible()
     await expect.element(page.getByRole('textbox', { name: 'Issuer address' })).toBeVisible()
     await expect.element(page.getByLabelText('Client secret')).toHaveAttribute('type', 'password')
@@ -50,12 +56,13 @@ describe('WorkspaceSso', () => {
     await expect.element(page.getByLabelText('Client id')).toHaveAttribute('autocomplete', 'off')
   })
 
-  it('shows the connected provider and its redirect address instead of the form', async () => {
+  it('shows Connected on the row, and the provider and its redirect address under Configure', async () => {
     await page.viewport(1000, 800)
     fakeFetch({ [`GET ${BASE}`]: { providers: [provider] } })
     await show()
-    await expect.element(page.getByText('https://login.acme.test')).toBeVisible()
     await expect.element(page.getByText('Connected')).toBeVisible()
+    await expect.element(page.getByText(/https:\/\/login.acme.test\. Signs people/)).toBeVisible()
+    await configure()
     await expect.element(page.getByText(provider.redirectUri)).toBeVisible()
     expect(page.getByRole('textbox').elements()).toHaveLength(0)
   })
@@ -70,16 +77,17 @@ describe('WorkspaceSso', () => {
     await show()
     await expect.element(page.getByRole('alert').getByText(/Down for now/)).toBeVisible()
     // No form is offered while it is unknown whether a provider exists.
-    expect(page.getByRole('button', { name: 'Connect provider' }).elements()).toHaveLength(0)
+    expect(page.getByRole('button', { name: 'Configure' }).elements()).toHaveLength(0)
     ok = true
     await page.getByRole('button', { name: 'Try again' }).click()
-    await expect.element(page.getByText('https://login.acme.test')).toBeVisible()
+    await expect.element(page.getByText('Connected')).toBeVisible()
   })
 
   it('names every empty field and sends nothing', async () => {
     await page.viewport(1000, 800)
     const calls = fakeFetch({ [`GET ${BASE}`]: { providers: [] } })
     await show()
+    await configure()
     await page.getByRole('button', { name: 'Connect provider' }).click()
     await expect.element(page.getByText('Enter the issuer address')).toBeVisible()
     await expect.element(page.getByText('Enter the client id')).toBeVisible()
@@ -92,6 +100,7 @@ describe('WorkspaceSso', () => {
     await page.viewport(1000, 800)
     const calls = fakeFetch({ [`GET ${BASE}`]: { providers: [] } })
     await show()
+    await configure()
     await fill('login.acme.test', 'id', 's3cret')
     await page.getByRole('button', { name: 'Connect provider' }).click()
     await expect
@@ -102,7 +111,7 @@ describe('WorkspaceSso', () => {
     expect(page.getByText('Enter a full address', { exact: false }).elements()).toHaveLength(0)
   })
 
-  it('connects a provider with trimmed values, then shows it', async () => {
+  it('connects a provider with trimmed values, closes the dialog and shows Connected', async () => {
     await page.viewport(1000, 800)
     let providers: unknown[] = []
     const calls = fakeFetch({
@@ -113,6 +122,7 @@ describe('WorkspaceSso', () => {
       },
     })
     await show()
+    await configure()
     await fill(' https://login.acme.test ', ' client-1 ', 's3cret')
     await page.getByRole('button', { name: 'Connect provider' }).click()
     await expect.element(page.getByText('Connected')).toBeVisible()
@@ -131,6 +141,7 @@ describe('WorkspaceSso', () => {
         Response.json({ error: 'Couldn’t reach that issuer' }, { status: 400 }),
     })
     await show()
+    await configure()
     await fill('https://login.acme.test', 'id', 's3cret')
     await page.getByRole('button', { name: 'Connect provider' }).click()
     await expect.element(page.getByRole('alert')).toHaveTextContent('Couldn’t reach that issuer')
@@ -148,6 +159,7 @@ describe('WorkspaceSso', () => {
       },
     })
     await show()
+    await configure()
     await page.getByRole('button', { name: 'Remove https://login.acme.test' }).click()
     const dialog = page.getByRole('alertdialog', { name: 'Disconnect single sign-on?' })
     await expect.element(dialog).toBeVisible()
@@ -156,7 +168,10 @@ describe('WorkspaceSso', () => {
 
     await page.getByRole('button', { name: 'Remove https://login.acme.test' }).click()
     await page.getByRole('alertdialog').getByRole('button', { name: 'Remove provider' }).click()
-    await expect.element(page.getByRole('button', { name: 'Connect provider' })).toBeVisible()
-    expect(calls.some((c) => c.method === 'DELETE' && c.path === `${BASE}/p1`)).toBe(true)
+    await expect
+      .poll(() => calls.some((c) => c.method === 'DELETE' && c.path === `${BASE}/p1`))
+      .toBe(true)
+    await expect.element(page.getByRole('button', { name: 'Configure' })).toBeVisible()
+    expect(page.getByText('Connected').elements()).toHaveLength(0)
   })
 })

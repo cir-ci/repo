@@ -29,10 +29,13 @@ export const dashboardInstanceHealthRoutes: FastifyPluginAsync<Deps.Dashboard> =
       findings: found.map((f): InstanceAdmin.Finding => ({
         id: f.id,
         level: f.level,
+        label: f.label,
+        detail: f.detail,
+        value: f.value ?? null,
         message: f.message,
         fix: f.fix ?? null,
       })),
-      warned: found.some((f) => f.level === 'warn'),
+      warned: found.some((f) => f.level === 'warn' || f.level === 'fail'),
     }
     return checks
   })
@@ -44,6 +47,7 @@ export const dashboardInstanceHealthRoutes: FastifyPluginAsync<Deps.Dashboard> =
     const result: InstanceAdmin.AddressChecklist = {
       ...checklist,
       dismissed: dismissedFor === checklist.publicUrl,
+      previousHosts: deps.instance.config.previousPublicHosts,
     }
     return result
   })
@@ -70,6 +74,8 @@ export const dashboardInstanceHealthRoutes: FastifyPluginAsync<Deps.Dashboard> =
         running: q.running,
         failed: q.failed,
         oldestPendingAt: q.oldestPendingAt?.toISOString() ?? null,
+        retrying: q.retrying,
+        mostRetried: q.mostRetried,
       })),
     }
   })

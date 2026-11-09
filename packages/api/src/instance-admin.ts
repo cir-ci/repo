@@ -106,10 +106,18 @@ export namespace InstanceAdmin {
     message: string
   }
 
-  /** One doctor check, as `circi admin doctor` prints it. */
+  /** One doctor check: a label, what was found and the fact behind it. */
   export interface Finding {
     id: string
-    level: 'ok' | 'warn' | 'info'
+    /** `fail`: something CirCI needs does not work; `warn`: look at it; `info`: a note; `ok`: passes. */
+    level: 'ok' | 'warn' | 'info' | 'fail'
+    /** What was checked: `Database`, `Mail`. */
+    label: string
+    /** What was found, in a sentence: `Migrations are current.` */
+    detail: string
+    /** The fact behind it, for a mono font (a host, a path, `Postgres 18`); null when there is none. */
+    value: string | null
+    /** The finding as one sentence, as `circi admin doctor` prints it. */
     message: string
     fix: string | null
   }
@@ -117,7 +125,7 @@ export namespace InstanceAdmin {
   /** `GET /api/instance/health/checks` (it asks other hosts, so it can take several seconds). */
   export interface Checks {
     findings: Finding[]
-    /** At least one finding is a `warn`. */
+    /** At least one finding is a `warn` or a `fail`. */
     warned: boolean
   }
 
@@ -136,6 +144,8 @@ export namespace InstanceAdmin {
     steps: AddressStep[]
     /** An admin dismissed the checklist for this address; it comes back when `PUBLIC_URL` changes. */
     dismissed: boolean
+    /** The hosts the dashboard used to live on (`PREVIOUS_PUBLIC_URLS`): empty when no move is in progress. */
+    previousHosts: string[]
   }
 
   export interface QueueDepth {
@@ -145,6 +155,10 @@ export namespace InstanceAdmin {
     failed: number
     /** When the oldest pending job was due; null with none pending. */
     oldestPendingAt: string | null
+    /** Pending jobs that already failed once and wait for their next attempt. */
+    retrying: number
+    /** The retrying job furthest along: its next attempt of the most it gets; null with none retrying. */
+    mostRetried: { attempt: number; maxAttempts: number } | null
   }
 
   /** `GET /api/instance/health/queues`: jobs not yet done, per queue. */

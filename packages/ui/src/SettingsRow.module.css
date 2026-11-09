@@ -69,11 +69,20 @@
   flex-wrap: wrap;
   gap: 8px;
   max-width: 100%;
+  /* When the row wraps, a control stays at the right edge. */
+  margin-left: auto;
 }
 
 /* Without a label the control is the row: a form, full width. */
 .root > .control:first-child {
   flex: 1 1 100%;
+}
+
+/* A lone child (a `Switch` with its own label, a form) takes the row's width, so a switch's track
+   sits at the right edge with its label and description filling the rest. */
+.root > .control:first-child > :only-child {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .status {

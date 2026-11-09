@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { Badge, SettingsPage, SettingsRow, SettingsSection, SettingsSummary } from '#src/index.ts'
+import {
+  Badge,
+  SettingsPage,
+  SettingsRow,
+  SettingsSection,
+  SettingsSummary,
+  Switch,
+} from '#src/index.ts'
 
 function found(element: Element | null | undefined): Element {
   if (!element) throw new Error('element not found')
@@ -96,6 +103,45 @@ describe('SettingsSection and SettingsRow', () => {
     const label = page.getByText('Storage').element().getBoundingClientRect()
     const value = page.getByText('/var/lib/circi/files').element().getBoundingClientRect()
     expect(value.top).toBeGreaterThanOrEqual(label.bottom)
+  })
+})
+
+describe('SettingsRow controls', () => {
+  it('puts a Switch child at the right edge, with its text taking the rest', async () => {
+    await render(
+      <div style={{ width: 640 }}>
+        <SettingsRow data-testid="row">
+          <Switch label="Password" description="Email and password." />
+        </SettingsRow>
+      </div>,
+    )
+    const row = page.getByTestId('row').element().getBoundingClientRect()
+    const track = page.getByRole('switch').element().getBoundingClientRect()
+    const label = page.getByText('Email and password.').element().getBoundingClientRect()
+    // 16px of row padding on the right; the track ends there, the text starts at the left padding.
+    expect(Math.round(row.right - track.right)).toBe(16)
+    expect(Math.round(label.left - row.left)).toBe(16)
+  })
+
+  it('keeps a control at the right edge of a labelled row, also when the row wraps', async () => {
+    await render(
+      <div style={{ width: 640 }}>
+        <SettingsRow data-testid="row" label="Test" detail="Short.">
+          <button>Send</button>
+        </SettingsRow>
+        <SettingsRow data-testid="narrow" label={'x'.repeat(40)} style={{ width: 260 }}>
+          <button>Go</button>
+        </SettingsRow>
+      </div>,
+    )
+    for (const [id, name] of [
+      ['row', 'Send'],
+      ['narrow', 'Go'],
+    ] as const) {
+      const row = page.getByTestId(id).element().getBoundingClientRect()
+      const button = page.getByRole('button', { name }).element().getBoundingClientRect()
+      expect(Math.round(row.right - button.right)).toBe(16)
+    }
   })
 })
 

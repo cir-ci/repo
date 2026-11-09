@@ -37,6 +37,7 @@ const openMenu = async (name: string) => {
 
 describe('the accounts page', () => {
   it('has the page title as its h1 and lists accounts with their badges', async () => {
+    await page.viewport(1000, 800)
     fakeApi(LIST)
     await show()
     await expect.element(page.getByRole('heading', { level: 1, name: 'Accounts' })).toBeVisible()
@@ -47,6 +48,23 @@ describe('the accounts page', () => {
       .toBeVisible()
     await expect.element(page.getByText('No workspace')).toBeVisible()
     await expect.element(page.getByText('Never signed in').first()).toBeVisible()
+  })
+
+  it('keeps the notes outside the list, and the workspaces and last seen in columns', async () => {
+    await page.viewport(1000, 800)
+    fakeApi(LIST)
+    await show()
+    await expect.element(page.getByText('dana@acme.dev')).toBeVisible()
+    const list = page.getByRole('list', { name: 'Accounts' }).element()
+    const note = page.getByText(/Banning signs the person out/).element()
+    expect(list.contains(note)).toBe(false)
+    const box = list.parentElement!
+    expect(box.contains(note)).toBe(false)
+    expect(note.textContent).toContain('Showing up to 25 per page.')
+    // The workspaces column lines up from row to row.
+    const counts = page.getByText('1 workspace', { exact: true }).elements()
+    expect(counts).toHaveLength(2)
+    expect(new Set(counts.map((c) => Math.round(c.getBoundingClientRect().right))).size).toBe(1)
   })
 
   it('says so to someone who is not an instance admin', async () => {

@@ -23,9 +23,7 @@ describe('S3 misconfiguration', () => {
   it('doctor reports a missing bucket', async () => {
     const out = await doctor({ S3_BUCKET: 'no-such-bucket' })
     expect(out.code).not.toBe(0)
-    expect(out.stdout).toMatch(
-      /Storage \(s3\) is not usable: S3 bucket "no-such-bucket" does not exist/,
-    )
+    expect(out.stdout).toMatch(/Storage: Not usable: S3 bucket "no-such-bucket" does not exist/)
   })
 
   it('doctor reports refused credentials', async () => {
@@ -48,7 +46,7 @@ describe('S3 misconfiguration', () => {
 
   it('doctor is happy with the working configuration', async () => {
     const out = await doctor({})
-    expect(out.stdout).toContain('Storage (s3) is reachable and writable.')
+    expect(out.stdout).toContain('Storage: Reachable and writable.')
   })
 
   it('a server started on a missing bucket refuses to start and logs why', async () => {

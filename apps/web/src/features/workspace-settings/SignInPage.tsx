@@ -8,9 +8,8 @@ import { workspaceGeneralQuery } from './api.ts'
 import { EmailDomains } from './EmailDomains.tsx'
 import { Frame } from './Frame.tsx'
 import { SignInMethods } from './SignInMethods.tsx'
-import { WorkspaceSso } from './WorkspaceSso.tsx'
 
-/** How people get into the workspace: login methods, its own SSO provider, and email domains. */
+/** How people get into the workspace: login methods (with its own SSO provider) and email domains. */
 export function SignInPage() {
   const { workspace } = useParams({ from: '/workspaces/$workspace/settings/sign-in' })
   useDocumentTitle('Sign-in and domains', workspace)
@@ -34,7 +33,6 @@ export function SignInPage() {
       }
     >
       <SignInMethods workspace={workspace} />
-      {canManage ? <WorkspaceSso workspace={workspace} /> : null}
       {canManage ? <EmailDomains workspace={workspace} /> : null}
     </Frame>
   )

@@ -211,10 +211,24 @@ export namespace getQueueDepth {
     running: number
     failed: number
     oldestPendingAt: Date | null
+    /** Pending jobs that already failed once and wait for their next attempt. */
+    retrying: number
+    /** The retrying job furthest along, as its next attempt number of the most it gets; null with none. */
+    mostRetried: { attempt: number; maxAttempts: number } | null
   }
 }
 
-/** Jobs not yet done, per queue; `known` queues are listed even when empty. */
+const empty = (queue: string): getQueueDepth.Item => ({
+  queue,
+  pending: 0,
+  running: 0,
+  failed: 0,
+  oldestPendingAt: null,
+  retrying: 0,
+  mostRetried: null,
+})
+
+/** Jobs not yet done, per queue (and how many are retrying); `known` queues are listed even when empty. */
 export async function getQueueDepth(
   db: Database,
   known: readonly string[] = Object.values(QUEUES),
@@ -229,23 +243,32 @@ export async function getQueueDepth(
     .from(jobs)
     .where(and(inArray(jobs.status, ['pending', 'running', 'failed'])))
     .groupBy(jobs.queue, jobs.status)
+  // A claim counts as an attempt, so a pending job with attempts is one waiting to be retried.
+  const retries = await db
+    .select({
+      queue: jobs.queue,
+      n: count(),
+      attempts: max(jobs.attempts),
+      maxAttempts: max(jobs.maxAttempts),
+    })
+    .from(jobs)
+    .where(and(eq(jobs.status, 'pending'), sql`${jobs.attempts} > 0`))
+    .groupBy(jobs.queue)
   const byQueue = new Map<string, getQueueDepth.Item>()
-  for (const q of known) {
-    byQueue.set(q, { queue: q, pending: 0, running: 0, failed: 0, oldestPendingAt: null })
-  }
+  for (const q of known) byQueue.set(q, empty(q))
   for (const r of rows) {
-    const item = byQueue.get(r.queue) ?? {
-      queue: r.queue,
-      pending: 0,
-      running: 0,
-      failed: 0,
-      oldestPendingAt: null,
-    }
+    const item = byQueue.get(r.queue) ?? empty(r.queue)
     if (r.status === 'pending') {
       item.pending = r.n
       item.oldestPendingAt = r.oldest
     } else if (r.status === 'running') item.running = r.n
     else item.failed = r.n
+    byQueue.set(r.queue, item)
+  }
+  for (const r of retries) {
+    const item = byQueue.get(r.queue) ?? empty(r.queue)
+    item.retrying = r.n
+    item.mostRetried = { attempt: (r.attempts ?? 0) + 1, maxAttempts: r.maxAttempts ?? 0 }
     byQueue.set(r.queue, item)
   }
   return [...byQueue.values()].toSorted((a, b) => a.queue.localeCompare(b.queue))

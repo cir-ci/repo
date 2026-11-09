@@ -140,7 +140,13 @@ function SignedInFrame({ user }: { user: SessionUser }) {
             <IconButton label="Open navigation" onClick={() => setDrawerOpen(true)}>
               <MenuIcon />
             </IconButton>
-            <span className={styles.barTitle}>{sectionLabel(section) ?? 'CirCI'}</span>
+            {/* A settings page's breadcrumb right below already says where this is (and starts with
+                "Instance" or the workspace): repeating "Settings" above it is noise. */}
+            {isSettingsSection(section) ? (
+              <span className={styles.barTitle} />
+            ) : (
+              <span className={styles.barTitle}>{sectionLabel(section) ?? 'CirCI'}</span>
+            )}
           </div>
         }
       >
