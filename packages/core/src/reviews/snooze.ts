@@ -1,5 +1,5 @@
-import { ValidationError } from './errors.ts'
-import { HOUR_MS, weekStart } from './insights.ts'
+import { HOUR_MS, weekStart } from '../builds/insights.ts'
+import { ValidationError } from '../errors.ts'
 
 /** Snoozing: when something put off should come back. Shared by review requests and triage. */
 

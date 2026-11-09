@@ -1,4 +1,5 @@
-import { globMatches, matchFramesToSnapshots, openSecret, ValidationError } from '@circi/core'
+import { globMatches, matchFramesToSnapshots, ValidationError } from '@circi/core'
+import { openSecret } from '@circi/core/node'
 import { type Database } from '@circi/db'
 import { type IntegrationLink, listTeamLinks } from '@circi/db/queries'
 import {

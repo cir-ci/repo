@@ -1,5 +1,6 @@
 import type { Issue } from '@circi/api'
-import { openSecret, ISSUE_LINK_KIND } from '@circi/core'
+import { ISSUE_LINK_KIND } from '@circi/core'
+import { openSecret } from '@circi/core/node'
 import {
   getIntegration,
   getWorkspaceBySlug,

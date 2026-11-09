@@ -1,6 +1,6 @@
 import { lookup } from 'node:dns/promises'
 
-import { isPrivateAddress, signWebhook, webhookUrlProblem } from '@circi/core'
+import { isPrivateAddress, signWebhook, webhookUrlProblem } from '@circi/core/node'
 import { type Database, type Job } from '@circi/db'
 import { getWebhook, recordWebhookDelivery } from '@circi/db/queue'
 

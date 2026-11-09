@@ -1,4 +1,4 @@
-import { verifyWebhookSignature } from '@circi/core'
+import { verifyWebhookSignature } from '@circi/core/node'
 import { type Job } from '@circi/db'
 import { listWebhookDeliveries } from '@circi/db/queries'
 import { claimJob, createWebhook, enqueueJob, QUEUES, queueTestWebhook } from '@circi/db/queue'

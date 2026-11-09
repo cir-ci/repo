@@ -281,11 +281,15 @@ const RULES: Rule[] = [
     offenders: () =>
       offendersOf(
         ['packages/core/src'],
-        (i) =>
+        (i, file) =>
           circi(i) ||
-          // `isIP` is a pure string check: the one thing core takes from node:net.
-          (/^node:(fs|net|http)/.test(i.spec) &&
-            !(i.spec === 'node:net' && i.names.every((n) => n === 'isIP'))) ||
+          // `node/` is the Node-only entry (`@circi/core/node`); everything else is browser-safe,
+          // so no `node:` module at all. `isIP` is a pure string check: the one thing the node
+          // entry takes from node:net.
+          (file.startsWith('packages/core/src/node/')
+            ? /^node:(fs|net|http)/.test(i.spec) &&
+              !(i.spec === 'node:net' && i.names.every((n) => n === 'isIP'))
+            : i.spec.startsWith('node:')) ||
           ['drizzle-orm', 'pg'].some((p) => isPackage(i, p)),
       ),
   },
@@ -475,6 +479,26 @@ describe('the integration SDK', () => {
     expect(importsOf('packages/db/src', ['@circi/integrations'])).toEqual([])
     expect(importsOf('packages/core/src', ['@circi/integrations'])).toEqual([])
     expect(importsOf('packages/providers/src', ['@circi/integrations'])).toEqual([])
+  })
+
+  it('keeps the @circi/core root entry browser-safe and the web app on that root entry only', () => {
+    // The root entry reaches every core source file except `node/` (and `node/` is not re-exported).
+    const rootIndex = readFileSync(join(root, 'packages/core/src/index.ts'), 'utf8')
+    expect(rootIndex).not.toMatch(/\/node\//)
+    const core = scan('packages/core/src').filter(
+      (f) => !f.file.startsWith('packages/core/src/node/'),
+    )
+    expect(
+      core.filter((f) => f.imports.some((i) => i.spec.startsWith('node:'))).map((f) => f.file),
+    ).toEqual([])
+    const webCore = scan('apps/web/src').flatMap((f) =>
+      f.imports.filter((i) => i.spec.startsWith('@circi/core/')).map(() => f.file),
+    )
+    expect(webCore).toEqual([])
+    expect(
+      core.filter((f) => f.imports.some((i) => i.file?.startsWith('packages/core/src/node/'))),
+    ).toEqual([])
+    expect(importsOf('apps/web/src', ['@circi/core/node'])).toEqual([])
   })
 
   it('keeps the web app from importing definitions (it reads their public data from the API)', () => {

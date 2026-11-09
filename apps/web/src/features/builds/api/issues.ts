@@ -1,5 +1,5 @@
 import type { Build, Issue } from '@circi/api'
-import { defaultIssueTitle, issueDescription } from '@circi/core/issues'
+import { defaultIssueTitle, issueDescription } from '@circi/core'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { teamPath } from '#lib/api-paths.ts'

@@ -1,5 +1,5 @@
 import type { Build } from '@circi/api'
-import { verifyWebhookSignature } from '@circi/core'
+import { verifyWebhookSignature } from '@circi/core/node'
 import type { Page } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 

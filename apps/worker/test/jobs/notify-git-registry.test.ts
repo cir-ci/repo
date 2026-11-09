@@ -1,4 +1,4 @@
-import { sealSecret } from '@circi/core'
+import { sealSecret } from '@circi/core/node'
 import { claimJob, GIT_NOTIFY_QUEUE } from '@circi/db/queue'
 import { createBuild } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'

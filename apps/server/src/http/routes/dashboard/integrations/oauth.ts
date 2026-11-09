@@ -1,4 +1,5 @@
-import { ForbiddenError, NotFoundError, ValidationError, canManage, verifyState } from '@circi/core'
+import { ForbiddenError, NotFoundError, ValidationError, canManage } from '@circi/core'
+import { verifyState } from '@circi/core/node'
 import { getMemberRole } from '@circi/db/queries'
 import type { FastifyPluginAsync } from 'fastify'
 

@@ -1,4 +1,5 @@
-import { NotFoundError, openSecret } from '@circi/core'
+import { NotFoundError } from '@circi/core'
+import { openSecret } from '@circi/core/node'
 import { getIntegration, getSetting, listTeamLinks } from '@circi/db/queries'
 import { createIntegration, createIntegrationLink } from '@circi/db/repositories'
 import {

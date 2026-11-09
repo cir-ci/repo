@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { addMember, createUser } from '@circi/auth'
-import { openSecret } from '@circi/core'
+import { openSecret } from '@circi/core/node'
 import { getWorkspaceBySlug, listBuildLinks, listIntegrations } from '@circi/db/queries'
 import { createBuild } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'

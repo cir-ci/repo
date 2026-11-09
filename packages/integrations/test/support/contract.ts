@@ -1,5 +1,6 @@
 /* oxlint-disable vitest/no-conditional-tests, vitest/no-conditional-expect -- a contract runs over definitions of different shapes: what applies to one (a connect form, OAuth, a mapping, a git host) is decided once per definition when its tests are registered, and each test then asserts unconditionally. */
-import { INTEGRATION_EVENTS, openSecret, sealSecret } from '@circi/core'
+import { INTEGRATION_EVENTS } from '@circi/core'
+import { openSecret, sealSecret } from '@circi/core/node'
 import { describe, expect, it } from 'vitest'
 
 import {

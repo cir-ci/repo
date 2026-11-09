@@ -1,4 +1,5 @@
-import { NotFoundError, sealSecret } from '@circi/core'
+import { NotFoundError } from '@circi/core'
+import { sealSecret } from '@circi/core/node'
 import { type Database } from '@circi/db'
 import {
   createIntegration,

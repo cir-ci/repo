@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { signState, verifyState } from '#src/index.ts'
+import { signState, verifyState } from '#src/node/index.ts'
 
 describe('signState / verifyState', () => {
   const secret = 'a-long-instance-secret-for-tests-0123456789'

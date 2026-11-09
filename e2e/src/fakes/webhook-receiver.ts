@@ -1,4 +1,4 @@
-import { verifyWebhookSignature } from '@circi/core'
+import { verifyWebhookSignature } from '@circi/core/node'
 
 import { listen, readBody, waitUntil } from './http.ts'
 

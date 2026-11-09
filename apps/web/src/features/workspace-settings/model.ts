@@ -1,4 +1,4 @@
-import { isValidSlug } from '@circi/core/slug'
+import { isValidSlug } from '@circi/core'
 
 /** What the workspace General page edits: the name and the address. */
 export interface GeneralDraft {

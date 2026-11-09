@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 
-import { asRecord, webhookUrlProblem } from '@circi/core'
+import { asRecord } from '@circi/core'
+import { webhookUrlProblem } from '@circi/core/node'
 import {
   GitlabProvider,
   gitlabCredentials,

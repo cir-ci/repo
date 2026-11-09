@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { defaultIssueTitle, issueDescription } from '#src/issues.ts'
+import { defaultIssueTitle, issueDescription } from '#src/integrations/index.ts'
 
 const facts = {
   number: 12,

@@ -1,4 +1,5 @@
-import { NotFoundError, ValidationError, type WebhookEvent } from '@circi/core'
+import { NotFoundError, ValidationError } from '@circi/core'
+import { type WebhookEvent } from '@circi/core/node'
 import { type Database } from '@circi/db'
 import { type Webhook } from '@circi/db/queries'
 import { createWebhook, deleteWebhook, getWebhook, queueTestWebhook } from '@circi/db/queue'

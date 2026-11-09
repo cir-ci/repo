@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { sealSecret } from '@circi/core'
+import { sealSecret } from '@circi/core/node'
 import { getIntegration } from '@circi/db/queries'
 import { QUEUES } from '@circi/db/queue'
 import { createBuild, createIntegration, setIntegrationTeam } from '@circi/db/repositories'

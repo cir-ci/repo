@@ -1,4 +1,5 @@
-import { openSecret, REVIEW_SOURCES } from '@circi/core'
+import { REVIEW_SOURCES } from '@circi/core'
+import { openSecret } from '@circi/core/node'
 import { type Database } from '@circi/db'
 import {
   findBuildByCheckRun,

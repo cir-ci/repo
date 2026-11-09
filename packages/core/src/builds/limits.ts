@@ -1,4 +1,4 @@
-import { ValidationError } from './errors.ts'
+import { ValidationError } from '../errors.ts'
 
 /**
  * The rules a CI upload's input must follow, in one place. The HTTP schemas and the database

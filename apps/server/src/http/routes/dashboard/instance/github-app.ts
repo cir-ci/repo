@@ -1,5 +1,5 @@
 import type { Instance, Integration } from '@circi/api'
-import { signState, verifyState } from '@circi/core'
+import { signState, verifyState } from '@circi/core/node'
 import { isInstanceAdmin } from '@circi/db/queries'
 import {
   buildGithubManifest,

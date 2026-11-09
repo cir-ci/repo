@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { asRecord, isRecord, items, str } from '../src/json.ts'
+import { asRecord, isRecord, items, str } from '#src/json.ts'
 
 describe('json narrowing', () => {
   it('isRecord accepts plain objects only', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { rotationFor, rotationHandover } from '#src/rotation.ts'
+import { rotationFor, rotationHandover } from '#src/reviews/index.ts'
 
 const members = ['ann', 'bob', 'cy']
 // 2026-03-09 is a Monday.

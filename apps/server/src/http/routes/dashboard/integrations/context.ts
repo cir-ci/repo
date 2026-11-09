@@ -1,4 +1,5 @@
-import { ConflictError, NotFoundError, openSecret, ValidationError } from '@circi/core'
+import { ConflictError, NotFoundError, ValidationError } from '@circi/core'
+import { openSecret } from '@circi/core/node'
 import { getIntegration } from '@circi/db/queries'
 import {
   IntegrationError,

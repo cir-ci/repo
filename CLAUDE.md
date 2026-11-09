@@ -23,7 +23,8 @@ transport    apps/server (http/, cli/), apps/worker (handlers/, jobs/), apps/web
    v         parse the request, check who is asking, call a service or a read model, shape the reply
 services     packages/services/src/<area>/   use cases: open the transaction, call repositories, queue
    v         the jobs and notices that follow (a transactional outbox); the worker's job bodies live here too
-core         packages/core                   rules with no I/O: baselines, outcomes, limits, errors, signing
+core         packages/core                   rules with no I/O, by area (baselines/, builds/, reviews/, integrations/, team/); `@circi/core` is
+             browser-safe, `@circi/core/node` (src/node/) holds the Node-only secrets, tokens and signing
 db           packages/db   queries/ (read models for the dashboard), repositories/ (stores and lookups),
              queue/ (jobs, webhook rows, git notices), schema/ (Drizzle), shared/ (helpers they share)
 adapters     packages/{providers,integrations,storage,diff,sites}   talk to GitHub, Slack, S3, images

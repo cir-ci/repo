@@ -1,4 +1,4 @@
-import { openSecret } from '@circi/core'
+import { openSecret } from '@circi/core/node'
 import { type Database, type Job, withAdvisoryLock } from '@circi/db'
 import {
   buildsForPrSummary,

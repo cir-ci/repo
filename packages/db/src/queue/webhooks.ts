@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 
-import { isWebhookEvent, ValidationError, WEBHOOK_EVENTS, type WebhookEvent } from '@circi/core'
+import { ValidationError } from '@circi/core'
+import { isWebhookEvent, WEBHOOK_EVENTS, type WebhookEvent } from '@circi/core/node'
 import { and, eq, sql } from 'drizzle-orm'
 
 import type { ReviewEntry } from '#queries/review-decisions.ts'

@@ -1,5 +1,5 @@
 import type { InstanceAdmin } from '@circi/api'
-import { slugify } from '@circi/core/slug'
+import { slugify } from '@circi/core'
 import { keepPreviousData, queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { instancePath } from '#lib/api-paths.ts'

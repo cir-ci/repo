@@ -1,4 +1,4 @@
-import { signWebhook } from '@circi/core'
+import { signWebhook } from '@circi/core/node'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { startWebhookReceiver, type WebhookReceiver } from '#fakes/webhook-receiver.ts'

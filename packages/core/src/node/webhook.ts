@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
-import { ValidationError } from './errors.ts'
+import { ValidationError } from '../errors.ts'
 
 /** The events a team webhook can subscribe to. */
 export const WEBHOOK_EVENTS = ['build.completed', 'build.reviewed'] as const

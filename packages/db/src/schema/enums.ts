@@ -9,12 +9,11 @@ export {
   REVIEW_SOURCES,
   SNOOZE_KINDS,
   TRIAGE_KINDS,
-  WEBHOOK_EVENTS,
   type ReviewSource,
   type SnoozeKind,
   type TriageKind,
-  type WebhookEvent,
 } from '@circi/core'
+export { WEBHOOK_EVENTS, type WebhookEvent } from '@circi/core/node'
 
 export const FILE_KINDS = ['screenshot', 'diff', 'thumbnail', 'asset'] as const
 export const FILE_STATUSES = ['pending', 'verified'] as const

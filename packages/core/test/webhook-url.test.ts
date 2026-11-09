@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { isPrivateAddress, webhookUrlProblem } from '#src/index.ts'
+import { isPrivateAddress, webhookUrlProblem } from '#src/node/index.ts'
 
 describe('isPrivateAddress', () => {
   it.each([

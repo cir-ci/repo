@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { signWebhook, verifyWebhookSignature } from '#src/index.ts'
+import { signWebhook, verifyWebhookSignature } from '#src/node/index.ts'
 
 const now = new Date('2026-01-01T00:00:00Z')
 

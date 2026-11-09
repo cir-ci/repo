@@ -1,13 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  catalogEntry,
-  filterCatalog,
-  INTEGRATION_CATALOG,
-  INTEGRATION_GROUPS,
-  openSecret,
-  sealSecret,
-} from '#src/index.ts'
+import { catalogEntry, filterCatalog, INTEGRATION_CATALOG, INTEGRATION_GROUPS } from '#src/index.ts'
+import { openSecret, sealSecret } from '#src/node/index.ts'
 
 describe('integration catalog', () => {
   it('has unique kinds, each in a known group', () => {

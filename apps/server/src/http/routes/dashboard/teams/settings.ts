@@ -1,12 +1,7 @@
 import type { Team } from '@circi/api'
 import { deleteTeamWithToken, rotateTeamToken } from '@circi/auth'
-import {
-  checkWebhookEvents,
-  NotFoundError,
-  ValidationError,
-  WEBHOOK_EVENTS,
-  webhookUrlProblem,
-} from '@circi/core'
+import { NotFoundError, ValidationError } from '@circi/core'
+import { checkWebhookEvents, WEBHOOK_EVENTS, webhookUrlProblem } from '@circi/core/node'
 import { getWorkspaceSettings, getTeamById, teamSettings } from '@circi/db/queries'
 import {
   addWebhook,

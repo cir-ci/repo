@@ -1,4 +1,4 @@
-import { WEEK_MS, weekStart } from './insights.ts'
+import { WEEK_MS, weekStart } from '../builds/insights.ts'
 
 /**
  * The triage rotation: members take turns, one calendar week each (Monday to Sunday, UTC),

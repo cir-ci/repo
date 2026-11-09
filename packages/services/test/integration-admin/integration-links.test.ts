@@ -1,4 +1,5 @@
-import { sealSecret, ValidationError } from '@circi/core'
+import { ValidationError } from '@circi/core'
+import { sealSecret } from '@circi/core/node'
 import { listTeamLinks } from '@circi/db/queries'
 import {
   createIntegration,

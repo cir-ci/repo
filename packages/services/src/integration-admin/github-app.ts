@@ -1,4 +1,4 @@
-import { openSecret, sealSecret } from '@circi/core'
+import { openSecret, sealSecret } from '@circi/core/node'
 import { type Database } from '@circi/db'
 import { getSetting } from '@circi/db/queries'
 import { setSetting } from '@circi/db/repositories'

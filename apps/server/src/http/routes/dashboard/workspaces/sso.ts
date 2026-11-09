@@ -4,7 +4,8 @@ import {
   listWorkspaceSsoProviders,
   withTrustedIssuer,
 } from '@circi/auth'
-import { ValidationError, webhookUrlProblem } from '@circi/core'
+import { ValidationError } from '@circi/core'
+import { webhookUrlProblem } from '@circi/core/node'
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 

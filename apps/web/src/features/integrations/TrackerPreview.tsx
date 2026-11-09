@@ -1,4 +1,4 @@
-import { defaultIssueTitle } from '@circi/core/issues'
+import { defaultIssueTitle } from '@circi/core'
 import { Heading, Text } from '@circi/ui'
 
 import styles from './Integrations.module.css'

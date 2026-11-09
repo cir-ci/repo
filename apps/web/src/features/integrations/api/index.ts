@@ -1,9 +1,5 @@
 import type { Integration } from '@circi/api'
-import {
-  filterCatalog,
-  INTEGRATION_GROUP_LABEL,
-  INTEGRATION_GROUPS,
-} from '@circi/core/integrations'
+import { filterCatalog, INTEGRATION_GROUP_LABEL, INTEGRATION_GROUPS } from '@circi/core'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { workspacePath } from '#lib/api-paths.ts'

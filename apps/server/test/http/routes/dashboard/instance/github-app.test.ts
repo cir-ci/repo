@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { addMember, createUser } from '@circi/auth'
-import { signState, verifyState } from '@circi/core'
+import { signState, verifyState } from '@circi/core/node'
 import { getSetting, listIntegrations } from '@circi/db/queries'
 import * as schema from '@circi/db/schema'
 import type { IntegrationDefinition } from '@circi/integrations'

@@ -1,4 +1,4 @@
-import { ValidationError } from './errors.ts'
+import { ValidationError } from '../errors.ts'
 
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/
 

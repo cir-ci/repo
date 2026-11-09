@@ -1,5 +1,6 @@
 import type { Integration } from '@circi/api'
-import { signState, ValidationError } from '@circi/core'
+import { ValidationError } from '@circi/core'
+import { signState } from '@circi/core/node'
 import type { FastifyPluginAsync } from 'fastify'
 
 import type { Deps } from '#http/lib/deps.ts'

@@ -1,4 +1,4 @@
-import { ValidationError } from './errors.ts'
+import { ValidationError } from '../errors.ts'
 
 /**
  * How a team looks in the sidebar and lists: a tile colour and an optional icon. The icon list

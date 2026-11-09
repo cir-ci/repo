@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { globMatches, reviewersForBuild } from '#src/rules.ts'
+import { globMatches, reviewersForBuild } from '#src/reviews/index.ts'
 
 describe('globMatches', () => {
   it('matches the whole name, case-sensitively', () => {
