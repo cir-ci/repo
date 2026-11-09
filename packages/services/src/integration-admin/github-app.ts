@@ -27,7 +27,7 @@ interface Stored {
   sealed: string
 }
 
-/** What the manifest flow hands back (`GithubAppCredentials` of `@circi/providers`) and the API it was created on. */
+/** What the manifest flow hands back (`GithubAppCredentials` of `@circi/integrations/github`) and the API it was created on. */
 export interface StoredGithubApp {
   appId: string
   slug: string

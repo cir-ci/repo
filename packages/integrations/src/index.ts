@@ -3,8 +3,8 @@
  * pieces (catalog, mapping rules, errors) the server, the worker and the services build on.
  * See docs/integration-sdk.md.
  */
-export { defineIntegration, definitionProblems } from './define.ts'
-export type { EventsField, IntegrationDefinition } from './definition.ts'
+export { defineIntegration, definitionProblems } from '#src/sdk/define.ts'
+export type { EventsField, IntegrationDefinition } from '#src/sdk/definition.ts'
 export {
   IntegrationConflictError,
   IntegrationError,
@@ -13,15 +13,20 @@ export {
   IntegrationUnreachableError,
   InvalidCredentialsError,
   InvalidInputError,
-} from './errors.ts'
-export { derivedWebhookSecret } from './git-support.ts'
-export { mappedEvents, mappingExtraSchema, mappingHandles, normalizeExtra } from './mapping.ts'
+} from '#src/sdk/errors.ts'
+export { derivedWebhookSecret } from '#src/git/support.ts'
+export {
+  mappedEvents,
+  mappingExtraSchema,
+  mappingHandles,
+  normalizeExtra,
+} from '#src/sdk/mapping.ts'
 export {
   buildCatalog,
   credentialFields,
   describeDefinition,
   linksSpec,
   mappingSpec,
-} from './public.ts'
-export { IntegrationRegistry, integrationRegistry } from './registry.ts'
-export { resolveKind } from './resolve.ts'
+} from '#src/sdk/public.ts'
+export { IntegrationRegistry, integrationRegistry } from '#src/sdk/registry.ts'
+export { resolveKind } from '#src/sdk/resolve.ts'

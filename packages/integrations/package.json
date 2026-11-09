@@ -4,13 +4,19 @@
   "private": true,
   "type": "module",
   "imports": {
-    "#src/*": "./src/*"
+    "#src/*": "./src/*",
+    "#test/*": "./test/*"
   },
-  "exports": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./git": "./src/git/index.ts",
+    "./github": "./src/kinds/github/index.ts",
+    "./gitlab": "./src/kinds/gitlab/index.ts",
+    "./bitbucket": "./src/kinds/bitbucket/index.ts"
+  },
   "dependencies": {
     "@circi/api": "workspace:*",
     "@circi/core": "workspace:*",
-    "@circi/providers": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {

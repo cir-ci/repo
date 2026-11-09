@@ -31,7 +31,6 @@
     "@circi/core": "workspace:*",
     "@circi/db": "workspace:*",
     "@circi/integrations": "workspace:*",
-    "@circi/providers": "workspace:*",
     "@circi/services": "workspace:*",
     "@circi/sites": "workspace:*",
     "@circi/storage": "workspace:*",

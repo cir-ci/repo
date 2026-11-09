@@ -18,7 +18,7 @@ import {
   prCommentBody,
   type ProviderRegistry,
   type ReportedBuild,
-} from '@circi/providers'
+} from '@circi/integrations/git'
 
 import { gateInputs } from '#src/builds/gate.ts'
 

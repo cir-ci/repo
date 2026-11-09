@@ -1,9 +1,15 @@
-import { ProviderApiError, SlackApiError, FigmaApiError } from '@circi/providers'
-
+import { ProviderApiError } from '#src/git/provider.ts'
 import type { IntegrationDefinition } from '#src/index.ts'
-
-import type { DefinitionHarness } from './contract.ts'
-import { fakeBitbucket, fakeFigma, fakeGitlab, fakeSlack, fakeTrackers } from './fakes.ts'
+import { FigmaApiError } from '#src/kinds/figma/client.ts'
+import { SlackApiError } from '#src/kinds/slack/client.ts'
+import type { DefinitionHarness } from '#test/support/contract.ts'
+import {
+  fakeBitbucket,
+  fakeFigma,
+  fakeGitlab,
+  fakeSlack,
+  fakeTrackers,
+} from '#test/support/fakes.ts'
 
 const base = {
   authSecret: 'a-long-instance-secret-for-tests-0123456789',

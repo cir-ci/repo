@@ -1,11 +1,11 @@
-import { catalogEntry, INTEGRATION_GROUPS, type IntegrationCatalog } from '@circi/core'
+import { INTEGRATION_GROUPS, type IntegrationCatalog } from '@circi/core'
 
 import type { Database } from '#src/client.ts'
 
 import { listIntegrations } from './workspace-integrations.ts'
 
 export namespace listWorkspaceIntegrations {
-  /** What the caller knows about a kind: the registry's definitions plus the static catalog. */
+  /** What the caller knows about a kind: the registry's definitions plus the planned catalog entries. */
   export interface Kind {
     group: IntegrationCatalog.Group
     name: string
@@ -29,21 +29,15 @@ export namespace listWorkspaceIntegrations {
   }
 }
 
-/** The static catalog's kinds, all configured on their own pages. */
-const staticKind: listWorkspaceIntegrations.Resolve = (kind) => {
-  const entry = catalogEntry(kind)
-  return entry ? { group: entry.group, name: entry.name } : undefined
-}
-
 /**
  * Everything the workspace has connected, git hosts and other integrations in one list, grouped
  * by kind for display (git hosts first, then chat, design tools, trackers), oldest first within
- * a group. Rows whose kind the catalog doesn't know are left out.
+ * a group. Rows whose kind `resolve` doesn't know are left out.
  */
 export async function listWorkspaceIntegrations(
   db: Database,
   workspaceId: string,
-  resolve: listWorkspaceIntegrations.Resolve = staticKind,
+  resolve: listWorkspaceIntegrations.Resolve,
 ): Promise<listWorkspaceIntegrations.Item[]> {
   const others = await listIntegrations(db, workspaceId)
   const items: listWorkspaceIntegrations.Item[] = []

@@ -27,7 +27,7 @@ core         packages/core                   rules with no I/O, by area (baselin
              browser-safe, `@circi/core/node` (src/node/) holds the Node-only secrets, tokens and signing
 db           packages/db   queries/ (read models for the dashboard), repositories/ (stores and lookups),
              queue/ (jobs, webhook rows, git notices), schema/ (Drizzle), shared/ (helpers they share)
-adapters     packages/{providers,integrations,storage,diff,sites}   talk to GitHub, Slack, S3, images
+adapters     packages/{integrations,storage,diff,sites}   talk to GitHub, Slack, S3, images
 ```
 
 Folder map: `apps/server/src/{http,cli,composition}` (`composition/` wires config, db, storage and
@@ -64,10 +64,12 @@ exception in the test, with its reason):
 - **Routes decide no roles** (no literal `owner`/`admin`: use the policies in `services/src/access`),
   nothing outside config reads `process.env` (also `main.ts`, `composition/runtime.ts`, the CLIs),
   and a route file stays under 250 lines.
-- `core` imports no `@circi` package and no I/O; `providers`, `storage`, `sites`, `diff` and
-  `config` import at most `core`; `db` imports none of services, integrations, providers, storage,
-  auth, api; `auth` imports no service or app; `integrations` import no db, services or fastify
-  and their errors carry no HTTP status; the web app imports no server package.
+- `core` imports no `@circi` package and no I/O; `storage`, `sites`, `diff` and
+  `config` import at most `core`; `db` imports none of services, integrations, storage,
+  auth, api; `auth` imports no service or app; `integrations` (the SDK, the clients and the
+  definitions, one folder per kind under `src/kinds/`) import at most `core` and `api`, never db,
+  services or fastify, and their errors carry no HTTP status; apps and services take clients only
+  from the explicit subpaths (`@circi/integrations/{git,github,gitlab,bitbucket}`); the web app imports no server package.
 - **Better-auth's tables** (`schema/auth.ts`) are generated (`pnpm db:auth-schema`, then
   `pnpm db:generate`), never edited by hand. Writes to them go through better-auth's API.
 - **Fastify scopes** receive exactly their dependencies. Register a scope with a prefix through a

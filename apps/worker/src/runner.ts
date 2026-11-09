@@ -1,6 +1,7 @@
 import type { Database, ListenFn } from '@circi/db'
 import type { IntegrationDefinition } from '@circi/integrations'
-import type { GithubApp, ProviderRegistry } from '@circi/providers'
+import { type ProviderRegistry } from '@circi/integrations/git'
+import { type GithubApp } from '@circi/integrations/github'
 import type { StorageDriver } from '@circi/storage'
 
 import { startLanes } from './claim-loop.ts'

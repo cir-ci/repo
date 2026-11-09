@@ -1,5 +1,5 @@
 import type { IntegrationDefinition } from '@circi/integrations'
-import type { ProviderRegistry } from '@circi/providers'
+import { type ProviderRegistry } from '@circi/integrations/git'
 
 import type { Deps } from '#http/lib/deps.ts'
 

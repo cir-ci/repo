@@ -3,7 +3,8 @@ import { createHmac } from 'node:crypto'
 import { getBuild, listBuildReviews } from '@circi/db/queries'
 import { setCheckRunId } from '@circi/db/queue'
 import * as schema from '@circi/db/schema'
-import { githubWebhookVerifier, providerRegistry } from '@circi/providers'
+import { providerRegistry } from '@circi/integrations/git'
+import { githubWebhookVerifier } from '@circi/integrations/github'
 import { completeBuild } from '@circi/services'
 import {
   createTestDb,

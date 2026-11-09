@@ -9,7 +9,7 @@ import {
 } from '@circi/db/queue'
 import { createBuild, setWorkspaceSettings, updateTeamSettings } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
-import { GithubApiError, GithubInstallationRevokedError } from '@circi/providers'
+import { GithubApiError, GithubInstallationRevokedError } from '@circi/integrations/github'
 import { completeBuild, reviewBuild } from '@circi/services'
 import {
   createTestDb,

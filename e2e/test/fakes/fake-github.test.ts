@@ -1,4 +1,5 @@
-import { type CheckReport, GithubApiError, GithubApp, PR_COMMENT_MARKER } from '@circi/providers'
+import { type CheckReport, PR_COMMENT_MARKER } from '@circi/integrations/git'
+import { GithubApiError, GithubApp } from '@circi/integrations/github'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { type FakeGithub, startFakeGithub } from '#fakes/fake-github.ts'
@@ -20,7 +21,7 @@ const report: CheckReport = {
   actions: [{ identifier: 'approve', label: 'Approve', description: 'Accept these changes' }],
 }
 
-// The point of these tests: the fake speaks what the real adapter (packages/providers) calls.
+// The point of these tests: the fake speaks what the real adapter (packages/integrations/src/kinds/github) calls.
 describe('fake GitHub, driven by the real GithubApp', () => {
   it('gives installation tokens only for a valid app JWT, and records the calls', async () => {
     const id = await app.upsertCheckRun('77', 'acme/web', {

@@ -82,7 +82,7 @@ export async function createIssueFromBuild(
 }
 
 export namespace createIssueFromBuild {
-  /** What the service needs of a tracker adapter (`IssueTracker` in `@circi/providers`). */
+  /** What the service needs of a tracker adapter (`IssueTracker` in `@circi/integrations`). */
   export interface Tracker {
     createIssue(input: {
       target: string

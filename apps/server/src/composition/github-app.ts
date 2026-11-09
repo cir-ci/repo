@@ -1,4 +1,4 @@
-import { GithubApp } from '@circi/providers'
+import { GithubApp } from '@circi/integrations/github'
 
 import type { Deps } from '#http/lib/deps.ts'
 

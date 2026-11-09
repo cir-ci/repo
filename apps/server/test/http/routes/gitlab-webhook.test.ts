@@ -1,6 +1,7 @@
 import { sealSecret } from '@circi/core/node'
 import { getBuild, listBuildReviews } from '@circi/db/queries'
-import { gitlabCredentials, gitlabWebhookVerifier, providerRegistry } from '@circi/providers'
+import { providerRegistry } from '@circi/integrations/git'
+import { gitlabCredentials, gitlabWebhookVerifier } from '@circi/integrations/gitlab'
 import { completeBuild } from '@circi/services'
 import {
   createTestDb,

@@ -4,7 +4,7 @@ import type { Database } from '@circi/db'
 import type { getTeamContext } from '@circi/db/queries'
 import type { SessionMethod } from '@circi/db/repositories'
 import type { IntegrationDefinition, IntegrationRegistry } from '@circi/integrations'
-import type { ProviderRegistry } from '@circi/providers'
+import { type ProviderRegistry } from '@circi/integrations/git'
 import type { StorageDriver } from '@circi/storage'
 
 import type { Fetcher } from '#composition/doctor.ts'

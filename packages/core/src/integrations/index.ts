@@ -1,10 +1,7 @@
 export { defaultIssueTitle, ISSUE_LINK_KIND, issueDescription, type IssueText } from './issues.ts'
 export {
-  catalogEntry,
   filterCatalog,
-  groupOfKind,
   INSTALLATION_ID_RE,
-  INTEGRATION_CATALOG,
   INTEGRATION_GROUP_LABEL,
   INTEGRATION_GROUPS,
   type IntegrationCatalog,

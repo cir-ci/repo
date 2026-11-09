@@ -105,7 +105,7 @@ const b64urlJson = (s: string) =>
   JSON.parse(Buffer.from(s, 'base64url').toString('utf8')) as unknown
 
 /**
- * GitHub's REST API as far as `packages/providers/src/github.ts` uses it: installation tokens
+ * GitHub's REST API as far as `packages/integrations/src/kinds/github/client.ts` uses it: installation tokens
  * (the app JWT is verified against this run's key pair), check runs, PR comments and reactions,
  * the collaborator permission, plus commit and statuses endpoints. Everything is recorded.
  */

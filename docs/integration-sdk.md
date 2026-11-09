@@ -4,9 +4,9 @@ An integration is declared once, as an `IntegrationDefinition`, and listed once 
 catalog, the HTTP routes, the worker job, the dashboard's connect form and its mapping page all read
 that definition. Adding an integration writes **no route, table, migration, job, or page**.
 
-Slack is the exemplar for chat (`packages/integrations/src/slack.ts`); Linear and Jira
-(`linear.ts`, `jira.ts`) are the form-connected trackers, Figma (`figma.ts`) is the design tool
-with the `links` section, and GitHub, GitLab and Bitbucket (`github.ts`, `gitlab.ts`, `bitbucket.ts`)
+Slack is the exemplar for chat (`packages/integrations/src/kinds/slack/`); Linear and Jira
+(`kinds/linear/`, `kinds/jira/`) are the form-connected trackers, Figma (`kinds/figma/`) is the design tool
+with the `links` section, and GitHub, GitLab and Bitbucket (`kinds/github/`, `kinds/gitlab/`, `kinds/bitbucket/`)
 are the git hosts with the `git` capability. Read the one closest to what you add next to this document.
 
 **Status.** Every integration is on the SDK. There are no per-kind tables, routes, repositories or
@@ -16,25 +16,34 @@ pages: `provider_connections` is gone (migration 0027 moved its rows into `integ
 
 Exactly these files:
 
-1. `packages/integrations/src/<id>.ts`: the definition (`export const <id> = defineIntegration({...})`).
-2. `packages/integrations/src/registry.ts`: import it and add it to the list in
+1. `packages/integrations/src/kinds/<id>/definition.ts`: the definition (`export const <id> = defineIntegration({...})`).
+2. `packages/integrations/src/sdk/registry.ts`: import it and add it to the list in
    `new IntegrationRegistry([github, gitlab, bitbucket, slack, linear, jira, figma, <id>])`. One line.
 3. `apps/web/src/features/integrations/logos.tsx`: one entry in `MARKS` keyed by the definition's `logo`.
 4. Only if the integration needs an app of its own on this instance (an OAuth client, the GitHub
-   App): a key in `IntegrationDefinition.InstanceConfig` (`definition.ts`), the `Config` entry in
+   App): a key in `IntegrationDefinition.InstanceConfig` (`sdk/definition.ts`), the `Config` entry in
    `@circi/config` and its line in `apps/server/src/lifecycle/integration-config.ts`.
 
-Not touched: routes, schema, `INTEGRATION_CATALOG` (that is only for planned tiles), the provider
+Not touched: routes, schema, `INTEGRATION_CATALOG` (`sdk/catalog.ts`, only for planned tiles), the provider
 registry, the worker, the web router. A definition that cannot work (no logo, no way to connect, a
 select mapping without `listTargets`, a credential field without a label) throws when the module
-loads; `packages/integrations/test/registry.test.ts` checks every registered definition.
+loads; `packages/integrations/test/sdk/registry.test.ts` checks every registered definition.
 
-Put the provider's HTTP client and pure text builders in `packages/providers` (they are tested with
-a fake of the provider's HTTP edge); the definition only wires them to the SDK.
+One integration is one folder, `packages/integrations/src/kinds/<id>/`: `definition.ts` (the SDK
+wiring), `client.ts` (the provider's HTTP client) and, where there is one, `messages.ts` (pure text
+builders). The clients are tested with a fake of the provider's HTTP edge
+(`packages/integrations/test/kinds/<id>/`); the definition only wires them to the SDK. Shared pieces
+live in `src/sdk/` (definition, define, registry, mapping, errors, catalog, public, resolve),
+`src/git/` (the `GitProvider` interface, status and comment rendering, git definition helpers),
+`src/tracker/` (the `IssueTracker` interface and helpers) and `src/http.ts`. `index.ts` exports the
+SDK and registry only; an app or service that needs a client imports an explicit subpath:
+`@circi/integrations/git` (adapter interface, `ProviderApiError`, rendering), `/github` (the GitHub
+App client and manifest flow), `/gitlab`, `/bitbucket`. Add a subpath (a `kinds/<id>/index.ts` and an
+`exports` entry) only when an app or service really needs that kind's client.
 
 ## The definition
 
-`IntegrationDefinition.Of<S>` (namespace types in `definition.ts`):
+`IntegrationDefinition.Of<S>` (namespace types in `sdk/definition.ts`):
 
 | Field | What it is |
 | --- | --- |
@@ -263,7 +272,7 @@ localhost works for trying it, with a warning that GitHub cannot reach it. Sever
 an App created on another replica when they restart.
 
 **Permissions and events** (`GITHUB_APP_PERMISSIONS` / `GITHUB_APP_EVENTS` in
-`packages/providers/src/github-manifest.ts`; keep the manual setup identical): Checks (write: the
+`packages/integrations/src/kinds/github/manifest.ts`; keep the manual setup identical): Checks (write: the
 CirCI check run and its Approve and Reject buttons), Pull requests (write: the summary comment and
 its reactions), Metadata (read). Events: `check_run`, `issue_comment` (`/circi` commands) and
 `pull_request` (remembers who opened it).
@@ -271,7 +280,7 @@ its reactions), Metadata (read). Events: `check_run`, `issue_comment` (`/circi` 
 ## What stays custom
 
 Nothing is a route, table, job or page of one integration. What is not a definition's business: the
-web app's logo artwork (`MARKS`), the provider clients in `packages/providers`, and the planned tiles
+web app's logo artwork (`MARKS`), the provider clients (`client.ts` per kind), and the planned tiles
 of `INTEGRATION_CATALOG` (entries without a definition yet; a kind in both the registry and the
 catalog fails the registry test). GitLab and Bitbucket sign-in (auth providers) is `@circi/auth`'s.
 

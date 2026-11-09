@@ -219,7 +219,7 @@ The circi container has `extra_hosts: host.docker.internal:host-gateway`; Chromi
 with `--host-resolver-rules="MAP host.docker.internal 127.0.0.1"`, and the host-run CLI preloads
 `dns-preload.ts`. So one URL works for the server, the browser and the CLI.
 
-- **`startFakeGithub()`**: the GitHub REST API `packages/providers/src/github.ts` calls:
+- **`startFakeGithub()`**: the GitHub REST API `packages/integrations/src/kinds/github/client.ts` calls:
   installation tokens (the app JWT is verified against a key pair generated per run), check runs
   (create/update, stored with their actions and every body), PR comments (list/create/edit,
   reactions), collaborator permission (`setPermission`), commits and statuses. Everything is

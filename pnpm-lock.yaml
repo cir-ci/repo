@@ -401,9 +401,6 @@ importers:
       '@circi/integrations':
         specifier: workspace:*
         version: link:../../packages/integrations
-      '@circi/providers':
-        specifier: workspace:*
-        version: link:../../packages/providers
       '@circi/services':
         specifier: workspace:*
         version: link:../../packages/services
@@ -519,9 +516,6 @@ importers:
       '@circi/integrations':
         specifier: workspace:*
         version: link:../../packages/integrations
-      '@circi/providers':
-        specifier: workspace:*
-        version: link:../../packages/providers
       '@circi/services':
         specifier: workspace:*
         version: link:../../packages/services
@@ -560,9 +554,9 @@ importers:
       '@circi/api':
         specifier: workspace:*
         version: link:../packages/api
-      '@circi/providers':
+      '@circi/integrations':
         specifier: workspace:*
-        version: link:../packages/providers
+        version: link:../packages/integrations
       '@circi/testing':
         specifier: workspace:*
         version: link:../packages/testing
@@ -687,22 +681,9 @@ importers:
       '@circi/core':
         specifier: workspace:*
         version: link:../core
-      '@circi/providers':
-        specifier: workspace:*
-        version: link:../providers
       zod:
         specifier: 'catalog:'
         version: 4.6.7
-    devDependencies:
-      '@circi/testing':
-        specifier: workspace:*
-        version: link:../testing
-
-  packages/providers:
-    dependencies:
-      '@circi/core':
-        specifier: workspace:*
-        version: link:../core
     devDependencies:
       '@circi/testing':
         specifier: workspace:*
@@ -722,9 +703,6 @@ importers:
       '@circi/integrations':
         specifier: workspace:*
         version: link:../integrations
-      '@circi/providers':
-        specifier: workspace:*
-        version: link:../providers
       '@circi/storage':
         specifier: workspace:*
         version: link:../storage

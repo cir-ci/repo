@@ -12,7 +12,7 @@ import {
   IntegrationUnreachableError,
   integrationRegistry,
 } from '@circi/integrations'
-import { ProviderApiError } from '@circi/providers'
+import { ProviderApiError } from '@circi/integrations/git'
 import {
   createIssueFromBuild,
   flagFailedIntegration,

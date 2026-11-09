@@ -1,6 +1,6 @@
 import type { Database } from '@circi/db'
 import { type IntegrationRegistry, integrationRegistry } from '@circi/integrations'
-import type { ProviderRegistry } from '@circi/providers'
+import { type ProviderRegistry } from '@circi/integrations/git'
 import { claimWebhookDelivery, handleGitEvents } from '@circi/services'
 import type { FastifyBaseLogger, FastifyPluginAsync, RouteHandlerMethod } from 'fastify'
 import { z } from 'zod'

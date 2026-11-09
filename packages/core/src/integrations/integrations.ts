@@ -1,12 +1,8 @@
 /**
- * The integration groups and the part of the catalog that is not a registry definition yet. The
- * catalog the dashboard shows is `integrationCatalog` in `@circi/integrations`: one entry per
- * definition in the registry (built, connectable, with its connect and mapping specs), then the
- * entries below for what has no definition. Static and pure.
- *
- * `INTEGRATION_CATALOG` holds only `planned` entries (nothing is built yet). Building one means
- * writing its definition (docs/integration-sdk.md) and DELETING its entry here; a kind in both is a
- * mistake the registry test catches.
+ * The integration groups and the pure rules the dashboard and the server share. The catalog itself
+ * (one entry per definition in the registry, plus the planned entries) lives in `@circi/integrations`
+ * (`sdk/catalog.ts`, `sdk/public.ts`); this file holds only what the browser-safe root has to offer
+ * on its own: the group names and labels, the entry types, text filtering, the installation id rule.
  */
 
 export const INTEGRATION_GROUPS = ['git', 'chat', 'design', 'tracker'] as const
@@ -43,38 +39,6 @@ export const isInstallationId = (value: string) => INSTALLATION_ID_RE.test(value
 /** The label of a group's heading. */
 export const integrationGroupLabel = (group: IntegrationCatalog.Group) =>
   INTEGRATION_GROUP_LABEL[group]
-
-export const INTEGRATION_CATALOG: readonly IntegrationCatalog.Entry[] = [
-  {
-    kind: 'azure-devops',
-    group: 'git',
-    name: 'Azure DevOps',
-    description: 'Build status on the pull request.',
-    status: 'planned',
-  },
-  {
-    kind: 'teams',
-    group: 'chat',
-    name: 'Microsoft Teams',
-    description: 'Review notices in a Teams channel per team.',
-    status: 'planned',
-  },
-  {
-    kind: 'penpot',
-    group: 'design',
-    name: 'Penpot',
-    description: 'Link snapshots to Penpot boards.',
-    status: 'planned',
-  },
-]
-
-/** The catalog entry for a kind, or undefined for a kind CirCI doesn't list. */
-export const catalogEntry = (kind: string): IntegrationCatalog.Entry | undefined =>
-  INTEGRATION_CATALOG.find((e) => e.kind === kind)
-
-/** The group a stored kind belongs to, or undefined for a kind CirCI does not list. */
-export const groupOfKind = (kind: string): IntegrationCatalog.Group | undefined =>
-  catalogEntry(kind)?.group
 
 /** Entries matching a search text (name, kind or description) and an optional group. */
 export function filterCatalog<

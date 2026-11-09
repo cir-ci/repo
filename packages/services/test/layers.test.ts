@@ -295,21 +295,19 @@ const RULES: Rule[] = [
   },
   {
     id: '2',
-    title: 'providers, storage, sites, diff and config import at most core',
+    title: 'storage, sites, diff and config import at most core',
     offenders: () =>
       offendersOf(
-        ['providers', 'storage', 'sites', 'diff', 'config'].map((p) => `packages/${p}/src`),
+        ['storage', 'sites', 'diff', 'config'].map((p) => `packages/${p}/src`),
         notCore,
       ),
   },
   {
     id: '3',
-    title: 'db imports none of services, integrations, providers, storage, auth, api',
+    title: 'db imports none of services, integrations, storage, auth, api',
     offenders: () =>
       offendersOf(['packages/db/src'], (i) =>
-        ['services', 'integrations', 'providers', 'storage', 'auth', 'api'].some(
-          (p) => i.pkg === `@circi/${p}`,
-        ),
+        ['services', 'integrations', 'storage', 'auth', 'api'].some((p) => i.pkg === `@circi/${p}`),
       ),
   },
   {
@@ -391,10 +389,14 @@ const RULES: Rule[] = [
   },
   {
     id: '12',
-    title: 'integrations import neither db, services nor fastify',
+    title:
+      'integrations (SDK, clients and definitions) import at most core and api, and no fastify',
     offenders: () =>
-      offendersOf(['packages/integrations/src'], (i) =>
-        ['@circi/db', '@circi/services', 'fastify'].some((p) => isPackage(i, p)),
+      offendersOf(
+        ['packages/integrations/src'],
+        (i) =>
+          (circi(i) && i.pkg !== '@circi/core' && i.pkg !== '@circi/api') ||
+          isPackage(i, 'fastify'),
       ),
   },
   {
@@ -475,10 +477,9 @@ describe('the integration SDK', () => {
     ).toEqual([])
   })
 
-  it('keeps the database, core and providers from importing the SDK', () => {
+  it('keeps the database and core from importing the SDK', () => {
     expect(importsOf('packages/db/src', ['@circi/integrations'])).toEqual([])
     expect(importsOf('packages/core/src', ['@circi/integrations'])).toEqual([])
-    expect(importsOf('packages/providers/src', ['@circi/integrations'])).toEqual([])
   })
 
   it('keeps the @circi/core root entry browser-safe and the web app on that root entry only', () => {

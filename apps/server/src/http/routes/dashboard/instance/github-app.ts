@@ -7,7 +7,7 @@ import {
   defaultGithubAppName,
   GITHUB_APP_NAME_MAX,
   githubManifestPostUrl,
-} from '@circi/providers'
+} from '@circi/integrations/github'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 

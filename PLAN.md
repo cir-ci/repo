@@ -246,7 +246,7 @@ Building this as a pure function in `packages/core` with good unit tests matters
 
 Blocking only works if the repo marks the CirCI status as **required** (branch protection / protected branches / merge checks). Docs cover this for each host.
 
-**`GitProvider` interface** (in `packages/providers`):
+**`GitProvider` interface** (in `packages/integrations/src/git/provider.ts`):
 ```ts
 interface GitProvider {
   setCommitStatus(repo, sha, { state, title, summary, url, context }): Promise<void>
@@ -647,7 +647,7 @@ _Status: accounts, organizations, roles, CI tokens and organization isolation ar
 
 ### M2.5 — Git provider adapters + GitHub bot (≈3 weeks)
 
-- [x] Shared status/comment rendering (`@circi/providers`: status mapping, PR comment, `/circi` command parsing); a `GitProvider` interface for other hosts comes with them
+- [x] Shared status/comment rendering (`@circi/integrations`: status mapping, PR comment, `/circi` command parsing); a `GitProvider` interface for other hosts comes with them
 - [x] **GitHub bot** (core): GitHub App configured by env (`GITHUB_APP_*`, `GITHUB_API_URL` for GHES), projects linked to a repo + installation id (settings page, `circi admin github link`), a check run per build name with **Approve/Reject buttons**, one PR summary comment edited in place, `/circi approve|reject|rerun` commands, GitHub-user → CirCI-user mapping by GitHub id (linked on the account page, must be an org member), review `source` audit, signature-verified and delivery-idempotent webhooks. **Not built:** App Manifest one-click setup, listing installed repos for one-click linking, thumbnails in the check summary, debounced updates, 'repo write access is enough' mode, `installation` events. Tested against a fake GitHub only, never the real API
 - [ ] On a `PUBLIC_URL` change, update the GitHub App webhook URL through the app API (not built: change it in the app's settings; the checklist says so)
 - [x] Merge-gate modes: status gate when a project is linked to a repository (`--wait` exits 0 on unreviewed changes), exit-code gate otherwise with "re-run to unblock" link; `--gate` override
