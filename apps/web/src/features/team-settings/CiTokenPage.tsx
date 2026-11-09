@@ -3,14 +3,13 @@ import {
   Button,
   ConfirmDialog,
   SecretBox,
-  SettingsRow,
   SettingsSection,
   Text,
   useAnnounce,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 
 import { tokenQuery, useRotateToken } from '#features/teams/api/index.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
@@ -74,75 +73,94 @@ function TokenBody({ workspace, team, name, repoRef }: TokenBody.Props) {
       ) : null}
       {rotate.error && !confirming ? <Banner tone="danger">{rotate.error.message}</Banner> : null}
 
-      <SettingsSection
-        title="Current token"
-        description="Rotating makes a new token and deletes this one: the old token stops working at once, so CI fails until you update its secret."
-      >
-        <SettingsRow label="Token" value={token ? (token.hint ?? 'No token') : '…'}>
-          {token?.canManage ? (
-            <Button
-              size="sm"
-              onClick={() => {
-                rotate.reset()
-                setConfirming(true)
-              }}
-            >
-              Rotate token
-            </Button>
-          ) : null}
-        </SettingsRow>
-        <SettingsRow label="Created">
-          {token?.createdAt ? (
-            <Text>
-              <RelativeTime iso={token.createdAt} />
-              {token.createdBy ? ` by ${token.createdBy.name}` : null}
+      <SettingsSection title="Current token" bare>
+        <div className={styles.box}>
+          <div className={styles.kv}>
+            <span className={styles.key}>Token</span>
+            <Text variant="mono" className={styles.val}>
+              {token ? (token.hint ?? 'No token') : '…'}
             </Text>
-          ) : (
-            <Text tone="tertiary">{token ? 'Unknown' : '…'}</Text>
-          )}
-        </SettingsRow>
-        <SettingsRow label="Last used">
-          {token?.lastUsedAt ? (
-            <Text>
-              <RelativeTime iso={token.lastUsedAt} />
-            </Text>
-          ) : (
-            <Text tone="tertiary">{token ? 'Not used yet' : '…'}</Text>
-          )}
-        </SettingsRow>
+            {token?.canManage ? (
+              <Button
+                size="sm"
+                onClick={() => {
+                  rotate.reset()
+                  setConfirming(true)
+                }}
+              >
+                Rotate token
+              </Button>
+            ) : null}
+          </div>
+          <div className={styles.kv}>
+            <span className={styles.key}>Created</span>
+            <span className={styles.val}>
+              {token?.createdAt ? (
+                <>
+                  <RelativeTime iso={token.createdAt} />
+                  {token.createdBy ? ` by ${token.createdBy.name}` : null}
+                </>
+              ) : (
+                <Text tone="tertiary">{token ? 'Unknown' : '…'}</Text>
+              )}
+            </span>
+          </div>
+          <div className={styles.kv}>
+            <span className={styles.key}>Last used</span>
+            <span className={styles.val}>
+              {token?.lastUsedAt ? (
+                <RelativeTime iso={token.lastUsedAt} />
+              ) : (
+                <Text tone="tertiary">{token ? 'Not used yet' : '…'}</Text>
+              )}
+            </span>
+          </div>
+        </div>
+        <Text as="p" variant="small" tone="tertiary" className={styles.note}>
+          Rotating makes a new token and deletes this one: the old token stops working at once, so
+          CI fails until you update its secret.
+        </Text>
       </SettingsSection>
 
       <SettingsSection
         title="Use it in CI"
         description="Set two secrets in your CI and run the upload after your screenshot tests."
+        bare
       >
-        <SettingsRow>
-          <pre className={styles.code} tabIndex={0} aria-label="CI configuration">
-            {`CIRCI_TOKEN=circi_…\nCIRCI_API_URL=${apiUrl}\n\nnpx circi upload ./screenshots --wait`}
-          </pre>
-        </SettingsRow>
-        {EXIT_CODES.map(([code, meaning]) => (
-          <SettingsRow key={code} leading={code} label={meaning} />
-        ))}
+        <pre className={styles.code} tabIndex={0} aria-label="CI configuration">
+          {`CIRCI_TOKEN=circi_…\nCIRCI_API_URL=${apiUrl}\n\nnpx circi upload ./screenshots --wait`}
+        </pre>
+        <div className={styles.box}>
+          <dl className={styles.exit}>
+            {EXIT_CODES.map(([code, meaning]) => (
+              <Fragment key={code}>
+                <Text as="dt" variant="mono">
+                  {code}
+                </Text>
+                <dd className={styles.meaning}>{meaning}</dd>
+              </Fragment>
+            ))}
+          </dl>
+        </div>
+        {repoRef ? (
+          <Text as="p" variant="small" tone="tertiary" className={styles.note}>
+            {name} is linked to{' '}
+            <Text as="code" variant="mono">
+              {repoRef}
+            </Text>
+            , so the CirCI check on the pull request is the gate instead:{' '}
+            <Text as="code" variant="mono">
+              --wait
+            </Text>{' '}
+            exits 0 on unreviewed changes and the check turns green when someone approves, with no
+            re-run. Override with{' '}
+            <Text as="code" variant="mono">
+              --gate exit-code
+            </Text>
+            .
+          </Text>
+        ) : null}
       </SettingsSection>
-      {repoRef ? (
-        <Text as="p" variant="small" tone="tertiary">
-          {name} is linked to{' '}
-          <Text as="code" variant="mono">
-            {repoRef}
-          </Text>
-          , so the CirCI check on the pull request is the gate instead:{' '}
-          <Text as="code" variant="mono">
-            --wait
-          </Text>{' '}
-          exits 0 on unreviewed changes and the check turns green when someone approves, with no
-          re-run. Override with{' '}
-          <Text as="code" variant="mono">
-            --gate exit-code
-          </Text>
-          .
-        </Text>
-      ) : null}
 
       <ConfirmDialog
         open={confirming}

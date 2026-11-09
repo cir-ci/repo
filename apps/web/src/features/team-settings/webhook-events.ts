@@ -14,17 +14,45 @@ export function webhookProblems(url: string, events: readonly string[]) {
   }
 }
 
-/** How one delivery attempt reads in the list: the answer, or why there was none. */
-export function describeDelivery(d: {
+/** How many times a build event is tried before CirCI gives up (a "Send test" event is tried once). */
+export const WEBHOOK_ATTEMPTS = 8
+
+export interface DeliveryFacts {
   statusCode: number | null
   error: string | null
   attempt: number
   test: boolean
-}): { text: string; ok: boolean } {
-  const ok = d.statusCode !== null && d.statusCode >= 200 && d.statusCode < 300
-  const result = d.statusCode !== null ? String(d.statusCode) : (d.error ?? 'No answer')
-  const parts = [ok ? `${result} delivered` : `${result} failed`]
-  if (d.attempt > 1) parts.push(`attempt ${d.attempt}`)
-  if (d.test) parts.push('test')
-  return { text: parts.join(', '), ok }
+}
+
+const isOk = (d: DeliveryFacts) =>
+  d.statusCode !== null && d.statusCode >= 200 && d.statusCode < 300
+
+/** The answer in a deliveries table: the status code, or why there was none. */
+export function deliveryAnswer(d: DeliveryFacts): { text: string; ok: boolean } {
+  return {
+    text: d.statusCode !== null ? String(d.statusCode) : (d.error ?? 'No answer'),
+    ok: isOk(d),
+  }
+}
+
+/** "3 of 8" (a test event is tried once). */
+export const attemptLabel = (d: DeliveryFacts) => `${d.attempt} of ${d.test ? 1 : WEBHOOK_ATTEMPTS}`
+
+/**
+ * The badge on a webhook's row, from its newest delivery (null: nothing sent yet). A failing one
+ * says what it got and how far through its retries it is.
+ */
+export function hookStatus(
+  newest: DeliveryFacts | undefined,
+): { kind: 'none' } | { kind: 'delivered' } | { kind: 'failing'; text: string } {
+  if (!newest) return { kind: 'none' }
+  if (isOk(newest)) return { kind: 'delivered' }
+  const { text } = deliveryAnswer(newest)
+  const last = newest.test || newest.attempt >= WEBHOOK_ATTEMPTS
+  return {
+    kind: 'failing',
+    text: last
+      ? `Failing: ${text}`
+      : `Failing: ${text}, retrying ${newest.attempt}/${WEBHOOK_ATTEMPTS}`,
+  }
 }

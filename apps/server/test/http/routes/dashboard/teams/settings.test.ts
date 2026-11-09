@@ -123,6 +123,24 @@ describe('team settings', () => {
     expect((await getTeamById(t.db, acme.team.id))?.blockMergeOnChanges).toBe(false)
   })
 
+  it('renames the team’s slug, and the old address stops working', async () => {
+    const before = base()
+    const res = await call('PATCH', `${before}/settings`, ownerCookie, { slug: 'web-renamed' })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().settings.slug).toBe('web-renamed')
+    expect((await call('GET', `${before}/settings`, ownerCookie)).statusCode).toBe(404)
+    const after = before.replace(/[^/]+$/, 'web-renamed')
+    expect((await call('GET', `${after}/settings`, ownerCookie)).json().settings.slug).toBe(
+      'web-renamed',
+    )
+    expect((await call('PATCH', `${after}/settings`, memberCookie, { slug: 'x' })).statusCode).toBe(
+      403,
+    )
+    expect(
+      (await call('PATCH', `${after}/settings`, ownerCookie, { slug: 'Bad Slug' })).statusCode,
+    ).toBe(400)
+  })
+
   it('rejects invalid values and unknown fields', async () => {
     const codes = await Promise.all(
       [

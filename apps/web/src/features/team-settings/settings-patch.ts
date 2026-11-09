@@ -3,6 +3,7 @@ import { valueOf, type FlakyChoice } from './flaky-setting.ts'
 /** What the General form holds when it is sent. */
 export interface SettingsFields {
   name: string
+  slug: string
   defaultBranch: string
   /** As typed, in percent. */
   diffThresholdPercent: string
@@ -17,6 +18,7 @@ export interface SettingsFields {
 export function buildSettingsPatch(fields: SettingsFields, sitesConfigured: boolean) {
   return {
     name: fields.name,
+    slug: fields.slug,
     defaultBranch: fields.defaultBranch,
     diffThreshold: Number(fields.diffThresholdPercent) / 100,
     retentionDays: Number(fields.retentionDays),

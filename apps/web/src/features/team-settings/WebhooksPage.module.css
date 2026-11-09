@@ -28,10 +28,34 @@
   list-style: none;
 }
 
-.chip {
-  padding: 0 6px;
-  border: 1px solid var(--circi-line-strong);
-  border-radius: 6px;
+.url {
+  overflow-wrap: anywhere;
+}
+
+/* Recent deliveries: time, event, answer and attempt, one attempt a row. */
+.table {
+  overflow-x: auto;
+}
+
+.dl {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) 72px 72px;
+  align-items: center;
+  gap: 0 12px;
+  min-height: 36px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--circi-line-subtle);
+  font-size: 12px;
+}
+
+.dl:last-child {
+  border-bottom: 0;
+}
+
+.head {
+  min-height: 32px;
+  color: var(--circi-text-tertiary);
+  font-weight: 500;
 }
 
 .secret {
@@ -77,28 +101,7 @@
 
 .rowActions {
   display: flex;
-  gap: 8px;
-}
-
-.deliveries {
-  margin-top: 6px;
-}
-
-.deliveries summary {
-  cursor: pointer;
-}
-
-.attempts {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 6px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.attempt {
-  display: flex;
   flex-wrap: wrap;
-  gap: 2px 12px;
+  align-items: center;
+  gap: 8px;
 }

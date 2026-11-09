@@ -48,6 +48,8 @@ export namespace Team {
 
   export interface Settings {
     name: string
+    /** The team's address: `<workspace>/<slug>`. Changing it breaks links to the old one. */
+    slug: string
     defaultBranch: string
     diffThreshold: number
     autoApproveDefaultBranch: boolean

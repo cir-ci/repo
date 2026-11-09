@@ -1,5 +1,6 @@
 import type { Team } from '@circi/api'
 import {
+  Badge,
   Banner,
   Button,
   Checkbox,
@@ -20,7 +21,13 @@ import { useAddWebhook, useDeleteWebhook, useTestWebhook } from '#features/teams
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import { TeamSettingsFrame } from './TeamSettingsFrame.tsx'
-import { describeDelivery, eventDescription, webhookProblems } from './webhook-events.ts'
+import {
+  attemptLabel,
+  deliveryAnswer,
+  eventDescription,
+  hookStatus,
+  webhookProblems,
+} from './webhook-events.ts'
 
 import styles from './WebhooksPage.module.css'
 
@@ -88,7 +95,7 @@ function Webhooks(props: Webhooks.Props) {
     <>
       <SettingsSection
         title="Webhooks"
-        description={`Send ${props.name}’s build events as signed JSON to your own services. Failed deliveries are retried with backoff.`}
+        description={`Send ${props.name}’s build events as signed JSON to your own services. Failed deliveries are retried 8 times with backoff.`}
         actions={
           props.canManage ? (
             <Button variant="primary" onClick={open}>
@@ -110,37 +117,38 @@ function Webhooks(props: Webhooks.Props) {
               <li key={h.id}>
                 <ListRow
                   trailing={
-                    props.canManage ? (
-                      <div className={styles.rowActions}>
-                        <Button
-                          size="sm"
-                          aria-label={`Send test to ${h.url}`}
-                          loading={test.isPending && test.variables === h.id}
-                          onClick={() =>
-                            test.mutate(h.id, {
-                              onSuccess: () => announce('Test event queued'),
-                            })
-                          }
-                        >
-                          Send test
-                        </Button>
-                        <Button variant="danger" size="sm" onClick={() => setRemoving(h)}>
-                          Remove
-                        </Button>
-                      </div>
-                    ) : undefined
+                    <div className={styles.rowActions}>
+                      <HookBadge hook={h} />
+                      {props.canManage ? (
+                        <>
+                          <Button
+                            size="sm"
+                            aria-label={`Send test to ${h.url}`}
+                            loading={test.isPending && test.variables === h.id}
+                            onClick={() =>
+                              test.mutate(h.id, {
+                                onSuccess: () => announce('Test event queued'),
+                              })
+                            }
+                          >
+                            Send test
+                          </Button>
+                          <Button variant="danger" size="sm" onClick={() => setRemoving(h)}>
+                            Remove
+                          </Button>
+                        </>
+                      ) : null}
+                    </div>
                   }
                 >
-                  <Text variant="mono" truncate as="div">
+                  <Text variant="mono" as="div" className={styles.url}>
                     {h.url}
                   </Text>
                   <div className={styles.meta}>
                     <ul aria-label="Events" className={styles.events}>
                       {h.events.map((event) => (
-                        <li key={event} className={styles.chip}>
-                          <Text variant="micro" tone="secondary">
-                            {event}
-                          </Text>
+                        <li key={event}>
+                          <Badge shape="tag">{event}</Badge>
                         </li>
                       ))}
                     </ul>
@@ -148,37 +156,6 @@ function Webhooks(props: Webhooks.Props) {
                       added <RelativeTime iso={h.createdAt} />
                     </Text>
                   </div>
-                  <details className={styles.deliveries}>
-                    <summary>
-                      <Text variant="small" tone="secondary">
-                        Recent deliveries ({h.deliveries.length})
-                      </Text>
-                    </summary>
-                    {h.deliveries.length === 0 ? (
-                      <Text as="p" variant="small" tone="tertiary">
-                        Nothing sent yet.
-                      </Text>
-                    ) : (
-                      <ul aria-label={`Recent deliveries to ${h.url}`} className={styles.attempts}>
-                        {h.deliveries.map((d) => {
-                          const shown = describeDelivery(d)
-                          return (
-                            <li key={`${d.deliveryId}-${d.attempt}`} className={styles.attempt}>
-                              <Text variant="small" tone={shown.ok ? 'primary' : 'rejected'}>
-                                {shown.text}
-                              </Text>
-                              <Text variant="small" tone="secondary">
-                                {d.event}
-                              </Text>
-                              <Text variant="small" tone="secondary">
-                                <RelativeTime iso={d.createdAt} />
-                              </Text>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    )}
-                  </details>
                 </ListRow>
               </li>
             ))
@@ -187,6 +164,46 @@ function Webhooks(props: Webhooks.Props) {
         {remove.error && !removing ? <Banner tone="danger">{remove.error.message}</Banner> : null}
         {test.error ? <Banner tone="danger">{test.error.message}</Banner> : null}
       </SettingsSection>
+
+      {props.hooks
+        .filter((h) => h.deliveries.length > 0)
+        .map((h) => (
+          <SettingsSection
+            key={h.id}
+            title={`Recent deliveries to ${hostOf(h.url)}`}
+            description="Any answer other than 2xx is retried. Redirects are not followed."
+            aria-label={`Recent deliveries to ${h.url}`}
+          >
+            <div className={styles.table} role="table" aria-label={`Deliveries to ${h.url}`}>
+              <div className={`${styles.dl} ${styles.head}`} role="row">
+                <span role="columnheader">Time</span>
+                <span role="columnheader">Event</span>
+                <span role="columnheader">Status</span>
+                <span role="columnheader">Attempt</span>
+              </div>
+              {h.deliveries.map((d) => {
+                const answer = deliveryAnswer(d)
+                return (
+                  <div key={`${d.deliveryId}-${d.attempt}`} className={styles.dl} role="row">
+                    <Text variant="small" tone="secondary" role="cell">
+                      <RelativeTime iso={d.createdAt} />
+                    </Text>
+                    <Text variant="mono" role="cell">
+                      {d.event}
+                      {d.test ? ' (test)' : ''}
+                    </Text>
+                    <Text variant="small" tone={answer.ok ? 'approved' : 'rejected'} role="cell">
+                      {answer.text}
+                    </Text>
+                    <Text variant="small" tone="secondary" role="cell">
+                      {attemptLabel(d)}
+                    </Text>
+                  </div>
+                )
+              })}
+            </div>
+          </SettingsSection>
+        ))}
 
       <SettingsSection
         title="Checking a delivery"
@@ -205,12 +222,15 @@ function Webhooks(props: Webhooks.Props) {
             <Text as="code" variant="mono">
               CirCI-Signature: t=…,v1=…
             </Text>
-            , where v1 is the HMAC-SHA256 of{' '}
+            , where{' '}
+            <Text as="code" variant="mono">
+              v1
+            </Text>{' '}
+            is HMAC-SHA256 of{' '}
             <Text as="code" variant="mono">
               {'<t>.<body>'}
             </Text>{' '}
-            with the webhook’s secret. Reject signatures older than a few minutes. Any answer other
-            than 2xx is retried; redirects are not followed.
+            with the webhook’s secret. Reject signatures older than a few minutes.
           </>
         }
       />
@@ -314,6 +334,34 @@ function Webhooks(props: Webhooks.Props) {
         }}
       />
     </>
+  )
+}
+
+/** The host of an address, for a heading; the whole text when it doesn't parse. */
+function hostOf(url: string) {
+  try {
+    return new URL(url).host
+  } catch {
+    return url
+  }
+}
+
+/** The delivery badge on a webhook's row, from its newest attempt. */
+function HookBadge({ hook }: { hook: Webhooks.Hook }) {
+  const status = hookStatus(hook.deliveries[0])
+  if (status.kind === 'none') return <Badge shape="tag">No deliveries yet</Badge>
+  if (status.kind === 'failing') {
+    return (
+      <Badge shape="tag" tone="state" state="rejected">
+        {status.text}
+      </Badge>
+    )
+  }
+  return (
+    <Badge shape="tag" tone="state" state="approved">
+      Delivered {/* The newest attempt's time. */}
+      <RelativeTime iso={hook.deliveries[0]?.createdAt ?? hook.createdAt} />
+    </Badge>
   )
 }
 

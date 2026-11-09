@@ -116,6 +116,8 @@ export async function getTeamMemberRole(
 export namespace teamSettings {
   export interface Settings {
     name: string
+    /** The team's address in the dashboard: `<workspace>/<slug>`. */
+    slug: string
     defaultBranch: string
     diffThreshold: number
     autoApproveDefaultBranch: boolean
@@ -133,6 +135,7 @@ export namespace teamSettings {
 export function teamSettings(team: Team): teamSettings.Settings {
   return {
     name: team.name,
+    slug: team.slug,
     defaultBranch: team.defaultBranch,
     diffThreshold: team.diffThreshold,
     autoApproveDefaultBranch: team.autoApproveDefaultBranch,

@@ -20,3 +20,58 @@
   font: 400 12px/1.7 var(--circi-font-mono);
   white-space: pre;
 }
+
+.box {
+  overflow: hidden;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 10px;
+  background: var(--circi-surface-raised);
+}
+
+/* Token / Created / Last used: a fixed key column so the values line up. */
+.kv {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  box-sizing: border-box;
+  min-height: 52px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--circi-line-subtle);
+}
+
+.kv:last-child {
+  border-bottom: 0;
+}
+
+.key {
+  flex: none;
+  width: 120px;
+  color: var(--circi-text-secondary);
+}
+
+.val {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.note {
+  margin: 0;
+}
+
+.exit {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 6px 12px;
+  margin: 0;
+  padding: 14px 16px;
+}
+
+.exit dt {
+  margin: 0;
+}
+
+.meaning {
+  margin: 0;
+}

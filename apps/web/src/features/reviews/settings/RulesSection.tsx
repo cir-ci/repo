@@ -54,7 +54,7 @@ export function RulesSection(props: RulesSection.Props) {
   return (
     <SettingsSection
       title="Review rules"
-      description="When a build has a screenshot or a name that matches, these people are asked to review it. Use * within a name and ** across folders. The first rule that matches wins, so order them with Up and Down."
+      description="When a build has changes, CirCI requests review from the first matching rule’s people. Like CODEOWNERS for screenshots. Use * within a name and ** across folders; order the rules with Up and Down. Rules save as you edit them."
       actions={
         props.canManage && !editing ? (
           <Button onClick={() => setEditing({ id: null, draft: emptyDraft() })}>Add rule</Button>

@@ -1,4 +1,5 @@
-import { useParams } from '@tanstack/react-router'
+import { Text } from '@circi/ui'
+import { useNavigate, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { GitAttentionBanner } from '#features/builds/list/GitAttentionBanner.tsx'
@@ -14,10 +15,14 @@ export function TeamSettingsPage() {
   const { workspace, team } = useParams({ from: '/$workspace/$team/settings' })
   const save = useSaveSettings(workspace, team)
   const [saved, setSaved] = useState(false)
+  const navigate = useNavigate()
   return (
     <TeamSettingsFrame workspace={workspace} team={team} page="General">
       {(data, name) => (
         <>
+          <Text as="p" tone="secondary">
+            What {name} is called, where its code lives, and when its builds pass.
+          </Text>
           <GitAttentionBanner attention={data.github.link?.attention} />
           <AppearanceSection
             workspace={workspace}
@@ -39,6 +44,13 @@ export function TeamSettingsPage() {
             save={save}
             saved={saved}
             onSavedChange={setSaved}
+            onRenamed={(slug) =>
+              void navigate({
+                to: '/$workspace/$team/settings',
+                params: { workspace, team: slug },
+                replace: true,
+              })
+            }
           />
           <DeleteTeamSection
             workspace={workspace}

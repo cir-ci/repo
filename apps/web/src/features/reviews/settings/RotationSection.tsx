@@ -1,122 +1,73 @@
-import type { Triage } from '@circi/api'
-import {
-  Banner,
-  Button,
-  Checkbox,
-  CheckboxGroup,
-  SettingsRow,
-  SettingsSection,
-  Text,
-  TextField,
-  useAnnounce,
-} from '@circi/ui'
+import { FLAKY_MIN_CHANGES, FLAKY_WINDOW } from '@circi/core'
+import { Checkbox, CheckboxGroup, SettingsRow, SettingsSection, Text, TextField } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
 
 import { triageQuery } from '#features/triage/api.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
-import {
-  rotationBody,
-  rotationDirty,
-  startDateOf,
-  startDateProblem,
-  toggleMember,
-  useRuleActions,
-} from './api.ts'
+import { startDateProblem, toggleMember } from './api.ts'
 
-import styles from '#features/workspace-settings/Settings.module.css'
-
-/** Who takes turns on triage, week by week, from a start date. An empty list turns it off. */
+/**
+ * Triage: who takes turns on the queue, week by week, from a start date (an empty list turns it
+ * off), and what counts as flaky. Controlled: `ReviewsForm` holds the draft and saves it with the
+ * rest.
+ */
 export function RotationSection(props: RotationSection.Props) {
-  const { rotation: save } = useRuleActions(props.workspace, props.team)
   const { data: queue } = useQuery(triageQuery(props.workspace, props.team))
-  const announce = useAnnounce()
-  const [ids, setIds] = useState(() => props.rotation.members.map((m) => m.id))
-  const [date, setDate] = useState(startDateOf(props.rotation))
-  const [done, setDone] = useState(false)
-  const problem = startDateProblem(date)
-  const dirty = rotationDirty(props.rotation, ids, date)
+  const { ids, date, disabled } = props
   const onTriage = queue?.rotation.onTriage ?? null
-  const disabled = !props.canManage
+  const problem = startDateProblem(date)
 
   return (
-    <form
-      className={styles.form}
-      noValidate
-      onSubmit={(e) => {
-        e.preventDefault()
-        if (problem) return
-        setDone(false)
-        save.mutate(rotationBody(ids, date), {
-          onSuccess: () => {
-            setDone(true)
-            announce('Triage rotation saved')
-          },
-        })
-      }}
+    <SettingsSection
+      title="Triage"
+      description="One person a week owns the triage queue: flaky snapshots, missing baselines, failed builds. People take turns in the order they were added."
     >
-      <SettingsSection
-        title="Triage rotation"
-        description="One person at a time is on triage for the week and is the default owner of what turns up. People take turns in the order they were added."
-      >
-        <SettingsRow>
-          {onTriage ? (
-            <Text>
-              On triage this week: <strong>{onTriage.name}</strong>
-              {queue?.rotation.until ? (
-                <>
-                  {' '}
-                  (until <RelativeTime iso={queue.rotation.until} />)
-                </>
-              ) : null}
-            </Text>
-          ) : (
-            <Text tone="secondary">No one is on triage: there is no rotation.</Text>
-          )}
-        </SettingsRow>
-        <SettingsRow>
-          <CheckboxGroup legend="People in the rotation" disabled={disabled}>
-            {props.people.map((p) => (
-              <Checkbox
-                key={p.id}
-                label={p.name}
-                checked={ids.includes(p.id)}
-                onCheckedChange={(on) => {
-                  setIds((current) => toggleMember(current, p.id, on))
-                  setDone(false)
-                }}
-                disabled={disabled}
-              />
-            ))}
-          </CheckboxGroup>
-        </SettingsRow>
-        <SettingsRow>
-          <TextField
-            name="startsOn"
-            label="First week starts"
-            type="date"
-            value={date}
-            disabled={disabled || ids.length === 0}
-            onChange={(e) => {
-              setDate(e.target.value)
-              setDone(false)
-            }}
-            error={problem ?? undefined}
-            description="Any day in the first week. Leave empty to start now."
-          />
-        </SettingsRow>
-      </SettingsSection>
-      {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
-      {done && !dirty ? <Banner tone="success">Triage rotation saved.</Banner> : null}
-      {props.canManage ? (
-        <div className={styles.footer}>
-          <Button type="submit" variant="primary" loading={save.isPending} disabled={!dirty}>
-            {save.isPending ? 'Saving…' : 'Save rotation'}
-          </Button>
-        </div>
-      ) : null}
-    </form>
+      <SettingsRow>
+        {onTriage ? (
+          <Text>
+            On triage this week: <strong>{onTriage.name}</strong>
+            {queue?.rotation.until ? (
+              <>
+                {' '}
+                (until <RelativeTime iso={queue.rotation.until} />)
+              </>
+            ) : null}
+          </Text>
+        ) : (
+          <Text tone="secondary">No one is on triage: there is no rotation.</Text>
+        )}
+      </SettingsRow>
+      <SettingsRow>
+        <CheckboxGroup legend="People in the rotation" disabled={disabled}>
+          {props.people.map((p) => (
+            <Checkbox
+              key={p.id}
+              label={p.name}
+              checked={ids.includes(p.id)}
+              onCheckedChange={(on) => props.onIdsChange(toggleMember(ids, p.id, on))}
+              disabled={disabled}
+            />
+          ))}
+        </CheckboxGroup>
+      </SettingsRow>
+      <SettingsRow>
+        <TextField
+          name="startsOn"
+          label="First week starts"
+          type="date"
+          value={date}
+          disabled={disabled || ids.length === 0}
+          onChange={(e) => props.onDateChange(e.target.value)}
+          error={problem ?? undefined}
+          description="Any day in the first week. Leave empty to start now."
+        />
+      </SettingsRow>
+      <SettingsRow
+        label="Flag a snapshot as flaky"
+        detail={`After ${FLAKY_MIN_CHANGES} changes in the last ${FLAKY_WINDOW} builds on the default branch. Fixed for every team.`}
+      />
+    </SettingsSection>
   )
 }
 
@@ -124,8 +75,11 @@ export namespace RotationSection {
   export interface Props {
     workspace: string
     team: string
-    rotation: Triage.Rotation
     people: { id: string; name: string }[]
-    canManage: boolean
+    ids: string[]
+    date: string
+    disabled: boolean
+    onIdsChange: (ids: string[]) => void
+    onDateChange: (date: string) => void
   }
 }

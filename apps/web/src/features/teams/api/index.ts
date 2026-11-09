@@ -73,13 +73,16 @@ export function useSaveSettings(workspace: string, team: string) {
   return useMutation({
     mutationFn: (patch: Partial<Team.Settings>) =>
       send<{ settings: Team.Settings }>('PATCH', teamPath(workspace, team, 'settings'), patch),
-    onSuccess: () =>
-      invalidateAll(
-        queryClient,
-        keys.teamSettings(workspace, team),
-        keys.team(workspace, team),
-        keys.teams(),
-      ),
+    onSuccess: (result) =>
+      // After a rename the old address is gone: refetching its queries would only 404.
+      result.settings.slug !== team
+        ? queryClient.invalidateQueries({ queryKey: keys.teams() })
+        : invalidateAll(
+            queryClient,
+            keys.teamSettings(workspace, team),
+            keys.team(workspace, team),
+            keys.teams(),
+          ),
   })
 }
 

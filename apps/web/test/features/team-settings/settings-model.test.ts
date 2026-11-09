@@ -36,6 +36,7 @@ describe('team appearance', () => {
 describe('General settings patch', () => {
   const fields = {
     name: 'Web',
+    slug: 'web',
     defaultBranch: 'main',
     diffThresholdPercent: '2.5',
     retentionDays: '90',
@@ -47,6 +48,7 @@ describe('General settings patch', () => {
   it('converts the percentage and inherits the flaky setting', () => {
     expect(buildSettingsPatch(fields, false)).toEqual({
       name: 'Web',
+      slug: 'web',
       defaultBranch: 'main',
       diffThreshold: 0.025,
       retentionDays: 90,

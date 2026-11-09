@@ -94,14 +94,35 @@ describe('ReviewsSettingsPage', () => {
     await expect.element(superseded).toHaveAttribute('data-disabled')
   })
 
+  it('follows the board’s order under one lead and ends with one Save', async () => {
+    api()
+    await show()
+    await expect
+      .poll(() =>
+        page
+          .getByRole('heading', { level: 2 })
+          .elements()
+          .map((h) => h.textContent),
+      )
+      .toEqual(['Review rules', 'Review target', 'Automation', 'Triage', 'Notify a channel'])
+    await expect
+      .element(page.getByText('Who reviews a build, how fast, and what CirCI does on its own.'))
+      .toBeVisible()
+    expect(page.getByRole('button', { name: 'Save changes' }).elements()).toHaveLength(1)
+    await expect
+      .element(page.getByRole('link', { name: 'webhooks' }))
+      .toHaveAttribute('href', '/acme/web/settings/webhooks')
+  })
+
   it('saves the review target, and null when turned off', async () => {
     const calls = api()
     await show()
-    const save = page.getByRole('button', { name: 'Save review target' })
+    const save = page.getByRole('button', { name: 'Save changes' })
     await expect.element(save).toBeDisabled()
     await page.getByRole('spinbutton', { name: /Overdue after/ }).fill('48')
     await save.click()
     await expect.poll(() => calls.of('PATCH')[0]?.body).toEqual({ reviewTargetHours: 48 })
+    await expect.element(page.getByText('Settings saved.')).toBeVisible()
     await page.getByRole('checkbox', { name: /Set a review target/ }).click()
     await save.click()
     await expect.poll(() => calls.of('PATCH')[1]?.body).toEqual({ reviewTargetHours: null })
@@ -111,9 +132,44 @@ describe('ReviewsSettingsPage', () => {
     const calls = api()
     await show()
     await page.getByRole('spinbutton', { name: /Overdue after/ }).fill('0')
-    await page.getByRole('button', { name: 'Save review target' }).click()
+    await page.getByRole('button', { name: 'Save changes' }).click()
     await expect.element(page.getByText(/whole number of hours/)).toBeVisible()
     expect(calls.of('PATCH')).toHaveLength(0)
+    await page.getByRole('spinbutton', { name: /Overdue after/ }).fill('9000')
+    await expect.element(page.getByText(/at most one year/)).toBeVisible()
+  })
+
+  it('saves the target and the rotation from one Save, one after the other', async () => {
+    const calls = api({}, { [`PUT ${API}/triage-rotation`]: { body: {} } })
+    await show()
+    await page.getByRole('spinbutton', { name: /Overdue after/ }).fill('36')
+    await page.getByRole('checkbox', { name: 'Grace Hopper' }).last().click()
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect.poll(() => calls.of('PUT')).toHaveLength(1)
+    expect(calls.of('PATCH')[0]?.body).toEqual({ reviewTargetHours: 36 })
+    expect(calls.of('PUT')[0]?.body).toEqual({
+      memberIds: ['u1', 'u2'],
+      startsOn: '2026-11-02T00:00:00.000Z',
+    })
+  })
+
+  it('sends only what changed, and Discard puts the saved values back', async () => {
+    const calls = api()
+    await show()
+    const field = page.getByRole('spinbutton', { name: /Overdue after/ })
+    await field.fill('12')
+    await page.getByRole('button', { name: 'Discard' }).click()
+    await expect.element(field).toHaveValue(24)
+    await expect.element(page.getByRole('button', { name: 'Save changes' })).toBeDisabled()
+    expect(calls.of('PATCH')).toHaveLength(0)
+  })
+
+  it('turns the rotation off by saving an empty list', async () => {
+    const calls = api({}, { [`PUT ${API}/triage-rotation`]: { body: {} } })
+    await show()
+    await page.getByRole('checkbox', { name: 'Ada Lovelace' }).last().click()
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect.poll(() => calls.of('PUT')[0]?.body).toEqual({ memberIds: [] })
   })
 
   it('adds a rule with a pattern and reviewers', async () => {
@@ -176,19 +232,6 @@ describe('ReviewsSettingsPage', () => {
     await expect.poll(() => calls.of('PUT')[0]?.body).toEqual({ ruleIds: ['r2', 'r1'] })
   })
 
-  it('saves the rotation with members and a start date', async () => {
-    const calls = api({}, { [`PUT ${API}/triage-rotation`]: { body: {} } })
-    await show()
-    await page.getByRole('checkbox', { name: 'Grace Hopper' }).last().click()
-    await page.getByRole('button', { name: 'Save rotation' }).click()
-    await expect
-      .poll(() => calls.of('PUT')[0]?.body)
-      .toEqual({
-        memberIds: ['u1', 'u2'],
-        startsOn: '2026-11-02T00:00:00.000Z',
-      })
-  })
-
   it('shows a refusal from the server', async () => {
     api(
       {},
@@ -201,7 +244,7 @@ describe('ReviewsSettingsPage', () => {
     )
     await show()
     await page.getByRole('spinbutton', { name: /Overdue after/ }).fill('12')
-    await page.getByRole('button', { name: 'Save review target' }).click()
+    await page.getByRole('button', { name: 'Save changes' }).click()
     await expect
       .element(page.getByRole('alert'))
       .toHaveTextContent('Only owners and admins can change settings')
@@ -215,7 +258,7 @@ describe('ReviewsSettingsPage', () => {
       .toBeVisible()
     await expect.element(page.getByRole('checkbox', { name: /Set a review target/ })).toBeDisabled()
     expect(page.getByRole('button', { name: 'Add rule' }).elements()).toHaveLength(0)
-    expect(page.getByRole('button', { name: 'Save rotation' }).elements()).toHaveLength(0)
+    expect(page.getByRole('button', { name: 'Save changes' }).elements()).toHaveLength(0)
     await expect.element(page.getByText('checkout/**')).toBeVisible()
   })
 })

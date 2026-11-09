@@ -1,5 +1,5 @@
 import type { Team } from '@circi/api'
-import { Banner } from '@circi/ui'
+import { Banner, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
@@ -9,11 +9,10 @@ import { ErrorState } from '#lib/ErrorState.tsx'
 import { QuerySkeleton } from '#lib/QueryBoundary.tsx'
 
 import { rulesQuery } from './api.ts'
-import { ReviewTargetSection } from './ReviewTargetSection.tsx'
-import { RotationSection } from './RotationSection.tsx'
+import { ReviewsForm } from './ReviewsForm.tsx'
 import { RulesSection } from './RulesSection.tsx'
 
-/** Team › Settings › Reviews and triage: the review target, who reviews what, and the rotation. */
+/** Team › Settings › Reviews and triage: who reviews what, how fast, and the triage rotation. */
 export function ReviewsSettingsPage() {
   const { workspace, team } = useParams({ from: '/$workspace/$team/settings/reviews' })
   return (
@@ -42,15 +41,10 @@ function Reviews({ workspace, team, settings }: Reviews.Props) {
   const data = rules.data
   return (
     <>
+      <Text as="p" tone="secondary">
+        Who reviews a build, how fast, and what CirCI does on its own.
+      </Text>
       {data.canManage ? null : <Banner>Only owners and admins can change these settings.</Banner>}
-      <ReviewTargetSection
-        // A fresh form whenever the saved value changes, so it never shows stale input.
-        key={`target-${settings.settings.reviewTargetHours}`}
-        workspace={workspace}
-        team={team}
-        settings={settings.settings}
-        canManage={data.canManage}
-      />
       <RulesSection
         workspace={workspace}
         team={team}
@@ -58,10 +52,10 @@ function Reviews({ workspace, team, settings }: Reviews.Props) {
         people={people}
         canManage={data.canManage}
       />
-      <RotationSection
-        key={`rotation-${JSON.stringify(data.rotation)}`}
+      <ReviewsForm
         workspace={workspace}
         team={team}
+        settings={settings.settings}
         rotation={data.rotation}
         people={people}
         canManage={data.canManage}

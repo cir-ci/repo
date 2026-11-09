@@ -7,6 +7,8 @@ import { renderPage } from '#test/support/render.tsx'
 
 const API = '/api/teams/acme/web'
 
+const at = (offsetMs: number) => new Date(Date.now() - offsetMs).toISOString()
+
 const hook = (id: string, url: string, events = ['build.completed']) => ({
   id,
   url,
@@ -74,13 +76,70 @@ describe('WebhooksPage', () => {
       { [`POST ${API}/webhooks/h1/test`]: { status: 202, body: { deliveryId: 'x' } } },
     )
     await show()
-    await page.getByText('Recent deliveries (2)').click()
-    const list = page.getByRole('list', { name: 'Recent deliveries to https://a.test/hook' })
-    await expect.element(list.getByText('200 delivered, test')).toBeVisible()
-    await expect.element(list.getByText('connect ECONNREFUSED failed, attempt 3')).toBeVisible()
+    const table = page.getByRole('table', { name: 'Deliveries to https://a.test/hook' })
+    await expect.element(table.getByText('200', { exact: true })).toBeVisible()
+    await expect.element(table.getByText('connect ECONNREFUSED')).toBeVisible()
+    await expect.element(table.getByText('3 of 8')).toBeVisible()
+    await expect.element(table.getByText('webhook.test (test)')).toBeVisible()
     await page.getByRole('button', { name: 'Send test to https://a.test/hook' }).click()
     await expect.poll(() => fake.of('POST')).toHaveLength(1)
     await expect.element(page.getByText('Test event queued')).toBeInTheDocument()
+  })
+
+  it('shows each webhook as a row with event tags and a delivery badge', async () => {
+    const failing = {
+      ...hook('h2', 'https://deploy.test/gate', ['build.reviewed']),
+      deliveries: [
+        {
+          deliveryId: 'd9',
+          event: 'build.reviewed',
+          test: false,
+          attempt: 3,
+          statusCode: 502,
+          error: null,
+          createdAt: at(60_000),
+        },
+        {
+          deliveryId: 'd9',
+          event: 'build.reviewed',
+          test: false,
+          attempt: 1,
+          statusCode: null,
+          error: 'Timed out',
+          createdAt: at(600_000),
+        },
+      ],
+    }
+    const delivered = {
+      ...hook('h1', 'https://a.test/hook', ['build.completed', 'build.reviewed']),
+      deliveries: [
+        {
+          deliveryId: 'd1',
+          event: 'build.completed',
+          test: false,
+          attempt: 1,
+          statusCode: 200,
+          error: null,
+          createdAt: at(120_000),
+        },
+      ],
+    }
+    api({ webhooks: [delivered, failing, hook('h3', 'https://quiet.test/x')] })
+    await show()
+    const rows = page.getByRole('list', { name: 'Webhooks' })
+    await expect.element(rows.getByText('Delivered 2 minutes ago')).toBeVisible()
+    await expect.element(rows.getByText('Failing: 502, retrying 3/8')).toBeVisible()
+    await expect.element(rows.getByText('No deliveries yet')).toBeVisible()
+    // The recent deliveries have their own section, headed by the host; none for a quiet hook.
+    await expect
+      .element(page.getByRole('heading', { name: 'Recent deliveries to deploy.test' }))
+      .toBeVisible()
+    expect(
+      page.getByRole('heading', { name: /Recent deliveries to quiet\.test/ }).elements(),
+    ).toHaveLength(0)
+    const table = page.getByRole('table', { name: 'Deliveries to https://deploy.test/gate' })
+    await expect.element(table.getByText('Timed out')).toBeVisible()
+    await expect.element(table.getByText('1 of 8')).toBeVisible()
   })
 
   it('says when there are none, and explains how to check a delivery', async () => {
@@ -88,6 +147,8 @@ describe('WebhooksPage', () => {
     await show()
     await expect.element(page.getByText('No webhooks yet')).toBeVisible()
     await expect.element(page.getByRole('heading', { name: 'Checking a delivery' })).toBeVisible()
+    await expect.element(page.getByText(/Reject signatures older than a few minutes/)).toBeVisible()
+    await expect.element(page.getByText(/retried 8 times with backoff/)).toBeVisible()
     expect(document.title).toBe('Webhooks · web · CirCI')
   })
 

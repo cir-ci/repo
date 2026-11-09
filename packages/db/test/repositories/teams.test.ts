@@ -159,6 +159,21 @@ describe('flaky-screenshot setting', () => {
     ).toBeNull()
   })
 
+  it('renames the slug: valid, free in the workspace, and the old address stops resolving', async () => {
+    const { team, workspace } = await seedTeam(t.db, { slug: 'old-name' })
+    await createTeam(t.db, { workspaceSlug: workspace.slug, name: 'Taken', slug: 'taken' })
+    expect(team.slug).toBe('old-name')
+    expect((await updateTeamSettings(t.db, team.id, { slug: ' fresh ' })).slug).toBe('fresh')
+    expect((await updateTeamSettings(t.db, team.id, { retentionDays: 7 })).slug).toBe('fresh')
+    await expect(updateTeamSettings(t.db, team.id, { slug: 'taken' })).rejects.toThrow(
+      /already taken/,
+    )
+    await expect(updateTeamSettings(t.db, team.id, { slug: 'Not Valid!' })).rejects.toThrow(/slug/)
+    // The same slug in another workspace is fine.
+    const other = await seedTeam(t.db, { slug: 'elsewhere' })
+    expect((await updateTeamSettings(t.db, other.team.id, { slug: 'fresh' })).slug).toBe('fresh')
+  })
+
   it('has a 24 hour review target that can be changed, cleared with null, and must be positive', async () => {
     const { team } = await seedTeam(t.db)
     expect(teamSettings(team).reviewTargetHours).toBe(24)

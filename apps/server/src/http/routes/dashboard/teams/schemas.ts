@@ -7,6 +7,7 @@ export const hookParams = teamParams.extend({ id: z.string() })
 export const settingsBody = z
   .object({
     name: z.string().max(100),
+    slug: z.string().max(100),
     defaultBranch: z.string().max(255),
     diffThreshold: z.number(),
     autoApproveDefaultBranch: z.boolean(),

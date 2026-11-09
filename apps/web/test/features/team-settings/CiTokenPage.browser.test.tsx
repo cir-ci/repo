@@ -52,6 +52,29 @@ describe('CiTokenPage', () => {
     expect(document.title).toBe('CI token · web · CirCI')
   })
 
+  it('lays Token, Created and Last used out as a key column and values', async () => {
+    api()
+    await show()
+    await expect.element(page.getByText('Last used', { exact: true })).toBeVisible()
+    const keys = ['Token', 'Created', 'Last used'].map(
+      (k) => page.getByText(k, { exact: true }).element().getBoundingClientRect().width,
+    )
+    expect(new Set(keys).size).toBe(1)
+  })
+
+  it('puts the rotate note under the box and the code sample before the exit codes', async () => {
+    api()
+    await show()
+    await expect.element(page.getByText(/Rotating makes a new token/)).toBeVisible()
+    await expect.element(page.getByText('Upload or processing error.')).toBeVisible()
+    const note = page.getByText(/Rotating makes a new token/).element()
+    const box = page.getByText('Last used', { exact: true }).element()
+    expect(note.getBoundingClientRect().top).toBeGreaterThan(box.getBoundingClientRect().bottom)
+    const code = page.getByLabelText('CI configuration').element()
+    const exit = page.getByText('Upload or processing error.').element()
+    expect(code.getBoundingClientRect().bottom).toBeLessThan(exit.getBoundingClientRect().top)
+  })
+
   it('says when the token was never used', async () => {
     api(info({ lastUsedAt: null }))
     await show()

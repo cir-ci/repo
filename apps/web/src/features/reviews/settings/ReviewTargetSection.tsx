@@ -1,120 +1,67 @@
-import type { Team } from '@circi/api'
-import {
-  Banner,
-  Button,
-  Checkbox,
-  SettingsRow,
-  SettingsSection,
-  Switch,
-  TextField,
-  useAnnounce,
-} from '@circi/ui'
-import { useState } from 'react'
+import { Checkbox, SettingsRow, SettingsSection, Text, TextField } from '@circi/ui'
 
-import { useSaveSettings } from '#features/teams/api/index.ts'
+import { describeHours, targetProblem } from './api.ts'
 
-import { describeHours, targetDirty, targetProblem, targetText, targetValue } from './api.ts'
-
-import styles from '#features/workspace-settings/Settings.module.css'
-
-/** How long a review request may wait, and the (fixed) rule that a newer build closes older requests. */
+/**
+ * How long a review request may wait. Controlled: `ReviewsForm` holds the draft and saves it with
+ * the rest.
+ */
 export function ReviewTargetSection(props: ReviewTargetSection.Props) {
-  const save = useSaveSettings(props.workspace, props.team)
-  const announce = useAnnounce()
-  const saved = props.settings.reviewTargetHours
-  const [enabled, setEnabled] = useState(saved !== null)
-  const [hours, setHours] = useState(targetText(saved))
-  const [touched, setTouched] = useState(false)
-  const [done, setDone] = useState(false)
+  const { saved, enabled, hours, touched, disabled } = props
   const problem = enabled ? targetProblem(hours) : null
-  const dirty = targetDirty(saved, enabled, hours)
-  const disabled = !props.canManage
-
   return (
-    <form
-      className={styles.form}
-      noValidate
-      onSubmit={(e) => {
-        e.preventDefault()
-        setTouched(true)
-        if (problem) return
-        setDone(false)
-        save.mutate(
-          { reviewTargetHours: targetValue(enabled, hours) },
-          {
-            onSuccess: () => {
-              setDone(true)
-              announce('Review target saved')
-            },
-          },
-        )
-      }}
+    <SettingsSection
+      title="Review target"
+      description={
+        saved === null
+          ? 'Review requests never become overdue. Set a target and requests waiting longer get an overdue badge in Reviews and notify the reviewer.'
+          : `Requests waiting longer than this get an overdue badge in Reviews and a reminder in the reviewer’s Inbox. Now: ${describeHours(saved)}.`
+      }
     >
-      <SettingsSection
-        title="Review target"
-        description={
-          saved === null
-            ? 'Review requests never become overdue.'
-            : `A review request is overdue after ${describeHours(saved)}.`
-        }
-      >
-        <SettingsRow>
-          <Checkbox
-            label="Set a review target"
-            description="Overdue requests are flagged in Reviews and notify the reviewer."
-            checked={enabled}
-            onCheckedChange={(on) => {
-              setEnabled(on)
-              setDone(false)
-            }}
-            disabled={disabled}
-          />
-        </SettingsRow>
-        {enabled ? (
-          <SettingsRow>
+      <SettingsRow>
+        <Checkbox
+          label="Set a review target"
+          description="Overdue requests are flagged in Reviews and notify the reviewer."
+          checked={enabled}
+          onCheckedChange={props.onEnabledChange}
+          disabled={disabled}
+        />
+      </SettingsRow>
+      {enabled ? (
+        <SettingsRow label="Target">
+          <div className={props.className}>
             <TextField
               name="reviewTargetHours"
               label="Overdue after (hours)"
+              hideLabel
               type="number"
               min={1}
               step={1}
               value={hours}
               disabled={disabled}
-              onChange={(e) => {
-                setHours(e.target.value)
-                setDone(false)
-              }}
+              onChange={(e) => props.onHoursChange(e.target.value)}
               error={touched && problem ? problem : undefined}
             />
-          </SettingsRow>
-        ) : null}
-        <SettingsRow>
-          <Switch
-            label="Close superseded review requests"
-            description="Always on: when a newer build replaces one on the same branch, the older build’s review requests close."
-            checked
-            disabled
-          />
+            <Text tone="secondary">hours</Text>
+          </div>
         </SettingsRow>
-      </SettingsSection>
-      {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
-      {done && !dirty ? <Banner tone="success">Review target saved.</Banner> : null}
-      {props.canManage ? (
-        <div className={styles.footer}>
-          <Button type="submit" variant="primary" loading={save.isPending} disabled={!dirty}>
-            {save.isPending ? 'Saving…' : 'Save review target'}
-          </Button>
-        </div>
       ) : null}
-    </form>
+    </SettingsSection>
   )
 }
 
 export namespace ReviewTargetSection {
   export interface Props {
-    workspace: string
-    team: string
-    settings: Pick<Team.Settings, 'reviewTargetHours'>
-    canManage: boolean
+    /** The saved hours; null means no target. */
+    saved: number | null
+    enabled: boolean
+    hours: string
+    /** Show the problem with the hours (after a first try to save). */
+    touched: boolean
+    disabled: boolean
+    onEnabledChange: (enabled: boolean) => void
+    onHoursChange: (hours: string) => void
+    /** The class that lays the number and its unit out. */
+    className?: string
   }
 }

@@ -105,7 +105,11 @@ export async function setTeamCiKey(
   await db.update(teams).set({ ciKeyId, ciKeyCreatedBy: createdBy }).where(eq(teams.id, teamId))
 }
 
-/** Changes the given settings only; invalid values are a `ValidationError`. */
+/**
+ * Changes the given settings only; invalid values are a `ValidationError`. A new slug must be
+ * valid and free in the workspace (`ConflictError`); like a workspace's address, the old one
+ * stops working (there is no redirect).
+ */
 export async function updateTeamSettings(
   db: Database,
   teamId: string,
@@ -116,6 +120,11 @@ export async function updateTeamSettings(
     const name = patch.name.trim()
     if (!name) throw new ValidationError('Team name is required')
     set.name = name
+  }
+  if (patch.slug !== undefined) {
+    const slug = patch.slug.trim()
+    assertValidSlug(slug, 'team slug')
+    set.slug = slug
   }
   if (patch.defaultBranch !== undefined) {
     const branch = patch.defaultBranch.trim()
@@ -155,9 +164,16 @@ export async function updateTeamSettings(
     assertFound(current, 'Team not found')
     return teamSettings(current)
   }
-  const [row] = await db.update(teams).set(set).where(eq(teams.id, teamId)).returning()
-  assertFound(row, 'Team not found')
-  return teamSettings(row)
+  try {
+    const [row] = await db.update(teams).set(set).where(eq(teams.id, teamId)).returning()
+    assertFound(row, 'Team not found')
+    return teamSettings(row)
+  } catch (err) {
+    // `teams_workspace_slug_key`: another team in the workspace already has this slug.
+    if (isUniqueViolation(err))
+      throw new ConflictError(`The address "${set.slug}" is already taken`)
+    throw err
+  }
 }
 
 /**

@@ -2,11 +2,11 @@ import { type Team } from '@circi/api'
 import {
   Banner,
   Button,
-  Checkbox,
   ConfirmDialog,
   Select,
   SettingsRow,
   SettingsSection,
+  Switch,
   Text,
   TextField,
   useAnnounce,
@@ -26,7 +26,7 @@ const text = (form: FormData, key: string) => {
   return typeof v === 'string' ? v : ''
 }
 
-/** The board's General page below the appearance: team, repository, comparison, gate, sites. */
+/** The General page below the appearance: team, repository, comparison, gate, sites. */
 export function SettingsForm(props: SettingsForm.Props) {
   // The page owns the save and its confirmation: saving refetches the settings, which remounts
   // this form (it is keyed by them), and a remounted form would lose both.
@@ -42,6 +42,7 @@ export function SettingsForm(props: SettingsForm.Props) {
   const [flaky, setFlaky] = useState<FlakyChoice>(choiceOf(s.flakyBlocksMerge))
   const [autoApprove, setAutoApprove] = useState(s.autoApproveDefaultBranch)
   const [hosting, setHosting] = useState(s.staticHostingEnabled)
+  const [slug, setSlug] = useState(s.slug)
   const disabled = !props.canManage
 
   function submit(e: FormEvent<HTMLFormElement>) {
@@ -52,6 +53,7 @@ export function SettingsForm(props: SettingsForm.Props) {
       buildSettingsPatch(
         {
           name: text(form, 'name'),
+          slug: text(form, 'slug'),
           defaultBranch: text(form, 'defaultBranch'),
           diffThresholdPercent: text(form, 'diffThresholdPercent'),
           retentionDays: text(form, 'retentionDays'),
@@ -63,9 +65,11 @@ export function SettingsForm(props: SettingsForm.Props) {
         props.sitesConfigured === true,
       ),
       {
-        onSuccess: () => {
+        onSuccess: (result) => {
           setSaved(true)
           announce('Settings saved')
+          // The address in the bar is the old one, which no longer works.
+          if (result.settings.slug !== props.team) props.onRenamed(result.settings.slug)
         },
       },
     )
@@ -76,6 +80,7 @@ export function SettingsForm(props: SettingsForm.Props) {
     setFlaky(choiceOf(s.flakyBlocksMerge))
     setAutoApprove(s.autoApproveDefaultBranch)
     setHosting(s.staticHostingEnabled)
+    setSlug(s.slug)
     setSaved(false)
     save.reset()
     setVersion((v) => v + 1)
@@ -94,6 +99,18 @@ export function SettingsForm(props: SettingsForm.Props) {
           <div className={styles.fields} key={version}>
             <TextField name="name" label="Name" defaultValue={s.name} disabled={disabled} />
             <TextField
+              name="slug"
+              label="Slug"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              disabled={disabled}
+              description={
+                <>
+                  Used in addresses and in <Text variant="mono">circi admin</Text> commands.
+                </>
+              }
+            />
+            <TextField
               name="defaultBranch"
               label="Default branch"
               defaultValue={s.defaultBranch}
@@ -102,6 +119,18 @@ export function SettingsForm(props: SettingsForm.Props) {
             />
           </div>
         </SettingsRow>
+        {slug.trim() !== s.slug ? (
+          <SettingsRow>
+            <Banner tone="warning">
+              Links with{' '}
+              <Text variant="mono">
+                /{props.workspace}/{s.slug}
+              </Text>{' '}
+              in them stop working, including bookmarks and the links in existing pull request
+              comments. New builds post the new address. The CI token keeps working.
+            </Banner>
+          </SettingsRow>
+        ) : null}
       </SettingsSection>
 
       <div className={styles.group}>
@@ -134,29 +163,41 @@ export function SettingsForm(props: SettingsForm.Props) {
       </div>
 
       <SettingsSection title="Comparison">
-        <SettingsRow>
-          <div className={styles.fields} key={version}>
+        <SettingsRow
+          label="Diff threshold"
+          detail="A screenshot counts as changed when more than this share of its pixels differ. A change of size is always a change, whatever the threshold."
+        >
+          <div className={styles.number} key={version}>
             <TextField
               name="diffThresholdPercent"
-              label="Ignore differences below (% of pixels)"
+              label="Diff threshold"
+              hideLabel
               type="number"
               defaultValue={Number((s.diffThreshold * 100).toFixed(4))}
               disabled={disabled}
               min={0}
               max={100}
               step="any"
-              description="0 reports every changed pixel. A change of size is always a change."
             />
+            <Text tone="secondary">%</Text>
+          </div>
+        </SettingsRow>
+        <SettingsRow
+          label="Keep builds for"
+          detail="Older builds and their hosted sites expire. The newest approved baseline on the default branch never does."
+        >
+          <div className={styles.number} key={version}>
             <TextField
               name="retentionDays"
               label="Keep builds for (days)"
+              hideLabel
               type="number"
               defaultValue={s.retentionDays}
               disabled={disabled}
               min={1}
               step={1}
-              description="Older builds and their hosted sites expire. The newest approved baseline on the default branch never does."
             />
+            <Text tone="secondary">days</Text>
           </div>
         </SettingsRow>
       </SettingsSection>
@@ -166,9 +207,9 @@ export function SettingsForm(props: SettingsForm.Props) {
         description="What the check on a pull request says while changes wait for review. It only blocks merging if the repository marks it as required."
       >
         <SettingsRow>
-          <Checkbox
-            label="Block merging until changes are approved"
-            description="With this off, `circi upload --wait` passes even when visual changes need review."
+          <Switch
+            label="Unreviewed changes block merging"
+            description="The check stays pending until someone approves. Off: it passes with a “changes to review” summary."
             checked={blockMerge}
             onCheckedChange={setBlockMerge}
             disabled={disabled}
@@ -176,8 +217,8 @@ export function SettingsForm(props: SettingsForm.Props) {
         </SettingsRow>
         <SettingsRow>
           <Select
-            label="Flaky screenshots block merges"
-            description="A flaky screenshot keeps changing on the default branch. With this off, a pull request whose only changes are flaky ones passes the gate; the build still lists them as flaky."
+            label="Flaky-only changes block merging"
+            description="When the only changes are to flaky screenshots (ones that keep changing on the default branch). Off: the pull request passes; the build still lists them as flaky."
             items={flakyChoices(props.workspaceFlakyBlocksMerge)}
             value={flaky}
             onValueChange={(next) => {
@@ -187,9 +228,9 @@ export function SettingsForm(props: SettingsForm.Props) {
           />
         </SettingsRow>
         <SettingsRow>
-          <Checkbox
-            label="Approve builds on the default branch automatically"
-            description="Applies once there is an approved baseline: a team's first build always waits for someone to review it."
+          <Switch
+            label="Approve default-branch builds automatically"
+            description="Builds on the default branch become the new baseline without a review. Needs an approved baseline to compare with, so a team’s first build is always reviewed."
             checked={autoApprove}
             onCheckedChange={setAutoApprove}
             disabled={disabled}
@@ -200,12 +241,17 @@ export function SettingsForm(props: SettingsForm.Props) {
       {props.sitesConfigured ? (
         <SettingsSection
           title="Hosted sites"
-          description="Storybook, test reports and docs for each commit, behind sign-in."
+          description="Storybook, test reports and docs for each commit, behind sign-in. Needs the sites domain set on the server."
         >
           <SettingsRow>
-            <Checkbox
-              label="Host static sites (Storybook, reports) for this team"
-              description="Upload with `circi site upload`. Sites are served from the sites domain and need sign-in; only members of this workspace can open them."
+            <Switch
+              label="Host static sites"
+              description={
+                <>
+                  Upload with <Text variant="mono">circi site upload</Text>. Sites are served from
+                  the sites domain and need sign-in; only members of this workspace can open them.
+                </>
+              }
               checked={hosting}
               onCheckedChange={setHosting}
               disabled={disabled}
@@ -222,7 +268,7 @@ export function SettingsForm(props: SettingsForm.Props) {
             Discard
           </Button>
           <Button type="submit" variant="primary" loading={save.isPending}>
-            {save.isPending ? 'Saving…' : 'Save settings'}
+            {save.isPending ? 'Saving…' : 'Save changes'}
           </Button>
         </div>
       ) : null}
@@ -261,5 +307,7 @@ export namespace SettingsForm {
     /** Whether to show "Settings saved." (also held by the page). */
     saved: boolean
     onSavedChange: (saved: boolean) => void
+    /** The team's slug changed: the page moves to the new address. */
+    onRenamed: (slug: string) => void
   }
 }

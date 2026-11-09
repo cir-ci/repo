@@ -7,6 +7,7 @@ import { renderPage } from '#test/support/render.tsx'
 
 const settings = {
   name: 'Web App',
+  slug: 'web',
   defaultBranch: 'main',
   diffThreshold: 0.001,
   autoApproveDefaultBranch: false,
@@ -32,7 +33,7 @@ function response(over: Record<string, unknown> = {}) {
 }
 
 const API = '/api/teams/acme/web'
-const control = () => page.getByRole('combobox', { name: 'Flaky screenshots block merges' })
+const control = () => page.getByRole('combobox', { name: /^Flaky-only changes block merging/ })
 
 function api(over: Record<string, unknown> = {}, extra: Record<string, ReplyHandler> = {}) {
   return fakeApi({
@@ -87,22 +88,64 @@ describe('TeamSettingsPage', () => {
     await show()
     await expect.element(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Web App')
     await expect.element(page.getByRole('textbox', { name: 'Default branch' })).toHaveValue('main')
-    await expect
-      .element(page.getByRole('spinbutton', { name: 'Ignore differences below (% of pixels)' }))
-      .toHaveValue(0.1)
+    await expect.element(page.getByRole('spinbutton', { name: 'Diff threshold' })).toHaveValue(0.1)
     await expect
       .element(page.getByRole('spinbutton', { name: 'Keep builds for (days)' }))
       .toHaveValue(30)
+    await expect.element(page.getByRole('textbox', { name: 'Slug' })).toHaveValue('web')
     await expect
-      .element(page.getByRole('checkbox', { name: 'Block merging until changes are approved' }))
+      .element(page.getByRole('switch', { name: /^Unreviewed changes block merging/ }))
       .toBeChecked()
     await expect
-      .element(
-        page.getByRole('checkbox', { name: 'Approve builds on the default branch automatically' }),
-      )
+      .element(page.getByRole('switch', { name: /^Approve default-branch builds automatically/ }))
       .not.toBeChecked()
-    // No static hosting switch unless the instance can host sites.
-    expect(page.getByRole('checkbox', { name: /Host static sites/ }).elements()).toHaveLength(0)
+    // No static hosting switch (and no section) unless the instance can host sites.
+    expect(page.getByRole('switch', { name: /Host static sites/ }).elements()).toHaveLength(0)
+    expect(page.getByRole('heading', { name: 'Hosted sites' }).elements()).toHaveLength(0)
+  })
+
+  it('opens with the board’s lead and labels', async () => {
+    api()
+    await show()
+    await expect
+      .element(
+        page.getByText('What Web App is called, where its code lives, and when its builds pass.'),
+      )
+      .toBeVisible()
+    await expect.element(page.getByText(/more than this share of its pixels differ/)).toBeVisible()
+    await expect.element(page.getByText('Keep builds for', { exact: true })).toBeVisible()
+  })
+
+  it('renames the slug and moves to the new address, warning first', async () => {
+    const fake = api(
+      {},
+      { [`PATCH ${API}/settings`]: { body: { settings: { ...settings, slug: 'web-app' } } } },
+    )
+    const { router } = await show()
+    await expect.element(page.getByRole('textbox', { name: 'Slug' })).toHaveValue('web')
+    await page.getByRole('textbox', { name: 'Slug' }).fill('web-app')
+    await expect.element(page.getByText(/stop working/)).toBeVisible()
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
+    expect(fake.of('PATCH')[0]?.body).toMatchObject({ slug: 'web-app' })
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app/settings')
+  })
+
+  it('shows the server’s refusal of a taken slug and stays put', async () => {
+    api(
+      {},
+      {
+        [`PATCH ${API}/settings`]: {
+          status: 409,
+          body: { error: 'The address "taken" is already taken' },
+        },
+      },
+    )
+    const { router } = await show()
+    await page.getByRole('textbox', { name: 'Slug' }).fill('taken')
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect.element(page.getByText(/is already taken/)).toBeVisible()
+    expect(router.state.location.pathname).toBe('/acme/web/settings')
   })
 
   it('saves what was edited, announces it and shows a confirmation', async () => {
@@ -111,21 +154,13 @@ describe('TeamSettingsPage', () => {
     // Edit only once the form shows the saved values: the form is keyed by them and remounts
     // (dropping what was typed, and the per-save callbacks) if they arrive after the first edit.
     await expect.element(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Web App')
-    await expect
-      .element(page.getByRole('checkbox', { name: /Host static sites/ }))
-      .not.toBeChecked()
+    await expect.element(page.getByRole('switch', { name: /Host static sites/ })).not.toBeChecked()
     await page.getByRole('textbox', { name: 'Name' }).fill('Web')
-    await page
-      .getByRole('spinbutton', { name: 'Ignore differences below (% of pixels)' })
-      .fill('2.5')
+    await page.getByRole('spinbutton', { name: 'Diff threshold' }).fill('2.5')
     await page.getByRole('spinbutton', { name: 'Keep builds for (days)' }).fill('90')
-    await page
-      .getByRole('checkbox', { name: 'Approve builds on the default branch automatically' })
-      .click()
-    await page
-      .getByRole('checkbox', { name: 'Host static sites (Storybook, reports) for this team' })
-      .click()
-    await page.getByRole('button', { name: 'Save settings' }).click()
+    await page.getByRole('switch', { name: /^Approve default-branch builds automatically/ }).click()
+    await page.getByRole('switch', { name: /Host static sites/ }).click()
+    await page.getByRole('button', { name: 'Save changes' }).click()
     await expect.element(page.getByText('Settings saved.')).toBeVisible()
     await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
     expect(fake.of('PATCH')).toEqual([
@@ -134,6 +169,7 @@ describe('TeamSettingsPage', () => {
         path: `${API}/settings`,
         body: {
           name: 'Web',
+          slug: 'web',
           defaultBranch: 'main',
           diffThreshold: 0.025,
           retentionDays: 90,
@@ -165,7 +201,7 @@ describe('TeamSettingsPage', () => {
     await show()
     await expect.element(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Web App')
     await page.getByRole('textbox', { name: 'Name' }).fill('Web')
-    await page.getByRole('button', { name: 'Save settings' }).click()
+    await page.getByRole('button', { name: 'Save changes' }).click()
     await expect.element(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Web')
     await expect.element(page.getByText('Settings saved.')).toBeVisible()
     await expect
@@ -197,19 +233,19 @@ describe('TeamSettingsPage', () => {
       await show()
       await control().click()
       await page.getByRole('option', { name: 'Off' }).click()
-      await page.getByRole('button', { name: 'Save settings' }).click()
+      await page.getByRole('button', { name: 'Save changes' }).click()
       await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
       expect(fake.of('PATCH')[0]?.body).toMatchObject({ flakyBlocksMerge: false })
 
       await control().click()
       await page.getByRole('option', { name: 'On', exact: true }).click()
-      await page.getByRole('button', { name: 'Save settings' }).click()
+      await page.getByRole('button', { name: 'Save changes' }).click()
       await expect.poll(() => fake.of('PATCH')).toHaveLength(2)
       expect(fake.of('PATCH')[1]?.body).toMatchObject({ flakyBlocksMerge: true })
 
       await control().click()
       await page.getByRole('option', { name: /^Inherit from workspace/ }).click()
-      await page.getByRole('button', { name: 'Save settings' }).click()
+      await page.getByRole('button', { name: 'Save changes' }).click()
       await expect.poll(() => fake.of('PATCH')).toHaveLength(3)
       expect(fake.of('PATCH')[2]?.body).toMatchObject({ flakyBlocksMerge: null })
     })
@@ -228,7 +264,7 @@ describe('TeamSettingsPage', () => {
       body: { error: 'Default branch is required' },
     })
     await show()
-    await page.getByRole('button', { name: 'Save settings' }).click()
+    await page.getByRole('button', { name: 'Save changes' }).click()
     await expect.element(page.getByRole('alert')).toHaveTextContent('Default branch is required')
     expect(page.getByText('Settings saved.').elements()).toHaveLength(0)
   })
@@ -241,9 +277,9 @@ describe('TeamSettingsPage', () => {
       .toBeVisible()
     await expect.element(page.getByRole('textbox', { name: 'Name' })).toBeDisabled()
     await expect
-      .element(page.getByRole('checkbox', { name: 'Block merging until changes are approved' }))
+      .element(page.getByRole('switch', { name: /^Unreviewed changes block merging/ }))
       .toHaveAttribute('data-disabled')
-    expect(page.getByRole('button', { name: 'Save settings' }).elements()).toHaveLength(0)
+    expect(page.getByRole('button', { name: 'Save changes' }).elements()).toHaveLength(0)
   })
 
   it('says the team doesn’t exist for a 404, and retries other errors', async () => {
