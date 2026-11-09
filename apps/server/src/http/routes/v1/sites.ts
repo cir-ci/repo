@@ -1,7 +1,7 @@
 import { Readable } from 'node:stream'
 
 import { ValidationError } from '@circi/core'
-import { servedCommitForBranch } from '@circi/db'
+import { servedCommitForBranch } from '@circi/db/queries'
 import { publishSite } from '@circi/services'
 import {
   branchHash,

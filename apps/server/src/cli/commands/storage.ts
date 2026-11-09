@@ -1,4 +1,4 @@
-import { storageUsage } from '@circi/db'
+import { storageUsage } from '@circi/db/queries'
 import { migrateStorage, previewRetention, runRetention } from '@circi/services'
 import type { Command } from 'commander'
 

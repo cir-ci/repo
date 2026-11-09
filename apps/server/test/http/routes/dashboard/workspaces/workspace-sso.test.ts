@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { createUser } from '@circi/auth'
 import type { Auth } from '@circi/auth'
-import { schema } from '@circi/db'
+import * as schema from '@circi/db/schema'
 import { FsStorage } from '@circi/storage'
 import { addTestMember, createTestDb } from '@circi/testing'
 import { fakeIdp, type FakeIdp } from '@circi/testing/hosts'

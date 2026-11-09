@@ -8,13 +8,12 @@ import {
 } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { figmaFramesForSnapshots, getBuildDetail } from '#src/queries/index.ts'
 import {
   createIntegration,
   createIntegrationLink,
-  figmaFramesForSnapshots,
-  getBuildDetail,
   listTeamSnapshotNames,
-} from '#src/index.ts'
+} from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

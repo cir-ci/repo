@@ -5,7 +5,7 @@ import { Readable } from 'node:stream'
 
 import type { Auth } from '@circi/auth'
 import { rotateTeamToken } from '@circi/auth'
-import { getBuild, getFile } from '@circi/db'
+import { getBuild, getFile } from '@circi/db/queries'
 import { FsStorage, type StorageDriver } from '@circi/storage'
 import { createTestDb, seedAccount, sha256 } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'

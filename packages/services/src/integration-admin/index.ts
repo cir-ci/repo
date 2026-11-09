@@ -14,3 +14,5 @@ export {
   type StoredGithubApp,
 } from './github-app.ts'
 export { claimWebhookDelivery } from './webhook-delivery.ts'
+export { queueIntegrationEvent } from './events.ts'
+export { addTeamLink, autoLinkTeam, type LinkedIntegration, mapTeam, unmapTeam } from './links.ts'

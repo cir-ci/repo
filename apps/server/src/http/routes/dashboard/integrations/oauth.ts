@@ -1,5 +1,5 @@
 import { ForbiddenError, NotFoundError, ValidationError, canManage, verifyState } from '@circi/core'
-import { getMemberRole } from '@circi/db'
+import { getMemberRole } from '@circi/db/queries'
 import type { FastifyPluginAsync } from 'fastify'
 
 import { INSTALL_FLOW } from '#composition/install-state.ts'

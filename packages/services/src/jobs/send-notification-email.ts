@@ -1,5 +1,6 @@
-import { emailPreferenceFor, type Job, getNotificationEmailData } from '@circi/db'
+import { type Job } from '@circi/db'
 import type { Database } from '@circi/db'
+import { emailPreferenceFor, getNotificationEmailData } from '@circi/db/repositories'
 
 /** The `notification-email` job: one email about one inbox notification (B2). */
 

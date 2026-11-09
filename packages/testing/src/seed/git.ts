@@ -1,12 +1,12 @@
+import { type Database } from '@circi/db'
+import { getTeamById } from '@circi/db/queries'
 import {
   createIntegration,
-  type Database,
   findIntegrationByExternalId,
-  getTeamById,
   removeOtherTeamMappings,
   setIntegrationAttention,
   setIntegrationTeam,
-} from '@circi/db'
+} from '@circi/db/repositories'
 
 /**
  * A git host connection of a workspace (an `integrations` row), the way connecting one leaves

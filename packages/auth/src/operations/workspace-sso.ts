@@ -1,4 +1,5 @@
-import { type Database, schema } from '@circi/db'
+import { type Database } from '@circi/db'
+import * as schema from '@circi/db/schema'
 import { eq } from 'drizzle-orm'
 
 /** The single sign-on providers registered for a workspace (secrets are never selected). */

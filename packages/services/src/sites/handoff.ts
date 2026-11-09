@@ -1,11 +1,6 @@
-import {
-  createSiteToken,
-  type Database,
-  findSiteByLabel,
-  getMemberRole,
-  type SessionMethod,
-  workspaceAcceptsSession,
-} from '@circi/db'
+import { type Database } from '@circi/db'
+import { findSiteByLabel, getMemberRole, workspaceAcceptsSession } from '@circi/db/queries'
+import { createSiteToken, type SessionMethod } from '@circi/db/repositories'
 
 /**
  * Step two of opening a hosted site (PLAN §7.6): a signed-in person asks for access to one

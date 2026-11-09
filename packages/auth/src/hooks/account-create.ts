@@ -1,4 +1,4 @@
-import { schema } from '@circi/db'
+import * as schema from '@circi/db/schema'
 import { APIError } from 'better-auth/api'
 import { eq } from 'drizzle-orm'
 

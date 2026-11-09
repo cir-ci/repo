@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto'
 
 import { sealSecret } from '@circi/core'
-import { getBuild, listBuildReviews } from '@circi/db'
+import { getBuild, listBuildReviews } from '@circi/db/queries'
 import { BitbucketCloud, providerRegistry, serializeBitbucketCredentials } from '@circi/providers'
 import { completeBuild } from '@circi/services'
 import {

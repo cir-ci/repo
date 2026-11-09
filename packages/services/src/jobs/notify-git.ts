@@ -1,18 +1,16 @@
 import { openSecret } from '@circi/core'
+import { type Database, type Job, withAdvisoryLock } from '@circi/db'
 import {
   buildsForPrSummary,
-  type Database,
-  getBuildCounts,
   getCheckRunId,
   getGitTarget,
   getPrCommentId,
-  type Job,
   clearInstallationNeedsAttention,
   markInstallationNeedsAttention,
   setCheckRunId,
   setPrCommentId,
-  withAdvisoryLock,
-} from '@circi/db'
+} from '@circi/db/queue'
+import { getBuildCounts } from '@circi/db/repositories'
 import { type IntegrationDefinition, integrationRegistry } from '@circi/integrations'
 import {
   checkReport,
@@ -22,7 +20,7 @@ import {
   type ReportedBuild,
 } from '@circi/providers'
 
-import { gateInputs } from '../gate.ts'
+import { gateInputs } from '#src/builds/gate.ts'
 
 /** The `git-notify` job: show a build's state on its commit and pull request (PLAN §7.4). */
 

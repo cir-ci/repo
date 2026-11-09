@@ -1,5 +1,5 @@
 import { teamColorFor } from '@circi/core'
-import { getWorkspaceBySlug } from '@circi/db'
+import { getWorkspaceBySlug } from '@circi/db/queries'
 import { addTestMember, seedSavedView, seedUser } from '@circi/testing'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 

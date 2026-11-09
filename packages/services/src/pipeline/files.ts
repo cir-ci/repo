@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto'
 import type { Readable } from 'node:stream'
 
-import { type Database, getFile, upsertServerFile } from '@circi/db'
+import { type Database } from '@circi/db'
+import { getFile } from '@circi/db/queries'
+import { upsertServerFile } from '@circi/db/repositories'
 import { contentKey, type StorageDriver } from '@circi/storage'
 
 /** Reading stored files, and storing the files the worker makes itself. */

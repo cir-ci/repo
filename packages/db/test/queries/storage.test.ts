@@ -10,7 +10,8 @@ import {
 } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createTeam, getWorkspaceStorage, setWorkspaceSettings, storageUsage } from '#src/index.ts'
+import { getWorkspaceStorage, storageUsage } from '#src/queries/index.ts'
+import { createTeam, setWorkspaceSettings } from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

@@ -1,5 +1,5 @@
 import type { Sidebar, View } from '@circi/api'
-import { findTeamForMember, getSidebar, listSavedViews, type SavedViewRow } from '@circi/db'
+import { findTeamForMember, getSidebar, listSavedViews, type SavedViewRow } from '@circi/db/queries'
 import {
   createView,
   deleteView,

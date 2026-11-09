@@ -1,9 +1,9 @@
+import { type Database } from '@circi/db'
 import {
-  type Database,
   dismissPublicUrlChange,
   setWorkspaceAuthSettings,
   setWorkspaceSettings,
-} from '@circi/db'
+} from '@circi/db/repositories'
 
 /** Changes a workspace's defaults for its teams (flaky gate, retention); returns the result. */
 export async function updateWorkspaceSettings(

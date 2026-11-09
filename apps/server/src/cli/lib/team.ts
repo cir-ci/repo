@@ -1,4 +1,4 @@
-import { getTeamBySlugs } from '@circi/db'
+import { getTeamBySlugs } from '@circi/db/queries'
 
 import type { Runtime } from '#composition/runtime.ts'
 

@@ -1,4 +1,4 @@
-import { workspacesForEmailDomain } from '@circi/db'
+import { workspacesForEmailDomain } from '@circi/db/repositories'
 import { APIError } from 'better-auth/api'
 
 import { hasPendingInvitation } from '#operations/accounts.ts'

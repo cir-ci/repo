@@ -2,7 +2,8 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { getWorkspaceBySlug, listIntegrationTeams, listIntegrations } from '@circi/db'
+import { getWorkspaceBySlug, listIntegrations } from '@circi/db/queries'
+import { listIntegrationTeams } from '@circi/db/repositories'
 import {
   defineIntegration,
   type IntegrationDefinition,

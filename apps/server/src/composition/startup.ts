@@ -1,6 +1,8 @@
 import { setupCode } from '@circi/auth'
 import type { Config } from '@circi/config'
-import { countUsers, type Database, publicUrlChecklist, recordPublicUrl } from '@circi/db'
+import { type Database } from '@circi/db'
+import { countUsers, publicUrlChecklist } from '@circi/db/queries'
+import { recordPublicUrl } from '@circi/db/repositories'
 import type { Logger } from 'pino'
 
 /** What to tell the operator once the database is ready (and migrated). */

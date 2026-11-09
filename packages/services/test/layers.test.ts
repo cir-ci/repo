@@ -3,8 +3,6 @@ import { dirname, join, normalize } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { RATCHET, type RuleId } from './layers.ratchet.ts'
-
 /**
  * Layer tests: who may import whom (docs/architecture-review/layering.md section 4).
  *
@@ -18,15 +16,11 @@ import { RATCHET, type RuleId } from './layers.ratchet.ts'
  * `db/src/queries` is a read model (allowed in routes). Type-only imports
  * (`import type { Database } from '@circi/db'`) are ignored by the rules that say `typeOnlyOk`.
  *
- * THE RATCHET. A rule is either ENFORCED (`ENFORCED` below: must find no offender) or RATCHETED:
- * it does not hold yet, and `layers.ratchet.ts` lists the files that break it today
- * (rule id -> repo-relative paths). The ratchet test fails in BOTH directions:
- *   - a file that breaks the rule and is not listed is a NEW offender: fix the file, never add it;
- *   - a listed file that no longer breaks the rule is STALE: delete the entry in the same change
- *     that fixed it, so the list only ever shrinks.
- * When a rule's list is empty, move the rule from RATCHETED to ENFORCED (step 10 of the plan).
+ * Every rule is ENFORCED: no offender is allowed. The only escape is a NAMED EXCEPTION in
+ * `EXCEPTIONS` below (rule id -> file -> why), for a file that breaks a rule on purpose; the
+ * exceptions test fails when an entry no longer applies, so the list only holds live reasons.
  * `LAYERS_PRINT=1 pnpm vitest run packages/services/test/layers.test.ts` prints the current
- * offenders per rule (one JSON line), to compare with the ratchet file.
+ * offenders per rule (one JSON line).
  */
 
 const root = join(import.meta.dirname, '../../..')
@@ -198,44 +192,16 @@ const offendersOf = (
 
 // ---- what @circi/db exports, by layer --------------------------------------------------------
 
-const exportedValues = (...dirs: string[]) =>
-  new Set(
-    dirs
-      .flatMap((dir) =>
-        readdirSync(join(root, dir))
-          .filter((f) => f.endsWith('.ts'))
-          .map((f) => [dir, f] as const),
-      )
-      .flatMap(([dir, f]) =>
-        [
-          ...stripComments(readFileSync(join(root, dir, f), 'utf8')).matchAll(
-            /^export\s+(?:async\s+)?(?:function\*?|const|let|class)\s+(\w+)/gm,
-          ),
-        ].map((m) => m[1] ?? ''),
-      ),
-  )
-// Stores and lookups: `repositories/`, the helpers they share with the read models (`shared/`)
-// and the outbox (`queue/`) all count as repository functions for rules 7 and 8.
-const QUEUE_FUNCTIONS = exportedValues('packages/db/src/queue')
-const REPOSITORY_FUNCTIONS = exportedValues(
-  'packages/db/src/repositories',
-  'packages/db/src/shared',
-  'packages/db/src/queue',
-)
-
-/** The `@circi/db` entry the value import reaches (the barrel today, subpaths after step 6). */
-const fromDb = (i: Resolved) =>
-  i.pkg === '@circi/db' && !i.spec.startsWith('.') && !i.spec.startsWith('#')
+// The `@circi/db` root is the connection, the errors and the shared types; every persistence name
+// comes from a subpath (`/queries`, `/repositories`, `/queue`, `/schema`), so a layer rule is a
+// check on the specifier. The folder names under `packages/db/src` stand in for the subpaths
+// when a file reaches into them by path.
+const dbSubpath = (i: Resolved, names: string[]) =>
+  new RegExp(`^@circi/db/(${names.join('|')})(/|$)`).test(i.spec) ||
+  new RegExp(`^packages/db/src/(${names.join('|')})/`).test(i.file ?? '')
 const reachesRepositories = (i: Resolved) =>
-  (/^@circi\/db\/(repositories|schema|queue)/.test(i.spec) ||
-    /^packages\/db\/src\/(repositories|schema|queue|shared)\//.test(i.file ?? '') ||
-    (fromDb(i) &&
-      (i.names.includes('*') ||
-        i.names.some((n) => n === 'schema' || REPOSITORY_FUNCTIONS.has(n))))) &&
-  !i.typeOnly
-const reachesQueue = (i: Resolved) =>
-  (i.spec === '@circi/db/queue' || (fromDb(i) && i.names.some((n) => QUEUE_FUNCTIONS.has(n)))) &&
-  !i.typeOnly
+  dbSubpath(i, ['repositories', 'schema', 'queue', 'shared']) && !i.typeOnly
+const reachesQueue = (i: Resolved) => dbSubpath(i, ['queue']) && !i.typeOnly
 
 // ---- the rules -------------------------------------------------------------------------------
 
@@ -261,10 +227,44 @@ const MUTATING =
 const writesWithoutTx = (file: { text: string; imports: Resolved[] }) =>
   file.imports.some(
     (i) =>
-      fromDb(i) &&
+      dbSubpath(i, ['repositories', 'queue']) &&
       !i.typeOnly &&
-      i.names.some((n) => REPOSITORY_FUNCTIONS.has(n) && MUTATING.test(n)),
+      i.names.some((n) => MUTATING.test(n)),
   ) && !/\btx\b|withTransaction|\btransaction\(/.test(stripComments(file.text))
+
+/** Rule ids are the numbers of docs/architecture-review/layering.md section 4.1. */
+type RuleId =
+  | '1'
+  | '2'
+  | '3'
+  | '4'
+  | '5'
+  | '6'
+  | '7'
+  | '8'
+  | '9'
+  | '9b'
+  | '10'
+  | '11'
+  | '12'
+  | '12b'
+  | '13'
+  | '14'
+  | '15'
+
+/** Files that break a rule on purpose, each with the reason. */
+const EXCEPTIONS: Partial<Record<RuleId, Record<string, string>>> = {
+  '7': {
+    'packages/services/src/integration-admin/events.ts':
+      "A building block called inside the transaction of the service that changed something (its doc comment): it takes the caller's handle and opens none.",
+    'packages/services/src/notifications/notifications.ts':
+      "`notify` is called inside the caller's transaction; the other functions are single-statement writes that trigger nothing but their own row.",
+    'packages/services/src/pipeline/files.ts':
+      'The pipeline is idempotent step by step: one transaction around long image processing would hold a database connection.',
+    'packages/services/src/pipeline/process.ts':
+      'The pipeline is idempotent step by step: one transaction around long image processing would hold a database connection.',
+  },
+}
 
 const lines = (text: string) => text.split('\n').length
 
@@ -441,37 +441,20 @@ const RULES: Rule[] = [
   },
 ]
 
-/** Rules that hold today: no offender is allowed. The rest are ratcheted (see the top). */
-const ENFORCED = new Set<RuleId>(['1', '2', '3', '4', '5', '6', '9', '11', '12'])
-
 if (process.env.LAYERS_PRINT) {
   console.log(
     `LAYERS_JSON${JSON.stringify(Object.fromEntries(RULES.map((r) => [r.id, r.offenders()])))}`,
   )
 }
 
-describe('layers: dependency rules that hold', () => {
-  for (const rule of RULES.filter((r) => ENFORCED.has(r.id))) {
-    it(`rule ${rule.id}: ${rule.title}`, () => {
-      expect(rule.offenders()).toEqual([])
-    })
-  }
-})
-
-describe('layers: ratchet (rules that do not hold yet; the lists in layers.ratchet.ts only shrink)', () => {
-  for (const rule of RULES.filter((r) => !ENFORCED.has(r.id))) {
+describe('layers: dependency rules (docs/architecture-review/layering.md section 4.1)', () => {
+  for (const rule of RULES) {
+    const excused = Object.keys(EXCEPTIONS[rule.id] ?? {})
     it(`rule ${rule.id}: ${rule.title}`, () => {
       const found = rule.offenders()
-      const allowed = RATCHET[rule.id] ?? []
-      // A new offender is fixed, never added to the list; a fixed one is deleted from it.
-      expect(
-        found.filter((f) => !allowed.includes(f)),
-        `NEW offenders of rule ${rule.id}: fix the file, do not add it to layers.ratchet.ts`,
-      ).toEqual([])
-      expect(
-        allowed.filter((f) => !found.includes(f)),
-        `STALE entries of rule ${rule.id}: delete them from layers.ratchet.ts`,
-      ).toEqual([])
+      expect(found.filter((f) => !excused.includes(f))).toEqual([])
+      // An exception that no longer applies is deleted, so every entry stays a live reason.
+      expect(excused.filter((f) => !found.includes(f))).toEqual([])
     })
   }
 })
@@ -507,7 +490,7 @@ describe('the integration SDK', () => {
       'apps/server/src/http/routes/dashboard/integrations/oauth.ts',
       'apps/server/src/http/routes/dashboard/integrations/presenters.ts',
       'apps/server/src/http/routes/integration-webhook.ts',
-      'packages/services/src/git-events.ts',
+      'packages/services/src/git/events.ts',
       'apps/web/src/features/integrations/GenericIntegrationPage.tsx',
     ]
     for (const file of generic) {

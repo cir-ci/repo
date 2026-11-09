@@ -4,13 +4,13 @@ import { addTestMember, createTestDb, seedBuild, seedTeam, seedUser } from '@cir
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { NotFoundError } from '#src/index.ts'
 import {
   listBuildFilterSuggestions,
   listBuildsForWorkspace,
-  NotFoundError,
-  schema,
   SUGGESTION_LIMIT,
-} from '#src/index.ts'
+} from '#src/queries/index.ts'
+import * as schema from '#src/schema/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

@@ -1,16 +1,15 @@
 import { createTestDb, seedWorkspace, seedSession } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { ConflictError } from '#src/index.ts'
 import {
-  ConflictError,
   getWorkspaceAuthSettings,
   getSessionMethod,
   listRefusingWorkspaces,
   workspaceAcceptsSession,
-  recordSessionMethod,
-  schema,
-  setWorkspaceAuthSettings,
-} from '#src/index.ts'
+} from '#src/queries/index.ts'
+import { recordSessionMethod, setWorkspaceAuthSettings } from '#src/repositories/index.ts'
+import * as schema from '#src/schema/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

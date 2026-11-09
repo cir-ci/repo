@@ -1,5 +1,6 @@
 import { isIntegrationEvent, type IntegrationEvent, openSecret } from '@circi/core'
-import { type Database, getIntegrationSendData, type Job, setIntegrationAttention } from '@circi/db'
+import { type Database, type Job } from '@circi/db'
+import { getIntegrationSendData, setIntegrationAttention } from '@circi/db/repositories'
 import {
   type IntegrationDefinition,
   integrationRegistry,

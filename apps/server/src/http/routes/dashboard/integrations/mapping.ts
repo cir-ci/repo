@@ -1,6 +1,6 @@
 import type { Integration } from '@circi/api'
 import { NotFoundError, ValidationError } from '@circi/core'
-import { getTeamBySlugs, listWorkspaceTeamMappings } from '@circi/db'
+import { getTeamBySlugs, listWorkspaceTeamMappings } from '@circi/db/queries'
 import {
   type IntegrationDefinition,
   mappingExtraSchema,

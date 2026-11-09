@@ -1,5 +1,5 @@
 import type { Search } from '@circi/api'
-import { searchWorkspace } from '@circi/db'
+import { searchWorkspace } from '@circi/db/queries'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 

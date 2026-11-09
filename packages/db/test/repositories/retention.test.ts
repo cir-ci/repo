@@ -10,6 +10,7 @@ import {
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { storageUsage } from '#src/queries/index.ts'
 import {
   collectMarkedFiles,
   expireBuilds,
@@ -17,10 +18,9 @@ import {
   listBuildScreenshots,
   markUnreferencedFiles,
   previewCollection,
-  schema,
-  storageUsage,
   unmarkReferencedFiles,
-} from '#src/index.ts'
+} from '#src/repositories/index.ts'
+import * as schema from '#src/schema/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

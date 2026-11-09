@@ -1,6 +1,8 @@
 import { createHmac } from 'node:crypto'
 
-import { getBuild, listBuildReviews, schema, setCheckRunId } from '@circi/db'
+import { getBuild, listBuildReviews } from '@circi/db/queries'
+import { setCheckRunId } from '@circi/db/queue'
+import * as schema from '@circi/db/schema'
 import { githubWebhookVerifier, providerRegistry } from '@circi/providers'
 import { completeBuild } from '@circi/services'
 import {

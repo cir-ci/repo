@@ -1,6 +1,7 @@
 import { addTestMember, createTestDb, seedWorkspace, seedUser } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { NotFoundError } from '#src/index.ts'
 import {
   findWorkspaceBySlug,
   findWorkspaceOwnerId,
@@ -8,8 +9,7 @@ import {
   getWorkspaceBySlug,
   listWorkspaces,
   listUserWorkspaceIds,
-  NotFoundError,
-} from '#src/index.ts'
+} from '#src/queries/index.ts'
 
 let t: createTestDb.Result
 

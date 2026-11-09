@@ -1,5 +1,7 @@
-// @circi/db: the persistence layer. Subpaths (`@circi/db/queries`, `/repositories`, `/queue`,
-// `/schema`) show which layer a name comes from; this root re-exports all of them for now.
+// @circi/db: the persistence layer. The root is the connection, the errors and the shared types
+// only; every other name comes from a subpath that shows its layer: `@circi/db/queries` (read
+// models), `/repositories` (stores and lookups), `/queue` (jobs, webhook rows, git notices) and
+// `/schema` (the Drizzle tables).
 
 // ---- connection, errors, shared types
 export {
@@ -14,15 +16,3 @@ export {
 } from './client.ts'
 export * from './errors.ts'
 export type * from './types.ts'
-
-// ---- queries: read models for the dashboard
-export * from './queries/index.ts'
-
-// ---- repositories: stores and lookups
-export * from './repositories/index.ts'
-
-// ---- queue: jobs, webhook deliveries, git notices (the outbox)
-export * from './queue/index.ts'
-
-// ---- schema: the Drizzle tables
-export * as schema from './schema/index.ts'

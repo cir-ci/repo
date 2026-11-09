@@ -1,6 +1,7 @@
 import type { Auth } from '@circi/auth'
 import { verifyTeamToken } from '@circi/auth'
-import type { Database, getTeamContext } from '@circi/db'
+import type { Database } from '@circi/db'
+import type { getTeamContext } from '@circi/db/queries'
 import type { FastifyRequest, onRequestAsyncHookHandler } from 'fastify'
 
 /**

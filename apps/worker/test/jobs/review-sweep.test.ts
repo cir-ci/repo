@@ -1,4 +1,5 @@
-import { createBuild, schema } from '@circi/db'
+import { createBuild } from '@circi/db/repositories'
+import * as schema from '@circi/db/schema'
 import { snoozeReviewRequest } from '@circi/services'
 import { addTestMember, createTestDb, seedTeam, seedReviewRequest, seedUser } from '@circi/testing'
 import { eq } from 'drizzle-orm'

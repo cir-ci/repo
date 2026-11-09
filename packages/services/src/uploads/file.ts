@@ -1,6 +1,8 @@
 import type { Readable } from 'node:stream'
 
-import { type Database, getFile, hasUploadClaim, markFileVerified } from '@circi/db'
+import { type Database } from '@circi/db'
+import { getFile } from '@circi/db/queries'
+import { hasUploadClaim, markFileVerified } from '@circi/db/repositories'
 import type { StorageDriver } from '@circi/storage'
 
 /**

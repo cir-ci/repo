@@ -1,5 +1,5 @@
 import { isSha256 } from '@circi/core'
-import { canUserAccessFile, getFile } from '@circi/db'
+import { canUserAccessFile, getFile } from '@circi/db/queries'
 import type { FastifyPluginAsync } from 'fastify'
 
 import { currentUser } from '#http/hooks/session.ts'

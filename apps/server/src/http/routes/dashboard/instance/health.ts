@@ -1,5 +1,5 @@
 import type { InstanceAdmin } from '@circi/api'
-import { getQueueDepth } from '@circi/db'
+import { getQueueDepth } from '@circi/db/queries'
 import type { FastifyPluginAsync } from 'fastify'
 
 import { httpFetcher, runDoctor } from '#composition/doctor.ts'

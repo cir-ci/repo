@@ -3,17 +3,15 @@ import { createTestDb, seedChangedSnapshots, seedTeam, seedUser } from '@circi/t
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { ConflictError, NotFoundError } from '#src/index.ts'
+import { listBuildReviews, listSnapshotReviews } from '#src/queries/index.ts'
 import {
-  ConflictError,
   createBuild,
   listBaselineCandidates,
-  listBuildReviews,
-  listSnapshotReviews,
-  NotFoundError,
   recordReview,
   recordSnapshotReviews,
-  schema,
-} from '#src/index.ts'
+} from '#src/repositories/index.ts'
+import * as schema from '#src/schema/index.ts'
 
 let t: createTestDb.Result
 

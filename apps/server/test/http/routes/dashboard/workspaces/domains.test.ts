@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { createUser, type Mailer } from '@circi/auth'
-import { listWorkspaceDomains } from '@circi/db'
+import { listWorkspaceDomains } from '@circi/db/queries'
 import { FsStorage } from '@circi/storage'
 import { createTestDb } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'

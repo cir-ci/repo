@@ -1,5 +1,5 @@
 import type { Insights } from '@circi/api'
-import { getInsights } from '@circi/db'
+import { getInsights } from '@circi/db/queries'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 

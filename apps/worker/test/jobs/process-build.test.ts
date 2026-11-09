@@ -3,17 +3,15 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { buildOutcome } from '@circi/core'
+import { getBuild, getFile, listBuildReviews } from '@circi/db/queries'
 import {
   addIgnoreRegion,
   createBuild,
-  getBuild,
-  getFile,
-  listBuildReviews,
   listBuildScreenshots,
   markFileVerified,
   planUploads,
   updateTeamSettings,
-} from '@circi/db'
+} from '@circi/db/repositories'
 import { finalizeBuild, gateInputs, reviewBuild, reviewSnapshots } from '@circi/services'
 import { contentKey, FsStorage } from '@circi/storage'
 import { createTestDb, seedTeam, sha256 } from '@circi/testing'

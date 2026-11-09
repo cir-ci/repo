@@ -1,4 +1,5 @@
-import type { Build, getTeamContext } from '@circi/db'
+import type { Build } from '@circi/db'
+import type { getTeamContext } from '@circi/db/queries'
 
 /** The build summary every `/v1` response uses, with a link to its dashboard page. */
 export function describeBuild(

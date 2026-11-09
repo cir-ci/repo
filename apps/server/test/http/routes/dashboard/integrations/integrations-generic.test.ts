@@ -4,14 +4,12 @@ import { join } from 'node:path'
 
 import { addMember, createUser } from '@circi/auth'
 import { openSecret, signState } from '@circi/core'
+import { getIntegration, getWorkspaceBySlug, listIntegrations } from '@circi/db/queries'
 import {
   createIntegration,
-  getIntegration,
-  getWorkspaceBySlug,
-  listIntegrations,
   listIntegrationTeams,
   setIntegrationAttention,
-} from '@circi/db'
+} from '@circi/db/repositories'
 import { FsStorage } from '@circi/storage'
 import { createTestDb } from '@circi/testing'
 import { pino } from 'pino'

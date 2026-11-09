@@ -2,7 +2,8 @@ import { createTestDb, seedTeam, fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { createBuild, markFileVerified, planUploads, schema } from '#src/index.ts'
+import { createBuild, markFileVerified, planUploads } from '#src/repositories/index.ts'
+import * as schema from '#src/schema/index.ts'
 
 let t: createTestDb.Result
 

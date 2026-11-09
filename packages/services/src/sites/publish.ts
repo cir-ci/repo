@@ -1,10 +1,7 @@
 import { isSha256 } from '@circi/core'
-import {
-  type Database,
-  ensureAssetFiles,
-  publishSiteVersion,
-  servedCommitForBranch,
-} from '@circi/db'
+import { type Database } from '@circi/db'
+import { servedCommitForBranch } from '@circi/db/queries'
+import { ensureAssetFiles, publishSiteVersion } from '@circi/db/repositories'
 
 /**
  * Publishes an uploaded site: records its blobs, decides whether the branch address moves to

@@ -1,5 +1,6 @@
 import { COMMIT_SHA_RE } from '@circi/core'
-import { type Database, findBaselineByCommits } from '@circi/db'
+import { type Database } from '@circi/db'
+import { findBaselineByCommits } from '@circi/db/repositories'
 
 /**
  * The baseline an SDK that found the commit history itself asks for. `commits` starts with the

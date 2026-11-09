@@ -2,18 +2,15 @@ import { ValidationError } from '@circi/core'
 import { createTestDb, seedWorkspace } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { ConflictError, NotFoundError } from '#src/index.ts'
+import { listWorkspaceDomains, verificationName, verificationValue } from '#src/queries/index.ts'
 import {
   addWorkspaceDomain,
-  ConflictError,
-  listWorkspaceDomains,
   normalizeDomain,
-  NotFoundError,
   workspacesForEmailDomain,
   removeWorkspaceDomain,
-  verificationName,
-  verificationValue,
   verifyWorkspaceDomain,
-} from '#src/index.ts'
+} from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

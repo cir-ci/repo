@@ -1,14 +1,14 @@
 import { readFile } from 'node:fs/promises'
 
 import {
-  createTeam,
   type Database,
   type ListenFn,
   migrationsFolder,
   type Workspace,
-  schema,
   type User,
 } from '@circi/db'
+import { createTeam } from '@circi/db/repositories'
+import * as schema from '@circi/db/schema'
 import { PGlite } from '@electric-sql/pglite'
 import { drizzle } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'

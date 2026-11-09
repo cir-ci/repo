@@ -1,10 +1,10 @@
 import {
   listWorkspaceDomains,
   type WorkspaceDomain,
-  type TxtResolver,
   verificationName,
   verificationValue,
-} from '@circi/db'
+} from '@circi/db/queries'
+import { type TxtResolver } from '@circi/db/repositories'
 import { addEmailDomain, removeEmailDomain, verifyEmailDomain } from '@circi/services'
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify'
 import { z } from 'zod'

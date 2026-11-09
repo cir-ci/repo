@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { createBuild } from '@circi/db'
+import { createBuild } from '@circi/db/repositories'
 import { FsStorage } from '@circi/storage'
 import { createTestDb, seedGitLink } from '@circi/testing'
 import type { FastifyInstance } from 'fastify'

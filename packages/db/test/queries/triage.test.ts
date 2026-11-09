@@ -9,13 +9,9 @@ import {
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import {
-  countOpenTriage,
-  dismissTriageItem,
-  listTriage,
-  schema,
-  setTriageRotation,
-} from '#src/index.ts'
+import { countOpenTriage, listTriage } from '#src/queries/index.ts'
+import { dismissTriageItem, setTriageRotation } from '#src/repositories/index.ts'
+import * as schema from '#src/schema/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

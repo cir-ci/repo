@@ -13,19 +13,21 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import {
   commitLabelOfVersion,
+  findSiteByLabel,
+  getSiteFile,
+  listTeamSites,
+  servedCommitForBranch,
+} from '#src/queries/index.ts'
+import {
   consumeSiteToken,
   createSiteSession,
   createSiteToken,
   ensureAssetFiles,
-  findSiteByLabel,
-  getSiteFile,
-  listTeamSites,
   publishSiteVersion,
-  schema,
-  servedCommitForBranch,
   siteSessionValid,
   touchSiteSession,
-} from '#src/index.ts'
+} from '#src/repositories/index.ts'
+import * as schema from '#src/schema/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

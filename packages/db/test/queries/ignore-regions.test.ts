@@ -1,7 +1,8 @@
 import { createTestDb, seedBuild, seedScreenshot, seedTeam, fakeSha } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { addIgnoreRegion, listIgnoreRegionSnapshots } from '#src/index.ts'
+import { listIgnoreRegionSnapshots } from '#src/queries/index.ts'
+import { addIgnoreRegion } from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

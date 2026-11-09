@@ -1,5 +1,7 @@
 import { sealSecret } from '@circi/core'
-import { claimJob, createBuild, GIT_NOTIFY_QUEUE, schema } from '@circi/db'
+import { claimJob, GIT_NOTIFY_QUEUE } from '@circi/db/queue'
+import { createBuild } from '@circi/db/repositories'
+import * as schema from '@circi/db/schema'
 import { GithubApiError, providerRegistry } from '@circi/providers'
 import { completeBuild } from '@circi/services'
 import { createTestDb, seedGitLink, seedTeam } from '@circi/testing'

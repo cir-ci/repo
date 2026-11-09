@@ -11,7 +11,10 @@ import {
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { listBuildActivity, recordSnapshotReviews, schema, setCheckRunId } from '#src/index.ts'
+import { listBuildActivity } from '#src/queries/index.ts'
+import { setCheckRunId } from '#src/queue/index.ts'
+import { recordSnapshotReviews } from '#src/repositories/index.ts'
+import * as schema from '#src/schema/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

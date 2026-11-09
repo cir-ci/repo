@@ -1,4 +1,6 @@
-import { type Database, type getTriageRotation, setTriageRotation } from '@circi/db'
+import { type Database } from '@circi/db'
+import { type getTriageRotation } from '@circi/db/queries'
+import { setTriageRotation } from '@circi/db/repositories'
 
 /** Replaces the team's triage rotation; an empty list turns it off. */
 export async function replaceTriageRotation(

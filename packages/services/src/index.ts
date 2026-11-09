@@ -2,95 +2,24 @@
  * The service layer: operations that change several things at once. A service opens the
  * transaction, calls repositories from `@circi/db` for the data, and queues the jobs and notices
  * that follow. Apps (server, worker) call services for anything that changes a build's state.
+ * One folder per area; each folder's `index.ts` is its public surface.
  */
-export {
-  completeBuild,
-  describeStall,
-  expireStalledBuilds,
-  failBuild,
-  finalizeBuild,
-  matchAuthor,
-  recordPullRequestAuthor,
-  requeueBuild,
-  startBuild,
-  type AuthorClaim,
-} from './builds.ts'
-export {
-  addComment,
-  deleteComment,
-  editComment,
-  matchMentions,
-  MAX_COMMENT_LENGTH,
-} from './comments.ts'
-export {
-  addTeamLink,
-  autoLinkTeam,
-  type LinkedIntegration,
-  mapTeam,
-  unmapTeam,
-} from './integration-links.ts'
-export { gateInputs } from './gate.ts'
-export { handleGitEvents } from './git-events.ts'
-export { gitKinds } from './git-kinds.ts'
-export { linkTeamToGithub, unlinkTeamFromGit } from './git-links.ts'
-export { createIssueFromBuild, MAX_ISSUE_TITLE_LENGTH } from './issues.ts'
-export { migrateStorage } from './migrate-storage.ts'
-export {
-  markInboxRead,
-  markNotificationRead,
-  notify,
-  removeNotification,
-  snoozeNotification,
-  unsnoozeNotification,
-  updateNotificationPreferences,
-} from './notifications.ts'
-export { queueIntegrationEvent } from './integration-events.ts'
-export { previewRetention, runRetention } from './retention.ts'
-export {
-  dismissReviewRequest,
-  MAX_BULK_REQUEST_REVIEW,
-  MAX_BULK_REVIEW,
-  notifyOverdueReviews,
-  requestReview,
-  requestReviews,
-  reviewBuild,
-  reviewBuilds,
-  reviewSnapshots,
-  snoozeReviewRequest,
-  unsnoozeReviewRequest,
-} from './reviews.ts'
-export * from './teams/index.ts'
-export {
-  deleteWorkspace,
-  purgeDueWorkspaces,
-  purgeWorkspace,
-  restoreWorkspace,
-  WorkspaceDeleteForbiddenError,
-} from './workspaces.ts'
-export {
-  assignTriage,
-  createIgnoreRegion,
-  deleteIgnoreRegion,
-  editIgnoreRegion,
-  dismissTriage,
-  snoozeTriage,
-} from './triage.ts'
-export {
-  createView,
-  deleteView,
-  pinTeam,
-  renameView,
-  reorderViews,
-  setViewPinned,
-  unpinTeam,
-  updateView,
-  updateViewFilters,
-} from './views.ts'
 export * from './access/index.ts'
-export * from './rules/index.ts'
-export * from './workspaces/index.ts'
+export * from './builds/index.ts'
+export * from './comments/index.ts'
+export * from './git/index.ts'
 export * from './integration-admin/index.ts'
-export * from './sites/index.ts'
-export * from './uploads/index.ts'
-export * from './pipeline/index.ts'
+export * from './issues/index.ts'
 export * from './jobs/index.ts'
+export * from './notifications/index.ts'
+export * from './pipeline/index.ts'
+export * from './retention/index.ts'
+export * from './reviews/index.ts'
+export * from './rules/index.ts'
+export * from './sites/index.ts'
+export * from './storage/index.ts'
+export * from './teams/index.ts'
+export * from './triage/index.ts'
+export * from './uploads/index.ts'
+export * from './views/index.ts'
+export * from './workspaces/index.ts'

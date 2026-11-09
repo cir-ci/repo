@@ -16,85 +16,70 @@ What emits what: `tsc` only type-checks (`pnpm typecheck`, `noEmit`). `pnpm buil
 `exports` point at `src/*.ts`, which Node, Vitest, Vite, tsc and tsdown all read directly.
 Commit messages end with the `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>` line. No remote repo yet: commits stay local.
 
-## Layout and layers
+## Layers
 
 ```
-apps/server     HTTP routes (http/, shared request helpers in http/lib/), admin CLI, process wiring
-                (composition/services.ts composes composition/{startup,server-options,shutdown}.ts, and holds the wiring that needs Deps/providers/auth);
-                built with tsdown into one bundle for the image (deploy/README.md)
-apps/worker     background jobs (process-build, webhook delivery, git-notify, integration-event); no build, the server bundle inlines it
-apps/web        the dashboard: src/app/ (router, shell, sidebar), src/lib/ (http, auth client, shared bits),
-                src/features/<feature>/{api.ts, *Page.tsx, …}
-packages/api    the dashboard API's wire types (types only, one namespace per resource)
-packages/auth   better-auth composition: plugins/, hooks/, sso/, operations/ (admin, accounts, setup), cookies
-packages/cli    `circi upload` for CI
-packages/config environment parsing
-packages/core   pure shared logic (baselines, outcomes, limits, webhook signing); no I/O
-packages/db     Drizzle schema, migrations, repositories/, queries/
-packages/integrations  the integration SDK: one `IntegrationDefinition` per integration (`src/<id>.ts`),
-                one registry (`registry.ts`), the generic catalog, mapping rules and errors; see
-                docs/integration-sdk.md. Depends on core, api (types) and providers, never on db
-packages/providers  clients of external services (git hosts, Slack, Figma, trackers) and the text CirCI shows on them
-packages/services   the service layer: operations that change several things at once
-packages/storage    local-disk and S3 drivers
-packages/testing    PGlite test database and seeders (src/seed/), imported as `@circi/testing`
-packages/ui         the design system: Base UI parts styled with CSS modules and `var(--circi-…)`
-                    tokens, light and dark; one `Name.tsx` + `Name.module.css` per component
+transport    apps/server (http/, cli/), apps/worker (handlers/, jobs/), apps/web (the dashboard)
+   v         parse the request, check who is asking, call a service or a read model, shape the reply
+services     packages/services/src/<area>/   use cases: open the transaction, call repositories, queue
+   v         the jobs and notices that follow (a transactional outbox); the worker's job bodies live here too
+core         packages/core                   rules with no I/O: baselines, outcomes, limits, errors, signing
+db           packages/db   queries/ (read models for the dashboard), repositories/ (stores and lookups),
+             queue/ (jobs, webhook rows, git notices), schema/ (Drizzle), shared/ (helpers they share)
+adapters     packages/{providers,integrations,storage,diff,sites}   talk to GitHub, Slack, S3, images
 ```
 
-Dependencies point downwards: apps → services → db → core, and services → integrations → providers → core;
-`core` and `api` depend on nothing, and `db` and `integrations` never import each other.
+Folder map: `apps/server/src/{http,cli,composition}` (`composition/` wires config, db, storage and
+the worker; `http/routes/<area>/` holds routes, schemas and presenters); `apps/worker/src` (claim
+loop and thin job adapters, no build: the server bundle inlines it); `apps/web/src/{app,lib,features/<feature>}`;
+`packages/api` (the wire types, types only); `packages/auth` (better-auth composition);
+`packages/cli` (`circi upload`); `packages/config` (environment parsing); `packages/testing`
+(PGlite test database and seeders); `packages/ui` (design system: Base UI parts, CSS modules,
+`var(--circi-…)` tokens, one `Name.tsx` + `Name.module.css` per component). Dependencies point
+downwards; `core` and `api` depend on nothing.
 
-- **`packages/db/repositories/`** store and look up data, nothing else. They never queue jobs or
-  notices; a repository that changes something returns what happened (see `recordReview`'s
-  `changed`) and lets the caller decide what follows. `packages/services/test/layers.test.ts`
-  fails if a repository imports the job queue. Business rules that need no database (limits,
-  outcomes, baselines) belong in `@circi/core`.
-- **`packages/services`** is the layer apps call for anything that changes a build's state
-  (`finalizeBuild`, `completeBuild`, `failBuild`, `requeueBuild`, `reviewBuild`). A service opens
-  the transaction, calls repositories (passing the transaction), and queues the jobs and notices
-  that follow, so a webhook delivery or check run exists exactly when the change is committed
-  (a transactional outbox). Repositories are called directly only for plain reads and simple
-  writes that trigger nothing.
-- **`packages/db/queries/`** are read models shaped for the dashboard. Their return types must fit
-  `@circi/api`; `apps/server/src/contract-check.ts` fails to typecheck if they drift.
-- **Integrations** (GitHub, GitLab, Bitbucket, Slack, Linear, Jira, Figma: all of them) are declared once, in
-  `packages/integrations/src/<id>.ts`, and listed once in `registry.ts`. Routes (`routes/dashboard/integrations/{connect,mapping,links,oauth}.ts`,
-  `integration-webhook.ts` for git hosts, `integrations/issue-trackers.ts` for "Create issue"), the `integration-event` and
-  `git-notify` jobs, the catalog and the dashboard's connect form, mapping page and links table are generic and
-  read the registry: adding an integration touches no route, table, job or page. `integrations.kind` is not a
-  CHECK constraint; the registry validates it. A git host is an integration with the `git` capability: its
-  repository is the team's `integration_teams` row, its webhook is one shared route and one shared handler
-  (`handleGitEvents` in `@circi/services`) fed normalised events. What an integration attaches to a team or
-  build (Figma frames, issues) is a row of `integration_links`. A service queues a domain event once with
-  `queueIntegrationEvent`; the worker delivers it. Nothing is custom any more (docs/integration-sdk.md).
+Rules (all enforced by `packages/services/test/layers.test.ts`; the lint overrides in
+`.oxlintrc.json` catch the plain cases earlier; a file that breaks one on purpose is a named
+exception in the test, with its reason):
+
+- **`@circi/db` subpaths say the layer.** The root is the connection, errors and shared types;
+  import `@circi/db/queries`, `/repositories`, `/queue` or `/schema` for the rest. Apps (http, cli,
+  worker) use `@circi/db/queries` and types only: never repositories, the queue, the schema,
+  `drizzle-orm` or `pg`. The composition root is the one app folder that wires the database.
+- **Repositories store and look up, nothing else.** They never queue jobs or notices (the layers
+  test fails if one imports `queue/`); a repository that changes something returns what happened
+  (see `recordReview`'s `changed`) and the caller decides what follows. Rules that need no
+  database (limits, outcomes, baselines) belong in `@circi/core`.
+- **Services own every change that triggers something** (`finalizeBuild`, `reviewBuild`, ...): the
+  service opens the transaction, passes it to repositories, and queues the jobs and notices, so a
+  webhook delivery or check run exists exactly when the change is committed. A service file that
+  calls a mutating repository function must have a transaction in sight (exceptions: the build
+  pipeline in `services/src/pipeline`, idempotent step by step so no connection is held across
+  image work; `notify` and `queueIntegrationEvent`, which run in the caller's transaction).
+  Services import no app, fastify, auth, api or config.
+- **Read models** (`db/queries/`) are shaped for the dashboard; their return types must fit
+  `@circi/api` (`apps/server/src/contract-check.ts` fails to typecheck if they drift). Routes may
+  call them directly, they do not go through services.
+- **Routes decide no roles** (no literal `owner`/`admin`: use the policies in `services/src/access`),
+  nothing outside config reads `process.env` (also `main.ts`, `composition/runtime.ts`, the CLIs),
+  and a route file stays under 250 lines.
+- `core` imports no `@circi` package and no I/O; `providers`, `storage`, `sites`, `diff` and
+  `config` import at most `core`; `db` imports none of services, integrations, providers, storage,
+  auth, api; `auth` imports no service or app; `integrations` import no db, services or fastify
+  and their errors carry no HTTP status; the web app imports no server package.
 - **Better-auth's tables** (`schema/auth.ts`) are generated (`pnpm db:auth-schema`, then
   `pnpm db:generate`), never edited by hand. Writes to them go through better-auth's API.
 - **Fastify scopes** receive exactly their dependencies. Register a scope with a prefix through a
   wrapper plugin (see `app.ts`) so the plugin's options never carry `prefix`.
 
-## Web features
-
-- A feature folder in `apps/web/src/features` with more than one `api` file uses an `api/` folder
-  (`index.ts` plus one file per concern), as `builds`, `teams`, `instance` and `integrations` do.
-- A feature over about 25 files is split by sub-area (`list/`, `settings/`, `components/`, `lib/`) and never
-  holds another feature's pages. Settings pages sit with what they configure (`workspace-settings`,
-  `reviews/settings`, `team-settings`, `account`); the switchers and settings nav live in `sidebar`.
-- `#src/*` is for tests and sub-folders only: flat package sources import siblings with `./`.
-- No file reaches into another workspace with a relative path; expose what is shared through `exports`.
-
-## Vocabulary
-
-The code, UI, API, database and docs say **team** (never "project") and **workspace** (never
-"organization" or "org"). Third parties keep their own words, and so do we when we talk to them:
-a Jira project, a GitLab project, a GitHub organization, a Linear team, a Slack workspace, a
-Bitbucket workspace (CirCI fields for it are `bitbucketWorkspace`), a Vitest or Docker Compose
-project, Argos's `GET /v2/project`, the `--org` flag of `circi admin` (it takes a workspace slug),
-and better-auth's own `organization` API: `/api/auth/organization/…`, `authClient.organization.*`,
-the `organizationId` / `organizationSlug` request fields and `activeOrganizationId`. Only
-better-auth's *API* keeps the word; its tables and columns are `workspace`, `member.workspace_id`,
-`invitation.workspace_id`, `session.active_workspace_id` and `sso_provider.workspace_id`, mapped
-through the plugins' `schema` options (`packages/auth/src/plugins/`).
+Where does new code go? A new endpoint: the route in `apps/server/src/http/routes/<area>/`, the
+use case in `packages/services/src/<area>/` (export it from that folder's `index.ts`; the package
+`index.ts` is one `export *` line per area), the read model in `packages/db/src/queries/`, the
+store in `packages/db/src/repositories/`, the wire type in `packages/api`. A new background job: a
+body in `services/src/jobs/` or the area folder, a thin adapter in `apps/worker/src/handlers/`,
+never a new job name or payload key without a rolling-deploy plan (queued rows outlive a deploy).
+A pure rule: `packages/core`. Services tests mirror the folders under `packages/services/test/`.
+Background and the evidence behind these rules: `docs/architecture-review/` (layering.md first).
 
 ## Types: namespaces for the types that belong to something
 

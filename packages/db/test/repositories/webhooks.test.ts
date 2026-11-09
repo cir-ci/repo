@@ -3,17 +3,15 @@ import { createTestDb, seedTeam } from '@circi/testing'
 import { eq, sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { NotFoundError, pgErrorCode } from '#src/index.ts'
+import { listWebhookDeliveries, listWebhooks } from '#src/queries/index.ts'
 import {
   createWebhook,
   deleteWebhook,
-  listWebhookDeliveries,
-  listWebhooks,
   pruneWebhookDeliveries,
   recordWebhookDelivery,
-  NotFoundError,
-  pgErrorCode,
-  schema,
-} from '#src/index.ts'
+} from '#src/queue/index.ts'
+import * as schema from '#src/schema/index.ts'
 
 let t: createTestDb.Result
 

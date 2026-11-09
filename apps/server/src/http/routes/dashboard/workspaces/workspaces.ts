@@ -1,11 +1,11 @@
 import { createWorkspace, createTeamWithToken } from '@circi/auth'
 import {
-  type SessionMethod,
   listManageableWorkspaces,
   listRefusingWorkspaces,
   getIntegration,
   isInstanceAdmin,
-} from '@circi/db'
+} from '@circi/db/queries'
+import { type SessionMethod } from '@circi/db/repositories'
 import {
   integrationRegistry,
   mappingExtraSchema,

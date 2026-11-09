@@ -1,4 +1,5 @@
-import { claimDelivery, type Database } from '@circi/db'
+import { type Database } from '@circi/db'
+import { claimDelivery } from '@circi/db/queue'
 
 /**
  * Records that a git host's webhook delivery is being handled. True for the first claim of a

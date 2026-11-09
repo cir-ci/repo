@@ -3,18 +3,14 @@ import { addTestMember, createTestDb, seedWorkspace, seedTeam, seedUser } from '
 import { sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { ConflictError, NotFoundError } from '#src/index.ts'
+import { findTeamForMember, getTeamBySlugs, listTeams, teamSettings } from '#src/queries/index.ts'
 import {
-  ConflictError,
   createTeam,
-  findTeamForMember,
-  getTeamBySlugs,
-  listTeams,
-  NotFoundError,
-  teamSettings,
   setTeamAppearance,
   setTeamCiKey,
   updateTeamSettings,
-} from '#src/index.ts'
+} from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
 

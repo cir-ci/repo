@@ -1,4 +1,4 @@
-import { listIgnoreRegions } from '@circi/db'
+import { listIgnoreRegions } from '@circi/db/queries'
 import { createIgnoreRegion, deleteIgnoreRegion } from '@circi/services'
 import type { Command } from 'commander'
 

@@ -1,15 +1,10 @@
 import { ValidationError } from '@circi/core'
-import {
-  type Build,
-  type Database,
-  getFile,
-  getTeamBuild,
-  markFileVerified,
-  setParallelTotal,
-} from '@circi/db'
+import { type Build, type Database } from '@circi/db'
+import { getFile, getTeamBuild } from '@circi/db/queries'
+import { markFileVerified, setParallelTotal } from '@circi/db/repositories'
 import type { StorageDriver } from '@circi/storage'
 
-import { finalizeBuild } from '#src/builds.ts'
+import { finalizeBuild } from '#src/builds/lifecycle.ts'
 
 /**
  * A shard (or a chunk of one) of a team's build reports its screenshots. The one entry for

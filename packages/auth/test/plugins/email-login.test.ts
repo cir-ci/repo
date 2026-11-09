@@ -1,4 +1,4 @@
-import { schema } from '@circi/db'
+import * as schema from '@circi/db/schema'
 import { createTestDb, seedWorkspace, seedUser } from '@circi/testing'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 

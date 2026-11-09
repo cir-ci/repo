@@ -3,12 +3,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { addMember, createUser } from '@circi/auth'
-import {
-  getWorkspaceBySlug,
-  recordSessionMethod,
-  schema,
-  setWorkspaceAuthSettings,
-} from '@circi/db'
+import { getWorkspaceBySlug } from '@circi/db/queries'
+import { recordSessionMethod, setWorkspaceAuthSettings } from '@circi/db/repositories'
+import * as schema from '@circi/db/schema'
 import { FsStorage } from '@circi/storage'
 import { createTestDb, seedInvitation } from '@circi/testing'
 import { eq } from 'drizzle-orm'

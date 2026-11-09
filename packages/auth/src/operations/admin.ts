@@ -1,20 +1,15 @@
 import { randomBytes } from 'node:crypto'
 
 import { assertValidSlug, slugify, ValidationError } from '@circi/core'
+import { ConflictError, type Database, NotFoundError, type Team } from '@circi/db'
 import {
-  ConflictError,
-  createTeam,
-  type Database,
-  deleteTeam,
   findWorkspaceOwnerId,
   getWorkspaceBySlug,
   getTeamBySlugs,
   getTeamContext,
-  NotFoundError,
-  type Team,
-  schema,
-  setTeamCiKey,
-} from '@circi/db'
+} from '@circi/db/queries'
+import { createTeam, deleteTeam, setTeamCiKey } from '@circi/db/repositories'
+import * as schema from '@circi/db/schema'
 import { eq } from 'drizzle-orm'
 
 import type { Auth } from '#src/auth.ts'

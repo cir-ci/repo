@@ -1,7 +1,8 @@
 import { createTestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { enqueueJob, getQueueDepth, QUEUES } from '#src/index.ts'
+import { getQueueDepth } from '#src/queries/index.ts'
+import { enqueueJob, QUEUES } from '#src/queue/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

@@ -1,7 +1,7 @@
 import { createTestDb, seedBuild, seedDiff, seedTeam } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { getSnapshotHistory } from '#src/index.ts'
+import { getSnapshotHistory } from '#src/queries/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

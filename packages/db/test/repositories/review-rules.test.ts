@@ -2,17 +2,16 @@ import { addTestMember, createTestDb, seedTeam, seedUser } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { getTriageRotation, listReviewRules } from '#src/queries/index.ts'
 import {
   createReviewRule,
   deleteReviewRule,
-  getTriageRotation,
-  listReviewRules,
   listRulesForResolution,
   reorderReviewRules,
-  schema,
   setTriageRotation,
   updateReviewRule,
-} from '#src/index.ts'
+} from '#src/repositories/index.ts'
+import * as schema from '#src/schema/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

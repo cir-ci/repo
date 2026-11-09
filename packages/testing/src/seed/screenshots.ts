@@ -1,4 +1,6 @@
-import { type Database, schema, upsertServerFile } from '@circi/db'
+import { type Database } from '@circi/db'
+import { upsertServerFile } from '@circi/db/repositories'
+import * as schema from '@circi/db/schema'
 
 /** A verified file row (bytes are not stored; tests that need them use a storage driver). */
 export async function seedFile(

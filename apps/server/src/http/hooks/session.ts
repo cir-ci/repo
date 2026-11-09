@@ -1,12 +1,12 @@
 import { type Auth, fromNodeHeaders } from '@circi/auth'
+import { type Database } from '@circi/db'
 import {
-  type Database,
   findWorkspaceBySlug,
   getMemberRole,
   getSessionMethod,
   isInstanceAdmin,
   providerRefusal,
-} from '@circi/db'
+} from '@circi/db/queries'
 import type { FastifyRequest, onRequestAsyncHookHandler, preHandlerAsyncHookHandler } from 'fastify'
 
 /**

@@ -1,4 +1,5 @@
-import { type Database, schema } from '@circi/db'
+import { type Database } from '@circi/db'
+import * as schema from '@circi/db/schema'
 
 import { nextCreatedAt } from '../created-at.ts'
 

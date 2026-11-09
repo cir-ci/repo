@@ -1,14 +1,14 @@
 import { NotFoundError, sealSecret } from '@circi/core'
+import { type Database } from '@circi/db'
 import {
   createIntegration,
-  type Database,
   deleteIntegration,
   deleteIntegrationLink,
   findIntegrationByExternalId,
   isAccountClaimedElsewhere,
   replaceIntegrationCredentials,
   setIntegrationAttention,
-} from '@circi/db'
+} from '@circi/db/repositories'
 import { type IntegrationDefinition, IntegrationConflictError } from '@circi/integrations'
 
 /**

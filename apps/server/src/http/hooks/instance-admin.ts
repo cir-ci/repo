@@ -1,4 +1,5 @@
-import { type Database, isInstanceAdmin } from '@circi/db'
+import { type Database } from '@circi/db'
+import { isInstanceAdmin } from '@circi/db/queries'
 import type { onRequestAsyncHookHandler } from 'fastify'
 
 import { currentUser } from './session.ts'

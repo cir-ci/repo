@@ -1,7 +1,8 @@
 import { createTestDb, seedBuild, seedDiff, seedTeam } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { buildChangesAreFlakyOnly, listFlakyScreenshots } from '#src/index.ts'
+import { listFlakyScreenshots } from '#src/queries/index.ts'
+import { buildChangesAreFlakyOnly } from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

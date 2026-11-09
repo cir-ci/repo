@@ -1,4 +1,5 @@
-import { type Database, setTeamAppearance } from '@circi/db'
+import { type Database } from '@circi/db'
+import { setTeamAppearance } from '@circi/db/repositories'
 
 /** What a team looks like in the sidebar: its tile colour and icon. Nothing follows from it. */
 export async function updateTeamAppearance(

@@ -9,13 +9,8 @@ import {
   setUserPassword,
 } from '@circi/auth'
 import { ValidationError } from '@circi/core'
-import {
-  ConflictError,
-  countInstanceAdmins,
-  getAccount,
-  listAccounts,
-  NotFoundError,
-} from '@circi/db'
+import { ConflictError, NotFoundError } from '@circi/db'
+import { countInstanceAdmins, getAccount, listAccounts } from '@circi/db/queries'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 

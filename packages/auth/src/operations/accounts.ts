@@ -1,5 +1,5 @@
 import type { Database } from '@circi/db'
-import { schema } from '@circi/db'
+import * as schema from '@circi/db/schema'
 import { and, eq, gt, sql } from 'drizzle-orm'
 
 /** Questions about who has an account or an open invitation, asked by sign-in and its hooks. */

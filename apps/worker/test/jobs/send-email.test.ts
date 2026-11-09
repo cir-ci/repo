@@ -1,5 +1,7 @@
-import { createBuild, type Job, QUEUES, setNotificationPreferences } from '@circi/db'
-import { schema } from '@circi/db'
+import { type Job } from '@circi/db'
+import { QUEUES } from '@circi/db/queue'
+import { createBuild, setNotificationPreferences } from '@circi/db/repositories'
+import * as schema from '@circi/db/schema'
 import { notify } from '@circi/services'
 import {
   addTestMember,

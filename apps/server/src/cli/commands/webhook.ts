@@ -1,5 +1,5 @@
-import { webhookUrlProblem } from '@circi/core'
-import { isWebhookEvent, listWebhooks, WEBHOOK_EVENTS } from '@circi/db'
+import { isWebhookEvent, WEBHOOK_EVENTS, webhookUrlProblem } from '@circi/core'
+import { listWebhooks } from '@circi/db/queries'
 import { addWebhook, removeWebhook } from '@circi/services'
 import type { Command } from 'commander'
 

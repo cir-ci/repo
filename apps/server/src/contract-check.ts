@@ -32,7 +32,6 @@ import type {
   getTeamTokenInfo,
   getWorkspaceStorage,
   listIgnoreRegionSnapshots,
-  setTeamAppearance,
   getSidebar,
   getSnapshotHistory,
   listBuildFilterSuggestions,
@@ -52,7 +51,8 @@ import type {
   getQueueDepth,
   listAccounts,
   listInstanceWorkspaces,
-} from '@circi/db'
+} from '@circi/db/queries'
+import type { setTeamAppearance } from '@circi/db/repositories'
 
 /**
  * Compile-time proof that what the server's read models produce fits the wire format in

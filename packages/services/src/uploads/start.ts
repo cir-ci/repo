@@ -1,6 +1,7 @@
-import { type Build, type Database, planUploads } from '@circi/db'
+import { type Build, type Database } from '@circi/db'
+import { planUploads } from '@circi/db/repositories'
 
-import { startBuild } from '#src/builds.ts'
+import { startBuild } from '#src/builds/lifecycle.ts'
 
 /**
  * Creates a build (or joins a parallel one) and records the files it asks for, in one

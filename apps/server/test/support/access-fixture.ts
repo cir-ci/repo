@@ -1,5 +1,5 @@
 import { addMember, createUser } from '@circi/auth'
-import type { SessionMethod } from '@circi/db'
+import type { SessionMethod } from '@circi/db/repositories'
 import { createTestDb } from '@circi/testing'
 import Fastify from 'fastify'
 

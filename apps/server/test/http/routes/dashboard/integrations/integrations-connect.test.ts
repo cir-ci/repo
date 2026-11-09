@@ -4,12 +4,8 @@ import { join } from 'node:path'
 
 import { addMember, createUser } from '@circi/auth'
 import { openSecret } from '@circi/core'
-import {
-  getIntegration,
-  getWorkspaceBySlug,
-  listIntegrationTeams,
-  listIntegrations,
-} from '@circi/db'
+import { getIntegration, getWorkspaceBySlug, listIntegrations } from '@circi/db/queries'
+import { listIntegrationTeams } from '@circi/db/repositories'
 import {
   defineIntegration,
   IntegrationRegistry,

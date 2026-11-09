@@ -1,6 +1,11 @@
 import type { Issue } from '@circi/api'
 import { openSecret, ISSUE_LINK_KIND } from '@circi/core'
-import { getIntegration, getWorkspaceBySlug, listBuildLinks, listTeamIntegrations } from '@circi/db'
+import {
+  getIntegration,
+  getWorkspaceBySlug,
+  listBuildLinks,
+  listTeamIntegrations,
+} from '@circi/db/queries'
 import {
   type IntegrationDefinition,
   IntegrationUnreachableError,

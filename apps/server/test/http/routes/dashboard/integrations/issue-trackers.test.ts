@@ -4,13 +4,9 @@ import { join } from 'node:path'
 
 import { addMember, createUser } from '@circi/auth'
 import { openSecret } from '@circi/core'
-import {
-  createBuild,
-  getWorkspaceBySlug,
-  listBuildLinks,
-  listIntegrations,
-  schema,
-} from '@circi/db'
+import { getWorkspaceBySlug, listBuildLinks, listIntegrations } from '@circi/db/queries'
+import { createBuild } from '@circi/db/repositories'
+import * as schema from '@circi/db/schema'
 import { FsStorage } from '@circi/storage'
 import { createTestDb, seedDiff, fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'

@@ -1,6 +1,6 @@
 import type { IgnoreRegion } from '@circi/api'
 import { TRIAGE_KINDS } from '@circi/core'
-import { listIgnoreRegions, listIgnoreRegionSnapshots } from '@circi/db'
+import { listIgnoreRegions, listIgnoreRegionSnapshots } from '@circi/db/queries'
 import { createIgnoreRegion, deleteIgnoreRegion, editIgnoreRegion } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'

@@ -1,10 +1,7 @@
-import {
-  createWebhook,
-  type Database,
-  type Webhook,
-  WEBHOOK_EVENTS,
-  type WebhookEvent,
-} from '@circi/db'
+import { type Database } from '@circi/db'
+import { type Webhook } from '@circi/db/queries'
+import { createWebhook } from '@circi/db/queue'
+import { WEBHOOK_EVENTS, type WebhookEvent } from '@circi/db/schema'
 
 let n = 0
 

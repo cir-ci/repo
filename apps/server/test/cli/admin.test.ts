@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { schema } from '@circi/db'
+import * as schema from '@circi/db/schema'
 import { FsStorage } from '@circi/storage'
 import { createTestDb, seedFile, sha256 } from '@circi/testing'
 import { Command } from 'commander'

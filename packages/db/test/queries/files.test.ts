@@ -9,7 +9,7 @@ import {
 } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { canUserAccessFile } from '#src/index.ts'
+import { canUserAccessFile } from '#src/queries/index.ts'
 
 let t: createTestDb.Result
 

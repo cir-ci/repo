@@ -1,16 +1,14 @@
+import { type Job } from '@circi/db'
+import { getTeamGitAttention } from '@circi/db/queries'
 import {
   claimJob,
   completeJob,
-  createBuild,
   GIT_NOTIFY_QUEUE,
   getCheckRunId,
-  getTeamGitAttention,
   getPrCommentId,
-  type Job,
-  schema,
-  setWorkspaceSettings,
-  updateTeamSettings,
-} from '@circi/db'
+} from '@circi/db/queue'
+import { createBuild, setWorkspaceSettings, updateTeamSettings } from '@circi/db/repositories'
+import * as schema from '@circi/db/schema'
 import { GithubApiError, GithubInstallationRevokedError } from '@circi/providers'
 import { completeBuild, reviewBuild } from '@circi/services'
 import {

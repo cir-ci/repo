@@ -1,16 +1,16 @@
 import { randomUUID } from 'node:crypto'
 
+import { type Database } from '@circi/db'
+import { isSwitchableProvider } from '@circi/db/queries'
 import {
   deviceFingerprint,
-  type Database,
-  type LoginMethod,
   noteDevice,
-  isSwitchableProvider,
   workspacesForEmailDomain,
   recordSessionMethod,
   type SessionMethod,
-  schema,
-} from '@circi/db'
+} from '@circi/db/repositories'
+import { type LoginMethod } from '@circi/db/schema'
+import * as schema from '@circi/db/schema'
 import { and, eq } from 'drizzle-orm'
 
 import { isTrusted, ssoProviderOf } from '#plugins/sso/sso.ts'

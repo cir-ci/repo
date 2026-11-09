@@ -7,7 +7,7 @@ import {
   WEBHOOK_EVENTS,
   webhookUrlProblem,
 } from '@circi/core'
-import { getWorkspaceSettings, getTeamById, teamSettings } from '@circi/db'
+import { getWorkspaceSettings, getTeamById, teamSettings } from '@circi/db/queries'
 import {
   addWebhook,
   changeTeamSettings,

@@ -15,7 +15,7 @@ import {
   replaceBuildDiffs,
   setScreenshotThumbnail,
   updateDiff,
-} from '#src/index.ts'
+} from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

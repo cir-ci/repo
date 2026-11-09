@@ -1,5 +1,5 @@
 import type { Baseline } from '@circi/api'
-import { listBaselines } from '@circi/db'
+import { listBaselines } from '@circi/db/queries'
 import type { FastifyPluginAsync } from 'fastify'
 
 import type { Deps } from '#http/lib/deps.ts'

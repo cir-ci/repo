@@ -1,5 +1,7 @@
 import { openSecret, sealSecret } from '@circi/core'
-import { type Database, getSetting, setSetting } from '@circi/db'
+import { type Database } from '@circi/db'
+import { getSetting } from '@circi/db/queries'
+import { setSetting } from '@circi/db/repositories'
 import type { IntegrationDefinition } from '@circi/integrations'
 
 /**

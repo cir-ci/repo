@@ -1,4 +1,4 @@
-import { getPublicUrlChange, isInstanceAdmin, publicUrlChecklist } from '@circi/db'
+import { getPublicUrlChange, isInstanceAdmin, publicUrlChecklist } from '@circi/db/queries'
 import { dismissPublicUrlNotice } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 

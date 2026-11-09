@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 
-import { getFile } from '@circi/db'
+import { getFile } from '@circi/db/queries'
 import { FsStorage } from '@circi/storage'
 import { createTestDb, seedFile, sha256 } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'

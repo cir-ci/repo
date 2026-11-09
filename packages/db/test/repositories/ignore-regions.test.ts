@@ -1,14 +1,14 @@
 import { createTestDb, seedTeam, seedUser } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { NotFoundError } from '#src/index.ts'
+import { listIgnoreRegions } from '#src/queries/index.ts'
 import {
   addIgnoreRegion,
   changeIgnoreRegion,
   ignoreRegionsByName,
-  listIgnoreRegions,
-  NotFoundError,
   removeIgnoreRegion,
-} from '#src/index.ts'
+} from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

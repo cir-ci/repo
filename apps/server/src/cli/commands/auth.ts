@@ -1,4 +1,4 @@
-import { getWorkspaceBySlug, instanceAuthMethods } from '@circi/db'
+import { getWorkspaceBySlug, instanceAuthMethods } from '@circi/db/queries'
 import { updateWorkspaceSignIn } from '@circi/services'
 import type { Command } from 'commander'
 

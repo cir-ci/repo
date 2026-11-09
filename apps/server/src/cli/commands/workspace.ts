@@ -1,5 +1,5 @@
 import { addMember, createWorkspace } from '@circi/auth'
-import { listWorkspaces } from '@circi/db'
+import { listWorkspaces } from '@circi/db/queries'
 import type { Command } from 'commander'
 
 import { printJson, withRuntime } from '#cli/lib/output.ts'

@@ -1,5 +1,5 @@
 import { BUILD_FILTER_REVIEWS, BUILD_FILTER_STATUSES } from '@circi/core'
-import type { listBuildsForTeam } from '@circi/db'
+import type { listBuildsForTeam } from '@circi/db/queries'
 import { z } from 'zod'
 
 /**

@@ -1,5 +1,5 @@
 import { ConflictError, NotFoundError, openSecret, ValidationError } from '@circi/core'
-import { getIntegration } from '@circi/db'
+import { getIntegration } from '@circi/db/queries'
 import {
   IntegrationError,
   IntegrationUnreachableError,

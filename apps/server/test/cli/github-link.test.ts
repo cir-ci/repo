@@ -1,6 +1,7 @@
 import { generateKeyPairSync } from 'node:crypto'
 
-import { getTeamLink, schema } from '@circi/db'
+import { getTeamLink } from '@circi/db/queries'
+import * as schema from '@circi/db/schema'
 import { gitKinds } from '@circi/services'
 import { createTestDb, seedTeam } from '@circi/testing'
 import { fakeGithubInstallationsHost } from '@circi/testing/hosts'

@@ -1,5 +1,5 @@
 import { createWorkspace, createUser, isSetupCode } from '@circi/auth'
-import { countUsers } from '@circi/db'
+import { countUsers } from '@circi/db/queries'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 

@@ -1,6 +1,6 @@
 import type { ReviewRule, Triage } from '@circi/api'
 import { canManage } from '@circi/core'
-import { getTeamMemberRole, getTriageRotation, listReviewRules } from '@circi/db'
+import { getTeamMemberRole, getTriageRotation, listReviewRules } from '@circi/db/queries'
 import {
   addReviewRule,
   editReviewRule,

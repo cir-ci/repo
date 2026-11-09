@@ -1,10 +1,6 @@
 import { NotFoundError } from '@circi/core'
-import {
-  getMemberRole,
-  findWorkspaceBySlug,
-  workspaceAcceptsSession,
-  type Workspace,
-} from '@circi/db'
+import { type Workspace } from '@circi/db'
+import { getMemberRole, findWorkspaceBySlug, workspaceAcceptsSession } from '@circi/db/queries'
 import {
   type Actor,
   assertAllowed,

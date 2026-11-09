@@ -6,7 +6,7 @@ import { promisify } from 'node:util'
 
 import { type Auth } from '@circi/auth'
 import { packSite as packWithCli, uploadSite } from '@circi/cli'
-import { schema } from '@circi/db'
+import * as schema from '@circi/db/schema'
 import { FsStorage } from '@circi/storage'
 import { addTestMember, createTestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'

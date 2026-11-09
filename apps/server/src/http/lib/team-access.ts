@@ -1,5 +1,6 @@
 import { NotFoundError } from '@circi/core'
-import { type Build, findTeamForMember, getBuildByNumber, getTeamMemberRole } from '@circi/db'
+import { type Build } from '@circi/db'
+import { findTeamForMember, getBuildByNumber, getTeamMemberRole } from '@circi/db/queries'
 import { type Actor, assertAllowed, canReadTeam, canWriteTeam } from '@circi/services'
 import type { FastifyRequest } from 'fastify'
 import { z } from 'zod'

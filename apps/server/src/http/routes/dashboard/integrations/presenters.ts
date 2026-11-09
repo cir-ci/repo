@@ -1,6 +1,6 @@
 import type { Integration } from '@circi/api'
 import { canManage } from '@circi/core'
-import type { IntegrationLink } from '@circi/db'
+import type { IntegrationLink } from '@circi/db/queries'
 import type { IntegrationDefinition } from '@circi/integrations'
 
 /** A target as the dashboard gets it. */

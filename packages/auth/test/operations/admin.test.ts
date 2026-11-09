@@ -3,8 +3,8 @@ import {
   getTeamTokenInfo,
   getWorkspaceBySlug,
   listUserWorkspaceIds,
-  schema,
-} from '@circi/db'
+} from '@circi/db/queries'
+import * as schema from '@circi/db/schema'
 import { createTestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'

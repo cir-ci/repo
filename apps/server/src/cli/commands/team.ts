@@ -1,5 +1,5 @@
 import { createTeamWithToken, rotateTeamToken } from '@circi/auth'
-import { listTeams } from '@circi/db'
+import { listTeams } from '@circi/db/queries'
 import type { Command } from 'commander'
 
 import { printJson, printToken, publicTeam, withRuntime } from '#cli/lib/output.ts'

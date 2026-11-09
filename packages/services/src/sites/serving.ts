@@ -1,11 +1,11 @@
+import { type Database } from '@circi/db'
+import { getSiteFile } from '@circi/db/queries'
 import {
   consumeSiteToken,
   createSiteSession,
-  type Database,
-  getSiteFile,
   siteSessionValid,
   touchSiteSession,
-} from '@circi/db'
+} from '@circi/db/repositories'
 
 /**
  * The token handoff from the dashboard: spends the single-use token for this address and, if it

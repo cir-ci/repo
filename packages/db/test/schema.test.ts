@@ -4,7 +4,8 @@ import { drizzle } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { migrationsFolder, pgErrorCode, schema } from '#src/index.ts'
+import { migrationsFolder, pgErrorCode } from '#src/index.ts'
+import * as schema from '#src/schema/index.ts'
 
 /** Migrations apply cleanly, and the database itself enforces the plan's invariants (PLAN §6, §8). */
 

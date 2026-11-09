@@ -1,11 +1,11 @@
 import type { Inbox } from '@circi/api'
+import { type Notification } from '@circi/db'
 import {
   countUnreadNotifications,
   getNotificationPreferences,
   INBOX_TABS,
   listInbox,
-  type Notification,
-} from '@circi/db'
+} from '@circi/db/queries'
 import {
   markInboxRead,
   markNotificationRead,

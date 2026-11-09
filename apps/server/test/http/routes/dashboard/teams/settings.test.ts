@@ -4,14 +4,9 @@ import { join } from 'node:path'
 
 import { addMember, createUser } from '@circi/auth'
 import type { Auth } from '@circi/auth'
-import {
-  getWorkspaceSettings,
-  getTeamById,
-  listWebhooks,
-  recordWebhookDelivery,
-  schema,
-  markInstallationNeedsAttention,
-} from '@circi/db'
+import { getWorkspaceSettings, getTeamById, listWebhooks } from '@circi/db/queries'
+import { recordWebhookDelivery, markInstallationNeedsAttention } from '@circi/db/queue'
+import * as schema from '@circi/db/schema'
 import { GithubApiError, GithubInstallationRevokedError, providerRegistry } from '@circi/providers'
 import { FsStorage } from '@circi/storage'
 import { createTestDb } from '@circi/testing'

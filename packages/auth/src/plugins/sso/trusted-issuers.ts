@@ -1,5 +1,5 @@
 import type { Database } from '@circi/db'
-import { schema } from '@circi/db'
+import * as schema from '@circi/db/schema'
 
 /**
  * better-auth only talks to origins it trusts. A workspace's identity provider is, by

@@ -1,6 +1,6 @@
 import type { Team } from '@circi/api'
+import { type Database } from '@circi/db'
 import {
-  type Database,
   getTeamGitAttention,
   getTeamLink,
   getTeamTokenInfo,
@@ -8,7 +8,7 @@ import {
   listWebhooks,
   type WebhookDelivery,
   type Webhook,
-} from '@circi/db'
+} from '@circi/db/queries'
 import { gitKinds } from '@circi/services'
 
 /** A webhook as the dashboard sees it: the signing secret is only shown when it's created. */

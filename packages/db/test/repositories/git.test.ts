@@ -1,6 +1,7 @@
 import { createTestDb, seedBuild, seedGitLink, seedTeam } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { getTeamGitAttention, getTeamLink } from '#src/queries/index.ts'
 import {
   claimDelivery,
   findBuildByCheckRun,
@@ -9,15 +10,13 @@ import {
   getGitTarget,
   getPrCommentId,
   clearInstallationNeedsAttention,
-  getTeamGitAttention,
-  getTeamLink,
   markInstallationNeedsAttention,
   latestBuildsForPr,
-  schema,
   setCheckRunId,
   setPrCommentId,
   unlinkTeam,
-} from '#src/index.ts'
+} from '#src/queue/index.ts'
+import * as schema from '#src/schema/index.ts'
 
 const GIT = ['github']
 

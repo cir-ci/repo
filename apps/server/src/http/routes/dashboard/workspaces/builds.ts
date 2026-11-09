@@ -1,6 +1,6 @@
 import type { WorkspaceBuilds } from '@circi/api'
 import { BUILD_ORDERS } from '@circi/core'
-import { listBuildFilterSuggestions, listBuildsForWorkspace } from '@circi/db'
+import { listBuildFilterSuggestions, listBuildsForWorkspace } from '@circi/db/queries'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 

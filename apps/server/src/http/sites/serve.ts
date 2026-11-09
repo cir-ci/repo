@@ -1,4 +1,5 @@
-import { commitLabelOfVersion, type Database, findSiteByLabel } from '@circi/db'
+import { type Database } from '@circi/db'
+import { commitLabelOfVersion, findSiteByLabel } from '@circi/db/queries'
 import { confirmSiteSession, findSiteFile, openSiteSession } from '@circi/services'
 import {
   labelOf,

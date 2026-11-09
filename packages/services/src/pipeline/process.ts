@@ -1,21 +1,18 @@
 import { pairScreenshots, resolveBaseline } from '@circi/core'
+import { type Database, type NewScreenshotDiff, type Screenshot } from '@circi/db'
+import { getBuild, getTeamById } from '@circi/db/queries'
 import {
-  type Database,
-  getBuild,
   findApprovedRerunOf,
-  getTeamById,
   ignoreRegionsByName,
   listBaselineCandidates,
   listBuildDiffs,
   listBuildScreenshots,
-  type NewScreenshotDiff,
   replaceBuildDiffs,
-  type Screenshot,
   setBuildBaseline,
   setFileDimensions,
   setScreenshotThumbnail,
   updateDiff,
-} from '@circi/db'
+} from '@circi/db/repositories'
 import {
   InvalidImageError,
   type diffImages,
@@ -24,7 +21,8 @@ import {
 } from '@circi/diff'
 import type { StorageDriver } from '@circi/storage'
 
-import { completeBuild } from '../builds.ts'
+import { completeBuild } from '#src/builds/lifecycle.ts'
+
 import { mapLimit } from './concurrency.ts'
 import { createLoader, type Loader, storeServerFile } from './files.ts'
 

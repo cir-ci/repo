@@ -1,7 +1,7 @@
 import type { Storage, Workspace } from '@circi/api'
 import { updateWorkspace } from '@circi/auth'
 import { ValidationError, workspacePurgeAt } from '@circi/core'
-import { getWorkspaceStorage, getWorkspaceSettings } from '@circi/db'
+import { getWorkspaceStorage, getWorkspaceSettings } from '@circi/db/queries'
 import { deleteWorkspace, isWorkspaceOwner, updateWorkspaceSettings } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'

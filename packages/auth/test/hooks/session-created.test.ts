@@ -1,4 +1,6 @@
-import { getSessionMethod, schema, setWorkspaceAuthSettings } from '@circi/db'
+import { getSessionMethod } from '@circi/db/queries'
+import { setWorkspaceAuthSettings } from '@circi/db/repositories'
+import * as schema from '@circi/db/schema'
 import {
   createTestDb,
   seedSession,

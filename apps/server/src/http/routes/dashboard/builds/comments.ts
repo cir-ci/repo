@@ -1,5 +1,5 @@
 import type { Comment } from '@circi/api'
-import { listBuildComments } from '@circi/db'
+import { listBuildComments } from '@circi/db/queries'
 import { addComment, deleteComment, editComment, MAX_COMMENT_LENGTH } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'

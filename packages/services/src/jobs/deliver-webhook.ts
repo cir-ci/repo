@@ -1,7 +1,8 @@
 import { lookup } from 'node:dns/promises'
 
 import { isPrivateAddress, signWebhook, webhookUrlProblem } from '@circi/core'
-import { type Database, getWebhook, type Job, recordWebhookDelivery } from '@circi/db'
+import { type Database, type Job } from '@circi/db'
+import { getWebhook, recordWebhookDelivery } from '@circi/db/queue'
 
 /** The `webhook` job: one signed delivery of one event to one receiver (PLAN §7.4). */
 

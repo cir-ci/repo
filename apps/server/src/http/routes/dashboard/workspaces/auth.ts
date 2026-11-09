@@ -1,4 +1,4 @@
-import { getWorkspaceAuthSettings, instanceAuthMethods } from '@circi/db'
+import { getWorkspaceAuthSettings, instanceAuthMethods } from '@circi/db/queries'
 import { updateWorkspaceSignIn } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'

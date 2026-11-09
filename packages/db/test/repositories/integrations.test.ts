@@ -5,31 +5,33 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { integrationLinks } from '#schema/integration-links.ts'
 import { ConflictError } from '#src/errors.ts'
 import {
+  getIntegration,
+  getTeamLink,
+  listBuildLinks,
+  listIntegrations,
+  listWorkspaceIntegrations,
+  listWorkspaceTeamMappings,
+  listTeamIntegrations,
+  listTeamLinks,
+} from '#src/queries/index.ts'
+import { markInstallationNeedsAttention } from '#src/queue/index.ts'
+import {
   createIntegration,
   createIntegrationLink,
   deleteAutoLinks,
   deleteIntegration,
   deleteIntegrationLink,
   findIntegrationByExternalId,
-  getIntegration,
   getTeamIntegration,
-  getTeamLink,
   isAccountClaimedElsewhere,
   removeOtherTeamMappings,
   insertIntegrationLinksIfAbsent,
-  listBuildLinks,
   listIntegrationTeams,
-  listIntegrations,
-  listWorkspaceIntegrations,
-  listWorkspaceTeamMappings,
-  listTeamIntegrations,
-  listTeamLinks,
-  markInstallationNeedsAttention,
   removeIntegrationTeam,
   replaceIntegrationCredentials,
   setIntegrationAttention,
   setIntegrationTeam,
-} from '#src/index.ts'
+} from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

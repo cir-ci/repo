@@ -1,5 +1,5 @@
 import { drizzleAdapter } from '@better-auth/drizzle-adapter'
-import { schema } from '@circi/db'
+import * as schema from '@circi/db/schema'
 import { betterAuth } from 'better-auth'
 
 import { MIN_PASSWORD_LENGTH } from './constants.ts'

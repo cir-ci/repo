@@ -9,8 +9,8 @@ import {
   getWorkspaceBySlug,
   listIntegrations,
   listTeamLinks,
-  schema,
-} from '@circi/db'
+} from '@circi/db/queries'
+import * as schema from '@circi/db/schema'
 import { FsStorage } from '@circi/storage'
 import { createTestDb, seedBuild, seedDiff, seedScreenshot, fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'

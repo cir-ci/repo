@@ -1,11 +1,11 @@
+import { type Database } from '@circi/db'
+import { type ReviewRuleRow } from '@circi/db/queries'
 import {
   createReviewRule,
-  type Database,
   deleteReviewRule,
   reorderReviewRules,
-  type ReviewRuleRow,
   updateReviewRule,
-} from '@circi/db'
+} from '@circi/db/repositories'
 
 /** Adds a rule at the end of the team's list; reviewers must belong to the team's workspace. */
 export async function addReviewRule(

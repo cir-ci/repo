@@ -2,7 +2,8 @@ import { createTestDb } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { claimJob, completeJob, enqueueJob, failJob, schema } from '#src/index.ts'
+import { claimJob, completeJob, enqueueJob, failJob } from '#src/queue/index.ts'
+import * as schema from '#src/schema/index.ts'
 
 let t: createTestDb.Result
 

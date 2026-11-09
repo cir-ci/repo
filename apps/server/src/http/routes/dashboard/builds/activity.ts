@@ -1,5 +1,5 @@
 import type { Activity } from '@circi/api'
-import { getBuildByNumber, listBuildActivity } from '@circi/db'
+import { getBuildByNumber, listBuildActivity } from '@circi/db/queries'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 

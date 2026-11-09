@@ -1,15 +1,13 @@
 import { createTestDb } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { getPublicUrlChange, getSetting, publicUrlChecklist } from '#src/queries/index.ts'
 import {
   deleteSetting,
   dismissPublicUrlChange,
-  getPublicUrlChange,
-  getSetting,
-  publicUrlChecklist,
   recordPublicUrl,
   setSetting,
-} from '#src/index.ts'
+} from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

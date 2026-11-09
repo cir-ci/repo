@@ -1,13 +1,7 @@
 import { verifyWebhookSignature } from '@circi/core'
-import {
-  claimJob,
-  createWebhook,
-  enqueueJob,
-  listWebhookDeliveries,
-  QUEUES,
-  queueTestWebhook,
-  type Job,
-} from '@circi/db'
+import { type Job } from '@circi/db'
+import { listWebhookDeliveries } from '@circi/db/queries'
+import { claimJob, createWebhook, enqueueJob, QUEUES, queueTestWebhook } from '@circi/db/queue'
 import { seedTeam } from '@circi/testing'
 import { createTestDb } from '@circi/testing'
 import { sql } from 'drizzle-orm'

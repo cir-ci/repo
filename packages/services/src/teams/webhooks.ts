@@ -1,12 +1,7 @@
 import { NotFoundError, ValidationError, type WebhookEvent } from '@circi/core'
-import {
-  createWebhook,
-  type Database,
-  deleteWebhook,
-  getWebhook,
-  queueTestWebhook,
-  type Webhook,
-} from '@circi/db'
+import { type Database } from '@circi/db'
+import { type Webhook } from '@circi/db/queries'
+import { createWebhook, deleteWebhook, getWebhook, queueTestWebhook } from '@circi/db/queue'
 
 /** Adds a webhook to a team; the row carries the signing secret, which is shown only once. */
 export async function addWebhook(

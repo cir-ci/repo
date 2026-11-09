@@ -3,13 +3,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { addMember, createUser } from '@circi/auth'
-import {
-  createIntegration,
-  getWorkspaceBySlug,
-  getTeamLink,
-  listIntegrations,
-  schema,
-} from '@circi/db'
+import { getWorkspaceBySlug, getTeamLink, listIntegrations } from '@circi/db/queries'
+import { createIntegration } from '@circi/db/repositories'
+import * as schema from '@circi/db/schema'
 import { ProviderApiError, providerRegistry } from '@circi/providers'
 import { FsStorage } from '@circi/storage'
 import { createTestDb, seedGitConnection, seedGitLink } from '@circi/testing'

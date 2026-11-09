@@ -3,9 +3,9 @@ import {
   isInstanceAdmin,
   providerRefusal,
   workspaceAcceptsSession,
-  schema,
-  takeEmailCodeSlot,
-} from '@circi/db'
+} from '@circi/db/queries'
+import { takeEmailCodeSlot } from '@circi/db/repositories'
+import * as schema from '@circi/db/schema'
 import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
 import { eq } from 'drizzle-orm'
 

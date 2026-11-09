@@ -1,6 +1,6 @@
 import { verifyTeamToken } from '@circi/auth'
 import { teamColorFor } from '@circi/core'
-import { schema } from '@circi/db'
+import * as schema from '@circi/db/schema'
 import { seedBuild, seedScreenshot, fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'

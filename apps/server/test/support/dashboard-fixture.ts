@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { addMember as addWorkspaceMember, createUser } from '@circi/auth'
-import { createBuild, markFileVerified, planUploads } from '@circi/db'
+import { createBuild, markFileVerified, planUploads } from '@circi/db/repositories'
 import { finalizeBuild, reviewBuild } from '@circi/services'
 import { contentKey, FsStorage } from '@circi/storage'
 import { createTestDb } from '@circi/testing'

@@ -1,6 +1,6 @@
 import type { Integration } from '@circi/api'
 import { NotFoundError, ValidationError } from '@circi/core'
-import { getTeamBySlugs, listTeamLinks } from '@circi/db'
+import { getTeamBySlugs, listTeamLinks } from '@circi/db/queries'
 import { addTeamLink, autoLinkTeam, removeTeamLink } from '@circi/services'
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify'
 import { z } from 'zod'

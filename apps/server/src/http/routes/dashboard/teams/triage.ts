@@ -1,6 +1,6 @@
 import type { Triage } from '@circi/api'
 import { TRIAGE_KINDS } from '@circi/core'
-import { listTriage } from '@circi/db'
+import { listTriage } from '@circi/db/queries'
 import { assignTriage, dismissTriage, snoozeTriage } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'

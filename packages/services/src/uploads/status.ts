@@ -1,8 +1,10 @@
 import { buildOutcome } from '@circi/core'
-import { type Build, type Database, getBuildCounts, getTeamBuild, getTeamLink } from '@circi/db'
+import { type Build, type Database } from '@circi/db'
+import { getTeamBuild, getTeamLink } from '@circi/db/queries'
+import { getBuildCounts } from '@circi/db/repositories'
 
-import { gateInputs } from '#src/gate.ts'
-import { gitKinds } from '#src/git-kinds.ts'
+import { gateInputs } from '#src/builds/gate.ts'
+import { gitKinds } from '#src/git/kinds.ts'
 
 /**
  * What CI polls (PLAN §7.4): the build's outcome and who blocks the merge: the check on the git

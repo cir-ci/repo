@@ -1,5 +1,5 @@
 import type { Review } from '@circi/api'
-import { listReviewRequests, REVIEW_TABS } from '@circi/db'
+import { listReviewRequests, REVIEW_TABS } from '@circi/db/queries'
 import {
   dismissReviewRequest,
   snoozeReviewRequest,

@@ -11,7 +11,8 @@ import {
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { listBuildsForTeam, schema, searchWorkspace } from '#src/index.ts'
+import { listBuildsForTeam, searchWorkspace } from '#src/queries/index.ts'
+import * as schema from '#src/schema/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

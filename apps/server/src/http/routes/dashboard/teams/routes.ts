@@ -7,7 +7,7 @@ import {
   getTeamGitAttention,
   listBuildsForTeam,
   listTeamsOverview,
-} from '@circi/db'
+} from '@circi/db/queries'
 import { gitKinds } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'

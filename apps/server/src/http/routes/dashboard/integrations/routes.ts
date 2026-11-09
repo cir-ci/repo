@@ -1,5 +1,5 @@
 import type { Integration } from '@circi/api'
-import { listWorkspaceIntegrations } from '@circi/db'
+import { listWorkspaceIntegrations } from '@circi/db/queries'
 import { buildCatalog, integrationRegistry, resolveKind } from '@circi/integrations'
 import { removeIntegration } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'

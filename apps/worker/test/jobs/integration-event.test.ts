@@ -3,14 +3,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { sealSecret } from '@circi/core'
-import {
-  createBuild,
-  createIntegration,
-  getIntegration,
-  QUEUES,
-  schema,
-  setIntegrationTeam,
-} from '@circi/db'
+import { getIntegration } from '@circi/db/queries'
+import { QUEUES } from '@circi/db/queue'
+import { createBuild, createIntegration, setIntegrationTeam } from '@circi/db/repositories'
+import * as schema from '@circi/db/schema'
 import type { IntegrationDefinition } from '@circi/integrations'
 import { notifyOverdueReviews, requestReview, reviewBuild } from '@circi/services'
 import { FsStorage } from '@circi/storage'

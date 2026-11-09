@@ -32,6 +32,91 @@
       "env": {
         "vitest": true
       }
+    },
+    // Layer rules (docs/architecture-review/layering.md section 4.2). packages/services/test/layers.test.ts
+    // is the full enforcement (it also resolves `#` aliases and relative paths); these catch the
+    // plain specifier cases at lint time.
+    {
+      // Transport (the composition root, apps/server/src/composition, wires the database and is exempt): reads go through `@circi/db/queries`, writes through `@circi/services`.
+      "files": [
+        "apps/server/src/http/**/*.ts",
+        "apps/server/src/cli/**/*.ts",
+        "apps/worker/src/**/*.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@circi/db/repositories", "@circi/db/queue", "@circi/db/schema"],
+                "allowTypeImports": true,
+                "message": "Apps read through @circi/db/queries and write through @circi/services."
+              },
+              {
+                "group": ["drizzle-orm", "drizzle-orm/*", "pg"],
+                "allowTypeImports": true,
+                "message": "SQL belongs in packages/db."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // The dashboard runs in the browser: no Node-only core, no server packages.
+      "files": ["apps/web/src/**/*.{ts,tsx}"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@circi/db", "@circi/db/*", "@circi/services", "@circi/auth"],
+                "message": "The web app talks to the server through @circi/api types and HTTP."
+              },
+              {
+                "group": ["node:*"],
+                "message": "The web app runs in the browser."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // Services are called by apps, never the reverse.
+      "files": ["packages/services/src/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@circi/server", "@circi/worker", "@circi/auth", "@circi/api", "fastify"],
+                "message": "Services import no app, transport or auth package."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // Core is pure: it imports no @circi package and no I/O.
+      "files": ["packages/core/src/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@circi/*", "drizzle-orm", "drizzle-orm/*", "pg", "node:fs", "node:http"],
+                "message": "@circi/core is pure shared logic: no packages, no I/O."
+              }
+            ]
+          }
+        ]
+      }
     }
   ]
 }

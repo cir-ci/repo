@@ -1,4 +1,4 @@
-import { listFlakyScreenshots, listTeamSites } from '@circi/db'
+import { listFlakyScreenshots, listTeamSites } from '@circi/db/queries'
 import { isSiteKindId, KINDS } from '@circi/sites'
 import type { FastifyPluginAsync } from 'fastify'
 

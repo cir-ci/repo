@@ -1,7 +1,7 @@
 import { createTestDb, seedTeam } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { deviceFingerprint, noteDevice, takeEmailCodeSlot } from '#src/index.ts'
+import { deviceFingerprint, noteDevice, takeEmailCodeSlot } from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {

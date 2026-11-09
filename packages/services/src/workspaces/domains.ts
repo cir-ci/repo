@@ -1,11 +1,11 @@
+import { type Database } from '@circi/db'
+import { type WorkspaceDomain } from '@circi/db/queries'
 import {
   addWorkspaceDomain,
-  type Database,
   removeWorkspaceDomain,
   type TxtResolver,
   verifyWorkspaceDomain,
-  type WorkspaceDomain,
-} from '@circi/db'
+} from '@circi/db/repositories'
 
 /** Claims an email domain for a workspace (unverified until its DNS proof is found). */
 export async function addEmailDomain(
