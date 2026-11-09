@@ -66,15 +66,18 @@ describe('TeamSettingsPage', () => {
     hangingFetch()
     await show()
     const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
-    await expect.poll(() => crumbs.element().textContent).toBe('TeamsacmewebSettingsGeneral')
+    await expect.poll(() => crumbs.element().textContent).toBe('acmewebSettingsGeneral')
     await expect.element(page.getByRole('status').first()).toHaveTextContent('Loading general')
   })
 
-  it('links the breadcrumb back to the team and shows its name once loaded', async () => {
+  it('links the breadcrumb to the team’s Builds page and shows its name once loaded', async () => {
     api()
     await show()
     await expect
       .element(page.getByRole('link', { name: 'Web App' }))
+      .toHaveAttribute('href', '/acme/web')
+    await expect
+      .element(page.getByRole('link', { name: 'Settings' }))
       .toHaveAttribute('href', '/acme/web/settings')
     expect(document.title).toBe('General · web · CirCI')
   })

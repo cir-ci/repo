@@ -1,5 +1,13 @@
 import * as icons from '#src/icons.ts'
-import { Button, ColorSchemeControl, Dialog, TextField, tokens } from '#src/index.ts'
+import {
+  Button,
+  ColorSchemeControl,
+  Dialog,
+  EnlargeTrigger,
+  ImageDialog,
+  TextField,
+  tokens,
+} from '#src/index.ts'
 
 /**
  * Visual cases for the components that have no `.design-sync/previews` file. Each export is one
@@ -104,6 +112,33 @@ const DialogOpen = () => (
   </Dialog>
 )
 
+const SHOT = `data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="960"><rect width="1280" height="960" fill="#fff"/><rect x="80" y="60" width="700" height="60" rx="8" fill="#111827"/><rect x="80" y="160" width="1000" height="30" rx="6" fill="#e5e7eb"/><rect x="80" y="260" width="1120" height="560" rx="12" fill="none" stroke="#e5e7eb" stroke-width="4"/><rect x="140" y="320" width="1000" height="90" rx="8" fill="none" stroke="#d1d5db" stroke-width="4"/><rect x="140" y="460" width="1000" height="90" rx="8" fill="none" stroke="#d1d5db" stroke-width="4"/><rect x="140" y="680" width="420" height="80" rx="40" fill="#1d4ed8"/></svg>',
+)}`
+
+/** Open over the page: the enlarged image with its caption and the switch between two images. */
+const ImageDialogOpen = () => (
+  <ImageDialog
+    open
+    index={1}
+    onIndexChange={() => {}}
+    onOpenChange={() => {}}
+    images={[
+      { src: SHOT, caption: 'Baseline · build #1 on main' },
+      { src: SHOT, caption: 'This build · a0f30cf' },
+    ]}
+  />
+)
+
+/** The image as a trigger: the "Enlarge" chip shows on keyboard focus. */
+const EnlargeTriggerFocused = () => (
+  <Pad width={360}>
+    <EnlargeTrigger label="Enlarge this build" autoFocus>
+      <img src={SHOT} alt="" style={{ display: 'block', width: '100%' }} />
+    </EnlargeTrigger>
+  </Pad>
+)
+
 /** Every icon wrapper, so a changed or missing glyph shows up. */
 const IconSheet = () => (
   <Pad width={560}>
@@ -123,5 +158,6 @@ export const extraCases: Record<string, Record<string, () => React.JSX.Element>>
   TextField: { States: TextFieldStates },
   ColorSchemeControl: { Switch: ColorSchemeSwitch },
   Dialog: { Open: DialogOpen },
+  ImageDialog: { Open: ImageDialogOpen, Trigger: EnlargeTriggerFocused },
   icons: { Sheet: IconSheet },
 }

@@ -62,7 +62,7 @@ describe('TeamSitesPage', () => {
     await expect.element(trail.getByRole('link', { name: 'Teams' })).toHaveAttribute('href', '/')
     await expect
       .element(trail.getByRole('link', { name: 'web' }))
-      .toHaveAttribute('href', '/acme/web/settings')
+      .toHaveAttribute('href', '/acme/web')
     await expect.element(trail.getByText('Sites')).toHaveAttribute('aria-current', 'page')
   })
 

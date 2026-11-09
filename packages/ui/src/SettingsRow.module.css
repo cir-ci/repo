@@ -1,0 +1,95 @@
+.root {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  box-sizing: border-box;
+  min-height: 52px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--circi-line-subtle);
+}
+
+.root:last-child {
+  border-bottom: 0;
+}
+
+.leading {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--circi-line-strong);
+  border-radius: 50%;
+  color: var(--circi-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.text {
+  display: flex;
+  flex: 1 1 240px;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.label {
+  color: var(--circi-text-primary);
+  font-weight: 500;
+}
+
+.detail {
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.env {
+  color: var(--circi-text-tertiary);
+  font-family: var(--circi-font-mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.value {
+  flex: 0 1 220px;
+  min-width: 0;
+  color: var(--circi-text-secondary);
+  font-family: var(--circi-font-mono);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.control {
+  display: flex;
+  flex: none;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 100%;
+}
+
+/* Without a label the control is the row: a form, full width. */
+.root > .control:first-child {
+  flex: 1 1 100%;
+}
+
+.status {
+  display: flex;
+  flex: 0 0 72px;
+  justify-content: flex-end;
+}
+
+/* Narrow: the right side stacks under the label, left-aligned. */
+@media (max-width: 520px) {
+  .value {
+    flex-basis: 100%;
+    text-align: left;
+  }
+
+  .status {
+    flex-basis: auto;
+  }
+}

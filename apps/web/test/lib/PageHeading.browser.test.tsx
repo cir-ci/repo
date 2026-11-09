@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { page } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 
 import { PageHeading, PageTitle, teamCrumb, workspaceCrumb } from '#lib/PageHeading.tsx'
 import { renderPage } from '#test/support/render.tsx'
@@ -14,7 +14,7 @@ describe('PageHeading', () => {
     expect(page.getByRole('link').elements()).toHaveLength(0)
   })
 
-  it('links a workspace crumb to Workspace settings and a team crumb to Team settings', async () => {
+  it('links a workspace crumb to the Inbox and a team crumb to its Builds page, with tooltips', async () => {
     await renderPage(
       <PageHeading
         crumbs={[
@@ -25,13 +25,15 @@ describe('PageHeading', () => {
       />,
     )
     const nav = page.getByRole('navigation', { name: 'Breadcrumb' })
-    await expect
-      .element(nav.getByRole('link', { name: 'Acme' }))
-      .toHaveAttribute('href', '/workspaces/acme/settings')
+    await expect.element(nav.getByRole('link', { name: 'Acme' })).toHaveAttribute('href', '/inbox')
     await expect
       .element(nav.getByRole('link', { name: 'web-app' }))
-      .toHaveAttribute('href', '/acme/web/settings')
+      .toHaveAttribute('href', '/acme/web')
     await expect.element(nav.getByRole('heading', { level: 1 })).toHaveTextContent('Webhooks')
+    await userEvent.tab()
+    await expect.element(page.getByText('Go to Inbox')).toBeVisible()
+    await userEvent.tab()
+    await expect.element(page.getByText('Go to Builds')).toBeVisible()
   })
 
   it('shows the page’s actions on the right', async () => {

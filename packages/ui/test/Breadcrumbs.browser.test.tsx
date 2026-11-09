@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
-import { page } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 
 import { Breadcrumbs } from '#src/index.ts'
 
@@ -66,5 +66,16 @@ describe('Breadcrumbs', () => {
     const second = page.getByRole('listitem').nth(1).element()
     expect(getComputedStyle(second, '::before').content).toContain('/')
     await expect.element(page.getByRole('listitem').nth(1)).toHaveTextContent('web-app')
+  })
+
+  it('names a link’s target in a tooltip on keyboard focus', async () => {
+    await render(
+      <Breadcrumbs
+        items={[{ label: 'Acme', href: '/inbox', tooltip: 'Go to Inbox' }, { label: 'Builds' }]}
+      />,
+    )
+    await userEvent.tab()
+    await expect.element(page.getByRole('link', { name: 'Acme' })).toHaveFocus()
+    await expect.element(page.getByText('Go to Inbox')).toBeVisible()
   })
 })

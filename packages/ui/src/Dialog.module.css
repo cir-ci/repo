@@ -52,6 +52,10 @@
   width: 560px;
 }
 
+.popup[data-size='image'] {
+  width: 960px;
+}
+
 .popup[data-starting-style],
 .popup[data-ending-style] {
   opacity: 0;

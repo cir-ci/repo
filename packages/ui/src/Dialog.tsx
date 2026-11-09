@@ -60,8 +60,8 @@ export namespace Dialog {
     title: ReactNode
     /** One line under the header; becomes the dialog's accessible description. */
     description?: ReactNode
-    /** `form` is 440px wide, `wide` 560px. */
-    size?: 'form' | 'wide'
+    /** `form` is 440px wide, `wide` 560px, `image` 960px (see `ImageDialog`). */
+    size?: 'form' | 'wide' | 'image'
     /** The footer buttons, right-aligned; put the primary one last. */
     actions?: ReactNode
     /** Omit the header's close button (a dialog the user must answer). */

@@ -1,6 +1,7 @@
 import type { MouseEventHandler } from 'react'
 
 import { cx } from './cx.ts'
+import { Tooltip } from './Tooltip.tsx'
 
 import styles from './Breadcrumbs.module.css'
 
@@ -30,6 +31,12 @@ export function Breadcrumbs({
                 <span className={styles.current} aria-current={last ? 'page' : undefined}>
                   {item.label}
                 </span>
+              ) : item.tooltip ? (
+                <Tooltip content={item.tooltip}>
+                  <a href={item.href} onClick={item.onClick} className={styles.link}>
+                    {item.label}
+                  </a>
+                </Tooltip>
               ) : (
                 <a href={item.href} onClick={item.onClick} className={styles.link}>
                   {item.label}
@@ -50,6 +57,8 @@ export namespace Breadcrumbs {
     key?: string
     /** Omit on the last item (and on a level that has no page of its own). */
     href?: string
+    /** Names the link's target on hover or focus ("Go to Inbox"); only on a link. */
+    tooltip?: string
     /** For client-side routing: call `preventDefault()` and navigate. */
     onClick?: MouseEventHandler<HTMLAnchorElement>
   }

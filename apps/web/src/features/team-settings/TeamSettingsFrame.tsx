@@ -4,15 +4,15 @@ import type { ReactNode } from 'react'
 
 import { useLoadingAnnouncement } from '#features/builds/list/loading.ts'
 import { settingsQuery, teamsQuery } from '#features/teams/api/index.ts'
+import { crumbsFor, teamSettingsCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { PageFrame } from '#lib/PageFrame.tsx'
-import { teamCrumb, workspaceCrumb } from '#lib/PageHeading.tsx'
 
 import styles from './TeamSettingsFrame.module.css'
 
 /**
- * What every team settings page shares: the breadcrumb (Teams, workspace, team, Settings, this
- * page), one column, the team's settings loaded once (the other pages read the same cache), its
+ * What every team settings page shares: the breadcrumb (workspace, team, Settings, this page: see
+ * `lib/crumbs.ts`), one column, the team's settings loaded once (the other pages read the same cache), its
  * loading and error states, and a note for people who may look but not change.
  */
 export function TeamSettingsFrame({
@@ -34,12 +34,13 @@ export function TeamSettingsFrame({
 
   return (
     <PageFrame
-      crumbs={[
-        { label: 'Teams', link: { to: '/' } },
-        workspaceCrumb({ slug: workspace, name: workspaceName }),
-        teamCrumb(workspace, { slug: team, name: teamName }),
-        ...(page === 'Settings' ? [] : [{ label: 'Settings' }]),
-      ]}
+      crumbs={crumbsFor(
+        {
+          workspace: { slug: workspace, name: workspaceName },
+          team: { slug: team, name: teamName },
+        },
+        page === 'Settings' ? [] : [teamSettingsCrumb(workspace, team)],
+      )}
       title={page}
       contentClassName={styles.content}
       width={width}
