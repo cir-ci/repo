@@ -24,6 +24,7 @@
     },
     "./tokens-css": "./tokens-css.ts",
     "./team-icons": "./src/team-icons.ts",
+    "./global.css": "./src/global.css",
     "./utilities.module.css": "./src/utilities.module.css",
     "./css-modules": {
       "types": "./src/css-modules.d.ts"
