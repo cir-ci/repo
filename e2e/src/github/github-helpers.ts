@@ -142,11 +142,23 @@ export async function linkGithubIdentity(
 /** A CirCI user (optionally a member of `workspace`) whose GitHub identity is `githubUserId`. */
 export async function createGithubUser(
   stack: Stack,
-  options: { githubUserId: string; workspace?: string; role?: 'owner' | 'admin' | 'member' },
+  options: {
+    githubUserId: string
+    workspace?: string
+    role?: 'owner' | 'admin' | 'member'
+    /** Teams of `workspace` (slugs) to put them in: a plain member only acts on teams they are in. */
+    teams?: string[]
+  },
 ): Promise<Account> {
   const account = await createUserViaCli(stack)
   if (options.workspace)
     await addMemberViaCli(stack, options.workspace, account.email, options.role ?? 'member')
+  if (options.workspace && options.teams?.length) {
+    const slugs = options.teams.map((t) => `'${t}'`).join(', ')
+    await stack.sql(
+      `insert into team_members (team_id, user_id) select t.id, u.id from teams t join workspace w on w.id = t.workspace_id, "user" u where w.slug = '${options.workspace}' and t.slug in (${slugs}) and u.email = '${account.email}'`,
+    )
+  }
   await linkGithubIdentity(stack, account.email, options.githubUserId)
   return account
 }

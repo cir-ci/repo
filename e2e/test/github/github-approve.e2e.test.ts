@@ -74,7 +74,11 @@ describe('approving from GitHub, and GitHub failing (fake GitHub)', () => {
       repoRef: REPO,
       blockMergeOnChanges: true,
     })
-    const member = await createGithubUser(stack, { githubUserId: String(LINKED.id), workspace })
+    const member = await createGithubUser(stack, {
+      githubUserId: String(LINKED.id),
+      workspace,
+      teams: [p.slug],
+    })
     expect(member.email).toContain('@')
     // Linked to a CirCI account that belongs to no workspace with this team.
     const lonely = await createUserViaCli(stack)

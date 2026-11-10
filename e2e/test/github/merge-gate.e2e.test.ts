@@ -106,7 +106,11 @@ describe('merge gate (against a fake GitHub)', () => {
     })
     // A re-run (`/circi rerun` from a linked member) re-notifies with the new rule. The build is
     // processed again first, then reported: two worker steps, so allow for a loaded machine.
-    const member = await createGithubUser(stack, { githubUserId: '5001', workspace })
+    const member = await createGithubUser(stack, {
+      githubUserId: '5001',
+      workspace,
+      teams: [own.slug],
+    })
     expect(member.email).toBeTruthy()
     const comment = gh.seedComment('acme/switching', 32, '/circi rerun')
     const res = await gh.sendWebhook(

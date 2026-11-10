@@ -261,6 +261,19 @@ export async function addMemberViaCli(
   await stack.cli('member', 'add', '--org', workspace, '--email', email, '--role', role)
 }
 
+/** `POST /api/teams/:workspace/:team/members`: puts workspace members in a team (as an owner or admin). */
+export async function addTeamMembers(
+  session: Session,
+  workspaceSlug: string,
+  teamSlug: string,
+  userIds: string[],
+): Promise<void> {
+  await session.post(
+    `/api/teams/${encodeURIComponent(workspaceSlug)}/${encodeURIComponent(teamSlug)}/members`,
+    { userIds },
+  )
+}
+
 /** Invites an email address to a workspace through better-auth's organization API. */
 export async function inviteMember(
   session: Session,

@@ -155,7 +155,7 @@ describe("a workspace's own single sign-on", () => {
     const workspace = setup.workspace
     const other = await createWorkspace(setup.session, 'Other Workspace')
     await createTeam(setup.session, other.slug, 'Hidden')
-    const shown = await createTeam(setup.session, workspace, 'Visible')
+    await createTeam(setup.session, workspace, 'Visible')
 
     const page = await browser.as(setup.session)
     await page.goto(signInUrl(workspace))
@@ -188,14 +188,17 @@ describe("a workspace's own single sign-on", () => {
       const teams = JSON.parse((await get('/api/teams')).body) as {
         teams: { workspace: { slug: string }; team: { slug: string } }[]
       }
-      expect(teams.teams.map((x) => x.workspace.slug)).toEqual([workspace])
-      expect(teams.teams.map((x) => x.team.slug)).toEqual([shown.slug])
+      // A new member is in no team yet, so no team is listed (or reachable) for her...
+      expect(teams.teams).toEqual([])
+      expect((await get(`/api/teams/${workspace}/visible`)).status).toBe(404)
+      // ...but the workspace itself is hers, and the other one is not.
+      expect((await get(`/api/workspaces/${workspace}/sidebar`)).status).toBe(200)
+      expect((await get(`/api/workspaces/${other.slug}/sidebar`)).status).toBe(404)
       expect((await get(`/api/teams/${other.slug}/hidden`)).status).toBe(404)
       expect(JSON.parse((await get('/api/capabilities')).body)).toMatchObject({
         canCreateWorkspace: false,
       })
       expect((await get(`/api/workspaces/${other.slug}/domains`)).status).toBe(404)
-      await p.getByText('Visible').first().waitFor()
     })
     const members = (await fullWorkspace(setup.session, workspace)).members
     expect(members.find((m) => m.user.email === ann.email)).toMatchObject({ role: 'member' })

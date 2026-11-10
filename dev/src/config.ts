@@ -40,6 +40,8 @@ export const SEED = {
   member: { email: 'member@example.com', name: 'Max Member' },
   workspace: { name: 'Acme', slug: 'acme' },
   team: { name: 'Web app', slug: 'web-app' },
+  /** A second team only the owner is in: the member can't see it. */
+  hiddenTeam: { name: 'Design system', slug: 'design-system' },
 }
 
 /** The server's environment: a fixed secret so sessions survive restarts, mail to Mailpit. */

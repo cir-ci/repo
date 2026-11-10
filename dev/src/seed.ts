@@ -95,7 +95,7 @@ async function saveState(state: SeedState): Promise<void> {
 }
 
 async function seedAccounts(): Promise<SeedState> {
-  const { owner, member, password, workspace, team } = SEED
+  const { owner, member, password, workspace, team, hiddenTeam } = SEED
   const user = (who: { email: string; name: string }, extra: string[] = []) =>
     admin([
       'user',
@@ -140,9 +140,27 @@ async function seedAccounts(): Promise<SeedState> {
       team.name,
       '--slug',
       team.slug,
+      '--member',
+      owner.email,
+      '--member',
+      member.email,
       '--json',
     ]),
   )
+  // Teams have their own members: the member is in Web app but doesn't see this one at all.
+  await admin([
+    'team',
+    'create',
+    '--org',
+    workspace.slug,
+    '--name',
+    hiddenTeam.name,
+    '--slug',
+    hiddenTeam.slug,
+    '--member',
+    owner.email,
+    '--json',
+  ])
   return { token }
 }
 

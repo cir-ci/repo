@@ -87,7 +87,7 @@ Anyone you add to a workspace sees its teams, builds and screenshots, and nothin
 | `circi admin user create\|set-password` | Create accounts and reset passwords (generated passwords are printed once) |
 | `circi admin workspace create\|list` | Manage workspaces (`create` needs `--owner <email>`). Commands that act inside a workspace keep the flag name `--org <slug>` for compatibility (from when workspaces were called organisations); it takes the workspace slug |
 | `circi admin member add` | Add an existing account to a workspace (`--role owner\|admin\|member`) |
-| `circi admin team create\|list\|rotate-token` | Manage teams and their CI tokens |
+| `circi admin team create\|list\|rotate-token` | Manage teams and their CI tokens (`create --member <email>` adds workspace members to the team; a team is visible to its members and to owners and admins) |
 | `circi admin auth enable\|disable <email\|password> --org <slug>` | Change a workspace's accepted sign-in methods (skips the lockout guard: break-glass) |
 | `circi admin github link\|unlink` | Link a team to a GitHub repository (needs the GitHub App) |
 | `circi admin storage usage\|gc` | What's stored, by kind; run retention now (expire old builds and sites, delete unused files) |

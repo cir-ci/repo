@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  addTeamMembers,
   createTeam,
   createUserViaCli,
   fullWorkspace,
@@ -384,6 +385,12 @@ describe('invitations and members', () => {
     const lou = await createUserViaCli(stack, { account: newAccount('lou') })
     await stack.cli('member', 'add', '--org', workspace(), '--email', lou.email, '--role', 'member')
     const louSession = await signIn(stack, lou.email, lou.password)
+    // A new member sees no team until someone adds them to it.
+    expect((await louSession.request('GET', `/api/teams/${workspace()}/${team.slug}`)).status).toBe(
+      404,
+    )
+    const louId = (await stack.sql(`select id from "user" where email = '${lou.email}'`))[0]?.[0]
+    await addTeamMembers(setup.session, workspace(), team.slug, [String(louId)])
     expect(
       (await louSession.get<{ teams: { team: { slug: string } }[] }>('/api/teams')).teams.map(
         (p) => p.team.slug,
