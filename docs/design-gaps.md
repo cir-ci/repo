@@ -9,7 +9,7 @@ designed yet.
 Each gap has a **provisional spec** derived from the existing conventions (dense, quiet, hairlines
 not shadows, 13px Inter, 28px controls, 44px rows, tokens only). Components get built to it now
 (decision in `docs/plans/archive/base-ui-plan.md`) and are marked `Provisional` in their doc comment until a
-designer signs them off. **Needs a decision** lists what the spec can't settle by itself.
+the owner approves them on the canvas (a label only: it never blocks shipping, §16). **Needs a decision** lists what the spec can't settle by itself.
 
 Sizes in px. Colours are token names (`surface.raised` = `var(--circi-surface-raised)`).
 
@@ -237,12 +237,17 @@ chrome (next-steps-plan R11).
 
 ## 15. Logo and favicon
 
-**Needed:** the logo as SVG in a version for each scheme (the maroon `#724039` disappears on the
-dark chrome), a 32px mark for the sidebar and a favicon. Nothing provisional: the frame shows the
-word "CirCI" in 13/600 until then.
+**Decided (2026-11-10):** the existing logo (`apps/web/src/features/auth/logo.svg`, the maroon tile)
+everywhere. Built: it is the dashboard's favicon (`apps/web/index.html`), the favicon of the
+server-rendered pages (inline copy in `apps/server/src/http/lib/logo-svg.ts`), the auth screens'
+mark, and sits beside the word "CirCI" in the compact bar and the sidebar when no workspace is
+open. Not built: a PNG favicon fallback and a per-scheme variant.
 
 ## 16. Sign-off
 
-design-sync grades so far were by eye, by Claude, with no human review in `.review.html`. **Needs
-a decision:** who signs off components, and does a component's `Provisional` mark block the page
-that uses it from shipping?
+design-sync grades so far were by eye, by Claude, with no human review in `.review.html`.
+
+**Decided (2026-11-10):** the owner approves components on the canvas. `Provisional` in a doc
+comment is only a label: it says the component's spec hasn't been signed off on the canvas yet, and
+it never blocks a page that uses the component from shipping. Remove the word when the owner
+approves the component.
