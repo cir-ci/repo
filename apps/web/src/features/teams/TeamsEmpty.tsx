@@ -21,11 +21,7 @@ export function TeamsEmpty({ canCreateTeam, canCreateWorkspace, hasWorkspace }: 
           icon={<LayersIcon />}
           title="Create your first team"
           className={styles.top}
-          action={
-            <Button variant="primary" onClick={() => setNewTeamOpen(true)}>
-              New team
-            </Button>
-          }
+          action={<Button onClick={() => setNewTeamOpen(true)}>New team</Button>}
         >
           A team is one app or library whose screenshots your CI uploads.
         </EmptyState>

@@ -4,6 +4,7 @@ import { type Locator, page, userEvent } from 'vitest/browser'
 import { PANES, paneLimits } from '#lib/panes.ts'
 import { usePaneStore } from '#lib/stores/pane-store.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
+import { expectOnePrimaryPerArea } from '#test/support/primary-buttons.ts'
 import { expectLimitedToSpace, expectResize, parentOf, widthOf } from '#test/support/resize.ts'
 
 import { decision, detail, fakeBuildApi, renderBuild, shot } from './fake-build-api.tsx'
@@ -119,6 +120,7 @@ describe('BuildPage states', () => {
     await expect.element(page.getByRole('button', { name: 'Approve', exact: true })).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Reject' })).toBeVisible()
     await expect.element(page.getByText('0 of 3 reviewed')).toBeVisible()
+    expectOnePrimaryPerArea()
     await expect.element(viewerTitle()).toHaveTextContent('checkout / payment')
     // Both images of the comparison, the baseline first.
     await expect.element(page.getByRole('img', { name: 'Baseline · #6 on main' })).toBeVisible()

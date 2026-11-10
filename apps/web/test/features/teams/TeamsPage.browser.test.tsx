@@ -6,6 +6,7 @@ import { TeamsPage } from '#features/teams/TeamsPage.tsx'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
+import { expectOnePrimaryPerArea } from '#test/support/primary-buttons.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 import { build } from './support.tsx'
@@ -176,6 +177,8 @@ describe('TeamsPage', () => {
     await expect
       .poll(() => page.getByRole('button', { name: 'New team' }).elements().length)
       .toBe(2)
+    // The header's New team is the primary one; the empty state's is secondary.
+    expectOnePrimaryPerArea()
   })
 
   it('says to create a workspace first when you can only do that', async () => {

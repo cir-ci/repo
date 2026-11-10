@@ -48,6 +48,10 @@ describe('RulesSection', () => {
       body: 'Add a rule to ask people to review changed screenshots automatically.',
       action: 'Add rule',
     })
+    // Not primary: the page's Save changes is.
+    expect(page.getByRole('button', { name: 'Add rule' }).element().dataset['variant']).not.toBe(
+      'primary',
+    )
     // The one Add rule button is the state's; it opens the same dialog.
     expect(page.getByRole('button', { name: 'Add rule' }).elements()).toHaveLength(1)
     await page.getByRole('button', { name: 'Add rule' }).click()

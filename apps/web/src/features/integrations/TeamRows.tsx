@@ -151,12 +151,7 @@ export function TeamRow(props: TeamRow.Props) {
         )}
         <div className={styles.trailing}>
           {dirty ? (
-            <Button
-              type="submit"
-              variant="primary"
-              loading={props.saving}
-              disabled={!canSave(spec, ref, values)}
-            >
+            <Button type="submit" loading={props.saving} disabled={!canSave(spec, ref, values)}>
               {saved ? 'Update' : 'Save'}
             </Button>
           ) : null}

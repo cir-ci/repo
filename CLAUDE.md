@@ -131,6 +131,9 @@ A namespace must contain only types. Never put a value in one.
   not as separate top-level names.
 - **State:** state that changes or is needed across large areas, or is complex, goes in a global
   store (zustand), not scattered `useState`/context. Local, simple UI state stays in `useState`.
+- **One primary button per area:** at most one `variant="primary"` in the page (header and body), in each
+  dialog and in each pane; the other actions are secondary, danger or ghost. A page test of a main
+  page calls `expectOnePrimaryPerArea()` (`apps/web/test/support/primary-buttons.ts`).
 - **Copy:** contractions ("Couldn't", "can't") with the straight apostrophe everywhere (dashboard, server,
   emails), never the curly one; "ID", not "id"; "Delete" for something gone for good
   (comments, rules, teams, workspaces), "Remove" for taking it out of a list (members, webhooks,

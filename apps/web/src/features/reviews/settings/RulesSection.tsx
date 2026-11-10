@@ -75,10 +75,7 @@ export function RulesSection(props: RulesSection.Props) {
           title="No review rules"
           action={
             props.canManage ? (
-              <Button
-                variant="primary"
-                onClick={() => setEditing({ id: null, draft: emptyDraft() })}
-              >
+              <Button onClick={() => setEditing({ id: null, draft: emptyDraft() })}>
                 Add rule
               </Button>
             ) : undefined
