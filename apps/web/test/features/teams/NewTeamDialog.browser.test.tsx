@@ -129,7 +129,11 @@ describe('New team dialog', () => {
     // You can't be removed here: there is no Remove for your own chip.
     expect(field.getByRole('button', { name: /^Remove / }).elements()).toHaveLength(0)
 
-    await field.getByRole('button', { name: 'Add members' }).click()
+    const add = field.getByRole('button', { name: 'Add members' })
+    await expect.element(add).toHaveAttribute('aria-expanded', 'false')
+    expect(page.getByRole('list', { name: 'Workspace members' }).elements()).toHaveLength(0)
+    await add.click()
+    await expect.element(add).toHaveAttribute('aria-expanded', 'true')
     const choices = page.getByRole('list', { name: 'Workspace members' })
     // Never yourself among the choices.
     expect(choices.getByRole('checkbox', { name: /Ada Lovelace/ }).elements()).toHaveLength(0)

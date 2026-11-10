@@ -243,15 +243,9 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
             count={g.items.length}
             glyph={<StatusIcon status={screenshotStatus(g.kind, 'pending')} decorative />}
             expanded={open[g.kind] ?? g.open}
-            controls={`shots-${g.kind}-rows`}
             onExpandedChange={(expanded) => setOpen({ ...open, [g.kind]: expanded })}
-          />
-          {(open[g.kind] ?? g.open) ? (
-            <ul
-              className={styles.rows}
-              id={`shots-${g.kind}-rows`}
-              aria-labelledby={`shots-${g.kind}`}
-            >
+          >
+            <ul className={styles.rows} aria-labelledby={`shots-${g.kind}`}>
               {g.items.map((d) => (
                 <li key={d.id} {...rowProps(d.id)}>
                   <RouterLink
@@ -291,7 +285,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
                 </li>
               ))}
             </ul>
-          ) : null}
+          </ListGroup>
         </div>
       ))}
     </nav>

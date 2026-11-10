@@ -51,7 +51,12 @@ export { Badge } from './Badge.js'
 export { Banner } from './Banner.js'
 export { Breadcrumbs } from './Breadcrumbs.js'
 export { Checkbox, CheckboxGroup } from './Checkbox.js'
-export { Collapsible } from './Collapsible.js'
+export {
+  Collapsible,
+  CollapsiblePanel,
+  CollapsibleRoot,
+  CollapsibleTrigger,
+} from './Collapsible.js'
 export { ConfirmDialog } from './ConfirmDialog.js'
 export { FormDialog } from './FormDialog.js'
 export { Delayed } from './Delayed.js'

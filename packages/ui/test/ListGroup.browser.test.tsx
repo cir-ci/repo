@@ -9,14 +9,11 @@ function Harness() {
   const [open, setOpen] = useState(false)
   return (
     <>
-      <ListGroup
-        label="Unchanged"
-        count={14}
-        expanded={open}
-        onExpandedChange={setOpen}
-        controls="rows"
-      />
-      {open ? <ul id="rows" aria-label="Unchanged rows" /> : null}
+      <ListGroup label="Unchanged" count={14} expanded={open} onExpandedChange={setOpen}>
+        <ul aria-label="Unchanged rows">
+          <li>one</li>
+        </ul>
+      </ListGroup>
     </>
   )
 }
@@ -49,7 +46,13 @@ describe('ListGroup', () => {
     await expect.element(button).toHaveAttribute('aria-expanded', 'false')
     await button.click()
     await expect.element(button).toHaveAttribute('aria-expanded', 'true')
-    await expect.element(page.getByRole('list', { name: 'Unchanged rows' })).toBeInTheDocument()
+    await expect.element(page.getByRole('list', { name: 'Unchanged rows' })).toBeVisible()
+    // The button controls the panel that holds the rows.
+    const controlled = button.element().getAttribute('aria-controls')
+    expect(controlled).toBeTruthy()
+    expect(
+      document.getElementById(controlled ?? '')?.contains(page.getByRole('list').element()),
+    ).toBe(true)
     await userEvent.keyboard('{Enter}')
     await expect.element(button).toHaveAttribute('aria-expanded', 'false')
     await userEvent.keyboard(' ')
@@ -58,5 +61,14 @@ describe('ListGroup', () => {
     await expect.element(button).toHaveAttribute('aria-expanded', 'false')
     await userEvent.keyboard('{ArrowRight}')
     await expect.element(button).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('removes the rows while it is closed', async () => {
+    await render(<Harness />)
+    expect(page.getByRole('list').elements()).toHaveLength(0)
+    await page.getByRole('button', { name: 'Unchanged 14' }).click()
+    await expect.element(page.getByRole('list', { name: 'Unchanged rows' })).toBeVisible()
+    await page.getByRole('button', { name: 'Unchanged 14' }).click()
+    await expect.element(page.getByRole('list')).not.toBeInTheDocument()
   })
 })

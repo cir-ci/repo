@@ -1,8 +1,7 @@
 import type { Integration } from '@circi/api'
-import { Banner, Button, Text } from '@circi/ui'
+import { Banner, Button, Collapsible, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { useState } from 'react'
 
 import { useInstall } from '#features/integrations/api/generic.ts'
 import { ConnectForm } from '#features/integrations/ConnectForm.tsx'
@@ -18,7 +17,6 @@ import { githubAppQuery, githubStep } from './api/github-app.ts'
 export function GithubAddPanel({ entry, workspace, onDone }: GithubAddPanel.Props) {
   const { data, error } = useQuery(githubAppQuery())
   const install = useInstall(workspace)
-  const [advanced, setAdvanced] = useState(false)
   if (error) return <Banner tone="danger">{error.message}</Banner>
   if (!data) return <Text tone="secondary">Checking the GitHub App…</Text>
   const step = githubStep(data)
@@ -39,12 +37,9 @@ export function GithubAddPanel({ entry, workspace, onDone }: GithubAddPanel.Prop
           >
             Install on GitHub
           </Button>
-          <div>
-            <Button variant="ghost" onClick={() => setAdvanced((v) => !v)} aria-expanded={advanced}>
-              Advanced: connect by installation ID
-            </Button>
-          </div>
-          {advanced ? <ConnectForm entry={entry} workspace={workspace} onDone={onDone} /> : null}
+          <Collapsible title="Advanced: connect by installation ID">
+            <ConnectForm entry={entry} workspace={workspace} onDone={onDone} />
+          </Collapsible>
         </>
       ) : step === 'set-up' ? (
         <>

@@ -45,7 +45,7 @@
   transition: rotate 120ms ease-out;
 }
 
-.button[aria-expanded='true'] .chevron {
+.button[data-panel-open] .chevron {
   rotate: 90deg;
 }
 
@@ -56,6 +56,23 @@
 
 @media (prefers-reduced-motion: reduce) {
   .chevron {
+    transition: none;
+  }
+}
+
+.panel {
+  height: var(--collapsible-panel-height);
+  overflow: hidden;
+  transition: height 120ms ease-out;
+}
+
+.panel[data-starting-style],
+.panel[data-ending-style] {
+  height: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel {
     transition: none;
   }
 }

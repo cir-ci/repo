@@ -1,25 +1,18 @@
-import type { HTMLAttributes, KeyboardEvent, ReactNode } from 'react'
+import { Collapsible } from '@base-ui/react/collapsible'
+import type { HTMLAttributes, ReactNode } from 'react'
 
 import { cx } from './cx.ts'
+import { onDisclosureArrow } from './disclosure-keys.ts'
 import { ChevronRightIcon } from './icons.ts'
 
 import styles from './ListGroup.module.css'
-
-/** Right opens a closed group and Left closes an open one (Enter and Space already toggle). */
-function onArrow(event: KeyboardEvent<HTMLElement>) {
-  const open = event.currentTarget.getAttribute('aria-expanded') === 'true'
-  if ((event.key === 'ArrowRight' && !open) || (event.key === 'ArrowLeft' && open)) {
-    event.preventDefault()
-    event.currentTarget.click()
-  }
-}
 
 /**
  * The bar above a group of rows, the same in every grouped list (Triage, Builds, Baselines,
  * Reviews, a build's screenshots): an optional glyph, the label, the count. It is a heading
  * (`level`, 2 by default). Give it `expanded` and `onExpandedChange` and the heading holds a
- * button with a chevron and `aria-expanded` (Enter, Space, Right and Left toggle it); the caller
- * shows or hides the rows.
+ * button with a chevron and `aria-expanded` (Enter, Space, Right and Left toggle it), on Base UI's
+ * `Collapsible`: the `children` (the group's rows) are its panel, shown while `expanded`.
  */
 export function ListGroup({
   label,
@@ -29,7 +22,7 @@ export function ListGroup({
   level = 2,
   expanded,
   onExpandedChange,
-  controls,
+  children,
   className,
   ...rest
 }: ListGroup.Props) {
@@ -48,23 +41,25 @@ export function ListGroup({
       )}
     </>
   )
-  return (
-    <Heading {...rest} className={cx(styles.root, className)}>
-      {expanded === undefined ? (
+  if (expanded === undefined) {
+    return (
+      <Heading {...rest} className={cx(styles.root, className)}>
         <span className={styles.bar}>{content}</span>
-      ) : (
-        <button
-          type="button"
+      </Heading>
+    )
+  }
+  return (
+    <Collapsible.Root open={expanded} onOpenChange={(open) => onExpandedChange?.(open)}>
+      <Heading {...rest} className={cx(styles.root, className)}>
+        <Collapsible.Trigger
           className={cx(styles.bar, styles.button)}
-          aria-expanded={expanded}
-          aria-controls={controls}
-          onClick={() => onExpandedChange?.(!expanded)}
-          onKeyDown={onArrow}
+          onKeyDown={onDisclosureArrow}
         >
           {content}
-        </button>
-      )}
-    </Heading>
+        </Collapsible.Trigger>
+      </Heading>
+      <Collapsible.Panel className={styles.panel}>{children}</Collapsible.Panel>
+    </Collapsible.Root>
   )
 }
 
@@ -82,7 +77,7 @@ export namespace ListGroup {
     /** Makes the bar a disclosure button: whether the group's rows are shown. */
     expanded?: boolean
     onExpandedChange?: (expanded: boolean) => void
-    /** The ID of the element the button shows and hides. */
-    controls?: string
+    /** The group's rows: shown while `expanded`, and the panel the button controls. */
+    children?: ReactNode
   }
 }

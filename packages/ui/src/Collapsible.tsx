@@ -1,19 +1,12 @@
 import { Collapsible as BaseCollapsible } from '@base-ui/react/collapsible'
-import type { KeyboardEvent, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 
+import { Button } from './Button.tsx'
 import { cx } from './cx.ts'
+import { onDisclosureArrow } from './disclosure-keys.ts'
 import { ChevronRightIcon } from './icons.ts'
 
 import styles from './Collapsible.module.css'
-
-/** Right opens a closed disclosure and Left closes an open one (Enter and Space already toggle). */
-function onArrow(event: KeyboardEvent<HTMLElement>) {
-  const open = event.currentTarget.getAttribute('aria-expanded') === 'true'
-  if ((event.key === 'ArrowRight' && !open) || (event.key === 'ArrowLeft' && open)) {
-    event.preventDefault()
-    event.currentTarget.click()
-  }
-}
 
 /**
  * Provisional: a disclosure on Base UI's `Collapsible`: a trigger button (`aria-expanded`) with a
@@ -24,7 +17,7 @@ function onArrow(event: KeyboardEvent<HTMLElement>) {
 export function Collapsible({ title, count, className, children, ...rest }: Collapsible.Props) {
   return (
     <BaseCollapsible.Root {...rest} className={cx(styles.root, className)}>
-      <BaseCollapsible.Trigger className={styles.trigger} onKeyDown={onArrow}>
+      <BaseCollapsible.Trigger className={styles.trigger} onKeyDown={onDisclosureArrow}>
         <ChevronRightIcon size={14} strokeWidth={2} className={styles.chevron} />
         <span className={styles.title}>{title}</span>
         {count === undefined ? null : <span className={styles.count}>{count}</span>}
@@ -43,5 +36,39 @@ export namespace Collapsible {
     count?: number
     className?: string
     children?: ReactNode
+  }
+}
+
+/**
+ * The parts of a disclosure whose button and panel are not next to each other (a button in a row
+ * of chips, its panel under the row): `CollapsibleRoot` holds the state around both, the
+ * `CollapsibleTrigger` is a `Button` (with `aria-expanded`, and Right / Left as well as Enter and
+ * Space) and the `CollapsiblePanel` is what it shows and hides.
+ */
+export function CollapsibleRoot(props: CollapsibleRoot.Props) {
+  return <BaseCollapsible.Root {...props} />
+}
+
+export namespace CollapsibleRoot {
+  export type Props = Omit<BaseCollapsible.Root.Props, 'render'>
+}
+
+export function CollapsibleTrigger(props: Button.Props) {
+  return (
+    <BaseCollapsible.Trigger
+      nativeButton
+      onKeyDown={onDisclosureArrow}
+      render={<Button {...props} />}
+    />
+  )
+}
+
+export function CollapsiblePanel({ className, ...rest }: CollapsiblePanel.Props) {
+  return <BaseCollapsible.Panel {...rest} className={cx(styles.panel, className)} />
+}
+
+export namespace CollapsiblePanel {
+  export interface Props extends Omit<BaseCollapsible.Panel.Props, 'render' | 'className'> {
+    className?: string
   }
 }

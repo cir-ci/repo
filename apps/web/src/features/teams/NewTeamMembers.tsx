@@ -1,4 +1,14 @@
-import { Avatar, Button, Checkbox, CloseIcon, IconButton, Text, TextField } from '@circi/ui'
+import {
+  Avatar,
+  Checkbox,
+  CloseIcon,
+  CollapsiblePanel,
+  CollapsibleRoot,
+  CollapsibleTrigger,
+  IconButton,
+  Text,
+  TextField,
+} from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
@@ -16,7 +26,6 @@ export function NewTeamMembers({ workspace, value, onChange }: NewTeamMembers.Pr
   const { data: session } = authClient.useSession()
   const me = session?.user
   const query = useQuery(workspaceQuery(workspace))
-  const [picking, setPicking] = useState(false)
   const [search, setSearch] = useState('')
   const everyone = (query.data?.members ?? []).filter((m) => m.userId !== me?.id)
   const picked = value.flatMap((id) => everyone.filter((m) => m.userId === id))
@@ -30,7 +39,7 @@ export function NewTeamMembers({ workspace, value, onChange }: NewTeamMembers.Pr
   )
 
   return (
-    <div className={styles.root}>
+    <CollapsibleRoot className={styles.root}>
       <span className={styles.label} id="new-team-members">
         Members{' '}
         <Text as="span" tone="tertiary">
@@ -73,16 +82,9 @@ export function NewTeamMembers({ workspace, value, onChange }: NewTeamMembers.Pr
             </IconButton>
           </span>
         ))}
-        <Button
-          type="button"
-          size="sm"
-          aria-expanded={picking}
-          onClick={() => setPicking(!picking)}
-        >
-          Add members
-        </Button>
+        <CollapsibleTrigger size="sm">Add members</CollapsibleTrigger>
       </div>
-      {picking ? (
+      <CollapsiblePanel>
         <div className={styles.picker}>
           <TextField
             label="Find a workspace member"
@@ -126,8 +128,8 @@ export function NewTeamMembers({ workspace, value, onChange }: NewTeamMembers.Pr
             </ul>
           )}
         </div>
-      ) : null}
-    </div>
+      </CollapsiblePanel>
+    </CollapsibleRoot>
   )
 }
 
