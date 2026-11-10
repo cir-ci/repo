@@ -11,6 +11,7 @@ import { PANES } from '#lib/panes.ts'
 import { usePaneStore } from '#lib/stores/pane-store.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, fakeFetch, pending, type ReplyHandler } from '#test/support/fetch.ts'
+import { pageHeader } from '#test/support/header.ts'
 import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { expectLimitedToSpace, expectResize, parentOf } from '#test/support/resize.ts'
@@ -634,7 +635,25 @@ describe('the details pane in a narrow window', () => {
 })
 
 describe('TriagePage on a phone', () => {
-  it('opens the selected item as a sheet over the list, with a visible 44px Open in build', async () => {
+  it('keeps the header on one line with the on-triage chip, and the rows have no arrow button', async () => {
+    await page.viewport(390, 844)
+    fakeApi({
+      [`GET ${BASE}/triage`]: { body: queue(items(), { id: 'u2', name: 'Grace Hopper' }) },
+      [`GET ${BASE}/snapshots/home/history`]: { body: history },
+    })
+    await show()
+    await expect.element(page.getByRole('list', { name: 'Flaky, 1 item' })).toBeVisible()
+    expect(pageHeader().getBoundingClientRect().height).toBeLessThanOrEqual(52)
+    // The chip is the avatar there; its name is still the accessible one.
+    await expect.element(page.getByLabelText(/Grace Hopper/).first()).toBeInTheDocument()
+    // The whole row is the tap target: no "Open in build" chip is shown.
+    for (const chip of page.getByText('Open in build ↗').elements()) {
+      expect(chip.getBoundingClientRect().width).toBe(0)
+    }
+    expectNoSidewaysScroll()
+  })
+
+  it('opens the selected item as a sheet over the list', async () => {
     await page.viewport(390, 844)
     server()
     await show()
@@ -642,10 +661,6 @@ describe('TriagePage on a phone', () => {
     // Nothing is beside the list, and nothing has opened yet.
     expect(page.getByRole('region', { name: 'Details' }).elements()).toHaveLength(0)
     expect(page.getByRole('dialog').elements()).toHaveLength(0)
-    // The row's chip, always there (no hover on a phone), is a 44px target.
-    const chip = page.getByText('Open in build ↗').first().element().getBoundingClientRect()
-    expect(chip.height).toBeGreaterThanOrEqual(44)
-    expect(chip.width).toBeGreaterThanOrEqual(44)
     expectNoSidewaysScroll()
     await page.getByRole('list', { name: 'No baseline, 1 item' }).getByRole('button').click()
     const sheet = page.getByRole('dialog', { name: 'Details' })

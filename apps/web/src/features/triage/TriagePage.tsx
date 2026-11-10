@@ -207,7 +207,7 @@ export function TriagePage() {
             <Badge shape="tag" tone="accent" aria-label={chip}>
               <span className={styles.chip}>
                 <Avatar type="user" {...data.rotation.onTriage} size={16} />
-                {chip}
+                <span className={styles.chipLabel}>{chip}</span>
               </span>
             </Badge>
           ) : undefined
@@ -266,12 +266,8 @@ export function TriagePage() {
                                     select(item)
                                     setSheetFor(itemId(item))
                                   }}
-                                  // Enter and a double click do the same; the chip says so (and is a click target for a mouse).
-                                  action={{
-                                    label: 'Open in build ↗',
-                                    onAction: () => open(item),
-                                    onPhone: true,
-                                  }}
+                                  // Enter and a double click do the same; the chip says so (a mouse target only: on a phone the whole row is the tap target).
+                                  action={{ label: 'Open in build ↗', onAction: () => open(item) }}
                                   title={<span aria-hidden="true">{itemTitle(item)}</span>}
                                   subtitle={<span aria-hidden="true">{itemSubtitle(item)}</span>}
                                   trailing={

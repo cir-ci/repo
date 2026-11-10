@@ -13,6 +13,13 @@
   font-size: 12px;
 }
 
+/* A phone: the header is one row, so the chip is the avatar (the name is in its accessible label). */
+@media (max-width: 819.98px) {
+  .chipLabel {
+    display: none;
+  }
+}
+
 .paneBody {
   display: flex;
   flex-direction: column;
