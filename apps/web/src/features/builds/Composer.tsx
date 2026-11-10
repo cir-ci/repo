@@ -1,11 +1,10 @@
 import { Button, Kbd, Text } from '@circi/ui'
 import { type Ref, useEffect, useId, useState } from 'react'
 
+import { MentionField } from '#lib/MentionField.tsx'
+import type { Mention } from '#lib/mentions.ts'
 import { isSubmitKey } from '#lib/shortcuts.ts'
 import { useShortcutStore } from '#lib/stores/shortcut-store.ts'
-
-import { MentionField } from './MentionField.tsx'
-import type { Mention } from './mentions.ts'
 
 import styles from './Discussion.module.css'
 

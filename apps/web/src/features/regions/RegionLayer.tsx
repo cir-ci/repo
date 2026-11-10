@@ -11,8 +11,8 @@ import {
   useState,
 } from 'react'
 
-import { MentionField } from '#features/builds/MentionField.tsx'
-import type { Mention } from '#features/builds/mentions.ts'
+import { MentionField } from '#lib/MentionField.tsx'
+import type { Mention } from '#lib/mentions.ts'
 import { isSubmitKey } from '#lib/shortcuts.ts'
 
 import {

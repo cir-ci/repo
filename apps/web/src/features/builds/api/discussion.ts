@@ -4,9 +4,8 @@ import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/r
 import { workspaceQuery } from '#features/members/api.ts'
 import { teamPath } from '#lib/api-paths.ts'
 import { getJson, post, send } from '#lib/http.ts'
+import type { Mention } from '#lib/mentions.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
-
-import type { Mention } from '../mentions.ts'
 
 /** The workspace's members as @mention candidates (empty while they load). */
 export function useMentionMembers(workspace: string): Mention.Member[] {

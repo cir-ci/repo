@@ -11,10 +11,10 @@ import {
   useMentionMembers,
 } from '#features/builds/api/discussion.ts'
 import { regionThreads } from '#features/regions/geometry.ts'
+import { type Mention, splitMentions } from '#lib/mentions.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import { Composer } from './Composer.tsx'
-import { type Mention, splitMentions } from './mentions.ts'
 import { groupThreads, type Thread } from './timeline.ts'
 
 import styles from './Discussion.module.css'

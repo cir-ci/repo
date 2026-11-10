@@ -6,7 +6,7 @@ import {
   mentionAt,
   mentionHandle,
   splitMentions,
-} from '#features/builds/mentions.ts'
+} from '#lib/mentions.ts'
 
 const ada = { userId: 'u1', name: 'Ada Lovelace', email: 'ada@example.test' }
 const grace = { userId: 'u2', name: 'Grace Hopper', email: 'grace@example.test' }
