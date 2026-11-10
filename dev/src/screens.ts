@@ -117,3 +117,25 @@ export const NO_CHANGES: Screen[] = BASELINE
 export const BANNER: Screen[] = BASELINE.map((s) =>
   s.name === 'dashboard/overview' ? Object.assign({}, s, { banner: '#ef476f' }) : s,
 )
+
+/**
+ * Builds on main where two screens keep changing back and forth (a dashboard banner that comes
+ * and goes, a billing page whose button jumps sides), so Triage lists them as flaky.
+ */
+export const FLAKY_RUNS: Screen[][] = [0, 1, 2, 3].map((run) =>
+  BASELINE.map((s) => {
+    if (s.name === 'dashboard/overview') {
+      return run % 2 === 0 ? Object.assign({}, s, { banner: '#06d6a0' }) : s
+    }
+    if (s.name === 'settings/billing')
+      return run % 2 === 0 ? Object.assign({}, s, { buttonX: 0 }) : s
+    return s
+  }),
+)
+
+/** A first Storybook build on main: nothing to compare with yet, so Triage lists "No baseline". */
+export const STORYBOOK: Screen[] = [
+  { name: 'storybook/button', accent: '#ef476f', cards: 3 },
+  { name: 'storybook/card', accent: '#ef476f', cards: 2, columns: 2 },
+  { name: 'storybook/modal', accent: '#ef476f', cards: 1, columns: 1, banner: '#118ab2' },
+]

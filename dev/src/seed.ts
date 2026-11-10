@@ -4,9 +4,18 @@ import { join } from 'node:path'
 
 import { upload } from '@circi/cli'
 
-import { SEED, SERVER_MAIN, STATE_DIR, URLS, serverEnv } from './config.ts'
+import { COMPOSE_FILE, SEED, SERVER_MAIN, STATE_DIR, URLS, serverEnv } from './config.ts'
 import { log, run } from './processes.ts'
-import { BANNER, BASELINE, NO_CHANGES, REDESIGN, type Screen, writeScreens } from './screens.ts'
+import {
+  BANNER,
+  BASELINE,
+  FLAKY_RUNS,
+  NO_CHANGES,
+  REDESIGN,
+  STORYBOOK,
+  type Screen,
+  writeScreens,
+} from './screens.ts'
 
 /** What the seed leaves behind for later runs (`.dev/seed.json`). */
 export interface SeedState {
@@ -183,7 +192,7 @@ async function commit(branch: string, message: string): Promise<string> {
 async function uploadScreens(
   token: string,
   screens: Screen[],
-  ci: { sha: string; branch: string; pr?: number; author: string },
+  ci: { sha: string; branch: string; pr?: number; author: string; name?: string },
 ): Promise<number> {
   const dir = join(STATE_DIR, 'seed-screens', ci.sha.slice(0, 12))
   await rm(dir, { recursive: true, force: true })
@@ -202,6 +211,7 @@ async function uploadScreens(
       ...(ci.pr ? { CIRCI_PR_NUMBER: String(ci.pr), CIRCI_BASE_BRANCH: 'main' } : {}),
     },
     log: (line) => log('seed', line),
+    ...(ci.name ? { name: ci.name } : {}),
   })
   if (result.exitCode === 2) throw new Error(`Upload of ${ci.branch} failed`)
   return result.build.number
@@ -284,4 +294,114 @@ async function seedBuilds(token: string): Promise<void> {
     author: 'max',
   })
   await git(['checkout', '-q', 'main'])
+  await seedTriage(token, owner)
+}
+
+/**
+ * Something in each Triage group: two flaky screens (changed back and forth on main), a
+ * Storybook build with no baseline yet, and a failed build; plus a rotation (so someone is on
+ * triage) and one item assigned to the member.
+ */
+async function seedTriage(token: string, owner: string): Promise<void> {
+  for (const [i, screens] of FLAKY_RUNS.entries()) {
+    // eslint-disable-next-line no-await-in-loop -- each build follows the one before on main
+    const sha = await commit('main', `Tweak the dashboard (${i + 1})`)
+    // eslint-disable-next-line no-await-in-loop -- in order: flakiness is about the latest builds
+    await uploadScreens(token, screens, { sha, branch: 'main', author: 'olivia' })
+  }
+
+  const stories = await commit('main', 'Add Storybook')
+  await uploadScreens(token, STORYBOOK, {
+    sha: stories,
+    branch: 'main',
+    author: 'olivia',
+    name: 'storybook',
+  })
+
+  // A build whose second CI shard never arrived. The worker fails such a build once its upload
+  // window has passed; the seed can't wait that long, so it records the same outcome directly.
+  const broken = await commit('main', 'Split the end-to-end job in two')
+  const dir = join(STATE_DIR, 'seed-screens', broken.slice(0, 12))
+  await rm(dir, { recursive: true, force: true })
+  await writeScreens(dir, BASELINE)
+  const half = await upload({
+    dir,
+    apiUrl: URLS.server,
+    token,
+    wait: false,
+    fetch: false,
+    cwd: REPO,
+    author: 'max',
+    shard: { index: 0, total: 2, nonce: 'seed-split-e2e' },
+    env: { CIRCI_COMMIT: broken, CIRCI_BRANCH: 'main' },
+    log: (line) => log('seed', line),
+  })
+  await sql(
+    `update builds set status = 'error', completed_at = now(), error_message = ` +
+      `'Timed out waiting for 1 of 2 shard(s): shard 2. The CI job(s) that should have uploaded them probably failed or never ran.' ` +
+      `where id = '${half.build.id}'`,
+  )
+
+  const { workspace, team } = SEED
+  const api = `${URLS.server}/api/teams/${workspace.slug}/${team.slug}`
+  const call = async (method: string, path: string, body?: unknown) => {
+    const res = await fetch(`${api}${path}`, {
+      method,
+      headers: { 'content-type': 'application/json', origin: URLS.web, cookie: owner },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    })
+    if (!res.ok) throw new Error(`${method} ${path}: HTTP ${res.status} ${await res.text()}`)
+    return res.status === 204 ? null : res.json()
+  }
+  const list: unknown = await call('GET', '/members')
+  const members =
+    typeof list === 'object' && list !== null && 'members' in list && Array.isArray(list.members)
+      ? list.members.filter(
+          (m: unknown): m is { id: string; email: string } =>
+            typeof m === 'object' &&
+            m !== null &&
+            'id' in m &&
+            typeof m.id === 'string' &&
+            'email' in m &&
+            typeof m.email === 'string',
+        )
+      : []
+  const id = (email: string) => {
+    const found = members.find((m) => m.email === email)
+    if (!found) throw new Error(`${email} is not in ${team.slug}`)
+    return found.id
+  }
+  const monday = new Date()
+  monday.setUTCHours(0, 0, 0, 0)
+  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7))
+  await call('PUT', '/triage-rotation', {
+    memberIds: [id(SEED.owner.email), id(SEED.member.email)],
+    startsOn: monday.toISOString(),
+  })
+  await call('POST', '/triage/assign', {
+    kind: 'flaky',
+    key: 'settings/billing',
+    assigneeId: id(SEED.member.email),
+  })
+}
+
+/** One statement against the dev database, through the Postgres container. */
+function sql(statement: string): Promise<string> {
+  return run('docker', [
+    'compose',
+    '-f',
+    COMPOSE_FILE,
+    'exec',
+    '-T',
+    'postgres',
+    'psql',
+    '-U',
+    'circi',
+    '-d',
+    'circi',
+    '-v',
+    'ON_ERROR_STOP=1',
+    '-c',
+    statement,
+  ])
 }
