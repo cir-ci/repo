@@ -1,7 +1,6 @@
-import { Button, SettingsRow, Text, useAnnounce } from '@circi/ui'
+import { Avatar, Button, SettingsRow, Text, useAnnounce } from '@circi/ui'
 import { useRef, useState, type ChangeEvent } from 'react'
 
-import { workspaceLetter } from '#app/shell-model.ts'
 import { SaveNote } from '#lib/SaveNote.tsx'
 
 import { useSaveWorkspacePicture } from './api.ts'
@@ -10,7 +9,7 @@ import { pictureProblem } from './model.ts'
 import styles from './PictureRow.module.css'
 
 /**
- * The "Picture" row of the workspace's section: the picture (or its first letter), what it takes,
+ * The "Picture" row of the workspace's section: the picture (or its generated pattern), what it takes,
  * and Upload / Remove for owners and admins. The server checks the file again and resizes it.
  */
 export function PictureRow({ workspace, name, picture, canManage }: PictureRow.Props) {
@@ -34,9 +33,14 @@ export function PictureRow({ workspace, name, picture, canManage }: PictureRow.P
   return (
     <SettingsRow>
       <div className={styles.row}>
-        <span className={styles.logo} aria-hidden="true">
-          {picture ? <img src={picture} alt="" className={styles.image} /> : workspaceLetter(name)}
-        </span>
+        <Avatar
+          type="workspace"
+          slug={workspace}
+          name={name}
+          picture={picture}
+          size={48}
+          aria-hidden
+        />
         <div className={styles.text}>
           <Text>Picture</Text>
           {error ? (
@@ -46,7 +50,7 @@ export function PictureRow({ workspace, name, picture, canManage }: PictureRow.P
           ) : (
             <Text variant="small" tone="tertiary">
               At least 128 px on the short side; it's cropped to a square. PNG, JPEG or WebP up to 1
-              MB. Without one, CirCI shows the first letter.
+              MB.
             </Text>
           )}
           {save.isPending || save.isSuccess ? <SaveNote mutation={save} /> : null}

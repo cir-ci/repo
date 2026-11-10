@@ -21,7 +21,7 @@ export const jira = defineIntegration({
   id: 'jira',
   group: 'tracker',
   name: 'Jira',
-  description: 'Create an issue from a rejected snapshot, with the diff attached.',
+  description: 'Create an issue from a rejected screenshot, with the diff attached.',
   logo: 'jira',
   exclusive: { team: 'kind' },
   credentials: z.object({

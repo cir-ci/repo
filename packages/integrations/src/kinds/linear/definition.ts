@@ -20,7 +20,7 @@ export const linear = defineIntegration({
   id: 'linear',
   group: 'tracker',
   name: 'Linear',
-  description: 'Create an issue from a rejected snapshot, with the diff attached.',
+  description: 'Create an issue from a rejected screenshot, with the diff attached.',
   logo: 'linear',
   exclusive: { team: 'kind' },
   credentials: z.object({

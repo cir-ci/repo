@@ -26,7 +26,8 @@
   border-radius: var(--circi-radius-inline);
 }
 
-.root[data-type='team'][data-size='40'] {
+.root[data-type='team'][data-size='40'],
+.root[data-type='workspace'][data-size='48'] {
   border-radius: var(--circi-radius-panel);
 }
 

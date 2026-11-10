@@ -32,6 +32,7 @@ export const workspace = (
   id: 'w1',
   name: 'Acme',
   slug: 'acme',
+  picture: null,
   memberCount: 6,
   teamCount: 3,
   storageBytes: 1_500_000,

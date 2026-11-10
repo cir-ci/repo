@@ -44,6 +44,8 @@ export namespace InstanceAdmin {
     id: string
     name: string
     slug: string
+    /** Its uploaded picture's address; null when it has none. */
+    picture: string | null
     memberCount: number
     teamCount: number
     /** Bytes of the distinct files the workspace's builds refer to. */

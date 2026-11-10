@@ -40,7 +40,7 @@ export const figma = defineIntegration({
   id: 'figma',
   group: 'design',
   name: 'Figma',
-  description: 'Link snapshots to frames, compare with the design, and post results on frames.',
+  description: 'Link screenshots to frames, compare with the design, and post results on frames.',
   logo: 'figma',
   exclusive: { account: true },
   credentials: z.object({
@@ -115,7 +115,7 @@ export const figma = defineIntegration({
     kind: FIGMA_FRAME_LINK_KIND,
     label: 'Frame links',
     description:
-      'Link snapshots to the frames they implement. The frame shows in the build review, next to the snapshot.',
+      'Link screenshots to the frames they implement. The frame shows in the build review, next to the screenshot.',
     targetLabel: 'Frame',
     subject: 'pattern',
     fields: [

@@ -43,11 +43,15 @@ describe('WorkspaceGeneralPage', () => {
     expect(page.getByRole('button', { name: 'Remove' }).elements()).toHaveLength(0)
   })
 
+  // A 1×1 PNG the browser can load (the shared avatar draws the picture only once it has).
+  const PICTURE =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+
   it('shows the picture, replaces it and removes it', async () => {
     await page.viewport(1000, 900)
     const api = fakeApi({
       'GET /api/workspaces/acme': {
-        body: general(true, { picture: '/api/workspaces/acme/picture?v=abc' }),
+        body: general(true, { picture: PICTURE }),
       },
       'GET /api/workspaces/acme/settings': { body: settings() },
       'PUT /api/workspaces/acme/picture': {
@@ -57,7 +61,8 @@ describe('WorkspaceGeneralPage', () => {
     })
     await renderPage(<WorkspaceGeneralPage />, ROUTE)
     await expect.element(page.getByRole('button', { name: 'Replace picture' })).toBeVisible()
-    expect(document.querySelector('img[src="/api/workspaces/acme/picture?v=abc"]')).not.toBeNull()
+    // The avatar shows the picture once it has loaded.
+    await expect.poll(() => document.querySelector(`img[src="${PICTURE}"]`)).not.toBeNull()
 
     const input = document.querySelector<HTMLInputElement>('input[type="file"]')
     const file = new File([new Uint8Array([137, 80, 78, 71])], 'logo.png', { type: 'image/png' })

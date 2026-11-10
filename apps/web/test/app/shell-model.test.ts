@@ -20,7 +20,6 @@ import {
   TEAM_SETTINGS_PAGES,
   teamSettingsKey,
   teamSettingsPath,
-  workspaceLetter,
   switchWorkspacePath,
 } from '#app/shell-model.ts'
 
@@ -208,14 +207,6 @@ describe('isOutsideFrame', () => {
   it('is true only for the site sign-in handoff', () => {
     expect(isOutsideFrame('/_sso/site')).toBe(true)
     expect(isOutsideFrame('/acme/web')).toBe(false)
-  })
-})
-
-describe('workspace marks', () => {
-  it('uses the first letter, lower case', () => {
-    expect(workspaceLetter('Acme')).toBe('a')
-    expect(workspaceLetter('  side-project')).toBe('s')
-    expect(workspaceLetter('')).toBe('?')
   })
 })
 

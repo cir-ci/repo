@@ -28,7 +28,7 @@ export const INTEGRATION_CATALOG: readonly IntegrationCatalog.Entry[] = [
     kind: 'penpot',
     group: 'design',
     name: 'Penpot',
-    description: 'Link snapshots to Penpot boards.',
+    description: 'Link screenshots to Penpot boards.',
     status: 'planned',
   },
 ]

@@ -51,16 +51,7 @@
 }
 
 .tile {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  background: var(--circi-surface-highest);
-  color: var(--circi-text-primary);
-  font-size: 12px;
-  font-weight: 600;
+  flex: none;
 }
 
 .row[data-deleted] .tile {

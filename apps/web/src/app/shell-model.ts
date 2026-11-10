@@ -7,7 +7,7 @@ import type { Shortcut } from '#lib/shortcuts.ts'
 export interface WorkspaceRef {
   slug: string
   name: string
-  /** Where the workspace's picture is served from; absent or null: the first letter shows. */
+  /** Where the workspace's picture is served from; absent or null: the generated pattern shows. */
   picture?: string | null
 }
 
@@ -251,9 +251,6 @@ export function switchWorkspacePath(
 }
 
 const GLOBAL_ROOTS = new Set(['inbox', 'account', 'instance', 'integrations', '_sso'])
-
-/** The first letter of a workspace's name, lower case as on the canvas. */
-export const workspaceLetter = (name: string): string => name.trim()[0]?.toLowerCase() ?? '?'
 
 /** The settings pages of a team, in the order of the settings nav: `path` is what follows `/settings`. */
 export const TEAM_SETTINGS_PAGES = [

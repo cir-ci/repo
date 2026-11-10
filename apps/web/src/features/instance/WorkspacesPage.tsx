@@ -1,6 +1,7 @@
 import type { InstanceAdmin } from '@circi/api'
 import {
   AddCircleIcon,
+  Avatar,
   Badge,
   Banner,
   Button,
@@ -107,9 +108,15 @@ export function WorkspacesPage() {
               <ul className={rows.list} aria-label="Workspaces">
                 {data?.workspaces.map((w) => (
                   <li key={w.id} className={rows.row} data-deleted={w.deletedAt ? '' : undefined}>
-                    <span className={rows.tile} aria-hidden="true">
-                      {w.name.slice(0, 1).toUpperCase()}
-                    </span>
+                    <Avatar
+                      type="workspace"
+                      slug={w.slug}
+                      name={w.name}
+                      picture={w.picture}
+                      size={28}
+                      className={rows.tile}
+                      aria-hidden
+                    />
                     <span className={rows.name}>
                       <Text className={rows.title} tone={w.deletedAt ? 'secondary' : undefined}>
                         {w.name}

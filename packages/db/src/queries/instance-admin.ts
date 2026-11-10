@@ -1,3 +1,4 @@
+import { workspacePictureUrl } from '@circi/core'
 import {
   and,
   asc,
@@ -136,6 +137,8 @@ export namespace listInstanceWorkspaces {
     id: string
     name: string
     slug: string
+    /** Its uploaded picture's address; null when it has none. */
+    picture: string | null
     memberCount: number
     teamCount: number
     storageBytes: number
@@ -222,6 +225,7 @@ export async function listInstanceWorkspaces(
     id: w.id,
     name: w.name,
     slug: w.slug,
+    picture: workspacePictureUrl(w.slug, w.logo),
     memberCount: members.get(w.id) ?? 0,
     teamCount: teamCounts.get(w.id) ?? 0,
     storageBytes: bytes.get(w.id) ?? 0,

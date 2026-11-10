@@ -169,7 +169,7 @@ export namespace Avatar {
     slug: string
     /** The workspace's uploaded picture; null when it has none. */
     picture: string | null
-    size?: 16 | 20 | 24
+    size?: 16 | 20 | 24 | 28 | 48
   }
 
   export type Props = UserProps | TeamProps | WorkspaceProps
