@@ -387,7 +387,7 @@ export async function countOpenTriage(
 ): Promise<Map<string, number>> {
   const result: unknown = await db.execute(sql`
     with ws_teams as (
-      select id, default_branch from teams where workspace_id = ${input.workspaceId}
+      select id, default_branch, flaky_after_changes from teams where workspace_id = ${input.workspaceId}
     ),
     main_builds as (
       select b.id, b.team_id, b.number, b.status, b.baseline_source, b.review_status, b.conclusion
@@ -408,8 +408,10 @@ export async function countOpenTriage(
     found as (
       select recent.team_id, 'flaky'::text as kind, d.name as key
       from screenshot_diffs d join recent on recent.id = d.build_id
+      join ws_teams wt on wt.id = recent.team_id
       where d.status = 'changed'
-      group by recent.team_id, d.name having count(*) >= 3
+      group by recent.team_id, d.name, wt.flaky_after_changes
+      having count(*) >= wt.flaky_after_changes
       union
       select mb.team_id, 'no_baseline', d.name
       from screenshot_diffs d join main_builds mb on mb.id = d.build_id

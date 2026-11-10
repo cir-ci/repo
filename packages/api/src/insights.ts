@@ -34,6 +34,7 @@ export namespace Insights {
   export interface Reviewer {
     id: string
     name: string
+    image: string | null
     /** Requests waiting on them now. */
     openRequests: number
     /** Open requests past their due time now, plus ones they closed late in the range. */
@@ -56,5 +57,11 @@ export namespace Insights {
     weeks: Week[]
     storage: Storage
     reviewers: Reviewer[]
+    /** The review target the scope shares, in hours; null when there is none or teams differ. */
+    reviewTargetHours: number | null
+    /** Days of branch builds retention keeps: the shortest and longest of the scope's teams. */
+    retentionDays: { min: number; max: number } | null
+    /** Changes before a screenshot counts as flaky, when every team in the scope agrees. */
+    flakyAfterChanges: number | null
   }
 }

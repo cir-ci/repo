@@ -28,7 +28,18 @@ export function buildOutcome(b: buildOutcome.Input): buildOutcome.Result {
   }
 
   if (b.reviewStatus === 'rejected') return { state: 'fail', summary: 'Changes rejected' }
-  if (b.conclusion === 'no_changes') return { state: 'pass', summary: 'No visual changes' }
+  if (b.conclusion === 'no_changes') {
+    if (b.autoApproveNoChanges === false && b.reviewStatus !== 'approved') {
+      return b.blockMergeOnChanges
+        ? { state: 'fail', summary: 'No visual changes; waiting for approval' }
+        : {
+            state: 'pass',
+            summary: 'No visual changes',
+            warning: "Not approved yet; merges aren't blocked for this team",
+          }
+    }
+    return { state: 'pass', summary: 'No visual changes' }
+  }
   if (b.reviewStatus === 'approved') return { state: 'pass', summary: 'Changes approved' }
   if (b.flakyOnly && !b.flakyBlocksMerge) {
     return { state: 'pass', summary: 'Only flaky screenshots changed' }
@@ -48,6 +59,8 @@ export namespace buildOutcome {
     conclusion: string | null
     reviewStatus: string
     blockMergeOnChanges: boolean
+    /** Whether a build with no changes passes on its own (default: it does). */
+    autoApproveNoChanges?: boolean
     /** Every difference is a flaky screenshot (`onlyFlakyChanges`). */
     flakyOnly: boolean
     /** The effective setting (`resolveFlakyBlocksMerge`). */

@@ -16,7 +16,7 @@ export async function listFlakyScreenshots(
   teamId: string,
   options: {
     /** Recent default-branch builds to look at. Default 10. */ window?: number
-    /** Changed in at least this many. Default 3. */ minChanges?: number
+    /** Changed in at least this many. Default: the team's `flakyAfterChanges`. */ minChanges?: number
   } = {},
 ): Promise<{ builds: number; flaky: FlakyScreenshot[] }> {
   const [team] = await db.select().from(teams).where(eq(teams.id, teamId))
@@ -47,7 +47,7 @@ export async function listFlakyScreenshots(
       ),
     )
     .groupBy(screenshotDiffs.name)
-    .having(gte(count(), options.minChanges ?? 3))
+    .having(gte(count(), options.minChanges ?? team.flakyAfterChanges))
     .orderBy(desc(count()), screenshotDiffs.name)
   return { builds: recent.length, flaky: rows }
 }

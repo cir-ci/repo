@@ -149,6 +149,11 @@ async function notifyLocked(
       errorMessage: b.errorMessage,
       counts,
       flakyOnly: gate.flakyOnly,
+      ...(b.conclusion === 'no_changes' &&
+      !gate.autoApproveNoChanges &&
+      b.reviewStatus !== 'approved'
+        ? { awaitsApproval: true }
+        : {}),
       ...(b.status === 'complete' && b.conclusion === 'changes_detected'
         ? { review: await getBuildReviewSummary(deps.db, b.id) }
         : {}),

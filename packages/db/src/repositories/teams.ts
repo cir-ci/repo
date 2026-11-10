@@ -1,6 +1,8 @@
 import {
   assertBranchName,
   assertDiffThreshold,
+  assertFlakyAfterChanges,
+  assertSnoozeDefaultDays,
   assertRetentionDays,
   assertReviewTargetHours,
   assertTeamColor,
@@ -12,12 +14,12 @@ import {
   ValidationError,
   assertFound,
 } from '@circi/core'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 
 import { getTeamById, teamSettings } from '#queries/team-lookup.ts'
 import { getWorkspaceSettings } from '#queries/workspace-settings.ts'
 import { getWorkspaceBySlug } from '#queries/workspaces.ts'
-import { teams } from '#schema/index.ts'
+import { teamMembers, teams } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { ConflictError, isUniqueViolation } from '#src/errors.ts'
 import type { Team } from '#src/types.ts'
@@ -162,6 +164,42 @@ export async function updateTeamSettings(
     if (patch.reviewTargetHours !== null) assertReviewTargetHours(patch.reviewTargetHours)
     set.reviewTargetHours = patch.reviewTargetHours
   }
+  if (patch.reviewOverdueNotifyUserId !== undefined) {
+    if (patch.reviewOverdueNotifyUserId !== null) {
+      const [row] = await db
+        .select({ userId: teamMembers.userId })
+        .from(teamMembers)
+        .where(
+          and(
+            eq(teamMembers.teamId, teamId),
+            eq(teamMembers.userId, patch.reviewOverdueNotifyUserId),
+          ),
+        )
+      if (!row) {
+        throw new ValidationError('Choose a member of this team', {
+          fields: { reviewOverdueNotifyUserId: 'Choose a member of this team' },
+        })
+      }
+    }
+    set.reviewOverdueNotifyUserId = patch.reviewOverdueNotifyUserId
+  }
+  if (patch.flakyAfterChanges !== undefined) {
+    assertFlakyAfterChanges(patch.flakyAfterChanges)
+    set.flakyAfterChanges = patch.flakyAfterChanges
+  }
+  if (patch.snoozeDefaultDays !== undefined) {
+    assertSnoozeDefaultDays(patch.snoozeDefaultDays)
+    set.snoozeDefaultDays = patch.snoozeDefaultDays
+  }
+  if (patch.closeReviewsOnNewerBuild !== undefined) {
+    set.closeReviewsOnNewerBuild = patch.closeReviewsOnNewerBuild
+  }
+  if (patch.reRequestOnNewerBuild !== undefined) {
+    set.reRequestOnNewerBuild = patch.reRequestOnNewerBuild
+  }
+  if (patch.autoApproveNoChanges !== undefined)
+    set.autoApproveNoChanges = patch.autoApproveNoChanges
+  if (patch.requireRejectReason !== undefined) set.requireRejectReason = patch.requireRejectReason
   if (patch.autoApproveDefaultBranch !== undefined) {
     set.autoApproveDefaultBranch = patch.autoApproveDefaultBranch
   }

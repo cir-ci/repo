@@ -1,10 +1,12 @@
 import {
+  FLAKY_WINDOW,
   flakyNames,
   HOUR_MS,
   isOverdue,
   isSnoozed,
   median,
   percentile,
+  reviewDueAt,
   WEEK_MS,
   weeksBetween,
 } from '@circi/core'
@@ -63,6 +65,7 @@ export namespace getInsights {
   export interface Reviewer {
     id: string
     name: string
+    image: string | null
     openRequests: number
     overdue: number
     reviews: number
@@ -78,6 +81,12 @@ export namespace getInsights {
     weeks: getInsights.Week[]
     storage: { teams: { slug: string; name: string; bytes: number }[]; totalBytes: number }
     reviewers: getInsights.Reviewer[]
+    /** The review target the scope shares, in hours; null when there is none or teams differ. */
+    reviewTargetHours: number | null
+    /** Days of branch builds retention keeps: the shortest and longest of the scope's teams. */
+    retentionDays: { min: number; max: number } | null
+    /** Changes before a screenshot is flaky, when every team in the scope agrees; else null. */
+    flakyAfterChanges: number | null
   }
 }
 
@@ -113,6 +122,8 @@ export async function getInsights(
       name: teams.name,
       defaultBranch: teams.defaultBranch,
       reviewTargetHours: teams.reviewTargetHours,
+      retentionDays: teams.retentionDays,
+      flakyAfterChanges: teams.flakyAfterChanges,
     })
     .from(teams)
     .where(
@@ -147,7 +158,9 @@ export async function getInsights(
       buildsReviewed: inRange.length,
       reviewedOverTarget: inRange.filter((r) => {
         const target = targets.get(r.teamId)
-        return target !== null && target !== undefined && r.hours > target
+        // Counting working days, like the request's own due time.
+        const due = reviewDueAt(r.readyAt, target ?? null)
+        return due !== null && r.reviewedAt.getTime() > due.getTime()
       }).length,
       buildsFinished: done.length,
       buildsWithChanges: withChanges,
@@ -165,7 +178,7 @@ export async function getInsights(
     let flaky = 0
     for (const p of scoped) {
       const upTo = (history.get(p.id) ?? []).filter((b) => b.createdAt <= end)
-      flaky += flakyNames(upTo).length
+      flaky += flakyNames(upTo, FLAKY_WINDOW, p.flakyAfterChanges).length
     }
     return {
       weekStart: start,
@@ -184,7 +197,22 @@ export async function getInsights(
     weeks,
     storage: await storageByTeam(db, scoped),
     reviewers: await reviewerLoad(db, { workspaceId: found.id, teamIds, from, to, now }),
+    reviewTargetHours: shared(scoped.map((p) => p.reviewTargetHours)),
+    retentionDays:
+      scoped.length === 0
+        ? null
+        : {
+            min: Math.min(...scoped.map((p) => p.retentionDays)),
+            max: Math.max(...scoped.map((p) => p.retentionDays)),
+          },
+    flakyAfterChanges: shared(scoped.map((p) => p.flakyAfterChanges)),
   }
+}
+
+/** The one value every team has, or null when there are none or they differ. */
+function shared(values: (number | null)[]): number | null {
+  const first = values[0]
+  return first !== undefined && values.every((v) => v === first) ? first : null
 }
 
 /** Builds whose first human decision falls in `[from, to)`, with the wait before it. */
@@ -206,6 +234,7 @@ async function firstReviews(db: Database, teamIds: string[], from: Date, to: Dat
     return [
       {
         teamId: r.teamId,
+        readyAt: ready,
         reviewedAt: r.reviewedAt,
         hours: Math.max(0, r.reviewedAt.getTime() - ready.getTime()) / HOUR_MS,
       },
@@ -336,7 +365,7 @@ async function reviewerLoad(
   input: { workspaceId: string; teamIds: string[]; from: Date; to: Date; now: Date },
 ): Promise<getInsights.Reviewer[]> {
   const members = await db
-    .select({ id: user.id, name: user.name })
+    .select({ id: user.id, name: user.name, image: user.image })
     .from(member)
     .innerJoin(user, eq(user.id, member.userId))
     .where(eq(member.workspaceId, input.workspaceId))

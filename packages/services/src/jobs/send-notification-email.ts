@@ -54,8 +54,12 @@ function compose(data: getNotificationEmailData.Data, origin: string) {
   const subject = overdue
     ? `Review overdue: ${what}`
     : `${actorName ?? 'CirCI'} ${again ? 'asked you to review again' : 'asked you to review'}: ${what}`
+  // A copy to the person the team named: the reviewer is the actor.
+  const copied = overdue && data.notification.payload['cc'] === true
   const lead = overdue
-    ? `Your review of ${what} is overdue.`
+    ? copied
+      ? `${actorName ?? 'A reviewer'}'s review of ${what} is overdue.`
+      : `Your review of ${what} is overdue.`
     : `${actorName ?? 'CirCI'} asked you to review ${what}${again ? ' again' : ''}.`
   return {
     subject,

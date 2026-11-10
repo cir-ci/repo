@@ -13,7 +13,7 @@ import { fakeSha } from '@circi/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { getInsights } from '#src/queries/index.ts'
-import { createTeam } from '#src/repositories/index.ts'
+import { createTeam, updateTeamSettings } from '#src/repositories/index.ts'
 import * as schemaTables from '#src/schema/index.ts'
 
 let t: createTestDb.Result
@@ -206,6 +206,7 @@ describe('getInsights', () => {
         {
           id: owner.id,
           name: owner.name,
+          image: null,
           openRequests: 1,
           overdue: 1,
           reviews: 2,
@@ -215,6 +216,7 @@ describe('getInsights', () => {
         {
           id: mia.id,
           name: mia.name,
+          image: null,
           openRequests: 0,
           overdue: 1,
           reviews: 2,
@@ -307,6 +309,40 @@ describe('getInsights', () => {
     })
     expect(r?.storage.teams).toEqual([{ slug: 'docs', name: 'docs', bytes: 1000 }])
     expect(r?.weeks.map((w) => w.flaky)).toEqual([0, 0])
+  })
+
+  it("reports the scope's review target, retention and flaky threshold when its teams agree", async () => {
+    const { team, workspace, owner } = await seedTeam(t.db)
+    const other = await seedTeam(t.db, { workspace: { workspace, owner }, slug: 'docs' })
+    const ask = (teamSlug?: string) =>
+      getInsights(t.db, {
+        userId: owner.id,
+        workspaceSlug: workspace.slug,
+        ...(teamSlug ? { teamSlug } : {}),
+        ...range,
+      })
+    expect(await ask()).toMatchObject({
+      reviewTargetHours: 24,
+      retentionDays: { min: 30, max: 30 },
+      flakyAfterChanges: 3,
+    })
+    await updateTeamSettings(t.db, other.team.id, {
+      reviewTargetHours: null,
+      retentionDays: 90,
+      flakyAfterChanges: 5,
+    })
+    // Teams that differ have no shared target or threshold; retention shows its span.
+    expect(await ask()).toMatchObject({
+      reviewTargetHours: null,
+      retentionDays: { min: 30, max: 90 },
+      flakyAfterChanges: null,
+    })
+    expect(await ask(team.slug)).toMatchObject({ reviewTargetHours: 24, flakyAfterChanges: 3 })
+    expect(await ask('docs')).toMatchObject({
+      reviewTargetHours: null,
+      retentionDays: { min: 90, max: 90 },
+      flakyAfterChanges: 5,
+    })
   })
 
   it('is undefined for a stranger, another workspace or an unknown team', async () => {

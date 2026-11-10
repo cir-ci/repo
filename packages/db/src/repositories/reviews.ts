@@ -9,6 +9,7 @@ import {
   reviews,
   screenshotDiffs,
   snapshotReviews,
+  teams,
   user,
 } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
@@ -44,6 +45,15 @@ export async function recordSnapshotReviews(
       )
     }
     if (build.conclusion !== 'changes_detected') {
+      const [team] = await tx
+        .select({ autoApprove: teams.autoApproveNoChanges })
+        .from(teams)
+        .where(eq(teams.id, build.teamId))
+      // A team that doesn't approve no-change builds on their own has them decided by a person:
+      // there are no snapshots to decide, so the decision is the build's.
+      if (build.conclusion === 'no_changes' && team && !team.autoApprove) {
+        return decideBuildWithoutChanges(tx, build, input)
+      }
       throw new ConflictError(`Build #${build.number} has no changes to review`)
     }
     const changed = await listChangedSnapshotNames(tx, build.id)
@@ -198,6 +208,43 @@ async function currentDecisions(db: Database, buildId: string) {
     .from(snapshotReviews)
     .where(and(eq(snapshotReviews.buildId, buildId), isNull(snapshotReviews.supersededAt)))
   return new Map(rows.map((r) => [r.snapshotName, { decision: r.decision, reason: r.reason }]))
+}
+
+/** A person's approval or rejection of a build with no changes (see `recordSnapshotReviews`). */
+async function decideBuildWithoutChanges(
+  db: Database,
+  build: Build,
+  input: recordSnapshotReviews.Input,
+): Promise<recordSnapshotReviews.Result> {
+  const previousStatus = build.reviewStatus
+  if (input.decision === previousStatus) {
+    return { build, changed: false, previousStatus, decided: [], reviewerName: null, reasons: [] }
+  }
+  const reason = input.decision === 'rejected' ? input.reason || null : null
+  const [updated] = await db
+    .update(builds)
+    .set({ reviewStatus: input.decision })
+    .where(eq(builds.id, build.id))
+    .returning()
+  if (!updated) throw new Error('update returned no row')
+  await db.insert(reviews).values({
+    buildId: build.id,
+    userId: input.userId,
+    state: input.decision,
+    source: input.source ?? 'ui',
+    reason,
+  })
+  const [reviewer] = input.userId
+    ? await db.select({ name: user.name }).from(user).where(eq(user.id, input.userId))
+    : []
+  return {
+    build: updated,
+    changed: true,
+    previousStatus,
+    decided: [],
+    reviewerName: reviewer?.name ?? null,
+    reasons: reason ? [reason] : [],
+  }
 }
 
 /**

@@ -29,6 +29,33 @@ export function assertReviewTargetHours(hours: number): void {
   }
 }
 
+/** Most days a snoozed item may stay away by default (a month). */
+export const MAX_SNOOZE_DEFAULT_DAYS = 30
+/** Most changes a team may ask for before a screenshot counts as flaky: the whole window. */
+export const MAX_FLAKY_AFTER_CHANGES = 10
+
+/** Refuses a snooze default that is not a whole number of days from 1 to 30. */
+export function assertSnoozeDefaultDays(days: number): void {
+  if (!Number.isInteger(days) || days < 1 || days > MAX_SNOOZE_DEFAULT_DAYS) {
+    throw new ValidationError(
+      `Snoozed items can come back after 1 to ${MAX_SNOOZE_DEFAULT_DAYS} days`,
+      {
+        fields: { snoozeDefaultDays: `Between 1 and ${MAX_SNOOZE_DEFAULT_DAYS} days` },
+      },
+    )
+  }
+}
+
+/** Refuses a flaky threshold that is not a whole number of changes from 1 to the 10-build window. */
+export function assertFlakyAfterChanges(changes: number): void {
+  if (!Number.isInteger(changes) || changes < 1 || changes > MAX_FLAKY_AFTER_CHANGES) {
+    throw new ValidationError(
+      `A screenshot is flaky after 1 to ${MAX_FLAKY_AFTER_CHANGES} changes`,
+      { fields: { flakyAfterChanges: `Between 1 and ${MAX_FLAKY_AFTER_CHANGES} changes` } },
+    )
+  }
+}
+
 /**
  * The diff threshold is stored, and taken by the API, as a share (0 to 1); the dashboard shows
  * it as a percentage and has its own message for that.

@@ -17,6 +17,14 @@ export const settingsBody = z
     retentionDays: z.number(),
     /** null: no review target. */
     reviewTargetHours: z.number().nullable(),
+    /** null: nobody besides the reviewer. */
+    reviewOverdueNotifyUserId: z.string().min(1).nullable(),
+    closeReviewsOnNewerBuild: z.boolean(),
+    reRequestOnNewerBuild: z.boolean(),
+    autoApproveNoChanges: z.boolean(),
+    requireRejectReason: z.boolean(),
+    flakyAfterChanges: z.number(),
+    snoozeDefaultDays: z.number(),
     staticHostingEnabled: z.boolean(),
   })
   .partial()

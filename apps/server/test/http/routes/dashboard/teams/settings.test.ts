@@ -111,6 +111,13 @@ describe('team settings', () => {
       diffThreshold: 0,
       retentionDays: 30,
       reviewTargetHours: 24,
+      closeReviewsOnNewerBuild: true,
+      reRequestOnNewerBuild: false,
+      autoApproveNoChanges: true,
+      requireRejectReason: false,
+      flakyAfterChanges: 3,
+      snoozeDefaultDays: 7,
+      reviewOverdueNotifyUserId: null,
     })
     const member = (await call('GET', `${base()}/settings`, memberCookie)).json()
     expect(member.canManage).toBe(false)
@@ -156,11 +163,14 @@ describe('team settings', () => {
         { defaultBranch: '  ' },
         { ciKeyId: 'x' },
         { reviewTargetHours: 0 },
+        { flakyAfterChanges: 11 },
+        { snoozeDefaultDays: 0 },
+        { reviewOverdueNotifyUserId: 'nobody' },
       ].map(
         async (body) => (await call('PATCH', `${base()}/settings`, ownerCookie, body)).statusCode,
       ),
     )
-    expect(codes).toEqual([400, 400, 400, 400, 400])
+    expect(codes).toEqual([400, 400, 400, 400, 400, 400, 400, 400])
   })
 
   it('names the unit the API takes when the threshold is out of range', async () => {
@@ -178,6 +188,38 @@ describe('team settings', () => {
     })
     expect(cleared.json().settings.reviewTargetHours).toBeNull()
     await call('PATCH', `${base()}/settings`, ownerCookie, { reviewTargetHours: 24 })
+  })
+
+  it('saves the review automation, the flaky threshold and the snooze default', async () => {
+    const res = await call('PATCH', `${base()}/settings`, ownerCookie, {
+      closeReviewsOnNewerBuild: false,
+      reRequestOnNewerBuild: true,
+      autoApproveNoChanges: false,
+      requireRejectReason: true,
+      flakyAfterChanges: 5,
+      snoozeDefaultDays: 14,
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().settings).toMatchObject({
+      closeReviewsOnNewerBuild: false,
+      reRequestOnNewerBuild: true,
+      autoApproveNoChanges: false,
+      requireRejectReason: true,
+      flakyAfterChanges: 5,
+      snoozeDefaultDays: 14,
+    })
+    const denied = await call('PATCH', `${base()}/settings`, memberCookie, {
+      requireRejectReason: false,
+    })
+    expect(denied.statusCode).toBe(403)
+    await call('PATCH', `${base()}/settings`, ownerCookie, {
+      closeReviewsOnNewerBuild: true,
+      reRequestOnNewerBuild: false,
+      autoApproveNoChanges: true,
+      requireRejectReason: false,
+      flakyAfterChanges: 3,
+      snoozeDefaultDays: 7,
+    })
   })
 
   it('lets a team inherit the workspace on flaky screenshots, or set its own', async () => {

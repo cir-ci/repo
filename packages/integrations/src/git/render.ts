@@ -20,6 +20,8 @@ export interface ReportedBuild {
   }
   /** Every change is a flaky screenshot (only looked up while flaky ones don't block). */
   flakyOnly?: boolean
+  /** A build with no changes that its team approves by hand and nobody has approved yet. */
+  awaitsApproval?: boolean
   /** How far the review has come, once the build has changes to review. */
   review?: ReportedReview
   /** Dashboard address of the build page. */
@@ -108,6 +110,18 @@ export function checkReport(
       status: 'in_progress',
       title: 'Processing screenshots…',
       summary: link,
+    }
+  }
+  if (build.conclusion !== 'changes_detected' && build.awaitsApproval) {
+    return {
+      ...base,
+      actions: [
+        { identifier: 'approve' as const, label: 'Approve', description: 'Accept this build' },
+      ],
+      status: 'completed',
+      conclusion: options.blockMergeOnChanges ? 'action_required' : 'success',
+      title: 'No visual changes: approval required',
+      summary: `${plural(build.counts.total, 'screenshot')} compared, none differ. This team approves builds by hand.\n\n${link}`,
     }
   }
   if (build.conclusion !== 'changes_detected') {

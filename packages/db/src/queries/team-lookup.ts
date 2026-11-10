@@ -130,6 +130,20 @@ export namespace teamSettings {
     retentionDays: number
     /** Hours a review request may wait before it is overdue; null means no review target. */
     reviewTargetHours: number | null
+    /** Also told when a review request misses its target (a team member); null: nobody. */
+    reviewOverdueNotifyUserId: string | null
+    /** A newer build on a branch closes the older builds' review requests. */
+    closeReviewsOnNewerBuild: boolean
+    /** A newer build asks the people the older build's requests asked, again. */
+    reRequestOnNewerBuild: boolean
+    /** A build with no changes passes without anyone approving it. */
+    autoApproveNoChanges: boolean
+    /** Rejecting needs a written reason. */
+    requireRejectReason: boolean
+    /** A screenshot is flaky after this many changes in the last 10 default-branch builds. */
+    flakyAfterChanges: number
+    /** Days a snoozed triage item stays away when the snooze names no date. */
+    snoozeDefaultDays: number
     /** Whether CI may upload static sites for this team (needs `STATIC_SITES_HOST`). */
     staticHostingEnabled: boolean
   }
@@ -146,6 +160,13 @@ export function teamSettings(team: Team): teamSettings.Settings {
     flakyBlocksMerge: team.flakyBlocksMerge,
     retentionDays: team.retentionDays,
     reviewTargetHours: team.reviewTargetHours,
+    reviewOverdueNotifyUserId: team.reviewOverdueNotifyUserId,
+    closeReviewsOnNewerBuild: team.closeReviewsOnNewerBuild,
+    reRequestOnNewerBuild: team.reRequestOnNewerBuild,
+    autoApproveNoChanges: team.autoApproveNoChanges,
+    requireRejectReason: team.requireRejectReason,
+    flakyAfterChanges: team.flakyAfterChanges,
+    snoozeDefaultDays: team.snoozeDefaultDays,
     staticHostingEnabled: team.staticHostingEnabled,
   }
 }

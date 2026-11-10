@@ -43,6 +43,7 @@ import { notify } from '#src/notifications/notifications.ts'
 export async function reviewSnapshots(db: Database, input: reviewSnapshots.Input): Promise<Build> {
   return db.transaction(async (tx) => {
     const { reason, userId, ...decision } = input
+    await assertRejectReason(tx, input)
     const { build, changed, decided, reasons, reviewerName } = await recordSnapshotReviews(tx, {
       ...decision,
       userId,
@@ -100,6 +101,23 @@ export async function reviewSnapshots(db: Database, input: reviewSnapshots.Input
     return build
   })
 }
+/**
+ * A team that asks for a reason when someone rejects refuses a rejection from the dashboard
+ * (or the API) without one. A code host's approve and reject buttons and comment commands have
+ * nowhere to write a reason, so they are exempt.
+ */
+async function assertRejectReason(db: Database, input: reviewSnapshots.Input): Promise<void> {
+  if (input.decision !== 'rejected' || input.reason?.trim()) return
+  if (input.source !== undefined && input.source !== 'ui') return
+  const build = await getBuild(db, input.buildId)
+  const team = build ? await getTeamById(db, build.teamId) : undefined
+  if (team?.requireRejectReason) {
+    throw new ValidationError('Add a reason for rejecting', {
+      fields: { reason: 'Add a reason for rejecting' },
+    })
+  }
+}
+
 export namespace reviewSnapshots {
   export interface Input {
     buildId: string
@@ -305,18 +323,22 @@ export namespace nudgeReviewRequest {
 
 /**
  * Tells a reviewer they were asked. It is a re-request when they had a request for this build
- * before that has since closed. `actorId` is null when the system asked (a rule or the rotation).
+ * before that has since closed, or when the caller says so (`again`: the same reviewer was asked
+ * about an older build of the branch). `actorId` is null when the system asked (a rule or the rotation).
  */
 export async function notifyReviewRequested(
   db: Database,
   request: ReviewRequest,
   actorId: string | null,
+  options: { again?: boolean } = {},
 ): Promise<void> {
-  const again = await hasClosedReviewRequest(db, {
-    buildId: request.buildId,
-    reviewerId: request.reviewerId,
-    exceptId: request.id,
-  })
+  const again =
+    options.again ??
+    (await hasClosedReviewRequest(db, {
+      buildId: request.buildId,
+      reviewerId: request.reviewerId,
+      exceptId: request.id,
+    }))
   await notify(db, {
     userId: request.reviewerId,
     kind: again ? 'review_re_requested' : 'review_requested',
@@ -433,7 +455,7 @@ export async function unsnoozeReviewRequest(
  * Tells reviewers their request is overdue: once per request, ever. A request qualifies when it
  * is open, past `due_at`, not snoozed, and no `review_overdue` notification for it exists yet
  * (the notification's `requestId` is the memory, so a deleted or read notice is not re-sent).
- * Returns how many reviewers were told.
+ * The team's overdue contact, when it has one, is told too. Returns how many reviewers were told.
  */
 export async function notifyOverdueReviews(
   db: Database,
@@ -461,6 +483,27 @@ export async function notifyOverdueReviews(
           overdueByMs: request.dueAt ? now.getTime() - request.dueAt.getTime() : 0,
         },
       })
+      // The team can name someone who is also told when a request misses its target.
+      // eslint-disable-next-line no-await-in-loop -- one transaction, one connection
+      const build = await getBuild(tx, request.buildId)
+      // eslint-disable-next-line no-await-in-loop -- one transaction, one connection
+      const team = build ? await getTeamById(tx, build.teamId) : undefined
+      const ccId = team?.reviewOverdueNotifyUserId ?? null
+      if (ccId && ccId !== request.reviewerId) {
+        // eslint-disable-next-line no-await-in-loop -- one transaction, one connection
+        await notify(tx, {
+          userId: ccId,
+          kind: 'review_overdue',
+          buildId: request.buildId,
+          actorId: request.reviewerId,
+          payload: {
+            requestId: request.id,
+            cc: true,
+            dueAt: request.dueAt?.toISOString() ?? null,
+            overdueByMs: request.dueAt ? now.getTime() - request.dueAt.getTime() : 0,
+          },
+        })
+      }
       // eslint-disable-next-line no-await-in-loop -- one transaction, one connection
       await queueIntegrationEvent(tx, {
         type: 'review.overdue',

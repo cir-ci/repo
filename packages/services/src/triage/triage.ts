@@ -1,7 +1,8 @@
-import { NotFoundError, type SnoozeChoice, snoozeUntil } from '@circi/core'
+import { HOUR_MS, NotFoundError, type SnoozeChoice, snoozeUntil } from '@circi/core'
 import { type Database } from '@circi/db'
 import {
   getBuildByNumber,
+  getTeamById,
   type IgnoreRegionRow,
   latestDefaultBranchBuildNumber,
 } from '@circi/db/queries'
@@ -33,25 +34,32 @@ export async function assignTriage(
 
 /**
  * Puts an item off. `date` is the end for `choice: 'date'`; `next_push` ends when a new build
- * arrives on the default branch. Returns the stored item and when the snooze ends (null for
- * `next_push`).
+ * arrives on the default branch. Without a choice, or a `date` choice with no date, the snooze
+ * lasts the team's default (`snoozeDefaultDays`). Returns the stored item and when the snooze
+ * ends (null for `next_push`).
  */
 export async function snoozeTriage(
   db: Database,
-  input: TriageItem.Ref & { choice: SnoozeChoice; date?: Date | null; now?: Date },
+  input: TriageItem.Ref & { choice?: SnoozeChoice; date?: Date | null; now?: Date },
 ): Promise<{ item: TriageItem.Row; until: Date | null }> {
-  const until = snoozeUntil(input.choice, input.now ?? new Date(), input.date)
+  const now = input.now ?? new Date()
+  const choice = input.choice ?? 'date'
+  let date = input.date
+  if (choice === 'date' && !date) {
+    const team = await getTeamById(db, input.teamId)
+    if (!team) throw new NotFoundError('Team not found')
+    date = new Date(now.getTime() + team.snoozeDefaultDays * 24 * HOUR_MS)
+  }
+  const until = snoozeUntil(choice, now, date)
   return db.transaction(async (tx) => {
     const item = await snoozeTriageItem(tx, {
       teamId: input.teamId,
       kind: input.kind,
       key: input.key,
-      snoozeKind: input.choice,
+      snoozeKind: choice,
       snoozedUntil: until,
       snoozedAfterBuild:
-        input.choice === 'next_push'
-          ? await latestDefaultBranchBuildNumber(tx, input.teamId)
-          : null,
+        choice === 'next_push' ? await latestDefaultBranchBuildNumber(tx, input.teamId) : null,
     })
     return { item, until }
   })

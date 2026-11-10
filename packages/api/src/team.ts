@@ -113,6 +113,20 @@ export namespace Team {
     retentionDays: number
     /** Hours a review request may wait before it is overdue; null means no review target. */
     reviewTargetHours: number | null
+    /** A team member also told when a request misses its target; null: nobody. */
+    reviewOverdueNotifyUserId: string | null
+    /** A newer build on a branch closes the older builds' review requests. */
+    closeReviewsOnNewerBuild: boolean
+    /** A newer build asks the people the older build's requests asked, again. */
+    reRequestOnNewerBuild: boolean
+    /** A build with no changes passes without anyone approving it. */
+    autoApproveNoChanges: boolean
+    /** Rejecting needs a written reason. */
+    requireRejectReason: boolean
+    /** A screenshot is flaky after this many changes in the last 10 default-branch builds. */
+    flakyAfterChanges: number
+    /** Days a snoozed triage item stays away when the snooze names no date. */
+    snoozeDefaultDays: number
     staticHostingEnabled: boolean
   }
 

@@ -1,4 +1,9 @@
-import { DEFAULT_TEAM_RETENTION_DAYS, TEAM_COLORS, type TeamColor } from '@circi/core'
+import {
+  DEFAULT_TEAM_RETENTION_DAYS,
+  FLAKY_MIN_CHANGES,
+  TEAM_COLORS,
+  type TeamColor,
+} from '@circi/core'
 import { sql } from 'drizzle-orm'
 import {
   boolean,
@@ -48,6 +53,22 @@ export const teams = pgTable(
     retentionDays: integer('retention_days').notNull().default(DEFAULT_TEAM_RETENTION_DAYS),
     /** Hours a review request may wait before it is overdue; null means no review target. */
     reviewTargetHours: integer('review_target_hours').default(24),
+    /** Who is also told when a review request misses its target (null: nobody besides the reviewer). */
+    reviewOverdueNotifyUserId: text('review_overdue_notify_user_id').references(() => user.id, {
+      onDelete: 'set null',
+    }),
+    /** A newer build on a branch closes the older builds' review requests (superseded). */
+    closeReviewsOnNewerBuild: boolean('close_reviews_on_newer_build').notNull().default(true),
+    /** A newer build asks the people the older build's closed requests asked, as a re-request. */
+    reRequestOnNewerBuild: boolean('re_request_on_newer_build').notNull().default(false),
+    /** A build with no changes passes without anyone approving it. */
+    autoApproveNoChanges: boolean('auto_approve_no_changes').notNull().default(true),
+    /** Rejecting needs a written reason. */
+    requireRejectReason: boolean('require_reject_reason').notNull().default(false),
+    /** A screenshot is flaky after this many changes in the last `FLAKY_WINDOW` builds. */
+    flakyAfterChanges: integer('flaky_after_changes').notNull().default(FLAKY_MIN_CHANGES),
+    /** Days a snoozed item stays away when the snooze names no date. */
+    snoozeDefaultDays: integer('snooze_default_days').notNull().default(7),
     /**
      * The first week of the triage rotation (any moment in it); null when the team has no
      * rotation. Who is on triage comes from `triage_rotation_members` in this order.
@@ -63,6 +84,8 @@ export const teams = pgTable(
     check('teams_diff_threshold_check', sql`${t.diffThreshold} >= 0 and ${t.diffThreshold} <= 1`),
     check('teams_color_check', inList('color', TEAM_COLORS)),
     check('teams_retention_days_check', sql`${t.retentionDays} >= 1`),
+    check('teams_flaky_after_changes_check', sql`${t.flakyAfterChanges} between 1 and 10`),
+    check('teams_snooze_default_days_check', sql`${t.snoozeDefaultDays} between 1 and 30`),
     check(
       'teams_review_target_hours_check',
       sql`${t.reviewTargetHours} is null or ${t.reviewTargetHours} >= 1`,

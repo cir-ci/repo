@@ -27,6 +27,7 @@ export async function gateInputs(
     build.reviewStatus === 'pending'
   return {
     blockMergeOnChanges: team.blockMergeOnChanges,
+    autoApproveNoChanges: team.autoApproveNoChanges,
     flakyBlocksMerge,
     flakyOnly: reviewable && !flakyBlocksMerge ? await buildChangesAreFlakyOnly(db, build) : false,
   }
@@ -35,6 +36,8 @@ export async function gateInputs(
 export namespace gateInputs {
   export interface Result {
     blockMergeOnChanges: boolean
+    /** Whether a build with no changes passes on its own. */
+    autoApproveNoChanges: boolean
     /** The effective setting for this team. */
     flakyBlocksMerge: boolean
     /** Every change in the build is a flaky screenshot. Only looked up when it can matter. */

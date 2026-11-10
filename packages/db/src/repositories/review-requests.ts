@@ -46,6 +46,7 @@ export async function openReviewRequest(
         conclusion: builds.conclusion,
         workspaceId: teams.workspaceId,
         teamId: teams.id,
+        autoApproveNoChanges: teams.autoApproveNoChanges,
       })
       .from(builds)
       .innerJoin(teams, eq(teams.id, builds.teamId))
@@ -55,7 +56,8 @@ export async function openReviewRequest(
     if (build.status === 'error' || build.status === 'expired') {
       throw new ConflictError(`Build #${build.number} is ${build.status}; it can't be reviewed`)
     }
-    if (build.conclusion === 'no_changes') {
+    // A team that approves no-change builds by hand asks for reviews of them like any other.
+    if (build.conclusion === 'no_changes' && build.autoApproveNoChanges) {
       throw new ConflictError(`Build #${build.number} has no changes to review`)
     }
     const [reviewer] = await tx

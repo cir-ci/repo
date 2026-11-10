@@ -46,6 +46,7 @@ describe('gateInputs', () => {
     const { build } = await flakyPr()
     expect(await gateInputs(t.db, build)).toEqual({
       blockMergeOnChanges: true,
+      autoApproveNoChanges: true,
       flakyBlocksMerge: true,
       flakyOnly: false, // not looked up while it cannot matter
     })

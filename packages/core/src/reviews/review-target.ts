@@ -4,13 +4,36 @@
  */
 
 const HOUR_MS = 3_600_000
+const DAY_MS = 24 * HOUR_MS
 
 /**
- * When a request made at `from` is due under a team's target of `targetHours`. Null when the
- * team has no review target, so nothing it asks for can become overdue.
+ * When a request made at `from` is due under a team's target of `targetHours`, counting working
+ * days: Saturday and Sunday (UTC) don't count, so 24 hours from Friday 16:00 is Monday 16:00.
+ * Null when the team has no review target, so nothing it asks for can become overdue.
  */
 export function reviewDueAt(from: Date, targetHours: number | null): Date | null {
-  return targetHours === null ? null : new Date(from.getTime() + targetHours * HOUR_MS)
+  if (targetHours === null) return null
+  let cursor = from.getTime()
+  let left = targetHours * HOUR_MS
+  while (left > 0) {
+    const day = new Date(cursor).getUTCDay()
+    const midnight = Date.UTC(
+      new Date(cursor).getUTCFullYear(),
+      new Date(cursor).getUTCMonth(),
+      new Date(cursor).getUTCDate(),
+    )
+    if (day === 6 || day === 0) {
+      // Weekend: skip to the next Monday 00:00.
+      cursor = midnight + (day === 6 ? 2 : 1) * DAY_MS
+      continue
+    }
+    // Working time left before Saturday 00:00.
+    const untilWeekend = midnight + (6 - day) * DAY_MS - cursor
+    const step = Math.min(left, untilWeekend)
+    cursor += step
+    left -= step
+  }
+  return new Date(cursor)
 }
 
 /**

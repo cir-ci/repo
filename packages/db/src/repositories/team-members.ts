@@ -61,8 +61,8 @@ export async function addTeamMembers(
 }
 
 /**
- * Takes the person off the team's review rules, the triage rotation and the assignments of its
- * triage items. Past reviews, comments and review requests stay as they are. A rotation that
+ * Takes the person off the team's review rules, the triage rotation, its overdue notice and the
+ * assignments of its triage items. Past reviews, comments and review requests stay as they are. A rotation that
  * loses its last person is switched off.
  */
 async function dropTeamReferences(db: Database, teamIds: string[], userId: string): Promise<void> {
@@ -94,6 +94,10 @@ async function dropTeamReferences(db: Database, teamIds: string[], userId: strin
         ),
       )
   }
+  await db
+    .update(teams)
+    .set({ reviewOverdueNotifyUserId: null })
+    .where(and(eq(teams.reviewOverdueNotifyUserId, userId), inArray(teams.id, teamIds)))
   await db
     .update(triageItems)
     .set({ assigneeId: null })

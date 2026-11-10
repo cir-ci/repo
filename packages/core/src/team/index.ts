@@ -37,10 +37,14 @@ export {
 export {
   assertBranchName,
   assertDiffThreshold,
+  assertFlakyAfterChanges,
   assertRetentionDays,
   assertReviewTargetHours,
+  assertSnoozeDefaultDays,
   branchNameProblem,
+  MAX_FLAKY_AFTER_CHANGES,
   MAX_RETENTION_DAYS,
+  MAX_SNOOZE_DEFAULT_DAYS,
   MAX_REVIEW_TARGET_HOURS,
 } from './team-settings-rules.ts'
 export { ownSignInRefusal, type OwnSignInMethod, type SignInSwitches } from './own-sign-in.ts'

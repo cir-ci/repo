@@ -49,7 +49,12 @@ export function notificationText(item: Inbox.Item): { title: string; detail?: st
     mentioned: { title: `${who} mentioned you on${build}`, detail: text(item.payload['snippet']) },
     build_approved: { title: `${who} approved${build}` },
     build_rejected: { title: `${who} rejected${build}`, detail: text(item.payload['reason']) },
-    review_overdue: { title: `Your review of${build} is overdue` },
+    review_overdue: {
+      title:
+        item.payload['cc'] === true
+          ? `${who}'s review of${build} is overdue`
+          : `Your review of${build} is overdue`,
+    },
     connection_needs_attention: {
       title: `${item.team?.name ?? 'A team'}'s git connection needs attention`,
     },

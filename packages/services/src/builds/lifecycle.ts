@@ -1,6 +1,6 @@
 import { reviewDueAt, reviewersForBuild, rotationFor } from '@circi/core'
-import { type Build, type Database, type ReviewRequest } from '@circi/db'
-import { getTeamById, listStalledBuilds } from '@circi/db/queries'
+import { type Build, type Database, type ReviewRequest, type Team } from '@circi/db'
+import { getTeamById, isTeamMember, listStalledBuilds } from '@circi/db/queries'
 import { enqueueJob, QUEUES, queueGitNotify, queueWebhookEvent } from '@circi/db/queue'
 import {
   closeReviewRequestsForBuild,
@@ -50,16 +50,23 @@ export async function finalizeBuild(
         dedupeKey: result.build.id,
       })
       await queueGitNotify(tx, result.build, integrationRegistry.gitKinds())
-      // A newer build on the branch replaces the older builds' review requests.
-      if (result.build.branch !== null) {
-        const superseded = await supersedeReviewRequests(tx, {
+      const team = await getTeamById(tx, result.build.teamId)
+      let superseded: ReviewRequest[] = []
+      // A newer build on the branch replaces the older builds' review requests (unless the team
+      // keeps them open).
+      if (team?.closeReviewsOnNewerBuild !== false && result.build.branch !== null) {
+        superseded = await supersedeReviewRequests(tx, {
           teamId: result.build.teamId,
           branch: result.build.branch,
           beforeNumber: result.build.number,
         })
         await clearRequestNotices(tx, superseded)
       }
-      await requestRuleReviewers(tx, result.build, options.now ?? new Date())
+      if (team) {
+        await requestRuleReviewers(tx, team, result.build, options.now ?? new Date(), {
+          reRequest: team.reRequestOnNewerBuild ? superseded : [],
+        })
+      }
     }
     return result
   })
@@ -69,9 +76,13 @@ export async function finalizeBuild(
  * name for this build, once each. A build no rule matches goes to whoever is on triage this
  * week, if the team has a rotation; with neither, nobody is asked.
  */
-async function requestRuleReviewers(db: Database, build: Build, now: Date): Promise<void> {
-  const team = await getTeamById(db, build.teamId)
-  if (!team) return
+async function requestRuleReviewers(
+  db: Database,
+  team: Team,
+  build: Build,
+  now: Date,
+  options: { reRequest: ReviewRequest[] },
+): Promise<void> {
   const rules = await listRulesForResolution(db, team.id)
   let reviewerIds =
     rules.length === 0
@@ -86,6 +97,19 @@ async function requestRuleReviewers(db: Database, build: Build, now: Date): Prom
     reviewerIds = onTriage ? [onTriage] : []
   }
   const dueAt = reviewDueAt(now, team.reviewTargetHours)
+  // The people the closed requests asked, again (with the team's setting), if they still belong
+  // to the team and didn't write the build.
+  const again = new Set<string>()
+  for (const old of options.reRequest) {
+    const notAuthor = old.reviewerId !== build.authorUserId
+    // eslint-disable-next-line no-await-in-loop -- a few reviewers, one transaction
+    const member = await isTeamMember(db, team.id, old.reviewerId)
+    const stays = notAuthor && member
+    if (stays && !reviewerIds.includes(old.reviewerId)) {
+      reviewerIds = [...reviewerIds, old.reviewerId]
+    }
+    if (stays) again.add(old.reviewerId)
+  }
   for (const reviewerId of reviewerIds) {
     // eslint-disable-next-line no-await-in-loop -- one transaction, a few reviewers
     const { request, created } = await openReviewRequest(db, {
@@ -95,7 +119,10 @@ async function requestRuleReviewers(db: Database, build: Build, now: Date): Prom
       dueAt,
     })
     // eslint-disable-next-line no-await-in-loop -- one transaction, a few reviewers
-    if (created) await notifyReviewRequested(db, request, null)
+    if (created) {
+      // eslint-disable-next-line no-await-in-loop -- one transaction, a few reviewers
+      await notifyReviewRequested(db, request, null, again.has(reviewerId) ? { again: true } : {})
+    }
   }
 }
 
@@ -124,8 +151,15 @@ export async function completeBuild(
 ): Promise<void> {
   await db.transaction(async (tx) => {
     const done = await setBuildResult(tx, build, result)
-    // Nothing to review (no changes, or approved on its own): requests made at upload close.
-    if (done.conclusion === 'no_changes' || done.reviewStatus === 'approved') {
+    // Nothing to review (no changes, or approved on its own): requests made at upload close. A
+    // team that doesn't approve no-change builds on their own keeps those requests open.
+    const team = await getTeamById(tx, done.teamId)
+    const waitsForApproval =
+      done.conclusion === 'no_changes' && team?.autoApproveNoChanges === false
+    if (
+      !waitsForApproval &&
+      (done.conclusion === 'no_changes' || done.reviewStatus === 'approved')
+    ) {
       await clearRequestNotices(tx, await closeReviewRequestsForBuild(tx, done.id))
     }
     await queueWebhookEvent(tx, { build: done, event: 'build.completed' })

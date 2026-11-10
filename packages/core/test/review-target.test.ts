@@ -12,6 +12,25 @@ describe('reviewDueAt', () => {
     expect(reviewDueAt(from, 1)).toEqual(new Date('2026-01-01T13:00:00.000Z'))
   })
 
+  it('counts working days: a request made Friday 16:00 is due Monday 16:00', () => {
+    // 2026-01-02 is a Friday.
+    expect(reviewDueAt(new Date('2026-01-02T16:00:00.000Z'), 24)).toEqual(
+      new Date('2026-01-05T16:00:00.000Z'),
+    )
+    expect(reviewDueAt(new Date('2026-01-02T16:00:00.000Z'), 72)).toEqual(
+      new Date('2026-01-07T16:00:00.000Z'),
+    )
+  })
+
+  it('starts counting on Monday for a request made over the weekend', () => {
+    expect(reviewDueAt(new Date('2026-01-03T10:00:00.000Z'), 24)).toEqual(
+      new Date('2026-01-06T00:00:00.000Z'),
+    )
+    expect(reviewDueAt(new Date('2026-01-04T23:00:00.000Z'), 1)).toEqual(
+      new Date('2026-01-05T01:00:00.000Z'),
+    )
+  })
+
   it('is null when the team has no review target', () => {
     expect(reviewDueAt(new Date(), null)).toBeNull()
   })

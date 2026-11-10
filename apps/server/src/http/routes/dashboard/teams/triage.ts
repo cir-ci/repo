@@ -13,7 +13,8 @@ const ref = { kind: z.enum(TRIAGE_KINDS), key: z.string().min(1).max(500) }
 const assignBody = z.object({ ...ref, assigneeId: z.string().min(1).nullable() })
 const snoozeBody = z.object({
   ...ref,
-  choice: z.enum(['next_push', 'tomorrow', 'next_week', 'date']),
+  /** Left out (or `date` without a date): the team's default number of days. */
+  choice: z.enum(['next_push', 'tomorrow', 'next_week', 'date']).optional(),
   date: z.iso.datetime({ offset: true }).optional(),
 })
 const dismissBody = z.object(ref)
