@@ -24,12 +24,6 @@
   margin: 0;
 }
 
-.barActions {
-  display: flex;
-  gap: 8px;
-  margin-inline-start: auto;
-}
-
 /* The keyboard way to draw: present for focus and screen readers, shown only while it has focus or is on. */
 .keyTool:not(:focus-within):not([data-on]) {
   position: absolute;

@@ -99,19 +99,10 @@ describe('drawing ignore regions on the build page', () => {
     await expect.element(ignoreList().getByRole('listitem')).toHaveLength(2)
   })
 
-  it('adds an ignore region from numbers with the same dialog as the baseline page', async () => {
-    const api = await ready(true)
+  it('has no Add region button: dragging is how an ignore region is added', async () => {
+    await ready(true)
     await toggle().getByRole('button', { name: 'Ignore regions' }).click()
-    await page.getByRole('button', { name: 'Add region', exact: true }).click()
-    const dialog = page.getByRole('dialog', { name: 'Add an ignore region' })
-    await dialog.getByRole('textbox', { name: 'Left' }).fill('5000')
-    await dialog.getByRole('button', { name: 'Add region' }).click()
-    await expect.element(dialog.getByRole('alert')).toBeVisible()
-    expect(api.ignorePosts).toEqual([])
-    await dialog.getByRole('textbox', { name: 'Left' }).fill('0')
-    await dialog.getByRole('textbox', { name: 'Width' }).fill('120')
-    await dialog.getByRole('button', { name: 'Add region' }).click()
-    await vi.waitFor(() => expect(api.ignorePosts).toHaveLength(1))
-    expect(api.ignorePosts[0]).toMatchObject({ name: NAME, width: 120 })
+    await expect.element(ignoreList()).toBeVisible()
+    expect(page.getByRole('button', { name: 'Add region' }).elements()).toHaveLength(0)
   })
 })

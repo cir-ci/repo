@@ -11,19 +11,15 @@ import {
 } from '@circi/ui'
 import { type FormEvent, useId, useState } from 'react'
 
-import {
-  useAddIgnoreRegion,
-  useDeleteIgnoreRegion,
-  useEditIgnoreRegion,
-} from '#features/teams/api/index.ts'
+import { useDeleteIgnoreRegion, useEditIgnoreRegion } from '#features/teams/api/index.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
-import { defaultRect, parseRect, type RectFields, type Size } from './ignore-regions.ts'
+import { parseRect, type RectFields, type Size } from './ignore-regions.ts'
 
 import styles from './IgnoreRegionsEditor.module.css'
 
 /**
- * A screenshot's ignore regions as a list: add one from numbers, edit or remove one. Owners and
+ * A screenshot's ignore regions as a list: edit or remove one (adding is by drawing on the image). Owners and
  * admins (`canManage`) get the controls; members see the regions. Each confirmed action applies
  * when it is confirmed. The baseline page and the build review both show it.
  */
@@ -53,13 +49,6 @@ export function IgnoreRegionsPanel({
               {regions.length}
             </Text>
           </Heading>
-          {canManage ? (
-            <span className={styles.barActions}>
-              <Button size="sm" onClick={() => setDialog({ kind: 'add', name, size })}>
-                Add region
-              </Button>
-            </span>
-          ) : null}
         </div>
         {error ? <Banner tone="danger">{error}</Banner> : null}
         <ul aria-label={`Regions of ${name}`} className={styles.regions}>
@@ -82,7 +71,7 @@ export function IgnoreRegionsPanel({
                   <Button
                     size="sm"
                     aria-label={`Edit region ${index + 1}`}
-                    onClick={() => setDialog({ kind: 'edit', region: r, size })}
+                    onClick={() => setDialog({ region: r, size })}
                   >
                     Edit
                   </Button>
@@ -119,7 +108,7 @@ export function IgnoreRegionsPanel({
         ) : null}
       </section>
       <RegionDialog
-        key={dialog?.kind === 'edit' ? dialog.region.id : (dialog?.kind ?? 'none')}
+        key={dialog?.region.id ?? 'none'}
         target={dialog}
         workspace={workspace}
         team={team}
@@ -165,16 +154,12 @@ export namespace IgnoreRegionsPanel {
   }
 }
 
-/** Position and size of one region in pixels: edits an existing region, or adds one (to a screenshot) from numbers. */
+/** Position and size of one region in pixels, edited from numbers. */
 function RegionDialog({ target, workspace, team, onClose }: RegionDialog.Props) {
   const edit = useEditIgnoreRegion(workspace, team)
-  const add = useAddIgnoreRegion(workspace, team)
   const announce = useAnnounce()
   const [problem, setProblem] = useState<string | null>(null)
-  const adding = target?.kind === 'add'
-  const save = adding ? add : edit
-  const initial =
-    target?.kind === 'edit' ? target.region : target?.size ? defaultRect(target.size) : undefined
+  const initial = target?.region
 
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -198,12 +183,11 @@ function RegionDialog({ target, workspace, team, onClose }: RegionDialog.Props) 
     setProblem(null)
     const done = {
       onSuccess: () => {
-        announce(target.kind === 'add' ? 'Ignore region added' : 'Ignore region saved')
+        announce('Ignore region saved')
         onClose()
       },
     }
-    if (target.kind === 'add') add.mutate({ name: target.name, ...parsed.rect }, done)
-    else edit.mutate({ id: target.region.id, rect: parsed.rect }, done)
+    edit.mutate({ id: target.region.id, rect: parsed.rect }, done)
   }
 
   return (
@@ -212,14 +196,14 @@ function RegionDialog({ target, workspace, team, onClose }: RegionDialog.Props) 
       onOpenChange={(open) => {
         if (!open) onClose()
       }}
-      title={adding ? 'Add an ignore region' : 'Edit ignore region'}
+      title="Edit ignore region"
       actions={
         <>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" form="edit-region" variant="primary" loading={save.isPending}>
-            {save.isPending ? 'Saving…' : adding ? 'Add region' : 'Save region'}
+          <Button type="submit" form="edit-region" variant="primary" loading={edit.isPending}>
+            {edit.isPending ? 'Saving…' : 'Save region'}
           </Button>
         </>
       }
@@ -248,7 +232,7 @@ function RegionDialog({ target, workspace, team, onClose }: RegionDialog.Props) 
             {problem}
           </Text>
         ) : null}
-        {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
+        {edit.error ? <Banner tone="danger">{edit.error.message}</Banner> : null}
       </form>
     </Dialog>
   )
@@ -256,9 +240,10 @@ function RegionDialog({ target, workspace, team, onClose }: RegionDialog.Props) 
 
 namespace RegionDialog {
   /** What the dialog is for; `size` (the screenshot's pixels, when known) bounds the region. */
-  export type Target =
-    | { kind: 'add'; name: string; size: Size | null }
-    | { kind: 'edit'; region: IgnoreRegion.Item; size: Size | null }
+  export interface Target {
+    region: IgnoreRegion.Item
+    size: Size | null
+  }
 
   export interface Props {
     target: Target | null

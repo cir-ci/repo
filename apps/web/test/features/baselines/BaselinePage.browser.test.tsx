@@ -147,26 +147,6 @@ describe('BaselinePage', () => {
     await expect.element(page.getByRole('dialog', { name: /build #148 on main/ })).toBeVisible()
   })
 
-  it('lets an owner add a region from numbers', async () => {
-    const fake = api(true, {
-      [`POST ${API}/ignore-regions`]: { status: 201, body: region('9') },
-    })
-    await show()
-    await page.getByRole('button', { name: 'Add region', exact: true }).click()
-    const dialog = page.getByRole('dialog', { name: 'Add an ignore region' })
-    await expect.element(dialog.getByRole('textbox', { name: 'Width' })).toHaveValue('250')
-    await dialog.getByRole('textbox', { name: 'Width' }).fill('300')
-    await dialog.getByRole('button', { name: 'Add region' }).click()
-    await expect.poll(() => fake.of('POST')).toHaveLength(1)
-    expect(fake.of('POST')[0]?.body).toEqual({
-      name: NAME,
-      x: 375,
-      y: 187,
-      width: 300,
-      height: 125,
-    })
-  })
-
   it('draws a region by dragging and saves it in pixels', async () => {
     const fake = api(true, {
       [`POST ${API}/ignore-regions`]: { status: 201, body: region('9') },
@@ -179,13 +159,12 @@ describe('BaselinePage', () => {
     expect(page.getByRole('dialog').elements()).toHaveLength(0)
   })
 
-  it('has no Draw region button: dragging is always on', async () => {
+  it('has no Draw region or Add region button: dragging is how a region is added', async () => {
     api(true)
     await show()
-    await expect
-      .element(page.getByRole('button', { name: 'Add region', exact: true }))
-      .toBeVisible()
+    await expect.element(page.getByRole('list', { name: `Regions of ${NAME}` })).toBeVisible()
     expect(page.getByRole('button', { name: 'Draw region' }).elements()).toHaveLength(0)
+    expect(page.getByRole('button', { name: 'Add region' }).elements()).toHaveLength(0)
   })
 
   it('treats a drag under 8 pixels as a click that enlarges', async () => {
@@ -266,13 +245,18 @@ describe('BaselinePage', () => {
     expect(fake.of('POST')[0]?.body).toMatchObject({ name: NAME, x: 400, y: 205, width: 200 })
   })
 
-  it('removes a region only after confirming, and edits one', async () => {
+  it('removes a region only after confirming, and edits one (rejecting a bad size)', async () => {
     const fake = api(true, {
       [`DELETE ${API}/ignore-regions/${ID1}`]: { status: 204 },
       [`PATCH ${API}/ignore-regions/${ID1}`]: { body: region(ID1) },
     })
     await show()
     await page.getByRole('button', { name: 'Edit region 1' }).click()
+    await page.getByRole('textbox', { name: 'Left' }).fill('5000')
+    await page.getByRole('button', { name: 'Save region' }).click()
+    await expect.element(page.getByRole('dialog').getByRole('alert')).toBeVisible()
+    expect(fake.of('PATCH')).toHaveLength(0)
+    await page.getByRole('textbox', { name: 'Left' }).fill('10')
     await page.getByRole('textbox', { name: 'Width' }).fill('120')
     await page.getByRole('button', { name: 'Save region' }).click()
     await expect.poll(() => fake.of('PATCH')).toHaveLength(1)

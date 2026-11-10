@@ -53,18 +53,6 @@ export interface RectFields {
   height: string
 }
 
-/** The box the Add dialog starts with: a quarter of the screenshot's size, in the middle. */
-export function defaultRect(size: Size): Record<keyof RectFields, number> {
-  const width = Math.max(1, Math.round(size.width / 4))
-  const height = Math.max(1, Math.round(size.height / 4))
-  return {
-    x: Math.floor((size.width - width) / 2),
-    y: Math.floor((size.height - height) / 2),
-    width,
-    height,
-  }
-}
-
 /** The numbers typed into the form, or what is wrong with them; with `size`, the box must fit inside it. */
 export function parseRect(
   fields: RectFields,
