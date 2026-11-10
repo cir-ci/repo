@@ -68,18 +68,7 @@ export function TeamsSettingsPage() {
       {shown.length === 0 && search.trim() ? (
         <NoResults noun="team" query={search} onClear={() => setSearch('')} size="section" />
       ) : shown.length === 0 ? (
-        <EmptyState
-          icon={<LayersIcon />}
-          size="section"
-          title="No teams yet"
-          action={
-            canManage ? (
-              <Button variant="primary" onClick={() => setNewTeamOpen(true)}>
-                New team
-              </Button>
-            ) : undefined
-          }
-        >
+        <EmptyState icon={<LayersIcon />} size="section" title="No teams yet">
           {canManage
             ? 'Create a team to start uploading screenshots.'
             : 'Ask an owner or admin to create one.'}

@@ -220,7 +220,6 @@ describe('the workspaces page', () => {
     await show()
     await expectEmptyState('No workspaces yet', {
       body: 'Create one for an existing account to get started.',
-      action: 'Create workspace',
     })
   })
 

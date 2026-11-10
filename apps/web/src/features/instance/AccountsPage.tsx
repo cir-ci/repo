@@ -135,22 +135,7 @@ export function AccountsPage() {
                 }}
               />
             ) : (
-              <EmptyState
-                icon={<UsersIcon />}
-                size="section"
-                title="No accounts yet"
-                action={
-                  <Button
-                    variant="primary"
-                    onClick={() => {
-                      setDone(null)
-                      setCreating(true)
-                    }}
-                  >
-                    Create account
-                  </Button>
-                }
-              >
+              <EmptyState icon={<UsersIcon />} size="section" title="No accounts yet">
                 Create one to get started.
               </EmptyState>
             )

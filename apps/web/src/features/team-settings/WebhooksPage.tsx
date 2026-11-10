@@ -112,18 +112,7 @@ function Webhooks(props: Webhooks.Props) {
         bare
       >
         {props.hooks.length === 0 ? (
-          <EmptyState
-            icon={<WebhookIcon />}
-            size="section"
-            title="No webhooks yet"
-            action={
-              props.canManage ? (
-                <Button variant="primary" onClick={open}>
-                  Add webhook
-                </Button>
-              ) : undefined
-            }
-          >
+          <EmptyState icon={<WebhookIcon />} size="section" title="No webhooks yet">
             {props.canManage
               ? 'Send build and review events to another service.'
               : 'Ask an owner to add one.'}

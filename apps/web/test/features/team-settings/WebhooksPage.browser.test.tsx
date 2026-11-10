@@ -46,7 +46,7 @@ const show = () =>
     otherRoutes: ['/$workspace/$team', '/$workspace/$team/settings/members'],
   })
 // With no webhooks the empty state repeats the header's button: the first is the header's.
-const openDialog = () => page.getByRole('button', { name: 'Add webhook' }).first().click()
+const openDialog = () => page.getByRole('button', { name: 'Add webhook' }).click()
 const dialogAdd = () => page.getByRole('dialog').getByRole('button', { name: 'Add webhook' })
 
 describe('WebhooksPage', () => {
@@ -233,7 +233,6 @@ describe('WebhooksPage', () => {
     await show()
     await expectEmptyState('No webhooks yet', {
       body: 'Send build and review events to another service.',
-      action: 'Add webhook',
     })
     await expect.element(page.getByRole('heading', { name: 'Checking a delivery' })).toBeVisible()
     await expect.element(page.getByText(/Reject signatures older than 5 minutes/)).toBeVisible()

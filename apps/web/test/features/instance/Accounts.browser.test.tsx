@@ -114,7 +114,6 @@ describe('the accounts page', () => {
     await show()
     await expectEmptyState('No accounts yet', {
       body: 'Create one to get started.',
-      action: 'Create account',
     })
   })
 

@@ -82,9 +82,8 @@ describe('Settings, Teams', () => {
     await renderEmpty(true)
     await expectEmptyState('No teams yet', {
       body: 'Create a team to start uploading screenshots.',
-      action: 'New team',
     })
-    await page.getByRole('button', { name: 'New team' }).last().click()
+    await page.getByRole('button', { name: 'New team' }).click()
     expect(useOverlayStore.getState().newTeamOpen).toBe(true)
   })
 
