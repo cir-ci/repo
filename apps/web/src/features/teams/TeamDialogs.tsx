@@ -19,9 +19,9 @@ export function TeamDialogs() {
   const { workspace } = useWorkspaces(useChosenWorkspace())
   const teamOpen = useOverlayStore((s) => s.newTeamOpen)
   const workspaceOpen = useOverlayStore((s) => s.newWorkspaceOpen)
-  const importOpen = useOverlayStore((s) => s.importOpen)
+  const importWorkspace = useOverlayStore((s) => s.importWorkspace)
   const setTeamOpen = useOverlayStore((s) => s.setNewTeamOpen)
-  const setImportOpen = useOverlayStore((s) => s.setImportOpen)
+  const setImportWorkspace = useOverlayStore((s) => s.setImportWorkspace)
   const setWorkspaceOpen = useOverlayStore((s) => s.setNewWorkspaceOpen)
   return (
     <>
@@ -32,9 +32,9 @@ export function TeamDialogs() {
         initialWorkspace={workspace?.slug}
       />
       <GithubImportDialog
-        open={importOpen}
-        onClose={() => setImportOpen(false)}
-        workspace={workspace?.slug ?? ''}
+        open={importWorkspace !== null}
+        onClose={() => setImportWorkspace(null)}
+        workspace={importWorkspace ?? ''}
       />
       <NewWorkspaceDialog open={workspaceOpen} onClose={() => setWorkspaceOpen(false)} />
     </>

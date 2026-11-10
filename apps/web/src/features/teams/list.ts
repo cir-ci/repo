@@ -1,4 +1,4 @@
-import type { Build } from '@circi/api'
+import type { Build, Team } from '@circi/api'
 
 import { buildState } from '#features/builds/build-state.ts'
 
@@ -27,4 +27,24 @@ export function changesCell(build: Build.ListItem): ChangesCell {
     title: `${build.counts[key]} ${key}`,
   }))
   return counts.length === 0 ? { kind: 'text', text: 'No changes' } : { kind: 'counts', counts }
+}
+
+/** One workspace's teams on the Teams page. */
+export interface WorkspaceGroup {
+  workspace: Team.Overview['workspace']
+  teams: Team.Overview[]
+}
+
+/**
+ * The teams grouped by workspace, workspaces A to Z by name; each keeps its teams in the order
+ * given. One group when the person belongs to one workspace (the page then shows no group header).
+ */
+export function groupByWorkspace(teams: readonly Team.Overview[]): WorkspaceGroup[] {
+  const groups = new Map<string, WorkspaceGroup>()
+  for (const item of teams) {
+    const group = groups.get(item.workspace.slug)
+    if (group) group.teams.push(item)
+    else groups.set(item.workspace.slug, { workspace: item.workspace, teams: [item] })
+  }
+  return [...groups.values()].toSorted((a, b) => a.workspace.name.localeCompare(b.workspace.name))
 }

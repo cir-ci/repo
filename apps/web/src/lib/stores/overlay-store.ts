@@ -7,7 +7,7 @@ export const useOverlayStore = create<OverlayStore.State & OverlayStore.Actions>
   setHelpOpen: (helpOpen) => set({ helpOpen }),
   setNewTeamOpen: (newTeamOpen) => set({ newTeamOpen }),
   setNewWorkspaceOpen: (newWorkspaceOpen) => set({ newWorkspaceOpen }),
-  setImportOpen: (importOpen) => set({ importOpen }),
+  setImportWorkspace: (importWorkspace) => set({ importWorkspace }),
   setSettingsNavOpen: (settingsNavOpen) => set({ settingsNavOpen }),
   setMoreOpen: (moreOpen) => set({ moreOpen }),
   reset: () => set(initialOverlayState()),
@@ -19,7 +19,7 @@ function initialOverlayState(): OverlayStore.State {
     helpOpen: false,
     newTeamOpen: false,
     newWorkspaceOpen: false,
-    importOpen: false,
+    importWorkspace: null,
     settingsNavOpen: false,
     moreOpen: false,
   }
@@ -32,8 +32,8 @@ export namespace OverlayStore {
     /** The New team dialog: opened from the sidebar's "+", the empty state and the Teams page. */
     newTeamOpen: boolean
     newWorkspaceOpen: boolean
-    /** The Import from GitHub dialog, opened from the Teams page. */
-    importOpen: boolean
+    /** The Import from GitHub dialog, opened from the Teams page: the slug of the workspace it imports into, or null while closed. */
+    importWorkspace: string | null
     /** The phone's settings sections sheet, opened from the settings page header. */
     settingsNavOpen: boolean
     /** The phone's More sheet (the last tab of the bottom bar). */
@@ -44,7 +44,7 @@ export namespace OverlayStore {
     setHelpOpen: (open: boolean) => void
     setNewTeamOpen: (open: boolean) => void
     setNewWorkspaceOpen: (open: boolean) => void
-    setImportOpen: (open: boolean) => void
+    setImportWorkspace: (workspace: string | null) => void
     setSettingsNavOpen: (open: boolean) => void
     setMoreOpen: (open: boolean) => void
     reset: () => void

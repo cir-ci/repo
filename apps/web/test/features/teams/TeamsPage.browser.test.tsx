@@ -69,25 +69,66 @@ const openWorkspaceDialog = async () => {
 }
 
 describe('TeamsPage', () => {
-  it("lists only the selected workspace's teams, and counts only those", async () => {
+  it('lists the teams of every workspace, one group per workspace, and counts them all', async () => {
     fakeApi({
       'GET /api/teams': {
         body: {
           teams: [
+            overview('qa-co', 'checkout'),
             overview('acme', 'web-app'),
             overview('acme', 'storybook'),
-            overview('qa-co', 'checkout'),
           ],
         },
       },
       'GET /api/capabilities': { body: caps() },
     })
     await show()
-    const list = page.getByRole('list', { name: 'Teams' })
-    await expect.element(list.getByText('acme/web-app')).toBeVisible()
-    await expect.element(list.getByText('acme/storybook')).toBeVisible()
-    expect(page.getByText('qa-co/checkout').elements()).toHaveLength(0)
-    await expect.element(page.getByLabelText('2 teams')).toBeVisible()
+    const acme = page.getByRole('list', { name: 'ACME teams' })
+    const qa = page.getByRole('list', { name: 'QA-CO teams' })
+    await expect.element(acme.getByText('acme/web-app')).toBeVisible()
+    await expect.element(acme.getByText('acme/storybook')).toBeVisible()
+    await expect.element(qa.getByText('qa-co/checkout')).toBeVisible()
+    // A group header per workspace, in name order, with its count.
+    const headings = page.getByRole('heading', { level: 2 }).elements()
+    expect(headings.map((h) => h.textContent)).toEqual(['ACME2', 'QA-CO1'])
+    await expect.element(page.getByLabelText('3 teams', { exact: true })).toBeVisible()
+  })
+
+  it('shows no group header with a single workspace', async () => {
+    fakeApi({
+      'GET /api/teams': { body: { teams: [overview('acme', 'web-app'), overview('acme', 'api')] } },
+      'GET /api/capabilities': { body: caps() },
+    })
+    await show()
+    await expect.element(page.getByRole('list', { name: 'Teams' })).toBeVisible()
+    expect(page.getByRole('heading', { level: 2 }).elements()).toHaveLength(0)
+  })
+
+  it('keeps one New team in the header, whichever workspaces there are', async () => {
+    fakeApi({
+      'GET /api/teams': {
+        body: { teams: [overview('acme', 'web'), overview('qa-co', 'checkout')] },
+      },
+      'GET /api/capabilities': {
+        body: caps({
+          manageableWorkspaces: [
+            { slug: 'acme', name: 'ACME' },
+            { slug: 'qa-co', name: 'QA-CO' },
+          ],
+        }),
+      },
+    })
+    await show()
+    await expect
+      .poll(() => page.getByRole('button', { name: 'New team' }).elements().length)
+      .toBe(1)
+    expect(pageHeader().contains(page.getByRole('button', { name: 'New team' }).element())).toBe(
+      true,
+    )
+    await page.getByRole('button', { name: 'New team' }).click()
+    // The dialog asks which workspace.
+    await expect.element(page.getByRole('dialog', { name: 'New team' })).toBeVisible()
+    expectOnePrimaryPerArea()
   })
 
   it('shows nothing but the header while loading, then announces it if it takes long', async () => {

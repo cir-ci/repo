@@ -53,6 +53,18 @@
   text-align: right;
 }
 
+.groupHead {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 4px;
+}
+
+.groupLabel {
+  flex: 1;
+  min-width: 0;
+}
+
 .list {
   overflow: hidden;
   border: 1px solid var(--circi-line-subtle);

@@ -1,7 +1,8 @@
 import type { Build } from '@circi/api'
 import { describe, expect, it } from 'vitest'
 
-import { changesCell } from '#features/teams/list.ts'
+import { changesCell, groupByWorkspace } from '#features/teams/list.ts'
+import { overview } from '#test/support/fixtures.ts'
 
 const BASE: Build.ListItem = {
   id: 'b',
@@ -48,5 +49,25 @@ describe('changesCell', () => {
         { glyph: '+', count: 1, title: '1 added' },
       ],
     })
+  })
+})
+
+describe('groupByWorkspace', () => {
+  it('makes one group per workspace, workspaces A to Z, each keeping its teams in order', () => {
+    const groups = groupByWorkspace([
+      overview('globex', 'portal'),
+      overview('acme', 'web'),
+      overview('globex', 'admin'),
+      overview('acme', 'api'),
+    ])
+    expect(groups.map((g) => [g.workspace.slug, g.teams.map((t) => t.team.slug)])).toEqual([
+      ['acme', ['web', 'api']],
+      ['globex', ['portal', 'admin']],
+    ])
+  })
+
+  it('makes one group for one workspace and none for no teams', () => {
+    expect(groupByWorkspace([overview('acme', 'web')])).toHaveLength(1)
+    expect(groupByWorkspace([])).toEqual([])
   })
 })

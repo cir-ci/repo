@@ -95,6 +95,44 @@ describe('Import from GitHub', () => {
     })
   })
 
+  it('is in each workspace group when there are several, and imports into that workspace', async () => {
+    const api = fakeApi({
+      'GET /api/teams': {
+        body: { teams: [overview('acme', 'web'), overview('globex', 'portal')] },
+      },
+      'GET /api/capabilities': {
+        body: {
+          canCreateWorkspace: false,
+          instanceAdmin: false,
+          manageableWorkspaces: [
+            { slug: 'acme', name: 'ACME', picture: null, role: 'owner' },
+            { slug: 'globex', name: 'GLOBEX', picture: null, role: 'owner' },
+          ],
+          refusingWorkspaces: [],
+        },
+      },
+      'GET /api/workspaces/acme/integrations': integrations(['slack']),
+      'GET /api/workspaces/globex/integrations': integrations(['github']),
+      'GET /api/workspaces/globex/github-import': { body: REPOS },
+    })
+    await show()
+    // Only Globex has a GitHub App: one Import button, inside Globex's group, not in the page header.
+    const globex = page.getByRole('region', { name: /^GLOBEX/ })
+    await expect.element(globex.getByRole('button', { name: 'Import from GitHub' })).toBeVisible()
+    expect(page.getByRole('button', { name: 'Import from GitHub' }).elements()).toHaveLength(1)
+    expect(
+      page
+        .getByRole('region', { name: /^ACME/ })
+        .getByRole('button', { name: 'Import from GitHub' })
+        .elements(),
+    ).toHaveLength(0)
+    await globex.getByRole('button', { name: 'Import from GitHub' }).click()
+    await expect.element(page.getByRole('dialog', { name: 'Import from GitHub' })).toBeVisible()
+    await expect
+      .poll(() => api.of('GET').some((r) => r.path === '/api/workspaces/globex/github-import'))
+      .toBe(true)
+  })
+
   it('says why when GitHub does not answer', async () => {
     fakeApi({
       'GET /api/teams': { body: { teams: [overview('acme', 'web')] } },
@@ -106,7 +144,7 @@ describe('Import from GitHub', () => {
       },
     })
     await show()
-    useOverlayStore.getState().setImportOpen(true)
+    useOverlayStore.getState().setImportWorkspace('acme')
     await expect
       .element(page.getByRole('dialog').getByText("GitHub didn't answer; try again shortly"))
       .toBeVisible()
