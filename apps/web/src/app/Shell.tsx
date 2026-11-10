@@ -24,6 +24,8 @@ import { SettingsSections } from './SettingsSections.tsx'
 import { currentSection, isBuildPage, isOutsideFrame, isSettingsSection } from './shell-model.ts'
 import { ShortcutLayer } from './ShortcutLayer.tsx'
 import { Sidebar } from './Sidebar.tsx'
+import { TabGate } from './TabGate.tsx'
+import { TabRow } from './TabRow.tsx'
 import { WindowTitleBar } from './WindowTitleBar.tsx'
 
 // Only people who aren't signed in need the sign-in form, so it's its own chunk.
@@ -129,6 +131,7 @@ function SignedInFrame({ user }: { user: SessionUser }) {
   const sidebarWidth = usePaneWidth(pane.id)
   return (
     <ShortcutLayer>
+      <TabRow />
       <AppFrame
         sidebar={nav}
         sidebarLabel={navLabel}
@@ -148,7 +151,9 @@ function SignedInFrame({ user }: { user: SessionUser }) {
       >
         {/* The notices show under each page's sticky header, inside the panel (`PanelHeader`). */}
         <PanelNotices notices={<Notices email={user.email} />}>
-          <Outlet />
+          <TabGate userId={user.id}>
+            <Outlet />
+          </TabGate>
         </PanelNotices>
       </AppFrame>
       <TeamDialogs />

@@ -1,0 +1,119 @@
+.root {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 0;
+  height: 100%;
+}
+
+.list {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 0;
+  height: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.list::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  position: relative;
+  display: flex;
+  flex: 0 1 180px;
+  align-items: center;
+  min-width: 96px;
+  height: calc(100% - 4px);
+  /* The title bar around the tabs drags the window; the tabs and their buttons are for clicking. */
+  app-region: no-drag;
+  border-radius: 8px 8px 0 0;
+  color: var(--circi-text-secondary);
+  user-select: none;
+}
+
+.tab[data-pinned] {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.tab:hover {
+  background: var(--circi-action-hover);
+  color: var(--circi-text-primary);
+}
+
+/* The active tab takes the panel's colour and runs into the panel below it. */
+.tab[data-active] {
+  background: var(--circi-surface-panel);
+  color: var(--circi-text-primary);
+}
+
+.main {
+  appearance: none;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 100%;
+  padding: 0 10px;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: default;
+}
+
+.main:focus-visible {
+  outline: 2px solid var(--circi-accent-main);
+  outline-offset: -2px;
+}
+
+.icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--circi-text-secondary);
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.close {
+  appearance: none;
+  display: none;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--circi-text-secondary);
+}
+
+.close:hover {
+  background: var(--circi-action-selected);
+  color: var(--circi-text-primary);
+}
+
+.tab:hover .close,
+.tab:focus-within .close,
+.tab[data-active] .close {
+  display: inline-flex;
+}
+
+.new {
+  flex: none;
+  app-region: no-drag;
+  align-self: center;
+}

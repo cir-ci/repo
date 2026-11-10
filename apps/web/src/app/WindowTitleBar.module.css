@@ -24,6 +24,13 @@
   }
 }
 
+/* The tabs take the rest of the strip, to the window's controls, and sit on its bottom edge. */
+.tabs {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+
 .title {
   overflow: hidden;
   text-overflow: ellipsis;

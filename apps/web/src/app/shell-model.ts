@@ -334,6 +334,14 @@ export function teamPageOf(pathname: string): TeamPage | undefined {
   return page === 'triage' || page === 'baselines' || page === 'sites' ? page : undefined
 }
 
+/** The team an address belongs to (`/<workspace>/<team>…`), if it is one of a team's pages. */
+export function teamOfAddress(href: string): { workspace: string; team: string } | undefined {
+  const parts = (href.split(/[?#]/)[0] ?? '').split('/').filter(Boolean)
+  const [workspace, team] = parts
+  if (!workspace || !team || NOT_TEAMS.has(workspace)) return undefined
+  return { workspace: decodeURIComponent(workspace), team: decodeURIComponent(team) }
+}
+
 /** Settings pages (account, workspace, team, instance) share one layout with the settings nav. */
 export const isSettingsSection = (section: Section | undefined): boolean =>
   section === 'account' ||

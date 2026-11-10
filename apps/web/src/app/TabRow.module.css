@@ -1,0 +1,9 @@
+.root {
+  position: sticky;
+  top: 0;
+  z-index: calc(var(--circi-z-dialog) - 1);
+  box-sizing: border-box;
+  height: 36px;
+  padding: 4px 8px 0;
+  background: var(--circi-surface-chrome);
+}
