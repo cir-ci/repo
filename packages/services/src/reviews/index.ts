@@ -3,6 +3,8 @@ export {
   MAX_BULK_REQUEST_REVIEW,
   MAX_BULK_REVIEW,
   notifyOverdueReviews,
+  NUDGE_INTERVAL_MS,
+  nudgeReviewRequest,
   requestReview,
   requestReviews,
   reviewBuild,

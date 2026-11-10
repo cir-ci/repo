@@ -1,4 +1,6 @@
 import { createUser } from '@circi/auth'
+import { notifications } from '@circi/db/schema'
+import { eq } from 'drizzle-orm'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { sender } from '#test/support/client.ts'
@@ -200,5 +202,41 @@ describe('review requests', () => {
     const back = await post(`${base}/unsnooze`, { cookie: louCookie })
     expect(back.json()).toEqual({ id, snoozeKind: null, snoozedUntil: null })
     expect(ids(await list('for-you', louCookie))).toEqual([id])
+  })
+
+  it('lets only whoever asked nudge, and only once a day', async () => {
+    const id = await ask()
+    const url = `/api/teams/${acme.workspaceSlug}/web/review-requests/${id}/nudge`
+    // Not the asker: the reviewer, an outsider.
+    expect((await post(url, { cookie: louCookie })).statusCode).toBe(403)
+    expect((await post(url, { cookie: rivalCookie })).statusCode).toBe(404)
+    // The ask itself just told Lou, so a nudge now waits.
+    expect((await post(url)).statusCode).toBe(409)
+
+    // A day on, it goes through: Lou gets a fresh notice from the asker, then the clock restarts.
+    await db
+      .update(notifications)
+      .set({ createdAt: new Date(Date.now() - 25 * 3_600_000) })
+      .where(eq(notifications.userId, lou.id))
+    const nudged = await post(url)
+    expect(nudged.statusCode).toBe(200)
+    expect(nudged.json()).toEqual({ id, nudged: true })
+    const inbox = (await get('/api/inbox?tab=for-you', louCookie)).json()
+    expect(inbox.items[0]).toMatchObject({
+      kind: 'review_re_requested',
+      actor: { id: acme.owner.id, name: expect.any(String), image: null },
+      payload: { nudge: true },
+      build: { number: 2, name: expect.any(String), status: expect.any(String) },
+      changes: { changed: expect.any(Number), unchanged: expect.any(Number) },
+      request: { dueAt: expect.any(String), overdueByMs: 0 },
+    })
+    expect((await post(url)).statusCode).toBe(409)
+  })
+
+  it('refuses a nudge for a request that was closed or made by a rule', async () => {
+    const id = await ask()
+    const base = `/api/teams/${acme.workspaceSlug}/web/review-requests/${id}`
+    await post(`${base}/dismiss`)
+    expect((await post(`${base}/nudge`)).statusCode).toBe(404)
   })
 })

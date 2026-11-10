@@ -2,6 +2,7 @@ import type { Review } from '@circi/api'
 import { listReviewRequests, REVIEW_TABS } from '@circi/db/queries'
 import {
   dismissReviewRequest,
+  nudgeReviewRequest,
   snoozeReviewRequest,
   unsnoozeReviewRequest,
   requestReview,
@@ -104,6 +105,18 @@ export const dashboardReviewRequestRoutes: FastifyPluginAsync<Deps.Dashboard> = 
       snoozeKind: row.snoozeKind,
       snoozedUntil: row.snoozedUntil?.toISOString() ?? null,
     }
+  })
+
+  /** Only whoever asked may tell the reviewer again, once per 24 hours (409 before that). */
+  app.post('/teams/:workspace/:team/review-requests/:id/nudge', async (req) => {
+    const p = parse(dismissParams, req.params)
+    const { team, user } = await loadTeam(deps, req, { notFound: 'Review request not found' })
+    const row = await nudgeReviewRequest(deps.db, {
+      teamId: team.id,
+      requestId: p.id,
+      userId: user.id,
+    })
+    return { id: row.id, nudged: true }
   })
 
   app.post('/teams/:workspace/:team/review-requests/:id/unsnooze', async (req) => {

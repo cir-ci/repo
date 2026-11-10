@@ -1,4 +1,6 @@
 import {
+  ConflictError,
+  ForbiddenError,
   reviewDueAt,
   type SnoozeChoice,
   snoozeUntil,
@@ -13,7 +15,9 @@ import {
   closeReviewRequestsForBuild,
   dismissReviewRequest as dismissRequest,
   lockOverdueUnnotifiedRequests,
+  findOpenReviewRequest,
   hasClosedReviewRequest,
+  lastReviewNoticeAt,
   markBuildNotificationsRead,
   openReviewRequest,
   type recordReview,
@@ -254,6 +258,49 @@ export async function dismissReviewRequest(
     }
     return dismissed
   })
+}
+
+/** How long a reviewer is left alone after being asked or nudged. */
+export const NUDGE_INTERVAL_MS = 24 * 3600_000
+
+/**
+ * Tells a reviewer again that a build waits for them. Only whoever asked may; at most once per
+ * 24 hours (counting the ask itself), so a request can't be used to pester. The reviewer gets a
+ * "review again" notice from the person; returns the request.
+ */
+export async function nudgeReviewRequest(
+  db: Database,
+  input: nudgeReviewRequest.Input,
+): Promise<ReviewRequest> {
+  return db.transaction(async (tx) => {
+    const request = await findOpenReviewRequest(tx, input)
+    if (!request) throw new NotFoundError('Review request not found')
+    if (request.requestedById !== input.userId) {
+      throw new ForbiddenError('Only whoever asked can nudge')
+    }
+    const now = input.now ?? new Date()
+    const last = await lastReviewNoticeAt(tx, request)
+    if (last && now.getTime() - last.getTime() < NUDGE_INTERVAL_MS) {
+      throw new ConflictError('Already nudged in the last 24 hours')
+    }
+    await notify(tx, {
+      userId: request.reviewerId,
+      kind: 'review_re_requested',
+      buildId: request.buildId,
+      actorId: input.userId,
+      payload: { nudge: true, requestId: request.id },
+    })
+    return request
+  })
+}
+export namespace nudgeReviewRequest {
+  export interface Input {
+    teamId: string
+    requestId: string
+    userId: string
+    /** For tests; defaults to the current time. */
+    now?: Date
+  }
 }
 
 /**

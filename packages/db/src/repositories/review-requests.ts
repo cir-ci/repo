@@ -252,3 +252,43 @@ export async function lockOverdueUnnotifiedRequests(
     .orderBy(asc(reviewRequests.dueAt), asc(reviewRequests.id))
     .for('update', { skipLocked: true })
 }
+
+/** An open request of a build in `teamId`; undefined when unknown, closed or in another team. */
+export async function findOpenReviewRequest(
+  db: Database,
+  input: { teamId: string; requestId: string },
+): Promise<ReviewRequest | undefined> {
+  const inTeam = db.select({ id: builds.id }).from(builds).where(eq(builds.teamId, input.teamId))
+  const [row] = await db
+    .select()
+    .from(reviewRequests)
+    .where(
+      and(
+        eq(reviewRequests.id, input.requestId),
+        eq(reviewRequests.state, 'open'),
+        inArray(reviewRequests.buildId, inTeam),
+      ),
+    )
+  return row
+}
+
+/**
+ * When the reviewer was last told to review the build (asked, asked again or nudged); undefined
+ * when never. Lets a nudge wait its turn.
+ */
+export async function lastReviewNoticeAt(
+  db: Database,
+  input: { reviewerId: string; buildId: string },
+): Promise<Date | undefined> {
+  const [row] = await db
+    .select({ at: sql<Date | null>`max(${notifications.createdAt})` })
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.userId, input.reviewerId),
+        eq(notifications.buildId, input.buildId),
+        inArray(notifications.kind, ['review_requested', 'review_re_requested']),
+      ),
+    )
+  return row?.at ? new Date(row.at) : undefined
+}

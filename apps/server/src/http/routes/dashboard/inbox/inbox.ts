@@ -62,6 +62,9 @@ export const dashboardInboxRoutes: FastifyPluginAsync<Deps.Dashboard> = async (a
           createdAt: i.createdAt.toISOString(),
           readAt: i.readAt?.toISOString() ?? null,
           snoozedUntil: i.snoozedUntil?.toISOString() ?? null,
+          request: i.request
+            ? { dueAt: i.request.dueAt?.toISOString() ?? null, overdueByMs: i.request.overdueByMs }
+            : null,
         }),
       ),
     }

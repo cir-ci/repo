@@ -190,6 +190,7 @@ POST /api/teams/:workspace/:team/builds/review
 POST /api/teams/:workspace/:team/ignore-regions
 POST /api/teams/:workspace/:team/members
 POST /api/teams/:workspace/:team/review-requests/:id/dismiss
+POST /api/teams/:workspace/:team/review-requests/:id/nudge
 POST /api/teams/:workspace/:team/review-requests/:id/snooze
 POST /api/teams/:workspace/:team/review-requests/:id/unsnooze
 POST /api/teams/:workspace/:team/rules

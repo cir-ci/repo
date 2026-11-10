@@ -39,6 +39,8 @@ export namespace Review {
     requestedBy: { id: string; name: string; image: string | null } | null
     build: {
       number: number
+      /** The build's name; "default" for a team's only build per commit. */
+      name: string
       branch: string | null
       prNumber: number | null
       commitSha: string

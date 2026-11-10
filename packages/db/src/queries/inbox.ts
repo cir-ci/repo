@@ -1,3 +1,4 @@
+import { overdueBy } from '@circi/core'
 import { and, desc, eq, gt, inArray, isNotNull, isNull, lte, or, sql, type SQL } from 'drizzle-orm'
 
 import {
@@ -9,11 +10,13 @@ import {
   workspace,
   teams,
   reviewRequests,
+  screenshotDiffs,
   user,
 } from '#schema/index.ts'
 import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
 import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
+import type { Build } from '#src/types.ts'
 
 /**
  * A person's inbox: notifications across the workspaces they belong to (PLAN §8: workspace
@@ -34,14 +37,27 @@ export namespace listInbox {
     snoozedUntil: Date | null
     payload: Record<string, unknown>
     /** Null for the system, or when the person has since left. */
-    actor: { id: string; name: string } | null
+    actor: { id: string; name: string; image: string | null } | null
     /** Null for notices that are not about one build. */
     build: {
       number: number
+      /** The build's name; "default" for a team's only build per commit. */
+      name: string
       branch: string | null
       prNumber: number | null
       commitSha: string
+      status: Build['status']
+      reviewStatus: Build['reviewStatus']
     } | null
+    /** How the build's screenshots compare with the baseline; null without a build. */
+    changes: {
+      changed: number
+      added: number
+      removed: number
+      unchanged: number
+    } | null
+    /** The person's open review request for the build: its target and how far past it. */
+    request: { dueAt: Date | null; overdueByMs: number } | null
     team: { slug: string; name: string } | null
     workspace: { slug: string; name: string } | null
     /** The same build also waits for this person's review on the Reviews page. */
@@ -71,7 +87,12 @@ const MAX_ITEMS = 200
 /** One tab of the inbox, newest first, and how many notifications are unread. */
 export async function listInbox(
   db: Database,
-  input: { userId: string; tab: listInbox.Tab; now: Date; method?: SessionMethod },
+  input: {
+    userId: string
+    tab: listInbox.Tab
+    now: Date
+    method?: SessionMethod
+  },
 ): Promise<listInbox.List> {
   const asleep = and(
     isNotNull(notifications.snoozedUntil),
@@ -89,10 +110,14 @@ export async function listInbox(
     .select({
       n: notifications,
       build: {
+        id: builds.id,
         number: builds.number,
+        name: builds.name,
         branch: builds.branch,
         prNumber: builds.prNumber,
         commitSha: builds.commitSha,
+        status: builds.status,
+        reviewStatus: builds.reviewStatus,
       },
       team: { slug: teams.slug, name: teams.name },
       workspace: { slug: workspace.slug, name: workspace.name },
@@ -117,17 +142,75 @@ export async function listInbox(
       ? []
       : (
           await db
-            .select({ id: user.id, name: user.name })
+            .select({ id: user.id, name: user.name, image: user.image })
             .from(user)
             .where(inArray(user.id, actorIds))
-        ).map((u) => [u.id, u.name]),
+        ).map((u) => [u.id, { name: u.name, image: u.image }]),
   )
+
+  const buildIds = [...new Set(rows.flatMap((r) => (r.n.buildId === null ? [] : [r.n.buildId])))]
+  const counts = new Map<
+    string,
+    { changed: number; added: number; removed: number; unchanged: number }
+  >()
+  const open = new Map<string, { dueAt: Date | null; snoozed: boolean }>()
+  if (buildIds.length > 0) {
+    const grouped = await db
+      .select({
+        buildId: screenshotDiffs.buildId,
+        status: screenshotDiffs.status,
+        n: sql<number>`count(*)::int`,
+      })
+      .from(screenshotDiffs)
+      .where(inArray(screenshotDiffs.buildId, buildIds))
+      .groupBy(screenshotDiffs.buildId, screenshotDiffs.status)
+    for (const g of grouped) {
+      const entry = counts.get(g.buildId) ?? {
+        changed: 0,
+        added: 0,
+        removed: 0,
+        unchanged: 0,
+      }
+      if (
+        g.status === 'changed' ||
+        g.status === 'added' ||
+        g.status === 'removed' ||
+        g.status === 'unchanged'
+      ) {
+        entry[g.status] += g.n
+      }
+      counts.set(g.buildId, entry)
+    }
+    const requests = await db
+      .select({
+        buildId: reviewRequests.buildId,
+        dueAt: reviewRequests.dueAt,
+        snoozeKind: reviewRequests.snoozeKind,
+        snoozedUntil: reviewRequests.snoozedUntil,
+      })
+      .from(reviewRequests)
+      .where(
+        and(
+          inArray(reviewRequests.buildId, buildIds),
+          eq(reviewRequests.reviewerId, input.userId),
+          eq(reviewRequests.state, 'open'),
+        ),
+      )
+    for (const r of requests) {
+      open.set(r.buildId, {
+        dueAt: r.dueAt,
+        snoozed: r.snoozeKind !== null && (r.snoozedUntil === null || r.snoozedUntil > input.now),
+      })
+    }
+  }
 
   return {
     tab: input.tab,
     unread: await countUnreadNotifications(db, input),
     items: rows.map((r) => {
-      const actorName = r.n.actorId === null ? undefined : actors.get(r.n.actorId)
+      const actorRow = r.n.actorId === null ? undefined : actors.get(r.n.actorId)
+      const buildId = r.n.buildId
+      const request = buildId === null ? undefined : open.get(buildId)
       return {
         id: r.n.id,
         kind: r.n.kind,
@@ -136,10 +219,36 @@ export async function listInbox(
         snoozedUntil: r.n.snoozedUntil,
         payload: r.n.payload,
         actor:
-          r.n.actorId !== null && actorName !== undefined
-            ? { id: r.n.actorId, name: actorName }
+          r.n.actorId !== null && actorRow !== undefined
+            ? { id: r.n.actorId, name: actorRow.name, image: actorRow.image }
             : null,
-        build: r.n.buildId === null ? null : r.build,
+        build:
+          r.n.buildId === null || r.build === null
+            ? null
+            : {
+                number: r.build.number,
+                name: r.build.name,
+                branch: r.build.branch,
+                prNumber: r.build.prNumber,
+                commitSha: r.build.commitSha,
+                status: r.build.status,
+                reviewStatus: r.build.reviewStatus,
+              },
+        changes:
+          buildId === null
+            ? null
+            : (counts.get(buildId) ?? {
+                changed: 0,
+                added: 0,
+                removed: 0,
+                unchanged: 0,
+              }),
+        request: request
+          ? {
+              dueAt: request.dueAt,
+              overdueByMs: overdueBy(request.dueAt, input.now, request.snoozed),
+            }
+          : null,
         team: r.n.buildId === null ? null : r.team,
         workspace: r.n.buildId === null ? null : r.workspace,
         alsoInReviews: r.alsoInReviews,

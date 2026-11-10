@@ -74,6 +74,7 @@ export namespace listReviewRequests {
     requestedBy: { id: string; name: string; image: string | null } | null
     build: {
       number: number
+      name: string
       branch: string | null
       prNumber: number | null
       commitSha: string
@@ -144,6 +145,7 @@ export async function listReviewRequests(
       reviewer: { id: user.id, name: user.name, image: user.image },
       build: {
         number: builds.number,
+        name: builds.name,
         branch: builds.branch,
         prNumber: builds.prNumber,
         commitSha: builds.commitSha,

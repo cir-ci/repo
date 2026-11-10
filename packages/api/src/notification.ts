@@ -1,3 +1,5 @@
+import type { BuildStatus, ReviewStatus } from './build.ts'
+
 export type NotificationKind =
   | 'review_requested'
   | 'review_re_requested'
@@ -22,14 +24,22 @@ export namespace Inbox {
     /** Kind-specific details, e.g. `reason` on `build_rejected`, `dueAt` on a request. */
     payload: Record<string, unknown>
     /** Null for the system, or when the person has since left. */
-    actor: { id: string; name: string } | null
+    actor: { id: string; name: string; image: string | null } | null
     /** Null for notices that are not about one build. */
     build: {
       number: number
+      /** The build's name; "default" for a team's only build per commit. */
+      name: string
       branch: string | null
       prNumber: number | null
       commitSha: string
+      status: BuildStatus
+      reviewStatus: ReviewStatus
     } | null
+    /** How the build's screenshots compare with the baseline; null without a build. */
+    changes: { changed: number; added: number; removed: number; unchanged: number } | null
+    /** Your open review request for the build: its target (null without one) and how far past it. */
+    request: { dueAt: string | null; overdueByMs: number } | null
     team: { slug: string; name: string } | null
     workspace: { slug: string; name: string } | null
     /** The same build also waits for your review on the Reviews page. */
