@@ -492,18 +492,18 @@ describe('TeamSettingsPage', () => {
         .toHaveAttribute('href', '/workspaces/acme/settings/integrations')
     })
 
-    it('unlinks only after confirming', async () => {
+    it('removes the repository link only after confirming', async () => {
       const fake = api(
         { github: github({ installationId: '4242', repoRef: 'acme/web', attention: null }) },
         { [`DELETE ${API}/github`]: { status: 204 } },
       )
       await show()
-      await page.getByRole('button', { name: 'Unlink' }).click()
+      await page.getByRole('button', { name: 'Remove repository link' }).click()
       await page.getByRole('button', { name: 'Cancel' }).click()
       await expect.element(page.getByRole('alertdialog')).not.toBeInTheDocument()
       expect(fake.of('DELETE')).toHaveLength(0)
-      await page.getByRole('button', { name: 'Unlink' }).click()
-      await page.getByRole('alertdialog').getByRole('button', { name: 'Unlink' }).click()
+      await page.getByRole('button', { name: 'Remove repository link' }).click()
+      await page.getByRole('alertdialog').getByRole('button', { name: 'Remove' }).click()
       await expect.poll(() => fake.of('DELETE')).toHaveLength(1)
     })
   })

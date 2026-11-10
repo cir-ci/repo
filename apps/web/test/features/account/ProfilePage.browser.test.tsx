@@ -128,7 +128,7 @@ describe('ProfilePage', () => {
     expect(calls.filter((c) => c.path.endsWith('revoke-other-sessions'))).toHaveLength(1)
   })
 
-  it('lists linked providers with an unlink, and offers the ones not linked yet', async () => {
+  it('lists linked providers with a Remove, and offers the ones not linked yet', async () => {
     fakeFetch({
       ...signedIn,
       'GET /api/auth-methods': {
@@ -151,7 +151,7 @@ describe('ProfilePage', () => {
       'GET /api/auth/list-sessions': sessions,
     })
     await renderPage(<ProfilePage />)
-    await expect.element(page.getByRole('button', { name: 'Unlink GitHub' })).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Remove GitHub' })).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Link Google' })).toBeVisible()
     expect(page.getByRole('button', { name: 'Link GitHub' }).elements()).toHaveLength(0)
   })
@@ -162,7 +162,7 @@ describe('ProfilePage', () => {
     await expect.element(page.getByText(/No other sign-in accounts are available/)).toBeVisible()
   })
 
-  it("unlinks an account only after confirming, and shows the server's refusal", async () => {
+  it("removes an account only after confirming, and shows the server's refusal", async () => {
     const calls = fakeFetch({
       ...signedIn,
       'GET /api/auth-methods': {
@@ -178,11 +178,11 @@ describe('ProfilePage', () => {
         json({ message: "You can't unlink your only account" }, 400),
     })
     await renderPage(<ProfilePage />)
-    await page.getByRole('button', { name: 'Unlink GitHub' }).click()
+    await page.getByRole('button', { name: 'Remove GitHub' }).click()
     await page.getByRole('button', { name: 'Cancel' }).click()
     expect(calls.some((c) => c.path.endsWith('unlink-account'))).toBe(false)
-    await page.getByRole('button', { name: 'Unlink GitHub' }).click()
-    await page.getByRole('alertdialog').getByRole('button', { name: 'Unlink' }).click()
+    await page.getByRole('button', { name: 'Remove GitHub' }).click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Remove' }).click()
     await expect.element(page.getByText(/You can't unlink your only account/).first()).toBeVisible()
     expect(calls.find((c) => c.path.endsWith('unlink-account'))?.body).toEqual({
       providerId: 'github',

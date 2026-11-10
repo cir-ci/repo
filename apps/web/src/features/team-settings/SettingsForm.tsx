@@ -207,12 +207,13 @@ export function SettingsForm(props: SettingsForm.Props) {
               <Button
                 variant="ghost"
                 size="sm"
+                aria-label="Remove repository link"
                 onClick={() => {
                   unlink.reset()
                   setUnlinking(true)
                 }}
               >
-                Unlink
+                Remove
               </Button>
             ) : null}
           </SettingsRow>
@@ -344,13 +345,13 @@ export function SettingsForm(props: SettingsForm.Props) {
       <ConfirmDialog
         open={unlinking}
         onOpenChange={setUnlinking}
-        title="Unlink the repository?"
+        title="Remove the repository link?"
         description={`CirCI stops posting checks and comments on ${link?.repoRef ?? 'its'} pull requests. Builds already uploaded stay.`}
-        confirmLabel="Unlink"
+        confirmLabel="Remove"
         loading={unlink.isPending}
         onConfirm={() =>
           unlink.mutate(undefined, {
-            onSuccess: () => announce('Repository unlinked'),
+            onSuccess: () => announce('Repository link removed'),
             onSettled: () => setUnlinking(false),
           })
         }

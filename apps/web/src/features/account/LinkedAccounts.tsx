@@ -18,7 +18,7 @@ import { ErrorState } from '#lib/ErrorState.tsx'
 import { accountsKey, accountsQuery } from './api.ts'
 import { providerRows } from './model.ts'
 
-/** The accounts you can sign in with: unlink one, or link a provider this instance offers. */
+/** The accounts you can sign in with: remove one, or link a provider this instance offers. */
 export function LinkedAccounts() {
   const queryClient = useQueryClient()
   const announce = useAnnounce()
@@ -33,10 +33,10 @@ export function LinkedAccounts() {
   const unlink = useMutation({
     mutationFn: async (input: { providerId: string; accountId: string }) => {
       const { error } = await authClient.unlinkAccount(input)
-      if (error) throw new Error(error.message ?? "Couldn't unlink that account")
+      if (error) throw new Error(error.message ?? "Couldn't remove that account")
     },
     onSuccess: () => {
-      announce('Account unlinked')
+      announce('Account removed')
       return queryClient.invalidateQueries({ queryKey: accountsKey })
     },
     onSettled: () => setUnlinking(undefined),
@@ -77,7 +77,7 @@ export function LinkedAccounts() {
                   </Badge>
                   <Button
                     variant="ghost"
-                    aria-label={`Unlink ${r.name}`}
+                    aria-label={`Remove ${r.name}`}
                     onClick={() =>
                       setUnlinking({
                         providerId: r.account.providerId,
@@ -86,7 +86,7 @@ export function LinkedAccounts() {
                       })
                     }
                   >
-                    Unlink
+                    Remove
                   </Button>
                 </>
               ) : (
@@ -109,9 +109,9 @@ export function LinkedAccounts() {
         onOpenChange={(open) => {
           if (!open) setUnlinking(undefined)
         }}
-        title={`Unlink ${unlinking?.name ?? 'this account'}?`}
-        description="You can no longer sign in with it until you link it again. You can't unlink the only way you have to sign in."
-        confirmLabel="Unlink"
+        title={`Remove ${unlinking?.name ?? 'this account'}?`}
+        description="You can no longer sign in with it until you link it again. You can't remove the only way you have to sign in."
+        confirmLabel="Remove"
         loading={unlink.isPending}
         onConfirm={() => {
           if (unlinking) {
