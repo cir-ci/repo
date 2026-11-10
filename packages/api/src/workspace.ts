@@ -68,14 +68,6 @@ export namespace Workspace {
     members: MemberSignIn[]
   }
 
-  /**
-   * CONTRACT (team membership): `GET /api/workspaces/:workspace/member-teams`: the teams each
-   * member is in, by user ID (a member of no team has no entry).
-   */
-  export interface MemberTeams {
-    teams: Record<string, { slug: string; name: string; color: Team.Color; icon: string | null }[]>
-  }
-
   /** `DELETE /api/workspaces/:workspace` (owners; body `{ confirm: <the workspace's slug> }`). */
   export interface Deleted {
     /** When the workspace will be purged for good. */

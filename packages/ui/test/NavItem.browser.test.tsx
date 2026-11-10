@@ -48,6 +48,6 @@ describe('NavItem', () => {
       </NavItem>,
     )
     const style = getComputedStyle(page.getByRole('link', { name: 'Child' }).element())
-    expect([style.height, style.paddingLeft]).toEqual(['26px', '34px'])
+    expect([style.height, style.paddingLeft]).toEqual(['26px', '26px'])
   })
 })
