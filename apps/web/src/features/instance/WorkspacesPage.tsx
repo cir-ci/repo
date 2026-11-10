@@ -52,7 +52,6 @@ export function WorkspacesPage() {
   // Who may create workspaces is a setting from the environment; the page works without it.
   const settings = useQuery(settingsQuery())
   const [creating, setCreating] = useState(false)
-  const [created, setCreated] = useState<string | null>(null)
   const restore = useRestoreWorkspace()
   const purge = usePurgeWorkspace()
   const [purging, setPurging] = useState<InstanceAdmin.Workspace | null>(null)
@@ -66,7 +65,6 @@ export function WorkspacesPage() {
           variant="primary"
           leading={<AddCircleIcon />}
           onClick={() => {
-            setCreated(null)
             setCreating(true)
           }}
         >
@@ -77,9 +75,8 @@ export function WorkspacesPage() {
       error={error}
       onRetry={() => void refetch()}
     >
-      {created ? <Banner tone="success">{created}</Banner> : null}
       {restore.error ? <Banner tone="danger">{restore.error.message}</Banner> : null}
-      <SettingsSection title="All workspaces">
+      <SettingsSection aria-label="Workspaces">
         {data && data.workspaces.length === 0 ? (
           <EmptyState icon={<BuildingIcon />} size="section" title="No workspaces yet">
             Create one for an existing account to get started.
@@ -155,7 +152,6 @@ export function WorkspacesPage() {
                               onSelect: () =>
                                 restore.mutate(w.id, {
                                   onSuccess: () => {
-                                    setCreated(`Restored the workspace ${w.name}.`)
                                     toast(`Restored ${w.name}`)
                                   },
                                 }),
@@ -206,7 +202,6 @@ export function WorkspacesPage() {
           if (!purging) return
           purge.mutate(purging.id, {
             onSuccess: () => {
-              setCreated(`Deleted ${purging.name} permanently.`)
               toast(`Deleted ${purging.name} permanently`)
               setPurging(null)
             },
@@ -218,7 +213,6 @@ export function WorkspacesPage() {
         onClose={() => setCreating(false)}
         onCreated={(name) => {
           setCreating(false)
-          setCreated(`Created the workspace ${name}.`)
           toast(`Created ${name}`)
         }}
       />

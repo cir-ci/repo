@@ -7,7 +7,7 @@ import styles from './SettingsSection.module.css'
 /**
  * A group on a settings page: a heading (`h2`), an optional description and actions, then a
  * bordered box of `SettingsRow`s. `tone="danger"` is the danger zone: a rejected-coloured border.
- * The section is a labelled region named by its heading. Children that are not rows (a form, a
+ * The section is a labelled region named by its heading (a section without a title, because the page's own heading above says it, has no header; name it with `aria-label`). Children that are not rows (a form, a
  * note) go in the box too; use `bare` to render them without the box.
  */
 export function SettingsSection({
@@ -28,17 +28,21 @@ export function SettingsSection({
       {...rest}
       className={cx(styles.root, className)}
       data-tone={tone}
-      aria-labelledby={titleId}
+      aria-labelledby={title ? titleId : undefined}
     >
-      <header className={styles.header}>
-        <div className={styles.text}>
-          <Heading id={titleId} className={styles.title}>
-            {title}
-          </Heading>
-          {description ? <p className={styles.description}>{description}</p> : null}
-        </div>
-        {actions ? <div className={styles.actions}>{actions}</div> : null}
-      </header>
+      {title || description || actions ? (
+        <header className={styles.header}>
+          <div className={styles.text}>
+            {title ? (
+              <Heading id={titleId} className={styles.title}>
+                {title}
+              </Heading>
+            ) : null}
+            {description ? <p className={styles.description}>{description}</p> : null}
+          </div>
+          {actions ? <div className={styles.actions}>{actions}</div> : null}
+        </header>
+      ) : null}
       {bare ? children : <div className={styles.box}>{children}</div>}
     </section>
   )
@@ -46,7 +50,8 @@ export function SettingsSection({
 
 export namespace SettingsSection {
   export interface Props extends Omit<ComponentPropsWithRef<'section'>, 'title'> {
-    title: ReactNode
+    /** Without one the section has no heading: give it an `aria-label` if it should be a named region. */
+    title?: ReactNode
     description?: ReactNode
     actions?: ReactNode
     /** `danger` for a danger zone. */

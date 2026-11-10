@@ -69,7 +69,6 @@ export function AccountsPage() {
   const [pending, setPending] = useState<Pending>(null)
   const [secret, setSecret] = useState<{ email: string; password: string } | null>(null)
   const [failure, setFailure] = useState<string | null>(null)
-  const [done, setDone] = useState<string | null>(null)
 
   // Typing searches after a short pause, from the first page.
   useEffect(() => {
@@ -91,7 +90,6 @@ export function AccountsPage() {
           variant="primary"
           leading={<AddCircleIcon />}
           onClick={() => {
-            setDone(null)
             setCreating(true)
           }}
         >
@@ -103,9 +101,8 @@ export function AccountsPage() {
       onRetry={() => void refetch()}
     >
       {failure ? <Banner tone="danger">{failure}</Banner> : null}
-      {done ? <Banner tone="success">{done}</Banner> : null}
       <SettingsSection
-        title="All accounts"
+        aria-label="Accounts"
         bare
         description={
           data ? `${data.total} ${data.total === 1 ? 'account' : 'accounts'}` : undefined
@@ -149,7 +146,6 @@ export function AccountsPage() {
                     now={now}
                     onAction={(kind) => {
                       setFailure(null)
-                      setDone(null)
                       setPending({ kind, account })
                     }}
                   />
@@ -183,10 +179,13 @@ export function AccountsPage() {
         onClose={() => setCreating(false)}
         onCreated={(email, password, codeSent) => {
           setCreating(false)
-          toast(`Created the account for ${email}`)
+          toast(
+            codeSent
+              ? `Created the account for ${email} and emailed a sign-in code`
+              : `Created the account for ${email}`,
+          )
+          // A one-time password is shown in a dialog: the admin has to copy it, a toast would go.
           if (password) setSecret({ email, password })
-          else if (codeSent) setDone(`Created the account for ${email} and emailed a sign-in code.`)
-          else setDone(`Created the account for ${email}.`)
         }}
       />
       <AccountActions
@@ -194,7 +193,6 @@ export function AccountsPage() {
         onClose={() => setPending(null)}
         onFailed={(message) => setFailure(message)}
         onDone={(message) => {
-          setDone(message)
           toast(message.replace(/\.$/, ''))
         }}
         onSecret={(email, password) => setSecret({ email, password })}

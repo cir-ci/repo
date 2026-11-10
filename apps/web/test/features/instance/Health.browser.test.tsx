@@ -96,12 +96,10 @@ describe('the health page', () => {
   it('shows warnings first with their fix, the queues and the address checklist', async () => {
     fakeApi(ROUTES)
     await show()
-    // Once the page has loaded, its title (not the breadcrumb) is the heading.
+    // The page's name is the header's one h1.
     await expect.element(page.getByText('14 jobs waiting · 3 running · 1 failed')).toBeVisible()
     const title = page.getByRole('heading', { level: 1, name: 'Health' })
     await expect.element(title).toBeVisible()
-    // The title is the page's own 15px heading, beside its button.
-    expect(getComputedStyle(title.element()).fontSize).toBe('15px')
     expect(page.getByRole('heading', { level: 1 }).elements()).toHaveLength(1)
     await expect.element(page.getByText(/How to fix: Make the cookie host-only\./)).toBeVisible()
     // No "everything passes" line: the summary is its three counts.
@@ -329,4 +327,29 @@ describe('the health page', () => {
     await expect.poll(() => api.of('DELETE')).toHaveLength(1)
     await expect.element(page.getByRole('region', { name: 'Moving to ci.acme.io' })).toBeVisible()
   })
+})
+
+describe('the Health header', () => {
+  it.each([[1280], [390]])(
+    'has Run checks again on the title line, and a one-line summary, at %i',
+    async (width) => {
+      await page.viewport(width, 900)
+      fakeApi(ROUTES)
+      await show()
+      await expect.element(page.getByText('Cookies on www.acme.io')).toBeVisible()
+      const button = page.getByRole('button', { name: 'Run checks again' })
+      await expect.element(button).toBeVisible()
+      const h1 = page.getByRole('heading', { level: 1 }).element().getBoundingClientRect()
+      const b = button.element().getBoundingClientRect()
+      expect(b.top).toBeLessThan(h1.bottom)
+      expect(b.bottom).toBeGreaterThan(h1.top)
+      // The summary's three counts sit side by side.
+      const items = [
+        ...page.getByRole('region', { name: 'Summary' }).element().querySelectorAll('dl > div'),
+      ]
+      expect(items).toHaveLength(3)
+      expect(new Set(items.map((el) => Math.round(el.getBoundingClientRect().top))).size).toBe(1)
+      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+    },
+  )
 })

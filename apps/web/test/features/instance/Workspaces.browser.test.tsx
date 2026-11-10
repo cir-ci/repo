@@ -5,6 +5,7 @@ import { WorkspacesPage } from '#features/instance/WorkspacesPage.tsx'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { toastNamed } from '#test/support/toast.ts'
 
 import { settingsFixture, workspace } from './fixtures.ts'
 
@@ -48,7 +49,6 @@ describe('the workspaces page', () => {
     await expect.element(page.getByText(/1\.5 MB/)).toBeVisible()
     const title = page.getByRole('heading', { level: 1, name: 'Workspaces' })
     await expect.element(title).toBeVisible()
-    expect(getComputedStyle(title.element()).fontSize).toBe('15px')
     // No lead paragraph: the title is followed by the button, then the list.
     expect(document.body.textContent).not.toContain('Every workspace on this CirCI')
     await expect.element(page.getByText(/1\.5 MB/)).toBeVisible()
@@ -108,7 +108,7 @@ describe('the workspaces page', () => {
     await page.getByRole('menuitem', { name: 'Restore' }).click()
     await expect.poll(() => fake.of('POST')).toHaveLength(1)
     await expect.element(page.getByText('Deleted · 22 days left')).not.toBeInTheDocument()
-    await expect.element(page.getByText('Restored the workspace Old Co.')).toBeVisible()
+    await expect.element(toastNamed('Restored Old Co')).toBeVisible()
   })
 
   it('purges a deleted workspace at once after its address is typed', async () => {
@@ -237,7 +237,7 @@ describe('the workspaces page', () => {
     await expect.element(page.getByText('Address: acme-mobile')).toBeVisible()
     await page.getByRole('textbox', { name: "Owner's email" }).fill('dana@acme.dev')
     await page.getByRole('dialog').getByRole('button', { name: 'Create workspace' }).click()
-    await expect.element(page.getByText('Created the workspace Acme Mobile.')).toBeVisible()
+    await expect.element(toastNamed('Created Acme Mobile')).toBeVisible()
     expect(fake.of('POST')[0]?.body).toEqual({ name: 'Acme Mobile', ownerEmail: 'dana@acme.dev' })
   })
 
@@ -311,5 +311,20 @@ describe('opening a workspace', () => {
     await expect.element(row.getByRole('button', { name: 'Actions for Old Co' })).toBeVisible()
     expect(row.getByRole('link').elements()).toHaveLength(0)
     expect(row.getByText('Not a member').elements()).toHaveLength(0)
+  })
+})
+
+describe('the Workspaces page heading', () => {
+  it('has no title of its own under the page header', async () => {
+    fakeApi(LIST)
+    await show()
+    await expect.element(page.getByRole('list', { name: 'Workspaces' })).toBeVisible()
+    expect(page.getByRole('heading', { name: 'All workspaces' }).elements()).toHaveLength(0)
+    expect(
+      page
+        .getByRole('heading', { level: 1 })
+        .elements()
+        .map((el) => el.textContent),
+    ).toEqual(['Workspaces'])
   })
 })

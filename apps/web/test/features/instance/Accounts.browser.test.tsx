@@ -6,6 +6,7 @@ import { clipboard } from '#features/instance/api/admin.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { toastNamed } from '#test/support/toast.ts'
 
 import { account, accountList } from './fixtures.ts'
 
@@ -173,7 +174,8 @@ describe('creating an account', () => {
     await page.getByRole('textbox', { name: 'Email' }).fill('lior@acme.dev')
     await page.getByLabelText('Password (leave empty to generate one)').fill('a-chosen-password-1')
     await page.getByRole('dialog').getByRole('button', { name: 'Create account' }).click()
-    await expect.element(page.getByText('Created the account for lior@acme.dev.')).toBeVisible()
+    await expect.element(toastNamed('Created the account for lior@acme.dev')).toBeVisible()
+    expect(page.getByText('Created the account for lior@acme.dev.').elements()).toHaveLength(0)
     await expect.element(page.getByText('Password for lior@acme.dev')).not.toBeInTheDocument()
   })
 
@@ -208,7 +210,7 @@ describe('creating an account', () => {
     expect(page.getByLabelText('Password (leave empty to generate one)').elements()).toHaveLength(0)
     await page.getByRole('dialog').getByRole('button', { name: 'Create account' }).click()
     await expect
-      .element(page.getByText('Created the account for lior@acme.dev and emailed a sign-in code.'))
+      .element(toastNamed('Created the account for lior@acme.dev and emailed a sign-in code'))
       .toBeVisible()
     expect(fake.of('POST')[0]?.body).toEqual({
       name: 'Lior',
@@ -263,7 +265,7 @@ describe('actions on an account', () => {
     await openMenu('Dana Levi')
     await page.getByRole('menuitem', { name: 'Make instance admin' }).click()
     await page.getByRole('button', { name: 'Make instance admin' }).click()
-    await expect.element(page.getByText('Dana Levi is now an instance admin.')).toBeVisible()
+    await expect.element(toastNamed('Dana Levi is now an instance admin')).toBeVisible()
     expect(fake.of('PATCH')[0]?.body).toEqual({ instanceAdmin: true })
     await openMenu('Ron Katz')
     await expect
@@ -296,7 +298,7 @@ describe('actions on an account', () => {
     await page.getByRole('textbox', { name: 'Reason (optional)' }).fill('spam')
     await page.getByLabelText('Days until the ban ends (leave empty for no end)').fill('30')
     await page.getByRole('dialog').getByRole('button', { name: 'Ban' }).click()
-    await expect.element(page.getByText('Dana Levi is banned and signed out.')).toBeVisible()
+    await expect.element(toastNamed('Dana Levi is banned and signed out')).toBeVisible()
     expect(fake.of('POST')[0]?.body).toEqual({ reason: 'spam', expiresInDays: 30 })
   })
 
@@ -306,7 +308,7 @@ describe('actions on an account', () => {
     await openMenu('Tal Shani')
     await page.getByRole('menuitem', { name: 'Lift ban' }).click()
     await page.getByRole('button', { name: 'Lift ban' }).click()
-    await expect.element(page.getByText('Lifted the ban on Tal Shani.')).toBeVisible()
+    await expect.element(toastNamed('Lifted the ban on Tal Shani')).toBeVisible()
     expect(fake.of('POST')).toHaveLength(1)
   })
 
@@ -332,5 +334,25 @@ describe('actions on an account', () => {
     await page.getByRole('menuitem', { name: 'Sign out everywhere' }).click()
     await page.getByRole('button', { name: 'Cancel' }).click()
     expect(fake.of('POST')).toHaveLength(0)
+  })
+})
+
+describe('the Accounts page heading', () => {
+  it("has no title of its own under the page header: one h1, the header's Accounts", async () => {
+    fakeApi(LIST)
+    await show()
+    await expect.element(page.getByRole('list', { name: 'Accounts' })).toBeVisible()
+    expect(page.getByRole('heading', { name: 'All accounts' }).elements()).toHaveLength(0)
+    const h1 = page.getByRole('heading', { level: 1 }).elements()
+    expect(h1.map((el) => el.textContent)).toEqual(['Accounts'])
+    // The main button is in the header, on the title's line.
+    const button = page
+      .getByRole('button', { name: 'Create account' })
+      .element()
+      .getBoundingClientRect()
+    const title = h1[0]!.getBoundingClientRect()
+    expect(Math.abs(button.top + button.height / 2 - (title.top + title.height / 2))).toBeLessThan(
+      24,
+    )
   })
 })

@@ -36,9 +36,14 @@ describe('instance settings', () => {
     await expect.element(page.getByText('smtp.acme.io:587')).toBeVisible()
     await expect.element(page.getByText('AUTH_PASSWORD_ENABLED')).toBeVisible()
     expect(document.body.textContent).not.toContain('you can check them here')
-    expect(getComputedStyle(page.getByRole('heading', { level: 1 }).element()).fontSize).toBe(
-      '15px',
-    )
+    // The page's name is the header's one h1, not repeated as a title above the sections.
+    expect(
+      page
+        .getByRole('heading', { level: 1 })
+        .elements()
+        .map((el) => el.textContent),
+    ).toEqual(['Instance settings'])
+    expect(page.getByRole('heading', { name: 'Instance settings' }).elements()).toHaveLength(1)
     // The GitHub App is a section of this page.
     await expect.element(page.getByRole('button', { name: 'Create GitHub App' })).toBeVisible()
   })
