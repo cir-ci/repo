@@ -8,6 +8,7 @@ import { usePaneStore } from '#lib/stores/pane-store.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi } from '#test/support/fetch.ts'
 import { pageHeader } from '#test/support/header.ts'
+import { menuItemNames } from '#test/support/menu.ts'
 import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { expectLimitedToSpace, expectResize, parentOf } from '#test/support/resize.ts'
@@ -506,5 +507,69 @@ describe('InboxPage on a phone', () => {
     expect(
       header.contains(page.getByRole('textbox', { name: 'Find notifications' }).element()),
     ).toBe(true)
+  })
+})
+
+const firstRow = () => page.getByRole('listitem').first()
+
+describe('right-click menu on an inbox item', () => {
+  it('offers the row quick actions, with Approve all while the build awaits your review', async () => {
+    fakeApi({ 'GET /api/inbox': list([item('n1')]) })
+    await show()
+    await firstRow().click({ button: 'right' })
+    expect(menuItemNames()).toEqual([
+      'Open',
+      'Open in new tab',
+      'Copy link',
+      'Mark read',
+      'Snooze until tomorrow',
+      'Snooze until next week',
+      'Approve all',
+      'Delete',
+    ])
+  })
+
+  it('has no Approve all for a notice without your open request', async () => {
+    fakeApi({ 'GET /api/inbox': list([item('n1', { request: null })]) })
+    await show()
+    await firstRow().click({ button: 'right' })
+    await expect.element(page.getByRole('menuitem', { name: 'Delete' })).toBeVisible()
+    expect(menuItemNames()).not.toContain('Approve all')
+  })
+
+  it('marks it read at once, and Undo puts it back', async () => {
+    let readAt: string | null = null
+    const api = fakeApi({
+      'GET /api/inbox': () => list([item('n1', { readAt })]),
+      'POST /api/inbox/n1/read': () => {
+        readAt = '2026-11-08T12:00:00.000Z'
+        return {
+          body: { id: 'n1', readAt, snoozedUntil: null, undo: { id: 'nu1', expiresAt: '2099' } },
+        }
+      },
+      'POST /api/inbox/undo/nu1': () => {
+        readAt = null
+        return { body: { undone: true } }
+      },
+    })
+    await show()
+    await firstRow().click({ button: 'right' })
+    await page.getByRole('menuitem', { name: 'Mark read' }).click()
+    await expect.element(toastNamed('Marked as read')).toBeVisible()
+    await toastNamed('Marked as read').getByRole('button', { name: 'Undo' }).click()
+    await expect
+      .poll(() => api.of('POST').map((c) => c.path))
+      .toEqual(['/api/inbox/n1/read', '/api/inbox/undo/nu1'])
+  })
+
+  it('approves everything from the menu', async () => {
+    const api = fakeApi({
+      'GET /api/inbox': list([item('n1', { readAt: 'x' })]),
+      'POST /api/teams/acme/web/builds/12/review': { body: { build: {} } },
+    })
+    await show()
+    await firstRow().click({ button: 'right' })
+    await page.getByRole('menuitem', { name: 'Approve all' }).click()
+    await expect.poll(() => api.of('POST')[0]?.body).toEqual({ state: 'approved' })
   })
 })

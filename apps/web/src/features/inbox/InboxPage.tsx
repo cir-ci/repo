@@ -4,6 +4,7 @@ import {
   Avatar,
   Badge,
   Button,
+  ContextMenu,
   EmptyState,
   InboxIcon,
   ListRow,
@@ -15,7 +16,7 @@ import {
   BellIcon,
 } from '@circi/ui'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, useSearch } from '@tanstack/react-router'
+import { useNavigate, useRouter, useSearch } from '@tanstack/react-router'
 import { type ReactNode, useState } from 'react'
 
 import { InstallBanner } from '#features/pwa/InstallBanner.tsx'
@@ -27,6 +28,13 @@ import { PageHeading } from '#lib/PageHeading.tsx'
 import { PaneHandle, paneVars } from '#lib/PaneHandle.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
+import {
+  copyLinkItem,
+  menuEntries,
+  openInNewTabItem,
+  separator,
+  snoozeItems,
+} from '#lib/row-menu.ts'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 import { usePaneWidth } from '#lib/stores/pane-store.ts'
@@ -61,6 +69,7 @@ export function InboxPage() {
   useDocumentTitle('Inbox')
   const { tab } = useSearch({ from: '/inbox' })
   const navigate = useNavigate()
+  const router = useRouter()
   const queryClient = useQueryClient()
   const query = useQuery(inboxQuery(tab))
   // The Snoozed tab's count shows beside its name on every tab.
@@ -145,6 +154,25 @@ export function InboxPage() {
           ),
       }),
     )
+
+  /** A row's right-click menu: what the pane's buttons and keys do, for that notification. */
+  const rowMenu = (item: Inbox.Item) => {
+    const target = notificationTarget(item)
+    const href = target ? router.buildLocation(target).href : undefined
+    return menuEntries([
+      target && { label: 'Open', onSelect: () => open(item) },
+      href !== undefined && openInNewTabItem(href),
+      href !== undefined && copyLinkItem(href),
+      { label: item.readAt ? 'Mark unread' : 'Mark read', onSelect: () => toggleRead(item) },
+      separator,
+      ...(snoozedTab
+        ? [{ label: 'Unsnooze', onSelect: () => doUnsnooze(item) }]
+        : snoozeItems(false, (choice) => doSnooze(item, choice))),
+      awaitsYourReview(item) && { label: 'Approve all', onSelect: () => doApprove(item) },
+      separator,
+      { label: 'Delete', tone: 'danger', onSelect: () => doRemove(item) },
+    ])
+  }
 
   useShortcutHandlers({
     toggleRead: () => {
@@ -269,15 +297,17 @@ export function InboxPage() {
                               open(item)
                             }}
                           >
-                            <Row
-                              item={item}
-                              selected={item.id === selected?.id}
-                              onSelect={() => {
-                                setSelectedId(item.id)
-                                setSheetFor(item.id)
-                                markRead(item)
-                              }}
-                            />
+                            <ContextMenu items={rowMenu(item)}>
+                              <Row
+                                item={item}
+                                selected={item.id === selected?.id}
+                                onSelect={() => {
+                                  setSelectedId(item.id)
+                                  setSheetFor(item.id)
+                                  markRead(item)
+                                }}
+                              />
+                            </ContextMenu>
                           </li>
                         ))}
                       </ul>
