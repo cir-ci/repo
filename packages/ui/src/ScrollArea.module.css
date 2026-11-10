@@ -1,0 +1,77 @@
+/* The positioned frame the thumbs are laid on. The scroller inside it is the element the caller
+   styles: it keeps scrolling natively (wheel, keys, touch) with its own bars hidden. */
+.root {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+}
+
+.scroller {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: none;
+}
+
+.scroller::-webkit-scrollbar {
+  display: none;
+}
+
+/* The track is the hit area for paging: 10px, with the 6px thumb against the edge. It takes no
+   presses while it is faded out, so it never covers the content's edge for nothing. */
+.track {
+  position: absolute;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms;
+  touch-action: none;
+  user-select: none;
+}
+
+.track[data-visible] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.track[data-axis='y'] {
+  top: 0;
+  right: 0;
+  width: 10px;
+}
+
+.track[data-axis='x'] {
+  bottom: 0;
+  left: 0;
+  height: 10px;
+}
+
+.thumb {
+  position: absolute;
+  border-radius: 999px;
+  background: var(--circi-scrollbar-thumb);
+}
+
+.track[data-axis='y'] .thumb {
+  right: 0;
+  width: 6px;
+}
+
+.track[data-axis='x'] .thumb {
+  bottom: 0;
+  height: 6px;
+}
+
+.thumb:hover,
+.thumb[data-dragging] {
+  background: var(--circi-scrollbar-thumb-hover);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track {
+    transition: none;
+  }
+}

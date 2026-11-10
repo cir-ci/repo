@@ -80,39 +80,24 @@
   width: 200px;
 }
 
+/* The frame the ground's overlay scrollbars sit on (`ScrollArea`): from zero, so the screenshot's
+   size never adds to the page's height; the ground takes what the row gives it and scrolls the
+   rest, its own bars hidden so the screenshot runs to the edge. */
+.area {
+  min-height: min(50vh, 100%);
+}
+
 /* The ground is plain; the Checkerboard toggle makes it a checkerboard, so transparent pixels and
    size-change padding show. */
 .ground {
   container-type: inline-size;
   display: flex;
   flex-direction: column;
-  /* From zero, so the screenshot's size never adds to the page's height: the ground takes what
-     the row gives it and scrolls the rest. */
-  flex: 1 1 0;
   gap: 12px;
   box-sizing: border-box;
-  min-height: min(50vh, 100%);
   padding: 16px;
-  overflow: auto;
   overscroll-behavior: contain;
   background-color: var(--circi-surface-chrome);
-}
-
-/* The image view's scrollbars: slim (6px), a thumb with no track or corner, so the screenshot
-   runs to the edge with nothing painted behind the bar. */
-.ground::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-  background: transparent;
-}
-
-.ground::-webkit-scrollbar-track,
-.ground::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
-.ground::-webkit-scrollbar-thumb {
-  border-width: 1px;
 }
 
 .ground[data-checkerboard] {

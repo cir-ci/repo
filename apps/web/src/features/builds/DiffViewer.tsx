@@ -12,6 +12,7 @@ import {
   Kbd,
   Link,
   FrameIcon,
+  ScrollArea,
   SegmentedControl,
   Slider,
   StatusIcon,
@@ -340,7 +341,11 @@ export function Viewer({
       </div>
       {issues}
 
-      <div className={styles.ground} data-checkerboard={checkerboard ? '' : undefined}>
+      <ScrollArea
+        rootClassName={styles.area}
+        className={styles.ground}
+        data-checkerboard={checkerboard ? '' : undefined}
+      >
         {diff.status === 'failed' ? (
           <Banner tone="danger">
             {diff.errorMessage ?? "This screenshot couldn't be processed."}
@@ -449,7 +454,7 @@ export function Viewer({
             The frame this screenshot is built from will show here.
           </EmptyState>
         ) : null}
-      </div>
+      </ScrollArea>
       <ImageDialog
         images={enlargeable.map((e) => ({
           src: fileUrl(e.image.sha256),
