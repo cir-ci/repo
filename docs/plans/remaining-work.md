@@ -156,6 +156,14 @@ All of the open decisions were answered by the owner on 2026-11-10:
 18. **Apps:** an installable PWA on desktop and phones, with web push sent by each server itself
     (VAPID, no central relay); a phone layout for every page; and in the PWA a **tabs** feature:
     several pages of the app open at once as tabs. Design first, owner approves, then build.
+    **Approved 2026-11-10** (canvas rows "Light palette proposal" and "Apps · PWA, phone, tabs",
+    version 145): the proposed light palette as is; phones get a bottom tab bar (Inbox, Reviews,
+    Triage, Teams, More) and a full-bleed panel; tabs only in the installed app; the desktop tab
+    strip is the window's first row with the ⌥ shortcuts (⌥T, ⌥W, ⌥1-9, ⌘⇧T, ⌘Enter on a row).
+    The rest follows the boards' defaults: comment regions drawable on phones through a draw mode,
+    ignore regions view-only; install banner after the second visit or first approval; push asked
+    in context on Reviews, "Not now" returns after 14 days, at most 3 times; 12 tabs on desktop
+    (5 pinned), 8 on phones; tabs persist per device and clear on sign-out.
 
 ## 4. Missing UI features (open)
 
