@@ -1064,7 +1064,9 @@ describe('Shell, narrow', () => {
         ),
       ).toEqual(['web-app', 'api', 'storybook', 'portal', 'All teams'])
       // The pinned team from a workspace of several names its workspace, with its count.
-      await expect.element(menu.getByRole('menuitem', { name: /^web-app/ })).toHaveTextContent(/4/)
+      await expect
+        .element(menu.getByRole('menuitem', { name: /^web-app/ }))
+        .toHaveTextContent('Acme · 4')
       // A separator between the groups and before All teams.
       expect(menu.getByRole('separator').elements().length).toBeGreaterThanOrEqual(3)
     })
