@@ -21,7 +21,7 @@ export function YouSection({ user }: YouSection.Props) {
     <div className={styles.form}>
       <SettingsSection
         title="You"
-        description="How you appear on builds, reviews and comments in every workspace you belong to. Your name is saved as soon as you change it."
+        description="How you appear on builds, reviews and comments in every workspace you belong to."
       >
         <SettingsRow>
           <div className={styles.avatarRow}>

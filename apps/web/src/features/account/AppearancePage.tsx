@@ -98,7 +98,7 @@ export function AppearancePage() {
             ))}
           </fieldset>
         </SettingsRow>
-        <SettingsRow detail="Saved as soon as you choose, in this browser. Screenshots under review always show on white.">
+        <SettingsRow detail="Kept in this browser only. Screenshots under review always show on white.">
           {saved ? (
             <Text variant="small" tone="approved" role="status">
               Saved

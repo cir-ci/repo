@@ -70,7 +70,7 @@ function IdentitySection({ workspace, name, picture, canManage }: IdentitySectio
   return (
     <SettingsSection
       title="Workspace"
-      description="Shown in the sidebar, in invitations and in pull request comments. Saved as soon as you change them."
+      description="Shown in the sidebar, in invitations and in pull request comments."
     >
       <PictureRow workspace={workspace} name={name} picture={picture} canManage={canManage} />
       <SettingsRow>
