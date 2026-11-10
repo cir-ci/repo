@@ -231,25 +231,6 @@
   flex: 1 1 0;
 }
 
-.toggle {
-  flex: none;
-  height: 24px;
-  padding: 0 8px;
-  border: 1px solid var(--circi-line-subtle);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--circi-text-secondary);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.toggle:hover,
-.toggle[aria-pressed='true'] {
-  background: var(--circi-action-hover);
-  color: var(--circi-text-primary);
-}
-
 .legendSlot {
   min-height: 20px;
 }

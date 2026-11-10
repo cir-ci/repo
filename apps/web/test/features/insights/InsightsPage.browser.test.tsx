@@ -143,10 +143,15 @@ describe('InsightsPage', () => {
       await expect.element(c.getByText('target 4h')).toBeVisible()
       await expect.element(c.getByRole('img', { name: /from 5\.0h to 3\.0h/ })).toBeVisible()
       await expect.element(page.getByTitle('W44 · 5.0h median · 20 reviews')).toBeInTheDocument()
-      await userEvent.click(c.getByRole('button', { name: 'View as table' }))
+      const toggle = c.getByRole('button', { name: 'View as table' })
+      await expect.element(toggle).toHaveAttribute('aria-pressed', 'false')
+      await userEvent.click(toggle)
+      await expect.element(toggle).toHaveAttribute('aria-pressed', 'true')
       await expect.element(c.getByRole('columnheader', { name: 'Median' })).toBeVisible()
       await expect.element(c.getByRole('cell', { name: '5.0h' })).toBeVisible()
-      await userEvent.click(c.getByRole('button', { name: 'View as chart' }))
+      // The name stays "View as table": pressed while the table is showing, a press again is the chart.
+      await userEvent.click(toggle)
+      await expect.element(toggle).toHaveAttribute('aria-pressed', 'false')
       await expect.element(c.getByText('target 4h')).toBeVisible()
     })
 

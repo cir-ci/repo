@@ -1,5 +1,5 @@
 import type { Insights } from '@circi/api'
-import { Avatar, SortableHeader, StatusIcon, type Status } from '@circi/ui'
+import { Avatar, SortableHeader, StatusIcon, type Status, Toggle } from '@circi/ui'
 import { type ReactNode, useId, useState } from 'react'
 
 import { isTeamColor } from '#features/teams/appearance.ts'
@@ -93,14 +93,9 @@ export function Card(props: Card.Props) {
         )}
         <span className={styles.spacer} />
         {props.table !== undefined && props.empty === undefined ? (
-          <button
-            type="button"
-            className={styles.toggle}
-            aria-pressed={asTable}
-            onClick={() => setAsTable((v) => !v)}
-          >
-            {asTable ? 'View as chart' : 'View as table'}
-          </button>
+          <Toggle pressed={asTable} onPressedChange={setAsTable}>
+            View as table
+          </Toggle>
         ) : null}
       </div>
       {props.chart ? (
