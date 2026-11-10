@@ -19,6 +19,7 @@ import { useNavigate, useSearch } from '@tanstack/react-router'
 import { type ReactNode, useState } from 'react'
 
 import { InstallBanner } from '#features/pwa/InstallBanner.tsx'
+import { DetailSheet } from '#lib/DetailSheet.tsx'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { findIn, useFindParam } from '#lib/find.ts'
 import { FindField } from '#lib/FindField.tsx'
@@ -31,6 +32,7 @@ import type { SnoozeChoice } from '#lib/snooze.ts'
 import { usePaneWidth } from '#lib/stores/pane-store.ts'
 import { toast } from '#lib/toast.ts'
 import { refreshAll, type UndoScope, withUndo } from '#lib/undo.ts'
+import { usePhone } from '#lib/use-phone.ts'
 import { useSelectFromParam } from '#lib/use-select-from-param.ts'
 import { useSelectableList } from '#lib/use-selectable-list.ts'
 
@@ -67,6 +69,10 @@ export function InboxPage() {
   const snoozedCount = (tab === 'snoozed' ? data : snoozedQuery.data)?.items.length ?? 0
 
   const [snoozeOpen, setSnoozeOpen] = useState(false)
+  // On a phone the selected notification opens as a sheet over the list: the one tapped (it closes
+  // itself when that row leaves the list and another is selected).
+  const phone = usePhone()
+  const [sheetFor, setSheetFor] = useState<string | undefined>(undefined)
 
   const setRead = useSetRead()
   const snooze = useSnoozeNotification()
@@ -158,6 +164,23 @@ export function InboxPage() {
   })
 
   useSelectFromParam(setSelectedId)
+  const pane = (bare: boolean) =>
+    selected ? (
+      <InboxPane
+        item={selected}
+        snoozedTab={snoozedTab}
+        snoozeOpen={snoozeOpen}
+        onSnoozeOpenChange={setSnoozeOpen}
+        onToggleRead={toggleRead}
+        onRemove={doRemove}
+        onSnooze={doSnooze}
+        onUnsnooze={doUnsnooze}
+        onOpen={markRead}
+        onApprove={doApprove}
+        approving={approve.isPending}
+        bare={bare}
+      />
+    ) : null
   const failed = [setRead, snooze, unsnooze, remove, markAll, approve].find((m) => m.error)?.error
   const unread = data?.unread ?? 0
 
@@ -251,6 +274,7 @@ export function InboxPage() {
                               selected={item.id === selected?.id}
                               onSelect={() => {
                                 setSelectedId(item.id)
+                                setSheetFor(item.id)
                                 markRead(item)
                               }}
                             />
@@ -260,8 +284,9 @@ export function InboxPage() {
                     </>
                   )}
                 </div>
-                {/* The pane only while something is selected: otherwise the list has the width. */}
-                {selected ? (
+                {/* The pane only while something is selected: otherwise the list has the width. A phone
+                    has no room beside the list: the pane is a sheet over it. */}
+                {selected && !phone ? (
                   <>
                     <PaneHandle
                       pane="inbox-pane"
@@ -269,22 +294,17 @@ export function InboxPage() {
                       cssVar="--circi-pane-width"
                       at="calc(100% - var(--circi-pane-width) - 8px)"
                     />
-                    <div className={styles.paneColumn}>
-                      <InboxPane
-                        item={selected}
-                        snoozedTab={snoozedTab}
-                        snoozeOpen={snoozeOpen}
-                        onSnoozeOpenChange={setSnoozeOpen}
-                        onToggleRead={toggleRead}
-                        onRemove={doRemove}
-                        onSnooze={doSnooze}
-                        onUnsnooze={doUnsnooze}
-                        onOpen={markRead}
-                        onApprove={doApprove}
-                        approving={approve.isPending}
-                      />
-                    </div>
+                    <div className={styles.paneColumn}>{pane(false)}</div>
                   </>
+                ) : null}
+                {phone ? (
+                  <DetailSheet
+                    open={selected !== undefined && sheetFor === selected.id}
+                    onClose={() => setSheetFor(undefined)}
+                    label="Notification"
+                  >
+                    {selected ? pane(true) : null}
+                  </DetailSheet>
                 ) : null}
               </div>
             )}

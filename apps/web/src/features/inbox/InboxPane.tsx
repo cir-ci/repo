@@ -39,6 +39,7 @@ export function InboxPane({
   onOpen,
   onApprove,
   approving,
+  bare,
 }: InboxPane.Props) {
   const clientLink = useClientLink()
   const { title } = notificationText(item)
@@ -54,6 +55,7 @@ export function InboxPane({
     <Pane
       label="Notification"
       width="resizable"
+      bare={bare ?? false}
       {...(context ? { context } : {})}
       actions={
         <>
@@ -259,5 +261,7 @@ export namespace InboxPane {
     onOpen: (item: Inbox.Item) => void
     onApprove: (item: Inbox.Item) => void
     approving: boolean
+    /** In a phone's sheet: no border or rounding of its own. */
+    bare?: boolean
   }
 }

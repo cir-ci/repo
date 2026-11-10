@@ -447,3 +447,30 @@ describe('InboxPage pane in a narrow window', () => {
     })
   })
 })
+
+describe('InboxPage on a phone', () => {
+  it('opens a tapped notification as a sheet over the list and closes it back to the list', async () => {
+    await page.viewport(390, 844)
+    fakeApi({ 'GET /api/inbox': list([item('n1'), item('n2')]) })
+    await show()
+    const rows = page.getByRole('list', { name: 'For you' })
+    await expect
+      .element(rows.getByText('Ada requested your review of build #12').first())
+      .toBeVisible()
+    // The first row is the cursor, but nothing opens until one is tapped.
+    expect(page.getByRole('dialog').elements()).toHaveLength(0)
+    expect(page.getByRole('region', { name: 'Notification' }).elements()).toHaveLength(0)
+    for (const row of rows.getByRole('button').elements()) {
+      expect(row.getBoundingClientRect().height).toBeGreaterThanOrEqual(56)
+    }
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+    await rows.getByRole('button').first().click()
+    const sheet = page.getByRole('dialog', { name: 'Notification' })
+    await expect.element(sheet).toBeVisible()
+    await expect.element(sheet.getByRole('button', { name: 'Delete' })).toBeVisible()
+    await sheet.getByRole('button', { name: 'Close' }).click()
+    await expect
+      .poll(() => page.getByRole('dialog', { name: 'Notification' }).elements().length)
+      .toBe(0)
+  })
+})

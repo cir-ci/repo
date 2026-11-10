@@ -21,6 +21,7 @@ import { type MouseEventHandler, type ReactNode, useEffect, useState } from 'rea
 import { fileUrl } from '#features/builds/api/index.ts'
 import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { authClient } from '#lib/auth-client.ts'
+import { PaneSlot } from '#lib/DetailSheet.tsx'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { findIn, useFindParam } from '#lib/find.ts'
 import { FindField } from '#lib/FindField.tsx'
@@ -38,6 +39,7 @@ import type { ToastInput } from '#lib/stores/toast-store.ts'
 import { toast } from '#lib/toast.ts'
 import { refreshAll, withUndo } from '#lib/undo.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
+import { usePhone } from '#lib/use-phone.ts'
 import { useSelectFromParam } from '#lib/use-select-from-param.ts'
 import { useSelectableList } from '#lib/use-selectable-list.ts'
 
@@ -91,6 +93,9 @@ export function TriagePage() {
   const me = session?.user
 
   const [snoozeOpen, setSnoozeOpen] = useState(false)
+  // On a phone the selected item opens as a sheet over the list (the one tapped).
+  const phone = usePhone()
+  const [sheetFor, setSheetFor] = useState<string | undefined>(undefined)
   /** Items dealt with since the page opened (snoozed, dismissed, compared again). */
   const [handled, setHandled] = useState(0)
 
@@ -259,7 +264,10 @@ export function TriagePage() {
                                 <ListRow
                                   density="two-line"
                                   selected={itemId(item) === (selected ? itemId(selected) : '')}
-                                  onClick={() => select(item)}
+                                  onClick={() => {
+                                    select(item)
+                                    setSheetFor(itemId(item))
+                                  }}
                                   // Enter and a double click do the same; the chip says so (and is a click target for a mouse).
                                   action={{ label: 'Open in build ↗', onAction: () => open(item) }}
                                   title={<span aria-hidden="true">{itemTitle(item)}</span>}
@@ -296,17 +304,25 @@ export function TriagePage() {
                       ))}
                     </div>
                     {selected ? (
-                      <>
-                        <PaneHandle
-                          pane="triage-pane"
-                          edge="start"
-                          cssVar="--circi-pane-width"
-                          at="calc(100% - var(--circi-pane-width) - 6px)"
-                        />
+                      <PaneSlot
+                        phone={phone}
+                        open={sheetFor === itemId(selected)}
+                        onClose={() => setSheetFor(undefined)}
+                        label="Details"
+                        handle={
+                          <PaneHandle
+                            pane="triage-pane"
+                            edge="start"
+                            cssVar="--circi-pane-width"
+                            at="calc(100% - var(--circi-pane-width) - 6px)"
+                          />
+                        }
+                      >
                         <Pane
                           label="Details"
                           context={KIND_LABEL[selected.kind]}
                           width="resizable"
+                          bare={phone}
                           actions={
                             <>
                               {selected.kind === 'failed' ? (
@@ -442,7 +458,7 @@ export function TriagePage() {
                             </dl>
                           </div>
                         </Pane>
-                      </>
+                      </PaneSlot>
                     ) : null}
                   </div>
                 </>

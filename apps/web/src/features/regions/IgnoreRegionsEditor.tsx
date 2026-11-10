@@ -11,6 +11,7 @@ import {
 } from '#features/teams/api/index.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { toast } from '#lib/toast.ts'
+import { usePhone } from '#lib/use-phone.ts'
 
 import { regionsOf, sizeOf, toPixels } from './ignore-regions.ts'
 import { IgnoreRegionsPanel } from './IgnoreRegionsPanel.tsx'
@@ -32,8 +33,11 @@ export function IgnoreRegionsEditor({
   name,
   latest,
   defaultBranch,
-  canManage,
+  canManage: allowed,
 }: IgnoreRegionsEditor.Props) {
+  // Drawing or moving a region needs pixel-level handles: on a phone the regions are shown, not edited.
+  const phone = usePhone()
+  const canManage = allowed && !phone
   const { data, error, refetch } = useQuery(ignoreRegionsQuery(workspace, team, name))
   const add = useAddIgnoreRegion(workspace, team)
   const adjust = useAdjustIgnoreRegion(workspace, team)
@@ -124,6 +128,11 @@ export function IgnoreRegionsEditor({
         </section>
       ) : null}
 
+      {allowed && phone ? (
+        <Text variant="small" tone="secondary">
+          Ignore regions are edited on a larger screen. They apply here as usual.
+        </Text>
+      ) : null}
       <IgnoreRegionsPanel
         workspace={workspace}
         team={team}

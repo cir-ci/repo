@@ -9,6 +9,13 @@
   overflow-y: auto;
 }
 
+/* A phone: the 16px gutter used everywhere else. */
+@media (max-width: 819.98px) {
+  .body {
+    padding: 16px;
+  }
+}
+
 .filters {
   display: flex;
   gap: 8px;

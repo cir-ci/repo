@@ -255,6 +255,7 @@ describe('BaselinePage', () => {
   })
 
   it('draws a region by dragging in the enlarged image', async () => {
+    await page.viewport(1000, 900)
     const fake = api(true, {
       [`POST ${API}/ignore-regions`]: { status: 201, body: region('9') },
     })
@@ -268,8 +269,8 @@ describe('BaselinePage', () => {
     image.style.height = '300px'
     const overlay = page.getByTestId('region-overlay')
     await userEvent.dragAndDrop(overlay, overlay, {
-      sourcePosition: { x: 40, y: 30 },
-      targetPosition: { x: 200, y: 150 },
+      sourcePosition: { x: 200, y: 150 },
+      targetPosition: { x: 300, y: 250 },
     })
     await expect.poll(() => fake.of('POST')).toHaveLength(1)
   })
@@ -370,5 +371,29 @@ describe('BaselinePage', () => {
     fake.set(`GET ${API}/baselines`, { status: 500, body: { error: 'db down' } })
     await show()
     await expect.element(page.getByText('db down')).toBeVisible()
+  })
+})
+
+describe('BaselinePage on a phone', () => {
+  it('shows the ignore regions but does not let a manager draw or edit them', async () => {
+    await page.viewport(390, 844)
+    const fake = api(true, {
+      [`POST ${API}/ignore-regions`]: { status: 201, body: region('9') },
+    })
+    await show()
+    await sizeImage()
+    await expect.element(page.getByRole('list', { name: `Regions of ${NAME}` })).toBeVisible()
+    await expect
+      .element(
+        page.getByText('Ignore regions are edited on a larger screen. They apply here as usual.'),
+      )
+      .toBeVisible()
+    // A drag on the image is a press: it enlarges, and nothing is drawn.
+    await drag()
+    expect(fake.of('POST')).toHaveLength(0)
+    expect(
+      page.getByRole('button', { name: 'Mark a region with the keyboard' }).elements(),
+    ).toHaveLength(0)
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
   })
 })

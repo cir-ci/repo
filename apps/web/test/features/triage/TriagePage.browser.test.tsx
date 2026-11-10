@@ -11,6 +11,7 @@ import { PANES } from '#lib/panes.ts'
 import { usePaneStore } from '#lib/stores/pane-store.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, fakeFetch, pending, type ReplyHandler } from '#test/support/fetch.ts'
+import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { expectLimitedToSpace, expectResize, parentOf } from '#test/support/resize.ts'
 import { toastNamed } from '#test/support/toast.ts'
@@ -616,7 +617,7 @@ describe('the details pane in a narrow window', () => {
       url: '/acme/web/triage?item=no_baseline%3Apricing',
       otherRoutes: ['/$workspace/$team/builds/$number', '/$workspace/$team/settings/reviews'],
       announcer: true,
-      viewport: [900, 800],
+      viewport: [1000, 800],
     })
     usePaneStore.setState({ widths: { 'triage-pane': PANES['triage-pane'].max } })
     await expect.element(pane().getByRole('heading', { name: 'pricing' })).toBeVisible()
@@ -627,7 +628,38 @@ describe('the details pane in a narrow window', () => {
       main: () => split().firstElementChild?.getBoundingClientRect().width ?? 0,
       container: split,
       grows: -1,
-      to: 740,
+      to: 830,
     })
+  })
+})
+
+describe('TriagePage on a phone', () => {
+  it('opens the selected item as a sheet over the list, with a visible 44px Open in build', async () => {
+    await page.viewport(390, 844)
+    server()
+    await show()
+    await expect.element(page.getByRole('list', { name: 'Flaky, 1 item' })).toBeVisible()
+    // Nothing is beside the list, and nothing has opened yet.
+    expect(page.getByRole('region', { name: 'Details' }).elements()).toHaveLength(0)
+    expect(page.getByRole('dialog').elements()).toHaveLength(0)
+    // The row's chip, always there (no hover on a phone), is a 44px target.
+    const chip = page.getByText('Open in build ↗').first().element().getBoundingClientRect()
+    expect(chip.height).toBeGreaterThanOrEqual(44)
+    expect(chip.width).toBeGreaterThanOrEqual(44)
+    expectNoSidewaysScroll()
+    await page.getByRole('list', { name: 'No baseline, 1 item' }).getByRole('button').click()
+    const sheet = page.getByRole('dialog', { name: 'Details' })
+    await expect.element(sheet).toBeVisible()
+    await expect.element(sheet.getByRole('region', { name: 'Details' })).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
+  })
+
+  it('keeps the pane beside the list on a desktop', async () => {
+    await page.viewport(1280, 800)
+    server()
+    await show()
+    await expect.element(pane()).toBeVisible()
+    expect(page.getByRole('dialog').elements()).toHaveLength(0)
   })
 })
