@@ -53,6 +53,7 @@ import {
   groupShots,
   isReviewable,
   neighbour,
+  nextToReview,
   orderShots,
   reviewProgress,
   shotBadge,
@@ -99,7 +100,6 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const fromUrl = search.shot ? ordered.find((d) => d.name === search.shot) : undefined
   const selected = fromUrl ?? defaultShot(groups)
   const selectedGroup = groups.find((g) => selected && g.items.includes(selected))?.kind
-  const review = useReviewControls(data, selected)
   const addComment = useAddComment(team.workspaceSlug, team.slug, build.number)
   const setRegion = useSetCommentRegion(team.workspaceSlug, team.slug, build.number)
   const announce = useAnnounce()
@@ -122,6 +122,11 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const goToShot = (shot: Build.DiffItem | undefined) => {
     if (shot) void navigate({ search: (prev) => ({ ...prev, shot: shot.name }), replace: true })
   }
+  // Approving one screenshot moves on to the next that still needs review; with none left the
+  // selection stays (the build is then approved as a whole).
+  const review = useReviewControls(data, selected, (approved) =>
+    goToShot(nextToReview(ordered, approved, build.reviewStatus)),
+  )
   const previous = neighbour(ordered, selected, -1)
   const next = neighbour(ordered, selected, 1)
   const hasPrevious = selected !== undefined && previous !== selected

@@ -9,6 +9,7 @@ import {
   isReviewable,
   needsDecision,
   neighbour,
+  nextToReview,
   orderShots,
   reviewProgress,
   reviewTargetStatus,
@@ -102,6 +103,22 @@ describe('selection', () => {
     expect(neighbour(ordered, first, -1)).toBe(first)
     expect(neighbour(ordered, ordered.at(-1), 1)).toBe(ordered.at(-1))
     expect(neighbour([], undefined, 1)).toBeUndefined()
+  })
+
+  it('moves on after an approval to the next screenshot that still needs a decision', () => {
+    const list = [
+      diff('a', 'changed'),
+      diff('b', 'changed', { review: { decision: 'approved' } as Build.DiffItem['review'] }),
+      diff('c', 'unchanged'),
+      diff('d', 'added'),
+    ] as Build.DiffItem[]
+    const [a, , , d] = list as [Build.DiffItem, Build.DiffItem, Build.DiffItem, Build.DiffItem]
+    // b is decided and c needs none: d is next; from d it wraps to a.
+    expect(nextToReview(list, a, 'pending')).toBe(d)
+    expect(nextToReview(list, d, 'pending')).toBe(a)
+    // Nothing else left: undefined.
+    expect(nextToReview([a], a, 'pending')).toBeUndefined()
+    expect(nextToReview(list, a, 'approved')).toBeUndefined()
   })
 
   it('starts on the first screenshot that needs attention', () => {

@@ -83,6 +83,22 @@ export function changeSummary(diff: Pick<Build.DiffItem, 'score' | 'sizeChanged'
 export const isReviewable = (build: Pick<Build.ListItem, 'status' | 'conclusion'>): boolean =>
   build.status === 'complete' && build.conclusion === 'changes_detected'
 
+/**
+ * The screenshot to show after `current` is approved: the next one in list order that still needs a
+ * decision (wrapping round to the top), never `current` itself. Undefined when none is left.
+ */
+export function nextToReview(
+  ordered: readonly Build.DiffItem[],
+  current: Build.DiffItem,
+  build: ReviewStatus,
+): Build.DiffItem | undefined {
+  const at = ordered.indexOf(current)
+  const after = [...ordered.slice(at + 1), ...ordered.slice(0, Math.max(at, 0))]
+  return after.find(
+    (d) => d.id !== current.id && needsDecision(d) && shotDecision(d, build) === 'pending',
+  )
+}
+
 /** A snapshot that differs from the baseline needs a decision; an unchanged one needs none. */
 export const needsDecision = (diff: Pick<Build.DiffItem, 'status'>): boolean =>
   diff.status !== null && diff.status !== 'unchanged'

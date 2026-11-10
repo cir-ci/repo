@@ -41,6 +41,8 @@ export interface ReviewControls {
 export function useReviewControls(
   data: Build.Detail,
   selected: Build.DiffItem | undefined,
+  /** Called once the current snapshot's approval is saved (not for Approve all or a rejection). */
+  onApproved?: (approved: Build.DiffItem) => void,
 ): ReviewControls {
   const { build, team } = data
   const review = useReviewSnapshots(team.workspaceSlug, team.slug, build.number)
@@ -60,9 +62,13 @@ export function useReviewControls(
     decision: ReviewState,
     message: string,
     reason?: string,
+    after?: () => void,
   ) {
     review.mutate(reason ? { snapshotNames, decision, reason } : { snapshotNames, decision }, {
-      onSuccess: () => announce(message),
+      onSuccess: () => {
+        announce(message)
+        after?.()
+      },
       onSettled: () => setRejecting(false),
     })
   }
@@ -77,7 +83,9 @@ export function useReviewControls(
     reasonRequired,
     approve: () => {
       if (canApprove && selected && !review.isPending) {
-        decide([selected.name], 'approved', `${selected.name} approved.`)
+        decide([selected.name], 'approved', `${selected.name} approved.`, undefined, () =>
+          onApproved?.(selected),
+        )
       }
     },
     approveAll: () => {

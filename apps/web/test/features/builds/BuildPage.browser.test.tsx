@@ -534,9 +534,42 @@ describe('approving and rejecting', () => {
       .getByRole('navigation', { name: 'Screenshots' })
       .getByRole('img', { name: 'Changed, approved' })
     expect(row.element().getAttribute('data-status')).toBe('approved')
-    // This snapshot is decided: it can only be rejected now.
-    expect(page.getByRole('button', { name: 'Approve', exact: true }).elements()).toHaveLength(0)
-    await expect.element(page.getByRole('button', { name: 'Reject' })).toBeVisible()
+    // The selection moved on to the next screenshot that needs review.
+    await expect.element(viewerTitle()).toHaveTextContent('checkout / address')
+  })
+
+  it('moves to the next screenshot that needs review, skipping decided ones and wrapping round', async () => {
+    const api = fakeBuildApi(
+      detail(
+        {},
+        {
+          diffs: [
+            shot('a', 'changed'),
+            shot('b', 'changed', { review: decision('rejected', 'no') }),
+            shot('c', 'changed'),
+          ],
+        },
+      ),
+    )
+    await renderBuild()
+    await expect.element(viewerTitle()).toHaveTextContent('a')
+    await page.getByRole('button', { name: 'Approve', exact: true }).click()
+    // b is decided, so c is next.
+    await expect.element(viewerTitle()).toHaveTextContent('c')
+    await page.getByRole('button', { name: 'Approve', exact: true }).click()
+    await vi.waitFor(() => expect(api.reviews).toHaveLength(2))
+  })
+
+  it('stays on the screenshot when none is left to review', async () => {
+    fakeBuildApi(detail({}, { diffs: [shot('a', 'changed'), shot('b', 'changed')] }))
+    await renderBuild()
+    await page.getByRole('button', { name: 'Approve', exact: true }).click()
+    await expect.element(viewerTitle()).toHaveTextContent('b')
+    await page.getByRole('button', { name: 'Approve', exact: true }).click()
+    await expect.element(page.getByText('b approved.')).toBeInTheDocument()
+    await expect.element(viewerTitle()).toHaveTextContent('b')
+    // Everything is decided, so there is nothing left for Approve all to do.
+    expect(page.getByRole('button', { name: /^Approve all/ }).elements()).toHaveLength(0)
   })
 
   it('approves every undecided snapshot with the button, leaving a rejected one alone', async () => {
@@ -628,14 +661,17 @@ describe('approving and rejecting', () => {
       ]),
     )
     await expect.element(page.getByText('checkout / payment approved.')).toBeInTheDocument()
-    // Already approved: a does nothing more.
+    // The selection moved on, so a approves the next one.
+    await expect.element(viewerTitle()).toHaveTextContent('checkout / address')
     await userEvent.keyboard('a')
-    expect(api.reviews).toHaveLength(1)
-    await userEvent.keyboard('{Shift>}A{/Shift}')
     await vi.waitFor(() =>
       expect(api.reviews[1]).toEqual(
-        body({ snapshotNames: ['checkout / address', 'home'], decision: 'approved' }),
+        body({ snapshotNames: ['checkout / address'], decision: 'approved' }),
       ),
+    )
+    await userEvent.keyboard('{Shift>}A{/Shift}')
+    await vi.waitFor(() =>
+      expect(api.reviews[2]).toEqual(body({ snapshotNames: ['home'], decision: 'approved' })),
     )
     await expect.element(page.getByText('Approved', { exact: true }).first()).toBeVisible()
     await expect.element(page.getByText('3 of 3 reviewed')).toBeVisible()
