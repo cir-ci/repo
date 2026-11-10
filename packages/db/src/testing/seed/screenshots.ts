@@ -81,6 +81,9 @@ export async function seedDiff(
     headSha256?: string
     score?: number
     sizeChanged?: boolean
+    /** What an ignore region hid (Insights' ignore regions card). */
+    ignoredChangedPixels?: number
+    ignoredRegions?: string[]
   },
 ) {
   const head = input.headSha256
@@ -108,6 +111,10 @@ export async function seedDiff(
       ...(input.score === undefined ? {} : { score: input.score }),
       ...(input.sizeChanged === undefined ? {} : { sizeChanged: input.sizeChanged }),
       ...(input.diffFileSha256 ? { diffFileSha256: input.diffFileSha256 } : {}),
+      ...(input.ignoredChangedPixels === undefined
+        ? {}
+        : { ignoredChangedPixels: input.ignoredChangedPixels }),
+      ...(input.ignoredRegions === undefined ? {} : { ignoredRegions: input.ignoredRegions }),
     })
     .returning()
   if (!row) throw new Error('seed insert returned no row')

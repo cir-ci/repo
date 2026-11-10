@@ -51,6 +51,14 @@ export const dashboardInsightsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
         ...report,
         range: { from: iso(from), to: iso(to) },
         weeks: report.weeks.map((w) => Object.assign({}, w, { weekStart: iso(w.weekStart) })),
+        backlog: report.backlog.map((d) => ({ day: iso(d.day), waiting: d.waiting })),
+        oldestWaiting: report.oldestWaiting.map((w) =>
+          Object.assign({}, w, { readyAt: iso(w.readyAt) }),
+        ),
+        rejections: {
+          ...report.rejections,
+          recent: report.rejections.recent.map((r) => Object.assign({}, r, { at: iso(r.at) })),
+        },
       }
     },
   )

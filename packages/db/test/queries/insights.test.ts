@@ -166,6 +166,11 @@ describe('getInsights', () => {
       buildsFinished: 8,
       buildsWithChanges: 7,
       changeRate: 7 / 8,
+      // last decisions: f1 2h, f2 12h, f3 48h (Mia decided last); p90 = 12 + 0.8 * 36
+      medianDecisionHours: 12,
+      p90DecisionHours: 40.8,
+      buildsDecided: 3,
+      failedBuilds: 0,
     })
     expect(r?.previous).toEqual({
       medianReviewHours: 6,
@@ -175,6 +180,10 @@ describe('getInsights', () => {
       buildsFinished: 2,
       buildsWithChanges: 1,
       changeRate: 0.5,
+      medianDecisionHours: 6,
+      p90DecisionHours: 6,
+      buildsDecided: 1,
+      failedBuilds: 0,
     })
   })
 
@@ -203,8 +212,8 @@ describe('getInsights', () => {
     // and nav images of main (1 byte each: A, B, N)
     expect(r?.storage).toEqual({
       teams: [
-        { slug: 'docs', name: 'docs', bytes: 1000 },
-        { slug: 'web', name: 'web', bytes: 1153 },
+        { slug: 'docs', name: 'docs', colour: expect.any(String), bytes: 1000 },
+        { slug: 'web', name: 'web', colour: expect.any(String), bytes: 1153 },
       ],
       totalBytes: 2153,
     })
@@ -320,7 +329,9 @@ describe('getInsights', () => {
       medianReviewHours: null,
       changeRate: null,
     })
-    expect(r?.storage.teams).toEqual([{ slug: 'docs', name: 'docs', bytes: 1000 }])
+    expect(r?.storage.teams).toEqual([
+      { slug: 'docs', name: 'docs', colour: expect.any(String), bytes: 1000 },
+    ])
     expect(r?.weeks.map((w) => w.flaky)).toEqual([0, 0])
   })
 

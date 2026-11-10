@@ -4,6 +4,7 @@
  */
 
 export const HOUR_MS = 3_600_000
+export const DAY_MS = 24 * HOUR_MS
 export const WEEK_MS = 7 * 24 * HOUR_MS
 
 /**
@@ -35,4 +36,16 @@ export function weeksBetween(from: Date, to: Date): Date[] {
   const weeks: Date[] = []
   for (let w = weekStart(from).getTime(); w < to.getTime(); w += WEEK_MS) weeks.push(new Date(w))
   return weeks
+}
+
+/**
+ * The starts of every bucket `[from, to)` touches: Monday-to-Sunday weeks, or UTC days (the
+ * charts of a range of 7 days or less show one bar per day).
+ */
+export function bucketsBetween(from: Date, to: Date, bucket: 'day' | 'week'): Date[] {
+  if (bucket === 'week') return weeksBetween(from, to)
+  const days: Date[] = []
+  const first = Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate())
+  for (let d = first; d < to.getTime(); d += DAY_MS) days.push(new Date(d))
+  return days
 }

@@ -27,6 +27,42 @@ describe('GET /api/workspaces/:workspace/insights', () => {
     expect(Date.parse(body.weeks[0].weekStart)).not.toBeNaN()
   })
 
+  it('sends the new sections with their dates as ISO strings', async () => {
+    const body = (await get(url(acme.workspaceSlug))).json()
+    expect(body.bucket).toBe('week')
+    expect(body.summary).toMatchObject({ failedBuilds: 0, buildsDecided: 1 })
+    expect(body.summary.medianDecisionHours).toBeGreaterThanOrEqual(0)
+    expect(body.weeks[0].outcomes).toEqual({
+      approved: expect.any(Number),
+      autoApproved: expect.any(Number),
+      rejected: 0,
+      failed: 0,
+    })
+    expect(body.storage.teams[0].colour).toEqual(expect.any(String))
+    // Dates in lists are strings, and one team in the workspace means one comparison row.
+    expect(Date.parse(body.backlog[0].day)).not.toBeNaN()
+    expect(body.backlog.at(-1)).toMatchObject({ waiting: expect.any(Number) })
+    expect(body.waitingNow).toBe(0)
+    expect(body.oldestWaiting).toEqual([])
+    expect(body.rejections).toEqual({ rejectedBuilds: 0, withReason: 0, recent: [] })
+    expect(body.failureReasons).toEqual([])
+    expect(body.mostRejected).toEqual([])
+    expect(body.teamsComparison).toMatchObject([{ team: { slug: 'web' }, builds: 2 }])
+    expect(body.ignoreRegions).toBeNull()
+    expect(body.mostChanged).toBeInstanceOf(Array)
+    expect(body.flakiest).toBeInstanceOf(Array)
+  })
+
+  it('has no comparison for one team, and a day axis for a week', async () => {
+    const one = (await get(url(acme.workspaceSlug, '?team=web'))).json()
+    expect(one.teamsComparison).toEqual([])
+    const to = new Date(Date.now() + 3_600_000).toISOString()
+    const from = new Date(Date.now() - 7 * 86_400_000 + 3_600_000).toISOString()
+    const week = (await get(url(acme.workspaceSlug, `?from=${from}&to=${to}`))).json()
+    expect(week.bucket).toBe('day')
+    expect(week.weeks.length).toBeGreaterThanOrEqual(7)
+  })
+
   it('narrows to a team and a date range', async () => {
     const one = await get(url(acme.workspaceSlug, '?team=web'))
     expect(one.json().team).toBe('web')

@@ -36,5 +36,15 @@ export {
   type BuildFilterValues,
   type BuildOrder,
 } from './build-filters.ts'
+export { failureGroup, type FailureTally, tallyFailures } from './failure.ts'
 export { buildOutcome } from './outcome.ts'
-export { HOUR_MS, median, percentile, WEEK_MS, weekStart, weeksBetween } from './insights.ts'
+export {
+  bucketsBetween,
+  DAY_MS,
+  HOUR_MS,
+  median,
+  percentile,
+  WEEK_MS,
+  weekStart,
+  weeksBetween,
+} from './insights.ts'
