@@ -37,7 +37,7 @@ function pageIcon(href: string): ReactNode {
 }
 
 /** A tab's tile: its team's (from the sidebar's model, a plain one until that has loaded), else its page's icon. */
-function TabTile({ href }: { href: string }) {
+export function TabTile({ href }: { href: string }) {
   const team = teamOfAddress(href)
   const { data } = useSidebarModel(team?.workspace)
   if (!team) return <span className={styles.icon}>{pageIcon(href)}</span>

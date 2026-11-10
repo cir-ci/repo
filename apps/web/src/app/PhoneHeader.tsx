@@ -8,6 +8,7 @@ import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 import { usePhone } from '#lib/use-phone.ts'
 
+import { PhoneTabsButton } from './PhoneTabSwitcher.tsx'
 import { returnTarget } from './settings-return.ts'
 import { currentSection, isSettingsSection } from './shell-model.ts'
 
@@ -29,9 +30,12 @@ export function PhoneEnd() {
       </>
     )
   return (
-    <IconButton label="Search" onClick={() => setCommandMenuOpen(true)}>
-      <SearchIcon />
-    </IconButton>
+    <>
+      <PhoneTabsButton />
+      <IconButton label="Search" onClick={() => setCommandMenuOpen(true)}>
+        <SearchIcon />
+      </IconButton>
+    </>
   )
 }
 

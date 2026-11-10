@@ -280,3 +280,64 @@ describe('tabs in the installed app', () => {
     expect(saved.state.tabs).toHaveLength(2)
   })
 })
+
+const pointer = (el: Element, type: string, x: number) =>
+  el.dispatchEvent(
+    new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: 100 }),
+  )
+
+async function phone() {
+  installedAs('standalone')
+  await page.viewport(390, 800)
+  await renderApp()
+  await expect.element(page.getByRole('button', { name: 'Tabs, 1 open' })).toBeVisible()
+}
+
+describe('tabs on a phone, installed', () => {
+  it('has no strip, a count button in the header, and a sheet of cards', async () => {
+    await phone()
+    expect(tabs().elements()).toHaveLength(0)
+    store().openNew()
+    await page.getByRole('button', { name: 'Tabs, 2 open' }).click()
+    const sheet = page.getByRole('dialog', { name: '2 tabs' })
+    await expect.element(sheet).toBeVisible()
+    await expect.element(sheet.getByRole('button', { name: /Close Teams page/ })).toBeVisible()
+    await sheet
+      .getByRole('button', { name: /Teams page/ })
+      .first()
+      .click()
+    await expect.element(page.getByRole('main')).toHaveTextContent('Teams page')
+    expect(page.getByRole('dialog', { name: '2 tabs' }).elements()).toHaveLength(0)
+  })
+
+  it('closes a card with its × or a swipe', async () => {
+    await phone()
+    store().openNew()
+    store().openNew()
+    await page.getByRole('button', { name: 'Tabs, 3 open' }).click()
+    await page.getByRole('button', { name: /^Close Teams page/ }).click()
+    expect(store().tabs).toHaveLength(2)
+    const card = page.getByRole('button', { name: /^Close (New tab|Inbox page)/ }).first()
+    const li = card.element().closest('li')
+    if (!li) throw new Error('no card')
+    pointer(li, 'pointerdown', 200)
+    pointer(li, 'pointermove', 340)
+    pointer(li, 'pointerup', 340)
+    await expect.poll(() => store().tabs.length).toBe(1)
+  })
+
+  it('opens Pin, Close and Close others on a long press', async () => {
+    await phone()
+    store().openNew()
+    await page.getByRole('button', { name: 'Tabs, 2 open' }).click()
+    const li = page
+      .getByRole('button', { name: /^Close Teams page/ })
+      .element()
+      .closest('li')
+    if (!li) throw new Error('no card')
+    pointer(li, 'pointerdown', 200)
+    await expect.element(page.getByRole('button', { name: 'Close other tabs' })).toBeVisible()
+    await page.getByRole('button', { name: 'Pin tab' }).click()
+    expect(store().tabs.filter((t) => t.pinned)).toHaveLength(1)
+  })
+})

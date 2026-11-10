@@ -11,6 +11,7 @@ export const useOverlayStore = create<OverlayStore.State & OverlayStore.Actions>
   setSettingsNavOpen: (settingsNavOpen) => set({ settingsNavOpen }),
   setMoreOpen: (moreOpen) => set({ moreOpen }),
   setTeamsOpen: (teamsOpen) => set({ teamsOpen }),
+  setTabsOpen: (tabsOpen) => set({ tabsOpen }),
   reset: () => set(initialOverlayState()),
 }))
 
@@ -24,6 +25,7 @@ function initialOverlayState(): OverlayStore.State {
     settingsNavOpen: false,
     moreOpen: false,
     teamsOpen: false,
+    tabsOpen: false,
   }
 }
 
@@ -42,6 +44,8 @@ export namespace OverlayStore {
     moreOpen: boolean
     /** The phone's Teams sheet (the Teams tab of the bottom bar). */
     teamsOpen: boolean
+    /** The phone's tab switcher sheet (installed app), opened from the header's tab button. */
+    tabsOpen: boolean
   }
   export interface Actions {
     setCommandMenuOpen: (open: boolean) => void
@@ -52,6 +56,7 @@ export namespace OverlayStore {
     setSettingsNavOpen: (open: boolean) => void
     setMoreOpen: (open: boolean) => void
     setTeamsOpen: (open: boolean) => void
+    setTabsOpen: (open: boolean) => void
     reset: () => void
   }
 }
