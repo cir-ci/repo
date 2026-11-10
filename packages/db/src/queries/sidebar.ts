@@ -1,7 +1,7 @@
 import type { TeamColor } from '@circi/core'
-import { and, asc, eq } from 'drizzle-orm'
+import { and, asc, count, eq, inArray } from 'drizzle-orm'
 
-import { teams } from '#schema/index.ts'
+import { teams, teamSites } from '#schema/index.ts'
 import type { SessionMethod } from '#shared/session-method.ts'
 import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
@@ -27,6 +27,8 @@ export namespace getSidebar {
     memberCount: number
     /** The first few members, by name (up to five). */
     memberPreview: { id: string; name: string; image: string | null }[]
+    /** Sites the team hosts. */
+    siteCount: number
     /** Whether the person belongs to the team (an owner or admin may see one they don't). */
     youAreMember: boolean
   }
@@ -76,6 +78,20 @@ export async function getSidebar(
     rows.map((r) => r.id),
     input.userId,
   )
+  const siteRows =
+    rows.length === 0
+      ? []
+      : await db
+          .select({ teamId: teamSites.teamId, n: count() })
+          .from(teamSites)
+          .where(
+            inArray(
+              teamSites.teamId,
+              rows.map((r) => r.id),
+            ),
+          )
+          .groupBy(teamSites.teamId)
+  const siteCounts = new Map(siteRows.map((r) => [r.teamId, r.n]))
   const [views, inboxUnread, requests, triage] = await Promise.all([
     listSavedViews(db, { userId: input.userId, workspaceId: input.workspace.id }),
     countUnreadNotifications(db, {
@@ -101,6 +117,7 @@ export async function getSidebar(
       triage: triage.get(p.id) ?? 0,
       memberCount: summaries.get(p.id)?.memberCount ?? 0,
       memberPreview: summaries.get(p.id)?.memberPreview ?? [],
+      siteCount: siteCounts.get(p.id) ?? 0,
       youAreMember: summaries.get(p.id)?.youAreMember ?? false,
     })),
     views,

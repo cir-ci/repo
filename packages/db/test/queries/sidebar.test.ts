@@ -12,6 +12,7 @@ import {
 } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { teamSites } from '#schema/index.ts'
 import { getSidebar } from '#src/queries/index.ts'
 
 let t: createTestDb.Result
@@ -79,5 +80,20 @@ describe('getSidebar', () => {
     expect(mates.teams.map((p) => p.pinned)).toEqual([false, false, false])
     expect(mates.reviews).toBe(1)
     expect(mates.views.map((v) => v.name)).toEqual(['Theirs'])
+  })
+
+  it('counts the sites each team hosts', async () => {
+    const withSites = await seedTeam(t.db, { slug: 'with-sites' })
+    const { workspace, owner } = withSites
+    await seedTeam(t.db, { workspace: { workspace, owner }, slug: 'no-sites' })
+    await t.db.insert(teamSites).values([
+      { teamId: withSites.team.id, name: 'Storybook', kind: 'storybook', slug: 'sb-sites-1' },
+      { teamId: withSites.team.id, name: 'Docs', kind: 'docs', slug: 'docs-sites-1' },
+    ])
+    const bar = await getSidebar(t.db, { userId: owner.id, workspace, now })
+    expect(bar.teams.map((p) => [p.slug, p.siteCount])).toEqual([
+      ['no-sites', 0],
+      ['with-sites', 2],
+    ])
   })
 })

@@ -247,15 +247,17 @@ function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
           >
             Baselines
           </NavLink>
-          <NavLink
-            to="/$workspace/$team/sites"
-            params={params}
-            sub
-            icon={<GlobeIcon />}
-            selected={section === 'sites'}
-          >
-            Sites
-          </NavLink>
+          {team.siteCount > 0 ? (
+            <NavLink
+              to="/$workspace/$team/sites"
+              params={params}
+              sub
+              icon={<GlobeIcon />}
+              selected={section === 'sites'}
+            >
+              Sites
+            </NavLink>
+          ) : null}
         </>
       ) : null}
     </>

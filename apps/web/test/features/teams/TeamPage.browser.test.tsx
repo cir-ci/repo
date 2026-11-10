@@ -3,7 +3,7 @@ import { page } from 'vitest/browser'
 
 import { TeamPage } from '#features/teams/TeamPage.tsx'
 import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
-import { teamInfo } from '#test/support/fixtures.ts'
+import { sidebarModel, sidebarTeam, teamInfo } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 import { build } from './support.tsx'
@@ -15,8 +15,12 @@ function api(
   flaky: unknown = { builds: 10, flaky: [] },
   gitAttention: unknown = null,
   canManage = false,
+  siteCount = 1,
 ) {
   return fakeApi({
+    'GET /api/workspaces/acme/sidebar': {
+      body: sidebarModel({ teams: [sidebarTeam({ slug: 'web', siteCount })] }),
+    },
     'GET /api/teams/acme/web/settings': { body: { canManage } },
     'GET /api/teams/acme/web': { body: { team: info, builds, gitAttention } },
     'GET /api/teams/acme/web/flaky': { body: flaky },
@@ -158,6 +162,13 @@ describe('TeamPage', () => {
     await show()
     await expect.element(page.getByRole('link', { name: 'Sites' })).toBeVisible()
     expect(page.getByRole('link', { name: 'Settings' }).elements()).toHaveLength(0)
+  })
+
+  it('leaves Sites out of the header when the team has no sites', async () => {
+    api([build(8)], undefined, undefined, true, 0)
+    await show()
+    await expect.element(page.getByRole('link', { name: 'Settings' })).toBeVisible()
+    expect(page.getByRole('link', { name: 'Sites' }).elements()).toHaveLength(0)
   })
 
   it('opens Sites and Settings from the header', async () => {

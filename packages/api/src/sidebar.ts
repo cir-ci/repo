@@ -16,6 +16,8 @@ export namespace Sidebar {
     memberCount: number
     /** The first few members by name, up to five. */
     memberPreview: { id: string; name: string; image: string | null }[]
+    /** Sites the team hosts: the sidebar's Sites entry is there only when there are some. */
+    siteCount: number
     /** Whether the signed-in person belongs to the team (owners and admins see teams they don't). */
     youAreMember: boolean
   }

@@ -89,6 +89,7 @@ const sidebarTeam = (slug: string, over: Partial<Sidebar.Team> = {}): Sidebar.Te
   triage: 0,
   memberCount: 1,
   memberPreview: [],
+  siteCount: 0,
   youAreMember: true,
   ...over,
 })
@@ -236,7 +237,7 @@ describe('isOutsideFrame', () => {
 })
 
 describe('team settings pages', () => {
-  it('lists the pages in the tab order, before the Sites tab', () => {
+  it('lists the pages in the tab order', () => {
     expect(TEAM_SETTINGS_PAGES.map((p) => p.key)).toEqual([
       'general',
       'members',
@@ -244,6 +245,7 @@ describe('team settings pages', () => {
       'reviews',
       'webhooks',
       'ignore-regions',
+      'sites',
     ])
   })
   it.each([
@@ -253,6 +255,8 @@ describe('team settings pages', () => {
     ['/acme/web/settings/reviews', 'reviews'],
     ['/acme/web/settings/webhooks', 'webhooks'],
     ['/acme/web/settings/ignore-regions', 'ignore-regions'],
+    ['/acme/web/settings/ignore-regions/checkout/form', 'ignore-regions'],
+    ['/acme/web/settings/sites', 'sites'],
     ['/acme/web/settings/other', undefined],
     ['/acme/web/triage', undefined],
     ['/workspaces/acme/settings', undefined],

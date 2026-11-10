@@ -32,6 +32,7 @@ const SIDEBAR_ACME = {
       name: 'web-app',
       pinned: true,
       triage: 4,
+      siteCount: 2,
       color: 'slate',
       icon: 'layout-grid',
     },
@@ -271,6 +272,14 @@ describe('Shell, wide', () => {
     await expect
       .element(nav.getByRole('link', { name: 'Teams', exact: true }))
       .not.toHaveAttribute('aria-current')
+  })
+
+  it('hides Sites under a team that has no sites', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/acme/api/triage')
+    const nav = page.getByRole('navigation', { name: 'Main' })
+    await expect.element(nav.getByRole('link', { name: 'Baselines' })).toBeVisible()
+    expect(nav.getByRole('link', { name: 'Sites' }).elements()).toHaveLength(0)
   })
 
   it("opens the open team's pages under it, with the Triage count", async () => {

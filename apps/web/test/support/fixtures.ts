@@ -25,6 +25,7 @@ export const sidebarTeam = (over: Partial<Sidebar.Team> = {}): Sidebar.Team => (
   triage: 0,
   memberCount: 3,
   memberPreview: [],
+  siteCount: 0,
   youAreMember: true,
   ...over,
 })

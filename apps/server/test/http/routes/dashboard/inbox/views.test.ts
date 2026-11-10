@@ -1,5 +1,6 @@
 import { teamColorFor } from '@circi/core'
 import { getWorkspaceBySlug } from '@circi/db/queries'
+import * as schema from '@circi/db/schema'
 import { addTestMember, seedSavedView, seedUser } from '@circi/db/testing'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -118,6 +119,16 @@ describe('saved view routes', () => {
     ).toBe(400)
   })
 
+  it("counts a team's sites in the sidebar, so the Sites entry shows only when there are some", async () => {
+    const count = async () =>
+      (await get(`/api/workspaces/${acme.workspaceSlug}/sidebar`)).json().teams[0].siteCount
+    expect(await count()).toBe(0)
+    await db
+      .insert(schema.teamSites)
+      .values({ teamId: acme.team.id, name: 'Storybook', kind: 'storybook', slug: 'sb-views-1' })
+    expect(await count()).toBe(1)
+  })
+
   it('pins and unpins a team, and the sidebar reflects it', async () => {
     const pin = `/api/workspaces/${acme.workspaceSlug}/pinned-teams/web`
     expect(
@@ -136,6 +147,7 @@ describe('saved view routes', () => {
         triage: 0,
         memberCount: 1,
         memberPreview: [expect.objectContaining({ id: acme.owner.id, image: null })],
+        siteCount: 0,
         youAreMember: true,
       },
     ])

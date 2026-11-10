@@ -65,7 +65,7 @@ describe('wrapIndex', () => {
   })
 })
 
-const MEMBERS = { memberCount: 1, memberPreview: [], youAreMember: true }
+const MEMBERS = { memberCount: 1, memberPreview: [], siteCount: 0, youAreMember: true }
 
 describe('the empty query', () => {
   const jump: JumpInput = {

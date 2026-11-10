@@ -36,7 +36,9 @@ export function TeamPage() {
   const canManage = settings?.canManage === true
   const { data: sidebar } = useSidebarModel(workspace)
   const pin = usePinTeam(workspace, team)
-  const pinned = sidebar?.teams.find((p) => p.slug === team)?.pinned
+  const sidebarTeam = sidebar?.teams.find((p) => p.slug === team)
+  const pinned = sidebarTeam?.pinned
+  const siteCount = sidebarTeam?.siteCount ?? 0
   useDocumentTitle(before ? 'Older builds' : 'Builds', data?.team.name ?? team)
 
   const setFilters = (next: BuildFilters) =>
@@ -69,12 +71,14 @@ export function TeamPage() {
                 {pinned ? 'Unpin team' : 'Pin team'}
               </Button>
             )}
-            <Button
-              size="sm"
-              {...clientLink({ to: '/$workspace/$team/sites', params: { workspace, team } })}
-            >
-              Sites
-            </Button>
+            {siteCount ? (
+              <Button
+                size="sm"
+                {...clientLink({ to: '/$workspace/$team/sites', params: { workspace, team } })}
+              >
+                Sites
+              </Button>
+            ) : null}
             {canManage ? (
               <Button
                 size="sm"
