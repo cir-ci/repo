@@ -262,9 +262,11 @@ describe('email-code sign-in', () => {
     const adminByCode = await signInWithCode(stack.url, stack.mail, setup.account.email)
     const page = await browser.as(adminByCode)
     await page.goto(`${stack.url}/workspaces/${workspace()}/settings/sign-in`)
-    const box = page.getByRole('switch', { name: 'Password' })
+    // Sign-in methods can lock people out, so they wait for Save (a checkbox, then Save changes).
+    const box = page.getByRole('checkbox', { name: 'Password' })
     await box.waitFor()
     await box.click()
+    await page.getByRole('button', { name: 'Save changes' }).click()
     await expect
       .poll(
         async () =>

@@ -42,7 +42,8 @@ describe('invitations and members', () => {
       await page.getByRole('option', { name: role }).click()
     }
     await page.getByRole('button', { name: 'Send invite' }).click()
-    await page.getByText(`Invitation sent to ${email}.`).waitFor()
+    // The visible message (the announcement for screen readers carries the same text).
+    await page.getByText(`Invitation sent to ${email}.`).first().waitFor()
   }
 
   it('shows the form validation messages and the server’s refusals', async () => {
@@ -313,12 +314,16 @@ describe('invitations and members', () => {
     const select = page.getByRole('combobox', { name: `Role of ${mia.name}` })
     await select.click()
     await page.getByRole('option', { name: 'Admin' }).click()
+    // A role decides what someone can change, so the page asks first.
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Change role' }).click()
     await expect.poll(roleOf).toBe('admin')
     await page.getByText(`${mia.name} is now Admin`).first().waitFor({ state: 'attached' })
     // And she really is one now: she can create a team.
     await createTeam(miaSession, workspace(), 'Mia made this')
     await select.click()
     await page.getByRole('option', { name: 'Member' }).click()
+    // A role decides what someone can change, so the page asks first.
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Change role' }).click()
     await expect.poll(roleOf).toBe('member')
     // Demoted: the same call is refused again.
     expect(
