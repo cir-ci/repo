@@ -1,38 +1,19 @@
-import { Dialog, Kbd, Text } from '@circi/ui'
+import { Dialog } from '@circi/ui'
 
-import { keyCaps, shortcutGroups } from '#lib/shortcuts.ts'
+import { ShortcutGroups } from '#lib/ShortcutGroups.tsx'
 
-import styles from './ShortcutsDialog.module.css'
-
-/** Every keyboard shortcut, from the registry, opened with `?`. */
+/**
+ * Every keyboard shortcut, opened with `?`: the same group cards as the Keyboard shortcuts page,
+ * two to a row in the wide dialog and one on a phone.
+ */
 export function ShortcutsDialog({
   open,
   onOpenChange,
   designEnabled = false,
 }: ShortcutsDialog.Props) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} title="Keyboard shortcuts">
-      {shortcutGroups(designEnabled).map(({ group, shortcuts }) => (
-        <section key={group} aria-label={group}>
-          <Text variant="micro" tone="tertiary">
-            {group}
-          </Text>
-          <dl className={styles.shortcuts}>
-            {shortcuts.map((s) => (
-              <div key={s.key} className={styles.shortcut}>
-                <dt className={styles.caps}>
-                  {keyCaps(s.key).map((cap) => (
-                    <Kbd key={cap}>{cap}</Kbd>
-                  ))}
-                </dt>
-                <dd>
-                  <Text>{s.description}</Text>
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-      ))}
+    <Dialog open={open} onOpenChange={onOpenChange} title="Keyboard shortcuts" size="catalog">
+      <ShortcutGroups designEnabled={designEnabled} headingLevel={3} />
     </Dialog>
   )
 }
