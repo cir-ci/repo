@@ -1176,6 +1176,12 @@ describe('settings is closed', () => {
     await userEvent.type(field(), 'check')
     await expect.element(page.getByRole('option', { name: /Build #148/ })).not.toBeInTheDocument()
     expect(calls.searches()).toEqual([])
+    // Nothing to choose: the combobox is not expanded, and points at no option.
+    await userEvent.clear(field())
+    await userEvent.type(field(), 'zzzzzq')
+    await expect.element(page.getByRole('option')).not.toBeInTheDocument()
+    await expect.element(field()).toHaveAttribute('aria-expanded', 'false')
+    await expect.element(field()).not.toHaveAttribute('aria-activedescendant')
     await userEvent.clear(field())
     await userEvent.type(field(), 'back')
     await userEvent.keyboard('{Enter}')

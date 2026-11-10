@@ -569,7 +569,8 @@ export function CommandMenu({
             className={styles.input}
             role="combobox"
             aria-label="Search or run a command"
-            aria-expanded="true"
+            // The list is always on screen, but only "expanded" while it has something to choose.
+            aria-expanded={flat.length > 0}
             aria-controls={listId}
             aria-activedescendant={current >= 0 ? optionId(current) : undefined}
             aria-autocomplete="list"
