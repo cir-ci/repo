@@ -249,3 +249,10 @@
   gap: 8px;
   font-weight: 500;
 }
+
+/* A wide page: each field takes a row of its own, label column and control. */
+@container settings (min-width: 900px) {
+  .fieldRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

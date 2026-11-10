@@ -1,3 +1,10 @@
+/* The container the rows and fields measure: the width the panel gives the page. */
+.frame {
+  container: settings / inline-size;
+  width: 100%;
+  min-width: 0;
+}
+
 .root {
   display: flex;
   flex-direction: column;
@@ -57,4 +64,15 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+
+/* Wide enough for a label column: the column widens to make room for it. */
+@container settings (min-width: 900px) {
+  .root {
+    max-width: 960px;
+  }
+
+  .root[data-width='wide'] {
+    max-width: 1040px;
+  }
 }

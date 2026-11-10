@@ -22,8 +22,14 @@ export function SettingsRow({
   ...rest
 }: SettingsRow.Props) {
   const hasText = label || detail || env
+  // A label with a control (and no value, badge or step number): laid out as a label column.
+  const labelled = hasText && children && !value && !status && !leading
   return (
-    <div {...rest} className={cx(styles.root, className)}>
+    <div
+      {...rest}
+      className={cx(styles.root, className)}
+      data-layout={labelled ? 'labelled' : undefined}
+    >
       {leading ? <span className={styles.leading}>{leading}</span> : null}
       {hasText ? (
         <div className={styles.text}>
@@ -35,7 +41,9 @@ export function SettingsRow({
       {children ? (
         <>
           {value ? <span className={styles.value}>{value}</span> : null}
-          <div className={styles.control}>{children}</div>
+          <div className={styles.control} data-form={hasText ? undefined : ''}>
+            {children}
+          </div>
           {status ? <span className={styles.status}>{status}</span> : null}
         </>
       ) : value || status ? (

@@ -35,6 +35,7 @@ export function Select({
       invalid={error ? true : undefined}
       disabled={disabled}
       className={cx(styles.root, className)}
+      data-hide-label={hideLabel ? '' : undefined}
     >
       <Field.Label
         nativeLabel={false}

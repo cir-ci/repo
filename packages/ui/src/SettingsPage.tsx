@@ -6,7 +6,9 @@ import styles from './SettingsPage.module.css'
 
 /**
  * The centred column every settings and health page sits in: 720px (`width="wide"`: 1040px, for
- * editors that need the room), 40px between its children, a 16px gutter at phone width. The
+ * editors that need the room), 40px between its children, a 16px gutter at phone width. The page sits in a `settings` container (the space the panel gives
+ * it, not the window): from 900px of it the column widens to 960px and rows and fields put the
+ * label and its help in a 240px column on the left, the control on the right; below that they stack. The
  * optional header is a title (an `h1` unless `headingLevel` says otherwise), a description and
  * actions; put `SettingsSection`s inside.
  */
@@ -23,26 +25,28 @@ export function SettingsPage({
   const titleId = useId()
   const Heading = `h${headingLevel}` as const
   return (
-    <div
-      {...rest}
-      className={cx(styles.root, className)}
-      data-width={width}
-      aria-labelledby={title ? titleId : undefined}
-    >
-      {title || description || actions ? (
-        <header className={styles.header}>
-          <div className={styles.text}>
-            {title ? (
-              <Heading id={titleId} className={styles.title}>
-                {title}
-              </Heading>
-            ) : null}
-            {description ? <p className={styles.description}>{description}</p> : null}
-          </div>
-          {actions ? <div className={styles.actions}>{actions}</div> : null}
-        </header>
-      ) : null}
-      {children}
+    <div className={styles.frame}>
+      <div
+        {...rest}
+        className={cx(styles.root, className)}
+        data-width={width}
+        aria-labelledby={title ? titleId : undefined}
+      >
+        {title || description || actions ? (
+          <header className={styles.header}>
+            <div className={styles.text}>
+              {title ? (
+                <Heading id={titleId} className={styles.title}>
+                  {title}
+                </Heading>
+              ) : null}
+              {description ? <p className={styles.description}>{description}</p> : null}
+            </div>
+            {actions ? <div className={styles.actions}>{actions}</div> : null}
+          </header>
+        ) : null}
+        {children}
+      </div>
     </div>
   )
 }

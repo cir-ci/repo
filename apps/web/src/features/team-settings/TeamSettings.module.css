@@ -36,3 +36,15 @@
 .number {
   width: 168px;
 }
+
+/* A wide page: each field takes a row of its own, label column and control. */
+@container settings (min-width: 900px) {
+  .fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* The label column and the control fill the row; the 168px is for the stacked layout. */
+  .number {
+    width: auto;
+  }
+}

@@ -75,3 +75,35 @@
 .error {
   color: var(--circi-state-failed-text);
 }
+
+/* In a settings form on a wide page: the label and its help in a 240px column, the control beside
+   it, the error under the control. */
+@container settings (min-width: 900px) {
+  :global([data-form]) .root:not([data-hide-label]) {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    column-gap: 24px;
+    row-gap: 4px;
+    align-items: start;
+  }
+
+  :global([data-form]) .labelRow {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  :global([data-form]) .control {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  :global([data-form]) .description {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  :global([data-form]) .error {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}

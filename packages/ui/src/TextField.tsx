@@ -34,6 +34,7 @@ export function TextField({
       invalid={error || invalid ? true : undefined}
       disabled={disabled}
       className={cx(styles.root, className)}
+      data-hide-label={hideLabel ? '' : undefined}
     >
       <div className={styles.labelRow} style={hideLabel ? visuallyHidden : undefined}>
         <Field.Label className={styles.label}>{label}</Field.Label>

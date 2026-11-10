@@ -30,7 +30,7 @@ describe('SettingsPage', () => {
     await expect.element(page.getByRole('heading', { name: 'Health', level: 1 })).toBeVisible()
     await expect.element(page.getByText('Same checks as doctor.')).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Run' })).toBeVisible()
-    const root = container.firstElementChild
+    const root = container.firstElementChild?.firstElementChild
     const style = getComputedStyle(found(root))
     expect([style.maxWidth, style.marginLeft, style.rowGap]).toEqual([
       '720px',
@@ -42,7 +42,9 @@ describe('SettingsPage', () => {
 
   it('width="wide" allows 1040px', async () => {
     const { container } = await render(<SettingsPage width="wide">x</SettingsPage>)
-    expect(getComputedStyle(found(container.firstElementChild)).maxWidth).toBe('1040px')
+    expect(getComputedStyle(found(container.firstElementChild?.firstElementChild)).maxWidth).toBe(
+      '1040px',
+    )
   })
 
   it('has no header without a title, description or actions', async () => {

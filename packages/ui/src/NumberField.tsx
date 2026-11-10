@@ -39,8 +39,15 @@ export function NumberField({
       invalid={error || invalid ? true : undefined}
       disabled={disabled}
       className={cx(styles.root, className)}
+      data-hide-label={hideLabel ? '' : undefined}
     >
-      <BaseNumberField.Root {...root} name={name} disabled={disabled} format={format}>
+      <BaseNumberField.Root
+        {...root}
+        className={styles.inner}
+        name={name}
+        disabled={disabled}
+        format={format}
+      >
         <Field.Label className={hideLabel ? styles.hiddenLabel : styles.label}>{label}</Field.Label>
         <BaseNumberField.Group className={styles.group} data-size={size}>
           <BaseNumberField.Input {...inputProps} className={styles.input} />

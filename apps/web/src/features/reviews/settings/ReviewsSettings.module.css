@@ -112,3 +112,10 @@
   flex-direction: column;
   gap: 16px;
 }
+
+/* A wide page: each field takes a row of its own, label column and control. */
+@container settings (min-width: 900px) {
+  .pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
