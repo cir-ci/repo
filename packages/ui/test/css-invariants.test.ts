@@ -53,6 +53,8 @@ const OUTLINE_ALLOWED: Record<string, string> = {
   'packages/ui/src/Select.module.css .popup':
     'the popup container takes focus; its items show focus',
   'packages/ui/src/Select.module.css .list': 'the listbox container; its items show focus',
+  'packages/ui/src/Autocomplete.module.css .list':
+    'the listbox container; focus stays in the input and the highlighted item shows it',
   'packages/ui/src/Popover.module.css .positioner': 'a wrapper, never focused itself',
   'packages/ui/src/Popover.module.css .popup':
     'the popup container takes focus; content shows its own',
