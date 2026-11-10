@@ -222,7 +222,9 @@ export function switchWorkspacePath(
   if (first === 'workspaces') {
     const [, , section, sub] = parts
     if (section === 'settings') return `/workspaces/${to}/settings${sub ? `/${sub}` : ''}`
-    return `/workspaces/${to}/${section === 'views' || !section ? 'reviews' : section}`
+    // A saved view belongs to the workspace it was saved in: land on the new one's Teams page.
+    if (section === 'views' || !section) return '/'
+    return `/workspaces/${to}/${section}`
   }
   if (GLOBAL_ROOTS.has(first)) return undefined
   const team = teamOf(toWorkspace)

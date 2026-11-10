@@ -317,7 +317,7 @@ describe('switchWorkspacePath', () => {
     expect(go('/workspaces/acme/settings/integrations/github/abc')).toBe(
       '/workspaces/globex/settings/integrations',
     )
-    expect(go('/workspaces/acme/views/v1')).toBe('/workspaces/globex/reviews')
+    expect(go('/workspaces/acme/views/v1')).toBe('/')
   })
 
   it('keeps the section of a team page, on the new workspace’s team, dropping what is specific', () => {
