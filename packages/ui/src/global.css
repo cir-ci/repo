@@ -6,6 +6,47 @@
  */
 /* @circi-tokens */
 
+/*
+ * Scrollbars: a muted rounded thumb on no track, in both schemes. 10px for the page and panes;
+ * the sidebar's is narrower (AppFrame). Chromium and Safari size them through the
+ * ::-webkit-scrollbar parts (Chromium ignores those once scrollbar-color or scrollbar-width is
+ * set, so the standard properties are only for browsers without them: Firefox, thin).
+ */
+:where(:root) {
+  --circi-scrollbar-thumb: color-mix(in srgb, var(--circi-text-tertiary) 45%, transparent);
+  --circi-scrollbar-thumb-hover: color-mix(in srgb, var(--circi-text-tertiary) 75%, transparent);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--circi-scrollbar-thumb) padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--circi-scrollbar-thumb-hover);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  :where(:root) {
+    scrollbar-color: var(--circi-scrollbar-thumb) transparent;
+  }
+
+  :where(*) {
+    scrollbar-width: thin;
+  }
+}
+
 :where(*, *::before, *::after) {
   box-sizing: border-box;
 }

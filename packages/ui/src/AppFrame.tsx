@@ -1,5 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 
+import { useScrollingFlag } from './use-scrolling.ts'
+
 import styles from './AppFrame.module.css'
 
 /**
@@ -8,6 +10,7 @@ import styles from './AppFrame.module.css'
  * that bar (the app puts a menu button in it that opens the sidebar in a `Drawer`).
  */
 export function AppFrame(props: AppFrame.Props) {
+  const onNavScroll = useScrollingFlag()
   const height = props.minHeight ?? '100dvh'
   const style: CSSProperties & Record<'--circi-frame-height', string | number> = {
     minHeight: height,
@@ -25,7 +28,11 @@ export function AppFrame(props: AppFrame.Props) {
     >
       {props.compactBar ? <div className={styles.bar}>{props.compactBar}</div> : null}
       <div className={styles.sidebar} style={sidebarStyle}>
-        <nav className={styles.nav} aria-label={props.sidebarLabel ?? 'Main'}>
+        <nav
+          className={styles.nav}
+          aria-label={props.sidebarLabel ?? 'Main'}
+          onScroll={onNavScroll}
+        >
           {props.sidebar}
         </nav>
         {props.sidebarCollapsed ? null : props.sidebarHandle}

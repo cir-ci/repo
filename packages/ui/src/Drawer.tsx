@@ -1,6 +1,8 @@
 import { Drawer as BaseDrawer } from '@base-ui/react/drawer'
 import type { ReactNode } from 'react'
 
+import { useScrollingFlag } from './use-scrolling.ts'
+
 import styles from './Drawer.module.css'
 
 /**
@@ -13,12 +15,13 @@ import styles from './Drawer.module.css'
  * `data-circi-color-scheme`: only the scheme on `<html>` reaches it.
  */
 export function Drawer({ title, children, ...rest }: Drawer.Props) {
+  const onScroll = useScrollingFlag()
   return (
     <BaseDrawer.Root swipeDirection="left" {...rest}>
       <BaseDrawer.Portal>
         <BaseDrawer.Backdrop className={styles.backdrop} />
         <BaseDrawer.Viewport className={styles.viewport}>
-          <BaseDrawer.Popup className={styles.popup}>
+          <BaseDrawer.Popup className={styles.popup} onScroll={onScroll}>
             <BaseDrawer.Title className={styles.title}>{title}</BaseDrawer.Title>
             <BaseDrawer.Content className={styles.content}>{children}</BaseDrawer.Content>
           </BaseDrawer.Popup>

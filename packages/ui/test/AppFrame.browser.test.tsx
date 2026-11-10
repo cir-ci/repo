@@ -4,6 +4,9 @@ import { page } from 'vitest/browser'
 
 import { AppFrame, ResizeHandle } from '#src/index.ts'
 
+// Headless Chromium draws overlay scrollbars (no layout width): read the sizes the CSS sets.
+const bar = (el: Element) => getComputedStyle(el, '::-webkit-scrollbar').width
+
 describe('AppFrame', () => {
   it('has a Main navigation landmark and a main landmark holding the page', async () => {
     await render(
@@ -162,5 +165,20 @@ describe('AppFrame resizable sidebar', () => {
       </AppFrame>,
     )
     expect(page.getByRole('separator').elements()).toHaveLength(0)
+  })
+
+  it('gives the sidebar a narrower scrollbar than the page, marked while it scrolls', async () => {
+    await page.viewport(1200, 400)
+    await render(
+      <AppFrame sidebar={<div style={{ height: 2000, flexShrink: 0 }}>Long sidebar</div>}>
+        <div style={{ height: 2000, flexShrink: 0 }}>Long page</div>
+      </AppFrame>,
+    )
+    const nav = page.getByRole('navigation', { name: 'Main' }).element()
+    expect(bar(nav)).toBe('6px')
+    expect(bar(document.documentElement)).toBe('10px')
+    expect(nav.scrollHeight).toBeGreaterThan(nav.clientHeight)
+    nav.scrollTop = 200
+    await expect.poll(() => nav.hasAttribute('data-scrolling')).toBe(true)
   })
 })

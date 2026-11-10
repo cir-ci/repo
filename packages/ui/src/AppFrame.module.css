@@ -22,6 +22,39 @@
   padding: 10px 8px;
 }
 
+/* The sidebar's scrollbar is narrower than the page's (6px against 10px) and shows only while the
+   sidebar is hovered, scrolled or has keyboard focus. */
+.nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.nav::-webkit-scrollbar-thumb {
+  border-width: 1px;
+  background-color: transparent;
+}
+
+.nav:hover::-webkit-scrollbar-thumb,
+.nav:has(:focus-visible)::-webkit-scrollbar-thumb,
+.nav[data-scrolling]::-webkit-scrollbar-thumb {
+  background-color: var(--circi-scrollbar-thumb);
+}
+
+.nav::-webkit-scrollbar-thumb:hover {
+  background-color: var(--circi-scrollbar-thumb-hover);
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  .nav {
+    scrollbar-color: transparent transparent;
+  }
+
+  .nav:hover,
+  .nav:has(:focus-visible),
+  .nav[data-scrolling] {
+    scrollbar-color: var(--circi-scrollbar-thumb) transparent;
+  }
+}
+
 .main {
   display: flex;
   flex: 999 1 520px;

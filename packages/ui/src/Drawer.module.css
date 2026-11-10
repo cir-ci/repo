@@ -80,3 +80,31 @@
     transition: none;
   }
 }
+
+/* Like the sidebar: a 6px scrollbar, shown only while hovered, scrolled or focused by keyboard. */
+.popup::-webkit-scrollbar {
+  width: 6px;
+}
+
+.popup::-webkit-scrollbar-thumb {
+  border-width: 1px;
+  background-color: transparent;
+}
+
+.popup:hover::-webkit-scrollbar-thumb,
+.popup:has(:focus-visible)::-webkit-scrollbar-thumb,
+.popup[data-scrolling]::-webkit-scrollbar-thumb {
+  background-color: var(--circi-scrollbar-thumb);
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  .popup {
+    scrollbar-color: transparent transparent;
+  }
+
+  .popup:hover,
+  .popup:has(:focus-visible),
+  .popup[data-scrolling] {
+    scrollbar-color: var(--circi-scrollbar-thumb) transparent;
+  }
+}
