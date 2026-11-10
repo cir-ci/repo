@@ -29,6 +29,8 @@ const ENTRY_POINTS = new Set([
   'features/teams/TeamPage.tsx',
   'features/teams/routes.ts',
   'features/command/model.ts',
+  // The phone's More sheet: the workspace and account settings entries (built from helpers, not route literals).
+  'app/PhoneMore.tsx',
   // The Teams and Settings crumbs, which only settings pages use.
   'lib/crumbs.ts',
 ])

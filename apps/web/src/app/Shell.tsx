@@ -1,14 +1,16 @@
 import {
   AnnouncerProvider,
   AppFrame,
+  CloseIcon,
   Drawer,
   IconButton,
   MenuIcon,
   PanelNotices,
+  SearchIcon,
   SkipLink,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
-import { Outlet, useRouterState } from '@tanstack/react-router'
+import { Outlet, useRouter, useRouterState } from '@tanstack/react-router'
 import { lazy, type ReactNode, Suspense, useEffect } from 'react'
 
 import { InvitationBanner } from '#features/auth/InvitationBanner.tsx'
@@ -16,7 +18,9 @@ import { Logo } from '#features/auth/Logo.tsx'
 import { SessionCheck } from '#features/auth/SessionCheck.tsx'
 import { AddressChangeBanner } from '#features/instance/AddressChangeBanner.tsx'
 import { AddToHomeScreenSheet } from '#features/pwa/AddToHomeScreenSheet.tsx'
+import { useSidebarModel } from '#features/sidebar/api.ts'
 import { SettingsNav } from '#features/sidebar/SettingsNav.tsx'
+import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { TeamDialogs } from '#features/teams/TeamDialogs.tsx'
 import { authClient, type SessionUser } from '#lib/auth-client.ts'
@@ -24,10 +28,22 @@ import { PaneHandle } from '#lib/PaneHandle.tsx'
 import { paneWidthCss } from '#lib/panes.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { usePaneWidth } from '#lib/stores/pane-store.ts'
+import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
 import { useSetupStore } from '#lib/stores/setup-store.ts'
+import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
+import { COMPACT_QUERY, usePhone } from '#lib/use-phone.ts'
 
 import { useNavPane } from './NavToggle.tsx'
-import { currentSection, isOutsideFrame, isSettingsSection, sectionLabel } from './shell-model.ts'
+import { PhoneMore } from './PhoneMore.tsx'
+import { PhoneTabs } from './PhoneTabs.tsx'
+import { returnTarget } from './settings-return.ts'
+import {
+  currentSection,
+  isBuildPage,
+  isOutsideFrame,
+  isSettingsSection,
+  sectionLabel,
+} from './shell-model.ts'
 import { ShortcutLayer } from './ShortcutLayer.tsx'
 import { Sidebar } from './Sidebar.tsx'
 
@@ -41,9 +57,6 @@ const LoginPage = lazy(() =>
 const SetupContinue = lazy(() =>
   import('#features/setup/SetupContinue.tsx').then((m) => ({ default: m.SetupContinue })),
 )
-
-/** The width below which the sidebar becomes a drawer: `AppFrame`'s stacking breakpoint. */
-const COMPACT_QUERY = '(max-width: 819.98px)'
 
 /**
  * The frame around every page. Signed in: the sidebar and one panel (`AppFrame`), with a top bar
@@ -129,8 +142,19 @@ function SignedInFrame({ user }: { user: SessionUser }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const section = currentSection(pathname)
   // Settings replace the sidebar with their own navigation (Back to app, Account, Workspace, Team, Instance).
-  const nav = isSettingsSection(section) ? <SettingsNav /> : <Sidebar user={user} />
-  const navLabel = isSettingsSection(section) ? 'Settings' : 'Main'
+  const inSettings = isSettingsSection(section)
+  const nav = inSettings ? <SettingsNav /> : <Sidebar user={user} />
+  const navLabel = inSettings ? 'Settings' : 'Main'
+  const phone = usePhone()
+  const router = useRouter()
+  const setCommandMenuOpen = useOverlayStore((s) => s.setCommandMenuOpen)
+  const { workspace } = useWorkspaces(useChosenWorkspace())
+  const { data: sidebar } = useSidebarModel(workspace?.slug)
+  // Settings is a closed area: its one way out is the page the person came from (the X below).
+  const back = returnTarget(
+    useSettingsReturnStore((s) => s.app),
+    sidebar?.teams,
+  )
   const pane = useNavPane()
   const sidebarWidth = usePaneWidth(pane.id)
   // The drawer belongs to the page it was opened on: choosing another page closes it (an entry
@@ -173,8 +197,8 @@ function SignedInFrame({ user }: { user: SessionUser }) {
             </IconButton>
             {/* A settings page's breadcrumb right below already says where this is (and starts with
                 "Instance" or the workspace): repeating "Settings" above it is noise. */}
-            {isSettingsSection(section) ? (
-              <span className={styles.barTitle} />
+            {inSettings ? (
+              <span className={styles.barTitle}>Settings</span>
             ) : sectionLabel(section) ? (
               <span className={styles.barTitle}>{sectionLabel(section)}</span>
             ) : (
@@ -183,8 +207,21 @@ function SignedInFrame({ user }: { user: SessionUser }) {
                 CirCI
               </span>
             )}
+            {inSettings ? (
+              <IconButton
+                label={`Close settings, back to ${back.label}`}
+                onClick={() => router.history.push(back.path)}
+              >
+                <CloseIcon />
+              </IconButton>
+            ) : (
+              <IconButton label="Search" onClick={() => setCommandMenuOpen(true)}>
+                <SearchIcon />
+              </IconButton>
+            )}
           </div>
         }
+        {...(phone && !inSettings && !isBuildPage(pathname) ? { bottomBar: <PhoneTabs /> } : {})}
       >
         {/* The notices show under each page's sticky header, inside the panel (`PanelHeader`). */}
         <PanelNotices notices={<Notices email={user.email} />}>
@@ -193,6 +230,7 @@ function SignedInFrame({ user }: { user: SessionUser }) {
       </AppFrame>
       <TeamDialogs />
       <AddToHomeScreenSheet />
+      {phone && !inSettings ? <PhoneMore /> : null}
       <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} title="Navigation">
         <nav aria-label={navLabel} className={styles.drawerNav}>
           {nav}

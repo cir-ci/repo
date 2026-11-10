@@ -53,8 +53,7 @@ describe('the build page', () => {
   it.each([
     [1280, 900],
     [1000, 2400],
-    [700, 2400],
-    [390, 2400],
+    [900, 2400],
   ] as [number, number][])('fills the panel to the bottom at %ix%i', async (width, height) => {
     fakeBuildApi(detail())
     await renderPage(framed(<BuildPage />), {
@@ -70,6 +69,20 @@ describe('the build page', () => {
     // The viewer fills its row; where the sidebar sits under it, the sidebar closes the column.
     expect(gapToBottom(width >= 1100 ? viewer : sidebar)).toBeLessThanOrEqual(TOLERANCE)
     expect(bottom(list!)).toBeLessThanOrEqual(bottom(viewer!) + TOLERANCE)
+  })
+
+  it('closes the panel with the review bar on a phone, at 390x2400', async () => {
+    fakeBuildApi(detail())
+    await renderPage(framed(<BuildPage />), {
+      viewport: [390, 2400],
+      route: '$workspace/$team/builds/$number',
+      url: '/acme/web-app/builds/7',
+      announcer: true,
+      validateSearch: validateBuildSearch,
+    })
+    const bar = page.getByRole('group', { name: 'Review' })
+    await expect.element(bar).toBeVisible()
+    expect(gapToBottom(bar.element())).toBeLessThanOrEqual(TOLERANCE)
   })
 })
 
@@ -111,7 +124,7 @@ describe('Inbox', () => {
 })
 
 describe('Inbox with a notification open', () => {
-  it('stacks the pane under the list at 700x800, the pane no taller than 60% and the list taking the rest', async () => {
+  it('stacks the pane under the list at 900x800, the pane no taller than 60% and the list taking the rest', async () => {
     const note = {
       id: 'n1',
       kind: 'review_requested',
@@ -137,7 +150,7 @@ describe('Inbox with a notification open', () => {
     }
     fakeApi({ 'GET /api/inbox': { body: { tab: 'everything', unread: 1, items: [note] } } })
     await renderPage(framed(<InboxPage />), {
-      viewport: [700, 800],
+      viewport: [900, 800],
       route: '/inbox',
       url: '/inbox?tab=everything&item=n1',
       announcer: true,

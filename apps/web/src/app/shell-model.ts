@@ -116,6 +116,18 @@ export function sidebarTeams(
   return { shown, total: all.length }
 }
 
+/**
+ * The team the phone's Triage tab and More sheet's Baselines open: the open one, else the first
+ * with something to triage, else the first (pinned ones first).
+ */
+export function phoneTeam(
+  teams: readonly Sidebar.Team[] | undefined,
+  open?: string,
+): Sidebar.Team | undefined {
+  const ordered = orderTeams(teams ?? [])
+  return ordered.find((t) => t.slug === open) ?? ordered.find((t) => t.triage > 0) ?? ordered[0]
+}
+
 /** A count is shown only when there is something waiting. */
 export const countOrUndefined = (n: number | undefined): number | undefined => (n ? n : undefined)
 
@@ -227,6 +239,15 @@ export const isSettingsSection = (section: Section | undefined): boolean =>
   section === 'settings' ||
   section === 'team-settings' ||
   section === 'instance'
+
+/**
+ * A build's page (`/<workspace>/<team>/builds/<number>`): on a phone it has its own bottom bar for
+ * reviewing, so the tab bar steps aside.
+ */
+export function isBuildPage(pathname: string): boolean {
+  const parts = pathname.split('/').filter(Boolean)
+  return parts.length === 4 && parts[2] === 'builds'
+}
 
 /** Pages shown without the sidebar: they belong to a flow (a hosted site's sign-in), not the dashboard. */
 export const isOutsideFrame = (pathname: string): boolean => pathname.startsWith('/_sso/')

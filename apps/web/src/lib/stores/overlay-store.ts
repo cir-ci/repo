@@ -9,6 +9,7 @@ export const useOverlayStore = create<OverlayStore.State & OverlayStore.Actions>
   setNewWorkspaceOpen: (newWorkspaceOpen) => set({ newWorkspaceOpen }),
   setImportOpen: (importOpen) => set({ importOpen }),
   setDrawerAt: (drawerAt) => set({ drawerAt }),
+  setMoreOpen: (moreOpen) => set({ moreOpen }),
   reset: () => set(initialOverlayState()),
 }))
 
@@ -20,6 +21,7 @@ function initialOverlayState(): OverlayStore.State {
     newWorkspaceOpen: false,
     importOpen: false,
     drawerAt: undefined,
+    moreOpen: false,
   }
 }
 
@@ -38,6 +40,8 @@ export namespace OverlayStore {
      * entry (a team), which moves it along (`NavLink`'s `expands`).
      */
     drawerAt: string | undefined
+    /** The phone's More sheet (the last tab of the bottom bar). */
+    moreOpen: boolean
   }
   export interface Actions {
     setCommandMenuOpen: (open: boolean) => void
@@ -46,6 +50,7 @@ export namespace OverlayStore {
     setNewWorkspaceOpen: (open: boolean) => void
     setImportOpen: (open: boolean) => void
     setDrawerAt: (path: string | undefined) => void
+    setMoreOpen: (open: boolean) => void
     reset: () => void
   }
 }

@@ -179,6 +179,16 @@ async function renderShell(path: string) {
     }),
     createRoute({
       getParentRoute: () => root,
+      path: '$workspace/$team/builds/$number',
+      component: text('Build page'),
+    }),
+    createRoute({
+      getParentRoute: () => root,
+      path: '$workspace/$team/baselines',
+      component: text('Baselines page'),
+    }),
+    createRoute({
+      getParentRoute: () => root,
       path: '$workspace/$team/sites',
       component: text('Sites page'),
     }),
@@ -778,6 +788,7 @@ describe('Shell, narrow', () => {
   it('replaces the sidebar with a top bar and a menu button that opens it as a drawer', async () => {
     await page.viewport(390, 800)
     await renderShell('/workspaces/acme/reviews')
+    // The sidebar is the drawer's: the page has the phone's tab bar instead.
     expect(page.getByRole('navigation', { name: 'Main' }).elements()).toHaveLength(0)
     await expect.element(page.getByText('Reviews').first()).toBeVisible()
     await page.getByRole('button', { name: 'Open navigation' }).click()
@@ -802,12 +813,12 @@ describe('Shell, narrow', () => {
       .toBeVisible()
   })
 
-  it('does not repeat "Settings" in the top bar above a settings page', async () => {
+  it('names the area in the top bar above a settings page, with a Close that leaves it', async () => {
     await page.viewport(390, 800)
     await renderShell('/workspaces/acme/settings')
     await expect.element(page.getByRole('main')).toHaveTextContent('Workspace settings page')
     await expect.element(page.getByRole('button', { name: 'Open navigation' })).toBeVisible()
-    expect(page.getByText('Settings', { exact: true }).elements()).toHaveLength(0)
+    await expect.element(page.getByText('Settings', { exact: true })).toBeVisible()
   })
 
   it('keeps the drawer open when a team is chosen, so its pages show, and closes it on a page', async () => {
@@ -949,4 +960,154 @@ describe('Shell, collapsing the navigation', () => {
     expect(page.getByRole('separator').elements()).toHaveLength(0)
     expect(show().elements()).toHaveLength(0)
   })
+})
+
+const tabs = () => page.getByRole('navigation', { name: 'Pages' })
+
+describe('Shell, phone', () => {
+  it('has a bottom tab bar with the counts, 44px targets and room for the home indicator', async () => {
+    await page.viewport(390, 844)
+    await renderShell('/inbox')
+    await expect.element(tabs()).toBeVisible()
+    // Reviews and Triage are links once the sidebar model says which workspace and team.
+    await expect.poll(() => tabs().getByRole('link').elements().length).toBe(4)
+    const names = tabs()
+      .getByRole('link')
+      .elements()
+      .map((el) => el.textContent)
+    expect(names).toEqual(['3Inbox, 3 unread', '2Reviews, 2 waiting', 'Triage', 'Teams'])
+    await expect
+      .element(tabs().getByRole('link', { name: /^Inbox/ }))
+      .toHaveAttribute('aria-current', 'page')
+    await expect.element(tabs().getByRole('button', { name: 'More' })).toBeVisible()
+    for (const item of [
+      ...tabs().getByRole('link').elements(),
+      ...tabs().getByRole('button').elements(),
+    ]) {
+      const box = item.getBoundingClientRect()
+      expect(box.height).toBeGreaterThanOrEqual(44)
+      expect(box.width).toBeGreaterThanOrEqual(44)
+    }
+    // It sits on the bottom edge of the window.
+    const bar = tabs().element().getBoundingClientRect()
+    expect(Math.round(bar.bottom)).toBe(844)
+    expect(getComputedStyle(tabs().element()).paddingBottom).toBe('0px')
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+  })
+
+  it('moves between Inbox, Reviews, Triage and Teams without a reload', async () => {
+    await page.viewport(390, 844)
+    const { router } = await renderShell('/inbox')
+    await expect.poll(() => tabs().getByRole('link').elements().length).toBe(4)
+    await tabs()
+      .getByRole('link', { name: /^Reviews/ })
+      .click()
+    await expect.poll(() => router.state.location.pathname).toBe('/workspaces/acme/reviews')
+    await expect
+      .element(tabs().getByRole('link', { name: /^Reviews/ }))
+      .toHaveAttribute('aria-current', 'page')
+    await tabs().getByRole('link', { name: 'Triage' }).click()
+    // The first team with work waiting.
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app/triage')
+    await tabs().getByRole('link', { name: 'Teams' }).click()
+    await expect.poll(() => router.state.location.pathname).toBe('/')
+    await expect.element(page.getByRole('main')).toHaveTextContent('Teams page')
+  })
+
+  it('is full-bleed: the panel has no margin, border or rounded corners', async () => {
+    await page.viewport(390, 844)
+    await renderShell('/')
+    const main = page.getByRole('main').element()
+    const box = main.getBoundingClientRect()
+    expect(Math.round(box.left)).toBe(0)
+    expect(Math.round(box.right)).toBe(390)
+    const style = getComputedStyle(main)
+    expect(style.borderTopLeftRadius).toBe('0px')
+    expect(style.borderLeftWidth).toBe('0px')
+  })
+
+  it('opens More as a sheet with Insights, Baselines and the settings entries, and closes it on a choice', async () => {
+    await page.viewport(390, 844)
+    const { router } = await renderShell('/acme/web-app/triage')
+    await tabs().getByRole('button', { name: 'More' }).click()
+    const sheet = page.getByRole('dialog', { name: 'More' })
+    await expect.element(sheet).toBeVisible()
+    const rows = sheet
+      .getByRole('link')
+      .elements()
+      .map((el) => el.textContent)
+    expect(rows).toEqual([
+      'Insights',
+      'Baselines',
+      'Sites',
+      'Failing on main',
+      'Acme settings',
+      'Account settings',
+    ])
+    for (const row of sheet.getByRole('link').elements()) {
+      expect(row.getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
+    }
+    await sheet.getByRole('link', { name: 'Baselines' }).click()
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app/baselines')
+    await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
+  })
+
+  it('has the account and workspace settings in More, and settings is left only by its Close', async () => {
+    await page.viewport(390, 844)
+    const { router } = await renderShell('/inbox')
+    await tabs().getByRole('button', { name: 'More' }).click()
+    await page
+      .getByRole('dialog', { name: 'More' })
+      .getByRole('link', { name: 'Account settings' })
+      .click()
+    await expect.poll(() => router.state.location.pathname).toBe('/account/profile')
+    // Settings has its own navigation: no tab bar, a Close in the top bar, the list in the drawer.
+    expect(tabs().elements()).toHaveLength(0)
+    await page.getByRole('button', { name: 'Open navigation' }).click()
+    const drawer = page.getByRole('dialog', { name: 'Navigation' })
+    await expect.element(drawer.getByRole('link', { name: 'Back to Inbox' })).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    await page.getByRole('button', { name: /^Close settings/ }).click()
+    await expect.poll(() => router.state.location.pathname).toBe('/inbox')
+    await expect.element(tabs()).toBeVisible()
+  })
+
+  it('shows a build page without the tab bar: its own review bar takes the bottom', async () => {
+    await page.viewport(390, 844)
+    await renderShell('/acme/web-app/builds/7')
+    await expect.element(page.getByRole('main')).toHaveTextContent('Build page')
+    expect(tabs().elements()).toHaveLength(0)
+  })
+
+  it('opens search from the top bar as a full-screen sheet', async () => {
+    await page.viewport(390, 844)
+    await renderShell('/inbox')
+    await page.getByRole('button', { name: 'Search', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Command menu' })
+    await expect.element(dialog).toBeVisible()
+    await expect.poll(() => Math.round(dialog.element().getBoundingClientRect().top)).toBe(0)
+    const box = dialog.element().getBoundingClientRect()
+    expect(Math.round(box.height)).toBe(844)
+    expect(Math.round(box.width)).toBe(390)
+    await page.getByRole('button', { name: 'Cancel' }).click()
+    await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
+  })
+
+  it('has no tab bar on a wide screen', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/inbox')
+    await expect.element(page.getByRole('navigation', { name: 'Main' })).toBeVisible()
+    expect(tabs().elements()).toHaveLength(0)
+    expect(page.getByRole('button', { name: 'More' }).elements()).toHaveLength(0)
+  })
+
+  it.each(['/inbox', '/', '/workspaces/acme/reviews', '/acme/web-app/triage'])(
+    'never scrolls sideways on %s',
+    async (path) => {
+      await page.viewport(390, 844)
+      const { router } = await renderShell(path)
+      await expect.poll(() => router.state.status).toBe('idle')
+      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+    },
+  )
 })
