@@ -794,3 +794,85 @@ describe('preview pane in a narrow window', () => {
     })
   })
 })
+
+const rowOf = (n: number) => page.getByRole('link', { name: new RegExp(`Build #${n}`) })
+
+describe('right-click menu on a build row', () => {
+  const review = { 'POST /api/teams/acme/web/builds/review': { body: { builds: [] } } }
+
+  it('offers the quick actions of one build', async () => {
+    api([build(8), build(7)])
+    await show()
+    await rowOf(8).click({ button: 'right' })
+    await expect.element(page.getByRole('menu')).toBeVisible()
+    expect(
+      page
+        .getByRole('menuitem')
+        .elements()
+        .map((el) => el.textContent),
+    ).toEqual([
+      'Open',
+      'Open in new tab',
+      'Copy link',
+      'Copy commit SHA',
+      'Approve',
+      'Reject',
+      'Request review',
+      'Filter by branch main',
+    ])
+    await expect
+      .element(page.getByRole('menuitem', { name: 'Reject' }))
+      .toHaveAttribute('data-tone', 'danger')
+  })
+
+  it('acts on the right-clicked row, not on the selection, when that row is not selected', async () => {
+    const fake = api([build(8), build(7), build(6)], review)
+    await show()
+    await expect.element(rowOf(8)).toBeVisible()
+    await userEvent.keyboard('x')
+    await rowOf(7).click({ button: 'right' })
+    await page.getByRole('menuitem', { name: 'Approve' }).click()
+    await expect.poll(() => fake.of('POST')).toHaveLength(1)
+    expect(fake.of('POST')[0]).toMatchObject({ body: { buildIds: ['b7'], decision: 'approved' } })
+    // The selection stays as it was.
+    await expect.element(page.getByText('1 selected')).toBeVisible()
+  })
+
+  it('acts on the whole selection when the right-clicked row is in it', async () => {
+    const fake = api([build(8), build(7), build(6)], review)
+    await show()
+    await expect.element(rowOf(8)).toBeVisible()
+    await userEvent.keyboard('x')
+    await userEvent.keyboard('j')
+    await userEvent.keyboard('j')
+    await userEvent.keyboard('x')
+    await rowOf(8).click({ button: 'right' })
+    await page.getByRole('menuitem', { name: 'Approve 2 builds' }).click()
+    await expect.poll(() => fake.of('POST')).toHaveLength(1)
+    expect(fake.of('POST')[0]).toMatchObject({
+      body: { buildIds: ['b8', 'b6'], decision: 'approved' },
+    })
+  })
+
+  it('rejects one build through the reason dialog', async () => {
+    const fake = api([build(8), build(7)], review)
+    await show()
+    await rowOf(7).click({ button: 'right' })
+    await page.getByRole('menuitem', { name: 'Reject' }).click()
+    await expect.element(page.getByRole('dialog')).toBeVisible()
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: /Reject/ })
+      .click()
+    await expect.poll(() => fake.of('POST')).toHaveLength(1)
+    expect(fake.of('POST')[0]).toMatchObject({ body: { buildIds: ['b7'], decision: 'rejected' } })
+  })
+
+  it("filters the list by the row's branch", async () => {
+    api([build(8, { branch: 'feature/x' })])
+    const { router } = await show()
+    await rowOf(8).click({ button: 'right' })
+    await page.getByRole('menuitem', { name: 'Filter by branch feature/x' }).click()
+    expect(router.state.location.search).toEqual({ branch: 'feature/x' })
+  })
+})

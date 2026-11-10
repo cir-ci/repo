@@ -1,8 +1,10 @@
 import type { Build } from '@circi/api'
 import {
   Button,
+  type Menu,
   CheckIcon,
   CommandBlock,
+  ContextMenu,
   EmptyState,
   ConstructionIcon,
   NoFilterResults,
@@ -17,6 +19,7 @@ import {
   visuallyHidden,
 } from '@circi/ui'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useRouter } from '@tanstack/react-router'
 import { type ReactNode, useState } from 'react'
 
 import { buildState } from '#features/builds/build-state.ts'
@@ -36,6 +39,7 @@ import { SaveViewDialog } from '#features/views/SaveViewDialog.tsx'
 import { PaneHandle, paneVars } from '#lib/PaneHandle.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
+import { copyText, copyLinkItem, menuEntries, openInNewTabItem, separator } from '#lib/row-menu.ts'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { useDisplayStore } from '#lib/stores/display-store.ts'
 import { useListStore } from '#lib/stores/list-store.ts'
@@ -77,6 +81,7 @@ export function BuildsBrowser({
 }: BuildsBrowser.Props) {
   const peekWidth = usePaneWidth('builds-peek')
   const clientLink = useClientLink()
+  const router = useRouter()
   const announce = useAnnounce()
   const queryClient = useQueryClient()
   // Without a team this is the whole workspace's list (a saved view with no team).
@@ -103,6 +108,8 @@ export function BuildsBrowser({
   const [open, setOpen] = useState<FilterField | 'display'>()
   const selected = useListStore((s) => s.checked)
   const [rejecting, setRejecting] = useState(false)
+  // The builds the reject and request-review dialogs act on: the selection (from the bulk bar) or one row (from its menu).
+  const [target, setTarget] = useState<readonly Row[]>([])
   const [picking, setPicking] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -117,6 +124,11 @@ export function BuildsBrowser({
   const oldest = builds.at(-1)?.number
   const groups = groupBuilds(builds, display.groupBy)
   const flat = groups.flatMap((g) => g.builds)
+  const openBuild = (b: Row) =>
+    void router.navigate({
+      to: '/$workspace/$team/builds/$number',
+      params: { workspace, team: teamOf(b), number: String(b.number) },
+    })
   const chosen = flat.filter((b) => selected.has(b.id))
   const filtered = hasFilters(filters)
 
@@ -139,18 +151,72 @@ export function BuildsBrowser({
     display: () => setOpen('display'),
   })
 
-  const decide = (decision: 'approved' | 'rejected', reason?: string) =>
+  const decide = (rows: readonly Row[], decision: 'approved' | 'rejected', reason?: string) =>
     bulk.mutate(
-      { buildIds: chosen.map((b) => b.id), decision, ...(reason ? { reason } : {}) },
+      { buildIds: rows.map((b) => b.id), decision, ...(reason ? { reason } : {}) },
       {
         onSuccess: () => {
           // No Undo: the server keeps no token for a decision on several builds at once.
-          toast(`${decision === 'approved' ? 'Approved' : 'Rejected'} ${countText(chosen.length)}`)
-          clearChecked()
+          toast(`${decision === 'approved' ? 'Approved' : 'Rejected'} ${countText(rows.length)}`)
+          if (rows.some((b) => selected.has(b.id))) clearChecked()
           setRejecting(false)
         },
       },
     )
+
+  /**
+   * What a right click on a row acts on: the whole selection when the row is in it, else that
+   * row alone (the selection is left as it is).
+   */
+  const actOn = (b: Row): readonly Row[] => (selected.has(b.id) ? chosen : [b])
+
+  const rowMenu = (b: Row, href: string): Menu.Entry[] => {
+    const rows = actOn(b)
+    const many = rows.length > 1
+    const noun = many ? countText(rows.length) : `build ${b.number}`
+    return menuEntries([
+      { label: 'Open', onSelect: () => openBuild(b) },
+      openInNewTabItem(href),
+      copyLinkItem(href),
+      b.commitSha
+        ? { label: 'Copy commit SHA', onSelect: () => void copyText(b.commitSha, 'Commit SHA') }
+        : null,
+      // Reviewing is one team's (a single transaction); a workspace-wide list only browses.
+      scoped && separator,
+      scoped && {
+        label: many ? `Approve ${noun}` : 'Approve',
+        onSelect: () => decide(rows, 'approved'),
+      },
+      scoped && {
+        label: many ? `Reject ${noun}` : 'Reject',
+        tone: 'danger',
+        onSelect: () => {
+          setTarget(rows)
+          setRejecting(true)
+        },
+      },
+      scoped && {
+        label: many ? `Request review of ${noun}` : 'Request review',
+        onSelect: () => {
+          setTarget(rows)
+          setPicking(true)
+        },
+      },
+      Boolean(b.branch || b.author) && separator,
+      b.branch
+        ? {
+            label: `Filter by branch ${b.branch}`,
+            onSelect: () => onFiltersChange({ ...filters, branch: b.branch ?? '' }),
+          }
+        : null,
+      b.author
+        ? {
+            label: `Filter by ${b.author.name ?? b.author.login}`,
+            onSelect: () => onFiltersChange({ ...filters, author: b.author?.login ?? '' }),
+          }
+        : null,
+    ])
+  }
 
   const failed = bulk.error ?? bulkRequest.error
   const title = before ? 'Older builds' : 'Builds'
@@ -226,51 +292,56 @@ export function BuildsBrowser({
                       {group.builds.map((b) => {
                         const state = buildState(b)
                         const checked = selected.has(b.id)
+                        const link = clientLink({
+                          to: '/$workspace/$team/builds/$number',
+                          params: { workspace, team: teamOf(b), number: String(b.number) },
+                        })
                         return (
                           <li
                             key={b.id}
                             {...rowProps(b.id)}
                             data-checked={checked ? '' : undefined}
                           >
-                            <ListRow
-                              className={styles.row}
-                              selected={b.id === cursor?.id}
-                              {...clientLink({
-                                to: '/$workspace/$team/builds/$number',
-                                params: { workspace, team: teamOf(b), number: String(b.number) },
-                              })}
-                              leading={
-                                <span className={styles.lead}>
-                                  {checked ? (
-                                    <span className={styles.check} aria-hidden="true">
-                                      <CheckIcon size={12} strokeWidth={3} />
-                                    </span>
-                                  ) : null}
-                                  <StatusIcon status={state.status} label={state.label} />
-                                </span>
-                              }
-                              trailing={
-                                display.show.counts ? (
-                                  <span className={styles.trailing}>
-                                    <CountsSummary
-                                      counts={b.counts}
-                                      review={shotReview(b)}
-                                      includeUnchanged={false}
-                                    />
+                            <ContextMenu items={rowMenu(b, link.href)}>
+                              <ListRow
+                                className={styles.row}
+                                selected={b.id === cursor?.id}
+                                {...link}
+                                leading={
+                                  <span className={styles.lead}>
+                                    {checked ? (
+                                      <span className={styles.check} aria-hidden="true">
+                                        <CheckIcon size={12} strokeWidth={3} />
+                                      </span>
+                                    ) : null}
+                                    <StatusIcon status={state.status} label={state.label} />
                                   </span>
-                                ) : undefined
-                              }
-                              title={
-                                <>
-                                  {checked ? <span style={visuallyHidden}>Selected, </span> : null}
-                                  Build #{b.number}
-                                  {b.name !== 'default' ? (
-                                    <span className={styles.name}> · {b.name}</span>
-                                  ) : null}
-                                </>
-                              }
-                              subtitle={<RowMeta build={b} show={display.show} />}
-                            />
+                                }
+                                trailing={
+                                  display.show.counts ? (
+                                    <span className={styles.trailing}>
+                                      <CountsSummary
+                                        counts={b.counts}
+                                        review={shotReview(b)}
+                                        includeUnchanged={false}
+                                      />
+                                    </span>
+                                  ) : undefined
+                                }
+                                title={
+                                  <>
+                                    {checked ? (
+                                      <span style={visuallyHidden}>Selected, </span>
+                                    ) : null}
+                                    Build #{b.number}
+                                    {b.name !== 'default' ? (
+                                      <span className={styles.name}> · {b.name}</span>
+                                    ) : null}
+                                  </>
+                                }
+                                subtitle={<RowMeta build={b} show={display.show} />}
+                              />
+                            </ContextMenu>
                           </li>
                         )
                       })}
@@ -364,14 +435,26 @@ export function BuildsBrowser({
             size="sm"
             variant="primary"
             loading={bulk.isPending && !rejecting}
-            onClick={() => decide('approved')}
+            onClick={() => decide(chosen, 'approved')}
           >
             Approve
           </Button>
-          <Button size="sm" onClick={() => setRejecting(true)}>
+          <Button
+            size="sm"
+            onClick={() => {
+              setTarget(chosen)
+              setRejecting(true)
+            }}
+          >
             Reject
           </Button>
-          <Button size="sm" onClick={() => setPicking(true)}>
+          <Button
+            size="sm"
+            onClick={() => {
+              setTarget(chosen)
+              setPicking(true)
+            }}
+          >
             Request review
           </Button>
           <Button size="sm" variant="ghost" onClick={clearChecked}>
@@ -386,11 +469,11 @@ export function BuildsBrowser({
       ) : null}
       <BulkRejectDialog
         open={rejecting}
-        count={chosen.length}
+        count={target.length}
         pending={bulk.isPending}
         reasonRequired={reasonRequired}
         onCancel={() => setRejecting(false)}
-        onReject={(reason) => decide('rejected', reason)}
+        onReject={(reason) => decide(target, 'rejected', reason)}
       />
       <MemberPicker
         workspace={workspace}
@@ -399,19 +482,19 @@ export function BuildsBrowser({
         onOpenChange={setPicking}
         onPick={(member) =>
           bulkRequest.mutate(
-            { buildIds: chosen.map((b) => b.id), reviewerIds: [member.id] },
+            { buildIds: target.map((b) => b.id), reviewerIds: [member.id] },
             {
               onSuccess: (answer) => {
                 toast.show(
                   withUndo(
-                    `Asked ${member.name} to review ${countText(chosen.length)}`,
+                    `Asked ${member.name} to review ${countText(target.length)}`,
                     answer.undo,
                     { workspace, team: team ?? '' },
                     refreshAll(queryClient),
                     "Couldn't cancel the requests",
                   ),
                 )
-                clearChecked()
+                if (target.some((b) => selected.has(b.id))) clearChecked()
               },
             },
           )
