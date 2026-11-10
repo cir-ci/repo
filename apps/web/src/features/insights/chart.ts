@@ -358,15 +358,15 @@ export function backlogLine(backlog: Insights.Report['backlog']) {
   }
 }
 
-/** The ten cells of a "last 10 builds" strip, oldest left; missing history is padded in front. */
+/** The ten cells of a "last 10 commits" strip, oldest left; missing history is padded in front. */
 export function stripCells(last10: readonly boolean[]): (boolean | null)[] {
   const pad = Array.from({ length: Math.max(0, 10 - last10.length) }, () => null)
   return [...pad, ...last10.slice(-10)]
 }
 
-/** "Changed in 6 of the last 10 builds". */
+/** "Changed in 6 of the last 10 commits". */
 export const stripLabel = (last10: readonly boolean[], kind: 'changed' | 'flaky' = 'changed') =>
-  `${kind === 'flaky' ? 'Image changed' : 'Changed'} in ${last10.filter(Boolean).length} of the last ${Math.min(10, last10.length)} builds`
+  `${kind === 'flaky' ? 'Image changed' : 'Changed'} in ${last10.filter(Boolean).length} of the last ${Math.min(10, last10.length)} commits`
 
 /** The sentence a screen reader gets for the review chart. */
 export function reviewSummary(weeks: readonly Insights.Week[]): string {

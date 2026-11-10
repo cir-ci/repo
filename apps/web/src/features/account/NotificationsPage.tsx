@@ -42,7 +42,7 @@ const IN_INBOX: readonly { title: string; help: string }[] = [
   },
   {
     title: 'Flaky screenshot detected',
-    help: "A screenshot changed in 3 of the last 10 builds on the default branch. Goes to this week's triage owner.",
+    help: "A screenshot changed in 3 of the last 10 commits on the default branch. Goes to this week's triage owner.",
   },
 ]
 

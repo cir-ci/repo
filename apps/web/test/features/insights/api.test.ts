@@ -230,9 +230,9 @@ describe('chart data', () => {
       true,
       false,
     ])
-    expect(stripLabel([true, false, true])).toBe('Changed in 2 of the last 3 builds')
+    expect(stripLabel([true, false, true])).toBe('Changed in 2 of the last 3 commits')
     expect(stripLabel(Array.from({ length: 10 }, (_, i) => i < 6))).toBe(
-      'Changed in 6 of the last 10 builds',
+      'Changed in 6 of the last 10 commits',
     )
   })
 

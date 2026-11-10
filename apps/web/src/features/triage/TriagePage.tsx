@@ -524,7 +524,7 @@ function Film({
   if (item.history.length === 0) return null
   const returned = new Set(item.reason ? flakyEvidence(item.reason).map((e) => e.build) : [])
   return (
-    <Section label={`Last ${item.history.length} builds on main`}>
+    <Section label={`Last ${item.history.length} commits on main`}>
       <ol aria-label={changedText(item.history)} className={styles.film}>
         {item.history.map((h) => {
           const link = linkOf(h.number)

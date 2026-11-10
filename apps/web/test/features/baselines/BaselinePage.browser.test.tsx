@@ -156,7 +156,7 @@ describe('BaselinePage', () => {
     await expect
       .element(
         page.getByText(
-          "Differed across 3 runs of one commit and came back to an earlier image 2 times in the last 10 builds; the team's limit is 2, and one disagreement is enough.",
+          "Differed across 3 runs of one commit and came back to an earlier image 2 times in the last 10 commits; the team's limit is 2, and one disagreement is enough.",
         ),
       )
       .toBeVisible()

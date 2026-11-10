@@ -149,10 +149,10 @@ describe('TriagePage', () => {
     await expect.element(page.getByRole('status').getByText('3', { exact: true })).toBeVisible()
   })
 
-  it('shows the last 10 builds of a flaky screenshot as cells, the changed ones marked', async () => {
+  it('shows the last 10 commits of a flaky screenshot as cells, the changed ones marked', async () => {
     server()
     await show()
-    const film = page.getByRole('list', { name: 'Changed in 5 of the last 10 builds' })
+    const film = page.getByRole('list', { name: 'Changed in 5 of the last 10 commits' })
     await expect.element(film).toBeVisible()
     expect(film.getByRole('listitem').elements()).toHaveLength(10)
     await expect
@@ -161,7 +161,7 @@ describe('TriagePage', () => {
     await expect
       .element(film.getByRole('link', { name: 'Open home in build #3, same' }))
       .toBeVisible()
-    await expect.element(page.getByText('Last 10 builds on main')).toBeVisible()
+    await expect.element(page.getByText('Last 10 commits on main')).toBeVisible()
     await expect.element(page.getByText('Where it changes')).toBeVisible()
   })
 
@@ -473,7 +473,7 @@ describe('TriagePage', () => {
       await expect
         .element(
           pane().getByText(
-            "Differed across 3 runs of one commit and came back to an earlier image 2 times in the last 10 builds; the team's limit is 2, and one disagreement is enough.",
+            "Differed across 3 runs of one commit and came back to an earlier image 2 times in the last 10 commits; the team's limit is 2, and one disagreement is enough.",
           ),
         )
         .toBeVisible()
@@ -493,7 +493,7 @@ describe('TriagePage', () => {
     it('marks the strip cells of the builds that went back, and the row says it short', async () => {
       flakyServer(both)
       await show()
-      const film = page.getByRole('list', { name: 'Changed in 5 of the last 10 builds' })
+      const film = page.getByRole('list', { name: 'Changed in 5 of the last 10 commits' })
       await expect
         .element(film.getByRole('link', { name: /^Open home in build #7,.*part of why/ }))
         .toBeVisible()
@@ -520,7 +520,7 @@ describe('TriagePage', () => {
       await expect
         .element(
           pane().getByText(
-            "Came back to an earlier image once in the last 10 builds; the team's limit is 2.",
+            "Came back to an earlier image once in the last 10 commits; the team's limit is 2.",
           ),
         )
         .toBeVisible()

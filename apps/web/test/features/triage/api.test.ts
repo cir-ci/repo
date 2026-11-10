@@ -87,9 +87,9 @@ describe('labels', () => {
 
   it("words a row's second line and the pane's Blocking row per kind", () => {
     const history = [3, 4, 5, 6].map((number) => ({ number, changed: number % 2 === 0 }))
-    expect(changedText(history)).toBe('Changed in 2 of the last 4 builds')
+    expect(changedText(history)).toBe('Changed in 2 of the last 4 commits')
     // Without a reason, the history says it; with one, the subtitle is the reason.
-    expect(itemSubtitle(item({ history }))).toBe('Changed in 2 of the last 4 builds')
+    expect(itemSubtitle(item({ history }))).toBe('Changed in 2 of the last 4 commits')
     const flipFlop = { count: 3, threshold: 3, window: 10, returns: [] }
     expect(itemSubtitle(item({ history, reason: { kind: 'flip_flop', flipFlop } }))).toBe(
       'Came back to an earlier image 3 times',

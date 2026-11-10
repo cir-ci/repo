@@ -176,7 +176,7 @@ function phrases(reason: FlakyReason): string[] {
 
 /**
  * A reason as one sentence. The short form ("Came back to an earlier image 3 times") is for rows;
- * with `detail` it says how far back it looked and the team's limit ("... in the last 10 builds;
+ * with `detail` it says how far back it looked and the team's limit ("... in the last 10 commits;
  * the team's limit is 2."). `inline` keeps it lower case, for use inside a sentence. Every place that shows why a screenshot is flaky uses this.
  */
 export function flakyReasonText(
@@ -187,7 +187,7 @@ export function flakyReasonText(
   const text = options.inline ? joined : sentence(joined)
   if (!options.detail) return text
   if (reason.kind === 'reruns_disagree') return `${text}; one disagreement is enough.`
-  const looked = ` in the last ${plural(reason.flipFlop.window, 'build')}`
+  const looked = ` in the last ${plural(reason.flipFlop.window, 'commit')}`
   const limit = `the team's limit is ${reason.flipFlop.threshold}`
   return reason.kind === 'both'
     ? `${text}${looked}; ${limit}, and one disagreement is enough.`

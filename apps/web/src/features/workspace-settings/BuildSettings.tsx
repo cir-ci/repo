@@ -39,7 +39,7 @@ function Defaults({ workspace, data }: Defaults.Props) {
         <SettingsRow>
           <Checkbox
             label="Flaky-only changes block merging"
-            description="A flaky screenshot changed in 3 or more of the last 10 builds on the default branch. With this off, a pull request whose only changes are flaky screenshots passes the check; the build still lists them as flaky."
+            description="A flaky screenshot changed in 3 or more of the last 10 commits on the default branch. With this off, a pull request whose only changes are flaky screenshots passes the check; the build still lists them as flaky."
             checked={flaky}
             disabled={!data.canManage || save.isPending}
             onCheckedChange={(on) => {

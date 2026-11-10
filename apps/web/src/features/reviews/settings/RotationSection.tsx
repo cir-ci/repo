@@ -127,7 +127,7 @@ export function RotationSection(props: RotationSection.Props) {
             error={(props.touched && flaky ? flaky : undefined) ?? props.serverFlakyProblem}
           />
           <Text>
-            returns to an earlier image in the last {FLAKY_WINDOW} builds on {props.defaultBranch}
+            returns to an earlier image in the last {FLAKY_WINDOW} commits on {props.defaultBranch}
           </Text>
         </div>
       </SettingsRow>

@@ -374,7 +374,7 @@ export function MostChangedCard({ data, days }: { data: Insights.Report; days: n
                 Changed in
               </th>
               <th scope="col" className={styles.n}>
-                Last 10 builds
+                Last 10 commits
               </th>
             </tr>
           </thead>
@@ -413,7 +413,7 @@ export function FlakiestCard({ data }: { data: Insights.Report }) {
   return (
     <Card
       title="Flakiest screenshots"
-      subtitle="default branch, last 10 builds"
+      subtitle="default branch, last 10 commits"
       empty={rows.length === 0 ? 'No flaky screenshots.' : undefined}
     >
       <TableWrap>
@@ -426,7 +426,7 @@ export function FlakiestCard({ data }: { data: Insights.Report }) {
                 Flip-flops
               </th>
               <th scope="col" className={styles.n}>
-                <span className={styles.sr}>Last 10 builds</span>
+                <span className={styles.sr}>Last 10 commits</span>
               </th>
             </tr>
           </thead>

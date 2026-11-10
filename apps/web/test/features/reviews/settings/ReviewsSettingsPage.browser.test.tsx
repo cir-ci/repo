@@ -129,7 +129,7 @@ describe('ReviewsSettingsPage', () => {
       .element(page.getByRole('textbox', { name: 'Returns to an earlier image before flaky' }))
       .toHaveValue('3')
     await expect
-      .element(page.getByText(/returns to an earlier image in the last 10 builds on main/))
+      .element(page.getByText(/returns to an earlier image in the last 10 commits on main/))
       .toBeVisible()
     await expect
       .element(page.getByRole('combobox', { name: 'Snoozed items come back after' }))

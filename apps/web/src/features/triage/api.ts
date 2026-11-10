@@ -79,10 +79,10 @@ export function waitingFor(iso: string, now: number): string {
   return `${n} ${span[0]}${n === 1 ? '' : 's'}`
 }
 
-/** "Changed in 4 of the last 10 builds": what a flaky item's history says. */
+/** "Changed in 4 of the last 10 commits": what a flaky item's history says. */
 export function changedText(history: Triage.Item['history']): string {
   const changed = history.filter((h) => h.changed).length
-  return `Changed in ${changed} of the last ${history.length} builds`
+  return `Changed in ${changed} of the last ${history.length} commits`
 }
 
 /** The second line of a row: why the item is in the queue. */

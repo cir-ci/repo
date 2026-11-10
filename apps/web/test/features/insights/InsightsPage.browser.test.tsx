@@ -448,7 +448,7 @@ describe('InsightsPage', () => {
       await expect.element(c.getByText('14 of 62 builds')).toBeVisible()
       await expect.element(c.getByText('5 of 10')).toBeVisible()
       await expect
-        .element(c.getByRole('img', { name: 'Changed in 5 of the last 10 builds' }))
+        .element(c.getByRole('img', { name: 'Changed in 5 of the last 10 commits' }))
         .toBeVisible()
       await expect.element(c.getByRole('columnheader', { name: 'Team' })).toBeVisible()
     })
@@ -465,12 +465,12 @@ describe('InsightsPage', () => {
     it('shows the flakiest screenshots with flip-flops', async () => {
       await show(fullReport())
       const c = card('Flakiest screenshots')
-      await expect.element(c.getByText('default branch, last 10 builds')).toBeVisible()
+      await expect.element(c.getByText('default branch, last 10 commits')).toBeVisible()
       await expect.element(c.getByRole('columnheader', { name: 'Flip-flops' })).toBeVisible()
       await expect.element(c.getByRole('cell', { name: '4' })).toBeVisible()
       await expect.element(c.getByText('Came back to an earlier image 4 times')).toBeVisible()
       await expect
-        .element(c.getByRole('img', { name: 'Image changed in 8 of the last 10 builds' }))
+        .element(c.getByRole('img', { name: 'Image changed in 8 of the last 10 commits' }))
         .toBeVisible()
       await expect
         .element(c.getByRole('link', { name: 'home/hero' }))
