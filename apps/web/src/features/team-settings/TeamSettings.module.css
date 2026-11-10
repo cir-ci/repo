@@ -19,6 +19,7 @@
 }
 
 .footer {
+  composes: saveBar from '@circi/ui/utilities.module.css';
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -46,5 +47,12 @@
   /* The label column and the control fill the row; the 168px is for the stacked layout. */
   .number {
     width: auto;
+  }
+}
+
+/* A phone: Discard and Save changes share the pinned bar's width. */
+@media (max-width: 819.98px) {
+  .footer > * {
+    flex: 1 1 0;
   }
 }

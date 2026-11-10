@@ -89,6 +89,7 @@
 }
 
 .footer {
+  composes: saveBar from '@circi/ui/utilities.module.css';
   display: flex;
   justify-content: flex-end;
   gap: 8px;
@@ -254,5 +255,12 @@
 @container settings (min-width: 900px) {
   .fieldRow {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* A phone: Discard and Save changes share the pinned bar's width. */
+@media (max-width: 819.98px) {
+  .footer > * {
+    flex: 1 1 0;
   }
 }

@@ -314,3 +314,39 @@ describe('WorkspaceGeneralPage', () => {
     await expect.element(page.getByText("This workspace doesn't exist")).toBeVisible()
   })
 })
+
+describe('WorkspaceGeneralPage on a phone', () => {
+  it('pins Save and Discard to the bottom of the window, over the page, with 44px buttons', async () => {
+    await page.viewport(390, 520)
+    fakeApi({
+      'GET /api/workspaces/acme': { body: general() },
+      'GET /api/workspaces/acme/settings': { body: settings() },
+    })
+    await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    await userEvent.type(name(), ' and sons')
+    const footer = save().first().element().parentElement
+    expect(footer).not.toBeNull()
+    expect(getComputedStyle(footer!).position).toBe('sticky')
+    // The page is taller than the window, and the bar still sits on its bottom edge.
+    expect(document.documentElement.scrollHeight).toBeGreaterThan(window.innerHeight)
+    expect(Math.round(footer!.getBoundingClientRect().bottom)).toBe(window.innerHeight)
+    expect(save().first().element().getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
+    expect(
+      page.getByRole('button', { name: 'Discard' }).first().element().getBoundingClientRect()
+        .height,
+    ).toBeGreaterThanOrEqual(44)
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+  })
+
+  it('leaves the buttons in the form on a desktop', async () => {
+    await page.viewport(1000, 520)
+    fakeApi({
+      'GET /api/workspaces/acme': { body: general() },
+      'GET /api/workspaces/acme/settings': { body: settings() },
+    })
+    await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    await userEvent.type(name(), ' and sons')
+    const footer = save().first().element().parentElement
+    expect(getComputedStyle(footer!).position).not.toBe('sticky')
+  })
+})
