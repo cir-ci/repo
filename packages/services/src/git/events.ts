@@ -7,7 +7,7 @@ import {
   latestBuildsForPr,
   linkBuildsToPullRequest,
 } from '@circi/db/queue'
-import { findMembersByAccount } from '@circi/db/repositories'
+import { findTeamViewersByAccount } from '@circi/db/repositories'
 import type { IntegrationDefinition } from '@circi/integrations'
 
 import { recordPullRequestAuthor, requeueBuild } from '#src/builds/lifecycle.ts'
@@ -47,10 +47,13 @@ function reviewSource(kind: string, how: 'comment' | 'check'): ReviewSource {
   return found
 }
 
-/** The one CirCI member of the team's workspace the host account is, or undefined. */
+/**
+ * The one CirCI user the host account is, if they may see the team (a member of it, or an owner
+ * or admin of its workspace); otherwise undefined.
+ */
 async function memberOf(db: Database, teamId: string, kind: string, accountId: string) {
   if (!accountId) return undefined
-  const members = await findMembersByAccount(db, teamId, kind, accountId)
+  const members = await findTeamViewersByAccount(db, teamId, kind, accountId)
   return members.length === 1 ? members[0] : undefined
 }
 

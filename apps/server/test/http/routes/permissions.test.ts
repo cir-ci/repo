@@ -49,6 +49,12 @@ const MEMBER_WRITABLE = new Set([
   `DELETE ${WORKSPACE}/pinned-teams/:team`,
 ])
 
+/**
+ * Writes owners and admins make for anyone and a member makes only for themselves (leaving a
+ * team). Asked here for someone else, so a member gets 403; `team-members.test.ts` covers the rest.
+ */
+const SELF_OR_ADMIN = new Set([`DELETE ${TEAM}/members/:userId`])
+
 /** Writes only owners and admins may make (members get 403). */
 const ADMIN_ONLY = new Set([
   `PUT ${WORKSPACE}/picture`,
@@ -66,6 +72,7 @@ const ADMIN_ONLY = new Set([
   `PUT ${TEAM}/sites/:site/domain`,
   `DELETE ${TEAM}/sites/:site/domain`,
   `POST ${TEAM}/sites/:site/domain/verify`,
+  `POST ${TEAM}/members`,
   `POST ${TEAM}/webhooks`,
   `DELETE ${TEAM}/webhooks/:id`,
   `POST ${TEAM}/webhooks/:id/test`,
@@ -121,6 +128,7 @@ const BODIES: Record<string, unknown> = {
   },
   [`POST ${TEAM}/review-requests/:id/snooze`]: { kind: 'next_push' },
   [`POST ${WORKSPACE}/teams`]: { name: 'Another team' },
+  [`POST ${TEAM}/members`]: { userIds: [] },
 }
 
 const isWrite = (method: string): method is Verb =>
@@ -199,11 +207,14 @@ describe('the route table', () => {
           scopeOf(r) === undefined ||
           (['team', 'workspace'].includes(scopeOf(r) ?? '') &&
             !MEMBER_WRITABLE.has(r.key) &&
+            !SELF_OR_ADMIN.has(r.key) &&
             !ADMIN_ONLY.has(r.key)),
       )
       .map((r) => r.key)
     expect(unknown, 'classify these routes in permissions.test.ts').toEqual([])
-    const stale = [...MEMBER_WRITABLE, ...ADMIN_ONLY, ...USER_SCOPED].filter((k) => !keys.has(k))
+    const stale = [...MEMBER_WRITABLE, ...SELF_OR_ADMIN, ...ADMIN_ONLY, ...USER_SCOPED].filter(
+      (k) => !keys.has(k),
+    )
     expect(stale, 'these entries match no registered route').toEqual([])
     expect(routes.length).toBeGreaterThan(60)
   })

@@ -12,4 +12,9 @@ export interface Actor {
    * it does not exist, or it refuses how they signed in.
    */
   role: string | undefined
+  /**
+   * Whether the user belongs to the team being accessed. Teams are visible to their members and
+   * to the workspace's owners and admins; leave it out for workspace-level decisions.
+   */
+  teamMember?: boolean
 }

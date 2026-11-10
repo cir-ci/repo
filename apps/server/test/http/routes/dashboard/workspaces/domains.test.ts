@@ -179,17 +179,21 @@ describe('claiming an email domain', () => {
 
     const { status, cookie } = await codeSignIn('ann@corp.test')
     expect(status).toBe(200)
-    const teams = (await call('GET', '/api/teams', cookie)).json().teams
-    expect(teams).toHaveLength(1)
-    expect(teams[0].workspace.slug).toBe(acme.workspaceSlug)
+    // Joining a workspace puts nobody in a team; the workspace is theirs all the same.
+    expect(
+      (await call('GET', `/api/workspaces/${acme.workspaceSlug}/sidebar`, cookie)).statusCode,
+    ).toBe(200)
+    expect((await call('GET', '/api/teams', cookie)).json().teams).toEqual([])
   })
 
   it('lets a person with no account on a verified domain create one with a code', async () => {
     await verifiedDomain()
     const { status, cookie } = await codeSignIn('newhire@corp.test')
     expect(status).toBe(200)
-    const teams = (await call('GET', '/api/teams', cookie)).json().teams
-    expect(teams).toHaveLength(1)
+    expect(
+      (await call('GET', `/api/workspaces/${acme.workspaceSlug}/sidebar`, cookie)).statusCode,
+    ).toBe(200)
+    expect((await call('GET', '/api/teams', cookie)).json().teams).toEqual([])
   })
 
   it('gives nothing to strangers or to other domains', async () => {

@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { addMember, createUser } from '@circi/auth'
+import { createUser } from '@circi/auth'
 import { createTestDb } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
 import { pino } from 'pino'
@@ -10,7 +10,7 @@ import { pino } from 'pino'
 import { buildServer } from '#http/app.ts'
 
 import { snapshotDb } from './db-snapshot.ts'
-import { createTestAuth, ORIGIN, seedTenant, signIn } from './helpers.ts'
+import { createTestAuth, ORIGIN, seedTenant, signIn, addMember } from './helpers.ts'
 
 /**
  * A dashboard server with no builds: Acme (an owner and one plain member) and an unrelated

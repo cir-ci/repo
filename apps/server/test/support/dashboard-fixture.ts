@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { addMember as addWorkspaceMember, createUser } from '@circi/auth'
+import { createUser } from '@circi/auth'
 import { createBuild, markFileVerified, planUploads } from '@circi/db/repositories'
 import { createTestDb } from '@circi/db/testing'
 import { finalizeBuild, reviewBuild } from '@circi/services'
@@ -16,7 +16,13 @@ import { buildServer } from '#http/app.ts'
 
 import { clientFor, signedInClient, type Client } from './client.ts'
 import { snapshotDb } from './db-snapshot.ts'
-import { createTestAuth, ORIGIN, seedTenant, signIn } from './helpers.ts'
+import {
+  createTestAuth,
+  ORIGIN,
+  seedTenant,
+  signIn,
+  addMember as addWorkspaceMember,
+} from './helpers.ts'
 
 const logger = pino({ level: 'silent' })
 export const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex')

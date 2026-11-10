@@ -94,6 +94,56 @@ describe('accounts and workspaces', () => {
   })
 })
 
+describe('team members', () => {
+  it('starts a team with its creator and the members named by ID or email', async () => {
+    const { owner, slug } = await workspaceWithOwner()
+    const ann = await createUser(auth, {
+      email: 'ann@example.com',
+      name: 'Ann',
+      password: 'a-long-password-1',
+    })
+    const bob = await createUser(auth, {
+      email: 'bob@example.com',
+      name: 'Bob',
+      password: 'a-long-password-1',
+    })
+    await addMember(auth, t.db, { workspaceSlug: slug, email: ann.email, role: 'member' })
+    await addMember(auth, t.db, { workspaceSlug: slug, email: bob.email, role: 'member' })
+    const { team } = await createTeamWithToken(auth, t.db, {
+      workspaceSlug: slug,
+      name: 'Docs',
+      createdBy: owner.id,
+      memberIds: [ann.id],
+      memberEmails: [bob.email],
+    })
+    const rows = await t.db
+      .select()
+      .from(schema.teamMembers)
+      .where(eq(schema.teamMembers.teamId, team.id))
+    expect(rows.map((r) => r.userId).toSorted()).toEqual([owner.id, ann.id, bob.id].toSorted())
+  })
+
+  it('starts empty when nobody is named (the admin CLI), and refuses someone outside the workspace', async () => {
+    const { slug } = await workspaceWithOwner()
+    const { team } = await createTeamWithToken(auth, t.db, { workspaceSlug: slug, name: 'Empty' })
+    expect(
+      await t.db.select().from(schema.teamMembers).where(eq(schema.teamMembers.teamId, team.id)),
+    ).toEqual([])
+    const stranger = await createUser(auth, {
+      email: 'stranger@example.com',
+      name: 'Stranger',
+      password: 'a-long-password-1',
+    })
+    await expect(
+      createTeamWithToken(auth, t.db, {
+        workspaceSlug: slug,
+        name: 'No',
+        memberIds: [stranger.id],
+      }),
+    ).rejects.toThrow(/members of this workspace/)
+  })
+})
+
 describe('CI tokens (better-auth API keys owned by the workspace)', () => {
   it('issues a circi_ token that resolves to its team', async () => {
     const { slug } = await workspaceWithOwner()

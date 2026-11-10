@@ -3,7 +3,7 @@ import { type Comment, type Database, ForbiddenError, NotFoundError } from '@cir
 import {
   getComment,
   insertComment,
-  listBuildWorkspaceMembers,
+  listBuildTeamMembers,
   type WorkspaceMember,
   softDeleteComment,
   updateCommentBody,
@@ -108,7 +108,7 @@ export async function addComment(db: Database, input: addComment.Input): Promise
       regionSide: input.regionSide ?? 'current',
       parentId: input.parentId ?? null,
     })
-    const members = await listBuildWorkspaceMembers(tx, input.buildId)
+    const members = await listBuildTeamMembers(tx, input.buildId)
     await notifyMentions(tx, comment, mentioned(body, members))
     return comment
   })
@@ -137,7 +137,7 @@ export async function editComment(db: Database, input: editComment.Input): Promi
     }
     const updated = await updateCommentBody(tx, before.id, body)
     assertFound(updated, 'Comment not found')
-    const members = await listBuildWorkspaceMembers(tx, input.buildId)
+    const members = await listBuildTeamMembers(tx, input.buildId)
     const already = new Set(mentioned(before.body, members))
     await notifyMentions(
       tx,

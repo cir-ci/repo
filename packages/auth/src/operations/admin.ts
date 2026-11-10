@@ -216,12 +216,23 @@ export async function createTeamWithToken(
     defaultBranch?: string
     color?: string
     icon?: string | null
-    /** The person creating it, recorded as who issued the first token. */
+    /** The person creating it: recorded as who issued the first token, and added to the team. */
     createdBy?: string
+    /** More workspace members to add to the team (none by default). */
+    memberIds?: string[]
+    /** The same by email address (the admin CLI); the accounts must exist. */
+    memberEmails?: string[]
   },
 ): Promise<IssuedToken> {
-  const { createdBy, ...team } = input
-  return issueToken(auth, db, input.workspaceSlug, await createTeam(db, team), createdBy)
+  const { createdBy, memberEmails, ...team } = input
+  const fromEmails = await Promise.all((memberEmails ?? []).map((e) => getUserIdByEmail(db, e)))
+  const memberIds = [...(team.memberIds ?? []), ...fromEmails]
+  const created = await createTeam(db, {
+    ...team,
+    ...(memberIds.length === 0 ? {} : { memberIds }),
+    ...(createdBy === undefined ? {} : { createdBy }),
+  })
+  return issueToken(auth, db, input.workspaceSlug, created, createdBy)
 }
 
 /**

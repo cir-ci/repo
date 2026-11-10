@@ -209,8 +209,13 @@ describe('invitations', () => {
       payload: { invitationId },
     })
     expect(accepted.statusCode).toBe(200)
-    const after = await on.inject({ url: '/api/teams', headers: { cookie } })
-    expect(after.json().teams).toHaveLength(1)
+    // Accepting joins the workspace and no team.
+    const after = await on.inject({
+      url: `/api/workspaces/${tenant.workspaceSlug}/sidebar`,
+      headers: { cookie },
+    })
+    expect(after.statusCode).toBe(200)
+    expect(after.json().teams).toEqual([])
   })
 
   it('does not let another address use the invitation', async () => {

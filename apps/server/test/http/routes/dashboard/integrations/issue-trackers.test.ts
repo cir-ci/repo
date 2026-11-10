@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { addMember, createUser } from '@circi/auth'
+import { createUser } from '@circi/auth'
 import { openSecret } from '@circi/core/node'
 import { getWorkspaceBySlug, listBuildLinks, listIntegrations } from '@circi/db/queries'
 import { createBuild } from '@circi/db/repositories'
@@ -17,7 +17,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { buildServer } from '#http/app.ts'
 import { caller } from '#test/support/client.ts'
 import { snapshotDb } from '#test/support/db-snapshot.ts'
-import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
+import { createTestAuth, ORIGIN, seedTenant, signIn, addMember } from '#test/support/helpers.ts'
 
 const SECRET = 'test-secret-that-is-long-enough-1234'
 const t = await createTestDb()

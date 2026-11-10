@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { addMember, createUser } from '@circi/auth'
+import { createUser } from '@circi/auth'
 import { openSecret } from '@circi/core/node'
 import { getIntegration, getWorkspaceBySlug, listIntegrations } from '@circi/db/queries'
 import { listIntegrationTeams } from '@circi/db/repositories'
@@ -21,7 +21,7 @@ import { z } from 'zod'
 import { buildServer } from '#http/app.ts'
 import { caller } from '#test/support/client.ts'
 import { snapshotDb } from '#test/support/db-snapshot.ts'
-import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
+import { createTestAuth, ORIGIN, seedTenant, signIn, addMember } from '#test/support/helpers.ts'
 
 const SECRET = 'a-long-instance-secret-for-tests-0123456789'
 

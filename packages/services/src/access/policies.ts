@@ -23,9 +23,19 @@ export function canReadWorkspace(actor: Actor): Decision {
   return actor.role === undefined ? deny('not-member') : ALLOW
 }
 
-/** Members may read a team of their workspace. */
+/**
+ * A team is visible to its members and to the workspace's owners and admins. Other workspace
+ * members get `not-member`, which callers present as "not found" like a team that doesn't exist.
+ */
+export function canSeeTeam(actor: Actor): Decision {
+  const read = canReadWorkspace(actor)
+  if (!read.allow) return read
+  return canManage(actor.role) || actor.teamMember === true ? ALLOW : deny('not-member')
+}
+
+/** Whoever sees a team may read it (and its member list). */
 export function canReadTeam(actor: Actor): Decision {
-  return canReadWorkspace(actor)
+  return canSeeTeam(actor)
 }
 
 /** Owners and admins change a workspace's settings. */
@@ -37,7 +47,22 @@ export function canManageWorkspace(actor: Actor): Decision {
 
 /** Owners and admins change a team's settings, rules and integrations. */
 export function canWriteTeam(actor: Actor): Decision {
+  const see = canSeeTeam(actor)
+  if (!see.allow) return see
   return canManageWorkspace(actor)
+}
+
+/** Owners and admins add people to any team, themselves included. */
+export function canAddTeamMembers(actor: Actor): Decision {
+  return canWriteTeam(actor)
+}
+
+/** Owners and admins remove anyone from a team; a member of it can remove only themselves (leave). */
+export function canRemoveTeamMember(actor: Actor, targetUserId: string): Decision {
+  const see = canSeeTeam(actor)
+  if (!see.allow) return see
+  if (canManage(actor.role)) return ALLOW
+  return actor.userId === targetUserId ? ALLOW : deny('not-manager')
 }
 
 /** Only an owner deletes the workspace. */

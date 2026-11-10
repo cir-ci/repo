@@ -1,10 +1,13 @@
 export type { Actor } from './actor.ts'
 export {
   assertAllowed,
+  canAddTeamMembers,
   canDeleteWorkspace,
   canManageWorkspace,
   canReadTeam,
   canReadWorkspace,
+  canRemoveTeamMember,
+  canSeeTeam,
   canWriteTeam,
   type Decision,
   isInstanceAdmin,

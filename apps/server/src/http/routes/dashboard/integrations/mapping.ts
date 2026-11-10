@@ -155,19 +155,19 @@ export const dashboardIntegrationMappingRoutes: FastifyPluginAsync<Deps.Dashboar
         ctx ?? { authSecret: '', publicOrigin: deps.publicOrigin, config: {} },
       ),
       webhook: webhookOf(definition, ctx, deps.publicOrigin, role),
-      teams: (await listWorkspaceTeamMappings(deps.db, found.workspace.id, integration.id)).map(
-        (p) => ({
-          slug: p.slug,
-          name: p.name,
-          mapping: p.mapping
-            ? {
-                ref: p.mapping.externalRef,
-                name: typeof p.mapping.extra.name === 'string' ? p.mapping.extra.name : null,
-                extra: p.mapping.extra,
-              }
-            : null,
-        }),
-      ),
+      teams: (
+        await listWorkspaceTeamMappings(deps.db, found.workspace.id, integration.id, found.user.id)
+      ).map((p) => ({
+        slug: p.slug,
+        name: p.name,
+        mapping: p.mapping
+          ? {
+              ref: p.mapping.externalRef,
+              name: typeof p.mapping.extra.name === 'string' ? p.mapping.extra.name : null,
+              extra: p.mapping.extra,
+            }
+          : null,
+      })),
     }
     return payload
   })

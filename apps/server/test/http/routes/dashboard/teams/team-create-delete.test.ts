@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { addMember, createUser, verifyTeamToken } from '@circi/auth'
+import { createUser, verifyTeamToken } from '@circi/auth'
 import { getWorkspaceBySlug } from '@circi/db/queries'
 import { createIntegration } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
@@ -15,7 +15,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 import { caller } from '#test/support/client.ts'
-import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
+import { createTestAuth, ORIGIN, seedTenant, signIn, addMember } from '#test/support/helpers.ts'
 
 const t = await createTestDb()
 const dir = await mkdtemp(join(tmpdir(), 'circi-team-create-'))

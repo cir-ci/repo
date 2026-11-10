@@ -1,6 +1,13 @@
 import { type Database } from '@circi/db'
-import { findSiteByAddress, getMemberRole, workspaceAcceptsSession } from '@circi/db/queries'
+import {
+  findSiteByAddress,
+  getMemberRole,
+  isTeamMember,
+  workspaceAcceptsSession,
+} from '@circi/db/queries'
 import { createSiteToken, type SessionMethod } from '@circi/db/repositories'
+
+import { canSeeTeam } from '#src/access/index.ts'
 
 /**
  * Step two of opening a hosted site (PLAN §7.6): a signed-in person asks for access to one
@@ -18,7 +25,11 @@ export async function handOffToSite(
   const found = await findSiteByAddress(db, label)
   if (!found) return undefined
   const workspaceId = found.workspace.id
-  if ((await getMemberRole(db, { userId, workspaceId })) === undefined) return undefined
+  const role = await getMemberRole(db, { userId, workspaceId })
+  if (role === undefined) return undefined
+  // A site belongs to a team, which only its members and the workspace's owners and admins see.
+  const teamMember = await isTeamMember(db, found.team.id, userId)
+  if (!canSeeTeam({ userId, instanceAdmin: false, role, teamMember }).allow) return undefined
   if (!(await workspaceAcceptsSession(db, workspaceId, method))) return undefined
   return db.transaction((tx) => createSiteToken(tx, { label, userId, authSessionId: sessionId }))
 }

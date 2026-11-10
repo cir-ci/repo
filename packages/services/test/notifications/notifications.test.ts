@@ -156,7 +156,7 @@ describe('review requested', () => {
     const stranger = await seedUser(t.db)
     await expect(
       requestReview(t.db, { buildId: build.id, reviewerId: stranger.id, requestedById: owner.id }),
-    ).rejects.toThrow(/not a member/)
+    ).rejects.toThrow(/must be a member of this team/)
     expect(await noticesOf(stranger.id)).toEqual([])
   })
 

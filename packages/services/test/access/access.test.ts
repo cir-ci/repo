@@ -7,16 +7,20 @@ import {
   canDeleteWorkspace,
   canManageWorkspace,
   canReadTeam,
+  canAddTeamMembers,
   canReadWorkspace,
+  canRemoveTeamMember,
+  canSeeTeam,
   canWriteTeam,
   isInstanceAdmin,
   isWorkspaceOwner,
 } from '#src/index.ts'
 
-const actor = (role: string | undefined, instanceAdmin = false): Actor => ({
+const actor = (role: string | undefined, instanceAdmin = false, teamMember = true): Actor => ({
   userId: 'u1',
   instanceAdmin,
   role,
+  teamMember,
 })
 
 describe('workspace and team policies', () => {
@@ -57,6 +61,48 @@ describe('workspace and team policies', () => {
   it('decides instance admins on the flag alone', () => {
     expect(isInstanceAdmin(actor('member', true))).toEqual({ allow: true })
     expect(isInstanceAdmin(actor('owner'))).toEqual({ allow: false, reason: 'not-instance-admin' })
+  })
+})
+
+describe('team visibility and members', () => {
+  it('shows a team to its members and to owners and admins, and hides it from other members', () => {
+    expect(canSeeTeam(actor('member', false, true))).toEqual({ allow: true })
+    expect(canSeeTeam(actor('owner', false, false))).toEqual({ allow: true })
+    expect(canSeeTeam(actor('admin', false, false))).toEqual({ allow: true })
+    expect(canSeeTeam(actor('member', false, false))).toEqual({
+      allow: false,
+      reason: 'not-member',
+    })
+    expect(canReadTeam(actor('member', false, false))).toEqual({
+      allow: false,
+      reason: 'not-member',
+    })
+    expect(canSeeTeam({ userId: 'u1', instanceAdmin: false, role: 'member' })).toEqual({
+      allow: false,
+      reason: 'not-member',
+    })
+  })
+
+  it('answers a member of a hidden team as for a team that does not exist, even on a manage check', () => {
+    const hidden = actor('member', false, false)
+    expect(canWriteTeam(hidden)).toEqual({ allow: false, reason: 'not-member' })
+    expect(canAddTeamMembers(hidden)).toEqual({ allow: false, reason: 'not-member' })
+    expect(canRemoveTeamMember(hidden, 'u1')).toEqual({ allow: false, reason: 'not-member' })
+  })
+
+  it('lets owners and admins add anyone and remove anyone; members only leave', () => {
+    for (const role of ['owner', 'admin']) {
+      expect(canAddTeamMembers(actor(role, false, false))).toEqual({ allow: true })
+      expect(canRemoveTeamMember(actor(role, false, false), 'someone-else')).toEqual({
+        allow: true,
+      })
+    }
+    expect(canAddTeamMembers(actor('member'))).toEqual({ allow: false, reason: 'not-manager' })
+    expect(canRemoveTeamMember(actor('member'), 'u1')).toEqual({ allow: true })
+    expect(canRemoveTeamMember(actor('member'), 'u2')).toEqual({
+      allow: false,
+      reason: 'not-manager',
+    })
   })
 })
 

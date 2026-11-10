@@ -1,4 +1,5 @@
 import { apiKey } from '@better-auth/api-key'
+import { removeUserFromWorkspaceTeams } from '@circi/db/repositories'
 import { admin, organization } from 'better-auth/plugins'
 
 import { CI_KEY_CONFIG, CI_KEY_PREFIX, INVITATION_TTL_SECONDS } from '#src/constants.ts'
@@ -28,6 +29,22 @@ export function authPlugins(options: PluginOptions = {}) {
         organization: { modelName: 'workspace' },
         member: { fields: { organizationId: 'workspaceId' } },
         invitation: { fields: { organizationId: 'workspaceId' } },
+      },
+      organizationHooks: {
+        // Someone who leaves or is removed from a workspace leaves all its teams (and their
+        // review rules and triage rotations) with them. Nothing is left that names them there,
+        // and every team list also checks workspace membership, so a failure here never shows
+        // a team to someone who is out.
+        afterRemoveMember: async ({ member, organization: workspace }) => {
+          const db = options.db
+          if (!db) return
+          await db.transaction((tx) =>
+            removeUserFromWorkspaceTeams(tx, {
+              workspaceId: workspace.id,
+              userId: member.userId,
+            }),
+          )
+        },
       },
       sendInvitationEmail: async ({ email, organization: workspace, inviter, role, id }) => {
         if (!options.mailer || !options.baseURL) return

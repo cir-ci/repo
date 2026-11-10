@@ -26,6 +26,8 @@ const teamBody = nameBody.extend({
   color: z.string().max(40).optional(),
   icon: z.string().max(40).nullable().optional(),
   defaultBranch: z.string().trim().min(1).max(255).optional(),
+  /** Workspace members (user IDs) to add to the team; the person creating it is added anyway. */
+  memberIds: z.array(z.string().min(1).max(200)).max(500).optional(),
   /** A repository of one of the workspace's git integrations to point the team at. */
   repository: z
     .strictObject({
@@ -82,7 +84,7 @@ export const dashboardWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
 
   app.post('/workspaces/:workspace/teams', async (req, reply) => {
     const { workspace: workspaceSlug } = parse(workspaceParams, req.params)
-    const { name, color, icon, defaultBranch, repository } = parse(teamBody, req.body)
+    const { name, color, icon, defaultBranch, repository, memberIds } = parse(teamBody, req.body)
     const { workspace } = await loadWorkspace(deps, req, {
       manage: true,
       forbidden: 'Only owners and admins can create teams',
@@ -114,6 +116,7 @@ export const dashboardWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
       workspaceSlug,
       name,
       createdBy: currentUser(req).id,
+      ...(memberIds === undefined ? {} : { memberIds }),
       ...(defaultBranch === undefined ? {} : { defaultBranch }),
       ...(color === undefined ? {} : { color }),
       ...(icon === undefined ? {} : { icon }),

@@ -1,7 +1,12 @@
 import { NotFoundError } from '@circi/core'
 import { type Build } from '@circi/db'
-import { findTeamForMember, getBuildByNumber, getTeamMemberRole } from '@circi/db/queries'
-import { type Actor, assertAllowed, canReadTeam, canWriteTeam } from '@circi/services'
+import {
+  findTeamForMember,
+  getBuildByNumber,
+  getTeamMemberRole,
+  isTeamMember,
+} from '@circi/db/queries'
+import { type Actor, assertAllowed, canSeeTeam, canWriteTeam } from '@circi/services'
 import type { FastifyRequest } from 'fastify'
 import { z } from 'zod'
 
@@ -27,13 +32,17 @@ export namespace loadTeam {
     user: ReturnType<typeof currentUser>
     /** Whether the user is an owner or admin of the team's workspace. */
     canManage: boolean
+    /** The user's role in the team's workspace. */
+    role: string | undefined
+    /** Whether the user belongs to the team (owners and admins may see it without). */
+    isMember: boolean
   }
 }
 
 /**
- * The team a dashboard request names, if the signed-in user belongs to its workspace; anyone
- * else gets "not found" (thrown as `NotFoundError`, answered with 404), as for a team that
- * doesn't exist. With `manage`, members who are not owners or admins get `ForbiddenError` (403).
+ * The team a dashboard request names, if the signed-in user may see it (they belong to the team,
+ * or are an owner or admin of its workspace); anyone else gets "not found" (thrown as
+ * `NotFoundError`, answered with 404), as for a team that doesn't exist. With `manage`, members who are not owners or admins get `ForbiddenError` (403).
  */
 export async function loadTeam(
   deps: Pick<Deps.Dashboard, 'db'>,
@@ -54,13 +63,15 @@ export async function loadTeam(
   }
   if (!team) {
     const outsider: Actor = { userId: user.id, instanceAdmin: false, role: undefined }
-    assertAllowed(canReadTeam(outsider), messages)
+    assertAllowed(canSeeTeam(outsider), messages)
     throw new NotFoundError(messages.notFound)
   }
   const role = await getTeamMemberRole(deps.db, team.id, user.id)
-  const actor: Actor = { userId: user.id, instanceAdmin: false, role }
+  const isMember = await isTeamMember(deps.db, team.id, user.id)
+  const actor: Actor = { userId: user.id, instanceAdmin: false, role, teamMember: isMember }
+  assertAllowed(canSeeTeam(actor), messages)
   if (options.manage) assertAllowed(canWriteTeam(actor), messages)
-  return { team, user, canManage: canWriteTeam(actor).allow }
+  return { team, user, canManage: canWriteTeam(actor).allow, role, isMember }
 }
 
 export namespace loadBuild {

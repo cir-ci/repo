@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import type { Workspace } from '@circi/api'
-import { addMember, createUser } from '@circi/auth'
+import { createUser } from '@circi/auth'
 import * as schema from '@circi/db/schema'
 import { createTestDb } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
@@ -13,7 +13,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
 import { caller } from '#test/support/client.ts'
-import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
+import { createTestAuth, ORIGIN, seedTenant, signIn, addMember } from '#test/support/helpers.ts'
 
 let t: createTestDb.Result
 let dir: string

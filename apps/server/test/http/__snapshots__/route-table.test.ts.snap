@@ -8,6 +8,7 @@ DELETE /api/teams/:workspace/:team
 DELETE /api/teams/:workspace/:team/builds/:number/comments/:id
 DELETE /api/teams/:workspace/:team/github
 DELETE /api/teams/:workspace/:team/ignore-regions/:id
+DELETE /api/teams/:workspace/:team/members/:userId
 DELETE /api/teams/:workspace/:team/rules/:id
 DELETE /api/teams/:workspace/:team/sites/:site/domain
 DELETE /api/teams/:workspace/:team/webhooks/:id
@@ -49,6 +50,7 @@ GET /api/teams/:workspace/:team/builds/:number/comments
 GET /api/teams/:workspace/:team/builds/:number/issues
 GET /api/teams/:workspace/:team/flaky
 GET /api/teams/:workspace/:team/ignore-regions
+GET /api/teams/:workspace/:team/members
 GET /api/teams/:workspace/:team/rules
 GET /api/teams/:workspace/:team/settings
 GET /api/teams/:workspace/:team/sites
@@ -68,6 +70,7 @@ GET /api/workspaces/:workspace/integrations/:id|:kind/targets
 GET /api/workspaces/:workspace/integrations/:id|:kind/teams
 GET /api/workspaces/:workspace/integrations/:id|:kind/teams/:team/links
 GET /api/workspaces/:workspace/integrations/github/install
+GET /api/workspaces/:workspace/member-teams
 GET /api/workspaces/:workspace/members/sign-in
 GET /api/workspaces/:workspace/picture
 GET /api/workspaces/:workspace/search
@@ -112,6 +115,7 @@ HEAD /api/teams/:workspace/:team/builds/:number/comments
 HEAD /api/teams/:workspace/:team/builds/:number/issues
 HEAD /api/teams/:workspace/:team/flaky
 HEAD /api/teams/:workspace/:team/ignore-regions
+HEAD /api/teams/:workspace/:team/members
 HEAD /api/teams/:workspace/:team/rules
 HEAD /api/teams/:workspace/:team/settings
 HEAD /api/teams/:workspace/:team/sites
@@ -131,6 +135,7 @@ HEAD /api/workspaces/:workspace/integrations/:id|:kind/targets
 HEAD /api/workspaces/:workspace/integrations/:id|:kind/teams
 HEAD /api/workspaces/:workspace/integrations/:id|:kind/teams/:team/links
 HEAD /api/workspaces/:workspace/integrations/github/install
+HEAD /api/workspaces/:workspace/member-teams
 HEAD /api/workspaces/:workspace/members/sign-in
 HEAD /api/workspaces/:workspace/picture
 HEAD /api/workspaces/:workspace/search
@@ -183,6 +188,7 @@ POST /api/teams/:workspace/:team/builds/:number/snapshots/review
 POST /api/teams/:workspace/:team/builds/request-review
 POST /api/teams/:workspace/:team/builds/review
 POST /api/teams/:workspace/:team/ignore-regions
+POST /api/teams/:workspace/:team/members
 POST /api/teams/:workspace/:team/review-requests/:id/dismiss
 POST /api/teams/:workspace/:team/review-requests/:id/snooze
 POST /api/teams/:workspace/:team/review-requests/:id/unsnooze

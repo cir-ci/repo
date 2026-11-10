@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { addMember, createUser } from '@circi/auth'
+import { createUser } from '@circi/auth'
 import type { Auth } from '@circi/auth'
 import { getWorkspaceSettings, getTeamById, listWebhooks } from '@circi/db/queries'
 import { recordWebhookDelivery, markInstallationNeedsAttention } from '@circi/db/queue'
@@ -19,7 +19,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { buildServer } from '#http/app.ts'
 import { caller } from '#test/support/client.ts'
 import { snapshotDb } from '#test/support/db-snapshot.ts'
-import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
+import {
+  createTestAuth,
+  ORIGIN,
+  seedTenant,
+  signIn,
+  type Tenant,
+  addMember,
+} from '#test/support/helpers.ts'
 
 /** Installations GitHub knows; `9500` is one it cannot be asked about right now. */
 const githubEdge = providerRegistry<object>({

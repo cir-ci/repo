@@ -1,4 +1,4 @@
-import { addMember, createUser } from '@circi/auth'
+import { createUser } from '@circi/auth'
 import type { SessionMethod } from '@circi/db/repositories'
 import { createTestDb } from '@circi/db/testing'
 import Fastify from 'fastify'
@@ -7,7 +7,7 @@ import { jsonErrorHandler } from '#http/lib/errors.ts'
 import { loadTeam } from '#http/lib/team-access.ts'
 import { loadWorkspace } from '#http/lib/workspace-access.ts'
 
-import { createTestAuth, seedTenant } from './helpers.ts'
+import { createTestAuth, seedTenant, addMember } from './helpers.ts'
 
 /**
  * `loadTeam` and `loadWorkspace` on their own: a bare server whose "session" is two headers

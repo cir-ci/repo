@@ -98,14 +98,14 @@ describe('POST /api/teams/:workspace/:team/builds/request-review', () => {
     expect(await open()).toEqual([])
   })
 
-  it('refuses all of it, not part, when a reviewer is outside the workspace', async () => {
+  it('refuses all of it, not part, when a reviewer is outside the team', async () => {
     const rows = (await db.query.builds.findMany()).filter((b) => b.teamId === acme.team.id)
     const res = await ask({
       buildIds: rows.map((b) => b.id),
       reviewerIds: [rival.owner.id],
     })
-    // Build 2 (auto-approved, no changes) cannot be asked either: a conflict, nothing stored.
-    expect(res.statusCode).toBe(409)
+    // Only the team's members can be asked: a validation error, nothing stored.
+    expect(res.statusCode).toBe(400)
     expect(await open()).toEqual([])
   })
 })

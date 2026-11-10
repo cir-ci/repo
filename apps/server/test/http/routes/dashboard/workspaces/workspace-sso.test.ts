@@ -121,10 +121,13 @@ describe("a workspace's own single sign-on", () => {
     expect(location).not.toContain('failed')
     expect(cookie).not.toBe('')
 
-    const teams = (await app.inject({ url: '/api/teams', headers: { cookie } })).json().teams
-    expect(teams.map((p: { workspace: { slug: string } }) => p.workspace.slug)).toEqual([
-      acme.workspaceSlug,
-    ])
+    const sidebar = await app.inject({
+      url: `/api/workspaces/${acme.workspaceSlug}/sidebar`,
+      headers: { cookie },
+    })
+    expect(sidebar.statusCode).toBe(200)
+    // Signing in puts nobody in a team.
+    expect((await app.inject({ url: '/api/teams', headers: { cookie } })).json().teams).toEqual([])
 
     const [user] = await t.db
       .select()
@@ -153,10 +156,10 @@ describe("a workspace's own single sign-on", () => {
       .where(eq(schema.workspace.slug, rival.workspaceSlug))
     await addTestMember(t.db, { workspaceId: rivalWorkspace?.id ?? '', userId: user?.id ?? '' })
     const { cookie } = await ssoSignIn(acme.workspaceSlug)
-    const teams = (await app.inject({ url: '/api/teams', headers: { cookie } })).json().teams
-    expect(teams.map((p: { workspace: { slug: string } }) => p.workspace.slug)).toEqual([
-      acme.workspaceSlug,
-    ])
+    const open = (slug: string) =>
+      app.inject({ url: `/api/workspaces/${slug}/sidebar`, headers: { cookie } })
+    expect((await open(acme.workspaceSlug)).statusCode).toBe(200)
+    expect((await open(rival.workspaceSlug)).statusCode).toBe(404)
     expect(
       (await app.inject({ url: `/api/teams/${rival.workspaceSlug}/web`, headers: { cookie } }))
         .statusCode,

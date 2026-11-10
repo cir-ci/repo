@@ -1,9 +1,9 @@
-import { addMember, createTeamWithToken, createUser } from '@circi/auth'
+import { createTeamWithToken, createUser } from '@circi/auth'
 import { seedBuild } from '@circi/db/testing'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { startDashboard } from '#test/support/dashboard-fixture.ts'
-import { signIn } from '#test/support/helpers.ts'
+import { signIn, addMember } from '#test/support/helpers.ts'
 
 const fx = await startDashboard()
 const { app, auth, db, acme, rival, acmeCookie, rivalCookie, get } = fx

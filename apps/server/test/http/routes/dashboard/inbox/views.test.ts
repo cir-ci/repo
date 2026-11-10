@@ -127,7 +127,17 @@ describe('saved view routes', () => {
     expect((await send('PUT', pin)).json()).toEqual({ pinned: true, changed: false })
     const bar = (await get(`/api/workspaces/${acme.workspaceSlug}/sidebar`)).json()
     expect(bar.teams).toEqual([
-      { slug: 'web', name: 'web', color: teamColorFor('web'), icon: null, pinned: true, triage: 0 },
+      {
+        slug: 'web',
+        name: 'web',
+        color: teamColorFor('web'),
+        icon: null,
+        pinned: true,
+        triage: 0,
+        memberCount: 1,
+        memberPreview: [expect.objectContaining({ id: acme.owner.id, image: null })],
+        youAreMember: true,
+      },
     ])
     expect(bar).toMatchObject({ inboxUnread: 0, reviews: 0, canManage: true })
     expect(bar.views.length).toBeGreaterThan(0)

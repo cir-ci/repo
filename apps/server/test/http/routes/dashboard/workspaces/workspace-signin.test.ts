@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { addMember, createUser } from '@circi/auth'
+import { createUser } from '@circi/auth'
 import { getWorkspaceBySlug } from '@circi/db/queries'
 import { recordSessionMethod, setWorkspaceAuthSettings } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
@@ -16,7 +16,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { buildServer } from '#http/app.ts'
 import { caller } from '#test/support/client.ts'
 import { snapshotDb } from '#test/support/db-snapshot.ts'
-import { createTestAuth, ORIGIN, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
+import {
+  createTestAuth,
+  ORIGIN,
+  seedTenant,
+  signIn,
+  type Tenant,
+  addMember,
+} from '#test/support/helpers.ts'
 
 /**
  * Per-workspace GitHub and Google switches. Sessions are real (signed in through `/api/auth`);

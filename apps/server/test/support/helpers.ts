@@ -1,12 +1,15 @@
 import {
   type Auth,
   type Mailer,
+  addMember as addWorkspaceMember,
   createAuth,
   createWorkspace,
   createTeamWithToken,
   createUser,
 } from '@circi/auth'
 import type { Database } from '@circi/db'
+import { listTeams } from '@circi/db/queries'
+import { addTestTeamMember } from '@circi/db/testing'
 import type { FastifyInstance } from 'fastify'
 import { expect } from 'vitest'
 
@@ -59,9 +62,32 @@ export async function seedTenant(
   const { team, token } = await createTeamWithToken(auth, db, {
     workspaceSlug,
     name: 'web',
+    memberIds: [owner.id],
     ...(options.defaultBranch ? { defaultBranch: options.defaultBranch } : {}),
   })
   return { owner: { id: owner.id, email: owner.email, password }, workspaceSlug, team, token }
+}
+
+/**
+ * Adds someone to a workspace the way the admin CLI does, and (as the upgrade did for existing
+ * teams) puts them in every team the workspace has now; `teams: false` leaves them in none, as an
+ * invitation does. Teams made later have to be joined on purpose.
+ */
+export async function addMember(
+  auth: Auth,
+  db: Database,
+  input: Parameters<typeof addWorkspaceMember>[2] & { teams?: boolean },
+) {
+  const { teams = true, ...rest } = input
+  const result = await addWorkspaceMember(auth, db, rest)
+  if (teams) {
+    const userId = result.userId
+    for (const team of await listTeams(db, input.workspaceSlug)) {
+      // oxlint-disable-next-line no-await-in-loop -- a test workspace has a few teams
+      await addTestTeamMember(db, { teamId: team.id, userId })
+    }
+  }
+  return result
 }
 
 /** Signs in through the server's own `/api/auth` route; returns a `cookie` header value. */

@@ -6,6 +6,7 @@ import {
   getWorkspaceSettings,
   listMemberSignIn,
   listTeamFlakyOverrides,
+  listWorkspaceMemberTeams,
 } from '@circi/db/queries'
 import { deleteWorkspace, isWorkspaceOwner, updateWorkspaceSettings } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
@@ -69,12 +70,26 @@ export const dashboardWorkspaceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard
     },
   )
 
+  /** The teams each person belongs to, as far as the signed-in person may see them. */
+  app.get(
+    '/workspaces/:workspace/member-teams',
+    async (req): Promise<Workspace.MemberTeams | void> => {
+      const found = await loadWorkspace(deps, req)
+      return {
+        teams: await listWorkspaceMemberTeams(deps.db, {
+          workspaceId: found.workspace.id,
+          viewerId: found.user.id,
+        }),
+      }
+    },
+  )
+
   /** What the workspace's builds and hosted sites take up, by kind and by team. */
   app.get('/workspaces/:workspace/storage', async (req): Promise<Storage.Usage | void> => {
     const found = await loadWorkspace(deps, req)
     return {
       canManage: found.canManage,
-      ...(await getWorkspaceStorage(deps.db, found.workspace.id)),
+      ...(await getWorkspaceStorage(deps.db, found.workspace.id, found.user.id)),
     }
   })
 
@@ -103,7 +118,7 @@ export const dashboardWorkspaceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard
     return {
       canManage: found.canManage,
       settings: await getWorkspaceSettings(deps.db, found.workspace.id),
-      teams: await listTeamFlakyOverrides(deps.db, found.workspace.id),
+      teams: await listTeamFlakyOverrides(deps.db, found.workspace.id, found.user.id),
     }
   })
 

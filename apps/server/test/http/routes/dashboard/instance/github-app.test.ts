@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { addMember, createUser } from '@circi/auth'
+import { createUser } from '@circi/auth'
 import { signState, verifyState } from '@circi/core/node'
 import { getSetting, listIntegrations } from '@circi/db/queries'
 import * as schema from '@circi/db/schema'
@@ -19,7 +19,7 @@ import { readStoredGithubApp, useStoredGithubApp } from '#composition/github-app
 import { buildServer } from '#http/app.ts'
 import { clientFor } from '#test/support/client.ts'
 import { snapshotDb } from '#test/support/db-snapshot.ts'
-import { createTestAuth, ORIGIN, seedTenant, signIn } from '#test/support/helpers.ts'
+import { createTestAuth, ORIGIN, seedTenant, signIn, addMember } from '#test/support/helpers.ts'
 
 /**
  * The GitHub App manifest flow. GitHub is never contacted: its conversion endpoint, the App's

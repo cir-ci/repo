@@ -1,6 +1,6 @@
 import type { Integration } from '@circi/api'
 import { NotFoundError, ValidationError } from '@circi/core'
-import { getTeamBySlugs, listTeamLinks } from '@circi/db/queries'
+import { findTeamForMember, getTeamBySlugs, listTeamLinks } from '@circi/db/queries'
 import { addTeamLink, autoLinkTeam, removeTeamLink } from '@circi/services'
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify'
 import { z } from 'zod'
@@ -35,6 +35,16 @@ export const dashboardIntegrationLinkRoutes: FastifyPluginAsync<Deps.Dashboard> 
       workspaceSlug: found.workspace.slug,
       teamSlug: params.team,
     })
+    // Reading a team's links needs the team to be visible: members don't learn of other teams.
+    if (!options.manage) {
+      const visible = await findTeamForMember(deps.db, {
+        workspaceSlug: found.workspace.slug,
+        teamSlug: params.team,
+        userId: found.user.id,
+        method: found.user.method,
+      })
+      if (!visible) throw new NotFoundError('Team not found')
+    }
     return { ...loaded, links: loaded.definition.links, team, user: found.user }
   }
 

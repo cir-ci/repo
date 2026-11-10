@@ -15,15 +15,29 @@ export function addTeamCommands(admin: Command): void {
     .requiredOption('--name <name>', 'display name, e.g. "Web app"')
     .option('--slug <slug>', 'URL name (default: derived from --name)')
     .option('--default-branch <branch>', 'branch whose builds become baselines', 'main')
+    .option(
+      '--member <email>',
+      'add this workspace member to the team (repeatable; owners and admins see every team anyway)',
+      (email: string, all: string[]) => [...all, email],
+      [],
+    )
     .option('--json', 'print JSON (includes the token)')
     .action(
-      (opts: { org: string; name: string; slug?: string; defaultBranch: string; json?: boolean }) =>
+      (opts: {
+        org: string
+        name: string
+        slug?: string
+        defaultBranch: string
+        member: string[]
+        json?: boolean
+      }) =>
         withRuntime(async (rt) => {
           const { team: p, token } = await createTeamWithToken(rt.auth, rt.db.db, {
             workspaceSlug: opts.org,
             name: opts.name,
             defaultBranch: opts.defaultBranch,
             ...(opts.slug ? { slug: opts.slug } : {}),
+            ...(opts.member.length > 0 ? { memberEmails: opts.member } : {}),
           })
           if (opts.json) return printJson({ team: publicTeam(p), token })
           console.log(`Created team ${opts.org}/${p.slug} (default branch: ${p.defaultBranch})`)

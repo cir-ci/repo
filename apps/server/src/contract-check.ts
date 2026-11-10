@@ -17,6 +17,7 @@ import type {
   Snapshot,
   Triage,
   View,
+  Workspace,
   WorkspaceBuilds,
 } from '@circi/api'
 import type { BuildFilterValues } from '@circi/core'
@@ -52,6 +53,8 @@ import type {
   getQueueDepth,
   listAccounts,
   listInstanceWorkspaces,
+  listTeamMembers,
+  listWorkspaceMemberTeams,
 } from '@circi/db/queries'
 import type { setTeamAppearance } from '@circi/db/repositories'
 
@@ -78,6 +81,8 @@ export type ContractChecks = [
   Fits<Json<getQueueDepth.Item>, InstanceAdmin.QueueDepth>,
   Fits<Json<listBuildsForTeam.Item>, Build.ListItem>,
   Fits<Json<TeamOverview>, Team.Overview>,
+  Fits<Json<listTeamMembers.Item>, Team.Member>,
+  Fits<Json<Awaited<ReturnType<typeof listWorkspaceMemberTeams>>>, Workspace.MemberTeams['teams']>,
   Fits<findTeamForMember.Visible, Team.Info>,
   Fits<Json<getTeamGitAttention.Attention>, Team.GitAttention>,
   Fits<Json<getBuildDetail.Detail>['diffs'], Build.DiffItem[]>,
@@ -116,6 +121,8 @@ export type ContractChecks = [
 
 /** Each entry must be `true`; a mismatch above makes its entry `never`, and this line fails. */
 export const contractChecks: ContractChecks = [
+  true,
+  true,
   true,
   true,
   true,

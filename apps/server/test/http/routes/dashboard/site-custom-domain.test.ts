@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { addMember as addWorkspaceMember, type Auth, createUser } from '@circi/auth'
+import { type Auth, createUser } from '@circi/auth'
 import * as schema from '@circi/db/schema'
 import { createTestDb } from '@circi/db/testing'
 import type { SiteDnsResolver } from '@circi/services'
@@ -14,7 +14,13 @@ import * as tar from 'tar'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { buildServer } from '#http/app.ts'
-import { createTestAuth, seedTenant, signIn, type Tenant } from '#test/support/helpers.ts'
+import {
+  createTestAuth,
+  seedTenant,
+  signIn,
+  type Tenant,
+  addMember as addWorkspaceMember,
+} from '#test/support/helpers.ts'
 
 /**
  * A site's custom domain: setting and verifying it in the dashboard API, Caddy's TLS ask, and

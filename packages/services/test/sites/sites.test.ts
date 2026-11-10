@@ -1,6 +1,14 @@
 import { commitLabelOfVersion, findSiteByLabel, servedCommitForBranch } from '@circi/db/queries'
 import * as schema from '@circi/db/schema'
-import { createTestDb, seedSession, seedSite, seedTeam, seedUser } from '@circi/db/testing'
+import {
+  addTestMember,
+  addTestTeamMember,
+  createTestDb,
+  seedSession,
+  seedSite,
+  seedTeam,
+  seedUser,
+} from '@circi/db/testing'
 import { fakeSha } from '@circi/testing'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -148,6 +156,32 @@ describe('handOffToSite', () => {
       await handOffToSite(t.db, { ...asOwner, userId: outsider.id, sessionId: theirs.id }),
     ).toBeUndefined()
     expect(await handOffToSite(t.db, { ...asOwner, label: 'no-such-address' })).toBeUndefined()
+  })
+
+  it("hides a team's site from workspace members who are not in the team, but not from admins", async () => {
+    const { team, workspace, owner } = await seedTeam(t.db)
+    const label = (await seedSite(t.db, { teamId: team.id })).label ?? ''
+    const plain = await seedUser(t.db)
+    const admin = await seedUser(t.db)
+    await addTestMember(t.db, { workspaceId: workspace.id, userId: plain.id, teams: [] })
+    await addTestMember(t.db, {
+      workspaceId: workspace.id,
+      userId: admin.id,
+      role: 'admin',
+      teams: [],
+    })
+    const ask = async (userId: string) =>
+      handOffToSite(t.db, {
+        label,
+        userId,
+        sessionId: (await seedSession(t.db, userId)).id,
+        method: 'password',
+      })
+    expect(await ask(plain.id)).toBeUndefined()
+    expect(await ask(admin.id)).toBeDefined()
+    await addTestTeamMember(t.db, { teamId: team.id, userId: plain.id })
+    expect(await ask(plain.id)).toBeDefined()
+    expect(await ask(owner.id)).toBeDefined()
   })
 
   it('refuses a session whose sign-in method the workspace does not accept', async () => {

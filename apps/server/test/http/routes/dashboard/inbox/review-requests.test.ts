@@ -1,9 +1,9 @@
-import { addMember, createUser } from '@circi/auth'
+import { createUser } from '@circi/auth'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { sender } from '#test/support/client.ts'
 import { startDashboard } from '#test/support/dashboard-fixture.ts'
-import { signIn } from '#test/support/helpers.ts'
+import { signIn, addMember } from '#test/support/helpers.ts'
 
 const fx = await startDashboard()
 const { app, auth, db, acme, rival, acmeCookie, rivalCookie, get } = fx
@@ -122,8 +122,8 @@ describe('review requests', () => {
 
   it('refuses a reviewer from another workspace', async () => {
     const res = await post(requestUrl(), { payload: { reviewerId: rival.owner.id } })
-    expect(res.statusCode).toBe(409)
-    expect(res.json().error).toMatch(/not a member/)
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error).toMatch(/must be a member of this team/)
   })
 
   it('refuses a request from yourself with a 400 and stores nothing', async () => {
