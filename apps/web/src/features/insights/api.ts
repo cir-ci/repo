@@ -13,16 +13,23 @@ export const RANGE_OPTIONS = RANGES.map((d) => ({ value: String(d), label: `${d}
 export interface InsightsSearch {
   range: RangeDays
   team?: string
+  /** Each sorted table's sort: `teams:-builds,reviewers:name` (see `lib/sort.ts`). */
+  sort?: string
 }
 
 export const parseRange = (value: unknown): RangeDays =>
   RANGES.find((d) => String(d) === String(value)) ?? 30
 
-/** `?range=7|30|90` (default 30) and `?team=slug`; anything else is dropped. */
+/** `?range=7|30|90` (default 30), `?team=slug` and `?sort=`; anything else is dropped. */
 export function validateInsightsSearch(search: Record<string, unknown>): InsightsSearch {
   const range = parseRange(search['range'])
   const team = search['team']
-  return typeof team === 'string' && team ? { range, team } : { range }
+  const sort = search['sort']
+  return {
+    range,
+    ...(typeof team === 'string' && team ? { team } : {}),
+    ...(typeof sort === 'string' && sort ? { sort } : {}),
+  }
 }
 
 const HOUR = 3_600_000

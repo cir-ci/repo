@@ -402,6 +402,33 @@ describe('GenericIntegrationPage links (Figma frames)', () => {
     })
   })
 
+  it('sorts the links by a column and goes back to the order they came in', async () => {
+    await page.viewport(1000, 900)
+    fakeApi({
+      [`GET ${BASE}/f1/teams`]: figmaPage(),
+      [`GET ${BASE}/f1/teams/web/links`]: frameLinks,
+      [`GET ${BASE}/f1/teams/docs/links`]: { body: { links: [] } },
+    })
+    await showFigma()
+    const table = page.getByRole('table', { name: 'Web frame links' })
+    const subjects = () =>
+      [...table.element().querySelectorAll('tbody tr')].map(
+        (tr) => tr.querySelector('td')?.textContent,
+      )
+    await expect.element(table.getByText('Auto')).toBeVisible()
+    expect(subjects()).toEqual(['checkout/cart', 'home*'])
+    const how = table.getByRole('columnheader', { name: 'How' })
+    await how.getByRole('button').click()
+    await expect.element(how).toHaveAttribute('aria-sort', 'ascending')
+    expect(subjects()).toEqual(['checkout/cart', 'home*'])
+    await how.getByRole('button').click()
+    await expect.element(how).toHaveAttribute('aria-sort', 'descending')
+    expect(subjects()).toEqual(['home*', 'checkout/cart'])
+    await how.getByRole('button').click()
+    await expect.element(how).toHaveAttribute('aria-sort', 'none')
+    expect(subjects()).toEqual(['checkout/cart', 'home*'])
+  })
+
   it("adds a link from the definition's fields, removes one, and links automatically", async () => {
     await page.viewport(1000, 900)
     const fake = fakeApi({

@@ -1,9 +1,10 @@
 import type { Insights } from '@circi/api'
 import { flakyReasonText } from '@circi/core'
-import { Avatar, StatusIcon, Text } from '@circi/ui'
+import { Avatar, SortableHeader, StatusIcon, Text } from '@circi/ui'
 
 import { baselineLink } from '#features/baselines/links.ts'
 import { Age } from '#lib/RelativeTime.tsx'
+import type { Accessors } from '#lib/sort.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 
 import {
@@ -18,6 +19,7 @@ import {
 } from './api.ts'
 import { Card, TableWrap, TeamChip } from './Card.tsx'
 import { shares, storageBars, stripCells, stripLabel } from './chart.ts'
+import { useSortedTable } from './sort.tsx'
 
 import styles from './Insights.module.css'
 
@@ -80,36 +82,90 @@ function Strip({ last10, kind }: { last10: boolean[]; kind: 'changed' | 'flaky' 
   )
 }
 
+type TeamRow = Insights.Report['teamsComparison'][number]
+type ReviewerRow = Insights.Report['reviewers'][number]
+type ChangedRow = Insights.Report['mostChanged'][number]
+type FlakyRow = Insights.Report['flakiest'][number]
+type WaitingRow = Insights.Report['oldestWaiting'][number]
+type RejectedRow = Insights.Report['mostRejected'][number]
+
+const lit = (flags: boolean[]) => flags.filter(Boolean).length
+
+const TEAM_COLUMNS: Accessors<TeamRow> = {
+  team: (r) => r.team.name,
+  builds: (r) => r.builds,
+  changes: (r) => r.buildsWithChanges,
+  review: (r) => r.medianReviewHours,
+  flaky: (r) => r.flaky,
+  failed: (r) => r.failed,
+}
+const REVIEWER_COLUMNS: Accessors<ReviewerRow> = {
+  reviewer: (r) => r.name,
+  reviews: (r) => r.reviews,
+  open: (r) => r.openRequests,
+  response: (r) => r.medianResponseHours,
+  overdue: (r) => r.overdue,
+}
+const CHANGED_COLUMNS: Accessors<ChangedRow> = {
+  screenshot: (r) => r.name,
+  team: (r) => r.team.name,
+  changed: (r) => r.changedBuilds,
+  last10: (r) => lit(r.last10),
+}
+const FLAKY_COLUMNS: Accessors<FlakyRow> = {
+  screenshot: (r) => r.name,
+  team: (r) => r.team.name,
+  flips: (r) => r.flipFlops,
+  last10: (r) => lit(r.last10),
+}
+const WAITING_COLUMNS: Accessors<WaitingRow> = {
+  build: (r) => r.number,
+  team: (r) => r.team.name,
+  branch: (r) => r.branch,
+  author: (r) => r.author,
+  // The wait is the time since the build was ready: the oldest ready build has waited longest.
+  waiting: (r) => -Date.parse(r.readyAt),
+}
+const REJECTED_COLUMNS: Accessors<RejectedRow> = {
+  screenshot: (r) => r.name,
+  team: (r) => r.team.name,
+  rejected: (r) => r.rejections,
+}
+
 export function TeamsCard({ data, days }: { data: Insights.Report; days: number }) {
-  const rows = data.teamsComparison
-  if (rows.length < 2 || rows.every((r) => r.builds === 0)) return null
-  const bars = shares(rows, (r) => r.builds)
+  const all = data.teamsComparison
+  const table = useSortedTable('teams', all, TEAM_COLUMNS)
+  const rows = table.rows
+  if (all.length < 2 || all.every((r) => r.builds === 0)) return null
+  const bars = new Map(all.map((r, i) => [r, shares(all, (x) => x.builds)[i] ?? 0]))
   return (
     <Card title="Teams" subtitle={rangeLabel(days)} wide>
       <TableWrap>
         <table className={`${styles.table} ${styles.spread}`}>
           <thead>
             <tr>
-              <th scope="col">Team</th>
-              <th scope="col" className={styles.bars150}>
+              <SortableHeader scope="col" {...table.header('team')}>
+                Team
+              </SortableHeader>
+              <SortableHeader scope="col" className={styles.bars150} {...table.header('builds')}>
                 Builds
-              </th>
-              <th scope="col" className={styles.n}>
+              </SortableHeader>
+              <SortableHeader scope="col" className={styles.n} numeric {...table.header('changes')}>
                 With changes
-              </th>
-              <th scope="col" className={styles.n}>
+              </SortableHeader>
+              <SortableHeader scope="col" className={styles.n} numeric {...table.header('review')}>
                 Median review
-              </th>
-              <th scope="col" className={styles.n}>
+              </SortableHeader>
+              <SortableHeader scope="col" className={styles.n} numeric {...table.header('flaky')}>
                 Flaky now
-              </th>
-              <th scope="col" className={styles.n}>
+              </SortableHeader>
+              <SortableHeader scope="col" className={styles.n} numeric {...table.header('failed')}>
                 Failed
-              </th>
+              </SortableHeader>
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, i) => {
+            {rows.map((r) => {
               const over =
                 r.medianReviewHours !== null &&
                 r.reviewTargetHours !== null &&
@@ -125,7 +181,7 @@ export function TeamsCard({ data, days }: { data: Insights.Report; days: number 
                   <td className={styles.bars150}>
                     <span className={styles.barNum}>
                       <span className={styles.mini}>
-                        <Fill colour={r.team.colour} share={bars[i] ?? 0} />
+                        <Fill colour={r.team.colour} share={bars.get(r) ?? 0} />
                       </span>
                       <span className={styles.num}>{formatCount(r.builds)}</span>
                     </span>
@@ -264,7 +320,9 @@ export function IgnoreRegionsCard({ data, days }: { data: Insights.Report; days:
 }
 
 export function ReviewerLoadCard({ data, days }: { data: Insights.Report; days: number }) {
-  const bars = shares(data.reviewers, (r) => r.reviews)
+  const table = useSortedTable('reviewers', data.reviewers, REVIEWER_COLUMNS)
+  const barValues = shares(data.reviewers, (r) => r.reviews)
+  const bars = new Map(data.reviewers.map((r, i) => [r, barValues[i] ?? 0]))
   return (
     <Card
       title="Reviewer load"
@@ -275,23 +333,30 @@ export function ReviewerLoadCard({ data, days }: { data: Insights.Report; days: 
         <table className={`${styles.table} ${styles.spread}`}>
           <thead>
             <tr>
-              <th scope="col">Reviewer</th>
-              <th scope="col" className={styles.bars150}>
+              <SortableHeader scope="col" {...table.header('reviewer')}>
+                Reviewer
+              </SortableHeader>
+              <SortableHeader scope="col" className={styles.bars150} {...table.header('reviews')}>
                 Reviews
-              </th>
-              <th scope="col" className={styles.n}>
+              </SortableHeader>
+              <SortableHeader scope="col" className={styles.n} numeric {...table.header('open')}>
                 Open
-              </th>
-              <th scope="col" className={styles.n}>
+              </SortableHeader>
+              <SortableHeader
+                scope="col"
+                className={styles.n}
+                numeric
+                {...table.header('response')}
+              >
                 Median response
-              </th>
-              <th scope="col" className={styles.n}>
+              </SortableHeader>
+              <SortableHeader scope="col" className={styles.n} numeric {...table.header('overdue')}>
                 Overdue
-              </th>
+              </SortableHeader>
             </tr>
           </thead>
           <tbody>
-            {data.reviewers.map((r, i) => (
+            {table.rows.map((r) => (
               <tr key={r.id}>
                 <th scope="row">
                   <span className={styles.person}>
@@ -303,7 +368,10 @@ export function ReviewerLoadCard({ data, days }: { data: Insights.Report; days: 
                   <span className={styles.barNum}>
                     <span className={styles.mini}>
                       <span className={styles.track} aria-hidden="true">
-                        <i className={styles.fill} style={{ width: `${(bars[i] ?? 0) * 100}%` }} />
+                        <i
+                          className={styles.fill}
+                          style={{ width: `${(bars.get(r) ?? 0) * 100}%` }}
+                        />
                       </span>
                     </span>
                     <span className={styles.num}>{formatCount(r.reviews)}</span>
@@ -356,7 +424,8 @@ export function StorageCard({ data }: { data: Insights.Report }) {
 }
 
 export function MostChangedCard({ data, days }: { data: Insights.Report; days: number }) {
-  const rows = data.mostChanged
+  const table = useSortedTable('changed', data.mostChanged, CHANGED_COLUMNS)
+  const rows = table.rows
   const showTeam = data.team === null
   return (
     <Card
@@ -368,14 +437,20 @@ export function MostChangedCard({ data, days }: { data: Insights.Report; days: n
         <table className={styles.table}>
           <thead>
             <tr>
-              <th scope="col">Screenshot</th>
-              {showTeam ? <th scope="col">Team</th> : null}
-              <th scope="col" className={styles.n}>
+              <SortableHeader scope="col" {...table.header('screenshot')}>
+                Screenshot
+              </SortableHeader>
+              {showTeam ? (
+                <SortableHeader scope="col" {...table.header('team')}>
+                  Team
+                </SortableHeader>
+              ) : null}
+              <SortableHeader scope="col" className={styles.n} numeric {...table.header('changed')}>
                 Changed in
-              </th>
-              <th scope="col" className={styles.n}>
+              </SortableHeader>
+              <SortableHeader scope="col" className={styles.n} numeric {...table.header('last10')}>
                 Last 10 commits
-              </th>
+              </SortableHeader>
             </tr>
           </thead>
           <tbody>
@@ -408,7 +483,8 @@ export function MostChangedCard({ data, days }: { data: Insights.Report; days: n
 }
 
 export function FlakiestCard({ data }: { data: Insights.Report }) {
-  const rows = data.flakiest
+  const table = useSortedTable('flakiest', data.flakiest, FLAKY_COLUMNS)
+  const rows = table.rows
   const showTeam = data.team === null
   return (
     <Card
@@ -420,14 +496,20 @@ export function FlakiestCard({ data }: { data: Insights.Report }) {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th scope="col">Screenshot</th>
-              {showTeam ? <th scope="col">Team</th> : null}
-              <th scope="col" className={styles.n}>
+              <SortableHeader scope="col" {...table.header('screenshot')}>
+                Screenshot
+              </SortableHeader>
+              {showTeam ? (
+                <SortableHeader scope="col" {...table.header('team')}>
+                  Team
+                </SortableHeader>
+              ) : null}
+              <SortableHeader scope="col" className={styles.n} numeric {...table.header('flips')}>
                 Flip-flops
-              </th>
-              <th scope="col" className={styles.n}>
+              </SortableHeader>
+              <SortableHeader scope="col" className={styles.n} numeric {...table.header('last10')}>
                 <span className={styles.sr}>Last 10 commits</span>
-              </th>
+              </SortableHeader>
             </tr>
           </thead>
           <tbody>
@@ -456,7 +538,8 @@ export function FlakiestCard({ data }: { data: Insights.Report }) {
 }
 
 export function OldestWaitingCard({ data }: { data: Insights.Report }) {
-  const rows = data.oldestWaiting
+  const table = useSortedTable('waiting', data.oldestWaiting, WAITING_COLUMNS)
+  const rows = table.rows
   const showTeam = data.team === null
   const now = Date.parse(data.range.to)
   return (
@@ -469,13 +552,23 @@ export function OldestWaitingCard({ data }: { data: Insights.Report }) {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th scope="col">Build</th>
-              {showTeam ? <th scope="col">Team</th> : null}
-              <th scope="col">Branch</th>
-              <th scope="col">Author</th>
-              <th scope="col" className={styles.n}>
+              <SortableHeader scope="col" {...table.header('build')}>
+                Build
+              </SortableHeader>
+              {showTeam ? (
+                <SortableHeader scope="col" {...table.header('team')}>
+                  Team
+                </SortableHeader>
+              ) : null}
+              <SortableHeader scope="col" {...table.header('branch')}>
+                Branch
+              </SortableHeader>
+              <SortableHeader scope="col" {...table.header('author')}>
+                Author
+              </SortableHeader>
+              <SortableHeader scope="col" className={styles.n} numeric {...table.header('waiting')}>
                 Waiting
-              </th>
+              </SortableHeader>
             </tr>
           </thead>
           <tbody>
@@ -525,7 +618,8 @@ export function OldestWaitingCard({ data }: { data: Insights.Report }) {
 }
 
 export function MostRejectedCard({ data, days }: { data: Insights.Report; days: number }) {
-  const rows = data.mostRejected
+  const table = useSortedTable('rejected', data.mostRejected, REJECTED_COLUMNS)
+  const rows = table.rows
   const showTeam = data.team === null
   return (
     <Card
@@ -537,11 +631,22 @@ export function MostRejectedCard({ data, days }: { data: Insights.Report; days: 
         <table className={styles.table}>
           <thead>
             <tr>
-              <th scope="col">Screenshot</th>
-              {showTeam ? <th scope="col">Team</th> : null}
-              <th scope="col" className={styles.n}>
+              <SortableHeader scope="col" {...table.header('screenshot')}>
+                Screenshot
+              </SortableHeader>
+              {showTeam ? (
+                <SortableHeader scope="col" {...table.header('team')}>
+                  Team
+                </SortableHeader>
+              ) : null}
+              <SortableHeader
+                scope="col"
+                className={styles.n}
+                numeric
+                {...table.header('rejected')}
+              >
                 Rejected
-              </th>
+              </SortableHeader>
             </tr>
           </thead>
           <tbody>

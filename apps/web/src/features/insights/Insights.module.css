@@ -786,7 +786,7 @@
   color: var(--circi-text-secondary);
 }
 
-/* The last 10 builds: ten small cells, oldest on the left. */
+/* The last 10 commits: ten small cells, oldest on the left. */
 .strip {
   display: inline-flex;
   gap: 2px;

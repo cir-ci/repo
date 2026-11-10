@@ -1,8 +1,11 @@
 import type { Insights } from '@circi/api'
-import { Avatar, StatusIcon, type Status } from '@circi/ui'
+import { Avatar, SortableHeader, StatusIcon, type Status } from '@circi/ui'
 import { type ReactNode, useId, useState } from 'react'
 
 import { isTeamColor } from '#features/teams/appearance.ts'
+import { type Accessors, cellValue } from '#lib/sort.ts'
+
+import { useSortedTable } from './sort.tsx'
 
 import styles from './Insights.module.css'
 
@@ -18,6 +21,11 @@ export function TableWrap({ children }: { children: ReactNode }) {
 
 /** The "View as table" version of a chart: the same numbers, one row per bar or point. */
 export function DataTable({ caption, view }: { caption: string; view: TableView }) {
+  // The cells are text as shown ("1,234", "3.4h", "45%"); a column sorts by the figure they hold.
+  const accessors: Accessors<string[]> = Object.fromEntries(
+    view.columns.map((_, i) => [`c${i}`, (row: string[]) => cellValue(row[i] ?? '')]),
+  )
+  const table = useSortedTable(`chart-${tableName(caption)}`, view.rows, accessors)
   return (
     <TableWrap>
       <table className={styles.table}>
@@ -25,14 +33,20 @@ export function DataTable({ caption, view }: { caption: string; view: TableView 
         <thead>
           <tr>
             {view.columns.map((c, i) => (
-              <th key={c} scope="col" className={i === 0 ? undefined : styles.n}>
+              <SortableHeader
+                key={c}
+                scope="col"
+                numeric={i !== 0}
+                className={i === 0 ? undefined : styles.n}
+                {...table.header(`c${i}`)}
+              >
                 {c}
-              </th>
+              </SortableHeader>
             ))}
           </tr>
         </thead>
         <tbody>
-          {view.rows.map((row) => (
+          {table.rows.map((row) => (
             <tr key={row[0]}>
               {row.map((cell, i) =>
                 i === 0 ? (
@@ -53,6 +67,9 @@ export function DataTable({ caption, view }: { caption: string; view: TableView 
     </TableWrap>
   )
 }
+
+/** A card's title as the name of its table in the URL: `Median time to first review` becomes `median-time-to-first-review`. */
+const tableName = (caption: string) => caption.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')
 
 /**
  * One card: a 24px header (title, one-line subtitle, "View as table"), then the body. Chart

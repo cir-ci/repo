@@ -1,0 +1,42 @@
+.root[data-numeric] {
+  text-align: right;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  white-space: inherit;
+  cursor: pointer;
+}
+
+.button:hover {
+  color: var(--circi-text-primary);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--circi-accent-text);
+  outline-offset: 2px;
+}
+
+.root[aria-sort='ascending'] .button,
+.root[aria-sort='descending'] .button {
+  color: var(--circi-text-primary);
+}
+
+/* The chevron's room is kept while the column isn't sorted, so the header doesn't shift. */
+.chevron {
+  display: inline-flex;
+  flex: none;
+  width: 14px;
+  height: 14px;
+}

@@ -39,6 +39,7 @@ import {
   TeamsCard,
 } from './Lists.tsx'
 import { ROUTE } from './routes.ts'
+import { InsightsSort } from './sort.tsx'
 
 import styles from './Insights.module.css'
 
@@ -76,7 +77,13 @@ export function InsightsPage() {
               hideLabel
               items={teamItems}
               value={search.team ?? ALL}
-              onValueChange={(v) => go({ range: search.range, ...(v === ALL ? {} : { team: v }) })}
+              onValueChange={(v) =>
+                go({
+                  range: search.range,
+                  ...(v === ALL ? {} : { team: v }),
+                  ...(search.sort ? { sort: search.sort } : {}),
+                })
+              }
             />
             <SegmentedControl
               label="Time range"
@@ -100,7 +107,17 @@ export function InsightsPage() {
                 Nothing was built or reviewed in the last {search.range} days. Try a longer range.
               </EmptyState>
             ) : (
-              <>
+              <InsightsSort
+                text={search.sort}
+                onChange={(sort) =>
+                  void navigate({
+                    to: ROUTE,
+                    params: { workspace },
+                    search: { ...search, sort },
+                    replace: true,
+                  })
+                }
+              >
                 <ul className={styles.tiles} aria-label="Summary">
                   {tiles(data, search.range).map((t) => (
                     <li key={t.id} className={styles.tile}>
@@ -145,7 +162,7 @@ export function InsightsPage() {
                   <OldestWaitingCard data={data} />
                   <MostRejectedCard data={data} days={search.range} />
                 </div>
-              </>
+              </InsightsSort>
             )
           }
         </QueryBoundary>

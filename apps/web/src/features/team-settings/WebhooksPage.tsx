@@ -22,15 +22,10 @@ import { type FormEvent, useState } from 'react'
 import { useAddWebhook, useDeleteWebhook } from '#features/teams/api/index.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
+import { DeliveriesTable } from './DeliveriesTable.tsx'
 import { TeamSettingsFrame } from './TeamSettingsFrame.tsx'
 import { useWebhookTest } from './use-webhook-test.ts'
-import {
-  attemptLabel,
-  deliveryAnswer,
-  eventDescription,
-  hookStatus,
-  webhookProblems,
-} from './webhook-events.ts'
+import { deliveryAnswer, eventDescription, hookStatus, webhookProblems } from './webhook-events.ts'
 
 import styles from './WebhooksPage.module.css'
 
@@ -177,34 +172,7 @@ function Webhooks(props: Webhooks.Props) {
             description="Any answer other than 2xx is retried. Redirects aren't followed."
             aria-label={`Recent deliveries to ${h.url}`}
           >
-            <div className={styles.table} role="table" aria-label={`Deliveries to ${h.url}`}>
-              <div className={`${styles.dl} ${styles.head}`} role="row">
-                <span role="columnheader">Time</span>
-                <span role="columnheader">Event</span>
-                <span role="columnheader">Status</span>
-                <span role="columnheader">Attempt</span>
-              </div>
-              {h.deliveries.map((d) => {
-                const answer = deliveryAnswer(d)
-                return (
-                  <div key={`${d.deliveryId}-${d.attempt}`} className={styles.dl} role="row">
-                    <Text variant="small" tone="secondary" role="cell">
-                      <RelativeTime iso={d.createdAt} />
-                    </Text>
-                    <Text variant="mono" role="cell">
-                      {d.event}
-                      {d.test ? ' (test)' : ''}
-                    </Text>
-                    <Text variant="small" tone={answer.ok ? 'approved' : 'failed'} role="cell">
-                      {answer.text}
-                    </Text>
-                    <Text variant="small" tone="secondary" role="cell">
-                      {attemptLabel(d)}
-                    </Text>
-                  </div>
-                )
-              })}
-            </div>
+            <DeliveriesTable url={h.url} deliveries={h.deliveries} />
           </SettingsSection>
         ))}
 

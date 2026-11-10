@@ -1,11 +1,22 @@
 import type { Integration } from '@circi/api'
-import { Badge, Banner, Button, Text, TextField } from '@circi/ui'
+import { Badge, Banner, Button, SortableHeader, Text, TextField } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useState } from 'react'
+
+import type { Accessors } from '#lib/sort.ts'
+import { useSorted } from '#lib/use-sorted.ts'
 
 import { autoLinkSummary, linksQuery, linkValuesComplete, useLinks } from './api/generic.ts'
 
 import styles from './Links.module.css'
+
+type LinkRow = Integration.Link
+
+const LINK_COLUMNS: Accessors<LinkRow> = {
+  subject: (l) => l.subject,
+  target: (l) => l.title ?? l.ref,
+  how: (l) => l.source,
+}
 
 /**
  * A mapped team's links, for a definition with a `links` section (Figma's snapshot-to-frame
@@ -18,6 +29,7 @@ export function TeamLinks({ workspace, integrationId, spec, team, canManage }: T
   const actions = useLinks(workspace, integrationId)
   const [values, setValues] = useState<Record<string, string>>({})
   const complete = linkValuesComplete(spec, values)
+  const table = useSorted(data?.links ?? [], LINK_COLUMNS)
 
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -60,16 +72,22 @@ export function TeamLinks({ workspace, integrationId, spec, team, canManage }: T
         <table className={styles.table} aria-label={`${team.name} ${spec.label.toLowerCase()}`}>
           <thead>
             <tr>
-              <th scope="col">{spec.fields.find((f) => f.key === spec.subject)?.label}</th>
-              <th scope="col">{spec.targetLabel}</th>
-              <th scope="col">How</th>
+              <SortableHeader scope="col" {...table.header('subject')}>
+                {spec.fields.find((f) => f.key === spec.subject)?.label}
+              </SortableHeader>
+              <SortableHeader scope="col" {...table.header('target')}>
+                {spec.targetLabel}
+              </SortableHeader>
+              <SortableHeader scope="col" {...table.header('how')}>
+                How
+              </SortableHeader>
               <th scope="col">
                 <span className={styles.srOnly}>Actions</span>
               </th>
             </tr>
           </thead>
           <tbody>
-            {data.links.map((l) => (
+            {table.rows.map((l) => (
               <tr key={l.id}>
                 <td>
                   <Text variant="mono">{l.subject}</Text>
