@@ -1,4 +1,4 @@
-import { Autocomplete, Button, Popover, Switch, Text, TextField } from '@circi/ui'
+import { Autocomplete, Button, Popover, SegmentedControl, Switch, Text, TextField } from '@circi/ui'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { type FormEvent, useDeferredValue, useState } from 'react'
 
@@ -173,19 +173,13 @@ function FieldEditor({
   if (field === 'status') {
     const current = activeState(filters)
     return (
-      <div role="group" aria-label="Status" className={styles.options}>
-        {STATE_OPTIONS.map((o) => (
-          <Button
-            key={o.id}
-            variant="toggle"
-            size="sm"
-            pressed={current?.id === o.id}
-            onClick={() => onChange(withState(filters, current?.id === o.id ? undefined : o.id))}
-          >
-            {o.label}
-          </Button>
-        ))}
-      </div>
+      <SegmentedControl
+        label="Status"
+        wrap
+        options={STATE_OPTIONS.map((o) => ({ value: o.id, label: o.label }))}
+        value={current?.id}
+        onChange={(id) => onChange(withState(filters, id))}
+      />
     )
   }
   if (field === 'date') return <DateEditor filters={filters} onChange={onChange} />
@@ -363,38 +357,32 @@ function DisplayEditor({
 }) {
   return (
     <>
-      <Text variant="small" tone="secondary" id="display-group">
+      <Text variant="small" tone="secondary" aria-hidden="true">
         Group by
       </Text>
-      <div role="group" aria-labelledby="display-group" className={styles.options}>
-        {GROUPS.map((g) => (
-          <Button
-            key={g}
-            variant="toggle"
-            size="sm"
-            pressed={display.groupBy === g}
-            onClick={() => onChange({ ...display, groupBy: g })}
-          >
-            {GROUP_LABEL[g]}
-          </Button>
-        ))}
-      </div>
-      <Text variant="small" tone="secondary" id="display-order">
+      <SegmentedControl
+        label="Group by"
+        wrap
+        options={GROUPS.map((g) => ({ value: g, label: GROUP_LABEL[g] }))}
+        value={display.groupBy}
+        onChange={(next) => {
+          const groupBy = GROUPS.find((g) => g === next)
+          if (groupBy) onChange({ ...display, groupBy })
+        }}
+      />
+      <Text variant="small" tone="secondary" aria-hidden="true">
         Order
       </Text>
-      <div role="group" aria-labelledby="display-order" className={styles.options}>
-        {ORDERS.map((o) => (
-          <Button
-            key={o}
-            variant="toggle"
-            size="sm"
-            pressed={display.order === o}
-            onClick={() => onChange({ ...display, order: o })}
-          >
-            {ORDER_LABEL[o]}
-          </Button>
-        ))}
-      </div>
+      <SegmentedControl
+        label="Order"
+        wrap
+        options={ORDERS.map((o) => ({ value: o, label: ORDER_LABEL[o] }))}
+        value={display.order}
+        onChange={(next) => {
+          const order = ORDERS.find((o) => o === next)
+          if (order) onChange({ ...display, order })
+        }}
+      />
       <Text variant="small" tone="secondary">
         Show
       </Text>

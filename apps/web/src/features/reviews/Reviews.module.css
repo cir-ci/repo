@@ -31,50 +31,13 @@
 }
 
 .tabs {
-  display: flex;
-  /* The board wraps the five tabs onto a second row in the 340px list: none is hidden or scrolled. */
-  flex-wrap: wrap;
-  gap: 4px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--circi-line-subtle);
-}
-
-.tab {
-  display: inline-flex;
-  flex: none;
-  white-space: nowrap;
-  gap: 6px;
-  align-items: center;
-  height: 26px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--circi-text-secondary);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
 }
 
 .tabCount {
   color: var(--circi-text-tertiary);
   font-weight: 500;
-}
-
-.tab:hover {
-  background: var(--circi-action-hover);
-  color: var(--circi-text-primary);
-}
-
-.tab[aria-pressed='true'] {
-  background: var(--circi-action-selected);
-  color: var(--circi-text-primary);
-}
-
-.tab:focus-visible {
-  outline: 2px solid var(--circi-accent-main);
-  outline-offset: -2px;
 }
 
 .scroll {

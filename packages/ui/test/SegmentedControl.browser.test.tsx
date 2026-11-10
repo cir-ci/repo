@@ -68,4 +68,62 @@ describe('SegmentedControl', () => {
     await userEvent.keyboard('{ArrowRight}')
     await expect.element(page.getByRole('button', { name: 'Overlay' })).toHaveFocus()
   })
+
+  it('has none chosen without a value, and keeps one in the Tab order that the arrows rove from', async () => {
+    const onChange = vi.fn<(value: string) => void>()
+    await render(
+      <>
+        <button type="button">before</button>
+        <SegmentedControl label="Status" value={undefined} options={OPTIONS} onChange={onChange} />
+        <button type="button">after</button>
+      </>,
+    )
+    for (const o of OPTIONS) {
+      // eslint-disable-next-line no-await-in-loop -- one after another
+      await expect
+        .element(page.getByRole('button', { name: o.label }))
+        .toHaveAttribute('aria-pressed', 'false')
+    }
+    await userEvent.click(page.getByRole('button', { name: 'before' }))
+    await userEvent.tab()
+    await expect.element(page.getByRole('button', { name: 'Side by side' })).toHaveFocus()
+    await userEvent.keyboard('{ArrowRight}')
+    await expect.element(page.getByRole('button', { name: 'Overlay' })).toHaveFocus()
+    // Only one stop in the group: Tab leaves it.
+    await userEvent.tab()
+    await expect.element(page.getByRole('button', { name: 'after' })).toHaveFocus()
+    await userEvent.keyboard(' ')
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('wraps its options onto further rows when asked, and keeps a count beside a name', async () => {
+    await page.viewport(220, 400)
+    await render(
+      <SegmentedControl
+        label="Which"
+        wrap
+        value="a"
+        onChange={() => {}}
+        options={[
+          {
+            value: 'a',
+            label: (
+              <>
+                Requested from you <span>3</span>
+              </>
+            ),
+          },
+          { value: 'b', label: 'Reviewed' },
+          { value: 'c', label: 'Created by you' },
+        ]}
+      />,
+    )
+    const group = page.getByRole('group', { name: 'Which' }).element()
+    expect(group.scrollWidth).toBeLessThanOrEqual(group.clientWidth)
+    const tops = new Set(
+      [...group.querySelectorAll('button')].map((b) => Math.round(b.getBoundingClientRect().top)),
+    )
+    expect(tops.size).toBeGreaterThan(1)
+    await expect.element(page.getByRole('button', { name: /^Requested from you 3/ })).toBeVisible()
+  })
 })

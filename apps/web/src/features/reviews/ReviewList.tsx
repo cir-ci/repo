@@ -9,6 +9,7 @@ import {
   ListRow,
   ListChecksIcon,
   NoResults,
+  SegmentedControl,
   SendIcon,
   StatusIcon,
 } from '@circi/ui'
@@ -72,24 +73,30 @@ export function ReviewList({
           </span>
         ) : null}
       </div>
-      <div className={styles.tabs} role="group" aria-label="Which reviews">
-        {REVIEW_TABS.map((t) => (
-          <button
-            key={t.value}
-            type="button"
-            className={styles.tab}
-            aria-pressed={t.value === tab}
-            onClick={() => onTab(t.value)}
-          >
-            {t.label}
-            {t.value === 'for-you' && pending > 0 ? (
-              <span className={styles.tabCount}>{pending}</span>
-            ) : null}
-            {t.value === 'snoozed' && snoozed > 0 ? (
-              <span className={styles.tabCount}>{snoozed}</span>
-            ) : null}
-          </button>
-        ))}
+      <div className={styles.tabs}>
+        <SegmentedControl
+          label="Which reviews"
+          wrap
+          options={REVIEW_TABS.map((t) => ({
+            value: t.value,
+            label: (
+              <>
+                {t.label}
+                {t.value === 'for-you' && pending > 0 ? (
+                  <span className={styles.tabCount}>{pending}</span>
+                ) : null}
+                {t.value === 'snoozed' && snoozed > 0 ? (
+                  <span className={styles.tabCount}>{snoozed}</span>
+                ) : null}
+              </>
+            ),
+          }))}
+          value={tab}
+          onChange={(next) => {
+            const chosen = REVIEW_TABS.find((t) => t.value === next)
+            if (chosen) onTab(chosen.value)
+          }}
+        />
       </div>
       <div className={styles.find}>
         <FindField noun="reviews" value={find} onChange={onFind} />

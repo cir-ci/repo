@@ -18,7 +18,21 @@
   padding-inline: 4px;
 }
 
+.root[data-wrap] {
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.root[data-wrap] .item {
+  flex: none;
+  white-space: nowrap;
+}
+
 .item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   box-sizing: border-box;
   height: 26px;
   padding-inline: 12px;
