@@ -75,6 +75,17 @@ describe('CiTokenPage', () => {
     expect(code.getBoundingClientRect().bottom).toBeLessThan(exit.getBoundingClientRect().top)
   })
 
+  it('shows the whole code sample: as tall as its lines, nothing clipped', async () => {
+    api()
+    await show()
+    await expect.element(page.getByText(/npx circi upload/)).toBeVisible()
+    const code = page.getByLabelText('CI configuration').element()
+    // Four lines (token, address, a blank line, the command): no vertical clipping.
+    expect(code.scrollHeight).toBeLessThanOrEqual(code.clientHeight + 1)
+    const lineHeight = Number.parseFloat(getComputedStyle(code).lineHeight)
+    expect(code.clientHeight).toBeGreaterThanOrEqual(lineHeight * 4)
+  })
+
   it('says when the token was never used', async () => {
     api(info({ lastUsedAt: null }))
     await show()
