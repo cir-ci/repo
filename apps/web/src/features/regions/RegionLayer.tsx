@@ -279,7 +279,7 @@ function RegionComposer({
       }}
     >
       <div className={styles.who}>
-        {author ? <Avatar name={author} size={20} /> : null}
+        {author ? <Avatar name={author.name} seed={author.id} size={20} /> : null}
         <span>Comment on this region</span>
       </div>
       <MentionField
@@ -318,7 +318,7 @@ export namespace RegionComposer {
     sending?: boolean
     error?: string | undefined
     /** Whose avatar heads the popover: the signed-in user. */
-    author?: string | undefined
+    author?: { id: string; name: string } | undefined
     /** Who an @ can mention in the comment. */
     members?: readonly Mention.Member[]
   }

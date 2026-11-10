@@ -23,7 +23,7 @@ describe('timelineItems: issues', () => {
       },
     ])
     expect(item).toMatchObject({
-      actor: 'Ada Lovelace',
+      actor: person,
       text: 'created issue WEB-9 for home',
       quote: 'Header broke',
     })
@@ -63,7 +63,7 @@ describe('timelineItems', () => {
     ])
     expect(items[1]?.quote).toBe('out of memory')
     expect(items[1]?.status).toBe('rejected')
-    expect(items[5]).toMatchObject({ status: 'rejected', actor: 'Ada Lovelace', quote: 'Too blue' })
+    expect(items[5]).toMatchObject({ status: 'rejected', actor: person, quote: 'Too blue' })
     // Automatic decisions have no actor.
     expect(items[6]).toMatchObject({ status: 'approved', actor: null })
     // A long comment is cut, and links back to its comment.
@@ -142,8 +142,18 @@ describe('timelineItems: snapshot decisions', () => {
       },
     ])
     expect(items).toMatchObject([
-      { status: 'rejected', actor: 'Ada', text: 'rejected home', quote: 'wrong red' },
-      { status: 'approved', actor: 'Ada', text: 'approved 3 screenshots', quote: 'a, b, c' },
+      {
+        status: 'rejected',
+        actor: { id: 'u1', name: 'Ada' },
+        text: 'rejected home',
+        quote: 'wrong red',
+      },
+      {
+        status: 'approved',
+        actor: { id: 'u1', name: 'Ada' },
+        text: 'approved 3 screenshots',
+        quote: 'a, b, c',
+      },
     ])
   })
 })

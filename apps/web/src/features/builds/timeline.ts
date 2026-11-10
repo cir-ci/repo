@@ -8,7 +8,7 @@ export interface TimelineItem {
   /** The glyph's state. */
   status: Status
   /** The person to show an avatar for; null for what the system did. */
-  actor: string | null
+  actor: Activity.Person | null
   /** The sentence, without the actor's name (drawn in bold before it). */
   text: string
   /** A review's reason or a comment's text, quoted under the sentence. */
@@ -51,7 +51,7 @@ export function timelineItems(events: readonly Activity.Event[]): TimelineItem[]
         items.push({
           ...base,
           status: 'needs-review',
-          actor: e.by?.name ?? null,
+          actor: e.by ?? null,
           text: `${e.by ? 'requested' : 'Review requested from'} ${e.reviewer?.name ?? 'someone who has left'}${e.by ? ' to review' : ''}`,
         })
         break
@@ -66,7 +66,7 @@ export function timelineItems(events: readonly Activity.Event[]): TimelineItem[]
         items.push({
           ...base,
           status: e.state,
-          actor: e.source === 'auto' || e.source === 'rerun' ? null : (e.by?.name ?? null),
+          actor: e.source === 'auto' || e.source === 'rerun' ? null : (e.by ?? null),
           text: reviewText(e),
           quote: e.reason,
         })
@@ -75,7 +75,7 @@ export function timelineItems(events: readonly Activity.Event[]): TimelineItem[]
         items.push({
           ...base,
           status: e.decision,
-          actor: e.by?.name ?? null,
+          actor: e.by ?? null,
           text: snapshotReviewText(e),
           quote: e.reason ?? (e.snapshotNames.length > 1 ? e.snapshotNames.join(', ') : null),
         })
@@ -84,7 +84,7 @@ export function timelineItems(events: readonly Activity.Event[]): TimelineItem[]
         items.push({
           ...base,
           status: 'neutral',
-          actor: e.by?.name ?? null,
+          actor: e.by ?? null,
           text: `${e.parentId ? 'replied' : 'commented'}${e.snapshotName ? ` on ${e.snapshotName}` : ''}`,
           quote: snippet(e.body),
           commentId: e.commentId,
@@ -94,7 +94,7 @@ export function timelineItems(events: readonly Activity.Event[]): TimelineItem[]
         items.push({
           ...base,
           status: 'neutral',
-          actor: e.by?.name ?? null,
+          actor: e.by ?? null,
           text: `created issue ${e.issue.key}${e.snapshotName ? ` for ${e.snapshotName}` : ''}`,
           quote: e.issue.title,
         })

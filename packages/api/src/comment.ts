@@ -62,7 +62,7 @@ export namespace Comment {
 }
 
 export namespace Activity {
-  interface Person {
+  export interface Person {
     id: string
     name: string
   }
