@@ -20,7 +20,7 @@ export function ActivityTab({ workspace, team, number, onOpenComment }: Activity
     )
   }
   const items = timelineItems(data.events)
-  if (items.length === 0) return <Text tone="secondary">Nothing has happened yet.</Text>
+  if (items.length === 0) return <Text tone="secondary">No activity yet.</Text>
   return (
     <ol className={styles.list} aria-label="Activity">
       {items.map((item) => (

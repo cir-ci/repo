@@ -24,7 +24,9 @@
     // Targets Express. CirCI uses Fastify, which handles async handlers and their rejections.
     "oxc/no-async-endpoint-handlers": "off",
     // The web app uses React's automatic JSX runtime, so React needn't be in scope.
-    "react/react-in-jsx-scope": "off"
+    "react/react-in-jsx-scope": "off",
+    // The empty-state helper (apps/web/test/support/empty-state.ts) holds its own assertions.
+    "vitest/expect-expect": ["error", { "assertFunctionNames": ["expect", "expectEmptyState"] }]
   },
   "overrides": [
     {

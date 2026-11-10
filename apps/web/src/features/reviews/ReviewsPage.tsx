@@ -1,5 +1,5 @@
 import type { Review } from '@circi/api'
-import { Button, Kbd, ReviewIcon, Text, useAnnounce } from '@circi/ui'
+import { Button, Kbd, PanePlaceholder, PullRequestIcon, Text, useAnnounce } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -287,22 +287,19 @@ export function ReviewsPage() {
                     </Button>
                   )}
                 </ReviewDetail>
-              ) : (
-                <div className={styles.empty}>
-                  <ReviewIcon size={40} />
-                  <p className={styles.emptyTitle}>
-                    {items.length === 0 ? 'All caught up' : 'Select a review'}
-                  </p>
-                  <p className={styles.emptyText}>
-                    {items.length === 0
-                      ? 'Nothing is waiting on you. New review requests appear in the list on the left.'
-                      : 'Pick a build from the list to read it here.'}
-                  </p>
-                  <span className={styles.hints}>
-                    <Kbd>J</Kbd> <Kbd>K</Kbd> move through the list · <Kbd>↵</Kbd> open the review
-                  </span>
-                </div>
-              )}
+              ) : items.length > 0 ? (
+                <PanePlaceholder
+                  icon={<PullRequestIcon />}
+                  detail="Pick a build from the list to read it here."
+                  hint={
+                    <>
+                      <Kbd>J</Kbd> <Kbd>K</Kbd> move through the list · <Kbd>↵</Kbd> open the review
+                    </>
+                  }
+                >
+                  Select a review
+                </PanePlaceholder>
+              ) : null}
             </section>
           </div>
         )}

@@ -7,6 +7,7 @@ import {
   Button,
   ConfirmDialog,
   Dialog,
+  BuildingIcon,
   EmptyState,
   IconButton,
   Menu,
@@ -79,7 +80,22 @@ export function WorkspacesPage() {
       {restore.error ? <Banner tone="danger">{restore.error.message}</Banner> : null}
       <SettingsSection title="All workspaces">
         {data && data.workspaces.length === 0 ? (
-          <EmptyState title="No workspaces yet">
+          <EmptyState
+            icon={<BuildingIcon />}
+            size="section"
+            title="No workspaces yet"
+            action={
+              <Button
+                variant="primary"
+                onClick={() => {
+                  setCreated(null)
+                  setCreating(true)
+                }}
+              >
+                Create workspace
+              </Button>
+            }
+          >
             Create one for an existing account to get started.
           </EmptyState>
         ) : (

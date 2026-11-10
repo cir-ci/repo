@@ -265,7 +265,9 @@ function BranchEditor({
         listLabel="Branches"
         emptyText={
           data
-            ? 'No branch matches; Apply filters by names containing the text'
+            ? text.trim()
+              ? `No branch matches “${text.trim()}”. Press Enter to filter by name.`
+              : 'No branches yet.'
             : 'Loading branches'
         }
       />

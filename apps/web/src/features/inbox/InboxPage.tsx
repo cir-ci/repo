@@ -1,11 +1,13 @@
 import type { Inbox } from '@circi/api'
 import {
+  AlarmClockIcon,
   Avatar,
   Badge,
   Button,
   EmptyState,
   InboxIcon,
   ListRow,
+  NoResults,
   StatusIcon,
   Text,
   useAnnounce,
@@ -15,11 +17,11 @@ import {
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { findIn, useFindParam } from '#lib/find.ts'
-import { FindField, NoMatches } from '#lib/FindField.tsx'
+import { FindField } from '#lib/FindField.tsx'
 import { PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
@@ -163,13 +165,16 @@ export function InboxPage() {
               <div className={styles.split}>
                 <div className={styles.listColumn}>
                   {everything.length > 0 && items.length === 0 ? (
-                    <NoMatches noun="notifications" query={find} />
+                    <NoResults noun="notification" query={find} onClear={() => setFind('')} />
                   ) : items.length === 0 ? (
-                    <div className={styles.emptyList}>
-                      <EmptyState icon={<InboxIcon size={32} />} title={EMPTY[tab].title}>
-                        {EMPTY[tab].text}
-                      </EmptyState>
-                    </div>
+                    <EmptyState
+                      icon={EMPTY[tab].icon}
+                      tone={tab === 'for-you' ? 'success' : 'neutral'}
+                      size={tab === 'for-you' ? 'page' : 'section'}
+                      title={EMPTY[tab].title}
+                    >
+                      {EMPTY[tab].text}
+                    </EmptyState>
                   ) : (
                     <>
                       <span role="status" className={styles.count}>
@@ -225,9 +230,9 @@ export function InboxPage() {
                       onApprove={doApprove}
                       approving={approve.isPending}
                     />
-                  ) : (
+                  ) : items.length > 0 ? (
                     <EmptyPane />
-                  )}
+                  ) : null}
                 </div>
               </div>
             )}
@@ -238,13 +243,18 @@ export function InboxPage() {
   )
 }
 
-const EMPTY: Record<Inbox.Tab, { title: string; text: string }> = {
+const EMPTY: Record<Inbox.Tab, { icon?: ReactNode; title: string; text: string }> = {
   'for-you': {
     title: "You're all caught up",
     text: 'Reviews, mentions and decisions for you appear here.',
   },
-  everything: { title: 'Nothing here yet', text: 'Every notification you get appears here.' },
+  everything: {
+    icon: <InboxIcon />,
+    title: 'Nothing here yet',
+    text: 'Every notification you get appears here.',
+  },
   snoozed: {
+    icon: <AlarmClockIcon />,
     title: 'Nothing snoozed',
     text: 'Notifications you put off wait here until they wake.',
   },

@@ -17,10 +17,3 @@
 .root input {
   padding-left: 30px;
 }
-
-/* No matches: centred in the list's area, in tertiary text. */
-.none {
-  margin: 0;
-  padding: 48px 16px;
-  text-align: center;
-}

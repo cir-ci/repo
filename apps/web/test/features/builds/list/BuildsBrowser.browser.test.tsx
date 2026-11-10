@@ -12,6 +12,7 @@ import { ViewPage } from '#features/views/ViewPage.tsx'
 import { useDisplayStore } from '#lib/stores/display-store.ts'
 import { build } from '#test/features/teams/support.tsx'
 import { mockAuthClient } from '#test/support/auth-client.ts'
+import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi } from '#test/support/fetch.ts'
 import { sidebarModel, sidebarTeam, teamInfo } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
@@ -161,7 +162,10 @@ describe('filters', () => {
   it('says no builds match, and clears the filters from there', async () => {
     api([])
     const { router } = await show('/acme/web?branch=nope')
-    await expect.element(page.getByRole('heading', { name: 'No builds match' })).toBeVisible()
+    await expectEmptyState('No builds match', {
+      body: 'Nothing in web fits these filters.',
+      action: 'Clear filters',
+    })
     expect(page.getByText(/npx circi upload/).elements()).toHaveLength(0)
     await page.getByRole('button', { name: 'Clear filters' }).last().click()
     expect(router.state.location.search).toEqual({})
@@ -459,6 +463,21 @@ describe('ViewPage', () => {
     expect(document.title).toBe('Waiting on me · CirCI')
   })
 
+  it('says builds appear from every team when a view with no team has none', async () => {
+    const everything = { ...view, filters: {}, team: null }
+    fakeApi({
+      'GET /api/workspaces/acme/views': { body: { views: [everything] } },
+      'GET /api/workspaces/acme/builds': {
+        body: { workspace: { slug: 'acme', name: 'Acme Inc' }, builds: [], next: null },
+      },
+      'GET /api/workspaces/acme/sidebar': { body: sidebar() },
+    })
+    await showView()
+    await expectEmptyState('No builds yet', {
+      body: 'Builds from every team in acme appear here.',
+    })
+  })
+
   it("lists every team's builds for a view with no team, and pages with a cursor", async () => {
     const wide = { ...view, filters: { review: 'pending' }, team: null }
     const urls: string[] = []
@@ -594,7 +613,9 @@ describe('the find field', () => {
 
   it('says no builds match the text when it is the only filter', async () => {
     api([])
-    await show('/acme/web?q=zzz')
-    await expect.element(page.getByText('No builds match “zzz”.')).toBeVisible()
+    const { router } = await show('/acme/web?q=zzz')
+    await expectEmptyState('No build matches “zzz”', { action: 'Clear search' })
+    await page.getByRole('button', { name: 'Clear search' }).click()
+    expect(router.state.location.search).toEqual({})
   })
 })

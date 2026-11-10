@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 import { BaselinesPage } from '#features/baselines/BaselinesPage.tsx'
+import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeFetch, json } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -61,7 +62,10 @@ describe('BaselinesPage', () => {
     await expect.element(page.getByRole('link', { name: /checkout/ })).not.toBeInTheDocument()
 
     await userEvent.fill(search, 'zzz')
-    await expect.element(page.getByText('No baselines match “zzz”.')).toBeVisible()
+    await expectEmptyState('No baseline matches “zzz”', { action: 'Clear search' })
+    await page.getByRole('button', { name: 'Clear search' }).click()
+    await expect.element(search).toHaveValue('')
+    await expect.element(page.getByRole('link', { name: /checkout/ }).first()).toBeVisible()
   })
 
   it('keeps the find text in the address, focuses it with / and clears it with Esc', async () => {
@@ -125,16 +129,10 @@ describe('BaselinesPage', () => {
     fakeFetch({ [`GET ${PATH}`]: list([]), [`GET ${FLAKY}`]: noFlaky })
     await open()
     const title = page.getByRole('heading', { name: 'No baselines yet' })
-    await expect.element(title).toBeVisible()
-    await expect
-      .element(
-        page.getByText(
-          'Once a build of main finishes, its screenshots become the baselines new builds are compared against.',
-        ),
-      )
-      .toBeVisible()
-    const icon = title.element().parentElement?.querySelector('svg')
-    expect(icon?.getAttribute('width')).toBe('32')
+    await expectEmptyState('No baselines yet', {
+      body: 'Once a build of main finishes, its screenshots become the baselines.',
+      centred: true,
+    })
     const box = title.element().getBoundingClientRect()
     expect(Math.abs(box.left + box.width / 2 - 1200 / 2)).toBeLessThan(150)
     expect(box.top).toBeGreaterThan(150)

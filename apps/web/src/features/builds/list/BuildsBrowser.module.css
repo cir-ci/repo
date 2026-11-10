@@ -119,18 +119,6 @@ li[data-checked] > * {
   background: var(--circi-surface-overlay);
 }
 
-.command {
-  max-width: 100%;
-  padding: 10px 12px;
-  text-align: left;
-}
-
-.command code {
-  display: block;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-}
-
 @media (max-width: 560px) {
   .row {
     flex-wrap: wrap;

@@ -1,12 +1,12 @@
 import {
   Banner,
+  CommandBlock,
   GlobeIcon,
   EmptyState,
   Heading,
   Link,
   ListRow,
   SectionHeader,
-  Surface,
   Text,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
@@ -64,18 +64,11 @@ export function TeamSitesBody({ workspace, team }: TeamSitesBody.Props) {
               )
             ) : data.sites.length === 0 ? (
               <EmptyState
-                icon={<GlobeIcon size={32} />}
+                icon={<GlobeIcon />}
                 title="No sites yet"
-                action={
-                  <Surface variant="raised" className={styles.code}>
-                    <Text as="code" variant="mono">
-                      {UPLOAD_EXAMPLE}
-                    </Text>
-                  </Surface>
-                }
+                action={<CommandBlock command={UPLOAD_EXAMPLE} />}
               >
-                Upload a built Storybook or report from CI. Hosting also has to be switched on in
-                the team's settings.
+                Upload a built Storybook or report from CI.
               </EmptyState>
             ) : (
               data.sites.map((site) => (

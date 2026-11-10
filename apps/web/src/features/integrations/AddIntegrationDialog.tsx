@@ -90,7 +90,7 @@ export function AddIntegrationDialog(props: AddIntegrationDialog.Props) {
           </div>
           {install.error ? <Banner tone="danger">{install.error.message}</Banner> : null}
           {tiles.length === 0 ? (
-            <Text tone="secondary">No integrations match “{query.trim()}”.</Text>
+            <Text tone="secondary">No integration matches “{query.trim()}”.</Text>
           ) : (
             <ul className={styles.tiles} aria-label="Available integrations">
               {tiles.map((entry, index) => (

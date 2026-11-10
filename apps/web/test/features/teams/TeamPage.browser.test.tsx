@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { TeamPage } from '#features/teams/TeamPage.tsx'
+import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
 import { sidebarModel, sidebarTeam, teamInfo } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
@@ -185,7 +186,11 @@ describe('TeamPage', () => {
   it('guides the first upload when there are no builds', async () => {
     api([])
     await show()
-    await expect.element(page.getByRole('heading', { name: 'No builds yet' })).toBeVisible()
+    await expectEmptyState('No builds yet', {
+      body: 'Builds appear here once your CI uploads screenshots.',
+      action: 'Copy',
+      centred: true,
+    })
     await expect.element(page.getByText(/npx circi upload \.\/screenshots --wait/)).toBeVisible()
     await expect.element(page.getByText(/CIRCI_TOKEN=…/)).toBeVisible()
   })
@@ -254,7 +259,7 @@ describe('TeamPage', () => {
       url: '/acme/web?before=3',
       announcer: true,
     })
-    await expect.element(page.getByRole('heading', { name: 'No older builds' })).toBeVisible()
+    await expectEmptyState('No older builds')
     expect(page.getByText(/npx circi upload/).elements()).toHaveLength(0)
   })
 

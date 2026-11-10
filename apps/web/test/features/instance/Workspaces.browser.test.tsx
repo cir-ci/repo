@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { WorkspacesPage } from '#features/instance/WorkspacesPage.tsx'
+import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -217,7 +218,10 @@ describe('the workspaces page', () => {
   it('shows an empty state', async () => {
     fakeApi({ 'GET /api/instance/workspaces': { body: { workspaces: [] } } })
     await show()
-    await expect.element(page.getByRole('heading', { name: 'No workspaces yet' })).toBeVisible()
+    await expectEmptyState('No workspaces yet', {
+      body: 'Create one for an existing account to get started.',
+      action: 'Create workspace',
+    })
   })
 
   it('creates a workspace for an owner, showing the address it gets', async () => {

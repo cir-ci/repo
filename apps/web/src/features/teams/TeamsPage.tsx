@@ -3,6 +3,7 @@ import {
   Banner,
   Button,
   ListRow,
+  NoResults,
   PlusIcon,
   StatusIcon,
   Text,
@@ -16,7 +17,7 @@ import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { findIn, useFindParam } from '#lib/find.ts'
-import { FindField, NoMatches } from '#lib/FindField.tsx'
+import { FindField } from '#lib/FindField.tsx'
 import { PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
@@ -111,7 +112,11 @@ export function TeamsPage() {
         <QueryBoundary query={query} announce="Loading teams" rows={3}>
           {() =>
             !teams || teams.length === 0 ? (
-              <TeamsEmpty canCreateTeam={canCreateTeam} canCreateWorkspace={canCreateWorkspace} />
+              <TeamsEmpty
+                canCreateTeam={canCreateTeam}
+                canCreateWorkspace={canCreateWorkspace}
+                hasWorkspace={workspace !== undefined}
+              />
             ) : (
               <>
                 <div className={styles.head} aria-hidden="true">
@@ -121,7 +126,9 @@ export function TeamsPage() {
                   <span className={styles.changes}>Changes</span>
                   <span className={styles.updated}>Updated</span>
                 </div>
-                {shown.length === 0 ? <NoMatches noun="teams" query={find} /> : null}
+                {shown.length === 0 ? (
+                  <NoResults noun="team" query={find} onClear={() => setFind('')} />
+                ) : null}
                 <ul aria-label="Teams" className={styles.list}>
                   {shown.map(({ workspace: owner, team, latestBuild }) => {
                     const state = latestBuild ? buildState(latestBuild) : null

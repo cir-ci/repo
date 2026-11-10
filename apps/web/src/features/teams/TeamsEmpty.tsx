@@ -1,68 +1,72 @@
-import { Button, EmptyState, FolderOpenIcon, PlusIcon, Ref, Text } from '@circi/ui'
+import { BuildingIcon, Button, EmptyState, LayersIcon, Ref, Text } from '@circi/ui'
 
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 
 import styles from './TeamsEmpty.module.css'
 
 /**
- * The Teams page with no team yet (the canvas's "Teams, none yet" board): create the first team,
- * and, for people coming from Argos, the one variable that points the Argos SDK at this server.
- * Without the right to create teams it says what to do instead.
+ * The Teams page with no team yet (the canvas's "Empty states · Teams" board): one empty state
+ * for what the person can do about it. Owners and admins create the first team, and, for people
+ * coming from Argos, a footnote gives the one variable that points the Argos SDK at this server.
+ * Everyone else is told whom to ask, with no button.
  */
-export function TeamsEmpty({ canCreateTeam, canCreateWorkspace }: TeamsEmpty.Props) {
+export function TeamsEmpty({ canCreateTeam, canCreateWorkspace, hasWorkspace }: TeamsEmpty.Props) {
   const setNewTeamOpen = useOverlayStore((s) => s.setNewTeamOpen)
   const setNewWorkspaceOpen = useOverlayStore((s) => s.setNewWorkspaceOpen)
 
-  if (!canCreateTeam) {
+  if (canCreateTeam) {
     return (
-      <EmptyState
-        icon={<FolderOpenIcon size={32} />}
-        title="Create your first team"
-        action={
-          canCreateWorkspace ? (
-            <Button variant="primary" onClick={() => setNewWorkspaceOpen(true)}>
-              New workspace
+      <div className={styles.root}>
+        <EmptyState
+          icon={<LayersIcon />}
+          title="Create your first team"
+          className={styles.top}
+          action={
+            <Button variant="primary" onClick={() => setNewTeamOpen(true)}>
+              New team
             </Button>
-          ) : undefined
+          }
+        >
+          A team is one app or library whose screenshots your CI uploads.
+        </EmptyState>
+        <div className={styles.argos}>
+          <Text as="p" variant="small" tone="secondary">
+            Already uploading with Argos? Point the Argos SDK at this server:
+          </Text>
+          <Ref
+            value={`ARGOS_API_BASE_URL=${location.origin}/v2`}
+            label="Argos address"
+            className={styles.code}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  if (!hasWorkspace) {
+    return canCreateWorkspace ? (
+      <EmptyState
+        icon={<BuildingIcon />}
+        title="Create a workspace"
+        action={
+          <Button variant="primary" onClick={() => setNewWorkspaceOpen(true)}>
+            New workspace
+          </Button>
         }
       >
-        {canCreateWorkspace
-          ? 'Create a workspace first, then add a team to it.'
-          : "You aren't an owner or admin of any workspace yet. Ask one to add you, or to create a team."}
+        A workspace holds your teams and members.
+      </EmptyState>
+    ) : (
+      <EmptyState icon={<BuildingIcon />} title="No workspace yet">
+        Ask an owner to add you to one.
       </EmptyState>
     )
   }
 
   return (
-    <section className={styles.root} aria-labelledby="teams-empty-title">
-      <span className={styles.mark} aria-hidden="true">
-        <FolderOpenIcon size={20} />
-      </span>
-      <h2 id="teams-empty-title" className={styles.title}>
-        Create your first team
-      </h2>
-      <Text as="p" tone="secondary">
-        A team is one app or component library whose screenshots your CI uploads. Each gets its own
-        baselines, reviews and CI token.
-      </Text>
-      <Button variant="primary" onClick={() => setNewTeamOpen(true)}>
-        <PlusIcon size={14} />
-        New team
-      </Button>
-      <div className={styles.argos}>
-        <Text as="p" tone="secondary">
-          Already uploading with Argos? Point the Argos SDK at this server:
-        </Text>
-        <Ref
-          value={`ARGOS_API_BASE_URL=${location.origin}/v2`}
-          label="Argos address"
-          className={styles.code}
-        />
-        <Text as="p" variant="small" tone="tertiary">
-          Its token is the team's CI token, so create the team first.
-        </Text>
-      </div>
-    </section>
+    <EmptyState icon={<LayersIcon />} title="No teams yet">
+      Ask an owner or admin to create one.
+    </EmptyState>
   )
 }
 
@@ -70,5 +74,7 @@ export namespace TeamsEmpty {
   export interface Props {
     canCreateTeam: boolean
     canCreateWorkspace: boolean
+    /** Whether the person belongs to a workspace at all. */
+    hasWorkspace: boolean
   }
 }

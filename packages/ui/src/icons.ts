@@ -142,6 +142,19 @@ import {
   Sun,
   UserPlus,
   Webhook,
+  AlarmClock,
+  ChartNoAxesColumn,
+  CheckCheck,
+  Frame,
+  GitPullRequest,
+  HardDrive,
+  History,
+  Images as ImagesGlyph,
+  MessageSquare,
+  Plug,
+  Send,
+  Settings2,
+  SquareDashed,
 } from 'lucide-react'
 
 export const ActivityIcon = icon(Activity, 'ActivityIcon')
@@ -167,3 +180,18 @@ export const SlidersIcon = icon(SlidersHorizontal, 'SlidersIcon')
 export const SunIcon = icon(Sun, 'SunIcon')
 export const UserPlusIcon = icon(UserPlus, 'UserPlusIcon')
 export const WebhookIcon = icon(Webhook, 'WebhookIcon')
+
+// The empty states' icons (docs/design-gaps.md §5): Lucide, drawn at 32px by `EmptyState`.
+export const AlarmClockIcon = icon(AlarmClock, 'AlarmClockIcon')
+export const ChartNoAxesColumnIcon = icon(ChartNoAxesColumn, 'ChartNoAxesColumnIcon')
+export const CheckCheckIcon = icon(CheckCheck, 'CheckCheckIcon')
+export const FrameIcon = icon(Frame, 'FrameIcon')
+export const PullRequestIcon = icon(GitPullRequest, 'PullRequestIcon')
+export const HardDriveIcon = icon(HardDrive, 'HardDriveIcon')
+export const HistoryIcon = icon(History, 'HistoryIcon')
+export const ImagesIcon = icon(ImagesGlyph, 'ImagesIcon')
+export const MessageSquareIcon = icon(MessageSquare, 'MessageSquareIcon')
+export const PlugIcon = icon(Plug, 'PlugIcon')
+export const SendIcon = icon(Send, 'SendIcon')
+export const Settings2Icon = icon(Settings2, 'Settings2Icon')
+export const SquareDashedIcon = icon(SquareDashed, 'SquareDashedIcon')

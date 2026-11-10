@@ -9,6 +9,7 @@ vi.mock('#lib/auth-client.ts', () =>
 import { validateReviewsSearch } from '#features/reviews/api.ts'
 import { ReviewsPage } from '#features/reviews/ReviewsPage.tsx'
 import { mockAuthClient } from '#test/support/auth-client.ts'
+import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -244,15 +245,36 @@ describe('ReviewsPage', () => {
   it('says nothing waits on you, in the list and in the panel', async () => {
     fakeApi({ 'GET /api/reviews': { body: { tab: 'for-you', requests: [] } } })
     await show()
-    await expect.element(page.getByText('Nothing waiting on you')).toBeVisible()
-    await expect.element(page.getByText('All caught up')).toBeVisible()
-    await expect.element(page.getByText(/move through the list/)).toBeVisible()
+    await expectEmptyState('Nothing waiting on you', {
+      body: 'When a build needs your review, it shows up here and in the sidebar count.',
+      tone: 'success',
+    })
+    // An empty list leaves the panel blank: no "Select a review", no hint.
+    await expect.element(page.getByText('Select a review')).not.toBeInTheDocument()
+    await expect.element(page.getByText(/move through the list/)).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['created', 'No requests from you', 'Reviews you ask others for appear here.'],
+    [
+      'reviewed',
+      'Nothing reviewed yet',
+      'Requests you approve or reject show up here, latest first.',
+    ],
+    ['all-open', 'No open reviews', 'Every open review request in acme appears here.'],
+    ['snoozed', 'Nothing snoozed', 'Requests you put off wait here until they wake.'],
+  ])('says what the %s tab holds when it is empty', async (tab, title, body) => {
+    fakeApi({ 'GET /api/reviews': { body: { tab, requests: [] } } })
+    await show(`/workspaces/acme/reviews?tab=${tab}`)
+    await expectEmptyState(title, { body })
   })
 
   it('shows the empty state per tab, a loading state and an error with retry', async () => {
     fakeApi({ 'GET /api/reviews': { body: { tab: 'snoozed', requests: [] } } })
     await show('/workspaces/acme/reviews?tab=snoozed')
-    await expect.element(page.getByText('Nothing snoozed')).toBeVisible()
+    await expectEmptyState('Nothing snoozed', {
+      body: 'Requests you put off wait here until they wake.',
+    })
 
     fakeApi({ 'GET /api/reviews': { status: 500, body: { error: 'Boom' } } })
     await show()
@@ -446,6 +468,9 @@ describe('ReviewsPage requests you made', () => {
     await show()
     await expect.element(page.getByRole('link', { name: /Build #12 · storybook/ })).toBeVisible()
     await expect.element(page.getByText('Select a review')).toBeVisible()
+    await expect
+      .element(page.getByText('Pick a build from the list to read it here.'))
+      .toBeVisible()
     await expect.element(page.getByRole('link', { name: 'acme' })).toBeVisible()
     expect(document.body.textContent).toContain('↵ open the review')
   })
@@ -485,7 +510,10 @@ describe('ReviewsPage find field', () => {
     await userEvent.fill(find, 'docs')
     await expect.element(page.getByRole('link', { name: /Build #13/ })).toBeVisible()
     await userEvent.fill(find, 'nobody')
-    await expect.element(page.getByText('No reviews match “nobody”.')).toBeVisible()
+    await expectEmptyState('No review matches “nobody”', { action: 'Clear search' })
+    await page.getByRole('button', { name: 'Clear search' }).click()
+    await expect.element(find).toHaveValue('')
+    await userEvent.fill(find, 'nobody')
     await userEvent.keyboard('{Escape}')
     await expect.element(find).toHaveValue('')
     await expect.element(page.getByRole('link', { name: /Build #12/ })).toBeVisible()

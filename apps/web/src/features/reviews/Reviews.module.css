@@ -289,33 +289,6 @@
   white-space: nowrap;
 }
 
-.empty {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: center;
-  margin: auto;
-  padding: 64px 24px;
-  text-align: center;
-}
-
-.emptyTitle {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.emptyText {
-  max-width: 340px;
-  margin: 0;
-  color: var(--circi-text-secondary);
-}
-
-.hints {
-  color: var(--circi-text-tertiary);
-  font-size: 12px;
-}
-
 @media (max-width: 720px) {
   .layout {
     flex-direction: column;

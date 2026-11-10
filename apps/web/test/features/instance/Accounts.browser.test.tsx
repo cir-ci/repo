@@ -3,6 +3,7 @@ import { page } from 'vitest/browser'
 
 import { AccountsPage } from '#features/instance/AccountsPage.tsx'
 import { clipboard } from '#features/instance/api/admin.ts'
+import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -111,7 +112,19 @@ describe('the accounts page', () => {
   it('shows an empty state for a search with no match', async () => {
     fakeApi({ 'GET /api/instance/accounts': { body: accountList([]) } })
     await show()
-    await expect.element(page.getByRole('heading', { name: 'No accounts found' })).toBeVisible()
+    await expectEmptyState('No accounts yet', {
+      body: 'Create one to get started.',
+      action: 'Create account',
+    })
+  })
+
+  it('shows the no-results state for a search with nothing found, and clears it', async () => {
+    fakeApi({ 'GET /api/instance/accounts': { body: accountList([]) } })
+    await show()
+    await page.getByRole('searchbox', { name: 'Search accounts' }).fill('dana')
+    await expectEmptyState('No account matches “dana”', { action: 'Clear search' })
+    await page.getByRole('button', { name: 'Clear search' }).click()
+    await expect.element(page.getByRole('searchbox', { name: 'Search accounts' })).toHaveValue('')
   })
 })
 

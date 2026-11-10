@@ -8,12 +8,14 @@ import {
   IconButton,
   ListRow,
   Menu,
+  NoResults,
   RowMenuIcon,
   Select,
   SettingsPage,
   SettingsSection,
   Text,
   useAnnounce,
+  UsersIcon,
 } from '@circi/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
@@ -25,7 +27,7 @@ import { authClient } from '#lib/auth-client.ts'
 import { workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { findIn, useFindParam } from '#lib/find.ts'
-import { FindField, NoMatches } from '#lib/FindField.tsx'
+import { FindField } from '#lib/FindField.tsx'
 import { settingsCrumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
@@ -147,7 +149,14 @@ export function MembersPage() {
                 description={peopleCount(loaded.members.length)}
                 bare
               >
-                {shownMembers.length === 0 ? <NoMatches noun="members" query={find} /> : null}
+                {shownMembers.length === 0 ? (
+                  <NoResults
+                    noun="member"
+                    query={find}
+                    onClear={() => setFind('')}
+                    size="section"
+                  />
+                ) : null}
                 <div className={styles.list}>
                   {shownMembers.map((m) => {
                     const isMe = m.userId === session?.user.id
@@ -246,8 +255,8 @@ export function MembersPage() {
                   })}
                 </div>
                 {canManage && loaded.members.length === 1 ? (
-                  <EmptyState title="No one else is here yet">
-                    Invite a teammate above, or let a verified email domain add people.
+                  <EmptyState icon={<UsersIcon />} size="section" title="No one else is here yet">
+                    Invite a teammate, or let a verified email domain add people.
                   </EmptyState>
                 ) : null}
               </SettingsSection>

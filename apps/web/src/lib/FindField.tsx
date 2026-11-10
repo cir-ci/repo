@@ -1,4 +1,4 @@
-import { SearchIcon, TextField, Text } from '@circi/ui'
+import { SearchIcon, TextField } from '@circi/ui'
 import { type KeyboardEvent, useEffect, useRef } from 'react'
 
 import { isHandledElsewhere } from '#lib/shortcuts.ts'
@@ -65,25 +65,5 @@ export namespace FindField {
     value: string
     onChange: (next: string) => void
     className?: string
-  }
-}
-
-/**
- * What a list says when the find text matches nothing: centred, tertiary, and the text in the
- * words of the page ("No baselines match “x”.").
- */
-export function NoMatches({ noun, query }: NoMatches.Props) {
-  return (
-    <Text as="p" tone="tertiary" role="status" className={styles.none}>
-      No {noun} match “{query.trim()}”.
-    </Text>
-  )
-}
-
-export namespace NoMatches {
-  export interface Props {
-    /** Plural, lower case: "baselines" ("No baselines match “x”."). */
-    noun: string
-    query: string
   }
 }

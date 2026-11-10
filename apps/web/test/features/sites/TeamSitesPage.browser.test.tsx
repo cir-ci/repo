@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { TeamSitesPage } from '#features/sites/TeamSitesPage.tsx'
+import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeFetch, json, pending } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -113,8 +114,14 @@ describe('TeamSitesPage', () => {
   it('shows an empty state with the upload command', async () => {
     fakeFetch({ [API]: list([]) })
     await open()
-    await expect.element(page.getByRole('heading', { name: 'No sites yet' })).toBeVisible()
+    const root = await expectEmptyState('No sites yet', {
+      body: 'Upload a built Storybook or report from CI.',
+      action: 'Copy',
+    })
     await expect.element(page.getByText(/npx circi storybook upload/)).toBeVisible()
+    // Settings aren't linked from an app page.
+    expect(root.querySelector('a')).toBeNull()
+    expect(root.textContent).not.toMatch(/settings/i)
   })
 
   it('says the team does not exist for a 404', async () => {

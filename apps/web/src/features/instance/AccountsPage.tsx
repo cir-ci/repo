@@ -14,10 +14,11 @@ import {
   ListRow,
   Menu,
   RowMenuIcon,
-  SearchIcon,
+  NoResults,
   SegmentedControl,
   SettingsSection,
   Text,
+  UsersIcon,
   TextField,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
@@ -122,9 +123,37 @@ export function AccountsPage() {
       >
         <div className={styles.box}>
           {data && data.accounts.length === 0 ? (
-            <EmptyState icon={<SearchIcon size={32} />} title="No accounts found">
-              {q ? `Nothing matches “${q}”.` : 'There are no accounts yet.'}
-            </EmptyState>
+            q ? (
+              <NoResults
+                noun="account"
+                query={q}
+                size="section"
+                onClear={() => {
+                  setTyped('')
+                  setQ('')
+                  setPage(1)
+                }}
+              />
+            ) : (
+              <EmptyState
+                icon={<UsersIcon />}
+                size="section"
+                title="No accounts yet"
+                action={
+                  <Button
+                    variant="primary"
+                    onClick={() => {
+                      setDone(null)
+                      setCreating(true)
+                    }}
+                  >
+                    Create account
+                  </Button>
+                }
+              >
+                Create one to get started.
+              </EmptyState>
+            )
           ) : (
             <ul className={styles.list} aria-label="Accounts" aria-busy={isFetching}>
               {data?.accounts.map((account) => (

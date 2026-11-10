@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
+import { expectEmptyState } from '#test/support/empty-state.ts'
+
 import { decision, detail, fakeBuildApi, renderBuild, shot } from './fake-build-api.tsx'
 
 beforeEach(async () => {
@@ -187,6 +189,15 @@ describe('j and k with collapsed groups', () => {
 })
 
 describe('comments', () => {
+  it('invites the first comment, without a button', async () => {
+    fakeBuildApi(detail())
+    await renderBuild()
+    await userEvent.keyboard('c')
+    await expectEmptyState('No comments yet', {
+      body: 'Press C to write one, or drag over a screenshot to comment on a region.',
+    })
+  })
+
   it('c opens Comments with the field focused, and @ suggests members', async () => {
     const api = fakeBuildApi(detail())
     api.members = [ada, grace]

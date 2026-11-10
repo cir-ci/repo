@@ -4,7 +4,9 @@ import {
   Button,
   ChevronRightIcon,
   EmptyState,
+  LayersIcon,
   ListRow,
+  NoResults,
   PlusIcon,
   Text,
 } from '@circi/ui'
@@ -16,7 +18,7 @@ import { MemberStack } from '#features/teams/AvatarStack.tsx'
 import { settingsCrumbsFor, workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { useFindParam } from '#lib/find.ts'
-import { FindField, NoMatches } from '#lib/FindField.tsx'
+import { FindField } from '#lib/FindField.tsx'
 import { PageFrame } from '#lib/PageFrame.tsx'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
@@ -64,9 +66,24 @@ export function TeamsSettingsPage() {
         ) : null}
       </div>
       {shown.length === 0 && search.trim() ? (
-        <NoMatches noun="teams" query={search} />
+        <NoResults noun="team" query={search} onClear={() => setSearch('')} size="section" />
       ) : shown.length === 0 ? (
-        <EmptyState title="No teams yet" />
+        <EmptyState
+          icon={<LayersIcon />}
+          size="section"
+          title="No teams yet"
+          action={
+            canManage ? (
+              <Button variant="primary" onClick={() => setNewTeamOpen(true)}>
+                New team
+              </Button>
+            ) : undefined
+          }
+        >
+          {canManage
+            ? 'Create a team to start uploading screenshots.'
+            : 'Ask an owner or admin to create one.'}
+        </EmptyState>
       ) : (
         <ul aria-label="Teams" className={styles.list}>
           {shown.map(({ team, workspace: owner }) => (

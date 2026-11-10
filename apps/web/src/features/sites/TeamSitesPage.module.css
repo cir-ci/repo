@@ -29,16 +29,3 @@
 .list > :last-child {
   border-bottom: 0;
 }
-
-.code {
-  box-sizing: border-box;
-  max-width: 100%;
-  padding: 10px 12px;
-  border-radius: 6px;
-  overflow-x: auto;
-  text-align: left;
-}
-
-.code code {
-  white-space: pre;
-}

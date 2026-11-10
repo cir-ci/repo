@@ -3,6 +3,7 @@ import { page } from 'vitest/browser'
 
 import { AddIntegrationDialog } from '#features/integrations/AddIntegrationDialog.tsx'
 import { IntegrationsPage } from '#features/integrations/IntegrationsPage.tsx'
+import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -60,13 +61,16 @@ describe('IntegrationsPage', () => {
     await page.viewport(1000, 800)
     fakeApi({ [`GET ${LIST}`]: list() })
     await show()
-    await expect.element(page.getByText('No integrations yet')).toBeVisible()
+    await expectEmptyState('No integrations yet', {
+      body: 'Add a git host so pull requests show their visual review status.',
+      action: 'Add integration',
+    })
     await expect
       .element(page.getByRole('heading', { level: 1, name: 'Integrations' }))
       .toBeVisible()
     expect(page.getByRole('heading', { level: 1 }).elements()).toHaveLength(1)
-    // One Add button, in the header: the empty state doesn't repeat it.
-    expect(page.getByRole('button', { name: 'Add integration' }).elements()).toHaveLength(1)
+    // The empty state repeats the header's Add button.
+    expect(page.getByRole('button', { name: 'Add integration' }).elements()).toHaveLength(2)
   })
 
   it('sends members to Members instead of showing the list', async () => {
@@ -88,7 +92,15 @@ describe('IntegrationsPage', () => {
     await page.viewport(1000, 800)
     fakeApi({ [`GET ${LIST}`]: list() })
     await show()
-    await page.getByRole('button', { name: 'Add integration' }).click()
+    await page.getByRole('button', { name: 'Add integration' }).first().click()
+    await expect.element(page.getByRole('dialog', { name: 'Add an integration' })).toBeVisible()
+  })
+
+  it('opens the same dialog from the empty state', async () => {
+    await page.viewport(1000, 800)
+    fakeApi({ [`GET ${LIST}`]: list() })
+    await show()
+    await page.getByRole('button', { name: 'Add integration' }).last().click()
     await expect.element(page.getByRole('dialog', { name: 'Add an integration' })).toBeVisible()
   })
 })
@@ -140,7 +152,7 @@ describe('AddIntegrationDialog', () => {
     await expect.element(tiles.getByRole('listitem')).toHaveLength(2)
     await expect.element(tiles.getByText('Microsoft Teams')).toBeVisible()
     await page.getByRole('searchbox', { name: 'Search integrations' }).fill('zzz')
-    await expect.element(page.getByText(/No integrations match/)).toBeVisible()
+    await expect.element(page.getByText(/No integration matches/)).toBeVisible()
   })
 
   it('disables planned tiles, and tiles this server cannot connect', async () => {

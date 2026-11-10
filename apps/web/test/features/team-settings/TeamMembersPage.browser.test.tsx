@@ -8,6 +8,7 @@ vi.mock('#lib/auth-client.ts', () =>
 
 import { TeamMembersPage } from '#features/team-settings/TeamMembersPage.tsx'
 import { mockAuthClient } from '#test/support/auth-client.ts'
+import { expectEmptyState } from '#test/support/empty-state.ts'
 import { overview } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -223,7 +224,7 @@ describe('the Members find field', () => {
     await userEvent.fill(find, 'admin')
     await expect.element(list.getByText('Grace Hopper')).toBeVisible()
     await userEvent.fill(find, 'zzz')
-    await expect.element(page.getByText('No members match “zzz”.')).toBeVisible()
+    await expectEmptyState('No member matches “zzz”', { action: 'Clear search' })
     await userEvent.keyboard('{Escape}')
     await expect.element(find).toHaveValue('')
     await expect.element(list.getByText('Ada Lovelace')).toBeVisible()

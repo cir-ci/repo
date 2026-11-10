@@ -5,6 +5,7 @@ import {
   ConfirmDialog,
   Dialog,
   EmptyState,
+  Settings2Icon,
   Heading,
   Text,
   useAnnounce,
@@ -147,7 +148,7 @@ export function GenericIntegrationPage() {
           ) : null}
 
           {spec === null ? (
-            <EmptyState title="Nothing to set up">
+            <EmptyState icon={<Settings2Icon />} size="section" title="Nothing to set up">
               {data.definition.name} has no per-team settings.
             </EmptyState>
           ) : (

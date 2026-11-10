@@ -2,6 +2,7 @@ import {
   Banner,
   Button,
   EmptyState,
+  HardDriveIcon,
   NumberField,
   SettingsRow,
   SettingsSection,
@@ -84,7 +85,7 @@ export function WorkspaceStoragePage() {
 
           <SettingsSection title="By team" bare={data.teams.length === 0}>
             {data.teams.length === 0 ? (
-              <EmptyState title="Nothing stored yet">
+              <EmptyState icon={<HardDriveIcon />} size="section" title="Nothing stored yet">
                 Upload a build to see its size here.
               </EmptyState>
             ) : (

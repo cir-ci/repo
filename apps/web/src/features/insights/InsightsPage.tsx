@@ -1,4 +1,11 @@
-import { Avatar, EmptyState, SegmentedControl, Select, Text } from '@circi/ui'
+import {
+  Avatar,
+  ChartNoAxesColumnIcon,
+  EmptyState,
+  SegmentedControl,
+  Select,
+  Text,
+} from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 
@@ -80,7 +87,7 @@ export function InsightsPage() {
           {(data) => {
             const flaky = flakyDelta(data.weeks)
             return isEmpty(data) ? (
-              <EmptyState title="No data yet">
+              <EmptyState icon={<ChartNoAxesColumnIcon />} title="No data yet">
                 Nothing was built or reviewed in the last {search.range} days. Try a longer range.
               </EmptyState>
             ) : (

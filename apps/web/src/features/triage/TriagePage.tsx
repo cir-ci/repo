@@ -6,6 +6,7 @@ import {
   EmptyState,
   ExpandMoreIcon,
   ListRow,
+  NoResults,
   Pane,
   StatusIcon,
   Text,
@@ -21,7 +22,7 @@ import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { findIn, useFindParam } from '#lib/find.ts'
-import { FindField, NoMatches } from '#lib/FindField.tsx'
+import { FindField } from '#lib/FindField.tsx'
 import { focusRow, leavesKeyToFocus, nextAfterRemoval } from '#lib/list-keys.ts'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
@@ -190,16 +191,15 @@ export function TriagePage() {
             {() =>
               total.length === 0 ? (
                 <div className={styles.empty}>
-                  <EmptyState
-                    icon={<StatusIcon status="approved" size={32} decorative />}
-                    title="Triage is clear"
-                  >
+                  <EmptyState tone="success" title="Triage is clear">
                     Flaky screenshots, missing baselines and failed builds on the default branch
                     appear here.
                   </EmptyState>
                 </div>
               ) : items.length === 0 ? (
-                <NoMatches noun="triage items" query={find} />
+                <div className={styles.empty}>
+                  <NoResults noun="triage item" query={find} onClear={() => setFind('')} />
+                </div>
               ) : (
                 <>
                   {failed ? (

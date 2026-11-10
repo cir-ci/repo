@@ -4,13 +4,34 @@
   align-items: center;
   gap: 8px;
   box-sizing: border-box;
-  padding: 40px 24px;
+  padding: 48px 24px;
   text-align: center;
+}
+
+/* A page empty state fills the content area below the header and filters, and centres in it. */
+.root[data-size='page'] {
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+.root[data-size='section'] {
+  padding: 32px 24px;
 }
 
 .icon {
   display: inline-flex;
   color: var(--circi-text-tertiary);
+}
+
+/* Whatever size an icon was made at, an empty state draws it at 32px with a light stroke. */
+.icon svg {
+  width: 32px;
+  height: 32px;
+  stroke-width: 1.5;
+}
+
+.root[data-tone='success'] .icon {
+  color: var(--circi-state-approved);
 }
 
 .root[data-tone='failed'] .icon {
@@ -39,5 +60,36 @@
 }
 
 .action {
+  display: flex;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
   margin-top: 8px;
+}
+
+.pane {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.paneLine {
+  max-width: 360px;
+  margin: 0;
+  color: var(--circi-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.paneHint {
+  margin: 0;
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
 }

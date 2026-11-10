@@ -1,4 +1,4 @@
-import { Badge, EmptyState, ListRow, Text } from '@circi/ui'
+import { Badge, EmptyState, ListRow, SquareDashedIcon, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
@@ -34,7 +34,7 @@ function Overview({ workspace, team }: Overview.Props) {
   return (
     <>
       {shots.length === 0 ? (
-        <EmptyState title="No ignore regions yet">
+        <EmptyState icon={<SquareDashedIcon />} size="section" title="No ignore regions yet">
           Add one from a screenshot's baseline page.
         </EmptyState>
       ) : (

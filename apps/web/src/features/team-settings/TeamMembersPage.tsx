@@ -6,6 +6,7 @@ import {
   Checkbox,
   ConfirmDialog,
   FormDialog,
+  NoResults,
   PlusIcon,
   Text,
   TextField,
@@ -23,7 +24,7 @@ import {
 } from '#features/teams/api/members.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { findIn, useFindParam } from '#lib/find.ts'
-import { FindField, NoMatches } from '#lib/FindField.tsx'
+import { FindField } from '#lib/FindField.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 
 import { addCandidates, addLabel, removalText, ROLE_LABEL } from './members-model.ts'
@@ -78,7 +79,9 @@ function Members({ workspace, team, teamName }: Members.Props) {
             ) : null}
           </div>
           {remove.error ? <Banner tone="danger">{remove.error.message}</Banner> : null}
-          {shown(members).length === 0 ? <NoMatches noun="members" query={find} /> : null}
+          {shown(members).length === 0 ? (
+            <NoResults noun="member" query={find} onClear={() => setFind('')} size="section" />
+          ) : null}
           <ul aria-label="Team members" className={styles.list}>
             {shown(members).map((m) => {
               const you = m.id === me

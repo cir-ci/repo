@@ -1,5 +1,5 @@
 import type { Comment } from '@circi/api'
-import { Avatar, Banner, Button, EmptyState, ReviewIcon, Text, useAnnounce } from '@circi/ui'
+import { Avatar, Banner, Button, EmptyState, MessageSquareIcon, Text, useAnnounce } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Fragment, type Ref, useEffect, useRef, useState } from 'react'
 
@@ -64,7 +64,7 @@ export function CommentsTab(props: CommentsTab.Props) {
           Loading comments…
         </Text>
       ) : threads.length === 0 ? (
-        <EmptyState icon={<ReviewIcon size={28} />} title="No comments yet">
+        <EmptyState icon={<MessageSquareIcon />} size="section" title="No comments yet">
           Press C to write one, or drag over a screenshot to comment on a region.
         </EmptyState>
       ) : (

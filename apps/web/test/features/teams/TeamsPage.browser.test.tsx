@@ -4,6 +4,7 @@ import { page, userEvent } from 'vitest/browser'
 import { TeamDialogs } from '#features/teams/TeamDialogs.tsx'
 import { TeamsPage } from '#features/teams/TeamsPage.tsx'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
+import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -164,10 +165,13 @@ describe('TeamsPage', () => {
       },
     })
     await show()
-    await expect
-      .element(page.getByRole('heading', { name: 'Create your first team' }))
-      .toBeVisible()
-    await expect.element(page.getByText(/A team is one app or component library/)).toBeVisible()
+    await expectEmptyState('Create your first team', {
+      body: 'A team is one app or library whose screenshots your CI uploads.',
+      action: 'New team',
+      centred: true,
+    })
+    // The Argos hint is a footnote below the state, not a second action.
+    await expect.element(page.getByText(/Already uploading with Argos\?/)).toBeVisible()
     await expect.element(page.getByText(/ARGOS_API_BASE_URL=/)).toBeVisible()
     await expect
       .poll(() => page.getByRole('button', { name: 'New team' }).elements().length)
@@ -180,9 +184,11 @@ describe('TeamsPage', () => {
       'GET /api/capabilities': { body: caps({ canCreateWorkspace: true }) },
     })
     await show()
-    await expect
-      .element(page.getByText('Create a workspace first, then add a team to it.'))
-      .toBeVisible()
+    await expectEmptyState('Create a workspace', {
+      body: 'A workspace holds your teams and members.',
+      action: 'New workspace',
+      centred: true,
+    })
     await expect
       .poll(() => page.getByRole('button', { name: 'New workspace' }).elements().length)
       .toBe(1)
@@ -195,7 +201,17 @@ describe('TeamsPage', () => {
       'GET /api/capabilities': { body: caps() },
     })
     await show()
-    await expect.element(page.getByText(/Ask one to add you/)).toBeVisible()
+    await expectEmptyState('No workspace yet', { body: 'Ask an owner to add you to one.' })
+    expect(page.getByRole('button', { name: /New/ }).elements()).toHaveLength(0)
+  })
+
+  it('tells a member of a workspace with no teams to ask for one, without a button', async () => {
+    fakeApi({
+      'GET /api/teams': { body: { teams: [] } },
+      'GET /api/capabilities': { body: caps() },
+    })
+    await renderPage(<TeamsPage />, { route: '/$workspace', url: '/acme', announcer: true })
+    await expectEmptyState('No teams yet', { body: 'Ask an owner or admin to create one.' })
     expect(page.getByRole('button', { name: /New/ }).elements()).toHaveLength(0)
   })
 
@@ -296,7 +312,10 @@ describe('TeamsPage', () => {
     await userEvent.fill(find, 'acme/web')
     await expect.element(list.getByText('acme/web-app')).toBeVisible()
     await userEvent.fill(find, 'zzz')
-    await expect.element(page.getByText('No teams match “zzz”.')).toBeVisible()
+    await expectEmptyState('No team matches “zzz”', { action: 'Clear search' })
+    await page.getByRole('button', { name: 'Clear search' }).click()
+    await expect.element(find).toHaveValue('')
+    await userEvent.fill(find, 'zzz')
     await userEvent.keyboard('{Escape}')
     await expect.element(find).toHaveValue('')
     await expect.element(list.getByText('acme/storybook')).toBeVisible()

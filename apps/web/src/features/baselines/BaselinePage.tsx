@@ -1,4 +1,13 @@
-import { Button, EmptyState, Heading, ListRow, SettingsPage, StatusIcon, Text } from '@circi/ui'
+import {
+  Button,
+  EmptyState,
+  Heading,
+  HistoryIcon,
+  ListRow,
+  SettingsPage,
+  StatusIcon,
+  Text,
+} from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useId } from 'react'
@@ -181,7 +190,11 @@ function History({ workspace, team, name, defaultBranch, inSettings }: History.P
   if (!data) return <QuerySkeleton rows={2} />
   const changes = changesOf(data.default)
   if (changes.length === 0) {
-    return <EmptyState title={`No changes in the recent builds on ${defaultBranch}`} />
+    return (
+      <EmptyState icon={<HistoryIcon />} size="section" title="No recent changes">
+        {`Recent builds on ${defaultBranch} haven't changed this screenshot.`}
+      </EmptyState>
+    )
   }
   return (
     <ul aria-label={`Recent changes of ${name}`} className={styles.rows}>

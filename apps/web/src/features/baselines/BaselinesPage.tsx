@@ -1,5 +1,5 @@
 import type { Baseline } from '@circi/api'
-import { EmptyState, ImageIcon, ListRow, StatusIcon, Text } from '@circi/ui'
+import { EmptyState, ImagesIcon, ListRow, NoResults, StatusIcon, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -8,7 +8,7 @@ import { flakyQuery } from '#features/teams/api/index.ts'
 import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { useFindParam } from '#lib/find.ts'
-import { FindField, NoMatches } from '#lib/FindField.tsx'
+import { FindField } from '#lib/FindField.tsx'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { Age } from '#lib/RelativeTime.tsx'
@@ -78,9 +78,9 @@ export function BaselinesPage() {
           {(loaded) =>
             all.length === 0 ? (
               <div className={styles.empty}>
-                <EmptyState icon={<ImageIcon size={32} />} title="No baselines yet">
+                <EmptyState icon={<ImagesIcon />} title="No baselines yet">
                   Once a build of {loaded.team.defaultBranch} finishes, its screenshots become the
-                  baselines new builds are compared against.
+                  baselines.
                 </EmptyState>
               </div>
             ) : (
@@ -92,7 +92,9 @@ export function BaselinesPage() {
                   <span className={styles.flag} />
                 </div>
                 {items.length === 0 ? (
-                  <NoMatches noun="baselines" query={filter} />
+                  <div className={styles.empty}>
+                    <NoResults noun="baseline" query={filter} onClear={() => setFilter('')} />
+                  </div>
                 ) : (
                   <div className={styles.groups} ref={listRef}>
                     {groups.map((group) => {

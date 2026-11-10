@@ -1,9 +1,20 @@
 import type { Review } from '@circi/api'
-import { Avatar, Badge, ListRow, ReviewIcon, StatusIcon } from '@circi/ui'
-import type { MouseEventHandler } from 'react'
+import {
+  AlarmClockIcon,
+  Avatar,
+  Badge,
+  CheckCheckIcon,
+  EmptyState,
+  ListRow,
+  ListChecksIcon,
+  NoResults,
+  SendIcon,
+  StatusIcon,
+} from '@circi/ui'
+import type { MouseEventHandler, ReactNode } from 'react'
 
 import { useTeamMark } from '#features/integrations/TeamMark.tsx'
-import { FindField, NoMatches } from '#lib/FindField.tsx'
+import { FindField } from '#lib/FindField.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import {
@@ -84,13 +95,16 @@ export function ReviewList({
       </div>
       <div className={styles.scroll} id="reviews-list" ref={listRef}>
         {groups.length === 0 && hasRequests && find.trim() !== '' ? (
-          <NoMatches noun="reviews" query={find} />
+          <NoResults noun="review" query={find} onClear={() => onFind('')} size="section" />
         ) : groups.length === 0 ? (
-          <div className={styles.empty}>
-            <ReviewIcon size={28} />
-            <p className={styles.emptyTitle}>{EMPTY[tab].title}</p>
-            <p className={styles.emptyText}>{EMPTY[tab].text}</p>
-          </div>
+          <EmptyState
+            icon={EMPTY[tab].icon}
+            tone={tab === 'for-you' ? 'success' : 'neutral'}
+            size={tab === 'for-you' ? 'page' : 'section'}
+            title={EMPTY[tab].title}
+          >
+            {EMPTY[tab].text(workspace)}
+          </EmptyState>
         ) : (
           groups.map((group) => (
             <section key={group.id} aria-labelledby={`reviews-${group.id}`}>
@@ -180,21 +194,34 @@ export function ReviewList({
   )
 }
 
-const EMPTY: Record<Review.Tab, { title: string; text: string }> = {
+const EMPTY: Record<
+  Review.Tab,
+  { icon?: ReactNode; title: string; text: (workspace: string) => string }
+> = {
   'for-you': {
     title: 'Nothing waiting on you',
-    text: 'When a build needs your review, it shows up in this list and in the sidebar count.',
+    text: () => 'When a build needs your review, it shows up here and in the sidebar count.',
   },
-  created: { title: 'No requests from you', text: 'Reviews you ask others for appear here.' },
+  created: {
+    icon: <SendIcon />,
+    title: 'No requests from you',
+    text: () => 'Reviews you ask others for appear here.',
+  },
   reviewed: {
+    icon: <CheckCheckIcon />,
     title: 'Nothing reviewed yet',
-    text: 'Requests you close by approving or rejecting show up here, latest first.',
+    text: () => 'Requests you approve or reject show up here, latest first.',
   },
   'all-open': {
+    icon: <ListChecksIcon />,
     title: 'No open reviews',
-    text: 'Every open review request in this workspace appears here.',
+    text: (workspace) => `Every open review request in ${workspace} appears here.`,
   },
-  snoozed: { title: 'Nothing snoozed', text: 'Requests you put off wait here until they wake.' },
+  snoozed: {
+    icon: <AlarmClockIcon />,
+    title: 'Nothing snoozed',
+    text: () => 'Requests you put off wait here until they wake.',
+  },
 }
 
 export namespace ReviewList {

@@ -11,7 +11,7 @@ import {
   ImageDialog,
   Kbd,
   Link,
-  ReviewIcon,
+  FrameIcon,
   SegmentedControl,
   Slider,
   StatusIcon,
@@ -445,7 +445,7 @@ export function Viewer({
         {ignoring && ignore ? ignore.panel : null}
 
         {mode === 'design' ? (
-          <EmptyState icon={<ReviewIcon size={32} />} title="Design compare">
+          <EmptyState icon={<FrameIcon />} size="section" title="No design linked">
             The frame this screenshot is built from will show here.
           </EmptyState>
         ) : null}

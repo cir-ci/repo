@@ -4,7 +4,7 @@ import {
   Button,
   Collapsible,
   EmptyState,
-  CollectionsIcon,
+  ImagesIcon,
   Ref,
   Stack,
   StatusIcon,
@@ -263,12 +263,12 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
       </div>
 
       {build.status === 'expired' ? (
-        <EmptyState icon={<HourglassIcon size={32} />} title="This build has expired">
+        <EmptyState icon={<HourglassIcon />} title="This build has expired">
           Its screenshots were deleted under the team's retention policy.
         </EmptyState>
       ) : ordered.length === 0 ? (
         active ? null : (
-          <EmptyState icon={<CollectionsIcon size={32} />} title="No screenshots in this build">
+          <EmptyState icon={<ImagesIcon />} title="No screenshots in this build">
             The upload contained no PNG files.
           </EmptyState>
         )

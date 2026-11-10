@@ -6,6 +6,7 @@ import {
   Button,
   Kbd,
   Pane,
+  PanePlaceholder,
   StatusIcon,
   TextField,
   useAnnounce,
@@ -257,12 +258,7 @@ function Reply({ item, onSent }: { item: Inbox.Item; onSent: () => void }) {
 
 /** "Select a notification": the pane while nothing is selected. */
 export function EmptyPane() {
-  return (
-    <div className={styles.emptyPane}>
-      <BellIcon size={24} />
-      <span>Select a notification</span>
-    </div>
-  )
+  return <PanePlaceholder icon={<BellIcon />}>Select a notification</PanePlaceholder>
 }
 
 export namespace InboxPane {

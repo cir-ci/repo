@@ -7,12 +7,14 @@ import {
   CheckboxGroup,
   ConfirmDialog,
   Dialog,
+  EmptyState,
   ListRow,
   SecretBox,
   SettingsSection,
   Text,
   TextField,
   useAnnounce,
+  WebhookIcon,
 } from '@circi/ui'
 import { useParams } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
@@ -109,15 +111,26 @@ function Webhooks(props: Webhooks.Props) {
         }
         bare
       >
-        <ul aria-label="Webhooks" className={styles.list}>
-          {props.hooks.length === 0 ? (
-            <li>
-              <ListRow>
-                <Text tone="secondary">No webhooks yet</Text>
-              </ListRow>
-            </li>
-          ) : (
-            props.hooks.map((h) => (
+        {props.hooks.length === 0 ? (
+          <EmptyState
+            icon={<WebhookIcon />}
+            size="section"
+            title="No webhooks yet"
+            action={
+              props.canManage ? (
+                <Button variant="primary" onClick={open}>
+                  Add webhook
+                </Button>
+              ) : undefined
+            }
+          >
+            {props.canManage
+              ? 'Send build and review events to another service.'
+              : 'Ask an owner to add one.'}
+          </EmptyState>
+        ) : (
+          <ul aria-label="Webhooks" className={styles.list}>
+            {props.hooks.map((h) => (
               <li key={h.id}>
                 <ListRow
                   trailing={
@@ -158,9 +171,9 @@ function Webhooks(props: Webhooks.Props) {
                   </div>
                 </ListRow>
               </li>
-            ))
-          )}
-        </ul>
+            ))}
+          </ul>
+        )}
         {remove.error && !removing ? <Banner tone="danger">{remove.error.message}</Banner> : null}
         {test.error ? <Banner tone="danger">{test.error.message}</Banner> : null}
         <TestResult state={test.state} hooks={props.hooks} />

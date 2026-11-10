@@ -3,6 +3,7 @@ import { page } from 'vitest/browser'
 
 import { parseIgnoreRegionsSearch } from '#features/regions/ignore-regions-search.ts'
 import { IgnoreRegionsPage } from '#features/regions/IgnoreRegionsPage.tsx'
+import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, type ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -76,7 +77,9 @@ describe('IgnoreRegionsPage (the team settings overview)', () => {
   it('says so when there are no regions yet', async () => {
     api([])
     await show()
-    await expect.element(page.getByText('No ignore regions yet')).toBeVisible()
+    await expectEmptyState('No ignore regions yet', {
+      body: "Add one from a screenshot's baseline page.",
+    })
   })
 
   it('shows a failed load and retries', async () => {

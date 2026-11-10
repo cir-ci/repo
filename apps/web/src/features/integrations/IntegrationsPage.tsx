@@ -1,5 +1,5 @@
 import type { Integration } from '@circi/api'
-import { Banner, Button, EmptyState, Heading, Text } from '@circi/ui'
+import { Banner, Button, EmptyState, Heading, PlugIcon, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -65,8 +65,20 @@ export function IntegrationsPage() {
             <Banner tone={note.tone}>{note.text}</Banner>
           ) : null}
           {groups.length === 0 ? (
-            <EmptyState title="No integrations yet">
-              Add a git host so pull requests show their visual review status.
+            <EmptyState
+              icon={<PlugIcon />}
+              title="No integrations yet"
+              action={
+                data.canManage ? (
+                  <Button variant="primary" onClick={() => setAdding(true)}>
+                    Add integration
+                  </Button>
+                ) : undefined
+              }
+            >
+              {data.canManage
+                ? 'Add a git host so pull requests show their visual review status.'
+                : 'Ask an owner or admin to add a git host.'}
             </EmptyState>
           ) : (
             <div className={styles.groups}>

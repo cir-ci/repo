@@ -7,6 +7,7 @@ vi.mock('#lib/auth-client.ts', () =>
 )
 
 import { TriagePage } from '#features/triage/TriagePage.tsx'
+import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, fakeFetch, pending, type ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -204,17 +205,13 @@ describe('TriagePage', () => {
     fakeApi({ [`GET ${BASE}/triage`]: { body: queue([]) } })
     await show()
     const title = page.getByRole('heading', { name: 'Triage is clear' })
-    await expect.element(title).toBeVisible()
-    await expect
-      .element(
-        page.getByText(
-          'Flaky screenshots, missing baselines and failed builds on the default branch appear here.',
-        ),
-      )
-      .toBeVisible()
     // The icon is the approved glyph (a 32px filled circle), and the block sits in the middle of the page.
-    const icon = title.element().parentElement?.querySelector('svg')
-    expect(icon?.getAttribute('width')).toBe('32')
+    const root = await expectEmptyState('Triage is clear', {
+      body: 'Flaky screenshots, missing baselines and failed builds on the default branch appear here.',
+      tone: 'success',
+      centred: true,
+    })
+    expect(root.querySelector('svg[data-status="approved"]')).not.toBeNull()
     const box = title.element().getBoundingClientRect()
     const main =
       title.element().closest('main')?.getBoundingClientRect() ?? new DOMRect(0, 0, 1200, 800)
@@ -235,7 +232,10 @@ describe('TriagePage', () => {
     await userEvent.fill(find, '#9')
     await expect.element(page.getByRole('list', { name: 'Failed, 1 item' })).toBeVisible()
     await userEvent.fill(find, 'zzz')
-    await expect.element(page.getByText('No triage items match “zzz”.')).toBeVisible()
+    await expectEmptyState('No triage item matches “zzz”', { action: 'Clear search' })
+    await page.getByRole('button', { name: 'Clear search' }).click()
+    await expect.element(find).toHaveValue('')
+    await userEvent.fill(find, 'zzz')
     await userEvent.keyboard('{Escape}')
     await expect.element(find).toHaveValue('')
     await expect.element(page.getByRole('list', { name: 'Flaky, 1 item' })).toBeVisible()

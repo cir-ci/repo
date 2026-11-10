@@ -1,4 +1,16 @@
-import { COLOR_SCHEME_ATTRIBUTE, tokens, EmptyState, Button } from '@circi/ui'
+import {
+  COLOR_SCHEME_ATTRIBUTE,
+  tokens,
+  Button,
+  CommandBlock,
+  EmptyState,
+  ImagesIcon,
+  NoFilterResults,
+  NoResults,
+  PanePlaceholder,
+  BellIcon,
+  LayersIcon,
+} from '@circi/ui'
 import type { ReactNode } from 'react'
 
 /** The same content in both schemes: any subtree can be pinned with the attribute. */
@@ -27,9 +39,59 @@ const Both = (props: { children: ReactNode; width?: number }) => (
 
 export const Empty = () => (
   <Both width={480}>
-    <EmptyState title="No teams yet" action={<Button variant="primary">New team</Button>}>
-      Create a team to start comparing builds.
+    <EmptyState
+      icon={<LayersIcon />}
+      size="section"
+      title="No teams yet"
+      action={<Button variant="primary">New team</Button>}
+    >
+      Create a team to start uploading screenshots.
     </EmptyState>
+  </Both>
+)
+
+export const Success = () => (
+  <Both width={480}>
+    <EmptyState tone="success" size="section" title="You're all caught up">
+      Reviews, mentions and decisions for you appear here.
+    </EmptyState>
+  </Both>
+)
+
+export const FirstRunCommand = () => (
+  <Both width={480}>
+    <EmptyState
+      icon={<ImagesIcon />}
+      size="section"
+      title="No builds yet"
+      action={
+        <CommandBlock
+          command={
+            'CIRCI_TOKEN=… CIRCI_API_URL=https://ci.example.com \\\n  npx circi upload ./screenshots --wait'
+          }
+        />
+      }
+    >
+      Builds appear here once your CI uploads screenshots.
+    </EmptyState>
+  </Both>
+)
+
+export const NoResultsSearch = () => (
+  <Both width={480}>
+    <NoResults size="section" noun="team" query="checkout" onClear={() => {}} />
+  </Both>
+)
+
+export const NoResultsFilters = () => (
+  <Both width={480}>
+    <NoFilterResults size="section" plural="builds" scope="web-app" onClear={() => {}} />
+  </Both>
+)
+
+export const Pane = () => (
+  <Both width={340}>
+    <PanePlaceholder icon={<BellIcon />}>Select a notification</PanePlaceholder>
   </Both>
 )
 
@@ -38,6 +100,7 @@ export const Error = () => (
     <EmptyState
       title="This build doesn’t exist"
       tone="failed"
+      size="section"
       action={<Button>Back to Teams</Button>}
     >
       It may have expired, or the link is wrong.

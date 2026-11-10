@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 import { RulesSection } from '#features/reviews/settings/RulesSection.tsx'
+import { expectEmptyState } from '#test/support/empty-state.ts'
 import type { ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -43,8 +44,19 @@ const openActions = (pattern: string) =>
 describe('RulesSection', () => {
   it('explains that nobody is asked when there are no rules', async () => {
     await showRules({ rules: [] })
-    await expect.element(page.getByRole('heading', { name: 'No review rules' })).toBeVisible()
-    await expect.element(page.getByRole('button', { name: 'Add rule' })).toBeVisible()
+    await expectEmptyState('No review rules', {
+      body: 'Add a rule to ask people to review changed screenshots automatically.',
+      action: 'Add rule',
+    })
+    // The one Add rule button is the state's; it opens the same dialog.
+    expect(page.getByRole('button', { name: 'Add rule' }).elements()).toHaveLength(1)
+    await page.getByRole('button', { name: 'Add rule' }).click()
+    await expect.element(page.getByRole('dialog', { name: 'Add rule' })).toBeVisible()
+  })
+
+  it('tells people who cannot manage that nobody is asked, without a button', async () => {
+    await showRules({ rules: [], canManage: false })
+    await expectEmptyState('No review rules', { body: 'Nobody is asked to review automatically.' })
   })
 
   it('lists each rule as the board does: what it matches, then who it asks', async () => {

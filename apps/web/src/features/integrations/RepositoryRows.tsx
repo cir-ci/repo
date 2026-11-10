@@ -53,12 +53,16 @@ export function RepositoryRows(props: RepositoryRows.Props) {
         </Text>
       ) : null}
       {rows.length === 0 && !targets.isPending ? (
-        <Banner>
-          {targets.error
-            ? `CirCI couldn't list the ${noun}s: ${targets.error.message}`
-            : `No ${noun}s yet.`}{' '}
-          {props.canManage ? `Add one by name below.` : null}
-        </Banner>
+        targets.error ? (
+          <Banner>
+            {`CirCI couldn't list the ${noun}s: ${targets.error.message}`}
+            {props.canManage ? ' Add one by name below.' : null}
+          </Banner>
+        ) : (
+          <Text variant="small" tone="secondary">
+            {props.canManage ? `No ${noun}s yet. Add one by name below.` : `No ${noun}s yet.`}
+          </Text>
+        )
       ) : null}
       {rows.length > 0 ? (
         <ul className={styles.box} aria-label={`${spec.targetLabel}s`}>

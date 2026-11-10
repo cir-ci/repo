@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { WebhooksPage } from '#features/team-settings/WebhooksPage.tsx'
+import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, type ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -44,7 +45,8 @@ const show = () =>
     announcer: true,
     otherRoutes: ['/$workspace/$team', '/$workspace/$team/settings/members'],
   })
-const openDialog = () => page.getByRole('button', { name: 'Add webhook' }).click()
+// With no webhooks the empty state repeats the header's button: the first is the header's.
+const openDialog = () => page.getByRole('button', { name: 'Add webhook' }).first().click()
 const dialogAdd = () => page.getByRole('dialog').getByRole('button', { name: 'Add webhook' })
 
 describe('WebhooksPage', () => {
@@ -229,7 +231,10 @@ describe('WebhooksPage', () => {
   it('says when there are none, and explains how to check a delivery', async () => {
     api()
     await show()
-    await expect.element(page.getByText('No webhooks yet')).toBeVisible()
+    await expectEmptyState('No webhooks yet', {
+      body: 'Send build and review events to another service.',
+      action: 'Add webhook',
+    })
     await expect.element(page.getByRole('heading', { name: 'Checking a delivery' })).toBeVisible()
     await expect.element(page.getByText(/Reject signatures older than 5 minutes/)).toBeVisible()
     await expect.element(page.getByText(/retried 8 times with backoff/)).toBeVisible()

@@ -2,13 +2,15 @@ import type { Build } from '@circi/api'
 import {
   Button,
   CheckIcon,
-  CollectionsIcon,
+  CommandBlock,
   EmptyState,
+  ImagesIcon,
+  NoFilterResults,
+  NoResults,
   ListRow,
   Pane,
   SectionHeader,
   StatusIcon,
-  Surface,
   Text,
   useAnnounce,
   visuallyHidden,
@@ -30,7 +32,6 @@ import {
 } from '#features/teams/api/index.ts'
 import { useSaveView, viewsQuery, viewWithFilters } from '#features/views/api.ts'
 import { SaveViewDialog } from '#features/views/SaveViewDialog.tsx'
-import { NoMatches } from '#lib/FindField.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
@@ -180,34 +181,30 @@ export function BuildsBrowser({
         {() =>
           builds.length === 0 ? (
             filtered && Object.keys(parseFilters({ ...filters })).join() === 'q' ? (
-              <NoMatches noun="builds" query={filters.q ?? ''} />
+              <NoResults noun="build" query={filters.q ?? ''} onClear={() => onFiltersChange({})} />
             ) : filtered ? (
-              <EmptyState
-                icon={<CollectionsIcon size={32} />}
-                title="No builds match"
-                action={<Button onClick={() => onFiltersChange({})}>Clear filters</Button>}
-              >
-                {scoped
-                  ? 'Nothing in this team fits these filters.'
-                  : 'Nothing in this workspace fits these filters.'}
-              </EmptyState>
+              <NoFilterResults
+                plural="builds"
+                scope={scoped ? team : workspace}
+                onClear={() => onFiltersChange({})}
+              />
+            ) : before ? (
+              <EmptyState icon={<ImagesIcon />} title="No older builds" />
             ) : (
               <EmptyState
-                icon={<CollectionsIcon size={32} />}
-                title={before ? 'No older builds' : 'No builds yet'}
+                icon={<ImagesIcon />}
+                title="No builds yet"
                 action={
-                  before ? undefined : (
-                    <Surface variant="raised" className={styles.command}>
-                      <Text as="code" variant="mono">
-                        {`CIRCI_TOKEN=… CIRCI_API_URL=${window.location.origin} \\\n  npx circi upload ./screenshots --wait`}
-                      </Text>
-                    </Surface>
-                  )
+                  scoped ? (
+                    <CommandBlock
+                      command={`CIRCI_TOKEN=… CIRCI_API_URL=${window.location.origin} \\\n  npx circi upload ./screenshots --wait`}
+                    />
+                  ) : undefined
                 }
               >
-                {before
-                  ? undefined
-                  : "Upload screenshots from your CI job. Builds appear here as soon as they're processed."}
+                {scoped
+                  ? 'Builds appear here once your CI uploads screenshots.'
+                  : `Builds from every team in ${workspace} appear here.`}
               </EmptyState>
             )
           ) : (

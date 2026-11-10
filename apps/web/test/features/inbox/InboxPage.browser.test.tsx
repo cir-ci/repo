@@ -3,6 +3,7 @@ import { page, userEvent } from 'vitest/browser'
 
 import { validateInboxSearch } from '#features/inbox/api.ts'
 import { InboxPage } from '#features/inbox/InboxPage.tsx'
+import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -221,7 +222,12 @@ describe('InboxPage', () => {
     await expect.element(page.getByRole('button', { name: /Approve all/ })).toBeVisible()
     await userEvent.keyboard('{Shift>}A{/Shift}')
     await expect.poll(() => api.of('POST')[0]?.body).toEqual({ state: 'approved' })
-    await expect.element(page.getByText('Select a notification')).toBeVisible()
+    await expectEmptyState("You're all caught up", {
+      body: 'Reviews, mentions and decisions for you appear here.',
+      tone: 'success',
+    })
+    // The list is empty, so the pane has nothing to invite a choice of.
+    await expect.element(page.getByText('Select a notification')).not.toBeInTheDocument()
   })
 
   it('has no Approve all for a notice without your open request', async () => {
@@ -281,8 +287,21 @@ describe('InboxPage', () => {
   it('shows the empty state', async () => {
     fakeApi({ 'GET /api/inbox': list([]) })
     await show()
-    await expect.element(page.getByRole('heading', { name: "You're all caught up" })).toBeVisible()
-    await expect.element(page.getByText('Select a notification')).toBeVisible()
+    await expectEmptyState("You're all caught up", {
+      body: 'Reviews, mentions and decisions for you appear here.',
+      tone: 'success',
+      centred: true,
+    })
+    await expect.element(page.getByText('Select a notification')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['everything', 'Nothing here yet', 'Every notification you get appears here.'],
+    ['snoozed', 'Nothing snoozed', 'Notifications you put off wait here until they wake.'],
+  ])('says what the %s tab holds when it is empty', async (tab, title, body) => {
+    fakeApi({ 'GET /api/inbox': list([], tab) })
+    await show(`/inbox?tab=${tab}`)
+    await expectEmptyState(title, { body })
   })
 
   it('finds notifications by text, team or build, keeps the text in the address and clears it with Esc', async () => {
@@ -315,7 +334,10 @@ describe('InboxPage', () => {
     await userEvent.fill(find, '#12')
     await expect.element(rows.getByText('Ada requested your review of build #12')).toBeVisible()
     await userEvent.fill(find, 'nothing here')
-    await expect.element(page.getByText('No notifications match “nothing here”.')).toBeVisible()
+    await expectEmptyState('No notification matches “nothing here”', { action: 'Clear search' })
+    await page.getByRole('button', { name: 'Clear search' }).click()
+    await expect.element(find).toHaveValue('')
+    await userEvent.fill(find, 'nothing here')
     await userEvent.keyboard('{Escape}')
     await expect.element(find).toHaveValue('')
     await expect.element(rows.getByText('Grace rejected build #13')).toBeVisible()

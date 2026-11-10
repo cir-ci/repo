@@ -3,6 +3,7 @@ import { page, userEvent } from 'vitest/browser'
 
 import { validateInsightsSearch } from '#features/insights/api.ts'
 import { InsightsPage } from '#features/insights/InsightsPage.tsx'
+import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeFetch } from '#test/support/fetch.ts'
 import { sidebarModel } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
@@ -163,6 +164,8 @@ describe('InsightsPage', () => {
       'GET /api/workspaces/acme/sidebar': sidebarModel({ teams: [] }),
     })
     await show()
-    await expect.element(page.getByRole('heading', { name: 'No data yet' })).toBeVisible()
+    await expectEmptyState('No data yet', {
+      body: /^Nothing was built or reviewed in the last \d+ days\. Try a longer range\.$/,
+    })
   })
 })

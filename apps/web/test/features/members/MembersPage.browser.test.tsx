@@ -9,6 +9,7 @@ vi.mock('#lib/auth-client.ts', () =>
 
 import { MembersPage } from '#features/members/MembersPage.tsx'
 import { ADA, mockAuthClient, setSignedInUser } from '#test/support/auth-client.ts'
+import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeFetch } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -196,9 +197,9 @@ describe('MembersPage', () => {
     auth.getFullOrganization.mockResolvedValue({ data: workspace({ members: [ada] }), error: null })
     await show()
     await expect.element(page.getByText('1 person')).toBeVisible()
-    await expect
-      .element(page.getByRole('heading', { name: 'No one else is here yet' }))
-      .toBeVisible()
+    await expectEmptyState('No one else is here yet', {
+      body: 'Invite a teammate, or let a verified email domain add people.',
+    })
   })
 
   it("says the workspace doesn't exist for an unknown slug", async () => {
@@ -428,7 +429,7 @@ describe('MembersPage', () => {
     await expect.element(page.getByText('Ada Lovelace')).toBeVisible()
     await expect.element(page.getByText('Grace Hopper')).not.toBeInTheDocument()
     await userEvent.fill(find, 'zzz')
-    await expect.element(page.getByText('No members match “zzz”.')).toBeVisible()
+    await expectEmptyState('No member matches “zzz”', { action: 'Clear search' })
     await userEvent.keyboard('{Escape}')
     await expect.element(find).toHaveValue('')
     await expect.element(page.getByText('Grace Hopper')).toBeVisible()

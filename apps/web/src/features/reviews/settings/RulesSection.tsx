@@ -9,6 +9,7 @@ import {
   EmptyState,
   FormDialog,
   IconButton,
+  ListChecksIcon,
   Menu,
   PlusIcon,
   RowMenuIcon,
@@ -68,8 +69,24 @@ export function RulesSection(props: RulesSection.Props) {
     >
       {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
       {props.rules.length === 0 ? (
-        <EmptyState title="No review rules">
-          Without rules, nobody is asked to review automatically.
+        <EmptyState
+          icon={<ListChecksIcon />}
+          size="section"
+          title="No review rules"
+          action={
+            props.canManage ? (
+              <Button
+                variant="primary"
+                onClick={() => setEditing({ id: null, draft: emptyDraft() })}
+              >
+                Add rule
+              </Button>
+            ) : undefined
+          }
+        >
+          {props.canManage
+            ? 'Add a rule to ask people to review changed screenshots automatically.'
+            : 'Nobody is asked to review automatically.'}
         </EmptyState>
       ) : (
         <ul className={styles.rules} aria-label="Review rules">
@@ -165,7 +182,7 @@ export function RulesSection(props: RulesSection.Props) {
           </li>
         </ul>
       )}
-      {props.canManage ? (
+      {props.canManage && props.rules.length > 0 ? (
         <div>
           <Button
             leading={<PlusIcon size={12} />}

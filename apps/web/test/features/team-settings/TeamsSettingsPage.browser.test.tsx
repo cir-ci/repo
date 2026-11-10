@@ -3,6 +3,7 @@ import { page, userEvent } from 'vitest/browser'
 
 import { TeamsSettingsPage } from '#features/team-settings/TeamsSettingsPage.tsx'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
+import { expectEmptyState } from '#test/support/empty-state.ts'
 import { overview } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -26,6 +27,16 @@ const show = (manageable = true) =>
     otherRoutes: ['/$workspace/$team/settings', '/$workspace/$team/settings/members'],
     api: {
       'GET /api/teams': { body: { teams } },
+      'GET /api/capabilities': { body: caps(manageable) },
+    },
+  })
+
+const renderEmpty = (manageable: boolean) =>
+  renderPage(<TeamsSettingsPage />, {
+    route: '/workspaces/$workspace/settings/teams',
+    url: '/workspaces/acme/settings/teams',
+    api: {
+      'GET /api/teams': { body: { teams: [] } },
       'GET /api/capabilities': { body: caps(manageable) },
     },
   })
@@ -62,7 +73,24 @@ describe('Settings, Teams', () => {
       .poll(() => page.getByRole('list', { name: 'Teams' }).getByRole('listitem').elements())
       .toHaveLength(1)
     await userEvent.fill(page.getByRole('textbox', { name: 'Find teams' }), 'zzz')
-    await expect.element(page.getByText('No teams match “zzz”.')).toBeVisible()
+    await expectEmptyState('No team matches “zzz”', { action: 'Clear search' })
+    await page.getByRole('button', { name: 'Clear search' }).click()
+    await expect.element(page.getByRole('textbox', { name: 'Find teams' })).toHaveValue('')
+  })
+
+  it('invites an owner or admin to create the first team', async () => {
+    await renderEmpty(true)
+    await expectEmptyState('No teams yet', {
+      body: 'Create a team to start uploading screenshots.',
+      action: 'New team',
+    })
+    await page.getByRole('button', { name: 'New team' }).last().click()
+    expect(useOverlayStore.getState().newTeamOpen).toBe(true)
+  })
+
+  it('tells a member whom to ask, without a button', async () => {
+    await renderEmpty(false)
+    await expectEmptyState('No teams yet', { body: 'Ask an owner or admin to create one.' })
   })
 
   it("opens a team's settings from its row, owners and admins on General", async () => {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { WorkspaceStoragePage } from '#features/workspace-settings/WorkspaceStoragePage.tsx'
+import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -73,7 +74,7 @@ describe('WorkspaceStoragePage', () => {
       },
     })
     await renderPage(<WorkspaceStoragePage />, ROUTE)
-    await expect.element(page.getByText('Nothing stored yet')).toBeVisible()
+    await expectEmptyState('Nothing stored yet', { body: 'Upload a build to see its size here.' })
   })
 
   it('saves the default retention, noting existing teams keep theirs', async () => {

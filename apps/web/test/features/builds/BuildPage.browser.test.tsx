@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { type Locator, page, userEvent } from 'vitest/browser'
 
+import { expectEmptyState } from '#test/support/empty-state.ts'
+
 import { decision, detail, fakeBuildApi, renderBuild, shot } from './fake-build-api.tsx'
 
 // The build review reads the session (avatar, reviewer picker): the fake client, signed in as
@@ -232,7 +234,9 @@ describe('BuildPage states', () => {
   it('says an expired build has expired and offers no decision', async () => {
     fakeBuildApi(detail({ status: 'expired', conclusion: null }))
     await renderBuild()
-    await expect.element(page.getByText('This build has expired')).toBeVisible()
+    await expectEmptyState('This build has expired', {
+      body: "Its screenshots were deleted under the team's retention policy.",
+    })
     await expect.element(page.getByText('Expired', { exact: true })).toBeVisible()
     expect(page.getByRole('button', { name: /^Approve all/ }).elements()).toHaveLength(0)
     expect(page.getByRole('navigation', { name: 'Screenshots' }).elements()).toHaveLength(0)
@@ -249,7 +253,9 @@ describe('BuildPage states', () => {
   it('says when a finished build has no screenshots', async () => {
     fakeBuildApi(detail({ conclusion: 'no_changes' }, { diffs: [] }))
     await renderBuild()
-    await expect.element(page.getByText('No screenshots in this build')).toBeVisible()
+    await expectEmptyState('No screenshots in this build', {
+      body: 'The upload contained no PNG files.',
+    })
   })
 
   it('shows why a build failed, and why a screenshot did', async () => {
