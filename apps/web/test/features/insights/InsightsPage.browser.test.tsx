@@ -49,6 +49,26 @@ const quiet = (over: Partial<Insights.Report> = {}) =>
   })
 
 describe('InsightsPage', () => {
+  it.each([1280, 900, 700, 420])(
+    'keeps every tile chip inside its tile at %ipx, at most three tiles a row',
+    async (width) => {
+      await page.viewport(width, 900)
+      await show(fullReport())
+      const list = page.getByRole('list', { name: 'Summary' })
+      await expect.element(list).toBeVisible()
+      const tiles = [...list.element().children]
+      expect(tiles).toHaveLength(6)
+      for (const tile of tiles) {
+        const box = tile.getBoundingClientRect()
+        const chip = tile.querySelector('[aria-label]')!.getBoundingClientRect()
+        expect(chip.right).toBeLessThanOrEqual(box.right)
+        expect(chip.left).toBeGreaterThanOrEqual(box.left)
+      }
+      const rows = new Set(tiles.map((t) => Math.round(t.getBoundingClientRect().top))).size
+      expect(rows).toBeGreaterThanOrEqual(2)
+    },
+  )
+
   it('shows the six tiles with their chips, and the sections in order', async () => {
     const calls = await show(fullReport(), '/workspaces/acme/insights?range=7')
     await expect.element(page.getByText('Median time to first review').first()).toBeVisible()

@@ -42,19 +42,19 @@
 
 /* Summary tiles: three rows of fixed height, so chips and text line up across tiles. */
 
+/* Three tiles a row while each gets 280px (room for the value and the widest chip), then two,
+   then one, never more than three: the columns follow the content's width, not the window's, which also counts the
+   sidebar. Six tiles always fill their rows. */
 .tiles {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(max(min(100%, 280px), calc((100% - 24px) / 3)), 1fr)
+  );
   gap: 12px;
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-@media (max-width: 820px) {
-  .tiles {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 
 .tile {
@@ -79,8 +79,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  height: 34px;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  min-height: 34px;
 }
 
 .value {
