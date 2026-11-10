@@ -153,3 +153,8 @@
     height: 44px;
   }
 }
+
+/* ContextMenu's wrapper around a child it can't give props to: no box of its own. */
+.contents {
+  display: contents;
+}

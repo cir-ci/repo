@@ -25,6 +25,7 @@ const baseUiDeps = [
   'checkbox-group',
   'collapsible',
   'combobox',
+  'context-menu',
   'dialog',
   'drawer',
   'field',
