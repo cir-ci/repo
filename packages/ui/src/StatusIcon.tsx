@@ -26,6 +26,22 @@ export const STATUS_LABEL: Record<Status, string> = {
 }
 
 /**
+ * The processing ring: eight short arcs around the circle, each drawn clockwise, so each can grow
+ * on its own (StatusIcon.module.css runs them in turn, like a loading circle; still, they are the
+ * dashed ring).
+ */
+const PROCESSING_ARCS: readonly string[] = Array.from({ length: 8 }, (_, i) => {
+  const r = 6.25
+  const step = (2 * Math.PI) / 8
+  // Each arc is a little over half its slot, the rest is the gap.
+  const sweep = step * 0.53
+  const start = -Math.PI / 2 + i * step + (step - sweep) / 2
+  const point = (a: number) =>
+    `${(7 + r * Math.cos(a)).toFixed(3)} ${(7 + r * Math.sin(a)).toFixed(3)}`
+  return `M${point(start)}A${r} ${r} 0 0 1 ${point(start + sweep)}`
+})
+
+/**
  * A build or snapshot's state as a small glyph: a filled check (approved), half-filled ring
  * (needs review), dashed ring (processing), filled cross in crimson (failed: the build or
  * screenshot broke), filled disc with one diagonal bar in rose (rejected: a person's decision) or
@@ -65,17 +81,18 @@ export function StatusIcon(props: StatusIcon.Props) {
           <path d="M7 .75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor" />
         </>
       )}
-      {status === 'processing' && (
-        <circle
-          cx="7"
-          cy="7"
-          r="6.25"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeDasharray="2.4 2.2"
-        />
-      )}
+      {status === 'processing' &&
+        PROCESSING_ARCS.map((d) => (
+          <path
+            key={d}
+            d={d}
+            pathLength={1}
+            className={styles.arc}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+        ))}
       {status === 'failed' && (
         <>
           <circle cx="7" cy="7" r="7" fill="currentColor" />

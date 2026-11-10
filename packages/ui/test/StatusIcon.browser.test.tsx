@@ -89,6 +89,21 @@ describe('StatusIcon', () => {
     },
   )
 
+  it('draws processing as eight arcs that grow one after the other, clockwise', async () => {
+    await render(<StatusIcon status="processing" />)
+    const icon = page.getByRole('img', { name: 'Processing' }).element()
+    const arcs = [...icon.querySelectorAll('path')]
+    expect(arcs).toHaveLength(8)
+    const styles = arcs.map((arc) => getComputedStyle(arc))
+    // The same loop for each, started a step later round the ring.
+    expect(new Set(styles.map((s) => s.animationName)).size).toBe(1)
+    expect(styles[0]?.animationName).not.toBe('none')
+    expect(styles[0]?.animationIterationCount).toBe('infinite')
+    const delays = styles.map((s) => Number.parseFloat(s.animationDelay))
+    expect(delays).toEqual(delays.toSorted((a, b) => a - b))
+    expect(new Set(delays).size).toBe(8)
+  })
+
   it('takes a size and a custom label', async () => {
     await render(<StatusIcon status="approved" size={32} label="Passed" />)
     const svg = page.getByRole('img', { name: 'Passed' })
