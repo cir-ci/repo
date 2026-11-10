@@ -1,4 +1,5 @@
-import { createRoute, lazyRouteComponent, redirect } from '@tanstack/react-router'
+import { RESERVED_SLUGS } from '@circi/core'
+import { createRoute, lazyRouteComponent, notFound, redirect } from '@tanstack/react-router'
 
 import { rootRoute } from '#app/root-route.ts'
 import { parseBuildsSearch } from '#features/builds/list/builds-filters.ts'
@@ -14,6 +15,13 @@ const teamRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '$workspace/$team',
   validateSearch: parseBuildsSearch,
+  // A reserved word can't be a workspace or team (`/acme/insights`, `/workspaces/acme`): that is
+  // an unknown page, shown as one, not a team page saying the team doesn't exist.
+  beforeLoad: ({ params }) => {
+    if (RESERVED_SLUGS.includes(params.workspace) || RESERVED_SLUGS.includes(params.team)) {
+      throw notFound()
+    }
+  },
   component: lazyRouteComponent(() => import('./TeamPage.tsx'), 'TeamPage'),
 })
 

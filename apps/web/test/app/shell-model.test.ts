@@ -43,6 +43,10 @@ describe('listWorkspaces', () => {
   it('is empty before anything has loaded', () => {
     expect(listWorkspaces(undefined, undefined)).toEqual([])
   })
+
+  it("doesn't take a reserved word in the address for a workspace", () => {
+    expect(listWorkspaces(undefined, undefined, 'workspaces')).toEqual([])
+  })
 })
 
 describe('pickWorkspace', () => {

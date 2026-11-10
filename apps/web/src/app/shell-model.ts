@@ -1,4 +1,5 @@
 import type { Team, Sidebar, View } from '@circi/api'
+import { RESERVED_SLUGS } from '@circi/core'
 
 import type { Shortcut } from '#lib/shortcuts.ts'
 
@@ -37,7 +38,9 @@ export function listWorkspaces(
       picture: o.picture ?? bySlug.get(o.slug)?.picture,
     })
   }
-  if (routeWorkspace && !bySlug.has(routeWorkspace))
+  // An address for a workspace the lists don't know yet still counts, unless it can't be one: a
+  // reserved word (`/workspaces/acme/teams` is an unknown page, not a workspace "workspaces").
+  if (routeWorkspace && !bySlug.has(routeWorkspace) && !RESERVED_SLUGS.includes(routeWorkspace))
     bySlug.set(routeWorkspace, { slug: routeWorkspace, name: routeWorkspace })
   return [...bySlug.values()].toSorted((a, b) => a.name.localeCompare(b.name))
 }
