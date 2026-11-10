@@ -53,3 +53,13 @@ describe('/reviews and /insights without a workspace', () => {
       .toBeVisible()
   })
 })
+
+describe('/login while signed in', () => {
+  it('goes to the app instead of saying the page does not exist', async () => {
+    const router = await open('/login', [overview('acme', 'Acme')])
+    await expect.poll(() => router.state.location.pathname).toBe('/')
+    expect(page.getByRole('heading', { name: 'This page doesn’t exist' }).elements()).toHaveLength(
+      0,
+    )
+  })
+})

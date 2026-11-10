@@ -9,6 +9,7 @@ import {
   ConfirmDialog,
   Dialog,
   EmptyState,
+  NumberField,
   IconButton,
   ListRow,
   Menu,
@@ -24,6 +25,7 @@ import { type FormEvent, useEffect, useState } from 'react'
 
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
+import { numberOf, textOf } from '#lib/number-field.ts'
 
 import { AdminFrame, Intro } from './AdminFrame.tsx'
 import {
@@ -538,13 +540,13 @@ function AccountActions(props: {
             onChange={(e) => setBanDraft({ ...banDraft, reason: e.target.value })}
             autoComplete="off"
           />
-          <TextField
+          <NumberField
             label="Days until the ban ends (leave empty for no end)"
-            inputMode="numeric"
-            value={banDraft.days}
+            unit="days"
+            step={1}
+            value={numberOf(banDraft.days)}
             error={banProblem(banDraft) ?? undefined}
-            onChange={(e) => setBanDraft({ ...banDraft, days: e.target.value })}
-            autoComplete="off"
+            onValueChange={(next) => setBanDraft({ ...banDraft, days: textOf(next) })}
           />
         </form>
       </Dialog>

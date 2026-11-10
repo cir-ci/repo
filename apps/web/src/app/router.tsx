@@ -1,4 +1,4 @@
-import { createRoute, createRouter, type RouterHistory } from '@tanstack/react-router'
+import { createRoute, createRouter, Navigate, type RouterHistory } from '@tanstack/react-router'
 
 import { accountRoutes } from '#features/account/routes.ts'
 import { baselinesRoutes } from '#features/baselines/routes.ts'
@@ -29,6 +29,16 @@ const workspaceRedirects = (['reviews', 'insights'] as const).map((page) =>
   }),
 )
 
+/**
+ * `/login` is the sign-in page, which the shell shows at any address while nobody is signed in;
+ * this route only renders for someone who is, and sends them to the app instead of a 404.
+ */
+const loginRedirect = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'login',
+  component: () => <Navigate to="/" replace />,
+})
+
 /** The route tree: each feature declares its own routes; this only assembles them. */
 const routeTree = rootRoute.addChildren([
   ...teamsRoutes,
@@ -48,6 +58,7 @@ const routeTree = rootRoute.addChildren([
   ...integrationsRoutes,
   ...instanceRoutes,
   ...workspaceRedirects,
+  loginRedirect,
 ])
 
 /** The router; tests pass a memory `history` so they don't touch the address bar. */

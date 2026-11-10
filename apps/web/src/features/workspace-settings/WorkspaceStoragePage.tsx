@@ -2,11 +2,11 @@ import {
   Banner,
   Button,
   EmptyState,
+  NumberField,
   SettingsRow,
   SettingsSection,
   TeamTile,
   Text,
-  TextField,
   useAnnounce,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
@@ -16,6 +16,7 @@ import { useState, type FormEvent } from 'react'
 import { useSaveWorkspaceSettings } from '#features/members/api.ts'
 import { isTeamIconName } from '#features/teams/appearance.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
+import { numberOf, textOf } from '#lib/number-field.ts'
 
 import {
   dayCount,
@@ -159,20 +160,18 @@ function RetentionSection({ workspace, saved, canManage }: RetentionSection.Prop
         description="Builds and hosted site versions expire after their team’s retention. Each team can set its own in its settings."
       >
         <SettingsRow label="Default for new teams" detail="Existing teams keep their own setting.">
-          <span className={styles.inline}>
-            <TextField
-              className={styles.daysField}
-              label="Default retention in days"
-              hideLabel
-              name="retentionDays"
-              inputMode="numeric"
-              value={text}
-              disabled={!canManage}
-              error={problem ?? undefined}
-              onChange={(e) => setText(e.target.value)}
-            />
-            <Text tone="secondary">days</Text>
-          </span>
+          <NumberField
+            className={styles.daysField}
+            label="Default retention in days"
+            hideLabel
+            name="retentionDays"
+            unit="days"
+            step={1}
+            value={numberOf(text)}
+            disabled={!canManage}
+            error={problem ?? undefined}
+            onValueChange={(next) => setText(textOf(next))}
+          />
         </SettingsRow>
         <SettingsRow
           label="Never deleted"

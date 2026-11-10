@@ -8,6 +8,7 @@ export { EnlargeTrigger } from './EnlargeTrigger.js'
 export { Drawer } from './Drawer.js'
 export { CommandDialog } from './CommandDialog.js'
 export { TextField } from './TextField.js'
+export { NumberField } from './NumberField.js'
 export { STATUS_LABEL, type Status, StatusIcon } from './StatusIcon.js'
 export {
   COLOR_SCHEME_ATTRIBUTE,

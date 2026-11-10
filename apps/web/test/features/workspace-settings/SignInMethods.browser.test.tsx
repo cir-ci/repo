@@ -126,4 +126,31 @@ describe('SignInMethods', () => {
       .element(page.getByRole('alert'))
       .toHaveTextContent('An owner must be able to sign in')
   })
+
+  it('shows the server’s refusal on the checkbox it is about', async () => {
+    await page.viewport(1000, 800)
+    fakeFetch({
+      [`GET ${SSO}`]: { providers: [] },
+      [`GET ${PATH}`]: auth(),
+      [`PATCH ${PATH}`]: () =>
+        Response.json(
+          {
+            error: 'You signed in with this method',
+            fields: {
+              passwordLoginEnabled:
+                'You signed in with this method. Sign in another way to turn it off.',
+            },
+          },
+          { status: 400 },
+        ),
+    })
+    await renderPage(<SignInMethods workspace="acme" />)
+    await page.getByRole('checkbox', { name: /^Password/ }).click()
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect
+      .element(page.getByRole('alert'))
+      .toHaveTextContent('You signed in with this method. Sign in another way to turn it off.')
+    await expect.element(page.getByRole('checkbox', { name: /^Password/ })).toBeInvalid()
+    expect(page.getByRole('alert').elements()).toHaveLength(1)
+  })
 })

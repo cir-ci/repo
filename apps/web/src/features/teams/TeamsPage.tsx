@@ -1,7 +1,9 @@
 import { Banner, Button, ListRow, StatusIcon, TeamTile, Text, visuallyHidden } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 
+import { readRememberedWorkspace } from '#app/shell-model.ts'
 import { buildState } from '#features/builds/build-state.ts'
+import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { PageHeading } from '#lib/PageHeading.tsx'
@@ -31,7 +33,10 @@ export function TeamsPage() {
   const setNewTeamOpen = useOverlayStore((s) => s.setNewTeamOpen)
   const canCreateTeam = (caps?.manageableWorkspaces.length ?? 0) > 0
   const canCreateWorkspace = caps?.canCreateWorkspace === true
-  const teams = query.data?.teams
+  // The teams of the workspace the shell is about (the board lists one workspace's teams); the
+  // workspace switcher is how to see another's.
+  const { workspace } = useWorkspaces(readRememberedWorkspace())
+  const teams = query.data?.teams.filter((o) => o.workspace.slug === workspace?.slug)
 
   return (
     <>
@@ -63,8 +68,8 @@ export function TeamsPage() {
           </Banner>
         ))}
         <QueryBoundary query={query} announce="Loading teams" rows={3}>
-          {(data) =>
-            data.teams.length === 0 ? (
+          {() =>
+            !teams || teams.length === 0 ? (
               <TeamsEmpty canCreateTeam={canCreateTeam} canCreateWorkspace={canCreateWorkspace} />
             ) : (
               <>
@@ -75,16 +80,16 @@ export function TeamsPage() {
                   <span className={styles.updated}>Updated</span>
                 </div>
                 <ul aria-label="Teams" className={styles.list}>
-                  {data.teams.map(({ workspace, team, latestBuild }) => {
+                  {teams.map(({ workspace: owner, team, latestBuild }) => {
                     const state = latestBuild ? buildState(latestBuild) : null
                     const cell = latestBuild ? changesCell(latestBuild) : null
                     return (
-                      <li key={`${workspace.slug}/${team.slug}`}>
+                      <li key={`${owner.slug}/${team.slug}`}>
                         <ListRow
                           className={styles.row}
                           {...clientLink({
                             to: '/$workspace/$team',
-                            params: { workspace: workspace.slug, team: team.slug },
+                            params: { workspace: owner.slug, team: team.slug },
                           })}
                         >
                           <span className={styles.grid}>
@@ -98,7 +103,7 @@ export function TeamsPage() {
                               <span className={styles.names}>
                                 <span className={styles.title}>{team.name}</span>
                                 <span className={styles.subtitle}>
-                                  {workspace.slug}/{team.slug}
+                                  {owner.slug}/{team.slug}
                                 </span>
                               </span>
                             </span>

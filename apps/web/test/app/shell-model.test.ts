@@ -14,6 +14,7 @@ import {
   pickWorkspace,
   pinnedViews,
   sectionLabel,
+  settingsNavTeams,
   settingsTeams,
   sidebarTeams,
   TEAM_SETTINGS_PAGES,
@@ -273,5 +274,37 @@ describe('settingsTeams', () => {
   it('trusts the sidebar when the teams list knows nothing of the workspace', () => {
     expect(settingsTeams(teams, [overview('other', 'qa')], 'acme')).toEqual(teams)
     expect(settingsTeams(teams, undefined, 'acme')).toEqual(teams)
+  })
+})
+
+const side = (slug: string) => ({
+  slug,
+  name: slug,
+  color: 'slate' as const,
+  icon: null,
+  pinned: false,
+  triage: 0,
+})
+
+describe('settingsNavTeams', () => {
+  it('adds the open team from the teams list when the sidebar has not caught up', () => {
+    const result = settingsNavTeams([side('web')], [overview('acme', 'web2')], 'acme', 'web2')
+    expect(result.map((t) => t.slug)).toEqual(['web2'])
+  })
+
+  it('keeps the open team from the sidebar when the teams list has not caught up', () => {
+    const result = settingsNavTeams(
+      [side('web2'), side('api')],
+      [overview('acme', 'web'), overview('acme', 'api')],
+      'acme',
+      'web2',
+    )
+    expect(result.map((t) => t.slug)).toEqual(['api', 'web2'])
+  })
+
+  it('adds nothing for a team neither list knows', () => {
+    expect(settingsNavTeams([side('api')], [overview('acme', 'api')], 'acme', 'gone')).toEqual([
+      side('api'),
+    ])
   })
 })

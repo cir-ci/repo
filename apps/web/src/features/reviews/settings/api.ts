@@ -190,9 +190,9 @@ export function isCalendarDate(date: string): boolean {
  * typed in it is not a date (its value is then empty, which must not pass for "start now").
  */
 export function startDateProblem(date: string, unreadable = false): string | null {
-  if (unreadable) return 'Enter a valid date'
+  if (unreadable) return 'Enter a real date'
   if (date === '') return null
-  if (!isCalendarDate(date)) return 'Enter a valid date'
+  if (!isCalendarDate(date)) return 'Enter a real date'
   return null
 }
 

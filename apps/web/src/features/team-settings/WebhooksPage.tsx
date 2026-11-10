@@ -338,7 +338,10 @@ function Webhooks(props: Webhooks.Props) {
   )
 }
 
-/** Under the list: the test was sent, then what the worker's delivery got. */
+/**
+ * Under the list: "Test sent" only while the result is unknown, then "Test delivered" (2xx) or
+ * "Test failed" with the reason, from what the worker's delivery got.
+ */
 function TestResult({
   state,
   hooks,
@@ -353,7 +356,7 @@ function TestResult({
     const answer = deliveryAnswer(state.delivery)
     return (
       <Banner tone={answer.ok ? 'success' : 'danger'}>
-        Test delivered to {url}: {answer.text}
+        {answer.ok ? `Test delivered to ${url}: ${answer.text}` : `Test failed: ${answer.text}`}
       </Banner>
     )
   }

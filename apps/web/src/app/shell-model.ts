@@ -279,6 +279,39 @@ export function settingsTeams<T extends { slug: string }>(
   return inSidebar.filter((t) => slugs.has(t.slug))
 }
 
+/**
+ * `settingsTeams`, plus the team whose settings are open (`routeTeam`) whenever either list knows
+ * it. After a slug rename the sidebar and the teams list refresh one after the other, so for a
+ * moment only one of them has the new slug; the label of the open team must not turn into another
+ * team meanwhile.
+ */
+export function settingsNavTeams(
+  inSidebar: readonly Sidebar.Team[],
+  overview: readonly Team.Overview[] | undefined,
+  workspace: string,
+  routeTeam: string | undefined,
+): Sidebar.Team[] {
+  const teams = settingsTeams(inSidebar, overview, workspace)
+  if (routeTeam === undefined || teams.some((t) => t.slug === routeTeam)) return teams
+  const fromSidebar = inSidebar.find((t) => t.slug === routeTeam)
+  const known = (overview ?? []).find(
+    (o) => o.workspace.slug === workspace && o.team.slug === routeTeam,
+  )?.team
+  const open: Sidebar.Team | undefined =
+    fromSidebar ??
+    (known
+      ? {
+          slug: known.slug,
+          name: known.name,
+          color: known.color,
+          icon: known.icon,
+          pinned: false,
+          triage: 0,
+        }
+      : undefined)
+  return open ? [...teams, open] : teams
+}
+
 const REMEMBERED_TEAM_KEY = 'circi-settings-team'
 
 export function readRememberedTeam(workspace: string): string | undefined {

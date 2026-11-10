@@ -34,12 +34,5 @@
 
 /* A number with its unit, right-aligned in a row's control. */
 .number {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.number input {
-  width: 72px;
-  text-align: right;
+  width: 168px;
 }

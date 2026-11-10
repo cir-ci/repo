@@ -1,6 +1,6 @@
-import { Checkbox, SettingsRow, SettingsSection, Text, TextField } from '@circi/ui'
+import { Checkbox, NumberField, SettingsRow, SettingsSection } from '@circi/ui'
 
-import { REVIEW_TARGET_HOURS_MAX } from '#features/team-settings/settings-patch.ts'
+import { numberOf, textOf } from '#lib/number-field.ts'
 
 import { describeHours, targetProblem } from './api.ts'
 
@@ -31,22 +31,18 @@ export function ReviewTargetSection(props: ReviewTargetSection.Props) {
       </SettingsRow>
       {enabled ? (
         <SettingsRow label="Target">
-          <div className={props.className}>
-            <TextField
-              name="reviewTargetHours"
-              label="Overdue after (hours)"
-              hideLabel
-              type="number"
-              min={1}
-              max={REVIEW_TARGET_HOURS_MAX}
-              step={1}
-              value={hours}
-              disabled={disabled}
-              onChange={(e) => props.onHoursChange(e.target.value)}
-              error={(touched && problem ? problem : undefined) ?? props.serverProblem}
-            />
-            <Text tone="secondary">hours</Text>
-          </div>
+          <NumberField
+            className={props.className}
+            name="reviewTargetHours"
+            label="Overdue after (hours)"
+            hideLabel
+            unit="hours"
+            step={1}
+            value={numberOf(hours)}
+            disabled={disabled}
+            onValueChange={(next) => props.onHoursChange(textOf(next))}
+            error={(touched && problem ? problem : undefined) ?? props.serverProblem}
+          />
         </SettingsRow>
       ) : null}
     </SettingsSection>

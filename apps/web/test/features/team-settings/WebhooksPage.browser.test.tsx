@@ -127,6 +127,48 @@ describe('WebhooksPage', () => {
     await expect.element(page.getByText(/Test delivered/)).toBeVisible()
   })
 
+  it('says "Test failed" with the reason when the delivery got no answer', async () => {
+    const fake = api(
+      { webhooks: [hook('h1', 'https://a.test/hook')] },
+      { [`POST ${API}/webhooks/h1/test`]: { status: 202, body: { deliveryId: 'dx' } } },
+    )
+    await show()
+    await page.getByRole('button', { name: 'Send test to https://a.test/hook' }).click()
+    await expect.element(page.getByText(/Test sent to/)).toBeVisible()
+    fake.set(`GET ${API}/settings`, {
+      body: {
+        canManage: true,
+        settings: { name: 'Web App' },
+        appearance: { color: 'slate', icon: null },
+        workspace: { flakyBlocksMerge: true },
+        webhooks: [
+          {
+            ...hook('h1', 'https://a.test/hook'),
+            deliveries: [
+              {
+                deliveryId: 'dx',
+                event: 'webhook.test',
+                test: true,
+                attempt: 1,
+                statusCode: null,
+                error: 'fetch failed',
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          },
+        ],
+        webhookEvents: ['build.completed', 'build.reviewed'],
+        github: { configured: false, webhookUrl: '', link: null },
+        sitesConfigured: false,
+      },
+    })
+    await expect
+      .element(page.getByText('Test failed: fetch failed'), { timeout: 5000 })
+      .toBeVisible()
+    expect(page.getByText(/Test delivered/).elements()).toHaveLength(0)
+    expect(page.getByText(/Test sent to/).elements()).toHaveLength(0)
+  })
+
   it('shows each webhook as a row with event tags and a delivery badge', async () => {
     const failing = {
       ...hook('h2', 'https://deploy.test/gate', ['build.reviewed']),

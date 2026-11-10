@@ -59,6 +59,8 @@ export function RotationSection(props: RotationSection.Props) {
           value={date}
           disabled={disabled || ids.length === 0}
           onChange={(e) => props.onDateChange(e.target.value, e.target.validity.badInput)}
+          // Typing a day that does not exist leaves the value empty and fires no change event.
+          onBlur={(e) => props.onDateChange(e.target.value, e.target.validity.badInput)}
           error={problem ?? undefined}
           description="Any day in the first week. Leave empty to start now."
         />

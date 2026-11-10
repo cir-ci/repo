@@ -30,7 +30,7 @@ import {
   pickSettingsTeam,
   readRememberedTeam,
   readRememberedWorkspace,
-  settingsTeams,
+  settingsNavTeams,
   TEAM_SETTINGS_PAGES,
   teamSettingsKey,
   type TeamSettingsKey,
@@ -75,15 +75,16 @@ export function SettingsNav() {
   const { data: model } = useSidebarModel(workspace?.slug)
   const { data: overview } = useQuery(teamsQuery())
   // Only teams that exist in this workspace now: never one remembered from, or cached for, another.
+  const routeTeam = workspace && params.workspace === workspace.slug ? params.team : undefined
   const teams = orderTeams(
-    settingsTeams(model?.teams ?? [], overview?.teams, workspace?.slug ?? ''),
+    settingsNavTeams(model?.teams ?? [], overview?.teams, workspace?.slug ?? '', routeTeam),
   )
+  // The team in the address is the one whose settings are open: never swapped for another while
+  // the lists catch up after a rename (nothing is shown until one of them knows it).
   const team = workspace
-    ? pickSettingsTeam(
-        teams,
-        params.workspace === workspace.slug ? params.team : undefined,
-        readRememberedTeam(workspace.slug),
-      )
+    ? routeTeam !== undefined
+      ? teams.find((t) => t.slug === routeTeam)
+      : pickSettingsTeam(teams, undefined, readRememberedTeam(workspace.slug))
     : undefined
   const teamKey = teamSettingsKey(pathname)
 

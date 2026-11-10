@@ -6,8 +6,8 @@ import {
   ConfirmDialog,
   Dialog,
   EmptyState,
+  NumberField,
   Text,
-  TextField,
   useAnnounce,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
@@ -318,20 +318,20 @@ function EditDialog({ region, workspace, team, onClose }: EditDialog.Props) {
       }
     >
       <form id="edit-region" onSubmit={submit} noValidate className={styles.editForm}>
-        <TextField name="x" label="Left" type="number" defaultValue={region?.x} min={0} step={1} />
-        <TextField name="y" label="Top" type="number" defaultValue={region?.y} min={0} step={1} />
-        <TextField
+        <NumberField name="x" label="Left" unit="px" defaultValue={region?.x} min={0} step={1} />
+        <NumberField name="y" label="Top" unit="px" defaultValue={region?.y} min={0} step={1} />
+        <NumberField
           name="width"
           label="Width"
-          type="number"
+          unit="px"
           defaultValue={region?.width}
           min={1}
           step={1}
         />
-        <TextField
+        <NumberField
           name="height"
           label="Height"
-          type="number"
+          unit="px"
           defaultValue={region?.height}
           min={1}
           step={1}

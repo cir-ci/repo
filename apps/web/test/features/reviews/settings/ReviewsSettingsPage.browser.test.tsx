@@ -86,7 +86,7 @@ describe('ReviewsSettingsPage', () => {
     api()
     await show()
     await expect.element(page.getByRole('checkbox', { name: /Set a review target/ })).toBeChecked()
-    await expect.element(page.getByRole('spinbutton', { name: /Overdue after/ })).toHaveValue(24)
+    await expect.element(page.getByRole('textbox', { name: /Overdue after/ })).toHaveValue('24')
     await expect.element(page.getByText('checkout/**')).toBeVisible()
     await expect.element(page.getByRole('strong').filter({ hasText: 'Ada Lovelace' })).toBeVisible()
     // Fixed behaviour is listed as fact, not as switches that look like settings in a Save form.
@@ -120,7 +120,7 @@ describe('ReviewsSettingsPage', () => {
     await show()
     const save = page.getByRole('button', { name: 'Save changes' })
     await expect.element(save).toBeDisabled()
-    await page.getByRole('spinbutton', { name: /Overdue after/ }).fill('48')
+    await page.getByRole('textbox', { name: /Overdue after/ }).fill('48')
     await save.click()
     await expect.poll(() => calls.of('PATCH')[0]?.body).toEqual({ reviewTargetHours: 48 })
     await expect.element(page.getByText('Settings saved.')).toBeVisible()
@@ -132,22 +132,22 @@ describe('ReviewsSettingsPage', () => {
   it('refuses an invalid target without asking the server', async () => {
     const calls = api()
     await show()
-    await page.getByRole('spinbutton', { name: /Overdue after/ }).fill('0')
+    await page.getByRole('textbox', { name: /Overdue after/ }).fill('0')
     await page.getByRole('button', { name: 'Save changes' }).click()
     await expect.element(page.getByText(/whole number of hours/)).toBeVisible()
     expect(calls.of('PATCH')).toHaveLength(0)
-    await page.getByRole('spinbutton', { name: /Overdue after/ }).fill('9000')
+    await page.getByRole('textbox', { name: /Overdue after/ }).fill('9000')
     await expect
       .element(page.getByText('Enter a whole number of hours from 1 to 720'))
       .toBeVisible()
-    await page.getByRole('spinbutton', { name: /Overdue after/ }).fill('720')
+    await page.getByRole('textbox', { name: /Overdue after/ }).fill('720')
     await expect.element(page.getByText(/whole number of hours/)).not.toBeInTheDocument()
   })
 
   it('saves the target and the rotation from one Save, one after the other', async () => {
     const calls = api({}, { [`PUT ${API}/triage-rotation`]: { body: {} } })
     await show()
-    await page.getByRole('spinbutton', { name: /Overdue after/ }).fill('36')
+    await page.getByRole('textbox', { name: /Overdue after/ }).fill('36')
     await page.getByRole('checkbox', { name: 'Grace Hopper' }).last().click()
     await page.getByRole('button', { name: 'Save changes' }).click()
     await expect.poll(() => calls.of('PUT')).toHaveLength(1)
@@ -161,10 +161,10 @@ describe('ReviewsSettingsPage', () => {
   it('sends only what changed, and Discard puts the saved values back', async () => {
     const calls = api()
     await show()
-    const field = page.getByRole('spinbutton', { name: /Overdue after/ })
+    const field = page.getByRole('textbox', { name: /Overdue after/ })
     await field.fill('12')
     await page.getByRole('button', { name: 'Discard' }).click()
-    await expect.element(field).toHaveValue(24)
+    await expect.element(field).toHaveValue('24')
     await expect.element(page.getByRole('button', { name: 'Save changes' })).toBeDisabled()
     expect(calls.of('PATCH')).toHaveLength(0)
   })
@@ -177,13 +177,34 @@ describe('ReviewsSettingsPage', () => {
     // A date input holds nothing for 31 February: its value goes empty, but its text stays.
     date.element().focus()
     await userEvent.keyboard('02312026')
-    await expect.element(page.getByText('Enter a valid date')).toBeVisible()
+    await expect.element(page.getByText('Enter a real date')).toBeVisible()
     await page.getByRole('button', { name: 'Save changes' }).click()
     expect(calls.of('PUT')).toHaveLength(0)
     expect(calls.of('PATCH')).toHaveLength(0)
     // Typing a real day clears it, and Discard also puts the saved date back.
     await date.fill('2026-02-28')
-    await expect.element(page.getByText('Enter a valid date')).not.toBeInTheDocument()
+    await expect.element(page.getByText('Enter a real date')).not.toBeInTheDocument()
+  })
+
+  it('refuses a typed impossible date in an empty field, on blur and on Save', async () => {
+    const calls = api(
+      { rotation: { startsOn: null, members: [ada] } },
+      { [`PUT ${API}/triage-rotation`]: { body: {} } },
+    )
+    await show()
+    const date = page.getByLabelText('First week starts')
+    await expect.element(date).toHaveValue('')
+    // 31 February: the value stays empty (no change event), but validity.badInput is true.
+    date.element().focus()
+    await userEvent.keyboard('31022026')
+    const el = date.element()
+    if (!(el instanceof HTMLInputElement)) throw new Error('not an input')
+    expect(el.validity.badInput).toBe(true)
+    el.blur()
+    await expect.element(page.getByText('Enter a real date')).toBeVisible()
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    expect(calls.of('PUT')).toHaveLength(0)
+    await expect.element(page.getByText('Settings saved.')).not.toBeInTheDocument()
   })
 
   it('turns the rotation off by saving an empty list', async () => {
@@ -265,7 +286,7 @@ describe('ReviewsSettingsPage', () => {
       },
     )
     await show()
-    await page.getByRole('spinbutton', { name: /Overdue after/ }).fill('12')
+    await page.getByRole('textbox', { name: /Overdue after/ }).fill('12')
     await page.getByRole('button', { name: 'Save changes' }).click()
     await expect
       .element(page.getByRole('alert'))

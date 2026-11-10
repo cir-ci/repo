@@ -4,6 +4,7 @@ import {
   Button,
   Checkbox,
   ConfirmDialog,
+  NumberField,
   Select,
   SettingsRow,
   SettingsSection,
@@ -15,12 +16,12 @@ import { type FormEvent, useState } from 'react'
 
 import { type useSaveSettings, useUnlinkRepository } from '#features/teams/api/index.ts'
 import { HttpError } from '#lib/http.ts'
+import { numberOf, textOf } from '#lib/number-field.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 
 import { choiceOf, flakyChoices, type FlakyChoice, isFlakyChoice } from './flaky-setting.ts'
 import {
   buildSettingsPatch,
-  RETENTION_DAYS_MAX,
   SETTINGS_FIELDS,
   settingsProblems,
   type SettingsField,
@@ -54,6 +55,17 @@ export function SettingsForm(props: SettingsForm.Props) {
   const [hosting, setHosting] = useState(s.staticHostingEnabled)
   const [slug, setSlug] = useState(s.slug)
   const disabled = !props.canManage
+  // Save and Discard wait for a change, like the other settings pages. The form remounts on the
+  // saved settings, so "changed" is always against what is stored.
+  const dirty =
+    slug !== s.slug ||
+    branch !== s.defaultBranch ||
+    threshold !== percent() ||
+    retention !== String(s.retentionDays) ||
+    blockMerge !== s.blockMergeOnChanges ||
+    flaky !== choiceOf(s.flakyBlocksMerge) ||
+    autoApprove !== s.autoApproveDefaultBranch ||
+    hosting !== s.staticHostingEnabled
 
   const found = settingsProblems(
     {
@@ -216,51 +228,43 @@ export function SettingsForm(props: SettingsForm.Props) {
           label="Diff threshold"
           detail="A screenshot counts as changed when more than this share of its pixels differ. A change of size is always a change, whatever the threshold."
         >
-          <div className={styles.number}>
-            <TextField
-              name="diffThresholdPercent"
-              label="Diff threshold"
-              hideLabel
-              type="number"
-              value={threshold}
-              onChange={(e) => {
-                setThreshold(e.target.value)
-                edited()
-              }}
-              onBlur={touch('diffThreshold')}
-              error={shown('diffThreshold')}
-              disabled={disabled}
-              min={0}
-              max={100}
-              step="any"
-            />
-            <Text tone="secondary">%</Text>
-          </div>
+          <NumberField
+            className={styles.number}
+            name="diffThresholdPercent"
+            label="Diff threshold"
+            hideLabel
+            unit="%"
+            value={numberOf(threshold)}
+            onValueChange={(next) => {
+              setThreshold(textOf(next))
+              edited()
+            }}
+            inputProps={{ onBlur: touch('diffThreshold') }}
+            error={shown('diffThreshold')}
+            disabled={disabled}
+            step="any"
+          />
         </SettingsRow>
         <SettingsRow
           label="Keep builds for"
           detail="Older builds and their hosted sites expire. The newest approved baseline on the default branch never does."
         >
-          <div className={styles.number}>
-            <TextField
-              name="retentionDays"
-              label="Keep builds for (days)"
-              hideLabel
-              type="number"
-              value={retention}
-              onChange={(e) => {
-                setRetention(e.target.value)
-                edited()
-              }}
-              onBlur={touch('retentionDays')}
-              error={shown('retentionDays')}
-              disabled={disabled}
-              min={1}
-              max={RETENTION_DAYS_MAX}
-              step={1}
-            />
-            <Text tone="secondary">days</Text>
-          </div>
+          <NumberField
+            className={styles.number}
+            name="retentionDays"
+            label="Keep builds for (days)"
+            hideLabel
+            unit="days"
+            value={numberOf(retention)}
+            onValueChange={(next) => {
+              setRetention(textOf(next))
+              edited()
+            }}
+            inputProps={{ onBlur: touch('retentionDays') }}
+            error={shown('retentionDays')}
+            disabled={disabled}
+            step={1}
+          />
         </SettingsRow>
       </SettingsSection>
 
@@ -326,10 +330,15 @@ export function SettingsForm(props: SettingsForm.Props) {
       {saved ? <Banner tone="success">Settings saved.</Banner> : null}
       {props.canManage ? (
         <div className={styles.footer}>
-          <Button type="button" variant="ghost" onClick={discard}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={discard}
+            disabled={!dirty || save.isPending}
+          >
             Discard
           </Button>
-          <Button type="submit" variant="primary" loading={save.isPending}>
+          <Button type="submit" variant="primary" loading={save.isPending} disabled={!dirty}>
             {save.isPending ? 'Saving…' : 'Save changes'}
           </Button>
         </div>

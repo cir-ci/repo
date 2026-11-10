@@ -54,6 +54,27 @@ const openWorkspaceDialog = async () => {
 }
 
 describe('TeamsPage', () => {
+  it('lists only the selected workspace’s teams, and counts only those', async () => {
+    fakeApi({
+      'GET /api/teams': {
+        body: {
+          teams: [
+            overview('acme', 'web-app'),
+            overview('acme', 'storybook'),
+            overview('qa-co', 'checkout'),
+          ],
+        },
+      },
+      'GET /api/capabilities': { body: caps() },
+    })
+    await show()
+    const list = page.getByRole('list', { name: 'Teams' })
+    await expect.element(list.getByText('acme/web-app')).toBeVisible()
+    await expect.element(list.getByText('acme/storybook')).toBeVisible()
+    expect(page.getByText('qa-co/checkout').elements()).toHaveLength(0)
+    await expect.element(page.getByLabelText('2 teams')).toBeVisible()
+  })
+
   it('shows nothing but the header while loading, then announces it if it takes long', async () => {
     hangingFetch()
     await show()

@@ -135,8 +135,27 @@ describe('SettingsNav', () => {
     expect(page.getByRole('region', { name: 'Team · QA team' }).elements()).toHaveLength(0)
   })
 
+  it('keeps the label on the team whose settings are open while the lists catch up after a rename', async () => {
+    // web was renamed to web2: the teams list has the new slug, the sidebar still the old one.
+    await show({
+      url: '/acme/web2/settings',
+      route: '/$workspace/$team/settings',
+      teams: [
+        sidebarTeam({ slug: 'web', name: 'Web App' }),
+        sidebarTeam({ slug: 'api', name: 'API' }),
+      ],
+      overviewTeams: [overview('acme', 'Acme', 'web2'), overview('acme', 'Acme', 'api')],
+    })
+    const team = page.getByRole('region', { name: 'Team · web2' })
+    await expect.element(team).toBeVisible()
+    await expect
+      .element(team.getByRole('link', { name: 'General' }))
+      .toHaveAttribute('href', '/acme/web2/settings')
+    expect(page.getByRole('region', { name: 'Team · API' }).elements()).toHaveLength(0)
+  })
+
   it('has no Team section when the workspace has no teams', async () => {
-    await show({ teams: [] })
+    await show({ teams: [], overviewTeams: [overview('acme', 'Acme', 'elsewhere')] })
     await expect.element(page.getByRole('region', { name: 'Workspace · Acme' })).toBeVisible()
     expect(page.getByRole('region', { name: /^Team · / }).elements()).toHaveLength(0)
   })

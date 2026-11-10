@@ -66,10 +66,15 @@ export function ReviewsForm(props: ReviewsForm.Props) {
     setFailure(null)
   }
 
-  async function submit(e: FormEvent) {
+  async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setTouched(true)
-    if ((enabled && targetProblem(hours)) || startDateProblem(date, dateUnreadable)) return
+    // Typed text that is not a date leaves the value empty, and no change event says so.
+    const dateInput = e.currentTarget.elements.namedItem('startsOn')
+    const unreadable =
+      dateUnreadable || (dateInput instanceof HTMLInputElement && dateInput.validity.badInput)
+    if (unreadable !== dateUnreadable) setDateUnreadable(unreadable)
+    if ((enabled && targetProblem(hours)) || startDateProblem(date, unreadable)) return
     setDone(false)
     setFailure(null)
     setSaving(true)

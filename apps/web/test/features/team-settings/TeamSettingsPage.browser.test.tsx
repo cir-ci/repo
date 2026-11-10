@@ -88,10 +88,10 @@ describe('TeamSettingsPage', () => {
     await show()
     await expect.element(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Web App')
     await expect.element(page.getByRole('textbox', { name: 'Default branch' })).toHaveValue('main')
-    await expect.element(page.getByRole('spinbutton', { name: 'Diff threshold' })).toHaveValue(0.1)
+    await expect.element(page.getByRole('textbox', { name: 'Diff threshold' })).toHaveValue('0.1')
     await expect
-      .element(page.getByRole('spinbutton', { name: 'Keep builds for (days)' }))
-      .toHaveValue(30)
+      .element(page.getByRole('textbox', { name: 'Keep builds for (days)' }))
+      .toHaveValue('30')
     await expect.element(page.getByRole('textbox', { name: 'Slug' })).toHaveValue('web')
     await expect
       .element(page.getByRole('checkbox', { name: /^Unreviewed changes block merging/ }))
@@ -184,8 +184,8 @@ describe('TeamSettingsPage', () => {
     await expect
       .element(page.getByRole('checkbox', { name: /Host static sites/ }))
       .not.toBeChecked()
-    await page.getByRole('spinbutton', { name: 'Diff threshold' }).fill('2.5')
-    await page.getByRole('spinbutton', { name: 'Keep builds for (days)' }).fill('90')
+    await page.getByRole('textbox', { name: 'Diff threshold' }).fill('2.5')
+    await page.getByRole('textbox', { name: 'Keep builds for (days)' }).fill('90')
     await page
       .getByRole('checkbox', { name: /^Approve default-branch builds automatically/ })
       .click()
@@ -219,12 +219,12 @@ describe('TeamSettingsPage', () => {
   it('discards what was edited, back to the saved values', async () => {
     const fake = api()
     await show()
-    await page.getByRole('spinbutton', { name: 'Keep builds for (days)' }).fill('90')
+    await page.getByRole('textbox', { name: 'Keep builds for (days)' }).fill('90')
     await page.getByRole('checkbox', { name: /^Unreviewed changes block merging/ }).click()
     await page.getByRole('button', { name: 'Discard' }).click()
     await expect
-      .element(page.getByRole('spinbutton', { name: 'Keep builds for (days)' }))
-      .toHaveValue(30)
+      .element(page.getByRole('textbox', { name: 'Keep builds for (days)' }))
+      .toHaveValue('30')
     await expect
       .element(page.getByRole('checkbox', { name: /^Unreviewed changes block merging/ }))
       .toBeChecked()
@@ -269,25 +269,25 @@ describe('TeamSettingsPage', () => {
       },
     })
     await show()
-    await page.getByRole('spinbutton', { name: 'Keep builds for (days)' }).fill('90')
+    await page.getByRole('textbox', { name: 'Keep builds for (days)' }).fill('90')
     await page.getByRole('textbox', { name: 'Name' }).fill('Web')
     await page.getByRole('textbox', { name: 'Default branch' }).click()
     await expect.element(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible()
     await expect
-      .element(page.getByRole('spinbutton', { name: 'Keep builds for (days)' }))
-      .toHaveValue(90)
+      .element(page.getByRole('textbox', { name: 'Keep builds for (days)' }))
+      .toHaveValue('90')
   })
 
   describe('checks before saving', () => {
     it('refuses a threshold outside 0 to 100 on the field, and sends nothing', async () => {
       const fake = api()
       await show()
-      await page.getByRole('spinbutton', { name: 'Diff threshold' }).fill('150')
+      await page.getByRole('textbox', { name: 'Diff threshold' }).fill('150')
       await page.getByRole('button', { name: 'Save changes' }).click()
       await expect.element(page.getByText('Enter a percentage from 0 to 100')).toBeVisible()
-      await page.getByRole('spinbutton', { name: 'Diff threshold' }).fill('-1')
+      await page.getByRole('textbox', { name: 'Diff threshold' }).fill('-1')
       await expect.element(page.getByText('Enter a percentage from 0 to 100')).toBeVisible()
-      await page.getByRole('spinbutton', { name: 'Diff threshold' }).fill('100')
+      await page.getByRole('textbox', { name: 'Diff threshold' }).fill('100')
       await expect
         .element(page.getByText('Enter a percentage from 0 to 100'))
         .not.toBeInTheDocument()
@@ -297,12 +297,12 @@ describe('TeamSettingsPage', () => {
     it('refuses retention outside 1 to 3650 days, as soon as the field is left', async () => {
       const fake = api()
       await show()
-      await page.getByRole('spinbutton', { name: 'Keep builds for (days)' }).fill('5000')
+      await page.getByRole('textbox', { name: 'Keep builds for (days)' }).fill('5000')
       await page.getByRole('textbox', { name: 'Default branch' }).click()
       await expect
         .element(page.getByText('Enter a whole number of days from 1 to 3650'))
         .toBeVisible()
-      await page.getByRole('spinbutton', { name: 'Keep builds for (days)' }).fill('0')
+      await page.getByRole('textbox', { name: 'Keep builds for (days)' }).fill('0')
       await page.getByRole('button', { name: 'Save changes' }).click()
       await expect
         .element(page.getByText('Enter a whole number of days from 1 to 3650'))
@@ -320,7 +320,7 @@ describe('TeamSettingsPage', () => {
         },
       })
       await show()
-      await page.getByRole('spinbutton', { name: 'Keep builds for (days)' }).fill('90')
+      await page.getByRole('textbox', { name: 'Keep builds for (days)' }).fill('90')
       await page.getByRole('button', { name: 'Save changes' }).click()
       await expect.element(page.getByText('Retention is capped at 3650')).toBeVisible()
       expect(page.getByText('Invalid settings').elements()).toHaveLength(0)
@@ -330,10 +330,24 @@ describe('TeamSettingsPage', () => {
       const fake = api()
       fake.set(`PATCH ${API}/settings`, { status: 400, body: { error: 'Something is off' } })
       await show()
-      await page.getByRole('spinbutton', { name: 'Keep builds for (days)' }).fill('90')
+      await page.getByRole('textbox', { name: 'Keep builds for (days)' }).fill('90')
       await page.getByRole('button', { name: 'Save changes' }).click()
       await expect.element(page.getByRole('alert')).toHaveTextContent('Something is off')
     })
+  })
+
+  it('keeps Save and Discard disabled until something changes', async () => {
+    fakeApi({ [`GET ${API}/settings`]: { body: response() } })
+    await show()
+    const days = page.getByRole('textbox', { name: 'Keep builds for (days)' })
+    await expect.element(days).toHaveValue('30')
+    await expect.element(page.getByRole('button', { name: 'Save changes' })).toBeDisabled()
+    await expect.element(page.getByRole('button', { name: 'Discard' })).toBeDisabled()
+    await days.fill('60')
+    await expect.element(page.getByRole('button', { name: 'Save changes' })).toBeEnabled()
+    await expect.element(page.getByRole('button', { name: 'Discard' })).toBeEnabled()
+    await page.getByRole('button', { name: 'Discard' }).click()
+    await expect.element(page.getByRole('button', { name: 'Save changes' })).toBeDisabled()
   })
 
   it('still confirms the save when the server answers with the new values', async () => {
@@ -356,13 +370,13 @@ describe('TeamSettingsPage', () => {
     })
     await show()
     await expect
-      .element(page.getByRole('spinbutton', { name: 'Keep builds for (days)' }))
-      .toHaveValue(30)
-    await page.getByRole('spinbutton', { name: 'Keep builds for (days)' }).fill('60')
+      .element(page.getByRole('textbox', { name: 'Keep builds for (days)' }))
+      .toHaveValue('30')
+    await page.getByRole('textbox', { name: 'Keep builds for (days)' }).fill('60')
     await page.getByRole('button', { name: 'Save changes' }).click()
     await expect
-      .element(page.getByRole('spinbutton', { name: 'Keep builds for (days)' }))
-      .toHaveValue(60)
+      .element(page.getByRole('textbox', { name: 'Keep builds for (days)' }))
+      .toHaveValue('60')
     await expect.element(page.getByText('Settings saved.')).toBeVisible()
     await expect
       .element(page.getByRole('status').filter({ hasText: /^Settings saved$/ }))
@@ -388,7 +402,7 @@ describe('TeamSettingsPage', () => {
       await expect.element(control()).toHaveTextContent('Off')
     })
 
-    it('saves an explicit choice, and null to inherit again', async () => {
+    it('saves an explicit choice, and then another one', async () => {
       const fake = api()
       await show()
       await control().click()
@@ -402,12 +416,16 @@ describe('TeamSettingsPage', () => {
       await page.getByRole('button', { name: 'Save changes' }).click()
       await expect.poll(() => fake.of('PATCH')).toHaveLength(2)
       expect(fake.of('PATCH')[1]?.body).toMatchObject({ flakyBlocksMerge: true })
+    })
 
+    it('saves null to inherit again', async () => {
+      const fake = api({ settings: { ...settings, flakyBlocksMerge: false } })
+      await show()
       await control().click()
       await page.getByRole('option', { name: /^Inherit from workspace/ }).click()
       await page.getByRole('button', { name: 'Save changes' }).click()
-      await expect.poll(() => fake.of('PATCH')).toHaveLength(3)
-      expect(fake.of('PATCH')[2]?.body).toMatchObject({ flakyBlocksMerge: null })
+      await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
+      expect(fake.of('PATCH')[0]?.body).toMatchObject({ flakyBlocksMerge: null })
     })
 
     it('is read-only for members', async () => {
@@ -424,6 +442,7 @@ describe('TeamSettingsPage', () => {
       body: { error: 'Default branch is required' },
     })
     await show()
+    await page.getByRole('textbox', { name: 'Default branch' }).fill('develop')
     await page.getByRole('button', { name: 'Save changes' }).click()
     await expect.element(page.getByRole('alert')).toHaveTextContent('Default branch is required')
     expect(page.getByText('Settings saved.').elements()).toHaveLength(0)

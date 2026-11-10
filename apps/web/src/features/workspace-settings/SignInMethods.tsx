@@ -9,9 +9,10 @@ import {
   useAnnounce,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 
 import { workspaceAuthQuery, useSaveWorkspaceAuth } from '#features/members/api.ts'
+import { HttpError } from '#lib/http.ts'
 
 import { methodsPatch, type MethodsDraft } from './model.ts'
 import { WorkspaceSso } from './WorkspaceSso.tsx'
@@ -48,6 +49,23 @@ function Methods({ workspace, data }: Methods.Props) {
     if (save.isError) save.reset()
   }
 
+  // The server refuses a change that would turn off the method this session signed in with, and
+  // says which by the request field. The client can't know the method beforehand (a session's
+  // method is not exposed), so the refusal is shown on that checkbox.
+  const served = save.error instanceof HttpError ? save.error.fields : {}
+  const fieldFor = (field: keyof Workspace.Auth['settings']) => served[field]
+  const hasFieldError = Object.keys(patch).some((field) => served[field])
+  const described = (field: keyof Workspace.Auth['settings'], text: ReactNode) => {
+    const problem = fieldFor(field)
+    return problem ? (
+      <Text tone="rejected" role="alert">
+        {problem}
+      </Text>
+    ) : (
+      text
+    )
+  }
+
   return (
     <>
       <SettingsSection
@@ -57,7 +75,8 @@ function Methods({ workspace, data }: Methods.Props) {
         <SettingsRow>
           <Checkbox
             label="Password"
-            description="Email and password."
+            description={described('passwordLoginEnabled', 'Email and password.')}
+            aria-invalid={fieldFor('passwordLoginEnabled') ? true : undefined}
             checked={draft.password}
             disabled={!instance.password || locked}
             onCheckedChange={change('password')}
@@ -66,11 +85,13 @@ function Methods({ workspace, data }: Methods.Props) {
         <SettingsRow>
           <Checkbox
             label="Email code"
-            description={
+            description={described(
+              'emailLoginEnabled',
               instance.email
                 ? 'A 6-digit code and link mailed to the address.'
-                : 'Not set up on this instance'
-            }
+                : 'Not set up on this instance',
+            )}
+            aria-invalid={fieldFor('emailLoginEnabled') ? true : undefined}
             checked={draft.email}
             disabled={!instance.email || locked}
             onCheckedChange={change('email')}
@@ -81,7 +102,11 @@ function Methods({ workspace, data }: Methods.Props) {
           <SettingsRow>
             <Checkbox
               label="GitHub"
-              description="Sign-in with a GitHub account. Also covers joining by invitation or verified domain."
+              description={described(
+                'signinGithub',
+                'Sign-in with a GitHub account. Also covers joining by invitation or verified domain.',
+              )}
+              aria-invalid={fieldFor('signinGithub') ? true : undefined}
               checked={draft.github}
               disabled={locked}
               onCheckedChange={change('github')}
@@ -92,7 +117,11 @@ function Methods({ workspace, data }: Methods.Props) {
           <SettingsRow>
             <Checkbox
               label="Google"
-              description="Sign-in with a Google account. Also covers joining by invitation or verified domain."
+              description={described(
+                'signinGoogle',
+                'Sign-in with a Google account. Also covers joining by invitation or verified domain.',
+              )}
+              aria-invalid={fieldFor('signinGoogle') ? true : undefined}
               checked={draft.google}
               disabled={locked}
               onCheckedChange={change('google')}
@@ -108,7 +137,7 @@ function Methods({ workspace, data }: Methods.Props) {
         </Text>
         .
       </Banner>
-      {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
+      {save.error && !hasFieldError ? <Banner tone="danger">{save.error.message}</Banner> : null}
       {data.canManage ? (
         <div className={styles.footer}>
           <Button
