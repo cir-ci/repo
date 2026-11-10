@@ -23,6 +23,7 @@ import { MemberPicker } from '#features/reviews/MemberPicker.tsx'
 import {
   BUILDS_PAGE_SIZE,
   teamQuery,
+  useRejectReasonRequired,
   useBulkRequestReview,
   useBulkReview,
   workspaceBuildsQuery,
@@ -89,6 +90,7 @@ export function BuildsBrowser({
 
   // Bulk decisions are one team's (a single transaction); a workspace-wide list only browses.
   const bulk = useBulkReview(workspace, team ?? '')
+  const reasonRequired = useRejectReasonRequired(workspace, team ?? '')
   const bulkRequest = useBulkRequestReview(workspace, team ?? '')
   const saveView = useSaveView(workspace)
   const views = useQuery({ ...viewsQuery(workspace), enabled: canSave })
@@ -359,6 +361,7 @@ export function BuildsBrowser({
         open={rejecting}
         count={chosen.length}
         pending={bulk.isPending}
+        reasonRequired={reasonRequired}
         onCancel={() => setRejecting(false)}
         onReject={(reason) => decide('rejected', reason)}
       />

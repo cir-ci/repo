@@ -25,7 +25,11 @@ function Reviews({ workspace, team, settings }: Reviews.Props) {
   const rules = useQuery(rulesQuery(workspace, team))
   // Rules, targets and the triage rotation draw their people from the team's members.
   const teamMembers = useQuery(teamMembersQuery(workspace, team))
-  const people = (teamMembers.data?.members ?? []).map((m) => ({ id: m.id, name: m.name }))
+  const people = (teamMembers.data?.members ?? []).map((m) => ({
+    id: m.id,
+    name: m.name,
+    image: m.image,
+  }))
   if (rules.error) return <ErrorState error={rules.error} onRetry={() => void rules.refetch()} />
   if (!rules.data) {
     return <QuerySkeleton />
@@ -36,7 +40,9 @@ function Reviews({ workspace, team, settings }: Reviews.Props) {
       <RulesSection
         workspace={workspace}
         team={team}
+        teamName={settings.settings.name}
         rules={data.rules}
+        rotation={data.rotation}
         people={people}
         canManage={data.canManage}
       />

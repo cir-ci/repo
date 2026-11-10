@@ -59,13 +59,19 @@ export interface Bar {
 }
 
 /** Bars of the median review time per week; a week with no reviews has no bar. */
-export function reviewBars(weeks: readonly Insights.Week[]): {
+export function reviewBars(
+  weeks: readonly Insights.Week[],
+  goalHours: number | null = null,
+): {
   top: number
   ticks: number[]
   bars: Bar[]
   unit: 'hours' | 'minutes'
+  /** The goal line's y, in the plot's SVG space; null without a target. */
+  goalY: number | null
 } {
-  const maxHours = Math.max(0, ...weeks.map((w) => w.medianReviewHours ?? 0))
+  // The axis reaches the goal too, so the line is always on the chart.
+  const maxHours = Math.max(0, goalHours ?? 0, ...weeks.map((w) => w.medianReviewHours ?? 0))
   // Medians under an hour are drawn in minutes, so the axis reads "5, 10, 15", not "0.08, 0.17".
   const unit = maxHours >= 1 ? 'hours' : 'minutes'
   const factor = unit === 'hours' ? 1 : 60
@@ -75,6 +81,7 @@ export function reviewBars(weeks: readonly Insights.Week[]): {
     top,
     ticks,
     unit,
+    goalY: goalHours === null ? null : yAt(PLOT, goalHours * factor, top),
     bars: weeks.map((w, i) => {
       const y = w.medianReviewHours === null ? base : yAt(PLOT, w.medianReviewHours * factor, top)
       return {
@@ -88,6 +95,42 @@ export function reviewBars(weeks: readonly Insights.Week[]): {
   }
 }
 
+/** How a week's flaky count moved against the week before: fewer is better. */
+export type FlakyMove = 'better' | 'worse' | 'same'
+
+/** The ISO week number of a date ("W36"), as the board names weeks. */
+export function isoWeek(iso: string): number {
+  const d = new Date(iso)
+  const day = (d.getUTCDay() + 6) % 7
+  const thursday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - day + 3))
+  const first = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 4))
+  return (
+    1 +
+    Math.round(
+      ((thursday.getTime() - first.getTime()) / 86_400_000 - 3 + ((first.getUTCDay() + 6) % 7)) / 7,
+    )
+  )
+}
+
+/** "▼ 5 since W36": the change from the first week to the last; null when nothing changed. */
+export function flakyDelta(
+  weeks: readonly Insights.Week[],
+): { text: string; label: string; tone: 'good' | 'bad' } | null {
+  if (weeks.length < 2) return null
+  const first = weeks[0]!
+  const diff = weeks[weeks.length - 1]!.flaky - first.flaky
+  if (diff === 0) return null
+  const since = `W${isoWeek(first.weekStart)}`
+  return {
+    text: `${diff < 0 ? '▼' : '▲'} ${Math.abs(diff)} since ${since}`,
+    label: `${diff < 0 ? 'Down' : 'Up'} ${Math.abs(diff)} since week ${isoWeek(first.weekStart)}, ${diff < 0 ? 'better' : 'worse'}`,
+    tone: diff < 0 ? 'good' : 'bad',
+  }
+}
+
+const moveOf = (now: number, before: number | undefined): FlakyMove =>
+  before === undefined || now === before ? 'same' : now < before ? 'better' : 'worse'
+
 /** The line of open flaky screenshots at the end of each week. */
 export function flakyLine(weeks: readonly Insights.Week[]) {
   const { top, ticks } = niceScale(Math.max(0, ...weeks.map((w) => w.flaky)))
@@ -96,6 +139,7 @@ export function flakyLine(weeks: readonly Insights.Week[]) {
     x: xAt(PLOT, i, weeks.length),
     y: yAt(PLOT, w.flaky, top),
     value: w.flaky,
+    move: moveOf(w.flaky, i === 0 ? undefined : weeks[i - 1]?.flaky),
   }))
   return {
     top,

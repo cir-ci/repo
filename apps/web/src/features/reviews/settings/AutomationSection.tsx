@@ -1,24 +1,63 @@
-import { SettingsRow, SettingsSection, Text } from '@circi/ui'
+import { Checkbox, SettingsRow, SettingsSection } from '@circi/ui'
 
 /**
- * What CirCI does on its own. Both are fixed behaviours, not settings: they are listed as facts
- * (not as switches, which would suggest they can be changed) so the page says what happens.
+ * What CirCI does on its own, per team. Controlled: `ReviewsForm` holds the draft and saves it
+ * with the rest, so these are checkboxes (they wait for Save).
  */
-export function AutomationSection() {
+export function AutomationSection(props: AutomationSection.Props) {
+  const { disabled } = props
   return (
-    <SettingsSection title="Automation" description="Always on for every team.">
-      <SettingsRow
-        label="Close review requests when a newer build arrives on the same branch"
-        detail="The old request shows as superseded; nobody reviews a stale build."
-      >
-        <Text tone="secondary">Always on</Text>
+    <SettingsSection title="Automation">
+      <SettingsRow>
+        <Checkbox
+          label="Close review requests when a newer build arrives on the same branch"
+          description="The old request shows as superseded; nobody reviews a stale build."
+          checked={props.close}
+          onCheckedChange={props.onCloseChange}
+          disabled={disabled}
+        />
       </SettingsRow>
-      <SettingsRow
-        label="Approve builds with no changes automatically"
-        detail="They pass the GitHub check without a review request."
-      >
-        <Text tone="secondary">Always on</Text>
+      <SettingsRow>
+        <Checkbox
+          label="Re-request the same reviewers on the newer build"
+          description="Keeps the conversation with the people who already looked. Needs requests to close."
+          checked={props.reRequest && props.close}
+          onCheckedChange={props.onReRequestChange}
+          disabled={disabled || !props.close}
+        />
+      </SettingsRow>
+      <SettingsRow>
+        <Checkbox
+          label="Approve builds with no changes automatically"
+          description="They pass the GitHub check without a review request."
+          checked={props.autoApprove}
+          onCheckedChange={props.onAutoApproveChange}
+          disabled={disabled}
+        />
+      </SettingsRow>
+      <SettingsRow>
+        <Checkbox
+          label="Ask for a reason when someone rejects"
+          description="The reason goes to the author's Inbox and the pull request."
+          checked={props.requireReason}
+          onCheckedChange={props.onRequireReasonChange}
+          disabled={disabled}
+        />
       </SettingsRow>
     </SettingsSection>
   )
+}
+
+export namespace AutomationSection {
+  export interface Props {
+    close: boolean
+    reRequest: boolean
+    autoApprove: boolean
+    requireReason: boolean
+    disabled: boolean
+    onCloseChange: (on: boolean) => void
+    onReRequestChange: (on: boolean) => void
+    onAutoApproveChange: (on: boolean) => void
+    onRequireReasonChange: (on: boolean) => void
+  }
 }

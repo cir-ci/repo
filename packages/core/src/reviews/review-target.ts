@@ -33,6 +33,10 @@ export function reviewDueAt(from: Date, targetHours: number | null): Date | null
     cursor += step
     left -= step
   }
+  // Working time that runs out exactly at the weekend's start is due when the week resumes.
+  const day = new Date(cursor).getUTCDay()
+  if (day === 6) cursor += 2 * DAY_MS
+  else if (day === 0) cursor += DAY_MS
   return new Date(cursor)
 }
 

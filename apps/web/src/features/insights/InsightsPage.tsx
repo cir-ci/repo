@@ -1,4 +1,4 @@
-import { EmptyState, SegmentedControl, Select, Text } from '@circi/ui'
+import { Avatar, EmptyState, SegmentedControl, Select, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 
@@ -16,9 +16,10 @@ import {
   type InsightsSearch,
   RANGE_OPTIONS,
   parseRange,
+  retentionSpan,
   tiles,
 } from './api.ts'
-import { storageBars } from './chart.ts'
+import { flakyDelta, storageBars } from './chart.ts'
 import { FlakyChart, ReviewChart } from './Charts.tsx'
 import { ROUTE } from './routes.ts'
 
@@ -76,8 +77,9 @@ export function InsightsPage() {
           notFound="Workspace not found"
           rows={4}
         >
-          {(data) =>
-            isEmpty(data) ? (
+          {(data) => {
+            const flaky = flakyDelta(data.weeks)
+            return isEmpty(data) ? (
               <EmptyState title="No data yet">
                 Nothing was built or reviewed in the last {search.range} days. Try a longer range.
               </EmptyState>
@@ -105,32 +107,53 @@ export function InsightsPage() {
                 </ul>
                 <div className={styles.grid}>
                   <section className={styles.card} aria-labelledby="ins-review">
-                    <h2 id="ins-review">Median time to review, per week</h2>
-                    <ReviewChart weeks={data.weeks} />
+                    <div className={styles.head}>
+                      <h2 id="ins-review">Median time to review, per week</h2>
+                      <span className={styles.sub}>hours</span>
+                    </div>
+                    <ReviewChart weeks={data.weeks} goalHours={data.reviewTargetHours} />
                   </section>
                   <section className={styles.card} aria-labelledby="ins-flaky">
-                    <h2 id="ins-flaky">Flaky screenshots</h2>
+                    <div className={styles.head}>
+                      <h2 id="ins-flaky">Flaky screenshots</h2>
+                      <span className={styles.sub}>open, end of each week</span>
+                      {flaky ? (
+                        <span
+                          className={styles.pill}
+                          data-tone={flaky.tone}
+                          aria-label={flaky.label}
+                        >
+                          {flaky.text}
+                        </span>
+                      ) : null}
+                    </div>
                     <FlakyChart weeks={data.weeks} />
-                  </section>
-                  <section className={styles.card} aria-labelledby="ins-storage">
-                    <h2 id="ins-storage">Storage by team</h2>
-                    <Text variant="small" tone="secondary">
-                      {formatBytes(data.storage.totalBytes)} total
-                    </Text>
-                    <ul className={styles.list}>
-                      {storageBars(data.storage).map((p) => (
-                        <li key={p.slug} className={styles.hbar}>
-                          <span>{p.name}</span>
-                          <div className={styles.track} aria-hidden="true">
-                            <div className={styles.fill} style={{ width: `${p.share * 100}%` }} />
-                          </div>
-                          <span className={styles.num}>{formatBytes(p.bytes)}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    <div className={styles.legend}>
+                      <span>
+                        <i style={{ background: 'var(--circi-state-approved)' }} />
+                        fewer flaky (better)
+                      </span>
+                      <span>
+                        <i style={{ background: 'var(--circi-state-rejected)' }} />
+                        more flaky (worse)
+                      </span>
+                      <span>
+                        <i style={{ background: 'var(--circi-text-tertiary)' }} />
+                        no change
+                      </span>
+                    </div>
+                    {data.flakyAfterChanges !== null ? (
+                      <Text variant="small" tone="secondary">
+                        Flaky means changed in {data.flakyAfterChanges} of the last 10
+                        default-branch builds.
+                      </Text>
+                    ) : null}
                   </section>
                   <section className={styles.card} aria-labelledby="ins-who">
-                    <h2 id="ins-who">Reviewer load</h2>
+                    <div className={styles.head}>
+                      <h2 id="ins-who">Reviewer load</h2>
+                      <span className={styles.sub}>last {search.range} days</span>
+                    </div>
                     {data.reviewers.length === 0 ? (
                       <Text variant="small" tone="secondary">
                         No reviewers yet.
@@ -149,7 +172,12 @@ export function InsightsPage() {
                         <tbody>
                           {data.reviewers.map((r) => (
                             <tr key={r.id}>
-                              <td>{r.name}</td>
+                              <td>
+                                <span className={styles.person}>
+                                  <Avatar type="user" id={r.id} name={r.name} image={r.image} />
+                                  {r.name}
+                                </span>
+                              </td>
                               <td>{r.reviews}</td>
                               <td>{r.openRequests}</td>
                               <td>{formatHours(r.medianResponseHours)}</td>
@@ -160,10 +188,35 @@ export function InsightsPage() {
                       </table>
                     )}
                   </section>
+                  <section className={styles.card} aria-labelledby="ins-storage">
+                    <div className={styles.head}>
+                      <h2 id="ins-storage">Storage by team</h2>
+                      <span className={styles.sub}>
+                        screenshots, diffs and baselines · {formatBytes(data.storage.totalBytes)}{' '}
+                        total
+                      </span>
+                    </div>
+                    <ul className={styles.list}>
+                      {storageBars(data.storage).map((p) => (
+                        <li key={p.slug} className={styles.hbar}>
+                          <span>{p.name}</span>
+                          <div className={styles.track} aria-hidden="true">
+                            <div className={styles.fill} style={{ width: `${p.share * 100}%` }} />
+                          </div>
+                          <span className={styles.num}>{formatBytes(p.bytes)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {data.retentionDays ? (
+                      <Text variant="small" tone="secondary">
+                        Retention keeps {retentionSpan(data.retentionDays)} of branch builds.
+                      </Text>
+                    ) : null}
+                  </section>
                 </div>
               </>
             )
-          }
+          }}
         </QueryBoundary>
       </div>
     </>

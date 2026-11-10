@@ -22,6 +22,12 @@ describe('reviewDueAt', () => {
     )
   })
 
+  it('is due on Monday when the hours run out exactly as the weekend starts', () => {
+    expect(reviewDueAt(new Date('2026-01-02T16:00:00.000Z'), 8)).toEqual(
+      new Date('2026-01-05T00:00:00.000Z'),
+    )
+  })
+
   it('starts counting on Monday for a request made over the weekend', () => {
     expect(reviewDueAt(new Date('2026-01-03T10:00:00.000Z'), 24)).toEqual(
       new Date('2026-01-06T00:00:00.000Z'),

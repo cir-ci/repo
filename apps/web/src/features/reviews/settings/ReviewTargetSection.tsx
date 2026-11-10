@@ -1,47 +1,65 @@
-import { Checkbox, NumberField, SettingsRow, SettingsSection } from '@circi/ui'
+import { NumberField, Select, SettingsRow, SettingsSection, Text } from '@circi/ui'
 
 import { numberOf, textOf } from '#lib/number-field.ts'
 
-import { targetProblem } from './api.ts'
+import { overdueExample, type Person, targetProblem } from './api.ts'
+
+import styles from './ReviewsSettings.module.css'
+
+const NOBODY = '__nobody__'
 
 /**
- * How long a review request may wait. Controlled: `ReviewsForm` holds the draft and saves it with
- * the rest.
+ * How long a review request may wait, counting working days, and who else hears when it is
+ * missed. Controlled: `ReviewsForm` holds the draft and saves it with the rest. An empty number
+ * means no target.
  */
 export function ReviewTargetSection(props: ReviewTargetSection.Props) {
-  const { saved, enabled, hours, touched, disabled } = props
-  const problem = enabled ? targetProblem(hours) : null
+  const { hours, touched, disabled } = props
+  const problem = hours.trim() === '' ? null : targetProblem(hours)
+  const example = overdueExample(hours)
+  const items = [
+    { value: NOBODY, label: 'Nobody' },
+    ...props.people.map((p) => ({ value: p.id, label: p.name })),
+  ]
   return (
     <SettingsSection
       title="Review target"
-      description={
-        saved === null
-          ? 'Review requests never become overdue. Set a target and requests waiting longer get an overdue badge in Reviews and notify the reviewer.'
-          : `Requests waiting longer than this get an overdue badge in Reviews and a reminder in the reviewer's Inbox.`
-      }
+      description="Requests waiting longer than this get an overdue badge in Reviews and a reminder in the reviewer's Inbox."
     >
       <SettingsRow>
-        <Checkbox
-          label="Set a review target"
-          checked={enabled}
-          onCheckedChange={props.onEnabledChange}
-          disabled={disabled}
-        />
-      </SettingsRow>
-      {enabled ? (
-        <SettingsRow label="Target">
+        <div className={styles.pair}>
           <NumberField
             className={props.className}
             name="reviewTargetHours"
             label="Overdue after (hours)"
-            hideLabel
             unit="hours"
             step={1}
             value={numberOf(hours)}
             disabled={disabled}
+            inputProps={{ placeholder: 'No target' }}
             onValueChange={(next) => props.onHoursChange(textOf(next))}
+            description={
+              hours.trim() === ''
+                ? 'No target: requests never become overdue.'
+                : 'Counting working days.'
+            }
             error={(touched && problem ? problem : undefined) ?? props.serverProblem}
           />
+          <Select
+            label="When it's missed, also tell"
+            items={items}
+            value={props.notifyUserId === '' ? NOBODY : props.notifyUserId}
+            disabled={disabled}
+            onValueChange={(next) => props.onNotifyChange(next === NOBODY ? '' : next)}
+            error={props.notifyProblem}
+          />
+        </div>
+      </SettingsRow>
+      {example ? (
+        <SettingsRow>
+          <Text variant="small" tone="secondary">
+            {example}
+          </Text>
         </SettingsRow>
       ) : null}
     </SettingsSection>
@@ -50,17 +68,19 @@ export function ReviewTargetSection(props: ReviewTargetSection.Props) {
 
 export namespace ReviewTargetSection {
   export interface Props {
-    /** The saved hours; null means no target. */
-    saved: number | null
-    enabled: boolean
+    /** The hours as typed; empty means no target. */
     hours: string
+    /** The member also told when a request misses its target; '' for nobody. */
+    notifyUserId: string
+    people: Person[]
     /** Show the problem with the hours (after a first try to save). */
     touched: boolean
     /** What the server said about the hours, when it says which field. */
     serverProblem?: string | undefined
+    notifyProblem?: string | undefined
     disabled: boolean
-    onEnabledChange: (enabled: boolean) => void
     onHoursChange: (hours: string) => void
+    onNotifyChange: (userId: string) => void
     /** The class that lays the number and its unit out. */
     className?: string
   }

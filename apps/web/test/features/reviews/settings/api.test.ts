@@ -13,9 +13,12 @@ import {
   ruleDirty,
   startDateOf,
   startDateProblem,
-  targetDirty,
+  flakyProblem,
+  formProblems,
+  formValuesOf,
+  overdueExample,
+  settingsPatch,
   targetProblem,
-  targetValue,
   toggleMember,
 } from '#features/reviews/settings/api.ts'
 
@@ -81,14 +84,80 @@ describe('review target', () => {
     expect(targetProblem('721')).toBe('Enter a whole number of hours from 1 to 720')
   })
 
-  it('saves null when off and detects changes', () => {
-    expect(targetValue(false, '24')).toBeNull()
-    expect(targetValue(true, ' 48 ')).toBe(48)
-    expect(targetDirty(24, true, '24')).toBe(false)
-    expect(targetDirty(24, true, '48')).toBe(true)
-    expect(targetDirty(24, false, '24')).toBe(true)
-    expect(targetDirty(null, false, '24')).toBe(false)
-    expect(targetDirty(null, true, '24')).toBe(true)
+  it('gives the board example, counting working days', () => {
+    expect(overdueExample('24')).toBe(
+      'Example: a request made Friday 16:00 becomes overdue Monday 16:00.',
+    )
+    expect(overdueExample('8')).toBe(
+      'Example: a request made Friday 16:00 becomes overdue Monday 00:00.',
+    )
+    expect(overdueExample('')).toBeNull()
+    expect(overdueExample('0')).toBeNull()
+  })
+})
+
+describe('the form values', () => {
+  const settings = {
+    reviewTargetHours: 24 as number | null,
+    reviewOverdueNotifyUserId: null as string | null,
+    closeReviewsOnNewerBuild: true,
+    reRequestOnNewerBuild: false,
+    autoApproveNoChanges: true,
+    requireRejectReason: false,
+    flakyAfterChanges: 3,
+    snoozeDefaultDays: 7,
+  }
+  const rotation: Triage.Rotation = {
+    startsOn: '2026-11-02T00:00:00.000Z',
+    members: [{ id: 'u1', name: 'Ada' }],
+  }
+
+  it('start as the saved settings, with nothing to send', () => {
+    const values = formValuesOf(settings, rotation)
+    expect(values).toMatchObject({
+      hours: '24',
+      notifyUserId: '',
+      flakyAfter: '3',
+      snoozeDays: '7',
+    })
+    expect(settingsPatch(settings, values)).toEqual({})
+  })
+
+  it('send only what changed, null for an emptied target or nobody to tell', () => {
+    const saved = { ...settings, reviewOverdueNotifyUserId: 'u1' }
+    const values = formValuesOf(saved, rotation)
+    expect(
+      settingsPatch(saved, {
+        ...values,
+        hours: '',
+        notifyUserId: '',
+        close: false,
+        requireReason: true,
+        flakyAfter: '5',
+        snoozeDays: '14',
+      }),
+    ).toEqual({
+      reviewTargetHours: null,
+      reviewOverdueNotifyUserId: null,
+      closeReviewsOnNewerBuild: false,
+      requireRejectReason: true,
+      flakyAfterChanges: 5,
+      snoozeDefaultDays: 14,
+    })
+  })
+
+  it('wants a whole number of changes from 1 to the 10-build window, and allows no target', () => {
+    expect(flakyProblem('3')).toBeNull()
+    expect(flakyProblem('10')).toBeNull()
+    expect(flakyProblem('0')).not.toBeNull()
+    expect(flakyProblem('11')).toBe('Enter a whole number of changes from 1 to 10')
+    expect(flakyProblem('')).not.toBeNull()
+    const values = formValuesOf(settings, rotation)
+    expect(formProblems({ ...values, hours: '' })).toEqual({})
+    expect(formProblems({ ...values, hours: '0', flakyAfter: '' })).toEqual({
+      hours: 'Enter a whole number of hours from 1 to 720',
+      flakyAfter: 'Enter a whole number of changes from 1 to 10',
+    })
   })
 })
 

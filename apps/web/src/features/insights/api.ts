@@ -171,3 +171,7 @@ export const isEmpty = (report: Insights.Report) =>
   report.summary.buildsReviewed === 0 &&
   report.storage.totalBytes === 0 &&
   report.reviewers.length === 0
+
+/** "90 days", or "30 to 90 days" when the teams in view keep builds for different times. */
+export const retentionSpan = (days: { min: number; max: number }) =>
+  days.min === days.max ? `${days.min} days` : `${days.min} to ${days.max} days`

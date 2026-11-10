@@ -24,6 +24,13 @@ const settings = {
   flakyBlocksMerge: null,
   retentionDays: 30,
   reviewTargetHours: 24 as number | null,
+  reviewOverdueNotifyUserId: null as string | null,
+  closeReviewsOnNewerBuild: true,
+  reRequestOnNewerBuild: true,
+  autoApproveNoChanges: true,
+  requireRejectReason: false,
+  flakyAfterChanges: 3,
+  snoozeDefaultDays: 7,
   staticHostingEnabled: false,
 }
 const ada = { id: 'u1', name: 'Ada Lovelace' }
@@ -81,20 +88,38 @@ const show = async () => {
 }
 
 describe('ReviewsSettingsPage', () => {
-  it('shows the target, the rules and who is on triage', async () => {
+  it('shows the target, the automation, the rules and the rotation', async () => {
     api()
     await show()
-    await expect.element(page.getByRole('checkbox', { name: /Set a review target/ })).toBeChecked()
     await expect.element(page.getByRole('textbox', { name: /Overdue after/ })).toHaveValue('24')
+    await expect.element(page.getByText('Counting working days.')).toBeVisible()
+    await expect
+      .element(page.getByText('Example: a request made Friday 16:00 becomes overdue Monday 16:00.'))
+      .toBeVisible()
     await expect.element(page.getByText('checkout/**')).toBeVisible()
-    await expect.element(page.getByRole('strong').filter({ hasText: 'Ada Lovelace' })).toBeVisible()
-    // Fixed behaviour is listed as fact, not as switches that look like settings in a Save form.
+    // The four automation settings are checkboxes that wait for Save, none of them fixed.
     expect(page.getByRole('switch').elements()).toHaveLength(0)
-    await expect.element(page.getByText(/Close review requests when a newer build/)).toBeVisible()
-    expect(page.getByText('Always on', { exact: true }).elements()).toHaveLength(2)
+    expect(page.getByText('Always on', { exact: true }).elements()).toHaveLength(0)
+    await expect
+      .element(page.getByRole('checkbox', { name: /Close review requests/ }))
+      .toBeChecked()
+    await expect.element(page.getByRole('checkbox', { name: /Re-request the same/ })).toBeChecked()
+    await expect
+      .element(page.getByRole('checkbox', { name: /Approve builds with no changes/ }))
+      .toBeChecked()
+    await expect.element(page.getByRole('checkbox', { name: /Ask for a reason/ })).not.toBeChecked()
+    // The rotation, in order, with its cadence.
+    await expect.element(page.getByText(/weekly, Mondays/)).toBeVisible()
+    await expect
+      .element(page.getByRole('textbox', { name: 'Changes before flaky' }))
+      .toHaveValue('3')
+    await expect.element(page.getByText(/changes in the last 10 builds on main/)).toBeVisible()
+    await expect
+      .element(page.getByRole('combobox', { name: 'Snoozed items come back after' }))
+      .toHaveTextContent('7 days')
   })
 
-  it("follows the board's order under one lead and ends with one Save", async () => {
+  it("follows the board's order and ends with one Save", async () => {
     api()
     await show()
     await expect
@@ -111,7 +136,7 @@ describe('ReviewsSettingsPage', () => {
       .toHaveAttribute('href', '/acme/web/settings/webhooks')
   })
 
-  it('saves the review target, and null when turned off', async () => {
+  it('saves the review target, and null when it is emptied', async () => {
     const calls = api()
     await show()
     const save = page.getByRole('button', { name: 'Save changes' })
@@ -120,24 +145,67 @@ describe('ReviewsSettingsPage', () => {
     await save.click()
     await expect.poll(() => calls.of('PATCH')[0]?.body).toEqual({ reviewTargetHours: 48 })
     await expect.element(page.getByText('Settings saved.')).toBeVisible()
-    await page.getByRole('checkbox', { name: /Set a review target/ }).click()
+    await page.getByRole('textbox', { name: /Overdue after/ }).fill('')
+    await expect.element(page.getByText('No target: requests never become overdue.')).toBeVisible()
     await save.click()
     await expect.poll(() => calls.of('PATCH')[1]?.body).toEqual({ reviewTargetHours: null })
   })
 
-  it('refuses an invalid target without asking the server', async () => {
+  it('saves who else is told when a target is missed, and nobody', async () => {
+    const calls = api({}, { [`PATCH ${API}/settings`]: { body: { settings } } })
+    await show()
+    await page.getByRole('combobox', { name: "When it's missed, also tell" }).click()
+    await page.getByRole('option', { name: 'Grace Hopper' }).click()
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect.poll(() => calls.of('PATCH')[0]?.body).toEqual({ reviewOverdueNotifyUserId: 'u2' })
+  })
+
+  it('saves the automation checkboxes with Save, not as they are clicked', async () => {
+    const calls = api()
+    await show()
+    await page.getByRole('checkbox', { name: /Ask for a reason/ }).click()
+    await page.getByRole('checkbox', { name: /Approve builds with no changes/ }).click()
+    expect(calls.of('PATCH')).toHaveLength(0)
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect
+      .poll(() => calls.of('PATCH')[0]?.body)
+      .toEqual({ requireRejectReason: true, autoApproveNoChanges: false })
+  })
+
+  it('turns re-requesting off with closing, since there is nothing to re-request', async () => {
+    api()
+    await show()
+    await page.getByRole('checkbox', { name: /Close review requests/ }).click()
+    const again = page.getByRole('checkbox', { name: /Re-request the same/ })
+    await expect.element(again).toBeDisabled()
+    await expect.element(again).not.toBeChecked()
+  })
+
+  it('saves the flaky threshold and the snooze default', async () => {
+    const calls = api()
+    await show()
+    await page.getByRole('textbox', { name: 'Changes before flaky' }).fill('5')
+    await page.getByRole('combobox', { name: 'Snoozed items come back after' }).click()
+    await page.getByRole('option', { name: '14 days' }).click()
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect
+      .poll(() => calls.of('PATCH')[0]?.body)
+      .toEqual({ flakyAfterChanges: 5, snoozeDefaultDays: 14 })
+  })
+
+  it('refuses an invalid target or threshold without asking the server', async () => {
     const calls = api()
     await show()
     await page.getByRole('textbox', { name: /Overdue after/ }).fill('0')
     await page.getByRole('button', { name: 'Save changes' }).click()
     await expect.element(page.getByText(/whole number of hours/)).toBeVisible()
     expect(calls.of('PATCH')).toHaveLength(0)
-    await page.getByRole('textbox', { name: /Overdue after/ }).fill('9000')
-    await expect
-      .element(page.getByText('Enter a whole number of hours from 1 to 720'))
-      .toBeVisible()
     await page.getByRole('textbox', { name: /Overdue after/ }).fill('720')
     await expect.element(page.getByText(/whole number of hours/)).not.toBeInTheDocument()
+    await page.getByRole('textbox', { name: 'Changes before flaky' }).fill('')
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect.element(page.getByText(/whole number of changes/)).toBeVisible()
+    expect(calls.of('PATCH')).toHaveLength(0)
   })
 
   it('saves the target and the rotation from one Save, one after the other', async () => {
@@ -211,48 +279,56 @@ describe('ReviewsSettingsPage', () => {
     await expect.poll(() => calls.of('PUT')[0]?.body).toEqual({ memberIds: [] })
   })
 
-  it('adds a rule with a pattern and reviewers', async () => {
-    const calls = api({}, { [`POST ${API}/rules`]: { status: 201, body: {} } })
+  it('adds, edits and deletes rules in dialogs, each applying when confirmed', async () => {
+    const calls = api(
+      {},
+      {
+        [`POST ${API}/rules`]: { status: 201, body: {} },
+        [`PUT ${API}/rules/r1`]: { body: {} },
+        [`DELETE ${API}/rules/r1`]: { status: 204 },
+      },
+    )
     await show()
     await page.getByRole('button', { name: 'Add rule' }).click()
     await page.getByRole('textbox', { name: 'Pattern' }).fill('settings/*')
     await page.getByRole('checkbox', { name: 'Grace Hopper' }).first().click()
-    await page.getByRole('button', { name: 'Save rule' }).click()
+    await page
+      .getByRole('dialog', { name: 'Add rule' })
+      .getByRole('button', { name: 'Add rule' })
+      .click()
     await expect
       .poll(() => calls.of('POST')[0]?.body)
       .toEqual({ kind: 'snapshot-name', pattern: 'settings/*', reviewerIds: ['u2'] })
+
+    await page.getByRole('button', { name: 'Actions for rule checkout/**' }).click()
+    await page.getByRole('menuitem', { name: 'Edit' }).click()
+    await page.getByRole('textbox', { name: 'Pattern' }).fill('checkout/*')
+    await page.getByRole('button', { name: 'Save rule' }).click()
+    await expect
+      .poll(() => calls.of('PUT')[0]?.body)
+      .toEqual({ kind: 'snapshot-name', pattern: 'checkout/*', reviewerIds: ['u1'] })
+
+    await page.getByRole('button', { name: 'Actions for rule checkout/**' }).click()
+    await page.getByRole('menuitem', { name: 'Delete' }).click()
+    await page.getByRole('button', { name: 'Delete rule', exact: true }).click()
+    await expect.poll(() => calls.of('DELETE')).toHaveLength(1)
+    // Rules never wait for the page's Save.
+    await expect.element(page.getByRole('button', { name: 'Save changes' })).toBeDisabled()
   })
 
   it('asks for a pattern and a reviewer before adding', async () => {
     const calls = api({}, { [`POST ${API}/rules`]: { status: 201, body: {} } })
     await show()
     await page.getByRole('button', { name: 'Add rule' }).click()
-    await page.getByRole('button', { name: 'Save rule' }).click()
+    await page
+      .getByRole('dialog', { name: 'Add rule' })
+      .getByRole('button', { name: 'Add rule' })
+      .click()
     await expect.element(page.getByText(/Enter a pattern/)).toBeVisible()
     expect(calls.of('POST')).toHaveLength(0)
   })
 
-  it('edits and deletes a rule', async () => {
-    const calls = api(
-      {},
-      {
-        [`PUT ${API}/rules/r1`]: { body: {} },
-        [`DELETE ${API}/rules/r1`]: { status: 204 },
-      },
-    )
-    await show()
-    await page.getByRole('button', { name: 'Edit rule checkout/**' }).click()
-    await page.getByRole('textbox', { name: 'Pattern' }).fill('checkout/*')
-    await page.getByRole('button', { name: 'Save rule' }).click()
-    await expect
-      .poll(() => calls.of('PUT')[0]?.body)
-      .toEqual({ kind: 'snapshot-name', pattern: 'checkout/*', reviewerIds: ['u1'] })
-    await page.getByRole('button', { name: 'Delete rule checkout/**' }).click()
-    await page.getByRole('button', { name: 'Delete rule', exact: true }).click()
-    await expect.poll(() => calls.of('DELETE')).toHaveLength(1)
-  })
-
-  it('moves a rule down with the keyboard-reachable buttons', async () => {
+  it('moves a rule from its menu', async () => {
     const two = {
       rules: [
         { id: 'r1', kind: 'snapshot-name', pattern: 'checkout/**', position: 0, reviewers: [ada] },
@@ -261,13 +337,8 @@ describe('ReviewsSettingsPage', () => {
     }
     const calls = api(two, { [`PUT ${API}/rules/order`]: { body: { rules: two.rules } } })
     await show()
-    await expect
-      .element(page.getByRole('button', { name: 'Move rule checkout/** up' }))
-      .toBeDisabled()
-    await expect
-      .element(page.getByRole('button', { name: 'Move rule release/* down' }))
-      .toBeDisabled()
-    await page.getByRole('button', { name: 'Move rule checkout/** down' }).click()
+    await page.getByRole('button', { name: 'Actions for rule checkout/**' }).click()
+    await page.getByRole('menuitem', { name: 'Move down' }).click()
     await expect.poll(() => calls.of('PUT')[0]?.body).toEqual({ ruleIds: ['r2', 'r1'] })
   })
 

@@ -5,6 +5,7 @@ export function BulkRejectDialog({
   open,
   count,
   pending,
+  reasonRequired,
   onCancel,
   onReject,
 }: BulkRejectDialog.Props) {
@@ -15,6 +16,7 @@ export function BulkRejectDialog({
       description="They are marked rejected and stay that way until someone approves them."
       confirmLabel="Reject"
       invalidMessage="Say why you are rejecting them."
+      required={reasonRequired ?? true}
       pending={pending}
       onCancel={onCancel}
       onSubmit={onReject}
@@ -27,6 +29,8 @@ export namespace BulkRejectDialog {
     open: boolean
     count: number
     pending: boolean
+    /** The team asks for a reason (the default until it is known). */
+    reasonRequired?: boolean
     onCancel: () => void
     onReject: (reason: string) => void
   }

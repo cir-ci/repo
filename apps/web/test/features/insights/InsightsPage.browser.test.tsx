@@ -39,12 +39,16 @@ const report = {
     {
       id: 'u1',
       name: 'Ada Lovelace',
+      image: null,
       openRequests: 2,
       overdue: 1,
       reviews: 40,
       medianResponseHours: 2.5,
     },
   ],
+  reviewTargetHours: 4 as number | null,
+  retentionDays: { min: 90, max: 90 } as { min: number; max: number } | null,
+  flakyAfterChanges: 3 as number | null,
 }
 
 const show = (url = '/workspaces/acme/insights') =>
@@ -72,14 +76,79 @@ describe('InsightsPage', () => {
     await expect
       .element(page.getByRole('img', { name: /Open flaky screenshots fell from 12 to 7/ }))
       .toBeVisible()
-    await expect.element(page.getByRole('cell', { name: 'Ada Lovelace' })).toBeVisible()
-    await expect.element(page.getByText('3.0 GB total')).toBeVisible()
+    await expect.element(page.getByRole('cell', { name: /Ada Lovelace/ })).toBeVisible()
+    await expect
+      .element(page.getByText('screenshots, diffs and baselines · 3.0 GB total'))
+      .toBeVisible()
     const request = calls.find((c) => c.path === '/api/workspaces/acme/insights')
     expect(request).toBeDefined()
     await userEvent.click(page.getByRole('button', { name: '90 days' }))
     await expect
       .element(page.getByRole('button', { name: '90 days' }))
       .toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('draws the goal at the review target, and no line without one', async () => {
+    fakeFetch({
+      'GET /api/workspaces/acme/insights': report,
+      'GET /api/workspaces/acme/sidebar': sidebarModel({ teams: [] }),
+    })
+    await show()
+    await expect.element(page.getByText('goal 4.0h')).toBeVisible()
+  })
+
+  it('leaves the goal out when the scope has no target', async () => {
+    fakeFetch({
+      'GET /api/workspaces/acme/insights': { ...report, reviewTargetHours: null },
+      'GET /api/workspaces/acme/sidebar': sidebarModel({ teams: [] }),
+    })
+    await show()
+    await expect.element(page.getByText('3.4h')).toBeVisible()
+    expect(page.getByText(/^goal /).elements()).toHaveLength(0)
+  })
+
+  it('labels the cards as the board does, in its order', async () => {
+    fakeFetch({
+      'GET /api/workspaces/acme/insights': report,
+      'GET /api/workspaces/acme/sidebar': sidebarModel({ teams: [] }),
+    })
+    await show('/workspaces/acme/insights?range=7')
+    await expect
+      .poll(() =>
+        page
+          .getByRole('heading', { level: 2 })
+          .elements()
+          .map((h) => h.textContent),
+      )
+      .toEqual([
+        'Median time to review, per week',
+        'Flaky screenshots',
+        'Reviewer load',
+        'Storage by team',
+      ])
+    await expect.element(page.getByText('open, end of each week')).toBeVisible()
+    await expect
+      .element(page.getByLabelText(/Down 5 since week 44, better/))
+      .toHaveTextContent('▼ 5 since W44')
+    await expect.element(page.getByText('fewer flaky (better)')).toBeVisible()
+    await expect.element(page.getByText(/Flaky means changed in 3 of the last 10/)).toBeVisible()
+    await expect.element(page.getByText('last 7 days')).toBeVisible()
+    await expect.element(page.getByRole('img', { name: 'Ada Lovelace' })).toBeVisible()
+    await expect.element(page.getByText('Retention keeps 90 days of branch builds.')).toBeVisible()
+    // Settings is a closed area: no link out of Insights into it, and no "sample data" tag.
+    expect(page.getByRole('link', { name: 'Change retention' }).elements()).toHaveLength(0)
+    expect(page.getByText(/sample data/i).elements()).toHaveLength(0)
+  })
+
+  it('shows a span when teams keep builds for different times', async () => {
+    fakeFetch({
+      'GET /api/workspaces/acme/insights': { ...report, retentionDays: { min: 30, max: 90 } },
+      'GET /api/workspaces/acme/sidebar': sidebarModel({ teams: [] }),
+    })
+    await show()
+    await expect
+      .element(page.getByText('Retention keeps 30 to 90 days of branch builds.'))
+      .toBeVisible()
   })
 
   it('says so when there is nothing to show', async () => {

@@ -29,6 +29,15 @@ describe('RejectDialog', () => {
     await expect.element(dialog().getByRole('textbox', { name: 'Reason' })).toBeRequired()
   })
 
+  it('marks the reason optional, and sends an empty one, when the team does not ask for it', async () => {
+    const { ready, onReject } = show({ reasonRequired: false })
+    await ready
+    const field = dialog().getByRole('textbox', { name: 'Reason (optional)' })
+    await expect.element(field).not.toBeRequired()
+    await dialog().getByRole('button', { name: 'Reject', exact: true }).click()
+    expect(onReject).toHaveBeenCalledExactlyOnceWith('')
+  })
+
   it('puts the cursor in the Reason box when it opens, so the reason can be typed at once', async () => {
     await show().ready
     await expect.element(dialog().getByRole('textbox', { name: 'Reason' })).toHaveFocus()

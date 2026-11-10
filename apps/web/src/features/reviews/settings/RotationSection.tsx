@@ -1,39 +1,70 @@
-import { FLAKY_MIN_CHANGES, FLAKY_WINDOW } from '@circi/core'
-import { Checkbox, CheckboxGroup, SettingsRow, SettingsSection, Text, TextField } from '@circi/ui'
-import { useQuery } from '@tanstack/react-query'
+import { FLAKY_WINDOW } from '@circi/core'
+import {
+  Avatar,
+  Checkbox,
+  CheckboxGroup,
+  NumberField,
+  Select,
+  SettingsRow,
+  SettingsSection,
+  Text,
+  TextField,
+} from '@circi/ui'
+import { Fragment } from 'react'
 
-import { triageQuery } from '#features/triage/api.ts'
-import { RelativeTime } from '#lib/RelativeTime.tsx'
+import { numberOf, textOf } from '#lib/number-field.ts'
 
-import { startDateProblem, toggleMember } from './api.ts'
+import {
+  dayCount,
+  flakyProblem,
+  type Person,
+  SNOOZE_DAY_CHOICES,
+  startDateProblem,
+  toggleMember,
+} from './api.ts'
+
+import styles from './ReviewsSettings.module.css'
 
 /**
  * Triage: who takes turns on the queue, week by week, from a start date (an empty list turns it
- * off), and what counts as flaky. Controlled: `ReviewsForm` holds the draft and saves it with the
- * rest.
+ * off), when a screenshot counts as flaky and how long a snoozed item stays away. Controlled:
+ * `ReviewsForm` holds the draft and saves it with the rest.
  */
 export function RotationSection(props: RotationSection.Props) {
-  const { data: queue } = useQuery(triageQuery(props.workspace, props.team))
   const { ids, date, disabled } = props
-  const onTriage = queue?.rotation.onTriage ?? null
   const problem = startDateProblem(date, props.dateUnreadable)
+  const flaky = flakyProblem(props.flakyAfter)
+  const inRotation = ids.flatMap((id) => props.people.find((p) => p.id === id) ?? [])
+  const days = Number(props.snoozeDays)
+  const dayItems = [...new Set([...SNOOZE_DAY_CHOICES, ...(Number.isInteger(days) ? [days] : [])])]
+    .toSorted((a, b) => a - b)
+    .map((d) => ({ value: String(d), label: dayCount(d) }))
 
   return (
     <SettingsSection
       title="Triage"
-      description="One person a week owns the triage queue: flaky screenshots, missing baselines, failed builds. People take turns in the order they were added."
+      description={`One of ${props.teamName}'s members a week owns the triage queue: flaky screenshots, missing baselines, failed builds.`}
     >
-      <SettingsRow>
-        {onTriage ? (
-          <Text>
-            On triage this week: <strong>{onTriage.name}</strong>
-            {queue?.rotation.until ? (
-              <>
-                {' '}
-                (until <RelativeTime iso={queue.rotation.until} />)
-              </>
-            ) : null}
-          </Text>
+      <SettingsRow label="Rotation">
+        {inRotation.length > 0 ? (
+          <div className={styles.chain}>
+            {inRotation.map((p, i) => (
+              <Fragment key={p.id}>
+                {i > 0 ? (
+                  <span className={styles.arrow} aria-hidden="true">
+                    →
+                  </span>
+                ) : null}
+                <span className={styles.person}>
+                  <Avatar type="user" id={p.id} name={p.name} image={p.image ?? null} />
+                  {p.name}
+                </span>
+              </Fragment>
+            ))}
+            <Text variant="small" tone="secondary">
+              · weekly, Mondays
+            </Text>
+          </div>
         ) : (
           <Text tone="secondary">No one is on triage: there is no rotation.</Text>
         )}
@@ -65,25 +96,56 @@ export function RotationSection(props: RotationSection.Props) {
           description="Any day in the first week. Leave empty to start now."
         />
       </SettingsRow>
-      <SettingsRow
-        label="Flag a screenshot as flaky"
-        detail={`After ${FLAKY_MIN_CHANGES} changes in the last ${FLAKY_WINDOW} builds on the default branch. Fixed for every team.`}
-      />
+      <SettingsRow label="Flag a screenshot as flaky after">
+        <div className={styles.inline}>
+          <NumberField
+            className={styles.small}
+            name="flakyAfterChanges"
+            label="Changes before flaky"
+            hideLabel
+            step={1}
+            value={numberOf(props.flakyAfter)}
+            disabled={disabled}
+            onValueChange={(next) => props.onFlakyChange(textOf(next))}
+            error={(props.touched && flaky ? flaky : undefined) ?? props.serverFlakyProblem}
+          />
+          <Text>
+            changes in the last {FLAKY_WINDOW} builds on {props.defaultBranch}
+          </Text>
+        </div>
+      </SettingsRow>
+      <SettingsRow label="Snoozed items come back after">
+        <Select
+          label="Snoozed items come back after"
+          hideLabel
+          items={dayItems}
+          value={props.snoozeDays}
+          disabled={disabled}
+          onValueChange={props.onSnoozeChange}
+        />
+      </SettingsRow>
     </SettingsSection>
   )
 }
 
 export namespace RotationSection {
   export interface Props {
-    workspace: string
-    team: string
-    people: { id: string; name: string }[]
+    teamName: string
+    defaultBranch: string
+    people: Person[]
     ids: string[]
     date: string
+    flakyAfter: string
+    snoozeDays: string
+    /** Show the problems with the typed values (after a first try to save). */
+    touched: boolean
+    serverFlakyProblem?: string | undefined
     disabled: boolean
     onIdsChange: (ids: string[]) => void
     /** The date input holds text that is not a date (its value is then empty). */
     dateUnreadable: boolean
     onDateChange: (date: string, unreadable: boolean) => void
+    onFlakyChange: (changes: string) => void
+    onSnoozeChange: (days: string) => void
   }
 }

@@ -1,0 +1,114 @@
+/* Reviews and triage settings: rule rows, the two-column target row, the rotation chain. */
+
+.rules {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 10px;
+  background: var(--circi-surface-raised);
+  list-style: none;
+}
+
+.rule {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-height: 52px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--circi-line-subtle);
+}
+
+.rules > li:last-child > .rule {
+  border-bottom: 0;
+}
+
+.fallback {
+  background: var(--circi-action-hover);
+}
+
+.position {
+  width: 16px;
+  color: var(--circi-text-tertiary);
+  font-family: var(--circi-font-mono);
+  font-size: 12px;
+}
+
+.when {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pattern {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.arrow {
+  color: var(--circi-text-tertiary);
+}
+
+.person {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.grow {
+  flex: 1;
+}
+
+/* Overlapping avatars of the people a rotation goes through. */
+.stack {
+  display: inline-flex;
+}
+
+.stack > * + * {
+  margin-left: -4px;
+}
+
+.stack > * {
+  box-shadow: 0 0 0 2px var(--circi-surface-raised);
+  border-radius: 50%;
+}
+
+.chain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  width: 100%;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+@media (max-width: 560px) {
+  .pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.small {
+  width: 96px;
+}
+
+.stackForm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}

@@ -9,6 +9,8 @@ import {
   validateInsightsSearch,
 } from '#features/insights/api.ts'
 import {
+  flakyDelta,
+  isoWeek,
   flakySummary,
   labelIndexes,
   niceScale,
@@ -163,5 +165,40 @@ describe('summary tiles', () => {
     const [none] = tiles(report({ reviewed: 0, median: 0, before: null }), 7)
     expect(none?.value).toBe('–')
     expect(none?.note).toBe('No reviews in the last 7 days')
+  })
+})
+
+describe('the flaky delta', () => {
+  const week = (weekStart: string, flaky: number) => ({
+    weekStart,
+    medianReviewHours: null,
+    reviews: 0,
+    flaky,
+  })
+
+  it('numbers weeks the ISO way', () => {
+    expect(isoWeek('2026-10-26T00:00:00.000Z')).toBe(44)
+    expect(isoWeek('2026-01-05T00:00:00.000Z')).toBe(2)
+    expect(isoWeek('2025-12-29T00:00:00.000Z')).toBe(1)
+  })
+
+  it('says how many fewer or more since the first week', () => {
+    const fewer = flakyDelta([
+      week('2026-10-26T00:00:00.000Z', 12),
+      week('2026-11-02T00:00:00.000Z', 7),
+    ])
+    expect(fewer).toMatchObject({ text: '▼ 5 since W44', tone: 'good' })
+    const more = flakyDelta([
+      week('2026-10-26T00:00:00.000Z', 2),
+      week('2026-11-02T00:00:00.000Z', 3),
+    ])
+    expect(more).toMatchObject({ text: '▲ 1 since W44', tone: 'bad' })
+  })
+
+  it('says nothing when nothing moved or there is one week', () => {
+    expect(
+      flakyDelta([week('2026-10-26T00:00:00.000Z', 4), week('2026-11-02T00:00:00.000Z', 4)]),
+    ).toBeNull()
+    expect(flakyDelta([week('2026-10-26T00:00:00.000Z', 4)])).toBeNull()
   })
 })

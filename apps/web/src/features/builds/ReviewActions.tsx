@@ -3,6 +3,7 @@ import { Button, CancelIcon, Kbd, TaskDoneIcon, Text, Tooltip, useAnnounce } fro
 import { useState } from 'react'
 
 import { useReviewSnapshots } from '#features/builds/api/index.ts'
+import { useRejectReasonRequired } from '#features/teams/api/index.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import { shotDecision } from './diff-status.ts'
@@ -19,6 +20,8 @@ export interface ReviewControls {
   pending: boolean
   error: Error | null
   rejecting: boolean
+  /** The team asks for a reason when someone rejects. */
+  reasonRequired: boolean
   /** Approves the current snapshot. */
   approve: () => void
   /** Approves every changed snapshot that has no decision yet. */
@@ -41,6 +44,7 @@ export function useReviewControls(
 ): ReviewControls {
   const { build, team } = data
   const review = useReviewSnapshots(team.workspaceSlug, team.slug, build.number)
+  const reasonRequired = useRejectReasonRequired(team.workspaceSlug, team.slug)
   const announce = useAnnounce()
   const [rejecting, setRejecting] = useState(false)
   const reviewable = isReviewable(build)
@@ -70,6 +74,7 @@ export function useReviewControls(
     pending: review.isPending,
     error: review.error,
     rejecting,
+    reasonRequired,
     approve: () => {
       if (canApprove && selected && !review.isPending) {
         decide([selected.name], 'approved', `${selected.name} approved.`)
@@ -144,6 +149,7 @@ export function ReviewActions({ review, snapshotName }: ReviewActions.Props) {
         open={review.rejecting}
         subject={snapshotName ?? 'this screenshot'}
         pending={review.pending}
+        reasonRequired={review.reasonRequired}
         onCancel={review.cancelReject}
         onReject={review.confirmReject}
       />

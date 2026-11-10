@@ -1,19 +1,24 @@
-import type { ReviewRule } from '@circi/api'
+import type { ReviewRule, Triage } from '@circi/api'
 import {
+  Avatar,
   Banner,
   Button,
   Checkbox,
   CheckboxGroup,
   ConfirmDialog,
   EmptyState,
-  ListRow,
+  FormDialog,
+  IconButton,
+  Menu,
+  PlusIcon,
+  RowMenuIcon,
   Select,
   SettingsSection,
   Text,
   TextField,
   useAnnounce,
 } from '@circi/ui'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 
 import {
   draftOf,
@@ -21,26 +26,30 @@ import {
   emptyDraft,
   isRuleKind,
   movedRuleIds,
-  kindLabel,
+  type Person,
   RULE_KINDS,
-  reviewerNames,
   ruleDirty,
   type RuleDraft,
   useRuleActions,
 } from './api.ts'
 
-import styles from '#features/workspace-settings/Settings.module.css'
+import styles from './ReviewsSettings.module.css'
 
 type Editing = { id: string | null; draft: RuleDraft } | null
 
-/** Who is asked to review which snapshots or builds. A rule is a glob and its reviewers. */
+/**
+ * Who is asked to review which screenshots or builds: a rule is a glob and its reviewers, the
+ * first match wins. Adding and editing happen in a dialog and Delete asks first; each applies when
+ * confirmed (there is no Save for rules).
+ */
 export function RulesSection(props: RulesSection.Props) {
   const actions = useRuleActions(props.workspace, props.team)
   const announce = useAnnounce()
   const [editing, setEditing] = useState<Editing>(null)
   const [deleting, setDeleting] = useState<ReviewRule.Item | null>(null)
-  const failure =
-    actions.create.error ?? actions.update.error ?? actions.remove.error ?? actions.reorder.error
+  const failure = actions.remove.error ?? actions.reorder.error
+  const person = (id: string, name: string): Person =>
+    props.people.find((p) => p.id === id) ?? { id, name }
 
   function move(rule: ReviewRule.Item, by: -1 | 1) {
     const ids = movedRuleIds(props.rules, rule.id, by)
@@ -54,82 +63,144 @@ export function RulesSection(props: RulesSection.Props) {
   return (
     <SettingsSection
       title="Review rules"
-      description="When a build has changes, CirCI requests review from the first matching rule's people. Like CODEOWNERS for screenshots. Use * within a name and ** across folders; order the rules with Up and Down. Rules save as you edit them."
-      actions={
-        props.canManage && !editing ? (
-          <Button onClick={() => setEditing({ id: null, draft: emptyDraft() })}>Add rule</Button>
-        ) : undefined
-      }
+      description={`When a build has changes, CirCI requests review from the first matching rule's people, who are ${props.teamName}'s members. Like CODEOWNERS for screenshots.`}
       bare
     >
       {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
-      {props.rules.length === 0 && !editing ? (
+      {props.rules.length === 0 ? (
         <EmptyState title="No review rules">
           Without rules, nobody is asked to review automatically.
         </EmptyState>
-      ) : null}
-      {props.rules.length > 0 ? (
-        <ul className={styles.listBox} aria-label="Review rules">
-          {props.rules.map((rule, index) =>
-            editing?.id === rule.id ? (
-              <li key={rule.id}>
-                <RuleEditor {...editorProps(props, editing, setEditing, actions, announce, rule)} />
-              </li>
-            ) : (
-              <li key={rule.id}>
-                <ListRow
-                  density="two-line"
-                  trailing={
-                    props.canManage ? (
-                      <div className={styles.actions}>
-                        <Button
-                          aria-label={`Move rule ${rule.pattern} up`}
-                          disabled={index === 0 || actions.reorder.isPending}
-                          onClick={() => move(rule, -1)}
-                        >
-                          Up
-                        </Button>
-                        <Button
-                          aria-label={`Move rule ${rule.pattern} down`}
-                          disabled={index === props.rules.length - 1 || actions.reorder.isPending}
-                          onClick={() => move(rule, 1)}
-                        >
-                          Down
-                        </Button>
-                        <Button
-                          aria-label={`Edit rule ${rule.pattern}`}
-                          onClick={() => setEditing({ id: rule.id, draft: draftOf(rule) })}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          aria-label={`Delete rule ${rule.pattern}`}
-                          onClick={() => setDeleting(rule)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    ) : undefined
-                  }
-                >
-                  <div className={styles.who}>
-                    <Text variant="mono" truncate>
-                      {rule.pattern}
-                    </Text>
-                    <Text variant="small" tone="secondary" truncate>
-                      {kindLabel(rule.kind)} · {reviewerNames(rule)}
-                    </Text>
-                  </div>
-                </ListRow>
-              </li>
-            ),
-          )}
+      ) : (
+        <ul className={styles.rules} aria-label="Review rules">
+          {props.rules.map((rule, index) => (
+            <li key={rule.id}>
+              <div className={styles.rule}>
+                <span className={styles.position}>{index + 1}</span>
+                <span className={styles.when}>
+                  {rule.kind === 'snapshot-name' ? 'Screenshot matches' : 'Build name is'}
+                  <Text variant="mono" className={styles.pattern}>
+                    {rule.pattern}
+                  </Text>
+                </span>
+                <span className={styles.arrow} aria-hidden="true">
+                  →
+                </span>
+                {rule.reviewers.map((r, i) => {
+                  const p = person(r.id, r.name)
+                  return (
+                    <Fragment key={r.id}>
+                      {i > 0 ? <Text tone="secondary">and</Text> : null}
+                      <span className={styles.person}>
+                        <Avatar type="user" id={p.id} name={p.name} image={p.image ?? null} />
+                        {p.name}
+                      </span>
+                    </Fragment>
+                  )
+                })}
+                <span className={styles.grow} />
+                {props.canManage ? (
+                  <Menu
+                    align="end"
+                    trigger={
+                      <IconButton label={`Actions for rule ${rule.pattern}`}>
+                        <RowMenuIcon />
+                      </IconButton>
+                    }
+                    items={[
+                      {
+                        label: 'Edit',
+                        onSelect: () => setEditing({ id: rule.id, draft: draftOf(rule) }),
+                      },
+                      {
+                        label: 'Move up',
+                        disabled: index === 0 || actions.reorder.isPending,
+                        onSelect: () => move(rule, -1),
+                      },
+                      {
+                        label: 'Move down',
+                        disabled: index === props.rules.length - 1 || actions.reorder.isPending,
+                        onSelect: () => move(rule, 1),
+                      },
+                      { type: 'separator' },
+                      { label: 'Delete', tone: 'danger', onSelect: () => setDeleting(rule) },
+                    ]}
+                  />
+                ) : null}
+              </div>
+            </li>
+          ))}
+          <li>
+            <div className={`${styles.rule} ${styles.fallback}`}>
+              <span className={styles.position} aria-hidden="true">
+                ∗
+              </span>
+              <span className={styles.when}>Otherwise</span>
+              <span className={styles.arrow} aria-hidden="true">
+                →
+              </span>
+              {props.rotation.members.length > 0 ? (
+                <>
+                  <span>Rotate through</span>
+                  <span className={styles.stack}>
+                    {props.rotation.members.map((m) => {
+                      const p = person(m.id, m.name)
+                      return (
+                        <Avatar
+                          key={m.id}
+                          type="user"
+                          id={p.id}
+                          name={p.name}
+                          image={p.image ?? null}
+                        />
+                      )
+                    })}
+                  </span>
+                  <Text tone="secondary">one per build</Text>
+                </>
+              ) : (
+                <Text tone="secondary">Nobody is asked</Text>
+              )}
+            </div>
+          </li>
         </ul>
-      ) : null}
-      {editing && editing.id === null ? (
-        <div className={styles.listBox}>
-          <RuleEditor {...editorProps(props, editing, setEditing, actions, announce)} />
+      )}
+      {props.canManage ? (
+        <div>
+          <Button
+            leading={<PlusIcon size={12} />}
+            onClick={() => setEditing({ id: null, draft: emptyDraft() })}
+          >
+            Add rule
+          </Button>
         </div>
+      ) : null}
+      {editing ? (
+        <RuleDialog
+          key={editing.id ?? 'new'}
+          adding={editing.id === null}
+          draft={editing.draft}
+          rule={props.rules.find((r) => r.id === editing.id)}
+          people={props.people}
+          pending={editing.id === null ? actions.create.isPending : actions.update.isPending}
+          error={editing.id === null ? actions.create.error : actions.update.error}
+          onChange={(draft) => setEditing({ id: editing.id, draft })}
+          onClose={() => {
+            actions.create.reset()
+            actions.update.reset()
+            setEditing(null)
+          }}
+          onSave={() => {
+            const done = {
+              onSuccess: () => {
+                announce(editing.id === null ? 'Rule added' : 'Rule saved')
+                setEditing(null)
+              },
+            }
+            if (editing.id === null) actions.create.mutate(editing.draft, done)
+            else actions.update.mutate({ id: editing.id, draft: editing.draft }, done)
+          }}
+        />
       ) : null}
       <ConfirmDialog
         open={deleting !== null}
@@ -151,49 +222,25 @@ export function RulesSection(props: RulesSection.Props) {
   )
 }
 
-function editorProps(
-  props: RulesSection.Props,
-  editing: NonNullable<Editing>,
-  setEditing: (e: Editing) => void,
-  actions: ReturnType<typeof useRuleActions>,
-  announce: (message: string) => void,
-  rule?: ReviewRule.Item,
-): RuleEditor.Props {
-  const mutation = editing.id === null ? actions.create : actions.update
-  return {
-    draft: editing.draft,
-    people: props.people,
-    saving: mutation.isPending,
-    dirty: rule ? ruleDirty(rule, editing.draft) : true,
-    onChange: (draft) => setEditing({ id: editing.id, draft }),
-    onCancel: () => setEditing(null),
-    onSave: () => {
-      const done = {
-        onSuccess: () => {
-          announce(editing.id === null ? 'Rule added' : 'Rule saved')
-          setEditing(null)
-        },
-      }
-      if (editing.id === null) actions.create.mutate(editing.draft, done)
-      else actions.update.mutate({ id: editing.id, draft: editing.draft }, done)
-    },
-  }
-}
-
-function RuleEditor(props: RuleEditor.Props) {
+/** Adds a rule or edits one: what it matches, the pattern and the team members it asks. */
+function RuleDialog(props: RuleDialog.Props) {
   const [touched, setTouched] = useState(false)
-  const problem = draftProblem(props.draft)
   const { draft } = props
+  const problem = draftProblem(draft)
   return (
-    <form
-      className={styles.editor}
-      noValidate
-      aria-label="Rule"
-      onSubmit={(e) => {
-        e.preventDefault()
+    <FormDialog
+      open
+      onClose={props.onClose}
+      onSubmit={() => {
         setTouched(true)
         if (!problem) props.onSave()
       }}
+      title={props.adding ? 'Add rule' : 'Edit rule'}
+      submitLabel={props.adding ? 'Add rule' : 'Save rule'}
+      pending={props.pending}
+      submitDisabled={props.rule ? !ruleDirty(props.rule, draft) : false}
+      formClassName={styles.stackForm}
+      noValidate
     >
       <Select
         label="Matches"
@@ -211,7 +258,7 @@ function RuleEditor(props: RuleEditor.Props) {
         error={touched && problem && draft.reviewerIds.length > 0 ? problem : undefined}
         description={
           draft.kind === 'snapshot-name'
-            ? 'A screenshot name, like checkout/** or Button*.'
+            ? 'A screenshot name, like checkout/** or Button*. Use * within a name and ** across folders.'
             : 'A build name, like release/*.'
         }
       />
@@ -235,24 +282,22 @@ function RuleEditor(props: RuleEditor.Props) {
       {touched && problem && draft.reviewerIds.length === 0 ? (
         <Banner tone="danger">{problem}</Banner>
       ) : null}
-      <div className={styles.actions}>
-        <Button type="submit" variant="primary" loading={props.saving} disabled={!props.dirty}>
-          {props.saving ? 'Saving…' : 'Save rule'}
-        </Button>
-        <Button onClick={props.onCancel}>Cancel</Button>
-      </div>
-    </form>
+      {props.error ? <Banner tone="danger">{props.error.message}</Banner> : null}
+    </FormDialog>
   )
 }
 
-namespace RuleEditor {
+namespace RuleDialog {
   export interface Props {
+    adding: boolean
     draft: RuleDraft
-    people: { id: string; name: string }[]
-    saving: boolean
-    dirty: boolean
+    /** The rule being edited, to tell whether anything changed. */
+    rule: ReviewRule.Item | undefined
+    people: Person[]
+    pending: boolean
+    error: Error | null
     onChange: (draft: RuleDraft) => void
-    onCancel: () => void
+    onClose: () => void
     onSave: () => void
   }
 }
@@ -261,8 +306,10 @@ export namespace RulesSection {
   export interface Props {
     workspace: string
     team: string
+    teamName: string
     rules: ReviewRule.Item[]
-    people: { id: string; name: string }[]
+    rotation: Triage.Rotation
+    people: Person[]
     canManage: boolean
   }
 }

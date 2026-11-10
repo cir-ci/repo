@@ -93,8 +93,15 @@ const WeekTable = (props: {
   </table>
 )
 
-export function ReviewChart({ weeks }: { weeks: readonly Insights.Week[] }) {
-  const { top, ticks, bars, unit } = reviewBars(weeks)
+export function ReviewChart({
+  weeks,
+  goalHours = null,
+}: {
+  weeks: readonly Insights.Week[]
+  /** The review target in hours; the goal line is left out without one. */
+  goalHours?: number | null
+}) {
+  const { top, ticks, bars, unit, goalY } = reviewBars(weeks, goalHours)
   const keep = labelIndexes(bars.length)
   const slot = (PLOT.width - PLOT.left - PLOT.right) / Math.max(1, bars.length)
   const width = Math.min(28, slot * 0.6)
@@ -137,12 +144,31 @@ export function ReviewChart({ weeks }: { weeks: readonly Insights.Week[] }) {
         y1={base}
         y2={base}
       />
+      {goalY !== null ? (
+        <g>
+          <line
+            className={styles.goal}
+            x1={PLOT.left}
+            x2={PLOT.width - PLOT.right}
+            y1={goalY}
+            y2={goalY}
+          />
+          <text
+            className={styles.goalLabel}
+            x={PLOT.width - PLOT.right}
+            y={goalY - 4}
+            textAnchor="end"
+          >
+            {`goal ${formatHours(goalHours)}`}
+          </text>
+        </g>
+      ) : null}
     </Frame>
   )
 }
 
 export function FlakyChart({ weeks }: { weeks: readonly Insights.Week[] }) {
-  const { top, ticks, points, path } = flakyLine(weeks)
+  const { top, ticks, points } = flakyLine(weeks)
   const keep = labelIndexes(points.length)
   return (
     <Frame
@@ -160,9 +186,19 @@ export function FlakyChart({ weeks }: { weeks: readonly Insights.Week[] }) {
         />
       }
     >
-      {points.length > 1 ? <path className={styles.line} d={path} /> : null}
+      {points.slice(1).map((p, i) => (
+        <line
+          key={p.x}
+          className={styles.segment}
+          data-move={p.move}
+          x1={points[i]!.x}
+          y1={points[i]!.y}
+          x2={p.x}
+          y2={p.y}
+        />
+      ))}
       {points.map((p) => (
-        <circle key={p.x} className={styles.dot} cx={p.x} cy={p.y} r={3.5} />
+        <circle key={p.x} className={styles.dot} data-move={p.move} cx={p.x} cy={p.y} r={3.5} />
       ))}
       <line
         className={styles.axis}

@@ -120,6 +120,81 @@
   stroke-linejoin: round;
 }
 
+.segment {
+  stroke: var(--circi-text-tertiary);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.segment[data-move='better'] {
+  stroke: var(--circi-state-approved);
+}
+
+.segment[data-move='worse'] {
+  stroke: var(--circi-state-rejected);
+}
+
+.dot[data-move='better'] {
+  fill: var(--circi-state-approved);
+}
+
+.dot[data-move='worse'] {
+  fill: var(--circi-state-rejected);
+}
+
+.dot[data-move='same'] {
+  fill: var(--circi-text-tertiary);
+}
+
+.goal {
+  stroke: var(--circi-state-processing);
+  stroke-dasharray: 4 4;
+}
+
+.goalLabel {
+  fill: var(--circi-state-processing);
+  font-size: 11px;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.head .pill {
+  margin-left: auto;
+}
+
+.sub {
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  color: var(--circi-text-secondary);
+  font-size: 12px;
+}
+
+.legend i {
+  display: inline-block;
+  width: 10px;
+  height: 3px;
+  margin-right: 6px;
+  vertical-align: middle;
+  border-radius: 2px;
+}
+
+.person {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .dot {
   fill: var(--circi-accent-main);
   stroke: var(--circi-surface-raised);

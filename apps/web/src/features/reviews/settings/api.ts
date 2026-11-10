@@ -1,4 +1,5 @@
-import type { ReviewRule, ReviewRuleKind, Triage } from '@circi/api'
+import type { ReviewRule, ReviewRuleKind, Team, Triage } from '@circi/api'
+import { FLAKY_WINDOW, reviewDueAt } from '@circi/core'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { REVIEW_TARGET_HOURS_MAX } from '#features/team-settings/settings-patch.ts'
@@ -21,6 +22,13 @@ export const isRuleKind = (value: string): value is ReviewRuleKind =>
 
 export const kindLabel = (kind: ReviewRuleKind) =>
   RULE_KINDS.find((k) => k.value === kind)?.label ?? kind
+
+/** A team member, as the pickers and avatars need them. */
+export interface Person {
+  id: string
+  name: string
+  image?: string | null
+}
 
 /** What a person is editing: one rule, before it is saved. */
 export interface RuleDraft {
@@ -153,14 +161,105 @@ export function targetProblem(text: string): string | null {
   return null
 }
 
-/** The value to save: null for "no target". */
-export const targetValue = (enabled: boolean, text: string): number | null =>
-  enabled ? Number(text.trim()) : null
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
-export const targetText = (saved: number | null, fallback = 24) => String(saved ?? fallback)
+/**
+ * The board's example for the target: a request made Friday 16:00 is overdue on the day (and hour)
+ * that many working hours later, weekends not counted. Null for hours that aren't a valid target.
+ */
+export function overdueExample(hours: string): string | null {
+  if (targetProblem(hours) !== null) return null
+  // 2026-01-02 is a Friday; the example only needs the weekday and the hour.
+  const made = new Date('2026-01-02T16:00:00.000Z')
+  const due = reviewDueAt(made, Number(hours.trim()))
+  if (!due) return null
+  const clock = `${String(due.getUTCHours()).padStart(2, '0')}:${String(due.getUTCMinutes()).padStart(2, '0')}`
+  return `Example: a request made Friday 16:00 becomes overdue ${WEEKDAYS[due.getUTCDay()]} ${clock}.`
+}
 
-export const targetDirty = (saved: number | null, enabled: boolean, text: string) =>
-  enabled ? saved !== Number(text.trim()) : saved !== null
+// ---- The other settings -----------------------------------------------------------------------
+
+/** How many days a snoozed item stays away, as the select offers them. */
+export const SNOOZE_DAY_CHOICES = [1, 3, 7, 14, 30] as const
+
+export const dayCount = (days: number) => `${days} ${days === 1 ? 'day' : 'days'}`
+
+/** Why the flaky threshold can't be saved, or null. */
+export function flakyProblem(text: string): string | null {
+  const t = text.trim()
+  if (!/^\d+$/.test(t) || Number(t) < 1 || Number(t) > FLAKY_WINDOW) {
+    return `Enter a whole number of changes from 1 to ${FLAKY_WINDOW}`
+  }
+  return null
+}
+
+/** Everything the Save below the rules sends, as the form holds it (numbers as typed). */
+export interface FormValues {
+  /** Empty: no review target. */
+  hours: string
+  /** The member also told when a request misses its target; '' for nobody. */
+  notifyUserId: string
+  close: boolean
+  reRequest: boolean
+  autoApprove: boolean
+  requireReason: boolean
+  flakyAfter: string
+  snoozeDays: string
+  rotationIds: string[]
+  rotationDate: string
+}
+
+export type SavedSettings = Pick<
+  Team.Settings,
+  | 'reviewTargetHours'
+  | 'reviewOverdueNotifyUserId'
+  | 'closeReviewsOnNewerBuild'
+  | 'reRequestOnNewerBuild'
+  | 'autoApproveNoChanges'
+  | 'requireRejectReason'
+  | 'flakyAfterChanges'
+  | 'snoozeDefaultDays'
+>
+
+export const formValuesOf = (settings: SavedSettings, rotation: Triage.Rotation): FormValues => ({
+  hours: settings.reviewTargetHours === null ? '' : String(settings.reviewTargetHours),
+  notifyUserId: settings.reviewOverdueNotifyUserId ?? '',
+  close: settings.closeReviewsOnNewerBuild,
+  reRequest: settings.reRequestOnNewerBuild,
+  autoApprove: settings.autoApproveNoChanges,
+  requireReason: settings.requireRejectReason,
+  flakyAfter: String(settings.flakyAfterChanges),
+  snoozeDays: String(settings.snoozeDefaultDays),
+  rotationIds: rotation.members.map((m) => m.id),
+  rotationDate: startDateOf(rotation),
+})
+
+/** The settings that differ from what is saved, as the PATCH body (empty: nothing to send). */
+export function settingsPatch(saved: SavedSettings, v: FormValues): Partial<Team.Settings> {
+  const patch: Partial<Team.Settings> = {}
+  const hours = v.hours.trim() === '' ? null : Number(v.hours.trim())
+  if (hours !== saved.reviewTargetHours) patch.reviewTargetHours = hours
+  const notify = v.notifyUserId === '' ? null : v.notifyUserId
+  if (notify !== saved.reviewOverdueNotifyUserId) patch.reviewOverdueNotifyUserId = notify
+  if (v.close !== saved.closeReviewsOnNewerBuild) patch.closeReviewsOnNewerBuild = v.close
+  if (v.reRequest !== saved.reRequestOnNewerBuild) patch.reRequestOnNewerBuild = v.reRequest
+  if (v.autoApprove !== saved.autoApproveNoChanges) patch.autoApproveNoChanges = v.autoApprove
+  if (v.requireReason !== saved.requireRejectReason) patch.requireRejectReason = v.requireReason
+  if (Number(v.flakyAfter) !== saved.flakyAfterChanges) {
+    patch.flakyAfterChanges = Number(v.flakyAfter)
+  }
+  if (Number(v.snoozeDays) !== saved.snoozeDefaultDays) {
+    patch.snoozeDefaultDays = Number(v.snoozeDays)
+  }
+  return patch
+}
+
+/** What blocks Save, by field. */
+export function formProblems(v: FormValues): { hours?: string; flakyAfter?: string } {
+  const hours = v.hours.trim() === '' ? null : targetProblem(v.hours)
+  const flaky = flakyProblem(v.flakyAfter)
+  return { ...(hours ? { hours } : {}), ...(flaky ? { flakyAfter: flaky } : {}) }
+}
 
 // ---- Triage rotation --------------------------------------------------------------------------
 

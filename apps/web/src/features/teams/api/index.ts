@@ -1,5 +1,5 @@
 import type { Flaky, IgnoreRegion, Review, Workspace, WorkspaceBuilds, Team } from '@circi/api'
-import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { isActive } from '#features/builds/api/index.ts'
 import {
@@ -305,4 +305,15 @@ export function useBulkRequestReview(workspace: string, team: string) {
       post<Review.BulkRequested>(teamPath(workspace, team, 'builds', 'request-review'), input),
     onSuccess: () => invalidateAll(queryClient, keys.sidebar(), keys.reviews(), keys.inbox()),
   })
+}
+
+/**
+ * Whether the team asks for a reason when someone rejects. True until the settings are known, so a
+ * reject never goes out without one only because the answer was slow.
+ */
+export function useRejectReasonRequired(workspace: string, team: string): boolean {
+  const { data } = useQuery({ ...settingsQuery(workspace, team), enabled: team !== '' })
+  // A reply without the settings (still loading, or refused) keeps the safe answer.
+  const settings: Partial<Team.Settings> | undefined = data?.settings
+  return settings?.requireRejectReason ?? true
 }

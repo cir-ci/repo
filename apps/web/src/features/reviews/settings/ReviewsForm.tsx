@@ -6,14 +6,14 @@ import { useSaveSettings } from '#features/teams/api/index.ts'
 import { HttpError } from '#lib/http.ts'
 
 import {
+  type FormValues,
+  formProblems,
+  formValuesOf,
+  type Person,
   rotationBody,
   rotationDirty,
-  startDateOf,
   startDateProblem,
-  targetDirty,
-  targetProblem,
-  targetText,
-  targetValue,
+  settingsPatch,
   useRuleActions,
 } from './api.ts'
 import { AutomationSection } from './AutomationSection.tsx'
@@ -24,42 +24,38 @@ import { RotationSection } from './RotationSection.tsx'
 import teamStyles from '#features/team-settings/TeamSettings.module.css'
 
 /**
- * The settings below the rules, saved together: the review target and the triage rotation. One
- * Save sends what changed, one request after the other (the target, then the rotation); the rest
- * of the page is fixed behaviour. The rules above save as they are edited, each in its own editor.
+ * The settings below the rules, saved together: the review target, the automation, and triage
+ * (the rotation, the flaky threshold, the snooze default). One Save sends what changed, one
+ * request after the other (the settings, then the rotation). The rules above apply as they are
+ * confirmed, each in its own dialog.
  */
 export function ReviewsForm(props: ReviewsForm.Props) {
   const saveSettings = useSaveSettings(props.workspace, props.team)
   const { rotation: saveRotation } = useRuleActions(props.workspace, props.team)
   const announce = useAnnounce()
-  const savedHours = props.settings.reviewTargetHours
-  const [enabled, setEnabled] = useState(savedHours !== null)
-  const [hours, setHours] = useState(targetText(savedHours))
-  const [ids, setIds] = useState(() => props.rotation.members.map((m) => m.id))
-  const [date, setDate] = useState(startDateOf(props.rotation))
+  const saved = formValuesOf(props.settings, props.rotation)
+  const [values, setValues] = useState<FormValues>(saved)
   const [dateUnreadable, setDateUnreadable] = useState(false)
   const [touched, setTouched] = useState(false)
   const [done, setDone] = useState(false)
   const [failure, setFailure] = useState<Error | null>(null)
   const [saving, setSaving] = useState(false)
 
-  const targetChanged = targetDirty(savedHours, enabled, hours)
-  const rotationChanged = rotationDirty(props.rotation, ids, date) || dateUnreadable
-  const dirty = targetChanged || rotationChanged
+  const patch = settingsPatch(props.settings, values)
+  const settingsChanged = Object.keys(patch).length > 0
+  const rotationChanged =
+    rotationDirty(props.rotation, values.rotationIds, values.rotationDate) || dateUnreadable
+  const dirty = settingsChanged || rotationChanged
   const disabled = !props.canManage
+  const fields = failure instanceof HttpError ? failure.fields : {}
 
-  function edited<T>(set: (value: T) => void) {
-    return (value: T) => {
-      set(value)
-      setDone(false)
-    }
+  function edit(change: Partial<FormValues>) {
+    setValues({ ...values, ...change })
+    setDone(false)
   }
 
   function discard() {
-    setEnabled(savedHours !== null)
-    setHours(targetText(savedHours))
-    setIds(props.rotation.members.map((m) => m.id))
-    setDate(startDateOf(props.rotation))
+    setValues(saved)
     setDateUnreadable(false)
     setTouched(false)
     setDone(false)
@@ -74,15 +70,22 @@ export function ReviewsForm(props: ReviewsForm.Props) {
     const unreadable =
       dateUnreadable || (dateInput instanceof HTMLInputElement && dateInput.validity.badInput)
     if (unreadable !== dateUnreadable) setDateUnreadable(unreadable)
-    if ((enabled && targetProblem(hours)) || startDateProblem(date, unreadable)) return
+    const problems = formProblems(values)
+    if (
+      problems.hours ||
+      problems.flakyAfter ||
+      startDateProblem(values.rotationDate, unreadable)
+    ) {
+      return
+    }
     setDone(false)
     setFailure(null)
     setSaving(true)
     try {
-      if (targetChanged) {
-        await saveSettings.mutateAsync({ reviewTargetHours: targetValue(enabled, hours) })
+      if (settingsChanged) await saveSettings.mutateAsync(patch)
+      if (rotationChanged) {
+        await saveRotation.mutateAsync(rotationBody(values.rotationIds, values.rotationDate))
       }
-      if (rotationChanged) await saveRotation.mutateAsync(rotationBody(ids, date))
       setDone(true)
       announce('Settings saved')
     } catch (err) {
@@ -92,39 +95,55 @@ export function ReviewsForm(props: ReviewsForm.Props) {
     }
   }
 
+  const fieldMessages = ['reviewTargetHours', 'reviewOverdueNotifyUserId', 'flakyAfterChanges']
+  const shownByField = fieldMessages.some((f) => fields[f])
   return (
     <form onSubmit={(e) => void submit(e)} noValidate className={teamStyles.form}>
       <ReviewTargetSection
-        saved={savedHours}
-        enabled={enabled}
-        hours={hours}
+        hours={values.hours}
+        notifyUserId={values.notifyUserId}
+        people={props.people}
         touched={touched}
-        serverProblem={failure instanceof HttpError ? failure.fields.reviewTargetHours : undefined}
+        serverProblem={fields['reviewTargetHours']}
+        notifyProblem={fields['reviewOverdueNotifyUserId']}
         disabled={disabled}
-        onEnabledChange={edited(setEnabled)}
-        onHoursChange={edited(setHours)}
+        onHoursChange={(hours) => edit({ hours })}
+        onNotifyChange={(notifyUserId) => edit({ notifyUserId })}
         className={teamStyles.number}
       />
-      <AutomationSection />
-      <RotationSection
-        workspace={props.workspace}
-        team={props.team}
-        people={props.people}
-        ids={ids}
-        date={date}
+      <AutomationSection
+        close={values.close}
+        reRequest={values.reRequest}
+        autoApprove={values.autoApprove}
+        requireReason={values.requireReason}
         disabled={disabled}
-        onIdsChange={edited(setIds)}
+        onCloseChange={(close) => edit({ close })}
+        onReRequestChange={(reRequest) => edit({ reRequest })}
+        onAutoApproveChange={(autoApprove) => edit({ autoApprove })}
+        onRequireReasonChange={(requireReason) => edit({ requireReason })}
+      />
+      <RotationSection
+        teamName={props.settings.name}
+        defaultBranch={props.settings.defaultBranch}
+        people={props.people}
+        ids={values.rotationIds}
+        date={values.rotationDate}
+        flakyAfter={values.flakyAfter}
+        snoozeDays={values.snoozeDays}
+        touched={touched}
+        serverFlakyProblem={fields['flakyAfterChanges']}
+        disabled={disabled}
+        onIdsChange={(rotationIds) => edit({ rotationIds })}
         dateUnreadable={dateUnreadable}
-        onDateChange={(next, unreadable) => {
-          setDate(next)
+        onDateChange={(rotationDate, unreadable) => {
+          edit({ rotationDate })
           setDateUnreadable(unreadable)
-          setDone(false)
         }}
+        onFlakyChange={(flakyAfter) => edit({ flakyAfter })}
+        onSnoozeChange={(snoozeDays) => edit({ snoozeDays })}
       />
       <NotifySection workspace={props.workspace} team={props.team} />
-      {failure && !(failure instanceof HttpError && failure.fields.reviewTargetHours) ? (
-        <Banner tone="danger">{failure.message}</Banner>
-      ) : null}
+      {failure && !shownByField ? <Banner tone="danger">{failure.message}</Banner> : null}
       {done ? <Banner tone="success">Settings saved.</Banner> : null}
       {props.canManage ? (
         <div className={teamStyles.footer}>
@@ -144,9 +163,21 @@ export namespace ReviewsForm {
   export interface Props {
     workspace: string
     team: string
-    settings: Pick<Team.Settings, 'reviewTargetHours'>
+    settings: Pick<
+      Team.Settings,
+      | 'name'
+      | 'defaultBranch'
+      | 'reviewTargetHours'
+      | 'reviewOverdueNotifyUserId'
+      | 'closeReviewsOnNewerBuild'
+      | 'reRequestOnNewerBuild'
+      | 'autoApproveNoChanges'
+      | 'requireRejectReason'
+      | 'flakyAfterChanges'
+      | 'snoozeDefaultDays'
+    >
     rotation: Triage.Rotation
-    people: { id: string; name: string }[]
+    people: Person[]
     canManage: boolean
   }
 }

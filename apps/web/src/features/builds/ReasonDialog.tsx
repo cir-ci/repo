@@ -16,6 +16,7 @@ export function ReasonDialog({
   description,
   confirmLabel,
   invalidMessage,
+  required = true,
   hint,
   pending,
   onCancel,
@@ -27,11 +28,11 @@ export function ReasonDialog({
   const field = useRef<HTMLTextAreaElement>(null)
   const errorId = `${fieldId}-error`
   const trimmed = reason.trim()
-  const invalid = touched && trimmed === ''
+  const invalid = required && touched && trimmed === ''
 
   function submit() {
     if (pending) return
-    if (trimmed === '') {
+    if (required && trimmed === '') {
       setTouched(true)
       return
     }
@@ -59,7 +60,7 @@ export function ReasonDialog({
       formClassName={styles.form}
     >
       <label htmlFor={fieldId} className={styles.label}>
-        <Text variant="small">Reason</Text>
+        <Text variant="small">{required ? 'Reason' : 'Reason (optional)'}</Text>
       </label>
       <textarea
         id={fieldId}
@@ -67,7 +68,7 @@ export function ReasonDialog({
         className={styles.textarea}
         value={reason}
         rows={4}
-        aria-required="true"
+        aria-required={required ? true : undefined}
         aria-invalid={invalid ? true : undefined}
         aria-describedby={invalid ? errorId : undefined}
         placeholder="What needs to change?"
@@ -102,11 +103,13 @@ export namespace ReasonDialog {
     confirmLabel: string
     /** Shown when the reason is empty after the field was touched. */
     invalidMessage: string
+    /** Whether the reason must be filled in (default); a team can make it optional. */
+    required?: boolean
     /** Shown under the field while it is valid (the shortcut, for example). */
     hint?: ReactNode
     pending: boolean
     onCancel: () => void
-    /** Called with the trimmed, non-empty reason. */
+    /** Called with the trimmed reason (empty only when it is optional). */
     onSubmit: (reason: string) => void
   }
 }
