@@ -3,7 +3,7 @@ import { expect, it, describe, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page, userEvent } from 'vitest/browser'
 
-import { Button } from '#src/index.ts'
+import { Button, Kbd } from '#src/index.ts'
 
 describe('Button', () => {
   it('is a button named by its label and calls onClick', async () => {
@@ -153,5 +153,16 @@ describe('Button', () => {
       .not.toHaveAttribute('aria-pressed')
     const trigger = page.getByRole('button', { name: 'main' }).element()
     expect(getComputedStyle(trigger).borderTopColor).toBe('rgba(0, 0, 0, 0)')
+  })
+
+  it("draws a shortcut hint on a primary button in the button's own text colour", async () => {
+    await render(
+      <Button variant="primary">
+        Approve all <Kbd>⇧A</Kbd>
+      </Button>,
+    )
+    const button = page.getByRole('button', { name: /Approve all/ }).element()
+    const kbd = button.querySelector('kbd')!
+    expect(getComputedStyle(kbd).color).toBe(getComputedStyle(button).color)
   })
 })

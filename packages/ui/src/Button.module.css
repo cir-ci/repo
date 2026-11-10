@@ -40,6 +40,14 @@
   color: var(--circi-accent-on-accent);
 }
 
+/* A shortcut hint on the accent takes the button's own text colour, on a faint tint of it: the
+   Kbd's usual secondary text on a grey tint would vanish into the fill. */
+.root[data-variant='primary'] kbd {
+  border-color: color-mix(in srgb, currentColor 35%, transparent);
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  color: inherit;
+}
+
 .root[data-variant='primary']:hover {
   background: color-mix(in srgb, var(--circi-accent-main) 92%, var(--circi-text-primary));
 }
