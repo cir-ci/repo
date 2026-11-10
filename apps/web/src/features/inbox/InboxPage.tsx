@@ -188,9 +188,9 @@ export function InboxPage() {
     <>
       <PageHeading
         title="Inbox"
+        find={<FindField noun="notifications" value={find} onChange={setFind} />}
         actions={
           <>
-            <FindField noun="notifications" value={find} onChange={setFind} />
             <Button
               size="sm"
               disabled={unread === 0}

@@ -77,11 +77,13 @@ export function TeamsPage() {
             </Text>
           ) : null
         }
+        find={
+          teams && teams.length > 0 ? (
+            <FindField noun="teams" value={find} onChange={setFind} />
+          ) : null
+        }
         actions={
           <>
-            {teams && teams.length > 0 ? (
-              <FindField noun="teams" value={find} onChange={setFind} />
-            ) : null}
             {canCreateTeam ? (
               <>
                 {canImport ? (

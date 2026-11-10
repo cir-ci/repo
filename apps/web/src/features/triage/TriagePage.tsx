@@ -197,21 +197,19 @@ export function TriagePage() {
             </Text>
           ) : null
         }
+        find={
+          data && total.length > 0 ? (
+            <FindField noun="triage items" value={find} onChange={setFind} />
+          ) : null
+        }
         actions={
-          data ? (
-            <>
-              {total.length > 0 ? (
-                <FindField noun="triage items" value={find} onChange={setFind} />
-              ) : null}
-              {chip && data.rotation.onTriage ? (
-                <Badge shape="tag" tone="accent" aria-label={chip}>
-                  <span className={styles.chip}>
-                    <Avatar type="user" {...data.rotation.onTriage} size={16} />
-                    {chip}
-                  </span>
-                </Badge>
-              ) : null}
-            </>
+          data && chip && data.rotation.onTriage ? (
+            <Badge shape="tag" tone="accent" aria-label={chip}>
+              <span className={styles.chip}>
+                <Avatar type="user" {...data.rotation.onTriage} size={16} />
+                {chip}
+              </span>
+            </Badge>
           ) : undefined
         }
       />
@@ -269,7 +267,11 @@ export function TriagePage() {
                                     setSheetFor(itemId(item))
                                   }}
                                   // Enter and a double click do the same; the chip says so (and is a click target for a mouse).
-                                  action={{ label: 'Open in build ↗', onAction: () => open(item) }}
+                                  action={{
+                                    label: 'Open in build ↗',
+                                    onAction: () => open(item),
+                                    onPhone: true,
+                                  }}
                                   title={<span aria-hidden="true">{itemTitle(item)}</span>}
                                   subtitle={<span aria-hidden="true">{itemSubtitle(item)}</span>}
                                   trailing={

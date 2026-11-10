@@ -6,6 +6,8 @@ import { TeamsPage } from '#features/teams/TeamsPage.tsx'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
+import { pageHeader } from '#test/support/header.ts'
+import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
 import { expectOnePrimaryPerArea } from '#test/support/primary-buttons.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { toastNamed } from '#test/support/toast.ts'
@@ -324,5 +326,33 @@ describe('TeamsPage', () => {
     await expect.element(find).toHaveValue('')
     await expect.element(list.getByText('acme/storybook')).toBeVisible()
     await vi.waitFor(() => expect(router.state.location.search).not.toHaveProperty('q'))
+  })
+})
+
+describe('TeamsPage on a phone', () => {
+  it('keeps the header one compact row with 36px buttons, the find field full width below it, and no sideways scroll', async () => {
+    await page.viewport(390, 844)
+    fakeApi({
+      'GET /api/teams': { body: { teams: [overview('acme', 'web-app'), overview('acme', 'api')] } },
+      'GET /api/capabilities': {
+        body: caps({
+          canCreateWorkspace: true,
+          manageableWorkspaces: [{ slug: 'acme', name: 'Acme' }],
+        }),
+      },
+    })
+    await show()
+    const create = page.getByRole('button', { name: 'New team' })
+    await expect.element(create).toBeVisible()
+    const header = pageHeader().getBoundingClientRect()
+    expect(create.element().getBoundingClientRect().height).toBeLessThanOrEqual(36.5)
+    expect(header.height).toBeLessThanOrEqual(52)
+    const field = page
+      .getByRole('textbox', { name: 'Find teams' })
+      .element()
+      .getBoundingClientRect()
+    expect(field.top).toBeGreaterThanOrEqual(header.bottom - 1)
+    expect(field.width).toBeGreaterThan(390 - 48)
+    expectNoSidewaysScroll()
   })
 })

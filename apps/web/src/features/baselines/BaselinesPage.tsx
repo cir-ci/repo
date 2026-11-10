@@ -64,7 +64,7 @@ export function BaselinesPage() {
             </Text>
           ) : null
         }
-        actions={
+        find={
           data && all.length > 0 ? (
             <FindField noun="baselines" value={filter} onChange={setFilter} />
           ) : null

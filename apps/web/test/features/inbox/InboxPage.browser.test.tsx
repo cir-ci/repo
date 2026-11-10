@@ -7,6 +7,8 @@ import { PANES } from '#lib/panes.ts'
 import { usePaneStore } from '#lib/stores/pane-store.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi } from '#test/support/fetch.ts'
+import { pageHeader } from '#test/support/header.ts'
+import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { expectLimitedToSpace, expectResize, parentOf } from '#test/support/resize.ts'
 import { toastNamed } from '#test/support/toast.ts'
@@ -472,5 +474,37 @@ describe('InboxPage on a phone', () => {
     await expect
       .poll(() => page.getByRole('dialog', { name: 'Notification' }).elements().length)
       .toBe(0)
+  })
+})
+
+describe('InboxPage on a phone', () => {
+  it('has compact header buttons and the find field full width below the header, with no sideways scroll', async () => {
+    await page.viewport(390, 844)
+    fakeApi({ 'GET /api/inbox': list([item('n1'), item('n2')]) })
+    await show()
+    const find = page.getByRole('textbox', { name: 'Find notifications' })
+    await expect.element(find).toBeVisible()
+    const header = pageHeader().getBoundingClientRect()
+    const field = find.element().getBoundingClientRect()
+    expect(field.top).toBeGreaterThanOrEqual(header.bottom - 1)
+    expect(field.width).toBeGreaterThan(390 - 48)
+    const mark = page
+      .getByRole('button', { name: 'Mark all read' })
+      .element()
+      .getBoundingClientRect()
+    expect(mark.height).toBeLessThanOrEqual(36.5)
+    expect(header.height).toBeLessThanOrEqual(52)
+    expectNoSidewaysScroll()
+  })
+
+  it('keeps the find field in the header on a desktop', async () => {
+    await page.viewport(1280, 800)
+    fakeApi({ 'GET /api/inbox': list([item('n1')]) })
+    await show()
+    const header = pageHeader()
+    await expect.element(page.getByRole('textbox', { name: 'Find notifications' })).toBeVisible()
+    expect(
+      header.contains(page.getByRole('textbox', { name: 'Find notifications' }).element()),
+    ).toBe(true)
   })
 })

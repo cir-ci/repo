@@ -655,6 +655,31 @@ describe('TriagePage on a phone', () => {
     await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
   })
 
+  it('never scrolls sideways, with long names in the rows and the sheet open', async () => {
+    await page.viewport(390, 844)
+    const long = `${'checkout-flow/payment-method-selection-with-saved-cards-'.repeat(3)}mobile`
+    fakeApi({
+      [`GET ${BASE}/triage`]: {
+        body: queue([
+          item(long, { history: tenBuilds, blocking: 2 }),
+          item('no-baseline-with-a-very-long-name-that-never-fits-on-a-phone-screen-at-all', {
+            kind: 'no_baseline',
+          }),
+        ]),
+      },
+      [`GET ${BASE}/snapshots/${long}/history`]: { body: history },
+    })
+    await show()
+    await expect.element(page.getByRole('list', { name: 'Flaky, 1 item' })).toBeVisible()
+    expectNoSidewaysScroll()
+    for (const row of page.getByRole('listitem').elements()) {
+      expect(row.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth)
+    }
+    await page.getByRole('list', { name: 'Flaky, 1 item' }).getByRole('button').first().click()
+    await expect.element(page.getByRole('dialog', { name: 'Details' })).toBeVisible()
+    expectNoSidewaysScroll()
+  })
+
   it('keeps the pane beside the list on a desktop', async () => {
     await page.viewport(1280, 800)
     server()

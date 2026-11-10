@@ -75,3 +75,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* A phone: the chip is the row's second-to-last thing (before the age), so it leaves the name room. */
+@media (max-width: 819.98px) {
+  .flakyChip {
+    max-width: 112px;
+  }
+}

@@ -126,6 +126,9 @@
 @media (max-width: 720px) {
   .split {
     flex-direction: column;
+    /* Stacked, every child is as wide as the page: left to flex-start a long name (one line, cut
+       with an ellipsis) would widen the list past the window. */
+    align-items: stretch;
   }
 
   /* Stacked, the pane has the whole width: its share of a row no longer applies. */

@@ -4,6 +4,7 @@ import { page, userEvent } from 'vitest/browser'
 import { BaselinesPage } from '#features/baselines/BaselinesPage.tsx'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeFetch, json } from '#test/support/fetch.ts'
+import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 const PATH = '/api/teams/acme/web/baselines'
@@ -165,5 +166,62 @@ describe('BaselinesPage', () => {
     fakeFetch({ [`GET ${PATH}`]: json({ error: 'boom' }, 500) })
     await open()
     await expect.element(page.getByRole('button', { name: 'Try again' })).toBeVisible()
+  })
+})
+
+describe('BaselinesPage on a phone', () => {
+  const flakyReply = json({
+    builds: 10,
+    flaky: [
+      {
+        name: 'checkout/payment',
+        changedIn: 4,
+        reason: {
+          kind: 'reruns_disagree',
+          reruns: { build: 12, runs: 2, differing: 1, commits: 1 },
+        },
+      },
+    ],
+  })
+  const longName = `checkout/${'a-very-long-screenshot-name-'.repeat(4)}end`
+
+  it('makes the whole row the tap target: no arrow button, the flaky chip at the end before the age, no sideways scroll', async () => {
+    await page.viewport(390, 844)
+    fakeFetch({
+      [`GET ${PATH}`]: list([
+        item('checkout/payment', 'default', 12),
+        item(longName, 'default', 11),
+      ]),
+      [`GET ${FLAKY}`]: flakyReply,
+    })
+    await open()
+    const row = page.getByRole('link', { name: /checkout\/payment/ })
+    await expect.element(row).toBeVisible()
+    // The hover chip (an arrow on a phone) is gone: nothing else to tap but the row.
+    expect(
+      page
+        .getByText('Open build #12 ↗')
+        .elements()
+        .filter((el) => el.getBoundingClientRect().width > 0),
+    ).toHaveLength(0)
+    const rowBox = row.element().getBoundingClientRect()
+    expect(rowBox.height).toBeGreaterThanOrEqual(44)
+    const chip = page
+      .getByText('Differed across 2 runs of one commit')
+      .element()
+      .getBoundingClientRect()
+    const age = page.getByText('2d').first().element().getBoundingClientRect()
+    // Right after the name and the build, at the row's end, just before the age.
+    expect(chip.right).toBeLessThanOrEqual(age.left + 1)
+    expect(chip.right).toBeGreaterThan(rowBox.right - 80)
+    expectNoSidewaysScroll()
+  })
+
+  it('keeps the hover chip on a desktop', async () => {
+    await page.viewport(1280, 800)
+    fakeFetch({ [`GET ${PATH}`]: list([item('home', 'default', 9)]), [`GET ${FLAKY}`]: noFlaky })
+    await open()
+    await page.getByRole('link', { name: /home/ }).hover()
+    await expect.element(page.getByText('Open build #9 ↗')).toBeVisible()
   })
 })

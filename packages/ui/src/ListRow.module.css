@@ -84,16 +84,27 @@
 }
 
 /*
- * A phone: rows are taller (64px with two lines) and the hover chip is always there, a 44px target
- * (nothing may depend on hover).
+ * A phone: rows are taller (64px with two lines), and the whole row is the tap target: the hover
+ * chip is gone, unless its action is not what a tap on the row does (`action.onPhone`), when it
+ * is always there as a 44px target (nothing may depend on hover).
  */
 @media (max-width: 819.98px) {
   .root[data-density='two-line'] {
     min-height: 64px;
   }
 
+  .root .action,
+  .root:hover .action,
+  .root:focus-visible .action,
+  .root[data-selected] .action {
+    display: none;
+  }
+
   /* The chip is a 44px square with just its arrow: the words would crowd the row off a phone's width. */
-  .action {
+  .root .action[data-phone],
+  .root:hover .action[data-phone],
+  .root:focus-visible .action[data-phone],
+  .root[data-selected] .action[data-phone] {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -105,7 +116,7 @@
     font-size: 0;
   }
 
-  .action::after {
+  .action[data-phone]::after {
     content: '↗';
     font-size: 16px;
   }

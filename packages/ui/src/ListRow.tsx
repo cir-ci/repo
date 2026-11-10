@@ -32,6 +32,7 @@ export function ListRow(props: ListRow.Props) {
       {props.action ? (
         <span
           className={styles.action}
+          data-phone={props.action.onPhone ? '' : undefined}
           aria-hidden="true"
           onClick={(event) => {
             event.preventDefault()
@@ -79,7 +80,16 @@ export namespace ListRow {
     /** Anything else below the title and subtitle (chips, a custom body). */
     children?: ReactNode
     /** Chip shown on hover, keyboard focus and selection (a shortcut, mouse-only: keep the same action reachable elsewhere). */
-    action?: { label: ReactNode; onAction: () => void }
+    action?: {
+      label: ReactNode
+      onAction: () => void
+      /**
+       * Keep the chip on a phone, as an always-visible 44px arrow. Off by default: a row that is
+       * already a link needs no second target, and the whole row is the 44px tap area. Turn it on
+       * when the action goes somewhere other than what a tap on the row does.
+       */
+      onPhone?: boolean
+    }
     /** Glyph or avatar before the content. */
     leading?: ReactNode
     /** Metadata after the content: counts, time, author. */
