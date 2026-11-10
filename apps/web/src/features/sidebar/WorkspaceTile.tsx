@@ -1,17 +1,16 @@
-import { workspaceLetter, workspaceMark } from '#app/shell-model.ts'
+import { workspaceLetter } from '#app/shell-model.ts'
 
 import styles from './WorkspaceTile.module.css'
 
 /**
- * A workspace's mark: its first letter on a rounded square. The workspace being shown is the
- * brand's maroon with white text, the others are neutral. With a picture, the picture fills the square. Decorative: the name is written beside it.
+ * A workspace's mark: its first letter on a rounded square in the brand's maroon with white text,
+ * the same for every workspace whether or not it is the open one. With a picture, the picture fills the square. Decorative: the name is written beside it.
  */
-export function WorkspaceTile({ name, slug, current, picture, size = 20 }: WorkspaceTile.Props) {
+export function WorkspaceTile({ name, picture, size = 20 }: WorkspaceTile.Props) {
   return (
     <span
       aria-hidden="true"
       data-size={size}
-      data-mark={workspaceMark(slug, current)}
       data-picture={picture ? '' : undefined}
       className={styles.root}
     >
@@ -23,9 +22,6 @@ export function WorkspaceTile({ name, slug, current, picture, size = 20 }: Works
 export namespace WorkspaceTile {
   export interface Props {
     name: string
-    slug: string
-    /** The slug of the workspace being shown. */
-    current: string | undefined
     /** The workspace's picture, when it has one: it replaces the letter. */
     picture?: string | null | undefined
     size?: 16 | 20 | 24

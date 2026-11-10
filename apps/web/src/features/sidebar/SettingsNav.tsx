@@ -29,7 +29,6 @@ import {
   orderTeams,
   pickSettingsTeam,
   readRememberedTeam,
-  readRememberedWorkspace,
   settingsNavTeams,
   TEAM_SETTINGS_PAGES,
   teamSettingsKey,
@@ -38,6 +37,7 @@ import {
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
 import { isTeamIconName } from '#features/teams/appearance.ts'
+import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 
 import { TeamSwitcher } from './TeamSwitcher.tsx'
 import { useWorkspaces } from './use-workspaces.ts'
@@ -71,7 +71,7 @@ export function SettingsNav() {
   const { data: caps } = useQuery(capabilitiesQuery())
   const params = useParams({ strict: false })
   const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const { workspace } = useWorkspaces(readRememberedWorkspace())
+  const { workspace } = useWorkspaces(useChosenWorkspace())
   const { data: model } = useSidebarModel(workspace?.slug)
   const { data: overview } = useQuery(teamsQuery())
   // Only teams that exist in this workspace now: never one remembered from, or cached for, another.
@@ -111,13 +111,7 @@ export function SettingsNav() {
         <NavSection
           label={
             <>
-              <WorkspaceTile
-                name={workspace.name}
-                slug={workspace.slug}
-                current={workspace.slug}
-                picture={workspace.picture}
-                size={16}
-              />
+              <WorkspaceTile name={workspace.name} picture={workspace.picture} size={16} />
               {`Workspace · ${workspace.name}`}
             </>
           }

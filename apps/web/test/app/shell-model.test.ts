@@ -21,7 +21,7 @@ import {
   teamSettingsKey,
   teamSettingsPath,
   workspaceLetter,
-  workspaceMark,
+  switchWorkspacePath,
 } from '#app/shell-model.ts'
 
 const overview = (workspace: string, team: string): Team.Overview => ({
@@ -204,11 +204,6 @@ describe('isOutsideFrame', () => {
 })
 
 describe('workspace marks', () => {
-  it('makes the open workspace brand maroon and the others neutral', () => {
-    expect(workspaceMark('acme', 'acme')).toBe('brand')
-    expect(workspaceMark('acme-labs', 'acme')).toBe('neutral')
-    expect(workspaceMark('acme', undefined)).toBe('neutral')
-  })
   it('uses the first letter, lower case', () => {
     expect(workspaceLetter('Acme')).toBe('a')
     expect(workspaceLetter('  side-project')).toBe('s')
@@ -306,5 +301,44 @@ describe('settingsNavTeams', () => {
     expect(settingsNavTeams([side('api')], [overview('acme', 'api')], 'acme', 'gone')).toEqual([
       side('api'),
     ])
+  })
+})
+
+const teamOf = (ws: string) => (ws === 'globex' ? 'portal' : undefined)
+
+const go = (path: string, to = 'globex') => switchWorkspacePath(path, to, teamOf)
+
+describe('switchWorkspacePath', () => {
+  it('keeps workspace pages and settings pages, with the new slug', () => {
+    expect(go('/workspaces/acme/reviews')).toBe('/workspaces/globex/reviews')
+    expect(go('/workspaces/acme/insights')).toBe('/workspaces/globex/insights')
+    expect(go('/workspaces/acme/settings')).toBe('/workspaces/globex/settings')
+    expect(go('/workspaces/acme/settings/members')).toBe('/workspaces/globex/settings/members')
+    expect(go('/workspaces/acme/settings/integrations/github/abc')).toBe(
+      '/workspaces/globex/settings/integrations',
+    )
+    expect(go('/workspaces/acme/views/v1')).toBe('/workspaces/globex/reviews')
+  })
+
+  it('keeps the section of a team page, on the new workspace’s team, dropping what is specific', () => {
+    expect(go('/acme/web')).toBe('/globex/portal')
+    expect(go('/acme/web/builds/12')).toBe('/globex/portal')
+    expect(go('/acme/web/triage')).toBe('/globex/portal/triage')
+    expect(go('/acme/web/baselines/home')).toBe('/globex/portal/baselines')
+    expect(go('/acme/web/sites')).toBe('/globex/portal/sites')
+    expect(go('/acme/web/settings')).toBe('/globex/portal/settings')
+    expect(go('/acme/web/settings/token')).toBe('/globex/portal/settings/token')
+  })
+
+  it('goes to the Teams page when the new workspace has no team', () => {
+    expect(go('/acme/web/triage', 'empty')).toBe('/')
+  })
+
+  it('stays put on the Teams page and the global pages', () => {
+    expect(go('/')).toBe('/')
+    expect(go('/inbox')).toBeUndefined()
+    expect(go('/account/profile')).toBeUndefined()
+    expect(go('/instance/health')).toBeUndefined()
+    expect(go('/integrations/github/setup')).toBeUndefined()
   })
 })

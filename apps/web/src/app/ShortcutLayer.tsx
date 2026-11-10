@@ -7,9 +7,10 @@ import { useSidebarModel } from '#features/sidebar/api.ts'
 import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
+import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 import { useCopy } from '#lib/use-copy.ts'
 
-import { goPath, readRememberedWorkspace } from './shell-model.ts'
+import { goPath } from './shell-model.ts'
 import { ShortcutsDialog } from './ShortcutsDialog.tsx'
 
 /**
@@ -21,7 +22,7 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
   const params = useParams({ strict: false })
   const announce = useAnnounce()
   const { copy } = useCopy()
-  const { workspace } = useWorkspaces(readRememberedWorkspace())
+  const { workspace } = useWorkspaces(useChosenWorkspace())
   const { data: sidebar } = useSidebarModel(workspace?.slug)
   const commandOpen = useOverlayStore((s) => s.commandMenuOpen)
   const setCommandOpen = useOverlayStore((s) => s.setCommandMenuOpen)

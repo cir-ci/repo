@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { readRememberedWorkspace } from '#app/shell-model.ts'
 import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
+import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 
 import { NewWorkspaceDialog } from './CreateDialogs.tsx'
 import { NewTeamDialog } from './NewTeamDialog.tsx'
@@ -15,7 +15,7 @@ import { NewTeamDialog } from './NewTeamDialog.tsx'
  */
 export function TeamDialogs() {
   const { data: caps } = useQuery(capabilitiesQuery())
-  const { workspace } = useWorkspaces(readRememberedWorkspace())
+  const { workspace } = useWorkspaces(useChosenWorkspace())
   const teamOpen = useOverlayStore((s) => s.newTeamOpen)
   const workspaceOpen = useOverlayStore((s) => s.newWorkspaceOpen)
   const setTeamOpen = useOverlayStore((s) => s.setNewTeamOpen)

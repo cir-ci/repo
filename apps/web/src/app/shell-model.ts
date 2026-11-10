@@ -202,11 +202,40 @@ export function rememberWorkspace(slug: string): void {
 // ---- Account, instance and the settings tree ----------------------------------------------------
 
 /**
- * A workspace's mark in the sidebar, menus and settings nav: the workspace being shown is the
- * brand's maroon with white text, every other one is neutral (`surface.highest`).
+ * Where the workspace switcher goes from `pathname` when `toWorkspace` is picked: the equivalent
+ * page of the new workspace. Workspace pages (`/workspaces/<ws>/...`) keep their page under the new
+ * slug (a page that belongs to one item, a view or an integration, goes up to its list); team
+ * pages keep their section on `teamOf(toWorkspace)` (its remembered or first team), dropping the
+ * build number, snapshot and the like, or go to the Teams page when the workspace has no team.
+ * The Teams page stays itself (`/`). Global pages (Inbox, account, instance, ...) have no
+ * equivalent: `undefined`, the address stays.
  */
-export const workspaceMark = (slug: string, current: string | undefined): 'brand' | 'neutral' =>
-  slug === current ? 'brand' : 'neutral'
+export function switchWorkspacePath(
+  pathname: string,
+  toWorkspace: string,
+  teamOf: (workspace: string) => string | undefined,
+): string | undefined {
+  const parts = pathname.split('/').filter(Boolean)
+  if (parts.length === 0) return '/'
+  const first = parts[0] ?? ''
+  const to = encodeURIComponent(toWorkspace)
+  if (first === 'workspaces') {
+    const [, , section, sub] = parts
+    if (section === 'settings') return `/workspaces/${to}/settings${sub ? `/${sub}` : ''}`
+    return `/workspaces/${to}/${section === 'views' || !section ? 'reviews' : section}`
+  }
+  if (GLOBAL_ROOTS.has(first)) return undefined
+  const team = teamOf(toWorkspace)
+  if (!team) return '/'
+  const base = `/${to}/${encodeURIComponent(team)}`
+  const section = parts[2]
+  if (section === 'triage' || section === 'baselines' || section === 'sites')
+    return `${base}/${section}`
+  if (section === 'settings') return `${base}/settings${parts[3] ? `/${parts[3]}` : ''}`
+  return base
+}
+
+const GLOBAL_ROOTS = new Set(['inbox', 'account', 'instance', 'integrations', '_sso'])
 
 /** The first letter of a workspace's name, lower case as on the canvas. */
 export const workspaceLetter = (name: string): string => name.trim()[0]?.toLowerCase() ?? '?'

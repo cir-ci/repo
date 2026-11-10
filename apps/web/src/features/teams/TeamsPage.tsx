@@ -1,7 +1,6 @@
 import { Banner, Button, ListRow, StatusIcon, TeamTile, Text, visuallyHidden } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 
-import { readRememberedWorkspace } from '#app/shell-model.ts'
 import { buildState } from '#features/builds/build-state.ts'
 import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
@@ -10,6 +9,7 @@ import { PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
+import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 
 import { isTeamIconName } from './appearance.ts'
@@ -35,7 +35,7 @@ export function TeamsPage() {
   const canCreateWorkspace = caps?.canCreateWorkspace === true
   // The teams of the workspace the shell is about (the board lists one workspace's teams); the
   // workspace switcher is how to see another's.
-  const { workspace } = useWorkspaces(readRememberedWorkspace())
+  const { workspace } = useWorkspaces(useChosenWorkspace())
   const teams = query.data?.teams.filter((o) => o.workspace.slug === workspace?.slug)
 
   return (

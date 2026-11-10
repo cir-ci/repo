@@ -24,12 +24,7 @@ export function WorkspaceSwitcher({
     <Menu
       trigger={
         <button type="button" className={styles.trigger} aria-label={`Workspace: ${current.name}`}>
-          <WorkspaceTile
-            name={current.name}
-            slug={current.slug}
-            current={current.slug}
-            picture={current.picture}
-          />
+          <WorkspaceTile name={current.name} picture={current.picture} />
           <span className={styles.name}>{current.name}</span>
           <ChevronsUpDownIcon size={12} />
         </button>
@@ -46,14 +41,7 @@ export function WorkspaceSwitcher({
         },
         ...workspaces.map((workspace): Menu.Item => ({
           label: workspace.name,
-          icon: (
-            <WorkspaceTile
-              name={workspace.name}
-              slug={workspace.slug}
-              current={current.slug}
-              picture={workspace.picture}
-            />
-          ),
+          icon: <WorkspaceTile name={workspace.name} picture={workspace.picture} />,
           current: workspace.slug === current.slug,
           ...(workspace.slug === current.slug ? { trailing: <CheckIcon /> } : {}),
           onSelect: () => onSelect(workspace),

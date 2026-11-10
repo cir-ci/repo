@@ -309,7 +309,8 @@ describe('Shell, wide', () => {
     await expect
       .element(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'portal' }))
       .toBeVisible()
-    expect(router.state.location.pathname).toBe('/')
+    // A team page stays a team page: the same section of the new workspace's first team.
+    expect(router.state.location.pathname).toBe('/globex/portal')
   })
 
   it('still shows the name when there is only one workspace', async () => {

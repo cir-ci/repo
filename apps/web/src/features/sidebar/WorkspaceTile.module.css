@@ -1,4 +1,6 @@
 .root {
+  background: var(--circi-brand-maroon);
+  color: #ffffff;
   display: inline-flex;
   flex: none;
   align-items: center;
@@ -21,16 +23,6 @@
   width: 24px;
   height: 24px;
   font-size: 12px;
-}
-
-.root[data-mark='brand'] {
-  background: var(--circi-brand-maroon);
-  color: #ffffff;
-}
-
-.root[data-mark='neutral'] {
-  background: var(--circi-surface-highest);
-  color: var(--circi-text-primary);
 }
 
 .root[data-picture] {

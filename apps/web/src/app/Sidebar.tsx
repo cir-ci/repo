@@ -14,16 +14,16 @@ import {
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useRouterState } from '@tanstack/react-router'
-import { useState } from 'react'
 
 import { UserMenu } from '#features/auth/UserMenu.tsx'
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { WorkspaceSwitcher } from '#features/sidebar/WorkspaceSwitcher.tsx'
-import { capabilitiesQuery } from '#features/teams/api/index.ts'
+import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
 import { isTeamIconName } from '#features/teams/appearance.ts'
 import type { SessionUser } from '#lib/auth-client.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
+import { useWorkspaceStore, useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 
 import { NavLink } from './NavLink.tsx'
 import {
@@ -31,8 +31,8 @@ import {
   currentSection,
   type WorkspaceRef,
   pinnedViews,
-  readRememberedWorkspace,
-  rememberWorkspace,
+  readRememberedTeam,
+  switchWorkspacePath,
   SIDEBAR_TEAM_LIMIT,
   sidebarTeams,
 } from './shell-model.ts'
@@ -55,8 +55,10 @@ export function Sidebar({ user }: Sidebar.Props) {
   const section = currentSection(pathname)
   const setCommandMenuOpen = useOverlayStore((s) => s.setCommandMenuOpen)
   const setNewWorkspaceOpen = useOverlayStore((s) => s.setNewWorkspaceOpen)
-  const [chosen, setChosen] = useState(readRememberedWorkspace)
+  const chosen = useChosenWorkspace()
+  const choose = useWorkspaceStore((s) => s.choose)
   const { workspaces, workspace } = useWorkspaces(chosen)
+  const { data: overview } = useQuery(teamsQuery())
   const { data: model } = useSidebarModel(workspace?.slug)
   const { data: caps } = useQuery(capabilitiesQuery())
   const { shown, total } = sidebarTeams(model?.teams, SIDEBAR_TEAM_LIMIT, params.team)
@@ -66,9 +68,16 @@ export function Sidebar({ user }: Sidebar.Props) {
   const openTeam = params.workspace === workspace?.slug ? params.team : undefined
 
   function switchWorkspace(next: WorkspaceRef) {
-    rememberWorkspace(next.slug)
-    setChosen(next.slug)
-    void navigate({ to: '/' })
+    choose(next.slug)
+    // The same page in the new workspace; a team page goes to its last-used or first team there.
+    const target = switchWorkspacePath(pathname, next.slug, (slug) => {
+      const slugs = (overview?.teams ?? [])
+        .filter((o) => o.workspace.slug === slug)
+        .map((o) => o.team.slug)
+      const remembered = readRememberedTeam(slug)
+      return remembered && slugs.includes(remembered) ? remembered : slugs[0]
+    })
+    if (target) void navigate({ href: target })
   }
 
   const teamEntries = (list: SidebarModel.Team[]) =>
