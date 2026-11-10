@@ -121,7 +121,7 @@ export const figma = defineIntegration({
     fields: [
       {
         key: 'pattern',
-        label: 'Snapshot name',
+        label: 'Screenshot name',
         placeholder: 'checkout/*',
         description: 'A name, or a pattern: * matches within a folder, ** across folders.',
       },

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import { crumbsFor, workspaceSettingsCrumb } from '#lib/crumbs.ts'
+import { settingsCrumbsFor, workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { PageFrame } from '#lib/PageFrame.tsx'
 
 /**
@@ -13,7 +13,7 @@ export function Frame({ crumbs, workspace, page, ...rest }: Frame.Props) {
     <PageFrame
       crumbs={
         workspace
-          ? crumbsFor({ workspace }, [workspaceSettingsCrumb(workspace.slug)])
+          ? settingsCrumbsFor(workspace, [workspaceSettingsCrumb(workspace.slug)])
           : (crumbs ?? []).slice(0, -1).map((label) => ({ label }))
       }
       title={page ?? crumbs?.at(-1) ?? ''}

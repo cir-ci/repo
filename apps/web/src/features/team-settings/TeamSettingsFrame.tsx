@@ -6,7 +6,7 @@ import type { ReactNode } from 'react'
 import { TEAM_SETTINGS_PAGES } from '#app/shell-model.ts'
 import { useLoadingAnnouncement } from '#features/builds/list/loading.ts'
 import { settingsQuery, teamsQuery } from '#features/teams/api/index.ts'
-import { crumbsFor, teamsSettingsCrumb, workspaceSettingsCrumb } from '#lib/crumbs.ts'
+import { settingsCrumbsFor, teamsSettingsCrumb, workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { PageFrame } from '#lib/PageFrame.tsx'
 import { PageTitle } from '#lib/PageHeading.tsx'
@@ -41,7 +41,7 @@ export function TeamSettingsFrame({
 
   return (
     <PageFrame
-      crumbs={crumbsFor({ workspace: { slug: workspace, name: workspaceName } }, [
+      crumbs={settingsCrumbsFor({ slug: workspace, name: workspaceName }, [
         workspaceSettingsCrumb(workspace),
         teamsSettingsCrumb(workspace),
       ])}

@@ -88,4 +88,14 @@ describe('settings is a closed area', () => {
     }
     expect(crossings).toEqual([])
   })
+
+  it("settings pages use the settings crumbs, whose workspace crumb doesn't link out to the Inbox", () => {
+    const outward = all
+      .filter(({ rel }) => SETTINGS_FILES.some((re) => re.test(rel)))
+      .filter(({ source }) =>
+        /\b(crumbsFor|workspaceCrumb|teamCrumb|teamBuildsCrumb)\(/.test(source),
+      )
+      .map(({ rel }) => rel)
+    expect(outward).toEqual([])
+  })
 })

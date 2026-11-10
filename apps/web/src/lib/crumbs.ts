@@ -5,7 +5,8 @@ import type { NavigateOptions } from '@tanstack/react-router'
  *
  * - A crumb always shows a display name ("Acme", "Web app"), never a slug.
  * - The workspace crumb links to that workspace's Inbox ("Workspace: opens the Inbox"); the team crumb links
- *   to that team's Builds page ("Team: opens its Builds page"), never to settings.
+ *   to that team's Builds page ("Team: opens its Builds page"), never to settings. Settings pages use
+ *   `settingsCrumbsFor`: there the workspace is plain text, since nothing links out of settings.
  * - A workspace-level page starts with the workspace crumb; a team-level page with the workspace
  *   crumb, then the team crumb. The page's own crumbs ("Settings", "Integrations") follow, then
  *   `PageHeading`'s `title` as the current page.
@@ -46,6 +47,14 @@ export function crumbsFor(
     ...(where.team ? [teamCrumb(where.workspace.slug, where.team)] : []),
     ...trail,
   ]
+}
+
+/**
+ * The leading crumbs of a settings page. Settings is a closed area (CLAUDE.md): the workspace's
+ * name is plain text there, not a link out to its Inbox; settings' way back is the settings nav.
+ */
+export function settingsCrumbsFor(workspace: Named, trail: ReadonlyArray<Crumb> = []): Crumb[] {
+  return [{ label: workspace.name }, ...trail]
 }
 
 /** The workspace's Teams settings, the parent of a team's own settings. */

@@ -70,11 +70,11 @@ const MODE_NAME: Record<ViewMode, string> = {
 export const MODE_OPTIONS = VIEW_MODES.map((value) => ({ value, label: MODE_NAME[value] }))
 
 const GO: readonly [string, Shortcut.GoTarget, string][] = [
-  ['g i', 'inbox', 'Go to Inbox'],
-  ['g r', 'reviews', 'Go to Reviews'],
-  ['g p', 'teams', 'Go to Teams'],
-  ['g t', 'triage', 'Go to Triage'],
-  ['g s', 'settings', 'Go to Settings'],
+  ['g i', 'inbox', 'Open Inbox'],
+  ['g r', 'reviews', 'Open Reviews'],
+  ['g p', 'teams', 'Open Teams'],
+  ['g t', 'triage', 'Open Triage'],
+  ['g s', 'settings', 'Open Settings'],
 ]
 
 /** Every keyboard shortcut of the app, in the order the help lists them. */

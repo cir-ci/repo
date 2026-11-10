@@ -70,7 +70,7 @@ function fakeDesign(files: Record<string, { id: string; name: string }[]>) {
       targetLabel: 'Frame',
       subject: 'pattern',
       fields: [
-        { key: 'pattern', label: 'Snapshot name' },
+        { key: 'pattern', label: 'Screenshot name' },
         { key: 'url', label: 'Frame address' },
       ],
       autoLink: true,
@@ -247,7 +247,7 @@ describe('addTeamLink', () => {
     )
     await expect(
       addTeamLink(t.db, { ...base, values: { pattern: 'x'.repeat(201), url: 'u' } }),
-    ).rejects.toThrow('Snapshot name is too long')
+    ).rejects.toThrow('Screenshot name is too long')
   })
 })
 

@@ -15,7 +15,7 @@ import { useState } from 'react'
 
 import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
 import { MemberStack } from '#features/teams/AvatarStack.tsx'
-import { crumbsFor, workspaceSettingsCrumb } from '#lib/crumbs.ts'
+import { settingsCrumbsFor, workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { PageFrame } from '#lib/PageFrame.tsx'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
@@ -45,8 +45,8 @@ export function TeamsSettingsPage() {
 
   return (
     <PageFrame
-      crumbs={crumbsFor(
-        { workspace: { slug: workspace, name: inWorkspace[0]?.workspace.name ?? workspace } },
+      crumbs={settingsCrumbsFor(
+        { slug: workspace, name: inWorkspace[0]?.workspace.name ?? workspace },
         [workspaceSettingsCrumb(workspace)],
       )}
       title="Teams"

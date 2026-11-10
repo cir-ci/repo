@@ -24,7 +24,7 @@ import { TeamStack } from '#features/teams/AvatarStack.tsx'
 import { authClient } from '#lib/auth-client.ts'
 import { workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
-import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
+import { settingsCrumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
@@ -118,7 +118,7 @@ export function MembersPage() {
   return (
     <>
       <PageHeading
-        crumbs={crumbsFor({ workspace: { slug: workspace, name: data?.name ?? workspace } }, [
+        crumbs={settingsCrumbsFor({ slug: workspace, name: data?.name ?? workspace }, [
           workspaceSettingsCrumb(workspace),
         ])}
         title="Members"

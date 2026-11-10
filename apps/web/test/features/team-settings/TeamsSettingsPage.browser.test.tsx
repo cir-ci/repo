@@ -47,7 +47,9 @@ describe('Settings, Teams', () => {
   it('names the page in its breadcrumb: workspace, Settings, Teams', async () => {
     await show()
     const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
-    await expect.element(crumbs.getByRole('link', { name: 'ACME' })).toBeVisible()
+    // The workspace is plain text: nothing links out of settings.
+    await expect.element(crumbs.getByText('ACME')).toBeVisible()
+    expect(crumbs.getByRole('link', { name: 'ACME' }).elements()).toHaveLength(0)
     await expect.element(crumbs.getByRole('link', { name: 'Settings' })).toBeVisible()
     await expect.element(page.getByRole('heading', { name: 'Teams' })).toBeVisible()
   })

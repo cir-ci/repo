@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 import { useCrumbNames } from '#features/teams/crumb-names.ts'
-import { crumbsFor, workspaceSettingsCrumb } from '#lib/crumbs.ts'
+import { settingsCrumbsFor, workspaceSettingsCrumb } from '#lib/crumbs.ts'
 import { PageFrame } from '#lib/PageFrame.tsx'
 import type { PageHeading } from '#lib/PageHeading.tsx'
 
@@ -16,7 +16,7 @@ function integrationCrumbs(
   workspace: { slug: string; name: string },
   below: boolean | undefined,
 ): PageHeading.Crumb[] {
-  return crumbsFor({ workspace }, [
+  return settingsCrumbsFor(workspace, [
     workspaceSettingsCrumb(workspace.slug),
     ...(below
       ? [
