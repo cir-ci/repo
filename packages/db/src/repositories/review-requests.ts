@@ -294,3 +294,47 @@ export async function lastReviewNoticeAt(
     )
   return row?.at ? new Date(row.at) : undefined
 }
+
+/** One request by ID, open or closed; undefined when there is none. */
+export async function findReviewRequest(
+  db: Database,
+  id: string,
+): Promise<ReviewRequest | undefined> {
+  const [row] = await db.select().from(reviewRequests).where(eq(reviewRequests.id, id))
+  return row
+}
+
+/**
+ * Opens again the requests of `ids` that a decision closed as `done` (the decision was undone),
+ * except where the reviewer has been asked afresh since. Returns the ones it opened.
+ */
+export async function reopenReviewRequests(db: Database, ids: string[]): Promise<ReviewRequest[]> {
+  if (ids.length === 0) return []
+  return db
+    .update(reviewRequests)
+    .set({ state: 'open', closedAt: null })
+    .where(
+      and(
+        inArray(reviewRequests.id, ids),
+        eq(reviewRequests.state, 'done'),
+        sql`not exists (
+          select 1 from review_requests o
+          where o.build_id = ${reviewRequests.buildId}
+            and o.reviewer_id = ${reviewRequests.reviewerId}
+            and o.state = 'open'
+        )`,
+      ),
+    )
+    .returning()
+}
+
+/** Puts a request's snooze back to what it was (`kind: null` for not snoozed). */
+export async function restoreReviewRequestSnooze(
+  db: Database,
+  input: { id: string; kind: SnoozeKind | null; until: Date | null },
+): Promise<void> {
+  await db
+    .update(reviewRequests)
+    .set({ snoozeKind: input.kind, snoozedUntil: input.until })
+    .where(eq(reviewRequests.id, input.id))
+}

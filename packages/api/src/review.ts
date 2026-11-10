@@ -1,9 +1,27 @@
 import type { BuildConclusion, BuildStatus, ReviewStatus } from './build.ts'
+import type { Undo } from './undo.ts'
 
 export type ReviewRequestState = 'open' | 'done' | 'superseded' | 'dismissed'
 export type SnoozeKind = 'next_push' | 'tomorrow' | 'next_week' | 'date'
 
 export namespace Review {
+  /** `POST …/builds/:number/review` and `…/snapshots/review`: the build after the decision. */
+  export interface Decided extends Undo.Field {
+    build: {
+      number: number
+      status: BuildStatus
+      conclusion: BuildConclusion | null
+      reviewStatus: ReviewStatus
+    }
+  }
+
+  /** `POST …/review-requests/:id/snooze`. */
+  export interface Snoozed extends Undo.Field {
+    id: string
+    snoozeKind: SnoozeKind | null
+    snoozedUntil: string | null
+  }
+
   /**
    * The Reviews page's tabs: asked of you, asked by you, asked of you and put off, asked of you
    * and closed since (latest 50), every open request in the workspace.
@@ -79,7 +97,7 @@ export namespace Review {
   }
 
   /** `POST …/builds/request-review`: one entry per build and reviewer. */
-  export interface BulkRequested {
+  export interface BulkRequested extends Undo.Field {
     requests: (Requested & { buildId: string; reviewerId: string })[]
   }
 }

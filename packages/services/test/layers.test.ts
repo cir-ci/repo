@@ -255,10 +255,10 @@ type RuleId =
 /** Files that break a rule on purpose, each with the reason. */
 const EXCEPTIONS: Partial<Record<RuleId, Record<string, string>>> = {
   '7': {
+    'packages/services/src/undo/record.ts':
+      "`recordUndo` is called inside the transaction of the service whose change it records (its doc comment): it takes the caller's handle and opens none.",
     'packages/services/src/integration-admin/events.ts':
       "A building block called inside the transaction of the service that changed something (its doc comment): it takes the caller's handle and opens none.",
-    'packages/services/src/notifications/notifications.ts':
-      "`notify` is called inside the caller's transaction; the other functions are single-statement writes that trigger nothing but their own row.",
     'packages/services/src/pipeline/files.ts':
       'The pipeline is idempotent step by step: one transaction around long image processing would hold a database connection.',
     'packages/services/src/pipeline/process.ts':

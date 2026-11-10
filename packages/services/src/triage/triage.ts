@@ -11,12 +11,16 @@ import {
   changeIgnoreRegion,
   assignTriageItem,
   dismissTriageItem,
+  getTriageState,
   removeIgnoreRegion,
   snoozeTriageItem,
   type TriageItem,
 } from '@circi/db/repositories'
 
 import { requeueBuild } from '#src/builds/lifecycle.ts'
+import { type UndoToken, recordUndo } from '#src/undo/record.ts'
+
+import { type TriageUndo, triageFields } from './undo.ts'
 
 /**
  * What people do with a team's triage queue. Each function owns its transaction; the queue
@@ -68,6 +72,75 @@ export async function snoozeTriage(
 /** Takes an item out of the queue for good. */
 export async function dismissTriage(db: Database, ref: TriageItem.Ref): Promise<TriageItem.Row> {
   return db.transaction((tx) => dismissTriageItem(tx, ref))
+}
+
+type Undoable<T> = T & { undo: UndoToken | null }
+
+/**
+ * `assignTriage`, `snoozeTriage` and `dismissTriage` for a person at the dashboard: the same
+ * change, in one transaction with a record of the item as it was, and a token that puts it back
+ * (`undoAction`; refused when somebody changed the item since). No token when nothing changed.
+ */
+export async function assignTriageUndoable(
+  db: Database,
+  input: TriageItem.Ref & { assigneeId: string | null; userId: string },
+): Promise<Undoable<{ item: TriageItem.Row }>> {
+  const { userId, ...ref } = input
+  return db.transaction((tx) =>
+    undoable(tx, 'triage_assign', 'assign', userId, ref, () => assignTriageItem(tx, ref)),
+  )
+}
+
+export async function snoozeTriageUndoable(
+  db: Database,
+  input: Parameters<typeof snoozeTriage>[1] & { userId: string },
+): Promise<Undoable<{ item: TriageItem.Row; until: Date | null }>> {
+  const { userId, ...rest } = input
+  const { teamId, kind, key } = rest
+  return db.transaction(async (tx) => {
+    let until: Date | null = null
+    const result = await undoable(
+      tx,
+      'triage_snooze',
+      'snooze',
+      userId,
+      { teamId, kind, key },
+      async () => {
+        const snoozed = await snoozeTriage(tx, rest)
+        until = snoozed.until
+        return snoozed.item
+      },
+    )
+    return { ...result, until }
+  })
+}
+
+export async function dismissTriageUndoable(
+  db: Database,
+  input: TriageItem.Ref & { userId: string },
+): Promise<Undoable<{ item: TriageItem.Row }>> {
+  const { userId, ...ref } = input
+  return db.transaction((tx) =>
+    undoable(tx, 'triage_dismiss', 'dismiss', userId, ref, () => dismissTriageItem(tx, ref)),
+  )
+}
+
+async function undoable(
+  tx: Database,
+  kind: 'triage_assign' | 'triage_snooze' | 'triage_dismiss',
+  action: Parameters<typeof triageFields>[1],
+  userId: string,
+  ref: TriageItem.Ref,
+  change: () => Promise<TriageItem.Row>,
+): Promise<Undoable<{ item: TriageItem.Row }>> {
+  const before = await getTriageState(tx, ref)
+  const item = await change()
+  const previous = triageFields(before, action)
+  const after = triageFields(item, action)
+  if (JSON.stringify(previous) === JSON.stringify(after)) return { item, undo: null }
+  const data: TriageUndo = { kind: ref.kind, key: ref.key, previous, after }
+  const undo = await recordUndo(tx, { userId, teamId: ref.teamId, kind, data })
+  return { item, undo }
 }
 
 /**

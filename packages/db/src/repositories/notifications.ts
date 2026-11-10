@@ -238,3 +238,48 @@ export async function getNotificationEmailData(
     preferences: await getNotificationPreferences(db, n.userId),
   }
 }
+
+/** What an inbox action can change on a notification, as it is stored. */
+export interface NotificationFields {
+  readAt: Date | null
+  snoozedUntil: Date | null
+  deletedAt: Date | null
+}
+
+/** A user's notification as stored, including a removed one (an undo can bring it back). */
+export async function getNotificationFields(
+  db: Database,
+  input: { userId: string; id: string },
+): Promise<NotificationFields | undefined> {
+  const [row] = await db
+    .select({
+      readAt: notifications.readAt,
+      snoozedUntil: notifications.snoozedUntil,
+      deletedAt: notifications.deletedAt,
+    })
+    .from(notifications)
+    .where(and(eq(notifications.id, input.id), eq(notifications.userId, input.userId)))
+  return row
+}
+
+/** Puts a user's notification back to the given read, snooze and removed state. */
+export async function restoreNotificationFields(
+  db: Database,
+  input: { userId: string; id: string } & NotificationFields,
+): Promise<boolean> {
+  const rows = await db
+    .update(notifications)
+    .set({ readAt: input.readAt, snoozedUntil: input.snoozedUntil, deletedAt: input.deletedAt })
+    .where(and(eq(notifications.id, input.id), eq(notifications.userId, input.userId)))
+    .returning({ id: notifications.id })
+  return rows.length > 0
+}
+
+/** Removes the notifications of `ids` (the change that made them was undone). */
+export async function deleteNotificationsById(db: Database, ids: string[]): Promise<void> {
+  if (ids.length === 0) return
+  await db
+    .update(notifications)
+    .set({ deletedAt: sql`coalesce(${notifications.deletedAt}, now())` })
+    .where(inArray(notifications.id, ids))
+}

@@ -1,12 +1,18 @@
 import type { Triage } from '@circi/api'
 import { TRIAGE_KINDS } from '@circi/core'
 import { listTriage } from '@circi/db/queries'
-import { assignTriage, dismissTriage, rerunFailedBuild, snoozeTriage } from '@circi/services'
+import {
+  assignTriageUndoable,
+  dismissTriageUndoable,
+  rerunFailedBuild,
+  snoozeTriageUndoable,
+} from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
 import type { Deps } from '#http/lib/deps.ts'
 import { loadTeam } from '#http/lib/team-access.ts'
+import { presentUndo } from '#http/lib/undo.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const ref = { kind: z.enum(TRIAGE_KINDS), key: z.string().min(1).max(500) }
@@ -20,15 +26,19 @@ const snoozeBody = z.object({
 const dismissBody = z.object(ref)
 const rerunBody = z.object({ number: z.number().int().min(1) })
 
-function state(item: {
-  kind: Triage.Item['kind']
-  key: string
-  assigneeId: string | null
-  snoozeKind: Triage.Item['snoozeKind']
-  snoozedUntil: Date | null
-  dismissedAt: Date | null
-}): Triage.ItemState {
+function state(
+  item: {
+    kind: Triage.Item['kind']
+    key: string
+    assigneeId: string | null
+    snoozeKind: Triage.Item['snoozeKind']
+    snoozedUntil: Date | null
+    dismissedAt: Date | null
+  },
+  undo: Triage.ItemState['undo'],
+): Triage.ItemState {
   return {
+    undo,
     kind: item.kind,
     key: item.key,
     assigneeId: item.assigneeId,
@@ -64,24 +74,35 @@ export const dashboardTriageRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
   app.post('/teams/:workspace/:team/triage/assign', async (req) => {
     const found = await loadTeam(deps, req)
     const body = parse(assignBody, req.body)
-    return state(await assignTriage(deps.db, { teamId: found.team.id, ...body }))
+    const { item, undo } = await assignTriageUndoable(deps.db, {
+      teamId: found.team.id,
+      userId: found.user.id,
+      ...body,
+    })
+    return state(item, presentUndo(undo))
   })
 
   app.post('/teams/:workspace/:team/triage/snooze', async (req) => {
     const found = await loadTeam(deps, req)
     const { date, ...body } = parse(snoozeBody, req.body)
-    const { item } = await snoozeTriage(deps.db, {
+    const { item, undo } = await snoozeTriageUndoable(deps.db, {
       teamId: found.team.id,
+      userId: found.user.id,
       ...body,
       ...(date ? { date: new Date(date) } : {}),
     })
-    return state(item)
+    return state(item, presentUndo(undo))
   })
 
   app.post('/teams/:workspace/:team/triage/dismiss', async (req) => {
     const found = await loadTeam(deps, req)
     const body = parse(dismissBody, req.body)
-    return state(await dismissTriage(deps.db, { teamId: found.team.id, ...body }))
+    const { item, undo } = await dismissTriageUndoable(deps.db, {
+      teamId: found.team.id,
+      userId: found.user.id,
+      ...body,
+    })
+    return state(item, presentUndo(undo))
   })
 
   /** Compares a failed build again; any member may, as with the `/circi rerun` comment. */

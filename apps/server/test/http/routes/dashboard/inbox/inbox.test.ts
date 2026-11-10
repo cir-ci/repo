@@ -67,7 +67,9 @@ describe('inbox routes', () => {
     ).toBe(400)
 
     expect((await send('POST', `/api/inbox/${n.id}/unsnooze`)).json().snoozedUntil).toBeNull()
-    expect((await send('DELETE', `/api/inbox/${n.id}`)).statusCode).toBe(204)
+    const removed = await send('DELETE', `/api/inbox/${n.id}`)
+    expect(removed.statusCode).toBe(200)
+    expect(removed.json().undo.id).toEqual(expect.any(String))
     expect((await inbox('everything')).items.map((i: { id: string }) => i.id)).not.toContain(n.id)
     expect((await send('DELETE', `/api/inbox/${n.id}`)).statusCode).toBe(404)
   })

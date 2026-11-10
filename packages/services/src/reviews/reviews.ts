@@ -7,7 +7,13 @@ import {
   ValidationError,
   assertFound,
 } from '@circi/core'
-import { type Build, type Database, NotFoundError, type ReviewRequest } from '@circi/db'
+import {
+  type Build,
+  type Database,
+  type Notification,
+  NotFoundError,
+  type ReviewRequest,
+} from '@circi/db'
 import { getBuild, getTeamById, listTeamBuildsByIds } from '@circi/db/queries'
 import { queueGitNotify, queueWebhookEvent } from '@circi/db/queue'
 import {
@@ -28,6 +34,9 @@ import { integrationRegistry } from '@circi/integrations'
 
 import { queueIntegrationEvent } from '#src/integration-admin/events.ts'
 import { notify } from '#src/notifications/notifications.ts'
+import { type UndoToken, recordUndo } from '#src/undo/record.ts'
+
+import type { BuildReviewUndo, RequestReviewUndo, RequestSnoozeUndo } from './undo.ts'
 
 /**
  * Approves or rejects snapshots of a build, in one transaction. A decision is stored per
@@ -41,65 +50,105 @@ import { notify } from '#src/notifications/notifications.ts'
  * requests close as done.
  */
 export async function reviewSnapshots(db: Database, input: reviewSnapshots.Input): Promise<Build> {
-  return db.transaction(async (tx) => {
-    const { reason, userId, ...decision } = input
-    await assertRejectReason(tx, input)
-    const { build, changed, decided, reasons, reviewerName } = await recordSnapshotReviews(tx, {
-      ...decision,
-      userId,
-      ...(reason ? { reason } : {}),
-    })
-    if (build.reviewStatus !== 'pending') {
-      const closed = await closeReviewRequestsForBuild(tx, build.id)
-      // Deciding settles the build for its reviewer; the others' "please review" notices end
-      // with their requests.
-      await markBuildNotificationsRead(tx, { userId, buildId: build.id })
-      for (const request of closed) {
-        if (request.reviewerId === userId) continue
-        // eslint-disable-next-line no-await-in-loop -- a few reviewers, one transaction
-        await markBuildNotificationsRead(tx, {
-          userId: request.reviewerId,
-          buildId: build.id,
-          kinds: REQUEST_KINDS,
-        })
-      }
-    }
-    if (!changed) {
-      // Some snapshots were decided but the build's status did not move: the comment on the
-      // pull request still shows the per-snapshot counts, so it follows too.
-      if (decided.length > 0) {
-        await queueGitNotify(tx, build, integrationRegistry.gitKinds(), `snapshots:${Date.now()}`)
-      }
-      return build
-    }
-    if (build.reviewStatus !== 'pending') {
-      const state = build.reviewStatus
-      const rejectionReason = state === 'rejected' && reasons.length > 0 ? reasons.join('\n') : null
-      if (build.authorUserId) {
-        await notify(tx, {
-          userId: build.authorUserId,
-          kind: state === 'approved' ? 'build_approved' : 'build_rejected',
-          buildId: build.id,
-          actorId: userId,
-          payload: rejectionReason ? { reason: rejectionReason } : {},
-        })
-      }
-      await queueIntegrationEvent(tx, {
-        type: state === 'approved' ? 'build.approved' : 'build.rejected',
+  const { build } = await db.transaction((tx) => decideSnapshots(tx, input, undefined))
+  return build
+}
+
+/**
+ * `reviewSnapshots` for a person at the dashboard: the same decision, and with it a token to take
+ * it back (`undoAction`) when it changed something. The record behind the token is written in the
+ * same transaction, with what the decision did around the build (the review requests it closed,
+ * the author's notice), so undoing puts those back too.
+ */
+export async function reviewSnapshotsUndoable(
+  db: Database,
+  input: reviewSnapshots.Input & { teamId: string },
+): Promise<{ build: Build; undo: UndoToken | null }> {
+  const { teamId, ...rest } = input
+  return db.transaction((tx) => decideSnapshots(tx, rest, { teamId }))
+}
+
+async function decideSnapshots(
+  tx: Database,
+  input: reviewSnapshots.Input,
+  undo: { teamId: string } | undefined,
+): Promise<{ build: Build; undo: UndoToken | null }> {
+  const { reason, userId, ...decision } = input
+  await assertRejectReason(tx, input)
+  const recorded = await recordSnapshotReviews(tx, {
+    ...decision,
+    userId,
+    ...(reason ? { reason } : {}),
+  })
+  const { build, changed, decided, reasons, reviewerName } = recorded
+  const closedRequestIds: string[] = []
+  const noticeIds: string[] = []
+  if (build.reviewStatus !== 'pending') {
+    const closed = await closeReviewRequestsForBuild(tx, build.id)
+    closedRequestIds.push(...closed.map((r) => r.id))
+    // Deciding settles the build for its reviewer; the others' "please review" notices end
+    // with their requests.
+    await markBuildNotificationsRead(tx, { userId, buildId: build.id })
+    for (const request of closed) {
+      if (request.reviewerId === userId) continue
+      // eslint-disable-next-line no-await-in-loop -- a few reviewers, one transaction
+      await markBuildNotificationsRead(tx, {
+        userId: request.reviewerId,
         buildId: build.id,
-        reviewerId: userId,
-        reason: rejectionReason,
-      })
-      await queueWebhookEvent(tx, {
-        build,
-        event: 'build.reviewed',
-        review: { state, source: input.source ?? 'ui', userName: reviewerName },
+        kinds: REQUEST_KINDS,
       })
     }
+  }
+  if (changed && build.reviewStatus !== 'pending') {
+    const state = build.reviewStatus
+    const rejectionReason = state === 'rejected' && reasons.length > 0 ? reasons.join('\n') : null
+    if (build.authorUserId) {
+      const notice = await notify(tx, {
+        userId: build.authorUserId,
+        kind: state === 'approved' ? 'build_approved' : 'build_rejected',
+        buildId: build.id,
+        actorId: userId,
+        payload: rejectionReason ? { reason: rejectionReason } : {},
+      })
+      if (notice) noticeIds.push(notice.id)
+    }
+    await queueIntegrationEvent(tx, {
+      type: state === 'approved' ? 'build.approved' : 'build.rejected',
+      buildId: build.id,
+      reviewerId: userId,
+      reason: rejectionReason,
+    })
+    await queueWebhookEvent(tx, {
+      build,
+      event: 'build.reviewed',
+      review: { state, source: input.source ?? 'ui', userName: reviewerName },
+    })
+  }
+  if (changed) {
     // The check on the pull request follows every move, including back to "needs review".
     await queueGitNotify(tx, build, integrationRegistry.gitKinds())
-    return build
-  })
+  } else if (decided.length > 0) {
+    // Some snapshots were decided but the build's status did not move: the comment on the
+    // pull request still shows the per-snapshot counts, so it follows too.
+    await queueGitNotify(tx, build, integrationRegistry.gitKinds(), `snapshots:${Date.now()}`)
+  }
+  const worthUndoing = changed || decided.length > 0 || recorded.reviewId !== null
+  if (!undo || !worthUndoing) return { build, undo: null }
+  const data: BuildReviewUndo = {
+    buildId: build.id,
+    decision: input.decision,
+    names: decided,
+    insertedIds: recorded.insertedIds,
+    supersededIds: recorded.supersededIds,
+    previousStatus: recorded.previousStatus,
+    resultStatus: build.reviewStatus,
+    closedRequestIds,
+    noticeIds,
+  }
+  return {
+    build,
+    undo: await recordUndo(tx, { userId, teamId: undo.teamId, kind: 'build_review', data }),
+  }
 }
 /**
  * A team that asks for a reason when someone rejects refuses a rejection from the dashboard
@@ -139,6 +188,15 @@ export async function reviewBuild(db: Database, input: reviewBuild.Input): Promi
   const { state, ...rest } = input
   return reviewSnapshots(db, { ...rest, decision: state, snapshotNames: 'all' })
 }
+
+/** `reviewBuild` for a person at the dashboard, with a token to take the decision back. */
+export async function reviewBuildUndoable(
+  db: Database,
+  input: reviewBuild.Input & { teamId: string },
+): ReturnType<typeof reviewSnapshotsUndoable> {
+  const { state, ...rest } = input
+  return reviewSnapshotsUndoable(db, { ...rest, decision: state, snapshotNames: 'all' })
+}
 export namespace reviewBuild {
   export interface Input {
     buildId: string
@@ -173,8 +231,9 @@ export async function requestReview(
       requestedById: input.requestedById,
       dueAt: reviewDueAt(input.now ?? new Date(), team.reviewTargetHours),
     })
-    if (result.created) await notifyReviewRequested(tx, result.request, input.requestedById)
-    return result
+    if (!result.created) return result
+    const notice = await notifyReviewRequested(tx, result.request, input.requestedById)
+    return notice ? { ...result, noticeId: notice.id } : result
   })
 }
 export namespace requestReview {
@@ -185,7 +244,10 @@ export namespace requestReview {
     /** For tests; defaults to the current time. */
     now?: Date
   }
-  export type Result = openReviewRequest.Result
+  export type Result = openReviewRequest.Result & {
+    /** The notice the reviewer got (not for yourself, which isn't news). */
+    noticeId?: string
+  }
 }
 
 const SELF_REQUEST = "You can't request a review from yourself."
@@ -224,13 +286,13 @@ export async function requestReviews(
       for (const reviewerId of reviewerIds) {
         // Sequential on purpose: one transaction, one connection.
         // eslint-disable-next-line no-await-in-loop
-        const { request, created } = await requestReview(tx, {
+        const { request, created, noticeId } = await requestReview(tx, {
           buildId,
           reviewerId,
           requestedById: input.requestedById,
           ...(input.now ? { now: input.now } : {}),
         })
-        requests.push({ buildId, reviewerId, request, created })
+        requests.push({ buildId, reviewerId, request, created, ...(noticeId ? { noticeId } : {}) })
       }
     }
     return { requests }
@@ -251,10 +313,37 @@ export namespace requestReviews {
     request: ReviewRequest
     /** False when the reviewer already had an open request for the build. */
     created: boolean
+    noticeId?: string
   }
   export interface Result {
     requests: Item[]
   }
+}
+
+/**
+ * `requestReviews` for a person at the dashboard, with a token that cancels the requests it
+ * opened (and takes back their notices). No token when every reviewer was already asked.
+ */
+export async function requestReviewsUndoable(
+  db: Database,
+  input: requestReviews.Input,
+): Promise<requestReviews.Result & { undo: UndoToken | null }> {
+  return db.transaction(async (tx) => {
+    const result = await requestReviews(tx, input)
+    const opened = result.requests.filter((r) => r.created)
+    if (opened.length === 0) return { ...result, undo: null }
+    const data: RequestReviewUndo = {
+      requestIds: opened.map((r) => r.request.id),
+      noticeIds: opened.flatMap((r) => (r.noticeId ? [r.noticeId] : [])),
+    }
+    const undo = await recordUndo(tx, {
+      userId: input.requestedById,
+      teamId: input.teamId,
+      kind: 'request_review',
+      data,
+    })
+    return { ...result, undo }
+  })
 }
 
 /**
@@ -331,7 +420,7 @@ export async function notifyReviewRequested(
   request: ReviewRequest,
   actorId: string | null,
   options: { again?: boolean } = {},
-): Promise<void> {
+): Promise<Notification | undefined> {
   const again =
     options.again ??
     (await hasClosedReviewRequest(db, {
@@ -339,7 +428,7 @@ export async function notifyReviewRequested(
       reviewerId: request.reviewerId,
       exceptId: request.id,
     }))
-  await notify(db, {
+  const notice = await notify(db, {
     userId: request.reviewerId,
     kind: again ? 'review_re_requested' : 'review_requested',
     buildId: request.buildId,
@@ -358,6 +447,7 @@ export async function notifyReviewRequested(
       again,
     })
   }
+  return notice
 }
 
 /** Most builds one bulk decision may cover. */
@@ -439,6 +529,35 @@ export async function snoozeReviewRequest(
   })
   assertFound(row, 'Review request not found')
   return row
+}
+
+/**
+ * `snoozeReviewRequest` with a token that puts the snooze back as it was (not snoozed, or the
+ * earlier one).
+ */
+export async function snoozeReviewRequestUndoable(
+  db: Database,
+  input: Parameters<typeof snoozeReviewRequest>[1],
+): Promise<{ request: ReviewRequest; undo: UndoToken }> {
+  return db.transaction(async (tx) => {
+    const before = await findOpenReviewRequest(tx, input)
+    const request = await snoozeReviewRequest(tx, input)
+    const data: RequestSnoozeUndo = {
+      requestId: request.id,
+      previous: {
+        kind: before?.snoozeKind ?? null,
+        until: before?.snoozedUntil?.toISOString() ?? null,
+      },
+      after: { kind: request.snoozeKind, until: request.snoozedUntil?.toISOString() ?? null },
+    }
+    const undo = await recordUndo(tx, {
+      userId: input.userId,
+      teamId: input.teamId,
+      kind: 'request_snooze',
+      data,
+    })
+    return { request, undo }
+  })
 }
 
 /** Brings a snoozed request back to For you now. */

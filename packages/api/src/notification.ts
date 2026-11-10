@@ -1,4 +1,5 @@
 import type { BuildStatus, ReviewStatus } from './build.ts'
+import type { Undo } from './undo.ts'
 
 export type NotificationKind =
   | 'review_requested'
@@ -11,6 +12,9 @@ export type NotificationKind =
   | 'flaky_detected'
 
 export namespace Inbox {
+  /** `DELETE /api/inbox/:id`. */
+  export type Removed = Undo.Field
+
   /** The Inbox's tabs: about you and your work, everything, put off until later. */
   export type Tab = 'for-you' | 'everything' | 'snoozed'
 
@@ -59,7 +63,7 @@ export namespace Inbox {
   }
 
   /** What changed on one notification. */
-  export interface State {
+  export interface State extends Undo.Field {
     id: string
     readAt: string | null
     snoozedUntil: string | null

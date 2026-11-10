@@ -33,6 +33,7 @@ import { dashboardSiteDomainRoutes } from './teams/site-domains.ts'
 import { dashboardSiteHandoffRoutes } from './teams/site-handoff.ts'
 import { dashboardTeamSitesRoutes } from './teams/sites.ts'
 import { dashboardTriageRoutes } from './teams/triage.ts'
+import { dashboardUndoRoutes } from './undo.ts'
 import { webAppRoutes } from './web-app.ts'
 import { dashboardWorkspaceAuthRoutes } from './workspaces/auth.ts'
 import { dashboardWorkspaceBuildsRoutes } from './workspaces/builds.ts'
@@ -121,6 +122,7 @@ const sessionApi: FastifyPluginAsync<Deps.Dashboard> = async (api, deps) => {
   await api.register(dashboardInsightsRoutes, deps)
   await api.register(dashboardRuleRoutes, deps)
   await api.register(dashboardTriageRoutes, deps)
+  await api.register(dashboardUndoRoutes, deps)
   await api.register(dashboardIgnoreRegionRoutes, deps)
   await api.register(dashboardSearchRoutes, deps)
   await api.register(dashboardViewRoutes, deps)

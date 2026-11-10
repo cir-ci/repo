@@ -90,6 +90,45 @@ export async function dismissTriageItem(
   return upsertItem(db, ref, { dismissedAt: new Date() })
 }
 
+/** What a person can do to an item, as it is stored; all empty for an item nobody touched. */
+export interface TriageState {
+  assigneeId: string | null
+  snoozeKind: SnoozeKind | null
+  snoozedUntil: Date | null
+  snoozedAfterBuild: number | null
+  dismissedAt: Date | null
+}
+
+/** An item's stored state; the empty state when nobody has touched it. */
+export async function getTriageState(db: Database, ref: TriageItem.Ref): Promise<TriageState> {
+  const [row] = await db
+    .select()
+    .from(triageItems)
+    .where(
+      and(
+        eq(triageItems.teamId, ref.teamId),
+        eq(triageItems.kind, checkRef(ref)),
+        eq(triageItems.key, ref.key),
+      ),
+    )
+  return {
+    assigneeId: row?.assigneeId ?? null,
+    snoozeKind: row?.snoozeKind ?? null,
+    snoozedUntil: row?.snoozedUntil ?? null,
+    snoozedAfterBuild: row?.snoozedAfterBuild ?? null,
+    dismissedAt: row?.dismissedAt ?? null,
+  }
+}
+
+/** Puts an item's stored state back to `state` (the part of it that `fields` names). */
+export async function restoreTriageState(
+  db: Database,
+  ref: TriageItem.Ref,
+  state: Partial<TriageState>,
+): Promise<void> {
+  await upsertItem(db, ref, state)
+}
+
 async function assertMembers(db: Database, teamId: string, userIds: string[]): Promise<void> {
   const found = await db
     .select({ id: teamMembers.userId })

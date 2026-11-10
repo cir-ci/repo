@@ -1,5 +1,5 @@
 import { ISSUE_LINK_KIND } from '@circi/core'
-import { and, aliasedTable, eq, isNull } from 'drizzle-orm'
+import { and, aliasedTable, eq, isNotNull, isNull, sql } from 'drizzle-orm'
 
 import {
   builds,
@@ -9,6 +9,7 @@ import {
   reviewRequests,
   reviews,
   snapshotReviews,
+  undoActions,
   type ReviewSource,
   type ReviewState,
   user,
@@ -49,6 +50,13 @@ export type ActivityEvent = { at: Date } & (
       decision: ReviewState
       snapshotNames: string[]
       reason: string | null
+      by: Actor | null
+    }
+  | {
+      /** A person took back a decision (the Undo on the toast); the decision's own events stay. */
+      type: 'review_undone'
+      decision: ReviewState
+      snapshotNames: string[]
       by: Actor | null
     }
   | {
@@ -159,6 +167,28 @@ export async function listBuildActivity(db: Database, buildId: string): Promise<
       source: r.source,
       reason: r.reason,
       by: actor(r.userId, name, image),
+    })
+  }
+
+  const undone = await db
+    .select({ undo: undoActions, name: user.name, image: user.image })
+    .from(undoActions)
+    .leftJoin(user, eq(user.id, undoActions.userId))
+    .where(
+      and(
+        eq(undoActions.kind, 'build_review'),
+        isNotNull(undoActions.usedAt),
+        sql`${undoActions.data} ->> 'buildId' = ${buildId}`,
+      ),
+    )
+  for (const { undo, name, image } of undone) {
+    const data = undo.data as { decision?: ReviewState; names?: string[] }
+    events.push({
+      type: 'review_undone',
+      at: undo.usedAt ?? undo.createdAt,
+      decision: data.decision ?? 'approved',
+      snapshotNames: data.names ?? [],
+      by: actor(undo.userId, name, image),
     })
   }
 

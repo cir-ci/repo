@@ -2,16 +2,17 @@ import type { Review } from '@circi/api'
 import {
   MAX_BULK_REQUEST_REVIEW,
   MAX_BULK_REVIEW,
-  requestReviews,
-  reviewBuild,
+  requestReviewsUndoable,
   reviewBuilds,
-  reviewSnapshots,
+  reviewBuildUndoable,
+  reviewSnapshotsUndoable,
 } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
 import type { Deps } from '#http/lib/deps.ts'
 import { loadBuild, loadTeam } from '#http/lib/team-access.ts'
+import { presentUndo } from '#http/lib/undo.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const body = z.object({
@@ -28,22 +29,25 @@ const body = z.object({
 export const dashboardReviewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   app.post('/teams/:workspace/:team/builds/:number/review', async (req) => {
     const { state, reason } = parse(body, req.body)
-    const { build, user } = await loadBuild(deps, req, { notFound: 'Build not found' })
+    const { build, user, team } = await loadBuild(deps, req, { notFound: 'Build not found' })
 
-    const updated = await reviewBuild(deps.db, {
+    const { build: updated, undo } = await reviewBuildUndoable(deps.db, {
       buildId: build.id,
+      teamId: team.id,
       userId: user.id,
       state,
       ...(reason ? { reason } : {}),
     })
-    return {
+    const payload: Review.Decided = {
       build: {
         number: updated.number,
         status: updated.status,
         conclusion: updated.conclusion,
         reviewStatus: updated.reviewStatus,
       },
+      undo: presentUndo(undo),
     }
+    return payload
   })
 
   /**
@@ -52,23 +56,26 @@ export const dashboardReviewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
    */
   app.post('/teams/:workspace/:team/builds/:number/snapshots/review', async (req) => {
     const { snapshotNames, decision, reason } = parse(snapshotsBody, req.body)
-    const { build, user } = await loadBuild(deps, req, { notFound: 'Build not found' })
+    const { build, user, team } = await loadBuild(deps, req, { notFound: 'Build not found' })
 
-    const updated = await reviewSnapshots(deps.db, {
+    const { build: updated, undo } = await reviewSnapshotsUndoable(deps.db, {
       buildId: build.id,
+      teamId: team.id,
       userId: user.id,
       decision,
       snapshotNames,
       ...(reason ? { reason } : {}),
     })
-    return {
+    const payload: Review.Decided = {
       build: {
         number: updated.number,
         status: updated.status,
         conclusion: updated.conclusion,
         reviewStatus: updated.reviewStatus,
       },
+      undo: presentUndo(undo),
     }
+    return payload
   })
 }
 
@@ -117,7 +124,7 @@ export const dashboardBulkReviewRoutes: FastifyPluginAsync<Deps.Dashboard> = asy
     const input = parse(requestBulkBody, req.body)
     const found = await loadTeam(deps, req)
     const { team, user } = found
-    const { requests } = await requestReviews(deps.db, {
+    const { requests, undo } = await requestReviewsUndoable(deps.db, {
       teamId: team.id,
       buildIds: input.buildIds,
       reviewerIds: input.reviewerIds,
@@ -132,6 +139,7 @@ export const dashboardBulkReviewRoutes: FastifyPluginAsync<Deps.Dashboard> = asy
         dueAt: r.request.dueAt?.toISOString() ?? null,
         created: r.created,
       })),
+      undo: presentUndo(undo),
     }
     return payload
   })

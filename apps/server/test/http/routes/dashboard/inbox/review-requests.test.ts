@@ -193,14 +193,19 @@ describe('review requests', () => {
 
     const res = await post(`${base}/snooze`, { cookie: louCookie, payload: { kind: 'next_push' } })
     expect(res.statusCode).toBe(200)
-    expect(res.json()).toEqual({ id, snoozeKind: 'next_push', snoozedUntil: null })
+    expect(res.json()).toEqual({
+      id,
+      snoozeKind: 'next_push',
+      snoozedUntil: null,
+      undo: { id: expect.any(String), expiresAt: expect.any(String) },
+    })
     expect(ids(await list('for-you', louCookie))).toEqual([])
     expect(ids(await list('snoozed', louCookie))).toEqual([id])
 
     expect((await post(`${base}/unsnooze`)).statusCode).toBe(404)
     expect((await post(`${base}/unsnooze`, { cookie: rivalCookie })).statusCode).toBe(404)
     const back = await post(`${base}/unsnooze`, { cookie: louCookie })
-    expect(back.json()).toEqual({ id, snoozeKind: null, snoozedUntil: null })
+    expect(back.json()).toEqual({ id, snoozeKind: null, snoozedUntil: null, undo: null })
     expect(ids(await list('for-you', louCookie))).toEqual([id])
   })
 

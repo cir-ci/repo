@@ -77,6 +77,7 @@ describe('migrations', () => {
       'teams',
       'triage_items',
       'triage_rotation_members',
+      'undo_actions',
       'upload_claims',
       'user',
       'user_pinned_teams',

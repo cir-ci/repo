@@ -102,6 +102,13 @@ export namespace Activity {
           by: Person | null
         }
       | {
+          /** A person took back a decision; the decision's own events stay in the list. */
+          type: 'review_undone'
+          decision: ReviewState
+          snapshotNames: string[]
+          by: Person | null
+        }
+      | {
           type: 'comment'
           commentId: string
           parentId: string | null

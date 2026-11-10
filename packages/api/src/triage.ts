@@ -1,5 +1,6 @@
 import type { BuildStatus } from './build.ts'
 import type { SnoozeKind } from './review.ts'
+import type { Undo } from './undo.ts'
 
 export type TriageKind = 'flaky' | 'no_baseline' | 'failed'
 export type ReviewRuleKind = 'snapshot-name' | 'build-name'
@@ -65,7 +66,7 @@ export namespace Triage {
   }
 
   /** `POST …/triage/snooze` and `…/assign` return the item's new state. */
-  export interface ItemState {
+  export interface ItemState extends Undo.Field {
     kind: TriageKind
     key: string
     assigneeId: string | null

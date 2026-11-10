@@ -12,6 +12,10 @@ import {
   snoozeNotification as snoozeRow,
 } from '@circi/db/repositories'
 
+import { type UndoToken } from '#src/undo/record.ts'
+
+import { withNoticeUndo } from './undo.ts'
+
 /**
  * Inbox notifications. `notify` is called by the services that change something, inside their
  * transaction, so the notification (and the email job it implies) exists exactly when the change
@@ -69,6 +73,49 @@ export async function snoozeNotification(
   const row = await snoozeRow(db, { userId: input.userId, id: input.id, until })
   assertFound(row, 'Notification not found')
   return row
+}
+
+/** The inbox actions below, for a person at the dashboard: the same change, with a token that takes it back. */
+export async function markNotificationReadUndoable(
+  db: Database,
+  input: Parameters<typeof markNotificationRead>[1],
+): Promise<{ notification: Notification; undo: UndoToken | null }> {
+  const { result, undo } = await withNoticeUndo(db, {
+    userId: input.userId,
+    id: input.id,
+    kind: 'notice_read',
+    field: 'readAt',
+    change: (tx) => markNotificationRead(tx, input),
+  })
+  return { notification: result, undo }
+}
+
+export async function snoozeNotificationUndoable(
+  db: Database,
+  input: Parameters<typeof snoozeNotification>[1],
+): Promise<{ notification: Notification; undo: UndoToken | null }> {
+  const { result, undo } = await withNoticeUndo(db, {
+    userId: input.userId,
+    id: input.id,
+    kind: 'notice_snooze',
+    field: 'snoozedUntil',
+    change: (tx) => snoozeNotification(tx, input),
+  })
+  return { notification: result, undo }
+}
+
+export async function removeNotificationUndoable(
+  db: Database,
+  input: { userId: string; id: string },
+): Promise<{ undo: UndoToken | null }> {
+  const { undo } = await withNoticeUndo(db, {
+    userId: input.userId,
+    id: input.id,
+    kind: 'notice_remove',
+    field: 'deletedAt',
+    change: (tx) => removeNotification(tx, input),
+  })
+  return { undo }
 }
 
 /** Brings a snoozed notification back to the inbox now. */

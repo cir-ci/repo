@@ -3,7 +3,7 @@ import { listReviewRequests, REVIEW_TABS } from '@circi/db/queries'
 import {
   dismissReviewRequest,
   nudgeReviewRequest,
-  snoozeReviewRequest,
+  snoozeReviewRequestUndoable,
   unsnoozeReviewRequest,
   requestReview,
 } from '@circi/services'
@@ -13,6 +13,7 @@ import { z } from 'zod'
 import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
 import { loadBuild, loadTeam } from '#http/lib/team-access.ts'
+import { presentUndo } from '#http/lib/undo.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const listQuery = z.object({ tab: z.enum(REVIEW_TABS).default('for-you') })
@@ -93,18 +94,20 @@ export const dashboardReviewRequestRoutes: FastifyPluginAsync<Deps.Dashboard> = 
     const p = parse(dismissParams, req.params)
     const { kind, date } = parse(snoozeBody, req.body)
     const { team, user } = await loadTeam(deps, req, { notFound: 'Review request not found' })
-    const row = await snoozeReviewRequest(deps.db, {
+    const { request: row, undo } = await snoozeReviewRequestUndoable(deps.db, {
       teamId: team.id,
       requestId: p.id,
       userId: user.id,
       kind,
       ...(date ? { date } : {}),
     })
-    return {
+    const payload: Review.Snoozed = {
       id: row.id,
       snoozeKind: row.snoozeKind,
       snoozedUntil: row.snoozedUntil?.toISOString() ?? null,
+      undo: presentUndo(undo),
     }
+    return payload
   })
 
   /** Only whoever asked may tell the reviewer again, once per 24 hours (409 before that). */
@@ -127,6 +130,12 @@ export const dashboardReviewRequestRoutes: FastifyPluginAsync<Deps.Dashboard> = 
       requestId: p.id,
       userId: user.id,
     })
-    return { id: row.id, snoozeKind: row.snoozeKind, snoozedUntil: null }
+    const payload: Review.Snoozed = {
+      id: row.id,
+      snoozeKind: row.snoozeKind,
+      snoozedUntil: null,
+      undo: null,
+    }
+    return payload
   })
 }

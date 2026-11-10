@@ -8,9 +8,9 @@ import {
 } from '@circi/db/queries'
 import {
   markInboxRead,
-  markNotificationRead,
-  removeNotification,
-  snoozeNotification,
+  markNotificationReadUndoable,
+  removeNotificationUndoable,
+  snoozeNotificationUndoable,
   unsnoozeNotification,
   updateNotificationPreferences,
 } from '@circi/services'
@@ -19,6 +19,7 @@ import { z } from 'zod'
 
 import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
+import { presentUndo } from '#http/lib/undo.ts'
 import { parse } from '#http/lib/validation.ts'
 
 const idParams = z.object({ id: z.uuid() })
@@ -33,8 +34,9 @@ const preferencesBody = z
   .partial()
   .strict()
 
-function state(n: Notification): Inbox.State {
+function state(n: Notification, undo: Inbox.State['undo']): Inbox.State {
   return {
+    undo,
     id: n.id,
     readAt: n.readAt?.toISOString() ?? null,
     snoozedUntil: n.snoozedUntil?.toISOString() ?? null,
@@ -109,30 +111,35 @@ export const dashboardInboxRoutes: FastifyPluginAsync<Deps.Dashboard> = async (a
   app.post('/inbox/:id/read', async (req) => {
     const { id } = parse(idParams, req.params)
     const { read } = parse(readBody, req.body)
-    return state(await markNotificationRead(deps.db, { userId: currentUser(req).id, id, read }))
+    const { notification, undo } = await markNotificationReadUndoable(deps.db, {
+      userId: currentUser(req).id,
+      id,
+      read,
+    })
+    return state(notification, presentUndo(undo))
   })
 
   app.post('/inbox/:id/snooze', async (req) => {
     const { id } = parse(idParams, req.params)
     const { choice, date } = parse(snoozeBody, req.body)
-    return state(
-      await snoozeNotification(deps.db, {
-        userId: currentUser(req).id,
-        id,
-        choice,
-        ...(date ? { date: new Date(date) } : {}),
-      }),
-    )
+    const { notification, undo } = await snoozeNotificationUndoable(deps.db, {
+      userId: currentUser(req).id,
+      id,
+      choice,
+      ...(date ? { date: new Date(date) } : {}),
+    })
+    return state(notification, presentUndo(undo))
   })
 
   app.post('/inbox/:id/unsnooze', async (req) => {
     const { id } = parse(idParams, req.params)
-    return state(await unsnoozeNotification(deps.db, { userId: currentUser(req).id, id }))
+    return state(await unsnoozeNotification(deps.db, { userId: currentUser(req).id, id }), null)
   })
 
-  app.delete('/inbox/:id', async (req, reply) => {
+  app.delete('/inbox/:id', async (req) => {
     const { id } = parse(idParams, req.params)
-    await removeNotification(deps.db, { userId: currentUser(req).id, id })
-    return reply.code(204).send()
+    const { undo } = await removeNotificationUndoable(deps.db, { userId: currentUser(req).id, id })
+    const payload: Inbox.Removed = { undo: presentUndo(undo) }
+    return payload
   })
 }

@@ -80,6 +80,20 @@ export function timelineItems(events: readonly Activity.Event[]): TimelineItem[]
           quote: e.reason ?? (e.snapshotNames.length > 1 ? e.snapshotNames.join(', ') : null),
         })
         break
+      case 'review_undone':
+        items.push({
+          ...base,
+          status: 'neutral',
+          actor: e.by ?? null,
+          text: `undid ${e.decision === 'approved' ? 'approving' : 'rejecting'} ${
+            e.snapshotNames.length === 1
+              ? e.snapshotNames[0]
+              : e.snapshotNames.length > 1
+                ? `${e.snapshotNames.length} screenshots`
+                : 'the build'
+          }`,
+        })
+        break
       case 'comment':
         items.push({
           ...base,
