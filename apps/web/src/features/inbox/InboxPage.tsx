@@ -19,19 +19,17 @@ import { useNavigate, useSearch } from '@tanstack/react-router'
 import { type ReactNode, useState } from 'react'
 
 import { InstallBanner } from '#features/pwa/InstallBanner.tsx'
-import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { DetailSheet } from '#lib/DetailSheet.tsx'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { findIn, useFindParam } from '#lib/find.ts'
 import { FindField } from '#lib/FindField.tsx'
-import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
+import { PageHeading } from '#lib/PageHeading.tsx'
 import { PaneHandle, paneVars } from '#lib/PaneHandle.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 import { usePaneWidth } from '#lib/stores/pane-store.ts'
-import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 import { toast } from '#lib/toast.ts'
 import { refreshAll, type UndoScope, withUndo } from '#lib/undo.ts'
 import { usePhone } from '#lib/use-phone.ts'
@@ -61,8 +59,6 @@ import styles from './InboxPage.module.css'
 export function InboxPage() {
   const paneWidth = usePaneWidth('inbox-pane')
   useDocumentTitle('Inbox')
-  // The inbox spans workspaces; its crumb names the one the shell is about, like the other pages.
-  const { workspace } = useWorkspaces(useChosenWorkspace())
   const { tab } = useSearch({ from: '/inbox' })
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -191,7 +187,6 @@ export function InboxPage() {
   return (
     <>
       <PageHeading
-        {...(workspace ? { crumbs: crumbsFor({ workspace }) } : {})}
         title="Inbox"
         find={<FindField noun="notifications" value={find} onChange={setFind} />}
         actions={

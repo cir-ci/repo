@@ -18,7 +18,7 @@ import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { findIn, useFindParam } from '#lib/find.ts'
 import { FindField } from '#lib/FindField.tsx'
-import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
+import { PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
@@ -69,7 +69,6 @@ export function TeamsPage() {
   return (
     <>
       <PageHeading
-        {...(workspace ? { crumbs: crumbsFor({ workspace }) } : {})}
         title="Teams"
         after={
           teams ? (
