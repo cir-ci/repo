@@ -1,15 +1,30 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 .list {
+  position: relative;
   display: flex;
   gap: 4px;
   padding: 0 16px;
   border-bottom: 1px solid var(--circi-line-subtle);
 }
 
+.list[data-size='sm'] {
+  gap: 2px;
+  padding: 4px 8px 0;
+}
+
 .tab {
   appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: none;
   border: 0;
-  border-bottom: 2px solid transparent;
   margin-bottom: -1px;
   padding: 8px 10px;
   font: inherit;
@@ -18,13 +33,15 @@
   cursor: pointer;
 }
 
-.tab:hover {
-  color: var(--circi-text-primary);
+.list[data-size='sm'] .tab {
+  height: 32px;
+  padding: 0 10px;
+  font-size: inherit;
 }
 
-.tab[aria-selected='true'] {
+.tab:hover,
+.tab[data-active] {
   color: var(--circi-text-primary);
-  border-bottom-color: var(--circi-accent-main);
 }
 
 .tab:focus-visible {
@@ -32,10 +49,35 @@
   outline-offset: -2px;
 }
 
+/* The underline of the chosen tab: it slides from one to the next. */
+.indicator {
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: var(--active-tab-width);
+  height: 2px;
+  background: var(--circi-accent-main);
+  transform: translateX(var(--active-tab-left));
+  transition:
+    transform 150ms ease-out,
+    width 150ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .indicator {
+    transition: none;
+  }
+}
+
 .panel {
   display: flex;
   flex: 1;
   min-height: 0;
+}
+
+.panel:focus-visible {
+  outline: 2px solid var(--circi-accent-main);
+  outline-offset: -2px;
 }
 
 @media (max-width: 819.98px) {

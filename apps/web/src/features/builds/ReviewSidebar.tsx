@@ -1,7 +1,7 @@
 import type { Build } from '@circi/api'
-import { Badge, Button, Kbd, Stack, StatusIcon, Text } from '@circi/ui'
+import { Badge, Button, Kbd, Stack, StatusIcon, TabList, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
-import { type KeyboardEvent, type Ref, useId } from 'react'
+import type { Ref } from 'react'
 
 import { activityQuery, commentsQuery } from '#features/builds/api/discussion.ts'
 import { authClient } from '#lib/auth-client.ts'
@@ -25,59 +25,34 @@ const TAB_LABEL: Record<SidebarTab, string> = {
   comments: 'Comments',
 }
 
-/** The tab an arrow key or Home / End moves to from `current`, or undefined for any other key. */
-export function tabForKey(current: SidebarTab, key: string): SidebarTab | undefined {
-  const i = SIDEBAR_TABS.indexOf(current)
-  const last = SIDEBAR_TABS.length - 1
-  if (key === 'ArrowRight') return SIDEBAR_TABS[i === last ? 0 : i + 1]
-  if (key === 'ArrowLeft') return SIDEBAR_TABS[i === 0 ? last : i - 1]
-  if (key === 'Home') return SIDEBAR_TABS[0]
-  if (key === 'End') return SIDEBAR_TABS[last]
-  return undefined
-}
-
-/** Details / Activity / Comments beside the viewer: a tablist with roving focus. */
+/** Details / Activity / Comments beside the viewer: tabs over one panel (arrow keys, Home / End). */
 export function ReviewSidebar(props: ReviewSidebar.Props) {
   const { data, tab, onTab } = props
   const { team, build } = data
-  const id = useId()
   const comments = useQuery(commentsQuery(team.workspaceSlug, team.slug, build.number))
   const count = commentCount(comments.data?.comments ?? [])
-
-  function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
-    const next = tabForKey(tab, e.key)
-    if (!next) return
-    e.preventDefault()
-    onTab(next)
-    document.getElementById(`${id}-tab-${next}`)?.focus()
-  }
+  const tabs = SIDEBAR_TABS.map((t) => ({
+    value: t,
+    label:
+      t === 'comments' && count > 0 ? (
+        <>
+          {TAB_LABEL[t]}
+          <Badge>{count}</Badge>
+        </>
+      ) : (
+        TAB_LABEL[t]
+      ),
+  }))
 
   return (
     <aside aria-label="Build discussion" className={styles.sidebar}>
-      {/* The arrow keys are the tablist's own: the wrapper only forwards them. */}
-      <div role="tablist" aria-label="Build sidebar" className={styles.tabs} onKeyDown={onKeyDown}>
-        {SIDEBAR_TABS.map((t) => (
-          <button
-            key={t}
-            id={`${id}-tab-${t}`}
-            type="button"
-            role="tab"
-            className={styles.tab}
-            aria-selected={t === tab}
-            aria-controls={`${id}-panel`}
-            tabIndex={t === tab ? 0 : -1}
-            onClick={() => onTab(t)}
-          >
-            {TAB_LABEL[t]}
-            {t === 'comments' && count > 0 ? <Badge>{count}</Badge> : null}
-          </button>
-        ))}
-      </div>
-      <div
-        id={`${id}-panel`}
-        role="tabpanel"
-        aria-labelledby={`${id}-tab-${tab}`}
-        className={styles.panel}
+      <TabList
+        label="Build sidebar"
+        size="sm"
+        tabs={tabs}
+        value={tab}
+        onChange={onTab}
+        panelClassName={styles.panel}
       >
         {tab === 'details' ? (
           <DetailsTab
@@ -103,7 +78,7 @@ export function ReviewSidebar(props: ReviewSidebar.Props) {
             onShowSnapshot={props.onShowSnapshot}
           />
         )}
-      </div>
+      </TabList>
     </aside>
   )
 }
