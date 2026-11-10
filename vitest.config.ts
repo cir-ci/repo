@@ -41,9 +41,12 @@ const baseUiDeps = [
 ].map((part) => `@base-ui/react/${part}`)
 // Base UI and lucide are installed under @circi/ui; projects rooted elsewhere go through it.
 const viaUi = (ids: string[]) => ids.map((id) => `@circi/ui > ${id}`)
-const uiOptimizeDeps = [...baseUiDeps, 'boring-avatars', 'lucide-react', ...reactDeps]
+// The team icons load from `lucide-react/dynamic.mjs` on demand: listed so a first run doesn't
+// discover it mid-test and reload the page.
+const iconDeps = ['boring-avatars', 'lucide-react', 'lucide-react/dynamic.mjs']
+const uiOptimizeDeps = [...baseUiDeps, ...iconDeps, ...reactDeps]
 const webOptimizeDeps = [
-  ...viaUi([...baseUiDeps, 'boring-avatars', 'lucide-react']),
+  ...viaUi([...baseUiDeps, ...iconDeps]),
   ...reactDeps,
   '@tanstack/react-query',
   '@tanstack/react-router',
@@ -55,13 +58,7 @@ const webOptimizeDeps = [
 ]
 // The visual project is rooted at the repository (screenshots go to its .circi), where nothing
 // but @circi/ui (a dependency of the root package) is installed.
-const visualOptimizeDeps = viaUi([
-  ...baseUiDeps,
-  'boring-avatars',
-  'lucide-react',
-  'react',
-  'react/jsx-dev-runtime',
-])
+const visualOptimizeDeps = viaUi([...baseUiDeps, ...iconDeps, 'react', 'react/jsx-dev-runtime'])
 
 /**
  * Three kinds of test: logic (`*.test.ts`) runs in Node, including the web app's render-free tests;
