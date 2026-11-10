@@ -82,6 +82,7 @@ export function Viewer({
   // The keyboard way to place a region on this build's image; dragging needs no switch.
   const [keyboardTool, setKeyboardTool] = useState(false)
   const [enlarged, setEnlarged] = useState<string | null>(null)
+  const [checkerboard, setCheckerboard] = useState(false)
   const comparable =
     diff.status === 'changed' && diff.head !== null && diff.base !== null && diff.diff !== null
   const mode: ViewMode =
@@ -142,10 +143,10 @@ export function Viewer({
     }
   }
   const summary = changeSummary(diff)
-  const baselineLabel = baselineNumber ? `Baseline · build #${baselineNumber}` : 'Baseline'
-  const baselineCaption = baselineNumber
-    ? `Baseline · build #${baselineNumber} on ${baselineBranch ?? 'an unknown branch'}`
+  const baselineLabel = baselineNumber
+    ? `Baseline · #${baselineNumber} on ${baselineBranch ?? 'an unknown branch'}`
     : 'Baseline'
+  const baselineCaption = baselineLabel
   const buildCaption = commitSha ? `This build · ${commitSha.slice(0, 7)}` : 'This build'
   // What the enlarged view can show: the baseline, this build and, in Diff mode, the changed pixels.
   const enlargeable: { key: string; image: Build.ImageRef; caption: string; label: string }[] = [
@@ -262,6 +263,15 @@ export function Viewer({
               </Tooltip>
             </span>
           ) : null}
+          <Button
+            variant="toggle"
+            size="sm"
+            pressed={checkerboard}
+            onPressedChange={setCheckerboard}
+            title="Checkerboard behind the screenshot"
+          >
+            Checkerboard
+          </Button>
           <div className={styles.group}>
             <SegmentedControl
               label="Zoom"
@@ -324,7 +334,7 @@ export function Viewer({
       </div>
       {issues}
 
-      <div className={styles.ground}>
+      <div className={styles.ground} data-checkerboard={checkerboard ? '' : undefined}>
         {diff.status === 'failed' ? (
           <Banner tone="danger">
             {diff.errorMessage ?? "This screenshot couldn't be processed."}
@@ -343,6 +353,7 @@ export function Viewer({
               <Figure
                 label={baselineLabel}
                 image={diff.base}
+                size={sizeLabel(diff.base)}
                 zoom={zoom}
                 annotations={withClick(annotationsFor('baseline'), () => setEnlarged('baseline'))}
                 onEnlarge={() => setEnlarged('baseline')}
@@ -350,8 +361,9 @@ export function Viewer({
             ) : null}
             {diff.head ? (
               <Figure
-                label={diff.status === 'added' ? 'New in this build' : 'This build'}
+                label={diff.status === 'added' ? 'New in this build' : buildCaption}
                 image={diff.head}
+                size={sizeLabel(diff.head)}
                 zoom={zoom}
                 annotations={withClick(annotationsFor('build'), () => setEnlarged('build'))}
                 onEnlarge={() => setEnlarged('build')}
@@ -416,6 +428,7 @@ export function Viewer({
           <Figure
             label="Changed pixels in red"
             image={diff.diff}
+            size={sizeLabel(diff.diff)}
             zoom={zoom}
             annotations={withClick(annotationsFor('build'), () => setEnlarged('diff'))}
             onEnlarge={() => setEnlarged('diff')}
@@ -441,6 +454,13 @@ export function Viewer({
             ? { overlay: <RegionOverlay annotations={overlayAnnotations} /> }
             : {}),
         }))}
+        hint={
+          annotatable && overlayAnnotations
+            ? ignoring
+              ? 'drag to add an ignore region'
+              : 'drag to comment on a region'
+            : undefined
+        }
         open={enlarged !== null && enlargedAt >= 0}
         index={Math.max(enlargedAt, 0)}
         onIndexChange={(i) => setEnlarged(enlargeable[i]?.key ?? null)}
@@ -518,14 +538,25 @@ const imageStyle = (zoom: Zoom, naturalWidth: number | null): CSSProperties | un
   return width === undefined ? undefined : { width, maxWidth: 'none' }
 }
 
-function Figure({ label, image, zoom, annotations, onEnlarge }: Figure.Props) {
+/** "1280 × 960", or nothing when the image's size isn't known. */
+const sizeLabel = (image: Build.ImageRef): string | undefined =>
+  image.width && image.height ? `${image.width} × ${image.height}` : undefined
+
+function Figure({ label, size, image, zoom, annotations, onEnlarge }: Figure.Props) {
   const gesture = useRegionGesture(annotations)
   const drawsOnPointer = annotations?.alwaysDraw === true
   return (
     <figure className={styles.figure}>
-      <Text as="small" variant="small" tone="secondary" className={styles.caption}>
-        {label}
-      </Text>
+      <div className={styles.captionRow}>
+        <Text as="small" variant="small" tone="secondary" className={styles.caption}>
+          {label}
+        </Text>
+        {size ? (
+          <Text as="small" variant="small" tone="tertiary">
+            {size}
+          </Text>
+        ) : null}
+      </div>
       {/* A press on the image either drags a region or, without moving, enlarges it. The layer is
           a sibling of the trigger, never inside it: markers are buttons. */}
       <div
@@ -564,6 +595,8 @@ function Figure({ label, image, zoom, annotations, onEnlarge }: Figure.Props) {
 export namespace Figure {
   export interface Props {
     label: string
+    /** The image's size, "1280 × 960", shown on the right of the label. */
+    size?: string | undefined
     image: Build.ImageRef
     zoom: Zoom
     annotations?: Annotations | undefined

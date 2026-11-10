@@ -151,3 +151,13 @@ export function groupThreads(comments: readonly Comment.Item[]): Thread[] {
 /** "1 comment", "3 comments": what the tab and the empty state say. */
 export const commentCount = (comments: readonly Comment.Item[]) =>
   comments.filter((c) => c.deletedAt === null).length
+
+/** How many comment threads each screenshot has, by name: what the list's rows show. */
+export function threadCounts(comments: readonly Comment.Item[]): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const t of groupThreads(comments)) {
+    const name = t.root.snapshotName
+    if (name) counts.set(name, (counts.get(name) ?? 0) + 1)
+  }
+  return counts
+}

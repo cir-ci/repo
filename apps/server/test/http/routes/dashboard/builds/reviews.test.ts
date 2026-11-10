@@ -183,3 +183,44 @@ describe('refreshing the pull request comment', () => {
     expect((await notices()).some((k) => k.endsWith(':rejected'))).toBe(true)
   })
 })
+
+/** What the build page's Details tab shows beside the status: the review target, who is notified, the PR. */
+const facts = async () => (await buildDetail(acmeCookie)).json()
+
+describe('the build page facts', () => {
+  it('has a target but no due time while nobody is asked, and nobody to notify but the author', async () => {
+    const detail = await facts()
+    expect(detail.reviewTarget).toEqual({ hours: 24, dueAt: null })
+    expect(detail.watchers).toEqual([])
+    expect(detail.pullRequest).toBeNull()
+  })
+
+  it('counts down from the soonest open request, and lists the people asked as watchers', async () => {
+    const [build] = await fx.db.select().from(schema.builds).where(eq(schema.builds.number, 2))
+    if (!build) throw new Error('build 2 is missing')
+    const other = (await fx.db.select().from(schema.user)).find((u) => u.id !== acme.owner.id)
+    if (!other) throw new Error('no second user')
+    const later = new Date(Date.now() + 7_200_000)
+    await fx.db.insert(schema.reviewRequests).values([
+      { buildId: build.id, reviewerId: acme.owner.id, dueAt: later },
+      // A snoozed request is not counted down.
+      {
+        buildId: build.id,
+        reviewerId: other.id,
+        dueAt: new Date(Date.now() - 1000),
+        snoozeKind: 'next_push',
+      },
+    ])
+    const detail = await facts()
+    expect(detail.reviewTarget.dueAt).toBe(later.toISOString())
+    expect(detail.watchers.map((w: { id: string }) => w.id).toSorted()).toEqual(
+      [acme.owner.id, other.id].toSorted(),
+    )
+  })
+
+  it('names the repository next to the pull request number', async () => {
+    await seedGitLink(fx.db, acme.team.id, { externalId: '99', repoRef: 'acme/web' })
+    await fx.db.update(schema.builds).set({ prNumber: 412 }).where(eq(schema.builds.number, 2))
+    expect((await facts()).pullRequest).toEqual({ number: 412, repo: 'acme/web' })
+  })
+})

@@ -40,3 +40,13 @@
   flex: 1 1 auto;
   min-width: 0;
 }
+
+/* Rows with comment threads: the count beside a small speech bubble. */
+.threads {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 3px;
+  color: var(--circi-text-tertiary);
+  font-size: 11px;
+}

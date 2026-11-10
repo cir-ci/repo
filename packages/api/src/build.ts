@@ -116,6 +116,12 @@ export namespace Build {
     diffs: DiffItem[]
     /** Issues created from the build in Linear or Jira, oldest first. */
     issues: { key: string; url: string; title: string }[]
+    /** The team's review target and when the soonest open, unsnoozed request is due (ISO). */
+    reviewTarget: { hours: number | null; dueAt: string | null }
+    /** The people notified about the build: its author and whoever was asked to review. */
+    watchers: { id: string; name: string }[]
+    /** The pull request the build is for; `repo` (`owner/name`) when a repository is connected. */
+    pullRequest: { number: number; repo: string | null } | null
   }
 }
 

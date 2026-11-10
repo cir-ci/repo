@@ -126,3 +126,36 @@ export function requestedFromLabel(people: readonly { name: string }[]): string 
     ? `Requested from ${first.name} and ${second.name}`
     : `Requested from ${people.length} people`
 }
+
+const MINUTE_MS = 60_000
+const HOUR_MS = 3_600_000
+
+/** "45m", "22h", "3d": a span of time as one rounded-down figure; at least a minute. */
+export function shortSpan(ms: number): string {
+  if (ms < HOUR_MS) return `${Math.max(1, Math.floor(ms / MINUTE_MS))}m`
+  if (ms < 48 * HOUR_MS) return `${Math.floor(ms / HOUR_MS)}h`
+  return `${Math.floor(ms / (24 * HOUR_MS))}d`
+}
+
+/**
+ * Where the review target stands at `now`: "22h left" or, once past it, "Overdue 2h". Null when
+ * nothing is counting down (no target, or nobody was asked).
+ */
+export function reviewTargetStatus(
+  target: Build.Detail['reviewTarget'],
+  now: number,
+): { overdue: boolean; short: string; long: string } | null {
+  if (!target.dueAt) return null
+  const left = Date.parse(target.dueAt) - now
+  const of = target.hours === null ? '' : ` of ${target.hours}h`
+  if (left >= 0) {
+    const span = shortSpan(left)
+    return { overdue: false, short: `${span} left`, long: `${span} left${of}` }
+  }
+  const late = `Overdue ${shortSpan(-left)}`
+  return {
+    overdue: true,
+    short: late,
+    long: target.hours === null ? late : `${late}, past the ${target.hours}h target`,
+  }
+}

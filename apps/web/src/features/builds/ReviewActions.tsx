@@ -128,13 +128,7 @@ export function ReviewActions({ review, snapshotName }: ReviewActions.Props) {
         </Tooltip>
       ) : null}
       {review.canApproveAll ? (
-        <Tooltip
-          content={
-            <>
-              Approve every screenshot that has no decision yet <Kbd>⇧</Kbd> <Kbd>A</Kbd>
-            </>
-          }
-        >
+        <Tooltip content="Approve every screenshot that has no decision yet">
           <Button
             variant="primary"
             leading={<TaskDoneIcon />}
@@ -142,7 +136,7 @@ export function ReviewActions({ review, snapshotName }: ReviewActions.Props) {
             disabled={review.pending}
             onClick={review.approveAll}
           >
-            Approve all
+            Approve all <Kbd>⇧A</Kbd>
           </Button>
         </Tooltip>
       ) : null}

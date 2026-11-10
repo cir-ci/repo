@@ -87,6 +87,9 @@ export type ContractChecks = [
   Fits<Json<getTeamGitAttention.Attention>, Team.GitAttention>,
   Fits<Json<getBuildDetail.Detail>['diffs'], Build.DiffItem[]>,
   Fits<Json<getBuildDetail.Detail>['reviews'], Build.Review[]>,
+  Fits<Json<getBuildDetail.Detail>['reviewTarget'], Build.Detail['reviewTarget']>,
+  Fits<getBuildDetail.Detail['watchers'], Build.Detail['watchers']>,
+  Fits<getBuildDetail.Detail['pullRequest'], Build.Detail['pullRequest']>,
   Fits<Json<getBuildDetail.Detail>['build'], Omit<Build.Detail['build'], never>>,
   Fits<Json<listReviewRequests.Item>, Review.Request>,
   Fits<Json<BaselineItem>, Baseline.Item>,
@@ -121,6 +124,9 @@ export type ContractChecks = [
 
 /** Each entry must be `true`; a mismatch above makes its entry `never`, and this line fails. */
 export const contractChecks: ContractChecks = [
+  true,
+  true,
+  true,
   true,
   true,
   true,

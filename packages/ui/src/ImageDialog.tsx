@@ -31,6 +31,7 @@ export function ImageDialog({
   onIndexChange,
   open,
   onOpenChange,
+  hint,
 }: ImageDialog.Props) {
   const count = images.length
   const at = Math.min(Math.max(index, 0), count - 1)
@@ -91,6 +92,7 @@ export function ImageDialog({
               · <Kbd>←</Kbd> <Kbd>→</Kbd> switch image
             </>
           ) : null}
+          {hint ? <> · {hint}</> : null}
         </span>
       }
     >
@@ -136,5 +138,7 @@ export namespace ImageDialog {
     onIndexChange: (index: number) => void
     open: boolean
     onOpenChange: (open: boolean) => void
+    /** More for the footer, after the keys: "drag to comment on a region". */
+    hint?: ReactNode
   }
 }

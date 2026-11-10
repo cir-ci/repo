@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { formatAge, formatRelative } from './relative-time.ts'
 
 /** The current time, refreshed every minute so relative times on an open page stay right. */
-function useNow(): number {
+export function useNow(): number {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 60_000)

@@ -63,6 +63,11 @@
   margin: 0;
 }
 
+.fact {
+  display: flex;
+  align-items: center;
+}
+
 .list {
   display: flex;
   flex-direction: column;

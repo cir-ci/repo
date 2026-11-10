@@ -11,6 +11,7 @@ import {
   Text,
   Tooltip,
   HourglassIcon,
+  ReviewIcon,
   useAnnounce,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
@@ -51,7 +52,9 @@ import {
 } from './review-model.ts'
 import { ReviewActions, ReviewNote, useReviewControls } from './ReviewActions.tsx'
 import { ReviewSidebar, type SidebarTab } from './ReviewSidebar.tsx'
+import { ReviewTarget } from './ReviewTarget.tsx'
 import { ROUTE, type ViewMode } from './search.ts'
+import { threadCounts } from './timeline.ts'
 
 import page from './BuildPage.module.css'
 import styles from './BuildReview.module.css'
@@ -128,6 +131,8 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   })
 
   const comments = useQuery(commentsQuery(team.workspaceSlug, team.slug, build.number))
+  const threads = useMemo(() => threadCounts(comments.data?.comments ?? []), [comments.data])
+  const threadCount = (name: string) => threads.get(name) ?? 0
   const pinned = selected ? regionThreads(comments.data?.comments ?? [], selected.name) : []
 
   // A link to a comment (the inbox's "mentioned you"): once the comments are in, show the
@@ -207,6 +212,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
         actions={
           <>
             <BuildStateLabel build={build} hasBaseline={hasBaseline} />
+            <ReviewTarget target={data.reviewTarget} />
             <IssueAction data={data} snapshotName={selected?.name ?? null} />
             <RequestedReviewers
               workspace={team.workspaceSlug}
@@ -293,6 +299,16 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
                         <Tooltip content={d.name}>
                           <Text className={styles.name}>{d.name}</Text>
                         </Tooltip>
+                        {threadCount(d.name) > 0 ? (
+                          <span
+                            className={styles.threads}
+                            role="img"
+                            aria-label={`${threadCount(d.name)} comment ${threadCount(d.name) === 1 ? 'thread' : 'threads'}`}
+                          >
+                            <ReviewIcon size={11} />
+                            {threadCount(d.name)}
+                          </span>
+                        ) : null}
                         <Text variant="mono" tone="secondary">
                           {shotBadge(d)}
                         </Text>

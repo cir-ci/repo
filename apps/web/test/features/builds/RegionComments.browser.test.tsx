@@ -46,7 +46,7 @@ const drag = (name: 'Baseline' | 'This build', from = { x: 40, y: 30 }, to = { x
     targetPosition: to,
   })
 
-const enlarged = () => page.getByRole('dialog', { name: 'Baseline · build #6 on main' })
+const enlarged = () => page.getByRole('dialog', { name: 'Baseline · #6 on main' })
 const overlay = () => page.getByTestId('region-overlay')
 
 async function enlargeBaseline() {
@@ -218,9 +218,7 @@ describe('region comments are always on', () => {
     await expect.element(dialog).toBeVisible()
     expect(popover().elements()).toHaveLength(0)
     await userEvent.keyboard('{ArrowLeft}')
-    await expect
-      .element(page.getByRole('dialog', { name: 'Baseline · build #6 on main' }))
-      .toBeVisible()
+    await expect.element(page.getByRole('dialog', { name: 'Baseline · #6 on main' })).toBeVisible()
     await userEvent.keyboard('{ArrowRight}')
     await expect.element(page.getByRole('dialog', { name: 'This build · 0123456' })).toBeVisible()
     await userEvent.keyboard('{Escape}')
@@ -230,9 +228,7 @@ describe('region comments are always on', () => {
   it('a drag shorter than 8 pixels is a click', async () => {
     await ready()
     await drag('Baseline', { x: 40, y: 30 }, { x: 44, y: 150 })
-    await expect
-      .element(page.getByRole('dialog', { name: 'Baseline · build #6 on main' }))
-      .toBeVisible()
+    await expect.element(page.getByRole('dialog', { name: 'Baseline · #6 on main' })).toBeVisible()
     expect(popover().elements()).toHaveLength(0)
   })
 

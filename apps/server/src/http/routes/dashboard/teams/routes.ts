@@ -91,7 +91,7 @@ export const dashboardTeamRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
     const number = Number(params.number)
     if (!team || !Number.isInteger(number))
       return reply.code(404).send({ error: 'Build not found' })
-    const detail = await getBuildDetail(deps.db, team.id, number)
+    const detail = await getBuildDetail(deps.db, team.id, number, integrationRegistry.gitKinds())
     if (!detail) return reply.code(404).send({ error: 'Build not found' })
     return { team, ...detail }
   })

@@ -11,6 +11,7 @@ import {
   neighbour,
   orderShots,
   reviewProgress,
+  reviewTargetStatus,
   shotBadge,
   shotKind,
   undecidedNames,
@@ -180,5 +181,35 @@ describe('per-snapshot review', () => {
   it('treats snapshots of an approved build as decided', () => {
     expect(reviewProgress([diff('a', 'changed')], 'approved')).toEqual({ reviewed: 1, total: 1 })
     expect(undecidedNames([diff('a', 'changed')], 'approved')).toEqual([])
+  })
+})
+
+describe('reviewTargetStatus', () => {
+  const now = Date.parse('2026-11-10T12:00:00.000Z')
+  const at = (ms: number) => new Date(now + ms).toISOString()
+  const status = (ms: number) => reviewTargetStatus({ hours: 24, dueAt: at(ms) }, now)
+
+  it('counts down in the unit that fits', () => {
+    expect(status(22 * 3_600_000 + 1)).toEqual({
+      overdue: false,
+      short: '22h left',
+      long: '22h left of 24h',
+    })
+    expect(status(45 * 60_000)?.short).toBe('45m left')
+    expect(status(30_000)?.short).toBe('1m left')
+    expect(status(72 * 3_600_000)?.short).toBe('3d left')
+  })
+
+  it('is overdue strictly after the due time', () => {
+    expect(reviewTargetStatus({ hours: 24, dueAt: at(0) }, now)?.overdue).toBe(false)
+    expect(reviewTargetStatus({ hours: 24, dueAt: at(-2 * 3_600_000) }, now)).toEqual({
+      overdue: true,
+      short: 'Overdue 2h',
+      long: 'Overdue 2h, past the 24h target',
+    })
+  })
+
+  it('has nothing to say without a due time', () => {
+    expect(reviewTargetStatus({ hours: 24, dueAt: null }, now)).toBeNull()
   })
 })

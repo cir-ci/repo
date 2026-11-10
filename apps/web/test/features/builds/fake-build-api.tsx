@@ -94,6 +94,9 @@ export function detail(
     reviews: [],
     diffs,
     issues: [],
+    reviewTarget: { hours: 24, dueAt: null },
+    watchers: [],
+    pullRequest: { number: 42, repo: null },
     ...rest,
   }
   return result

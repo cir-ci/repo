@@ -1,4 +1,4 @@
-import { ISSUE_LINK_KIND } from '@circi/core'
+import { ISSUE_LINK_KIND, isSnoozed } from '@circi/core'
 import type { BuildOrder } from '@circi/core'
 import { aliasedTable, and, eq, gt, gte, ilike, inArray, lt, sql } from 'drizzle-orm'
 
@@ -15,6 +15,7 @@ import {
   reviewRequests,
   screenshotDiffs,
   screenshots,
+  teams,
 } from '#schema/index.ts'
 import type { getBuildCounts } from '#shared/build-counts.ts'
 import { containsPattern } from '#shared/like.ts'
@@ -22,6 +23,7 @@ import type { Database } from '#src/client.ts'
 
 import { buildAfterCursor, buildOrderBy, teamTie } from './builds-order.ts'
 import { figmaFramesForSnapshots } from './figma.ts'
+import { type GitKinds, getTeamLink } from './git-links.ts'
 import { listBuildLinks } from './integration-links.ts'
 import {
   listBuildReviews,
@@ -241,6 +243,15 @@ export namespace getBuildDetail {
     diffs: getBuildDetail.DiffItem[]
     /** Issues created from the build, oldest first. */
     issues: { key: string; url: string; title: string }[]
+    /**
+     * The team's review target and when the soonest open request runs out (null when no request
+     * is open and unsnoozed, or the team has no target).
+     */
+    reviewTarget: { hours: number | null; dueAt: Date | null }
+    /** The people who get notified about the build: its author and whoever was asked to review. */
+    watchers: { id: string; name: string }[]
+    /** The pull request the build is for; `repo` is the connected repository, when there is one. */
+    pullRequest: { number: number; repo: string | null } | null
   }
 }
 
@@ -248,6 +259,7 @@ export async function getBuildDetail(
   db: Database,
   teamId: string,
   number: number,
+  gitKinds: GitKinds = [],
 ): Promise<getBuildDetail.Detail | undefined> {
   const [build] = await db
     .select()
@@ -304,7 +316,44 @@ export async function getBuildDetail(
     title: l.title ?? l.externalRef,
   }))
 
+  const [team] = await db
+    .select({ hours: teams.reviewTargetHours })
+    .from(teams)
+    .where(eq(teams.id, teamId))
+  const asked = await db
+    .select({
+      id: user.id,
+      name: user.name,
+      dueAt: reviewRequests.dueAt,
+      snoozedUntil: reviewRequests.snoozedUntil,
+      snoozeKind: reviewRequests.snoozeKind,
+    })
+    .from(reviewRequests)
+    .innerJoin(user, eq(user.id, reviewRequests.reviewerId))
+    .where(and(eq(reviewRequests.buildId, build.id), eq(reviewRequests.state, 'open')))
+    .orderBy(reviewRequests.createdAt)
+  const now = new Date()
+  const dues = asked.flatMap((r) => (r.dueAt && !isSnoozed(r, now) ? [r.dueAt] : []))
+  const author = build.authorUserId
+    ? (
+        await db
+          .select({ id: user.id, name: user.name })
+          .from(user)
+          .where(eq(user.id, build.authorUserId))
+      )[0]
+    : undefined
+  const watchers = new Map<string, string>()
+  if (author) watchers.set(author.id, author.name)
+  for (const r of asked) watchers.set(r.id, r.name)
+  const link = build.prNumber ? await getTeamLink(db, teamId, gitKinds) : undefined
+
   return {
+    reviewTarget: {
+      hours: team?.hours ?? null,
+      dueAt: dues.length > 0 ? new Date(Math.min(...dues.map((d) => d.getTime()))) : null,
+    },
+    watchers: [...watchers].map(([id, name]) => ({ id, name })),
+    pullRequest: build.prNumber ? { number: build.prNumber, repo: link?.repoRef ?? null } : null,
     build: {
       id: build.id,
       number: build.number,

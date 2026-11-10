@@ -3,12 +3,15 @@ import { Badge, Button, Kbd, Stack, StatusIcon, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { type KeyboardEvent, type Ref, useId } from 'react'
 
-import { commentsQuery } from '#features/builds/api/discussion.ts'
-import { RelativeTime } from '#lib/RelativeTime.tsx'
+import { activityQuery, commentsQuery } from '#features/builds/api/discussion.ts'
+import { authClient } from '#lib/auth-client.ts'
+import { RelativeTime, useNow } from '#lib/RelativeTime.tsx'
 
 import { ActivityTab } from './ActivityTab.tsx'
+import { BuildStateLabel } from './BuildStateLabel.tsx'
 import { CommentsTab } from './CommentsTab.tsx'
 import { LinkedIssues } from './LinkedIssues.tsx'
+import { openReviewerPeople, reviewTargetStatus } from './review-model.ts'
 import { commentCount } from './timeline.ts'
 
 import styles from './Discussion.module.css'
@@ -122,6 +125,14 @@ export namespace ReviewSidebar {
 /** The build's facts and its decisions so far. */
 function DetailsTab({ data, snapshotName, onRequestReview }: DetailsTab.Props) {
   const { build, baseline, reviews } = data
+  const now = useNow()
+  const { data: session } = authClient.useSession()
+  const { data: activity } = useQuery(
+    activityQuery(data.team.workspaceSlug, data.team.slug, build.number),
+  )
+  const reviewers = openReviewerPeople(activity?.events ?? [])
+  const target = reviewTargetStatus(data.reviewTarget, now)
+  const watching = data.watchers.some((w) => w.id === session?.user.id)
   // The decision on each snapshot, when it has one (the build's own decisions are listed above).
   const decided = data.diffs.flatMap((d) =>
     d.review ? [{ id: d.id, name: d.name, review: d.review }] : [],
@@ -129,6 +140,47 @@ function DetailsTab({ data, snapshotName, onRequestReview }: DetailsTab.Props) {
   return (
     <>
       <dl className={styles.facts}>
+        <Text as="dt" variant="small" tone="secondary">
+          Status
+        </Text>
+        <dd className={styles.fact}>
+          <BuildStateLabel build={build} hasBaseline={baseline !== null} />
+        </dd>
+        <Text as="dt" variant="small" tone="secondary">
+          Reviewers
+        </Text>
+        <Text as="dd">
+          {reviewers.length > 0 ? reviewers.map((p) => p.name).join(', ') : 'None'}
+        </Text>
+        <Text as="dt" variant="small" tone="secondary">
+          Review target
+        </Text>
+        <Text as="dd" tone={target?.overdue ? 'rejected' : 'primary'}>
+          {target
+            ? target.long
+            : data.reviewTarget.hours === null
+              ? 'None'
+              : `${data.reviewTarget.hours}h`}
+        </Text>
+        {data.pullRequest ? (
+          <>
+            <Text as="dt" variant="small" tone="secondary">
+              Pull request
+            </Text>
+            <Text as="dd" variant="mono">
+              {data.pullRequest.repo ? `${data.pullRequest.repo}#` : '#'}
+              {data.pullRequest.number}
+            </Text>
+          </>
+        ) : null}
+        <Text as="dt" variant="small" tone="secondary">
+          Watchers
+        </Text>
+        <Text as="dd" title={data.watchers.map((w) => w.name).join(', ')}>
+          {data.watchers.length > 0
+            ? `${data.watchers.length}${watching ? " · you're watching" : ''}`
+            : 'Nobody'}
+        </Text>
         <Text as="dt" variant="small" tone="secondary">
           Branch
         </Text>
@@ -201,7 +253,7 @@ function DetailsTab({ data, snapshotName, onRequestReview }: DetailsTab.Props) {
       {decided.length > 0 ? (
         <div>
           <Text variant="micro" tone="tertiary">
-            By snapshot
+            By screenshot
           </Text>
           <ul className={styles.list}>
             {decided.map((d) => (
