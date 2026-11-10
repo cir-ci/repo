@@ -233,6 +233,7 @@ PUT /api/teams/:workspace/:team/rules/order
 PUT /api/teams/:workspace/:team/sites/:site/domain
 PUT /api/teams/:workspace/:team/triage-rotation
 PUT /api/workspaces/:workspace/integrations/:id|:kind/teams/:team
+PUT /api/workspaces/:workspace/last-opened
 PUT /api/workspaces/:workspace/picture
 PUT /api/workspaces/:workspace/pinned-teams/:team
 PUT /api/workspaces/:workspace/views/order

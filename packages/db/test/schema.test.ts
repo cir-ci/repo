@@ -81,6 +81,7 @@ describe('migrations', () => {
       'upload_claims',
       'user',
       'user_pinned_teams',
+      'user_preferences',
       'verification',
       'webhook_deliveries',
       'webhooks',

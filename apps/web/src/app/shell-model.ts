@@ -64,6 +64,36 @@ export function pickWorkspace(
 }
 
 /**
+ * The workspace to tell the server about: the one in the address, when it is one of the person's
+ * own (`known` has only real memberships, not an address nobody listed) and not what the server
+ * already remembers. Undefined: nothing to write.
+ */
+export function workspaceToRemember(
+  routeWorkspace: string | undefined,
+  known: readonly WorkspaceRef[],
+  serverValue: string | null | undefined,
+): string | undefined {
+  if (!routeWorkspace || routeWorkspace === serverValue) return undefined
+  return known.some((w) => w.slug === routeWorkspace) ? routeWorkspace : undefined
+}
+
+/**
+ * Where a landing page goes: the server's remembered workspace (it follows the account across
+ * devices), else this browser's, then the first. Whichever is gone from `workspaces` is skipped.
+ */
+export function pickLandingWorkspace(
+  workspaces: readonly WorkspaceRef[],
+  serverValue: string | null | undefined,
+  browserValue: string | undefined,
+): WorkspaceRef | undefined {
+  return (
+    workspaces.find((w) => w.slug === serverValue) ??
+    workspaces.find((w) => w.slug === browserValue) ??
+    workspaces[0]
+  )
+}
+
+/**
  * The sidebar's teams in display order: pinned ones first (in the order the server gives, the
  * pin order), then the rest A to Z.
  */

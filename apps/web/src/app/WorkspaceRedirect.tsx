@@ -6,14 +6,17 @@ import { PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 
 import { NotFound } from './NotFound.tsx'
-import { listWorkspaces, pickWorkspace, readRememberedWorkspace } from './shell-model.ts'
+import { listWorkspaces, pickLandingWorkspace, readRememberedWorkspace } from './shell-model.ts'
 
 const TITLES = { reviews: 'Reviews', insights: 'Insights' } as const
 
 /**
  * A workspace page's address without its workspace (`/reviews`, `/insights`): goes to that page
- * in the workspace chosen last time, else the first one, like the sidebar picks. A person with
- * no workspace gets the 404 page.
+ * in the workspace the account opened last (the server remembers it, so every device agrees),
+ * else the one this browser chose, else the first. A workspace that is gone is skipped. The
+ * capabilities (which carry the server's value) are normally cached by the shell already; if
+ * they haven't arrived the redirect waits for them rather than land on the wrong workspace, and
+ * if they fail it uses the browser's value.
  */
 export function WorkspaceRedirect({ page }: WorkspaceRedirect.Props) {
   const teams = useQuery(teamsQuery())
@@ -21,11 +24,14 @@ export function WorkspaceRedirect({ page }: WorkspaceRedirect.Props) {
   return (
     <>
       {teams.data ? null : <PageHeading title={TITLES[page]} />}
-      <QueryBoundary<NonNullable<typeof teams.data>> query={teams} announce="Opening the page">
+      <QueryBoundary<NonNullable<typeof teams.data>>
+        query={caps.isPending ? { ...teams, data: undefined } : teams}
+        announce="Opening the page"
+      >
         {(data) => {
-          const workspace = pickWorkspace(
+          const workspace = pickLandingWorkspace(
             listWorkspaces(data.teams, caps.data?.manageableWorkspaces),
-            undefined,
+            caps.data?.lastWorkspace,
             readRememberedWorkspace(),
           )
           if (!workspace) return <NotFound />

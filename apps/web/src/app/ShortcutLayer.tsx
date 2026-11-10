@@ -4,7 +4,7 @@ import { type ReactNode, useEffect } from 'react'
 import { CommandMenu } from '#features/command/CommandMenu.tsx'
 import { classifyVisit } from '#features/command/recent.ts'
 import { useSidebarModel } from '#features/sidebar/api.ts'
-import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
+import { useRememberOpenedWorkspace, useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useRecentStore } from '#lib/stores/recent-store.ts'
@@ -26,6 +26,7 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
   const params = useParams({ strict: false })
   const { copy } = useCopy()
   const { workspace, workspaces } = useWorkspaces(useChosenWorkspace())
+  useRememberOpenedWorkspace()
   const { data: sidebar } = useSidebarModel(workspace?.slug)
   const commandOpen = useOverlayStore((s) => s.commandMenuOpen)
   const setCommandOpen = useOverlayStore((s) => s.setCommandMenuOpen)

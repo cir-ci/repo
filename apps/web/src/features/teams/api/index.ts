@@ -52,6 +52,23 @@ export const capabilitiesQuery = () =>
     queryFn: () => getJson<Workspace.Capabilities>('/api/capabilities'),
   })
 
+/**
+ * Tells the server which workspace was opened, so every device lands on it next. The cached
+ * capabilities take the new value at once; a refused write (the workspace went away) refetches
+ * them to see what the server says.
+ */
+export function useRememberWorkspace() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (slug: string) => send<void>('PUT', workspacePath(slug, 'last-opened')),
+    onMutate: (slug) =>
+      queryClient.setQueryData<Workspace.Capabilities>(keys.capabilities(), (caps) =>
+        caps ? { ...caps, lastWorkspace: slug } : caps,
+      ),
+    onError: () => queryClient.invalidateQueries({ queryKey: keys.capabilities() }),
+  })
+}
+
 export function useCreateWorkspace() {
   const queryClient = useQueryClient()
   return useMutation({

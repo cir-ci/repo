@@ -8,6 +8,11 @@ export namespace Workspace {
     canCreateWorkspace: boolean
     /** Whether this person runs the instance (its admin pages and menu entries). */
     instanceAdmin: boolean
+    /**
+     * The slug of the workspace this person opened last, on any device; null when they never
+     * did or can't open it any more (left, deleted). The landing page opens it.
+     */
+    lastWorkspace: string | null
     manageableWorkspaces: {
       slug: string
       name: string

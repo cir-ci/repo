@@ -51,6 +51,7 @@ const MEMBER_WRITABLE = new Set([
   `DELETE ${WORKSPACE}/views/:id`,
   `PUT ${WORKSPACE}/pinned-teams/:team`,
   `DELETE ${WORKSPACE}/pinned-teams/:team`,
+  `PUT ${WORKSPACE}/last-opened`,
 ])
 
 /**

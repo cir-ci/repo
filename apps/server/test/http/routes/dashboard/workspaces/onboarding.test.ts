@@ -95,6 +95,7 @@ describe('first-run setup', () => {
     expect(caps.json()).toEqual({
       canCreateWorkspace: true,
       instanceAdmin: true,
+      lastWorkspace: null,
       refusingWorkspaces: [],
       mailConfigured: false,
       manageableWorkspaces: [{ slug: 'acme-inc', name: 'Acme Inc', picture: null, role: 'owner' }],
@@ -162,6 +163,7 @@ describe('creating workspaces and teams', () => {
     expect(caps.json()).toEqual({
       canCreateWorkspace: false,
       instanceAdmin: false,
+      lastWorkspace: null,
       manageableWorkspaces: [],
       refusingWorkspaces: [],
       mailConfigured: false,

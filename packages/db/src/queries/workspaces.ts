@@ -1,7 +1,7 @@
 import { workspacePictureSha, workspacePictureUrl } from '@circi/core'
 import { and, asc, eq, inArray } from 'drizzle-orm'
 
-import { files, member, workspace } from '#schema/index.ts'
+import { files, member, userPreferences, workspace } from '#schema/index.ts'
 import { workspaceAccepts, workspaceIsLive, type SessionMethod } from '#shared/session-method.ts'
 import { asWorkspaceRole, type WorkspaceRole } from '#shared/workspace-role.ts'
 import type { Database } from '#src/client.ts'
@@ -125,4 +125,26 @@ export async function getWorkspacePicture(
     .from(files)
     .where(and(eq(files.sha256, sha), eq(files.status, 'verified')))
   return file ? { ...file, contentType: file.contentType ?? 'image/png' } : undefined
+}
+
+/**
+ * The slug of the workspace the person opened last, when they can still open it: they are a
+ * member, it isn't deleted and it accepts how they signed in. Otherwise null (never opened one,
+ * left it, it was deleted), and the caller falls back to another.
+ */
+export async function getLastWorkspaceSlug(
+  db: Database,
+  userId: string,
+  method?: SessionMethod,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ slug: workspace.slug })
+    .from(userPreferences)
+    .innerJoin(workspace, eq(workspace.id, userPreferences.lastWorkspaceId))
+    .innerJoin(
+      member,
+      and(eq(member.workspaceId, workspace.id), eq(member.userId, userPreferences.userId)),
+    )
+    .where(and(eq(userPreferences.userId, userId), workspaceAccepts(workspace.id, method)))
+  return row?.slug ?? null
 }

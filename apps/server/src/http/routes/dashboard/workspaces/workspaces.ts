@@ -1,5 +1,6 @@
 import { createWorkspace, createTeamWithToken } from '@circi/auth'
 import {
+  getLastWorkspaceSlug,
   listManageableWorkspaces,
   listRefusingWorkspaces,
   getIntegration,
@@ -12,7 +13,7 @@ import {
   normalizeExtra,
   type IntegrationDefinition,
 } from '@circi/integrations'
-import { mapTeam } from '@circi/services'
+import { mapTeam, rememberWorkspace } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
@@ -64,6 +65,12 @@ export const dashboardWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
     ),
     /** Whether the instance can send mail (SMTP is set up). */
     mailConfigured: deps.instance?.mailer !== undefined,
+    /** The workspace this person opened last on any device, if they can still open it. */
+    lastWorkspace: await getLastWorkspaceSlug(
+      deps.db,
+      currentUser(req).id,
+      currentUser(req).method,
+    ),
     /** Where this person may create teams. */
     manageableWorkspaces: await listManageableWorkspaces(
       deps.db,
@@ -71,6 +78,16 @@ export const dashboardWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
       currentUser(req).method,
     ),
   }))
+
+  /**
+   * Records that the person opened this workspace, so every device lands on it next. Members
+   * only (anyone else gets the usual 404); writes nothing when it is already the remembered one.
+   */
+  app.put('/workspaces/:workspace/last-opened', async (req, reply) => {
+    const { workspace, user } = await loadWorkspace(deps, req)
+    await rememberWorkspace(deps.db, { userId: user.id, workspaceId: workspace.id })
+    return reply.code(204).send()
+  })
 
   app.post('/workspaces', async (req, reply) => {
     const user = currentUser(req)
