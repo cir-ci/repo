@@ -748,7 +748,7 @@ describe('nested lists', () => {
     await expect.element(page.getByRole('option', { name: /^Web, Current/ })).toBeVisible()
     await expect.element(page.getByRole('option', { name: /^Docs/ })).toBeVisible()
     await expect.element(page.getByRole('group', { name: 'Go to' })).not.toBeInTheDocument()
-    await expect.element(page.getByText('↵')).toBeVisible()
+    await expect.element(page.getByText('↵', { exact: true }).last()).toBeVisible()
     await userEvent.keyboard('{Backspace}')
     await expect.element(field()).toHaveAttribute('placeholder', 'Search or type a command')
     await expect.element(page.getByRole('group', { name: 'Go to' })).toBeVisible()

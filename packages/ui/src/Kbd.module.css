@@ -1,6 +1,8 @@
 .root {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  gap: 2px;
   box-sizing: border-box;
   height: 18px;
   padding-inline: 5px;
@@ -10,5 +12,20 @@
   color: var(--circi-text-secondary);
   font-family: var(--circi-font-mono);
   font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+/* Each key's glyph box is trimmed to the cap height, so the letters sit in the middle of the cap
+   rather than on a baseline with room for descenders below. */
+.root > span {
+  display: block;
+  text-box: trim-both cap alphabetic;
+}
+
+/* The key symbols, drawn by the sans font a size up so they stand as tall as the letters. */
+.symbol {
+  font-family: var(--circi-font-sans);
+  font-size: 12px;
   font-weight: 500;
 }
