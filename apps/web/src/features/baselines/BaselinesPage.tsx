@@ -1,6 +1,15 @@
 import type { Baseline, Flaky } from '@circi/api'
 import { flakyReasonText } from '@circi/core'
-import { EmptyState, ImagesIcon, ListGroup, ListRow, NoResults, StatusIcon, Text } from '@circi/ui'
+import {
+  ContextMenu,
+  EmptyState,
+  ImagesIcon,
+  ListGroup,
+  ListRow,
+  NoResults,
+  StatusIcon,
+  Text,
+} from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -13,6 +22,7 @@ import { FindField } from '#lib/FindField.tsx'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { Age } from '#lib/RelativeTime.tsx'
+import { copyText, copyLinkItem, menuEntries, openInNewTabItem } from '#lib/row-menu.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 import { useListNavigation } from '#lib/use-list-navigation.ts'
 
@@ -40,6 +50,28 @@ export function BaselinesPage() {
   const flakyOf = new Map((flaky.data?.flaky ?? []).map((f) => [f.name, f.reason]))
   const [filter, setFilter] = useFindParam()
   const [selectedId, setSelectedId] = useState<string>()
+
+  const openBuild = (number: number) =>
+    void router.navigate({
+      to: '/$workspace/$team/builds/$number',
+      params: { workspace, team, number: String(number) },
+    })
+  /** A row's right-click menu: what its address, its build chip and its flaky chip open. */
+  const rowMenu = (item: Baseline.Item, href: string) =>
+    menuEntries([
+      {
+        label: 'Open',
+        onSelect: () => void router.navigate(baselineLink(workspace, team, item.name)),
+      },
+      { label: `Open build #${item.buildNumber}`, onSelect: () => openBuild(item.buildNumber) },
+      flakyOf.has(item.name) && {
+        label: 'Open in Triage',
+        onSelect: () => void router.navigate({ href: triageItemHref(workspace, team, item.name) }),
+      },
+      openInNewTabItem(href),
+      copyLinkItem(href),
+      { label: 'Copy name', onSelect: () => void copyText(item.name, 'Name') },
+    ])
 
   const all = data?.baselines ?? []
   const groups = groupBaselines(filterBaselines(all, filter))
@@ -102,57 +134,64 @@ export function BaselinesPage() {
                           <ul className={styles.list}>
                             {group.items.map((item) => (
                               <li key={baselineId(item)} {...rowProps(baselineId(item))}>
-                                <ListRow
-                                  selected={baselineId(item) === selectedId}
-                                  {...clientLink(baselineLink(workspace, team, item.name))}
-                                  leading={
-                                    <StatusIcon
-                                      status="approved"
-                                      label={`Baseline on ${loaded.team.defaultBranch}`}
-                                    />
-                                  }
-                                  title={
-                                    <>
-                                      {item.name}
-                                      {item.buildName === 'default' ? null : (
-                                        <span className={styles.buildName}>
-                                          {' '}
-                                          · {item.buildName}
+                                <ContextMenu
+                                  items={rowMenu(
+                                    item,
+                                    clientLink(baselineLink(workspace, team, item.name)).href,
+                                  )}
+                                >
+                                  <ListRow
+                                    selected={baselineId(item) === selectedId}
+                                    {...clientLink(baselineLink(workspace, team, item.name))}
+                                    leading={
+                                      <StatusIcon
+                                        status="approved"
+                                        label={`Baseline on ${loaded.team.defaultBranch}`}
+                                      />
+                                    }
+                                    title={
+                                      <>
+                                        {item.name}
+                                        {item.buildName === 'default' ? null : (
+                                          <span className={styles.buildName}>
+                                            {' '}
+                                            · {item.buildName}
+                                          </span>
+                                        )}
+                                      </>
+                                    }
+                                    subtitle={`Build #${item.buildNumber}`}
+                                    action={{
+                                      label: `Open build #${item.buildNumber} ↗`,
+                                      onAction: () =>
+                                        void router.navigate({
+                                          to: '/$workspace/$team/builds/$number',
+                                          params: {
+                                            workspace,
+                                            team,
+                                            number: String(item.buildNumber),
+                                          },
+                                        }),
+                                    }}
+                                    trailing={
+                                      <>
+                                        {flakyOf.has(item.name) ? (
+                                          <FlakyChip
+                                            reason={flakyOf.get(item.name)!}
+                                            onOpen={() =>
+                                              void router.navigate({
+                                                href: triageItemHref(workspace, team, item.name),
+                                              })
+                                            }
+                                          />
+                                        ) : null}
+                                        <span className={styles.age}>
+                                          <Age iso={item.approvedAt} />
                                         </span>
-                                      )}
-                                    </>
-                                  }
-                                  subtitle={`Build #${item.buildNumber}`}
-                                  action={{
-                                    label: `Open build #${item.buildNumber} ↗`,
-                                    onAction: () =>
-                                      void router.navigate({
-                                        to: '/$workspace/$team/builds/$number',
-                                        params: {
-                                          workspace,
-                                          team,
-                                          number: String(item.buildNumber),
-                                        },
-                                      }),
-                                  }}
-                                  trailing={
-                                    <>
-                                      {flakyOf.has(item.name) ? (
-                                        <FlakyChip
-                                          reason={flakyOf.get(item.name)!}
-                                          onOpen={() =>
-                                            void router.navigate({
-                                              href: triageItemHref(workspace, team, item.name),
-                                            })
-                                          }
-                                        />
-                                      ) : null}
-                                      <span className={styles.age}>
-                                        <Age iso={item.approvedAt} />
-                                      </span>
-                                    </>
-                                  }
-                                />
+                                      </>
+                                    }
+                                  />
+                                </ContextMenu>
                               </li>
                             ))}
                           </ul>

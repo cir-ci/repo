@@ -4,6 +4,7 @@ import { page, userEvent } from 'vitest/browser'
 import { BaselinesPage } from '#features/baselines/BaselinesPage.tsx'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeFetch, json } from '#test/support/fetch.ts'
+import { menuItemNames } from '#test/support/menu.ts'
 import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -223,5 +224,58 @@ describe('BaselinesPage on a phone', () => {
     await open()
     await page.getByRole('link', { name: /home/ }).hover()
     await expect.element(page.getByText('Open build #9 ↗')).toBeVisible()
+  })
+})
+
+describe('right-click menu on a baseline row', () => {
+  const flaky = json({
+    builds: 10,
+    flaky: [
+      {
+        name: 'checkout/payment',
+        changedIn: 4,
+        reason: {
+          kind: 'reruns_disagree',
+          reruns: { build: 12, runs: 2, differing: 1, commits: 1 },
+        },
+      },
+    ],
+  })
+
+  it('offers Open in Triage only for a flaky baseline, which goes to its Triage item', async () => {
+    fakeFetch({
+      [`GET ${PATH}`]: list([item('checkout/payment', 'default', 12), item('home', 'default', 9)]),
+      [`GET ${FLAKY}`]: flaky,
+    })
+    const { router } = await open()
+    await page.getByRole('link', { name: /checkout\/payment/ }).click({ button: 'right' })
+    expect(menuItemNames()).toEqual([
+      'Open',
+      'Open build #12',
+      'Open in Triage',
+      'Open in new tab',
+      'Copy link',
+      'Copy name',
+    ])
+    await page.getByRole('menuitem', { name: 'Open in Triage' }).click()
+    await vi.waitFor(() =>
+      expect(router.state.location.search).toEqual({ item: 'flaky:checkout/payment' }),
+    )
+  })
+
+  it('leaves Open in Triage out for a stable baseline', async () => {
+    fakeFetch({
+      [`GET ${PATH}`]: list([item('home', 'default', 9)]),
+      [`GET ${FLAKY}`]: noFlaky,
+    })
+    await open()
+    await page.getByRole('link', { name: /home/ }).click({ button: 'right' })
+    expect(menuItemNames()).toEqual([
+      'Open',
+      'Open build #9',
+      'Open in new tab',
+      'Copy link',
+      'Copy name',
+    ])
   })
 })
