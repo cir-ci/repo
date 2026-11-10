@@ -53,7 +53,7 @@ export function InboxPane({
   return (
     <Pane
       label="Notification"
-      width="lg"
+      width="resizable"
       {...(context ? { context } : {})}
       actions={
         <>

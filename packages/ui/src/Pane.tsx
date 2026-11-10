@@ -7,7 +7,8 @@ import styles from './Pane.module.css'
 /**
  * The preview pane beside a list: a `region` landmark named by `label`, a context header (what
  * the pane is showing), the content, and the actions at the bottom right. `width` is a tier:
- * `sm` 280px, `md` 340px, `lg` 420px (all shrink on a narrow screen).
+ * `sm` 280px, `md` 340px, `lg` 420px (all shrink on a narrow screen), or `resizable`: the width is the
+ * `--circi-pane-width` custom property of a parent (see `ResizeHandle`).
  */
 export function Pane({ label, context, actions, width = 'md', className, children }: Pane.Props) {
   const id = useId()
@@ -33,7 +34,7 @@ export namespace Pane {
     context?: ReactNode
     /** Buttons at the bottom right. */
     actions?: ReactNode
-    width?: 'sm' | 'md' | 'lg'
+    width?: 'sm' | 'md' | 'lg' | 'resizable'
     className?: string
     children?: ReactNode
   }

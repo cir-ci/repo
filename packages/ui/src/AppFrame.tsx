@@ -13,12 +13,23 @@ export function AppFrame(props: AppFrame.Props) {
     minHeight: height,
     '--circi-frame-height': height,
   }
+  const sidebarStyle: CSSProperties & Record<'--circi-sidebar-width', string> = {
+    '--circi-sidebar-width': `${props.sidebarWidth ?? 244}px`,
+  }
   return (
-    <div className={styles.root} style={style} data-compact={props.compactBar ? '' : undefined}>
+    <div
+      className={styles.root}
+      style={style}
+      data-compact={props.compactBar ? '' : undefined}
+      data-sidebar-collapsed={props.sidebarCollapsed ? '' : undefined}
+    >
       {props.compactBar ? <div className={styles.bar}>{props.compactBar}</div> : null}
-      <nav className={styles.sidebar} aria-label={props.sidebarLabel ?? 'Main'}>
-        {props.sidebar}
-      </nav>
+      <div className={styles.sidebar} style={sidebarStyle}>
+        <nav className={styles.nav} aria-label={props.sidebarLabel ?? 'Main'}>
+          {props.sidebar}
+        </nav>
+        {props.sidebarCollapsed ? null : props.sidebarHandle}
+      </div>
       <main className={styles.main} id="content" tabIndex={-1}>
         {props.children}
       </main>
@@ -41,5 +52,14 @@ export namespace AppFrame {
      * same navigation in a `Drawer` opened from the bar. Wider screens ignore it.
      */
     compactBar?: ReactNode
+    /** The sidebar's width in px from 820px up; 244 by default. Below 820px it is ignored. */
+    sidebarWidth?: number
+    /** Hides the sidebar from 820px up (the app shows a button in the page header to bring it back). */
+    sidebarCollapsed?: boolean
+    /**
+     * A `ResizeHandle` for the sidebar (`edge="end"`, `cssVar="--circi-sidebar-width"`,
+     * `style={{ left: '100%' }}`). It is hidden below 820px and while the sidebar is collapsed.
+     */
+    sidebarHandle?: ReactNode
   }
 }

@@ -7,6 +7,7 @@
 }
 
 .split {
+  position: relative;
   display: flex;
   flex: 1;
   min-height: 0;
@@ -23,8 +24,8 @@
 
 .paneColumn {
   display: flex;
-  flex: 1 1 340px;
-  max-width: 420px;
+  flex: none;
+  width: calc(var(--circi-pane-width, 420px) + 8px);
   min-width: 0;
   padding: 8px 8px 8px 0;
 }
@@ -254,8 +255,13 @@
 
   .paneColumn {
     flex: 0 1 auto;
+    width: auto;
     max-width: none;
     max-height: 60%;
     padding: 0 8px 8px;
+  }
+
+  .split > [data-pane] {
+    display: none;
   }
 }

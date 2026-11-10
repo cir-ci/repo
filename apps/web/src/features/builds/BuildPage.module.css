@@ -15,9 +15,13 @@
 }
 
 .body {
+  position: relative;
   display: grid;
   flex: 1 1 auto;
-  grid-template-columns: 240px minmax(0, 1fr) 340px;
+  grid-template-columns: var(--circi-rail-width, 240px) minmax(0, 1fr) var(
+      --circi-side-width,
+      340px
+    );
   /* The viewer's row takes whatever height the page has left, so a short build still reaches the
      bottom of the panel instead of the free space being shared between the rows. */
   grid-template-rows: minmax(min-content, 1fr);
@@ -50,12 +54,17 @@
    height (the page scrolls as one column); the viewer's row takes the rest of the height. */
 @media (max-width: 1099.98px) {
   .body {
-    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-columns: var(--circi-rail-width, 240px) minmax(0, 1fr);
     grid-template-rows: minmax(min-content, 1fr) auto;
   }
 
   .body > :nth-child(2) {
     border-inline-end: 0;
+  }
+
+  /* The sidebar is under the viewer here: nothing to drag. */
+  .body > [data-pane='build-discussion'] {
+    display: none;
   }
 
   .body > :last-child {
@@ -69,6 +78,10 @@
   .body {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(min-content, 1fr) auto;
+  }
+
+  .body > [data-pane] {
+    display: none;
   }
 
   .list {

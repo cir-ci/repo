@@ -23,10 +23,12 @@ import { useDocumentTitle } from '#lib/document-title.ts'
 import { findIn, useFindParam } from '#lib/find.ts'
 import { FindField } from '#lib/FindField.tsx'
 import { PageHeading } from '#lib/PageHeading.tsx'
+import { PaneHandle, paneVars } from '#lib/PaneHandle.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
+import { usePaneWidth } from '#lib/stores/pane-store.ts'
 import { useSelectFromParam } from '#lib/use-select-from-param.ts'
 import { useSelectableList } from '#lib/use-selectable-list.ts'
 
@@ -51,6 +53,7 @@ import { InboxPane } from './InboxPane.tsx'
 import styles from './InboxPage.module.css'
 
 export function InboxPage() {
+  const paneWidth = usePaneWidth('inbox-pane')
   useDocumentTitle('Inbox')
   const { tab } = useSearch({ from: '/inbox' })
   const navigate = useNavigate()
@@ -162,7 +165,7 @@ export function InboxPage() {
         >
           <QueryBoundary query={query} announce="Loading your inbox" rows={4}>
             {() => (
-              <div className={styles.split}>
+              <div className={styles.split} style={paneVars({ '--circi-pane-width': paneWidth })}>
                 <div className={styles.listColumn}>
                   {everything.length > 0 && items.length === 0 ? (
                     <NoResults noun="notification" query={find} onClear={() => setFind('')} />
@@ -217,21 +220,29 @@ export function InboxPage() {
                 </div>
                 {/* The pane only while something is selected: otherwise the list has the width. */}
                 {selected ? (
-                  <div className={styles.paneColumn}>
-                    <InboxPane
-                      item={selected}
-                      snoozedTab={snoozedTab}
-                      snoozeOpen={snoozeOpen}
-                      onSnoozeOpenChange={setSnoozeOpen}
-                      onToggleRead={toggleRead}
-                      onRemove={doRemove}
-                      onSnooze={doSnooze}
-                      onUnsnooze={doUnsnooze}
-                      onOpen={markRead}
-                      onApprove={doApprove}
-                      approving={approve.isPending}
+                  <>
+                    <PaneHandle
+                      pane="inbox-pane"
+                      edge="start"
+                      cssVar="--circi-pane-width"
+                      at="calc(100% - var(--circi-pane-width) - 8px)"
                     />
-                  </div>
+                    <div className={styles.paneColumn}>
+                      <InboxPane
+                        item={selected}
+                        snoozedTab={snoozedTab}
+                        snoozeOpen={snoozeOpen}
+                        onSnoozeOpenChange={setSnoozeOpen}
+                        onToggleRead={toggleRead}
+                        onRemove={doRemove}
+                        onSnooze={doSnooze}
+                        onUnsnooze={doUnsnooze}
+                        onOpen={markRead}
+                        onApprove={doApprove}
+                        approving={approve.isPending}
+                      />
+                    </div>
+                  </>
                 ) : null}
               </div>
             )}

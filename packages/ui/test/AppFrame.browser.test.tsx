@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { page } from 'vitest/browser'
 
-import { AppFrame } from '#src/index.ts'
+import { AppFrame, ResizeHandle } from '#src/index.ts'
 
 describe('AppFrame', () => {
   it('has a Main navigation landmark and a main landmark holding the page', async () => {
@@ -32,7 +32,9 @@ describe('AppFrame', () => {
     expect(main.getBoundingClientRect().left).toBeGreaterThanOrEqual(
       nav.getBoundingClientRect().right - 1,
     )
-    expect(nav.parentElement?.getBoundingClientRect().height).toBeGreaterThanOrEqual(300)
+    expect(nav.parentElement?.parentElement?.getBoundingClientRect().height).toBeGreaterThanOrEqual(
+      300,
+    )
   })
 
   it('stacks the sidebar above the panel on narrow screens', async () => {
@@ -108,5 +110,57 @@ describe('AppFrame compactBar', () => {
       .getBoundingClientRect()
     expect(after.bottom).toBeLessThanOrEqual(window.innerHeight)
     expect(after.top).toBeGreaterThanOrEqual(0)
+  })
+})
+
+const handle = (extra: { style?: { left: string } } = {}) => (
+  <ResizeHandle
+    label="Resize the sidebar"
+    value={300}
+    min={200}
+    max={360}
+    defaultValue={244}
+    onValueChange={() => undefined}
+    {...extra}
+  />
+)
+
+describe('AppFrame resizable sidebar', () => {
+  it('takes its width from sidebarWidth and shows the handle beside the panel', async () => {
+    await page.viewport(1200, 800)
+    await render(
+      <AppFrame
+        sidebar="Side"
+        sidebarWidth={300}
+        sidebarHandle={handle({ style: { left: '100%' } })}
+        minHeight={300}
+      >
+        Page
+      </AppFrame>,
+    )
+    expect(page.getByRole('navigation').element().getBoundingClientRect().width).toBe(300)
+    await expect.element(page.getByRole('separator', { name: 'Resize the sidebar' })).toBeVisible()
+  })
+
+  it('hides the sidebar and its handle when collapsed, and the panel takes the room', async () => {
+    await page.viewport(1200, 800)
+    await render(
+      <AppFrame sidebar="Side" sidebarCollapsed sidebarHandle={handle()}>
+        Page
+      </AppFrame>,
+    )
+    expect(page.getByRole('navigation').elements()).toHaveLength(0)
+    expect(page.getByRole('separator').elements()).toHaveLength(0)
+    expect(page.getByRole('main').element().getBoundingClientRect().left).toBe(8)
+  })
+
+  it('has no handle below 820px', async () => {
+    await page.viewport(600, 800)
+    await render(
+      <AppFrame sidebar="Side" sidebarHandle={handle()}>
+        Page
+      </AppFrame>,
+    )
+    expect(page.getByRole('separator').elements()).toHaveLength(0)
   })
 })

@@ -27,6 +27,8 @@ import {
   X,
   LogOut,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   MessageSquareText,
   RefreshCw,
   Search,
@@ -102,6 +104,8 @@ export const WarningIcon = icon(TriangleAlert, 'WarningIcon')
 export const TaskDoneIcon = icon(CircleCheckBig, 'TaskDoneIcon')
 export const LogOutIcon = icon(LogOut, 'LogOutIcon')
 export const MenuIcon = icon(Menu, 'MenuIcon')
+export const PanelLeftCloseIcon = icon(PanelLeftClose, 'PanelLeftCloseIcon')
+export const PanelLeftOpenIcon = icon(PanelLeftOpen, 'PanelLeftOpenIcon')
 export const UserIcon = icon(User, 'UserIcon')
 export const UsersIcon = icon(Users, 'UsersIcon')
 export const ChevronRightIcon = icon(ChevronRight, 'ChevronRightIcon')

@@ -26,11 +26,13 @@ import { findIn, useFindParam } from '#lib/find.ts'
 import { FindField } from '#lib/FindField.tsx'
 import { focusRow, leavesKeyToFocus, nextAfterRemoval } from '#lib/list-keys.ts'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
+import { PaneHandle, paneVars } from '#lib/PaneHandle.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { Age } from '#lib/RelativeTime.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
+import { usePaneWidth } from '#lib/stores/pane-store.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 import { useSelectFromParam } from '#lib/use-select-from-param.ts'
 import { useSelectableList } from '#lib/use-selectable-list.ts'
@@ -78,6 +80,7 @@ export function TriagePage() {
   const announce = useAnnounce()
   const navigate = useNavigate()
   const clientLink = useClientLink()
+  const paneWidth = usePaneWidth('triage-pane')
   const query = useQuery(triageQuery(workspace, team))
   const { data } = query
   const { data: session } = authClient.useSession()
@@ -211,7 +214,10 @@ export function TriagePage() {
                       {failed.message}
                     </Text>
                   ) : null}
-                  <div className={listStyles['split']}>
+                  <div
+                    className={listStyles['split']}
+                    style={paneVars({ '--circi-pane-width': paneWidth })}
+                  >
                     <div className={styles.groups} id="triage-groups" ref={listRef}>
                       {groups.map((group) => (
                         <section key={group.kind} aria-labelledby={`triage-${group.kind}`}>
@@ -272,129 +278,137 @@ export function TriagePage() {
                       ))}
                     </div>
                     {selected ? (
-                      <Pane
-                        label="Details"
-                        context={KIND_LABEL[selected.kind]}
-                        width="lg"
-                        actions={
-                          <>
-                            {selected.kind === 'failed' ? (
-                              <Button variant="primary" onClick={() => doRerun(selected)}>
-                                Re-run comparison
-                              </Button>
-                            ) : null}
-                            <Button
-                              aria-keyshortcuts="m"
-                              disabled={!me}
-                              onClick={() => doAssign(selected)}
-                            >
-                              {selected.assignee && selected.assignee.id === me?.id
-                                ? 'Unassign me'
-                                : 'Assign to me'}
-                            </Button>
-                            <SnoozeMenu
-                              open={snoozeOpen}
-                              onOpenChange={setSnoozeOpen}
-                              onSnooze={(choice) => doSnooze(selected, choice)}
-                              trigger={
-                                <Button variant="ghost" aria-keyshortcuts="h">
-                                  Snooze
-                                  <ExpandMoreIcon size={12} aria-hidden="true" />
-                                </Button>
-                              }
-                            />
-                            <Button
-                              variant="ghost"
-                              aria-keyshortcuts="d"
-                              onClick={() => doDismiss(selected)}
-                            >
-                              Dismiss
-                            </Button>
-                          </>
-                        }
-                      >
-                        <div className={styles.paneBody}>
-                          <h3 className={styles.paneTitle}>{itemTitle(selected)}</h3>
-                          {selected.kind === 'flaky' ? (
+                      <>
+                        <PaneHandle
+                          pane="triage-pane"
+                          edge="start"
+                          cssVar="--circi-pane-width"
+                          at="calc(100% - var(--circi-pane-width) - 6px)"
+                        />
+                        <Pane
+                          label="Details"
+                          context={KIND_LABEL[selected.kind]}
+                          width="resizable"
+                          actions={
                             <>
-                              <Film
-                                item={selected}
-                                linkOf={(number) =>
-                                  clientLink(
-                                    openInBuild(workspace, team, {
-                                      snapshotName: selected.snapshotName,
-                                      build: { number },
-                                    }),
-                                  )
+                              {selected.kind === 'failed' ? (
+                                <Button variant="primary" onClick={() => doRerun(selected)}>
+                                  Re-run comparison
+                                </Button>
+                              ) : null}
+                              <Button
+                                aria-keyshortcuts="m"
+                                disabled={!me}
+                                onClick={() => doAssign(selected)}
+                              >
+                                {selected.assignee && selected.assignee.id === me?.id
+                                  ? 'Unassign me'
+                                  : 'Assign to me'}
+                              </Button>
+                              <SnoozeMenu
+                                open={snoozeOpen}
+                                onOpenChange={setSnoozeOpen}
+                                onSnooze={(choice) => doSnooze(selected, choice)}
+                                trigger={
+                                  <Button variant="ghost" aria-keyshortcuts="h">
+                                    Snooze
+                                    <ExpandMoreIcon size={12} aria-hidden="true" />
+                                  </Button>
                                 }
                               />
-                              <Section label="Where it changes">
-                                <Preview
-                                  name={selected.snapshotName ?? ''}
-                                  number={selected.build.number}
-                                  sha256={image?.sha256}
-                                  loading={imageLoading}
-                                  link={clientLink(openInBuild(workspace, team, selected))}
-                                />
-                              </Section>
+                              <Button
+                                variant="ghost"
+                                aria-keyshortcuts="d"
+                                onClick={() => doDismiss(selected)}
+                              >
+                                Dismiss
+                              </Button>
                             </>
-                          ) : null}
-                          {selected.kind === 'no_baseline' ? (
-                            <div className={styles.pair}>
-                              <Section label="Baseline on main">
-                                <div className={styles.none}>None yet</div>
-                              </Section>
-                              <Section label={`First seen in #${selected.build.number}`}>
-                                <Preview
-                                  name={selected.snapshotName ?? ''}
-                                  number={selected.build.number}
-                                  sha256={image?.sha256}
-                                  loading={imageLoading}
-                                  link={clientLink(openInBuild(workspace, team, selected))}
+                          }
+                        >
+                          <div className={styles.paneBody}>
+                            <h3 className={styles.paneTitle}>{itemTitle(selected)}</h3>
+                            {selected.kind === 'flaky' ? (
+                              <>
+                                <Film
+                                  item={selected}
+                                  linkOf={(number) =>
+                                    clientLink(
+                                      openInBuild(workspace, team, {
+                                        snapshotName: selected.snapshotName,
+                                        build: { number },
+                                      }),
+                                    )
+                                  }
                                 />
-                              </Section>
-                            </div>
-                          ) : null}
-                          {selected.kind === 'failed' && selected.error ? (
-                            <pre className={styles.log}>{selected.error}</pre>
-                          ) : null}
-                          <dl className={styles.facts}>
-                            <dt>Assignee</dt>
-                            <dd>
-                              {selected.assignee ? (
-                                <span className={styles.person}>
-                                  <Avatar
-                                    type="user"
-                                    id={selected.assignee.id}
-                                    name={selected.assignee.name}
-                                    image={selected.assignee.image}
-                                    size={20}
+                                <Section label="Where it changes">
+                                  <Preview
+                                    name={selected.snapshotName ?? ''}
+                                    number={selected.build.number}
+                                    sha256={image?.sha256}
+                                    loading={imageLoading}
+                                    link={clientLink(openInBuild(workspace, team, selected))}
                                   />
-                                  {selected.assignee.name}
-                                  {selected.assignee.auto ? (
-                                    <Text tone="tertiary">· on triage</Text>
-                                  ) : null}
-                                </span>
-                              ) : (
-                                <Text tone="tertiary">
-                                  Unassigned
-                                  {data?.rotation.onTriage
-                                    ? ` · ${data.rotation.onTriage.name} is on triage`
-                                    : ''}
-                                </Text>
-                              )}
-                            </dd>
-                            <dt>In triage for</dt>
-                            <dd>
-                              <Waiting iso={selected.build.createdAt} />
-                            </dd>
-                            <dt>Blocking</dt>
-                            <dd>
-                              <Text tone="secondary">{blockingText(selected)}</Text>
-                            </dd>
-                          </dl>
-                        </div>
-                      </Pane>
+                                </Section>
+                              </>
+                            ) : null}
+                            {selected.kind === 'no_baseline' ? (
+                              <div className={styles.pair}>
+                                <Section label="Baseline on main">
+                                  <div className={styles.none}>None yet</div>
+                                </Section>
+                                <Section label={`First seen in #${selected.build.number}`}>
+                                  <Preview
+                                    name={selected.snapshotName ?? ''}
+                                    number={selected.build.number}
+                                    sha256={image?.sha256}
+                                    loading={imageLoading}
+                                    link={clientLink(openInBuild(workspace, team, selected))}
+                                  />
+                                </Section>
+                              </div>
+                            ) : null}
+                            {selected.kind === 'failed' && selected.error ? (
+                              <pre className={styles.log}>{selected.error}</pre>
+                            ) : null}
+                            <dl className={styles.facts}>
+                              <dt>Assignee</dt>
+                              <dd>
+                                {selected.assignee ? (
+                                  <span className={styles.person}>
+                                    <Avatar
+                                      type="user"
+                                      id={selected.assignee.id}
+                                      name={selected.assignee.name}
+                                      image={selected.assignee.image}
+                                      size={20}
+                                    />
+                                    {selected.assignee.name}
+                                    {selected.assignee.auto ? (
+                                      <Text tone="tertiary">· on triage</Text>
+                                    ) : null}
+                                  </span>
+                                ) : (
+                                  <Text tone="tertiary">
+                                    Unassigned
+                                    {data?.rotation.onTriage
+                                      ? ` · ${data.rotation.onTriage.name} is on triage`
+                                      : ''}
+                                  </Text>
+                                )}
+                              </dd>
+                              <dt>In triage for</dt>
+                              <dd>
+                                <Waiting iso={selected.build.createdAt} />
+                              </dd>
+                              <dt>Blocking</dt>
+                              <dd>
+                                <Text tone="secondary">{blockingText(selected)}</Text>
+                              </dd>
+                            </dl>
+                          </div>
+                        </Pane>
+                      </>
                     ) : null}
                   </div>
                 </>

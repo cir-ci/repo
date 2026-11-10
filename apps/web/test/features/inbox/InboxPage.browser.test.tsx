@@ -6,6 +6,7 @@ import { InboxPage } from '#features/inbox/InboxPage.tsx'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { expectResize } from '#test/support/resize.ts'
 
 const item = (id: string, over: Record<string, unknown> = {}) => ({
   id,
@@ -355,5 +356,26 @@ describe('InboxPage', () => {
     // The row, and the same words as the pane's title: the notification of the address is selected.
     await expect.poll(() => page.getByText('Ada approved build #12').elements().length).toBe(2)
     expect(page.getByText('Ada requested your review of build #12').elements()).toHaveLength(0)
+  })
+})
+
+describe('InboxPage pane width', () => {
+  it('has a handle that resizes the notification pane', async () => {
+    fakeApi({ 'GET /api/inbox': list([item('n1')]) })
+    await renderPage(<InboxPage />, {
+      route: '/inbox',
+      url: '/inbox',
+      announcer: true,
+      validateSearch: validateInboxSearch,
+      viewport: [1400, 900],
+    })
+    const pane = page.getByRole('region', { name: 'Notification' })
+    await expect.element(pane).toBeVisible()
+    await expectResize(
+      page.getByRole('separator', { name: 'Resize the notification pane' }),
+      'inbox-pane',
+      () => pane.element().getBoundingClientRect().width,
+      { dx: -80, grows: -1 },
+    )
   })
 })

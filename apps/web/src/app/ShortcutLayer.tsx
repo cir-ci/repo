@@ -13,6 +13,7 @@ import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 import { useCopy } from '#lib/use-copy.ts'
 
+import { useNavPane } from './NavToggle.tsx'
 import { isAppPage } from './settings-return.ts'
 import { goPath } from './shell-model.ts'
 import { ShortcutsDialog } from './ShortcutsDialog.tsx'
@@ -36,6 +37,7 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
   const address = useRouterState({
     select: (s) => ({ pathname: s.location.pathname, search: s.location.searchStr }),
   })
+  const nav = useNavPane()
   const record = useRecentStore((s) => s.record)
   const noteAppPage = useSettingsReturnStore((s) => s.noteAppPage)
 
@@ -71,6 +73,7 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
     },
     command: () => setCommandOpen(true),
     help: () => setHelpOpen(true),
+    toggleSidebar: nav.toggle,
     copyLink: () => {
       void copy(location.href).then((ok) => announce(ok ? 'Link copied' : "Couldn't copy the link"))
     },

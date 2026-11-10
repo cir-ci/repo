@@ -7,3 +7,14 @@
 .note {
   font-weight: 400;
 }
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.back {
+  flex: 1;
+  min-width: 0;
+}

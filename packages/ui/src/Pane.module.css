@@ -26,6 +26,12 @@
   max-width: 420px;
 }
 
+.root[data-width='resizable'] {
+  flex: none;
+  width: var(--circi-pane-width, 340px);
+  max-width: 100%;
+}
+
 .header {
   display: flex;
   align-items: baseline;

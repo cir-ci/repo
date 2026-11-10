@@ -29,8 +29,10 @@ import { flakyQuery, isActive } from '#features/builds/api/index.ts'
 import { regionThreads } from '#features/regions/geometry.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { crumbsFor, PageHeading, teamBuildsCrumb } from '#lib/PageHeading.tsx'
+import { PaneHandle, paneVars } from '#lib/PaneHandle.tsx'
 import { RouterLink } from '#lib/router-link.ts'
 import { isAvailable, SHORTCUTS, useShortcutHandlers } from '#lib/shortcuts.ts'
+import { usePaneWidth } from '#lib/stores/pane-store.ts'
 import { useListNavigation } from '#lib/use-list-navigation.ts'
 
 import { buildTitle } from './build-title.ts'
@@ -69,6 +71,8 @@ import styles from './BuildReview.module.css'
  * a strip of context, then the screenshot list (240px, its own scroll) beside the viewer.
  */
 export function BuildReview({ data, designEnabled = false }: BuildReview.Props) {
+  const railWidth = usePaneWidth('build-rail')
+  const sideWidth = usePaneWidth('build-discussion')
   const { build, baseline, team } = data
   const params = useParams({ from: ROUTE })
   const search = useSearch({ from: ROUTE })
@@ -273,7 +277,10 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
           </EmptyState>
         )
       ) : (
-        <div className={page['body']}>
+        <div
+          className={page['body']}
+          style={paneVars({ '--circi-rail-width': railWidth, '--circi-side-width': sideWidth })}
+        >
           <nav ref={listRef} aria-label="Screenshots" className={page['list']}>
             {groups.map((g) => (
               <div key={g.kind} data-group-id={g.kind} className={styles.group}>
@@ -422,6 +429,13 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
               }}
             />
           ) : null}
+          <PaneHandle pane="build-rail" cssVar="--circi-rail-width" at="var(--circi-rail-width)" />
+          <PaneHandle
+            pane="build-discussion"
+            edge="start"
+            cssVar="--circi-side-width"
+            at="calc(100% - var(--circi-side-width))"
+          />
           <ReviewSidebar
             data={data}
             tab={tab}

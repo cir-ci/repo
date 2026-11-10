@@ -10,10 +10,12 @@ import { useDocumentTitle } from '#lib/document-title.ts'
 import { findIn, useFindParam } from '#lib/find.ts'
 import { focusRow, leavesKeyToFocus, nextAfterRemoval } from '#lib/list-keys.ts'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
+import { PaneHandle, paneVars } from '#lib/PaneHandle.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
+import { usePaneWidth } from '#lib/stores/pane-store.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 import { useListNavigation } from '#lib/use-list-navigation.ts'
 
@@ -46,6 +48,7 @@ const ROUTE = '/workspaces/$workspace/reviews' as const
  * build. On a phone the list and the review take turns.
  */
 export function ReviewsPage() {
+  const listWidth = usePaneWidth('reviews-list')
   useDocumentTitle('Reviews')
   const { workspace } = useParams({ from: ROUTE })
   const { tab, review } = useSearch({ from: ROUTE })
@@ -241,7 +244,11 @@ export function ReviewsPage() {
       />
       <QueryBoundary query={query} announce="Loading reviews" rows={4}>
         {() => (
-          <div className={styles.layout} data-selected={selected ? 'true' : 'false'}>
+          <div
+            className={styles.layout}
+            data-selected={selected ? 'true' : 'false'}
+            style={paneVars({ '--circi-reviews-width': listWidth })}
+          >
             <ReviewList
               workspace={workspace}
               userId={userId}
@@ -262,6 +269,11 @@ export function ReviewsPage() {
                   search: { tab: next, ...(find.trim() ? { q: find.trim() } : {}) },
                 })
               }
+            />
+            <PaneHandle
+              pane="reviews-list"
+              cssVar="--circi-reviews-width"
+              at="var(--circi-reviews-width)"
             />
             <section className={styles.detail} aria-label="Selected review">
               {failed ? (

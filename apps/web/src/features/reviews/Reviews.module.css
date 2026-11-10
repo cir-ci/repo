@@ -1,4 +1,5 @@
 .layout {
+  position: relative;
   display: flex;
   flex: 1;
   min-width: 0;
@@ -11,7 +12,7 @@
   flex-direction: column;
   box-sizing: border-box;
   /* Wide enough for the five tabs on one row at ordinary widths. */
-  width: clamp(340px, 36vw, 520px);
+  width: var(--circi-reviews-width, 420px);
   min-height: 0;
   border-right: 1px solid var(--circi-line-subtle);
 }

@@ -17,6 +17,8 @@ vi.mock('#lib/auth-client.ts', () =>
 )
 
 import { Shell } from '#app/Shell.tsx'
+import { PageHeading } from '#lib/PageHeading.tsx'
+import { PANES_KEY, usePaneStore } from '#lib/stores/pane-store.ts'
 import { mockAuthClient, setSignedInUser } from '#test/support/auth-client.ts'
 
 const overview = (workspace: string, workspaceName: string, team: string) => ({
@@ -134,6 +136,13 @@ async function renderShell(path: string) {
       getParentRoute: () => root,
       path: 'workspaces/$workspace/settings/members',
       component: text('Members page'),
+    }),
+    createRoute({
+      getParentRoute: () => root,
+      path: 'headed',
+      component: () => (
+        <PageHeading crumbs={[{ label: 'Acme' }, { label: 'Builds' }]} title="Build #4" />
+      ),
     }),
     createRoute({ getParentRoute: () => root, path: 'inbox', component: text('Inbox page') }),
     createRoute({
@@ -733,7 +742,7 @@ describe('Shell, outside the dashboard', () => {
     await renderShell('/_sso/site')
     await expect.element(page.getByText('Handoff page')).toBeVisible()
     expect(page.getByRole('link', { name: 'CirCI home' }).elements()).toHaveLength(0)
-    expect(page.getByRole('banner').elements()).toHaveLength(0)
+    expect(page.getByRole('main').elements()).toHaveLength(0)
   })
 })
 
@@ -784,5 +793,99 @@ describe('Shell, narrow', () => {
     await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app')
     await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
     await expect.element(page.getByRole('main')).toHaveTextContent('Builds page')
+  })
+})
+
+const show = () => page.getByRole('button', { name: 'Show sidebar' })
+const hide = () => page.getByRole('button', { name: 'Hide sidebar' })
+
+describe('Shell, collapsing the navigation', () => {
+  it('hides the sidebar with its button, leaves a Show sidebar icon left of the breadcrumb and keeps it', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/headed')
+    expect(show().elements()).toHaveLength(0)
+    await hide().click()
+    expect(page.getByRole('navigation', { name: 'Main' }).elements()).toHaveLength(0)
+    await expect.element(show()).toBeVisible()
+    await expect.element(show()).toHaveFocus()
+    const icon = show().element().getBoundingClientRect()
+    const crumbs = page
+      .getByRole('navigation', { name: 'Breadcrumb' })
+      .element()
+      .getBoundingClientRect()
+    expect(icon.right).toBeLessThanOrEqual(crumbs.left)
+    // It is the first thing in the panel's header, at its far left.
+    const header = page.getByRole('main').element().getBoundingClientRect()
+    expect(icon.left - header.left).toBeLessThan(24)
+    expect(JSON.parse(localStorage.getItem(PANES_KEY) ?? '{}').state.collapsed.sidebar).toBe(true)
+  })
+
+  it('shows it again from the icon, with focus back on the Hide button', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/headed')
+    await hide().click()
+    await show().click()
+    await expect.element(page.getByRole('navigation', { name: 'Main' })).toBeVisible()
+    await expect.element(hide()).toHaveFocus()
+    expect(show().elements()).toHaveLength(0)
+    expect(usePaneStore.getState().collapsed.sidebar).toBe(false)
+  })
+
+  it('starts collapsed when it was left collapsed', async () => {
+    await page.viewport(1280, 800)
+    usePaneStore.getState().setCollapsed('sidebar', true)
+    await renderShell('/headed')
+    await expect.element(show()).toBeVisible()
+    expect(page.getByRole('navigation', { name: 'Main' }).elements()).toHaveLength(0)
+  })
+
+  it('toggles with the shortcut, which the shortcuts list names', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/headed')
+    await userEvent.keyboard('{Meta>}\\{/Meta}')
+    await expect.element(show()).toBeVisible()
+    await userEvent.keyboard('{Meta>}\\{/Meta}')
+    await expect.element(page.getByRole('navigation', { name: 'Main' })).toBeVisible()
+    await userEvent.keyboard('?')
+    await expect.element(page.getByText('Hide or show the sidebar')).toBeVisible()
+  })
+
+  it('collapses when the handle is dragged well below the minimum', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/headed')
+    const handle = page.getByRole('separator', { name: 'Resize the sidebar' })
+    await expect.element(handle).toHaveAttribute('aria-valuenow', '244')
+    const el = handle.element()
+    const r = el.getBoundingClientRect()
+    const fire = (type: string, x: number) =>
+      el.dispatchEvent(
+        new PointerEvent(type, {
+          bubbles: true,
+          button: 0,
+          pointerId: 1,
+          clientX: x,
+          clientY: r.top + 40,
+        }),
+      )
+    fire('pointerdown', r.left + 4)
+    fire('pointermove', r.left + 4 - 120)
+    await expect.element(show()).toBeVisible()
+  })
+
+  it('collapses Settings navigation on its own, with its own names', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/account/profile')
+    await page.getByRole('button', { name: 'Hide settings navigation' }).click()
+    expect(page.getByRole('navigation', { name: 'Settings' }).elements()).toHaveLength(0)
+    expect(usePaneStore.getState().collapsed).toEqual({ sidebar: false, 'settings-nav': true })
+  })
+
+  it('keeps the drawer and the hamburger below 820px, with no handle', async () => {
+    await page.viewport(700, 800)
+    usePaneStore.getState().setCollapsed('sidebar', true)
+    await renderShell('/headed')
+    await expect.element(page.getByRole('button', { name: 'Open navigation' })).toBeVisible()
+    expect(page.getByRole('separator').elements()).toHaveLength(0)
+    expect(show().elements()).toHaveLength(0)
   })
 })

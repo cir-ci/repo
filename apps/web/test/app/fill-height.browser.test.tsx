@@ -39,6 +39,10 @@ function panelBottom() {
   return bottom(main)
 }
 
+/** The laid-out children, without the resize handles (they float over the split). */
+const layoutChildren = (el: Element) =>
+  [...el.children].filter((child) => !child.hasAttribute('data-pane'))
+
 /** How far above the panel's bottom the element ends (0 when it reaches it). */
 const gapToBottom = (el: Element | null | undefined) => {
   expect(el).toBeTruthy()
@@ -62,7 +66,7 @@ describe('the build page', () => {
     })
     const rail = page.getByRole('navigation', { name: 'Screenshots' })
     await expect.element(rail).toBeVisible()
-    const [list, viewer, sidebar] = [...rail.element().parentElement!.children]
+    const [list, viewer, sidebar] = layoutChildren(rail.element().parentElement!)
     // The viewer fills its row; where the sidebar sits under it, the sidebar closes the column.
     expect(gapToBottom(width >= 1100 ? viewer : sidebar)).toBeLessThanOrEqual(TOLERANCE)
     expect(bottom(list!)).toBeLessThanOrEqual(bottom(viewer!) + TOLERANCE)
@@ -140,8 +144,8 @@ describe('Inbox with a notification open', () => {
       validateSearch: validateInboxSearch,
     })
     const split = await vi.waitUntil(() => document.querySelector('main [class*="split"]'))
-    await vi.waitUntil(() => split.children.length === 2)
-    const [list, pane] = [...split.children]
+    await vi.waitUntil(() => layoutChildren(split).length === 2)
+    const [list, pane] = layoutChildren(split)
     expect(gapToBottom(pane)).toBeLessThanOrEqual(TOLERANCE)
     const area = split.getBoundingClientRect().height
     expect(pane!.getBoundingClientRect().height).toBeLessThanOrEqual(area * 0.6 + TOLERANCE)

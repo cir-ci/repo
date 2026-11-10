@@ -10,6 +10,7 @@ import { TriagePage } from '#features/triage/TriagePage.tsx'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, fakeFetch, pending, type ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { expectResize } from '#test/support/resize.ts'
 
 const BASE = '/api/teams/acme/web'
 
@@ -438,5 +439,25 @@ describe('TriagePage', () => {
     await show()
     await userEvent.keyboard('d')
     await expect.element(page.getByRole('status').getByText('2 · 1 handled')).toBeVisible()
+  })
+})
+
+describe('resizing the details pane', () => {
+  it('has a handle that resizes the pane and keeps the width', async () => {
+    server()
+    await renderPage(<TriagePage />, {
+      route: '/$workspace/$team/triage',
+      url: '/acme/web/triage?item=no_baseline%3Apricing',
+      otherRoutes: ['/$workspace/$team/builds/$number', '/$workspace/$team/settings/reviews'],
+      announcer: true,
+      viewport: [1400, 900],
+    })
+    await expect.element(pane().getByRole('heading', { name: 'pricing' })).toBeVisible()
+    await expectResize(
+      page.getByRole('separator', { name: 'Resize the details pane' }),
+      'triage-pane',
+      () => pane().element().getBoundingClientRect().width,
+      { dx: -60, grows: -1 },
+    )
   })
 })

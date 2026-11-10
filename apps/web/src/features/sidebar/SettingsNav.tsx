@@ -21,6 +21,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useRouter, useRouterState } from '@tanstack/react-router'
 
 import { NavLink } from '#app/NavLink.tsx'
+import { HideNavButton } from '#app/NavToggle.tsx'
 import { returnTarget } from '#app/settings-return.ts'
 import { currentSection } from '#app/shell-model.ts'
 import { useSidebarModel } from '#features/sidebar/api.ts'
@@ -55,18 +56,23 @@ export function SettingsNav() {
 
   return (
     <>
-      <NavItem
-        href={back.path}
-        icon={<ChevronLeftIcon />}
-        onClick={(e) => {
-          // A plain click goes through the router (no reload); a new-tab click keeps the link.
-          if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
-          e.preventDefault()
-          router.history.push(back.path)
-        }}
-      >
-        {`Back to ${back.label}`}
-      </NavItem>
+      <div className={styles.header}>
+        <div className={styles.back}>
+          <NavItem
+            href={back.path}
+            icon={<ChevronLeftIcon />}
+            onClick={(e) => {
+              // A plain click goes through the router (no reload); a new-tab click keeps the link.
+              if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+              e.preventDefault()
+              router.history.push(back.path)
+            }}
+          >
+            {`Back to ${back.label}`}
+          </NavItem>
+        </div>
+        <HideNavButton />
+      </div>
       <NavSection label="Account">
         <NavLink to="/account/profile" icon={<UserIcon />}>
           Profile

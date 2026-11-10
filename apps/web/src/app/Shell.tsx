@@ -8,7 +8,10 @@ import { AddressChangeBanner } from '#features/instance/AddressChangeBanner.tsx'
 import { SettingsNav } from '#features/sidebar/SettingsNav.tsx'
 import { TeamDialogs } from '#features/teams/TeamDialogs.tsx'
 import { authClient, type SessionUser } from '#lib/auth-client.ts'
+import { PaneHandle } from '#lib/PaneHandle.tsx'
+import { usePaneWidth } from '#lib/stores/pane-store.ts'
 
+import { useNavPane } from './NavToggle.tsx'
 import { currentSection, isOutsideFrame, isSettingsSection, sectionLabel } from './shell-model.ts'
 import { ShortcutLayer } from './ShortcutLayer.tsx'
 import { Sidebar } from './Sidebar.tsx'
@@ -85,6 +88,8 @@ function SignedInFrame({ user }: { user: SessionUser }) {
   // Settings replace the sidebar with their own navigation (Back to app, Account, Workspace, Team, Instance).
   const nav = isSettingsSection(section) ? <SettingsNav /> : <Sidebar user={user} />
   const navLabel = isSettingsSection(section) ? 'Settings' : 'Main'
+  const pane = useNavPane()
+  const sidebarWidth = usePaneWidth(pane.id)
   // The drawer belongs to the page it was opened on: choosing another page closes it.
   const [openedAt, setOpenedAt] = useState<string | undefined>(undefined)
   const drawerOpen = openedAt === pathname
@@ -105,6 +110,16 @@ function SignedInFrame({ user }: { user: SessionUser }) {
       <AppFrame
         sidebar={nav}
         sidebarLabel={navLabel}
+        sidebarWidth={sidebarWidth}
+        sidebarCollapsed={pane.collapsed}
+        sidebarHandle={
+          <PaneHandle
+            pane={pane.id}
+            cssVar="--circi-sidebar-width"
+            at="100%"
+            onCollapse={pane.collapse}
+          />
+        }
         compactBar={
           <div className={styles.bar}>
             <IconButton label="Open navigation" onClick={() => setDrawerOpen(true)}>

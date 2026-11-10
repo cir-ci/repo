@@ -29,6 +29,7 @@
 }
 
 .split {
+  position: relative;
   display: flex;
   flex: 1;
   gap: 12px;

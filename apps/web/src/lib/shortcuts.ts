@@ -48,6 +48,7 @@ export namespace Shortcut {
     | { type: 'comment' }
     | { type: 'submit' }
     | { type: 'help' }
+    | { type: 'toggleSidebar' }
     | { type: 'command' }
     | { type: 'copyLink' }
     | { type: 'go'; to: GoTarget }
@@ -99,6 +100,13 @@ export const SHORTCUTS: readonly Shortcut[] = [
     group: 'General',
     description: 'Copy link to this page',
     action: { type: 'copyLink' },
+  },
+  {
+    key: 'mod+\\',
+    scope: 'global',
+    group: 'General',
+    description: 'Hide or show the sidebar',
+    action: { type: 'toggleSidebar' },
   },
   {
     key: '?',

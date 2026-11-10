@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { type Locator, page, userEvent } from 'vitest/browser'
 
 import { expectEmptyState } from '#test/support/empty-state.ts'
+import { expectResize } from '#test/support/resize.ts'
 
 import { decision, detail, fakeBuildApi, renderBuild, shot } from './fake-build-api.tsx'
 
@@ -753,5 +754,27 @@ describe('side by side', () => {
         { timeout: 5000 },
       )
       .toBe(true)
+  })
+})
+
+describe('build page panes', () => {
+  it('has handles for the screenshot list and the review panel', async () => {
+    fakeBuildApi(detail())
+    await renderBuild()
+    const rail = page.getByRole('navigation', { name: 'Screenshots' })
+    await expect.element(rail).toBeVisible()
+    await expectResize(
+      page.getByRole('separator', { name: 'Resize the screenshot list' }),
+      'build-rail',
+      () => rail.element().getBoundingClientRect().width,
+      { dx: 60, grows: 1 },
+    )
+    const grid = rail.element().parentElement
+    await expectResize(
+      page.getByRole('separator', { name: 'Resize the review panel' }),
+      'build-discussion',
+      () => grid?.lastElementChild?.getBoundingClientRect().width ?? 0,
+      { dx: -90, grows: -1 },
+    )
   })
 })

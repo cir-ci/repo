@@ -33,11 +33,13 @@ import {
 } from '#features/teams/api/index.ts'
 import { useSaveView, viewsQuery, viewWithFilters } from '#features/views/api.ts'
 import { SaveViewDialog } from '#features/views/SaveViewDialog.tsx'
+import { PaneHandle, paneVars } from '#lib/PaneHandle.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { useDisplayStore } from '#lib/stores/display-store.ts'
 import { useListStore } from '#lib/stores/list-store.ts'
+import { usePaneWidth } from '#lib/stores/pane-store.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 import { useSelectableList } from '#lib/use-selectable-list.ts'
 
@@ -71,6 +73,7 @@ export function BuildsBrowser({
   onCursorChange,
   canSave = true,
 }: BuildsBrowser.Props) {
+  const peekWidth = usePaneWidth('builds-peek')
   const clientLink = useClientLink()
   const announce = useAnnounce()
   // Without a team this is the whole workspace's list (a saved view with no team).
@@ -210,7 +213,7 @@ export function BuildsBrowser({
             )
           ) : (
             <>
-              <div className={styles.split}>
+              <div className={styles.split} style={paneVars({ '--circi-pane-width': peekWidth })}>
                 <div className={styles.groups} ref={listRef}>
                   {groups.map((group) => (
                     <GroupRows key={group.key} label={group.label} count={group.builds.length}>
@@ -269,28 +272,37 @@ export function BuildsBrowser({
                   ))}
                 </div>
                 {peek && cursor ? (
-                  <Pane
-                    label="Preview"
-                    context={`#${cursor.number}`}
-                    actions={
-                      <Button
-                        size="sm"
-                        variant="primary"
-                        {...clientLink({
-                          to: '/$workspace/$team/builds/$number',
-                          params: {
-                            workspace,
-                            team: teamOf(cursor),
-                            number: String(cursor.number),
-                          },
-                        })}
-                      >
-                        Open build
-                      </Button>
-                    }
-                  >
-                    <BuildPeek build={cursor} />
-                  </Pane>
+                  <>
+                    <PaneHandle
+                      pane="builds-peek"
+                      edge="start"
+                      cssVar="--circi-pane-width"
+                      at="calc(100% - var(--circi-pane-width) - 6px)"
+                    />
+                    <Pane
+                      width="resizable"
+                      label="Preview"
+                      context={`#${cursor.number}`}
+                      actions={
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          {...clientLink({
+                            to: '/$workspace/$team/builds/$number',
+                            params: {
+                              workspace,
+                              team: teamOf(cursor),
+                              number: String(cursor.number),
+                            },
+                          })}
+                        >
+                          Open build
+                        </Button>
+                      }
+                    >
+                      <BuildPeek build={cursor} />
+                    </Pane>
+                  </>
                 ) : null}
               </div>
               {/* Primer: pagination sits directly below the collection it pages. */}

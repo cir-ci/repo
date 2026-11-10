@@ -16,6 +16,7 @@ import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi } from '#test/support/fetch.ts'
 import { sidebarModel, sidebarTeam, teamInfo } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { expectResize } from '#test/support/resize.ts'
 
 const auth = mockAuthClient().organization
 
@@ -617,5 +618,24 @@ describe('the find field', () => {
     await expectEmptyState('No build matches “zzz”', { action: 'Clear search' })
     await page.getByRole('button', { name: 'Clear search' }).click()
     expect(router.state.location.search).toEqual({})
+  })
+})
+
+describe('preview pane width', () => {
+  it('has a handle that resizes the preview pane', async () => {
+    api([build(8), build(7)])
+    await show()
+    await page.viewport(1400, 900)
+    await expect.element(page.getByRole('link', { name: /Build #8/ })).toBeVisible()
+    await userEvent.keyboard('j')
+    await userEvent.keyboard(' ')
+    const pane = page.getByRole('region', { name: 'Preview' })
+    await expect.element(pane).toBeVisible()
+    await expectResize(
+      page.getByRole('separator', { name: 'Resize the preview pane' }),
+      'builds-peek',
+      () => pane.element().getBoundingClientRect().width,
+      { dx: -70, grows: -1 },
+    )
   })
 })

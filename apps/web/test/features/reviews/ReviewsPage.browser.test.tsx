@@ -12,6 +12,7 @@ import { mockAuthClient } from '#test/support/auth-client.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { expectResize } from '#test/support/resize.ts'
 
 mockAuthClient()
 
@@ -533,5 +534,20 @@ describe('ReviewsPage find field', () => {
           .first(),
       )
       .toBeVisible()
+  })
+})
+
+describe('ReviewsPage list width', () => {
+  it('has a handle between the list and the review that resizes the list', async () => {
+    fakeApi({ 'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } } })
+    await show('/workspaces/acme/reviews?review=r1')
+    const list = page.getByRole('complementary', { name: 'Reviews' })
+    await expect.element(list).toBeVisible()
+    await expectResize(
+      page.getByRole('separator', { name: 'Resize the review list' }),
+      'reviews-list',
+      () => list.element().getBoundingClientRect().width,
+      { dx: 100, grows: 1 },
+    )
   })
 })

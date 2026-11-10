@@ -1,0 +1,47 @@
+/* A 9px hit area centred on `left`, with a 1px line inside it that thickens on hover, focus and drag. */
+.root {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 3;
+  width: 9px;
+  transform: translateX(-50%);
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.root::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 1px;
+  background: var(--circi-line-subtle);
+  transition:
+    background 120ms,
+    left 120ms,
+    width 120ms;
+}
+
+.root:hover::after,
+.root:focus-visible::after,
+.root[data-active]::after {
+  left: 3px;
+  width: 3px;
+  border-radius: 4px;
+  background: var(--circi-accent-text);
+}
+
+@media (max-width: 719.98px) {
+  .root {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root::after {
+    transition: none;
+  }
+}

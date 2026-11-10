@@ -6,11 +6,19 @@
 }
 
 .sidebar {
+  position: relative;
   display: flex;
   flex: 1 1 244px;
   flex-direction: column;
+}
+
+.nav {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   gap: 1px;
   box-sizing: border-box;
+  min-height: 0;
   padding: 10px 8px;
 }
 
@@ -50,6 +58,11 @@
     display: none;
   }
 
+  /* No drag handle below 820px: the sidebar is a drawer or stacked. */
+  .sidebar > :not(nav) {
+    display: none;
+  }
+
   /* Bar on top, the panel fills the rest of the height. */
   .root[data-compact] {
     flex-direction: column;
@@ -75,13 +88,25 @@
     position: sticky;
     top: 0;
     align-self: flex-start;
+    flex: 0 0 var(--circi-sidebar-width, 244px);
     height: var(--circi-frame-height, 100dvh);
     max-height: 100dvh;
-    max-width: 244px;
+    width: var(--circi-sidebar-width, 244px);
+  }
+
+  .nav {
     overflow-y: auto;
+  }
+
+  .root[data-sidebar-collapsed] .sidebar {
+    display: none;
   }
 
   .main {
     margin: 8px 8px 8px 0;
+  }
+
+  .root[data-sidebar-collapsed] .main {
+    margin-left: 8px;
   }
 }
