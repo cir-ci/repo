@@ -57,3 +57,13 @@ export const Palette = () => (
     </div>
   </Both>
 )
+
+export const Marbles = () => (
+  <Both>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      {['web', 'storefront', 'mobile', 'design-system', 'docs', 'api'].map((slug) => (
+        <TeamTile key={slug} name={slug} seed={slug} color="mauve" size={40} />
+      ))}
+    </div>
+  </Both>
+)

@@ -25,10 +25,15 @@ export function YouSection({ user }: YouSection.Props) {
       >
         <SettingsRow>
           <div className={styles.avatarRow}>
-            <Avatar name={user.name} size={56} {...(user.image ? { src: user.image } : {})} />
+            <Avatar
+              name={user.name}
+              seed={user.id}
+              size={56}
+              {...(user.image ? { src: user.image } : {})}
+            />
             <Text variant="small" tone="tertiary" className={styles.rowText}>
               CirCI uses the picture of the account you sign in with, then Gravatar for your email,
-              then your initials.
+              then a generated avatar.
             </Text>
           </div>
         </SettingsRow>
@@ -59,6 +64,6 @@ export function YouSection({ user }: YouSection.Props) {
 
 export namespace YouSection {
   export interface Props {
-    user: { name: string; email: string; image?: string | null }
+    user: { id: string; name: string; email: string; image?: string | null }
   }
 }

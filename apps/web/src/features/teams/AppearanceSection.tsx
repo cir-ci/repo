@@ -75,7 +75,14 @@ export function AppearanceSection({
         label={name}
         detail={`${colourLabel(color)} with ${icon ? `the ${iconLabel(icon)} icon` : 'its first letter'}.`}
       >
-        <TeamTile name={name} color={color} {...(icon ? { icon } : {})} size={40} labelled />
+        <TeamTile
+          name={name}
+          seed={team}
+          color={color}
+          {...(icon ? { icon } : {})}
+          size={40}
+          labelled
+        />
       </SettingsRow>
       {canManage ? (
         <SettingsRow>
@@ -130,7 +137,7 @@ export function AppearanceSection({
                   aria-label={iconLabel(i)}
                   title={i}
                 >
-                  <TeamTile name={name} color={color} icon={i} size={20} />
+                  <TeamTile name={name} seed={team} color={color} icon={i} size={20} />
                 </Button>
               ))}
             </div>

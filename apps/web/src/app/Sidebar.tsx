@@ -201,6 +201,7 @@ function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
         icon={
           <TeamTile
             name={team.name}
+            seed={team.slug}
             color={team.color}
             {...(isTeamIconName(team.icon) ? { icon: team.icon } : {})}
           />

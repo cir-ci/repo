@@ -88,7 +88,7 @@ function Choices({ workspace, team, number, onClose }: Choices.Props) {
                   disabled={request.isPending}
                   onClick={() => choose(p)}
                 >
-                  <Avatar name={p.name} size={20} />
+                  <Avatar name={p.name} seed={p.userId} size={20} />
                   <span className={styles.name}>{p.name}</span>
                   {asked ? (
                     <Text variant="small" tone="tertiary">

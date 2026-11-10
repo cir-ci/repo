@@ -141,7 +141,11 @@ export function TriagePage() {
           data && chip && data.rotation.onTriage ? (
             <Badge shape="tag" tone="accent" aria-label={chip}>
               <span className={styles.chip}>
-                <Avatar name={data.rotation.onTriage.name} size={16} />
+                <Avatar
+                  name={data.rotation.onTriage.name}
+                  seed={data.rotation.onTriage.id}
+                  size={16}
+                />
                 {chip}
               </span>
             </Badge>
@@ -252,7 +256,11 @@ export function TriagePage() {
                                         Open in build ↗
                                       </span>
                                       {item.assignee ? (
-                                        <Avatar name={item.assignee.name} size={20} />
+                                        <Avatar
+                                          name={item.assignee.name}
+                                          seed={item.assignee.id}
+                                          size={20}
+                                        />
                                       ) : null}
                                     </>
                                   }

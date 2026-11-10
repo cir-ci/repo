@@ -35,6 +35,7 @@ catalog:
   auth: 1.7.15
   axe-core: 4.14.0
   better-auth: 1.7.15
+  boring-avatars: 2.0.4
   commander: 15.0.0
   drizzle-kit: 0.31.11
   drizzle-orm: 0.45.4

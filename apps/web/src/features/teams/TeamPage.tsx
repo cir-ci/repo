@@ -92,6 +92,7 @@ export function TeamPage() {
           <div className={styles.identity}>
             <TeamTile
               name={data.team.name}
+              seed={data.team.slug}
               color={isTeamColor(data.team.color) ? data.team.color : 'slate'}
               {...(isTeamIconName(data.team.icon) ? { icon: data.team.icon } : {})}
               size={40}

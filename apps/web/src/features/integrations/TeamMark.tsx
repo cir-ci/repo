@@ -14,6 +14,7 @@ export function useTeamMark(workspace: string) {
     return (
       <TeamTile
         name={name}
+        seed={slug}
         color={team?.color ?? 'slate'}
         size={size}
         {...(icon ? { icon } : {})}

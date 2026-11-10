@@ -1,9 +1,15 @@
-import { CheckIcon, ChevronsUpDownIcon, Menu, PlusIcon, SlidersIcon, Text } from '@circi/ui'
+import {
+  CheckIcon,
+  ChevronsUpDownIcon,
+  Menu,
+  PlusIcon,
+  SlidersIcon,
+  Text,
+  WorkspaceTile,
+} from '@circi/ui'
 import { useNavigate } from '@tanstack/react-router'
 
 import type { WorkspaceRef } from '#app/shell-model.ts'
-
-import { WorkspaceTile } from './WorkspaceTile.tsx'
 
 import styles from './WorkspaceSwitcher.module.css'
 
@@ -24,7 +30,7 @@ export function WorkspaceSwitcher({
     <Menu
       trigger={
         <button type="button" className={styles.trigger} aria-label={`Workspace: ${current.name}`}>
-          <WorkspaceTile name={current.name} picture={current.picture} />
+          <WorkspaceTile seed={current.slug} picture={current.picture} />
           <span className={styles.name}>{current.name}</span>
           <ChevronsUpDownIcon size={12} />
         </button>
@@ -41,7 +47,7 @@ export function WorkspaceSwitcher({
         },
         ...workspaces.map((workspace): Menu.Item => ({
           label: workspace.name,
-          icon: <WorkspaceTile name={workspace.name} picture={workspace.picture} />,
+          icon: <WorkspaceTile seed={workspace.slug} picture={workspace.picture} />,
           current: workspace.slug === current.slug,
           ...(workspace.slug === current.slug ? { trailing: <CheckIcon /> } : {}),
           onSelect: () => onSelect(workspace),

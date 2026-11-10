@@ -97,6 +97,7 @@ export function TeamsPage() {
                               <TeamTile
                                 size={24}
                                 name={team.name}
+                                seed={team.slug}
                                 color={team.color}
                                 {...(isTeamIconName(team.icon) ? { icon: team.icon } : {})}
                               />

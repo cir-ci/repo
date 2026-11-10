@@ -202,7 +202,7 @@ function CommentView({ comment, members, workspace, team, build, children }: Com
   const deleted = comment.deletedAt !== null
   return (
     <div className={styles.comment}>
-      <Avatar name={name} />
+      <Avatar name={name} {...(comment.author ? { seed: comment.author.id } : {})} />
       <div className={styles.eventBody}>
         <div className={styles.line}>
           <Text>

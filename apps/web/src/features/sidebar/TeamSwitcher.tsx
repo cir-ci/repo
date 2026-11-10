@@ -85,6 +85,7 @@ export function TeamSwitcher({ workspace, teams, current }: TeamSwitcher.Props) 
               >
                 <TeamTile
                   name={team.name}
+                  seed={team.slug}
                   color={team.color}
                   {...(isTeamIconName(team.icon) ? { icon: team.icon } : {})}
                 />

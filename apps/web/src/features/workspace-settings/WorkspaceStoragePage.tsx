@@ -99,6 +99,7 @@ export function WorkspaceStoragePage() {
                   >
                     <TeamTile
                       name={t.name}
+                      seed={t.slug}
                       color={t.color}
                       size={24}
                       {...(isTeamIconName(t.icon) ? { icon: t.icon } : {})}

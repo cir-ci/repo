@@ -19,6 +19,7 @@ import {
   UserPlusIcon,
   UsersIcon,
   WebhookIcon,
+  WorkspaceTile,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useRouterState, useParams } from '@tanstack/react-router'
@@ -41,7 +42,6 @@ import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 
 import { TeamSwitcher } from './TeamSwitcher.tsx'
 import { useWorkspaces } from './use-workspaces.ts'
-import { WorkspaceTile } from './WorkspaceTile.tsx'
 
 import styles from './SettingsNav.module.css'
 
@@ -111,7 +111,7 @@ export function SettingsNav() {
         <NavSection
           label={
             <>
-              <WorkspaceTile name={workspace.name} picture={workspace.picture} size={16} />
+              <WorkspaceTile seed={workspace.slug} picture={workspace.picture} size={16} />
               {`Workspace · ${workspace.name}`}
             </>
           }
@@ -162,6 +162,7 @@ export function SettingsNav() {
             <>
               <TeamTile
                 name={team.name}
+                seed={team.slug}
                 color={team.color}
                 {...(isTeamIconName(team.icon) ? { icon: team.icon } : {})}
               />

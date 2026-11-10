@@ -34,3 +34,15 @@ export const Sizes = () => (
     </div>
   </Both>
 )
+
+export const Generated = () => (
+  <Both>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      {['user-1', 'user-2', 'user-3', 'user-4', 'user-5', 'user-6', 'user-7', 'user-8'].map(
+        (id) => (
+          <Avatar key={id} name={id} seed={id} size={32} />
+        ),
+      )}
+    </div>
+  </Both>
+)
