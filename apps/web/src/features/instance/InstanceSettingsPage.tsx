@@ -44,11 +44,6 @@ function Sections({ settings }: { settings: InstanceAdmin.Settings }) {
   const { retention } = settings
   return (
     <>
-      <Text tone="secondary">
-        These come from the server's environment, so you can check them here but not edit them. To
-        change one, set a new value and restart CirCI; each row names its variable.
-      </Text>
-
       <SettingsSection
         title="Dashboard address"
         description="Every link CirCI sends out uses it: pull request comments, checks, emails, the GitHub App's webhook."

@@ -18,7 +18,7 @@ import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { formatRelative } from '#lib/relative-time.ts'
 
-import { AdminFrame, Intro } from './AdminFrame.tsx'
+import { AdminFrame } from './AdminFrame.tsx'
 import {
   checklistQuery,
   checksQuery,
@@ -60,18 +60,22 @@ export function HealthPage() {
   const groups = checks.data ? groupFindings(checks.data.findings) : undefined
 
   return (
-    <AdminFrame title="Health" loading={first} error={forbidden ?? null} onRetry={refresh}>
-      <Intro
-        action={
-          <Button leading={<RefreshIcon />} loading={fetching} onClick={refresh}>
-            Run checks again
-          </Button>
-        }
-      >
-        {checks.dataUpdatedAt
+    <AdminFrame
+      title="Health"
+      action={
+        <Button leading={<RefreshIcon />} loading={fetching} onClick={refresh}>
+          Run checks again
+        </Button>
+      }
+      note={
+        checks.dataUpdatedAt
           ? `Last run ${formatRelative(new Date(checks.dataUpdatedAt).toISOString(), now)}.`
-          : null}
-      </Intro>
+          : null
+      }
+      loading={first}
+      error={forbidden ?? null}
+      onRetry={refresh}
+    >
       <SummarySection checks={checks.data} loading={checks.isFetching} />
       {checks.error && !checks.data ? (
         <SettingsSection title="Checks" bare>
@@ -308,6 +312,9 @@ function QueuesSection(props: {
               value: totals.oldestPendingAt ? formatAge(totals.oldestPendingAt, props.now) : 'None',
               extra: totals.oldestQueue ?? undefined,
             },
+            ...(totals.failed > 0
+              ? [{ label: 'Failed', value: totals.failed, extra: totals.failedDetail ?? undefined }]
+              : []),
             {
               label: 'Retrying',
               value: totals.retrying,

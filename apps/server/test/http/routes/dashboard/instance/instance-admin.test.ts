@@ -451,6 +451,17 @@ describe('health', () => {
     const webhook = body.queues.find((q) => q.queue === QUEUES.webhook)
     expect(webhook).toMatchObject({ retrying: 2, mostRetried: { attempt: 3, maxAttempts: 8 } })
   })
+
+  it('counts a webhook delivery that ran out of attempts as a failed job of the webhook queue', async () => {
+    // Deliveries are jobs, so the queue row and the dashboard's Failed tile (their sum) agree.
+    await t.db
+      .update(schema.jobs)
+      .set({ status: 'failed' })
+      .where(eq(schema.jobs.queue, QUEUES.webhook))
+    const body = (await asAdmin('GET', '/api/instance/health/queues')).json<InstanceAdmin.Queues>()
+    const webhook = body.queues.find((q) => q.queue === QUEUES.webhook)
+    expect(webhook).toMatchObject({ pending: 0, failed: 2, retrying: 0, mostRetried: null })
+  })
 })
 
 describe('workspace membership', () => {

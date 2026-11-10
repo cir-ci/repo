@@ -96,7 +96,13 @@ describe('the health page', () => {
   it('shows warnings first with their fix, the queues and the address checklist', async () => {
     fakeApi(ROUTES)
     await show()
-    await expect.element(page.getByRole('heading', { level: 1, name: 'Health' })).toBeVisible()
+    // Once the page has loaded, its title (not the breadcrumb) is the heading.
+    await expect.element(page.getByText('14 jobs waiting · 3 running · 1 failed')).toBeVisible()
+    const title = page.getByRole('heading', { level: 1, name: 'Health' })
+    await expect.element(title).toBeVisible()
+    // The title is the page's own 15px heading, beside its button.
+    expect(getComputedStyle(title.element()).fontSize).toBe('15px')
+    expect(page.getByRole('heading', { level: 1 }).elements()).toHaveLength(1)
     await expect.element(page.getByText(/How to fix: Make the cookie host-only\./)).toBeVisible()
     // No "everything passes" line: the summary is its three counts.
     expect(document.body.textContent).not.toContain('Everything passes')
@@ -169,6 +175,9 @@ describe('the health page', () => {
     await show()
     const jobs = page.getByRole('region', { name: 'Background jobs' })
     await expect.element(jobs.getByText('Retrying')).toBeVisible()
+    // The failed job in the queue rows also shows in the tiles.
+    await expect.element(jobs.getByText('Failed', { exact: true })).toBeVisible()
+    await expect.element(jobs.getByText('diff · 1')).toBeVisible()
     await expect.element(jobs.getByText('webhook · attempt 3 of 8')).toBeVisible()
     const queues = page.getByRole('region', { name: 'Queues' })
     await expect.element(queues.getByText(/1 retrying \(attempt 3 of 8\)/)).toBeVisible()

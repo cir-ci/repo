@@ -12,11 +12,15 @@ import styles from './AdminFrame.module.css'
  * and one column, with the loading and error states, and the state for someone who is not an
  * instance admin (the server answers 403 to every `/api/instance` read).
  */
-export function AdminFrame({ title, error, ...rest }: AdminFrame.Props) {
+export function AdminFrame({ title, action, note, error, children, ...rest }: AdminFrame.Props) {
+  // The title is the page's own `<h1>` (15px, beside the main button); while the page can't show
+  // its body (loading, an error, not an admin) the breadcrumb is the `<h1>` instead.
+  const bodyShown = !rest.loading && !error
   return (
     <PageFrame
       crumbs={[{ label: 'Instance' }]}
       title={title}
+      headingInPage={bodyShown}
       error={error}
       forbidden={
         isForbidden(error) ? (
@@ -26,32 +30,27 @@ export function AdminFrame({ title, error, ...rest }: AdminFrame.Props) {
         ) : null
       }
       {...rest}
-    />
+    >
+      <div className={styles.intro}>
+        <div className={styles.heading}>
+          <h1 className={styles.title}>{title}</h1>
+          {note ? <Text tone="secondary">{note}</Text> : null}
+        </div>
+        {action}
+      </div>
+      {children}
+    </PageFrame>
   )
-}
-
-/** The line under the page's title, with the page's main action on the right. */
-export function Intro({ action, children }: Intro.Props) {
-  if (!children) return <div className={styles.actions}>{action}</div>
-  return (
-    <div className={styles.intro}>
-      <Text tone="secondary">{children}</Text>
-      {action}
-    </div>
-  )
-}
-
-export namespace Intro {
-  export interface Props {
-    action?: ReactNode
-    children?: ReactNode
-  }
 }
 
 export namespace AdminFrame {
   export interface Props {
     /** The page's name: the `<h1>`, after "Instance". */
     title: string
+    /** The page's main button, beside the title. */
+    action?: ReactNode
+    /** A status line under the title (not an explanation of the page). */
+    note?: ReactNode
     loading?: boolean
     error?: Error | null | undefined
     onRetry?: () => void

@@ -1,4 +1,4 @@
-/* The line under the page's title, with the page's main action on the right. */
+/* The page's title with its main action on the right. */
 .intro {
   display: flex;
   align-items: flex-end;
@@ -7,11 +7,12 @@
   gap: 12px 16px;
 }
 
-.intro > :first-child {
+.heading {
   flex: 1 1 320px;
 }
 
-.actions {
-  display: flex;
-  justify-content: flex-end;
+.title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
 }

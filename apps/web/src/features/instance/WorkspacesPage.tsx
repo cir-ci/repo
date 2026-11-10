@@ -23,7 +23,7 @@ import { type FormEvent, useState } from 'react'
 import { formatBytes } from '#features/workspace-settings/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 
-import { AdminFrame, Intro } from './AdminFrame.tsx'
+import { AdminFrame } from './AdminFrame.tsx'
 import {
   deletedLabel,
   formatShortDay,
@@ -59,24 +59,22 @@ export function WorkspacesPage() {
   return (
     <AdminFrame
       title="Workspaces"
+      action={
+        <Button
+          variant="primary"
+          leading={<AddCircleIcon />}
+          onClick={() => {
+            setCreated(null)
+            setCreating(true)
+          }}
+        >
+          Create workspace
+        </Button>
+      }
       loading={!data && !error}
       error={error}
       onRetry={() => void refetch()}
     >
-      <Intro
-        action={
-          <Button
-            variant="primary"
-            leading={<AddCircleIcon />}
-            onClick={() => {
-              setCreated(null)
-              setCreating(true)
-            }}
-          >
-            Create workspace
-          </Button>
-        }
-      />
       {created ? <Banner tone="success">{created}</Banner> : null}
       {restore.error ? <Banner tone="danger">{restore.error.message}</Banner> : null}
       <SettingsSection title="All workspaces">

@@ -288,6 +288,7 @@ describe('health', () => {
       pending: 3,
       running: 1,
       failed: 3,
+      failedDetail: 'webhook · 3',
       retrying: 2,
       retryingDetail: 'webhook · attempt 3 of 8',
       oldestPendingAt: '2026-11-08T09:00:00Z',
@@ -295,6 +296,7 @@ describe('health', () => {
     })
     expect(queueTotals([]).oldestPendingAt).toBeNull()
     expect(queueTotals([queue({})]).retryingDetail).toBeNull()
+    expect(queueTotals([queue({})]).failedDetail).toBeNull()
   })
 })
 

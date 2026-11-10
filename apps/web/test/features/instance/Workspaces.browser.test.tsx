@@ -44,7 +44,12 @@ describe('the workspaces page', () => {
   it('lists workspaces with members, teams and storage', async () => {
     fakeApi(LIST)
     await show()
-    await expect.element(page.getByRole('heading', { level: 1, name: 'Workspaces' })).toBeVisible()
+    await expect.element(page.getByText(/1\.5 MB/)).toBeVisible()
+    const title = page.getByRole('heading', { level: 1, name: 'Workspaces' })
+    await expect.element(title).toBeVisible()
+    expect(getComputedStyle(title.element()).fontSize).toBe('15px')
+    // No lead paragraph: the title is followed by the button, then the list.
+    expect(document.body.textContent).not.toContain('Every workspace on this CirCI')
     await expect.element(page.getByText(/1\.5 MB/)).toBeVisible()
     expect(text('acme')).toMatch(/Members 6\s*Teams 3\s*Created Sep 12/)
     expect(text('design-guild')).toMatch(/Members 1\s*Teams 0/)

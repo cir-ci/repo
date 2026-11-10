@@ -268,6 +268,8 @@ export interface QueueTotals {
   pending: number
   running: number
   failed: number
+  /** The queues that hold failed jobs, with their counts: "webhook · 1"; null with none. */
+  failedDetail: string | null
   /** Jobs waiting for another attempt after failing. */
   retrying: number
   /** The retrying job furthest along: "webhook · attempt 3 of 8"; null with none retrying. */
@@ -294,6 +296,11 @@ export function queueTotals(queues: InstanceAdmin.QueueDepth[]): QueueTotals {
     pending: queues.reduce((n, q) => n + q.pending, 0),
     running: queues.reduce((n, q) => n + q.running, 0),
     failed: queues.reduce((n, q) => n + q.failed, 0),
+    failedDetail:
+      queues
+        .filter((q) => q.failed > 0)
+        .map((q) => `${q.queue} · ${q.failed}`)
+        .join(', ') || null,
     retrying: queues.reduce((n, q) => n + q.retrying, 0),
     retryingDetail: furthest?.mostRetried
       ? `${furthest.queue} · attempt ${furthest.mostRetried.attempt} of ${furthest.mostRetried.maxAttempts}`

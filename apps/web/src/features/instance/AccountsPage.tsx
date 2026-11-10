@@ -27,7 +27,7 @@ import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { numberOf, textOf } from '#lib/number-field.ts'
 
-import { AdminFrame, Intro } from './AdminFrame.tsx'
+import { AdminFrame } from './AdminFrame.tsx'
 import {
   type AccountDraft,
   accountProblems,
@@ -84,24 +84,22 @@ export function AccountsPage() {
   return (
     <AdminFrame
       title="Accounts"
+      action={
+        <Button
+          variant="primary"
+          leading={<AddCircleIcon />}
+          onClick={() => {
+            setDone(null)
+            setCreating(true)
+          }}
+        >
+          Create account
+        </Button>
+      }
       loading={!data && !error}
       error={error}
       onRetry={() => void refetch()}
     >
-      <Intro
-        action={
-          <Button
-            variant="primary"
-            leading={<AddCircleIcon />}
-            onClick={() => {
-              setDone(null)
-              setCreating(true)
-            }}
-          >
-            Create account
-          </Button>
-        }
-      />
       {failure ? <Banner tone="danger">{failure}</Banner> : null}
       {done ? <Banner tone="success">{done}</Banner> : null}
       <SettingsSection
