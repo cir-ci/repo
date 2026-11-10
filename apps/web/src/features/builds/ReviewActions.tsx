@@ -32,8 +32,15 @@ export interface ReviewControls {
   /** Rejecting asks first: it holds back the merge. */
   askReject: () => void
   cancelReject: () => void
-  /** Rejects the current snapshot with the reason the dialog collected. */
+  /** Rejects the snapshot the dialog asked about with the reason it collected. */
   confirmReject: (reason: string) => void
+  /** A snapshot's own decisions, for its row's right-click menu (it needn't be the selected one). */
+  canApproveFor: (d: Build.DiffItem) => boolean
+  canRejectFor: (d: Build.DiffItem) => boolean
+  approveFor: (d: Build.DiffItem) => void
+  askRejectFor: (d: Build.DiffItem) => void
+  /** The snapshot the reject dialog is asking about when it isn't the selected one (from a row's menu). */
+  rejectName: string | undefined
 }
 
 /**
@@ -53,11 +60,20 @@ export function useReviewControls(
   const reasonRequired = useRejectReasonRequired(team.workspaceSlug, team.slug)
   const queryClient = useQueryClient()
   const [rejecting, setRejecting] = useState(false)
+  const [rejectName, setRejectName] = useState<string | undefined>(undefined)
   const reviewable = isReviewable(build)
-  const current =
-    selected && needsDecision(selected) ? shotDecision(selected, build.reviewStatus) : undefined
-  const canApprove = reviewable && current !== undefined && current !== 'approved'
-  const canReject = reviewable && current !== undefined && current !== 'rejected'
+  const decisionOf = (d: Build.DiffItem | undefined) =>
+    d && needsDecision(d) ? shotDecision(d, build.reviewStatus) : undefined
+  const canApproveFor = (d: Build.DiffItem) => {
+    const current = decisionOf(d)
+    return reviewable && current !== undefined && current !== 'approved'
+  }
+  const canRejectFor = (d: Build.DiffItem) => {
+    const current = decisionOf(d)
+    return reviewable && current !== undefined && current !== 'rejected'
+  }
+  const canApprove = selected !== undefined && canApproveFor(selected)
+  const canReject = selected !== undefined && canRejectFor(selected)
   const undecided = reviewable ? undecidedNames(data.diffs, build.reviewStatus) : []
   const canApproveAll = undecided.length > 0
 
@@ -82,7 +98,10 @@ export function useReviewControls(
         )
         after?.()
       },
-      onSettled: () => setRejecting(false),
+      onSettled: () => {
+        setRejecting(false)
+        setRejectName(undefined)
+      },
     })
   }
 
@@ -90,6 +109,22 @@ export function useReviewControls(
     canApprove,
     canReject,
     canApproveAll,
+    canApproveFor,
+    canRejectFor,
+    rejectName,
+    approveFor: (d) => {
+      if (canApproveFor(d) && !review.isPending) {
+        decide([d.name], 'approved', `Approved ${d.name}`, undefined, () => {
+          if (d.id === selected?.id) onApproved?.(d)
+        })
+      }
+    },
+    askRejectFor: (d) => {
+      if (canRejectFor(d) && !review.isPending) {
+        setRejectName(d.name)
+        setRejecting(true)
+      }
+    },
     pending: review.isPending,
     error: review.error,
     rejecting,
@@ -111,13 +146,18 @@ export function useReviewControls(
       }
     },
     askReject: () => {
-      if (canReject && !review.isPending) setRejecting(true)
-    },
-    cancelReject: () => setRejecting(false),
-    confirmReject: (reason) => {
-      if (canReject && selected && !review.isPending) {
-        decide([selected.name], 'rejected', `Rejected ${selected.name}`, reason)
+      if (canReject && !review.isPending) {
+        setRejectName(undefined)
+        setRejecting(true)
       }
+    },
+    cancelReject: () => {
+      setRejecting(false)
+      setRejectName(undefined)
+    },
+    confirmReject: (reason) => {
+      const name = rejectName ?? (canReject ? selected?.name : undefined)
+      if (name && !review.isPending) decide([name], 'rejected', `Rejected ${name}`, reason)
     },
   }
 }
@@ -172,7 +212,7 @@ export function ReviewActions({ review, snapshotName }: ReviewActions.Props) {
       ) : null}
       <RejectDialog
         open={review.rejecting}
-        subject={snapshotName ?? 'this screenshot'}
+        subject={review.rejectName ?? snapshotName ?? 'this screenshot'}
         pending={review.pending}
         reasonRequired={review.reasonRequired}
         onCancel={review.cancelReject}

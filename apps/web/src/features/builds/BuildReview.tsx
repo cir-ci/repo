@@ -2,6 +2,7 @@ import type { Build } from '@circi/api'
 import {
   Banner,
   Button,
+  ContextMenu,
   CopyIcon,
   IconButton,
   ListGroup,
@@ -20,10 +21,11 @@ import {
   UserPlusIcon,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
+import { useNavigate, useParams, useRouter, useSearch } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { ShortcutsDialog } from '#app/ShortcutsDialog.tsx'
+import { baselineLink } from '#features/baselines/links.ts'
 import {
   commentsQuery,
   useAddComment,
@@ -36,6 +38,7 @@ import { authClient } from '#lib/auth-client.ts'
 import { crumbsFor, PageHeading, teamBuildsCrumb } from '#lib/PageHeading.tsx'
 import { PaneHandle, paneVars } from '#lib/PaneHandle.tsx'
 import { RouterLink } from '#lib/router-link.ts'
+import { copyLinkItem, copyText, menuEntries, openInNewTabItem, separator } from '#lib/row-menu.ts'
 import { isAvailable, SHORTCUTS, useShortcutHandlers } from '#lib/shortcuts.ts'
 import { usePaneWidth } from '#lib/stores/pane-store.ts'
 import { toast } from '#lib/toast.ts'
@@ -87,6 +90,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const params = useParams({ from: ROUTE })
   const search = useSearch({ from: ROUTE })
   const navigate = useNavigate({ from: ROUTE })
+  const router = useRouter()
   const mode: ViewMode = search.mode ?? 'side'
   const active = isActive(build.status)
   const [helpOpen, setHelpOpen] = useState(false)
@@ -232,6 +236,37 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const buildReview = shotReview(build)
   const progress = reviewProgress(data.diffs, buildReview)
 
+  /** A screenshot row's right-click menu: its decisions (hidden when not allowed), name, and baseline. */
+  const shotMenu = (d: Build.DiffItem) => {
+    const href = router.buildLocation({
+      to: ROUTE,
+      params,
+      search: (prev) => ({ ...prev, shot: d.name }),
+    }).href
+    return menuEntries([
+      {
+        label: 'Open',
+        onSelect: () =>
+          void navigate({ search: (prev) => ({ ...prev, shot: d.name }), replace: true }),
+      },
+      openInNewTabItem(href),
+      copyLinkItem(href),
+      { label: 'Copy name', onSelect: () => void copyText(d.name, 'Name') },
+      (review.canApproveFor(d) || review.canRejectFor(d)) && separator,
+      review.canApproveFor(d) && { label: 'Approve', onSelect: () => review.approveFor(d) },
+      review.canRejectFor(d) && {
+        label: 'Reject',
+        tone: 'danger',
+        onSelect: () => review.askRejectFor(d),
+      },
+      d.base !== null && separator,
+      d.base !== null && {
+        label: 'View baseline',
+        onSelect: () => void router.navigate(baselineLink(team.workspaceSlug, team.slug, d.name)),
+      },
+    ])
+  }
+
   const shotList = (
     <nav ref={listRef} aria-label="Screenshots" className={phone ? styles.sheetList : page['list']}>
       {groups.map((g) => (
@@ -248,40 +283,42 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
             <ul className={styles.rows} aria-labelledby={`shots-${g.kind}`}>
               {g.items.map((d) => (
                 <li key={d.id} {...rowProps(d.id)}>
-                  <RouterLink
-                    to={ROUTE}
-                    params={params}
-                    search={(prev) => ({ ...prev, shot: d.name })}
-                    // Current only when chosen in the URL; the default one gets the same
-                    // marker through `data-default`.
-                    aria-current={d.id === fromUrl?.id ? 'page' : undefined}
-                    data-default={!fromUrl && d.id === selected?.id ? '' : undefined}
-                    data-selected={d.id === selected?.id ? '' : undefined}
-                    className={styles.row}
-                    onClick={phone ? () => setShotsOpen(false) : undefined}
-                  >
-                    <StatusIcon
-                      status={screenshotStatus(g.kind, shotDecision(d, buildReview))}
-                      size={12}
-                      label={screenshotLabel(g.kind, shotDecision(d, buildReview))}
-                    />
-                    <Tooltip content={d.name}>
-                      <Text className={styles.name}>{d.name}</Text>
-                    </Tooltip>
-                    {threadCount(d.name) > 0 ? (
-                      <span
-                        className={styles.threads}
-                        role="img"
-                        aria-label={`${threadCount(d.name)} comment ${threadCount(d.name) === 1 ? 'thread' : 'threads'}`}
-                      >
-                        <ReviewIcon size={11} />
-                        {threadCount(d.name)}
-                      </span>
-                    ) : null}
-                    <Text variant="mono" tone="secondary">
-                      {shotBadge(d)}
-                    </Text>
-                  </RouterLink>
+                  <ContextMenu items={shotMenu(d)}>
+                    <RouterLink
+                      to={ROUTE}
+                      params={params}
+                      search={(prev) => ({ ...prev, shot: d.name })}
+                      // Current only when chosen in the URL; the default one gets the same
+                      // marker through `data-default`.
+                      aria-current={d.id === fromUrl?.id ? 'page' : undefined}
+                      data-default={!fromUrl && d.id === selected?.id ? '' : undefined}
+                      data-selected={d.id === selected?.id ? '' : undefined}
+                      className={styles.row}
+                      onClick={phone ? () => setShotsOpen(false) : undefined}
+                    >
+                      <StatusIcon
+                        status={screenshotStatus(g.kind, shotDecision(d, buildReview))}
+                        size={12}
+                        label={screenshotLabel(g.kind, shotDecision(d, buildReview))}
+                      />
+                      <Tooltip content={d.name}>
+                        <Text className={styles.name}>{d.name}</Text>
+                      </Tooltip>
+                      {threadCount(d.name) > 0 ? (
+                        <span
+                          className={styles.threads}
+                          role="img"
+                          aria-label={`${threadCount(d.name)} comment ${threadCount(d.name) === 1 ? 'thread' : 'threads'}`}
+                        >
+                          <ReviewIcon size={11} />
+                          {threadCount(d.name)}
+                        </span>
+                      ) : null}
+                      <Text variant="mono" tone="secondary">
+                        {shotBadge(d)}
+                      </Text>
+                    </RouterLink>
+                  </ContextMenu>
                 </li>
               ))}
             </ul>

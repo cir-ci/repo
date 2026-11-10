@@ -66,7 +66,7 @@ export function PhoneReviewBar({
       ) : null}
       <RejectDialog
         open={review.rejecting}
-        subject={snapshotName ?? 'this screenshot'}
+        subject={review.rejectName ?? snapshotName ?? 'this screenshot'}
         pending={review.pending}
         reasonRequired={review.reasonRequired}
         onCancel={review.cancelReject}
