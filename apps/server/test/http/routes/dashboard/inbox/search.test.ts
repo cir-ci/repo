@@ -129,6 +129,67 @@ describe('GET /api/workspaces/:workspace/search, the other groups', () => {
   })
 })
 
+describe('GET /api/workspaces/:workspace/search, team, kinds, limit and totals', () => {
+  const ws = acme.workspaceSlug
+  const emptyTotals = {
+    builds: 0,
+    branches: 0,
+    teams: 0,
+    snapshots: 0,
+    baselines: 0,
+    triage: 0,
+    notifications: 0,
+    reviews: 0,
+    views: 0,
+  }
+
+  it('counts every match per kind, though a group holds only `limit` of them', async () => {
+    const all = (await search(ws, 'o')).json()
+    expect(all.totals.snapshots).toBe(2)
+    const one = (await get(`/api/workspaces/${ws}/search?q=o&limit=1`)).json()
+    expect(one.snapshots).toHaveLength(1)
+    expect(one.totals.snapshots).toBe(2)
+    expect((await search(ws, '')).json().totals).toEqual(emptyTotals)
+  })
+
+  it('answers only the kinds asked for, the others empty with a total of 0', async () => {
+    const found = (await get(`/api/workspaces/${ws}/search?q=web&kinds=teams,builds`)).json()
+    expect(found.teams).toMatchObject([{ slug: 'web' }])
+    expect(found.totals.teams).toBe(1)
+    const onlyShots = (await get(`/api/workspaces/${ws}/search?q=hom&kinds=snapshots`)).json()
+    expect(onlyShots.snapshots).toMatchObject([{ name: 'home' }])
+    expect(onlyShots.baselines).toEqual([])
+    expect(onlyShots.totals).toEqual({ ...emptyTotals, snapshots: 1 })
+  })
+
+  it('keeps to one team, and a hidden team stays hidden when asked for by name', async () => {
+    const inWeb = (await get(`/api/workspaces/${ws}/search?q=hush&team=web`)).json()
+    expect(inWeb.teams).toEqual([])
+    const inHush = (await get(`/api/workspaces/${ws}/search?q=hush&team=hush`)).json()
+    expect(inHush.teams).toMatchObject([{ slug: 'hush' }])
+    expect(inHush.totals.teams).toBe(1)
+    const homeInHush = (await get(`/api/workspaces/${ws}/search?q=home&team=hush`)).json()
+    expect(homeInHush.snapshots).toEqual([])
+    const homeInWeb = (await get(`/api/workspaces/${ws}/search?q=home&team=web`)).json()
+    expect(homeInWeb.snapshots).toMatchObject([{ teamSlug: 'web' }])
+    // A member who isn't in a team (added first: a team made later is not theirs) finds nothing in it.
+    const member = await fx.addMember('member')
+    await createTeam(fx.db, { workspaceSlug: ws, name: 'quiet' })
+    const asMember = (await member.get(`/api/workspaces/${ws}/search?q=quiet&team=quiet`)).json()
+    expect(asMember.teams).toEqual([])
+    expect(asMember.totals).toEqual(emptyTotals)
+    const asOwner = (await get(`/api/workspaces/${ws}/search?q=quiet&team=quiet`)).json()
+    expect(asOwner.teams).toMatchObject([{ slug: 'quiet' }])
+  })
+
+  it('rejects an unknown kind and a limit out of range', async () => {
+    for (const q of ['kinds=bogus', 'limit=0', 'limit=51', 'limit=x']) {
+      // eslint-disable-next-line no-await-in-loop -- reads
+      expect((await get(`/api/workspaces/${ws}/search?q=web&${q}`)).statusCode).toBe(400)
+    }
+  })
+})
+
 describe('GET /api/teams/:workspace/:team with filters', () => {
   it('keeps the unfiltered list and narrows by each filter', async () => {
     expect(await list('')).toEqual([2, 1])

@@ -374,6 +374,34 @@ export async function listTriage(
 }
 
 /**
+ * How many awake items of the given teams' queues are assigned to the person. Assignments are the
+ * only stored part of an item, so only the teams where this person has one are read.
+ */
+export async function countAssignedTriage(
+  db: Database,
+  input: { userId: string; teamIds: readonly string[]; now: Date },
+): Promise<number> {
+  if (input.teamIds.length === 0) return 0
+  const rows = await db
+    .selectDistinct({ teamId: triageItems.teamId })
+    .from(triageItems)
+    .where(
+      and(
+        eq(triageItems.assigneeId, input.userId),
+        isNull(triageItems.dismissedAt),
+        inArray(triageItems.teamId, [...input.teamIds]),
+      ),
+    )
+  const queues = await Promise.all(
+    rows.map((r) => listTriage(db, { teamId: r.teamId, now: input.now })),
+  )
+  return queues.reduce(
+    (sum, q) => sum + q.items.filter((i) => !i.snoozed && i.assignee?.id === input.userId).length,
+    0,
+  )
+}
+
+/**
  * How many items wait in each team's queue of a workspace (not snoozed, not dismissed), in one
  * query: the sidebar needs every team's number and must not run a triage list per team. The
  * counts equal `listTriage(...).items.filter(i => !i.snoozed).length` for each team; teams with

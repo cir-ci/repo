@@ -10,7 +10,7 @@ import { countUnreadNotifications } from './inbox.ts'
 import { listReviewRequests } from './reviews.ts'
 import { listPinnedTeamIds, listSavedViews, type SavedViewRow } from './saved-views.ts'
 import { getTeamMemberSummaries } from './team-members.ts'
-import { countOpenTriage } from './triage.ts'
+import { countAssignedTriage, countOpenTriage } from './triage.ts'
 
 /** What the sidebar shows for one workspace, in the order it shows it. */
 
@@ -42,6 +42,8 @@ export namespace getSidebar {
     inboxUnread: number
     /** Open, awake review requests asked of the person in this workspace. */
     reviews: number
+    /** Awake triage items assigned to the person in this workspace. */
+    triageAssigned: number
   }
 }
 
@@ -92,7 +94,7 @@ export async function getSidebar(
           )
           .groupBy(teamSites.teamId)
   const siteCounts = new Map(siteRows.map((r) => [r.teamId, r.n]))
-  const [views, inboxUnread, requests, triage] = await Promise.all([
+  const [views, inboxUnread, requests, triage, triageAssigned] = await Promise.all([
     listSavedViews(db, { userId: input.userId, workspaceId: input.workspace.id }),
     countUnreadNotifications(db, {
       userId: input.userId,
@@ -106,6 +108,11 @@ export async function getSidebar(
       ...(input.method === undefined ? {} : { method: input.method }),
     }),
     countOpenTriage(db, { workspaceId: input.workspace.id, now: input.now }),
+    countAssignedTriage(db, {
+      userId: input.userId,
+      teamIds: rows.map((r) => r.id),
+      now: input.now,
+    }),
   ])
   return {
     teams: ordered.map((p) => ({
@@ -123,5 +130,6 @@ export async function getSidebar(
     views,
     inboxUnread,
     reviews: requests.filter((r) => r.workspace.slug === input.workspace.slug).length,
+    triageAssigned,
   }
 }

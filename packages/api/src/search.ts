@@ -1,6 +1,18 @@
 import type { NotificationKind } from './notification.ts'
 
 export namespace Search {
+  /** The kinds of result, named as the keys of `Results`. */
+  export type Kind =
+    | 'builds'
+    | 'branches'
+    | 'teams'
+    | 'snapshots'
+    | 'baselines'
+    | 'triage'
+    | 'notifications'
+    | 'reviews'
+    | 'views'
+
   export interface Build {
     teamSlug: string
     teamName: string
@@ -86,7 +98,11 @@ export namespace Search {
     team: { slug: string; name: string } | null
   }
 
-  /** `GET /api/workspaces/:workspace/search?q=`: matches grouped, each group limited. */
+  /**
+   * `GET /api/workspaces/:workspace/search?q=&team=&kinds=&limit=`: matches grouped, each group
+   * limited (`limit`, 5 by default, 50 at most). `team` (a slug) keeps to that team; `kinds` (comma
+   * separated keys of this type) asks for those kinds only, the others come back empty.
+   */
   export interface Results {
     query: string
     builds: Build[]
@@ -98,5 +114,7 @@ export namespace Search {
     notifications: Notification[]
     reviews: Review[]
     views: View[]
+    /** How many match in all per kind, so a group cut at the limit can say "Show all 12 builds". */
+    totals: Record<Kind, number>
   }
 }

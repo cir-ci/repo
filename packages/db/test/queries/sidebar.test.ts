@@ -14,6 +14,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { teamSites } from '#schema/index.ts'
 import { getSidebar } from '#src/queries/index.ts'
+import { assignTriageItem, snoozeTriageItem } from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -80,6 +81,28 @@ describe('getSidebar', () => {
     expect(mates.teams.map((p) => p.pinned)).toEqual([false, false, false])
     expect(mates.reviews).toBe(1)
     expect(mates.views.map((v) => v.name)).toEqual(['Theirs'])
+  })
+
+  it("counts the awake triage items assigned to the person, not those asleep or someone else's", async () => {
+    const one = await seedTeam(t.db, { slug: 'queue' })
+    const { workspace, owner } = one
+    const mate = await seedUser(t.db)
+    await addTestMember(t.db, { workspaceId: workspace.id, userId: mate.id })
+    const failed = await seedBuild(t.db, one.team.id, { branch: 'main', status: 'error' })
+    const failed2 = await seedBuild(t.db, one.team.id, { branch: 'main', status: 'error' })
+    const failed3 = await seedBuild(t.db, one.team.id, { branch: 'main', status: 'error' })
+    const ref = (n: number) => ({ teamId: one.team.id, kind: 'failed' as const, key: `build:${n}` })
+    await assignTriageItem(t.db, { ...ref(failed.number), assigneeId: owner.id })
+    await assignTriageItem(t.db, { ...ref(failed2.number), assigneeId: owner.id })
+    await assignTriageItem(t.db, { ...ref(failed3.number), assigneeId: mate.id })
+    await snoozeTriageItem(t.db, {
+      ...ref(failed2.number),
+      snoozeKind: 'tomorrow',
+      snoozedUntil: new Date(now.getTime() + 86_400_000),
+      snoozedAfterBuild: null,
+    })
+    expect((await getSidebar(t.db, { userId: owner.id, workspace, now })).triageAssigned).toBe(1)
+    expect((await getSidebar(t.db, { userId: mate.id, workspace, now })).triageAssigned).toBe(1)
   })
 
   it('counts the sites each team hosts', async () => {
