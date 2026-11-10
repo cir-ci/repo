@@ -1,4 +1,5 @@
-import type { Baseline } from '@circi/api'
+import type { Baseline, Flaky } from '@circi/api'
+import { flakyReasonText } from '@circi/core'
 import { EmptyState, ImagesIcon, ListGroup, ListRow, NoResults, StatusIcon, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams, useRouter } from '@tanstack/react-router'
@@ -121,7 +122,7 @@ export function BaselinesPage() {
                                       )}
                                     </>
                                   }
-                                  subtitle={`Build #${item.buildNumber}`}
+                                  subtitle={subtitleOf(item, flakyOf.get(item.name))}
                                   action={{
                                     label: `Open build #${item.buildNumber} ↗`,
                                     onAction: () =>
@@ -137,10 +138,7 @@ export function BaselinesPage() {
                                   trailing={
                                     <>
                                       {flakyOf.has(item.name) ? (
-                                        <StatusIcon
-                                          status="flaky"
-                                          label={`Flaky: ${flakyOf.get(item.name)}`}
-                                        />
+                                        <StatusIcon status="flaky" label="Flaky" />
                                       ) : null}
                                       <span className={styles.age}>
                                         <Age iso={item.approvedAt} />
@@ -163,4 +161,10 @@ export function BaselinesPage() {
       </div>
     </>
   )
+}
+
+/** "Build #148", and for a flaky screenshot why: "Build #148 · Flaky: came back to an earlier image 3 times". */
+function subtitleOf(item: Baseline.Item, reason: Flaky.Reason | undefined): string {
+  const build = `Build #${item.buildNumber}`
+  return reason ? `${build} · Flaky: ${flakyReasonText(reason, { inline: true })}` : build
 }

@@ -198,8 +198,22 @@ describe('TeamPage', () => {
   const flakyReport = {
     builds: 10,
     flaky: [
-      { name: 'clock', changedIn: 6, reason: 'came back to an earlier image 3 times' },
-      { name: 'nav/ticker', changedIn: 4, reason: 'differed across 2 runs of one commit' },
+      {
+        name: 'clock',
+        changedIn: 6,
+        reason: {
+          kind: 'flip_flop',
+          flipFlop: { count: 3, threshold: 3, window: 10, returns: [] },
+        },
+      },
+      {
+        name: 'nav/ticker',
+        changedIn: 4,
+        reason: {
+          kind: 'reruns_disagree',
+          reruns: { build: 8, runs: 2, differing: 1, commits: 1 },
+        },
+      },
     ],
   }
 

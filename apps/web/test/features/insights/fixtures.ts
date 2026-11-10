@@ -130,7 +130,10 @@ export const fullReport = (over: Partial<Insights.Report> = {}): Insights.Report
       team: docs,
       name: 'home/hero',
       flipFlops: 4,
-      reason: 'came back to an earlier image 4 times',
+      reason: {
+        kind: 'flip_flop' as const,
+        flipFlop: { count: 4, threshold: 3, window: 10, returns: [] },
+      },
       last10: [false, true, true, true, true, false, true, true, true, true],
     },
   ],

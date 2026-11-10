@@ -33,9 +33,25 @@ describe('listFlakyScreenshots', () => {
     await seedFlipFlops(t.db, team.id, 'clock', ['A', 'B', 'A', 'B'])
     const report = await listFlakyScreenshots(t.db, team.id)
     expect(report.builds).toBe(4)
-    expect(report.flaky).toEqual([
-      { name: 'clock', changedIn: 3, reason: 'came back to an earlier image 2 times' },
+    expect(report.flaky).toMatchObject([
+      {
+        name: 'clock',
+        changedIn: 3,
+        reason: {
+          kind: 'flip_flop',
+          flipFlop: {
+            count: 2,
+            threshold: 2,
+            window: 4,
+            returns: [expect.anything(), expect.anything()],
+          },
+        },
+      },
     ])
+    // Each return names the build it was in and the earlier build whose image it came back to.
+    const reason = report.flaky[0]?.reason
+    if (reason?.kind !== 'flip_flop') throw new Error('expected a flip-flop reason')
+    for (const r of reason.flipFlop.returns) expect(r.backTo).toBeLessThan(r.build)
   })
 
   it('does not report a redesign that changed the image every time (A, B, C, D, E)', async () => {
@@ -79,8 +95,12 @@ describe('listFlakyScreenshots', () => {
     })
     const report = await listFlakyScreenshots(t.db, team.id)
     expect(report.builds).toBe(2)
-    expect(report.flaky).toEqual([
-      { name: 'hero', changedIn: 1, reason: 'differed across 5 runs of one commit' },
+    expect(report.flaky).toMatchObject([
+      {
+        name: 'hero',
+        changedIn: 1,
+        reason: { kind: 'reruns_disagree', reruns: { runs: 5, differing: 1, commits: 1 } },
+      },
     ])
   })
 
@@ -177,7 +197,7 @@ describe('every consumer agrees', () => {
     const triage = await listTriage(t.db, { teamId: team.id, now })
     const flakyItems = triage.items.filter((i) => i.kind === 'flaky')
     expect(flakyItems.map((i) => i.key)).toEqual(list)
-    expect(flakyItems[0]?.reason).toBe('came back to an earlier image 2 times')
+    expect(flakyItems[0]?.reason).toMatchObject({ kind: 'flip_flop', flipFlop: { count: 2 } })
     expect(flakyItems[0]?.history.map((h) => h.changed)).toEqual([
       false,
       true,

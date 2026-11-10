@@ -123,7 +123,10 @@ describe('BaselinesPage', () => {
           {
             name: 'checkout/payment',
             changedIn: 4,
-            reason: 'differed across 2 runs of one commit',
+            reason: {
+              kind: 'reruns_disagree',
+              reruns: { build: 12, runs: 2, differing: 1, commits: 1 },
+            },
           },
         ],
       }),
@@ -131,9 +134,16 @@ describe('BaselinesPage', () => {
     await open()
     await expect.element(page.getByText('2d')).toBeVisible()
     await expect.element(page.getByText('1h')).toBeVisible()
-    const marks = page.getByRole('img', { name: 'Flaky: differed across 2 runs of one commit' })
+    const marks = page.getByRole('img', { name: 'Flaky' })
     await expect.element(marks).toBeVisible()
     expect(marks.elements()).toHaveLength(1)
+    // The reason is text in the row, not only in the icon's label.
+    await expect
+      .element(
+        page.getByText('Build #12 · Flaky: differed across 2 runs of one commit', { exact: true }),
+      )
+      .toBeVisible()
+    await expect.element(page.getByText('Build #11', { exact: true })).toBeVisible()
   })
 
   it('says so when there are none, centred in the content area, with no find field', async () => {

@@ -1,0 +1,34 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sentence {
+  margin: 0;
+  color: var(--circi-text-primary);
+  font-size: 13px;
+}
+
+.evidence {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  color: var(--circi-text-secondary);
+  font-size: 12px;
+  list-style: none;
+}
+
+.link {
+  color: var(--circi-text-primary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--circi-accent-main);
+  outline-offset: 1px;
+}

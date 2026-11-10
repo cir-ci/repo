@@ -1,4 +1,10 @@
-import { FLAKY_WINDOW, lastCommits, rotationFor, rotationHandover } from '@circi/core'
+import {
+  FLAKY_WINDOW,
+  lastCommits,
+  rotationFor,
+  rotationHandover,
+  type FlakyReason,
+} from '@circi/core'
 import {
   aliasedTable,
   and,
@@ -73,8 +79,8 @@ export namespace listTriage {
      * numbered by its latest build), and whether it changed in each.
      */
     history: { number: number; changed: boolean }[]
-    /** Why a flaky item is flaky ("came back to an earlier image 3 times"); null for the other kinds. */
-    reason: string | null
+    /** Why a flaky item is flaky, with the evidence; null for the other kinds. */
+    reason: FlakyReason | null
     /** Why a failed build ended in error; null otherwise. */
     error: string | null
     /** Pull requests whose latest build shows a flaky screenshot as changed, review pending. */
@@ -199,7 +205,7 @@ export async function listTriage(
     flaky: [],
   }
   const flakyNames = flaky.map((f) => f.name)
-  const reasons = new Map(flaky.map((f) => [f.name, f.reason]))
+  const reasons = new Map(flaky.map((f) => [f.name, f.why]))
   const history = flakyHistory(window, flakyNames)
   const blocking = await flakyBlocking(db, team.id, flakyNames)
   for (const f of flaky) {

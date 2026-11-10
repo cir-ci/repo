@@ -1,3 +1,4 @@
+import { flakyReasonText } from '@circi/core'
 import { Banner, Button, Link, Avatar, Text, useAnnounce } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
@@ -127,7 +128,7 @@ export function TeamPage() {
                 ) : (
                   f.name
                 )}{' '}
-                ({f.reason})
+                ({flakyReasonText(f.reason, { inline: true })})
               </Fragment>
             ))}
             . They are probably not stable (a clock, an animation, random content).{' '}

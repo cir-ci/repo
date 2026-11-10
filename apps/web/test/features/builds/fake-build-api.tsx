@@ -1,4 +1,4 @@
-import type { Activity, Build, Comment, IgnoreRegion, Issue } from '@circi/api'
+import type { Activity, Build, Comment, Flaky, IgnoreRegion, Issue } from '@circi/api'
 import { vi } from 'vitest'
 
 import { BuildPage } from '#features/builds/BuildPage.tsx'
@@ -107,7 +107,7 @@ export interface FakeApi {
   /** What `GET …/builds/7` returns now; the review route changes `reviewStatus` of it. */
   build: Build.Detail
   /** `GET …/flaky`. */
-  flaky: { name: string; changedIn: number; reason: string }[]
+  flaky: { name: string; changedIn: number; reason: Flaky.Reason }[]
   /** Answers the review POST with an error instead. */
   reviewError: string | null
   /** The bodies of the review POSTs, in order. */

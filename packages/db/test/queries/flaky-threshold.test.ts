@@ -28,8 +28,20 @@ describe("the team's flaky threshold (flip-flops)", () => {
   it('makes a screenshot flaky at the number the team chose, in the list and the sidebar count alike', async () => {
     const { team, workspace } = await twoFlipFlops()
     await updateTeamSettings(t.db, team.id, { flakyAfterChanges: 2 })
-    expect((await listFlakyScreenshots(t.db, team.id)).flaky).toEqual([
-      { name: 'home', changedIn: 3, reason: 'came back to an earlier image 2 times' },
+    expect((await listFlakyScreenshots(t.db, team.id)).flaky).toMatchObject([
+      {
+        name: 'home',
+        changedIn: 3,
+        reason: {
+          kind: 'flip_flop',
+          flipFlop: {
+            count: 2,
+            threshold: 2,
+            window: 4,
+            returns: [expect.anything(), expect.anything()],
+          },
+        },
+      },
     ])
     const counts = await countOpenTriage(t.db, { workspaceId: workspace.id, now: new Date() })
     expect(counts.get(team.id)).toBe(1)

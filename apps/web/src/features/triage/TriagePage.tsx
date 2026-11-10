@@ -1,4 +1,5 @@
 import type { Triage } from '@circi/api'
+import { flakyEvidence } from '@circi/core'
 import {
   Avatar,
   Badge,
@@ -24,6 +25,7 @@ import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { findIn, useFindParam } from '#lib/find.ts'
 import { FindField } from '#lib/FindField.tsx'
+import { FlakyWhy } from '#lib/FlakyWhy.tsx'
 import { focusRow, leavesKeyToFocus, nextAfterRemoval } from '#lib/list-keys.ts'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { PaneHandle, paneVars } from '#lib/PaneHandle.tsx'
@@ -330,6 +332,22 @@ export function TriagePage() {
                             <h3 className={styles.paneTitle}>{itemTitle(selected)}</h3>
                             {selected.kind === 'flaky' ? (
                               <>
+                                {selected.reason ? (
+                                  <Section label="Why it's flaky">
+                                    <FlakyWhy
+                                      reason={selected.reason}
+                                      name={selected.snapshotName ?? undefined}
+                                      linkOf={(number) =>
+                                        clientLink(
+                                          openInBuild(workspace, team, {
+                                            snapshotName: selected.snapshotName,
+                                            build: { number },
+                                          }),
+                                        )
+                                      }
+                                    />
+                                  </Section>
+                                ) : null}
                                 <Film
                                   item={selected}
                                   linkOf={(number) =>
@@ -504,6 +522,7 @@ function Film({
   linkOf: (number: number) => { href: string; onClick: MouseEventHandler<HTMLElement> }
 }) {
   if (item.history.length === 0) return null
+  const returned = new Set(item.reason ? flakyEvidence(item.reason).map((e) => e.build) : [])
   return (
     <Section label={`Last ${item.history.length} builds on main`}>
       <ol aria-label={changedText(item.history)} className={styles.film}>
@@ -514,10 +533,11 @@ function Film({
               <a
                 className={styles.cell}
                 data-changed={h.changed ? '' : undefined}
+                data-evidence={returned.has(h.number) ? '' : undefined}
                 href={link.href}
                 onClick={link.onClick}
                 title={h.changed ? 'Changed in this build' : 'Same'}
-                aria-label={`Open ${item.snapshotName ?? ''} in build #${h.number}, ${h.changed ? 'changed' : 'same'}`}
+                aria-label={`Open ${item.snapshotName ?? ''} in build #${h.number}, ${h.changed ? 'changed' : 'same'}${returned.has(h.number) ? ', part of why it is flaky' : ''}`}
               >
                 <b>{h.changed ? '~' : ''}</b>
                 <span>#{h.number}</span>

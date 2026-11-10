@@ -319,7 +319,15 @@ describe('getInsights: screenshots', () => {
         team: expect.objectContaining({ slug: 'web' }),
         name: 'hero',
         flipFlops: 2,
-        reason: 'came back to an earlier image 2 times',
+        reason: {
+          kind: 'flip_flop',
+          flipFlop: {
+            count: 2,
+            threshold: 2,
+            window: 4,
+            returns: [expect.anything(), expect.anything()],
+          },
+        },
         last10: [false, true, true, true],
       },
     ])

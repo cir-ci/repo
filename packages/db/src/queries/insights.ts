@@ -11,6 +11,7 @@ import {
   percentile,
   reviewDueAt,
   WEEK_MS,
+  type FlakyReason,
 } from '@circi/core'
 import { and, eq, gte, inArray, isNotNull, lt, min, ne, sql, sum } from 'drizzle-orm'
 import { union } from 'drizzle-orm/pg-core'
@@ -151,8 +152,8 @@ export namespace getInsights {
     name: string
     /** Times a commit's image came back to one it already had in the last 10 commits. */
     flipFlops: number
-    /** Why it is flaky, in words. */
-    reason: string
+    /** Why it is flaky, with the evidence. */
+    reason: FlakyReason
     last10: boolean[]
   }
 
@@ -400,7 +401,7 @@ export async function getInsights(
           team: refOf(p.id),
           name: v.name,
           flipFlops: v.flipFlops,
-          reason: v.reason,
+          reason: v.why,
           last10: strip,
         }
       }),

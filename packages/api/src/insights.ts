@@ -1,3 +1,5 @@
+import type { Flaky } from './flaky.ts'
+
 export namespace Insights {
   /** What the headline numbers say about one stretch of time. */
   export interface Summary {
@@ -78,8 +80,8 @@ export namespace Insights {
     name: string
     /** Times a commit's image came back to one it already had in the last 10 default-branch commits. */
     flipFlops: number
-    /** Why it is flaky, in words. */
-    reason: string
+    /** Why it is flaky, with the evidence. */
+    reason: Flaky.Reason
     last10: boolean[]
   }
 

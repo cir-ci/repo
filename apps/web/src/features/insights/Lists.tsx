@@ -1,4 +1,5 @@
 import type { Insights } from '@circi/api'
+import { flakyReasonText } from '@circi/core'
 import { Avatar, StatusIcon, Text } from '@circi/ui'
 
 import { baselineLink } from '#features/baselines/links.ts'
@@ -434,6 +435,7 @@ export function FlakiestCard({ data }: { data: Insights.Report }) {
               <tr key={`${r.team.slug}/${r.name}`}>
                 <th scope="row">
                   <ShotLink workspace={data.workspace.slug} team={r.team.slug} name={r.name} />
+                  <p className={styles.reasonMeta}>{flakyReasonText(r.reason)}</p>
                 </th>
                 {showTeam ? (
                   <td>

@@ -124,6 +124,14 @@ function server() {
   return fakeApi(routes)
 }
 
+/** A queue of one flaky screenshot with the given reason. */
+function flakyServer(reason: unknown) {
+  return fakeApi({
+    [`GET ${BASE}/triage`]: { body: queue([item('home', { history: tenBuilds, reason })]) },
+    [`GET ${BASE}/snapshots/home/history`]: { body: history },
+  })
+}
+
 /** The pane beside the list. */
 const pane = () => page.getByRole('region', { name: 'Details' })
 
@@ -159,7 +167,13 @@ describe('TriagePage', () => {
     fakeApi({
       [`GET ${BASE}/triage`]: {
         body: queue([
-          item('home', { history: tenBuilds, reason: 'differed across 2 runs of one commit' }),
+          item('home', {
+            history: tenBuilds,
+            reason: {
+              kind: 'reruns_disagree',
+              reruns: { build: 9, runs: 2, differing: 1, commits: 1 },
+            },
+          }),
           item('pricing', {
             kind: 'no_baseline',
             assignee: { id: 'u2', name: 'Grace', image: null },
@@ -432,6 +446,83 @@ describe('TriagePage', () => {
     )
     await expect.element(page.getByRole('list', { name: /^Failed/ })).not.toBeInTheDocument()
     await expect.element(page.getByRole('status').getByText('2 · 1 handled')).toBeVisible()
+  })
+
+  describe('why it is flaky', () => {
+    const both = {
+      kind: 'both',
+      flipFlop: {
+        count: 2,
+        threshold: 2,
+        window: 10,
+        returns: [
+          { build: 7, backTo: 5 },
+          { build: 11, backTo: 9 },
+        ],
+      },
+      reruns: { build: 9, runs: 3, differing: 2, commits: 1 },
+    }
+
+    it('says it in a section of the pane, with the evidence as links to the builds involved', async () => {
+      flakyServer(both)
+      await show()
+      const why = pane().getByText("Why it's flaky")
+      await expect.element(why).toBeVisible()
+      await expect
+        .element(
+          pane().getByText(
+            "Differed across 3 runs of one commit and came back to an earlier image 2 times in the last 10 builds; the team's limit is 2, and one disagreement is enough.",
+          ),
+        )
+        .toBeVisible()
+      const evidence = pane().getByRole('list', { name: 'Evidence' })
+      const lines = evidence.getByRole('listitem')
+      await expect.element(lines.nth(0)).toHaveTextContent("#7 went back to #5's image")
+      await expect.element(lines.nth(1)).toHaveTextContent("#11 went back to #9's image")
+      await expect.element(lines.nth(2)).toHaveTextContent('#9: 2 of 3 runs differ')
+      await expect
+        .element(evidence.getByRole('link', { name: 'Open home in build #7' }))
+        .toHaveAttribute('href', '/acme/web/builds/7?shot=home')
+      await expect
+        .element(evidence.getByRole('link', { name: 'Open home in build #9' }))
+        .toHaveAttribute('href', '/acme/web/builds/9?shot=home')
+    })
+
+    it('marks the strip cells of the builds that went back, and the row says it short', async () => {
+      flakyServer(both)
+      await show()
+      const film = page.getByRole('list', { name: 'Changed in 5 of the last 10 builds' })
+      await expect
+        .element(film.getByRole('link', { name: /^Open home in build #7,.*part of why/ }))
+        .toBeVisible()
+      await expect
+        .element(film.getByRole('link', { name: 'Open home in build #8, changed' }))
+        .toBeVisible()
+      await expect
+        .element(
+          page
+            .getByRole('list', { name: 'Flaky, 1 item' })
+            .getByText(
+              'Differed across 3 runs of one commit and came back to an earlier image 2 times',
+            ),
+        )
+        .toBeVisible()
+    })
+
+    it('says a flip-flop alone, with the limit', async () => {
+      flakyServer({
+        kind: 'flip_flop',
+        flipFlop: { ...both.flipFlop, count: 1, returns: [{ build: 7, backTo: 5 }] },
+      })
+      await show()
+      await expect
+        .element(
+          pane().getByText(
+            "Came back to an earlier image once in the last 10 builds; the team's limit is 2.",
+          ),
+        )
+        .toBeVisible()
+    })
   })
 
   it('counts snoozed and dismissed items as handled', async () => {

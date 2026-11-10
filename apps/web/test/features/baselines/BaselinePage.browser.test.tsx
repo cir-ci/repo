@@ -66,7 +66,25 @@ function api(canManage: boolean, extra: Record<string, ReplyHandler> = {}, name 
     [`GET ${API}/flaky`]: {
       body: {
         builds: 10,
-        flaky: [{ name, changedIn: 4, reason: 'came back to an earlier image 2 times' }],
+        flaky: [
+          {
+            name,
+            changedIn: 4,
+            reason: {
+              kind: 'both',
+              flipFlop: {
+                count: 2,
+                threshold: 2,
+                window: 10,
+                returns: [
+                  { build: 147, backTo: 141 },
+                  { build: 148, backTo: 147 },
+                ],
+              },
+              reruns: { build: 141, runs: 3, differing: 1, commits: 1 },
+            },
+          },
+        ],
       },
     },
     [`GET ${API}/ignore-regions`]: {
@@ -133,10 +151,22 @@ describe('BaselinePage', () => {
     await expect
       .element(page.getByRole('img', { name: `${NAME} in build #148` }))
       .toHaveAttribute('src', '/api/files/sha-baseline')
-    // The flaky marker sits beside the name, with the counts on hover.
+    // The flaky marker sits beside the name, and the reason is text under it, with the builds as links.
+    await expect.element(page.getByText('Flaky', { exact: true })).toBeVisible()
     await expect
-      .element(page.getByText('Flaky', { exact: true }))
-      .toHaveAttribute('title', 'Flaky: came back to an earlier image 2 times')
+      .element(
+        page.getByText(
+          "Differed across 3 runs of one commit and came back to an earlier image 2 times in the last 10 builds; the team's limit is 2, and one disagreement is enough.",
+        ),
+      )
+      .toBeVisible()
+    const evidence = page.getByRole('list', { name: 'Evidence' })
+    await expect
+      .element(evidence.getByRole('link', { name: `Open ${NAME} in build #147` }))
+      .toHaveAttribute('href', `/acme/web/builds/147?shot=${encodeURIComponent(NAME)}`)
+    const lines = evidence.getByRole('listitem')
+    await expect.element(lines.nth(0)).toHaveTextContent("#147 went back to #141's image")
+    await expect.element(lines.nth(2)).toHaveTextContent('#141: 1 of 3 runs differ')
     const regions = page.getByRole('list', { name: `Regions of ${NAME}` })
     await expect.element(regions.getByText(/Added by Dana Levi/)).toBeVisible()
     await expect.element(regions.getByText('100 x 50 at 10, 20')).toBeVisible()

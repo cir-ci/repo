@@ -54,11 +54,51 @@ export interface FlakyBuild {
   shots: ReadonlyMap<string, FlakyShot>
 }
 
+/** One flip-flop: build #`build` showed the image build #`backTo` (the first to show it) had. */
+export interface FlakyReturn {
+  build: number
+  backTo: number
+}
+
+/** The evidence of flip-flops: returns to an earlier image, against the team's limit. */
+export interface FlakyFlipFlop {
+  /** Returns counted in the window (`returns.length`). */
+  count: number
+  /** The flip-flops the team needs before a screenshot is flaky (never below the lowest allowed). */
+  threshold: number
+  /** How many commits the rule looked at (up to `FLAKY_WINDOW`). */
+  window: number
+  /** Each return, oldest first. */
+  returns: FlakyReturn[]
+}
+
+/** The evidence of rerun disagreement: runs of one commit that rendered different images. */
+export interface FlakyReruns {
+  /** The latest such commit's latest build. */
+  build: number
+  /** How many runs of that commit had an image, and how many of them differ from the most common. */
+  runs: number
+  differing: number
+  /** How many commits in the window had runs that disagreed. */
+  commits: number
+}
+
+/**
+ * Why a screenshot is flaky, with the evidence; `flakyReasonText` and `flakyEvidence` put it in
+ * words, the same words everywhere.
+ */
+export type FlakyReason =
+  | { kind: 'flip_flop'; flipFlop: FlakyFlipFlop }
+  | { kind: 'reruns_disagree'; reruns: FlakyReruns }
+  | { kind: 'both'; flipFlop: FlakyFlipFlop; reruns: FlakyReruns }
+
 /** Why a screenshot is flaky, and what the gate needs to recognise the same variation later. */
 export interface FlakyVerdict {
   name: string
-  /** Plain words for Triage, the baseline page and Insights, e.g. "came back to an earlier image 3 times". */
+  /** Plain words kept on the gate's record, e.g. "came back to an earlier image 3 times". */
   reason: string
+  /** The same reason with its evidence: what Triage, the baselines and Insights show. */
+  why: FlakyReason
   /** Times a commit's image returned to one already seen in the window (A, B, A counts one). */
   flipFlops: number
   /** Commits with different images across their runs, and the most runs any one of them had. */
@@ -115,6 +155,68 @@ export function describeFlakyReason(v: {
   return parts.join(' and ')
 }
 
+const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+
+/** The parts of a reason in lower case: what disagreed, what flip-flopped. */
+function phrases(reason: FlakyReason): string[] {
+  const out: string[] = []
+  if (reason.kind !== 'flip_flop') {
+    out.push(
+      reason.reruns.commits === 1
+        ? `differed across ${plural(reason.reruns.runs, 'run')} of one commit`
+        : `differed across runs of ${reason.reruns.commits} commits`,
+    )
+  }
+  if (reason.kind !== 'reruns_disagree') {
+    const n = reason.flipFlop.count
+    out.push(`came back to an earlier image ${n === 1 ? 'once' : plural(n, 'time')}`)
+  }
+  return out
+}
+
+/**
+ * A reason as one sentence. The short form ("Came back to an earlier image 3 times") is for rows;
+ * with `detail` it says how far back it looked and the team's limit ("... in the last 10 builds;
+ * the team's limit is 2."). `inline` keeps it lower case, for use inside a sentence. Every place that shows why a screenshot is flaky uses this.
+ */
+export function flakyReasonText(
+  reason: FlakyReason,
+  options: { detail?: boolean; inline?: boolean } = {},
+): string {
+  const joined = phrases(reason).join(' and ')
+  const text = options.inline ? joined : sentence(joined)
+  if (!options.detail) return text
+  if (reason.kind === 'reruns_disagree') return `${text}; one disagreement is enough.`
+  const looked = ` in the last ${plural(reason.flipFlop.window, 'build')}`
+  const limit = `the team's limit is ${reason.flipFlop.threshold}`
+  return reason.kind === 'both'
+    ? `${text}${looked}; ${limit}, and one disagreement is enough.`
+    : `${text}${looked}; ${limit}.`
+}
+
+/** One line of evidence: the build it is about and what happened there. */
+export interface FlakyEvidence {
+  /** The build to open. */
+  build: number
+  /** What follows the build's number: " went back to #5's image", ": 2 of 3 runs differ". */
+  rest: string
+}
+
+/** The evidence of a reason, oldest first: each return to an earlier image, then the rerun disagreement. */
+export function flakyEvidence(reason: FlakyReason): FlakyEvidence[] {
+  const out: FlakyEvidence[] = []
+  if (reason.kind !== 'reruns_disagree') {
+    for (const r of reason.flipFlop.returns) {
+      out.push({ build: r.build, rest: ` went back to #${r.backTo}'s image` })
+    }
+  }
+  if (reason.kind !== 'flip_flop') {
+    const { build, differing, runs } = reason.reruns
+    out.push({ build, rest: `: ${differing} of ${plural(runs, 'run')} differ` })
+  }
+  return out
+}
+
 /**
  * The screenshots that are flaky after `builds`, a team's completed default-branch builds up to
  * some moment. Only the last `window` distinct commits count; several runs of one commit are
@@ -157,37 +259,72 @@ export function judgeFlaky(
   threshold: number,
 ): FlakyVerdict | null {
   const seen = new Set<string>()
+  const firstBuild = new Map<string, number>()
+  const returns: FlakyReturn[] = []
   let previous: string | null = null
-  let flipFlops = 0
   let disagreeingCommits = 0
   let mostRuns = 0
+  let differing = 0
+  let lastDisagreement = 0
   let changedIn = 0
   let largestScore = 0
   for (const commit of commits) {
-    const shots = commit.runs.flatMap((r) => {
+    const withShot = commit.runs.flatMap((r) => {
       const shot = r.shots.get(name)
-      return shot ? [shot] : []
+      return shot ? [{ build: r.number, shot }] : []
     })
+    const shots = withShot.map((w) => w.shot)
+    const buildNumber = withShot.at(-1)?.build ?? 0
     if (shots.some((s) => s.changed)) changedIn += 1
     for (const s of shots) if (s.score !== null && s.score > largestScore) largestScore = s.score
     const images = shots.flatMap((s) => (s.fileSha256 === null ? [] : [s.fileSha256]))
     if (new Set(images).size > 1) {
       disagreeingCommits += 1
       mostRuns = Math.max(mostRuns, images.length)
+      const counts = new Map<string, number>()
+      for (const i of images) counts.set(i, (counts.get(i) ?? 0) + 1)
+      differing = images.length - Math.max(...counts.values())
+      lastDisagreement = buildNumber
     }
     const image = images.at(-1)
     if (image === undefined) continue
-    if (previous !== null && image !== previous && seen.has(image)) flipFlops += 1
+    const back = firstBuild.get(image)
+    if (previous !== null && image !== previous && back !== undefined) {
+      returns.push({ build: buildNumber, backTo: back })
+    }
     previous = image
-    for (const i of images) seen.add(i)
+    for (const w of withShot) {
+      if (w.shot.fileSha256 === null) continue
+      seen.add(w.shot.fileSha256)
+      if (!firstBuild.has(w.shot.fileSha256)) firstBuild.set(w.shot.fileSha256, w.build)
+    }
   }
-  if (disagreeingCommits === 0 && flipFlops < Math.max(threshold, MIN_FLAKY_FLIP_FLOPS)) {
-    return null
-  }
+  const flipFlops = returns.length
+  const limit = Math.max(threshold, MIN_FLAKY_FLIP_FLOPS)
+  if (disagreeingCommits === 0 && flipFlops < limit) return null
   const disagreements = { commits: disagreeingCommits, runs: mostRuns }
+  const flipFlop: FlakyFlipFlop = {
+    count: flipFlops,
+    threshold: limit,
+    window: commits.length,
+    returns,
+  }
+  const reruns: FlakyReruns = {
+    build: lastDisagreement,
+    runs: mostRuns,
+    differing,
+    commits: disagreeingCommits,
+  }
+  const why: FlakyReason =
+    flipFlops > 0 && disagreeingCommits > 0
+      ? { kind: 'both', flipFlop, reruns }
+      : disagreeingCommits > 0
+        ? { kind: 'reruns_disagree', reruns }
+        : { kind: 'flip_flop', flipFlop }
   return {
     name,
     reason: describeFlakyReason({ flipFlops, disagreements }),
+    why,
     flipFlops,
     disagreements,
     changedIn,

@@ -90,7 +90,8 @@ describe('labels', () => {
     expect(changedText(history)).toBe('Changed in 2 of the last 4 builds')
     // Without a reason, the history says it; with one, the subtitle is the reason.
     expect(itemSubtitle(item({ history }))).toBe('Changed in 2 of the last 4 builds')
-    expect(itemSubtitle(item({ history, reason: 'came back to an earlier image 3 times' }))).toBe(
+    const flipFlop = { count: 3, threshold: 3, window: 10, returns: [] }
+    expect(itemSubtitle(item({ history, reason: { kind: 'flip_flop', flipFlop } }))).toBe(
       'Came back to an earlier image 3 times',
     )
     expect(itemSubtitle(item({ kind: 'no_baseline' }))).toBe('First seen in build #12')

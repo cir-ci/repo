@@ -2,6 +2,7 @@ import {
   FLAKY_WINDOW,
   flakyScreenshots,
   type FlakyBuild,
+  type FlakyReason,
   type FlakyShot,
   type FlakyVerdict,
 } from '@circi/core'
@@ -173,8 +174,8 @@ export interface FlakyScreenshot {
   name: string
   /** In how many of the recent default-branch commits it showed as changed. */
   changedIn: number
-  /** Why it is flaky, in words ("came back to an earlier image 3 times"). */
-  reason: string
+  /** Why it is flaky, with the evidence. */
+  reason: FlakyReason
 }
 
 /**
@@ -231,6 +232,6 @@ export async function listFlakyScreenshots(
   return {
     // How many commits were looked at: the window, or fewer when the team has fewer.
     builds: Math.min(window, new Set(builds.map((b) => b.commitSha)).size),
-    flaky: flaky.map((f) => ({ name: f.name, changedIn: f.changedIn, reason: f.reason })),
+    flaky: flaky.map((f) => ({ name: f.name, changedIn: f.changedIn, reason: f.why })),
   }
 }

@@ -19,6 +19,7 @@ import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { snapshotHistoryQuery } from '#features/triage/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
+import { FlakyWhy } from '#lib/FlakyWhy.tsx'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QuerySkeleton } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
@@ -96,12 +97,28 @@ export function BaselineBody({ workspace, team, name, inSettings = false }: Base
               {name}
             </Text>
             {flakyEntry ? (
-              <Text variant="small" className={styles.flaky} title={`Flaky: ${flakyEntry.reason}`}>
+              <Text variant="small" className={styles.flaky}>
                 <StatusIcon status="flaky" decorative />
                 Flaky
               </Text>
             ) : null}
           </span>
+          {flakyEntry ? (
+            <FlakyWhy
+              reason={flakyEntry.reason}
+              name={name}
+              linkOf={
+                inSettings
+                  ? undefined
+                  : (number) =>
+                      clientLink({
+                        to: '/$workspace/$team/builds/$number',
+                        params: { workspace, team, number: String(number) },
+                        search: { shot: name },
+                      })
+              }
+            />
+          ) : null}
           {baseline ? (
             <>
               <Text as="p" tone="secondary" className={styles.line}>

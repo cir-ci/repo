@@ -9,7 +9,10 @@ import { useBrowser, useStack } from '#stack/vitest.ts'
 const flakyWobble = (changedIn: number) => ({
   name: 'wobble',
   changedIn,
-  reason: 'came back to an earlier image 3 times',
+  reason: expect.objectContaining({
+    kind: 'flip_flop',
+    flipFlop: expect.objectContaining({ count: 3, threshold: 3 }),
+  }),
 })
 
 /**

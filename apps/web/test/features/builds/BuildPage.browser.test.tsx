@@ -280,7 +280,14 @@ describe('BuildPage states', () => {
   it('sets a known-flaky change aside in a collapsed Flaky group', async () => {
     const api = fakeBuildApi(detail())
     api.flaky = [
-      { name: 'checkout / address', changedIn: 6, reason: 'came back to an earlier image 3 times' },
+      {
+        name: 'checkout / address',
+        changedIn: 6,
+        reason: {
+          kind: 'flip_flop',
+          flipFlop: { count: 3, threshold: 3, window: 10, returns: [] },
+        },
+      },
     ]
     await renderBuild()
     const list = page.getByRole('navigation', { name: 'Screenshots' })

@@ -1,4 +1,5 @@
 import type { BuildStatus } from './build.ts'
+import type { Flaky } from './flaky.ts'
 import type { SnoozeKind } from './review.ts'
 import type { Undo } from './undo.ts'
 
@@ -33,8 +34,8 @@ export namespace Triage {
      * commit are one entry) and whether the screenshot changed in each; empty for the other kinds.
      */
     history: { number: number; changed: boolean }[]
-    /** Why a flaky item is flaky ("came back to an earlier image 3 times"); null for the other kinds. */
-    reason: string | null
+    /** Why a flaky item is flaky, with the evidence; null for the other kinds. */
+    reason: Flaky.Reason | null
     /** Why a failed build ended in error; null for the other kinds, or when no reason was stored. */
     error: string | null
     /**

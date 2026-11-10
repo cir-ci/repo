@@ -78,6 +78,10 @@
   color: var(--circi-text-primary);
 }
 
+.cell[data-evidence] {
+  box-shadow: inset 0 0 0 1.5px var(--circi-state-flaky);
+}
+
 .cell:focus-visible {
   outline: 2px solid var(--circi-accent-main);
   outline-offset: 1px;
