@@ -112,7 +112,7 @@ describe('team settings', () => {
       retentionDays: 30,
       reviewTargetHours: 24,
       closeReviewsOnNewerBuild: true,
-      reRequestOnNewerBuild: false,
+      reRequestOnNewerBuild: true,
       autoApproveNoChanges: true,
       requireRejectReason: false,
       flakyAfterChanges: 3,

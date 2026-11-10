@@ -1,6 +1,6 @@
 ALTER TABLE "teams" ADD COLUMN "review_overdue_notify_user_id" text;--> statement-breakpoint
 ALTER TABLE "teams" ADD COLUMN "close_reviews_on_newer_build" boolean DEFAULT true NOT NULL;--> statement-breakpoint
-ALTER TABLE "teams" ADD COLUMN "re_request_on_newer_build" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "teams" ADD COLUMN "re_request_on_newer_build" boolean DEFAULT true NOT NULL;--> statement-breakpoint
 ALTER TABLE "teams" ADD COLUMN "auto_approve_no_changes" boolean DEFAULT true NOT NULL;--> statement-breakpoint
 ALTER TABLE "teams" ADD COLUMN "require_reject_reason" boolean DEFAULT false NOT NULL;--> statement-breakpoint
 ALTER TABLE "teams" ADD COLUMN "flaky_after_changes" integer DEFAULT 3 NOT NULL;--> statement-breakpoint

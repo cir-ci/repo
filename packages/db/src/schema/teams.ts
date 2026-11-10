@@ -60,7 +60,7 @@ export const teams = pgTable(
     /** A newer build on a branch closes the older builds' review requests (superseded). */
     closeReviewsOnNewerBuild: boolean('close_reviews_on_newer_build').notNull().default(true),
     /** A newer build asks the people the older build's closed requests asked, as a re-request. */
-    reRequestOnNewerBuild: boolean('re_request_on_newer_build').notNull().default(false),
+    reRequestOnNewerBuild: boolean('re_request_on_newer_build').notNull().default(true),
     /** A build with no changes passes without anyone approving it. */
     autoApproveNoChanges: boolean('auto_approve_no_changes').notNull().default(true),
     /** Rejecting needs a written reason. */

@@ -3322,7 +3322,7 @@
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,
-          "default": false
+          "default": true
         },
         "auto_approve_no_changes": {
           "name": "auto_approve_no_changes",

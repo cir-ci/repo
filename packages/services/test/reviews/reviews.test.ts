@@ -311,7 +311,10 @@ describe('a newer build on the branch', () => {
     ])
     expect((await requestsOf(older.id)).find((r) => r.id === done.id)?.state).toBe('done')
     expect((await requestsOf(sameCommitOtherBranch.id)).map((r) => r.state)).toEqual(['open'])
-    expect((await requestsOf(newer.id)).length).toBe(0)
+    // The person the owner asked is asked again on the newer build (the team default).
+    expect((await requestsOf(newer.id)).map((r) => [r.reviewerId, r.requestedById])).toEqual([
+      [teammate.id, owner.id],
+    ])
     expect(
       (await requestsOf(older.id)).find((r) => r.state === 'superseded')?.closedAt,
     ).toBeInstanceOf(Date)

@@ -177,6 +177,7 @@ describe('finalizeBuild with review rules', () => {
     })
     const thisWeek = await upload(team.id, { now: new Date('2026-03-11T12:00:00Z') })
     expect((await requestsOf(thisWeek.build.id)).map((r) => r.reviewerId)).toEqual([ann.id])
+    // A newer build asks next week's person; the rotation's own request isn't repeated.
     const nextWeek = await upload(team.id, { now: new Date('2026-03-16T00:00:00Z') })
     expect((await requestsOf(nextWeek.build.id)).map((r) => r.reviewerId)).toEqual([bob.id])
   })

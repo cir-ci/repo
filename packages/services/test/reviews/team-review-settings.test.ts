@@ -87,12 +87,12 @@ async function noChanges(teamId: string) {
 }
 
 describe('team review settings', () => {
-  it('start with the behaviour teams had before they were settings', async () => {
+  it('start with the behaviour teams had before they were settings, and re-requesting on', async () => {
     const { team } = await seedTeam(t.db)
     const [row] = await t.db.select().from(schema.teams).where(eq(schema.teams.id, team.id))
     expect(row).toMatchObject({
       closeReviewsOnNewerBuild: true,
-      reRequestOnNewerBuild: false,
+      reRequestOnNewerBuild: true,
       autoApproveNoChanges: true,
       requireRejectReason: false,
       flakyAfterChanges: 3,
@@ -129,8 +129,9 @@ describe('closing and re-requesting on a newer build', () => {
     expect((await requestsOf(older.id)).map((r) => r.state)).toEqual(['open'])
   })
 
-  it('does not ask the same reviewers on the newer build by default', async () => {
+  it("doesn't ask the same reviewers on the newer build when the team turns it off", async () => {
     const { team, owner, mate } = await teamWithMates()
+    await changeTeamSettings(t.db, team.id, { reRequestOnNewerBuild: false })
     const older = await pushBuild(team.id, 'feature', 'a000001', fakeSha('3'))
     await requestReview(t.db, { buildId: older.id, reviewerId: mate.id, requestedById: owner.id })
     const newer = await pushBuild(team.id, 'feature', 'a000002', fakeSha('4'))
@@ -138,14 +139,15 @@ describe('closing and re-requesting on a newer build', () => {
     expect(await requestsOf(newer.id)).toEqual([])
   })
 
-  it('asks the same reviewers again on the newer build when the team wants it', async () => {
+  it('asks the same reviewers again on the newer build by default, from the same person', async () => {
     const { team, owner, mate, other } = await teamWithMates()
-    await changeTeamSettings(t.db, team.id, { reRequestOnNewerBuild: true })
     const older = await pushBuild(team.id, 'feature', 'a000001', fakeSha('5'))
     await requestReview(t.db, { buildId: older.id, reviewerId: mate.id, requestedById: owner.id })
     const newer = await pushBuild(team.id, 'feature', 'a000002', fakeSha('6'))
     const asked = await requestsOf(newer.id)
-    expect(asked.map((r) => [r.reviewerId, r.state])).toEqual([[mate.id, 'open']])
+    expect(asked.map((r) => [r.reviewerId, r.state, r.requestedById])).toEqual([
+      [mate.id, 'open', owner.id],
+    ])
     // They hear it as a re-request, and nobody else is asked.
     expect(await notices(mate.id, 'review_re_requested')).toHaveLength(1)
     expect(await notices(other.id, 'review_re_requested')).toHaveLength(0)

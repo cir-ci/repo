@@ -97,31 +97,39 @@ async function requestRuleReviewers(
     reviewerIds = onTriage ? [onTriage] : []
   }
   const dueAt = reviewDueAt(now, team.reviewTargetHours)
-  // The people the closed requests asked, again (with the team's setting), if they still belong
-  // to the team and didn't write the build.
-  const again = new Set<string>()
+  // The people someone asked on the closed requests, asked again by the same person (with the
+  // team's setting), if they still belong to the team and didn't write the build. Requests a rule
+  // or the rotation made aren't repeated: the rules above already chose for this build.
+  const again = new Map<string, string>()
   for (const old of options.reRequest) {
-    const notAuthor = old.reviewerId !== build.authorUserId
+    if (old.requestedById === null || again.has(old.reviewerId)) continue
+    if (old.reviewerId === build.authorUserId) continue
     // eslint-disable-next-line no-await-in-loop -- a few reviewers, one transaction
-    const member = await isTeamMember(db, team.id, old.reviewerId)
-    const stays = notAuthor && member
-    if (stays && !reviewerIds.includes(old.reviewerId)) {
-      reviewerIds = [...reviewerIds, old.reviewerId]
-    }
-    if (stays) again.add(old.reviewerId)
+    if (await isTeamMember(db, team.id, old.reviewerId))
+      again.set(old.reviewerId, old.requestedById)
   }
-  for (const reviewerId of reviewerIds) {
+  const asked = [
+    ...reviewerIds.map((reviewerId) => ({ reviewerId, requestedById: null })),
+    ...[...again]
+      .filter(([reviewerId]) => !reviewerIds.includes(reviewerId))
+      .map(([reviewerId, requestedById]) => ({ reviewerId, requestedById })),
+  ]
+  for (const { reviewerId, requestedById } of asked) {
     // eslint-disable-next-line no-await-in-loop -- one transaction, a few reviewers
     const { request, created } = await openReviewRequest(db, {
       buildId: build.id,
       reviewerId,
-      requestedById: null,
+      requestedById,
       dueAt,
     })
-    // eslint-disable-next-line no-await-in-loop -- one transaction, a few reviewers
     if (created) {
       // eslint-disable-next-line no-await-in-loop -- one transaction, a few reviewers
-      await notifyReviewRequested(db, request, null, again.has(reviewerId) ? { again: true } : {})
+      await notifyReviewRequested(
+        db,
+        request,
+        requestedById,
+        again.has(reviewerId) ? { again: true } : {},
+      )
     }
   }
 }
