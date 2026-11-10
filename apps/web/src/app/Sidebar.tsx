@@ -31,7 +31,6 @@ import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 
 import { NavLink } from './NavLink.tsx'
-import { HideNavButton } from './NavToggle.tsx'
 import {
   countOrUndefined,
   currentSection,
@@ -111,7 +110,6 @@ export function Sidebar({ user }: Sidebar.Props) {
             <SearchIcon size={16} />
           </IconButton>
         </Tooltip>
-        <HideNavButton />
       </div>
       <NavLink to="/" icon={<FolderOpenIcon />} selected={section === 'teams'}>
         Teams

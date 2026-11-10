@@ -1236,6 +1236,13 @@ describe('Shell, collapsing the navigation', () => {
     await page.viewport(1280, 800)
     await renderShell('/headed')
     expect(show().elements()).toHaveLength(0)
+    // Open, the toggle is the page header's first control, in the panel, where Show will be.
+    const main = page.getByRole('main').element()
+    expect(main.contains(hide().element())).toBe(true)
+    expect(
+      page.getByRole('navigation', { name: 'Main' }).element().contains(hide().element()),
+    ).toBe(false)
+    const before = hide().element().getBoundingClientRect()
     await hide().click()
     expect(page.getByRole('navigation', { name: 'Main' }).elements()).toHaveLength(0)
     await expect.element(show()).toBeVisible()
@@ -1249,6 +1256,8 @@ describe('Shell, collapsing the navigation', () => {
     // It is the first thing in the panel's header, at its far left.
     const header = page.getByRole('main').element().getBoundingClientRect()
     expect(icon.left - header.left).toBeLessThan(24)
+    // Hide and Show sit at the same height in the header's left end.
+    expect(Math.abs(icon.top - before.top)).toBeLessThan(2)
     expect(JSON.parse(localStorage.getItem(PANES_KEY) ?? '{}').state.collapsed.sidebar).toBe(true)
   })
 

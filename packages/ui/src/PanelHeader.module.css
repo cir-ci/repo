@@ -27,8 +27,9 @@
    own actions. The controls' own phone rules (Button, IconButton, TextField) key off
    `data-panel-header`. */
 @media (max-width: 819.98px) {
+  /* The crumbs start 16px in, as on a wide screen; the icon buttons at the end keep 8px. */
   .root {
     gap: 4px 8px;
-    padding: 6px 8px;
+    padding: 6px 8px 6px 16px;
   }
 }

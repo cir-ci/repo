@@ -14,9 +14,8 @@ export function useNavPaneId(): NavPaneId {
 }
 
 /**
- * Collapses or restores the current navigation (the sidebar or Settings'). Focus follows the
- * control that takes over: the page header's "Show sidebar" after hiding, the navigation's own
- * "Hide sidebar" after showing.
+ * Collapses or restores the current navigation (the sidebar or Settings'). Focus stays on the page
+ * header's toggle, which turns from "Hide sidebar" into "Show sidebar" and back.
  */
 export function useNavPane() {
   const id = useNavPaneId()
@@ -39,51 +38,31 @@ export function useNavPane() {
 
 const noun = (id: NavPaneId) => (id === 'sidebar' ? 'sidebar' : 'settings navigation')
 
-/** In the navigation's header: hides it. Desktop only: a phone has no sidebar to hide. */
-export function HideNavButton() {
-  const { id, collapse } = useNavPane()
+/**
+ * At the left of the page header, before the crumbs: hides the navigation (the sidebar or
+ * Settings'), and once it is hidden, brings it back from the same place. Desktop only: a phone has
+ * no sidebar.
+ */
+export function NavToggleButton() {
+  const { id, collapsed, collapse, expand } = useNavPane()
   if (usePhone()) return null
+  const verb = collapsed ? 'Show' : 'Hide'
   return (
     <Tooltip
       content={
         <>
-          Hide {noun(id)} <Kbd>⌘\</Kbd>
+          {verb} {noun(id)} <Kbd>⌘\</Kbd>
         </>
       }
       side="bottom"
     >
       <IconButton
-        label={id === 'sidebar' ? 'Hide sidebar' : 'Hide settings navigation'}
+        label={`${verb} ${id === 'sidebar' ? 'sidebar' : 'settings navigation'}`}
         aria-keyshortcuts="Meta+\"
-        data-hide-nav=""
-        onClick={collapse}
+        {...(collapsed ? { 'data-show-nav': '' } : { 'data-hide-nav': '' })}
+        onClick={collapsed ? expand : collapse}
       >
-        <PanelLeftCloseIcon size={16} />
-      </IconButton>
-    </Tooltip>
-  )
-}
-
-/** At the left of the page header while the navigation is collapsed: brings it back. */
-export function ShowNavButton() {
-  const { id, collapsed, expand } = useNavPane()
-  if (usePhone() || !collapsed) return null
-  return (
-    <Tooltip
-      content={
-        <>
-          Show {noun(id)} <Kbd>⌘\</Kbd>
-        </>
-      }
-      side="bottom"
-    >
-      <IconButton
-        label={id === 'sidebar' ? 'Show sidebar' : 'Show settings navigation'}
-        aria-keyshortcuts="Meta+\"
-        data-show-nav=""
-        onClick={expand}
-      >
-        <PanelLeftOpenIcon size={16} />
+        {collapsed ? <PanelLeftOpenIcon size={16} /> : <PanelLeftCloseIcon size={16} />}
       </IconButton>
     </Tooltip>
   )

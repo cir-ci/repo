@@ -21,7 +21,6 @@ import { useQuery } from '@tanstack/react-query'
 import { useRouter, useRouterState } from '@tanstack/react-router'
 
 import { NavLink } from '#app/NavLink.tsx'
-import { HideNavButton } from '#app/NavToggle.tsx'
 import { returnTarget } from '#app/settings-return.ts'
 import { currentSection } from '#app/shell-model.ts'
 import { useSidebarModel } from '#features/sidebar/api.ts'
@@ -76,7 +75,6 @@ export function SettingsNav() {
               {`Back to ${back.label}`}
             </NavItem>
           </div>
-          <HideNavButton />
         </div>
       )}
       <NavSection label="Account">

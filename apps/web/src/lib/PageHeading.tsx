@@ -1,7 +1,7 @@
 import { Breadcrumbs, PanelHeader, visuallyHidden } from '@circi/ui'
 import type { ReactNode } from 'react'
 
-import { ShowNavButton } from '#app/NavToggle.tsx'
+import { NavToggleButton } from '#app/NavToggle.tsx'
 import { PhoneEnd } from '#app/PhoneHeader.tsx'
 import { PhoneTeamTabs } from '#app/PhoneTeamTabs.tsx'
 
@@ -55,7 +55,7 @@ export function PageHeading({
           </>
         }
       >
-        <ShowNavButton />
+        <NavToggleButton />
         <Breadcrumbs
           currentIsHeading={!headingInPage}
           items={[
