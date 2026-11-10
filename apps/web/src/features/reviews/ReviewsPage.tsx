@@ -15,6 +15,7 @@ import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { PaneHandle, paneVars } from '#lib/PaneHandle.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
+import { copyLinkItem, menuEntries, openInNewTabItem, snoozeItems } from '#lib/row-menu.ts'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
 import { usePaneWidth } from '#lib/stores/pane-store.ts'
@@ -194,6 +195,30 @@ export function ReviewsPage() {
       },
     })
 
+  /** A row's right-click menu: the header's buttons and the keys, for that request (the selection stays as it is). */
+  const rowMenu = (r: Review.Request) => {
+    const waitingOnOther = isWaitingOnOther(r, userId)
+    const canApprove =
+      !waitingOnOther && tab !== 'created' && tab !== 'reviewed' && !isProcessing(r.build)
+    const href = clientLink({
+      to: '/$workspace/$team/builds/$number',
+      params: { workspace: r.workspace.slug, team: r.team.slug, number: String(r.build.number) },
+    }).href
+    return menuEntries([
+      { label: 'Open review', onSelect: () => openBuild(r) },
+      openInNewTabItem(href),
+      copyLinkItem(href),
+      canApprove && { label: 'Approve', onSelect: () => doApprove(r) },
+      ...(tab === 'for-you' ? snoozeItems(true, (choice) => doSnooze(r, choice)) : []),
+      tab === 'snoozed' && { label: 'Unsnooze', onSelect: () => doUnsnooze(r) },
+      waitingOnOther &&
+        !nudged.has(r.id) && {
+          label: `Nudge ${firstName(r.reviewer.name)}`,
+          onSelect: () => doNudge(r),
+        },
+    ])
+  }
+
   const failed = [approve, snooze, unsnooze, dismiss, requestReview, nudge].find(
     (m) => m.error,
   )?.error
@@ -290,6 +315,7 @@ export function ReviewsPage() {
               onFind={setFind}
               hasRequests={inThisWorkspace.length > 0}
               linkTo={(id) => clientLink(searchFor({ review: id }))}
+              rowMenu={rowMenu}
               onTab={(next) =>
                 void navigate({
                   ...searchFor({ tab: next }),

@@ -14,6 +14,7 @@ import { mockAuthClient } from '#test/support/auth-client.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
 import { pageHeader } from '#test/support/header.ts'
+import { menuItemNames } from '#test/support/menu.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { expectLimitedToSpace, expectResize, parentOf } from '#test/support/resize.ts'
 import { toastNamed } from '#test/support/toast.ts'
@@ -614,5 +615,54 @@ describe('ReviewsPage list in a narrow window', () => {
       grows: 1,
       to: 740,
     })
+  })
+})
+
+const rowFor = (n: number) => page.getByRole('link', { name: new RegExp(`Build #${n}`) }).first()
+
+describe('right-click menu on a review', () => {
+  it('offers open, link, approve and snooze on a request waiting on you', async () => {
+    fakeApi({ 'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } } })
+    await show()
+    await rowFor(12).click({ button: 'right' })
+    expect(menuItemNames()).toEqual([
+      'Open review',
+      'Open in new tab',
+      'Copy link',
+      'Approve',
+      'Snooze until next push',
+      'Snooze until tomorrow',
+      'Snooze until next week',
+    ])
+  })
+
+  it('approves that review without selecting it, and Undo is offered', async () => {
+    const api = fakeApi({
+      'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } },
+      'POST /api/teams/acme/web/builds/12/review': {
+        body: {
+          build: { number: 12, reviewStatus: 'approved' },
+          undo: { id: 'ru2', expiresAt: '2099-01-01T00:00:00.000Z' },
+        },
+      },
+    })
+    await show()
+    await rowFor(12).click({ button: 'right' })
+    await page.getByRole('menuitem', { name: 'Approve' }).click()
+    await expect.poll(() => api.of('POST')[0]?.body).toEqual({ state: 'approved' })
+    await expect.element(toastNamed(/Approved/)).toBeVisible()
+  })
+
+  it('offers Nudge, not Approve, on a request you made', async () => {
+    const api = fakeApi({
+      'GET /api/reviews': { body: { tab: 'created', requests: [made()] } },
+      'POST /api/teams/acme/web/review-requests/r1/nudge': { body: { id: 'r1', nudged: true } },
+    })
+    await show('/workspaces/acme/reviews?tab=created')
+    await page.getByRole('link').filter({ hasText: /Build/ }).first().click({ button: 'right' })
+    expect(menuItemNames()).toEqual(['Open review', 'Open in new tab', 'Copy link', 'Nudge Dana'])
+    await page.getByRole('menuitem', { name: 'Nudge Dana' }).click()
+    await expect.poll(() => api.of('POST').length).toBe(1)
+    await expect.element(toastNamed('Nudged Dana Levi')).toBeVisible()
   })
 })

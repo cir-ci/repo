@@ -4,6 +4,7 @@ import {
   Avatar,
   Badge,
   CheckCheckIcon,
+  ContextMenu,
   EmptyState,
   ListGroup,
   ListRow,
@@ -12,6 +13,7 @@ import {
   SegmentedControl,
   SendIcon,
   StatusIcon,
+  type Menu,
 } from '@circi/ui'
 import type { MouseEventHandler, ReactNode } from 'react'
 
@@ -52,6 +54,7 @@ export function ReviewList({
   listRef,
   rowProps,
   linkTo,
+  rowMenu,
   onTab,
 }: ReviewList.Props) {
   const teamMark = useTeamMark(workspace)
@@ -129,66 +132,68 @@ export function ReviewList({
                   const link = linkTo(r.id)
                   return (
                     <li key={r.id} {...rowProps(r.id)}>
-                      <ListRow
-                        density="two-line"
-                        selected={r.id === selectedId}
-                        href={link.href}
-                        onClick={link.onClick}
-                        leading={
-                          <StatusIcon
-                            status={requestStatus(r).status}
-                            label={requestStatus(r).label}
-                            size={14}
-                          />
-                        }
-                        trailing={
-                          <span className={styles.itemSide}>
-                            {who ? <Avatar type="user" {...who} size={20} /> : null}
-                            <RelativeTime iso={r.createdAt} />
-                          </span>
-                        }
-                        title={<span title={requestName(r)}>{requestTitle(r)}</span>}
-                        subtitle={
-                          <span className={styles.itemSub}>
-                            {teamMark(r.team.slug, r.team.name)}
-                            <span>{r.team.name}</span>
-                            <span aria-hidden="true">·</span>
-                            <span className={styles.branch}>{requestRef(r.build)}</span>
-                          </span>
-                        }
-                      >
-                        <>
-                          {overdue || r.snoozedUntil || why || decision ? (
-                            <span className={styles.chips}>
-                              {decision ? (
-                                <Badge
-                                  tone="state"
-                                  state={r.decision === 'approved' ? 'approved' : 'rejected'}
-                                  shape="tag"
-                                >
-                                  {decision}
-                                </Badge>
-                              ) : null}
-                              {why ? <Badge shape="tag">{why}</Badge> : null}
-                              {overdue ? (
-                                <Badge tone="state" state="failed" shape="tag">
-                                  {overdue}
-                                </Badge>
-                              ) : null}
-                              {r.snoozedUntil ? (
-                                <Badge shape="tag">
-                                  <time
-                                    dateTime={r.snoozedUntil}
-                                    title={`Until ${new Date(r.snoozedUntil).toLocaleString()}`}
-                                  >
-                                    {snoozedLabel(r.snoozedUntil, Date.now())}
-                                  </time>
-                                </Badge>
-                              ) : null}
+                      <ContextMenu items={rowMenu(r)}>
+                        <ListRow
+                          density="two-line"
+                          selected={r.id === selectedId}
+                          href={link.href}
+                          onClick={link.onClick}
+                          leading={
+                            <StatusIcon
+                              status={requestStatus(r).status}
+                              label={requestStatus(r).label}
+                              size={14}
+                            />
+                          }
+                          trailing={
+                            <span className={styles.itemSide}>
+                              {who ? <Avatar type="user" {...who} size={20} /> : null}
+                              <RelativeTime iso={r.createdAt} />
                             </span>
-                          ) : null}
-                        </>
-                      </ListRow>
+                          }
+                          title={<span title={requestName(r)}>{requestTitle(r)}</span>}
+                          subtitle={
+                            <span className={styles.itemSub}>
+                              {teamMark(r.team.slug, r.team.name)}
+                              <span>{r.team.name}</span>
+                              <span aria-hidden="true">·</span>
+                              <span className={styles.branch}>{requestRef(r.build)}</span>
+                            </span>
+                          }
+                        >
+                          <>
+                            {overdue || r.snoozedUntil || why || decision ? (
+                              <span className={styles.chips}>
+                                {decision ? (
+                                  <Badge
+                                    tone="state"
+                                    state={r.decision === 'approved' ? 'approved' : 'rejected'}
+                                    shape="tag"
+                                  >
+                                    {decision}
+                                  </Badge>
+                                ) : null}
+                                {why ? <Badge shape="tag">{why}</Badge> : null}
+                                {overdue ? (
+                                  <Badge tone="state" state="failed" shape="tag">
+                                    {overdue}
+                                  </Badge>
+                                ) : null}
+                                {r.snoozedUntil ? (
+                                  <Badge shape="tag">
+                                    <time
+                                      dateTime={r.snoozedUntil}
+                                      title={`Until ${new Date(r.snoozedUntil).toLocaleString()}`}
+                                    >
+                                      {snoozedLabel(r.snoozedUntil, Date.now())}
+                                    </time>
+                                  </Badge>
+                                ) : null}
+                              </span>
+                            ) : null}
+                          </>
+                        </ListRow>
+                      </ContextMenu>
                     </li>
                   )
                 })}
@@ -252,6 +257,8 @@ export namespace ReviewList {
     rowProps: (id: string) => { 'data-row-id': string }
     /** A link to this page with other search params (the tab, or the selected review). */
     linkTo: (review: string) => { href: string; onClick: MouseEventHandler<HTMLElement> }
+    /** A row's right-click menu. */
+    rowMenu: (review: Review.Request) => Menu.Entry[]
     onTab: (tab: Review.Tab) => void
   }
 }
