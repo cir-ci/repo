@@ -10,6 +10,7 @@ import {
   overdueLabel,
   reasonLabel,
   requestName,
+  requestTitle,
   requestRef,
   requestStatus,
   REVIEW_TABS,
@@ -28,7 +29,8 @@ export function ReviewList({
   workspace,
   userId,
   tab,
-  total,
+  pending,
+  snoozed,
   groups,
   selectedId,
   listRef,
@@ -44,9 +46,15 @@ export function ReviewList({
     <aside className={styles.sub} aria-label="Reviews">
       <div className={styles.subTop}>
         <span>Reviews</span>
-        <span role="status" className={styles.count}>
-          {total}
-        </span>
+        {pending > 0 ? (
+          <span
+            role="status"
+            className={styles.count}
+            aria-label={`${pending} ${pending === 1 ? 'review' : 'reviews'} waiting on you`}
+          >
+            {pending}
+          </span>
+        ) : null}
       </div>
       <div className={styles.tabs} role="group" aria-label="Which reviews">
         {REVIEW_TABS.map((t) => (
@@ -58,6 +66,12 @@ export function ReviewList({
             onClick={() => onTab(t.value)}
           >
             {t.label}
+            {t.value === 'for-you' && pending > 0 ? (
+              <span className={styles.tabCount}>{pending}</span>
+            ) : null}
+            {t.value === 'snoozed' && snoozed > 0 ? (
+              <span className={styles.tabCount}>{snoozed}</span>
+            ) : null}
           </button>
         ))}
       </div>
@@ -106,7 +120,7 @@ export function ReviewList({
                       >
                         <span className={styles.item}>
                           <span className={styles.itemTitle} title={requestName(r)}>
-                            Build #{r.build.number}
+                            {requestTitle(r)}
                           </span>
                           <span className={styles.itemSub}>
                             {teamMark(r.team.slug, r.team.name)}
@@ -180,8 +194,10 @@ export namespace ReviewList {
     /** The signed-in person, so a reason chip can say "You". */
     userId: string | undefined
     tab: Review.Tab
-    /** "3 reviews" */
-    total: string
+    /** Requests waiting on you in this workspace (the "Requested from you" count). */
+    pending: number
+    /** Requests you put off in this workspace. */
+    snoozed: number
     groups: readonly RequestGroup[]
     selectedId: string | undefined
     listRef: (el: HTMLElement | null) => void

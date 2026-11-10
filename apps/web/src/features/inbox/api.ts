@@ -26,7 +26,7 @@ export function validateInboxSearch(search: Record<string, unknown>): InboxSearc
 /** The tabs with the Snoozed count beside its name ("Snoozed 3"); nothing while nothing is snoozed. */
 export function inboxTabs(snoozed: number): readonly { value: Inbox.Tab; label: string }[] {
   return INBOX_TABS.map((t) =>
-    t.value === 'snoozed' && snoozed > 0 ? { ...t, label: `${t.label} ${snoozed}` } : t,
+    t.value === 'snoozed' && snoozed > 0 ? { value: t.value, label: `${t.label} ${snoozed}` } : t,
   )
 }
 

@@ -10,7 +10,8 @@
   flex: none;
   flex-direction: column;
   box-sizing: border-box;
-  width: 340px;
+  /* Wide enough for the five tabs on one row at ordinary widths. */
+  width: clamp(340px, 36vw, 520px);
   min-height: 0;
   border-right: 1px solid var(--circi-line-subtle);
 }
@@ -53,6 +54,11 @@
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
+}
+
+.tabCount {
+  color: var(--circi-text-tertiary);
+  font-weight: 500;
 }
 
 .tab:hover {
@@ -199,6 +205,11 @@
 
 .mono {
   font-family: var(--circi-font-mono, ui-monospace, monospace);
+}
+
+.waiting {
+  color: var(--circi-text-secondary);
+  font-size: 12px;
 }
 
 .actions {

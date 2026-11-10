@@ -105,9 +105,11 @@ describe('ReviewsPage', () => {
     await expect.element(list.getByText('feature-12')).toBeVisible()
     await expect.element(list.getByRole('img', { name: 'Ada Lovelace' }).first()).toBeVisible()
     await expect.element(list.getByText('Overdue 3h')).toBeVisible()
-    await expect.element(page.getByRole('status').getByText('2 reviews')).toBeVisible()
     await expect
-      .element(page.getByRole('button', { name: 'Requested from you' }))
+      .element(page.getByRole('status', { name: '2 reviews waiting on you' }))
+      .toBeVisible()
+    await expect
+      .element(page.getByRole('button', { name: 'Requested from you 2' }))
       .toHaveAttribute('aria-pressed', 'true')
     // Nothing is selected until one is chosen.
     await expect.element(page.getByText('Select a review')).toBeVisible()
@@ -129,12 +131,13 @@ describe('ReviewsPage', () => {
       },
     })
     await show('/workspaces/acme/reviews?tab=reviewed&review=r1')
+    // The same answer for every tab: the counts (2 waiting, 2 snoozed) come from their own lists.
     for (const name of [
-      'Requested from you',
+      'Requested from you 1',
       'Reviewed',
       'Created by you',
       'All open',
-      'Snoozed',
+      'Snoozed 1',
     ]) {
       // oxlint-disable-next-line no-await-in-loop -- five tabs
       await expect.element(page.getByRole('button', { name, exact: true })).toBeVisible()
@@ -394,5 +397,56 @@ describe('ReviewsPage', () => {
     await expect.element(page.getByRole('img', { name: 'Bo' }).first()).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Approve all' })).not.toBeInTheDocument()
     await expect.element(page.getByRole('button', { name: 'Snooze' })).not.toBeInTheDocument()
+  })
+})
+
+const made = (over: Record<string, unknown> = {}) =>
+  request('r1', 12, {
+    reviewer: { id: 'u3', name: 'Dana Levi', image: null },
+    requestedBy: { id: 'u1', name: 'Me', image: null },
+    ...over,
+  })
+
+describe('ReviewsPage requests you made', () => {
+  it('says who it waits on and offers Nudge, not Approve all, Request review or Dismiss', async () => {
+    const api = fakeApi({
+      'GET /api/reviews': { body: { tab: 'created', requests: [made()] } },
+      'POST /api/teams/acme/web/review-requests/r1/nudge': { body: { id: 'r1', nudged: true } },
+    })
+    await show('/workspaces/acme/reviews?tab=created&review=r1')
+    await expect.element(page.getByText(/Waiting on Dana Levi · requested/)).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Approve all' })).not.toBeInTheDocument()
+    await expect
+      .element(page.getByRole('button', { name: 'Request review' }))
+      .not.toBeInTheDocument()
+    await expect.element(page.getByRole('button', { name: 'Dismiss' })).not.toBeInTheDocument()
+    await page.getByRole('button', { name: 'Nudge Dana' }).click()
+    await expect.poll(() => api.of('POST').length).toBe(1)
+    await expect.element(page.getByRole('button', { name: 'Nudged' })).toBeDisabled()
+  })
+
+  it('keeps Approve all on a request that is yours to decide', async () => {
+    fakeApi({ 'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } } })
+    await show('/workspaces/acme/reviews?review=r1')
+    await expect.element(page.getByRole('button', { name: 'Approve all' })).toBeVisible()
+    await expect.element(page.getByRole('button', { name: /Nudge/ })).not.toBeInTheDocument()
+  })
+
+  it('shows the build name in the row, the open-the-review hint and the workspace crumb', async () => {
+    fakeApi({
+      'GET /api/reviews': {
+        body: {
+          tab: 'for-you',
+          requests: [
+            request('r1', 12, { build: { ...request('r1', 12).build, name: 'storybook' } }),
+          ],
+        },
+      },
+    })
+    await show()
+    await expect.element(page.getByRole('link', { name: /Build #12 · storybook/ })).toBeVisible()
+    await expect.element(page.getByText('Select a review')).toBeVisible()
+    await expect.element(page.getByRole('link', { name: 'acme' })).toBeVisible()
+    expect(document.body.textContent).toContain('↵ open the review')
   })
 })

@@ -4,24 +4,28 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 
+import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { focusRow, leavesKeyToFocus, nextAfterRemoval } from '#lib/list-keys.ts'
-import { PageHeading } from '#lib/PageHeading.tsx'
+import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
+import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
 import { useClientLink } from '#lib/use-client-link.ts'
 import { useListNavigation } from '#lib/use-list-navigation.ts'
 
 import {
+  firstName,
   groupRequests,
-  requestCount,
+  isWaitingOnOther,
   requestName,
   isProcessing,
   reviewsQuery,
   useApproveRequest,
   useDismissRequest,
+  useNudgeRequest,
   useRequestReview,
   useSnoozeRequest,
   useUnsnoozeRequest,
@@ -50,6 +54,14 @@ export function ReviewsPage() {
   const userId = session?.user.id
   const query = useQuery(reviewsQuery(tab))
   const { data } = query
+  const names = useCrumbNames(workspace)
+  // The counts beside "Reviews" and the tabs are the same whichever tab is open.
+  const forYou = useQuery({ ...reviewsQuery('for-you'), enabled: tab !== 'for-you' })
+  const snoozedList = useQuery({ ...reviewsQuery('snoozed'), enabled: tab !== 'snoozed' })
+  const inWorkspace = (list: { requests: Review.Request[] } | undefined) =>
+    (list?.requests ?? []).filter((r) => r.workspace.slug === workspace).length
+  const pending = inWorkspace(tab === 'for-you' ? data : forYou.data)
+  const snoozedCount = inWorkspace(tab === 'snoozed' ? data : snoozedList.data)
 
   const [snoozeOpen, setSnoozeOpen] = useState(false)
   const [picking, setPicking] = useState(false)
@@ -59,6 +71,8 @@ export function ReviewsPage() {
   const unsnooze = useUnsnoozeRequest()
   const dismiss = useDismissRequest()
   const requestReview = useRequestReview()
+  const nudge = useNudgeRequest()
+  const [nudged, setNudged] = useState<ReadonlySet<string>>(new Set())
 
   // This page is one workspace's reviews; the list spans all of the person's.
   const requests = (data?.requests ?? []).filter((r) => r.workspace.slug === workspace)
@@ -66,8 +80,10 @@ export function ReviewsPage() {
   const items = groups.flatMap((g) => g.items)
   // No review in the address means none is selected: the panel invites a choice.
   const selected = items.find((r) => r.id === review)
+  const waiting = selected !== undefined && isWaitingOnOther(selected, userId)
   const can = {
     approve:
+      !waiting &&
       tab !== 'created' &&
       tab !== 'reviewed' &&
       selected !== undefined &&
@@ -130,11 +146,21 @@ export function ReviewsPage() {
       if (selected && can.snooze) setSnoozeOpen(true)
     },
     requestReview: () => {
-      if (selected) setPicking(true)
+      if (selected && !waiting) setPicking(true)
     },
   })
 
-  const failed = [approve, snooze, unsnooze, dismiss, requestReview].find((m) => m.error)?.error
+  const doNudge = (r: Review.Request) =>
+    nudge.mutate(r, {
+      onSuccess: () => {
+        setNudged((ids) => new Set(ids).add(r.id))
+        announce(`Nudged ${r.reviewer.name}`)
+      },
+    })
+
+  const failed = [approve, snooze, unsnooze, dismiss, requestReview, nudge].find(
+    (m) => m.error,
+  )?.error
   const buildLink = selected
     ? clientLink({
         to: '/$workspace/$team/builds/$number',
@@ -150,10 +176,29 @@ export function ReviewsPage() {
   return (
     <>
       <PageHeading
+        crumbs={crumbsFor(names)}
         title="Reviews"
         actions={
           selected ? (
             <>
+              {waiting ? (
+                <>
+                  <span className={styles.waiting}>
+                    Waiting on {selected.reviewer.name} · requested{' '}
+                    <RelativeTime iso={selected.createdAt} />
+                  </span>
+                  <Button
+                    size="sm"
+                    disabled={nudged.has(selected.id)}
+                    loading={nudge.isPending}
+                    onClick={() => doNudge(selected)}
+                  >
+                    {nudged.has(selected.id)
+                      ? 'Nudged'
+                      : `Nudge ${firstName(selected.reviewer.name)}`}
+                  </Button>
+                </>
+              ) : null}
               {can.snooze ? (
                 <SnoozeMenu
                   open={snoozeOpen}
@@ -171,7 +216,7 @@ export function ReviewsPage() {
                   Open review
                 </Button>
               ) : null}
-              {tab !== 'created' && tab !== 'reviewed' ? (
+              {tab !== 'created' && tab !== 'reviewed' && !waiting ? (
                 <Button
                   size="sm"
                   variant="primary"
@@ -193,7 +238,8 @@ export function ReviewsPage() {
               workspace={workspace}
               userId={userId}
               tab={tab}
-              total={requestCount(requests.length)}
+              pending={pending}
+              snoozed={snoozedCount}
               groups={groups}
               selectedId={selected?.id}
               listRef={listRef}
@@ -216,10 +262,12 @@ export function ReviewsPage() {
                       Unsnooze
                     </Button>
                   ) : null}
-                  <Button size="sm" aria-keyshortcuts="shift+r" onClick={() => setPicking(true)}>
-                    Request review
-                  </Button>
-                  {tab === 'reviewed' ? null : (
+                  {waiting ? null : (
+                    <Button size="sm" aria-keyshortcuts="shift+r" onClick={() => setPicking(true)}>
+                      Request review
+                    </Button>
+                  )}
+                  {tab === 'reviewed' || waiting ? null : (
                     <Button size="sm" onClick={() => doDismiss(selected)}>
                       Dismiss
                     </Button>
@@ -237,7 +285,7 @@ export function ReviewsPage() {
                       : 'Pick a build from the list to read it here.'}
                   </p>
                   <span className={styles.hints}>
-                    <Kbd>J</Kbd> <Kbd>K</Kbd> move through the list · <Kbd>↵</Kbd> open the build
+                    <Kbd>J</Kbd> <Kbd>K</Kbd> move through the list · <Kbd>↵</Kbd> open the review
                   </span>
                 </div>
               )}

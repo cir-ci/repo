@@ -215,6 +215,23 @@ export function requestName(r: Review.Request): string {
     .join(', ')
 }
 
+/** The row's title: "Build #148", with the build's name after it unless it is the default one. */
+export function requestTitle(r: Review.Request): string {
+  return r.build.name === 'default'
+    ? `Build #${r.build.number}`
+    : `Build #${r.build.number} · ${r.build.name}`
+}
+
+/**
+ * Whether this person asked for the review and it waits on somebody else: the request shows
+ * who it waits on, and can be nudged, instead of being theirs to approve.
+ */
+export const isWaitingOnOther = (r: Review.Request, userId: string | undefined) =>
+  userId !== undefined && r.reviewer.id !== userId && r.requestedBy?.id === userId
+
+/** A first name for a button: "Nudge Dana". */
+export const firstName = (name: string) => name.split(/\s+/)[0] ?? name
+
 /** "3 reviews", "1 review"; what the list announces. */
 export const requestCount = (n: number) => `${n} ${n === 1 ? 'review' : 'reviews'}`
 
@@ -255,6 +272,13 @@ export function useUnsnoozeRequest() {
     mutationFn: (r: Review.Request) =>
       post(requestPath(r, 'review-requests', r.id, 'unsnooze'), {}),
     onSuccess: () => refresh(),
+  })
+}
+
+/** Tells the reviewer again; the server allows it once per 24 hours, and only to whoever asked. */
+export function useNudgeRequest() {
+  return useMutation({
+    mutationFn: (r: Review.Request) => post(requestPath(r, 'review-requests', r.id, 'nudge'), {}),
   })
 }
 
