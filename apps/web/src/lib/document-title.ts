@@ -9,7 +9,8 @@ export function documentTitle(parts: readonly (string | undefined)[], installed:
   return installed && named.length > 0 ? named.join(' · ') : [...named, 'CirCI'].join(' · ')
 }
 
-const isInstalled = () =>
+/** Whether the dashboard runs as the installed app (its own window, no browser tabs). */
+export const isInstalled = () =>
   typeof window !== 'undefined' &&
   typeof window.matchMedia === 'function' &&
   window.matchMedia(INSTALLED).matches

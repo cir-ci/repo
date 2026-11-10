@@ -1,6 +1,7 @@
 import type { Menu } from '@circi/ui'
 
 import { clipboard } from '#lib/clipboard.ts'
+import { isInstalled } from '#lib/document-title.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 import { toast } from '#lib/toast.ts'
 
@@ -24,7 +25,10 @@ export function copyLinkItem(href: string): Menu.Item {
   return { label: 'Copy link', onSelect: () => void copyText(absolute(href), 'Link') }
 }
 
-export function openInNewTabItem(href: string): Menu.Item {
+export function openInNewTabItem(href: string): Menu.Item | false {
+  // The installed app has no browser tabs: the browser would open a second app window. Its own
+  // tabs will take this over; until then the item isn't offered there.
+  if (isInstalled()) return false
   return {
     label: 'Open in new tab',
     onSelect: () => void window.open(absolute(href), '_blank', 'noopener'),
