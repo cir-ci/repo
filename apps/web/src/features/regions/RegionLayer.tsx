@@ -1,12 +1,11 @@
 import type { Comment, IgnoreRegion } from '@circi/api'
-import { Avatar, Button, Kbd, useAnnounce, visuallyHidden } from '@circi/ui'
+import { Avatar, Button, Kbd, Popover, PopoverClose, useAnnounce, visuallyHidden } from '@circi/ui'
 import {
   type KeyboardEvent,
   type PointerEvent,
   type RefObject,
   useEffect,
   useId,
-  useLayoutEffect,
   useRef,
   useState,
 } from 'react'
@@ -22,7 +21,6 @@ import {
   MIN_REGION_PX,
   nudgeRegion,
   type Point,
-  popoverSide,
   regionFromPoints,
   regionStyle,
   START_REGION,
@@ -230,7 +228,6 @@ export function RegionLayer({ annotations, gesture }: RegionLayer.Props) {
             annotations.pendingKey ??
             `${annotations.pending.x}:${annotations.pending.y}:${annotations.pending.width}:${annotations.pending.height}`
           }
-          region={pendingBox.region}
           anchor={pendingRef}
           {...annotations.composer}
         />
@@ -298,12 +295,15 @@ export namespace RegionOverlay {
 const NO_MEMBERS: readonly Mention.Member[] = []
 
 /**
- * The comment box for a region that was just selected: 232px wide, below the region with its left
- * edge on the region's, or above it when there is less than 200px of room below. The field has
- * focus on open; @ lists members (Esc closes that list first); Esc cancels, ⌘/Ctrl+Enter sends, and Send waits for some text.
+ * The comment box for a region that was just selected: a `Popover` 232px wide anchored to the
+ * region's marker, below it with its left edge on the region's, flipping above (and shifting along
+ * the edge) when there is no room. The field has focus on open and Tab stays inside the box;
+ * closing returns focus to where it was. @ lists members (Esc closes that list first); Esc or
+ * Cancel cancels, ⌘/Ctrl+Enter sends, and Send waits for some text. A click outside dismisses the
+ * box while it's empty (nothing typed means nothing to lose); with text in it, it stays until
+ * Cancel or Esc.
  */
 function RegionComposer({
-  region,
   anchor,
   onSend,
   onCancel,
@@ -313,66 +313,40 @@ function RegionComposer({
   members = NO_MEMBERS,
 }: RegionComposer.Props) {
   const [body, setBody] = useState('')
-  const [side, setSide] = useState<'below' | 'above'>('below')
   const field = useRef<HTMLTextAreaElement>(null)
   const errorId = useId()
   const text = body.trim()
-
-  // Measuring the region on screen is the one thing a render cannot know: place before paint, and
-  // again when the region moves (the box follows it, and may need to go above instead).
-  useLayoutEffect(() => {
-    const box = anchor.current?.getBoundingClientRect()
-    // oxlint-disable-next-line react/set-state-in-effect
-    if (box) setSide(popoverSide(window.innerHeight - box.bottom))
-    // oxlint-disable-next-line react/exhaustive-effect-dependencies
-  }, [anchor, region])
-
-  useEffect(() => {
-    field.current?.focus()
-  }, [])
-
-  // A click outside dismisses the box while it's empty: nothing typed means nothing to lose. With
-  // text in it, it stays until Cancel or Esc.
-  const dialog = useRef<HTMLDivElement>(null)
   const empty = text === '' && !sending
-  useEffect(() => {
-    if (!empty) return undefined
-    const onPointerDown = (event: globalThis.PointerEvent) => {
-      if (event.target instanceof Node && dialog.current?.contains(event.target)) return
-      onCancel()
-    }
-    document.addEventListener('pointerdown', onPointerDown, true)
-    return () => document.removeEventListener('pointerdown', onPointerDown, true)
-  }, [empty, onCancel])
 
   const send = () => {
     if (text !== '' && !sending) onSend(text)
   }
 
   return (
-    <div
-      ref={dialog}
-      role="dialog"
-      aria-label="Comment on this region"
+    <Popover
+      open
+      modal="trap-focus"
+      label="Comment on this region"
+      anchor={anchor}
+      sideOffset={10}
+      arrow
+      initialFocus={field}
       className={styles.popover}
-      data-side={side}
-      style={{
-        left: `min(${region.x * 100}%, calc(100% - 232px))`,
-        ...(side === 'below'
-          ? { top: `calc(${(region.y + region.height) * 100}% + 10px)` }
-          : { bottom: `calc(${(1 - region.y) * 100}% + 10px)` }),
+      onOpenChange={(open, details) => {
+        if (open || details.reason === 'focus-out') return
+        if (details.reason === 'outside-press' && !empty) return
+        onCancel()
       }}
-      onPointerDown={(e) => e.stopPropagation()}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          e.preventDefault()
-          e.stopPropagation()
-          onCancel()
-        } else if (isSubmitKey(e)) {
-          e.preventDefault()
-          e.stopPropagation()
-          send()
-        }
+      popupProps={{
+        // The layer under the box starts a drag on a pointer press: not one inside the box.
+        onPointerDown: (e) => e.stopPropagation(),
+        onKeyDown: (e) => {
+          if (isSubmitKey(e)) {
+            e.preventDefault()
+            e.stopPropagation()
+            send()
+          }
+        },
       }}
     >
       <div className={styles.who}>
@@ -398,14 +372,14 @@ function RegionComposer({
         </span>
       ) : null}
       <div className={styles.actions}>
-        <Button size="sm" variant="ghost" onClick={onCancel}>
+        <PopoverClose size="sm" variant="ghost">
           Cancel <Kbd>Esc</Kbd>
-        </Button>
+        </PopoverClose>
         <Button size="sm" variant="primary" disabled={text === ''} loading={sending} onClick={send}>
           Send <Kbd>⌘↵</Kbd>
         </Button>
       </div>
-    </div>
+    </Popover>
   )
 }
 
@@ -423,8 +397,7 @@ export namespace RegionComposer {
   }
 
   export interface Props extends Callbacks {
-    region: Comment.Region
-    /** The marker of the region, to measure the room below it. */
+    /** The marker of the region: the box points at it. */
     anchor: RefObject<HTMLElement | null>
   }
 }

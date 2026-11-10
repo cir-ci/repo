@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { draftOf, draftRegion, type RegionDraft } from '#features/builds/region-draft.ts'
-import { popoverSide, regionFromPoints } from '#features/regions/geometry.ts'
+import { regionFromPoints } from '#features/regions/geometry.ts'
 
 const draft: RegionDraft = {
   shotId: 's1',
@@ -31,11 +31,5 @@ describe('drawing by pointer', () => {
     expect(regionFromPoints(box, { x: 10, y: 10 }, { x: 17, y: 100 }, 8)).toBeNull()
     expect(regionFromPoints(box, { x: 10, y: 10 }, { x: 100, y: 17 }, 8)).toBeNull()
     expect(regionFromPoints(box, { x: 10, y: 10 }, { x: 18, y: 18 }, 8)).not.toBeNull()
-  })
-
-  it('puts the popover below the region, and above it with under 200px of room', () => {
-    expect(popoverSide(400)).toBe('below')
-    expect(popoverSide(200)).toBe('below')
-    expect(popoverSide(199)).toBe('above')
   })
 })

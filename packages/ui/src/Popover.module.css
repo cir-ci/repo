@@ -38,3 +38,35 @@
     transition: none;
   }
 }
+
+.arrow {
+  display: flex;
+}
+
+.arrow::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: var(--circi-surface-overlay);
+  border: 1px solid var(--circi-line-strong);
+}
+
+.arrow[data-side='bottom'] {
+  top: -5px;
+}
+
+.arrow[data-side='bottom']::before {
+  transform: rotate(45deg);
+  border-right: 0;
+  border-bottom: 0;
+}
+
+.arrow[data-side='top'] {
+  bottom: -5px;
+}
+
+.arrow[data-side='top']::before {
+  transform: rotate(45deg);
+  border-top: 0;
+  border-left: 0;
+}

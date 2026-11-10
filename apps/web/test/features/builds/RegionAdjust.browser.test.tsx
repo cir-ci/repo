@@ -69,7 +69,8 @@ const handleOf = (host: Element, corner: string) => {
 }
 
 /** The image the regions are fractions of: where a drag's points are measured from. */
-const imageEl = () => trigger('This build').element()
+// (Looked up by label: the page behind the open comment box is out of the accessibility tree.)
+const imageEl = () => page.getByLabelText(/^Enlarge This build/).element()
 
 /** A point of the image given as fractions of it (the page may show it at any size). */
 function onImage(image: Element, fx: number, fy: number) {

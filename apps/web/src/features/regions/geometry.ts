@@ -81,17 +81,6 @@ export function nudgeRegion(
   return { ...region, x: round4(x), y: round4(y) }
 }
 
-/**
- * Where a popover for `region` goes: below it with its left edge on the region's, or above it
- * when the room below the region (`roomBelow`, in pixels) is under `needed`.
- */
-export function popoverSide(roomBelow: number, needed = POPOVER_ROOM): 'below' | 'above' {
-  return roomBelow < needed ? 'above' : 'below'
-}
-
-/** The room a region popover needs below its region before it flips above. */
-export const POPOVER_ROOM = 200
-
 const percent = (n: number) => `${Math.round(n * 100)}%`
 
 /** What a screen reader hears for the tool's region: "40% from the left, 40% from the top, 20% wide, 20% high". */

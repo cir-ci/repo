@@ -160,6 +160,7 @@ describe('the build page on a phone', () => {
     image.style.width = '400px'
     image.style.height = '300px'
     const draw = page.getByRole('button', { name: 'Draw a region' })
+    const drawButton = draw.element()
     await expect.element(draw).toHaveAttribute('aria-pressed', 'false')
     // Off: a finger on the image draws nothing.
     await userEvent.dragAndDrop(trigger(), trigger(), {
@@ -182,7 +183,8 @@ describe('the build page on a phone', () => {
     })
     // Drawing leaves draw mode and keeps the region, with its comment box.
     await expect.element(page.getByRole('dialog', { name: 'Comment on this region' })).toBeVisible()
-    await expect.element(draw).toHaveAttribute('aria-pressed', 'false')
+    // (The page behind the box is out of the accessibility tree while it traps focus.)
+    expect(drawButton).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('lets draw mode be left with Done', async () => {

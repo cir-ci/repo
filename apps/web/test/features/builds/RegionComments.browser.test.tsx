@@ -77,7 +77,8 @@ describe('region comments in the enlarged view', () => {
     await expect.element(send).toBeDisabled()
     // Arrow keys belong to the box while it has focus: no image switch.
     await userEvent.keyboard('{ArrowRight}Wrong colour')
-    await expect.element(enlarged()).toBeVisible()
+    // (The dialog is hidden from role queries while the box traps focus: look for its title.)
+    await expect.element(page.getByText('Baseline · #6 on main').first()).toBeVisible()
     await send.click()
     await vi.waitFor(() => expect(api.commentPosts).toHaveLength(1))
     expect(api.commentPosts[0]?.regionSide).toBe('baseline')
@@ -213,17 +214,54 @@ describe('region comments are always on', () => {
 
   it('a click outside closes the popover while it is empty, and keeps it once something is typed', async () => {
     const api = await ready()
+    // While the box is open the page behind it is out of the accessibility tree: keep the element.
+    const title = viewerTitle().element()
     await drag('This build')
     await expect.element(popover()).toBeVisible()
-    await userEvent.click(viewerTitle())
+    await userEvent.click(title)
     await expect.element(popover()).not.toBeInTheDocument()
 
     await drag('This build')
     await userEvent.keyboard('keep me')
-    await userEvent.click(viewerTitle())
+    await userEvent.click(title)
     await expect.element(popover()).toBeVisible()
     await expect.element(popover().getByRole('combobox')).toHaveValue('keep me')
     expect(api.commentPosts).toEqual([])
+  })
+
+  it('keeps Tab inside the box and returns focus to the image when it closes', async () => {
+    await ready()
+    trigger('This build').element().focus()
+    await drag('This build')
+    await expect.element(popover().getByRole('combobox')).toHaveFocus()
+    await userEvent.keyboard('x')
+    const inside = popover().element()
+    const tabbed = async () => {
+      await userEvent.tab()
+      expect(inside.contains(document.activeElement)).toBe(true)
+    }
+    // Field, Cancel, Send, and round again.
+    await tabbed()
+    await tabbed()
+    await tabbed()
+    await tabbed()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(popover()).not.toBeInTheDocument()
+    expect(document.activeElement).not.toBe(document.body)
+  })
+
+  it('opens above the region when there is no room below it, and stays inside the window', async () => {
+    await page.viewport(1400, 420)
+    await ready()
+    await drag('This build', { x: 40, y: 200 }, { x: 200, y: 280 })
+    await expect.element(popover()).toBeVisible()
+    const box = popover().element().getBoundingClientRect()
+    const marker = page.getByTestId('region-layer').elements()
+    expect(marker.length).toBeGreaterThan(0)
+    const region = document.querySelector('[data-pending]')!.getBoundingClientRect()
+    expect(box.bottom).toBeLessThanOrEqual(region.top + 1)
+    expect(box.top).toBeGreaterThanOrEqual(0)
+    expect(box.right).toBeLessThanOrEqual(window.innerWidth)
   })
 
   it('a click without a drag opens the enlarged view instead, and arrows switch images', async () => {
@@ -251,8 +289,12 @@ describe('region comments are always on', () => {
     await ready()
     await drag('Baseline')
     await expect.element(popover()).toBeVisible()
-    const owner = popover().element().closest('figure')
-    expect(owner?.textContent).toContain('Baseline')
+    // The box is in a portal: it points at the marker, which is in the Baseline figure.
+    const owner = page
+      .getByLabelText(/^Enlarge Baseline/)
+      .element()
+      .closest('figure')
+    expect(owner?.querySelector('[data-pending]')).not.toBeNull()
     expect(page.getByTestId('region-layer').elements()).toHaveLength(2)
     expect(
       page.getByTestId('region-layer').elements()[1]?.querySelector('[data-pending]'),
@@ -275,9 +317,10 @@ describe('region comments are always on', () => {
 
   it('drops the selection when another screenshot is chosen, and it stays gone on return', async () => {
     await ready()
+    const address = page.getByRole('link', { name: /checkout \/ address/ }).element()
     await drag('This build')
     await expect.element(popover()).toBeVisible()
-    await page.getByRole('link', { name: /checkout \/ address/ }).click()
+    await userEvent.click(address)
     await expect
       .element(page.getByRole('heading', { level: 2, name: 'checkout / address' }))
       .toBeVisible()

@@ -115,22 +115,11 @@
 }
 
 .popover {
-  position: absolute;
-  z-index: 6;
-  box-sizing: border-box;
   width: 232px;
+  max-width: none;
   padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border: 1px solid var(--circi-line-strong);
-  border-radius: 8px;
-  background: var(--circi-surface-overlay);
-  color: var(--circi-text-primary);
-  font-size: 13px;
   line-height: 1.5;
   cursor: auto;
-  pointer-events: auto;
 }
 
 .who {
@@ -139,34 +128,6 @@
   gap: 6px;
   font-size: 12px;
   font-weight: 500;
-}
-
-:root[data-circi-color-scheme='light'] .popover {
-  box-shadow: 0 8px 24px rgb(28 15 12 / 14%);
-}
-
-/* The caret points at the region. */
-.popover::before {
-  content: '';
-  position: absolute;
-  left: 18px;
-  width: 8px;
-  height: 8px;
-  background: var(--circi-surface-overlay);
-  border: 1px solid var(--circi-line-strong);
-  transform: rotate(45deg);
-}
-
-.popover[data-side='below']::before {
-  top: -5px;
-  border-right: 0;
-  border-bottom: 0;
-}
-
-.popover[data-side='above']::before {
-  bottom: -5px;
-  border-top: 0;
-  border-left: 0;
 }
 
 .field {
