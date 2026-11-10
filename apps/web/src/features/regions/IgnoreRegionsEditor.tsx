@@ -5,9 +5,11 @@ import {
   ConfirmDialog,
   Dialog,
   Heading,
+  IconButton,
   ImageDialog,
   NumberField,
   Text,
+  Tooltip,
   useAnnounce,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
@@ -32,14 +34,15 @@ import {
   type RectFields,
   type Size,
 } from './ignore-regions.ts'
+import { type Annotations, RegionOverlay } from './RegionLayer.tsx'
 import { RegionBoxes, RegionStage } from './RegionStage.tsx'
 
 import styles from './IgnoreRegionsEditor.module.css'
 
 /**
  * One screenshot's baseline image with its ignore regions drawn over it (click to enlarge), and
- * the regions as a list: add one from numbers or by drawing it (mouse, or the keyboard tool), edit
- * or remove one. Owners and admins (`canManage`) get the controls; members see the regions. Each
+ * the regions as a list: add one from numbers or by dragging over the image (or with the keyboard
+ * tool), edit or remove one. Owners and admins (`canManage`) get the controls; members see the regions. Each
  * confirmed action applies when it is confirmed. The baseline page puts this under its header.
  */
 export function IgnoreRegionsEditor({
@@ -54,7 +57,8 @@ export function IgnoreRegionsEditor({
   const announce = useAnnounce()
   const add = useAddIgnoreRegion(workspace, team)
   const remove = useDeleteIgnoreRegion(workspace, team)
-  const [drawing, setDrawing] = useState(false)
+  // The keyboard way to place a region; dragging needs no switch.
+  const [keyboardTool, setKeyboardTool] = useState(false)
   const [pending, setPending] = useState<Comment.Region | null>(null)
   const [dialog, setDialog] = useState<RegionDialog.Target | null>(null)
   const [removing, setRemoving] = useState<{ item: IgnoreRegion.Item; number: number } | null>(null)
@@ -67,6 +71,31 @@ export function IgnoreRegionsEditor({
 
   const regions = regionsOf(data.regions, name)
   const size = sizeOf(latest)
+  // Owners and admins draw by dragging: a drag adds the region at once, a press that does not draw enlarges.
+  const annotations: Annotations | undefined =
+    canManage && size
+      ? {
+          threads: [],
+          pending,
+          focusedId: null,
+          drawing: keyboardTool,
+          onDrawingChange: setKeyboardTool,
+          onDraw: (region) => {
+            setKeyboardTool(false)
+            setPending(region)
+            add.mutate(
+              { name, ...toPixels(region, size) },
+              {
+                onSuccess: () => announce('Ignore region added'),
+                onSettled: () => setPending(null),
+              },
+            )
+          },
+          onMarker: () => {},
+          alwaysDraw: true,
+          onClick: () => setEnlarged(true),
+        }
+      : undefined
 
   return (
     <>
@@ -78,8 +107,22 @@ export function IgnoreRegionsEditor({
           {latest ? (
             <Text variant="small" tone="tertiary">
               {regions.length} ignore {regions.length === 1 ? 'region' : 'regions'} drawn over it.
-              Click to enlarge.
+              {annotations ? ' Drag to add one, click to enlarge.' : ' Click to enlarge.'}
             </Text>
+          ) : null}
+          {annotations ? (
+            // Dragging needs no button: the keyboard path stays, shown only while it has focus.
+            <span className={styles.keyTool} data-on={keyboardTool ? '' : undefined}>
+              <Tooltip content="Mark a region with the keyboard: arrow keys move it, Shift and arrow keys resize it, Enter confirms">
+                <IconButton
+                  label="Mark a region with the keyboard"
+                  aria-pressed={keyboardTool}
+                  onClick={() => setKeyboardTool(!keyboardTool)}
+                >
+                  <span aria-hidden="true">⌖</span>
+                </IconButton>
+              </Tooltip>
+            </span>
           ) : null}
         </div>
         {latest ? (
@@ -88,24 +131,8 @@ export function IgnoreRegionsEditor({
             latest={latest}
             size={size}
             regions={regions}
-            drawing={canManage && drawing}
-            onDrawingChange={setDrawing}
-            pending={pending}
+            annotations={annotations}
             onEnlarge={() => setEnlarged(true)}
-            onDraw={(region) => {
-              if (!size || !canManage) return
-              setPending(region)
-              add.mutate(
-                { name, ...toPixels(region, size) },
-                {
-                  onSuccess: () => {
-                    setDrawing(false)
-                    announce('Ignore region added')
-                  },
-                  onSettled: () => setPending(null),
-                },
-              )
-            }}
           />
         ) : (
           <Text as="p" tone="secondary" className={styles.note}>
@@ -127,15 +154,6 @@ export function IgnoreRegionsEditor({
             <span className={styles.barActions}>
               <Button size="sm" onClick={() => setDialog({ kind: 'add', name, size })}>
                 Add region
-              </Button>
-              <Button
-                variant="toggle"
-                size="sm"
-                pressed={drawing}
-                onPressedChange={setDrawing}
-                disabled={!size || add.isPending}
-              >
-                Draw region
               </Button>
             </span>
           ) : null}
@@ -191,7 +209,7 @@ export function IgnoreRegionsEditor({
             Regions are blanked out on both images before comparing, and apply to every build.
             {canManage
               ? size
-                ? ' Draw a region: drag over the image, or press Draw region and use the arrow keys (Shift resizes, Enter confirms).'
+                ? ''
                 : ' Its size is unknown, so regions can’t be drawn.'
               : ' Only owners and admins can add, change or remove ignore regions.'}
           </Text>
@@ -206,7 +224,19 @@ export function IgnoreRegionsEditor({
               caption: `${name} · build #${latest.buildNumber} on ${defaultBranch}`,
               alt: `${name} in build #${latest.buildNumber}, enlarged`,
               ...(size ? size : {}),
-              ...(size ? { overlay: <RegionBoxes regions={regions} size={size} /> } : {}),
+              ...(size
+                ? {
+                    overlay: (
+                      <>
+                        <RegionBoxes regions={regions} size={size} />
+                        {annotations ? (
+                          // The keyboard tool belongs to the inline image.
+                          <RegionOverlay annotations={{ ...annotations, drawing: false }} />
+                        ) : null}
+                      </>
+                    ),
+                  }
+                : {}),
             },
           ]}
           open={enlarged}

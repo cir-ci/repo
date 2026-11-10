@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 import { BaselinePage } from '#features/baselines/BaselinePage.tsx'
@@ -94,6 +94,18 @@ const show = (name = NAME) =>
     otherRoutes: ['/$workspace/$team/baselines', '/$workspace/$team/builds/$number'],
   })
 
+const trigger = () => page.getByRole('button', { name: `Enlarge ${NAME}` })
+
+/** The test screenshot never loads: give the image its size. */
+async function sizeImage() {
+  const shot = page.getByRole('img', { name: `${NAME} in build #148` })
+  await expect.element(shot).toBeInTheDocument()
+  shot.element().style.height = '300px'
+}
+
+const drag = (from = { x: 100, y: 60 }, to = { x: 300, y: 120 }) =>
+  userEvent.dragAndDrop(trigger(), trigger(), { sourcePosition: from, targetPosition: to })
+
 describe('BaselinePage', () => {
   it('shows the baseline image with its regions, where it came from, who approved it, and its history', async () => {
     api(true)
@@ -160,16 +172,82 @@ describe('BaselinePage', () => {
       [`POST ${API}/ignore-regions`]: { status: 201, body: region('9') },
     })
     await show()
-    await page.getByRole('button', { name: 'Draw region' }).click()
-    const layer = page.getByTestId('region-layer')
-    // The test screenshot never loads; give the image its size.
-    page.getByRole('img', { name: `${NAME} in build #148` }).element().style.height = '300px'
-    await userEvent.dragAndDrop(layer, layer, {
-      sourcePosition: { x: 100, y: 60 },
-      targetPosition: { x: 300, y: 120 },
-    })
+    await sizeImage()
+    await drag()
     await expect.poll(() => fake.of('POST')).toHaveLength(1)
     expect(fake.of('POST')[0]?.body).toMatchObject({ name: NAME, x: expect.any(Number) })
+    expect(page.getByRole('dialog').elements()).toHaveLength(0)
+  })
+
+  it('has no Draw region button: dragging is always on', async () => {
+    api(true)
+    await show()
+    await expect
+      .element(page.getByRole('button', { name: 'Add region', exact: true }))
+      .toBeVisible()
+    expect(page.getByRole('button', { name: 'Draw region' }).elements()).toHaveLength(0)
+  })
+
+  it('treats a drag under 8 pixels as a click that enlarges', async () => {
+    const fake = api(true)
+    await show()
+    await sizeImage()
+    await drag({ x: 100, y: 60 }, { x: 104, y: 150 })
+    await expect.element(page.getByRole('dialog', { name: /build #148 on main/ })).toBeVisible()
+    expect(fake.of('POST')).toHaveLength(0)
+  })
+
+  it('cancels a drag on Escape', async () => {
+    const fake = api(true)
+    await show()
+    await sizeImage()
+    // Hold the button down mid-drag. Chromium refuses pointer capture for synthetic pointers.
+    const capture = vi
+      .spyOn(Element.prototype, 'setPointerCapture')
+      .mockImplementation(() => undefined)
+    try {
+      const stage = trigger().element().parentElement!
+      const rect = stage.getBoundingClientRect()
+      const at = (type: string, x: number, y: number) =>
+        stage.dispatchEvent(
+          new PointerEvent(type, {
+            bubbles: true,
+            button: 0,
+            pointerId: 1,
+            clientX: rect.left + x,
+            clientY: rect.top + y,
+          }),
+        )
+      at('pointerdown', 100, 60)
+      at('pointermove', 300, 120)
+      await userEvent.keyboard('{Escape}')
+      at('pointerup', 300, 120)
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      expect(fake.of('POST')).toHaveLength(0)
+      expect(page.getByRole('dialog').elements()).toHaveLength(0)
+    } finally {
+      capture.mockRestore()
+    }
+  })
+
+  it('draws a region by dragging in the enlarged image', async () => {
+    const fake = api(true, {
+      [`POST ${API}/ignore-regions`]: { status: 201, body: region('9') },
+    })
+    await show()
+    await sizeImage()
+    await trigger().click()
+    const dialog = page.getByRole('dialog', { name: /build #148 on main/ })
+    await expect.element(dialog).toBeVisible()
+    const image = dialog.getByRole('img').element()
+    image.style.width = '400px'
+    image.style.height = '300px'
+    const overlay = page.getByTestId('region-overlay')
+    await userEvent.dragAndDrop(overlay, overlay, {
+      sourcePosition: { x: 40, y: 30 },
+      targetPosition: { x: 200, y: 150 },
+    })
+    await expect.poll(() => fake.of('POST')).toHaveLength(1)
   })
 
   it('draws a region from the keyboard and saves it in pixels', async () => {
@@ -177,7 +255,11 @@ describe('BaselinePage', () => {
       [`POST ${API}/ignore-regions`]: { status: 201, body: region('9') },
     })
     await show()
-    await page.getByRole('button', { name: 'Draw region' }).click()
+    // Hidden until it has focus.
+    const keyTool = page.getByRole('button', { name: 'Mark a region with the keyboard' })
+    await expect.element(keyTool).toBeInTheDocument()
+    keyTool.element().focus()
+    await userEvent.keyboard('{Enter}')
     await expect.element(page.getByRole('group', { name: 'Region to mark' })).toHaveFocus()
     await userEvent.keyboard('{ArrowDown}{Shift>}{ArrowDown}{/Shift}{Enter}')
     await expect.poll(() => fake.of('POST')).toHaveLength(1)
@@ -217,8 +299,21 @@ describe('BaselinePage', () => {
       .toBeVisible()
     expect(page.getByRole('button', { name: 'Add region' }).elements()).toHaveLength(0)
     expect(page.getByRole('button', { name: 'Draw region' }).elements()).toHaveLength(0)
+    expect(
+      page.getByRole('button', { name: 'Mark a region with the keyboard' }).elements(),
+    ).toHaveLength(0)
     expect(page.getByRole('button', { name: /^Edit region/ }).elements()).toHaveLength(0)
     expect(page.getByRole('button', { name: /^Remove region/ }).elements()).toHaveLength(0)
+  })
+
+  it('does not draw for a member: a drag adds nothing and a click enlarges', async () => {
+    const fake = api(false)
+    await show()
+    await sizeImage()
+    await drag()
+    await expect.element(page.getByRole('dialog', { name: /build #148 on main/ })).toBeVisible()
+    expect(fake.of('POST')).toHaveLength(0)
+    expect(page.getByTestId('region-layer').elements()).toHaveLength(0)
   })
 
   it('reads a name with spaces and symbols back from the address', async () => {

@@ -42,12 +42,15 @@
   line-height: 16px;
 }
 
-/* Over the image, as big as it: the drawing layer, which only takes the pointer while drawing. */
+/* Over the image, as big as it: the drawing layer. The press goes to the image's button; only markers and the popover take the pointer. */
 .layer {
   position: absolute;
   inset: 0;
+  pointer-events: none;
 }
 
-.layer[data-idle] {
-  pointer-events: none;
+/* Drawing is always on: the image takes a crosshair. */
+.shot[data-annotatable],
+.shot[data-annotatable] > button {
+  cursor: crosshair;
 }

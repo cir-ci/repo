@@ -30,6 +30,15 @@
   margin-inline-start: auto;
 }
 
+/* The keyboard way to draw: present for focus and screen readers, shown only while it has focus or is on. */
+.keyTool:not(:focus-within):not([data-on]) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
 .note {
   margin: 0;
   padding: 16px;

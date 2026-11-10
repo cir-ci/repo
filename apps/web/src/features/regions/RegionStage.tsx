@@ -6,7 +6,7 @@ import { fileUrl } from '#features/builds/api/index.ts'
 
 import { regionStyle } from './geometry.ts'
 import { type Size, toFractions } from './ignore-regions.ts'
-import { RegionLayer } from './RegionLayer.tsx'
+import { type Annotations, RegionLayer, useRegionGesture } from './RegionLayer.tsx'
 
 import styles from './RegionStage.module.css'
 
@@ -23,55 +23,59 @@ export function RegionBoxes({ regions, size }: RegionBoxes.Props) {
 
 /**
  * The latest screenshot of one name with its ignore regions drawn over it, numbered like the list
- * beside it. With `drawing` on, a drag over the image draws a new region (the builds page's
- * `RegionLayer`, fractions of the image). With `onEnlarge` a click on the image (while not
- * drawing) asks for it to be shown large.
+ * beside it. With `annotations`, a drag over the image draws a new region (the builds page's
+ * gesture and `RegionLayer`, fractions of the image) and a press that does not draw is a click;
+ * without them the image only enlarges. With `onEnlarge` the image is a button that asks for it
+ * to be shown large.
  */
 export function RegionStage({
   name,
   latest,
   size,
   regions,
-  drawing,
-  onDrawingChange,
-  onDraw,
+  annotations,
   onEnlarge,
-  pending,
 }: RegionStage.Props) {
   const [loaded, setLoaded] = useState(false)
+  const gesture = useRegionGesture(annotations)
+  const drawsOnPointer = annotations?.alwaysDraw === true
   const image = latest ? (
     <img
       src={fileUrl(latest.sha256)}
       alt={`${name} in build #${latest.buildNumber}`}
       className={styles.image}
+      draggable={false}
       onLoad={() => setLoaded(true)}
     />
   ) : null
   return (
     <div className={styles.stage}>
-      <div className={styles.shot} data-loaded={loaded ? '' : undefined}>
+      {/* A press on the image either drags a region or, without moving, enlarges it. The layer is
+          a sibling of the trigger, never inside it: markers are buttons. */}
+      <div
+        className={styles.shot}
+        data-loaded={loaded ? '' : undefined}
+        data-annotatable={drawsOnPointer ? '' : undefined}
+        {...gesture.bind}
+      >
         {image && onEnlarge ? (
-          <EnlargeTrigger label={`Enlarge ${name}`} onClick={onEnlarge}>
+          <EnlargeTrigger
+            label={`Enlarge ${name}`}
+            onClick={(e) => {
+              // A mouse press was already told apart from a drag when it ended; a key press was not.
+              if (drawsOnPointer && e.detail !== 0) return
+              onEnlarge()
+            }}
+          >
             {image}
           </EnlargeTrigger>
         ) : (
           image
         )}
         {size ? <RegionBoxes regions={regions} size={size} /> : null}
-        {size ? (
-          // Not drawing: the layer lets clicks through to the image (enlarge).
-          <div className={styles.layer} data-idle={drawing ? undefined : ''}>
-            <RegionLayer
-              annotations={{
-                threads: [],
-                pending,
-                focusedId: null,
-                drawing,
-                onDrawingChange,
-                onDraw,
-                onMarker: () => {},
-              }}
-            />
+        {size && annotations ? (
+          <div className={styles.layer}>
+            <RegionLayer annotations={annotations} gesture={gesture} />
           </div>
         ) : null}
       </div>
@@ -93,12 +97,9 @@ export namespace RegionStage {
     /** The screenshot's pixel size; null when unknown (nothing can be drawn over it). */
     size: Size | null
     regions: readonly IgnoreRegion.Item[]
-    drawing: boolean
-    onDrawingChange: (drawing: boolean) => void
-    onDraw: Parameters<typeof RegionLayer>[0]['annotations']['onDraw']
+    /** Drawing is always on (`alwaysDraw`, `onClick` for a press that does not draw); left out, nothing can be drawn. */
+    annotations?: Annotations | undefined
     /** Makes the image a button that calls this (the enlarge dialog). */
     onEnlarge?: () => void
-    /** The region just drawn, while it is being saved. */
-    pending: Parameters<typeof RegionLayer>[0]['annotations']['pending']
   }
 }
