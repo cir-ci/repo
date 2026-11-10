@@ -1,3 +1,5 @@
+import type { Team } from './team.ts'
+
 export namespace Workspace {
   export interface Capabilities {
     canCreateWorkspace: boolean
@@ -20,6 +22,15 @@ export namespace Workspace {
     }
     /** What the instance offers; a provider that is not set up gets no switch. */
     instance: { password: boolean; email: boolean; github: boolean; google: boolean }
+  }
+
+  /**
+   * `GET /api/workspaces/:workspace/member-teams`: the teams each person belongs to, as far as
+   * the signed-in person may see them (an owner or admin sees all; a member only their own).
+   * People in none of the visible teams have no entry.
+   */
+  export interface MemberTeams {
+    teams: Record<string, { slug: string; name: string; color: Team.Color; icon: string | null }[]>
   }
 
   /** A workspace's defaults for its teams. */

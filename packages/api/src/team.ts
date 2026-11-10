@@ -11,10 +11,53 @@ export namespace Team {
     icon: string | null
   }
 
+  /** A person shown in a team's member preview. */
+  export interface MemberPreview {
+    id: string
+    name: string
+    image: string | null
+  }
+
+  /** What the team lists (sidebar, Teams page) say about a team's people. */
+  export interface MemberSummary {
+    /** People in the team. */
+    memberCount: number
+    /** The first few members by name, up to five. */
+    memberPreview: MemberPreview[]
+    /** Whether the signed-in person belongs to the team (owners and admins see teams they don't). */
+    youAreMember: boolean
+  }
+
   export interface Overview {
     workspace: { slug: string; name: string; picture: string | null }
-    team: { slug: string; name: string; defaultBranch: string; color: Color; icon: string | null }
+    team: {
+      slug: string
+      name: string
+      defaultBranch: string
+      color: Color
+      icon: string | null
+    } & MemberSummary
     latestBuild: Build.ListItem | null
+  }
+
+  /** One person in a team. */
+  export interface Member {
+    /** The user's ID. */
+    id: string
+    name: string
+    email: string
+    image: string | null
+    /** The person's role in the team's workspace (roles are workspace-wide). */
+    role: 'owner' | 'admin' | 'member'
+    /** When they joined the team (ISO). */
+    addedAt: string
+  }
+
+  /** `GET`/`POST /api/teams/:workspace/:team/members`: the team's people, by name. */
+  export interface MemberList {
+    members: Member[]
+    /** Whether the signed-in person may add and remove anyone (owners and admins). */
+    canManage: boolean
   }
 
   export interface Info {

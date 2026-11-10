@@ -12,6 +12,7 @@ import {
   user,
 } from '#schema/index.ts'
 import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
+import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 
 /**
@@ -176,7 +177,11 @@ function visibleWhere(input: { userId: string; method?: SessionMethod }): SQL {
       isNull(notifications.deletedAt),
       or(
         isNull(notifications.buildId),
-        and(isNotNull(member.userId), workspaceAccepts(workspace.id, input.method)),
+        and(
+          isNotNull(member.userId),
+          workspaceAccepts(workspace.id, input.method),
+          teamVisibleTo(input.userId, teams),
+        ),
       ),
     ) ?? sql`false`
   )

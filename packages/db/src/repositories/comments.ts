@@ -1,6 +1,6 @@
 import { and, asc, eq, isNull } from 'drizzle-orm'
 
-import { builds, comments, member, teams, user } from '#schema/index.ts'
+import { builds, comments, member, teamMembers, teams, user } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import type { Comment } from '#src/types.ts'
 
@@ -75,8 +75,8 @@ export interface WorkspaceMember {
   email: string
 }
 
-/** The members of the workspace that owns a build's team, for matching @mentions. */
-export async function listBuildWorkspaceMembers(
+/** The members of a build's team, for matching @mentions. */
+export async function listBuildTeamMembers(
   db: Database,
   buildId: string,
 ): Promise<WorkspaceMember[]> {
@@ -84,7 +84,11 @@ export async function listBuildWorkspaceMembers(
     .select({ userId: user.id, name: user.name, email: user.email })
     .from(builds)
     .innerJoin(teams, eq(teams.id, builds.teamId))
-    .innerJoin(member, eq(member.workspaceId, teams.workspaceId))
+    .innerJoin(teamMembers, eq(teamMembers.teamId, teams.id))
+    .innerJoin(
+      member,
+      and(eq(member.workspaceId, teams.workspaceId), eq(member.userId, teamMembers.userId)),
+    )
     .innerJoin(user, eq(user.id, member.userId))
     .where(eq(builds.id, buildId))
     .orderBy(asc(user.id))

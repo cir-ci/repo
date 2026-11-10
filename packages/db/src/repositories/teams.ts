@@ -22,6 +22,8 @@ import type { Database } from '#src/client.ts'
 import { ConflictError, isUniqueViolation } from '#src/errors.ts'
 import type { Team } from '#src/types.ts'
 
+import { addTeamMembers } from './team-members.ts'
+
 /**
  * Teams, and the lookups the API and dashboard need. A team's CI token is a better-auth
  * API key (`ci_key_id`); issuing and rotating it happens in `@circi/auth`.
@@ -38,6 +40,10 @@ export async function createTeam(
     color?: string
     /** A Lucide icon name from `TEAM_ICON_NAMES`; none shows only the marble. */
     icon?: string | null
+    /** Added to the team: the person creating it. */
+    createdBy?: string
+    /** Added to the team too; each must belong to the workspace. */
+    memberIds?: string[]
   },
 ): Promise<Team> {
   const found = await getWorkspaceBySlug(db, input.workspaceSlug)
@@ -54,12 +60,20 @@ export async function createTeam(
   // A new team starts with the workspace's default retention; it can change its own after.
   const { retentionDays } = await getWorkspaceSettings(db, found.id)
   try {
-    const [team] = await db
-      .insert(teams)
-      .values({ workspaceId: found.id, name, slug, defaultBranch, color, icon, retentionDays })
-      .returning()
-    if (!team) throw new Error('insert returned no row')
-    return team
+    return await db.transaction(async (tx) => {
+      const [team] = await tx
+        .insert(teams)
+        .values({ workspaceId: found.id, name, slug, defaultBranch, color, icon, retentionDays })
+        .returning()
+      if (!team) throw new Error('insert returned no row')
+      const first = input.createdBy === undefined ? [] : [input.createdBy]
+      await addTeamMembers(tx, {
+        teamId: team.id,
+        userIds: [...first, ...(input.memberIds ?? [])],
+        addedBy: input.createdBy ?? null,
+      })
+      return team
+    })
   } catch (err) {
     if (isUniqueViolation(err)) {
       throw new ConflictError(`Team "${input.workspaceSlug}/${slug}" already exists`)

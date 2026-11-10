@@ -1,3 +1,4 @@
+import { ValidationError } from '@circi/core'
 import {
   and,
   asc,
@@ -13,7 +14,7 @@ import {
   sql,
 } from 'drizzle-orm'
 
-import { builds, member, notifications, teams, reviewRequests } from '#schema/index.ts'
+import { builds, member, notifications, teamMembers, teams, reviewRequests } from '#schema/index.ts'
 import type { SnoozeKind } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 import { assertFound, ConflictError } from '#src/errors.ts'
@@ -28,7 +29,7 @@ import type { ReviewRequest } from '#src/types.ts'
 
 /**
  * Opens a request for `reviewerId` on a build. The reviewer must belong to the build's
- * workspace, and the build must still be reviewable (not failed or expired, and with changes).
+ * team (`ValidationError` otherwise), and the build must still be reviewable (not failed or expired, and with changes).
  * Asking again while a request is open changes nothing (`created: false`); once it is closed,
  * asking makes a new one.
  */
@@ -44,6 +45,7 @@ export async function openReviewRequest(
         status: builds.status,
         conclusion: builds.conclusion,
         workspaceId: teams.workspaceId,
+        teamId: teams.id,
       })
       .from(builds)
       .innerJoin(teams, eq(teams.id, builds.teamId))
@@ -57,10 +59,14 @@ export async function openReviewRequest(
       throw new ConflictError(`Build #${build.number} has no changes to review`)
     }
     const [reviewer] = await tx
-      .select({ id: member.userId })
-      .from(member)
-      .where(and(eq(member.workspaceId, build.workspaceId), eq(member.userId, input.reviewerId)))
-    if (!reviewer) throw new ConflictError('The reviewer is not a member of this workspace')
+      .select({ id: teamMembers.userId })
+      .from(teamMembers)
+      .innerJoin(
+        member,
+        and(eq(member.workspaceId, build.workspaceId), eq(member.userId, teamMembers.userId)),
+      )
+      .where(and(eq(teamMembers.teamId, build.teamId), eq(teamMembers.userId, input.reviewerId)))
+    if (!reviewer) throw new ValidationError('The reviewer must be a member of this team')
 
     const [created] = await tx
       .insert(reviewRequests)

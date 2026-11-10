@@ -10,6 +10,7 @@ import {
   screenshots,
 } from '#schema/index.ts'
 import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
+import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 
 /**
@@ -101,7 +102,7 @@ export async function searchWorkspace(
   // "#148" and "148" both mean build 148 (and pull request 148).
   const numeric = /^#?(\d{1,9})$/.exec(q)
   const n = numeric ? Number(numeric[1]) : undefined
-  const inWorkspace = eq(teams.workspaceId, found.id)
+  const inWorkspace = and(eq(teams.workspaceId, found.id), teamVisibleTo(input.userId, teams))
 
   const [buildRows, branchRows, teamRows, snapshotRows] = await Promise.all([
     db

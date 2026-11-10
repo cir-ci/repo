@@ -29,6 +29,7 @@ import {
   user,
 } from '#schema/index.ts'
 import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
+import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 import type { Build } from '#src/types.ts'
 
@@ -164,6 +165,7 @@ export async function listReviewRequests(
         eq(reviewRequests.state, reviewed ? 'done' : 'open'),
         scope,
         workspaceAccepts(workspace.id, input.method),
+        teamVisibleTo(input.userId, teams),
       ),
     )
     .orderBy(

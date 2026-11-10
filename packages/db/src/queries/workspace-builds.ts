@@ -4,6 +4,7 @@ import { and, asc, eq, ilike, isNotNull, isNull, sql } from 'drizzle-orm'
 import { builds, member, teams, user, workspace } from '#schema/index.ts'
 import { containsPattern as contains } from '#shared/like.ts'
 import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
+import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 import { assertFound } from '#src/errors.ts'
 
@@ -12,9 +13,9 @@ import { buildFilterConditions, hydrateBuildList, type listBuildsForTeam } from 
 
 /**
  * The builds of every team of a workspace in one list (a saved view with no team), and the
- * suggestions behind the author and reviewer filter chips. Every team of a workspace is visible
- * to each of its members, so "teams the user can see" is "the workspace's teams, if they belong
- * to it (and their session method is accepted)".
+ * suggestions behind the author and reviewer filter chips. "Teams the user can see" are the
+ * workspace's teams they belong to (every team, for an owner or admin), if the workspace itself
+ * is theirs (and their session method is accepted).
  */
 
 export namespace listBuildsForWorkspace {
@@ -71,7 +72,13 @@ export async function listBuildsForWorkspace(
       .select({ id: builds.id })
       .from(builds)
       .innerJoin(teams, eq(teams.id, builds.teamId))
-      .where(and(eq(builds.id, input.before), eq(teams.workspaceId, ws.id)))
+      .where(
+        and(
+          eq(builds.id, input.before),
+          eq(teams.workspaceId, ws.id),
+          teamVisibleTo(input.userId, teams),
+        ),
+      )
     assertFound(row, 'Page not found')
   }
   const found = await db
@@ -86,6 +93,7 @@ export async function listBuildsForWorkspace(
     .where(
       and(
         eq(teams.workspaceId, ws.id),
+        teamVisibleTo(input.userId, teams),
         // Compared in the database, on the cursor row itself: a round trip through a JS Date
         // would cut the timestamp to milliseconds and repeat or skip builds.
         input.before
@@ -160,6 +168,7 @@ export async function listBuildFilterSuggestions(
       .where(
         and(
           eq(teams.workspaceId, ws.id),
+          teamVisibleTo(input.userId, teams),
           isNull(builds.authorUserId),
           q ? ilike(builds.authorLogin, contains(q)) : undefined,
           isNotNull(builds.authorLogin),

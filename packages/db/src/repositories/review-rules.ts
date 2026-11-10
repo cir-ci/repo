@@ -4,6 +4,7 @@ import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 import { listReviewRules, type ReviewRuleRow } from '#queries/review-rules.ts'
 import {
   member,
+  teamMembers,
   teams,
   reviewRuleReviewers,
   reviewRules,
@@ -22,12 +23,11 @@ const MAX_REVIEWERS = 20
 
 async function assertMembers(db: Database, teamId: string, userIds: string[]): Promise<void> {
   const found = await db
-    .select({ id: member.userId })
-    .from(member)
-    .innerJoin(teams, eq(teams.workspaceId, member.workspaceId))
-    .where(and(eq(teams.id, teamId), inArray(member.userId, userIds)))
+    .select({ id: teamMembers.userId })
+    .from(teamMembers)
+    .where(and(eq(teamMembers.teamId, teamId), inArray(teamMembers.userId, userIds)))
   if (new Set(found.map((r) => r.id)).size !== userIds.length) {
-    throw new ValidationError('Reviewers must be members of this workspace')
+    throw new ValidationError('Reviewers must be members of this team')
   }
 }
 
@@ -49,7 +49,7 @@ function checkInput(input: { kind: string; pattern: string; reviewerIds: string[
 
 /**
  * The rules to apply to a new build: like `listReviewRules`, but only reviewers who are still
- * members of the workspace (someone removed from it can't be asked), as ids.
+ * members of the team (someone removed from it can't be asked), as ids.
  */
 export async function listRulesForResolution(
   db: Database,
@@ -58,10 +58,14 @@ export async function listRulesForResolution(
   const rules = await listReviewRules(db, teamId)
   if (rules.length === 0) return []
   const current = await db
-    .select({ id: member.userId })
-    .from(member)
-    .innerJoin(teams, eq(teams.workspaceId, member.workspaceId))
-    .where(eq(teams.id, teamId))
+    .select({ id: teamMembers.userId })
+    .from(teamMembers)
+    .innerJoin(teams, eq(teams.id, teamMembers.teamId))
+    .innerJoin(
+      member,
+      and(eq(member.workspaceId, teams.workspaceId), eq(member.userId, teamMembers.userId)),
+    )
+    .where(eq(teamMembers.teamId, teamId))
   const ok = new Set(current.map((r) => r.id))
   return rules.map((r) => ({
     kind: r.kind,

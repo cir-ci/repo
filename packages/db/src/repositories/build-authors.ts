@@ -1,6 +1,7 @@
 import { and, eq, sql } from 'drizzle-orm'
 
 import { account, builds, member, teams, user } from '#schema/index.ts'
+import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 
 /** Who authored a build: lookups of the members it could be, and the store for a PR's author. */
@@ -25,6 +26,34 @@ export async function findMembersByAccount(
       and(eq(member.userId, account.userId), eq(member.workspaceId, teams.workspaceId)),
     )
     .where(and(eq(account.providerId, providerId), eq(account.accountId, accountId)))
+  return rows.map((r) => r.userId)
+}
+
+/**
+ * Like `findMembersByAccount`, but only people who may see the team (its members, and owners and
+ * admins of its workspace): the ones who may act on its builds from the code host (`/circi approve`).
+ */
+export async function findTeamViewersByAccount(
+  db: Database,
+  teamId: string,
+  providerId: string,
+  accountId: string,
+): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ userId: account.userId })
+    .from(account)
+    .innerJoin(teams, eq(teams.id, teamId))
+    .innerJoin(
+      member,
+      and(eq(member.userId, account.userId), eq(member.workspaceId, teams.workspaceId)),
+    )
+    .where(
+      and(
+        eq(account.providerId, providerId),
+        eq(account.accountId, accountId),
+        teamVisibleTo(account.userId, teams),
+      ),
+    )
   return rows.map((r) => r.userId)
 }
 

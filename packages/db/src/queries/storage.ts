@@ -1,7 +1,8 @@
 import type { TeamColor } from '@circi/core'
-import { eq, isNotNull, sql } from 'drizzle-orm'
+import { and, eq, isNotNull, sql } from 'drizzle-orm'
 
 import { files, teams } from '#schema/index.ts'
+import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 
 import { getWorkspaceSettings } from './workspace-settings.ts'
@@ -94,6 +95,8 @@ const num = (value: unknown) => Number(value ?? 0)
 export async function getWorkspaceStorage(
   db: Database,
   workspaceId: string,
+  /** Lists only the teams this person may see (the totals still cover the whole workspace). */
+  viewerId?: string,
 ): Promise<getWorkspaceStorage.Result> {
   // Every (team, file) pair the workspace refers to, with the file's size.
   const refs = sql`(
@@ -155,7 +158,12 @@ export async function getWorkspaceStorage(
       retentionDays: teams.retentionDays,
     })
     .from(teams)
-    .where(eq(teams.workspaceId, workspaceId))
+    .where(
+      and(
+        eq(teams.workspaceId, workspaceId),
+        viewerId === undefined ? undefined : teamVisibleTo(viewerId, teams),
+      ),
+    )
   const teamUsage = new Map(byTeam.map((r) => [String(r['team_id']), r]))
   const kindUsage = new Map(byKind.map((r) => [String(r['kind']), r]))
   return {

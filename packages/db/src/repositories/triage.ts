@@ -2,7 +2,14 @@ import { ValidationError } from '@circi/core'
 import { and, asc, eq, inArray } from 'drizzle-orm'
 
 import { getTriageRotation } from '#queries/triage-rotation.ts'
-import { member, teams, TRIAGE_KINDS, triageItems, triageRotationMembers } from '#schema/index.ts'
+import {
+  member,
+  teamMembers,
+  teams,
+  TRIAGE_KINDS,
+  triageItems,
+  triageRotationMembers,
+} from '#schema/index.ts'
 import type { SnoozeKind, TriageKind } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
@@ -48,7 +55,7 @@ async function upsertItem(
   return row
 }
 
-/** Assigns an item to a workspace member, or to nobody (`assigneeId: null`). */
+/** Assigns an item to a team member, or to nobody (`assigneeId: null`). */
 export async function assignTriageItem(
   db: Database,
   input: TriageItem.Ref & { assigneeId: string | null },
@@ -85,17 +92,16 @@ export async function dismissTriageItem(
 
 async function assertMembers(db: Database, teamId: string, userIds: string[]): Promise<void> {
   const found = await db
-    .select({ id: member.userId })
-    .from(member)
-    .innerJoin(teams, eq(teams.workspaceId, member.workspaceId))
-    .where(and(eq(teams.id, teamId), inArray(member.userId, userIds)))
+    .select({ id: teamMembers.userId })
+    .from(teamMembers)
+    .where(and(eq(teamMembers.teamId, teamId), inArray(teamMembers.userId, userIds)))
   if (new Set(found.map((r) => r.id)).size !== new Set(userIds).size) {
-    throw new ValidationError('Choose a member of this workspace')
+    throw new ValidationError('Choose a member of this team')
   }
 }
 
 /**
- * Replaces the team's rotation. Everyone must be a workspace member; an empty list
+ * Replaces the team's rotation. Everyone must be a team member; an empty list
  * switches the rotation off. `startsOn` defaults to now.
  */
 export async function setTriageRotation(
@@ -124,7 +130,7 @@ export async function setTriageRotation(
 
 /**
  * The rotation as `rotationFor` wants it: member ids in turn order, leaving out people who are
- * no longer in the workspace. Null `startsOn` (no rotation) comes back with no ids.
+ * no longer in the team. Null `startsOn` (no rotation) comes back with no ids.
  */
 export async function getRotationForResolution(
   db: Database,
@@ -139,6 +145,13 @@ export async function getRotationForResolution(
     .select({ id: triageRotationMembers.userId })
     .from(triageRotationMembers)
     .innerJoin(teams, eq(teams.id, triageRotationMembers.teamId))
+    .innerJoin(
+      teamMembers,
+      and(
+        eq(teamMembers.teamId, triageRotationMembers.teamId),
+        eq(teamMembers.userId, triageRotationMembers.userId),
+      ),
+    )
     .innerJoin(
       member,
       and(

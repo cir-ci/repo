@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 
 import { integrationTeams, integrations, teams } from '#schema/index.ts'
+import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 
 /** A workspace's integrations, as read models and the repository both need them. */
@@ -70,6 +71,8 @@ export async function listWorkspaceTeamMappings(
   db: Database,
   workspaceId: string,
   integrationId: string,
+  /** Lists only the teams this person may see. */
+  viewerId?: string,
 ): Promise<listWorkspaceTeamMappings.Row[]> {
   const rows = await db
     .select({
@@ -83,7 +86,12 @@ export async function listWorkspaceTeamMappings(
       integrationTeams,
       and(eq(integrationTeams.teamId, teams.id), eq(integrationTeams.integrationId, integrationId)),
     )
-    .where(eq(teams.workspaceId, workspaceId))
+    .where(
+      and(
+        eq(teams.workspaceId, workspaceId),
+        viewerId === undefined ? undefined : teamVisibleTo(viewerId, teams),
+      ),
+    )
     .orderBy(asc(teams.name), asc(teams.slug))
   return rows.map((r) => ({
     slug: r.slug,

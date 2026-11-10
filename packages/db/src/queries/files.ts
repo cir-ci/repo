@@ -2,6 +2,7 @@ import { and, eq, exists, or, sql } from 'drizzle-orm'
 
 import { builds, files, member, teams, screenshotDiffs, screenshots } from '#schema/index.ts'
 import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
+import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 import type { FileRow } from '#src/types.ts'
 
@@ -26,7 +27,13 @@ export async function canUserAccessFile(
           member,
           and(eq(member.workspaceId, teams.workspaceId), eq(member.userId, userId)),
         )
-        .where(and(eq(builds.id, buildId), workspaceAccepts(teams.workspaceId, method))),
+        .where(
+          and(
+            eq(builds.id, buildId),
+            workspaceAccepts(teams.workspaceId, method),
+            teamVisibleTo(userId, teams),
+          ),
+        ),
     )
   const [viaScreenshot] = await db
     .select({ one: sql`1` })

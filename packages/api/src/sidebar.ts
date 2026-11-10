@@ -12,11 +12,17 @@ export namespace Sidebar {
     pinned: boolean
     /** Triage items waiting: not snoozed, not dismissed. */
     triage: number
+    /** People in the team. */
+    memberCount: number
+    /** The first few members by name, up to five. */
+    memberPreview: { id: string; name: string; image: string | null }[]
+    /** Whether the signed-in person belongs to the team (owners and admins see teams they don't). */
+    youAreMember: boolean
   }
 
   /** `GET /api/workspaces/:workspace/sidebar`. */
   export interface Model {
-    /** Pinned teams first (in pin order), then the rest A to Z. */
+    /** The teams the person may see (all for owners and admins, their own for members): pinned first (in pin order), then the rest A to Z. */
     teams: Team[]
     views: View.Item[]
     /** Unread, awake notifications (across all of the person's workspaces). */

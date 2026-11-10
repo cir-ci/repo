@@ -25,6 +25,7 @@ import {
   user,
 } from '#schema/index.ts'
 import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
+import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 
 /**
@@ -117,6 +118,7 @@ export async function getInsights(
     .where(
       and(
         eq(teams.workspaceId, found.id),
+        teamVisibleTo(input.userId, teams),
         ...(input.teamSlug === undefined ? [] : [eq(teams.slug, input.teamSlug)]),
       ),
     )

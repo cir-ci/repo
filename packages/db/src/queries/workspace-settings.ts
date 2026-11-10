@@ -1,7 +1,8 @@
 import { DEFAULT_FLAKY_BLOCKS_MERGE } from '@circi/core'
-import { asc, eq } from 'drizzle-orm'
+import { and, asc, eq } from 'drizzle-orm'
 
 import { teams, workspaceSettings } from '#schema/index.ts'
+import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 
 /** A workspace's defaults for its teams (a team may override each one). */
@@ -38,10 +39,17 @@ export async function getWorkspaceSettings(
 export async function listTeamFlakyOverrides(
   db: Database,
   workspaceId: string,
+  /** Lists only the teams this person may see. */
+  viewerId?: string,
 ): Promise<{ slug: string; name: string; flakyBlocksMerge: boolean | null }[]> {
   return db
     .select({ slug: teams.slug, name: teams.name, flakyBlocksMerge: teams.flakyBlocksMerge })
     .from(teams)
-    .where(eq(teams.workspaceId, workspaceId))
+    .where(
+      and(
+        eq(teams.workspaceId, workspaceId),
+        viewerId === undefined ? undefined : teamVisibleTo(viewerId, teams),
+      ),
+    )
     .orderBy(asc(teams.name))
 }

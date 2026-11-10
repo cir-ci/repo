@@ -3,11 +3,13 @@ import { and, asc, eq } from 'drizzle-orm'
 
 import { teams } from '#schema/index.ts'
 import type { SessionMethod } from '#shared/session-method.ts'
+import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 
 import { countUnreadNotifications } from './inbox.ts'
 import { listReviewRequests } from './reviews.ts'
 import { listPinnedTeamIds, listSavedViews, type SavedViewRow } from './saved-views.ts'
+import { getTeamMemberSummaries } from './team-members.ts'
 import { countOpenTriage } from './triage.ts'
 
 /** What the sidebar shows for one workspace, in the order it shows it. */
@@ -21,10 +23,16 @@ export namespace getSidebar {
     pinned: boolean
     /** Triage items waiting (not snoozed, not dismissed). */
     triage: number
+    /** People in the team. */
+    memberCount: number
+    /** The first few members, by name (up to five). */
+    memberPreview: { id: string; name: string; image: string | null }[]
+    /** Whether the person belongs to the team (an owner or admin may see one they don't). */
+    youAreMember: boolean
   }
 
   export interface Result {
-    /** Pinned teams first (in pin order), then the rest A to Z. */
+    /** The teams the person may see: pinned first (in pin order), then the rest A to Z. */
     teams: getSidebar.Team[]
     /** The person's saved views in this workspace, in their order. */
     views: SavedViewRow[]
@@ -53,7 +61,7 @@ export async function getSidebar(
       icon: teams.icon,
     })
     .from(teams)
-    .where(and(eq(teams.workspaceId, input.workspace.id)))
+    .where(and(eq(teams.workspaceId, input.workspace.id), teamVisibleTo(input.userId, teams)))
     .orderBy(asc(teams.name), asc(teams.slug))
   const pinOrder = await listPinnedTeamIds(db, input.userId)
   const rank = new Map(pinOrder.map((id, i) => [id, i]))
@@ -63,6 +71,11 @@ export async function getSidebar(
       .toSorted((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)),
     ...rows.filter((r) => !rank.has(r.id)),
   ]
+  const summaries = await getTeamMemberSummaries(
+    db,
+    rows.map((r) => r.id),
+    input.userId,
+  )
   const [views, inboxUnread, requests, triage] = await Promise.all([
     listSavedViews(db, { userId: input.userId, workspaceId: input.workspace.id }),
     countUnreadNotifications(db, {
@@ -86,6 +99,9 @@ export async function getSidebar(
       icon: p.icon,
       pinned: rank.has(p.id),
       triage: triage.get(p.id) ?? 0,
+      memberCount: summaries.get(p.id)?.memberCount ?? 0,
+      memberPreview: summaries.get(p.id)?.memberPreview ?? [],
+      youAreMember: summaries.get(p.id)?.youAreMember ?? false,
     })),
     views,
     inboxUnread,

@@ -3,6 +3,7 @@ import { and, asc, eq } from 'drizzle-orm'
 
 import { member, teams, workspace } from '#schema/index.ts'
 import { type SessionMethod, workspaceAccepts, workspaceIsLive } from '#shared/session-method.ts'
+import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 import { assertFound } from '#src/errors.ts'
 import type { Team } from '#src/types.ts'
@@ -68,8 +69,9 @@ export namespace findTeamForMember {
 }
 
 /**
- * A team by its URL slugs, only if `userId` is a member of its workspace. Anyone else
- * gets the same "not found" as for a team that doesn't exist (PLAN §8: workspace isolation).
+ * A team by its URL slugs, only if `userId` may see it: they belong to the team, or are an owner
+ * or admin of its workspace. Anyone else gets the same "not found" as for a team that doesn't
+ * exist (PLAN §8: workspace isolation; teams are visible to their members).
  */
 export async function findTeamForMember(
   db: Database,
@@ -94,6 +96,7 @@ export async function findTeamForMember(
         eq(workspace.slug, input.workspaceSlug),
         eq(teams.slug, input.teamSlug),
         workspaceAccepts(workspace.id, input.method),
+        teamVisibleTo(input.userId, teams),
       ),
     )
   return row

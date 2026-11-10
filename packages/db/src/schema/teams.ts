@@ -3,12 +3,15 @@ import { sql } from 'drizzle-orm'
 import {
   boolean,
   check,
+  index,
   integer,
   pgTable,
+  primaryKey,
   real,
   text,
   timestamp,
   uniqueIndex,
+  uuid,
 } from 'drizzle-orm/pg-core'
 
 import { createdAt, id, inList } from './_columns.ts'
@@ -64,5 +67,30 @@ export const teams = pgTable(
       'teams_review_target_hours_check',
       sql`${t.reviewTargetHours} is null or ${t.reviewTargetHours} >= 1`,
     ),
+  ],
+)
+
+/**
+ * Who belongs to a team. A team is visible to its members and to the workspace's owners and
+ * admins; everyone else gets "not found". People join and leave through `@circi/services`
+ * (`addTeamMembers`, `removeTeamMember`), which also take them off the team's review rules and
+ * triage rotation.
+ */
+export const teamMembers = pgTable(
+  'team_members',
+  {
+    teamId: uuid('team_id')
+      .notNull()
+      .references(() => teams.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+    /** Who added them; null for the migration's backfill, or after that person's account is deleted. */
+    addedBy: text('added_by').references(() => user.id, { onDelete: 'set null' }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.teamId, t.userId] }),
+    index('team_members_user_idx').on(t.userId),
   ],
 )

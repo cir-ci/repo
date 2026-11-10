@@ -72,6 +72,7 @@ describe('migrations', () => {
       'sso_provider',
       'static_site_files',
       'static_sites',
+      'team_members',
       'team_sites',
       'teams',
       'triage_items',

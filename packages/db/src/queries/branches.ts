@@ -3,6 +3,7 @@ import { and, desc, eq, ilike, isNotNull, max } from 'drizzle-orm'
 import { builds, teams } from '#schema/index.ts'
 import { containsPattern } from '#shared/like.ts'
 import type { SessionMethod } from '#shared/session-method.ts'
+import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 
 import { visibleWorkspace } from './workspace-builds.ts'
@@ -40,7 +41,13 @@ export async function listBranches(
     ? await db
         .select({ id: teams.id })
         .from(teams)
-        .where(and(eq(teams.workspaceId, ws.id), eq(teams.slug, input.teamSlug)))
+        .where(
+          and(
+            eq(teams.workspaceId, ws.id),
+            eq(teams.slug, input.teamSlug),
+            teamVisibleTo(input.userId, teams),
+          ),
+        )
     : []
   if (input.teamSlug && !team) return undefined
   const q = input.query?.trim()
@@ -52,6 +59,7 @@ export async function listBranches(
     .where(
       and(
         eq(teams.workspaceId, ws.id),
+        teamVisibleTo(input.userId, teams),
         team ? eq(builds.teamId, team.id) : undefined,
         isNotNull(builds.branch),
         q ? ilike(builds.branch, containsPattern(q)) : undefined,

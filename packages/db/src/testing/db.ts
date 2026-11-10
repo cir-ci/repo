@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 
 import { PGlite } from '@electric-sql/pglite'
+import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'
 import { inject } from 'vitest'
@@ -122,9 +123,19 @@ export async function seedUser(db: Database, email?: string): Promise<User> {
   return user
 }
 
+/**
+ * Adds a user to a workspace. Like the upgrade did for the teams that existed, they join every
+ * team the workspace has now (pass `teams: []` to join none, or the team ids to join only
+ * those); a team made later has to be joined on purpose.
+ */
 export async function addTestMember(
   db: Database,
-  input: { workspaceId: string; userId: string; role?: 'owner' | 'admin' | 'member' },
+  input: {
+    workspaceId: string
+    userId: string
+    role?: 'owner' | 'admin' | 'member'
+    teams?: string[]
+  },
 ): Promise<void> {
   n += 1
   await db.insert(schema.member).values({
@@ -134,6 +145,31 @@ export async function addTestMember(
     role: input.role ?? 'member',
     createdAt: nextCreatedAt(),
   })
+  const teamIds =
+    input.teams ??
+    (
+      await db
+        .select({ id: schema.teams.id })
+        .from(schema.teams)
+        .where(eq(schema.teams.workspaceId, input.workspaceId))
+    ).map((t) => t.id)
+  if (teamIds.length > 0) {
+    await db
+      .insert(schema.teamMembers)
+      .values(teamIds.map((teamId) => ({ teamId, userId: input.userId })))
+      .onConflictDoNothing()
+  }
+}
+
+/** Puts a user in a team (they must already belong to its workspace). */
+export async function addTestTeamMember(
+  db: Database,
+  input: { teamId: string; userId: string },
+): Promise<void> {
+  await db
+    .insert(schema.teamMembers)
+    .values({ teamId: input.teamId, userId: input.userId })
+    .onConflictDoNothing()
 }
 
 /** A new workspace (with an owner) and a team in it. */
@@ -147,5 +183,17 @@ export async function seedTeam(
     name: options.slug ?? 'web',
     ...(options.defaultBranch ? { defaultBranch: options.defaultBranch } : {}),
   })
+  // Everyone already in the workspace is in the new team too, so a test that adds members and
+  // then reads as one of them sees the team (a test of hiding adds the members after, or removes them).
+  const existing = await db
+    .select({ userId: schema.member.userId })
+    .from(schema.member)
+    .where(eq(schema.member.workspaceId, seeded.workspace.id))
+  if (existing.length > 0) {
+    await db
+      .insert(schema.teamMembers)
+      .values(existing.map((m) => ({ teamId: team.id, userId: m.userId })))
+      .onConflictDoNothing()
+  }
   return { team, workspace: seeded.workspace, owner: seeded.owner }
 }
