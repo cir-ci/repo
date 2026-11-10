@@ -1,4 +1,4 @@
-import type { Comment, Snapshot, Triage, TriageKind } from '@circi/api'
+import type { Snapshot, Triage, TriageKind } from '@circi/api'
 import type { Status } from '@circi/ui'
 import {
   queryOptions,
@@ -123,24 +123,6 @@ export function snoozeBody(
   return choice.kind === 'date'
     ? { ...ref, choice: 'date', date: choice.date }
     : { ...ref, choice: choice.kind }
-}
-
-// -- Ignore regions ------------------------------------------------------------------------------
-
-/**
- * A region drawn as fractions of the image, as the whole-number pixel rectangle the server stores
- * (it rejects anything else); undefined when the image's size is unknown or the box rounds away.
- */
-export function regionToPixels(
-  region: Comment.Region,
-  size: { width: number | null; height: number | null },
-): { x: number; y: number; width: number; height: number } | undefined {
-  if (!size.width || !size.height) return undefined
-  const x = Math.round(region.x * size.width)
-  const y = Math.round(region.y * size.height)
-  const width = Math.max(1, Math.round(region.width * size.width))
-  const height = Math.max(1, Math.round(region.height * size.height))
-  return { x, y, width, height }
 }
 
 // -- The filmstrip -------------------------------------------------------------------------------
@@ -278,49 +260,5 @@ export function useDismissTriage(workspace: string, team: string) {
     team,
     (queue, v: { ref: Ref }) => withoutItem(queue, v.ref),
     (v) => post<Triage.ItemState>(teamPath(workspace, team, 'triage', 'dismiss'), refOf(v.ref)),
-  )
-}
-
-/**
- * Accept as baseline: approves that one snapshot of the item's build. On the default branch an
- * approved snapshot is the baseline for its name at once, even while the build waits on the rest.
- */
-export function useAcceptBaseline(workspace: string, team: string) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (v: { ref: Ref; buildNumber: number; snapshotName: string }) =>
-      post<{ build: { reviewStatus: string } }>(
-        teamPath(workspace, team, 'builds', v.buildNumber, 'snapshots', 'review'),
-        { snapshotNames: [v.snapshotName], decision: 'approved' },
-      ),
-    onSuccess: async (_data, v) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: keys.build(workspace, team, v.buildNumber) }),
-        queryClient.invalidateQueries({ queryKey: keys.team(workspace, team) }),
-        queryClient.invalidateQueries({ queryKey: keys.teams() }),
-        refresh(queryClient, workspace, team),
-      ])
-    },
-  })
-}
-
-export interface NewRegion {
-  ref: Ref
-  name: string
-  rect: { x: number; y: number; width: number; height: number }
-}
-
-/** Add an ignore region on a snapshot; `resolves` has the server dismiss the item with it. */
-export function useAddIgnoreRegion(workspace: string, team: string) {
-  return useOptimistic(
-    workspace,
-    team,
-    (queue, v: NewRegion) => withoutItem(queue, v.ref),
-    (v) =>
-      post(teamPath(workspace, team, 'ignore-regions'), {
-        name: v.name,
-        ...v.rect,
-        resolves: refOf(v.ref),
-      }),
   )
 }

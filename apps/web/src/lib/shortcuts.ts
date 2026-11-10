@@ -40,8 +40,6 @@ export namespace Shortcut {
     | { type: 'requestReview' }
     | { type: 'toggleRead' }
     | { type: 'remove' }
-    | { type: 'acceptBaseline' }
-    | { type: 'ignoreRegion' }
     | { type: 'assignMe' }
     | { type: 'dismiss' }
     | { type: 'approve' }
@@ -185,20 +183,6 @@ export const SHORTCUTS: readonly Shortcut[] = [
     group: 'Inbox',
     description: 'Delete the notification',
     action: { type: 'remove' },
-  },
-  {
-    key: 'b',
-    scope: 'triage',
-    group: 'Triage',
-    description: 'Accept as baseline',
-    action: { type: 'acceptBaseline' },
-  },
-  {
-    key: 'i',
-    scope: 'triage',
-    group: 'Triage',
-    description: 'Add an ignore region',
-    action: { type: 'ignoreRegion' },
   },
   {
     key: 'm',

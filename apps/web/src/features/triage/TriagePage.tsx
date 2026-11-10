@@ -1,4 +1,4 @@
-import type { Comment, Triage } from '@circi/api'
+import type { Triage } from '@circi/api'
 import {
   Avatar,
   Badge,
@@ -16,7 +16,6 @@ import { type NavigateOptions, useNavigate, useParams } from '@tanstack/react-ro
 import { type MouseEventHandler, useEffect, useState } from 'react'
 
 import { fileUrl } from '#features/builds/api/index.ts'
-import { RegionLayer } from '#features/regions/RegionLayer.tsx'
 import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
@@ -38,12 +37,9 @@ import {
   itemTitle,
   KIND_LABEL,
   queueCount,
-  regionToPixels,
   rotationText,
   sinceText,
   triageQuery,
-  useAcceptBaseline,
-  useAddIgnoreRegion,
   useAssignTriage,
   useDismissTriage,
   useFilmstrip,
@@ -65,9 +61,6 @@ export const openInBuild = (
   ...(item.snapshotName ? { search: { shot: item.snapshotName } } : {}),
 })
 
-/** Accepting a baseline and ignoring a region are about a screenshot; a failed build has none. */
-const hasSnapshot = (item: Triage.Item | undefined) => !!item?.snapshotName
-
 export function TriagePage() {
   const { workspace, team } = useParams({ from: ROUTE })
   const names = useCrumbNames(workspace, team)
@@ -81,14 +74,10 @@ export function TriagePage() {
   const me = session?.user
 
   const [snoozeOpen, setSnoozeOpen] = useState(false)
-  const [drawing, setDrawing] = useState(false)
-  const [pending, setPending] = useState<Comment.Region | null>(null)
 
   const assign = useAssignTriage(workspace, team)
   const snooze = useSnoozeTriage(workspace, team)
   const dismiss = useDismissTriage(workspace, team)
-  const accept = useAcceptBaseline(workspace, team)
-  const addRegion = useAddIgnoreRegion(workspace, team)
 
   const groups = groupItems(data?.items ?? [])
   const items = flatten(groups)
@@ -96,10 +85,6 @@ export function TriagePage() {
     items,
     getId: itemId,
     peekable: false,
-    onSelect: () => {
-      setDrawing(false)
-      setPending(null)
-    },
   })
   const { frames, loading: framesLoading } = useFilmstrip(workspace, team, selected)
 
@@ -108,8 +93,6 @@ export function TriagePage() {
     const next = nextAfterRemoval(items, itemId, itemId(item))
     announce(message)
     setSelectedId(next)
-    setDrawing(false)
-    setPending(null)
     if (next) queueMicrotask(() => focusRow(document.getElementById('triage-groups'), next))
   }
 
@@ -117,13 +100,6 @@ export function TriagePage() {
     snooze.mutate({ ref: item, choice }, { onSuccess: () => leave(item, 'Snoozed') })
   const doDismiss = (item: Triage.Item) =>
     dismiss.mutate({ ref: item }, { onSuccess: () => leave(item, 'Dismissed') })
-  const doAccept = (item: Triage.Item) => {
-    if (!item.snapshotName) return
-    accept.mutate(
-      { ref: item, buildNumber: item.build.number, snapshotName: item.snapshotName },
-      { onSuccess: () => announce(`Accepted ${item.snapshotName} as baseline`) },
-    )
-  }
   const doAssign = (item: Triage.Item) => {
     if (!me) return
     const mine = item.assignee?.id === me.id
@@ -132,37 +108,16 @@ export function TriagePage() {
       { onSuccess: () => announce(mine ? 'Unassigned' : 'Assigned to you') },
     )
   }
-  const startDrawing = () => {
-    if (!hasSnapshot(selected)) return
-    setPending(null)
-    setDrawing(true)
-    announce('Drag over the screenshot to mark the region to ignore')
-  }
-  const confirmRegion = (item: Triage.Item, frame: Frame | undefined) => {
-    if (!pending || !item.snapshotName || !frame) return
-    const rect = regionToPixels(pending, frame)
-    if (!rect) return
-    addRegion.mutate(
-      { ref: item, name: item.snapshotName, rect },
-      { onSuccess: () => leave(item, 'Ignore region added') },
-    )
-  }
-
   const open = (item: Triage.Item) => void navigate(openInBuild(workspace, team, item))
 
   useShortcutHandlers({
     // Enter on a row opens the item in its build; on a button or link elsewhere it keeps its meaning.
     open: (_action, event) => {
       const inRow = event.target instanceof Element && event.target.closest('[data-row-id]')
-      // While an ignore region is being drawn, Enter belongs to that tool.
-      if (drawing || (!inRow && leavesKeyToFocus(event)) || !selected) return false
+      if ((!inRow && leavesKeyToFocus(event)) || !selected) return false
       open(selected)
       return undefined
     },
-    acceptBaseline: () => {
-      if (selected && hasSnapshot(selected)) doAccept(selected)
-    },
-    ignoreRegion: startDrawing,
     assignMe: () => {
       if (selected) doAssign(selected)
     },
@@ -174,7 +129,7 @@ export function TriagePage() {
     },
   })
 
-  const failed = [assign, snooze, dismiss, accept, addRegion].find((m) => m.error)?.error
+  const failed = [assign, snooze, dismiss].find((m) => m.error)?.error
   const chip = data ? rotationText(data.rotation) : undefined
 
   return (
@@ -210,23 +165,6 @@ export function TriagePage() {
                     </span>
                     {selected ? (
                       <>
-                        <Button
-                          size="sm"
-                          aria-keyshortcuts="b"
-                          disabled={!hasSnapshot(selected)}
-                          loading={accept.isPending}
-                          onClick={() => doAccept(selected)}
-                        >
-                          Accept as baseline
-                        </Button>
-                        <Button
-                          size="sm"
-                          aria-keyshortcuts="i"
-                          disabled={!hasSnapshot(selected)}
-                          onClick={startDrawing}
-                        >
-                          Add ignore region
-                        </Button>
                         <Button
                           size="sm"
                           aria-keyshortcuts="m"
@@ -375,25 +313,6 @@ export function TriagePage() {
                               />
                             </>
                           ) : null}
-                          {drawing && selected.snapshotName ? (
-                            <Drawing
-                              name={selected.snapshotName}
-                              frame={frames.find((f) => f.number === selected.build.number)}
-                              pending={pending}
-                              onDraw={setPending}
-                              onCancel={() => {
-                                setDrawing(false)
-                                setPending(null)
-                              }}
-                              busy={addRegion.isPending}
-                              onConfirm={() =>
-                                confirmRegion(
-                                  selected,
-                                  frames.find((f) => f.number === selected.build.number),
-                                )
-                              }
-                            />
-                          ) : null}
                         </div>
                       </Pane>
                     ) : null}
@@ -498,64 +417,5 @@ function Filmstrip({
         )
       })}
     </ol>
-  )
-}
-
-function Drawing({
-  name,
-  frame,
-  pending,
-  busy,
-  onDraw,
-  onCancel,
-  onConfirm,
-}: {
-  name: string
-  frame: Frame | undefined
-  pending: Comment.Region | null
-  busy: boolean
-  onDraw: (region: Comment.Region) => void
-  onCancel: () => void
-  onConfirm: () => void
-}) {
-  if (!frame?.sha256) {
-    return (
-      <Text variant="small" tone="secondary">
-        This build has no image of {name} to draw on.
-      </Text>
-    )
-  }
-  return (
-    <div className={styles.paneBody}>
-      <Text variant="small" tone="secondary">
-        Drag over the screenshot to mark the region CirCI should ignore, or use the arrow keys
-        (Shift to resize, Enter to set, Escape to cancel).
-      </Text>
-      <div className={styles.canvas}>
-        <img src={fileUrl(frame.sha256)} alt={`${name} in build #${frame.number}`} />
-        <RegionLayer
-          annotations={{
-            threads: [],
-            pending,
-            focusedId: null,
-            drawing: true,
-            // Escape in the keyboard tool cancels, like the Cancel button.
-            onDrawingChange: (on) => {
-              if (!on) onCancel()
-            },
-            onDraw,
-            onMarker: () => {},
-          }}
-        />
-      </div>
-      <div className={styles.drawActions}>
-        <Button size="sm" variant="primary" disabled={!pending} loading={busy} onClick={onConfirm}>
-          Ignore this region
-        </Button>
-        <Button size="sm" onClick={onCancel}>
-          Cancel
-        </Button>
-      </div>
-    </div>
   )
 }

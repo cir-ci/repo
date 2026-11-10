@@ -9,7 +9,6 @@ import {
   groupItems,
   itemName,
   queueCount,
-  regionToPixels,
   rotationText,
   sinceText,
   snoozeBody,
@@ -100,17 +99,6 @@ describe('optimistic updates', () => {
       choice: 'date',
       date: 'D',
     })
-  })
-})
-
-describe('ignore regions', () => {
-  it('turns fractions into a whole-number pixel rectangle', () => {
-    expect(
-      regionToPixels({ x: 0.1, y: 0.25, width: 0.5, height: 0.001 }, { width: 400, height: 300 }),
-    ).toEqual({ x: 40, y: 75, width: 200, height: 1 })
-    expect(regionToPixels({ x: 0, y: 0, width: 1, height: 1 }, { width: null, height: 1 })).toBe(
-      undefined,
-    )
   })
 })
 

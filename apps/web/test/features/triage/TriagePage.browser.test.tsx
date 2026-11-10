@@ -100,33 +100,8 @@ function server() {
     [`POST ${BASE}/triage/dismiss`]: (body) => gone(field(body, 'key')),
     [`POST ${BASE}/triage/snooze`]: (body) => gone(field(body, 'key')),
     [`POST ${BASE}/triage/assign`]: { body: {} },
-    [`POST ${BASE}/ignore-regions`]: (body) => {
-      gone(field(field(body, 'resolves'), 'key'))
-      return { status: 201, body: {} }
-    },
-    [`POST ${BASE}/builds/12/snapshots/review`]: { body: { build: { reviewStatus: 'approved' } } },
   }
   return fakeApi(routes)
-}
-
-/**
- * The test files are not served, so the image has no size: give it the one it would have. The
- * image's failed load settles (and may re-render it) at a time that depends on how busy the
- * machine is, so apply the size until the layer over it has been measured at the image's size, instead of
- * once, and draw only then.
- */
-async function sizeImage(layer: { element: () => Element }) {
-  await expect
-    .poll(() => {
-      const image = page.getByRole('img', { name: 'home in build #12' }).element()
-      image.style.width = '400px'
-      image.style.height = '300px'
-      const box = layer.element().getBoundingClientRect()
-      const shown = image.getBoundingClientRect()
-      // The layer is exactly as big as the image (the pane may clamp its width a little).
-      return box.height === 300 && box.width > 300 && box.width === shown.width
-    })
-    .toBe(true)
 }
 
 describe('TriagePage', () => {
@@ -190,21 +165,6 @@ describe('TriagePage', () => {
       .not.toBeInTheDocument()
   })
 
-  it('accepts the snapshot as baseline with B, approving just that snapshot', async () => {
-    const api = server()
-    await show()
-    await expect.element(page.getByRole('button', { name: 'Accept as baseline' })).toBeVisible()
-    await userEvent.keyboard('b')
-    await vi.waitFor(() =>
-      expect(
-        api.of('POST').find((c) => c.path === `${BASE}/builds/12/snapshots/review`)?.body,
-      ).toEqual({
-        snapshotNames: ['home'],
-        decision: 'approved',
-      }),
-    )
-  })
-
   it('assigns to me with M, at once', async () => {
     const api = server()
     await show()
@@ -247,64 +207,6 @@ describe('TriagePage', () => {
         choice: 'tomorrow',
       }),
     )
-  })
-
-  it('draws an ignore region with I and dismisses the item with it', async () => {
-    const api = server()
-    await show()
-    await expect.element(page.getByRole('button', { name: 'Add ignore region' })).toBeVisible()
-    await userEvent.keyboard('i')
-    const layer = page.getByTestId('region-layer')
-    await sizeImage(layer)
-    await userEvent.dragAndDrop(layer, layer, {
-      sourcePosition: { x: 40, y: 30 },
-      targetPosition: { x: 200, y: 150 },
-    })
-    await page.getByRole('button', { name: 'Ignore this region' }).click()
-    await vi.waitFor(() =>
-      expect(api.of('POST').some((c) => c.path === `${BASE}/ignore-regions`)).toBe(true),
-    )
-    const posted = api.of('POST').find((c) => c.path === `${BASE}/ignore-regions`)?.body
-    expect(field(posted, 'name')).toBe('home')
-    expect(field(posted, 'resolves')).toEqual({ kind: 'flaky', key: 'home' })
-    // Pixels of the 400 x 300 image (the drag lands within a pixel or two).
-    expect(Number(field(posted, 'x'))).toBeCloseTo(40, -1)
-    expect(Number(field(posted, 'y'))).toBeCloseTo(30, -1)
-    expect(Number(field(posted, 'width'))).toBeCloseTo(160, -1)
-    expect(Number(field(posted, 'height'))).toBeCloseTo(120, -1)
-  })
-
-  it('draws an ignore region from the keyboard with I, arrows and Enter', async () => {
-    const api = server()
-    await show()
-    await expect.element(page.getByRole('button', { name: 'Add ignore region' })).toBeVisible()
-    await userEvent.keyboard('i')
-    await sizeImage(page.getByTestId('region-layer'))
-    await expect.element(page.getByRole('group', { name: 'Region to mark' })).toHaveFocus()
-    await userEvent.keyboard('{ArrowLeft}{Shift>}{ArrowRight}{/Shift}')
-    await userEvent.keyboard('{Enter}')
-    await page.getByRole('button', { name: 'Ignore this region' }).click()
-    await vi.waitFor(() =>
-      expect(api.of('POST').some((c) => c.path === `${BASE}/ignore-regions`)).toBe(true),
-    )
-    const posted = api.of('POST').find((c) => c.path === `${BASE}/ignore-regions`)?.body
-    expect(field(posted, 'name')).toBe('home')
-    // Start 40%, 40%, 20% x 20% of 400 x 300: one step left, one step wider (21%).
-    expect(Number(field(posted, 'x'))).toBe(156)
-    expect(Number(field(posted, 'y'))).toBe(120)
-    expect(Number(field(posted, 'width'))).toBe(84)
-    expect(Number(field(posted, 'height'))).toBe(60)
-  })
-
-  it('Escape leaves the keyboard region tool, like Cancel', async () => {
-    server()
-    await show()
-    await userEvent.keyboard('i')
-    await expect.element(page.getByRole('group', { name: 'Region to mark' })).toHaveFocus()
-    await userEvent.keyboard('{Escape}')
-    await expect
-      .element(page.getByRole('group', { name: 'Region to mark' }))
-      .not.toBeInTheDocument()
   })
 
   it('moves the selection with J and K', async () => {

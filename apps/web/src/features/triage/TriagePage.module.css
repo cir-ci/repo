@@ -92,23 +92,6 @@
   align-items: center;
 }
 
-.canvas {
-  position: relative;
-  display: inline-block;
-  max-width: 100%;
-  line-height: 0;
-}
-
-.canvas img {
-  display: block;
-  max-width: 100%;
-}
-
-.drawActions {
-  display: flex;
-  gap: 8px;
-}
-
 /* The chip on a row: hidden until the row is hovered, focused or selected. */
 .row {
   position: relative;
