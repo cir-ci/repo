@@ -88,3 +88,19 @@ describe('inviting an address again', () => {
     expect(resent.json().replaced).toBeUndefined()
   })
 })
+
+describe('an admin removing an owner', () => {
+  it('is refused with 403 and says only owners can do it', async () => {
+    const admin = await fx.addMember('admin')
+    const roster = await fx.get(
+      `/api/auth/organization/get-full-organization?organizationSlug=${acme.workspaceSlug}`,
+    )
+    const owner = roster.json().members.find((m: { role: string }) => m.role === 'owner')
+    const res = await admin.send('POST', '/api/auth/organization/remove-member', {
+      memberIdOrEmail: owner.id,
+      organizationId: await workspaceId(),
+    })
+    expect(res.statusCode).toBe(403)
+    expect(res.json().message).toBe('Only owners can remove an owner.')
+  })
+})

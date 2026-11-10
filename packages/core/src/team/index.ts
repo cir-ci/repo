@@ -1,5 +1,10 @@
-export { ACCOUNT_NAME_MAX, accountNameProblem } from './account-name.ts'
-export { assertValidSlug, isValidSlug, slugify } from './slug.ts'
+export {
+  ACCOUNT_IMAGE_MAX,
+  ACCOUNT_NAME_MAX,
+  accountImageProblem,
+  accountNameProblem,
+} from './account-name.ts'
+export { assertValidSlug, RESERVED_SLUGS, isValidSlug, slugify } from './slug.ts'
 export { canManage } from './roles.ts'
 export {
   assertTeamColor,
@@ -38,3 +43,6 @@ export {
   MAX_RETENTION_DAYS,
   MAX_REVIEW_TARGET_HOURS,
 } from './team-settings-rules.ts'
+export { ownSignInRefusal, type OwnSignInMethod, type SignInSwitches } from './own-sign-in.ts'
+export { isPublicEmailDomain } from './public-email-domains.ts'
+export { describeAuthValidation, type AuthValidationProblem } from './auth-validation.ts'

@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { resolveTxt } from 'node:dns/promises'
 
-import { ValidationError, assertFound } from '@circi/core'
+import { ValidationError, assertFound, isPublicEmailDomain } from '@circi/core'
 import { and, eq, isNotNull } from 'drizzle-orm'
 
 import { verificationName, verificationValue, type WorkspaceDomain } from '#queries/domains.ts'
@@ -29,6 +29,12 @@ export async function addWorkspaceDomain(
   raw: string,
 ): Promise<WorkspaceDomain> {
   const domain = normalizeDomain(raw)
+  if (isPublicEmailDomain(domain)) {
+    throw new ValidationError(
+      `${domain} is a public mailbox provider; anyone can have an address there. Add a domain your organization owns.`,
+      { fields: { domain: `${domain} is a public mailbox provider` } },
+    )
+  }
   try {
     const [row] = await db
       .insert(workspaceDomains)
@@ -58,25 +64,29 @@ export async function removeWorkspaceDomain(
 export type TxtResolver = (name: string) => Promise<string[][]>
 
 /**
- * Checks the DNS proof and, if it's there, marks the domain verified. Returns whether it is
- * (a missing record is "not yet", not an error: DNS takes time to spread).
+ * Checks the DNS proof and, if it's there, marks the domain verified. Says whether it is, and
+ * when it is not, why (a missing record is "not yet", not an error: DNS takes time to spread).
  */
 export async function verifyWorkspaceDomain(
   db: Database,
   workspaceId: string,
   id: string,
   lookup: TxtResolver = resolveTxt,
-): Promise<boolean> {
+): Promise<{ verified: boolean; reason?: string }> {
   const [row] = await db
     .select()
     .from(workspaceDomains)
     .where(and(eq(workspaceDomains.workspaceId, workspaceId), eq(workspaceDomains.id, id)))
   assertFound(row, 'Domain not found')
-  if (row.verifiedAt) return true
-  const records = await lookup(verificationName(row.domain)).catch(() => [] as string[][])
+  if (row.verifiedAt) return { verified: true }
+  const name = verificationName(row.domain)
+  const records = await lookup(name).catch(() => [] as string[][])
   const expected = verificationValue(row)
+  if (records.length === 0) return { verified: false, reason: `No TXT record ${name} found` }
   // A long TXT value arrives split into chunks; join them back together.
-  if (!records.some((chunks) => chunks.join('') === expected)) return false
+  if (!records.some((chunks) => chunks.join('') === expected)) {
+    return { verified: false, reason: `The TXT record at ${name} doesn't match` }
+  }
   try {
     await db
       .update(workspaceDomains)
@@ -88,7 +98,7 @@ export async function verifyWorkspaceDomain(
     }
     throw err
   }
-  return true
+  return { verified: true }
 }
 
 /**

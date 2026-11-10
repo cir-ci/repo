@@ -1,6 +1,31 @@
 import type { Auth } from '@circi/auth'
 import { fromNodeHeaders } from '@circi/auth'
+import { describeAuthValidation } from '@circi/core'
 import type { FastifyPluginAsync } from 'fastify'
+
+/**
+ * better-auth's validation failures carry developer text (`[body.email] Invalid input: …`). They
+ * become the app routes' shape, `{ error, fields }`, keeping better-auth's own `message` and
+ * `code` for its client. Any other body goes through untouched.
+ */
+function readableValidation(text: string) {
+  try {
+    const body: unknown = JSON.parse(text)
+    if (typeof body !== 'object' || body === null) return text
+    if (Reflect.get(body, 'code') !== 'VALIDATION_ERROR') return text
+    const raw: unknown = Reflect.get(body, 'message')
+    const problem = typeof raw === 'string' ? describeAuthValidation(raw) : undefined
+    if (!problem) return text
+    return JSON.stringify({
+      ...body,
+      message: problem.error,
+      error: problem.error,
+      fields: problem.fields,
+    })
+  } catch {
+    return text
+  }
+}
 
 /**
  * Hands `/api/auth/*` (sign in, sign out, session, workspaces…) to better-auth. Fastify's
@@ -50,9 +75,11 @@ export const authRoutes: FastifyPluginAsync<{
       // Set-Cookie can repeat, and must not be folded into one header.
       for (const cookie of response.headers.getSetCookie()) reply.header('set-cookie', cookie)
       response.headers.forEach((value, key) => {
-        if (key !== 'set-cookie') reply.header(key, value)
+        // The length is the original body's; the body may have been rewritten.
+        if (key !== 'set-cookie' && key !== 'content-length') reply.header(key, value)
       })
-      return reply.send(response.body ? await response.text() : null)
+      const text = response.body ? await response.text() : null
+      return reply.send(response.status === 400 && text ? readableValidation(text) : text)
     },
   })
 }

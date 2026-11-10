@@ -1,8 +1,9 @@
-import { createTestDb } from '@circi/db/testing'
+import { createTestDb, seedWorkspace } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { getQueueDepth } from '#src/queries/index.ts'
+import { getQueueDepth, listAccounts } from '#src/queries/index.ts'
 import { enqueueJob, QUEUES } from '#src/queue/index.ts'
+import { workspaceDeletions } from '#src/schema/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -10,6 +11,22 @@ beforeAll(async () => {
 })
 afterAll(async () => {
   await t.close()
+})
+
+describe('listAccounts', () => {
+  it('counts only live workspaces', async () => {
+    const live = await seedWorkspace(t.db)
+    const gone = await seedWorkspace(t.db)
+    await t.db.insert(workspaceDeletions).values({ workspaceId: gone.workspace.id })
+    const { accounts } = await listAccounts(t.db, {
+      search: live.owner.email,
+      page: 1,
+      pageSize: 5,
+    })
+    expect(accounts.find((a) => a.id === live.owner.id)?.workspaceCount).toBe(1)
+    const deleted = await listAccounts(t.db, { search: gone.owner.email, page: 1, pageSize: 5 })
+    expect(deleted.accounts.find((a) => a.id === gone.owner.id)?.workspaceCount).toBe(0)
+  })
 })
 
 describe('getQueueDepth', () => {

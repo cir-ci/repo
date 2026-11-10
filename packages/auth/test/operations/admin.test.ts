@@ -58,6 +58,24 @@ describe('accounts and workspaces', () => {
     expect(await listUserWorkspaceIds(t.db, owner.id)).toEqual([workspace.id])
   })
 
+  it('says plainly when the address is taken, also by a deleted workspace', async () => {
+    const { owner, workspace, slug } = await workspaceWithOwner()
+    await expect(
+      createWorkspace(auth, t.db, { name: 'Again', slug, ownerEmail: owner.email }),
+    ).rejects.toThrow(`A workspace at /${slug} already exists. Choose another name.`)
+    await t.db.insert(schema.workspaceDeletions).values({ workspaceId: workspace.id })
+    await expect(
+      createWorkspace(auth, t.db, { name: 'Again', slug, ownerEmail: owner.email }),
+    ).rejects.toThrow(/was deleted/)
+  })
+
+  it('refuses a name that is a dashboard route', async () => {
+    const { owner } = await workspaceWithOwner()
+    await expect(
+      createWorkspace(auth, t.db, { name: 'Inbox', ownerEmail: owner.email }),
+    ).rejects.toThrow(/reserved/)
+  })
+
   it('adds members by email', async () => {
     const { workspace, slug } = await workspaceWithOwner()
     const dev = await createUser(auth, {

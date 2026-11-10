@@ -129,6 +129,23 @@ export async function createWorkspace(
   const slug = input.slug ?? slugify(name)
   assertValidSlug(slug, 'workspace slug')
   const userId = await getUserIdByEmail(db, input.ownerEmail)
+  // better-auth would refuse too, but in its own words; a deleted workspace keeps its address
+  // until it is purged, so that one gets its own message.
+  const [existing] = await db
+    .select({ id: schema.workspace.id, deleted: schema.workspaceDeletions.workspaceId })
+    .from(schema.workspace)
+    .leftJoin(
+      schema.workspaceDeletions,
+      eq(schema.workspaceDeletions.workspaceId, schema.workspace.id),
+    )
+    .where(eq(schema.workspace.slug, slug))
+  if (existing) {
+    throw new ConflictError(
+      existing.deleted
+        ? `A workspace at /${slug} was deleted and is still waiting to be purged. Choose another name, or restore it.`
+        : `A workspace at /${slug} already exists. Choose another name.`,
+    )
+  }
   const workspace = await auth.api.createOrganization({ body: { name, slug, userId } })
   if (!workspace) throw new Error('better-auth returned no workspace')
   return workspace

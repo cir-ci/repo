@@ -1,4 +1,5 @@
 import { mkdtemp, rm } from 'node:fs/promises'
+import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -232,6 +233,31 @@ describe('a workspace’s own single sign-on', () => {
       expect(res.statusCode).toBe(400)
       expect(res.json().error).toContain("Couldn't reach that issuer")
       expect(res.json().error).toContain(new URL(issuer).host)
+    }
+  })
+
+  it('says plainly when the issuer answers but has no discovery document', async () => {
+    const plain = createServer((_req, res) => {
+      res.statusCode = 404
+      res.end('nope')
+    })
+    await new Promise<void>((resolve) => plain.listen(0, '127.0.0.1', resolve))
+    try {
+      const address = plain.address()
+      const port = typeof address === 'object' && address ? address.port : 0
+      const res = await app.inject({
+        method: 'POST',
+        url: base(),
+        headers: { ...JSON_HEADERS, cookie: ownerCookie },
+        payload: { issuer: `http://127.0.0.1:${port}`, clientId: 'client-1', clientSecret: 'shh' },
+      })
+      expect(res.statusCode).toBe(400)
+      expect(res.json().error).toBe(
+        'That address has no OpenID Connect discovery document (/.well-known/openid-configuration).',
+      )
+      expect(res.json().fields).toHaveProperty('issuer')
+    } finally {
+      plain.close()
     }
   })
 

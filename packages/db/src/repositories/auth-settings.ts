@@ -1,3 +1,4 @@
+import { ownSignInRefusal, ValidationError } from '@circi/core'
 import { and, eq } from 'drizzle-orm'
 
 import { getWorkspaceAuthSettings } from '#queries/auth-settings.ts'
@@ -8,6 +9,7 @@ import {
   sessionMethods,
   workspaceAuthSettings,
 } from '#schema/index.ts'
+import { type SessionMethod } from '#shared/session-method.ts'
 import type { Database } from '#src/client.ts'
 import { ConflictError } from '#src/errors.ts'
 export * from '#shared/session-method.ts'
@@ -74,9 +76,15 @@ export async function setWorkspaceAuthSettings(
   db: Database,
   workspaceId: string,
   patch: Partial<getWorkspaceAuthSettings.Result>,
-  options: { instance: getWorkspaceAuthSettings.Instance; force?: boolean },
+  options: {
+    instance: getWorkspaceAuthSettings.Instance
+    force?: boolean
+    /** How the person making the change signed in: they may not switch that method off. */
+    currentMethod?: SessionMethod
+  },
 ): Promise<getWorkspaceAuthSettings.Result> {
-  const next = { ...(await getWorkspaceAuthSettings(db, workspaceId)), ...patch }
+  const current = await getWorkspaceAuthSettings(db, workspaceId)
+  const next = { ...current, ...patch }
   if (!options.force) {
     const on = {
       password: options.instance.password && next.passwordLoginEnabled,
@@ -90,6 +98,8 @@ export async function setWorkspaceAuthSettings(
         'That would leave no owner able to sign in. Keep a method on that an owner can use.',
       )
     }
+    const own = ownSignInRefusal(options.currentMethod, current, patch)
+    if (own) throw new ValidationError(own.message, { fields: { [own.field]: own.message } })
   }
   await db
     .insert(workspaceAuthSettings)

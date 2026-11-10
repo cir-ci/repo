@@ -59,12 +59,11 @@ export const dashboardDomainRoutes: FastifyPluginAsync<
   app.post('/workspaces/:workspace/domains/:id/verify', async (req) => {
     const workspace = await managed(req)
     const { id } = parse(domainParams, req.params)
-    const verified = await verifyEmailDomain(deps.db, {
+    return verifyEmailDomain(deps.db, {
       workspaceId: workspace.id,
       id,
       resolveTxt: deps.resolveTxt,
     })
-    return { verified }
   })
 
   app.delete('/workspaces/:workspace/domains/:id', async (req, reply) => {

@@ -35,13 +35,16 @@ describe('email domains', () => {
       id: added.id,
       resolveTxt: async () => [],
     })
-    expect(none).toBe(false)
+    expect(none).toEqual({
+      verified: false,
+      reason: `No TXT record _circi-verify.acme.test found`,
+    })
     const ok = await verifyEmailDomain(t.db, {
       workspaceId: workspace.id,
       id: added.id,
       resolveTxt: async () => [[`circi-verify=${added.verificationToken}`]],
     })
-    expect(ok).toBe(true)
+    expect(ok).toEqual({ verified: true })
     expect((await listWorkspaceDomains(t.db, workspace.id))[0]?.verifiedAt).not.toBeNull()
 
     await removeEmailDomain(t.db, { workspaceId: workspace.id, id: added.id })

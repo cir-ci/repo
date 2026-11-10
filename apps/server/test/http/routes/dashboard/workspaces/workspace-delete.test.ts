@@ -142,8 +142,8 @@ describe('deleting a workspace', () => {
       slug: s.tenant.workspaceSlug,
       ownerEmail: 'root@acme.test',
     })
-    expect(again.statusCode).toBeGreaterThanOrEqual(400)
-    expect(JSON.stringify(again.json())).toMatch(/slug|taken|exist/i)
+    expect(again.statusCode).toBe(409)
+    expect(again.json().error).toContain(`A workspace at /${s.tenant.workspaceSlug} was deleted`)
   })
 
   it('shows it to instance admins as deleted with the days left, and restoring brings everything back', async () => {

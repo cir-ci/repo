@@ -117,6 +117,16 @@ async function verifiedDomain(): Promise<{ id: string; dnsValue: string }> {
 }
 
 describe('claiming an email domain', () => {
+  it.each(['gmail.com', '@Outlook.com', 'gmx.de', 'yandex.ru', 'proton.me'])(
+    'refuses the public mailbox provider %s',
+    async (domain) => {
+      const res = await call('POST', base(), ownerCookie, { domain })
+      expect(res.statusCode).toBe(400)
+      expect(res.json().error).toMatch(/public mailbox provider/)
+      expect(res.json().fields).toHaveProperty('domain')
+    },
+  )
+
   it('adds a domain and says what to put in DNS', async () => {
     const res = await call('POST', base(), ownerCookie, { domain: ' @Corp.Test ' })
     expect(res.statusCode).toBe(201)
@@ -144,10 +154,12 @@ describe('claiming an email domain', () => {
     const { id } = await addDomain()
     expect((await call('POST', `${base()}/${id}/verify`, ownerCookie, {})).json()).toEqual({
       verified: false,
+      reason: 'No TXT record _circi-verify.corp.test found',
     })
     dns.set('_circi-verify.corp.test', [['circi-verify=wrong']])
     expect((await call('POST', `${base()}/${id}/verify`, ownerCookie, {})).json()).toEqual({
       verified: false,
+      reason: "The TXT record at _circi-verify.corp.test doesn't match",
     })
     // Ann has an account but the domain isn't verified, so signing in doesn't add her.
     const { status, cookie } = await codeSignIn('ann@corp.test')

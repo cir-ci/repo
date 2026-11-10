@@ -71,21 +71,28 @@ describe('verifyWorkspaceDomain', () => {
 
     expect(
       await verifyWorkspaceDomain(t.db, workspace.id, domain.id, () => Promise.resolve([['nope']])),
-    ).toBe(false)
+    ).toEqual({
+      verified: false,
+      reason: "The TXT record at _circi-verify.verify.example.com doesn't match",
+    })
     expect(
       await verifyWorkspaceDomain(t.db, workspace.id, domain.id, () =>
         Promise.reject(new Error('nx')),
       ),
-    ).toBe(false)
+    ).toEqual({ verified: false, reason: 'No TXT record _circi-verify.verify.example.com found' })
     const half = Math.floor(expected.length / 2)
     const lookup = (name: string) => {
       asked.push(name)
       return Promise.resolve([[expected.slice(0, half), expected.slice(half)]])
     }
-    expect(await verifyWorkspaceDomain(t.db, workspace.id, domain.id, lookup)).toBe(true)
+    expect(await verifyWorkspaceDomain(t.db, workspace.id, domain.id, lookup)).toEqual({
+      verified: true,
+    })
     expect(asked).toEqual([verificationName('verify.example.com')])
     // Already verified: no second lookup.
-    expect(await verifyWorkspaceDomain(t.db, workspace.id, domain.id, lookup)).toBe(true)
+    expect(await verifyWorkspaceDomain(t.db, workspace.id, domain.id, lookup)).toEqual({
+      verified: true,
+    })
     expect(asked).toHaveLength(1)
   })
 
@@ -95,7 +102,9 @@ describe('verifyWorkspaceDomain', () => {
     const a = await addWorkspaceDomain(t.db, first.workspace.id, 'shared.example.com')
     const b = await addWorkspaceDomain(t.db, second.workspace.id, 'shared.example.com')
     const proves = (d: typeof a) => () => Promise.resolve([[verificationValue(d)]])
-    expect(await verifyWorkspaceDomain(t.db, first.workspace.id, a.id, proves(a))).toBe(true)
+    expect(await verifyWorkspaceDomain(t.db, first.workspace.id, a.id, proves(a))).toEqual({
+      verified: true,
+    })
     await expect(
       verifyWorkspaceDomain(t.db, second.workspace.id, b.id, proves(b)),
     ).rejects.toBeInstanceOf(ConflictError)

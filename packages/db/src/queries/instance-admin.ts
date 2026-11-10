@@ -29,6 +29,7 @@ import {
   workspace,
   workspaceDeletions,
 } from '#schema/index.ts'
+import { workspaceIsLive } from '#shared/session-method.ts'
 import type { Database } from '#src/client.ts'
 
 /** Read models for the instance admin's pages: accounts, workspaces, job queues. */
@@ -63,7 +64,7 @@ const escapeLike = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`)
 
 const isAdminRole = (role: string | null) => (role ?? '').split(',').includes('admin')
 
-/** Accounts newest first, with their workspace count and when they last signed in. */
+/** Accounts newest first, with their count of live (not deleted) workspaces and when they last signed in. */
 export async function listAccounts(
   db: Database,
   input: listAccounts.Input,
@@ -87,7 +88,7 @@ export async function listAccounts(
     const counts = await db
       .select({ userId: member.userId, n: count() })
       .from(member)
-      .where(inArray(member.userId, ids))
+      .where(and(inArray(member.userId, ids), workspaceIsLive(member.workspaceId)))
       .groupBy(member.userId)
     for (const c of counts) workspaces.set(c.userId, c.n)
     const last = await db

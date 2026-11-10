@@ -171,6 +171,37 @@ describe('per-workspace login methods', () => {
     expect((await getWorkspaceAuthSettings(t.db, workspace?.id ?? '')).emailLoginEnabled).toBe(true)
   })
 
+  it('refuses to turn off the method this session signed in with, naming the field', async () => {
+    const off = await caller(withEmail)(
+      'PATCH',
+      `/api/workspaces/${acme.workspaceSlug}/auth`,
+      passwordCookie,
+      { passwordLoginEnabled: false },
+    )
+    expect(off.statusCode).toBe(400)
+    expect(off.json().error).toBe(
+      'You signed in with a password. Sign in with another method this workspace accepts before turning passwords off.',
+    )
+    expect(off.json().fields).toEqual({ passwordLoginEnabled: off.json().error })
+    // Nothing changed, and the session still opens the workspace.
+    const after = await caller(withEmail)(
+      'GET',
+      `/api/workspaces/${acme.workspaceSlug}/auth`,
+      passwordCookie,
+    )
+    expect(after.statusCode).toBe(200)
+    expect(after.json().settings.passwordLoginEnabled).toBe(true)
+    // The same goes for an email-code session and email codes.
+    const own = await caller(withEmail)(
+      'PATCH',
+      `/api/workspaces/${acme.workspaceSlug}/auth`,
+      emailCookie,
+      { emailLoginEnabled: false },
+    )
+    expect(own.statusCode).toBe(400)
+    expect(own.json().fields).toHaveProperty('emailLoginEnabled')
+  })
+
   it('counts the instance switches: no email on the instance means password must stay', async () => {
     const solo = await seedTenant(tenantAuth, t.db)
     const cookie = await signIn(passwordOnly, solo.owner.email, solo.owner.password)

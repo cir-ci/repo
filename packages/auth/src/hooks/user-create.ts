@@ -1,4 +1,4 @@
-import { ACCOUNT_NAME_MAX, accountNameProblem } from '@circi/core'
+import { ACCOUNT_NAME_MAX, accountImageProblem, accountNameProblem } from '@circi/core'
 import { workspacesForEmailDomain } from '@circi/db/repositories'
 import { APIError } from 'better-auth/api'
 
@@ -51,9 +51,17 @@ export function assertAccountName(name: string): void {
   if (problem) throw new APIError('BAD_REQUEST', { message: problem })
 }
 
-/** The same rule for a name being changed: the person's own, or an admin's. */
+/** The same rule for a name being changed (the person's own, or an admin's), and one for the picture address. */
 export function beforeUserUpdate() {
-  return async (user: { name?: unknown }): Promise<{ data: { name: string } } | undefined> => {
+  return async (
+    user: { name?: unknown; image?: unknown },
+    context?: { path?: string } | null,
+  ): Promise<{ data: { name: string } } | undefined> => {
+    // Only what somebody typed: a provider's own picture, refreshed at sign-in, must not block it.
+    if (typeof user.image === 'string' && context?.path?.endsWith('update-user')) {
+      const problem = accountImageProblem(user.image)
+      if (problem) throw new APIError('BAD_REQUEST', { message: problem })
+    }
     if (typeof user.name !== 'string') return undefined
     assertAccountName(user.name)
     return { data: { name: user.name.trim() } }

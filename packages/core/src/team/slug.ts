@@ -2,23 +2,40 @@ import { ValidationError } from '../errors.ts'
 
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/
 
-/** Reserved because they collide with dashboard routes (`<PUBLIC_URL>/<workspace>/…`). */
-const RESERVED = new Set([
+/**
+ * Reserved because they collide with dashboard routes (`<PUBLIC_URL>/<workspace>/…`): the server's
+ * own paths, and every top-level segment the web app's router uses (`apps/web/src/app/router.tsx`
+ * and the feature `routes.ts` files; a test in the server package keeps this in step).
+ * Rows created before a name was reserved keep working; only new and renamed slugs are checked.
+ */
+export const RESERVED_SLUGS: readonly string[] = [
+  '_sso',
+  'account',
   'admin',
   'api',
   'app',
   'assets',
   'auth',
   'healthz',
+  'inbox',
+  'insights',
+  'instance',
+  'integrations',
   'login',
   'logout',
   'readyz',
+  'reviews',
+  'search',
   'settings',
   'setup',
   'static',
   'v1',
+  'views',
   'webhooks',
-])
+  'workspaces',
+]
+
+const RESERVED = new Set(RESERVED_SLUGS)
 
 export function isValidSlug(slug: string): boolean {
   return SLUG_RE.test(slug) && !slug.includes('--') && !RESERVED.has(slug)

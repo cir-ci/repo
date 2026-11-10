@@ -22,16 +22,20 @@ export namespace addEmailDomain {
   }
 }
 
-/** Checks the DNS proof of a claimed domain; true once it is verified. */
+/** Checks the DNS proof of a claimed domain; `verified` once it is, else the `reason` it is not. */
 export async function verifyEmailDomain(
   db: Database,
   input: verifyEmailDomain.Input,
-): Promise<boolean> {
+): Promise<verifyEmailDomain.Result> {
   return db.transaction((tx) =>
     verifyWorkspaceDomain(tx, input.workspaceId, input.id, input.resolveTxt),
   )
 }
 export namespace verifyEmailDomain {
+  export interface Result {
+    verified: boolean
+    reason?: string
+  }
   export interface Input {
     workspaceId: string
     id: string

@@ -3,6 +3,7 @@ import { updateWorkspaceSignIn } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
+import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 import { loadWorkspace } from '#http/lib/workspace-access.ts'
@@ -47,7 +48,10 @@ export const dashboardWorkspaceAuthRoutes: FastifyPluginAsync<Deps.Dashboard> = 
     })
     const patch = parse(body, req.body)
     return {
-      settings: await updateWorkspaceSignIn(deps.db, found.workspace.id, patch, { instance }),
+      settings: await updateWorkspaceSignIn(deps.db, found.workspace.id, patch, {
+        instance,
+        currentMethod: currentUser(req).method,
+      }),
     }
   })
 }

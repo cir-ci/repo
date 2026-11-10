@@ -20,6 +20,21 @@ const providerParams = workspaceParams.extend({ providerId: z.string() })
  * connection, timeout) is the person's typo or firewall, not our fault: say so with a 400.
  */
 function issuerFailure(err: unknown, issuer: string): unknown {
+  // better-auth's own wording for a missing document is for developers; say what to check.
+  const body = typeof err === 'object' && err !== null ? Reflect.get(err, 'body') : undefined
+  const code = typeof body === 'object' && body !== null ? Reflect.get(body, 'code') : undefined
+  if (code === 'discovery_not_found') {
+    return new ValidationError(
+      'That address has no OpenID Connect discovery document (/.well-known/openid-configuration).',
+      { fields: { issuer: 'No OpenID Connect discovery document at this address' } },
+    )
+  }
+  if (code === 'discovery_invalid_json') {
+    return new ValidationError(
+      'That address answered, but its OpenID Connect discovery document (/.well-known/openid-configuration) is not valid.',
+      { fields: { issuer: 'The discovery document is not valid' } },
+    )
+  }
   const status =
     typeof err === 'object' && err !== null ? Reflect.get(err, 'statusCode') : undefined
   const unreachable = typeof status === 'number' && status >= 500

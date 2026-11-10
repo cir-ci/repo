@@ -12,6 +12,7 @@ import { eq } from 'drizzle-orm'
 import type { AuthOptions } from '#src/options.ts'
 
 import { rememberOpenInvitations } from './invitations.ts'
+import { guardOwnerRemoval } from './member-removal.ts'
 
 /** The workspace a request names, by id or slug. */
 function workspaceRef(source: unknown): { id?: string; slug?: string } | undefined {
@@ -36,6 +37,17 @@ function workspaceRef(source: unknown): { id?: string; slug?: string } | undefin
 export function requestGuard(options: Pick<AuthOptions, 'db'>) {
   return createAuthMiddleware(async (ctx) => {
     await rememberOpenInvitations(options, ctx)
+    await guardOwnerRemoval(options, ctx, async () => (await getSessionFromCtx(ctx))?.user.id)
+    if (ctx.path === '/change-password') {
+      const { currentPassword, newPassword } = ctx.body ?? {}
+      if (typeof currentPassword === 'string' && currentPassword === newPassword) {
+        throw new APIError('BAD_REQUEST', {
+          message: 'The new password must be different from the current one.',
+          code: 'PASSWORD_UNCHANGED',
+        })
+      }
+      return
+    }
     if (ctx.path === '/email-otp/send-verification-otp') {
       // Counted for every address, so refusing never reveals which ones have accounts.
       const email = typeof ctx.body?.email === 'string' ? ctx.body.email : ''

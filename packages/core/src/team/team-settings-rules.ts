@@ -29,12 +29,14 @@ export function assertReviewTargetHours(hours: number): void {
   }
 }
 
-/** The diff threshold is stored as a share (0 to 1) but people think of it as a percentage. */
+/**
+ * The diff threshold is stored, and taken by the API, as a share (0 to 1); the dashboard shows
+ * it as a percentage and has its own message for that.
+ */
 export function assertDiffThreshold(share: number): void {
   if (!(share >= 0 && share <= 1)) {
-    throw new ValidationError('Diff threshold must be between 0 and 100%', {
-      fields: { diffThreshold: 'Between 0 and 100%' },
-    })
+    const message = 'diffThreshold must be between 0 and 1 (a share; 0.05 is 5%)'
+    throw new ValidationError(message, { fields: { diffThreshold: message } })
   }
 }
 
