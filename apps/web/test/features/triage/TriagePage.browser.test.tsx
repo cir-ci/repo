@@ -12,6 +12,11 @@ import { renderPage } from '#test/support/render.tsx'
 
 const BASE = '/api/teams/acme/web'
 
+const TWO_DAYS_AGO = new Date(Date.now() - 2 * 24 * 3600_000).toISOString()
+
+/** Ten builds on main, oldest first; the screenshot changed in the even ones. */
+const tenBuilds = Array.from({ length: 10 }, (_, i) => ({ number: 3 + i, changed: i % 2 === 1 }))
+
 const item = (key: string, over: Record<string, unknown> = {}) => ({
   kind: 'flaky',
   key,
@@ -22,12 +27,15 @@ const item = (key: string, over: Record<string, unknown> = {}) => ({
     branch: 'main',
     commitSha: 'abcdef1',
     status: 'complete',
-    createdAt: '2026-11-08T10:00:00.000Z',
+    createdAt: TWO_DAYS_AGO,
   },
   assignee: null,
   snoozedUntil: null,
   snoozeKind: null,
   snoozed: false,
+  history: [],
+  error: null,
+  blocking: 0,
   ...over,
 })
 
@@ -36,7 +44,7 @@ const queue = (items: unknown[], onTriage: { id: string; name: string } | null =
   rotation: {
     members: onTriage ? [onTriage] : [],
     onTriage,
-    until: onTriage ? '2026-11-15T00:00:00.000Z' : null,
+    until: onTriage ? '2026-11-16T12:00:00.000Z' : null,
   },
 })
 
@@ -73,14 +81,19 @@ const show = () =>
   renderPage(<TriagePage />, {
     route: '/$workspace/$team/triage',
     url: '/acme/web/triage',
-    otherRoutes: ['/$workspace/$team/builds/$number'],
+    otherRoutes: ['/$workspace/$team/builds/$number', '/$workspace/$team/settings/reviews'],
     announcer: true,
   })
 
 const items = () => [
-  item('home'),
+  item('home', { history: tenBuilds, blocking: 2 }),
   item('pricing', { kind: 'no_baseline' }),
-  item('build:9', { kind: 'failed', snapshotName: null }),
+  item('build:9', {
+    kind: 'failed',
+    snapshotName: null,
+    error: '2 files over the 25 MB limit',
+    build: { ...item('x').build, number: 9, status: 'error' },
+  }),
 ]
 
 /** A server whose queue loses an item once it is acted on, as the real one does. */
@@ -100,9 +113,16 @@ function server() {
     [`POST ${BASE}/triage/dismiss`]: (body) => gone(field(body, 'key')),
     [`POST ${BASE}/triage/snooze`]: (body) => gone(field(body, 'key')),
     [`POST ${BASE}/triage/assign`]: { body: {} },
+    [`POST ${BASE}/triage/rerun`]: (body) => {
+      current = current.filter((i) => i.build.number !== field(body, 'number'))
+      return { body: { build: { number: field(body, 'number'), status: 'processing' } } }
+    },
   }
   return fakeApi(routes)
 }
+
+/** The pane beside the list. */
+const pane = () => page.getByRole('region', { name: 'Details' })
 
 describe('TriagePage', () => {
   it('groups the queue under labelled lists with counts and names rows by kind and snapshot', async () => {
@@ -113,22 +133,55 @@ describe('TriagePage', () => {
     await expect.element(page.getByRole('list', { name: 'No baseline, 1 item' })).toBeVisible()
     await expect.element(page.getByRole('list', { name: 'Failed, 1 item' })).toBeVisible()
     await expect.element(page.getByText('Flaky, home, build #12, main.')).toBeInTheDocument()
-    await expect.element(page.getByRole('status').getByText('3 items to triage')).toBeVisible()
+    await expect.element(page.getByRole('status').getByText('3', { exact: true })).toBeVisible()
   })
 
-  it('shows the filmstrip of the selected snapshot with the flaky glyph', async () => {
+  it('shows the last 10 builds of a flaky screenshot as cells, the changed ones marked', async () => {
     server()
     await show()
-    const strip = page.getByRole('list', { name: 'Recent builds of home' })
-    await expect.element(strip).toBeVisible()
-    await expect.element(strip.getByRole('img', { name: 'Flaky' })).toBeVisible()
-    expect(strip.getByRole('listitem').elements()).toHaveLength(2)
+    const film = page.getByRole('list', { name: 'Changed in 5 of the last 10 builds' })
+    await expect.element(film).toBeVisible()
+    expect(film.getByRole('listitem').elements()).toHaveLength(10)
+    await expect
+      .element(film.getByRole('link', { name: 'Open home in build #4, changed' }))
+      .toHaveAttribute('href', '/acme/web/builds/4?shot=home')
+    await expect
+      .element(film.getByRole('link', { name: 'Open home in build #3, same' }))
+      .toBeVisible()
+    await expect.element(page.getByText('Last 10 builds on main')).toBeVisible()
+    await expect.element(page.getByText('Where it changes')).toBeVisible()
+  })
+
+  it('says why each row is in the queue, how old it is, and who has it', async () => {
+    fakeApi({
+      [`GET ${BASE}/triage`]: {
+        body: queue([
+          item('home', { history: tenBuilds }),
+          item('pricing', {
+            kind: 'no_baseline',
+            assignee: { id: 'u2', name: 'Grace', image: null },
+          }),
+          item('build:9', { kind: 'failed', snapshotName: null, error: 'Upload rejected' }),
+        ]),
+      },
+    })
+    await show()
+    const flaky = page.getByRole('list', { name: 'Flaky, 1 item' })
+    await expect.element(flaky.getByText('Changed in 5 of the last 10 builds')).toBeVisible()
+    await expect.element(flaky.getByText('2d')).toBeVisible()
+    await expect.element(flaky.getByRole('img', { name: 'Unassigned' })).toBeVisible()
+    const none = page.getByRole('list', { name: 'No baseline, 1 item' })
+    await expect.element(none.getByText('First seen in build #12')).toBeVisible()
+    await expect.element(none.getByRole('img', { name: 'Grace' })).toBeVisible()
+    await expect
+      .element(page.getByRole('list', { name: 'Failed, 1 item' }).getByText('Upload rejected'))
+      .toBeVisible()
   })
 
   it('reads the filmstrip with one history request, not one per build', async () => {
     const api = server()
     await show()
-    await expect.element(page.getByRole('list', { name: 'Recent builds of home' })).toBeVisible()
+    await expect.element(page.getByRole('list', { name: /^Changed in/ })).toBeVisible()
     const paths = api.of('GET').map((c) => c.path)
     expect(paths.filter((p) => p.includes('/snapshots/'))).toEqual([
       `${BASE}/snapshots/home/history`,
@@ -141,7 +194,10 @@ describe('TriagePage', () => {
       [`GET ${BASE}/triage`]: { body: queue([item('home')], { id: 'u2', name: 'Grace Hopper' }) },
     })
     await show()
-    await expect.element(page.getByLabelText('On triage: Grace Hopper')).toBeVisible()
+    await expect.element(page.getByLabelText('On triage: Grace Hopper until Mon')).toBeVisible()
+    await expect
+      .element(page.getByRole('link', { name: 'Rules' }))
+      .toHaveAttribute('href', '/acme/web/settings/reviews')
   })
 
   it('says there is nothing to triage', async () => {
@@ -191,7 +247,7 @@ describe('TriagePage', () => {
       }),
     )
     await expect.element(page.getByRole('list', { name: /^Flaky/ })).not.toBeInTheDocument()
-    await expect.element(page.getByRole('region', { name: 'Details' })).toBeVisible()
+    await expect.element(pane()).toBeVisible()
   })
 
   it('snoozes with H through the shared menu', async () => {
@@ -212,17 +268,11 @@ describe('TriagePage', () => {
   it('moves the selection with J and K', async () => {
     server()
     await show()
-    await expect
-      .element(page.getByRole('region', { name: 'Details' }).getByText('home', { exact: true }))
-      .toBeVisible()
+    await expect.element(pane().getByRole('heading', { level: 3, name: 'home' })).toBeVisible()
     await userEvent.keyboard('j')
-    await expect
-      .element(page.getByRole('region', { name: 'Details' }).getByText('pricing', { exact: true }))
-      .toBeVisible()
+    await expect.element(pane().getByRole('heading', { level: 3, name: 'pricing' })).toBeVisible()
     await userEvent.keyboard('k')
-    await expect
-      .element(page.getByRole('region', { name: 'Details' }).getByText('home', { exact: true }))
-      .toBeVisible()
+    await expect.element(pane().getByRole('heading', { level: 3, name: 'home' })).toBeVisible()
   })
 
   it('shows the screenshot as a preview linking to its build, with an Open in build pill', async () => {
@@ -234,14 +284,14 @@ describe('TriagePage', () => {
     expect(preview.element().textContent).toContain('Open in build')
     // The filmstrip's frames link to their own builds.
     await expect
-      .element(page.getByRole('link', { name: 'Open home in build #11' }))
+      .element(page.getByRole('link', { name: 'Open home in build #11, same' }))
       .toHaveAttribute('href', '/acme/web/builds/11?shot=home')
   })
 
   it('opens the item in its build on a double click and on Enter, with the screenshot selected', async () => {
     server()
     const { router } = await show()
-    await expect.element(page.getByRole('region', { name: 'Details' })).toBeVisible()
+    await expect.element(pane()).toBeVisible()
     await page.getByRole('button', { name: /pricing/ }).dblClick()
     await expect.poll(() => router.state.location.pathname).toBe('/acme/web/builds/12')
     expect(router.state.location.search).toMatchObject({ shot: 'pricing' })
@@ -250,10 +300,71 @@ describe('TriagePage', () => {
   it('opens the selected item with Enter from the list', async () => {
     server()
     const { router } = await show()
-    await expect.element(page.getByRole('region', { name: 'Details' })).toBeVisible()
+    await expect.element(pane()).toBeVisible()
     await userEvent.keyboard('j')
     await userEvent.keyboard('{Enter}')
     await expect.poll(() => router.state.location.pathname).toBe('/acme/web/builds/12')
     expect(router.state.location.search).toMatchObject({ shot: 'pricing' })
+  })
+
+  it('shows the pane facts and the actions at the bottom of the pane', async () => {
+    server()
+    await show()
+    const facts = pane()
+    await expect.element(facts.getByText('Assignee')).toBeVisible()
+    await expect.element(facts.getByText('In triage for')).toBeVisible()
+    await expect.element(facts.getByText('2 days')).toBeVisible()
+    await expect.element(facts.getByText('2 pull requests show it as changed')).toBeVisible()
+    await expect.element(facts.getByText('Unassigned')).toBeVisible()
+    for (const name of ['Assign to me', 'Snooze', 'Dismiss']) {
+      // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
+      await expect.element(facts.getByRole('button', { name })).toBeVisible()
+    }
+    await expect
+      .element(facts.getByRole('button', { name: 'Re-run comparison' }))
+      .not.toBeInTheDocument()
+  })
+
+  it('names who is on triage beside Unassigned', async () => {
+    fakeApi({
+      [`GET ${BASE}/triage`]: { body: queue([item('home')], { id: 'u2', name: 'Grace Hopper' }) },
+    })
+    await show()
+    await expect.element(pane().getByText('Unassigned · Grace Hopper is on triage')).toBeVisible()
+  })
+
+  it('shows a new screenshot with no baseline next to where it was first seen', async () => {
+    server()
+    await show()
+    await userEvent.keyboard('j')
+    await expect.element(pane().getByText('None yet')).toBeVisible()
+    await expect.element(pane().getByText('First seen in #12')).toBeVisible()
+    await expect
+      .element(pane().getByRole('button', { name: 'Re-run comparison' }))
+      .not.toBeInTheDocument()
+  })
+
+  it('shows why a failed build failed and re-runs its comparison, counting it as handled', async () => {
+    const api = server()
+    await show()
+    await userEvent.keyboard('j')
+    await userEvent.keyboard('j')
+    await expect.element(pane().getByText('2 files over the 25 MB limit')).toBeVisible()
+    await expect.element(pane().getByText('The check on this commit is failing')).toBeVisible()
+    await pane().getByRole('button', { name: 'Re-run comparison' }).click()
+    await vi.waitFor(() =>
+      expect(api.of('POST').find((c) => c.path === `${BASE}/triage/rerun`)?.body).toEqual({
+        number: 9,
+      }),
+    )
+    await expect.element(page.getByRole('list', { name: /^Failed/ })).not.toBeInTheDocument()
+    await expect.element(page.getByRole('status').getByText('2 · 1 handled')).toBeVisible()
+  })
+
+  it('counts snoozed and dismissed items as handled', async () => {
+    server()
+    await show()
+    await userEvent.keyboard('d')
+    await expect.element(page.getByRole('status').getByText('2 · 1 handled')).toBeVisible()
   })
 })

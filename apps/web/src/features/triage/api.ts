@@ -1,5 +1,4 @@
 import type { Snapshot, Triage, TriageKind } from '@circi/api'
-import type { Status } from '@circi/ui'
 import {
   queryOptions,
   useMutation,
@@ -8,13 +7,6 @@ import {
   type QueryClient,
 } from '@tanstack/react-query'
 
-import { fileUrl } from '#features/builds/api/index.ts'
-import {
-  type ShotKind,
-  screenshotLabel,
-  screenshotStatus,
-  shotReview,
-} from '#features/builds/diff-status.ts'
 import { teamPath } from '#lib/api-paths.ts'
 import { getJson, post } from '#lib/http.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
@@ -59,12 +51,6 @@ export function groupItems(items: readonly Triage.Item[]): TriageGroup[] {
 export const flatten = (groups: readonly TriageGroup[]): Triage.Item[] =>
   groups.flatMap((g) => g.items)
 
-/** "12 items to triage", "Nothing to triage": what the page announces as its count. */
-export function queueCount(groups: readonly TriageGroup[]): string {
-  const total = groups.reduce((n, g) => n + g.items.length, 0)
-  return total === 0 ? 'Nothing to triage' : `${total} ${total === 1 ? 'item' : 'items'} to triage`
-}
-
 /** A row's name for assistive tech: kind, snapshot (or build), build and branch. */
 export function itemName(item: Triage.Item): string {
   const what = item.snapshotName ?? `Build #${item.build.number}`
@@ -83,18 +69,45 @@ const SPANS: [string, number][] = [
   ['minute', 60],
 ]
 
-/** "Waiting 3 days", "Waiting under a minute": how long the problem has waited as of `now`. */
-export function sinceText(iso: string, now: number): string {
+/** "3 days", "under a minute": how long the problem has waited as of `now`. */
+export function waitingFor(iso: string, now: number): string {
   const seconds = Math.max(0, (now - new Date(iso).getTime()) / 1000)
   const span = SPANS.find(([, s]) => seconds >= s)
-  if (!span) return 'Waiting under a minute'
+  if (!span) return 'under a minute'
   const n = Math.floor(seconds / span[1])
-  return `Waiting ${n} ${span[0]}${n === 1 ? '' : 's'}`
+  return `${n} ${span[0]}${n === 1 ? '' : 's'}`
 }
 
-/** "On triage this week: Ada", or undefined without a rotation. */
-export const rotationText = (rotation: Triage.Queue['rotation']): string | undefined =>
-  rotation.onTriage ? `On triage: ${rotation.onTriage.name}` : undefined
+/** "Changed in 4 of the last 10 builds": what a flaky item's history says. */
+export function changedText(history: Triage.Item['history']): string {
+  const changed = history.filter((h) => h.changed).length
+  return `Changed in ${changed} of the last ${history.length} builds`
+}
+
+/** The second line of a row: why the item is in the queue. */
+export function itemSubtitle(item: Triage.Item): string {
+  if (item.kind === 'flaky') return changedText(item.history)
+  if (item.kind === 'no_baseline') return `First seen in build #${item.build.number}`
+  return item.error ?? 'The build failed'
+}
+
+/** What the item holds up, for the pane's Blocking row. */
+export function blockingText(item: Triage.Item): string {
+  if (item.kind === 'failed') return 'The check on this commit is failing'
+  if (item.blocking === 0) return 'Nothing'
+  return item.blocking === 1
+    ? '1 pull request shows it as changed'
+    : `${item.blocking} pull requests show it as changed`
+}
+
+/** "On triage: Ada until Mon", or undefined without a rotation. */
+export function rotationText(rotation: Triage.Queue['rotation']): string | undefined {
+  if (!rotation.onTriage) return undefined
+  const until = rotation.until
+    ? ` until ${new Date(rotation.until).toLocaleDateString('en', { weekday: 'short' })}`
+    : ''
+  return `On triage: ${rotation.onTriage.name}${until}`
+}
 
 // -- Optimistic changes to the cached queue ------------------------------------------------------
 
@@ -125,40 +138,7 @@ export function snoozeBody(
     : { ...ref, choice: choice.kind }
 }
 
-// -- The filmstrip -------------------------------------------------------------------------------
-
-export const FILMSTRIP_LENGTH = 5
-
-export interface Frame {
-  number: number
-  status: Status
-  label: string
-  /** The image of the snapshot in that build; null when the build has none. */
-  src: string | null
-  sha256: string | null
-  width: number | null
-  height: number | null
-}
-
-/**
- * One frame of the filmstrip: the snapshot in one build of its history. A screenshot that
- * changes in a flaky item shows the flaky glyph; the rest follow `screenshotStatus`.
- */
-export function frameOf(entry: Snapshot.HistoryEntry, itemKind: TriageKind): Frame {
-  const kind: ShotKind =
-    itemKind === 'flaky' && entry.status === 'changed' ? 'flaky' : (entry.status ?? 'unchanged')
-  const review = shotReview(entry.build)
-  const image = entry.image
-  return {
-    number: entry.build.number,
-    status: screenshotStatus(kind, review),
-    label: screenshotLabel(kind, review),
-    src: image ? fileUrl(image.thumbnail ?? image.sha256) : null,
-    sha256: image?.sha256 ?? null,
-    width: image?.width ?? null,
-    height: image?.height ?? null,
-  }
-}
+// -- The screenshot ------------------------------------------------------------------------------
 
 /**
  * A snapshot's recent builds on the default branch, newest first. `build` anchors the list on the
@@ -169,7 +149,7 @@ export const snapshotHistoryQuery = (
   team: string,
   name: string,
   build?: number,
-  limit: number = FILMSTRIP_LENGTH,
+  limit: number = 5,
 ) =>
   queryOptions({
     queryKey: keys.snapshotHistory(workspace, team, name, build ?? `last-${limit}`),
@@ -179,19 +159,16 @@ export const snapshotHistoryQuery = (
       ),
   })
 
-/** The recent builds' frames of a snapshot, newest first: one request, whatever the length. */
-export function useFilmstrip(workspace: string, team: string, item: Triage.Item | undefined) {
+/** The item's screenshot in its own build, for the preview. */
+export function useItemImage(workspace: string, team: string, item: Triage.Item | undefined) {
   const name = item?.snapshotName ?? undefined
   const history = useQuery({
     ...snapshotHistoryQuery(workspace, team, name ?? '', item?.build.number ?? 0),
     enabled: name !== undefined,
   })
-  const kind = item?.kind
-  const frames =
-    kind && history.data && name !== undefined
-      ? history.data.default.map((entry) => frameOf(entry, kind))
-      : []
-  return { frames, loading: name !== undefined && history.isPending }
+  const image =
+    history.data?.default.find((e) => e.build.number === item?.build.number)?.image ?? null
+  return { image, loading: name !== undefined && history.isPending }
 }
 
 // -- Mutations -----------------------------------------------------------------------------------
@@ -260,5 +237,15 @@ export function useDismissTriage(workspace: string, team: string) {
     team,
     (queue, v: { ref: Ref }) => withoutItem(queue, v.ref),
     (v) => post<Triage.ItemState>(teamPath(workspace, team, 'triage', 'dismiss'), refOf(v.ref)),
+  )
+}
+
+/** Compares a failed build again: it leaves the queue at once, and comes back if the server says no. */
+export function useRerunTriage(workspace: string, team: string) {
+  return useOptimistic(
+    workspace,
+    team,
+    (queue, v: { ref: Ref; number: number }) => withoutItem(queue, v.ref),
+    (v) => post<Triage.Rerun>(teamPath(workspace, team, 'triage', 'rerun'), { number: v.number }),
   )
 }

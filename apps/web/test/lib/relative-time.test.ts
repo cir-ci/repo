@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatRelative } from '#lib/relative-time.ts'
+import { formatAge, formatRelative } from '#lib/relative-time.ts'
 
 const NOW = Date.parse('2026-11-05T12:00:00Z')
 const ago = (seconds: number) => new Date(NOW - seconds * 1000).toISOString()
@@ -21,5 +21,16 @@ describe('formatRelative', () => {
 
   it('counts forward for a time in the future', () => {
     expect(formatRelative(ago(-5 * 60), NOW)).toBe('in 5 minutes')
+  })
+})
+
+describe('formatAge', () => {
+  it('abbreviates to the largest whole unit, and says "now" under a minute', () => {
+    expect(formatAge(ago(20), NOW)).toBe('now')
+    expect(formatAge(ago(2 * 60), NOW)).toBe('2m')
+    expect(formatAge(ago(3 * 3600), NOW)).toBe('3h')
+    expect(formatAge(ago(2 * 86400 + 5), NOW)).toBe('2d')
+    expect(formatAge(ago(15 * 86400), NOW)).toBe('2w')
+    expect(formatAge(ago(-60), NOW)).toBe('now')
   })
 })

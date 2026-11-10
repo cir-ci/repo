@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   EmptyState,
+  ExpandMoreIcon,
   ListRow,
   Pane,
   StatusIcon,
@@ -13,7 +14,7 @@ import {
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { type NavigateOptions, useNavigate, useParams } from '@tanstack/react-router'
-import { type MouseEventHandler, useEffect, useState } from 'react'
+import { type MouseEventHandler, type ReactNode, useEffect, useState } from 'react'
 
 import { fileUrl } from '#features/builds/api/index.ts'
 import { useCrumbNames } from '#features/teams/crumb-names.ts'
@@ -22,6 +23,7 @@ import { useDocumentTitle } from '#lib/document-title.ts'
 import { focusRow, leavesKeyToFocus, nextAfterRemoval } from '#lib/list-keys.ts'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
+import { Age } from '#lib/RelativeTime.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
@@ -29,21 +31,24 @@ import { useClientLink } from '#lib/use-client-link.ts'
 import { useSelectableList } from '#lib/use-selectable-list.ts'
 
 import {
+  blockingText,
+  changedText,
   flatten,
-  type Frame,
   groupItems,
   itemId,
   itemName,
+  itemSubtitle,
   itemTitle,
   KIND_LABEL,
-  queueCount,
+  refOf,
   rotationText,
-  sinceText,
   triageQuery,
   useAssignTriage,
   useDismissTriage,
-  useFilmstrip,
+  useItemImage,
+  useRerunTriage,
   useSnoozeTriage,
+  waitingFor,
 } from './api.ts'
 import { ROUTE } from './routes.ts'
 
@@ -74,10 +79,13 @@ export function TriagePage() {
   const me = session?.user
 
   const [snoozeOpen, setSnoozeOpen] = useState(false)
+  /** Items dealt with since the page opened (snoozed, dismissed, compared again). */
+  const [handled, setHandled] = useState(0)
 
   const assign = useAssignTriage(workspace, team)
   const snooze = useSnoozeTriage(workspace, team)
   const dismiss = useDismissTriage(workspace, team)
+  const rerun = useRerunTriage(workspace, team)
 
   const groups = groupItems(data?.items ?? [])
   const items = flatten(groups)
@@ -86,12 +94,13 @@ export function TriagePage() {
     getId: itemId,
     peekable: false,
   })
-  const { frames, loading: framesLoading } = useFilmstrip(workspace, team, selected)
+  const { image, loading: imageLoading } = useItemImage(workspace, team, selected)
 
   /** Selects the neighbour of an item that is about to leave the queue, and says what happened. */
   const leave = (item: Triage.Item, message: string) => {
     const next = nextAfterRemoval(items, itemId, itemId(item))
     announce(message)
+    setHandled((n) => n + 1)
     setSelectedId(next)
     if (next) queueMicrotask(() => focusRow(document.getElementById('triage-groups'), next))
   }
@@ -100,6 +109,11 @@ export function TriagePage() {
     snooze.mutate({ ref: item, choice }, { onSuccess: () => leave(item, 'Snoozed') })
   const doDismiss = (item: Triage.Item) =>
     dismiss.mutate({ ref: item }, { onSuccess: () => leave(item, 'Dismissed') })
+  const doRerun = (item: Triage.Item) =>
+    rerun.mutate(
+      { ref: refOf(item), number: item.build.number },
+      { onSuccess: () => leave(item, 'Comparing again') },
+    )
   const doAssign = (item: Triage.Item) => {
     if (!me) return
     const mine = item.assignee?.id === me.id
@@ -129,7 +143,7 @@ export function TriagePage() {
     },
   })
 
-  const failed = [assign, snooze, dismiss].find((m) => m.error)?.error
+  const failed = [assign, snooze, dismiss, rerun].find((m) => m.error)?.error
   const chip = data ? rotationText(data.rotation) : undefined
 
   return (
@@ -137,14 +151,35 @@ export function TriagePage() {
       <PageHeading
         crumbs={crumbsFor(names)}
         title="Triage"
+        after={
+          data && items.length > 0 ? (
+            <Text variant="small" tone="tertiary" role="status">
+              {items.length}
+              {handled > 0 ? ` · ${handled} handled` : ''}
+            </Text>
+          ) : null
+        }
         actions={
-          data && chip && data.rotation.onTriage ? (
-            <Badge shape="tag" tone="accent" aria-label={chip}>
-              <span className={styles.chip}>
-                <Avatar type="user" {...data.rotation.onTriage} size={16} />
-                {chip}
-              </span>
-            </Badge>
+          data ? (
+            <>
+              {chip && data.rotation.onTriage ? (
+                <Badge shape="tag" tone="accent" aria-label={chip}>
+                  <span className={styles.chip}>
+                    <Avatar type="user" {...data.rotation.onTriage} size={16} />
+                    {chip}
+                  </span>
+                </Badge>
+              ) : null}
+              <Button
+                size="sm"
+                {...clientLink({
+                  to: '/$workspace/$team/settings/reviews',
+                  params: { workspace, team },
+                })}
+              >
+                Rules
+              </Button>
+            </>
           ) : undefined
         }
       />
@@ -153,44 +188,12 @@ export function TriagePage() {
           <QueryBoundary query={query} announce="Loading triage" notFound="Team not found" rows={4}>
             {() =>
               items.length === 0 ? (
-                <EmptyState title="Nothing to triage">
+                <EmptyState title={handled > 0 ? 'Triage is clear' : 'Nothing to triage'}>
                   Flaky screenshots, missing baselines and failed builds on the default branch
                   appear here.
                 </EmptyState>
               ) : (
                 <>
-                  <div className={listStyles['toolbar']}>
-                    <span role="status" className={listStyles['count']}>
-                      {queueCount(groups)}
-                    </span>
-                    {selected ? (
-                      <>
-                        <Button
-                          size="sm"
-                          aria-keyshortcuts="m"
-                          disabled={!me}
-                          onClick={() => doAssign(selected)}
-                        >
-                          {selected.assignee && selected.assignee.id === me?.id
-                            ? 'Unassign me'
-                            : 'Assign to me'}
-                        </Button>
-                        <SnoozeMenu
-                          open={snoozeOpen}
-                          onOpenChange={setSnoozeOpen}
-                          onSnooze={(choice) => doSnooze(selected, choice)}
-                          trigger={
-                            <Button size="sm" aria-keyshortcuts="h">
-                              Snooze
-                            </Button>
-                          }
-                        />
-                        <Button size="sm" aria-keyshortcuts="d" onClick={() => doDismiss(selected)}>
-                          Dismiss
-                        </Button>
-                      </>
-                    ) : null}
-                  </div>
                   {failed ? (
                     <Text tone="rejected" role="alert">
                       {failed.message}
@@ -201,10 +204,14 @@ export function TriagePage() {
                       {groups.map((group) => (
                         <section key={group.kind} aria-labelledby={`triage-${group.kind}`}>
                           <h2 className={styles.groupHeader} id={`triage-${group.kind}`}>
+                            <StatusIcon status={GLYPH[group.kind]} decorative />
                             {group.label}
-                            <Badge aria-label={`${group.items.length} items`}>
+                            <span
+                              className={styles.groupCount}
+                              aria-label={`${group.items.length} ${group.items.length === 1 ? 'item' : 'items'}`}
+                            >
                               {group.items.length}
-                            </Badge>
+                            </span>
                           </h2>
                           <ul
                             aria-label={`${group.label}, ${group.items.length} ${group.items.length === 1 ? 'item' : 'items'}`}
@@ -226,18 +233,6 @@ export function TriagePage() {
                                   density="two-line"
                                   selected={itemId(item) === (selected ? itemId(selected) : '')}
                                   onClick={() => select(item)}
-                                  leading={
-                                    <StatusIcon
-                                      status={
-                                        item.kind === 'flaky'
-                                          ? 'flaky'
-                                          : item.kind === 'no_baseline'
-                                            ? 'added'
-                                            : 'rejected'
-                                      }
-                                      decorative
-                                    />
-                                  }
                                   trailing={
                                     <>
                                       {/* Enter and a double click do the same; the chip says so (and is a click target for a mouse). */}
@@ -253,7 +248,16 @@ export function TriagePage() {
                                       </span>
                                       {item.assignee ? (
                                         <Avatar type="user" {...item.assignee} size={20} />
-                                      ) : null}
+                                      ) : (
+                                        <span
+                                          className={styles.unassigned}
+                                          role="img"
+                                          aria-label="Unassigned"
+                                        />
+                                      )}
+                                      <span className={styles.age} aria-hidden="true">
+                                        <Age iso={item.build.createdAt} />
+                                      </span>
                                     </>
                                   }
                                 >
@@ -262,11 +266,9 @@ export function TriagePage() {
                                     <Text truncate>{itemTitle(item)}</Text>
                                   </span>
                                   <span className={listStyles['meta']} aria-hidden="true">
-                                    <span>Build #{item.build.number}</span>
-                                    {item.build.branch ? <span>{item.build.branch}</span> : null}
-                                    <span>
-                                      <Since iso={item.build.createdAt} />
-                                    </span>
+                                    <Text truncate variant="small" tone="tertiary">
+                                      {itemSubtitle(item)}
+                                    </Text>
                                   </span>
                                 </ListRow>
                               </li>
@@ -278,41 +280,116 @@ export function TriagePage() {
                     {selected ? (
                       <Pane
                         label="Details"
-                        context={selected.snapshotName ?? `Build #${selected.build.number}`}
+                        context={KIND_LABEL[selected.kind]}
                         width="lg"
+                        actions={
+                          <>
+                            {selected.kind === 'failed' ? (
+                              <Button variant="primary" onClick={() => doRerun(selected)}>
+                                Re-run comparison
+                              </Button>
+                            ) : null}
+                            <Button
+                              aria-keyshortcuts="m"
+                              disabled={!me}
+                              onClick={() => doAssign(selected)}
+                            >
+                              {selected.assignee && selected.assignee.id === me?.id
+                                ? 'Unassign me'
+                                : 'Assign to me'}
+                            </Button>
+                            <SnoozeMenu
+                              open={snoozeOpen}
+                              onOpenChange={setSnoozeOpen}
+                              onSnooze={(choice) => doSnooze(selected, choice)}
+                              trigger={
+                                <Button variant="ghost" aria-keyshortcuts="h">
+                                  Snooze
+                                  <ExpandMoreIcon size={12} aria-hidden="true" />
+                                </Button>
+                              }
+                            />
+                            <Button
+                              variant="ghost"
+                              aria-keyshortcuts="d"
+                              onClick={() => doDismiss(selected)}
+                            >
+                              Dismiss
+                            </Button>
+                          </>
+                        }
                       >
                         <div className={styles.paneBody}>
-                          <Text>
-                            {KIND_LABEL[selected.kind]} in build #{selected.build.number}
-                            {selected.build.branch ? ` on ${selected.build.branch}` : ''}
-                          </Text>
-                          <Text variant="small" tone="secondary">
-                            <Since iso={selected.build.createdAt} />
-                            {selected.assignee ? `. Assigned to ${selected.assignee.name}` : ''}
-                          </Text>
-                          {selected.snapshotName ? (
+                          <h3 className={styles.paneTitle}>{itemTitle(selected)}</h3>
+                          {selected.kind === 'flaky' ? (
                             <>
-                              <Preview
-                                name={selected.snapshotName}
-                                frame={frames.find((f) => f.number === selected.build.number)}
-                                loading={framesLoading}
-                                link={clientLink(openInBuild(workspace, team, selected))}
-                              />
-                              <Filmstrip
-                                name={selected.snapshotName}
-                                frames={frames}
-                                loading={framesLoading}
-                                linkOf={(frame) =>
+                              <Film
+                                item={selected}
+                                linkOf={(number) =>
                                   clientLink(
                                     openInBuild(workspace, team, {
                                       snapshotName: selected.snapshotName,
-                                      build: { number: frame.number },
+                                      build: { number },
                                     }),
                                   )
                                 }
                               />
+                              <Section label="Where it changes">
+                                <Preview
+                                  name={selected.snapshotName ?? ''}
+                                  number={selected.build.number}
+                                  sha256={image?.sha256}
+                                  loading={imageLoading}
+                                  link={clientLink(openInBuild(workspace, team, selected))}
+                                />
+                              </Section>
                             </>
                           ) : null}
+                          {selected.kind === 'no_baseline' ? (
+                            <div className={styles.pair}>
+                              <Section label="Baseline on main">
+                                <div className={styles.none}>None yet</div>
+                              </Section>
+                              <Section label={`First seen in #${selected.build.number}`}>
+                                <Preview
+                                  name={selected.snapshotName ?? ''}
+                                  number={selected.build.number}
+                                  sha256={image?.sha256}
+                                  loading={imageLoading}
+                                  link={clientLink(openInBuild(workspace, team, selected))}
+                                />
+                              </Section>
+                            </div>
+                          ) : null}
+                          {selected.kind === 'failed' && selected.error ? (
+                            <pre className={styles.log}>{selected.error}</pre>
+                          ) : null}
+                          <dl className={styles.facts}>
+                            <dt>Assignee</dt>
+                            <dd>
+                              {selected.assignee ? (
+                                <span className={styles.person}>
+                                  <Avatar type="user" {...selected.assignee} size={20} />
+                                  {selected.assignee.name}
+                                </span>
+                              ) : (
+                                <Text tone="tertiary">
+                                  Unassigned
+                                  {data?.rotation.onTriage
+                                    ? ` · ${data.rotation.onTriage.name} is on triage`
+                                    : ''}
+                                </Text>
+                              )}
+                            </dd>
+                            <dt>In triage for</dt>
+                            <dd>
+                              <Waiting iso={selected.build.createdAt} />
+                            </dd>
+                            <dt>Blocking</dt>
+                            <dd>
+                              <Text tone="secondary">{blockingText(selected)}</Text>
+                            </dd>
+                          </dl>
                         </div>
                       </Pane>
                     ) : null}
@@ -327,14 +404,25 @@ export function TriagePage() {
   )
 }
 
-/** "Waiting 3 days", refreshed every minute. */
-function Since({ iso }: { iso: string }) {
+const GLYPH = { flaky: 'flaky', no_baseline: 'added', failed: 'rejected' } as const
+
+/** "3 days", refreshed every minute. */
+function Waiting({ iso }: { iso: string }) {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 60_000)
     return () => clearInterval(timer)
   }, [])
-  return <>{sinceText(iso, now)}</>
+  return <>{waitingFor(iso, now)}</>
+}
+
+function Section({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className={styles.section}>
+      <span className={styles.sectionLabel}>{label}</span>
+      {children}
+    </div>
+  )
 }
 
 /**
@@ -343,16 +431,18 @@ function Since({ iso }: { iso: string }) {
  */
 function Preview({
   name,
-  frame,
+  number,
+  sha256,
   loading,
   link,
 }: {
   name: string
-  frame: Frame | undefined
+  number: number
+  sha256: string | undefined
   loading: boolean
   link: { href: string; onClick: MouseEventHandler<HTMLElement> }
 }) {
-  if (!frame?.sha256) {
+  if (!sha256) {
     return loading ? (
       <Text variant="small" tone="secondary">
         Loading the screenshot
@@ -364,10 +454,10 @@ function Preview({
       className={styles.preview}
       href={link.href}
       onClick={link.onClick}
-      aria-label={`Open ${name} in build #${frame.number}`}
+      aria-label={`Open ${name} in build #${number}`}
     >
       <span className={styles.previewImage}>
-        <img src={fileUrl(frame.sha256)} alt="" />
+        <img src={fileUrl(sha256)} alt="" />
       </span>
       <span className={styles.pill} aria-hidden="true">
         Open in build ↗
@@ -376,46 +466,37 @@ function Preview({
   )
 }
 
-function Filmstrip({
-  name,
-  frames,
-  loading,
+/** The last builds on the default branch as cells: amber with a tilde where the screenshot changed. */
+function Film({
+  item,
   linkOf,
 }: {
-  name: string
-  frames: readonly Frame[]
-  loading: boolean
-  linkOf: (frame: Frame) => { href: string; onClick: MouseEventHandler<HTMLElement> }
+  item: Triage.Item
+  linkOf: (number: number) => { href: string; onClick: MouseEventHandler<HTMLElement> }
 }) {
-  if (frames.length === 0) {
-    return loading ? (
-      <Text variant="small" tone="secondary">
-        Loading recent builds
-      </Text>
-    ) : null
-  }
+  if (item.history.length === 0) return null
   return (
-    <ol aria-label={`Recent builds of ${name}`} className={styles.filmstrip}>
-      {frames.map((frame) => {
-        const link = linkOf(frame)
-        return (
-          <li key={frame.number}>
-            <a
-              className={styles.frame}
-              href={link.href}
-              onClick={link.onClick}
-              aria-label={`Open ${name} in build #${frame.number}`}
-            >
-              <span className={styles.thumb}>
-                {frame.src ? <img src={frame.src} alt="" /> : null}
-              </span>
-              <span className={styles.frameMeta}>
-                <StatusIcon status={frame.status} label={frame.label} size={12} />#{frame.number}
-              </span>
-            </a>
-          </li>
-        )
-      })}
-    </ol>
+    <Section label={`Last ${item.history.length} builds on main`}>
+      <ol aria-label={changedText(item.history)} className={styles.film}>
+        {item.history.map((h) => {
+          const link = linkOf(h.number)
+          return (
+            <li key={h.number}>
+              <a
+                className={styles.cell}
+                data-changed={h.changed ? '' : undefined}
+                href={link.href}
+                onClick={link.onClick}
+                title={h.changed ? 'Changed in this build' : 'Same'}
+                aria-label={`Open ${item.snapshotName ?? ''} in build #${h.number}, ${h.changed ? 'changed' : 'same'}`}
+              >
+                <b>{h.changed ? '~' : ''}</b>
+                <span>#{h.number}</span>
+              </a>
+            </li>
+          )
+        })}
+      </ol>
+    </Section>
   )
 }

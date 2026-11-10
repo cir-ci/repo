@@ -49,10 +49,17 @@
 
 .age {
   flex: none;
-  width: 96px;
+  width: 36px;
   color: var(--circi-text-tertiary);
   font-size: 12px;
   text-align: right;
+}
+
+.flag {
+  display: inline-flex;
+  flex: none;
+  justify-content: center;
+  width: 20px;
 }
 
 /* A row is two links side by side: the name opens the baseline page, the build number its build. */

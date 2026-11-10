@@ -3,15 +3,16 @@ import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
+  blockingText,
+  changedText,
   flatten,
-  frameOf,
   snapshotHistoryQuery,
   groupItems,
   itemName,
-  queueCount,
+  itemSubtitle,
   rotationText,
-  sinceText,
   snoozeBody,
+  waitingFor,
   withAssignee,
   withoutItem,
 } from '#features/triage/api.ts'
@@ -32,6 +33,9 @@ const item = (over: Partial<Triage.Item> = {}): Triage.Item => ({
   snoozedUntil: null,
   snoozeKind: null,
   snoozed: false,
+  history: [],
+  error: null,
+  blocking: 0,
   ...over,
 })
 
@@ -50,8 +54,6 @@ describe('groupItems', () => {
     ])
     expect(groupItems([]).length).toBe(0)
     expect(flatten(groups).map((i) => i.key)).toEqual(['a', 'b', 'build:3'])
-    expect(queueCount(groups)).toBe('3 items to triage')
-    expect(queueCount([])).toBe('Nothing to triage')
   })
 })
 
@@ -66,16 +68,35 @@ describe('labels', () => {
   it('says how long an item has waited', () => {
     const at = '2026-11-08T10:00:00.000Z'
     const t = (ms: number) => new Date(at).getTime() + ms
-    expect(sinceText(at, t(20_000))).toBe('Waiting under a minute')
-    expect(sinceText(at, t(3 * 3600_000))).toBe('Waiting 3 hours')
-    expect(sinceText(at, t(24 * 3600_000))).toBe('Waiting 1 day')
-    expect(sinceText(at, t(15 * 24 * 3600_000))).toBe('Waiting 2 weeks')
+    expect(waitingFor(at, t(20_000))).toBe('under a minute')
+    expect(waitingFor(at, t(3 * 3600_000))).toBe('3 hours')
+    expect(waitingFor(at, t(24 * 3600_000))).toBe('1 day')
+    expect(waitingFor(at, t(15 * 24 * 3600_000))).toBe('2 weeks')
   })
 
-  it('words the rotation chip', () => {
+  it('words the rotation chip with the day the turn passes on', () => {
     const rotation = { members: [], onTriage: { id: 'u', name: 'Ada', image: null }, until: null }
     expect(rotationText(rotation)).toBe('On triage: Ada')
+    // 2026-11-16 is a Monday; noon keeps the weekday the same in every time zone.
+    expect(rotationText({ ...rotation, until: '2026-11-16T12:00:00.000Z' })).toBe(
+      'On triage: Ada until Mon',
+    )
     expect(rotationText({ ...rotation, onTriage: null })).toBeUndefined()
+  })
+
+  it("words a row's second line and the pane's Blocking row per kind", () => {
+    const history = [3, 4, 5, 6].map((number) => ({ number, changed: number % 2 === 0 }))
+    expect(changedText(history)).toBe('Changed in 2 of the last 4 builds')
+    expect(itemSubtitle(item({ history }))).toBe('Changed in 2 of the last 4 builds')
+    expect(itemSubtitle(item({ kind: 'no_baseline' }))).toBe('First seen in build #12')
+    expect(itemSubtitle(item({ kind: 'failed', error: '2 files over the limit' }))).toBe(
+      '2 files over the limit',
+    )
+    expect(itemSubtitle(item({ kind: 'failed' }))).toBe('The build failed')
+    expect(blockingText(item({ blocking: 0 }))).toBe('Nothing')
+    expect(blockingText(item({ blocking: 1 }))).toBe('1 pull request shows it as changed')
+    expect(blockingText(item({ blocking: 3 }))).toBe('3 pull requests show it as changed')
+    expect(blockingText(item({ kind: 'failed' }))).toBe('The check on this commit is failing')
   })
 })
 
@@ -103,46 +124,6 @@ describe('optimistic updates', () => {
       choice: 'date',
       date: 'D',
     })
-  })
-})
-
-const entry = (
-  status: 'changed' | 'unchanged' | null,
-  image: { sha256: string; thumbnail: string | null } | null,
-  reviewStatus: 'pending' | 'approved' = 'pending',
-) => ({
-  build: {
-    number: 7,
-    branch: 'main',
-    status: 'complete' as const,
-    reviewStatus,
-    createdAt: '2026-11-08T10:00:00.000Z',
-  },
-  status,
-  image: image && { ...image, width: 10, height: 20 },
-})
-
-describe('filmstrip', () => {
-  it('gives a changed screenshot of a flaky item the flaky glyph', () => {
-    const changed = entry('changed', { sha256: 'h', thumbnail: 't' })
-    expect(frameOf(changed, 'flaky')).toMatchObject({
-      number: 7,
-      status: 'flaky',
-      label: 'Flaky',
-      src: '/api/files/t',
-      sha256: 'h',
-      width: 10,
-      height: 20,
-    })
-    expect(frameOf(changed, 'no_baseline').status).toBe('needs-review')
-    expect(frameOf(entry('unchanged', { sha256: 'h', thumbnail: null }), 'flaky')).toMatchObject({
-      status: 'neutral',
-      src: '/api/files/h',
-    })
-  })
-
-  it('has no image for a build that has none, and reads a not yet compared snapshot as unchanged', () => {
-    expect(frameOf(entry(null, null), 'flaky')).toMatchObject({ src: null, sha256: null })
   })
 })
 

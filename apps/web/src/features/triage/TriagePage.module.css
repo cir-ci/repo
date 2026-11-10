@@ -10,9 +10,19 @@
   display: flex;
   gap: 8px;
   align-items: center;
+  height: 32px;
   margin: 0 0 6px;
-  font-size: 13px;
-  font-weight: 600;
+  padding: 0 12px;
+  border-radius: 6px;
+  background: var(--circi-surface-raised);
+  color: var(--circi-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.groupCount {
+  color: var(--circi-text-tertiary);
+  font-weight: 400;
 }
 
 .title {
@@ -20,11 +30,6 @@
   gap: 8px;
   align-items: baseline;
   min-width: 0;
-}
-
-.sinceText {
-  color: var(--circi-text-secondary);
-  font-size: 12px;
 }
 
 .chip {
@@ -37,59 +42,144 @@
 .paneBody {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   font-size: 13px;
 }
 
-.filmstrip {
+.paneTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.section {
   display: flex;
+  flex-direction: column;
   gap: 8px;
+  min-width: 0;
+}
+
+.sectionLabel {
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
+}
+
+.film {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 4px;
   margin: 0;
   padding: 0;
-  overflow-x: auto;
   list-style: none;
 }
 
-.frame {
+.cell {
   display: flex;
-  flex: none;
   flex-direction: column;
-  gap: 4px;
+  gap: 1px;
   align-items: center;
-  width: 64px;
-  color: inherit;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  height: 38px;
+  padding-bottom: 3px;
+  border-radius: 4px;
+  background: var(--circi-action-hover);
+  color: var(--circi-text-tertiary);
   font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
   text-decoration: none;
 }
 
-.frame:hover .thumb,
-.frame:focus-visible .thumb {
+.cell b {
+  color: var(--circi-text-primary);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.cell[data-changed] {
+  background: color-mix(in srgb, var(--circi-state-review) 24%, transparent);
+  color: var(--circi-state-review-text);
+}
+
+.cell:focus-visible {
   outline: 2px solid var(--circi-accent-main);
   outline-offset: 1px;
 }
 
-.thumb {
+.pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.none {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-sizing: border-box;
-  width: 64px;
-  height: 48px;
-  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  border: 1px dashed var(--circi-line-strong);
+  border-radius: 6px;
+  color: var(--circi-text-tertiary);
+}
+
+.log {
+  margin: 0;
+  padding: 12px 14px;
+  overflow: auto;
   border: 1px solid var(--circi-line-subtle);
-  border-radius: 4px;
-  background: var(--circi-surface-sunken, transparent);
+  border-radius: 8px;
+  background: var(--circi-surface-chrome);
+  color: var(--circi-text-secondary);
+  font-family: var(--circi-font-mono, monospace);
+  font-size: 12px;
+  white-space: pre-wrap;
 }
 
-.thumb img {
-  max-width: 100%;
-  max-height: 100%;
-}
-
-.frameMeta {
-  display: flex;
-  gap: 4px;
+.facts {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 4px 8px;
   align-items: center;
+  margin: 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--circi-line-subtle);
+  border-bottom: 1px solid var(--circi-line-subtle);
+}
+
+.facts dt {
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
+}
+
+.facts dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.person {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.unassigned {
+  flex: none;
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  border: 1px dashed var(--circi-line-strong);
+  border-radius: 50%;
+}
+
+.age {
+  flex: none;
+  width: 28px;
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
+  text-align: right;
 }
 
 /* The chip on a row: hidden until the row is hovered, focused or selected. */

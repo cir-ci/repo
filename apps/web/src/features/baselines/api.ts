@@ -1,6 +1,7 @@
 import type { Baseline, Snapshot } from '@circi/api'
 import { queryOptions } from '@tanstack/react-query'
 
+import { DIFF_LABEL, screenshotLabel, shotReview } from '#features/builds/diff-status.ts'
 import { teamPath } from '#lib/api-paths.ts'
 import { getJson } from '#lib/http.ts'
 import { keys } from '#lib/query-keys.ts'
@@ -75,3 +76,16 @@ export function baselineOf(
 /** The history entries where the screenshot changed (or was added, removed or failed), newest first. */
 export const changesOf = (entries: readonly Snapshot.HistoryEntry[]): Snapshot.HistoryEntry[] =>
   entries.filter((e) => e.status !== null && e.status !== 'unchanged')
+
+/**
+ * A history row's words: "Changed, approved by Maya Levi" when the screenshot changed (or was
+ * added or removed) and someone approved it, else what the glyph says ("Unchanged", "Changed, rejected").
+ */
+export function historyLabel(entry: Snapshot.HistoryEntry): string {
+  const kind = entry.status ?? 'unchanged'
+  const review = shotReview(entry.build)
+  if (entry.approvedBy && review === 'approved' && ['changed', 'added', 'removed'].includes(kind)) {
+    return `${DIFF_LABEL[kind]}, approved by ${entry.approvedBy.name}`
+  }
+  return screenshotLabel(kind, review)
+}

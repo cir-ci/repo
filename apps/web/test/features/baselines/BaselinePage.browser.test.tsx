@@ -35,9 +35,10 @@ const region = (id: string, name = NAME) => ({
   createdBy: { id: 'u1', name: 'Dana Levi' },
 })
 
-const entry = (number: number, status: string | null) => ({
+const entry = (number: number, status: string | null, approver = 'Maya Levi') => ({
   build: { number, branch: 'main', status: 'complete', reviewStatus: 'approved', createdAt: NOW },
   status,
+  approvedBy: status === 'changed' ? { id: 'u1', name: approver } : null,
   image: { sha256: `sha-${number}`, thumbnail: null, width: 1000, height: 500 },
 })
 
@@ -78,7 +79,11 @@ function api(canManage: boolean, extra: Record<string, ReplyHandler> = {}, name 
     [`GET ${API}/snapshots/${enc}/history`]: {
       body: {
         defaultBranch: 'main',
-        default: [entry(148, 'changed'), entry(147, 'unchanged'), entry(141, 'changed')],
+        default: [
+          entry(148, 'changed'),
+          entry(147, 'unchanged'),
+          entry(141, 'changed', 'Jon Park'),
+        ],
         branch: null,
       },
     },
@@ -116,23 +121,28 @@ describe('BaselinePage', () => {
       .toHaveAttribute('href', '/acme/web/baselines')
     await expect.element(page.getByRole('heading', { level: 1, name: NAME })).toBeVisible()
     await expect.element(page.getByText('Baseline from build #148 on main')).toBeVisible()
-    await expect.element(page.getByText(/Approved by Maya Levi/)).toBeVisible()
+    await expect.element(page.getByText(/Approved by Maya Levi, /)).toBeVisible()
     await expect
       .element(page.getByRole('link', { name: 'Open build' }))
       .toHaveAttribute('href', '/acme/web/builds/148')
     await expect
       .element(page.getByRole('img', { name: `${NAME} in build #148` }))
       .toHaveAttribute('src', '/api/files/sha-baseline')
-    await expect.element(page.getByText(/Flaky: changed in 4 of the last 10 builds/)).toBeVisible()
+    // The flaky marker sits beside the name, with the counts on hover.
+    await expect
+      .element(page.getByText('Flaky', { exact: true }))
+      .toHaveAttribute('title', 'Changed in 4 of the last 10 builds')
     const regions = page.getByRole('list', { name: `Regions of ${NAME}` })
     await expect.element(regions.getByText(/Added by Dana Levi/)).toBeVisible()
-    await expect.element(regions.getByText('100×50 at 10, 20')).toBeVisible()
+    await expect.element(regions.getByText('100 x 50 at 10, 20')).toBeVisible()
     // History keeps the builds where it changed, each opening that build on this screenshot.
     const history = page.getByRole('list', { name: `Recent changes of ${NAME}` })
     await expect
       .element(history.getByRole('link').first())
       .toHaveAttribute('href', `/acme/web/builds/148?shot=${encodeURIComponent(NAME)}`)
     expect(history.getByRole('link').elements()).toHaveLength(2)
+    await expect.element(history.getByText('Changed, approved by Maya Levi')).toBeVisible()
+    await expect.element(history.getByText('Changed, approved by Jon Park')).toBeVisible()
     expect(document.title).toBe(`${NAME} · Baselines · web · CirCI`)
   })
 

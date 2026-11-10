@@ -4,11 +4,12 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
+import { flakyQuery } from '#features/teams/api/index.ts'
 import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
-import { RelativeTime } from '#lib/RelativeTime.tsx'
+import { Age } from '#lib/RelativeTime.tsx'
 import { useClientLink } from '#lib/use-client-link.ts'
 import { useListNavigation } from '#lib/use-list-navigation.ts'
 
@@ -31,6 +32,8 @@ export function BaselinesPage() {
   const clientLink = useClientLink()
   const query = useQuery(baselinesQuery(workspace, team))
   const { data } = query
+  const flaky = useQuery(flakyQuery(workspace, team))
+  const flakyOf = new Map((flaky.data?.flaky ?? []).map((f) => [f.name, f.changedIn]))
   const [filter, setFilter] = useState('')
   const [selectedId, setSelectedId] = useState<string>()
 
@@ -91,6 +94,7 @@ export function BaselinesPage() {
                   <span className={styles.snapshot}>Screenshot</span>
                   <span className={styles.build}>Build</span>
                   <span className={styles.age}>Age</span>
+                  <span className={styles.flag} />
                 </div>
                 {items.length === 0 ? (
                   <Text as="p" tone="tertiary" className={styles.none}>
@@ -144,7 +148,15 @@ export function BaselinesPage() {
                                   #{item.buildNumber}
                                 </a>
                                 <span className={styles.age}>
-                                  <RelativeTime iso={item.approvedAt} />
+                                  <Age iso={item.approvedAt} />
+                                </span>
+                                <span className={styles.flag}>
+                                  {flakyOf.has(item.name) ? (
+                                    <StatusIcon
+                                      status="flaky"
+                                      label={`Flaky: changed in ${flakyOf.get(item.name)} of the last ${flaky.data?.builds} builds`}
+                                    />
+                                  ) : null}
                                 </span>
                               </li>
                             ))}

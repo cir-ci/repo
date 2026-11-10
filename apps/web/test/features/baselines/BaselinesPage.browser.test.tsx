@@ -6,6 +6,8 @@ import { fakeFetch, json } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 const PATH = '/api/teams/acme/web/baselines'
+const FLAKY = '/api/teams/acme/web/flaky'
+const noFlaky = json({ builds: 10, flaky: [] })
 const open = () =>
   renderPage(<BaselinesPage />, {
     route: '/$workspace/$team/baselines/',
@@ -40,6 +42,7 @@ describe('BaselinesPage', () => {
         item('checkout/summary', 'default', 11),
         item('home', 'default', 9),
       ]),
+      [`GET ${FLAKY}`]: noFlaky,
     })
     await open()
     await expect.element(page.getByRole('heading', { name: /checkout/ })).toBeVisible()
@@ -61,8 +64,30 @@ describe('BaselinesPage', () => {
     await expect.element(page.getByText('No baseline matches “zzz”')).toBeVisible()
   })
 
+  it('marks a flaky screenshot in the last column, and shows the age compactly', async () => {
+    fakeFetch({
+      [`GET ${PATH}`]: list([
+        {
+          ...item('checkout/payment', 'default', 12),
+          approvedAt: new Date(Date.now() - 2 * 24 * 3600_000).toISOString(),
+        },
+        {
+          ...item('checkout/summary', 'default', 11),
+          approvedAt: new Date(Date.now() - 3600_000).toISOString(),
+        },
+      ]),
+      [`GET ${FLAKY}`]: json({ builds: 10, flaky: [{ name: 'checkout/payment', changedIn: 4 }] }),
+    })
+    await open()
+    await expect.element(page.getByText('2d')).toBeVisible()
+    await expect.element(page.getByText('1h')).toBeVisible()
+    const marks = page.getByRole('img', { name: 'Flaky: changed in 4 of the last 10 builds' })
+    await expect.element(marks).toBeVisible()
+    expect(marks.elements()).toHaveLength(1)
+  })
+
   it('says so when there are none', async () => {
-    fakeFetch({ [`GET ${PATH}`]: list([]) })
+    fakeFetch({ [`GET ${PATH}`]: list([]), [`GET ${FLAKY}`]: noFlaky })
     await open()
     await expect.element(page.getByText('No baselines yet')).toBeVisible()
   })

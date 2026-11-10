@@ -14,3 +14,17 @@ export function formatRelative(iso: string, now: number): string {
   const unit = UNITS.find(([, s]) => Math.abs(seconds) >= s)
   return unit ? rtf.format(Math.round(seconds / unit[1]), unit[0]) : 'just now'
 }
+
+const AGE_UNITS: [string, number][] = [
+  ['w', 7 * 24 * 3600],
+  ['d', 24 * 3600],
+  ['h', 3600],
+  ['m', 60],
+]
+
+/** "2m", "3h", "2d", "1w": how old `iso` is as of `now`, for a narrow column; "now" under a minute. */
+export function formatAge(iso: string, now: number): string {
+  const seconds = Math.max(0, (now - new Date(iso).getTime()) / 1000)
+  const unit = AGE_UNITS.find(([, s]) => seconds >= s)
+  return unit ? `${Math.floor(seconds / unit[1])}${unit[0]}` : 'now'
+}

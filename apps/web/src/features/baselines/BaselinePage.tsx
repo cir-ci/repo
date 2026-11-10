@@ -15,7 +15,7 @@ import { QuerySkeleton } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useClientLink } from '#lib/use-client-link.ts'
 
-import { baselineOf, baselinesQuery, changesOf, HISTORY_LENGTH } from './api.ts'
+import { baselineOf, baselinesQuery, changesOf, HISTORY_LENGTH, historyLabel } from './api.ts'
 import { BASELINE_ROUTE } from './routes.ts'
 
 import styles from './BaselinePage.module.css'
@@ -68,22 +68,30 @@ export function BaselinePage() {
           <>
             <header className={styles.header}>
               <div className={styles.headerText}>
-                <Text variant="mono" className={styles.name}>
-                  {name}
-                </Text>
-                {flakyEntry ? (
-                  <Text variant="small" className={styles.flaky}>
-                    <StatusIcon status="flaky" label="Flaky" />
-                    Flaky: changed in {flakyEntry.changedIn} of the last {flaky.data?.builds} builds
+                <span className={styles.nameLine}>
+                  <Text variant="mono" className={styles.name}>
+                    {name}
                   </Text>
-                ) : null}
+                  {flakyEntry ? (
+                    <Text
+                      variant="small"
+                      className={styles.flaky}
+                      title={`Changed in ${flakyEntry.changedIn} of the last ${flaky.data?.builds} builds`}
+                    >
+                      <StatusIcon status="flaky" decorative />
+                      Flaky
+                    </Text>
+                  ) : null}
+                </span>
                 {baseline ? (
                   <>
                     <Text as="p" tone="secondary" className={styles.line}>
                       Baseline from build #{baseline.buildNumber} on {defaultBranch}
                     </Text>
                     <Text as="p" variant="small" tone="tertiary" className={styles.line}>
-                      {baseline.approvedBy ? `Approved by ${baseline.approvedBy.name}` : 'Approved'}{' '}
+                      {baseline.approvedBy
+                        ? `Approved by ${baseline.approvedBy.name}, `
+                        : 'Approved '}
                       <RelativeTime iso={baseline.approvedAt} />
                     </Text>
                   </>
@@ -101,6 +109,7 @@ export function BaselinePage() {
                   })}
                 >
                   Open build
+                  <span aria-hidden="true">↗</span>
                 </Button>
               ) : null}
             </header>
@@ -181,7 +190,7 @@ function History({ workspace, team, name, defaultBranch }: History.Props) {
             >
               <span className={styles.row}>
                 <span className={styles.build}>#{entry.build.number}</span>
-                <Text truncate>{screenshotLabel(kind, review)}</Text>
+                <Text truncate>{historyLabel(entry)}</Text>
               </span>
             </ListRow>
           </li>

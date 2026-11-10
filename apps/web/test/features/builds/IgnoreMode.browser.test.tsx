@@ -76,7 +76,7 @@ describe('drawing ignore regions on the build page', () => {
   it("shows the screenshot's ignore regions in Ignore regions mode and hides the comment popover", async () => {
     await ready(true)
     await toggle().getByRole('button', { name: 'Ignore regions' }).click()
-    await expect.element(ignoreList().getByText('100×50 at 10, 20')).toBeVisible()
+    await expect.element(ignoreList().getByText('100 x 50 at 10, 20')).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Edit region 1' })).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Remove region 1' })).toBeVisible()
     await toggle().getByRole('button', { name: 'Comments' }).click()

@@ -59,7 +59,7 @@ export function IgnoreRegionsPanel({
               </span>
               <span className={styles.regionText}>
                 <Text variant="mono">
-                  {r.width}×{r.height} at {r.x}, {r.y}
+                  {r.width} x {r.height} at {r.x}, {r.y}
                 </Text>
                 <Text variant="small" tone="tertiary">
                   {r.createdBy ? `Added by ${r.createdBy.name}` : 'Added from the command line'}{' '}
