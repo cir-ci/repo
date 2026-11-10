@@ -8,6 +8,7 @@ import { Frame } from '#features/workspace-settings/Frame.tsx'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { SaveNote } from '#lib/SaveNote.tsx'
+import { usePwaStore } from '#lib/stores/pwa-store.ts'
 import { toast } from '#lib/toast.ts'
 
 import { PREFERENCE_ROWS, preferencesQuery, useSetPreference } from './api.ts'
@@ -51,6 +52,8 @@ export function NotificationsPage() {
   const [last, setLast] = useState<keyof Inbox.Preferences | null>(null)
   // Email notifications need the server to send mail (SMTP).
   const mailConfigured = capabilities.data?.mailConfigured === true
+  // The installed app is a notifier first: push leads the page there.
+  const installed = usePwaStore((s) => s.installed)
 
   return (
     <Frame
@@ -61,6 +64,7 @@ export function NotificationsPage() {
     >
       {data ? (
         <>
+          {installed ? <PushSection preferences={data} /> : null}
           <SettingsSection
             title="Email"
             description="Only the two things that need you soon can be emailed. Switches save as soon as you flip them."
@@ -98,7 +102,7 @@ export function NotificationsPage() {
             </Text>
           ) : null}
 
-          <PushSection preferences={data} />
+          {installed ? null : <PushSection preferences={data} />}
 
           <SettingsSection
             title="In your Inbox"

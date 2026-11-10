@@ -1,3 +1,5 @@
+import { isPhone } from '#lib/use-phone.ts'
+
 import type { Entry, IconKey } from './entry.ts'
 
 /**
@@ -92,7 +94,8 @@ export function settingsSections({
   canManage,
   instanceAdmin,
 }: SettingsInput): SettingsSection[] {
-  const sections = [...ACCOUNT]
+  // Keyboard shortcuts are for a keyboard: a phone doesn't list them.
+  const sections = isPhone() ? ACCOUNT.filter((s) => s.id !== 'shortcuts') : [...ACCOUNT]
   if (workspace) {
     const base = `/workspaces/${enc(workspace)}/settings`
     if (canManage) sections.push(workspaceSection('general', 'General', base, 'workspace'))

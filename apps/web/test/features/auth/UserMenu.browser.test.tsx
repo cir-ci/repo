@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { page } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 
 import { UserMenu } from '#features/auth/UserMenu.tsx'
 import { fakeApi } from '#test/support/fetch.ts'
@@ -22,5 +22,18 @@ describe('UserMenu', () => {
     expect(avatar?.getBoundingClientRect().width).toBe(28)
     const row = page.getByRole('menuitem', { name: 'Profile and sessions' })
     expect(getComputedStyle(row.element()).height).toBe('36px')
+  })
+
+  it('lists Keyboard shortcuts on a desktop and leaves it out on a phone', async () => {
+    fakeApi({ 'GET /api/capabilities': { body: { instanceAdmin: false } } })
+    await page.viewport(1000, 800)
+    await renderPage(<UserMenu user={user} />)
+    await page.getByRole('button', { name: 'Account menu for Michael Hazan' }).click()
+    await expect.element(page.getByRole('menuitem', { name: /Keyboard shortcuts/ })).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    await page.viewport(390, 844)
+    await page.getByRole('button', { name: 'Account menu for Michael Hazan' }).click()
+    await expect.element(page.getByRole('menuitem', { name: 'Profile and sessions' })).toBeVisible()
+    expect(page.getByRole('menuitem', { name: /Keyboard shortcuts/ }).elements()).toHaveLength(0)
   })
 })

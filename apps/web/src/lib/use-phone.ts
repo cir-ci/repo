@@ -3,6 +3,11 @@ import { useSyncExternalStore } from 'react'
 /** The width below which the sidebar is a drawer and the app is a phone: `AppFrame`'s stacking breakpoint. */
 export const COMPACT_QUERY = '(max-width: 819.98px)'
 
+/** `usePhone()` outside a component: for plain functions that build a list (the command menu's). */
+export function isPhone(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia(COMPACT_QUERY).matches
+}
+
 function subscribe(onChange: () => void): () => void {
   const query = window.matchMedia(COMPACT_QUERY)
   query.addEventListener('change', onChange)

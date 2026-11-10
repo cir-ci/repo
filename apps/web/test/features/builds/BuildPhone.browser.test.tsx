@@ -68,6 +68,8 @@ describe('the build page on a phone', () => {
       .element(bar().getByRole('button', { name: 'Approve' }))
       .toHaveAttribute('data-variant', 'primary')
     expect(bar().element().querySelectorAll('[data-variant="primary"]')).toHaveLength(1)
+    // A phone has no keyboard to speak of: no "?" button for the shortcuts.
+    expect(page.getByRole('button', { name: 'Keyboard shortcuts' }).elements()).toHaveLength(0)
     // It sits on the bottom edge, and nothing scrolls sideways.
     expect(Math.round(bar().element().getBoundingClientRect().bottom)).toBe(844)
     expectNoSidewaysScroll()

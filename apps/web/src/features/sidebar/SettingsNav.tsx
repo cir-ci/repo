@@ -28,6 +28,7 @@ import { useSidebarModel } from '#features/sidebar/api.ts'
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
+import { usePhone } from '#lib/use-phone.ts'
 
 import { useWorkspaces } from './use-workspaces.ts'
 
@@ -40,6 +41,7 @@ import styles from './SettingsNav.module.css'
  * team header with tabs). The workspace is the one in the address, else the last chosen.
  */
 export function SettingsNav() {
+  const phone = usePhone()
   const { data: caps } = useQuery(capabilitiesQuery())
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { workspace } = useWorkspaces(useChosenWorkspace())
@@ -83,9 +85,11 @@ export function SettingsNav() {
         <NavLink to="/account/appearance" icon={<SunIcon />}>
           Appearance
         </NavLink>
-        <NavLink to="/account/shortcuts" icon={<KeyboardIcon />}>
-          Keyboard shortcuts
-        </NavLink>
+        {phone ? null : (
+          <NavLink to="/account/shortcuts" icon={<KeyboardIcon />}>
+            Keyboard shortcuts
+          </NavLink>
+        )}
       </NavSection>
       {workspace ? (
         <NavSection

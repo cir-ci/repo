@@ -40,7 +40,7 @@ describe('ShortcutsPage', () => {
     expect(row?.querySelector('dd')?.textContent).toBe('⌘K')
   })
 
-  it('lays the cards out in several columns when wide and stacks them on a phone', async () => {
+  it('lays the cards out in several columns when wide', async () => {
     await page.viewport(1280, 900)
     await renderPage(<ShortcutsPage />)
     await expect.element(page.getByRole('region', { name: 'General' })).toBeVisible()
@@ -50,15 +50,15 @@ describe('ShortcutsPage', () => {
         return first && second ? Math.abs(first.top - second.top) < 1 : false
       })
       .toBe(true)
+  })
 
-    await page.viewport(390, 900)
-    await expect
-      .poll(() => {
-        const rects = cardRects()
-        return rects.every((r, i) => i === 0 || r.top >= (rects[i - 1]?.bottom ?? 0))
-      })
-      .toBe(true)
-    const rects = cardRects()
-    expect(new Set(rects.map((r) => Math.round(r.left))).size).toBe(1)
+  it('is not shown on a phone: the address goes to the profile', async () => {
+    await page.viewport(390, 844)
+    const { router } = await renderPage(<ShortcutsPage />, {
+      route: '/account/shortcuts',
+      otherRoutes: ['/account/profile'],
+    })
+    await expect.poll(() => router.state.location.pathname).toBe('/account/profile')
+    expect(page.getByRole('heading', { name: 'Keyboard shortcuts' }).elements()).toHaveLength(0)
   })
 })

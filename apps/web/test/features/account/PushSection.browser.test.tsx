@@ -56,12 +56,29 @@ const here = () => page.getByRole('switch', { name: 'Push notifications on this 
 const kind = (name: string) => page.getByRole('switch', { name: `Push: ${name}` })
 
 describe('Push notifications in settings', () => {
-  it('is hidden in a browser without push', async () => {
+  it('says so in a browser without push, with no switch, and no kinds to push', async () => {
     await page.viewport(1000, 900)
     await renderPage(<NotificationsPage />, { api: API })
     await expect.element(page.getByRole('heading', { name: 'In your Inbox' })).toBeVisible()
-    expect(page.getByRole('heading', { name: 'Push notifications' }).elements()).toHaveLength(0)
+    await expect.element(page.getByRole('heading', { name: 'Push notifications' })).toBeVisible()
+    await expect.element(page.getByText(/background worker isn't running/)).toBeVisible()
+    expect(here().elements()).toHaveLength(0)
     expect(page.getByRole('heading', { name: 'What to push' }).elements()).toHaveLength(0)
+  })
+
+  it('reads the browser again when the page opens, for an installed app whose worker was not ready at start', async () => {
+    await page.viewport(390, 844)
+    fakePushEnv({ permission: 'default' })
+    await renderPage(<NotificationsPage />, {
+      api: API,
+      // The app started before its worker was ready: the store still says unsupported.
+      beforeRender: () => usePwaStore.setState({ pushPermission: 'unsupported', installed: true }),
+    })
+    await expect.element(here()).toBeVisible()
+    await expect.element(here()).not.toBeChecked()
+    // Installed: push is the first section of the page.
+    const headings = page.getByRole('heading', { level: 2 }).elements()
+    expect(headings[0]?.textContent).toBe('Push notifications')
   })
 
   it('lists this device first with its state, then the other devices', async () => {
@@ -127,7 +144,10 @@ describe('Push notifications in settings', () => {
       api: { ...API, 'GET /api/push/devices': { body: { devices: [] } } },
       beforeRender: () => usePwaStore.setState({ pushPermission: 'denied' }),
     })
-    await expect.element(page.getByText('Notifications are blocked for this site.')).toBeVisible()
+    await expect.element(page.getByText(/Notifications are blocked for this site\./)).toBeVisible()
+    await expect
+      .element(page.getByText(/Allow them in your browser's or device's settings/))
+      .toBeVisible()
     await expect.element(here()).toBeDisabled()
   })
 

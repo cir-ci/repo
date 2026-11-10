@@ -16,6 +16,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useInstall } from '#features/pwa/use-install.ts'
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { authClient, type SessionUser } from '#lib/auth-client.ts'
+import { usePhone } from '#lib/use-phone.ts'
 
 import styles from './UserMenu.module.css'
 
@@ -30,6 +31,7 @@ export function UserMenu({ user }: UserMenu.Props) {
   const navigate = useNavigate()
   const { data: caps } = useQuery(capabilitiesQuery())
   const { canInstall, install } = useInstall()
+  const phone = usePhone()
 
   async function signOut() {
     await authClient.signOut()
@@ -99,12 +101,17 @@ export function UserMenu({ user }: UserMenu.Props) {
             </div>
           ),
         },
-        {
-          label: 'Keyboard shortcuts',
-          icon: <KeyboardIcon />,
-          shortcut: '?',
-          onSelect: () => void navigate({ to: '/account/shortcuts' }),
-        },
+        // For a keyboard: a phone doesn't show them.
+        ...(phone
+          ? []
+          : [
+              {
+                label: 'Keyboard shortcuts',
+                icon: <KeyboardIcon />,
+                shortcut: '?',
+                onSelect: () => void navigate({ to: '/account/shortcuts' }),
+              } satisfies Menu.Item,
+            ]),
         // Gone once it is installed (or where the browser can't install it).
         ...(canInstall
           ? [

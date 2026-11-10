@@ -11,10 +11,11 @@ import {
   visuallyHidden,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { pushDevicesQuery, useRemoveDevice, useTogglePush } from '#features/pwa/api.ts'
 import { currentPlatform } from '#features/pwa/platform.ts'
+import { refreshPushState } from '#features/pwa/push-client.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { SaveNote } from '#lib/SaveNote.tsx'
 import { usePwaStore } from '#lib/stores/pwa-store.ts'
@@ -29,8 +30,9 @@ const shortDate = (iso: string) =>
 /**
  * Web push in the notification settings: this device first (a switch that saves as it flips),
  * the person's other devices with Remove, then which kinds to push (per person, like email,
- * for every device that is on). Hidden where the browser has no push; on an iPhone that isn't
- * on the Home Screen the switch gives way to the steps.
+ * for every device that is on). Always there, so the installed app never lacks it: where this
+ * browser can't push the device row says why instead of a switch, and says what to do when the
+ * browser blocked it; on an iPhone that isn't on the Home Screen the switch gives way to the steps.
  */
 export function PushSection({ preferences }: PushSection.Props) {
   const permission = usePwaStore((s) => s.pushPermission)
@@ -44,8 +46,15 @@ export function PushSection({ preferences }: PushSection.Props) {
   const announce = useAnnounce()
   const platform = currentPlatform()
   const needsHomeScreen = platform.ios && !platform.standalone
+  const unsupported = permission === 'unsupported' && !needsHomeScreen
 
-  if (permission === 'unsupported' && !needsHomeScreen) return null
+  // The state is read once when the app starts, before its service worker may be ready: read it
+  // again here, so an installed app that lost that race doesn't say push isn't supported.
+  useEffect(() => {
+    if (permission === 'unsupported') void refreshPushState()
+    // Once, on arriving at the page.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const mine = devices.data?.devices.find((d) => d.endpoint === endpoint)
   const others = (devices.data?.devices ?? []).filter((d) => d.endpoint !== endpoint)
@@ -61,20 +70,22 @@ export function PushSection({ preferences }: PushSection.Props) {
           detail={
             needsHomeScreen
               ? 'Notifications on iPhone work from the Home Screen.'
-              : permission === 'denied'
-                ? 'Notifications are blocked for this site.'
-                : on
-                  ? mine
-                    ? `On since ${shortDate(mine.createdAt)}`
-                    : 'On'
-                  : 'Off'
+              : unsupported
+                ? unsupportedText()
+                : permission === 'denied'
+                  ? "Notifications are blocked for this site. Allow them in your browser's or device's settings, then reload this page."
+                  : on
+                    ? mine
+                      ? `On since ${shortDate(mine.createdAt)}`
+                      : 'On'
+                    : 'Off'
           }
         >
           {needsHomeScreen ? (
             <Button size="sm" onClick={() => setSheetOpen(true)}>
               Add to Home Screen
             </Button>
-          ) : (
+          ) : unsupported ? null : (
             <span className={styles.control}>
               {toggle.error ? (
                 <Text variant="small" tone="failed" role="alert">
@@ -109,28 +120,40 @@ export function PushSection({ preferences }: PushSection.Props) {
         ) : null}
       </SettingsSection>
 
-      <SettingsSection title="What to push">
-        {PUSH_ROWS.map((row) => (
-          <SettingsRow key={row.key} label={row.label} detail={row.description}>
-            <span className={styles.control}>
-              {last === row.key ? <SaveNote mutation={setPreference} /> : null}
-              <Switch
-                label={<span style={visuallyHidden}>Push: {row.label}</span>}
-                checked={preferences[row.key]}
-                onCheckedChange={(next) => {
-                  setLast(row.key)
-                  setPreference.mutate(
-                    { [row.key]: next },
-                    { onSuccess: () => announce(`${row.label} ${next ? 'on' : 'off'}, saved`) },
-                  )
-                }}
-              />
-            </span>
-          </SettingsRow>
-        ))}
-      </SettingsSection>
+      {unsupported ? null : (
+        <SettingsSection title="What to push">
+          {PUSH_ROWS.map((row) => (
+            <SettingsRow key={row.key} label={row.label} detail={row.description}>
+              <span className={styles.control}>
+                {last === row.key ? <SaveNote mutation={setPreference} /> : null}
+                <Switch
+                  label={<span style={visuallyHidden}>Push: {row.label}</span>}
+                  checked={preferences[row.key]}
+                  onCheckedChange={(next) => {
+                    setLast(row.key)
+                    setPreference.mutate(
+                      { [row.key]: next },
+                      { onSuccess: () => announce(`${row.label} ${next ? 'on' : 'off'}, saved`) },
+                    )
+                  }}
+                />
+              </span>
+            </SettingsRow>
+          ))}
+        </SettingsSection>
+      )}
     </>
   )
+}
+
+/** Why this browser has no push: what it lacks, so the person knows whether a different one helps. */
+function unsupportedText(): string {
+  if (!window.isSecureContext)
+    return "Notifications need a secure (HTTPS) connection, and this page isn't one."
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return "This browser can't receive push notifications. Chrome, Edge, Firefox and Safari 16.4 or later can."
+  }
+  return "Notifications aren't available here yet: the app's background worker isn't running. Reload the page, and if this stays, use another browser."
 }
 
 function DeviceRow({

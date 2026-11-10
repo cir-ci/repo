@@ -163,4 +163,14 @@ describe('SettingsNav', () => {
     await expect.element(page.getByRole('region', { name: /^Workspace/ })).toBeVisible()
     expect(page.getByRole('link', { name: 'Instance settings' }).elements()).toHaveLength(0)
   })
+
+  it('lists Keyboard shortcuts under Account on a desktop and not on a phone', async () => {
+    await show()
+    await expect.element(page.getByRole('link', { name: 'Keyboard shortcuts' })).toBeVisible()
+    await page.viewport(390, 844)
+    await expect.element(page.getByRole('link', { name: 'Appearance' })).toBeVisible()
+    await expect
+      .poll(() => page.getByRole('link', { name: 'Keyboard shortcuts' }).elements().length)
+      .toBe(0)
+  })
 })

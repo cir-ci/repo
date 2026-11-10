@@ -4,6 +4,7 @@ import type { ColorMode } from '@circi/ui'
 import { goPath, type WorkspaceRef } from '#app/shell-model.ts'
 import { SHORTCUTS, type Shortcut } from '#lib/shortcuts.ts'
 import type { RecentEntry } from '#lib/stores/recent-store.ts'
+import { isPhone } from '#lib/use-phone.ts'
 
 import { type Chip, type ChipKind, type Entry, type IconKey, verbOf } from './entry.ts'
 import { KIND_CHIPS, kindChip, prefixOf, teamChip } from './query.ts'
@@ -543,22 +544,24 @@ export function switchEntries({
     ),
   )
   const help = SHORTCUTS.find((s) => s.action.type === 'help')
-  entries.push({
-    id: 'pref:shortcuts',
-    group: GROUPS.switch,
-    kind: 'action',
-    label: 'Keyboard shortcuts',
-    ...(help ? { hint: help.key } : {}),
-    icon: 'keyboard',
-    target: { type: 'key', key: help?.key ?? '?' },
-    keywords: ['keys', 'help', 'hotkeys'],
-    peek: {
-      kind: 'Action',
-      title: 'Keyboard shortcuts',
-      lines: ['Shows every keyboard shortcut.'],
-      rows: [],
-    },
-  })
+  // Keyboard shortcuts are for a keyboard: a phone doesn't list them.
+  if (!isPhone())
+    entries.push({
+      id: 'pref:shortcuts',
+      group: GROUPS.switch,
+      kind: 'action',
+      label: 'Keyboard shortcuts',
+      ...(help ? { hint: help.key } : {}),
+      icon: 'keyboard',
+      target: { type: 'key', key: help?.key ?? '?' },
+      keywords: ['keys', 'help', 'hotkeys'],
+      peek: {
+        kind: 'Action',
+        title: 'Keyboard shortcuts',
+        lines: ['Shows every keyboard shortcut.'],
+        rows: [],
+      },
+    })
   entries.push({
     id: 'switch:sign-out',
     group: GROUPS.switch,
