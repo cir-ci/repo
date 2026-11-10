@@ -190,3 +190,15 @@ a.root {
 .root[data-disabled][data-variant='select-trigger']:hover {
   background: transparent;
 }
+
+/* A phone: every target is at least 44px. */
+@media (max-width: 819.98px) {
+  .root,
+  .root[data-size='sm'],
+  .root[data-size='lg'],
+  .root[data-variant='filter'] {
+    min-height: 44px;
+    padding-inline: 14px;
+    font-size: 14px;
+  }
+}

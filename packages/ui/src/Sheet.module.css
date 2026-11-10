@@ -1,0 +1,169 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--circi-z-dialog);
+  background: var(--circi-scrim);
+  opacity: 1;
+  transition: opacity 120ms ease-out;
+}
+
+.backdrop[data-starting-style],
+.backdrop[data-ending-style] {
+  opacity: 0;
+}
+
+.viewport {
+  position: fixed;
+  inset: 0;
+  z-index: var(--circi-z-dialog);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.popup {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 640px;
+  max-height: 85%;
+  border: 1px solid var(--circi-line-strong);
+  border-width: 1px 0 0;
+  border-radius: var(--circi-radius-command) var(--circi-radius-command) 0 0;
+  background: var(--circi-surface-overlay);
+  color: var(--circi-text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  transition: transform 160ms ease-out;
+}
+
+.popup[data-size='tall'] {
+  height: 85%;
+}
+
+.popup[data-size='full'] {
+  height: 100%;
+  max-height: 100%;
+  max-width: none;
+  border-width: 0;
+  border-radius: 0;
+}
+
+:root[data-circi-color-scheme='light'] .popup {
+  box-shadow: 0 -8px 24px rgb(28 15 12 / 14%);
+}
+
+.popup[data-starting-style],
+.popup[data-ending-style] {
+  transform: translateY(24px);
+}
+
+.popup:focus-visible {
+  outline: none;
+}
+
+.grabber {
+  display: block;
+  flex: none;
+  align-self: center;
+  width: 36px;
+  height: 4px;
+  margin: 8px 0 0;
+  border-radius: 999px;
+  background: var(--circi-line-strong);
+}
+
+.popup[data-size='full'] .grabber {
+  display: none;
+}
+
+.header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding-inline: 16px 4px;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.header[data-hidden] .title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.headerEnd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--circi-radius-control);
+  background: transparent;
+  color: var(--circi-text-secondary);
+  cursor: pointer;
+}
+
+.close svg {
+  width: 20px;
+  height: 20px;
+}
+
+.close:focus-visible {
+  outline: 2px solid var(--circi-accent-text);
+  outline-offset: -2px;
+}
+
+.body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* The home indicator: the last control never sits under it (a pinned footer clears it itself). */
+.body:not([data-footer]) {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.footer {
+  display: flex;
+  flex: none;
+  gap: 8px;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0));
+  border-top: 1px solid var(--circi-line-subtle);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop,
+  .popup {
+    transition: none;
+  }
+}

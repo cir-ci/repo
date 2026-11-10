@@ -19,3 +19,20 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/*
+ * A form's Save and Discard on a phone: pinned to the bottom of the window (over the keyboard, above the home
+ * indicator), full width, on the chrome.
+ */
+@media (max-width: 819.98px) {
+  .saveBar {
+    position: sticky;
+    bottom: 0;
+    z-index: 4;
+    box-sizing: border-box;
+    margin-inline: -16px;
+    padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0));
+    border-top: 1px solid var(--circi-line-subtle);
+    background: var(--circi-surface-chrome);
+  }
+}

@@ -53,3 +53,9 @@
     transition: none;
   }
 }
+
+@media (max-width: 819.98px) {
+  .item {
+    height: 40px;
+  }
+}

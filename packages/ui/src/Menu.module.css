@@ -145,3 +145,11 @@
 .content {
   padding: 4px 8px;
 }
+
+/* A phone: 44px items. */
+@media (max-width: 819.98px) {
+  .item,
+  .popup[data-size='md'] .item {
+    height: 44px;
+  }
+}

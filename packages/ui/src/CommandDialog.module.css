@@ -61,9 +61,8 @@
 }
 
 /*
- * Under 600px the menu is a bottom sheet: anchored to the bottom edge with only its top corners
- * rounded, a grabber over the field, room under the footer for the home indicator, and it
- * slides up instead of fading.
+ * Under 600px the menu is a full-screen sheet: it fills the screen (no preview column), room above for the
+ * status bar and under the footer for the home indicator, and it slides up instead of fading.
  */
 @media (max-width: 600px) {
   .viewport {
@@ -75,11 +74,12 @@
   .popup[data-wide] {
     position: relative;
     width: 100%;
-    max-height: 80%;
-    padding-top: 16px;
+    height: 100%;
+    max-height: 100%;
+    padding-top: env(safe-area-inset-top, 0);
     padding-bottom: env(safe-area-inset-bottom, 0);
-    border-width: 1px 0 0;
-    border-radius: var(--circi-radius-command) var(--circi-radius-command) 0 0;
+    border-width: 0;
+    border-radius: 0;
     transition:
       opacity 120ms ease-out,
       transform 160ms ease-out;
@@ -91,15 +91,7 @@
   }
 
   .grabber {
-    position: absolute;
-    top: 8px;
-    left: 50%;
-    display: block;
-    width: 36px;
-    height: 4px;
-    border-radius: 999px;
-    background: var(--circi-line-strong);
-    transform: translateX(-50%);
+    display: none;
   }
 }
 

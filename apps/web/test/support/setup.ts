@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, vi } from 'vitest'
+import { page } from 'vitest/browser'
 
 import { setPushEnv } from '#features/pwa/push-client.ts'
 import { resetStores } from '#lib/stores/index.ts'
@@ -13,7 +14,9 @@ beforeEach(() => {
   installDefaultFetch()
 })
 
-afterEach(() => {
+afterEach(async () => {
+  // A phone-sized test leaves the window as it found it for the next one.
+  await page.viewport(1000, 700)
   const unfaked = takeUnfakedRequests()
   vi.useRealTimers()
   vi.unstubAllGlobals()

@@ -37,3 +37,9 @@
   flex: 1;
   min-height: 0;
 }
+
+@media (max-width: 819.98px) {
+  .tab {
+    min-height: 44px;
+  }
+}

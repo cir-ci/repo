@@ -73,6 +73,10 @@
   outline: none;
 }
 
+.bottom {
+  display: none;
+}
+
 /* Only shown below 820px, and only when the app gives a compact bar. */
 .bar {
   display: none;
@@ -110,6 +114,27 @@
 
   .root[data-compact] .main {
     flex: 1 1 auto;
+  }
+
+  /* A phone: the panel is full-bleed, the bar above it 52px (the buttons are 44px). */
+  .root[data-compact] .main {
+    margin: 0;
+    border-width: 1px 0 0;
+    border-radius: 0;
+  }
+
+  .root[data-compact] .bar {
+    height: auto;
+    min-height: 52px;
+  }
+
+  /* The tab bar stays in view while the page scrolls. */
+  .root[data-compact] .bottom {
+    position: sticky;
+    bottom: 0;
+    z-index: var(--circi-z-bar, 5);
+    display: block;
+    flex: none;
   }
 }
 

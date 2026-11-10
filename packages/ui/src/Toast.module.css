@@ -120,3 +120,10 @@
     transition: none;
   }
 }
+
+/* A phone: above the tab bar or the pinned Save bar. */
+@media (max-width: 819.98px) {
+  .viewport {
+    inset-block-end: calc(72px + env(safe-area-inset-bottom, 0));
+  }
+}

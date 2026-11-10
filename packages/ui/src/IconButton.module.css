@@ -44,3 +44,11 @@
     transition: none;
   }
 }
+
+/* A phone: every target is at least 44px (the icon stays 16px). */
+@media (max-width: 819.98px) {
+  .root {
+    width: 44px;
+    height: 44px;
+  }
+}

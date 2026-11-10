@@ -107,3 +107,12 @@
     grid-row: 2;
   }
 }
+
+/* A phone: 44px fields, 16px text (a smaller one makes iOS zoom in on focus). */
+@media (max-width: 819.98px) {
+  .control,
+  .control[data-size='lg'] {
+    height: 44px;
+    font-size: 16px;
+  }
+}

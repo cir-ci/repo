@@ -27,7 +27,7 @@ function Harness(props: { onRemove?: () => void; onAccount?: () => void }) {
 
 describe('Menu', () => {
   it('opens a menu of menuitems from its trigger', async () => {
-    await page.viewport(800, 600)
+    await page.viewport(1000, 600)
     await render(<Harness />)
     const trigger = page.getByRole('button', { name: 'Row actions' })
     await expect.element(trigger).toHaveAttribute('aria-haspopup', 'menu')
@@ -39,7 +39,7 @@ describe('Menu', () => {
   })
 
   it('opens below its trigger and the items are 28px high', async () => {
-    await page.viewport(800, 600)
+    await page.viewport(1000, 600)
     await render(<Harness />)
     const trigger = page.getByRole('button', { name: 'Row actions' })
     await trigger.click()
@@ -52,7 +52,7 @@ describe('Menu', () => {
   })
 
   it('has 36px items, 14px text and 18px icons at stroke 2 with size="md"', async () => {
-    await page.viewport(800, 600)
+    await page.viewport(1000, 600)
     await render(
       <Menu
         size="md"
@@ -124,7 +124,7 @@ describe('Menu', () => {
   })
 
   it('holds a control that is not an item and keeps its arrow keys', async () => {
-    await page.viewport(800, 600)
+    await page.viewport(1000, 600)
     const picked: string[] = []
     await render(
       <Menu

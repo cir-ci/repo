@@ -7,7 +7,8 @@ import styles from './AppFrame.module.css'
 /**
  * The app frame: a dim chrome (the sidebar and page ground) around one lifted content panel.
  * Below 820px the sidebar stacks above the panel, or, when `compactBar` is given, is replaced by
- * that bar (the app puts a menu button in it that opens the sidebar in a `Drawer`).
+ * that bar (the app puts a menu button in it that opens the sidebar in a `Drawer`), and the panel
+ * fills the screen edge to edge (a phone), with an optional `bottomBar` pinned under it.
  */
 export function AppFrame(props: AppFrame.Props) {
   const onNavScroll = useScrollingFlag()
@@ -43,6 +44,7 @@ export function AppFrame(props: AppFrame.Props) {
       <main className={styles.main} id="content" tabIndex={-1}>
         {props.children}
       </main>
+      {props.bottomBar ? <div className={styles.bottom}>{props.bottomBar}</div> : null}
     </div>
   )
 }
@@ -62,6 +64,12 @@ export namespace AppFrame {
      * same navigation in a `Drawer` opened from the bar. Wider screens ignore it.
      */
     compactBar?: ReactNode
+    /**
+     * A bar pinned to the bottom of the window below 820px (the phone's tab bar, a `BottomBar`);
+     * wider screens ignore it. Needs `compactBar`. Below 820px the panel is also full-bleed: no
+     * margin, border or rounded corners.
+     */
+    bottomBar?: ReactNode
     /**
      * The sidebar's width from 820px up: px, or a CSS length (a `min()` that holds it to a share of the frame; percentages
      * resolve against the frame); 244 by default. Below 820px it is ignored.

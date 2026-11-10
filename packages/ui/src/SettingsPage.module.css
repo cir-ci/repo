@@ -21,7 +21,7 @@
 }
 
 /* A phone: the 16px gutter used everywhere else. */
-@media (max-width: 600px) {
+@media (max-width: 819.98px) {
   .root {
     padding-inline: 16px;
   }

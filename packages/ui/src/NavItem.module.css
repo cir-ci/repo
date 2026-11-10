@@ -92,3 +92,12 @@
     transition: none;
   }
 }
+
+/* The drawer on a phone: 44px rows. */
+@media (max-width: 819.98px) {
+  .root,
+  .root[data-sub],
+  .root[data-more] {
+    height: 44px;
+  }
+}

@@ -82,3 +82,31 @@
   border-color: var(--circi-accent-main);
   color: var(--circi-accent-text);
 }
+
+/*
+ * A phone: rows are taller (64px with two lines) and the hover chip is always there, a 44px target
+ * (nothing may depend on hover).
+ */
+@media (max-width: 819.98px) {
+  .root[data-density='two-line'] {
+    min-height: 64px;
+  }
+
+  /* The chip is a 44px square with just its arrow: the words would crowd the row off a phone's width. */
+  .action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    margin-block: -8px;
+    overflow: hidden;
+    font-size: 0;
+  }
+
+  .action::after {
+    content: '↗';
+    font-size: 16px;
+  }
+}

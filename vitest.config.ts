@@ -211,6 +211,8 @@ export default defineConfig({
             enabled: true,
             headless: true,
             provider: playwright(),
+            // A desktop window unless a test says otherwise (the phone layout starts below 820px).
+            viewport: { width: 1000, height: 700 },
             instances: [{ browser: 'chromium' as const }],
           },
         },

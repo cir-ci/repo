@@ -70,3 +70,16 @@
   padding: 10px 12px;
   border-top: 1px solid var(--circi-line-subtle);
 }
+
+/* Inside a sheet: the sheet is the frame. */
+.root[data-bare] {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: none;
+  border: 0;
+  border-radius: 0;
+}
+
+.root[data-bare] .actions {
+  flex-wrap: wrap;
+}

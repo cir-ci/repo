@@ -18,6 +18,8 @@ function found(element: Element | null | undefined): Element {
 
 describe('SettingsPage', () => {
   it('is a 720px centred column with an h1, description and actions', async () => {
+    // Narrower than the 900px of room a label column needs.
+    await page.viewport(800, 700)
     const { container } = await render(
       <SettingsPage
         title="Health"

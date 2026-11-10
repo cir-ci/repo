@@ -10,10 +10,23 @@ import styles from './Pane.module.css'
  * `sm` 280px, `md` 340px, `lg` 420px (all shrink on a narrow screen), or `resizable`: the width is the
  * `--circi-pane-width` custom property of a parent (see `ResizeHandle`).
  */
-export function Pane({ label, context, actions, width = 'md', className, children }: Pane.Props) {
+export function Pane({
+  label,
+  context,
+  actions,
+  width = 'md',
+  bare = false,
+  className,
+  children,
+}: Pane.Props) {
   const id = useId()
   return (
-    <section aria-labelledby={id} className={cx(styles.root, className)} data-width={width}>
+    <section
+      aria-labelledby={id}
+      className={cx(styles.root, className)}
+      data-width={width}
+      data-bare={bare ? '' : undefined}
+    >
       <header className={styles.header}>
         <h2 id={id} className={styles.label}>
           {label}
@@ -35,6 +48,8 @@ export namespace Pane {
     /** Buttons at the bottom right. */
     actions?: ReactNode
     width?: 'sm' | 'md' | 'lg' | 'resizable'
+    /** The pane fills what holds it with no border or rounding (inside a phone's `Sheet`). */
+    bare?: boolean
     className?: string
     children?: ReactNode
   }
