@@ -30,8 +30,8 @@ const request = (over: Partial<Review.Request> = {}): Review.Request => ({
   decision: null,
   reason: null,
   baseline: { number: 11, branch: 'main' },
-  reviewer: { id: 'u1', name: 'Me' },
-  requestedBy: { id: 'u2', name: 'Ada Lovelace' },
+  reviewer: { id: 'u1', name: 'Me', image: null },
+  requestedBy: { id: 'u2', name: 'Ada Lovelace', image: null },
   build: {
     number: 12,
     branch: 'main',
@@ -155,7 +155,7 @@ describe('groupRequests', () => {
       'Needs your review',
       'Re-requested',
     ])
-    const theirs = request({ id: 'r4', reviewer: { id: 'u9', name: 'Dana' } })
+    const theirs = request({ id: 'r4', reviewer: { id: 'u9', name: 'Dana', image: null } })
     expect(
       groupRequests([request(), theirs, processing], 'all-open', 'u1').map((g) => [
         g.label,

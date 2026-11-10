@@ -10,7 +10,7 @@ import {
   PinIcon,
   ReviewIcon,
   SearchIcon,
-  TeamTile,
+  Avatar,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useRouterState } from '@tanstack/react-router'
@@ -20,7 +20,6 @@ import { useSidebarModel } from '#features/sidebar/api.ts'
 import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { WorkspaceSwitcher } from '#features/sidebar/WorkspaceSwitcher.tsx'
 import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
-import { isTeamIconName } from '#features/teams/appearance.ts'
 import type { SessionUser } from '#lib/auth-client.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useWorkspaceStore, useChosenWorkspace } from '#lib/stores/workspace-store.ts'
@@ -200,11 +199,13 @@ function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
         params={params}
         selected={false}
         icon={
-          <TeamTile
+          <Avatar
+            type="team"
+            aria-hidden
+            slug={team.slug}
             name={team.name}
-            seed={team.slug}
             color={team.color}
-            {...(isTeamIconName(team.icon) ? { icon: team.icon } : {})}
+            icon={team.icon}
           />
         }
         trailing={team.pinned ? <PinIcon size={12} className={styles.pin} /> : undefined}

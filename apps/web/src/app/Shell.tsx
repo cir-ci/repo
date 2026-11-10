@@ -61,8 +61,13 @@ export function Shell() {
 }
 
 /** The parts of the session the shell uses. */
-function sessionUser(user: { id: string; name: string; email: string }): SessionUser {
-  return { id: user.id, name: user.name, email: user.email }
+function sessionUser(user: {
+  id: string
+  name: string
+  email: string
+  image?: string | null | undefined
+}): SessionUser {
+  return { id: user.id, name: user.name, email: user.email, image: user.image ?? null }
 }
 
 function Notices({ email }: { email: string }) {

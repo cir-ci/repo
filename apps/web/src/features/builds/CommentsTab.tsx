@@ -194,6 +194,9 @@ namespace ThreadView {
   }
 }
 
+/** The one face every comment by someone who has left shares. */
+const LEFT_MEMBER_ID = 'left-member'
+
 function CommentView({ comment, members, workspace, team, build, children }: CommentView.Props) {
   const [editing, setEditing] = useState(false)
   const edit = useEditComment(workspace, team, build)
@@ -202,7 +205,11 @@ function CommentView({ comment, members, workspace, team, build, children }: Com
   const deleted = comment.deletedAt !== null
   return (
     <div className={styles.comment}>
-      <Avatar name={name} {...(comment.author ? { seed: comment.author.id } : {})} />
+      {comment.author ? (
+        <Avatar type="user" {...comment.author} />
+      ) : (
+        <Avatar type="user" id={LEFT_MEMBER_ID} name={name} image={null} />
+      )}
       <div className={styles.eventBody}>
         <div className={styles.line}>
           <Text>

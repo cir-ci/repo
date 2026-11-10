@@ -22,7 +22,14 @@ export function MemberPicker({ workspace, open, onOpenChange, onPick }: MemberPi
               .map((m) => (
                 <li key={m.id}>
                   <ListRow
-                    leading={<Avatar name={m.user.name} seed={m.user.id} />}
+                    leading={
+                      <Avatar
+                        type="user"
+                        id={m.user.id}
+                        name={m.user.name}
+                        image={m.user.image ?? null}
+                      />
+                    }
                     onClick={() => {
                       onOpenChange(false)
                       onPick({ id: m.userId, name: m.user.name })

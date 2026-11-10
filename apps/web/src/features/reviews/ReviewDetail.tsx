@@ -53,7 +53,7 @@ export function ReviewDetail({ request: r, backHref, onBack, children }: ReviewD
           {r.requestedBy ? (
             <>
               <span aria-hidden="true">·</span>
-              <Avatar name={r.requestedBy.name} seed={r.requestedBy.id} size={16} />
+              <Avatar type="user" {...r.requestedBy} size={16} />
               <span>
                 {r.requestedBy.name}, <RelativeTime iso={r.createdAt} />
               </span>
@@ -67,7 +67,7 @@ export function ReviewDetail({ request: r, backHref, onBack, children }: ReviewD
         <SettingsRow label="Requested by">
           {r.requestedBy ? (
             <span className={styles.person}>
-              <Avatar name={r.requestedBy.name} seed={r.requestedBy.id} size={20} />
+              <Avatar type="user" {...r.requestedBy} size={20} />
               {r.requestedBy.name}
             </span>
           ) : (

@@ -12,6 +12,7 @@ export namespace IntegrationLink {
   export interface Item extends Row {
     integrationKind: string
     createdByName: string | null
+    createdByImage: string | null
   }
 
   export interface Input {
@@ -35,7 +36,12 @@ export async function listBuildLinks(
   kind?: string,
 ): Promise<IntegrationLink.Item[]> {
   const rows = await db
-    .select({ link: integrationLinks, integrationKind: integrations.kind, authorName: user.name })
+    .select({
+      link: integrationLinks,
+      integrationKind: integrations.kind,
+      authorName: user.name,
+      authorImage: user.image,
+    })
     .from(integrationLinks)
     .innerJoin(integrations, eq(integrations.id, integrationLinks.integrationId))
     .leftJoin(user, eq(user.id, integrationLinks.createdBy))
@@ -47,7 +53,11 @@ export async function listBuildLinks(
     )
     .orderBy(asc(integrationLinks.createdAt), asc(integrationLinks.id))
   return rows.map((r) =>
-    Object.assign({}, r.link, { integrationKind: r.integrationKind, createdByName: r.authorName }),
+    Object.assign({}, r.link, {
+      integrationKind: r.integrationKind,
+      createdByName: r.authorName,
+      createdByImage: r.authorImage,
+    }),
   )
 }
 

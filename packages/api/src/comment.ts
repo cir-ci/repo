@@ -16,6 +16,7 @@ export namespace Comment {
   export interface Author {
     id: string
     name: string
+    image: string | null
   }
 
   export interface Item {
@@ -65,6 +66,7 @@ export namespace Activity {
   export interface Person {
     id: string
     name: string
+    image: string | null
   }
 
   interface Base {

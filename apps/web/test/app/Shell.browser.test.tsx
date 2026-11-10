@@ -694,8 +694,7 @@ describe('Shell, sidebar teams', () => {
     await expect.element(nav.getByRole('link', { name: /^web-app/ })).toBeVisible()
     expect(nav.getByRole('button', { name: 'New team' }).elements()).toHaveLength(0)
     // One tile per team row (pinned web-app, then api and storybook).
-    expect(nav.element().querySelectorAll('[data-color]')).toHaveLength(3)
-    expect(nav.element().querySelector('[data-color="slate"]')).not.toBeNull()
+    expect(nav.element().querySelectorAll('svg[data-avatar="marble"]')).toHaveLength(3)
   })
 })
 

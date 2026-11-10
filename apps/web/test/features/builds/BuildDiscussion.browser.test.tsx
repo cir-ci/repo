@@ -29,7 +29,7 @@ const comment = (id: string, over: object = {}) => ({
   region: null,
   regionSide: 'current' as const,
   body: `body ${id}`,
-  author: { id: 'u2', name: 'Grace Hopper' },
+  author: { id: 'u2', name: 'Grace Hopper', image: null },
   createdAt: at(5),
   editedAt: null,
   deletedAt: null,
@@ -63,7 +63,7 @@ describe('sidebar tabs', () => {
   })
 
   it('Details lists per-snapshot decisions by snapshot, and marks the selected one', async () => {
-    const max = { id: 'u3', name: 'Max Member' }
+    const max = { id: 'u3', name: 'Max Member', image: null }
     fakeBuildApi(
       detail(
         {},
@@ -110,8 +110,8 @@ describe('sidebar tabs', () => {
       {
         type: 'review_requested',
         at: at(60),
-        reviewer: { id: 'u2', name: 'Grace Hopper' },
-        by: { id: 'u1', name: 'Ada Lovelace' },
+        reviewer: { id: 'u2', name: 'Grace Hopper', image: null },
+        by: { id: 'u1', name: 'Ada Lovelace', image: null },
       },
       {
         type: 'review',
@@ -119,7 +119,7 @@ describe('sidebar tabs', () => {
         state: 'rejected',
         source: 'ui',
         reason: 'The button lost its focus ring',
-        by: { id: 'u2', name: 'Grace Hopper' },
+        by: { id: 'u2', name: 'Grace Hopper', image: null },
       },
     ]
     await renderBuild()
@@ -217,7 +217,7 @@ describe('comments', () => {
         parentId: 'a',
         mine: true,
         canDelete: true,
-        author: { id: 'u1', name: 'Ada Lovelace' },
+        author: { id: 'u1', name: 'Ada Lovelace', image: null },
       }),
     ]
     await renderBuild()
@@ -331,8 +331,8 @@ describe('requesting a review', () => {
       {
         type: 'review_requested',
         at: new Date().toISOString(),
-        reviewer: { id: 'u2', name: 'Grace Hopper' },
-        by: { id: 'u1', name: 'Ada Lovelace' },
+        reviewer: { id: 'u2', name: 'Grace Hopper', image: null },
+        by: { id: 'u1', name: 'Ada Lovelace', image: null },
       },
     ]
     await dialog.getByRole('button', { name: /Grace Hopper/ }).click()

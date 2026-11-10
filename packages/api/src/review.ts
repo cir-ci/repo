@@ -34,9 +34,9 @@ export namespace Review {
     reason: Reason | null
     /** The build this one was compared with; null when it had no baseline. */
     baseline: { number: number; branch: string | null } | null
-    reviewer: { id: string; name: string }
+    reviewer: { id: string; name: string; image: string | null }
     /** Null when whoever asked has since left. */
-    requestedBy: { id: string; name: string } | null
+    requestedBy: { id: string; name: string; image: string | null } | null
     build: {
       number: number
       branch: string | null

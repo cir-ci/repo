@@ -5,6 +5,8 @@ export namespace InstanceAdmin {
     id: string
     email: string
     name: string
+    /** The account's uploaded picture; null when it has none. */
+    image: string | null
     /** Has better-auth's `admin` role. */
     instanceAdmin: boolean
     banned: boolean

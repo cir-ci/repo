@@ -47,9 +47,9 @@ function Choices({ workspace, team, number, onClose }: Choices.Props) {
   // You can't ask yourself: you are never one of the choices.
   const people = (members.data?.members ?? [])
     .filter((m) => m.userId !== me)
-    .map((m) => ({ userId: m.userId, name: m.user.name }))
+    .map((m) => ({ userId: m.userId, name: m.user.name, image: m.user.image ?? null }))
 
-  function choose(person: { userId: string; name: string }) {
+  function choose(person: { userId: string; name: string; image: string | null }) {
     if (requested.has(person.userId)) return
     request.mutate(person.userId, {
       onSuccess: (result) => {
@@ -88,7 +88,7 @@ function Choices({ workspace, team, number, onClose }: Choices.Props) {
                   disabled={request.isPending}
                   onClick={() => choose(p)}
                 >
-                  <Avatar name={p.name} seed={p.userId} size={20} />
+                  <Avatar type="user" id={p.userId} name={p.name} image={p.image} size={20} />
                   <span className={styles.name}>{p.name}</span>
                   {asked ? (
                     <Text variant="small" tone="tertiary">

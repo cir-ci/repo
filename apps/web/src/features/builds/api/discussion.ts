@@ -14,6 +14,7 @@ export function useMentionMembers(workspace: string): Mention.Member[] {
     userId: m.userId,
     name: m.user.name,
     email: m.user.email,
+    image: m.user.image ?? null,
   }))
 }
 

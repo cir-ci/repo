@@ -13,4 +13,4 @@ export const authClient = createAuthClient({
 })
 
 /** The parts of the session the shell uses. Whether the person runs the instance comes from `/api/capabilities`. */
-export type SessionUser = { id: string; name: string; email: string }
+export type SessionUser = { id: string; name: string; email: string; image: string | null }

@@ -59,7 +59,7 @@ export namespace listTriage {
       status: Build['status']
       createdAt: Date
     }
-    assignee: { id: string; name: string } | null
+    assignee: { id: string; name: string; image: string | null } | null
     /** When a timed snooze ends; null when not snoozed or snoozed until the next push. */
     snoozedUntil: Date | null
     snoozeKind: SnoozeKind | null
@@ -70,9 +70,9 @@ export namespace listTriage {
   export interface Queue {
     items: listTriage.Item[]
     rotation: {
-      members: { id: string; name: string }[]
+      members: { id: string; name: string; image: string | null }[]
       /** Who is on triage this week; null without a rotation. */
-      onTriage: { id: string; name: string } | null
+      onTriage: { id: string; name: string; image: string | null } | null
       /** When the turn passes to the next person; null without a rotation. */
       until: Date | null
     }
@@ -224,7 +224,7 @@ export async function listTriage(
 
   // What people did about them.
   const states = await db
-    .select({ item: triageItems, assignee: { id: user.id, name: user.name } })
+    .select({ item: triageItems, assignee: { id: user.id, name: user.name, image: user.image } })
     .from(triageItems)
     .leftJoin(user, eq(user.id, triageItems.assigneeId))
     .where(eq(triageItems.teamId, team.id))
@@ -248,7 +248,9 @@ export async function listTriage(
       snapshotName: f.snapshotName,
       team: teamRef,
       build: f.build,
-      assignee: s?.assignee?.id ? { id: s.assignee.id, name: s.assignee.name } : null,
+      assignee: s?.assignee?.id
+        ? { id: s.assignee.id, name: s.assignee.name, image: s.assignee.image }
+        : null,
       snoozedUntil: snoozed ? until : null,
       snoozeKind: snoozed ? kind : null,
       snoozed,

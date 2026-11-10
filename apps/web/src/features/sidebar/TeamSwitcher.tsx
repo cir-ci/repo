@@ -1,10 +1,9 @@
 import type { Sidebar } from '@circi/api'
-import { CheckIcon, ExpandMoreIcon, Popover, TeamTile } from '@circi/ui'
+import { CheckIcon, ExpandMoreIcon, Popover, Avatar } from '@circi/ui'
 import { useRouter, useRouterState } from '@tanstack/react-router'
 import { type KeyboardEvent, type MouseEvent, useRef, useState } from 'react'
 
 import { matchTeams, rememberTeam, teamSettingsPath } from '#app/shell-model.ts'
-import { isTeamIconName } from '#features/teams/appearance.ts'
 
 import styles from './TeamSwitcher.module.css'
 
@@ -83,11 +82,13 @@ export function TeamSwitcher({ workspace, teams, current }: TeamSwitcher.Props) 
                 onClick={(e) => pick(team, e)}
                 className={styles.item}
               >
-                <TeamTile
+                <Avatar
+                  type="team"
+                  aria-hidden
+                  slug={team.slug}
                   name={team.name}
-                  seed={team.slug}
                   color={team.color}
-                  {...(isTeamIconName(team.icon) ? { icon: team.icon } : {})}
+                  icon={team.icon}
                 />
                 <span className={styles.name}>{team.name}</span>
                 {team.slug === current ? <CheckIcon /> : null}

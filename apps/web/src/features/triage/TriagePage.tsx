@@ -104,7 +104,7 @@ export function TriagePage() {
     if (!me) return
     const mine = item.assignee?.id === me.id
     assign.mutate(
-      { ref: item, assignee: mine ? null : { id: me.id, name: me.name } },
+      { ref: item, assignee: mine ? null : { id: me.id, name: me.name, image: me.image ?? null } },
       { onSuccess: () => announce(mine ? 'Unassigned' : 'Assigned to you') },
     )
   }
@@ -141,11 +141,7 @@ export function TriagePage() {
           data && chip && data.rotation.onTriage ? (
             <Badge shape="tag" tone="accent" aria-label={chip}>
               <span className={styles.chip}>
-                <Avatar
-                  name={data.rotation.onTriage.name}
-                  seed={data.rotation.onTriage.id}
-                  size={16}
-                />
+                <Avatar type="user" {...data.rotation.onTriage} size={16} />
                 {chip}
               </span>
             </Badge>
@@ -256,11 +252,7 @@ export function TriagePage() {
                                         Open in build ↗
                                       </span>
                                       {item.assignee ? (
-                                        <Avatar
-                                          name={item.assignee.name}
-                                          seed={item.assignee.id}
-                                          size={20}
-                                        />
+                                        <Avatar type="user" {...item.assignee} size={20} />
                                       ) : null}
                                     </>
                                   }

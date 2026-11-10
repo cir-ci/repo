@@ -99,7 +99,7 @@ export function ReviewList({
                         }
                         trailing={
                           <span className={styles.itemSide}>
-                            {who ? <Avatar name={who.name} seed={who.id} size={20} /> : null}
+                            {who ? <Avatar type="user" {...who} size={20} /> : null}
                             <RelativeTime iso={r.createdAt} />
                           </span>
                         }

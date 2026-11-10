@@ -37,7 +37,11 @@ describe('assignTriage', () => {
     const mate = await seedUser(t.db)
     await addTestMember(t.db, { workspaceId: workspace.id, userId: mate.id })
     await assignTriage(t.db, { ...ref, assigneeId: mate.id })
-    expect((await queue()).items[0]?.assignee).toEqual({ id: mate.id, name: mate.name })
+    expect((await queue()).items[0]?.assignee).toEqual({
+      id: mate.id,
+      name: mate.name,
+      image: null,
+    })
     await assignTriage(t.db, { ...ref, assigneeId: null })
     expect((await queue()).items[0]?.assignee).toBeNull()
   })

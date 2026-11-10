@@ -46,6 +46,7 @@ export namespace listAccounts {
     id: string
     email: string
     name: string
+    image: string | null
     instanceAdmin: boolean
     banned: boolean
     banReason: string | null
@@ -104,6 +105,7 @@ export async function listAccounts(
       id: r.id,
       email: r.email,
       name: r.name,
+      image: r.image,
       instanceAdmin: isAdminRole(r.role),
       banned: r.banned === true,
       banReason: r.banReason,

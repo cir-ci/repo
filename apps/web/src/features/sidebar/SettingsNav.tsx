@@ -14,12 +14,11 @@ import {
   ShieldCheckIcon,
   SlidersIcon,
   SunIcon,
-  TeamTile,
+  Avatar,
   UserIcon,
   UserPlusIcon,
   UsersIcon,
   WebhookIcon,
-  WorkspaceTile,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useRouterState, useParams } from '@tanstack/react-router'
@@ -37,7 +36,6 @@ import {
 } from '#app/shell-model.ts'
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
-import { isTeamIconName } from '#features/teams/appearance.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 
 import { TeamSwitcher } from './TeamSwitcher.tsx'
@@ -113,7 +111,14 @@ export function SettingsNav() {
         <NavSection
           label={
             <>
-              <WorkspaceTile seed={workspace.slug} picture={workspace.picture} size={16} />
+              <Avatar
+                type="workspace"
+                aria-hidden
+                slug={workspace.slug}
+                name={workspace.name}
+                picture={workspace.picture ?? null}
+                size={16}
+              />
               {`Workspace · ${workspace.name}`}
             </>
           }
@@ -170,11 +175,13 @@ export function SettingsNav() {
         <NavSection
           label={
             <>
-              <TeamTile
+              <Avatar
+                type="team"
+                aria-hidden
+                slug={team.slug}
                 name={team.name}
-                seed={team.slug}
                 color={team.color}
-                {...(isTeamIconName(team.icon) ? { icon: team.icon } : {})}
+                icon={team.icon}
               />
               <span className={styles.teamName}>{`Team · ${team.name}`}</span>
             </>

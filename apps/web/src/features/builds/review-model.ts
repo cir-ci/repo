@@ -108,10 +108,8 @@ export const openReviewers = (events: readonly Activity.Event[]): Set<string> =>
   new Set(openReviewerPeople(events).map((p) => p.id))
 
 /** The same people, with their names, in the order they were asked. */
-export function openReviewerPeople(
-  events: readonly Activity.Event[],
-): { id: string; name: string }[] {
-  const open = new Map<string, { id: string; name: string }>()
+export function openReviewerPeople(events: readonly Activity.Event[]): Activity.Person[] {
+  const open = new Map<string, Activity.Person>()
   for (const e of events) {
     if (e.type === 'review_requested' && e.reviewer) open.set(e.reviewer.id, e.reviewer)
     else if (e.type === 'review_request_closed' && e.reviewer) open.delete(e.reviewer.id)

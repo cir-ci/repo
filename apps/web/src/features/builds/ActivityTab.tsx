@@ -28,7 +28,7 @@ export function ActivityTab({ workspace, team, number, onOpenComment }: Activity
           <StatusIcon status={item.status} size={14} decorative />
           <div className={styles.eventBody}>
             <div className={styles.line}>
-              {item.actor ? <Avatar name={item.actor.name} seed={item.actor.id} size={18} /> : null}
+              {item.actor ? <Avatar type="user" {...item.actor} size={18} /> : null}
               <Text>
                 {item.actor ? <strong>{item.actor.name}</strong> : null} {item.text}
               </Text>

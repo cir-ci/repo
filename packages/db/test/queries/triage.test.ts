@@ -165,9 +165,9 @@ describe('listTriage', () => {
       startsOn: new Date('2026-03-02T00:00:00Z'),
     })
     const queue = await listTriage(t.db, { teamId: team.id, now })
-    expect(queue.items[0]?.assignee).toEqual({ id: mate.id, name: mate.name })
+    expect(queue.items[0]?.assignee).toEqual({ id: mate.id, name: mate.name, image: null })
     // Weeks from 2026-03-02: 03-09 is the second, so `mate` has this one.
-    expect(queue.rotation.onTriage).toEqual({ id: mate.id, name: mate.name })
+    expect(queue.rotation.onTriage).toEqual({ id: mate.id, name: mate.name, image: null })
     expect(queue.rotation.until?.toISOString()).toBe('2026-03-16T00:00:00.000Z')
     expect(queue.rotation.members.map((m) => m.id)).toEqual([owner.id, mate.id])
   })

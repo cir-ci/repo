@@ -5,6 +5,7 @@ export namespace Mention {
     userId: string
     name: string
     email: string
+    image: string | null
   }
 
   /** A stretch of a comment: plain text, or (with `member`) a mention of them. `at` is where it starts. */

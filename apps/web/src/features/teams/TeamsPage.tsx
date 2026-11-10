@@ -1,4 +1,4 @@
-import { Banner, Button, ListRow, StatusIcon, TeamTile, Text, visuallyHidden } from '@circi/ui'
+import { Banner, Button, ListRow, StatusIcon, Avatar, Text, visuallyHidden } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 
 import { buildState } from '#features/builds/build-state.ts'
@@ -12,7 +12,6 @@ import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 
-import { isTeamIconName } from './appearance.ts'
 import { changesCell } from './list.ts'
 import { TeamsEmpty } from './TeamsEmpty.tsx'
 
@@ -94,12 +93,14 @@ export function TeamsPage() {
                         >
                           <span className={styles.grid}>
                             <span className={styles.nameCol}>
-                              <TeamTile
-                                size={24}
+                              <Avatar
+                                type="team"
+                                aria-hidden
+                                slug={team.slug}
                                 name={team.name}
-                                seed={team.slug}
                                 color={team.color}
-                                {...(isTeamIconName(team.icon) ? { icon: team.icon } : {})}
+                                icon={team.icon}
+                                size={24}
                               />
                               <span className={styles.names}>
                                 <span className={styles.title}>{team.name}</span>

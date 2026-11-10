@@ -1,4 +1,4 @@
-import { Banner, Button, Link, TeamTile, Text, useAnnounce } from '@circi/ui'
+import { Banner, Button, Link, Avatar, Text, useAnnounce } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { Fragment } from 'react'
@@ -18,8 +18,6 @@ import { useDocumentTitle } from '#lib/document-title.ts'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { useDisplayStore } from '#lib/stores/display-store.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
-
-import { isTeamColor, isTeamIconName } from './appearance.ts'
 
 import styles from './TeamPage.module.css'
 
@@ -91,11 +89,13 @@ export function TeamPage() {
       <div className={styles.content}>
         {data ? (
           <div className={styles.identity}>
-            <TeamTile
+            <Avatar
+              type="team"
+              aria-hidden
+              slug={data.team.slug}
               name={data.team.name}
-              seed={data.team.slug}
-              color={isTeamColor(data.team.color) ? data.team.color : 'slate'}
-              {...(isTeamIconName(data.team.icon) ? { icon: data.team.icon } : {})}
+              color={data.team.color}
+              icon={data.team.icon}
               size={40}
             />
             <Text as="span" variant="body" className={styles.teamName}>

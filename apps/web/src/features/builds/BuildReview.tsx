@@ -365,7 +365,9 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
                     addComment.reset()
                     setDraft(null)
                   },
-                  author: session?.user,
+                  author: session?.user
+                    ? { ...session.user, image: session.user.image ?? null }
+                    : undefined,
                   members,
                   sending: addComment.isPending,
                   error: addComment.error?.message,

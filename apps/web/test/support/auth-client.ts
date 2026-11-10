@@ -20,7 +20,12 @@ export interface AuthClientFake {
 }
 
 /** Ada, the person every page test is signed in as unless it says otherwise. */
-export const ADA: SessionUser = { id: 'u1', name: 'Ada Lovelace', email: 'ada@example.test' }
+export const ADA: SessionUser = {
+  id: 'u1',
+  name: 'Ada Lovelace',
+  email: 'ada@example.test',
+  image: null,
+}
 
 let user: SessionUser | null = ADA
 

@@ -15,7 +15,7 @@ export interface CommentItem {
   /** Empty for a deleted comment. */
   body: string
   /** Null when the author's account was deleted. */
-  author: { id: string; name: string } | null
+  author: { id: string; name: string; image: string | null } | null
   createdAt: Date
   editedAt: Date | null
   deletedAt: Date | null
@@ -24,12 +24,12 @@ export interface CommentItem {
 /** All of a build's comments, oldest first; deleted ones stay as blank placeholders. */
 export async function listBuildComments(db: Database, buildId: string): Promise<CommentItem[]> {
   const rows = await db
-    .select({ comment: comments, authorName: user.name })
+    .select({ comment: comments, authorName: user.name, authorImage: user.image })
     .from(comments)
     .leftJoin(user, eq(user.id, comments.authorId))
     .where(eq(comments.buildId, buildId))
     .orderBy(asc(comments.createdAt), asc(comments.id))
-  return rows.map(({ comment: c, authorName }) => ({
+  return rows.map(({ comment: c, authorName, authorImage }) => ({
     id: c.id,
     parentId: c.parentId,
     snapshotName: c.snapshotName,
@@ -39,7 +39,10 @@ export async function listBuildComments(db: Database, buildId: string): Promise<
         : { x: c.regionX, y: c.regionY, width: c.regionWidth, height: c.regionHeight },
     regionSide: c.regionSide,
     body: c.deletedAt ? '' : c.body,
-    author: c.authorId && authorName !== null ? { id: c.authorId, name: authorName } : null,
+    author:
+      c.authorId && authorName !== null
+        ? { id: c.authorId, name: authorName, image: authorImage }
+        : null,
     createdAt: c.createdAt,
     editedAt: c.editedAt,
     deletedAt: c.deletedAt,

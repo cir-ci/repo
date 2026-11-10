@@ -68,9 +68,9 @@ export namespace listReviewRequests {
     reason: Reason | null
     /** The build this one was compared with; null when it had no baseline. */
     baseline: { number: number; branch: string | null } | null
-    reviewer: { id: string; name: string }
+    reviewer: { id: string; name: string; image: string | null }
     /** Null when whoever asked has since left. */
-    requestedBy: { id: string; name: string } | null
+    requestedBy: { id: string; name: string; image: string | null } | null
     build: {
       number: number
       branch: string | null
@@ -140,7 +140,7 @@ export async function listReviewRequests(
   const query = db
     .select({
       request: reviewRequests,
-      reviewer: { id: user.id, name: user.name },
+      reviewer: { id: user.id, name: user.name, image: user.image },
       build: {
         number: builds.number,
         branch: builds.branch,
@@ -186,10 +186,10 @@ export async function listReviewRequests(
       ? []
       : (
           await db
-            .select({ id: user.id, name: user.name })
+            .select({ id: user.id, name: user.name, image: user.image })
             .from(user)
             .where(inArray(user.id, askerIds))
-        ).map((u) => [u.id, u.name]),
+        ).map((u) => [u.id, { name: u.name, image: u.image }]),
   )
 
   const buildIds = [...new Set(rows.map((r) => r.request.buildId))]
@@ -277,9 +277,9 @@ async function loadChanges(db: Database, buildIds: string[]) {
   return { changes, largest }
 }
 
-function askerOf(id: string | null, names: Map<string, string>) {
-  const name = id === null ? undefined : names.get(id)
-  return id !== null && name !== undefined ? { id, name } : null
+function askerOf(id: string | null, askers: Map<string, { name: string; image: string | null }>) {
+  const asker = id === null ? undefined : askers.get(id)
+  return id !== null && asker !== undefined ? { id, ...asker } : null
 }
 
 /** The build each one was compared with. */

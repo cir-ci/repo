@@ -212,7 +212,9 @@ function AccountRow(props: {
   return (
     <ListRow
       density="two-line"
-      leading={<Avatar name={account.name} seed={account.id} size={28} />}
+      leading={
+        <Avatar type="user" id={account.id} name={account.name} image={account.image} size={28} />
+      }
       trailing={
         <>
           <Text className={styles.workspacesCol} tone="tertiary" variant="small">

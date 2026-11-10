@@ -25,6 +25,7 @@ import { listBuildLinks } from './integration-links.ts'
 interface Actor {
   id: string
   name: string
+  image: string | null
 }
 
 export type ActivityEvent = { at: Date } & (
@@ -66,8 +67,8 @@ export type ActivityEvent = { at: Date } & (
     }
 )
 
-const actor = (id: string | null, name: string | null): Actor | null =>
-  id && name !== null ? { id, name } : null
+const actor = (id: string | null, name: string | null, image: string | null): Actor | null =>
+  id && name !== null ? { id, name, image } : null
 
 /** Oldest first; events at the same instant keep a fixed order (lifecycle, requests, reviews, comments). */
 export async function listBuildActivity(db: Database, buildId: string): Promise<ActivityEvent[]> {
@@ -87,18 +88,30 @@ export async function listBuildActivity(db: Database, buildId: string): Promise<
 
   const requester = aliasedTable(user, 'requester')
   const requests = await db
-    .select({ request: reviewRequests, reviewerName: user.name, requesterName: requester.name })
+    .select({
+      request: reviewRequests,
+      reviewerName: user.name,
+      reviewerImage: user.image,
+      requesterName: requester.name,
+      requesterImage: requester.image,
+    })
     .from(reviewRequests)
     .leftJoin(user, eq(user.id, reviewRequests.reviewerId))
     .leftJoin(requester, eq(requester.id, reviewRequests.requestedById))
     .where(eq(reviewRequests.buildId, buildId))
-  for (const { request: r, reviewerName, requesterName } of requests) {
-    const who = actor(r.reviewerId, reviewerName)
+  for (const {
+    request: r,
+    reviewerName,
+    reviewerImage,
+    requesterName,
+    requesterImage,
+  } of requests) {
+    const who = actor(r.reviewerId, reviewerName, reviewerImage)
     events.push({
       type: 'review_requested',
       at: r.createdAt,
       reviewer: who,
-      by: actor(r.requestedById, requesterName),
+      by: actor(r.requestedById, requesterName, requesterImage),
     })
     if (r.closedAt && r.state !== 'open') {
       events.push({ type: 'review_request_closed', at: r.closedAt, reviewer: who, state: r.state })
@@ -107,13 +120,13 @@ export async function listBuildActivity(db: Database, buildId: string): Promise<
 
   // Snapshot decisions by people; one action that decided several snapshots is one event.
   const snapshotDecisions = await db
-    .select({ review: snapshotReviews, name: user.name })
+    .select({ review: snapshotReviews, name: user.name, image: user.image })
     .from(snapshotReviews)
     .leftJoin(user, eq(user.id, snapshotReviews.userId))
     .where(eq(snapshotReviews.buildId, buildId))
     .orderBy(snapshotReviews.createdAt, snapshotReviews.snapshotName)
   const grouped = new Map<string, Extract<ActivityEvent, { type: 'snapshot_review' }>>()
-  for (const { review: r, name } of snapshotDecisions) {
+  for (const { review: r, name, image } of snapshotDecisions) {
     if (r.source === 'auto' || r.source === 'rerun') continue
     const key = `${r.createdAt.getTime()}|${r.userId ?? ''}|${r.decision}`
     const event = grouped.get(key)
@@ -127,34 +140,34 @@ export async function listBuildActivity(db: Database, buildId: string): Promise<
         decision: r.decision,
         snapshotNames: [r.snapshotName],
         reason: r.reason,
-        by: actor(r.userId, name),
+        by: actor(r.userId, name, image),
       })
     }
   }
   events.push(...grouped.values())
 
   const decisions = await db
-    .select({ review: reviews, name: user.name })
+    .select({ review: reviews, name: user.name, image: user.image })
     .from(reviews)
     .leftJoin(user, eq(user.id, reviews.userId))
     .where(eq(reviews.buildId, buildId))
-  for (const { review: r, name } of decisions) {
+  for (const { review: r, name, image } of decisions) {
     events.push({
       type: 'review',
       at: r.createdAt,
       state: r.state,
       source: r.source,
       reason: r.reason,
-      by: actor(r.userId, name),
+      by: actor(r.userId, name, image),
     })
   }
 
   const notes = await db
-    .select({ comment: comments, name: user.name })
+    .select({ comment: comments, name: user.name, image: user.image })
     .from(comments)
     .leftJoin(user, eq(user.id, comments.authorId))
     .where(and(eq(comments.buildId, buildId), isNull(comments.deletedAt)))
-  for (const { comment: c, name } of notes) {
+  for (const { comment: c, name, image } of notes) {
     events.push({
       type: 'comment',
       at: c.createdAt,
@@ -162,7 +175,7 @@ export async function listBuildActivity(db: Database, buildId: string): Promise<
       parentId: c.parentId,
       snapshotName: c.snapshotName,
       body: c.body,
-      by: actor(c.authorId, name),
+      by: actor(c.authorId, name, image),
     })
   }
 
@@ -178,7 +191,7 @@ export async function listBuildActivity(db: Database, buildId: string): Promise<
         tracker: link.integrationKind,
       },
       snapshotName: typeof snapshotName === 'string' ? snapshotName : null,
-      by: actor(link.createdBy, link.createdByName),
+      by: actor(link.createdBy, link.createdByName, link.createdByImage),
     })
   }
 

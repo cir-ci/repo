@@ -21,7 +21,7 @@ export function RequestedReviewers({ workspace, team, number }: RequestedReviewe
     <span className={styles.root}>
       <span className={styles.avatars}>
         {people.slice(0, 3).map((p) => (
-          <Avatar key={p.id} name={p.name} seed={p.id} size={20} />
+          <Avatar key={p.id} type="user" {...p} size={20} />
         ))}
       </span>
       <Text variant="small" tone="secondary" title={people.map((p) => p.name).join(', ')}>

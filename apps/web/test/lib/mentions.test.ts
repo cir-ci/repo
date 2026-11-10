@@ -8,9 +8,9 @@ import {
   splitMentions,
 } from '#lib/mentions.ts'
 
-const ada = { userId: 'u1', name: 'Ada Lovelace', email: 'ada@example.test' }
-const grace = { userId: 'u2', name: 'Grace Hopper', email: 'grace@example.test' }
-const other = { userId: 'u3', name: 'Ada King', email: 'ada@other.test' }
+const ada = { userId: 'u1', name: 'Ada Lovelace', email: 'ada@example.test', image: null }
+const grace = { userId: 'u2', name: 'Grace Hopper', email: 'grace@example.test', image: null }
+const other = { userId: 'u3', name: 'Ada King', email: 'ada@other.test', image: null }
 
 describe('mentionAt', () => {
   it('finds the token the caret is in', () => {

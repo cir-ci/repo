@@ -21,7 +21,7 @@ export namespace Triage {
       /** When the build was made: how long the problem has been waiting. */
       createdAt: string
     }
-    assignee: { id: string; name: string } | null
+    assignee: { id: string; name: string; image: string | null } | null
     /** When a timed snooze ends; null when not snoozed or snoozed until the next push. */
     snoozedUntil: string | null
     snoozeKind: SnoozeKind | null
@@ -32,9 +32,9 @@ export namespace Triage {
   export interface Queue {
     items: Item[]
     rotation: {
-      members: { id: string; name: string }[]
+      members: { id: string; name: string; image: string | null }[]
       /** Who is on triage this week; null without a rotation. */
-      onTriage: { id: string; name: string } | null
+      onTriage: { id: string; name: string; image: string | null } | null
       /** When the turn passes on; null without a rotation. */
       until: string | null
     }

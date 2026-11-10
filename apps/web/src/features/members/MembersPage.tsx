@@ -139,7 +139,17 @@ export function MembersPage() {
                     const isMe = m.userId === session?.user.id
                     const editable = canManage && !isMe
                     return (
-                      <ListRow key={m.id} leading={<Avatar name={m.user.name} seed={m.user.id} />}>
+                      <ListRow
+                        key={m.id}
+                        leading={
+                          <Avatar
+                            type="user"
+                            id={m.user.id}
+                            name={m.user.name}
+                            image={m.user.image ?? null}
+                          />
+                        }
+                      >
                         <div className={styles.member}>
                           <div className={styles.who}>
                             <span className={styles.nameLine}>

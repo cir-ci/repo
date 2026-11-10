@@ -18,14 +18,14 @@ function show(over: Partial<WorkspaceSwitcher.Props> = {}) {
 
 describe('WorkspaceSwitcher', () => {
   it("shows a workspace's picture instead of its letter, in the button and the menu", async () => {
-    const picture = '/api/workspaces/acme/picture?v=abc'
+    const picture = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
     await show({ current: { ...acme, picture }, workspaces: [{ ...acme, picture }, globex] }).ready
     const button = page.getByRole('button', { name: 'Workspace: Acme' })
-    expect(button.element().querySelector(`img[src="${picture}"]`)).not.toBeNull()
+    await expect.poll(() => button.element().querySelector(`img[src="${picture}"]`)).not.toBeNull()
     await button.click()
-    expect(
-      page.getByRole('menuitem', { name: 'Acme' }).element().querySelector('img'),
-    ).not.toBeNull()
+    await expect
+      .poll(() => page.getByRole('menuitem', { name: 'Acme' }).element().querySelector('img'))
+      .not.toBeNull()
     // Without one, the letter stays.
     expect(page.getByRole('menuitem', { name: 'Globex' }).element().querySelector('img')).toBeNull()
   })

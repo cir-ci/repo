@@ -73,7 +73,7 @@ describe('labels', () => {
   })
 
   it('words the rotation chip', () => {
-    const rotation = { members: [], onTriage: { id: 'u', name: 'Ada' }, until: null }
+    const rotation = { members: [], onTriage: { id: 'u', name: 'Ada', image: null }, until: null }
     expect(rotationText(rotation)).toBe('On triage: Ada')
     expect(rotationText({ ...rotation, onTriage: null })).toBeUndefined()
   })
@@ -86,7 +86,11 @@ describe('optimistic updates', () => {
   }
   it('removes an item or sets its assignee, leaving the rest', () => {
     expect(withoutItem(queue, { kind: 'flaky', key: 'a' }).items.map((i) => i.key)).toEqual(['b'])
-    const next = withAssignee(queue, { kind: 'flaky', key: 'b' }, { id: 'u', name: 'Ada' })
+    const next = withAssignee(
+      queue,
+      { kind: 'flaky', key: 'b' },
+      { id: 'u', name: 'Ada', image: null },
+    )
     expect(next.items.map((i) => i.assignee?.name)).toEqual([undefined, 'Ada'])
     expect(queue.items[1]?.assignee).toBeNull()
   })

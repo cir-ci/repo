@@ -4,6 +4,7 @@ export const account = (over: Partial<InstanceAdmin.Account> = {}): InstanceAdmi
   id: 'u1',
   email: 'dana@acme.dev',
   name: 'Dana Levi',
+  image: null,
   instanceAdmin: false,
   banned: false,
   banReason: null,

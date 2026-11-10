@@ -43,7 +43,7 @@ export function UserMenu({ user }: UserMenu.Props) {
           className={styles.trigger}
           aria-label={`Account menu for ${user.name}`}
         >
-          <Avatar name={user.name} seed={user.id} size={20} />
+          <Avatar type="user" id={user.id} name={user.name} image={user.image} size={20} />
           <span className={styles.name}>{user.name}</span>
         </button>
       }

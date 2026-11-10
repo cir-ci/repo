@@ -89,7 +89,7 @@ export function MentionField(props: MentionField.Props) {
               }}
               onMouseEnter={() => setActive(i)}
             >
-              <Avatar name={m.name} seed={m.userId} size={18} />
+              <Avatar type="user" id={m.userId} name={m.name} image={m.image} size={18} />
               <Text>{m.name}</Text>
               <Text variant="small" tone="secondary">
                 {m.email}

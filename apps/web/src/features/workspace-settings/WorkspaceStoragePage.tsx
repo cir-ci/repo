@@ -5,7 +5,7 @@ import {
   NumberField,
   SettingsRow,
   SettingsSection,
-  TeamTile,
+  Avatar,
   Text,
   useAnnounce,
 } from '@circi/ui'
@@ -14,7 +14,6 @@ import { Link, useParams } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
 
 import { useSaveWorkspaceSettings } from '#features/members/api.ts'
-import { isTeamIconName } from '#features/teams/appearance.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { numberOf, textOf } from '#lib/number-field.ts'
 
@@ -96,12 +95,14 @@ export function WorkspaceStoragePage() {
                     params={{ workspace, team: t.slug }}
                     className={styles.teamLink}
                   >
-                    <TeamTile
+                    <Avatar
+                      type="team"
+                      aria-hidden
+                      slug={t.slug}
                       name={t.name}
-                      seed={t.slug}
                       color={t.color}
+                      icon={t.icon}
                       size={24}
-                      {...(isTeamIconName(t.icon) ? { icon: t.icon } : {})}
                     />
                     <Text>{t.name}</Text>
                   </Link>

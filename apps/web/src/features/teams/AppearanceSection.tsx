@@ -4,7 +4,7 @@ import {
   SettingsRow,
   SettingsSection,
   Text,
-  TeamTile,
+  Avatar,
   TextField,
   useAnnounce,
 } from '@circi/ui'
@@ -75,14 +75,7 @@ export function AppearanceSection({
         label={name}
         detail={`${colourLabel(color)} with ${icon ? `the ${iconLabel(icon)} icon` : 'its first letter'}.`}
       >
-        <TeamTile
-          name={name}
-          seed={team}
-          color={color}
-          {...(icon ? { icon } : {})}
-          size={40}
-          labelled
-        />
+        <Avatar type="team" slug={team} name={name} color={color} icon={icon ?? null} size={40} />
       </SettingsRow>
       {canManage ? (
         <SettingsRow>
@@ -137,7 +130,15 @@ export function AppearanceSection({
                   aria-label={iconLabel(i)}
                   title={i}
                 >
-                  <TeamTile name={name} seed={team} color={color} icon={i} size={20} />
+                  <Avatar
+                    type="team"
+                    aria-hidden
+                    slug={team}
+                    name={name}
+                    color={color}
+                    icon={i}
+                    size={20}
+                  />
                 </Button>
               ))}
             </div>

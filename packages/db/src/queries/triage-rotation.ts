@@ -22,7 +22,7 @@ export namespace getTriageRotation {
   export interface Rotation {
     /** Any moment of the first week; null when the team has no rotation. */
     startsOn: Date | null
-    members: { id: string; name: string }[]
+    members: { id: string; name: string; image: string | null }[]
   }
 }
 
@@ -36,7 +36,7 @@ export async function getTriageRotation(
     .from(teams)
     .where(eq(teams.id, teamId))
   const members = await db
-    .select({ id: user.id, name: user.name })
+    .select({ id: user.id, name: user.name, image: user.image })
     .from(triageRotationMembers)
     .innerJoin(user, eq(user.id, triageRotationMembers.userId))
     .where(eq(triageRotationMembers.teamId, teamId))

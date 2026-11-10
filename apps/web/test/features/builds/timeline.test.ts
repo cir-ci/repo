@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { commentCount, groupThreads, timelineItems } from '#features/builds/timeline.ts'
 
 const at = '2026-11-08T10:00:00.000Z'
-const person = { id: 'u1', name: 'Ada Lovelace' }
+const person = { id: 'u1', name: 'Ada Lovelace', image: null }
 
 describe('timelineItems: issues', () => {
   it('says who created which issue, for which snapshot, and quotes its title', () => {
@@ -35,9 +35,19 @@ describe('timelineItems', () => {
     const events: Activity.Event[] = [
       { type: 'uploaded', at },
       { type: 'failed', at, message: 'out of memory' },
-      { type: 'review_requested', at, reviewer: { id: 'u2', name: 'Grace' }, by: person },
+      {
+        type: 'review_requested',
+        at,
+        reviewer: { id: 'u2', name: 'Grace', image: null },
+        by: person,
+      },
       { type: 'review_requested', at, reviewer: null, by: null },
-      { type: 'review_request_closed', at, reviewer: { id: 'u2', name: 'Grace' }, state: 'done' },
+      {
+        type: 'review_request_closed',
+        at,
+        reviewer: { id: 'u2', name: 'Grace', image: null },
+        state: 'done',
+      },
       { type: 'review', at, state: 'rejected', source: 'ui', reason: 'Too blue', by: person },
       { type: 'review', at, state: 'approved', source: 'auto', reason: null, by: null },
       { type: 'review', at, state: 'rejected', source: 'rerun', reason: null, by: null },
@@ -133,7 +143,7 @@ describe('timelineItems: snapshot decisions', () => {
         decision: 'rejected',
         snapshotNames: ['home'],
         reason: 'wrong red',
-        by: { id: 'u1', name: 'Ada' },
+        by: { id: 'u1', name: 'Ada', image: null },
       },
       {
         type: 'snapshot_review',
@@ -141,19 +151,19 @@ describe('timelineItems: snapshot decisions', () => {
         decision: 'approved',
         snapshotNames: ['a', 'b', 'c'],
         reason: null,
-        by: { id: 'u1', name: 'Ada' },
+        by: { id: 'u1', name: 'Ada', image: null },
       },
     ])
     expect(items).toMatchObject([
       {
         status: 'rejected',
-        actor: { id: 'u1', name: 'Ada' },
+        actor: { id: 'u1', name: 'Ada', image: null },
         text: 'rejected home',
         quote: 'wrong red',
       },
       {
         status: 'approved',
-        actor: { id: 'u1', name: 'Ada' },
+        actor: { id: 'u1', name: 'Ada', image: null },
         text: 'approved 3 screenshots',
         quote: 'a, b, c',
       },
