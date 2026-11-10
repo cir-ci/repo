@@ -119,6 +119,8 @@ export namespace Build {
     issues: { key: string; url: string; title: string }[]
     /** The team's review target and when the soonest open, unsnoozed request is due (ISO). */
     reviewTarget: { hours: number | null; dueAt: string | null }
+    /** The member the build's author is matched to; null when the author is only a git login. */
+    authorUserId: string | null
     /** The people notified about the build: its author and whoever was asked to review. */
     watchers: { id: string; name: string }[]
     /** The pull request the build is for; `repo` (`owner/name`) when a repository is connected. */

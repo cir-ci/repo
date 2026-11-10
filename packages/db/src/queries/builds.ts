@@ -268,6 +268,8 @@ export namespace getBuildDetail {
      * is open and unsnoozed, or the team has no target).
      */
     reviewTarget: { hours: number | null; dueAt: Date | null }
+    /** The member the build's author is matched to; null when the author is only a git login. */
+    authorUserId: string | null
     /** The people who get notified about the build: its author and whoever was asked to review. */
     watchers: { id: string; name: string }[]
     /** The pull request the build is for; `repo` is the connected repository, when there is one. */
@@ -372,6 +374,7 @@ export async function getBuildDetail(
       hours: team?.hours ?? null,
       dueAt: dues.length > 0 ? new Date(Math.min(...dues.map((d) => d.getTime()))) : null,
     },
+    authorUserId: author?.id ?? null,
     watchers: [...watchers].map(([id, name]) => ({ id, name })),
     pullRequest: build.prNumber ? { number: build.prNumber, repo: link?.repoRef ?? null } : null,
     build: {

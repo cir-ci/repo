@@ -12,6 +12,7 @@ export namespace Search {
     | 'notifications'
     | 'reviews'
     | 'views'
+    | 'people'
 
   export interface Build {
     teamSlug: string
@@ -22,6 +23,10 @@ export namespace Search {
     prNumber: number | null
     status: 'pending' | 'uploading' | 'processing' | 'complete' | 'error' | 'expired'
     reviewStatus: 'pending' | 'approved' | 'rejected'
+    /** How many screenshots changed, were added or were removed. */
+    changes: { changed: number; added: number; removed: number }
+    /** The file (a thumbnail, by SHA-256) of the build's largest change; null when nothing changed. */
+    thumbnail: string | null
   }
 
   export interface Branch {
@@ -41,6 +46,8 @@ export namespace Search {
     teamName: string
     name: string
     latestBuildNumber: number
+    /** The newest screenshot's thumbnail file. */
+    thumbnail: string | null
   }
 
   /** A screenshot that is a baseline (on the team's default branch), opening its baseline page. */
@@ -50,6 +57,9 @@ export namespace Search {
     name: string
     /** The default-branch build the baseline comes from. */
     buildNumber: number
+    thumbnail: string | null
+    /** Who approved it; null for an automatic approval. */
+    approvedBy: string | null
   }
 
   /** A triage item of a team (the page's `kind:key` identifies it). */
@@ -62,6 +72,7 @@ export namespace Search {
     snapshotName: string | null
     buildNumber: number
     branch: string | null
+    assignee: { name: string } | null
   }
 
   /** One of the signed-in person's notifications (deleted ones never match). */
@@ -89,6 +100,20 @@ export namespace Search {
     build: { number: number; name: string; branch: string | null }
     reviewer: { name: string }
     requestedBy: { name: string } | null
+    /** ISO time it was asked. */
+    createdAt: string
+  }
+
+  /** A person of the workspace the signed-in person may see (opening one lists their review requests). */
+  export interface Person {
+    id: string
+    name: string
+    email: string
+    image: string | null
+    /** The teams they belong to that the signed-in person can see. */
+    teams: { slug: string; name: string }[]
+    /** Open review requests asked of them, in those teams. */
+    openReviews: number
   }
 
   /** One of the person's saved views. */
@@ -114,6 +139,7 @@ export namespace Search {
     notifications: Notification[]
     reviews: Review[]
     views: View[]
+    people: Person[]
     /** How many match in all per kind, so a group cut at the limit can say "Show all 12 builds". */
     totals: Record<Kind, number>
   }

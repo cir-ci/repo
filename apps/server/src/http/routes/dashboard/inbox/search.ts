@@ -23,7 +23,7 @@ const query = z.object({
 
 /**
  * `GET /api/workspaces/:workspace/search?q=&team=&kinds=&limit=`: the command menu's search over the
- * workspace's builds, branches, teams, screenshots, baselines, triage, notifications, reviews and
+ * workspace's builds, branches, teams, screenshots, baselines, triage, notifications, reviews, people and
  * views, optionally of one team and some kinds. Everyone outside the workspace gets "not found".
  */
 export const dashboardSearchRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
@@ -45,6 +45,9 @@ export const dashboardSearchRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
       ...results,
       notifications: results.notifications.map((n) =>
         Object.assign({}, n, { createdAt: n.createdAt.toISOString() }),
+      ),
+      reviews: results.reviews.map((r) =>
+        Object.assign({}, r, { createdAt: r.createdAt.toISOString() }),
       ),
     }
   })

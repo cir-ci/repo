@@ -231,7 +231,7 @@ export async function listReviewRequests(
 }
 
 /** Counts by diff status, and the two highest-scoring changed screenshots, per build. */
-async function loadChanges(db: Database, buildIds: string[]) {
+export async function loadChanges(db: Database, buildIds: string[]) {
   const changes = new Map<string, listReviewRequests.Changes>()
   const largest = new Map<string, listReviewRequests.LargestChange[]>()
   if (buildIds.length === 0) return { changes, largest }

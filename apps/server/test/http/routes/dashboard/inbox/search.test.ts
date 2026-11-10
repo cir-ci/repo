@@ -1,6 +1,7 @@
 import { createTeam } from '@circi/db/repositories'
 import * as schema from '@circi/db/schema'
 import {
+  addTestTeamMember,
   seedBuild,
   seedNotification,
   seedReviewRequest,
@@ -8,7 +9,7 @@ import {
   seedScreenshot,
 } from '@circi/db/testing'
 import { fakeSha } from '@circi/testing'
-import { eq } from 'drizzle-orm'
+import { and, eq, ne } from 'drizzle-orm'
 import { afterAll, describe, expect, it } from 'vitest'
 
 import { startDashboard } from '#test/support/dashboard-fixture.ts'
@@ -63,6 +64,7 @@ describe('GET /api/workspaces/:workspace/search, the other groups', () => {
       'notifications',
       'reviews',
       'views',
+      'people',
     ]) {
       expect(found[group]).toEqual([])
     }
@@ -141,6 +143,7 @@ describe('GET /api/workspaces/:workspace/search, team, kinds, limit and totals',
     notifications: 0,
     reviews: 0,
     views: 0,
+    people: 0,
   }
 
   it('counts every match per kind, though a group holds only `limit` of them', async () => {
@@ -180,6 +183,39 @@ describe('GET /api/workspaces/:workspace/search, team, kinds, limit and totals',
     expect(asMember.totals).toEqual(emptyTotals)
     const asOwner = (await get(`/api/workspaces/${ws}/search?q=quiet&team=quiet`)).json()
     expect(asOwner.teams).toMatchObject([{ slug: 'quiet' }])
+  })
+
+  it('finds people by name or email with their avatar data, teams and open reviews', async () => {
+    const member = await fx.addMember('member')
+    const found = (await get(`/api/workspaces/${ws}/search?q=member&kinds=people`)).json()
+    expect(found.people.length).toBeGreaterThan(0)
+    expect(found.people[0]).toMatchObject({
+      id: expect.any(String),
+      name: expect.stringMatching(/^member /),
+      email: expect.stringMatching(/@acme\.test$/),
+      image: null,
+      teams: expect.any(Array),
+      openReviews: 0,
+    })
+    expect(found.totals.people).toBe(found.people.length)
+    // `@` is only a prefix of the field: the search sees the same text without it.
+    expect(
+      (await get(`/api/workspaces/${ws}/search?q=owner&kinds=people`)).json().people,
+    ).not.toEqual([])
+    // A plain member scoped to a team they can't see finds nobody in it; the owner finds its members.
+    const hush = await fx.db.query.teams.findFirst({ where: eq(schema.teams.slug, 'hush') })
+    if (!hush) throw new Error('team hush missing')
+    await addTestTeamMember(fx.db, { teamId: hush.id, userId: acme.owner.id })
+    // Members join the teams that exist when they are added: take the plain member out of this one.
+    await fx.db
+      .delete(schema.teamMembers)
+      .where(
+        and(eq(schema.teamMembers.teamId, hush.id), ne(schema.teamMembers.userId, acme.owner.id)),
+      )
+    const inHush = `/api/workspaces/${ws}/search?q=owner&kinds=people&team=hush`
+    expect((await member.get(inHush)).json().people).toEqual([])
+    expect((await member.get(inHush)).json().totals.people).toBe(0)
+    expect((await get(inHush)).json().people.length).toBeGreaterThan(0)
   })
 
   it('rejects an unknown kind and a limit out of range', async () => {

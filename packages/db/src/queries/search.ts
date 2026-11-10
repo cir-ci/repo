@@ -21,6 +21,14 @@ import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
 import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 
+import { loadChanges } from './reviews.ts'
+import {
+  baselineApprovers,
+  searchPeople,
+  type searchExtras,
+  shotKey,
+  shotThumbnails,
+} from './search-extras.ts'
 import { listTriage } from './triage.ts'
 
 /**
@@ -48,6 +56,7 @@ export const SEARCH_KINDS = [
   'notifications',
   'reviews',
   'views',
+  'people',
 ] as const
 
 /** How many of a workspace's teams the triage group looks through (the queue is derived per team). */
@@ -65,7 +74,13 @@ export namespace searchWorkspace {
     prNumber: number | null
     status: BuildStatus
     reviewStatus: ReviewStatus
+    /** How many screenshots changed, were added or were removed. */
+    changes: { changed: number; added: number; removed: number }
+    /** The file (a thumbnail) of the build's largest change; null when nothing changed. */
+    thumbnail: string | null
   }
+
+  export interface Person extends searchExtras.Person {}
 
   export interface Branch {
     teamSlug: string
@@ -86,6 +101,7 @@ export namespace searchWorkspace {
     name: string
     /** The newest build that has a screenshot of this name. */
     latestBuildNumber: number
+    thumbnail: string | null
   }
 
   export interface Baseline {
@@ -94,6 +110,9 @@ export namespace searchWorkspace {
     name: string
     /** The newest default-branch build that is a baseline source for the name. */
     buildNumber: number
+    thumbnail: string | null
+    /** Who approved it; null for an automatic approval. */
+    approvedBy: string | null
   }
 
   export interface Triage {
@@ -104,6 +123,7 @@ export namespace searchWorkspace {
     snapshotName: string | null
     buildNumber: number
     branch: string | null
+    assignee: { name: string } | null
   }
 
   export interface Notification {
@@ -126,6 +146,8 @@ export namespace searchWorkspace {
     build: { number: number; name: string; branch: string | null }
     reviewer: { name: string }
     requestedBy: { name: string } | null
+    /** When it was asked. */
+    createdAt: Date
   }
 
   export interface View {
@@ -145,6 +167,7 @@ export namespace searchWorkspace {
     notifications: searchWorkspace.Notification[]
     reviews: searchWorkspace.Review[]
     views: searchWorkspace.View[]
+    people: searchWorkspace.Person[]
     /** How many match in all, per kind (the lists above are cut at the limit). */
     totals: Record<searchWorkspace.Kind, number>
   }
@@ -170,6 +193,14 @@ function textRank(text: string, q: string): number {
 
 /** How many matched in all: every row of a query carries the count. */
 const totalOf = (rows: readonly { total: number }[]) => rows[0]?.total ?? 0
+
+/** The screenshots of the rows that have a build to look in. */
+const shotsOf = (
+  rows: readonly { teamId: string; name: string; buildNumber: number | null }[],
+): searchExtras.Shot[] =>
+  rows.flatMap((r) =>
+    r.buildNumber === null ? [] : [{ teamId: r.teamId, name: r.name, buildNumber: r.buildNumber }],
+  )
 
 const asText = (value: unknown): string | undefined =>
   typeof value === 'string' && value.trim() ? value : undefined
@@ -212,6 +243,7 @@ export async function searchWorkspace(
     notifications: [],
     reviews: [],
     views: [],
+    people: [],
     totals: {
       builds: 0,
       branches: 0,
@@ -222,6 +254,7 @@ export async function searchWorkspace(
       notifications: 0,
       reviews: 0,
       views: 0,
+      people: 0,
     },
   }
   if (q === '') return empty
@@ -257,11 +290,13 @@ export async function searchWorkspace(
     reviewRows,
     viewRows,
     triage,
+    peopleFound,
   ] = await Promise.all([
     only('builds', () =>
       db
         .select({
           total,
+          id: builds.id,
           teamSlug: teams.slug,
           teamName: teams.name,
           number: builds.number,
@@ -322,6 +357,7 @@ export async function searchWorkspace(
       db
         .select({
           total,
+          teamId: teams.id,
           teamSlug: teams.slug,
           teamName: teams.name,
           name: screenshots.name,
@@ -331,7 +367,7 @@ export async function searchWorkspace(
         .innerJoin(builds, eq(builds.id, screenshots.buildId))
         .innerJoin(teams, eq(teams.id, builds.teamId))
         .where(and(inWorkspace, ilike(screenshots.name, like)))
-        .groupBy(teams.slug, teams.name, screenshots.name)
+        .groupBy(teams.id, teams.slug, teams.name, screenshots.name)
         .orderBy(rank(screenshots.name, q), desc(max(builds.createdAt)), screenshots.name)
         .limit(limit),
     ),
@@ -340,6 +376,7 @@ export async function searchWorkspace(
       db
         .select({
           total,
+          teamId: teams.id,
           teamSlug: teams.slug,
           teamName: teams.name,
           name: screenshots.name,
@@ -357,7 +394,7 @@ export async function searchWorkspace(
             or(eq(builds.reviewStatus, 'approved'), eq(builds.conclusion, 'no_changes')),
           ),
         )
-        .groupBy(teams.slug, teams.name, screenshots.name)
+        .groupBy(teams.id, teams.slug, teams.name, screenshots.name)
         .orderBy(rank(screenshots.name, q), desc(max(builds.createdAt)), screenshots.name)
         .limit(limit),
     ),
@@ -409,6 +446,7 @@ export async function searchWorkspace(
           reviewerId: reviewRequests.reviewerId,
           snoozeKind: reviewRequests.snoozeKind,
           snoozedUntil: reviewRequests.snoozedUntil,
+          createdAt: reviewRequests.createdAt,
           teamSlug: teams.slug,
           teamName: teams.name,
           buildNumber: builds.number,
@@ -478,14 +516,44 @@ export async function searchWorkspace(
       kept: wanted.has('triage'),
       ...(input.team === undefined ? {} : { team: input.team }),
     }),
+    wanted.has('people')
+      ? searchPeople(db, {
+          userId: input.userId,
+          workspaceId: found.id,
+          q,
+          limit,
+          team: input.team,
+        })
+      : Promise.resolve({ people: [], total: 0 }),
   ])
+
+  // What the peek shows beyond the rows: the largest change of each build, the thumbnail of each
+  // screenshot and baseline, and who approved the baselines.
+  const { changes, largest } = await loadChanges(
+    db,
+    buildRows.map((b) => b.id),
+  )
+  const snapshotShots = shotsOf(
+    snapshotRows.map((r) => ({ ...r, buildNumber: r.latestBuildNumber })),
+  )
+  const baselineShots = shotsOf(baselineRows)
+  const thumbs = await shotThumbnails(db, [...snapshotShots, ...baselineShots])
+  const approvers = await baselineApprovers(db, thumbs, baselineShots)
 
   const snoozed = (r: { snoozeKind: unknown; snoozedUntil: Date | null }) =>
     r.snoozeKind !== null && (r.snoozedUntil === null || r.snoozedUntil > now)
 
   return {
     query: q,
-    builds: buildRows.map(({ total: _total, ...r }) => r),
+    builds: buildRows.map(({ total: _total, id, ...r }) => {
+      const c = changes.get(id)
+      const top = largest.get(id)?.[0]
+      return {
+        ...r,
+        changes: { changed: c?.changed ?? 0, added: c?.added ?? 0, removed: c?.removed ?? 0 },
+        thumbnail: top ? (top.thumbnail ?? top.sha256) : null,
+      }
+    }),
     branches: branchRows.flatMap(
       ({ latest: _latest, total: _total, branch, latestBuildNumber, ...rest }) =>
         branch === null || latestBuildNumber === null
@@ -493,13 +561,33 @@ export async function searchWorkspace(
           : [{ ...rest, branch, latestBuildNumber }],
     ),
     teams: teamRows.map(({ total: _total, ...r }) => r),
-    snapshots: snapshotRows.flatMap(({ total: _total, ...r }) =>
-      r.latestBuildNumber === null ? [] : [{ ...r, latestBuildNumber: r.latestBuildNumber }],
+    snapshots: snapshotRows.flatMap(({ total: _total, teamId, ...r }) =>
+      r.latestBuildNumber === null
+        ? []
+        : [
+            {
+              ...r,
+              latestBuildNumber: r.latestBuildNumber,
+              thumbnail:
+                thumbs.get(shotKey({ teamId, name: r.name, buildNumber: r.latestBuildNumber }))
+                  ?.sha256 ?? null,
+            },
+          ],
     ),
-    baselines: baselineRows.flatMap(({ buildNumber, total: _total, ...r }) =>
-      buildNumber === null ? [] : [{ ...r, buildNumber }],
-    ),
+    baselines: baselineRows.flatMap(({ buildNumber, total: _total, teamId, ...r }) => {
+      if (buildNumber === null) return []
+      const key = shotKey({ teamId, name: r.name, buildNumber })
+      return [
+        {
+          ...r,
+          buildNumber,
+          thumbnail: thumbs.get(key)?.sha256 ?? null,
+          approvedBy: approvers.get(key) ?? null,
+        },
+      ]
+    }),
     triage: triage.items,
+    people: peopleFound.people,
     notifications: notificationRows.map((r) => {
       const snippet = asText(r.payload['snippet'])
       const reason = asText(r.payload['reason'])
@@ -527,6 +615,7 @@ export async function searchWorkspace(
       build: { number: r.buildNumber, name: r.buildName, branch: r.branch },
       reviewer: { name: r.reviewerName ?? '' },
       requestedBy: r.requesterName === null ? null : { name: r.requesterName },
+      createdAt: r.createdAt,
     })),
     views: viewRows.map((r) => ({
       id: r.id,
@@ -544,6 +633,7 @@ export async function searchWorkspace(
       notifications: totalOf(notificationRows),
       reviews: totalOf(reviewRows),
       views: totalOf(viewRows),
+      people: peopleFound.total,
     },
   }
 }
@@ -619,6 +709,7 @@ async function searchTriage(
     snapshotName: item.snapshotName,
     buildNumber: item.build.number,
     branch: item.build.branch,
+    assignee: item.assignee ? { name: item.assignee.name } : null,
   }))
   return { items, total: sorted.length }
 }
