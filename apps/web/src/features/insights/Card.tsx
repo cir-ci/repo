@@ -148,10 +148,24 @@ export interface LegendItem {
   dash?: boolean
 }
 
+const GLYPHS = new Map([
+  ['▲', 'up'],
+  ['▼', 'down'],
+  ['●', 'flat'],
+])
+
+/**
+ * A change chip. The deltas lead with a glyph ("▲ 9 vs before"); it is drawn as a shape rather
+ * than a character, since each font sets those characters at its own height and none centres on
+ * the text.
+ */
 export function Pill(props: { tone: 'good' | 'bad' | 'neutral'; text: string; label: string }) {
+  const glyph = GLYPHS.get(props.text.charAt(0))
+  const text = glyph ? props.text.slice(1).trimStart() : props.text
   return (
     <span className={styles.pill} data-tone={props.tone} aria-label={props.label}>
-      {props.text}
+      {glyph ? <i className={styles.glyph} data-glyph={glyph} aria-hidden="true" /> : null}
+      {text}
     </span>
   )
 }

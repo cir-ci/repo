@@ -16,6 +16,7 @@ import {
   parseRange,
   tiles,
 } from './api.ts'
+import { Pill } from './Card.tsx'
 import {
   BacklogCard,
   DecisionCard,
@@ -106,13 +107,7 @@ export function InsightsPage() {
                       <span className={styles.tileLabel}>{t.title}</span>
                       <span className={styles.tileRow}>
                         <span className={styles.value}>{t.value}</span>
-                        <span
-                          className={styles.pill}
-                          data-tone={t.delta.tone}
-                          aria-label={t.delta.label}
-                        >
-                          {t.delta.text}
-                        </span>
+                        <Pill {...t.delta} />
                       </span>
                       <span className={styles.tileNote}>{t.note}</span>
                     </li>

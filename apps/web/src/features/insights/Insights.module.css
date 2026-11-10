@@ -105,6 +105,7 @@
   height: 20px;
   padding: 0 7px;
   align-items: center;
+  gap: 4px;
   border-radius: 999px;
   background: var(--circi-action-selected);
   color: var(--circi-text-secondary);
@@ -112,6 +113,26 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* The chip's glyph: a dot, or a triangle pointing up or down, centred on the text. */
+.glyph {
+  flex: none;
+  width: 8px;
+  height: 7px;
+  background: currentColor;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.glyph[data-glyph='down'] {
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+.glyph[data-glyph='flat'] {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  clip-path: none;
 }
 
 .pill[data-tone='good'] {
