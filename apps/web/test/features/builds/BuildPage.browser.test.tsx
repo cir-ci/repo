@@ -569,7 +569,7 @@ describe('approving and rejecting', () => {
     await page.getByRole('button', { name: 'Approve', exact: true }).click()
     await expect.element(viewerTitle()).toHaveTextContent('b')
     await page.getByRole('button', { name: 'Approve', exact: true }).click()
-    await expect.element(page.getByText('b approved.')).toBeInTheDocument()
+    await expect.element(toastNamed('Approved b')).toBeVisible()
     await expect.element(viewerTitle()).toHaveTextContent('b')
     // Everything is decided, so there is nothing left for Approve all to do.
     expect(page.getByRole('button', { name: /^Approve all/ }).elements()).toHaveLength(0)
