@@ -3,6 +3,8 @@ export namespace Instance {
     password: boolean
     email: boolean
     sso: { id: string; name: string }[]
+    /** Whether any workspace has its own identity provider: "Continue with SSO" shows only then. */
+    workspaceSso: boolean
   }
 
   export interface Notices {

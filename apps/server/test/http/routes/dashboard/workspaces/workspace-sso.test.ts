@@ -103,6 +103,8 @@ const ann = { sub: 'emp-1', email: 'ann@acme-corp.test', name: 'Ann', email_veri
 
 describe("a workspace's own single sign-on", () => {
   it('lets an owner register a provider, showing the address to register, never the secret', async () => {
+    // Until a workspace has one, the sign-in page doesn't offer "Continue with SSO".
+    expect((await app.inject({ url: '/api/auth-methods' })).json().workspaceSso).toBe(false)
     const res = await registerProvider()
     expect(res.statusCode).toBe(201)
     expect(res.json().provider.redirectUri).toBe(
@@ -112,6 +114,7 @@ describe("a workspace's own single sign-on", () => {
     const list = await app.inject({ url: base(), headers: { cookie: ownerCookie } })
     expect(list.json().providers).toHaveLength(1)
     expect(list.body).not.toContain('shh')
+    expect((await app.inject({ url: '/api/auth-methods' })).json().workspaceSso).toBe(true)
   })
 
   it('signs a new person in, as an unverified member of that workspace only', async () => {

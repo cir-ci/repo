@@ -1,6 +1,12 @@
 import { and, eq, sql } from 'drizzle-orm'
 
-import { member, sessionMethods, workspace, workspaceAuthSettings } from '#schema/index.ts'
+import {
+  member,
+  sessionMethods,
+  ssoProvider,
+  workspace,
+  workspaceAuthSettings,
+} from '#schema/index.ts'
 import {
   methodAccepted,
   type SessionMethod,
@@ -170,4 +176,17 @@ export async function listRefusingWorkspaces(
       ...(r.google && providers.includes('google') ? (['google'] as const) : []),
     ],
   }))
+}
+
+/**
+ * Whether any workspace has its own identity provider set up: the sign-in page offers
+ * "Continue with SSO" (which asks for the workspace) only then.
+ */
+export async function hasWorkspaceSso(db: Database): Promise<boolean> {
+  const [row] = await db
+    .select({ one: sql<number>`1` })
+    .from(ssoProvider)
+    .where(sql`${ssoProvider.workspaceId} is not null`)
+    .limit(1)
+  return row !== undefined
 }

@@ -63,6 +63,7 @@ export const dashboardRoutes: FastifyPluginAsync<Deps.Dashboard> = async (dash, 
 
   await dash.register(authRoutes, {
     auth: deps.auth,
+    db: deps.db,
     publicOrigin: deps.publicOrigin,
     emailLogin: deps.emailLogin === true,
     passwordLogin: deps.passwordLogin !== false,

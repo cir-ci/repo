@@ -58,7 +58,10 @@ export function LoginPage() {
         <WorkspaceSsoSignIn onBack={() => setWorkspaceStep(false)} />
       ) : (
         <>
-          <SsoButtons providers={providers} onWorkspace={() => setWorkspaceStep(true)} />
+          <SsoButtons
+            providers={providers}
+            onWorkspace={methods.data?.workspaceSso ? () => setWorkspaceStep(true) : undefined}
+          />
           {/* Only between provider buttons and the form: "Continue with SSO" alone needs none. */}
           {providers.length > 0 ? <div className={styles.divider}>or with email</div> : null}
           {(mode === 'email' || !passwordOn) && emailOn ? (

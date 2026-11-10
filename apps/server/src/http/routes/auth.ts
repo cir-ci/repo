@@ -1,6 +1,8 @@
 import type { Auth } from '@circi/auth'
 import { fromNodeHeaders } from '@circi/auth'
 import { describeAuthValidation } from '@circi/core'
+import type { Database } from '@circi/db'
+import { hasWorkspaceSso } from '@circi/db/queries'
 import type { FastifyPluginAsync } from 'fastify'
 
 /**
@@ -34,6 +36,7 @@ function readableValidation(text: string) {
  */
 export const authRoutes: FastifyPluginAsync<{
   auth: Auth
+  db: Database
   publicOrigin: string
   emailLogin: boolean
   passwordLogin: boolean
@@ -44,6 +47,7 @@ export const authRoutes: FastifyPluginAsync<{
     password: options.passwordLogin,
     email: options.emailLogin,
     sso: options.sso,
+    workspaceSso: await hasWorkspaceSso(options.db),
   }))
 
   // With email login off its endpoints disappear, rather than existing and doing nothing.

@@ -313,9 +313,16 @@ describe('LoginPage', () => {
     })
   })
 
+  it('offers "Continue with SSO" only when a workspace has single sign-on set up', async () => {
+    fakeFetch(methods({ sso: [{ id: 'github', name: 'GitHub' }] }))
+    await renderPage(<LoginPage />)
+    await expect.element(page.getByRole('button', { name: 'Continue with GitHub' })).toBeVisible()
+    expect(page.getByRole('button', { name: 'Continue with SSO' }).elements()).toHaveLength(0)
+  })
+
   it('opens the workspace step from “Continue with SSO”, and says when it has no SSO', async () => {
     const calls = fakeFetch({
-      ...methods({ sso: [{ id: 'github', name: 'GitHub' }] }),
+      ...methods({ sso: [{ id: 'github', name: 'GitHub' }], workspaceSso: true }),
       'POST /api/auth/sign-in/sso': json({ error: 'none' }, 404),
     })
     await renderPage(<LoginPage />)
