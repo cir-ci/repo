@@ -193,4 +193,19 @@ describe('the shortcuts help', () => {
       ),
     )
   })
+
+  it('opens from "Keyboard shortcuts" in the command menu, by Enter and by click', async () => {
+    api()
+    await show()
+    const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' })
+    await userEvent.keyboard('{Meta>}k{/Meta}')
+    await userEvent.type(page.getByRole('combobox'), 'keyboard shortcuts')
+    await userEvent.keyboard('{Enter}')
+    await expect.element(dialog).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(dialog).not.toBeInTheDocument()
+    await userEvent.keyboard('{Meta>}k{/Meta}')
+    await page.getByRole('option', { name: /^Keyboard shortcuts/ }).click()
+    await expect.element(dialog).toBeVisible()
+  })
 })

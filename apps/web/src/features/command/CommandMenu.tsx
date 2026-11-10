@@ -93,10 +93,12 @@ export function CommandMenu({
       setMode(target.mode)
     } else {
       // A registry action runs through the shortcut layer once the menu has closed, so a dialog
-      // it opens is not closed again by the menu giving focus back.
+      // it opens is not closed again by the menu giving focus back. The keys are sent from the
+      // page body: sent to the window they are judged by the focused element, which is still
+      // inside the closing dialog (and the shortcut layer leaves a dialog's keys alone).
       afterClose.current = () => {
         for (const init of keyEvents(target.key)) {
-          window.dispatchEvent(new KeyboardEvent('keydown', init))
+          document.body.dispatchEvent(new KeyboardEvent('keydown', init))
         }
       }
     }
