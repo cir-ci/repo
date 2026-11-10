@@ -13,8 +13,8 @@ function entryKeys(items: ReadonlyArray<Menu.Entry>) {
         ? `separator-${items.slice(0, index).filter((e) => e.type === 'separator').length}`
         : entry.type === 'content'
           ? `content-${entry.name}`
-          : entry.type === 'radio-group'
-            ? `radio-group-${entry.name}`
+          : entry.type === 'radio-group' || entry.type === 'icon-row'
+            ? `${entry.type}-${entry.name}`
             : `item-${entry.label}`,
   }))
 }
@@ -27,6 +27,20 @@ export function MenuEntries({ items }: { items: ReadonlyArray<Menu.Entry> }) {
   return entryKeys(items).map(({ entry, key }) =>
     entry.type === 'separator' ? (
       <BaseMenu.Separator key={key} className={styles.separator} />
+    ) : entry.type === 'icon-row' ? (
+      <div key={key} role="group" aria-label={entry.name} className={styles.iconRow}>
+        {entry.items.map((item) => (
+          <BaseMenu.Item
+            key={item.label}
+            className={styles.iconItem}
+            aria-label={item.label}
+            title={item.label}
+            onClick={item.onSelect}
+          >
+            {item.icon}
+          </BaseMenu.Item>
+        ))}
+      </div>
     ) : entry.type === 'content' ? (
       <div
         key={key}

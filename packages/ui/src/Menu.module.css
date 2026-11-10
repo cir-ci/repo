@@ -146,10 +146,39 @@
   padding: 4px 8px;
 }
 
+/* A row of icon-only items at the top of a menu (a team's pages). */
+.iconRow {
+  display: flex;
+  gap: 2px;
+  padding: 2px 4px;
+}
+
+.iconItem {
+  display: inline-flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  border-radius: var(--circi-radius-control);
+  color: var(--circi-text-secondary);
+  cursor: default;
+}
+
+.iconItem[data-highlighted] {
+  background: var(--circi-action-hover);
+  color: var(--circi-text-primary);
+}
+
+.iconItem svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* A phone: 44px items. */
 @media (max-width: 819.98px) {
   .item,
-  .popup[data-size='md'] .item {
+  .popup[data-size='md'] .item,
+  .iconItem {
     height: 44px;
   }
 }
@@ -157,4 +186,11 @@
 /* ContextMenu's wrapper around a child it can't give props to: no box of its own. */
 .contents {
   display: contents;
+}
+
+/* A row with a right-click menu: no text selection, so a right click or a long press opens the
+   menu instead of selecting a word (and no iOS callout over it). */
+.trigger {
+  -webkit-touch-callout: none;
+  user-select: none;
 }

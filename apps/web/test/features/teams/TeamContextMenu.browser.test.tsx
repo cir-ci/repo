@@ -8,6 +8,13 @@ import { overview as overviewOf, sidebarModel, sidebarTeam } from '#test/support
 import { renderPage } from '#test/support/render.tsx'
 import { toastNamed } from '#test/support/toast.ts'
 
+/** The menu's items by name: the page icons are named by their label, the rest by their text. */
+const itemNames = () =>
+  page
+    .getByRole('menuitem')
+    .elements()
+    .map((el) => el.getAttribute('aria-label') ?? el.textContent)
+
 const caps = {
   canCreateWorkspace: false,
   instanceAdmin: false,
@@ -24,6 +31,7 @@ async function show(canManage: boolean) {
     },
     'PUT /api/workspaces/acme/pinned-teams/web': { body: { pinned: true, changed: true } },
     'DELETE /api/workspaces/acme/pinned-teams/web': { body: { pinned: false, changed: true } },
+    'DELETE /api/teams/acme/web/members/u1': { status: 204 },
   })
   await renderPage(<TeamsPage />, {
     route: '/',
@@ -38,15 +46,35 @@ async function show(canManage: boolean) {
 }
 
 describe('a team row on the Teams page: right-click menu', () => {
-  it('offers Open, Open in new tab, Copy link, Pin team and Team settings to someone who manages', async () => {
+  it("offers the team's pages as icons, then new tab, link, pin, settings and Leave team", async () => {
     await show(true)
     await page.getByText('acme/web').click({ button: 'right' })
     await expect.element(page.getByRole('menu')).toBeVisible()
-    const names = page
-      .getByRole('menuitem')
-      .elements()
-      .map((el) => el.textContent)
-    expect(names).toEqual(['Open', 'Open in new tab', 'Copy link', 'Pin team', 'Team settings'])
+    await expect.element(page.getByRole('group', { name: /pages$/ })).toBeVisible()
+    expect(itemNames()).toEqual([
+      'Builds',
+      'Triage',
+      'Baselines',
+      'Open in new tab',
+      'Copy link',
+      'Pin team',
+      'Team settings',
+      'Leave team',
+    ])
+  })
+
+  it('leaves the team after asking, with its own wording', async () => {
+    const api = await show(false)
+    await page.getByText('acme/web').click({ button: 'right' })
+    await page.getByRole('menuitem', { name: 'Leave team' }).click()
+    const dialog = page.getByRole('alertdialog')
+    await expect.element(dialog).toHaveTextContent('Leave Web App?')
+    expect(api.of('DELETE').filter((c) => c.path.includes('/members/'))).toHaveLength(0)
+    await dialog.getByRole('button', { name: 'Leave team' }).click()
+    await expect
+      .poll(() => api.of('DELETE').filter((c) => c.path.endsWith('/members/u1')))
+      .toHaveLength(1)
+    await expect.element(toastNamed(/You left Web App/)).toBeVisible()
   })
 
   it('hides Team settings from someone who cannot manage', async () => {
@@ -70,7 +98,7 @@ describe('a team row on the Teams page: right-click menu', () => {
     await expect.poll(() => api.of('DELETE')).toHaveLength(1)
   })
 
-  it("offers the team's pages from its sidebar entry, and Sites only when it has some", async () => {
+  it("shows Sites among the team's page icons only when it has some", async () => {
     fakeApi({
       'GET /api/workspaces/acme/sidebar': {
         body: sidebarModel({
@@ -80,7 +108,7 @@ describe('a team row on the Teams page: right-click menu', () => {
       },
     })
     await renderPage(
-      <TeamContextMenu workspace="acme" team="web" pages>
+      <TeamContextMenu workspace="acme" team="web">
         <a href="/acme/web">Web</a>
       </TeamContextMenu>,
       { otherRoutes: ['/$workspace/$team'] },
@@ -89,26 +117,19 @@ describe('a team row on the Teams page: right-click menu', () => {
     await expect
       .poll(async () => {
         await page.getByText('Web').click({ button: 'right' })
-        return page
-          .getByRole('menuitem')
-          .elements()
-          .map((el) => el.textContent)
+        return itemNames()
       })
       .toContain('Unpin team')
-    expect(
-      page
-        .getByRole('menuitem')
-        .elements()
-        .map((el) => el.textContent),
-    ).toEqual([
-      'Open builds',
-      'Open triage',
-      'Open baselines',
-      'Open sites',
+    expect(itemNames()).toEqual([
+      'Builds',
+      'Triage',
+      'Baselines',
+      'Sites',
       'Open in new tab',
       'Copy link',
       'Unpin team',
       'Team settings',
+      'Leave team',
     ])
   })
 })

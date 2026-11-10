@@ -26,6 +26,7 @@ export function ContextMenu({
   return (
     <BaseContextMenu.Root {...rest}>
       <BaseContextMenu.Trigger
+        className={styles.trigger}
         render={trigger ?? <div className={styles.contents} />}
         {...(trigger ? {} : { children })}
       />

@@ -79,7 +79,18 @@ export namespace Menu {
     closeOnClick?: boolean
   }
 
-  export type Entry = Item | Separator | Content | RadioGroup
+  /**
+   * A row of icon-only items (a team's pages): each is a real menu item (arrow keys reach it, a
+   * pick closes the menu), named by its label, which also shows as a tooltip.
+   */
+  export interface IconRow {
+    type: 'icon-row'
+    /** Names the row as a group, and keys it. */
+    name: string
+    items: ReadonlyArray<{ label: string; icon: ReactNode; onSelect: () => void }>
+  }
+
+  export type Entry = Item | Separator | Content | RadioGroup | IconRow
 
   export interface Props extends Omit<BaseMenu.Root.Props, 'children'> {
     trigger: ReactElement<Record<string, unknown>>

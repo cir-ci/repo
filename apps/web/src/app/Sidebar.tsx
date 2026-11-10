@@ -203,7 +203,7 @@ function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
       ? {}
       : { count: triage, countTone: 'neutral' as const, countLabel: noun(triage, TRIAGE_NOUN) }
   return (
-    <TeamContextMenu workspace={workspace} team={team.slug} pages>
+    <TeamContextMenu workspace={workspace} team={team.slug}>
       <NavLink
         to="/$workspace/$team"
         params={params}

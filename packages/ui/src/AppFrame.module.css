@@ -5,11 +5,15 @@
   color: var(--circi-text-primary);
 }
 
+/* The navigation is controls, not text: nothing in it selects (a drag or a long press on an
+   entry never highlights its words). */
 .sidebar {
   position: relative;
   display: flex;
   flex: 1 1 244px;
   flex-direction: column;
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
 .nav {

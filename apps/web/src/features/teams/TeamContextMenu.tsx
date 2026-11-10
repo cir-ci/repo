@@ -1,9 +1,19 @@
-import { ContextMenu } from '@circi/ui'
+import {
+  ConfirmDialog,
+  ContextMenu,
+  GlobeIcon,
+  HammerIcon,
+  ImageIcon,
+  ListChecksIcon,
+} from '@circi/ui'
 import { useRouter } from '@tanstack/react-router'
-import type { ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
 
 import { useSidebarModel } from '#features/sidebar/api.ts'
+import { removalText } from '#features/team-settings/members-model.ts'
+import { useRemoveTeamMember } from '#features/teams/api/members.ts'
 import { usePinTeam } from '#features/views/api.ts'
+import { authClient } from '#lib/auth-client.ts'
 import { copyLinkItem, menuEntries, openInNewTabItem, separator } from '#lib/row-menu.ts'
 import { toast } from '#lib/toast.ts'
 
@@ -21,52 +31,98 @@ type TeamPage =
  * entry points into settings (CLAUDE.md, "Settings is a closed area"), shown to the same people
  * as the team page's Settings button.
  */
-export function TeamContextMenu({
-  workspace,
-  team,
-  pages = false,
-  children,
-}: TeamContextMenu.Props) {
+export function TeamContextMenu({ workspace, team, children }: TeamContextMenu.Props) {
   const router = useRouter()
   const { data: model } = useSidebarModel(workspace)
   const pin = usePinTeam(workspace, team)
+  const leave = useRemoveTeamMember(workspace, team)
+  const { data: session } = authClient.useSession()
+  const [leaving, setLeaving] = useState(false)
   const entry = model?.teams.find((t) => t.slug === team)
   const params = { workspace, team }
   const builds = router.buildLocation({ to: '/$workspace/$team', params }).href
   const go = (to: TeamPage) => () => void router.navigate({ to, params })
   const pinned = entry?.pinned
   const canManage = model?.canManage === true
+  const name = entry?.name ?? team
+  const me = session?.user.id
+  const dialog = removalText(name, { name: session?.user.name ?? '', you: true })
   return (
-    <ContextMenu
-      items={menuEntries([
-        { label: pages ? 'Open builds' : 'Open', onSelect: go('/$workspace/$team') },
-        pages && { label: 'Open triage', onSelect: go('/$workspace/$team/triage') },
-        pages && { label: 'Open baselines', onSelect: go('/$workspace/$team/baselines') },
-        pages &&
-          (entry?.siteCount ?? 0) > 0 && {
-            label: 'Open sites',
-            onSelect: go('/$workspace/$team/sites'),
+    <>
+      <ContextMenu
+        items={menuEntries([
+          // The team's pages, as a row of icons: Builds, Triage, Baselines, and Sites when it has some.
+          {
+            type: 'icon-row',
+            name: `${name} pages`,
+            items: [
+              { label: 'Builds', icon: <HammerIcon />, onSelect: go('/$workspace/$team') },
+              {
+                label: 'Triage',
+                icon: <ListChecksIcon />,
+                onSelect: go('/$workspace/$team/triage'),
+              },
+              {
+                label: 'Baselines',
+                icon: <ImageIcon />,
+                onSelect: go('/$workspace/$team/baselines'),
+              },
+              ...((entry?.siteCount ?? 0) > 0
+                ? [{ label: 'Sites', icon: <GlobeIcon />, onSelect: go('/$workspace/$team/sites') }]
+                : []),
+            ],
           },
-        openInNewTabItem(builds),
-        copyLinkItem(builds),
-        pinned !== undefined && separator,
-        pinned !== undefined && {
-          label: pinned ? 'Unpin team' : 'Pin team',
-          // Undo is the exact inverse: pin it the way it was (as the team page's button does).
-          onSelect: () =>
-            pin.mutate(!pinned, {
-              onSuccess: () =>
-                toast.undoable(pinned ? 'Unpinned team' : 'Pinned team', () =>
-                  pin.mutateAsync(pinned),
-                ),
-            }),
-        },
-        canManage && separator,
-        canManage && { label: 'Team settings', onSelect: go('/$workspace/$team/settings') },
-      ])}
-    >
-      {children}
-    </ContextMenu>
+          separator,
+          openInNewTabItem(builds),
+          copyLinkItem(builds),
+          pinned !== undefined && separator,
+          pinned !== undefined && {
+            label: pinned ? 'Unpin team' : 'Pin team',
+            // Undo is the exact inverse: pin it the way it was (as the team page's button does).
+            onSelect: () =>
+              pin.mutate(!pinned, {
+                onSuccess: () =>
+                  toast.undoable(pinned ? 'Unpinned team' : 'Pinned team', () =>
+                    pin.mutateAsync(pinned),
+                  ),
+              }),
+          },
+          canManage && separator,
+          canManage && { label: 'Team settings', onSelect: go('/$workspace/$team/settings') },
+          // Leaving can't be undone by you (an owner or admin adds you back): it asks first.
+          entry?.youAreMember === true && me !== undefined && separator,
+          entry?.youAreMember === true &&
+            me !== undefined && {
+              label: 'Leave team',
+              tone: 'danger',
+              onSelect: () => setLeaving(true),
+            },
+        ])}
+      >
+        {children}
+      </ContextMenu>
+      <ConfirmDialog
+        open={leaving}
+        onOpenChange={setLeaving}
+        title={dialog.title}
+        description={dialog.text}
+        confirmLabel={dialog.button}
+        loading={leave.isPending}
+        onConfirm={() => {
+          if (me === undefined) return
+          leave.mutate(me, {
+            onSuccess: () => {
+              toast(`You left ${name}`)
+              setLeaving(false)
+              // You may no longer see the team: leave its pages for the list of teams.
+              if (router.state.location.pathname.startsWith(`/${workspace}/${team}`))
+                void router.navigate({ to: '/' })
+            },
+            onError: () => setLeaving(false),
+          })
+        }}
+      />
+    </>
   )
 }
 
@@ -74,8 +130,6 @@ export namespace TeamContextMenu {
   export interface Props {
     workspace: string
     team: string
-    /** Also offers the team's Triage, Baselines and Sites (the sidebar's entry; the Teams page's row opens the team). */
-    pages?: boolean
     children: ReactNode
   }
 }
