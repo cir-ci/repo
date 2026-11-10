@@ -1,9 +1,10 @@
 import type { Team, Triage } from '@circi/api'
-import { Banner, Button, useAnnounce } from '@circi/ui'
+import { Banner, Button } from '@circi/ui'
 import { type FormEvent, useState } from 'react'
 
 import { useSaveSettings } from '#features/teams/api/index.ts'
 import { HttpError } from '#lib/http.ts'
+import { toast } from '#lib/toast.ts'
 
 import {
   type FormValues,
@@ -32,7 +33,6 @@ import teamStyles from '#features/team-settings/TeamSettings.module.css'
 export function ReviewsForm(props: ReviewsForm.Props) {
   const saveSettings = useSaveSettings(props.workspace, props.team)
   const { rotation: saveRotation } = useRuleActions(props.workspace, props.team)
-  const announce = useAnnounce()
   const saved = formValuesOf(props.settings, props.rotation)
   const [values, setValues] = useState<FormValues>(saved)
   const [dateUnreadable, setDateUnreadable] = useState(false)
@@ -87,7 +87,7 @@ export function ReviewsForm(props: ReviewsForm.Props) {
         await saveRotation.mutateAsync(rotationBody(values.rotationIds, values.rotationDate))
       }
       setDone(true)
-      announce('Settings saved')
+      toast('Settings saved')
     } catch (err) {
       setFailure(err instanceof Error ? err : new Error("Couldn't save"))
     } finally {

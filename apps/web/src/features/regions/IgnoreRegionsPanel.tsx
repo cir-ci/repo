@@ -1,18 +1,10 @@
 import type { IgnoreRegion } from '@circi/api'
-import {
-  Banner,
-  Button,
-  ConfirmDialog,
-  Dialog,
-  Heading,
-  NumberField,
-  Text,
-  useAnnounce,
-} from '@circi/ui'
+import { Banner, Button, ConfirmDialog, Dialog, Heading, NumberField, Text } from '@circi/ui'
 import { type FormEvent, useId, useState } from 'react'
 
 import { useDeleteIgnoreRegion, useEditIgnoreRegion } from '#features/teams/api/index.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
+import { toast } from '#lib/toast.ts'
 
 import { parseRect, type RectFields, type Size } from './ignore-regions.ts'
 
@@ -34,7 +26,6 @@ export function IgnoreRegionsPanel({
   footer = true,
 }: IgnoreRegionsPanel.Props) {
   const remove = useDeleteIgnoreRegion(workspace, team)
-  const announce = useAnnounce()
   const [dialog, setDialog] = useState<RegionDialog.Target | null>(null)
   const [removing, setRemoving] = useState<{ item: IgnoreRegion.Item; number: number } | null>(null)
   const regionsHeading = useId()
@@ -126,7 +117,7 @@ export function IgnoreRegionsPanel({
         onConfirm={() => {
           if (!removing) return
           remove.mutate(removing.item.id, {
-            onSuccess: () => announce('Ignore region removed'),
+            onSuccess: () => toast('Ignore region removed'),
             onSettled: () => setRemoving(null),
           })
         }}
@@ -157,7 +148,6 @@ export namespace IgnoreRegionsPanel {
 /** Position and size of one region in pixels, edited from numbers. */
 function RegionDialog({ target, workspace, team, onClose }: RegionDialog.Props) {
   const edit = useEditIgnoreRegion(workspace, team)
-  const announce = useAnnounce()
   const [problem, setProblem] = useState<string | null>(null)
   const initial = target?.region
 
@@ -183,7 +173,7 @@ function RegionDialog({ target, workspace, team, onClose }: RegionDialog.Props) 
     setProblem(null)
     const done = {
       onSuccess: () => {
-        announce('Ignore region saved')
+        toast('Ignore region saved')
         onClose()
       },
     }

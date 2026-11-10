@@ -97,7 +97,7 @@ describe('Toast', () => {
 
   it('shows an action button (Undo) that runs its handler', async () => {
     const manager = await setup()
-    const onClick = vi.fn()
+    const onClick = vi.fn<() => void>()
     manager.add({
       title: 'Approved build #148',
       timeout: 0,

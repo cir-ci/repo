@@ -15,6 +15,7 @@ import { clipboard } from '#lib/use-copy.ts'
 import { fakeApi, type ReplyHandler } from '#test/support/fetch.ts'
 import { sidebarModel, sidebarTeam } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { toastNamed, toasts } from '#test/support/toast.ts'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -174,7 +175,7 @@ const show = (url?: string, route?: string) =>
 
 const onBuild = () => show('/acme/web/builds/148', '/$workspace/$team/builds/$number')
 
-const toast = () => page.getByRole('group', { name: 'Last change' })
+const toast = toasts
 const openMenu = () => userEvent.keyboard('{Meta>}k{/Meta}')
 const field = () => page.getByRole('combobox')
 
@@ -1088,7 +1089,8 @@ describe('row actions', () => {
     await userEvent.keyboard('{Meta>}.{/Meta}')
     await page.getByRole('option', { name: 'Mark as read' }).click()
     await expect.element(toast().getByText('Marked as read')).toBeVisible()
-    await page.getByRole('button', { name: 'Undo' }).click()
+    // The earlier "Snoozed" toast is still open beside it: Undo the notice's own.
+    await toastNamed('Marked as read').getByRole('button', { name: 'Undo' }).click()
     await expect.element(toast().getByText('Undone')).toBeVisible()
     expect(posts(calls)).toEqual([
       [

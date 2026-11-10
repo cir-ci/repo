@@ -28,14 +28,17 @@ export function useCustomDomain(workspace: string, team: string, site: string) {
   const refresh = () => queryClient.invalidateQueries({ queryKey: keys.sites(workspace, team) })
   return {
     set: useMutation({
+      meta: { what: 'save the domain' },
       mutationFn: (domain: string) => send<Site.CustomDomain>('PUT', path, { domain }),
       onSuccess: refresh,
     }),
     verify: useMutation({
+      meta: { what: 'verify the domain' },
       mutationFn: () => post<Site.DomainCheck>(`${path}/verify`, {}),
       onSuccess: refresh,
     }),
     remove: useMutation({
+      meta: { what: 'remove the domain' },
       mutationFn: () => send<undefined>('DELETE', path),
       onSuccess: refresh,
     }),

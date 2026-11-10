@@ -14,6 +14,7 @@ export const noticesQuery = () =>
 export function useDismissAddressChange() {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'dismiss the notice' },
     mutationFn: () => post<undefined>(instancePath('notices', 'public-url', 'dismiss'), {}),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.instanceNotices() }),
   })

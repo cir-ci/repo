@@ -55,6 +55,7 @@ export const capabilitiesQuery = () =>
 export function useCreateWorkspace() {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'create the workspace' },
     mutationFn: (name: string) =>
       post<{ workspace: { slug: string; name: string } }>('/api/workspaces', { name }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.capabilities() }),
@@ -71,6 +72,7 @@ export const settingsQuery = (workspace: string, team: string) =>
 export function useSaveSettings(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'save settings' },
     mutationFn: (patch: Partial<Team.Settings>) =>
       send<{ settings: Team.Settings }>('PATCH', teamPath(workspace, team, 'settings'), patch),
     onSuccess: (result) => {
@@ -93,6 +95,7 @@ export function useSaveSettings(workspace: string, team: string) {
 export function useAddWebhook(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'add the webhook' },
     mutationFn: (input: { url: string; events: string[] }) =>
       post<{ webhook: Team.Webhook; secret: string }>(teamPath(workspace, team, 'webhooks'), input),
     onSuccess: () =>
@@ -104,6 +107,7 @@ export function useAddWebhook(workspace: string, team: string) {
 export function useTestWebhook(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'send the test event' },
     mutationFn: (id: string) =>
       post<{ deliveryId: string }>(teamPath(workspace, team, 'webhooks', id, 'test'), {}),
     onSuccess: () =>
@@ -114,6 +118,7 @@ export function useTestWebhook(workspace: string, team: string) {
 export function useDeleteWebhook(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'delete the webhook' },
     mutationFn: (id: string) =>
       send<undefined>('DELETE', teamPath(workspace, team, 'webhooks', id)),
     onSuccess: () =>
@@ -131,6 +136,7 @@ export const tokenQuery = (workspace: string, team: string) =>
 export function useRotateToken(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'replace the token' },
     mutationFn: () => post<Team.TokenRotated>(teamPath(workspace, team, 'token'), {}),
     onSuccess: (rotated) => queryClient.setQueryData(keys.token(workspace, team), rotated.info),
   })
@@ -140,6 +146,7 @@ export function useRotateToken(workspace: string, team: string) {
 export function useSaveAppearance(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'save' },
     mutationFn: (patch: Partial<Team.Appearance>) =>
       send<{ appearance: Team.Appearance }>(
         'PATCH',
@@ -161,6 +168,7 @@ export function useSaveAppearance(workspace: string, team: string) {
 export function useDeleteTeam(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'delete the team' },
     mutationFn: () => send<void>('DELETE', teamPath(workspace, team)),
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: keys.team(workspace, team) })
@@ -174,6 +182,7 @@ export function useDeleteTeam(workspace: string, team: string) {
 export function useUnlinkRepository(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'remove the repository link' },
     mutationFn: () => send<undefined>('DELETE', teamPath(workspace, team, 'github')),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: keys.teamSettings(workspace, team) }),
@@ -195,6 +204,7 @@ export type RegionRect = Pick<IgnoreRegion.Item, 'x' | 'y' | 'width' | 'height'>
 export function useAddIgnoreRegion(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'add the ignore region' },
     mutationFn: (input: RegionRect & { name: string }) =>
       post<IgnoreRegion.Item>(teamPath(workspace, team, 'ignore-regions'), input),
     onSuccess: () =>
@@ -205,6 +215,7 @@ export function useAddIgnoreRegion(workspace: string, team: string) {
 export function useEditIgnoreRegion(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'save the ignore region' },
     mutationFn: (input: { id: string; rect: RegionRect }) =>
       send<IgnoreRegion.Item>(
         'PATCH',
@@ -224,6 +235,7 @@ export function useAdjustIgnoreRegion(workspace: string, team: string) {
   const queryClient = useQueryClient()
   const key = keys.ignoreRegions(workspace, team)
   return useMutation({
+    meta: { what: 'save the ignore region' },
     mutationFn: (input: { id: string; rect: RegionRect }) =>
       send<IgnoreRegion.Item>(
         'PATCH',
@@ -253,6 +265,7 @@ export function useAdjustIgnoreRegion(workspace: string, team: string) {
 export function useDeleteIgnoreRegion(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'remove the ignore region' },
     mutationFn: (id: string) =>
       send<undefined>('DELETE', teamPath(workspace, team, 'ignore-regions', id)),
     onSuccess: () =>
@@ -314,6 +327,7 @@ export const branchesQuery = (workspace: string, team: string | undefined, text:
 export function useBulkReview(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'review the builds' },
     mutationFn: (input: {
       buildIds: string[]
       decision: 'approved' | 'rejected'
@@ -335,6 +349,7 @@ export function useBulkReview(workspace: string, team: string) {
 export function useBulkRequestReview(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'ask for a review' },
     mutationFn: (input: { buildIds: string[]; reviewerIds: string[] }) =>
       post<Review.BulkRequested>(teamPath(workspace, team, 'builds', 'request-review'), input),
     onSuccess: () => invalidateAll(queryClient, keys.sidebar(), keys.reviews(), keys.inbox()),

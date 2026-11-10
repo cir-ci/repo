@@ -1,18 +1,11 @@
-import {
-  Badge,
-  Banner,
-  Button,
-  ConfirmDialog,
-  SettingsRow,
-  SettingsSection,
-  useAnnounce,
-} from '@circi/ui'
+import { Badge, Banner, Button, ConfirmDialog, SettingsRow, SettingsSection } from '@circi/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { authClient } from '#lib/auth-client.ts'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
+import { toast } from '#lib/toast.ts'
 
 import { sessionsKey, sessionsQuery } from './api.ts'
 import { describeAgent } from './model.ts'
@@ -20,29 +13,30 @@ import { describeAgent } from './model.ts'
 /** Every browser signed in as you, with a way to sign any of them out. */
 export function SessionsSection({ currentToken }: SessionsSection.Props) {
   const queryClient = useQueryClient()
-  const announce = useAnnounce()
   const [confirmingOthers, setConfirmingOthers] = useState(false)
   const query = useQuery(sessionsQuery())
   const { data } = query
 
   const revoke = useMutation({
+    meta: { what: 'sign out the session' },
     mutationFn: async (token: string) => {
       const { error: failure } = await authClient.revokeSession({ token })
       if (failure) throw new Error("Couldn't sign that device out")
     },
     onSuccess: () => {
-      announce('Signed out')
+      toast('Signed out')
       return queryClient.invalidateQueries({ queryKey: sessionsKey })
     },
   })
   const revokeOthers = useMutation({
+    meta: { what: 'sign out the other sessions' },
     mutationFn: async () => {
       const { error: failure } = await authClient.revokeOtherSessions()
       if (failure) throw new Error("Couldn't sign the other devices out")
     },
     onSuccess: () => {
       setConfirmingOthers(false)
-      announce('Signed out everywhere else')
+      toast('Signed out everywhere else')
       return queryClient.invalidateQueries({ queryKey: sessionsKey })
     },
     onError: () => setConfirmingOthers(false),

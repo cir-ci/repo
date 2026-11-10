@@ -18,6 +18,7 @@ import { useDocumentTitle } from '#lib/document-title.ts'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
+import { copiedToast } from '#lib/toast.ts'
 
 import { formatSize, teamSitesQuery } from './api.ts'
 import { CustomDomainSection } from './CustomDomainSection.tsx'
@@ -66,7 +67,7 @@ export function TeamSitesBody({ workspace, team }: TeamSitesBody.Props) {
               <EmptyState
                 icon={<GlobeIcon />}
                 title="No sites yet"
-                action={<CommandBlock command={UPLOAD_EXAMPLE} />}
+                action={<CommandBlock command={UPLOAD_EXAMPLE} onCopy={copiedToast('Command')} />}
               >
                 Upload a built Storybook or report from CI.
               </EmptyState>

@@ -1,4 +1,3 @@
-import { useAnnounce } from '@circi/ui'
 import { useParams, useRouter, useRouterState } from '@tanstack/react-router'
 import { type ReactNode, useEffect } from 'react'
 
@@ -17,7 +16,6 @@ import { useNavPane } from './NavToggle.tsx'
 import { isAppPage } from './settings-return.ts'
 import { goPath } from './shell-model.ts'
 import { ShortcutsDialog } from './ShortcutsDialog.tsx'
-import { UndoToasts } from './UndoToasts.tsx'
 
 /**
  * Binds the global shortcuts (G-chords, ⌘K, `?`, ⌘⇧C) once for the signed-in app, and renders the
@@ -26,7 +24,6 @@ import { UndoToasts } from './UndoToasts.tsx'
 export function ShortcutLayer({ children }: ShortcutLayer.Props) {
   const router = useRouter()
   const params = useParams({ strict: false })
-  const announce = useAnnounce()
   const { copy } = useCopy()
   const { workspace, workspaces } = useWorkspaces(useChosenWorkspace())
   const { data: sidebar } = useSidebarModel(workspace?.slug)
@@ -75,7 +72,7 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
     help: () => setHelpOpen(true),
     toggleSidebar: nav.toggle,
     copyLink: () => {
-      void copy(location.href).then((ok) => announce(ok ? 'Link copied' : "Couldn't copy the link"))
+      void copy(location.href, 'Link')
     },
   })
 
@@ -96,7 +93,6 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
           triageAssigned: sidebar?.triageAssigned ?? 0,
         }}
       />
-      <UndoToasts />
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </>
   )

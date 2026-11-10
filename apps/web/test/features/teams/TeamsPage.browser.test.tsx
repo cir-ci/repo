@@ -8,6 +8,7 @@ import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
 import { expectOnePrimaryPerArea } from '#test/support/primary-buttons.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { toastNamed } from '#test/support/toast.ts'
 
 import { build } from './support.tsx'
 
@@ -261,17 +262,17 @@ describe('TeamsPage', () => {
       expect(api.of('POST')).toHaveLength(0)
     })
 
-    it('creates it, announces it and closes', async () => {
+    it('creates it, says so in a toast and closes', async () => {
       const api = await openWorkspaceDialog()
       await page.getByRole('textbox', { name: 'Name' }).fill('  Globex  ')
       await page.getByRole('button', { name: 'Create' }).click()
-      await expect.element(page.getByRole('dialog')).not.toBeInTheDocument()
+      await expect
+        .element(page.getByRole('dialog', { name: 'New workspace' }))
+        .not.toBeInTheDocument()
       expect(api.of('POST')).toEqual([
         { method: 'POST', path: '/api/workspaces', body: { name: 'Globex' } },
       ])
-      await expect
-        .element(page.getByRole('status').first())
-        .toHaveTextContent('Workspace Globex created')
+      await expect.element(toastNamed('Workspace Globex created')).toBeVisible()
     })
 
     it("shows the server's refusal and keeps the dialog open", async () => {

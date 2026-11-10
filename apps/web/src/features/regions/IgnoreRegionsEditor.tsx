@@ -1,5 +1,5 @@
 import type { Comment, IgnoreRegion } from '@circi/api'
-import { Heading, IconButton, ImageDialog, Text, Tooltip, useAnnounce } from '@circi/ui'
+import { Heading, IconButton, ImageDialog, Text, Tooltip } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 
@@ -10,6 +10,7 @@ import {
   useAdjustIgnoreRegion,
 } from '#features/teams/api/index.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
+import { toast } from '#lib/toast.ts'
 
 import { regionsOf, sizeOf, toPixels } from './ignore-regions.ts'
 import { IgnoreRegionsPanel } from './IgnoreRegionsPanel.tsx'
@@ -34,7 +35,6 @@ export function IgnoreRegionsEditor({
   canManage,
 }: IgnoreRegionsEditor.Props) {
   const { data, error, refetch } = useQuery(ignoreRegionsQuery(workspace, team, name))
-  const announce = useAnnounce()
   const add = useAddIgnoreRegion(workspace, team)
   const adjust = useAdjustIgnoreRegion(workspace, team)
   // The keyboard way to place a region; dragging needs no switch.
@@ -63,7 +63,7 @@ export function IgnoreRegionsEditor({
             add.mutate(
               { name, ...toPixels(region, size) },
               {
-                onSuccess: () => announce('Ignore region added'),
+                onSuccess: () => toast('Ignore region added'),
                 onSettled: () => setPending(null),
               },
             )
@@ -79,7 +79,7 @@ export function IgnoreRegionsEditor({
             onAdjust: (item, region) =>
               adjust
                 .mutateAsync({ id: item.id, rect: toPixels(region, size) })
-                .then(() => announce('Ignore region saved'))
+                .then(() => toast('Ignore region saved'))
                 .catch(() => undefined),
           },
         }

@@ -1,12 +1,4 @@
-import {
-  Banner,
-  Button,
-  ConfirmDialog,
-  SecretBox,
-  SettingsSection,
-  Text,
-  useAnnounce,
-} from '@circi/ui'
+import { Banner, Button, ConfirmDialog, SecretBox, SettingsSection, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { Fragment, useState } from 'react'
@@ -14,6 +6,7 @@ import { Fragment, useState } from 'react'
 import { tokenQuery, useRotateToken } from '#features/teams/api/index.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
+import { toast } from '#lib/toast.ts'
 
 import { TeamSettingsFrame } from './TeamSettingsFrame.tsx'
 
@@ -46,7 +39,6 @@ export function CiTokenPage() {
 function TokenBody({ workspace, team, name, repoRef }: TokenBody.Props) {
   const { data: token, error, refetch } = useQuery(tokenQuery(workspace, team))
   const rotate = useRotateToken(workspace, team)
-  const announce = useAnnounce()
   const [confirming, setConfirming] = useState(false)
   const apiUrl = window.location.origin
 
@@ -168,7 +160,7 @@ function TokenBody({ workspace, team, name, repoRef }: TokenBody.Props) {
         loading={rotate.isPending}
         onConfirm={() =>
           rotate.mutate(undefined, {
-            onSuccess: () => announce('CI token replaced'),
+            onSuccess: () => toast('CI token replaced'),
             onSettled: () => setConfirming(false),
           })
         }

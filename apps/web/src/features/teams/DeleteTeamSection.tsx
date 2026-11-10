@@ -1,16 +1,9 @@
-import {
-  Banner,
-  Button,
-  Dialog,
-  SettingsRow,
-  SettingsSection,
-  TextField,
-  useAnnounce,
-} from '@circi/ui'
+import { Banner, Button, Dialog, SettingsRow, SettingsSection, TextField } from '@circi/ui'
 import { useNavigate } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
 
 import { useDeleteTeam } from '#features/teams/api/index.ts'
+import { toast } from '#lib/toast.ts'
 
 import { deleteConfirmed, deletePhrase } from './delete-team.ts'
 
@@ -25,7 +18,6 @@ export function DeleteTeamSection({ workspace, team, name, canManage }: DeleteTe
   const [typed, setTyped] = useState('')
   const remove = useDeleteTeam(workspace, team)
   const navigate = useNavigate()
-  const announce = useAnnounce()
   const phrase = deletePhrase(workspace, team)
 
   function close(next: boolean) {
@@ -42,7 +34,7 @@ export function DeleteTeamSection({ workspace, team, name, canManage }: DeleteTe
     remove.mutate(undefined, {
       onSuccess: () => {
         setOpen(false)
-        announce(`Deleted ${name}`)
+        toast(`Deleted ${name}`)
         void navigate({ to: '/workspaces/$workspace/settings/teams', params: { workspace } })
       },
     })

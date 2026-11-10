@@ -15,7 +15,7 @@ import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useRecentSearchesStore } from '#lib/stores/recent-searches-store.ts'
 import { type RecentEntry, useRecentStore } from '#lib/stores/recent-store.ts'
 import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
-import { useUndoStore } from '#lib/stores/undo-store.ts'
+import { useToastStore } from '#lib/stores/toast-store.ts'
 import { useWorkspaceStore } from '#lib/stores/workspace-store.ts'
 import { clipboard } from '#lib/use-copy.ts'
 
@@ -267,7 +267,7 @@ export function CommandMenu({
       openTab: (url: string) => window.open(url, '_blank', 'noopener'),
     }
     void performAction(action, ctx).then((toast) => {
-      if (toast.message) useUndoStore.getState().show(toast)
+      if (toast.message) useToastStore.getState().show(toast)
     })
     onOpenChange(false)
   }

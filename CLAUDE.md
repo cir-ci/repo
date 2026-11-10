@@ -143,6 +143,15 @@ A namespace must contain only types. Never put a value in one.
   repeats a value already shown beside it. Counts carry their noun and amounts their unit. An
   empty state never repeats a button the page already shows (an empty Integrations page has one
   Add integration, in its header).
+- **Toasts and Undo:** every action says what happened in a toast, success or failure, saves included
+  (`toast('Approved 3 screenshots')`, `toast.failed('save', error)` from `#lib/toast.ts`; the state is
+  `lib/stores/toast-store.ts`, drawn by `ToastViewport` in `@circi/ui`). A toast is the live region: never
+  also `announce` the same message (the announcer is for loading and selection). A failed `useMutation`
+  toasts by itself from `meta: { what: 'save' }` ("Couldn't save: reason"); a form keeps its own field
+  errors too. An action that can be taken back acts at once and its toast carries Undo (`withUndo` in
+  `#lib/undo.ts`: the server's undo token, or the exact inverse call); only what can't be taken back and
+  is risky (remove a member, a domain or a provider; delete anything) asks first in a `ConfirmDialog`.
+  A reason dialog (rejecting) is an input, not a confirmation.
 - **Settings is a closed area:** no link or redirect moves someone between settings and the rest
   of the dashboard. A settings page that needs another page (a team's Sites, a baseline's ignore
   regions) shows it inside settings, in its tab and frame; an app page never links into a settings

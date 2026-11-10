@@ -1,18 +1,11 @@
 import type { Workspace } from '@circi/api'
-import {
-  Banner,
-  Button,
-  Checkbox,
-  SettingsRow,
-  SettingsSection,
-  Text,
-  useAnnounce,
-} from '@circi/ui'
+import { Banner, Button, Checkbox, SettingsRow, SettingsSection, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { type ReactNode, useState } from 'react'
 
 import { workspaceAuthQuery, useSaveWorkspaceAuth } from '#features/members/api.ts'
 import { HttpError } from '#lib/http.ts'
+import { toast } from '#lib/toast.ts'
 
 import { methodsPatch, type MethodsDraft } from './model.ts'
 import { WorkspaceSso } from './WorkspaceSso.tsx'
@@ -32,7 +25,6 @@ export function SignInMethods({ workspace }: SignInMethods.Props) {
 
 function Methods({ workspace, data }: Methods.Props) {
   const save = useSaveWorkspaceAuth(workspace)
-  const announce = useAnnounce()
   const { settings, instance } = data
   const saved: MethodsDraft = {
     password: settings.passwordLoginEnabled && instance.password,
@@ -154,9 +146,7 @@ function Methods({ workspace, data }: Methods.Props) {
             variant="primary"
             loading={save.isPending}
             disabled={!dirty}
-            onClick={() =>
-              save.mutate(patch, { onSuccess: () => announce('Sign-in methods saved') })
-            }
+            onClick={() => save.mutate(patch, { onSuccess: () => toast('Sign-in methods saved') })}
           >
             Save changes
           </Button>

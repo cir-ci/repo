@@ -5,6 +5,7 @@ import { Link, useSearch } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
 import { useDocumentTitle } from '#lib/document-title.ts'
+import { toast } from '#lib/toast.ts'
 
 import { AdminFrame } from './AdminFrame.tsx'
 import { mailServer, settingsQuery, signInMethods, useSendTestMail } from './api/admin.ts'
@@ -172,7 +173,14 @@ function MailSection({ mail }: { mail: InstanceAdmin.Settings['mail'] }) {
           />
         )}
         <SettingsRow label="Send a test mail to your own address">
-          <Button loading={test.isPending} onClick={() => test.mutate()}>
+          <Button
+            loading={test.isPending}
+            onClick={() =>
+              test.mutate(undefined, {
+                onSuccess: (r) => (r.ok ? toast(r.message) : toast.error(r.message)),
+              })
+            }
+          >
             Send test mail
           </Button>
         </SettingsRow>

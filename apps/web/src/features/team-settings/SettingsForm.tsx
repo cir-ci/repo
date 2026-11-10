@@ -10,13 +10,13 @@ import {
   SettingsSection,
   Text,
   TextField,
-  useAnnounce,
 } from '@circi/ui'
 import { type FormEvent, useState } from 'react'
 
 import { type useSaveSettings, useUnlinkRepository } from '#features/teams/api/index.ts'
 import { HttpError } from '#lib/http.ts'
 import { numberOf, textOf } from '#lib/number-field.ts'
+import { toast } from '#lib/toast.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 
 import { choiceOf, flakyChoices, type FlakyChoice, isFlakyChoice } from './flaky-setting.ts'
@@ -39,7 +39,6 @@ export function SettingsForm(props: SettingsForm.Props) {
   // this form (it is keyed by them), and a remounted form would lose both.
   const { save, saved, onSavedChange: setSaved } = props
   const unlink = useUnlinkRepository(props.workspace, props.team)
-  const announce = useAnnounce()
   const clientLink = useClientLink()
   const [unlinking, setUnlinking] = useState(false)
   const s = props.settings
@@ -112,7 +111,7 @@ export function SettingsForm(props: SettingsForm.Props) {
       {
         onSuccess: (result) => {
           setSaved(true)
-          announce('Settings saved')
+          toast('Settings saved')
           // The address in the bar is the old one, which no longer works.
           if (result.settings.slug !== props.team) props.onRenamed(result.settings.slug)
         },
@@ -351,7 +350,7 @@ export function SettingsForm(props: SettingsForm.Props) {
         loading={unlink.isPending}
         onConfirm={() =>
           unlink.mutate(undefined, {
-            onSuccess: () => announce('Repository link removed'),
+            onSuccess: () => toast('Repository link removed'),
             onSettled: () => setUnlinking(false),
           })
         }

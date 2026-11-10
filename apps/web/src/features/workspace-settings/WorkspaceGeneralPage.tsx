@@ -1,19 +1,11 @@
-import {
-  Avatar,
-  Banner,
-  Button,
-  SettingsRow,
-  SettingsSection,
-  Text,
-  TextField,
-  useAnnounce,
-} from '@circi/ui'
+import { Avatar, Banner, Button, SettingsRow, SettingsSection, Text, TextField } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
 
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { IdentityEditor } from '#lib/IdentityEditor.tsx'
+import { toast } from '#lib/toast.ts'
 
 import { workspaceGeneralQuery, useSaveWorkspaceGeneral, useSaveWorkspacePicture } from './api.ts'
 import { BuildSettings } from './BuildSettings.tsx'
@@ -66,7 +58,6 @@ export function WorkspaceGeneralPage() {
 
 /** The name and picture: they change nobody's workflow, so each saves as soon as it is changed. */
 function IdentitySection({ workspace, name, picture, canManage }: IdentitySection.Props) {
-  const announce = useAnnounce()
   const save = useSaveWorkspaceGeneral(workspace)
   const savePicture = useSaveWorkspacePicture(workspace)
   return (
@@ -92,7 +83,7 @@ function IdentitySection({ workspace, name, picture, canManage }: IdentitySectio
               mutation={savePicture}
               onSave={(file) =>
                 savePicture.mutate(file, {
-                  onSuccess: () => announce(file ? 'Picture saved' : 'Picture removed'),
+                  onSuccess: () => toast(file ? 'Picture saved' : 'Picture removed'),
                 })
               }
             />
@@ -101,9 +92,7 @@ function IdentitySection({ workspace, name, picture, canManage }: IdentitySectio
           saved={name}
           mutation={save}
           validate={(next) => generalProblems({ name: next, slug: 'x' }).name ?? null}
-          onCommit={(next) =>
-            save.mutate({ name: next }, { onSuccess: () => announce('Name saved') })
-          }
+          onCommit={(next) => save.mutate({ name: next }, { onSuccess: () => toast('Name saved') })}
         />
       </SettingsRow>
     </SettingsSection>
@@ -122,7 +111,6 @@ namespace IdentitySection {
 /** The address breaks every link that has the old one in it, so it waits for Save (with its warning). */
 function AddressForm({ workspace, saved, canManage }: AddressForm.Props) {
   const navigate = useNavigate()
-  const announce = useAnnounce()
   const save = useSaveWorkspaceGeneral(workspace)
   const [slug, setSlug] = useState(saved)
   const [showProblems, setShowProblems] = useState(false)
@@ -137,7 +125,7 @@ function AddressForm({ workspace, saved, canManage }: AddressForm.Props) {
       { slug },
       {
         onSuccess: (result) => {
-          announce('Address saved')
+          toast('Address saved')
           // The address in the bar is the old one, which no longer works.
           if (result.slug !== workspace) {
             void navigate({

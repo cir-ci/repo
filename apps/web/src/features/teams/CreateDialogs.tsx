@@ -1,7 +1,8 @@
-import { Banner, FormDialog, TextField, useAnnounce } from '@circi/ui'
+import { Banner, FormDialog, TextField } from '@circi/ui'
 import { type FormEvent, useState } from 'react'
 
 import { useCreateWorkspace } from '#features/teams/api/index.ts'
+import { toast } from '#lib/toast.ts'
 
 import styles from './CreateDialogs.module.css'
 
@@ -12,7 +13,6 @@ function field(form: FormData, key: string): string {
 
 export function NewWorkspaceDialog({ open, onClose }: NewWorkspaceDialog.Props) {
   const create = useCreateWorkspace()
-  const announce = useAnnounce()
   const [nameError, setNameError] = useState<string | null>(null)
 
   function close() {
@@ -30,7 +30,7 @@ export function NewWorkspaceDialog({ open, onClose }: NewWorkspaceDialog.Props) 
     setNameError(null)
     create.mutate(name, {
       onSuccess: () => {
-        announce(`Workspace ${name} created`)
+        toast(`Workspace ${name.trim()} created`)
         close()
       },
     })

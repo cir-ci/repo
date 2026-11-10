@@ -1,20 +1,21 @@
-import { Avatar, SettingsRow, SettingsSection, Text, TextField, useAnnounce } from '@circi/ui'
+import { Avatar, SettingsRow, SettingsSection, Text, TextField } from '@circi/ui'
 import { useMutation } from '@tanstack/react-query'
 
 import { authClient } from '#lib/auth-client.ts'
 import { IdentityEditor } from '#lib/IdentityEditor.tsx'
+import { toast } from '#lib/toast.ts'
 
 import styles from '#features/workspace-settings/Settings.module.css'
 
 /** Your picture and name in one row, and your email. The name saves as soon as you leave the field. */
 export function YouSection({ user }: YouSection.Props) {
-  const announce = useAnnounce()
   const save = useMutation({
+    meta: { what: 'save' },
     mutationFn: async (next: string) => {
       const { error } = await authClient.updateUser({ name: next })
       if (error) throw new Error(error.message ?? "Couldn't save your name")
     },
-    onSuccess: () => announce('Name saved'),
+    onSuccess: () => toast('Name saved'),
   })
 
   return (

@@ -50,6 +50,7 @@ export interface CreatedTeam {
 export function useCreateTeam() {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'create the team' },
     mutationFn: async (input: CreateTeamInput): Promise<CreatedTeam> => {
       const branch = branchToSet(input.defaultBranch)
       const { team, token } = await post<{ team: { slug: string; name: string }; token: string }>(

@@ -61,6 +61,7 @@ export const integrationsQuery = (workspace: string) =>
 export function useRemoveIntegration(workspace: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'remove the integration' },
     mutationFn: (item: Pick<Integration.Item, 'id'>) =>
       send<undefined>('DELETE', base(workspace, item.id)),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.integrations(workspace) }),

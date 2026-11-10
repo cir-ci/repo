@@ -13,7 +13,12 @@ const COPIED_MS = 1500
  * scrolls sideways), full width up to 360px, and a Copy button below it. After copying the
  * button says "Copied" for a moment; if the browser refuses the clipboard nothing changes.
  */
-export function CommandBlock({ command, label = 'command', className }: CommandBlock.Props) {
+export function CommandBlock({
+  command,
+  label = 'command',
+  onCopy,
+  className,
+}: CommandBlock.Props) {
   const [copied, setCopied] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => () => clearTimeout(timer.current), [])
@@ -22,8 +27,10 @@ export function CommandBlock({ command, label = 'command', className }: CommandB
     try {
       await navigator.clipboard.writeText(command)
     } catch {
+      onCopy?.(false)
       return
     }
+    onCopy?.(true)
     setCopied(true)
     clearTimeout(timer.current)
     timer.current = setTimeout(() => setCopied(false), COPIED_MS)
@@ -50,6 +57,8 @@ export namespace CommandBlock {
     command: string
     /** What it is, for the button's name: "Copy command". */
     label?: string
+    /** Called with whether the clipboard took it, so the page can say so (a toast). */
+    onCopy?: (copied: boolean) => void
     className?: string
   }
 }

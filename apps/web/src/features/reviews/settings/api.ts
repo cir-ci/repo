@@ -127,23 +127,28 @@ export function useRuleActions(workspace: string, team: string) {
     invalidateAll(queryClient, keys.rules(workspace, team), keys.triage(workspace, team))
   return {
     create: useMutation({
+      meta: { what: 'add the rule' },
       mutationFn: (draft: RuleDraft) => post<unknown>(base('rules'), ruleBody(draft)),
       onSuccess: refresh,
     }),
     update: useMutation({
+      meta: { what: 'save the rule' },
       mutationFn: (input: { id: string; draft: RuleDraft }) =>
         send<unknown>('PUT', base('rules', input.id), ruleBody(input.draft)),
       onSuccess: refresh,
     }),
     remove: useMutation({
+      meta: { what: 'delete the rule' },
       mutationFn: (id: string) => send<void>('DELETE', base('rules', id)),
       onSuccess: refresh,
     }),
     reorder: useMutation({
+      meta: { what: 'move the rule' },
       mutationFn: (ruleIds: string[]) => send<unknown>('PUT', base('rules', 'order'), { ruleIds }),
       onSuccess: refresh,
     }),
     rotation: useMutation({
+      meta: { what: 'save the rotation' },
       mutationFn: (body: ReturnType<typeof rotationBody>) =>
         send<Triage.Rotation>('PUT', base('triage-rotation'), body),
       onSuccess: refresh,

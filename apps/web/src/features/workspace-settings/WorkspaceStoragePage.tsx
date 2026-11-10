@@ -8,7 +8,6 @@ import {
   SettingsSection,
   Avatar,
   Text,
-  useAnnounce,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
@@ -17,6 +16,7 @@ import { useState, type FormEvent } from 'react'
 import { useSaveWorkspaceSettings } from '#features/members/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { numberOf, textOf } from '#lib/number-field.ts'
+import { toast } from '#lib/toast.ts'
 
 import {
   dayCount,
@@ -137,7 +137,6 @@ export function WorkspaceStoragePage() {
 }
 
 function RetentionSection({ workspace, saved, canManage }: RetentionSection.Props) {
-  const announce = useAnnounce()
   const save = useSaveWorkspaceSettings(workspace)
   const [text, setText] = useState(String(saved))
   const [showProblem, setShowProblem] = useState(false)
@@ -148,7 +147,7 @@ function RetentionSection({ workspace, saved, canManage }: RetentionSection.Prop
     e.preventDefault()
     setShowProblem(true)
     if (retentionProblem(text) || !dirty) return
-    save.mutate({ retentionDays: Number(text.trim()) }, { onSuccess: () => announce('Saved') })
+    save.mutate({ retentionDays: Number(text.trim()) }, { onSuccess: () => toast('Saved') })
   }
 
   return (

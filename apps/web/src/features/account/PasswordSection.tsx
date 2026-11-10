@@ -1,17 +1,10 @@
-import {
-  Banner,
-  Button,
-  Dialog,
-  SettingsRow,
-  SettingsSection,
-  TextField,
-  useAnnounce,
-} from '@circi/ui'
+import { Banner, Button, Dialog, SettingsRow, SettingsSection, TextField } from '@circi/ui'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 
 import { authClient } from '#lib/auth-client.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
+import { toast } from '#lib/toast.ts'
 
 import { accountsQuery } from './api.ts'
 import { isPassword, MIN_PASSWORD_LENGTH, passwordProblems, type PasswordDraft } from './model.ts'
@@ -22,7 +15,6 @@ const EMPTY: PasswordDraft = { current: '', next: '', confirm: '' }
 
 /** Change your password. Only shown when you have one (a single-sign-on-only account has none). */
 export function PasswordSection() {
-  const announce = useAnnounce()
   const accounts = useQuery(accountsQuery())
   const password = accounts.data?.find(isPassword)
   const [open, setOpen] = useState(false)
@@ -31,6 +23,7 @@ export function PasswordSection() {
   const problems = showProblems ? passwordProblems(draft) : {}
 
   const change = useMutation({
+    meta: { what: 'change the password' },
     mutationFn: async () => {
       const { error } = await authClient.changePassword({
         currentPassword: draft.current,
@@ -41,7 +34,7 @@ export function PasswordSection() {
     },
     onSuccess: () => {
       setOpen(false)
-      announce('Password changed')
+      toast('Password changed')
     },
   })
 

@@ -63,6 +63,7 @@ export function useSetPreference() {
   const queryClient = useQueryClient()
   const key = preferencesQuery().queryKey
   return useMutation({
+    meta: { what: 'save' },
     mutationFn: (change: Partial<Inbox.Preferences>) =>
       send<Inbox.Preferences>('PUT', '/api/inbox/preferences', change),
     onMutate: async (change) => {

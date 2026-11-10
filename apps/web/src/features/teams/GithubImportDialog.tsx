@@ -2,6 +2,8 @@ import { Banner, Checkbox, FormDialog, LockIcon, Text, TextField } from '@circi/
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
+import { toast } from '#lib/toast.ts'
+
 import { githubImportQuery, useImportRepositories } from './api/github-import.ts'
 import { filterRepositories, importLabel, repositoryKey } from './github-import.ts'
 
@@ -40,7 +42,12 @@ export function GithubImportDialog({ open, onClose, workspace }: GithubImportDia
     if (chosen.length === 0) return
     importer.mutate(
       chosen.map((r) => ({ integration: r.integration, ref: r.ref })),
-      { onSuccess: close },
+      {
+        onSuccess: () => {
+          toast(`Imported ${importLabel(chosen.length).replace('Import ', '')}`)
+          close()
+        },
+      },
     )
   }
 

@@ -321,7 +321,7 @@ export function formatAge(iso: string, now: number): string {
   return `${Math.round(hours / 24)} days`
 }
 
-export { clipboard } from '#lib/use-copy.ts'
+export { clipboard } from '#lib/clipboard.ts'
 
 // ---- Server state -----------------------------------------------------------------------------
 
@@ -372,6 +372,7 @@ export const checklistQuery = () =>
 export function useDismissChecklist() {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'dismiss the checklist' },
     mutationFn: (dismissed: boolean) =>
       send<void>(
         dismissed ? 'PUT' : 'DELETE',
@@ -393,6 +394,7 @@ const ACCOUNTS = keys.instanceAccounts()
 export function useCreateAccount() {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'create the account' },
     mutationFn: (draft: AccountDraft) =>
       post<InstanceAdmin.CreatedAccount>(instancePath('accounts'), accountBody(draft)),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ACCOUNTS }),
@@ -401,6 +403,7 @@ export function useCreateAccount() {
 
 export function useResetPassword() {
   return useMutation({
+    meta: { what: 'reset the password' },
     mutationFn: (id: string) =>
       post<InstanceAdmin.PasswordReset>(instancePath('accounts', id, 'reset-password'), {}),
   })
@@ -409,6 +412,7 @@ export function useResetPassword() {
 export function useSetInstanceAdmin() {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'change admin access' },
     mutationFn: (input: { id: string; instanceAdmin: boolean }) =>
       send<unknown>('PATCH', instancePath('accounts', input.id), {
         instanceAdmin: input.instanceAdmin,
@@ -420,6 +424,7 @@ export function useSetInstanceAdmin() {
 export function useBanAccount() {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'ban the account' },
     mutationFn: (input: { id: string; draft: BanDraft }) =>
       post<unknown>(instancePath('accounts', input.id, 'ban'), banBody(input.draft)),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ACCOUNTS }),
@@ -429,6 +434,7 @@ export function useBanAccount() {
 export function useUnbanAccount() {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'unban the account' },
     mutationFn: (id: string) => post<unknown>(instancePath('accounts', id, 'unban'), {}),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ACCOUNTS }),
   })
@@ -437,6 +443,7 @@ export function useUnbanAccount() {
 export function useSignOutEverywhere() {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'sign out' },
     mutationFn: (id: string) => post<undefined>(instancePath('accounts', id, 'sign-out'), {}),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ACCOUNTS }),
   })
@@ -445,6 +452,7 @@ export function useSignOutEverywhere() {
 export function useCreateWorkspace() {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'create the workspace' },
     mutationFn: (draft: WorkspaceDraft) =>
       post<{ workspace: InstanceAdmin.Workspace }>(
         instancePath('workspaces'),
@@ -465,6 +473,7 @@ export function deletedLabel(daysLeft: number | null): string {
 export function useRestoreWorkspace() {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'restore the workspace' },
     mutationFn: (id: string) =>
       post<{ workspace: InstanceAdmin.Workspace }>(instancePath('workspaces', id, 'restore'), {}),
     onSuccess: () =>
@@ -482,6 +491,7 @@ export function useRestoreWorkspace() {
 export function usePurgeWorkspace() {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'delete the workspace' },
     mutationFn: (id: string) => post<void>(instancePath('workspaces', id, 'purge'), {}),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.instanceWorkspaces() }),
   })
@@ -489,6 +499,7 @@ export function usePurgeWorkspace() {
 
 export function useSendTestMail() {
   return useMutation({
+    meta: { what: 'send the test email' },
     mutationFn: () => post<InstanceAdmin.MailTest>(instancePath('mail', 'test'), {}),
   })
 }

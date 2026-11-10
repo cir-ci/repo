@@ -1,6 +1,8 @@
 import { Banner, Button } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 
+import { toast } from '#lib/toast.ts'
+
 import { noticesQuery, useDismissAddressChange } from './api/index.ts'
 
 import styles from './AddressChangeBanner.module.css'
@@ -17,7 +19,13 @@ export function AddressChangeBanner() {
         tone="warning"
         title={`The dashboard moved from ${change.from} to ${change.to}.`}
         action={
-          <Button size="sm" loading={dismiss.isPending} onClick={() => dismiss.mutate()}>
+          <Button
+            size="sm"
+            loading={dismiss.isPending}
+            onClick={() =>
+              dismiss.mutate(undefined, { onSuccess: () => toast('Dismissed the notice') })
+            }
+          >
             Done
           </Button>
         }

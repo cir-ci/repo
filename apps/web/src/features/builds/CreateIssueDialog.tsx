@@ -1,6 +1,8 @@
 import type { Issue } from '@circi/api'
-import { Banner, FormDialog, SegmentedControl, Text, TextField, useAnnounce } from '@circi/ui'
+import { Banner, FormDialog, SegmentedControl, Text, TextField } from '@circi/ui'
 import { useState } from 'react'
+
+import { toast } from '#lib/toast.ts'
 
 import styles from './Discussion.module.css'
 
@@ -13,7 +15,6 @@ export function CreateIssueDialog(props: CreateIssueDialog.Props) {
   const { trackers, defaultTitle, description, snapshotName } = props
   const [title, setTitle] = useState<string | null>(null)
   const [picked, setPicked] = useState(trackers[0]?.integrationId ?? '')
-  const announce = useAnnounce()
   const tracker = trackers.find((t) => t.integrationId === picked) ?? trackers[0]
   const shownTitle = title ?? defaultTitle
   const name = tracker ? (TRACKER_NAMES[tracker.kind] ?? tracker.kind) : 'the tracker'
@@ -27,7 +28,7 @@ export function CreateIssueDialog(props: CreateIssueDialog.Props) {
         ...(title !== null && title.trim() !== defaultTitle ? { title: title.trim() } : {}),
       },
       (issue) => {
-        announce(`Created ${issue.key}`)
+        toast(`Created ${issue.key}`)
         setTitle(null)
       },
     )

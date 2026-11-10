@@ -6,6 +6,7 @@ import { TeamSettingsPage } from '#features/team-settings/TeamSettingsPage.tsx'
 import { iconLabel } from '#features/teams/appearance.ts'
 import { fakeApi, hangingFetch, type ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { toastNamed } from '#test/support/toast.ts'
 
 /** The icon grid draws its rows in view plus a few either side: far fewer than the 2,000 icons. */
 const DRAWN_AT_MOST = 150
@@ -226,9 +227,7 @@ describe('TeamSettingsPage', () => {
         },
       },
     ])
-    await expect
-      .element(page.getByRole('status').filter({ hasText: /^Settings saved$/ }))
-      .toBeVisible()
+    await expect.element(toastNamed('Settings saved')).toBeVisible()
   })
 
   it('discards what was edited, back to the saved values', async () => {
@@ -257,9 +256,7 @@ describe('TeamSettingsPage', () => {
     expect(fake.of('PATCH')[0]).toMatchObject({ path: `${API}/settings`, body: { name: 'Web' } })
     expect(fake.of('PATCH')[0]?.body).toEqual({ name: 'Web' })
     await expect.element(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible()
-    await expect
-      .element(page.getByRole('status').filter({ hasText: /^Team name saved$/ }))
-      .toBeInTheDocument()
+    await expect.element(toastNamed('Team name saved')).toBeInTheDocument()
   })
 
   it('saves the name on Enter, and shows why it could not be saved', async () => {
@@ -393,9 +390,7 @@ describe('TeamSettingsPage', () => {
       .element(page.getByRole('textbox', { name: 'Keep builds for (days)' }))
       .toHaveValue('60')
     await expect.element(page.getByText('Settings saved.')).toBeVisible()
-    await expect
-      .element(page.getByRole('status').filter({ hasText: /^Settings saved$/ }))
-      .toBeVisible()
+    await expect.element(toastNamed('Settings saved')).toBeVisible()
   })
 
   describe('flaky screenshots block merges', () => {
@@ -454,7 +449,12 @@ describe('TeamSettingsPage', () => {
     await page.getByRole('textbox', { name: 'Default branch' }).fill('develop')
     await page.getByRole('button', { name: 'Save changes' }).click()
     await expect.element(page.getByRole('alert')).toHaveTextContent('Default branch is required')
+    // The field keeps its own message; the toast names the action as a whole.
+    await expect
+      .element(toastNamed("Couldn't save settings: Default branch is required"))
+      .toBeVisible()
     expect(page.getByText('Settings saved.').elements()).toHaveLength(0)
+    expect(page.getByRole('dialog', { name: 'Settings saved' }).elements()).toHaveLength(0)
   })
 
   it("sends members to the team's Members tab, inside settings, instead of showing the settings", async () => {

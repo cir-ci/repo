@@ -3,6 +3,8 @@ import { Banner, Button, TextField } from '@circi/ui'
 import { useNavigate } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 
+import { toast } from '#lib/toast.ts'
+
 import { credentialsComplete, credentialValues, useConnect, useInstall } from './api/generic.ts'
 
 import styles from './Integrations.module.css'
@@ -25,6 +27,7 @@ export function ConnectForm({ entry, workspace, onDone }: ConnectForm.Props) {
     if (!complete) return
     connect.mutate(credentialValues(entry.credentials, values), {
       onSuccess: ({ id }) => {
+        toast(`Connected ${entry.name}`)
         onDone()
         void navigate({
           to: '/workspaces/$workspace/settings/integrations/$kind/$id',

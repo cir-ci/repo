@@ -1,15 +1,8 @@
-import {
-  Banner,
-  Button,
-  Dialog,
-  SettingsRow,
-  SettingsSection,
-  Text,
-  TextField,
-  useAnnounce,
-} from '@circi/ui'
+import { Banner, Button, Dialog, SettingsRow, SettingsSection, Text, TextField } from '@circi/ui'
 import { useNavigate } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
+
+import { toast } from '#lib/toast.ts'
 
 import { useDeleteWorkspace } from './api.ts'
 import { slugConfirmed } from './model.ts'
@@ -26,7 +19,6 @@ export function DeleteWorkspaceSection({ workspace, name, isOwner }: DeleteWorks
   const [typed, setTyped] = useState('')
   const remove = useDeleteWorkspace(workspace)
   const navigate = useNavigate()
-  const announce = useAnnounce()
 
   function close(next: boolean) {
     setOpen(next)
@@ -42,7 +34,7 @@ export function DeleteWorkspaceSection({ workspace, name, isOwner }: DeleteWorks
     remove.mutate(typed.trim(), {
       onSuccess: () => {
         setOpen(false)
-        announce(`Deleted ${name}`)
+        toast(`Deleted ${name}`)
         void navigate({ to: '/' })
       },
     })

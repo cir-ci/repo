@@ -18,6 +18,7 @@ export const githubImportQuery = (workspace: string) =>
 export function useImportRepositories(workspace: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'import the repositories' },
     mutationFn: (repositories: { integration: string; ref: string }[]) =>
       post<Workspace.GithubImport>(workspacePath(workspace, 'github-import'), { repositories }),
     onSuccess: () =>

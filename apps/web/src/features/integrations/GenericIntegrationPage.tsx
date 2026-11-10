@@ -8,7 +8,6 @@ import {
   Settings2Icon,
   Heading,
   Text,
-  useAnnounce,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
@@ -16,6 +15,7 @@ import { useState } from 'react'
 
 import { MembersRedirect } from '#features/workspace-settings/MembersRedirect.tsx'
 import { useDocumentTitle } from '#lib/document-title.ts'
+import { toast } from '#lib/toast.ts'
 
 import {
   connectionLine,
@@ -56,7 +56,6 @@ export function GenericIntegrationPage() {
   const install = useInstall(workspace)
   const remove = useRemoveIntegration(workspace)
   const navigate = useNavigate()
-  const announce = useAnnounce()
   const mark = useTeamMark(workspace)
   const [removing, setRemoving] = useState(false)
   const [reconnecting, setReconnecting] = useState(false)
@@ -69,6 +68,7 @@ export function GenericIntegrationPage() {
     try {
       if (input.from) await mapping.clear.mutateAsync(input.from)
       if (input.to) await mapping.save.mutateAsync({ team: input.to, ref: input.ref })
+      toast(input.to ? 'Mapping saved' : 'Mapping removed')
     } catch {
       // Shown by the banners below, from the mutations' own errors.
     }
@@ -185,8 +185,17 @@ export function GenericIntegrationPage() {
                         mark={mark(team.slug, team.name)}
                         canManage={data.canManage}
                         saving={mapping.save.isPending}
-                        onSave={(input) => mapping.save.mutate({ team: team.slug, ...input })}
-                        onClear={() => mapping.clear.mutate(team.slug)}
+                        onSave={(input) =>
+                          mapping.save.mutate(
+                            { team: team.slug, ...input },
+                            { onSuccess: () => toast(`Mapping saved for ${team.name}`) },
+                          )
+                        }
+                        onClear={() =>
+                          mapping.clear.mutate(team.slug, {
+                            onSuccess: () => toast(`Mapping removed for ${team.name}`),
+                          })
+                        }
                       />
                       {links && (team.mapping || data.canManage) ? (
                         <TeamLinks
@@ -226,7 +235,7 @@ export function GenericIntegrationPage() {
                 { id: data.integration.id },
                 {
                   onSuccess: () => {
-                    announce(`${data.integration.name} removed`)
+                    toast(`${data.integration.name} removed`)
                     void navigate({
                       to: '/workspaces/$workspace/settings/integrations',
                       params: { workspace },

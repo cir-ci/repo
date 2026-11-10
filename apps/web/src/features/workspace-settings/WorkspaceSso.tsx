@@ -8,12 +8,12 @@ import {
   StatusChip,
   Text,
   TextField,
-  useAnnounce,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 
 import { workspaceSsoQuery, useWorkspaceSso } from '#features/members/api.ts'
+import { toast } from '#lib/toast.ts'
 
 import { validateSso } from './model.ts'
 
@@ -31,7 +31,6 @@ type Problems = ReturnType<typeof validateSso>
 export function WorkspaceSso({ workspace }: WorkspaceSso.Props) {
   const { data, error, refetch } = useQuery(workspaceSsoQuery(workspace))
   const { register, remove } = useWorkspaceSso(workspace)
-  const announce = useAnnounce()
   const [problems, setProblems] = useState<Problems>({})
   const [configuring, setConfiguring] = useState(false)
   const [removing, setRemoving] = useState(false)
@@ -55,7 +54,7 @@ export function WorkspaceSso({ workspace }: WorkspaceSso.Props) {
       () => {
         form.reset()
         setConfiguring(false)
-        announce('Single sign-on provider connected')
+        toast('Single sign-on provider connected')
       },
       () => {},
     )
@@ -189,7 +188,7 @@ export function WorkspaceSso({ workspace }: WorkspaceSso.Props) {
             remove.mutate(provider.providerId, {
               onSuccess: () => {
                 setConfiguring(false)
-                announce('Single sign-on provider removed')
+                toast('Single sign-on provider removed')
               },
               onSettled: () => setRemoving(false),
             })

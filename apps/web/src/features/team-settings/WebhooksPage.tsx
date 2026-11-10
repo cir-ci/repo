@@ -13,7 +13,6 @@ import {
   SettingsSection,
   Text,
   TextField,
-  useAnnounce,
   WebhookIcon,
 } from '@circi/ui'
 import { useParams } from '@tanstack/react-router'
@@ -21,6 +20,7 @@ import { type FormEvent, useState } from 'react'
 
 import { useAddWebhook, useDeleteWebhook } from '#features/teams/api/index.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
+import { toast } from '#lib/toast.ts'
 
 import { DeliveriesTable } from './DeliveriesTable.tsx'
 import { TeamSettingsFrame } from './TeamSettingsFrame.tsx'
@@ -51,10 +51,9 @@ export function WebhooksPage() {
 function Webhooks(props: Webhooks.Props) {
   const add = useAddWebhook(props.workspace, props.team)
   const remove = useDeleteWebhook(props.workspace, props.team)
-  const announce = useAnnounce()
   const test = useWebhookTest(props.workspace, props.team, props.hooks, {
-    queued: () => announce('Test event queued'),
-    delivered: (d) => announce(`Webhook test delivered: ${deliveryAnswer(d).text}`),
+    queued: () => toast('Test event queued'),
+    delivered: (d) => toast(`Webhook test delivered: ${deliveryAnswer(d).text}`),
   })
   const [adding, setAdding] = useState(false)
   const [secret, setSecret] = useState<{ url: string; value: string } | null>(null)
@@ -86,7 +85,7 @@ function Webhooks(props: Webhooks.Props) {
       {
         onSuccess: (created) => {
           setSecret({ url: created.webhook.url, value: created.secret })
-          announce('Webhook added')
+          toast('Webhook added')
         },
       },
     )
@@ -299,7 +298,7 @@ function Webhooks(props: Webhooks.Props) {
         onConfirm={() => {
           if (!removing) return
           remove.mutate(removing.id, {
-            onSuccess: () => announce('Webhook removed'),
+            onSuccess: () => toast('Webhook removed'),
             onSettled: () => setRemoving(null),
           })
         }}

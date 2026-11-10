@@ -8,7 +8,7 @@ import { RECENT_SEARCHES_KEY, useRecentSearchesStore } from './recent-searches-s
 import { RECENT_KEY, useRecentStore } from './recent-store.ts'
 import { SETTINGS_RETURN_KEY, useSettingsReturnStore } from './settings-return-store.ts'
 import { useShortcutStore } from './shortcut-store.ts'
-import { useUndoStore } from './undo-store.ts'
+import { useToastStore } from './toast-store.ts'
 import { useWorkspaceStore } from './workspace-store.ts'
 
 /** Puts every store back to its initial state; tests call it so state never leaks between them. */
@@ -17,7 +17,7 @@ export function resetStores(): void {
   useOverlayStore.getState().reset()
   useListStore.getState().reset()
   useWorkspaceStore.getState().reset()
-  useUndoStore.getState().reset()
+  useToastStore.getState().reset()
   try {
     localStorage.removeItem(RECENT_KEY)
   } catch {

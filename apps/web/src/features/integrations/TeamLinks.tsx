@@ -5,6 +5,7 @@ import { type FormEvent, useState } from 'react'
 
 import type { Accessors } from '#lib/sort.ts'
 import { useSorted } from '#lib/use-sorted.ts'
+import { toast } from '#lib/toast.ts'
 
 import { autoLinkSummary, linksQuery, linkValuesComplete, useLinks } from './api/generic.ts'
 
@@ -34,7 +35,15 @@ export function TeamLinks({ workspace, integrationId, spec, team, canManage }: T
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!complete) return
-    actions.create.mutate({ team: team.slug, values }, { onSuccess: () => setValues({}) })
+    actions.create.mutate(
+      { team: team.slug, values },
+      {
+        onSuccess: () => {
+          setValues({})
+          toast(`Linked ${team.name}`)
+        },
+      },
+    )
   }
 
   return (
@@ -50,7 +59,11 @@ export function TeamLinks({ workspace, integrationId, spec, team, canManage }: T
         {canManage && spec.autoLink && team.mapping ? (
           <Button
             loading={actions.auto.isPending}
-            onClick={() => actions.auto.mutate(team.slug)}
+            onClick={() =>
+              actions.auto.mutate(team.slug, {
+                onSuccess: (summary) => toast(autoLinkSummary(summary)),
+              })
+            }
             aria-label={`Link ${team.name} automatically`}
           >
             Link automatically
@@ -108,7 +121,12 @@ export function TeamLinks({ workspace, integrationId, spec, team, canManage }: T
                   {canManage ? (
                     <Button
                       variant="danger"
-                      onClick={() => actions.remove.mutate({ team: team.slug, linkId: l.id })}
+                      onClick={() =>
+                        actions.remove.mutate(
+                          { team: team.slug, linkId: l.id },
+                          { onSuccess: () => toast(`Removed link ${l.subject}`) },
+                        )
+                      }
                       aria-label={`Remove link ${l.subject}`}
                     >
                       Remove

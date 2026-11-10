@@ -5,6 +5,7 @@ import { WebhooksPage } from '#features/team-settings/WebhooksPage.tsx'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, type ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { toastNamed } from '#test/support/toast.ts'
 
 const API = '/api/teams/acme/web'
 
@@ -346,9 +347,7 @@ describe('WebhooksPage', () => {
     await page.getByRole('button', { name: 'Remove' }).nth(1).click()
     await page.getByRole('alertdialog').getByRole('button', { name: 'Remove' }).click()
     await expect.poll(() => fake.of('DELETE')).toHaveLength(1)
-    await expect
-      .element(page.getByRole('status').filter({ hasText: /^Webhook removed$/ }))
-      .toBeVisible()
+    await expect.element(toastNamed('Webhook removed')).toBeVisible()
   })
 
   it("sends members to the team's Members tab instead of showing the webhooks", async () => {

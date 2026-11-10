@@ -27,6 +27,7 @@ import { type FormEvent, useEffect, useState } from 'react'
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { numberOf, textOf } from '#lib/number-field.ts'
+import { toast } from '#lib/toast.ts'
 
 import { AdminFrame } from './AdminFrame.tsx'
 import {
@@ -182,6 +183,7 @@ export function AccountsPage() {
         onClose={() => setCreating(false)}
         onCreated={(email, password, codeSent) => {
           setCreating(false)
+          toast(`Created the account for ${email}`)
           if (password) setSecret({ email, password })
           else if (codeSent) setDone(`Created the account for ${email} and emailed a sign-in code.`)
           else setDone(`Created the account for ${email}.`)
@@ -191,7 +193,10 @@ export function AccountsPage() {
         pending={pending}
         onClose={() => setPending(null)}
         onFailed={(message) => setFailure(message)}
-        onDone={(message) => setDone(message)}
+        onDone={(message) => {
+          setDone(message)
+          toast(message.replace(/\.$/, ''))
+        }}
         onSecret={(email, password) => setSecret({ email, password })}
       />
       <Dialog
@@ -428,6 +433,7 @@ function AccountActions(props: {
         reset.mutate(account.id, {
           onSuccess: ({ password }) => {
             onClose()
+            toast(`Reset the password for ${account.name}`)
             props.onSecret(account.email, password)
           },
           onError: fail,

@@ -17,6 +17,7 @@ export const workspaceGeneralQuery = (workspace: string) =>
 export function useSaveWorkspaceGeneral(workspace: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'save' },
     mutationFn: (patch: { name?: string; slug?: string }) =>
       send<{ name: string; slug: string }>('PATCH', workspacePath(workspace), patch),
     // The name and address show in the sidebar, the switcher and every page header.
@@ -54,6 +55,7 @@ export async function uploadWorkspacePicture(
 export function useSaveWorkspacePicture(workspace: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'save the picture' },
     mutationFn: (file: File | null) =>
       file
         ? uploadWorkspacePicture(workspace, file)
@@ -66,6 +68,7 @@ export function useSaveWorkspacePicture(workspace: string) {
 export function useDeleteWorkspace(workspace: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'delete the workspace' },
     mutationFn: (confirm: string) =>
       send<Workspace.Deleted>('DELETE', workspacePath(workspace), { confirm }),
     // The workspace leaves the sidebar, the switcher and the capabilities at once.

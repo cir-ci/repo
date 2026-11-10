@@ -1,5 +1,7 @@
-import { Banner, Button, Select, SettingsSection, TextField, useAnnounce } from '@circi/ui'
+import { Banner, Button, Select, SettingsSection, TextField } from '@circi/ui'
 import { useState, type FormEvent } from 'react'
+
+import { toast } from '#lib/toast.ts'
 
 import { type AssignableRole, inviteMember } from './api.ts'
 import { validateInvite } from './model.ts'
@@ -12,7 +14,6 @@ const ROLES = [
 ]
 
 export function InviteForm({ workspaceId, onInvited }: InviteForm.Props) {
-  const announce = useAnnounce()
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<AssignableRole>('member')
   const [problem, setProblem] = useState<string>()
@@ -31,10 +32,9 @@ export function InviteForm({ workspaceId, onInvited }: InviteForm.Props) {
     try {
       replaced = await inviteMember({ email: address, role, workspaceId })
     } catch (failure) {
-      setMessage({
-        tone: 'danger',
-        text: failure instanceof Error ? failure.message : "Couldn't send the invitation.",
-      })
+      const text = failure instanceof Error ? failure.message : "Couldn't send the invitation."
+      setMessage({ tone: 'danger', text })
+      toast.error(failure instanceof Error ? `Couldn't send the invitation: ${text}` : text)
       return
     } finally {
       setBusy(false)
@@ -44,7 +44,7 @@ export function InviteForm({ workspaceId, onInvited }: InviteForm.Props) {
     const text = replaced
       ? `Invitation sent to ${address}. Replaced the earlier invitation${replaced.replacedRole ? ` (${replaced.replacedRole})` : ''} to ${address}; its link no longer works.`
       : `Invitation sent to ${address}.`
-    announce(text)
+    toast(`Invitation sent to ${address}`)
     setMessage({ tone: 'success', text })
     await onInvited()
   }

@@ -14,6 +14,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { type CreatedTeam, useCreateTeam, useRepoChoices } from '#features/teams/api/new-team.ts'
+import { toast } from '#lib/toast.ts'
 import { useCopy } from '#lib/use-copy.ts'
 
 import {
@@ -82,7 +83,12 @@ export function NewTeamDialog({
     setNameError(null)
     create.mutate(
       { workspace, name: trimmed, defaultBranch: branch, repo, memberIds },
-      { onSuccess: setCreated },
+      {
+        onSuccess: (team) => {
+          setCreated(team)
+          toast(`Created ${trimmed}`)
+        },
+      },
     )
   }
 

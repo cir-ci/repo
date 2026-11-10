@@ -131,8 +131,8 @@ All of the open decisions were answered by the owner on 2026-11-10:
 2. **Light palette:** tune it on the canvas (chrome/panel separation, accent), with the same
    contrast tests dark has; the owner approves before it is applied.
 3. **Toasts:** visible toasts for every action, success and error, everywhere (saves included);
-   reversible actions carry Undo in theirs.
-4. **Banners** (invitation, address change): inside the panel, under the sticky page header.
+   reversible actions carry Undo in theirs. Built (Toast in `@circi/ui`, `lib/toast.ts`).
+4. **Banners** (invitation, address change): inside the panel, under the sticky page header. Built (`PanelNotices`).
 5. **Primary buttons:** at most one primary per area: the page header, each dialog, each pane.
 6. **Forms:** label column (label and help left, control right) from about 900px wide; stacked
    below that. Saving stays per the settings save rule.

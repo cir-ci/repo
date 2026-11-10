@@ -33,6 +33,7 @@ const refreshAfterMembership = (queryClient: QueryClient, workspace: string, tea
 export function useAddTeamMembers(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'add the members' },
     mutationFn: (userIds: string[]) =>
       post<Team.MemberList>(teamPath(workspace, team, 'members'), { userIds }),
     onSuccess: () => refreshAfterMembership(queryClient, workspace, team),
@@ -43,6 +44,7 @@ export function useAddTeamMembers(workspace: string, team: string) {
 export function useRemoveTeamMember(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'remove the member' },
     mutationFn: (userId: string) =>
       send<undefined>('DELETE', teamPath(workspace, team, 'members', userId)),
     onSuccess: () => refreshAfterMembership(queryClient, workspace, team),

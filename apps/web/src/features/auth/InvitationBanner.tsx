@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
 import { authClient } from '#lib/auth-client.ts'
+import { toast } from '#lib/toast.ts'
 
 import styles from './InvitationBanner.module.css'
 
@@ -55,8 +56,10 @@ export function InvitationBanner({ userEmail }: InvitationBanner.Props) {
     setBusy(false)
     if (failure) {
       setError("Couldn't join. The invitation may have expired or been withdrawn.")
+      toast.error("Couldn't join: the invitation may have expired or been withdrawn")
       return
     }
+    toast(`Joined ${invitation?.workspaceName ?? 'the workspace'}`)
     await queryClient.invalidateQueries()
     dismiss()
   }

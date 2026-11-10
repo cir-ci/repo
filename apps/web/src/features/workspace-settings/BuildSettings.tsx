@@ -1,9 +1,10 @@
 import type { Workspace } from '@circi/api'
-import { Banner, Button, Checkbox, SettingsRow, SettingsSection, useAnnounce } from '@circi/ui'
+import { Banner, Button, Checkbox, SettingsRow, SettingsSection } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { workspaceSettingsQuery, useSaveWorkspaceSettings } from '#features/members/api.ts'
+import { toast } from '#lib/toast.ts'
 
 import { inheritance } from './model.ts'
 
@@ -22,7 +23,6 @@ export function BuildSettings({ workspace }: BuildSettings.Props) {
 
 function Defaults({ workspace, data }: Defaults.Props) {
   const save = useSaveWorkspaceSettings(workspace)
-  const announce = useAnnounce()
   const saved = data.settings.flakyBlocksMerge
   const savedAssign = data.settings.assignTriageToOnCall
   const [flaky, setFlaky] = useState(saved)
@@ -93,7 +93,7 @@ function Defaults({ workspace, data }: Defaults.Props) {
                   ...(flaky === saved ? {} : { flakyBlocksMerge: flaky }),
                   ...(assign === savedAssign ? {} : { assignTriageToOnCall: assign }),
                 },
-                { onSuccess: () => announce('Defaults saved') },
+                { onSuccess: () => toast('Defaults saved') },
               )
             }
           >

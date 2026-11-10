@@ -1,10 +1,11 @@
 import type { Team } from '@circi/api'
-import { Avatar, SettingsRow, SettingsSection, TextField, useAnnounce } from '@circi/ui'
+import { Avatar, SettingsRow, SettingsSection, TextField } from '@circi/ui'
 import { useMemo, useState } from 'react'
 
 import { useSaveAppearance, useSaveSettings } from '#features/teams/api/index.ts'
 import { IdentityEditor } from '#lib/IdentityEditor.tsx'
 import { SaveNote } from '#lib/SaveNote.tsx'
+import { toast } from '#lib/toast.ts'
 
 import {
   appearancePatch,
@@ -26,7 +27,6 @@ import styles from './TeamIdentity.module.css'
  */
 export function TeamIdentity({ workspace, team, name, appearance, canManage }: TeamIdentity.Props) {
   const rename = useSaveSettings(workspace, team)
-  const announce = useAnnounce()
   const color: TeamColor = isTeamColor(appearance.color) ? appearance.color : 'slate'
   const icon: string | null = isTeamIconName(appearance.icon) ? appearance.icon : null
 
@@ -64,7 +64,7 @@ export function TeamIdentity({ workspace, team, name, appearance, canManage }: T
           mutation={rename}
           validate={(next) => (next ? null : 'Enter a name')}
           onCommit={(next) =>
-            rename.mutate({ name: next }, { onSuccess: () => announce('Team name saved') })
+            rename.mutate({ name: next }, { onSuccess: () => toast('Team name saved') })
           }
         />
       </SettingsRow>
@@ -92,14 +92,13 @@ function AppearancePanel({
   icon,
 }: AppearancePanel.Props) {
   const save = useSaveAppearance(workspace, team)
-  const announce = useAnnounce()
   const [query, setQuery] = useState('')
   const count = useMemo(() => filterIcons(query).length, [query])
 
   function pick(next: { color: TeamColor; icon: string | null }) {
     const patch = appearancePatch(appearance, next)
     if (Object.keys(patch).length === 0) return
-    save.mutate(patch, { onSuccess: () => announce('Icon and colour saved') })
+    save.mutate(patch, { onSuccess: () => toast('Icon and colour saved') })
   }
 
   return (

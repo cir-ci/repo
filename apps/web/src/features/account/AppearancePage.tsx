@@ -4,13 +4,13 @@ import {
   SettingsRow,
   SettingsSection,
   Text,
-  useAnnounce,
   useColorScheme,
 } from '@circi/ui'
 import { type CSSProperties, useState } from 'react'
 
 import { Frame } from '#features/workspace-settings/Frame.tsx'
 import { useDocumentTitle } from '#lib/document-title.ts'
+import { toast } from '#lib/toast.ts'
 
 import styles from '#features/workspace-settings/Settings.module.css'
 
@@ -50,7 +50,6 @@ function Mock({ scheme }: { scheme: 'light' | 'dark' }) {
 export function AppearancePage() {
   useDocumentTitle('Appearance')
   const { mode, setMode } = useColorScheme()
-  const announce = useAnnounce()
   const [saved, setSaved] = useState(false)
   return (
     <Frame crumbs={['Account', 'Appearance']}>
@@ -72,7 +71,7 @@ export function AppearancePage() {
                   onChange={() => {
                     setMode(c.mode)
                     setSaved(true)
-                    announce(`Theme saved: ${c.label}`)
+                    toast(`Theme saved: ${c.label}`)
                   }}
                 />
                 <span className={styles.mock} aria-hidden="true" style={{ padding: 0, gap: 0 }}>

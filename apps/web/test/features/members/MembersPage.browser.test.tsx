@@ -12,6 +12,7 @@ import { ADA, mockAuthClient, setSignedInUser } from '#test/support/auth-client.
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeFetch } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { toastNamed } from '#test/support/toast.ts'
 
 const ada = {
   id: 'm1',
@@ -224,7 +225,7 @@ describe('MembersPage', () => {
     expect(auth.getFullOrganization).toHaveBeenCalledTimes(2)
   })
 
-  it("changes a member's role from the picker and announces it", async () => {
+  it("changes a member's role from the picker and says so in a toast", async () => {
     await page.viewport(1000, 800)
     auth.updateMemberRole.mockResolvedValue({ data: {}, error: null })
     await show()
@@ -241,9 +242,7 @@ describe('MembersPage', () => {
       role: 'admin',
       organizationId: 'workspace1',
     })
-    await expect
-      .element(page.getByRole('status').filter({ hasText: 'Grace Hopper is now Admin' }))
-      .toBeInTheDocument()
+    await expect.element(toastNamed('Grace Hopper is now Admin')).toBeInTheDocument()
     // The list is fetched again afterwards.
     await vi.waitFor(() => expect(auth.getFullOrganization).toHaveBeenCalledTimes(2))
   })
@@ -297,9 +296,7 @@ describe('MembersPage', () => {
       organizationId: 'workspace1',
     })
     await expect.element(page.getByRole('alertdialog')).not.toBeInTheDocument()
-    await expect
-      .element(page.getByRole('status').filter({ hasText: 'Member removed' }))
-      .toBeInTheDocument()
+    await expect.element(toastNamed('Member removed')).toBeInTheDocument()
   })
 
   it('closes the dialog and shows the failure when removing fails', async () => {
@@ -311,6 +308,9 @@ describe('MembersPage', () => {
     await page.getByRole('alertdialog').getByRole('button', { name: 'Remove' }).click()
     await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't remove this member")
     await expect.element(page.getByRole('alertdialog')).not.toBeInTheDocument()
+    await expect
+      .element(toastNamed("Couldn't remove the member: Couldn't remove this member"))
+      .toBeVisible()
   })
 
   it('revokes a pending invitation', async () => {
@@ -320,9 +320,7 @@ describe('MembersPage', () => {
     await expect.element(page.getByText(/Admin · expires/)).toBeVisible()
     await page.getByRole('button', { name: 'Revoke' }).click()
     expect(auth.cancelInvitation).toHaveBeenCalledWith({ invitationId: 'i1' })
-    await expect
-      .element(page.getByRole('status').filter({ hasText: 'Invitation revoked' }))
-      .toBeInTheDocument()
+    await expect.element(toastNamed('Invitation revoked')).toBeInTheDocument()
   })
 
   it('resends a pending invitation to the same address and role', async () => {
@@ -344,13 +342,7 @@ describe('MembersPage', () => {
           .filter({ hasText: /^Invitation sent again to alan@example\.test\.$/ }),
       )
       .toBeVisible()
-    await expect
-      .element(
-        page
-          .getByRole('status')
-          .filter({ hasText: /^Invitation sent again to alan@example\.test$/ }),
-      )
-      .toBeInTheDocument()
+    await expect.element(toastNamed('Invitation sent again to alan@example.test')).toBeVisible()
   })
 
   it('says nothing was sent again when the resend fails', async () => {

@@ -27,6 +27,7 @@ export const viewWithFilters = (
 export function useSaveView(workspace: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'save the view' },
     mutationFn: (input: { name: string; team?: string | undefined; filters: View.Filters }) =>
       post<View.Item>(workspacePath(workspace, 'views'), { ...input, pinned: true }),
     onSuccess: () => invalidateAll(queryClient, keys.sidebar(workspace), keys.views(workspace)),
@@ -37,6 +38,7 @@ export function useSaveView(workspace: string) {
 export function usePinTeam(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'pin the team' },
     mutationFn: (pinned: boolean) =>
       send<Sidebar.PinResult>(
         pinned ? 'PUT' : 'DELETE',

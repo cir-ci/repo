@@ -12,7 +12,6 @@ import {
   Tooltip,
   HourglassIcon,
   ReviewIcon,
-  useAnnounce,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
@@ -33,6 +32,7 @@ import { PaneHandle, paneVars } from '#lib/PaneHandle.tsx'
 import { RouterLink } from '#lib/router-link.ts'
 import { isAvailable, SHORTCUTS, useShortcutHandlers } from '#lib/shortcuts.ts'
 import { usePaneWidth } from '#lib/stores/pane-store.ts'
+import { toast } from '#lib/toast.ts'
 import { useListNavigation } from '#lib/use-list-navigation.ts'
 
 import { buildTitle } from './build-title.ts'
@@ -102,7 +102,6 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const selectedGroup = groups.find((g) => selected && g.items.includes(selected))?.kind
   const addComment = useAddComment(team.workspaceSlug, team.slug, build.number)
   const setRegion = useSetCommentRegion(team.workspaceSlug, team.slug, build.number)
-  const announce = useAnnounce()
   const ignore = useIgnoreMode(team.workspaceSlug, team.slug, selected)
   const members = useMentionMembers(team.workspaceSlug, team.slug)
   const { data: session } = authClient.useSession()
@@ -401,7 +400,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
                 onAdjust: (id, region) =>
                   setRegion
                     .mutateAsync({ id, region })
-                    .then(() => announce('Region saved'))
+                    .then(() => toast('Region saved'))
                     .catch(() => undefined),
                 error: setRegion.error?.message,
                 onMarker: (id) => {
@@ -421,7 +420,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
                       {
                         onSuccess: () => {
                           setDraft(null)
-                          announce('Comment added.')
+                          toast('Comment added')
                         },
                       },
                     )

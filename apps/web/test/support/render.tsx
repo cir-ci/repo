@@ -14,6 +14,8 @@ import { render } from 'vitest-browser-react'
 import { page as browserPage } from 'vitest/browser'
 
 import type { SessionUser } from '#lib/auth-client.ts'
+import { createMutationCache } from '#lib/mutation-cache.ts'
+import { ToastHost } from '#lib/ToastHost.tsx'
 
 import { setSignedInUser } from './auth-client.ts'
 import { type FakeRequest, fakeApi, type ReplyHandler } from './fetch.ts'
@@ -71,7 +73,10 @@ export async function renderPage(ui: ReactNode, options: RenderPageOptions = {})
         history: createMemoryHistory({ initialEntries: [options.url ?? route] }),
       })
     })()
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const queryClient = new QueryClient({
+    mutationCache: createMutationCache(),
+    defaultOptions: { queries: { retry: false } },
+  })
   const routed = (
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
@@ -80,6 +85,7 @@ export async function renderPage(ui: ReactNode, options: RenderPageOptions = {})
   const screen = await render(
     <CirciTheme>
       {options.announcer ? <AnnouncerProvider>{routed}</AnnouncerProvider> : routed}
+      <ToastHost />
     </CirciTheme>,
   )
   return { screen, router, queryClient, calls, fake }

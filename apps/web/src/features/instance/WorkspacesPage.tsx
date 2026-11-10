@@ -23,6 +23,7 @@ import { type FormEvent, useState } from 'react'
 
 import { formatBytes } from '#features/workspace-settings/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
+import { toast } from '#lib/toast.ts'
 
 import { AdminFrame } from './AdminFrame.tsx'
 import {
@@ -153,7 +154,10 @@ export function WorkspacesPage() {
                               label: 'Restore',
                               onSelect: () =>
                                 restore.mutate(w.id, {
-                                  onSuccess: () => setCreated(`Restored the workspace ${w.name}.`),
+                                  onSuccess: () => {
+                                    setCreated(`Restored the workspace ${w.name}.`)
+                                    toast(`Restored ${w.name}`)
+                                  },
                                 }),
                             },
                             {
@@ -203,6 +207,7 @@ export function WorkspacesPage() {
           purge.mutate(purging.id, {
             onSuccess: () => {
               setCreated(`Deleted ${purging.name} permanently.`)
+              toast(`Deleted ${purging.name} permanently`)
               setPurging(null)
             },
           })
@@ -214,6 +219,7 @@ export function WorkspacesPage() {
         onCreated={(name) => {
           setCreating(false)
           setCreated(`Created the workspace ${name}.`)
+          toast(`Created ${name}`)
         }}
       />
     </AdminFrame>

@@ -10,7 +10,6 @@ import {
   PlusIcon,
   Text,
   TextField,
-  useAnnounce,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from '@tanstack/react-router'
@@ -26,6 +25,7 @@ import { authClient } from '#lib/auth-client.ts'
 import { findIn, useFindParam } from '#lib/find.ts'
 import { FindField } from '#lib/FindField.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
+import { toast } from '#lib/toast.ts'
 
 import { addCandidates, addLabel, removalText, ROLE_LABEL } from './members-model.ts'
 import { TeamSettingsFrame } from './TeamSettingsFrame.tsx'
@@ -50,7 +50,6 @@ function Members({ workspace, team, teamName }: Members.Props) {
   const query = useQuery(teamMembersQuery(workspace, team))
   const { data: session } = authClient.useSession()
   const me = session?.user.id
-  const announce = useAnnounce()
   const navigate = useNavigate()
   const [adding, setAdding] = useState(false)
   const [find, setFind] = useFindParam()
@@ -135,7 +134,7 @@ function Members({ workspace, team, teamName }: Members.Props) {
               if (!removing) return
               remove.mutate(removing.id, {
                 onSuccess: () => {
-                  announce(
+                  toast(
                     leaving
                       ? `You left ${teamName}`
                       : `${removing.name} was removed from ${teamName}`,
@@ -169,7 +168,6 @@ function AddMembersDialog({
 }: AddMembersDialog.Props) {
   const workspaceInfo = useQuery({ ...workspaceQuery(workspace), enabled: open })
   const add = useAddTeamMembers(workspace, team)
-  const announce = useAnnounce()
   const [query, setQuery] = useState('')
   const [picked, setPicked] = useState<string[]>([])
   const candidates = addCandidates(workspaceInfo.data?.members ?? [], members, query)
@@ -188,7 +186,7 @@ function AddMembersDialog({
       onSubmit={() =>
         add.mutate(picked, {
           onSuccess: () => {
-            announce(
+            toast(
               `Added ${picked.length === 1 ? '1 member' : `${picked.length} members`} to ${teamName}`,
             )
             close()

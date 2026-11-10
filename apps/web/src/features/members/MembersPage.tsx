@@ -14,7 +14,6 @@ import {
   SettingsPage,
   SettingsSection,
   Text,
-  useAnnounce,
   UsersIcon,
 } from '@circi/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -31,6 +30,7 @@ import { FindField } from '#lib/FindField.tsx'
 import { settingsCrumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
+import { toast } from '#lib/toast.ts'
 
 import {
   type AssignableRole,
@@ -64,7 +64,6 @@ export function MembersPage() {
   const { workspace } = useParams({ from: '/workspaces/$workspace/settings/members' })
   const { data: session } = authClient.useSession()
   const queryClient = useQueryClient()
-  const announce = useAnnounce()
   useDocumentTitle('Members', workspace)
 
   const query = workspaceQuery(workspace)
@@ -85,33 +84,37 @@ export function MembersPage() {
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: query.queryKey })
   const cancel = useMutation({
+    meta: { what: 'revoke the invitation' },
     mutationFn: cancelInvitation,
     onSuccess: () => {
-      announce('Invitation revoked')
+      toast('Invitation revoked')
       return refresh()
     },
   })
   const resend = useMutation({
+    meta: { what: 'resend the invitation' },
     mutationFn: inviteMember,
     onSuccess: (_, { email }) => {
-      announce(`Invitation sent again to ${email}`)
+      toast(`Invitation sent again to ${email}`)
       return refresh()
     },
   })
   const remove = useMutation({
+    meta: { what: 'remove the member' },
     mutationFn: removeMember,
     onSuccess: () => {
-      announce('Member removed')
+      toast('Member removed')
       setRemoving(null)
       return refresh()
     },
     onError: () => setRemoving(null),
   })
   const changeRole = useMutation({
+    meta: { what: 'change the role' },
     mutationFn: changeMemberRole,
     onSuccess: (_, { memberId, role }) => {
       const member = data?.members.find((m) => m.id === memberId)
-      announce(`${member?.user.name ?? 'Member'} is now ${ROLE_LABEL[role] ?? role}`)
+      toast(`${member?.user.name ?? 'Member'} is now ${ROLE_LABEL[role] ?? role}`)
       return refresh()
     },
   })

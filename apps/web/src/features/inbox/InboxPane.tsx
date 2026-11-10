@@ -1,11 +1,12 @@
 import type { Inbox } from '@circi/api'
-import { Avatar, Badge, Button, Kbd, Pane, StatusIcon, TextField, useAnnounce } from '@circi/ui'
+import { Avatar, Badge, Button, Kbd, Pane, StatusIcon, TextField } from '@circi/ui'
 import { useState, type ReactNode } from 'react'
 
 import { buildStatus, changeSummary, overdueLabel } from '#features/reviews/api.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
+import { toast } from '#lib/toast.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 
 import {
@@ -40,7 +41,6 @@ export function InboxPane({
   approving,
 }: InboxPane.Props) {
   const clientLink = useClientLink()
-  const announce = useAnnounce()
   const { title } = notificationText(item)
   const note = notificationNote(item)
   const target = notificationTarget(item)
@@ -141,7 +141,7 @@ export function InboxPane({
           </blockquote>
         ) : null}
         {item.build ? <BuildDetails item={item} build={item.build} /> : null}
-        {replyTarget(item) ? <Reply item={item} onSent={() => announce('Reply sent')} /> : null}
+        {replyTarget(item) ? <Reply item={item} onSent={() => toast('Reply sent')} /> : null}
         {systemText(item) ? <p className={styles.systemText}>{systemText(item)}</p> : null}
       </div>
     </Pane>

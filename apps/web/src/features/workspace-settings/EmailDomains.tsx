@@ -7,13 +7,13 @@ import {
   StatusChip,
   Text,
   TextField,
-  useAnnounce,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 
 import { domainsQuery, useDomainActions } from '#features/members/api.ts'
 import { QuerySkeleton } from '#lib/QueryBoundary.tsx'
+import { toast } from '#lib/toast.ts'
 
 import { validateDomain } from './model.ts'
 
@@ -23,7 +23,6 @@ import styles from './EmailDomains.module.css'
 export function EmailDomains({ workspace }: EmailDomains.Props) {
   const { data, error, refetch } = useQuery(domainsQuery(workspace))
   const { add, verify, remove } = useDomainActions(workspace)
-  const announce = useAnnounce()
   const [checked, setChecked] = useState<string | null>(null)
   const [domain, setDomain] = useState('')
   const [problem, setProblem] = useState<string>()
@@ -39,7 +38,7 @@ export function EmailDomains({ workspace }: EmailDomains.Props) {
     await add.mutateAsync(value).then(
       () => {
         setDomain('')
-        announce(`Domain ${value} added`)
+        toast(`Domain ${value} added`)
       },
       () => {},
     )
@@ -102,7 +101,7 @@ export function EmailDomains({ workspace }: EmailDomains.Props) {
                       verify.mutate(d.id, {
                         onSuccess: (r) => {
                           setChecked(r.verified ? null : d.id)
-                          if (r.verified) announce(`${d.domain} is verified`)
+                          if (r.verified) toast(`${d.domain} is verified`)
                         },
                       })
                     }
@@ -156,7 +155,7 @@ export function EmailDomains({ workspace }: EmailDomains.Props) {
         onConfirm={() => {
           if (removing) {
             remove.mutate(removing.id, {
-              onSuccess: () => announce(`Domain ${removing.domain} removed`),
+              onSuccess: () => toast(`Domain ${removing.domain} removed`),
               onSettled: () => setRemoving(null),
             })
           }

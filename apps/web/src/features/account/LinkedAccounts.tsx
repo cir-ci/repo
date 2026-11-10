@@ -1,19 +1,11 @@
-import {
-  Badge,
-  Banner,
-  Button,
-  ConfirmDialog,
-  SettingsRow,
-  SettingsSection,
-  Text,
-  useAnnounce,
-} from '@circi/ui'
+import { Badge, Banner, Button, ConfirmDialog, SettingsRow, SettingsSection, Text } from '@circi/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { authMethodsQuery } from '#features/auth/api.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
+import { toast } from '#lib/toast.ts'
 
 import { accountsKey, accountsQuery } from './api.ts'
 import { providerRows } from './model.ts'
@@ -21,7 +13,6 @@ import { providerRows } from './model.ts'
 /** The accounts you can sign in with: remove one, or link a provider this instance offers. */
 export function LinkedAccounts() {
   const queryClient = useQueryClient()
-  const announce = useAnnounce()
   const accounts = useQuery(accountsQuery())
   const methods = useQuery(authMethodsQuery())
   const [unlinking, setUnlinking] = useState<{
@@ -31,17 +22,19 @@ export function LinkedAccounts() {
   }>()
 
   const unlink = useMutation({
+    meta: { what: 'remove the account' },
     mutationFn: async (input: { providerId: string; accountId: string }) => {
       const { error } = await authClient.unlinkAccount(input)
       if (error) throw new Error(error.message ?? "Couldn't remove that account")
     },
     onSuccess: () => {
-      announce('Account removed')
+      toast('Account removed')
       return queryClient.invalidateQueries({ queryKey: accountsKey })
     },
     onSettled: () => setUnlinking(undefined),
   })
   const link = useMutation({
+    meta: { what: 'link the account' },
     mutationFn: async (provider: string) => {
       const { error } = await authClient.linkSocial({
         provider,

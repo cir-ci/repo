@@ -6,6 +6,7 @@ import { useConnect } from '#features/integrations/api/generic.ts'
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { Frame } from '#features/workspace-settings/Frame.tsx'
 import { useDocumentTitle } from '#lib/document-title.ts'
+import { toast } from '#lib/toast.ts'
 
 /**
  * Where GitHub's install return lands when the App was installed from GitHub itself (no workspace
@@ -55,11 +56,13 @@ function Pick(props: { workspace: { slug: string; name: string }; installation: 
           connect.mutate(
             { installationId: props.installation },
             {
-              onSuccess: ({ id }) =>
+              onSuccess: ({ id }) => {
+                toast(`Connected GitHub to ${props.workspace.name}`)
                 void navigate({
                   to: '/workspaces/$workspace/settings/integrations/$kind/$id',
                   params: { workspace: props.workspace.slug, kind: 'github', id },
-                }),
+                })
+              },
             },
           )
         }

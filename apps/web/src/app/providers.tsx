@@ -4,6 +4,8 @@ import type { ReactNode } from 'react'
 
 import { authClient } from '#lib/auth-client.ts'
 import { HttpError } from '#lib/http.ts'
+import { createMutationCache } from '#lib/mutation-cache.ts'
+import { ToastHost } from '#lib/ToastHost.tsx'
 
 export function createQueryClient(): QueryClient {
   return new QueryClient({
@@ -16,6 +18,7 @@ export function createQueryClient(): QueryClient {
         }
       },
     }),
+    mutationCache: createMutationCache(),
     defaultOptions: {
       queries: {
         staleTime: 10_000,
@@ -33,6 +36,7 @@ export function Providers({ children }: Providers.Props) {
   return (
     <CirciTheme>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <ToastHost />
     </CirciTheme>
   )
 }

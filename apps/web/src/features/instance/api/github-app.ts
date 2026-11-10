@@ -66,6 +66,7 @@ export const githubAppQuery = () =>
 export function useCreateGithubApp() {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'create the GitHub App' },
     mutationFn: async (input: { name?: string; organization?: string }) => {
       const body = {
         ...(input.name?.trim() ? { name: input.name.trim() } : {}),

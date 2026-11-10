@@ -90,6 +90,7 @@ export const workspaceAuthQuery = (workspace: string) =>
 export function useSaveWorkspaceAuth(workspace: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'save the sign-in methods' },
     mutationFn: (patch: Partial<Workspace.Auth['settings']>) =>
       send<{ settings: Workspace.Auth['settings'] }>(
         'PATCH',
@@ -109,6 +110,7 @@ export const workspaceSettingsQuery = (workspace: string) =>
 export function useSaveWorkspaceSettings(workspace: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'save' },
     mutationFn: (patch: Partial<Workspace.Settings>) =>
       send<{ settings: Workspace.Settings }>('PATCH', workspacePath(workspace, 'settings'), patch),
     // Teams that inherit a setting show the workspace's value, so refresh theirs too.
@@ -136,14 +138,17 @@ export function useDomainActions(workspace: string) {
   const base = (...rest: string[]) => workspacePath(workspace, 'domains', ...rest)
   return {
     add: useMutation({
+      meta: { what: 'add the domain' },
       mutationFn: (domain: string) => post<{ domain: Workspace.Domain }>(base(), { domain }),
       onSuccess: refresh,
     }),
     verify: useMutation({
+      meta: { what: 'verify the domain' },
       mutationFn: (id: string) => post<{ verified: boolean }>(base(id, 'verify'), {}),
       onSuccess: refresh,
     }),
     remove: useMutation({
+      meta: { what: 'remove the domain' },
       mutationFn: (id: string) => send<undefined>('DELETE', base(id)),
       onSuccess: refresh,
     }),
@@ -162,11 +167,13 @@ export function useWorkspaceSso(workspace: string) {
   const base = (...rest: string[]) => workspacePath(workspace, 'sso', ...rest)
   return {
     register: useMutation({
+      meta: { what: 'connect the provider' },
       mutationFn: (input: { issuer: string; clientId: string; clientSecret: string }) =>
         post<{ provider: Workspace.SsoProvider }>(base(), input),
       onSuccess: refresh,
     }),
     remove: useMutation({
+      meta: { what: 'remove the provider' },
       mutationFn: (providerId: string) => send<undefined>('DELETE', base(providerId)),
       onSuccess: refresh,
     }),

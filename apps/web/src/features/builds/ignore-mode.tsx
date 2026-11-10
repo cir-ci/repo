@@ -1,5 +1,4 @@
 import type { Build } from '@circi/api'
-import { useAnnounce } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
@@ -11,6 +10,7 @@ import {
   useAddIgnoreRegion,
   useAdjustIgnoreRegion,
 } from '#features/teams/api/index.ts'
+import { toast } from '#lib/toast.ts'
 
 import type { IgnoreMode } from './DiffViewer.tsx'
 import type { RegionSide } from './region-draft.ts'
@@ -25,7 +25,6 @@ export function useIgnoreMode(
   team: string,
   shot: Build.DiffItem | undefined,
 ): IgnoreMode | undefined {
-  const announce = useAnnounce()
   const settings = useQuery(settingsQuery(workspace, team))
   const canManage = settings.data?.canManage === true
   const name = shot?.name
@@ -51,7 +50,7 @@ export function useIgnoreMode(
       add.mutate(
         { name: shot.name, ...toPixels(region, size) },
         {
-          onSuccess: () => announce('Ignore region added'),
+          onSuccess: () => toast('Ignore region added'),
           onSettled: () => setPending(null),
         },
       )
@@ -59,7 +58,7 @@ export function useIgnoreMode(
     onAdjust: (item, region, size) =>
       adjust
         .mutateAsync({ id: item.id, rect: toPixels(region, size) })
-        .then(() => announce('Ignore region saved'))
+        .then(() => toast('Ignore region saved'))
         .catch(() => undefined),
     panel: (
       <IgnoreRegionsPanel

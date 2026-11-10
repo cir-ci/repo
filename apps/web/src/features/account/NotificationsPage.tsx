@@ -1,13 +1,5 @@
 import type { Inbox } from '@circi/api'
-import {
-  Banner,
-  SettingsRow,
-  SettingsSection,
-  Switch,
-  Text,
-  useAnnounce,
-  visuallyHidden,
-} from '@circi/ui'
+import { Banner, SettingsRow, SettingsSection, Switch, Text, visuallyHidden } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
@@ -16,6 +8,7 @@ import { Frame } from '#features/workspace-settings/Frame.tsx'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { SaveNote } from '#lib/SaveNote.tsx'
+import { toast } from '#lib/toast.ts'
 
 import { PREFERENCE_ROWS, preferencesQuery, useSetPreference } from './api.ts'
 
@@ -55,7 +48,6 @@ export function NotificationsPage() {
   const set = useSetPreference()
   // The row whose switch was flipped last: its "Saved" note sits beside the switch.
   const [last, setLast] = useState<keyof Inbox.Preferences | null>(null)
-  const announce = useAnnounce()
   // Email notifications need the server to send mail (SMTP).
   const mailConfigured = capabilities.data?.mailConfigured === true
 
@@ -85,7 +77,7 @@ export function NotificationsPage() {
                         setLast(row.key)
                         set.mutate(
                           { [row.key]: on },
-                          { onSuccess: () => announce(`${row.label} ${on ? 'on' : 'off'}, saved`) },
+                          { onSuccess: () => toast(`${row.label} ${on ? 'on' : 'off'}, saved`) },
                         )
                       }}
                     />

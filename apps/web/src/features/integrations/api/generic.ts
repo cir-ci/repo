@@ -239,6 +239,7 @@ export const targetsQuery = (workspace: string, id: string) =>
 /** Asks the server for the provider's install address and goes there; it sends the browser back. */
 export function useInstall(workspace: string) {
   return useMutation({
+    meta: { what: 'install the integration' },
     mutationFn: async (kind: string) => {
       const { url } = await getJson<Integration.Install>(base(workspace, kind, 'install'))
       navigation.assign(url)
@@ -250,6 +251,7 @@ export function useInstall(workspace: string) {
 export function useConnect(workspace: string, kind: string) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'connect the integration' },
     mutationFn: (values: Record<string, string>) =>
       post<{ id: string }>(base(workspace, kind, 'connect'), values),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.integrations(workspace) }),
@@ -262,6 +264,7 @@ export function useMapping(workspace: string, id: string) {
   const url = (team: string) => base(workspace, id, 'teams', team)
   return {
     save: useMutation({
+      meta: { what: 'save the mapping' },
       mutationFn: (input: { team: string } & Integration.MappingInput) =>
         send<undefined>('PUT', url(input.team), {
           ref: input.ref,
@@ -271,6 +274,7 @@ export function useMapping(workspace: string, id: string) {
       onSuccess: refresh,
     }),
     clear: useMutation({
+      meta: { what: 'clear the mapping' },
       mutationFn: (team: string) => send<undefined>('DELETE', url(team)),
       onSuccess: refresh,
     }),
@@ -293,6 +297,7 @@ export function useLinks(workspace: string, id: string) {
     queryClient.invalidateQueries({ queryKey: keys.integrations(workspace, 'links', id) })
   return {
     create: useMutation({
+      meta: { what: 'add the link' },
       mutationFn: (input: { team: string; values: Record<string, string> }) =>
         post<Integration.Link>(linksUrl(workspace, id, input.team), {
           values: Object.fromEntries(
@@ -302,11 +307,13 @@ export function useLinks(workspace: string, id: string) {
       onSuccess: refresh,
     }),
     remove: useMutation({
+      meta: { what: 'remove the link' },
       mutationFn: (input: { team: string; linkId: string }) =>
         send<undefined>('DELETE', `${linksUrl(workspace, id, input.team)}/${seg(input.linkId)}`),
       onSuccess: refresh,
     }),
     auto: useMutation({
+      meta: { what: 'link automatically' },
       mutationFn: (team: string) =>
         post<Integration.AutoLinkResult>(`${linksUrl(workspace, id, team)}/auto`, {}),
       onSuccess: refresh,
