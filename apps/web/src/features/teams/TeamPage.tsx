@@ -29,7 +29,13 @@ export function TeamPage() {
   const navigate = useNavigate()
   const announce = useAnnounce()
   const order = useDisplayStore((s) => s.display.order)
-  const { data } = useQuery(teamQuery(workspace, team, before, filters, order))
+  // The header (the team's name, its avatar, the banner) stays while a new filter's list loads:
+  // without the previous data it blanked and came back, and the page jumped. Another team's
+  // data is no placeholder.
+  const { data } = useQuery({
+    ...teamQuery(workspace, team, before, filters, order),
+    placeholderData: (previous) => (previous?.team.slug === team ? previous : undefined),
+  })
   const { data: flaky } = useQuery(flakyQuery(workspace, team))
   // Only owners and admins reach the team's settings and add ignore regions (the settings are cached).
   const { data: settings } = useQuery(settingsQuery(workspace, team))

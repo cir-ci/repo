@@ -172,6 +172,48 @@ describe('filters', () => {
     expect(router.state.location.search).toEqual({})
   })
 
+  it('keeps the page where it is while the next filter loads', async () => {
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let requests = 0
+    fakeFetch({
+      'GET /api/teams/acme/web': async () => {
+        requests += 1
+        // The first answer (no filter) is immediate; the filtered one waits.
+        if (requests > 1) await gate
+        return { team: info, builds: [build(3)], gitAttention: null }
+      },
+      'GET /api/teams/acme/web/flaky': { builds: 10, flaky: [] },
+      'GET /api/workspaces/acme/sidebar': sidebar(),
+    })
+    // Wide enough that the chips of an applied filter (Clear filters, Save view) don't wrap.
+    await page.viewport(1280, 800)
+    const { router } = await show()
+    const title = page.getByRole('heading', { name: 'Web App' })
+    const list = page.getByRole('list', { name: 'Builds' })
+    await expect.element(list).toBeVisible()
+    const before = [title.element().getBoundingClientRect(), list.element().getBoundingClientRect()]
+
+    await page.getByRole('button', { name: 'Status' }).click()
+    await page.getByRole('button', { name: 'Approved' }).click()
+    await expect.poll(() => requests).toBe(2)
+    expect(router.state.location.search).toEqual({ review: 'approved' })
+    // The request is in flight: the title, its identity and the list are still there, in place.
+    expect(title.elements()).toHaveLength(1)
+    expect(page.getByRole('list', { name: 'Builds' }).elements()).toHaveLength(1)
+    const during = [title.element().getBoundingClientRect(), list.element().getBoundingClientRect()]
+    expect(during.map((r) => [r.top, r.height])).toEqual(before.map((r) => [r.top, r.height]))
+
+    release()
+    await expect
+      .element(page.getByRole('button', { name: 'Status: Approved' }))
+      .toHaveAttribute('aria-pressed', 'true')
+    const after = list.element().getBoundingClientRect()
+    expect([after.top, after.height]).toEqual([before[1]?.top, before[1]?.height])
+  })
+
   describe('a person filter', () => {
     const members = (resolve: () => Promise<unknown>) =>
       auth.getFullOrganization.mockImplementation(resolve)
