@@ -131,9 +131,10 @@ A namespace must contain only types. Never put a value in one.
   not as separate top-level names.
 - **State:** state that changes or is needed across large areas, or is complex, goes in a global
   store (zustand), not scattered `useState`/context. Local, simple UI state stays in `useState`.
-- **Copy:** contractions ("Couldn't", "can't"); "ID", not "id"; "Delete" for something gone for good
+- **Copy:** contractions ("Couldn't", "can't") with the straight apostrophe everywhere (dashboard, server,
+  emails), never the curly one; "ID", not "id"; "Delete" for something gone for good
   (comments, rules, teams, workspaces), "Remove" for taking it out of a list (members, webhooks,
-  ignore regions, links); "screenshot", never "snapshot", in UI text. No text that states the
+  ignore regions, links: no "Unlink"; "Revoke" only for invitations); "screenshot", never "snapshot", in UI text. No text that states the
   obvious ("saved with Save changes", "Only owners can do this" beside a hidden control), no
   explanatory lead under a page title unless it warns about a consequence, and no helper line that
   repeats a value already shown beside it. Counts carry their noun and amounts their unit.
