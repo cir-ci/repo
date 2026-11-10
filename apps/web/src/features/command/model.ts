@@ -1,4 +1,5 @@
 import type { Search, Sidebar, View } from '@circi/api'
+import type { ColorMode } from '@circi/ui'
 
 import { workspaceSettingsPath } from '#app/shell-model.ts'
 import { SHORTCUTS, type Shortcut } from '#lib/shortcuts.ts'
@@ -13,6 +14,7 @@ import { SHORTCUTS, type Shortcut } from '#lib/shortcuts.ts'
 export const GROUP_ORDER = [
   'Actions',
   'Jump to',
+  'Preferences',
   'Builds',
   'Branches',
   'Teams',
@@ -40,7 +42,10 @@ export namespace Entry {
     rows: { label: string; value: string }[]
   }
 
-  export type Target = { type: 'path'; path: string } | { type: 'key'; key: string }
+  export type Target =
+    | { type: 'path'; path: string }
+    | { type: 'key'; key: string }
+    | { type: 'theme'; mode: ColorMode }
 
   /** An entry group with its entries, as the list shows it. */
   export interface GroupView {
@@ -194,9 +199,48 @@ export function jumpEntries({ workspace, teams, views, canManage }: JumpInput): 
   return entries
 }
 
-/** What the menu lists before anything is typed: the page's actions, then where to jump. */
-export function emptyQueryEntries(pathname: string, jump: JumpInput): Entry[] {
-  return [...contextActions(pathname), ...jumpEntries(jump)]
+// Preferences ------------------------------------------------------------------------------
+
+const THEMES: { mode: ColorMode; label: string }[] = [
+  { mode: 'system', label: 'Theme: System' },
+  { mode: 'light', label: 'Theme: Light' },
+  { mode: 'dark', label: 'Theme: Dark' },
+]
+
+/** The theme choices; the one in use says so. */
+export const themeEntries = (current: ColorMode): Entry[] =>
+  THEMES.map((t) => {
+    const entry: Entry = {
+      id: `theme:${t.mode}`,
+      group: 'Preferences',
+      label: t.label,
+      target: { type: 'theme', mode: t.mode },
+    }
+    if (t.mode === current) entry.detail = 'Current'
+    return entry
+  })
+
+/** What the menu lists before anything is typed: the page's actions, where to jump, the theme. */
+export function emptyQueryEntries(pathname: string, jump: JumpInput, theme: ColorMode): Entry[] {
+  return [...contextActions(pathname), ...jumpEntries(jump), ...themeEntries(theme)]
+}
+
+/**
+ * The menu's own entries (actions, pages, theme) whose label holds every word typed, so a query
+ * finds commands as well as what the search route returns.
+ */
+export function localMatches(
+  query: string,
+  pathname: string,
+  jump: JumpInput,
+  theme: ColorMode,
+): Entry[] {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return []
+  return emptyQueryEntries(pathname, jump, theme).filter((e) => {
+    const label = e.label.toLowerCase()
+    return words.every((w) => label.includes(w))
+  })
 }
 
 // Search results ---------------------------------------------------------------------------

@@ -9,6 +9,7 @@ import {
   groupEntries,
   type JumpInput,
   keyEvents,
+  localMatches,
   parseBuildQuery,
   searchEntries,
   wrapIndex,
@@ -88,7 +89,7 @@ describe('the empty query', () => {
       [true, '/workspaces/acme/settings'],
       [false, '/workspaces/acme/settings/members'],
     ] as const) {
-      const entry = emptyQueryEntries('/', { ...jump, canManage }).find(
+      const entry = emptyQueryEntries('/', { ...jump, canManage }, 'system').find(
         (e) => e.id === 'jump:settings',
       )
       expect(entry?.target).toEqual({ type: 'path', path })
@@ -96,7 +97,7 @@ describe('the empty query', () => {
   })
 
   it('lists pages, only pinned teams and saved views, with the registry key as the hint', () => {
-    const labels = emptyQueryEntries('/', jump).map((e) => e.label)
+    const labels = emptyQueryEntries('/', jump, 'system').map((e) => e.label)
     expect(labels).toEqual(
       expect.arrayContaining([
         'Inbox',
@@ -109,7 +110,7 @@ describe('the empty query', () => {
       ]),
     )
     expect(labels).not.toContain('API')
-    const inbox = emptyQueryEntries('/', jump).find((e) => e.label === 'Inbox')
+    const inbox = emptyQueryEntries('/', jump, 'system').find((e) => e.label === 'Inbox')
     expect(inbox?.hint).toBe('g i')
   })
 
@@ -151,9 +152,30 @@ describe('the empty query', () => {
     expect(contextActions('/acme/web/triage').map((e) => e.label)).toContain('Snooze')
   })
 
-  it('puts the actions before the places to jump to', () => {
-    const groups = groupEntries(emptyQueryEntries('/acme/web/builds/1', jump)).map((g) => g.group)
-    expect(groups).toEqual(['Actions', 'Jump to'])
+  it('puts the actions before the places to jump to, then the theme', () => {
+    const groups = groupEntries(emptyQueryEntries('/acme/web/builds/1', jump, 'system')).map(
+      (g) => g.group,
+    )
+    expect(groups).toEqual(['Actions', 'Jump to', 'Preferences'])
+  })
+})
+
+describe('local matches', () => {
+  const jump: JumpInput = { workspace: 'acme', teams: [], views: [] }
+
+  it('finds the theme choices for "theme", marking the one in use', () => {
+    const entries = localMatches('theme', '/', jump, 'dark')
+    expect(entries.map((e) => e.label)).toEqual(['Theme: System', 'Theme: Light', 'Theme: Dark'])
+    expect(entries.find((e) => e.detail === 'Current')?.label).toBe('Theme: Dark')
+    expect(entries[1]?.target).toEqual({ type: 'theme', mode: 'light' })
+  })
+
+  it('needs every word typed, in any case, and finds pages too', () => {
+    expect(localMatches('THEME dark', '/', jump, 'system').map((e) => e.label)).toEqual([
+      'Theme: Dark',
+    ])
+    expect(localMatches('inbox', '/', jump, 'system').map((e) => e.label)).toContain('Inbox')
+    expect(localMatches('zzzq', '/', jump, 'system')).toEqual([])
   })
 })
 

@@ -107,6 +107,23 @@ describe('the command menu', () => {
     await expect.element(page.getByText('Awaiting review')).toBeVisible()
   })
 
+  it('switches the theme from "theme" (the Appearance page points here)', async () => {
+    api()
+    await show()
+    await userEvent.keyboard('{Meta>}k{/Meta}')
+    await userEvent.type(page.getByRole('combobox'), 'theme light')
+    await expect.element(page.getByRole('option', { name: /Theme: Light/ })).toBeVisible()
+    await userEvent.keyboard('{Enter}')
+    await vi.waitFor(() =>
+      expect(document.documentElement.dataset['circiColorScheme']).toBe('light'),
+    )
+    try {
+      localStorage.removeItem('circi-color-mode')
+    } catch {
+      // Storage may be blocked; nothing to clean up then.
+    }
+  })
+
   it('lists the jump-to entries and pinned teams while the field is empty', async () => {
     api()
     await show()

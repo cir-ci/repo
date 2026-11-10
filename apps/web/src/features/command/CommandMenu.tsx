@@ -1,5 +1,5 @@
 import type { Sidebar, View } from '@circi/api'
-import { CommandDialog, Kbd, Pane, SearchIcon, Text } from '@circi/ui'
+import { CommandDialog, Kbd, Pane, SearchIcon, Text, useColorScheme } from '@circi/ui'
 import { useParams, useRouter, useRouterState } from '@tanstack/react-router'
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react'
 
@@ -9,6 +9,7 @@ import { useSearchResults } from './api.ts'
 import {
   type Entry,
   emptyQueryEntries,
+  localMatches,
   flatten,
   groupEntries,
   keyEvents,
@@ -42,6 +43,7 @@ export function CommandMenu({
   const afterClose = useRef<(() => void) | undefined>(undefined)
   const input = useRef<HTMLInputElement>(null)
   const listId = useId()
+  const { mode, setMode } = useColorScheme()
 
   const q = normalizeQuery(query)
   const { results, pending, failed } = useSearchResults(workspace, q)
@@ -49,12 +51,14 @@ export function CommandMenu({
     workspace !== undefined && params.workspace === workspace && params.team
       ? teams?.find((p) => p.slug === params.team)
       : undefined
+  const jump = { workspace, teams, views, canManage }
   const entries =
     q === ''
-      ? emptyQueryEntries(pathname, { workspace, teams, views, canManage })
-      : workspace
-        ? searchEntries(workspace, q, results, openTeam)
-        : []
+      ? emptyQueryEntries(pathname, jump, mode)
+      : [
+          ...localMatches(q, pathname, jump, mode),
+          ...(workspace ? searchEntries(workspace, q, results, openTeam) : []),
+        ]
   const groups = groupEntries(entries)
   const flat = flatten(groups)
   const current = flat.length === 0 ? -1 : Math.min(active, flat.length - 1)
@@ -71,6 +75,8 @@ export function CommandMenu({
     const { target } = entry
     if (target.type === 'path') {
       router.history.push(target.path)
+    } else if (target.type === 'theme') {
+      setMode(target.mode)
     } else {
       // A registry action runs through the shortcut layer once the menu has closed, so a dialog
       // it opens is not closed again by the menu giving focus back.
