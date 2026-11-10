@@ -1,6 +1,12 @@
 import type { Comment } from '@circi/api'
-import { listBuildComments } from '@circi/db/queries'
-import { addComment, deleteComment, editComment, MAX_COMMENT_LENGTH } from '@circi/services'
+import { type CommentItem, listBuildComments } from '@circi/db/queries'
+import {
+  addComment,
+  deleteComment,
+  editComment,
+  MAX_COMMENT_LENGTH,
+  setCommentRegion,
+} from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
@@ -11,42 +17,44 @@ import { parse } from '#http/lib/validation.ts'
 
 const commentParams = buildParams.extend({ id: z.uuid() })
 const fraction = z.number().min(0).max(1)
+const regionBody = z
+  .object({ x: fraction, y: fraction, width: fraction, height: fraction })
+  .refine((r) => r.width > 0 && r.height > 0 && r.x + r.width <= 1 && r.y + r.height <= 1, {
+    message: 'The region must lie inside the screenshot',
+  })
 const createBody = z.object({
   body: z.string().trim().min(1).max(MAX_COMMENT_LENGTH),
   snapshotName: z.string().min(1).max(500).optional(),
-  region: z
-    .object({ x: fraction, y: fraction, width: fraction, height: fraction })
-    .refine((r) => r.width > 0 && r.height > 0 && r.x + r.width <= 1 && r.y + r.height <= 1, {
-      message: 'The region must lie inside the screenshot',
-    })
-    .optional(),
+  region: regionBody.optional(),
   regionSide: z.enum(['baseline', 'current']).optional(),
   parentId: z.uuid().optional(),
 })
 const editBody = z.object({ body: z.string().trim().min(1).max(MAX_COMMENT_LENGTH) })
 
+/** A listed comment as the dashboard gets it: dates as ISO strings, and what the caller may do with it. */
+function present(c: CommentItem, userId: string, admin: boolean): Comment.Item {
+  const mine = c.author?.id === userId
+  return Object.assign({}, c, {
+    createdAt: c.createdAt.toISOString(),
+    editedAt: c.editedAt?.toISOString() ?? null,
+    deletedAt: c.deletedAt?.toISOString() ?? null,
+    mine,
+    canDelete: !c.deletedAt && (mine || admin),
+  })
+}
+
 /**
  * Comments on a build. Any member of the team's workspace may read and write them;
- * everyone else gets "not found". You edit only your own; you delete your own, and owners and
- * admins may delete anyone's.
+ * everyone else gets "not found". You edit only your own, and only you move or resize its region;
+ * you delete your own, and owners and admins may delete anyone's.
  */
 export const dashboardCommentRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   app.get('/teams/:workspace/:team/builds/:number/comments', async (req) => {
     const found = await loadBuild(deps, req)
     const user = currentUser(req)
-    const admin = found.canManage
     const items = await listBuildComments(deps.db, found.build.id)
     const payload: Comment.List = {
-      comments: items.map((c) => {
-        const mine = c.author?.id === user.id
-        return Object.assign({}, c, {
-          createdAt: c.createdAt.toISOString(),
-          editedAt: c.editedAt?.toISOString() ?? null,
-          deletedAt: c.deletedAt?.toISOString() ?? null,
-          mine,
-          canDelete: !c.deletedAt && (mine || admin),
-        })
-      }),
+      comments: items.map((c) => present(c, user.id, found.canManage)),
     }
     return payload
   })
@@ -78,6 +86,23 @@ export const dashboardCommentRoutes: FastifyPluginAsync<Deps.Dashboard> = async 
       body,
     })
     return { id: updated.id, body: updated.body, editedAt: updated.editedAt?.toISOString() ?? null }
+  })
+
+  app.patch('/teams/:workspace/:team/builds/:number/comments/:id/region', async (req) => {
+    const found = await loadBuild(deps, req)
+    const { id } = parse(commentParams, req.params)
+    const region: Comment.SetRegion = parse(regionBody, req.body)
+    const user = currentUser(req)
+    await setCommentRegion(deps.db, {
+      buildId: found.build.id,
+      commentId: id,
+      userId: user.id,
+      region,
+    })
+    const items = await listBuildComments(deps.db, found.build.id)
+    const item = items.find((c) => c.id === id)
+    const payload: Comment.Item | undefined = item && present(item, user.id, found.canManage)
+    return payload
   })
 
   app.delete('/teams/:workspace/:team/builds/:number/comments/:id', async (req, reply) => {

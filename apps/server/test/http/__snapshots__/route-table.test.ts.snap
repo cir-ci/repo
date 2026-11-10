@@ -158,6 +158,7 @@ PATCH /api/auth/sign-in/email-otp
 PATCH /api/instance/accounts/:id
 PATCH /api/teams/:workspace/:team/appearance
 PATCH /api/teams/:workspace/:team/builds/:number/comments/:id
+PATCH /api/teams/:workspace/:team/builds/:number/comments/:id/region
 PATCH /api/teams/:workspace/:team/ignore-regions/:id
 PATCH /api/teams/:workspace/:team/settings
 PATCH /api/workspaces/:workspace

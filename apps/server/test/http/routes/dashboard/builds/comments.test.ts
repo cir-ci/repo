@@ -114,6 +114,58 @@ describe('comment routes', () => {
     ).toBe(400)
   })
 
+  it('lets only the author move or resize a comment region, and validates it', async () => {
+    const region = { x: 0.1, y: 0.1, width: 0.3, height: 0.3 }
+    const top = await send('POST', `${build}/comments`, {
+      cookie: louCookie,
+      payload: { body: 'look here', snapshotName: 'home', region },
+    })
+    const url = `${build}/comments/${top.json().id}/region`
+    const next = { x: 0.5, y: 0.25, width: 0.2, height: 0.4 }
+
+    // Someone else, even an owner, can't reshape it; a stranger doesn't see the build at all.
+    expect((await send('PATCH', url, { payload: next })).statusCode).toBe(403)
+    expect((await send('PATCH', url, { cookie: rivalCookie, payload: next })).statusCode).toBe(404)
+    expect((await send('PATCH', url, { cookie: '', payload: next })).statusCode).toBe(401)
+
+    const done = await send('PATCH', url, { cookie: louCookie, payload: next })
+    expect(done.statusCode).toBe(200)
+    expect(done.json()).toMatchObject({
+      id: top.json().id,
+      region: next,
+      snapshotName: 'home',
+      mine: true,
+      canDelete: true,
+    })
+    const listed = (await comments()).comments.find((c: { id: string }) => c.id === top.json().id)
+    expect(listed.region).toEqual(next)
+
+    for (const payload of [
+      { x: 0.8, y: 0, width: 0.5, height: 0.5 },
+      { x: 0, y: 0, width: 0.005, height: 0.5 },
+      { x: 0, y: 0, width: 0, height: 0.5 },
+      { x: 0, y: 0, width: 'wide', height: 0.5 },
+      { x: 0, y: 0 },
+    ]) {
+      expect((await send('PATCH', url, { cookie: louCookie, payload })).statusCode).toBe(400)
+    }
+    expect((await comments()).comments[0].region).toEqual(next)
+
+    // A comment with no region has nothing to adjust, and a deleted one is gone.
+    const plain = await send('POST', `${build}/comments`, {
+      cookie: louCookie,
+      payload: { body: 'no region' },
+    })
+    expect(
+      (await send('PATCH', `${build}/comments/${plain.json().id}/region`, {
+        cookie: louCookie,
+        payload: next,
+      })).statusCode,
+    ).toBe(400)
+    await send('DELETE', `${build}/comments/${top.json().id}`, { cookie: louCookie })
+    expect((await send('PATCH', url, { cookie: louCookie, payload: next })).statusCode).toBe(404)
+  })
+
   it('lets only the author edit, and the author or an admin delete', async () => {
     const mine = await send('POST', `${build}/comments`, {
       cookie: louCookie,

@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   type Actor,
   assertAllowed,
+  canAdjustCommentRegion,
   canDeleteWorkspace,
   canManageWorkspace,
   canReadTeam,
@@ -125,6 +126,17 @@ describe('assertAllowed', () => {
     expect(() => assertAllowed(canWriteTeam(actor('member')), messages)).toThrow(
       'Only owners and admins',
     )
+  })
+})
+
+describe('canAdjustCommentRegion', () => {
+  it('lets the author only, owners and admins included', () => {
+    expect(canAdjustCommentRegion(actor('member'), 'u1')).toEqual({ allow: true })
+    expect(canAdjustCommentRegion(actor('owner'), 'u2')).toEqual({
+      allow: false,
+      reason: 'not-author',
+    })
+    expect(canAdjustCommentRegion(actor('member'), null).allow).toBe(false)
   })
 })
 

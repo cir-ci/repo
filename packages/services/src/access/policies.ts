@@ -10,7 +10,7 @@ import type { Actor } from './actor.ts'
  */
 export type Decision =
   | { allow: true }
-  | { allow: false; reason: 'not-member' | 'not-manager' | 'not-owner' | 'not-instance-admin' }
+  | { allow: false; reason: 'not-member' | 'not-manager' | 'not-owner' | 'not-instance-admin' | 'not-author' }
 
 const ALLOW: Decision = { allow: true }
 const deny = (reason: Extract<Decision, { allow: false }>['reason']): Decision => ({
@@ -75,6 +75,14 @@ export function canDeleteWorkspace(actor: Actor): Decision {
 /** Whether the member is an owner of the workspace (what the settings page shows as `isOwner`). */
 export function isWorkspaceOwner(actor: Pick<Actor, 'role'>): boolean {
   return actor.role === 'owner'
+}
+
+/** Only the author of a comment moves or resizes its region (owners and admins may delete, not reshape). */
+export function canAdjustCommentRegion(
+  actor: Pick<Actor, 'userId'>,
+  authorId: string | null,
+): Decision {
+  return authorId !== null && authorId === actor.userId ? ALLOW : deny('not-author')
 }
 
 /** Instance admins run the whole instance. */

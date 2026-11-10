@@ -1,6 +1,7 @@
 export type { Actor } from './actor.ts'
 export {
   assertAllowed,
+  canAdjustCommentRegion,
   canAddTeamMembers,
   canDeleteWorkspace,
   canManageWorkspace,

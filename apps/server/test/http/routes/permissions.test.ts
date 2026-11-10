@@ -34,6 +34,7 @@ const MEMBER_WRITABLE = new Set([
   `POST ${TEAM}/builds/:number/snapshots/review`,
   `POST ${TEAM}/builds/:number/comments`,
   `PATCH ${TEAM}/builds/:number/comments/:id`,
+  `PATCH ${TEAM}/builds/:number/comments/:id/region`,
   `DELETE ${TEAM}/builds/:number/comments/:id`,
   `POST ${TEAM}/triage/assign`,
   `POST ${TEAM}/triage/snooze`,

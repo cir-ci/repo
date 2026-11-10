@@ -60,6 +60,9 @@ export namespace Comment {
   export interface Edit {
     body: string
   }
+
+  /** `PATCH …/builds/:number/comments/:id/region`: the author moves or resizes the region; the reply is the updated comment. */
+  export type SetRegion = Region
 }
 
 export namespace Activity {

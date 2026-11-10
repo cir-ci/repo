@@ -7,8 +7,10 @@ import {
   type WorkspaceMember,
   softDeleteComment,
   updateCommentBody,
+  updateCommentRegion,
 } from '@circi/db/repositories'
 
+import { assertAllowed, canAdjustCommentRegion } from '#src/access/index.ts'
 import { notify } from '#src/notifications/notifications.ts'
 
 /**
@@ -173,5 +175,49 @@ export namespace deleteComment {
     userId: string
     /** The caller is an owner or admin of the workspace. */
     asAdmin: boolean
+  }
+}
+
+/** The smallest side of a comment's region, as a fraction of the screenshot (the draw gesture uses the same). */
+export const MIN_REGION_FRACTION = 0.01
+
+/**
+ * Moves or resizes the region of your own comment. The new region is checked like a drawn one:
+ * inside the screenshot and at least 1% of it in each direction. Only the author may; a comment
+ * with no region (or a reply) has nothing to adjust.
+ */
+export async function setCommentRegion(
+  db: Database,
+  input: setCommentRegion.Input,
+): Promise<Comment> {
+  const { x, y, width, height } = input.region
+  const inside = [x, y, width, height].every((n) => Number.isFinite(n) && n >= 0 && n <= 1)
+  if (!inside || x + width > 1 + 1e-9 || y + height > 1 + 1e-9) {
+    throw new ValidationError('The region must lie inside the screenshot')
+  }
+  if (width < MIN_REGION_FRACTION || height < MIN_REGION_FRACTION) {
+    throw new ValidationError('The region is too small')
+  }
+  return db.transaction(async (tx) => {
+    const comment = await ownComment(tx, input.buildId, input.commentId)
+    assertAllowed(canAdjustCommentRegion({ userId: input.userId }, comment.authorId), {
+      notFound: 'Comment not found',
+      forbidden: 'You can only adjust the region of your own comments',
+    })
+    if (comment.parentId || comment.regionX === null) {
+      throw new ValidationError('This comment has no region')
+    }
+    const updated = await updateCommentRegion(tx, comment.id, input.region)
+    assertFound(updated, 'Comment not found')
+    return updated
+  })
+}
+export namespace setCommentRegion {
+  export interface Input {
+    buildId: string
+    commentId: string
+    userId: string
+    /** Fractions of the screenshot: top-left corner and size. */
+    region: { x: number; y: number; width: number; height: number }
   }
 }

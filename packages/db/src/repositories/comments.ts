@@ -59,6 +59,25 @@ export async function updateCommentBody(
   return row
 }
 
+/** Moves a live comment's region (fractions of the snapshot); returns undefined when it is gone or deleted. */
+export async function updateCommentRegion(
+  db: Database,
+  id: string,
+  region: { x: number; y: number; width: number; height: number },
+): Promise<Comment | undefined> {
+  const [row] = await db
+    .update(comments)
+    .set({
+      regionX: region.x,
+      regionY: region.y,
+      regionWidth: region.width,
+      regionHeight: region.height,
+    })
+    .where(and(eq(comments.id, id), isNull(comments.deletedAt)))
+    .returning()
+  return row
+}
+
 /** Soft-deletes a comment; returns undefined when it is gone or already deleted. */
 export async function softDeleteComment(db: Database, id: string): Promise<Comment | undefined> {
   const [row] = await db
