@@ -75,9 +75,9 @@ export async function addTeamLink(
   const values: Record<string, string> = {}
   for (const f of links.fields) {
     const value = (input.values[f.key] ?? '').trim()
-    if (value === '') throw new ValidationError(`${f.key}: ${f.label} is required`)
+    if (value === '') throw new ValidationError(`${f.label} is required`)
     if (value.length > (f.key === links.subject ? 200 : 1000)) {
-      throw new ValidationError(`${f.key}: too long`)
+      throw new ValidationError(`${f.label} is too long`)
     }
     values[f.key] = value
   }

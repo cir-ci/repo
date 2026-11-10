@@ -16,20 +16,20 @@ import styles from '#features/workspace-settings/Settings.module.css'
 const IN_INBOX: readonly { title: string; help: string }[] = [
   {
     title: 'Review requested',
-    help: 'Someone, or a review rule, asks you to review a build, or asks again after a new push.',
+    help: 'Someone, or a review rule, asks you to review a build, including again after a new push.',
   },
   { title: 'Mentioned', help: 'Someone @mentions you in a comment on a snapshot.' },
   {
-    title: 'Your build approved or rejected',
+    title: 'Your build was approved or rejected',
     help: 'A build you pushed was reviewed. Rejections include the reviewer’s reason.',
   },
   {
     title: 'Overdue review',
-    help: 'A request to you passed the team’s review target. Sent once.',
+    help: 'A review request to you has waited longer than the team’s review target. Sent once.',
   },
   {
     title: 'Connection needs attention',
-    help: 'An integration stopped working, for example the GitHub app was uninstalled. Owners and admins only.',
+    help: 'An integration stopped working, for example because the GitHub App was uninstalled. Owners and admins only.',
   },
   {
     title: 'Flaky snapshot detected',

@@ -80,9 +80,7 @@ export const dashboardIntegrationMappingRoutes: FastifyPluginAsync<Deps.Dashboar
     const invalid = mapping.target.validate?.(body.ref)
     if (invalid) throw new ValidationError(invalid)
     if (mapping.target.kind === 'select' && !body.name) {
-      throw new ValidationError(
-        `name: the ${mapping.target.label.toLowerCase()}'s name is required`,
-      )
+      throw new ValidationError(`The ${mapping.target.label.toLowerCase()}'s name is required`)
     }
     const extra = normalizeExtra(mapping, parse(mappingExtraSchema(mapping), body.extra ?? {}))
     const team = await getTeamBySlugs(deps.db, {

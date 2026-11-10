@@ -49,7 +49,7 @@ export async function createIssueFromBuild(
   const buildUrl = `${input.publicOrigin}/${context.workspaceSlug}/${context.team.slug}/builds/${build.number}`
   const title = input.title?.trim() || defaultIssueTitle(snapshotName, build.number)
   if (title.length > MAX_ISSUE_TITLE_LENGTH) {
-    throw new ValidationError(`title: at most ${MAX_ISSUE_TITLE_LENGTH} characters`)
+    throw new ValidationError(`The title can have at most ${MAX_ISSUE_TITLE_LENGTH} characters`)
   }
   const imageUrl = imageSha ? `${input.publicOrigin}/api/files/${imageSha}` : undefined
   const created = await tracker.createIssue({

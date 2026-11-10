@@ -102,7 +102,7 @@ export function TeamPage() {
         ) : null}
         {data ? (
           <Text as="p" variant="small" tone="secondary" className={styles.intro}>
-            Screenshot builds from CI. Builds on{' '}
+            Builds uploaded from CI. Builds on{' '}
             <Ref value={data.team.defaultBranch} label="default branch" /> become the baselines that
             pull requests are compared with.
           </Text>
@@ -134,8 +134,8 @@ export function TeamPage() {
             ))}
             . They are probably not stable (a clock, an animation, random content).{' '}
             {canManage
-              ? 'Choose a screenshot to mask the part that changes.'
-              : 'Ask an owner or admin of this team to mask the part that changes.'}
+              ? 'Choose a screenshot to ignore the part that changes.'
+              : 'Ask an owner or admin of this team to ignore the part that changes.'}
           </Banner>
         ) : null}
         <BuildsBrowser

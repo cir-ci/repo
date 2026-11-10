@@ -272,7 +272,7 @@ describe('abuse limits and new-device mail', () => {
     const mail = newSignInMails()[0]
     expect(mail?.to).toBe(tenant.owner.email)
     expect(mail?.text).toContain('Firefox/130 (Macintosh)')
-    expect(mail?.text).toContain('Account and sessions')
+    expect(mail?.text).toContain('Profile and sessions')
 
     // The same browser again: nothing more. A different one: another mail.
     expect((await signInFrom('Firefox/130 (Macintosh)')).statusCode).toBe(200)

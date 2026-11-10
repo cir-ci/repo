@@ -179,7 +179,7 @@ describe('TeamPage', () => {
     ],
   }
 
-  it('warns about flaky screenshots on the default branch and asks an owner or admin to mask them (members)', async () => {
+  it('warns about flaky screenshots on the default branch and asks an owner or admin to ignore them (members)', async () => {
     api([build(8)], flakyReport)
     await show()
     const banner = page.getByRole('status').filter({ hasText: 'keep changing' })
@@ -189,7 +189,7 @@ describe('TeamPage', () => {
       .toMatch(/clock \(6 of the last 10 builds\), nav\/ticker \(4 of the last 10 builds\)/)
     await expect
       .poll(() => banner.element().textContent)
-      .toMatch(/Ask an owner or admin of this team to mask the part that changes\./)
+      .toMatch(/Ask an owner or admin of this team to ignore the part that changes\./)
     expect(banner.element().textContent).not.toMatch(/circi admin/)
     expect(banner.getByRole('link').elements()).toHaveLength(0)
   })
@@ -204,7 +204,7 @@ describe('TeamPage', () => {
     await expect
       .element(banner.getByRole('link', { name: 'clock' }))
       .toHaveAttribute('href', '/acme/web/settings/ignore-regions?name=clock')
-    await expect.poll(() => banner.element().textContent).toMatch(/Choose a screenshot to mask/)
+    await expect.poll(() => banner.element().textContent).toMatch(/Choose a screenshot to ignore/)
     expect(banner.element().textContent).not.toMatch(/circi admin/)
   })
 

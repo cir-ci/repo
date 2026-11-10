@@ -54,9 +54,9 @@ const mentioned = (body: string, members: readonly WorkspaceMember[]) =>
 
 function checkBody(raw: string): string {
   const body = raw.trim()
-  if (!body) throw new ValidationError('body: write something')
+  if (!body) throw new ValidationError('Write something to comment')
   if (body.length > MAX_COMMENT_LENGTH) {
-    throw new ValidationError(`body: at most ${MAX_COMMENT_LENGTH} characters`)
+    throw new ValidationError(`A comment can have at most ${MAX_COMMENT_LENGTH} characters`)
   }
   return body
 }
@@ -92,12 +92,12 @@ export async function addComment(db: Database, input: addComment.Input): Promise
       if (!parent || parent.buildId !== input.buildId || parent.deletedAt) {
         throw new NotFoundError('Comment not found')
       }
-      if (parent.parentId) throw new ValidationError('parentId: reply to the first comment')
-      if (input.region) throw new ValidationError('region: a reply has no region')
+      if (parent.parentId) throw new ValidationError('Reply to the first comment in the thread')
+      if (input.region) throw new ValidationError('A reply can’t mark a region')
       snapshotName = parent.snapshotName
     }
     if (input.region && !snapshotName) {
-      throw new ValidationError('region: name the snapshot it is on')
+      throw new ValidationError('Say which snapshot the region is on')
     }
     const comment = await insertComment(tx, {
       buildId: input.buildId,

@@ -103,7 +103,7 @@ describe('the command menu', () => {
     await userEvent.keyboard('{ArrowDown}')
     await expect.element(build).toHaveAttribute('aria-selected', 'true')
     await userEvent.keyboard('{ArrowRight}')
-    await expect.element(page.getByRole('region', { name: 'Quick look' })).toBeVisible()
+    await expect.element(page.getByRole('region', { name: 'Preview' })).toBeVisible()
     await expect.element(page.getByText('Awaiting review')).toBeVisible()
   })
 

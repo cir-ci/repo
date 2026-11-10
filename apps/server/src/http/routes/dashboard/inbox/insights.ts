@@ -33,9 +33,9 @@ export const dashboardInsightsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
       const to = q.to ? new Date(q.to) : new Date()
       const from = q.from ? new Date(q.from) : new Date(to.getTime() - 30 * DAY_MS)
       if (from >= to || to.getTime() - from.getTime() > MAX_DAYS * DAY_MS) {
-        return reply
-          .code(400)
-          .send({ error: `from must be before to, at most ${MAX_DAYS} days apart` })
+        return reply.code(400).send({
+          error: `The start date must be before the end date, at most ${MAX_DAYS} days apart`,
+        })
       }
       const user = currentUser(req)
       const report = await getInsights(deps.db, {

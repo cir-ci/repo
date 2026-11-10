@@ -35,7 +35,7 @@ describe('instance settings', () => {
     await expect.element(page.getByText('PUBLIC_URL', { exact: true })).toBeVisible()
     await expect.element(page.getByText('smtp.acme.io:587')).toBeVisible()
     await expect.element(page.getByText('AUTH_PASSWORD_ENABLED')).toBeVisible()
-    await expect.element(page.getByText(/shown here to check, not to edit/)).toBeVisible()
+    await expect.element(page.getByText(/you can check them here but not edit them/)).toBeVisible()
     // The GitHub App is a section of this page.
     await expect.element(page.getByRole('button', { name: 'Create GitHub App' })).toBeVisible()
   })

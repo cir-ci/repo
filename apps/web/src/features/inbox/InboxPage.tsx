@@ -315,7 +315,7 @@ function ItemDetail({ item }: { item: Inbox.Item }) {
         </dd>
         {item.snoozedUntil ? (
           <>
-            <dt>Snoozed until</dt>
+            <dt>Wakes</dt>
             <dd>
               <RelativeTime iso={item.snoozedUntil} />
             </dd>

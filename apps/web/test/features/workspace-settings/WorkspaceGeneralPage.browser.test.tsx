@@ -114,7 +114,7 @@ describe('WorkspaceGeneralPage', () => {
     await expect.element(slug()).toHaveValue('acme')
     await expect.element(page.getByRole('navigation', { name: 'Breadcrumb' })).toBeVisible()
     await expect
-      .element(page.getByRole('checkbox', { name: /Flaky screenshots block merges/ }))
+      .element(page.getByRole('checkbox', { name: /Flaky-only changes block merging/ }))
       .toBeChecked()
     await expect.element(page.getByRole('button', { name: 'Delete workspace' })).toBeEnabled()
     // Nothing to save yet, in the address form or the merge gate defaults.
@@ -305,7 +305,7 @@ describe('WorkspaceGeneralPage', () => {
     await expect.element(slug()).toBeDisabled()
     expect(page.getByRole('button', { name: 'Save changes' }).elements()).toHaveLength(0)
     await expect
-      .element(page.getByRole('checkbox', { name: /Flaky screenshots block merges/ }))
+      .element(page.getByRole('checkbox', { name: /Flaky-only changes block merging/ }))
       .toBeInTheDocument()
   })
 

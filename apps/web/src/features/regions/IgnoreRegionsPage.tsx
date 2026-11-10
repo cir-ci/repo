@@ -247,7 +247,7 @@ function Workbench({ workspace, team, teamName, defaultBranch, canManage }: Work
         </div>
       </div>
       <Text as="p" variant="small" tone="tertiary" className={styles.lead}>
-        Flaky snapshots in Triage link here: press I on one to add a region for its screenshot.
+        Flaky screenshots in Triage link here: press I on one to add a region for its screenshot.
       </Text>
 
       <RegionDialog

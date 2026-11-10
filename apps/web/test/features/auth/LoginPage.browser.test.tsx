@@ -39,7 +39,9 @@ describe('LoginPage', () => {
     await expect.element(page.getByLabelText('Password')).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
     await expect
-      .element(page.getByText('Got an invitation? Open the link in the email to join your team.'))
+      .element(
+        page.getByText('Got an invitation? Open the link in the email to join your workspace.'),
+      )
       .toBeVisible()
     await expect.element(page.getByText('Self-hosted CirCI')).toBeVisible()
     const column = page.getByRole('main').element()

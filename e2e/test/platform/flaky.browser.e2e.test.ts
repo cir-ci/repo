@@ -174,7 +174,7 @@ describe('flaky screenshots', () => {
     const { stack, setup } = ctx
     const page = await browser.as(setup.session)
     await page.goto(`${stack.url}/${workspace()}/${team.slug}`)
-    await page.getByText('Screenshot builds from CI.').waitFor()
+    await page.getByText('Builds uploaded from CI.').waitFor()
     expect(await page.getByText('keep changing on').count()).toBe(0)
   })
 })

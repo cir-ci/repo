@@ -134,7 +134,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     key: 'space',
     scope: 'list',
     group: 'Lists',
-    description: 'Peek at the item',
+    description: 'Preview the item',
     action: { type: 'peek' },
   },
   {

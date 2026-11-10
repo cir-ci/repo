@@ -45,8 +45,8 @@ function Sections({ settings }: { settings: InstanceAdmin.Settings }) {
   return (
     <>
       <Text tone="secondary">
-        These come from the server’s environment, so they are shown here to check, not to edit. To
-        change one, restart CirCI with a new value; each row names its variable.
+        These come from the server’s environment, so you can check them here but not edit them. To
+        change one, set a new value and restart CirCI; each row names its variable.
       </Text>
 
       <SettingsSection
@@ -60,7 +60,7 @@ function Sections({ settings }: { settings: InstanceAdmin.Settings }) {
           note={
             settings.previousPublicHosts.length > 0
               ? `${settings.previousPublicHosts.join(', ')} answer with a redirect to the same page here, so old links keep working.`
-              : 'None: no old address redirects here.'
+              : 'None. No old address redirects here.'
           }
         >
           <Link to="/instance/health" className={styles.env}>
@@ -162,7 +162,11 @@ function MailSection({ mail }: { mail: InstanceAdmin.Settings['mail'] }) {
           <>
             <Setting
               title={<Text variant="mono">{mailServer(mail)}</Text>}
-              note={mail.authenticated ? 'Signs in with a login.' : 'No login.'}
+              note={
+                mail.authenticated
+                  ? 'Signs in with a username and password.'
+                  : 'Sends without signing in.'
+              }
               env="SMTP_HOST, SMTP_PORT, SMTP_SECURE"
             />
             <Setting

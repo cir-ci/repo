@@ -60,7 +60,7 @@ describe('the accounts page', () => {
     expect(list.contains(note)).toBe(false)
     const box = list.parentElement!
     expect(box.contains(note)).toBe(false)
-    expect(note.textContent).toContain('Showing up to 25 per page.')
+    expect(note.textContent).toContain('Up to 25 accounts per page.')
     // The workspaces column lines up from row to row.
     const counts = page.getByText('1 workspace', { exact: true }).elements()
     expect(counts).toHaveLength(2)

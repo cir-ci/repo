@@ -159,7 +159,7 @@ describe('team settings', () => {
   it('names the unit the API takes when the threshold is out of range', async () => {
     const res = await call('PATCH', `${base()}/settings`, ownerCookie, { diffThreshold: 2 })
     expect(res.statusCode).toBe(400)
-    expect(res.json().error).toBe('diffThreshold must be between 0 and 1 (a share; 0.05 is 5%)')
+    expect(res.json().error).toBe('The diff threshold must be between 0 and 1 (0.05 is 5%)')
     expect(res.json().fields).toHaveProperty('diffThreshold')
   })
 

@@ -78,7 +78,7 @@ export function LoginPage() {
         </>
       )}
       <p className={styles.note}>
-        Got an invitation? Open the link in the email to join your team.
+        Got an invitation? Open the link in the email to join your workspace.
       </p>
     </AuthPage>
   )

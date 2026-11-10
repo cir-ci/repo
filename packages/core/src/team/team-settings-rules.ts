@@ -35,7 +35,7 @@ export function assertReviewTargetHours(hours: number): void {
  */
 export function assertDiffThreshold(share: number): void {
   if (!(share >= 0 && share <= 1)) {
-    const message = 'diffThreshold must be between 0 and 1 (a share; 0.05 is 5%)'
+    const message = 'The diff threshold must be between 0 and 1 (0.05 is 5%)'
     throw new ValidationError(message, { fields: { diffThreshold: message } })
   }
 }

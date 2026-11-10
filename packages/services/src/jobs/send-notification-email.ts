@@ -44,7 +44,7 @@ export async function sendNotificationEmail(
 function compose(data: getNotificationEmailData.Data, origin: string) {
   const { build, actorName, recipient } = data
   const what = build
-    ? `build #${build.number}${build.branch ? ` (${build.branch})` : ''} of ${build.teamName}`
+    ? `build #${build.number}${build.branch ? ` (${build.branch})` : ''} in ${build.teamName}`
     : 'a build'
   const link = build
     ? `${origin}/${build.workspaceSlug}/${build.teamSlug}/builds/${build.number}`
@@ -56,7 +56,7 @@ function compose(data: getNotificationEmailData.Data, origin: string) {
     : `${actorName ?? 'CirCI'} ${again ? 'asked you to review again' : 'asked you to review'}: ${what}`
   const lead = overdue
     ? `Your review of ${what} is overdue.`
-    : `${actorName ?? 'CirCI'} ${again ? 'asked you to look at' : 'asked you to review'} ${what}${again ? ' again' : ''}.`
+    : `${actorName ?? 'CirCI'} asked you to review ${what}${again ? ' again' : ''}.`
   return {
     subject,
     text: [
@@ -66,7 +66,7 @@ function compose(data: getNotificationEmailData.Data, origin: string) {
       '',
       link,
       '',
-      'You get this email because of your CirCI notification settings; you can turn it off there.',
+      'You get this email because of your CirCI notification settings. You can turn it off there.',
       '',
     ].join('\n'),
   }

@@ -84,7 +84,7 @@ export function invitationMail(input: {
     text: [
       `${input.inviterName} invited you to join ${input.workspaceName} on CirCI as ${input.role}.`,
       '',
-      'Open this link and sign in with this email address to accept (the invitation is valid for 7 days):',
+      'The invitation is valid for 7 days. To accept it, open this link and sign in with this email address:',
       link,
       '',
       "If you weren't expecting this, you can ignore this email.",
@@ -109,13 +109,13 @@ export function newSignInMail(input: {
     text: [
       `Hi ${input.name},`,
       '',
-      `Your CirCI account was just signed in to (${input.method}) from a browser it hasn't been used from before:`,
+      `Someone just signed in to your CirCI account (${input.method}) from a browser we haven't seen before:`,
       '',
       `  When:   ${input.when.toUTCString()}`,
       `  Device: ${input.userAgent ?? 'unknown'}`,
       `  From:   ${input.ipAddress ?? 'unknown address'}`,
       '',
-      `If this was you, nothing to do. If not, sign in at ${input.origin}, open "Account and sessions" to sign that device out, and change your password.`,
+      `If this was you, you don't need to do anything. If not, sign in at ${input.origin}, open "Profile and sessions" to sign that device out, and change your password.`,
       '',
     ].join('\n'),
   }

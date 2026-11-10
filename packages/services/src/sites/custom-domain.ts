@@ -62,7 +62,7 @@ export async function setCustomDomain(
 ): Promise<setCustomDomain.Result> {
   const domain = normalizeCustomDomain(input.domain)
   const problem = customDomainProblem(domain, input.hosts)
-  if (problem) throw new ValidationError(`domain: ${problem}`)
+  if (problem) throw new ValidationError(problem)
   const set = await db.transaction((tx) =>
     setSiteCustomDomain(tx, { teamId: input.teamId, slug: input.slug, domain }),
   )

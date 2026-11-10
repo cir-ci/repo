@@ -97,9 +97,9 @@ export const dashboardWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
       const definition = integration ? registry.get(integration.kind) : undefined
       const target = definition?.mapping?.target
       if (!integration || !definition || target?.kind !== 'repository' || target.resolve) {
-        return reply
-          .code(400)
-          .send({ error: 'repository: not a git integration of this workspace' })
+        return reply.code(400).send({
+          error: 'That repository’s integration isn’t a git host connected to this workspace',
+        })
       }
       const invalid = target.validate?.(repository.ref)
       if (invalid) return reply.code(400).send({ error: invalid })

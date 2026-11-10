@@ -177,13 +177,13 @@ describe('ReviewsSettingsPage', () => {
     // A date input holds nothing for 31 February: its value goes empty, but its text stays.
     date.element().focus()
     await userEvent.keyboard('02312026')
-    await expect.element(page.getByText('Enter a real date')).toBeVisible()
+    await expect.element(page.getByText('Enter a valid date')).toBeVisible()
     await page.getByRole('button', { name: 'Save changes' }).click()
     expect(calls.of('PUT')).toHaveLength(0)
     expect(calls.of('PATCH')).toHaveLength(0)
     // Typing a real day clears it, and Discard also puts the saved date back.
     await date.fill('2026-02-28')
-    await expect.element(page.getByText('Enter a real date')).not.toBeInTheDocument()
+    await expect.element(page.getByText('Enter a valid date')).not.toBeInTheDocument()
   })
 
   it('refuses a typed impossible date in an empty field, on blur and on Save', async () => {
@@ -201,7 +201,7 @@ describe('ReviewsSettingsPage', () => {
     if (!(el instanceof HTMLInputElement)) throw new Error('not an input')
     expect(el.validity.badInput).toBe(true)
     el.blur()
-    await expect.element(page.getByText('Enter a real date')).toBeVisible()
+    await expect.element(page.getByText('Enter a valid date')).toBeVisible()
     await page.getByRole('button', { name: 'Save changes' }).click()
     expect(calls.of('PUT')).toHaveLength(0)
     await expect.element(page.getByText('Settings saved.')).not.toBeInTheDocument()

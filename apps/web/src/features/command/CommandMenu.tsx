@@ -188,7 +188,7 @@ export function CommandMenu({ open, onOpenChange, workspace, teams, views }: Com
         </footer>
       </div>
       {preview ? (
-        <Pane label="Quick look" context={preview.title} width="sm" className={styles.pane}>
+        <Pane label="Preview" context={preview.title} width="sm" className={styles.pane}>
           <dl className={styles.rows}>
             {preview.rows.map((row) => (
               <div key={row.label}>

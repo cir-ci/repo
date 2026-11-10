@@ -185,13 +185,13 @@ export async function requestReviews(
 ): Promise<requestReviews.Result> {
   const buildIds = [...new Set(input.buildIds)]
   const reviewerIds = [...new Set(input.reviewerIds)]
-  if (buildIds.length === 0) throw new ValidationError('buildIds: pick at least one build')
+  if (buildIds.length === 0) throw new ValidationError('Pick at least one build')
   if (buildIds.length > MAX_BULK_REQUEST_REVIEW) {
-    throw new ValidationError(`buildIds: at most ${MAX_BULK_REQUEST_REVIEW} builds at once`)
+    throw new ValidationError(`Pick at most ${MAX_BULK_REQUEST_REVIEW} builds at once`)
   }
-  if (reviewerIds.length === 0) throw new ValidationError('reviewerIds: pick at least one reviewer')
+  if (reviewerIds.length === 0) throw new ValidationError('Pick at least one reviewer')
   if (reviewerIds.length > MAX_REQUEST_REVIEWERS) {
-    throw new ValidationError(`reviewerIds: at most ${MAX_REQUEST_REVIEWERS} reviewers`)
+    throw new ValidationError(`Pick at most ${MAX_REQUEST_REVIEWERS} reviewers`)
   }
   if (reviewerIds.includes(input.requestedById)) throw new ValidationError(SELF_REQUEST)
   return db.transaction(async (tx) => {
@@ -306,9 +306,9 @@ export async function reviewBuilds(
   input: reviewBuilds.Input,
 ): Promise<reviewBuilds.Result> {
   const ids = [...new Set(input.buildIds)]
-  if (ids.length === 0) throw new ValidationError('buildIds: pick at least one build')
+  if (ids.length === 0) throw new ValidationError('Pick at least one build')
   if (ids.length > MAX_BULK_REVIEW) {
-    throw new ValidationError(`buildIds: at most ${MAX_BULK_REVIEW} builds at once`)
+    throw new ValidationError(`Pick at most ${MAX_BULK_REVIEW} builds at once`)
   }
   return db.transaction(async (tx) => {
     const own = await listTeamBuildsByIds(tx, input.teamId, ids)

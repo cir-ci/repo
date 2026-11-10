@@ -187,7 +187,9 @@ describe('BuildPage states', () => {
     fakeBuildApi(detail({}, { baseline: null, diffs: [shot('home', 'added')] }))
     await renderBuild()
     await expect.element(page.getByText('No baseline', { exact: true })).toBeVisible()
-    await expect.element(page.getByText(/First build to compare against/)).toBeVisible()
+    await expect
+      .element(page.getByText(/This is the first build, so every screenshot is new/))
+      .toBeVisible()
     await expect.element(page.getByRole('img', { name: 'New in this build' })).toBeVisible()
   })
 

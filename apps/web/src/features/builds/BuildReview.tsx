@@ -409,8 +409,8 @@ function BaselineNote({ data }: BaselineNote.Props) {
   if (!baseline) {
     return (
       <Banner tone="info">
-        First build to compare against: every screenshot is new. Later builds are compared with this
-        one once it’s approved.
+        This is the first build, so every screenshot is new. Later builds are compared with it once
+        it’s approved.
       </Banner>
     )
   }

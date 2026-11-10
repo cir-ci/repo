@@ -11,7 +11,7 @@ const answer = (flakyBlocksMerge: boolean, canManage = true) => ({
   settings: { flakyBlocksMerge },
   teams: [],
 })
-const control = () => page.getByRole('checkbox', { name: /^Flaky screenshots block merges/ })
+const control = () => page.getByRole('checkbox', { name: /^Flaky-only changes block merging/ })
 
 describe('BuildSettings', () => {
   it('renders nothing until the settings are known', async () => {

@@ -243,11 +243,11 @@ describe('addTeamLink', () => {
       (await addTeamLink(t.db, { ...base, values: { pattern: 'a', url: 'u' } })).externalRef,
     ).toBe('nofile:u')
     await expect(addTeamLink(t.db, { ...base, values: { pattern: 'a' } })).rejects.toThrow(
-      'url: Frame address is required',
+      'Frame address is required',
     )
     await expect(
       addTeamLink(t.db, { ...base, values: { pattern: 'x'.repeat(201), url: 'u' } }),
-    ).rejects.toThrow('pattern: too long')
+    ).rejects.toThrow('Snapshot name is too long')
   })
 })
 
