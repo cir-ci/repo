@@ -58,6 +58,7 @@ GET /api/teams/:workspace/:team/triage
 GET /api/workspaces/:workspace
 GET /api/workspaces/:workspace/auth
 GET /api/workspaces/:workspace/builds
+GET /api/workspaces/:workspace/builds/branches
 GET /api/workspaces/:workspace/builds/suggestions
 GET /api/workspaces/:workspace/domains
 GET /api/workspaces/:workspace/insights
@@ -120,6 +121,7 @@ HEAD /api/teams/:workspace/:team/triage
 HEAD /api/workspaces/:workspace
 HEAD /api/workspaces/:workspace/auth
 HEAD /api/workspaces/:workspace/builds
+HEAD /api/workspaces/:workspace/builds/branches
 HEAD /api/workspaces/:workspace/builds/suggestions
 HEAD /api/workspaces/:workspace/domains
 HEAD /api/workspaces/:workspace/insights
