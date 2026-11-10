@@ -13,7 +13,7 @@ import { useDisplayStore } from '#lib/stores/display-store.ts'
 import { build } from '#test/features/teams/support.tsx'
 import { mockAuthClient } from '#test/support/auth-client.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
-import { fakeApi } from '#test/support/fetch.ts'
+import { fakeApi, fakeFetch } from '#test/support/fetch.ts'
 import { sidebarModel, sidebarTeam, teamInfo } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { expectResize } from '#test/support/resize.ts'
@@ -170,6 +170,55 @@ describe('filters', () => {
     expect(page.getByText(/npx circi upload/).elements()).toHaveLength(0)
     await page.getByRole('button', { name: 'Clear filters' }).last().click()
     expect(router.state.location.search).toEqual({})
+  })
+
+  describe('a person filter', () => {
+    const members = (resolve: () => Promise<unknown>) =>
+      auth.getFullOrganization.mockImplementation(resolve)
+    const ada = {
+      data: {
+        id: 'o1',
+        name: 'Acme',
+        slug: 'acme',
+        members: [
+          {
+            id: 'm1',
+            userId: 'u1',
+            role: 'owner',
+            user: { name: 'Ada Lovelace', email: 'a@x.test' },
+          },
+        ],
+        invitations: [],
+      },
+      error: null,
+    }
+
+    it("shows the person's name, never their ID, from the address and while names load", async () => {
+      let release: (value: unknown) => void = () => {}
+      members(() => new Promise((resolve) => (release = resolve)))
+      api([build(3)])
+      await show('/acme/web?reviewer=u1')
+      const chip = page.getByRole('button', { name: /^Reviewer/ })
+      await expect.element(chip).toBeVisible()
+      expect(chip.element().textContent).not.toContain('u1')
+      expect(chip.element().textContent).toBe('Reviewer: …')
+      release(ada)
+      await expect
+        .element(page.getByRole('button', { name: 'Reviewer: Ada Lovelace' }))
+        .toBeVisible()
+      await chip.click()
+      await expect
+        .element(page.getByRole('textbox', { name: 'Reviewer' }))
+        .toHaveValue('Ada Lovelace')
+      // Applying without a change keeps filtering by the person, not by their name as text.
+      await page.getByRole('button', { name: 'Apply' }).click()
+      await expect
+        .element(page.getByRole('button', { name: 'Reviewer: Ada Lovelace' }))
+        .toBeVisible()
+      expect(page.getByRole('button', { name: /Reviewer/ }).element().textContent).not.toContain(
+        'u1',
+      )
+    })
   })
 
   it('opens the status filter with F and the display options with ⇧V', async () => {

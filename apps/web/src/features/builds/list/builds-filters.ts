@@ -208,6 +208,9 @@ function dateText(filters: BuildFilters): string | undefined {
   return undefined
 }
 
+/** What a person chip says while the names that would replace a user ID are still loading. */
+export const PENDING_NAME = '…'
+
 /** What a chip says it filters by: undefined while the field is not filtered. */
 export function fieldValue(
   field: FilterField,
@@ -223,7 +226,9 @@ export function fieldValue(
     case 'author':
     case 'reviewer': {
       const value = filters[field]
-      return value === undefined ? undefined : (labels?.get(value) ?? value)
+      if (value === undefined) return undefined
+      // `labels` is undefined while the names load: the value may be a user ID, so say nothing of it.
+      return labels ? (labels.get(value) ?? value) : PENDING_NAME
     }
     case 'branch':
       return (

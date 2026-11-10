@@ -12,6 +12,7 @@ import {
   chipName,
   dayOf,
   FILTER_FIELDS,
+  PENDING_NAME,
   type FilterField,
   fieldValue,
   hasFilters,
@@ -50,7 +51,10 @@ export function BuildFilterBar({
 }: BuildFilterBar.Props) {
   // People's names for the author and reviewer chips, which hold user ids once a suggestion is picked.
   const members = useQuery({ ...workspaceQuery(workspace), staleTime: 60_000 })
-  const labels = new Map((members.data?.members ?? []).map((m) => [m.userId, m.user.name]))
+  // Until the member list is known a person's chip says "…", never the raw ID from the address.
+  const labels = members.isPending
+    ? undefined
+    : new Map((members.data?.members ?? []).map((m) => [m.userId, m.user.name]))
   const set = (next: BuildFilters, close = true) => {
     onFiltersChange(next)
     if (close) onOpenChange(undefined)
@@ -87,6 +91,7 @@ export function BuildFilterBar({
               team={team}
               field={field}
               filters={filters}
+              labels={labels}
               onChange={set}
             />
             {active ? (
@@ -155,12 +160,14 @@ function FieldEditor({
   team,
   field,
   filters,
+  labels,
   onChange,
 }: {
   workspace: string
   team: string | undefined
   field: FilterField
   filters: BuildFilters
+  labels: ReadonlyMap<string, string> | undefined
   onChange: (filters: BuildFilters) => void
 }) {
   if (field === 'status') {
@@ -185,25 +192,41 @@ function FieldEditor({
   if (field === 'branch') {
     return <BranchEditor workspace={workspace} team={team} filters={filters} onChange={onChange} />
   }
-  return <TextEditor workspace={workspace} field={field} filters={filters} onChange={onChange} />
+  return (
+    <TextEditor
+      // Starts over once the names arrive, so a user ID never sits in the field.
+      key={labels ? 'named' : 'loading'}
+      workspace={workspace}
+      field={field}
+      filters={filters}
+      labels={labels}
+      onChange={onChange}
+    />
+  )
 }
 
 function TextEditor({
   workspace,
   field,
   filters,
+  labels,
   onChange,
 }: {
   workspace: string
   field: 'author' | 'reviewer' | 'name'
   filters: BuildFilters
+  labels: ReadonlyMap<string, string> | undefined
   onChange: (filters: BuildFilters) => void
 }) {
-  const [text, setText] = useState(filters[field] ?? '')
+  // A person is filtered by user ID; the field shows (and edits) their name.
+  const current = filters[field]
+  const currentName = current === undefined ? undefined : fieldValue(field, filters, labels)
+  const [text, setText] = useState(currentName === PENDING_NAME ? '' : (currentName ?? ''))
   const label = FILTER_FIELDS.find((f) => f.field === field)?.label ?? field
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    onChange(withText(filters, field, text))
+    // Unchanged text is still the person already filtered by, not their name as free text.
+    onChange(withText(filters, field, text === currentName && current ? current : text))
   }
   return (
     <form onSubmit={submit} className={styles.form}>
