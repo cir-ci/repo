@@ -46,8 +46,9 @@ async function ready(canManage: boolean) {
 
 const drag = () =>
   userEvent.dragAndDrop(build(), build(), {
-    sourcePosition: { x: 40, y: 30 },
-    targetPosition: { x: 200, y: 150 },
+    // Clear of the ignore region at 10, 20 to 110, 70: a press on that one moves it.
+    sourcePosition: { x: 150, y: 120 },
+    targetPosition: { x: 300, y: 250 },
   })
 
 describe('drawing ignore regions on the build page', () => {
@@ -91,11 +92,11 @@ describe('drawing ignore regions on the build page', () => {
     expect(popover().elements()).toHaveLength(0)
     const posted = api.ignorePosts[0]
     expect(posted?.name).toBe(NAME)
-    // Pixels of the 400 × 300 image (the drag lands within a pixel or two).
-    expect(posted?.x).toBeCloseTo(40, -1)
-    expect(posted?.y).toBeCloseTo(30, -1)
-    expect(posted?.width).toBeGreaterThan(100)
-    expect(posted?.height).toBeGreaterThan(80)
+    // Pixels of the 400 × 300 screenshot, which the page shows a little smaller.
+    expect(Math.abs((posted?.x ?? 0) - 156)).toBeLessThan(8)
+    expect(Math.abs((posted?.y ?? 0) - 120)).toBeLessThan(8)
+    expect(Math.abs((posted?.width ?? 0) - 156)).toBeLessThan(10)
+    expect(Math.abs((posted?.height ?? 0) - 130)).toBeLessThan(10)
     await expect.element(ignoreList().getByRole('listitem')).toHaveLength(2)
   })
 

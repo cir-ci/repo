@@ -29,7 +29,6 @@ import {
   type RegionComposer,
   useRegionGesture,
 } from '#features/regions/RegionLayer.tsx'
-import { RegionBoxes } from '#features/regions/RegionStage.tsx'
 import { MODE_OPTIONS } from '#lib/shortcuts.ts'
 
 import { screenshotLabel, screenshotStatus, type ShotKind } from './diff-status.ts'
@@ -104,6 +103,9 @@ export function Viewer({
       // A sent comment shows only on the image it was drawn on.
       threads: regions.threads.filter((t) => apiSide(side) === t.side),
       pending: draft,
+      pendingKey: regions.draftKey,
+      onAdjustPending: regions.onAdjustDraft,
+      onAdjust: regions.onAdjust,
       focusedId: regions.focusedId,
       drawing: !inDialog && side === 'build' && keyboardTool,
       onDrawingChange: setKeyboardTool,
@@ -139,7 +141,11 @@ export function Viewer({
       },
       onMarker: () => {},
       alwaysDraw: true,
-      underlay: <RegionBoxes regions={state.regions} size={size} />,
+      ignoreRegions: {
+        regions: state.regions,
+        size,
+        onAdjust: (item, region) => state.onAdjust(item, region, size),
+      },
     }
   }
   const summary = changeSummary(diff)
@@ -340,6 +346,7 @@ export function Viewer({
             {diff.errorMessage ?? "This screenshot couldn't be processed."}
           </Banner>
         ) : null}
+        {regions?.error && !ignoring ? <Banner tone="danger">{regions.error}</Banner> : null}
         {diff.sizeChanged && diff.base && diff.head ? (
           <Banner tone="warning">
             Size changed from {diff.base.width}×{diff.base.height} to {diff.head.width}×
@@ -514,6 +521,8 @@ export interface IgnoreMode {
   pending: { side: RegionSide; region: Comment.Region } | null
   /** `size` is the pixel size of the image it was drawn on. */
   onDraw: (side: RegionSide, region: Comment.Region, size: Size) => void
+  /** An ignore region was moved or resized by dragging it; `size` is the pixel size of its image. */
+  onAdjust: (item: IgnoreRegion.Item, region: Comment.Region, size: Size) => void
   /** The list of the regions, with Add, Edit and Remove. */
   panel: ReactNode
 }
@@ -524,6 +533,14 @@ export interface Regions {
   focusedId: string | null
   /** The selected region and the snapshot and side it was drawn on. */
   draft: RegionDraft | null
+  /** A new number for each region drawn: moving the draft keeps the text typed so far. */
+  draftKey: number
+  /** The draft was moved or resized by dragging it. */
+  onAdjustDraft: (region: Comment.Region) => void
+  /** A sent comment's region was moved or resized by its author. */
+  onAdjust: (id: string, region: Comment.Region) => void
+  /** Why the last region save failed, until the next one. */
+  error?: string | undefined
   onDraw: (side: RegionSide, region: Comment.Region) => void
   onMarker: (id: string) => void
   composer: RegionComposer.Callbacks

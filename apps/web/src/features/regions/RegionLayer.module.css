@@ -40,6 +40,17 @@
   pointer-events: none;
 }
 
+/* A region its viewer may adjust: the body moves it and the corner handles resize it (the top-right one sits over the pin). */
+.marker[data-adjustable],
+.layer[data-always] .marker[data-adjustable]:not([data-pending]),
+.layer[data-external] .marker[data-adjustable]:not([data-pending]) {
+  cursor: move;
+}
+
+.marker[data-pending][data-adjustable] {
+  pointer-events: auto;
+}
+
 /* The pin: a teardrop at the region's top-right corner, pointing down at it (the board's .pin). */
 .pin {
   position: absolute;

@@ -140,15 +140,16 @@ describe('comment routes', () => {
     const listed = (await comments()).comments.find((c: { id: string }) => c.id === top.json().id)
     expect(listed.region).toEqual(next)
 
-    for (const payload of [
-      { x: 0.8, y: 0, width: 0.5, height: 0.5 },
-      { x: 0, y: 0, width: 0.005, height: 0.5 },
-      { x: 0, y: 0, width: 0, height: 0.5 },
-      { x: 0, y: 0, width: 'wide', height: 0.5 },
-      { x: 0, y: 0 },
-    ]) {
-      expect((await send('PATCH', url, { cookie: louCookie, payload })).statusCode).toBe(400)
-    }
+    const invalid = await Promise.all(
+      [
+        { x: 0.8, y: 0, width: 0.5, height: 0.5 },
+        { x: 0, y: 0, width: 0.005, height: 0.5 },
+        { x: 0, y: 0, width: 0, height: 0.5 },
+        { x: 0, y: 0, width: 'wide', height: 0.5 },
+        { x: 0, y: 0 },
+      ].map((payload) => send('PATCH', url, { cookie: louCookie, payload })),
+    )
+    expect(invalid.map((r) => r.statusCode)).toEqual([400, 400, 400, 400, 400])
     expect((await comments()).comments[0].region).toEqual(next)
 
     // A comment with no region has nothing to adjust, and a deleted one is gone.
@@ -157,10 +158,12 @@ describe('comment routes', () => {
       payload: { body: 'no region' },
     })
     expect(
-      (await send('PATCH', `${build}/comments/${plain.json().id}/region`, {
-        cookie: louCookie,
-        payload: next,
-      })).statusCode,
+      (
+        await send('PATCH', `${build}/comments/${plain.json().id}/region`, {
+          cookie: louCookie,
+          payload: next,
+        })
+      ).statusCode,
     ).toBe(400)
     await send('DELETE', `${build}/comments/${top.json().id}`, { cookie: louCookie })
     expect((await send('PATCH', url, { cookie: louCookie, payload: next })).statusCode).toBe(404)

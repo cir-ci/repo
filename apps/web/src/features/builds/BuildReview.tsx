@@ -19,7 +19,12 @@ import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { ShortcutsDialog } from '#app/ShortcutsDialog.tsx'
-import { commentsQuery, useAddComment, useMentionMembers } from '#features/builds/api/discussion.ts'
+import {
+  commentsQuery,
+  useAddComment,
+  useMentionMembers,
+  useSetCommentRegion,
+} from '#features/builds/api/discussion.ts'
 import { flakyQuery, isActive } from '#features/builds/api/index.ts'
 import { regionThreads } from '#features/regions/geometry.ts'
 import { authClient } from '#lib/auth-client.ts'
@@ -75,6 +80,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const [tab, setTab] = useState<SidebarTab>(search.sidebar ?? 'details')
   // The region selected on an image and not yet sent: it belongs to one snapshot and one side.
   const [draft, setDraft] = useState<RegionDraft | null>(null)
+  const [draftKey, setDraftKey] = useState(0)
   const [focusedComment, setFocusedComment] = useState<string | null>(null)
   const composer = useRef<HTMLTextAreaElement>(null)
 
@@ -91,6 +97,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const selectedGroup = groups.find((g) => selected && g.items.includes(selected))?.kind
   const review = useReviewControls(data, selected)
   const addComment = useAddComment(team.workspaceSlug, team.slug, build.number)
+  const setRegion = useSetCommentRegion(team.workspaceSlug, team.slug, build.number)
   const announce = useAnnounce()
   const ignore = useIgnoreMode(team.workspaceSlug, team.slug, selected)
   const members = useMentionMembers(team.workspaceSlug, team.slug)
@@ -347,15 +354,29 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
               regions={{
                 threads: pinned.flatMap((c, i) =>
                   c.region
-                    ? [{ id: c.id, number: i + 1, region: c.region, side: c.regionSide }]
+                    ? [
+                        {
+                          id: c.id,
+                          number: i + 1,
+                          region: c.region,
+                          side: c.regionSide,
+                          adjustable: c.mine,
+                        },
+                      ]
                     : [],
                 ),
                 focusedId: focusedComment,
                 draft,
+                draftKey,
                 onDraw: (side, region) => {
                   addComment.reset()
+                  setDraftKey((k) => k + 1)
                   setDraft({ shotId: selected.id, side, region })
                 },
+                onAdjustDraft: (region) => setDraft(draft && { ...draft, region }),
+                onAdjust: (id, region) =>
+                  setRegion.mutate({ id, region }, { onSuccess: () => announce('Region saved') }),
+                error: setRegion.error?.message,
                 onMarker: (id) => {
                   setTab('comments')
                   setFocusedComment(id)

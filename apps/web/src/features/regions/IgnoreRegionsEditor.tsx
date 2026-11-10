@@ -4,13 +4,18 @@ import { useQuery } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 
 import { fileUrl } from '#features/builds/api/index.ts'
-import { ignoreRegionsQuery, useAddIgnoreRegion } from '#features/teams/api/index.ts'
+import {
+  ignoreRegionsQuery,
+  useAddIgnoreRegion,
+  useAdjustIgnoreRegion,
+} from '#features/teams/api/index.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 
 import { regionsOf, sizeOf, toPixels } from './ignore-regions.ts'
 import { IgnoreRegionsPanel } from './IgnoreRegionsPanel.tsx'
+import { RegionBoxes } from './RegionBoxes.tsx'
 import { type Annotations, RegionOverlay } from './RegionLayer.tsx'
-import { RegionBoxes, RegionStage } from './RegionStage.tsx'
+import { RegionStage } from './RegionStage.tsx'
 
 import styles from './IgnoreRegionsEditor.module.css'
 
@@ -31,6 +36,7 @@ export function IgnoreRegionsEditor({
   const { data, error, refetch } = useQuery(ignoreRegionsQuery(workspace, team, name))
   const announce = useAnnounce()
   const add = useAddIgnoreRegion(workspace, team)
+  const adjust = useAdjustIgnoreRegion(workspace, team)
   // The keyboard way to place a region; dragging needs no switch.
   const [keyboardTool, setKeyboardTool] = useState(false)
   const [pending, setPending] = useState<Comment.Region | null>(null)
@@ -65,6 +71,17 @@ export function IgnoreRegionsEditor({
           onMarker: () => {},
           alwaysDraw: true,
           onClick: () => setEnlarged(true),
+          // Owners and admins also move and resize the regions by dragging them.
+          ignoreRegions: {
+            regions,
+            size,
+            onAdjust: (item, region) => {
+              adjust.mutate(
+                { id: item.id, rect: toPixels(region, size) },
+                { onSuccess: () => announce('Ignore region saved') },
+              )
+            },
+          },
         }
       : undefined
 
@@ -114,7 +131,7 @@ export function IgnoreRegionsEditor({
         size={size}
         regions={regions}
         canManage={canManage}
-        error={add.error?.message}
+        error={add.error?.message ?? adjust.error?.message}
       />
 
       {latest ? (
@@ -127,14 +144,11 @@ export function IgnoreRegionsEditor({
               ...(size ? size : {}),
               ...(size
                 ? {
-                    overlay: (
-                      <>
-                        <RegionBoxes regions={regions} size={size} />
-                        {annotations ? (
-                          // The keyboard tool belongs to the inline image.
-                          <RegionOverlay annotations={{ ...annotations, drawing: false }} />
-                        ) : null}
-                      </>
+                    overlay: annotations ? (
+                      // The keyboard tool belongs to the inline image.
+                      <RegionOverlay annotations={{ ...annotations, drawing: false }} />
+                    ) : (
+                      <RegionBoxes regions={regions} size={size} />
                     ),
                   }
                 : {}),

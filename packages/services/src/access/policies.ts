@@ -10,7 +10,10 @@ import type { Actor } from './actor.ts'
  */
 export type Decision =
   | { allow: true }
-  | { allow: false; reason: 'not-member' | 'not-manager' | 'not-owner' | 'not-instance-admin' | 'not-author' }
+  | {
+      allow: false
+      reason: 'not-member' | 'not-manager' | 'not-owner' | 'not-instance-admin' | 'not-author'
+    }
 
 const ALLOW: Decision = { allow: true }
 const deny = (reason: Extract<Decision, { allow: false }>['reason']): Decision => ({

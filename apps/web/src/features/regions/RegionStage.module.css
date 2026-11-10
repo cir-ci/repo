@@ -18,30 +18,6 @@
   height: auto;
 }
 
-.region {
-  position: absolute;
-  box-sizing: border-box;
-  border: 2px solid var(--circi-annotation);
-  background: repeating-linear-gradient(
-    45deg,
-    color-mix(in srgb, var(--circi-annotation) 22%, transparent) 0 6px,
-    transparent 6px 12px
-  );
-  pointer-events: none;
-}
-
-.tag {
-  position: absolute;
-  top: -2px;
-  left: -2px;
-  min-width: 16px;
-  padding: 0 4px;
-  background: var(--circi-annotation);
-  color: var(--circi-annotation-text);
-  font-size: 11px;
-  line-height: 16px;
-}
-
 /* Over the image, as big as it: the drawing layer. The press goes to the image's button; only markers and the popover take the pointer. */
 .layer {
   position: absolute;

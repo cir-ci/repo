@@ -1,9 +1,8 @@
-import type { Comment } from '@circi/api'
+import type { Comment, IgnoreRegion } from '@circi/api'
 import { Avatar, Button, Kbd, useAnnounce, visuallyHidden } from '@circi/ui'
 import {
   type KeyboardEvent,
   type PointerEvent,
-  type ReactNode,
   type RefObject,
   useEffect,
   useId,
@@ -27,15 +26,30 @@ import {
   regionStyle,
   START_REGION,
 } from './geometry.ts'
+import type { Size } from './ignore-regions.ts'
+import { type Adjust, RegionHandles, useAdjustable } from './RegionAdjust.tsx'
+import { RegionBoxes } from './RegionBoxes.tsx'
 
 import styles from './RegionLayer.module.css'
 
 /** The comment regions of the snapshot on screen, and what drawing a new one needs. */
 export interface Annotations {
   /** Pinned threads of this snapshot, numbered like their cards in the Comments tab. */
-  threads: { id: string; number: number; region: Comment.Region }[]
+  threads: {
+    id: string
+    number: number
+    region: Comment.Region
+    /** The signed-in person may move and resize it (its author): it gets corner handles. */
+    adjustable?: boolean
+  }[]
   /** The region drawn and not yet sent. */
   pending: Comment.Region | null
+  /** Tells one draft from the next (the comment box starts empty for a new one, not for a moved one). */
+  pendingKey?: string | number
+  /** Moving or resizing the pending region by dragging it is allowed: the new region. */
+  onAdjustPending?: (region: Comment.Region) => void
+  /** A thread's region was moved or resized by dragging (only `adjustable` ones can be). */
+  onAdjust?: (id: string, region: Comment.Region) => void
   focusedId: string | null
   /** While on, a drag over the image draws a region, and the keyboard tool is shown. */
   drawing: boolean
@@ -48,8 +62,15 @@ export interface Annotations {
    */
   alwaysDraw?: boolean
   onClick?: () => void
-  /** Drawn under the markers: the ignore regions shown while a drag draws one. */
-  underlay?: ReactNode
+  /**
+   * Drawn under the markers: the ignore regions shown while a drag draws one. With `onAdjust`
+   * they can be moved and resized too (owners and admins).
+   */
+  ignoreRegions?: {
+    regions: readonly IgnoreRegion.Item[]
+    size: Size
+    onAdjust?: RegionBoxes.Props['onAdjust']
+  }
   /** With the pending region: the comment popover anchored to it. */
   composer?: RegionComposer.Callbacks
 }
@@ -141,6 +162,12 @@ export function RegionLayer({ annotations, gesture }: RegionLayer.Props) {
   const live = (gesture ?? own).live
   const { drawing, alwaysDraw = false } = annotations
   const pendingRef = useRef<HTMLSpanElement>(null)
+  const onAdjustPending = annotations.onAdjustPending
+  // The draft can be dragged about before it is sent; the comment box follows it.
+  const pendingBox = useAdjustable(
+    annotations.pending ?? START_REGION,
+    onAdjustPending ? { onCommit: onAdjustPending } : undefined,
+  )
 
   return (
     <div
@@ -151,37 +178,42 @@ export function RegionLayer({ annotations, gesture }: RegionLayer.Props) {
       data-testid="region-layer"
       {...(gesture ? {} : own.bind)}
     >
-      {annotations.underlay}
+      {annotations.ignoreRegions ? (
+        <RegionBoxes {...annotations.ignoreRegions} onClick={annotations.onClick} />
+      ) : null}
       {annotations.threads.map((t) => (
-        <button
+        <ThreadMarker
           key={t.id}
-          type="button"
-          className={styles.marker}
-          style={regionStyle(t.region)}
-          data-focused={t.id === annotations.focusedId ? '' : undefined}
-          aria-label={`Comment ${t.number}`}
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={() => annotations.onMarker(t.id)}
-        >
-          <span aria-hidden="true" className={styles.pin}>
-            <span>{t.number}</span>
-          </span>
-        </button>
+          thread={t}
+          focused={t.id === annotations.focusedId}
+          onMarker={annotations.onMarker}
+          adjust={
+            t.adjustable && annotations.onAdjust
+              ? { onCommit: (region) => annotations.onAdjust?.(t.id, region) }
+              : undefined
+          }
+        />
       ))}
       {annotations.pending ? (
         <span
           ref={pendingRef}
           className={styles.marker}
           data-pending=""
-          style={regionStyle(annotations.pending)}
-        />
+          style={regionStyle(pendingBox.region)}
+          {...pendingBox.props}
+        >
+          {annotations.onAdjustPending ? <RegionHandles /> : null}
+        </span>
       ) : null}
       {live ? <span className={styles.marker} data-pending="" style={regionStyle(live)} /> : null}
       {annotations.pending && annotations.composer ? (
         <RegionComposer
           // A new region is a new draft: the box starts empty.
-          key={`${annotations.pending.x}:${annotations.pending.y}:${annotations.pending.width}:${annotations.pending.height}`}
-          region={annotations.pending}
+          key={
+            annotations.pendingKey ??
+            `${annotations.pending.x}:${annotations.pending.y}:${annotations.pending.width}:${annotations.pending.height}`
+          }
+          region={pendingBox.region}
           anchor={pendingRef}
           {...annotations.composer}
         />
@@ -194,6 +226,37 @@ export function RegionLayer({ annotations, gesture }: RegionLayer.Props) {
       ) : null}
     </div>
   )
+}
+
+/** A saved thread's region: a button in the annotation colour with its pin, and corner handles for its author. */
+function ThreadMarker({ thread, focused, onMarker, adjust }: ThreadMarker.Props) {
+  const box = useAdjustable(thread.region, adjust)
+  return (
+    <button
+      type="button"
+      className={styles.marker}
+      style={regionStyle(box.region)}
+      data-focused={focused ? '' : undefined}
+      aria-label={`Comment ${thread.number}`}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={() => onMarker(thread.id)}
+      {...box.props}
+    >
+      <span aria-hidden="true" className={styles.pin}>
+        <span>{thread.number}</span>
+      </span>
+      {adjust ? <RegionHandles /> : null}
+    </button>
+  )
+}
+
+namespace ThreadMarker {
+  export interface Props {
+    thread: Annotations['threads'][number]
+    focused: boolean
+    onMarker: (id: string) => void
+    adjust: Adjust | undefined
+  }
 }
 
 /**
@@ -238,12 +301,14 @@ function RegionComposer({
   const errorId = useId()
   const text = body.trim()
 
-  // Measuring the region on screen is the one thing a render cannot know: place before paint.
+  // Measuring the region on screen is the one thing a render cannot know: place before paint, and
+  // again when the region moves (the box follows it, and may need to go above instead).
   useLayoutEffect(() => {
     const box = anchor.current?.getBoundingClientRect()
     // oxlint-disable-next-line react/set-state-in-effect
     if (box) setSide(popoverSide(window.innerHeight - box.bottom))
-  }, [anchor])
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies
+  }, [anchor, region])
 
   useEffect(() => {
     field.current?.focus()

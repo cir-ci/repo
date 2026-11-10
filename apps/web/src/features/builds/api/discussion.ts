@@ -62,6 +62,37 @@ export function useEditComment(workspace: string, team: string, number: number) 
   })
 }
 
+/**
+ * Saves a comment's region moved or resized with the mouse (its author only). The comment shows
+ * the new region at once and goes back to the old one if the save fails.
+ */
+export function useSetCommentRegion(workspace: string, team: string, number: number) {
+  const queryClient = useQueryClient()
+  const key = keys.comments(workspace, team, number)
+  return useMutation({
+    mutationFn: ({ id, region }: { id: string; region: Comment.SetRegion }) =>
+      send<Comment.Item>(
+        'PATCH',
+        teamPath(workspace, team, 'builds', number, 'comments', id, 'region'),
+        region,
+      ),
+    onMutate: async ({ id, region }) => {
+      const before = queryClient.getQueryData<Comment.List>(key)
+      queryClient.setQueryData<Comment.List>(
+        key,
+        (list) =>
+          list && { comments: list.comments.map((c) => (c.id === id ? { ...c, region } : c)) },
+      )
+      await queryClient.cancelQueries({ queryKey: key })
+      return { before }
+    },
+    onError: (_error, _input, context) => {
+      if (context?.before) queryClient.setQueryData(key, context.before)
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+  })
+}
+
 export function useDeleteComment(workspace: string, team: string, number: number) {
   const refresh = useRefreshDiscussion(workspace, team, number)
   return useMutation({

@@ -1,0 +1,49 @@
+/* A corner handle: a 14px hit area centred on the corner, with a small square drawn in it while the region is hovered, selected or dragged. */
+.handle {
+  position: absolute;
+  z-index: 2;
+  width: 14px;
+  height: 14px;
+  touch-action: none;
+}
+
+.handle::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--circi-annotation);
+  border-radius: var(--circi-radius-inline);
+  background: var(--circi-surface-highest);
+  opacity: 0;
+}
+
+:global([data-adjustable]:hover) > .handle::after,
+:global([data-adjustable][data-adjusting]) > .handle::after,
+:global([data-adjustable][data-focused]) > .handle::after {
+  opacity: 1;
+}
+
+.handle[data-corner='nw'] {
+  top: -7px;
+  left: -7px;
+  cursor: nwse-resize;
+}
+
+.handle[data-corner='se'] {
+  right: -7px;
+  bottom: -7px;
+  cursor: nwse-resize;
+}
+
+.handle[data-corner='ne'] {
+  top: -7px;
+  right: -7px;
+  cursor: nesw-resize;
+}
+
+.handle[data-corner='sw'] {
+  bottom: -7px;
+  left: -7px;
+  cursor: nesw-resize;
+}

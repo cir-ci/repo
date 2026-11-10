@@ -1,0 +1,29 @@
+.region {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--circi-annotation);
+  background: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--circi-annotation) 22%, transparent) 0 6px,
+    transparent 6px 12px
+  );
+  pointer-events: none;
+}
+
+/* An ignore region its viewer may adjust: the body moves it, the corner handles resize it. */
+.region[data-adjustable] {
+  pointer-events: auto;
+  cursor: move;
+}
+
+.tag {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  min-width: 16px;
+  padding: 0 4px;
+  background: var(--circi-annotation);
+  color: var(--circi-annotation-text);
+  font-size: 11px;
+  line-height: 16px;
+}

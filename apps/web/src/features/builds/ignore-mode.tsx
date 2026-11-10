@@ -5,7 +5,12 @@ import { useState } from 'react'
 
 import { regionsOf, toPixels } from '#features/regions/ignore-regions.ts'
 import { IgnoreRegionsPanel } from '#features/regions/IgnoreRegionsPanel.tsx'
-import { ignoreRegionsQuery, settingsQuery, useAddIgnoreRegion } from '#features/teams/api/index.ts'
+import {
+  ignoreRegionsQuery,
+  settingsQuery,
+  useAddIgnoreRegion,
+  useAdjustIgnoreRegion,
+} from '#features/teams/api/index.ts'
 
 import type { IgnoreMode } from './DiffViewer.tsx'
 import type { RegionSide } from './region-draft.ts'
@@ -29,6 +34,7 @@ export function useIgnoreMode(
     enabled: canManage && name !== undefined,
   })
   const add = useAddIgnoreRegion(workspace, team)
+  const adjust = useAdjustIgnoreRegion(workspace, team)
   const [mode, setMode] = useState<IgnoreMode['mode']>('comments')
   const [pending, setPending] = useState<IgnoreMode['pending']>(null)
   if (!canManage || !shot) return undefined
@@ -50,6 +56,12 @@ export function useIgnoreMode(
         },
       )
     },
+    onAdjust: (item, region, size) => {
+      adjust.mutate(
+        { id: item.id, rect: toPixels(region, size) },
+        { onSuccess: () => announce('Ignore region saved') },
+      )
+    },
     panel: (
       <IgnoreRegionsPanel
         workspace={workspace}
@@ -58,7 +70,7 @@ export function useIgnoreMode(
         size={image?.width && image.height ? { width: image.width, height: image.height } : null}
         regions={regions}
         canManage
-        error={add.error?.message}
+        error={add.error?.message ?? adjust.error?.message}
         footer={false}
       />
     ),

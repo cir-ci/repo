@@ -4,22 +4,11 @@ import { useState } from 'react'
 
 import { fileUrl } from '#features/builds/api/index.ts'
 
-import { regionStyle } from './geometry.ts'
-import { type Size, toFractions } from './ignore-regions.ts'
+import type { Size } from './ignore-regions.ts'
+import { RegionBoxes } from './RegionBoxes.tsx'
 import { type Annotations, RegionLayer, useRegionGesture } from './RegionLayer.tsx'
 
 import styles from './RegionStage.module.css'
-
-/** The numbered boxes of a screenshot's ignore regions, to lay over an image of that size. */
-export function RegionBoxes({ regions, size }: RegionBoxes.Props) {
-  return regions.map((r, index) => (
-    <span key={r.id} className={styles.region} style={regionStyle(toFractions(r, size))}>
-      <span className={styles.tag} aria-hidden="true">
-        {index + 1}
-      </span>
-    </span>
-  ))
-}
 
 /**
  * The latest screenshot of one name with its ignore regions drawn over it, numbered like the list
@@ -72,7 +61,7 @@ export function RegionStage({
         ) : (
           image
         )}
-        {size ? <RegionBoxes regions={regions} size={size} /> : null}
+        {size && !annotations ? <RegionBoxes regions={regions} size={size} /> : null}
         {size && annotations ? (
           <div className={styles.layer}>
             <RegionLayer annotations={annotations} gesture={gesture} />
@@ -81,13 +70,6 @@ export function RegionStage({
       </div>
     </div>
   )
-}
-
-export namespace RegionBoxes {
-  export interface Props {
-    regions: readonly IgnoreRegion.Item[]
-    size: Size
-  }
 }
 
 export namespace RegionStage {

@@ -216,6 +216,40 @@ export function useEditIgnoreRegion(workspace: string, team: string) {
   })
 }
 
+/**
+ * Saves an ignore region moved or resized with the mouse. The list shows the new rectangle at
+ * once and goes back to what it was if the save fails; the refetch afterwards settles it.
+ */
+export function useAdjustIgnoreRegion(workspace: string, team: string) {
+  const queryClient = useQueryClient()
+  const key = keys.ignoreRegions(workspace, team)
+  return useMutation({
+    mutationFn: (input: { id: string; rect: RegionRect }) =>
+      send<IgnoreRegion.Item>(
+        'PATCH',
+        teamPath(workspace, team, 'ignore-regions', input.id),
+        input.rect,
+      ),
+    onMutate: async (input) => {
+      const before = queryClient.getQueriesData<IgnoreRegion.List>({ queryKey: key })
+      queryClient.setQueriesData<IgnoreRegion.List>(
+        { queryKey: key },
+        (list) =>
+          list && {
+            ...list,
+            regions: list.regions.map((r) => (r.id === input.id ? { ...r, ...input.rect } : r)),
+          },
+      )
+      await queryClient.cancelQueries({ queryKey: key })
+      return { before }
+    },
+    onError: (_error, _input, context) => {
+      for (const [queryKey, data] of context?.before ?? []) queryClient.setQueryData(queryKey, data)
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+  })
+}
+
 export function useDeleteIgnoreRegion(workspace: string, team: string) {
   const queryClient = useQueryClient()
   return useMutation({
