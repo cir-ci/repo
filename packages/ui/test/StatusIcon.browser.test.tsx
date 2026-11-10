@@ -89,7 +89,7 @@ describe('StatusIcon', () => {
     },
   )
 
-  it('draws processing as eight arcs that grow one after the other, clockwise', async () => {
+  it('draws processing as eight arcs that swell one after the other, clockwise', async () => {
     await render(<StatusIcon status="processing" />)
     const icon = page.getByRole('img', { name: 'Processing' }).element()
     const arcs = [...icon.querySelectorAll('path')]

@@ -26,12 +26,12 @@ export const STATUS_LABEL: Record<Status, string> = {
 }
 
 /**
- * The processing ring: eight short arcs around the circle, each drawn clockwise, so each can grow
- * on its own (StatusIcon.module.css runs them in turn, like a loading circle; still, they are the
- * dashed ring).
+ * The processing ring: eight short arcs around the circle. StatusIcon.module.css swells each one
+ * in turn (a little thicker and fully opaque, then back), like a loading circle; still, they are
+ * the dashed ring. The radius leaves room for the swell inside the 14px box.
  */
 const PROCESSING_ARCS: readonly string[] = Array.from({ length: 8 }, (_, i) => {
-  const r = 6.25
+  const r = 5.75
   const step = (2 * Math.PI) / 8
   // Each arc is a little over half its slot, the rest is the gap.
   const sweep = step * 0.53
@@ -86,7 +86,6 @@ export function StatusIcon(props: StatusIcon.Props) {
           <path
             key={d}
             d={d}
-            pathLength={1}
             className={styles.arc}
             fill="none"
             stroke="currentColor"
