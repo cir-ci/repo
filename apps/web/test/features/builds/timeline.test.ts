@@ -40,6 +40,7 @@ describe('timelineItems', () => {
       { type: 'review_request_closed', at, reviewer: { id: 'u2', name: 'Grace' }, state: 'done' },
       { type: 'review', at, state: 'rejected', source: 'ui', reason: 'Too blue', by: person },
       { type: 'review', at, state: 'approved', source: 'auto', reason: null, by: null },
+      { type: 'review', at, state: 'rejected', source: 'rerun', reason: null, by: null },
       {
         type: 'comment',
         at,
@@ -59,6 +60,7 @@ describe('timelineItems', () => {
       'Review request for Grace was answered',
       'rejected the build',
       'Approved automatically: a build on the default branch',
+      'Rejected automatically: an earlier build of this commit, with the same screenshots, was rejected',
       'replied on home',
     ])
     expect(items[1]?.quote).toBe('out of memory')
@@ -66,9 +68,10 @@ describe('timelineItems', () => {
     expect(items[5]).toMatchObject({ status: 'rejected', actor: person, quote: 'Too blue' })
     // Automatic decisions have no actor.
     expect(items[6]).toMatchObject({ status: 'approved', actor: null })
+    expect(items[7]).toMatchObject({ status: 'rejected', actor: null })
     // A long comment is cut, and links back to its comment.
-    expect(items[7]?.quote?.length).toBe(140)
-    expect(items[7]?.commentId).toBe('c1')
+    expect(items[8]?.quote?.length).toBe(140)
+    expect(items[8]?.commentId).toBe('c1')
     expect(new Set(items.map((i) => i.key)).size).toBe(items.length)
   })
 })

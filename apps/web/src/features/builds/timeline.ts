@@ -121,8 +121,9 @@ function snapshotReviewText(e: Activity.Event & { type: 'snapshot_review' }): st
 function reviewText(e: Activity.Event & { type: 'review' }): string {
   const verb = e.state === 'approved' ? 'approved' : 'rejected'
   if (e.source === 'auto') return 'Approved automatically: a build on the default branch'
-  if (e.source === 'rerun')
-    return 'Approved automatically: these exact screenshots were approved before'
+  if (e.source === 'rerun') {
+    return `${e.state === 'approved' ? 'Approved' : 'Rejected'} automatically: an earlier build of this commit, with the same screenshots, was ${verb}`
+  }
   return e.by ? `${verb} the build` : `Build ${verb} by someone who has left`
 }
 

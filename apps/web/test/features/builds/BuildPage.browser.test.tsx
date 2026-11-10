@@ -201,6 +201,34 @@ describe('BuildPage states', () => {
     await expect.element(page.getByText(/latest on the default branch/)).toBeVisible()
   })
 
+  it('says a decision carried over from an earlier build of the commit was automatic, with its real outcome', async () => {
+    fakeBuildApi(
+      detail(
+        { reviewStatus: 'rejected' },
+        {
+          reviews: [
+            {
+              state: 'rejected',
+              source: 'rerun',
+              reason: null,
+              userName: null,
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        },
+      ),
+    )
+    await renderBuild()
+    await expect
+      .element(
+        page.getByText(
+          'Rejected automatically: an earlier build of this commit, with the same screenshots, was rejected.',
+        ),
+      )
+      .toBeVisible()
+    expect(page.getByText(/Approved automatically/).elements()).toHaveLength(0)
+  })
+
   it('says an expired build has expired and offers no decision', async () => {
     fakeBuildApi(detail({ status: 'expired', conclusion: null }))
     await renderBuild()
