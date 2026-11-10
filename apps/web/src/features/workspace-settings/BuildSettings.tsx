@@ -71,7 +71,7 @@ function Defaults({ workspace, data }: Defaults.Props) {
       </SettingsSection>
       {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
       {data.canManage ? (
-        <div className={styles.footer}>
+        <div className={styles.footer} data-save-bar="" data-clean={dirty ? undefined : ''}>
           <Button
             variant="ghost"
             disabled={!dirty || save.isPending}

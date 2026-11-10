@@ -1,4 +1,5 @@
 .list {
+  container: members / inline-size;
   overflow: hidden;
   border: 1px solid var(--circi-line-subtle);
   border-radius: 8px;
@@ -16,22 +17,48 @@
 
 .member {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 8px 12px;
   padding-block: 4px;
 }
 
+/* The teams stack and the role and menu are the grid's own items; the wrapper adds nothing. */
 .controls {
+  display: contents;
+}
+
+.teams:empty {
+  display: none;
+}
+
+.actions {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-@media (max-width: 559.98px) {
-  .controls[data-editable] {
-    grid-column: 1 / -1;
-    justify-content: space-between;
+/* A narrow list (a phone, or a wide window with a narrow panel): the left column stacks the name,
+   the email, how they sign in and the teams; the right one has the role and the menu. */
+@container members (max-width: 520px) {
+  .member {
+    grid-template-areas:
+      'who actions'
+      'teams actions';
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .who {
+    grid-area: who;
+  }
+
+  .teams {
+    grid-area: teams;
+  }
+
+  .actions {
+    grid-area: actions;
   }
 }
 

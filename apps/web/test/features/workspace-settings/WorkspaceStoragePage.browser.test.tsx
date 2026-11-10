@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest'
-import { page } from 'vitest/browser'
+import { AppFrame } from '@circi/ui'
+import { describe, expect, it, vi } from 'vitest'
+import { page, userEvent } from 'vitest/browser'
+
+vi.mock('#lib/auth-client.ts', () =>
+  import('#test/support/auth-client.ts').then((m) => m.authClientModule),
+)
 
 import { WorkspaceStoragePage } from '#features/workspace-settings/WorkspaceStoragePage.tsx'
 import { expectEmptyState } from '#test/support/empty-state.ts'
@@ -143,5 +148,42 @@ describe('WorkspaceStoragePage', () => {
     })
     await renderPage(<WorkspaceStoragePage />, ROUTE)
     await expect.element(page.getByText("This workspace doesn't exist")).toBeVisible()
+  })
+})
+
+const framed = (width: number) => (
+  <AppFrame sidebar={<span>Side</span>} compact={width < 820}>
+    <WorkspaceStoragePage />
+  </AppFrame>
+)
+
+describe('WorkspaceStoragePage in the app frame', () => {
+  // The page is shorter than the window: nothing in the frame adds a scroll, up or sideways.
+  it.each([
+    [390, 2400],
+    [1280, 2400],
+  ] as [number, number][])('does not scroll at %ix%i', async (width, height) => {
+    fakeApi({ ...NAME, 'GET /api/workspaces/acme/storage': { body: usage() } })
+    await renderPage(framed(width), { ...ROUTE, viewport: [width, height] })
+    await expect.element(page.getByRole('heading', { name: 'Storage used 4 MB' })).toBeVisible()
+    expect(document.documentElement.scrollHeight).toBeLessThanOrEqual(window.innerHeight)
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+  })
+
+  it('ends at the pinned Save bar on a phone: scrolled to the bottom, the bar has not moved', async () => {
+    fakeApi({ ...NAME, 'GET /api/workspaces/acme/storage': { body: usage() } })
+    await renderPage(framed(390), { ...ROUTE, viewport: [390, 600] })
+    await userEvent.type(days(), '1')
+    const save = page.getByRole('button', { name: 'Save changes' })
+    await expect.element(save).toBeVisible()
+    const bar = () => save.element().parentElement!.getBoundingClientRect()
+    expect(Math.round(bar().bottom)).toBe(window.innerHeight)
+    window.scrollTo(0, document.documentElement.scrollHeight)
+    await expect
+      .poll(() => window.scrollY + window.innerHeight)
+      .toBe(document.documentElement.scrollHeight)
+    // Nothing is left to scroll past the bar, so it stays on the window's bottom edge.
+    expect(Math.round(bar().bottom)).toBe(window.innerHeight)
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
   })
 })

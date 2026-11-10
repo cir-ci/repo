@@ -35,4 +35,10 @@
     border-top: 1px solid var(--circi-line-subtle);
     background: var(--circi-surface-chrome);
   }
+
+  /* A page with several forms (workspace settings) would pin one bar per form, stacked at the
+     bottom. Only a form with something to save shows its bar: one at a time. */
+  .saveBar[data-clean] {
+    display: none;
+  }
 }

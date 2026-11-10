@@ -135,7 +135,7 @@ export function MembersPage() {
           workspaceSettingsCrumb(workspace),
         ])}
         title="Members"
-        actions={<FindField noun="members" value={find} onChange={setFind} />}
+        find={<FindField noun="members" value={find} onChange={setFind} />}
       />
       <SettingsPage>
         <QueryBoundary
@@ -198,59 +198,60 @@ export function MembersPage() {
                               </ul>
                             ) : null}
                           </div>
-                          <div
-                            className={styles.controls}
-                            data-editable={editable ? '' : undefined}
-                          >
+                          <div className={styles.controls}>
                             {memberTeams.data ? (
-                              <TeamStack teams={memberTeams.data.teams[m.userId] ?? []} />
+                              <div className={styles.teams}>
+                                <TeamStack teams={memberTeams.data.teams[m.userId] ?? []} />
+                              </div>
                             ) : null}
-                            {editable && m.role !== 'owner' ? (
-                              <Select
-                                className={styles.role}
-                                label={`Role of ${m.user.name}`}
-                                hideLabel
-                                items={ROLES}
-                                value={m.role}
-                                disabled={changeRole.isPending}
-                                onValueChange={(role) => {
-                                  // A role decides what the person can change: ask before applying it.
-                                  if (role !== m.role) {
-                                    setRoleChange({
-                                      memberId: m.id,
-                                      name: m.user.name,
-                                      role: role === 'admin' ? 'admin' : 'member',
-                                    })
-                                  }
-                                }}
-                              />
-                            ) : (
-                              <Text variant="small" tone="secondary">
-                                {ROLE_LABEL[m.role] ?? m.role}
-                              </Text>
-                            )}
-                            {editable ? (
-                              <Menu
-                                align="end"
-                                trigger={
-                                  <IconButton label={`Actions for ${m.user.name}`}>
-                                    <RowMenuIcon />
-                                  </IconButton>
-                                }
-                                items={[
-                                  {
-                                    label: 'Remove from workspace',
-                                    tone: 'danger',
-                                    onSelect: () =>
-                                      setRemoving({
-                                        id: m.id,
+                            <div className={styles.actions}>
+                              {editable && m.role !== 'owner' ? (
+                                <Select
+                                  className={styles.role}
+                                  label={`Role of ${m.user.name}`}
+                                  hideLabel
+                                  items={ROLES}
+                                  value={m.role}
+                                  disabled={changeRole.isPending}
+                                  onValueChange={(role) => {
+                                    // A role decides what the person can change: ask before applying it.
+                                    if (role !== m.role) {
+                                      setRoleChange({
+                                        memberId: m.id,
                                         name: m.user.name,
-                                        email: m.user.email,
-                                      }),
-                                  },
-                                ]}
-                              />
-                            ) : null}
+                                        role: role === 'admin' ? 'admin' : 'member',
+                                      })
+                                    }
+                                  }}
+                                />
+                              ) : (
+                                <Text variant="small" tone="secondary">
+                                  {ROLE_LABEL[m.role] ?? m.role}
+                                </Text>
+                              )}
+                              {editable ? (
+                                <Menu
+                                  align="end"
+                                  trigger={
+                                    <IconButton label={`Actions for ${m.user.name}`}>
+                                      <RowMenuIcon />
+                                    </IconButton>
+                                  }
+                                  items={[
+                                    {
+                                      label: 'Remove from workspace',
+                                      tone: 'danger',
+                                      onSelect: () =>
+                                        setRemoving({
+                                          id: m.id,
+                                          name: m.user.name,
+                                          email: m.user.email,
+                                        }),
+                                    },
+                                  ]}
+                                />
+                              ) : null}
+                            </div>
                           </div>
                         </div>
                       </ListRow>

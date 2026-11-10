@@ -11,6 +11,7 @@ import { MembersPage } from '#features/members/MembersPage.tsx'
 import { ADA, mockAuthClient, setSignedInUser } from '#test/support/auth-client.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeFetch } from '#test/support/fetch.ts'
+import { expectNoSidewaysScroll } from '#test/support/overflow.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { toastNamed } from '#test/support/toast.ts'
 
@@ -426,5 +427,70 @@ describe('MembersPage', () => {
     await expect.element(find).toHaveValue('')
     await expect.element(page.getByText('Grace Hopper')).toBeVisible()
     await vi.waitFor(() => expect(router.state.location.search).not.toHaveProperty('q'))
+  })
+})
+
+const box = (el: Element) => el.getBoundingClientRect()
+const overlap = (a: DOMRect, b: DOMRect) =>
+  a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+
+/** Grace's row: her name, email and teams, the role select and the menu button. */
+async function graceRow() {
+  await expect.element(page.getByRole('list', { name: 'How Grace Hopper signs in' })).toBeVisible()
+  return {
+    name: page.getByText('Grace Hopper').element(),
+    email: page.getByText('grace@example.test').element(),
+    tags: page.getByRole('list', { name: 'How Grace Hopper signs in' }).element(),
+    role: page.getByRole('combobox', { name: 'Role of Grace Hopper' }).element(),
+    menu: page.getByRole('button', { name: 'Actions for Grace Hopper' }).element(),
+  }
+}
+
+describe('MembersPage layout', () => {
+  it('stacks the person on the left and puts the role and menu on the right, with no overlap, on a phone', async () => {
+    await page.viewport(390, 844)
+    await show()
+    await expect.element(page.getByText('Grace Hopper')).toBeVisible()
+    const row = await graceRow()
+    const text = [box(row.name), box(row.email), box(row.tags)] as const
+    const role = box(row.role)
+    const menu = box(row.menu)
+    // Name, email and sign-in methods read top to bottom.
+    expect(text[0].bottom).toBeLessThanOrEqual(text[1].top + 1)
+    expect(text[1].bottom).toBeLessThanOrEqual(text[2].top + 1)
+    // The role, then the menu, sit at the right edge, clear of everything on the left.
+    expect(role.right).toBeLessThanOrEqual(menu.left + 1)
+    expect(menu.right).toBeGreaterThan(window.innerWidth - 40)
+    for (const left of text) expect(overlap(left, role) || overlap(left, menu)).toBe(false)
+    expectNoSidewaysScroll()
+  })
+
+  it('keeps the person, the teams, the role and the menu on one line when the list is wide', async () => {
+    await page.viewport(1280, 800)
+    await show()
+    await expect.element(page.getByText('Grace Hopper')).toBeVisible()
+    const row = await graceRow()
+    const role = box(row.role)
+    expect(box(row.menu).left).toBeGreaterThanOrEqual(role.right - 1)
+    // Role and menu are beside the name (they start above the name's bottom edge).
+    expect(role.top).toBeLessThan(box(row.tags).bottom)
+    expect(box(row.name).right).toBeLessThanOrEqual(role.left)
+  })
+
+  it('also stacks it in a narrow column of a wide window (a container query, not the window)', async () => {
+    await page.viewport(1280, 800)
+    await renderPage(
+      <AnnouncerProvider>
+        <div style={{ width: 400 }}>
+          <MembersPage />
+        </div>
+      </AnnouncerProvider>,
+      { route: PATH },
+    )
+    await expect.element(page.getByText('Grace Hopper')).toBeVisible()
+    const row = await graceRow()
+    expect(box(row.name).bottom).toBeLessThanOrEqual(box(row.email).top + 1)
+    expect(overlap(box(row.email), box(row.role))).toBe(false)
+    expect(overlap(box(row.tags), box(row.role))).toBe(false)
   })
 })

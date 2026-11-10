@@ -131,7 +131,7 @@ function Methods({ workspace, data }: Methods.Props) {
       </Banner>
       {save.error && !hasFieldError ? <Banner tone="danger">{save.error.message}</Banner> : null}
       {data.canManage ? (
-        <div className={styles.footer}>
+        <div className={styles.footer} data-save-bar="" data-clean={dirty ? undefined : ''}>
           <Button
             variant="ghost"
             disabled={!dirty || save.isPending}

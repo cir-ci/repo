@@ -315,6 +315,12 @@ describe('WorkspaceGeneralPage', () => {
   })
 })
 
+/** The Save buttons that are on screen (a form with nothing to save hides its bar). */
+const shownSaves = () =>
+  save()
+    .elements()
+    .filter((el) => el.getBoundingClientRect().height > 0)
+
 describe('WorkspaceGeneralPage on a phone', () => {
   it('pins Save and Discard to the bottom of the window, over the page, with 44px buttons', async () => {
     await page.viewport(390, 520)
@@ -323,7 +329,7 @@ describe('WorkspaceGeneralPage on a phone', () => {
       'GET /api/workspaces/acme/settings': { body: settings() },
     })
     await renderPage(<WorkspaceGeneralPage />, ROUTE)
-    await userEvent.type(name(), ' and sons')
+    await userEvent.type(slug(), '-2')
     const footer = save().first().element().parentElement
     expect(footer).not.toBeNull()
     expect(getComputedStyle(footer!).position).toBe('sticky')
@@ -345,8 +351,39 @@ describe('WorkspaceGeneralPage on a phone', () => {
       'GET /api/workspaces/acme/settings': { body: settings() },
     })
     await renderPage(<WorkspaceGeneralPage />, ROUTE)
-    await userEvent.type(name(), ' and sons')
+    await userEvent.type(slug(), '-2')
     const footer = save().first().element().parentElement
     expect(getComputedStyle(footer!).position).not.toBe('sticky')
+  })
+
+  it('shows one Save and Discard at a time: none until a form has a change, then only its own', async () => {
+    await page.viewport(390, 844)
+    fakeApi({
+      'GET /api/workspaces/acme': { body: general() },
+      'GET /api/workspaces/acme/settings': { body: settings() },
+    })
+    await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    await expect.element(slug()).toBeVisible()
+    expect(shownSaves()).toHaveLength(0)
+    await userEvent.type(slug(), '-2')
+    await expect.poll(() => shownSaves().length).toBe(1)
+    expect(
+      page
+        .getByRole('button', { name: 'Discard' })
+        .elements()
+        .filter((el) => el.getBoundingClientRect().height > 0),
+    ).toHaveLength(1)
+  })
+
+  it("shows every form's buttons, disabled until it has a change, on a desktop", async () => {
+    await page.viewport(1000, 900)
+    fakeApi({
+      'GET /api/workspaces/acme': { body: general() },
+      'GET /api/workspaces/acme/settings': { body: settings() },
+    })
+    await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    await expect.element(slug()).toBeVisible()
+    await expect.poll(() => save().elements().length).toBeGreaterThan(1)
+    for (const el of save().elements()) expect(el.getBoundingClientRect().height).toBeGreaterThan(0)
   })
 })

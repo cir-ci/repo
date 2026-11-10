@@ -25,6 +25,12 @@
   .root {
     padding-inline: 16px;
   }
+
+  /* A page that ends with a form's pinned Save bar: the bar is the end of the page. Padding under
+     it would let the page scroll on past the bar, which then jumps up out of its pinned place. */
+  .root:has(> form:last-child > [data-save-bar]:last-child:not([data-clean])) {
+    padding-bottom: 0;
+  }
 }
 
 .header {

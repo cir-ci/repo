@@ -326,7 +326,7 @@ export function SettingsForm(props: SettingsForm.Props) {
       {save.error && !fieldErrors ? <Banner tone="danger">{save.error.message}</Banner> : null}
       {saved ? <Banner tone="success">Settings saved.</Banner> : null}
       {props.canManage ? (
-        <div className={styles.footer}>
+        <div className={styles.footer} data-save-bar="" data-clean={dirty ? undefined : ''}>
           <Button
             type="button"
             variant="ghost"
