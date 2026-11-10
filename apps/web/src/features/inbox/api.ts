@@ -1,4 +1,4 @@
-import type { Comment, Inbox, NotificationKind } from '@circi/api'
+import type { Comment, Inbox, NotificationKind, Review } from '@circi/api'
 import type { Status } from '@circi/ui'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
@@ -158,6 +158,7 @@ function useRefresh() {
 export function useSetRead() {
   const refresh = useRefresh()
   return useMutation({
+    meta: { what: 'change the notice' },
     mutationFn: ({ id, read }: { id: string; read: boolean }) =>
       post<Inbox.State>(inboxPath(id, 'read'), { read }),
     onSuccess: refresh,
@@ -167,6 +168,7 @@ export function useSetRead() {
 export function useSnoozeNotification() {
   const refresh = useRefresh()
   return useMutation({
+    meta: { what: 'snooze the notice' },
     mutationFn: ({ id, choice }: { id: string; choice: SnoozeChoice }) =>
       post<Inbox.State>(inboxPath(id, 'snooze'), snoozeBody(choice)),
     onSuccess: refresh,
@@ -185,6 +187,7 @@ export function snoozeBody(
 export function useUnsnoozeNotification() {
   const refresh = useRefresh()
   return useMutation({
+    meta: { what: 'unsnooze the notice' },
     mutationFn: (id: string) => post<Inbox.State>(inboxPath(id, 'unsnooze'), {}),
     onSuccess: refresh,
   })
@@ -193,7 +196,8 @@ export function useUnsnoozeNotification() {
 export function useRemoveNotification() {
   const refresh = useRefresh()
   return useMutation({
-    mutationFn: (id: string) => send<undefined>('DELETE', inboxPath(id)),
+    meta: { what: 'remove the notice' },
+    mutationFn: (id: string) => send<Inbox.Removed>('DELETE', inboxPath(id)),
     onSuccess: refresh,
   })
 }
@@ -201,6 +205,7 @@ export function useRemoveNotification() {
 export function useMarkAllRead() {
   const refresh = useRefresh()
   return useMutation({
+    meta: { what: 'mark everything read' },
     mutationFn: () => post<{ marked: number }>('/api/inbox/read-all', {}),
     onSuccess: refresh,
   })
@@ -263,9 +268,10 @@ export function replyTarget(item: Inbox.Item): string | undefined {
 export function useApproveBuild() {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'approve the build' },
     mutationFn: (item: Inbox.Item) => {
       if (!item.workspace || !item.team || !item.build) throw new Error('Build not found')
-      return post(
+      return post<Review.Decided>(
         teamPath(item.workspace.slug, item.team.slug, 'builds', item.build.number, 'review'),
         { state: 'approved' },
       )
@@ -278,6 +284,7 @@ export function useApproveBuild() {
 /** Replies to the comment a mention is about, in its thread. */
 export function useReplyToMention() {
   return useMutation({
+    meta: { what: 'send the reply' },
     mutationFn: ({ item, body }: { item: Inbox.Item; body: string }) => {
       const parentId = replyTarget(item)
       if (!item.workspace || !item.team || !item.build || !parentId) {

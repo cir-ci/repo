@@ -1,4 +1,4 @@
-import type { Inbox } from '@circi/api'
+import type { Inbox, Undo } from '@circi/api'
 import {
   AlarmClockIcon,
   Avatar,
@@ -10,12 +10,11 @@ import {
   NoResults,
   StatusIcon,
   Text,
-  useAnnounce,
   visuallyHidden,
   TabList,
   BellIcon,
 } from '@circi/ui'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { type ReactNode, useState } from 'react'
 
@@ -29,6 +28,8 @@ import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 import { usePaneWidth } from '#lib/stores/pane-store.ts'
+import { toast } from '#lib/toast.ts'
+import { refreshAll, type UndoScope, withUndo } from '#lib/undo.ts'
 import { useSelectFromParam } from '#lib/use-select-from-param.ts'
 import { useSelectableList } from '#lib/use-selectable-list.ts'
 
@@ -57,7 +58,7 @@ export function InboxPage() {
   useDocumentTitle('Inbox')
   const { tab } = useSearch({ from: '/inbox' })
   const navigate = useNavigate()
-  const announce = useAnnounce()
+  const queryClient = useQueryClient()
   const query = useQuery(inboxQuery(tab))
   // The Snoozed tab's count shows beside its name on every tab.
   const snoozedQuery = useQuery({ ...inboxQuery('snoozed'), enabled: tab !== 'snoozed' })
@@ -94,19 +95,49 @@ export function InboxPage() {
     peekable: false,
   })
 
+  // Each change acts at once and its toast offers Undo (the server takes it back).
+  const undoable = (message: string, undo: Undo.Token | null, scope: UndoScope = null) =>
+    withUndo(message, undo, scope, refreshAll(queryClient))
+
   const toggleRead = (item: Inbox.Item) =>
     setRead.mutate(
       { id: item.id, read: !item.readAt },
-      { onSuccess: () => announce(item.readAt ? 'Marked unread' : 'Marked read') },
+      {
+        onSuccess: (answer) =>
+          toast.show(undoable(item.readAt ? 'Marked as unread' : 'Marked as read', answer.undo)),
+      },
     )
   const doSnooze = (item: Inbox.Item, choice: SnoozeChoice) =>
-    settle(item, 'Snoozed', (done) => snooze.mutate({ id: item.id, choice }, { onSuccess: done }))
+    settle(item, (done) =>
+      snooze.mutate(
+        { id: item.id, choice },
+        { onSuccess: (answer) => done(undoable('Snoozed', answer.undo)) },
+      ),
+    )
+  // Bringing it back has no Undo: the server doesn't keep what the snooze was.
   const doUnsnooze = (item: Inbox.Item) =>
-    settle(item, 'Brought back', (done) => unsnooze.mutate(item.id, { onSuccess: done }))
+    settle(item, (done) =>
+      unsnooze.mutate(item.id, { onSuccess: () => done({ message: 'Brought back' }) }),
+    )
   const doRemove = (item: Inbox.Item) =>
-    settle(item, 'Deleted', (done) => remove.mutate(item.id, { onSuccess: done }))
+    settle(item, (done) =>
+      remove.mutate(item.id, { onSuccess: (answer) => done(undoable('Removed', answer.undo)) }),
+    )
   const doApprove = (item: Inbox.Item) =>
-    settle(item, 'Approved', (done) => approve.mutate(item, { onSuccess: done }))
+    settle(item, (done) =>
+      approve.mutate(item, {
+        onSuccess: (answer) =>
+          done(
+            undoable(
+              `Approved build #${item.build?.number ?? ''}`.trim(),
+              answer.undo,
+              item.workspace && item.team
+                ? { workspace: item.workspace.slug, team: item.team.slug }
+                : null,
+            ),
+          ),
+      }),
+    )
 
   useShortcutHandlers({
     toggleRead: () => {
@@ -141,7 +172,13 @@ export function InboxPage() {
               disabled={unread === 0}
               loading={markAll.isPending}
               onClick={() =>
-                markAll.mutate(undefined, { onSuccess: () => announce('Marked everything read') })
+                // No Undo: the server doesn't keep which ones were unread.
+                markAll.mutate(undefined, {
+                  onSuccess: ({ marked }) =>
+                    toast(
+                      `Marked ${marked} ${marked === 1 ? 'notification' : 'notifications'} read`,
+                    ),
+                })
               }
             >
               Mark all read

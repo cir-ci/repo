@@ -184,15 +184,16 @@ async function refresh(queryClient: QueryClient, workspace: string, team: string
  * A change to one item, applied to the cached queue at once and put back if the server says no.
  * `apply` is how the queue looks after the change.
  */
-function useOptimistic<V extends { ref: Ref }>(
+function useOptimistic<V extends { ref: Ref }, R>(
   workspace: string,
   team: string,
   apply: (queue: Triage.Queue, vars: V) => Triage.Queue,
-  mutationFn: (vars: V) => Promise<unknown>,
+  mutationFn: (vars: V) => Promise<R>,
 ) {
   const queryClient = useQueryClient()
   const key = keys.triage(workspace, team)
   return useMutation({
+    meta: { what: 'update the item' },
     mutationFn,
     onMutate: async (vars: V) => {
       await queryClient.cancelQueries({ queryKey: key })

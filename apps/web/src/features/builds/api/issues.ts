@@ -22,6 +22,7 @@ export const issuesQuery = (workspace: string, team: string, number: number) =>
 export function useCreateIssue(workspace: string, team: string, number: number) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'create the issue' },
     mutationFn: (input: Issue.Create) => post<Issue.Ref>(base(workspace, team, number), input),
     onSuccess: () =>
       invalidateAll(

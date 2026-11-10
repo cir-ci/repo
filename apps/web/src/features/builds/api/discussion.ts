@@ -1,6 +1,13 @@
 import type { Activity, Comment, Review } from '@circi/api'
-import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  type QueryClient,
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 
+import { buildQuery } from '#features/builds/api/index.ts'
 import { teamMembersQuery } from '#features/teams/api/members.ts'
 import { teamPath } from '#lib/api-paths.ts'
 import { getJson, post, send } from '#lib/http.ts'
@@ -45,6 +52,7 @@ function useRefreshDiscussion(workspace: string, team: string, number: number) {
 export function useAddComment(workspace: string, team: string, number: number) {
   const refresh = useRefreshDiscussion(workspace, team, number)
   return useMutation({
+    meta: { what: 'add the comment' },
     mutationFn: (input: Comment.Create) =>
       post<{ id: string }>(teamPath(workspace, team, 'builds', number, 'comments'), input),
     onSuccess: refresh,
@@ -54,6 +62,7 @@ export function useAddComment(workspace: string, team: string, number: number) {
 export function useEditComment(workspace: string, team: string, number: number) {
   const refresh = useRefreshDiscussion(workspace, team, number)
   return useMutation({
+    meta: { what: 'edit the comment' },
     mutationFn: ({ id, body }: { id: string } & Comment.Edit) =>
       send<{ id: string }>('PATCH', teamPath(workspace, team, 'builds', number, 'comments', id), {
         body,
@@ -70,6 +79,7 @@ export function useSetCommentRegion(workspace: string, team: string, number: num
   const queryClient = useQueryClient()
   const key = keys.comments(workspace, team, number)
   return useMutation({
+    meta: { what: 'save the region' },
     mutationFn: ({ id, region }: { id: string; region: Comment.SetRegion }) =>
       send<Comment.Item>(
         'PATCH',
@@ -96,20 +106,38 @@ export function useSetCommentRegion(workspace: string, team: string, number: num
 export function useDeleteComment(workspace: string, team: string, number: number) {
   const refresh = useRefreshDiscussion(workspace, team, number)
   return useMutation({
+    meta: { what: 'delete the comment' },
     mutationFn: (id: string) =>
       send<undefined>('DELETE', teamPath(workspace, team, 'builds', number, 'comments', id)),
     onSuccess: refresh,
   })
 }
 
+/**
+ * Asks one workspace member to review a build. It goes through the bulk endpoint, whose answer
+ * carries the token that takes the request back (the toast's Undo).
+ */
+export async function askForReview(
+  queryClient: QueryClient,
+  subject: { workspace: string; team: string; number: number },
+  reviewerId: string,
+): Promise<Review.BulkRequested> {
+  const { build } = await queryClient.fetchQuery(
+    buildQuery(subject.workspace, subject.team, subject.number),
+  )
+  return post<Review.BulkRequested>(
+    teamPath(subject.workspace, subject.team, 'builds', 'request-review'),
+    { buildIds: [build.id], reviewerIds: [reviewerId] },
+  )
+}
+
 /** Asks a workspace member to review the build; the activity shows the request. */
 export function useRequestReview(workspace: string, team: string, number: number) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'ask for a review' },
     mutationFn: (reviewerId: string) =>
-      post<Review.Requested>(teamPath(workspace, team, 'builds', number, 'review-requests'), {
-        reviewerId,
-      }),
+      askForReview(queryClient, { workspace, team, number }, reviewerId),
     onSuccess: () =>
       invalidateAll(queryClient, keys.activity(workspace, team, number), keys.reviews()),
   })

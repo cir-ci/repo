@@ -1,6 +1,6 @@
-import type { Review } from '@circi/api'
-import { Button, Kbd, PanePlaceholder, PullRequestIcon, Text, useAnnounce } from '@circi/ui'
-import { useQuery } from '@tanstack/react-query'
+import type { Review, Undo } from '@circi/api'
+import { Button, Kbd, PanePlaceholder, PullRequestIcon, Text } from '@circi/ui'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 
@@ -16,6 +16,9 @@ import { RelativeTime } from '#lib/RelativeTime.tsx'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
 import { usePaneWidth } from '#lib/stores/pane-store.ts'
+import type { ToastInput } from '#lib/stores/toast-store.ts'
+import { toast } from '#lib/toast.ts'
+import { refreshAll, withUndo } from '#lib/undo.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 import { useListNavigation } from '#lib/use-list-navigation.ts'
 
@@ -53,7 +56,7 @@ export function ReviewsPage() {
   const { workspace } = useParams({ from: ROUTE })
   const { tab, review } = useSearch({ from: ROUTE })
   const navigate = useNavigate()
-  const announce = useAnnounce()
+  const queryClient = useQueryClient()
   const clientLink = useClientLink()
   const { data: session } = authClient.useSession()
   const userId = session?.user.id
@@ -124,25 +127,45 @@ export function ReviewsPage() {
       params: { workspace: r.workspace.slug, team: r.team.slug, number: String(r.build.number) },
     })
 
-  /** Runs `act` for a request about to leave the list; once done, announces and selects the next. */
-  const settle = (r: Review.Request, message: string, act: (done: () => void) => void) => {
+  /** Runs `act` for a request about to leave the list; once done, shows its toast and selects the next. */
+  const settle = (r: Review.Request, act: (done: (input: ToastInput) => void) => void) => {
     const next = nextAfterRemoval(items, (item) => item.id, r.id)
-    act(() => {
-      announce(message)
+    act((input) => {
+      toast.show(input)
       select(next)
       if (next) focusRow(document.getElementById('reviews-list'), next)
     })
   }
-  const doApprove = (r: Review.Request) =>
-    settle(r, `Approved ${requestName(r)}`, (done) => approve.mutate(r, { onSuccess: done }))
-  const doSnooze = (r: Review.Request, choice: Parameters<typeof snooze.mutate>[0]['choice']) =>
-    settle(r, `Snoozed ${requestName(r)}`, (done) =>
-      snooze.mutate({ request: r, choice }, { onSuccess: done }),
+  // Approving and snoozing act at once and the toast offers Undo (the server takes them back).
+  const undoable = (r: Review.Request, message: string, undo: Undo.Token | null) =>
+    withUndo(
+      message,
+      undo,
+      { workspace: r.workspace.slug, team: r.team.slug },
+      refreshAll(queryClient),
     )
+  const doApprove = (r: Review.Request) =>
+    settle(r, (done) =>
+      approve.mutate(r, {
+        onSuccess: (answer) => done(undoable(r, `Approved ${requestName(r)}`, answer.undo)),
+      }),
+    )
+  const doSnooze = (r: Review.Request, choice: Parameters<typeof snooze.mutate>[0]['choice']) =>
+    settle(r, (done) =>
+      snooze.mutate(
+        { request: r, choice },
+        { onSuccess: (answer) => done(undoable(r, `Snoozed ${requestName(r)}`, answer.undo)) },
+      ),
+    )
+  // Bringing it back and dismissing have no Undo: the server keeps nothing to take them back with.
   const doUnsnooze = (r: Review.Request) =>
-    settle(r, `Brought back ${requestName(r)}`, (done) => unsnooze.mutate(r, { onSuccess: done }))
+    settle(r, (done) =>
+      unsnooze.mutate(r, { onSuccess: () => done({ message: `Brought back ${requestName(r)}` }) }),
+    )
   const doDismiss = (r: Review.Request) =>
-    settle(r, `Dismissed ${requestName(r)}`, (done) => dismiss.mutate(r, { onSuccess: done }))
+    settle(r, (done) =>
+      dismiss.mutate(r, { onSuccess: () => done({ message: `Dismissed ${requestName(r)}` }) }),
+    )
 
   useShortcutHandlers({
     // Enter on a row opens the build (the row's own link would only select it); on a button
@@ -165,7 +188,7 @@ export function ReviewsPage() {
     nudge.mutate(r, {
       onSuccess: () => {
         setNudged((ids) => new Set(ids).add(r.id))
-        announce(`Nudged ${r.reviewer.name}`)
+        toast(`Nudged ${r.reviewer.name}`)
       },
     })
 
@@ -325,7 +348,14 @@ export function ReviewsPage() {
           if (!selected) return
           requestReview.mutate(
             { request: selected, reviewerId: member.id },
-            { onSuccess: () => announce(`Asked ${member.name} to review`) },
+            {
+              onSuccess: (answer) =>
+                toast.show(
+                  answer.requests[0]?.created
+                    ? undoable(selected, `Asked ${member.name} to review`, answer.undo)
+                    : { message: `${member.name} already asked` },
+                ),
+            },
           )
         }}
       />

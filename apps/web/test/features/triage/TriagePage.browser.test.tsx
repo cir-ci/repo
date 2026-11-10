@@ -13,6 +13,7 @@ import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, fakeFetch, pending, type ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { expectLimitedToSpace, expectResize, parentOf } from '#test/support/resize.ts'
+import { toastNamed } from '#test/support/toast.ts'
 
 const BASE = '/api/teams/acme/web'
 
@@ -107,9 +108,17 @@ const field = (body: unknown, key: string): unknown =>
 
 function server() {
   let current = items()
+  /** The queue before each change, by the token its answer carried: what Undo puts back. */
+  const before = new Map<string, typeof current>()
+  const token = () => {
+    const id = `t${before.size + 1}`
+    before.set(id, current)
+    return { id, expiresAt: '2099-01-01T00:00:00.000Z' }
+  }
   const gone = (key: unknown) => {
+    const undo = token()
     current = current.filter((i) => i.key !== key)
-    return { body: {} }
+    return { body: { undo } }
   }
   const routes: Record<string, ReplyHandler> = {
     [`GET ${BASE}/triage`]: () => ({ body: queue(current) }),
@@ -117,11 +126,17 @@ function server() {
     [`GET ${BASE}/snapshots/pricing/history`]: { body: { ...history, default: [] } },
     [`POST ${BASE}/triage/dismiss`]: (body) => gone(field(body, 'key')),
     [`POST ${BASE}/triage/snooze`]: (body) => gone(field(body, 'key')),
-    [`POST ${BASE}/triage/assign`]: { body: {} },
+    [`POST ${BASE}/triage/assign`]: () => ({ body: { undo: token() } }),
     [`POST ${BASE}/triage/rerun`]: (body) => {
       current = current.filter((i) => i.build.number !== field(body, 'number'))
       return { body: { build: { number: field(body, 'number'), status: 'processing' } } }
     },
+  }
+  for (const id of ['t1', 't2', 't3']) {
+    routes[`POST ${BASE}/undo/${id}`] = () => {
+      current = before.get(id) ?? current
+      return { body: { undone: true } }
+    }
   }
   return fakeApi(routes)
 }
@@ -297,6 +312,44 @@ describe('TriagePage', () => {
         assigneeId: 'u1',
       }),
     )
+  })
+
+  it('says Assigned to you in a toast, and Undo takes it back', async () => {
+    const api = server()
+    await show()
+    await expect.element(page.getByRole('button', { name: 'Assign to me' })).toBeVisible()
+    await userEvent.keyboard('m')
+    await expect.element(toastNamed('Assigned to you')).toBeVisible()
+    await toastNamed('Assigned to you').getByRole('button', { name: 'Undo' }).click()
+    await expect.element(toastNamed('Undone')).toBeVisible()
+    expect(api.of('POST').map((c) => c.path)).toEqual([`${BASE}/triage/assign`, `${BASE}/undo/t1`])
+  })
+
+  it('names the failure in a toast when assigning fails', async () => {
+    const api = server()
+    api.set(`POST ${BASE}/triage/assign`, {
+      status: 403,
+      body: { error: 'Only members can triage' },
+    })
+    await show()
+    await expect.element(page.getByRole('button', { name: 'Assign to me' })).toBeVisible()
+    await userEvent.keyboard('m')
+    await expect
+      .element(toastNamed("Couldn't update the item: Only members can triage"))
+      .toBeVisible()
+  })
+
+  it('dismisses at once with a Dismissed toast, and Undo brings the item back', async () => {
+    const api = server()
+    await show()
+    await expect.element(page.getByRole('button', { name: 'Dismiss' })).toBeVisible()
+    await userEvent.keyboard('d')
+    await expect.element(toastNamed('Dismissed')).toBeVisible()
+    await expect.element(page.getByRole('list', { name: /^Flaky/ })).not.toBeInTheDocument()
+    await toastNamed('Dismissed').getByRole('button', { name: 'Undo' }).click()
+    await expect.element(toastNamed('Undone')).toBeVisible()
+    await expect.element(page.getByRole('list', { name: /^Flaky/ })).toBeVisible()
+    expect(api.of('POST').map((c) => c.path)).toContain(`${BASE}/undo/t1`)
   })
 
   it('dismisses with D and moves to the next item', async () => {

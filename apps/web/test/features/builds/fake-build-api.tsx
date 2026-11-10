@@ -112,6 +112,10 @@ export interface FakeApi {
   reviewError: string | null
   /** The bodies of the review POSTs, in order. */
   reviews: string[]
+  /** The tokens of the undo POSTs, in order; each puts the build back as it was before its decision. */
+  undos: string[]
+  /** Answers the undo POST with this refusal (409) instead. */
+  undoRefusal: string | null
   /** `GET …/comments`; a POST appends to it. */
   comments: Comment.Item[]
   /** `GET …/activity`. */
@@ -149,11 +153,20 @@ const after = <T,>(ms: number, answer: Promise<T>) =>
 
 /** Stubs `fetch` with the build API (the network edge) and returns the state it serves. */
 export function fakeBuildApi(build: Build.Detail): FakeApi {
+  /** The build before each decision, by the token its answer carried. */
+  const before = new Map<string, Build.Detail>()
+  const token = (previous: Build.Detail) => {
+    const id = `undo-${before.size + 1}`
+    before.set(id, previous)
+    return { id, expiresAt: '2099-01-01T00:00:00.000Z' }
+  }
   const api: FakeApi = {
     build,
     flaky: [],
     reviewError: null,
     reviews: [],
+    undos: [],
+    undoRefusal: null,
     comments: [],
     activity: [],
     issues: { issues: [], trackers: [] },
@@ -175,8 +188,9 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
         const body = typeof init?.body === 'string' ? init.body : ''
         api.reviews.push(body)
         const state = JSON.parse(body).state === 'rejected' ? 'rejected' : 'approved'
+        const undo = token(api.build)
         api.build = { ...api.build, build: { ...api.build.build, reviewStatus: state } }
-        return json({ build: { reviewStatus: state } })
+        return json({ build: { reviewStatus: state }, undo })
       }
       const root = '/api/teams/acme/web-app/builds/7'
       if (url.pathname === `${root}/snapshots/review` && method === 'POST') {
@@ -184,6 +198,7 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
         const body = typeof init?.body === 'string' ? init.body : ''
         api.reviews.push(body)
         const { snapshotNames, decision: state, reason } = JSON.parse(body)
+        const undo = token(api.build)
         const diffs = api.build.diffs.map((d) =>
           snapshotNames.includes(d.name) ? { ...d, review: decision(state, reason ?? null) } : d,
         )
@@ -194,7 +209,16 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
             ? 'approved'
             : 'pending'
         api.build = { ...api.build, diffs, build: { ...api.build.build, reviewStatus } }
-        return json({ build: { reviewStatus } })
+        return json({ build: { reviewStatus }, undo })
+      }
+      const undoRoute = /^\/api\/teams\/acme\/web-app\/undo\/([^/]+)$/.exec(url.pathname)
+      if (undoRoute && method === 'POST') {
+        const id = undoRoute[1] ?? ''
+        api.undos.push(id)
+        if (api.undoRefusal) return json({ error: api.undoRefusal }, 409)
+        const previous = before.get(id)
+        if (previous) api.build = previous
+        return json({ undone: true })
       }
       if (url.pathname === `${root}/comments` && method === 'POST') {
         const body = JSON.parse(typeof init?.body === 'string' ? init.body : '{}')
@@ -227,9 +251,24 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
       if (url.pathname === `${root}/comments`) return json({ comments: api.comments })
       if (url.pathname === `${root}/activity`) return json({ events: api.activity })
       if (url.pathname === `${root}/issues`) return json(api.issues)
-      if (url.pathname === `${root}/review-requests` && method === 'POST') {
-        api.requests.push(JSON.parse(typeof init?.body === 'string' ? init.body : '{}'))
-        return json({ id: 'r1', state: 'open', dueAt: null, created: true }, 201)
+      if (url.pathname === '/api/teams/acme/web-app/builds/request-review' && method === 'POST') {
+        const asked = JSON.parse(typeof init?.body === 'string' ? init.body : '{}')
+        api.requests.push(asked)
+        return json({
+          requests: asked.reviewerIds.map((reviewerId: string) => ({
+            id: 'r1',
+            state: 'open',
+            dueAt: null,
+            created: true,
+            buildId: asked.buildIds[0],
+            reviewerId,
+          })),
+          undo: { id: 'undo-request', expiresAt: '2099-01-01T00:00:00.000Z' },
+        })
+      }
+      if (url.pathname === '/api/teams/acme/web-app/undo/undo-request' && method === 'POST') {
+        api.undos.push('undo-request')
+        return json({ undone: true })
       }
       // Signed in as Ada (u1): the request-review picker leaves her out.
       if (url.pathname === '/api/auth/get-session')

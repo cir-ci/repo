@@ -10,6 +10,7 @@ import { Button } from '@circi/ui'
 import { RequestReviewPicker } from '#features/builds/RequestReviewPicker.tsx'
 import { mockAuthClient } from '#test/support/auth-client.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { toastNamed } from '#test/support/toast.ts'
 
 mockAuthClient()
 
@@ -32,10 +33,17 @@ const TEAM_MEMBERS = {
   canManage: false,
 }
 
-const ENDPOINT = 'POST /api/teams/acme/web/builds/7/review-requests'
+// Asking goes through the bulk endpoint, whose answer carries the token for Undo.
+const ENDPOINT = 'POST /api/teams/acme/web/builds/request-review'
+const ASKED = {
+  requests: [
+    { id: 'r1', state: 'open', dueAt: null, created: true, buildId: 'b7', reviewerId: 'u2' },
+  ],
+  undo: { id: 'undo-1', expiresAt: '2099-01-01T00:00:00.000Z' },
+}
 
 function show(
-  reply: { status?: number; body?: unknown } = { status: 201, body: { created: true } },
+  reply: { status?: number; body?: unknown } = { body: ASKED },
   open = true,
   events: unknown[] = [],
 ) {
@@ -54,6 +62,10 @@ function show(
       announcer: true,
       api: {
         [ENDPOINT]: reply,
+        'GET /api/teams/acme/web/builds/7': {
+          body: { build: { id: 'b7', number: 7, status: 'complete' } },
+        },
+        'POST /api/teams/acme/web/undo/undo-1': { body: { undone: true } },
         'GET /api/teams/acme/web/members': { body: TEAM_MEMBERS },
         'GET /api/teams/acme/web/builds/7/activity': { body: { events } },
       },
@@ -128,8 +140,23 @@ describe('RequestReviewPicker', () => {
       .click()
     await expect
       .poll(() => calls.find((c) => c.method === 'POST')?.body)
-      .toEqual({ reviewerId: 'u2' })
+      .toEqual({ buildIds: ['b7'], reviewerIds: ['u2'] })
     await expect.poll(() => onOpenChange.mock.calls.some(([o]) => !o)).toBe(true)
+    await expect.element(toastNamed('Asked Grace Hopper to review')).toBeVisible()
+  })
+
+  it('takes the request back with Undo on its toast', async () => {
+    const { ready } = show()
+    const { calls } = await ready
+    await picker()
+      .getByRole('button', { name: /Grace Hopper/ })
+      .click()
+    await toastNamed('Asked Grace Hopper to review').getByRole('button', { name: 'Undo' }).click()
+    await expect.element(toastNamed('Undone')).toBeVisible()
+    expect(calls.filter((c) => c.method === 'POST').map((c) => c.path)).toEqual([
+      '/api/teams/acme/web/builds/request-review',
+      '/api/teams/acme/web/undo/undo-1',
+    ])
   })
 
   it("shows the server's refusal and stays open", async () => {
@@ -142,6 +169,9 @@ describe('RequestReviewPicker', () => {
       .getByRole('button', { name: /Grace Hopper/ })
       .click()
     await expect.element(picker().getByRole('alert')).toHaveTextContent('You cannot ask yourself')
+    await expect
+      .element(toastNamed("Couldn't ask for a review: You cannot ask yourself"))
+      .toBeVisible()
     expect(onOpenChange).not.toHaveBeenCalledWith(false)
   })
 

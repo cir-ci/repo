@@ -1,10 +1,13 @@
 import type { Build, ReviewState } from '@circi/api'
-import { Button, CancelIcon, Kbd, TaskDoneIcon, Text, Tooltip, useAnnounce } from '@circi/ui'
+import { Button, CancelIcon, Kbd, TaskDoneIcon, Text, Tooltip } from '@circi/ui'
+import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { useReviewSnapshots } from '#features/builds/api/index.ts'
 import { useRejectReasonRequired } from '#features/teams/api/index.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
+import { toast } from '#lib/toast.ts'
+import { refreshAll, withUndo } from '#lib/undo.ts'
 
 import { shotDecision } from './diff-status.ts'
 import { RejectDialog } from './RejectDialog.tsx'
@@ -35,8 +38,9 @@ export interface ReviewControls {
 
 /**
  * The decisions on the snapshots of a finished build with changes: the current one (A, R) or
- * every undecided one (⇧A). The build's status follows from them. A result is announced to
- * screen readers.
+ * every undecided one (⇧A). The build's status follows from them. Each decision acts at once and
+ * shows a toast with Undo (the server takes it back unless something newer changed the same
+ * thing); rejecting asks for a reason first when the team requires one.
  */
 export function useReviewControls(
   data: Build.Detail,
@@ -47,7 +51,7 @@ export function useReviewControls(
   const { build, team } = data
   const review = useReviewSnapshots(team.workspaceSlug, team.slug, build.number)
   const reasonRequired = useRejectReasonRequired(team.workspaceSlug, team.slug)
-  const announce = useAnnounce()
+  const queryClient = useQueryClient()
   const [rejecting, setRejecting] = useState(false)
   const reviewable = isReviewable(build)
   const current =
@@ -65,8 +69,17 @@ export function useReviewControls(
     after?: () => void,
   ) {
     review.mutate(reason ? { snapshotNames, decision, reason } : { snapshotNames, decision }, {
-      onSuccess: () => {
-        announce(message)
+      onSuccess: (answer) => {
+        toast.show(
+          // No token: the decision changed nothing (everything was decided that way already).
+          withUndo(
+            answer.undo ? message : 'Nothing to change',
+            answer.undo,
+            { workspace: team.workspaceSlug, team: team.slug },
+            refreshAll(queryClient),
+            `Couldn't undo: ${message.toLowerCase()}`,
+          ),
+        )
         after?.()
       },
       onSettled: () => setRejecting(false),
@@ -83,14 +96,18 @@ export function useReviewControls(
     reasonRequired,
     approve: () => {
       if (canApprove && selected && !review.isPending) {
-        decide([selected.name], 'approved', `${selected.name} approved.`, undefined, () =>
+        decide([selected.name], 'approved', `Approved ${selected.name}`, undefined, () =>
           onApproved?.(selected),
         )
       }
     },
     approveAll: () => {
       if (canApproveAll && !review.isPending) {
-        decide(undecided, 'approved', `${undecided.length} screenshots approved.`)
+        decide(
+          undecided,
+          'approved',
+          `Approved ${undecided.length} ${undecided.length === 1 ? 'screenshot' : 'screenshots'}`,
+        )
       }
     },
     askReject: () => {
@@ -99,7 +116,7 @@ export function useReviewControls(
     cancelReject: () => setRejecting(false),
     confirmReject: (reason) => {
       if (canReject && selected && !review.isPending) {
-        decide([selected.name], 'rejected', `${selected.name} rejected.`, reason)
+        decide([selected.name], 'rejected', `Rejected ${selected.name}`, reason)
       }
     },
   }

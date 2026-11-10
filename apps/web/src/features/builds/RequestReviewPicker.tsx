@@ -1,10 +1,12 @@
-import { Avatar, Banner, Popover, Text, useAnnounce } from '@circi/ui'
-import { useQuery } from '@tanstack/react-query'
+import { Avatar, Banner, Popover, Text } from '@circi/ui'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ReactElement } from 'react'
 
 import { activityQuery, useRequestReview } from '#features/builds/api/discussion.ts'
 import { teamMembersQuery } from '#features/teams/api/members.ts'
 import { authClient } from '#lib/auth-client.ts'
+import { toast } from '#lib/toast.ts'
+import { refreshAll, withUndo } from '#lib/undo.ts'
 
 import { openReviewers } from './review-model.ts'
 
@@ -43,7 +45,7 @@ function Choices({ workspace, team, teamName, number, onClose }: Choices.Props) 
   const members = useQuery(teamMembersQuery(workspace, team))
   const activity = useQuery(activityQuery(workspace, team, number))
   const request = useRequestReview(workspace, team, number)
-  const announce = useAnnounce()
+  const queryClient = useQueryClient()
   const { data: session } = authClient.useSession()
   const me = session?.user.id
   const requested = openReviewers(activity.data?.events ?? [])
@@ -57,10 +59,16 @@ function Choices({ workspace, team, teamName, number, onClose }: Choices.Props) 
     if (requested.has(person.userId)) return
     request.mutate(person.userId, {
       onSuccess: (result) => {
-        announce(
-          result.created
-            ? `Asked ${person.name} to review.`
-            : `${person.name} already has an open request.`,
+        toast.show(
+          result.requests[0]?.created
+            ? withUndo(
+                `Asked ${person.name} to review`,
+                result.undo,
+                { workspace, team },
+                refreshAll(queryClient),
+                "Couldn't cancel the request",
+              )
+            : { message: `${person.name} already has an open request` },
         )
         onClose()
       },

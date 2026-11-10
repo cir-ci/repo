@@ -16,7 +16,7 @@ import {
   useAnnounce,
   visuallyHidden,
 } from '@circi/ui'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { type ReactNode, useState } from 'react'
 
 import { buildState } from '#features/builds/build-state.ts'
@@ -40,6 +40,8 @@ import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { useDisplayStore } from '#lib/stores/display-store.ts'
 import { useListStore } from '#lib/stores/list-store.ts'
 import { usePaneWidth } from '#lib/stores/pane-store.ts'
+import { copiedToast, toast } from '#lib/toast.ts'
+import { refreshAll, withUndo } from '#lib/undo.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 import { useSelectableList } from '#lib/use-selectable-list.ts'
 
@@ -76,6 +78,7 @@ export function BuildsBrowser({
   const peekWidth = usePaneWidth('builds-peek')
   const clientLink = useClientLink()
   const announce = useAnnounce()
+  const queryClient = useQueryClient()
   // Without a team this is the whole workspace's list (a saved view with no team).
   const scoped = team !== undefined
   // The server orders the list (and pages it in that order); grouping happens on the page.
@@ -141,9 +144,8 @@ export function BuildsBrowser({
       { buildIds: chosen.map((b) => b.id), decision, ...(reason ? { reason } : {}) },
       {
         onSuccess: () => {
-          announce(
-            `${decision === 'approved' ? 'Approved' : 'Rejected'} ${countText(chosen.length)}`,
-          )
+          // No Undo: the server keeps no token for a decision on several builds at once.
+          toast(`${decision === 'approved' ? 'Approved' : 'Rejected'} ${countText(chosen.length)}`)
           clearChecked()
           setRejecting(false)
         },
@@ -201,6 +203,7 @@ export function BuildsBrowser({
                 action={
                   scoped ? (
                     <CommandBlock
+                      onCopy={copiedToast('Command')}
                       command={`CIRCI_TOKEN=… CIRCI_API_URL=${window.location.origin} \\\n  npx circi upload ./screenshots --wait`}
                     />
                   ) : undefined
@@ -398,8 +401,16 @@ export function BuildsBrowser({
           bulkRequest.mutate(
             { buildIds: chosen.map((b) => b.id), reviewerIds: [member.id] },
             {
-              onSuccess: () => {
-                announce(`Asked ${member.name} to review ${countText(chosen.length)}`)
+              onSuccess: (answer) => {
+                toast.show(
+                  withUndo(
+                    `Asked ${member.name} to review ${countText(chosen.length)}`,
+                    answer.undo,
+                    { workspace, team: team ?? '' },
+                    refreshAll(queryClient),
+                    "Couldn't cancel the requests",
+                  ),
+                )
                 clearChecked()
               },
             },
@@ -418,7 +429,7 @@ export function BuildsBrowser({
             {
               onSuccess: () => {
                 setSaving(false)
-                announce(`Saved view ${name}`)
+                toast(`Saved view ${name}`)
               },
             },
           )

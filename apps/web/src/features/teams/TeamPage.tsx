@@ -1,5 +1,5 @@
 import { flakyReasonText } from '@circi/core'
-import { Banner, Button, Link, Avatar, Text, useAnnounce } from '@circi/ui'
+import { Banner, Button, Link, Avatar, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { Fragment } from 'react'
@@ -18,6 +18,7 @@ import { usePinTeam } from '#features/views/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { useDisplayStore } from '#lib/stores/display-store.ts'
+import { toast } from '#lib/toast.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 
 import styles from './TeamPage.module.css'
@@ -28,7 +29,6 @@ export function TeamPage() {
   const { before, ...filters } = search
   const clientLink = useClientLink()
   const navigate = useNavigate()
-  const announce = useAnnounce()
   const order = useDisplayStore((s) => s.display.order)
   // The header (the team's name, its avatar, the banner) stays while a new filter's list loads:
   // without the previous data it blanked and came back, and the page jumped. Another team's
@@ -71,7 +71,11 @@ export function TeamPage() {
                 loading={pin.isPending}
                 onClick={() =>
                   pin.mutate(!pinned, {
-                    onSuccess: () => announce(pinned ? 'Unpinned team' : 'Pinned team'),
+                    // Undo is the exact inverse: pin it the way it was.
+                    onSuccess: () =>
+                      toast.undoable(pinned ? 'Unpinned team' : 'Pinned team', () =>
+                        pin.mutateAsync(pinned),
+                      ),
                   })
                 }
               >

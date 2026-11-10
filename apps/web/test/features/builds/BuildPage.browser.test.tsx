@@ -6,6 +6,7 @@ import { usePaneStore } from '#lib/stores/pane-store.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { expectOnePrimaryPerArea } from '#test/support/primary-buttons.ts'
 import { expectLimitedToSpace, expectResize, parentOf, widthOf } from '#test/support/resize.ts'
+import { toastNamed } from '#test/support/toast.ts'
 
 import { decision, detail, fakeBuildApi, renderBuild, shot } from './fake-build-api.tsx'
 
@@ -519,7 +520,7 @@ describe('keyboard shortcuts', () => {
 const body = (over: object) => JSON.stringify(over)
 
 describe('approving and rejecting', () => {
-  it('approves the current snapshot with the button, announces it, and moves the count', async () => {
+  it('approves the current snapshot with the button, says so in a toast, and moves the count', async () => {
     const api = fakeBuildApi(detail())
     await renderBuild()
     await page.getByRole('button', { name: 'Approve', exact: true }).click()
@@ -528,7 +529,7 @@ describe('approving and rejecting', () => {
         body({ snapshotNames: ['checkout / payment'], decision: 'approved' }),
       ]),
     )
-    await expect.element(page.getByText('checkout / payment approved.')).toBeInTheDocument()
+    await expect.element(toastNamed('Approved checkout / payment')).toBeVisible()
     await expect.element(page.getByText('1 of 3 reviewed')).toBeVisible()
     // The build waits on the other two: still needs review, and the row's glyph follows.
     await expect.element(page.getByText('Needs review', { exact: true }).first()).toBeVisible()
@@ -592,11 +593,11 @@ describe('approving and rejecting', () => {
     await vi.waitFor(() =>
       expect(api.reviews).toEqual([body({ snapshotNames: ['a', 'c'], decision: 'approved' })]),
     )
-    await expect.element(page.getByText('2 screenshots approved.')).toBeInTheDocument()
-    expect(page.getByRole('button', { name: /^Approve all/ }).elements()).toHaveLength(0)
+    await expect.element(toastNamed('Approved 2 screenshots')).toBeVisible()
+    await expect.element(page.getByRole('button', { name: /^Approve all/ })).not.toBeInTheDocument()
   })
 
-  it('asks for a reason before rejecting the snapshot, and announces the rejection', async () => {
+  it('asks for a reason before rejecting the snapshot, and says so in a toast', async () => {
     const api = fakeBuildApi(detail())
     await renderBuild()
     await page.getByRole('button', { name: 'Reject' }).click()
@@ -623,7 +624,7 @@ describe('approving and rejecting', () => {
         }),
       ]),
     )
-    await expect.element(page.getByText('checkout / payment rejected.')).toBeInTheDocument()
+    await expect.element(toastNamed('Rejected checkout / payment')).toBeVisible()
     await expect.element(page.getByText('Rejected', { exact: true }).first()).toBeVisible()
     const row = page
       .getByRole('navigation', { name: 'Screenshots' })
@@ -662,7 +663,7 @@ describe('approving and rejecting', () => {
         body({ snapshotNames: ['checkout / payment'], decision: 'approved' }),
       ]),
     )
-    await expect.element(page.getByText('checkout / payment approved.')).toBeInTheDocument()
+    await expect.element(toastNamed('Approved checkout / payment')).toBeVisible()
     // The selection moved on, so a approves the next one.
     await expect.element(viewerTitle()).toHaveTextContent('checkout / address')
     await userEvent.keyboard('a')
@@ -677,6 +678,53 @@ describe('approving and rejecting', () => {
     )
     await expect.element(page.getByText('Approved', { exact: true }).first()).toBeVisible()
     await expect.element(page.getByText('3 of 3 reviewed')).toBeVisible()
+  })
+
+  it('takes an approval back with Undo on its toast', async () => {
+    const api = fakeBuildApi(detail())
+    await renderBuild()
+    await page.getByRole('button', { name: 'Approve', exact: true }).click()
+    await expect.element(toastNamed('Approved checkout / payment')).toBeVisible()
+    await expect.element(page.getByText('1 of 3 reviewed')).toBeVisible()
+    await toastNamed('Approved checkout / payment').getByRole('button', { name: 'Undo' }).click()
+    await vi.waitFor(() => expect(api.undos).toEqual(['undo-1']))
+    await expect.element(toastNamed('Undone')).toBeVisible()
+    // The page shows it undecided again.
+    await expect.element(page.getByText('0 of 3 reviewed')).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Approve', exact: true })).toBeVisible()
+  })
+
+  it('takes a rejection back with Undo, after the reason was given', async () => {
+    const api = fakeBuildApi(detail())
+    await renderBuild()
+    await page.getByRole('button', { name: 'Reject' }).click()
+    await page.getByRole('textbox', { name: 'Reason' }).fill('Wrong colour')
+    await page.getByRole('dialog').getByRole('button', { name: 'Reject' }).click()
+    await expect.element(toastNamed('Rejected checkout / payment')).toBeVisible()
+    await toastNamed('Rejected checkout / payment').getByRole('button', { name: 'Undo' }).click()
+    await vi.waitFor(() => expect(api.undos).toEqual(['undo-1']))
+    await expect.element(toastNamed('Undone')).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Reject' })).toBeVisible()
+  })
+
+  it('says why when the server refuses the undo, and leaves the decision as it is', async () => {
+    const api = fakeBuildApi(detail())
+    api.undoRefusal = "Someone changed this review since, so it can't be undone"
+    await renderBuild()
+    await page.getByRole('button', { name: 'Approve', exact: true }).click()
+    await toastNamed('Approved checkout / payment').getByRole('button', { name: 'Undo' }).click()
+    await expect
+      .element(toastNamed("Someone changed this review since, so it can't be undone"))
+      .toBeVisible()
+    await expect.element(page.getByText('1 of 3 reviewed')).toBeVisible()
+  })
+
+  it('shows a toast naming the failure when the decision fails', async () => {
+    const api = fakeBuildApi(detail())
+    api.reviewError = 'Nope'
+    await renderBuild()
+    await page.getByRole('button', { name: /^Approve all/ }).click()
+    await expect.element(toastNamed("Couldn't review the screenshots")).toBeVisible()
   })
 
   it('ignores a, shift-a and r on a build that cannot be reviewed', async () => {
@@ -709,7 +757,10 @@ describe('layout', () => {
       .getByRole('navigation', { name: 'Screenshots' })
       .element()
       .getBoundingClientRect()
-    const viewer = page.getByRole('region').element().getBoundingClientRect()
+    const viewer = page
+      .getByRole('region', { name: 'checkout / payment' })
+      .element()
+      .getBoundingClientRect()
     expect(list.width).toBe(240)
     expect(viewer.left).toBeGreaterThanOrEqual(list.right)
   })
@@ -723,7 +774,10 @@ describe('layout', () => {
       .getByRole('navigation', { name: 'Screenshots' })
       .element()
       .getBoundingClientRect()
-    const viewer = page.getByRole('region').element().getBoundingClientRect()
+    const viewer = page
+      .getByRole('region', { name: 'checkout / payment' })
+      .element()
+      .getBoundingClientRect()
     expect(viewer.top).toBeGreaterThanOrEqual(list.bottom - 1)
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390)
   })

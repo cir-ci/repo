@@ -1,4 +1,4 @@
-import type { Triage } from '@circi/api'
+import type { Triage, Undo } from '@circi/api'
 import { flakyEvidence } from '@circi/core'
 import {
   Avatar,
@@ -12,10 +12,9 @@ import {
   Pane,
   StatusIcon,
   Text,
-  useAnnounce,
   visuallyHidden,
 } from '@circi/ui'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { type NavigateOptions, useNavigate, useParams } from '@tanstack/react-router'
 import { type MouseEventHandler, type ReactNode, useEffect, useState } from 'react'
 
@@ -35,6 +34,9 @@ import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
 import { usePaneWidth } from '#lib/stores/pane-store.ts'
+import type { ToastInput } from '#lib/stores/toast-store.ts'
+import { toast } from '#lib/toast.ts'
+import { refreshAll, withUndo } from '#lib/undo.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 import { useSelectFromParam } from '#lib/use-select-from-param.ts'
 import { useSelectableList } from '#lib/use-selectable-list.ts'
@@ -79,7 +81,7 @@ export function TriagePage() {
   const { workspace, team } = useParams({ from: ROUTE })
   const names = useCrumbNames(workspace, team)
   useDocumentTitle('Triage', team)
-  const announce = useAnnounce()
+  const queryClient = useQueryClient()
   const navigate = useNavigate()
   const clientLink = useClientLink()
   const paneWidth = usePaneWidth('triage-pane')
@@ -111,22 +113,33 @@ export function TriagePage() {
   const { image, loading: imageLoading } = useItemImage(workspace, team, selected)
 
   /** Selects the neighbour of an item that is about to leave the queue, and says what happened. */
-  const leave = (item: Triage.Item, message: string) => {
+  const leave = (item: Triage.Item, input: ToastInput) => {
     const next = nextAfterRemoval(items, itemId, itemId(item))
-    announce(message)
+    toast.show(input)
     setHandled((n) => n + 1)
     setSelectedId(next)
     if (next) queueMicrotask(() => focusRow(document.getElementById('triage-groups'), next))
   }
 
+  // Each change acts at once and its toast offers Undo (the server takes it back).
+  const undoable = (message: string, undo: Undo.Token | null) =>
+    withUndo(message, undo, { workspace, team }, refreshAll(queryClient))
+
   const doSnooze = (item: Triage.Item, choice: SnoozeChoice) =>
-    snooze.mutate({ ref: item, choice }, { onSuccess: () => leave(item, 'Snoozed') })
+    snooze.mutate(
+      { ref: item, choice },
+      { onSuccess: (answer) => leave(item, undoable('Snoozed', answer.undo)) },
+    )
   const doDismiss = (item: Triage.Item) =>
-    dismiss.mutate({ ref: item }, { onSuccess: () => leave(item, 'Dismissed') })
+    dismiss.mutate(
+      { ref: item },
+      { onSuccess: (answer) => leave(item, undoable('Dismissed', answer.undo)) },
+    )
+  // Comparing again has no Undo: the new comparison can't be taken back.
   const doRerun = (item: Triage.Item) =>
     rerun.mutate(
       { ref: refOf(item), number: item.build.number },
-      { onSuccess: () => leave(item, 'Comparing again') },
+      { onSuccess: () => leave(item, { message: 'Comparing again' }) },
     )
   const doAssign = (item: Triage.Item) => {
     if (!me) return
@@ -136,7 +149,10 @@ export function TriagePage() {
         ref: item,
         assignee: mine ? null : { id: me.id, name: me.name, image: me.image ?? null, auto: false },
       },
-      { onSuccess: () => announce(mine ? 'Unassigned' : 'Assigned to you') },
+      {
+        onSuccess: (answer) =>
+          toast.show(undoable(mine ? 'Unassigned' : 'Assigned to you', answer.undo)),
+      },
     )
   }
   const open = (item: Triage.Item) => void navigate(openInBuild(workspace, team, item))

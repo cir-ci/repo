@@ -1,6 +1,8 @@
 import type { Site } from '@circi/api'
-import { Badge, Banner, Button, Heading, Link, Text, TextField, useAnnounce } from '@circi/ui'
+import { Badge, Banner, Button, ConfirmDialog, Heading, Link, Text, TextField } from '@circi/ui'
 import { type FormEvent, useState } from 'react'
+
+import { toast } from '#lib/toast.ts'
 
 import { useCustomDomain } from './api.ts'
 
@@ -20,8 +22,8 @@ export function CustomDomainSection({
 }: CustomDomainSection.Props) {
   const domain = site.customDomain
   const mutations = useCustomDomain(workspace, team, site.slug)
-  const announce = useAnnounce()
   const [editing, setEditing] = useState(false)
+  const [removing, setRemoving] = useState(false)
   const [lastCheck, setLastCheck] = useState<Site.DomainCheck | null>(null)
 
   function save(e: FormEvent<HTMLFormElement>) {
@@ -33,7 +35,7 @@ export function CustomDomainSection({
       onSuccess: () => {
         setEditing(false)
         setLastCheck(null)
-        announce('Custom domain saved')
+        toast('Custom domain saved')
       },
     })
   }
@@ -42,7 +44,7 @@ export function CustomDomainSection({
     mutations.verify.mutate(undefined, {
       onSuccess: (result) => {
         setLastCheck(result)
-        announce(result.verified ? 'Domain verified' : 'Domain not verified yet')
+        toast(result.verified ? 'Domain verified' : 'Domain not verified yet')
       },
     })
   }
@@ -88,14 +90,7 @@ export function CustomDomainSection({
                 variant="danger"
                 loading={mutations.remove.isPending}
                 aria-label={`Remove ${domain.domain}`}
-                onClick={() =>
-                  mutations.remove.mutate(undefined, {
-                    onSuccess: () => {
-                      setLastCheck(null)
-                      announce('Custom domain removed')
-                    },
-                  })
-                }
+                onClick={() => setRemoving(true)}
               >
                 Remove
               </Button>
@@ -103,6 +98,24 @@ export function CustomDomainSection({
           ) : null}
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={removing}
+        onOpenChange={setRemoving}
+        title={`Remove ${domain?.domain ?? 'the domain'}?`}
+        description={`${site.name} stops opening on it.`}
+        confirmLabel="Remove"
+        loading={mutations.remove.isPending}
+        onConfirm={() =>
+          mutations.remove.mutate(undefined, {
+            onSuccess: () => {
+              setLastCheck(null)
+              toast('Custom domain removed')
+            },
+            onSettled: () => setRemoving(false),
+          })
+        }
+      />
 
       {showForm ? (
         <form className={styles.form} onSubmit={save}>

@@ -2,6 +2,7 @@ import type { Review } from '@circi/api'
 import type { Status } from '@circi/ui'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
+import { askForReview } from '#features/builds/api/discussion.ts'
 import { teamPath } from '#lib/api-paths.ts'
 import { findParam } from '#lib/find.ts'
 import { getJson, post, seg } from '#lib/http.ts'
@@ -269,8 +270,11 @@ function useRefresh() {
 export function useApproveRequest() {
   const refresh = useRefresh()
   return useMutation({
+    meta: { what: 'approve' },
     mutationFn: (r: Review.Request) =>
-      post(requestPath(r, 'builds', r.build.number, 'review'), { state: 'approved' }),
+      post<Review.Decided>(requestPath(r, 'builds', r.build.number, 'review'), {
+        state: 'approved',
+      }),
     onSuccess: (_data, r) => refresh([keys.build(r.workspace.slug, r.team.slug, r.build.number)]),
   })
 }
@@ -278,8 +282,9 @@ export function useApproveRequest() {
 export function useSnoozeRequest() {
   const refresh = useRefresh()
   return useMutation({
+    meta: { what: 'snooze the request' },
     mutationFn: ({ request, choice }: { request: Review.Request; choice: SnoozeChoice }) =>
-      post(requestPath(request, 'review-requests', request.id, 'snooze'), choice),
+      post<Review.Snoozed>(requestPath(request, 'review-requests', request.id, 'snooze'), choice),
     onSuccess: () => refresh(),
   })
 }
@@ -287,6 +292,7 @@ export function useSnoozeRequest() {
 export function useUnsnoozeRequest() {
   const refresh = useRefresh()
   return useMutation({
+    meta: { what: 'unsnooze the request' },
     mutationFn: (r: Review.Request) =>
       post(requestPath(r, 'review-requests', r.id, 'unsnooze'), {}),
     onSuccess: () => refresh(),
@@ -296,6 +302,7 @@ export function useUnsnoozeRequest() {
 /** Tells the reviewer again; the server allows it once per 24 hours, and only to whoever asked. */
 export function useNudgeRequest() {
   return useMutation({
+    meta: { what: 'nudge' },
     mutationFn: (r: Review.Request) => post(requestPath(r, 'review-requests', r.id, 'nudge'), {}),
   })
 }
@@ -303,20 +310,26 @@ export function useNudgeRequest() {
 export function useDismissRequest() {
   const refresh = useRefresh()
   return useMutation({
+    meta: { what: 'dismiss the request' },
     mutationFn: (r: Review.Request) => post(requestPath(r, 'review-requests', r.id, 'dismiss'), {}),
     onSuccess: () => refresh(),
   })
 }
 
 export function useRequestReview() {
+  const queryClient = useQueryClient()
   const refresh = useRefresh()
   return useMutation({
+    meta: { what: 'ask for a review' },
     mutationFn: ({ request, reviewerId }: { request: Review.Request; reviewerId: string }) =>
-      post<Review.Requested>(
-        requestPath(request, 'builds', request.build.number, 'review-requests'),
+      askForReview(
+        queryClient,
         {
-          reviewerId,
+          workspace: request.workspace.slug,
+          team: request.team.slug,
+          number: request.build.number,
         },
+        reviewerId,
       ),
     onSuccess: () => refresh(),
   })

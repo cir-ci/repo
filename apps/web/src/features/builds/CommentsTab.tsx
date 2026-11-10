@@ -1,5 +1,13 @@
 import type { Comment } from '@circi/api'
-import { Avatar, Banner, Button, EmptyState, MessageSquareIcon, Text, useAnnounce } from '@circi/ui'
+import {
+  Avatar,
+  Banner,
+  Button,
+  ConfirmDialog,
+  EmptyState,
+  MessageSquareIcon,
+  Text,
+} from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { Fragment, type Ref, useEffect, useRef, useState } from 'react'
 
@@ -13,6 +21,7 @@ import {
 import { regionThreads } from '#features/regions/geometry.ts'
 import { type Mention, splitMentions } from '#lib/mentions.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
+import { toast } from '#lib/toast.ts'
 
 import { Composer } from './Composer.tsx'
 import { groupThreads, type Thread } from './timeline.ts'
@@ -28,7 +37,6 @@ export function CommentsTab(props: CommentsTab.Props) {
   const { data, error, isPending } = useQuery(commentsQuery(workspace, team, number))
   const members = useMentionMembers(workspace, team)
   const add = useAddComment(workspace, team, number)
-  const announce = useAnnounce()
 
   const comments = data?.comments ?? []
   const threads = groupThreads(comments)
@@ -52,7 +60,7 @@ export function CommentsTab(props: CommentsTab.Props) {
             {
               onSuccess: () => {
                 clear()
-                announce('Comment added.')
+                toast('Comment added')
               },
             },
           )
@@ -166,7 +174,15 @@ function ThreadView({
             error={add.error?.message}
             onCancel={() => setReplying(false)}
             onSubmit={(body) =>
-              add.mutate({ body, parentId: root.id }, { onSuccess: () => setReplying(false) })
+              add.mutate(
+                { body, parentId: root.id },
+                {
+                  onSuccess: () => {
+                    setReplying(false)
+                    toast('Reply added')
+                  },
+                },
+              )
             }
           />
         </div>
@@ -201,6 +217,7 @@ function CommentView({ comment, members, workspace, team, build, children }: Com
   const [editing, setEditing] = useState(false)
   const edit = useEditComment(workspace, team, build)
   const remove = useDeleteComment(workspace, team, build)
+  const [deleting, setDeleting] = useState(false)
   const name = comment.author?.name ?? 'Someone who has left'
   const deleted = comment.deletedAt !== null
   return (
@@ -234,7 +251,15 @@ function CommentView({ comment, members, workspace, team, build, children }: Com
             error={edit.error?.message}
             onCancel={() => setEditing(false)}
             onSubmit={(body) =>
-              edit.mutate({ id: comment.id, body }, { onSuccess: () => setEditing(false) })
+              edit.mutate(
+                { id: comment.id, body },
+                {
+                  onSuccess: () => {
+                    setEditing(false)
+                    toast('Comment saved')
+                  },
+                },
+              )
             }
           />
         ) : (
@@ -269,7 +294,7 @@ function CommentView({ comment, members, workspace, team, build, children }: Com
                 size="sm"
                 variant="ghost"
                 loading={remove.isPending}
-                onClick={() => remove.mutate(comment.id)}
+                onClick={() => setDeleting(true)}
               >
                 Delete
               </Button>
@@ -281,6 +306,20 @@ function CommentView({ comment, members, workspace, team, build, children }: Com
             {remove.error.message}
           </Text>
         ) : null}
+        <ConfirmDialog
+          open={deleting}
+          onOpenChange={setDeleting}
+          title="Delete this comment?"
+          description="It can't be restored."
+          confirmLabel="Delete"
+          loading={remove.isPending}
+          onConfirm={() =>
+            remove.mutate(comment.id, {
+              onSuccess: () => toast('Comment deleted'),
+              onSettled: () => setDeleting(false),
+            })
+          }
+        />
       </div>
     </div>
   )

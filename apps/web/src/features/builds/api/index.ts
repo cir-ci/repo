@@ -1,4 +1,4 @@
-import type { Build, Flaky, ReviewState } from '@circi/api'
+import type { Build, Flaky, Review, ReviewState } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { teamPath } from '#lib/api-paths.ts'
@@ -48,8 +48,9 @@ export interface SnapshotDecision {
 export function useReviewSnapshots(workspace: string, team: string, number: number) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'review the screenshots' },
     mutationFn: ({ snapshotNames, decision, reason }: SnapshotDecision) =>
-      post<{ build: { reviewStatus: string } }>(
+      post<Review.Decided>(
         teamPath(workspace, team, 'builds', number, 'snapshots', 'review'),
         reason ? { snapshotNames, decision, reason } : { snapshotNames, decision },
       ),
@@ -71,8 +72,9 @@ export function useReviewSnapshots(workspace: string, team: string, number: numb
 export function useReviewBuild(workspace: string, team: string, number: number) {
   const queryClient = useQueryClient()
   return useMutation({
+    meta: { what: 'review the build' },
     mutationFn: ({ state, reason }: Decision) =>
-      post<{ build: { reviewStatus: ReviewState } }>(
+      post<Review.Decided>(
         teamPath(workspace, team, 'builds', number, 'review'),
         reason ? { state, reason } : { state },
       ),

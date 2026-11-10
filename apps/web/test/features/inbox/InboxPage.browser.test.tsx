@@ -9,6 +9,7 @@ import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { expectLimitedToSpace, expectResize, parentOf } from '#test/support/resize.ts'
+import { toastNamed } from '#test/support/toast.ts'
 
 const item = (id: string, over: Record<string, unknown> = {}) => ({
   id,
@@ -103,6 +104,42 @@ describe('InboxPage', () => {
     expect(api.of('POST')[1]?.body).toEqual({ read: false })
   })
 
+  it('says Marked as read in a toast, and Undo puts it back', async () => {
+    let readAt: string | null = null
+    const api = fakeApi({
+      'GET /api/inbox': () => list([item('n1', { readAt })]),
+      'POST /api/inbox/n1/read': () => {
+        readAt = '2026-11-08T12:00:00.000Z'
+        return {
+          body: { id: 'n1', readAt, snoozedUntil: null, undo: { id: 'nu1', expiresAt: '2099' } },
+        }
+      },
+      'POST /api/inbox/undo/nu1': () => {
+        readAt = null
+        return { body: { undone: true } }
+      },
+    })
+    await show()
+    await expect.element(page.getByRole('button', { name: 'Mark read' })).toBeVisible()
+    await userEvent.keyboard('u')
+    await expect.element(toastNamed('Marked as read')).toBeVisible()
+    await toastNamed('Marked as read').getByRole('button', { name: 'Undo' }).click()
+    await expect.element(toastNamed('Undone')).toBeVisible()
+    await expect.element(page.getByRole('button', { name: 'Mark read' })).toBeVisible()
+    expect(api.of('POST').map((c) => c.path)).toEqual(['/api/inbox/n1/read', '/api/inbox/undo/nu1'])
+  })
+
+  it('names the failure in a toast when marking read fails', async () => {
+    fakeApi({
+      'GET /api/inbox': list([item('n1')]),
+      'POST /api/inbox/n1/read': { status: 500, body: { error: 'boom' } },
+    })
+    await show()
+    await expect.element(page.getByRole('button', { name: 'Mark read' })).toBeVisible()
+    await userEvent.keyboard('u')
+    await expect.element(toastNamed("Couldn't change the notice")).toBeVisible()
+  })
+
   it('snoozes with H, offering a time only', async () => {
     const api = fakeApi({
       'GET /api/inbox': list([item('n1')]),
@@ -132,7 +169,7 @@ describe('InboxPage', () => {
         ),
       'DELETE /api/inbox/n1': () => {
         gone = true
-        return { status: 204 }
+        return { body: { undo: { id: 'u-n1', expiresAt: '2099-01-01T00:00:00.000Z' } } }
       },
     })
     await show()
@@ -152,6 +189,9 @@ describe('InboxPage', () => {
       )
       .not.toBeInTheDocument()
     expect(api.of('DELETE')).toHaveLength(1)
+    // Removing acts at once; the toast offers Undo instead of a confirmation.
+    await expect.element(toastNamed('Removed')).toBeVisible()
+    await expect.element(toastNamed('Removed').getByRole('button', { name: 'Undo' })).toBeVisible()
     await expect.element(page.getByRole('button', { name: /mentioned you/ })).toHaveFocus()
   })
 

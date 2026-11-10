@@ -15,6 +15,7 @@ import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { expectLimitedToSpace, expectResize, parentOf } from '#test/support/resize.ts'
+import { toastNamed } from '#test/support/toast.ts'
 
 mockAuthClient()
 
@@ -382,9 +383,23 @@ describe('ReviewsPage', () => {
           canManage: false,
         },
       },
-      'POST /api/teams/acme/web/builds/12/review-requests': {
-        status: 201,
-        body: { id: 'q1', state: 'open', dueAt: null, created: true },
+      'GET /api/teams/acme/web/builds/12': {
+        body: { build: { id: 'b12', number: 12, status: 'complete' } },
+      },
+      'POST /api/teams/acme/web/builds/request-review': {
+        body: {
+          requests: [
+            {
+              id: 'q1',
+              state: 'open',
+              dueAt: null,
+              created: true,
+              buildId: 'b12',
+              reviewerId: 'u3',
+            },
+          ],
+          undo: { id: 'ru1', expiresAt: '2099-01-01T00:00:00.000Z' },
+        },
       },
     })
     await show('/workspaces/acme/reviews?review=r1')
@@ -393,7 +408,10 @@ describe('ReviewsPage', () => {
     const dialog = page.getByRole('dialog', { name: 'Request a review from' })
     await expect.element(dialog).toBeVisible()
     await dialog.getByRole('button', { name: /Grace Hopper/ }).click()
-    await expect.poll(() => api.of('POST')[0]?.body).toEqual({ reviewerId: 'u3' })
+    await expect
+      .poll(() => api.of('POST')[0]?.body)
+      .toEqual({ buildIds: ['b12'], reviewerIds: ['u3'] })
+    await expect.element(toastNamed('Asked Grace Hopper to review')).toBeVisible()
   })
 
   it('dismisses a request', async () => {

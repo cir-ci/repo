@@ -6,7 +6,8 @@ import { settingsQuery } from '#features/teams/api/index.ts'
 import { inboxPath, teamPath } from '#lib/api-paths.ts'
 import { HttpError, post, send } from '#lib/http.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
-import type { ToastInput } from '#lib/stores/undo-store.ts'
+import type { ToastInput } from '#lib/stores/toast-store.ts'
+import { withUndo } from '#lib/undo.ts'
 
 import type { ReviewSubject, RowAction, SnoozeUntil } from './entry.ts'
 
@@ -30,28 +31,6 @@ export interface ActionContext {
 const UNTIL: Record<SnoozeUntil, string> = {
   tomorrow: 'Snoozed until tomorrow',
   next_week: 'Snoozed until next week',
-}
-
-/** The toast for an answer: with Undo when the server gave a token (`teamScope` null: the inbox's). */
-function withUndo(
-  message: string,
-  undo: Undo.Token | null,
-  scope: { workspace: string; team: string } | null,
-  refresh: () => Promise<unknown>,
-  undoFailed?: string,
-): ToastInput {
-  if (!undo) return { message }
-  const path = scope
-    ? teamPath(scope.workspace, scope.team, 'undo', undo.id)
-    : inboxPath('undo', undo.id)
-  return {
-    message,
-    undo: async () => {
-      await post(path, {})
-      await refresh()
-    },
-    ...(undoFailed ? { undoFailed } : {}),
-  }
 }
 
 /** Whether the team asks for a reason when someone rejects; yes when that can't be found out. */
@@ -96,7 +75,10 @@ export async function performAction(action: RowAction, ctx: ActionContext): Prom
   } catch (error) {
     // A refusal says why ("Add a reason for rejecting"); a failure of ours says only that it failed.
     const reason = error instanceof HttpError && error.status < 500 ? error.message : undefined
-    return { message: reason ?? failedMessage(action) }
+    return {
+      message: reason ? `${failedMessage(action)}: ${reason}` : failedMessage(action),
+      tone: 'error',
+    }
   }
 }
 
@@ -127,7 +109,7 @@ async function run(action: RowAction, ctx: ActionContext): Promise<ToastInput> {
   switch (action.type) {
     case 'copyLink': {
       const ok = await ctx.copy(new URL(action.path, ctx.origin).href)
-      return { message: ok ? 'Link copied' : "Couldn't copy the link" }
+      return ok ? { message: 'Link copied' } : { message: "Couldn't copy the link", tone: 'error' }
     }
     case 'newTab':
       ctx.openTab(new URL(action.path, ctx.origin).href)
@@ -198,7 +180,7 @@ async function run(action: RowAction, ctx: ActionContext): Promise<ToastInput> {
     case 'assignMe': {
       const { subject } = action
       const me = ctx.me
-      if (!me) return { message: "Couldn't assign it to you" }
+      if (!me) return { message: "Couldn't assign it to you", tone: 'error' }
       const answer = await post<Triage.ItemState>(
         teamPath(subject.workspace, subject.team, 'triage', 'assign'),
         { kind: subject.kind, key: subject.key, assigneeId: me.id },

@@ -4,8 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useState } from 'react'
 
 import type { Accessors } from '#lib/sort.ts'
-import { useSorted } from '#lib/use-sorted.ts'
 import { toast } from '#lib/toast.ts'
+import { useSorted } from '#lib/use-sorted.ts'
 
 import { autoLinkSummary, linksQuery, linkValuesComplete, useLinks } from './api/generic.ts'
 

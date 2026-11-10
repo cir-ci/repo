@@ -17,9 +17,10 @@ import {
   SettingsSection,
   Text,
   TextField,
-  useAnnounce,
 } from '@circi/ui'
 import { Fragment, useState } from 'react'
+
+import { toast } from '#lib/toast.ts'
 
 import {
   draftOf,
@@ -45,7 +46,6 @@ type Editing = { id: string | null; draft: RuleDraft } | null
  */
 export function RulesSection(props: RulesSection.Props) {
   const actions = useRuleActions(props.workspace, props.team)
-  const announce = useAnnounce()
   const [editing, setEditing] = useState<Editing>(null)
   const [deleting, setDeleting] = useState<ReviewRule.Item | null>(null)
   const failure = actions.remove.error ?? actions.reorder.error
@@ -55,9 +55,14 @@ export function RulesSection(props: RulesSection.Props) {
   function move(rule: ReviewRule.Item, by: -1 | 1) {
     const ids = movedRuleIds(props.rules, rule.id, by)
     if (!ids) return
+    const before = props.rules.map((r) => r.id)
     actions.reorder.mutate(ids, {
+      // Undo is the exact inverse: the order as it was.
       onSuccess: () =>
-        announce(`${rule.pattern} moved ${by < 0 ? 'up' : 'down'} to ${ids.indexOf(rule.id) + 1}`),
+        toast.undoable(
+          `${rule.pattern} moved ${by < 0 ? 'up' : 'down'} to ${ids.indexOf(rule.id) + 1}`,
+          () => actions.reorder.mutateAsync(before),
+        ),
     })
   }
 
@@ -207,7 +212,7 @@ export function RulesSection(props: RulesSection.Props) {
           onSave={() => {
             const done = {
               onSuccess: () => {
-                announce(editing.id === null ? 'Rule added' : 'Rule saved')
+                toast(editing.id === null ? 'Rule added' : 'Rule saved')
                 setEditing(null)
               },
             }
@@ -227,7 +232,7 @@ export function RulesSection(props: RulesSection.Props) {
         onConfirm={() => {
           if (!deleting) return
           actions.remove.mutate(deleting.id, {
-            onSuccess: () => announce('Rule deleted'),
+            onSuccess: () => toast('Rule deleted'),
             onSettled: () => setDeleting(null),
           })
         }}

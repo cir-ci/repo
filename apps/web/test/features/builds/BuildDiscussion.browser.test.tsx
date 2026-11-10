@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 import { expectEmptyState } from '#test/support/empty-state.ts'
+import { toastNamed } from '#test/support/toast.ts'
 
 import { decision, detail, fakeBuildApi, renderBuild, shot } from './fake-build-api.tsx'
 
@@ -362,7 +363,10 @@ describe('requesting a review, the picker', () => {
     const dialog = page.getByRole('dialog', { name: /^Request review from/ })
     await expect.element(dialog).toBeVisible()
     await dialog.getByRole('button', { name: /Grace Hopper/ }).click()
-    await vi.waitFor(() => expect(api.requests).toEqual([{ reviewerId: 'u2' }]))
+    await vi.waitFor(() =>
+      expect(api.requests).toEqual([{ buildIds: [expect.any(String)], reviewerIds: ['u2'] }]),
+    )
+    await expect.element(toastNamed('Asked Grace Hopper to review')).toBeVisible()
     await expect.element(dialog).not.toBeInTheDocument()
   })
 })

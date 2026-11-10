@@ -5,6 +5,7 @@ import { TeamSitesPage } from '#features/sites/TeamSitesPage.tsx'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeFetch, json, pending } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
+import { toastNamed } from '#test/support/toast.ts'
 
 const API = 'GET /api/teams/acme/web/sites'
 const open = () =>
@@ -234,8 +235,16 @@ describe("a site's custom domain", () => {
     })
     await open()
     await page.getByRole('button', { name: 'Remove storybook.acme.com' }).click()
-    expect(calls.some((c) => c.method === 'DELETE')).toBe(true)
+    // Irreversible and risky: it asks first, and Cancel leaves the domain.
+    const dialog = page.getByRole('alertdialog', { name: 'Remove storybook.acme.com?' })
+    await expect.element(dialog).toBeVisible()
+    await dialog.getByRole('button', { name: 'Cancel' }).click()
+    expect(calls.some((c) => c.method === 'DELETE')).toBe(false)
+    await page.getByRole('button', { name: 'Remove storybook.acme.com' }).click()
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Remove' }).click()
+    await expect.poll(() => calls.some((c) => c.method === 'DELETE')).toBe(true)
     await expect.element(page.getByRole('textbox', { name: 'Domain' })).toBeVisible()
+    await expect.element(toastNamed('Custom domain removed')).toBeVisible()
   })
 
   it('lets a plain member see the domain but not change it', async () => {

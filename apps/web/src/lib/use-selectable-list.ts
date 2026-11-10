@@ -1,9 +1,10 @@
-import { useAnnounce } from '@circi/ui'
 import { useEffect } from 'react'
 
 import { focusRow, leavesKeyToFocus, nextAfterRemoval } from './list-keys.ts'
 import { useShortcutHandlers } from './shortcuts.ts'
 import { useListStore } from './stores/list-store.ts'
+import type { ToastInput } from './stores/toast-store.ts'
+import { toast } from './toast.ts'
 import { useListNavigation, type NavGroup } from './use-list-navigation.ts'
 
 /**
@@ -23,7 +24,6 @@ export function useSelectableList<T>({
   onOpen,
   peekable = true,
 }: useSelectableList.Options<T>): useSelectableList.Result<T> {
-  const announce = useAnnounce()
   const selectedId = useListStore((s) => s.cursorId)
   const setSelectedId = useListStore((s) => s.setCursorId)
   const peek = useListStore((s) => s.peek)
@@ -48,11 +48,14 @@ export function useSelectableList<T>({
     ...(groups ? { groups } : {}),
   })
 
-  /** Runs `act` for an item about to leave the list; once it is `done`, announces and selects the next. */
-  const settle = (item: T, message: string, act: (done: () => void) => void) => {
+  /**
+   * Runs `act` for an item about to leave the list; once it is `done`, shows its toast (what
+   * happened, with Undo when the change can be taken back) and selects the next.
+   */
+  const settle = (item: T, act: (done: (input: ToastInput) => void) => void) => {
     const next = nextAfterRemoval(items, getId, getId(item))
-    act(() => {
-      announce(message)
+    act((input) => {
+      toast.show(input)
       setSelectedId(next)
       if (next) focusRow(listElement.current, next)
     })
@@ -118,6 +121,6 @@ export namespace useSelectableList {
     listRef: ReturnType<typeof useListNavigation>['listRef']
     rowProps: (id: string) => { 'data-row-id': string }
     /** See above: for an item that leaves the list. */
-    settle: (item: T, message: string, act: (done: () => void) => void) => void
+    settle: (item: T, act: (done: (input: ToastInput) => void) => void) => void
   }
 }

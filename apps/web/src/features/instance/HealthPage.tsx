@@ -17,6 +17,7 @@ import { setupQuery } from '#features/auth/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { formatRelative } from '#lib/relative-time.ts'
+import { toast } from '#lib/toast.ts'
 
 import { AdminFrame } from './AdminFrame.tsx'
 import {
@@ -227,7 +228,12 @@ function ChecklistSection(props: { checklist: InstanceAdmin.AddressChecklist | u
   if (checklist.dismissed) {
     return (
       <Text variant="small" tone="tertiary">
-        <Button variant="link" onClick={() => dismiss.mutate(false)}>
+        <Button
+          variant="link"
+          onClick={() =>
+            dismiss.mutate(false, { onSuccess: () => toast('Showing the move checklist') })
+          }
+        >
           Show the move checklist
         </Button>
       </Text>
@@ -241,7 +247,13 @@ function ChecklistSection(props: { checklist: InstanceAdmin.AddressChecklist | u
         <IconButton
           label="Dismiss the move checklist"
           disabled={dismiss.isPending}
-          onClick={() => dismiss.mutate(true)}
+          onClick={() =>
+            dismiss.mutate(true, {
+              // Undo shows the checklist again: the exact inverse.
+              onSuccess: () =>
+                toast.undoable('Dismissed the move checklist', () => dismiss.mutateAsync(false)),
+            })
+          }
         >
           <CloseIcon />
         </IconButton>
