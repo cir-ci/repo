@@ -45,7 +45,10 @@
     "--circi-team-plum": "#a369a3",
     "--circi-team-moss": "#54895b",
     "--circi-team-mauve": "#a86b85",
-    "--circi-team-graphite": "#837c76"
+    "--circi-team-graphite": "#837c76",
+    "--circi-state-added": "#b1d038",
+    "--circi-state-removed": "#ef8e32",
+    "--circi-state-flaky": "#f9b5fe"
   },
   "light": {
     "--circi-surface-chrome": "#f3efed",
@@ -92,6 +95,9 @@
     "--circi-team-plum": "#985d98",
     "--circi-team-moss": "#4d7d53",
     "--circi-team-mauve": "#a05e79",
-    "--circi-team-graphite": "#77716c"
+    "--circi-team-graphite": "#77716c",
+    "--circi-state-added": "#767c06",
+    "--circi-state-removed": "#b26300",
+    "--circi-state-flaky": "#bc59b3"
   }
 }

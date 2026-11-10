@@ -165,6 +165,24 @@ describe('palettes', () => {
       }
     })
 
+    it(`${scheme}: the kinds of change (added, removed, flaky) read at 3:1 and are told apart from each other and from needs-review`, () => {
+      const kinds = { added: p.state.added, removed: p.state.removed, flaky: p.state.flaky }
+      for (const surface of Object.values(p.surface)) {
+        for (const [name, glyph] of Object.entries(kinds)) {
+          expect(contrast(glyph, surface), `${name} on ${surface}`).toBeGreaterThanOrEqual(3)
+        }
+      }
+      const all = Object.entries({ ...kinds, review: p.state.review })
+      for (const [i, [name, hex]] of all.entries()) {
+        for (const [otherName, otherHex] of all.slice(i + 1)) {
+          expect(
+            deltaE(toLinear(hex), toLinear(otherHex)),
+            `${name} vs ${otherName}`,
+          ).toBeGreaterThanOrEqual(15)
+        }
+      }
+    })
+
     it(`${scheme}: the rejected and failed glyphs read at 3:1 and their words at 4.5:1 on the panel and chrome`, () => {
       for (const surface of [p.surface.panel, p.surface.chrome, p.surface.raised]) {
         for (const glyph of [p.state.rejected, p.state.failed]) {

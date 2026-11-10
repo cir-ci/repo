@@ -11,11 +11,17 @@
   color: var(--circi-state-review);
 }
 
-.root[data-status='added'],
-.root[data-status='removed'],
+/* The kinds of change: a colour each, as well as the inner mark (plus, minus, tilde). */
+.root[data-status='added'] {
+  color: var(--circi-state-added);
+}
+
+.root[data-status='removed'] {
+  color: var(--circi-state-removed);
+}
+
 .root[data-status='flaky'] {
-  /* A change is never an outcome: the same amber as needs-review, the inner mark says which kind. */
-  color: var(--circi-state-review);
+  color: var(--circi-state-flaky);
 }
 
 .root[data-status='processing'] {

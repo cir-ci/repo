@@ -42,6 +42,14 @@ const dark = {
     failed: '#ff0a1f',
     /** A person's decision to reject: rose, a disc with one bar. Never crimson, which is failure. */
     rejected: '#ff5fa8',
+    /**
+     * The kinds of change, told apart by colour as well as by their inner mark: added a
+     * yellow-green, removed a burnt orange, flaky an orchid (noticeable, and away from the amber of
+     * needs-review). Glyphs only: their words keep the text colours.
+     */
+    added: '#b1d038',
+    removed: '#ef8e32',
+    flaky: '#f9b5fe',
     /** Badge and chip words: in light the glyph colours are too pale to read as words. */
     approvedText: '#5cb8a8',
     failedText: '#ff3b4c',
@@ -98,6 +106,9 @@ const light: typeof dark = {
     processing: '#4f5bd5',
     failed: '#930028',
     rejected: '#b5126a',
+    added: '#767c06',
+    removed: '#b26300',
+    flaky: '#bc59b3',
     approvedText: '#157364',
     failedText: '#930028',
     rejectedText: '#b5126a',
