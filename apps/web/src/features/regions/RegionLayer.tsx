@@ -314,12 +314,27 @@ function RegionComposer({
     field.current?.focus()
   }, [])
 
+  // A click outside dismisses the box while it's empty: nothing typed means nothing to lose. With
+  // text in it, it stays until Cancel or Esc.
+  const dialog = useRef<HTMLDivElement>(null)
+  const empty = text === '' && !sending
+  useEffect(() => {
+    if (!empty) return undefined
+    const onPointerDown = (event: globalThis.PointerEvent) => {
+      if (event.target instanceof Node && dialog.current?.contains(event.target)) return
+      onCancel()
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    return () => document.removeEventListener('pointerdown', onPointerDown, true)
+  }, [empty, onCancel])
+
   const send = () => {
     if (text !== '' && !sending) onSend(text)
   }
 
   return (
     <div
+      ref={dialog}
       role="dialog"
       aria-label="Comment on this region"
       className={styles.popover}

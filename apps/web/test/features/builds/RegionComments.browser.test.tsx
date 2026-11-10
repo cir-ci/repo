@@ -211,6 +211,21 @@ describe('region comments are always on', () => {
     await vi.waitFor(() => expect(api.commentPosts.map((c) => c.body)).toEqual(['second thought']))
   })
 
+  it('a click outside closes the popover while it is empty, and keeps it once something is typed', async () => {
+    const api = await ready()
+    await drag('This build')
+    await expect.element(popover()).toBeVisible()
+    await userEvent.click(viewerTitle())
+    await expect.element(popover()).not.toBeInTheDocument()
+
+    await drag('This build')
+    await userEvent.keyboard('keep me')
+    await userEvent.click(viewerTitle())
+    await expect.element(popover()).toBeVisible()
+    await expect.element(popover().getByRole('combobox')).toHaveValue('keep me')
+    expect(api.commentPosts).toEqual([])
+  })
+
   it('a click without a drag opens the enlarged view instead, and arrows switch images', async () => {
     await ready()
     await trigger('This build').click()
