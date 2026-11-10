@@ -1,6 +1,7 @@
-import { Banner, Button, Ref, TeamTile, Text, useAnnounce } from '@circi/ui'
+import { Banner, Button, Link, Ref, TeamTile, Text, useAnnounce } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
+import { Fragment } from 'react'
 
 import {
   type BuildFilters,
@@ -10,7 +11,7 @@ import {
 import { BuildsBrowser } from '#features/builds/list/BuildsBrowser.tsx'
 import { GitAttentionBanner } from '#features/builds/list/GitAttentionBanner.tsx'
 import { useSidebarModel } from '#features/sidebar/api.ts'
-import { flakyQuery, teamQuery } from '#features/teams/api/index.ts'
+import { flakyQuery, settingsQuery, teamQuery } from '#features/teams/api/index.ts'
 import { usePinTeam } from '#features/views/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
@@ -31,6 +32,10 @@ export function TeamPage() {
   const order = useDisplayStore((s) => s.display.order)
   const { data } = useQuery(teamQuery(workspace, team, before, filters, order))
   const { data: flaky } = useQuery(flakyQuery(workspace, team))
+  const hasFlaky = (flaky?.flaky.length ?? 0) > 0
+  // Only owners and admins can add ignore regions: ask once something is flaky (the settings are cached).
+  const { data: settings } = useQuery({ ...settingsQuery(workspace, team), enabled: hasFlaky })
+  const canManage = settings?.canManage === true
   const { data: sidebar } = useSidebarModel(workspace)
   const pin = usePinTeam(workspace, team)
   const pinned = sidebar?.teams.find((p) => p.slug === team)?.pinned
@@ -108,15 +113,29 @@ export function TeamPage() {
             tone="warning"
             title={`These screenshots keep changing on ${data?.team.defaultBranch ?? 'the default branch'}:`}
           >
-            {flaky.flaky
-              .map((f) => `${f.name} (${f.changedIn} of the last ${flaky.builds} builds)`)
-              .join(', ')}
-            . They are probably not stable (a clock, an animation, random content). Mask the part
-            that changes with{' '}
-            <Text as="code" variant="mono">
-              circi admin ignore add
-            </Text>
-            .
+            {flaky.flaky.map((f, index) => (
+              <Fragment key={f.name}>
+                {index > 0 ? ', ' : null}
+                {canManage ? (
+                  <Link
+                    {...clientLink({
+                      to: '/$workspace/$team/settings/ignore-regions',
+                      params: { workspace, team },
+                      search: { name: f.name },
+                    })}
+                  >
+                    {f.name}
+                  </Link>
+                ) : (
+                  f.name
+                )}{' '}
+                ({f.changedIn} of the last {flaky.builds} builds)
+              </Fragment>
+            ))}
+            . They are probably not stable (a clock, an animation, random content).{' '}
+            {canManage
+              ? 'Choose a screenshot to mask the part that changes.'
+              : 'Ask an owner or admin of this team to mask the part that changes.'}
           </Banner>
         ) : null}
         <BuildsBrowser

@@ -53,9 +53,22 @@ export interface RectFields {
   height: string
 }
 
-/** The numbers typed into the edit form, or what is wrong with them. */
+/** The box the Add dialog starts with: a quarter of the screenshot's size, in the middle. */
+export function defaultRect(size: Size): Record<keyof RectFields, number> {
+  const width = Math.max(1, Math.round(size.width / 4))
+  const height = Math.max(1, Math.round(size.height / 4))
+  return {
+    x: Math.floor((size.width - width) / 2),
+    y: Math.floor((size.height - height) / 2),
+    width,
+    height,
+  }
+}
+
+/** The numbers typed into the form, or what is wrong with them; with `size`, the box must fit inside it. */
 export function parseRect(
   fields: RectFields,
+  size?: Size | null,
 ): { ok: true; rect: Record<keyof RectFields, number> } | { ok: false; error: string } {
   const nums = [fields.x, fields.y, fields.width, fields.height].map((raw) =>
     raw.trim() === '' ? Number.NaN : Number(raw),
@@ -67,6 +80,12 @@ export function parseRect(
   if (!nums.every((n) => Number.isInteger(n))) return { ok: false, error: 'Use whole numbers' }
   if (x < 0 || y < 0 || width < 1 || height < 1) {
     return { ok: false, error: 'Position can’t be negative and size must be at least 1' }
+  }
+  if (size && (x + width > size.width || y + height > size.height)) {
+    return {
+      ok: false,
+      error: `The region must fit inside the screenshot (${size.width}×${size.height})`,
+    }
   }
   return { ok: true, rect: { x, y, width, height } }
 }

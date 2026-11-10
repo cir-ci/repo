@@ -152,3 +152,9 @@
   border-radius: 10px;
   background: var(--circi-surface-raised);
 }
+
+.barActions {
+  display: flex;
+  gap: 8px;
+  margin-inline-start: auto;
+}

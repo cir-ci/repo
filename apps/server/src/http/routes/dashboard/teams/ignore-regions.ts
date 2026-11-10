@@ -29,6 +29,7 @@ const editBody = z
   .partial()
   .strict()
 const FORBIDDEN = 'Only owners and admins can change ignore regions'
+const listQuery = z.object({ name: z.string().min(1).max(500).optional() })
 const idParams = z.object({ id: z.string() })
 
 const present = (r: Awaited<ReturnType<typeof listIgnoreRegions>>[number]): IgnoreRegion.Item => ({
@@ -47,9 +48,10 @@ export const dashboardIgnoreRegionRoutes: FastifyPluginAsync<Deps.Dashboard> = a
 ) => {
   app.get('/teams/:workspace/:team/ignore-regions', async (req) => {
     const found = await loadTeam(deps, req)
+    const { name } = parse(listQuery, req.query)
     const list: IgnoreRegion.List = {
       regions: (await listIgnoreRegions(deps.db, found.team.id)).map(present),
-      snapshots: await listIgnoreRegionSnapshots(deps.db, found.team.id),
+      snapshots: await listIgnoreRegionSnapshots(deps.db, found.team.id, name),
     }
     return list
   })

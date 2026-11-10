@@ -26,12 +26,14 @@ import { ErrorState } from '#lib/ErrorState.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import {
+  defaultRect,
   parseRect,
   pickSnapshot,
   regionsOf,
   sizeOf,
   toPixels,
   type RectFields,
+  type Size,
 } from './ignore-regions.ts'
 import { RegionStage } from './RegionStage.tsx'
 
@@ -46,13 +48,14 @@ export function IgnoreRegionsPage() {
       team={team}
       page="Ignore regions"
       width="wide"
-      readOnlyNote={false}
+      readOnlyNote="Only owners and admins can add, change or remove ignore regions."
     >
       {(data, name) => (
         <Workbench
           workspace={workspace}
           team={team}
           teamName={name}
+          canManage={data.canManage}
           defaultBranch={data.settings.defaultBranch}
         />
       )}
@@ -60,16 +63,16 @@ export function IgnoreRegionsPage() {
   )
 }
 
-function Workbench({ workspace, team, teamName, defaultBranch }: Workbench.Props) {
-  const { data, error, refetch } = useQuery(ignoreRegionsQuery(workspace, team))
+function Workbench({ workspace, team, teamName, defaultBranch, canManage }: Workbench.Props) {
   const search = useSearch({ from: '/$workspace/$team/settings/ignore-regions' })
+  const { data, error, refetch } = useQuery(ignoreRegionsQuery(workspace, team, search.name))
   const navigate = useNavigate()
   const announce = useAnnounce()
   const add = useAddIgnoreRegion(workspace, team)
   const remove = useDeleteIgnoreRegion(workspace, team)
   const [drawing, setDrawing] = useState(false)
   const [pending, setPending] = useState<Comment.Region | null>(null)
-  const [editing, setEditing] = useState<IgnoreRegion.Item | null>(null)
+  const [dialog, setDialog] = useState<RegionDialog.Target | null>(null)
   const [removing, setRemoving] = useState<{ item: IgnoreRegion.Item; number: number } | null>(null)
 
   if (error) return <ErrorState error={error} onRetry={() => void refetch()} />
@@ -143,15 +146,25 @@ function Workbench({ workspace, team, teamName, defaultBranch }: Workbench.Props
             <Text variant="mono" className={styles.barName}>
               {snapshot.name}
             </Text>
-            <Button
-              variant="toggle"
-              size="sm"
-              pressed={drawing}
-              onPressedChange={setDrawing}
-              disabled={!size || add.isPending}
-            >
-              Draw region
-            </Button>
+            {canManage ? (
+              <span className={styles.barActions}>
+                <Button
+                  size="sm"
+                  onClick={() => setDialog({ kind: 'add', name: snapshot.name, size })}
+                >
+                  Add region
+                </Button>
+                <Button
+                  variant="toggle"
+                  size="sm"
+                  pressed={drawing}
+                  onPressedChange={setDrawing}
+                  disabled={!size || add.isPending}
+                >
+                  Draw region
+                </Button>
+              </span>
+            ) : null}
           </div>
           {add.error ? <Banner tone="danger">{add.error.message}</Banner> : null}
           {snapshot.latest ? (
@@ -160,11 +173,11 @@ function Workbench({ workspace, team, teamName, defaultBranch }: Workbench.Props
               latest={snapshot.latest}
               size={size}
               regions={regions}
-              drawing={drawing}
+              drawing={canManage && drawing}
               onDrawingChange={setDrawing}
               pending={pending}
               onDraw={(region) => {
-                if (!size) return
+                if (!size || !canManage) return
                 setPending(region)
                 add.mutate(
                   { name: snapshot.name, ...toPixels(region, size) },
@@ -187,7 +200,7 @@ function Workbench({ workspace, team, teamName, defaultBranch }: Workbench.Props
           <div className={styles.foot}>
             <Text variant="small" tone="tertiary">
               {snapshot.latest
-                ? `Latest screenshot from ${defaultBranch}, build #${snapshot.latest.buildNumber}. ${size ? 'Drawing a region needs a mouse for now.' : 'Its size is unknown, so regions can’t be drawn.'}`
+                ? `Latest screenshot from ${defaultBranch}, build #${snapshot.latest.buildNumber}.${canManage ? (size ? ' Draw a region: drag over the screenshot, or press Draw region and use the arrow keys (Shift resizes, Enter confirms).' : ' Its size is unknown, so regions can’t be drawn.') : ''}`
                 : ' '}
             </Text>
           </div>
@@ -206,24 +219,28 @@ function Workbench({ workspace, team, teamName, defaultBranch }: Workbench.Props
                     <RelativeTime iso={r.createdAt} />
                   </Text>
                 </span>
-                <Button
-                  size="sm"
-                  aria-label={`Edit region ${index + 1}`}
-                  onClick={() => setEditing(r)}
-                >
-                  Edit
-                </Button>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  aria-label={`Remove region ${index + 1}`}
-                  onClick={() => {
-                    remove.reset()
-                    setRemoving({ item: r, number: index + 1 })
-                  }}
-                >
-                  Remove
-                </Button>
+                {canManage ? (
+                  <>
+                    <Button
+                      size="sm"
+                      aria-label={`Edit region ${index + 1}`}
+                      onClick={() => setDialog({ kind: 'edit', region: r, size })}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      aria-label={`Remove region ${index + 1}`}
+                      onClick={() => {
+                        remove.reset()
+                        setRemoving({ item: r, number: index + 1 })
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -233,12 +250,12 @@ function Workbench({ workspace, team, teamName, defaultBranch }: Workbench.Props
         Flaky snapshots in Triage link here: press I on one to add a region for its screenshot.
       </Text>
 
-      <EditDialog
-        key={editing?.id ?? 'none'}
-        region={editing}
+      <RegionDialog
+        key={dialog?.kind === 'edit' ? dialog.region.id : (dialog?.kind ?? 'none')}
+        target={dialog}
         workspace={workspace}
         team={team}
-        onClose={() => setEditing(null)}
+        onClose={() => setDialog(null)}
       />
       <ConfirmDialog
         open={removing !== null}
@@ -262,14 +279,20 @@ function Workbench({ workspace, team, teamName, defaultBranch }: Workbench.Props
   )
 }
 
-function EditDialog({ region, workspace, team, onClose }: EditDialog.Props) {
+/** Position and size of one region in pixels: edits an existing region, or adds one (to a screenshot) from numbers. */
+function RegionDialog({ target, workspace, team, onClose }: RegionDialog.Props) {
   const edit = useEditIgnoreRegion(workspace, team)
+  const add = useAddIgnoreRegion(workspace, team)
   const announce = useAnnounce()
   const [problem, setProblem] = useState<string | null>(null)
+  const adding = target?.kind === 'add'
+  const save = adding ? add : edit
+  const initial =
+    target?.kind === 'edit' ? target.region : target?.size ? defaultRect(target.size) : undefined
 
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!region) return
+    if (!target) return
     const form = new FormData(e.currentTarget)
     const field = (key: string) => {
       const v = form.get(key)
@@ -281,50 +304,53 @@ function EditDialog({ region, workspace, team, onClose }: EditDialog.Props) {
       width: field('width'),
       height: field('height'),
     }
-    const parsed = parseRect(fields)
+    const parsed = parseRect(fields, target.size)
     if (!parsed.ok) {
       setProblem(parsed.error)
       return
     }
     setProblem(null)
-    edit.mutate(
-      { id: region.id, rect: parsed.rect },
-      {
-        onSuccess: () => {
-          announce('Ignore region saved')
-          onClose()
-        },
+    const done = {
+      onSuccess: () => {
+        announce(target.kind === 'add' ? 'Ignore region added' : 'Ignore region saved')
+        onClose()
       },
-    )
+    }
+    if (target.kind === 'add') add.mutate({ name: target.name, ...parsed.rect }, done)
+    else edit.mutate({ id: target.region.id, rect: parsed.rect }, done)
   }
 
   return (
     <Dialog
-      open={region !== null}
+      open={target !== null}
       onOpenChange={(open) => {
         if (!open) onClose()
       }}
-      title="Edit ignore region"
-      description="Position and size in pixels of the screenshot."
+      title={adding ? 'Add an ignore region' : 'Edit ignore region'}
+      description={
+        adding
+          ? `Position and size in pixels of ${target.name}.`
+          : 'Position and size in pixels of the screenshot.'
+      }
       actions={
         <>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" form="edit-region" variant="primary" loading={edit.isPending}>
-            {edit.isPending ? 'Saving…' : 'Save region'}
+          <Button type="submit" form="edit-region" variant="primary" loading={save.isPending}>
+            {save.isPending ? 'Saving…' : adding ? 'Add region' : 'Save region'}
           </Button>
         </>
       }
     >
       <form id="edit-region" onSubmit={submit} noValidate className={styles.editForm}>
-        <NumberField name="x" label="Left" unit="px" defaultValue={region?.x} min={0} step={1} />
-        <NumberField name="y" label="Top" unit="px" defaultValue={region?.y} min={0} step={1} />
+        <NumberField name="x" label="Left" unit="px" defaultValue={initial?.x} min={0} step={1} />
+        <NumberField name="y" label="Top" unit="px" defaultValue={initial?.y} min={0} step={1} />
         <NumberField
           name="width"
           label="Width"
           unit="px"
-          defaultValue={region?.width}
+          defaultValue={initial?.width}
           min={1}
           step={1}
         />
@@ -332,7 +358,7 @@ function EditDialog({ region, workspace, team, onClose }: EditDialog.Props) {
           name="height"
           label="Height"
           unit="px"
-          defaultValue={region?.height}
+          defaultValue={initial?.height}
           min={1}
           step={1}
         />
@@ -341,7 +367,7 @@ function EditDialog({ region, workspace, team, onClose }: EditDialog.Props) {
             {problem}
           </Text>
         ) : null}
-        {edit.error ? <Banner tone="danger">{edit.error.message}</Banner> : null}
+        {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
       </form>
     </Dialog>
   )
@@ -353,12 +379,19 @@ namespace Workbench {
     team: string
     teamName: string
     defaultBranch: string
+    /** Owners and admins: the others see the regions and nothing to change them with. */
+    canManage: boolean
   }
 }
 
-namespace EditDialog {
+namespace RegionDialog {
+  /** What the dialog is for; `size` (the screenshot's pixels, when known) bounds the region. */
+  export type Target =
+    | { kind: 'add'; name: string; size: Size | null }
+    | { kind: 'edit'; region: IgnoreRegion.Item; size: Size | null }
+
   export interface Props {
-    region: IgnoreRegion.Item | null
+    target: Target | null
     workspace: string
     team: string
     onClose: () => void

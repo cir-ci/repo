@@ -183,10 +183,14 @@ export function useUnlinkRepository(workspace: string, team: string) {
   })
 }
 
-export const ignoreRegionsQuery = (workspace: string, team: string) =>
+/** `name` also lists that screenshot when it has no regions yet (the flaky banner links with it). */
+export const ignoreRegionsQuery = (workspace: string, team: string, name?: string) =>
   queryOptions({
-    queryKey: keys.ignoreRegions(workspace, team),
-    queryFn: () => getJson<IgnoreRegion.List>(teamPath(workspace, team, 'ignore-regions')),
+    queryKey: [...keys.ignoreRegions(workspace, team), name ?? null] as const,
+    queryFn: () =>
+      getJson<IgnoreRegion.List>(
+        `${teamPath(workspace, team, 'ignore-regions')}${name ? `?name=${encodeURIComponent(name)}` : ''}`,
+      ),
   })
 
 export type RegionRect = Pick<IgnoreRegion.Item, 'x' | 'y' | 'width' | 'height'>

@@ -14,8 +14,10 @@ function api(
   builds: unknown[],
   flaky: unknown = { builds: 10, flaky: [] },
   gitAttention: unknown = null,
+  canManage = false,
 ) {
   return fakeApi({
+    'GET /api/teams/acme/web/settings': { body: { canManage } },
     'GET /api/teams/acme/web': { body: { team: info, builds, gitAttention } },
     'GET /api/teams/acme/web/flaky': { body: flaky },
   })
@@ -169,21 +171,41 @@ describe('TeamPage', () => {
     await expect.element(page.getByText(/CIRCI_TOKEN=…/)).toBeVisible()
   })
 
-  it('warns about flaky screenshots on the default branch', async () => {
-    api([build(8)], {
-      builds: 10,
-      flaky: [
-        { name: 'clock', changedIn: 6 },
-        { name: 'ticker', changedIn: 4 },
-      ],
-    })
+  const flakyReport = {
+    builds: 10,
+    flaky: [
+      { name: 'clock', changedIn: 6 },
+      { name: 'nav/ticker', changedIn: 4 },
+    ],
+  }
+
+  it('warns about flaky screenshots on the default branch and asks an owner or admin to mask them (members)', async () => {
+    api([build(8)], flakyReport)
     await show()
     const banner = page.getByRole('status').filter({ hasText: 'keep changing' })
     await expect.element(banner).toBeVisible()
     await expect
       .poll(() => banner.element().textContent)
-      .toMatch(/clock \(6 of the last 10 builds\), ticker \(4 of the last 10 builds\)/)
-    await expect.poll(() => banner.element().textContent).toMatch(/circi admin ignore add/)
+      .toMatch(/clock \(6 of the last 10 builds\), nav\/ticker \(4 of the last 10 builds\)/)
+    await expect
+      .poll(() => banner.element().textContent)
+      .toMatch(/Ask an owner or admin of this team to mask the part that changes\./)
+    expect(banner.element().textContent).not.toMatch(/circi admin/)
+    expect(banner.getByRole('link').elements()).toHaveLength(0)
+  })
+
+  it('links each flaky screenshot to its ignore regions for owners and admins', async () => {
+    api([build(8)], flakyReport, null, true)
+    await show()
+    const banner = page.getByRole('status').filter({ hasText: 'keep changing' })
+    await expect
+      .element(banner.getByRole('link', { name: 'nav/ticker' }))
+      .toHaveAttribute('href', '/acme/web/settings/ignore-regions?name=nav%2Fticker')
+    await expect
+      .element(banner.getByRole('link', { name: 'clock' }))
+      .toHaveAttribute('href', '/acme/web/settings/ignore-regions?name=clock')
+    await expect.poll(() => banner.element().textContent).toMatch(/Choose a screenshot to mask/)
+    expect(banner.element().textContent).not.toMatch(/circi admin/)
   })
 
   it('pages back through older builds and returns to the newest', async () => {

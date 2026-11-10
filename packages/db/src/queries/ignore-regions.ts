@@ -20,11 +20,13 @@ export namespace listIgnoreRegionSnapshots {
 
 /**
  * The screenshot names a team has ignore regions for, each with its region count and the latest
- * screenshot from the default branch (null when no build has one any more).
+ * screenshot from the default branch (null when no build has one any more). `also` names one more
+ * screenshot to list when it has no regions yet (zero regions), so a page can open on it ready to add one.
  */
 export async function listIgnoreRegionSnapshots(
   db: Database,
   teamId: string,
+  also?: string,
 ): Promise<listIgnoreRegionSnapshots.Snapshot[]> {
   const names = await db
     .select({ name: ignoreRegions.name, regions: sql<number>`count(*)::int` })
@@ -32,6 +34,7 @@ export async function listIgnoreRegionSnapshots(
     .where(eq(ignoreRegions.teamId, teamId))
     .groupBy(ignoreRegions.name)
     .orderBy(asc(ignoreRegions.name))
+  if (also && !names.some((n) => n.name === also)) names.push({ name: also, regions: 0 })
   return Promise.all(
     names.map(async ({ name, regions }) => {
       const [latest] = await db

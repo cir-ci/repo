@@ -43,4 +43,24 @@ describe('listIgnoreRegionSnapshots', () => {
       },
     ])
   })
+
+  it('lists a named screenshot that has no regions yet, with its latest screenshot', async () => {
+    const { team } = await seedTeam(t.db)
+    const build = await seedBuild(t.db, team.id, { branch: 'main', status: 'complete' })
+    await seedScreenshot(t.db, {
+      buildId: build.id,
+      name: 'clock',
+      fileSha256: fakeSha('4'),
+      width: 100,
+      height: 50,
+    })
+    expect(await listIgnoreRegionSnapshots(t.db, team.id)).toEqual([])
+    expect(await listIgnoreRegionSnapshots(t.db, team.id, 'clock')).toEqual([
+      {
+        name: 'clock',
+        regions: 0,
+        latest: { buildNumber: build.number, sha256: fakeSha('4'), width: 100, height: 50 },
+      },
+    ])
+  })
 })

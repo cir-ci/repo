@@ -67,7 +67,8 @@ describe('flaky screenshots', () => {
     await banner.waitFor()
     const text = (await banner.innerText()).replace(/\s+/g, ' ')
     expect(text).toContain('wobble (3 of the last 4 builds)')
-    expect(text).toContain('circi admin ignore add')
+    expect(text).not.toContain('circi admin ignore add')
+    await page.getByRole('link', { name: 'wobble' }).waitFor()
     expect(text).not.toContain('steady')
   })
 

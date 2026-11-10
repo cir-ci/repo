@@ -44,11 +44,15 @@ const list = (over: Record<string, unknown> = {}) => ({
   ...over,
 })
 
-function api(listBody: unknown = list(), extra: Record<string, ReplyHandler> = {}) {
+function api(
+  listBody: unknown = list(),
+  extra: Record<string, ReplyHandler> = {},
+  canManage = true,
+) {
   return fakeApi({
     [`GET ${API}/settings`]: {
       body: {
-        canManage: true,
+        canManage,
         settings: { name: 'Web App', defaultBranch: 'main' },
         appearance: { color: 'slate', icon: null },
         workspace: { flakyBlocksMerge: true },
@@ -193,6 +197,92 @@ describe('IgnoreRegionsPage', () => {
       width: 200,
       height: 105,
     })
+  })
+
+  it('adds a region from numbers: the dialog starts with a centred quarter of the screenshot and posts pixels', async () => {
+    const fake = api(list(), {
+      [`POST ${API}/ignore-regions`]: { status: 201, body: region('9', 'checkout/summary') },
+    })
+    await show()
+    await page.getByRole('button', { name: 'Add region', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Add an ignore region' })
+    await expect.element(dialog).toBeVisible()
+    // The screenshot is 1000 x 500: 250 x 125, in the middle.
+    await expect.element(dialog.getByRole('textbox', { name: 'Left' })).toHaveValue('375')
+    await expect.element(dialog.getByRole('textbox', { name: 'Top' })).toHaveValue('187')
+    await expect.element(dialog.getByRole('textbox', { name: 'Width' })).toHaveValue('250')
+    await expect.element(dialog.getByRole('textbox', { name: 'Height' })).toHaveValue('125')
+    await dialog.getByRole('textbox', { name: 'Width' }).fill('300')
+    await dialog.getByRole('button', { name: 'Add region' }).click()
+    await expect.poll(() => fake.of('POST')).toHaveLength(1)
+    expect(fake.of('POST')[0]?.body).toEqual({
+      name: 'checkout/summary',
+      x: 375,
+      y: 187,
+      width: 300,
+      height: 125,
+    })
+    await expect
+      .element(page.getByRole('status').filter({ hasText: /^Ignore region added$/ }))
+      .toBeVisible()
+  })
+
+  it('refuses a new region that is not whole numbers or does not fit the screenshot', async () => {
+    const fake = api()
+    await show()
+    await page.getByRole('button', { name: 'Add region', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Add an ignore region' })
+    const submit = dialog.getByRole('button', { name: 'Add region' })
+    await dialog.getByRole('textbox', { name: 'Left' }).fill('1.5')
+    await submit.click()
+    await expect.element(page.getByRole('alert')).toHaveTextContent('Use whole numbers')
+    // A negative position can't be entered: the number field holds it at its minimum, 0.
+    const left = dialog.getByRole('textbox', { name: 'Left' })
+    await left.fill('-3')
+    await dialog.getByRole('textbox', { name: 'Top' }).click()
+    await expect.element(left).toHaveValue('0')
+    await left.fill('900')
+    await dialog.getByRole('textbox', { name: 'Width' }).fill('200')
+    await submit.click()
+    await expect
+      .poll(() => page.getByRole('alert').element().textContent)
+      .toContain('must fit inside the screenshot (1000×500)')
+    expect(fake.of('POST')).toHaveLength(0)
+  })
+
+  it('opens an empty Add dialog when the screenshot’s size is unknown', async () => {
+    api(list({ snapshots: [snapshot('checkout/summary', 2, false), snapshot('nav/header', 1)] }))
+    await show()
+    await page.getByRole('button', { name: 'Add region', exact: true }).click()
+    await expect.element(page.getByRole('textbox', { name: 'Width' })).toHaveValue('')
+  })
+
+  it('opens on a screenshot that has no regions yet, ready to add one', async () => {
+    api({
+      regions: [],
+      snapshots: [snapshot('clock', 0)],
+    })
+    await show('/acme/web/settings/ignore-regions?name=clock')
+    await expect.element(page.getByRole('list', { name: 'Regions of clock' })).toBeInTheDocument()
+    await expect
+      .element(page.getByRole('button', { name: 'Add region', exact: true }))
+      .toBeVisible()
+  })
+
+  it('shows members the regions and nothing to add, draw, edit or remove', async () => {
+    api(list(), {}, false)
+    await show()
+    await expect
+      .element(page.getByText(/Only owners and admins can add, change or remove/))
+      .toBeVisible()
+    await expect
+      .element(page.getByRole('list', { name: 'Regions of checkout/summary' }))
+      .toBeVisible()
+    expect(page.getByRole('button', { name: 'Add region' }).elements()).toHaveLength(0)
+    expect(page.getByRole('button', { name: 'Draw region' }).elements()).toHaveLength(0)
+    expect(page.getByRole('button', { name: /^Edit region/ }).elements()).toHaveLength(0)
+    expect(page.getByRole('button', { name: /^Remove region/ }).elements()).toHaveLength(0)
+    expect(page.getByText(/needs a mouse/).elements()).toHaveLength(0)
   })
 
   it('can’t draw on a screenshot of unknown size', async () => {
