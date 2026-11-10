@@ -1,4 +1,4 @@
-import type { Build, Comment, Figma, ReviewStatus } from '@circi/api'
+import type { Build, Comment, Figma, IgnoreRegion, ReviewStatus } from '@circi/api'
 import {
   Banner,
   Button,
@@ -21,6 +21,7 @@ import {
 import { type CSSProperties, type ReactNode, useState } from 'react'
 
 import { fileUrl } from '#features/builds/api/index.ts'
+import type { Size } from '#features/regions/ignore-regions.ts'
 import {
   type Annotations,
   RegionLayer,
@@ -28,6 +29,7 @@ import {
   type RegionComposer,
   useRegionGesture,
 } from '#features/regions/RegionLayer.tsx'
+import { RegionBoxes } from '#features/regions/RegionStage.tsx'
 import { MODE_OPTIONS } from '#lib/shortcuts.ts'
 
 import { screenshotLabel, screenshotStatus, type ShotKind } from './diff-status.ts'
@@ -70,6 +72,7 @@ export function Viewer({
   commitSha,
   designEnabled = false,
   regions,
+  ignore,
   issues,
   ...props
 }: Viewer.Props) {
@@ -87,10 +90,14 @@ export function Viewer({
     ? [...MODE_OPTIONS, { value: DESIGN_MODE, label: 'Design' }]
     : MODE_OPTIONS
   // Regions are drawn on this build's image, so they need one.
-  const annotatable = regions !== undefined && diff.head !== null && mode !== 'design'
+  const annotatable =
+    (regions !== undefined || ignore !== undefined) && diff.head !== null && mode !== 'design'
+  const ignoring = ignore?.mode === 'ignore'
   // Only one comment box at a time: while the enlarged view is open it owns the selection.
   const annotationsFor = (side: RegionSide, inDialog = false): Annotations | undefined => {
-    if (!regions || !annotatable) return undefined
+    if (!annotatable) return undefined
+    if (ignore && ignoring) return ignoreAnnotations(ignore, side, inDialog)
+    if (!regions) return undefined
     const draft = draftRegion(regions.draft, diff.id, side)
     return {
       // A sent comment shows only on the image it was drawn on.
@@ -106,6 +113,32 @@ export function Viewer({
       onMarker: regions.onMarker,
       alwaysDraw: true,
       composer: draft && inDialog === (enlarged !== null) ? regions.composer : undefined,
+    }
+  }
+  // Dragging draws an ignore region: its boxes show on the picture and the comments step aside.
+  const ignoreAnnotations = (
+    state: IgnoreMode,
+    side: RegionSide,
+    inDialog: boolean,
+  ): Annotations | undefined => {
+    const image = side === 'baseline' ? diff.base : diff.head
+    const size: Size | null =
+      image?.width && image.height ? { width: image.width, height: image.height } : null
+    // Regions are fractions of the image: without its size there is nothing to draw or show.
+    if (!size) return undefined
+    return {
+      threads: [],
+      pending: state.pending?.side === side ? state.pending.region : null,
+      focusedId: null,
+      drawing: !inDialog && side === 'build' && keyboardTool,
+      onDrawingChange: setKeyboardTool,
+      onDraw: (region) => {
+        setKeyboardTool(false)
+        state.onDraw(side, region, size)
+      },
+      onMarker: () => {},
+      alwaysDraw: true,
+      underlay: <RegionBoxes regions={state.regions} size={size} />,
     }
   }
   const summary = changeSummary(diff)
@@ -134,6 +167,7 @@ export function Viewer({
       : []),
   ]
   const enlargedAt = enlargeable.findIndex((e) => e.key === enlarged)
+  const overlayAnnotations = annotationsFor(enlarged === 'baseline' ? 'baseline' : 'build', true)
   const layer = annotationsFor('build')
   const zoomed = zoom !== 'fit'
 
@@ -199,8 +233,20 @@ export function Viewer({
           ) : null}
           {annotatable ? (
             <Text variant="small" tone="secondary" className={styles.hint}>
-              Drag on an image to comment on a region
+              {ignoring
+                ? 'Drag on an image to add an ignore region'
+                : 'Drag on an image to comment on a region'}
             </Text>
+          ) : null}
+          {ignore && annotatable ? (
+            <SegmentedControl
+              label="Dragging draws"
+              options={DRAW_OPTIONS}
+              value={ignore.mode}
+              onChange={(m) => {
+                if (m === 'comments' || m === 'ignore') ignore.onMode(m)
+              }}
+            />
           ) : null}
           {annotatable ? (
             // The board's toolbar has no button for it: the keyboard path stays, shown only while it has focus.
@@ -376,6 +422,8 @@ export function Viewer({
           />
         ) : null}
 
+        {ignoring && ignore ? ignore.panel : null}
+
         {mode === 'design' ? (
           <EmptyState icon={<ReviewIcon size={32} />} title="Design compare">
             The frame this screenshot is built from will show here.
@@ -389,14 +437,8 @@ export function Viewer({
           label: e.label,
           ...(e.image.width ? { width: e.image.width } : {}),
           ...(e.image.height ? { height: e.image.height } : {}),
-          ...(annotatable && enlarged === e.key
-            ? {
-                overlay: (
-                  <RegionOverlay
-                    annotations={annotationsFor(e.key === 'baseline' ? 'baseline' : 'build', true)!}
-                  />
-                ),
-              }
+          ...(annotatable && enlarged === e.key && overlayAnnotations
+            ? { overlay: <RegionOverlay annotations={overlayAnnotations} /> }
             : {}),
         }))}
         open={enlarged !== null && enlargedAt >= 0}
@@ -431,9 +473,29 @@ export namespace Viewer {
     designEnabled?: boolean
     /** Comment regions on this snapshot; absent where nobody can comment. */
     regions?: Regions
+    /** Dragging can draw ignore regions instead of comments; absent unless you can manage them. */
+    ignore?: IgnoreMode
     /** The link row for issues filed about this snapshot, right under the toolbar. */
     issues?: ReactNode
   }
+}
+
+const DRAW_OPTIONS = [
+  { value: 'comments', label: 'Comments' },
+  { value: 'ignore', label: 'Ignore regions' },
+]
+
+/** What a drag on the picture draws, and the ignore regions of the screenshot while it draws them. */
+export interface IgnoreMode {
+  mode: 'comments' | 'ignore'
+  onMode: (mode: 'comments' | 'ignore') => void
+  regions: readonly IgnoreRegion.Item[]
+  /** The region just drawn, while it is being saved. */
+  pending: { side: RegionSide; region: Comment.Region } | null
+  /** `size` is the pixel size of the image it was drawn on. */
+  onDraw: (side: RegionSide, region: Comment.Region, size: Size) => void
+  /** The list of the regions, with Add, Edit and Remove. */
+  panel: ReactNode
 }
 
 /** The regions of the snapshot on screen: sent threads, and the one selected region with its draft. */

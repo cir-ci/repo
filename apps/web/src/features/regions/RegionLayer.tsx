@@ -3,6 +3,7 @@ import { Avatar, Button, Kbd, useAnnounce, visuallyHidden } from '@circi/ui'
 import {
   type KeyboardEvent,
   type PointerEvent,
+  type ReactNode,
   type RefObject,
   useEffect,
   useId,
@@ -47,6 +48,8 @@ export interface Annotations {
    */
   alwaysDraw?: boolean
   onClick?: () => void
+  /** Drawn under the markers: the ignore regions shown while a drag draws one. */
+  underlay?: ReactNode
   /** With the pending region: the comment popover anchored to it. */
   composer?: RegionComposer.Callbacks
 }
@@ -148,6 +151,7 @@ export function RegionLayer({ annotations, gesture }: RegionLayer.Props) {
       data-testid="region-layer"
       {...(gesture ? {} : own.bind)}
     >
+      {annotations.underlay}
       {annotations.threads.map((t) => (
         <button
           key={t.id}

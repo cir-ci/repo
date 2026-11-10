@@ -33,6 +33,7 @@ import { BuildStateLabel } from './BuildStateLabel.tsx'
 import { CountsSummary } from './CountsSummary.tsx'
 import { screenshotLabel, screenshotStatus, shotDecision, shotReview } from './diff-status.ts'
 import { Viewer } from './DiffViewer.tsx'
+import { useIgnoreMode } from './ignore-mode.tsx'
 import { IssueAction } from './IssueAction.tsx'
 import { SnapshotIssues } from './LinkedIssues.tsx'
 import { apiSide, draftOf, type RegionDraft } from './region-draft.ts'
@@ -88,6 +89,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const review = useReviewControls(data, selected)
   const addComment = useAddComment(team.workspaceSlug, team.slug, build.number)
   const announce = useAnnounce()
+  const ignore = useIgnoreMode(team.workspaceSlug, team.slug, selected)
   const members = useMentionMembers(team.workspaceSlug)
   const { data: session } = authClient.useSession()
   // Another screenshot has none of this one's regions: the selection and its unsent text go.
@@ -316,6 +318,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
               onNext={hasNext ? () => goToShot(next) : undefined}
               onHelp={() => setHelpOpen(true)}
               designEnabled={designEnabled}
+              {...(ignore ? { ignore } : {})}
               issues={
                 <SnapshotIssues
                   workspace={team.workspaceSlug}

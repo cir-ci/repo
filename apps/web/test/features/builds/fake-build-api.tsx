@@ -1,4 +1,4 @@
-import type { Activity, Build, Comment, Issue } from '@circi/api'
+import type { Activity, Build, Comment, IgnoreRegion, Issue } from '@circi/api'
 import { vi } from 'vitest'
 
 import { BuildPage } from '#features/builds/BuildPage.tsx'
@@ -120,6 +120,12 @@ export interface FakeApi {
   requests: unknown[]
   /** The workspace's members, as better-auth returns them. */
   members: { id: string; userId: string; user: { name: string; email: string } }[]
+  /** `GET …/settings`: owners and admins can manage ignore regions, members can't. */
+  canManage: boolean
+  /** `GET …/ignore-regions`; a POST appends to it. */
+  ignoreRegions: IgnoreRegion.Item[]
+  /** The bodies of the ignore-region POSTs, in order. */
+  ignorePosts: { name: string; x: number; y: number; width: number; height: number }[]
   fetch: ReturnType<typeof vi.fn<typeof fetch>>
 }
 
@@ -139,6 +145,9 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
     commentPosts: [],
     requests: [],
     members: [],
+    canManage: false,
+    ignoreRegions: [],
+    ignorePosts: [],
     fetch: vi.fn<typeof fetch>((input, init) => {
       const url = new URL(input instanceof Request ? input.url : String(input), 'http://localhost')
       const method = init?.method ?? 'GET'
@@ -208,6 +217,27 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
           members: api.members,
           invitations: [],
         })
+      const team = '/api/teams/acme/web-app'
+      if (url.pathname === `${team}/settings`) return json({ canManage: api.canManage })
+      if (url.pathname === `${team}/ignore-regions` && method === 'POST') {
+        const body = JSON.parse(typeof init?.body === 'string' ? init.body : '{}')
+        api.ignorePosts.push(body)
+        const item = {
+          id: `r${api.ignoreRegions.length + 1}`,
+          createdAt: new Date().toISOString(),
+          createdBy: { id: 'u1', name: 'Ada Lovelace' },
+          ...body,
+        }
+        api.ignoreRegions.push(item)
+        return json(item, 201)
+      }
+      if (url.pathname === `${team}/ignore-regions`) {
+        const name = url.searchParams.get('name')
+        return json({
+          regions: api.ignoreRegions.filter((r) => name === null || r.name === name),
+          snapshots: [],
+        })
+      }
       if (url.pathname === root) return json(api.build)
       if (url.pathname === '/api/teams/acme/web-app/flaky')
         return json({ builds: 10, flaky: api.flaky })
