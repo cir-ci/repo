@@ -64,6 +64,15 @@ describe('WorkspaceSwitcher', () => {
     await expect.element(page.getByRole('menuitem', { name: 'Workspace settings' })).toBeVisible()
   })
 
+  it('is still a menu with one workspace: it lists it, with settings and New workspace', async () => {
+    await show({ workspaces: [acme], onCreate: vi.fn<() => void>() }).ready
+    await page.getByRole('button', { name: 'Workspace: Acme' }).click()
+    await expect.element(page.getByRole('menu')).toBeVisible()
+    await expect.element(page.getByRole('menuitem', { name: 'Acme' })).toBeVisible()
+    await expect.element(page.getByRole('menuitem', { name: 'Workspace settings' })).toBeVisible()
+    await expect.element(page.getByRole('menuitem', { name: 'New workspace' })).toBeVisible()
+  })
+
   it("opens Members from Workspace settings for people who can't change the settings", async () => {
     const { router } = await renderPage(
       <WorkspaceSwitcher
