@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
-import { detail, fakeBuildApi, renderBuild } from './fake-build-api.tsx'
+import { decision, detail, fakeBuildApi, renderBuild, shot } from './fake-build-api.tsx'
 
 beforeEach(async () => {
   await page.viewport(1400, 900)
@@ -60,6 +60,46 @@ describe('sidebar tabs', () => {
       .element(tabs.getByRole('tab', { name: /^Comments/ }))
       .toHaveAttribute('aria-selected', 'true')
     await expect.element(page.getByRole('combobox', { name: 'Comment' })).toBeVisible()
+  })
+
+  it('Details lists per-snapshot decisions by snapshot, and marks the selected one', async () => {
+    const max = { id: 'u3', name: 'Max Member' }
+    fakeBuildApi(
+      detail(
+        {},
+        {
+          diffs: [
+            shot('checkout / payment', 'changed', {
+              review: { ...decision('rejected', 'Wrong colour'), reviewer: max },
+            }),
+            shot('pricing', 'unchanged', { review: { ...decision('approved'), reviewer: max } }),
+            shot('about', 'unchanged'),
+          ],
+          reviews: [
+            {
+              state: 'rejected',
+              source: 'ui',
+              reason: null,
+              userName: 'Olivia Owner',
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        },
+      ),
+    )
+    await renderBuild()
+    await expect.element(viewerTitle()).toBeVisible()
+    const panel = page.getByRole('tabpanel')
+    const items = () => panel.getByRole('listitem')
+    const textOf = (hasText: string) => () => items().filter({ hasText }).element().textContent
+    await expect.poll(textOf('Olivia Owner')).toMatch(/Rejected by Olivia Owner/)
+    const pricing = items().filter({ hasText: 'pricing' })
+    await expect.poll(textOf('pricing')).toMatch(/Approved by Max Member/)
+    const payment = items().filter({ hasText: 'checkout / payment' })
+    await expect.poll(textOf('checkout / payment')).toMatch(/Rejected by Max Member/)
+    expect(pricing.element()).not.toHaveAttribute('aria-current')
+    await expect.element(payment).toHaveAttribute('aria-current', 'true')
+    expect(panel.getByText('about').elements()).toHaveLength(0)
   })
 
   it('shows the timeline with a rejection’s reason and who did what', async () => {
@@ -232,8 +272,10 @@ describe('mentions in a comment', () => {
     await renderBuild()
     await page.getByRole('tab', { name: /^Comments/ }).click()
     await expect
-      .element(page.getByText('@grace', { exact: true }))
+      .element(page.getByText('@Grace Hopper', { exact: true }))
       .toHaveAttribute('data-mention', '')
+    // The name is shown; the handle is only what is stored.
+    expect(page.getByText('@grace', { exact: true }).elements()).toHaveLength(0)
     await expect.element(page.getByText(/@nobody/)).toBeVisible()
     expect(
       page

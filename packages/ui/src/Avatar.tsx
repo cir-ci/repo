@@ -19,6 +19,17 @@ export function initials(name: string): string {
   return text || '?'
 }
 
+/** Below this diameter two letters cannot fit a circle at a readable size: one is shown. */
+const TWO_LETTERS_FROM = 20
+
+/** Two wide capitals ("MM") are about 1.7em across, so the type must stay under the circle's width. */
+const fontSizeFor = (size: number) =>
+  size < TWO_LETTERS_FROM
+    ? Math.max(9, Math.round(size * 0.55))
+    : size < 28
+      ? Math.round(size * 0.4)
+      : Math.max(11, Math.round(size * 0.42))
+
 /**
  * A round avatar on Base UI's `Avatar`: the image when it
  * loads, otherwise the initials of `name`. The element is an image named by `name`.
@@ -35,11 +46,13 @@ export function Avatar({ name, src, size = 24, className, style, ...rest }: Avat
         ...style,
         width: size,
         height: size,
-        fontSize: Math.max(11, Math.round(size * 0.42)),
+        fontSize: fontSizeFor(size),
       }}
     >
       {src ? <BaseAvatar.Image src={src} alt="" className={styles.image} /> : null}
-      <BaseAvatar.Fallback className={styles.fallback}>{initials(name)}</BaseAvatar.Fallback>
+      <BaseAvatar.Fallback className={styles.fallback}>
+        {size < TWO_LETTERS_FROM ? initials(name).slice(0, 1) : initials(name)}
+      </BaseAvatar.Fallback>
     </BaseAvatar.Root>
   )
 }

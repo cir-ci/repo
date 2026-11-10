@@ -1,0 +1,32 @@
+.root {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.mentions {
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  z-index: 2;
+  margin: 2px 0 0;
+  padding: 4px;
+  border: 1px solid var(--circi-line-strong);
+  border-radius: 6px;
+  background: var(--circi-surface-panel);
+  list-style: none;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.3);
+}
+
+.mentions [role='option'] {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.mentions [role='option'][aria-selected='true'] {
+  background: var(--circi-accent-subtle);
+}

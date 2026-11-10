@@ -1,6 +1,7 @@
 import type { Sidebar, View } from '@circi/api'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
+import { sameFilters } from '#features/builds/list/builds-filters.ts'
 import { workspacePath } from '#lib/api-paths.ts'
 import { getJson, post, send } from '#lib/http.ts'
 import { invalidateAll, keys } from '#lib/query-keys.ts'
@@ -14,6 +15,13 @@ export const viewsQuery = (workspace: string) =>
 /** The view with `id` in a list of the person's views. */
 export const findView = (views: readonly View.Item[] | undefined, id: string) =>
   views?.find((v) => v.id === id)
+
+/** The saved view of this team (or, without one, of the whole workspace) whose filters are these. */
+export const viewWithFilters = (
+  views: readonly View.Item[] | undefined,
+  team: string | undefined,
+  filters: View.Filters,
+) => views?.find((v) => (v.team?.slug ?? undefined) === team && sameFilters(v.filters, filters))
 
 /** Saves the filters of a team's builds list as a view; pinned, so it shows under "Your views" at once. */
 export function useSaveView(workspace: string) {

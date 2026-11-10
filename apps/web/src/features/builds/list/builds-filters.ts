@@ -84,6 +84,15 @@ export function toWorkspaceQuery(filters: BuildFilters, before?: string, order?:
 export const hasFilters = (filters: BuildFilters) =>
   Object.keys(parseFilters({ ...filters })).length > 0
 
+/** Whether two sets of filters select the same builds (unset and empty values do not count). */
+export function sameFilters(a: BuildFilters, b: BuildFilters): boolean {
+  const key = (f: BuildFilters) =>
+    JSON.stringify(
+      Object.entries(parseFilters({ ...f })).toSorted(([x], [y]) => x.localeCompare(y)),
+    )
+  return key(a) === key(b)
+}
+
 export type FilterField = 'status' | 'branch' | 'author' | 'reviewer' | 'name' | 'date'
 
 export const FILTER_FIELDS: readonly { field: FilterField; label: string }[] = [

@@ -5,6 +5,8 @@ vi.mock('#lib/auth-client.ts', () =>
   import('#test/support/auth-client.ts').then((m) => m.authClientModule),
 )
 
+import { mockAuthClient } from '#test/support/auth-client.ts'
+
 import { detail, fakeBuildApi, renderBuild } from './fake-build-api.tsx'
 
 beforeEach(async () => {
@@ -68,7 +70,7 @@ describe('region comments in the enlarged view', () => {
     const api = await ready()
     await enlargeBaseline()
     await dragInDialog()
-    const box = popover().getByRole('textbox', { name: 'Comment' })
+    const box = popover().getByRole('combobox', { name: 'Comment' })
     await expect.element(box).toHaveFocus()
     await expect.element(popover().getByText('Comment on this region')).toBeVisible()
     // One comment box at a time: the inline image shows none while the dialog is open.
@@ -162,7 +164,7 @@ describe('region comments are always on', () => {
   it('a drag selects a region: the popover opens with focus in its box, and Send needs text', async () => {
     const api = await ready()
     await drag('This build')
-    const box = popover().getByRole('textbox', { name: 'Comment' })
+    const box = popover().getByRole('combobox', { name: 'Comment' })
     await expect.element(box).toHaveFocus()
     // The board's header row: the signed-in user's avatar and what the box is for.
     await expect.element(popover().getByText('Comment on this region')).toBeVisible()
@@ -209,7 +211,7 @@ describe('region comments are always on', () => {
     expect(api.commentPosts).toEqual([])
 
     await drag('This build')
-    await expect.element(popover().getByRole('textbox')).toHaveValue('')
+    await expect.element(popover().getByRole('combobox')).toHaveValue('')
     await userEvent.keyboard('second thought')
     await userEvent.keyboard('{Meta>}{Enter}{/Meta}')
     await vi.waitFor(() => expect(api.commentPosts.map((c) => c.body)).toEqual(['second thought']))
@@ -255,7 +257,7 @@ describe('region comments are always on', () => {
   it('a comment drawn on the baseline pins on the baseline image only', async () => {
     const api = await ready()
     await drag('Baseline')
-    await expect.element(popover().getByRole('textbox', { name: 'Comment' })).toHaveFocus()
+    await expect.element(popover().getByRole('combobox', { name: 'Comment' })).toHaveFocus()
     await userEvent.keyboard('Wrong colour here')
     await popover().getByRole('button', { name: /^Send/ }).click()
     await vi.waitFor(() => expect(api.commentPosts).toHaveLength(1))
@@ -287,7 +289,7 @@ describe('region comments are always on', () => {
     await userEvent.keyboard('{ArrowRight}{ArrowRight}{ArrowDown}')
     await userEvent.keyboard('{Shift>}{ArrowRight}{ArrowRight}{ArrowDown}{/Shift}')
     await userEvent.keyboard('{Enter}')
-    await expect.element(popover().getByRole('textbox')).toHaveFocus()
+    await expect.element(popover().getByRole('combobox')).toHaveFocus()
     await userEvent.keyboard('Too tight')
     await userEvent.keyboard('{Meta>}{Enter}{/Meta}')
     await vi.waitFor(() => expect(api.commentPosts).toHaveLength(1))
@@ -309,5 +311,47 @@ describe('region comments are always on', () => {
       .not.toBeInTheDocument()
     await expect.element(toggle).toHaveFocus()
     await expect.element(page.getByText('Region cancelled')).toBeInTheDocument()
+  })
+})
+
+describe('@mentions in the region popover', () => {
+  const max = { id: 'm3', userId: 'u3', user: { name: 'Max Member', email: 'member@example.test' } }
+
+  async function openWithMembers() {
+    // The auth client is faked in this file: the members come from it.
+    mockAuthClient().organization.getFullOrganization.mockResolvedValue({
+      data: { members: [max] },
+      error: null,
+    })
+    const api = fakeBuildApi(detail())
+    await ready(api)
+    await drag('This build')
+    const box = popover().getByRole('combobox', { name: 'Comment' })
+    await expect.element(box).toHaveFocus()
+    return { api, box }
+  }
+
+  it('suggests members after @, inserts the pick with Enter, and posts the handle', async () => {
+    const { api, box } = await openWithMembers()
+    await userEvent.keyboard('Check this @ma')
+    await expect.element(popover().getByRole('option', { name: /Max Member/ })).toBeVisible()
+    await userEvent.keyboard('{Enter}')
+    await expect.element(box).toHaveValue('Check this @member ')
+    // The pick is not a send.
+    expect(api.commentPosts).toEqual([])
+    await userEvent.keyboard('{Meta>}{Enter}{/Meta}')
+    await vi.waitFor(() => expect(api.commentPosts).toHaveLength(1))
+    expect(api.commentPosts[0]?.body).toBe('Check this @member')
+  })
+
+  it('Esc closes the picker first; the next Esc cancels the popover', async () => {
+    await openWithMembers()
+    await userEvent.keyboard('@ma')
+    await expect.element(popover().getByRole('option', { name: /Max Member/ })).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(popover()).toBeVisible()
+    expect(page.getByRole('option').elements()).toHaveLength(0)
+    await userEvent.keyboard('{Escape}')
+    await expect.element(popover()).not.toBeInTheDocument()
   })
 })

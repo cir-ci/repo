@@ -27,7 +27,7 @@ import {
   useBulkReview,
   workspaceBuildsQuery,
 } from '#features/teams/api/index.ts'
-import { useSaveView } from '#features/views/api.ts'
+import { useSaveView, viewsQuery, viewWithFilters } from '#features/views/api.ts'
 import { SaveViewDialog } from '#features/views/SaveViewDialog.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
@@ -91,6 +91,7 @@ export function BuildsBrowser({
   const bulk = useBulkReview(workspace, team ?? '')
   const bulkRequest = useBulkRequestReview(workspace, team ?? '')
   const saveView = useSaveView(workspace)
+  const views = useQuery({ ...viewsQuery(workspace), enabled: canSave })
 
   const builds: readonly Row[] = data?.builds ?? []
   const oldest = builds.at(-1)?.number
@@ -156,6 +157,7 @@ export function BuildsBrowser({
           open={open}
           onOpenChange={setOpen}
           onSaveView={canSave ? () => setSaving(true) : undefined}
+          savedAs={viewWithFilters(views.data?.views, team, filters)?.name}
         />
       ) : null}
       <QueryBoundary<NonNullable<typeof data>>

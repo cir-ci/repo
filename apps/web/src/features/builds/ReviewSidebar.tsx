@@ -77,7 +77,11 @@ export function ReviewSidebar(props: ReviewSidebar.Props) {
         className={styles.panel}
       >
         {tab === 'details' ? (
-          <DetailsTab data={data} onRequestReview={props.onRequestReview} />
+          <DetailsTab
+            data={data}
+            snapshotName={props.snapshotName}
+            onRequestReview={props.onRequestReview}
+          />
         ) : tab === 'activity' ? (
           <ActivityTab
             workspace={team.workspaceSlug}
@@ -116,8 +120,12 @@ export namespace ReviewSidebar {
 }
 
 /** The build's facts and its decisions so far. */
-function DetailsTab({ data, onRequestReview }: DetailsTab.Props) {
+function DetailsTab({ data, snapshotName, onRequestReview }: DetailsTab.Props) {
   const { build, baseline, reviews } = data
+  // The decision on each snapshot, when it has one (the build's own decisions are listed above).
+  const decided = data.diffs.flatMap((d) =>
+    d.review ? [{ id: d.id, name: d.name, review: d.review }] : [],
+  )
   return (
     <>
       <dl className={styles.facts}>
@@ -190,6 +198,43 @@ function DetailsTab({ data, onRequestReview }: DetailsTab.Props) {
           </ul>
         )}
       </div>
+      {decided.length > 0 ? (
+        <div>
+          <Text variant="micro" tone="tertiary">
+            By snapshot
+          </Text>
+          <ul className={styles.list}>
+            {decided.map((d) => (
+              <li
+                key={d.id}
+                className={styles.event}
+                aria-current={d.name === snapshotName ? 'true' : undefined}
+              >
+                <StatusIcon status={d.review.decision} size={14} decorative />
+                <div className={styles.eventBody}>
+                  <Text className={styles.snapshotName}>{d.name}</Text>
+                  <Text>
+                    {d.review.decision === 'approved' ? 'Approved' : 'Rejected'}
+                    {d.review.reviewer
+                      ? ` by ${d.review.reviewer.name}`
+                      : d.review.decision === 'approved'
+                        ? ' automatically'
+                        : ''}{' '}
+                    <Text variant="small" tone="tertiary">
+                      <RelativeTime iso={d.review.at} />
+                    </Text>
+                  </Text>
+                  {d.review.reason ? (
+                    <Text variant="small" tone="secondary" as="p" className={styles.quote}>
+                      {d.review.reason}
+                    </Text>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </>
   )
 }
@@ -197,6 +242,8 @@ function DetailsTab({ data, onRequestReview }: DetailsTab.Props) {
 namespace DetailsTab {
   export interface Props {
     data: Build.Detail
+    /** The snapshot on screen: its own decision is highlighted. */
+    snapshotName: string | null
     onRequestReview: () => void
   }
 }

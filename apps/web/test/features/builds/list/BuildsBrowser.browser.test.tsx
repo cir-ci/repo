@@ -362,6 +362,57 @@ describe('saving a view and pinning', () => {
       .toHaveLength(2)
   })
 
+  it('once the filters equal a saved view, Save view gives way to "Saved as …"', async () => {
+    const saved = {
+      id: 'v1',
+      name: 'QA rejected',
+      filters: { review: 'rejected' },
+      pinned: true,
+      position: 0,
+      team: { slug: 'web', name: 'Web App' },
+      createdAt: '2026-11-08T10:00:00.000Z',
+    }
+    let created = false
+    api([build(3)], {
+      'GET /api/workspaces/acme/views': () => ({ body: { views: created ? [saved] : [] } }),
+      'POST /api/workspaces/acme/views': () => {
+        created = true
+        return { status: 201, body: saved }
+      },
+    })
+    await show('/acme/web?review=rejected')
+    await expect.element(page.getByRole('link', { name: /Build #3/ })).toBeVisible()
+    await page.getByRole('button', { name: 'Save view' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Save view' })
+    await dialog.getByRole('textbox', { name: 'Name' }).fill('QA rejected')
+    await dialog.getByRole('button', { name: 'Save view' }).click()
+    await expect.element(page.getByText('Saved as QA rejected')).toBeVisible()
+    await expect.element(dialog).not.toBeInTheDocument()
+    expect(page.getByRole('button', { name: 'Save view' }).elements()).toHaveLength(0)
+  })
+
+  it('still offers Save view when only a different team’s view has the same filters', async () => {
+    api([build(3)], {
+      'GET /api/workspaces/acme/views': {
+        body: {
+          views: [
+            {
+              id: 'v2',
+              name: 'Elsewhere',
+              filters: { review: 'rejected' },
+              pinned: true,
+              position: 0,
+              team: { slug: 'docs', name: 'Docs' },
+              createdAt: '2026-11-08T10:00:00.000Z',
+            },
+          ],
+        },
+      },
+    })
+    await show('/acme/web?review=rejected')
+    await expect.element(page.getByRole('button', { name: 'Save view' })).toBeVisible()
+  })
+
   it('pins and unpins the team', async () => {
     const fake = api([build(3)], {
       'PUT /api/workspaces/acme/pinned-teams/web': { body: { pinned: true, changed: true } },

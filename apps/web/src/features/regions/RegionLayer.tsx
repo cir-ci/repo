@@ -11,6 +11,8 @@ import {
   useState,
 } from 'react'
 
+import { MentionField } from '#features/builds/MentionField.tsx'
+import type { Mention } from '#features/builds/mentions.ts'
 import { isSubmitKey } from '#lib/shortcuts.ts'
 
 import {
@@ -209,10 +211,12 @@ export namespace RegionOverlay {
   }
 }
 
+const NO_MEMBERS: readonly Mention.Member[] = []
+
 /**
  * The comment box for a region that was just selected: 232px wide, below the region with its left
  * edge on the region's, or above it when there is less than 200px of room below. The field has
- * focus on open; Esc cancels, ⌘/Ctrl+Enter sends, and Send waits for some text.
+ * focus on open; @ lists members (Esc closes that list first); Esc cancels, ⌘/Ctrl+Enter sends, and Send waits for some text.
  */
 function RegionComposer({
   region,
@@ -222,6 +226,7 @@ function RegionComposer({
   sending = false,
   error,
   author,
+  members = NO_MEMBERS,
 }: RegionComposer.Props) {
   const [body, setBody] = useState('')
   const [side, setSide] = useState<'below' | 'above'>('below')
@@ -273,15 +278,16 @@ function RegionComposer({
         {author ? <Avatar name={author} size={20} /> : null}
         <span>Comment on this region</span>
       </div>
-      <textarea
-        ref={field}
+      <MentionField
+        members={members}
+        inputRef={field}
         className={styles.field}
         aria-label="Comment"
         aria-describedby={error ? errorId : undefined}
-        placeholder="Leave a comment…"
+        placeholder="Leave a comment. @ mentions a member."
         rows={2}
         value={body}
-        onChange={(e) => setBody(e.target.value)}
+        onChange={setBody}
       />
       {error ? (
         <span id={errorId} role="alert" className={styles.error}>
@@ -309,6 +315,8 @@ export namespace RegionComposer {
     error?: string | undefined
     /** Whose avatar heads the popover: the signed-in user. */
     author?: string | undefined
+    /** Who an @ can mention in the comment. */
+    members?: readonly Mention.Member[]
   }
 
   export interface Props extends Callbacks {

@@ -8,8 +8,8 @@ import {
   useAddComment,
   useDeleteComment,
   useEditComment,
+  useMentionMembers,
 } from '#features/builds/api/discussion.ts'
-import { workspaceQuery } from '#features/members/api.ts'
 import { regionThreads } from '#features/regions/geometry.ts'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
@@ -26,15 +26,10 @@ import styles from './Discussion.module.css'
 export function CommentsTab(props: CommentsTab.Props) {
   const { workspace, team, number, snapshotName, focusedId } = props
   const { data, error, isPending } = useQuery(commentsQuery(workspace, team, number))
-  const workspaceInfo = useQuery(workspaceQuery(workspace))
+  const members = useMentionMembers(workspace)
   const add = useAddComment(workspace, team, number)
   const announce = useAnnounce()
 
-  const members: Mention.Member[] = (workspaceInfo.data?.members ?? []).map((m) => ({
-    userId: m.userId,
-    name: m.user.name,
-    email: m.user.email,
-  }))
   const comments = data?.comments ?? []
   const threads = groupThreads(comments)
   // Pinned threads are numbered as their markers are on the snapshot.
@@ -246,7 +241,7 @@ function CommentView({ comment, members, workspace, team, build, children }: Com
                     data-mention=""
                     title={piece.member.name}
                   >
-                    {piece.text}
+                    @{piece.member.name}
                   </span>
                 ) : (
                   <Fragment key={piece.at}>{piece.text}</Fragment>

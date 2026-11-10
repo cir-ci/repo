@@ -24,6 +24,24 @@ describe('Avatar', () => {
     expect(style.borderRadius).toBe('50%')
   })
 
+  it('never clips its initials at the small sizes (MM at 16 and 20px)', async () => {
+    await render(
+      <>
+        <Avatar name="Max Member" size={16} />
+        <Avatar name="Max Member" size={20} />
+        <Avatar name="Max Member" size={24} />
+      </>,
+    )
+    for (const avatar of page.getByRole('img', { name: 'Max Member' }).elements()) {
+      const text = avatar.firstElementChild ?? avatar
+      const range = document.createRange()
+      range.selectNodeContents(text)
+      const { width } = range.getBoundingClientRect()
+      const box = avatar.getBoundingClientRect().width
+      expect(width, `initials ${width}px in a ${box}px avatar`).toBeLessThanOrEqual(box - 2)
+    }
+  })
+
   it('takes a size', async () => {
     await render(<Avatar name="Ada" size={32} />)
     expect(getComputedStyle(page.getByRole('img').element()).width).toBe('32px')

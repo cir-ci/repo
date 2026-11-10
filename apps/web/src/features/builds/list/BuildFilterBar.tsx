@@ -44,6 +44,7 @@ export function BuildFilterBar({
   open,
   onOpenChange,
   onSaveView,
+  savedAs,
 }: BuildFilterBar.Props) {
   // People's names for the author and reviewer chips, which hold user ids once a suggestion is picked.
   const members = useQuery({ ...workspaceQuery(workspace), staleTime: 60_000 })
@@ -93,7 +94,11 @@ export function BuildFilterBar({
           <Button size="sm" variant="ghost" onClick={() => set({})}>
             Clear filters
           </Button>
-          {onSaveView ? (
+          {onSaveView && savedAs !== undefined ? (
+            <Text variant="small" tone="secondary" role="status">
+              Saved as {savedAs}
+            </Text>
+          ) : onSaveView ? (
             <Button size="sm" onClick={onSaveView}>
               Save view
             </Button>
@@ -132,6 +137,8 @@ export namespace BuildFilterBar {
     onOpenChange: (open: FilterField | 'display' | undefined) => void
     /** Omit where saving is not offered (a saved view's own page). */
     onSaveView?: (() => void) | undefined
+    /** The name of the saved view these filters already are: shown instead of Save view. */
+    savedAs?: string | undefined
   }
 }
 

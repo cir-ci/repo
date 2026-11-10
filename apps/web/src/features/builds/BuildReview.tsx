@@ -18,7 +18,7 @@ import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { ShortcutsDialog } from '#app/ShortcutsDialog.tsx'
-import { commentsQuery, useAddComment } from '#features/builds/api/discussion.ts'
+import { commentsQuery, useAddComment, useMentionMembers } from '#features/builds/api/discussion.ts'
 import { flakyQuery, isActive } from '#features/builds/api/index.ts'
 import { regionThreads } from '#features/regions/geometry.ts'
 import { authClient } from '#lib/auth-client.ts'
@@ -88,6 +88,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const review = useReviewControls(data, selected)
   const addComment = useAddComment(team.workspaceSlug, team.slug, build.number)
   const announce = useAnnounce()
+  const members = useMentionMembers(team.workspaceSlug)
   const { data: session } = authClient.useSession()
   // Another screenshot has none of this one's regions: the selection and its unsent text go.
   if (draft && draftOf(draft, selected?.id) === null) setDraft(null)
@@ -362,6 +363,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
                     setDraft(null)
                   },
                   author: session?.user.name,
+                  members,
                   sending: addComment.isPending,
                   error: addComment.error?.message,
                 },
