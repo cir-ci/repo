@@ -30,7 +30,9 @@ describe('notes', () => {
   it('says where the App came from, and what a failed return means', () => {
     expect(githubSourceNote({ source: 'env' })).toMatch(/environment/)
     expect(githubSourceNote({ source: 'manifest' })).toMatch(/stored encrypted/)
-    expect(githubSourceNote({ source: 'none' })).toBe('Not set up yet.')
+    // Not a second "Not set up" (the badge says that): how to set it up.
+    expect(githubSourceNote({ source: 'none' })).not.toMatch(/not set up/i)
+    expect(githubSourceNote({ source: 'none' })).toMatch(/Create one from this page.*GITHUB_APP_ID/)
     expect(githubAppNote('failed')).toMatch(/start again/)
     expect(githubAppNote(undefined)).toBeNull()
   })

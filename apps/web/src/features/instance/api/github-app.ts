@@ -23,7 +23,8 @@ export function githubSourceNote(app: Pick<Instance.GithubApp, 'source'>): strin
     case 'manifest':
       return 'Created from this page. Its credentials are stored encrypted on this instance.'
     default:
-      return 'Not set up yet.'
+      // The badge beside it already says "Not set up": say how to set it up instead.
+      return 'Create one from this page, or set GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY and GITHUB_APP_WEBHOOK_SECRET on the server.'
   }
 }
 
