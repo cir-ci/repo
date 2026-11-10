@@ -17,10 +17,12 @@ import {
   visuallyHidden,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { type FormEvent, useState } from 'react'
 
 import { formatBytes } from '#features/workspace-settings/api.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
+import { useWorkspaceStore } from '#lib/stores/workspace-store.ts'
 
 import { AdminFrame, Intro } from './AdminFrame.tsx'
 import {
@@ -54,6 +56,14 @@ export function WorkspacesPage() {
   const purge = usePurgeWorkspace()
   const [purging, setPurging] = useState<InstanceAdmin.Workspace | null>(null)
   const [now] = useState(() => Date.now())
+  const choose = useWorkspaceStore((state) => state.choose)
+  const navigate = useNavigate()
+
+  /** Switches to the workspace (as the sidebar's switcher does) and lands on its Teams page. */
+  function openWorkspace(slug: string) {
+    choose(slug)
+    void navigate({ to: '/' })
+  }
 
   return (
     <AdminFrame
@@ -109,6 +119,7 @@ export function WorkspacesPage() {
                       <span className={rows.sub}>
                         <Text className={rows.slug} tone="tertiary" variant="small">
                           <Text variant="mono">{w.slug}</Text> · {formatBytes(w.storageBytes)}
+                          {w.ownerName ? ` · Owner ${w.ownerName}` : ''}
                         </Text>
                         {w.deletedAt ? (
                           <Badge className={rows.status} shape="tag" tone="state" state="rejected">
@@ -130,6 +141,22 @@ export function WorkspacesPage() {
                       {formatShortDay(w.createdAt, now)}
                     </Text>
                     <span className={rows.action}>
+                      {!w.deletedAt && w.youAreMember ? (
+                        <Button
+                          href="/"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            openWorkspace(w.slug)
+                          }}
+                        >
+                          Open<span style={visuallyHidden}> {w.name}</span>
+                        </Button>
+                      ) : null}
+                      {!w.deletedAt && !w.youAreMember ? (
+                        <Text tone="tertiary" variant="small">
+                          Not a member
+                        </Text>
+                      ) : null}
                       {w.deletedAt ? (
                         <Menu
                           align="end"

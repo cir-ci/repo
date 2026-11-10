@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { WorkspacesPage } from '#features/instance/WorkspacesPage.tsx'
+import { useWorkspaceStore } from '#lib/stores/workspace-store.ts'
 import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -250,5 +251,62 @@ describe('the workspaces page', () => {
     await page.getByRole('textbox', { name: 'Owner’s email' }).fill('nobody@acme.dev')
     await page.getByRole('dialog').getByRole('button', { name: 'Create workspace' }).click()
     await expect.element(page.getByText('No account has that email')).toBeVisible()
+  })
+})
+
+describe('opening a workspace', () => {
+  const OPEN = {
+    'GET /api/instance/workspaces': {
+      body: {
+        workspaces: [
+          workspace(),
+          workspace({
+            id: 'w2',
+            name: 'Design Guild',
+            slug: 'design-guild',
+            ownerName: 'Dana Levi',
+            youAreMember: false,
+          }),
+          workspace({
+            id: 'w3',
+            name: 'Old Co',
+            slug: 'old-co',
+            deletedAt: '2026-11-01T10:00:00.000Z',
+            daysLeft: 22,
+            youAreMember: false,
+          }),
+        ],
+      },
+    },
+    'GET /api/instance/settings': { body: settingsFixture() },
+  }
+
+  it('chooses the workspace you belong to and lands on the Teams page', async () => {
+    fakeApi(OPEN)
+    const { router } = await renderPage(<WorkspacesPage />, {
+      route: '/instance/workspaces',
+      otherRoutes: ['/'],
+    })
+    await page.getByRole('link', { name: 'Open Acme' }).click()
+    expect(router.state.location.pathname).toBe('/')
+    expect(useWorkspaceStore.getState().chosen).toBe('acme')
+  })
+
+  it('shows Not a member, without a link, for a live workspace you are not in', async () => {
+    fakeApi(OPEN)
+    await show()
+    const row = page.getByRole('listitem').filter({ hasText: 'Design Guild' })
+    await expect.element(row.getByText('Not a member')).toBeVisible()
+    expect(row.getByRole('link').elements()).toHaveLength(0)
+    expect(text('Design Guild')).toMatch(/Owner Dana Levi/)
+  })
+
+  it('keeps the menu, and no Open or Not a member, on a deleted workspace', async () => {
+    fakeApi(OPEN)
+    await show()
+    const row = page.getByRole('listitem').filter({ hasText: 'Old Co' })
+    await expect.element(row.getByRole('button', { name: 'Actions for Old Co' })).toBeVisible()
+    expect(row.getByRole('link').elements()).toHaveLength(0)
+    expect(row.getByText('Not a member').elements()).toHaveLength(0)
   })
 })

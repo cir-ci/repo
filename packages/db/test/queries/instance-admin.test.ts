@@ -1,9 +1,10 @@
 import { createTestDb, seedWorkspace } from '@circi/db/testing'
+import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { getQueueDepth, listAccounts } from '#src/queries/index.ts'
+import { getQueueDepth, listAccounts, listInstanceWorkspaces } from '#src/queries/index.ts'
 import { enqueueJob, QUEUES } from '#src/queue/index.ts'
-import { workspaceDeletions } from '#src/schema/index.ts'
+import { member, workspaceDeletions } from '#src/schema/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -26,6 +27,28 @@ describe('listAccounts', () => {
     expect(accounts.find((a) => a.id === live.owner.id)?.workspaceCount).toBe(1)
     const deleted = await listAccounts(t.db, { search: gone.owner.email, page: 1, pageSize: 5 })
     expect(deleted.accounts.find((a) => a.id === gone.owner.id)?.workspaceCount).toBe(0)
+  })
+})
+
+describe('listInstanceWorkspaces', () => {
+  it('names the owner and says whether the asking account belongs to each workspace', async () => {
+    const mine = await seedWorkspace(t.db)
+    const theirs = await seedWorkspace(t.db)
+    const list = await listInstanceWorkspaces(t.db, mine.owner.id)
+    const a = list.find((w) => w.id === mine.workspace.id)
+    const b = list.find((w) => w.id === theirs.workspace.id)
+    expect(a).toMatchObject({ youAreMember: true, ownerName: mine.owner.name })
+    expect(b).toMatchObject({ youAreMember: false, ownerName: theirs.owner.name })
+  })
+
+  it('has no owner name for a workspace without an owner', async () => {
+    const w = await seedWorkspace(t.db)
+    await t.db.delete(member).where(eq(member.workspaceId, w.workspace.id))
+    const list = await listInstanceWorkspaces(t.db, w.owner.id)
+    expect(list.find((x) => x.id === w.workspace.id)).toMatchObject({
+      ownerName: null,
+      youAreMember: false,
+    })
   })
 })
 

@@ -282,6 +282,9 @@ describe('workspaces', () => {
       await asAdmin('GET', '/api/instance/workspaces')
     ).json<InstanceAdmin.WorkspaceList>()
     expect(before.workspaces[0]).toMatchObject({ memberCount: 1, teamCount: 1, storageBytes: 0 })
+    // The seeded workspace belongs to someone else: the admin may see it but is not in it.
+    expect(before.workspaces[0]).toMatchObject({ youAreMember: false })
+    expect(before.workspaces[0]?.ownerName).toEqual(expect.any(String))
 
     const res = await asAdmin('POST', '/api/instance/workspaces', {
       name: 'Globex Inc',
@@ -447,5 +450,23 @@ describe('health', () => {
     const body = (await asAdmin('GET', '/api/instance/health/queues')).json<InstanceAdmin.Queues>()
     const webhook = body.queues.find((q) => q.queue === QUEUES.webhook)
     expect(webhook).toMatchObject({ retrying: 2, mostRetried: { attempt: 3, maxAttempts: 8 } })
+  })
+})
+
+describe('workspace membership', () => {
+  it('says which workspaces the signed-in admin belongs to, with each owner', async () => {
+    const res = await asAdmin('POST', '/api/instance/workspaces', {
+      name: 'Admin Home',
+      ownerEmail: admin.email,
+    })
+    expect(res.json<{ workspace: InstanceAdmin.Workspace }>().workspace).toMatchObject({
+      youAreMember: true,
+      ownerName: 'Root',
+    })
+    const list = (
+      await asAdmin('GET', '/api/instance/workspaces')
+    ).json<InstanceAdmin.WorkspaceList>()
+    expect(list.workspaces.find((w) => w.slug === 'admin-home')?.youAreMember).toBe(true)
+    expect(list.workspaces.filter((w) => w.youAreMember)).toHaveLength(1)
   })
 })

@@ -140,11 +140,21 @@ export namespace listInstanceWorkspaces {
     createdAt: Date
     /** When an owner deleted it (it is purged 30 days later); null while it is live. */
     deletedAt: Date | null
+    /** The display name of its longest-standing owner; null when it has none. */
+    ownerName: string | null
+    /** Whether the asking account is a member of it (only members may open its teams). */
+    youAreMember: boolean
   }
 }
 
-/** Every workspace by name (deleted ones too, marked), with member and team counts and the bytes its builds refer to. */
-export async function listInstanceWorkspaces(db: Database): Promise<listInstanceWorkspaces.Item[]> {
+/**
+ * Every workspace by name (deleted ones too, marked), with member and team counts, the owner's
+ * name, whether `userId` (the asking instance admin) belongs to it, and the bytes its builds refer to.
+ */
+export async function listInstanceWorkspaces(
+  db: Database,
+  userId: string,
+): Promise<listInstanceWorkspaces.Item[]> {
   const rows = await db.select().from(workspace).orderBy(asc(workspace.name), asc(workspace.slug))
   const deletions = new Map(
     (await db.select().from(workspaceDeletions)).map((r) => [r.workspaceId, r.deletedAt]),
@@ -156,6 +166,19 @@ export async function listInstanceWorkspaces(db: Database): Promise<listInstance
         .from(member)
         .groupBy(member.workspaceId)
     ).map((r) => [r.id, r.n]),
+  )
+  const owners = new Map<string, string>()
+  const ownerRows = await db
+    .select({ workspaceId: member.workspaceId, name: user.name })
+    .from(member)
+    .innerJoin(user, eq(user.id, member.userId))
+    .where(eq(member.role, 'owner'))
+    .orderBy(asc(member.createdAt), asc(member.id))
+  for (const o of ownerRows) if (!owners.has(o.workspaceId)) owners.set(o.workspaceId, o.name)
+  const mine = new Set(
+    (await db.select({ id: member.workspaceId }).from(member).where(eq(member.userId, userId))).map(
+      (r) => r.id,
+    ),
   )
   const teamCounts = new Map(
     (
@@ -202,6 +225,8 @@ export async function listInstanceWorkspaces(db: Database): Promise<listInstance
     storageBytes: bytes.get(w.id) ?? 0,
     createdAt: w.createdAt,
     deletedAt: deletions.get(w.id) ?? null,
+    ownerName: owners.get(w.id) ?? null,
+    youAreMember: mine.has(w.id),
   }))
 }
 

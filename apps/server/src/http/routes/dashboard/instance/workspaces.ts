@@ -8,6 +8,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
 import { requireInstanceAdmin } from '#http/hooks/instance-admin.ts'
+import { currentUser } from '#http/hooks/session.ts'
 import type { Deps } from '#http/lib/deps.ts'
 import { parse } from '#http/lib/validation.ts'
 
@@ -37,25 +38,26 @@ export const dashboardInstanceWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard
 ) => {
   app.addHook('onRequest', requireInstanceAdmin(deps.db))
 
-  app.get('/instance/workspaces', async (): Promise<InstanceAdmin.WorkspaceList> => ({
-    workspaces: (await listInstanceWorkspaces(deps.db)).map((w) => wire(w)),
+  app.get('/instance/workspaces', async (req): Promise<InstanceAdmin.WorkspaceList> => ({
+    workspaces: (await listInstanceWorkspaces(deps.db, currentUser(req).id)).map((w) => wire(w)),
   }))
 
   /** The same operation as `circi admin workspace create`. */
   app.post('/instance/workspaces', async (req, reply) => {
     const body = parse(createBody, req.body)
+    const userId = currentUser(req).id
     const created = await createWorkspace(deps.auth, deps.db, {
       name: body.name,
       ownerEmail: body.ownerEmail,
       ...(body.slug ? { slug: body.slug } : {}),
     })
-    const found = (await listInstanceWorkspaces(deps.db)).find((w) => w.id === created.id)
+    const found = (await listInstanceWorkspaces(deps.db, userId)).find((w) => w.id === created.id)
     if (!found) throw new Error('the new workspace is missing from the list')
     return reply.code(201).send({ workspace: wire(found) })
   })
 
-  async function loadDeleted(id: string) {
-    const found = (await listInstanceWorkspaces(deps.db)).find((w) => w.id === id)
+  async function loadDeleted(id: string, userId: string) {
+    const found = (await listInstanceWorkspaces(deps.db, userId)).find((w) => w.id === id)
     if (!found) throw new NotFoundError('No such workspace')
     return found
   }
@@ -63,16 +65,18 @@ export const dashboardInstanceWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard
   /** Brings a deleted workspace back, with everything in it. */
   app.post('/instance/workspaces/:id/restore', async (req) => {
     const { id } = parse(idParams, req.params)
-    const found = await loadDeleted(id)
+    const userId = currentUser(req).id
+    const found = await loadDeleted(id, userId)
     if (!found.deletedAt) throw new ConflictError('This workspace is not deleted')
     await restoreWorkspace(deps.db, id)
-    return { workspace: wire(await loadDeleted(id)) }
+    return { workspace: wire(await loadDeleted(id, userId)) }
   })
 
   /** "Delete permanently now": skips the rest of the 30 days. Only for a workspace already deleted. */
   app.post('/instance/workspaces/:id/purge', async (req, reply) => {
     const { id } = parse(idParams, req.params)
-    const found = await loadDeleted(id)
+    const userId = currentUser(req).id
+    const found = await loadDeleted(id, userId)
     if (!found.deletedAt) {
       throw new ConflictError('Only a deleted workspace can be purged: an owner deletes it first')
     }

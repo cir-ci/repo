@@ -51,6 +51,10 @@ export namespace InstanceAdmin {
     deletedAt: string | null
     /** Whole days until the purge (0 once due); null while it is live. */
     daysLeft: number | null
+    /** The display name of its longest-standing owner; null when it has none. */
+    ownerName: string | null
+    /** Whether the signed-in instance admin belongs to it: only members may open its teams. */
+    youAreMember: boolean
   }
 
   /** `GET /api/instance/workspaces` */
