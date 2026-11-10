@@ -40,27 +40,40 @@ app stops notifications.
 
 ## Steps
 
-1. `apps/desktop`: a Tauri 2 project. First launch asks for the server address, checks
-   `/api/health`, remembers it.
+1. `apps/desktop`: a Tauri 2 project. First launch asks for a server address, checks
+   `/api/health`, remembers it; more servers can be added and switched between from the app menu.
 2. The window loads the server's dashboard with `decorations: false` (Windows, Linux) or the macOS
    overlay title bar. The dashboard detects the app (a user-agent token or an injected flag) and
    shows its title bar strip, with the tabs, as it does in window-controls-overlay mode, plus our own
    window buttons on Windows and Linux (the `WindowTitleBar` and `--circi-window-top` work carries over).
 3. Tabs: the in-app tabs already built for the installed web app, enabled in the desktop app too.
-4. Background notifications: the menu bar or tray presence, start at login, the server connection,
-   OS notifications and the dock or taskbar badge from the inbox; a `circi://` deep link opens a
-   build in the app.
-5. Auto-update (Tauri's updater), signing and notarisation for macOS, signing for Windows.
+4. Background notifications: the menu bar or tray presence (on by default), start at login (off by
+   default, a setting), a connection to each added server, OS notifications and the dock or taskbar
+   badge from the inbox; a `circi://` deep link opens a build in the app.
+5. Auto-update (Tauri's updater, from GitHub releases). Signing and notarisation for macOS and
+   signing for Windows come later; the first builds are unsigned.
 6. CI: build the three targets on release tags.
 7. Tests: add a WebKit project to Vitest browser mode and Playwright, since macOS renders the
    dashboard in WebKit.
 
-Rough size: 1 to 2 weeks for the app, plus the time to get signing certificates.
+## Decisions (2026-11-10)
 
-## Open questions
+- **Background:** closing the window keeps the app in the menu bar or system tray, so notifications
+  keep arriving. It doesn't start at login unless turned on in its settings.
+- **Servers:** a list. Several server addresses can be added and switched between from the app
+  menu; notifications come from each.
+- **Updates:** published to the project's GitHub releases (once there is a remote repository); the
+  updater reads its manifest from there.
+- **Signing:** later. The first builds are unsigned, for internal use (macOS and Windows warn on
+  install); signing comes once the Apple Developer and Windows certificates are in place.
 
-- Should the app stay in the menu bar or tray and start at login by default, or only when turned on?
-- One server per app install, or a list to switch between?
+## Effort
+
+About 3 to 5 days of work, most of it in parallel: the window and server address (hours), the title
+bar and tabs (half a day to a day), tray, notifications and badge (a day), deep links (hours), the
+updater (half a day), CI for three platforms (half a day to a day, needs the remote repository),
+WebKit tests (half a day plus fixes). Signing waits on the accounts, not on work. Only macOS can be
+tried by hand here; Windows and Linux are checked in CI.
 
 ## Phones: TBD
 
