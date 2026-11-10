@@ -5,24 +5,13 @@
   min-height: 0;
 }
 
-.search {
-  position: relative;
-  display: inline-flex;
+/* No baselines at all: centred in the area under the header. */
+.empty {
+  display: flex;
+  flex: 1;
   align-items: center;
-  width: 260px;
-  max-width: 100%;
-}
-
-.searchIcon {
-  position: absolute;
-  left: 10px;
-  z-index: 1;
-  color: var(--circi-text-tertiary);
-  pointer-events: none;
-}
-
-.search input {
-  padding-left: 30px;
+  justify-content: center;
+  min-height: 320px;
 }
 
 .cols {
@@ -133,10 +122,4 @@
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-.none {
-  margin: 0;
-  padding: 48px 16px;
-  text-align: center;
 }

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 import { BaselinesPage } from '#features/baselines/BaselinesPage.tsx'
@@ -54,14 +54,48 @@ describe('BaselinesPage', () => {
       .element(page.getByRole('link', { name: /^Build #12/ }))
       .toHaveAttribute('href', '/acme/web/builds/12')
 
-    const search = page.getByRole('textbox', { name: 'Search baselines' })
-    await expect.element(search).toHaveAttribute('placeholder', 'Search screenshots')
+    const search = page.getByRole('textbox', { name: 'Find baselines' })
+    await expect.element(search).toHaveAttribute('placeholder', 'Find baselines')
     await userEvent.fill(search, 'home')
     await expect.element(page.getByText('1 on main')).toBeVisible()
     await expect.element(page.getByRole('link', { name: /checkout/ })).not.toBeInTheDocument()
 
     await userEvent.fill(search, 'zzz')
-    await expect.element(page.getByText('No baseline matches “zzz”')).toBeVisible()
+    await expect.element(page.getByText('No baselines match “zzz”.')).toBeVisible()
+  })
+
+  it('keeps the find text in the address, focuses it with / and clears it with Esc', async () => {
+    fakeFetch({
+      [`GET ${PATH}`]: list([item('checkout/payment', 'default', 12), item('home', 'default', 9)]),
+      [`GET ${FLAKY}`]: noFlaky,
+    })
+    const { router } = await open()
+    const search = page.getByRole('textbox', { name: 'Find baselines' })
+    await userEvent.keyboard('/')
+    await expect.element(search).toHaveFocus()
+    // The slash itself is not typed into the field.
+    await expect.element(search).toHaveValue('')
+    await userEvent.type(search, 'pay')
+    await expect.element(page.getByRole('link', { name: /home/ })).not.toBeInTheDocument()
+    await vi.waitFor(() => expect(router.state.location.search).toMatchObject({ q: 'pay' }))
+    await userEvent.keyboard('{Escape}')
+    await expect.element(search).toHaveValue('')
+    await expect.element(page.getByRole('link', { name: /home/ })).toBeVisible()
+    await vi.waitFor(() => expect(router.state.location.search).not.toHaveProperty('q'))
+  })
+
+  it('starts from the find text in the address', async () => {
+    fakeFetch({
+      [`GET ${PATH}`]: list([item('checkout/payment', 'default', 12), item('home', 'default', 9)]),
+      [`GET ${FLAKY}`]: noFlaky,
+    })
+    await renderPage(<BaselinesPage />, {
+      route: '/$workspace/$team/baselines/',
+      url: '/acme/web/baselines?q=home',
+      announcer: true,
+    })
+    await expect.element(page.getByRole('textbox', { name: 'Find baselines' })).toHaveValue('home')
+    await expect.element(page.getByRole('link', { name: /checkout/ })).not.toBeInTheDocument()
   })
 
   it('marks a flaky screenshot in the last column, and shows the age compactly', async () => {
@@ -86,10 +120,25 @@ describe('BaselinesPage', () => {
     expect(marks.elements()).toHaveLength(1)
   })
 
-  it('says so when there are none', async () => {
+  it('says so when there are none, centred in the content area, with no find field', async () => {
+    await page.viewport(1200, 800)
     fakeFetch({ [`GET ${PATH}`]: list([]), [`GET ${FLAKY}`]: noFlaky })
     await open()
-    await expect.element(page.getByText('No baselines yet')).toBeVisible()
+    const title = page.getByRole('heading', { name: 'No baselines yet' })
+    await expect.element(title).toBeVisible()
+    await expect
+      .element(
+        page.getByText(
+          'Once a build of main finishes, its screenshots become the baselines new builds are compared against.',
+        ),
+      )
+      .toBeVisible()
+    const icon = title.element().parentElement?.querySelector('svg')
+    expect(icon?.getAttribute('width')).toBe('32')
+    const box = title.element().getBoundingClientRect()
+    expect(Math.abs(box.left + box.width / 2 - 1200 / 2)).toBeLessThan(150)
+    expect(box.top).toBeGreaterThan(150)
+    expect(page.getByRole('textbox', { name: 'Find baselines' }).elements()).toHaveLength(0)
   })
 
   it('shows an error with a retry', async () => {

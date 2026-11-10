@@ -199,10 +199,57 @@ describe('TriagePage', () => {
     expect(page.getByRole('link', { name: 'Rules' }).elements()).toHaveLength(0)
   })
 
-  it('says there is nothing to triage', async () => {
+  it('says triage is clear, centred in the content area, with the board copy and no find field', async () => {
+    await page.viewport(1200, 800)
     fakeApi({ [`GET ${BASE}/triage`]: { body: queue([]) } })
     await show()
-    await expect.element(page.getByRole('heading', { name: 'Nothing to triage' })).toBeVisible()
+    const title = page.getByRole('heading', { name: 'Triage is clear' })
+    await expect.element(title).toBeVisible()
+    await expect
+      .element(
+        page.getByText(
+          'Flaky screenshots, missing baselines and failed builds on the default branch appear here.',
+        ),
+      )
+      .toBeVisible()
+    // The icon is the approved glyph (a 32px filled circle), and the block sits in the middle of the page.
+    const icon = title.element().parentElement?.querySelector('svg')
+    expect(icon?.getAttribute('width')).toBe('32')
+    const box = title.element().getBoundingClientRect()
+    const main =
+      title.element().closest('main')?.getBoundingClientRect() ?? new DOMRect(0, 0, 1200, 800)
+    expect(Math.abs(box.left + box.width / 2 - (main.left + main.width / 2))).toBeLessThan(24)
+    expect(box.top).toBeGreaterThan(main.top + 80)
+    expect(page.getByRole('textbox', { name: 'Find triage items' }).elements()).toHaveLength(0)
+  })
+
+  it('finds items by screenshot, build or kind, keeps the text in the address and says when nothing matches', async () => {
+    server()
+    const { router } = await show()
+    const find = page.getByRole('textbox', { name: 'Find triage items' })
+    await expect.element(find).toHaveAttribute('placeholder', 'Find triage items')
+    await userEvent.fill(find, 'pric')
+    await expect.element(page.getByRole('list', { name: 'No baseline, 1 item' })).toBeVisible()
+    await expect.element(page.getByRole('heading', { name: /^Flaky/ })).not.toBeInTheDocument()
+    await vi.waitFor(() => expect(router.state.location.search).toMatchObject({ q: 'pric' }))
+    await userEvent.fill(find, '#9')
+    await expect.element(page.getByRole('list', { name: 'Failed, 1 item' })).toBeVisible()
+    await userEvent.fill(find, 'zzz')
+    await expect.element(page.getByText('No triage items match “zzz”.')).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(find).toHaveValue('')
+    await expect.element(page.getByRole('list', { name: 'Flaky, 1 item' })).toBeVisible()
+  })
+
+  it('opens with the item of the address selected', async () => {
+    server()
+    await renderPage(<TriagePage />, {
+      route: '/$workspace/$team/triage',
+      url: '/acme/web/triage?item=no_baseline%3Apricing',
+      otherRoutes: ['/$workspace/$team/builds/$number', '/$workspace/$team/settings/reviews'],
+      announcer: true,
+    })
+    await expect.element(pane().getByRole('heading', { name: 'pricing' })).toBeVisible()
   })
 
   it('shows an error with a retry', async () => {

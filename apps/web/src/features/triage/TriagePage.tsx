@@ -20,6 +20,8 @@ import { fileUrl } from '#features/builds/api/index.ts'
 import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
+import { findIn, useFindParam } from '#lib/find.ts'
+import { FindField, NoMatches } from '#lib/FindField.tsx'
 import { focusRow, leavesKeyToFocus, nextAfterRemoval } from '#lib/list-keys.ts'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
@@ -28,6 +30,7 @@ import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 import { SnoozeMenu } from '#lib/SnoozeMenu.tsx'
 import { useClientLink } from '#lib/use-client-link.ts'
+import { useSelectFromParam } from '#lib/use-select-from-param.ts'
 import { useSelectableList } from '#lib/use-selectable-list.ts'
 
 import {
@@ -87,13 +90,17 @@ export function TriagePage() {
   const dismiss = useDismissTriage(workspace, team)
   const rerun = useRerunTriage(workspace, team)
 
-  const groups = groupItems(data?.items ?? [])
+  const [find, setFind] = useFindParam()
+  const awake = groupItems(data?.items ?? [])
+  const total = flatten(awake)
+  const groups = groupItems(findIn(total, find, triageFields))
   const items = flatten(groups)
   const { selected, select, setSelectedId, listRef, rowProps } = useSelectableList({
     items,
     getId: itemId,
     peekable: false,
   })
+  useSelectFromParam(setSelectedId)
   const { image, loading: imageLoading } = useItemImage(workspace, team, selected)
 
   /** Selects the neighbour of an item that is about to leave the queue, and says what happened. */
@@ -152,7 +159,7 @@ export function TriagePage() {
         crumbs={crumbsFor(names)}
         title="Triage"
         after={
-          data && items.length > 0 ? (
+          data && total.length > 0 ? (
             <Text variant="small" tone="tertiary" role="status">
               {items.length}
               {handled > 0 ? ` · ${handled} handled` : ''}
@@ -162,6 +169,9 @@ export function TriagePage() {
         actions={
           data ? (
             <>
+              {total.length > 0 ? (
+                <FindField noun="triage items" value={find} onChange={setFind} />
+              ) : null}
               {chip && data.rotation.onTriage ? (
                 <Badge shape="tag" tone="accent" aria-label={chip}>
                   <span className={styles.chip}>
@@ -178,11 +188,18 @@ export function TriagePage() {
         <div className={listStyles['body']}>
           <QueryBoundary query={query} announce="Loading triage" notFound="Team not found" rows={4}>
             {() =>
-              items.length === 0 ? (
-                <EmptyState title={handled > 0 ? 'Triage is clear' : 'Nothing to triage'}>
-                  Flaky screenshots, missing baselines and failed builds on the default branch
-                  appear here.
-                </EmptyState>
+              total.length === 0 ? (
+                <div className={styles.empty}>
+                  <EmptyState
+                    icon={<StatusIcon status="approved" size={32} decorative />}
+                    title="Triage is clear"
+                  >
+                    Flaky screenshots, missing baselines and failed builds on the default branch
+                    appear here.
+                  </EmptyState>
+                </div>
+              ) : items.length === 0 ? (
+                <NoMatches noun="triage items" query={find} />
               ) : (
                 <>
                   {failed ? (
@@ -394,6 +411,17 @@ export function TriagePage() {
     </>
   )
 }
+
+/** What a find text is looked for in: the screenshot, the build, its branch and commit, the kind and the assignee. */
+const triageFields = (item: Triage.Item) => [
+  item.snapshotName,
+  `Build #${item.build.number}`,
+  `#${item.build.number}`,
+  item.build.branch,
+  item.build.commitSha,
+  KIND_LABEL[item.kind],
+  item.assignee?.name,
+]
 
 const GLYPH = { flaky: 'flaky', no_baseline: 'added', failed: 'rejected' } as const
 

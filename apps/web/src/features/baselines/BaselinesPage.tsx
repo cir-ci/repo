@@ -1,5 +1,5 @@
 import type { Baseline } from '@circi/api'
-import { EmptyState, ListRow, SearchIcon, StatusIcon, Text, TextField } from '@circi/ui'
+import { EmptyState, ImageIcon, ListRow, StatusIcon, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -7,6 +7,8 @@ import { useState } from 'react'
 import { flakyQuery } from '#features/teams/api/index.ts'
 import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
+import { useFindParam } from '#lib/find.ts'
+import { FindField, NoMatches } from '#lib/FindField.tsx'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { QueryBoundary } from '#lib/QueryBoundary.tsx'
 import { Age } from '#lib/RelativeTime.tsx'
@@ -34,7 +36,7 @@ export function BaselinesPage() {
   const { data } = query
   const flaky = useQuery(flakyQuery(workspace, team))
   const flakyOf = new Map((flaky.data?.flaky ?? []).map((f) => [f.name, f.changedIn]))
-  const [filter, setFilter] = useState('')
+  const [filter, setFilter] = useFindParam()
   const [selectedId, setSelectedId] = useState<string>()
 
   const all = data?.baselines ?? []
@@ -62,16 +64,7 @@ export function BaselinesPage() {
         }
         actions={
           data && all.length > 0 ? (
-            <span className={styles.search}>
-              <SearchIcon size={14} className={styles.searchIcon} aria-hidden="true" />
-              <TextField
-                label="Search baselines"
-                hideLabel
-                placeholder="Search screenshots"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-              />
-            </span>
+            <FindField noun="baselines" value={filter} onChange={setFilter} />
           ) : null
         }
       />
@@ -84,10 +77,12 @@ export function BaselinesPage() {
         >
           {(loaded) =>
             all.length === 0 ? (
-              <EmptyState title="No baselines yet">
-                Once a build of {loaded.team.defaultBranch} finishes, its screenshots become the
-                baselines new builds are compared against.
-              </EmptyState>
+              <div className={styles.empty}>
+                <EmptyState icon={<ImageIcon size={32} />} title="No baselines yet">
+                  Once a build of {loaded.team.defaultBranch} finishes, its screenshots become the
+                  baselines new builds are compared against.
+                </EmptyState>
+              </div>
             ) : (
               <>
                 <div className={styles.cols} aria-hidden="true">
@@ -97,9 +92,7 @@ export function BaselinesPage() {
                   <span className={styles.flag} />
                 </div>
                 {items.length === 0 ? (
-                  <Text as="p" tone="tertiary" className={styles.none}>
-                    No baseline matches “{filter.trim()}”
-                  </Text>
+                  <NoMatches noun="baselines" query={filter} />
                 ) : (
                   <div className={styles.groups} ref={listRef}>
                     {groups.map((group) => {
