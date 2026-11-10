@@ -174,6 +174,20 @@ describe('the health page', () => {
     await expect.element(queues.getByText(/1 retrying \(attempt 3 of 8\)/)).toBeVisible()
   })
 
+  it('keeps each queue’s counts on one line', async () => {
+    await page.viewport(1440, 900)
+    fakeApi(ROUTES)
+    await show()
+    const queues = page.getByRole('region', { name: 'Queues' })
+    const counts = queues.getByText(/waiting · .*running · .*failed/).first()
+    await expect.element(counts).toBeVisible()
+    const el = counts.element()
+    const lineHeight = Number.parseFloat(getComputedStyle(el).lineHeight)
+    expect(el.getBoundingClientRect().height).toBeLessThan(lineHeight * 1.5)
+    // And a number never parts from its word, even where the row must wrap.
+    expect(el.textContent).toMatch(/\d\u00a0waiting · \d\u00a0running · \d\u00a0failed/)
+  })
+
   it('shows no move checklist when no address change is in progress', async () => {
     fakeApi({
       ...ROUTES,

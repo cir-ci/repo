@@ -306,11 +306,21 @@ function QueuesSection(props: {
             key={q.queue}
             label={q.queue}
             detail={queueDetail(q, props.now)}
-            value={`${q.pending} waiting · ${q.running} running · ${q.failed} failed`}
+            value={queueCounts(q)}
           />
         ))}
       </SettingsSection>
     </>
+  )
+}
+
+/**
+ * "0 waiting · 0 running · 1 failed", each number kept with its word (a no-break space), so a
+ * narrow row breaks between the counts, never inside one.
+ */
+function queueCounts(q: { pending: number; running: number; failed: number }): string {
+  return [`${q.pending}\u00a0waiting`, `${q.running}\u00a0running`, `${q.failed}\u00a0failed`].join(
+    ' · ',
   )
 }
 

@@ -53,7 +53,9 @@
 }
 
 .value {
-  flex: 0 1 220px;
+  /* As wide as the value needs, up to 60% of the row: short values stay on one line. */
+  flex: 0 1 auto;
+  max-width: 60%;
   min-width: 0;
   color: var(--circi-text-secondary);
   font-family: var(--circi-font-mono);
@@ -95,6 +97,7 @@
 @media (max-width: 520px) {
   .value {
     flex-basis: 100%;
+    max-width: none;
     text-align: left;
   }
 
