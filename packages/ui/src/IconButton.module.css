@@ -52,3 +52,18 @@
     height: 44px;
   }
 }
+
+/* In a page header a phone's button is 36px; its tap area is still 44px. */
+@media (max-width: 819.98px) {
+  :global([data-panel-header]) .root {
+    position: relative;
+    width: 36px;
+    height: 36px;
+  }
+
+  :global([data-panel-header]) .root::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+  }
+}

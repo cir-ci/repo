@@ -116,3 +116,11 @@
     font-size: 16px;
   }
 }
+
+/* In a page header a phone's field is 36px high (the text stays 16px: a smaller one zooms iOS in). */
+@media (max-width: 819.98px) {
+  :global([data-panel-header]) .control,
+  :global([data-panel-header]) .control[data-size='lg'] {
+    height: 36px;
+  }
+}

@@ -1,0 +1,9 @@
+/* A phone: the find field is a full-width row under the page header, not part of the sticky bar. */
+.find {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--circi-line-subtle);
+}
+
+.find > * {
+  width: 100%;
+}

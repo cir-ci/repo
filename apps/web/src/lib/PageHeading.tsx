@@ -2,9 +2,13 @@ import { Breadcrumbs, PanelHeader, visuallyHidden } from '@circi/ui'
 import type { ReactNode } from 'react'
 
 import { ShowNavButton } from '#app/NavToggle.tsx'
+import { OpenNavButton, PhoneEnd } from '#app/PhoneHeader.tsx'
 
 import type { Crumb as CrumbType } from './crumbs.ts'
 import { useClientLink } from './use-client-link.ts'
+import { usePhone } from './use-phone.ts'
+
+import styles from './PageHeading.module.css'
 
 export {
   crumbsFor,
@@ -35,24 +39,38 @@ export function PageHeading({
   actions,
   after,
   headingInPage,
+  find,
 }: PageHeading.Props) {
   const clientLink = useClientLink()
+  const phone = usePhone()
   return (
-    <PanelHeader {...(actions ? { actions } : {})}>
-      <ShowNavButton />
-      <Breadcrumbs
-        currentIsHeading={!headingInPage}
-        items={[
-          ...crumbs.map((crumb) => ({
-            label: crumb.label,
-            ...(crumb.link ? clientLink(crumb.link) : {}),
-            ...(crumb.link && crumb.tooltip ? { tooltip: crumb.tooltip } : {}),
-          })),
-          { label: title },
-        ]}
-      />
-      {after}
-    </PanelHeader>
+    <>
+      <PanelHeader
+        actions={
+          <>
+            {phone ? null : find}
+            {actions}
+            <PhoneEnd />
+          </>
+        }
+      >
+        <OpenNavButton />
+        <ShowNavButton />
+        <Breadcrumbs
+          currentIsHeading={!headingInPage}
+          items={[
+            ...crumbs.map((crumb) => ({
+              label: crumb.label,
+              ...(crumb.link ? clientLink(crumb.link) : {}),
+              ...(crumb.link && crumb.tooltip ? { tooltip: crumb.tooltip } : {}),
+            })),
+            { label: title },
+          ]}
+        />
+        {after}
+      </PanelHeader>
+      {phone && find ? <div className={styles.find}>{find}</div> : null}
+    </>
   )
 }
 
@@ -70,6 +88,11 @@ export namespace PageHeading {
     title: string
     /** Buttons for the page's main actions, on the right. */
     actions?: ReactNode
+    /**
+     * The page's find field. In the header from 820px up; on a phone it is a full-width row under
+     * the header (it scrolls away with the page), so the sticky header stays one compact row.
+     */
+    find?: ReactNode
     /** Something that belongs beside the title (a branch name), right after the breadcrumb. */
     after?: ReactNode
     /** The page shows its own visible `<h1>` in the body (Integrations): the crumb is then plain text. */

@@ -27,7 +27,7 @@ export function AppFrame(props: AppFrame.Props) {
     <div
       className={styles.root}
       style={style}
-      data-compact={props.compactBar ? '' : undefined}
+      data-compact={props.compactBar || props.compact ? '' : undefined}
       data-sidebar-collapsed={props.sidebarCollapsed ? '' : undefined}
     >
       {props.compactBar ? <div className={styles.bar}>{props.compactBar}</div> : null}
@@ -65,8 +65,13 @@ export namespace AppFrame {
      */
     compactBar?: ReactNode
     /**
+     * The compact layout (no sidebar, a full-bleed panel, the `bottomBar`) without a bar of its
+     * own: the page's header carries the menu button. `compactBar` implies it.
+     */
+    compact?: boolean
+    /**
      * A bar pinned to the bottom of the window below 820px (the phone's tab bar, a `BottomBar`);
-     * wider screens ignore it. Needs `compactBar`. Below 820px the panel is also full-bleed: no
+     * wider screens ignore it. Needs `compactBar` or `compact`. Below 820px the panel is also full-bleed: no
      * margin, border or rounded corners.
      */
     bottomBar?: ReactNode

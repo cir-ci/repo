@@ -21,6 +21,7 @@ import { PageHeading } from '#lib/PageHeading.tsx'
 import { PANES } from '#lib/panes.ts'
 import { PANES_KEY, usePaneStore } from '#lib/stores/pane-store.ts'
 import { mockAuthClient, setSignedInUser } from '#test/support/auth-client.ts'
+import { headerButton, pageHeader } from '#test/support/header.ts'
 import { expectLimitedToSpace, parentOf } from '#test/support/resize.ts'
 
 const overview = (workspace: string, workspaceName: string, team: string) => ({
@@ -118,7 +119,9 @@ function asInstanceAdmin() {
   }
 }
 
-const text = (content: string) => () => <p>{content}</p>
+// Every page of the app has a header (`PageHeading`): on a phone it carries the menu and search
+// buttons. The test pages are only that header, titled with their text.
+const text = (content: string) => () => <PageHeading title={content} />
 
 async function renderShell(path: string) {
   const root = createRootRoute({ component: Shell })
@@ -790,7 +793,7 @@ describe('Shell, narrow', () => {
     await renderShell('/workspaces/acme/reviews')
     // The sidebar is the drawer's: the page has the phone's tab bar instead.
     expect(page.getByRole('navigation', { name: 'Main' }).elements()).toHaveLength(0)
-    await expect.element(page.getByText('Reviews').first()).toBeVisible()
+    await expect.element(page.getByRole('heading', { name: 'Reviews page' })).toBeVisible()
     await page.getByRole('button', { name: 'Open navigation' }).click()
     const drawer = page.getByRole('dialog', { name: 'Navigation' })
     await expect.element(drawer).toBeVisible()
@@ -813,12 +816,38 @@ describe('Shell, narrow', () => {
       .toBeVisible()
   })
 
-  it('names the area in the top bar above a settings page, with a Close that leaves it', async () => {
+  it('has no top bar: the menu and search buttons are in the page header, one sticky row', async () => {
+    await page.viewport(390, 844)
+    await renderShell('/headed')
+    await expect.element(page.getByRole('button', { name: 'Open navigation' })).toBeVisible()
+    const header = pageHeader()
+    for (const name of ['Open navigation', 'Search']) {
+      const button = headerButton(name)
+      expect(button).toBeDefined()
+      expect(button!.getBoundingClientRect().height).toBeLessThanOrEqual(36.5)
+    }
+    // The header is the first thing in the window, and the page's name is not repeated above it.
+    // (The panel's own 1px top border is all that is above it.)
+    expect(header.getBoundingClientRect().top).toBeLessThanOrEqual(1)
+    expect(header.getBoundingClientRect().height).toBeLessThanOrEqual(52)
+    expect(document.querySelectorAll('header')).toHaveLength(1)
+  })
+
+  it('has the Close of a settings page in its header, and no "Settings" bar above it', async () => {
     await page.viewport(390, 800)
     await renderShell('/workspaces/acme/settings')
     await expect.element(page.getByRole('main')).toHaveTextContent('Workspace settings page')
     await expect.element(page.getByRole('button', { name: 'Open navigation' })).toBeVisible()
-    await expect.element(page.getByText('Settings', { exact: true })).toBeVisible()
+    await expect.poll(() => headerButton('Close settings, back to Inbox')).toBeDefined()
+    expect(page.getByText('Settings', { exact: true }).elements()).toHaveLength(0)
+  })
+
+  it('leaves the desktop header without the phone buttons', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/headed')
+    await expect.element(page.getByRole('main')).toBeVisible()
+    expect(headerButton('Open navigation')).toBeUndefined()
+    expect(headerButton('Search')).toBeUndefined()
   })
 
   it('keeps the drawer open when a team is chosen, so its pages show, and closes it on a page', async () => {

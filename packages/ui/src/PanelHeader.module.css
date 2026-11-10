@@ -21,3 +21,14 @@
 .spacer {
   flex: 1;
 }
+
+/* A phone: one compact row (the menu and search buttons live in it). Its controls are 36px with a
+   tap area that reaches past the visible box; the 44px rule is for the bottom bar and the rows'
+   own actions. The controls' own phone rules (Button, IconButton, TextField) key off
+   `data-panel-header`. */
+@media (max-width: 819.98px) {
+  .root {
+    gap: 4px 8px;
+    padding: 6px 8px;
+  }
+}

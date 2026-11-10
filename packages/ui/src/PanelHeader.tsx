@@ -48,7 +48,7 @@ export function PanelHeader(props: PanelHeader.Props) {
   }, [])
   return (
     <>
-      <header ref={ref} className={styles.root}>
+      <header ref={ref} className={styles.root} data-panel-header="">
         {props.children}
         <div className={styles.spacer} />
         {props.actions}

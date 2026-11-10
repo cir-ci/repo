@@ -202,3 +202,22 @@ a.root {
     font-size: 14px;
   }
 }
+
+/* In a page header a phone's button is 36px high with 13px text; its tap area is still 44px. */
+@media (max-width: 819.98px) {
+  :global([data-panel-header]) .root,
+  :global([data-panel-header]) .root[data-size='sm'],
+  :global([data-panel-header]) .root[data-size='lg'],
+  :global([data-panel-header]) .root[data-variant='filter'] {
+    position: relative;
+    min-height: 36px;
+    padding-inline: 12px;
+    font-size: 13px;
+  }
+
+  :global([data-panel-header]) .root::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+  }
+}
