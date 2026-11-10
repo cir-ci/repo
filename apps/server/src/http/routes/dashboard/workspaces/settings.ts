@@ -18,7 +18,11 @@ import { parse } from '#http/lib/validation.ts'
 import { loadWorkspace } from '#http/lib/workspace-access.ts'
 
 const body = z
-  .object({ flakyBlocksMerge: z.boolean(), retentionDays: z.number() })
+  .object({
+    flakyBlocksMerge: z.boolean(),
+    assignTriageToOnCall: z.boolean(),
+    retentionDays: z.number(),
+  })
   .partial()
   .strict()
 const deleteBody = z.object({ confirm: z.string().max(200) }).strict()

@@ -67,6 +67,8 @@ export namespace Workspace {
   export interface Settings {
     /** Whether a pull request that only changes flaky screenshots still blocks the merge. */
     flakyBlocksMerge: boolean
+    /** Whether new triage items are assigned to whoever is on triage. */
+    assignTriageToOnCall: boolean
     /** Days of retention a new team starts with (existing teams keep their own). */
     retentionDays: number
   }
@@ -109,6 +111,8 @@ export namespace Workspace {
     slug: string
     name: string
     flakyBlocksMerge: boolean | null
+    /** Null: follows the workspace's default. */
+    assignTriageToOnCall: boolean | null
   }
 
   export interface SettingsResponse {

@@ -2,6 +2,7 @@ import type { ReviewRule, ReviewRuleKind, Team, Triage } from '@circi/api'
 import { MAX_FLAKY_FLIP_FLOPS, MIN_FLAKY_FLIP_FLOPS, reviewDueAt } from '@circi/core'
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 
+import { choiceOf, type FlakyChoice, valueOf } from '#features/team-settings/flaky-setting.ts'
 import { REVIEW_TARGET_HOURS_MAX } from '#features/team-settings/settings-patch.ts'
 import { teamPath } from '#lib/api-paths.ts'
 import { getJson, post, send } from '#lib/http.ts'
@@ -205,6 +206,8 @@ export interface FormValues {
   requireReason: boolean
   flakyAfter: string
   snoozeDays: string
+  /** Whether new triage items go to whoever is on triage; `inherit` follows the workspace. */
+  assignOnCall: FlakyChoice
   rotationIds: string[]
   rotationDate: string
 }
@@ -219,6 +222,7 @@ export type SavedSettings = Pick<
   | 'requireRejectReason'
   | 'flakyAfterChanges'
   | 'snoozeDefaultDays'
+  | 'assignTriageToOnCall'
 >
 
 export const formValuesOf = (settings: SavedSettings, rotation: Triage.Rotation): FormValues => ({
@@ -230,6 +234,7 @@ export const formValuesOf = (settings: SavedSettings, rotation: Triage.Rotation)
   requireReason: settings.requireRejectReason,
   flakyAfter: String(settings.flakyAfterChanges),
   snoozeDays: String(settings.snoozeDefaultDays),
+  assignOnCall: choiceOf(settings.assignTriageToOnCall),
   rotationIds: rotation.members.map((m) => m.id),
   rotationDate: startDateOf(rotation),
 })
@@ -250,6 +255,9 @@ export function settingsPatch(saved: SavedSettings, v: FormValues): Partial<Team
   }
   if (Number(v.snoozeDays) !== saved.snoozeDefaultDays) {
     patch.snoozeDefaultDays = Number(v.snoozeDays)
+  }
+  if (v.assignOnCall !== choiceOf(saved.assignTriageToOnCall)) {
+    patch.assignTriageToOnCall = valueOf(v.assignOnCall)
   }
   return patch
 }

@@ -115,7 +115,7 @@ describe('optimistic updates', () => {
     const next = withAssignee(
       queue,
       { kind: 'flaky', key: 'b' },
-      { id: 'u', name: 'Ada', image: null },
+      { id: 'u', name: 'Ada', image: null, auto: false },
     )
     expect(next.items.map((i) => i.assignee?.name)).toEqual([undefined, 'Ada'])
     expect(queue.items[1]?.assignee).toBeNull()

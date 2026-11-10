@@ -60,6 +60,7 @@ describe('workspace name, address and default retention', () => {
     const url = `${workspace()}/settings`
     expect((await call('PATCH', url, ownerCookie, { retentionDays: 90 })).json().settings).toEqual({
       flakyBlocksMerge: true,
+      assignTriageToOnCall: false,
       retentionDays: 90,
     })
     expect((await call('PATCH', url, ownerCookie, { retentionDays: 0 })).statusCode).toBe(400)
@@ -85,11 +86,38 @@ describe('merge gate defaults', () => {
       slug: 'web',
       name: expect.any(String),
       flakyBlocksMerge: null,
+      assignTriageToOnCall: null,
     })
     await call('PATCH', `${team()}/settings`, ownerCookie, { flakyBlocksMerge: false })
     const after = (await call('GET', `${workspace()}/settings`, memberCookie)).json()
     expect(after.teams.find((p: { slug: string }) => p.slug === 'web').flakyBlocksMerge).toBe(false)
     await call('PATCH', `${team()}/settings`, ownerCookie, { flakyBlocksMerge: null })
+  })
+})
+
+describe('triage assignment default', () => {
+  it('is off, changes for owners and admins only, and shows each team that overrides it', async () => {
+    const url = `${workspace()}/settings`
+    expect((await call('GET', url, memberCookie)).json().settings.assignTriageToOnCall).toBe(false)
+    const on = await call('PATCH', url, ownerCookie, { assignTriageToOnCall: true })
+    expect(on.json().settings.assignTriageToOnCall).toBe(true)
+    expect(
+      (await call('PATCH', url, ownerCookie, { assignTriageToOnCall: 'yes' })).statusCode,
+    ).toBe(400)
+    expect(
+      (await call('PATCH', url, memberCookie, { assignTriageToOnCall: false })).statusCode,
+    ).toBe(403)
+    expect(
+      (await call('PATCH', url, rivalCookie, { assignTriageToOnCall: false })).statusCode,
+    ).toBe(404)
+    await call('PATCH', `${team()}/settings`, ownerCookie, { assignTriageToOnCall: false })
+    const after = (await call('GET', url, memberCookie)).json()
+    expect(after.settings.assignTriageToOnCall).toBe(true)
+    expect(after.teams.find((p: { slug: string }) => p.slug === 'web').assignTriageToOnCall).toBe(
+      false,
+    )
+    await call('PATCH', `${team()}/settings`, ownerCookie, { assignTriageToOnCall: null })
+    await call('PATCH', url, ownerCookie, { assignTriageToOnCall: false })
   })
 })
 

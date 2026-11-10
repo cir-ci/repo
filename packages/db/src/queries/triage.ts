@@ -61,7 +61,8 @@ export namespace listTriage {
       status: Build['status']
       createdAt: Date
     }
-    assignee: { id: string; name: string; image: string | null } | null
+    /** `auto`: put there by the on-triage setting, not by a person. */
+    assignee: { id: string; name: string; image: string | null; auto: boolean } | null
     /** When a timed snooze ends; null when not snoozed or snoozed until the next push. */
     snoozedUntil: Date | null
     snoozeKind: SnoozeKind | null
@@ -333,7 +334,12 @@ export async function listTriage(
       team: teamRef,
       build: f.build,
       assignee: s?.assignee?.id
-        ? { id: s.assignee.id, name: s.assignee.name, image: s.assignee.image }
+        ? {
+            id: s.assignee.id,
+            name: s.assignee.name,
+            image: s.assignee.image,
+            auto: s.item.assignmentSource === 'auto',
+          }
         : null,
       snoozedUntil: snoozed ? until : null,
       snoozeKind: snoozed ? kind : null,

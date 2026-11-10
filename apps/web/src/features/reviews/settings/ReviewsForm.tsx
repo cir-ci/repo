@@ -130,6 +130,8 @@ export function ReviewsForm(props: ReviewsForm.Props) {
         date={values.rotationDate}
         flakyAfter={values.flakyAfter}
         snoozeDays={values.snoozeDays}
+        assignOnCall={values.assignOnCall}
+        workspaceAssignOnCall={props.workspaceAssignOnCall}
         touched={touched}
         serverFlakyProblem={fields['flakyAfterChanges']}
         disabled={disabled}
@@ -141,6 +143,7 @@ export function ReviewsForm(props: ReviewsForm.Props) {
         }}
         onFlakyChange={(flakyAfter) => edit({ flakyAfter })}
         onSnoozeChange={(snoozeDays) => edit({ snoozeDays })}
+        onAssignOnCallChange={(assignOnCall) => edit({ assignOnCall })}
       />
       <NotifySection workspace={props.workspace} team={props.team} />
       {failure && !shownByField ? <Banner tone="danger">{failure.message}</Banner> : null}
@@ -175,7 +178,10 @@ export namespace ReviewsForm {
       | 'requireRejectReason'
       | 'flakyAfterChanges'
       | 'snoozeDefaultDays'
+      | 'assignTriageToOnCall'
     >
+    /** What a team that inherits the setting gets: the workspace's default. */
+    workspaceAssignOnCall: boolean
     rotation: Triage.Rotation
     people: Person[]
     canManage: boolean

@@ -22,6 +22,7 @@ const settings = {
   autoApproveDefaultBranch: false,
   blockMergeOnChanges: true,
   flakyBlocksMerge: null,
+  assignTriageToOnCall: null as boolean | null,
   retentionDays: 30,
   reviewTargetHours: 24 as number | null,
   reviewOverdueNotifyUserId: null as string | null,
@@ -50,9 +51,23 @@ const rules = (over: Record<string, unknown> = {}) => ({
   ...over,
 })
 
-function api(over: Record<string, unknown> = {}, extra: Record<string, ReplyHandler> = {}) {
+function api(
+  over: Record<string, unknown> = {},
+  extra: Record<string, ReplyHandler> = {},
+  workspaceAssign = false,
+) {
   return fakeApi({
-    [`GET ${API}/settings`]: { body: { canManage: true, settings } },
+    [`GET ${API}/settings`]: {
+      body: {
+        canManage: true,
+        settings,
+        workspace: {
+          flakyBlocksMerge: true,
+          assignTriageToOnCall: workspaceAssign,
+          retentionDays: 30,
+        },
+      },
+    },
     [`GET ${API}/members`]: {
       body: {
         members: [ada, grace].map((m) => ({
@@ -193,6 +208,36 @@ describe('ReviewsSettingsPage', () => {
     await expect
       .poll(() => calls.of('PATCH')[0]?.body)
       .toEqual({ flakyAfterChanges: 5, snoozeDefaultDays: 14 })
+  })
+
+  it('shows what inheriting means, and saves On, Off and inherit with Save', async () => {
+    const calls = api({}, {}, true)
+    await show()
+    const select = page.getByRole('combobox', { name: 'Assign new items to whoever is on triage' })
+    await expect.element(select).toHaveTextContent('Inherit from workspace (currently: on)')
+    await select.click()
+    await page.getByRole('option', { name: 'Off' }).click()
+    expect(calls.of('PATCH')).toHaveLength(0)
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect.poll(() => calls.of('PATCH')[0]?.body).toEqual({ assignTriageToOnCall: false })
+  })
+
+  it('starts from the team’s own value and sends null to inherit again', async () => {
+    const calls = api()
+    settings.assignTriageToOnCall = true
+    try {
+      await show()
+      const select = page.getByRole('combobox', {
+        name: 'Assign new items to whoever is on triage',
+      })
+      await expect.element(select).toHaveTextContent('On')
+      await select.click()
+      await page.getByRole('option', { name: /^Inherit from workspace/ }).click()
+      await page.getByRole('button', { name: 'Save changes' }).click()
+      await expect.poll(() => calls.of('PATCH')[0]?.body).toEqual({ assignTriageToOnCall: null })
+    } finally {
+      settings.assignTriageToOnCall = null
+    }
   })
 
   it('refuses an invalid target or threshold without asking the server', async () => {

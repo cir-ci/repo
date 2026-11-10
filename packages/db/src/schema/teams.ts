@@ -50,6 +50,11 @@ export const teams = pgTable(
      * workspace's setting (`workspace_settings`).
      */
     flakyBlocksMerge: boolean('flaky_blocks_merge'),
+    /**
+     * Whether new triage items go to whoever is on triage. Null inherits the workspace's setting
+     * (`workspace_settings`).
+     */
+    assignTriageToOnCall: boolean('assign_triage_to_on_call'),
     retentionDays: integer('retention_days').notNull().default(DEFAULT_TEAM_RETENTION_DAYS),
     /** Hours a review request may wait before it is overdue; null means no review target. */
     reviewTargetHours: integer('review_target_hours').default(24),

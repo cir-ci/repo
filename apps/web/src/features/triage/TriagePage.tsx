@@ -127,7 +127,10 @@ export function TriagePage() {
     if (!me) return
     const mine = item.assignee?.id === me.id
     assign.mutate(
-      { ref: item, assignee: mine ? null : { id: me.id, name: me.name, image: me.image ?? null } },
+      {
+        ref: item,
+        assignee: mine ? null : { id: me.id, name: me.name, image: me.image ?? null, auto: false },
+      },
       { onSuccess: () => announce(mine ? 'Unassigned' : 'Assigned to you') },
     )
   }
@@ -240,7 +243,13 @@ export function TriagePage() {
                                   trailing={
                                     <>
                                       {item.assignee ? (
-                                        <Avatar type="user" {...item.assignee} size={20} />
+                                        <Avatar
+                                          type="user"
+                                          id={item.assignee.id}
+                                          name={item.assignee.name}
+                                          image={item.assignee.image}
+                                          size={20}
+                                        />
                                       ) : (
                                         <span
                                           className={styles.unassigned}
@@ -354,8 +363,17 @@ export function TriagePage() {
                             <dd>
                               {selected.assignee ? (
                                 <span className={styles.person}>
-                                  <Avatar type="user" {...selected.assignee} size={20} />
+                                  <Avatar
+                                    type="user"
+                                    id={selected.assignee.id}
+                                    name={selected.assignee.name}
+                                    image={selected.assignee.image}
+                                    size={20}
+                                  />
                                   {selected.assignee.name}
+                                  {selected.assignee.auto ? (
+                                    <Text tone="tertiary">· on triage</Text>
+                                  ) : null}
                                 </span>
                               ) : (
                                 <Text tone="tertiary">

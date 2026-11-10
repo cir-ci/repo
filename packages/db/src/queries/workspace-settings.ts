@@ -1,4 +1,4 @@
-import { DEFAULT_FLAKY_BLOCKS_MERGE } from '@circi/core'
+import { DEFAULT_ASSIGN_TRIAGE_TO_ON_CALL, DEFAULT_FLAKY_BLOCKS_MERGE } from '@circi/core'
 import { and, asc, eq } from 'drizzle-orm'
 
 import { teams, workspaceSettings } from '#schema/index.ts'
@@ -10,6 +10,8 @@ import type { Database } from '#src/client.ts'
 export interface WorkspaceSettings {
   /** Whether a pull request that only changes flaky screenshots still blocks the merge. */
   flakyBlocksMerge: boolean
+  /** Whether new triage items are assigned to whoever is on triage. */
+  assignTriageToOnCall: boolean
   /** Retention in days that a new team starts with; teams already made keep their own. */
   retentionDays: number
 }
@@ -18,6 +20,7 @@ export const DEFAULT_RETENTION_DAYS = 30
 
 const DEFAULTS: WorkspaceSettings = {
   flakyBlocksMerge: DEFAULT_FLAKY_BLOCKS_MERGE,
+  assignTriageToOnCall: DEFAULT_ASSIGN_TRIAGE_TO_ON_CALL,
   retentionDays: DEFAULT_RETENTION_DAYS,
 }
 
@@ -31,19 +34,35 @@ export async function getWorkspaceSettings(
     .from(workspaceSettings)
     .where(eq(workspaceSettings.workspaceId, workspaceId))
   return row
-    ? { flakyBlocksMerge: row.flakyBlocksMerge, retentionDays: row.retentionDays }
+    ? {
+        flakyBlocksMerge: row.flakyBlocksMerge,
+        assignTriageToOnCall: row.assignTriageToOnCall,
+        retentionDays: row.retentionDays,
+      }
     : DEFAULTS
 }
 
-/** Each team's own flaky-gate setting: null when it inherits the workspace's default. */
+/** Each team's own flaky-gate and triage-assignment settings: null when it inherits the workspace's default. */
 export async function listTeamFlakyOverrides(
   db: Database,
   workspaceId: string,
   /** Lists only the teams this person may see. */
   viewerId?: string,
-): Promise<{ slug: string; name: string; flakyBlocksMerge: boolean | null }[]> {
+): Promise<
+  {
+    slug: string
+    name: string
+    flakyBlocksMerge: boolean | null
+    assignTriageToOnCall: boolean | null
+  }[]
+> {
   return db
-    .select({ slug: teams.slug, name: teams.name, flakyBlocksMerge: teams.flakyBlocksMerge })
+    .select({
+      slug: teams.slug,
+      name: teams.name,
+      flakyBlocksMerge: teams.flakyBlocksMerge,
+      assignTriageToOnCall: teams.assignTriageToOnCall,
+    })
     .from(teams)
     .where(
       and(

@@ -14,6 +14,8 @@ export const settingsBody = z
     blockMergeOnChanges: z.boolean(),
     /** null: inherit the workspace's setting. */
     flakyBlocksMerge: z.boolean().nullable(),
+    /** null: inherit the workspace's setting. */
+    assignTriageToOnCall: z.boolean().nullable(),
     retentionDays: z.number(),
     /** null: no review target. */
     reviewTargetHours: z.number().nullable(),

@@ -226,7 +226,11 @@ describe('team settings', () => {
     const got = (await call('GET', `${base()}/settings`, memberCookie)).json()
     // Nothing set: the team inherits, and the workspace blocks, as before.
     expect(got.settings.flakyBlocksMerge).toBeNull()
-    expect(got.workspace).toEqual({ flakyBlocksMerge: true, retentionDays: 30 })
+    expect(got.workspace).toEqual({
+      flakyBlocksMerge: true,
+      assignTriageToOnCall: false,
+      retentionDays: 30,
+    })
 
     const off = await call('PATCH', `${base()}/settings`, ownerCookie, { flakyBlocksMerge: false })
     expect(off.json().settings.flakyBlocksMerge).toBe(false)
@@ -240,6 +244,37 @@ describe('team settings', () => {
 
     const bad = await call('PATCH', `${base()}/settings`, ownerCookie, { flakyBlocksMerge: 'no' })
     expect(bad.statusCode).toBe(400)
+  })
+
+  it('lets a team inherit the workspace on assigning triage to whoever is on triage, or set its own', async () => {
+    const got = (await call('GET', `${base()}/settings`, memberCookie)).json()
+    // Nothing set: the team inherits, and the workspace's default is off.
+    expect(got.settings.assignTriageToOnCall).toBeNull()
+    expect(got.workspace.assignTriageToOnCall).toBe(false)
+
+    const on = await call('PATCH', `${base()}/settings`, ownerCookie, {
+      assignTriageToOnCall: true,
+    })
+    expect(on.json().settings.assignTriageToOnCall).toBe(true)
+    expect((await getTeamById(t.db, acme.team.id))?.assignTriageToOnCall).toBe(true)
+
+    const inherit = await call('PATCH', `${base()}/settings`, ownerCookie, {
+      assignTriageToOnCall: null,
+    })
+    expect(inherit.json().settings.assignTriageToOnCall).toBeNull()
+
+    const bad = await call('PATCH', `${base()}/settings`, ownerCookie, {
+      assignTriageToOnCall: 'no',
+    })
+    expect(bad.statusCode).toBe(400)
+    const denied = await call('PATCH', `${base()}/settings`, memberCookie, {
+      assignTriageToOnCall: true,
+    })
+    expect(denied.statusCode).toBe(403)
+    const hidden = await call('PATCH', `${base()}/settings`, rivalCookie, {
+      assignTriageToOnCall: true,
+    })
+    expect(hidden.statusCode).toBe(404)
   })
 
   it('refuses plain members with 403 and outsiders with 404', async () => {
@@ -481,8 +516,8 @@ describe('workspace settings', () => {
     const owner = (await call('GET', workspaceUrl(), ownerCookie)).json()
     expect(owner).toEqual({
       canManage: true,
-      settings: { flakyBlocksMerge: true, retentionDays: 30 },
-      teams: [{ slug: 'web', name: 'web', flakyBlocksMerge: null }],
+      settings: { flakyBlocksMerge: true, assignTriageToOnCall: false, retentionDays: 30 },
+      teams: [{ slug: 'web', name: 'web', flakyBlocksMerge: null, assignTriageToOnCall: null }],
     })
     expect((await call('GET', workspaceUrl(), memberCookie)).json().canManage).toBe(false)
   })
@@ -490,13 +525,20 @@ describe('workspace settings', () => {
   it('lets an owner change them, and teams that inherit see the new value', async () => {
     const res = await call('PATCH', workspaceUrl(), ownerCookie, { flakyBlocksMerge: false })
     expect(res.statusCode).toBe(200)
-    expect(res.json()).toEqual({ settings: { flakyBlocksMerge: false, retentionDays: 30 } })
+    expect(res.json()).toEqual({
+      settings: { flakyBlocksMerge: false, assignTriageToOnCall: false, retentionDays: 30 },
+    })
     expect(await getWorkspaceSettings(t.db, acme.team.workspaceId)).toEqual({
       flakyBlocksMerge: false,
+      assignTriageToOnCall: false,
       retentionDays: 30,
     })
     const team = (await call('GET', `${base()}/settings`, memberCookie)).json()
-    expect(team.workspace).toEqual({ flakyBlocksMerge: false, retentionDays: 30 })
+    expect(team.workspace).toEqual({
+      flakyBlocksMerge: false,
+      assignTriageToOnCall: false,
+      retentionDays: 30,
+    })
     expect(team.settings.flakyBlocksMerge).toBeNull()
   })
 
@@ -520,6 +562,7 @@ describe('workspace settings', () => {
     ).toBe(404)
     expect(await getWorkspaceSettings(t.db, acme.team.workspaceId)).toEqual({
       flakyBlocksMerge: false,
+      assignTriageToOnCall: false,
       retentionDays: 30,
     })
   })

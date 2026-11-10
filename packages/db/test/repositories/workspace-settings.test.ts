@@ -17,13 +17,14 @@ describe('workspace settings', () => {
     const { workspace } = await seedWorkspace(t.db)
     expect(await getWorkspaceSettings(t.db, workspace.id)).toEqual({
       flakyBlocksMerge: true,
+      assignTriageToOnCall: false,
       retentionDays: 30,
     })
   })
 
   it('saves what was given, and keeps it across saves', async () => {
     const { workspace } = await seedWorkspace(t.db)
-    const off = { flakyBlocksMerge: false, retentionDays: 30 }
+    const off = { flakyBlocksMerge: false, assignTriageToOnCall: false, retentionDays: 30 }
     expect(await setWorkspaceSettings(t.db, workspace.id, { flakyBlocksMerge: false })).toEqual(off)
     expect(await getWorkspaceSettings(t.db, workspace.id)).toEqual(off)
     // An empty patch changes nothing; switching back works.
@@ -31,6 +32,7 @@ describe('workspace settings', () => {
     await setWorkspaceSettings(t.db, workspace.id, { flakyBlocksMerge: true })
     expect(await getWorkspaceSettings(t.db, workspace.id)).toEqual({
       flakyBlocksMerge: true,
+      assignTriageToOnCall: false,
       retentionDays: 30,
     })
   })
@@ -40,6 +42,7 @@ describe('workspace settings', () => {
     const before = await createTeam(t.db, { workspaceSlug: workspace.slug, name: 'before' })
     expect(await setWorkspaceSettings(t.db, workspace.id, { retentionDays: 90 })).toEqual({
       flakyBlocksMerge: true,
+      assignTriageToOnCall: false,
       retentionDays: 90,
     })
     await expect(setWorkspaceSettings(t.db, workspace.id, { retentionDays: 0 })).rejects.toThrow(
@@ -59,7 +62,18 @@ describe('workspace settings', () => {
     await setWorkspaceSettings(t.db, a.workspace.id, { flakyBlocksMerge: false })
     expect(await getWorkspaceSettings(t.db, b.workspace.id)).toEqual({
       flakyBlocksMerge: true,
+      assignTriageToOnCall: false,
       retentionDays: 30,
     })
+  })
+})
+
+describe('the triage assignment default', () => {
+  it('is off, and saves with the other defaults', async () => {
+    const { workspace } = await seedWorkspace(t.db)
+    expect((await getWorkspaceSettings(t.db, workspace.id)).assignTriageToOnCall).toBe(false)
+    const saved = await setWorkspaceSettings(t.db, workspace.id, { assignTriageToOnCall: true })
+    expect(saved).toEqual({ flakyBlocksMerge: true, assignTriageToOnCall: true, retentionDays: 30 })
+    expect(await getWorkspaceSettings(t.db, workspace.id)).toEqual(saved)
   })
 })

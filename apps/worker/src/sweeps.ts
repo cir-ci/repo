@@ -1,4 +1,4 @@
-import { expireStalledBuilds, runRetention } from '@circi/services'
+import { autoAssignAllTeams, expireStalledBuilds, runRetention } from '@circi/services'
 
 import { reviewSweep } from './jobs/review-sweep.ts'
 import type { startWorker } from './runner.ts'
@@ -43,6 +43,15 @@ export function startSweeps(deps: startWorker.Deps): () => void {
           if (n > 0) logger.info({ reviewers: n }, 'told reviewers about overdue requests')
         },
         (err: unknown) => logger.error({ err }, 'review sweep failed'),
+      )
+    }),
+    // The handover (Mondays) and snoozes that ended: items nobody has go to the person on triage.
+    every(deps.triageAssignIntervalMs ?? 5 * 60_000, () => {
+      autoAssignAllTeams(db).then(
+        (n) => {
+          if (n > 0) logger.info({ items: n }, 'assigned triage items to whoever is on triage')
+        },
+        (err: unknown) => logger.error({ err }, 'triage auto-assignment failed'),
       )
     }),
   ]

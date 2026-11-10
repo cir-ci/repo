@@ -65,6 +65,14 @@ export const inboxQuery = (tab: Inbox.Tab) =>
 const text = (value: unknown): string | undefined =>
   typeof value === 'string' && value.trim() ? value.trim() : undefined
 
+/** "Checkout and 2 more" / "Build #12": what a triage assignment notice is about. */
+function triageAssignedDetail(payload: Record<string, unknown>): string | undefined {
+  const label = text(payload['label'])
+  const count = typeof payload['count'] === 'number' ? payload['count'] : 1
+  if (!label) return undefined
+  return count > 1 ? `${label} and ${count - 1} more` : label
+}
+
 /** What the words of a notification need: an inbox row has all of it, and so has a search result. */
 export interface NotificationWords {
   kind: NotificationKind
@@ -95,6 +103,10 @@ export function notificationText(item: NotificationWords): { title: string; deta
     },
     flaky_detected: {
       title: `Flaky screenshots found${item.team ? ` in ${item.team.name}` : ''}`,
+    },
+    triage_assigned: {
+      title: 'Assigned to you as the person on triage',
+      detail: triageAssignedDetail(item.payload),
     },
   }
   const { title, detail } = kinds[item.kind]

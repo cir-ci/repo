@@ -10,6 +10,7 @@ export type NotificationKind =
   | 'review_overdue'
   | 'connection_needs_attention'
   | 'flaky_detected'
+  | 'triage_assigned'
 
 export namespace Inbox {
   /** `DELETE /api/inbox/:id`. */

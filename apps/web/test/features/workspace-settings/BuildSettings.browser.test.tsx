@@ -6,11 +6,13 @@ import { fakeFetch, pending } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 const PATH = '/api/workspaces/acme/settings'
-const answer = (flakyBlocksMerge: boolean, canManage = true) => ({
+const answer = (flakyBlocksMerge: boolean, canManage = true, assignTriageToOnCall = false) => ({
   canManage,
-  settings: { flakyBlocksMerge },
+  settings: { flakyBlocksMerge, assignTriageToOnCall },
   teams: [],
 })
+const assignControl = () =>
+  page.getByRole('checkbox', { name: /^Assign new triage items to whoever is on triage/ })
 const control = () => page.getByRole('checkbox', { name: /^Flaky-only changes block merging/ })
 
 describe('BuildSettings', () => {
@@ -52,6 +54,44 @@ describe('BuildSettings', () => {
       .toEqual({ flakyBlocksMerge: false })
     await expect.element(control()).not.toBeChecked()
     await expect.element(save).toBeDisabled()
+  })
+
+  it('shows the triage default off, and sends it only after Save', async () => {
+    await page.viewport(1000, 800)
+    const calls = fakeFetch({
+      [`GET ${PATH}`]: answer(true),
+      [`PATCH ${PATH}`]: () => ({
+        settings: { flakyBlocksMerge: true, assignTriageToOnCall: true },
+      }),
+    })
+    await renderPage(<BuildSettings workspace="acme" />)
+    await expect.element(page.getByRole('heading', { name: 'Triage defaults' })).toBeVisible()
+    await expect.element(assignControl()).not.toBeChecked()
+    await assignControl().click()
+    expect(calls.some((c) => c.method === 'PATCH')).toBe(false)
+    await page.getByRole('button', { name: 'Save changes' }).click()
+    await expect
+      .poll(() => calls.find((c) => c.method === 'PATCH')?.body)
+      .toEqual({ assignTriageToOnCall: true })
+  })
+
+  it('puts the triage default back on Discard', async () => {
+    await page.viewport(1000, 800)
+    fakeFetch({ [`GET ${PATH}`]: answer(true, true, true) })
+    await renderPage(<BuildSettings workspace="acme" />)
+    await expect.element(assignControl()).toBeChecked()
+    await assignControl().click()
+    await expect.element(assignControl()).not.toBeChecked()
+    await page.getByRole('button', { name: 'Discard' }).click()
+    await expect.element(assignControl()).toBeChecked()
+  })
+
+  it('shows the triage default read-only to members', async () => {
+    await page.viewport(1000, 800)
+    fakeFetch({ [`GET ${PATH}`]: answer(true, false, true) })
+    await renderPage(<BuildSettings workspace="acme" />)
+    await expect.element(assignControl()).toHaveAttribute('data-disabled')
+    await expect.element(assignControl()).toBeChecked()
   })
 
   it('puts the saved value back on Discard', async () => {

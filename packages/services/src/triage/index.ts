@@ -1,4 +1,10 @@
 export {
+  autoAssignAfterBuild,
+  autoAssignAllTeams,
+  autoAssignTriage,
+  autoAssignWorkspace,
+} from './auto-assign.ts'
+export {
   assignTriage,
   assignTriageUndoable,
   createIgnoreRegion,

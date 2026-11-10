@@ -9,6 +9,11 @@ export {
   type ReviewRuleLike,
   type RuleKind,
 } from './rules.ts'
-export { rotationFor, rotationHandover } from './rotation.ts'
+export {
+  DEFAULT_ASSIGN_TRIAGE_TO_ON_CALL,
+  resolveAssignTriageToOnCall,
+  rotationFor,
+  rotationHandover,
+} from './rotation.ts'
 export { SNOOZE_WAKE_HOUR, snoozeUntil, type SnoozeChoice } from './snooze.ts'
 export { parseMentions } from './mentions.ts'

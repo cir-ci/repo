@@ -23,6 +23,7 @@ import { integrationRegistry } from '@circi/integrations'
 
 import { queueIntegrationEvent } from '#src/integration-admin/events.ts'
 import { notifyReviewRequested } from '#src/reviews/reviews.ts'
+import { autoAssignAfterBuild } from '#src/triage/auto-assign.ts'
 
 /**
  * What happens when a build changes state (PLAN §7.4). Each function owns one transaction: the
@@ -173,6 +174,7 @@ export async function completeBuild(
     await queueWebhookEvent(tx, { build: done, event: 'build.completed' })
     await queueIntegrationEvent(tx, { type: 'build.completed', buildId: done.id })
     await queueGitNotify(tx, done, integrationRegistry.gitKinds())
+    await autoAssignAfterBuild(tx, done)
   })
 }
 export namespace completeBuild {
@@ -184,7 +186,10 @@ export namespace completeBuild {
 export async function failBuild(db: Database, buildId: string, message: string): Promise<void> {
   await db.transaction(async (tx) => {
     const failed = await setBuildError(tx, buildId, message)
-    if (failed) await queueGitNotify(tx, failed, integrationRegistry.gitKinds())
+    if (failed) {
+      await queueGitNotify(tx, failed, integrationRegistry.gitKinds())
+      await autoAssignAfterBuild(tx, failed)
+    }
   })
 }
 

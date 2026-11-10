@@ -42,6 +42,7 @@ describe('assignTriage', () => {
       id: mate.id,
       name: mate.name,
       image: null,
+      auto: false,
     })
     await assignTriage(t.db, { ...ref, assigneeId: null })
     expect((await queue()).items[0]?.assignee).toBeNull()

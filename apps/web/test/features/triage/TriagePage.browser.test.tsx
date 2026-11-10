@@ -380,6 +380,31 @@ describe('TriagePage', () => {
     await expect.element(pane().getByText('Unassigned · Grace Hopper is on triage')).toBeVisible()
   })
 
+  it('says an assignee was picked automatically, not by a person', async () => {
+    fakeApi({
+      [`GET ${BASE}/triage`]: {
+        body: queue([
+          item('home', { assignee: { id: 'u2', name: 'Grace Hopper', image: null, auto: true } }),
+        ]),
+      },
+    })
+    await show()
+    await expect.element(pane().getByText('· on triage')).toBeVisible()
+  })
+
+  it('shows no such note for an assignee a person chose', async () => {
+    fakeApi({
+      [`GET ${BASE}/triage`]: {
+        body: queue([
+          item('home', { assignee: { id: 'u2', name: 'Grace Hopper', image: null, auto: false } }),
+        ]),
+      },
+    })
+    await show()
+    await expect.element(pane().getByText('Grace Hopper')).toBeVisible()
+    expect(pane().getByText('· on triage').elements()).toHaveLength(0)
+  })
+
   it('shows a new screenshot with no baseline next to where it was first seen', async () => {
     server()
     await show()

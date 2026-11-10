@@ -106,6 +106,7 @@ describe('the form values', () => {
     requireRejectReason: false,
     flakyAfterChanges: 3,
     snoozeDefaultDays: 7,
+    assignTriageToOnCall: null as boolean | null,
   }
   const rotation: Triage.Rotation = {
     startsOn: '2026-11-02T00:00:00.000Z',

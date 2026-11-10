@@ -19,7 +19,7 @@ export interface TriageUndo {
 }
 
 const FIELDS: Record<'assign' | 'snooze' | 'dismiss', (keyof TriageState)[]> = {
-  assign: ['assigneeId'],
+  assign: ['assigneeId', 'assignmentSource'],
   snooze: ['snoozeKind', 'snoozedUntil', 'snoozedAfterBuild', 'dismissedAt'],
   dismiss: ['dismissedAt'],
 }

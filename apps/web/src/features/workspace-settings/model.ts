@@ -77,11 +77,18 @@ const teamCount = (n: number) => `${n} ${n === 1 ? 'team' : 'teams'}`
  * How the teams relate to the merge gate default: "2 teams inherit this, 1 overrides it", and the
  * overriding teams with their own setting ("marketing-site: off").
  */
-export function inheritance(teams: readonly { name: string; flakyBlocksMerge: boolean | null }[]): {
+export function inheritance(
+  teams: readonly {
+    name: string
+    flakyBlocksMerge?: boolean | null
+    assignTriageToOnCall?: boolean | null
+  }[],
+  field: 'flakyBlocksMerge' | 'assignTriageToOnCall' = 'flakyBlocksMerge',
+): {
   summary: string
   overrides: string[]
 } {
-  const overriding = teams.filter((t) => t.flakyBlocksMerge !== null)
+  const overriding = teams.filter((t) => (t[field] ?? null) !== null)
   const inherit = teams.length - overriding.length
   const first = `${teamCount(inherit)} ${inherit === 1 ? 'inherits' : 'inherit'} this`
   return {
@@ -89,7 +96,7 @@ export function inheritance(teams: readonly { name: string; flakyBlocksMerge: bo
       overriding.length === 0
         ? first
         : `${first}, ${overriding.length} ${overriding.length === 1 ? 'overrides' : 'override'} it`,
-    overrides: overriding.map((t) => `${t.name}: ${t.flakyBlocksMerge ? 'on' : 'off'}`),
+    overrides: overriding.map((t) => `${t.name}: ${t[field] ? 'on' : 'off'}`),
   }
 }
 

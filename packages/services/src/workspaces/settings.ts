@@ -5,13 +5,20 @@ import {
   setWorkspaceSettings,
 } from '@circi/db/repositories'
 
+import { autoAssignWorkspace } from '#src/triage/auto-assign.ts'
+
 /** Changes a workspace's defaults for its teams (flaky gate, retention); returns the result. */
 export async function updateWorkspaceSettings(
   db: Database,
   workspaceId: string,
   patch: Parameters<typeof setWorkspaceSettings>[2],
 ): Promise<Awaited<ReturnType<typeof setWorkspaceSettings>>> {
-  return db.transaction((tx) => setWorkspaceSettings(tx, workspaceId, patch))
+  return db.transaction(async (tx) => {
+    const saved = await setWorkspaceSettings(tx, workspaceId, patch)
+    // Turned on: every team that follows the default assigns what is waiting.
+    if (patch.assignTriageToOnCall) await autoAssignWorkspace(tx, workspaceId)
+    return saved
+  })
 }
 
 /**

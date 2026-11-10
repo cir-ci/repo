@@ -12,6 +12,11 @@ import {
 } from '@circi/ui'
 import { Fragment } from 'react'
 
+import {
+  flakyChoices,
+  type FlakyChoice,
+  isFlakyChoice,
+} from '#features/team-settings/flaky-setting.ts'
 import { numberOf, textOf } from '#lib/number-field.ts'
 
 import {
@@ -96,6 +101,18 @@ export function RotationSection(props: RotationSection.Props) {
           description="Any day in the first week. Leave empty to start now."
         />
       </SettingsRow>
+      <SettingsRow>
+        <Select
+          label="Assign new items to whoever is on triage"
+          description="Items nobody has are assigned to them, and move to the next person at the handover. Items someone assigns or unassigns stay as they left them."
+          items={flakyChoices(props.workspaceAssignOnCall)}
+          value={props.assignOnCall}
+          disabled={disabled}
+          onValueChange={(next) => {
+            if (isFlakyChoice(next)) props.onAssignOnCallChange(next)
+          }}
+        />
+      </SettingsRow>
       <SettingsRow label="Flag a screenshot as flaky after">
         <div className={styles.inline}>
           <NumberField
@@ -137,6 +154,9 @@ export namespace RotationSection {
     date: string
     flakyAfter: string
     snoozeDays: string
+    assignOnCall: FlakyChoice
+    /** What `inherit` means for this team: the workspace's default. */
+    workspaceAssignOnCall: boolean
     /** Show the problems with the typed values (after a first try to save). */
     touched: boolean
     serverFlakyProblem?: string | undefined
@@ -147,5 +167,6 @@ export namespace RotationSection {
     onDateChange: (date: string, unreadable: boolean) => void
     onFlakyChange: (changes: string) => void
     onSnoozeChange: (days: string) => void
+    onAssignOnCallChange: (choice: FlakyChoice) => void
   }
 }

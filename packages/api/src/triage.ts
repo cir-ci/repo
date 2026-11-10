@@ -22,7 +22,8 @@ export namespace Triage {
       /** When the build was made: how long the problem has been waiting. */
       createdAt: string
     }
-    assignee: { id: string; name: string; image: string | null } | null
+    /** `auto`: put there by the "assign to whoever is on triage" setting, not by a person. */
+    assignee: { id: string; name: string; image: string | null; auto: boolean } | null
     /** When a timed snooze ends; null when not snoozed or snoozed until the next push. */
     snoozedUntil: string | null
     snoozeKind: SnoozeKind | null
@@ -72,6 +73,8 @@ export namespace Triage {
     kind: TriageKind
     key: string
     assigneeId: string | null
+    /** Whether the on-triage setting chose the assignee; false once a person did. */
+    assigneeAuto: boolean
     snoozeKind: SnoozeKind | null
     snoozedUntil: string | null
     dismissed: boolean

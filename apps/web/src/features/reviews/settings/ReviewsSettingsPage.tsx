@@ -50,6 +50,7 @@ function Reviews({ workspace, team, settings }: Reviews.Props) {
         workspace={workspace}
         team={team}
         settings={settings.settings}
+        workspaceAssignOnCall={settings.workspace.assignTriageToOnCall}
         rotation={data.rotation}
         people={people}
         canManage={data.canManage}

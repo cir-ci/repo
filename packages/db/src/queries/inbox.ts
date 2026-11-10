@@ -80,6 +80,7 @@ export const FOR_YOU_KINDS: readonly NotificationKind[] = [
   'build_approved',
   'build_rejected',
   'review_overdue',
+  'triage_assigned',
 ]
 
 const MAX_ITEMS = 200

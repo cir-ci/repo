@@ -12,7 +12,14 @@ import {
 
 import { createdAt, id, inList, inListOrNull } from './_columns.ts'
 import { user } from './auth.ts'
-import { SNOOZE_KINDS, type SnoozeKind, TRIAGE_KINDS, type TriageKind } from './enums.ts'
+import {
+  ASSIGNMENT_SOURCES,
+  type AssignmentSource,
+  SNOOZE_KINDS,
+  type SnoozeKind,
+  TRIAGE_KINDS,
+  type TriageKind,
+} from './enums.ts'
 import { teams } from './teams.ts'
 
 /**
@@ -32,6 +39,12 @@ export const triageItems = pgTable(
     kind: text('kind').$type<TriageKind>().notNull(),
     key: text('key').notNull(),
     assigneeId: text('assignee_id').references(() => user.id, { onDelete: 'set null' }),
+    /**
+     * Who chose the assignee: `auto` (the person on triage, by the team's setting) moves at the
+     * rotation's handover; `manual` (a person assigned or unassigned it) stays as it is. Null:
+     * nobody has decided, so the setting may assign it.
+     */
+    assignmentSource: text('assignment_source').$type<AssignmentSource>(),
     /** End of a timed snooze; null for "until next push", or when not snoozed. */
     snoozedUntil: timestamp('snoozed_until', { withTimezone: true }),
     snoozeKind: text('snooze_kind').$type<SnoozeKind>(),
@@ -44,6 +57,10 @@ export const triageItems = pgTable(
     uniqueIndex('triage_items_key').on(t.teamId, t.kind, t.key),
     index('triage_items_assignee_idx').on(t.assigneeId),
     check('triage_items_kind_check', inList('kind', TRIAGE_KINDS)),
+    check(
+      'triage_items_assignment_source_check',
+      inListOrNull('assignment_source', ASSIGNMENT_SOURCES),
+    ),
     check('triage_items_snooze_kind_check', inListOrNull('snooze_kind', SNOOZE_KINDS)),
   ],
 )

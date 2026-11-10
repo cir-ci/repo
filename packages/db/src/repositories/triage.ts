@@ -10,7 +10,7 @@ import {
   triageItems,
   triageRotationMembers,
 } from '#schema/index.ts'
-import type { SnoozeKind, TriageKind } from '#schema/index.ts'
+import type { AssignmentSource, SnoozeKind, TriageKind } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
 
 /**
@@ -30,7 +30,7 @@ export namespace TriageItem {
   }
 }
 
-function checkRef(ref: TriageItem.Ref): TriageKind {
+export function checkRef(ref: TriageItem.Ref): TriageKind {
   const kind = TRIAGE_KINDS.find((k) => k === ref.kind)
   if (!kind) throw new ValidationError(`Unknown triage kind "${ref.kind}"`)
   if (!ref.key || ref.key.length > 500) throw new ValidationError('A triage item key is required')
@@ -61,7 +61,8 @@ export async function assignTriageItem(
   input: TriageItem.Ref & { assigneeId: string | null },
 ): Promise<TriageItem.Row> {
   if (input.assigneeId !== null) await assertMembers(db, input.teamId, [input.assigneeId])
-  return upsertItem(db, input, { assigneeId: input.assigneeId })
+  // A person chose, even when they chose nobody: the setting leaves the item alone from now on.
+  return upsertItem(db, input, { assigneeId: input.assigneeId, assignmentSource: 'manual' })
 }
 
 /** Puts an item off (`snoozeKind: null` wakes it). Clears any earlier dismissal. */
@@ -87,12 +88,16 @@ export async function dismissTriageItem(
   db: Database,
   ref: TriageItem.Ref,
 ): Promise<TriageItem.Row> {
-  return upsertItem(db, ref, { dismissedAt: new Date() })
+  const item = await upsertItem(db, ref, { dismissedAt: new Date() })
+  // Dismissed for good: a choice to leave it unassigned does not outlive the item.
+  if (item.assigneeId !== null || item.assignmentSource === null) return item
+  return upsertItem(db, ref, { assignmentSource: null })
 }
 
 /** What a person can do to an item, as it is stored; all empty for an item nobody touched. */
 export interface TriageState {
   assigneeId: string | null
+  assignmentSource: AssignmentSource | null
   snoozeKind: SnoozeKind | null
   snoozedUntil: Date | null
   snoozedAfterBuild: number | null
@@ -113,6 +118,7 @@ export async function getTriageState(db: Database, ref: TriageItem.Ref): Promise
     )
   return {
     assigneeId: row?.assigneeId ?? null,
+    assignmentSource: row?.assignmentSource ?? null,
     snoozeKind: row?.snoozeKind ?? null,
     snoozedUntil: row?.snoozedUntil ?? null,
     snoozedAfterBuild: row?.snoozedAfterBuild ?? null,

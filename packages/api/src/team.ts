@@ -110,6 +110,8 @@ export namespace Team {
     blockMergeOnChanges: boolean
     /** Whether a change to flaky screenshots only blocks the merge; null inherits the workspace's. */
     flakyBlocksMerge: boolean | null
+    /** Whether new triage items go to whoever is on triage; null inherits the workspace's. */
+    assignTriageToOnCall: boolean | null
     retentionDays: number
     /** Hours a review request may wait before it is overdue; null means no review target. */
     reviewTargetHours: number | null

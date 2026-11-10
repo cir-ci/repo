@@ -16,16 +16,20 @@ import styles from './Settings.module.css'
 export function BuildSettings({ workspace }: BuildSettings.Props) {
   const { data } = useQuery(workspaceSettingsQuery(workspace))
   if (!data) return null
-  return <Defaults key={String(data.settings.flakyBlocksMerge)} workspace={workspace} data={data} />
+  const key = `${data.settings.flakyBlocksMerge}-${data.settings.assignTriageToOnCall}`
+  return <Defaults key={key} workspace={workspace} data={data} />
 }
 
 function Defaults({ workspace, data }: Defaults.Props) {
   const save = useSaveWorkspaceSettings(workspace)
   const announce = useAnnounce()
   const saved = data.settings.flakyBlocksMerge
+  const savedAssign = data.settings.assignTriageToOnCall
   const [flaky, setFlaky] = useState(saved)
-  const dirty = flaky !== saved
+  const [assign, setAssign] = useState(savedAssign)
+  const dirty = flaky !== saved || assign !== savedAssign
   const { summary, overrides } = inheritance(data.teams)
+  const triage = inheritance(data.teams, 'assignTriageToOnCall')
   return (
     <>
       <SettingsSection
@@ -48,6 +52,23 @@ function Defaults({ workspace, data }: Defaults.Props) {
           <SettingsRow detail={summary} value={overrides.join(', ') || undefined} />
         ) : null}
       </SettingsSection>
+      <SettingsSection title="Triage defaults">
+        <SettingsRow>
+          <Checkbox
+            label="Assign new triage items to whoever is on triage"
+            description="Items nobody has go to the person on triage, and move to the next person at the handover. Items someone assigns or unassigns stay as they left them."
+            checked={assign}
+            disabled={!data.canManage || save.isPending}
+            onCheckedChange={(on) => {
+              setAssign(on)
+              if (save.isError) save.reset()
+            }}
+          />
+        </SettingsRow>
+        {data.teams.length > 0 ? (
+          <SettingsRow detail={triage.summary} value={triage.overrides.join(', ') || undefined} />
+        ) : null}
+      </SettingsSection>
       {save.error ? <Banner tone="danger">{save.error.message}</Banner> : null}
       {data.canManage ? (
         <div className={styles.footer}>
@@ -56,6 +77,7 @@ function Defaults({ workspace, data }: Defaults.Props) {
             disabled={!dirty || save.isPending}
             onClick={() => {
               setFlaky(saved)
+              setAssign(savedAssign)
               save.reset()
             }}
           >
@@ -67,8 +89,11 @@ function Defaults({ workspace, data }: Defaults.Props) {
             disabled={!dirty}
             onClick={() =>
               save.mutate(
-                { flakyBlocksMerge: flaky },
-                { onSuccess: () => announce('Merge gate defaults saved') },
+                {
+                  ...(flaky === saved ? {} : { flakyBlocksMerge: flaky }),
+                  ...(assign === savedAssign ? {} : { assignTriageToOnCall: assign }),
+                },
+                { onSuccess: () => announce('Defaults saved') },
               )
             }
           >

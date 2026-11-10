@@ -127,6 +127,8 @@ export namespace teamSettings {
     blockMergeOnChanges: boolean
     /** Whether flaky-only changes block the merge; null inherits the workspace's setting. */
     flakyBlocksMerge: boolean | null
+    /** Whether new triage items go to whoever is on triage; null inherits the workspace's setting. */
+    assignTriageToOnCall: boolean | null
     retentionDays: number
     /** Hours a review request may wait before it is overdue; null means no review target. */
     reviewTargetHours: number | null
@@ -158,6 +160,7 @@ export function teamSettings(team: Team): teamSettings.Settings {
     autoApproveDefaultBranch: team.autoApproveDefaultBranch,
     blockMergeOnChanges: team.blockMergeOnChanges,
     flakyBlocksMerge: team.flakyBlocksMerge,
+    assignTriageToOnCall: team.assignTriageToOnCall,
     retentionDays: team.retentionDays,
     reviewTargetHours: team.reviewTargetHours,
     reviewOverdueNotifyUserId: team.reviewOverdueNotifyUserId,

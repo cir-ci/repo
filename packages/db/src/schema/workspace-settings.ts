@@ -15,6 +15,8 @@ export const workspaceSettings = pgTable(
       .references(() => workspace.id, { onDelete: 'cascade' }),
     /** Whether a pull request that only changes flaky screenshots still blocks the merge. */
     flakyBlocksMerge: boolean('flaky_blocks_merge').notNull().default(true),
+    /** Whether new triage items go to whoever is on triage (a team may override). */
+    assignTriageToOnCall: boolean('assign_triage_to_on_call').notNull().default(false),
     /** The retention (days) a new team starts with; existing teams keep their own. */
     retentionDays: integer('retention_days').notNull().default(30),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

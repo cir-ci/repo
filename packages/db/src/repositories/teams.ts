@@ -205,6 +205,9 @@ export async function updateTeamSettings(
   }
   if (patch.blockMergeOnChanges !== undefined) set.blockMergeOnChanges = patch.blockMergeOnChanges
   if (patch.flakyBlocksMerge !== undefined) set.flakyBlocksMerge = patch.flakyBlocksMerge
+  if (patch.assignTriageToOnCall !== undefined) {
+    set.assignTriageToOnCall = patch.assignTriageToOnCall
+  }
   if (patch.staticHostingEnabled !== undefined)
     set.staticHostingEnabled = patch.staticHostingEnabled
   if (Object.keys(set).length === 0) {

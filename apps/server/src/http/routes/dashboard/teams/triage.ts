@@ -31,6 +31,7 @@ function state(
     kind: Triage.Item['kind']
     key: string
     assigneeId: string | null
+    assignmentSource: string | null
     snoozeKind: Triage.Item['snoozeKind']
     snoozedUntil: Date | null
     dismissedAt: Date | null
@@ -42,6 +43,7 @@ function state(
     kind: item.kind,
     key: item.key,
     assigneeId: item.assigneeId,
+    assigneeAuto: item.assignmentSource === 'auto',
     snoozeKind: item.snoozeKind,
     snoozedUntil: item.snoozedUntil?.toISOString() ?? null,
     dismissed: item.dismissedAt !== null,

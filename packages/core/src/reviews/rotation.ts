@@ -21,3 +21,14 @@ export function rotationFor<T>(date: Date, members: readonly T[], startsOn: Date
 export function rotationHandover(date: Date): Date {
   return new Date(weekStart(date).getTime() + WEEK_MS)
 }
+
+/** What a workspace says when it has never been asked: nobody is assigned triage items on their own. */
+export const DEFAULT_ASSIGN_TRIAGE_TO_ON_CALL = false
+
+/**
+ * Whether new triage items go to whoever is on triage. The team's own value wins; `null` means
+ * "inherit from the workspace".
+ */
+export function resolveAssignTriageToOnCall(workspace: boolean, team: boolean | null): boolean {
+  return team ?? workspace
+}

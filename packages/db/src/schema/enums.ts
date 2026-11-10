@@ -46,7 +46,11 @@ export const NOTIFICATION_KINDS = [
   'review_overdue',
   'connection_needs_attention',
   'flaky_detected',
+  'triage_assigned',
 ] as const
+/** Who chose a triage item's assignee: the setting's automatic assignment, or a person. */
+export const ASSIGNMENT_SOURCES = ['auto', 'manual'] as const
+export type AssignmentSource = (typeof ASSIGNMENT_SOURCES)[number]
 /**
  * How someone signed in: `oidc` is an instance-wide single sign-on provider, `workspace-oidc` one an
  * workspace added itself (and which only opens that workspace).
