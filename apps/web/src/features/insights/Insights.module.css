@@ -745,7 +745,7 @@
 .strip i {
   width: 6px;
   height: 14px;
-  border-radius: 1.5px;
+  border-radius: 4px;
   background: var(--circi-line-strong);
 }
 

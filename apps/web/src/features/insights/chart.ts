@@ -347,11 +347,12 @@ export function backlogLine(backlog: Insights.Report['backlog']) {
   })
   return {
     ...axis,
+    // The backlog is always daily; it names days by date ("Sep 22"), as its tooltip does.
     points: dots(
       backlog.map((d) => ({ iso: d.day, value: d.waiting })),
       axis.top,
-      'day',
-    ),
+      'week',
+    ).map((p) => Object.assign({}, p, { name: p.label })),
     /** Nothing waited on any day: the card says so instead of drawing a flat line. */
     empty: backlog.every((d) => d.waiting === 0),
   }

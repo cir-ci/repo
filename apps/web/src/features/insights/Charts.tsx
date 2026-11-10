@@ -109,6 +109,10 @@ function Line(props: { points: readonly Dot[]; series: string; dash?: boolean; a
   )
 }
 
+/** "4h" or "1.5h": the target as the chart names it, no trailing ".0". */
+const targetHours = (h: number | null) =>
+  h === null ? '' : h < 1 ? formatHours(h) : `${Number(h.toFixed(1))}h`
+
 const minutes = (m: number | null) => (m === null ? '–' : `${Number(m.toFixed(1))} min`)
 const plural = (n: number, one: string, many = `${one}s`) =>
   `${formatCount(n)} ${n === 1 ? one : many}`
@@ -160,7 +164,7 @@ export function ReviewCard({ data }: { data: Insights.Report }) {
           <div className={styles.goal} style={{ bottom: `${goalPct}%` }}>
             <span
               className={styles.goalLabel}
-            >{`target ${formatHours(data.reviewTargetHours)}`}</span>
+            >{`target ${targetHours(data.reviewTargetHours)}`}</span>
           </div>
         )}
       </Plot>

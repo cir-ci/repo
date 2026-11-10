@@ -54,7 +54,7 @@ describe('InsightsPage', () => {
     await expect.element(page.getByText('Median time to first review').first()).toBeVisible()
     await expect.element(page.getByLabelText('Down 2.7 hours, better')).toBeVisible()
     await expect.element(page.getByText('182 of 186 reviews, weekends not counted')).toBeVisible()
-    await expect.element(page.getByLabelText('Up 9, worse')).toBeVisible()
+    await expect.element(page.getByLabelText('Up 9, worse').first()).toBeVisible()
     await expect.element(page.getByText('7.2% of finished builds')).toBeVisible()
     await expect
       .poll(() =>
@@ -78,8 +78,8 @@ describe('InsightsPage', () => {
         'Why builds failed',
         'Rejection reasons',
         'Ignore regions',
-        'Reviewer load',
         'Storage by team',
+        'Reviewer load',
         'Lists',
         'Most changed screenshots',
         'Flakiest screenshots',
@@ -337,7 +337,7 @@ describe('InsightsPage', () => {
       await expect.element(c.getByText(/Omer Katz/)).toBeVisible()
       await expect
         .element(c.getByRole('link', { name: '#418' }))
-        .toHaveAttribute('href', '/workspaces/acme/web/builds/418')
+        .toHaveAttribute('href', '/acme/web/builds/418')
     })
 
     it('has empty states: none, and none with a reason', async () => {
@@ -388,7 +388,7 @@ describe('InsightsPage', () => {
       await show(fullReport(), '/workspaces/acme/insights?range=7')
       const c = card('Reviewer load')
       await expect.element(c.getByText('last 7 days')).toBeVisible()
-      await expect.element(c.getByRole('cell', { name: /Ada Lovelace/ })).toBeVisible()
+      await expect.element(c.getByRole('rowheader', { name: /Ada Lovelace/ })).toBeVisible()
       await expect.element(c.getByRole('img', { name: 'Ada Lovelace' })).toBeVisible()
       await expect.element(c.getByRole('cell', { name: '40' })).toBeVisible()
     })
@@ -468,7 +468,7 @@ describe('InsightsPage', () => {
       await expect.element(c.getByText('6 waiting now')).toBeVisible()
       await expect
         .element(c.getByRole('link', { name: '#418' }))
-        .toHaveAttribute('href', '/workspaces/acme/web/builds/418')
+        .toHaveAttribute('href', '/acme/web/builds/418')
       await expect.element(c.getByText('2d 10h · over target')).toBeVisible()
       await expect.element(c.getByText('feature/checkout-redesign')).toBeVisible()
       await expect.element(c.getByText('Omer Katz')).toBeVisible()
