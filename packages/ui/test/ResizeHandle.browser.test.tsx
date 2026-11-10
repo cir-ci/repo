@@ -199,8 +199,16 @@ describe('ResizeHandle pointer drag', () => {
   it('collapses when dragged well past the minimum and the pane can collapse', async () => {
     const onCollapse = vi.fn<() => void>()
     await render(<Split start={210} onCollapse={onCollapse} />)
-    await drag(-120)
+    await drag(-200)
     expect(onCollapse).toHaveBeenCalledOnce()
+  })
+
+  it('stays open at the minimum when a drag goes only a little past it', async () => {
+    const onCollapse = vi.fn<() => void>()
+    await render(<Split start={210} onCollapse={onCollapse} />)
+    await drag(-120)
+    expect(onCollapse).not.toHaveBeenCalled()
+    await expect.element(separator()).toHaveAttribute('aria-valuenow', '200')
   })
 
   it('does not collapse a pane that only resizes', async () => {

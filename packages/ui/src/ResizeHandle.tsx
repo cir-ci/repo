@@ -7,8 +7,11 @@ import styles from './ResizeHandle.module.css'
 /** Pixels an arrow key moves the line; with Shift, `RESIZE_LARGE_STEP`. */
 export const RESIZE_STEP = 16
 export const RESIZE_LARGE_STEP = 64
-/** How far past the minimum a drag has to go before it collapses a collapsible pane. */
-export const COLLAPSE_SLACK = 48
+/**
+ * How far past the minimum a drag has to go before it collapses a collapsible pane: most of the
+ * way to the window's edge, so pulling the sidebar to its narrowest never hides it by accident.
+ */
+export const COLLAPSE_SLACK = 140
 
 /** `value` kept within `min` and `max`, rounded to whole pixels. */
 export function clampSize(value: number, min: number, max: number): number {

@@ -868,7 +868,7 @@ describe('Shell, collapsing the navigation', () => {
         }),
       )
     fire('pointerdown', r.left + 4)
-    fire('pointermove', r.left + 4 - 120)
+    fire('pointermove', r.left + 4 - 200)
     await expect.element(show()).toBeVisible()
   })
 
