@@ -144,6 +144,14 @@ describe('goPath', () => {
     expect(goPath('settings', { workspace: 'acme' })).toBe('/workspaces/acme/settings')
     expect(goPath('settings', {})).toBe('/account/profile')
   })
+  it('opens Members instead of General for a member who can’t change the settings', () => {
+    expect(goPath('settings', { workspace: 'acme', canManage: false })).toBe(
+      '/workspaces/acme/settings/members',
+    )
+    expect(goPath('settings', { workspace: 'acme', canManage: true })).toBe(
+      '/workspaces/acme/settings',
+    )
+  })
   it('opens triage of the open team, else the first team with work waiting, else the first', () => {
     expect(goPath('triage', { workspace: 'acme', team: 'web', teams })).toBe('/acme/web/triage')
     expect(goPath('triage', { workspace: 'acme', teams })).toBe('/acme/api/triage')

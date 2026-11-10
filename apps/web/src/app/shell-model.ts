@@ -86,6 +86,16 @@ export function pinnedViews(views: readonly View.Item[] | undefined): View.Item[
   return (views ?? []).filter((v) => v.pinned).toSorted((a, b) => a.position - b.position)
 }
 
+/**
+ * Where a workspace's settings open: General for people who may change them, Members (the one
+ * settings page a member can see) for everyone else. `canManage` is undefined until the sidebar
+ * model has loaded; General then redirects a member on its own.
+ */
+export function workspaceSettingsPath(workspace: string, canManage: boolean | undefined): string {
+  const base = `/workspaces/${encodeURIComponent(workspace)}/settings`
+  return canManage === false ? `${base}/members` : base
+}
+
 /** The page a go-to chord (`G I`, `G R`, …) opens, or nothing when it has no workspace or team to open in. */
 export function goPath(
   target: Shortcut.GoTarget,
@@ -93,13 +103,16 @@ export function goPath(
     workspace?: string | undefined
     team?: string | undefined
     teams?: readonly Sidebar.Team[]
+    canManage?: boolean | undefined
   },
 ): string | undefined {
   const workspace = where.workspace ? encodeURIComponent(where.workspace) : undefined
   if (target === 'inbox') return '/inbox'
   if (target === 'teams') return '/'
   if (target === 'settings')
-    return workspace ? `/workspaces/${workspace}/settings` : '/account/profile'
+    return where.workspace
+      ? workspaceSettingsPath(where.workspace, where.canManage)
+      : '/account/profile'
   if (!workspace) return undefined
   if (target === 'reviews') return `/workspaces/${workspace}/reviews`
   // Triage: the open team's queue; elsewhere the first team with something waiting, else the first.

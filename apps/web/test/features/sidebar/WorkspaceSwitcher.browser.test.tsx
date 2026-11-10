@@ -45,6 +45,27 @@ describe('WorkspaceSwitcher', () => {
     await expect.element(page.getByRole('menuitem', { name: 'Workspace settings' })).toBeVisible()
   })
 
+  it('opens Members from Workspace settings for people who can’t change the settings', async () => {
+    const { router } = await renderPage(
+      <WorkspaceSwitcher
+        workspaces={[acme]}
+        current={acme}
+        onSelect={vi.fn<() => void>()}
+        canManage={false}
+      />,
+      {
+        route: '/workspaces/$workspace/reviews',
+        url: '/workspaces/acme/reviews',
+        otherRoutes: ['/workspaces/$workspace/settings/members'],
+      },
+    )
+    await page.getByRole('button', { name: 'Workspace: Acme' }).click()
+    await page.getByRole('menuitem', { name: 'Workspace settings' }).click()
+    await expect
+      .poll(() => router.state.location.pathname)
+      .toBe('/workspaces/acme/settings/members')
+  })
+
   it('selects another workspace with the keyboard', async () => {
     const { ready, onSelect } = show()
     await ready

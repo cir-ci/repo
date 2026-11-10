@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 
+import { MembersRedirect } from '#features/workspace-settings/MembersRedirect.tsx'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { useClientLink } from '#lib/use-client-link.ts'
 
@@ -44,7 +45,7 @@ export function IntegrationsPage() {
       error={error}
       onRetry={() => void refetch()}
       notFound="This workspace doesn’t exist"
-      readOnlyNote={data && !data.canManage && 'Only owners and admins can add integrations.'}
+      forbidden={data && !data.canManage ? <MembersRedirect workspace={workspace} /> : null}
     >
       {data ? (
         <>

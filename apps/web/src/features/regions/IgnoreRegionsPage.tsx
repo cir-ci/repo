@@ -17,7 +17,7 @@ import styles from './IgnoreRegionsPage.module.css'
 export function IgnoreRegionsPage() {
   const { workspace, team } = useParams({ from: '/$workspace/$team/settings/ignore-regions' })
   return (
-    <TeamSettingsFrame workspace={workspace} team={team} page="Ignore regions" readOnlyNote={false}>
+    <TeamSettingsFrame workspace={workspace} team={team} page="Ignore regions" managersOnly={false}>
       {(_settings, teamName) => <Overview workspace={workspace} team={team} teamName={teamName} />}
     </TeamSettingsFrame>
   )

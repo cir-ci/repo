@@ -8,6 +8,7 @@ import { renderPage } from '#test/support/render.tsx'
 const ROUTE = {
   route: '/workspaces/$workspace/settings/sign-in',
   url: '/workspaces/acme/settings/sign-in',
+  otherRoutes: ['/workspaces/$workspace/settings/members'],
 }
 const routes = (canManage: boolean) => ({
   'GET /api/workspaces/acme': { body: { canManage, name: 'Acme Inc', slug: 'acme' } },
@@ -40,16 +41,14 @@ describe('SignInPage', () => {
     expect(page.getByRole('heading', { name: 'Single sign-on' }).elements()).toHaveLength(0)
   })
 
-  it('shows members the methods read-only and hides domains and single sign-on', async () => {
+  it('sends members to Members instead of showing sign-in settings', async () => {
     await page.viewport(1000, 1000)
     fakeApi(routes(false))
-    await renderPage(<SignInPage />, ROUTE)
-    await expect.element(page.getByRole('checkbox', { name: /Password/ })).toBeDisabled()
+    const { router } = await renderPage(<SignInPage />, ROUTE)
     await expect
-      .element(page.getByText(/Only owners and admins can change sign-in settings/))
-      .toBeVisible()
-    expect(page.getByRole('heading', { name: 'Email domains' }).elements()).toHaveLength(0)
-    expect(page.getByRole('button', { name: 'Configure' }).elements()).toHaveLength(0)
+      .poll(() => router.state.location.pathname)
+      .toBe('/workspaces/acme/settings/members')
+    expect(page.getByRole('checkbox', { name: /Password/ }).elements()).toHaveLength(0)
   })
 
   it('says the workspace doesn’t exist for a 404', async () => {

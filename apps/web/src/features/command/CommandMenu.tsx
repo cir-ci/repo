@@ -25,7 +25,14 @@ import styles from './CommandMenu.module.css'
  * branches, teams and snapshots when it is not. ↑ ↓ move, ↵ chooses, → opens a quick look
  * of the highlighted result, Esc closes.
  */
-export function CommandMenu({ open, onOpenChange, workspace, teams, views }: CommandMenu.Props) {
+export function CommandMenu({
+  open,
+  onOpenChange,
+  workspace,
+  teams,
+  views,
+  canManage,
+}: CommandMenu.Props) {
   const router = useRouter()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const params = useParams({ strict: false })
@@ -44,7 +51,7 @@ export function CommandMenu({ open, onOpenChange, workspace, teams, views }: Com
       : undefined
   const entries =
     q === ''
-      ? emptyQueryEntries(pathname, { workspace, teams, views })
+      ? emptyQueryEntries(pathname, { workspace, teams, views, canManage })
       : workspace
         ? searchEntries(workspace, q, results, openTeam)
         : []
@@ -209,6 +216,8 @@ export namespace CommandMenu {
     onOpenChange: (open: boolean) => void
     /** The workspace searched and jumped around in. */
     workspace: string | undefined
+    /** Whether the person may change the workspace's settings; false sends Settings to Members. */
+    canManage?: boolean | undefined
     teams: readonly Sidebar.Team[] | undefined
     views: readonly View.Item[] | undefined
   }

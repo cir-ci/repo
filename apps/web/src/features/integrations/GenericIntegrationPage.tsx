@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 
+import { MembersRedirect } from '#features/workspace-settings/MembersRedirect.tsx'
 import { useDocumentTitle } from '#lib/document-title.ts'
 
 import {
@@ -92,9 +93,7 @@ export function GenericIntegrationPage() {
       error={error}
       onRetry={() => void refetch()}
       notFound="This integration doesn’t exist"
-      readOnlyNote={
-        data && !data.canManage && `Only owners and admins can change what teams use ${name} for.`
-      }
+      forbidden={data && !data.canManage ? <MembersRedirect workspace={workspace} /> : null}
     >
       {data ? (
         <>

@@ -30,7 +30,7 @@ const EXIT_CODES = [
 export function CiTokenPage() {
   const { workspace, team } = useParams({ from: '/$workspace/$team/settings/token' })
   return (
-    <TeamSettingsFrame workspace={workspace} team={team} page="CI token" readOnlyNote={false}>
+    <TeamSettingsFrame workspace={workspace} team={team} page="CI token">
       {(data, name) => (
         <TokenBody
           workspace={workspace}

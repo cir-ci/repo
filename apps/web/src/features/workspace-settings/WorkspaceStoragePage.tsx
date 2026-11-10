@@ -28,11 +28,10 @@ import {
   workspaceGeneralQuery,
 } from './api.ts'
 import { Frame } from './Frame.tsx'
+import { MembersRedirect } from './MembersRedirect.tsx'
 import { retentionDirty, retentionProblem } from './model.ts'
 
 import styles from './Settings.module.css'
-
-const NOT_ALLOWED = 'Only owners and admins can change retention.'
 
 /** What the workspace's builds and sites take up, by kind and by team, and its default retention. */
 export function WorkspaceStoragePage() {
@@ -49,7 +48,7 @@ export function WorkspaceStoragePage() {
       error={error}
       onRetry={() => void refetch()}
       notFound="This workspace doesn’t exist"
-      readOnlyNote={data && !data.canManage ? NOT_ALLOWED : false}
+      forbidden={data && !data.canManage ? <MembersRedirect workspace={workspace} /> : null}
     >
       {data ? (
         <>

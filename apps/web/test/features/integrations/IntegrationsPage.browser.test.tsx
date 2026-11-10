@@ -22,6 +22,7 @@ const show = () =>
   renderPage(<IntegrationsPage />, {
     route: '/workspaces/$workspace/settings/integrations',
     url: '/workspaces/acme/settings/integrations',
+    otherRoutes: ['/workspaces/$workspace/settings/members'],
   })
 
 describe('IntegrationsPage', () => {
@@ -68,7 +69,7 @@ describe('IntegrationsPage', () => {
     expect(page.getByRole('button', { name: 'Add integration' }).elements()).toHaveLength(2)
   })
 
-  it('shows members the list without Add', async () => {
+  it('sends members to Members instead of showing the list', async () => {
     await page.viewport(1000, 800)
     fakeApi({
       [`GET ${LIST}`]: list({
@@ -76,11 +77,11 @@ describe('IntegrationsPage', () => {
         integrations: [item({ kind: 'slack', id: 's1', group: 'chat', name: 'Acme Slack' })],
       }),
     })
-    await show()
-    await expect.element(page.getByText('Acme Slack · No teams yet')).toBeVisible()
-    await expect.element(page.getByText(/Only owners and admins/)).toBeVisible()
-    expect(page.getByRole('button', { name: 'Add integration' }).elements()).toHaveLength(0)
-    expect(page.getByRole('button', { name: /^Remove/ }).elements()).toHaveLength(0)
+    const { router } = await show()
+    await expect
+      .poll(() => router.state.location.pathname)
+      .toBe('/workspaces/acme/settings/members')
+    expect(page.getByText('Acme Slack · No teams yet').elements()).toHaveLength(0)
   })
 
   it('opens the Add dialog from the header', async () => {

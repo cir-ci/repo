@@ -83,6 +83,18 @@ describe('the empty query', () => {
     ],
   }
 
+  it('sends Settings to Members for people who can’t change the workspace settings', () => {
+    for (const [canManage, path] of [
+      [true, '/workspaces/acme/settings'],
+      [false, '/workspaces/acme/settings/members'],
+    ] as const) {
+      const entry = emptyQueryEntries('/', { ...jump, canManage }).find(
+        (e) => e.id === 'jump:settings',
+      )
+      expect(entry?.target).toEqual({ type: 'path', path })
+    }
+  })
+
   it('lists pages, only pinned teams and saved views, with the registry key as the hint', () => {
     const labels = emptyQueryEntries('/', jump).map((e) => e.label)
     expect(labels).toEqual(

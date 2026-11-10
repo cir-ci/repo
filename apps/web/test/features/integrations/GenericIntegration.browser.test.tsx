@@ -84,7 +84,11 @@ const TARGETS = {
 }
 
 const show = (url = '/workspaces/acme/settings/integrations/slack/w1') =>
-  renderPage(<GenericIntegrationPage />, { route: ROUTE, url })
+  renderPage(<GenericIntegrationPage />, {
+    route: ROUTE,
+    url,
+    otherRoutes: ['/workspaces/$workspace/settings/members'],
+  })
 
 describe('GenericIntegrationPage', () => {
   it('maps a team to a target with the chosen events, and removes the mapping', async () => {
@@ -155,15 +159,14 @@ describe('GenericIntegrationPage', () => {
     expect(fake.of('GET').some((r) => r.path.endsWith('/targets'))).toBe(false)
   })
 
-  it('shows the mapping read-only to members, without asking for targets', async () => {
+  it('sends members to Members instead of showing the mapping, without asking for targets', async () => {
     await page.viewport(1000, 900)
     const fake = fakeApi({ [`GET ${BASE}/w1/teams`]: pageData({ canManage: false }) })
-    await show()
-    await expect.element(page.getByText('web-reviews')).toBeVisible()
-    await expect.element(page.getByText('Review requested, Build rejected')).toBeVisible()
-    await expect.element(page.getByText('Not set up')).toBeVisible()
-    expect(page.getByRole('button', { name: 'Save' }).elements()).toHaveLength(0)
-    await expect.element(page.getByText(/Only owners and admins/)).toBeVisible()
+    const { router } = await show()
+    await expect
+      .poll(() => router.state.location.pathname)
+      .toBe('/workspaces/acme/settings/members')
+    expect(page.getByText('web-reviews').elements()).toHaveLength(0)
     expect(fake.of('GET').some((r) => r.path.endsWith('/targets'))).toBe(false)
   })
 
@@ -212,15 +215,14 @@ describe('GenericIntegrationPage', () => {
     await expect.poll(() => fake.of('DELETE')).toHaveLength(1)
   })
 
-  it('has the breadcrumb as its h1, and no Remove or Reconnect for members', async () => {
+  it('has the breadcrumb as its h1', async () => {
     await page.viewport(1000, 900)
-    fakeApi({ [`GET ${BASE}/w1/teams`]: pageData({ canManage: false }) })
+    fakeApi({ [`GET ${BASE}/w1/teams`]: pageData(), [`GET ${BASE}/w1/targets`]: TARGETS })
     await show()
     await expect.element(page.getByRole('heading', { level: 1, name: 'Slack' })).toBeVisible()
     const crumbs = page.getByRole('navigation', { name: 'Breadcrumb' })
     await expect.element(crumbs.getByRole('link', { name: 'Settings' })).toBeVisible()
     await expect.element(crumbs.getByRole('link', { name: 'Integrations' })).toBeVisible()
-    expect(page.getByRole('button', { name: /^(Remove|Reconnect)/ }).elements()).toHaveLength(0)
   })
 
   it('reports how the install ended', async () => {
@@ -437,23 +439,6 @@ describe('GenericIntegrationPage links (Figma frames)', () => {
       )
       .toBeVisible()
   })
-
-  it('shows members the links without the forms or buttons', async () => {
-    await page.viewport(1000, 900)
-    fakeApi({
-      [`GET ${BASE}/f1/teams`]: figmaPage(false),
-      [`GET ${BASE}/f1/teams/web/links`]: frameLinks,
-    })
-    await showFigma()
-    await expect
-      .element(
-        page.getByRole('table', { name: 'Web frame links' }).getByRole('link', { name: 'Cart' }),
-      )
-      .toBeVisible()
-    expect(page.getByRole('button', { name: 'Link Web automatically' }).query()).toBeNull()
-    expect(page.getByRole('form', { name: 'Add a link to Web' }).query()).toBeNull()
-    expect(page.getByRole('button', { name: /Remove link/ }).query()).toBeNull()
-  })
 })
 
 const gitDefinition = entry({
@@ -537,20 +522,5 @@ describe('GenericIntegrationPage for a git host', () => {
     await expect
       .element(page.getByText(/Needs attention: the app was uninstalled from this/))
       .toBeVisible()
-  })
-
-  it('is read-only for members, who do not get the webhook secret', async () => {
-    await page.viewport(1000, 900)
-    fakeApi({
-      [`GET ${BASE}/g1/teams`]: gitPage({
-        canManage: false,
-        webhook: { url: 'https://circi.test/webhooks/gitlab', secret: null },
-      }),
-    })
-    await show('/workspaces/acme/settings/integrations/gitlab/g1')
-    await expect.element(page.getByText('https://circi.test/webhooks/gitlab')).toBeVisible()
-    expect(page.getByText('shh-secret').elements()).toHaveLength(0)
-    await expect.element(page.getByText('acme/web')).toBeVisible()
-    expect(page.getByRole('textbox').elements()).toHaveLength(0)
   })
 })

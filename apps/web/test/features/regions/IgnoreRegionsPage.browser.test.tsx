@@ -57,12 +57,11 @@ describe('IgnoreRegionsPage (the team settings overview)', () => {
     expect(document.title).toBe('Ignore regions · web · CirCI')
   })
 
-  it('is the same read-only list for everyone: no editing controls, no members-only note', async () => {
+  it('is the same read-only list for everyone: no editing controls', async () => {
     api([snapshot('checkout/summary', 2)], false)
     await show()
     await expect.element(page.getByRole('link', { name: /checkout\/summary/ })).toBeVisible()
     expect(page.getByRole('button', { name: /region/i }).elements()).toHaveLength(0)
-    expect(page.getByText(/Only owners and admins/).elements()).toHaveLength(0)
   })
 
   it('leaves out screenshots without regions', async () => {

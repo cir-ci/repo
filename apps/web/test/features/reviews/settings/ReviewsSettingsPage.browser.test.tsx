@@ -60,9 +60,10 @@ function api(over: Record<string, unknown> = {}, extra: Record<string, ReplyHand
 
 const show = async () => {
   await page.viewport(1000, 1400)
-  await renderPage(<ReviewsSettingsPage />, {
+  return renderPage(<ReviewsSettingsPage />, {
     route: '/$workspace/$team/settings/reviews',
     url: '/acme/web/settings/reviews',
+    otherRoutes: ['/$workspace/$team'],
   })
 }
 
@@ -290,15 +291,10 @@ describe('ReviewsSettingsPage', () => {
       .toHaveTextContent('Only owners and admins can change settings')
   })
 
-  it('is read-only for members, with a note', async () => {
-    api({ canManage: false })
-    await show()
-    await expect
-      .element(page.getByText('Only owners and admins can change these settings.'))
-      .toBeVisible()
-    await expect.element(page.getByRole('checkbox', { name: /Set a review target/ })).toBeDisabled()
-    expect(page.getByRole('button', { name: 'Add rule' }).elements()).toHaveLength(0)
-    expect(page.getByRole('button', { name: 'Save changes' }).elements()).toHaveLength(0)
-    await expect.element(page.getByText('checkout/**')).toBeVisible()
+  it('sends members to the team’s builds instead of showing the rules', async () => {
+    api({ canManage: false }, { [`GET ${API}/settings`]: { body: { canManage: false, settings } } })
+    const { router } = await show()
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web')
+    expect(page.getByText('checkout/**').elements()).toHaveLength(0)
   })
 })

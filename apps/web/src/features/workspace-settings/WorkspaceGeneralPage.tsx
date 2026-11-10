@@ -18,12 +18,11 @@ import { workspaceGeneralQuery, useSaveWorkspaceGeneral } from './api.ts'
 import { BuildSettings } from './BuildSettings.tsx'
 import { DeleteWorkspaceSection } from './DeleteWorkspaceSection.tsx'
 import { Frame } from './Frame.tsx'
+import { MembersRedirect } from './MembersRedirect.tsx'
 import { generalProblems } from './model.ts'
 import { PictureRow } from './PictureRow.tsx'
 
 import styles from './Settings.module.css'
-
-const NOT_ALLOWED = 'Only owners and admins can change workspace settings.'
 
 /** The workspace's name and address, the defaults its teams start from, and the danger zone. */
 export function WorkspaceGeneralPage() {
@@ -39,7 +38,7 @@ export function WorkspaceGeneralPage() {
       error={error}
       onRetry={() => void refetch()}
       notFound="This workspace doesn’t exist"
-      readOnlyNote={data && !data.canManage ? NOT_ALLOWED : false}
+      forbidden={data && !data.canManage ? <MembersRedirect workspace={workspace} /> : null}
     >
       {data ? (
         <>

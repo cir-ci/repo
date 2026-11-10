@@ -36,6 +36,7 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
         // A team in the address only counts when it belongs to the workspace being shown.
         team: params.workspace === workspace?.slug ? params.team : undefined,
         teams: sidebar?.teams,
+        canManage: sidebar?.canManage,
       })
       if (path) router.history.push(path)
     },
@@ -55,6 +56,7 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
         workspace={workspace?.slug}
         teams={sidebar?.teams}
         views={sidebar?.views}
+        canManage={sidebar?.canManage}
       />
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </>

@@ -139,7 +139,11 @@ export const dashboardViewRoutes: FastifyPluginAsync<Deps.Dashboard> = async (ap
       now: new Date(),
       method: found.user.method,
     })
-    const payload: Sidebar.Model = { ...sidebar, views: sidebar.views.map(wire) }
+    const payload: Sidebar.Model = {
+      ...sidebar,
+      views: sidebar.views.map(wire),
+      canManage: found.canManage,
+    }
     return payload
   })
 }

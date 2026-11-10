@@ -8,6 +8,7 @@ import { renderPage } from '#test/support/render.tsx'
 const ROUTE = {
   route: '/workspaces/$workspace/settings/storage',
   url: '/workspaces/acme/settings/storage',
+  otherRoutes: ['/workspaces/$workspace/settings/members'],
 }
 const team = (slug: string, name: string, bytes: number, retentionDays = 90) => ({
   slug,
@@ -124,15 +125,14 @@ describe('WorkspaceStoragePage', () => {
     await expect.element(days()).toHaveValue('90')
   })
 
-  it('is read-only for members, with a note', async () => {
+  it('sends members to Members instead of showing storage', async () => {
     await page.viewport(1000, 1000)
     fakeApi({ ...NAME, 'GET /api/workspaces/acme/storage': { body: usage({ canManage: false }) } })
-    await renderPage(<WorkspaceStoragePage />, ROUTE)
+    const { router } = await renderPage(<WorkspaceStoragePage />, ROUTE)
     await expect
-      .element(page.getByText(/Only owners and admins can change retention/))
-      .toBeVisible()
-    await expect.element(days()).toBeDisabled()
-    expect(page.getByRole('button', { name: 'Save changes' }).elements()).toHaveLength(0)
+      .poll(() => router.state.location.pathname)
+      .toBe('/workspaces/acme/settings/members')
+    expect(days().elements()).toHaveLength(0)
   })
 
   it('says the workspace doesn’t exist for a 404', async () => {

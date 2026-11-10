@@ -104,7 +104,7 @@ export type ContractChecks = [
   Fits<Json<CommentItem>, Omit<Comment.Item, 'mine' | 'canDelete'>>,
   Fits<Json<SavedViewRow>, View.Item>,
   Fits<Json<listWorkspaceIntegrations.Item>, Integration.Item>,
-  Fits<Json<getSidebar.Result>, Sidebar.Model>,
+  Fits<Json<getSidebar.Result>, Omit<Sidebar.Model, 'canManage'>>,
   Fits<Json<getSnapshotHistory.Result>, Snapshot.History>,
   Fits<Json<listBuildsForWorkspace.Item>, WorkspaceBuilds.Item>,
   Fits<listBuildFilterSuggestions.Item, WorkspaceBuilds.Suggestion>,

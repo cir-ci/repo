@@ -32,6 +32,7 @@ export const sidebarModel = (over: Partial<Sidebar.Model> = {}): Sidebar.Model =
   views: [],
   inboxUnread: 0,
   reviews: 0,
+  canManage: true,
   ...over,
 })
 

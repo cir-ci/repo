@@ -129,7 +129,7 @@ describe('saved view routes', () => {
     expect(bar.teams).toEqual([
       { slug: 'web', name: 'web', color: teamColorFor('web'), icon: null, pinned: true, triage: 0 },
     ])
-    expect(bar).toMatchObject({ inboxUnread: 0, reviews: 0 })
+    expect(bar).toMatchObject({ inboxUnread: 0, reviews: 0, canManage: true })
     expect(bar.views.length).toBeGreaterThan(0)
     expect((await send('DELETE', pin)).json()).toEqual({ pinned: false, changed: true })
     expect(

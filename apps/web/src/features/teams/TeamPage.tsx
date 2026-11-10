@@ -33,9 +33,8 @@ export function TeamPage() {
   const order = useDisplayStore((s) => s.display.order)
   const { data } = useQuery(teamQuery(workspace, team, before, filters, order))
   const { data: flaky } = useQuery(flakyQuery(workspace, team))
-  const hasFlaky = (flaky?.flaky.length ?? 0) > 0
-  // Only owners and admins can add ignore regions: ask once something is flaky (the settings are cached).
-  const { data: settings } = useQuery({ ...settingsQuery(workspace, team), enabled: hasFlaky })
+  // Only owners and admins reach the team's settings and add ignore regions (the settings are cached).
+  const { data: settings } = useQuery(settingsQuery(workspace, team))
   const canManage = settings?.canManage === true
   const { data: sidebar } = useSidebarModel(workspace)
   const pin = usePinTeam(workspace, team)
@@ -78,12 +77,14 @@ export function TeamPage() {
             >
               Sites
             </Button>
-            <Button
-              size="sm"
-              {...clientLink({ to: '/$workspace/$team/settings', params: { workspace, team } })}
-            >
-              Settings
-            </Button>
+            {canManage ? (
+              <Button
+                size="sm"
+                {...clientLink({ to: '/$workspace/$team/settings', params: { workspace, team } })}
+              >
+                Settings
+              </Button>
+            ) : null}
           </>
         }
       />

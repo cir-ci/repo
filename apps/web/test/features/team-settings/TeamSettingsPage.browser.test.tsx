@@ -54,6 +54,7 @@ const show = () =>
     route: '/$workspace/$team/settings',
     url: '/acme/web/settings',
     announcer: true,
+    otherRoutes: ['/$workspace/$team'],
   })
 const heading = (name: string) => page.getByRole('heading', { name })
 
@@ -422,12 +423,6 @@ describe('TeamSettingsPage', () => {
       await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
       expect(fake.of('PATCH')[0]?.body).toMatchObject({ flakyBlocksMerge: null })
     })
-
-    it('is read-only for members', async () => {
-      api({ canManage: false })
-      await show()
-      await expect.element(control()).toBeDisabled()
-    })
   })
 
   it('shows the server’s refusal when saving fails', async () => {
@@ -443,17 +438,11 @@ describe('TeamSettingsPage', () => {
     expect(page.getByText('Settings saved.').elements()).toHaveLength(0)
   })
 
-  it('lets members look but not change anything', async () => {
+  it('sends members to the team’s builds instead of showing the settings', async () => {
     api({ canManage: false })
-    await show()
-    await expect
-      .element(page.getByText('Only owners and admins can change these settings.'))
-      .toBeVisible()
-    await expect.element(page.getByRole('textbox', { name: 'Name' })).toBeDisabled()
-    await expect
-      .element(page.getByRole('checkbox', { name: /^Unreviewed changes block merging/ }))
-      .toHaveAttribute('data-disabled')
-    expect(page.getByRole('button', { name: 'Save changes' }).elements()).toHaveLength(0)
+    const { router } = await show()
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web')
+    expect(page.getByRole('textbox', { name: 'Name' }).elements()).toHaveLength(0)
   })
 
   it('says the team doesn’t exist for a 404, and retries other errors', async () => {
@@ -579,13 +568,6 @@ describe('TeamSettingsPage', () => {
       await page.getByRole('radio', { name: 'Moss' }).click()
       await expect.element(page.getByRole('alert')).toHaveTextContent('Unknown icon')
     })
-
-    it('is read-only for members: the tile shows, no pickers', async () => {
-      api({ canManage: false, appearance: ARIA })
-      await show()
-      await expect.element(page.getByRole('img', { name: 'Web App' })).toBeVisible()
-      expect(page.getByRole('radio').elements()).toHaveLength(0)
-    })
   })
 
   describe('danger zone', () => {
@@ -620,12 +602,6 @@ describe('TeamSettingsPage', () => {
       await expect
         .element(dialog.getByRole('alert'))
         .toHaveTextContent('Only owners and admins can change this')
-    })
-
-    it('is disabled for members', async () => {
-      api({ canManage: false })
-      await show()
-      await expect.element(page.getByRole('button', { name: 'Delete team' })).toBeDisabled()
     })
   })
 

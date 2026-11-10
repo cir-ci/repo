@@ -35,8 +35,8 @@ export namespace Frame {
     error?: Error | null
     onRetry?: () => void
     notFound?: string
-    /** Shown above the page when the viewer can look but not change. */
-    readOnlyNote?: string | false
+    /** Replaces the page's content for someone who may not see it (a `Navigate` sends them elsewhere). */
+    forbidden?: ReactNode
     children: ReactNode
   }
 }

@@ -40,6 +40,7 @@ const show = () =>
     route: '/$workspace/$team/settings/token',
     url: '/acme/web/settings/token',
     announcer: true,
+    otherRoutes: ['/$workspace/$team'],
   })
 
 describe('CiTokenPage', () => {
@@ -140,11 +141,11 @@ describe('CiTokenPage', () => {
     await expect.element(page.getByRole('alert')).toHaveTextContent('could not issue a token')
   })
 
-  it('lets members look but not rotate', async () => {
+  it('sends members to the team’s builds instead of showing the token', async () => {
     api(info({ canManage: false }), { ...settings(), canManage: false })
-    await show()
-    await expect.element(page.getByText('circi_AbC1…')).toBeVisible()
-    expect(page.getByRole('button', { name: 'Rotate token' }).elements()).toHaveLength(0)
+    const { router } = await show()
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web')
+    expect(page.getByText('circi_AbC1…').elements()).toHaveLength(0)
   })
 
   it('shows a failed load and retries', async () => {

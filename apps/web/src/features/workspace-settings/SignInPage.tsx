@@ -7,6 +7,7 @@ import { useDocumentTitle } from '#lib/document-title.ts'
 import { workspaceGeneralQuery } from './api.ts'
 import { EmailDomains } from './EmailDomains.tsx'
 import { Frame } from './Frame.tsx'
+import { MembersRedirect } from './MembersRedirect.tsx'
 import { SignInMethods } from './SignInMethods.tsx'
 
 /** How people get into the workspace: login methods (with its own SSO provider) and email domains. */
@@ -26,14 +27,10 @@ export function SignInPage() {
       error={error}
       onRetry={() => void (general.error ? general.refetch() : auth.refetch())}
       notFound="This workspace doesn’t exist"
-      readOnlyNote={
-        auth.data && !canManage
-          ? 'Only owners and admins can change sign-in settings. Domains and single sign-on are hidden from other members.'
-          : false
-      }
+      forbidden={auth.data && !canManage ? <MembersRedirect workspace={workspace} /> : null}
     >
       <SignInMethods workspace={workspace} />
-      {canManage ? <EmailDomains workspace={workspace} /> : null}
+      <EmailDomains workspace={workspace} />
     </Frame>
   )
 }

@@ -67,6 +67,7 @@ const SIDEBAR_ACME = {
   ],
   inboxUnread: 3,
   reviews: 2,
+  canManage: true,
 }
 
 // The data API is the other edge: answers by path.
@@ -87,6 +88,7 @@ const API: Record<string, unknown> = {
     views: [],
     inboxUnread: 0,
     reviews: 0,
+    canManage: true,
   },
   '/api/capabilities': {
     canCreateWorkspace: false,
@@ -660,7 +662,13 @@ describe('Shell, sidebar teams', () => {
       manageableWorkspaces: [{ slug: 'acme', name: 'Acme' }],
       refusingWorkspaces: [],
     }
-    API['/api/workspaces/acme/sidebar'] = { teams: [], views: [], inboxUnread: 0, reviews: 0 }
+    API['/api/workspaces/acme/sidebar'] = {
+      teams: [],
+      views: [],
+      inboxUnread: 0,
+      reviews: 0,
+      canManage: true,
+    }
     try {
       await renderShell('/')
       const nav = page.getByRole('navigation', { name: 'Main' })

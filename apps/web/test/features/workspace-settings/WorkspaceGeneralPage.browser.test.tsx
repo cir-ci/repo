@@ -5,7 +5,11 @@ import { WorkspaceGeneralPage } from '#features/workspace-settings/WorkspaceGene
 import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
-const ROUTE = { route: '/workspaces/$workspace/settings', url: '/workspaces/acme/settings' }
+const ROUTE = {
+  route: '/workspaces/$workspace/settings',
+  url: '/workspaces/acme/settings',
+  otherRoutes: ['/workspaces/$workspace/settings/members'],
+}
 const general = (canManage = true, over: object = {}) => ({
   canManage,
   isOwner: canManage,
@@ -90,17 +94,6 @@ describe('WorkspaceGeneralPage', () => {
     send(new File([new Uint8Array(1024 * 1024 + 1)], 'big.png', { type: 'image/png' }))
     await expect.element(page.getByText('Use an image of at most 1 MB')).toBeVisible()
     expect(api.of('PUT')).toHaveLength(0)
-  })
-
-  it('hides Upload from people who cannot manage the workspace', async () => {
-    await page.viewport(1000, 900)
-    fakeApi({
-      'GET /api/workspaces/acme': { body: general(false) },
-      'GET /api/workspaces/acme/settings': { body: settings(false) },
-    })
-    await renderPage(<WorkspaceGeneralPage />, ROUTE)
-    await expect.element(page.getByText('Picture', { exact: true })).toBeVisible()
-    expect(page.getByRole('button', { name: 'Upload picture' }).elements()).toHaveLength(0)
   })
 
   it('shows the name, address, merge defaults and a danger zone', async () => {
@@ -290,22 +283,17 @@ describe('WorkspaceGeneralPage', () => {
     expect(api.of('PATCH')).toHaveLength(0)
   })
 
-  it('is read-only for members, with a note', async () => {
+  it('sends members to Members instead of showing the settings', async () => {
     await page.viewport(1000, 900)
     fakeApi({
       'GET /api/workspaces/acme': { body: general(false) },
       'GET /api/workspaces/acme/settings': { body: settings(false) },
     })
-    await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    const { router } = await renderPage(<WorkspaceGeneralPage />, ROUTE)
     await expect
-      .element(page.getByText(/Only owners and admins can change workspace settings/))
-      .toBeVisible()
-    await expect.element(name()).toBeDisabled()
-    await expect.element(slug()).toBeDisabled()
-    expect(page.getByRole('button', { name: 'Save changes' }).elements()).toHaveLength(0)
-    await expect
-      .element(page.getByRole('checkbox', { name: /Flaky-only changes block merging/ }))
-      .toBeInTheDocument()
+      .poll(() => router.state.location.pathname)
+      .toBe('/workspaces/acme/settings/members')
+    expect(name().elements()).toHaveLength(0)
   })
 
   it('says the workspace doesn’t exist for a 404', async () => {

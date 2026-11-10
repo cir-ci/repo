@@ -19,14 +19,14 @@ describe('PageFrame', () => {
     await expect.element(page.getByText('The form')).toBeVisible()
   })
 
-  it('shows the read-only note above the children', async () => {
+  it('shows `forbidden` instead of the children', async () => {
     await renderPage(
-      <PageFrame crumbs={[]} title="Webhooks" readOnlyNote="Only admins can change these.">
+      <PageFrame crumbs={[]} title="Webhooks" forbidden={<p>Not for you</p>}>
         <p>The list</p>
       </PageFrame>,
     )
-    await expect.element(page.getByText('Only admins can change these.')).toBeVisible()
-    await expect.element(page.getByText('The list')).toBeVisible()
+    await expect.element(page.getByText('Not for you')).toBeVisible()
+    expect(page.getByText('The list').elements()).toHaveLength(0)
   })
 
   it('shows the error and retries, without the children', async () => {

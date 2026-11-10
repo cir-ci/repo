@@ -1,4 +1,4 @@
-import { Banner, SettingsPage } from '@circi/ui'
+import { SettingsPage } from '@circi/ui'
 import type { ReactNode } from 'react'
 
 import { ErrorState } from '#lib/ErrorState.tsx'
@@ -8,7 +8,7 @@ import { QuerySkeleton } from '#lib/QueryBoundary.tsx'
 /**
  * The frame of a settings-style page: its header (`PageHeading`: crumbs, then `title` as the
  * `<h1>`), one `SettingsPage` column (720px, or 1040px with `width="wide"`), and the column's
- * states: `forbidden`, the error, the delayed skeleton, or the read-only note above `children`.
+ * states: `forbidden`, the error, the delayed skeleton, or `children`.
  * The feature frames (`Frame`, `IntegrationFrame`, `AdminFrame`, `TeamSettingsFrame`) only compute
  * the crumbs.
  */
@@ -22,7 +22,6 @@ export function PageFrame({
   onRetry,
   notFound,
   forbidden,
-  readOnlyNote,
   children,
 }: PageFrame.Props) {
   return (
@@ -40,10 +39,7 @@ export function PageFrame({
         ) : loading ? (
           <QuerySkeleton />
         ) : (
-          <>
-            {readOnlyNote ? <Banner>{readOnlyNote}</Banner> : null}
-            {children}
-          </>
+          children
         )}
       </SettingsPage>
     </>
@@ -64,10 +60,8 @@ export namespace PageFrame {
     error?: Error | null | undefined
     onRetry?: (() => void) | undefined
     notFound?: string | undefined
-    /** Replaces the column's content (someone who may not see the page). */
+    /** Replaces the column's content (someone who may not see the page); a `Navigate` sends them elsewhere. */
     forbidden?: ReactNode
-    /** Shown above the page when the viewer can look but not change. */
-    readOnlyNote?: string | false | undefined
     children?: ReactNode
   }
 }

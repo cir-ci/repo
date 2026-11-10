@@ -157,8 +157,15 @@ describe('TeamPage', () => {
     expect(router.state.location.pathname).toBe('/acme/web/builds/8')
   })
 
-  it('opens Sites and Settings from the header', async () => {
+  it('leaves Settings out of the header for members', async () => {
     api([build(8)])
+    await show()
+    await expect.element(page.getByRole('link', { name: 'Sites' })).toBeVisible()
+    expect(page.getByRole('link', { name: 'Settings' }).elements()).toHaveLength(0)
+  })
+
+  it('opens Sites and Settings from the header', async () => {
+    api([build(8)], undefined, undefined, true)
     const { router } = await show()
     // They go somewhere, so they are links (with real addresses), not buttons.
     await expect

@@ -23,6 +23,8 @@ export namespace Sidebar {
     inboxUnread: number
     /** Open, awake review requests asked of the person in this workspace. */
     reviews: number
+    /** Whether this person may change the workspace's settings and its teams' (what the settings pages and their menu entries depend on). */
+    canManage: boolean
   }
 
   /** `PUT`/`DELETE /api/workspaces/:workspace/pinned-teams/:team`. */

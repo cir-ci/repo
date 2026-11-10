@@ -9,7 +9,7 @@ import {
 } from '@circi/ui'
 import { useNavigate } from '@tanstack/react-router'
 
-import type { WorkspaceRef } from '#app/shell-model.ts'
+import { workspaceSettingsPath, type WorkspaceRef } from '#app/shell-model.ts'
 
 import styles from './WorkspaceSwitcher.module.css'
 
@@ -23,6 +23,7 @@ export function WorkspaceSwitcher({
   current,
   onSelect,
   onCreate,
+  canManage,
 }: WorkspaceSwitcher.Props) {
   const navigate = useNavigate()
   if (!current) return <div className={styles.brand}>CirCI</div>
@@ -56,11 +57,7 @@ export function WorkspaceSwitcher({
         {
           label: 'Workspace settings',
           icon: <SlidersIcon />,
-          onSelect: () =>
-            void navigate({
-              to: '/workspaces/$workspace/settings',
-              params: { workspace: current.slug },
-            }),
+          onSelect: () => void navigate({ href: workspaceSettingsPath(current.slug, canManage) }),
         },
         ...(onCreate
           ? [
@@ -83,5 +80,7 @@ export namespace WorkspaceSwitcher {
     onSelect: (workspace: WorkspaceRef) => void
     /** Present when the person may create workspaces. */
     onCreate?: () => void
+    /** Whether the person may change the workspace's settings; false opens Members instead of General. */
+    canManage?: boolean | undefined
   }
 }

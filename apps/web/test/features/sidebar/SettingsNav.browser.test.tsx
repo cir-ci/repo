@@ -16,6 +16,7 @@ function show(
     url?: string
     route?: string
     instanceAdmin?: boolean
+    canManage?: boolean
     teams?: ReturnType<typeof sidebarTeam>[]
     /** The teams list's teams (`/api/teams`); by default the sidebar's own. */
     overviewTeams?: ReturnType<typeof overview>[]
@@ -52,7 +53,9 @@ function show(
           ],
         },
       },
-      'GET /api/workspaces/acme/sidebar': { body: sidebarModel({ teams }) },
+      'GET /api/workspaces/acme/sidebar': {
+        body: sidebarModel({ teams, canManage: options.canManage ?? true }),
+      },
     },
   })
 }
@@ -61,6 +64,41 @@ const names = (locator: ReturnType<typeof page.getByRole>) =>
   locator.elements().map((el) => el.textContent)
 
 describe('SettingsNav', () => {
+  it('lists every workspace and team page for owners and admins', async () => {
+    await show()
+    const workspace = page.getByRole('region', { name: /^Workspace/ })
+    await expect
+      .element(workspace.getByRole('link', { name: 'Storage and retention' }))
+      .toBeVisible()
+    expect(names(workspace.getByRole('link'))).toEqual([
+      'General',
+      'Members',
+      'Sign-in and domains',
+      'Integrations',
+      'Storage and retention',
+    ])
+    expect(names(page.getByRole('region', { name: 'Team · Web App' }).getByRole('link'))).toEqual([
+      'General',
+      'CI token',
+      'Reviews and triage',
+      'Webhooks',
+      'Ignore regions',
+    ])
+  })
+
+  it('leaves out the pages members can’t use: they keep Members and Ignore regions', async () => {
+    await show({ canManage: false })
+    const workspace = page.getByRole('region', { name: /^Workspace/ })
+    await expect.element(workspace.getByRole('link', { name: 'Members' })).toBeVisible()
+    expect(names(workspace.getByRole('link'))).toEqual(['Members'])
+    await expect
+      .element(page.getByRole('region', { name: 'Team · Web App' }).getByRole('link'))
+      .toBeVisible()
+    expect(names(page.getByRole('region', { name: 'Team · Web App' }).getByRole('link'))).toEqual([
+      'Ignore regions',
+    ])
+  })
+
   it('goes back to the app and lists the account pages', async () => {
     await show()
     await expect.element(page.getByRole('link', { name: 'Back to app' })).toBeVisible()

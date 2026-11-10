@@ -1,5 +1,6 @@
 import type { Search, Sidebar, View } from '@circi/api'
 
+import { workspaceSettingsPath } from '#app/shell-model.ts'
 import { SHORTCUTS, type Shortcut } from '#lib/shortcuts.ts'
 
 /**
@@ -141,6 +142,7 @@ export interface JumpInput {
   workspace: string | undefined
   teams: readonly Sidebar.Team[] | undefined
   views: readonly View.Item[] | undefined
+  canManage?: boolean | undefined
 }
 
 const page = (id: string, label: string, path: string, to?: Shortcut.GoTarget): Entry => {
@@ -155,7 +157,7 @@ const page = (id: string, label: string, path: string, to?: Shortcut.GoTarget): 
 }
 
 /** Pages, the pinned teams and the saved views. */
-export function jumpEntries({ workspace, teams, views }: JumpInput): Entry[] {
+export function jumpEntries({ workspace, teams, views, canManage }: JumpInput): Entry[] {
   const entries: Entry[] = [page('inbox', 'Inbox', '/inbox', 'inbox')]
   if (workspace) {
     entries.push(page('reviews', 'Reviews', `/workspaces/${enc(workspace)}/reviews`, 'reviews'))
@@ -163,7 +165,9 @@ export function jumpEntries({ workspace, teams, views }: JumpInput): Entry[] {
   entries.push(page('teams', 'Teams', '/', 'teams'))
   if (workspace) {
     entries.push(page('insights', 'Insights', `/workspaces/${enc(workspace)}/insights`))
-    entries.push(page('settings', 'Settings', `/workspaces/${enc(workspace)}/settings`, 'settings'))
+    entries.push(
+      page('settings', 'Settings', workspaceSettingsPath(workspace, canManage), 'settings'),
+    )
   } else {
     entries.push(page('settings', 'Settings', '/account', 'settings'))
   }

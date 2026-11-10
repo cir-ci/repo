@@ -42,6 +42,7 @@ const show = () =>
     route: '/$workspace/$team/settings/webhooks',
     url: '/acme/web/settings/webhooks',
     announcer: true,
+    otherRoutes: ['/$workspace/$team'],
   })
 const openDialog = () => page.getByRole('button', { name: 'Add webhook' }).click()
 const dialogAdd = () => page.getByRole('dialog').getByRole('button', { name: 'Add webhook' })
@@ -346,14 +347,10 @@ describe('WebhooksPage', () => {
       .toBeVisible()
   })
 
-  it('lets members look but not add or remove', async () => {
+  it('sends members to the team’s builds instead of showing the webhooks', async () => {
     api({ canManage: false, webhooks: [hook('h1', 'https://a.test/hook')] })
-    await show()
-    await expect
-      .element(page.getByText('Only owners and admins can change these settings.'))
-      .toBeVisible()
-    await expect.element(page.getByText('https://a.test/hook')).toBeVisible()
-    expect(page.getByRole('button', { name: 'Add webhook' }).elements()).toHaveLength(0)
-    expect(page.getByRole('button', { name: 'Remove' }).elements()).toHaveLength(0)
+    const { router } = await show()
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web')
+    expect(page.getByText('https://a.test/hook').elements()).toHaveLength(0)
   })
 })

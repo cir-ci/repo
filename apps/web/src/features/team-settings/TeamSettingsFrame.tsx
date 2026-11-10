@@ -1,5 +1,6 @@
 import type { Team } from '@circi/api'
 import { useQuery } from '@tanstack/react-query'
+import { Navigate } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
 import { useLoadingAnnouncement } from '#features/builds/list/loading.ts'
@@ -11,14 +12,15 @@ import { PageFrame } from '#lib/PageFrame.tsx'
 /**
  * What every team settings page shares: the breadcrumb (workspace, team, Settings, this page: see
  * `lib/crumbs.ts`), one column, the team's settings loaded once (the other pages read the same cache), its
- * loading and error states, and a note for people who may look but not change.
+ * loading and error states, and, for the pages only owners and admins may use, a redirect to the team's builds for everyone else
+ * (`managersOnly={false}` keeps a page that members may read).
  */
 export function TeamSettingsFrame({
   workspace,
   team,
   page,
   width = 'default',
-  readOnlyNote = 'Only owners and admins can change these settings.',
+  managersOnly = true,
   children,
 }: TeamSettingsFrame.Props) {
   const { data, error, refetch } = useQuery(settingsQuery(workspace, team))
@@ -45,7 +47,11 @@ export function TeamSettingsFrame({
       error={error}
       onRetry={() => void refetch()}
       notFound="This team doesn’t exist"
-      readOnlyNote={data && !data.canManage ? readOnlyNote : false}
+      forbidden={
+        managersOnly && data && !data.canManage ? (
+          <Navigate to="/$workspace/$team" params={{ workspace, team }} replace />
+        ) : null
+      }
     >
       {data ? children(data, teamName) : null}
     </PageFrame>
@@ -60,8 +66,8 @@ export namespace TeamSettingsFrame {
     page: string
     /** The column's width: 720 by default, 1040 for the ignore regions workbench. */
     width?: 'default' | 'wide'
-    /** Shown to people who can't change things; `false` for a page where they can. */
-    readOnlyNote?: string | false
+    /** Default: people who can't change the team's settings are sent to its builds. `false` for a page members may read. */
+    managersOnly?: boolean
     children: (settings: Team.SettingsResponse, teamName: string) => ReactNode
   }
 }

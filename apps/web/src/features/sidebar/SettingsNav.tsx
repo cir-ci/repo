@@ -87,6 +87,8 @@ export function SettingsNav() {
       : pickSettingsTeam(teams, undefined, readRememberedTeam(workspace.slug))
     : undefined
   const teamKey = teamSettingsKey(pathname)
+  // Settings only owners and admins can change are left out for everyone else (their pages send them away).
+  const canManage = model?.canManage === true
 
   return (
     <>
@@ -116,13 +118,15 @@ export function SettingsNav() {
             </>
           }
         >
-          <NavLink
-            to="/workspaces/$workspace/settings"
-            params={{ workspace: workspace.slug }}
-            icon={<BuildingIcon />}
-          >
-            General
-          </NavLink>
+          {canManage ? (
+            <NavLink
+              to="/workspaces/$workspace/settings"
+              params={{ workspace: workspace.slug }}
+              icon={<BuildingIcon />}
+            >
+              General
+            </NavLink>
+          ) : null}
           <NavLink
             to="/workspaces/$workspace/settings/members"
             params={{ workspace: workspace.slug }}
@@ -130,30 +134,36 @@ export function SettingsNav() {
           >
             Members
           </NavLink>
-          <NavLink
-            to="/workspaces/$workspace/settings/sign-in"
-            params={{ workspace: workspace.slug }}
-            icon={<ShieldCheckIcon />}
-          >
-            Sign-in and domains
-          </NavLink>
-          <NavLink
-            to="/workspaces/$workspace/settings/integrations"
-            params={{ workspace: workspace.slug }}
-            icon={<BlocksIcon />}
-            selected={pathname.startsWith(
-              `/workspaces/${encodeURIComponent(workspace.slug)}/settings/integrations`,
-            )}
-          >
-            Integrations
-          </NavLink>
-          <NavLink
-            to="/workspaces/$workspace/settings/storage"
-            params={{ workspace: workspace.slug }}
-            icon={<DatabaseIcon />}
-          >
-            Storage and retention
-          </NavLink>
+          {canManage ? (
+            <NavLink
+              to="/workspaces/$workspace/settings/sign-in"
+              params={{ workspace: workspace.slug }}
+              icon={<ShieldCheckIcon />}
+            >
+              Sign-in and domains
+            </NavLink>
+          ) : null}
+          {canManage ? (
+            <NavLink
+              to="/workspaces/$workspace/settings/integrations"
+              params={{ workspace: workspace.slug }}
+              icon={<BlocksIcon />}
+              selected={pathname.startsWith(
+                `/workspaces/${encodeURIComponent(workspace.slug)}/settings/integrations`,
+              )}
+            >
+              Integrations
+            </NavLink>
+          ) : null}
+          {canManage ? (
+            <NavLink
+              to="/workspaces/$workspace/settings/storage"
+              params={{ workspace: workspace.slug }}
+              icon={<DatabaseIcon />}
+            >
+              Storage and retention
+            </NavLink>
+          ) : null}
         </NavSection>
       ) : null}
       {workspace && team ? (
@@ -171,17 +181,19 @@ export function SettingsNav() {
           }
           actions={<TeamSwitcher workspace={workspace.slug} teams={teams} current={team.slug} />}
         >
-          {TEAM_SETTINGS_PAGES.map(({ key, label }) => (
-            <NavLink
-              key={key}
-              to={TEAM_PATH[key]}
-              params={{ workspace: workspace.slug, team: team.slug }}
-              icon={TEAM_ICON[key]}
-              selected={team.slug === params.team && teamKey === key}
-            >
-              {label}
-            </NavLink>
-          ))}
+          {TEAM_SETTINGS_PAGES.filter(({ key }) => canManage || key === 'ignore-regions').map(
+            ({ key, label }) => (
+              <NavLink
+                key={key}
+                to={TEAM_PATH[key]}
+                params={{ workspace: workspace.slug, team: team.slug }}
+                icon={TEAM_ICON[key]}
+                selected={team.slug === params.team && teamKey === key}
+              >
+                {label}
+              </NavLink>
+            ),
+          )}
         </NavSection>
       ) : null}
       {caps?.instanceAdmin ? (

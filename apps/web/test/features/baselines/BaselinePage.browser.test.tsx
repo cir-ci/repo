@@ -291,9 +291,7 @@ describe('BaselinePage', () => {
     api(false)
     await show()
     await expect.element(page.getByRole('list', { name: `Regions of ${NAME}` })).toBeVisible()
-    await expect
-      .element(page.getByText(/Only owners and admins can add, change or remove ignore regions/))
-      .toBeVisible()
+    expect(page.getByText(/Only owners and admins/).elements()).toHaveLength(0)
     await expect
       .element(page.getByRole('list', { name: `Recent changes of ${NAME}` }))
       .toBeVisible()
