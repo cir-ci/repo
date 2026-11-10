@@ -1,43 +1,72 @@
 import type { Sidebar, View } from '@circi/api'
-import {
-  Button,
-  CloseIcon,
-  CommandDialog,
-  IconButton,
-  Kbd,
-  SearchIcon,
-  Text,
-  useColorScheme,
-} from '@circi/ui'
+import { CloseIcon, CommandDialog, IconButton, Kbd, SearchIcon, useColorScheme } from '@circi/ui'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams, useRouter, useRouterState } from '@tanstack/react-router'
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react'
 
-import { keyCaps } from '#lib/shortcuts.ts'
+import { currentSection, isSettingsSection, type WorkspaceRef } from '#app/shell-model.ts'
+import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
+import { authClient } from '#lib/auth-client.ts'
+import { keys } from '#lib/query-keys.ts'
+import { type RecentEntry, useRecentStore } from '#lib/stores/recent-store.ts'
+import { useUndoStore } from '#lib/stores/undo-store.ts'
+import { useWorkspaceStore } from '#lib/stores/workspace-store.ts'
+import { clipboard } from '#lib/use-copy.ts'
 
-import { useSearchResults } from './api.ts'
+import { NARROWED_LIMIT, useDebounced, useSearchResults } from './api.ts'
+import { CommandPeek } from './CommandPeek.tsx'
+import { CommandRow } from './CommandRow.tsx'
+import type { Chip, Entry } from './entry.ts'
 import {
-  commandContext,
-  type Entry,
-  emptyQueryEntries,
-  localMatches,
+  buildList,
   flatten,
-  groupEntries,
+  footerHints,
+  isReal,
   keyEvents,
-  normalizeQuery,
-  peekHint,
-  searchEntries,
-  uniqueEntries,
+  type ListInput,
+  type Needs,
+  scopeOf,
+  TIPS,
+  wordsOf,
   wrapIndex,
 } from './model.ts'
+import {
+  hasRowActions,
+  PAGE_META,
+  type PageState,
+  pageEntries,
+  switchWorkspaceTarget,
+} from './pages.ts'
+import {
+  chipLabel,
+  completeTeamToken,
+  kindChip,
+  KIND_CHIPS,
+  placeholderFor,
+  readTyped,
+  sameChip,
+  withoutLastChip,
+} from './query.ts'
+import { performAction } from './row-actions.ts'
 
 import styles from './CommandMenu.module.css'
 
+const NO_RECENTS: readonly RecentEntry[] = []
+const NO_WORKSPACES: readonly WorkspaceRef[] = []
+const NO_NEEDS: Needs = { reviews: 0, unread: 0, triageAssigned: 0 }
+
+const TIP_COUNT = TIPS.length
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+
 /**
- * The command menu (⌘K): jump to a page, team or saved view and run the actions of the page
- * you are on (from the shortcut registry, with their keys) while the field is empty; search builds,
- * branches, teams and snapshots when it is not. A chip names the page you are on (`web-app · #148`
- * on a build; clear it, or Backspace in the empty field, to leave that page's actions out); a peek
- * pane beside the list shows what the highlighted entry is. ↑ ↓ move, ↵ chooses, Esc closes.
+ * The command menu (⌘K), one list for three intents: go somewhere, find something, do something.
+ * Empty, it lists the page's actions, what you visited, what needs you, where to go and what to
+ * switch. Typed, it ranks the best match first, then actions and places, then results by kind
+ * (three each, with `Show all N …`), limited to the team you are in until you widen it. `#`, `/`
+ * and `>` narrow it to builds, screenshots or commands and `in:name` to a team, as chips; rows with
+ * a chevron open a nested list; ⌘↵ opens in a new tab, ⌘⇧C copies the link and ⌘. lists the row's
+ * actions. Inside settings it offers settings only. ↑ ↓ move, ↵ chooses, Esc goes back or closes.
  */
 export function CommandMenu({
   open,
@@ -46,39 +75,117 @@ export function CommandMenu({
   teams,
   views,
   canManage,
+  workspaces = NO_WORKSPACES,
+  needs = NO_NEEDS,
 }: CommandMenu.Props) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const params = useParams({ strict: false })
-  const [query, setQuery] = useState('')
-  const [active, setActive] = useState(0)
-  const [contextCleared, setContextCleared] = useState(false)
-  const afterClose = useRef<(() => void) | undefined>(undefined)
-  const input = useRef<HTMLInputElement>(null)
-  const listId = useId()
   const { mode, setMode } = useColorScheme()
+  const { data: caps } = useQuery(capabilitiesQuery())
+  const { data: overview } = useQuery(teamsQuery())
+  const { data: session } = authClient.useSession()
+  const chooseWorkspace = useWorkspaceStore((s) => s.choose)
+  const recents = useRecentStore((s) => (workspace ? s.byWorkspace[workspace] : undefined))
 
-  const q = normalizeQuery(query)
-  const { results, pending, failed } = useSearchResults(workspace, q)
-  const openTeam =
-    workspace !== undefined && params.workspace === workspace && params.team
-      ? teams?.find((p) => p.slug === params.team)
-      : undefined
-  const jump = { workspace, teams, views, canManage }
-  const context = commandContext(pathname, teams)
-  const showContext = context !== undefined && !contextCleared
-  const own =
-    q === '' ? emptyQueryEntries(pathname, jump, mode) : localMatches(q, pathname, jump, mode)
-  const entries = uniqueEntries([
-    // Clearing the chip leaves the page's own actions out.
-    ...(contextCleared ? own.filter((e) => e.group !== 'Actions') : own),
-    ...(q !== '' && workspace ? searchEntries(workspace, q, results, openTeam) : []),
-  ])
-  const groups = groupEntries(entries, context?.actions)
+  const [text, setText] = useState('')
+  const [chips, setChips] = useState<Chip[]>([])
+  const [contextCleared, setContextCleared] = useState(false)
+  const [stack, setStack] = useState<PageState[]>([])
+  const [active, setActive] = useState(0)
+  const afterClose = useRef<(() => void) | undefined>(undefined)
+  const listId = useId()
+  const fieldRef = useRef<HTMLInputElement>(null)
+  const page = stack.at(-1)
+  const now = Date.now()
+  const [tip, setTip] = useState(0)
+
+  const inSettings = isSettingsSection(currentSection(pathname))
+  const input: ListInput = {
+    workspace,
+    pathname,
+    routeWorkspace: params.workspace,
+    teams,
+    views,
+    workspaces,
+    canManage,
+    instanceAdmin: caps?.instanceAdmin === true,
+    inSettings,
+    needs,
+    recents: recents ?? NO_RECENTS,
+    now,
+    changed: changedCount(queryClient.getQueryData(buildKey(params)), params),
+  }
+  const q = text.trim()
+  const kind = kindChip(chips)
+  const scope = scopeOf(input, chips, contextCleared)
+  const { results, pending, failed, retry } = useSearchResults(
+    workspace,
+    q,
+    {
+      team: scope?.slug,
+      kinds: kind ? KIND_CHIPS[kind].kinds : undefined,
+      limit: kind && kind !== 'commands' ? NARROWED_LIMIT : undefined,
+    },
+    !inSettings && page === undefined && kind !== 'commands',
+  )
+  const view = buildList(input, {
+    query: text,
+    chips,
+    contextCleared,
+    results,
+    pending,
+    failed,
+  })
+  const groups = page
+    ? [
+        {
+          id: 'page',
+          label: '',
+          entries: pageEntries(
+            page,
+            {
+              workspace,
+              pathname,
+              teams,
+              workspaces,
+              routeTeam: view.context.team?.slug ?? params.team,
+              theme: mode,
+            },
+            text,
+          ),
+        },
+      ]
+    : view.groups
   const flat = flatten(groups)
   const current = flat.length === 0 ? -1 : Math.min(active, flat.length - 1)
   const highlighted = current < 0 ? undefined : flat[current]
   const optionId = (i: number) => `${listId}-${i}`
+  const words = page ? wordsOf(text) : wordsOf(q)
+
+  // The live region: counts once the answer has settled, never one message per keystroke.
+  const statusText = page
+    ? `In ${PAGE_META[page.page].chip}, ${plural(flat.length, PAGE_META[page.page].noun[0], PAGE_META[page.page].noun[1])}`
+    : q === ''
+      ? ''
+      : view.state === 'searching'
+        ? 'Searching'
+        : view.state === 'none' || view.state === 'error'
+          ? ''
+          : plural(flat.filter(isReal).length, 'result', 'results')
+  const settled = useDebounced(statusText, 400)
+
+  useEffect(() => {
+    if (!open) return
+    // Each time the menu opens it starts clean (a close that has not finished leaves nothing behind) with a new tip.
+    setText('')
+    setChips([])
+    setStack([])
+    setActive(0)
+    setContextCleared(false)
+    setTip(Math.floor(Math.random() * TIP_COUNT))
+  }, [open])
 
   useEffect(() => {
     if (open && current >= 0)
@@ -86,74 +193,252 @@ export function CommandMenu({
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- optionId only depends on listId
   }, [open, current, flat.length])
 
-  function choose(entry: Entry) {
-    const { target } = entry
-    if (target.type === 'path') {
-      router.history.push(target.path)
-    } else if (target.type === 'theme') {
-      setMode(target.mode)
-    } else {
-      // A registry action runs through the shortcut layer once the menu has closed, so a dialog
-      // it opens is not closed again by the menu giving focus back. The keys are sent from the
-      // page body: sent to the window they are judged by the focused element, which is still
-      // inside the closing dialog (and the shortcut layer leaves a dialog's keys alone).
-      afterClose.current = () => {
-        for (const init of keyEvents(target.key)) {
-          document.body.dispatchEvent(new KeyboardEvent('keydown', init))
-        }
-      }
-    }
-    onOpenChange(false)
+  function reset() {
+    setText('')
+    setChips([])
+    setStack([])
+    setActive(0)
+    setContextCleared(false)
   }
 
   function onClosed() {
-    setQuery('')
-    setActive(0)
-    setContextCleared(false)
+    reset()
     const run = afterClose.current
     afterClose.current = undefined
     run?.()
   }
 
+  function widen() {
+    setChips((c) => c.filter((x) => x.type !== 'team'))
+    setContextCleared(true)
+    setActive(0)
+  }
+
+  function openTab(path: string) {
+    window.open(new URL(path, window.location.origin).href, '_blank', 'noopener')
+    onOpenChange(false)
+  }
+
+  function runAction(entry: Entry & { target: { type: 'run' } }) {
+    const ctx = {
+      queryClient,
+      me: session?.user,
+      origin: window.location.origin,
+      copy: async (value: string) => {
+        try {
+          await clipboard.write(value)
+          return true
+        } catch {
+          return false
+        }
+      },
+      openTab: (url: string) => window.open(url, '_blank', 'noopener'),
+    }
+    void performAction(entry.target.action, ctx).then((toast) => {
+      if (toast.message) useUndoStore.getState().show(toast)
+    })
+    onOpenChange(false)
+  }
+
+  function choose(entry: Entry) {
+    const { target } = entry
+    switch (target.type) {
+      case 'path':
+        router.history.push(target.path)
+        onOpenChange(false)
+        return
+      case 'team':
+        router.history.push(entry.path ?? '/')
+        onOpenChange(false)
+        return
+      case 'workspace': {
+        chooseWorkspace(target.slug)
+        const go = switchWorkspaceTarget(
+          pathname,
+          target.slug,
+          (slug) =>
+            (overview?.teams ?? [])
+              .filter((o) => o.workspace.slug === slug)
+              .map((o) => o.team.slug)[0],
+        )
+        if (go) router.history.push(go)
+        onOpenChange(false)
+        return
+      }
+      case 'theme':
+        setMode(target.mode)
+        onOpenChange(false)
+        return
+      case 'key': {
+        // A registry action runs through the shortcut layer once the menu has closed, so a dialog
+        // it opens is not closed again by the menu giving focus back. The keys are sent from the
+        // page body: sent to the window they are judged by the focused element, which is still
+        // inside the closing dialog (and the shortcut layer leaves a dialog's keys alone).
+        afterClose.current = () => {
+          for (const init of keyEvents(target.key)) {
+            document.body.dispatchEvent(new KeyboardEvent('keydown', init))
+          }
+        }
+        onOpenChange(false)
+        return
+      }
+      case 'signOut':
+        afterClose.current = () => {
+          void authClient.signOut().then(() => queryClient.clear())
+        }
+        onOpenChange(false)
+        return
+      case 'page':
+        setStack((s) => [...s, { page: target.page }])
+        setText('')
+        setActive(0)
+        return
+      case 'chip':
+        setChips((c) => (c.some((x) => sameChip(x, target.chip)) ? c : [...c, target.chip]))
+        setActive(0)
+        return
+      case 'widen':
+        widen()
+        return
+      case 'clear':
+        setText('')
+        setChips([])
+        setActive(0)
+        return
+      case 'retry':
+        retry()
+        return
+      case 'run':
+        runAction({ ...entry, target })
+        return
+    }
+  }
+
+  function back() {
+    setStack((s) => s.slice(0, -1))
+    setText('')
+    setActive(0)
+  }
+
+  function type(value: string) {
+    const typed = readTyped(value, chips, teams)
+    setChips(typed.chips)
+    setText(typed.text)
+    setActive(0)
+  }
+
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.nativeEvent.isComposing) return
+    const mod = e.metaKey || e.ctrlKey
     const move = (delta: 1 | -1) => {
       e.preventDefault()
       setActive(wrapIndex(flat.length, current, delta))
     }
     if (e.key === 'ArrowDown') move(1)
     else if (e.key === 'ArrowUp') move(-1)
-    else if (e.key === 'Enter' && highlighted) {
+    else if (e.key === 'Enter') {
       e.preventDefault()
-      choose(highlighted)
-    } else if (e.key === 'Backspace' && query === '' && showContext) {
-      setContextCleared(true)
+      if (!highlighted) return
+      if (!mod) choose(highlighted)
+      else if (highlighted.kind === 'widen' || (!highlighted.path && scope && q !== '')) widen()
+      else if (highlighted.path) openTab(highlighted.path)
+      else choose(highlighted)
+    } else if (mod && e.shiftKey && e.key.toLowerCase() === 'c') {
+      e.preventDefault()
+      e.stopPropagation()
+      if (highlighted?.path) {
+        runAction({
+          ...highlighted,
+          target: { type: 'run', action: { type: 'copyLink', path: highlighted.path } },
+        })
+      }
+    } else if (mod && e.key === '.') {
+      e.preventDefault()
+      if (highlighted && hasRowActions(highlighted) && !page) {
+        setStack((s) => [...s, { page: 'row', entry: highlighted }])
+        setText('')
+        setActive(0)
+      }
+    } else if (e.key === 'Backspace' && text === '') {
+      if (page) {
+        e.preventDefault()
+        back()
+      } else if (chips.length > 0) {
+        e.preventDefault()
+        setChips(withoutLastChip(chips))
+        setActive(0)
+      } else if (view.showContext) {
+        setContextCleared(true)
+        setActive(0)
+      }
+    } else if (e.key === 'ArrowLeft' && page && text === '') {
+      e.preventDefault()
+      back()
+    } else if (e.key === 'Tab') {
+      const done = completeTeamToken(text, chips, teams)
+      if (done) {
+        e.preventDefault()
+        setChips(done.chips)
+        setText(done.text)
+        setActive(0)
+      }
     }
   }
 
-  const preview = highlighted?.preview
-  const hint = peekHint(highlighted, showContext)
+  const handleOpenChange: NonNullable<CommandDialog.Props['onOpenChange']> = (next, details) => {
+    // Esc goes back one list before it closes the menu.
+    if (!next && details.reason === 'escape-key' && stack.length > 0) {
+      details.cancel()
+      back()
+      return
+    }
+    onOpenChange(next)
+  }
+
+  const removable = !page && (chips.length > 0 || view.showContext)
+  const hints = footerHints({
+    nested: page !== undefined,
+    entry: highlighted,
+    rowActions: !page && hasRowActions(highlighted),
+    removable: removable && text === '',
+  })
+  const contextName = view.context.team?.name ?? view.context.chip ?? ''
 
   return (
     <CommandDialog
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleOpenChange}
       onClosed={onClosed}
       label="Command menu"
       wide
+      initialFocus={fieldRef}
     >
       <div className={styles.main}>
         <div className={styles.field}>
           <SearchIcon aria-hidden="true" />
-          {showContext ? (
-            <span className={styles.chip}>
-              {context.chip}
-              <IconButton label="Clear context" onClick={() => setContextCleared(true)}>
-                <CloseIcon size={10} />
-              </IconButton>
-            </span>
-          ) : null}
+          {page ? (
+            <span className={styles.chip}>{PAGE_META[page.page].chip}</span>
+          ) : (
+            <>
+              {view.showContext && view.context.chip ? (
+                <ChipView
+                  label={view.context.chip}
+                  remove={`Remove ${contextName} scope`}
+                  onRemove={() => setContextCleared(true)}
+                />
+              ) : null}
+              {chips.map((chip) => (
+                <ChipView
+                  key={chip.type === 'team' ? `team:${chip.slug}` : chip.kind}
+                  label={chipLabel(chip)}
+                  remove={`Remove ${chipLabel(chip)} scope`}
+                  onRemove={() => setChips((c) => c.filter((x) => !sameChip(x, chip)))}
+                />
+              ))}
+            </>
+          )}
           <input
-            ref={input}
+            ref={fieldRef}
             className={styles.input}
             role="combobox"
             aria-label="Search or run a command"
@@ -163,97 +448,123 @@ export function CommandMenu({
             aria-autocomplete="list"
             autoComplete="off"
             spellCheck={false}
-            placeholder="Search or run a command"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value)
-              setActive(0)
-            }}
+            placeholder={page ? PAGE_META[page.page].placeholder : placeholderFor(chips)}
+            value={text}
+            onChange={(e) => type(e.target.value)}
             onKeyDown={onKeyDown}
           />
         </div>
-        <div id={listId} role="listbox" aria-label="Results" className={styles.list}>
-          {groups.map(({ group, label, entries: items }) => (
-            <div key={group} role="group" aria-label={label} className={styles.group}>
-              <div className={styles.heading} aria-hidden="true">
-                {label}
-              </div>
-              {items.map((entry) => {
-                const i = flat.indexOf(entry)
-                return (
-                  // Keyboard use goes through the field (aria-activedescendant); the click is for the pointer.
-                  // oxlint-disable-next-line jsx-a11y/click-events-have-key-events
-                  <div
-                    key={entry.id}
-                    id={optionId(i)}
-                    role="option"
-                    aria-selected={i === current}
-                    className={styles.option}
-                    onMouseMove={() => i !== current && setActive(i)}
-                    onClick={() => choose(entry)}
-                  >
-                    <span className={styles.label}>{entry.label}</span>
-                    {entry.detail ? <span className={styles.detail}>{entry.detail}</span> : null}
-                    {entry.hint ? (
-                      <span className={styles.caps}>
-                        {keyCaps(entry.hint).map((cap) => (
-                          <Kbd key={cap}>{cap}</Kbd>
-                        ))}
-                      </span>
-                    ) : null}
-                  </div>
-                )
-              })}
-            </div>
-          ))}
+        <div
+          role="status"
+          className={'message' in view && view.message ? styles.message : styles.hidden}
+        >
+          {page || !('message' in view) || !view.message ? settled : view.message}
+          {!page && view.tip ? <span className={styles.tip}>{view.tip}</span> : null}
         </div>
-        <div role="status" className={styles.status}>
-          {flat.length === 0 && q !== ''
-            ? failed
-              ? 'Search failed. Try again.'
-              : pending
-                ? 'Searching…'
-                : `Nothing matches “${q}”. Try a build number like #148.`
-            : null}
+        <div id={listId} role="listbox" aria-label="Results" className={styles.list}>
+          {groups.map(({ id, label, entries: items }, gi) => {
+            const headingId = `${listId}-h-${gi}`
+            return (
+              <div
+                key={id}
+                role={label ? 'group' : 'presentation'}
+                aria-labelledby={label ? headingId : undefined}
+                className={styles.group}
+              >
+                {label ? (
+                  <div id={headingId} className={styles.heading}>
+                    {label}
+                  </div>
+                ) : null}
+                {items.map((entry) => {
+                  const i = flat.indexOf(entry)
+                  return (
+                    <CommandRow
+                      key={entry.id}
+                      entry={entry}
+                      id={optionId(i)}
+                      selected={i === current}
+                      words={words}
+                      onHover={() => i !== current && setActive(i)}
+                      onChoose={() => choose(entry)}
+                    />
+                  )
+                })}
+              </div>
+            )
+          })}
+          {!page && view.state === 'searching' ? (
+            <div className={styles.searching} aria-hidden="true">
+              Searching…
+            </div>
+          ) : null}
         </div>
         <footer className={styles.footer}>
-          <Text variant="micro" tone="tertiary">
-            <Kbd>↑</Kbd> <Kbd>↓</Kbd> move · <Kbd>↵</Kbd> open · <Kbd>Esc</Kbd> close
-          </Text>
+          <div role="group" aria-label="Keyboard hints" className={styles.hints}>
+            {hints.map((hint) => (
+              <span
+                key={`${hint.keys.join('')}${hint.label}`}
+                className={styles.hint}
+                data-narrow={hint.narrow ? '' : undefined}
+              >
+                {hint.keys.map((key) => (
+                  <Kbd key={key}>{key}</Kbd>
+                ))}{' '}
+                {hint.label}
+              </span>
+            ))}
+          </div>
         </footer>
       </div>
-      <aside aria-label="Peek" className={styles.peek}>
-        {preview && highlighted ? (
-          <>
-            <div className={styles.peekHead}>
-              {highlighted.detail ? (
-                <span className={styles.peekSub}>{highlighted.detail}</span>
-              ) : null}
-              <span className={styles.peekTitle}>{preview.title}</span>
-            </div>
-            <dl className={styles.rows}>
-              {preview.rows.map((row) => (
-                <div key={row.label}>
-                  <dt>{row.label}</dt>
-                  <dd>{row.value}</dd>
-                </div>
-              ))}
-            </dl>
-            <div className={styles.peekFoot}>
-              <Button size="sm" onClick={() => choose(highlighted)}>
-                Open
-              </Button>
-            </div>
-          </>
-        ) : (
-          <div className={styles.peekHead}>
-            <span className={styles.peekSub}>{hint.title}</span>
-            <span className={styles.peekText}>{hint.text}</span>
-          </div>
-        )}
-      </aside>
+      <CommandPeek
+        entry={highlighted}
+        tip={tip}
+        onChoose={() => highlighted && choose(highlighted)}
+      />
     </CommandDialog>
   )
+}
+
+function ChipView({ label, remove, onRemove }: ChipView.Props) {
+  return (
+    <span className={styles.chip}>
+      {label}
+      <IconButton label={remove} onClick={onRemove}>
+        <CloseIcon size={10} />
+      </IconButton>
+    </span>
+  )
+}
+
+namespace ChipView {
+  export interface Props {
+    label: string
+    remove: string
+    onRemove: () => void
+  }
+}
+
+/** The query key of the build on screen, when the address is a build. */
+function buildKey(params: { workspace?: string; team?: string; number?: string }) {
+  return params.workspace && params.team && params.number
+    ? keys.build(params.workspace, params.team, Number(params.number))
+    : (['no-build'] as const)
+}
+
+/** How many screenshots changed in the build on screen, when its page has loaded it. */
+function changedCount(data: unknown, params: { number?: string }): number | undefined {
+  if (!params.number || typeof data !== 'object' || data === null || !('build' in data)) {
+    return undefined
+  }
+  const { build } = data
+  if (typeof build !== 'object' || build === null || !('counts' in build)) return undefined
+  const { counts } = build
+  return typeof counts === 'object' &&
+    counts !== null &&
+    'changed' in counts &&
+    typeof counts.changed === 'number'
+    ? counts.changed
+    : undefined
 }
 
 export namespace CommandMenu {
@@ -266,5 +577,9 @@ export namespace CommandMenu {
     canManage?: boolean | undefined
     teams: readonly Sidebar.Team[] | undefined
     views: readonly View.Item[] | undefined
+    /** The workspaces to switch between. */
+    workspaces?: readonly WorkspaceRef[]
+    /** What waits for the person, from the sidebar's counts. */
+    needs?: Needs
   }
 }

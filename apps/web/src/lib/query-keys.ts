@@ -61,7 +61,8 @@ export const keys = {
   /** The sidebar of one workspace, or (no argument) of all of them. */
   sidebar: (workspace?: string) =>
     (workspace === undefined ? ['sidebar'] : ['sidebar', workspace]) as Key,
-  search: (workspace: string, q: string) => ['search', workspace, q] as const,
+  search: (workspace: string, q: string, scope?: unknown) =>
+    ['search', workspace, q, scope ?? null] as const,
   insights: (workspace: string, team: string | null, from: unknown, to: unknown) =>
     ['insights', workspace, team, from, to] as const,
   /** Integrations of a workspace; `rest` narrows to a mapping, targets or links. */

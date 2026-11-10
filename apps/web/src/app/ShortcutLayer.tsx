@@ -1,17 +1,20 @@
 import { useAnnounce } from '@circi/ui'
-import { useParams, useRouter } from '@tanstack/react-router'
-import type { ReactNode } from 'react'
+import { useParams, useRouter, useRouterState } from '@tanstack/react-router'
+import { type ReactNode, useEffect } from 'react'
 
 import { CommandMenu } from '#features/command/CommandMenu.tsx'
+import { classifyVisit } from '#features/command/recent.ts'
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { useShortcutHandlers } from '#lib/shortcuts.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
+import { useRecentStore } from '#lib/stores/recent-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 import { useCopy } from '#lib/use-copy.ts'
 
 import { goPath } from './shell-model.ts'
 import { ShortcutsDialog } from './ShortcutsDialog.tsx'
+import { UndoToasts } from './UndoToasts.tsx'
 
 /**
  * Binds the global shortcuts (G-chords, ⌘K, `?`, ⌘⇧C) once for the signed-in app, and renders the
@@ -22,12 +25,30 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
   const params = useParams({ strict: false })
   const announce = useAnnounce()
   const { copy } = useCopy()
-  const { workspace } = useWorkspaces(useChosenWorkspace())
+  const { workspace, workspaces } = useWorkspaces(useChosenWorkspace())
   const { data: sidebar } = useSidebarModel(workspace?.slug)
   const commandOpen = useOverlayStore((s) => s.commandMenuOpen)
   const setCommandOpen = useOverlayStore((s) => s.setCommandMenuOpen)
   const helpOpen = useOverlayStore((s) => s.helpOpen)
   const setHelpOpen = useOverlayStore((s) => s.setHelpOpen)
+  const address = useRouterState({
+    select: (s) => ({ pathname: s.location.pathname, search: s.location.searchStr }),
+  })
+  const record = useRecentStore((s) => s.record)
+
+  // Recent: what was visited, per workspace, in this browser only.
+  useEffect(() => {
+    const visit = classifyVisit(
+      address.pathname,
+      address.search,
+      sidebar?.teams,
+      sidebar?.views,
+      Date.now(),
+    )
+    if (visit) record(visit.workspace, visit.entry)
+    // The visit is the address; the sidebar's lists only name it.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [address.pathname, address.search, sidebar?.teams === undefined])
 
   useShortcutHandlers({
     go: ({ to }) => {
@@ -57,7 +78,14 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
         teams={sidebar?.teams}
         views={sidebar?.views}
         canManage={sidebar?.canManage}
+        workspaces={workspaces}
+        needs={{
+          reviews: sidebar?.reviews ?? 0,
+          unread: sidebar?.inboxUnread ?? 0,
+          triageAssigned: sidebar?.triageAssigned ?? 0,
+        }}
       />
+      <UndoToasts />
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </>
   )

@@ -6,7 +6,7 @@ import styles from './CommandDialog.module.css'
 /**
  * The shell of the command menu: a modal near the top of the screen with no header, the
  * command radius and the scrim, and room for a search field, a list and a side pane (children).
- * Focus goes to the first field inside, Escape closes, and focus returns to what opened it.
+ * Focus goes to `initialFocus` (the first field inside when left out), Escape closes, and focus returns to what opened it.
  * `label` names the dialog for screen readers; `onClosed` runs once the close has finished (a
  * command that opens another dialog waits for it).
  */
@@ -14,6 +14,7 @@ export function CommandDialog({
   onClosed,
   label,
   wide = false,
+  initialFocus,
   children,
   ...rest
 }: CommandDialog.Props) {
@@ -27,7 +28,11 @@ export function CommandDialog({
       <BaseDialog.Portal>
         <BaseDialog.Backdrop className={styles.backdrop} />
         <BaseDialog.Viewport className={styles.viewport}>
-          <BaseDialog.Popup className={styles.popup} data-wide={wide ? '' : undefined}>
+          <BaseDialog.Popup
+            className={styles.popup}
+            data-wide={wide ? '' : undefined}
+            {...(initialFocus === undefined ? {} : { initialFocus })}
+          >
             <BaseDialog.Title className={styles.hidden}>{label}</BaseDialog.Title>
             {children}
           </BaseDialog.Popup>
@@ -45,6 +50,8 @@ export namespace CommandDialog {
     label: string
     /** 880px instead of 720px, for a side pane that always shows. */
     wide?: boolean
+    /** What gets focus when it opens, when the first tabbable element is not the one (a chip before the field). */
+    initialFocus?: BaseDialog.Popup.Props['initialFocus']
     children?: ReactNode
   }
 }

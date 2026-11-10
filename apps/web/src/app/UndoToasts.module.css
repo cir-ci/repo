@@ -1,0 +1,23 @@
+.toast {
+  position: fixed;
+  inset-block-end: 24px;
+  inset-inline-start: 50%;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  padding: 8px 8px 8px 16px;
+  transform: translateX(-50%);
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: var(--circi-radius-control);
+  background: var(--circi-surface-raised);
+  box-shadow: 0 8px 24px rgb(28 15 12 / 14%);
+  color: var(--circi-text-primary);
+}
+
+.toast:not([data-undoable]) {
+  padding-block: 12px;
+  padding-inline-end: 16px;
+}

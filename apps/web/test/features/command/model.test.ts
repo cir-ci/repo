@@ -1,27 +1,59 @@
-import type { Search } from '@circi/api'
+import type { Search, View } from '@circi/api'
 import { describe, expect, it } from 'vitest'
 
+import type { Chip, Entry } from '#features/command/entry.ts'
 import {
-  commandContext,
+  buildList,
   contextActions,
   contextScopes,
-  emptyQueryEntries,
   flatten,
-  groupEntries,
-  type JumpInput,
-  jumpEntries,
+  footerHints,
+  GROUP_CAP,
+  type ListInput,
+  type ListView,
   keyEvents,
-  localMatches,
+  matchScore,
+  type Needs,
+  pageContext,
   parseBuildQuery,
-  searchEntries,
-  uniqueEntries,
+  textScore,
+  type TypedState,
   wrapIndex,
 } from '#features/command/model.ts'
-import { SHORTCUTS } from '#lib/shortcuts.ts'
+import { pageEntries, rowActionEntries, switchTeamPath } from '#features/command/pages.ts'
+import {
+  chipLabel,
+  completeTeamToken,
+  readTyped,
+  withoutLastChip,
+} from '#features/command/query.ts'
+import { classifyVisit, shortAgo } from '#features/command/recent.ts'
+import { resultEntries } from '#features/command/results.ts'
+import { settingsSections } from '#features/command/settings.ts'
+import { sidebarTeam } from '#test/support/fixtures.ts'
+
+const NOW = Date.parse('2026-03-10T12:00:00.000Z')
+
+const teams = [
+  sidebarTeam({ slug: 'web', name: 'Web App', pinned: true }),
+  sidebarTeam({ slug: 'docs', name: 'Docs' }),
+  sidebarTeam({ slug: 'mobile', name: 'Mobile' }),
+]
+const views: View.Item[] = [
+  {
+    id: 'v1',
+    name: 'Checkout regressions',
+    filters: {},
+    pinned: true,
+    position: 0,
+    team: null,
+    createdAt: '2026-03-01T00:00:00.000Z',
+  },
+]
 
 const build = (over: Partial<Search.Build> = {}): Search.Build => ({
   teamSlug: 'web',
-  teamName: 'Web',
+  teamName: 'Web App',
   number: 148,
   name: 'Checkout',
   branch: 'main',
@@ -42,8 +74,96 @@ const results = (over: Partial<Search.Results> = {}): Search.Results => ({
   notifications: [],
   reviews: [],
   views: [],
+  totals: {
+    builds: 0,
+    branches: 0,
+    teams: 0,
+    snapshots: 0,
+    baselines: 0,
+    triage: 0,
+    notifications: 0,
+    reviews: 0,
+    views: 0,
+  },
   ...over,
 })
+
+const input = (over: Partial<ListInput> = {}): ListInput => ({
+  workspace: 'acme',
+  pathname: '/inbox',
+  routeWorkspace: undefined,
+  teams,
+  views,
+  workspaces: [
+    { slug: 'acme', name: 'Acme' },
+    { slug: 'other', name: 'Other' },
+  ],
+  canManage: true,
+  instanceAdmin: false,
+  inSettings: false,
+  needs: { reviews: 0, unread: 0, triageAssigned: 0 },
+  recents: [],
+  now: NOW,
+  ...over,
+})
+
+const typed = (over: Partial<TypedState> = {}): TypedState => ({
+  query: '',
+  chips: [],
+  contextCleared: false,
+  results: undefined,
+  pending: false,
+  failed: false,
+  ...over,
+})
+
+const labels = (view: ListView): string[] => flatten(view.groups).map((e) => e.label)
+const headings = (view: ListView): string[] => view.groups.map((g) => g.label)
+
+const headingOn = (pathname: string) =>
+  headings(buildList(input({ pathname, routeWorkspace: 'acme' }), typed()))[0]
+
+const needRows = (needs: Needs) =>
+  buildList(input({ needs }), typed()).groups.find((g) => g.label === 'Needs you')?.entries
+
+const actionLabelsOn = (path: string) => contextActions(path).map((e) => e.label)
+
+const entryOf = (over: Partial<Entry>): Entry => ({
+  id: 'x',
+  group: 'g',
+  kind: 'build',
+  label: 'x',
+  icon: 'status',
+  target: { type: 'path', path: '/acme/web/builds/148' },
+  path: '/acme/web/builds/148',
+  peek: { kind: 'Build', title: 'x', lines: [], rows: [] },
+  ...over,
+})
+
+const insideSettings = (query: string, pathname = '/workspaces/acme/settings/members') =>
+  buildList(
+    input({
+      pathname,
+      inSettings: true,
+      recents: [{ kind: 'build', id: 'b', label: 'Build #1', path: '/x', at: NOW }],
+    }),
+    typed({ query, results: results({ builds: [build()] }) }),
+  )
+
+const footerEntry = (kind: Entry['kind'], path?: string): Entry => ({
+  id: 'x',
+  group: 'g',
+  kind,
+  label: 'x',
+  icon: 'inbox',
+  target: { type: 'path', path: '/' },
+  ...(path ? { path } : {}),
+  peek: { kind: 'x', title: 'x', lines: [], rows: [] },
+})
+const hintText = (h: ReturnType<typeof footerHints>) =>
+  h.map((x) => `${x.keys.join(' ')} ${x.label}`)
+
+const visitAt = (p: string, search = '') => classifyVisit(p, search, teams, views, NOW)
 
 describe('parseBuildQuery', () => {
   it('reads #148 and 148 as build 148', () => {
@@ -63,377 +183,726 @@ describe('wrapIndex', () => {
   it('wraps at both ends', () => {
     expect(wrapIndex(3, 2, 1)).toBe(0)
     expect(wrapIndex(3, 0, -1)).toBe(2)
-    expect(wrapIndex(3, 1, 1)).toBe(2)
   })
   it('starts at an end when nothing is highlighted, and is -1 for an empty list', () => {
     expect(wrapIndex(3, -1, 1)).toBe(0)
     expect(wrapIndex(3, -1, -1)).toBe(2)
-    expect(wrapIndex(0, 0, 1)).toBe(-1)
+    expect(wrapIndex(0, -1, 1)).toBe(-1)
   })
 })
 
-const MEMBERS = { memberCount: 1, memberPreview: [], siteCount: 0, youAreMember: true }
-
 describe('the empty query', () => {
-  const jump: JumpInput = {
-    workspace: 'acme',
-    teams: [
-      { slug: 'web', name: 'Web', color: 'slate', icon: null, pinned: true, triage: 0, ...MEMBERS },
-      {
-        slug: 'api',
-        name: 'API',
-        color: 'slate',
-        icon: null,
-        pinned: false,
-        triage: 0,
-        ...MEMBERS,
-      },
-    ],
-    views: [
-      {
-        id: 'v1',
-        name: 'Failing',
-        filters: {},
-        pinned: false,
-        position: 0,
-        team: null,
-        createdAt: '2026-01-01T00:00:00.000Z',
-      },
-    ],
-  }
-
-  it("sends Settings to Members for people who can't change the workspace settings", () => {
-    for (const [canManage, path] of [
-      [true, '/workspaces/acme/settings'],
-      [false, '/workspaces/acme/settings/members'],
-    ] as const) {
-      const entry = emptyQueryEntries('/', { ...jump, canManage }, 'system').find(
-        (e) => e.id === 'jump:settings',
-      )
-      expect(entry?.target).toEqual({ type: 'path', path })
-    }
+  it('lists pages as plain nouns under Go to, never "Open …"', () => {
+    const view = buildList(input(), typed())
+    const goTo = view.groups.find((g) => g.label === 'Go to')
+    expect(goTo?.entries.map((e) => e.label)).toEqual([
+      'Inbox',
+      'Reviews',
+      'Triage',
+      'Teams',
+      'Insights',
+      'Settings',
+      'Web App',
+      'Checkout regressions',
+    ])
+    expect(labels(view).some((l) => l.startsWith('Open '))).toBe(false)
+    expect(goTo?.entries.find((e) => e.label === 'Inbox')?.hint).toBe('g i')
+    expect(goTo?.entries.find((e) => e.label === 'Web App')?.kindLabel).toBe('Team')
+    expect(goTo?.entries.find((e) => e.label === 'Checkout regressions')?.kindLabel).toBe(
+      'Saved view',
+    )
   })
 
-  it('lists pages, only pinned teams and saved views, with the registry key as the hint', () => {
-    const labels = emptyQueryEntries('/', jump, 'system').map((e) => e.label)
-    expect(labels).toEqual(
-      expect.arrayContaining([
-        'Open Inbox',
-        'Open Reviews',
-        'Open Teams',
-        'Open Insights',
-        'Open Settings',
-        'Web',
-        'Failing',
-        'Keyboard shortcuts',
-      ]),
-    )
-    expect(labels).not.toContain('API')
-    const inbox = emptyQueryEntries('/', jump, 'system').find((e) => e.label === 'Open Inbox')
-    expect(inbox?.hint).toBe('g i')
-    const shortcuts = emptyQueryEntries('/', jump, 'system').find((e) => e.id === 'pref:shortcuts')
-    expect(shortcuts).toMatchObject({
-      group: 'Preferences',
-      hint: '?',
-      target: { type: 'key', key: '?' },
-    })
+  it('gives items a kind label and actions none', () => {
+    const view = buildList(input({ pathname: '/acme/web/builds/148' }), typed())
+    const plain = flatten(view.groups).filter((e) => e.kind === 'action' || e.kind === 'page')
+    expect(plain.length).toBeGreaterThan(5)
+    expect(plain.filter((e) => e.kindLabel !== undefined)).toEqual([])
+    const items = flatten(view.groups).filter((e) => e.kind === 'team' || e.kind === 'view')
+    expect(items.filter((e) => e.kindLabel === undefined)).toEqual([])
   })
 
-  it('offers the build review actions on a build page, from the registry', () => {
-    expect(contextScopes('/acme/web/builds/148')).toEqual(['build-review'])
-    const actions = contextActions('/acme/web/builds/148')
-    const labels = actions.map((e) => e.label)
-    expect(labels).toEqual(
-      expect.arrayContaining([
-        'Approve screenshot',
-        'Approve all',
-        'Reject screenshot, with a reason',
-        'Copy link to this page',
-      ]),
+  it('orders the groups: the page, Recent, Needs you, Go to, Switch and change', () => {
+    const view = buildList(
+      input({
+        pathname: '/acme/web/builds/148',
+        routeWorkspace: 'acme',
+        needs: { reviews: 3, unread: 1, triageAssigned: 2 },
+        recents: [
+          {
+            kind: 'build',
+            id: 'build:web:140',
+            label: 'Build #140',
+            detail: 'Web App',
+            path: '/acme/web/builds/140',
+            at: NOW - 2 * 3_600_000,
+          },
+        ],
+      }),
+      typed(),
     )
-    // Each entry is a registry key, so its hint is declared once.
-    for (const a of actions) {
-      expect(SHORTCUTS.some((s) => s.key === a.hint && s.description === a.label)).toBe(true)
-    }
+    expect(headings(view)).toEqual([
+      'Build #148',
+      'Recent',
+      'Needs you',
+      'Go to',
+      'Switch and change',
+    ])
+  })
+
+  it('names the page in the heading of its actions', () => {
+    expect(headingOn('/workspaces/acme/reviews')).toBe('Reviews')
+    expect(headingOn('/inbox')).toBe('Inbox')
+    expect(headingOn('/acme/web/triage')).toBe('Triage')
+    expect(headingOn('/acme/web/baselines/checkout/payment')).toBe('Baseline: checkout / payment')
+    expect(headingOn('/acme/web')).toBe('Builds')
+  })
+
+  it('shows Needs you with counts, singular and plural, and drops a zero', () => {
+    expect(needRows({ reviews: 3, unread: 1, triageAssigned: 2 })?.map((e) => e.label)).toEqual([
+      '3 reviews waiting on you',
+      '2 triage items assigned to you',
+      '1 unread notice',
+    ])
+    expect(needRows({ reviews: 1, unread: 0, triageAssigned: 0 })?.map((e) => e.label)).toEqual([
+      '1 review waiting on you',
+    ])
+    expect(needRows({ reviews: 0, unread: 0, triageAssigned: 0 })).toBeUndefined()
+  })
+
+  it('lists Recent newest first without the current page, five at most, with relative times', () => {
+    const recents = Array.from({ length: 8 }, (_, i) => ({
+      kind: 'build' as const,
+      id: `build:web:${i}`,
+      label: `Build #${i}`,
+      path: `/acme/web/builds/${i}`,
+      at: NOW - i * 3_600_000,
+    }))
+    const view = buildList(input({ pathname: '/acme/web/builds/0', recents }), typed())
+    const recent = view.groups.find((g) => g.label === 'Recent')?.entries
+    expect(recent?.map((e) => e.label)).toEqual([
+      'Build #1',
+      'Build #2',
+      'Build #3',
+      'Build #4',
+      'Build #5',
+    ])
+    expect(recent?.[0]?.time).toBe('1 h ago')
+    expect(recent?.[0]?.kindLabel).toBe('Build')
+  })
+
+  it('has no Recent on a first open, and Go to leads', () => {
+    expect(headings(buildList(input(), typed()))[0]).toBe('Inbox')
+    expect(headings(buildList(input({ pathname: '/account/profile' }), typed()))).not.toContain(
+      'Recent',
+    )
+  })
+
+  it('lists Switch team…, Switch workspace… and Theme… with a chevron, then Keyboard shortcuts and Sign out', () => {
+    const view = buildList(input(), typed())
+    const rows = view.groups.find((g) => g.label === 'Switch and change')?.entries
+    expect(rows?.map((e) => e.label)).toEqual([
+      'Switch team…',
+      'Switch workspace…',
+      'Theme…',
+      'Keyboard shortcuts',
+      'Sign out',
+    ])
+    expect(rows?.filter((e) => e.chevron).map((e) => e.label)).toEqual([
+      'Switch team…',
+      'Switch workspace…',
+      'Theme…',
+    ])
+    expect(rows?.find((e) => e.label === 'Keyboard shortcuts')?.hint).toBe('?')
+  })
+
+  it('leaves out Switch workspace… when there is only one', () => {
+    const view = buildList(input({ workspaces: [{ slug: 'acme', name: 'Acme' }] }), typed())
+    expect(labels(view)).not.toContain('Switch workspace…')
+  })
+})
+
+describe('page actions', () => {
+  it('uses the menu verbs, with the registry keys, for a build', () => {
+    const rows = contextActions('/acme/web/builds/148', pageContext('/acme/web/builds/148', teams))
+    const byLabel = Object.fromEntries(rows.map((e) => [e.label, e.hint]))
+    expect(byLabel['Approve screenshot']).toBe('a')
+    expect(byLabel['Approve all']).toBe('shift+a')
+    expect(byLabel['Reject screenshot']).toBe('r')
+    expect(byLabel['Request review']).toBe('shift+r')
+    expect(byLabel['Write a comment']).toBe('c')
+    expect(byLabel['Copy link to this page']).toBe('mod+shift+c')
+  })
+
+  it('says what it will do and to what in the peek', () => {
+    const page = pageContext('/acme/web/builds/148', teams)
+    const approveAll = contextActions('/acme/web/builds/148', page, 7).find(
+      (e) => e.label === 'Approve all',
+    )
+    expect(approveAll?.peek.lines).toEqual(['Approves all 7 changed screenshots in build #148.'])
   })
 
   it('offers no action that nothing on the page would handle', () => {
-    // A team's Builds page binds neither snooze nor request review (they need a selected request).
-    const labels = contextActions('/acme/web').map((e) => e.label)
-    expect(labels).not.toContain('Request review')
-    expect(labels).not.toContain('Snooze')
-    expect(labels).not.toContain('Approve all')
-    expect(labels).toContain('Copy link to this page')
+    expect(actionLabelsOn('/acme/web')).not.toContain('Snooze…')
+    expect(actionLabelsOn('/inbox')).toContain('Snooze…')
+    expect(actionLabelsOn('/inbox')).toContain('Mark as read')
   })
 
-  it('offers Request review on a build, and Snooze on the pages that snooze', () => {
-    const onBuild = contextActions('/acme/web/builds/148').map((e) => e.label)
-    expect(onBuild).toContain('Request review')
-    expect(onBuild).not.toContain('Snooze')
-    expect(contextActions('/workspaces/acme/reviews').map((e) => e.label)).toEqual(
-      expect.arrayContaining(['Snooze', 'Request review']),
-    )
-    expect(contextActions('/inbox').map((e) => e.label)).toContain('Snooze')
-    expect(contextActions('/acme/web/triage').map((e) => e.label)).toContain('Snooze')
-  })
-
-  it('puts the actions before the places to jump to, then the theme', () => {
-    const groups = groupEntries(emptyQueryEntries('/acme/web/builds/1', jump, 'system')).map(
-      (g) => g.group,
-    )
-    expect(groups).toEqual(['Actions', 'Jump to', 'Navigate', 'Preferences'])
+  it('maps pages to the shortcut scopes', () => {
+    expect(contextScopes('/acme/web/builds/148')).toEqual(['build-review'])
+    expect(contextScopes('/inbox')).toEqual(['inbox', 'list'])
+    expect(contextScopes('/account/profile')).toEqual([])
   })
 })
 
 describe('the context of a page', () => {
-  const teams = [
-    {
-      slug: 'web',
-      name: 'web-app',
-      color: 'slate' as const,
-      icon: null,
-      pinned: true,
-      triage: 0,
-      ...MEMBERS,
-    },
-  ]
-
-  it('names the build you are on, and the heading of its actions', () => {
-    expect(commandContext('/acme/web/builds/148', teams)).toEqual({
-      chip: 'web-app · #148',
-      actions: 'Build #148',
+  it('names the team and build on a build, and the team on its other pages', () => {
+    expect(pageContext('/acme/web/builds/148', teams, 'acme', 'acme')).toMatchObject({
+      chip: 'Web App · #148',
+      heading: 'Build #148',
+      team: { slug: 'web', name: 'Web App' },
     })
-    expect(commandContext('/acme/other/builds/7', teams)?.chip).toBe('other · #7')
+    expect(pageContext('/acme/docs/triage', teams, 'acme', 'acme').chip).toBe('Docs')
+  })
+  it('has no chip off a team, or on a team of another workspace', () => {
+    expect(pageContext('/inbox', teams).chip).toBeUndefined()
+    expect(pageContext('/workspaces/acme/reviews', teams).chip).toBeUndefined()
+    expect(pageContext('/other/web', teams, 'other', 'acme').team).toBeUndefined()
+  })
+})
+
+describe('matching and ranking', () => {
+  it('scores equal, prefix, word start and substring in that order', () => {
+    expect(textScore('Inbox', 'inbox')).toBe(100)
+    expect(textScore('Inbox zero', 'inbox')).toBe(80)
+    expect(textScore('Go to inbox', 'inbox')).toBe(60)
+    expect(textScore('Checkbox', 'box')).toBe(40)
+    expect(textScore('Inbox', 'zzz')).toBe(0)
   })
 
-  it('has none anywhere else', () => {
-    expect(commandContext('/inbox', teams)).toBeUndefined()
-    expect(commandContext('/acme/web', teams)).toBeUndefined()
+  it('matches on aliases (prefs, dark, approve) and needs every word', () => {
+    const theme = { label: 'Theme…', keywords: ['prefs', 'dark'] }
+    expect(matchScore(theme, ['dark'])).toBeGreaterThan(0)
+    expect(matchScore(theme, ['prefs', 'theme'])).toBeGreaterThan(0)
+    expect(matchScore(theme, ['dark', 'nope'])).toBe(0)
   })
 
-  it('heads the actions group with that name', () => {
-    const entries = emptyQueryEntries(
-      '/acme/web/builds/1',
-      { workspace: 'acme', teams: [], views: [] },
-      'system',
+  it('puts a prefix match above a substring match', () => {
+    const view = buildList(input(), typed({ query: 'in' }))
+    const goTo = view.groups.find((g) => g.label === 'Go to')?.entries.map((e) => e.label)
+    expect(goTo?.[0]).toBe('Inbox')
+  })
+})
+
+describe('a typed query', () => {
+  const found = results({
+    builds: [build(), build({ number: 147, name: 'Cart' }), build({ number: 146, name: 'Nav' })],
+    branches: [
+      { teamSlug: 'web', teamName: 'Web App', branch: 'feat/checkout', latestBuildNumber: 148 },
+    ],
+    snapshots: [
+      { teamSlug: 'web', teamName: 'Web App', name: 'Checkout / Payment', latestBuildNumber: 148 },
+    ],
+    totals: { ...results().totals, builds: 12, branches: 1, snapshots: 1 },
+  })
+
+  it('leads with the group of the best matches, breaking ties by the spec order, each row with its kind', () => {
+    const view = buildList(input(), typed({ query: 'check', results: found }))
+    const names = headings(view).filter(Boolean)
+    // Go to (the saved view) and Screenshots both match at the start of the name: Go to is first of the tie.
+    expect(names.slice(0, 2)).toEqual(['Go to', 'Screenshots'])
+    // Builds and Branches match at a word start: the spec lists Builds first.
+    expect(names.indexOf('Builds')).toBeLessThan(names.indexOf('Branches'))
+    expect(names.indexOf('Screenshots')).toBeLessThan(names.indexOf('Builds'))
+    const kinds = flatten(view.groups)
+      .filter((e) => e.kindLabel)
+      .map((e) => `${e.kind}:${e.kindLabel}`)
+    expect(kinds).toContain('build:Build')
+    expect(kinds).toContain('branch:Branch')
+    expect(kinds).toContain('screenshot:Screenshot')
+  })
+
+  it('caps a result group at 3 with a "Show all 12 builds" row that applies the chip', () => {
+    const view = buildList(input(), typed({ query: 'check', results: found }))
+    const builds = view.groups.find((g) => g.label === 'Builds')?.entries ?? []
+    expect(builds).toHaveLength(GROUP_CAP + 1)
+    const more = builds.at(-1)
+    expect(more?.label).toBe('Show all 12 builds')
+    expect(more?.target).toEqual({ type: 'chip', chip: { type: 'kind', kind: 'builds' } })
+  })
+
+  it('has no cap and no "Show all" once a kind chip narrows it', () => {
+    const chips: Chip[] = [{ type: 'kind', kind: 'builds' }]
+    const view = buildList(input(), typed({ query: 'check', chips, results: found }))
+    expect(labels(view)).not.toContain('Show all 12 builds')
+    expect(view.groups.flatMap((g) => g.entries).filter((e) => e.kind === 'build')).toHaveLength(3)
+  })
+
+  it('leads with a single best match, with no heading, when one hit is clearly first', () => {
+    const view = buildList(
+      input({ pathname: '/acme/web/builds/9', routeWorkspace: 'acme' }),
+      typed({ query: '#148', results: found }),
     )
-    expect(groupEntries(entries, 'Build #1')[0]).toMatchObject({
-      group: 'Actions',
-      label: 'Build #1',
+    expect(view.groups[0]?.label).toBe('')
+    expect(view.groups[0]?.entries).toHaveLength(1)
+    expect(view.groups[0]?.entries[0]?.id).toBe('build:web:148')
+    // It is not listed a second time under Builds.
+    const builds = view.groups.find((g) => g.label === 'Builds')?.entries.map((e) => e.id)
+    expect(builds).not.toContain('build:web:148')
+  })
+
+  it('jumps to the build number in the open team before the answer arrives', () => {
+    const view = buildList(
+      input({ pathname: '/acme/web', routeWorkspace: 'acme' }),
+      typed({ query: '148' }),
+    )
+    expect(view.groups[0]?.entries[0]).toMatchObject({
+      label: 'Build #148',
+      target: { type: 'path', path: '/acme/web/builds/148' },
     })
-    expect(groupEntries(entries)[0]?.label).toBe('Actions')
-  })
-})
-
-describe('local matches', () => {
-  const jump: JumpInput = { workspace: 'acme', teams: [], views: [] }
-
-  it('finds the theme choices for "theme", marking the one in use', () => {
-    const entries = localMatches('theme', '/', jump, 'dark')
-    expect(entries.map((e) => e.label)).toEqual(['Theme: System', 'Theme: Light', 'Theme: Dark'])
-    expect(entries.find((e) => e.detail === 'Current')?.label).toBe('Theme: Dark')
-    expect(entries[1]?.target).toEqual({ type: 'theme', mode: 'light' })
   })
 
-  it('needs every word typed, in any case, and finds pages too', () => {
-    expect(localMatches('THEME dark', '/', jump, 'system').map((e) => e.label)).toEqual([
-      'Theme: Dark',
-    ])
-    expect(localMatches('inbox', '/', jump, 'system').map((e) => e.label)).toContain('Open Inbox')
-    expect(localMatches('zzzq', '/', jump, 'system')).toEqual([])
+  it('shows no best match when two hits tie', () => {
+    const view = buildList(input(), typed({ query: 'in' }))
+    expect(view.groups[0]?.label).not.toBe('')
   })
-})
 
-describe('search entries', () => {
-  it('orders the groups Builds, Branches, Teams, Screenshots and links each', () => {
-    const entries = searchEntries(
-      'acme',
-      'web',
-      results({
-        snapshots: [{ teamSlug: 'web', teamName: 'Web', name: 'Home page', latestBuildNumber: 7 }],
-        teams: [{ slug: 'web', name: 'Web' }],
-        branches: [{ teamSlug: 'web', teamName: 'Web', branch: 'main', latestBuildNumber: 9 }],
-        builds: [build()],
+  it('shows each saved view once, though a view is a menu entry and a result', () => {
+    const view = buildList(
+      input(),
+      typed({
+        query: 'checkout',
+        results: results({
+          views: [{ id: 'v1', name: 'Checkout regressions', team: null }],
+        }),
       }),
     )
-    const groups = groupEntries(entries)
-    expect(groups.map((g) => g.group)).toEqual(['Builds', 'Branches', 'Teams', 'Screenshots'])
-    const paths = flatten(groups).map((e) => (e.target.type === 'path' ? e.target.path : ''))
-    expect(paths).toEqual([
-      '/acme/web/builds/148',
-      '/acme/web/builds/9',
-      '/acme/web',
-      '/acme/web/builds/7?shot=Home%20page',
-    ])
+    expect(labels(view).filter((l) => l === 'Checkout regressions')).toHaveLength(1)
   })
 
-  it('ranks the build with the typed number ahead of one that matches as a pull request', () => {
-    const entries = searchEntries(
-      'acme',
-      '#148',
-      results({ builds: [build({ number: 150, prNumber: 148 }), build({ number: 148 })] }),
-    )
-    expect(entries.map((e) => e.id)).toEqual(['build:web:148', 'build:web:150'])
-  })
-
-  it('jumps to the build in the open team before the answer arrives, without doubling it', () => {
-    const open = { slug: 'web', name: 'Web' }
-    const early = searchEntries('acme', '148', undefined, open)
-    expect(early).toHaveLength(1)
-    expect(early[0]?.target).toEqual({ type: 'path', path: '/acme/web/builds/148' })
-    const later = searchEntries('acme', '148', results({ builds: [build()] }), open)
-    expect(later).toHaveLength(1)
-  })
-
-  it('gives builds, branches, teams and snapshots a quick look from what the result has', () => {
-    const entries = searchEntries(
-      'acme',
-      'x',
+  it('renders the new kinds with their icon and kind label', () => {
+    const rows = resultEntries(
+      { workspace: 'acme', teams, allTeams: true },
       results({
-        builds: [build({ branch: 'feat', prNumber: 4 })],
-        teams: [{ slug: 'web', name: 'Web' }],
+        baselines: [
+          { teamSlug: 'web', teamName: 'Web App', name: 'checkout/summary', buildNumber: 140 },
+        ],
+        triage: [
+          {
+            teamSlug: 'web',
+            teamName: 'Web App',
+            kind: 'flaky',
+            key: 'checkout/summary',
+            snapshotName: 'checkout/summary',
+            buildNumber: 150,
+            branch: 'main',
+          },
+        ],
+        notifications: [
+          {
+            id: 'n1',
+            kind: 'mentioned',
+            tab: 'everything',
+            read: false,
+            createdAt: '2026-03-10T12:00:00.000Z',
+            actor: { name: 'Ada' },
+            build: { number: 148, name: 'default' },
+            team: { slug: 'web', name: 'Web App' },
+            payload: { snippet: 'cut off' },
+          },
+        ],
+        reviews: [
+          {
+            id: 'r1',
+            tab: 'for-you',
+            teamSlug: 'web',
+            teamName: 'Web App',
+            build: { number: 148, name: 'default', branch: 'main' },
+            reviewer: { name: 'Me' },
+            requestedBy: { name: 'Dana Levi' },
+          },
+        ],
       }),
     )
-    expect(entries[0]?.preview?.rows).toEqual(
-      expect.arrayContaining([
-        { label: 'Branch', value: 'feat' },
-        { label: 'Pull request', value: '#4' },
-        { label: 'Review', value: 'Awaiting review' },
-      ]),
-    )
-    expect(entries[1]?.preview?.title).toBe('Web')
+    const byKind = Object.fromEntries(rows.map((e) => [e.kind, e]))
+    expect(byKind['baseline']).toMatchObject({ icon: 'layers', kindLabel: 'Baseline' })
+    expect(byKind['triage']).toMatchObject({
+      icon: 'alert',
+      kindLabel: 'Triage',
+      detail: 'Flaky on main · Web App',
+    })
+    expect(byKind['notice']).toMatchObject({ icon: 'bell', kindLabel: 'Inbox', unread: true })
+    expect(byKind['review']).toMatchObject({
+      label: 'Review #148',
+      detail: 'from Dana Levi · Web App',
+      icon: 'eye',
+      kindLabel: 'Review request',
+    })
+    expect(byKind['triage']?.target).toEqual({
+      type: 'path',
+      path: '/acme/web/triage?item=flaky%3Acheckout%2Fsummary',
+    })
   })
 })
 
-describe('search entries of the other kinds', () => {
-  const more = results({
-    baselines: [{ teamSlug: 'web', teamName: 'Web', name: 'checkout/summary', buildNumber: 140 }],
-    triage: [
-      {
-        teamSlug: 'web',
-        teamName: 'Web',
-        kind: 'flaky',
-        key: 'nav/header',
-        snapshotName: 'nav/header',
-        buildNumber: 150,
-        branch: 'main',
-      },
-      {
-        teamSlug: 'web',
-        teamName: 'Web',
-        kind: 'failed',
-        key: 'build:142',
-        snapshotName: null,
-        buildNumber: 142,
-        branch: 'main',
-      },
-    ],
-    notifications: [
-      {
-        id: 'n1',
-        kind: 'build_rejected',
-        tab: 'snoozed',
-        read: false,
-        createdAt: '2026-03-10T12:00:00.000Z',
-        actor: { name: 'Ada' },
-        build: { number: 148, name: 'default' },
-        team: { slug: 'web', name: 'Web' },
-        payload: { reason: 'spacing is off' },
-      },
-    ],
-    reviews: [
-      {
-        id: 'r1',
-        tab: 'created',
-        teamSlug: 'web',
-        teamName: 'Web',
-        build: { number: 148, name: 'default', branch: 'main' },
-        reviewer: { name: 'Grace' },
-        requestedBy: { name: 'Ada' },
-      },
-    ],
-    views: [{ id: 'v1', name: 'Mine', team: null }],
+describe('scope', () => {
+  const onWeb = { pathname: '/acme/web/builds/9', routeWorkspace: 'acme' }
+
+  it('limits a team page to its team and ends the list with a "Search all teams" row', () => {
+    const view = buildList(input(onWeb), typed({ query: 'checkout', results: results() }))
+    expect(view.scope).toEqual({ slug: 'web', name: 'Web App' })
+    const last = flatten(view.groups).at(-1)
+    expect(last).toMatchObject({
+      kind: 'widen',
+      label: 'Search all teams for "checkout"',
+      hint: 'mod+Enter',
+    })
   })
 
-  const path = (id: string) => {
-    const e = searchEntries('acme', 'x', more).find((x) => x.id === id)
-    return e?.target.type === 'path' ? e.target.path : undefined
+  it('is workspace-wide, with no widen row, off a team page', () => {
+    const view = buildList(input(), typed({ query: 'checkout', results: results() }))
+    expect(view.scope).toBeUndefined()
+    expect(flatten(view.groups).some((e) => e.kind === 'widen')).toBe(false)
+  })
+
+  it('is widened by removing the page chip, or limited to a team by a team chip', () => {
+    const widened = buildList(input(onWeb), typed({ query: 'x', contextCleared: true }))
+    expect(widened.scope).toBeUndefined()
+    const chip: Chip = { type: 'team', slug: 'docs', name: 'Docs' }
+    const limited = buildList(input(), typed({ query: 'x', chips: [chip] }))
+    expect(limited.scope).toEqual({ slug: 'docs', name: 'Docs' })
+  })
+
+  it('says what was not found and offers three ways on, with the build number tip only without a digit', () => {
+    const view = buildList(input(onWeb), typed({ query: 'chekout', results: results() }))
+    expect(view.state).toBe('none')
+    expect(view.message).toBe('No results for "chekout" in Web App.')
+    expect(view.tip).toBe('Try a build number like #148.')
+    expect(labels(view)).toEqual([
+      'Search all teams for "chekout"',
+      'Show all builds',
+      'Show all pages',
+    ])
+    const withDigit = buildList(input(), typed({ query: 'x9', results: results() }))
+    expect(withDigit.tip).toBeUndefined()
+    expect(withDigit.message).toBe('No results for "x9".')
+  })
+
+  it('shows Searching while the answer is on its way, and a retry row when it failed', () => {
+    const waiting = buildList(input(), typed({ query: 'chec', pending: true }))
+    expect(waiting.state).toBe('searching')
+    const failed = buildList(input(), typed({ query: 'chec', failed: true }))
+    expect(failed.state).toBe('error')
+    expect(failed.message).toBe("Couldn't search. Check your connection and try again.")
+    expect(labels(failed).at(-1)).toBe('Try again')
+  })
+})
+
+describe('prefixes and chips', () => {
+  it('turns a first # / > / character into a kind chip', () => {
+    expect(readTyped('#14', [], teams)).toEqual({
+      chips: [{ type: 'kind', kind: 'builds' }],
+      text: '14',
+    })
+    expect(readTyped('>theme', [], teams).chips).toEqual([{ type: 'kind', kind: 'commands' }])
+    expect(readTyped('/checkout', [], teams).chips).toEqual([{ type: 'kind', kind: 'screenshots' }])
+    // A second prefix is just text, and a prefix after text stays text.
+    expect(readTyped('#a#b', [], teams).text).toBe('a#b')
+    expect(readTyped('a#b', [], teams).chips).toEqual([])
+  })
+
+  it('leaves @ as text: there is no people search yet', () => {
+    expect(readTyped('@dana', [], teams)).toEqual({ chips: [], text: '@dana' })
+  })
+
+  it('turns "in:name " and "team:slug " into a team chip, and keeps the rest', () => {
+    expect(readTyped('in:docs checkout', [], teams)).toEqual({
+      chips: [{ type: 'team', slug: 'docs', name: 'Docs' }],
+      text: 'checkout',
+    })
+    expect(readTyped('in:docs', [], teams).chips).toEqual([])
+    expect(readTyped('checkout in:docs ', [], teams)).toEqual({
+      chips: [{ type: 'team', slug: 'docs', name: 'Docs' }],
+      text: 'checkout',
+    })
+    // A slug or a one-word name, in any case.
+    expect(readTyped('team:WEB app', [], teams)).toEqual({
+      chips: [{ type: 'team', slug: 'web', name: 'Web App' }],
+      text: 'app',
+    })
+    expect(readTyped('in:nope ', [], teams).chips).toEqual([])
+  })
+
+  it('completes a half-typed team with Tab', () => {
+    expect(completeTeamToken('in:mo', [], teams)).toEqual({
+      chips: [{ type: 'team', slug: 'mobile', name: 'Mobile' }],
+      text: '',
+    })
+    expect(completeTeamToken('x in:do', [], teams)?.text).toBe('x')
+    expect(completeTeamToken('in:zz', [], teams)).toBeUndefined()
+    expect(completeTeamToken('plain', [], teams)).toBeUndefined()
+  })
+
+  it('removes the kind chip before the team chip on Backspace', () => {
+    const chips: Chip[] = [
+      { type: 'team', slug: 'docs', name: 'Docs' },
+      { type: 'kind', kind: 'builds' },
+    ]
+    expect(withoutLastChip(chips)).toEqual([{ type: 'team', slug: 'docs', name: 'Docs' }])
+    expect(chips.map(chipLabel)).toEqual(['Docs', 'Builds'])
+  })
+
+  it('runs commands only for >, and asks the search only for the chip kinds', () => {
+    const commands = buildList(
+      input(),
+      typed({ query: 'theme', chips: [{ type: 'kind', kind: 'commands' }], results: results() }),
+    )
+    expect(commands.kinds).toEqual([])
+    expect(labels(commands)).toContain('Theme…')
+    const screenshots = buildList(
+      input(),
+      typed({ query: 'x', chips: [{ type: 'kind', kind: 'screenshots' }] }),
+    )
+    expect(screenshots.kinds).toEqual(['snapshots', 'baselines'])
+    expect(labels(screenshots)).not.toContain('Inbox')
+  })
+
+  it('lists recent builds under a # chip with an empty field', () => {
+    const view = buildList(
+      input({
+        recents: [
+          { kind: 'build', id: 'b', label: 'Build #1', path: '/acme/web/builds/1', at: NOW },
+          { kind: 'team', id: 't', label: 'Web App', path: '/acme/web', at: NOW },
+        ],
+      }),
+      typed({ chips: [{ type: 'kind', kind: 'builds' }] }),
+    )
+    expect(labels(view)).toEqual(['Build #1'])
+  })
+})
+
+describe('nested lists', () => {
+  const nested = {
+    workspace: 'acme',
+    pathname: '/acme/web/triage',
+    teams,
+    workspaces: [
+      { slug: 'acme', name: 'Acme' },
+      { slug: 'other', name: 'Other' },
+    ],
+    routeTeam: 'web',
+    theme: 'system' as const,
   }
-  const rows = (id: string) =>
-    searchEntries('acme', 'x', more).find((x) => x.id === id)?.preview?.rows
 
-  it('groups them after Screenshots, each labelled by its own name', () => {
-    const groups = groupEntries(searchEntries('acme', 'x', more))
-    expect(groups.map((g) => g.group)).toEqual([
-      'Jump to',
-      'Baselines',
-      'Triage',
-      'Inbox',
-      'Reviews',
-    ])
-    expect(flatten(groups).map((e) => e.label)).toEqual([
-      'Mine',
-      'checkout/summary',
-      'nav/header',
-      'Build #142 failed',
-      'Ada rejected build #148',
-      'Build #148 · main',
-    ])
+  it('lists the teams with the current one checked, and keeps the section on a switch', () => {
+    const rows = pageEntries({ page: 'team' }, nested, '')
+    expect(rows.map((e) => e.label)).toEqual(['Web App', 'Docs', 'Mobile'])
+    expect(rows.find((e) => e.checked)?.label).toBe('Web App')
+    expect(rows.find((e) => e.label === 'Docs')?.path).toBe('/acme/docs/triage')
+    expect(switchTeamPath('/acme/web/builds/148', 'acme', 'docs')).toBe('/acme/docs')
+    expect(switchTeamPath('/inbox', 'acme', 'docs')).toBe('/acme/docs')
+    expect(switchTeamPath('/acme/web/baselines/a/b', 'acme', 'docs')).toBe('/acme/docs/baselines')
   })
 
-  it('opens each with the item selected', () => {
-    expect(path('baseline:web:checkout/summary')).toBe('/acme/web/baselines/checkout/summary')
-    expect(path('triage:web:flaky:nav/header')).toBe('/acme/web/triage?item=flaky%3Anav%2Fheader')
-    expect(path('triage:web:failed:build:142')).toBe('/acme/web/triage?item=failed%3Abuild%3A142')
-    expect(path('notification:n1')).toBe('/inbox?tab=snoozed&item=n1')
-    expect(path('review:r1')).toBe('/workspaces/acme/reviews?tab=created&review=r1')
-    expect(path('view:v1')).toBe('/workspaces/acme/views/v1')
+  it('filters a list by what is typed', () => {
+    expect(pageEntries({ page: 'team' }, nested, 'mo').map((e) => e.label)).toEqual(['Mobile'])
+    expect(pageEntries({ page: 'team' }, nested, 'zzz')).toEqual([])
   })
 
-  it('has key facts for the peek pane', () => {
-    expect(rows('triage:web:flaky:nav/header')).toEqual(
-      expect.arrayContaining([
-        { label: 'Kind', value: 'Flaky' },
-        { label: 'Build', value: '#150' },
-        { label: 'Branch', value: 'main' },
-      ]),
+  it('lists the workspaces and the three themes, the current one marked', () => {
+    expect(pageEntries({ page: 'workspace' }, nested, '').find((e) => e.checked)?.label).toBe(
+      'Acme',
     )
-    expect(rows('notification:n1')).toEqual(
-      expect.arrayContaining([
-        { label: 'Message', value: 'spacing is off' },
-        { label: 'From', value: 'Ada' },
-        { label: 'Status', value: 'Unread' },
-      ]),
-    )
-    expect(rows('review:r1')).toEqual(
-      expect.arrayContaining([
-        { label: 'Reviewer', value: 'Grace' },
-        { label: 'In', value: 'Created by you' },
-      ]),
-    )
-    expect(rows('baseline:web:checkout/summary')).toEqual(
-      expect.arrayContaining([{ label: 'From build', value: '#140' }]),
-    )
+    const themes = pageEntries({ page: 'theme' }, { ...nested, theme: 'dark' }, '')
+    expect(themes.map((e) => e.label)).toEqual(['System', 'Light', 'Dark'])
+    expect(themes.find((e) => e.checked)).toMatchObject({ label: 'Dark', detail: 'Current' })
   })
+})
 
-  it('shows a saved view once, though it is also a menu entry', () => {
-    const jump = jumpEntries({
-      workspace: 'acme',
-      teams: [],
-      views: [
-        {
-          id: 'v1',
-          name: 'Mine',
-          filters: {},
-          pinned: false,
-          position: 0,
-          team: null,
-          createdAt: '',
+describe('row actions', () => {
+  it('offers a build Approve all, Reject, Copy link and Open in new tab', () => {
+    const rows = rowActionEntries(
+      entryOf({
+        subject: {
+          type: 'build',
+          workspace: 'acme',
+          team: 'web',
+          number: 148,
+          label: 'build #148',
         },
-      ],
+      }),
+    )
+    expect(rows.map((e) => e.label)).toEqual([
+      'Approve all',
+      'Reject',
+      'Copy link',
+      'Open in new tab',
+    ])
+  })
+
+  it('offers a triage item assign, snooze and dismiss, and a notice its read state', () => {
+    const triage = rowActionEntries(
+      entryOf({
+        kind: 'triage',
+        subject: {
+          type: 'triage',
+          workspace: 'acme',
+          team: 'web',
+          kind: 'flaky',
+          key: 'k',
+          label: 'k',
+        },
+      }),
+    )
+    expect(triage.map((e) => e.label)).toEqual([
+      'Assign to me',
+      'Snooze until tomorrow',
+      'Snooze until next week',
+      'Dismiss',
+      'Copy link',
+      'Open in new tab',
+    ])
+    const read = rowActionEntries(
+      entryOf({ kind: 'notice', subject: { type: 'notice', id: 'n', read: true, label: 'n' } }),
+    )
+    expect(read[0]?.label).toBe('Mark as unread')
+  })
+
+  it('offers a row with nothing of its own only the link actions', () => {
+    expect(rowActionEntries(entryOf({})).map((e) => e.label)).toEqual([
+      'Copy link',
+      'Open in new tab',
+    ])
+  })
+})
+
+describe('settings is closed', () => {
+  it('offers only the frame sections and the way back, with the current section marked', () => {
+    const view = insideSettings('')
+    expect(headings(view)).toEqual(['In settings', 'Leave settings'])
+    const sections = view.groups[0]?.entries ?? []
+    expect(sections.map((e) => e.label)).toEqual(
+      expect.arrayContaining(['Profile', 'Members', 'Teams', 'Integrations']),
+    )
+    expect(sections.find((e) => e.label === 'Members')?.detail).toBe('Workspace · Current')
+    expect(view.groups[1]?.entries[0]).toMatchObject({
+      label: 'Back to app',
+      target: { type: 'path', path: '/inbox' },
     })
-    const all = uniqueEntries([...jump, ...searchEntries('acme', 'mi', more)])
-    expect(all.filter((e) => e.id === 'view:v1')).toHaveLength(1)
+    expect(labels(view)).not.toContain('Inbox')
+    expect(labels(view)).not.toContain('Build #1')
+  })
+
+  it('shows no app result or page while something is typed, even a build number', () => {
+    for (const q of ['148', 'inbox', 'check']) {
+      const view = insideSettings(q)
+      const rows = flatten(view.groups)
+      expect(rows.map((e) => e.kind).filter((k) => k !== 'setting' && k !== 'action')).toEqual([])
+      const paths = rows.map((e) => (e.target.type === 'path' ? e.target.path : ''))
+      expect(
+        paths.filter((p) => !/^\/(account|instance|workspaces\/acme\/settings|inbox$)/.test(p)),
+      ).toEqual([])
+    }
+    expect(labels(insideSettings('mem'))).toEqual(['Members'])
+  })
+
+  it('hides the sections a member cannot use', () => {
+    const member = settingsSections({ workspace: 'acme', canManage: false, instanceAdmin: false })
+    const names = member.filter((s) => s.area === 'Workspace').map((s) => s.label)
+    expect(names).toEqual(['Members', 'Teams'])
+    const admin = settingsSections({ workspace: 'acme', canManage: true, instanceAdmin: true })
+    expect(admin.map((s) => s.label)).toEqual(expect.arrayContaining(['Health', 'General']))
+  })
+
+  it('lists a section outside settings only when the query names it', () => {
+    const outside = (query: string) =>
+      buildList(input({ pathname: '/acme/web', routeWorkspace: 'acme' }), typed({ query }))
+    expect(labels(outside('members'))).toContain('Settings · Members')
+    expect(labels(outside('settings'))).toContain('Settings · Members')
+    expect(labels(outside('review rules'))).toContain('Settings · Review rules')
+    expect(labels(buildList(input(), typed({ query: 'inbox' })))).not.toContain(
+      'Settings · Members',
+    )
+    // Never as a result under an app page.
+    expect(labels(buildList(input(), typed()))).not.toContain('Settings · Members')
+  })
+})
+
+describe('the footer', () => {
+  it('names what Enter does for the highlighted row', () => {
+    const base = { nested: false, rowActions: false, removable: false }
+    expect(hintText(footerHints({ ...base, entry: footerEntry('page', '/inbox') }))).toEqual([
+      '↑ ↓ move',
+      '↵ Go to',
+      '⌘↵ New tab',
+      'Esc close',
+    ])
+    expect(hintText(footerHints({ ...base, entry: footerEntry('action') }))).toContain('↵ Run')
+    expect(hintText(footerHints({ ...base, entry: footerEntry('submenu') }))).toContain('↵ Choose')
+    expect(hintText(footerHints({ ...base, entry: footerEntry('action') }))).not.toContain(
+      '⌘↵ New tab',
+    )
+  })
+
+  it('adds ⌘. for a row with actions and ⌫ when a scope can be removed', () => {
+    const hints = hintText(
+      footerHints({
+        nested: false,
+        entry: footerEntry('build', '/b'),
+        rowActions: true,
+        removable: true,
+      }),
+    )
+    expect(hints).toContain('⌘. Actions')
+    expect(hints).toContain('⌫ Remove scope')
+  })
+
+  it('shows Back, Choose and Esc back in a nested list', () => {
+    expect(
+      hintText(
+        footerHints({
+          nested: true,
+          entry: footerEntry('choice'),
+          rowActions: false,
+          removable: false,
+        }),
+      ),
+    ).toEqual(['← Back', '↵ Choose', 'Esc Back'])
+  })
+})
+
+describe('Recent', () => {
+  it('classifies builds, teams, baselines, triage items and views, and nothing else', () => {
+    expect(visitAt('/acme/web/builds/148')?.entry).toMatchObject({
+      kind: 'build',
+      label: 'Build #148',
+      detail: 'Web App',
+    })
+    expect(visitAt('/acme/web')?.entry).toMatchObject({ kind: 'team', label: 'Web App' })
+    expect(visitAt('/acme/web/baselines/checkout/payment')?.entry).toMatchObject({
+      kind: 'baseline',
+      label: 'checkout/payment',
+    })
+    expect(visitAt('/acme/web/triage', '?item=flaky%3Acheckout%2Fsummary')?.entry).toMatchObject({
+      kind: 'triage',
+      label: 'checkout/summary',
+    })
+    expect(visitAt('/workspaces/acme/views/v1')?.entry).toMatchObject({
+      kind: 'view',
+      label: 'Checkout regressions',
+    })
+    expect(visitAt('/acme/web/triage')).toBeUndefined()
+    expect(visitAt('/inbox')).toBeUndefined()
+    expect(visitAt('/workspaces/acme/reviews')).toBeUndefined()
+    expect(visitAt('/account/profile')).toBeUndefined()
+    expect(visitAt('/acme/web/builds/148')?.workspace).toBe('acme')
+  })
+
+  it('says how long ago in minutes, hours and days', () => {
+    expect(shortAgo(NOW, NOW)).toBe('just now')
+    expect(shortAgo(NOW - 5 * 60_000, NOW)).toBe('5 min ago')
+    expect(shortAgo(NOW - 2 * 3_600_000, NOW)).toBe('2 h ago')
+    expect(shortAgo(NOW - 3 * 86_400_000, NOW)).toBe('3 d ago')
   })
 })
 

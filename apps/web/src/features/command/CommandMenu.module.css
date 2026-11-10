@@ -43,15 +43,13 @@
   color: var(--circi-text-tertiary);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 .option {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 32px;
+  min-height: 36px;
   box-sizing: border-box;
   padding: 4px 8px;
   border-radius: var(--circi-radius-control);
@@ -63,9 +61,51 @@
   box-shadow: inset 2px 0 0 var(--circi-accent-main);
 }
 
+.glyph {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  color: var(--circi-text-secondary);
+}
+
+.glyph[data-unread]::after {
+  content: '';
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--circi-accent-main);
+}
+
+/* The one device that means "this does something": a tinted 24px tile. */
+.tile {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-inline: -4px;
+  border-radius: var(--circi-radius-control);
+  background: var(--circi-action-selected);
+  color: var(--circi-text-primary);
+}
+
 .label {
   composes: truncate from '@circi/ui/utilities.module.css';
   min-width: 0;
+  color: var(--circi-text-secondary);
+}
+
+.label b {
+  color: var(--circi-text-primary);
+  font-weight: 600;
+}
+
+.option[aria-selected='true'] .label {
+  color: var(--circi-text-primary);
 }
 
 .detail {
@@ -76,6 +116,24 @@
   font-size: 12px;
 }
 
+.spacer {
+  flex: 1;
+}
+
+.kind,
+.time {
+  flex: none;
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.check,
+.chevron {
+  flex: none;
+  color: var(--circi-text-tertiary);
+}
+
 .caps {
   display: flex;
   flex: none;
@@ -83,18 +141,78 @@
   margin-left: auto;
 }
 
-.status {
-  padding: 0 16px;
+.message {
+  padding: 24px 16px 4px;
   color: var(--circi-text-secondary);
+  text-align: center;
 }
 
-.status:not(:empty) {
-  padding-block: 12px;
+.tip {
+  display: block;
+  margin-top: 4px;
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
+}
+
+.hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.searching {
+  position: relative;
+  box-sizing: border-box;
+  height: 36px;
+  margin-top: 4px;
+  padding: 8px 8px 8px 32px;
+  overflow: hidden;
+  border-radius: var(--circi-radius-control);
+  color: var(--circi-text-tertiary);
+}
+
+.searching::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--circi-action-selected), transparent);
+  transform: translateX(-100%);
+  animation: shimmer 1.2s linear infinite;
+}
+
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .searching::after {
+    display: none;
+  }
 }
 
 .footer {
   padding: 8px 16px;
   border-top: 1px solid var(--circi-line-subtle);
+}
+
+.hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
+}
+
+.hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
 }
 
 .chip {
@@ -103,7 +221,7 @@
   gap: 4px;
   align-items: center;
   height: 22px;
-  padding: 0 4px 0 8px;
+  padding: 0 8px;
   border-radius: 999px;
   background: var(--circi-action-selected);
   color: var(--circi-text-secondary);
@@ -112,12 +230,16 @@
   white-space: nowrap;
 }
 
+.chip:has(button) {
+  padding-right: 4px;
+}
+
 .peek {
   display: flex;
   flex: none;
   flex-direction: column;
   box-sizing: border-box;
-  width: 320px;
+  width: 360px;
   border-left: 1px solid var(--circi-line-subtle);
   background: var(--circi-surface-raised);
 }
@@ -147,14 +269,30 @@
 }
 
 .peekText {
+  margin: 0;
+  padding: 0 16px 8px;
   color: var(--circi-text-secondary);
+}
+
+.peekHead .peekText {
+  padding: 0;
 }
 
 .peekFoot {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 12px;
   padding: 10px 16px;
   border-top: 1px solid var(--circi-line-subtle);
+}
+
+.peekHint {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
 }
 
 .rows {
@@ -163,7 +301,7 @@
   flex-direction: column;
   gap: 8px;
   margin: 0;
-  padding: 0 16px 12px;
+  padding: 4px 16px 12px;
 }
 
 .rows dt {
@@ -174,4 +312,19 @@
 .rows dd {
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+/* Under 600px the keys are for a keyboard that isn't there: rows grow to 44px, caps and all but Esc go. */
+@media (max-width: 600px) {
+  .option {
+    min-height: 44px;
+  }
+
+  .caps {
+    display: none;
+  }
+
+  .hint:not([data-narrow]) {
+    display: none;
+  }
 }

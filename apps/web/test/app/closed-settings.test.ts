@@ -3,6 +3,8 @@ import { join, relative } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
+import { buildList } from '#features/command/model.ts'
+
 /**
  * Settings is a closed area (CLAUDE.md, Style): no link or redirect moves someone between settings
  * (account, workspace, team and instance settings) and the rest of the dashboard. This scans every
@@ -97,5 +99,52 @@ describe('settings is a closed area', () => {
       )
       .map(({ rel }) => rel)
     expect(outward).toEqual([])
+  })
+
+  it('the command menu offers only settings pages and the way back while you are in settings', () => {
+    const base = {
+      workspace: 'acme',
+      routeWorkspace: undefined,
+      teams: [],
+      views: [],
+      workspaces: [],
+      canManage: true,
+      instanceAdmin: true,
+      inSettings: true,
+      needs: { reviews: 3, unread: 2, triageAssigned: 1 },
+      recents: [
+        { kind: 'build' as const, id: 'b', label: 'Build #1', path: '/acme/web/builds/1', at: 0 },
+      ],
+      now: 0,
+    }
+    const typed = {
+      chips: [],
+      contextCleared: false,
+      results: undefined,
+      pending: false,
+      failed: false,
+    }
+    for (const pathname of [
+      '/account/profile',
+      '/workspaces/acme/settings/members',
+      '/acme/web/settings/members',
+      '/instance/health',
+    ]) {
+      for (const query of ['', 'a', 'build', '148']) {
+        const view = buildList({ ...base, pathname }, { ...typed, query })
+        const targets = view.groups.flatMap((g) => g.entries.map((e) => e.target))
+        expect(targets.filter((t) => t.type !== 'path')).toEqual([])
+        const paths = targets.map((t) => (t.type === 'path' ? t.path : ''))
+        // Settings pages, or the frame's own way back (Back to app).
+        const outside = paths.filter(
+          (p) =>
+            p !== '/inbox' &&
+            !/^\/(account|instance)(\/|$)|^\/workspaces\/[^/]+\/settings(\/|$)|^\/[^/]+\/[^/]+\/settings(\/|$)/.test(
+              p,
+            ),
+        )
+        expect(outside).toEqual([])
+      }
+    }
   })
 })

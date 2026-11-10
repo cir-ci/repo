@@ -124,6 +124,8 @@ import {
   Blocks,
   Building2,
   ChevronLeft,
+  Eye,
+  GitBranch,
   Hammer,
   Image as ImageGlyph,
   Layers,
@@ -163,6 +165,8 @@ export const BlocksIcon = icon(Blocks, 'BlocksIcon')
 export const BuildingIcon = icon(Building2, 'BuildingIcon')
 export const ChevronLeftIcon = icon(ChevronLeft, 'ChevronLeftIcon')
 export const DatabaseIcon = icon(Database, 'DatabaseIcon')
+export const EyeIcon = icon(Eye, 'EyeIcon')
+export const GitBranchIcon = icon(GitBranch, 'GitBranchIcon')
 export const HammerIcon = icon(Hammer, 'HammerIcon')
 export const ImageIcon = icon(ImageGlyph, 'ImageIcon')
 export const LayersIcon = icon(Layers, 'LayersIcon')
