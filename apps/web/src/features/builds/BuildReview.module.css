@@ -59,3 +59,15 @@
 .group + .group {
   margin-top: 8px;
 }
+
+/* The screenshot list inside its sheet on a phone: rows are 48px targets and the sheet scrolls. */
+.sheetList {
+  box-sizing: border-box;
+  padding: 0 8px 8px;
+}
+
+@media (max-width: 819.98px) {
+  .row {
+    height: 48px;
+  }
+}

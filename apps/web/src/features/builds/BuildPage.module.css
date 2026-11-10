@@ -99,3 +99,16 @@
     border-inline-start: 0;
   }
 }
+
+/* A phone with the bottom bar: the list and the discussion are sheets, so the viewer is the whole
+   body, edge to edge. */
+@media (max-width: 819.98px) {
+  .body[data-phone] {
+    grid-template-rows: minmax(min-content, 1fr);
+  }
+
+  .body[data-phone] > :first-child {
+    align-self: stretch;
+    border-inline: 0;
+  }
+}

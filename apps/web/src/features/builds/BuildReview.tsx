@@ -2,16 +2,22 @@ import type { Build } from '@circi/api'
 import {
   Banner,
   Button,
+  CopyIcon,
+  IconButton,
   ListGroup,
   EmptyState,
   ImagesIcon,
   Ref,
+  RowMenuIcon,
+  Sheet,
   Stack,
   StatusIcon,
+  TaskDoneIcon,
   Text,
   Tooltip,
   HourglassIcon,
   ReviewIcon,
+  UserPlusIcon,
 } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
@@ -33,10 +39,13 @@ import { RouterLink } from '#lib/router-link.ts'
 import { isAvailable, SHORTCUTS, useShortcutHandlers } from '#lib/shortcuts.ts'
 import { usePaneWidth } from '#lib/stores/pane-store.ts'
 import { toast } from '#lib/toast.ts'
+import { useCopy } from '#lib/use-copy.ts'
 import { useListNavigation } from '#lib/use-list-navigation.ts'
+import { usePhone } from '#lib/use-phone.ts'
 
 import { buildTitle } from './build-title.ts'
 import { BuildMeta } from './BuildMeta.tsx'
+import { MoreAction, PhoneBuildMore, PhoneReviewBar } from './BuildPhone.tsx'
 import { BuildStateLabel } from './BuildStateLabel.tsx'
 import { CountsSummary } from './CountsSummary.tsx'
 import { screenshotLabel, screenshotStatus, shotDecision, shotReview } from './diff-status.ts'
@@ -62,7 +71,7 @@ import { ReviewActions, ReviewNote, useReviewControls } from './ReviewActions.ts
 import { ReviewSidebar, type SidebarTab } from './ReviewSidebar.tsx'
 import { ReviewTarget } from './ReviewTarget.tsx'
 import { ROUTE, type ViewMode } from './search.ts'
-import { threadCounts } from './timeline.ts'
+import { commentCount, threadCounts } from './timeline.ts'
 
 import page from './BuildPage.module.css'
 import styles from './BuildReview.module.css'
@@ -88,6 +97,13 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const [draftKey, setDraftKey] = useState(0)
   const [focusedComment, setFocusedComment] = useState<string | null>(null)
   const composer = useRef<HTMLTextAreaElement>(null)
+  // A phone has no room for the list or the discussion beside the viewer: they are sheets, opened
+  // from the bar at the bottom (the screenshot list, Comments) and its More sheet.
+  const phone = usePhone()
+  const [shotsOpen, setShotsOpen] = useState(false)
+  const [commentsOpen, setCommentsOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const { copy } = useCopy()
 
   // Flaky screenshots are set aside, but the page works without knowing them.
   const { data: flakyReport } = useQuery({
@@ -163,6 +179,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
     setLinkedDone(linked)
     setTab('comments')
     setFocusedComment(linkedRoot.id)
+    if (phone) setCommentsOpen(true)
   }
   const linkedShot = linkedRoot?.snapshotName
   const shotShown = useRef<string | undefined>(undefined)
@@ -180,6 +197,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   }, [wantsComposer])
   const openComposer = () => {
     setTab('comments')
+    setCommentsOpen(true)
     setWantsComposer((n) => n + 1)
   }
 
@@ -213,6 +231,92 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
   const hasBaseline = baseline !== null
   const buildReview = shotReview(build)
   const progress = reviewProgress(data.diffs, buildReview)
+
+  const shotList = (
+    <nav ref={listRef} aria-label="Screenshots" className={phone ? styles.sheetList : page['list']}>
+      {groups.map((g) => (
+        <div key={g.kind} data-group-id={g.kind} className={styles.group}>
+          <ListGroup
+            id={`shots-${g.kind}`}
+            level={3}
+            label={g.title}
+            count={g.items.length}
+            glyph={<StatusIcon status={screenshotStatus(g.kind, 'pending')} decorative />}
+            expanded={open[g.kind] ?? g.open}
+            controls={`shots-${g.kind}-rows`}
+            onExpandedChange={(expanded) => setOpen({ ...open, [g.kind]: expanded })}
+          />
+          {(open[g.kind] ?? g.open) ? (
+            <ul
+              className={styles.rows}
+              id={`shots-${g.kind}-rows`}
+              aria-labelledby={`shots-${g.kind}`}
+            >
+              {g.items.map((d) => (
+                <li key={d.id} {...rowProps(d.id)}>
+                  <RouterLink
+                    to={ROUTE}
+                    params={params}
+                    search={(prev) => ({ ...prev, shot: d.name })}
+                    // Current only when chosen in the URL; the default one gets the same
+                    // marker through `data-default`.
+                    aria-current={d.id === fromUrl?.id ? 'page' : undefined}
+                    data-default={!fromUrl && d.id === selected?.id ? '' : undefined}
+                    data-selected={d.id === selected?.id ? '' : undefined}
+                    className={styles.row}
+                    onClick={phone ? () => setShotsOpen(false) : undefined}
+                  >
+                    <StatusIcon
+                      status={screenshotStatus(g.kind, shotDecision(d, buildReview))}
+                      size={12}
+                      label={screenshotLabel(g.kind, shotDecision(d, buildReview))}
+                    />
+                    <Tooltip content={d.name}>
+                      <Text className={styles.name}>{d.name}</Text>
+                    </Tooltip>
+                    {threadCount(d.name) > 0 ? (
+                      <span
+                        className={styles.threads}
+                        role="img"
+                        aria-label={`${threadCount(d.name)} comment ${threadCount(d.name) === 1 ? 'thread' : 'threads'}`}
+                      >
+                        <ReviewIcon size={11} />
+                        {threadCount(d.name)}
+                      </span>
+                    ) : null}
+                    <Text variant="mono" tone="secondary">
+                      {shotBadge(d)}
+                    </Text>
+                  </RouterLink>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ))}
+    </nav>
+  )
+
+  const discussion = (
+    <ReviewSidebar
+      data={data}
+      tab={tab}
+      onTab={setTab}
+      snapshotName={selected?.name ?? null}
+      focusedId={focusedComment}
+      composerRef={composer}
+      onOpenComment={(id) => {
+        setTab('comments')
+        setFocusedComment(id)
+      }}
+      onShowSnapshot={(name, id) => {
+        void navigate({ search: (prev) => ({ ...prev, shot: name }), replace: true })
+        setFocusedComment(id)
+      }}
+      onRequestReview={() => setRequesting(true)}
+    />
+  )
+
   return (
     <div className={page['page']}>
       <PageHeading
@@ -225,28 +329,38 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
         )}
         title={buildTitle(build.number, build.name)}
         actions={
-          <>
-            <BuildStateLabel build={build} hasBaseline={hasBaseline} />
-            <ReviewTarget target={data.reviewTarget} />
-            <IssueAction data={data} snapshotName={selected?.name ?? null} />
-            <RequestedReviewers
-              workspace={team.workspaceSlug}
-              team={team.slug}
-              number={build.number}
-            />
-            <RequestReviewPicker
-              open={requesting}
-              onOpenChange={setRequesting}
-              trigger={<Button variant="ghost">Request review</Button>}
-              workspace={team.workspaceSlug}
-              team={team.slug}
-              teamName={team.name}
-              number={build.number}
-            />
-            {isReviewable(build) ? (
-              <ReviewActions review={review} snapshotName={selected?.name} />
-            ) : null}
-          </>
+          phone ? (
+            <IconButton
+              label="More actions"
+              aria-haspopup="dialog"
+              onClick={() => setMoreOpen(true)}
+            >
+              <RowMenuIcon />
+            </IconButton>
+          ) : (
+            <>
+              <BuildStateLabel build={build} hasBaseline={hasBaseline} />
+              <ReviewTarget target={data.reviewTarget} />
+              <IssueAction data={data} snapshotName={selected?.name ?? null} />
+              <RequestedReviewers
+                workspace={team.workspaceSlug}
+                team={team.slug}
+                number={build.number}
+              />
+              <RequestReviewPicker
+                open={requesting}
+                onOpenChange={setRequesting}
+                trigger={<Button variant="ghost">Request review</Button>}
+                workspace={team.workspaceSlug}
+                team={team.slug}
+                teamName={team.name}
+                number={build.number}
+              />
+              {isReviewable(build) ? (
+                <ReviewActions review={review} snapshotName={selected?.name} />
+              ) : null}
+            </>
+          )
         }
         after={build.branch ? <Ref value={build.branch} label="branch name" /> : null}
       />
@@ -283,72 +397,13 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
       ) : (
         <div
           className={page['body']}
+          data-phone={phone ? '' : undefined}
           style={paneVars({
             '--circi-rail-width': ['build-rail', railWidth],
             '--circi-side-width': ['build-discussion', sideWidth],
           })}
         >
-          <nav ref={listRef} aria-label="Screenshots" className={page['list']}>
-            {groups.map((g) => (
-              <div key={g.kind} data-group-id={g.kind} className={styles.group}>
-                <ListGroup
-                  id={`shots-${g.kind}`}
-                  level={3}
-                  label={g.title}
-                  count={g.items.length}
-                  glyph={<StatusIcon status={screenshotStatus(g.kind, 'pending')} decorative />}
-                  expanded={open[g.kind] ?? g.open}
-                  controls={`shots-${g.kind}-rows`}
-                  onExpandedChange={(expanded) => setOpen({ ...open, [g.kind]: expanded })}
-                />
-                {(open[g.kind] ?? g.open) ? (
-                  <ul
-                    className={styles.rows}
-                    id={`shots-${g.kind}-rows`}
-                    aria-labelledby={`shots-${g.kind}`}
-                  >
-                    {g.items.map((d) => (
-                      <li key={d.id} {...rowProps(d.id)}>
-                        <RouterLink
-                          to={ROUTE}
-                          params={params}
-                          search={(prev) => ({ ...prev, shot: d.name })}
-                          // Current only when chosen in the URL; the default one gets the same
-                          // marker through `data-default`.
-                          aria-current={d.id === fromUrl?.id ? 'page' : undefined}
-                          data-default={!fromUrl && d.id === selected?.id ? '' : undefined}
-                          data-selected={d.id === selected?.id ? '' : undefined}
-                          className={styles.row}
-                        >
-                          <StatusIcon
-                            status={screenshotStatus(g.kind, shotDecision(d, buildReview))}
-                            size={12}
-                            label={screenshotLabel(g.kind, shotDecision(d, buildReview))}
-                          />
-                          <Tooltip content={d.name}>
-                            <Text className={styles.name}>{d.name}</Text>
-                          </Tooltip>
-                          {threadCount(d.name) > 0 ? (
-                            <span
-                              className={styles.threads}
-                              role="img"
-                              aria-label={`${threadCount(d.name)} comment ${threadCount(d.name) === 1 ? 'thread' : 'threads'}`}
-                            >
-                              <ReviewIcon size={11} />
-                              {threadCount(d.name)}
-                            </span>
-                          ) : null}
-                          <Text variant="mono" tone="secondary">
-                            {shotBadge(d)}
-                          </Text>
-                        </RouterLink>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
-            ))}
-          </nav>
+          {phone ? null : shotList}
           {selected && selectedGroup ? (
             <Viewer
               diff={selected}
@@ -406,6 +461,7 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
                 onMarker: (id) => {
                   setTab('comments')
                   setFocusedComment(id)
+                  if (phone) setCommentsOpen(true)
                 },
                 composer: {
                   onSend: (body) => {
@@ -439,32 +495,85 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
               }}
             />
           ) : null}
-          <PaneHandle pane="build-rail" cssVar="--circi-rail-width" at="var(--circi-rail-width)" />
-          <PaneHandle
-            pane="build-discussion"
-            edge="start"
-            cssVar="--circi-side-width"
-            at="calc(100% - var(--circi-side-width))"
-          />
-          <ReviewSidebar
-            data={data}
-            tab={tab}
-            onTab={setTab}
-            snapshotName={selected?.name ?? null}
-            focusedId={focusedComment}
-            composerRef={composer}
-            onOpenComment={(id) => {
-              setTab('comments')
-              setFocusedComment(id)
-            }}
-            onShowSnapshot={(name, id) => {
-              void navigate({ search: (prev) => ({ ...prev, shot: name }), replace: true })
-              setFocusedComment(id)
-            }}
-            onRequestReview={() => setRequesting(true)}
-          />
+          {phone ? null : (
+            <>
+              <PaneHandle
+                pane="build-rail"
+                cssVar="--circi-rail-width"
+                at="var(--circi-rail-width)"
+              />
+              <PaneHandle
+                pane="build-discussion"
+                edge="start"
+                cssVar="--circi-side-width"
+                at="calc(100% - var(--circi-side-width))"
+              />
+            </>
+          )}
+          {phone ? null : discussion}
         </div>
       )}
+      {phone && ordered.length > 0 ? (
+        <>
+          <PhoneReviewBar
+            review={review}
+            reviewable={isReviewable(build)}
+            snapshotName={selected?.name}
+            position={`${
+              Math.max(
+                ordered.findIndex((d) => d.id === selected?.id),
+                0,
+              ) + 1
+            } / ${ordered.length}`}
+            comments={commentCount(comments.data?.comments ?? [])}
+            onShots={() => setShotsOpen(true)}
+            onComments={() => {
+              setTab('comments')
+              setCommentsOpen(true)
+            }}
+          />
+          <Sheet open={shotsOpen} onOpenChange={setShotsOpen} title="Screenshots" size="tall">
+            {shotList}
+          </Sheet>
+          <Sheet open={commentsOpen} onOpenChange={setCommentsOpen} title="Comments" size="tall">
+            {discussion}
+          </Sheet>
+        </>
+      ) : null}
+      {phone ? (
+        <PhoneBuildMore open={moreOpen} onOpenChange={setMoreOpen}>
+          {isReviewable(build) && review.canApproveAll ? (
+            <MoreAction
+              icon={<TaskDoneIcon />}
+              disabled={review.pending}
+              onClick={() => {
+                setMoreOpen(false)
+                review.approveAll()
+              }}
+            >
+              Approve all
+            </MoreAction>
+          ) : null}
+          <RequestReviewPicker
+            open={requesting}
+            onOpenChange={setRequesting}
+            trigger={<MoreAction icon={<UserPlusIcon />}>Request review</MoreAction>}
+            workspace={team.workspaceSlug}
+            team={team.slug}
+            teamName={team.name}
+            number={build.number}
+          />
+          <MoreAction
+            icon={<CopyIcon />}
+            onClick={() => {
+              setMoreOpen(false)
+              void copy(window.location.href, 'Link')
+            }}
+          >
+            Copy link
+          </MoreAction>
+        </PhoneBuildMore>
+      ) : null}
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} designEnabled={designEnabled} />
     </div>
   )

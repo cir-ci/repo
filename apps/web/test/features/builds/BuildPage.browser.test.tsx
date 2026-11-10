@@ -765,20 +765,17 @@ describe('layout', () => {
     expect(viewer.left).toBeGreaterThanOrEqual(list.right)
   })
 
-  it('stacks the list above the viewer below 820px', async () => {
+  it('gives the viewer the whole width below 820px: the list is a sheet', async () => {
     await page.viewport(390, 800)
     fakeBuildApi(detail())
     await renderBuild()
     await expect.element(viewerTitle()).toBeVisible()
-    const list = page
-      .getByRole('navigation', { name: 'Screenshots' })
-      .element()
-      .getBoundingClientRect()
+    expect(page.getByRole('navigation', { name: 'Screenshots' }).elements()).toHaveLength(0)
     const viewer = page
       .getByRole('region', { name: 'checkout / payment' })
       .element()
       .getBoundingClientRect()
-    expect(viewer.top).toBeGreaterThanOrEqual(list.bottom - 1)
+    expect(Math.round(viewer.width)).toBe(390)
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390)
   })
 })
@@ -846,6 +843,9 @@ describe('side by side', () => {
     fakeBuildApi(detail())
     await renderBuild()
     await expect.element(viewerTitle()).toBeVisible()
+    // A phone shows one image at a time; Side by side is in the options menu.
+    await page.getByRole('button', { name: 'View options' }).click()
+    await page.getByRole('menuitem', { name: 'Side by side' }).click()
     await expect
       .poll(
         () => {

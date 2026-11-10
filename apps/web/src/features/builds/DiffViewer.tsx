@@ -31,11 +31,13 @@ import {
   useRegionGesture,
 } from '#features/regions/RegionLayer.tsx'
 import { MODE_OPTIONS } from '#lib/shortcuts.ts'
+import { usePhone } from '#lib/use-phone.ts'
 
 import { screenshotLabel, screenshotStatus, type ShotKind } from './diff-status.ts'
 import { apiSide, draftRegion, type RegionDraft, type RegionSide } from './region-draft.ts'
 import { changeSummary } from './review-model.ts'
 import { DESIGN_MODE, type ViewMode, VIEW_MODES } from './search.ts'
+import { PhoneControls } from './ViewerPhone.tsx'
 import { type Zoom, stepZoom, zoomedWidth, zoomLabel } from './zoom.ts'
 
 import styles from './DiffViewer.module.css'
@@ -83,23 +85,37 @@ export function Viewer({
   const [keyboardTool, setKeyboardTool] = useState(false)
   const [enlarged, setEnlarged] = useState<string | null>(null)
   const [checkerboard, setCheckerboard] = useState(false)
+  // A phone (canvas: Phone, the build page): New and Baseline show one image, Diff and Slider as
+  // everywhere, Overlay and Side by side come from the options menu. One finger draws a comment
+  // region only in draw mode; ignore regions are shown, never edited.
+  const phone = usePhone()
+  const [single, setSingle] = useState<'new' | 'baseline' | null>('new')
+  const [drawMode, setDrawMode] = useState(false)
+  const [showIgnore, setShowIgnore] = useState(false)
   const comparable =
     diff.status === 'changed' && diff.head !== null && diff.base !== null && diff.diff !== null
-  const mode: ViewMode =
-    comparable && (props.mode !== DESIGN_MODE || designEnabled) ? props.mode : 'side'
+  const phoneSingle = phone ? single : null
+  const mode: ViewMode = phoneSingle
+    ? 'side'
+    : comparable && (props.mode !== DESIGN_MODE || designEnabled)
+      ? props.mode
+      : 'side'
   const modeOptions = designEnabled
     ? [...MODE_OPTIONS, { value: DESIGN_MODE, label: 'Design' }]
     : MODE_OPTIONS
   // Regions are drawn on this build's image, so they need one.
   const annotatable =
     (regions !== undefined || ignore !== undefined) && diff.head !== null && mode !== 'design'
-  const ignoring = ignore?.mode === 'ignore'
+  const ignoring = !phone && ignore?.mode === 'ignore'
   // Only one comment box at a time: while the enlarged view is open it owns the selection.
   const annotationsFor = (side: RegionSide, inDialog = false): Annotations | undefined => {
     if (!annotatable) return undefined
     if (ignore && ignoring) return ignoreAnnotations(ignore, side, inDialog)
     if (!regions) return undefined
     const draft = draftRegion(regions.draft, diff.id, side)
+    const base = diff.base
+    const head = diff.head
+    const imageSize = side === 'baseline' ? base : head
     return {
       // A sent comment shows only on the image it was drawn on.
       threads: regions.threads.filter((t) => apiSide(side) === t.side),
@@ -112,11 +128,22 @@ export function Viewer({
       onDrawingChange: setKeyboardTool,
       onDraw: (region) => {
         setKeyboardTool(false)
+        setDrawMode(false)
         regions.onDraw(side, region)
       },
       onMarker: regions.onMarker,
-      alwaysDraw: true,
+      // On a phone a finger scrolls the page: it draws only in draw mode.
+      alwaysDraw: !phone || drawMode,
       composer: draft && inDialog === (enlarged !== null) ? regions.composer : undefined,
+      // View only: the ignore regions the team set, over the screenshot.
+      ...(phone && showIgnore && ignore && imageSize?.width && imageSize.height
+        ? {
+            ignoreRegions: {
+              regions: ignore.regions,
+              size: { width: imageSize.width, height: imageSize.height },
+            },
+          }
+        : {}),
     }
   }
   // Dragging draws an ignore region: its boxes show on the picture and the comments step aside.
@@ -198,146 +225,175 @@ export function Viewer({
           ) : null}
           {diff.figma ? <FigmaFrameChip frame={diff.figma} /> : null}
         </div>
-        <div className={styles.controls}>
-          {comparable ? (
-            <SegmentedControl
-              label="View"
-              options={modeOptions}
-              value={mode}
-              onChange={(m) => {
-                if (isViewMode(m)) props.onMode(m)
-              }}
-            />
-          ) : null}
-          {comparable && mode === 'overlay' ? (
-            <span className={styles.slider}>
-              <Text variant="small" tone="secondary">
-                Diff layer
-              </Text>
-              <Slider
-                label="Diff layer"
-                min={0}
-                max={100}
-                step={5}
-                value={opacity}
-                onValueChange={setOpacity}
+        {phone ? (
+          <PhoneControls
+            view={phoneSingle ?? (mode === 'diff' || mode === 'slider' ? mode : null)}
+            hasBase={diff.base !== null}
+            hasHead={diff.head !== null}
+            comparable={comparable}
+            onView={(v) => {
+              if (v === 'new' || v === 'baseline') {
+                setSingle(v)
+              } else {
+                setSingle(null)
+                props.onMode(v)
+              }
+            }}
+            onPrevious={props.onPrevious}
+            onNext={props.onNext}
+            canDraw={regions !== undefined && diff.head !== null && mode !== 'design'}
+            drawing={drawMode}
+            onDrawing={setDrawMode}
+            checkerboard={checkerboard}
+            onCheckerboard={setCheckerboard}
+            zoom={zoom}
+            onZoom={setZoom}
+            ignoreCount={ignore?.regions.length ?? 0}
+            showIgnore={showIgnore}
+            onShowIgnore={setShowIgnore}
+          />
+        ) : (
+          <div className={styles.controls}>
+            {comparable ? (
+              <SegmentedControl
+                label="View"
+                options={modeOptions}
+                value={mode}
+                onChange={(m) => {
+                  if (isViewMode(m)) props.onMode(m)
+                }}
               />
-            </span>
-          ) : null}
-          {comparable && mode === 'slider' ? (
-            <span className={styles.slider}>
-              <Text variant="small" tone="secondary">
-                Slider
-              </Text>
-              <Slider
-                label="Slider position"
-                min={0}
-                max={100}
-                step={1}
-                value={at}
-                onValueChange={setAt}
-              />
-            </span>
-          ) : null}
-          {annotatable ? (
-            <Text variant="small" tone="secondary" className={styles.hint}>
-              {ignoring
-                ? 'Drag on an image to add an ignore region'
-                : 'Drag on an image to comment on a region'}
-            </Text>
-          ) : null}
-          {ignore && annotatable ? (
-            <SegmentedControl
-              label="Dragging draws"
-              options={DRAW_OPTIONS}
-              value={ignore.mode}
-              onChange={(m) => {
-                if (m === 'comments' || m === 'ignore') ignore.onMode(m)
-              }}
-            />
-          ) : null}
-          {annotatable ? (
-            // The board's toolbar has no button for it: the keyboard path stays, shown only while it has focus.
-            <span className={styles.keyTool} data-on={keyboardTool ? '' : undefined}>
-              <Tooltip content="Mark a region with the keyboard: arrow keys move it, Shift and arrow keys resize it, Enter confirms">
-                <IconButton
-                  label="Mark a region with the keyboard"
-                  aria-pressed={keyboardTool}
-                  onClick={() => setKeyboardTool(!keyboardTool)}
-                >
-                  <span aria-hidden="true">⌖</span>
-                </IconButton>
-              </Tooltip>
-            </span>
-          ) : null}
-          <Button
-            variant="toggle"
-            size="sm"
-            pressed={checkerboard}
-            onPressedChange={setCheckerboard}
-            title="Checkerboard behind the screenshot"
-          >
-            Checkerboard
-          </Button>
-          <div className={styles.group}>
-            <SegmentedControl
-              label="Zoom"
-              options={[
-                { value: 'fit', label: 'Fit' },
-                { value: '100', label: '100%' },
-              ]}
-              value={zoom === 'fit' ? 'fit' : zoom === 100 ? '100' : ''}
-              onChange={(z) => setZoom(z === 'fit' ? 'fit' : 100)}
-            />
-            <IconButton label="Zoom out" onClick={() => setZoom(stepZoom(zoom, -1))}>
-              <span aria-hidden="true">−</span>
-            </IconButton>
-            <IconButton label="Zoom in" onClick={() => setZoom(stepZoom(zoom, 1))}>
-              <span aria-hidden="true">+</span>
-            </IconButton>
-            {zoomed && zoom !== 100 ? (
-              <Text variant="mono" tone="secondary" aria-live="polite">
-                {zoomLabel(zoom)}
+            ) : null}
+            {comparable && mode === 'overlay' ? (
+              <span className={styles.slider}>
+                <Text variant="small" tone="secondary">
+                  Diff layer
+                </Text>
+                <Slider
+                  label="Diff layer"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={opacity}
+                  onValueChange={setOpacity}
+                />
+              </span>
+            ) : null}
+            {comparable && mode === 'slider' ? (
+              <span className={styles.slider}>
+                <Text variant="small" tone="secondary">
+                  Slider
+                </Text>
+                <Slider
+                  label="Slider position"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={at}
+                  onValueChange={setAt}
+                />
+              </span>
+            ) : null}
+            {annotatable ? (
+              <Text variant="small" tone="secondary" className={styles.hint}>
+                {ignoring
+                  ? 'Drag on an image to add an ignore region'
+                  : 'Drag on an image to comment on a region'}
               </Text>
             ) : null}
-          </div>
-          <div className={styles.group}>
-            <Tooltip
-              content={
-                <>
-                  Previous screenshot <Kbd>k</Kbd>
-                </>
-              }
-            >
-              <IconButton
-                label="Previous screenshot"
-                disabled={!props.onPrevious}
-                onClick={props.onPrevious}
-              >
-                <ExpandLessIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip
-              content={
-                <>
-                  Next screenshot <Kbd>j</Kbd>
-                </>
-              }
-            >
-              <IconButton label="Next screenshot" disabled={!props.onNext} onClick={props.onNext}>
-                <ExpandMoreIcon />
-              </IconButton>
-            </Tooltip>
+            {ignore && annotatable ? (
+              <SegmentedControl
+                label="Dragging draws"
+                options={DRAW_OPTIONS}
+                value={ignore.mode}
+                onChange={(m) => {
+                  if (m === 'comments' || m === 'ignore') ignore.onMode(m)
+                }}
+              />
+            ) : null}
+            {annotatable ? (
+              // The board's toolbar has no button for it: the keyboard path stays, shown only while it has focus.
+              <span className={styles.keyTool} data-on={keyboardTool ? '' : undefined}>
+                <Tooltip content="Mark a region with the keyboard: arrow keys move it, Shift and arrow keys resize it, Enter confirms">
+                  <IconButton
+                    label="Mark a region with the keyboard"
+                    aria-pressed={keyboardTool}
+                    onClick={() => setKeyboardTool(!keyboardTool)}
+                  >
+                    <span aria-hidden="true">⌖</span>
+                  </IconButton>
+                </Tooltip>
+              </span>
+            ) : null}
             <Button
-              variant="ghost"
+              variant="toggle"
               size="sm"
-              aria-label="Keyboard shortcuts"
-              onClick={props.onHelp}
+              pressed={checkerboard}
+              onPressedChange={setCheckerboard}
+              title="Checkerboard behind the screenshot"
             >
-              <Kbd>?</Kbd>
+              Checkerboard
             </Button>
+            <div className={styles.group}>
+              <SegmentedControl
+                label="Zoom"
+                options={[
+                  { value: 'fit', label: 'Fit' },
+                  { value: '100', label: '100%' },
+                ]}
+                value={zoom === 'fit' ? 'fit' : zoom === 100 ? '100' : ''}
+                onChange={(z) => setZoom(z === 'fit' ? 'fit' : 100)}
+              />
+              <IconButton label="Zoom out" onClick={() => setZoom(stepZoom(zoom, -1))}>
+                <span aria-hidden="true">−</span>
+              </IconButton>
+              <IconButton label="Zoom in" onClick={() => setZoom(stepZoom(zoom, 1))}>
+                <span aria-hidden="true">+</span>
+              </IconButton>
+              {zoomed && zoom !== 100 ? (
+                <Text variant="mono" tone="secondary" aria-live="polite">
+                  {zoomLabel(zoom)}
+                </Text>
+              ) : null}
+            </div>
+            <div className={styles.group}>
+              <Tooltip
+                content={
+                  <>
+                    Previous screenshot <Kbd>k</Kbd>
+                  </>
+                }
+              >
+                <IconButton
+                  label="Previous screenshot"
+                  disabled={!props.onPrevious}
+                  onClick={props.onPrevious}
+                >
+                  <ExpandLessIcon />
+                </IconButton>
+              </Tooltip>
+              <Tooltip
+                content={
+                  <>
+                    Next screenshot <Kbd>j</Kbd>
+                  </>
+                }
+              >
+                <IconButton label="Next screenshot" disabled={!props.onNext} onClick={props.onNext}>
+                  <ExpandMoreIcon />
+                </IconButton>
+              </Tooltip>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Keyboard shortcuts"
+                onClick={props.onHelp}
+              >
+                <Kbd>?</Kbd>
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
       {issues}
 
@@ -361,7 +417,7 @@ export function Viewer({
 
         {mode === 'side' ? (
           <div className={styles.side} data-zoomed={zoomed ? '' : undefined}>
-            {diff.base ? (
+            {diff.base && phoneSingle !== 'new' ? (
               <Figure
                 label={baselineLabel}
                 image={diff.base}
@@ -371,7 +427,7 @@ export function Viewer({
                 onEnlarge={() => setEnlarged('baseline')}
               />
             ) : null}
-            {diff.head ? (
+            {diff.head && phoneSingle !== 'baseline' ? (
               <Figure
                 label={diff.status === 'added' ? 'New in this build' : buildCaption}
                 image={diff.head}
@@ -380,6 +436,11 @@ export function Viewer({
                 annotations={withClick(annotationsFor('build'), () => setEnlarged('build'))}
                 onEnlarge={() => setEnlarged('build')}
               />
+            ) : null}
+            {phoneSingle === 'baseline' && !diff.base ? (
+              <Text tone="secondary" as="p" className={styles.note}>
+                This screenshot is new, so there is no baseline.
+              </Text>
             ) : null}
             {!diff.head && diff.base ? (
               <Text tone="secondary" as="p" className={styles.note}>
