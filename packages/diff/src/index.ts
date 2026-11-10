@@ -67,6 +67,13 @@ export namespace diffImages {
     changed: boolean
     /** Diff visualisation (PNG); only produced when `changed`. */
     diffPng?: Buffer
+    /**
+     * Pixels that differ inside the ignored rectangles (what the mask hid), counted with the
+     * same tolerance; 0 without regions.
+     */
+    ignoredChangedPixels: number
+    /** Indexes (into `options.ignore`) of the rectangles that hid at least one differing pixel. */
+    ignoredRegions: number[]
   }
 
   export interface IgnoreRegion {
@@ -93,6 +100,29 @@ function blank(
   }
 }
 
+/** Copies a region (clipped to the canvas) out of a canvas into its own RGBA buffer. */
+function crop(
+  raw: Uint8Array,
+  canvasWidth: number,
+  canvasHeight: number,
+  r: diffImages.IgnoreRegion,
+): { data: Uint8Array; width: number; height: number } {
+  const x0 = Math.max(0, Math.floor(r.x))
+  const y0 = Math.max(0, Math.floor(r.y))
+  const x1 = Math.min(canvasWidth, Math.floor(r.x + r.width))
+  const y1 = Math.min(canvasHeight, Math.floor(r.y + r.height))
+  const width = Math.max(0, x1 - x0)
+  const height = Math.max(0, y1 - y0)
+  const data = new Uint8Array(width * height * 4)
+  for (let y = 0; y < height; y += 1) {
+    data.set(
+      raw.subarray(((y0 + y) * canvasWidth + x0) * 4, ((y0 + y) * canvasWidth + x1) * 4),
+      y * width * 4,
+    )
+  }
+  return { data, width, height }
+}
+
 export async function diffImages(
   basePng: Buffer,
   headPng: Buffer,
@@ -109,6 +139,23 @@ export async function diffImages(
     toRgbaCanvas(basePng, base, width, height),
     toRgbaCanvas(headPng, head, width, height),
   ])
+  // What the mask is about to hide: a second pass over the rectangles only, not a full diff.
+  const tolerance = options.pixelTolerance ?? 0.1
+  const ignoredRegions: number[] = []
+  let ignoredChangedPixels = 0
+  for (const [index, region] of (options.ignore ?? []).entries()) {
+    const a = crop(baseRaw, width, height, region)
+    const b = crop(headRaw, width, height, region)
+    if (a.width === 0 || a.height === 0) continue
+    const hidden = pixelmatch(a.data, b.data, undefined, a.width, a.height, {
+      threshold: tolerance,
+      includeAA: false,
+    })
+    if (hidden > 0) {
+      ignoredChangedPixels += hidden
+      ignoredRegions.push(index)
+    }
+  }
   for (const region of options.ignore ?? []) {
     blank(baseRaw, width, height, region)
     blank(headRaw, width, height, region)
@@ -131,6 +178,8 @@ export async function diffImages(
     changedPixels,
     score,
     changed,
+    ignoredChangedPixels,
+    ignoredRegions,
   }
   if (changed) {
     result.diffPng = await sharp(output, { raw: { width, height, channels: 4 } })

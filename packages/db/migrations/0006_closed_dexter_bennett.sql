@@ -1,0 +1,2 @@
+ALTER TABLE "screenshot_diffs" ADD COLUMN "ignored_changed_pixels" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "screenshot_diffs" ADD COLUMN "ignored_regions" text[] DEFAULT '{}'::text[] NOT NULL;

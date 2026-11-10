@@ -122,6 +122,21 @@ describe('diffImages ignoring regions', () => {
     expect(res.changedPixels).toBe(25)
   })
 
+  it('counts the differing pixels the mask hid, and which rectangles hid them', async () => {
+    const res = await diffImages(await clock('#000000'), await clock('#ff0000'), {
+      ignore: [
+        { x: 60, y: 60, width: 10, height: 10 },
+        { x: 10, y: 10, width: 20, height: 10 },
+      ],
+    })
+    expect(res).toMatchObject({ changed: false, ignoredChangedPixels: 200, ignoredRegions: [1] })
+    expect(await diffImages(await clock('#000000'), await clock('#ff0000'))).toMatchObject({
+      changed: true,
+      ignoredChangedPixels: 0,
+      ignoredRegions: [],
+    })
+  })
+
   it('clips a region that runs off the image, and accepts several', async () => {
     const res = await diffImages(await clock('#000000'), await clock('#00ff00'), {
       ignore: [

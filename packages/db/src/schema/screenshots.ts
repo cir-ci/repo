@@ -69,6 +69,16 @@ export const screenshotDiffs = pgTable(
     sizeChanged: boolean('size_changed').notNull().default(false),
     /** Why a diff `failed` (e.g. not a PNG). */
     errorMessage: text('error_message'),
+    /**
+     * Pixels that differed inside the team's ignore regions, which the mask hid (Insights shows
+     * how many diffs the regions kept unchanged). Counted from the deploy that added the column.
+     */
+    ignoredChangedPixels: integer('ignored_changed_pixels').notNull().default(0),
+    /** Labels of the ignore regions that hid at least one differing pixel. */
+    ignoredRegions: text('ignored_regions')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     diffFileSha256: text('diff_file_sha256').references(() => files.sha256, {
       onDelete: 'restrict',
     }),

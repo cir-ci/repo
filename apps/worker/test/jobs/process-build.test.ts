@@ -441,7 +441,17 @@ describe('ignored regions', () => {
       { home: clockMoved },
     )
     expect((await processBuild({ db: t.db, storage }, masked.id)).status).toBe('complete')
-    expect((await diffsOf(masked.id)).home?.status).toBe('unchanged')
+    expect((await diffsOf(masked.id)).home).toMatchObject({
+      status: 'unchanged',
+      // The 8 x 8 dot moved 4 pixels diagonally: 2 x 64 - 2 x 16 pixels differ.
+      ignoredChangedPixels: 96,
+      ignoredRegions: ['home'],
+    })
+    // Without a rule nothing is recorded as hidden.
+    expect((await diffsOf(plain.id)).home).toMatchObject({
+      ignoredChangedPixels: 0,
+      ignoredRegions: [],
+    })
 
     // A rule for another screenshot name changes nothing here.
     await addIgnoreRegion(t.db, team.id, { name: 'login', x: 0, y: 0, width: 320, height: 200 })

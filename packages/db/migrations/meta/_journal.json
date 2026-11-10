@@ -43,6 +43,13 @@
       "when": 1794323942820,
       "tag": "0005_brief_spacker_dave",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794325068779,
+      "tag": "0006_closed_dexter_bennett",
+      "breakpoints": true
     }
   ]
 }

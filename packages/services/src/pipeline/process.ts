@@ -184,10 +184,17 @@ export async function processBuild(
         })
       }
       const status = res.changed ? 'changed' : 'unchanged'
+      const regions = ignored.get(pair.name) ?? []
       await updateDiff(db, row.id, {
         status,
         score: res.score,
         changedPixels: res.changedPixels,
+        // What the ignore regions hid, for Insights: a region has no name of its own, so it is
+        // labelled by its screenshot (and its position among several).
+        ignoredChangedPixels: res.ignoredChangedPixels,
+        ignoredRegions: res.ignoredRegions.map((i) =>
+          regions.length === 1 ? pair.name : `${pair.name} #${i + 1}`,
+        ),
         sizeChanged: res.sizeChanged,
         diffFileSha256,
         jobStatus: 'done',

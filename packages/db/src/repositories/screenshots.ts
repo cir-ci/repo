@@ -46,6 +46,8 @@ export async function updateDiff(
       | 'status'
       | 'score'
       | 'changedPixels'
+      | 'ignoredChangedPixels'
+      | 'ignoredRegions'
       | 'sizeChanged'
       | 'diffFileSha256'
       | 'jobStatus'
