@@ -106,13 +106,12 @@ describe('selection', () => {
   })
 
   it('moves on after an approval to the next screenshot that still needs a decision', () => {
-    const list = [
-      diff('a', 'changed'),
-      diff('b', 'changed', { review: { decision: 'approved' } as Build.DiffItem['review'] }),
-      diff('c', 'unchanged'),
-      diff('d', 'added'),
-    ] as Build.DiffItem[]
-    const [a, , , d] = list as [Build.DiffItem, Build.DiffItem, Build.DiffItem, Build.DiffItem]
+    const a = diff('a', 'changed')
+    const b = diff('b', 'changed', {
+      review: { decision: 'approved', reviewer: null, at: '2026-01-01T00:00:00Z', reason: null },
+    })
+    const d = diff('d', 'added')
+    const list = [a, b, diff('c', 'unchanged'), d]
     // b is decided and c needs none: d is next; from d it wraps to a.
     expect(nextToReview(list, a, 'pending')).toBe(d)
     expect(nextToReview(list, d, 'pending')).toBe(a)
