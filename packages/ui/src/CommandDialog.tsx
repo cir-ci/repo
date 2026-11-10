@@ -5,7 +5,7 @@ import styles from './CommandDialog.module.css'
 
 /**
  * The shell of the command menu: a modal near the top of the screen with no header, the
- * command radius and the scrim, and room for a search field, a list and a side pane (children).
+ * command radius and the scrim (under 600px a bottom sheet with a grabber), and room for a search field, a list and a side pane (children).
  * Focus goes to `initialFocus` (the first field inside when left out), Escape closes, and focus returns to what opened it.
  * `label` names the dialog for screen readers; `onClosed` runs once the close has finished (a
  * command that opens another dialog waits for it).
@@ -33,6 +33,7 @@ export function CommandDialog({
             data-wide={wide ? '' : undefined}
             {...(initialFocus === undefined ? {} : { initialFocus })}
           >
+            <span className={styles.grabber} aria-hidden="true" />
             <BaseDialog.Title className={styles.hidden}>{label}</BaseDialog.Title>
             {children}
           </BaseDialog.Popup>

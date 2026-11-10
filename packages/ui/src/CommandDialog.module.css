@@ -56,13 +56,61 @@
   outline: none;
 }
 
+.grabber {
+  display: none;
+}
+
+/*
+ * Under 600px the menu is a bottom sheet: anchored to the bottom edge with only its top corners
+ * rounded, a grabber over the field, room under the footer for the home indicator, and it
+ * slides up instead of fading.
+ */
+@media (max-width: 600px) {
+  .viewport {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .popup,
+  .popup[data-wide] {
+    position: relative;
+    width: 100%;
+    max-height: 80%;
+    padding-top: 16px;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    border-width: 1px 0 0;
+    border-radius: var(--circi-radius-command) var(--circi-radius-command) 0 0;
+    transition:
+      opacity 120ms ease-out,
+      transform 160ms ease-out;
+  }
+
+  .popup[data-starting-style],
+  .popup[data-ending-style] {
+    transform: translateY(24px);
+  }
+
+  .grabber {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    display: block;
+    width: 36px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--circi-line-strong);
+    transform: translateX(-50%);
+  }
+}
+
 .hidden {
   composes: visuallyHidden from './utilities.module.css';
 }
 
 @media (prefers-reduced-motion: reduce) {
   .backdrop,
-  .popup {
+  .popup,
+  .popup[data-wide] {
     transition: none;
   }
 }

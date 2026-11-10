@@ -3,10 +3,9 @@ import type { Search } from '@circi/api'
 import type { Chip, ChipKind } from './entry.ts'
 
 /**
- * How the text in the field is read: a prefix typed first (`#`, `/`, `>`) becomes a kind chip,
+ * How the text in the field is read: a prefix typed first (`#`, `/`, `>`, `@`) becomes a kind chip,
  * `in:web` or `team:web` followed by a space (or Tab) becomes a team chip, and the rest is what
  * is searched. A chip is removed with Backspace in the empty field, or its own button.
- * `@` (people) is left as text: the search has no people to find yet.
  */
 
 export const KIND_CHIPS: Record<
@@ -26,10 +25,20 @@ export const KIND_CHIPS: Record<
   reviews: { label: 'Review requests', placeholder: 'Search review requests', kinds: ['reviews'] },
   views: { label: 'Saved views', placeholder: 'Search saved views', kinds: ['views'] },
   teams: { label: 'Teams', placeholder: 'Search teams', kinds: ['teams'] },
+  people: { label: 'People', placeholder: 'Search people', kinds: ['people'] },
   commands: { label: 'Commands', placeholder: 'Run a command', kinds: [] },
 }
 
-const PREFIXES: Record<string, ChipKind> = { '#': 'builds', '/': 'screenshots', '>': 'commands' }
+const PREFIXES: Record<string, ChipKind> = {
+  '#': 'builds',
+  '/': 'screenshots',
+  '>': 'commands',
+  '@': 'people',
+}
+
+/** The character that types a kind chip, for a recent search that restores it. */
+export const prefixOf = (kind: ChipKind): string =>
+  Object.entries(PREFIXES).find(([, k]) => k === kind)?.[0] ?? ''
 
 export const ROOT_PLACEHOLDER = 'Search or type a command'
 

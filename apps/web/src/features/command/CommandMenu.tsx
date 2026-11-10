@@ -11,6 +11,8 @@ import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
 import { teamMembersQuery } from '#features/teams/api/members.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { keys } from '#lib/query-keys.ts'
+import { useOverlayStore } from '#lib/stores/overlay-store.ts'
+import { useRecentSearchesStore } from '#lib/stores/recent-searches-store.ts'
 import { type RecentEntry, useRecentStore } from '#lib/stores/recent-store.ts'
 import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
 import { useUndoStore } from '#lib/stores/undo-store.ts'
@@ -29,6 +31,7 @@ import {
   keyEvents,
   type ListInput,
   type Needs,
+  rememberedSearch,
   scopeOf,
   TIPS,
   wordsOf,
@@ -57,6 +60,7 @@ import { needsReason, performAction, rejectNeedsReason } from './row-actions.ts'
 import styles from './CommandMenu.module.css'
 
 const NO_RECENTS: readonly RecentEntry[] = []
+const NO_SEARCHES: readonly string[] = []
 const NO_WORKSPACES: readonly WorkspaceRef[] = []
 const NO_NEEDS: Needs = { reviews: 0, unread: 0, triageAssigned: 0 }
 
@@ -94,6 +98,7 @@ export function CommandMenu({
   const chooseWorkspace = useWorkspaceStore((s) => s.choose)
   const recents = useRecentStore((s) => (workspace ? s.byWorkspace[workspace] : undefined))
   const returnedApp = useSettingsReturnStore((s) => s.app)
+  const searches = useRecentSearchesStore((s) => (workspace ? s.byWorkspace[workspace] : undefined))
 
   const [text, setText] = useState('')
   const [chips, setChips] = useState<Chip[]>([])
@@ -131,10 +136,12 @@ export function CommandMenu({
     views,
     workspaces,
     canManage,
+    canCreateWorkspace: caps?.canCreateWorkspace === true,
     instanceAdmin: caps?.instanceAdmin === true,
     inSettings,
     needs,
     recents: recents ?? NO_RECENTS,
+    searches: searches ?? NO_SEARCHES,
     now,
     changed: changedCount(queryClient.getQueryData(buildKey(params)), params),
     leave: returnTarget(returnedApp, teams),
@@ -176,7 +183,7 @@ export function CommandMenu({
               theme: mode,
               members: members?.members,
               meId: session?.user.id,
-              authorName: reviewedBuild?.build.author?.name,
+              authorId: reviewedBuild?.authorUserId,
             },
             text,
           ),
@@ -318,6 +325,8 @@ export function CommandMenu({
 
   function choose(entry: Entry) {
     const { target } = entry
+    const remembered = workspace ? rememberedSearch(entry, chips, text) : undefined
+    if (workspace && remembered) useRecentSearchesStore.getState().record(workspace, remembered)
     switch (target.type) {
       case 'path':
         router.history.push(target.path)
@@ -392,6 +401,24 @@ export function CommandMenu({
       case 'retry':
         retry()
         return
+      case 'create': {
+        // The dialog opens once the menu has closed, so focus is not taken back by the menu.
+        const { what } = target
+        afterClose.current = () => {
+          const overlays = useOverlayStore.getState()
+          if (what === 'team') overlays.setNewTeamOpen(true)
+          else overlays.setNewWorkspaceOpen(true)
+        }
+        onOpenChange(false)
+        return
+      }
+      case 'search':
+        type(target.text)
+        return
+      case 'clearSearches':
+        if (workspace) useRecentSearchesStore.getState().clear(workspace)
+        setActive(0)
+        return
       case 'run':
         runAction(target.action)
         return
@@ -416,8 +443,8 @@ export function CommandMenu({
   }
 
   function type(value: string) {
-    if (page?.page === 'reason') {
-      // The text is the reason, whatever it starts with.
+    if (page) {
+      // In a nested list the text finds a row (or is the reason), whatever it starts with.
       setText(value)
       setActive(0)
       return

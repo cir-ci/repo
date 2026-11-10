@@ -57,10 +57,10 @@ export interface PageInput {
   /** The team of the address, which is the current choice of Switch team. */
   routeTeam: string | undefined
   theme: ColorMode
-  /** The team's people (page `reviewers`), who is signed in, and the build author's name, both left out of the list. */
+  /** The team's people (page `reviewers`), who is signed in, and the build author's user ID, both left out of the list. */
   members?: readonly Reviewer[] | undefined
   meId?: string | undefined
-  authorName?: string | null | undefined
+  authorId?: string | null | undefined
 }
 
 const enc = encodeURIComponent
@@ -208,9 +208,8 @@ function reviewerEntries(state: PageState, input: PageInput): Entry[] {
   const subject = state.subject
   if (!subject) return []
   const picked = state.picked ?? []
-  const author = input.authorName?.toLowerCase()
   const rows: Entry[] = (input.members ?? [])
-    .filter((m) => m.id !== input.meId && m.name.toLowerCase() !== author)
+    .filter((m) => m.id !== input.meId && m.id !== input.authorId)
     .map((m) => {
       const ticked = picked.some((p) => p.id === m.id)
       return choice(

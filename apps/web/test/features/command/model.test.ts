@@ -1,7 +1,7 @@
 import type { Search, View } from '@circi/api'
 import { describe, expect, it } from 'vitest'
 
-import type { Chip, Entry } from '#features/command/entry.ts'
+import { type Chip, type Entry, verbOf } from '#features/command/entry.ts'
 import {
   buildList,
   contextActions,
@@ -16,6 +16,8 @@ import {
   type Needs,
   pageContext,
   parseBuildQuery,
+  rememberedSearch,
+  searchEntries,
   textScore,
   type TypedState,
   wrapIndex,
@@ -28,7 +30,7 @@ import {
   withoutLastChip,
 } from '#features/command/query.ts'
 import { classifyVisit, shortAgo } from '#features/command/recent.ts'
-import { resultEntries } from '#features/command/results.ts'
+import { changeWords, personPath, resultEntries } from '#features/command/results.ts'
 import { settingsSections } from '#features/command/settings.ts'
 import { sidebarTeam } from '#test/support/fixtures.ts'
 
@@ -60,6 +62,8 @@ const build = (over: Partial<Search.Build> = {}): Search.Build => ({
   prNumber: null,
   status: 'complete',
   reviewStatus: 'pending',
+  changes: { changed: 0, added: 0, removed: 0 },
+  thumbnail: null,
   ...over,
 })
 
@@ -74,6 +78,7 @@ const results = (over: Partial<Search.Results> = {}): Search.Results => ({
   notifications: [],
   reviews: [],
   views: [],
+  people: [],
   totals: {
     builds: 0,
     branches: 0,
@@ -84,6 +89,7 @@ const results = (over: Partial<Search.Results> = {}): Search.Results => ({
     notifications: 0,
     reviews: 0,
     views: 0,
+    people: 0,
   },
   ...over,
 })
@@ -189,6 +195,18 @@ describe('wrapIndex', () => {
     expect(wrapIndex(3, -1, -1)).toBe(2)
     expect(wrapIndex(0, -1, 1)).toBe(-1)
   })
+})
+
+const changeRows = (view: ListView) =>
+  view.groups.find((g) => g.label === 'Switch and change')?.entries
+
+const person = (n: number) => ({
+  id: `u${n}`,
+  name: `Dana ${n}`,
+  email: `d${n}@acme.test`,
+  image: null,
+  teams: [],
+  openReviews: 0,
 })
 
 describe('the empty query', () => {
@@ -304,6 +322,8 @@ describe('the empty query', () => {
     expect(rows?.map((e) => e.label)).toEqual([
       'Switch team…',
       'Switch workspace…',
+      'New team',
+      'Invite people',
       'Theme…',
       'Keyboard shortcuts',
       'Sign out',
@@ -314,6 +334,68 @@ describe('the empty query', () => {
       'Theme…',
     ])
     expect(rows?.find((e) => e.label === 'Keyboard shortcuts')?.hint).toBe('?')
+  })
+
+  it('offers New team and Invite people to who may manage the workspace, and New workspace to who may create one', () => {
+    const viewer = changeRows(buildList(input({ canManage: false }), typed()))?.map((e) => e.label)
+    expect(viewer).not.toContain('New team')
+    expect(viewer).not.toContain('Invite people')
+    const manager = changeRows(buildList(input(), typed()))?.map((e) => e.label)
+    expect(manager).not.toContain('New workspace')
+    const all = changeRows(buildList(input({ canCreateWorkspace: true }), typed()))
+    expect(all?.map((e) => e.label)).toContain('New workspace')
+    expect(all?.find((e) => e.label === 'New team')?.target).toEqual({
+      type: 'create',
+      what: 'team',
+    })
+    expect(all?.find((e) => e.label === 'New workspace')?.target).toEqual({
+      type: 'create',
+      what: 'workspace',
+    })
+    // Invite people is an entry point to Members, the one settings page the menu may send to.
+    expect(all?.find((e) => e.label === 'Invite people')).toMatchObject({
+      target: { type: 'path', path: '/workspaces/acme/settings/members' },
+      path: '/workspaces/acme/settings/members',
+    })
+  })
+
+  it('finds the Create entries by typing, and offers none inside settings', () => {
+    expect(labels(buildList(input(), typed({ query: 'invite' })))).toContain('Invite people')
+    expect(labels(buildList(input(), typed({ query: 'new te' })))).toContain('New team')
+    const inside = buildList(
+      input({ pathname: '/workspaces/acme/settings/members', inSettings: true }),
+      typed({ query: 'new team' }),
+    )
+    expect(labels(inside)).not.toContain('New team')
+  })
+
+  it('lists recent searches under Recent when the field is empty, with a row that clears them', () => {
+    const view = buildList(input({ searches: ['checkout', '#148'] }), typed())
+    const recent = view.groups.find((g) => g.label === 'Recent')?.entries
+    expect(recent?.map((e) => e.label)).toEqual(['checkout', '#148', 'Clear recent searches'])
+    expect(recent?.[0]).toMatchObject({
+      kind: 'search',
+      kindLabel: 'Search',
+      target: { type: 'search', text: 'checkout' },
+    })
+    expect(recent?.[2]?.target).toEqual({ type: 'clearSearches' })
+    expect(verbOf(recent?.[0])).toBe('Choose')
+    expect(searchEntries([])).toEqual([])
+    // Typing hides them, and so does a kind chip.
+    expect(
+      labels(buildList(input({ searches: ['checkout'] }), typed({ query: 'zz' }))),
+    ).not.toContain('Clear recent searches')
+  })
+
+  it('remembers what was typed only for a result, with the prefix of its kind chip', () => {
+    const chips: Chip[] = [{ type: 'kind', kind: 'people' }]
+    expect(rememberedSearch({ id: 'person:u1', kind: 'person' }, chips, ' dana ')).toBe('@dana')
+    expect(rememberedSearch({ id: 'build:web:1', kind: 'build' }, [], 'checkout')).toBe('checkout')
+    expect(rememberedSearch({ id: 'build:web:1', kind: 'build' }, [], 'c')).toBeUndefined()
+    expect(rememberedSearch({ id: 'switch:theme', kind: 'submenu' }, [], 'theme')).toBeUndefined()
+    expect(
+      rememberedSearch({ id: 'recent:build:web:1', kind: 'build' }, [], 'check'),
+    ).toBeUndefined()
   })
 
   it('leaves out Switch workspace… when there is only one', () => {
@@ -401,7 +483,13 @@ describe('a typed query', () => {
       { teamSlug: 'web', teamName: 'Web App', branch: 'feat/checkout', latestBuildNumber: 148 },
     ],
     snapshots: [
-      { teamSlug: 'web', teamName: 'Web App', name: 'Checkout / Payment', latestBuildNumber: 148 },
+      {
+        teamSlug: 'web',
+        teamName: 'Web App',
+        name: 'Checkout / Payment',
+        latestBuildNumber: 148,
+        thumbnail: null,
+      },
     ],
     totals: { ...results().totals, builds: 12, branches: 1, snapshots: 1 },
   })
@@ -485,7 +573,14 @@ describe('a typed query', () => {
       { workspace: 'acme', teams, allTeams: true },
       results({
         baselines: [
-          { teamSlug: 'web', teamName: 'Web App', name: 'checkout/summary', buildNumber: 140 },
+          {
+            teamSlug: 'web',
+            teamName: 'Web App',
+            name: 'checkout/summary',
+            buildNumber: 140,
+            thumbnail: null,
+            approvedBy: null,
+          },
         ],
         triage: [
           {
@@ -496,6 +591,7 @@ describe('a typed query', () => {
             snapshotName: 'checkout/summary',
             buildNumber: 150,
             branch: 'main',
+            assignee: null,
           },
         ],
         notifications: [
@@ -520,6 +616,7 @@ describe('a typed query', () => {
             build: { number: 148, name: 'default', branch: 'main' },
             reviewer: { name: 'Me' },
             requestedBy: { name: 'Dana Levi' },
+            createdAt: '2026-03-10T12:00:00.000Z',
           },
         ],
       }),
@@ -611,8 +708,11 @@ describe('prefixes and chips', () => {
     expect(readTyped('a#b', [], teams).chips).toEqual([])
   })
 
-  it('leaves @ as text: there is no people search yet', () => {
-    expect(readTyped('@dana', [], teams)).toEqual({ chips: [], text: '@dana' })
+  it('reads @ as the people chip', () => {
+    expect(readTyped('@dana', [], teams)).toEqual({
+      chips: [{ type: 'kind', kind: 'people' }],
+      text: 'dana',
+    })
   })
 
   it('turns "in:name " and "team:slug " into a team chip, and keeps the rest', () => {
@@ -716,6 +816,190 @@ describe('nested lists', () => {
     const themes = pageEntries({ page: 'theme' }, { ...nested, theme: 'dark' }, '')
     expect(themes.map((e) => e.label)).toEqual(['System', 'Light', 'Dark'])
     expect(themes.find((e) => e.checked)).toMatchObject({ label: 'Dark', detail: 'Current' })
+  })
+})
+
+describe('the people list of Request review', () => {
+  const nested = {
+    workspace: 'acme',
+    pathname: '/acme/web/builds/148',
+    teams,
+    workspaces: [],
+    routeTeam: 'web',
+    theme: 'system' as const,
+    members: [
+      { id: 'u1', name: 'Me' },
+      { id: 'u2', name: 'Dana Levi' },
+      { id: 'u3', name: 'Dana Levi' },
+      { id: 'u4', name: 'Grace Hopper' },
+    ],
+    meId: 'u1',
+  }
+  const subject = {
+    type: 'build' as const,
+    workspace: 'acme',
+    team: 'web',
+    number: 148,
+    label: 'build #148',
+  }
+
+  it("leaves out you and the build's author by user ID, not by name", () => {
+    const rows = pageEntries({ page: 'reviewers', subject }, { ...nested, authorId: 'u2' }, '')
+    // Two people are called Dana Levi: only the author (u2) is left out.
+    expect(rows.map((e) => e.id)).toEqual(['reviewer:u3', 'reviewer:u4'])
+    expect(
+      pageEntries({ page: 'reviewers', subject }, { ...nested, authorId: null }, ''),
+    ).toHaveLength(3)
+  })
+
+  it('says Choose for Request review…, which opens a list', () => {
+    const rows = rowActionEntries(entryOf({ subject }))
+    const ask = rows.find((e) => e.label === 'Request review…')
+    expect(ask?.chevron).toBe(true)
+    expect(verbOf(ask)).toBe('Choose')
+    expect(verbOf(rows.find((e) => e.label === 'Reject'))).toBe('Run')
+  })
+})
+
+describe('search results with peeks', () => {
+  const ctx = { workspace: 'acme', teams, allTeams: true, now: NOW }
+
+  it('shows a build its change counts and its largest change as a thumbnail', () => {
+    const [row] = resultEntries(
+      ctx,
+      results({
+        builds: [
+          build({ changes: { changed: 3, added: 1, removed: 0 }, thumbnail: 'ab'.repeat(32) }),
+        ],
+      }),
+    )
+    expect(row?.peek.thumb).toBe('ab'.repeat(32))
+    expect(row?.peek.rows).toContainEqual({ label: 'Changes', value: '3 changed, 1 added' })
+    expect(changeWords({ changed: 0, added: 0, removed: 0 })).toBe('')
+    const [plain] = resultEntries(ctx, results({ builds: [build()] }))
+    expect(plain?.peek.thumb).toBeUndefined()
+    expect(plain?.peek.rows.map((r) => r.label)).not.toContain('Changes')
+  })
+
+  it('gives screenshots and baselines a thumbnail, and baselines their approver', () => {
+    const rows = resultEntries(
+      ctx,
+      results({
+        snapshots: [
+          {
+            teamSlug: 'web',
+            teamName: 'Web App',
+            name: 'home',
+            latestBuildNumber: 3,
+            thumbnail: 'cd'.repeat(32),
+          },
+        ],
+        baselines: [
+          {
+            teamSlug: 'web',
+            teamName: 'Web App',
+            name: 'home',
+            buildNumber: 2,
+            thumbnail: 'ef'.repeat(32),
+            approvedBy: 'Dana Levi',
+          },
+        ],
+      }),
+    )
+    expect(rows[0]?.peek.thumb).toBe('cd'.repeat(32))
+    expect(rows[1]?.peek.thumb).toBe('ef'.repeat(32))
+    expect(rows[1]?.peek.rows).toContainEqual({ label: 'Approved by', value: 'Dana Levi' })
+  })
+
+  it('names the assignee of a triage item and the age of a review request', () => {
+    const rows = resultEntries(
+      ctx,
+      results({
+        triage: [
+          {
+            teamSlug: 'web',
+            teamName: 'Web App',
+            kind: 'flaky',
+            key: 'home',
+            snapshotName: 'home',
+            buildNumber: 9,
+            branch: 'main',
+            assignee: { name: 'Grace Hopper' },
+          },
+        ],
+        reviews: [
+          {
+            id: 'r1',
+            tab: 'for-you',
+            teamSlug: 'web',
+            teamName: 'Web App',
+            build: { number: 9, name: 'default', branch: 'main' },
+            reviewer: { name: 'Me' },
+            requestedBy: null,
+            createdAt: new Date(NOW - 3 * 3600_000).toISOString(),
+          },
+        ],
+      }),
+    )
+    expect(rows[0]?.peek.lines).toEqual(['Flaky on main.'])
+    expect(rows[0]?.peek.rows).toContainEqual({ label: 'Assignee', value: 'Grace Hopper' })
+    expect(rows[1]?.peek.rows).toContainEqual({ label: 'Asked', value: '3 h ago' })
+  })
+
+  it('lists people with their avatar, teams and open reviews, opening their review requests', () => {
+    const [row] = resultEntries(
+      ctx,
+      results({
+        people: [
+          {
+            id: 'u2',
+            name: 'Dana Levi',
+            email: 'dana@acme.test',
+            image: null,
+            teams: [
+              { slug: 'web', name: 'Web App' },
+              { slug: 'docs', name: 'Docs' },
+            ],
+            openReviews: 2,
+          },
+        ],
+      }),
+    )
+    expect(row).toMatchObject({
+      group: 'People',
+      kind: 'person',
+      label: 'Dana Levi',
+      detail: 'dana@acme.test',
+      kindLabel: 'Person',
+      avatar: { id: 'u2', name: 'Dana Levi', image: null },
+      path: '/workspaces/acme/reviews?tab=all-open&q=Dana%20Levi',
+    })
+    expect(personPath('acme', 'Dana Levi')).toBe(row?.path)
+    expect(row?.peek.avatar).toMatchObject({ id: 'u2' })
+    expect(row?.peek.rows).toEqual([
+      { label: 'Teams', value: 'Web App, Docs' },
+      { label: 'Open reviews', value: '2 requests' },
+    ])
+  })
+
+  it('shows People as its own group, narrowed by the @ chip, and Show all when cut', () => {
+    const found = results({
+      people: [1, 2, 3].map(person),
+      totals: { ...results().totals, people: 7 },
+    })
+    const view = buildList(input(), typed({ query: 'dana', results: found }))
+    const group = view.groups.find((g) => g.label === 'People')?.entries
+    expect(group?.at(-1)?.label).toBe('Show all 7 people')
+    expect(group?.at(-1)?.target).toEqual({
+      type: 'chip',
+      chip: { type: 'kind', kind: 'people' },
+    })
+    const narrowed = buildList(
+      input(),
+      typed({ query: 'dana', chips: [{ type: 'kind', kind: 'people' }], results: found }),
+    )
+    expect(narrowed.kinds).toEqual(['people'])
+    expect(flatten(narrowed.groups).map((e) => e.kind)).toEqual(['person', 'person', 'person'])
   })
 })
 

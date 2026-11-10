@@ -3,6 +3,7 @@ import { DISPLAY_KEY } from '#features/builds/list/display-options.ts'
 import { useDisplayStore } from './display-store.ts'
 import { useListStore } from './list-store.ts'
 import { useOverlayStore } from './overlay-store.ts'
+import { RECENT_SEARCHES_KEY, useRecentSearchesStore } from './recent-searches-store.ts'
 import { RECENT_KEY, useRecentStore } from './recent-store.ts'
 import { SETTINGS_RETURN_KEY, useSettingsReturnStore } from './settings-return-store.ts'
 import { useShortcutStore } from './shortcut-store.ts'
@@ -22,6 +23,12 @@ export function resetStores(): void {
     // No storage to clear.
   }
   useRecentStore.getState().reset()
+  try {
+    localStorage.removeItem(RECENT_SEARCHES_KEY)
+  } catch {
+    // No storage to clear.
+  }
+  useRecentSearchesStore.getState().reset()
   try {
     sessionStorage.removeItem(SETTINGS_RETURN_KEY)
   } catch {

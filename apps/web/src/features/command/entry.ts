@@ -54,6 +54,8 @@ export type EntryKind =
   | 'notice'
   | 'review'
   | 'view'
+  | 'person'
+  | 'search'
   | 'setting'
   | 'action'
   | 'submenu'
@@ -74,9 +76,10 @@ export type ChipKind =
   | 'reviews'
   | 'views'
   | 'teams'
+  | 'people'
   | 'commands'
 
-/** A removable chip in the field: a kind prefix (`#`, `/`, `>`) or a team (`in:web`). */
+/** A removable chip in the field: a kind prefix (`#`, `/`, `>`, `@`) or a team (`in:web`). */
 export type Chip = { type: 'kind'; kind: ChipKind } | { type: 'team'; slug: string; name: string }
 
 /** The nested lists a row with a chevron opens, and the actions of one row. */
@@ -149,6 +152,10 @@ export interface Peek {
   /** What happens, or the one line that says what the thing is. */
   lines: string[]
   rows: { label: string; value: string }[]
+  /** A screenshot's thumbnail file (SHA-256), drawn above the facts. */
+  thumb?: string
+  /** A person's picture, drawn beside the title. */
+  avatar?: { id: string; name: string; image: string | null }
 }
 
 export interface Entry {
@@ -167,6 +174,8 @@ export interface Entry {
   icon: IconKey
   /** The state glyph of a build row. */
   status?: Status
+  /** The picture of a person row. */
+  avatar?: { id: string; name: string; image: string | null }
   /** The tile of a team row. */
   team?: { slug: string; name: string; color: TeamColor; icon: string | null }
   /** A notice that is unread draws a dot on its bell. */
@@ -203,6 +212,10 @@ export namespace Entry {
     | { type: 'workspace'; slug: string }
     | { type: 'signOut' }
     | { type: 'run'; action: RowAction }
+    | { type: 'create'; what: 'team' | 'workspace' }
+    /** A recent search: puts its text back in the field. */
+    | { type: 'search'; text: string }
+    | { type: 'clearSearches' }
 
   /** The entries of one heading, in the order the list shows them. */
   export interface GroupView {
@@ -219,6 +232,8 @@ export namespace Entry {
 /** The footer's Enter verb for a row. */
 export function verbOf(entry: Entry | undefined): Entry.Verb {
   if (!entry) return 'Go to'
+  // A row that opens a list asks for a choice there, whatever it is called (Request review…).
+  if (entry.chevron || entry.kind === 'search') return 'Choose'
   if (entry.kind === 'action' || entry.kind === 'widen' || entry.kind === 'retry') return 'Run'
   if (entry.kind === 'submenu' || entry.kind === 'choice' || entry.kind === 'more') return 'Choose'
   return 'Go to'

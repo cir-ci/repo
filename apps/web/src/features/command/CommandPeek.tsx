@@ -1,4 +1,6 @@
-import { Button, Kbd } from '@circi/ui'
+import { Avatar, Button, Kbd } from '@circi/ui'
+
+import { fileUrl } from '#features/builds/api/index.ts'
 
 import type { Entry } from './entry.ts'
 import { peekButton, TIPS } from './model.ts'
@@ -15,9 +17,27 @@ export function CommandPeek({ entry, tip, onChoose }: CommandPeek.Props) {
     <aside aria-label="Peek" className={styles.peek}>
       {entry ? (
         <>
+          {entry.peek.thumb ? (
+            <div className={styles.peekThumb}>
+              <img src={fileUrl(entry.peek.thumb)} alt="" loading="lazy" />
+            </div>
+          ) : null}
           <div className={styles.peekHead}>
             <span className={styles.peekSub}>{entry.peek.kind}</span>
-            <span className={styles.peekTitle}>{entry.peek.title}</span>
+            {entry.peek.avatar ? (
+              <span className={styles.peekPerson}>
+                <Avatar
+                  type="user"
+                  id={entry.peek.avatar.id}
+                  name={entry.peek.avatar.name}
+                  image={entry.peek.avatar.image}
+                  size={24}
+                />
+                <span className={styles.peekTitle}>{entry.peek.title}</span>
+              </span>
+            ) : (
+              <span className={styles.peekTitle}>{entry.peek.title}</span>
+            )}
           </div>
           {entry.peek.lines.map((line) => (
             <p key={line} className={styles.peekText}>

@@ -8,6 +8,7 @@ vi.mock('#lib/auth-client.ts', () =>
 
 import { ShortcutLayer } from '#app/ShortcutLayer.tsx'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
+import { RECENT_SEARCHES_KEY, useRecentSearchesStore } from '#lib/stores/recent-searches-store.ts'
 import { RECENT_CAP, RECENT_KEY, useRecentStore } from '#lib/stores/recent-store.ts'
 import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
 import { clipboard } from '#lib/use-copy.ts'
@@ -29,6 +30,7 @@ const totals = {
   notifications: 0,
   reviews: 0,
   views: 0,
+  people: 0,
 }
 
 const none = {
@@ -37,6 +39,7 @@ const none = {
   notifications: [],
   reviews: [],
   views: [],
+  people: [],
   totals,
 }
 
@@ -92,6 +95,8 @@ const build = (over: Record<string, unknown> = {}) => ({
   prNumber: null,
   status: 'complete',
   reviewStatus: 'pending',
+  changes: { changed: 0, added: 0, removed: 0 },
+  thumbnail: null,
   ...over,
 })
 
@@ -100,7 +105,16 @@ const found = (over: Record<string, unknown> = {}) => ({ ...empty, query: 'check
 const more = {
   ...empty,
   query: 'summary',
-  baselines: [{ teamSlug: 'web', teamName: 'Web', name: 'checkout/summary', buildNumber: 140 }],
+  baselines: [
+    {
+      teamSlug: 'web',
+      teamName: 'Web',
+      name: 'checkout/summary',
+      buildNumber: 140,
+      thumbnail: null,
+      approvedBy: null,
+    },
+  ],
   triage: [
     {
       teamSlug: 'web',
@@ -110,6 +124,7 @@ const more = {
       snapshotName: 'checkout/summary',
       buildNumber: 150,
       branch: 'main',
+      assignee: null,
     },
   ],
   notifications: [
@@ -134,6 +149,7 @@ const more = {
       build: { number: 148, name: 'default', branch: 'main' },
       reviewer: { name: 'Me' },
       requestedBy: { name: 'Dana Levi' },
+      createdAt: '2026-03-10T12:00:00.000Z',
     },
   ],
   totals: { ...totals, baselines: 1, triage: 1, notifications: 1, reviews: 1 },
@@ -491,6 +507,235 @@ describe('scope', () => {
   })
 })
 
+describe('people', () => {
+  const dana = {
+    id: 'u2',
+    name: 'Dana Levi',
+    email: 'dana@acme.test',
+    image: null,
+    teams: [
+      { slug: 'web', name: 'Web' },
+      { slug: 'docs', name: 'Docs' },
+    ],
+    openReviews: 2,
+  }
+  const people = { ...empty, query: 'dana', people: [dana], totals: { ...totals, people: 1 } }
+
+  it('finds people after @, shows their teams and open reviews, and opens their review requests', async () => {
+    const calls = api(people)
+    const { router } = await show()
+    await openMenu()
+    await userEvent.type(field(), '@dana')
+    await expect.element(page.getByRole('button', { name: 'Remove People scope' })).toBeVisible()
+    await expect.element(field()).toHaveAttribute('placeholder', 'Search people')
+    const row = page.getByRole('option', { name: /Person Dana Levi/ })
+    await expect.element(row).toBeVisible()
+    expect(calls.searches().at(-1)).toContain('kinds=people')
+    const peek = page.getByRole('complementary', { name: 'Peek' })
+    await expect.element(peek.getByText('dana@acme.test')).toBeVisible()
+    await expect.element(peek.getByText('Web, Docs')).toBeVisible()
+    await expect.element(peek.getByText('2 requests')).toBeVisible()
+    await expect.element(peek.getByRole('img', { name: 'Dana Levi' })).toBeVisible()
+    await userEvent.keyboard('{Enter}')
+    await vi.waitFor(() => {
+      expect(router.state.location.pathname).toBe('/workspaces/acme/reviews')
+      expect(router.state.location.search).toMatchObject({ tab: 'all-open', q: 'Dana Levi' })
+    })
+  })
+
+  it('lists people in their own group among the other results', async () => {
+    api({
+      ...found({ builds: [build()] }),
+      people: [dana, { ...dana, id: 'u3', name: 'Dana Cole', email: 'cole@acme.test' }],
+      totals: { ...totals, builds: 1, people: 2 },
+    })
+    await show()
+    await openMenu()
+    await userEvent.type(field(), 'dana')
+    const group = page.getByRole('group', { name: 'People' })
+    await expect.element(group.getByRole('option', { name: /Dana Levi/ })).toBeVisible()
+    await expect.element(group.getByRole('option', { name: /Dana Cole/ })).toBeVisible()
+  })
+})
+
+describe('peeks', () => {
+  it('draws the largest change of a build and its change counts', async () => {
+    api(
+      found({
+        builds: [
+          build({ changes: { changed: 3, added: 1, removed: 0 }, thumbnail: 'ab'.repeat(32) }),
+        ],
+      }),
+    )
+    await show()
+    await openMenu()
+    await userEvent.type(field(), 'checkout')
+    const peek = page.getByRole('complementary', { name: 'Peek' })
+    await expect.element(peek.getByText('3 changed, 1 added')).toBeVisible()
+    expect(peek.element().querySelector('img')?.getAttribute('src')).toBe(
+      `/api/files/${'ab'.repeat(32)}`,
+    )
+  })
+
+  it('names the approver of a baseline, the assignee of a triage item and the age of a request', async () => {
+    api({
+      ...more,
+      baselines: [{ ...more.baselines[0], approvedBy: 'Grace Hopper', thumbnail: 'cd'.repeat(32) }],
+      triage: [{ ...more.triage[0], assignee: { name: 'Ada' } }],
+    })
+    await show()
+    await openMenu()
+    await userEvent.type(field(), 'summary')
+    const peek = page.getByRole('complementary', { name: 'Peek' })
+    await page.getByRole('option', { name: /Baseline checkout\/summary/ }).hover()
+    await expect.element(peek.getByText('Grace Hopper')).toBeVisible()
+    await page.getByRole('option', { name: /Triage checkout\/summary/ }).hover()
+    await expect.element(peek.getByText('Assignee')).toBeVisible()
+    await expect.element(peek.getByText('Ada')).toBeVisible()
+    await page.getByRole('option', { name: /Review #148/ }).hover()
+    await expect.element(peek.getByText('Asked')).toBeVisible()
+  })
+})
+
+describe('Create entries', () => {
+  it('offers New team, New workspace and Invite people, and opens the dialogs', async () => {
+    api(empty, {
+      'GET /api/capabilities': { body: { manageableWorkspaces: [], canCreateWorkspace: true } },
+    })
+    const { router } = await show()
+    await openMenu()
+    const change = page.getByRole('group', { name: 'Switch and change' })
+    await expect.element(change.getByRole('option', { name: 'New workspace' })).toBeVisible()
+    await change.getByRole('option', { name: 'New team' }).click()
+    await vi.waitFor(() => expect(useOverlayStore.getState().newTeamOpen).toBe(true))
+    await openMenu()
+    await page.getByRole('option', { name: 'New workspace' }).click()
+    await vi.waitFor(() => expect(useOverlayStore.getState().newWorkspaceOpen).toBe(true))
+    // Invite people is an entry point to the Members page.
+    await openMenu()
+    await page.getByRole('option', { name: 'Invite people' }).click()
+    await vi.waitFor(() =>
+      expect(router.state.location.pathname).toBe('/workspaces/acme/settings/members'),
+    )
+  })
+
+  it('leaves them out for someone who may not manage the workspace or create workspaces', async () => {
+    api(empty, {}, { canManage: false })
+    await show()
+    await openMenu()
+    await expect.element(page.getByRole('option', { name: 'Theme…' })).toBeVisible()
+    for (const name of ['New team', 'New workspace', 'Invite people']) {
+      // eslint-disable-next-line no-await-in-loop -- one after another
+      await expect.element(page.getByRole('option', { name })).not.toBeInTheDocument()
+    }
+  })
+
+  it('offers none inside settings', async () => {
+    api()
+    await inSettings()
+    await openMenu()
+    await userEvent.type(field(), 'new team')
+    await expect.element(page.getByRole('option', { name: 'New team' })).not.toBeInTheDocument()
+  })
+})
+
+describe('recent searches', () => {
+  it('remembers what was typed when a result is chosen, lists it under Recent, retypes and clears it', async () => {
+    api(found({ builds: [build()] }))
+    await onBuild()
+    await openMenu()
+    await userEvent.type(field(), 'checkout')
+    await expect.element(page.getByRole('option', { name: /Build #148/ })).toBeVisible()
+    await userEvent.keyboard('{Enter}')
+    await vi.waitFor(() =>
+      expect(useRecentSearchesStore.getState().byWorkspace['acme']).toEqual(['checkout']),
+    )
+    expect(JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) ?? '{}')).toEqual({
+      acme: ['checkout'],
+    })
+    await openMenu()
+    const recent = page.getByRole('group', { name: 'Recent' })
+    await expect.element(recent.getByRole('option', { name: /Search checkout/ })).toBeVisible()
+    await recent.getByRole('option', { name: /Search checkout/ }).click()
+    await expect.element(field()).toHaveValue('checkout')
+    await userEvent.clear(field())
+    await recent.getByRole('option', { name: 'Clear recent searches' }).click()
+    await expect
+      .element(page.getByRole('option', { name: /Search checkout/ }))
+      .not.toBeInTheDocument()
+    expect(useRecentSearchesStore.getState().byWorkspace['acme']).toBeUndefined()
+  })
+
+  it('keeps them per workspace and does not break when the browser blocks storage', async () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    api(found({ builds: [build()] }))
+    await renderPage(
+      <ShortcutLayer>
+        <Opener />
+      </ShortcutLayer>,
+      {
+        announcer: true,
+        viewport: [1200, 800],
+        beforeRender: () => useRecentSearchesStore.getState().record('other', 'elsewhere'),
+      },
+    )
+    await openMenu()
+    await expect
+      .element(page.getByRole('option', { name: /Search elsewhere/ }))
+      .not.toBeInTheDocument()
+    await userEvent.type(field(), 'checkout')
+    await expect.element(page.getByRole('option', { name: /Build #148/ })).toBeVisible()
+    await userEvent.keyboard('{Enter}')
+    await vi.waitFor(() =>
+      expect(useRecentSearchesStore.getState().byWorkspace['acme']).toEqual(['checkout']),
+    )
+  })
+})
+
+describe('on a phone', () => {
+  it('is a bottom sheet with 44px rows, a grabber and room for the home indicator', async () => {
+    api(found({ builds: [build()] }))
+    await renderPage(
+      <ShortcutLayer>
+        <Opener />
+      </ShortcutLayer>,
+      { announcer: true, viewport: [390, 700] },
+    )
+    await page.getByRole('button', { name: 'Search' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Command menu' })
+    await expect.element(dialog).toBeVisible()
+    // It slides up from the bottom edge; once it has settled it sits on it.
+    await vi.waitFor(() =>
+      expect(Math.round(dialog.element().getBoundingClientRect().bottom)).toBe(700),
+    )
+    const box = dialog.element().getBoundingClientRect()
+    expect(Math.round(box.left)).toBe(0)
+    expect(Math.round(box.width)).toBe(390)
+    const style = getComputedStyle(dialog.element())
+    expect(Number.parseFloat(style.borderTopLeftRadius)).toBeGreaterThan(0)
+    expect(style.borderBottomLeftRadius).toBe('0px')
+    expect(style.paddingBottom).toBe('0px')
+    const row = page.getByRole('option').first().element().getBoundingClientRect()
+    expect(row.height).toBeGreaterThanOrEqual(44)
+    const grabber = dialog.element().querySelector('span[aria-hidden="true"]')
+    expect(grabber && getComputedStyle(grabber).display).toBe('block')
+    // No side pane on a phone.
+    const peek = dialog.element().querySelector('aside[aria-label="Peek"]')
+    expect(peek && getComputedStyle(peek).display).toBe('none')
+  })
+
+  it('stays a centred dialog on a desktop', async () => {
+    api()
+    await show()
+    await openMenu()
+    const box = page.getByRole('dialog', { name: 'Command menu' }).element().getBoundingClientRect()
+    expect(box.bottom).toBeLessThan(800)
+    expect(box.width).toBeGreaterThan(700)
+  })
+})
+
 describe('nested lists', () => {
   it('opens Switch team… as a list with the current team checked, and Backspace goes back', async () => {
     api()
@@ -758,7 +1003,10 @@ describe('row actions', () => {
       buildAndTeam({
         'GET /api/teams/acme/web/members': { body: people },
         'GET /api/teams/acme/web/builds/148': {
-          body: { build: { id: 'b-148', author: { login: 'ann', name: 'Ann Author' } } },
+          body: {
+            build: { id: 'b-148', author: { login: 'ann', name: 'Ann Author' } },
+            authorUserId: 'u4',
+          },
         },
         'POST /api/teams/acme/web/builds/request-review': {
           body: { requests: [], undo: token('u3') },

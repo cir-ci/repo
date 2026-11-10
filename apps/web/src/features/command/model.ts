@@ -6,7 +6,7 @@ import { SHORTCUTS, type Shortcut } from '#lib/shortcuts.ts'
 import type { RecentEntry } from '#lib/stores/recent-store.ts'
 
 import { type Chip, type ChipKind, type Entry, type IconKey, verbOf } from './entry.ts'
-import { KIND_CHIPS, kindChip, teamChip } from './query.ts'
+import { KIND_CHIPS, kindChip, prefixOf, teamChip } from './query.ts'
 import { shortAgo } from './recent.ts'
 import {
   GROUP_KIND,
@@ -50,7 +50,6 @@ const TIE_ORDER: readonly string[] = [
   GROUPS.actions,
   GROUPS.goTo,
   ...RESULT_GROUPS,
-  GROUPS.people,
   GROUPS.settings,
 ]
 
@@ -431,10 +430,45 @@ export interface SwitchInput {
   workspace: string | undefined
   teams: readonly Sidebar.Team[] | undefined
   workspaces: readonly WorkspaceRef[]
+  /** May change the workspace's settings: then New team and Invite people are offered. */
+  canManage?: boolean | undefined
+  /** May create workspaces. */
+  canCreateWorkspace?: boolean | undefined
 }
 
-/** Switch team…, Switch workspace…, Theme…, Keyboard shortcuts, Sign out. */
-export function switchEntries({ workspace, teams, workspaces }: SwitchInput): Entry[] {
+const create = (
+  id: string,
+  label: string,
+  icon: IconKey,
+  target: Entry.Target,
+  keywords: string[],
+  line: string,
+  path?: string,
+): Entry => ({
+  id: `switch:${id}`,
+  group: GROUPS.switch,
+  kind: 'action',
+  label,
+  icon,
+  target,
+  keywords,
+  ...(path ? { path } : {}),
+  peek: { kind: 'Action', title: label, lines: [line], rows: [] },
+})
+
+/**
+ * Switch team…, Switch workspace…, New team, New workspace, Invite people, Theme…, Keyboard
+ * shortcuts, Sign out. The Create entries only show where the person may: they open the dialogs
+ * the sidebar opens, and Invite people goes to Members, the workspace's invite form (settings
+ * pages are never opened from inside the menu otherwise).
+ */
+export function switchEntries({
+  workspace,
+  teams,
+  workspaces,
+  canManage,
+  canCreateWorkspace,
+}: SwitchInput): Entry[] {
   const entries: Entry[] = []
   if (workspace && (teams?.length ?? 0) > 0) {
     entries.push(
@@ -457,6 +491,44 @@ export function switchEntries({ workspace, teams, workspaces }: SwitchInput): En
         'workspace',
         ['workspace', 'change'],
         'Choose another workspace to open.',
+      ),
+    )
+  }
+  if (workspace && canManage) {
+    entries.push(
+      create(
+        'new-team',
+        'New team',
+        'team',
+        { type: 'create', what: 'team' },
+        ['create', 'add', 'new'],
+        'Opens the New team dialog.',
+      ),
+    )
+  }
+  if (canCreateWorkspace) {
+    entries.push(
+      create(
+        'new-workspace',
+        'New workspace',
+        'workspace',
+        { type: 'create', what: 'workspace' },
+        ['create', 'add', 'new', 'organisation', 'organization'],
+        'Opens the New workspace dialog.',
+      ),
+    )
+  }
+  if (workspace && canManage) {
+    const path = `/workspaces/${enc(workspace)}/settings/members`
+    entries.push(
+      create(
+        'invite',
+        'Invite people',
+        'person',
+        { type: 'path', path },
+        ['invite', 'add', 'member', 'members', 'teammate', 'email'],
+        'Goes to Members, where you invite people by email.',
+        path,
       ),
     )
   }
@@ -653,6 +725,79 @@ export function recentEntries(
     .map((r) => recentEntry(r, teams, now))
 }
 
+/** How many recent searches the empty query lists. */
+const SEARCHES_SHOWN = 3
+
+/** Recent searches as rows (choosing one types it again), then the row that forgets them. */
+export function searchEntries(searches: readonly string[]): Entry[] {
+  if (searches.length === 0) return []
+  const rows = searches.slice(0, SEARCHES_SHOWN).map((text): Entry => ({
+    id: `search:${text}`,
+    group: GROUPS.recent,
+    kind: 'search',
+    label: text,
+    kindLabel: 'Search',
+    icon: 'search',
+    target: { type: 'search', text },
+    peek: {
+      kind: 'Recent search',
+      title: text,
+      lines: ['Types it in the field again.'],
+      rows: [],
+    },
+  }))
+  return [
+    ...rows,
+    {
+      id: 'search:clear',
+      group: GROUPS.recent,
+      kind: 'action',
+      label: 'Clear recent searches',
+      icon: 'remove',
+      target: { type: 'clearSearches' },
+      keywords: ['forget', 'history'],
+      peek: {
+        kind: 'Action',
+        title: 'Clear recent searches',
+        lines: ['Forgets what you searched for in this workspace.'],
+        rows: [],
+      },
+    },
+  ]
+}
+
+/** The kinds of row that come from a search; choosing one remembers what was typed. */
+const FOUND_KINDS: ReadonlySet<Entry['kind']> = new Set([
+  'build',
+  'branch',
+  'screenshot',
+  'baseline',
+  'triage',
+  'notice',
+  'review',
+  'view',
+  'person',
+  'team',
+])
+
+/**
+ * What to remember when `entry` is chosen with `text` typed after `chips`: the text, with the
+ * character of its kind chip in front (so it types the same again), or nothing when there is no
+ * search to remember (nothing typed, one character, a row that was not found by search).
+ */
+export function rememberedSearch(
+  entry: Pick<Entry, 'id' | 'kind'>,
+  chips: readonly Chip[],
+  text: string,
+): string | undefined {
+  const q = text.trim()
+  if (q.length < 2 || !FOUND_KINDS.has(entry.kind) || entry.id.startsWith('recent:')) {
+    return undefined
+  }
+  const kind = kindChip(chips)
+  return `${kind ? prefixOf(kind) : ''}${q}`
+}
+
 // Matching and ranking ---------------------------------------------------------------------
 
 /** The words of typed text, lower case. */
@@ -707,11 +852,15 @@ export interface ListInput {
   views: readonly View.Item[] | undefined
   workspaces: readonly WorkspaceRef[]
   canManage: boolean | undefined
+  /** Whether the person may create workspaces. */
+  canCreateWorkspace?: boolean | undefined
   instanceAdmin: boolean | undefined
   /** Whether the address is one of settings' pages. */
   inSettings: boolean
   needs: Needs
   recents: readonly RecentEntry[]
+  /** What was typed before choosing a result, newest first (this workspace's). */
+  searches?: readonly string[] | undefined
   now: number
   /** How many screenshots changed in the build on screen, when it has been loaded. */
   changed?: number | undefined
@@ -804,6 +953,13 @@ export function buildList(input: ListInput, typed: TypedState): ListView {
     canManage: input.canManage,
     routeTeam: context.team?.slug,
   }
+  const switchInput: SwitchInput = {
+    workspace,
+    teams: input.teams,
+    workspaces: input.workspaces,
+    canManage: input.canManage,
+    canCreateWorkspace: input.canCreateWorkspace,
+  }
   const heading = context.heading ?? 'This page'
   const pageActions = typed.contextCleared
     ? []
@@ -828,19 +984,14 @@ export function buildList(input: ListInput, typed: TypedState): ListView {
     }
     if (kind === undefined) add('page', heading, pageActions.slice(0, PAGE_ACTIONS_MAX))
     if (kind === undefined) {
-      add(
-        GROUPS.recent,
-        GROUPS.recent,
-        recentEntries(input.recents, input.teams, input.now, input.pathname),
-      )
+      add(GROUPS.recent, GROUPS.recent, [
+        ...recentEntries(input.recents, input.teams, input.now, input.pathname),
+        ...searchEntries(input.searches ?? []),
+      ])
       add(GROUPS.needs, GROUPS.needs, needsEntries(input.needs, jump))
     }
     add(GROUPS.goTo, GROUPS.goTo, goToEntries(jump))
-    add(
-      GROUPS.switch,
-      GROUPS.switch,
-      switchEntries({ workspace, teams: input.teams, workspaces: input.workspaces }),
-    )
+    add(GROUPS.switch, GROUPS.switch, switchEntries(switchInput))
     return { ...base, groups, state: 'results', inSettings: false }
   }
 
@@ -850,11 +1001,7 @@ export function buildList(input: ListInput, typed: TypedState): ListView {
   const commandsOnly = kind === 'commands'
   const wantsLocal = kind === undefined || commandsOnly
   if (wantsLocal) {
-    local.push(
-      ...pageActions,
-      ...goToEntries(jump),
-      ...switchEntries({ workspace, teams: input.teams, workspaces: input.workspaces }),
-    )
+    local.push(...pageActions, ...goToEntries(jump), ...switchEntries(switchInput))
     if (workspace) {
       for (const t of (input.teams ?? []).filter((x) => !x.pinned)) {
         local.push(teamEntry(workspace, t, 'Teams'))
@@ -879,7 +1026,12 @@ export function buildList(input: ListInput, typed: TypedState): ListView {
 
   const searched: Entry[] = []
   if (!commandsOnly && workspace) {
-    const rc: ResultsContext = { workspace, teams: input.teams, allTeams: scope === undefined }
+    const rc: ResultsContext = {
+      workspace,
+      teams: input.teams,
+      allTeams: scope === undefined,
+      now: input.now,
+    }
     searched.push(...resultEntries(rc, typed.results))
     const want = kind === undefined || kind === 'builds'
     if (
@@ -1024,6 +1176,7 @@ const CHIP_OF_KIND: Record<Search.Kind, ChipKind> = {
   reviews: 'reviews',
   views: 'views',
   teams: 'teams',
+  people: 'people',
 }
 
 function moreEntry(group: string, chip: ChipKind, label: string): Entry {

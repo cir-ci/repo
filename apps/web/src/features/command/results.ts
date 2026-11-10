@@ -4,6 +4,7 @@ import { notificationText } from '#features/inbox/api.ts'
 import { buildStatus } from '#features/reviews/api.ts'
 
 import type { Entry, Peek } from './entry.ts'
+import { shortAgo } from './recent.ts'
 
 /**
  * Search results as entries: a kind icon and kind label, the name of the thing, one grey line,
@@ -43,17 +44,43 @@ export interface ResultsContext {
   teams: readonly Sidebar.Team[] | undefined
   /** Whether results may come from several teams: then a row names its team. */
   allTeams: boolean
+  /** The time the ages are counted to (ms); now when left out. */
+  now?: number
 }
 
 const joinDetail = (...parts: (string | null | undefined | false)[]): string =>
   parts.filter(Boolean).join(' · ')
 
-const peek = (kind: string, title: string, lines: string[], rows: Peek['rows'] = []): Peek => ({
+const peek = (
+  kind: string,
+  title: string,
+  lines: string[],
+  rows: Peek['rows'] = [],
+  extra: Pick<Peek, 'thumb' | 'avatar'> = {},
+): Peek => ({
   kind,
   title,
   lines,
   rows,
+  ...extra,
 })
+
+const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+
+/** What a build changed, in words: `3 changed, 1 added`; empty when nothing did. */
+export function changeWords(c: Search.Build['changes']): string {
+  return [
+    c.changed > 0 && `${c.changed} changed`,
+    c.added > 0 && `${c.added} added`,
+    c.removed > 0 && `${c.removed} removed`,
+  ]
+    .filter(Boolean)
+    .join(', ')
+}
+
+/** The Reviews page filtered to one person's review requests (it finds by the name of the asked or the asking). */
+export const personPath = (workspace: string, name: string) =>
+  `/workspaces/${enc(workspace)}/reviews?tab=all-open&q=${enc(name)}`
 
 /** The reason line of a triage item: `Flaky on main`. */
 export const triageReason = (t: Pick<Search.Triage, 'kind' | 'branch'>): string =>
@@ -97,7 +124,9 @@ const buildEntry = (c: ResultsContext, b: Search.Build): Entry => {
         { label: 'Team', value: b.teamName },
         ...(b.branch ? [{ label: 'Branch', value: b.branch }] : []),
         ...(b.prNumber === null ? [] : [{ label: 'Pull request', value: `#${b.prNumber}` }]),
+        ...(changeWords(b.changes) ? [{ label: 'Changes', value: changeWords(b.changes) }] : []),
       ],
+      b.thumbnail ? { thumb: b.thumbnail } : {},
     ),
   }
 }
@@ -184,6 +213,7 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
         s.name,
         [`Latest in build #${s.latestBuildNumber}.`],
         [{ label: 'Team', value: s.teamName }],
+        s.thumbnail ? { thumb: s.thumbnail } : {},
       ),
     })
   }
@@ -204,7 +234,11 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
         'Baseline',
         b.name,
         [`Approved in build #${b.buildNumber}.`],
-        [{ label: 'Team', value: b.teamName }],
+        [
+          { label: 'Team', value: b.teamName },
+          ...(b.approvedBy ? [{ label: 'Approved by', value: b.approvedBy }] : []),
+        ],
+        b.thumbnail ? { thumb: b.thumbnail } : {},
       ),
     })
   }
@@ -236,6 +270,7 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
         [
           { label: 'Team', value: t.teamName },
           { label: 'Build', value: `#${t.buildNumber}` },
+          { label: 'Assignee', value: t.assignee?.name ?? 'Nobody' },
         ],
       ),
     })
@@ -302,9 +337,40 @@ export function resultEntries(c: ResultsContext, results: Search.Results | undef
         [
           { label: 'Team', value: r.teamName },
           ...(r.build.branch ? [{ label: 'Branch', value: r.build.branch }] : []),
+          { label: 'Asked', value: shortAgo(Date.parse(r.createdAt), c.now ?? Date.now()) },
           { label: 'In', value: REVIEW_TAB_NAME[r.tab] },
         ],
       ),
+    })
+  }
+  for (const p of results.people) {
+    const path = personPath(workspace, p.name)
+    entries.push({
+      id: `person:${p.id}`,
+      group: 'People',
+      kind: 'person',
+      label: p.name,
+      detail: p.email,
+      kindLabel: 'Person',
+      icon: 'person',
+      avatar: { id: p.id, name: p.name, image: p.image },
+      target: { type: 'path', path },
+      path,
+      subject: { type: 'link', label: `person ${p.name}` },
+      peek: peek(
+        'Person',
+        p.name,
+        [p.email],
+        [
+          {
+            label: 'Teams',
+            value: p.teams.length > 0 ? p.teams.map((t) => t.name).join(', ') : 'None you can see',
+          },
+          { label: 'Open reviews', value: count(p.openReviews, 'request', 'requests') },
+        ],
+        { avatar: { id: p.id, name: p.name, image: p.image } },
+      ),
+      keywords: [p.email],
     })
   }
   for (const v of results.views) {
@@ -336,6 +402,7 @@ export const KIND_NOUN: Record<Search.Kind, [string, string]> = {
   notifications: ['notice', 'notices'],
   reviews: ['review request', 'review requests'],
   views: ['saved view', 'saved views'],
+  people: ['person', 'people'],
 }
 
 /** The heading of each group of results, in the order a tie between them is broken. */
@@ -348,6 +415,7 @@ export const RESULT_GROUPS = [
   'Inbox',
   'Review requests',
   'Saved views',
+  'People',
   'Teams',
 ] as const
 
@@ -361,5 +429,6 @@ export const GROUP_KIND: Record<(typeof RESULT_GROUPS)[number], Search.Kind> = {
   Inbox: 'notifications',
   'Review requests': 'reviews',
   'Saved views': 'views',
+  People: 'people',
   Teams: 'teams',
 }

@@ -97,6 +97,18 @@ export function CommandIcon({ entry }: CommandIcon.Props) {
     )
   }
   if (entry.status) return <StatusIcon status={entry.status} size={16} decorative />
+  if (entry.avatar) {
+    return (
+      <Avatar
+        type="user"
+        aria-hidden
+        id={entry.avatar.id}
+        name={entry.avatar.name}
+        image={entry.avatar.image}
+        size={16}
+      />
+    )
+  }
   if (entry.team) {
     return (
       <Avatar
