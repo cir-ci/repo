@@ -2,20 +2,22 @@ import { Badge, EmptyState, ListRow, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
-import { baselineLink } from '#features/baselines/links.ts'
 import { TeamSettingsFrame } from '#features/team-settings/TeamSettingsFrame.tsx'
 import { ignoreRegionsQuery } from '#features/teams/api/index.ts'
 import { ErrorState } from '#lib/ErrorState.tsx'
 import { useClientLink } from '#lib/use-client-link.ts'
 
+import { ignoreRegionLink } from './links.ts'
+import { OVERVIEW_ROUTE } from './routes.ts'
+
 import styles from './IgnoreRegionsPage.module.css'
 
 /**
  * Team settings, Ignore regions: a read-only overview of every screenshot that has ignore
- * regions, each linking to its baseline page, where the regions are seen and edited.
+ * regions, each opening its baseline here in settings, where the regions are seen and edited.
  */
 export function IgnoreRegionsPage() {
-  const { workspace, team } = useParams({ from: '/$workspace/$team/settings/ignore-regions' })
+  const { workspace, team } = useParams({ from: OVERVIEW_ROUTE })
   return (
     <TeamSettingsFrame workspace={workspace} team={team} page="Ignore regions" managersOnly={false}>
       {() => <Overview workspace={workspace} team={team} />}
@@ -40,7 +42,7 @@ function Overview({ workspace, team }: Overview.Props) {
           {shots.map((s) => (
             <li key={s.name}>
               <ListRow
-                {...clientLink(baselineLink(workspace, team, s.name))}
+                {...clientLink(ignoreRegionLink(workspace, team, s.name))}
                 trailing={
                   <Badge aria-label={`${s.regions} ${s.regions === 1 ? 'region' : 'regions'}`}>
                     {s.regions}

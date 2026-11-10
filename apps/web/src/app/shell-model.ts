@@ -260,7 +260,7 @@ export function switchWorkspacePath(
 
 const GLOBAL_ROOTS = new Set(['inbox', 'account', 'instance', 'integrations', '_sso'])
 
-/** The settings pages of a team, in the order of its tabs (Sites, the last tab, is the team's own page): `path` is what follows `/settings`. */
+/** The settings pages of a team, in the order of its tabs `path` is what follows `/settings`. */
 export const TEAM_SETTINGS_PAGES = [
   { key: 'general', label: 'General', path: '' },
   { key: 'members', label: 'Members', path: '/members' },
@@ -268,6 +268,7 @@ export const TEAM_SETTINGS_PAGES = [
   { key: 'reviews', label: 'Reviews and triage', path: '/reviews' },
   { key: 'webhooks', label: 'Webhooks', path: '/webhooks' },
   { key: 'ignore-regions', label: 'Ignore regions', path: '/ignore-regions' },
+  { key: 'sites', label: 'Sites', path: '/sites' },
 ] as const
 
 export type TeamSettingsKey = (typeof TEAM_SETTINGS_PAGES)[number]['key']

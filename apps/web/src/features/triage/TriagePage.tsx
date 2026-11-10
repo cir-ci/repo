@@ -170,15 +170,6 @@ export function TriagePage() {
                   </span>
                 </Badge>
               ) : null}
-              <Button
-                size="sm"
-                {...clientLink({
-                  to: '/$workspace/$team/settings/reviews',
-                  params: { workspace, team },
-                })}
-              >
-                Rules
-              </Button>
             </>
           ) : undefined
         }

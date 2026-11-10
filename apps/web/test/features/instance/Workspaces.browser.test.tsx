@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { page } from 'vitest/browser'
 
 import { WorkspacesPage } from '#features/instance/WorkspacesPage.tsx'
-import { useWorkspaceStore } from '#lib/stores/workspace-store.ts'
 import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
@@ -281,15 +280,11 @@ describe('opening a workspace', () => {
     'GET /api/instance/settings': { body: settingsFixture() },
   }
 
-  it('chooses the workspace you belong to and lands on the Teams page', async () => {
+  it('has no way out of the instance pages into a workspace', async () => {
     fakeApi(OPEN)
-    const { router } = await renderPage(<WorkspacesPage />, {
-      route: '/instance/workspaces',
-      otherRoutes: ['/'],
-    })
-    await page.getByRole('link', { name: 'Open Acme' }).click()
-    expect(router.state.location.pathname).toBe('/')
-    expect(useWorkspaceStore.getState().chosen).toBe('acme')
+    await show()
+    expect(page.getByRole('link', { name: /Open/ }).elements()).toHaveLength(0)
+    expect(page.getByRole('button', { name: /^Open/ }).elements()).toHaveLength(0)
   })
 
   it('shows Not a member, without a link, for a live workspace you are not in', async () => {
@@ -301,7 +296,7 @@ describe('opening a workspace', () => {
     expect(text('Design Guild')).toMatch(/Owner Dana Levi/)
   })
 
-  it('keeps the menu, and no Open or Not a member, on a deleted workspace', async () => {
+  it('keeps the menu, and no Not a member, on a deleted workspace', async () => {
     fakeApi(OPEN)
     await show()
     const row = page.getByRole('listitem').filter({ hasText: 'Old Co' })

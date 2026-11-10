@@ -35,23 +35,25 @@ function api(snapshots: unknown[], canManage = true, extra: Record<string, Reply
 
 const show = () =>
   renderPage(<IgnoreRegionsPage />, {
-    route: '/$workspace/$team/settings/ignore-regions',
+    route: '/$workspace/$team/settings/ignore-regions/',
     url: '/acme/web/settings/ignore-regions',
     announcer: true,
     validateSearch: parseIgnoreRegionsSearch,
-    otherRoutes: ['/$workspace/$team/baselines/$'],
+    otherRoutes: ['/$workspace/$team/settings/ignore-regions/$'],
   })
 
 describe('IgnoreRegionsPage (the team settings overview)', () => {
-  it('lists the screenshots that have ignore regions with their counts, each linking to its baseline page', async () => {
+  it('lists the screenshots that have ignore regions with their counts, each opening its baseline inside settings', async () => {
     api([snapshot('checkout/summary', 2), snapshot('nav/header', 1)])
     await show()
     const list = page.getByRole('list', { name: 'Screenshots with ignore regions' })
     const summary = list.getByRole('link', { name: /checkout\/summary/ })
-    await expect.element(summary).toHaveAttribute('href', '/acme/web/baselines/checkout/summary')
+    await expect
+      .element(summary)
+      .toHaveAttribute('href', '/acme/web/settings/ignore-regions/checkout/summary')
     await expect
       .element(list.getByRole('link', { name: /nav\/header/ }))
-      .toHaveAttribute('href', '/acme/web/baselines/nav/header')
+      .toHaveAttribute('href', '/acme/web/settings/ignore-regions/nav/header')
     await expect.element(page.getByLabelText('2 regions')).toBeVisible()
     await expect.element(page.getByLabelText('1 region')).toBeVisible()
     expect(document.title).toBe('Ignore regions · web · CirCI')

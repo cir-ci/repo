@@ -43,7 +43,7 @@ export function DeleteTeamSection({ workspace, team, name, canManage }: DeleteTe
       onSuccess: () => {
         setOpen(false)
         announce(`Deleted ${name}`)
-        void navigate({ to: '/' })
+        void navigate({ to: '/workspaces/$workspace/settings/teams', params: { workspace } })
       },
     })
   }

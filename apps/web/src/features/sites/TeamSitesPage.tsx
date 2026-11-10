@@ -33,15 +33,24 @@ const UPLOAD_EXAMPLE =
  */
 export function TeamSitesPage() {
   const { workspace, team } = useParams({ from: '/$workspace/$team/sites' })
-  const query = useQuery(teamSitesQuery(workspace, team))
-  const caps = useQuery(capabilitiesQuery())
-  const canChangeServer = caps.data?.instanceAdmin === true
   useDocumentTitle('Sites', team)
   const names = useCrumbNames(workspace, team)
-
   return (
     <>
       <PageHeading crumbs={crumbsFor(names)} title="Sites" />
+      <TeamSitesBody workspace={workspace} team={team} />
+    </>
+  )
+}
+
+/** The sites themselves, shared by this page and the Sites tab of the team's settings. */
+export function TeamSitesBody({ workspace, team }: TeamSitesBody.Props) {
+  const query = useQuery(teamSitesQuery(workspace, team))
+  const caps = useQuery(capabilitiesQuery())
+  const canChangeServer = caps.data?.instanceAdmin === true
+
+  return (
+    <>
       <div className={styles.content}>
         <QueryBoundary query={query} notFound="This team doesn't exist" rows={3}>
           {(data) =>
@@ -139,4 +148,11 @@ export function TeamSitesPage() {
       </div>
     </>
   )
+}
+
+export namespace TeamSitesBody {
+  export interface Props {
+    workspace: string
+    team: string
+  }
 }

@@ -16,7 +16,7 @@ import { TeamHeader } from './TeamHeader.tsx'
 /**
  * What every team settings page shares: the breadcrumb (workspace, Settings, Teams, the team: see
  * `lib/crumbs.ts`), the team's header with its tabs, one column, the team's settings loaded once (the other pages read the same cache), its
- * loading and error states, and, for the pages only owners and admins may use, a redirect to the team's builds for everyone else
+ * loading and error states, and, for the pages only owners and admins may use, a redirect to the team's Members tab for everyone else (settings is a closed area: never out to the app)
  * (`managersOnly={false}` keeps a page that members may read).
  */
 export function TeamSettingsFrame({
@@ -71,7 +71,7 @@ export function TeamSettingsFrame({
       notFound="This team doesn't exist"
       forbidden={
         managersOnly && data && !data.canManage ? (
-          <Navigate to="/$workspace/$team" params={{ workspace, team }} replace />
+          <Navigate to="/$workspace/$team/settings/members" params={{ workspace, team }} replace />
         ) : null
       }
     >
@@ -88,7 +88,7 @@ export namespace TeamSettingsFrame {
     page: string
     /** The column's width: 720 by default, 1040 for the ignore regions workbench. */
     width?: 'default' | 'wide'
-    /** Default: people who can't change the team's settings are sent to its builds. `false` for a page members may read. */
+    /** Default: people who can't change the team's settings are sent to its Members tab. `false` for a page members may read. */
     managersOnly?: boolean
     children: (settings: Team.SettingsResponse, teamName: string) => ReactNode
   }

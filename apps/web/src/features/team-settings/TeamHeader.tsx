@@ -17,12 +17,13 @@ const PATHS = {
   reviews: '/$workspace/$team/settings/reviews',
   webhooks: '/$workspace/$team/settings/webhooks',
   'ignore-regions': '/$workspace/$team/settings/ignore-regions',
+  sites: '/$workspace/$team/settings/sites',
 } as const satisfies Record<TeamSettingsKey, string>
 
 /**
  * The header of a team's settings (the canvas's TeamMembers board): a way back to Teams, the team's
  * tile, name and member count, then the tabs: General, Members, CI token, Reviews and triage,
- * Webhooks, Ignore regions and Sites, which is the team's own page. Members of the team who can't
+ * Webhooks, Ignore regions and Sites. Members of the team who can't
  * change its settings get Members and Ignore regions only.
  */
 export function TeamHeader({
@@ -74,11 +75,6 @@ export function TeamHeader({
             {tab.label}
           </a>
         ))}
-        {canManage ? (
-          <a className={styles.tab} {...clientLink({ to: '/$workspace/$team/sites', params })}>
-            Sites
-          </a>
-        ) : null}
       </nav>
     </div>
   )

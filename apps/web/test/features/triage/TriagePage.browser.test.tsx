@@ -195,9 +195,8 @@ describe('TriagePage', () => {
     })
     await show()
     await expect.element(page.getByLabelText('On triage: Grace Hopper until Mon')).toBeVisible()
-    await expect
-      .element(page.getByRole('link', { name: 'Rules' }))
-      .toHaveAttribute('href', '/acme/web/settings/reviews')
+    // Settings is a closed area: no link from the triage page into the team's settings.
+    expect(page.getByRole('link', { name: 'Rules' }).elements()).toHaveLength(0)
   })
 
   it('says there is nothing to triage', async () => {

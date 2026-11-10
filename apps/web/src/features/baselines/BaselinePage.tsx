@@ -29,8 +29,34 @@ export function BaselinePage() {
   const { workspace, team, _splat } = useParams({ from: BASELINE_ROUTE })
   const name = _splat ?? ''
   const names = useCrumbNames(workspace, team)
-  const clientLink = useClientLink()
   useDocumentTitle(name, 'Baselines', team)
+  return (
+    <>
+      <PageHeading
+        crumbs={crumbsFor(names, [
+          {
+            label: 'Baselines',
+            link: {
+              to: '/$workspace/$team/baselines',
+              params: { workspace, team },
+            },
+          },
+        ])}
+        title={name}
+      />
+      <SettingsPage width="wide">
+        <BaselineBody workspace={workspace} team={team} name={name} />
+      </SettingsPage>
+    </>
+  )
+}
+
+/**
+ * The body of a baseline's page, shared by the app page and team settings' Ignore regions, which
+ * shows it in its own frame (`inSettings`: nothing links out to builds, settings is a closed area).
+ */
+export function BaselineBody({ workspace, team, name, inSettings = false }: BaselineBody.Props) {
+  const clientLink = useClientLink()
   const baselines = useQuery(baselinesQuery(workspace, team))
   const settings = useQuery(settingsQuery(workspace, team))
   const flaky = useQuery(flakyQuery(workspace, team))
@@ -41,118 +67,112 @@ export function BaselinePage() {
   const baseline = baselines.data ? baselineOf(baselines.data.baselines, name) : undefined
   const flakyEntry = flaky.data?.flaky.find((f) => f.name === name)
 
-  return (
+  return error ? (
+    <ErrorState
+      error={error}
+      onRetry={() => {
+        void baselines.refetch()
+        void settings.refetch()
+      }}
+      notFound="This team doesn't exist"
+    />
+  ) : !baselines.data || !settings.data || !defaultBranch ? (
+    <QuerySkeleton rows={4} />
+  ) : (
     <>
-      <PageHeading
-        crumbs={crumbsFor(names, [
-          {
-            label: 'Baselines',
-            link: { to: '/$workspace/$team/baselines', params: { workspace, team } },
-          },
-        ])}
-        title={name}
-      />
-      <SettingsPage width="wide">
-        {error ? (
-          <ErrorState
-            error={error}
-            onRetry={() => {
-              void baselines.refetch()
-              void settings.refetch()
-            }}
-            notFound="This team doesn't exist"
-          />
-        ) : !baselines.data || !settings.data || !defaultBranch ? (
-          <QuerySkeleton rows={4} />
-        ) : (
-          <>
-            <header className={styles.header}>
-              <div className={styles.headerText}>
-                <span className={styles.nameLine}>
-                  <Text variant="mono" className={styles.name}>
-                    {name}
-                  </Text>
-                  {flakyEntry ? (
-                    <Text
-                      variant="small"
-                      className={styles.flaky}
-                      title={`Changed in ${flakyEntry.changedIn} of the last ${flaky.data?.builds} builds`}
-                    >
-                      <StatusIcon status="flaky" decorative />
-                      Flaky
-                    </Text>
-                  ) : null}
-                </span>
-                {baseline ? (
-                  <>
-                    <Text as="p" tone="secondary" className={styles.line}>
-                      Baseline from build #{baseline.buildNumber} on {defaultBranch}
-                    </Text>
-                    <Text as="p" variant="small" tone="tertiary" className={styles.line}>
-                      {baseline.approvedBy
-                        ? `Approved by ${baseline.approvedBy.name}, `
-                        : 'Approved '}
-                      <RelativeTime iso={baseline.approvedAt} />
-                    </Text>
-                  </>
-                ) : (
-                  <Text as="p" tone="secondary" className={styles.line}>
-                    No approved screenshot with this name on {defaultBranch} yet.
-                  </Text>
-                )}
-              </div>
-              {baseline ? (
-                <Button
-                  {...clientLink({
-                    to: '/$workspace/$team/builds/$number',
-                    params: { workspace, team, number: String(baseline.buildNumber) },
-                  })}
-                >
-                  Open build
-                  <span aria-hidden="true">↗</span>
-                </Button>
-              ) : null}
-            </header>
+      <header className={styles.header}>
+        <div className={styles.headerText}>
+          <span className={styles.nameLine}>
+            <Text variant="mono" className={styles.name}>
+              {name}
+            </Text>
+            {flakyEntry ? (
+              <Text
+                variant="small"
+                className={styles.flaky}
+                title={`Changed in ${flakyEntry.changedIn} of the last ${flaky.data?.builds} builds`}
+              >
+                <StatusIcon status="flaky" decorative />
+                Flaky
+              </Text>
+            ) : null}
+          </span>
+          {baseline ? (
+            <>
+              <Text as="p" tone="secondary" className={styles.line}>
+                Baseline from build #{baseline.buildNumber} on {defaultBranch}
+              </Text>
+              <Text as="p" variant="small" tone="tertiary" className={styles.line}>
+                {baseline.approvedBy ? `Approved by ${baseline.approvedBy.name}, ` : 'Approved '}
+                <RelativeTime iso={baseline.approvedAt} />
+              </Text>
+            </>
+          ) : (
+            <Text as="p" tone="secondary" className={styles.line}>
+              No approved screenshot with this name on {defaultBranch} yet.
+            </Text>
+          )}
+        </div>
+        {baseline && !inSettings ? (
+          <Button
+            {...clientLink({
+              to: '/$workspace/$team/builds/$number',
+              params: { workspace, team, number: String(baseline.buildNumber) },
+            })}
+          >
+            Open build
+            <span aria-hidden="true">↗</span>
+          </Button>
+        ) : null}
+      </header>
 
-            <IgnoreRegionsEditor
-              workspace={workspace}
-              team={team}
-              name={name}
-              latest={
-                baseline
-                  ? {
-                      buildNumber: baseline.buildNumber,
-                      sha256: baseline.fileSha256,
-                      width: baseline.width,
-                      height: baseline.height,
-                    }
-                  : null
+      <IgnoreRegionsEditor
+        workspace={workspace}
+        team={team}
+        name={name}
+        latest={
+          baseline
+            ? {
+                buildNumber: baseline.buildNumber,
+                sha256: baseline.fileSha256,
+                width: baseline.width,
+                height: baseline.height,
               }
-              defaultBranch={defaultBranch}
-              canManage={settings.data.canManage}
-            />
+            : null
+        }
+        defaultBranch={defaultBranch}
+        canManage={settings.data.canManage}
+      />
 
-            <section aria-labelledby={historyHeading} className={styles.history}>
-              <div className={styles.historyBar}>
-                <Heading as="h2" id={historyHeading} className={styles.historyTitle}>
-                  History on {defaultBranch}
-                </Heading>
-              </div>
-              <History
-                workspace={workspace}
-                team={team}
-                name={name}
-                defaultBranch={defaultBranch}
-              />
-            </section>
-          </>
-        )}
-      </SettingsPage>
+      <section aria-labelledby={historyHeading} className={styles.history}>
+        <div className={styles.historyBar}>
+          <Heading as="h2" id={historyHeading} className={styles.historyTitle}>
+            History on {defaultBranch}
+          </Heading>
+        </div>
+        <History
+          workspace={workspace}
+          team={team}
+          name={name}
+          defaultBranch={defaultBranch}
+          inSettings={inSettings}
+        />
+      </section>
     </>
   )
 }
 
-function History({ workspace, team, name, defaultBranch }: History.Props) {
+export namespace BaselineBody {
+  export interface Props {
+    workspace: string
+    team: string
+    name: string
+    /** Shown inside team settings: nothing links out to the builds. */
+    inSettings?: boolean
+  }
+}
+
+function History({ workspace, team, name, defaultBranch, inSettings }: History.Props) {
   const clientLink = useClientLink()
   const { data, error, refetch } = useQuery(
     snapshotHistoryQuery(workspace, team, name, undefined, HISTORY_LENGTH),
@@ -171,11 +191,17 @@ function History({ workspace, team, name, defaultBranch }: History.Props) {
         return (
           <li key={entry.build.number}>
             <ListRow
-              {...clientLink({
-                to: '/$workspace/$team/builds/$number',
-                params: { workspace, team, number: String(entry.build.number) },
-                search: { shot: name },
-              })}
+              {...(inSettings
+                ? {}
+                : clientLink({
+                    to: '/$workspace/$team/builds/$number',
+                    params: {
+                      workspace,
+                      team,
+                      number: String(entry.build.number),
+                    },
+                    search: { shot: name },
+                  }))}
               leading={
                 <StatusIcon
                   status={screenshotStatus(kind, review)}
@@ -206,5 +232,6 @@ namespace History {
     team: string
     name: string
     defaultBranch: string
+    inSettings: boolean
   }
 }

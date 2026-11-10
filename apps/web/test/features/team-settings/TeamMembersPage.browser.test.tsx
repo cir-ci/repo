@@ -119,7 +119,7 @@ describe('a team settings page: header and tabs', () => {
       .toHaveAttribute('aria-current', 'page')
     await expect
       .element(page.getByRole('link', { name: 'Sites' }))
-      .toHaveAttribute('href', '/acme/web/sites')
+      .toHaveAttribute('href', '/acme/web/settings/sites')
   })
 
   it('names the team in the breadcrumb: workspace, Settings, Teams, the team', async () => {

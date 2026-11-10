@@ -61,6 +61,7 @@ const show = () =>
     announcer: true,
     otherRoutes: [
       '/$workspace/$team',
+      '/$workspace/$team/settings/members',
       '/workspaces/$workspace/settings',
       '/workspaces/$workspace/settings/teams',
     ],
@@ -455,10 +456,10 @@ describe('TeamSettingsPage', () => {
     expect(page.getByText('Settings saved.').elements()).toHaveLength(0)
   })
 
-  it("sends members to the team's builds instead of showing the settings", async () => {
+  it("sends members to the team's Members tab, inside settings, instead of showing the settings", async () => {
     api({ canManage: false })
     const { router } = await show()
-    await expect.poll(() => router.state.location.pathname).toBe('/acme/web')
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings/members')
     expect(page.getByRole('textbox', { name: 'Name' }).elements()).toHaveLength(0)
   })
 
@@ -627,7 +628,9 @@ describe('TeamSettingsPage', () => {
       await dialog.getByRole('textbox', { name: 'Type acme/web to confirm' }).fill('acme/web')
       await confirm.click()
       await expect.poll(() => fake.of('DELETE')).toHaveLength(1)
-      await expect.poll(() => router.state.location.pathname).toBe('/')
+      await expect
+        .poll(() => router.state.location.pathname)
+        .toBe('/workspaces/acme/settings/teams')
     })
 
     it("shows the server's refusal and keeps the dialog", async () => {

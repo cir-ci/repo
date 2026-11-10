@@ -45,15 +45,17 @@ describe('the app router', () => {
     expect(back.state.matches.at(-1)?.params).toMatchObject({ _splat: name })
   })
 
-  it("sends the old ignore regions address with ?name= to that screenshot's baseline page", async () => {
+  it("sends the old ignore regions address with ?name= to that screenshot's page inside settings", async () => {
     const router = await open('/acme/web/settings/ignore-regions?name=checkout%2Fpayment-form')
-    expect(router.state.location.pathname).toBe('/acme/web/baselines/checkout/payment-form')
+    expect(router.state.location.pathname).toBe(
+      '/acme/web/settings/ignore-regions/checkout/payment-form',
+    )
     expect(router.state.location.search).toEqual({})
   })
 
   it('keeps the ignore regions overview at its address', async () => {
     const router = await open('/acme/web/settings/ignore-regions')
-    expect(router.state.matches.at(-1)?.routeId).toBe('/$workspace/$team/settings/ignore-regions')
+    expect(router.state.matches.at(-1)?.routeId).toBe('/$workspace/$team/settings/ignore-regions/')
   })
 
   it.each([
@@ -62,6 +64,11 @@ describe('the app router', () => {
     ['/acme/web/settings/reviews', '/$workspace/$team/settings/reviews'],
     ['/acme/web/settings/webhooks', '/$workspace/$team/settings/webhooks'],
     ['/acme/web/settings/members', '/$workspace/$team/settings/members'],
+    ['/acme/web/settings/sites', '/$workspace/$team/settings/sites'],
+    [
+      '/acme/web/settings/ignore-regions/checkout/form',
+      '/$workspace/$team/settings/ignore-regions/$',
+    ],
     ['/workspaces/acme/settings/teams', '/workspaces/$workspace/settings/teams'],
   ])('keeps %s working: it opens %s', async (url, routeId) => {
     const router = await open(url)

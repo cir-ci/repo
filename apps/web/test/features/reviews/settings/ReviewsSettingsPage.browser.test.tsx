@@ -76,7 +76,7 @@ const show = async () => {
   return renderPage(<ReviewsSettingsPage />, {
     route: '/$workspace/$team/settings/reviews',
     url: '/acme/web/settings/reviews',
-    otherRoutes: ['/$workspace/$team'],
+    otherRoutes: ['/$workspace/$team', '/$workspace/$team/settings/members'],
   })
 }
 
@@ -289,10 +289,10 @@ describe('ReviewsSettingsPage', () => {
       .toHaveTextContent('Only owners and admins can change settings')
   })
 
-  it("sends members to the team's builds instead of showing the rules", async () => {
+  it("sends members to the team's Members tab instead of showing the rules", async () => {
     api({ canManage: false }, { [`GET ${API}/settings`]: { body: { canManage: false, settings } } })
     const { router } = await show()
-    await expect.poll(() => router.state.location.pathname).toBe('/acme/web')
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web/settings/members')
     expect(page.getByText('checkout/**').elements()).toHaveLength(0)
   })
 })

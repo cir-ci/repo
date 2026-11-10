@@ -26,6 +26,15 @@ const membersRoute = createRoute({
   component: lazyRouteComponent(() => import('./TeamMembersPage.tsx'), 'TeamMembersPage'),
 })
 
+const sitesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '$workspace/$team/settings/sites',
+  component: lazyRouteComponent(
+    () => import('./TeamSitesSettingsPage.tsx'),
+    'TeamSitesSettingsPage',
+  ),
+})
+
 // Four segments under `workspaces`: the workspace's list of teams, where a team's settings open from.
 const teamsRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -38,5 +47,6 @@ export const teamSettingsRoutes = [
   membersRoute,
   tokenRoute,
   webhooksRoute,
+  sitesRoute,
   teamsRoute,
 ]
