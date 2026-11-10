@@ -16,6 +16,7 @@ import { useNavPane } from './NavToggle.tsx'
 import { isAppPage } from './settings-return.ts'
 import { goPath } from './shell-model.ts'
 import { ShortcutsDialog } from './ShortcutsDialog.tsx'
+import { useTabShortcuts } from './use-tab-shortcuts.ts'
 
 /**
  * Binds the global shortcuts (G-chords, ⌘K, `?`, ⌘⇧C) once for the signed-in app, and renders the
@@ -58,6 +59,7 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [address.pathname, address.search, sidebar?.teams === undefined])
 
+  useTabShortcuts()
   useShortcutHandlers({
     go: ({ to }) => {
       const path = goPath(to, {

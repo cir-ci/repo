@@ -27,15 +27,18 @@ describe('the shortcut registry', () => {
 
   it('lists every entry in the help groups', () => {
     // The Design mode key is listed only once the integration is on.
-    const listed = shortcutGroups(true).flatMap((g) => g.shortcuts)
-    expect(listed).toHaveLength(SHORTCUTS.length)
-    expect(shortcutGroups().flatMap((g) => g.shortcuts)).toHaveLength(SHORTCUTS.length - 1)
+    // The tab keys only in the installed app, and ⌥2 to ⌥9 stand under the one row for ⌥1.
+    const listed = shortcutGroups(true, true).flatMap((g) => g.shortcuts)
+    expect(listed).toHaveLength(SHORTCUTS.filter((s) => s.listed !== false).length)
+    const plain = SHORTCUTS.filter((s) => !s.installed).length
+    expect(shortcutGroups(false, false).flatMap((g) => g.shortcuts)).toHaveLength(plain - 1)
   })
 
   it('puts every shortcut in exactly one group, in the page order', () => {
-    const groups = shortcutGroups(true)
+    const groups = shortcutGroups(true, true)
     const keys = groups.flatMap((g) => g.shortcuts.map((s) => `${s.scope}:${s.key}`))
-    expect(keys.toSorted()).toEqual(SHORTCUTS.map((s) => `${s.scope}:${s.key}`).toSorted())
+    const expected = SHORTCUTS.filter((s) => s.listed !== false)
+    expect(keys.toSorted()).toEqual(expected.map((s) => `${s.scope}:${s.key}`).toSorted())
     expect(new Set(keys).size).toBe(keys.length)
     expect(new Set(groups.map((g) => g.group)).size).toBe(groups.length)
     // Every group a shortcut names is in the order, and the order lists nothing else.
@@ -66,8 +69,19 @@ describe('keyToken', () => {
     expect(press('R', { shiftKey: true })).toBe('shift+r')
   })
 
-  it('never names an Alt press', () => {
+  it('names an Alt press by its physical key, for letters, digits and the arrows only', () => {
+    expect(press('†', { altKey: true, code: 'KeyT' })).toBe('alt+t')
+    expect(press('¡', { altKey: true, code: 'Digit1' })).toBe('alt+1')
+    expect(press('ArrowLeft', { altKey: true, shiftKey: true, code: 'ArrowLeft' })).toBe(
+      'alt+shift+ArrowLeft',
+    )
     expect(press('j', { altKey: true })).toBeUndefined()
+    expect(press('Enter', { altKey: true, code: 'Enter' })).toBeUndefined()
+    expect(press('t', { altKey: true, metaKey: true, code: 'KeyT' })).toBeUndefined()
+  })
+
+  it('draws the tab keys', () => {
+    expect(keyCaps('alt+shift+ArrowLeft')).toEqual(['⌥', '⇧', '←'])
   })
 })
 
@@ -111,10 +125,11 @@ describe('stepIndex', () => {
 
 describe('the help and the command menu', () => {
   it('lists every shortcut, with its description, under a group', () => {
-    const listed = shortcutGroups(true).flatMap((g) =>
+    const listed = shortcutGroups(true, true).flatMap((g) =>
       g.shortcuts.map((s) => `${s.scope}:${s.key}`),
     )
-    expect(listed.toSorted()).toEqual(SHORTCUTS.map((s) => `${s.scope}:${s.key}`).toSorted())
+    const expected = SHORTCUTS.filter((s) => s.listed !== false)
+    expect(listed.toSorted()).toEqual(expected.map((s) => `${s.scope}:${s.key}`).toSorted())
   })
 
   it('declares ⌘K and ? with a description and a group', () => {

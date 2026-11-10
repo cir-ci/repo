@@ -11,10 +11,12 @@ import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
 import { teamMembersQuery } from '#features/teams/api/members.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { keys } from '#lib/query-keys.ts'
+import { openInNewTab } from '#lib/row-menu.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useRecentSearchesStore } from '#lib/stores/recent-searches-store.ts'
 import { type RecentEntry, useRecentStore } from '#lib/stores/recent-store.ts'
 import { useSettingsReturnStore } from '#lib/stores/settings-return-store.ts'
+import { useTabStore } from '#lib/stores/tab-store.ts'
 import { useToastStore } from '#lib/stores/toast-store.ts'
 import { useWorkspaceStore } from '#lib/stores/workspace-store.ts'
 import { clipboard } from '#lib/use-copy.ts'
@@ -247,7 +249,7 @@ export function CommandMenu({
   }
 
   function openTab(path: string) {
-    window.open(new URL(path, window.location.origin).href, '_blank', 'noopener')
+    openInNewTab(path)
     onOpenChange(false)
   }
 
@@ -264,7 +266,7 @@ export function CommandMenu({
           return false
         }
       },
-      openTab: (url: string) => window.open(url, '_blank', 'noopener'),
+      openTab: (url: string) => openInNewTab(url),
     }
     void performAction(action, ctx).then((toast) => {
       if (toast.message) useToastStore.getState().show(toast)
@@ -370,7 +372,10 @@ export function CommandMenu({
       }
       case 'signOut':
         afterClose.current = () => {
-          void authClient.signOut().then(() => queryClient.clear())
+          void authClient.signOut().then(() => {
+            queryClient.clear()
+            useTabStore.getState().clear()
+          })
         }
         onOpenChange(false)
         return
