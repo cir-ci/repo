@@ -7,10 +7,12 @@ vi.mock('#lib/auth-client.ts', () =>
 )
 
 import { TriagePage } from '#features/triage/TriagePage.tsx'
+import { PANES } from '#lib/panes.ts'
+import { usePaneStore } from '#lib/stores/pane-store.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, fakeFetch, pending, type ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
-import { expectResize } from '#test/support/resize.ts'
+import { expectLimitedToSpace, expectResize, parentOf } from '#test/support/resize.ts'
 
 const BASE = '/api/teams/acme/web'
 
@@ -550,5 +552,29 @@ describe('resizing the details pane', () => {
       () => pane().element().getBoundingClientRect().width,
       { dx: -60, grows: -1 },
     )
+  })
+})
+
+describe('the details pane in a narrow window', () => {
+  it('leaves the list its space, whatever width is stored', async () => {
+    server()
+    await renderPage(<TriagePage />, {
+      route: '/$workspace/$team/triage',
+      url: '/acme/web/triage?item=no_baseline%3Apricing',
+      otherRoutes: ['/$workspace/$team/builds/$number', '/$workspace/$team/settings/reviews'],
+      announcer: true,
+      viewport: [900, 800],
+    })
+    usePaneStore.setState({ widths: { 'triage-pane': PANES['triage-pane'].max } })
+    await expect.element(pane().getByRole('heading', { name: 'pricing' })).toBeVisible()
+    const handle = page.getByRole('separator', { name: 'Resize the details pane' })
+    const split = () => parentOf(handle.element())
+    await expectLimitedToSpace(handle, 'triage-pane', {
+      pane: () => pane().element(),
+      main: () => split().firstElementChild?.getBoundingClientRect().width ?? 0,
+      container: split,
+      grows: -1,
+      to: 740,
+    })
   })
 })

@@ -247,7 +247,7 @@ export function ReviewsPage() {
           <div
             className={styles.layout}
             data-selected={selected ? 'true' : 'false'}
-            style={paneVars({ '--circi-reviews-width': listWidth })}
+            style={paneVars({ '--circi-reviews-width': ['reviews-list', listWidth] })}
           >
             <ReviewList
               workspace={workspace}

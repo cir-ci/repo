@@ -126,4 +126,9 @@ li[data-checked] > * {
   .split {
     flex-direction: column;
   }
+
+  /* Stacked, the pane has the whole width: its share of a row no longer applies. */
+  .split > [data-width='resizable'] {
+    width: 100%;
+  }
 }

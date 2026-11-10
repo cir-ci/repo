@@ -8,11 +8,13 @@ vi.mock('#lib/auth-client.ts', () =>
 
 import { validateReviewsSearch } from '#features/reviews/api.ts'
 import { ReviewsPage } from '#features/reviews/ReviewsPage.tsx'
+import { PANES } from '#lib/panes.ts'
+import { usePaneStore } from '#lib/stores/pane-store.ts'
 import { mockAuthClient } from '#test/support/auth-client.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
-import { expectResize } from '#test/support/resize.ts'
+import { expectLimitedToSpace, expectResize, parentOf } from '#test/support/resize.ts'
 
 mockAuthClient()
 
@@ -549,5 +551,24 @@ describe('ReviewsPage list width', () => {
       () => list.element().getBoundingClientRect().width,
       { dx: 100, grows: 1 },
     )
+  })
+})
+
+describe('ReviewsPage list in a narrow window', () => {
+  it('leaves the review its space, whatever width is stored', async () => {
+    fakeApi({ 'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } } })
+    await show('/workspaces/acme/reviews?review=r1', [900, 800])
+    usePaneStore.setState({ widths: { 'reviews-list': PANES['reviews-list'].max } })
+    const list = page.getByRole('complementary', { name: 'Reviews' })
+    const detail = page.getByRole('region', { name: 'Selected review' })
+    const handle = page.getByRole('separator', { name: 'Resize the review list' })
+    await expect.element(detail).toBeVisible()
+    await expectLimitedToSpace(handle, 'reviews-list', {
+      pane: () => list.element(),
+      main: () => detail.element().getBoundingClientRect().width,
+      container: () => parentOf(handle.element()),
+      grows: 1,
+      to: 740,
+    })
   })
 })

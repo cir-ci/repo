@@ -165,7 +165,10 @@ export function InboxPage() {
         >
           <QueryBoundary query={query} announce="Loading your inbox" rows={4}>
             {() => (
-              <div className={styles.split} style={paneVars({ '--circi-pane-width': paneWidth })}>
+              <div
+                className={styles.split}
+                style={paneVars({ '--circi-pane-width': ['inbox-pane', paneWidth] })}
+              >
                 <div className={styles.listColumn}>
                   {everything.length > 0 && items.length === 0 ? (
                     <NoResults noun="notification" query={find} onClear={() => setFind('')} />

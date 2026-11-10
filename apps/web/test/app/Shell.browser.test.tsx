@@ -18,8 +18,10 @@ vi.mock('#lib/auth-client.ts', () =>
 
 import { Shell } from '#app/Shell.tsx'
 import { PageHeading } from '#lib/PageHeading.tsx'
+import { PANES } from '#lib/panes.ts'
 import { PANES_KEY, usePaneStore } from '#lib/stores/pane-store.ts'
 import { mockAuthClient, setSignedInUser } from '#test/support/auth-client.ts'
+import { expectLimitedToSpace, parentOf } from '#test/support/resize.ts'
 
 const overview = (workspace: string, workspaceName: string, team: string) => ({
   workspace: { slug: workspace, name: workspaceName },
@@ -870,6 +872,25 @@ describe('Shell, collapsing the navigation', () => {
     fire('pointerdown', r.left + 4)
     fire('pointermove', r.left + 4 - 200)
     await expect.element(show()).toBeVisible()
+  })
+
+  it('holds the sidebar to a share of the window, whatever width is stored', async () => {
+    await page.viewport(900, 800)
+    usePaneStore.getState().setWidth('sidebar', PANES.sidebar.max)
+    await renderShell('/headed')
+    const handle = page.getByRole('separator', { name: 'Resize the sidebar' })
+    const sidebar = () => parentOf(handle.element())
+    const frame = () => parentOf(sidebar())
+    await expectLimitedToSpace(handle, 'sidebar', {
+      pane: sidebar,
+      main: () => document.getElementById('content')?.getBoundingClientRect().width ?? 0,
+      container: frame,
+      grows: 1,
+      to: 820,
+      collapsible: true,
+      gap: 16,
+    })
+    expect(usePaneStore.getState().collapsed.sidebar).toBe(false)
   })
 
   it('collapses Settings navigation on its own, with its own names', async () => {

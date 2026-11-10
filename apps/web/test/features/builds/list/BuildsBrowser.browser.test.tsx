@@ -9,14 +9,16 @@ vi.mock('#lib/auth-client.ts', () =>
 import { parseBuildsSearch } from '#features/builds/list/builds-filters.ts'
 import { TeamPage } from '#features/teams/TeamPage.tsx'
 import { ViewPage } from '#features/views/ViewPage.tsx'
+import { PANES } from '#lib/panes.ts'
 import { useDisplayStore } from '#lib/stores/display-store.ts'
+import { usePaneStore } from '#lib/stores/pane-store.ts'
 import { build } from '#test/features/teams/support.tsx'
 import { mockAuthClient } from '#test/support/auth-client.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, fakeFetch } from '#test/support/fetch.ts'
 import { sidebarModel, sidebarTeam, teamInfo } from '#test/support/fixtures.ts'
 import { renderPage } from '#test/support/render.tsx'
-import { expectResize } from '#test/support/resize.ts'
+import { expectLimitedToSpace, expectResize, parentOf } from '#test/support/resize.ts'
 
 const auth = mockAuthClient().organization
 
@@ -732,5 +734,28 @@ describe('preview pane width', () => {
       () => pane.element().getBoundingClientRect().width,
       { dx: -70, grows: -1 },
     )
+  })
+})
+
+describe('preview pane in a narrow window', () => {
+  it('leaves the list its space, whatever width is stored', async () => {
+    api([build(8), build(7)])
+    await show()
+    await page.viewport(900, 800)
+    await expect.element(page.getByRole('link', { name: /Build #8/ })).toBeVisible()
+    await userEvent.keyboard('j')
+    await userEvent.keyboard(' ')
+    usePaneStore.setState({ widths: { 'builds-peek': PANES['builds-peek'].max } })
+    const pane = page.getByRole('region', { name: 'Preview' })
+    await expect.element(pane).toBeVisible()
+    const handle = page.getByRole('separator', { name: 'Resize the preview pane' })
+    const split = () => parentOf(handle.element())
+    await expectLimitedToSpace(handle, 'builds-peek', {
+      pane: () => pane.element(),
+      main: () => split().firstElementChild?.getBoundingClientRect().width ?? 0,
+      container: split,
+      grows: -1,
+      to: 740,
+    })
   })
 })

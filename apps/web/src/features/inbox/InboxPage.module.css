@@ -32,6 +32,8 @@
 
 .paneColumn > * {
   flex: 1;
+  /* The column has the width: the pane's custom property is a share of the split, so inside the column the pane just fills it. */
+  --circi-pane-width: 100%;
   max-width: none;
 }
 

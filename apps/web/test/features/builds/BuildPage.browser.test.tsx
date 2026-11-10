@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { type Locator, page, userEvent } from 'vitest/browser'
 
+import { PANES, paneLimits } from '#lib/panes.ts'
+import { usePaneStore } from '#lib/stores/pane-store.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
-import { expectResize } from '#test/support/resize.ts'
+import { expectLimitedToSpace, expectResize, parentOf, widthOf } from '#test/support/resize.ts'
 
 import { decision, detail, fakeBuildApi, renderBuild, shot } from './fake-build-api.tsx'
 
@@ -783,5 +785,47 @@ describe('build page panes', () => {
       () => grid?.lastElementChild?.getBoundingClientRect().width ?? 0,
       { dx: -90, grows: -1 },
     )
+  })
+})
+
+describe('build page panes in a narrow window', () => {
+  it('keeps the viewer its space, whatever widths are stored', async () => {
+    fakeBuildApi(detail())
+    await page.viewport(1400, 900)
+    await renderBuild()
+    usePaneStore.setState({
+      widths: {
+        'build-rail': PANES['build-rail'].max,
+        'build-discussion': PANES['build-discussion'].max,
+      },
+    })
+    const rail = page.getByRole('navigation', { name: 'Screenshots' })
+    await expect.element(rail).toBeVisible()
+    const grid = () => parentOf(rail.element())
+    const panel = () => grid().lastElementChild
+    const width = widthOf
+    await expectLimitedToSpace(
+      page.getByRole('separator', { name: 'Resize the screenshot list' }),
+      'build-rail',
+      {
+        pane: () => rail.element(),
+        main: () => width(grid()) - width(rail.element()),
+        container: grid,
+        grows: 1,
+        to: 1100,
+        gap: 0,
+      },
+    )
+    // At 1100px both side columns are at their limits and the viewer between them still has room.
+    expect(width(grid().children[1])).toBeGreaterThanOrEqual(360)
+    expect(width(rail.element()) + width(grid().children[1]) + width(panel())).toBeLessThanOrEqual(
+      width(grid()) + 1,
+    )
+    await expect
+      .element(page.getByRole('separator', { name: 'Resize the review panel' }))
+      .toHaveAttribute(
+        'aria-valuemax',
+        String(paneLimits('build-discussion', Math.floor(width(grid()))).max),
+      )
   })
 })

@@ -213,7 +213,10 @@ export function BuildsBrowser({
             )
           ) : (
             <>
-              <div className={styles.split} style={paneVars({ '--circi-pane-width': peekWidth })}>
+              <div
+                className={styles.split}
+                style={paneVars({ '--circi-pane-width': ['builds-peek', peekWidth] })}
+              >
                 <div className={styles.groups} ref={listRef}>
                   {groups.map((group) => (
                     <GroupRows key={group.key} label={group.label} count={group.builds.length}>

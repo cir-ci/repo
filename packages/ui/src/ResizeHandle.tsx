@@ -1,4 +1,12 @@
-import { type HTMLAttributes, type KeyboardEvent, type PointerEvent, useRef, useState } from 'react'
+import {
+  type HTMLAttributes,
+  type KeyboardEvent,
+  type PointerEvent,
+  type Ref,
+  useCallback,
+  useRef,
+  useState,
+} from 'react'
 
 import { cx } from './cx.ts'
 
@@ -25,7 +33,8 @@ export function clampSize(value: number, min: number, max: number): number {
  * `end` for a pane to its left (dragging right grows it), `start` for a pane to its right.
  *
  * It is controlled: `value` is the pane's width in px, `onValueChange` receives the next one,
- * always within `min` and `max`. Pointer drag uses pointer capture; with `cssVar` the drag writes
+ * always within `min` and `max` (the range the pane can have where it is: a page passes limits
+ * that follow its container, and `value` is the width actually rendered). Pointer drag uses pointer capture; with `cssVar` the drag writes
  * the width into that custom property on the handle's parent each move (one style write, no React
  * render) and calls `onValueChange` once on release; without it, every move calls it. Keyboard:
  * arrows move the line by 16px (Shift 64px), Home and End jump to `min` and `max`, Enter or a
@@ -42,14 +51,23 @@ export function ResizeHandle({
   cssVar,
   label,
   className,
+  ref: forwardedRef,
   onKeyDown,
   onDoubleClick,
   ...rest
 }: ResizeHandle.Props) {
   const ref = useRef<HTMLDivElement>(null)
-  const drag = useRef<{ x: number; from: number; last: number } | null>(null)
+  const drag = useRef<{ x: number; from: number; last: number; inline: string } | null>(null)
   const [active, setActive] = useState(false)
   const sign = edge === 'end' ? 1 : -1
+  const setRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      ref.current = el
+      if (typeof forwardedRef === 'function') forwardedRef(el)
+      else if (forwardedRef) forwardedRef.current = el
+    },
+    [forwardedRef],
+  )
 
   const show = (next: number) => {
     const el = ref.current
@@ -57,6 +75,14 @@ export function ResizeHandle({
     el.setAttribute('aria-valuenow', String(next))
     el.setAttribute('aria-valuetext', `${next} pixels`)
     if (cssVar) el.parentElement?.style.setProperty(cssVar, `${next}px`)
+  }
+
+  /** Puts back the custom property the page set (an expression that follows the window), not a drag's px. */
+  const restore = (inline: string) => {
+    if (!cssVar) return
+    const style = ref.current?.parentElement?.style
+    if (inline) style?.setProperty(cssVar, inline)
+    else style?.removeProperty(cssVar)
   }
 
   const finish = (event: PointerEvent<HTMLDivElement>) => {
@@ -69,13 +95,14 @@ export function ResizeHandle({
       // The pointer was already released.
     }
     if (!d || !cssVar) return
-    if (d.last === value) show(value)
-    else onValueChange(d.last)
+    restore(d.inline)
+    if (d.last !== value) onValueChange(d.last)
   }
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return
-    drag.current = { x: event.clientX, from: value, last: value }
+    const inline = (cssVar && ref.current?.parentElement?.style.getPropertyValue(cssVar)) || ''
+    drag.current = { x: event.clientX, from: value, last: value, inline }
     setActive(true)
     try {
       event.currentTarget.setPointerCapture(event.pointerId)
@@ -92,7 +119,7 @@ export function ResizeHandle({
     if (onCollapse && raw < min - COLLAPSE_SLACK) {
       drag.current = null
       setActive(false)
-      if (cssVar) show(value)
+      restore(d.inline)
       onCollapse()
       return
     }
@@ -122,7 +149,7 @@ export function ResizeHandle({
   return (
     <div
       {...rest}
-      ref={ref}
+      ref={setRef}
       role="separator"
       aria-orientation="vertical"
       aria-label={label}
@@ -167,5 +194,7 @@ export namespace ResizeHandle {
     cssVar?: `--${string}`
     /** The separator's name: "Resize the sidebar". */
     label: string
+    /** The separator element, for a page that measures what it sits in. */
+    ref?: Ref<HTMLDivElement>
   }
 }

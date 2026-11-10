@@ -9,6 +9,7 @@ import { SettingsNav } from '#features/sidebar/SettingsNav.tsx'
 import { TeamDialogs } from '#features/teams/TeamDialogs.tsx'
 import { authClient, type SessionUser } from '#lib/auth-client.ts'
 import { PaneHandle } from '#lib/PaneHandle.tsx'
+import { paneWidthCss } from '#lib/panes.ts'
 import { usePaneWidth } from '#lib/stores/pane-store.ts'
 
 import { useNavPane } from './NavToggle.tsx'
@@ -82,6 +83,9 @@ function Notices({ email }: { email: string }) {
   )
 }
 
+/** The app frame around the sidebar's wrapper: the width the sidebar's share is taken of. */
+const frameOf = (handle: HTMLElement) => handle.parentElement?.parentElement
+
 function SignedInFrame({ user }: { user: SessionUser }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const section = currentSection(pathname)
@@ -110,13 +114,14 @@ function SignedInFrame({ user }: { user: SessionUser }) {
       <AppFrame
         sidebar={nav}
         sidebarLabel={navLabel}
-        sidebarWidth={sidebarWidth}
+        sidebarWidth={paneWidthCss(pane.id, sidebarWidth)}
         sidebarCollapsed={pane.collapsed}
         sidebarHandle={
           <PaneHandle
             pane={pane.id}
             cssVar="--circi-sidebar-width"
             at="100%"
+            container={frameOf}
             onCollapse={pane.collapse}
           />
         }

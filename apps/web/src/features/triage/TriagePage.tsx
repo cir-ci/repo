@@ -218,7 +218,7 @@ export function TriagePage() {
                   ) : null}
                   <div
                     className={listStyles['split']}
-                    style={paneVars({ '--circi-pane-width': paneWidth })}
+                    style={paneVars({ '--circi-pane-width': ['triage-pane', paneWidth] })}
                   >
                     <div className={styles.groups} id="triage-groups" ref={listRef}>
                       {groups.map((group) => (

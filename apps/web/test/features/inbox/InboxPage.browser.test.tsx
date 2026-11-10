@@ -3,10 +3,12 @@ import { page, userEvent } from 'vitest/browser'
 
 import { validateInboxSearch } from '#features/inbox/api.ts'
 import { InboxPage } from '#features/inbox/InboxPage.tsx'
+import { PANES } from '#lib/panes.ts'
+import { usePaneStore } from '#lib/stores/pane-store.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
-import { expectResize } from '#test/support/resize.ts'
+import { expectLimitedToSpace, expectResize, parentOf } from '#test/support/resize.ts'
 
 const item = (id: string, over: Record<string, unknown> = {}) => ({
   id,
@@ -377,5 +379,31 @@ describe('InboxPage pane width', () => {
       () => pane.element().getBoundingClientRect().width,
       { dx: -80, grows: -1 },
     )
+  })
+})
+
+describe('InboxPage pane in a narrow window', () => {
+  it('leaves the list its space, whatever width is stored', async () => {
+    fakeApi({ 'GET /api/inbox': list([item('n1')]) })
+    await renderPage(<InboxPage />, {
+      route: '/inbox',
+      url: '/inbox',
+      announcer: true,
+      validateSearch: validateInboxSearch,
+      viewport: [1200, 800],
+    })
+    usePaneStore.setState({ widths: { 'inbox-pane': PANES['inbox-pane'].max } })
+    const pane = page.getByRole('region', { name: 'Notification' })
+    await expect.element(pane).toBeVisible()
+    const handle = page.getByRole('separator', { name: 'Resize the notification pane' })
+    const split = () => parentOf(handle.element())
+    await expectLimitedToSpace(handle, 'inbox-pane', {
+      pane: () => pane.element(),
+      main: () => split().firstElementChild?.getBoundingClientRect().width ?? 0,
+      container: split,
+      grows: -1,
+      to: 1120,
+      gap: 8,
+    })
   })
 })

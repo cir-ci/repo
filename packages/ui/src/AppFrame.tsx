@@ -17,7 +17,10 @@ export function AppFrame(props: AppFrame.Props) {
     '--circi-frame-height': height,
   }
   const sidebarStyle: CSSProperties & Record<'--circi-sidebar-width', string> = {
-    '--circi-sidebar-width': `${props.sidebarWidth ?? 244}px`,
+    '--circi-sidebar-width':
+      typeof props.sidebarWidth === 'string'
+        ? props.sidebarWidth
+        : `${props.sidebarWidth ?? 244}px`,
   }
   return (
     <div
@@ -59,8 +62,11 @@ export namespace AppFrame {
      * same navigation in a `Drawer` opened from the bar. Wider screens ignore it.
      */
     compactBar?: ReactNode
-    /** The sidebar's width in px from 820px up; 244 by default. Below 820px it is ignored. */
-    sidebarWidth?: number
+    /**
+     * The sidebar's width from 820px up: px, or a CSS length (a `min()` that holds it to a share of the frame; percentages
+     * resolve against the frame); 244 by default. Below 820px it is ignored.
+     */
+    sidebarWidth?: number | string
     /** Hides the sidebar from 820px up (the app shows a button in the page header to bring it back). */
     sidebarCollapsed?: boolean
     /**

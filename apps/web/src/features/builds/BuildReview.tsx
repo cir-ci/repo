@@ -279,7 +279,10 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
       ) : (
         <div
           className={page['body']}
-          style={paneVars({ '--circi-rail-width': railWidth, '--circi-side-width': sideWidth })}
+          style={paneVars({
+            '--circi-rail-width': ['build-rail', railWidth],
+            '--circi-side-width': ['build-discussion', sideWidth],
+          })}
         >
           <nav ref={listRef} aria-label="Screenshots" className={page['list']}>
             {groups.map((g) => (
