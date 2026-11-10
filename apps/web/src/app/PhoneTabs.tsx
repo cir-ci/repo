@@ -32,7 +32,7 @@ import {
 import styles from './PhoneTabs.module.css'
 
 /**
- * The phone's bottom tab bar (canvas: Phone, inbox to review): Inbox, Reviews, Triage, Teams and
+ * The phone's bottom tab bar (canvas: Phone, inbox to review): Inbox, Teams, Reviews, Triage and
  * More, with the sidebar's counts. Inbox, Reviews and Triage are real links that navigate through
  * the router. Teams shows up to three of your teams' tiles (its label is the team's name when
  * you are in exactly one) and opens a menu of your teams; More opens the sheet
@@ -81,21 +81,6 @@ export function PhoneTabs() {
       >
         Inbox
       </BottomBarItem>
-      <BottomBarItem
-        icon={<ReviewIcon />}
-        {...(reviews ? { href: reviews, onClick: go(reviews) } : {})}
-        selected={section === 'reviews'}
-        {...(waiting === undefined ? {} : { count: waiting, countLabel: 'waiting' })}
-      >
-        Reviews
-      </BottomBarItem>
-      <BottomBarItem
-        icon={<ListChecksIcon />}
-        {...(triage ? { href: triage, onClick: go(triage) } : {})}
-        selected={section === 'triage'}
-      >
-        Triage
-      </BottomBarItem>
       <Menu
         open={teamsOpen}
         onOpenChange={setTeamsOpen}
@@ -117,6 +102,21 @@ export function PhoneTabs() {
           </BottomBarItem>
         }
       />
+      <BottomBarItem
+        icon={<ReviewIcon />}
+        {...(reviews ? { href: reviews, onClick: go(reviews) } : {})}
+        selected={section === 'reviews'}
+        {...(waiting === undefined ? {} : { count: waiting, countLabel: 'waiting' })}
+      >
+        Reviews
+      </BottomBarItem>
+      <BottomBarItem
+        icon={<ListChecksIcon />}
+        {...(triage ? { href: triage, onClick: go(triage) } : {})}
+        selected={section === 'triage'}
+      >
+        Triage
+      </BottomBarItem>
       <BottomBarItem
         icon={<RowMenuIcon />}
         opensSheet
