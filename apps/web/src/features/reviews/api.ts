@@ -10,12 +10,12 @@ import { invalidateAll, keys } from '#lib/query-keys.ts'
 import type { SnoozeChoice } from '#lib/snooze.ts'
 
 /** The tabs of the page, in the order of the design board. */
-export const REVIEW_TABS: readonly { value: Review.Tab; label: string }[] = [
-  { value: 'for-you', label: 'Requested from you' },
-  { value: 'reviewed', label: 'Reviewed' },
-  { value: 'created', label: 'Created by you' },
-  { value: 'all-open', label: 'All open' },
-  { value: 'snoozed', label: 'Snoozed' },
+export const REVIEW_TABS: readonly { value: Review.Tab; label: string; short: string }[] = [
+  { value: 'for-you', label: 'Requested from you', short: 'For you' },
+  { value: 'reviewed', label: 'Reviewed', short: 'Reviewed' },
+  { value: 'created', label: 'Created by you', short: 'Created' },
+  { value: 'all-open', label: 'All open', short: 'All open' },
+  { value: 'snoozed', label: 'Snoozed', short: 'Snoozed' },
 ]
 
 export interface ReviewsSearch {

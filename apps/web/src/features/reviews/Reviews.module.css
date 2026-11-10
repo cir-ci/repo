@@ -256,11 +256,17 @@
   }
 }
 
-.find {
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--circi-line-subtle);
+/* The tab names: the full name, or on a phone the short one, so five tabs fit one row. */
+.tabShort {
+  display: none;
 }
 
-.find > span {
-  width: 100%;
+@media (max-width: 819.98px) {
+  .tabFull {
+    display: none;
+  }
+
+  .tabShort {
+    display: inline;
+  }
 }

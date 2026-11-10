@@ -13,6 +13,7 @@ import { usePaneStore } from '#lib/stores/pane-store.ts'
 import { mockAuthClient } from '#test/support/auth-client.ts'
 import { expectEmptyState } from '#test/support/empty-state.ts'
 import { fakeApi, hangingFetch } from '#test/support/fetch.ts'
+import { pageHeader } from '#test/support/header.ts'
 import { renderPage } from '#test/support/render.tsx'
 import { expectLimitedToSpace, expectResize, parentOf } from '#test/support/resize.ts'
 import { toastNamed } from '#test/support/toast.ts'
@@ -76,6 +77,31 @@ describe('ReviewsPage list header', () => {
       expect(r.left).toBeGreaterThanOrEqual(box.left)
       expect(r.right).toBeLessThanOrEqual(box.right)
     }
+  })
+
+  it('keeps the header on one line and the filter buttons small and on one line on a phone', async () => {
+    await page.viewport(390, 844)
+    fakeApi({ 'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } } })
+    await show('/workspaces/acme/reviews', [390, 844])
+    const group = page.getByRole('group', { name: 'Which reviews' })
+    await expect.element(group).toBeVisible()
+    expect(pageHeader().getBoundingClientRect().height).toBeLessThanOrEqual(52)
+    const tabs = group.getByRole('button').elements()
+    expect(tabs).toHaveLength(5)
+    const tops = new Set(tabs.map((t) => Math.round(t.getBoundingClientRect().top)))
+    expect(tops.size, 'every filter button is on one line').toBe(1)
+    for (const tab of tabs) expect(tab.getBoundingClientRect().height).toBeLessThanOrEqual(30)
+    // The short names show on a phone; the full one is the desktop's.
+    await expect.element(group.getByRole('button', { name: 'For you' })).toBeVisible()
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth)
+  })
+
+  it('has the find field in the page header on a desktop', async () => {
+    fakeApi({ 'GET /api/reviews': { body: { tab: 'for-you', requests: [request('r1', 12)] } } })
+    await show()
+    const find = page.getByRole('textbox', { name: 'Find reviews' })
+    await expect.element(find).toBeVisible()
+    expect(pageHeader().contains(find.element())).toBe(true)
   })
 
   it('says how long a snoozed request is put off', async () => {

@@ -72,4 +72,24 @@
   .item {
     height: 40px;
   }
+
+  /* Compact: one line of small options (not the 40px tap size); a control still too wide scrolls
+     sideways inside itself. */
+  .root[data-compact] {
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .root[data-compact]::-webkit-scrollbar {
+    display: none;
+  }
+
+  .root[data-compact] .item {
+    flex: none;
+    height: 28px;
+    padding-inline: 8px;
+    white-space: nowrap;
+  }
 }

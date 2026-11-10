@@ -9,6 +9,7 @@ import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { findIn, useFindParam } from '#lib/find.ts'
+import { FindField } from '#lib/FindField.tsx'
 import { focusRow, leavesKeyToFocus, nextAfterRemoval } from '#lib/list-keys.ts'
 import { crumbsFor, PageHeading } from '#lib/PageHeading.tsx'
 import { PaneHandle, paneVars } from '#lib/PaneHandle.tsx'
@@ -213,6 +214,7 @@ export function ReviewsPage() {
       <PageHeading
         crumbs={crumbsFor(names)}
         title="Reviews"
+        find={<FindField noun="reviews" value={find} onChange={setFind} />}
         actions={
           selected ? (
             <>

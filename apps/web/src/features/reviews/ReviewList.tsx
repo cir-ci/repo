@@ -16,7 +16,6 @@ import {
 import type { MouseEventHandler, ReactNode } from 'react'
 
 import { useTeamMark } from '#features/integrations/TeamMark.tsx'
-import { FindField } from '#lib/FindField.tsx'
 import { RelativeTime } from '#lib/RelativeTime.tsx'
 
 import {
@@ -77,11 +76,13 @@ export function ReviewList({
         <SegmentedControl
           label="Which reviews"
           wrap
+          compact
           options={REVIEW_TABS.map((t) => ({
             value: t.value,
             label: (
               <>
-                {t.label}
+                <span className={styles.tabFull}>{t.label}</span>
+                <span className={styles.tabShort}>{t.short}</span>
                 {t.value === 'for-you' && pending > 0 ? (
                   <span className={styles.tabCount}>{pending}</span>
                 ) : null}
@@ -97,9 +98,6 @@ export function ReviewList({
             if (chosen) onTab(chosen.value)
           }}
         />
-      </div>
-      <div className={styles.find}>
-        <FindField noun="reviews" value={find} onChange={onFind} />
       </div>
       <div className={styles.scroll} id="reviews-list" ref={listRef}>
         {groups.length === 0 && hasRequests && find.trim() !== '' ? (

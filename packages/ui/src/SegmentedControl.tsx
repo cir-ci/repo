@@ -17,6 +17,7 @@ export function SegmentedControl(props: SegmentedControl.Props) {
       className={styles.root}
       data-fill={props.fill ? '' : undefined}
       data-wrap={props.wrap ? '' : undefined}
+      data-compact={props.compact ? '' : undefined}
       aria-label={props.label}
       value={props.value === undefined ? [] : [props.value]}
       onValueChange={(next) => {
@@ -50,5 +51,11 @@ export namespace SegmentedControl {
     fill?: boolean
     /** Let the options wrap onto further rows instead of widening the control. */
     wrap?: boolean
+    /**
+     * On a phone only: a filter row that stays one line. The options keep a small height (not the
+     * 40px tap size), take a tighter padding, never wrap, and the control scrolls sideways inside
+     * itself as a last resort.
+     */
+    compact?: boolean
   }
 }
