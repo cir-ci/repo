@@ -1,0 +1,30 @@
+/* A fixed-height box the grid scrolls in; only the rows in view are drawn. */
+.scroller {
+  height: 232px;
+  overflow-y: auto;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: var(--circi-radius-control);
+  padding: 4px;
+  overscroll-behavior: contain;
+}
+
+.canvas {
+  position: relative;
+  width: 100%;
+}
+
+.row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  gap: 4px;
+  width: 100%;
+}
+
+/* Square cells: the width the column count is worked out from (appearance.ts). */
+.cell {
+  justify-content: center;
+  width: 36px;
+  padding-inline: 0;
+}

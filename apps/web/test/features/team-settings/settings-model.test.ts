@@ -11,9 +11,17 @@ import {
 } from '#features/regions/ignore-regions.ts'
 import { buildSettingsPatch, settingsProblems } from '#features/team-settings/settings-patch.ts'
 import { webhookProblems } from '#features/team-settings/webhook-events.ts'
-import { appearancePatch, filterIcons, iconLabel } from '#features/teams/appearance.ts'
+import { appearancePatch, filterIcons, iconColumns, iconLabel } from '#features/teams/appearance.ts'
 
 describe('team appearance', () => {
+  it('fits as many 36 px icon cells with 4 px gaps as the grid is wide, at least one', () => {
+    // 8 px of padding, then n cells and n - 1 gaps.
+    expect(iconColumns(8 + 36)).toBe(1)
+    expect(iconColumns(8 + 36 * 6 + 4 * 5)).toBe(6)
+    expect(iconColumns(8 + 36 * 6 + 4 * 5 - 1)).toBe(5)
+    expect(iconColumns(0)).toBe(1)
+  })
+
   it('offers every Lucide icon and filters by every word typed', () => {
     expect(filterIcons('').length).toBeGreaterThan(1500)
     expect(filterIcons('flask')).toContain('flask-conical')

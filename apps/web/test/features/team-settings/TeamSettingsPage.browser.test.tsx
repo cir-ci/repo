@@ -1,9 +1,14 @@
+import { TEAM_ICON_NAMES } from '@circi/core'
 import { describe, expect, it } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 
 import { TeamSettingsPage } from '#features/team-settings/TeamSettingsPage.tsx'
+import { iconLabel } from '#features/teams/appearance.ts'
 import { fakeApi, hangingFetch, type ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
+
+/** The icon grid draws its rows in view plus a few either side: far fewer than the 2,000 icons. */
+const DRAWN_AT_MOST = 150
 
 const settings = {
   name: 'Web App',
@@ -543,9 +548,10 @@ describe('TeamSettingsPage', () => {
       )
       await show()
       const group = page.getByRole('group', { name: 'Icon' })
-      // No icon, then the first page of icons (the rest wait behind "Show more icons").
-      await expect.element(group).toBeVisible()
-      expect(group.getByRole('button').elements()).toHaveLength(61)
+      // Only the rows in view are drawn: "No icon" and a screenful, not 2,000 buttons.
+      await expect.element(group.getByRole('button', { name: 'No icon' })).toBeVisible()
+      await expect.poll(() => group.getByRole('button').elements().length).toBeGreaterThan(10)
+      expect(group.getByRole('button').elements().length).toBeLessThan(DRAWN_AT_MOST)
       await page.getByRole('textbox', { name: 'Find an icon' }).fill('globe')
       await expect
         .element(group.getByRole('button', { name: 'Globe', exact: true }))
@@ -563,13 +569,29 @@ describe('TeamSettingsPage', () => {
       expect(fake.of('PATCH')[1]?.body).toEqual({ icon: null })
     })
 
-    it('shows more icons on request', async () => {
+    it('loads the next icons as the grid scrolls, drawing only the rows in view', async () => {
       api({ appearance: ARIA })
       await show()
       const group = page.getByRole('group', { name: 'Icon' })
-      await expect.element(group).toBeVisible()
-      await page.getByRole('button', { name: 'Show more icons' }).click()
-      expect(group.getByRole('button').elements()).toHaveLength(121)
+      await expect.element(group.getByRole('button', { name: 'No icon' })).toBeVisible()
+      expect(page.getByRole('button', { name: 'Show more icons' }).elements()).toHaveLength(0)
+      const scroller = group.element().parentElement
+      if (!scroller) throw new Error('no scroll box')
+      const last = iconLabel(TEAM_ICON_NAMES.at(-1) ?? '')
+      // Scroll to the end until the last icon has loaded and is drawn.
+      await expect
+        .poll(
+          () => {
+            scroller.scrollTop = scroller.scrollHeight
+            scroller.dispatchEvent(new Event('scroll'))
+            return group.getByRole('button', { name: last, exact: true }).elements().length
+          },
+          { timeout: 15_000, interval: 50 },
+        )
+        .toBe(1)
+      // Still a screenful of buttons, and "No icon" (at the top) is no longer drawn.
+      expect(group.getByRole('button').elements().length).toBeLessThan(DRAWN_AT_MOST)
+      expect(group.getByRole('button', { name: 'No icon' }).elements()).toHaveLength(0)
     })
 
     it("shows the server's refusal", async () => {

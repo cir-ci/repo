@@ -4,8 +4,20 @@ import { TEAM_COLORS, type TeamColor } from '@circi/ui'
 export { TEAM_COLORS }
 export type { TeamColor }
 
-/** How many icons the picker draws at first, and each time "Show more icons" is pressed. */
+/** How many icons each page of the picker's infinite query holds. */
 export const ICON_PAGE = 60
+
+/** One row of the icon grid: a 28 px cell and the 4 px gap under it. */
+export const ICON_ROW_HEIGHT = 32
+
+/** A cell's width plus the gap after it (`.cell` in IconPicker.module.css). */
+const ICON_STRIDE = 40
+
+/** How many icon cells fit across a grid `width` pixels wide (at least one). */
+export function iconColumns(width: number): number {
+  // The box's 4 px padding on each side, and no gap after the last cell.
+  return Math.max(1, Math.floor((width - 8 + 4) / ICON_STRIDE))
+}
 
 export const isTeamColor = (value: string): value is TeamColor =>
   TEAM_COLORS.some((c) => c === value)

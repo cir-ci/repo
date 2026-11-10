@@ -50,6 +50,7 @@ const webOptimizeDeps = [
   ...reactDeps,
   '@tanstack/react-query',
   '@tanstack/react-router',
+  '@tanstack/react-virtual',
   'better-auth/client/plugins',
   'better-auth/react',
   'react-dom/client',

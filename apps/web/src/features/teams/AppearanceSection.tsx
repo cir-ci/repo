@@ -1,13 +1,5 @@
 import type { Team } from '@circi/api'
-import {
-  Button,
-  SettingsRow,
-  SettingsSection,
-  Text,
-  Avatar,
-  TextField,
-  useAnnounce,
-} from '@circi/ui'
+import { SettingsRow, SettingsSection, Text, Avatar, TextField, useAnnounce } from '@circi/ui'
 import { useMemo, useState } from 'react'
 
 import { useSaveAppearance, useSaveSettings } from '#features/teams/api/index.ts'
@@ -18,13 +10,13 @@ import {
   appearancePatch,
   colourLabel,
   filterIcons,
-  ICON_PAGE,
   iconLabel,
   isTeamColor,
   isTeamIconName,
   TEAM_COLORS,
   type TeamColor,
 } from './appearance.ts'
+import { IconPicker } from './IconPicker.tsx'
 
 import styles from './AppearanceSection.module.css'
 
@@ -43,11 +35,9 @@ export function AppearanceSection({
   const rename = useSaveSettings(workspace, team)
   const announce = useAnnounce()
   const [query, setQuery] = useState('')
-  const [shown, setShown] = useState(ICON_PAGE)
   const color: TeamColor = isTeamColor(appearance.color) ? appearance.color : 'slate'
   const icon: string | null = isTeamIconName(appearance.icon) ? appearance.icon : null
-  const matches = useMemo(() => filterIcons(query), [query])
-  const icons = matches.slice(0, shown)
+  const count = useMemo(() => filterIcons(query).length, [query])
 
   function pick(next: { color: TeamColor; icon: string | null }) {
     const patch = appearancePatch(appearance, next)
@@ -103,68 +93,22 @@ export function AppearanceSection({
               <TextField
                 label="Find an icon"
                 value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value)
-                  setShown(ICON_PAGE)
-                }}
+                onChange={(e) => setQuery(e.target.value)}
                 placeholder="Find an icon"
                 className={styles.search}
               />
               <Text variant="small" tone="tertiary">
-                {matches.length} Lucide icons
+                {count} Lucide icons
               </Text>
             </div>
-            <div role="group" aria-label="Icon" className={styles.grid}>
-              <Button
-                variant="toggle"
-                size="md"
-                pressed={icon === null}
-                onPressedChange={() => pick({ color, icon: null })}
-                aria-label="No icon"
-                title="No icon"
-              >
-                <Avatar
-                  type="team"
-                  aria-hidden
-                  slug={team}
-                  name={name}
-                  color={color}
-                  icon={null}
-                  size={20}
-                />
-              </Button>
-              {icons.map((i) => (
-                <Button
-                  key={i}
-                  variant="toggle"
-                  size="md"
-                  pressed={icon === i}
-                  onPressedChange={() => pick({ color, icon: i })}
-                  aria-label={iconLabel(i)}
-                  title={iconLabel(i)}
-                >
-                  <Avatar
-                    type="team"
-                    aria-hidden
-                    slug={team}
-                    name={name}
-                    color={color}
-                    icon={i}
-                    size={20}
-                  />
-                </Button>
-              ))}
-            </div>
-            {matches.length > icons.length ? (
-              <Button variant="secondary" size="md" onClick={() => setShown(shown + ICON_PAGE)}>
-                Show more icons
-              </Button>
-            ) : null}
-            {icons.length === 0 ? (
-              <Text variant="small" tone="tertiary">
-                No icon matches “{query}”.
-              </Text>
-            ) : null}
+            <IconPicker
+              team={team}
+              name={name}
+              color={color}
+              icon={icon}
+              query={query}
+              onPick={(next) => pick({ color, icon: next })}
+            />
             <SaveNote mutation={save} />
           </div>
         </SettingsRow>
