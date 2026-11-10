@@ -13,7 +13,7 @@ export function addGithubCommands(admin: Command): void {
   github
     .command('link')
     .description(
-      'report a team’s builds to a GitHub repository (needs the GitHub App installed on it)',
+      "report a team's builds to a GitHub repository (needs the GitHub App installed on it)",
     )
     .requiredOption('--org <slug>', 'organization slug')
     .requiredOption('--team <slug>', 'team slug')

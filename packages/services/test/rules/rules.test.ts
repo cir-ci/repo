@@ -161,7 +161,7 @@ describe('finalizeBuild with review rules', () => {
     expect((await requestsOf(build.id)).map((r) => r.reviewerId)).toEqual([bob.id])
   })
 
-  it('falls back to this week’s person on triage when no rule matches', async () => {
+  it("falls back to this week's person on triage when no rule matches", async () => {
     const { team, ann, bob } = await setup()
     await createReviewRule(t.db, {
       teamId: team.id,
@@ -210,7 +210,7 @@ describe('finalizeBuild with review rules', () => {
     expect(await requestsOf(build.id)).toHaveLength(0)
   })
 
-  it('closes a superseded build’s request when a newer build on the branch arrives', async () => {
+  it("closes a superseded build's request when a newer build on the branch arrives", async () => {
     const { team, ann } = await setup()
     await createReviewRule(t.db, {
       teamId: team.id,

@@ -22,7 +22,7 @@ afterAll(async () => {
 })
 
 describe('teams', () => {
-  it('creates a team with a derived slug and the plan’s defaults', async () => {
+  it("creates a team with a derived slug and the plan's defaults", async () => {
     const { workspace } = await seedWorkspace(t.db)
     const team = await createTeam(t.db, { workspaceSlug: workspace.slug, name: 'Web app' })
     expect(team).toMatchObject({
@@ -63,7 +63,7 @@ describe('teams', () => {
     )
   })
 
-  it('lists a workspace’s teams by slug', async () => {
+  it("lists a workspace's teams by slug", async () => {
     const { workspace } = await seedWorkspace(t.db)
     await createTeam(t.db, { workspaceSlug: workspace.slug, name: 'b' })
     await createTeam(t.db, { workspaceSlug: workspace.slug, name: 'a' })
@@ -82,7 +82,7 @@ describe('teams', () => {
     ).rejects.toBeInstanceOf(NotFoundError)
   })
 
-  it('records the team’s current CI key, and clears it', async () => {
+  it("records the team's current CI key, and clears it", async () => {
     const { team, workspace } = await seedTeam(t.db)
     await t.client.query(
       `insert into apikey (id, reference_id, key, created_at, updated_at) values ('k1', '${workspace.id}', 'h', now(), now())`,

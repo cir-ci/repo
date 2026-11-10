@@ -49,7 +49,7 @@ describe('workspaces and memberships (read side; better-auth owns the writes)', 
     expect(await listUserWorkspaceIds(t.db, (await seedUser(t.db)).id)).toEqual([])
   })
 
-  it('reports a member’s role, and nothing for non-members', async () => {
+  it("reports a member's role, and nothing for non-members", async () => {
     const { workspace, owner } = await seedWorkspace(t.db)
     const dev = await seedUser(t.db)
     await addTestMember(t.db, { workspaceId: workspace.id, userId: dev.id, role: 'member' })

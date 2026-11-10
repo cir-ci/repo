@@ -376,7 +376,7 @@ describe('issues from a build', () => {
     )
   })
 
-  it('files the issue as the type chosen on the team’s mapping', async () => {
+  it("files the issue as the type chosen on the team's mapping", async () => {
     const build = await setup()
     const jira = { id: await connectJira() }
     const mapped = await call('PUT', `${base}/${jira?.id}/teams/web`, ownerCookie, {

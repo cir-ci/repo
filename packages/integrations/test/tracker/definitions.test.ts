@@ -119,7 +119,7 @@ describe('jira', () => {
   })
 })
 
-describe('the trackers’ needs-attention rule', () => {
+describe("the trackers' needs-attention rule", () => {
   it('flags a 401 or 403 from the tracker, and nothing else', async () => {
     const { ctx } = fakeTrackers()
     const credentials = JSON.stringify({ kind: 'linear', apiKey: 'revoked' })

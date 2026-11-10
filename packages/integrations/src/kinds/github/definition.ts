@@ -138,7 +138,7 @@ export const github = defineIntegration({
       .meta({
         label: 'GitHub App installation ID',
         description:
-          'Install the CirCI GitHub App on your account or organisation, then paste the number at the end of the installation’s settings address on GitHub.',
+          "Install the CirCI GitHub App on your account or organisation, then paste the number at the end of the installation's settings address on GitHub.",
         placeholder: '12345678',
       }),
   }),

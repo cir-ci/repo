@@ -78,7 +78,7 @@ describe('migrateStorage', () => {
     expect(seen).toEqual([1, 2, 3])
   })
 
-  it('copies again an object whose recorded checksum is not the file’s (a corrupt target)', async () => {
+  it("copies again an object whose recorded checksum is not the file's (a corrupt target)", async () => {
     const victim = stored[1]
     if (!victim) throw new Error('no files')
     await migrateStorage(t.db, { from, to })

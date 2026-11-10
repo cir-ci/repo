@@ -113,7 +113,7 @@ describe('getWorkspaceStorage', () => {
     expect(instance.totalBytes).toBeGreaterThanOrEqual(999 + 360)
   })
 
-  it('shows each team’s retention and the workspace default for new teams', async () => {
+  it("shows each team's retention and the workspace default for new teams", async () => {
     const { workspace } = await seedWorkspace(t.db)
     await setWorkspaceSettings(t.db, workspace.id, { retentionDays: 90 })
     await createTeam(t.db, {

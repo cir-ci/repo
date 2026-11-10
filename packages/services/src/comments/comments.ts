@@ -93,7 +93,7 @@ export async function addComment(db: Database, input: addComment.Input): Promise
         throw new NotFoundError('Comment not found')
       }
       if (parent.parentId) throw new ValidationError('Reply to the first comment in the thread')
-      if (input.region) throw new ValidationError('A reply can’t mark a region')
+      if (input.region) throw new ValidationError("A reply can't mark a region")
       snapshotName = parent.snapshotName
     }
     if (input.region && !snapshotName) {

@@ -95,7 +95,7 @@ describe('upload', () => {
     expect(fake.to('/v1/builds/b1/finalize')).toHaveLength(2)
   })
 
-  it('sends a shard with the run’s nonce', async () => {
+  it("sends a shard with the run's nonce", async () => {
     await run({ shard: { index: 1, total: 3 } })
     expect(fake.json(fake.to('/v1/builds')[0]!)).toMatchObject({
       parallel: { nonce: 'run-1', total: 3 },
@@ -144,7 +144,7 @@ describe('upload', () => {
       expect(lines.join('\n')).toContain('https://gitlab.test/job/1')
     })
 
-    it('exits 0 on changes when the git host’s check is the gate', async () => {
+    it("exits 0 on changes when the git host's check is the gate", async () => {
       const result = await run(
         { wait: true, gate: 'status' },
         { outcomes: ['fail'], gate: 'status' },

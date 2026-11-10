@@ -127,7 +127,7 @@ describe('connectIntegration', () => {
 })
 
 describe('removeIntegration', () => {
-  it('removes the workspace’s integration and refuses another workspace’s', async () => {
+  it("removes the workspace's integration and refuses another workspace's", async () => {
     const mine = await seedWorkspace(t.db)
     const other = await seedWorkspace(t.db)
     const integration = await createIntegration(t.db, {
@@ -152,7 +152,7 @@ describe('removeIntegration', () => {
 })
 
 describe('removeTeamLink', () => {
-  it('removes the team’s link, and says so when it is not there', async () => {
+  it("removes the team's link, and says so when it is not there", async () => {
     const { workspace, team } = await seedTeam(t.db)
     const other = await seedTeam(t.db)
     const integration = await createIntegration(t.db, {

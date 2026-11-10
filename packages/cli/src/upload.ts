@@ -100,7 +100,7 @@ export async function upload(options: upload.Options): Promise<upload.Result> {
       index >= total
     ) {
       throw new UsageError(
-        '--shard must look like 1/4: this job’s number, then how many jobs there are',
+        "--shard must look like 1/4: this job's number, then how many jobs there are",
       )
     }
     const nonce = options.shard.nonce ?? ciRunId(env)

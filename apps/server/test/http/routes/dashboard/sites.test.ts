@@ -244,7 +244,7 @@ describe('opening a site', () => {
     expect(to.searchParams.get('return')).toBe('/assets/app.js?x=1')
   })
 
-  it('answers a missing site exactly like a real one, so addresses can’t be probed', async () => {
+  it("answers a missing site exactly like a real one, so addresses can't be probed", async () => {
     const real = await siteGet(label)
     const ghost = await siteGet(`${'0'.repeat(12)}-nothing-here`)
     const junk = await siteGet('not-an-address')
@@ -294,7 +294,7 @@ describe('opening a site', () => {
     expect((await siteGet(label, '/', { cookie: siteCookie }, 'POST')).statusCode).toBe(405)
   })
 
-  it('never serves paths outside the site, or CirCI’s reserved prefix', async () => {
+  it("never serves paths outside the site, or CirCI's reserved prefix", async () => {
     const { siteCookie } = await openSite(label)
     const paths = [
       '/../etc/passwd',
@@ -329,7 +329,7 @@ describe('opening a site', () => {
     expect(wrong.headers['set-cookie']).toBeUndefined()
   })
 
-  it('does not accept one site’s cookie on another site', async () => {
+  it("does not accept one site's cookie on another site", async () => {
     const other = await upload(STORYBOOK, { name: 'cross', commit: 'f'.repeat(40) })
     const otherLabel = labelOf(other.json().addresses.commit)
     const { siteCookie } = await openSite(label)
@@ -534,7 +534,7 @@ describe('circi site upload', () => {
   })
 })
 
-describe('the team’s Sites page API', () => {
+describe("the team's Sites page API", () => {
   it('lists sites with their branch and commit addresses, only for members', async () => {
     await upload(STORYBOOK, {
       name: 'listed',

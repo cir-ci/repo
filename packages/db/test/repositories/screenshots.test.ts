@@ -31,7 +31,7 @@ async function newBuild() {
 }
 
 describe('screenshots', () => {
-  it('lists a build’s screenshots and records a thumbnail', async () => {
+  it("lists a build's screenshots and records a thumbnail", async () => {
     const build = await newBuild()
     const other = await newBuild()
     const shot = await seedScreenshot(t.db, { buildId: build.id, fileSha256: fakeSha('1') })
@@ -45,7 +45,7 @@ describe('screenshots', () => {
 })
 
 describe('diffs', () => {
-  it('replaces a build’s diffs without touching other builds', async () => {
+  it("replaces a build's diffs without touching other builds", async () => {
     const build = await newBuild()
     const other = await newBuild()
     await seedDiff(t.db, { buildId: build.id, name: 'old' })

@@ -87,7 +87,7 @@ describe('expireBuilds', () => {
 })
 
 describe('expireSites', () => {
-  it('drops stale branch addresses and unserved old versions, never the default branch’s', async () => {
+  it("drops stale branch addresses and unserved old versions, never the default branch's", async () => {
     const team = await teamWithRetention(30)
     const stale = await seedSite(t.db, { teamId: team.id, commitSha: 'a'.repeat(12) })
     await t.db

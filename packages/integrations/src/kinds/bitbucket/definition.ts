@@ -132,7 +132,7 @@ export const bitbucket = defineIntegration({
     } catch (err) {
       throw connectFailure('Bitbucket', err, {
         revoked: "Bitbucket didn't accept that token",
-        forbidden: 'That token cannot read the workspace’s repositories',
+        forbidden: "That token cannot read the workspace's repositories",
         notFound: 'Bitbucket has no workspace with that id',
       })
     }

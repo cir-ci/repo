@@ -52,7 +52,7 @@ describe('workspace domains', () => {
     ])
   })
 
-  it('will not remove another workspace’s domain', async () => {
+  it("will not remove another workspace's domain", async () => {
     const mine = await seedWorkspace(t.db)
     const theirs = await seedWorkspace(t.db)
     const domain = await addWorkspaceDomain(t.db, theirs.workspace.id, 'theirs.example.com')

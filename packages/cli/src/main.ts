@@ -103,7 +103,7 @@ function siteCommand(parent: Command, name: string, description: string, fixedKi
     .command(name)
     .description(description)
     .argument('<dir>', 'the built site (a folder with its index.html)')
-    .option('--name <name>', 'which of the team’s sites this is', fixedKind ?? 'site')
+    .option('--name <name>', "which of the team's sites this is", fixedKind ?? 'site')
     .option('--spa', 'serve unknown paths with the entry page (single-page apps)')
     .option('--api-url <url>', 'CirCI address (default: CIRCI_API_URL)')
   if (!fixedKind) {

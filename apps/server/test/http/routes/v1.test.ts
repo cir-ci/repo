@@ -106,7 +106,7 @@ describe('authentication', () => {
     expect(wrong.statusCode).toBe(401)
   })
 
-  it('describes the token’s team', async () => {
+  it("describes the token's team", async () => {
     const { team, token } = await seedTenant(betterAuth, t.db, { defaultBranch: 'trunk' })
     const res = await app.inject({ method: 'GET', url: '/v1/team', headers: auth(token) })
     expect(res.statusCode).toBe(200)

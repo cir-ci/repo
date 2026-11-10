@@ -83,7 +83,7 @@ function expected(order: BuildOrder, rows: Made[], tie: (m: Made) => (number | s
 const LIMIT = 3
 
 describe.each(BUILD_ORDERS)('builds ordered by %s', (order) => {
-  it('pages through a team’s builds without repeats or gaps, across same-time ties', async () => {
+  it("pages through a team's builds without repeats or gaps, across same-time ties", async () => {
     const { team } = await seedTeam(t.db)
     const made = await seed(team.id)
     const ids: string[] = []
@@ -102,7 +102,7 @@ describe.each(BUILD_ORDERS)('builds ordered by %s', (order) => {
     expect(ids).toEqual(expected(order, made, (m) => [m.number]))
   })
 
-  it('pages through a workspace’s builds, across teams and same-time ties', async () => {
+  it("pages through a workspace's builds, across teams and same-time ties", async () => {
     const seeded = await seedTeam(t.db)
     const second = await createTeam(t.db, { workspaceSlug: seeded.workspace.slug, name: 'mobile' })
     const made = [...(await seed(seeded.team.id)), ...(await seed(second.id))]

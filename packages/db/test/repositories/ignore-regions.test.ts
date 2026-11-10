@@ -56,7 +56,7 @@ describe('ignore regions', () => {
     expect(outcomes).toEqual(Array(5).fill('refused'))
   })
 
-  it('removes only the team’s own region', async () => {
+  it("removes only the team's own region", async () => {
     const { team } = await seedTeam(t.db)
     const other = await seedTeam(t.db)
     const mine = await addIgnoreRegion(t.db, team.id, {

@@ -220,7 +220,7 @@ describe('schema constraints from the plan', () => {
     expect(code).toBe('23503')
   })
 
-  it('deletes a workspace’s teams and builds with it', async () => {
+  it("deletes a workspace's teams and builds with it", async () => {
     const { team, workspace } = await seedTeam(t.db)
     await t.db.insert(schema.builds).values({ teamId: team.id, commitSha: 'abc1234', number: 1 })
     await t.db.delete(schema.workspace).where(eq(schema.workspace.id, workspace.id))

@@ -42,7 +42,7 @@ const outcomeOf = async (build: Awaited<ReturnType<typeof flakyPr>>['build']) =>
   buildOutcome({ ...build, ...(await gateInputs(t.db, build)) })
 
 describe('gateInputs', () => {
-  it('keeps today’s behaviour by default: a flaky-only change blocks like any other', async () => {
+  it("keeps today's behaviour by default: a flaky-only change blocks like any other", async () => {
     const { build } = await flakyPr()
     expect(await gateInputs(t.db, build)).toEqual({
       blockMergeOnChanges: true,

@@ -40,7 +40,7 @@ export function addIgnoreCommands(admin: Command): void {
 
   ignore
     .command('list')
-    .description('list a team’s ignored regions')
+    .description("list a team's ignored regions")
     .requiredOption('--org <slug>', 'organization slug')
     .requiredOption('--team <slug>', 'team slug')
     .action((opts: { org: string; team: string }) =>

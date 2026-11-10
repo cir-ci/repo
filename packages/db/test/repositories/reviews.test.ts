@@ -102,7 +102,7 @@ describe('recordReview', () => {
     ).rejects.toBeInstanceOf(NotFoundError)
   })
 
-  it('keeps the decision when the reviewer’s account is deleted', async () => {
+  it("keeps the decision when the reviewer's account is deleted", async () => {
     const { buildId } = await buildWithChanges()
     const leaver = await seedUser(t.db)
     await reviewBuild(t.db, { buildId, userId: leaver.id, state: 'rejected' })

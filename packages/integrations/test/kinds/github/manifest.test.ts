@@ -14,7 +14,7 @@ const answer = (status: number, body: unknown): typeof fetch => {
 }
 
 describe('the App manifest', () => {
-  it('names the instance, its webhook, redirect and setup addresses, and the App’s permissions', () => {
+  it("names the instance, its webhook, redirect and setup addresses, and the App's permissions", () => {
     expect(buildGithubManifest({ publicUrl: 'https://ci.example.com/some/path' })).toEqual({
       name: 'CirCI (ci.example.com)',
       url: 'https://ci.example.com',
@@ -31,7 +31,7 @@ describe('the App manifest', () => {
     })
   })
 
-  it('keeps an edited name within GitHub’s 34 characters', () => {
+  it("keeps an edited name within GitHub's 34 characters", () => {
     const long = 'x'.repeat(60)
     expect(buildGithubManifest({ publicUrl: 'https://a.io', name: long }).name).toHaveLength(34)
     expect(
@@ -55,7 +55,7 @@ describe('the App manifest', () => {
 })
 
 describe('converting the manifest code', () => {
-  it('returns the App’s credentials, calling GitHub without authentication', async () => {
+  it("returns the App's credentials, calling GitHub without authentication", async () => {
     let seen: { url: string; auth: string | null; method: string } | undefined
     const fetcher: typeof fetch = async (input, init) => {
       const req = new Request(input, init)

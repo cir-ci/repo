@@ -23,7 +23,7 @@ const account = (userId: string, providerId: string) =>
   })
 
 describe('listMemberSignIn', () => {
-  it('lists each member’s methods from their accounts: password first, own SSO as sso', async () => {
+  it("lists each member's methods from their accounts: password first, own SSO as sso", async () => {
     const { workspace, owner } = await seedWorkspace(t.db)
     const both = await seedUser(t.db)
     const none = await seedUser(t.db)
@@ -55,7 +55,7 @@ describe('listMemberSignIn', () => {
     expect(outsider.id in by).toBe(false)
   })
 
-  it('does not count another workspace’s SSO provider as this workspace’s', async () => {
+  it("does not count another workspace's SSO provider as this workspace's", async () => {
     const a = await seedWorkspace(t.db)
     const b = await seedWorkspace(t.db)
     await t.db.insert(schema.ssoProvider).values({

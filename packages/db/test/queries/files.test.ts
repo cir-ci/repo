@@ -31,7 +31,7 @@ async function buildWithScreenshot(teamId: string, fileSha: string, thumbSha?: s
 }
 
 describe('canUserAccessFile (files are shared by hash, so knowing a hash proves nothing)', () => {
-  it('allows members of the build’s workspace, and nobody else', async () => {
+  it("allows members of the build's workspace, and nobody else", async () => {
     const { team, owner } = await seedTeam(t.db)
     await buildWithScreenshot(team.id, fakeSha('a'), fakeSha('b'))
     const outsider = await seedUser(t.db)

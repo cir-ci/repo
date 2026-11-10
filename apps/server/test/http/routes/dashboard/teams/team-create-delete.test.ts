@@ -97,7 +97,7 @@ describe('POST /api/workspaces/:workspace/teams with a branch and a repository',
     ])
   })
 
-  it('creates nothing when the repository is not one of the workspace’s integrations', async () => {
+  it("creates nothing when the repository is not one of the workspace's integrations", async () => {
     const rivalWorkspace = await getWorkspaceBySlug(t.db, rival.workspaceSlug)
     const foreign = await createIntegration(t.db, {
       workspaceId: rivalWorkspace.id,

@@ -7,7 +7,7 @@ const { app, acme, rival, acmeCookie, rivalCookie, get, buildDetail } = fx
 afterAll(() => fx.close())
 
 describe('workspace isolation', () => {
-  it('lists only the signed-in user’s teams', async () => {
+  it("lists only the signed-in user's teams", async () => {
     const mine = (await get('/api/teams', acmeCookie)).json().teams
     expect(mine.map((p: { workspace: { slug: string } }) => p.workspace.slug)).toEqual([
       acme.workspaceSlug,
@@ -18,7 +18,7 @@ describe('workspace isolation', () => {
     ])
   })
 
-  it('answers “not found” for another workspace’s team and builds', async () => {
+  it("answers “not found” for another workspace's team and builds", async () => {
     const urls = [
       `/api/teams/${acme.workspaceSlug}/web`,
       `/api/teams/${acme.workspaceSlug}/web/builds/2`,

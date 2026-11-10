@@ -89,7 +89,7 @@ export const dashboardWorkspaceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard
     })
     const { confirm } = parse(deleteBody, req.body)
     if (confirm.trim() !== found.workspace.slug) {
-      throw new ValidationError('Type the workspace’s address to confirm')
+      throw new ValidationError("Type the workspace's address to confirm")
     }
     const { deletedAt } = await deleteWorkspace(deps.db, {
       workspaceId: found.workspace.id,

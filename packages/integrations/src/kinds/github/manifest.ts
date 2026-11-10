@@ -138,7 +138,7 @@ export async function convertGithubManifestCode(
   const clientId = text(data, 'client_id')
   const clientSecret = text(data, 'client_secret')
   if (!appId || !slug || !privateKey || !webhookSecret || !clientId || !clientSecret) {
-    throw new GithubManifestError(502, 'GitHub answered without the App’s credentials')
+    throw new GithubManifestError(502, "GitHub answered without the App's credentials")
   }
   return {
     appId,

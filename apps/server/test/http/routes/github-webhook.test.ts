@@ -226,7 +226,7 @@ describe('GitHub webhook', () => {
     expect(queued.some((j) => j.payload.buildId === build.id)).toBe(true)
   })
 
-  it('ignores other people’s comments, bots, plain text and unlinked users', async () => {
+  it("ignores other people's comments, bots, plain text and unlinked users", async () => {
     const build = await changedBuild(23)
     sent.length = 0
     await deliver('issue_comment', comment(23, '/circi approve', '777'))

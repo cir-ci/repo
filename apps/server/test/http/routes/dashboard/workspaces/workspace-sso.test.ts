@@ -101,7 +101,7 @@ const registerProvider = () =>
 
 const ann = { sub: 'emp-1', email: 'ann@acme-corp.test', name: 'Ann', email_verified: true }
 
-describe('a workspace’s own single sign-on', () => {
+describe("a workspace's own single sign-on", () => {
   it('lets an owner register a provider, showing the address to register, never the secret', async () => {
     const res = await registerProvider()
     expect(res.statusCode).toBe(201)

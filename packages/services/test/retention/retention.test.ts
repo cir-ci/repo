@@ -98,7 +98,7 @@ describe('expiring builds', () => {
     expect(await statusOf(oldest.build.id)).toBe('expired')
   })
 
-  it('respects each team’s own retention period', async () => {
+  it("respects each team's own retention period", async () => {
     const { team } = await seedTeam(t.db)
     await t.db.update(schema.teams).set({ retentionDays: 90 }).where(eq(schema.teams.id, team.id))
     const build = await oldBuild(team, { days: 60 })
@@ -237,7 +237,7 @@ describe('expiring sites', () => {
     })
   }
 
-  it('removes stale branch addresses and old versions, but never the default branch’s or a served one', async () => {
+  it("removes stale branch addresses and old versions, but never the default branch's or a served one", async () => {
     const { team } = await seedTeam(t.db)
     const stale = await site(team.id, {
       commit: 'a1',

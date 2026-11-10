@@ -98,7 +98,7 @@ describe('session methods', () => {
 })
 
 describe('workspaceAcceptsSession and listRefusingWorkspaces', () => {
-  it('applies each workspace’s switches to the way a session signed in', async () => {
+  it("applies each workspace's switches to the way a session signed in", async () => {
     const { workspace, owner } = await seedWorkspace(t.db)
     await setWorkspaceAuthSettings(
       t.db,

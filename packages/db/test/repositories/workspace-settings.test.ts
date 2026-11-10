@@ -13,7 +13,7 @@ afterAll(async () => {
 })
 
 describe('workspace settings', () => {
-  it('defaults to today’s behaviour: flaky screenshots block merges', async () => {
+  it("defaults to today's behaviour: flaky screenshots block merges", async () => {
     const { workspace } = await seedWorkspace(t.db)
     expect(await getWorkspaceSettings(t.db, workspace.id)).toEqual({
       flakyBlocksMerge: true,

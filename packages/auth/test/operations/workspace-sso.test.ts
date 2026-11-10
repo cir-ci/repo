@@ -12,7 +12,7 @@ afterAll(async () => {
 })
 
 describe('workspace SSO lookups', () => {
-  it('lists only the workspace’s own providers and finds a provider’s workspace', async () => {
+  it("lists only the workspace's own providers and finds a provider's workspace", async () => {
     const a = await seedTeam(t.db)
     const b = await seedTeam(t.db)
     const user = await seedUser(t.db)

@@ -215,7 +215,7 @@ describe('connecting Figma', () => {
   })
 })
 
-describe('a team’s Figma file', () => {
+describe("a team's Figma file", () => {
   it('lists every team with no file first', async () => {
     await connected()
     const page = (await call('GET', `${workspaceBase}/${id}/teams`, louCookie)).json()
@@ -244,7 +244,7 @@ describe('a team’s Figma file', () => {
     expect(page.teams[0].mapping).toMatchObject({ ref: 'FileKey12345', name: 'Checkout v3' })
   })
 
-  it('404s for a team that isn’t in the workspace', async () => {
+  it("404s for a team that isn't in the workspace", async () => {
     await connected()
     expect(
       (await call('PUT', `${workspaceBase}/${id}/teams/nope`, ownerCookie, { ref: 'FileKey12345' }))
@@ -319,7 +319,7 @@ describe('links', () => {
     ])
   })
 
-  it('puts the frame on the build detail’s snapshots', async () => {
+  it("puts the frame on the build detail's snapshots", async () => {
     await autoLinked()
     const detail = await call('GET', `/api/teams/${acme.workspaceSlug}/web/builds/1`, louCookie)
     expect(detail.statusCode).toBe(200)

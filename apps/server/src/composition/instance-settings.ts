@@ -81,7 +81,7 @@ export function addressChecklist(
       id: 'sign-in-redirects',
       title: 'Single sign-on: change every redirect URI',
       detail:
-        'In each identity provider, change the redirect URI to the new address. A workspace’s own provider (Workspace › Sign-in and domains) redirects to /api/auth/sso/callback/<provider id>.',
+        "In each identity provider, change the redirect URI to the new address. A workspace's own provider (Workspace › Sign-in and domains) redirects to /api/auth/sso/callback/<provider id>.",
       values: [
         ...config.sso.map((p) => callbackUrl(origin, p)),
         `${origin}/api/auth/sso/callback/<provider id>`,
@@ -93,7 +93,7 @@ export function addressChecklist(
       id: 'github-app',
       title: 'GitHub App: update its URLs',
       detail:
-        'Update the App’s callback URL and webhook URL on GitHub (Settings › Developer settings › GitHub Apps), and the webhook of any repository that still posts to the old address.',
+        "Update the App's callback URL and webhook URL on GitHub (Settings › Developer settings › GitHub Apps), and the webhook of any repository that still posts to the old address.",
       values: [origin, `${origin}/webhooks/github`],
     })
   }
@@ -106,7 +106,7 @@ export function addressChecklist(
   steps.push({
     id: 'integration-redirects',
     title: 'Slack, Linear, Jira and other connected apps: change their redirect URIs',
-    detail: 'Each app’s OAuth redirect URI is on the new address.',
+    detail: "Each app's OAuth redirect URI is on the new address.",
     values: [
       ...(config.slack ? [`${origin}/api/integrations/slack/callback`] : []),
       `${origin}/api/integrations/<integration>/callback`,
@@ -122,7 +122,7 @@ export function addressChecklist(
     steps.push({
       id: 'sites',
       title: 'Hosted sites: nothing to change, but check the ports and scheme',
-      detail: `Sites live under ${config.staticSites.host} and take the dashboard’s scheme and port.`,
+      detail: `Sites live under ${config.staticSites.host} and take the dashboard's scheme and port.`,
       values: [],
     })
   }

@@ -30,7 +30,7 @@ describe('kind detection', () => {
     ).toEqual(['playwright-report'])
   })
 
-  it('knows each kind’s entry page', () => {
+  it("knows each kind's entry page", () => {
     expect(KINDS.coverage.entryPath(new Set(['lcov-report/index.html']))).toBe(
       'lcov-report/index.html',
     )

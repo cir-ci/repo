@@ -471,7 +471,7 @@ describe('installing the App in a workspace', () => {
     expect(denied.statusCode).toBe(403)
   })
 
-  it('rejects a forged, expired or someone else’s state, and needs a session', async () => {
+  it("rejects a forged, expired or someone else's state, and needs a session", async () => {
     await installApp()
     const state = await installState(ownerCookie, acme.workspaceSlug)
     expect((await setup(`installation_id=502&state=${state}x`, ownerCookie)).statusCode).toBe(400)

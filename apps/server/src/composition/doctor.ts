@@ -185,7 +185,7 @@ export async function checkDisk(
         label: 'Disk space',
         detail: 'The storage disk is running low.',
         value,
-        fix: 'Free space (`circi admin storage gc`), lower the teams’ retention, grow the volume or move to S3 (`circi admin storage migrate`).',
+        fix: "Free space (`circi admin storage gc`), lower the teams' retention, grow the volume or move to S3 (`circi admin storage migrate`).",
       })
     }
     return finding({
@@ -326,7 +326,7 @@ export async function runDoctor(
           id: `host:${host}`,
           level: 'warn',
           label,
-          detail: `Serves content at its apex (HTTP ${res.status}). The sites domain must serve nothing but CirCI’s sites.`,
+          detail: `Serves content at its apex (HTTP ${res.status}). The sites domain must serve nothing but CirCI's sites.`,
           value: host,
           fix: `Serve nothing on ${host} itself: only the sites under its subdomains.`,
         }),
@@ -374,7 +374,7 @@ export async function runDoctor(
       level: 'info',
       label: 'Reminder',
       detail:
-        'This check only sees the hosts above. Also make sure nothing else on the dashboard’s parent domain sets cookies for the whole domain, and that the sites domain hosts nothing else (docs/reference/static-sites.md).',
+        "This check only sees the hosts above. Also make sure nothing else on the dashboard's parent domain sets cookies for the whole domain, and that the sites domain hosts nothing else (docs/reference/static-sites.md).",
     }),
   )
   return findings

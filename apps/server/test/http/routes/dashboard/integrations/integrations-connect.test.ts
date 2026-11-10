@@ -106,14 +106,14 @@ describe('POST /workspaces/:workspace/integrations/:kind/connect', () => {
     expect(await listIntegrations(t.db, workspace.id)).toEqual([])
   })
 
-  it('validates the body against the definition’s credentials schema', async () => {
+  it("validates the body against the definition's credentials schema", async () => {
     const res = await call('POST', `${base}/tokenchat/connect`, ownerCookie, { site: 'x' })
     expect(res.statusCode).toBe(400)
     expect(res.json().error).toContain('Token is required')
     expect(await listIntegrations(t.db, workspace.id)).toEqual([])
   })
 
-  it('maps the definition’s typed errors: 400 for credentials, 502 for the provider', async () => {
+  it("maps the definition's typed errors: 400 for credentials, 502 for the provider", async () => {
     const bad = await call('POST', `${base}/tokenchat/connect`, ownerCookie, { token: 'bad' })
     expect(bad.statusCode).toBe(400)
     expect(bad.json().error).toBe('Token chat did not accept that token')

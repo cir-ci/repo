@@ -99,7 +99,7 @@ describe('snoozeReviewRequest', () => {
     expect(await tab(reviewer.id, 'for-you', now)).toEqual([request.id])
   })
 
-  it('is the reviewer’s alone, and needs an open request in the team', async () => {
+  it("is the reviewer's alone, and needs an open request in the team", async () => {
     const { team, owner, reviewer, request, now } = await setup()
     const base = { teamId: team.id, requestId: request.id, kind: 'tomorrow' as const, now }
     await expect(snoozeReviewRequest(t.db, { ...base, userId: owner.id })).rejects.toThrow(

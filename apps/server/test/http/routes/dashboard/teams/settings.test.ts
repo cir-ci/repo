@@ -123,7 +123,7 @@ describe('team settings', () => {
     expect((await getTeamById(t.db, acme.team.id))?.blockMergeOnChanges).toBe(false)
   })
 
-  it('renames the team’s slug, and the old address stops working', async () => {
+  it("renames the team's slug, and the old address stops working", async () => {
     const before = base()
     const res = await call('PATCH', `${before}/settings`, ownerCookie, { slug: 'web-renamed' })
     expect(res.statusCode).toBe(200)

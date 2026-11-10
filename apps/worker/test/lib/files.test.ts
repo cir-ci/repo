@@ -66,7 +66,7 @@ describe('storeServerFile', () => {
 })
 
 describe('createLoader', () => {
-  it('reads a file’s bytes through its storage key', async () => {
+  it("reads a file's bytes through its storage key", async () => {
     const bytes = Buffer.from('loaded')
     const hash = await storeServerFile(t.db, storage, bytes, meta)
     expect(await createLoader(t.db, storage)(hash)).toEqual(bytes)

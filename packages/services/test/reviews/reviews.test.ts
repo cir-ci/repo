@@ -197,7 +197,7 @@ describe('requestReviews', () => {
         reviewerIds: [teammate.id, owner.id],
         requestedById: owner.id,
       }),
-    ).rejects.toThrow('You can’t request a review from yourself.')
+    ).rejects.toThrow("You can't request a review from yourself.")
     expect((await Promise.all(builds.map((b) => requestsOf(b.id)))).flat()).toEqual([])
     expect(await notices()).toEqual([])
   })
@@ -227,7 +227,7 @@ describe('requestReviews', () => {
     expect((await notices()).filter((n) => n.userId === teammate.id)).toHaveLength(2)
   })
 
-  it('changes nothing when one build is another team’s', async () => {
+  it("changes nothing when one build is another team's", async () => {
     const { team, owner, teammate, builds } = await several()
     const other = await seedTeam(t.db)
     const foreign = await createBuild(t.db, {
@@ -347,7 +347,7 @@ describe('a newer build on the branch', () => {
 })
 
 describe('reviewBuild', () => {
-  it('closes the build’s open requests as done when it is approved', async () => {
+  it("closes the build's open requests as done when it is approved", async () => {
     const { owner, teammate, build } = await setup()
     await requestReview(t.db, {
       buildId: build.id,

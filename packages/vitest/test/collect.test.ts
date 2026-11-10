@@ -10,7 +10,7 @@ const tmp = useTempRoot()
 const { touch } = tmp
 
 describe('collecting screenshots', () => {
-  it('names a directory’s pictures by their path', async () => {
+  it("names a directory's pictures by their path", async () => {
     await touch('.circi/screenshots/home.png')
     await touch('.circi/screenshots/settings/profile.png')
     await touch('.circi/screenshots/notes.txt')

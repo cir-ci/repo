@@ -84,7 +84,7 @@ describe('reviewOverdueMessage', () => {
   it('says whose review is overdue and since when', () => {
     const m = reviewOverdueMessage({ build, reviewer: 'Lou', dueAt: new Date(1_000_000_000_000) })
     expect(m.text).toBe('Review overdue: Web #12')
-    expect(sectionText(m)).toContain('*Lou*’s review of')
+    expect(sectionText(m)).toContain("*Lou*'s review of")
     expect(sectionText(m)).toContain('It was due <!date^1000000000^')
   })
 })

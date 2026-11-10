@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { noticePage, PAGE_CSP, standalonePage } from '#http/lib/pages.ts'
 
 describe('noticePage', () => {
-  it('escapes the title and keeps the body’s own markup', () => {
+  it("escapes the title and keeps the body's own markup", () => {
     const html = noticePage('<script>alert(1)</script> & "x"', 'Run <code>pnpm build</code>.')
     expect(html).not.toContain('<script>')
     expect(html).toContain('<h1>&#60;script&#62;alert(1)&#60;/script&#62; &#38; &#34;x&#34;</h1>')
@@ -30,11 +30,11 @@ const cssFile = readFileSync(
   'utf8',
 )
 
-describe('the pages’ stylesheet', () => {
+describe("the pages' stylesheet", () => {
   const css = style(standalonePage('Site not found', 'Gone.'))
   const [light, dark] = css.split('@media (prefers-color-scheme: dark)')
 
-  it('defines the theme’s own values for the variables it uses, light then dark', () => {
+  it("defines the theme's own values for the variables it uses, light then dark", () => {
     const used = new Set(cssFile.match(/--circi-[\w-]+/g))
     expect(used.size).toBeGreaterThan(5)
     for (const [scheme, block] of [

@@ -265,7 +265,7 @@ describe('integration link helpers', () => {
     expect(await deleteIntegrationLink(t.db, a.made.id, link.id, a.team.id)).toBe(true)
   })
 
-  it('lists a build’s links oldest first with their integration and author', async () => {
+  it("lists a build's links oldest first with their integration and author", async () => {
     const { team, made } = await seedFigma()
     const build = await seedBuild(t.db, team.id)
     const created: { id: string }[] = []
@@ -400,7 +400,7 @@ describe('git hosts as integrations', () => {
     expect((await getIntegration(t.db, a.workspace.id, id))?.needsAttentionAt).toBeNull()
   })
 
-  it('drops a team’s mappings on other integrations of the kinds, keeping the one named', async () => {
+  it("drops a team's mappings on other integrations of the kinds, keeping the one named", async () => {
     const { workspace, team } = await seedTeam(t.db)
     const one = await seedGitLink(t.db, team.id, { externalId: '1', repoRef: 'a/b' })
     const two = await seedGitLink(t.db, team.id, {

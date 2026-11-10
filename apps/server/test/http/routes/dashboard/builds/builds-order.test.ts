@@ -26,7 +26,7 @@ const teamUrl = (query: string) => `/api/teams/${acme.workspaceSlug}/web${query}
 const numbers = (body: { builds: { number: number }[] }) => body.builds.map((b) => b.number)
 
 describe('the order of the builds lists', () => {
-  it('orders a team’s list and pages it with the build number', async () => {
+  it("orders a team's list and pages it with the build number", async () => {
     const newest = (await get(teamUrl('?order=newest'))).json()
     expect(numbers(newest).slice(0, 4)).toEqual([6, 5, 4, 3])
     expect(numbers((await get(teamUrl('?order=oldest'))).json()).slice(0, 3)).toEqual([1, 2, 3])

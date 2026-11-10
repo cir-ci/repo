@@ -138,7 +138,7 @@ export function reviewOverdueMessage(input: SlackMessage.ReviewOverdue): SlackMe
   const due = dueText(input.dueAt)
   const lines = [
     ':hourglass_flowing_sand: *Review overdue*',
-    `*${person(input.reviewer)}*’s review of ${buildLink(build)}${branchText(build)} is overdue.`,
+    `*${person(input.reviewer)}*'s review of ${buildLink(build)}${branchText(build)} is overdue.`,
   ]
   if (due) lines.push(`It was due ${due}`)
   return message(`Review overdue: ${buildLabel(build)}`, lines, build.url)

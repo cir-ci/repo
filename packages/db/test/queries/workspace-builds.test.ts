@@ -50,7 +50,7 @@ describe('listBuildsForWorkspace', () => {
     ])
   })
 
-  it('never shows another workspace’s builds', async () => {
+  it("never shows another workspace's builds", async () => {
     const mine = await workspaceWithTeams()
     const theirs = await workspaceWithTeams()
     await seedBuild(t.db, theirs.web.id)
@@ -88,7 +88,7 @@ describe('listBuildsForWorkspace', () => {
     expect(await list(w, w.owner.id)).toBeUndefined()
   })
 
-  it('applies the workspace’s login-method rules to the session', async () => {
+  it("applies the workspace's login-method rules to the session", async () => {
     const w = await workspaceWithTeams()
     await seedBuild(t.db, w.web.id)
     await t.db
@@ -129,7 +129,7 @@ describe('listBuildsForWorkspace', () => {
     )
   })
 
-  it('filters like a team’s list: by branch, review state and author', async () => {
+  it("filters like a team's list: by branch, review state and author", async () => {
     const w = await workspaceWithTeams()
     const grace = await seedUser(t.db)
     const main = await seedBuild(t.db, w.web.id, { branch: 'main', createdAt: at(1) })
@@ -180,7 +180,7 @@ async function withMembers() {
 }
 
 describe('listBuildFilterSuggestions', () => {
-  it('offers the workspace’s members by name, as user ids, in name order', async () => {
+  it("offers the workspace's members by name, as user ids, in name order", async () => {
     const w = await withMembers()
     const items = await suggest(w, w.owner.id, 'reviewer')
     expect(items?.map((i) => i.label)).toEqual(['Alan Turing', 'Grace Hopper', w.owner.name])
@@ -224,7 +224,7 @@ describe('listBuildFilterSuggestions', () => {
     expect(SUGGESTION_LIMIT).toBeGreaterThan(3)
   })
 
-  it('does not offer another workspace’s people or logins, nor anything to a stranger', async () => {
+  it("does not offer another workspace's people or logins, nor anything to a stranger", async () => {
     const mine = await workspaceWithTeams()
     const theirs = await workspaceWithTeams()
     await seedBuild(t.db, theirs.web.id, { author: { login: 'elsewhere' } })

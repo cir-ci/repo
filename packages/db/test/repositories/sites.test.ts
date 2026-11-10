@@ -79,7 +79,7 @@ async function publish(
 }
 
 describe('publishing and serving', () => {
-  it('creates a site with commit and branch addresses that serve the version’s files', async () => {
+  it("creates a site with commit and branch addresses that serve the version's files", async () => {
     const { team, workspace } = await seedTeam(t.db)
     const result = await publish(team.id)
     expect(result.replaced).toBe(false)
@@ -132,7 +132,7 @@ describe('publishing and serving', () => {
     await expect(publish(team.id, { commitSha: 'abc' })).rejects.toBeInstanceOf(ValidationError)
   })
 
-  it('lists a team’s sites with versions and branch addresses', async () => {
+  it("lists a team's sites with versions and branch addresses", async () => {
     const { team } = await seedTeam(t.db)
     const first = await publish(team.id)
     await publish(team.id, { commitSha: SHA_B })
@@ -222,7 +222,7 @@ describe('sign-in handoff', () => {
     )
   })
 
-  it('slides a site session’s expiry forward', async () => {
+  it("slides a site session's expiry forward", async () => {
     const { owner, auth } = await signedIn()
     const id = await createSiteSession(t.db, {
       label: 'addr',

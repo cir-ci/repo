@@ -40,7 +40,7 @@ describe('ApiClient', () => {
     expect(fake.requests.at(-1)?.path).toBe('/v1/sites/served?name=storybook&branch=main')
   })
 
-  it('turns an error response into an ApiError with the server’s message and body', async () => {
+  it("turns an error response into an ApiError with the server's message and body", async () => {
     const err = await new ApiClient({ baseUrl: `${fake.url}/nope`, token: 't' })
       .team()
       .catch((e: unknown) => e)
@@ -74,7 +74,7 @@ describe('ApiClient', () => {
     ).rejects.toThrow(/Upload of aaaaaaaaaaaa failed: 404/)
   })
 
-  it('reports an error from the site upload with the server’s message', async () => {
+  it("reports an error from the site upload with the server's message", async () => {
     const rejecting = await new FakeCirci({ siteStatus: 413 }).start()
     try {
       const err = await new ApiClient({ baseUrl: rejecting.url, token: 't' })

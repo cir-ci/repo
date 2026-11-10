@@ -180,7 +180,7 @@ describe('integrationEvent (Slack)', () => {
     const { owner, build } = await setup()
     await expect(
       requestReview(t.db, { buildId: build.id, reviewerId: owner.id, requestedById: owner.id }),
-    ).rejects.toThrow('You can’t request a review from yourself.')
+    ).rejects.toThrow("You can't request a review from yourself.")
     expect(await jobs()).toHaveLength(0)
   })
 

@@ -45,7 +45,7 @@ async function queuedJob(sealed?: string) {
 }
 
 describe('notifyGit resolves the provider by the connection kind', () => {
-  it('calls the registry’s provider for the connection’s kind', async () => {
+  it("calls the registry's provider for the connection's kind", async () => {
     const calls: string[] = []
     const github = {
       upsertCheckRun: async (id: string) => {
@@ -77,7 +77,7 @@ describe('notifyGit resolves the provider by the connection kind', () => {
     expect(result).toEqual({ status: 'skipped', reason: 'no github provider configured' })
   })
 
-  it('opens the connection’s sealed credentials for the provider, and never for GitHub’s own', async () => {
+  it("opens the connection's sealed credentials for the provider, and never for GitHub's own", async () => {
     const seen: (string | undefined)[] = []
     const github = {
       upsertCheckRun: async (_id: string, _repo: string, _input: unknown, credentials?: string) => {

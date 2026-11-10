@@ -97,7 +97,7 @@ describe('figma file mapping', () => {
 })
 
 describe('figma frame links', () => {
-  it('turns a pasted frame address into a link, with the frame’s name from Figma', async () => {
+  it("turns a pasted frame address into a link, with the frame's name from Figma", async () => {
     expect(
       await links.resolve(
         { pattern: 'cart', url: FILE_URL },

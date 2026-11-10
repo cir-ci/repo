@@ -166,7 +166,7 @@ export namespace requestReview {
   export type Result = openReviewRequest.Result
 }
 
-const SELF_REQUEST = 'You can’t request a review from yourself.'
+const SELF_REQUEST = "You can't request a review from yourself."
 
 /** Most builds, and most reviewers, one bulk request may cover. */
 export const MAX_BULK_REQUEST_REVIEW = 50

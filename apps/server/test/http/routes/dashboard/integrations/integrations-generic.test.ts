@@ -314,7 +314,7 @@ describe('the mapping page, targets and team mapping', () => {
     expect(row?.needsAttentionReason).toContain('token_revoked')
   })
 
-  it('does not touch another workspace’s integration', async () => {
+  it("does not touch another workspace's integration", async () => {
     const other = await createIntegration(t.db, {
       workspaceId: (await getWorkspaceBySlug(t.db, rival.workspaceSlug)).id,
       kind: 'slack',
