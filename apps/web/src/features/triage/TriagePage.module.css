@@ -81,8 +81,8 @@
 }
 
 .cell[data-changed] {
-  background: color-mix(in srgb, var(--circi-state-review) 24%, transparent);
-  color: var(--circi-state-review-text);
+  background: color-mix(in srgb, var(--circi-state-flaky) 24%, transparent);
+  color: var(--circi-text-primary);
 }
 
 .cell:focus-visible {

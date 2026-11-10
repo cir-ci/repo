@@ -421,7 +421,8 @@ const triageFields = (item: Triage.Item) => [
   item.assignee?.name,
 ]
 
-const GLYPH = { flaky: 'flaky', no_baseline: 'added', failed: 'failed' } as const
+// No baseline is grey (nothing to compare yet, not a change); flaky and failed carry their state colour.
+const GLYPH = { flaky: 'flaky', no_baseline: 'neutral', failed: 'failed' } as const
 
 /** "3 days", refreshed every minute. */
 function Waiting({ iso }: { iso: string }) {
@@ -483,7 +484,7 @@ function Preview({
   )
 }
 
-/** The last builds on the default branch as cells: amber with a tilde where the screenshot changed. */
+/** The last builds on the default branch as cells: orchid (the flaky colour) with a tilde where the screenshot changed. */
 function Film({
   item,
   linkOf,
