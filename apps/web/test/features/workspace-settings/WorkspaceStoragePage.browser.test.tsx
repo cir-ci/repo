@@ -157,6 +157,29 @@ const framed = (width: number) => (
   </AppFrame>
 )
 
+describe('WorkspaceStoragePage By team and the days field', () => {
+  it.each([390, 1280])(
+    'puts the size bar before the days, and keeps the days field compact, at %ipx',
+    async (width) => {
+      fakeApi({ ...NAME, 'GET /api/workspaces/acme/storage': { body: usage() } })
+      await renderPage(framed(width), { ...ROUTE, viewport: [width, 2400] })
+      const teams = page.getByRole('region', { name: 'By team' })
+      const bytes = teams.getByText('1 MB').element()
+      const retention = teams.getByText('30 days').element()
+      // The bar and the size come first in the row; the days after them (never above the bar).
+      expect(
+        bytes.compareDocumentPosition(retention) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+      expect(Math.round(retention.getBoundingClientRect().top)).toBeGreaterThanOrEqual(
+        Math.round(bytes.getBoundingClientRect().top),
+      )
+      // About four digits and the unit, not a form-wide field.
+      const field = days().element().closest('[data-hide-label]')
+      expect(field?.getBoundingClientRect().width).toBeLessThanOrEqual(150)
+    },
+  )
+})
+
 describe('WorkspaceStoragePage in the app frame', () => {
   // The page is shorter than the window: nothing in the frame adds a scroll, up or sideways.
   it.each([

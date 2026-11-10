@@ -126,7 +126,8 @@
 }
 
 .daysField {
-  width: 168px;
+  /* About four digits, the unit and the steppers. */
+  width: 136px;
 }
 
 .teamLink {

@@ -107,9 +107,6 @@ export function WorkspaceStoragePage() {
                     />
                     <Text>{t.name}</Text>
                   </Link>
-                  <Text variant="small" tone="tertiary">
-                    {dayCount(t.retentionDays)}
-                  </Text>
                   <span className={styles.usage}>
                     <span className={styles.barTrack} aria-hidden="true">
                       <span
@@ -119,6 +116,9 @@ export function WorkspaceStoragePage() {
                     </span>
                     <Text className={styles.num}>{formatBytes(t.bytes)}</Text>
                   </span>
+                  <Text variant="small" tone="tertiary">
+                    {dayCount(t.retentionDays)}
+                  </Text>
                 </SettingsRow>
               ))
             )}
