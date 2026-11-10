@@ -30,6 +30,10 @@
   outline: none;
 }
 
+.cancel {
+  display: none;
+}
+
 .list {
   flex: 1 1 auto;
   max-height: 380px;
@@ -350,5 +354,41 @@
 
   .hint:not([data-narrow]) {
     display: none;
+  }
+}
+
+/* The full-screen sheet (CommandDialog): the list takes the height, the field is 52px, Cancel is a 44px target. */
+@media (max-width: 600px) {
+  .field {
+    height: 52px;
+    padding-inline: 16px 4px;
+  }
+
+  .input {
+    font-size: 16px;
+  }
+
+  .cancel {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 0;
+    background: transparent;
+    color: var(--circi-accent-text);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .cancel:focus-visible {
+    outline: 2px solid var(--circi-accent-text);
+    outline-offset: -2px;
+  }
+
+  .list {
+    max-height: none;
   }
 }

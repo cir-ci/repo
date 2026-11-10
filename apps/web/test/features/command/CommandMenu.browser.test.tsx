@@ -696,7 +696,7 @@ describe('recent searches', () => {
 })
 
 describe('on a phone', () => {
-  it('is a bottom sheet with 44px rows, a grabber and room for the home indicator', async () => {
+  it('is a full-screen sheet with 44px rows, a Cancel and room for the home indicator', async () => {
     api(found({ builds: [build()] }))
     await renderPage(
       <ShortcutLayer>
@@ -707,24 +707,28 @@ describe('on a phone', () => {
     await page.getByRole('button', { name: 'Search' }).click()
     const dialog = page.getByRole('dialog', { name: 'Command menu' })
     await expect.element(dialog).toBeVisible()
-    // It slides up from the bottom edge; once it has settled it sits on it.
-    await vi.waitFor(() =>
-      expect(Math.round(dialog.element().getBoundingClientRect().bottom)).toBe(700),
-    )
+    // It slides up; once it has settled it fills the screen.
+    await vi.waitFor(() => expect(Math.round(dialog.element().getBoundingClientRect().top)).toBe(0))
     const box = dialog.element().getBoundingClientRect()
     expect(Math.round(box.left)).toBe(0)
     expect(Math.round(box.width)).toBe(390)
+    expect(Math.round(box.height)).toBe(700)
     const style = getComputedStyle(dialog.element())
-    expect(Number.parseFloat(style.borderTopLeftRadius)).toBeGreaterThan(0)
+    expect(style.borderTopLeftRadius).toBe('0px')
     expect(style.borderBottomLeftRadius).toBe('0px')
     expect(style.paddingBottom).toBe('0px')
     const row = page.getByRole('option').first().element().getBoundingClientRect()
     expect(row.height).toBeGreaterThanOrEqual(44)
+    // Cancel is the way out without an Escape key, and a 44px target.
+    const cancel = dialog.getByRole('button', { name: 'Cancel' })
+    expect(cancel.element().getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
+    // No grabber, no side pane on a phone.
     const grabber = dialog.element().querySelector('span[aria-hidden="true"]')
-    expect(grabber && getComputedStyle(grabber).display).toBe('block')
-    // No side pane on a phone.
+    expect(grabber && getComputedStyle(grabber).display).toBe('none')
     const peek = dialog.element().querySelector('aside[aria-label="Peek"]')
     expect(peek && getComputedStyle(peek).display).toBe('none')
+    await cancel.click()
+    await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
   })
 
   it('stays a centred dialog on a desktop', async () => {
@@ -734,6 +738,9 @@ describe('on a phone', () => {
     const box = page.getByRole('dialog', { name: 'Command menu' }).element().getBoundingClientRect()
     expect(box.bottom).toBeLessThan(800)
     expect(box.width).toBeGreaterThan(700)
+    // The phone's Cancel is not shown.
+    const cancel = [...document.querySelectorAll('button')].find((b) => b.textContent === 'Cancel')
+    expect(cancel && getComputedStyle(cancel).display).toBe('none')
   })
 })
 

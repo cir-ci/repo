@@ -580,6 +580,10 @@ export function CommandMenu({
             onChange={(e) => type(e.target.value)}
             onKeyDown={onKeyDown}
           />
+          {/* The full-screen sheet on a phone has no Escape key: a visible way out (hidden elsewhere). */}
+          <button type="button" className={styles.cancel} onClick={() => onOpenChange(false)}>
+            Cancel
+          </button>
         </div>
         <div
           role="status"
