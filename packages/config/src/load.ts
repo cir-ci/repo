@@ -1,5 +1,7 @@
 import { isIP } from 'node:net'
 
+import { isValidVapidKeys } from '@circi/core/node'
+
 import { isLocalAddress, parsePublicAddress } from './public-url.ts'
 import { envSchema } from './schema.ts'
 import { staticSitesHostProblem } from './sites-host.ts'
@@ -92,6 +94,20 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   }
   if (e.AUTH_EMAIL_ENABLED === true && !smtp) {
     warnings.push('AUTH_EMAIL_ENABLED is on but SMTP_HOST is not set, so email login is off.')
+  }
+
+  let vapid: Config.Vapid | undefined
+  if (e.VAPID_PUBLIC_KEY || e.VAPID_PRIVATE_KEY) {
+    if (!(e.VAPID_PUBLIC_KEY && e.VAPID_PRIVATE_KEY)) {
+      issues.push('VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY: set both, or neither')
+    } else if (
+      !isValidVapidKeys({ publicKey: e.VAPID_PUBLIC_KEY, privateKey: e.VAPID_PRIVATE_KEY })
+    ) {
+      issues.push('VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY: not a matching P-256 key pair (base64url)')
+    } else vapid = { publicKey: e.VAPID_PUBLIC_KEY, privateKey: e.VAPID_PRIVATE_KEY }
+  }
+  if (e.VAPID_SUBJECT && !/^(mailto:|https:\/\/)/.test(e.VAPID_SUBJECT)) {
+    issues.push('VAPID_SUBJECT: must start with mailto: or https://')
   }
 
   let github: Config.GithubApp | undefined
@@ -228,6 +244,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     ...(github ? { github } : {}),
     ...(githubApiUrl ? { githubApiUrl } : {}),
     ...(slack ? { slack } : {}),
+    ...(vapid ? { vapid } : {}),
+    vapidSubject: e.VAPID_SUBJECT ?? publicUrl.origin,
     jobRetry: {
       baseMs: Math.round(e.JOB_RETRY_BASE_SECONDS * 1000),
       maxMs: Math.round(e.JOB_RETRY_MAX_SECONDS * 1000),

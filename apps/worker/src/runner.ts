@@ -35,6 +35,15 @@ export namespace startWorker {
     authSecret?: string
     /** Sends notification emails; absent without SMTP, and such jobs are then skipped. */
     mailer?: sendNotificationEmail.Sender
+    /** Web push from this server: the contact in the requests, the operator's keys (else the database's) and the push service's edge. */
+    push?: {
+      subject: string
+      vapid?: { publicKey: string; privateKey: string } | undefined
+      fetch?: typeof fetch
+      /** Push to private addresses too (tests). */
+      allowPrivate?: boolean
+      resolve?: (host: string) => Promise<string[]>
+    }
     /**
      * Instance settings of the integrations (`config`: the Slack app…) and a replaceable `fetch`.
      * Absent in tests that do not deliver integration events (such jobs are then dropped).

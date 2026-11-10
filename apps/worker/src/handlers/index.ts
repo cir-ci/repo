@@ -6,7 +6,7 @@ import { deliverWebhook } from '../jobs/deliver-webhook.ts'
 import { integrationEvent } from '../jobs/integration-event.ts'
 import { notifyGit } from '../jobs/notify-git.ts'
 import { processBuild } from '../jobs/process-build.ts'
-import { sendNotificationEmail } from '../jobs/send-email.ts'
+import { deliverNotification } from '../jobs/send-email.ts'
 import type { startWorker } from '../runner.ts'
 
 type Deps = startWorker.Deps
@@ -100,11 +100,13 @@ const gitNotify: Handler = {
 const email: Handler = {
   fields: (job) => ({ notificationId: job.payload.notificationId }),
   async run(deps, job) {
-    const { db, mailer, publicOrigin } = deps
+    const { db, mailer, publicOrigin, authSecret, push } = deps
     const sender = { ...(mailer ? { mailer } : {}), ...(publicOrigin ? { publicOrigin } : {}) }
-    return { result: await sendNotificationEmail({ db, ...sender }, job) }
+    // Web push needs the instance secret (it opens the stored signing key) and the contact.
+    const web = authSecret && push ? { authSecret, ...push } : undefined
+    return { result: await deliverNotification({ db, ...sender, push: web }, job) }
   },
-  done: 'notification email processed',
+  done: 'notification delivered',
   retry: 'could not send a notification email, will retry',
   failed: 'could not send a notification email',
 }

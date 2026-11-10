@@ -74,5 +74,9 @@ export namespace Inbox {
   export interface Preferences {
     emailReviewRequested: boolean
     emailReviewOverdue: boolean
+    /** Which kinds go to the person's devices that turned push on: review requests and overdue, mentions, approvals and rejections. */
+    pushReviewRequested: boolean
+    pushMentioned: boolean
+    pushReviewOutcome: boolean
   }
 }

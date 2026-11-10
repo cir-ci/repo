@@ -82,6 +82,7 @@ export function serverOptionsFor(rt: ServerRuntime, webDist: string): buildServe
       integrations: { config: integrations, ...live },
       ...(sites ? { sites } : {}),
       authSecret: config.authSecret,
+      ...(config.vapid ? { vapid: config.vapid } : {}),
       instance: { config, ...(rt.mailer ? { mailer: rt.mailer } : {}) },
       webDist,
     },

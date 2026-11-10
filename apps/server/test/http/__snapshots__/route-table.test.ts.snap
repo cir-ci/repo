@@ -4,6 +4,7 @@ exports[`the route table > has not changed (method and url, sorted) 1`] = `
 "DELETE /api/auth/sign-in/email-otp
 DELETE /api/inbox/:id
 DELETE /api/instance/health/address-checklist/dismissed
+DELETE /api/push/devices/:id
 DELETE /api/teams/:workspace/:team
 DELETE /api/teams/:workspace/:team/builds/:number/comments/:id
 DELETE /api/teams/:workspace/:team/github
@@ -40,6 +41,8 @@ GET /api/instance/settings
 GET /api/instance/workspaces
 GET /api/integrations/:kind/callback
 GET /api/integrations/:kind/setup
+GET /api/push/devices
+GET /api/push/public-key
 GET /api/reviews
 GET /api/teams
 GET /api/teams/:workspace/:team
@@ -106,6 +109,8 @@ HEAD /api/instance/settings
 HEAD /api/instance/workspaces
 HEAD /api/integrations/:kind/callback
 HEAD /api/integrations/:kind/setup
+HEAD /api/push/devices
+HEAD /api/push/public-key
 HEAD /api/reviews
 HEAD /api/teams
 HEAD /api/teams/:workspace/:team
@@ -184,6 +189,8 @@ POST /api/instance/workspaces
 POST /api/instance/workspaces/:id/purge
 POST /api/instance/workspaces/:id/restore
 POST /api/integrations/:kind/webhook
+POST /api/push/subscribe
+POST /api/push/unsubscribe
 POST /api/site-handoff
 POST /api/teams/:workspace/:team/builds/:number/comments
 POST /api/teams/:workspace/:team/builds/:number/issues

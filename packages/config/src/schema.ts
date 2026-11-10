@@ -52,6 +52,11 @@ export const envSchema = z.object({
   SLACK_CLIENT_ID: z.preprocess(emptyToUndefined, z.string().optional()),
   SLACK_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),
   SLACK_API_URL: z.preprocess(emptyToUndefined, z.string().optional()),
+  /** Web push signing keys (a pair, both or neither); without them the server makes its own on first use. */
+  VAPID_PUBLIC_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
+  VAPID_PRIVATE_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
+  /** The contact the push services may use (`mailto:` or `https:`); default the dashboard's address. */
+  VAPID_SUBJECT: z.preprocess(emptyToUndefined, z.string().optional()),
   STATIC_SITES_HOST: z.preprocess(emptyToUndefined, z.string().optional()),
   STATIC_SITES_MAX_MB: z.preprocess(
     emptyToUndefined,

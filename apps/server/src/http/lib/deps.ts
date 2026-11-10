@@ -101,6 +101,8 @@ export namespace Deps {
     workspaceCreation?: 'admin' | 'anyone'
     /** The instance secret, from which the first-run setup code is derived. */
     authSecret?: string
+    /** The operator's web push keys (`VAPID_*`); absent: the server keeps its own in the database. */
+    vapid?: { publicKey: string; privateKey: string }
     /** The configuration behind Instance › Settings and Health; without it those routes answer 501. */
     instance?: Deps.Instance
     /** Built web app (apps/web/dist). Missing: the API still works, pages explain how to build. */

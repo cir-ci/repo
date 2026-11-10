@@ -112,11 +112,16 @@ describe('inbox routes', () => {
     expect((await get('/api/inbox/preferences')).json()).toEqual({
       emailReviewRequested: true,
       emailReviewOverdue: true,
+      pushReviewRequested: true,
+      pushMentioned: true,
+      pushReviewOutcome: true,
     })
     const put = await send('PUT', '/api/inbox/preferences', {
       payload: { emailReviewRequested: false },
     })
-    expect(put.json()).toEqual({ emailReviewRequested: false, emailReviewOverdue: true })
+    expect(put.json()).toMatchObject({ emailReviewRequested: false, emailReviewOverdue: true })
+    const push = await send('PUT', '/api/inbox/preferences', { payload: { pushMentioned: false } })
+    expect(push.json()).toMatchObject({ pushMentioned: false, pushReviewRequested: true })
     expect((await get('/api/inbox/preferences', rivalCookie)).json().emailReviewRequested).toBe(
       true,
     )

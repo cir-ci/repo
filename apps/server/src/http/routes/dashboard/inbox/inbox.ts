@@ -30,7 +30,13 @@ const snoozeBody = z.object({
   date: z.iso.datetime({ offset: true }).optional(),
 })
 const preferencesBody = z
-  .object({ emailReviewRequested: z.boolean(), emailReviewOverdue: z.boolean() })
+  .object({
+    emailReviewRequested: z.boolean(),
+    emailReviewOverdue: z.boolean(),
+    pushReviewRequested: z.boolean(),
+    pushMentioned: z.boolean(),
+    pushReviewOutcome: z.boolean(),
+  })
   .partial()
   .strict()
 

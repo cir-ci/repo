@@ -40,8 +40,9 @@ export const notifications = pgTable(
 )
 
 /**
- * Which notifications a person also gets by email. One row per person who changed anything;
- * no row means the defaults (both on). Email is only sent when the instance has SMTP.
+ * Which notifications a person also gets by email, and which kinds go to their devices as web
+ * push. One row per person who changed anything; no row means the defaults (all on). Email is only
+ * sent when the instance has SMTP; push only to devices that turned it on (`push_subscriptions`).
  */
 export const notificationPreferences = pgTable('notification_preferences', {
   userId: text('user_id')
@@ -49,6 +50,9 @@ export const notificationPreferences = pgTable('notification_preferences', {
     .references(() => user.id, { onDelete: 'cascade' }),
   emailReviewRequested: boolean('email_review_requested').notNull().default(true),
   emailReviewOverdue: boolean('email_review_overdue').notNull().default(true),
+  pushReviewRequested: boolean('push_review_requested').notNull().default(true),
+  pushMentioned: boolean('push_mentioned').notNull().default(true),
+  pushReviewOutcome: boolean('push_review_outcome').notNull().default(true),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()
     .default(sql`now()`),

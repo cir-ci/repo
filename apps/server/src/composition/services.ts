@@ -96,6 +96,11 @@ export async function runServices(options: runServices.Options): Promise<void> {
         webhookTimeoutMs: rt.config.webhookTimeoutMs,
         integrations: { config: integrationConfig(rt.config) },
         ...(rt.mailer ? { mailer: rt.mailer } : {}),
+        push: {
+          subject: rt.config.vapidSubject,
+          vapid: rt.config.vapid,
+          allowPrivate: rt.config.webhookAllowPrivate,
+        },
       })
     }
     if (options.http) {

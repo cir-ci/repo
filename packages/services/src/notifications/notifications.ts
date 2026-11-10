@@ -6,7 +6,9 @@ import {
   createNotification,
   deleteNotification,
   emailPreferenceFor,
+  hasPushSubscription,
   markAllNotificationsRead,
+  pushPreferenceFor,
   setNotificationPreferences,
   setNotificationRead,
   snoozeNotification as snoozeRow,
@@ -23,21 +25,33 @@ import { withNoticeUndo } from './undo.ts'
  */
 
 /**
- * Tells `userId` about something. Does nothing when the person caused it themselves. For the
- * kinds that are also emailed (review requested, re-requested, overdue), queues an email job
- * unless the person turned that email off; the worker sends it only when the instance has SMTP.
+ * Tells `userId` about something. Does nothing when the person caused it themselves. Queues one
+ * delivery job when the notification is also sent beyond the inbox: an email for the kinds that
+ * are emailed (review requested, re-requested, overdue) unless the person turned it off, and a web
+ * push for the kinds that are pushed when they turned that kind on and have a device that takes
+ * it. The worker re-checks both, and sends the email only when the instance has SMTP.
  * Returns the notification, or undefined when none was made.
  */
 export async function notify(db: Database, input: notify.Input): Promise<Notification | undefined> {
   if (input.actorId && input.actorId === input.userId) return undefined
   const notification = await createNotification(db, input)
-  const preference = emailPreferenceFor(input.kind)
-  if (preference && (await getNotificationPreferences(db, input.userId))[preference]) {
-    await enqueueJob(db, {
-      queue: QUEUES.notificationEmail,
-      payload: { notificationId: notification.id },
-      dedupeKey: `notification-email:${notification.id}`,
-    })
+  const emailPreference = emailPreferenceFor(input.kind)
+  const pushPreference = pushPreferenceFor(input.kind)
+  if (emailPreference || pushPreference) {
+    const preferences = await getNotificationPreferences(db, input.userId)
+    const email = emailPreference !== undefined && preferences[emailPreference]
+    const push =
+      pushPreference !== undefined &&
+      preferences[pushPreference] &&
+      (await hasPushSubscription(db, input.userId))
+    if (email || push) {
+      await enqueueJob(db, {
+        // The queue kept its name from when it only sent email; see `deliverNotification`.
+        queue: QUEUES.notificationEmail,
+        payload: { notificationId: notification.id },
+        dedupeKey: `notification-email:${notification.id}`,
+      })
+    }
   }
   return notification
 }

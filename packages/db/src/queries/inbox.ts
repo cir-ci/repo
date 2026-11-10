@@ -305,6 +305,10 @@ export namespace getNotificationPreferences {
   export interface Preferences {
     emailReviewRequested: boolean
     emailReviewOverdue: boolean
+    /** Web push, per kind: review requests and overdue, mentions, approvals and rejections. */
+    pushReviewRequested: boolean
+    pushMentioned: boolean
+    pushReviewOutcome: boolean
   }
 }
 
@@ -320,6 +324,9 @@ export async function getNotificationPreferences(
     ? {
         emailReviewRequested: row.emailReviewRequested,
         emailReviewOverdue: row.emailReviewOverdue,
+        pushReviewRequested: row.pushReviewRequested,
+        pushMentioned: row.pushMentioned,
+        pushReviewOutcome: row.pushReviewOutcome,
       }
     : { ...DEFAULT_NOTIFICATION_PREFERENCES }
 }
@@ -327,4 +334,7 @@ export async function getNotificationPreferences(
 export const DEFAULT_NOTIFICATION_PREFERENCES: getNotificationPreferences.Preferences = {
   emailReviewRequested: true,
   emailReviewOverdue: true,
+  pushReviewRequested: true,
+  pushMentioned: true,
+  pushReviewOutcome: true,
 }

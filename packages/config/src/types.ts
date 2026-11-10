@@ -54,6 +54,12 @@ export namespace Config {
         requestTimeoutMs: number
       }
 
+  /** Web push (VAPID) identity from the environment; absent: the server keeps its own pair in the database. */
+  export interface Vapid {
+    publicKey: string
+    privateKey: string
+  }
+
   export interface Smtp {
     host: string
     port: number
@@ -94,6 +100,10 @@ export interface Config {
   storage: Config.Storage
   /** Outgoing mail (`SMTP_*`); absent when no SMTP server is configured. */
   smtp?: Config.Smtp
+  /** Web push signing keys from `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`; absent: generated on first use and kept in the database. */
+  vapid?: Config.Vapid
+  /** The contact in push requests (`VAPID_SUBJECT`, default the dashboard's address). */
+  vapidSubject: string
   /** Email login (one-time code / link) is offered: switched on (default) and SMTP is set up. */
   emailLogin: boolean
   /** Static site hosting: absent unless `STATIC_SITES_HOST` is set. */

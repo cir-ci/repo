@@ -32,6 +32,25 @@ export function emailPreferenceFor(
       : undefined
 }
 
+/** The preference that controls the push for a kind; undefined for kinds that are not pushed. */
+export function pushPreferenceFor(
+  kind: NotificationKind,
+): keyof getNotificationPreferences.Preferences | undefined {
+  switch (kind) {
+    case 'review_requested':
+    case 'review_re_requested':
+    case 'review_overdue':
+      return 'pushReviewRequested'
+    case 'mentioned':
+      return 'pushMentioned'
+    case 'build_approved':
+    case 'build_rejected':
+      return 'pushReviewOutcome'
+    default:
+      return undefined
+  }
+}
+
 export async function createNotification(
   db: Database,
   input: createNotification.Input,

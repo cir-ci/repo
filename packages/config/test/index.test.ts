@@ -1,3 +1,4 @@
+import { generateVapidKeys } from '@circi/core/node'
 import { describe, expect, it } from 'vitest'
 
 import { ConfigError, loadConfig } from '#src/index.ts'
@@ -102,6 +103,31 @@ describe('loadConfig', () => {
     expect(() =>
       loadConfig({ ...base, SMTP_HOST: 'h', SMTP_FROM: 'a@b.c', SMTP_USER: 'u' }),
     ).toThrow('SMTP_USER')
+  })
+
+  it('takes the web push keys from the environment as a matching pair, with a default contact', () => {
+    expect(loadConfig(base).vapid).toBeUndefined()
+    expect(loadConfig({ ...base, PUBLIC_URL: 'https://ci.acme.io' }).vapidSubject).toBe(
+      'https://ci.acme.io',
+    )
+    const keys = generateVapidKeys()
+    const c = loadConfig({
+      ...base,
+      VAPID_PUBLIC_KEY: keys.publicKey,
+      VAPID_PRIVATE_KEY: keys.privateKey,
+      VAPID_SUBJECT: 'mailto:ops@acme.io',
+    })
+    expect(c.vapid).toEqual(keys)
+    expect(c.vapidSubject).toBe('mailto:ops@acme.io')
+    expect(() => loadConfig({ ...base, VAPID_PUBLIC_KEY: keys.publicKey })).toThrow('set both')
+    expect(() =>
+      loadConfig({
+        ...base,
+        VAPID_PUBLIC_KEY: generateVapidKeys().publicKey,
+        VAPID_PRIVATE_KEY: keys.privateKey,
+      }),
+    ).toThrow('matching')
+    expect(() => loadConfig({ ...base, VAPID_SUBJECT: 'ops@acme.io' })).toThrow('VAPID_SUBJECT')
   })
 
   it('requires DATABASE_URL', () => {

@@ -13,6 +13,7 @@ import { pino } from 'pino'
 import sharp from 'sharp'
 
 import { buildServer } from '#http/app.ts'
+import type { Deps } from '#http/lib/deps.ts'
 
 import { clientFor, signedInClient, type Client } from './client.ts'
 import { snapshotDb } from './db-snapshot.ts'
@@ -38,7 +39,7 @@ export async function png(color: string): Promise<Buffer> {
  * two builds, `rival` is someone else), both signed in, over a real PGlite database and local
  * file storage.
  */
-export async function startDashboard() {
+export async function startDashboard(extra: Partial<Deps.Dashboard> = {}) {
   const t = await createTestDb()
   const betterAuth = createTestAuth(t.db)
   const dir = await mkdtemp(join(tmpdir(), 'circi-dash-'))
@@ -50,7 +51,7 @@ export async function startDashboard() {
   const app = buildServer({
     logger,
     checks: [],
-    dashboard: { db: t.db, auth: betterAuth, storage, publicOrigin: ORIGIN, webDist },
+    dashboard: { db: t.db, auth: betterAuth, storage, publicOrigin: ORIGIN, webDist, ...extra },
   })
   await app.ready()
 

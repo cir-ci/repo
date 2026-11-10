@@ -56,6 +56,7 @@ describe('migrations', () => {
       'notifications',
       'pr_comments',
       'provider_deliveries',
+      'push_subscriptions',
       'review_requests',
       'review_rule_reviewers',
       'review_rules',

@@ -19,6 +19,20 @@ export async function setSetting(db: Database, key: string, value: string): Prom
     .onConflictDoUpdate({ target: instanceSettings.key, set: { value, updatedAt: new Date() } })
 }
 
+/** Stores a setting only when none exists, so concurrent first starts keep one value; true when this call stored it. */
+export async function setSettingIfAbsent(
+  db: Database,
+  key: string,
+  value: string,
+): Promise<boolean> {
+  const rows = await db
+    .insert(instanceSettings)
+    .values({ key, value })
+    .onConflictDoNothing()
+    .returning({ key: instanceSettings.key })
+  return rows.length > 0
+}
+
 export async function deleteSetting(db: Database, key: string): Promise<void> {
   await db.delete(instanceSettings).where(eq(instanceSettings.key, key))
 }
