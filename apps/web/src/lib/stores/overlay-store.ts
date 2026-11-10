@@ -10,6 +10,7 @@ export const useOverlayStore = create<OverlayStore.State & OverlayStore.Actions>
   setImportWorkspace: (importWorkspace) => set({ importWorkspace }),
   setSettingsNavOpen: (settingsNavOpen) => set({ settingsNavOpen }),
   setMoreOpen: (moreOpen) => set({ moreOpen }),
+  setTeamsOpen: (teamsOpen) => set({ teamsOpen }),
   reset: () => set(initialOverlayState()),
 }))
 
@@ -22,6 +23,7 @@ function initialOverlayState(): OverlayStore.State {
     importWorkspace: null,
     settingsNavOpen: false,
     moreOpen: false,
+    teamsOpen: false,
   }
 }
 
@@ -38,6 +40,8 @@ export namespace OverlayStore {
     settingsNavOpen: boolean
     /** The phone's More sheet (the last tab of the bottom bar). */
     moreOpen: boolean
+    /** The phone's Teams sheet (the Teams tab of the bottom bar). */
+    teamsOpen: boolean
   }
   export interface Actions {
     setCommandMenuOpen: (open: boolean) => void
@@ -47,6 +51,7 @@ export namespace OverlayStore {
     setImportWorkspace: (workspace: string | null) => void
     setSettingsNavOpen: (open: boolean) => void
     setMoreOpen: (open: boolean) => void
+    setTeamsOpen: (open: boolean) => void
     reset: () => void
   }
 }

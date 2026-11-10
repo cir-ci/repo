@@ -14,8 +14,11 @@ import {
   sectionLabel,
   sidebarTeams,
   TEAM_SETTINGS_PAGES,
+  teamSections,
   teamSettingsKey,
+  teamsTabLabel,
   switchWorkspacePath,
+  yourTeams,
 } from '#app/shell-model.ts'
 
 const overview = (workspace: string, team: string): Team.Overview => ({
@@ -303,5 +306,68 @@ describe('switchWorkspacePath', () => {
     expect(go('/account/profile')).toBeUndefined()
     expect(go('/instance/health')).toBeUndefined()
     expect(go('/integrations/github/setup')).toBeUndefined()
+  })
+})
+
+const sidebar = (pinned: string[], triage: Record<string, number> = {}): Sidebar.Model => ({
+  teams: ['web', 'api', 'portal'].map((slug) => ({
+    slug,
+    name: slug,
+    color: 'slate',
+    icon: null,
+    pinned: pinned.includes(slug),
+    triage: triage[slug] ?? 0,
+    memberCount: 1,
+    memberPreview: [],
+    siteCount: 0,
+    youAreMember: true,
+  })),
+  views: [],
+  inboxUnread: 0,
+  reviews: 0,
+  triageAssigned: 0,
+  canManage: true,
+})
+
+describe('yourTeams, teamSections and teamsTabLabel', () => {
+  const items = [overview('globex', 'portal'), overview('acme', 'web'), overview('acme', 'api')]
+
+  it('puts pinned teams first, then the rest A to Z, with the sidebar counts', () => {
+    const teams = yourTeams(items, {
+      acme: sidebar(['web'], { web: 4 }),
+      globex: sidebar([]),
+    })
+    expect(teams.map((t) => [t.slug, t.pinned, t.triage])).toEqual([
+      ['web', true, 4],
+      ['api', false, 0],
+      ['portal', false, 0],
+    ])
+  })
+
+  it('lists the teams before any sidebar model has loaded', () => {
+    expect(yourTeams(items, {}).map((t) => t.slug)).toEqual(['api', 'portal', 'web'])
+    expect(yourTeams(undefined, {})).toEqual([])
+  })
+
+  it('is one run for one workspace, and Pinned plus one run per workspace for several', () => {
+    const several = yourTeams(items, { acme: sidebar(['web']), globex: sidebar([]) })
+    expect(
+      teamSections(several).map((s) => [s.label, s.showWorkspace, s.teams.map((t) => t.slug)]),
+    ).toEqual([
+      ['Pinned', true, ['web']],
+      ['ACME', false, ['api']],
+      ['GLOBEX', false, ['portal']],
+    ])
+    const one = yourTeams([overview('acme', 'web'), overview('acme', 'api')], {})
+    expect(teamSections(one).map((s) => [s.label, s.teams.map((t) => t.slug)])).toEqual([
+      [undefined, ['api', 'web']],
+    ])
+    expect(teamSections([])).toEqual([])
+  })
+
+  it('labels the tab with the team when there is exactly one, else Teams', () => {
+    expect(teamsTabLabel(yourTeams([overview('acme', 'web')], {}))).toBe('web')
+    expect(teamsTabLabel(yourTeams(items, {}))).toBe('Teams')
+    expect(teamsTabLabel([])).toBe('Teams')
   })
 })

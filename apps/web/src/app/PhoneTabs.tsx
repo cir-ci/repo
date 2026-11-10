@@ -1,4 +1,5 @@
 import {
+  Avatar,
   BottomBar,
   BottomBarItem,
   FolderOpenIcon,
@@ -12,15 +13,28 @@ import type { MouseEvent } from 'react'
 
 import { useSidebarModel } from '#features/sidebar/api.ts'
 import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
+import { useYourTeams } from '#features/sidebar/use-your-teams.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 
-import { countOrUndefined, currentSection, goPath, phoneTeam } from './shell-model.ts'
+import {
+  countOrUndefined,
+  currentSection,
+  goPath,
+  phoneTeam,
+  TEAM_STACK_LIMIT,
+  teamsTabLabel,
+  type YourTeam,
+} from './shell-model.ts'
+
+import styles from './PhoneTabs.module.css'
 
 /**
  * The phone's bottom tab bar (canvas: Phone, inbox to review): Inbox, Reviews, Triage, Teams and
- * More, with the sidebar's counts. Workspace and team switching live in the More sheet. Each tab is a
- * real link that navigates through the router; More opens the sheet of the rest (`PhoneMore`).
+ * More, with the sidebar's counts. Inbox, Reviews and Triage are real links that navigate through
+ * the router. Teams shows up to three of your teams' tiles (its label is the team's name when
+ * you are in exactly one) and opens the sheet of your teams (`PhoneTeams`); More opens the sheet
+ * of the rest, with the workspace switcher (`PhoneMore`).
  */
 export function PhoneTabs() {
   const navigate = useNavigate()
@@ -32,6 +46,9 @@ export function PhoneTabs() {
   const moreOpen = useOverlayStore((s) => s.moreOpen)
   const setMoreOpen = useOverlayStore((s) => s.setMoreOpen)
   const team = phoneTeam(model?.teams, params.team)
+  const teams = useYourTeams()
+  const teamsOpen = useOverlayStore((s) => s.teamsOpen)
+  const setTeamsOpen = useOverlayStore((s) => s.setTeamsOpen)
 
   const reviews = goPath('reviews', { workspace: workspace?.slug })
   const triage = goPath('triage', {
@@ -77,23 +94,50 @@ export function PhoneTabs() {
         Triage
       </BottomBarItem>
       <BottomBarItem
-        icon={<FolderOpenIcon />}
-        href="/"
-        onClick={go('/')}
-        selected={section === 'teams' || section === 'builds'}
+        icon={<TeamStack teams={teams} />}
+        opensSheet
+        selected={
+          teamsOpen ||
+          section === 'teams' ||
+          section === 'builds' ||
+          section === 'baselines' ||
+          section === 'sites'
+        }
+        onClick={() => setTeamsOpen(true)}
       >
-        Teams
+        {teamsTabLabel(teams)}
       </BottomBarItem>
       <BottomBarItem
         icon={<RowMenuIcon />}
         opensSheet
-        selected={
-          moreOpen || section === 'insights' || section === 'baselines' || section === 'sites'
-        }
+        selected={moreOpen || section === 'insights'}
         onClick={() => setMoreOpen(true)}
       >
         More
       </BottomBarItem>
     </BottomBar>
+  )
+}
+
+/** The Teams tab's icon: your first few teams' tiles, overlapping; the folder before any is known. */
+function TeamStack({ teams }: { teams: readonly YourTeam[] }) {
+  const shown = teams.slice(0, TEAM_STACK_LIMIT)
+  if (shown.length === 0) return <FolderOpenIcon />
+  return (
+    <span className={styles.stack}>
+      {shown.map((t) => (
+        <span key={`${t.workspace.slug}/${t.slug}`} className={styles.tile}>
+          <Avatar
+            type="team"
+            aria-hidden
+            slug={t.slug}
+            name={t.name}
+            color={t.color}
+            icon={t.icon}
+            size={20}
+          />
+        </span>
+      ))}
+    </span>
   )
 }

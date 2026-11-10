@@ -128,6 +128,87 @@ export function phoneTeam(
   return ordered.find((t) => t.slug === open) ?? ordered.find((t) => t.triage > 0) ?? ordered[0]
 }
 
+/** One of your teams, in whichever workspace, as the phone's Teams tab and sheet show it. */
+export interface YourTeam {
+  workspace: { slug: string; name: string }
+  slug: string
+  name: string
+  color: Team.Overview['team']['color']
+  icon: string | null
+  pinned: boolean
+  /** Triage items waiting; 0 until the workspace's sidebar model has loaded. */
+  triage: number
+}
+
+/**
+ * Your teams across workspaces, pinned first (in the order the server gives within a workspace),
+ * then the rest A to Z. The overview says which teams you have; each workspace's sidebar model,
+ * once loaded, adds whether it is pinned and its triage count.
+ */
+export function yourTeams(
+  overview: readonly Team.Overview[] | undefined,
+  sidebars: Readonly<Record<string, Sidebar.Model | undefined>>,
+): YourTeam[] {
+  const all = (overview ?? []).map((item): YourTeam => {
+    const known = sidebars[item.workspace.slug]?.teams.find((t) => t.slug === item.team.slug)
+    return {
+      workspace: { slug: item.workspace.slug, name: item.workspace.name },
+      slug: item.team.slug,
+      name: item.team.name,
+      color: item.team.color,
+      icon: item.team.icon,
+      pinned: known?.pinned ?? false,
+      triage: known?.triage ?? 0,
+    }
+  })
+  const rest = all.filter((t) => !t.pinned).toSorted((a, b) => a.name.localeCompare(b.name))
+  return [...all.filter((t) => t.pinned), ...rest]
+}
+
+/** A run of rows in the Teams sheet; `label` is absent when there is nothing to tell apart. */
+export interface TeamSection {
+  key: string
+  label?: string
+  /** Rows say which workspace each team is in (the Pinned run mixes workspaces). */
+  showWorkspace: boolean
+  teams: YourTeam[]
+}
+
+/**
+ * The Teams sheet's rows: with one workspace, one run (pinned first). With several, a Pinned run
+ * first (each row says its workspace), then one run per workspace, A to Z, of its other teams.
+ */
+export function teamSections(teams: readonly YourTeam[]): TeamSection[] {
+  const workspaces = new Set(teams.map((t) => t.workspace.slug))
+  if (workspaces.size <= 1)
+    return teams.length === 0 ? [] : [{ key: 'all', showWorkspace: false, teams: [...teams] }]
+  const sections: TeamSection[] = []
+  const pinned = teams.filter((t) => t.pinned)
+  if (pinned.length > 0)
+    sections.push({ key: 'pinned', label: 'Pinned', showWorkspace: true, teams: pinned })
+  const byWorkspace = new Map<string, YourTeam[]>()
+  for (const t of teams.filter((x) => !x.pinned))
+    byWorkspace.set(t.workspace.slug, [...(byWorkspace.get(t.workspace.slug) ?? []), t])
+  const ordered = [...byWorkspace.values()].toSorted((a, b) =>
+    (a[0]?.workspace.name ?? '').localeCompare(b[0]?.workspace.name ?? ''),
+  )
+  for (const list of ordered)
+    sections.push({
+      key: list[0]?.workspace.slug ?? '',
+      label: list[0]?.workspace.name ?? '',
+      showWorkspace: false,
+      teams: list,
+    })
+  return sections
+}
+
+/** The Teams tab's label: the team's name when you are in exactly one, else "Teams". */
+export const teamsTabLabel = (teams: readonly YourTeam[]): string =>
+  teams.length === 1 ? (teams[0]?.name ?? 'Teams') : 'Teams'
+
+/** How many team tiles the Teams tab's icon stacks. */
+export const TEAM_STACK_LIMIT = 3
+
 /** A count is shown only when there is something waiting. */
 export const countOrUndefined = (n: number | undefined): number | undefined => (n ? n : undefined)
 
