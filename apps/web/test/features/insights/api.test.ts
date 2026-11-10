@@ -168,14 +168,14 @@ describe('summary tiles', () => {
   })
 })
 
-describe('the flaky delta', () => {
-  const week = (weekStart: string, flaky: number) => ({
-    weekStart,
-    medianReviewHours: null,
-    reviews: 0,
-    flaky,
-  })
+const flakyWeek = (weekStart: string, flaky: number) => ({
+  weekStart,
+  medianReviewHours: null,
+  reviews: 0,
+  flaky,
+})
 
+describe('the flaky delta', () => {
   it('numbers weeks the ISO way', () => {
     expect(isoWeek('2026-10-26T00:00:00.000Z')).toBe(44)
     expect(isoWeek('2026-01-05T00:00:00.000Z')).toBe(2)
@@ -184,21 +184,24 @@ describe('the flaky delta', () => {
 
   it('says how many fewer or more since the first week', () => {
     const fewer = flakyDelta([
-      week('2026-10-26T00:00:00.000Z', 12),
-      week('2026-11-02T00:00:00.000Z', 7),
+      flakyWeek('2026-10-26T00:00:00.000Z', 12),
+      flakyWeek('2026-11-02T00:00:00.000Z', 7),
     ])
     expect(fewer).toMatchObject({ text: '▼ 5 since W44', tone: 'good' })
     const more = flakyDelta([
-      week('2026-10-26T00:00:00.000Z', 2),
-      week('2026-11-02T00:00:00.000Z', 3),
+      flakyWeek('2026-10-26T00:00:00.000Z', 2),
+      flakyWeek('2026-11-02T00:00:00.000Z', 3),
     ])
     expect(more).toMatchObject({ text: '▲ 1 since W44', tone: 'bad' })
   })
 
   it('says nothing when nothing moved or there is one week', () => {
     expect(
-      flakyDelta([week('2026-10-26T00:00:00.000Z', 4), week('2026-11-02T00:00:00.000Z', 4)]),
+      flakyDelta([
+        flakyWeek('2026-10-26T00:00:00.000Z', 4),
+        flakyWeek('2026-11-02T00:00:00.000Z', 4),
+      ]),
     ).toBeNull()
-    expect(flakyDelta([week('2026-10-26T00:00:00.000Z', 4)])).toBeNull()
+    expect(flakyDelta([flakyWeek('2026-10-26T00:00:00.000Z', 4)])).toBeNull()
   })
 })
