@@ -25,7 +25,7 @@ export const settingsBody = z
 export const appearanceBody = z
   .object({
     color: z.string().max(40),
-    /** null clears the icon (the tile shows the team's first letter). */
+    /** null clears the icon (the tile shows only its marble). */
     icon: z.string().max(40).nullable(),
   })
   .partial()

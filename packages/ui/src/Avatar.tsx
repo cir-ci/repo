@@ -1,18 +1,20 @@
 import { Avatar as BaseAvatar } from '@base-ui/react/avatar'
 import BoringAvatar from 'boring-avatars'
+import { DynamicIcon, type IconName } from 'lucide-react/dynamic.mjs'
 import type { CSSProperties, ReactNode } from 'react'
 
 import { peoplePalette, teamPalette, useAvatarScheme, workspacePalette } from './avatar-palettes.ts'
 import { cx } from './cx.ts'
-import { TEAM_ICON_NAMES, TEAM_ICONS, type TeamColor, type TeamIconName } from './team-icons.ts'
+import { TEAM_ICON_NAMES, type TeamColor } from './team-icons.ts'
 
 import styles from './Avatar.module.css'
 
 /** Icon size per team avatar size. */
 const TEAM_ICON_SIZE = { 16: 12, 20: 14, 24: 16, 40: 24 } as const
 
-const isTeamIconName = (name: string | null): name is TeamIconName =>
-  TEAM_ICON_NAMES.some((n) => n === name)
+const ICON_NAMES: ReadonlySet<string> = new Set(TEAM_ICON_NAMES)
+
+const isIconName = (name: string | null): name is IconName => name !== null && ICON_NAMES.has(name)
 
 /**
  * The identity mark of a user, a team or a workspace, on Base UI's `Avatar`. `type` says which, and
@@ -50,7 +52,6 @@ function UserAvatar({ type, id, name, image, size = 24, ...rest }: Avatar.UserPr
 
 function TeamAvatar({ type, slug, name, color, icon, size = 16, ...rest }: Avatar.TeamProps) {
   const { scheme, ref } = useAvatarScheme()
-  const Glyph = isTeamIconName(icon) ? TEAM_ICONS[icon] : null
   return (
     <Frame type={type} name={name} size={size} picture={null} fallbackRef={ref} {...rest}>
       <BoringAvatar
@@ -64,13 +65,19 @@ function TeamAvatar({ type, slug, name, color, icon, size = 16, ...rest }: Avata
         data-avatar="marble"
         className={styles.marble}
       />
-      {Glyph ? (
-        <Glyph
-          size={TEAM_ICON_SIZE[size]}
-          strokeWidth={1.75}
-          aria-hidden="true"
+      {isIconName(icon) ? (
+        // Lucide loads each icon on demand; the box is reserved so nothing shifts when it arrives.
+        <span
           className={styles.icon}
-        />
+          style={{ width: TEAM_ICON_SIZE[size], height: TEAM_ICON_SIZE[size] }}
+        >
+          <DynamicIcon
+            name={icon}
+            size={TEAM_ICON_SIZE[size]}
+            strokeWidth={1.75}
+            aria-hidden="true"
+          />
+        </span>
       ) : null}
     </Frame>
   )
@@ -157,7 +164,7 @@ export namespace Avatar {
     /** The team's slug: what the marble is drawn from. */
     slug: string
     color: TeamColor
-    /** The team's icon name (see `TEAM_ICON_NAMES`), drawn on the marble; null: none. */
+    /** The team's icon name (any Lucide name, see `TEAM_ICON_NAMES`), drawn on the marble, loaded on demand; null: none. */
     icon: string | null
     /** 16 in the sidebar, 20 in menus, 24 in the settings header, 40 on the team page. */
     size?: 16 | 20 | 24 | 40

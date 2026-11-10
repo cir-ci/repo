@@ -23,6 +23,7 @@
     "dev:reset": "node --conditions=@circi/source dev/src/main.ts reset",
     "clean": "rm -rf apps/*/dist packages/*/dist .vitest coverage",
     "format:check": "oxfmt --check",
+    "icons:generate": "pnpm --filter @circi/ui exec node scripts/generate-lucide-icon-names.mjs",
     "db:auth-schema": "pnpm --filter @circi/auth schema",
     "gate": "turbo run //#format:check //#lint //#typecheck //#test:node //#test:ui //#test:web-browser build",
     "gate:full": "E2E_ENV_FINGERPRINT=$(node e2e/src/stack/env-fingerprint.ts) turbo run //#format:check //#lint //#typecheck //#test:node //#test:ui //#test:web-browser build //#e2e:api //#e2e:browser",

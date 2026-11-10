@@ -14,12 +14,31 @@ import { webhookProblems } from '#features/team-settings/webhook-events.ts'
 import { appearancePatch, filterIcons, iconLabel } from '#features/teams/appearance.ts'
 
 describe('team appearance', () => {
-  it('offers all 31 icons and filters by every word typed', () => {
-    expect(filterIcons('')).toHaveLength(31)
-    expect(filterIcons('flask')).toEqual(['flask-conical'])
-    expect(filterIcons('  BOOK open ')).toEqual(['book-open'])
+  it('offers every Lucide icon and filters by every word typed', () => {
+    expect(filterIcons('').length).toBeGreaterThan(1500)
+    expect(filterIcons('flask')).toContain('flask-conical')
+    expect(filterIcons('  BOOK open ')).toContain('book-open')
+    expect(filterIcons('  BOOK open ').every((n) => n.includes('book') && n.includes('open'))).toBe(
+      true,
+    )
     expect(filterIcons('zzz')).toEqual([])
-    expect(iconLabel('chart-column')).toBe('chart column')
+  })
+
+  it('ranks the exact name, then names starting with the word, before the rest', () => {
+    const found = filterIcons('dog')
+    expect(found[0]).toBe('dog')
+    expect(
+      filterIcons('bar')
+        .slice(0, 2)
+        .every((n) => n.startsWith('bar')),
+    ).toBe(true)
+    expect(filterIcons('cart')).toContain('shopping-cart')
+    expect(filterIcons('shopping-cart')[0]).toBe('shopping-cart')
+  })
+
+  it('labels an icon from its name', () => {
+    expect(iconLabel('shopping-cart')).toBe('Shopping cart')
+    expect(iconLabel('dog')).toBe('Dog')
   })
 
   it('sends only what changed', () => {

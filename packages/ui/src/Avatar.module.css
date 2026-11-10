@@ -60,4 +60,6 @@
 
 .icon {
   position: relative;
+  display: inline-flex;
+  flex: none;
 }

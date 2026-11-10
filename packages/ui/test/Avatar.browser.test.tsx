@@ -181,6 +181,10 @@ describe('Avatar, type team', () => {
     const { container } = await render(
       <Avatar type="team" slug="mobile" name="Mobile" color="mauve" icon="rocket" size={size} />,
     )
+    // The box is there before the icon has loaded, so nothing shifts when it arrives.
+    const box = container.querySelector('svg[data-avatar="marble"] ~ span')
+    expect(box?.getBoundingClientRect().width).toBe(Number(iconSize))
+    await expect.poll(() => container.querySelector('svg:not([data-avatar])')).not.toBeNull()
     const icon = container.querySelector('svg:not([data-avatar])')
     expect(icon?.getAttribute('width')).toBe(iconSize)
     expect(icon?.getAttribute('aria-hidden')).toBe('true')
@@ -188,15 +192,22 @@ describe('Avatar, type team', () => {
     expect(container.textContent).toBe('')
   })
 
-  it.each(TEAM_ICON_NAMES)('renders the %s icon on the marble', async (icon) => {
-    const { container } = await render(
-      <Avatar type="team" slug="x" name="X" color="graphite" icon={icon} />,
-    )
-    expect(container.querySelectorAll('svg')).toHaveLength(2)
-  })
+  it.each(['rocket', 'dog', 'chart-bar', 'a-arrow-down'])(
+    'loads the %s icon on demand and draws it on the marble',
+    async (icon) => {
+      const { container } = await render(
+        <Avatar type="team" slug="x" name="X" color="graphite" icon={icon} />,
+      )
+      await expect.poll(() => container.querySelectorAll('svg')).toHaveLength(2)
+      expect(container.querySelector('svg:not([data-avatar])')?.getAttribute('class')).toContain(
+        `lucide-${icon}`,
+      )
+    },
+  )
 
-  it('allows 31 icons', () => {
-    expect(TEAM_ICON_NAMES).toHaveLength(31)
+  it('offers every Lucide icon', () => {
+    expect(TEAM_ICON_NAMES.length).toBeGreaterThan(1500)
+    expect(TEAM_ICON_NAMES).toContain('dog')
   })
 })
 

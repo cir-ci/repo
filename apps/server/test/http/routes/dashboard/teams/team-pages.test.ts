@@ -48,7 +48,7 @@ describe('team colour and icon', () => {
     expect(
       (await call('PATCH', `${team()}/appearance`, ownerCookie, { color: 'plum' })).statusCode,
     ).toBe(200)
-    for (const body of [{ color: 'red' }, { icon: 'trash' }, { size: 3 }]) {
+    for (const body of [{ color: 'red' }, { icon: 'not-an-icon' }, { size: 3 }]) {
       // eslint-disable-next-line no-await-in-loop
       expect((await call('PATCH', `${team()}/appearance`, ownerCookie, body)).statusCode).toBe(400)
     }
@@ -76,7 +76,10 @@ describe('team colour and icon', () => {
     })
     const derived = await call('POST', `${workspace()}/teams`, ownerCookie, { name: 'Marketing' })
     expect(derived.json().team).toMatchObject({ color: teamColorFor('Marketing'), icon: null })
-    const bad = await call('POST', `${workspace()}/teams`, ownerCookie, { name: 'Bad', icon: 'x' })
+    const bad = await call('POST', `${workspace()}/teams`, ownerCookie, {
+      name: 'Bad',
+      icon: 'not-an-icon',
+    })
     expect(bad.statusCode).toBe(400)
   })
 })

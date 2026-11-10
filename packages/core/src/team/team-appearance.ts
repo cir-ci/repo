@@ -1,56 +1,30 @@
 import { ValidationError } from '../errors.ts'
+import { LUCIDE_ICON_NAMES } from './lucide-icon-names.ts'
 
 /**
- * How a team looks in the sidebar and lists: a tile colour and an optional icon. The icon list
- * is mirrored by `@circi/ui` (which draws them); `apps/web/test` checks the two stay equal.
+ * How a team looks in the sidebar and lists: a tile colour and an optional icon. `@circi/ui` draws
+ * the icons from lucide-react itself; `apps/web/test` checks its names equal the list here.
  */
 
 /** The tile palette: `--circi-team-<colour>` in the theme. */
 export const TEAM_COLORS = ['slate', 'olive', 'plum', 'moss', 'mauve', 'graphite'] as const
 export type TeamColor = (typeof TEAM_COLORS)[number]
 
-/** Lucide icon names a team may pick; a team with none shows its first letter. */
-export const TEAM_ICON_NAMES = [
-  'layout-grid',
-  'book-open',
-  'globe',
-  'shopping-cart',
-  'smartphone',
-  'palette',
-  'code',
-  'box',
-  'rocket',
-  'layers',
-  'compass',
-  'flask-conical',
-  'gauge',
-  'monitor',
-  'file-text',
-  'chart-column',
-  'credit-card',
-  'users',
-  'mail',
-  'map',
-  'camera',
-  'puzzle',
-  'zap',
-  'shield',
-  'store',
-  'car',
-  'heart',
-  'leaf',
-  'cloud',
-  'terminal',
-  'component',
-] as const
-export type TeamIconName = (typeof TEAM_ICON_NAMES)[number]
+/**
+ * Lucide icon names a team may pick: every icon of the installed lucide-react (generated, see
+ * `lucide-icon-names.ts`). A team with none shows only its marble.
+ */
+export const TEAM_ICON_NAMES = LUCIDE_ICON_NAMES
+export type TeamIconName = string
+
+const ICON_SET: ReadonlySet<string> = new Set(LUCIDE_ICON_NAMES)
 
 export function isTeamColor(value: unknown): value is TeamColor {
   return TEAM_COLORS.some((c) => c === value)
 }
 
 export function isTeamIcon(value: unknown): value is TeamIconName {
-  return TEAM_ICON_NAMES.some((i) => i === value)
+  return typeof value === 'string' && ICON_SET.has(value)
 }
 
 /** Throws a `ValidationError` unless `value` is a palette colour. */

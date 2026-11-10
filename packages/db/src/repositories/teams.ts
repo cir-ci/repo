@@ -36,7 +36,7 @@ export async function createTeam(
     defaultBranch?: string
     /** A palette colour; from a hash of the name when left out. */
     color?: string
-    /** A Lucide icon name from `TEAM_ICON_NAMES`; none shows the first letter. */
+    /** A Lucide icon name from `TEAM_ICON_NAMES`; none shows only the marble. */
     icon?: string | null
   },
 ): Promise<Team> {

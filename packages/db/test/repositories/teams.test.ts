@@ -206,7 +206,7 @@ describe('flaky-screenshot setting', () => {
       createTeam(t.db, { workspaceSlug: workspace.slug, name: 'x1', color: 'red' }),
     ).rejects.toThrow(/Colour must be/)
     await expect(
-      createTeam(t.db, { workspaceSlug: workspace.slug, name: 'x2', icon: 'trash' }),
+      createTeam(t.db, { workspaceSlug: workspace.slug, name: 'x2', icon: 'not-an-icon' }),
     ).rejects.toThrow(/Unknown icon/)
     expect(TEAM_COLORS).toContain(auto.color)
   })

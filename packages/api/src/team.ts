@@ -5,7 +5,7 @@ export namespace Team {
   /** The team tile palette (`--circi-team-<colour>`). */
   export type Color = 'slate' | 'olive' | 'plum' | 'moss' | 'mauve' | 'graphite'
 
-  /** How the team's tile looks; `icon` is a Lucide icon name, null shows the first letter. */
+  /** How the team's tile looks; `icon` is a Lucide icon name, null shows only the marble. */
   export interface Appearance {
     color: Color
     icon: string | null

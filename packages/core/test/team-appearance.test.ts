@@ -9,6 +9,41 @@ import {
   teamColorFor,
 } from '../src/index.ts'
 
+/** The 31 icons teams could pick before every Lucide icon was allowed: stored rows keep them. */
+const OLD_ICONS = [
+  'layout-grid',
+  'book-open',
+  'globe',
+  'shopping-cart',
+  'smartphone',
+  'palette',
+  'code',
+  'box',
+  'rocket',
+  'layers',
+  'compass',
+  'flask-conical',
+  'gauge',
+  'monitor',
+  'file-text',
+  'chart-column',
+  'credit-card',
+  'users',
+  'mail',
+  'map',
+  'camera',
+  'puzzle',
+  'zap',
+  'shield',
+  'store',
+  'car',
+  'heart',
+  'leaf',
+  'cloud',
+  'terminal',
+  'component',
+] as const
+
 describe('teamColorFor', () => {
   it('is deterministic and ignores case and edge spaces', () => {
     expect(teamColorFor('web-app')).toBe(teamColorFor('web-app'))
@@ -29,15 +64,22 @@ describe('teamColorFor', () => {
 })
 
 describe('icons and colours', () => {
-  it('has the 31 canvas icons, unique', () => {
-    expect(TEAM_ICON_NAMES).toHaveLength(31)
-    expect(new Set(TEAM_ICON_NAMES).size).toBe(31)
+  it('accepts every Lucide icon name once, sorted', () => {
+    expect(TEAM_ICON_NAMES.length).toBeGreaterThan(1500)
+    expect(new Set(TEAM_ICON_NAMES).size).toBe(TEAM_ICON_NAMES.length)
+    expect(TEAM_ICON_NAMES.toSorted()).toEqual([...TEAM_ICON_NAMES])
     expect(isTeamIcon('rocket')).toBe(true)
-    expect(isTeamIcon('trash')).toBe(false)
+    expect(isTeamIcon('dog')).toBe(true)
+    expect(isTeamIcon('not-an-icon')).toBe(false)
+    expect(isTeamIcon(42)).toBe(false)
+  })
+
+  it.each(OLD_ICONS)('still accepts the stored icon %s', (name) => {
+    expect(isTeamIcon(name)).toBe(true)
   })
 
   it('rejects values outside the lists', () => {
-    expect(() => assertTeamIcon('trash')).toThrow(/Unknown icon/)
+    expect(() => assertTeamIcon('not-an-icon')).toThrow(/Unknown icon/)
     expect(() => assertTeamColor('red')).toThrow(/Colour must be/)
     expect(() => assertTeamColor('plum')).not.toThrow()
   })

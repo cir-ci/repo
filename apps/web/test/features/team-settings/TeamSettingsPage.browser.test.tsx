@@ -536,29 +536,40 @@ describe('TeamSettingsPage', () => {
       await expect.element(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible()
     })
 
-    it('searches the 31 icons and saves a picked one, or null for the first letter', async () => {
+    it('searches every Lucide icon, saves a picked one, or null for no icon', async () => {
       const fake = api(
         { appearance: { color: 'slate', icon: 'globe' } },
         { [`PATCH ${API}/appearance`]: { body: { appearance: { color: 'slate', icon: null } } } },
       )
       await show()
       const group = page.getByRole('group', { name: 'Icon' })
-      // The first letter plus every icon.
+      // No icon, then the first page of icons (the rest wait behind "Show more icons").
       await expect.element(group).toBeVisible()
-      expect(group.getByRole('button').elements()).toHaveLength(32)
+      expect(group.getByRole('button').elements()).toHaveLength(61)
+      await page.getByRole('textbox', { name: 'Find an icon' }).fill('globe')
       await expect
-        .element(group.getByRole('button', { name: 'globe' }))
+        .element(group.getByRole('button', { name: 'Globe', exact: true }))
         .toHaveAttribute('aria-pressed', 'true')
-      await page.getByRole('textbox', { name: 'Find an icon' }).fill('rock')
-      await page.getByRole('button', { name: 'rocket' }).click()
+      // "dog" is not one of the first 31 icons.
+      await page.getByRole('textbox', { name: 'Find an icon' }).fill('dog')
+      await page.getByRole('button', { name: 'Dog', exact: true }).click()
       await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
-      expect(fake.of('PATCH')[0]?.body).toEqual({ icon: 'rocket' })
+      expect(fake.of('PATCH')[0]?.body).toEqual({ icon: 'dog' })
       await page.getByRole('textbox', { name: 'Find an icon' }).fill('zzz')
       await expect.element(page.getByText('No icon matches “zzz”.')).toBeVisible()
       await page.getByRole('textbox', { name: 'Find an icon' }).fill('')
-      await page.getByRole('button', { name: 'First letter' }).click()
+      await page.getByRole('button', { name: 'No icon' }).click()
       await expect.poll(() => fake.of('PATCH')).toHaveLength(2)
       expect(fake.of('PATCH')[1]?.body).toEqual({ icon: null })
+    })
+
+    it('shows more icons on request', async () => {
+      api({ appearance: ARIA })
+      await show()
+      const group = page.getByRole('group', { name: 'Icon' })
+      await expect.element(group).toBeVisible()
+      await page.getByRole('button', { name: 'Show more icons' }).click()
+      expect(group.getByRole('button').elements()).toHaveLength(121)
     })
 
     it("shows the server's refusal", async () => {

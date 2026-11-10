@@ -31,7 +31,7 @@ export const teams = pgTable(
     ciKeyCreatedBy: text('ci_key_created_by').references(() => user.id, { onDelete: 'set null' }),
     /** Tile colour, one of `TEAM_COLORS`; new teams get one from a hash of their name. */
     color: text('color').$type<TeamColor>().notNull().default('slate'),
-    /** A Lucide icon name from `TEAM_ICON_NAMES`; null shows the team's first letter. */
+    /** A Lucide icon name from `TEAM_ICON_NAMES`; null shows only the marble. */
     icon: text('icon'),
     defaultBranch: text('default_branch').notNull().default('main'),
     diffThreshold: real('diff_threshold').notNull().default(0),

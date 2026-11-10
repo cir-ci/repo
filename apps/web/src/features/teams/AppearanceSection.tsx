@@ -8,7 +8,7 @@ import {
   TextField,
   useAnnounce,
 } from '@circi/ui'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { useSaveAppearance, useSaveSettings } from '#features/teams/api/index.ts'
 import { InstantTextField } from '#lib/InstantTextField.tsx'
@@ -18,12 +18,12 @@ import {
   appearancePatch,
   colourLabel,
   filterIcons,
+  ICON_PAGE,
   iconLabel,
   isTeamColor,
   isTeamIconName,
   TEAM_COLORS,
   type TeamColor,
-  type TeamIconName,
 } from './appearance.ts'
 
 import styles from './AppearanceSection.module.css'
@@ -43,9 +43,11 @@ export function AppearanceSection({
   const rename = useSaveSettings(workspace, team)
   const announce = useAnnounce()
   const [query, setQuery] = useState('')
+  const [shown, setShown] = useState(ICON_PAGE)
   const color: TeamColor = isTeamColor(appearance.color) ? appearance.color : 'slate'
-  const icon: TeamIconName | null = isTeamIconName(appearance.icon) ? appearance.icon : null
-  const icons = filterIcons(query)
+  const icon: string | null = isTeamIconName(appearance.icon) ? appearance.icon : null
+  const matches = useMemo(() => filterIcons(query), [query])
+  const icons = matches.slice(0, shown)
 
   function pick(next: { color: TeamColor; icon: string | null }) {
     const patch = appearancePatch(appearance, next)
@@ -73,7 +75,7 @@ export function AppearanceSection({
       </SettingsRow>
       <SettingsRow
         label={name}
-        detail={`${colourLabel(color)} with ${icon ? `the ${iconLabel(icon)} icon` : 'its first letter'}.`}
+        detail={`${colourLabel(color)}, ${icon ? iconLabel(icon).toLowerCase() : 'no icon'}`}
       >
         <Avatar type="team" slug={team} name={name} color={color} icon={icon ?? null} size={40} />
       </SettingsRow>
@@ -101,12 +103,15 @@ export function AppearanceSection({
               <TextField
                 label="Find an icon"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  setQuery(e.target.value)
+                  setShown(ICON_PAGE)
+                }}
                 placeholder="Find an icon"
                 className={styles.search}
               />
               <Text variant="small" tone="tertiary">
-                Lucide icons. The first letter is used when no icon is set.
+                {matches.length} Lucide icons
               </Text>
             </div>
             <div role="group" aria-label="Icon" className={styles.grid}>
@@ -115,10 +120,18 @@ export function AppearanceSection({
                 size="md"
                 pressed={icon === null}
                 onPressedChange={() => pick({ color, icon: null })}
-                aria-label="First letter"
-                title="First letter"
+                aria-label="No icon"
+                title="No icon"
               >
-                {name.trim()[0]?.toUpperCase() ?? '?'}
+                <Avatar
+                  type="team"
+                  aria-hidden
+                  slug={team}
+                  name={name}
+                  color={color}
+                  icon={null}
+                  size={20}
+                />
               </Button>
               {icons.map((i) => (
                 <Button
@@ -128,7 +141,7 @@ export function AppearanceSection({
                   pressed={icon === i}
                   onPressedChange={() => pick({ color, icon: i })}
                   aria-label={iconLabel(i)}
-                  title={i}
+                  title={iconLabel(i)}
                 >
                   <Avatar
                     type="team"
@@ -142,6 +155,11 @@ export function AppearanceSection({
                 </Button>
               ))}
             </div>
+            {matches.length > icons.length ? (
+              <Button variant="secondary" size="md" onClick={() => setShown(shown + ICON_PAGE)}>
+                Show more icons
+              </Button>
+            ) : null}
             {icons.length === 0 ? (
               <Text variant="small" tone="tertiary">
                 No icon matches “{query}”.
