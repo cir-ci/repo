@@ -164,6 +164,8 @@ All of the open decisions were answered by the owner on 2026-11-10:
     ignore regions view-only; install banner after the second visit or first approval; push asked
     in context on Reviews, "Not now" returns after 14 days, at most 3 times; 12 tabs on desktop
     (5 pinned), 8 on phones; tabs persist per device and clear on sign-out.
+    **Native apps (2026-11-10):** desktop only for now, as a Tauri 2 app
+    (`docs/plans/native-apps-plan.md`); native phone apps are TBD.
 
 ## 4. Missing UI features (open)
 
