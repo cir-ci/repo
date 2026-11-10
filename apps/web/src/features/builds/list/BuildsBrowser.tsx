@@ -363,7 +363,7 @@ export function BuildsBrowser({
             Clear selection
           </Button>
           {failed ? (
-            <Text tone="rejected" variant="small" role="alert">
+            <Text tone="failed" variant="small" role="alert">
               {failed.message}
             </Text>
           ) : null}

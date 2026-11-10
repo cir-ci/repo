@@ -45,6 +45,10 @@
   color: var(--circi-state-processing);
 }
 
+.root[data-tone='failed'] {
+  color: var(--circi-state-failed-text);
+}
+
 .root[data-tone='rejected'] {
   color: var(--circi-state-rejected-text);
 }

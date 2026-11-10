@@ -64,6 +64,7 @@ export function buildStatus(build: Pick<Review.Request['build'], 'status' | 'rev
   label: string
 } {
   if (isProcessing(build)) return { status: 'processing', label: 'Processing' }
+  if (build.status === 'error') return { status: 'failed', label: 'Failed' }
   if (build.reviewStatus === 'approved') return { status: 'approved', label: 'Approved' }
   if (build.reviewStatus === 'rejected') return { status: 'rejected', label: 'Rejected' }
   return { status: 'needs-review', label: 'Needs review' }

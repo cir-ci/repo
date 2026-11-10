@@ -13,8 +13,8 @@
   color: var(--circi-text-tertiary);
 }
 
-.root[data-tone='rejected'] .icon {
-  color: var(--circi-state-rejected-text);
+.root[data-tone='failed'] .icon {
+  color: var(--circi-state-failed-text);
 }
 
 .title {

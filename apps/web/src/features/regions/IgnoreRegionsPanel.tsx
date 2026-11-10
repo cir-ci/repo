@@ -228,7 +228,7 @@ function RegionDialog({ target, workspace, team, onClose }: RegionDialog.Props) 
           step={1}
         />
         {problem ? (
-          <Text variant="small" tone="rejected" role="alert" className={styles.problem}>
+          <Text variant="small" tone="failed" role="alert" className={styles.problem}>
             {problem}
           </Text>
         ) : null}

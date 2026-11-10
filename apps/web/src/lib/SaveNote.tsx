@@ -21,7 +21,7 @@ export function SaveNote({ mutation }: SaveNote.Props) {
   }
   if (mutation.status === 'error') {
     return (
-      <Text variant="small" tone="rejected" role="alert">
+      <Text variant="small" tone="failed" role="alert">
         {mutation.error?.message ?? "Couldn't save that"}
       </Text>
     )

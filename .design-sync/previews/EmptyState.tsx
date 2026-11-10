@@ -37,7 +37,7 @@ export const Error = () => (
   <Both width={480}>
     <EmptyState
       title="This build doesn’t exist"
-      tone="rejected"
+      tone="failed"
       action={<Button>Back to Teams</Button>}
     >
       It may have expired, or the link is wrong.

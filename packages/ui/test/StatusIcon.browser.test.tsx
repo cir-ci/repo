@@ -8,6 +8,7 @@ const STATUSES: Status[] = [
   'approved',
   'needs-review',
   'processing',
+  'failed',
   'rejected',
   'neutral',
   'added',
@@ -27,6 +28,7 @@ describe('StatusIcon', () => {
     await expect.element(page.getByRole('img', { name: 'Approved' })).toBeVisible()
     await expect.element(page.getByRole('img', { name: 'Needs review' })).toBeVisible()
     await expect.element(page.getByRole('img', { name: 'Processing' })).toBeVisible()
+    await expect.element(page.getByRole('img', { name: 'Failed' })).toBeVisible()
     await expect.element(page.getByRole('img', { name: 'Rejected' })).toBeVisible()
     await expect.element(page.getByRole('img', { name: 'Unchanged' })).toBeVisible()
     await expect.element(page.getByRole('img', { name: 'Added' })).toBeVisible()
@@ -46,6 +48,34 @@ describe('StatusIcon', () => {
       (s) => page.getByRole('img', { name: STATUS_LABEL[s] }).element().innerHTML,
     )
     expect(new Set(shapes).size).toBe(STATUSES.length)
+  })
+
+  it('draws failed and rejected apart: a cross in crimson, a barred disc in rose', async () => {
+    await render(
+      <>
+        <StatusIcon status="failed" />
+        <StatusIcon status="rejected" />
+      </>,
+    )
+    const failed = page.getByRole('img', { name: 'Failed' })
+    const rejected = page.getByRole('img', { name: 'Rejected' })
+    expect(failed.element().querySelector('path')?.getAttribute('d')).toContain('M4.7 4.7')
+    expect(rejected.element().querySelector('path')?.getAttribute('d')).toBe('M3.9 7h6.2')
+    expect(rejected.element().querySelector('path')?.getAttribute('transform')).toContain('rotate')
+    const root = getComputedStyle(document.documentElement)
+    const colourOf = (variable: string) => {
+      const probe = document.createElement('span')
+      probe.style.color = root.getPropertyValue(variable)
+      document.body.append(probe)
+      const colour = getComputedStyle(probe).color
+      probe.remove()
+      return colour
+    }
+    const failedColour = getComputedStyle(failed.element()).color
+    const rejectedColour = getComputedStyle(rejected.element()).color
+    expect(failedColour).toBe(colourOf('--circi-state-failed'))
+    expect(rejectedColour).toBe(colourOf('--circi-state-rejected'))
+    expect(failedColour).not.toBe(rejectedColour)
   })
 
   it.each(['added', 'removed', 'flaky'] as const)(

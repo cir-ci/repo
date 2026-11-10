@@ -277,7 +277,7 @@ function CommentView({ comment, members, workspace, team, build, children }: Com
           </div>
         ) : null}
         {remove.error ? (
-          <Text variant="small" tone="rejected" role="alert">
+          <Text variant="small" tone="failed" role="alert">
             {remove.error.message}
           </Text>
         ) : null}

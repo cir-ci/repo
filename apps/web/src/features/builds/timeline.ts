@@ -39,7 +39,7 @@ export function timelineItems(events: readonly Activity.Event[]): TimelineItem[]
       case 'failed':
         items.push({
           ...base,
-          status: 'rejected',
+          status: 'failed',
           text: 'Build failed',
           quote: e.message,
         })

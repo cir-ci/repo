@@ -25,6 +25,7 @@ const Demo = () => (
       <Text tone="approved">approved</Text>
       <Text tone="review">review</Text>
       <Text tone="processing">processing</Text>
+      <Text tone="failed">failed</Text>
       <Text tone="rejected">rejected</Text>
     </Stack>
   </Stack>

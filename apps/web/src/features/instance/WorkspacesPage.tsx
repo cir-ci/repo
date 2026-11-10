@@ -115,7 +115,7 @@ export function WorkspacesPage() {
                           {w.ownerName ? ` · Owner ${w.ownerName}` : ''}
                         </Text>
                         {w.deletedAt ? (
-                          <Badge className={rows.status} shape="tag" tone="state" state="rejected">
+                          <Badge className={rows.status} shape="tag" tone="state" state="failed">
                             {deletedLabel(w.daysLeft)}
                           </Badge>
                         ) : null}

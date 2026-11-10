@@ -82,7 +82,7 @@ export function ReasonDialog({
         }}
       />
       {invalid ? (
-        <Text id={errorId} variant="small" tone="rejected" role="alert">
+        <Text id={errorId} variant="small" tone="failed" role="alert">
           {invalidMessage}
         </Text>
       ) : hint ? (

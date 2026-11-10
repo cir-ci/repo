@@ -255,7 +255,7 @@ function AccountRow(props: {
             </Badge>
           ) : null}{' '}
           {account.banned ? (
-            <Badge shape="tag" tone="state" state="rejected">
+            <Badge shape="tag" tone="state" state="failed">
               Banned
             </Badge>
           ) : null}
@@ -264,7 +264,7 @@ function AccountRow(props: {
           {account.email}
         </Text>
         {ban ? (
-          <Text tone="rejected" variant="small">
+          <Text tone="failed" variant="small">
             {ban}
           </Text>
         ) : null}

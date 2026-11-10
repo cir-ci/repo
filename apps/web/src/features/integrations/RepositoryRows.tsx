@@ -71,7 +71,7 @@ export function RepositoryRows(props: RepositoryRows.Props) {
                     <Text variant="mono">{row.label}</Text>
                     {row.broken ? (
                       <span>
-                        <Badge tone="state" state="rejected" shape="tag">
+                        <Badge tone="state" state="failed" shape="tag">
                           Needs attention: the app was uninstalled from this {noun}
                         </Badge>
                       </span>

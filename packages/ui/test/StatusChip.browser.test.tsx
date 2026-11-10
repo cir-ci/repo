@@ -33,6 +33,7 @@ describe('StatusChip text colour', () => {
     await render(
       <>
         <StatusChip status="approved" />
+        <StatusChip status="failed" />
         <StatusChip status="rejected" />
       </>,
     )
@@ -46,8 +47,10 @@ describe('StatusChip text colour', () => {
       return colour
     }
     const approved = page.getByText('Approved').element()
+    const failed = page.getByText('Failed').element()
     const rejected = page.getByText('Rejected').element()
     expect(getComputedStyle(approved).color).toBe(colourOf('--circi-state-approved-text'))
+    expect(getComputedStyle(failed).color).toBe(colourOf('--circi-state-failed-text'))
     expect(getComputedStyle(rejected).color).toBe(colourOf('--circi-state-rejected-text'))
   })
 })

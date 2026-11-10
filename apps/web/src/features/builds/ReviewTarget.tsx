@@ -13,7 +13,7 @@ export function ReviewTarget({ target }: ReviewTarget.Props) {
   const status = reviewTargetStatus(target, now)
   if (!status) return null
   return (
-    <Text variant="small" tone={status.overdue ? 'rejected' : 'tertiary'}>
+    <Text variant="small" tone={status.overdue ? 'failed' : 'tertiary'}>
       {status.overdue ? status.short : `Review target: ${status.short}`}
     </Text>
   )

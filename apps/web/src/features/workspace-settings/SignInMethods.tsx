@@ -58,7 +58,7 @@ function Methods({ workspace, data }: Methods.Props) {
   const described = (field: keyof Workspace.Auth['settings'], text: ReactNode) => {
     const problem = fieldFor(field)
     return problem ? (
-      <Text tone="rejected" role="alert">
+      <Text tone="failed" role="alert">
         {problem}
       </Text>
     ) : (

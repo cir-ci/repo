@@ -167,7 +167,7 @@ describe('BuildPage states', () => {
     },
   )
 
-  it('keeps a failed screenshot rejected whatever the review', async () => {
+  it('keeps a failed screenshot failed whatever the review', async () => {
     fakeBuildApi(
       detail(
         { reviewStatus: 'approved' },
@@ -179,10 +179,10 @@ describe('BuildPage states', () => {
       .getByRole('navigation', { name: 'Screenshots' })
       .getByRole('img', { name: 'Failed' })
     await expect.element(failed).toBeVisible()
-    expect(failed.element().getAttribute('data-status')).toBe('rejected')
+    expect(failed.element().getAttribute('data-status')).toBe('failed')
     expect(
       page.getByText('1 failed').element().querySelector('svg')?.getAttribute('data-status'),
-    ).toBe('rejected')
+    ).toBe('failed')
   })
 
   it('calls a build with nothing to compare against "No baseline" and explains it', async () => {

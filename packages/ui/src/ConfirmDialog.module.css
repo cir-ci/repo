@@ -80,7 +80,7 @@
 .footer .confirm[data-variant='danger'],
 .footer .confirm[data-variant='danger']:hover {
   border-color: transparent;
-  background: var(--circi-state-rejected);
+  background: var(--circi-state-failed);
   color: var(--circi-surface-chrome);
 }
 

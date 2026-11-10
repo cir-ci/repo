@@ -265,7 +265,7 @@ export function ReviewsPage() {
             />
             <section className={styles.detail} aria-label="Selected review">
               {failed ? (
-                <Text tone="rejected" role="alert">
+                <Text tone="failed" role="alert">
                   {failed.message}
                 </Text>
               ) : null}

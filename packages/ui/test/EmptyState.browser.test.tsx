@@ -19,10 +19,10 @@ describe('EmptyState', () => {
   })
 
   it('takes the heading level of the page and hides its icon', async () => {
-    const { container } = await render(<EmptyState title="Oops" headingLevel={1} tone="rejected" />)
+    const { container } = await render(<EmptyState title="Oops" headingLevel={1} tone="failed" />)
     await expect.element(page.getByRole('heading', { level: 1 })).toBeVisible()
     expect(container.querySelector('[aria-hidden="true"] svg')).not.toBeNull()
-    expect(container.querySelector('[data-tone="rejected"]')).not.toBeNull()
+    expect(container.querySelector('[data-tone="failed"]')).not.toBeNull()
   })
 
   it('renders without description or action', async () => {

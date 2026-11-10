@@ -44,6 +44,11 @@
   color: var(--circi-state-processing);
 }
 
+.root[data-state='failed'] {
+  background: color-mix(in srgb, var(--circi-state-failed) 14%, transparent);
+  color: var(--circi-state-failed-text);
+}
+
 .root[data-state='rejected'] {
   background: color-mix(in srgb, var(--circi-state-rejected) 14%, transparent);
   color: var(--circi-state-rejected-text);

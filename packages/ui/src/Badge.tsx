@@ -35,7 +35,7 @@ export namespace Badge {
     tone?: 'neutral' | 'accent' | 'state'
     shape?: 'count' | 'tag'
     /** With `tone="state"`: which state's colour. */
-    state?: 'approved' | 'review' | 'processing' | 'rejected'
+    state?: 'approved' | 'review' | 'processing' | 'failed' | 'rejected'
     children?: ReactNode
   }
 }

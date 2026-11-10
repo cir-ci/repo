@@ -23,7 +23,7 @@ export namespace BuildState {
     | 'review'
 
   /** The old colour vocabulary; kept so callers that still read `tone` keep working. Prefer `status`. */
-  export type Tone = 'success' | 'attention' | 'danger' | 'accent' | 'done' | 'neutral'
+  export type Tone = 'success' | 'attention' | 'danger' | 'rejected' | 'accent' | 'done' | 'neutral'
 
   /** What the review screen shows: a build state, or "No baseline" for an orphan. */
   export interface Screen {
@@ -40,11 +40,11 @@ export function buildState(b: BuildState.Input): BuildState {
   if (b.status === 'processing')
     return { kind: 'processing', label: 'Processing', status: 'processing', tone: 'neutral' }
   if (b.status === 'error')
-    return { kind: 'failed', label: 'Failed', status: 'rejected', tone: 'danger' }
+    return { kind: 'failed', label: 'Failed', status: 'failed', tone: 'danger' }
   if (b.status === 'expired')
     return { kind: 'expired', label: 'Expired', status: 'neutral', tone: 'neutral' }
   if (b.reviewStatus === 'rejected')
-    return { kind: 'rejected', label: 'Rejected', status: 'rejected', tone: 'danger' }
+    return { kind: 'rejected', label: 'Rejected', status: 'rejected', tone: 'rejected' }
   if (b.conclusion === 'no_changes')
     return { kind: 'no_changes', label: 'No changes', status: 'approved', tone: 'success' }
   if (b.reviewStatus === 'approved')

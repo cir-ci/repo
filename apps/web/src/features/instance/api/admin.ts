@@ -200,11 +200,11 @@ export const WORKSPACE_CREATION_TEXT: Record<InstanceAdmin.Settings['workspaceCr
 /** How serious a doctor finding is, as a word and a badge state (a note is a neutral tag). */
 export const FINDING_LEVEL: Record<
   InstanceAdmin.Finding['level'],
-  { label: string; state: 'approved' | 'review' | 'processing' | 'rejected' }
+  { label: string; state: 'approved' | 'review' | 'processing' | 'failed' }
 > = {
   ok: { label: 'Passing', state: 'approved' },
   warn: { label: 'Check', state: 'review' },
-  fail: { label: 'Failing', state: 'rejected' },
+  fail: { label: 'Failing', state: 'failed' },
   info: { label: 'Note', state: 'processing' },
 }
 

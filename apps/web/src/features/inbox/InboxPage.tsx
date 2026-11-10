@@ -176,7 +176,7 @@ export function InboxPage() {
                         {inboxCount(items)}
                       </span>
                       {failed ? (
-                        <Text tone="rejected" role="alert">
+                        <Text tone="failed" role="alert">
                           {failed.message}
                         </Text>
                       ) : null}

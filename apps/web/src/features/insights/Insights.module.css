@@ -62,8 +62,8 @@
 }
 
 .pill[data-tone='bad'] {
-  background: color-mix(in srgb, var(--circi-state-rejected) 16%, transparent);
-  color: var(--circi-state-rejected);
+  background: color-mix(in srgb, var(--circi-state-failed) 16%, transparent);
+  color: var(--circi-state-failed);
 }
 
 .grid {
@@ -131,7 +131,7 @@
 }
 
 .segment[data-move='worse'] {
-  stroke: var(--circi-state-rejected);
+  stroke: var(--circi-state-failed);
 }
 
 .dot[data-move='better'] {
@@ -139,7 +139,7 @@
 }
 
 .dot[data-move='worse'] {
-  fill: var(--circi-state-rejected);
+  fill: var(--circi-state-failed);
 }
 
 .dot[data-move='same'] {

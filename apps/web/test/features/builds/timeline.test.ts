@@ -74,7 +74,7 @@ describe('timelineItems', () => {
       'replied on home',
     ])
     expect(items[1]?.quote).toBe('out of memory')
-    expect(items[1]?.status).toBe('rejected')
+    expect(items[1]?.status).toBe('failed')
     expect(items[5]).toMatchObject({ status: 'rejected', actor: person, quote: 'Too blue' })
     // Automatic decisions have no actor.
     expect(items[6]).toMatchObject({ status: 'approved', actor: null })

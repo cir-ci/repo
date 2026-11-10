@@ -155,7 +155,7 @@ function DetailsTab({ data, snapshotName, onRequestReview }: DetailsTab.Props) {
         <Text as="dt" variant="small" tone="secondary">
           Review target
         </Text>
-        <Text as="dd" tone={target?.overdue ? 'rejected' : 'primary'}>
+        <Text as="dd" tone={target?.overdue ? 'failed' : 'primary'}>
           {target
             ? target.long
             : data.reviewTarget.hours === null

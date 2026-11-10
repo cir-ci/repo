@@ -152,7 +152,7 @@
 }
 
 .statusBad {
-  color: var(--circi-state-rejected-text);
+  color: var(--circi-state-failed-text);
 }
 
 .cmd {

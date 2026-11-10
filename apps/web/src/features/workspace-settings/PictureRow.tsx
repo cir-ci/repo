@@ -44,7 +44,7 @@ export function PictureRow({ workspace, name, picture, canManage }: PictureRow.P
         <div className={styles.text}>
           <Text>Picture</Text>
           {error ? (
-            <Text variant="small" tone="rejected" role="alert">
+            <Text variant="small" tone="failed" role="alert">
               {error}
             </Text>
           ) : (

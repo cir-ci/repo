@@ -227,7 +227,7 @@
 }
 
 .textarea[aria-invalid='true'] {
-  border-color: var(--circi-state-rejected);
+  border-color: var(--circi-state-failed);
 }
 
 /* Below 1100px the sidebar drops under the viewer instead of squeezing it. */

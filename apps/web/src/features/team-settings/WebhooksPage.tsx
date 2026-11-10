@@ -193,7 +193,7 @@ function Webhooks(props: Webhooks.Props) {
                       {d.event}
                       {d.test ? ' (test)' : ''}
                     </Text>
-                    <Text variant="small" tone={answer.ok ? 'approved' : 'rejected'} role="cell">
+                    <Text variant="small" tone={answer.ok ? 'approved' : 'failed'} role="cell">
                       {answer.text}
                     </Text>
                     <Text variant="small" tone="secondary" role="cell">
@@ -298,7 +298,7 @@ function Webhooks(props: Webhooks.Props) {
                 </div>
               </CheckboxGroup>
               {eventsError ? (
-                <Text variant="small" tone="rejected" role="alert">
+                <Text variant="small" tone="failed" role="alert">
                   {eventsError}
                 </Text>
               ) : null}
@@ -384,7 +384,7 @@ function HookBadge({ hook }: { hook: Webhooks.Hook }) {
   if (status.kind === 'none') return <Badge shape="tag">No deliveries yet</Badge>
   if (status.kind === 'failing') {
     return (
-      <Badge shape="tag" tone="state" state="rejected">
+      <Badge shape="tag" tone="state" state="failed">
         {status.text}
       </Badge>
     )

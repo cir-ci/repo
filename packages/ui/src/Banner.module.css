@@ -24,7 +24,7 @@
 }
 
 .root[data-tone='danger'] {
-  --banner-color: var(--circi-state-rejected);
+  --banner-color: var(--circi-state-failed);
 }
 
 .icon {

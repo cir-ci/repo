@@ -39,6 +39,7 @@ export namespace Text {
       | 'approved'
       | 'review'
       | 'processing'
+      | 'failed'
       | 'rejected'
     /** One line, cut with an ellipsis. The parent must be allowed to shrink (`min-width: 0`). */
     truncate?: boolean

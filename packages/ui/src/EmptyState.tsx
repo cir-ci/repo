@@ -7,7 +7,7 @@ import styles from './EmptyState.module.css'
 
 /**
  * Provisional (docs/design-gaps.md §5): centred in the panel, a 32px icon, a title, one line of
- * explanation and at most one action. `tone="rejected"` is the error variant (the page's own
+ * explanation and at most one action. `tone="failed"` is the error variant (the page's own
  * words and a retry button as `action`).
  */
 export function EmptyState({
@@ -39,8 +39,8 @@ export namespace EmptyState {
     title: ReactNode
     /** Which heading level the title is, to fit the page's outline. */
     headingLevel?: 1 | 2 | 3
-    /** `rejected` for an error state. */
-    tone?: 'neutral' | 'rejected'
+    /** `failed` for an error state. */
+    tone?: 'neutral' | 'failed'
     /** The one optional action (a primary button). */
     action?: ReactNode
     className?: string

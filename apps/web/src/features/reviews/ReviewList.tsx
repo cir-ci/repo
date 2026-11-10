@@ -150,7 +150,7 @@ export function ReviewList({
                               ) : null}
                               {why ? <Badge shape="tag">{why}</Badge> : null}
                               {overdue ? (
-                                <Badge tone="state" state="rejected" shape="tag">
+                                <Badge tone="state" state="failed" shape="tag">
                                   {overdue}
                                 </Badge>
                               ) : null}

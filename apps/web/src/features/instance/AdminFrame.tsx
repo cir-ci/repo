@@ -24,7 +24,7 @@ export function AdminFrame({ title, action, note, error, children, ...rest }: Ad
       error={error}
       forbidden={
         isForbidden(error) ? (
-          <EmptyState tone="rejected" icon={<WarningIcon size={32} />} title="Instance admins only">
+          <EmptyState tone="failed" icon={<WarningIcon size={32} />} title="Instance admins only">
             Only instance admins can see this page. Ask one to make you an instance admin.
           </EmptyState>
         ) : null

@@ -24,6 +24,15 @@ describe('buildState', () => {
     expect(state({ status: 'uploading', conclusion: null }).kind).toBe('uploading')
     expect(state({ status: 'expired', conclusion: null }).kind).toBe('expired')
     expect(state({ reviewStatus: 'rejected' }).kind).toBe('rejected')
+    expect(state({ status: 'error', conclusion: null }).kind).toBe('failed')
+  })
+
+  it('tells a failed build (crimson cross) from a rejected one (a person decided: rose, barred)', () => {
+    const failed = state({ status: 'error', conclusion: null })
+    const rejected = state({ reviewStatus: 'rejected' })
+    expect(failed).toMatchObject({ status: 'failed', tone: 'danger' })
+    expect(rejected).toMatchObject({ status: 'rejected', tone: 'rejected' })
+    expect(failed.status).not.toBe(rejected.status)
   })
 })
 
@@ -36,7 +45,7 @@ describe('buildState status (docs/design-gaps.md §8)', () => {
     [{ reviewStatus: 'approved' }, 'approved', 'Approved'],
     [{ reviewStatus: 'rejected' }, 'rejected', 'Rejected'],
     [{ conclusion: 'no_changes' }, 'approved', 'No changes'],
-    [{ status: 'error', conclusion: null }, 'rejected', 'Failed'],
+    [{ status: 'error', conclusion: null }, 'failed', 'Failed'],
     [{ status: 'expired', conclusion: null }, 'neutral', 'Expired'],
   ] as const)('%j is %s, "%s"', (over, status, label) => {
     expect(state(over)).toMatchObject({ status, label })

@@ -63,7 +63,7 @@
 }
 
 .item[data-tone='danger'] {
-  color: var(--circi-state-rejected-text);
+  color: var(--circi-state-failed-text);
 }
 
 .item[data-disabled] {

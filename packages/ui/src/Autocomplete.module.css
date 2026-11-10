@@ -35,7 +35,7 @@
 }
 
 .control[data-invalid] {
-  border-color: var(--circi-state-rejected);
+  border-color: var(--circi-state-failed);
 }
 
 .control[data-disabled] {
@@ -106,5 +106,5 @@
 }
 
 .error {
-  color: var(--circi-state-rejected-text);
+  color: var(--circi-state-failed-text);
 }

@@ -22,11 +22,15 @@
   color: var(--circi-state-processing);
 }
 
+.root[data-status='failed'] {
+  color: var(--circi-state-failed);
+}
+
 .root[data-status='rejected'] {
   color: var(--circi-state-rejected);
 }
 
-/* The check and cross are cut out of the filled disc in the page's ground colour. */
+/* The check, cross and bar are cut out of the filled disc in the page's ground colour. */
 .ink {
   stroke: var(--circi-surface-chrome);
 }

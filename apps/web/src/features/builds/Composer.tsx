@@ -68,7 +68,7 @@ export function Composer(props: Composer.Props) {
         }}
       />
       {props.error ? (
-        <Text variant="small" tone="rejected" role="alert">
+        <Text variant="small" tone="failed" role="alert">
           {props.error}
         </Text>
       ) : null}

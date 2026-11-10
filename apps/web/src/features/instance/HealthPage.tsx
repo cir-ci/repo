@@ -168,7 +168,7 @@ function SummaryCounts(props: { findings: InstanceAdmin.Finding[] }) {
           label: 'Failing',
           value: counts.failing,
           extra: (
-            <Badge shape="tag" tone="state" state="rejected">
+            <Badge shape="tag" tone="state" state="failed">
               Failing
             </Badge>
           ),

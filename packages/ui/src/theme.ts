@@ -38,10 +38,14 @@ const dark = {
     review: '#eec84f',
     reviewText: '#eec84f',
     processing: '#9aa3f7',
-    rejected: '#ff0a1f',
+    /** A build, screenshot or job that broke (and errors): crimson, a cross. */
+    failed: '#ff0a1f',
+    /** A person's decision to reject: rose, a disc with one bar. Never crimson, which is failure. */
+    rejected: '#ff5fa8',
     /** Badge and chip words: in light the glyph colours are too pale to read as words. */
     approvedText: '#5cb8a8',
-    rejectedText: '#ff3b4c',
+    failedText: '#ff3b4c',
+    rejectedText: '#ff5fa8',
   },
   /** Team identity colours (never state): a team's tile background, with `tile-text` on top. */
   team: {
@@ -92,9 +96,11 @@ const light: typeof dark = {
     review: '#9a7703',
     reviewText: '#6b4c00',
     processing: '#4f5bd5',
-    rejected: '#930028',
+    failed: '#930028',
+    rejected: '#b5126a',
     approvedText: '#157364',
-    rejectedText: '#930028',
+    failedText: '#930028',
+    rejectedText: '#b5126a',
   },
   team: {
     slate: '#53749a',

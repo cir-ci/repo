@@ -35,7 +35,7 @@ describe('the build header', () => {
     await renderBuild()
     const late = page.getByText('Overdue 2h', { exact: true })
     await expect.element(late).toBeVisible()
-    await expect.element(late).toHaveAttribute('data-tone', 'rejected')
+    await expect.element(late).toHaveAttribute('data-tone', 'failed')
     expect(page.getByText(/Review target:/).elements()).toHaveLength(0)
   })
 

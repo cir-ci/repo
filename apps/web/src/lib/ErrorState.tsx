@@ -9,14 +9,14 @@ import { HttpError } from './http.ts'
 export function ErrorState(props: ErrorState.Props) {
   if (props.error instanceof HttpError && props.error.status === 404 && props.notFound) {
     return (
-      <EmptyState tone="rejected" icon={<WarningIcon size={32} />} title={props.notFound}>
+      <EmptyState tone="failed" icon={<WarningIcon size={32} />} title={props.notFound}>
         It may have expired, or the link may be wrong.
       </EmptyState>
     )
   }
   return (
     <EmptyState
-      tone="rejected"
+      tone="failed"
       icon={<WarningIcon size={32} />}
       title="This page couldn't be loaded"
       action={

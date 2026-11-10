@@ -139,7 +139,7 @@ describe('TeamPage', () => {
     }
     expect(
       page.getByText('1 failed').element().querySelector('svg')?.getAttribute('data-status'),
-    ).toBe('rejected')
+    ).toBe('failed')
   })
 
   it('says a build has no screenshots', async () => {

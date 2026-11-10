@@ -134,7 +134,7 @@ export function InsightsPage() {
                         fewer flaky (better)
                       </span>
                       <span>
-                        <i style={{ background: 'var(--circi-state-rejected)' }} />
+                        <i style={{ background: 'var(--circi-state-failed)' }} />
                         more flaky (worse)
                       </span>
                       <span>

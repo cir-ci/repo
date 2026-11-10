@@ -44,7 +44,7 @@
 }
 
 .trigger[data-invalid] {
-  border-color: var(--circi-state-rejected);
+  border-color: var(--circi-state-failed);
 }
 
 .trigger[data-disabled] {
@@ -80,7 +80,7 @@
 }
 
 .error {
-  color: var(--circi-state-rejected-text);
+  color: var(--circi-state-failed-text);
 }
 
 /* Above a Dialog (1400) while MUI still exists. */

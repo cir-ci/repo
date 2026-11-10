@@ -52,5 +52,5 @@
 }
 
 .root[data-tone='danger'] .box {
-  border-color: color-mix(in srgb, var(--circi-state-rejected) 40%, transparent);
+  border-color: color-mix(in srgb, var(--circi-state-failed) 40%, transparent);
 }

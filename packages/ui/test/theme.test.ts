@@ -92,6 +92,7 @@ describe('palettes', () => {
         approved: p.state.approvedText,
         review: p.state.reviewText,
         processing: p.state.processing,
+        failed: p.state.failedText,
         rejected: p.state.rejectedText,
       }
       for (const [name, ink] of Object.entries(texts)) {
@@ -142,11 +143,37 @@ describe('palettes', () => {
       }
     })
 
-    it(`${scheme}: rejected is told apart from the accent (ΔE 15, and 8 with deuteranopia)`, () => {
+    it(`${scheme}: failed is told apart from the accent (ΔE 15, and 8 with deuteranopia)`, () => {
       const accent = toLinear(p.accent.main)
+      const failed = toLinear(p.state.failed)
+      expect(deltaE(accent, failed)).toBeGreaterThanOrEqual(15)
+      expect(deltaE(deuteranopia(accent), deuteranopia(failed))).toBeGreaterThanOrEqual(8)
+    })
+
+    it(`${scheme}: rejected (rose) is told apart from failed, review, approved, processing, the annotation and the accent`, () => {
       const rejected = toLinear(p.state.rejected)
-      expect(deltaE(accent, rejected)).toBeGreaterThanOrEqual(15)
-      expect(deltaE(deuteranopia(accent), deuteranopia(rejected))).toBeGreaterThanOrEqual(8)
+      const others = {
+        failed: p.state.failed,
+        review: p.state.review,
+        approved: p.state.approved,
+        processing: p.state.processing,
+        annotation: p.other.annotation,
+        accent: p.accent.main,
+      }
+      for (const [name, hex] of Object.entries(others)) {
+        expect(deltaE(rejected, toLinear(hex)), `rejected vs ${name}`).toBeGreaterThanOrEqual(25)
+      }
+    })
+
+    it(`${scheme}: the rejected and failed glyphs read at 3:1 and their words at 4.5:1 on the panel and chrome`, () => {
+      for (const surface of [p.surface.panel, p.surface.chrome, p.surface.raised]) {
+        for (const glyph of [p.state.rejected, p.state.failed]) {
+          expect(contrast(glyph, surface), `${glyph} on ${surface}`).toBeGreaterThanOrEqual(3)
+        }
+        for (const text of [p.state.rejectedText, p.state.failedText]) {
+          expect(contrast(text, surface), `${text} on ${surface}`).toBeGreaterThanOrEqual(4.5)
+        }
+      }
     })
 
     it(`${scheme}: equals the canvas stylesheet's variables`, () => {

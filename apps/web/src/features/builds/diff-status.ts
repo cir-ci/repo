@@ -32,7 +32,7 @@ export function screenshotStatus(kind: ShotKind, review: ReviewStatus): Status {
     case 'flaky':
       return 'flaky'
     case 'failed':
-      return 'rejected'
+      return 'failed'
     case 'unchanged':
     default:
       return 'neutral'

@@ -45,7 +45,7 @@
 }
 
 .root[data-variant='danger'] {
-  color: var(--circi-state-rejected-text);
+  color: var(--circi-state-failed-text);
 }
 
 .root[data-variant='ghost'] {

@@ -30,13 +30,13 @@ describe('Text', () => {
 
   it('carries its tone, renders `as` and can truncate', async () => {
     await render(
-      <Text as="p" tone="rejected" truncate>
+      <Text as="p" tone="failed" truncate>
         Failed
       </Text>,
     )
     const el = page.getByText('Failed').element()
     expect(el.tagName).toBe('P')
-    expect(el).toHaveAttribute('data-tone', 'rejected')
+    expect(el).toHaveAttribute('data-tone', 'failed')
     expect(getComputedStyle(el).textOverflow).toBe('ellipsis')
   })
 })

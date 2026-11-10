@@ -203,7 +203,7 @@ export function TriagePage() {
               ) : (
                 <>
                   {failed ? (
-                    <Text tone="rejected" role="alert">
+                    <Text tone="failed" role="alert">
                       {failed.message}
                     </Text>
                   ) : null}
@@ -423,7 +423,7 @@ const triageFields = (item: Triage.Item) => [
   item.assignee?.name,
 ]
 
-const GLYPH = { flaky: 'flaky', no_baseline: 'added', failed: 'rejected' } as const
+const GLYPH = { flaky: 'flaky', no_baseline: 'added', failed: 'failed' } as const
 
 /** "3 days", refreshed every minute. */
 function Waiting({ iso }: { iso: string }) {

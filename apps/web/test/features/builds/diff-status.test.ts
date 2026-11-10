@@ -29,7 +29,7 @@ describe('screenshotStatus', () => {
     ),
     ...reviews.map((r): [ShotKind, ReviewStatus, Status] => ['unchanged', r, 'neutral']),
     ...reviews.map((r): [ShotKind, ReviewStatus, Status] => ['flaky', r, 'flaky']),
-    ...reviews.map((r): [ShotKind, ReviewStatus, Status] => ['failed', r, 'rejected']),
+    ...reviews.map((r): [ShotKind, ReviewStatus, Status] => ['failed', r, 'failed']),
   ]
   it.each(cases)('%s in a %s build is %s', (kind, review, status) => {
     expect(screenshotStatus(kind, review)).toBe(status)

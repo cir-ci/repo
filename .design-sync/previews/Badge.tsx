@@ -48,6 +48,9 @@ export const Tones = () => (
       <Badge shape="tag" tone="state" state="processing">
         Processing
       </Badge>
+      <Badge shape="tag" tone="state" state="failed">
+        Failed
+      </Badge>
       <Badge shape="tag" tone="state" state="rejected">
         Rejected
       </Badge>

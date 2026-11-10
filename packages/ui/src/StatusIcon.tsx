@@ -6,6 +6,7 @@ export type Status =
   | 'approved'
   | 'needs-review'
   | 'processing'
+  | 'failed'
   | 'rejected'
   | 'neutral'
   | 'added'
@@ -16,6 +17,7 @@ export const STATUS_LABEL: Record<Status, string> = {
   approved: 'Approved',
   'needs-review': 'Needs review',
   processing: 'Processing',
+  failed: 'Failed',
   rejected: 'Rejected',
   neutral: 'Unchanged',
   added: 'Added',
@@ -25,7 +27,9 @@ export const STATUS_LABEL: Record<Status, string> = {
 
 /**
  * A build or snapshot's state as a small glyph: a filled check (approved), half-filled ring
- * (needs review), dashed ring (processing), filled cross (rejected) or plain ring (unchanged), and a ring with a plus (added), minus (removed) or tilde (flaky).
+ * (needs review), dashed ring (processing), filled cross in crimson (failed: the build or
+ * screenshot broke), filled disc with one diagonal bar in rose (rejected: a person's decision) or
+ * plain ring (unchanged), and a ring with a plus (added), minus (removed) or tilde (flaky).
  * The shape differs per state, so it never relies on colour alone.
  */
 export function StatusIcon(props: StatusIcon.Props) {
@@ -72,7 +76,7 @@ export function StatusIcon(props: StatusIcon.Props) {
           strokeDasharray="2.4 2.2"
         />
       )}
-      {status === 'rejected' && (
+      {status === 'failed' && (
         <>
           <circle cx="7" cy="7" r="7" fill="currentColor" />
           <path
@@ -80,6 +84,18 @@ export function StatusIcon(props: StatusIcon.Props) {
             d="M4.7 4.7l4.6 4.6M9.3 4.7l-4.6 4.6"
             strokeWidth="1.5"
             strokeLinecap="round"
+          />
+        </>
+      )}
+      {status === 'rejected' && (
+        <>
+          <circle cx="7" cy="7" r="7" fill="currentColor" />
+          <path
+            className={ink}
+            d="M3.9 7h6.2"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            transform="rotate(-45 7 7)"
           />
         </>
       )}

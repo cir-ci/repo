@@ -170,7 +170,7 @@ The design has five statuses (`approved`, `needs-review`, `processing`, `rejecte
 | Build | approved / auto-approved | approved | Approved |
 | Build | rejected | rejected | Rejected |
 | Build | no changes | approved | No changes |
-| Build | error | rejected | Failed |
+| Build | error | failed | Failed |
 | Build | expired | neutral | Expired |
 | Build | orphan (no baseline) | neutral | No baseline |
 | Screenshot | changed | needs-review | Changed |
@@ -178,11 +178,11 @@ The design has five statuses (`approved`, `needs-review`, `processing`, `rejecte
 | Screenshot | removed | needs-review | Removed |
 | Screenshot | unchanged | neutral | Unchanged |
 | Screenshot | flaky | neutral | Flaky |
-| Screenshot | failed (couldn't compare) | rejected | Failed |
+| Screenshot | failed (couldn't compare) | failed | Failed |
 
 **Built (2026-11-08):** after a build is approved or rejected the per-screenshot glyphs show the
 review (`screenshotStatus(kind, review)`); unchanged and flaky stay neutral, failed stays
-rejected. The table above is the state before a review.
+failed (a crimson cross; `rejected` is the rose, barred glyph for a decision). The table above is the state before a review.
 
 **Needs a decision:** do added/removed/flaky need their own glyphs (e.g. +, −, ~) rather than
 sharing `needs-review`/`neutral`? That would mean extending `StatusIcon`, and the "state colour
