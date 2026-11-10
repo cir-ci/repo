@@ -43,13 +43,14 @@ import {
 import styles from './Sidebar.module.css'
 
 /**
- * Top to bottom (the canvas's Sidebar board): the workspace switcher with the search button (⌘K) at its right, Inbox, Reviews,
- * Teams, Insights, then the workspace's teams (Pinned, then Teams; the open one expands to Builds,
- * Triage, Baselines and Sites), "Your views", and the account button. With no teams the Teams
- * section says "No teams yet"; creating a team lives on the Teams page. No settings links:
- * workspace settings (and from there each team's) open from the workspace menu above, account
- * settings from the account menu. `AppFrame` wraps this in the Main navigation; below 820px it is
- * not rendered (the bottom tabs and the More sheet are the phone's navigation).
+ * Top to bottom: Inbox (with the search button, ⌘K, and the hide button at its right) and Teams,
+ * which span every workspace; then the workspace's own part: the switcher, Reviews, Insights, the
+ * workspace's teams (Pinned, then Teams; the open one expands to Builds, Triage, Baselines and
+ * Sites), "Your views", and the account button. With no teams the Teams section says "No teams
+ * yet"; creating a team lives on the Teams page. No settings links: workspace settings (and from
+ * there each team's) open from the workspace menu, account settings from the account menu.
+ * `AppFrame` wraps this in the Main navigation; below 820px it is not rendered (the bottom tabs
+ * and the More sheet are the phone's navigation).
  */
 export function Sidebar({ user }: Sidebar.Props) {
   const params = useParams({ strict: false })
@@ -84,14 +85,15 @@ export function Sidebar({ user }: Sidebar.Props) {
   return (
     <>
       <div className={styles.header}>
-        <div className={styles.switcher}>
-          <WorkspaceSwitcher
-            workspaces={workspaces}
-            current={workspace}
-            onSelect={switchWorkspace}
-            canManage={model?.canManage}
-            {...(caps?.canCreateWorkspace ? { onCreate: () => setNewWorkspaceOpen(true) } : {})}
-          />
+        <div className={styles.grow}>
+          <NavLink
+            to="/inbox"
+            icon={<InboxIcon />}
+            selected={section === 'inbox'}
+            {...counted(model?.inboxUnread, ['unread notification', 'unread notifications'])}
+          >
+            Inbox
+          </NavLink>
         </div>
         <Tooltip
           content={
@@ -111,14 +113,18 @@ export function Sidebar({ user }: Sidebar.Props) {
         </Tooltip>
         <HideNavButton />
       </div>
-      <NavLink
-        to="/inbox"
-        icon={<InboxIcon />}
-        selected={section === 'inbox'}
-        {...counted(model?.inboxUnread, ['unread notification', 'unread notifications'])}
-      >
-        Inbox
+      <NavLink to="/" icon={<FolderOpenIcon />} selected={section === 'teams'}>
+        Teams
       </NavLink>
+      <div className={styles.workspace}>
+        <WorkspaceSwitcher
+          workspaces={workspaces}
+          current={workspace}
+          onSelect={switchWorkspace}
+          canManage={model?.canManage}
+          {...(caps?.canCreateWorkspace ? { onCreate: () => setNewWorkspaceOpen(true) } : {})}
+        />
+      </div>
       {workspace ? (
         <NavLink
           to="/workspaces/$workspace/reviews"
@@ -130,9 +136,6 @@ export function Sidebar({ user }: Sidebar.Props) {
           Reviews
         </NavLink>
       ) : null}
-      <NavLink to="/" icon={<FolderOpenIcon />} selected={section === 'teams'}>
-        Teams
-      </NavLink>
       {workspace ? (
         <NavLink
           to="/workspaces/$workspace/insights"

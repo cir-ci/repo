@@ -246,28 +246,44 @@ describe('Shell, wide', () => {
     await renderShell('/')
     const nav = page.getByRole('navigation', { name: 'Main' })
     await expect.element(nav).toBeVisible()
-    // Search is an icon at the right of the workspace switcher, not an item of the list.
+    // Search is an icon at the right of Inbox, at the top, not an item of the list.
     const search = nav.getByRole('button', { name: 'Search', exact: true })
     await expect.element(search).toBeVisible()
     expect(nav.getByText('Search', { exact: true }).elements()).toHaveLength(0)
     expect(nav.getByText('⌘K').elements()).toHaveLength(0)
     await expect.element(nav.getByRole('link', { name: 'Teams', exact: true })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: 'Insights' })).toBeVisible()
-    const switcher = nav
-      .getByRole('button', { name: 'Workspace: Acme' })
+    const inbox = nav
+      .getByRole('link', { name: /^Inbox/ })
       .element()
       .getBoundingClientRect()
     const icon = search.element().getBoundingClientRect()
-    expect(icon.left).toBeGreaterThanOrEqual(switcher.right - 1)
-    expect(
-      Math.abs(icon.top + icon.height / 2 - (switcher.top + switcher.height / 2)),
-    ).toBeLessThan(4)
+    expect(icon.left).toBeGreaterThanOrEqual(inbox.right - 1)
+    expect(Math.abs(icon.top + icon.height / 2 - (inbox.top + inbox.height / 2))).toBeLessThan(4)
     // Settings open from the workspace menu above, not from the sidebar.
     expect(nav.getByRole('link', { name: 'Settings' }).elements()).toHaveLength(0)
     await expect.element(nav.getByRole('link', { name: 'storybook' })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: /^web-app/ })).toBeVisible()
     expect(nav.getByRole('link', { name: 'portal' }).elements()).toHaveLength(0)
     await expect.element(page.getByRole('main')).toHaveTextContent('Teams page')
+  })
+
+  it('puts Inbox and Teams above the workspace switcher, and Reviews and Insights below it', async () => {
+    await page.viewport(1280, 800)
+    await renderShell('/')
+    const nav = page.getByRole('navigation', { name: 'Main' })
+    await expect.element(nav.getByRole('link', { name: 'Insights' })).toBeVisible()
+    const top = (locator: { element: () => Element }) =>
+      locator.element().getBoundingClientRect().top
+    const inbox = top(nav.getByRole('link', { name: /^Inbox/ }))
+    const teams = top(nav.getByRole('link', { name: 'Teams', exact: true }))
+    const switcher = top(nav.getByRole('button', { name: 'Workspace: Acme' }))
+    const reviews = top(nav.getByRole('link', { name: /^Reviews/ }))
+    const insights = top(nav.getByRole('link', { name: 'Insights' }))
+    expect(inbox).toBeLessThan(teams)
+    expect(teams).toBeLessThan(switcher)
+    expect(switcher).toBeLessThan(reviews)
+    expect(reviews).toBeLessThan(insights)
   })
 
   it("shows the notices inside the panel, right under the page's sticky header", async () => {
