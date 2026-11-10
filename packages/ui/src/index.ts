@@ -63,15 +63,6 @@ export { Ref } from './Ref.js'
 export { SecretBox } from './SecretBox.js'
 export { SectionHeader } from './SectionHeader.js'
 export { ScrollArea } from './ScrollArea.js'
-export {
-  type AxisMetrics,
-  MIN_THUMB,
-  pageDirection,
-  pageScroll,
-  scrollForDrag,
-  type Thumb,
-  thumbFor,
-} from './scroll-metrics.js'
 export { Select } from './Select.js'
 export { Skeleton, ListSkeleton } from './Skeleton.js'
 export { SkipLink } from './SkipLink.js'

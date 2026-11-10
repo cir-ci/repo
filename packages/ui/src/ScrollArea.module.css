@@ -1,5 +1,4 @@
-/* The positioned frame the thumbs are laid on. The scroller inside it is the element the caller
-   styles: it keeps scrolling natively (wheel, keys, touch) with its own bars hidden. */
+/* The frame the scrollbars are laid on; it fills its parent like a flex item. */
 .root {
   position: relative;
   display: flex;
@@ -9,69 +8,69 @@
   min-height: 0;
 }
 
-.scroller {
+/* Base UI hides the native bars and keeps the viewport scrolling natively. */
+.viewport {
   flex: 1 1 0;
   min-height: 0;
-  overflow: auto;
-  scrollbar-width: none;
 }
 
-.scroller::-webkit-scrollbar {
-  display: none;
-}
-
-/* The track is the hit area for paging: 10px, with the 6px thumb against the edge. It takes no
-   presses while it is faded out, so it never covers the content's edge for nothing. */
-.track {
-  position: absolute;
+/* The track is the hit area for paging: 10px, with the 6px thumb against the edge. It shows while
+   the area is hovered or scrolled, and takes no presses while it is faded out. */
+.scrollbar {
   z-index: 2;
+  display: flex;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 200ms;
+  transition: opacity 200ms 800ms;
   touch-action: none;
   user-select: none;
 }
 
-.track[data-visible] {
+.scrollbar[data-hovering],
+.scrollbar[data-scrolling],
+.scrollbar:active {
   opacity: 1;
   pointer-events: auto;
+  transition-delay: 0ms;
 }
 
-.track[data-axis='y'] {
-  top: 0;
-  right: 0;
+.scrollbar[data-orientation='vertical'] {
   width: 10px;
+  justify-content: flex-end;
 }
 
-.track[data-axis='x'] {
-  bottom: 0;
-  left: 0;
+.scrollbar[data-orientation='horizontal'] {
+  flex-direction: column;
   height: 10px;
+  justify-content: flex-end;
 }
 
 .thumb {
-  position: absolute;
   border-radius: 999px;
   background: var(--circi-scrollbar-thumb);
 }
 
-.track[data-axis='y'] .thumb {
-  right: 0;
+.scrollbar[data-orientation='vertical'] .thumb {
   width: 6px;
+  height: var(--scroll-area-thumb-height);
 }
 
-.track[data-axis='x'] .thumb {
-  bottom: 0;
+.scrollbar[data-orientation='horizontal'] .thumb {
+  width: var(--scroll-area-thumb-width);
   height: 6px;
 }
 
 .thumb:hover,
-.thumb[data-dragging] {
+.scrollbar:active .thumb {
   background: var(--circi-scrollbar-thumb-hover);
 }
 
+.corner {
+  background: transparent;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .track {
+  .scrollbar {
     transition: none;
   }
 }
