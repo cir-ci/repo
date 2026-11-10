@@ -76,6 +76,7 @@ export const keys = {
   reviews: (tab?: string) => (tab === undefined ? ['reviews'] : ['reviews', tab]) as Key,
   inbox: (tab?: string) => (tab === undefined ? ['inbox'] : ['inbox', tab]) as Key,
   notificationPreferences: () => ['notification-preferences'] as const,
+  pushDevices: () => ['push-devices'] as const,
   sessions: () => ['sessions'] as const,
   linkedAccounts: () => ['linked-accounts'] as const,
   authMethods: () => ['auth-methods'] as const,

@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
 
+import { PushPrompt } from '#features/pwa/PushPrompt.tsx'
 import { useCrumbNames } from '#features/teams/crumb-names.ts'
 import { authClient } from '#lib/auth-client.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
@@ -265,6 +266,7 @@ export function ReviewsPage() {
           ) : undefined
         }
       />
+      <PushPrompt hasReview={pending > 0} />
       <QueryBoundary query={query} announce="Loading reviews" rows={4}>
         {() => (
           <div

@@ -49,6 +49,25 @@ export const PREFERENCE_ROWS: readonly {
   },
 ]
 
+/** Which kinds go to the person's devices as web push (per person, for every device that is on). */
+export const PUSH_ROWS: readonly {
+  key: keyof Inbox.Preferences
+  label: string
+  description: string
+}[] = [
+  {
+    key: 'pushReviewRequested',
+    label: 'Review requested',
+    description: 'Review requests, including again after a push, and overdue reviews.',
+  },
+  { key: 'pushMentioned', label: 'Mentioned', description: 'Someone @mentions you in a comment.' },
+  {
+    key: 'pushReviewOutcome',
+    label: 'Rejected or approved',
+    description: 'A build you pushed was reviewed. Rejections include the reason.',
+  },
+]
+
 export const preferencesQuery = () =>
   queryOptions({
     queryKey: keys.notificationPreferences(),

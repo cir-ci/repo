@@ -11,6 +11,7 @@ import { SaveNote } from '#lib/SaveNote.tsx'
 import { toast } from '#lib/toast.ts'
 
 import { PREFERENCE_ROWS, preferencesQuery, useSetPreference } from './api.ts'
+import { PushSection } from './PushSection.tsx'
 
 import styles from './NotificationsPage.module.css'
 
@@ -96,6 +97,8 @@ export function NotificationsPage() {
               Mail goes to {session.user.email}.
             </Text>
           ) : null}
+
+          <PushSection preferences={data} />
 
           <SettingsSection
             title="In your Inbox"

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, vi } from 'vitest'
 
+import { setPushEnv } from '#features/pwa/push-client.ts'
 import { resetStores } from '#lib/stores/index.ts'
 
 import { resetAuthClient } from './auth-client.ts'
@@ -19,6 +20,7 @@ afterEach(() => {
   vi.clearAllMocks()
   resetAuthClient()
   resetStores()
+  setPushEnv()
   localStorage.clear()
   sessionStorage.clear()
   if (unfaked.length > 0) throw new Error(`Unfaked requests:\n${unfaked.join('\n')}`)
