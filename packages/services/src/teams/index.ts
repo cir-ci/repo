@@ -9,3 +9,4 @@ export {
   removeMemberFromTeam,
   removeMemberFromWorkspaceTeams,
 } from './members.ts'
+export { importGithubRepositories, listImportableRepositories } from './import-repositories.ts'

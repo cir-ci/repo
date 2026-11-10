@@ -1,7 +1,17 @@
-import { Banner, Button, ListRow, StatusIcon, Avatar, Text, visuallyHidden } from '@circi/ui'
+import {
+  Avatar,
+  Banner,
+  Button,
+  ListRow,
+  PlusIcon,
+  StatusIcon,
+  Text,
+  visuallyHidden,
+} from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 
 import { buildState } from '#features/builds/build-state.ts'
+import { integrationsQuery } from '#features/integrations/api/index.ts'
 import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { capabilitiesQuery, teamsQuery } from '#features/teams/api/index.ts'
 import { useDocumentTitle } from '#lib/document-title.ts'
@@ -31,12 +41,21 @@ export function TeamsPage() {
   const query = useQuery(teamsQuery())
   const { data: caps } = useQuery(capabilitiesQuery())
   const setNewTeamOpen = useOverlayStore((s) => s.setNewTeamOpen)
+  const setImportOpen = useOverlayStore((s) => s.setImportOpen)
   const canCreateTeam = (caps?.manageableWorkspaces.length ?? 0) > 0
   const canCreateWorkspace = caps?.canCreateWorkspace === true
   // The teams of the workspace the shell is about (the board lists one workspace's teams); the
   // workspace switcher is how to see another's.
   const { workspace } = useWorkspaces(useChosenWorkspace())
   const teams = query.data?.teams.filter((o) => o.workspace.slug === workspace?.slug)
+  // Import from GitHub needs a GitHub App installation in this workspace, and an owner or admin.
+  const canManage = caps?.manageableWorkspaces.some((w) => w.slug === workspace?.slug) === true
+  const { data: integrations } = useQuery({
+    ...integrationsQuery(workspace?.slug ?? ''),
+    enabled: canManage && workspace !== undefined,
+  })
+  const canImport =
+    canManage && integrations?.integrations.some((i) => i.kind === 'github') === true
 
   return (
     <>
@@ -51,9 +70,18 @@ export function TeamsPage() {
         }
         actions={
           canCreateTeam ? (
-            <Button size="sm" variant="primary" onClick={() => setNewTeamOpen(true)}>
-              New team
-            </Button>
+            <>
+              {canImport ? (
+                <Button onClick={() => setImportOpen(true)}>Import from GitHub</Button>
+              ) : null}
+              <Button
+                variant="primary"
+                leading={<PlusIcon size={14} />}
+                onClick={() => setNewTeamOpen(true)}
+              >
+                New team
+              </Button>
+            </>
           ) : null
         }
       />

@@ -19,7 +19,7 @@ import {
 } from '#app/shell-model.ts'
 
 const overview = (workspace: string, team: string): Team.Overview => ({
-  workspace: { slug: workspace, name: workspace.toUpperCase(), picture: null },
+  workspace: { slug: workspace, name: workspace.toUpperCase(), picture: null, role: 'owner' },
   team: {
     slug: team,
     name: team,
@@ -42,6 +42,20 @@ describe('listWorkspaces', () => {
     )
     expect(workspaces.map((o) => o.slug)).toEqual(['alpha', 'beta', 'delta', 'gamma'])
     expect(workspaces.find((o) => o.slug === 'delta')?.name).toBe('delta')
+  })
+
+  it('carries the role in each workspace, from its teams or from the manageable list', () => {
+    const member = overview('alpha', 'z')
+    member.workspace.role = 'member'
+    const workspaces = listWorkspaces(
+      [member, overview('beta', 'x')],
+      [{ slug: 'gamma', name: 'Gamma', picture: null, role: 'admin' }],
+    )
+    expect(workspaces.map((o) => [o.slug, o.role])).toEqual([
+      ['alpha', 'member'],
+      ['beta', 'owner'],
+      ['gamma', 'admin'],
+    ])
   })
 
   it('is empty before anything has loaded', () => {

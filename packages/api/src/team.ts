@@ -29,7 +29,13 @@ export namespace Team {
   }
 
   export interface Overview {
-    workspace: { slug: string; name: string; picture: string | null }
+    workspace: {
+      slug: string
+      name: string
+      picture: string | null
+      /** The person's role in the workspace. */
+      role: Workspace.Role
+    }
     team: {
       slug: string
       name: string

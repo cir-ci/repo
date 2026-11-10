@@ -97,7 +97,7 @@ describe('first-run setup', () => {
       instanceAdmin: true,
       refusingWorkspaces: [],
       mailConfigured: false,
-      manageableWorkspaces: [{ slug: 'acme-inc', name: 'Acme Inc', picture: null }],
+      manageableWorkspaces: [{ slug: 'acme-inc', name: 'Acme Inc', picture: null, role: 'owner' }],
     })
 
     // Setup is gone for good.

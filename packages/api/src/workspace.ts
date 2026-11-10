@@ -1,11 +1,20 @@
 import type { Team } from './team.ts'
 
 export namespace Workspace {
+  /** What a person is in a workspace. */
+  export type Role = 'owner' | 'admin' | 'member'
+
   export interface Capabilities {
     canCreateWorkspace: boolean
     /** Whether this person runs the instance (its admin pages and menu entries). */
     instanceAdmin: boolean
-    manageableWorkspaces: { slug: string; name: string; picture: string | null }[]
+    manageableWorkspaces: {
+      slug: string
+      name: string
+      picture: string | null
+      /** The person's role in it: owners and admins manage it. */
+      role: Role
+    }[]
     /** Workspaces that won't show their content to the way this session signed in. */
     refusingWorkspaces: { name: string; accepts: ('password' | 'email' | 'github' | 'google')[] }[]
     /** The instance can send mail (SMTP is set up): email notifications and sign-in codes work. */
@@ -22,6 +31,27 @@ export namespace Workspace {
     }
     /** What the instance offers; a provider that is not set up gets no switch. */
     instance: { password: boolean; email: boolean; github: boolean; google: boolean }
+  }
+
+  /**
+   * `GET /api/workspaces/:workspace/github-import`: the repositories of the workspace's GitHub
+   * installations that no team is linked to yet (owners and admins).
+   */
+  export interface GithubRepositories {
+    repositories: {
+      /** The workspace's GitHub connection that sees the repository. */
+      integration: string
+      /** That connection's name (`Installation 42`). */
+      installation: string
+      /** `owner/name`. */
+      ref: string
+      private: boolean
+    }[]
+  }
+
+  /** `POST /api/workspaces/:workspace/github-import`: the teams made, one per repository. */
+  export interface GithubImport {
+    teams: { slug: string; name: string; repository: string }[]
   }
 
   /**

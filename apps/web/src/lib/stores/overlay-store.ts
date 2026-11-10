@@ -7,11 +7,18 @@ export const useOverlayStore = create<OverlayStore.State & OverlayStore.Actions>
   setHelpOpen: (helpOpen) => set({ helpOpen }),
   setNewTeamOpen: (newTeamOpen) => set({ newTeamOpen }),
   setNewWorkspaceOpen: (newWorkspaceOpen) => set({ newWorkspaceOpen }),
+  setImportOpen: (importOpen) => set({ importOpen }),
   reset: () => set(initialOverlayState()),
 }))
 
 function initialOverlayState(): OverlayStore.State {
-  return { commandMenuOpen: false, helpOpen: false, newTeamOpen: false, newWorkspaceOpen: false }
+  return {
+    commandMenuOpen: false,
+    helpOpen: false,
+    newTeamOpen: false,
+    newWorkspaceOpen: false,
+    importOpen: false,
+  }
 }
 
 export namespace OverlayStore {
@@ -21,12 +28,15 @@ export namespace OverlayStore {
     /** The New team dialog: opened from the sidebar's "+", the empty state and the Teams page. */
     newTeamOpen: boolean
     newWorkspaceOpen: boolean
+    /** The Import from GitHub dialog, opened from the Teams page. */
+    importOpen: boolean
   }
   export interface Actions {
     setCommandMenuOpen: (open: boolean) => void
     setHelpOpen: (open: boolean) => void
     setNewTeamOpen: (open: boolean) => void
     setNewWorkspaceOpen: (open: boolean) => void
+    setImportOpen: (open: boolean) => void
     reset: () => void
   }
 }

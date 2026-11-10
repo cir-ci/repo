@@ -4,6 +4,7 @@ import { and, eq } from 'drizzle-orm'
 import { member, workspace, teams } from '#schema/index.ts'
 import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
 import { teamVisibleTo } from '#shared/team-visibility.ts'
+import { asWorkspaceRole, type WorkspaceRole } from '#shared/workspace-role.ts'
 import type { Database } from '#src/client.ts'
 
 import { listBuildsForTeam } from './builds.ts'
@@ -15,7 +16,13 @@ import { getTeamMemberSummaries } from './team-members.ts'
  */
 
 export interface TeamOverview {
-  workspace: { slug: string; name: string; picture: string | null }
+  workspace: {
+    slug: string
+    name: string
+    picture: string | null
+    /** The person's role in the workspace. */
+    role: WorkspaceRole
+  }
   team: {
     slug: string
     name: string
@@ -42,7 +49,7 @@ export async function listTeamsOverview(
   method?: SessionMethod,
 ): Promise<TeamOverview[]> {
   const rows = await db
-    .select({ workspace: workspace, team: teams })
+    .select({ workspace: workspace, team: teams, role: member.role })
     .from(teams)
     .innerJoin(workspace, eq(workspace.id, teams.workspaceId))
     .innerJoin(member, and(eq(member.workspaceId, workspace.id), eq(member.userId, userId)))
@@ -54,13 +61,14 @@ export async function listTeamsOverview(
     userId,
   )
   return Promise.all(
-    rows.map(async ({ workspace: owner, team }) => {
+    rows.map(async ({ workspace: owner, team, role }) => {
       const [latest] = await listBuildsForTeam(db, team.id, { limit: 1 })
       return {
         workspace: {
           slug: owner.slug,
           name: owner.name,
           picture: workspacePictureUrl(owner.slug, owner.logo),
+          role: asWorkspaceRole(role),
         },
         team: {
           slug: team.slug,

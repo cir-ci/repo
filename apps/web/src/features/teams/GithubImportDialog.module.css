@@ -1,0 +1,24 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.choices {
+  max-height: 320px;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: var(--circi-radius-panel);
+  list-style: none;
+}
+
+.choice {
+  padding: 6px;
+}
+
+.choice svg {
+  color: var(--circi-text-tertiary);
+}

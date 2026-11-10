@@ -59,6 +59,7 @@ const SELF_OR_ADMIN = new Set([`DELETE ${TEAM}/members/:userId`])
 
 /** Writes only owners and admins may make (members get 403). */
 const ADMIN_ONLY = new Set([
+  `POST ${WORKSPACE}/github-import`,
   `PUT ${WORKSPACE}/picture`,
   `DELETE ${WORKSPACE}/picture`,
   `DELETE ${TEAM}`,

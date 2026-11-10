@@ -3,6 +3,7 @@ import { and, asc, eq, inArray } from 'drizzle-orm'
 
 import { files, member, workspace } from '#schema/index.ts'
 import { workspaceAccepts, workspaceIsLive, type SessionMethod } from '#shared/session-method.ts'
+import { asWorkspaceRole, type WorkspaceRole } from '#shared/workspace-role.ts'
 import type { Database } from '#src/client.ts'
 import { assertFound } from '#src/errors.ts'
 import type { Workspace } from '#src/types.ts'
@@ -73,9 +74,9 @@ export async function listManageableWorkspaces(
   db: Database,
   userId: string,
   method?: SessionMethod,
-): Promise<{ slug: string; name: string; picture: string | null }[]> {
+): Promise<{ slug: string; name: string; picture: string | null; role: WorkspaceRole }[]> {
   const rows = await db
-    .select({ slug: workspace.slug, name: workspace.name, logo: workspace.logo })
+    .select({ slug: workspace.slug, name: workspace.name, logo: workspace.logo, role: member.role })
     .from(member)
     .innerJoin(workspace, eq(workspace.id, member.workspaceId))
     .where(
@@ -90,6 +91,7 @@ export async function listManageableWorkspaces(
     slug: r.slug,
     name: r.name,
     picture: workspacePictureUrl(r.slug, r.logo),
+    role: asWorkspaceRole(r.role),
   }))
 }
 

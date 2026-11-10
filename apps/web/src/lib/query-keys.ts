@@ -68,6 +68,8 @@ export const keys = {
   integrations: (workspace: string, ...rest: unknown[]) =>
     ['integrations', workspace, ...rest] as const,
   capabilities: () => ['capabilities'] as const,
+  /** The GitHub repositories of a workspace that no team is linked to (Import from GitHub). */
+  githubImport: (workspace: string) => ['github-import', workspace] as const,
 
   // The signed-in user.
   reviews: (tab?: string) => (tab === undefined ? ['reviews'] : ['reviews', tab]) as Key,

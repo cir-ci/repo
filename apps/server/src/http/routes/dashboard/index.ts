@@ -37,6 +37,7 @@ import { webAppRoutes } from './web-app.ts'
 import { dashboardWorkspaceAuthRoutes } from './workspaces/auth.ts'
 import { dashboardWorkspaceBuildsRoutes } from './workspaces/builds.ts'
 import { dashboardDomainRoutes } from './workspaces/domains.ts'
+import { dashboardGithubImportRoutes } from './workspaces/import-repositories.ts'
 import { dashboardWorkspacePictureRoutes } from './workspaces/picture.ts'
 import { dashboardWorkspaceSettingsRoutes } from './workspaces/settings.ts'
 import { dashboardWorkspaceSsoRoutes } from './workspaces/sso.ts'
@@ -93,6 +94,7 @@ const sessionApi: FastifyPluginAsync<Deps.Dashboard> = async (api, deps) => {
   await api.register(dashboardTeamMemberRoutes, deps)
   await api.register(dashboardSettingsRoutes, deps)
   await api.register(dashboardWorkspaceRoutes, deps)
+  await api.register(dashboardGithubImportRoutes, deps)
   await api.register(dashboardInstanceRoutes, deps)
   await api.register(dashboardInstanceAccountRoutes, deps)
   await api.register(dashboardInstanceWorkspaceRoutes, deps)

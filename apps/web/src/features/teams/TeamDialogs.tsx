@@ -6,10 +6,11 @@ import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
 
 import { NewWorkspaceDialog } from './CreateDialogs.tsx'
+import { GithubImportDialog } from './GithubImportDialog.tsx'
 import { NewTeamDialog } from './NewTeamDialog.tsx'
 
 /**
- * The New team and New workspace dialogs, mounted once for the signed-in app. Their open state is
+ * The New team, Import from GitHub and New workspace dialogs, mounted once for the signed-in app. Their open state is
  * in `useOverlayStore`, so the sidebar's "+", the team switcher, the Teams page and its empty state
  * all open the same dialog: `useOverlayStore((s) => s.setNewTeamOpen)(true)`.
  */
@@ -18,7 +19,9 @@ export function TeamDialogs() {
   const { workspace } = useWorkspaces(useChosenWorkspace())
   const teamOpen = useOverlayStore((s) => s.newTeamOpen)
   const workspaceOpen = useOverlayStore((s) => s.newWorkspaceOpen)
+  const importOpen = useOverlayStore((s) => s.importOpen)
   const setTeamOpen = useOverlayStore((s) => s.setNewTeamOpen)
+  const setImportOpen = useOverlayStore((s) => s.setImportOpen)
   const setWorkspaceOpen = useOverlayStore((s) => s.setNewWorkspaceOpen)
   return (
     <>
@@ -27,6 +30,11 @@ export function TeamDialogs() {
         onClose={() => setTeamOpen(false)}
         workspaces={caps?.manageableWorkspaces ?? []}
         initialWorkspace={workspace?.slug}
+      />
+      <GithubImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        workspace={workspace?.slug ?? ''}
       />
       <NewWorkspaceDialog open={workspaceOpen} onClose={() => setWorkspaceOpen(false)} />
     </>

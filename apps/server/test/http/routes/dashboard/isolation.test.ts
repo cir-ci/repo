@@ -16,6 +16,9 @@ describe('workspace isolation', () => {
     expect(theirs.map((p: { workspace: { slug: string } }) => p.workspace.slug)).toEqual([
       rival.workspaceSlug,
     ])
+    // Each is the owner of their own workspace; the role is what the workspace menu shows.
+    expect(mine[0].workspace.role).toBe('owner')
+    expect(theirs[0].workspace.role).toBe('owner')
   })
 
   it("answers “not found” for another workspace's team and builds", async () => {

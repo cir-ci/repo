@@ -63,6 +63,7 @@ GET /api/workspaces/:workspace/builds
 GET /api/workspaces/:workspace/builds/branches
 GET /api/workspaces/:workspace/builds/suggestions
 GET /api/workspaces/:workspace/domains
+GET /api/workspaces/:workspace/github-import
 GET /api/workspaces/:workspace/insights
 GET /api/workspaces/:workspace/integrations
 GET /api/workspaces/:workspace/integrations/:id|:kind/install
@@ -128,6 +129,7 @@ HEAD /api/workspaces/:workspace/builds
 HEAD /api/workspaces/:workspace/builds/branches
 HEAD /api/workspaces/:workspace/builds/suggestions
 HEAD /api/workspaces/:workspace/domains
+HEAD /api/workspaces/:workspace/github-import
 HEAD /api/workspaces/:workspace/insights
 HEAD /api/workspaces/:workspace/integrations
 HEAD /api/workspaces/:workspace/integrations/:id|:kind/install
@@ -205,6 +207,7 @@ POST /api/teams/:workspace/:team/webhooks/:id/test
 POST /api/workspaces
 POST /api/workspaces/:workspace/domains
 POST /api/workspaces/:workspace/domains/:id/verify
+POST /api/workspaces/:workspace/github-import
 POST /api/workspaces/:workspace/integrations/:id|:kind/connect
 POST /api/workspaces/:workspace/integrations/:id|:kind/teams/:team/links
 POST /api/workspaces/:workspace/integrations/:id|:kind/teams/:team/links/auto

@@ -45,7 +45,7 @@ export const overview = (
   team: string,
   over: Partial<Team.Overview['team']> = {},
 ): Team.Overview => ({
-  workspace: { slug: workspace, name: workspace.toUpperCase(), picture: null },
+  workspace: { slug: workspace, name: workspace.toUpperCase(), picture: null, role: 'owner' },
   team: {
     slug: team,
     name: team,
