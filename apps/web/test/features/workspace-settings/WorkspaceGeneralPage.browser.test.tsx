@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { page } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 
 import { WorkspaceGeneralPage } from '#features/workspace-settings/WorkspaceGeneralPage.tsx'
 import { fakeApi } from '#test/support/fetch.ts'
@@ -26,21 +26,25 @@ const settings = (canManage = true) => ({
     { slug: 'marketing', name: 'marketing-site', flakyBlocksMerge: false },
   ],
 })
+const openPicture = () => page.getByRole('button', { name: 'Change picture' }).click()
 const name = () => page.getByRole('textbox', { name: 'Name' })
 const slug = () => page.getByRole('textbox', { name: 'URL slug' })
 const save = () => page.getByRole('button', { name: 'Save changes' })
 
 describe('WorkspaceGeneralPage', () => {
-  it('shows the picture row: the first letter without a picture, Upload for a manager', async () => {
+  it('keeps the picture in a popover on the avatar: Upload for a manager, no Remove without one', async () => {
     await page.viewport(1000, 900)
     fakeApi({
       'GET /api/workspaces/acme': { body: general() },
       'GET /api/workspaces/acme/settings': { body: settings() },
     })
     await renderPage(<WorkspaceGeneralPage />, ROUTE)
-    await expect.element(page.getByText('Picture', { exact: true })).toBeVisible()
+    expect(page.getByRole('button', { name: 'Upload picture' }).elements()).toHaveLength(0)
+    await openPicture()
     await expect.element(page.getByRole('button', { name: 'Upload picture' })).toBeEnabled()
-    expect(page.getByRole('button', { name: 'Remove' }).elements()).toHaveLength(0)
+    expect(page.getByRole('button', { name: 'Remove picture' }).elements()).toHaveLength(0)
+    await userEvent.keyboard('{Escape}')
+    await expect.element(page.getByRole('button', { name: 'Change picture' })).toHaveFocus()
   })
 
   // A 1×1 PNG the browser can load (the shared avatar draws the picture only once it has).
@@ -60,6 +64,7 @@ describe('WorkspaceGeneralPage', () => {
       'DELETE /api/workspaces/acme/picture': { body: { picture: null } },
     })
     await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    await openPicture()
     await expect.element(page.getByRole('button', { name: 'Replace picture' })).toBeVisible()
     // The avatar shows the picture once it has loaded.
     await expect.poll(() => document.querySelector(`img[src="${PICTURE}"]`)).not.toBeNull()
@@ -73,7 +78,7 @@ describe('WorkspaceGeneralPage', () => {
     input.dispatchEvent(new Event('change', { bubbles: true }))
     await expect.poll(() => api.of('PUT')).toHaveLength(1)
 
-    await page.getByRole('button', { name: 'Remove' }).click()
+    await page.getByRole('button', { name: 'Remove picture' }).click()
     await expect.poll(() => api.of('DELETE')).toHaveLength(1)
   })
 
@@ -85,6 +90,7 @@ describe('WorkspaceGeneralPage', () => {
       'PUT /api/workspaces/acme/picture': { body: { picture: 'x' } },
     })
     await renderPage(<WorkspaceGeneralPage />, ROUTE)
+    await openPicture()
     await expect.element(page.getByRole('button', { name: 'Upload picture' })).toBeVisible()
     const input = document.querySelector<HTMLInputElement>('input[type="file"]')
     if (!input) throw new Error('no file input')

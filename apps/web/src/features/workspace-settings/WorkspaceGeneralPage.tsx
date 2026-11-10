@@ -1,4 +1,5 @@
 import {
+  Avatar,
   Banner,
   Button,
   SettingsRow,
@@ -12,15 +13,15 @@ import { useNavigate, useParams } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
 
 import { useDocumentTitle } from '#lib/document-title.ts'
-import { InstantTextField } from '#lib/InstantTextField.tsx'
+import { IdentityEditor } from '#lib/IdentityEditor.tsx'
 
-import { workspaceGeneralQuery, useSaveWorkspaceGeneral } from './api.ts'
+import { workspaceGeneralQuery, useSaveWorkspaceGeneral, useSaveWorkspacePicture } from './api.ts'
 import { BuildSettings } from './BuildSettings.tsx'
 import { DeleteWorkspaceSection } from './DeleteWorkspaceSection.tsx'
 import { Frame } from './Frame.tsx'
 import { MembersRedirect } from './MembersRedirect.tsx'
 import { generalProblems } from './model.ts'
-import { PictureRow } from './PictureRow.tsx'
+import { PicturePanel } from './PicturePanel.tsx'
 
 import styles from './Settings.module.css'
 
@@ -67,18 +68,37 @@ export function WorkspaceGeneralPage() {
 function IdentitySection({ workspace, name, picture, canManage }: IdentitySection.Props) {
   const announce = useAnnounce()
   const save = useSaveWorkspaceGeneral(workspace)
+  const savePicture = useSaveWorkspacePicture(workspace)
   return (
-    <SettingsSection
-      title="Workspace"
-      description="Shown in the sidebar, in invitations and in pull request comments."
-    >
-      <PictureRow workspace={workspace} name={name} picture={picture} canManage={canManage} />
+    <SettingsSection title="Name and picture">
       <SettingsRow>
-        <InstantTextField
-          label="Name"
+        <IdentityEditor
+          avatar={
+            <Avatar
+              type="workspace"
+              slug={workspace}
+              name={name}
+              picture={picture}
+              size={40}
+              aria-hidden
+            />
+          }
+          buttonLabel="Change picture"
+          panelLabel="Picture"
+          canEdit={canManage}
+          panel={
+            <PicturePanel
+              picture={picture}
+              mutation={savePicture}
+              onSave={(file) =>
+                savePicture.mutate(file, {
+                  onSuccess: () => announce(file ? 'Picture saved' : 'Picture removed'),
+                })
+              }
+            />
+          }
           name="name"
           saved={name}
-          disabled={!canManage}
           mutation={save}
           validate={(next) => generalProblems({ name: next, slug: 'x' }).name ?? null}
           onCommit={(next) =>

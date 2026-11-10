@@ -1,14 +1,13 @@
-.pickers {
+.panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  width: 100%;
+  gap: 8px;
 }
 
 .swatches {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   margin: 0;
   padding: 0;
   border: 0;
@@ -17,7 +16,7 @@
 .legend {
   float: left;
   width: 100%;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   padding: 0;
   color: var(--circi-text-secondary);
   font-size: 12px;
@@ -28,14 +27,12 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
   box-sizing: border-box;
+  width: 28px;
   height: 28px;
-  padding: 0 10px;
   border: 1px solid var(--circi-line-strong);
   border-radius: 6px;
-  color: var(--circi-text-primary);
-  font-size: 12px;
   cursor: pointer;
 }
 
@@ -64,13 +61,6 @@
   border-radius: 4px;
 }
 
-.iconHead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px;
-}
-
-.search {
-  flex: 0 1 240px;
+.note {
+  min-height: 1lh;
 }

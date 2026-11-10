@@ -1,0 +1,62 @@
+.root {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.field {
+  flex: 1 1 auto;
+  max-width: 360px;
+  min-width: 0;
+  /* Centres the 36 px field on the 40 px avatar. */
+  margin-top: 2px;
+}
+
+.avatar {
+  display: flex;
+  flex: none;
+}
+
+.plainName {
+  align-self: center;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.trigger {
+  display: flex;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: var(--circi-radius-panel);
+  background: none;
+  cursor: pointer;
+}
+
+/* The avatar's radius differs by kind: the ring follows the shape inside. */
+.trigger:has([data-type='user']) {
+  border-radius: 50%;
+}
+
+.trigger:hover,
+.trigger[data-popup-open] {
+  outline: 2px solid var(--circi-line-strong);
+  outline-offset: 2px;
+}
+
+.trigger:focus-visible {
+  outline: 2px solid var(--circi-accent-text);
+  outline-offset: 2px;
+}
+
+/* The popover's own max-width is one class too: doubling these makes them win. */
+.narrow.narrow {
+  width: 280px;
+}
+
+.wide.wide {
+  width: 344px;
+  max-width: calc(100vw - 32px);
+}

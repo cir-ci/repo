@@ -66,6 +66,7 @@ const show = () =>
       '/workspaces/$workspace/settings/teams',
     ],
   })
+const openPicker = () => page.getByRole('button', { name: 'Change icon and colour' }).click()
 const heading = (name: string) => page.getByRole('heading', { name })
 
 async function openDelete() {
@@ -529,13 +530,13 @@ describe('TeamSettingsPage', () => {
   describe('icon and colour', () => {
     const ARIA = { color: 'slate', icon: null as string | null }
 
-    it('shows the tile and saves a picked colour at once', async () => {
+    it('saves a picked colour at once, from the popover on the avatar', async () => {
       const fake = api(
         { appearance: ARIA },
         { [`PATCH ${API}/appearance`]: { body: { appearance: { color: 'plum', icon: null } } } },
       )
       await show()
-      await expect.element(page.getByRole('img', { name: 'Web App' })).toBeVisible()
+      await openPicker()
       await page.getByRole('radio', { name: 'Plum' }).click()
       await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
       expect(fake.of('PATCH')[0]).toMatchObject({
@@ -544,12 +545,25 @@ describe('TeamSettingsPage', () => {
       })
     })
 
+    it('keeps the colours and icons out of the page until the avatar is clicked, and Escape returns focus', async () => {
+      api({ appearance: ARIA })
+      await show()
+      expect(page.getByRole('radio', { name: 'Plum' }).elements()).toHaveLength(0)
+      const button = page.getByRole('button', { name: 'Change icon and colour' })
+      await button.click()
+      await expect.element(page.getByRole('dialog', { name: 'Icon and colour' })).toBeVisible()
+      await userEvent.keyboard('{Escape}')
+      await expect.poll(() => page.getByRole('dialog').elements()).toHaveLength(0)
+      await expect.element(button).toHaveFocus()
+    })
+
     it('confirms a saved pick inline, with no Save button in sight', async () => {
       api(
         { appearance: ARIA },
         { [`PATCH ${API}/appearance`]: { body: { appearance: { color: 'plum', icon: null } } } },
       )
       await show()
+      await openPicker()
       await page.getByRole('radio', { name: 'Plum' }).click()
       await expect.element(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible()
     })
@@ -560,6 +574,7 @@ describe('TeamSettingsPage', () => {
         { [`PATCH ${API}/appearance`]: { body: { appearance: { color: 'slate', icon: null } } } },
       )
       await show()
+      await openPicker()
       const group = page.getByRole('group', { name: 'Icon' })
       // Only the rows in view are drawn: "No icon" and a screenful, not 2,000 buttons.
       await expect.element(group.getByRole('button', { name: 'No icon' })).toBeVisible()
@@ -585,6 +600,7 @@ describe('TeamSettingsPage', () => {
     it('loads the next icons as the grid scrolls, drawing only the rows in view', async () => {
       api({ appearance: ARIA })
       await show()
+      await openPicker()
       const group = page.getByRole('group', { name: 'Icon' })
       await expect.element(group.getByRole('button', { name: 'No icon' })).toBeVisible()
       expect(page.getByRole('button', { name: 'Show more icons' }).elements()).toHaveLength(0)
@@ -611,6 +627,7 @@ describe('TeamSettingsPage', () => {
       const fake = api({ appearance: ARIA })
       fake.set(`PATCH ${API}/appearance`, { status: 400, body: { error: 'Unknown icon' } })
       await show()
+      await openPicker()
       await page.getByRole('radio', { name: 'Moss' }).click()
       await expect.element(page.getByRole('alert')).toHaveTextContent('Unknown icon')
     })

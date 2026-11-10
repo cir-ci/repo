@@ -210,6 +210,18 @@ describe('ProfilePage', () => {
     await expect.element(page.getByRole('textbox', { name: 'Email' })).toHaveAttribute('readonly')
   })
 
+  it('puts the picture and the name in one row; the avatar opens where the picture comes from', async () => {
+    fakeFetch({ ...signedIn, 'GET /api/auth/list-sessions': sessions })
+    await renderPage(<ProfilePage />)
+    const button = page.getByRole('button', { name: 'Change picture' })
+    await button.click()
+    await expect
+      .element(page.getByRole('dialog', { name: 'Picture' }).getByText(/Gravatar for your email/))
+      .toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    await expect.element(button).toHaveFocus()
+  })
+
   it('shows why the name could not be saved, in line', async () => {
     fakeFetch({
       ...signedIn,

@@ -3,8 +3,8 @@ import { useState } from 'react'
 
 import { GitAttentionBanner } from '#features/builds/list/GitAttentionBanner.tsx'
 import { useSaveSettings } from '#features/teams/api/index.ts'
-import { AppearanceSection } from '#features/teams/AppearanceSection.tsx'
 import { DeleteTeamSection } from '#features/teams/DeleteTeamSection.tsx'
+import { TeamIdentity } from '#features/teams/TeamIdentity.tsx'
 
 import { SettingsForm } from './SettingsForm.tsx'
 import { TeamSettingsFrame } from './TeamSettingsFrame.tsx'
@@ -20,7 +20,7 @@ export function TeamSettingsPage() {
       {(data, name) => (
         <>
           <GitAttentionBanner attention={data.github.link?.attention} />
-          <AppearanceSection
+          <TeamIdentity
             workspace={workspace}
             team={team}
             name={name}
