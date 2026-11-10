@@ -116,7 +116,7 @@ export function Sidebar({ user }: Sidebar.Props) {
         to="/inbox"
         icon={<InboxIcon />}
         selected={section === 'inbox'}
-        {...counted(model?.inboxUnread, 'unread')}
+        {...counted(model?.inboxUnread, 'unread notifications')}
       >
         Inbox
       </NavLink>
@@ -126,7 +126,7 @@ export function Sidebar({ user }: Sidebar.Props) {
           params={{ workspace: workspace.slug }}
           icon={<ReviewIcon />}
           selected={section === 'reviews'}
-          {...counted(model?.reviews, 'waiting')}
+          {...counted(model?.reviews, 'reviews waiting')}
         >
           Reviews
         </NavLink>
@@ -191,7 +191,7 @@ function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
   const triageProps =
     triage === undefined
       ? {}
-      : { count: triage, countTone: 'neutral' as const, countLabel: 'to triage' }
+      : { count: triage, countTone: 'neutral' as const, countLabel: 'items to triage' }
   return (
     <>
       <NavLink
@@ -222,7 +222,7 @@ function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
             selected={section === 'triage'}
             {...(triage === undefined
               ? {}
-              : { count: triage, countTone: 'neutral' as const, countLabel: 'waiting' })}
+              : { count: triage, countTone: 'neutral' as const, countLabel: 'items to triage' })}
           >
             Triage
           </NavLink>

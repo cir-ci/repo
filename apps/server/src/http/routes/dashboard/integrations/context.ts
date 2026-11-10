@@ -31,7 +31,7 @@ export function credentialsFor(
     : undefined
   if (credentials === undefined) {
     throw new ConflictError(
-      `The ${loaded.definition.name} credentials cannot be read; connect it again`,
+      `The ${loaded.definition.name} credentials can't be read; connect it again`,
     )
   }
   return credentials
@@ -65,7 +65,7 @@ export function createGeneric(deps: Deps.Dashboard) {
   /** The instance context; a validation error (400) when it cannot seal credentials. */
   function contextFor() {
     const ctx = integrationContext(deps)
-    if (!ctx) throw new ValidationError('This instance cannot store credentials')
+    if (!ctx) throw new ValidationError("This instance can't store credentials")
     return ctx
   }
 
@@ -107,7 +107,7 @@ export function createGeneric(deps: Deps.Dashboard) {
       throw new ConflictError(`${definition.name} no longer accepts this connection; reconnect it`)
     }
     req.log.warn({ err }, `the ${definition.name} call failed`)
-    throw new IntegrationUnreachableError(`${definition.name} did not answer; try again shortly`)
+    throw new IntegrationUnreachableError(`${definition.name} didn't answer; try again shortly`)
   }
 
   return {

@@ -153,7 +153,7 @@ describe('AddIntegrationDialog', () => {
     await expect.element(page.getByRole('button', { name: 'Add GitHub' })).toBeEnabled()
   })
 
-  it('connects GitHub by installation id, from the form its definition describes', async () => {
+  it('connects GitHub by installation ID, from the form its definition describes', async () => {
     await page.viewport(1000, 800)
     const fake = fakeApi({
       'GET /api/instance/github-app': { body: APP },
@@ -161,8 +161,8 @@ describe('AddIntegrationDialog', () => {
     })
     await openAdd()
     await page.getByRole('button', { name: 'Add GitHub' }).click()
-    await page.getByRole('button', { name: 'Advanced: connect by installation id' }).click()
-    const field = page.getByRole('textbox', { name: 'GitHub App installation id' })
+    await page.getByRole('button', { name: 'Advanced: connect by installation ID' }).click()
+    const field = page.getByRole('textbox', { name: 'GitHub App installation ID' })
     await expect.element(page.getByRole('button', { name: 'Connect GitHub' })).toBeDisabled()
     await field.fill(' 4242 ')
     await page.getByRole('button', { name: 'Connect GitHub' }).click()

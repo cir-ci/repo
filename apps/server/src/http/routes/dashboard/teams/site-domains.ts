@@ -17,7 +17,7 @@ const body = z.object({ domain: z.string().min(1).max(260) })
 export const dashboardSiteDomainRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   const base = '/teams/:workspace/:team/sites/:site/domain'
   const manage = { manage: true, forbidden: 'Only owners and admins can change a custom domain' }
-  const notSetUp = { error: 'Static site hosting is not set up on this server' }
+  const notSetUp = { error: "Static site hosting isn't set up on this server" }
 
   const hostsOf = (sitesHost: string) => ({
     dashboardHost: new URL(deps.publicOrigin).hostname,

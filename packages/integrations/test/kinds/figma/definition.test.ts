@@ -56,7 +56,7 @@ describe('figma file mapping', () => {
   it('takes a pasted address or a file key and names the file', async () => {
     const { ctx } = fakeFigma()
     const mapped = figma.mapping?.target
-    expect(mapped?.validate?.('nonsense')).toBe('That is not a Figma file address')
+    expect(mapped?.validate?.('nonsense')).toBe("That isn't a Figma file address")
     expect(mapped?.validate?.(FILE_URL)).toBeNull()
     expect(mapped?.validate?.('FileKey12345')).toBeNull()
     for (const ref of [FILE_URL, 'FileKey12345']) {

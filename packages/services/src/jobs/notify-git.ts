@@ -89,7 +89,7 @@ export async function notifyGit(deps: notifyGit.Deps, job: Job): Promise<notifyG
           ? openSecret(deps.authSecret, target.encryptedCredentials)
           : undefined
         if (credentials === undefined) {
-          return { status: 'skipped', reason: `${target.kind} credentials cannot be opened` }
+          return { status: 'skipped', reason: `${target.kind} credentials can't be opened` }
         }
       }
       const result = await notifyLocked({ ...deps, db, provider, credentials }, target)

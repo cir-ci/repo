@@ -249,7 +249,7 @@ describe('team webhooks', () => {
     expect(codes).toEqual([400, 400, 400, 400])
   })
 
-  it('refuses a webhook with no events: missing or empty does not mean "all"', async () => {
+  it(`refuses a webhook with no events: missing or empty doesn't mean "all"`, async () => {
     await addHook()
     const url = 'https://hooks.acme.io/none'
     for (const body of [{ url }, { url, events: [] }]) {
@@ -351,10 +351,10 @@ describe('GitHub link', () => {
     const before = (await call('GET', `${base()}/settings`, memberCookie)).json().github.link
     const unknown = await put(ownerCookie, { installationId: '31337', repoRef: 'acme/web' })
     expect(unknown.statusCode).toBe(404)
-    expect(unknown.json().error).toBe('The GitHub App is not installed with that installation id')
+    expect(unknown.json().error).toBe("The GitHub App isn't installed with that installation ID")
     const down = await put(ownerCookie, { installationId: '9500', repoRef: 'acme/web' })
     expect(down.statusCode).toBe(502)
-    expect(down.json().error).toBe('GitHub did not answer; try again shortly')
+    expect(down.json().error).toBe("GitHub didn't answer; try again shortly")
     expect((await call('GET', `${base()}/settings`, memberCookie)).json().github.link).toEqual(
       before,
     )
@@ -379,7 +379,7 @@ describe('GitHub link', () => {
     )
   })
 
-  it('rejects malformed values, and anyone who is not an owner or admin', async () => {
+  it("rejects malformed values, and anyone who isn't an owner or admin", async () => {
     const bad = await Promise.all(
       [
         { installationId: 'abc', repoRef: 'acme/web' },

@@ -1,4 +1,3 @@
-import { Text } from '@circi/ui'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 
@@ -20,9 +19,6 @@ export function TeamSettingsPage() {
     <TeamSettingsFrame workspace={workspace} team={team} page="General">
       {(data, name) => (
         <>
-          <Text as="p" tone="secondary">
-            What {name} is called, where its code lives, and when its builds pass.
-          </Text>
           <GitAttentionBanner attention={data.github.link?.attention} />
           <AppearanceSection
             workspace={workspace}

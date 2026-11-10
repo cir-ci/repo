@@ -67,7 +67,7 @@ export async function integrationEvent(
   if (!data) return { status: 'skipped', reason: 'integration or build was deleted' }
   const definition = integrationRegistry.get(data.integration.kind)
   const chat = definition?.capabilities.chat
-  if (!definition || !chat) return { status: 'skipped', reason: 'integration kind cannot send' }
+  if (!definition || !chat) return { status: 'skipped', reason: "integration kind can't send" }
   if (data.integration.needsAttention) return { status: 'skipped', reason: 'needs attention' }
   if (!data.mapping) return { status: 'skipped', reason: 'team is not mapped' }
   if (!mappingHandles(definition, data.mapping.extra, event.type)) {
@@ -77,7 +77,7 @@ export async function integrationEvent(
     ? openSecret(deps.context.authSecret, data.integration.encryptedCredentials)
     : undefined
   if (!credentials) {
-    const reason = `The ${definition.name} credentials cannot be read; connect it again`
+    const reason = `The ${definition.name} credentials can't be read; connect it again`
     await deps.db.transaction((tx) => setIntegrationAttention(tx, data.integration.id, reason))
     return { status: 'needs-attention', reason }
   }

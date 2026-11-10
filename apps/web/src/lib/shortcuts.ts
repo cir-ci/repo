@@ -218,7 +218,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     key: 'a',
     scope: 'build-review',
     group: 'Build review',
-    description: 'Approve snapshot',
+    description: 'Approve screenshot',
     action: { type: 'approve' },
   },
   {
@@ -232,7 +232,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
     key: 'r',
     scope: 'build-review',
     group: 'Build review',
-    description: 'Reject snapshot, with a reason',
+    description: 'Reject screenshot, with a reason',
     action: { type: 'reject' },
   },
   {

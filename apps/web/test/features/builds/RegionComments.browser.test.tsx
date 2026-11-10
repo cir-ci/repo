@@ -147,11 +147,7 @@ describe('region comments are always on', () => {
   it('has no toggle, says how to comment, and offers the keyboard way', async () => {
     await ready()
     expect(page.getByRole('button', { name: 'Comment on a region' }).elements()).toHaveLength(0)
-    await expect
-      .element(
-        page.getByText('Drag on an image to comment on a region · click an image to enlarge'),
-      )
-      .toBeVisible()
+    await expect.element(page.getByText('Drag on an image to comment on a region')).toBeVisible()
     // The toolbar shows no icon for it (the board has none): it appears only while it has focus.
     const key = page.getByRole('button', { name: 'Mark a region with the keyboard' })
     // Clipped to a pixel by its wrapper until focused.

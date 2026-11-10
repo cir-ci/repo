@@ -85,9 +85,7 @@ export function WorkspacesPage() {
             Create workspace
           </Button>
         }
-      >
-        Every workspace on this CirCI. Their teams and builds stay private to their members.
-      </Intro>
+      />
       {created ? <Banner tone="success">{created}</Banner> : null}
       {restore.error ? <Banner tone="danger">{restore.error.message}</Banner> : null}
       <SettingsSection title="All workspaces">
@@ -211,7 +209,7 @@ export function WorkspacesPage() {
           if (!open) setPurging(null)
         }}
         title={`Delete ${purging?.name ?? ''} permanently?`}
-        description="Its teams, builds, screenshots and settings are removed now, without waiting for the rest of the 30 days. This can’t be undone."
+        description="Its teams, builds, screenshots and settings are deleted now, without waiting for the rest of the 30 days. This can’t be undone."
         confirmLabel="Delete permanently"
         confirmText={purging?.slug}
         loading={purge.isPending}

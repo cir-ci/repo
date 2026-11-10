@@ -52,7 +52,7 @@ export function TeamLinks({ workspace, integrationId, spec, team, canManage }: T
       {data && data.links.length === 0 ? (
         <Text variant="small" tone="secondary">
           {spec.autoLink
-            ? 'No links yet. Link automatically matches names to snapshots with the same name.'
+            ? 'No links yet. Link automatically matches names to screenshots with the same name.'
             : 'No links yet.'}
         </Text>
       ) : null}

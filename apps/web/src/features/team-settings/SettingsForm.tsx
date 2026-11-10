@@ -142,10 +142,7 @@ export function SettingsForm(props: SettingsForm.Props) {
 
   return (
     <form onSubmit={submit} noValidate className={styles.form}>
-      <SettingsSection
-        title="Address and branch"
-        description="Saved together with the settings below, when you press Save changes."
-      >
+      <SettingsSection title="Address and branch">
         <SettingsRow>
           <div className={styles.fields}>
             <TextField

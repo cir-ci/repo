@@ -33,16 +33,16 @@ export async function createIssueFromBuild(
   const context = await getTeamContext(db, build.teamId)
   assertFound(context, 'Build not found')
   const mapped = await getTeamIntegration(db, build.teamId, input.integrationId)
-  assertFound(mapped, 'This team does not file issues in that tracker')
+  assertFound(mapped, "This team doesn't file issues in that tracker")
   const tracker = input.openTracker(mapped.integration)
   if (!tracker) {
-    throw new ValidationError('That tracker connection cannot be used; connect it again')
+    throw new ValidationError("That tracker connection can't be used; connect it again")
   }
 
   const snapshotName = input.snapshotName ?? null
   const detail = await getBuildDetail(db, build.teamId, build.number)
   const shot = snapshotName ? detail?.diffs.find((d) => d.name === snapshotName) : undefined
-  if (snapshotName && !shot) throw new NotFoundError('Snapshot not found')
+  if (snapshotName && !shot) throw new NotFoundError('Screenshot not found')
   const imageSha = shot?.diff?.sha256 ?? shot?.head?.sha256 ?? null
 
   const rejection = (await listBuildReviews(db, build.id)).find((r) => r.state === 'rejected')

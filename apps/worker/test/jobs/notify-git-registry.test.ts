@@ -97,6 +97,6 @@ describe('notifyGit resolves the provider by the connection kind', () => {
       { ...deps, authSecret: 'other' },
       await queuedJob(sealSecret('s3cret', 'token-1')),
     )
-    expect(unreadable).toEqual({ status: 'skipped', reason: 'github credentials cannot be opened' })
+    expect(unreadable).toEqual({ status: 'skipped', reason: "github credentials can't be opened" })
   })
 })

@@ -145,9 +145,9 @@ export const gitlab = defineIntegration({
       return { externalId, displayName: externalId, credentials }
     } catch (err) {
       throw connectFailure('GitLab', err, {
-        revoked: 'GitLab did not accept that token',
+        revoked: "GitLab didn't accept that token",
         forbidden: 'That token cannot read projects: give it the api scope',
-        notFound: 'That address does not look like a GitLab server',
+        notFound: "That address doesn't look like a GitLab server",
       })
     }
   },

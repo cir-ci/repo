@@ -55,10 +55,7 @@ export function AppearancePage() {
   const [saved, setSaved] = useState(false)
   return (
     <Frame crumbs={['Account', 'Appearance']}>
-      <SettingsSection
-        title="Theme"
-        description="Dark keeps the screenshots the brightest thing on screen. Light suits bright rooms."
-      >
+      <SettingsSection title="Theme">
         <SettingsRow>
           <fieldset className={styles.cards}>
             <legend style={visuallyHidden}>Theme</legend>

@@ -46,22 +46,22 @@ export function assertDiffThreshold(share: number): void {
  */
 export function branchNameProblem(name: string): string | undefined {
   if (name === '') return 'A branch name is required'
-  if (name === '@') return 'A branch name cannot be just "@"'
-  if (name.startsWith('-')) return 'A branch name cannot start with "-"'
+  if (name === '@') return `A branch name can't be just "@"`
+  if (name.startsWith('-')) return `A branch name can't start with "-"`
   if (name.startsWith('/') || name.endsWith('/')) {
-    return 'A branch name cannot start or end with "/"'
+    return `A branch name can't start or end with "/"`
   }
-  if (name.endsWith('.')) return 'A branch name cannot end with "."'
-  if (name.includes('..')) return 'A branch name cannot contain ".."'
-  if (name.includes('//')) return 'A branch name cannot contain "//"'
-  if (name.includes('@{')) return 'A branch name cannot contain "@{"'
+  if (name.endsWith('.')) return `A branch name can't end with "."`
+  if (name.includes('..')) return `A branch name can't contain ".."`
+  if (name.includes('//')) return `A branch name can't contain "//"`
+  if (name.includes('@{')) return `A branch name can't contain "@{"`
   // oxlint-disable-next-line no-control-regex -- git forbids control characters
   if (/[\u0000- \u007f~^:?*[\\]/.test(name)) {
-    return 'A branch name cannot contain spaces or any of ~ ^ : ? * [ \\'
+    return "A branch name can't contain spaces or any of ~ ^ : ? * [ \\"
   }
   for (const part of name.split('/')) {
-    if (part.startsWith('.')) return 'A part of a branch name cannot start with "."'
-    if (part.endsWith('.lock')) return 'A part of a branch name cannot end with ".lock"'
+    if (part.startsWith('.')) return `A part of a branch name can't start with "."`
+    if (part.endsWith('.lock')) return `A part of a branch name can't end with ".lock"`
   }
   return undefined
 }

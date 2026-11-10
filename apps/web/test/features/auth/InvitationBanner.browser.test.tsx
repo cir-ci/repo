@@ -57,7 +57,7 @@ describe('InvitationBanner', () => {
     await renderPage(<InvitationBanner userEmail="ada@example.com" />)
     await expect
       .element(
-        page.getByText('This invitation is not for this account, has expired, or was withdrawn.'),
+        page.getByText('This invitation isn’t for this account, has expired, or was withdrawn.'),
       )
       .toBeVisible()
     await page.getByRole('button', { name: 'Dismiss' }).click()

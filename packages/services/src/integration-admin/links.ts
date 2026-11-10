@@ -40,7 +40,7 @@ function openCredentials(
     ? openSecret(ctx.authSecret, integration.encryptedCredentials)
     : undefined
   if (!plaintext) {
-    throw new ValidationError(`The ${definition.name} credentials cannot be read; connect it again`)
+    throw new ValidationError(`The ${definition.name} credentials can't be read; connect it again`)
   }
   return plaintext
 }
@@ -138,7 +138,7 @@ export async function autoLinkTeam(
   const links = linksOf(definition)
   const design = definition.capabilities.design
   if (!links.autoLink || !design) {
-    throw new ValidationError(`${definition.name} cannot link automatically`)
+    throw new ValidationError(`${definition.name} can't link automatically`)
   }
   const mapped = await getTeamIntegration(db, input.teamId, integration.id)
   if (!mapped) throw new ValidationError(`Choose a ${label(definition)} for this team first`)

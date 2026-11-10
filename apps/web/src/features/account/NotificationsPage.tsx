@@ -1,6 +1,5 @@
 import { Banner, SettingsRow, SettingsSection, Switch, Text, useAnnounce } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
 
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { Frame } from '#features/workspace-settings/Frame.tsx'
@@ -10,15 +9,13 @@ import { SaveNote } from '#lib/SaveNote.tsx'
 
 import { PREFERENCE_ROWS, preferencesQuery, useSetPreference } from './api.ts'
 
-import styles from '#features/workspace-settings/Settings.module.css'
-
 /** What always lands in the Inbox; static, since none of it can be switched off. */
 const IN_INBOX: readonly { title: string; help: string }[] = [
   {
     title: 'Review requested',
     help: 'Someone, or a review rule, asks you to review a build, including again after a new push.',
   },
-  { title: 'Mentioned', help: 'Someone @mentions you in a comment on a snapshot.' },
+  { title: 'Mentioned', help: 'Someone @mentions you in a comment on a screenshot.' },
   {
     title: 'Your build was approved or rejected',
     help: 'A build you pushed was reviewed. Rejections include the reviewer’s reason.',
@@ -32,8 +29,8 @@ const IN_INBOX: readonly { title: string; help: string }[] = [
     help: 'An integration stopped working, for example because the GitHub App was uninstalled. Owners and admins only.',
   },
   {
-    title: 'Flaky snapshot detected',
-    help: 'A snapshot changed in 3 of the last 10 builds on the default branch. Goes to this week’s triage owner.',
+    title: 'Flaky screenshot detected',
+    help: 'A screenshot changed in 3 of the last 10 builds on the default branch. Goes to this week’s triage owner.',
   },
 ]
 
@@ -57,14 +54,6 @@ export function NotificationsPage() {
     >
       {data ? (
         <>
-          <Text as="p" tone="secondary" className={styles.intro}>
-            Everything lands in your{' '}
-            <Link to="/inbox" search={{ tab: 'for-you' }}>
-              Inbox
-            </Link>
-            . Review requests also show in Reviews; acting in either one clears both.
-          </Text>
-
           <SettingsSection
             title="Email"
             description="Only the two things that need you soon can be emailed. Switches save as soon as you flip them."

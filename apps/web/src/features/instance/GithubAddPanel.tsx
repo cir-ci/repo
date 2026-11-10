@@ -41,16 +41,14 @@ export function GithubAddPanel({ entry, workspace, onDone }: GithubAddPanel.Prop
           </Button>
           <div>
             <Button variant="ghost" onClick={() => setAdvanced((v) => !v)} aria-expanded={advanced}>
-              Advanced: connect by installation id
+              Advanced: connect by installation ID
             </Button>
           </div>
           {advanced ? <ConnectForm entry={entry} workspace={workspace} onDone={onDone} /> : null}
         </>
       ) : step === 'set-up' ? (
         <>
-          <Text tone="secondary">
-            This instance has no GitHub App yet. Creating it takes one click.
-          </Text>
+          <Text tone="secondary">This instance has no GitHub App yet.</Text>
           <Link to="/instance/settings">Set up the GitHub App</Link>
         </>
       ) : (

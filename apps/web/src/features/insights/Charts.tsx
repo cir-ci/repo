@@ -146,16 +146,16 @@ export function FlakyChart({ weeks }: { weeks: readonly Insights.Week[] }) {
   const keep = labelIndexes(points.length)
   return (
     <Frame
-      title="Flaky snapshots, open at the end of each week"
+      title="Flaky screenshots, open at the end of each week"
       summary={flakySummary(weeks)}
       ticks={ticks}
       top={top}
-      yLabel="Flaky snapshots"
+      yLabel="Flaky screenshots"
       labels={points.flatMap((p, i) => (keep.has(i) ? [{ x: p.x, text: p.label }] : []))}
       table={
         <WeekTable
-          caption="Flaky snapshots, open at the end of each week"
-          column="Flaky snapshots"
+          caption="Flaky screenshots, open at the end of each week"
+          column="Flaky screenshots"
           rows={points.map((p) => ({ week: p.label, value: String(p.value) }))}
         />
       }

@@ -124,7 +124,7 @@ export async function convertGithubManifestCode(
   if (!res.ok) {
     throw new GithubManifestError(
       res.status,
-      `GitHub did not accept the code (HTTP ${res.status}); it works once, so start again`,
+      `GitHub didn't accept the code (HTTP ${res.status}); it works once, so start again`,
     )
   }
   if (typeof data !== 'object' || data === null) {

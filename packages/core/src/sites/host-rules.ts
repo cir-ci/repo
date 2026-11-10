@@ -30,7 +30,7 @@ export function staticSitesHostProblem(
   dashboardHostname: string | undefined,
 ): string | undefined {
   if (!DOMAIN.test(host)) {
-    return `"${host}" is not a domain name (expected e.g. example-sites.com, without https:// or a port)`
+    return `"${host}" isn't a domain name (expected e.g. example-sites.com, without https:// or a port)`
   }
   return dashboardHostname ? dashboardRelationProblem(host, dashboardHostname) : undefined
 }
@@ -51,7 +51,7 @@ export function customDomainProblem(
   hosts: { dashboardHost: string | undefined; sitesHost: string },
 ): string | undefined {
   if (!DOMAIN.test(domain)) {
-    return `"${domain}" is not a domain name (expected e.g. storybook.example.com, without https://, a port or a wildcard)`
+    return `"${domain}" isn't a domain name (expected e.g. storybook.example.com, without https://, a port or a wildcard)`
   }
   const sites = hosts.sitesHost.toLowerCase()
   if (domain === sites || domain.endsWith(`.${sites}`)) {

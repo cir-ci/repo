@@ -22,7 +22,7 @@ export function beforeAccountCreate(options: Pick<AuthOptions, 'db' | 'sso'>) {
     const accountAgeMs = owner ? Date.now() - owner.createdAt.getTime() : 0
     if (!mayLinkSsoAccount({ trusted: isTrusted(options.sso, created.providerId), accountAgeMs })) {
       throw new APIError('FORBIDDEN', {
-        message: 'This sign-in provider is not trusted to link to an existing account',
+        message: "This sign-in provider isn't trusted to link to an existing account",
         // Makes the callback redirect to the error URL instead of ending on a bare 403.
         code: 'provider_not_trusted_to_link',
       })

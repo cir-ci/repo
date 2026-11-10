@@ -31,8 +31,8 @@ function issuerFailure(err: unknown, issuer: string): unknown {
   }
   if (code === 'discovery_invalid_json') {
     return new ValidationError(
-      'That address answered, but its OpenID Connect discovery document (/.well-known/openid-configuration) is not valid.',
-      { fields: { issuer: 'The discovery document is not valid' } },
+      "That address answered, but its OpenID Connect discovery document (/.well-known/openid-configuration) isn't valid.",
+      { fields: { issuer: "The discovery document isn't valid" } },
     )
   }
   const status =

@@ -68,11 +68,6 @@ export function HealthPage() {
           </Button>
         }
       >
-        Same checks as{' '}
-        <Text as="code" variant="mono">
-          circi admin doctor
-        </Text>
-        .{' '}
         {checks.dataUpdatedAt
           ? `Last run ${formatRelative(new Date(checks.dataUpdatedAt).toISOString(), now)}.`
           : null}
@@ -84,10 +79,7 @@ export function HealthPage() {
         </SettingsSection>
       ) : null}
       {groups && groups.services.length > 0 ? (
-        <SettingsSection
-          title="Services"
-          description="What CirCI needs running to build, store and mail."
-        >
+        <SettingsSection title="Services">
           {groups.services.map((f) => (
             <FindingRow key={f.id} finding={f} />
           ))}
@@ -306,11 +298,7 @@ function QueuesSection(props: {
   const totals = queueTotals(queues)
   return (
     <>
-      <SettingsSection
-        title="Background jobs"
-        description="Diffs, thumbnails, checks, webhooks and integration messages wait here for a worker."
-        bare
-      >
+      <SettingsSection title="Background jobs" bare>
         <SettingsSummary
           items={[
             { label: 'Waiting', value: totals.pending },
@@ -343,13 +331,15 @@ function QueuesSection(props: {
 }
 
 /**
- * "0 waiting · 0 running · 1 failed", each number kept with its word (a no-break space), so a
+ * "0 jobs waiting · 0 running · 1 failed", each number kept with its word (a no-break space), so a
  * narrow row breaks between the counts, never inside one.
  */
 function queueCounts(q: { pending: number; running: number; failed: number }): string {
-  return [`${q.pending}\u00a0waiting`, `${q.running}\u00a0running`, `${q.failed}\u00a0failed`].join(
-    ' · ',
-  )
+  return [
+    `${q.pending}\u00a0${q.pending === 1 ? 'job' : 'jobs'}\u00a0waiting`,
+    `${q.running}\u00a0running`,
+    `${q.failed}\u00a0failed`,
+  ].join(' · ')
 }
 
 /** "Oldest waiting 42 seconds · 1 retrying (attempt 3 of 8)": what is behind a queue's counts. */

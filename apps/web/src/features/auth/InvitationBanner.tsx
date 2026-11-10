@@ -27,7 +27,7 @@ export function InvitationBanner({ userEmail }: InvitationBanner.Props) {
       .getInvitation({ query: { id } })
       .then(({ data, error: failure }) => {
         if (failure || !data) {
-          setError('This invitation is not for this account, has expired, or was withdrawn.')
+          setError('This invitation isn’t for this account, has expired, or was withdrawn.')
           return
         }
         setInvitation({

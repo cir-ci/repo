@@ -19,7 +19,7 @@ export function buildOutcome(b: buildOutcome.Input): buildOutcome.Result {
         : {
             state: 'pass',
             summary: 'Build could not be checked',
-            warning: `Build ${b.status === 'error' ? 'failed to process' : 'expired'}; merges are not blocked for this team`,
+            warning: `Build ${b.status === 'error' ? 'failed to process' : 'expired'}; merges aren't blocked for this team`,
           }
     case 'complete':
       break
@@ -38,7 +38,7 @@ export function buildOutcome(b: buildOutcome.Input): buildOutcome.Result {
     : {
         state: 'pass',
         summary: 'Visual changes to review',
-        warning: 'Changes are not reviewed yet; merges are not blocked for this team',
+        warning: "Changes aren't reviewed yet; merges aren't blocked for this team",
       }
 }
 

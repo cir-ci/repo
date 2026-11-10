@@ -54,16 +54,11 @@ export function DeleteWorkspaceSection({ workspace, name, isOwner }: DeleteWorks
         <SettingsRow
           label="Delete workspace"
           detail={
-            isOwner ? (
-              <>
-                Hides {name} for everyone at once: its teams, builds, hosted sites and CI tokens
-                stop working. Everything is removed for good after 30 days; until then whoever runs
-                this server can restore it. You’ll type <Text variant="mono">{workspace}</Text> to
-                confirm. Only owners can do this.
-              </>
-            ) : (
-              'Only an owner can delete the workspace.'
-            )
+            <>
+              Hides {name} for everyone at once: its teams, builds, hosted sites and CI tokens stop
+              working. Everything is deleted for good after 30 days; until then whoever runs this
+              server can restore it. You’ll type <Text variant="mono">{workspace}</Text> to confirm.
+            </>
           }
         >
           <Button variant="danger" disabled={!isOwner} onClick={() => setOpen(true)}>

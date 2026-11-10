@@ -106,9 +106,6 @@ describe('ReviewsSettingsPage', () => {
           .map((h) => h.textContent),
       )
       .toEqual(['Review rules', 'Review target', 'Automation', 'Triage', 'Notify a channel'])
-    await expect
-      .element(page.getByText('Who reviews a build, how fast, and what CirCI does on its own.'))
-      .toBeVisible()
     expect(page.getByRole('button', { name: 'Save changes' }).elements()).toHaveLength(1)
     await expect
       .element(page.getByRole('link', { name: 'webhooks' }))

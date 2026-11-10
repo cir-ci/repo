@@ -77,7 +77,7 @@ export function useReviewControls(
     },
     approveAll: () => {
       if (canApproveAll && !review.isPending) {
-        decide(undecided, 'approved', `${undecided.length} snapshots approved.`)
+        decide(undecided, 'approved', `${undecided.length} screenshots approved.`)
       }
     },
     askReject: () => {
@@ -100,7 +100,7 @@ export function ReviewActions({ review, snapshotName }: ReviewActions.Props) {
         <Tooltip
           content={
             <>
-              Reject this snapshot <Kbd>r</Kbd>
+              Reject this screenshot <Kbd>r</Kbd>
             </>
           }
         >
@@ -118,7 +118,7 @@ export function ReviewActions({ review, snapshotName }: ReviewActions.Props) {
         <Tooltip
           content={
             <>
-              Approve this snapshot; on the default branch it becomes the baseline <Kbd>a</Kbd>
+              Approve this screenshot; on the default branch it becomes the baseline <Kbd>a</Kbd>
             </>
           }
         >
@@ -131,7 +131,7 @@ export function ReviewActions({ review, snapshotName }: ReviewActions.Props) {
         <Tooltip
           content={
             <>
-              Approve every snapshot that has no decision yet <Kbd>⇧</Kbd> <Kbd>A</Kbd>
+              Approve every screenshot that has no decision yet <Kbd>⇧</Kbd> <Kbd>A</Kbd>
             </>
           }
         >
@@ -148,7 +148,7 @@ export function ReviewActions({ review, snapshotName }: ReviewActions.Props) {
       ) : null}
       <RejectDialog
         open={review.rejecting}
-        subject={snapshotName ?? 'this snapshot'}
+        subject={snapshotName ?? 'this screenshot'}
         pending={review.pending}
         onCancel={review.cancelReject}
         onReject={review.confirmReject}

@@ -174,7 +174,6 @@ describe('MembersPage', () => {
     expect(page.getByRole('button', { name: /^Actions for/ }).elements()).toHaveLength(0)
     expect(page.getByRole('button', { name: 'Revoke' }).elements()).toHaveLength(0)
     expect(page.getByRole('heading', { name: 'Invite someone' }).elements()).toHaveLength(0)
-    await expect.element(page.getByText(/Only owners and admins can invite/)).toBeVisible()
   })
 
   it('says so when you are the only member', async () => {

@@ -313,7 +313,7 @@ const figmaDefinition = entry({
     subject: 'pattern',
     autoLink: true,
     fields: [
-      { key: 'pattern', label: 'Snapshot name', placeholder: 'checkout/*' },
+      { key: 'pattern', label: 'Screenshot name', placeholder: 'checkout/*' },
       { key: 'url', label: 'Frame address', placeholder: 'https://www.figma.com/design/…' },
     ],
   },
@@ -414,7 +414,7 @@ describe('GenericIntegrationPage links (Figma frames)', () => {
     const add = page.getByRole('form', { name: 'Add a link to Web' })
     const submit = add.getByRole('button', { name: 'Add link' })
     await expect.element(submit).toBeDisabled()
-    await add.getByRole('textbox', { name: 'Web snapshot name' }).fill(' cart ')
+    await add.getByRole('textbox', { name: 'Web screenshot name' }).fill(' cart ')
     await add
       .getByRole('textbox', { name: 'Web frame address' })
       .fill('https://www.figma.com/design/K/x?node-id=1-2')
@@ -432,7 +432,7 @@ describe('GenericIntegrationPage links (Figma frames)', () => {
     await expect
       .element(
         page.getByText(
-          'Linked 2 snapshots to frames; 1 snapshot has no frame with a matching name.',
+          'Linked 2 screenshots to frames; 1 screenshot has no frame with a matching name.',
         ),
       )
       .toBeVisible()

@@ -30,7 +30,7 @@ function Defaults({ workspace, data }: Defaults.Props) {
     <>
       <SettingsSection
         title="Merge gate defaults"
-        description="Every team follows these unless its own settings override them. Changes apply when you press Save changes."
+        description="Every team follows these unless its own settings override them."
       >
         <SettingsRow>
           <Checkbox

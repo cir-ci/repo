@@ -50,7 +50,7 @@ export async function linkTeamToGithub(
   }
   const parsed = definition.credentials.safeParse({ installationId: link.installationId })
   if (!parsed.success) {
-    throw new InvalidInputError(parsed.error.issues[0]?.message ?? 'Invalid installation id')
+    throw new InvalidInputError(parsed.error.issues[0]?.message ?? 'Invalid installation ID')
   }
   // Asks GitHub before anything is written.
   const connected = await definition.connect(parsed.data, ctx)

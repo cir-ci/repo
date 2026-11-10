@@ -23,7 +23,7 @@ describe('buildOutcome (PLAN §7.4 status table)', () => {
 
   it('warns when passing with unreviewed changes', () => {
     expect(buildOutcome({ ...done, ...flags, blockMergeOnChanges: false }).warning).toMatch(
-      /not reviewed/,
+      /aren't reviewed/,
     )
     expect(
       buildOutcome({ ...done, ...flags, conclusion: 'no_changes', blockMergeOnChanges: false })
@@ -42,14 +42,14 @@ describe('flaky-only changes', () => {
     })
   })
 
-  it('passes, without a warning, when flaky screenshots do not block merges', () => {
+  it("passes, without a warning, when flaky screenshots don't block merges", () => {
     expect(buildOutcome({ ...flakyOnly, flakyBlocksMerge: false })).toEqual({
       state: 'pass',
       summary: 'Only flaky screenshots changed',
     })
   })
 
-  it('does not excuse a change that is not only flaky', () => {
+  it("doesn't excuse a change that isn't only flaky", () => {
     const outcome = buildOutcome({ ...flakyOnly, flakyOnly: false, flakyBlocksMerge: false })
     expect(outcome.state).toBe('fail')
   })
@@ -86,7 +86,7 @@ describe('onlyFlakyChanges', () => {
     expect(onlyFlakyChanges({ counts, changed: ['wobble', 'blink'], flaky })).toBe(true)
   })
 
-  it('is false when one changed screenshot is not flaky', () => {
+  it("is false when one changed screenshot isn't flaky", () => {
     expect(onlyFlakyChanges({ counts, changed: ['wobble', 'steady'], flaky })).toBe(false)
   })
 

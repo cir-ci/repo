@@ -42,9 +42,7 @@ export function ShortcutLayer({ children }: ShortcutLayer.Props) {
     command: () => setCommandOpen(true),
     help: () => setHelpOpen(true),
     copyLink: () => {
-      void copy(location.href).then((ok) =>
-        announce(ok ? 'Link copied' : 'Could not copy the link'),
-      )
+      void copy(location.href).then((ok) => announce(ok ? 'Link copied' : 'Couldn’t copy the link'))
     },
   })
 

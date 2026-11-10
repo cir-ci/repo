@@ -12,7 +12,7 @@ export function TrackerPreview({ name }: { name: string }) {
           What “Create issue” sends
         </Heading>
         <Text as="p" variant="small" tone="secondary">
-          From a snapshot in a build. The person creating it can edit the title first.
+          From a screenshot in a build. The person creating it can edit the title first.
         </Text>
       </div>
       <dl className={`${styles.box} ${styles.preview}`} aria-label={`What ${name} receives`}>

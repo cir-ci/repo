@@ -1,5 +1,5 @@
 import type { Team } from '@circi/api'
-import { Banner, Text } from '@circi/ui'
+import { Banner } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 
@@ -41,9 +41,6 @@ function Reviews({ workspace, team, settings }: Reviews.Props) {
   const data = rules.data
   return (
     <>
-      <Text as="p" tone="secondary">
-        Who reviews a build, how fast, and what CirCI does on its own.
-      </Text>
       {data.canManage ? null : <Banner>Only owners and admins can change these settings.</Banner>}
       <RulesSection
         workspace={workspace}

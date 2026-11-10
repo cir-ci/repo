@@ -22,7 +22,7 @@ export const fileRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
     if (file.state === 'unknown') {
       return reply
         .code(404)
-        .send({ error: 'This file was not requested by any build (POST /v1/builds first)' })
+        .send({ error: "This file wasn't requested by any build (POST /v1/builds first)" })
     }
     const body = req.body
     if (!(body instanceof Readable)) {

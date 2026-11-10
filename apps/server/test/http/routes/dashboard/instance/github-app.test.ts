@@ -275,7 +275,7 @@ describe('the manifest', () => {
       url: '/api/instance/github-app',
       headers: { cookie: adminCookie },
     })
-    expect(status.json().warning).toMatch(/cannot deliver webhooks/)
+    expect(status.json().warning).toMatch(/can't deliver webhooks/)
     expect(status.json().blocked).toBeNull()
     await local.close()
   })

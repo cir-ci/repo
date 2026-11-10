@@ -86,7 +86,7 @@ describe('validateSso', () => {
   it('names every empty field', () => {
     expect(validateSso({ issuer: '', clientId: '', clientSecret: '' })).toEqual({
       issuer: 'Enter the issuer address',
-      clientId: 'Enter the client id',
+      clientId: 'Enter the client ID',
       clientSecret: 'Enter the client secret',
     })
   })

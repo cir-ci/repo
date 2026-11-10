@@ -46,7 +46,7 @@ export async function deleteWorkspace(
 /** Brings a deleted workspace back, with everything in it. */
 export async function restoreWorkspace(db: Database, workspaceId: string): Promise<void> {
   if (!(await db.transaction((tx) => clearWorkspaceDeletion(tx, workspaceId)))) {
-    throw new ConflictError('This workspace is not deleted')
+    throw new ConflictError("This workspace isn't deleted")
   }
 }
 
@@ -61,7 +61,7 @@ export async function purgeWorkspace(
 ): Promise<void> {
   const now = input.now ?? new Date()
   const deletedAt = await getWorkspaceDeletedAt(db, input.workspaceId)
-  assertFound(deletedAt, 'This workspace is not deleted')
+  assertFound(deletedAt, "This workspace isn't deleted")
   if (input.onlyIfDue && !isWorkspacePurgeDue(deletedAt, now)) return
   await db.transaction(async (tx) => {
     await purgeWorkspaceRows(tx, input.workspaceId)

@@ -69,7 +69,7 @@ export const dashboardIssueTrackerRoutes: FastifyPluginAsync<Deps.Dashboard> = a
     const name = definition?.name ?? integration.kind
     await flagFailedIntegration(deps.db, { integrationId: integration.id, definition, error: err })
     req.log.warn({ err }, 'the issue tracker call failed')
-    throw new IntegrationUnreachableError(`${name} did not accept the request: ${err.message}`)
+    throw new IntegrationUnreachableError(`${name} didn't accept the request: ${err.message}`)
   }
 
   /** The issues created from a build, and the trackers its team files issues in. */

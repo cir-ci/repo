@@ -46,7 +46,7 @@ export const CATALOG: Integration.CatalogEntry[] = [
     credentials: [
       {
         name: 'installationId',
-        label: 'GitHub App installation id',
+        label: 'GitHub App installation ID',
         secret: false,
         optional: false,
         description: 'The number at the end of the installation’s settings address.',

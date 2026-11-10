@@ -22,7 +22,7 @@ import { useBrowser, useStack } from '#stack/vitest.ts'
  */
 async function fillProvider(page: Page, issuer: string, clientId: string, secret: string) {
   await page.getByLabel('Issuer address').fill(issuer)
-  await page.getByLabel('Client id').fill(clientId)
+  await page.getByLabel('Client ID').fill(clientId)
   await page.getByLabel('Client secret').fill(secret)
   await page.getByRole('button', { name: 'Connect provider' }).click()
 }
@@ -37,7 +37,7 @@ async function disconnect(page: Page, issuer: string) {
   await configure(page)
   await page.getByRole('button', { name: `Remove ${issuer}` }).click()
   const confirm = page.getByRole('alertdialog')
-  await confirm.getByText('Disconnect single sign-on?').waitFor()
+  await confirm.getByText('Remove single sign-on?').waitFor()
   await confirm.getByRole('button', { name: 'Remove provider' }).click()
   await page.getByText('Connected', { exact: true }).waitFor({ state: 'detached' })
 }
@@ -91,14 +91,14 @@ describe('a workspace’s own single sign-on', () => {
     await configure(page)
     // Chromium's password manager only autofills what is not marked otherwise: these are the
     // attributes that fixed the earlier bug (the user's own login landing in these fields).
-    expect(await page.getByLabel('Client id').getAttribute('autocomplete')).toBe('off')
+    expect(await page.getByLabel('Client ID').getAttribute('autocomplete')).toBe('off')
     expect(await page.getByLabel('Client secret').getAttribute('autocomplete')).toBe('new-password')
-    expect(await page.getByLabel('Client id').inputValue()).toBe('')
+    expect(await page.getByLabel('Client ID').inputValue()).toBe('')
     expect(await page.getByLabel('Client secret').inputValue()).toBe('')
 
     await page.getByRole('button', { name: 'Connect provider' }).click()
     await page.getByText('Enter the issuer address').waitFor()
-    await page.getByText('Enter the client id').waitFor()
+    await page.getByText('Enter the client ID').waitFor()
     await page.getByText('Enter the client secret').waitFor()
     await fillProvider(page, 'not a url', 'x', 'y')
     await page.getByText('Enter a full address, like https://login.example.com').waitFor()

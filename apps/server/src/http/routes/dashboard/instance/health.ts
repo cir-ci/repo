@@ -18,7 +18,7 @@ export const dashboardInstanceHealthRoutes: FastifyPluginAsync<Deps.Dashboard> =
 
   /** The same checks as `circi admin doctor` (it asks other hosts, so it can take a few seconds). */
   app.get('/instance/health/checks', async (_req, reply) => {
-    if (!deps.instance) return reply.code(501).send({ error: 'Health checks are not available' })
+    if (!deps.instance) return reply.code(501).send({ error: "Health checks aren't available" })
     const found = await runDoctor(
       deps.instance.config,
       deps.instance.fetchHost ?? httpFetcher,
@@ -41,7 +41,7 @@ export const dashboardInstanceHealthRoutes: FastifyPluginAsync<Deps.Dashboard> =
   })
 
   app.get('/instance/health/address-checklist', async (_req, reply) => {
-    if (!deps.instance) return reply.code(501).send({ error: 'The checklist is not available' })
+    if (!deps.instance) return reply.code(501).send({ error: "The checklist isn't available" })
     const checklist = addressChecklist(deps.instance, deps)
     const dismissedFor = await getMoveChecklistDismissedFor(deps.db)
     const result: InstanceAdmin.AddressChecklist = {
@@ -54,7 +54,7 @@ export const dashboardInstanceHealthRoutes: FastifyPluginAsync<Deps.Dashboard> =
 
   /** Hides the checklist for the current address; a different `PUBLIC_URL` brings it back. */
   app.put('/instance/health/address-checklist/dismissed', async (_req, reply) => {
-    if (!deps.instance) return reply.code(501).send({ error: 'The checklist is not available' })
+    if (!deps.instance) return reply.code(501).send({ error: "The checklist isn't available" })
     await dismissMoveChecklist(deps.db, deps.instance.config.publicUrl.origin)
     return reply.code(204).send()
   })

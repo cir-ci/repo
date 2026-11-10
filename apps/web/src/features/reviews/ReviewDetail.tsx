@@ -105,7 +105,7 @@ export function ReviewDetail({ request: r, backHref, onBack, children }: ReviewD
         <SettingsRow label="Commit">
           <span className={styles.mono}>{r.build.commitSha.slice(0, 7)}</span>
         </SettingsRow>
-        <SettingsRow label="Snapshots">
+        <SettingsRow label="Screenshots">
           <span className={styles.counts}>
             {counts.length === 0 ? (
               <span>No changes</span>

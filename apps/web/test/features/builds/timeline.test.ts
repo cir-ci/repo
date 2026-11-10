@@ -143,7 +143,7 @@ describe('timelineItems: snapshot decisions', () => {
     ])
     expect(items).toMatchObject([
       { status: 'rejected', actor: 'Ada', text: 'rejected home', quote: 'wrong red' },
-      { status: 'approved', actor: 'Ada', text: 'approved 3 snapshots', quote: 'a, b, c' },
+      { status: 'approved', actor: 'Ada', text: 'approved 3 screenshots', quote: 'a, b, c' },
     ])
   })
 })

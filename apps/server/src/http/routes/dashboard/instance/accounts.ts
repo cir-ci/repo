@@ -86,7 +86,7 @@ export const dashboardInstanceAccountRoutes: FastifyPluginAsync<Deps.Dashboard> 
     if (body.signInCode) {
       if (body.password) throw new ValidationError('Give a password or a sign-in code, not both')
       if (!deps.instance?.mailer || deps.emailLogin !== true) {
-        throw new ConflictError('Email sign-in is not set up on this instance (it needs SMTP)')
+        throw new ConflictError("Email sign-in isn't set up on this instance (it needs SMTP)")
       }
       const created = await createUser(deps.auth, {
         email: body.email,
@@ -150,7 +150,7 @@ export const dashboardInstanceAccountRoutes: FastifyPluginAsync<Deps.Dashboard> 
   app.post('/instance/accounts/:id/ban', async (req) => {
     const { id } = parse(idParams, req.params)
     const body = parse(banBody, req.body ?? {})
-    if (id === currentUser(req).id) throw new ConflictError('You cannot ban yourself')
+    if (id === currentUser(req).id) throw new ConflictError("You can't ban yourself")
     await load(id)
     await deps.auth.api.banUser({
       body: {

@@ -58,7 +58,7 @@ export const buildRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
     if (result.status === 'not-found') return reply.code(404).send({ error: 'Build not found' })
     if (result.status === 'missing') {
       return reply.code(409).send({
-        error: `${result.missing.length} file(s) were not uploaded or failed verification`,
+        error: `${result.missing.length} file(s) weren't uploaded or failed verification`,
         missing: result.missing,
       })
     }

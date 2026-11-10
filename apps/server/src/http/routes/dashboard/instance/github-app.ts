@@ -86,7 +86,7 @@ export const dashboardGithubAppRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
     if (!(await isInstanceAdmin(deps.db, user.id)))
       return reply.code(403).send({ error: adminOnly })
     const ctx = integrationContext(deps)
-    if (!ctx) return reply.code(400).send({ error: 'This instance cannot store credentials' })
+    if (!ctx) return reply.code(400).send({ error: "This instance can't store credentials" })
     if (githubAppSource(deps) === 'env') {
       return reply
         .code(409)
@@ -174,7 +174,7 @@ export const dashboardGithubAppRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
     })
     const { workspace: slug } = parse(workspaceParams, req.params)
     const ctx = integrationContext(deps)
-    if (!ctx) return reply.code(400).send({ error: 'This instance cannot store credentials' })
+    if (!ctx) return reply.code(400).send({ error: "This instance can't store credentials" })
     if (githubAppSource(deps) === 'none') {
       return reply.code(400).send({ error: 'This instance has no GitHub App set up' })
     }
@@ -186,7 +186,7 @@ export const dashboardGithubAppRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
     if (!htmlUrl) {
       return reply
         .code(502)
-        .send({ error: 'GitHub did not say where the App is installed; try again shortly' })
+        .send({ error: "GitHub didn't say where the App is installed; try again shortly" })
     }
     const state = signState(ctx.authSecret, {
       kind: 'github',

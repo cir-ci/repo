@@ -84,11 +84,7 @@ export function WorkspaceStoragePage() {
             ))}
           </SettingsSection>
 
-          <SettingsSection
-            title="By team"
-            description="What each team’s builds and sites refer to."
-            bare={data.teams.length === 0}
-          >
+          <SettingsSection title="By team" bare={data.teams.length === 0}>
             {data.teams.length === 0 ? (
               <EmptyState title="Nothing stored yet">
                 Upload a build to see its size here.

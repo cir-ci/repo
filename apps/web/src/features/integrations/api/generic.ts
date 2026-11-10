@@ -25,11 +25,11 @@ export function connectNote(
     case 'connected':
       return { tone: 'success', text: `${name} is connected. Choose what each team uses.` }
     case 'denied':
-      return { tone: 'danger', text: `${name} was not connected: the install was cancelled.` }
+      return { tone: 'danger', text: `${name} wasn’t connected: the install was cancelled.` }
     case 'failed':
       return {
         tone: 'danger',
-        text: `${name} was not connected: ${name} did not accept the install. Try again.`,
+        text: `${name} wasn’t connected: ${name} didn’t accept the install. Try again.`,
       }
     default:
       return null
@@ -121,10 +121,10 @@ export function autoLinkSummary(result: Integration.AutoLinkResult): string {
   const linked =
     result.created === 0
       ? 'No new frames linked'
-      : `Linked ${result.created} ${result.created === 1 ? 'snapshot' : 'snapshots'} to frames`
+      : `Linked ${result.created} ${result.created === 1 ? 'screenshot' : 'screenshots'} to frames`
   return result.unlinked === 0
     ? `${linked}.`
-    : `${linked}; ${result.unlinked} ${result.unlinked === 1 ? 'snapshot has' : 'snapshots have'} no frame with a matching name.`
+    : `${linked}; ${result.unlinked} ${result.unlinked === 1 ? 'screenshot has' : 'screenshots have'} no frame with a matching name.`
 }
 
 /** The picker's items: the account's targets, plus the saved one if it is gone. */

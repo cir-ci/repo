@@ -19,7 +19,7 @@ import {
  * and the message builders are in `client.ts` and `messages.ts` beside it; this file only wires them to the SDK.
  */
 
-/** A Slack channel id: public channels start with C, private ones with G. */
+/** A Slack channel ID: public channels start with C, private ones with G. */
 const CHANNEL_ID_RE = /^[CG][A-Z0-9]{2,30}$/
 
 const clientOf = (ctx: IntegrationDefinition.Context) =>
@@ -94,9 +94,9 @@ export const slack = defineIntegration({
         }
       } catch (err) {
         if (err instanceof SlackApiError && err.status < 500 && err.status !== 429) {
-          throw new InvalidCredentialsError('Slack did not accept the install', { cause: err })
+          throw new InvalidCredentialsError("Slack didn't accept the install", { cause: err })
         }
-        throw new IntegrationUnreachableError('Slack did not answer; try again shortly', {
+        throw new IntegrationUnreachableError("Slack didn't answer; try again shortly", {
           cause: err,
         })
       }
@@ -127,7 +127,7 @@ export const slack = defineIntegration({
     target: {
       label: 'Channel',
       kind: 'select',
-      validate: (ref) => (CHANNEL_ID_RE.test(ref) ? null : 'That is not a Slack channel id'),
+      validate: (ref) => (CHANNEL_ID_RE.test(ref) ? null : "That isn't a Slack channel ID"),
     },
     async listTargets(credentials, ctx) {
       const channels = await clientOf(ctx).listChannels(credentials)

@@ -61,7 +61,7 @@ export const integrationWebhookRoutes: FastifyPluginAsync<integrationWebhookRout
       return reply.code(401).send({ error: 'Bad signature' })
     }
     const delivery = git.webhook.deliveryId(req.headers, raw)
-    if (!delivery) return reply.code(400).send({ error: 'Missing delivery id' })
+    if (!delivery) return reply.code(400).send({ error: 'Missing delivery ID' })
     if (!(await claimWebhookDelivery(deps.db, delivery))) return { ok: true, duplicate: true }
 
     let payload: Record<string, unknown>

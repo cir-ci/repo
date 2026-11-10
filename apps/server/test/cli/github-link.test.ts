@@ -101,11 +101,11 @@ describe('circi admin github link', () => {
     })
   })
 
-  it('stores nothing when GitHub has no such installation, or does not answer', async () => {
+  it("stores nothing when GitHub has no such installation, or doesn't answer", async () => {
     const { workspace, team } = await seedTeam(t.db)
     fakeGithub()
-    await expect(link(workspace.slug, team.slug, '56')).rejects.toThrow(/not installed/)
-    await expect(link(workspace.slug, team.slug, '57')).rejects.toThrow(/did not answer/)
+    await expect(link(workspace.slug, team.slug, '56')).rejects.toThrow(/isn't installed/)
+    await expect(link(workspace.slug, team.slug, '57')).rejects.toThrow(/didn't answer/)
     expect(await getTeamLink(t.db, team.id, integrationRegistry.gitKinds())).toBeUndefined()
     expect(
       (await t.db.select().from(schema.integrations)).filter((i) => i.workspaceId === workspace.id),

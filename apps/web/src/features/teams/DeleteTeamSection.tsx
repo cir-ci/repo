@@ -53,11 +53,7 @@ export function DeleteTeamSection({ workspace, team, name, canManage }: DeleteTe
       <SettingsSection title="Danger zone" tone="danger">
         <SettingsRow
           label="Delete team"
-          detail={
-            canManage
-              ? `Removes ${name} with its builds, screenshots, hosted sites, rules and webhooks, and stops its CI token working. Screenshot files are cleaned up by retention afterwards.`
-              : 'Only owners and admins can delete a team.'
-          }
+          detail={`Deletes ${name} with its builds, screenshots, hosted sites, rules and webhooks, and stops its CI token working. Screenshot files are cleaned up by retention afterwards.`}
         >
           <Button variant="danger" disabled={!canManage} onClick={() => setOpen(true)}>
             Delete team
@@ -68,7 +64,7 @@ export function DeleteTeamSection({ workspace, team, name, canManage }: DeleteTe
         open={open}
         onOpenChange={close}
         title={`Delete ${name}?`}
-        description="This can’t be undone. The team’s builds, screenshots, sites and settings are removed for everyone."
+        description="This can’t be undone. The team’s builds, screenshots, sites and settings are deleted for everyone."
         actions={
           <>
             <Button onClick={() => close(false)}>Cancel</Button>

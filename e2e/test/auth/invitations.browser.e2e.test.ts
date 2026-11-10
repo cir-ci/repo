@@ -205,7 +205,7 @@ describe('invitations and members', () => {
     await withSessionPage(browser.browser, session, async (p) => {
       await p.goto(link ?? '')
       await p
-        .getByText('This invitation is not for this account, has expired, or was withdrawn.')
+        .getByText('This invitation isn’t for this account, has expired, or was withdrawn.')
         .waitFor()
     })
     const members = (await fullWorkspace(setup.session, workspace())).members
@@ -233,7 +233,7 @@ describe('invitations and members', () => {
     await withSessionPage(browser.browser, session, async (p) => {
       await p.goto(link ?? '')
       await p
-        .getByText('This invitation is not for this account, has expired, or was withdrawn.')
+        .getByText('This invitation isn’t for this account, has expired, or was withdrawn.')
         .waitFor()
       expect(await p.getByRole('button', { name: 'Join' }).count()).toBe(0)
     })
@@ -266,7 +266,7 @@ describe('invitations and members', () => {
     await withSessionPage(browser.browser, session, async (p) => {
       await p.goto(link ?? '')
       await p
-        .getByText('This invitation is not for this account, has expired, or was withdrawn.')
+        .getByText('This invitation isn’t for this account, has expired, or was withdrawn.')
         .waitFor()
     })
     const res = await session.request('POST', '/api/auth/organization/accept-invitation', {

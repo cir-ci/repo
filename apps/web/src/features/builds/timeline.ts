@@ -114,7 +114,7 @@ const REQUEST_CLOSED: Record<ReviewRequestState, string> = {
 function snapshotReviewText(e: Activity.Event & { type: 'snapshot_review' }): string {
   const verb = e.decision === 'approved' ? 'approved' : 'rejected'
   const what =
-    e.snapshotNames.length === 1 ? e.snapshotNames[0] : `${e.snapshotNames.length} snapshots`
+    e.snapshotNames.length === 1 ? e.snapshotNames[0] : `${e.snapshotNames.length} screenshots`
   return e.by ? `${verb} ${what}` : `${what} ${verb} by someone who has left`
 }
 

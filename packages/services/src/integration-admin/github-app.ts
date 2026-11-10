@@ -229,7 +229,7 @@ export function publicUrlProblem(origin: string): {
     return {
       blocked: null,
       warning:
-        'This address is only reachable from this machine, so GitHub cannot deliver webhooks to it. Fine to try the setup; use a public https address for real use.',
+        "This address is only reachable from this machine, so GitHub can't deliver webhooks to it. Fine to try the setup; use a public https address for real use.",
     }
   }
   return {

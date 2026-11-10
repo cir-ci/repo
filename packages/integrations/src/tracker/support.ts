@@ -15,9 +15,9 @@ export async function identifyAccount(
     return await tracker.identify()
   } catch (err) {
     if (isConnectionRevoked(err)) {
-      throw new InvalidCredentialsError(`${name} did not accept those credentials`, { cause: err })
+      throw new InvalidCredentialsError(`${name} didn't accept those credentials`, { cause: err })
     }
-    throw new IntegrationUnreachableError(`${name} did not answer; try again shortly`, {
+    throw new IntegrationUnreachableError(`${name} didn't answer; try again shortly`, {
       cause: err,
     })
   }

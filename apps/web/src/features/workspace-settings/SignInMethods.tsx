@@ -70,7 +70,7 @@ function Methods({ workspace, data }: Methods.Props) {
     <>
       <SettingsSection
         title="Sign-in methods"
-        description="People sign in with any method the instance offers, but this workspace only shows its teams to sessions that used a method you accept here. Changes apply when you press Save changes."
+        description="People sign in with any method the instance offers, but this workspace only shows its teams to sessions that used a method you accept here."
       >
         <SettingsRow>
           <Checkbox

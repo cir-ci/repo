@@ -29,7 +29,7 @@ export function GithubSetupPage() {
       onRetry={() => void refetch()}
     >
       {installation === '' ? (
-        <Banner tone="danger">GitHub did not say which installation to connect.</Banner>
+        <Banner tone="danger">GitHub didn’t say which installation to connect.</Banner>
       ) : (data?.manageableWorkspaces.length ?? 0) === 0 ? (
         <Banner>Only workspace owners and admins can connect GitHub.</Banner>
       ) : (

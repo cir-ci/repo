@@ -134,9 +134,9 @@ export const github = defineIntegration({
     installationId: z
       .string()
       .trim()
-      .regex(INSTALLATION_ID_RE, 'The installation id is a number')
+      .regex(INSTALLATION_ID_RE, 'The installation ID is a number')
       .meta({
-        label: 'GitHub App installation id',
+        label: 'GitHub App installation ID',
         description:
           'Install the CirCI GitHub App on your account or organisation, then paste the number at the end of the installation’s settings address on GitHub.',
         placeholder: '12345678',
@@ -155,7 +155,7 @@ export const github = defineIntegration({
       await app.listRepositories(input.installationId)
     } catch (err) {
       throw connectFailure('GitHub', err, {
-        revoked: 'The GitHub App is not installed with that installation id',
+        revoked: "The GitHub App isn't installed with that installation ID",
         revokedIsNotFound: true,
       })
     }

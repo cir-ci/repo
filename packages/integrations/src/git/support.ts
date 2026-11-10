@@ -66,7 +66,7 @@ export function connectFailure(
       return new InvalidInputError(messages.notFound, { cause: err })
     }
   }
-  return new IntegrationUnreachableError(`${host} did not answer; try again shortly`, {
+  return new IntegrationUnreachableError(`${host} didn't answer; try again shortly`, {
     cause: err,
   })
 }

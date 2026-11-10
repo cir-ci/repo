@@ -92,7 +92,7 @@ describe('findUpload and storeUpload', () => {
     expect((await getFile(t.db, sha))?.size).toBe(5)
   })
 
-  it('leaves the file pending when the bytes do not match or the caller refuses them', async () => {
+  it("leaves the file pending when the bytes don't match or the caller refuses them", async () => {
     const { sha } = await start()
     const found = await findUpload(t.db, { sha256: sha })
     if (found.state !== 'pending') throw new Error('expected pending')
@@ -103,7 +103,7 @@ describe('findUpload and storeUpload', () => {
     expect((await findUpload(t.db, { sha256: sha })).state).toBe('pending')
   })
 
-  it('does not mark a file the caller rejected after storing it', async () => {
+  it("doesn't mark a file the caller rejected after storing it", async () => {
     const { team } = await seedTeam(t.db)
     const sha = sha256('cut')
     await startBuildUpload(t.db, {
@@ -124,7 +124,7 @@ describe('findUpload and storeUpload', () => {
 })
 
 describe('finalizeTeamBuild', () => {
-  it('is not-found for a build of another team', async () => {
+  it("isn't-found for a build of another team", async () => {
     const { build } = await start()
     const other = await seedTeam(t.db)
     const res = await finalizeTeamBuild(t.db, {
@@ -172,7 +172,7 @@ describe('finalizeTeamBuild', () => {
     })
     const input = { teamId: team.id, buildId: build.id, shard: { screenshots: [], hold: true } }
     await expect(finalizeTeamBuild(t.db, { ...input, parallelTotal: -1 })).rejects.toThrow(
-      /not supported/,
+      /aren't supported/,
     )
     await finalizeTeamBuild(t.db, { ...input, parallelTotal: 3 })
     expect((await getTeamBuild(t.db, team.id, build.id))?.parallelTotal).toBe(3)

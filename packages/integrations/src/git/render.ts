@@ -168,7 +168,7 @@ export function checkReport(
       status: 'completed',
       conclusion: 'success',
       title: `Only flaky screenshots changed (${counts})`,
-      summary: `${counts}. These screenshots keep changing on the default branch, and this team does not hold merges for them. Approve or reject the changes here, or open the build to see them.\n\n${link}`,
+      summary: `${counts}. These screenshots keep changing on the default branch, and this team doesn't hold merges for them. Approve or reject the changes here, or open the build to see them.\n\n${link}`,
     }
   }
   return {

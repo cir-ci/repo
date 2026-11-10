@@ -101,10 +101,7 @@ export function AccountsPage() {
             Create account
           </Button>
         }
-      >
-        Everyone who can sign in to this CirCI. Nobody can sign themselves up: accounts come from
-        here, from invitations and from verified email domains.
-      </Intro>
+      />
       {failure ? <Banner tone="danger">{failure}</Banner> : null}
       {done ? <Banner tone="success">{done}</Banner> : null}
       <SettingsSection
@@ -191,7 +188,7 @@ export function AccountsPage() {
           if (!open) setSecret(null)
         }}
         title="Password created"
-        description="Pass it on yourself: CirCI does not keep it in a form anyone can read."
+        description="Pass it on yourself: CirCI doesn’t keep it in a form anyone can read."
         dismissible={false}
         actions={
           <Button variant="primary" onClick={() => setSecret(null)}>
@@ -522,7 +519,7 @@ function AccountActions(props: {
           if (!open) onClose()
         }}
         title={`Ban ${name}?`}
-        description="They are signed out at once and cannot sign in until the ban is lifted. Their reviews stay in each build’s history."
+        description="They are signed out at once and can’t sign in until the ban is lifted. Their reviews stay in each build’s history."
         actions={
           <>
             <Button onClick={onClose}>Cancel</Button>

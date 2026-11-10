@@ -8,12 +8,6 @@
   padding: 24px 16px;
 }
 
-.intro {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
 .site {
   display: flex;
   flex-direction: column;

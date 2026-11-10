@@ -45,7 +45,7 @@ export function CreateIssueDialog(props: CreateIssueDialog.Props) {
       title="Create issue"
       description={
         snapshotName
-          ? `For the snapshot “${snapshotName}” in ${name}.`
+          ? `For the screenshot “${snapshotName}” in ${name}.`
           : `For this build in ${name}.`
       }
       size="wide"

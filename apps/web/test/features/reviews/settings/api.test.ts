@@ -2,7 +2,6 @@ import type { ReviewRule, Triage } from '@circi/api'
 import { describe, expect, it } from 'vitest'
 
 import {
-  describeHours,
   draftOf,
   draftProblem,
   movedRuleIds,
@@ -90,13 +89,6 @@ describe('review target', () => {
     expect(targetDirty(24, false, '24')).toBe(true)
     expect(targetDirty(null, false, '24')).toBe(false)
     expect(targetDirty(null, true, '24')).toBe(true)
-  })
-
-  it('says days when it can', () => {
-    expect(describeHours(24)).toBe('1 day')
-    expect(describeHours(48)).toBe('2 days')
-    expect(describeHours(36)).toBe('36 hours')
-    expect(describeHours(1)).toBe('1 hour')
   })
 })
 

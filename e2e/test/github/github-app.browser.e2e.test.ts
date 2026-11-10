@@ -52,10 +52,10 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     // The page header's button (an empty list shows a second one).
     await page.getByRole('button', { name: 'Add integration' }).first().click()
     await page.getByRole('button', { name: 'Add GitHub' }).click()
-    await page.getByRole('button', { name: 'Advanced: connect by installation id' }).click()
+    await page.getByRole('button', { name: 'Advanced: connect by installation ID' }).click()
     // An installation of its own: one installation belongs to one workspace, and the other
     // files of this stack link theirs to the default one.
-    await page.getByLabel('GitHub App installation id').fill(UI_INSTALLATION)
+    await page.getByLabel('GitHub App installation ID').fill(UI_INSTALLATION)
     await page.getByRole('button', { name: 'Connect GitHub' }).click()
     // The integration's page shows the webhook address CirCI expects on the GitHub App.
     await page.getByText(`${stack.url}/webhooks/github`).waitFor()
@@ -91,7 +91,7 @@ describe('GitHub App: linking, webhook intake, check run and comment', () => {
     expect(after.github.link).toBeNull()
   })
 
-  it('refuses a malformed repository or installation id', async () => {
+  it('refuses a malformed repository or installation ID', async () => {
     const { setup } = ctx
     const team = await createTeam(setup.session, workspaceSlug, 'Bad link')
     const bad = await setup.session.request(

@@ -31,7 +31,7 @@ export function githubSourceNote(app: Pick<Instance.GithubApp, 'source'>): strin
 /** The page's `?githubApp=` result, as a sentence; null for nothing to say. */
 export function githubAppNote(result: unknown): string | null {
   return result === 'failed'
-    ? 'GitHub did not finish creating the App. The link works once, so start again.'
+    ? 'GitHub didn’t finish creating the App. The link works once, so start again.'
     : null
 }
 

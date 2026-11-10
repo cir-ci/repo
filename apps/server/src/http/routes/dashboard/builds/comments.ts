@@ -17,7 +17,7 @@ const createBody = z.object({
   region: z
     .object({ x: fraction, y: fraction, width: fraction, height: fraction })
     .refine((r) => r.width > 0 && r.height > 0 && r.x + r.width <= 1 && r.y + r.height <= 1, {
-      message: 'The region must lie inside the snapshot',
+      message: 'The region must lie inside the screenshot',
     })
     .optional(),
   regionSide: z.enum(['baseline', 'current']).optional(),

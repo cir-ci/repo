@@ -32,7 +32,7 @@ async function userAged(ms: number) {
   return owner.id
 }
 describe('beforeAccountCreate', () => {
-  it('ignores anything that is not a single sign-on callback', async () => {
+  it("ignores anything that isn't a single sign-on callback", async () => {
     const userId = await userAged(86_400_000)
     await expect(
       beforeAccountCreate(options())(
@@ -46,7 +46,7 @@ describe('beforeAccountCreate', () => {
     const userId = await userAged(86_400_000)
     await expect(
       beforeAccountCreate(options())({ userId, providerId: 'oidc' }, { path: '/callback/oidc' }),
-    ).rejects.toThrow(/not trusted/)
+    ).rejects.toThrow(/isn't trusted/)
   })
 
   it('refuses with an error code, so the OAuth callback redirects instead of ending on a bare 403', async () => {

@@ -140,7 +140,7 @@ describe('WorkspaceGeneralPage', () => {
     expect(headings.at(-1)?.textContent).toBe('Danger zone')
   })
 
-  it('lets an admin who is not an owner see why they cannot delete', async () => {
+  it('disables deleting for an admin who isn’t an owner', async () => {
     await page.viewport(1000, 900)
     fakeApi({
       'GET /api/workspaces/acme': { body: general(true, { isOwner: false }) },
@@ -148,7 +148,6 @@ describe('WorkspaceGeneralPage', () => {
     })
     await renderPage(<WorkspaceGeneralPage />, ROUTE)
     await expect.element(page.getByRole('button', { name: 'Delete workspace' })).toBeDisabled()
-    await expect.element(page.getByText('Only an owner can delete the workspace.')).toBeVisible()
   })
 
   it('deletes only after the slug is typed, then leaves the workspace', async () => {

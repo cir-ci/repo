@@ -87,7 +87,7 @@ describe('NotificationsPage', () => {
     })
     await renderPage(<NotificationsPage />)
     await expect.element(page.getByRole('heading', { name: 'In your Inbox' })).toBeVisible()
-    await expect.element(page.getByText('Flaky snapshot detected')).toBeVisible()
+    await expect.element(page.getByText('Flaky screenshot detected')).toBeVisible()
     await expect.element(page.getByRole('navigation', { name: 'Breadcrumb' })).toBeVisible()
   })
 })

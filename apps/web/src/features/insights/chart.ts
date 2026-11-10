@@ -88,7 +88,7 @@ export function reviewBars(weeks: readonly Insights.Week[]): {
   }
 }
 
-/** The line of open flaky snapshots at the end of each week. */
+/** The line of open flaky screenshots at the end of each week. */
 export function flakyLine(weeks: readonly Insights.Week[]) {
   const { top, ticks } = niceScale(Math.max(0, ...weeks.map((w) => w.flaky)))
   const points = weeks.map((w, i) => ({
@@ -115,11 +115,11 @@ export function reviewSummary(weeks: readonly Insights.Week[]): string {
 }
 
 export function flakySummary(weeks: readonly Insights.Week[]): string {
-  if (weeks.length === 0) return 'Flaky snapshots: no data.'
+  if (weeks.length === 0) return 'Flaky screenshots: no data.'
   const first = weeks[0]!.flaky
   const last = weeks[weeks.length - 1]!.flaky
   const move = last < first ? 'fell' : last > first ? 'rose' : 'held'
-  return `Open flaky snapshots ${move}${last === first ? ` at ${last}` : ` from ${first} to ${last}`} over ${weeks.length} weeks.`
+  return `Open flaky screenshots ${move}${last === first ? ` at ${last}` : ` from ${first} to ${last}`} over ${weeks.length} weeks.`
 }
 
 /** Storage bars: each team's share of the largest. */

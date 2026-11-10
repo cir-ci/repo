@@ -14,8 +14,7 @@ export const dashboardInstanceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard>
   app.addHook('onRequest', requireInstanceAdmin(deps.db))
 
   app.get('/instance/settings', async (_req, reply) => {
-    if (!deps.instance)
-      return reply.code(501).send({ error: 'Instance settings are not available' })
+    if (!deps.instance) return reply.code(501).send({ error: "Instance settings aren't available" })
     const settings: InstanceAdmin.Settings = describeSettings(deps.instance, deps)
     return settings
   })
@@ -25,7 +24,7 @@ export const dashboardInstanceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard>
     const to = currentUser(req).email
     const mailer = deps.instance?.mailer
     if (!mailer) {
-      return { ok: false, to, message: 'SMTP is not configured (set SMTP_HOST and SMTP_FROM).' }
+      return { ok: false, to, message: "SMTP isn't configured (set SMTP_HOST and SMTP_FROM)." }
     }
     try {
       await mailer.send({
@@ -36,7 +35,7 @@ export const dashboardInstanceSettingsRoutes: FastifyPluginAsync<Deps.Dashboard>
       return { ok: true, to, message: `Sent a test mail to ${to}.` }
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err)
-      return { ok: false, to, message: `Could not send the test mail: ${reason}` }
+      return { ok: false, to, message: `Couldn't send the test mail: ${reason}` }
     }
   })
 }

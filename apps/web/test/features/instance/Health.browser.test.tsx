@@ -104,7 +104,7 @@ describe('the health page', () => {
     expect(messages.indexOf('Cookies on www.acme.io')).toBeLessThan(
       messages.indexOf('Sites domain'),
     )
-    await expect.element(page.getByText('14 waiting · 3 running · 1 failed')).toBeVisible()
+    await expect.element(page.getByText('14 jobs waiting · 3 running · 1 failed')).toBeVisible()
     await expect.element(page.getByText(/PUBLIC_URL=https:\/\/ci\.acme\.io/)).toBeVisible()
   })
 
@@ -179,13 +179,13 @@ describe('the health page', () => {
     fakeApi(ROUTES)
     await show()
     const queues = page.getByRole('region', { name: 'Queues' })
-    const counts = queues.getByText(/waiting · .*running · .*failed/).first()
+    const counts = queues.getByText(/jobs.waiting · .*running · .*failed/).first()
     await expect.element(counts).toBeVisible()
     const el = counts.element()
     const lineHeight = Number.parseFloat(getComputedStyle(el).lineHeight)
     expect(el.getBoundingClientRect().height).toBeLessThan(lineHeight * 1.5)
     // And a number never parts from its word, even where the row must wrap.
-    expect(el.textContent).toMatch(/\d\u00a0waiting · \d\u00a0running · \d\u00a0failed/)
+    expect(el.textContent).toMatch(/\d\u00a0jobs?\u00a0waiting · \d\u00a0running · \d\u00a0failed/)
   })
 
   it('shows no move checklist when no address change is in progress', async () => {
@@ -240,7 +240,7 @@ describe('the health page', () => {
     })
     await show()
     await expect.element(page.getByText('Health checks are not available')).toBeVisible()
-    await expect.element(page.getByText('14 waiting · 3 running · 1 failed')).toBeVisible()
+    await expect.element(page.getByText('14 jobs waiting · 3 running · 1 failed')).toBeVisible()
   })
 
   it('lists Mail, Database and Disk with the storage check under Services, each with a badge', async () => {

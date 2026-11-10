@@ -21,7 +21,7 @@ export function RotationSection(props: RotationSection.Props) {
   return (
     <SettingsSection
       title="Triage"
-      description="One person a week owns the triage queue: flaky snapshots, missing baselines, failed builds. People take turns in the order they were added."
+      description="One person a week owns the triage queue: flaky screenshots, missing baselines, failed builds. People take turns in the order they were added."
     >
       <SettingsRow>
         {onTriage ? (
@@ -66,7 +66,7 @@ export function RotationSection(props: RotationSection.Props) {
         />
       </SettingsRow>
       <SettingsRow
-        label="Flag a snapshot as flaky"
+        label="Flag a screenshot as flaky"
         detail={`After ${FLAKY_MIN_CHANGES} changes in the last ${FLAKY_WINDOW} builds on the default branch. Fixed for every team.`}
       />
     </SettingsSection>

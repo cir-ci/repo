@@ -43,12 +43,6 @@ export function TeamSitesPage() {
     <>
       <PageHeading crumbs={crumbsFor(names)} title="Sites" />
       <div className={styles.content}>
-        <div className={styles.intro}>
-          <Text as="p" tone="secondary">
-            Storybook, test reports and other sites uploaded from CI. Opening one asks you to sign
-            in on its own address.
-          </Text>
-        </div>
         <QueryBoundary query={query} notFound="This team doesn’t exist" rows={3}>
           {(data) =>
             !data.configured ? (

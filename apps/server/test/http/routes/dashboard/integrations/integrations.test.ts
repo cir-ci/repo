@@ -210,11 +210,11 @@ describe('the GitHub integration', () => {
     })
   })
 
-  it('rejects an installation GitHub does not know, storing nothing', async () => {
+  it("rejects an installation GitHub doesn't know, storing nothing", async () => {
     const before = (await listIntegrations(t.db, workspace.id)).length
     const res = await connect(ownerCookie, '123456')
     expect(res.statusCode).toBe(404)
-    expect(res.json().error).toMatch(/not installed/)
+    expect(res.json().error).toMatch(/isn't installed/)
     failListing = true
     expect((await connect(ownerCookie, '8')).statusCode).toBe(502)
     failListing = false

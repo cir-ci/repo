@@ -87,7 +87,7 @@ describe('instance settings', () => {
         body: {
           ok: false,
           to: 'michael@acme.dev',
-          message: 'Could not send the test mail: ECONNREFUSED',
+          message: 'Couldn’t send the test mail: ECONNREFUSED',
         },
       },
       ...GITHUB,
@@ -96,7 +96,7 @@ describe('instance settings', () => {
     await page.getByRole('button', { name: 'Send test mail' }).click()
     await expect
       .element(page.getByRole('alert'))
-      .toHaveTextContent('Could not send the test mail: ECONNREFUSED')
+      .toHaveTextContent('Couldn’t send the test mail: ECONNREFUSED')
   })
 
   it('says mail is not configured', async () => {
@@ -116,6 +116,6 @@ describe('instance settings', () => {
       ...GITHUB,
     })
     await show()
-    await expect.element(page.getByText('Mail is not configured')).toBeVisible()
+    await expect.element(page.getByText('Mail isn’t configured')).toBeVisible()
   })
 })

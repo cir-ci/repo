@@ -132,7 +132,7 @@ describe('createIssueFromBuild', () => {
     expect(await listBuildLinks(t.db, build.id, 'issue')).toEqual([])
   })
 
-  it('refuses a tracker the team is not mapped to, an unknown snapshot and unusable credentials', async () => {
+  it("refuses a tracker the team isn't mapped to, an unknown snapshot and unusable credentials", async () => {
     const { owner, integration, build, workspace } = await setup()
     const other = await createIntegration(t.db, {
       workspaceId: workspace.id,
@@ -144,7 +144,7 @@ describe('createIssueFromBuild', () => {
     const { tracker, calls } = fakeTracker()
     await expect(
       createIssueFromBuild(t.db, { ...base, integrationId: other.id, openTracker: () => tracker }),
-    ).rejects.toThrow('does not file issues')
+    ).rejects.toThrow("doesn't file issues")
     await expect(
       createIssueFromBuild(t.db, {
         ...base,
@@ -152,7 +152,7 @@ describe('createIssueFromBuild', () => {
         snapshotName: 'nope',
         openTracker: () => tracker,
       }),
-    ).rejects.toThrow('Snapshot not found')
+    ).rejects.toThrow('Screenshot not found')
     await expect(
       createIssueFromBuild(t.db, {
         ...base,

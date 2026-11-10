@@ -71,11 +71,11 @@ export const argosRoutes: FastifyPluginAsync<Deps.V2> = async (v2, deps) => {
       const body = parse(createBody, req.body)
       const keys = [...new Set(body.screenshots.map((s) => s.key))]
       const bad = keys.find((k) => !isSha256(k))
-      if (bad) throw new ValidationError(`Screenshot key "${bad}" is not a sha256 hash`)
+      if (bad) throw new ValidationError(`Screenshot key "${bad}" isn't a sha256 hash`)
       const notPng = body.screenshots.find((s) => s.contentType && s.contentType !== 'image/png')
       if (notPng) {
         throw new ValidationError(
-          `CirCI compares PNG screenshots; "${notPng.contentType}" is not supported`,
+          `CirCI compares PNG screenshots; "${notPng.contentType}" isn't supported`,
         )
       }
 
@@ -148,7 +148,7 @@ export const argosRoutes: FastifyPluginAsync<Deps.V2> = async (v2, deps) => {
       if (result.status === 'not-found') return reply.code(404).send({ error: 'Build not found' })
       if (result.status === 'missing') {
         return reply.code(400).send({
-          error: `${result.missing.length} screenshot file(s) were not uploaded`,
+          error: `${result.missing.length} screenshot file(s) weren't uploaded`,
           missing: result.missing,
         })
       }

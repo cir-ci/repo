@@ -172,7 +172,7 @@ function Webhooks(props: Webhooks.Props) {
           <SettingsSection
             key={h.id}
             title={`Recent deliveries to ${hostOf(h.url)}`}
-            description="Any answer other than 2xx is retried. Redirects are not followed."
+            description="Any answer other than 2xx is retried. Redirects aren’t followed."
             aria-label={`Recent deliveries to ${h.url}`}
           >
             <div className={styles.table} role="table" aria-label={`Deliveries to ${h.url}`}>
@@ -231,7 +231,7 @@ function Webhooks(props: Webhooks.Props) {
             <Text as="code" variant="mono">
               {'<t>.<body>'}
             </Text>{' '}
-            with the webhook’s secret. Reject signatures older than a few minutes.
+            with the webhook’s secret. Reject signatures older than 5 minutes.
           </>
         }
       />

@@ -28,7 +28,7 @@ describe('linear', () => {
   it('answers 400 for a refused key and 502 when Linear is down', async () => {
     const { ctx } = fakeTrackers()
     await expect(linear.connect?.({ apiKey: 'nope' }, ctx)).rejects.toThrow(
-      new InvalidCredentialsError('Linear did not accept those credentials'),
+      new InvalidCredentialsError("Linear didn't accept those credentials"),
     )
     await expect(
       linear.connect?.({ apiKey: 'lin_good' }, fakeTrackers({ down: true }).ctx),
@@ -93,7 +93,7 @@ describe('jira', () => {
 
   it('answers 400 for refused credentials and 502 when Jira is down', async () => {
     await expect(jira.connect?.({ ...form, apiToken: 'bad' }, fakeTrackers().ctx)).rejects.toThrow(
-      new InvalidCredentialsError('Jira did not accept those credentials'),
+      new InvalidCredentialsError("Jira didn't accept those credentials"),
     )
     await expect(jira.connect?.(form, fakeTrackers({ down: true }).ctx)).rejects.toBeInstanceOf(
       IntegrationUnreachableError,

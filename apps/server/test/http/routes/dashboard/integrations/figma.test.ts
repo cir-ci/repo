@@ -238,7 +238,7 @@ describe('a team’s Figma file', () => {
     expect(missing.json().error).toBe('Figma could not find that file')
     const bad = await call('PUT', mappingUrl(), ownerCookie, { ref: 'not a file' })
     expect(bad.statusCode).toBe(400)
-    expect(bad.json().error).toBe('That is not a Figma file address')
+    expect(bad.json().error).toBe("That isn't a Figma file address")
     expect((await call('PUT', mappingUrl(), ownerCookie, { ref: FILE })).statusCode).toBe(204)
     const page = (await call('GET', `${workspaceBase}/${id}/teams`, louCookie)).json()
     expect(page.teams[0].mapping).toMatchObject({ ref: 'FileKey12345', name: 'Checkout v3' })

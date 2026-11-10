@@ -41,7 +41,7 @@ describe('issues on a snapshot', () => {
     const api = fakeBuildApi(detail())
     api.issues = { issues: [filed('checkout / payment')], trackers: [] }
     await renderBuild()
-    const row = page.getByRole('list', { name: 'Issues for this snapshot' })
+    const row = page.getByRole('list', { name: 'Issues for this screenshot' })
     const link = row.getByRole('link', { name: 'WEB-9 · Jira' })
     await expect.element(link).toHaveAttribute('href', 'https://x.test/WEB-9')
     await expect.element(link).toHaveAttribute('target', '_blank')
@@ -55,7 +55,9 @@ describe('issues on a snapshot', () => {
     // The viewer follows the keys: the next snapshot has no issue.
     await userEvent.keyboard('j')
     await expect.element(viewerTitle()).toHaveTextContent('checkout / address')
-    expect(page.getByRole('list', { name: 'Issues for this snapshot' }).elements()).toHaveLength(0)
+    expect(page.getByRole('list', { name: 'Issues for this screenshot' }).elements()).toHaveLength(
+      0,
+    )
   })
 })
 
@@ -447,7 +449,7 @@ describe('keyboard shortcuts', () => {
     await userEvent.keyboard('?')
     const dialog = page.getByRole('dialog', { name: 'Keyboard shortcuts' })
     await expect.element(dialog).toBeVisible()
-    await expect.element(dialog.getByText('Approve snapshot')).toBeVisible()
+    await expect.element(dialog.getByText('Approve screenshot')).toBeVisible()
     await expect.element(dialog.getByText('Approve all', { exact: true })).toBeVisible()
     await userEvent.keyboard('{Escape}')
     await expect.element(dialog).not.toBeInTheDocument()
@@ -509,7 +511,7 @@ describe('approving and rejecting', () => {
     await vi.waitFor(() =>
       expect(api.reviews).toEqual([body({ snapshotNames: ['a', 'c'], decision: 'approved' })]),
     )
-    await expect.element(page.getByText('2 snapshots approved.')).toBeInTheDocument()
+    await expect.element(page.getByText('2 screenshots approved.')).toBeInTheDocument()
     expect(page.getByRole('button', { name: 'Approve all' }).elements()).toHaveLength(0)
   })
 

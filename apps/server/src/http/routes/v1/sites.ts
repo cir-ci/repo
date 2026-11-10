@@ -56,7 +56,7 @@ export const siteRoutes: FastifyPluginAsync<Deps.V1> = async (app, deps) => {
       const ctx = currentTeam(req)
       const sites = deps.sites
       if (!sites)
-        return reply.code(404).send({ error: 'Static site hosting is not set up on this server' })
+        return reply.code(404).send({ error: "Static site hosting isn't set up on this server" })
       if (!ctx.team.staticHostingEnabled) {
         return reply.code(403).send({
           error: 'Static site hosting is off for this team: turn it on in the team settings',

@@ -65,7 +65,7 @@ export function CommentsTab(props: CommentsTab.Props) {
         </Text>
       ) : threads.length === 0 ? (
         <EmptyState icon={<ReviewIcon size={28} />} title="No comments yet">
-          Press C to write one, or drag over a snapshot to comment on a region.
+          Press C to write one, or drag over a screenshot to comment on a region.
         </EmptyState>
       ) : (
         <div className={styles.list} role="list" aria-label="Comments">

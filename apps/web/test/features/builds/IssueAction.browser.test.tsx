@@ -136,7 +136,7 @@ describe('SnapshotIssues', () => {
         snapshotName="checkout / payment"
       />,
     )
-    const row = page.getByRole('list', { name: 'Issues for this snapshot' })
+    const row = page.getByRole('list', { name: 'Issues for this screenshot' })
     const issue = row.getByRole('link', { name: 'WEB-9 · Jira' })
     await expect.element(issue).toHaveAttribute('href', 'https://x.test/WEB-9')
     await expect.element(issue).toHaveAttribute('target', '_blank')

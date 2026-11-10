@@ -70,7 +70,7 @@ describe('InsightsPage', () => {
       )
       .toBeVisible()
     await expect
-      .element(page.getByRole('img', { name: /Open flaky snapshots fell from 12 to 7/ }))
+      .element(page.getByRole('img', { name: /Open flaky screenshots fell from 12 to 7/ }))
       .toBeVisible()
     await expect.element(page.getByRole('cell', { name: 'Ada Lovelace' })).toBeVisible()
     await expect.element(page.getByText('3.0 GB total')).toBeVisible()

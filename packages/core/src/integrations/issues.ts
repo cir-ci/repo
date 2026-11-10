@@ -36,7 +36,7 @@ export function issueDescription(facts: IssueText.BuildFacts): string {
   const lines: string[] = []
   lines.push(
     facts.snapshotName
-      ? `The snapshot "${facts.snapshotName}" changed in build #${facts.number} of ${facts.team}.`
+      ? `The screenshot "${facts.snapshotName}" changed in build #${facts.number} of ${facts.team}.`
       : `Build #${facts.number} of ${facts.team} has visual changes.`,
   )
   const where = [

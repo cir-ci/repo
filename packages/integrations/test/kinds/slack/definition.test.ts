@@ -99,7 +99,7 @@ describe('the Slack definition', () => {
 
   it('validates channel ids and describes its mapping for the dashboard', () => {
     expect(slack.mapping?.target.validate?.('C02WEB1')).toBeNull()
-    expect(slack.mapping?.target.validate?.('general')).toMatch(/channel id/)
+    expect(slack.mapping?.target.validate?.('general')).toMatch(/channel ID/)
     expect(mappingSpec(slack.mapping)).toMatchObject({
       targetLabel: 'Channel',
       targetKind: 'select',

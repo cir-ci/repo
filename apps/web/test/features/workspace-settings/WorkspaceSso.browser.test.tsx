@@ -26,7 +26,7 @@ const configure = () => page.getByRole('button', { name: 'Configure' }).click()
 
 const fill = async (issuer: string, clientId: string, clientSecret: string) => {
   if (issuer) await page.getByRole('textbox', { name: 'Issuer address' }).fill(issuer)
-  if (clientId) await page.getByRole('textbox', { name: 'Client id' }).fill(clientId)
+  if (clientId) await page.getByRole('textbox', { name: 'Client ID' }).fill(clientId)
   if (clientSecret) await page.getByLabelText('Client secret').fill(clientSecret)
 }
 
@@ -53,7 +53,7 @@ describe('WorkspaceSso', () => {
     await expect
       .element(page.getByLabelText('Client secret'))
       .toHaveAttribute('autocomplete', 'new-password')
-    await expect.element(page.getByLabelText('Client id')).toHaveAttribute('autocomplete', 'off')
+    await expect.element(page.getByLabelText('Client ID')).toHaveAttribute('autocomplete', 'off')
   })
 
   it('shows Connected on the row, and the provider and its redirect address under Configure', async () => {
@@ -90,9 +90,9 @@ describe('WorkspaceSso', () => {
     await configure()
     await page.getByRole('button', { name: 'Connect provider' }).click()
     await expect.element(page.getByText('Enter the issuer address')).toBeVisible()
-    await expect.element(page.getByText('Enter the client id')).toBeVisible()
+    await expect.element(page.getByText('Enter the client ID')).toBeVisible()
     await expect.element(page.getByText('Enter the client secret')).toBeVisible()
-    await expect.element(page.getByRole('textbox', { name: 'Client id' })).toBeInvalid()
+    await expect.element(page.getByRole('textbox', { name: 'Client ID' })).toBeInvalid()
     expect(calls.filter((c) => c.method === 'POST')).toHaveLength(0)
   })
 
@@ -145,7 +145,7 @@ describe('WorkspaceSso', () => {
     await fill('https://login.acme.test', 'id', 's3cret')
     await page.getByRole('button', { name: 'Connect provider' }).click()
     await expect.element(page.getByRole('alert')).toHaveTextContent('Couldn’t reach that issuer')
-    await expect.element(page.getByRole('textbox', { name: 'Client id' })).toHaveValue('id')
+    await expect.element(page.getByRole('textbox', { name: 'Client ID' })).toHaveValue('id')
   })
 
   it('disconnects the provider only after confirming, and offers the form again', async () => {
@@ -161,7 +161,7 @@ describe('WorkspaceSso', () => {
     await show()
     await configure()
     await page.getByRole('button', { name: 'Remove https://login.acme.test' }).click()
-    const dialog = page.getByRole('alertdialog', { name: 'Disconnect single sign-on?' })
+    const dialog = page.getByRole('alertdialog', { name: 'Remove single sign-on?' })
     await expect.element(dialog).toBeVisible()
     await dialog.getByRole('button', { name: 'Cancel' }).click()
     expect(calls.some((c) => c.method === 'DELETE')).toBe(false)

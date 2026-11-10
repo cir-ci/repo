@@ -32,7 +32,7 @@ export const appearanceBody = z
   .strict()
 
 export const githubBody = z.object({
-  installationId: z.string().regex(INSTALLATION_ID_RE, 'The installation id is a number'),
+  installationId: z.string().regex(INSTALLATION_ID_RE, 'The installation ID is a number'),
   repoRef: z.string().regex(/^[\w.-]+\/[\w.-]+$/, 'Use owner/name, e.g. acme/web'),
 })
 

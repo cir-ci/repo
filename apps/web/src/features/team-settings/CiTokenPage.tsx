@@ -60,9 +60,6 @@ function TokenBody({ workspace, team, name, repoRef }: TokenBody.Props) {
         status for {name} only; it can’t open the dashboard or any other team.
       </Text>
 
-      {token && !token.canManage ? (
-        <Banner>Only owners and admins can replace the token.</Banner>
-      ) : null}
       {rotate.data ? (
         <Banner tone="success" title={`New token for ${name}`}>
           <div className={styles.secret}>

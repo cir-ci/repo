@@ -230,7 +230,7 @@ describe('WebhooksPage', () => {
     await show()
     await expect.element(page.getByText('No webhooks yet')).toBeVisible()
     await expect.element(page.getByRole('heading', { name: 'Checking a delivery' })).toBeVisible()
-    await expect.element(page.getByText(/Reject signatures older than a few minutes/)).toBeVisible()
+    await expect.element(page.getByText(/Reject signatures older than 5 minutes/)).toBeVisible()
     await expect.element(page.getByText(/retried 8 times with backoff/)).toBeVisible()
     expect(document.title).toBe('Webhooks · web · CirCI')
   })

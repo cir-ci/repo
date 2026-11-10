@@ -197,11 +197,11 @@ export function Viewer({
               />
             </span>
           ) : null}
-          <Text variant="small" tone="secondary" className={styles.hint}>
-            {annotatable
-              ? 'Drag on an image to comment on a region · click an image to enlarge'
-              : 'Click an image to enlarge'}
-          </Text>
+          {annotatable ? (
+            <Text variant="small" tone="secondary" className={styles.hint}>
+              Drag on an image to comment on a region
+            </Text>
+          ) : null}
           {annotatable ? (
             // The board's toolbar has no button for it: the keyboard path stays, shown only while it has focus.
             <span className={styles.keyTool} data-on={keyboardTool ? '' : undefined}>

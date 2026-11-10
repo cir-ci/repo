@@ -234,8 +234,12 @@ describe('Shell, wide', () => {
     await page.viewport(1280, 800)
     await renderShell('/')
     const nav = page.getByRole('navigation', { name: 'Main' })
-    await expect.element(nav.getByRole('link', { name: 'Inbox , 3 unread' })).toBeVisible()
-    await expect.element(nav.getByRole('link', { name: 'Reviews , 2 waiting' })).toBeVisible()
+    await expect
+      .element(nav.getByRole('link', { name: 'Inbox , 3 unread notifications' }))
+      .toBeVisible()
+    await expect
+      .element(nav.getByRole('link', { name: 'Reviews , 2 reviews waiting' }))
+      .toBeVisible()
     await expect.element(nav.getByRole('link', { name: 'Failing on main' })).toBeVisible()
     expect(nav.getByRole('link', { name: 'Not pinned' }).elements()).toHaveLength(0)
   })
@@ -260,7 +264,7 @@ describe('Shell, wide', () => {
     await renderShell('/workspaces/acme/reviews')
     const nav = page.getByRole('navigation', { name: 'Main' })
     await expect
-      .element(nav.getByRole('link', { name: 'Reviews , 2 waiting' }))
+      .element(nav.getByRole('link', { name: 'Reviews , 2 reviews waiting' }))
       .toHaveAttribute('aria-current', 'page')
     await expect
       .element(nav.getByRole('link', { name: 'Teams', exact: true }))
@@ -272,7 +276,7 @@ describe('Shell, wide', () => {
     await renderShell('/acme/web-app/triage')
     const nav = page.getByRole('navigation', { name: 'Main' })
     await expect
-      .element(nav.getByRole('link', { name: 'Triage , 4 waiting' }))
+      .element(nav.getByRole('link', { name: 'Triage , 4 items to triage' }))
       .toHaveAttribute('aria-current', 'page')
     await expect.element(nav.getByRole('link', { name: 'Builds' })).toBeVisible()
     await expect.element(nav.getByRole('link', { name: 'Baselines' })).toBeVisible()
@@ -722,7 +726,7 @@ describe('Shell, narrow', () => {
     const drawer = page.getByRole('dialog', { name: 'Navigation' })
     await expect.element(drawer).toBeVisible()
     await expect
-      .element(drawer.getByRole('link', { name: 'Reviews , 2 waiting' }))
+      .element(drawer.getByRole('link', { name: 'Reviews , 2 reviews waiting' }))
       .toHaveAttribute('aria-current', 'page')
   })
 

@@ -84,10 +84,7 @@ function Sections({ settings }: { settings: InstanceAdmin.Settings }) {
 
       <MailSection mail={settings.mail} />
 
-      <SettingsSection
-        title="Storage and limits"
-        description="Where files live, and how long unused ones and unfinished builds are kept."
-      >
+      <SettingsSection title="Storage and limits">
         <Setting
           title={
             settings.storage.driver === 's3'
@@ -140,7 +137,7 @@ function Sections({ settings }: { settings: InstanceAdmin.Settings }) {
         ) : (
           <Setting
             title="Not set up"
-            note="Teams cannot host sites until a separate domain is configured."
+            note="Teams can’t host sites until a separate domain is configured."
             env="STATIC_SITES_HOST"
           />
         )}
@@ -154,10 +151,7 @@ function MailSection({ mail }: { mail: InstanceAdmin.Settings['mail'] }) {
   const result = test.data
   return (
     <>
-      <SettingsSection
-        title="Mail"
-        description="Sign-in codes, invitations, new sign-in alerts and review emails go out through this server."
-      >
+      <SettingsSection title="Mail">
         {mail.configured ? (
           <>
             <Setting
@@ -177,7 +171,7 @@ function MailSection({ mail }: { mail: InstanceAdmin.Settings['mail'] }) {
           </>
         ) : (
           <Setting
-            title="Mail is not configured"
+            title="Mail isn’t configured"
             note="Without it, nobody gets sign-in codes or invitations by email."
             env="SMTP_HOST, SMTP_FROM"
           />

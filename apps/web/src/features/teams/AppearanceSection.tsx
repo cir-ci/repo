@@ -56,7 +56,7 @@ export function AppearanceSection({
   return (
     <SettingsSection
       title="Name, icon and colour"
-      description={`How ${name} is called, and how it shows in the sidebar, the switchers and every list. Saved as soon as you change them. The colour only tells teams apart: it never means a build’s state.`}
+      description="Saved as soon as you change them. The colour only tells teams apart: it never means a build’s state."
     >
       <SettingsRow>
         <InstantTextField
@@ -73,7 +73,7 @@ export function AppearanceSection({
       </SettingsRow>
       <SettingsRow
         label={name}
-        detail={`${colourLabel(color)} with ${icon ? `the ${iconLabel(icon)} icon` : 'its first letter'}. New teams get a colour from their name; change it here.`}
+        detail={`${colourLabel(color)} with ${icon ? `the ${iconLabel(icon)} icon` : 'its first letter'}.`}
       >
         <TeamTile name={name} color={color} {...(icon ? { icon } : {})} size={40} labelled />
       </SettingsRow>

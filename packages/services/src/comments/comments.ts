@@ -97,7 +97,7 @@ export async function addComment(db: Database, input: addComment.Input): Promise
       snapshotName = parent.snapshotName
     }
     if (input.region && !snapshotName) {
-      throw new ValidationError('Say which snapshot the region is on')
+      throw new ValidationError('Say which screenshot the region is on')
     }
     const comment = await insertComment(tx, {
       buildId: input.buildId,

@@ -144,9 +144,6 @@ describe('CiTokenPage', () => {
     api(info({ canManage: false }), { ...settings(), canManage: false })
     await show()
     await expect.element(page.getByText('circi_AbC1…')).toBeVisible()
-    await expect
-      .element(page.getByText('Only owners and admins can replace the token.'))
-      .toBeVisible()
     expect(page.getByRole('button', { name: 'Rotate token' }).elements()).toHaveLength(0)
   })
 

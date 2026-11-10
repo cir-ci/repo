@@ -57,7 +57,7 @@ export function validateSso(input: {
   if (!input.issuer) problems.issuer = 'Enter the issuer address'
   else if (!isWebAddress(input.issuer))
     problems.issuer = 'Enter a full address, like https://login.example.com'
-  if (!input.clientId) problems.clientId = 'Enter the client id'
+  if (!input.clientId) problems.clientId = 'Enter the client ID'
   if (!input.clientSecret) problems.clientSecret = 'Enter the client secret'
   return problems
 }

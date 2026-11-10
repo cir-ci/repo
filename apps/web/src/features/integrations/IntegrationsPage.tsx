@@ -53,10 +53,6 @@ export function IntegrationsPage() {
               <Heading level="title" as="h1">
                 Integrations
               </Heading>
-              <Text as="p" variant="small" tone="secondary">
-                Tools connected to {workspace}. Each integration’s settings say which teams use it
-                and how.
-              </Text>
             </div>
             {data.canManage ? (
               <Button variant="primary" onClick={() => setAdding(true)}>

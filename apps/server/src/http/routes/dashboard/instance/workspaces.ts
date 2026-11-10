@@ -67,7 +67,7 @@ export const dashboardInstanceWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard
     const { id } = parse(idParams, req.params)
     const userId = currentUser(req).id
     const found = await loadDeleted(id, userId)
-    if (!found.deletedAt) throw new ConflictError('This workspace is not deleted')
+    if (!found.deletedAt) throw new ConflictError("This workspace isn't deleted")
     await restoreWorkspace(deps.db, id)
     return { workspace: wire(await loadDeleted(id, userId)) }
   })

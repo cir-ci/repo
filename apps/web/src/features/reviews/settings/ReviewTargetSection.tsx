@@ -2,7 +2,7 @@ import { Checkbox, NumberField, SettingsRow, SettingsSection } from '@circi/ui'
 
 import { numberOf, textOf } from '#lib/number-field.ts'
 
-import { describeHours, targetProblem } from './api.ts'
+import { targetProblem } from './api.ts'
 
 /**
  * How long a review request may wait. Controlled: `ReviewsForm` holds the draft and saves it with
@@ -17,13 +17,12 @@ export function ReviewTargetSection(props: ReviewTargetSection.Props) {
       description={
         saved === null
           ? 'Review requests never become overdue. Set a target and requests waiting longer get an overdue badge in Reviews and notify the reviewer.'
-          : `Requests waiting longer than this get an overdue badge in Reviews and a reminder in the reviewer’s Inbox. Now: ${describeHours(saved)}.`
+          : `Requests waiting longer than this get an overdue badge in Reviews and a reminder in the reviewer’s Inbox.`
       }
     >
       <SettingsRow>
         <Checkbox
           label="Set a review target"
-          description="Overdue requests are flagged in Reviews and notify the reviewer."
           checked={enabled}
           onCheckedChange={props.onEnabledChange}
           disabled={disabled}

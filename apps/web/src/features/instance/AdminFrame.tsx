@@ -32,6 +32,7 @@ export function AdminFrame({ title, error, ...rest }: AdminFrame.Props) {
 
 /** The line under the page's title, with the page's main action on the right. */
 export function Intro({ action, children }: Intro.Props) {
+  if (!children) return <div className={styles.actions}>{action}</div>
   return (
     <div className={styles.intro}>
       <Text tone="secondary">{children}</Text>
@@ -43,7 +44,7 @@ export function Intro({ action, children }: Intro.Props) {
 export namespace Intro {
   export interface Props {
     action?: ReactNode
-    children: ReactNode
+    children?: ReactNode
   }
 }
 

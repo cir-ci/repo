@@ -127,13 +127,7 @@ export function MembersPage() {
         >
           {(loaded) => (
             <>
-              {canManage ? (
-                <InviteForm workspaceId={loaded.id} onInvited={refresh} />
-              ) : (
-                <Banner>
-                  Only owners and admins can invite people, change roles or remove people.
-                </Banner>
-              )}
+              {canManage ? <InviteForm workspaceId={loaded.id} onInvited={refresh} /> : null}
               {failure ? <Banner tone="danger">{failure.message}</Banner> : null}
               <SettingsSection
                 title="Members"

@@ -194,7 +194,7 @@ describe('ReviewsPage', () => {
     await expect.element(panel.getByRole('heading', { name: 'Build #13' })).toBeVisible()
     await expect.element(panel.getByText('Needs review').first()).toBeVisible()
     await expect.element(panel.getByRole('heading', { name: 'Details' })).toBeVisible()
-    await expect.element(panel.getByText('Snapshots')).toBeVisible()
+    await expect.element(panel.getByText('Screenshots')).toBeVisible()
     await expect.element(panel.getByText('4 changed')).toBeVisible()
     await expect.element(panel.getByRole('heading', { name: 'Largest changes' })).toBeVisible()
     const thumb = panel.getByRole('link', { name: /checkout \/ payment-form/ })

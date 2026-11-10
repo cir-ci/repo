@@ -121,7 +121,7 @@ export const dashboardSettingsRoutes: FastifyPluginAsync<Deps.Dashboard> = async
       throw new ValidationError('This instance has no GitHub App configured')
     const link = parse(githubBody, req.body)
     const ctx = integrationContext(deps)
-    if (!ctx) return reply.code(400).send({ error: 'This instance cannot store credentials' })
+    if (!ctx) return reply.code(400).send({ error: "This instance can't store credentials" })
     // Verified with GitHub like the integration's Add flow: nothing is stored when it fails.
     await linkTeamToGithub(deps.db, team.id, link, ctx)
     return { link: { ...link, attention: null } }

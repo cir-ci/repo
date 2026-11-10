@@ -63,12 +63,12 @@ describe('the GitHub App section of Instance settings', () => {
   it('warns about an address GitHub cannot reach, but still lets it be tried', async () => {
     fakeInstance({
       'GET /api/instance/github-app': {
-        body: { ...APP, warning: 'GitHub cannot deliver webhooks to localhost.' },
+        body: { ...APP, warning: 'GitHub can’t deliver webhooks to localhost.' },
       },
     })
     await showInstance()
     await expect
-      .element(page.getByText('GitHub cannot deliver webhooks to localhost.'))
+      .element(page.getByText('GitHub can’t deliver webhooks to localhost.'))
       .toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Create GitHub App' })).toBeEnabled()
   })
@@ -105,7 +105,7 @@ describe('the GitHub App section of Instance settings', () => {
       .not.toBeInTheDocument()
   })
 
-  it('says an App created here is stored, and tells a non-admin they cannot create one', async () => {
+  it('says an App created here is stored, and offers a non-admin no way to create one', async () => {
     fakeInstance({
       'GET /api/instance/github-app': {
         body: { ...APP, source: 'manifest', appId: '9', slug: 'circi', canManage: false },
@@ -113,15 +113,13 @@ describe('the GitHub App section of Instance settings', () => {
     })
     await showInstance()
     await expect.element(page.getByText(/Created from this page/)).toBeVisible()
-    await expect
-      .element(page.getByText('Only instance admins can create the GitHub App.'))
-      .toBeVisible()
+    expect(page.getByRole('button', { name: 'Create GitHub App' }).elements()).toHaveLength(0)
   })
 
   it('explains a setup GitHub did not finish', async () => {
     fakeInstance({ 'GET /api/instance/github-app': { body: APP } })
     await showInstance('/instance/settings?githubApp=failed')
-    await expect.element(page.getByText(/did not finish creating the App/)).toBeVisible()
+    await expect.element(page.getByText(/didn’t finish creating the App/)).toBeVisible()
   })
 })
 
@@ -133,7 +131,7 @@ describe('the Add dialog’s GitHub tile', () => {
     credentials: [
       {
         name: 'installationId',
-        label: 'GitHub App installation id',
+        label: 'GitHub App installation ID',
         secret: false,
         optional: false,
       },
@@ -166,11 +164,11 @@ describe('the Add dialog’s GitHub tile', () => {
       .toBe('https://github.com/apps/circi/installations/new?state=s')
     // The old form stays behind "Advanced".
     await expect
-      .element(page.getByRole('textbox', { name: 'GitHub App installation id' }))
+      .element(page.getByRole('textbox', { name: 'GitHub App installation ID' }))
       .not.toBeInTheDocument()
-    await page.getByRole('button', { name: 'Advanced: connect by installation id' }).click()
+    await page.getByRole('button', { name: 'Advanced: connect by installation ID' }).click()
     await expect
-      .element(page.getByRole('textbox', { name: 'GitHub App installation id' }))
+      .element(page.getByRole('textbox', { name: 'GitHub App installation ID' }))
       .toBeVisible()
   })
 

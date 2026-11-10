@@ -109,11 +109,6 @@ describe('TeamSettingsPage', () => {
   it('opens with the board’s lead and labels', async () => {
     api()
     await show()
-    await expect
-      .element(
-        page.getByText('What Web App is called, where its code lives, and when its builds pass.'),
-      )
-      .toBeVisible()
     await expect.element(page.getByText(/more than this share of its pixels differ/)).toBeVisible()
     await expect.element(page.getByText('Keep builds for', { exact: true })).toBeVisible()
   })
@@ -627,13 +622,10 @@ describe('TeamSettingsPage', () => {
         .toHaveTextContent('Only owners and admins can change this')
     })
 
-    it('is disabled for members, with the reason', async () => {
+    it('is disabled for members', async () => {
       api({ canManage: false })
       await show()
       await expect.element(page.getByRole('button', { name: 'Delete team' })).toBeDisabled()
-      await expect
-        .element(page.getByText('Only owners and admins can delete a team.'))
-        .toBeVisible()
     })
   })
 

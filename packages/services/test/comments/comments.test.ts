@@ -60,7 +60,7 @@ describe('addComment mentions', () => {
     })
   })
 
-  it('does not notify the author for mentioning themselves', async () => {
+  it("doesn't notify the author for mentioning themselves", async () => {
     const { ann, bob, build } = await setup()
     await addComment(t.db, {
       buildId: build.id,
@@ -177,7 +177,7 @@ describe('comment structure and permissions', () => {
         body: 'x',
         region: { x: 0, y: 0, width: 1, height: 1 },
       }),
-    ).rejects.toThrow(/snapshot/)
+    ).rejects.toThrow(/screenshot/)
   })
 
   it('lets only the author edit, and the author or an admin delete', async () => {

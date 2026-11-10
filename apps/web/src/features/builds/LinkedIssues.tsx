@@ -51,7 +51,7 @@ export function SnapshotIssues({ workspace, team, number, snapshotName }: Snapsh
   const issues = (data?.issues ?? []).filter((i) => i.snapshotName === snapshotName)
   if (issues.length === 0) return null
   return (
-    <ul className={issueStyles.list} aria-label="Issues for this snapshot">
+    <ul className={issueStyles.list} aria-label="Issues for this screenshot">
       {issues.map((i) => (
         <li key={i.id} className={issueStyles.row}>
           <ProviderLogo kind={i.tracker} size={24} />

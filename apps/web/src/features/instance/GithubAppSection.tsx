@@ -33,11 +33,7 @@ export function GithubAppSection({ result }: GithubAppSection.Props) {
   }
 
   return (
-    <SettingsSection
-      title="GitHub App"
-      description="Checks and pull request comments, and installing CirCI on GitHub."
-      bare
-    >
+    <SettingsSection title="GitHub App" bare>
       {note ? <Banner tone="danger">{note}</Banner> : null}
       {error ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
@@ -57,7 +53,7 @@ export function GithubAppSection({ result }: GithubAppSection.Props) {
           </div>
           {data.source !== 'none' ? (
             <dl className={styles.facts}>
-              <dt>App id</dt>
+              <dt>App ID</dt>
               <dd>{data.appId ?? 'Unknown'}</dd>
               <dt>App</dt>
               <dd>
@@ -111,9 +107,7 @@ export function GithubAppSection({ result }: GithubAppSection.Props) {
                   </Button>
                 </div>
               </form>
-            ) : (
-              <Banner>Only instance admins can create the GitHub App.</Banner>
-            )
+            ) : null
           ) : null}
         </>
       )}

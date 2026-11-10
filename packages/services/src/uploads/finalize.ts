@@ -29,7 +29,7 @@ export async function finalizeTeamBuild(
   if (total !== undefined) {
     if (total < 1) {
       throw new ValidationError(
-        'Parallel builds that are finalized manually (parallelTotal -1) are not supported: pass the total number of shards',
+        "Parallel builds that are finalized manually (parallelTotal -1) aren't supported: pass the total number of shards",
       )
     }
     await db.transaction((tx) => setParallelTotal(tx, build.id, total))

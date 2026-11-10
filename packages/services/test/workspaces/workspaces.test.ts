@@ -100,7 +100,7 @@ describe('deleteWorkspace', () => {
     expect(await visibleTo(s, s.member.id)).toBeDefined()
     expect(await getTeamContext(t.db, s.team.id)).toBeDefined()
     expect(await workspaceAcceptsSession(t.db, s.workspace.id, 'password')).toBe(true)
-    await expect(restoreWorkspace(t.db, s.workspace.id)).rejects.toThrow(/not deleted/)
+    await expect(restoreWorkspace(t.db, s.workspace.id)).rejects.toThrow(/isn't deleted/)
   })
 
   it('keeps the first deletion time when deleted twice', async () => {
@@ -166,7 +166,7 @@ describe('purging', () => {
     expect(await visibleTo(s, s.owner.id)).toBeDefined()
 
     await expect(purgeWorkspace(t.db, { workspaceId: s.workspace.id })).rejects.toThrow(
-      /not deleted/,
+      /isn't deleted/,
     )
     await deleteWorkspace(t.db, { workspaceId: s.workspace.id, userId: s.owner.id, now })
     await purgeWorkspace(t.db, { workspaceId: s.workspace.id, onlyIfDue: true, now })

@@ -201,7 +201,7 @@ describe('connecting a tracker', () => {
     const before = (await stored('linear')).length
     const bad = await call('POST', `${base}/linear/connect`, ownerCookie, { apiKey: 'wrong' })
     expect(bad.statusCode).toBe(400)
-    expect(bad.json().error).toBe('Linear did not accept those credentials')
+    expect(bad.json().error).toBe("Linear didn't accept those credentials")
     fake.down = true
     const down = await call('POST', `${base}/linear/connect`, ownerCookie, { apiKey: 'lin_good' })
     fake.down = false
@@ -230,7 +230,7 @@ describe('connecting a tracker', () => {
     expect(row?.displayName).toBe('acme.atlassian.net')
   })
 
-  it('refuses a Jira address that is not an https host name, before calling Jira', async () => {
+  it("refuses a Jira address that isn't an https host name, before calling Jira", async () => {
     const calls = fake.seenAuth.length
     for (const siteUrl of ['http://127.0.0.1', 'https://localhost', 'intranet', 'ftp://x.test']) {
       // eslint-disable-next-line no-await-in-loop -- few cases

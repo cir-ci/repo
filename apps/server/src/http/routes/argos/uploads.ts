@@ -22,7 +22,7 @@ export const uploadRoutes: FastifyPluginAsync<Deps.V2> = async (uploads, deps) =
       ? await findUpload(deps.db, { sha256: hash, buildId })
       : ({ state: 'unknown' } as const)
     if (file.state === 'unknown') {
-      return reply.code(404).send({ error: 'This build did not ask for that file' })
+      return reply.code(404).send({ error: "This build didn't ask for that file" })
     }
     if (file.state === 'verified') {
       await req.file().catch(() => undefined)

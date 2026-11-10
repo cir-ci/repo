@@ -86,7 +86,7 @@ export function ReviewsForm(props: ReviewsForm.Props) {
       setDone(true)
       announce('Settings saved')
     } catch (err) {
-      setFailure(err instanceof Error ? err : new Error('Could not save'))
+      setFailure(err instanceof Error ? err : new Error('Couldn’t save'))
     } finally {
       setSaving(false)
     }

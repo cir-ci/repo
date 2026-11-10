@@ -15,7 +15,7 @@ export const GROUP_ORDER = [
   'Builds',
   'Branches',
   'Teams',
-  'Snapshots',
+  'Screenshots',
 ] as const
 
 export interface Entry {
@@ -280,7 +280,7 @@ export function searchEntries(
   for (const s of results?.snapshots ?? []) {
     entries.push({
       id: `snapshot:${s.teamSlug}:${s.name}`,
-      group: 'Snapshots',
+      group: 'Screenshots',
       label: s.name,
       detail: s.teamName,
       target: {

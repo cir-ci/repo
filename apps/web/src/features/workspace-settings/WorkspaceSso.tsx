@@ -125,7 +125,7 @@ export function WorkspaceSso({ workspace }: WorkspaceSso.Props) {
           />
           <TextField
             name="clientId"
-            label="Client id"
+            label="Client ID"
             required
             autoComplete="off"
             error={problems.clientId}
@@ -180,7 +180,7 @@ export function WorkspaceSso({ workspace }: WorkspaceSso.Props) {
         onOpenChange={(open) => {
           if (!open) setRemoving(false)
         }}
-        title="Disconnect single sign-on?"
+        title="Remove single sign-on?"
         description={`People who sign in through ${provider?.issuer ?? 'this provider'} will no longer be able to open ${workspace}. Their accounts stay until you remove them as members.`}
         confirmLabel="Remove provider"
         loading={remove.isPending}

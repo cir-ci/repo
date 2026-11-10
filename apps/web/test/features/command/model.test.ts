@@ -107,9 +107,9 @@ describe('the empty query', () => {
     const labels = actions.map((e) => e.label)
     expect(labels).toEqual(
       expect.arrayContaining([
-        'Approve snapshot',
+        'Approve screenshot',
         'Approve all',
-        'Reject snapshot, with a reason',
+        'Reject screenshot, with a reason',
         'Copy link to this page',
       ]),
     )
@@ -146,7 +146,7 @@ describe('the empty query', () => {
 })
 
 describe('search entries', () => {
-  it('orders the groups Builds, Branches, Teams, Snapshots and links each', () => {
+  it('orders the groups Builds, Branches, Teams, Screenshots and links each', () => {
     const entries = searchEntries(
       'acme',
       'web',
@@ -158,7 +158,7 @@ describe('search entries', () => {
       }),
     )
     const groups = groupEntries(entries)
-    expect(groups.map((g) => g.group)).toEqual(['Builds', 'Branches', 'Teams', 'Snapshots'])
+    expect(groups.map((g) => g.group)).toEqual(['Builds', 'Branches', 'Teams', 'Screenshots'])
     const paths = flatten(groups).map((e) => (e.target.type === 'path' ? e.target.path : ''))
     expect(paths).toEqual([
       '/acme/web/builds/148',

@@ -49,7 +49,7 @@ function describeIssue(issue: z.core.$ZodIssue, label: string): string {
     case 'invalid_format':
       if (issue.format === 'email') return `${label} must be a valid email address`
       if (issue.format === 'url') return `${label} must be a valid web address`
-      if (issue.format === 'uuid') return `${label} isn't a valid id`
+      if (issue.format === 'uuid') return `${label} isn't a valid ID`
       return `${label} isn't in the right format`
     case 'invalid_value':
       return `${label} isn't one of the allowed values`

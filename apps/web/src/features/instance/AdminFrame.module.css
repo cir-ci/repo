@@ -10,3 +10,8 @@
 .intro > :first-child {
   flex: 1 1 320px;
 }
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}

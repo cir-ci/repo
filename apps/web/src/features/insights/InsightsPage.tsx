@@ -109,7 +109,7 @@ export function InsightsPage() {
                     <ReviewChart weeks={data.weeks} />
                   </section>
                   <section className={styles.card} aria-labelledby="ins-flaky">
-                    <h2 id="ins-flaky">Flaky snapshots</h2>
+                    <h2 id="ins-flaky">Flaky screenshots</h2>
                     <FlakyChart weeks={data.weeks} />
                   </section>
                   <section className={styles.card} aria-labelledby="ins-storage">

@@ -105,10 +105,10 @@ export const bitbucket = defineIntegration({
       .string()
       .trim()
       .toLowerCase()
-      .regex(WORKSPACE_RE, 'Use the workspace id, e.g. acme (as in bitbucket.org/acme)')
+      .regex(WORKSPACE_RE, 'Use the workspace ID, e.g. acme (as in bitbucket.org/acme)')
       .meta({
         label: 'Bitbucket workspace',
-        description: 'The workspace id: acme in bitbucket.org/acme.',
+        description: 'The workspace ID: acme in bitbucket.org/acme.',
         placeholder: 'acme',
       }),
     token: z.string().trim().min(1, 'Enter an access token').max(4096).meta({
@@ -131,7 +131,7 @@ export const bitbucket = defineIntegration({
       await providerOf(ctx).listRepositories(input.bitbucketWorkspace, credentials)
     } catch (err) {
       throw connectFailure('Bitbucket', err, {
-        revoked: 'Bitbucket did not accept that token',
+        revoked: "Bitbucket didn't accept that token",
         forbidden: 'That token cannot read the workspace’s repositories',
         notFound: 'Bitbucket has no workspace with that id',
       })

@@ -145,7 +145,7 @@ describe('links', () => {
     subject: 'pattern',
     autoLink: true,
     fields: [
-      { key: 'pattern', label: 'Snapshot name' },
+      { key: 'pattern', label: 'Screenshot name' },
       { key: 'url', label: 'Frame address' },
     ],
   }
@@ -158,13 +158,13 @@ describe('links', () => {
 
   it('says what a run of "Link automatically" did', () => {
     expect(autoLinkSummary({ created: 2, unlinked: 0, frames: 5 })).toBe(
-      'Linked 2 snapshots to frames.',
+      'Linked 2 screenshots to frames.',
     )
     expect(autoLinkSummary({ created: 1, unlinked: 3, frames: 5 })).toBe(
-      'Linked 1 snapshot to frames; 3 snapshots have no frame with a matching name.',
+      'Linked 1 screenshot to frames; 3 screenshots have no frame with a matching name.',
     )
     expect(autoLinkSummary({ created: 0, unlinked: 1, frames: 0 })).toBe(
-      'No new frames linked; 1 snapshot has no frame with a matching name.',
+      'No new frames linked; 1 screenshot has no frame with a matching name.',
     )
   })
 })

@@ -43,9 +43,6 @@ export function WorkspaceGeneralPage() {
     >
       {data ? (
         <>
-          <Text as="p" tone="secondary">
-            The workspace’s name, its address in CirCI, and the defaults its teams start from.
-          </Text>
           <IdentitySection
             workspace={workspace}
             name={data.name}
@@ -139,7 +136,7 @@ function AddressForm({ workspace, saved, canManage }: AddressForm.Props) {
     <form onSubmit={submit} noValidate aria-labelledby="address" className={styles.form}>
       <SettingsSection
         title={<span id="address">Address</span>}
-        description="Where the workspace lives in CirCI. Changing it breaks links, so it is saved with Save changes."
+        description="Where the workspace lives in CirCI. Changing it breaks existing links."
       >
         <SettingsRow>
           <div className={styles.fieldRow}>

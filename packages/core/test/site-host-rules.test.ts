@@ -27,7 +27,7 @@ describe('customDomainProblem', () => {
     'under_score.acme.com',
     '-bad.acme.com',
   ])('refuses %s: not a plain domain name', (domain) => {
-    expect(customDomainProblem(domain, hosts)).toMatch(/is not a domain name/)
+    expect(customDomainProblem(domain, hosts)).toMatch(/isn't a domain name/)
   })
 
   it('refuses the dashboard host, its parent, its children and its siblings (cookie scope)', () => {
@@ -40,7 +40,7 @@ describe('customDomainProblem', () => {
   it('refuses the sites domain, anything below it and any parent of it', () => {
     expect(customDomainProblem('acme-sites.com', hosts)).toMatch(/sites domain/)
     expect(customDomainProblem('x.acme-sites.com', hosts)).toMatch(/sites domain/)
-    expect(customDomainProblem('com', hosts)).toMatch(/not a domain name/)
+    expect(customDomainProblem('com', hosts)).toMatch(/isn't a domain name/)
     expect(
       customDomainProblem('acme-sites.com', { ...hosts, sitesHost: 's.acme-sites.com' }),
     ).toMatch(/parent of the sites domain/)

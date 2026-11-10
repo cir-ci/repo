@@ -12,7 +12,7 @@ export const MAX_PATTERN_LENGTH = 200
 export const MAX_REVIEWERS = 20
 
 export const RULE_KINDS: readonly { value: ReviewRuleKind; label: string }[] = [
-  { value: 'snapshot-name', label: 'Snapshot name' },
+  { value: 'snapshot-name', label: 'Screenshot name' },
   { value: 'build-name', label: 'Build name' },
 ]
 
@@ -161,15 +161,6 @@ export const targetText = (saved: number | null, fallback = 24) => String(saved 
 
 export const targetDirty = (saved: number | null, enabled: boolean, text: string) =>
   enabled ? saved !== Number(text.trim()) : saved !== null
-
-/** "1 day", "36 hours": the target in words. */
-export function describeHours(hours: number): string {
-  if (hours % 24 === 0) {
-    const days = hours / 24
-    return `${days} ${days === 1 ? 'day' : 'days'}`
-  }
-  return `${hours} ${hours === 1 ? 'hour' : 'hours'}`
-}
 
 // ---- Triage rotation --------------------------------------------------------------------------
 

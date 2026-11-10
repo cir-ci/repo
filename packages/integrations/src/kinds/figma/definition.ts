@@ -60,7 +60,7 @@ export const figma = defineIntegration({
       if (err instanceof FigmaApiError && err.revoked) {
         throw new InvalidCredentialsError('Figma rejected the token', { cause: err })
       }
-      throw new IntegrationUnreachableError('Figma did not answer; try again shortly', {
+      throw new IntegrationUnreachableError("Figma didn't answer; try again shortly", {
         cause: err,
       })
     }
@@ -86,15 +86,15 @@ export const figma = defineIntegration({
 
   mapping: {
     description:
-      'Choose the Figma file each team is designed in. A team without a file does not use Figma.',
+      "Choose the Figma file each team is designed in. A team without a file doesn't use Figma.",
     target: {
       label: 'File',
       kind: 'text',
       placeholder: 'https://www.figma.com/design/…',
-      validate: (ref) => (parseFigmaFileRef(ref) ? null : 'That is not a Figma file address'),
+      validate: (ref) => (parseFigmaFileRef(ref) ? null : "That isn't a Figma file address"),
       async resolve(ref, input, ctx) {
         const fileKey = parseFigmaFileRef(ref)
-        if (!fileKey) throw new InvalidInputError('That is not a Figma file address')
+        if (!fileKey) throw new InvalidInputError("That isn't a Figma file address")
         try {
           const file = await clientOf(ctx).getFile(input.credentials, fileKey)
           return { ref: fileKey, name: file.name }
