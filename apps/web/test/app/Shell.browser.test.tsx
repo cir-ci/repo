@@ -257,6 +257,32 @@ describe('Shell, wide', () => {
     await expect.element(page.getByRole('main')).toHaveTextContent('Teams page')
   })
 
+  it("shows the notices inside the panel, right under the page's sticky header", async () => {
+    await page.viewport(1280, 800)
+    API['/api/instance/notices'] = {
+      publicUrlChange: {
+        from: 'https://old.example.com',
+        to: 'https://ci.example.com',
+        at: '2026-11-01T00:00:00Z',
+        checklist: ['Update CIRCI_API_URL in CI'],
+      },
+    }
+    try {
+      await renderShell('/headed')
+      const banner = page.getByRole('status').filter({ hasText: 'The dashboard moved from' })
+      await expect.element(banner).toBeVisible()
+      const header = page.getByRole('main').element().querySelector('header')
+      const shown = banner.element()
+      // Inside the panel (the main), straight after the header, not above it.
+      expect(header).not.toBeNull()
+      expect(page.getByRole('main').element().contains(shown)).toBe(true)
+      expect(header?.nextElementSibling?.contains(shown)).toBe(true)
+      expect(getComputedStyle(header as Element).position).toBe('sticky')
+    } finally {
+      API['/api/instance/notices'] = {}
+    }
+  })
+
   it('shows the Inbox and Reviews counts and the pinned views', async () => {
     await page.viewport(1280, 800)
     await renderShell('/')

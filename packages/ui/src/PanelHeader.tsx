@@ -1,6 +1,24 @@
-import { useLayoutEffect, useRef, type ReactNode } from 'react'
+import { createContext, useContext, useLayoutEffect, useRef, type ReactNode } from 'react'
 
 import styles from './PanelHeader.module.css'
+
+const NoticesContext = createContext<ReactNode>(null)
+
+/**
+ * What a panel's notices are (an invitation, a moved address): the `PanelHeader` of the page
+ * shows them right under itself, inside the panel, so they sit below the sticky header and scroll
+ * away with the page instead of stacking above it.
+ */
+export function PanelNotices({ notices, children }: PanelNotices.Props) {
+  return <NoticesContext.Provider value={notices}>{children}</NoticesContext.Provider>
+}
+
+export namespace PanelNotices {
+  export interface Props {
+    notices: ReactNode
+    children?: ReactNode
+  }
+}
 
 /**
  * The bar at the top of the content panel (44px, taller where it wraps): where you are on the
@@ -10,6 +28,7 @@ import styles from './PanelHeader.module.css'
  */
 export function PanelHeader(props: PanelHeader.Props) {
   const ref = useRef<HTMLElement>(null)
+  const notices = useContext(NoticesContext)
   useLayoutEffect(() => {
     const header = ref.current
     const panel = header?.parentElement
@@ -25,11 +44,14 @@ export function PanelHeader(props: PanelHeader.Props) {
     }
   }, [])
   return (
-    <header ref={ref} className={styles.root}>
-      {props.children}
-      <div className={styles.spacer} />
-      {props.actions}
-    </header>
+    <>
+      <header ref={ref} className={styles.root}>
+        {props.children}
+        <div className={styles.spacer} />
+        {props.actions}
+      </header>
+      {notices}
+    </>
   )
 }
 

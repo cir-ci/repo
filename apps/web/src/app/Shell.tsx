@@ -1,4 +1,12 @@
-import { AnnouncerProvider, AppFrame, Drawer, IconButton, MenuIcon, SkipLink } from '@circi/ui'
+import {
+  AnnouncerProvider,
+  AppFrame,
+  Drawer,
+  IconButton,
+  MenuIcon,
+  PanelNotices,
+  SkipLink,
+} from '@circi/ui'
 import { Outlet, useRouterState } from '@tanstack/react-router'
 import { lazy, type ReactNode, Suspense, useEffect } from 'react'
 
@@ -149,8 +157,10 @@ function SignedInFrame({ user }: { user: SessionUser }) {
           </div>
         }
       >
-        <Notices email={user.email} />
-        <Outlet />
+        {/* The notices show under each page's sticky header, inside the panel (`PanelHeader`). */}
+        <PanelNotices notices={<Notices email={user.email} />}>
+          <Outlet />
+        </PanelNotices>
       </AppFrame>
       <TeamDialogs />
       <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} title="Navigation">
