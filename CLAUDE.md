@@ -138,6 +138,11 @@ A namespace must contain only types. Never put a value in one.
   obvious ("saved with Save changes", "Only owners can do this" beside a hidden control), no
   explanatory lead under a page title unless it warns about a consequence, and no helper line that
   repeats a value already shown beside it. Counts carry their noun and amounts their unit.
+- **Settings is a closed area:** no link or redirect moves someone between settings and the rest
+  of the dashboard. A settings page that needs another page (a team's Sites, a baseline's ignore
+  regions) shows it inside settings, in its tab and frame; an app page never links into a settings
+  page. The only ways in and out are the settings entry points (the workspace and account menus,
+  ⌘K, the team page's Settings button) and settings' own way back to the app.
 - **Saving settings:** a change that doesn't affect anyone's workflow saves as soon as it is made,
   with no Save button: a display name, a team's colour or icon, a workspace picture, the theme,
   personal notification preferences. A change that does (merge gate, thresholds, retention, review
