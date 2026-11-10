@@ -257,13 +257,22 @@
   color: var(--circi-text-secondary);
 }
 
+/* Stacked, the list takes the height the pane doesn't: the pane is as tall as its content, up to
+   60% of the area, and scrolls inside. */
 @media (max-width: 1100px) {
   .split {
     flex-direction: column;
   }
 
+  .listColumn {
+    flex: 1 1 0;
+    min-height: 160px;
+  }
+
   .paneColumn {
+    flex: 0 1 auto;
     max-width: none;
+    max-height: 60%;
     padding: 0 8px 8px;
   }
 }

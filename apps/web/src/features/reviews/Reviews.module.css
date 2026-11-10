@@ -287,7 +287,9 @@
     flex-direction: column;
   }
 
+  /* One pane at a time, so it takes the whole height below the header. */
   .sub {
+    flex: 1 1 auto;
     width: auto;
     border-right: 0;
   }

@@ -7,8 +7,16 @@
   box-sizing: border-box;
   max-height: calc(100dvh - 16px);
   min-width: 0;
-  border-inline-start: 1px solid var(--circi-line-subtle);
   background: var(--circi-surface-panel);
+}
+
+/* Under 1100px it closes the page's column at its natural height: the page scrolls, not the sidebar. */
+@media (max-width: 1099.98px) {
+  .sidebar {
+    position: static;
+    max-height: none;
+    border-top: 1px solid var(--circi-line-subtle);
+  }
 }
 
 .tabs {
@@ -49,6 +57,12 @@
   min-height: 0;
   padding: 12px;
   overflow-y: auto;
+}
+
+@media (max-width: 1099.98px) {
+  .panel {
+    overflow-y: visible;
+  }
 }
 
 .facts {

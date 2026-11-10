@@ -16,7 +16,7 @@
 
 .main {
   display: flex;
-  flex: 999 1 560px;
+  flex: 999 1 520px;
   flex-direction: column;
   min-width: 0;
   margin: 0 8px 8px;

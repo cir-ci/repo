@@ -8,7 +8,7 @@ import styles from './AppFrame.module.css'
  * that bar (the app puts a menu button in it that opens the sidebar in a `Drawer`).
  */
 export function AppFrame(props: AppFrame.Props) {
-  const height = props.minHeight ?? '100vh'
+  const height = props.minHeight ?? '100dvh'
   const style: CSSProperties & Record<'--circi-frame-height', string | number> = {
     minHeight: height,
     '--circi-frame-height': height,
