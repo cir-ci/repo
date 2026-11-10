@@ -33,6 +33,13 @@ const LIST = {
   'GET /api/instance/settings': { body: settingsFixture() },
 }
 
+const table = () => document.querySelector<HTMLElement>('[class*="table"]')!
+const overlaps = (a: Element, b: Element) => {
+  const x = a.getBoundingClientRect()
+  const y = b.getBoundingClientRect()
+  return x.left < y.right && y.left < x.right
+}
+
 describe('the workspaces page', () => {
   it('lists workspaces with members, teams and storage', async () => {
     fakeApi(LIST)
@@ -91,7 +98,8 @@ describe('the workspaces page', () => {
     })
     await show()
     await expect.element(page.getByText('Deleted · 22 days left')).toBeVisible()
-    await page.getByRole('button', { name: 'Restore' }).click()
+    await page.getByRole('button', { name: 'Actions for Old Co' }).click()
+    await page.getByRole('menuitem', { name: 'Restore' }).click()
     await expect.poll(() => fake.of('POST')).toHaveLength(1)
     await expect.element(page.getByText('Deleted · 22 days left')).not.toBeInTheDocument()
     await expect.element(page.getByText('Restored the workspace Old Co.')).toBeVisible()
@@ -117,7 +125,8 @@ describe('the workspaces page', () => {
     })
     await show()
     await expect.element(page.getByText('Deleted · 1 day left')).toBeVisible()
-    await page.getByRole('button', { name: 'Delete permanently now' }).click()
+    await page.getByRole('button', { name: 'Actions for Old Co' }).click()
+    await page.getByRole('menuitem', { name: 'Delete permanently now' }).click()
     const confirm = page
       .getByRole('alertdialog')
       .getByRole('button', { name: 'Delete permanently' })
@@ -125,6 +134,73 @@ describe('the workspaces page', () => {
     await page.getByRole('alertdialog').getByRole('textbox').fill('old-co')
     await confirm.click()
     await expect.poll(() => fake.of('POST')).toHaveLength(1)
+  })
+
+  describe('with a deleted workspace', () => {
+    const DELETED = {
+      'GET /api/instance/workspaces': {
+        body: {
+          workspaces: [
+            workspace(),
+            workspace({
+              id: 'w9',
+              name: 'Delta Research Laboratories',
+              slug: 'delta-research-laboratories',
+              deletedAt: '2026-11-01T00:00:00.000Z',
+              daysLeft: 22,
+            }),
+          ],
+        },
+      },
+      'GET /api/instance/settings': { body: settingsFixture() },
+    }
+    it('shows a deleted row’s name and status in full at a wide container', async () => {
+      await page.viewport(1440, 900)
+      fakeApi(DELETED)
+      await show()
+      const status = page.getByText('Deleted · 22 days left')
+      await expect.element(status).toBeVisible()
+      const name = page.getByText('Delta Research Laboratories').element()
+      expect(name.scrollWidth).toBeLessThanOrEqual(name.clientWidth)
+      const badge = status.element()
+      expect(badge.scrollWidth).toBeLessThanOrEqual(badge.clientWidth)
+      // The tile has a gap before the name.
+      const row = page.getByRole('listitem').filter({ hasText: 'Delta Research' }).element()
+      const [tile, nameCell] = row.querySelectorAll(':scope > span')
+      expect(nameCell!.getBoundingClientRect().left - tile!.getBoundingClientRect().right).toBe(12)
+    })
+
+    it('keeps the name readable and the box intact in a narrow container', async () => {
+      await page.viewport(1440, 900)
+      fakeApi(DELETED)
+      await show()
+      await expect.element(page.getByText('Deleted · 22 days left')).toBeVisible()
+      table().style.width = '520px'
+      const box = table().firstElementChild!
+      expect(box.scrollWidth).toBeLessThanOrEqual(box.clientWidth)
+      const row = page.getByRole('listitem').filter({ hasText: 'Delta Research' }).element()
+      const nameCell = row.querySelectorAll(':scope > span')[1]!
+      expect(nameCell.getBoundingClientRect().width).toBeGreaterThanOrEqual(160)
+      const heads = [...box.querySelectorAll<HTMLElement>('[aria-hidden="true"] > span')].filter(
+        (e) => e.textContent && getComputedStyle(e).display !== 'none',
+      )
+      expect(heads.map((e) => e.textContent)).toEqual(['Workspace', 'Members', 'Teams'])
+      for (let i = 1; i < heads.length; i++) expect(overlaps(heads[i - 1]!, heads[i]!)).toBe(false)
+      // Created is hidden in a container this narrow, and the status is still whole.
+      expect(box.scrollWidth).toBeLessThanOrEqual(box.clientWidth)
+      const badge = page.getByText('Deleted · 22 days left').element()
+      expect(badge.scrollWidth).toBeLessThanOrEqual(badge.clientWidth)
+    })
+
+    it('offers Restore and Delete permanently now in the row’s menu', async () => {
+      fakeApi(DELETED)
+      await show()
+      await page.getByRole('button', { name: 'Actions for Delta Research Laboratories' }).click()
+      await expect.element(page.getByRole('menuitem', { name: 'Restore' })).toBeVisible()
+      await expect
+        .element(page.getByRole('menuitem', { name: 'Delete permanently now' }))
+        .toBeVisible()
+    })
   })
 
   it('says so to someone who is not an instance admin', async () => {

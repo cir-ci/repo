@@ -1,11 +1,15 @@
 import type { InstanceAdmin } from '@circi/api'
 import {
   AddCircleIcon,
+  Badge,
   Banner,
   Button,
   ConfirmDialog,
   Dialog,
   EmptyState,
+  IconButton,
+  Menu,
+  RowMenuIcon,
   SettingsRow,
   SettingsSection,
   Text,
@@ -82,70 +86,79 @@ export function WorkspacesPage() {
             Create one for an existing account to get started.
           </EmptyState>
         ) : (
-          <div className={rows.box}>
-            <div className={rows.head} aria-hidden="true">
-              <span />
-              <span className={rows.name}>Workspace</span>
-              <span className={rows.num}>Members</span>
-              <span className={rows.num}>Teams</span>
-              <span className={rows.num}>Created</span>
-              <span className={rows.action} />
-            </div>
-            <ul className={rows.list} aria-label="Workspaces">
-              {data?.workspaces.map((w) => (
-                <li key={w.id} className={rows.row}>
-                  <span className={rows.tile} aria-hidden="true">
-                    {w.name.slice(0, 1).toUpperCase()}
-                  </span>
-                  <span className={rows.name}>
-                    <Text>{w.name}</Text>
-                    <Text tone="tertiary" variant="small">
-                      <Text variant="mono">{w.slug}</Text> · {formatBytes(w.storageBytes)}
-                      {w.deletedAt ? (
-                        <>
-                          {' · '}
-                          <Text as="span" tone="rejected" variant="small">
+          <div className={rows.table}>
+            <div className={rows.box}>
+              <div className={rows.head} aria-hidden="true">
+                <span />
+                <span className={rows.name}>Workspace</span>
+                <span className={rows.num}>Members</span>
+                <span className={rows.num}>Teams</span>
+                <span className={`${rows.num} ${rows.created}`}>Created</span>
+                <span className={rows.action} />
+              </div>
+              <ul className={rows.list} aria-label="Workspaces">
+                {data?.workspaces.map((w) => (
+                  <li key={w.id} className={rows.row} data-deleted={w.deletedAt ? '' : undefined}>
+                    <span className={rows.tile} aria-hidden="true">
+                      {w.name.slice(0, 1).toUpperCase()}
+                    </span>
+                    <span className={rows.name}>
+                      <Text className={rows.title} tone={w.deletedAt ? 'secondary' : undefined}>
+                        {w.name}
+                      </Text>
+                      <span className={rows.sub}>
+                        <Text className={rows.slug} tone="tertiary" variant="small">
+                          <Text variant="mono">{w.slug}</Text> · {formatBytes(w.storageBytes)}
+                        </Text>
+                        {w.deletedAt ? (
+                          <Badge className={rows.status} shape="tag" tone="state" state="rejected">
                             {deletedLabel(w.daysLeft)}
-                          </Text>
-                        </>
-                      ) : null}
+                          </Badge>
+                        ) : null}
+                      </span>
+                    </span>
+                    <Text className={rows.num} variant="small">
+                      <span style={visuallyHidden}>Members </span>
+                      {w.memberCount}
                     </Text>
-                  </span>
-                  <Text className={rows.num} variant="small">
-                    <span style={visuallyHidden}>Members </span>
-                    {w.memberCount}
-                  </Text>
-                  <Text className={rows.num} variant="small">
-                    <span style={visuallyHidden}>Teams </span>
-                    {w.teamCount}
-                  </Text>
-                  <Text className={rows.num} variant="small">
-                    <span style={visuallyHidden}>Created </span>
-                    {formatShortDay(w.createdAt, now)}
-                  </Text>
-                  <span className={rows.action}>
-                    {w.deletedAt ? (
-                      <>
-                        <Button
-                          size="sm"
-                          loading={restore.isPending && restore.variables === w.id}
-                          onClick={() =>
-                            restore.mutate(w.id, {
-                              onSuccess: () => setCreated(`Restored the workspace ${w.name}.`),
-                            })
+                    <Text className={rows.num} variant="small">
+                      <span style={visuallyHidden}>Teams </span>
+                      {w.teamCount}
+                    </Text>
+                    <Text className={`${rows.num} ${rows.created}`} variant="small">
+                      <span style={visuallyHidden}>Created </span>
+                      {formatShortDay(w.createdAt, now)}
+                    </Text>
+                    <span className={rows.action}>
+                      {w.deletedAt ? (
+                        <Menu
+                          align="end"
+                          trigger={
+                            <IconButton label={`Actions for ${w.name}`}>
+                              <RowMenuIcon />
+                            </IconButton>
                           }
-                        >
-                          Restore
-                        </Button>
-                        <Button size="sm" variant="danger" onClick={() => setPurging(w)}>
-                          Delete permanently now
-                        </Button>
-                      </>
-                    ) : null}
-                  </span>
-                </li>
-              ))}
-            </ul>
+                          items={[
+                            {
+                              label: 'Restore',
+                              onSelect: () =>
+                                restore.mutate(w.id, {
+                                  onSuccess: () => setCreated(`Restored the workspace ${w.name}.`),
+                                }),
+                            },
+                            {
+                              label: 'Delete permanently now',
+                              tone: 'danger',
+                              onSelect: () => setPurging(w),
+                            },
+                          ]}
+                        />
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         )}
       </SettingsSection>

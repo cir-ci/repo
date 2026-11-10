@@ -1,9 +1,15 @@
-/* The Workspaces list: one line per workspace. One grid for the header and every row (the rows
-   are subgrids), so each column lines up with its header whatever a row holds. */
+/* The Workspaces list: one line per workspace. The header and every row share one column template
+   (--cols), so each column lines up with its header whatever a row holds. The table measures its
+   own width (a container query), not the window's, because the settings panel width varies. The
+   name column never goes below 160px. */
+.table {
+  --cols: 28px minmax(160px, 1fr) 64px 64px 80px 96px;
+
+  container-type: inline-size;
+  container-name: workspaces;
+}
+
 .box {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) 64px 64px 80px max-content;
-  column-gap: 12px;
   overflow: hidden;
   border: 1px solid var(--circi-line-subtle);
   border-radius: 10px;
@@ -11,9 +17,6 @@
 }
 
 .list {
-  display: grid;
-  grid-template-columns: subgrid;
-  grid-column: 1 / -1;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -22,8 +25,8 @@
 .head,
 .row {
   display: grid;
-  grid-template-columns: subgrid;
-  grid-column: 1 / -1;
+  grid-template-columns: var(--cols);
+  column-gap: 12px;
   align-items: center;
   box-sizing: border-box;
   padding: 10px 16px;
@@ -60,19 +63,44 @@
   font-weight: 600;
 }
 
+.row[data-deleted] .tile {
+  opacity: 0.6;
+}
+
 .name {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 
-.name > * {
+.title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* The second line: address and size, then the status. It wraps, so the status is never cut. */
+.sub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.slug {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status {
+  white-space: nowrap;
+}
+
 .num {
+  min-width: 0;
   color: var(--circi-text-secondary);
   font-size: 12px;
   white-space: nowrap;
@@ -84,14 +112,23 @@
 
 .action {
   display: flex;
-  gap: 8px;
   align-items: center;
   justify-content: flex-end;
 }
 
-@media (max-width: 600px) {
+@container workspaces (max-width: 560px) {
   .box {
-    grid-template-columns: 28px minmax(0, 1fr) max-content;
+    --cols: 28px minmax(160px, 1fr) 64px 64px 32px;
+  }
+
+  .created {
+    display: none;
+  }
+}
+
+@container workspaces (max-width: 440px) {
+  .box {
+    --cols: 28px minmax(160px, 1fr) 32px;
   }
 
   .num {
