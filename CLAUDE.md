@@ -131,6 +131,12 @@ A namespace must contain only types. Never put a value in one.
   not as separate top-level names.
 - **State:** state that changes or is needed across large areas, or is complex, goes in a global
   store (zustand), not scattered `useState`/context. Local, simple UI state stays in `useState`.
+- **Copy:** contractions ("Couldn't", "can't"); "ID", not "id"; "Delete" for something gone for good
+  (comments, rules, teams, workspaces), "Remove" for taking it out of a list (members, webhooks,
+  ignore regions, links); "screenshot", never "snapshot", in UI text. No text that states the
+  obvious ("saved with Save changes", "Only owners can do this" beside a hidden control), no
+  explanatory lead under a page title unless it warns about a consequence, and no helper line that
+  repeats a value already shown beside it. Counts carry their noun and amounts their unit.
 - **Saving settings:** a change that doesn't affect anyone's workflow saves as soon as it is made,
   with no Save button: a display name, a team's colour or icon, a workspace picture, the theme,
   personal notification preferences. A change that does (merge gate, thresholds, retention, review
