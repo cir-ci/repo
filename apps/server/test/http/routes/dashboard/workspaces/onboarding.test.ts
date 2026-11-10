@@ -7,6 +7,7 @@ import type { Auth } from '@circi/auth'
 import { teamColorFor } from '@circi/core'
 import { countUsers } from '@circi/db/queries'
 import { recordPublicUrl } from '@circi/db/repositories'
+import * as schema from '@circi/db/schema'
 import { createTestDb } from '@circi/db/testing'
 import { FsStorage } from '@circi/storage'
 import type { FastifyInstance } from 'fastify'
@@ -95,6 +96,7 @@ describe('first-run setup', () => {
     expect(caps.json()).toEqual({
       canCreateWorkspace: true,
       instanceAdmin: true,
+      setupPending: true,
       lastWorkspace: null,
       refusingWorkspaces: [],
       mailConfigured: false,
@@ -111,6 +113,77 @@ describe('first-run setup', () => {
       code: setupCode(SECRET),
     })
     expect(again.statusCode).toBe(404)
+    await app.close()
+  })
+
+  it('checks the setup code on its own, for the first step', async () => {
+    const app = await serverWith()
+    expect((await post(app, '/api/setup/code', { code: 'nope' })).statusCode).toBe(403)
+    expect((await post(app, '/api/setup/code', { code: setupCode(SECRET) })).statusCode).toBe(204)
+    expect(await countUsers(t.db)).toBe(0)
+    await app.close()
+  })
+
+  it('takes the workspace address the person chose, and checks it before anything exists', async () => {
+    const app = await serverWith()
+    const input = {
+      name: 'First Admin',
+      email: 'admin@acme.test',
+      password: PASSWORD,
+      workspaceName: 'Acme Inc',
+      code: setupCode(SECRET),
+    }
+    const invalid = await post(app, '/api/setup', { ...input, workspaceSlug: 'Not A Slug' })
+    expect(invalid.statusCode).toBe(400)
+    const reserved = await post(app, '/api/setup', { ...input, workspaceSlug: 'settings' })
+    expect(reserved.statusCode).toBe(400)
+    expect(await countUsers(t.db)).toBe(0)
+
+    const ok = await post(app, '/api/setup', { ...input, workspaceSlug: 'acme' })
+    expect(ok.statusCode).toBe(201)
+    expect(ok.json().workspace).toEqual({ slug: 'acme' })
+    await app.close()
+  })
+
+  it('leaves no account behind when the workspace cannot be made', async () => {
+    const app = await serverWith()
+    // An address already taken by a workspace row (no account involved).
+    await t.db.insert(schema.workspace).values({
+      id: 'taken-id',
+      name: 'Taken',
+      slug: 'taken',
+      createdAt: new Date(),
+    })
+    const res = await post(app, '/api/setup', {
+      name: 'First Admin',
+      email: 'admin@acme.test',
+      password: PASSWORD,
+      workspaceName: 'Acme Inc',
+      workspaceSlug: 'taken',
+      code: setupCode(SECRET),
+    })
+    expect(res.statusCode).toBe(409)
+    expect(await countUsers(t.db)).toBe(0)
+    expect((await app.inject({ method: 'GET', url: '/api/setup' })).json()).toEqual({
+      needed: true,
+    })
+    await app.close()
+  })
+
+  it('keeps the later steps pending until the admin finishes them, for the admin only', async () => {
+    const { app, admin, plain } = await claimedInstance()
+    const pending = async (cookie: string) =>
+      (await app.inject({ method: 'GET', url: '/api/capabilities', headers: { cookie } })).json()
+        .setupPending
+    expect(await pending(admin)).toBe(true)
+    // Signing in again (a reload, another device) still finds the steps.
+    expect(await pending(await signIn(app, 'admin@acme.test', PASSWORD))).toBe(true)
+    expect(await pending(plain)).toBe(false)
+
+    expect((await post(app, '/api/instance/setup/finish', {}, plain)).statusCode).toBe(403)
+    expect(await pending(admin)).toBe(true)
+    expect((await post(app, '/api/instance/setup/finish', {}, admin)).statusCode).toBe(204)
+    expect(await pending(admin)).toBe(false)
     await app.close()
   })
 
@@ -163,6 +236,7 @@ describe('creating workspaces and teams', () => {
     expect(caps.json()).toEqual({
       canCreateWorkspace: false,
       instanceAdmin: false,
+      setupPending: false,
       lastWorkspace: null,
       manageableWorkspaces: [],
       refusingWorkspaces: [],

@@ -7,6 +7,7 @@ import {
   PanelNotices,
   SkipLink,
 } from '@circi/ui'
+import { useQuery } from '@tanstack/react-query'
 import { Outlet, useRouterState } from '@tanstack/react-router'
 import { lazy, type ReactNode, Suspense, useEffect } from 'react'
 
@@ -15,12 +16,14 @@ import { Logo } from '#features/auth/Logo.tsx'
 import { SessionCheck } from '#features/auth/SessionCheck.tsx'
 import { AddressChangeBanner } from '#features/instance/AddressChangeBanner.tsx'
 import { SettingsNav } from '#features/sidebar/SettingsNav.tsx'
+import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { TeamDialogs } from '#features/teams/TeamDialogs.tsx'
 import { authClient, type SessionUser } from '#lib/auth-client.ts'
 import { PaneHandle } from '#lib/PaneHandle.tsx'
 import { paneWidthCss } from '#lib/panes.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { usePaneWidth } from '#lib/stores/pane-store.ts'
+import { useSetupStore } from '#lib/stores/setup-store.ts'
 
 import { useNavPane } from './NavToggle.tsx'
 import { currentSection, isOutsideFrame, isSettingsSection, sectionLabel } from './shell-model.ts'
@@ -32,6 +35,10 @@ import styles from './Shell.module.css'
 // Only people who aren't signed in need the sign-in form, so it's its own chunk.
 const LoginPage = lazy(() =>
   import('#features/auth/LoginPage.tsx').then((m) => ({ default: m.LoginPage })),
+)
+// Likewise only the instance admin, once, right after the account is made.
+const SetupContinue = lazy(() =>
+  import('#features/setup/SetupContinue.tsx').then((m) => ({ default: m.SetupContinue })),
 )
 
 /** The width below which the sidebar becomes a drawer: `AppFrame`'s stacking breakpoint. */
@@ -64,7 +71,7 @@ export function Shell() {
     // `main#content`, and no invitation or address banners (it is a step on the way to a site).
     content = <Outlet />
   } else {
-    content = <SignedInFrame user={sessionUser(user)} />
+    content = <SetupGate user={sessionUser(user)} />
   }
   return (
     <AnnouncerProvider>
@@ -72,6 +79,27 @@ export function Shell() {
       {content}
     </AnnouncerProvider>
   )
+}
+
+/**
+ * First-run setup's later steps come before the app while the server says they are pending (only
+ * the instance admin is told), and stay while the first team's token is on screen. The
+ * frame waits for them only right after the account was made on the setup page, so it never flashes
+ * before the steps.
+ */
+function SetupGate({ user }: { user: SessionUser }) {
+  const { data: caps, isPending } = useQuery(capabilitiesQuery())
+  const holding = useSetupStore((s) => s.team !== undefined)
+  const arriving = useSetupStore((s) => s.arriving)
+  if (isPending && arriving) return <SessionCheck />
+  if (caps?.setupPending || holding) {
+    return (
+      <Suspense fallback={null}>
+        <SetupContinue />
+      </Suspense>
+    )
+  }
+  return <SignedInFrame user={user} />
 }
 
 /** The parts of the session the shell uses. */

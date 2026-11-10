@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 
 import {
+  FIRST_RUN_SETUP_KEY,
   getSetting,
   MOVE_CHECKLIST_DISMISSED_KEY,
   PUBLIC_URL_CHANGE_KEY,
@@ -54,4 +55,14 @@ export async function dismissMoveChecklist(db: Database, origin: string): Promis
 /** Shows the "Moving to …" checklist again. */
 export async function restoreMoveChecklist(db: Database): Promise<void> {
   await deleteSetting(db, MOVE_CHECKLIST_DISMISSED_KEY)
+}
+
+/** Notes that the first account and workspace were made and the rest of the setup steps are to do. */
+export async function markFirstRunSetupPending(db: Database): Promise<void> {
+  await setSetting(db, FIRST_RUN_SETUP_KEY, 'pending')
+}
+
+/** Ends the setup steps (finished or skipped): the dashboard opens as usual from now on. */
+export async function markFirstRunSetupDone(db: Database): Promise<void> {
+  await deleteSetting(db, FIRST_RUN_SETUP_KEY)
 }

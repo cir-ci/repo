@@ -1,0 +1,78 @@
+/* "Step 2 of 4" above a bar of four segments. */
+.progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.label {
+  color: var(--circi-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.bar {
+  display: flex;
+  gap: 4px;
+  width: 160px;
+}
+
+.segment {
+  flex: 1;
+  height: 3px;
+  border-radius: var(--circi-radius-inline);
+  background: var(--circi-line-strong);
+}
+
+.reached {
+  background: var(--circi-accent-main);
+}
+
+/* Back on the left, the step's one primary action on the right. */
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.actions > :last-child {
+  margin-left: auto;
+}
+
+.finding {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 6px;
+  background: var(--circi-surface-raised);
+}
+
+.findingHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.findingText {
+  margin: 0;
+  color: var(--circi-text-secondary);
+  line-height: 1.5;
+}
+
+.findingValue {
+  overflow-wrap: anywhere;
+}
+
+.checking {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--circi-text-secondary);
+}

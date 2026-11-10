@@ -21,6 +21,10 @@
   outline: none;
 }
 
+.wide {
+  max-width: 560px;
+}
+
 .head {
   display: flex;
   flex-direction: column;

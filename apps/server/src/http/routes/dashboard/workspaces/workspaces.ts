@@ -4,6 +4,7 @@ import {
   listManageableWorkspaces,
   listRefusingWorkspaces,
   getIntegration,
+  isFirstRunSetupPending,
   isInstanceAdmin,
 } from '@circi/db/queries'
 import { type SessionMethod } from '@circi/db/repositories'
@@ -52,32 +53,37 @@ export const dashboardWorkspaceRoutes: FastifyPluginAsync<Deps.Dashboard> = asyn
     return deps.workspaceCreation === 'anyone' || (await isInstanceAdmin(deps.db, user.id))
   }
 
-  app.get('/capabilities', async (req) => ({
-    /** Whether this person runs the instance (its admin pages). */
-    instanceAdmin: await isInstanceAdmin(deps.db, currentUser(req).id),
-    canCreateWorkspace: await canCreateWorkspace(currentUser(req)),
-    /** Workspaces that refuse the way this session signed in, and what they accept. */
-    refusingWorkspaces: await listRefusingWorkspaces(
-      deps.db,
-      currentUser(req).id,
-      currentUser(req).method,
-      (deps.sso ?? []).map((p) => p.id),
-    ),
-    /** Whether the instance can send mail (SMTP is set up). */
-    mailConfigured: deps.instance?.mailer !== undefined,
-    /** The workspace this person opened last on any device, if they can still open it. */
-    lastWorkspace: await getLastWorkspaceSlug(
-      deps.db,
-      currentUser(req).id,
-      currentUser(req).method,
-    ),
-    /** Where this person may create teams. */
-    manageableWorkspaces: await listManageableWorkspaces(
-      deps.db,
-      currentUser(req).id,
-      currentUser(req).method,
-    ),
-  }))
+  app.get('/capabilities', async (req) => {
+    const instanceAdmin = await isInstanceAdmin(deps.db, currentUser(req).id)
+    return {
+      /** Whether this person runs the instance (its admin pages). */
+      instanceAdmin,
+      /** First-run setup has steps left (the storage check, the first team); only the admin is shown them. */
+      setupPending: instanceAdmin && (await isFirstRunSetupPending(deps.db)),
+      canCreateWorkspace: await canCreateWorkspace(currentUser(req)),
+      /** Workspaces that refuse the way this session signed in, and what they accept. */
+      refusingWorkspaces: await listRefusingWorkspaces(
+        deps.db,
+        currentUser(req).id,
+        currentUser(req).method,
+        (deps.sso ?? []).map((p) => p.id),
+      ),
+      /** Whether the instance can send mail (SMTP is set up). */
+      mailConfigured: deps.instance?.mailer !== undefined,
+      /** The workspace this person opened last on any device, if they can still open it. */
+      lastWorkspace: await getLastWorkspaceSlug(
+        deps.db,
+        currentUser(req).id,
+        currentUser(req).method,
+      ),
+      /** Where this person may create teams. */
+      manageableWorkspaces: await listManageableWorkspaces(
+        deps.db,
+        currentUser(req).id,
+        currentUser(req).method,
+      ),
+    }
+  })
 
   /**
    * Records that the person opened this workspace, so every device lands on it next. Members

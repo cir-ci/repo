@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
+import { SetupPage } from '#features/setup/SetupPage.tsx'
+
 import { authMethodsQuery, setupQuery } from './api.ts'
 import { AuthPage } from './AuthPage.tsx'
 import { EmailForm } from './EmailForm.tsx'
 import { readInvitedEmail, readLink } from './login-helpers.ts'
 import { PasswordForm } from './PasswordForm.tsx'
-import { SetupPage } from './SetupPage.tsx'
 import { SsoButtons } from './SsoButtons.tsx'
 import { WorkspaceSsoSignIn } from './WorkspaceSsoSignIn.tsx'
 

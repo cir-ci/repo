@@ -179,6 +179,7 @@ POST /api/instance/accounts/:id/unban
 POST /api/instance/github-app/manifest
 POST /api/instance/mail/test
 POST /api/instance/notices/public-url/dismiss
+POST /api/instance/setup/finish
 POST /api/instance/workspaces
 POST /api/instance/workspaces/:id/purge
 POST /api/instance/workspaces/:id/restore

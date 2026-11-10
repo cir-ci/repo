@@ -29,6 +29,17 @@ export async function getPublicUrlChange(db: Database): Promise<PublicUrlChange 
   }
 }
 
+export const FIRST_RUN_SETUP_KEY = 'first_run_setup'
+
+/**
+ * Whether first-run setup was started and not finished: the first account and workspace exist, and
+ * the storage check and the first team are still to do. Instances from before the steps never
+ * have it.
+ */
+export async function isFirstRunSetupPending(db: Database): Promise<boolean> {
+  return (await getSetting(db, FIRST_RUN_SETUP_KEY)) === 'pending'
+}
+
 export const MOVE_CHECKLIST_DISMISSED_KEY = 'move_checklist_dismissed'
 
 /** The `PUBLIC_URL` origin the "Moving to …" checklist was dismissed for, if it was. */

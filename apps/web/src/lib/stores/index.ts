@@ -7,6 +7,7 @@ import { PANES_KEY, usePaneStore } from './pane-store.ts'
 import { RECENT_SEARCHES_KEY, useRecentSearchesStore } from './recent-searches-store.ts'
 import { RECENT_KEY, useRecentStore } from './recent-store.ts'
 import { SETTINGS_RETURN_KEY, useSettingsReturnStore } from './settings-return-store.ts'
+import { useSetupStore } from './setup-store.ts'
 import { useShortcutStore } from './shortcut-store.ts'
 import { useToastStore } from './toast-store.ts'
 import { useWorkspaceStore } from './workspace-store.ts'
@@ -18,6 +19,7 @@ export function resetStores(): void {
   useListStore.getState().reset()
   useWorkspaceStore.getState().reset()
   useToastStore.getState().reset()
+  useSetupStore.getState().reset()
   try {
     localStorage.removeItem(RECENT_KEY)
   } catch {

@@ -1,10 +1,17 @@
 import { createTestDb } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { getPublicUrlChange, getSetting, publicUrlChecklist } from '#src/queries/index.ts'
+import {
+  getPublicUrlChange,
+  getSetting,
+  isFirstRunSetupPending,
+  publicUrlChecklist,
+} from '#src/queries/index.ts'
 import {
   deleteSetting,
   dismissPublicUrlChange,
+  markFirstRunSetupDone,
+  markFirstRunSetupPending,
   recordPublicUrl,
   setSetting,
 } from '#src/repositories/index.ts'
@@ -46,5 +53,17 @@ describe('dashboard address', () => {
     expect(publicUrlChecklist({ from: 'https://a', to: 'https://b' }).join('\n')).toContain(
       'https://b',
     )
+  })
+})
+
+describe('first-run setup progress', () => {
+  it('is pending from the account and workspace until the steps end, and repeats safely', async () => {
+    expect(await isFirstRunSetupPending(t.db)).toBe(false)
+    await markFirstRunSetupPending(t.db)
+    await markFirstRunSetupPending(t.db)
+    expect(await isFirstRunSetupPending(t.db)).toBe(true)
+    await markFirstRunSetupDone(t.db)
+    await markFirstRunSetupDone(t.db)
+    expect(await isFirstRunSetupPending(t.db)).toBe(false)
   })
 })

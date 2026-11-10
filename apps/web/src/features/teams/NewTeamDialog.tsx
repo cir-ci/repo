@@ -180,7 +180,7 @@ export function NewTeamDialog({
 }
 
 /** Step two: the token, once, and the CI examples with this team's details in them. */
-function CreatedStep({ created }: { created: CreatedTeam }) {
+export function CreatedStep({ created }: { created: CreatedTeam }) {
   const [ci, setCi] = useState<CiKey>('github')
   const { copy, state, reset } = useCopy()
   const context = {

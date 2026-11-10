@@ -8,6 +8,8 @@ export namespace Workspace {
     canCreateWorkspace: boolean
     /** Whether this person runs the instance (its admin pages and menu entries). */
     instanceAdmin: boolean
+    /** The instance admin's first-run setup has steps left (storage check, first team); false for everyone else. */
+    setupPending: boolean
     /**
      * The slug of the workspace this person opened last, on any device; null when they never
      * did or can't open it any more (left, deleted). The landing page opens it.

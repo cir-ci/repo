@@ -47,6 +47,16 @@ export async function createUser(
 }
 
 /**
+ * Removes an account that was just made, when what was meant to follow it failed (first-run setup
+ * makes an account and its workspace as one, so a failure leaves neither). Not for existing people:
+ * their data goes through the workspace and account deletion flows.
+ */
+export async function deleteNewUser(auth: Auth, userId: string): Promise<void> {
+  const context = await auth.$context
+  await context.internalAdapter.deleteUser(userId)
+}
+
+/**
  * Makes an account an instance admin, or an ordinary user again. `headers` are the requesting
  * admin's: better-auth checks that they may change roles.
  */

@@ -1,8 +1,8 @@
 import { QueryClient } from '@tanstack/react-query'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { authMethodsQuery, setupQuery, submitSetup } from '#features/auth/api.ts'
-import { fakeFetch, restoreFetch, json } from '#test/support/fetch.ts'
+import { authMethodsQuery, setupQuery } from '#features/auth/api.ts'
+import { fakeFetch, restoreFetch } from '#test/support/fetch.ts'
 
 afterEach(() => restoreFetch())
 
@@ -26,26 +26,5 @@ describe('auth queries', () => {
     const query = setupQuery()
     expect(query.staleTime).toBe(0)
     expect(await new QueryClient().fetchQuery(query)).toEqual({ needed: true })
-  })
-})
-
-describe('submitSetup', () => {
-  const input = {
-    code: 'abc',
-    name: 'Ada',
-    email: 'ada@example.com',
-    password: 'correct horse battery',
-    workspaceName: 'Acme',
-  }
-
-  it('posts the first account and its workspace', async () => {
-    const calls = fakeFetch({ 'POST /api/setup': { email: 'ada@example.com' } })
-    expect(await submitSetup(input)).toEqual({ email: 'ada@example.com' })
-    expect(calls[0]?.body).toEqual(input)
-  })
-
-  it("rejects with the server's message", async () => {
-    fakeFetch({ 'POST /api/setup': json({ error: 'Wrong setup code' }, 403) })
-    await expect(submitSetup(input)).rejects.toThrow('Wrong setup code')
   })
 })
