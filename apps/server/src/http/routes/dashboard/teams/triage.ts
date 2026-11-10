@@ -1,7 +1,7 @@
 import type { Triage } from '@circi/api'
 import { TRIAGE_KINDS } from '@circi/core'
 import { listTriage } from '@circi/db/queries'
-import { assignTriage, dismissTriage, snoozeTriage } from '@circi/services'
+import { assignTriage, dismissTriage, rerunFailedBuild, snoozeTriage } from '@circi/services'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 
@@ -17,6 +17,7 @@ const snoozeBody = z.object({
   date: z.iso.datetime({ offset: true }).optional(),
 })
 const dismissBody = z.object(ref)
+const rerunBody = z.object({ number: z.number().int().min(1) })
 
 function state(item: {
   kind: Triage.Item['kind']
@@ -37,7 +38,7 @@ function state(item: {
 }
 
 /**
- * A team's triage queue and what members do with it: assign, snooze, dismiss. Any member of
+ * A team's triage queue and what members do with it: assign, snooze, dismiss and, for a failed build, re-run its comparison. Any member of
  * the workspace may; everyone else gets "not found".
  */
 export const dashboardTriageRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
@@ -80,5 +81,14 @@ export const dashboardTriageRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
     const found = await loadTeam(deps, req)
     const body = parse(dismissBody, req.body)
     return state(await dismissTriage(deps.db, { teamId: found.team.id, ...body }))
+  })
+
+  /** Compares a failed build again; any member may, as with the `/circi rerun` comment. */
+  app.post('/teams/:workspace/:team/triage/rerun', async (req) => {
+    const found = await loadTeam(deps, req)
+    const { number } = parse(rerunBody, req.body)
+    const build = await rerunFailedBuild(deps.db, { teamId: found.team.id, number })
+    const payload: Triage.Rerun = { build }
+    return payload
   })
 }

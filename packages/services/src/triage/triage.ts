@@ -1,6 +1,10 @@
-import { type SnoozeChoice, snoozeUntil } from '@circi/core'
+import { NotFoundError, type SnoozeChoice, snoozeUntil } from '@circi/core'
 import { type Database } from '@circi/db'
-import { type IgnoreRegionRow, latestDefaultBranchBuildNumber } from '@circi/db/queries'
+import {
+  getBuildByNumber,
+  type IgnoreRegionRow,
+  latestDefaultBranchBuildNumber,
+} from '@circi/db/queries'
 import {
   addIgnoreRegion,
   changeIgnoreRegion,
@@ -10,6 +14,8 @@ import {
   snoozeTriageItem,
   type TriageItem,
 } from '@circi/db/repositories'
+
+import { requeueBuild } from '#src/builds/lifecycle.ts'
 
 /**
  * What people do with a team's triage queue. Each function owns its transaction; the queue
@@ -54,6 +60,21 @@ export async function snoozeTriage(
 /** Takes an item out of the queue for good. */
 export async function dismissTriage(db: Database, ref: TriageItem.Ref): Promise<TriageItem.Row> {
   return db.transaction((tx) => dismissTriageItem(tx, ref))
+}
+
+/**
+ * Compares a failed build again from scratch (a failed item's "Re-run comparison"); the build
+ * leaves the queue once it is processing. Any member of the team's workspace may, as for the
+ * `/circi rerun` comment. Throws `NotFoundError` for a build that isn't the team's or isn't failed.
+ */
+export async function rerunFailedBuild(
+  db: Database,
+  input: { teamId: string; number: number },
+): Promise<{ number: number; status: 'processing' }> {
+  const build = await getBuildByNumber(db, input.teamId, input.number)
+  if (build?.status !== 'error') throw new NotFoundError('Failed build not found')
+  await requeueBuild(db, build.id)
+  return { number: build.number, status: 'processing' }
 }
 
 /**

@@ -9,6 +9,7 @@ import {
   createIgnoreRegion,
   deleteIgnoreRegion,
   dismissTriage,
+  rerunFailedBuild,
   snoozeTriage,
 } from '#src/index.ts'
 
@@ -134,5 +135,34 @@ describe('ignore regions', () => {
       }),
     ).rejects.toThrow(/at least 1/)
     expect((await queue()).items).toHaveLength(1)
+  })
+})
+
+describe('rerunFailedBuild', () => {
+  it('queues the failed build to be compared again, so it leaves the queue', async () => {
+    const { team, failed, queue } = await setup()
+    expect((await queue()).items).toHaveLength(1)
+    expect(await rerunFailedBuild(t.db, { teamId: team.id, number: failed.number })).toEqual({
+      number: failed.number,
+      status: 'processing',
+    })
+    expect((await queue()).items).toEqual([])
+    const jobs = await t.db.select().from(schema.jobs).where(eq(schema.jobs.queue, 'process-build'))
+    expect(jobs.map((j) => j.payload)).toContainEqual({ buildId: failed.id })
+  })
+
+  it('refuses a build that did not fail or belongs to another team', async () => {
+    const { team, failed } = await setup()
+    const other = await seedTeam(t.db)
+    const fine = await seedBuild(t.db, team.id, { branch: 'main', status: 'complete' })
+    await expect(rerunFailedBuild(t.db, { teamId: team.id, number: fine.number })).rejects.toThrow(
+      /not found/,
+    )
+    await expect(
+      rerunFailedBuild(t.db, { teamId: other.team.id, number: failed.number }),
+    ).rejects.toThrow(/not found/)
+    await expect(rerunFailedBuild(t.db, { teamId: team.id, number: 999 })).rejects.toThrow(
+      /not found/,
+    )
   })
 })

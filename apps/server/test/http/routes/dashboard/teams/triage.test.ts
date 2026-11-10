@@ -1,4 +1,5 @@
 import { createUser } from '@circi/auth'
+import { seedBuild } from '@circi/db/testing'
 import { afterAll, describe, expect, it } from 'vitest'
 
 import { sender } from '#test/support/client.ts'
@@ -66,12 +67,33 @@ describe('triage', () => {
     expect(unknown.statusCode).toBe(400)
   })
 
+  it('lets any member compare a failed build again, once', async () => {
+    const failed = await seedBuild(db, acme.team.id, { branch: 'main', status: 'error' })
+    const queued = await send('POST', `${base()}/triage/rerun`, {
+      cookie: louCookie,
+      payload: { number: failed.number },
+    })
+    expect(queued.statusCode).toBe(200)
+    expect(queued.json()).toEqual({ build: { number: failed.number, status: 'processing' } })
+    const items = (await get(`${base()}/triage`)).json().items
+    expect(items.some((i: { key: string }) => i.key === `build:${failed.number}`)).toBe(false)
+    // It is processing now, so there is nothing failed to re-run.
+    const again = await send('POST', `${base()}/triage/rerun`, {
+      cookie: louCookie,
+      payload: { number: failed.number },
+    })
+    expect(again.statusCode).toBe(404)
+    expect(
+      (await send('POST', `${base()}/triage/rerun`, { payload: { number: 0 } })).statusCode,
+    ).toBe(400)
+  })
+
   it('answers 404 to non-members on every action', async () => {
-    for (const action of ['assign', 'snooze', 'dismiss']) {
+    for (const action of ['assign', 'snooze', 'dismiss', 'rerun']) {
       // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
       const res = await send('POST', `${base()}/triage/${action}`, {
         cookie: rivalCookie,
-        payload: { kind: 'flaky', key: 'home', assigneeId: null, choice: 'tomorrow' },
+        payload: { kind: 'flaky', key: 'home', assigneeId: null, choice: 'tomorrow', number: 1 },
       })
       expect(res.statusCode).toBe(404)
     }

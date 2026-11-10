@@ -4,5 +4,6 @@ export {
   deleteIgnoreRegion,
   editIgnoreRegion,
   dismissTriage,
+  rerunFailedBuild,
   snoozeTriage,
 } from './triage.ts'

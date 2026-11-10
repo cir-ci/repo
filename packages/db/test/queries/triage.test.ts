@@ -88,6 +88,57 @@ describe('listTriage', () => {
     })
   })
 
+  it('gives a flaky item its last builds, a failed one its error, and counts pull requests it blocks', async () => {
+    const { team } = await seedTeam(t.db)
+    const history = []
+    for (let i = 0; i < 4; i += 1) {
+      // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
+      const b = await mainBuild(team.id, { baselineSource: 'cli' })
+      // `home` changes in builds 1, 2 and 4 of the four, not in the third.
+      // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
+      await seedDiff(t.db, {
+        buildId: b.id,
+        name: 'home',
+        status: i === 2 ? 'unchanged' : 'changed',
+      })
+      history.push(b)
+    }
+    // Pull request 7: its first build shows `home` changed, its newer one does not (so it doesn't count).
+    const pr = (
+      number: number,
+      status: 'changed' | 'unchanged',
+      reviewStatus: 'pending' | 'approved' = 'pending',
+    ) =>
+      seedBuild(t.db, team.id, {
+        branch: `pr-${number}`,
+        prNumber: number,
+        status: 'complete',
+        reviewStatus,
+      }).then(async (b) => {
+        await seedDiff(t.db, { buildId: b.id, name: 'home', status })
+        return b
+      })
+    await pr(7, 'changed')
+    await pr(7, 'unchanged')
+    // Pull requests 8 and 9 show it changed and wait for a review; 10's review is done.
+    await pr(8, 'changed')
+    await pr(9, 'changed')
+    await pr(10, 'changed', 'approved')
+    const failed = await mainBuild(team.id, { status: 'error' })
+    await t.db
+      .update(schema.builds)
+      .set({ errorMessage: '2 files over the limit' })
+      .where(eq(schema.builds.id, failed.id))
+
+    const { items } = await listTriage(t.db, { teamId: team.id, now })
+    const flaky = items.find((i) => i.kind === 'flaky')
+    expect(flaky?.history).toEqual(history.map((b, i) => ({ number: b.number, changed: i !== 2 })))
+    expect(flaky?.blocking).toBe(2)
+    expect(flaky?.error).toBeNull()
+    const broken = items.find((i) => i.kind === 'failed')
+    expect(broken).toMatchObject({ error: '2 files over the limit', history: [], blocking: 0 })
+  })
+
   it('drops a failed build once a later build completes, and an orphan once it is compared', async () => {
     const { team } = await seedTeam(t.db)
     const first = await mainBuild(team.id, { baselineSource: 'none' })

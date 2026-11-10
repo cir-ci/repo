@@ -6,6 +6,7 @@ import {
   eq,
   gt,
   inArray,
+  isNotNull,
   isNull,
   ne,
   notExists,
@@ -65,6 +66,12 @@ export namespace listTriage {
     snoozeKind: SnoozeKind | null
     /** Whether the item is snoozed right now (and so belongs under Snoozed, not in the queue). */
     snoozed: boolean
+    /** A flaky item's last default-branch builds, oldest first, and whether it changed in each. */
+    history: { number: number; changed: boolean }[]
+    /** Why a failed build ended in error; null otherwise. */
+    error: string | null
+    /** Pull requests whose latest build shows a flaky screenshot as changed, review pending. */
+    blocking: number
   }
 
   export interface Queue {
@@ -83,6 +90,84 @@ const KIND_ORDER: Record<TriageKind, number> = { flaky: 0, no_baseline: 1, faile
 
 type BuildRef = listTriage.Item['build']
 
+/** For each name, the last 10 completed builds on the branch (oldest first) and whether it changed. */
+async function flakyHistory(
+  db: Database,
+  teamId: string,
+  branch: string,
+  names: string[],
+): Promise<Map<string, { number: number; changed: boolean }[]>> {
+  const result = new Map<string, { number: number; changed: boolean }[]>()
+  if (names.length === 0) return result
+  const recent = await db
+    .select({ id: builds.id, number: builds.number })
+    .from(builds)
+    .where(and(eq(builds.teamId, teamId), eq(builds.branch, branch), eq(builds.status, 'complete')))
+    .orderBy(desc(builds.number))
+    .limit(10)
+  const diffs = await db
+    .select({ buildId: screenshotDiffs.buildId, name: screenshotDiffs.name })
+    .from(screenshotDiffs)
+    .where(
+      and(
+        eq(screenshotDiffs.status, 'changed'),
+        inArray(
+          screenshotDiffs.buildId,
+          recent.map((r) => r.id),
+        ),
+        inArray(screenshotDiffs.name, names),
+      ),
+    )
+  const changed = new Set(diffs.map((d) => `${d.buildId}\u0000${d.name}`))
+  const ascending = recent.toSorted((a, b) => a.number - b.number)
+  for (const name of names) {
+    result.set(
+      name,
+      ascending.map((b) => ({ number: b.number, changed: changed.has(`${b.id}\u0000${name}`) })),
+    )
+  }
+  return result
+}
+
+/** For each name, how many pull requests show it as changed in their latest build, still pending. */
+async function flakyBlocking(
+  db: Database,
+  teamId: string,
+  names: string[],
+): Promise<Map<string, number>> {
+  const result = new Map<string, number>()
+  if (names.length === 0) return result
+  const newer = aliasedTable(builds, 'newer')
+  const rows = await db
+    .selectDistinct({ name: screenshotDiffs.name, pr: builds.prNumber })
+    .from(screenshotDiffs)
+    .innerJoin(builds, eq(builds.id, screenshotDiffs.buildId))
+    .where(
+      and(
+        eq(builds.teamId, teamId),
+        isNotNull(builds.prNumber),
+        eq(builds.status, 'complete'),
+        eq(builds.reviewStatus, 'pending'),
+        eq(screenshotDiffs.status, 'changed'),
+        inArray(screenshotDiffs.name, names),
+        notExists(
+          db
+            .select({ one: sql`1` })
+            .from(newer)
+            .where(
+              and(
+                eq(newer.teamId, teamId),
+                eq(newer.prNumber, builds.prNumber),
+                gt(newer.number, builds.number),
+              ),
+            ),
+        ),
+      ),
+    )
+  for (const r of rows) result.set(r.name, (result.get(r.name) ?? 0) + 1)
+  return result
+}
+
 /** Dismissed items are left out; snoozed ones are included and marked. Newest problems first. */
 export async function listTriage(
   db: Database,
@@ -98,8 +183,13 @@ export async function listTriage(
   const teamRef = { slug: team.slug, name: team.name }
   const branch = team.defaultBranch
 
-  const found: { kind: TriageKind; key: string; snapshotName: string | null; build: BuildRef }[] =
-    []
+  const found: {
+    kind: TriageKind
+    key: string
+    snapshotName: string | null
+    build: BuildRef
+    error?: string | null
+  }[] = []
 
   const buildRef = {
     number: builds.number,
@@ -111,6 +201,9 @@ export async function listTriage(
 
   // Flaky: the latest default-branch build in which each flaky name changed.
   const { flaky } = await listFlakyScreenshots(db, team.id)
+  const flakyNames = flaky.map((f) => f.name)
+  const history = await flakyHistory(db, team.id, branch, flakyNames)
+  const blocking = await flakyBlocking(db, team.id, flakyNames)
   if (flaky.length > 0) {
     const rows = await db
       .selectDistinctOn([screenshotDiffs.name], { name: screenshotDiffs.name, build: buildRef })
@@ -195,7 +288,7 @@ export async function listTriage(
 
   // Failed: errored default-branch builds with no completed build after them.
   const failed = await db
-    .select(buildRef)
+    .select({ ...buildRef, error: builds.errorMessage })
     .from(builds)
     .where(
       and(
@@ -218,8 +311,8 @@ export async function listTriage(
       ),
     )
     .orderBy(desc(builds.number))
-  for (const b of failed) {
-    found.push({ kind: 'failed', key: `build:${b.number}`, snapshotName: null, build: b })
+  for (const { error, ...b } of failed) {
+    found.push({ kind: 'failed', key: `build:${b.number}`, snapshotName: null, build: b, error })
   }
 
   // What people did about them.
@@ -254,6 +347,9 @@ export async function listTriage(
       snoozedUntil: snoozed ? until : null,
       snoozeKind: snoozed ? kind : null,
       snoozed,
+      history: f.kind === 'flaky' ? (history.get(f.key) ?? []) : [],
+      error: f.error ?? null,
+      blocking: f.kind === 'flaky' ? (blocking.get(f.key) ?? 0) : 0,
     })
   }
   items.sort(

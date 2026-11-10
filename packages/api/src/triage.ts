@@ -26,6 +26,18 @@ export namespace Triage {
     snoozedUntil: string | null
     snoozeKind: SnoozeKind | null
     snoozed: boolean
+    /**
+     * A flaky item's last builds on the default branch (up to 10, oldest first) and whether the
+     * screenshot changed in each; empty for the other kinds.
+     */
+    history: { number: number; changed: boolean }[]
+    /** Why a failed build ended in error; null for the other kinds, or when no reason was stored. */
+    error: string | null
+    /**
+     * How many pull requests show a flaky screenshot as changed in their latest build, with the
+     * review still pending; 0 for the other kinds.
+     */
+    blocking: number
   }
 
   /** `GET …/triage`: the queue (dismissed items left out) and who is on triage. */
@@ -45,6 +57,11 @@ export namespace Triage {
     /** Any moment of the first week; null when the team has no rotation. */
     startsOn: string | null
     members: { id: string; name: string }[]
+  }
+
+  /** `POST …/triage/rerun`: the build, queued to be compared again. */
+  export interface Rerun {
+    build: { number: number; status: BuildStatus }
   }
 
   /** `POST …/triage/snooze` and `…/assign` return the item's new state. */

@@ -131,6 +131,8 @@ export namespace Snapshot {
     }
     /** How the snapshot compared in that build; null while it is not compared yet. */
     status: DiffStatus | null
+    /** Who approved the snapshot there (its own approval, else the build's); null when nobody did. */
+    approvedBy: { id: string; name: string } | null
     /** The screenshot in that build (the baseline's for a removed one); null when there is none. */
     image: (Build.ImageRef & { thumbnail: string | null }) | null
   }

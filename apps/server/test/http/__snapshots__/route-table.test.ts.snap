@@ -198,6 +198,7 @@ POST /api/teams/:workspace/:team/sites/:site/domain/verify
 POST /api/teams/:workspace/:team/token
 POST /api/teams/:workspace/:team/triage/assign
 POST /api/teams/:workspace/:team/triage/dismiss
+POST /api/teams/:workspace/:team/triage/rerun
 POST /api/teams/:workspace/:team/triage/snooze
 POST /api/teams/:workspace/:team/webhooks
 POST /api/teams/:workspace/:team/webhooks/:id/test

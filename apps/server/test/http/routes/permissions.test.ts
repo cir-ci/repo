@@ -38,6 +38,7 @@ const MEMBER_WRITABLE = new Set([
   `POST ${TEAM}/triage/assign`,
   `POST ${TEAM}/triage/snooze`,
   `POST ${TEAM}/triage/dismiss`,
+  `POST ${TEAM}/triage/rerun`,
   `POST ${TEAM}/review-requests/:id/dismiss`,
   `POST ${TEAM}/review-requests/:id/nudge`,
   `POST ${TEAM}/review-requests/:id/snooze`,

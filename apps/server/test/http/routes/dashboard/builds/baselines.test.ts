@@ -56,6 +56,13 @@ describe('GET /api/teams/:workspace/:team/snapshots/:name/history', () => {
     expect(body.branch).toBeNull()
   })
 
+  it('names who approved the snapshot in each build, nobody for an automatic approval', async () => {
+    const { default: entries } = (await history('home')).json()
+    // Build 2 was approved automatically on main; build 1 by Acme's owner.
+    expect(entries[0].approvedBy).toBeNull()
+    expect(entries[1].approvedBy).toEqual({ id: acme.owner.id, name: expect.any(String) })
+  })
+
   it('takes a limit and a branch, and handles slashes in names', async () => {
     const one = (await history('home', '?limit=1&branch=feature')).json()
     expect(one.default).toHaveLength(1)
