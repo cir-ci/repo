@@ -221,6 +221,7 @@ function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
         to="/$workspace/$team"
         params={params}
         selected={false}
+        expands
         icon={
           <Avatar
             type="team"

@@ -1,6 +1,6 @@
 import { AnnouncerProvider, AppFrame, Drawer, IconButton, MenuIcon, SkipLink } from '@circi/ui'
 import { Outlet, useRouterState } from '@tanstack/react-router'
-import { lazy, type ReactNode, Suspense, useEffect, useState } from 'react'
+import { lazy, type ReactNode, Suspense, useEffect } from 'react'
 
 import { InvitationBanner } from '#features/auth/InvitationBanner.tsx'
 import { SessionCheck } from '#features/auth/SessionCheck.tsx'
@@ -10,6 +10,7 @@ import { TeamDialogs } from '#features/teams/TeamDialogs.tsx'
 import { authClient, type SessionUser } from '#lib/auth-client.ts'
 import { PaneHandle } from '#lib/PaneHandle.tsx'
 import { paneWidthCss } from '#lib/panes.ts'
+import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { usePaneWidth } from '#lib/stores/pane-store.ts'
 
 import { useNavPane } from './NavToggle.tsx'
@@ -94,8 +95,10 @@ function SignedInFrame({ user }: { user: SessionUser }) {
   const navLabel = isSettingsSection(section) ? 'Settings' : 'Main'
   const pane = useNavPane()
   const sidebarWidth = usePaneWidth(pane.id)
-  // The drawer belongs to the page it was opened on: choosing another page closes it.
-  const [openedAt, setOpenedAt] = useState<string | undefined>(undefined)
+  // The drawer belongs to the page it was opened on: choosing another page closes it (an entry
+  // that only expands, a team, moves it along instead: `NavLink`'s `expands`).
+  const openedAt = useOverlayStore((s) => s.drawerAt)
+  const setOpenedAt = useOverlayStore((s) => s.setDrawerAt)
   const drawerOpen = openedAt === pathname
   const setDrawerOpen = (open: boolean) => setOpenedAt(open ? pathname : undefined)
 
@@ -107,7 +110,7 @@ function SignedInFrame({ user }: { user: SessionUser }) {
     }
     query.addEventListener('change', onChange)
     return () => query.removeEventListener('change', onChange)
-  }, [])
+  }, [setOpenedAt])
 
   return (
     <ShortcutLayer>

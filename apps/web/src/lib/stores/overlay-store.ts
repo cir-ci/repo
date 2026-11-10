@@ -8,6 +8,7 @@ export const useOverlayStore = create<OverlayStore.State & OverlayStore.Actions>
   setNewTeamOpen: (newTeamOpen) => set({ newTeamOpen }),
   setNewWorkspaceOpen: (newWorkspaceOpen) => set({ newWorkspaceOpen }),
   setImportOpen: (importOpen) => set({ importOpen }),
+  setDrawerAt: (drawerAt) => set({ drawerAt }),
   reset: () => set(initialOverlayState()),
 }))
 
@@ -18,6 +19,7 @@ function initialOverlayState(): OverlayStore.State {
     newTeamOpen: false,
     newWorkspaceOpen: false,
     importOpen: false,
+    drawerAt: undefined,
   }
 }
 
@@ -30,6 +32,12 @@ export namespace OverlayStore {
     newWorkspaceOpen: boolean
     /** The Import from GitHub dialog, opened from the Teams page. */
     importOpen: boolean
+    /**
+     * The narrow-screen navigation drawer: the path it is open on, or undefined when closed. It
+     * belongs to that page, so choosing another page closes it, unless the choice only expands an
+     * entry (a team), which moves it along (`NavLink`'s `expands`).
+     */
+    drawerAt: string | undefined
   }
   export interface Actions {
     setCommandMenuOpen: (open: boolean) => void
@@ -37,6 +45,7 @@ export namespace OverlayStore {
     setNewTeamOpen: (open: boolean) => void
     setNewWorkspaceOpen: (open: boolean) => void
     setImportOpen: (open: boolean) => void
+    setDrawerAt: (path: string | undefined) => void
     reset: () => void
   }
 }

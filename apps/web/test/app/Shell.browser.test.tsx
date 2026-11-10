@@ -784,16 +784,30 @@ describe('Shell, narrow', () => {
     expect(page.getByText('Settings', { exact: true }).elements()).toHaveLength(0)
   })
 
-  it('closes the drawer once a page is chosen', async () => {
+  it('keeps the drawer open when a team is chosen, so its pages show, and closes it on a page', async () => {
     await page.viewport(390, 800)
     const { router } = await renderShell('/')
     await page.getByRole('button', { name: 'Open navigation' }).click()
+    const drawer = page.getByRole('dialog', { name: 'Navigation' })
+    await drawer.getByRole('link', { name: /^web-app/ }).click()
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app')
+    // The team expanded in place: the drawer stays until a page (or the backdrop) dismisses it.
+    await expect.element(drawer.getByRole('link', { name: /^Triage/ })).toBeVisible()
+    await drawer.getByRole('link', { name: /^Triage/ }).click()
+    await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app/triage')
+    await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
+  })
+
+  it('closes the drawer once a page is chosen, even the one already shown', async () => {
+    await page.viewport(390, 800)
+    const { router } = await renderShell('/acme/web-app')
+    await page.getByRole('button', { name: 'Open navigation' }).click()
     await page
       .getByRole('dialog', { name: 'Navigation' })
-      .getByRole('link', { name: /^web-app/ })
+      .getByRole('link', { name: /^Builds/ })
       .click()
-    await expect.poll(() => router.state.location.pathname).toBe('/acme/web-app')
     await expect.poll(() => page.getByRole('dialog').elements().length).toBe(0)
+    expect(router.state.location.pathname).toBe('/acme/web-app')
     await expect.element(page.getByRole('main')).toHaveTextContent('Builds page')
   })
 })
