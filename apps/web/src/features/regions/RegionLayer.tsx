@@ -49,7 +49,7 @@ export interface Annotations {
   /** Moving or resizing the pending region by dragging it is allowed: the new region. */
   onAdjustPending?: (region: Comment.Region) => void
   /** A thread's region was moved or resized by dragging (only `adjustable` ones can be). */
-  onAdjust?: (id: string, region: Comment.Region) => void
+  onAdjust?: (id: string, region: Comment.Region) => void | Promise<unknown>
   focusedId: string | null
   /** While on, a drag over the image draws a region, and the keyboard tool is shown. */
   drawing: boolean

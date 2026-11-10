@@ -54,7 +54,9 @@ export namespace RegionBoxes {
     regions: readonly IgnoreRegion.Item[]
     size: Size
     /** Makes the boxes adjustable: the region and where it ended up, as fractions of the image. */
-    onAdjust?: ((item: IgnoreRegion.Item, region: Comment.Region) => void) | undefined
+    onAdjust?:
+      | ((item: IgnoreRegion.Item, region: Comment.Region) => void | Promise<unknown>)
+      | undefined
     onClick?: (() => void) | undefined
   }
 }

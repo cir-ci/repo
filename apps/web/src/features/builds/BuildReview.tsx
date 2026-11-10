@@ -391,7 +391,10 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
                 },
                 onAdjustDraft: (region) => setDraft(draft && { ...draft, region }),
                 onAdjust: (id, region) =>
-                  setRegion.mutate({ id, region }, { onSuccess: () => announce('Region saved') }),
+                  setRegion
+                    .mutateAsync({ id, region })
+                    .then(() => announce('Region saved'))
+                    .catch(() => undefined),
                 error: setRegion.error?.message,
                 onMarker: (id) => {
                   setTab('comments')

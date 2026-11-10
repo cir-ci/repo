@@ -136,11 +136,16 @@ export interface FakeApi {
   regionPatches: { id: string; x: number; y: number; width: number; height: number }[]
   /** Answers the region PATCHes (ignore and comment) with an error instead. */
   regionError: string | null
+  /** Holds the answers of the region PATCHes back this many milliseconds (a slow network). */
+  regionDelayMs: number
   fetch: ReturnType<typeof vi.fn<typeof fetch>>
 }
 
 const json = (body: unknown, status = 200) =>
   Promise.resolve(new Response(JSON.stringify(body), { status }))
+
+const after = <T,>(ms: number, answer: Promise<T>) =>
+  ms > 0 ? new Promise<T>((resolve) => setTimeout(() => resolve(answer), ms)) : answer
 
 /** Stubs `fetch` with the build API (the network edge) and returns the state it serves. */
 export function fakeBuildApi(build: Build.Detail): FakeApi {
@@ -161,6 +166,7 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
     ignorePatches: [],
     regionPatches: [],
     regionError: null,
+    regionDelayMs: 0,
     fetch: vi.fn<typeof fetch>((input, init) => {
       const url = new URL(input instanceof Request ? input.url : String(input), 'http://localhost')
       const method = init?.method ?? 'GET'
@@ -216,7 +222,7 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
         const body = JSON.parse(typeof init?.body === 'string' ? init.body : '{}')
         api.regionPatches.push({ id, ...body })
         api.comments = api.comments.map((c) => (c.id === id ? { ...c, region: body } : c))
-        return json(api.comments.find((c) => c.id === id))
+        return after(api.regionDelayMs, json(api.comments.find((c) => c.id === id)))
       }
       if (url.pathname === `${root}/comments`) return json({ comments: api.comments })
       if (url.pathname === `${root}/activity`) return json({ events: api.activity })
@@ -272,7 +278,7 @@ export function fakeBuildApi(build: Build.Detail): FakeApi {
         const body = JSON.parse(typeof init?.body === 'string' ? init.body : '{}')
         api.ignorePatches.push({ id, ...body })
         api.ignoreRegions = api.ignoreRegions.map((r) => (r.id === id ? { ...r, ...body } : r))
-        return json(api.ignoreRegions.find((r) => r.id === id))
+        return after(api.regionDelayMs, json(api.ignoreRegions.find((r) => r.id === id)))
       }
       if (url.pathname === `${team}/ignore-regions`) {
         const name = url.searchParams.get('name')

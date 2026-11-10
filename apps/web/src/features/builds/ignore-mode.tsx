@@ -56,12 +56,11 @@ export function useIgnoreMode(
         },
       )
     },
-    onAdjust: (item, region, size) => {
-      adjust.mutate(
-        { id: item.id, rect: toPixels(region, size) },
-        { onSuccess: () => announce('Ignore region saved') },
-      )
-    },
+    onAdjust: (item, region, size) =>
+      adjust
+        .mutateAsync({ id: item.id, rect: toPixels(region, size) })
+        .then(() => announce('Ignore region saved'))
+        .catch(() => undefined),
     panel: (
       <IgnoreRegionsPanel
         workspace={workspace}

@@ -30,7 +30,7 @@ const region = (overrides: Partial<IgnoreRegion.Item> = {}): IgnoreRegion.Item =
   ...overrides,
 })
 
-async function show(canManage: boolean, failWith?: string) {
+async function show(canManage: boolean, failWith?: string, delayMs = 0) {
   let regions = [region()]
   const patches: { id: string; body: Record<string, number> }[] = []
   fakeApi({
@@ -46,6 +46,15 @@ async function show(canManage: boolean, failWith?: string) {
       return { body: regions[0] }
     },
   })
+  if (delayMs > 0) {
+    // A slow network: the PATCH answers late.
+    const inner = globalThis.fetch
+    vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+      const response = await inner(input, init)
+      if ((init?.method ?? 'GET') === 'PATCH') await new Promise((r) => setTimeout(r, delayMs))
+      return response
+    })
+  }
   await renderPage(
     <IgnoreRegionsEditor
       workspace="acme"
@@ -95,6 +104,27 @@ describe('adjusting ignore regions on the baseline page', () => {
     await expect.element(page.getByText('Ignore region saved')).toBeInTheDocument()
     // The list shows the saved rectangle.
     await expect.element(page.getByText(/^200 x 100 at 1[56]\d, [89]\d$/)).toBeVisible()
+  })
+
+  it('never shows the old region again after the release, even while the save is slow', async () => {
+    const { patches } = await show(true, undefined, 400)
+    await vi.waitFor(() => expect(boxes()).toHaveLength(1))
+    const host = box()
+    expect(host.style.left).toBe('10%')
+    // Every render of the region's position, in order.
+    const lefts: string[] = [host.style.left]
+    const watch = new MutationObserver(() => lefts.push(host.style.left))
+    watch.observe(host, { attributes: true, attributeFilter: ['style'] })
+    const from = centerOf(host)
+    await pointerDrag(host, from, { x: from.x + 30, y: from.y + 20 })
+    // Released, and the save is not answered yet: the region is where it was dropped.
+    expect(host.style.left).not.toBe('10%')
+    await vi.waitFor(() => expect(patches).toHaveLength(1))
+    await new Promise((resolve) => setTimeout(resolve, 600))
+    watch.disconnect()
+    const moved = lefts.findIndex((left) => left !== '10%')
+    expect(moved).toBeGreaterThan(-1)
+    expect(lefts.slice(moved)).not.toContain('10%')
   })
 
   it('resizes from each corner kind, the opposite corner staying put', async () => {

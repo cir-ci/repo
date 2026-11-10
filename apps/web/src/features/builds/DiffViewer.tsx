@@ -522,7 +522,7 @@ export interface IgnoreMode {
   /** `size` is the pixel size of the image it was drawn on. */
   onDraw: (side: RegionSide, region: Comment.Region, size: Size) => void
   /** An ignore region was moved or resized by dragging it; `size` is the pixel size of its image. */
-  onAdjust: (item: IgnoreRegion.Item, region: Comment.Region, size: Size) => void
+  onAdjust: (item: IgnoreRegion.Item, region: Comment.Region, size: Size) => void | Promise<unknown>
   /** The list of the regions, with Add, Edit and Remove. */
   panel: ReactNode
 }
@@ -538,7 +538,7 @@ export interface Regions {
   /** The draft was moved or resized by dragging it. */
   onAdjustDraft: (region: Comment.Region) => void
   /** A sent comment's region was moved or resized by its author. */
-  onAdjust: (id: string, region: Comment.Region) => void
+  onAdjust: (id: string, region: Comment.Region) => void | Promise<unknown>
   /** Why the last region save failed, until the next one. */
   error?: string | undefined
   onDraw: (side: RegionSide, region: Comment.Region) => void

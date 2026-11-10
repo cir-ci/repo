@@ -7,8 +7,12 @@ import styles from './RegionAdjust.module.css'
 
 /** What a region needs to be moved and resized with the mouse: where the result goes. */
 export interface Adjust {
-  /** The drag ended somewhere new: the region as fractions of the image, to save. */
-  onCommit: (region: Comment.Region) => void
+  /**
+   * The drag ended somewhere new: the region as fractions of the image, to save. Return the save
+   * (a promise) and the region stays where it was dropped until the save has settled and the data
+   * shown reflects it: a release must never show the old region for a frame before the new one.
+   */
+  onCommit: (region: Comment.Region) => void | Promise<unknown>
   /** A press that never became a drag (the pointer stayed within a few pixels). */
   onClick?: (() => void) | undefined
 }
@@ -42,13 +46,16 @@ interface Drag {
  * A press that barely moves is a click and does what it always did. Without `adjust` this does
  * nothing, so everyone else gets no handles and no move cursor.
  *
- * `region` is what to show now: the live one while dragging, else the one passed in.
+ * `region` is what to show now: the live one while dragging, the dropped one while its save is
+ * in flight and the data has not caught up, else the one passed in.
  */
 export function useAdjustable(
   region: Comment.Region,
   adjust: Adjust | undefined,
 ): { region: Comment.Region; props: AdjustProps; adjusting: boolean } {
   const [drag, setDrag] = useState<Drag | null>(null)
+  // A region dropped and being saved: `base` is what the data held when it was dropped.
+  const [held, setHeld] = useState<{ base: Comment.Region; to: Comment.Region } | null>(null)
   // After a real drag the click that follows the release must not open anything.
   const dragged = useRef(false)
   const target = useRef<HTMLElement | null>(null)
@@ -67,6 +74,10 @@ export function useAdjustable(
     window.addEventListener('keydown', onKeyDown, true)
     return () => window.removeEventListener('keydown', onKeyDown, true)
   }, [dragging])
+
+  // The data moved on (the optimistic update or the refetch landed, or a failure rolled back): done holding.
+  if (held && !sameRegion(region, held.base)) setHeld(null)
+  const shown = held && sameRegion(region, held.base) ? held.to : region
 
   if (!adjust) return { region, props: {}, adjusting: false }
 
@@ -108,7 +119,15 @@ export function useAdjustable(
         target.current.releasePointerCapture(e.pointerId)
       }
       if (!drag.moved) adjust.onClick?.()
-      else if (!sameRegion(drag.live, drag.start)) adjust.onCommit(drag.live)
+      else if (!sameRegion(drag.live, drag.start)) {
+        const saving = adjust.onCommit(drag.live)
+        if (saving instanceof Promise) {
+          // Cleared in the same batch as the drag, so no render shows the old region.
+          setHeld({ base: drag.start, to: drag.live })
+          const release = () => setHeld(null)
+          void saving.then(release, release)
+        }
+      }
     },
     onPointerCancel() {
       setDrag(null)
@@ -120,7 +139,7 @@ export function useAdjustable(
       e.stopPropagation()
     },
   }
-  return { region: drag?.moved ? drag.live : region, props, adjusting: drag?.moved === true }
+  return { region: drag?.moved ? drag.live : shown, props, adjusting: drag?.moved === true }
 }
 
 function cornerOf(element: HTMLElement): Grab {

@@ -22,6 +22,15 @@ const auth = mockAuthClient().organization
 
 const info = teamInfo()
 
+/** A promise settled from outside: holds a fake answer back until the test lets it go. */
+function deferred<T = void>() {
+  const held: { resolve: (value: T) => void } = { resolve: () => {} }
+  const promise = new Promise<T>((resolve) => {
+    held.resolve = resolve
+  })
+  return { promise, resolve: (value: T) => held.resolve(value) }
+}
+
 const sidebar = (pinned = false) => sidebarModel({ teams: [sidebarTeam({ pinned })] })
 
 /** The faked API, plus every URL requested (the fake keeps only paths, and filters live in the query). */
@@ -173,16 +182,13 @@ describe('filters', () => {
   })
 
   it('keeps the page where it is while the next filter loads', async () => {
-    let release = () => {}
-    const gate = new Promise<void>((resolve) => {
-      release = resolve
-    })
+    const gate = deferred()
     let requests = 0
     fakeFetch({
       'GET /api/teams/acme/web': async () => {
         requests += 1
         // The first answer (no filter) is immediate; the filtered one waits.
-        if (requests > 1) await gate
+        if (requests > 1) await gate.promise
         return { team: info, builds: [build(3)], gitAttention: null }
       },
       'GET /api/teams/acme/web/flaky': { builds: 10, flaky: [] },
@@ -206,7 +212,7 @@ describe('filters', () => {
     const during = [title.element().getBoundingClientRect(), list.element().getBoundingClientRect()]
     expect(during.map((r) => [r.top, r.height])).toEqual(before.map((r) => [r.top, r.height]))
 
-    release()
+    gate.resolve()
     await expect
       .element(page.getByRole('button', { name: 'Status: Approved' }))
       .toHaveAttribute('aria-pressed', 'true')
@@ -215,8 +221,6 @@ describe('filters', () => {
   })
 
   describe('a person filter', () => {
-    const members = (resolve: () => Promise<unknown>) =>
-      auth.getFullOrganization.mockImplementation(resolve)
     const ada = {
       data: {
         id: 'o1',
@@ -236,15 +240,15 @@ describe('filters', () => {
     }
 
     it("shows the person's name, never their ID, from the address and while names load", async () => {
-      let release: (value: unknown) => void = () => {}
-      members(() => new Promise((resolve) => (release = resolve)))
+      const names = deferred<unknown>()
+      auth.getFullOrganization.mockImplementation(() => names.promise)
       api([build(3)])
       await show('/acme/web?reviewer=u1')
       const chip = page.getByRole('button', { name: /^Reviewer/ })
       await expect.element(chip).toBeVisible()
       expect(chip.element().textContent).not.toContain('u1')
       expect(chip.element().textContent).toBe('Reviewer: …')
-      release(ada)
+      names.resolve(ada)
       await expect
         .element(page.getByRole('button', { name: 'Reviewer: Ada Lovelace' }))
         .toBeVisible()

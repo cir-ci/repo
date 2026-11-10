@@ -75,12 +75,12 @@ export function IgnoreRegionsEditor({
           ignoreRegions: {
             regions,
             size,
-            onAdjust: (item, region) => {
-              adjust.mutate(
-                { id: item.id, rect: toPixels(region, size) },
-                { onSuccess: () => announce('Ignore region saved') },
-              )
-            },
+            // The promise keeps the box where it was dropped until the save has settled.
+            onAdjust: (item, region) =>
+              adjust
+                .mutateAsync({ id: item.id, rect: toPixels(region, size) })
+                .then(() => announce('Ignore region saved'))
+                .catch(() => undefined),
           },
         }
       : undefined

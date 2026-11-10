@@ -165,6 +165,29 @@ describe('adjusting a comment region you wrote', () => {
     await vi.waitFor(() => expect(marker().element().style.left).toMatch(/^3[45]/))
   })
 
+  it('never shows the old region again after the release, even while the save is slow', async () => {
+    const api = await ready((a) => {
+      a.comments.push(comment())
+      a.regionDelayMs = 400
+    })
+    await expect.element(marker()).toBeVisible()
+    const host = marker().element()
+    // Every render of the region's position, in order.
+    const lefts: string[] = [host.style.left]
+    const watch = new MutationObserver(() => lefts.push(host.style.left))
+    watch.observe(host, { attributes: true, attributeFilter: ['style'] })
+    await dragBody(host, 0.1, 0.1)
+    // The save's answer is still to come: the region sits where it was dropped.
+    expect(host.style.left).toMatch(/^3[45]/)
+    await vi.waitFor(() => expect(api.regionPatches).toHaveLength(1))
+    await vi.waitFor(() => expect(host.style.left).toMatch(/^3[45]/))
+    await new Promise((resolve) => setTimeout(resolve, 600))
+    watch.disconnect()
+    const moved = lefts.findIndex((left) => left !== '25%')
+    expect(moved).toBeGreaterThan(-1)
+    expect(lefts.slice(moved)).not.toContain('25%')
+  })
+
   it('stops at the image edges when moving or resizing', async () => {
     const api = await ready((a) => a.comments.push(comment()))
     await expect.element(marker()).toBeVisible()
