@@ -2,6 +2,7 @@ import { pairScreenshots, resolveBaseline } from '@circi/core'
 import { type Database, type NewScreenshotDiff, type Screenshot } from '@circi/db'
 import { getBuild, getTeamById } from '@circi/db/queries'
 import {
+  buildFlakyDecision,
   findDecidedRerunOf,
   ignoreRegionsByName,
   listBaselineCandidates,
@@ -206,7 +207,12 @@ export async function processBuild(
   // 5. Conclusion. Added, removed and unreadable screenshots all need a human look. A build with
   // no baseline (a team's first) is never auto-approved: someone reviews every screenshot once.
   const conclusion = statuses.every((s) => s === 'unchanged') ? 'no_changes' : 'changes_detected'
-  let outcome: setBuildResult.Input = { conclusion, approval: 'none' }
+  // The flaky set the merge gate will use, decided now from the builds before this one and kept
+  // on the build, so a later default-branch build changing the list never flips this build's check.
+  const flakyDecision =
+    conclusion === 'changes_detected' ? await buildFlakyDecision(db, build) : undefined
+  const decided = flakyDecision ? { flakyDecision } : {}
+  let outcome: setBuildResult.Input = { conclusion, approval: 'none', ...decided }
   if (conclusion === 'changes_detected') {
     if (
       baseBuild !== undefined &&
@@ -214,14 +220,14 @@ export async function processBuild(
       build.prNumber === null &&
       build.branch === team.defaultBranch
     ) {
-      outcome = { conclusion, approval: 'default-branch' }
+      outcome = { conclusion, approval: 'default-branch', ...decided }
     } else {
       // A CI re-run of a commit whose exact screenshots someone already decided on: approved
       // stays approved, rejected stays rejected, until someone decides again or an image changes.
       const earlier = await findDecidedRerunOf(db, build)
-      if (earlier?.state === 'approved') outcome = { conclusion, approval: 'rerun' }
+      if (earlier?.state === 'approved') outcome = { conclusion, approval: 'rerun', ...decided }
       else if (earlier) {
-        outcome = { conclusion, approval: 'rerun-rejected', carriedFrom: earlier.id }
+        outcome = { conclusion, approval: 'rerun-rejected', carriedFrom: earlier.id, ...decided }
       }
     }
   }

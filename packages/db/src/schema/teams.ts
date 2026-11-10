@@ -65,7 +65,7 @@ export const teams = pgTable(
     autoApproveNoChanges: boolean('auto_approve_no_changes').notNull().default(true),
     /** Rejecting needs a written reason. */
     requireRejectReason: boolean('require_reject_reason').notNull().default(false),
-    /** A screenshot is flaky after this many changes in the last `FLAKY_WINDOW` builds. */
+    /** A screenshot is flaky after this many flip-flops (returns to an earlier image) in the last `FLAKY_WINDOW` commits. */
     flakyAfterChanges: integer('flaky_after_changes').notNull().default(FLAKY_MIN_CHANGES),
     /** Days a snoozed item stays away when the snooze names no date. */
     snoozeDefaultDays: integer('snooze_default_days').notNull().default(7),
@@ -84,7 +84,7 @@ export const teams = pgTable(
     check('teams_diff_threshold_check', sql`${t.diffThreshold} >= 0 and ${t.diffThreshold} <= 1`),
     check('teams_color_check', inList('color', TEAM_COLORS)),
     check('teams_retention_days_check', sql`${t.retentionDays} >= 1`),
-    check('teams_flaky_after_changes_check', sql`${t.flakyAfterChanges} between 1 and 10`),
+    check('teams_flaky_after_changes_check', sql`${t.flakyAfterChanges} between 2 and 8`),
     check('teams_snooze_default_days_check', sql`${t.snoozeDefaultDays} between 1 and 30`),
     check(
       'teams_review_target_hours_check',

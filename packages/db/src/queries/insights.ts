@@ -1,6 +1,5 @@
 import {
-  FLAKY_WINDOW,
-  flakyNames,
+  flakyScreenshots,
   HOUR_MS,
   isOverdue,
   isSnoozed,
@@ -30,6 +29,8 @@ import { workspaceAccepts, type SessionMethod } from '#shared/session-method.ts'
 import { teamVisibleTo } from '#shared/team-visibility.ts'
 import type { Database } from '#src/client.ts'
 
+import { FLAKY_HISTORY_MAX_BUILDS, loadFlakyHistory, type FlakyHistoryBuild } from './flaky.ts'
+
 /**
  * Insights (PLAN M4 metrics): aggregates over a workspace's review history, optionally for
  * one team. Everything is limited to workspaces the user belongs to.
@@ -40,8 +41,8 @@ import type { Database } from '#src/client.ts'
  *   review is ready to that first decision, and the build belongs to the range its first
  *   decision falls in.
  * - Change rate is finished builds with changes over all finished builds, by ready time.
- * - A screenshot is flaky at a moment by the team's flaky rule (`flakyNames`) over its
- *   default-branch builds up to then.
+ * - A screenshot is flaky at a moment by the team's flaky rule (`flakyScreenshots`) over its
+ *   default-branch history up to then, loaded by the same bounded query as every other flaky answer.
  */
 
 export namespace getInsights {
@@ -169,16 +170,18 @@ export async function getInsights(
   }
 
   const history = empty
-    ? new Map<string, HistoryBuild[]>()
-    : await defaultBranchHistory(db, scoped, to)
+    ? new Map<string, FlakyHistoryBuild[]>()
+    : await loadFlakyHistory(db, scoped, { until: to, since: from })
   const weeks = weeksBetween(from, to).map((start): getInsights.Week => {
     const end = new Date(Math.min(start.getTime() + WEEK_MS, to.getTime()))
     const lo = new Date(Math.max(start.getTime(), from.getTime()))
     const inWeek = reviewed.filter((r) => r.reviewedAt >= lo && r.reviewedAt < end)
     let flaky = 0
     for (const p of scoped) {
-      const upTo = (history.get(p.id) ?? []).filter((b) => b.createdAt <= end)
-      flaky += flakyNames(upTo, FLAKY_WINDOW, p.flakyAfterChanges).length
+      const upTo = (history.get(p.id) ?? [])
+        .filter((b) => b.createdAt <= end)
+        .slice(-FLAKY_HISTORY_MAX_BUILDS)
+      flaky += flakyScreenshots(upTo, { threshold: p.flakyAfterChanges }).length
     }
     return {
       weekStart: start,
@@ -261,64 +264,6 @@ async function finishedBuilds(db: Database, teamIds: string[], from: Date, to: D
     readyAt: new Date(r.readyAt),
     changed: r.conclusion === 'changes_detected',
   }))
-}
-
-interface HistoryBuild {
-  createdAt: Date
-  changed: string[]
-}
-
-/** Each team's finished default-branch builds up to `to`, oldest first, with what changed. */
-async function defaultBranchHistory(
-  db: Database,
-  scoped: { id: string; defaultBranch: string }[],
-  to: Date,
-) {
-  const rows = await db
-    .select({
-      teamId: builds.teamId,
-      buildId: builds.id,
-      createdAt: builds.createdAt,
-      number: builds.number,
-      branch: builds.branch,
-    })
-    .from(builds)
-    .where(
-      and(
-        inArray(
-          builds.teamId,
-          scoped.map((p) => p.id),
-        ),
-        eq(builds.status, 'complete'),
-        lt(builds.createdAt, to),
-      ),
-    )
-    .orderBy(builds.createdAt, builds.number)
-  const branchOf = new Map(scoped.map((p) => [p.id, p.defaultBranch]))
-  const onDefault = rows.filter((r) => r.branch === branchOf.get(r.teamId))
-  const changed = new Map<string, string[]>()
-  if (onDefault.length > 0) {
-    const diffs = await db
-      .select({ buildId: screenshotDiffs.buildId, name: screenshotDiffs.name })
-      .from(screenshotDiffs)
-      .where(
-        and(
-          eq(screenshotDiffs.status, 'changed'),
-          inArray(
-            screenshotDiffs.buildId,
-            onDefault.map((r) => r.buildId),
-          ),
-        ),
-      )
-    for (const d of diffs) changed.set(d.buildId, [...(changed.get(d.buildId) ?? []), d.name])
-  }
-  const byTeam = new Map<string, HistoryBuild[]>()
-  for (const r of onDefault) {
-    const list = byTeam.get(r.teamId) ?? []
-    list.push({ createdAt: r.createdAt, changed: changed.get(r.buildId) ?? [] })
-    byTeam.set(r.teamId, list)
-  }
-  return byTeam
 }
 
 /** Bytes of distinct files (screenshots, thumbnails and diffs) each team's builds refer to. */

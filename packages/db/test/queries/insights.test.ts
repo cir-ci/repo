@@ -1,6 +1,7 @@
 import {
   addTestMember,
   createTestDb,
+  imageSha,
   seedBuild,
   seedDiff,
   seedTeam,
@@ -38,9 +39,11 @@ const at = (iso: string) => new Date(`2026-${iso}:00Z`)
  *   f4 ready 03-18 10:00   never reviewed
  *  Main builds (auto-approved, not reviewed by anyone):
  *   m1 03-10 12:00 changes (hero, nav changed)   m2 03-11 12:00 changes (hero)
- *   m3 03-18 12:00 changes (hero)                m4 03-19 12:00 no changes
+ *   m3 03-18 12:00 changes (hero)                m4 03-19 12:00 no changes (hero shows image A)
  *  Before the range: p1 feature 03-02 10:00 changes, O approves 03-02 16:00 (6h);
  *   p2 main 03-03 10:00 no changes.
+ *  The hero image on main goes A (p2), B (m1), A (m2), B (m3), A (m4): a return to an earlier
+ *   image at m2, m3 and m4, so it is flaky (3 flip-flops) from m4. nav changes once: never flaky.
  *
  *  Requests: f4 to O (created 03-18 10:00, due 03-19 10:00, open); f3 to M (03-17 10:00, due
  *   03-18 10:00, done 03-19 10:00); f2 to M (03-10 08:00, due 03-11 08:00, done 03-10 20:00).
@@ -65,6 +68,7 @@ async function history() {
       createdAt: at(ready),
       completedAt: at(ready),
     })
+  const p2 = await make('main', '03-03T10:00', 'no_changes')
   const f1 = await make('feature/a', '03-09T10:00')
   const f2 = await make('feature/b', '03-10T08:00')
   const f3 = await make('feature/c', '03-17T09:00')
@@ -72,9 +76,8 @@ async function history() {
   const m1 = await make('main', '03-10T12:00')
   const m2 = await make('main', '03-11T12:00')
   const m3 = await make('main', '03-18T12:00')
-  await make('main', '03-19T12:00', 'no_changes')
+  const m4 = await make('main', '03-19T12:00', 'no_changes')
   const p1 = await make('feature/p', '03-02T10:00')
-  await make('main', '03-03T10:00', 'no_changes')
 
   const decide = (buildId: string, userId: string | null, when: string) =>
     seedReview(t.db, { buildId, userId, createdAt: at(when) })
@@ -87,10 +90,19 @@ async function history() {
   await decide(m2.id, null, '03-11T12:00')
   await decide(m3.id, null, '03-18T12:00')
 
-  await seedDiff(t.db, { buildId: m1.id, name: 'hero', status: 'changed' })
-  await seedDiff(t.db, { buildId: m1.id, name: 'nav', status: 'changed' })
-  await seedDiff(t.db, { buildId: m2.id, name: 'hero', status: 'changed' })
-  await seedDiff(t.db, { buildId: m3.id, name: 'hero', status: 'changed' })
+  const hero = (buildId: string, image: string, status: 'changed' | 'unchanged' = 'changed') =>
+    seedDiff(t.db, { buildId, name: 'hero', status, headSha256: imageSha(image) })
+  await hero(p2.id, 'A', 'unchanged')
+  await hero(m1.id, 'B')
+  await seedDiff(t.db, {
+    buildId: m1.id,
+    name: 'nav',
+    status: 'changed',
+    headSha256: imageSha('N'),
+  })
+  await hero(m2.id, 'A')
+  await hero(m3.id, 'B')
+  await hero(m4.id, 'A', 'unchanged')
 
   await seedReviewRequest(t.db, {
     buildId: f4.id,
@@ -177,9 +189,9 @@ describe('getInsights', () => {
         w.flaky,
       ]),
     ).toEqual([
-      // hero changed twice by the end of week one: not flaky yet
+      // hero has returned to an earlier image once by the end of week one: not flaky yet
       ['2026-03-09', 2, 7, 0],
-      // the third change, on 18 March, makes it flaky (nav changed once)
+      // the third return, on 19 March, makes it flaky (nav changed once, and only once)
       ['2026-03-16', 1, 30, 1],
     ])
   })
@@ -187,13 +199,14 @@ describe('getInsights', () => {
   it('sums distinct stored bytes per team, counting a shared file in each', async () => {
     const { workspace, owner } = await history()
     const r = await getInsights(t.db, { userId: owner.id, workspaceSlug: workspace.slug, ...range })
-    // web: home 1000 (once, though two builds use it) + thumbnail 100 + diff 50
+    // web: home 1000 (once, though two builds use it) + thumbnail 100 + diff 50 + the hero
+    // and nav images of main (1 byte each: A, B, N)
     expect(r?.storage).toEqual({
       teams: [
         { slug: 'docs', name: 'docs', bytes: 1000 },
-        { slug: 'web', name: 'web', bytes: 1150 },
+        { slug: 'web', name: 'web', bytes: 1153 },
       ],
-      totalBytes: 2150,
+      totalBytes: 2153,
     })
   })
 

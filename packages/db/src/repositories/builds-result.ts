@@ -1,3 +1,4 @@
+import type { FlakyDecision } from '@circi/core'
 import { and, desc, eq, inArray, ne } from 'drizzle-orm'
 
 import { type BuildConclusion, builds, reviews, screenshots } from '#schema/index.ts'
@@ -31,6 +32,7 @@ export async function setBuildResult(
         conclusion: result.conclusion,
         completedAt: new Date(),
         errorMessage: null,
+        flakyDecision: result.flakyDecision ?? null,
         ...(approved ? { reviewStatus: 'approved' as const } : {}),
       })
       .where(eq(builds.id, build.id))
@@ -71,6 +73,8 @@ export namespace setBuildResult {
   export type Approval = Input['approval']
   export type Input = {
     conclusion: BuildConclusion
+    /** The flaky set the merge gate used (`buildFlakyDecision`), kept so later answers can't drift. */
+    flakyDecision?: FlakyDecision
   } & (
     | { approval: 'none' | 'default-branch' | 'rerun' }
     | { approval: 'rerun-rejected'; carriedFrom: string }
@@ -155,6 +159,7 @@ export async function resetBuild(db: Database, buildId: string): Promise<Build> 
       reviewStatus: 'pending',
       completedAt: null,
       errorMessage: null,
+      flakyDecision: null,
     })
     .where(and(eq(builds.id, buildId), inArray(builds.status, ['complete', 'error'])))
     .returning()

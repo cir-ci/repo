@@ -1,4 +1,4 @@
-import { rotationFor, rotationHandover } from '@circi/core'
+import { FLAKY_WINDOW, lastCommits, rotationFor, rotationHandover } from '@circi/core'
 import {
   aliasedTable,
   and,
@@ -28,15 +28,16 @@ import {
 import type { Database } from '#src/client.ts'
 import type { Build } from '#src/types.ts'
 
-import { listFlakyScreenshots } from './flaky.ts'
+import { flakyVerdictsFor, type FlakyHistoryBuild } from './flaky.ts'
 import { getTriageRotation, latestDefaultBranchBuildNumber } from './triage-rotation.ts'
 
 /**
  * A team's triage queue: the problems on its default branch that nobody has dealt with.
  * They are derived from builds each time (nothing is stored until someone acts on one):
  *
- *   flaky        a screenshot that keeps changing on the default branch (see `listFlakyScreenshots`);
- *                the build is the latest one where it changed
+ *   flaky        a screenshot that keeps coming back to an earlier image on the default branch, or
+ *                differs across runs of one commit (`flakyScreenshots` in `@circi/core`, loaded once
+ *                by `flakyVerdictsFor`); the build is the latest one where it changed
  *   no_baseline  a screenshot whose only default-branch builds had no baseline to compare with
  *   failed       a default-branch build that ended in error and has not been followed by one that
  *                completed
@@ -66,8 +67,13 @@ export namespace listTriage {
     snoozeKind: SnoozeKind | null
     /** Whether the item is snoozed right now (and so belongs under Snoozed, not in the queue). */
     snoozed: boolean
-    /** A flaky item's last default-branch builds, oldest first, and whether it changed in each. */
+    /**
+     * A flaky item's last default-branch commits, oldest first (a commit's reruns are one entry,
+     * numbered by its latest build), and whether it changed in each.
+     */
     history: { number: number; changed: boolean }[]
+    /** Why a flaky item is flaky ("came back to an earlier image 3 times"); null for the other kinds. */
+    reason: string | null
     /** Why a failed build ended in error; null otherwise. */
     error: string | null
     /** Pull requests whose latest build shows a flaky screenshot as changed, review pending. */
@@ -90,43 +96,30 @@ const KIND_ORDER: Record<TriageKind, number> = { flaky: 0, no_baseline: 1, faile
 
 type BuildRef = listTriage.Item['build']
 
-/** For each name, the last 10 completed builds on the branch (oldest first) and whether it changed. */
-async function flakyHistory(
-  db: Database,
-  teamId: string,
-  branch: string,
-  names: string[],
-): Promise<Map<string, { number: number; changed: boolean }[]>> {
-  const result = new Map<string, { number: number; changed: boolean }[]>()
-  if (names.length === 0) return result
-  const recent = await db
-    .select({ id: builds.id, number: builds.number })
-    .from(builds)
-    .where(and(eq(builds.teamId, teamId), eq(builds.branch, branch), eq(builds.status, 'complete')))
-    .orderBy(desc(builds.number))
-    .limit(10)
-  const diffs = await db
-    .select({ buildId: screenshotDiffs.buildId, name: screenshotDiffs.name })
-    .from(screenshotDiffs)
-    .where(
-      and(
-        eq(screenshotDiffs.status, 'changed'),
-        inArray(
-          screenshotDiffs.buildId,
-          recent.map((r) => r.id),
-        ),
-        inArray(screenshotDiffs.name, names),
-      ),
-    )
-  const changed = new Set(diffs.map((d) => `${d.buildId}\u0000${d.name}`))
-  const ascending = recent.toSorted((a, b) => a.number - b.number)
-  for (const name of names) {
-    result.set(
+/**
+ * For each name, the window's commits (oldest first; reruns of a commit are one entry numbered by
+ * its latest build) and whether it changed in each. From the history `flakyVerdictsFor` already
+ * loaded, so no further query.
+ */
+function flakyHistory(
+  window: readonly FlakyHistoryBuild[],
+  names: readonly string[],
+): Map<string, { number: number; changed: boolean }[]> {
+  const commits = lastCommits(window, FLAKY_WINDOW)
+  return new Map(
+    names.map((name) => [
       name,
-      ascending.map((b) => ({ number: b.number, changed: changed.has(`${b.id}\u0000${name}`) })),
-    )
-  }
-  return result
+      commits.map((c) => ({
+        number: Math.max(...c.runs.map((r) => r.number)),
+        changed: c.runs.some((r) => r.shots.get(name)?.changed === true),
+      })),
+    ]),
+  )
+}
+
+/** The latest default-branch build in the window where the name changed. */
+function latestChange(window: readonly FlakyHistoryBuild[], name: string) {
+  return window.findLast((b) => b.shots.get(name)?.changed === true)
 }
 
 /** For each name, how many pull requests show it as changed in their latest build, still pending. */
@@ -199,32 +192,30 @@ export async function listTriage(
     createdAt: builds.createdAt,
   }
 
-  // Flaky: the latest default-branch build in which each flaky name changed.
-  const { flaky } = await listFlakyScreenshots(db, team.id)
+  // Flaky: one bounded history, the one rule; the latest build in which each flaky name changed.
+  const { builds: window, flaky } = (await flakyVerdictsFor(db, [team])).get(team.id) ?? {
+    builds: [],
+    flaky: [],
+  }
   const flakyNames = flaky.map((f) => f.name)
-  const history = await flakyHistory(db, team.id, branch, flakyNames)
+  const reasons = new Map(flaky.map((f) => [f.name, f.reason]))
+  const history = flakyHistory(window, flakyNames)
   const blocking = await flakyBlocking(db, team.id, flakyNames)
-  if (flaky.length > 0) {
-    const rows = await db
-      .selectDistinctOn([screenshotDiffs.name], { name: screenshotDiffs.name, build: buildRef })
-      .from(screenshotDiffs)
-      .innerJoin(builds, eq(builds.id, screenshotDiffs.buildId))
-      .where(
-        and(
-          eq(builds.teamId, team.id),
-          eq(builds.branch, branch),
-          eq(builds.status, 'complete'),
-          eq(screenshotDiffs.status, 'changed'),
-          inArray(
-            screenshotDiffs.name,
-            flaky.map((f) => f.name),
-          ),
-        ),
-      )
-      .orderBy(screenshotDiffs.name, desc(builds.number))
-    for (const r of rows) {
-      found.push({ kind: 'flaky', key: r.name, snapshotName: r.name, build: r.build })
-    }
+  for (const f of flaky) {
+    const latest = latestChange(window, f.name) ?? window.at(-1)
+    if (!latest) continue
+    found.push({
+      kind: 'flaky',
+      key: f.name,
+      snapshotName: f.name,
+      build: {
+        number: latest.number,
+        branch,
+        commitSha: latest.commitSha,
+        status: 'complete',
+        createdAt: latest.createdAt,
+      },
+    })
   }
 
   // No baseline: added on a default-branch build that had nothing to compare with, and never
@@ -348,6 +339,7 @@ export async function listTriage(
       snoozeKind: snoozed ? kind : null,
       snoozed,
       history: f.kind === 'flaky' ? (history.get(f.key) ?? []) : [],
+      reason: f.kind === 'flaky' ? (reasons.get(f.key) ?? null) : null,
       error: f.error ?? null,
       blocking: f.kind === 'flaky' ? (blocking.get(f.key) ?? 0) : 0,
     })
@@ -405,14 +397,30 @@ export async function countAssignedTriage(
  * How many items wait in each team's queue of a workspace (not snoozed, not dismissed), in one
  * query: the sidebar needs every team's number and must not run a triage list per team. The
  * counts equal `listTriage(...).items.filter(i => !i.snoozed).length` for each team; teams with
- * nothing waiting are in the map with 0. The three kinds mirror `listTriage` (flaky window 10,
- * at least 3 changes; the same orphan and failed rules), then what people did about them is
- * applied the same way (dismissed out, snoozed out while their snooze lasts).
+ * nothing waiting are in the map with 0. The three kinds mirror `listTriage`: the flaky names
+ * come from the same rule over the same bounded history (`flakyVerdictsFor`, not SQL, so the two
+ * cannot disagree) and go into the query as data; the orphan and failed rules are the same, then
+ * what people did about them is applied the same way (dismissed out, snoozed out while their
+ * snooze lasts).
  */
 export async function countOpenTriage(
   db: Database,
   input: { workspaceId: string; now: Date },
 ): Promise<Map<string, number>> {
+  const workspaceTeams = await db
+    .select({
+      id: teams.id,
+      defaultBranch: teams.defaultBranch,
+      flakyAfterChanges: teams.flakyAfterChanges,
+    })
+    .from(teams)
+    .where(eq(teams.workspaceId, input.workspaceId))
+  const verdicts = await flakyVerdictsFor(db, workspaceTeams)
+  const flakyKeys = JSON.stringify(
+    workspaceTeams.flatMap((t) =>
+      (verdicts.get(t.id)?.flaky ?? []).map((f) => ({ team_id: t.id, key: f.name })),
+    ),
+  )
   const result: unknown = await db.execute(sql`
     with ws_teams as (
       select id, default_branch, flaky_after_changes from teams where workspace_id = ${input.workspaceId}
@@ -427,19 +435,9 @@ export async function countOpenTriage(
     last_complete as (
       select team_id, max(number) as n from main_builds where status = 'complete' group by team_id
     ),
-    recent as (
-      select id, team_id from (
-        select id, team_id, row_number() over (partition by team_id order by number desc) as rn
-        from main_builds where status = 'complete'
-      ) r where rn <= 10
-    ),
     found as (
-      select recent.team_id, 'flaky'::text as kind, d.name as key
-      from screenshot_diffs d join recent on recent.id = d.build_id
-      join ws_teams wt on wt.id = recent.team_id
-      where d.status = 'changed'
-      group by recent.team_id, d.name, wt.flaky_after_changes
-      having count(*) >= wt.flaky_after_changes
+      select (x->>'team_id')::uuid as team_id, 'flaky'::text as kind, x->>'key' as key
+      from jsonb_array_elements(${flakyKeys}::jsonb) x
       union
       select mb.team_id, 'no_baseline', d.name
       from screenshot_diffs d join main_builds mb on mb.id = d.build_id

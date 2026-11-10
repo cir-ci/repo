@@ -1,3 +1,4 @@
+import { MAX_FLAKY_FLIP_FLOPS, MIN_FLAKY_FLIP_FLOPS } from '../builds/flaky.ts'
 import { ValidationError } from '../errors.ts'
 
 /**
@@ -31,8 +32,8 @@ export function assertReviewTargetHours(hours: number): void {
 
 /** Most days a snoozed item may stay away by default (a month). */
 export const MAX_SNOOZE_DEFAULT_DAYS = 30
-/** Most changes a team may ask for before a screenshot counts as flaky: the whole window. */
-export const MAX_FLAKY_AFTER_CHANGES = 10
+/** Most flip-flops a team may ask for before a screenshot counts as flaky (what the window allows). */
+export const MAX_FLAKY_AFTER_CHANGES = MAX_FLAKY_FLIP_FLOPS
 
 /** Refuses a snooze default that is not a whole number of days from 1 to 30. */
 export function assertSnoozeDefaultDays(days: number): void {
@@ -46,12 +47,20 @@ export function assertSnoozeDefaultDays(days: number): void {
   }
 }
 
-/** Refuses a flaky threshold that is not a whole number of changes from 1 to the 10-build window. */
-export function assertFlakyAfterChanges(changes: number): void {
-  if (!Number.isInteger(changes) || changes < 1 || changes > MAX_FLAKY_AFTER_CHANGES) {
+/** Refuses a flaky threshold that is not a whole number of flip-flops, `MIN_FLAKY_FLIP_FLOPS` up to what the 10-commit window allows. */
+export function assertFlakyAfterChanges(flipFlops: number): void {
+  if (
+    !Number.isInteger(flipFlops) ||
+    flipFlops < MIN_FLAKY_FLIP_FLOPS ||
+    flipFlops > MAX_FLAKY_AFTER_CHANGES
+  ) {
     throw new ValidationError(
-      `A screenshot is flaky after 1 to ${MAX_FLAKY_AFTER_CHANGES} changes`,
-      { fields: { flakyAfterChanges: `Between 1 and ${MAX_FLAKY_AFTER_CHANGES} changes` } },
+      `A screenshot is flaky after ${MIN_FLAKY_FLIP_FLOPS} to ${MAX_FLAKY_AFTER_CHANGES} flip-flops`,
+      {
+        fields: {
+          flakyAfterChanges: `Between ${MIN_FLAKY_FLIP_FLOPS} and ${MAX_FLAKY_AFTER_CHANGES} flip-flops`,
+        },
+      },
     )
   }
 }

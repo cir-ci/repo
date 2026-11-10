@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { flakyNames, median, percentile, weekStart, weeksBetween } from '#src/index.ts'
+import { median, percentile, weekStart, weeksBetween } from '#src/index.ts'
 
 describe('percentile', () => {
   it('interpolates like percentile_cont', () => {
@@ -33,17 +33,5 @@ describe('weeks', () => {
     expect(
       weeksBetween(new Date('2026-03-09T00:00:00Z'), new Date('2026-03-16T00:00:00Z')),
     ).toHaveLength(1)
-  })
-})
-
-const b = (...changed: string[]) => ({ changed })
-
-describe('flakyNames', () => {
-  it('needs 3 changes in the last 10 builds', () => {
-    expect(flakyNames([b('a'), b('a', 'b'), b('a', 'b')])).toEqual(['a'])
-  })
-  it('forgets builds older than the window', () => {
-    const history = [b('a'), b('a'), b('a'), ...Array.from({ length: 10 }, () => b())]
-    expect(flakyNames(history)).toEqual([])
   })
 })

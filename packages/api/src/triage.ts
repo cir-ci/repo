@@ -28,10 +28,12 @@ export namespace Triage {
     snoozeKind: SnoozeKind | null
     snoozed: boolean
     /**
-     * A flaky item's last builds on the default branch (up to 10, oldest first) and whether the
-     * screenshot changed in each; empty for the other kinds.
+     * A flaky item's last commits on the default branch (up to 10, oldest first; reruns of a
+     * commit are one entry) and whether the screenshot changed in each; empty for the other kinds.
      */
     history: { number: number; changed: boolean }[]
+    /** Why a flaky item is flaky ("came back to an earlier image 3 times"); null for the other kinds. */
+    reason: string | null
     /** Why a failed build ended in error; null for the other kinds, or when no reason was stored. */
     error: string | null
     /**

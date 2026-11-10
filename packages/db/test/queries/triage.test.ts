@@ -1,6 +1,7 @@
 import {
   addTestMember,
   createTestDb,
+  imageSha,
   seedBuild,
   seedDiff,
   seedTeam,
@@ -10,7 +11,11 @@ import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { countOpenTriage, listTriage } from '#src/queries/index.ts'
-import { dismissTriageItem, setTriageRotation } from '#src/repositories/index.ts'
+import {
+  dismissTriageItem,
+  setTriageRotation,
+  updateTeamSettings,
+} from '#src/repositories/index.ts'
 import * as schema from '#src/schema/index.ts'
 
 let t: createTestDb.Result
@@ -53,17 +58,28 @@ describe('listTriage', () => {
 
   it('lists flaky, no-baseline and failed items, each with its build', async () => {
     const { team } = await seedTeam(t.db)
+    await updateTeamSettings(t.db, team.id, { flakyAfterChanges: 2 })
     // Orphan: the first build had nothing to compare with.
     const first = await mainBuild(team.id, { baselineSource: 'none' })
     await seedDiff(t.db, { buildId: first.id, name: 'pricing', status: 'added' })
-    await seedDiff(t.db, { buildId: first.id, name: 'home', status: 'added' })
-    // Flaky: `home` changes in three of the next builds.
+    await seedDiff(t.db, {
+      buildId: first.id,
+      name: 'home',
+      status: 'added',
+      headSha256: imageSha('A'),
+    })
+    // Flaky: `home` goes B, A, B in the next builds: two returns to an earlier image.
     const history = []
-    for (let i = 0; i < 3; i += 1) {
+    for (const image of ['B', 'A', 'B']) {
       // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
       const b = await mainBuild(team.id, { baselineSource: 'cli' })
       // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
-      await seedDiff(t.db, { buildId: b.id, name: 'home', status: 'changed' })
+      await seedDiff(t.db, {
+        buildId: b.id,
+        name: 'home',
+        status: 'changed',
+        headSha256: imageSha(image),
+      })
       // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
       await seedDiff(t.db, { buildId: b.id, name: 'about', status: 'unchanged' })
       history.push(b)
@@ -90,16 +106,18 @@ describe('listTriage', () => {
 
   it('gives a flaky item its last builds, a failed one its error, and counts pull requests it blocks', async () => {
     const { team } = await seedTeam(t.db)
+    await updateTeamSettings(t.db, team.id, { flakyAfterChanges: 2 })
     const history = []
-    for (let i = 0; i < 4; i += 1) {
+    for (const [i, image] of ['A', 'B', 'A', 'B'].entries()) {
       // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
       const b = await mainBuild(team.id, { baselineSource: 'cli' })
-      // `home` changes in builds 1, 2 and 4 of the four, not in the third.
+      // `home` goes A, B, A, B and changes in builds 1, 2 and 4 of the four, not in the third.
       // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
       await seedDiff(t.db, {
         buildId: b.id,
         name: 'home',
         status: i === 2 ? 'unchanged' : 'changed',
+        headSha256: imageSha(image),
       })
       history.push(b)
     }
@@ -240,11 +258,17 @@ describe('countOpenTriage', () => {
     await seedDiff(t.db, { buildId: orphan.id, name: 'docs', status: 'added' })
     await dismissTriageItem(t.db, { teamId: first.team.id, kind: 'no_baseline', key: 'docs' })
     await mainBuild(first.team.id, { status: 'error' })
-    for (let i = 0; i < 3; i += 1) {
+    await updateTeamSettings(t.db, first.team.id, { flakyAfterChanges: 2 })
+    for (const image of ['A', 'B', 'A', 'B']) {
       // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
       const b = await mainBuild(first.team.id, { baselineSource: 'cli' })
       // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
-      await seedDiff(t.db, { buildId: b.id, name: 'home', status: 'changed' })
+      await seedDiff(t.db, {
+        buildId: b.id,
+        name: 'home',
+        status: 'changed',
+        headSha256: imageSha(image),
+      })
     }
     await mainBuild(first.team.id, { status: 'error' })
     await mainBuild(first.team.id, { status: 'error', branch: 'feature' })

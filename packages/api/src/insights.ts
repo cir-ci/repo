@@ -61,7 +61,7 @@ export namespace Insights {
     reviewTargetHours: number | null
     /** Days of branch builds retention keeps: the shortest and longest of the scope's teams. */
     retentionDays: { min: number; max: number } | null
-    /** Changes before a screenshot counts as flaky, when every team in the scope agrees. */
+    /** Flip-flops before a screenshot counts as flaky, when every team in the scope agrees. */
     flakyAfterChanges: number | null
   }
 }

@@ -1,6 +1,6 @@
 /**
- * Arithmetic behind the Insights screen, pure so the boundaries are pinned by tests: percentiles,
- * the weeks the charts bucket by, and which screenshots count as flaky at a point in time.
+ * Arithmetic behind the Insights screen, pure so the boundaries are pinned by tests: percentiles
+ * and the weeks the charts bucket by.
  */
 
 export const HOUR_MS = 3_600_000
@@ -35,24 +35,4 @@ export function weeksBetween(from: Date, to: Date): Date[] {
   const weeks: Date[] = []
   for (let w = weekStart(from).getTime(); w < to.getTime(); w += WEEK_MS) weeks.push(new Date(w))
   return weeks
-}
-
-/** Same defaults as the team's flaky list: changed in 3 of the last 10 default-branch builds. */
-export const FLAKY_WINDOW = 10
-export const FLAKY_MIN_CHANGES = 3
-
-/**
- * The screenshots that are flaky after `history`, the team's finished default-branch builds
- * up to some moment, oldest first, each with the names it changed.
- */
-export function flakyNames(
-  history: readonly { changed: readonly string[] }[],
-  window = FLAKY_WINDOW,
-  minChanges = FLAKY_MIN_CHANGES,
-): string[] {
-  const counts = new Map<string, number>()
-  for (const b of history.slice(-window)) {
-    for (const name of new Set(b.changed)) counts.set(name, (counts.get(name) ?? 0) + 1)
-  }
-  return [...counts].filter(([, n]) => n >= minChanges).map(([name]) => name)
 }

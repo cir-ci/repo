@@ -1,8 +1,15 @@
-import { createTestDb, seedBuild, seedDiff, seedTeam } from '@circi/db/testing'
+import {
+  createTestDb,
+  imageSha,
+  seedBuild,
+  seedDiff,
+  seedFlipFlops,
+  seedMainRun,
+  seedTeam,
+} from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { listFlakyScreenshots } from '#src/queries/index.ts'
-import { buildChangesAreFlakyOnly } from '#src/repositories/index.ts'
+import { buildFlakyDecision } from '#src/repositories/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -12,133 +19,127 @@ afterAll(async () => {
   await t.close()
 })
 
-let n = 0
-/** A finished default-branch build whose screenshots had these statuses. */
-async function mainBuild(
-  teamId: string,
-  statuses: Record<string, 'changed' | 'unchanged'>,
-  branch = 'main',
-) {
-  n += 1
-  const build = await seedBuild(t.db, teamId, {
-    commitSha: `abc${String(n).padStart(4, '0')}0`,
-    branch,
-    status: 'complete',
-  })
-  for (const [name, status] of Object.entries(statuses)) {
-    // oxlint-disable-next-line no-await-in-loop -- a few rows, in order
-    await seedDiff(t.db, { buildId: build.id, name, status })
-  }
-}
-
-describe('listFlakyScreenshots', () => {
-  it('reports screenshots that changed in several recent default-branch builds, worst first', async () => {
-    const { team } = await seedTeam(t.db)
-    for (let i = 0; i < 5; i += 1) {
-      // eslint-disable-next-line no-await-in-loop -- builds are numbered in order
-      await mainBuild(team.id, {
-        clock: 'changed',
-        avatar: i % 2 === 0 ? 'changed' : 'unchanged',
-        header: i === 4 ? 'changed' : 'unchanged',
-        footer: 'unchanged',
-      })
-    }
-    const report = await listFlakyScreenshots(t.db, team.id)
-    expect(report.builds).toBe(5)
-    expect(report.flaky).toEqual([
-      { name: 'clock', changedIn: 5 },
-      { name: 'avatar', changedIn: 3 },
-    ])
-  })
-
-  it('looks only at the default branch, and only at the recent builds', async () => {
-    const { team } = await seedTeam(t.db)
-    for (let i = 0; i < 4; i += 1) {
-      // eslint-disable-next-line no-await-in-loop
-      await mainBuild(team.id, { banner: 'changed' }, 'feature') // other branches don't count
-    }
-    expect((await listFlakyScreenshots(t.db, team.id)).flaky).toEqual([])
-
-    for (let i = 0; i < 4; i += 1) {
-      // eslint-disable-next-line no-await-in-loop
-      await mainBuild(team.id, { old: 'changed' })
-    }
-    for (let i = 0; i < 3; i += 1) {
-      // eslint-disable-next-line no-await-in-loop
-      await mainBuild(team.id, { old: 'unchanged' })
-    }
-    expect((await listFlakyScreenshots(t.db, team.id, { window: 3 })).flaky).toEqual([])
-    expect((await listFlakyScreenshots(t.db, team.id, { window: 10 })).flaky).toEqual([
-      { name: 'old', changedIn: 4 },
-    ])
-  })
-
-  it('says nothing for a team with no builds, or one that never flickers', async () => {
-    const { team } = await seedTeam(t.db)
-    expect(await listFlakyScreenshots(t.db, team.id)).toEqual({ builds: 0, flaky: [] })
-    await mainBuild(team.id, { a: 'unchanged' })
-    expect((await listFlakyScreenshots(t.db, team.id)).flaky).toEqual([])
-  })
-})
-
-/** A team whose `wobble` is flaky (changed in 3 main builds) and `steady` is not. */
+/** A team whose `wobble` flips A, B, A, B, A on main (3 flip-flops, flaky; biggest wobble 0.05) and `steady` doesn't. */
 async function flakyTeam() {
   const { team } = await seedTeam(t.db)
-  for (let i = 0; i < 3; i += 1) {
-    // oxlint-disable-next-line no-await-in-loop -- builds are numbered in order
-    await mainBuild(team.id, { wobble: 'changed', steady: 'unchanged' })
-  }
+  await seedFlipFlops(t.db, team.id, 'wobble', ['A', 'B', 'A', 'B', 'A'], 0.05)
+  await seedMainRun(t.db, team.id, { images: { steady: 'S' } })
   return team
 }
 
 async function pr(
   teamId: string,
-  diffs: Record<string, 'added' | 'removed' | 'changed' | 'unchanged' | 'failed'>,
+  diffs: Record<
+    string,
+    {
+      status: 'added' | 'removed' | 'changed' | 'unchanged' | 'failed'
+      image?: string
+      score?: number
+      sizeChanged?: boolean
+    }
+  >,
 ) {
-  n += 1
   const build = await seedBuild(t.db, teamId, {
-    commitSha: `abc${String(n).padStart(4, '0')}1`,
     branch: 'feature',
     prNumber: 1,
     status: 'complete',
   })
-  for (const [name, status] of Object.entries(diffs)) {
+  for (const [name, d] of Object.entries(diffs)) {
     // oxlint-disable-next-line no-await-in-loop -- a few rows
-    await seedDiff(t.db, { buildId: build.id, name, status })
+    await seedDiff(t.db, {
+      buildId: build.id,
+      name,
+      status: d.status,
+      ...(d.image ? { headSha256: imageSha(d.image) } : {}),
+      ...(d.score === undefined ? {} : { score: d.score }),
+      ...(d.sizeChanged ? { sizeChanged: true } : {}),
+    })
   }
   return build
 }
 
-describe('buildChangesAreFlakyOnly', () => {
-  it('is true when the only changes are flaky screenshots', async () => {
+const wobble = (image: string, score: number, sizeChanged = false) => ({
+  status: 'changed' as const,
+  image,
+  score,
+  sizeChanged,
+})
+
+describe('buildFlakyDecision', () => {
+  it('is flaky-only when the change is an image the screenshot already had on main', async () => {
     const team = await flakyTeam()
-    const build = await pr(team.id, { wobble: 'changed', steady: 'unchanged' })
-    expect(await buildChangesAreFlakyOnly(t.db, build)).toBe(true)
+    const build = await pr(team.id, { wobble: wobble('A', 0.9, true) })
+    const decision = await buildFlakyDecision(t.db, build)
+    expect(decision.flakyOnly).toBe(true)
+    expect(decision.flaky).toEqual([
+      {
+        name: 'wobble',
+        reason: 'came back to an earlier image 3 times',
+        knownImages: [imageSha('A'), imageSha('B')],
+        largestScore: 0.05,
+      },
+    ])
+  })
+
+  it('is flaky-only when it is a new image that differs no more than the biggest wobble', async () => {
+    const team = await flakyTeam()
+    const build = await pr(team.id, { wobble: wobble('NEW', 0.03) })
+    expect((await buildFlakyDecision(t.db, build)).flakyOnly).toBe(true)
+  })
+
+  it('blocks a change that breaks the layout of a flaky screenshot: bigger, or resized', async () => {
+    const team = await flakyTeam()
+    const big = await pr(team.id, { wobble: wobble('NEW', 0.8) })
+    expect((await buildFlakyDecision(t.db, big)).flakyOnly).toBe(false)
+    const resized = await pr(team.id, { wobble: wobble('NEW', 0.01, true) })
+    expect((await buildFlakyDecision(t.db, resized)).flakyOnly).toBe(false)
+    // The flaky set is still recorded: the screenshot is flaky, this change just isn't its wobble.
+    expect((await buildFlakyDecision(t.db, big)).flaky.map((f) => f.name)).toEqual(['wobble'])
   })
 
   it('is false when a steady screenshot changed too', async () => {
     const team = await flakyTeam()
-    const build = await pr(team.id, { wobble: 'changed', steady: 'changed' })
-    expect(await buildChangesAreFlakyOnly(t.db, build)).toBe(false)
+    const build = await pr(team.id, {
+      wobble: wobble('A', 0.01),
+      steady: { status: 'changed', image: 'S2', score: 0.01 },
+    })
+    expect((await buildFlakyDecision(t.db, build)).flakyOnly).toBe(false)
   })
 
   it.each(['added', 'removed', 'failed'] as const)(
     'is false when a screenshot is %s, even next to a flaky change',
     async (status) => {
       const team = await flakyTeam()
-      const build = await pr(team.id, { wobble: 'changed', extra: status })
-      expect(await buildChangesAreFlakyOnly(t.db, build)).toBe(false)
+      const build = await pr(team.id, { wobble: wobble('A', 0.01), extra: { status } })
+      expect((await buildFlakyDecision(t.db, build)).flakyOnly).toBe(false)
     },
   )
 
   it('is false without any change, and when nothing is flaky yet', async () => {
     const team = await flakyTeam()
-    expect(await buildChangesAreFlakyOnly(t.db, await pr(team.id, { wobble: 'unchanged' }))).toBe(
-      false,
-    )
+    const same = await pr(team.id, { wobble: { status: 'unchanged', image: 'B' } })
+    expect((await buildFlakyDecision(t.db, same)).flakyOnly).toBe(false)
     const { team: fresh } = await seedTeam(t.db)
-    expect(await buildChangesAreFlakyOnly(t.db, await pr(fresh.id, { wobble: 'changed' }))).toBe(
-      false,
-    )
+    const build = await pr(fresh.id, { wobble: wobble('A', 0.01) })
+    expect(await buildFlakyDecision(t.db, build)).toEqual({ flakyOnly: false, flaky: [] })
+  })
+
+  it("uses only the builds before the build: its own changes, and later main builds, don't count", async () => {
+    const { team } = await seedTeam(t.db)
+    await seedFlipFlops(t.db, team.id, 'wobble', ['A', 'B', 'A', 'B'], 0.05)
+    // Gated here: wobble has flipped twice on main, short of the team's 3.
+    const build = await pr(team.id, { wobble: wobble('B', 0.05) })
+    // After it, main flips twice more. They are not what this build was judged against.
+    await seedFlipFlops(t.db, team.id, 'wobble', ['A', 'B', 'A', 'B'], 0.05)
+    expect(await buildFlakyDecision(t.db, build)).toEqual({ flakyOnly: false, flaky: [] })
+  })
+
+  it('does not count the gated build itself, when it is on the default branch', async () => {
+    const { team } = await seedTeam(t.db)
+    await seedFlipFlops(t.db, team.id, 'wobble', ['A', 'B', 'A', 'B'], 0.05)
+    // A fifth main build that flips back to A would make wobble flaky, but it is the one gated.
+    const [fifth] = await seedFlipFlops(t.db, team.id, 'wobble', ['A'], 0.05)
+    expect(fifth).toBeDefined()
+    expect((await buildFlakyDecision(t.db, fifth!)).flaky).toEqual([])
   })
 })

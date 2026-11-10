@@ -1,9 +1,11 @@
+import type { FlakyDecision } from '@circi/core'
 import { sql } from 'drizzle-orm'
 import {
   type AnyPgColumn,
   check,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   text,
@@ -60,6 +62,13 @@ export const builds = pgTable(
     parallelTotal: integer('parallel_total'),
     conclusion: text('conclusion').$type<BuildConclusion>(),
     reviewStatus: text('review_status').$type<ReviewStatus>().notNull().default('pending'),
+    /**
+     * The flaky set this build was gated with (`FlakyDecision`), recorded when it finished with
+     * changes: the status endpoint and the check read it back, so they cannot drift when a later
+     * default-branch build changes the team's flaky list. Null for builds finished before this was
+     * recorded (they are evaluated live against the builds before them) and for builds without changes.
+     */
+    flakyDecision: jsonb('flaky_decision').$type<FlakyDecision>(),
     /** Why the build ended in `error`, shown on the build page. */
     errorMessage: text('error_message'),
     /** Who made the change: the CI's actor, replaced by the git host's PR author (B1). */

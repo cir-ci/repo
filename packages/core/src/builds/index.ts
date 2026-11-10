@@ -9,7 +9,26 @@ export {
   MAX_PARALLEL_SHARDS,
   SHA256_RE,
 } from './limits.ts'
-export { DEFAULT_FLAKY_BLOCKS_MERGE, onlyFlakyChanges, resolveFlakyBlocksMerge } from './flaky.ts'
+export {
+  DEFAULT_FLAKY_BLOCKS_MERGE,
+  describeFlakyReason,
+  FLAKY_MIN_CHANGES,
+  FLAKY_WINDOW,
+  flakyScreenshots,
+  judgeFlaky,
+  lastCommits,
+  looksLikeKnownVariation,
+  MAX_FLAKY_FLIP_FLOPS,
+  MIN_FLAKY_FLIP_FLOPS,
+  onlyFlakyChanges,
+  resolveFlakyBlocksMerge,
+  type FlakyBuild,
+  type FlakyChange,
+  type FlakyDecision,
+  type FlakyGateEntry,
+  type FlakyShot,
+  type FlakyVerdict,
+} from './flaky.ts'
 export {
   BUILD_FILTER_REVIEWS,
   BUILD_FILTER_STATUSES,
@@ -18,14 +37,4 @@ export {
   type BuildOrder,
 } from './build-filters.ts'
 export { buildOutcome } from './outcome.ts'
-export {
-  FLAKY_MIN_CHANGES,
-  FLAKY_WINDOW,
-  flakyNames,
-  HOUR_MS,
-  median,
-  percentile,
-  WEEK_MS,
-  weekStart,
-  weeksBetween,
-} from './insights.ts'
+export { HOUR_MS, median, percentile, WEEK_MS, weekStart, weeksBetween } from './insights.ts'

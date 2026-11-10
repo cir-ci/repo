@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildOutcome, onlyFlakyChanges, resolveFlakyBlocksMerge } from '#src/index.ts'
+import { buildOutcome, resolveFlakyBlocksMerge } from '#src/index.ts'
 
 const flags = { flakyOnly: false, flakyBlocksMerge: true }
 const done = { status: 'complete', conclusion: 'changes_detected', reviewStatus: 'pending' }
@@ -75,27 +75,5 @@ describe('resolveFlakyBlocksMerge', () => {
     [false, false, false],
   ] as const)('workspace %s, team %s → %s', (workspace, team, effective) => {
     expect(resolveFlakyBlocksMerge(workspace, team)).toBe(effective)
-  })
-})
-
-describe('onlyFlakyChanges', () => {
-  const counts = { added: 0, removed: 0, changed: 2, failed: 0 }
-  const flaky = ['wobble', 'blink']
-
-  it('is true when every changed screenshot is flaky', () => {
-    expect(onlyFlakyChanges({ counts, changed: ['wobble', 'blink'], flaky })).toBe(true)
-  })
-
-  it("is false when one changed screenshot isn't flaky", () => {
-    expect(onlyFlakyChanges({ counts, changed: ['wobble', 'steady'], flaky })).toBe(false)
-  })
-
-  it.each(['added', 'removed', 'failed'] as const)('is false when something is %s', (kind) => {
-    const c = { ...counts, changed: 1, [kind]: 1 }
-    expect(onlyFlakyChanges({ counts: c, changed: ['wobble'], flaky })).toBe(false)
-  })
-
-  it('is false without any change', () => {
-    expect(onlyFlakyChanges({ counts: { ...counts, changed: 0 }, changed: [], flaky })).toBe(false)
   })
 })

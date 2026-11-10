@@ -140,7 +140,7 @@ export namespace teamSettings {
     autoApproveNoChanges: boolean
     /** Rejecting needs a written reason. */
     requireRejectReason: boolean
-    /** A screenshot is flaky after this many changes in the last 10 default-branch builds. */
+    /** A screenshot is flaky after this many flip-flops in the last 10 default-branch commits. */
     flakyAfterChanges: number
     /** Days a snoozed triage item stays away when the snooze names no date. */
     snoozeDefaultDays: number

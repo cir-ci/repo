@@ -74,8 +74,22 @@ export async function seedDiff(
     status?: 'added' | 'removed' | 'changed' | 'unchanged' | 'failed'
     diffFileSha256?: string
     diffFileSize?: number
+    /**
+     * The head image's hash: the build gets a screenshot with it (flakiness is about images, so
+     * history without them says nothing), linked as the diff's head.
+     */
+    headSha256?: string
+    score?: number
+    sizeChanged?: boolean
   },
 ) {
+  const head = input.headSha256
+    ? await seedScreenshot(db, {
+        buildId: input.buildId,
+        name: input.name ?? 'home',
+        fileSha256: input.headSha256,
+      })
+    : undefined
   if (input.diffFileSha256) {
     await seedFile(db, {
       sha256: input.diffFileSha256,
@@ -90,6 +104,9 @@ export async function seedDiff(
       name: input.name ?? 'home',
       status: input.status ?? 'unchanged',
       jobStatus: 'done',
+      ...(head ? { headScreenshotId: head.id } : {}),
+      ...(input.score === undefined ? {} : { score: input.score }),
+      ...(input.sizeChanged === undefined ? {} : { sizeChanged: input.sizeChanged }),
       ...(input.diffFileSha256 ? { diffFileSha256: input.diffFileSha256 } : {}),
     })
     .returning()

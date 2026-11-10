@@ -1,10 +1,8 @@
-import { createTestDb, seedBuild, seedDiff, seedTeam } from '@circi/db/testing'
-import { eq } from 'drizzle-orm'
+import { createTestDb, seedFlipFlops, seedTeam } from '@circi/db/testing'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { countOpenTriage, listFlakyScreenshots } from '#src/queries/index.ts'
 import { updateTeamSettings } from '#src/repositories/index.ts'
-import * as schema from '#src/schema/index.ts'
 
 let t: createTestDb.Result
 beforeAll(async () => {
@@ -14,39 +12,35 @@ afterAll(async () => {
   await t.close()
 })
 
-/** `home` changes in two of three default-branch builds. */
-async function twoChanges() {
+/** `home` goes A, B, A, B: two returns to an earlier image. */
+async function twoFlipFlops() {
   const { team, workspace } = await seedTeam(t.db)
-  for (const status of ['changed', 'changed', 'unchanged'] as const) {
-    // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
-    const build = await seedBuild(t.db, team.id, { branch: 'main', status: 'complete' })
-    // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
-    await t.db
-      .update(schema.builds)
-      .set({ baselineSource: 'cli' })
-      .where(eq(schema.builds.id, build.id))
-    // oxlint-disable-next-line no-await-in-loop -- tiny fixed list
-    await seedDiff(t.db, { buildId: build.id, name: 'home', status })
-  }
+  await seedFlipFlops(t.db, team.id, 'home', ['A', 'B', 'A', 'B'])
   return { team, workspace }
 }
 
-describe("the team's flaky threshold", () => {
-  it('is 3 changes by default, so two changes are not flaky', async () => {
-    const { team } = await twoChanges()
+describe("the team's flaky threshold (flip-flops)", () => {
+  it('is 3 by default, so two flip-flops are not flaky', async () => {
+    const { team } = await twoFlipFlops()
     expect((await listFlakyScreenshots(t.db, team.id)).flaky).toEqual([])
   })
 
-  it('makes a screenshot flaky at the number the team chose', async () => {
-    const { team, workspace } = await twoChanges()
+  it('makes a screenshot flaky at the number the team chose, in the list and the sidebar count alike', async () => {
+    const { team, workspace } = await twoFlipFlops()
     await updateTeamSettings(t.db, team.id, { flakyAfterChanges: 2 })
     expect((await listFlakyScreenshots(t.db, team.id)).flaky).toEqual([
-      { name: 'home', changedIn: 2 },
+      { name: 'home', changedIn: 3, reason: 'came back to an earlier image 2 times' },
     ])
-    // The sidebar's open-triage count agrees with the list.
     const counts = await countOpenTriage(t.db, { workspaceId: workspace.id, now: new Date() })
     expect(counts.get(team.id)).toBe(1)
     await updateTeamSettings(t.db, team.id, { flakyAfterChanges: 3 })
     expect((await listFlakyScreenshots(t.db, team.id)).flaky).toEqual([])
+  })
+
+  it('refuses a threshold of 1: one return is a revert, not flakiness', async () => {
+    const { team } = await seedTeam(t.db)
+    await expect(updateTeamSettings(t.db, team.id, { flakyAfterChanges: 1 })).rejects.toThrow(
+      /flaky after 2 to 8 flip-flops/,
+    )
   })
 })
