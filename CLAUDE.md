@@ -156,7 +156,10 @@ A namespace must contain only types. Never put a value in one.
   of the dashboard. A settings page that needs another page (a team's Sites, a baseline's ignore
   regions) shows it inside settings, in its tab and frame; an app page never links into a settings
   page. The only ways in and out are the settings entry points (the workspace and account menus,
-  ⌘K, the team page's Settings button) and settings' own way back to the app.
+  ⌘K, the team page's Settings button, and right-click context menus, e.g. a team's "Team
+  settings") and settings' own way back to the app. A context menu shows its settings item only to
+  those who can open those settings; the file is a named entry point in
+  `apps/web/test/app/closed-settings.test.ts`.
 - **Saving settings:** a change that doesn't affect anyone's workflow saves as soon as it is made,
   with no Save button: a display name, a team's colour or icon, a workspace picture, the theme,
   personal notification preferences. A change that does (merge gate, thresholds, retention, review

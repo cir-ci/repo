@@ -7,6 +7,7 @@ import { useClientLink } from '#lib/use-client-link.ts'
 
 import { MemberStack } from './AvatarStack.tsx'
 import { changesCell } from './list.ts'
+import { TeamContextMenu } from './TeamContextMenu.tsx'
 
 import styles from './TeamsPage.module.css'
 
@@ -16,80 +17,82 @@ export function TeamRow({ item: { workspace: owner, team, latestBuild } }: TeamR
   const state = latestBuild ? buildState(latestBuild) : null
   const cell = latestBuild ? changesCell(latestBuild) : null
   return (
-    <ListRow
-      className={styles.row}
-      {...clientLink({
-        to: '/$workspace/$team',
-        params: { workspace: owner.slug, team: team.slug },
-      })}
-    >
-      <span className={styles.grid}>
-        <span className={styles.nameCol}>
-          <Avatar
-            type="team"
-            aria-hidden
-            slug={team.slug}
-            name={team.name}
-            color={team.color}
-            icon={team.icon}
-            size={24}
-          />
-          <span className={styles.names}>
-            <span className={styles.title}>{team.name}</span>
-            <span className={styles.subtitle}>
-              {owner.slug}/{team.slug}
+    <TeamContextMenu workspace={owner.slug} team={team.slug}>
+      <ListRow
+        className={styles.row}
+        {...clientLink({
+          to: '/$workspace/$team',
+          params: { workspace: owner.slug, team: team.slug },
+        })}
+      >
+        <span className={styles.grid}>
+          <span className={styles.nameCol}>
+            <Avatar
+              type="team"
+              aria-hidden
+              slug={team.slug}
+              name={team.name}
+              color={team.color}
+              icon={team.icon}
+              size={24}
+            />
+            <span className={styles.names}>
+              <span className={styles.title}>{team.name}</span>
+              <span className={styles.subtitle}>
+                {owner.slug}/{team.slug}
+              </span>
             </span>
           </span>
-        </span>
-        <span className={styles.members}>
-          <MemberStack count={team.memberCount} people={team.memberPreview} />
-        </span>
-        <span className={styles.latest}>
-          {latestBuild && state ? (
-            <>
-              <StatusIcon status={state.status} label={state.label} />
-              <span>#{latestBuild.number}</span>
-              {latestBuild.branch ? (
-                <span className={styles.branch}>{latestBuild.branch}</span>
-              ) : null}
-            </>
-          ) : (
-            <>
-              <StatusIcon status="neutral" label="No builds yet" />
-              <Text variant="small" tone="secondary">
-                No builds yet
-              </Text>
-            </>
-          )}
-        </span>
-        <span className={styles.changes}>
-          {cell?.kind === 'counts' ? (
-            <span className={styles.counts}>
-              {cell.counts.map((c) => (
-                <span key={c.glyph} title={c.title}>
-                  <span aria-hidden="true">
-                    {c.glyph}
-                    {c.count}
+          <span className={styles.members}>
+            <MemberStack count={team.memberCount} people={team.memberPreview} />
+          </span>
+          <span className={styles.latest}>
+            {latestBuild && state ? (
+              <>
+                <StatusIcon status={state.status} label={state.label} />
+                <span>#{latestBuild.number}</span>
+                {latestBuild.branch ? (
+                  <span className={styles.branch}>{latestBuild.branch}</span>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <StatusIcon status="neutral" label="No builds yet" />
+                <Text variant="small" tone="secondary">
+                  No builds yet
+                </Text>
+              </>
+            )}
+          </span>
+          <span className={styles.changes}>
+            {cell?.kind === 'counts' ? (
+              <span className={styles.counts}>
+                {cell.counts.map((c) => (
+                  <span key={c.glyph} title={c.title}>
+                    <span aria-hidden="true">
+                      {c.glyph}
+                      {c.count}
+                    </span>
+                    <span style={visuallyHidden}>{c.title}</span>
                   </span>
-                  <span style={visuallyHidden}>{c.title}</span>
-                </span>
-              ))}
-            </span>
-          ) : cell ? (
-            <Text variant="small" tone="tertiary">
-              {cell.text}
-            </Text>
-          ) : null}
+                ))}
+              </span>
+            ) : cell ? (
+              <Text variant="small" tone="tertiary">
+                {cell.text}
+              </Text>
+            ) : null}
+          </span>
+          <span className={styles.updated}>
+            {latestBuild ? (
+              <Text variant="small" tone="tertiary">
+                <RelativeTime iso={latestBuild.createdAt} />
+              </Text>
+            ) : null}
+          </span>
         </span>
-        <span className={styles.updated}>
-          {latestBuild ? (
-            <Text variant="small" tone="tertiary">
-              <RelativeTime iso={latestBuild.createdAt} />
-            </Text>
-          ) : null}
-        </span>
-      </span>
-    </ListRow>
+      </ListRow>
+    </TeamContextMenu>
   )
 }
 

@@ -22,12 +22,14 @@ const SETTINGS_FILES: RegExp[] = [
   /^features\/sidebar\/SettingsNav\.tsx$/,
 ]
 
-/** Entry points into settings (the workspace and account menus, ⌘K, the team page's Settings button) and shared redirects. */
+/** Entry points into settings (the workspace and account menus, ⌘K, the team page's Settings button, context menus) and shared redirects. */
 const ENTRY_POINTS = new Set([
   'features/auth/UserMenu.tsx',
   'features/sidebar/WorkspaceSwitcher.tsx',
   'features/teams/TeamPage.tsx',
   'features/teams/routes.ts',
+  // A team's right-click menu (sidebar entry, Teams page row): Team settings, for those who may manage.
+  'features/teams/TeamContextMenu.tsx',
   'features/command/model.ts',
   // The phone's More sheet: the workspace and account settings entries (built from helpers, not route literals).
   'app/PhoneMore.tsx',

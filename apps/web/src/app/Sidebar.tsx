@@ -26,6 +26,7 @@ import { useSwitchWorkspace } from '#features/sidebar/use-switch-workspace.ts'
 import { useWorkspaces } from '#features/sidebar/use-workspaces.ts'
 import { WorkspaceSwitcher } from '#features/sidebar/WorkspaceSwitcher.tsx'
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
+import { TeamContextMenu } from '#features/teams/TeamContextMenu.tsx'
 import type { SessionUser } from '#lib/auth-client.ts'
 import { useOverlayStore } from '#lib/stores/overlay-store.ts'
 import { useChosenWorkspace } from '#lib/stores/workspace-store.ts'
@@ -202,7 +203,7 @@ function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
       ? {}
       : { count: triage, countTone: 'neutral' as const, countLabel: noun(triage, TRIAGE_NOUN) }
   return (
-    <>
+    <TeamContextMenu workspace={workspace} team={team.slug} pages>
       <NavLink
         to="/$workspace/$team"
         params={params}
@@ -272,7 +273,7 @@ function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
           ) : null}
         </>
       ) : null}
-    </>
+    </TeamContextMenu>
   )
 }
 
