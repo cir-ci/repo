@@ -277,7 +277,7 @@ describe('Shell, wide', () => {
       expect(header).not.toBeNull()
       expect(page.getByRole('main').element().contains(shown)).toBe(true)
       expect(header?.nextElementSibling?.contains(shown)).toBe(true)
-      expect(getComputedStyle(header as Element).position).toBe('sticky')
+      expect(header && getComputedStyle(header).position).toBe('sticky')
     } finally {
       API['/api/instance/notices'] = {}
     }
