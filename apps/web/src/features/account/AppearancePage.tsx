@@ -1,6 +1,8 @@
 import {
   type ColorMode,
   palettes,
+  Radio,
+  RadioGroup,
   SettingsRow,
   SettingsSection,
   Text,
@@ -55,25 +57,20 @@ export function AppearancePage() {
     <Frame crumbs={['Account', 'Appearance']}>
       <SettingsSection title="Theme">
         <SettingsRow>
-          <fieldset className={styles.cards} aria-label="Theme">
+          <RadioGroup
+            label="Theme"
+            value={mode}
+            className={styles.cards}
+            onValueChange={(next) => {
+              const choice = CHOICES.find((c) => c.mode === next)
+              if (!choice) return
+              setMode(choice.mode)
+              setSaved(true)
+              toast(`Theme saved: ${choice.label}`)
+            }}
+          >
             {CHOICES.map((c) => (
-              <label
-                key={c.mode}
-                className={styles.card}
-                {...(mode === c.mode ? { 'data-checked': '' } : {})}
-              >
-                <input
-                  type="radio"
-                  name="theme"
-                  value={c.mode}
-                  checked={mode === c.mode}
-                  className={styles.cardInput}
-                  onChange={() => {
-                    setMode(c.mode)
-                    setSaved(true)
-                    toast(`Theme saved: ${c.label}`)
-                  }}
-                />
+              <Radio key={c.mode} value={c.mode} className={styles.card}>
                 <span className={styles.mock} aria-hidden="true" style={{ padding: 0, gap: 0 }}>
                   {c.mode === 'system' ? (
                     <>
@@ -91,9 +88,9 @@ export function AppearancePage() {
                 <Text variant="small" tone="tertiary">
                   {c.help}
                 </Text>
-              </label>
+              </Radio>
             ))}
-          </fieldset>
+          </RadioGroup>
         </SettingsRow>
         <SettingsRow detail="Kept in this browser only. Screenshots under review always show on white.">
           {saved ? (

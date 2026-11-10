@@ -1,0 +1,26 @@
+/* A reset with no weight: the caller's class (a card, a swatch) sets the look. */
+.group {
+  min-width: 0;
+}
+
+:where(.radio) {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.radio:focus-visible {
+  outline: 2px solid var(--circi-accent-text);
+  outline-offset: 2px;
+}
+
+.radio[data-disabled] {
+  opacity: 0.45;
+  cursor: default;
+}

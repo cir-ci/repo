@@ -1,5 +1,5 @@
 import type { Team } from '@circi/api'
-import { Avatar, SettingsRow, SettingsSection, TextField } from '@circi/ui'
+import { Avatar, Radio, RadioGroup, SettingsRow, SettingsSection, TextField } from '@circi/ui'
 import { useMemo, useState } from 'react'
 
 import { useSaveAppearance, useSaveSettings } from '#features/teams/api/index.ts'
@@ -103,24 +103,31 @@ function AppearancePanel({
 
   return (
     <div className={styles.panel}>
-      <fieldset className={styles.swatches}>
-        <legend className={styles.legend}>Colour</legend>
-        {TEAM_COLORS.map((c) => (
-          <label key={c} className={styles.swatch} data-on={c === color ? '' : undefined}>
-            <input
-              type="radio"
-              name="team-colour"
+      <div className={styles.swatchGroup}>
+        <span aria-hidden="true" className={styles.legend}>
+          Colour
+        </span>
+        <RadioGroup
+          label="Colour"
+          value={color}
+          className={styles.swatches}
+          onValueChange={(next) => {
+            if (isTeamColor(next)) pick({ color: next, icon: appearance.icon })
+          }}
+        >
+          {TEAM_COLORS.map((c) => (
+            <Radio
+              key={c}
               value={c}
-              checked={c === color}
               aria-label={colourLabel(c)}
               title={colourLabel(c)}
-              className={styles.radio}
-              onChange={() => pick({ color: c, icon: appearance.icon })}
-            />
-            <span className={styles.dot} style={{ background: `var(--circi-team-${c})` }} />
-          </label>
-        ))}
-      </fieldset>
+              className={styles.swatch}
+            >
+              <span className={styles.dot} style={{ background: `var(--circi-team-${c})` }} />
+            </Radio>
+          ))}
+        </RadioGroup>
+      </div>
       <TextField
         label="Find an icon"
         hideLabel

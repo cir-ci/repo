@@ -545,6 +545,23 @@ describe('TeamSettingsPage', () => {
       })
     })
 
+    it('moves between the colours with the arrow keys, saving the one it lands on', async () => {
+      const fake = api(
+        { appearance: ARIA },
+        { [`PATCH ${API}/appearance`]: { body: { appearance: { color: 'plum', icon: null } } } },
+      )
+      await show()
+      await openPicker()
+      const group = page.getByRole('radiogroup', { name: 'Colour' })
+      await expect.element(group).toBeVisible()
+      const slate = group.getByRole('radio', { name: 'Slate' })
+      await expect.element(slate).toBeChecked()
+      slate.element().focus()
+      await userEvent.keyboard('{ArrowRight}')
+      await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
+      expect(fake.of('PATCH')[0]?.body).not.toMatchObject({ color: 'slate' })
+    })
+
     it('keeps the colours and icons out of the page until the avatar is clicked, and Escape returns focus', async () => {
       api({ appearance: ARIA })
       await show()

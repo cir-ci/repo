@@ -171,18 +171,6 @@
   box-shadow: inset 0 0 0 1px var(--circi-accent-main);
 }
 
-.card:focus-within {
-  outline: 2px solid var(--circi-accent-text);
-  outline-offset: 2px;
-}
-
-.cardInput {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-}
-
 .mock {
   display: flex;
   gap: 4px;

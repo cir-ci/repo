@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { page } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 
 import { AppearancePage } from '#features/account/AppearancePage.tsx'
 import { NotificationsPage } from '#features/account/NotificationsPage.tsx'
@@ -102,7 +102,7 @@ describe('AppearancePage', () => {
   it('offers system, light and dark as radio cards and applies the choice', async () => {
     await page.viewport(1000, 800)
     await renderPage(<AppearancePage />)
-    const group = page.getByRole('group', { name: 'Theme' })
+    const group = page.getByRole('radiogroup', { name: 'Theme' })
     await expect.element(group).toBeVisible()
     // One "Theme" heading: the cards' group name is not a second one.
     expect(page.getByRole('heading', { name: 'Theme' }).elements()).toHaveLength(1)
@@ -115,6 +115,10 @@ describe('AppearancePage', () => {
     await light.click()
     await expect.element(light).toBeChecked()
     expect(document.documentElement.getAttribute('data-circi-color-scheme')).toBe('light')
+    // The arrow keys move between the cards and choose, as one group.
+    await userEvent.keyboard('{ArrowRight}')
+    await expect.element(dark).toHaveFocus()
+    await expect.element(dark).toBeChecked()
   })
 
   it('says Saved at once after a choice: there is no Save button for a theme', async () => {
