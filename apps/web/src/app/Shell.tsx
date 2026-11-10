@@ -15,6 +15,7 @@ import { InvitationBanner } from '#features/auth/InvitationBanner.tsx'
 import { Logo } from '#features/auth/Logo.tsx'
 import { SessionCheck } from '#features/auth/SessionCheck.tsx'
 import { AddressChangeBanner } from '#features/instance/AddressChangeBanner.tsx'
+import { AddToHomeScreenSheet } from '#features/pwa/AddToHomeScreenSheet.tsx'
 import { SettingsNav } from '#features/sidebar/SettingsNav.tsx'
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { TeamDialogs } from '#features/teams/TeamDialogs.tsx'
@@ -191,6 +192,7 @@ function SignedInFrame({ user }: { user: SessionUser }) {
         </PanelNotices>
       </AppFrame>
       <TeamDialogs />
+      <AddToHomeScreenSheet />
       <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} title="Navigation">
         <nav aria-label={navLabel} className={styles.drawerNav}>
           {nav}

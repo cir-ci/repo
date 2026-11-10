@@ -48,6 +48,8 @@ export async function startDashboard(extra: Partial<Deps.Dashboard> = {}) {
   await mkdir(join(webDist, 'assets'), { recursive: true })
   await writeFile(join(webDist, 'index.html'), '<!doctype html><div id="root"></div>')
   await writeFile(join(webDist, 'assets', 'app-1a2b3c.js'), 'console.log(1)')
+  await writeFile(join(webDist, 'sw.js'), 'self.addEventListener("fetch", () => {})')
+  await writeFile(join(webDist, 'manifest.webmanifest'), '{"name":"CirCI"}')
   const app = buildServer({
     logger,
     checks: [],

@@ -18,6 +18,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { type ReactNode, useState } from 'react'
 
+import { InstallBanner } from '#features/pwa/InstallBanner.tsx'
 import { useDocumentTitle } from '#lib/document-title.ts'
 import { findIn, useFindParam } from '#lib/find.ts'
 import { FindField } from '#lib/FindField.tsx'
@@ -187,6 +188,7 @@ export function InboxPage() {
         }
       />
       <div className={styles.page}>
+        <InstallBanner />
         <TabList
           label="Inbox"
           tabs={inboxTabs(snoozedCount)}

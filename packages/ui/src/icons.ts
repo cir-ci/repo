@@ -129,6 +129,7 @@ import {
   Building2,
   ChevronLeft,
   Construction,
+  Download,
   Eye,
   GitBranch,
   Hammer,
@@ -171,6 +172,7 @@ export const BuildingIcon = icon(Building2, 'BuildingIcon')
 export const ChevronLeftIcon = icon(ChevronLeft, 'ChevronLeftIcon')
 export const ConstructionIcon = icon(Construction, 'ConstructionIcon')
 export const DatabaseIcon = icon(Database, 'DatabaseIcon')
+export const DownloadIcon = icon(Download, 'DownloadIcon')
 export const EyeIcon = icon(Eye, 'EyeIcon')
 export const GitBranchIcon = icon(GitBranch, 'GitBranchIcon')
 export const HammerIcon = icon(Hammer, 'HammerIcon')

@@ -20,6 +20,19 @@ describe('web app', () => {
     expect(res.headers['cache-control']).toBe('public, max-age=31536000, immutable')
   })
 
+  it('serves the installable app: the manifest as its own type, the service worker never cached', async () => {
+    const manifest = await get('/manifest.webmanifest', '')
+    expect(manifest.statusCode).toBe(200)
+    expect(manifest.headers['content-type']).toContain('application/manifest+json')
+    expect(manifest.headers['cache-control']).toBe('no-cache')
+    const worker = await get('/sw.js', '')
+    expect(worker.statusCode).toBe(200)
+    expect(worker.headers['content-type']).toMatch(/javascript/)
+    expect(worker.headers['cache-control']).toBe('no-store')
+    // Not the app shell: the worker is a file at the root.
+    expect(worker.body).not.toContain('id="root"')
+  })
+
   it('answers unknown API paths with JSON 404s, not the app shell', async () => {
     const res = await get('/api/nope', acmeCookie)
     expect(res.statusCode).toBe(404)

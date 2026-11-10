@@ -4,6 +4,7 @@ import { useDisplayStore } from './display-store.ts'
 import { useListStore } from './list-store.ts'
 import { useOverlayStore } from './overlay-store.ts'
 import { PANES_KEY, usePaneStore } from './pane-store.ts'
+import { PWA_KEY, usePwaStore } from './pwa-store.ts'
 import { RECENT_SEARCHES_KEY, useRecentSearchesStore } from './recent-searches-store.ts'
 import { RECENT_KEY, useRecentStore } from './recent-store.ts'
 import { SETTINGS_RETURN_KEY, useSettingsReturnStore } from './settings-return-store.ts'
@@ -50,4 +51,10 @@ export function resetStores(): void {
     // No storage to clear.
   }
   usePaneStore.getState().reset()
+  try {
+    localStorage.removeItem(PWA_KEY)
+  } catch {
+    // No storage to clear.
+  }
+  usePwaStore.getState().reset()
 }

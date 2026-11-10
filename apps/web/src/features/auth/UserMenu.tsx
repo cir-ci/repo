@@ -2,6 +2,7 @@ import {
   Avatar,
   BellIcon,
   ColorSchemeControl,
+  DownloadIcon,
   KeyboardIcon,
   LogOutIcon,
   Menu,
@@ -12,6 +13,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 
+import { useInstall } from '#features/pwa/use-install.ts'
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { authClient, type SessionUser } from '#lib/auth-client.ts'
 
@@ -27,6 +29,7 @@ export function UserMenu({ user }: UserMenu.Props) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { data: caps } = useQuery(capabilitiesQuery())
+  const { canInstall, install } = useInstall()
 
   async function signOut() {
     await authClient.signOut()
@@ -102,6 +105,16 @@ export function UserMenu({ user }: UserMenu.Props) {
           shortcut: '?',
           onSelect: () => void navigate({ to: '/account/shortcuts' }),
         },
+        // Gone once it is installed (or where the browser can't install it).
+        ...(canInstall
+          ? [
+              {
+                label: 'Install app',
+                icon: <DownloadIcon />,
+                onSelect: () => void install(),
+              } satisfies Menu.Item,
+            ]
+          : []),
         { type: 'separator' },
         ...(caps?.instanceAdmin
           ? [

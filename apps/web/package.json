@@ -12,7 +12,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "icons": "node scripts/make-icons.ts"
   },
   "dependencies": {
     "@circi/api": "workspace:*",
@@ -33,6 +34,7 @@
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
     "axe-core": "catalog:",
+    "sharp": "catalog:",
     "vite": "catalog:",
     "vitest-browser-react": "catalog:"
   }

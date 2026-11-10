@@ -1,3 +1,6 @@
+import { isApprovalRequest } from './prompt-rules.ts'
+import { usePwaStore } from './stores/pwa-store.ts'
+
 /** The dashboard API's fetch wrapper: JSON in and out, errors as `HttpError`. */
 
 export class HttpError extends Error {
@@ -49,6 +52,10 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
       // Non-JSON error body: keep the status line.
     }
     throw new HttpError(res.status, message, fields)
+  }
+  // The first approval makes the install and notification offers appropriate.
+  if (isApprovalRequest((init.method ?? 'GET').toUpperCase(), path, init.body)) {
+    usePwaStore.getState().recordApproval()
   }
   // No-content answers (deletes) carry nothing to parse; callers of those ask for `undefined`.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion

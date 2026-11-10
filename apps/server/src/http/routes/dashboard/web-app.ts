@@ -8,8 +8,8 @@ import type { Deps } from '#http/lib/deps.ts'
 import { isApiPath, noticePage, PAGE_CSP } from '#http/lib/pages.ts'
 
 /**
- * The built web app (apps/web/dist): static files, and the app shell for every client-side
- * route. Unknown `/api` and `/v1` paths get JSON 404s instead of the shell.
+ * The built web app (apps/web/dist): static files (the manifest and `sw.js` at the root, for the
+ * installable app), and the app shell for every client-side route. Unknown `/api` and `/v1` paths get JSON 404s instead of the shell.
  */
 export const webAppRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps) => {
   const dist = deps.webDist
@@ -39,6 +39,13 @@ export const webAppRoutes: FastifyPluginAsync<Deps.Dashboard> = async (app, deps
         'cache-control',
         path.includes(join(dist, 'assets')) ? 'public, max-age=31536000, immutable' : 'no-cache',
       )
+      // The service worker script: never kept by an HTTP cache, or a new version would wait for
+      // the cache to expire. It is served from the root, so its scope is the whole app.
+      if (path === join(dist, 'sw.js')) res.header('cache-control', 'no-store')
+      // Browsers read the manifest as its own type; the file's extension alone is not enough everywhere.
+      if (path === join(dist, 'manifest.webmanifest')) {
+        res.header('content-type', 'application/manifest+json; charset=utf-8')
+      }
     },
   })
   app.get('/*', async (req, reply) => {

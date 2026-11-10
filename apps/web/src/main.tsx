@@ -12,6 +12,9 @@ import { createRoot } from 'react-dom/client'
 
 import { Providers } from './app/providers.tsx'
 import { router } from './app/router.tsx'
+import { startPwa } from './features/pwa/start.ts'
+
+startPwa()
 
 const root = document.getElementById('root')
 if (!root) throw new Error('#root missing from index.html')

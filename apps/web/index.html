@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" type="image/svg+xml" href="/src/features/auth/logo.svg" />
+    <!-- The installed app: its manifest, icon and title-bar colour (the chrome token, per scheme). -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/180.png" />
+    <meta name="theme-color" content="#0c0a09" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#e9e2de" media="(prefers-color-scheme: light)" />
     <title>CirCI</title>
     <script>
       // Pick the colour scheme before the first paint (keys match @circi/ui's theme.ts).
