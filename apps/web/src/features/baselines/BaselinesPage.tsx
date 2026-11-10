@@ -1,5 +1,5 @@
 import type { Baseline } from '@circi/api'
-import { EmptyState, ImagesIcon, ListRow, NoResults, StatusIcon, Text } from '@circi/ui'
+import { EmptyState, ImagesIcon, ListGroup, ListRow, NoResults, StatusIcon, Text } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -102,10 +102,7 @@ export function BaselinesPage() {
                       const id = `baselines-${group.prefix ?? '(ungrouped)'}`
                       return (
                         <section key={id} aria-labelledby={id}>
-                          <h2 className={styles.groupHeader} id={id}>
-                            <span>{title}</span>
-                            <span className={styles.groupCount}>{group.items.length}</span>
-                          </h2>
+                          <ListGroup id={id} label={title} count={group.items.length} />
                           <ul className={styles.list}>
                             {group.items.map((item) => (
                               <li

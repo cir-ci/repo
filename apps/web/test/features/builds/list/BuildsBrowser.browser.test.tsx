@@ -195,8 +195,8 @@ describe('display options', () => {
       .getByRole('dialog', { name: 'Display options' })
       .getByRole('button', { name: 'Branch' })
       .click()
-    await expect.element(page.getByRole('heading', { name: 'dev' })).toBeVisible()
-    await expect.element(page.getByRole('heading', { name: 'main' })).toBeVisible()
+    await expect.element(page.getByRole('heading', { name: 'dev 1 build' })).toBeVisible()
+    await expect.element(page.getByRole('heading', { name: 'main 2 builds' })).toBeVisible()
     expect(localStorage.getItem('circi.builds.display')).toContain('"groupBy":"branch"')
   })
 

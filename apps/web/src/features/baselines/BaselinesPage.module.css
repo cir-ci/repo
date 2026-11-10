@@ -98,28 +98,19 @@
   display: flex;
   flex: 1;
   flex-direction: column;
+  gap: 16px;
   min-width: 0;
-}
-
-.groupHeader {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin: 0;
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--circi-line-subtle);
-  background: var(--circi-surface-chrome);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.groupCount {
-  color: var(--circi-text-tertiary);
-  font-weight: 400;
 }
 
 .list {
   margin: 0;
   padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 8px;
   list-style: none;
+}
+
+.list > li:last-child > * {
+  border-bottom: 0;
 }

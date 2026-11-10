@@ -5,6 +5,14 @@
   min-width: 0;
 }
 
+.groups {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
 .list {
   overflow: hidden;
   border: 1px solid var(--circi-line-subtle);
@@ -18,21 +26,6 @@
 
 .list > li:last-child > * {
   border-bottom: 0;
-}
-
-.group {
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
-  padding: 6px 12px;
-  border-bottom: 1px solid var(--circi-line-subtle);
-  background: var(--circi-action-selected);
-}
-
-.groupTitle {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 600;
 }
 
 /* The row itself is the link (see ListRow): it highlights on hover and shows the focus ring. */

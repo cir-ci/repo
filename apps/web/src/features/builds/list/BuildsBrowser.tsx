@@ -7,6 +7,7 @@ import {
   ConstructionIcon,
   NoFilterResults,
   NoResults,
+  ListGroup,
   ListRow,
   Pane,
   SectionHeader,
@@ -210,7 +211,7 @@ export function BuildsBrowser({
           ) : (
             <>
               <div className={styles.split}>
-                <ul aria-label="Builds" className={styles.list} ref={listRef}>
+                <div className={styles.groups} ref={listRef}>
                   {groups.map((group) => (
                     <GroupRows key={group.key} label={group.label} count={group.builds.length}>
                       {group.builds.map((b) => {
@@ -267,7 +268,7 @@ export function BuildsBrowser({
                       })}
                     </GroupRows>
                   ))}
-                </ul>
+                </div>
                 {peek && cursor ? (
                   <Pane
                     label="Preview"
@@ -430,7 +431,7 @@ export namespace BuildsBrowser {
   }
 }
 
-/** A group's rows under its heading; an ungrouped list has no heading. */
+/** A group's rows under its bar; an ungrouped list has no bar. */
 function GroupRows({
   label,
   count,
@@ -440,18 +441,22 @@ function GroupRows({
   count: number
   children: ReactNode
 }) {
+  const id = `builds-${label}`
   return (
-    <>
+    <section aria-labelledby={label ? id : undefined}>
       {label ? (
-        <li className={styles.group}>
-          <h3 className={styles.groupTitle}>{label}</h3>
-          <Text variant="small" tone="secondary">
-            {count}
-          </Text>
-        </li>
+        <ListGroup
+          id={id}
+          level={2}
+          label={label}
+          count={count}
+          countLabel={`${count} ${count === 1 ? 'build' : 'builds'}`}
+        />
       ) : null}
-      {children}
-    </>
+      <ul aria-label={label || 'Builds'} className={styles.list}>
+        {children}
+      </ul>
+    </section>
   )
 }
 

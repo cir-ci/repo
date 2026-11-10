@@ -2,7 +2,7 @@ import type { Build } from '@circi/api'
 import {
   Banner,
   Button,
-  Collapsible,
+  ListGroup,
   EmptyState,
   ImagesIcon,
   Ref,
@@ -276,54 +276,63 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
         <div className={page['body']}>
           <nav ref={listRef} aria-label="Screenshots" className={page['list']}>
             {groups.map((g) => (
-              <Collapsible
-                key={g.kind}
-                data-group-id={g.kind}
-                title={g.title}
-                count={g.items.length}
-                open={open[g.kind] ?? g.open}
-                onOpenChange={(expanded) => setOpen({ ...open, [g.kind]: expanded })}
-              >
-                <ul className={styles.rows}>
-                  {g.items.map((d) => (
-                    <li key={d.id} {...rowProps(d.id)}>
-                      <RouterLink
-                        to={ROUTE}
-                        params={params}
-                        search={(prev) => ({ ...prev, shot: d.name })}
-                        // Current only when chosen in the URL; the default one gets the same
-                        // marker through `data-default`.
-                        aria-current={d.id === fromUrl?.id ? 'page' : undefined}
-                        data-default={!fromUrl && d.id === selected?.id ? '' : undefined}
-                        data-selected={d.id === selected?.id ? '' : undefined}
-                        className={styles.row}
-                      >
-                        <StatusIcon
-                          status={screenshotStatus(g.kind, shotDecision(d, buildReview))}
-                          size={12}
-                          label={screenshotLabel(g.kind, shotDecision(d, buildReview))}
-                        />
-                        <Tooltip content={d.name}>
-                          <Text className={styles.name}>{d.name}</Text>
-                        </Tooltip>
-                        {threadCount(d.name) > 0 ? (
-                          <span
-                            className={styles.threads}
-                            role="img"
-                            aria-label={`${threadCount(d.name)} comment ${threadCount(d.name) === 1 ? 'thread' : 'threads'}`}
-                          >
-                            <ReviewIcon size={11} />
-                            {threadCount(d.name)}
-                          </span>
-                        ) : null}
-                        <Text variant="mono" tone="secondary">
-                          {shotBadge(d)}
-                        </Text>
-                      </RouterLink>
-                    </li>
-                  ))}
-                </ul>
-              </Collapsible>
+              <div key={g.kind} data-group-id={g.kind} className={styles.group}>
+                <ListGroup
+                  id={`shots-${g.kind}`}
+                  level={3}
+                  label={g.title}
+                  count={g.items.length}
+                  glyph={<StatusIcon status={screenshotStatus(g.kind, 'pending')} decorative />}
+                  expanded={open[g.kind] ?? g.open}
+                  controls={`shots-${g.kind}-rows`}
+                  onExpandedChange={(expanded) => setOpen({ ...open, [g.kind]: expanded })}
+                />
+                {(open[g.kind] ?? g.open) ? (
+                  <ul
+                    className={styles.rows}
+                    id={`shots-${g.kind}-rows`}
+                    aria-labelledby={`shots-${g.kind}`}
+                  >
+                    {g.items.map((d) => (
+                      <li key={d.id} {...rowProps(d.id)}>
+                        <RouterLink
+                          to={ROUTE}
+                          params={params}
+                          search={(prev) => ({ ...prev, shot: d.name })}
+                          // Current only when chosen in the URL; the default one gets the same
+                          // marker through `data-default`.
+                          aria-current={d.id === fromUrl?.id ? 'page' : undefined}
+                          data-default={!fromUrl && d.id === selected?.id ? '' : undefined}
+                          data-selected={d.id === selected?.id ? '' : undefined}
+                          className={styles.row}
+                        >
+                          <StatusIcon
+                            status={screenshotStatus(g.kind, shotDecision(d, buildReview))}
+                            size={12}
+                            label={screenshotLabel(g.kind, shotDecision(d, buildReview))}
+                          />
+                          <Tooltip content={d.name}>
+                            <Text className={styles.name}>{d.name}</Text>
+                          </Tooltip>
+                          {threadCount(d.name) > 0 ? (
+                            <span
+                              className={styles.threads}
+                              role="img"
+                              aria-label={`${threadCount(d.name)} comment ${threadCount(d.name) === 1 ? 'thread' : 'threads'}`}
+                            >
+                              <ReviewIcon size={11} />
+                              {threadCount(d.name)}
+                            </span>
+                          ) : null}
+                          <Text variant="mono" tone="secondary">
+                            {shotBadge(d)}
+                          </Text>
+                        </RouterLink>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
             ))}
           </nav>
           {selected && selectedGroup ? (

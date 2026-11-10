@@ -5,6 +5,7 @@ import {
   Button,
   EmptyState,
   ExpandMoreIcon,
+  ListGroup,
   ListRow,
   NoResults,
   Pane,
@@ -211,16 +212,13 @@ export function TriagePage() {
                     <div className={styles.groups} id="triage-groups" ref={listRef}>
                       {groups.map((group) => (
                         <section key={group.kind} aria-labelledby={`triage-${group.kind}`}>
-                          <h2 className={styles.groupHeader} id={`triage-${group.kind}`}>
-                            <StatusIcon status={GLYPH[group.kind]} decorative />
-                            {group.label}
-                            <span
-                              className={styles.groupCount}
-                              aria-label={`${group.items.length} ${group.items.length === 1 ? 'item' : 'items'}`}
-                            >
-                              {group.items.length}
-                            </span>
-                          </h2>
+                          <ListGroup
+                            id={`triage-${group.kind}`}
+                            glyph={<StatusIcon status={GLYPH[group.kind]} decorative />}
+                            label={group.label}
+                            count={group.items.length}
+                            countLabel={`${group.items.length} ${group.items.length === 1 ? 'item' : 'items'}`}
+                          />
                           <ul
                             aria-label={`${group.label}, ${group.items.length} ${group.items.length === 1 ? 'item' : 'items'}`}
                             className={listStyles['list']}

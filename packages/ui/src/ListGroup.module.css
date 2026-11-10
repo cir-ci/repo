@@ -1,0 +1,61 @@
+.root {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--circi-surface-raised);
+  color: var(--circi-text-secondary);
+  font: inherit;
+  text-align: start;
+}
+
+.button {
+  cursor: pointer;
+}
+
+.button:hover {
+  background: var(--circi-action-hover);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--circi-accent-text);
+  outline-offset: -2px;
+}
+
+.glyph {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+
+.chevron {
+  flex: none;
+  transition: rotate 120ms ease-out;
+}
+
+.button[aria-expanded='true'] .chevron {
+  rotate: 90deg;
+}
+
+.count {
+  color: var(--circi-text-tertiary);
+  font-weight: 400;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}

@@ -5,6 +5,7 @@ import {
   Badge,
   CheckCheckIcon,
   EmptyState,
+  ListGroup,
   ListRow,
   ListChecksIcon,
   NoResults,
@@ -108,11 +109,12 @@ export function ReviewList({
         ) : (
           groups.map((group) => (
             <section key={group.id} aria-labelledby={`reviews-${group.id}`}>
-              <h2 className={styles.groupHeader} id={`reviews-${group.id}`}>
-                <StatusIcon status={group.status} size={12} decorative />
-                {group.label}
-                <span className={styles.groupCount}>{group.items.length}</span>
-              </h2>
+              <ListGroup
+                id={`reviews-${group.id}`}
+                glyph={<StatusIcon status={group.status} decorative />}
+                label={group.label}
+                count={group.items.length}
+              />
               <ul className={styles.items} aria-label={group.label}>
                 {group.items.map((r) => {
                   const overdue = overdueLabel(r.overdueByMs)

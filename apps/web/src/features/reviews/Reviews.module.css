@@ -77,33 +77,26 @@
 }
 
 .scroll {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.groupHeader {
   display: flex;
-  gap: 8px;
-  align-items: center;
-  height: 30px;
-  margin: 0;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--circi-line-subtle);
-  color: var(--circi-text-secondary);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.groupCount {
-  color: var(--circi-text-tertiary);
-  font-weight: 400;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  padding: 8px;
+  overflow-y: auto;
 }
 
 .items {
   margin: 0;
   padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 8px;
   list-style: none;
+}
+
+.items > li:last-child > * {
+  border-bottom: 0;
 }
 
 .item {
