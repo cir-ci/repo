@@ -194,7 +194,7 @@ export function SettingsForm(props: SettingsForm.Props) {
       <div className={styles.group}>
         <SettingsSection
           title="Repository"
-          description="With a linked repository, CirCI posts a check and one summary comment on each pull request. Git hosts are connected in the workspace’s integrations."
+          description="With a linked repository, CirCI posts a check and one summary comment on each pull request. Git hosts are connected in the workspace's integrations."
         >
           <SettingsRow
             label={link ? <Text variant="mono">{link.repoRef}</Text> : 'No repository linked'}
@@ -293,7 +293,7 @@ export function SettingsForm(props: SettingsForm.Props) {
         <SettingsRow>
           <Checkbox
             label="Approve default-branch builds automatically"
-            description="Builds on the default branch become the new baseline without a review. Needs an approved baseline to compare with, so a team’s first build is always reviewed."
+            description="Builds on the default branch become the new baseline without a review. Needs an approved baseline to compare with, so a team's first build is always reviewed."
             checked={autoApprove}
             onCheckedChange={setAutoApprove}
             disabled={disabled}

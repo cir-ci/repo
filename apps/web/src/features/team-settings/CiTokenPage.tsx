@@ -56,8 +56,8 @@ function TokenBody({ workspace, team, name, repoRef }: TokenBody.Props) {
   return (
     <>
       <Text as="p" tone="secondary" className={styles.lead}>
-        CI uses this token to upload {name}’s screenshots. It can create builds and read their
-        status for {name} only; it can’t open the dashboard or any other team.
+        CI uses this token to upload {name}'s screenshots. It can create builds and read their
+        status for {name} only; it can't open the dashboard or any other team.
       </Text>
 
       {rotate.data ? (
@@ -65,7 +65,7 @@ function TokenBody({ workspace, team, name, repoRef }: TokenBody.Props) {
           <div className={styles.secret}>
             <SecretBox label="CI token" value={rotate.data.token} />
           </div>
-          Copy it into your CI secrets now. It won’t be shown again; if you lose it, rotate again.
+          Copy it into your CI secrets now. It won't be shown again; if you lose it, rotate again.
         </Banner>
       ) : null}
       {rotate.error && !confirming ? <Banner tone="danger">{rotate.error.message}</Banner> : null}

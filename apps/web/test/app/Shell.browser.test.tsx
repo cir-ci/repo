@@ -216,7 +216,7 @@ afterEach(() => {
 })
 
 describe('Shell, wide', () => {
-  it('shows the sidebar navigation, the workspace’s teams and the page in the panel', async () => {
+  it("shows the sidebar navigation, the workspace's teams and the page in the panel", async () => {
     await page.viewport(1280, 800)
     await renderShell('/')
     const nav = page.getByRole('navigation', { name: 'Main' })
@@ -273,7 +273,7 @@ describe('Shell, wide', () => {
       .not.toHaveAttribute('aria-current')
   })
 
-  it('opens the open team’s pages under it, with the Triage count', async () => {
+  it("opens the open team's pages under it, with the Triage count", async () => {
     await page.viewport(1280, 800)
     await renderShell('/acme/web-app/triage')
     const nav = page.getByRole('navigation', { name: 'Main' })
@@ -583,7 +583,7 @@ describe('Shell, menus', () => {
     await expect.element(trigger).toHaveFocus()
   })
 
-  it('changes the theme from the menu’s picker, which fits the menu, and marks <html>', async () => {
+  it("changes the theme from the menu's picker, which fits the menu, and marks <html>", async () => {
     await page.viewport(1280, 800)
     await renderShell('/')
     await page.getByRole('button', { name: 'Account menu for Ada Lovelace' }).click()
@@ -687,7 +687,7 @@ describe('Shell, sidebar teams', () => {
     }
   })
 
-  it('has no + or New team, and shows each team’s tile', async () => {
+  it("has no + or New team, and shows each team's tile", async () => {
     await page.viewport(1280, 800)
     await renderShell('/')
     const nav = page.getByRole('navigation', { name: 'Main' })

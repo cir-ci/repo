@@ -37,7 +37,7 @@ export function PasswordSection() {
         newPassword: draft.next,
         revokeOtherSessions: false,
       })
-      if (error) throw new Error(error.message ?? 'Couldn’t change your password')
+      if (error) throw new Error(error.message ?? "Couldn't change your password")
     },
     onSuccess: () => {
       setOpen(false)

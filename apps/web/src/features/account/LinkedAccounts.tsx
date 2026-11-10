@@ -33,7 +33,7 @@ export function LinkedAccounts() {
   const unlink = useMutation({
     mutationFn: async (input: { providerId: string; accountId: string }) => {
       const { error } = await authClient.unlinkAccount(input)
-      if (error) throw new Error(error.message ?? 'Couldn’t unlink that account')
+      if (error) throw new Error(error.message ?? "Couldn't unlink that account")
     },
     onSuccess: () => {
       announce('Account unlinked')
@@ -47,7 +47,7 @@ export function LinkedAccounts() {
         provider,
         callbackURL: '/account/profile',
       })
-      if (error) throw new Error(error.message ?? 'Couldn’t start linking')
+      if (error) throw new Error(error.message ?? "Couldn't start linking")
     },
   })
 
@@ -110,7 +110,7 @@ export function LinkedAccounts() {
           if (!open) setUnlinking(undefined)
         }}
         title={`Unlink ${unlinking?.name ?? 'this account'}?`}
-        description="You can no longer sign in with it until you link it again. You can’t unlink the only way you have to sign in."
+        description="You can no longer sign in with it until you link it again. You can't unlink the only way you have to sign in."
         confirmLabel="Unlink"
         loading={unlink.isPending}
         onConfirm={() => {

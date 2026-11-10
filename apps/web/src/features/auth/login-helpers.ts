@@ -62,7 +62,7 @@ export const isOriginRefusal = (failure: AuthFailure): boolean =>
 
 /** The page does not know the instance's public address (only admins do), so it says it without one. */
 export const ORIGIN_REFUSED =
-  'This server doesn’t accept sign-ins from this address. Open CirCI at the address it was set up with, or ask whoever runs it.'
+  "This server doesn't accept sign-ins from this address. Open CirCI at the address it was set up with, or ask whoever runs it."
 
 /** Says what went wrong without helping anyone guess which emails have accounts. */
 export function describeFailure(failure: number | AuthFailure): string {
@@ -70,7 +70,7 @@ export function describeFailure(failure: number | AuthFailure): string {
   if (isOriginRefusal(f)) return ORIGIN_REFUSED
   if (f.status === 401 || f.status === 400) return 'Incorrect email or password.'
   if (f.status === 429) return 'Too many attempts. Wait a minute and try again.'
-  return 'Couldn’t sign in. Check your connection and try again.'
+  return "Couldn't sign in. Check your connection and try again."
 }
 
 export function describeCodeFailure(failure: number | AuthFailure): string {
@@ -80,7 +80,7 @@ export function describeCodeFailure(failure: number | AuthFailure): string {
   if (f.status === 400 || f.status === 401 || f.status === 403) {
     return 'That code is wrong or has expired. Check it, or send a new one.'
   }
-  return 'Couldn’t sign in. Check your connection and try again.'
+  return "Couldn't sign in. Check your connection and try again."
 }
 
 /** Asking for a code again waits this long (the server also limits how many it will send). */
@@ -91,6 +91,6 @@ export function ssoErrorMessage(search: string = window.location.search): string
   const code = new URLSearchParams(search).get('error')
   if (!code) return undefined
   return code.toLowerCase().includes('link')
-    ? 'That sign-in provider isn’t trusted to attach to an existing account. Sign in another way, then ask whoever runs CirCI.'
-    : 'Signing in with that provider didn’t work. If you have no account yet, ask to be invited.'
+    ? "That sign-in provider isn't trusted to attach to an existing account. Sign in another way, then ask whoever runs CirCI."
+    : "Signing in with that provider didn't work. If you have no account yet, ask to be invited."
 }

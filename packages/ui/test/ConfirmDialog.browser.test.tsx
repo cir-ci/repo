@@ -14,7 +14,7 @@ function Harness(props: { confirmText?: string; onConfirm?: () => void }) {
         open={open}
         onOpenChange={setOpen}
         title="Delete web-app?"
-        description="This can’t be undone."
+        description="This can't be undone."
         confirmText={props.confirmText}
         onConfirm={() => {
           props.onConfirm?.()
@@ -31,7 +31,7 @@ describe('ConfirmDialog', () => {
     await page.getByRole('button', { name: 'Open' }).click()
     const dialog = page.getByRole('alertdialog', { name: 'Delete web-app?' })
     await expect.element(dialog).toBeVisible()
-    await expect.element(dialog).toHaveAccessibleDescription('This can’t be undone.')
+    await expect.element(dialog).toHaveAccessibleDescription("This can't be undone.")
   })
 
   it('confirms with the destructive button and focus starts on Cancel', async () => {

@@ -49,7 +49,7 @@ const show = (url = '/acme/web', beforeRender?: () => Promise<void>) =>
   })
 
 describe('filters', () => {
-  it('shows chips named by their value and sends the URL’s filters with the request', async () => {
+  it("shows chips named by their value and sends the URL's filters with the request", async () => {
     const fake = api([build(3)])
     await show('/acme/web?review=pending&branch=feature%2Fx')
     await expect
@@ -98,7 +98,7 @@ describe('filters', () => {
       },
     }
 
-    it('lists the team’s branches in the order given, and asks the server as you type', async () => {
+    it("lists the team's branches in the order given, and asks the server as you type", async () => {
       const fake = api([build(3)], branches)
       await show()
       await page.getByRole('button', { name: 'Branch' }).click()
@@ -391,7 +391,7 @@ describe('saving a view and pinning', () => {
     expect(page.getByRole('button', { name: 'Save view' }).elements()).toHaveLength(0)
   })
 
-  it('still offers Save view when only a different team’s view has the same filters', async () => {
+  it("still offers Save view when only a different team's view has the same filters", async () => {
     api([build(3)], {
       'GET /api/workspaces/acme/views': {
         body: {
@@ -449,7 +449,7 @@ describe('ViewPage', () => {
     team: { slug: 'web', name: 'Web App' },
     createdAt: '2026-11-08T10:00:00.000Z',
   }
-  it('lists the team’s builds with the view’s filters applied', async () => {
+  it("lists the team's builds with the view's filters applied", async () => {
     const fake = api([build(3)], { 'GET /api/workspaces/acme/views': { body: { views: [view] } } })
     await showView()
     await expect.element(page.getByRole('link', { name: /Build #3/ })).toBeVisible()
@@ -459,7 +459,7 @@ describe('ViewPage', () => {
     expect(document.title).toBe('Waiting on me · CirCI')
   })
 
-  it('lists every team’s builds for a view with no team, and pages with a cursor', async () => {
+  it("lists every team's builds for a view with no team, and pages with a cursor", async () => {
     const wide = { ...view, filters: { review: 'pending' }, team: null }
     const urls: string[] = []
     const fake = fakeApi({
@@ -561,7 +561,7 @@ describe('ViewPage', () => {
     api([], { 'GET /api/workspaces/acme/views': { body: { views: [view] } } })
     await showView('other')
     await expect
-      .element(page.getByRole('heading', { name: 'This view doesn’t exist' }))
+      .element(page.getByRole('heading', { name: "This view doesn't exist" }))
       .toBeVisible()
   })
 })

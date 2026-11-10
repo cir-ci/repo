@@ -70,7 +70,7 @@ describe('Breadcrumbs', () => {
     await expect.element(page.getByRole('listitem').nth(1)).toHaveTextContent('web-app')
   })
 
-  it('names a link’s target in a tooltip on keyboard focus', async () => {
+  it("names a link's target in a tooltip on keyboard focus", async () => {
     await render(
       <Breadcrumbs
         items={[

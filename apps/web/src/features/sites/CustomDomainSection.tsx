@@ -55,7 +55,7 @@ export function CustomDomainSection({
       <div className={styles.head}>
         <Heading level="heading">Custom domain</Heading>
         <Text as="p" variant="small" tone="secondary">
-          Opens the default branch’s version of {site.name} on a domain of your own.
+          Opens the default branch's version of {site.name} on a domain of your own.
         </Text>
       </div>
 
@@ -136,7 +136,7 @@ export function CustomDomainSection({
       {domain && !domain.verified && dnsTarget ? (
         <div className={styles.dns}>
           <Text as="p" variant="small" tone="secondary">
-            Add this DNS record at your domain’s provider, then check DNS. The domain is served, and
+            Add this DNS record at your domain's provider, then check DNS. The domain is served, and
             its certificate issued, once it points here.
           </Text>
           <dl className={styles.record} aria-label="DNS record">

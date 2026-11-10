@@ -84,7 +84,7 @@ describe('RequestReviewPicker', () => {
         .elements(),
     ).toHaveLength(0)
     await expect
-      .element(picker().getByText('You can’t request a review from yourself.'))
+      .element(picker().getByText("You can't request a review from yourself."))
       .toBeVisible()
   })
 
@@ -130,7 +130,7 @@ describe('RequestReviewPicker', () => {
     await expect.poll(() => onOpenChange.mock.calls.some(([o]) => !o)).toBe(true)
   })
 
-  it('shows the server’s refusal and stays open', async () => {
+  it("shows the server's refusal and stays open", async () => {
     const { ready, onOpenChange } = show({
       status: 403,
       body: { error: 'You cannot ask yourself' },

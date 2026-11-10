@@ -83,7 +83,7 @@ describe('the empty query', () => {
     ],
   }
 
-  it('sends Settings to Members for people who can’t change the workspace settings', () => {
+  it("sends Settings to Members for people who can't change the workspace settings", () => {
     for (const [canManage, path] of [
       [true, '/workspaces/acme/settings'],
       [false, '/workspaces/acme/settings/members'],

@@ -30,7 +30,7 @@ describe('Select', () => {
     expect(trigger.element().getBoundingClientRect().height).toBe(32)
   })
 
-  it('shows the selected item’s label', async () => {
+  it("shows the selected item's label", async () => {
     await render(<Select label="Role" items={ROLES} defaultValue="member" />)
     await expect.element(page.getByRole('combobox', { name: 'Role' })).toHaveTextContent('Member')
   })

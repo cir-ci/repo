@@ -79,7 +79,7 @@ export function parseRect(
   }
   if (!nums.every((n) => Number.isInteger(n))) return { ok: false, error: 'Use whole numbers' }
   if (x < 0 || y < 0 || width < 1 || height < 1) {
-    return { ok: false, error: 'Position can’t be negative and size must be at least 1' }
+    return { ok: false, error: "Position can't be negative and size must be at least 1" }
   }
   if (size && (x + width > size.width || y + height > size.height)) {
     return {

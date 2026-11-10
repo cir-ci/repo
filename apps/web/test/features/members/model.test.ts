@@ -60,7 +60,7 @@ describe('validateInvite', () => {
   it.each(['ada', 'ada@', '@example.test', 'ada@example', 'a da@example.test'])(
     'refuses %j',
     (email) => {
-      expect(validateInvite(email).email).toMatch(/doesn’t look like/)
+      expect(validateInvite(email).email).toMatch(/doesn't look like/)
     },
   )
   it('accepts an address', () => {
@@ -69,7 +69,7 @@ describe('validateInvite', () => {
 })
 
 describe('signInTags', () => {
-  it('names each method once, in the server’s order', () => {
+  it("names each method once, in the server's order", () => {
     expect(signInTags(['password', 'github', 'google'])).toEqual(['Password', 'GitHub', 'Google'])
     expect(signInTags(['sso', 'oidc'])).toEqual(['SSO'])
     expect(signInTags(['acme'])).toEqual(['Acme'])

@@ -28,7 +28,7 @@ export function TeamsEmpty({ canCreateTeam, canCreateWorkspace }: TeamsEmpty.Pro
       >
         {canCreateWorkspace
           ? 'Create a workspace first, then add a team to it.'
-          : 'You aren’t an owner or admin of any workspace yet. Ask one to add you, or to create a team.'}
+          : "You aren't an owner or admin of any workspace yet. Ask one to add you, or to create a team."}
       </EmptyState>
     )
   }
@@ -59,7 +59,7 @@ export function TeamsEmpty({ canCreateTeam, canCreateWorkspace }: TeamsEmpty.Pro
           className={styles.code}
         />
         <Text as="p" variant="small" tone="tertiary">
-          Its token is the team’s CI token, so create the team first.
+          Its token is the team's CI token, so create the team first.
         </Text>
       </div>
     </section>

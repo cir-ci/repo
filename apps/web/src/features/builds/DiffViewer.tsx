@@ -327,7 +327,7 @@ export function Viewer({
       <div className={styles.ground}>
         {diff.status === 'failed' ? (
           <Banner tone="danger">
-            {diff.errorMessage ?? 'This screenshot couldn’t be processed.'}
+            {diff.errorMessage ?? "This screenshot couldn't be processed."}
           </Banner>
         ) : null}
         {diff.sizeChanged && diff.base && diff.head ? (
@@ -359,7 +359,7 @@ export function Viewer({
             ) : null}
             {!diff.head && diff.base ? (
               <Text tone="secondary" as="p" className={styles.note}>
-                This screenshot isn’t in this build any more.
+                This screenshot isn't in this build any more.
               </Text>
             ) : null}
           </div>

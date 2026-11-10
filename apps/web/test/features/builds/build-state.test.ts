@@ -11,7 +11,7 @@ const state = (over: Partial<BuildState.Input>) =>
   })
 
 describe('buildState', () => {
-  it('names each stage of a build’s life', () => {
+  it("names each stage of a build's life", () => {
     expect(state({ status: 'processing', conclusion: null }).label).toMatch(/process/i)
     expect(state({ status: 'error', conclusion: null }).tone).toBe('danger')
     expect(state({ conclusion: 'no_changes' }).label).toMatch(/no changes/i)

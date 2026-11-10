@@ -43,7 +43,7 @@ export function notificationText(item: Inbox.Item): { title: string; detail?: st
     build_rejected: { title: `${who} rejected${build}`, detail: text(item.payload['reason']) },
     review_overdue: { title: `Your review of${build} is overdue` },
     connection_needs_attention: {
-      title: `${item.team?.name ?? 'A team'}’s git connection needs attention`,
+      title: `${item.team?.name ?? 'A team'}'s git connection needs attention`,
     },
     flaky_detected: {
       title: `Flaky screenshots found${item.team ? ` in ${item.team.name}` : ''}`,

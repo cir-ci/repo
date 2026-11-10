@@ -90,7 +90,7 @@ export function passwordProblems(
   } else if (draft.next === draft.current) {
     problems.next = 'Choose a different password from the current one'
   }
-  if (draft.confirm !== draft.next) problems.confirm = 'The two passwords don’t match'
+  if (draft.confirm !== draft.next) problems.confirm = "The two passwords don't match"
   return problems
 }
 

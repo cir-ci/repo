@@ -42,7 +42,7 @@ export function WorkspaceSsoSignIn({ onBack }: WorkspaceSsoSignIn.Props) {
         label="Workspace"
         size="lg"
         placeholder="acme"
-        description="The short name in your workspace’s address."
+        description="The short name in your workspace's address."
         required
         autoFocus
         invalid={Boolean(error)}

@@ -69,7 +69,7 @@ describe('ProfilePage', () => {
       'GET /api/auth/list-sessions': () => (fail ? json({ message: 'down' }, 500) : sessions),
     })
     await renderPage(<ProfilePage />)
-    await expect.element(page.getByText('This page couldn’t be loaded')).toBeVisible()
+    await expect.element(page.getByText("This page couldn't be loaded")).toBeVisible()
     fail = false
     await page.getByRole('button', { name: 'Try again' }).click()
     await expect.element(page.getByText('Chrome on Windows')).toBeVisible()
@@ -105,7 +105,7 @@ describe('ProfilePage', () => {
     })
     await renderPage(<ProfilePage />)
     await page.getByRole('button', { name: 'Sign out', exact: true }).click()
-    await expect.element(page.getByRole('alert')).toHaveTextContent('Couldn’t sign that device out')
+    await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't sign that device out")
   })
 
   it('asks before signing out everywhere else, and only then does it', async () => {
@@ -162,7 +162,7 @@ describe('ProfilePage', () => {
     await expect.element(page.getByText(/No other sign-in accounts are available/)).toBeVisible()
   })
 
-  it('unlinks an account only after confirming, and shows the server’s refusal', async () => {
+  it("unlinks an account only after confirming, and shows the server's refusal", async () => {
     const calls = fakeFetch({
       ...signedIn,
       'GET /api/auth-methods': {
@@ -175,7 +175,7 @@ describe('ProfilePage', () => {
       ],
       'GET /api/auth/list-sessions': sessions,
       'POST /api/auth/unlink-account': () =>
-        json({ message: 'You can’t unlink your only account' }, 400),
+        json({ message: "You can't unlink your only account" }, 400),
     })
     await renderPage(<ProfilePage />)
     await page.getByRole('button', { name: 'Unlink GitHub' }).click()
@@ -183,7 +183,7 @@ describe('ProfilePage', () => {
     expect(calls.some((c) => c.path.endsWith('unlink-account'))).toBe(false)
     await page.getByRole('button', { name: 'Unlink GitHub' }).click()
     await page.getByRole('alertdialog').getByRole('button', { name: 'Unlink' }).click()
-    await expect.element(page.getByText(/You can’t unlink your only account/).first()).toBeVisible()
+    await expect.element(page.getByText(/You can't unlink your only account/).first()).toBeVisible()
     expect(calls.find((c) => c.path.endsWith('unlink-account'))?.body).toEqual({
       providerId: 'github',
       accountId: '42',
@@ -245,7 +245,7 @@ describe('ProfilePage', () => {
     await dialog.getByLabelText('Confirm new password').fill('different')
     await dialog.getByRole('button', { name: 'Change password' }).click()
     await expect.element(dialog.getByText('Use at least 12 characters')).toBeVisible()
-    await expect.element(dialog.getByText('The two passwords don’t match')).toBeVisible()
+    await expect.element(dialog.getByText("The two passwords don't match")).toBeVisible()
     expect(calls.some((c) => c.path.endsWith('change-password'))).toBe(false)
 
     await dialog.getByLabelText('New password', { exact: true }).fill('a-much-longer-password')
@@ -259,7 +259,7 @@ describe('ProfilePage', () => {
     })
   })
 
-  it('shows the server’s reason when the password is wrong', async () => {
+  it("shows the server's reason when the password is wrong", async () => {
     fakeFetch({
       ...signedIn,
       'GET /api/auth/list-sessions': sessions,

@@ -98,12 +98,12 @@ describe('InviteForm', () => {
     const email = page.getByRole('textbox', { name: 'Email' })
     await email.fill('ada')
     await page.getByRole('button', { name: 'Send invite' }).click()
-    await expect.element(page.getByText('That doesn’t look like an email address')).toBeVisible()
+    await expect.element(page.getByText("That doesn't look like an email address")).toBeVisible()
     await email.fill('ada@example.test')
-    expect(page.getByText('That doesn’t look like an email address').elements()).toHaveLength(0)
+    expect(page.getByText("That doesn't look like an email address").elements()).toHaveLength(0)
   })
 
-  it('shows the server’s reason and keeps the address when sending fails', async () => {
+  it("shows the server's reason and keeps the address when sending fails", async () => {
     await page.viewport(1000, 800)
     auth.inviteMember.mockResolvedValue({ data: null, error: { message: 'Already a member' } })
     const onInvited = await show()

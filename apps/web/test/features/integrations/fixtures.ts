@@ -49,7 +49,7 @@ export const CATALOG: Integration.CatalogEntry[] = [
         label: 'GitHub App installation ID',
         secret: false,
         optional: false,
-        description: 'The number at the end of the installation’s settings address.',
+        description: "The number at the end of the installation's settings address.",
       },
     ],
   }),

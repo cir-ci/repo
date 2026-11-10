@@ -9,7 +9,7 @@ const change = {
   from: 'https://old.example.com',
   to: 'https://ci.example.com',
   at: '2026-11-01T00:00:00Z',
-  checklist: ['Update the GitHub app’s webhook URL', 'Update CIRCI_API_URL in CI'],
+  checklist: ["Update the GitHub app's webhook URL", 'Update CIRCI_API_URL in CI'],
 }
 
 describe('AddressChangeBanner', () => {

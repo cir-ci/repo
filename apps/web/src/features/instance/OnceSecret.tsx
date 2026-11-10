@@ -17,8 +17,8 @@ export function OnceSecret({ email, password }: OnceSecret.Props) {
         </Text>
         <Text tone="tertiary" variant="small">
           {state === 'failed'
-            ? 'Copying failed: select the password and copy it yourself. It won’t be shown again.'
-            : 'It won’t be shown again.'}
+            ? "Copying failed: select the password and copy it yourself. It won't be shown again."
+            : "It won't be shown again."}
         </Text>
       </span>
       <Button

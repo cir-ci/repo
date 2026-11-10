@@ -43,14 +43,14 @@ export function TeamSitesPage() {
     <>
       <PageHeading crumbs={crumbsFor(names)} title="Sites" />
       <div className={styles.content}>
-        <QueryBoundary query={query} notFound="This team doesn’t exist" rows={3}>
+        <QueryBoundary query={query} notFound="This team doesn't exist" rows={3}>
           {(data) =>
             !data.configured ? (
               caps.isPending ? null : (
                 <Banner tone="info">
                   {canChangeServer
-                    ? 'Static site hosting isn’t set up on this server. Set STATIC_SITES_HOST to a separate domain to turn it on.'
-                    : 'Static site hosting isn’t set up on this server. Ask an instance admin to turn it on.'}
+                    ? "Static site hosting isn't set up on this server. Set STATIC_SITES_HOST to a separate domain to turn it on."
+                    : "Static site hosting isn't set up on this server. Ask an instance admin to turn it on."}
                 </Banner>
               )
             ) : data.sites.length === 0 ? (
@@ -66,7 +66,7 @@ export function TeamSitesPage() {
                 }
               >
                 Upload a built Storybook or report from CI. Hosting also has to be switched on in
-                the team’s settings.
+                the team's settings.
               </EmptyState>
             ) : (
               data.sites.map((site) => (

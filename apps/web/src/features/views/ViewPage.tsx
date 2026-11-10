@@ -30,7 +30,7 @@ export function ViewPage() {
         <QueryBoundary query={query} rows={4}>
           {() =>
             !view ? (
-              <EmptyState title="This view doesn’t exist">
+              <EmptyState title="This view doesn't exist">
                 It may have been deleted, or it belongs to someone else.
               </EmptyState>
             ) : view.team ? (

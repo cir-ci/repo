@@ -86,7 +86,7 @@ describe('GithubSetupPage', () => {
   it('says so when GitHub did not name an installation', async () => {
     await show([acme], '/integrations/github/setup')
     await expect
-      .element(page.getByText('GitHub didn’t say which installation to connect.'))
+      .element(page.getByText("GitHub didn't say which installation to connect."))
       .toBeVisible()
     expect(page.getByRole('button', { name: 'Acme' }).elements()).toHaveLength(0)
   })
@@ -102,7 +102,7 @@ describe('GithubSetupPage', () => {
     await show([], undefined, {
       api: { 'GET /api/capabilities': { status: 500, body: { error: 'Database is down' } } },
     })
-    await expect.element(page.getByText('This page couldn’t be loaded')).toBeVisible()
+    await expect.element(page.getByText("This page couldn't be loaded")).toBeVisible()
     await expect.element(page.getByText('Database is down')).toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Try again' })).toBeVisible()
   })

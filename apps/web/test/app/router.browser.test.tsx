@@ -45,7 +45,7 @@ describe('the app router', () => {
     expect(back.state.matches.at(-1)?.params).toMatchObject({ _splat: name })
   })
 
-  it('sends the old ignore regions address with ?name= to that screenshot’s baseline page', async () => {
+  it("sends the old ignore regions address with ?name= to that screenshot's baseline page", async () => {
     const router = await open('/acme/web/settings/ignore-regions?name=checkout%2Fpayment-form')
     expect(router.state.location.pathname).toBe('/acme/web/baselines/checkout/payment-form')
     expect(router.state.location.search).toEqual({})

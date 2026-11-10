@@ -7,13 +7,13 @@ import { ErrorState } from '#lib/ErrorState.tsx'
 import { HttpError } from '#lib/http.ts'
 
 describe('ErrorState', () => {
-  it('says "not found" in the page’s own words for a 404', async () => {
+  it('says "not found" in the page\'s own words for a 404', async () => {
     await render(
       <CirciTheme>
-        <ErrorState error={new HttpError(404, 'nope')} notFound="This team doesn’t exist" />
+        <ErrorState error={new HttpError(404, 'nope')} notFound="This team doesn't exist" />
       </CirciTheme>,
     )
-    await expect.element(page.getByText('This team doesn’t exist')).toBeVisible()
+    await expect.element(page.getByText("This team doesn't exist")).toBeVisible()
   })
 
   it('shows the message and offers a retry for other errors', async () => {

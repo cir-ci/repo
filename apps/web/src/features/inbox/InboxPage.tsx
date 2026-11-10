@@ -280,7 +280,7 @@ function OpenButton({ item, onOpen }: { item: Inbox.Item; onOpen: (item: Inbox.I
 
 const EMPTY: Record<Inbox.Tab, { title: string; text: string }> = {
   'for-you': {
-    title: 'You’re all caught up',
+    title: "You're all caught up",
     text: 'Reviews, mentions and decisions for you appear here.',
   },
   everything: { title: 'Nothing here yet', text: 'Every notification you get appears here.' },

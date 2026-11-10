@@ -42,7 +42,7 @@ async function disconnect(page: Page, issuer: string) {
   await page.getByText('Connected', { exact: true }).waitFor({ state: 'detached' })
 }
 
-describe('a workspace’s own single sign-on', () => {
+describe("a workspace's own single sign-on", () => {
   let idp: FakeIdp
   const CLIENT_ID = 'circi-e2e'
   const SECRET = 'right-secret-1234'
@@ -106,7 +106,7 @@ describe('a workspace’s own single sign-on', () => {
     // An address with no provider behind it (the server reads its discovery document).
     await fillProvider(page, `${idp.issuer}/nothing-here`, CLIENT_ID, SECRET)
     await page
-      .getByText(/Couldn’t|failed|Invalid|could not|discovery/i)
+      .getByText(/Couldn't|failed|Invalid|could not|discovery/i)
       .first()
       .waitFor()
     expect(await providers(workspace)).toBe('0')
@@ -129,7 +129,7 @@ describe('a workspace’s own single sign-on', () => {
     idp.identity = { sub: 'bad-secret', email: newAccount('x').email, name: 'Nobody' }
     await withBrowser(browser.browser, {}, async (p) => {
       await ssoLogin(p, workspace)
-      await p.getByText('Signing in with that provider didn’t work.').waitFor()
+      await p.getByText("Signing in with that provider didn't work.").waitFor()
       expect(await p.getByRole('button', { name: /^Account menu for / }).count()).toBe(0)
     })
     expect(
@@ -228,7 +228,7 @@ describe('a workspace’s own single sign-on', () => {
     const before = (await fullWorkspace(setup.session, workspace)).members.length
     await withBrowser(browser.browser, {}, async (p) => {
       await ssoLogin(p, workspace)
-      await p.getByText('Signing in with that provider didn’t work.').waitFor()
+      await p.getByText("Signing in with that provider didn't work.").waitFor()
       expect(await p.getByRole('button', { name: /^Account menu for / }).count()).toBe(0)
     })
     expect((await fullWorkspace(setup.session, workspace)).members).toHaveLength(before)
@@ -295,7 +295,7 @@ describe('instance-wide OpenID Connect (AUTH_OIDC_*)', () => {
     await withBrowser(browser.browser, {}, async (p) => {
       await p.goto(`${stack.url}/login`)
       await p.getByRole('button', { name: 'Continue with Acme IdP' }).click()
-      await p.getByText('Signing in with that provider didn’t work.').waitFor()
+      await p.getByText("Signing in with that provider didn't work.").waitFor()
       expect(await p.getByRole('button', { name: /^Account menu for / }).count()).toBe(0)
     })
     expect(

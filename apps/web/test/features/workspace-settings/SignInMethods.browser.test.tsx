@@ -127,7 +127,7 @@ describe('SignInMethods', () => {
       .toHaveTextContent('An owner must be able to sign in')
   })
 
-  it('shows the server’s refusal on the checkbox it is about', async () => {
+  it("shows the server's refusal on the checkbox it is about", async () => {
     await page.viewport(1000, 800)
     fakeFetch({
       [`GET ${SSO}`]: { providers: [] },

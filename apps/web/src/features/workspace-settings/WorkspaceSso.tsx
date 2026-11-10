@@ -80,7 +80,7 @@ export function WorkspaceSso({ workspace }: WorkspaceSso.Props) {
             </Button>
           }
         >
-          Couldn’t load the single sign-on settings: {error.message}
+          Couldn't load the single sign-on settings: {error.message}
         </Banner>
       </SettingsRow>
     )

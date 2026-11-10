@@ -102,7 +102,7 @@ describe('RulesSection', () => {
       .toEqual({ kind: 'build-name', pattern: 'release/*', reviewerIds: ['u1'] })
   })
 
-  it('shows the server’s refusal of a rule', async () => {
+  it("shows the server's refusal of a rule", async () => {
     await showRules(
       { rules: [] },
       { [`POST ${API}/rules`]: { status: 400, body: { error: 'That pattern is too broad' } } },

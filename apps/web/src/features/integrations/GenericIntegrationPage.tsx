@@ -92,7 +92,7 @@ export function GenericIntegrationPage() {
       loading={!data && !error}
       error={error}
       onRetry={() => void refetch()}
-      notFound="This integration doesn’t exist"
+      notFound="This integration doesn't exist"
       forbidden={data && !data.canManage ? <MembersRedirect workspace={workspace} /> : null}
     >
       {data ? (
@@ -134,7 +134,7 @@ export function GenericIntegrationPage() {
           />
           {note ? <Banner tone={note.tone}>{note.text}</Banner> : null}
           {data.integration.needsAttention ? (
-            <Banner tone="danger" title={`CirCI can’t reach ${data.integration.name}:`}>
+            <Banner tone="danger" title={`CirCI can't reach ${data.integration.name}:`}>
               {data.integration.attentionReason ??
                 `${data.definition.name} no longer accepts the saved credentials.`}
             </Banner>
@@ -240,7 +240,7 @@ export function GenericIntegrationPage() {
             open={reconnecting}
             onOpenChange={setReconnecting}
             title={`Reconnect ${data.definition.name}`}
-            description="Enter the credentials again; the teams’ settings stay as they are."
+            description="Enter the credentials again; the teams' settings stay as they are."
             actions={<Button onClick={() => setReconnecting(false)}>Cancel</Button>}
           >
             <ConnectForm
@@ -281,7 +281,7 @@ function Footer(props: {
                 <Text>Status check</Text>
                 <Text variant="small" tone="tertiary">
                   One per build name, such as <Text variant="mono">CirCI / default</Text>, with the
-                  build’s changes and a review link.
+                  build's changes and a review link.
                 </Text>
               </span>
               <Text variant="small" tone="secondary">

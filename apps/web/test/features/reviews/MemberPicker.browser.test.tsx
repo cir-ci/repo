@@ -37,7 +37,7 @@ describe('MemberPicker', () => {
     await expect.element(dialog.getByRole('button', { name: /Grace Hopper/ })).toBeVisible()
     expect(dialog.getByRole('button', { name: /Ada Lovelace/ }).elements()).toHaveLength(0)
     await expect
-      .element(dialog.getByText('You can’t request a review from yourself.'))
+      .element(dialog.getByText("You can't request a review from yourself."))
       .toBeVisible()
     await dialog.getByRole('button', { name: /Grace Hopper/ }).click()
     expect(onPick).toHaveBeenCalledWith({ id: 'u2', name: 'Grace Hopper' })

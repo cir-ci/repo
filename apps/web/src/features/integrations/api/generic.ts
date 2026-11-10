@@ -25,11 +25,11 @@ export function connectNote(
     case 'connected':
       return { tone: 'success', text: `${name} is connected. Choose what each team uses.` }
     case 'denied':
-      return { tone: 'danger', text: `${name} wasn’t connected: the install was cancelled.` }
+      return { tone: 'danger', text: `${name} wasn't connected: the install was cancelled.` }
     case 'failed':
       return {
         tone: 'danger',
-        text: `${name} wasn’t connected: ${name} didn’t accept the install. Try again.`,
+        text: `${name} wasn't connected: ${name} didn't accept the install. Try again.`,
       }
     default:
       return null

@@ -110,7 +110,7 @@ describe('LoginPage', () => {
     )
   })
 
-  it('shows a wrong password as an alert that doesn’t say which part was wrong', async () => {
+  it("shows a wrong password as an alert that doesn't say which part was wrong", async () => {
     fakeFetch({
       ...methods(),
       'POST /api/auth/sign-in/email': json({ message: 'Invalid' }, 401),
@@ -300,13 +300,13 @@ describe('LoginPage', () => {
     await expect
       .element(
         page.getByText(
-          'Signing in with that provider didn’t work. If you have no account yet, ask to be invited.',
+          "Signing in with that provider didn't work. If you have no account yet, ask to be invited.",
         ),
       )
       .toBeVisible()
     await page.getByRole('button', { name: 'Continue with GitHub' }).click()
     await expect
-      .element(page.getByText('Couldn’t reach that provider. Try again, or sign in another way.'))
+      .element(page.getByText("Couldn't reach that provider. Try again, or sign in another way."))
       .toBeVisible()
     expect(calls.find((c) => c.path.endsWith('sign-in/social'))?.body).toMatchObject({
       provider: 'github',

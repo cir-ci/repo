@@ -60,7 +60,7 @@ describe('insertMention', () => {
 })
 
 describe('mentionHandle', () => {
-  it('uses the email’s local part when it is unique, else the name as one word', () => {
+  it("uses the email's local part when it is unique, else the name as one word", () => {
     expect(mentionHandle(grace, [ada, grace])).toBe('grace')
     expect(mentionHandle(ada, [ada, grace, other])).toBe('ada-lovelace')
   })

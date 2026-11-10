@@ -155,7 +155,7 @@ describe('the workspaces page', () => {
       },
       'GET /api/instance/settings': { body: settingsFixture() },
     }
-    it('shows a deleted row’s name and status in full at a wide container', async () => {
+    it("shows a deleted row's name and status in full at a wide container", async () => {
       await page.viewport(1440, 900)
       fakeApi(DELETED)
       await show()
@@ -193,7 +193,7 @@ describe('the workspaces page', () => {
       expect(badge.scrollWidth).toBeLessThanOrEqual(badge.clientWidth)
     })
 
-    it('offers Restore and Delete permanently now in the row’s menu', async () => {
+    it("offers Restore and Delete permanently now in the row's menu", async () => {
       fakeApi(DELETED)
       await show()
       await page.getByRole('button', { name: 'Actions for Delta Research Laboratories' }).click()
@@ -228,13 +228,13 @@ describe('the workspaces page', () => {
     await page.getByRole('button', { name: 'Create workspace' }).click()
     await page.getByRole('textbox', { name: 'Name' }).fill('Acme Mobile')
     await expect.element(page.getByText('Address: acme-mobile')).toBeVisible()
-    await page.getByRole('textbox', { name: 'Owner’s email' }).fill('dana@acme.dev')
+    await page.getByRole('textbox', { name: "Owner's email" }).fill('dana@acme.dev')
     await page.getByRole('dialog').getByRole('button', { name: 'Create workspace' }).click()
     await expect.element(page.getByText('Created the workspace Acme Mobile.')).toBeVisible()
     expect(fake.of('POST')[0]?.body).toEqual({ name: 'Acme Mobile', ownerEmail: 'dana@acme.dev' })
   })
 
-  it('checks the fields, and shows the server’s refusal', async () => {
+  it("checks the fields, and shows the server's refusal", async () => {
     const fake = fakeApi({
       ...LIST,
       'POST /api/instance/workspaces': {
@@ -248,7 +248,7 @@ describe('the workspaces page', () => {
     await expect.element(page.getByText('Enter a name')).toBeVisible()
     expect(fake.of('POST')).toHaveLength(0)
     await page.getByRole('textbox', { name: 'Name' }).fill('Acme Mobile')
-    await page.getByRole('textbox', { name: 'Owner’s email' }).fill('nobody@acme.dev')
+    await page.getByRole('textbox', { name: "Owner's email" }).fill('nobody@acme.dev')
     await page.getByRole('dialog').getByRole('button', { name: 'Create workspace' }).click()
     await expect.element(page.getByText('No account has that email')).toBeVisible()
   })

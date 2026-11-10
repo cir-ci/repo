@@ -97,7 +97,7 @@ describe('EmailDomains', () => {
     expect(calls.filter((c) => c.method === 'POST')).toHaveLength(0)
   })
 
-  it('shows the server’s refusal and keeps what was typed', async () => {
+  it("shows the server's refusal and keeps what was typed", async () => {
     await page.viewport(1000, 800)
     fakeFetch({
       [`GET ${BASE}`]: { domains: [] },

@@ -64,7 +64,7 @@ export function DeleteTeamSection({ workspace, team, name, canManage }: DeleteTe
         open={open}
         onOpenChange={close}
         title={`Delete ${name}?`}
-        description="This can’t be undone. The team’s builds, screenshots, sites and settings are deleted for everyone."
+        description="This can't be undone. The team's builds, screenshots, sites and settings are deleted for everyone."
         actions={
           <>
             <Button onClick={() => close(false)}>Cancel</Button>

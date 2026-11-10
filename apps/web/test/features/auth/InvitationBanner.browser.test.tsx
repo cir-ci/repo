@@ -32,7 +32,7 @@ describe('InvitationBanner', () => {
       'POST /api/auth/organization/accept-invitation': { invitation: {} },
     })
     await renderPage(<InvitationBanner userEmail="Ada@Example.com" />)
-    await expect.element(page.getByText('You’re invited to join Acme as member.')).toBeVisible()
+    await expect.element(page.getByText("You're invited to join Acme as member.")).toBeVisible()
     await page.getByRole('button', { name: 'Join' }).click()
     await expect.element(page.getByRole('status')).not.toBeInTheDocument()
     expect(calls.find((c) => c.path.endsWith('accept-invitation'))?.body).toEqual({
@@ -57,7 +57,7 @@ describe('InvitationBanner', () => {
     await renderPage(<InvitationBanner userEmail="ada@example.com" />)
     await expect
       .element(
-        page.getByText('This invitation isn’t for this account, has expired, or was withdrawn.'),
+        page.getByText("This invitation isn't for this account, has expired, or was withdrawn."),
       )
       .toBeVisible()
     await page.getByRole('button', { name: 'Dismiss' }).click()

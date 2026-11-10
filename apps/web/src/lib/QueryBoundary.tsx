@@ -10,7 +10,7 @@ import { ErrorState } from '#lib/ErrorState.tsx'
  * tells screen readers (`announce`), and once there is data `children` renders it. `forbidden`,
  * when given, replaces the error state for the errors `isForbidden` accepts.
  *
- *   <QueryBoundary query={q} announce="Loading your inbox" notFound="This team doesn’t exist">
+ *   <QueryBoundary query={q} announce="Loading your inbox" notFound="This team doesn't exist">
  *     {(data) => <InboxList data={data} />}
  *   </QueryBoundary>
  */

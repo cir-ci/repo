@@ -163,7 +163,7 @@ export function BuildsBrowser({
       <QueryBoundary<NonNullable<typeof data>>
         query={query}
         announce="Loading builds"
-        notFound={scoped ? 'This team doesn’t exist' : 'This workspace doesn’t exist'}
+        notFound={scoped ? "This team doesn't exist" : "This workspace doesn't exist"}
       >
         {() =>
           builds.length === 0 ? (
@@ -193,7 +193,7 @@ export function BuildsBrowser({
               >
                 {before
                   ? undefined
-                  : 'Upload screenshots from your CI job. Builds appear here as soon as they’re processed.'}
+                  : "Upload screenshots from your CI job. Builds appear here as soon as they're processed."}
               </EmptyState>
             )
           ) : (

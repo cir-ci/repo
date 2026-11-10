@@ -44,7 +44,7 @@ const show = () =>
   })
 
 describe('CiTokenPage', () => {
-  it('shows the token’s hint, who made it and when it was last used', async () => {
+  it("shows the token's hint, who made it and when it was last used", async () => {
     api()
     await show()
     await expect.element(page.getByText('circi_AbC1…')).toBeVisible()
@@ -131,7 +131,7 @@ describe('CiTokenPage', () => {
     expect(fake.of('POST')).toHaveLength(1)
   })
 
-  it('shows the server’s refusal to rotate', async () => {
+  it("shows the server's refusal to rotate", async () => {
     api(info(), settings(), {
       [`POST ${API}/token`]: { status: 500, body: { error: 'could not issue a token' } },
     })
@@ -141,7 +141,7 @@ describe('CiTokenPage', () => {
     await expect.element(page.getByRole('alert')).toHaveTextContent('could not issue a token')
   })
 
-  it('sends members to the team’s builds instead of showing the token', async () => {
+  it("sends members to the team's builds instead of showing the token", async () => {
     api(info({ canManage: false }), { ...settings(), canManage: false })
     const { router } = await show()
     await expect.poll(() => router.state.location.pathname).toBe('/acme/web')

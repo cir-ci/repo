@@ -57,7 +57,7 @@ export const CI_EXAMPLES: readonly CiExample[] = [
         `    CIRCI_API_URL: ${apiUrl}`,
       ].join('\n'),
     note: () =>
-      'Save the token as a repository secret named CIRCI_TOKEN. fetch-depth: 0 isn’t needed: the CLI fetches the history it needs (a full fetch is only faster on large repositories).',
+      "Save the token as a repository secret named CIRCI_TOKEN. fetch-depth: 0 isn't needed: the CLI fetches the history it needs (a full fetch is only faster on large repositories).",
   },
   {
     key: 'gitlab',

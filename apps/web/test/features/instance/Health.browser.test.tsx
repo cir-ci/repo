@@ -174,7 +174,7 @@ describe('the health page', () => {
     await expect.element(queues.getByText(/1 retrying \(attempt 3 of 8\)/)).toBeVisible()
   })
 
-  it('keeps each queue’s counts on one line', async () => {
+  it("keeps each queue's counts on one line", async () => {
     await page.viewport(1440, 900)
     fakeApi(ROUTES)
     await show()

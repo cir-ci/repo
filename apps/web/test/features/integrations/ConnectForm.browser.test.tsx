@@ -75,7 +75,7 @@ describe('ConnectForm', () => {
     })
   })
 
-  it('shows the server’s reason when the provider refuses the credentials', async () => {
+  it("shows the server's reason when the provider refuses the credentials", async () => {
     await page.viewport(1000, 900)
     fakeApi({
       'POST /api/workspaces/acme/integrations/tokenchat/connect': {

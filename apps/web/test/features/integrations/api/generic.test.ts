@@ -209,7 +209,7 @@ describe('repositoryRows', () => {
     { id: 'acme/web', name: 'acme/web' },
   ]
 
-  it('lists the host’s repositories with their teams, mapped ones first', () => {
+  it("lists the host's repositories with their teams, mapped ones first", () => {
     expect(repositoryRows([team('web', 'acme/web'), team('www')], targets)).toEqual([
       { ref: 'acme/web', label: 'acme/web', team: 'web', broken: false },
       { ref: 'acme/www', label: 'acme/www', team: null, broken: false },

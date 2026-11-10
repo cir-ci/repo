@@ -133,7 +133,7 @@ describe('WorkspaceGeneralPage', () => {
     expect(headings.at(-1)?.textContent).toBe('Danger zone')
   })
 
-  it('disables deleting for an admin who isn’t an owner', async () => {
+  it("disables deleting for an admin who isn't an owner", async () => {
     await page.viewport(1000, 900)
     fakeApi({
       'GET /api/workspaces/acme': { body: general(true, { isOwner: false }) },
@@ -296,10 +296,10 @@ describe('WorkspaceGeneralPage', () => {
     expect(name().elements()).toHaveLength(0)
   })
 
-  it('says the workspace doesn’t exist for a 404', async () => {
+  it("says the workspace doesn't exist for a 404", async () => {
     await page.viewport(1000, 900)
     fakeApi({ 'GET /api/workspaces/acme': { status: 404, body: { error: 'Workspace not found' } } })
     await renderPage(<WorkspaceGeneralPage />, ROUTE)
-    await expect.element(page.getByText('This workspace doesn’t exist')).toBeVisible()
+    await expect.element(page.getByText("This workspace doesn't exist")).toBeVisible()
   })
 })

@@ -96,7 +96,7 @@ describe('ReviewsSettingsPage', () => {
     expect(page.getByText('Always on', { exact: true }).elements()).toHaveLength(2)
   })
 
-  it('follows the board’s order under one lead and ends with one Save', async () => {
+  it("follows the board's order under one lead and ends with one Save", async () => {
     api()
     await show()
     await expect
@@ -291,7 +291,7 @@ describe('ReviewsSettingsPage', () => {
       .toHaveTextContent('Only owners and admins can change settings')
   })
 
-  it('sends members to the team’s builds instead of showing the rules', async () => {
+  it("sends members to the team's builds instead of showing the rules", async () => {
     api({ canManage: false }, { [`GET ${API}/settings`]: { body: { canManage: false, settings } } })
     const { router } = await show()
     await expect.poll(() => router.state.location.pathname).toBe('/acme/web')

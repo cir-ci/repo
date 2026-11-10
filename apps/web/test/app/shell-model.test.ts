@@ -121,7 +121,7 @@ const view = (id: string, pinned: boolean, position: number): View.Item => ({
 })
 
 describe('pinnedViews', () => {
-  it('keeps the pinned views in the user’s order', () => {
+  it("keeps the pinned views in the user's order", () => {
     const views = [view('c', true, 2), view('x', false, 0), view('a', true, 1)]
     expect(pinnedViews(views).map((v) => v.id)).toEqual(['a', 'c'])
     expect(pinnedViews(undefined)).toEqual([])
@@ -144,7 +144,7 @@ describe('goPath', () => {
     expect(goPath('settings', { workspace: 'acme' })).toBe('/workspaces/acme/settings')
     expect(goPath('settings', {})).toBe('/account/profile')
   })
-  it('opens Members instead of General for a member who can’t change the settings', () => {
+  it("opens Members instead of General for a member who can't change the settings", () => {
     expect(goPath('settings', { workspace: 'acme', canManage: false })).toBe(
       '/workspaces/acme/settings/members',
     )
@@ -328,7 +328,7 @@ describe('switchWorkspacePath', () => {
     expect(go('/workspaces/acme/views/v1')).toBe('/')
   })
 
-  it('keeps the section of a team page, on the new workspace’s team, dropping what is specific', () => {
+  it("keeps the section of a team page, on the new workspace's team, dropping what is specific", () => {
     expect(go('/acme/web')).toBe('/globex/portal')
     expect(go('/acme/web/builds/12')).toBe('/globex/portal')
     expect(go('/acme/web/triage')).toBe('/globex/portal/triage')

@@ -102,7 +102,7 @@ describe('sidebar tabs', () => {
     expect(panel.getByText('about').elements()).toHaveLength(0)
   })
 
-  it('shows the timeline with a rejection’s reason and who did what', async () => {
+  it("shows the timeline with a rejection's reason and who did what", async () => {
     const api = fakeBuildApi(detail())
     api.activity = [
       { type: 'uploaded', at: at(90) },
@@ -152,7 +152,7 @@ describe('j and k', () => {
 const unchanged = () => page.getByRole('button', { name: /^Unchanged/ })
 
 describe('j and k with collapsed groups', () => {
-  it('stop on a collapsed group’s header, Enter opens it, and the next j enters it', async () => {
+  it("stop on a collapsed group's header, Enter opens it, and the next j enters it", async () => {
     fakeBuildApi(detail())
     await renderBuild()
     await expect.element(viewerTitle()).toBeVisible()
@@ -287,7 +287,7 @@ describe('mentions in a comment', () => {
 })
 
 describe('a link to a comment', () => {
-  it('opens the Comments tab, shows the comment’s snapshot and marks the thread', async () => {
+  it("opens the Comments tab, shows the comment's snapshot and marks the thread", async () => {
     const api = fakeBuildApi(detail())
     api.members = [ada, grace]
     api.comments = [

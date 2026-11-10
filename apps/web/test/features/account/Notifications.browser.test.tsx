@@ -68,14 +68,14 @@ describe('NotificationsPage', () => {
     await expect.element(overdue()).not.toBeChecked()
   })
 
-  it('says email is off, with no switches, when the server can’t send mail', async () => {
+  it("says email is off, with no switches, when the server can't send mail", async () => {
     await page.viewport(1000, 800)
     fakeApi({
       [`GET ${PATH}`]: { body: { emailReviewRequested: true, emailReviewOverdue: true } },
       'GET /api/capabilities': NO_MAIL,
     })
     await renderPage(<NotificationsPage />)
-    await expect.element(page.getByText(/can’t send mail yet/)).toBeVisible()
+    await expect.element(page.getByText(/can't send mail yet/)).toBeVisible()
     expect(page.getByRole('switch').elements()).toHaveLength(0)
   })
 

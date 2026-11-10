@@ -122,7 +122,7 @@ async function startOtherKey(): Promise<string> {
 }
 
 describe('fake GitHub: the App manifest conversion and the App itself', () => {
-  it('converts a manifest code once, without authentication, into this fake’s App', async () => {
+  it("converts a manifest code once, without authentication, into this fake's App", async () => {
     const code = gh.issueManifestCode()
     const url = `${gh.apiUrl}/app-manifests/${code}/conversions`
     const first = await fetch(url, { method: 'POST' })

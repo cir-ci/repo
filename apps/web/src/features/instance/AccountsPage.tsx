@@ -159,7 +159,7 @@ export function AccountsPage() {
           </nav>
         ) : null}
         <Text tone="tertiary" variant="small">
-          Banning signs the person out at once and keeps their reviews in each build’s history. The
+          Banning signs the person out at once and keeps their reviews in each build's history. The
           same actions are in <code>circi admin user</code> on the server. Up to {PAGE_SIZE}{' '}
           accounts per page.
         </Text>
@@ -188,7 +188,7 @@ export function AccountsPage() {
           if (!open) setSecret(null)
         }}
         title="Password created"
-        description="Pass it on yourself: CirCI doesn’t keep it in a form anyone can read."
+        description="Pass it on yourself: CirCI doesn't keep it in a form anyone can read."
         dismissible={false}
         actions={
           <Button variant="primary" onClick={() => setSecret(null)}>
@@ -471,14 +471,14 @@ function AccountActions(props: {
     reset: {
       title: `Reset the password for ${name}?`,
       description:
-        'They are signed out everywhere. You’ll see the new password only once, so pass it on to them yourself.',
+        "They are signed out everywhere. You'll see the new password only once, so pass it on to them yourself.",
       label: 'Reset password',
     },
     admin: account?.instanceAdmin
       ? {
           title: `Remove ${name} as instance admin?`,
           description:
-            'They lose access to the Instance pages. The last instance admin can’t be removed; make someone else an instance admin first.',
+            "They lose access to the Instance pages. The last instance admin can't be removed; make someone else an instance admin first.",
           label: 'Remove instance admin',
         }
       : {
@@ -519,7 +519,7 @@ function AccountActions(props: {
           if (!open) onClose()
         }}
         title={`Ban ${name}?`}
-        description="They are signed out at once and can’t sign in until the ban is lifted. Their reviews stay in each build’s history."
+        description="They are signed out at once and can't sign in until the ban is lifted. Their reviews stay in each build's history."
         actions={
           <>
             <Button onClick={onClose}>Cancel</Button>

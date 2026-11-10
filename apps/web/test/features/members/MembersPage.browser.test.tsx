@@ -186,12 +186,12 @@ describe('MembersPage', () => {
       .toBeVisible()
   })
 
-  it('says the workspace doesn’t exist for an unknown slug', async () => {
+  it("says the workspace doesn't exist for an unknown slug", async () => {
     await page.viewport(1000, 800)
     auth.getFullOrganization.mockResolvedValue({ data: null, error: null })
     await show()
     await expect
-      .element(page.getByRole('heading', { name: 'This workspace doesn’t exist' }))
+      .element(page.getByRole('heading', { name: "This workspace doesn't exist" }))
       .toBeVisible()
   })
 
@@ -208,7 +208,7 @@ describe('MembersPage', () => {
     expect(auth.getFullOrganization).toHaveBeenCalledTimes(2)
   })
 
-  it('changes a member’s role from the picker and announces it', async () => {
+  it("changes a member's role from the picker and announces it", async () => {
     await page.viewport(1000, 800)
     auth.updateMemberRole.mockResolvedValue({ data: {}, error: null })
     await show()
@@ -293,7 +293,7 @@ describe('MembersPage', () => {
     await page.getByRole('button', { name: 'Actions for Grace Hopper' }).click()
     await page.getByRole('menuitem', { name: 'Remove from workspace' }).click()
     await page.getByRole('alertdialog').getByRole('button', { name: 'Remove' }).click()
-    await expect.element(page.getByRole('alert')).toHaveTextContent('Couldn’t remove this member')
+    await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't remove this member")
     await expect.element(page.getByRole('alertdialog')).not.toBeInTheDocument()
   })
 
@@ -346,7 +346,7 @@ describe('MembersPage', () => {
     expect(page.getByText(/Invitation sent again/).elements()).toHaveLength(0)
   })
 
-  it('says a re-invite replaced the earlier invitation, from the server’s answer', async () => {
+  it("says a re-invite replaced the earlier invitation, from the server's answer", async () => {
     await page.viewport(1000, 800)
     auth.inviteMember.mockResolvedValue({
       data: { id: 'i9', replaced: true, replacedRole: 'member' },
@@ -364,7 +364,7 @@ describe('MembersPage', () => {
       .toBeVisible()
   })
 
-  it('marks your own row with "you" and nobody else’s', async () => {
+  it('marks your own row with "you" and nobody else\'s', async () => {
     await page.viewport(1000, 800)
     await show()
     await expect.element(page.getByText('· you')).toBeVisible()

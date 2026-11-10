@@ -60,7 +60,7 @@ export function BaselinePage() {
               void baselines.refetch()
               void settings.refetch()
             }}
-            notFound="This team doesn’t exist"
+            notFound="This team doesn't exist"
           />
         ) : !baselines.data || !settings.data || !defaultBranch ? (
           <QuerySkeleton rows={4} />

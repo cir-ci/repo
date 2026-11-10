@@ -19,7 +19,7 @@ export function githubStep(app: Pick<Instance.GithubApp, 'source' | 'canManage'>
 export function githubSourceNote(app: Pick<Instance.GithubApp, 'source'>): string {
   switch (app.source) {
     case 'env':
-      return 'Configured by the server’s environment (GITHUB_APP_*). To change it, edit the environment.'
+      return "Configured by the server's environment (GITHUB_APP_*). To change it, edit the environment."
     case 'manifest':
       return 'Created from this page. Its credentials are stored encrypted on this instance.'
     default:
@@ -31,7 +31,7 @@ export function githubSourceNote(app: Pick<Instance.GithubApp, 'source'>): strin
 /** The page's `?githubApp=` result, as a sentence; null for nothing to say. */
 export function githubAppNote(result: unknown): string | null {
   return result === 'failed'
-    ? 'GitHub didn’t finish creating the App. The link works once, so start again.'
+    ? "GitHub didn't finish creating the App. The link works once, so start again."
     : null
 }
 

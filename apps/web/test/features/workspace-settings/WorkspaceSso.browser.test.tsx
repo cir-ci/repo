@@ -133,18 +133,18 @@ describe('WorkspaceSso', () => {
     })
   })
 
-  it('shows the server’s refusal and keeps the form filled in', async () => {
+  it("shows the server's refusal and keeps the form filled in", async () => {
     await page.viewport(1000, 800)
     fakeFetch({
       [`GET ${BASE}`]: { providers: [] },
       [`POST ${BASE}`]: () =>
-        Response.json({ error: 'Couldn’t reach that issuer' }, { status: 400 }),
+        Response.json({ error: "Couldn't reach that issuer" }, { status: 400 }),
     })
     await show()
     await configure()
     await fill('https://login.acme.test', 'id', 's3cret')
     await page.getByRole('button', { name: 'Connect provider' }).click()
-    await expect.element(page.getByRole('alert')).toHaveTextContent('Couldn’t reach that issuer')
+    await expect.element(page.getByRole('alert')).toHaveTextContent("Couldn't reach that issuer")
     await expect.element(page.getByRole('textbox', { name: 'Client ID' })).toHaveValue('id')
   })
 

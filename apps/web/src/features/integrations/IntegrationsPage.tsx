@@ -44,7 +44,7 @@ export function IntegrationsPage() {
       loading={!data && !error}
       error={error}
       onRetry={() => void refetch()}
-      notFound="This workspace doesn’t exist"
+      notFound="This workspace doesn't exist"
       forbidden={data && !data.canManage ? <MembersRedirect workspace={workspace} /> : null}
     >
       {data ? (

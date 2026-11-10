@@ -167,7 +167,7 @@ describe('ignore regions', () => {
     })
   })
 
-  it('lists a name’s regions newest first', () => {
+  it("lists a name's regions newest first", () => {
     expect(
       regionsOf(
         [r('a', 'n', '2026-01-01'), r('b', 'n', '2026-02-01'), r('c', 'm', '2026-03-01')],

@@ -165,6 +165,6 @@ describe('InboxPage', () => {
   it('shows the empty state', async () => {
     fakeApi({ 'GET /api/inbox': list([]) })
     await show()
-    await expect.element(page.getByRole('heading', { name: 'You’re all caught up' })).toBeVisible()
+    await expect.element(page.getByRole('heading', { name: "You're all caught up" })).toBeVisible()
   })
 })

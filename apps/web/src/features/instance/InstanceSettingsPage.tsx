@@ -45,13 +45,13 @@ function Sections({ settings }: { settings: InstanceAdmin.Settings }) {
   return (
     <>
       <Text tone="secondary">
-        These come from the server’s environment, so you can check them here but not edit them. To
+        These come from the server's environment, so you can check them here but not edit them. To
         change one, set a new value and restart CirCI; each row names its variable.
       </Text>
 
       <SettingsSection
         title="Dashboard address"
-        description="Every link CirCI sends out uses it: pull request comments, checks, emails, the GitHub App’s webhook."
+        description="Every link CirCI sends out uses it: pull request comments, checks, emails, the GitHub App's webhook."
       >
         <Setting title={<Text variant="mono">{settings.publicUrl}</Text>} env="PUBLIC_URL" />
         <Setting
@@ -137,7 +137,7 @@ function Sections({ settings }: { settings: InstanceAdmin.Settings }) {
         ) : (
           <Setting
             title="Not set up"
-            note="Teams can’t host sites until a separate domain is configured."
+            note="Teams can't host sites until a separate domain is configured."
             env="STATIC_SITES_HOST"
           />
         )}
@@ -171,7 +171,7 @@ function MailSection({ mail }: { mail: InstanceAdmin.Settings['mail'] }) {
           </>
         ) : (
           <Setting
-            title="Mail isn’t configured"
+            title="Mail isn't configured"
             note="Without it, nobody gets sign-in codes or invitations by email."
             env="SMTP_HOST, SMTP_FROM"
           />

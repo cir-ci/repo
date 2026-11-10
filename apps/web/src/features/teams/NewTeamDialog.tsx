@@ -193,7 +193,7 @@ function CreatedStep({ created }: { created: CreatedTeam }) {
       <SecretBox label="CI token" value={created.token} />
       <p className={styles.once}>
         <WarningIcon size={14} />
-        This is the only time the token is shown. If you lose it, rotate it in the team’s CI token
+        This is the only time the token is shown. If you lose it, rotate it in the team's CI token
         settings.
       </p>
       <Text as="p" variant="small" tone="secondary">

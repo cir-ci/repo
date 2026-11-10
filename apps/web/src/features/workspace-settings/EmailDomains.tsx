@@ -63,7 +63,7 @@ export function EmailDomains({ workspace }: EmailDomains.Props) {
               </Button>
             }
           >
-            Couldn’t load the email domains: {error.message}
+            Couldn't load the email domains: {error.message}
           </Banner>
         ) : !data ? (
           <QuerySkeleton rows={2} />

@@ -34,7 +34,7 @@ describe('teams queries', () => {
     expect(teamsQuery().queryKey).toEqual(['teams'])
   })
 
-  it('fetches one team’s builds, escaping the path and adding the page cursor', async () => {
+  it("fetches one team's builds, escaping the path and adding the page cursor", async () => {
     const fetcher = stubFetch({})
     await run(teamQuery('my workspace', 'web/app'))
     await run(teamQuery('acme', 'web', 40))

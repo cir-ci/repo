@@ -63,12 +63,12 @@ describe('the GitHub App section of Instance settings', () => {
   it('warns about an address GitHub cannot reach, but still lets it be tried', async () => {
     fakeInstance({
       'GET /api/instance/github-app': {
-        body: { ...APP, warning: 'GitHub can’t deliver webhooks to localhost.' },
+        body: { ...APP, warning: "GitHub can't deliver webhooks to localhost." },
       },
     })
     await showInstance()
     await expect
-      .element(page.getByText('GitHub can’t deliver webhooks to localhost.'))
+      .element(page.getByText("GitHub can't deliver webhooks to localhost."))
       .toBeVisible()
     await expect.element(page.getByRole('button', { name: 'Create GitHub App' })).toBeEnabled()
   })
@@ -97,7 +97,7 @@ describe('the GitHub App section of Instance settings', () => {
       },
     })
     await showInstance()
-    await expect.element(page.getByText(/Configured by the server’s environment/)).toBeVisible()
+    await expect.element(page.getByText(/Configured by the server's environment/)).toBeVisible()
     await expect.element(page.getByText('77')).toBeVisible()
     await expect.element(page.getByRole('link', { name: 'env-app' })).toBeVisible()
     await expect
@@ -119,11 +119,11 @@ describe('the GitHub App section of Instance settings', () => {
   it('explains a setup GitHub did not finish', async () => {
     fakeInstance({ 'GET /api/instance/github-app': { body: APP } })
     await showInstance('/instance/settings?githubApp=failed')
-    await expect.element(page.getByText(/didn’t finish creating the App/)).toBeVisible()
+    await expect.element(page.getByText(/didn't finish creating the App/)).toBeVisible()
   })
 })
 
-describe('the Add dialog’s GitHub tile', () => {
+describe("the Add dialog's GitHub tile", () => {
   const github = entry({
     kind: 'github',
     name: 'GitHub',

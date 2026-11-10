@@ -111,7 +111,7 @@ export function IgnoreRegionsPanel({
           <div className={styles.foot}>
             <Text variant="small" tone="tertiary">
               Regions are blanked out on both images before comparing, and apply to every build.
-              {canManage && !size ? ' Its size is unknown, so regions can’t be drawn.' : ''}
+              {canManage && !size ? " Its size is unknown, so regions can't be drawn." : ''}
             </Text>
           </div>
         ) : null}

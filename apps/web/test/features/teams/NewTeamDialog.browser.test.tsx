@@ -208,7 +208,7 @@ describe('New team dialog', () => {
     expect(api.of('POST')[0]).toMatchObject({ path: '/api/workspaces/globex/teams' })
   })
 
-  it('shows the server’s refusal and keeps the form', async () => {
+  it("shows the server's refusal and keeps the form", async () => {
     const { api } = await open()
     api.set('POST /api/workspaces/acme/teams', { status: 400, body: { error: 'Name is too long' } })
     await page.getByRole('textbox', { name: 'Name' }).fill('x'.repeat(300))

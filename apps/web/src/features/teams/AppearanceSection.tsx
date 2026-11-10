@@ -56,7 +56,7 @@ export function AppearanceSection({
   return (
     <SettingsSection
       title="Name, icon and colour"
-      description="Saved as soon as you change them. The colour only tells teams apart: it never means a build’s state."
+      description="Saved as soon as you change them. The colour only tells teams apart: it never means a build's state."
     >
       <SettingsRow>
         <InstantTextField

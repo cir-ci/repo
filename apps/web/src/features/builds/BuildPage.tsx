@@ -37,7 +37,7 @@ export function BuildPage() {
         <ErrorState
           error={error}
           onRetry={() => void refetch()}
-          notFound="This build doesn’t exist"
+          notFound="This build doesn't exist"
         />
       ) : (
         <div className={styles.body}>

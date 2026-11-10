@@ -59,7 +59,7 @@ describe('passwordProblems', () => {
     expect(passwordProblems({ current: '', next: 'short', confirm: 'other' })).toEqual({
       current: 'Enter your current password',
       next: 'Use at least 12 characters',
-      confirm: 'The two passwords don’t match',
+      confirm: "The two passwords don't match",
     })
   })
   it('refuses the same password again', () => {

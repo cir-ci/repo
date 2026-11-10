@@ -93,7 +93,7 @@ describe('webhooks (private addresses allowed)', () => {
     expect(secret).toMatch(/^whsec_[\w-]{20,}$/)
     completedOnly.setSecret(secret)
     completedSecret = secret
-    await page.getByText('Copy it now: it isn’t shown again.').waitFor()
+    await page.getByText("Copy it now: it isn't shown again.").waitFor()
     await page.getByRole('button', { name: 'Done' }).click()
 
     const list = page.getByRole('list', { name: 'Webhooks' })

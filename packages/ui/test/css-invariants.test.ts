@@ -48,7 +48,7 @@ const OUTLINE_ALLOWED: Record<string, string> = {
   'packages/ui/src/AppFrame.module.css .main:focus-visible':
     '<main> is focused by the skip link only (tabindex=-1): a ring around the whole page is noise',
   'apps/web/src/features/auth/AuthPage.module.css .column':
-    '<main> is focused by the skip link only (tabindex=-1), as the shell’s main',
+    "<main> is focused by the skip link only (tabindex=-1), as the shell's main",
   'packages/ui/src/Select.module.css .positioner': 'a wrapper, never focused itself',
   'packages/ui/src/Select.module.css .popup':
     'the popup container takes focus; its items show focus',

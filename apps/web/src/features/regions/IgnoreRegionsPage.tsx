@@ -38,8 +38,8 @@ function Overview({ workspace, team, teamName }: Overview.Props) {
       </Text>
       {shots.length === 0 ? (
         <EmptyState title="No ignore regions yet">
-          Add one from a screenshot’s baseline page: open it from Baselines, or from a flaky
-          screenshot’s link on the team page.
+          Add one from a screenshot's baseline page: open it from Baselines, or from a flaky
+          screenshot's link on the team page.
         </EmptyState>
       ) : (
         <ul aria-label="Screenshots with ignore regions" className={styles.list}>

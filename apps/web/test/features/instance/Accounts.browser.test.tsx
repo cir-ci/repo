@@ -215,7 +215,7 @@ describe('creating an account', () => {
     expect(fake.of('POST')).toHaveLength(0)
   })
 
-  it('shows the server’s refusal in the dialog', async () => {
+  it("shows the server's refusal in the dialog", async () => {
     fakeApi({
       ...LIST,
       'POST /api/instance/accounts': { status: 409, body: { error: 'That email is taken' } },

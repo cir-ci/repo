@@ -135,12 +135,12 @@ describe('WorkspaceStoragePage', () => {
     expect(days().elements()).toHaveLength(0)
   })
 
-  it('says the workspace doesn’t exist for a 404', async () => {
+  it("says the workspace doesn't exist for a 404", async () => {
     await page.viewport(1000, 1000)
     fakeApi({
       'GET /api/workspaces/acme/storage': { status: 404, body: { error: 'Workspace not found' } },
     })
     await renderPage(<WorkspaceStoragePage />, ROUTE)
-    await expect.element(page.getByText('This workspace doesn’t exist')).toBeVisible()
+    await expect.element(page.getByText("This workspace doesn't exist")).toBeVisible()
   })
 })

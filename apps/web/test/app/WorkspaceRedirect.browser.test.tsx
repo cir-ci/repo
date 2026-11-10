@@ -49,7 +49,7 @@ describe('/reviews and /insights without a workspace', () => {
   it('says the page does not exist for someone with no workspace', async () => {
     await open('/reviews', [])
     await expect
-      .element(page.getByRole('heading', { name: 'This page doesn’t exist' }))
+      .element(page.getByRole('heading', { name: "This page doesn't exist" }))
       .toBeVisible()
   })
 })
@@ -58,7 +58,7 @@ describe('/login while signed in', () => {
   it('goes to the app instead of saying the page does not exist', async () => {
     const router = await open('/login', [overview('acme', 'Acme')])
     await expect.poll(() => router.state.location.pathname).toBe('/')
-    expect(page.getByRole('heading', { name: 'This page doesn’t exist' }).elements()).toHaveLength(
+    expect(page.getByRole('heading', { name: "This page doesn't exist" }).elements()).toHaveLength(
       0,
     )
   })

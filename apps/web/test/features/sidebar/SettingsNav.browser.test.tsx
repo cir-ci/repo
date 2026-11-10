@@ -86,7 +86,7 @@ describe('SettingsNav', () => {
     ])
   })
 
-  it('leaves out the pages members can’t use: they keep Members and Ignore regions', async () => {
+  it("leaves out the pages members can't use: they keep Members and Ignore regions", async () => {
     await show({ canManage: false })
     const workspace = page.getByRole('region', { name: /^Workspace/ })
     await expect.element(workspace.getByRole('link', { name: 'Members' })).toBeVisible()

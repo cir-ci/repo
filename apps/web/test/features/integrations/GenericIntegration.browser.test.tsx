@@ -187,7 +187,7 @@ describe('GenericIntegrationPage', () => {
       },
     })
     await show()
-    await expect.element(page.getByText('CirCI can’t reach Acme Workspace:')).toBeVisible()
+    await expect.element(page.getByText("CirCI can't reach Acme Workspace:")).toBeVisible()
     await expect.element(page.getByText(/token_revoked/)).toBeVisible()
     await expect.element(page.getByText('Needs attention')).toBeVisible()
     await page.getByRole('button', { name: 'Reconnect Acme Workspace' }).click()
@@ -402,7 +402,7 @@ describe('GenericIntegrationPage links (Figma frames)', () => {
     })
   })
 
-  it('adds a link from the definition’s fields, removes one, and links automatically', async () => {
+  it("adds a link from the definition's fields, removes one, and links automatically", async () => {
     await page.viewport(1000, 900)
     const fake = fakeApi({
       [`GET ${BASE}/f1/teams`]: figmaPage(),

@@ -244,13 +244,13 @@ export function BuildReview({ data, designEnabled = false }: BuildReview.Props) 
         {review.error ? <Banner tone="danger">{review.error.message}</Banner> : null}
         {build.errorMessage ? <Banner tone="danger">{build.errorMessage}</Banner> : null}
         {active ? (
-          <Banner tone="info">Processing screenshots. This page updates when it’s done.</Banner>
+          <Banner tone="info">Processing screenshots. This page updates when it's done.</Banner>
         ) : null}
       </div>
 
       {build.status === 'expired' ? (
         <EmptyState icon={<HourglassIcon size={32} />} title="This build has expired">
-          Its screenshots were deleted under the team’s retention policy.
+          Its screenshots were deleted under the team's retention policy.
         </EmptyState>
       ) : ordered.length === 0 ? (
         active ? null : (
@@ -413,7 +413,7 @@ function BaselineNote({ data }: BaselineNote.Props) {
     return (
       <Banner tone="info">
         This is the first build, so every screenshot is new. Later builds are compared with it once
-        it’s approved.
+        it's approved.
       </Banner>
     )
   }
@@ -429,8 +429,8 @@ function BaselineNote({ data }: BaselineNote.Props) {
   if (build.baselineSource === 'fallback') {
     return (
       <Banner tone="warning">
-        Compared with {where}, the latest on the default branch, because this build’s git history
-        wasn’t available. Changes merged since this branch was created may show up here. Fetch more
+        Compared with {where}, the latest on the default branch, because this build's git history
+        wasn't available. Changes merged since this branch was created may show up here. Fetch more
         history in CI (for example <code>fetch-depth: 0</code>) for an exact comparison.
       </Banner>
     )

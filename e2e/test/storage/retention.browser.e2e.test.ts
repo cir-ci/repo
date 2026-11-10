@@ -120,7 +120,7 @@ describe('retention and garbage collection', () => {
     )
     await page.getByText('This build has expired').waitFor()
     await page
-      .getByText('Its screenshots were deleted under the team’s retention policy.')
+      .getByText("Its screenshots were deleted under the team's retention policy.")
       .waitFor()
     expect(await page.getByRole('navigation', { name: 'Screenshots' }).count()).toBe(0)
   })

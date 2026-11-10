@@ -31,7 +31,7 @@ describe('timelineItems: issues', () => {
 })
 
 describe('timelineItems', () => {
-  it('describes each kind of event, keeping a rejection’s reason as a quote', () => {
+  it("describes each kind of event, keeping a rejection's reason as a quote", () => {
     const events: Activity.Event[] = [
       { type: 'uploaded', at },
       { type: 'failed', at, message: 'out of memory' },

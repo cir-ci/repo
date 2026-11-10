@@ -39,7 +39,7 @@ describe('notes', () => {
 })
 
 describe('githubAppQuery', () => {
-  it('reads the instance’s GitHub App', async () => {
+  it("reads the instance's GitHub App", async () => {
     const app = { source: 'none', canManage: true }
     fakeFetch({ 'GET /api/instance/github-app': app })
     expect(await new QueryClient().fetchQuery(githubAppQuery())).toEqual(app)

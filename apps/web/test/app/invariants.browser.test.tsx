@@ -208,7 +208,7 @@ function unexpected(key: string, problems: string[]) {
 }
 
 describe('every page upholds the global invariants', () => {
-  it('knows the app’s addresses', () => {
+  it("knows the app's addresses", () => {
     // A guard that the enumeration works, so the loops below cannot pass by checking nothing.
     expect(PATHS.length).toBeGreaterThan(30)
     expect(PATHS).toContain('/inbox')

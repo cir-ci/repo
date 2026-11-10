@@ -54,7 +54,7 @@ const openWorkspaceDialog = async () => {
 }
 
 describe('TeamsPage', () => {
-  it('lists only the selected workspace’s teams, and counts only those', async () => {
+  it("lists only the selected workspace's teams, and counts only those", async () => {
     fakeApi({
       'GET /api/teams': {
         body: {
@@ -83,7 +83,7 @@ describe('TeamsPage', () => {
     await expect.element(page.getByRole('status').first()).toHaveTextContent('Loading teams')
   })
 
-  it('lists teams with their latest build’s status, counts and meta, linking to the builds', async () => {
+  it("lists teams with their latest build's status, counts and meta, linking to the builds", async () => {
     fakeApi({
       'GET /api/teams': {
         body: {
@@ -245,7 +245,7 @@ describe('TeamsPage', () => {
         .toHaveTextContent('Workspace Globex created')
     })
 
-    it('shows the server’s refusal and keeps the dialog open', async () => {
+    it("shows the server's refusal and keeps the dialog open", async () => {
       const api = await openWorkspaceDialog()
       api.set('POST /api/workspaces', { status: 409, body: { error: 'That name is taken' } })
       await page.getByRole('textbox', { name: 'Name' }).fill('Globex')

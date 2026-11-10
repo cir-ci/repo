@@ -20,7 +20,7 @@ export const workspaceQuery = (workspace: string) =>
       if (error) {
         throw new HttpError(
           error.status === 404 ? 404 : (error.status ?? 500),
-          error.message ?? 'Couldn’t load the workspace',
+          error.message ?? "Couldn't load the workspace",
         )
       }
       if (!data) throw new HttpError(404, 'Workspace not found')
@@ -42,7 +42,7 @@ export async function inviteMember(input: {
     organizationId: input.workspaceId,
     ...(input.resend ? { resend: true } : {}),
   })
-  if (error) throw new Error(error.message ?? 'Couldn’t send the invitation.')
+  if (error) throw new Error(error.message ?? "Couldn't send the invitation.")
   return replacement(data)
 }
 
@@ -57,7 +57,7 @@ function replacement(data: unknown): { replacedRole: string | null } | null {
 
 export async function cancelInvitation(invitationId: string) {
   const { error } = await authClient.organization.cancelInvitation({ invitationId })
-  if (error) throw new Error('Couldn’t revoke the invitation')
+  if (error) throw new Error("Couldn't revoke the invitation")
 }
 
 export async function removeMember(input: { memberId: string; workspaceId: string }) {
@@ -65,7 +65,7 @@ export async function removeMember(input: { memberId: string; workspaceId: strin
     memberIdOrEmail: input.memberId,
     organizationId: input.workspaceId,
   })
-  if (error) throw new Error('Couldn’t remove this member')
+  if (error) throw new Error("Couldn't remove this member")
 }
 
 export async function changeMemberRole(input: {
@@ -78,7 +78,7 @@ export async function changeMemberRole(input: {
     role: input.role,
     organizationId: input.workspaceId,
   })
-  if (error) throw new Error(error.message ?? 'Couldn’t change this member’s role')
+  if (error) throw new Error(error.message ?? "Couldn't change this member's role")
 }
 
 export const workspaceAuthQuery = (workspace: string) =>

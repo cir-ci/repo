@@ -42,16 +42,16 @@ describe('PageFrame', () => {
     expect(onRetry).toHaveBeenCalledTimes(1)
   })
 
-  it('uses the page’s own words for a 404', async () => {
+  it("uses the page's own words for a 404", async () => {
     await renderPage(
       <PageFrame
         crumbs={[]}
         title="Webhooks"
         error={new HttpError(404, 'nope')}
-        notFound="This team doesn’t exist"
+        notFound="This team doesn't exist"
       />,
     )
-    await expect.element(page.getByText('This team doesn’t exist')).toBeVisible()
+    await expect.element(page.getByText("This team doesn't exist")).toBeVisible()
   })
 
   it('hides the children while loading and for a forbidden viewer', async () => {

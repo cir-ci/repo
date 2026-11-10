@@ -33,7 +33,7 @@ describe('SiteHandoffPage', () => {
     await open('')
     await expect.element(page.getByRole('heading', { name: 'Not found' })).toBeVisible()
     await expect
-      .element(page.getByText('This address doesn’t exist, or you don’t have access to it.'))
+      .element(page.getByText("This address doesn't exist, or you don't have access to it."))
       .toBeVisible()
     expect(calls).toHaveLength(0)
   })

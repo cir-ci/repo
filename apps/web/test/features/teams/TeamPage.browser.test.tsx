@@ -63,11 +63,11 @@ describe('TeamPage', () => {
     expect(document.title).toBe('Builds · Web App · CirCI')
   })
 
-  it('warns when GitHub no longer accepts the team’s installation, and says nothing otherwise', async () => {
+  it("warns when GitHub no longer accepts the team's installation, and says nothing otherwise", async () => {
     api([build(3)])
     await show()
     await expect.element(page.getByText('Web App', { exact: true }).first()).toBeVisible()
-    expect(page.getByText(/can’t reach GitHub/).elements()).toHaveLength(0)
+    expect(page.getByText(/can't reach GitHub/).elements()).toHaveLength(0)
 
     api([build(3)], undefined, { reason: 'installation_revoked', since: new Date().toISOString() })
     await show()
@@ -117,7 +117,7 @@ describe('TeamPage', () => {
     ['pending', 'needs-review'],
     ['approved', 'approved'],
     ['rejected', 'rejected'],
-  ] as const)('a %s build’s count chips show the %s glyph', async (reviewStatus, glyph) => {
+  ] as const)("a %s build's count chips show the %s glyph", async (reviewStatus, glyph) => {
     api([
       build(4, {
         reviewStatus,
@@ -251,14 +251,14 @@ describe('TeamPage', () => {
     expect(page.getByText(/npx circi upload/).elements()).toHaveLength(0)
   })
 
-  it('says the team doesn’t exist for a 404', async () => {
+  it("says the team doesn't exist for a 404", async () => {
     fakeApi({
       'GET /api/teams/acme/web': { status: 404, body: { error: 'Team not found' } },
       'GET /api/teams/acme/web/flaky': { status: 404, body: { error: 'Team not found' } },
     })
     await show()
     await expect
-      .element(page.getByRole('heading', { name: 'This team doesn’t exist' }))
+      .element(page.getByRole('heading', { name: "This team doesn't exist" }))
       .toBeVisible()
     expect(page.getByRole('button', { name: 'Try again' }).elements()).toHaveLength(0)
   })

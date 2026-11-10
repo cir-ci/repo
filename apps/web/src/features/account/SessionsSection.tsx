@@ -28,7 +28,7 @@ export function SessionsSection({ currentToken }: SessionsSection.Props) {
   const revoke = useMutation({
     mutationFn: async (token: string) => {
       const { error: failure } = await authClient.revokeSession({ token })
-      if (failure) throw new Error('Couldn’t sign that device out')
+      if (failure) throw new Error("Couldn't sign that device out")
     },
     onSuccess: () => {
       announce('Signed out')
@@ -38,7 +38,7 @@ export function SessionsSection({ currentToken }: SessionsSection.Props) {
   const revokeOthers = useMutation({
     mutationFn: async () => {
       const { error: failure } = await authClient.revokeOtherSessions()
-      if (failure) throw new Error('Couldn’t sign the other devices out')
+      if (failure) throw new Error("Couldn't sign the other devices out")
     },
     onSuccess: () => {
       setConfirmingOthers(false)

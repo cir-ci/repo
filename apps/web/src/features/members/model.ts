@@ -29,7 +29,7 @@ type Problems<K extends string> = Partial<Record<K, string>>
 export function validateInvite(email: string): Problems<'email'> {
   if (!email) return { email: 'Enter an email address' }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-    return { email: 'That doesn’t look like an email address' }
+    return { email: "That doesn't look like an email address" }
   return {}
 }
 

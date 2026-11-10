@@ -123,7 +123,7 @@ export function MembersPage() {
         <QueryBoundary
           query={result}
           announce="Loading members"
-          notFound="This workspace doesn’t exist"
+          notFound="This workspace doesn't exist"
         >
           {(loaded) => (
             <>
@@ -300,7 +300,7 @@ export function MembersPage() {
         title={`Make ${roleChange?.name ?? 'this member'} ${roleChange?.role === 'admin' ? 'an admin' : 'a member'}?`}
         description={
           roleChange?.role === 'admin'
-            ? 'Admins can invite and remove people, change roles and change every team’s settings.'
+            ? "Admins can invite and remove people, change roles and change every team's settings."
             : 'They will no longer be able to invite or remove people, or change settings.'
         }
         confirmLabel="Change role"

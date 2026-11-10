@@ -33,7 +33,7 @@ export function SiteHandoffPage() {
   return failed ? (
     <AuthPage
       title="Not found"
-      subtitle="This address doesn’t exist, or you don’t have access to it."
+      subtitle="This address doesn't exist, or you don't have access to it."
     >
       <Button href="/" size="lg" className={styles.back}>
         Go to teams

@@ -203,7 +203,7 @@ const queue = (over: Partial<InstanceAdmin.QueueDepth>): InstanceAdmin.QueueDept
 })
 
 describe('health', () => {
-  it('puts failures first, then warnings, notes and passes, keeping the server’s order', () => {
+  it("puts failures first, then warnings, notes and passes, keeping the server's order", () => {
     const sorted = sortFindings([
       f('a', 'ok'),
       f('b', 'warn'),

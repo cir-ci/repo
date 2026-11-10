@@ -46,7 +46,7 @@ export function TeamSettingsFrame({
       loading={!data}
       error={error}
       onRetry={() => void refetch()}
-      notFound="This team doesn’t exist"
+      notFound="This team doesn't exist"
       forbidden={
         managersOnly && data && !data.canManage ? (
           <Navigate to="/$workspace/$team" params={{ workspace, team }} replace />

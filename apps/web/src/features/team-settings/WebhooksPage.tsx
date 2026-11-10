@@ -99,7 +99,7 @@ function Webhooks(props: Webhooks.Props) {
     <>
       <SettingsSection
         title="Webhooks"
-        description={`Send ${props.name}’s build events as signed JSON to your own services. Failed deliveries are retried 8 times with backoff.`}
+        description={`Send ${props.name}'s build events as signed JSON to your own services. Failed deliveries are retried 8 times with backoff.`}
         actions={
           props.canManage ? (
             <Button variant="primary" onClick={open}>
@@ -172,7 +172,7 @@ function Webhooks(props: Webhooks.Props) {
           <SettingsSection
             key={h.id}
             title={`Recent deliveries to ${hostOf(h.url)}`}
-            description="Any answer other than 2xx is retried. Redirects aren’t followed."
+            description="Any answer other than 2xx is retried. Redirects aren't followed."
             aria-label={`Recent deliveries to ${h.url}`}
           >
             <div className={styles.table} role="table" aria-label={`Deliveries to ${h.url}`}>
@@ -231,7 +231,7 @@ function Webhooks(props: Webhooks.Props) {
             <Text as="code" variant="mono">
               {'<t>.<body>'}
             </Text>{' '}
-            with the webhook’s secret. Reject signatures older than 5 minutes.
+            with the webhook's secret. Reject signatures older than 5 minutes.
           </>
         }
       />
@@ -260,10 +260,10 @@ function Webhooks(props: Webhooks.Props) {
       >
         {secret ? (
           <div className={styles.dialogForm}>
-            <Text>Webhook added. Use this secret to check each delivery’s signature.</Text>
+            <Text>Webhook added. Use this secret to check each delivery's signature.</Text>
             <SecretBox label={`Signing secret for ${secret.url}`} value={secret.value} />
             <Text variant="small" tone="tertiary">
-              Copy it now: it isn’t shown again.
+              Copy it now: it isn't shown again.
             </Text>
           </div>
         ) : (
@@ -320,7 +320,7 @@ function Webhooks(props: Webhooks.Props) {
               <Text as="code" variant="mono" className={styles.wrap}>
                 {removing.url}
               </Text>{' '}
-              stops receiving build events right away. This can’t be undone.
+              stops receiving build events right away. This can't be undone.
             </>
           ) : undefined
         }

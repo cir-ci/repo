@@ -45,7 +45,7 @@ export function PictureRow({ workspace, name, picture, canManage }: PictureRow.P
             </Text>
           ) : (
             <Text variant="small" tone="tertiary">
-              At least 128 px on the short side; it’s cropped to a square. PNG, JPEG or WebP up to 1
+              At least 128 px on the short side; it's cropped to a square. PNG, JPEG or WebP up to 1
               MB. Without one, CirCI shows the first letter.
             </Text>
           )}

@@ -209,7 +209,7 @@ export function WorkspacesPage() {
           if (!open) setPurging(null)
         }}
         title={`Delete ${purging?.name ?? ''} permanently?`}
-        description="Its teams, builds, screenshots and settings are deleted now, without waiting for the rest of the 30 days. This can’t be undone."
+        description="Its teams, builds, screenshots and settings are deleted now, without waiting for the rest of the 30 days. This can't be undone."
         confirmLabel="Delete permanently"
         confirmText={purging?.slug}
         loading={purge.isPending}
@@ -297,7 +297,7 @@ function CreateWorkspaceDialog(props: {
           autoComplete="off"
         />
         <TextField
-          label="Owner’s email"
+          label="Owner's email"
           type="email"
           value={draft.ownerEmail}
           error={shown ? problems.ownerEmail : undefined}

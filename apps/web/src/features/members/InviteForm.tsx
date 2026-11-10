@@ -33,7 +33,7 @@ export function InviteForm({ workspaceId, onInvited }: InviteForm.Props) {
     } catch (failure) {
       setMessage({
         tone: 'danger',
-        text: failure instanceof Error ? failure.message : 'Couldn’t send the invitation.',
+        text: failure instanceof Error ? failure.message : "Couldn't send the invitation.",
       })
       return
     } finally {

@@ -17,7 +17,7 @@ export function ReviewTargetSection(props: ReviewTargetSection.Props) {
       description={
         saved === null
           ? 'Review requests never become overdue. Set a target and requests waiting longer get an overdue badge in Reviews and notify the reviewer.'
-          : `Requests waiting longer than this get an overdue badge in Reviews and a reminder in the reviewer’s Inbox.`
+          : `Requests waiting longer than this get an overdue badge in Reviews and a reminder in the reviewer's Inbox.`
       }
     >
       <SettingsRow>

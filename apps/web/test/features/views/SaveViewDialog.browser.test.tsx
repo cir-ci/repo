@@ -46,7 +46,7 @@ describe('SaveViewDialog', () => {
     expect(onSave).toHaveBeenCalledExactlyOnceWith('Waiting on me')
   })
 
-  it('shows the server’s refusal under the name', async () => {
+  it("shows the server's refusal under the name", async () => {
     await show({ error: 'You already have a view with that name' }).ready
     await expect.element(page.getByText(/You already have a view with that name/)).toBeVisible()
   })

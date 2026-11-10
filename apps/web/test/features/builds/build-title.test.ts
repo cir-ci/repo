@@ -8,7 +8,7 @@ describe('buildTitle', () => {
     expect(buildTitle(148, 'default')).toBe('Build #148')
   })
 
-  it('puts a build’s own name after the number', () => {
+  it("puts a build's own name after the number", () => {
     expect(buildTitle(3, 'storybook')).toBe('Build #3 · storybook')
   })
 

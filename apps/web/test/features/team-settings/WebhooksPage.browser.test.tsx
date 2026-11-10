@@ -290,7 +290,7 @@ describe('WebhooksPage', () => {
     expect(fake.of('POST')).toHaveLength(0)
   })
 
-  it('won’t add without an event: says so next to the events, and sends nothing', async () => {
+  it("won't add without an event: says so next to the events, and sends nothing", async () => {
     const fake = api()
     await show()
     await openDialog()
@@ -313,7 +313,7 @@ describe('WebhooksPage', () => {
     })
   })
 
-  it('shows the server’s refusal of an address', async () => {
+  it("shows the server's refusal of an address", async () => {
     api(
       {},
       { [`POST ${API}/webhooks`]: { status: 400, body: { error: 'Address must be public' } } },
@@ -347,7 +347,7 @@ describe('WebhooksPage', () => {
       .toBeVisible()
   })
 
-  it('sends members to the team’s builds instead of showing the webhooks', async () => {
+  it("sends members to the team's builds instead of showing the webhooks", async () => {
     api({ canManage: false, webhooks: [hook('h1', 'https://a.test/hook')] })
     const { router } = await show()
     await expect.poll(() => router.state.location.pathname).toBe('/acme/web')

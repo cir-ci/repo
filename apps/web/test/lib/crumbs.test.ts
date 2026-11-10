@@ -26,7 +26,7 @@ describe('breadcrumb rule', () => {
     expect(crumbsFor({ workspace: acme }).map((c) => c.label)).toEqual(['Acme'])
   })
 
-  it('starts a team-level page with the workspace and team crumbs, then the page’s own', () => {
+  it("starts a team-level page with the workspace and team crumbs, then the page's own", () => {
     const crumbs = crumbsFor({ workspace: acme, team: web }, [teamSettingsCrumb('acme', 'web-app')])
     expect(crumbs.map((c) => c.label)).toEqual(['Acme', 'Web app', 'Settings'])
     expect(crumbs.map((c) => c.link?.to)).toEqual([

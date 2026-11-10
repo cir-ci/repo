@@ -130,7 +130,7 @@ function Methods({ workspace, data }: Methods.Props) {
         ) : null}
       </SettingsSection>
       <Banner>
-        You can’t turn off the last method an owner can sign in with. If everyone is ever locked
+        You can't turn off the last method an owner can sign in with. If everyone is ever locked
         out, an admin can switch one back on from the server with{' '}
         <Text as="code" variant="mono">
           circi admin auth enable password --org {workspace}

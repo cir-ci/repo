@@ -37,7 +37,7 @@ const filed = (snapshotName: string | null) => ({
 })
 
 describe('issues on a snapshot', () => {
-  it('shows a link row under the selected snapshot’s header, and not under another', async () => {
+  it("shows a link row under the selected snapshot's header, and not under another", async () => {
     const api = fakeBuildApi(detail())
     api.issues = { issues: [filed('checkout / payment')], trackers: [] }
     await renderBuild()
@@ -79,7 +79,7 @@ describe('BuildPage states', () => {
     expect(page.getByRole('button', { name: 'Approve all' }).elements()).toHaveLength(0)
   })
 
-  it('says so in the page’s own words when the build doesn’t exist', async () => {
+  it("says so in the page's own words when the build doesn't exist", async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(() =>
@@ -87,7 +87,7 @@ describe('BuildPage states', () => {
       ),
     )
     await renderBuild()
-    await expect.element(page.getByText('This build doesn’t exist')).toBeVisible()
+    await expect.element(page.getByText("This build doesn't exist")).toBeVisible()
   })
 
   it('offers a retry when the build could not be loaded', async () => {
@@ -606,12 +606,12 @@ describe('approving and rejecting', () => {
     expect(api.reviews).toEqual([])
   })
 
-  it('shows the server’s message when the decision fails', async () => {
+  it("shows the server's message when the decision fails", async () => {
     const api = fakeBuildApi(detail())
-    api.reviewError = 'You can’t review this build'
+    api.reviewError = "You can't review this build"
     await renderBuild()
     await page.getByRole('button', { name: 'Approve all' }).click()
-    await expect.element(page.getByRole('alert')).toHaveTextContent('You can’t review this build')
+    await expect.element(page.getByRole('alert')).toHaveTextContent("You can't review this build")
     await expect.element(page.getByRole('button', { name: 'Approve all' })).toBeEnabled()
   })
 })

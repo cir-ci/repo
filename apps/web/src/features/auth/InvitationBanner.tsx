@@ -27,7 +27,7 @@ export function InvitationBanner({ userEmail }: InvitationBanner.Props) {
       .getInvitation({ query: { id } })
       .then(({ data, error: failure }) => {
         if (failure || !data) {
-          setError('This invitation isn’t for this account, has expired, or was withdrawn.')
+          setError("This invitation isn't for this account, has expired, or was withdrawn.")
           return
         }
         setInvitation({
@@ -54,7 +54,7 @@ export function InvitationBanner({ userEmail }: InvitationBanner.Props) {
     })
     setBusy(false)
     if (failure) {
-      setError('Couldn’t join. The invitation may have expired or been withdrawn.')
+      setError("Couldn't join. The invitation may have expired or been withdrawn.")
       return
     }
     await queryClient.invalidateQueries()
@@ -81,8 +81,8 @@ export function InvitationBanner({ userEmail }: InvitationBanner.Props) {
         {error ??
           (invitation
             ? invitation.email.toLowerCase() === userEmail.toLowerCase()
-              ? `You’re invited to join ${invitation.workspaceName} as ${invitation.role}.`
-              : `This invitation is for ${invitation.email}, but you’re signed in as ${userEmail}. Sign out and use that address.`
+              ? `You're invited to join ${invitation.workspaceName} as ${invitation.role}.`
+              : `This invitation is for ${invitation.email}, but you're signed in as ${userEmail}. Sign out and use that address.`
             : 'Checking your invitation…')}
       </Banner>
     </div>

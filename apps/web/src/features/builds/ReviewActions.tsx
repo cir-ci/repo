@@ -176,10 +176,10 @@ export function ReviewNote({ data }: ReviewNote.Props) {
   return (
     <Text variant="small" tone="secondary" as="p">
       {latest.source === 'auto' ? (
-        <>Approved automatically, because it’s a build on the default branch.</>
+        <>Approved automatically, because it's a build on the default branch.</>
       ) : latest.source === 'rerun' ? (
         <>
-          Approved automatically: this commit’s exact screenshots were approved in an earlier build.
+          Approved automatically: this commit's exact screenshots were approved in an earlier build.
         </>
       ) : (
         <>

@@ -46,7 +46,7 @@ describe('invitations and members', () => {
     await page.getByText(`Invitation sent to ${email}.`).first().waitFor()
   }
 
-  it('shows the form validation messages and the server’s refusals', async () => {
+  it("shows the form validation messages and the server's refusals", async () => {
     const { setup } = ctx
     const page = await browser.as(setup.session)
     await page.goto(membersUrl())
@@ -55,7 +55,7 @@ describe('invitations and members', () => {
     await page.getByText('Enter an email address').waitFor()
     await page.getByLabel('Email', { exact: true }).fill('not-an-address')
     await page.getByRole('button', { name: 'Send invite' }).click()
-    await page.getByText('That doesn’t look like an email address').waitFor()
+    await page.getByText("That doesn't look like an email address").waitFor()
     expect((await fullWorkspace(setup.session, workspace())).invitations).toHaveLength(0)
 
     // Inviting the same address twice, and inviting someone who is already a member.
@@ -139,11 +139,11 @@ describe('invitations and members', () => {
       await page.getByRole('button', { name: /^Account menu for / }).waitFor()
       // Signed in; the invitation is still waiting for one click.
       await page
-        .getByText(`You’re invited to join ${ctx.setup.workspace.name} as member.`)
+        .getByText(`You're invited to join ${ctx.setup.workspace.name} as member.`)
         .waitFor()
       await page.getByRole('button', { name: 'Join' }).click()
       await page
-        .getByText(`You’re invited to join ${ctx.setup.workspace.name} as member.`)
+        .getByText(`You're invited to join ${ctx.setup.workspace.name} as member.`)
         .waitFor({ state: 'detached' })
     })
 
@@ -164,12 +164,12 @@ describe('invitations and members', () => {
 
     await withSessionPage(browser.browser, session, async (p) => {
       await p.goto(link ?? '')
-      await p.getByText(`You’re invited to join ${ctx.setup.workspace.name} as admin.`).waitFor()
+      await p.getByText(`You're invited to join ${ctx.setup.workspace.name} as admin.`).waitFor()
       // Before accepting, the new workspace is not theirs to see.
       expect((await session.get<{ teams: unknown[] }>('/api/teams')).teams).toEqual([])
       await p.getByRole('button', { name: 'Join' }).click()
       await p
-        .getByText(`You’re invited to join ${ctx.setup.workspace.name} as admin.`)
+        .getByText(`You're invited to join ${ctx.setup.workspace.name} as admin.`)
         .waitFor({ state: 'detached' })
     })
     const member = (await fullWorkspace(setup.session, workspace())).members.find(
@@ -205,7 +205,7 @@ describe('invitations and members', () => {
     await withSessionPage(browser.browser, session, async (p) => {
       await p.goto(link ?? '')
       await p
-        .getByText('This invitation isn’t for this account, has expired, or was withdrawn.')
+        .getByText("This invitation isn't for this account, has expired, or was withdrawn.")
         .waitFor()
     })
     const members = (await fullWorkspace(setup.session, workspace())).members
@@ -233,7 +233,7 @@ describe('invitations and members', () => {
     await withSessionPage(browser.browser, session, async (p) => {
       await p.goto(link ?? '')
       await p
-        .getByText('This invitation isn’t for this account, has expired, or was withdrawn.')
+        .getByText("This invitation isn't for this account, has expired, or was withdrawn.")
         .waitFor()
       expect(await p.getByRole('button', { name: 'Join' }).count()).toBe(0)
     })
@@ -266,7 +266,7 @@ describe('invitations and members', () => {
     await withSessionPage(browser.browser, session, async (p) => {
       await p.goto(link ?? '')
       await p
-        .getByText('This invitation isn’t for this account, has expired, or was withdrawn.')
+        .getByText("This invitation isn't for this account, has expired, or was withdrawn.")
         .waitFor()
     })
     const res = await session.request('POST', '/api/auth/organization/accept-invitation', {
@@ -442,7 +442,7 @@ describe('invitations and members', () => {
         404,
       )
       await loPage.reload()
-      await loPage.getByText('This team doesn’t exist').waitFor()
+      await loPage.getByText("This team doesn't exist").waitFor()
       expect(await loPage.getByText('Secret', { exact: true }).count()).toBe(0)
     })
     // They can be invited again.

@@ -22,7 +22,7 @@ export function SsoButtons({ providers, onWorkspace }: SsoButtons.Props) {
     const options = { callbackURL: '/', errorCallbackURL: '/' }
     // The generic OpenID Connect provider is registered as a social provider too.
     const { error: failure } = await authClient.signIn.social({ provider: id, ...options })
-    if (failure) setError('Couldn’t reach that provider. Try again, or sign in another way.')
+    if (failure) setError("Couldn't reach that provider. Try again, or sign in another way.")
   }
 
   return (

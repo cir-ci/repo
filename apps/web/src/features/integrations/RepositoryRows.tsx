@@ -55,7 +55,7 @@ export function RepositoryRows(props: RepositoryRows.Props) {
       {rows.length === 0 && !targets.isPending ? (
         <Banner>
           {targets.error
-            ? `CirCI couldn’t list the ${noun}s: ${targets.error.message}`
+            ? `CirCI couldn't list the ${noun}s: ${targets.error.message}`
             : `No ${noun}s yet.`}{' '}
           {props.canManage ? `Add one by name below.` : null}
         </Banner>

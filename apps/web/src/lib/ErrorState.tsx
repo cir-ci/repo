@@ -18,7 +18,7 @@ export function ErrorState(props: ErrorState.Props) {
     <EmptyState
       tone="rejected"
       icon={<WarningIcon size={32} />}
-      title="This page couldn’t be loaded"
+      title="This page couldn't be loaded"
       action={
         props.onRetry ? (
           <Button variant="secondary" leading={<RefreshIcon />} onClick={props.onRetry}>

@@ -14,9 +14,9 @@ const show = (api: NonNullable<Parameters<typeof renderPage>[1]>['api'], id = 'v
   })
 
 describe('ViewPage states', () => {
-  it('says the view does not exist when it is not in the person’s list', async () => {
+  it("says the view does not exist when it is not in the person's list", async () => {
     await show({ 'GET /api/workspaces/acme/views': { body: { views: [] } } }, 'gone')
-    await expect.element(page.getByText('This view doesn’t exist')).toBeVisible()
+    await expect.element(page.getByText("This view doesn't exist")).toBeVisible()
     await expect.element(page.getByText(/deleted, or it belongs to someone else/)).toBeVisible()
     expect(document.title).toBe('View · CirCI')
   })
@@ -25,7 +25,7 @@ describe('ViewPage states', () => {
     const { fake } = await show({
       'GET /api/workspaces/acme/views': { status: 500, body: { error: 'Views are unavailable' } },
     })
-    await expect.element(page.getByText('This page couldn’t be loaded')).toBeVisible()
+    await expect.element(page.getByText("This page couldn't be loaded")).toBeVisible()
     await expect.element(page.getByText('Views are unavailable')).toBeVisible()
     const before = fake?.of('GET').length ?? 0
     await page.getByRole('button', { name: 'Try again' }).click()
@@ -38,7 +38,7 @@ describe('ViewPage states', () => {
       route: '/workspaces/$workspace/views/$view',
       url: '/workspaces/acme/views/v1',
     })
-    expect(page.getByText('This view doesn’t exist').elements()).toHaveLength(0)
-    expect(page.getByText('This page couldn’t be loaded').elements()).toHaveLength(0)
+    expect(page.getByText("This view doesn't exist").elements()).toHaveLength(0)
+    expect(page.getByText("This page couldn't be loaded").elements()).toHaveLength(0)
   })
 })

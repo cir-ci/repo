@@ -18,11 +18,11 @@ const IN_INBOX: readonly { title: string; help: string }[] = [
   { title: 'Mentioned', help: 'Someone @mentions you in a comment on a screenshot.' },
   {
     title: 'Your build was approved or rejected',
-    help: 'A build you pushed was reviewed. Rejections include the reviewer’s reason.',
+    help: "A build you pushed was reviewed. Rejections include the reviewer's reason.",
   },
   {
     title: 'Overdue review',
-    help: 'A review request to you has waited longer than the team’s review target. Sent once.',
+    help: "A review request to you has waited longer than the team's review target. Sent once.",
   },
   {
     title: 'Connection needs attention',
@@ -30,7 +30,7 @@ const IN_INBOX: readonly { title: string; help: string }[] = [
   },
   {
     title: 'Flaky screenshot detected',
-    help: 'A screenshot changed in 3 of the last 10 builds on the default branch. Goes to this week’s triage owner.',
+    help: "A screenshot changed in 3 of the last 10 builds on the default branch. Goes to this week's triage owner.",
   },
 ]
 
@@ -77,7 +77,7 @@ export function NotificationsPage() {
               ))
             ) : (
               <Banner>
-                This server can’t send mail yet, so there are no email notifications to switch on.
+                This server can't send mail yet, so there are no email notifications to switch on.
                 Ask an admin to set up outgoing mail.
               </Banner>
             )}

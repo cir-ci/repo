@@ -78,7 +78,7 @@ describe('IssueAction', () => {
     expect(fake.of('POST')[0]?.body).toEqual({ integrationId: 'i2' })
   })
 
-  it('shows the tracker’s failure and keeps the dialog open', async () => {
+  it("shows the tracker's failure and keeps the dialog open", async () => {
     await page.viewport(1000, 800)
     fakeApi({
       [`GET ${ISSUES}`]: { body: { issues: [], trackers: [jira] } },

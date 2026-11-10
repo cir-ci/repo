@@ -40,7 +40,7 @@ describe('readInvitedEmail', () => {
 })
 
 describe('text', () => {
-  it('is the field’s string, or empty for a missing field or a file', () => {
+  it("is the field's string, or empty for a missing field or a file", () => {
     const form = new FormData()
     form.set('a', 'hello')
     form.set('f', new File(['x'], 'x.txt'))
@@ -80,13 +80,13 @@ describe('ssoErrorMessage', () => {
   })
 
   it('explains an account-linking refusal separately from any other failure', () => {
-    expect(ssoErrorMessage('?error=account_not_linked')).toMatch(/isn’t trusted to attach/)
-    expect(ssoErrorMessage('?error=access_denied')).toMatch(/didn’t work/)
+    expect(ssoErrorMessage('?error=account_not_linked')).toMatch(/isn't trusted to attach/)
+    expect(ssoErrorMessage('?error=access_denied')).toMatch(/didn't work/)
   })
 })
 
 describe('withoutSignInLink', () => {
-  it('drops the mailed link’s address and code', () => {
+  it("drops the mailed link's address and code", () => {
     expect(withoutSignInLink('#signin-email=ada%40example.com&code=123456')).toBe('')
   })
 
@@ -101,7 +101,7 @@ describe('withoutSignInLink', () => {
 })
 
 describe('refused origins', () => {
-  it('knows better-auth’s INVALID_ORIGIN, by code or by its 403 message', () => {
+  it("knows better-auth's INVALID_ORIGIN, by code or by its 403 message", () => {
     expect(isOriginRefusal({ status: 403, code: 'INVALID_ORIGIN' })).toBe(true)
     expect(isOriginRefusal({ status: 403, message: 'Invalid origin' })).toBe(true)
     expect(isOriginRefusal({ status: 403, message: 'Forbidden' })).toBe(false)
@@ -112,7 +112,7 @@ describe('refused origins', () => {
     const refused = { status: 403, code: 'INVALID_ORIGIN' }
     expect(describeFailure(refused)).toBe(ORIGIN_REFUSED)
     expect(describeCodeFailure(refused)).toBe(ORIGIN_REFUSED)
-    expect(ORIGIN_REFUSED).toMatch(/doesn’t accept sign-ins from this address/)
+    expect(ORIGIN_REFUSED).toMatch(/doesn't accept sign-ins from this address/)
     expect(describeFailure(500)).toMatch(/Check your connection/)
   })
 })

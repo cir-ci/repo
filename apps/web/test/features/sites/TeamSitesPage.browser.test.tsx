@@ -55,7 +55,7 @@ describe('TeamSitesPage', () => {
     expect(document.querySelector('[data-slot="skeleton"]')).not.toBeNull()
   })
 
-  it('has breadcrumbs to the workspace Inbox and the team’s Builds', async () => {
+  it("has breadcrumbs to the workspace Inbox and the team's Builds", async () => {
     fakeFetch({ [API]: list([site]) })
     await open()
     const trail = page.getByRole('navigation', { name: 'Breadcrumb' })
@@ -94,7 +94,7 @@ describe('TeamSitesPage', () => {
     await expect
       .element(
         page.getByText(
-          'Static site hosting isn’t set up on this server. Set STATIC_SITES_HOST to a separate domain to turn it on.',
+          "Static site hosting isn't set up on this server. Set STATIC_SITES_HOST to a separate domain to turn it on.",
         ),
       )
       .toBeVisible()
@@ -120,7 +120,7 @@ describe('TeamSitesPage', () => {
   it('says the team does not exist for a 404', async () => {
     fakeFetch({ [API]: json({ error: 'nope' }, 404) })
     await open()
-    await expect.element(page.getByText('This team doesn’t exist')).toBeVisible()
+    await expect.element(page.getByText("This team doesn't exist")).toBeVisible()
   })
 
   it('offers a retry for other errors', async () => {
@@ -146,7 +146,7 @@ const withDomain = (verified: boolean) => ({
   },
 })
 
-describe('a site’s custom domain', () => {
+describe("a site's custom domain", () => {
   const DOMAIN_API = 'PUT /api/teams/acme/web/sites/storybook/domain'
   const VERIFY_API = 'POST /api/teams/acme/web/sites/storybook/domain/verify'
   const REMOVE_API = 'DELETE /api/teams/acme/web/sites/storybook/domain'

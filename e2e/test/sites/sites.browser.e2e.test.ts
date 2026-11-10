@@ -138,7 +138,7 @@ describe('static sites (local-disk storage)', () => {
     branchAddress = up.branchAddress ?? ''
   })
 
-  it('lists the site on the team’s Sites page with its kind, commit, branch and a link', async () => {
+  it("lists the site on the team's Sites page with its kind, commit, branch and a link", async () => {
     const { stack, setup } = ctx
     const api = await sitesList()
     expect(api.configured).toBe(true)
@@ -260,7 +260,7 @@ describe('static sites (local-disk storage)', () => {
     expect(post.status).toBe(405)
   })
 
-  it('keeps a site’s own JavaScript away from the dashboard session', async () => {
+  it("keeps a site's own JavaScript away from the dashboard session", async () => {
     const { stack, setup } = ctx
     const dash = stack.url
     const probe = [
@@ -534,7 +534,7 @@ describe('static sites (local-disk storage)', () => {
     ).toBe(404)
   })
 
-  it('never serves a site’s files from the dashboard host', async () => {
+  it("never serves a site's files from the dashboard host", async () => {
     const { stack, setup } = ctx
     const { cookie } = await siteCookieFor(stack, setup.session, commitAddress)
     expect(cookie).not.toBe('')
@@ -637,7 +637,7 @@ describe('static sites (S3 storage)', () => {
     if (dirPath) await rm(dirPath, { recursive: true, force: true })
   })
 
-  it('stores a site’s files in the bucket and serves them back', async () => {
+  it("stores a site's files in the bucket and serves them back", async () => {
     const { stack, setup } = ctx
     const s3 = stack.s3
     if (!s3) throw new Error('no bucket')

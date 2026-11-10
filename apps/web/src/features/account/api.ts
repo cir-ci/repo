@@ -15,7 +15,7 @@ export const sessionsQuery = () =>
     queryKey: sessionsKey,
     queryFn: async () => {
       const { data, error } = await authClient.listSessions()
-      if (error || !data) throw new Error('Couldn’t load your sessions')
+      if (error || !data) throw new Error("Couldn't load your sessions")
       return data.toSorted((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
     },
   })
@@ -25,7 +25,7 @@ export const accountsQuery = () =>
     queryKey: accountsKey,
     queryFn: async (): Promise<LinkedAccount[]> => {
       const { data, error } = await authClient.listAccounts()
-      if (error || !data) throw new Error('Couldn’t load your linked accounts')
+      if (error || !data) throw new Error("Couldn't load your linked accounts")
       return data
     },
   })

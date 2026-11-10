@@ -17,7 +17,7 @@ function show(over: Partial<WorkspaceSwitcher.Props> = {}) {
 }
 
 describe('WorkspaceSwitcher', () => {
-  it('shows a workspace’s picture instead of its letter, in the button and the menu', async () => {
+  it("shows a workspace's picture instead of its letter, in the button and the menu", async () => {
     const picture = '/api/workspaces/acme/picture?v=abc'
     await show({ current: { ...acme, picture }, workspaces: [{ ...acme, picture }, globex] }).ready
     const button = page.getByRole('button', { name: 'Workspace: Acme' })
@@ -45,7 +45,7 @@ describe('WorkspaceSwitcher', () => {
     await expect.element(page.getByRole('menuitem', { name: 'Workspace settings' })).toBeVisible()
   })
 
-  it('opens Members from Workspace settings for people who can’t change the settings', async () => {
+  it("opens Members from Workspace settings for people who can't change the settings", async () => {
     const { router } = await renderPage(
       <WorkspaceSwitcher
         workspaces={[acme]}
@@ -99,7 +99,7 @@ describe('WorkspaceSwitcher', () => {
     expect(onCreate).toHaveBeenCalledTimes(1)
   })
 
-  it('opens the current workspace’s settings', async () => {
+  it("opens the current workspace's settings", async () => {
     const { ready } = show()
     const { router } = await ready
     await page.getByRole('button', { name: 'Workspace: Acme' }).click()

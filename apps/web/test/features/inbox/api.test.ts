@@ -37,7 +37,7 @@ describe('notificationText', () => {
     expect(title('build_rejected')).toBe('Ada rejected build #12')
     expect(title('review_overdue', { actor: null })).toBe('Your review of build #12 is overdue')
     expect(title('connection_needs_attention', { build: null })).toBe(
-      'Web’s git connection needs attention',
+      "Web's git connection needs attention",
     )
     expect(title('flaky_detected', { build: null, actor: null })).toBe(
       'Flaky screenshots found in Web',

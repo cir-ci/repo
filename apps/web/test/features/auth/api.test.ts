@@ -44,7 +44,7 @@ describe('submitSetup', () => {
     expect(calls[0]?.body).toEqual(input)
   })
 
-  it('rejects with the server’s message', async () => {
+  it("rejects with the server's message", async () => {
     fakeFetch({ 'POST /api/setup': json({ error: 'Wrong setup code' }, 403) })
     await expect(submitSetup(input)).rejects.toThrow('Wrong setup code')
   })

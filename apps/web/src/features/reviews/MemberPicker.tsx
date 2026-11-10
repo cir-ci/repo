@@ -36,7 +36,7 @@ export function MemberPicker({ workspace, open, onOpenChange, onPick }: MemberPi
         )}
       </QueryBoundary>
       <Text variant="small" tone="secondary">
-        You can’t request a review from yourself.
+        You can't request a review from yourself.
       </Text>
     </Dialog>
   )

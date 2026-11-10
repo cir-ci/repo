@@ -5,7 +5,7 @@ import { PageHeading, PageTitle, teamCrumb, workspaceCrumb } from '#lib/PageHead
 import { renderPage } from '#test/support/render.tsx'
 
 describe('PageHeading', () => {
-  it('makes the current crumb the page’s h1, as plain text', async () => {
+  it("makes the current crumb the page's h1, as plain text", async () => {
     await renderPage(<PageHeading title="Webhooks" />)
     const h1 = page.getByRole('heading', { level: 1 })
     await expect.element(h1).toHaveTextContent('Webhooks')
@@ -36,7 +36,7 @@ describe('PageHeading', () => {
     await expect.element(page.getByText('Team: opens its Builds page')).toBeVisible()
   })
 
-  it('shows the page’s actions on the right', async () => {
+  it("shows the page's actions on the right", async () => {
     await renderPage(
       <PageHeading title="Teams" actions={<button type="button">New team</button>} />,
     )

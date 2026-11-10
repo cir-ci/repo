@@ -11,7 +11,7 @@ export function RejectDialog({ open, subject, pending, onCancel, onReject }: Rej
     <ReasonDialog
       open={open}
       title={`Reject ${subject}?`}
-      description="The screenshot is marked rejected, which holds back the build’s merge until it is approved. It never becomes a baseline."
+      description="The screenshot is marked rejected, which holds back the build's merge until it is approved. It never becomes a baseline."
       confirmLabel="Reject"
       invalidMessage="Say why you are rejecting it."
       hint={

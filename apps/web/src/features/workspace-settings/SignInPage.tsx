@@ -26,7 +26,7 @@ export function SignInPage() {
       loading={!auth.data && !error}
       error={error}
       onRetry={() => void (general.error ? general.refetch() : auth.refetch())}
-      notFound="This workspace doesn’t exist"
+      notFound="This workspace doesn't exist"
       forbidden={auth.data && !canManage ? <MembersRedirect workspace={workspace} /> : null}
     >
       <SignInMethods workspace={workspace} />

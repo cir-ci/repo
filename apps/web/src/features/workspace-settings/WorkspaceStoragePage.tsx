@@ -47,7 +47,7 @@ export function WorkspaceStoragePage() {
       loading={!data && !error}
       error={error}
       onRetry={() => void refetch()}
-      notFound="This workspace doesn’t exist"
+      notFound="This workspace doesn't exist"
       forbidden={data && !data.canManage ? <MembersRedirect workspace={workspace} /> : null}
     >
       {data ? (
@@ -153,7 +153,7 @@ function RetentionSection({ workspace, saved, canManage }: RetentionSection.Prop
     <form onSubmit={submit} noValidate aria-labelledby="retention" className={styles.form}>
       <SettingsSection
         title={<span id="retention">Retention</span>}
-        description="Builds and hosted site versions expire after their team’s retention. Each team can set its own in its settings."
+        description="Builds and hosted site versions expire after their team's retention. Each team can set its own in its settings."
       >
         <SettingsRow label="Default for new teams" detail="Existing teams keep their own setting.">
           <NumberField

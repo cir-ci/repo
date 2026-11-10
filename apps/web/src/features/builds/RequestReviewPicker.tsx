@@ -102,7 +102,7 @@ function Choices({ workspace, team, number, onClose }: Choices.Props) {
         </ul>
       )}
       <Text variant="small" tone="secondary" className={styles.footer}>
-        You can’t request a review from yourself.
+        You can't request a review from yourself.
       </Text>
     </>
   )

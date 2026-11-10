@@ -72,7 +72,7 @@ describe('TeamSettingsPage', () => {
     await expect.element(page.getByRole('status').first()).toHaveTextContent('Loading general')
   })
 
-  it('links the breadcrumb to the team’s Builds page and shows its name once loaded', async () => {
+  it("links the breadcrumb to the team's Builds page and shows its name once loaded", async () => {
     api()
     await show()
     await expect
@@ -107,7 +107,7 @@ describe('TeamSettingsPage', () => {
     expect(page.getByRole('heading', { name: 'Hosted sites' }).elements()).toHaveLength(0)
   })
 
-  it('opens with the board’s lead and labels', async () => {
+  it("opens with the board's lead and labels", async () => {
     api()
     await show()
     await expect.element(page.getByText(/more than this share of its pixels differ/)).toBeVisible()
@@ -154,7 +154,7 @@ describe('TeamSettingsPage', () => {
       .toBe(true)
   })
 
-  it('shows the server’s refusal of a taken slug and stays put', async () => {
+  it("shows the server's refusal of a taken slug and stays put", async () => {
     api(
       {},
       {
@@ -306,7 +306,7 @@ describe('TeamSettingsPage', () => {
       expect(fake.of('PATCH')).toHaveLength(0)
     })
 
-    it('shows the server’s field errors on their fields, without a banner', async () => {
+    it("shows the server's field errors on their fields, without a banner", async () => {
       const fake = api()
       fake.set(`PATCH ${API}/settings`, {
         status: 400,
@@ -386,7 +386,7 @@ describe('TeamSettingsPage', () => {
       await expect.element(control()).toHaveTextContent('Inherit from workspace (currently: on)')
     })
 
-    it('shows the workspace’s current value when it is off', async () => {
+    it("shows the workspace's current value when it is off", async () => {
       api({ workspace: { flakyBlocksMerge: false } })
       await show()
       await expect.element(control()).toHaveTextContent('Inherit from workspace (currently: off)')
@@ -425,7 +425,7 @@ describe('TeamSettingsPage', () => {
     })
   })
 
-  it('shows the server’s refusal when saving fails', async () => {
+  it("shows the server's refusal when saving fails", async () => {
     const fake = api()
     fake.set(`PATCH ${API}/settings`, {
       status: 400,
@@ -438,17 +438,17 @@ describe('TeamSettingsPage', () => {
     expect(page.getByText('Settings saved.').elements()).toHaveLength(0)
   })
 
-  it('sends members to the team’s builds instead of showing the settings', async () => {
+  it("sends members to the team's builds instead of showing the settings", async () => {
     api({ canManage: false })
     const { router } = await show()
     await expect.poll(() => router.state.location.pathname).toBe('/acme/web')
     expect(page.getByRole('textbox', { name: 'Name' }).elements()).toHaveLength(0)
   })
 
-  it('says the team doesn’t exist for a 404, and retries other errors', async () => {
+  it("says the team doesn't exist for a 404, and retries other errors", async () => {
     fakeApi({ [`GET ${API}/settings`]: { status: 404, body: { error: 'Team not found' } } })
     await show()
-    await expect.element(heading('This team doesn’t exist')).toBeVisible()
+    await expect.element(heading("This team doesn't exist")).toBeVisible()
   })
 
   it('shows other errors and retries', async () => {
@@ -561,7 +561,7 @@ describe('TeamSettingsPage', () => {
       expect(fake.of('PATCH')[1]?.body).toEqual({ icon: null })
     })
 
-    it('shows the server’s refusal', async () => {
+    it("shows the server's refusal", async () => {
       const fake = api({ appearance: ARIA })
       fake.set(`PATCH ${API}/appearance`, { status: 400, body: { error: 'Unknown icon' } })
       await show()
@@ -585,7 +585,7 @@ describe('TeamSettingsPage', () => {
       await expect.poll(() => router.state.location.pathname).toBe('/')
     })
 
-    it('shows the server’s refusal and keeps the dialog', async () => {
+    it("shows the server's refusal and keeps the dialog", async () => {
       api(
         {},
         {

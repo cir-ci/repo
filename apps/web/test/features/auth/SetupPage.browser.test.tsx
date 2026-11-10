@@ -62,7 +62,7 @@ describe('SetupPage', () => {
     })
   })
 
-  it('shows the server’s reason when setup is refused, and the form stays usable', async () => {
+  it("shows the server's reason when setup is refused, and the form stays usable", async () => {
     fakeFetch({ 'POST /api/setup': json({ error: 'The setup code is wrong' }, 403) })
     await renderPage(<SetupPage />)
     await fillIn()

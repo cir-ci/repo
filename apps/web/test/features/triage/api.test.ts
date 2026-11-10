@@ -143,7 +143,7 @@ describe('filmstrip', () => {
 })
 
 describe('snapshotHistoryQuery', () => {
-  it('asks for the history anchored on the item’s build, with the name escaped', async () => {
+  it("asks for the history anchored on the item's build, with the name escaped", async () => {
     let asked = ''
     vi.stubGlobal('fetch', async (path: string) => {
       asked = path

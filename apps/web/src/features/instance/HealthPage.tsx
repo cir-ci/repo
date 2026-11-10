@@ -93,7 +93,7 @@ export function HealthPage() {
           {groups.domains.map((f) => (
             <FindingRow key={f.id} finding={f} />
           ))}
-          <SettingsRow detail="Nothing on the dashboard’s parent domain may set a cookie for the whole domain, and nothing but CirCI may live on the sites domain." />
+          <SettingsRow detail="Nothing on the dashboard's parent domain may set a cookie for the whole domain, and nothing but CirCI may live on the sites domain." />
         </SettingsSection>
       ) : null}
       <ChecklistSection checklist={checklist.data} />

@@ -12,7 +12,7 @@ export function YouSection({ user }: YouSection.Props) {
   const save = useMutation({
     mutationFn: async (next: string) => {
       const { error } = await authClient.updateUser({ name: next })
-      if (error) throw new Error(error.message ?? 'Couldn’t save your name')
+      if (error) throw new Error(error.message ?? "Couldn't save your name")
     },
     onSuccess: () => announce('Name saved'),
   })
@@ -53,7 +53,7 @@ export function YouSection({ user }: YouSection.Props) {
               name="email"
               value={user.email}
               readOnly
-              description="Changing your email isn’t available yet: ask an admin."
+              description="Changing your email isn't available yet: ask an admin."
             />
           </div>
         </SettingsRow>
