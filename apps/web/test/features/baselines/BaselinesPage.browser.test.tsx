@@ -52,7 +52,7 @@ describe('BaselinesPage', () => {
       .toHaveAttribute('href', '/acme/web/builds/12')
 
     const search = page.getByRole('textbox', { name: 'Search baselines' })
-    await expect.element(search).toHaveAttribute('placeholder', 'Search snapshots')
+    await expect.element(search).toHaveAttribute('placeholder', 'Search screenshots')
     await userEvent.fill(search, 'home')
     await expect.element(page.getByText('1 on main')).toBeVisible()
     await expect.element(page.getByRole('link', { name: /checkout/ })).not.toBeInTheDocument()

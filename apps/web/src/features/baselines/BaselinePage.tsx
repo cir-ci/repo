@@ -128,9 +128,6 @@ export function BaselinePage() {
                 <Heading as="h2" id={historyHeading} className={styles.historyTitle}>
                   History on {defaultBranch}
                 </Heading>
-                <Text variant="small" tone="tertiary">
-                  Builds where this screenshot changed
-                </Text>
               </div>
               <History
                 workspace={workspace}
@@ -155,11 +152,7 @@ function History({ workspace, team, name, defaultBranch }: History.Props) {
   if (!data) return <QuerySkeleton rows={2} />
   const changes = changesOf(data.default)
   if (changes.length === 0) {
-    return (
-      <EmptyState title="No changes yet">
-        This screenshot has not changed in the recent builds on {defaultBranch}.
-      </EmptyState>
-    )
+    return <EmptyState title={`No changes in the recent builds on ${defaultBranch}`} />
   }
   return (
     <ul aria-label={`Recent changes of ${name}`} className={styles.rows}>

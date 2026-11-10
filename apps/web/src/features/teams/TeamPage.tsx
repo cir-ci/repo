@@ -1,4 +1,4 @@
-import { Banner, Button, Link, Ref, TeamTile, Text, useAnnounce } from '@circi/ui'
+import { Banner, Button, Link, TeamTile, Text, useAnnounce } from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { Fragment } from 'react'
@@ -102,13 +102,6 @@ export function TeamPage() {
               {data.team.name}
             </Text>
           </div>
-        ) : null}
-        {data ? (
-          <Text as="p" variant="small" tone="secondary" className={styles.intro}>
-            Builds uploaded from CI. Builds on{' '}
-            <Ref value={data.team.defaultBranch} label="default branch" /> become the baselines that
-            pull requests are compared with.
-          </Text>
         ) : null}
         <GitAttentionBanner attention={data?.gitAttention} />
         {flaky && flaky.flaky.length > 0 ? (

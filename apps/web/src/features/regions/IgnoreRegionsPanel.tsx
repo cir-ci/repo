@@ -111,7 +111,9 @@ export function IgnoreRegionsPanel({
           <div className={styles.foot}>
             <Text variant="small" tone="tertiary">
               Regions are blanked out on both images before comparing, and apply to every build.
-              {canManage && !size ? " Its size is unknown, so regions can't be drawn." : ''}
+              {canManage && !size
+                ? " The screenshot's size is unknown, so regions can't be drawn."
+                : ''}
             </Text>
           </div>
         ) : null}
@@ -211,11 +213,6 @@ function RegionDialog({ target, workspace, team, onClose }: RegionDialog.Props) 
         if (!open) onClose()
       }}
       title={adding ? 'Add an ignore region' : 'Edit ignore region'}
-      description={
-        adding
-          ? `Position and size in pixels of ${target.name}.`
-          : 'Position and size in pixels of the screenshot.'
-      }
       actions={
         <>
           <Button variant="ghost" onClick={onClose}>

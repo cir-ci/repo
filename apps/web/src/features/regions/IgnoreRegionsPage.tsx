@@ -18,12 +18,12 @@ export function IgnoreRegionsPage() {
   const { workspace, team } = useParams({ from: '/$workspace/$team/settings/ignore-regions' })
   return (
     <TeamSettingsFrame workspace={workspace} team={team} page="Ignore regions" managersOnly={false}>
-      {(_settings, teamName) => <Overview workspace={workspace} team={team} teamName={teamName} />}
+      {() => <Overview workspace={workspace} team={team} />}
     </TeamSettingsFrame>
   )
 }
 
-function Overview({ workspace, team, teamName }: Overview.Props) {
+function Overview({ workspace, team }: Overview.Props) {
   const { data, error, refetch } = useQuery(ignoreRegionsQuery(workspace, team))
   const clientLink = useClientLink()
   if (error) return <ErrorState error={error} onRetry={() => void refetch()} />
@@ -31,15 +31,9 @@ function Overview({ workspace, team, teamName }: Overview.Props) {
   const shots = data.snapshots.filter((s) => s.regions > 0)
   return (
     <>
-      <Text as="p" tone="secondary" className={styles.lead}>
-        Parts of a screenshot CirCI blanks out on both images before comparing, such as clocks, ads
-        or charts with live data. Regions belong to a screenshot name and apply to every build of{' '}
-        {teamName}. Open a screenshot to see and edit its regions on its baseline page.
-      </Text>
       {shots.length === 0 ? (
         <EmptyState title="No ignore regions yet">
-          Add one from a screenshot's baseline page: open it from Baselines, or from a flaky
-          screenshot's link on the team page.
+          Add one from a screenshot's baseline page.
         </EmptyState>
       ) : (
         <ul aria-label="Screenshots with ignore regions" className={styles.list}>
@@ -69,6 +63,5 @@ namespace Overview {
   export interface Props {
     workspace: string
     team: string
-    teamName: string
   }
 }

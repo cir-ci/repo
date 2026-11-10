@@ -42,7 +42,7 @@ describe('TeamPage', () => {
     await expect.element(page.getByRole('status').first()).toHaveTextContent('Loading builds')
   })
 
-  it('names the team and its workspace once loaded, and says what the default branch is for', async () => {
+  it('names the team and its workspace once loaded', async () => {
     api([build(3)])
     await show()
     await expect
@@ -56,10 +56,6 @@ describe('TeamPage', () => {
           .getByRole('link', { name: 'Acme Inc' }),
       )
       .toHaveAttribute('href', '/inbox')
-    await expect.element(page.getByRole('button', { name: 'Copy default branch' })).toBeVisible()
-    await expect
-      .element(page.getByText(/become the baselines that pull requests are compared with/))
-      .toBeVisible()
     expect(document.title).toBe('Builds · Web App · CirCI')
   })
 

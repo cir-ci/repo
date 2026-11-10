@@ -5,11 +5,6 @@
   padding: 16px;
 }
 
-/* A Ref is inline-flex; keep the sentence's line height steady around it. */
-.intro {
-  line-height: 1.9;
-}
-
 .list {
   overflow: hidden;
   border: 1px solid var(--circi-line-subtle);

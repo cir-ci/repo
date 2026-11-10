@@ -15,7 +15,7 @@ import { RegionBoxes, RegionStage } from './RegionStage.tsx'
 import styles from './IgnoreRegionsEditor.module.css'
 
 /**
- * One screenshot's baseline image with its ignore regions drawn over it (click to enlarge), and
+ * One screenshot's baseline image with its ignore regions drawn over it, and
  * the regions as a list: add one from numbers or by dragging over the image (or with the keyboard
  * tool), edit or remove one. Owners and admins (`canManage`) get the controls; members see the regions. Each
  * confirmed action applies when it is confirmed. The baseline page puts this under its header.
@@ -70,33 +70,32 @@ export function IgnoreRegionsEditor({
 
   return (
     <>
-      <section className={styles.panel} aria-labelledby={imageHeading}>
-        <div className={styles.bar}>
-          <Heading as="h2" id={imageHeading} className={styles.barTitle}>
-            Baseline image
-          </Heading>
-          {latest ? (
-            <Text variant="small" tone="tertiary">
-              {regions.length} ignore {regions.length === 1 ? 'region' : 'regions'} drawn over it.
-              {annotations ? ' Drag to add one, click to enlarge.' : ' Click to enlarge.'}
-            </Text>
-          ) : null}
-          {annotations ? (
-            // Dragging needs no button: the keyboard path stays, shown only while it has focus.
-            <span className={styles.keyTool} data-on={keyboardTool ? '' : undefined}>
-              <Tooltip content="Mark a region with the keyboard: arrow keys move it, Shift and arrow keys resize it, Enter confirms">
-                <IconButton
-                  label="Mark a region with the keyboard"
-                  aria-pressed={keyboardTool}
-                  onClick={() => setKeyboardTool(!keyboardTool)}
-                >
-                  <span aria-hidden="true">⌖</span>
-                </IconButton>
-              </Tooltip>
-            </span>
-          ) : null}
-        </div>
-        {latest ? (
+      {latest ? (
+        <section className={styles.panel} aria-labelledby={imageHeading}>
+          <div className={styles.bar}>
+            <Heading as="h2" id={imageHeading} className={styles.barTitle}>
+              Baseline image
+            </Heading>
+            {annotations ? (
+              <Text variant="small" tone="tertiary">
+                Drag on the image to draw an ignore region.
+              </Text>
+            ) : null}
+            {annotations ? (
+              // Dragging needs no button: the keyboard path stays, shown only while it has focus.
+              <span className={styles.keyTool} data-on={keyboardTool ? '' : undefined}>
+                <Tooltip content="Mark a region with the keyboard: arrow keys move it, Shift and arrow keys resize it, Enter confirms">
+                  <IconButton
+                    label="Mark a region with the keyboard"
+                    aria-pressed={keyboardTool}
+                    onClick={() => setKeyboardTool(!keyboardTool)}
+                  >
+                    <span aria-hidden="true">⌖</span>
+                  </IconButton>
+                </Tooltip>
+              </span>
+            ) : null}
+          </div>
           <RegionStage
             name={name}
             latest={latest}
@@ -105,13 +104,8 @@ export function IgnoreRegionsEditor({
             annotations={annotations}
             onEnlarge={() => setEnlarged(true)}
           />
-        ) : (
-          <Text as="p" tone="secondary" className={styles.note}>
-            There is no baseline named {name} on {defaultBranch} yet, so there is nothing to draw
-            on.
-          </Text>
-        )}
-      </section>
+        </section>
+      ) : null}
 
       <IgnoreRegionsPanel
         workspace={workspace}

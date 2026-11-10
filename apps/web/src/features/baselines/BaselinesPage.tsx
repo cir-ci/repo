@@ -64,7 +64,7 @@ export function BaselinesPage() {
               <TextField
                 label="Search baselines"
                 hideLabel
-                placeholder="Search snapshots"
+                placeholder="Search screenshots"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
               />
@@ -88,7 +88,7 @@ export function BaselinesPage() {
             ) : (
               <>
                 <div className={styles.cols} aria-hidden="true">
-                  <span className={styles.snapshot}>Snapshot</span>
+                  <span className={styles.snapshot}>Screenshot</span>
                   <span className={styles.build}>Build</span>
                   <span className={styles.age}>Age</span>
                 </div>
