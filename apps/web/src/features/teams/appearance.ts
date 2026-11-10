@@ -1,6 +1,7 @@
-import { TEAM_COLORS, TEAM_ICON_NAMES, type TeamColor } from '@circi/ui'
+import { TEAM_ICON_NAMES } from '@circi/core'
+import { TEAM_COLORS, type TeamColor } from '@circi/ui'
 
-export { TEAM_COLORS, TEAM_ICON_NAMES }
+export { TEAM_COLORS }
 export type { TeamColor }
 
 /** How many icons the picker draws at first, and each time "Show more icons" is pressed. */

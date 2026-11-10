@@ -6,7 +6,6 @@ import {
   Avatar,
   COLOR_SCHEME_ATTRIBUTE,
   peoplePalette,
-  TEAM_ICON_NAMES,
   teamPalette,
   workspacePalette,
 } from '#src/index.ts'
@@ -204,11 +203,6 @@ describe('Avatar, type team', () => {
       )
     },
   )
-
-  it('offers every Lucide icon', () => {
-    expect(TEAM_ICON_NAMES.length).toBeGreaterThan(1500)
-    expect(TEAM_ICON_NAMES).toContain('dog')
-  })
 })
 
 describe('Avatar, type workspace', () => {

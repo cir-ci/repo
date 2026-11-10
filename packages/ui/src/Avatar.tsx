@@ -1,20 +1,18 @@
 import { Avatar as BaseAvatar } from '@base-ui/react/avatar'
 import BoringAvatar from 'boring-avatars'
-import { DynamicIcon, type IconName } from 'lucide-react/dynamic.mjs'
-import type { CSSProperties, ReactNode } from 'react'
+import { lazy, Suspense, type CSSProperties, type ReactNode } from 'react'
 
 import { peoplePalette, teamPalette, useAvatarScheme, workspacePalette } from './avatar-palettes.ts'
 import { cx } from './cx.ts'
-import { TEAM_ICON_NAMES, type TeamColor } from './team-icons.ts'
+import type { TeamColor } from './team-icons.ts'
 
 import styles from './Avatar.module.css'
 
 /** Icon size per team avatar size. */
 const TEAM_ICON_SIZE = { 16: 12, 20: 14, 24: 16, 40: 24 } as const
 
-const ICON_NAMES: ReadonlySet<string> = new Set(TEAM_ICON_NAMES)
-
-const isIconName = (name: string | null): name is IconName => name !== null && ICON_NAMES.has(name)
+// Loaded on demand, so the app's first script carries none of Lucide's icon map (see TeamGlyph).
+const TeamGlyph = lazy(() => import('./TeamGlyph.tsx'))
 
 /**
  * The identity mark of a user, a team or a workspace, on Base UI's `Avatar`. `type` says which, and
@@ -65,18 +63,15 @@ function TeamAvatar({ type, slug, name, color, icon, size = 16, ...rest }: Avata
         data-avatar="marble"
         className={styles.marble}
       />
-      {isIconName(icon) ? (
-        // Lucide loads each icon on demand; the box is reserved so nothing shifts when it arrives.
+      {icon ? (
+        // The box is reserved while the icon loads, so nothing shifts when it arrives.
         <span
           className={styles.icon}
           style={{ width: TEAM_ICON_SIZE[size], height: TEAM_ICON_SIZE[size] }}
         >
-          <DynamicIcon
-            name={icon}
-            size={TEAM_ICON_SIZE[size]}
-            strokeWidth={1.75}
-            aria-hidden="true"
-          />
+          <Suspense fallback={null}>
+            <TeamGlyph name={icon} size={TEAM_ICON_SIZE[size]} />
+          </Suspense>
         </span>
       ) : null}
     </Frame>
@@ -164,7 +159,7 @@ export namespace Avatar {
     /** The team's slug: what the marble is drawn from. */
     slug: string
     color: TeamColor
-    /** The team's icon name (any Lucide name, see `TEAM_ICON_NAMES`), drawn on the marble, loaded on demand; null: none. */
+    /** The team's icon name (any Lucide icon name), drawn on the marble, loaded on demand; null: none. */
     icon: string | null
     /** 16 in the sidebar, 20 in menus, 24 in the settings header, 40 on the team page. */
     size?: 16 | 20 | 24 | 40
