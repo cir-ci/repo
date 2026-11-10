@@ -17,6 +17,8 @@ const body = codeBody.extend({
   workspaceName: z.string().min(1).max(100),
   /** The workspace's address; made from its name when left out. */
   workspaceSlug: z.string().max(100).optional(),
+  /** The dashboard's setup steps made this request and will go on with the storage check and the first team. */
+  steps: z.boolean().optional(),
 })
 
 const WRONG_CODE = 'That setup code is wrong. Find it in the server log.'
@@ -28,9 +30,11 @@ const WRONG_CODE = 'That setup code is wrong. Find it in the server log.'
  * - `POST /api/setup/code` checks the setup code (the first step, so a wrong one is found early);
  * - `POST /api/setup` creates the first account (an instance admin) and its workspace as one:
  *   everything is validated first, and if the workspace can't be made the account is removed
- *   again, so a failure leaves nothing and the steps start over. It then notes that the storage
- *   check and the first team are still to do (`GET /api/capabilities` says `setupPending`, and
- *   `POST /api/instance/setup/finish` ends it), which is how a reload resumes at the right step.
+ *   again, so a failure leaves nothing and the steps start over. With `steps: true` (the
+ *   dashboard's own request) it then notes that the storage check and the first team are still to
+ *   do (`GET /api/capabilities` says `setupPending`, and `POST /api/instance/setup/finish` ends
+ *   it), which is how a reload resumes at the right step; a script that sends no `steps` gets
+ *   the account and workspace and nothing more.
  *
  * Both need the setup code from the server's log, so a stranger who finds the dashboard first
  * can't claim it. Once any account exists they answer "not found" for good.
@@ -74,7 +78,7 @@ export const dashboardSetupRoutes: FastifyPluginAsync<
           slug,
           ownerEmail: user.email,
         })
-        await beginFirstRunSetup(deps.db)
+        if (input.steps) await beginFirstRunSetup(deps.db)
         return await reply
           .code(201)
           .send({ email: user.email, workspace: { slug: workspace.slug } })

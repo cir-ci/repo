@@ -149,6 +149,7 @@ describe('SetupPage, the workspace step', () => {
         password: 'correct horse battery',
         workspaceName: 'Acme Inc',
         workspaceSlug: 'acme-inc',
+        steps: true,
       },
     })
   })

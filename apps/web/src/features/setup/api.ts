@@ -16,7 +16,7 @@ export const submitSetup = (input: {
   password: string
   workspaceName: string
   workspaceSlug: string
-}) => post<{ email: string; workspace: { slug: string } }>('/api/setup', input)
+}) => post<{ email: string; workspace: { slug: string } }>('/api/setup', { ...input, steps: true })
 
 /**
  * Ends the setup steps (finished or skipped). The cached capabilities say so at once, so the app

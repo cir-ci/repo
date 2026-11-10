@@ -86,7 +86,7 @@ describe('first-run setup', () => {
     expect(short.statusCode).toBe(400)
     expect(await countUsers(t.db)).toBe(0)
 
-    const ok = await post(app, '/api/setup', { ...input, code: setupCode(SECRET) })
+    const ok = await post(app, '/api/setup', { ...input, code: setupCode(SECRET), steps: true })
     expect(ok.statusCode).toBe(201)
     expect(ok.json()).toEqual({ email: 'admin@acme.test', workspace: { slug: 'acme-inc' } })
 
@@ -171,7 +171,7 @@ describe('first-run setup', () => {
   })
 
   it('keeps the later steps pending until the admin finishes them, for the admin only', async () => {
-    const { app, admin, plain } = await claimedInstance()
+    const { app, admin, plain } = await claimedInstance(undefined, true)
     const pending = async (cookie: string) =>
       (await app.inject({ method: 'GET', url: '/api/capabilities', headers: { cookie } })).json()
         .setupPending
@@ -184,6 +184,17 @@ describe('first-run setup', () => {
     expect(await pending(admin)).toBe(true)
     expect((await post(app, '/api/instance/setup/finish', {}, admin)).statusCode).toBe(204)
     expect(await pending(admin)).toBe(false)
+    await app.close()
+  })
+
+  it('leaves nothing pending for a script that makes the account without the dashboard steps', async () => {
+    const { app, admin } = await claimedInstance()
+    const caps = await app.inject({
+      method: 'GET',
+      url: '/api/capabilities',
+      headers: { cookie: admin },
+    })
+    expect(caps.json().setupPending).toBe(false)
     await app.close()
   })
 
@@ -201,7 +212,7 @@ describe('first-run setup', () => {
 })
 
 /** A claimed instance (the setup route ran: `admin@acme.test` is its admin) plus a plain account. */
-async function claimedInstance(workspaceCreation?: 'admin' | 'anyone') {
+async function claimedInstance(workspaceCreation?: 'admin' | 'anyone', steps = false) {
   const app = await serverWith(workspaceCreation)
   const claimed = await post(app, '/api/setup', {
     name: 'First Admin',
@@ -209,6 +220,7 @@ async function claimedInstance(workspaceCreation?: 'admin' | 'anyone') {
     password: PASSWORD,
     workspaceName: 'Acme Inc',
     code: setupCode(SECRET),
+    ...(steps ? { steps } : {}),
   })
   expect(claimed.statusCode).toBe(201)
   await createUser(auth, { email: 'plain@acme.test', name: 'Plain', password: PASSWORD })
