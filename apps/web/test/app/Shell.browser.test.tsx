@@ -260,6 +260,23 @@ describe('Shell, wide', () => {
     expect(nav.getByRole('link', { name: 'Not pinned' }).elements()).toHaveLength(0)
   })
 
+  it('names one of something in the singular', async () => {
+    await page.viewport(1280, 800)
+    API['/api/workspaces/acme/sidebar'] = { ...SIDEBAR_ACME, inboxUnread: 1, reviews: 1 }
+    try {
+      await renderShell('/')
+      const nav = page.getByRole('navigation', { name: 'Main' })
+      await expect
+        .element(nav.getByRole('link', { name: 'Inbox , 1 unread notification' }))
+        .toBeVisible()
+      await expect
+        .element(nav.getByRole('link', { name: 'Reviews , 1 review waiting' }))
+        .toBeVisible()
+    } finally {
+      API['/api/workspaces/acme/sidebar'] = SIDEBAR_ACME
+    }
+  })
+
   it('lists pinned teams first, then the rest A to Z', async () => {
     await page.viewport(1280, 800)
     await renderShell('/')

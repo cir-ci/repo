@@ -4,6 +4,13 @@ import { page } from 'vitest/browser'
 
 import { NavItem } from '#src/index.ts'
 
+/** Where the label of the link holding `name` starts, in px. */
+const labelLeft = (name: string) =>
+  [...document.querySelectorAll('a')]
+    .find((a) => a.textContent?.includes(name))
+    ?.querySelector('span:not([aria-hidden])')
+    ?.getBoundingClientRect().left
+
 describe('NavItem', () => {
   it('is a link with an href and marks the current page', async () => {
     await render(
@@ -49,6 +56,23 @@ describe('NavItem', () => {
     )
     const link = page.getByRole('link', { name: /^Inbox ?, 3 unread$/ })
     await expect.element(link).toBeVisible()
+  })
+
+  it('draws a "more" row 28px tall in 13px secondary text, its label lined up with the labels above', async () => {
+    await render(
+      <>
+        <NavItem href="/a" icon={<svg />}>
+          Teams
+        </NavItem>
+        <NavItem href="/" more>
+          All teams (12)
+        </NavItem>
+      </>,
+    )
+    const more = page.getByRole('link', { name: 'All teams (12)' }).element()
+    const style = getComputedStyle(more)
+    expect([style.height, style.fontSize, style.paddingLeft]).toEqual(['28px', '13px', '38px'])
+    expect(labelLeft('All teams')).toBe(labelLeft('Teams'))
   })
 
   it('is 28px tall, 13px text, a 16px icon and indented as a sub item', async () => {

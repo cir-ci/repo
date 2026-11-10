@@ -38,6 +38,7 @@ export function NavItem(props: NavItem.Props) {
     'aria-current': props.selected ? ('page' as const) : undefined,
     'data-selected': props.selected ? '' : undefined,
     'data-sub': props.sub ? '' : undefined,
+    'data-more': props.more ? '' : undefined,
   }
   return props.href ? (
     <a {...common} href={props.href}>
@@ -68,5 +69,7 @@ export namespace NavItem {
     selected?: boolean
     /** A sub-item: 28px tall, indented under its parent. */
     sub?: boolean
+    /** A "more" row ("All teams"): 28px, 13px secondary text, no icon, its label aligned with the items' labels. */
+    more?: boolean
   }
 }

@@ -43,6 +43,15 @@
   font-weight: 400;
 }
 
+/* Lines its label up with the labels above (padding 10 + icon 18 + gap 10). */
+.root[data-more] {
+  height: 28px;
+  padding-left: 38px;
+  color: var(--circi-text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+}
+
 /* The icon is sized here, once: a Lucide glyph is 18px at stroke 2 (16px in a sub item). Avatars and other marks are not direct svg children, so they keep their own size. */
 .icon {
   display: inline-flex;

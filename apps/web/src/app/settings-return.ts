@@ -35,5 +35,7 @@ export function returnTarget(
     if (Number.isInteger(number)) return { path: app, label: `Build #${number}` }
     return { path: app, label: teams?.find((t) => t.slug === slug)?.name ?? slug }
   }
-  return { path: app, label: sectionLabel(section) ?? 'the app' }
+  const label = sectionLabel(section)
+  // A page the way back can't name: back to the Inbox, as when nothing was remembered.
+  return label ? { path: app, label } : { path: FALLBACK_RETURN, label: 'Inbox' }
 }

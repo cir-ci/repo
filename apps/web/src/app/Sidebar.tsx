@@ -128,7 +128,7 @@ export function Sidebar({ user }: Sidebar.Props) {
         to="/inbox"
         icon={<InboxIcon />}
         selected={section === 'inbox'}
-        {...counted(model?.inboxUnread, 'unread notifications')}
+        {...counted(model?.inboxUnread, ['unread notification', 'unread notifications'])}
       >
         Inbox
       </NavLink>
@@ -138,7 +138,7 @@ export function Sidebar({ user }: Sidebar.Props) {
           params={{ workspace: workspace.slug }}
           icon={<ReviewIcon />}
           selected={section === 'reviews'}
-          {...counted(model?.reviews, 'reviews waiting')}
+          {...counted(model?.reviews, ['review waiting', 'reviews waiting'])}
         >
           Reviews
         </NavLink>
@@ -165,7 +165,9 @@ export function Sidebar({ user }: Sidebar.Props) {
       {others.length > 0 ? (
         <NavSection label="Teams">
           {teamEntries(others)}
-          {total > SIDEBAR_TEAM_LIMIT ? <NavLink to="/">{`All teams (${total})`}</NavLink> : null}
+          {total > SIDEBAR_TEAM_LIMIT ? (
+            <NavLink to="/" more>{`All teams (${total})`}</NavLink>
+          ) : null}
         </NavSection>
       ) : null}
       {workspace && views.length > 0 ? (
@@ -190,10 +192,17 @@ export function Sidebar({ user }: Sidebar.Props) {
   )
 }
 
-/** The count props of an entry with something waiting for you: accent, announced with `label`. */
-const counted = (n: number | undefined, label: string) => {
+/** The noun for a count, agreeing with it: one item to triage, two items to triage. */
+const noun = (count: number, [one, other]: readonly [string, string]) => (count === 1 ? one : other)
+
+const TRIAGE_NOUN = ['item to triage', 'items to triage'] as const
+
+/** The count props of an entry with something waiting for you: accent, announced with its noun. */
+const counted = (n: number | undefined, nouns: readonly [string, string]) => {
   const count = countOrUndefined(n)
-  return count === undefined ? {} : { count, countTone: 'accent' as const, countLabel: label }
+  return count === undefined
+    ? {}
+    : { count, countTone: 'accent' as const, countLabel: noun(count, nouns) }
 }
 
 /** A team: its tile and name; the open one expands to its pages. A pinned team shows a pin. */
@@ -203,7 +212,7 @@ function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
   const triageProps =
     triage === undefined
       ? {}
-      : { count: triage, countTone: 'neutral' as const, countLabel: 'items to triage' }
+      : { count: triage, countTone: 'neutral' as const, countLabel: noun(triage, TRIAGE_NOUN) }
   return (
     <>
       <NavLink
@@ -245,7 +254,11 @@ function TeamEntry({ workspace, team, open, section }: TeamEntry.Props) {
             selected={section === 'triage'}
             {...(triage === undefined
               ? {}
-              : { count: triage, countTone: 'neutral' as const, countLabel: 'items to triage' })}
+              : {
+                  count: triage,
+                  countTone: 'neutral' as const,
+                  countLabel: noun(triage, TRIAGE_NOUN),
+                })}
           >
             Triage
           </NavLink>

@@ -30,6 +30,13 @@ describe('returnTarget', () => {
     expect(returnTarget('/', teams).label).toBe('Teams')
   })
 
+  it('goes back to the Inbox from an app page it has no name for, never "the app"', () => {
+    expect(returnTarget('/workspaces/acme/somewhere', teams)).toEqual({
+      path: '/inbox',
+      label: 'Inbox',
+    })
+  })
+
   it('uses the slug for a team the list does not know', () => {
     expect(returnTarget('/acme/gone', teams).label).toBe('gone')
   })

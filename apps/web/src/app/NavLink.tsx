@@ -12,6 +12,7 @@ export function NavLink({
   selected,
   children,
   sub,
+  more,
   count,
   countTone,
   countLabel,
@@ -28,6 +29,7 @@ export function NavLink({
       {...(trailing ? { trailing } : {})}
       {...(isCurrent ? { selected: true } : {})}
       {...(sub ? { sub } : {})}
+      {...(more ? { more } : {})}
       {...(count === undefined ? {} : { count })}
       {...(countTone ? { countTone } : {})}
       {...(countLabel ? { countLabel } : {})}
@@ -44,6 +46,7 @@ export namespace NavLink {
     trailing?: ReactNode
     selected?: boolean
     sub?: boolean
+    more?: boolean
     count?: number
     countTone?: NavItem.Props['countTone']
     countLabel?: string
