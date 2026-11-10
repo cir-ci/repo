@@ -19,6 +19,7 @@ const item = (name: string, buildName = 'default', over: Partial<Baseline.Item> 
   buildNumber: 7,
   commitSha: 'abc1234',
   approvedAt: '2026-11-08T10:00:00.000Z',
+  approvedBy: null,
   ...over,
 })
 

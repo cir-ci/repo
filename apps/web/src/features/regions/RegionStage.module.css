@@ -41,3 +41,13 @@
   font-size: 11px;
   line-height: 16px;
 }
+
+/* Over the image, as big as it: the drawing layer, which only takes the pointer while drawing. */
+.layer {
+  position: absolute;
+  inset: 0;
+}
+
+.layer[data-idle] {
+  pointer-events: none;
+}

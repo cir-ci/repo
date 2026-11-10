@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { page, userEvent } from 'vitest/browser'
+import { page } from 'vitest/browser'
 
 import { parseIgnoreRegionsSearch } from '#features/regions/ignore-regions-search.ts'
 import { IgnoreRegionsPage } from '#features/regions/IgnoreRegionsPage.tsx'
@@ -7,48 +7,14 @@ import { fakeApi, type ReplyHandler } from '#test/support/fetch.ts'
 import { renderPage } from '#test/support/render.tsx'
 
 const API = '/api/teams/acme/web'
-const NOW = new Date(Date.now() - 3_600_000).toISOString()
-const ID1 = '11111111-1111-4111-8111-111111111111'
-const ID2 = '22222222-2222-4222-8222-222222222222'
 
-const region = (id: string, name: string, over: Record<string, unknown> = {}) => ({
-  id,
-  name,
-  x: 10,
-  y: 20,
-  width: 100,
-  height: 50,
-  createdAt: NOW,
-  createdBy: { id: 'u1', name: 'Dana Levi' },
-  ...over,
-})
-
-const snapshot = (name: string, regions: number, size = true) => ({
+const snapshot = (name: string, regions: number) => ({
   name,
   regions,
-  latest: {
-    buildNumber: 148,
-    sha256: `sha-${name.replace('/', '-')}`,
-    width: size ? 1000 : null,
-    height: size ? 500 : null,
-  },
+  latest: { buildNumber: 148, sha256: 'sha', width: 1000, height: 500 },
 })
 
-const list = (over: Record<string, unknown> = {}) => ({
-  regions: [
-    region(ID1, 'checkout/summary'),
-    region(ID2, 'checkout/summary', { createdBy: null }),
-    region('3', 'nav/header'),
-  ],
-  snapshots: [snapshot('checkout/summary', 2), snapshot('nav/header', 1)],
-  ...over,
-})
-
-function api(
-  listBody: unknown = list(),
-  extra: Record<string, ReplyHandler> = {},
-  canManage = true,
-) {
+function api(snapshots: unknown[], canManage = true, extra: Record<string, ReplyHandler> = {}) {
   return fakeApi({
     [`GET ${API}/settings`]: {
       body: {
@@ -62,242 +28,65 @@ function api(
         sitesConfigured: false,
       },
     },
-    [`GET ${API}/ignore-regions`]: { body: listBody },
+    [`GET ${API}/ignore-regions`]: { body: { regions: [], snapshots } },
     ...extra,
   })
 }
 
-const show = (url = '/acme/web/settings/ignore-regions') =>
+const show = () =>
   renderPage(<IgnoreRegionsPage />, {
     route: '/$workspace/$team/settings/ignore-regions',
-    url,
+    url: '/acme/web/settings/ignore-regions',
     announcer: true,
     validateSearch: parseIgnoreRegionsSearch,
+    otherRoutes: ['/$workspace/$team/baselines/$'],
   })
 
-describe('IgnoreRegionsPage', () => {
-  it('groups regions by screenshot and shows the first with its regions, who added them and when', async () => {
-    api()
+describe('IgnoreRegionsPage (the team settings overview)', () => {
+  it('lists the screenshots that have ignore regions with their counts, each linking to its baseline page', async () => {
+    api([snapshot('checkout/summary', 2), snapshot('nav/header', 1)])
     await show()
-    const options = page.getByRole('listbox', { name: 'Screenshots with ignore regions' })
+    const list = page.getByRole('list', { name: 'Screenshots with ignore regions' })
+    const summary = list.getByRole('link', { name: /checkout\/summary/ })
+    await expect.element(summary).toHaveAttribute('href', '/acme/web/baselines/checkout/summary')
     await expect
-      .element(options.getByRole('option', { name: /checkout\/summary/ }))
-      .toHaveAttribute('aria-selected', 'true')
-    await expect
-      .element(options.getByRole('option', { name: /nav\/header/ }))
-      .toHaveAttribute('aria-selected', 'false')
+      .element(list.getByRole('link', { name: /nav\/header/ }))
+      .toHaveAttribute('href', '/acme/web/baselines/nav/header')
     await expect.element(page.getByLabelText('2 regions')).toBeVisible()
     await expect.element(page.getByLabelText('1 region')).toBeVisible()
-    const regions = page.getByRole('list', { name: 'Regions of checkout/summary' })
-    await expect.element(regions.getByText(/Added by Dana Levi/)).toBeVisible()
-    await expect.element(regions.getByText(/Added from the command line/)).toBeVisible()
-    await expect
-      .element(page.getByRole('img', { name: 'checkout/summary in build #148' }))
-      .toHaveAttribute('src', '/api/files/sha-checkout-summary')
     expect(document.title).toBe('Ignore regions · web · CirCI')
   })
 
-  it('opens the screenshot named in the address (Triage links here)', async () => {
-    api()
-    await show('/acme/web/settings/ignore-regions?name=nav%2Fheader')
-    await expect
-      .element(page.getByRole('option', { name: /nav\/header/ }))
-      .toHaveAttribute('aria-selected', 'true')
-    await expect.element(page.getByRole('list', { name: 'Regions of nav/header' })).toBeVisible()
+  it('is the same read-only list for everyone: no editing controls, no members-only note', async () => {
+    api([snapshot('checkout/summary', 2)], false)
+    await show()
+    await expect.element(page.getByRole('link', { name: /checkout\/summary/ })).toBeVisible()
+    expect(page.getByRole('button', { name: /region/i }).elements()).toHaveLength(0)
+    expect(page.getByText(/Only owners and admins/).elements()).toHaveLength(0)
   })
 
-  it('switches screenshot', async () => {
-    api()
+  it('leaves out screenshots without regions', async () => {
+    api([snapshot('checkout/summary', 2), snapshot('clock', 0)])
     await show()
-    await page.getByRole('option', { name: /nav\/header/ }).click()
-    await expect.element(page.getByRole('list', { name: 'Regions of nav/header' })).toBeVisible()
+    await expect.element(page.getByRole('link', { name: /checkout\/summary/ })).toBeVisible()
+    expect(page.getByRole('link', { name: /clock/ }).elements()).toHaveLength(0)
   })
 
   it('says so when there are no regions yet', async () => {
-    api({ regions: [], snapshots: [] })
+    api([])
     await show()
     await expect.element(page.getByText('No ignore regions yet')).toBeVisible()
   })
 
-  it('removes a region only after confirming', async () => {
-    const fake = api(list(), { [`DELETE ${API}/ignore-regions/${ID1}`]: { status: 204 } })
-    await show()
-    // Newest first, and they were created at the same instant: the order is the list's own.
-    const remove = page.getByRole('button', { name: /^Remove region/ }).first()
-    await remove.click()
-    await page.getByRole('button', { name: 'Cancel' }).click()
-    expect(fake.of('DELETE')).toHaveLength(0)
-    await remove.click()
-    await page.getByRole('alertdialog').getByRole('button', { name: 'Remove' }).click()
-    await expect.poll(() => fake.of('DELETE')).toHaveLength(1)
-    await expect
-      .element(page.getByRole('status').filter({ hasText: /^Ignore region removed$/ }))
-      .toBeVisible()
-  })
-
-  it('edits a region’s position and size, rejecting what isn’t whole numbers', async () => {
-    const fake = api(
-      list({
-        regions: [region(ID1, 'checkout/summary')],
-        snapshots: [snapshot('checkout/summary', 1)],
-      }),
-      {
-        [`PATCH ${API}/ignore-regions/${ID1}`]: { body: region(ID1, 'checkout/summary') },
-      },
-    )
-    await show()
-    await page.getByRole('button', { name: 'Edit region 1' }).click()
-    await expect.element(page.getByRole('textbox', { name: 'Width' })).toHaveValue('100')
-    await page.getByRole('textbox', { name: 'Width' }).fill('10.5')
-    await page.getByRole('button', { name: 'Save region' }).click()
-    await expect.element(page.getByRole('alert')).toHaveTextContent('Use whole numbers')
-    expect(fake.of('PATCH')).toHaveLength(0)
-    await page.getByRole('textbox', { name: 'Width' }).fill('120')
-    await page.getByRole('button', { name: 'Save region' }).click()
-    await expect.poll(() => fake.of('PATCH')).toHaveLength(1)
-    expect(fake.of('PATCH')[0]?.body).toEqual({ x: 10, y: 20, width: 120, height: 50 })
-  })
-
-  it('draws a region by dragging and saves it in pixels', async () => {
-    const fake = api(list(), {
-      [`POST ${API}/ignore-regions`]: { status: 201, body: region('9', 'checkout/summary') },
-    })
-    await show()
-    await page.getByRole('button', { name: 'Draw region' }).click()
-    const layer = page.getByTestId('region-layer')
-    // The test screenshot never loads; give the image box its size.
-    const shot = page.getByRole('img', { name: /checkout\/summary in build/ }).element()
-    shot.style.height = '300px'
-    await userEvent.dragAndDrop(layer, layer, {
-      sourcePosition: { x: 100, y: 60 },
-      targetPosition: { x: 300, y: 120 },
-    })
-    await expect.poll(() => fake.of('POST')).toHaveLength(1)
-    expect(fake.of('POST')[0]?.body).toMatchObject({
-      name: 'checkout/summary',
-      x: expect.any(Number),
-      width: expect.any(Number),
-    })
-  })
-
-  it('draws a region from the keyboard and saves it in pixels', async () => {
-    const fake = api(list(), {
-      [`POST ${API}/ignore-regions`]: { status: 201, body: region('9', 'checkout/summary') },
-    })
-    await show()
-    await page.getByRole('button', { name: 'Draw region' }).click()
-    await expect.element(page.getByRole('group', { name: 'Region to mark' })).toHaveFocus()
-    await userEvent.keyboard('{ArrowDown}{Shift>}{ArrowDown}{/Shift}{Enter}')
-    await expect.poll(() => fake.of('POST')).toHaveLength(1)
-    expect(fake.of('POST')[0]?.body).toMatchObject({
-      name: 'checkout/summary',
-      // The screenshot is 1000 x 500: start 40%, 40%, 20% x 20%, one step down, one step taller.
-      x: 400,
-      y: 205,
-      width: 200,
-      height: 105,
-    })
-  })
-
-  it('adds a region from numbers: the dialog starts with a centred quarter of the screenshot and posts pixels', async () => {
-    const fake = api(list(), {
-      [`POST ${API}/ignore-regions`]: { status: 201, body: region('9', 'checkout/summary') },
-    })
-    await show()
-    await page.getByRole('button', { name: 'Add region', exact: true }).click()
-    const dialog = page.getByRole('dialog', { name: 'Add an ignore region' })
-    await expect.element(dialog).toBeVisible()
-    // The screenshot is 1000 x 500: 250 x 125, in the middle.
-    await expect.element(dialog.getByRole('textbox', { name: 'Left' })).toHaveValue('375')
-    await expect.element(dialog.getByRole('textbox', { name: 'Top' })).toHaveValue('187')
-    await expect.element(dialog.getByRole('textbox', { name: 'Width' })).toHaveValue('250')
-    await expect.element(dialog.getByRole('textbox', { name: 'Height' })).toHaveValue('125')
-    await dialog.getByRole('textbox', { name: 'Width' }).fill('300')
-    await dialog.getByRole('button', { name: 'Add region' }).click()
-    await expect.poll(() => fake.of('POST')).toHaveLength(1)
-    expect(fake.of('POST')[0]?.body).toEqual({
-      name: 'checkout/summary',
-      x: 375,
-      y: 187,
-      width: 300,
-      height: 125,
-    })
-    await expect
-      .element(page.getByRole('status').filter({ hasText: /^Ignore region added$/ }))
-      .toBeVisible()
-  })
-
-  it('refuses a new region that is not whole numbers or does not fit the screenshot', async () => {
-    const fake = api()
-    await show()
-    await page.getByRole('button', { name: 'Add region', exact: true }).click()
-    const dialog = page.getByRole('dialog', { name: 'Add an ignore region' })
-    const submit = dialog.getByRole('button', { name: 'Add region' })
-    await dialog.getByRole('textbox', { name: 'Left' }).fill('1.5')
-    await submit.click()
-    await expect.element(page.getByRole('alert')).toHaveTextContent('Use whole numbers')
-    // A negative position can't be entered: the number field holds it at its minimum, 0.
-    const left = dialog.getByRole('textbox', { name: 'Left' })
-    await left.fill('-3')
-    await dialog.getByRole('textbox', { name: 'Top' }).click()
-    await expect.element(left).toHaveValue('0')
-    await left.fill('900')
-    await dialog.getByRole('textbox', { name: 'Width' }).fill('200')
-    await submit.click()
-    await expect
-      .poll(() => page.getByRole('alert').element().textContent)
-      .toContain('must fit inside the screenshot (1000×500)')
-    expect(fake.of('POST')).toHaveLength(0)
-  })
-
-  it('opens an empty Add dialog when the screenshot’s size is unknown', async () => {
-    api(list({ snapshots: [snapshot('checkout/summary', 2, false), snapshot('nav/header', 1)] }))
-    await show()
-    await page.getByRole('button', { name: 'Add region', exact: true }).click()
-    await expect.element(page.getByRole('textbox', { name: 'Width' })).toHaveValue('')
-  })
-
-  it('opens on a screenshot that has no regions yet, ready to add one', async () => {
-    api({
-      regions: [],
-      snapshots: [snapshot('clock', 0)],
-    })
-    await show('/acme/web/settings/ignore-regions?name=clock')
-    await expect.element(page.getByRole('list', { name: 'Regions of clock' })).toBeInTheDocument()
-    await expect
-      .element(page.getByRole('button', { name: 'Add region', exact: true }))
-      .toBeVisible()
-  })
-
-  it('shows members the regions and nothing to add, draw, edit or remove', async () => {
-    api(list(), {}, false)
-    await show()
-    await expect
-      .element(page.getByText(/Only owners and admins can add, change or remove/))
-      .toBeVisible()
-    await expect
-      .element(page.getByRole('list', { name: 'Regions of checkout/summary' }))
-      .toBeVisible()
-    expect(page.getByRole('button', { name: 'Add region' }).elements()).toHaveLength(0)
-    expect(page.getByRole('button', { name: 'Draw region' }).elements()).toHaveLength(0)
-    expect(page.getByRole('button', { name: /^Edit region/ }).elements()).toHaveLength(0)
-    expect(page.getByRole('button', { name: /^Remove region/ }).elements()).toHaveLength(0)
-    expect(page.getByText(/needs a mouse/).elements()).toHaveLength(0)
-  })
-
-  it('can’t draw on a screenshot of unknown size', async () => {
-    api(list({ snapshots: [snapshot('checkout/summary', 2, false), snapshot('nav/header', 1)] }))
-    await show()
-    await expect.element(page.getByRole('button', { name: 'Draw region' })).toBeDisabled()
-  })
-
   it('shows a failed load and retries', async () => {
-    const fake = api()
+    const fake = api([snapshot('checkout/summary', 1)])
     fake.set(`GET ${API}/ignore-regions`, { status: 500, body: { error: 'db down' } })
     await show()
     await expect.element(page.getByText('db down')).toBeVisible()
-    fake.set(`GET ${API}/ignore-regions`, { body: list() })
+    fake.set(`GET ${API}/ignore-regions`, { body: { regions: [], snapshots: [snapshot('a', 1)] } })
     await page.getByRole('button', { name: 'Try again' }).click()
-    await expect.element(page.getByRole('listbox')).toBeVisible()
+    await expect
+      .element(page.getByRole('list', { name: 'Screenshots with ignore regions' }))
+      .toBeVisible()
   })
 })

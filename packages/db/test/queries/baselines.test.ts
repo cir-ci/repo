@@ -140,6 +140,13 @@ describe('listBaselines', () => {
       ['mobile', 'home', 6, 50, null, '2026-03-06T13:00:00.000Z'],
     ])
     expect(items[2]).toMatchObject({ fileSha256: fakeSha('c'), height: 820 })
+    // Who approved it: the reviewer of the build; no one for a build that needed no approval.
+    expect(items.map((i) => i.approvedBy)).toEqual([
+      { id: owner.id, name: owner.name },
+      null,
+      { id: owner.id, name: owner.name },
+      { id: owner.id, name: owner.name },
+    ])
   })
 
   it('is empty for a team without an approved default-branch build', async () => {

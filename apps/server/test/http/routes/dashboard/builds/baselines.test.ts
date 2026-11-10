@@ -21,6 +21,8 @@ describe('GET /api/teams/:workspace/:team/baselines', () => {
     ])
     expect(body.baselines[0].sizeBytes).toBeGreaterThan(0)
     expect(Date.parse(body.baselines[0].approvedAt)).not.toBeNaN()
+    // Approved automatically on main: nobody to name.
+    expect(body.baselines[0].approvedBy).toBeNull()
   })
 
   it('is not found for a non-member, an unknown team, or without a session', async () => {

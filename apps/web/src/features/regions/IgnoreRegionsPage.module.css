@@ -3,158 +3,16 @@
   margin: 0;
 }
 
-.split {
-  display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
-}
-
-@media (max-width: 900px) {
-  .split {
-    grid-template-columns: 1fr;
-  }
-}
-
 .list {
+  margin: 0;
+  padding: 0;
   overflow: hidden;
   border: 1px solid var(--circi-line-subtle);
   border-radius: 10px;
   background: var(--circi-surface-raised);
-}
-
-.option {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 44px;
-  padding: 6px 12px;
-  border: 0;
-  border-bottom: 1px solid var(--circi-line-subtle);
-  background: transparent;
-  color: var(--circi-text-primary);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.option:last-child {
-  border-bottom: 0;
-}
-
-.option:hover {
-  background: var(--circi-action-hover);
-}
-
-.option[data-selected] {
-  background: var(--circi-accent-subtle);
-  box-shadow: inset 2px 0 0 var(--circi-accent-main);
-}
-
-.option:focus-visible {
-  outline: 2px solid var(--circi-accent-text);
-  outline-offset: -2px;
-}
-
-.thumb {
-  flex: none;
-  width: 40px;
-  height: 28px;
-  border-radius: 4px;
-  background: var(--circi-surface-chrome);
-  object-fit: cover;
-  object-position: top;
-}
-
-.optionName {
-  composes: truncate from '@circi/ui/utilities.module.css';
-  flex: 1;
-  min-width: 0;
-  font-family: var(--circi-font-mono);
-  font-size: 12px;
-}
-
-.bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--circi-line-subtle);
-}
-
-.barName {
-  flex: 1;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.note {
-  margin: 0;
-  padding: 16px;
-}
-
-.foot {
-  padding: 8px 12px;
-  border-top: 1px solid var(--circi-line-subtle);
-}
-
-.regions {
-  margin: 0;
-  padding: 0;
   list-style: none;
 }
 
-.region {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
+.list > li + li {
   border-top: 1px solid var(--circi-line-subtle);
-}
-
-.number {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  min-width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  background: var(--circi-annotation);
-  color: var(--circi-annotation-text);
-  font-size: 12px;
-}
-
-.regionText {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.editForm {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.problem {
-  grid-column: 1 / -1;
-}
-
-/* The stage panel: a bordered box. */
-.panel {
-  overflow: hidden;
-  border: 1px solid var(--circi-line-subtle);
-  border-radius: 10px;
-  background: var(--circi-surface-raised);
-}
-
-.barActions {
-  display: flex;
-  gap: 8px;
-  margin-inline-start: auto;
 }

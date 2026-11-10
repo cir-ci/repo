@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { Fragment } from 'react'
 
+import { baselineLink } from '#features/baselines/links.ts'
 import {
   type BuildFilters,
   parseBuildsSearch,
@@ -117,15 +118,7 @@ export function TeamPage() {
               <Fragment key={f.name}>
                 {index > 0 ? ', ' : null}
                 {canManage ? (
-                  <Link
-                    {...clientLink({
-                      to: '/$workspace/$team/settings/ignore-regions',
-                      params: { workspace, team },
-                      search: { name: f.name },
-                    })}
-                  >
-                    {f.name}
-                  </Link>
+                  <Link {...clientLink(baselineLink(workspace, team, f.name))}>{f.name}</Link>
                 ) : (
                   f.name
                 )}{' '}

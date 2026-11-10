@@ -8,7 +8,7 @@ import { renderPage } from '#test/support/render.tsx'
 const PATH = '/api/teams/acme/web/baselines'
 const open = () =>
   renderPage(<BaselinesPage />, {
-    route: '/$workspace/$team/baselines',
+    route: '/$workspace/$team/baselines/',
     url: '/acme/web/baselines',
     announcer: true,
   })
@@ -24,6 +24,7 @@ const item = (name: string, buildName: string, buildNumber: number) => ({
   buildNumber,
   commitSha: 'abcdef1',
   approvedAt: '2026-11-08T10:00:00.000Z',
+  approvedBy: null,
 })
 
 const list = (baselines: unknown[]) => ({
@@ -32,7 +33,7 @@ const list = (baselines: unknown[]) => ({
 })
 
 describe('BaselinesPage', () => {
-  it('groups baselines by name prefix, links to the build and searches', async () => {
+  it('groups baselines by name prefix, links to the baseline page (and its build) and searches', async () => {
     fakeFetch({
       [`GET ${PATH}`]: list([
         item('checkout/payment', 'default', 12),
@@ -45,7 +46,10 @@ describe('BaselinesPage', () => {
     await expect.element(page.getByRole('heading', { name: /Ungrouped/ })).toBeVisible()
     await expect.element(page.getByText('3 on main')).toBeVisible()
     const link = page.getByRole('link', { name: /checkout\/payment/ })
-    await expect.element(link).toHaveAttribute('href', '/acme/web/builds/12')
+    await expect.element(link).toHaveAttribute('href', '/acme/web/baselines/checkout/payment')
+    await expect
+      .element(page.getByRole('link', { name: /^Build #12/ }))
+      .toHaveAttribute('href', '/acme/web/builds/12')
 
     const search = page.getByRole('textbox', { name: 'Search baselines' })
     await expect.element(search).toHaveAttribute('placeholder', 'Search snapshots')

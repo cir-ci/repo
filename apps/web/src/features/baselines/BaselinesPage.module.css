@@ -55,10 +55,43 @@
   text-align: right;
 }
 
-.rowGrid {
+/* A row is two links side by side: the name opens the baseline page, the build number its build. */
+.item {
   display: flex;
-  gap: 12px;
   align-items: center;
+  gap: 12px;
+  padding-right: 16px;
+}
+
+.item:hover {
+  background: var(--circi-action-hover);
+}
+
+.rowLink {
+  flex: 1;
+  min-width: 0;
+}
+
+.rowLink:hover {
+  background: transparent;
+}
+
+.buildLink {
+  flex: none;
+  width: 56px;
+  color: var(--circi-text-secondary);
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+}
+
+.buildLink:hover {
+  color: var(--circi-text-primary);
+  text-decoration: underline;
+}
+
+.buildLink:focus-visible {
+  outline: 2px solid var(--circi-accent-text);
+  outline-offset: 2px;
 }
 
 .buildName {

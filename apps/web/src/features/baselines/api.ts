@@ -1,4 +1,4 @@
-import type { Baseline } from '@circi/api'
+import type { Baseline, Snapshot } from '@circi/api'
 import { queryOptions } from '@tanstack/react-query'
 
 import { teamPath } from '#lib/api-paths.ts'
@@ -60,3 +60,18 @@ export function groupBaselines(items: readonly Baseline.Item[]): BaselineGroup[]
 /** The groups as one list in on-screen order, for J / K. */
 export const flattenGroups = (groups: readonly BaselineGroup[]): Baseline.Item[] =>
   groups.flatMap((g) => g.items)
+
+/** How many recent builds the baseline page asks the history for, before keeping those where it changed. */
+export const HISTORY_LENGTH = 20
+
+/** The current baseline of a screenshot name: the newest build's, when several build names have one. */
+export function baselineOf(
+  items: readonly Baseline.Item[],
+  name: string,
+): Baseline.Item | undefined {
+  return items.filter((i) => i.name === name).toSorted((a, b) => b.buildNumber - a.buildNumber)[0]
+}
+
+/** The history entries where the screenshot changed (or was added, removed or failed), newest first. */
+export const changesOf = (entries: readonly Snapshot.HistoryEntry[]): Snapshot.HistoryEntry[] =>
+  entries.filter((e) => e.status !== null && e.status !== 'unchanged')

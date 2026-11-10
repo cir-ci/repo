@@ -24,7 +24,12 @@ function api(
 }
 
 const show = (url = '/acme/web') =>
-  renderPage(<TeamPage />, { route: '/$workspace/$team', url: url, announcer: true })
+  renderPage(<TeamPage />, {
+    route: '/$workspace/$team',
+    url: url,
+    announcer: true,
+    otherRoutes: ['/$workspace/$team/baselines/$'],
+  })
 
 describe('TeamPage', () => {
   it('shows the breadcrumb at once from the URL and no list while loading', async () => {
@@ -194,16 +199,16 @@ describe('TeamPage', () => {
     expect(banner.getByRole('link').elements()).toHaveLength(0)
   })
 
-  it('links each flaky screenshot to its ignore regions for owners and admins', async () => {
+  it('links each flaky screenshot to its baseline page, where its ignore regions are, for owners and admins', async () => {
     api([build(8)], flakyReport, null, true)
     await show()
     const banner = page.getByRole('status').filter({ hasText: 'keep changing' })
     await expect
       .element(banner.getByRole('link', { name: 'nav/ticker' }))
-      .toHaveAttribute('href', '/acme/web/settings/ignore-regions?name=nav%2Fticker')
+      .toHaveAttribute('href', '/acme/web/baselines/nav/ticker')
     await expect
       .element(banner.getByRole('link', { name: 'clock' }))
-      .toHaveAttribute('href', '/acme/web/settings/ignore-regions?name=clock')
+      .toHaveAttribute('href', '/acme/web/baselines/clock')
     await expect.poll(() => banner.element().textContent).toMatch(/Choose a screenshot to ignore/)
     expect(banner.element().textContent).not.toMatch(/circi admin/)
   })

@@ -1,0 +1,76 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.headerText {
+  display: flex;
+  flex: 1 1 360px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.name {
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+.flaky {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--circi-state-review);
+}
+
+.line {
+  margin: 0;
+}
+
+.history {
+  overflow: hidden;
+  border: 1px solid var(--circi-line-subtle);
+  border-radius: 10px;
+  background: var(--circi-surface-raised);
+}
+
+.historyBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--circi-line-subtle);
+}
+
+.historyTitle {
+  flex: 1;
+  margin: 0;
+}
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rows > li + li {
+  border-top: 1px solid var(--circi-line-subtle);
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+}
+
+.build {
+  flex: none;
+  width: 56px;
+  color: var(--circi-text-secondary);
+  font-variant-numeric: tabular-nums;
+}

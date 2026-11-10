@@ -178,18 +178,22 @@ export function frameOf(entry: Snapshot.HistoryEntry, itemKind: TriageKind): Fra
   }
 }
 
-/** `build` anchors the history on the triage item's own build, so its frame is always there. */
+/**
+ * A snapshot's recent builds on the default branch, newest first. `build` anchors the list on the
+ * triage item's own build, so its frame is always there; without it the list starts at the newest.
+ */
 export const snapshotHistoryQuery = (
   workspace: string,
   team: string,
   name: string,
-  build: number,
+  build?: number,
+  limit: number = FILMSTRIP_LENGTH,
 ) =>
   queryOptions({
-    queryKey: keys.snapshotHistory(workspace, team, name, build),
+    queryKey: keys.snapshotHistory(workspace, team, name, build ?? `last-${limit}`),
     queryFn: () =>
       getJson<Snapshot.History>(
-        `${teamPath(workspace, team, 'snapshots', name, 'history')}?limit=${FILMSTRIP_LENGTH}&build=${build}`,
+        `${teamPath(workspace, team, 'snapshots', name, 'history')}?limit=${limit}${build ? `&build=${build}` : ''}`,
       ),
   })
 

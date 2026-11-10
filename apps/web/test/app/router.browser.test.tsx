@@ -21,4 +21,38 @@ describe('the app router', () => {
     expect(router.state.location.pathname).toBe('/acme/web')
     expect(router.state.matches.at(-1)?.routeId).toBe('/$workspace/$team')
   })
+
+  it('keeps the baselines list at its own address, not a baseline with no name', async () => {
+    const router = await open('/acme/web/baselines')
+    expect(router.state.matches.at(-1)?.routeId).toBe('/$workspace/$team/baselines/')
+  })
+
+  it('opens a baseline page on its screenshot name, slashes included', async () => {
+    const router = await open('/acme/web/baselines/checkout/payment-form')
+    expect(router.state.matches.at(-1)?.routeId).toBe('/$workspace/$team/baselines/$')
+    expect(router.state.matches.at(-1)?.params).toMatchObject({ _splat: 'checkout/payment-form' })
+  })
+
+  it('writes and reads back a screenshot name with spaces and symbols', async () => {
+    const name = 'cart/price (€) 50% off?#1 + 2'
+    const router = await open('/acme/web')
+    const href = router.buildLocation({
+      to: '/$workspace/$team/baselines/$',
+      params: { workspace: 'acme', team: 'web', _splat: name },
+    }).href
+    expect(href.split('/baselines/')[1]).not.toMatch(/[ ?#]/)
+    const back = await open(href)
+    expect(back.state.matches.at(-1)?.params).toMatchObject({ _splat: name })
+  })
+
+  it('sends the old ignore regions address with ?name= to that screenshot’s baseline page', async () => {
+    const router = await open('/acme/web/settings/ignore-regions?name=checkout%2Fpayment-form')
+    expect(router.state.location.pathname).toBe('/acme/web/baselines/checkout/payment-form')
+    expect(router.state.location.search).toEqual({})
+  })
+
+  it('keeps the ignore regions overview at its address', async () => {
+    const router = await open('/acme/web/settings/ignore-regions')
+    expect(router.state.matches.at(-1)?.routeId).toBe('/$workspace/$team/settings/ignore-regions')
+  })
 })

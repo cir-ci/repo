@@ -1,13 +1,31 @@
-import { createRoute, lazyRouteComponent } from '@tanstack/react-router'
+import { createRoute, lazyRouteComponent, Outlet } from '@tanstack/react-router'
 
 import { rootRoute } from '#app/root-route.ts'
 
-export const ROUTE = '/$workspace/$team/baselines'
-
+/**
+ * `/baselines` is the list, `/baselines/<name>` one baseline (the name is a splat, because
+ * screenshot names contain "/"). They sit under one layout route, so that the list is the index:
+ * a splat can be empty, and `/baselines` alone would otherwise match it before the list.
+ */
 const baselinesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '$workspace/$team/baselines',
+  component: Outlet,
+})
+
+export const ROUTE = '/$workspace/$team/baselines/'
+export const BASELINE_ROUTE = '/$workspace/$team/baselines/$'
+
+const listRoute = createRoute({
+  getParentRoute: () => baselinesRoute,
+  path: '/',
   component: lazyRouteComponent(() => import('./BaselinesPage.tsx'), 'BaselinesPage'),
 })
 
-export const baselinesRoutes = [baselinesRoute]
+const baselineRoute = createRoute({
+  getParentRoute: () => baselinesRoute,
+  path: '$',
+  component: lazyRouteComponent(() => import('./BaselinePage.tsx'), 'BaselinePage'),
+})
+
+export const baselinesRoutes = [baselinesRoute.addChildren([listRoute, baselineRoute])]

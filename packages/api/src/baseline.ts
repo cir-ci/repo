@@ -16,6 +16,8 @@ export namespace Baseline {
     commitSha: string
     /** When that build was approved; its finish time when it needed no approval. */
     approvedAt: string
+    /** Who approved it; null for an automatic approval, or when no one needed to. */
+    approvedBy: { id: string; name: string } | null
   }
 
   /** `GET /api/teams/:workspace/:team/baselines`: the default branch's current baselines. */

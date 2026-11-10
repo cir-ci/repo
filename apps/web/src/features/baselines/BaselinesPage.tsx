@@ -19,6 +19,7 @@ import {
   flattenGroups,
   groupBaselines,
 } from './api.ts'
+import { baselineLink } from './links.ts'
 import { ROUTE } from './routes.ts'
 
 import styles from './BaselinesPage.module.css'
@@ -108,14 +109,16 @@ export function BaselinesPage() {
                           </h2>
                           <ul className={styles.list}>
                             {group.items.map((item) => (
-                              <li key={baselineId(item)} {...rowProps(baselineId(item))}>
+                              <li
+                                key={baselineId(item)}
+                                className={styles.item}
+                                {...rowProps(baselineId(item))}
+                              >
                                 <ListRow
                                   density="compact"
                                   selected={baselineId(item) === selectedId}
-                                  {...clientLink({
-                                    to: '/$workspace/$team/builds/$number',
-                                    params: { workspace, team, number: String(item.buildNumber) },
-                                  })}
+                                  className={styles.rowLink}
+                                  {...clientLink(baselineLink(workspace, team, item.name))}
                                   leading={
                                     <StatusIcon
                                       status="approved"
@@ -123,22 +126,26 @@ export function BaselinesPage() {
                                     />
                                   }
                                 >
-                                  <span className={styles.rowGrid}>
-                                    <Text truncate className={styles.snapshot}>
-                                      {item.name}
-                                      {item.buildName === 'default' ? null : (
-                                        <span className={styles.buildName}>
-                                          {' '}
-                                          · {item.buildName}
-                                        </span>
-                                      )}
-                                    </Text>
-                                    <span className={styles.build}>#{item.buildNumber}</span>
-                                    <span className={styles.age}>
-                                      <RelativeTime iso={item.approvedAt} />
-                                    </span>
-                                  </span>
+                                  <Text truncate>
+                                    {item.name}
+                                    {item.buildName === 'default' ? null : (
+                                      <span className={styles.buildName}> · {item.buildName}</span>
+                                    )}
+                                  </Text>
                                 </ListRow>
+                                <a
+                                  className={styles.buildLink}
+                                  aria-label={`Build #${item.buildNumber}, the build this baseline came from`}
+                                  {...clientLink({
+                                    to: '/$workspace/$team/builds/$number',
+                                    params: { workspace, team, number: String(item.buildNumber) },
+                                  })}
+                                >
+                                  #{item.buildNumber}
+                                </a>
+                                <span className={styles.age}>
+                                  <RelativeTime iso={item.approvedAt} />
+                                </span>
                               </li>
                             ))}
                           </ul>
