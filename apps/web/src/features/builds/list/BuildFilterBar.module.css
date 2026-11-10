@@ -5,6 +5,46 @@
   align-items: center;
 }
 
+/* A filter chip, and once it is set, a small × joined to its right that clears it. */
+.chip {
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.chip[data-active] > :first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* The design system's IconButton, joined to the chip: the chip's height and its pressed look. */
+.chip > .clear {
+  width: 22px;
+  height: auto;
+  border: 1px solid var(--circi-line-strong);
+  border-left: 0;
+  border-radius: 0 var(--circi-radius-control) var(--circi-radius-control) 0;
+  background: var(--circi-action-selected);
+  color: var(--circi-text-secondary);
+  cursor: pointer;
+}
+
+.chip > .clear svg {
+  width: 12px;
+  height: 12px;
+}
+
+.chip > .clear:hover {
+  color: var(--circi-text-primary);
+  background: color-mix(in srgb, var(--circi-action-selected) 100%, var(--circi-text-primary) 6%);
+}
+
+/* A phone: the × is a full touch target beside the 44px chip. */
+@media (max-width: 819.98px) {
+  .chip > .clear {
+    width: 36px;
+  }
+}
+
 .spacer {
   flex: 1;
 }

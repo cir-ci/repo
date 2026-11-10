@@ -1,4 +1,14 @@
-import { Autocomplete, Button, Popover, SegmentedControl, Switch, Text, TextField } from '@circi/ui'
+import {
+  Autocomplete,
+  Button,
+  CloseIcon,
+  IconButton,
+  Popover,
+  SegmentedControl,
+  Switch,
+  Text,
+  TextField,
+} from '@circi/ui'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { type FormEvent, useDeferredValue, useState } from 'react'
 
@@ -70,36 +80,42 @@ export function BuildFilterBar({
       {FILTER_FIELDS.map(({ field, label }) => {
         const active = fieldValue(field, filters) !== undefined
         return (
-          <Popover
-            key={field}
-            label={`Filter by ${label.toLowerCase()}`}
-            open={open === field}
-            onOpenChange={(next) => onOpenChange(next ? field : undefined)}
-            trigger={
-              <Button
-                variant="filter"
-                size="sm"
-                pressed={active}
-                aria-keyshortcuts={field === 'status' ? 'f' : undefined}
-              >
-                {chipName(field, filters, labels)}
-              </Button>
-            }
-          >
-            <FieldEditor
-              workspace={workspace}
-              team={team}
-              field={field}
-              filters={filters}
-              labels={labels}
-              onChange={set}
-            />
+          <span key={field} className={styles.chip} data-active={active ? '' : undefined}>
+            <Popover
+              label={`Filter by ${label.toLowerCase()}`}
+              open={open === field}
+              onOpenChange={(next) => onOpenChange(next ? field : undefined)}
+              trigger={
+                <Button
+                  variant="filter"
+                  size="sm"
+                  pressed={active}
+                  aria-keyshortcuts={field === 'status' ? 'f' : undefined}
+                >
+                  {chipName(field, filters, labels)}
+                </Button>
+              }
+            >
+              <FieldEditor
+                workspace={workspace}
+                team={team}
+                field={field}
+                filters={filters}
+                labels={labels}
+                onChange={set}
+              />
+            </Popover>
             {active ? (
-              <Button size="sm" variant="ghost" onClick={() => set(without(filters, field))}>
-                Clear {label.toLowerCase()}
-              </Button>
+              <IconButton
+                className={styles.clear}
+                label={`Clear ${label.toLowerCase()}`}
+                title={`Clear ${label.toLowerCase()}`}
+                onClick={() => set(without(filters, field))}
+              >
+                <CloseIcon size={12} />
+              </IconButton>
             ) : null}
-          </Popover>
+          </span>
         )
       })}
       {hasFilters(filters) ? (

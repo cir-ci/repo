@@ -171,6 +171,22 @@ describe('filters', () => {
     })
   })
 
+  it('shows a small × beside a chip only once that filter is set, and it clears just that one', async () => {
+    api([build(3)])
+    const { router } = await show()
+    expect(page.getByRole('button', { name: 'Clear status' }).elements()).toHaveLength(0)
+    await page.getByRole('button', { name: 'Status' }).click()
+    await page.getByRole('button', { name: 'Approved' }).click()
+    await userEvent.keyboard('{Escape}')
+    await page.getByRole('button', { name: 'Branch' }).click()
+    await page.getByRole('combobox', { name: 'Branch' }).fill('main')
+    await userEvent.keyboard('{Enter}')
+    expect(page.getByRole('button', { name: 'Clear author' }).elements()).toHaveLength(0)
+    await page.getByRole('button', { name: 'Clear status' }).click()
+    expect(router.state.location.search).toEqual({ branchContains: 'main' })
+    expect(page.getByRole('button', { name: 'Clear status' }).elements()).toHaveLength(0)
+  })
+
   it('says no builds match, and clears the filters from there', async () => {
     api([])
     const { router } = await show('/acme/web?branch=nope')
