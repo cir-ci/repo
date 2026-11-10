@@ -107,7 +107,7 @@ export type ContractChecks = [
   Fits<Json<listInbox.Item>, Inbox.Item>,
   Fits<Json<listInbox.List>, Inbox.List>,
   Fits<getNotificationPreferences.Preferences, Inbox.Preferences>,
-  Fits<searchWorkspace.Results, Search.Results>,
+  Fits<Json<searchWorkspace.Results>, Search.Results>,
   Fits<Json<ActivityEvent>, Activity.Event>,
   Fits<Json<CommentItem>, Omit<Comment.Item, 'mine' | 'canDelete'>>,
   Fits<Json<SavedViewRow>, View.Item>,

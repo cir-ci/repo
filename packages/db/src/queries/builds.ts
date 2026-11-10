@@ -1,6 +1,6 @@
 import { ISSUE_LINK_KIND, isSnoozed } from '@circi/core'
 import type { BuildOrder } from '@circi/core'
-import { aliasedTable, and, eq, gt, gte, ilike, inArray, lt, sql } from 'drizzle-orm'
+import { aliasedTable, and, eq, gt, gte, ilike, inArray, lt, or, sql } from 'drizzle-orm'
 
 import {
   type AncestryStatus,
@@ -18,7 +18,7 @@ import {
   teams,
 } from '#schema/index.ts'
 import type { getBuildCounts } from '#shared/build-counts.ts'
-import { containsPattern } from '#shared/like.ts'
+import { containsPattern, prefixPattern } from '#shared/like.ts'
 import type { Database } from '#src/client.ts'
 
 import { buildAfterCursor, buildOrderBy, teamTie } from './builds-order.ts'
@@ -69,6 +69,8 @@ export namespace listBuildsForTeam {
     branch?: string
     /** A branch whose name contains this text, in any case. */
     branchContains?: string
+    /** Free text: a build number, PR number, commit prefix, build name, branch or author name. */
+    text?: string
     /** A login (any case) or a member's user id. */
     author?: string
     /** A member's user id: builds with an open review request for them. */
@@ -90,8 +92,26 @@ function toAuthor(
   return login ? { login, name: member?.name ?? null, avatarUrl: member?.image ?? null } : null
 }
 
+/** The builds a free-text `q` finds: by number, PR number, commit prefix, name, branch or author. */
+function textCondition(text: string) {
+  const like = containsPattern(text)
+  const numeric = /^#?(\d{1,9})$/.exec(text.trim())
+  const n = numeric ? Number(numeric[1]) : undefined
+  return or(
+    n === undefined ? undefined : or(eq(builds.number, n), eq(builds.prNumber, n)),
+    /^[0-9a-f]{4,40}$/i.test(text.trim())
+      ? ilike(builds.commitSha, prefixPattern(text.trim()))
+      : undefined,
+    ilike(builds.name, like),
+    ilike(builds.branch, like),
+    ilike(builds.authorLogin, like),
+    sql`exists (select 1 from ${user} where ${user.id} = ${builds.authorUserId} and ${user.name} ilike ${like})`,
+  )
+}
+
 export function buildFilterConditions(f: listBuildsForTeam.Filters) {
   return [
+    f.text === undefined ? undefined : textCondition(f.text),
     f.status ? eq(builds.status, f.status) : undefined,
     f.reviewStatus ? eq(builds.reviewStatus, f.reviewStatus) : undefined,
     f.branch === undefined ? undefined : eq(builds.branch, f.branch),

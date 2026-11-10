@@ -1,9 +1,21 @@
+import { createTeam } from '@circi/db/repositories'
+import * as schema from '@circi/db/schema'
+import {
+  seedBuild,
+  seedNotification,
+  seedReviewRequest,
+  seedSavedView,
+  seedScreenshot,
+} from '@circi/db/testing'
+import { fakeSha } from '@circi/testing'
+import { eq } from 'drizzle-orm'
 import { afterAll, describe, expect, it } from 'vitest'
 
 import { startDashboard } from '#test/support/dashboard-fixture.ts'
 
 const fx = await startDashboard()
 const { acme, rival, rivalCookie, get } = fx
+
 afterAll(() => fx.close())
 
 // The fixture: Acme's `web` team has builds 1 (approved) and 2 (main, auto-approved), each
@@ -38,6 +50,85 @@ describe('GET /api/workspaces/:workspace/search', () => {
   })
 })
 
+describe('GET /api/workspaces/:workspace/search, the other groups', () => {
+  it('answers every group, empty ones as lists', async () => {
+    const found = (await search(acme.workspaceSlug, 'zzzz')).json()
+    for (const group of [
+      'builds',
+      'branches',
+      'teams',
+      'snapshots',
+      'baselines',
+      'triage',
+      'notifications',
+      'reviews',
+      'views',
+    ]) {
+      expect(found[group]).toEqual([])
+    }
+  })
+
+  it('finds a baseline by a path segment of its screenshot name', async () => {
+    const found = (await search(acme.workspaceSlug, 'hom')).json()
+    expect(found.baselines).toMatchObject([{ teamSlug: 'web', name: 'home', buildNumber: 2 }])
+  })
+
+  it("finds the person's own notifications, review requests and views, as ISO dates", async () => {
+    const build = await fx.db.query.builds.findFirst({ where: eq(schema.builds.number, 2) })
+    if (!build) throw new Error('fixture build missing')
+    const note = await seedNotification(fx.db, {
+      userId: acme.owner.id,
+      buildId: build.id,
+      kind: 'mentioned',
+      payload: { snippet: 'looks like a regression in the header' },
+    })
+    await seedReviewRequest(fx.db, { buildId: build.id, reviewerId: acme.owner.id })
+    await seedSavedView(fx.db, {
+      userId: acme.owner.id,
+      workspaceId: acme.team.workspaceId,
+      name: 'Header regressions',
+    })
+    const found = (await search(acme.workspaceSlug, 'header')).json()
+    expect(found.notifications).toMatchObject([
+      { id: note.id, kind: 'mentioned', tab: 'everything', read: false },
+    ])
+    expect(typeof found.notifications[0].createdAt).toBe('string')
+    expect(found.views).toMatchObject([{ name: 'Header regressions', team: null }])
+    expect((await search(acme.workspaceSlug, 'web')).json().reviews).toMatchObject([
+      { tab: 'for-you', teamSlug: 'web' },
+    ])
+    // Another person in the workspace sees none of them.
+    expect(
+      (await get(`/api/workspaces/${rival.workspaceSlug}/search?q=header`, rivalCookie)).json(),
+    ).toMatchObject({ notifications: [], views: [] })
+  })
+
+  it('never shows a team the person cannot see, in any group', async () => {
+    const member = await fx.addMember('member')
+    const hidden = await createTeam(fx.db, { workspaceSlug: acme.workspaceSlug, name: 'hush' })
+    const b = await seedBuild(fx.db, hidden.id, {
+      branch: 'main',
+      status: 'complete',
+      conclusion: 'no_changes',
+      reviewStatus: 'approved',
+      name: 'hush-build',
+    })
+    await seedScreenshot(fx.db, { buildId: b.id, name: 'hush/page', fileSha256: fakeSha('e') })
+    await seedBuild(fx.db, hidden.id, { branch: 'main', status: 'error' })
+    for (const q of ['hush', 'hush/page', 'failed']) {
+      // eslint-disable-next-line no-await-in-loop -- reads
+      const body = (await member.get(`/api/workspaces/${acme.workspaceSlug}/search?q=${q}`)).json()
+      expect(JSON.stringify({ ...body, query: '' })).not.toMatch(/hush/)
+      expect(body.triage.map((i: { teamSlug: string }) => i.teamSlug)).not.toContain('hush')
+    }
+    const owner = (await search(acme.workspaceSlug, 'hush')).json()
+    expect(owner.teams).toMatchObject([{ slug: 'hush' }])
+    expect((await search(acme.workspaceSlug, 'hush/page')).json().baselines).toMatchObject([
+      { teamSlug: 'hush' },
+    ])
+  })
+})
+
 describe('GET /api/teams/:workspace/:team with filters', () => {
   it('keeps the unfiltered list and narrows by each filter', async () => {
     expect(await list('')).toEqual([2, 1])
@@ -47,11 +138,17 @@ describe('GET /api/teams/:workspace/:team with filters', () => {
     expect(await list('?branch=nope')).toEqual([])
     expect(await list('?from=2020-01-01T00:00:00.000Z&to=2020-02-01T00:00:00.000Z')).toEqual([])
     expect(await list('?author=nobody')).toEqual([])
-    expect(await list(`?reviewer=${acme.owner.id}`)).toEqual([])
+    // Free text: a build number, commit prefix, branch, name or author.
+    expect(await list('?q=2')).toEqual([2])
+    expect(await list('?q=aaaa00')).toEqual([2, 1])
+    expect(await list('?q=MAI')).toEqual([2, 1])
+    expect(await list('?q=nothing-like-it')).toEqual([])
+    // The open review request the search tests above made for build 2.
+    expect(await list(`?reviewer=${acme.owner.id}`)).toEqual([2])
   })
 
   it('rejects unknown values', async () => {
-    for (const q of ['?status=bogus', '?review=maybe', '?from=yesterday', '?branch=']) {
+    for (const q of ['?status=bogus', '?review=maybe', '?from=yesterday', '?branch=', '?q=']) {
       // eslint-disable-next-line no-await-in-loop
       expect((await get(`/api/teams/${acme.workspaceSlug}/web${q}`)).statusCode).toBe(400)
     }

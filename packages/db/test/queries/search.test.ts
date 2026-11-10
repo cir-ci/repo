@@ -61,8 +61,8 @@ describe('searchWorkspace', () => {
     expect(bare?.builds.map((b) => b.number)).toEqual([148])
     const pr = await searchWorkspace(t.db, { ...input, query: '7' })
     expect(pr?.builds.map((b) => [b.number, b.prNumber])).toEqual([
-      [148, 7],
       [7, null],
+      [148, 7],
     ])
 
     const text = await searchWorkspace(t.db, { ...input, query: 'CHECKOUT' })
@@ -93,6 +93,11 @@ describe('searchWorkspace', () => {
       branches: [],
       teams: [],
       snapshots: [],
+      baselines: [],
+      triage: [],
+      notifications: [],
+      reviews: [],
+      views: [],
     })
   })
 

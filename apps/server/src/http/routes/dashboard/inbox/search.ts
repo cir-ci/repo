@@ -26,6 +26,11 @@ export const dashboardSearchRoutes: FastifyPluginAsync<Deps.Dashboard> = async (
       method: user.method,
     })
     if (!results) return reply.code(404).send({ error: 'Workspace not found' })
-    return results
+    return {
+      ...results,
+      notifications: results.notifications.map((n) =>
+        Object.assign({}, n, { createdAt: n.createdAt.toISOString() }),
+      ),
+    }
   })
 }

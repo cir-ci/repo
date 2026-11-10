@@ -21,6 +21,8 @@ export interface BuildFilterValues {
   branch?: string
   /** A branch whose name contains this text, in any case. */
   branchContains?: string
+  /** Free text: a build number, PR number, commit prefix, build name, branch or author. */
+  q?: string
   author?: string
   reviewer?: string
   name?: string
