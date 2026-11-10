@@ -18,6 +18,7 @@ export function tokensCss(): string {
   const layers = {
     '--circi-z-dialog': '100',
     '--circi-z-popup': '200',
+    '--circi-z-toast': '250',
     '--circi-z-tooltip': '300',
     '--circi-z-skip': '400',
   }
