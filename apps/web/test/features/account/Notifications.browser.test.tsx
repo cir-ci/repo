@@ -51,8 +51,14 @@ describe('NotificationsPage', () => {
     })
     await renderPage(<NotificationsPage />)
     await overdue().click()
-    await expect.element(page.getByRole('status').filter({ hasText: /^Saved$/ })).toBeVisible()
+    const saved = page.getByRole('status').filter({ hasText: /^Saved$/ })
+    await expect.element(saved).toBeVisible()
     expect(page.getByRole('button', { name: /^Save/ }).elements()).toHaveLength(0)
+    // The note is in the switch's own row, not below the card.
+    let row: Element | null = saved.element()
+    const flipped = overdue().element()
+    while (row && !row.contains(flipped)) row = row.parentElement
+    expect(row?.querySelectorAll('[role="switch"]')).toHaveLength(1)
   })
 
   it('puts the switch back and says why when the save fails', async () => {
@@ -98,6 +104,8 @@ describe('AppearancePage', () => {
     await renderPage(<AppearancePage />)
     const group = page.getByRole('group', { name: 'Theme' })
     await expect.element(group).toBeVisible()
+    // One "Theme" heading: the cards' group name is not a second one.
+    expect(page.getByRole('heading', { name: 'Theme' }).elements()).toHaveLength(1)
     const dark = page.getByRole('radio', { name: /Dark/ })
     const light = page.getByRole('radio', { name: /Light/ })
     await expect.element(page.getByRole('radio', { name: /System/ })).toBeChecked()

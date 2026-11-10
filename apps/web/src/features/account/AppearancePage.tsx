@@ -6,7 +6,6 @@ import {
   Text,
   useAnnounce,
   useColorScheme,
-  visuallyHidden,
 } from '@circi/ui'
 import { type CSSProperties, useState } from 'react'
 
@@ -57,8 +56,7 @@ export function AppearancePage() {
     <Frame crumbs={['Account', 'Appearance']}>
       <SettingsSection title="Theme">
         <SettingsRow>
-          <fieldset className={styles.cards}>
-            <legend style={visuallyHidden}>Theme</legend>
+          <fieldset className={styles.cards} aria-label="Theme">
             {CHOICES.map((c) => (
               <label
                 key={c.mode}

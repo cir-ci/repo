@@ -37,6 +37,19 @@
   min-width: 0;
 }
 
+.menu {
+  width: 228px;
+}
+
+/* The menu's own content rows are padded for controls; the heading lines up with the items. */
+.heading {
+  display: block;
+  padding: 2px 0 0;
+  color: var(--circi-text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .brand {
   display: flex;
   align-items: center;

@@ -1,13 +1,15 @@
-import { CheckIcon, ChevronsUpDownIcon, Menu, PlusIcon, SlidersIcon, Text, Avatar } from '@circi/ui'
+import { Avatar, ChevronsUpDownIcon, Menu, PlusIcon, SlidersIcon } from '@circi/ui'
 import { useNavigate } from '@tanstack/react-router'
 
 import { workspaceSettingsPath, type WorkspaceRef } from '#app/shell-model.ts'
 
 import styles from './WorkspaceSwitcher.module.css'
 
+const ROLE_LABEL = { owner: 'Owner', admin: 'Admin', member: 'Member' } as const
+
 /**
  * The workspace the sidebar is about, at its top: a menu of the workspaces the person can see
- * (the open one is marked), a way to its settings and, when allowed, "New workspace". A Base UI
+ * (228px wide, 32px rows, the person's role at the right of each, the open one highlighted), a way to its settings and, when allowed, "New workspace". A Base UI
  * menu: arrow keys move, Escape closes and focus returns to the button.
  */
 export function WorkspaceSwitcher({
@@ -21,6 +23,8 @@ export function WorkspaceSwitcher({
   if (!current) return <div className={styles.brand}>CirCI</div>
   return (
     <Menu
+      size="md"
+      className={styles.menu}
       trigger={
         <button type="button" className={styles.trigger} aria-label={`Workspace: ${current.name}`}>
           <Avatar
@@ -38,11 +42,7 @@ export function WorkspaceSwitcher({
         {
           type: 'content',
           name: 'Workspaces',
-          node: (
-            <Text as="span" variant="small" tone="tertiary">
-              Workspaces
-            </Text>
-          ),
+          node: <span className={styles.heading}>Workspaces</span>,
         },
         ...workspaces.map((workspace): Menu.Item => ({
           label: workspace.name,
@@ -56,7 +56,7 @@ export function WorkspaceSwitcher({
             />
           ),
           current: workspace.slug === current.slug,
-          ...(workspace.slug === current.slug ? { trailing: <CheckIcon /> } : {}),
+          ...(workspace.role ? { trailing: ROLE_LABEL[workspace.role] } : {}),
           onSelect: () => onSelect(workspace),
         })),
         { type: 'separator' },

@@ -10,7 +10,13 @@ import styles from './CommandDialog.module.css'
  * `label` names the dialog for screen readers; `onClosed` runs once the close has finished (a
  * command that opens another dialog waits for it).
  */
-export function CommandDialog({ onClosed, label, children, ...rest }: CommandDialog.Props) {
+export function CommandDialog({
+  onClosed,
+  label,
+  wide = false,
+  children,
+  ...rest
+}: CommandDialog.Props) {
   return (
     <BaseDialog.Root
       {...rest}
@@ -21,7 +27,7 @@ export function CommandDialog({ onClosed, label, children, ...rest }: CommandDia
       <BaseDialog.Portal>
         <BaseDialog.Backdrop className={styles.backdrop} />
         <BaseDialog.Viewport className={styles.viewport}>
-          <BaseDialog.Popup className={styles.popup}>
+          <BaseDialog.Popup className={styles.popup} data-wide={wide ? '' : undefined}>
             <BaseDialog.Title className={styles.hidden}>{label}</BaseDialog.Title>
             {children}
           </BaseDialog.Popup>
@@ -37,6 +43,8 @@ export namespace CommandDialog {
     onClosed?: () => void
     /** The accessible name of the dialog. */
     label: string
+    /** 880px instead of 720px, for a side pane that always shows. */
+    wide?: boolean
     children?: ReactNode
   }
 }

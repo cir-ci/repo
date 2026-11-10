@@ -14,6 +14,7 @@ import { SHORTCUTS, type Shortcut } from '#lib/shortcuts.ts'
 export const GROUP_ORDER = [
   'Actions',
   'Jump to',
+  'Navigate',
   'Preferences',
   'Builds',
   'Branches',
@@ -50,6 +51,8 @@ export namespace Entry {
   /** An entry group with its entries, as the list shows it. */
   export interface GroupView {
     group: Group
+    /** The heading: the group's name, or `Build #148` for the actions of the build on screen. */
+    label: string
     entries: Entry[]
   }
 }
@@ -154,14 +157,14 @@ const page = (id: string, label: string, path: string, to?: Shortcut.GoTarget): 
   const hint = to ? goHint(to) : undefined
   return {
     id: `jump:${id}`,
-    group: 'Jump to',
-    label,
+    group: 'Navigate',
+    label: `Open ${label}`,
     ...(hint ? { hint } : {}),
     target: { type: 'path', path },
   }
 }
 
-/** Pages, the pinned teams and the saved views. */
+/** Pages (Navigate), the pinned teams and the saved views (Jump to). */
 export function jumpEntries({ workspace, teams, views, canManage }: JumpInput): Entry[] {
   const entries: Entry[] = [page('inbox', 'Inbox', '/inbox', 'inbox')]
   if (workspace) {
@@ -220,9 +223,25 @@ export const themeEntries = (current: ColorMode): Entry[] =>
     return entry
   })
 
-/** What the menu lists before anything is typed: the page's actions, where to jump, the theme. */
+const shortcutsEntry = (): Entry => {
+  const help = SHORTCUTS.find((s) => s.action.type === 'help')
+  return {
+    id: 'pref:shortcuts',
+    group: 'Preferences',
+    label: 'Keyboard shortcuts',
+    ...(help ? { hint: help.key } : {}),
+    target: { type: 'key', key: help?.key ?? '?' },
+  }
+}
+
+/** What the menu lists before anything is typed: the page's actions, where to jump, the preferences. */
 export function emptyQueryEntries(pathname: string, jump: JumpInput, theme: ColorMode): Entry[] {
-  return [...contextActions(pathname), ...jumpEntries(jump), ...themeEntries(theme)]
+  return [
+    ...contextActions(pathname),
+    ...jumpEntries(jump),
+    ...themeEntries(theme),
+    shortcutsEntry(),
+  ]
 }
 
 /**
@@ -348,11 +367,51 @@ export function searchEntries(
 }
 
 /** Entries under their group headings, in `GROUP_ORDER`; empty groups are left out. */
-export function groupEntries(entries: readonly Entry[]): Entry.GroupView[] {
+export function groupEntries(
+  entries: readonly Entry[],
+  actionsLabel = 'Actions',
+): Entry.GroupView[] {
   return GROUP_ORDER.map((group) => ({
     group,
+    label: group === 'Actions' ? actionsLabel : group,
     entries: entries.filter((e) => e.group === group),
   })).filter((g) => g.entries.length > 0)
+}
+
+/**
+ * What the page you are on gives the menu as context: the chip beside the field and the heading
+ * of the page's own actions. Only a build has one (`web-app · #148`, actions under `Build #148`).
+ */
+export function commandContext(
+  pathname: string,
+  teams: readonly Sidebar.Team[] | undefined,
+): { chip: string; actions: string } | undefined {
+  const parts = pathname.split('/').filter(Boolean)
+  if (parts.length !== 4 || parts[2] !== 'builds') return undefined
+  const number = parts[3]
+  const slug = decodeURIComponent(parts[1] ?? '')
+  const team = teams?.find((t) => t.slug === slug)
+  return { chip: `${team?.name ?? slug} · #${number}`, actions: `Build #${number}` }
+}
+
+/** What the peek pane says about an entry that has nothing of its own to show. */
+export function peekHint(
+  entry: Entry | undefined,
+  hasContext: boolean,
+): { title: string; text: string } {
+  if (entry?.group === 'Actions') {
+    return {
+      title: entry.label,
+      text: hasContext
+        ? 'Runs on the build you came from. Clear the chip to search everywhere.'
+        : 'Runs on the page you came from.',
+    }
+  }
+  if (entry?.group === 'Navigate' || entry?.group === 'Jump to') {
+    return { title: entry.label, text: 'Press Enter to go there.' }
+  }
+  if (entry) return { title: entry.label, text: 'Press Enter to choose it.' }
+  return { title: 'Tip', text: 'Type # and a number to jump to a build, or a branch name.' }
 }
 
 /** The entries in the order the list shows them (group by group), which is the order the arrows walk. */

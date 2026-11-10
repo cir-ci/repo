@@ -9,13 +9,20 @@ import styles from './Menu.module.css'
 /**
  * Provisional (docs/design-gaps.md §4): a dropdown on Base UI's `Menu`. Arrow keys move, type-
  * ahead jumps, Enter or Space picks, Escape closes and focus returns to the trigger. Items are
- * 28px high; an item may show shortcut text on the right (`Kbd`-style, display only: it does
+ * 28px high (`size="md"`: 32px, the sidebar's workspace and account menus); an item may show shortcut text on the right (`Kbd`-style, display only: it does
  * not bind the key).
  *
  * `trigger` is the element that opens it (a `Button`, `IconButton`, avatar button…); it keeps its
  * own accessible name.
  */
-export function Menu({ trigger, items, align = 'start', className, ...rest }: Menu.Props) {
+export function Menu({
+  trigger,
+  items,
+  align = 'start',
+  size = 'sm',
+  className,
+  ...rest
+}: Menu.Props) {
   const keyed = items.map((entry, index) => ({
     entry,
     key:
@@ -32,7 +39,7 @@ export function Menu({ trigger, items, align = 'start', className, ...rest }: Me
       <BaseMenu.Trigger render={trigger} />
       <BaseMenu.Portal>
         <BaseMenu.Positioner className={styles.positioner} sideOffset={4} align={align}>
-          <BaseMenu.Popup className={cx(styles.popup, className)}>
+          <BaseMenu.Popup className={cx(styles.popup, className)} data-size={size}>
             {keyed.map(({ entry, key }) =>
               entry.type === 'separator' ? (
                 <BaseMenu.Separator key={key} className={styles.separator} />
@@ -157,6 +164,8 @@ export namespace Menu {
     trigger: ReactElement<Record<string, unknown>>
     items: ReadonlyArray<Entry>
     align?: 'start' | 'center' | 'end'
+    /** Item height: `sm` 28px, `md` 32px. */
+    size?: 'sm' | 'md'
     className?: string
   }
 }

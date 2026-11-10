@@ -1,4 +1,4 @@
-import type { Team, Sidebar, View } from '@circi/api'
+import type { Team, Sidebar, View, Workspace } from '@circi/api'
 import { RESERVED_SLUGS } from '@circi/core'
 
 import type { Shortcut } from '#lib/shortcuts.ts'
@@ -10,6 +10,8 @@ export interface WorkspaceRef {
   name: string
   /** Where the workspace's picture is served from; absent or null: the generated pattern shows. */
   picture?: string | null
+  /** The person's role in it, when known (the workspace menu shows it). */
+  role?: Workspace.Role
 }
 
 /** How many of the workspace's teams the sidebar lists before "All teams". */
@@ -30,12 +32,15 @@ export function listWorkspaces(
       slug: p.workspace.slug,
       name: p.workspace.name,
       picture: p.workspace.picture,
+      ...(p.workspace.role ? { role: p.workspace.role } : {}),
     })
   for (const o of manageable ?? []) {
+    const role = o.role ?? bySlug.get(o.slug)?.role
     bySlug.set(o.slug, {
       slug: o.slug,
       name: o.name,
       picture: o.picture ?? bySlug.get(o.slug)?.picture,
+      ...(role ? { role } : {}),
     })
   }
   // An address for a workspace the lists don't know yet still counts, unless it can't be one: a

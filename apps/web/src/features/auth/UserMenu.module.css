@@ -32,27 +32,44 @@
   min-width: 0;
 }
 
+.menu {
+  width: 228px;
+}
+
 .who {
   display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 4px 0;
+}
+
+.who > :first-child {
+  flex: none;
+}
+
+.whoText {
+  display: flex;
   flex-direction: column;
-  min-width: 200px;
+  min-width: 0;
 }
 
 .whoName {
-  font-weight: 600;
+  composes: truncate from '@circi/ui/utilities.module.css';
+  font-weight: 500;
 }
 
 .whoEmail {
-  color: var(--circi-text-secondary);
+  composes: truncate from '@circi/ui/utilities.module.css';
+  color: var(--circi-text-tertiary);
   font-size: 12px;
-  overflow-wrap: anywhere;
 }
 
 .theme {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 200px;
+  min-width: 0;
   padding-bottom: 4px;
 }
 

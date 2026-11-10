@@ -1,5 +1,14 @@
 import type { Sidebar, View } from '@circi/api'
-import { CommandDialog, Kbd, Pane, SearchIcon, Text, useColorScheme } from '@circi/ui'
+import {
+  Button,
+  CloseIcon,
+  CommandDialog,
+  IconButton,
+  Kbd,
+  SearchIcon,
+  Text,
+  useColorScheme,
+} from '@circi/ui'
 import { useParams, useRouter, useRouterState } from '@tanstack/react-router'
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react'
 
@@ -7,6 +16,7 @@ import { keyCaps } from '#lib/shortcuts.ts'
 
 import { useSearchResults } from './api.ts'
 import {
+  commandContext,
   type Entry,
   emptyQueryEntries,
   localMatches,
@@ -14,6 +24,7 @@ import {
   groupEntries,
   keyEvents,
   normalizeQuery,
+  peekHint,
   searchEntries,
   wrapIndex,
 } from './model.ts'
@@ -23,8 +34,9 @@ import styles from './CommandMenu.module.css'
 /**
  * The command menu (⌘K): jump to a page, team or saved view and run the actions of the page
  * you are on (from the shortcut registry, with their keys) while the field is empty; search builds,
- * branches, teams and snapshots when it is not. ↑ ↓ move, ↵ chooses, → opens a quick look
- * of the highlighted result, Esc closes.
+ * branches, teams and snapshots when it is not. A chip names the page you are on (`web-app · #148`
+ * on a build; clear it, or Backspace in the empty field, to leave that page's actions out); a peek
+ * pane beside the list shows what the highlighted entry is. ↑ ↓ move, ↵ chooses, Esc closes.
  */
 export function CommandMenu({
   open,
@@ -39,7 +51,7 @@ export function CommandMenu({
   const params = useParams({ strict: false })
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
-  const [quickLook, setQuickLook] = useState(false)
+  const [contextCleared, setContextCleared] = useState(false)
   const afterClose = useRef<(() => void) | undefined>(undefined)
   const input = useRef<HTMLInputElement>(null)
   const listId = useId()
@@ -52,14 +64,16 @@ export function CommandMenu({
       ? teams?.find((p) => p.slug === params.team)
       : undefined
   const jump = { workspace, teams, views, canManage }
-  const entries =
-    q === ''
-      ? emptyQueryEntries(pathname, jump, mode)
-      : [
-          ...localMatches(q, pathname, jump, mode),
-          ...(workspace ? searchEntries(workspace, q, results, openTeam) : []),
-        ]
-  const groups = groupEntries(entries)
+  const context = commandContext(pathname, teams)
+  const showContext = context !== undefined && !contextCleared
+  const own =
+    q === '' ? emptyQueryEntries(pathname, jump, mode) : localMatches(q, pathname, jump, mode)
+  const entries = [
+    // Clearing the chip leaves the page's own actions out.
+    ...(contextCleared ? own.filter((e) => e.group !== 'Actions') : own),
+    ...(q !== '' && workspace ? searchEntries(workspace, q, results, openTeam) : []),
+  ]
+  const groups = groupEntries(entries, context?.actions)
   const flat = flatten(groups)
   const current = flat.length === 0 ? -1 : Math.min(active, flat.length - 1)
   const highlighted = current < 0 ? undefined : flat[current]
@@ -92,7 +106,7 @@ export function CommandMenu({
   function onClosed() {
     setQuery('')
     setActive(0)
-    setQuickLook(false)
+    setContextCleared(false)
     const run = afterClose.current
     afterClose.current = undefined
     run?.()
@@ -108,26 +122,33 @@ export function CommandMenu({
     else if (e.key === 'Enter' && highlighted) {
       e.preventDefault()
       choose(highlighted)
-    } else if (
-      e.key === 'ArrowRight' &&
-      highlighted?.preview &&
-      e.currentTarget.selectionStart === e.currentTarget.value.length
-    ) {
-      e.preventDefault()
-      setQuickLook(true)
-    } else if (e.key === 'ArrowLeft' && quickLook) {
-      e.preventDefault()
-      setQuickLook(false)
+    } else if (e.key === 'Backspace' && query === '' && showContext) {
+      setContextCleared(true)
     }
   }
 
-  const preview = quickLook ? highlighted?.preview : undefined
+  const preview = highlighted?.preview
+  const hint = peekHint(highlighted, showContext)
 
   return (
-    <CommandDialog open={open} onOpenChange={onOpenChange} onClosed={onClosed} label="Command menu">
+    <CommandDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      onClosed={onClosed}
+      label="Command menu"
+      wide
+    >
       <div className={styles.main}>
         <div className={styles.field}>
           <SearchIcon aria-hidden="true" />
+          {showContext ? (
+            <span className={styles.chip}>
+              {context.chip}
+              <IconButton label="Clear context" onClick={() => setContextCleared(true)}>
+                <CloseIcon size={10} />
+              </IconButton>
+            </span>
+          ) : null}
           <input
             ref={input}
             className={styles.input}
@@ -139,21 +160,20 @@ export function CommandMenu({
             aria-autocomplete="list"
             autoComplete="off"
             spellCheck={false}
-            placeholder="Search builds, branches, teams, or type a command"
+            placeholder="Search or run a command"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value)
               setActive(0)
-              setQuickLook(false)
             }}
             onKeyDown={onKeyDown}
           />
         </div>
         <div id={listId} role="listbox" aria-label="Results" className={styles.list}>
-          {groups.map(({ group, entries: items }) => (
-            <div key={group} role="group" aria-label={group} className={styles.group}>
+          {groups.map(({ group, label, entries: items }) => (
+            <div key={group} role="group" aria-label={label} className={styles.group}>
               <div className={styles.heading} aria-hidden="true">
-                {group}
+                {label}
               </div>
               {items.map((entry) => {
                 const i = flat.indexOf(entry)
@@ -190,28 +210,45 @@ export function CommandMenu({
               ? 'Search failed. Try again.'
               : pending
                 ? 'Searching…'
-                : `No results for “${q}”`
+                : `Nothing matches “${q}”. Try a build number like #148.`
             : null}
         </div>
         <footer className={styles.footer}>
           <Text variant="micro" tone="tertiary">
-            <Kbd>↑</Kbd> <Kbd>↓</Kbd> move · <Kbd>↵</Kbd> open · <Kbd>→</Kbd> quick look ·{' '}
-            <Kbd>Esc</Kbd> close
+            <Kbd>↑</Kbd> <Kbd>↓</Kbd> move · <Kbd>↵</Kbd> open · <Kbd>Esc</Kbd> close
           </Text>
         </footer>
       </div>
-      {preview ? (
-        <Pane label="Preview" context={preview.title} width="sm" className={styles.pane}>
-          <dl className={styles.rows}>
-            {preview.rows.map((row) => (
-              <div key={row.label}>
-                <dt>{row.label}</dt>
-                <dd>{row.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </Pane>
-      ) : null}
+      <aside aria-label="Peek" className={styles.peek}>
+        {preview && highlighted ? (
+          <>
+            <div className={styles.peekHead}>
+              {highlighted.detail ? (
+                <span className={styles.peekSub}>{highlighted.detail}</span>
+              ) : null}
+              <span className={styles.peekTitle}>{preview.title}</span>
+            </div>
+            <dl className={styles.rows}>
+              {preview.rows.map((row) => (
+                <div key={row.label}>
+                  <dt>{row.label}</dt>
+                  <dd>{row.value}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className={styles.peekFoot}>
+              <Button size="sm" onClick={() => choose(highlighted)}>
+                Open
+              </Button>
+            </div>
+          </>
+        ) : (
+          <div className={styles.peekHead}>
+            <span className={styles.peekSub}>{hint.title}</span>
+            <span className={styles.peekText}>{hint.text}</span>
+          </div>
+        )}
+      </aside>
     </CommandDialog>
   )
 }

@@ -13,6 +13,11 @@ describe('the shortcut registry', () => {
     }
   })
 
+  it('calls the space key "Peek at the item"', () => {
+    expect(SHORTCUTS.find((s) => s.action.type === 'peek')?.description).toBe('Peek at the item')
+    expect(SHORTCUTS.some((s) => /preview/i.test(s.description))).toBe(false)
+  })
+
   it('describes and groups every entry', () => {
     for (const s of SHORTCUTS) {
       expect(s.description.trim()).not.toBe('')

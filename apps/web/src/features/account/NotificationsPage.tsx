@@ -1,5 +1,15 @@
-import { Banner, SettingsRow, SettingsSection, Switch, Text, useAnnounce } from '@circi/ui'
+import type { Inbox } from '@circi/api'
+import {
+  Banner,
+  SettingsRow,
+  SettingsSection,
+  Switch,
+  Text,
+  useAnnounce,
+  visuallyHidden,
+} from '@circi/ui'
 import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 
 import { capabilitiesQuery } from '#features/teams/api/index.ts'
 import { Frame } from '#features/workspace-settings/Frame.tsx'
@@ -8,6 +18,8 @@ import { useDocumentTitle } from '#lib/document-title.ts'
 import { SaveNote } from '#lib/SaveNote.tsx'
 
 import { PREFERENCE_ROWS, preferencesQuery, useSetPreference } from './api.ts'
+
+import styles from './NotificationsPage.module.css'
 
 /** What always lands in the Inbox; static, since none of it can be switched off. */
 const IN_INBOX: readonly { title: string; help: string }[] = [
@@ -41,6 +53,8 @@ export function NotificationsPage() {
   const { data, error, refetch } = useQuery(preferencesQuery())
   const capabilities = useQuery(capabilitiesQuery())
   const set = useSetPreference()
+  // The row whose switch was flipped last: its "Saved" note sits beside the switch.
+  const [last, setLast] = useState<keyof Inbox.Preferences | null>(null)
   const announce = useAnnounce()
   // Email notifications need the server to send mail (SMTP).
   const mailConfigured = capabilities.data?.mailConfigured === true
@@ -61,18 +75,21 @@ export function NotificationsPage() {
           >
             {mailConfigured ? (
               PREFERENCE_ROWS.map((row) => (
-                <SettingsRow key={row.key}>
-                  <Switch
-                    label={row.label}
-                    description={row.description}
-                    checked={data[row.key]}
-                    onCheckedChange={(on) =>
-                      set.mutate(
-                        { [row.key]: on },
-                        { onSuccess: () => announce(`${row.label} ${on ? 'on' : 'off'}, saved`) },
-                      )
-                    }
-                  />
+                <SettingsRow key={row.key} label={row.label} detail={row.description}>
+                  <span className={styles.control}>
+                    {last === row.key ? <SaveNote mutation={set} /> : null}
+                    <Switch
+                      label={<span style={visuallyHidden}>Email: {row.label}</span>}
+                      checked={data[row.key]}
+                      onCheckedChange={(on) => {
+                        setLast(row.key)
+                        set.mutate(
+                          { [row.key]: on },
+                          { onSuccess: () => announce(`${row.label} ${on ? 'on' : 'off'}, saved`) },
+                        )
+                      }}
+                    />
+                  </span>
                 </SettingsRow>
               ))
             ) : (
@@ -87,7 +104,6 @@ export function NotificationsPage() {
               Mail goes to {session.user.email}.
             </Text>
           ) : null}
-          {mailConfigured ? <SaveNote mutation={set} /> : null}
 
           <SettingsSection
             title="In your Inbox"

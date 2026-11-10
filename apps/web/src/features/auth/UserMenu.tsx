@@ -19,7 +19,7 @@ import styles from './UserMenu.module.css'
 
 /**
  * The account button at the bottom of the sidebar and the menu it opens: who you are, profile
- * and sessions, notifications, the theme (System, Light, Dark in a segmented picker under its own line; the page
+ * and sessions (a 28px avatar beside your name and email; 228px wide, 32px rows), notifications, the theme (System, Light, Dark in a segmented picker under its own line; the page
  * changes at once), keyboard shortcuts, the instance's admin pages when you run it, and
  * sign out. A Base UI menu: Escape closes it and focus returns to the button.
  */
@@ -37,6 +37,8 @@ export function UserMenu({ user }: UserMenu.Props) {
   return (
     <Menu
       align="start"
+      size="md"
+      className={styles.menu}
       trigger={
         <button
           type="button"
@@ -53,8 +55,18 @@ export function UserMenu({ user }: UserMenu.Props) {
           name: 'who',
           node: (
             <div className={styles.who}>
-              <span className={styles.whoName}>{user.name}</span>
-              <span className={styles.whoEmail}>{user.email}</span>
+              <Avatar
+                type="user"
+                aria-hidden
+                id={user.id}
+                name={user.name}
+                image={user.image}
+                size={28}
+              />
+              <span className={styles.whoText}>
+                <span className={styles.whoName}>{user.name}</span>
+                <span className={styles.whoEmail}>{user.email}</span>
+              </span>
             </div>
           ),
         },

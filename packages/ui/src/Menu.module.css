@@ -46,7 +46,19 @@
   outline-offset: -2px;
 }
 
+.popup[data-size='md'] .item {
+  height: 32px;
+}
+
 .item[data-highlighted] {
+  background: var(--circi-action-hover);
+}
+
+.item[aria-current='true'] {
+  background: var(--circi-action-selected);
+}
+
+.item[aria-current='true'][data-highlighted] {
   background: var(--circi-action-hover);
 }
 

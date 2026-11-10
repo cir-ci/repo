@@ -2,6 +2,7 @@ import type { Search } from '@circi/api'
 import { describe, expect, it } from 'vitest'
 
 import {
+  commandContext,
   contextActions,
   contextScopes,
   emptyQueryEntries,
@@ -110,18 +111,25 @@ describe('the empty query', () => {
     const labels = emptyQueryEntries('/', jump, 'system').map((e) => e.label)
     expect(labels).toEqual(
       expect.arrayContaining([
-        'Inbox',
-        'Reviews',
-        'Teams',
-        'Insights',
-        'Settings',
+        'Open Inbox',
+        'Open Reviews',
+        'Open Teams',
+        'Open Insights',
+        'Open Settings',
         'Web',
         'Failing',
+        'Keyboard shortcuts',
       ]),
     )
     expect(labels).not.toContain('API')
-    const inbox = emptyQueryEntries('/', jump, 'system').find((e) => e.label === 'Inbox')
+    const inbox = emptyQueryEntries('/', jump, 'system').find((e) => e.label === 'Open Inbox')
     expect(inbox?.hint).toBe('g i')
+    const shortcuts = emptyQueryEntries('/', jump, 'system').find((e) => e.id === 'pref:shortcuts')
+    expect(shortcuts).toMatchObject({
+      group: 'Preferences',
+      hint: '?',
+      target: { type: 'key', key: '?' },
+    })
   })
 
   it('offers the build review actions on a build page, from the registry', () => {
@@ -166,7 +174,47 @@ describe('the empty query', () => {
     const groups = groupEntries(emptyQueryEntries('/acme/web/builds/1', jump, 'system')).map(
       (g) => g.group,
     )
-    expect(groups).toEqual(['Actions', 'Jump to', 'Preferences'])
+    expect(groups).toEqual(['Actions', 'Jump to', 'Navigate', 'Preferences'])
+  })
+})
+
+describe('the context of a page', () => {
+  const teams = [
+    {
+      slug: 'web',
+      name: 'web-app',
+      color: 'slate' as const,
+      icon: null,
+      pinned: true,
+      triage: 0,
+      ...MEMBERS,
+    },
+  ]
+
+  it('names the build you are on, and the heading of its actions', () => {
+    expect(commandContext('/acme/web/builds/148', teams)).toEqual({
+      chip: 'web-app · #148',
+      actions: 'Build #148',
+    })
+    expect(commandContext('/acme/other/builds/7', teams)?.chip).toBe('other · #7')
+  })
+
+  it('has none anywhere else', () => {
+    expect(commandContext('/inbox', teams)).toBeUndefined()
+    expect(commandContext('/acme/web', teams)).toBeUndefined()
+  })
+
+  it('heads the actions group with that name', () => {
+    const entries = emptyQueryEntries(
+      '/acme/web/builds/1',
+      { workspace: 'acme', teams: [], views: [] },
+      'system',
+    )
+    expect(groupEntries(entries, 'Build #1')[0]).toMatchObject({
+      group: 'Actions',
+      label: 'Build #1',
+    })
+    expect(groupEntries(entries)[0]?.label).toBe('Actions')
   })
 })
 
@@ -184,7 +232,7 @@ describe('local matches', () => {
     expect(localMatches('THEME dark', '/', jump, 'system').map((e) => e.label)).toEqual([
       'Theme: Dark',
     ])
-    expect(localMatches('inbox', '/', jump, 'system').map((e) => e.label)).toContain('Inbox')
+    expect(localMatches('inbox', '/', jump, 'system').map((e) => e.label)).toContain('Open Inbox')
     expect(localMatches('zzzq', '/', jump, 'system')).toEqual([])
   })
 })

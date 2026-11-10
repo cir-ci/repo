@@ -39,6 +39,10 @@
   transition: opacity 120ms ease-out;
 }
 
+.popup[data-wide] {
+  width: 880px;
+}
+
 :root[data-circi-color-scheme='light'] .popup {
   box-shadow: 0 8px 24px rgb(28 15 12 / 14%);
 }

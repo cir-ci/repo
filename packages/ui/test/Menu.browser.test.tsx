@@ -51,6 +51,20 @@ describe('Menu', () => {
     expect(getComputedStyle(page.getByRole('menuitem').first().element()).height).toBe('28px')
   })
 
+  it('has 32px items with size="md"', async () => {
+    await page.viewport(800, 600)
+    await render(
+      <Menu
+        size="md"
+        trigger={<IconButton label="Row actions">x</IconButton>}
+        items={[{ label: 'Account' }]}
+      />,
+    )
+    await page.getByRole('button', { name: 'Row actions' }).click()
+    await expect.element(page.getByRole('menu')).toBeVisible()
+    expect(getComputedStyle(page.getByRole('menuitem').first().element()).height).toBe('32px')
+  })
+
   it('moves with the arrow keys, runs the item on Enter and closes', async () => {
     const onRemove = vi.fn<() => void>()
     await render(<Harness onRemove={onRemove} />)

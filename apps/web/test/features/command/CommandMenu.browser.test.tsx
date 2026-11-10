@@ -16,7 +16,7 @@ const api = (search: unknown = { query: '', builds: [], branches: [], teams: [],
       body: {
         teams: [
           {
-            workspace: { slug: 'acme', name: 'Acme' },
+            workspace: { slug: 'acme', name: 'Acme', role: 'owner' },
             team: { slug: 'web', name: 'Web', defaultBranch: 'main' },
             latestBuild: null,
           },
@@ -89,7 +89,8 @@ describe('the command menu', () => {
     await vi.waitFor(() => expect(router.state.location.pathname).toBe('/acme/web/builds/148'))
   })
 
-  it('walks the results with the arrows, wrapping, and → opens a quick look', async () => {
+  it('walks the results with the arrows, wrapping, and the peek pane follows the highlight', async () => {
+    await page.viewport(1200, 800)
     api(result)
     await show()
     await userEvent.keyboard('{Meta>}k{/Meta}')
@@ -102,9 +103,10 @@ describe('the command menu', () => {
       .toHaveAttribute('aria-selected', 'true')
     await userEvent.keyboard('{ArrowDown}')
     await expect.element(build).toHaveAttribute('aria-selected', 'true')
-    await userEvent.keyboard('{ArrowRight}')
-    await expect.element(page.getByRole('region', { name: 'Preview' })).toBeVisible()
-    await expect.element(page.getByText('Awaiting review')).toBeVisible()
+    const peek = page.getByRole('complementary', { name: 'Peek' })
+    await expect.element(peek.getByText('Awaiting review')).toBeVisible()
+    await userEvent.keyboard('{ArrowDown}')
+    await expect.element(peek.getByText('Awaiting review')).not.toBeInTheDocument()
   })
 
   it('switches the theme from "theme" (the Appearance page points here)', async () => {
@@ -130,10 +132,40 @@ describe('the command menu', () => {
     await userEvent.keyboard('{Meta>}k{/Meta}')
     await Promise.all(
       ['Inbox', 'Reviews', 'Teams', 'Insights', 'Settings'].map((name) =>
-        seen(page.getByRole('option', { name: new RegExp(`^${name}`) })),
+        seen(page.getByRole('option', { name: new RegExp(`^Open ${name}`) })),
       ),
     )
+    await seen(page.getByRole('option', { name: /^Keyboard shortcuts/ }))
+    await expect
+      .element(page.getByRole('combobox'))
+      .toHaveAttribute('placeholder', 'Search or run a command')
     await expect.element(page.getByRole('option', { name: /Web/ })).toBeVisible()
+  })
+
+  it('says what to try when nothing matches', async () => {
+    api()
+    await show()
+    await userEvent.keyboard('{Meta>}k{/Meta}')
+    await userEvent.type(page.getByRole('combobox'), 'zzzq')
+    await expect
+      .element(page.getByText('Nothing matches “zzzq”. Try a build number like #148.'))
+      .toBeVisible()
+  })
+
+  it('shows a chip for the build you are on, with its actions under Build #148, and clears it', async () => {
+    api()
+    await renderPage(
+      <ShortcutLayer>
+        <Opener />
+      </ShortcutLayer>,
+      { announcer: true, route: '/$workspace/$team/builds/$number', url: '/acme/web/builds/148' },
+    )
+    await userEvent.keyboard('{Meta>}k{/Meta}')
+    await expect.element(page.getByText('Web · #148')).toBeVisible()
+    await expect.element(page.getByRole('group', { name: 'Build #148' })).toBeVisible()
+    await page.getByRole('button', { name: 'Clear context' }).click()
+    await expect.element(page.getByText('Web · #148')).not.toBeInTheDocument()
+    await expect.element(page.getByRole('group', { name: 'Build #148' })).not.toBeInTheDocument()
   })
 
   it('closes with Esc and gives focus back to the button that opened it', async () => {

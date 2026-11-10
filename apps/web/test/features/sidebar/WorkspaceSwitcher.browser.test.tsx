@@ -4,11 +4,11 @@ import { page, userEvent } from 'vitest/browser'
 import { WorkspaceSwitcher } from '#features/sidebar/WorkspaceSwitcher.tsx'
 import { renderPage } from '#test/support/render.tsx'
 
-const acme = { slug: 'acme', name: 'Acme' }
-const globex = { slug: 'globex', name: 'Globex' }
+const acme = { slug: 'acme', name: 'Acme', role: 'owner' } as const
+const globex = { slug: 'globex', name: 'Globex', role: 'member' } as const
 
 function show(over: Partial<WorkspaceSwitcher.Props> = {}) {
-  const onSelect = vi.fn<(workspace: { slug: string; name: string }) => void>()
+  const onSelect = vi.fn<(workspace: { slug: string; name: string; role?: string }) => void>()
   const ready = renderPage(
     <WorkspaceSwitcher workspaces={[acme, globex]} current={acme} onSelect={onSelect} {...over} />,
     { route: '/workspaces/$workspace/settings', url: '/workspaces/acme/settings' },
@@ -28,6 +28,24 @@ describe('WorkspaceSwitcher', () => {
       .not.toBeNull()
     // Without one, the letter stays.
     expect(page.getByRole('menuitem', { name: 'Globex' }).element().querySelector('img')).toBeNull()
+  })
+
+  it('is 228px wide with 32px rows, a 20px tile and your role at the right of each workspace', async () => {
+    await show().ready
+    await page.getByRole('button', { name: 'Workspace: Acme' }).click()
+    const menu = page.getByRole('menu')
+    await expect.element(menu).toBeVisible()
+    await expect.poll(() => menu.element().getBoundingClientRect().width).toBe(228)
+    const globexItem = page.getByRole('menuitem', { name: 'Globex' })
+    expect(getComputedStyle(globexItem.element()).height).toBe('32px')
+    expect(globexItem.element().textContent).toContain('Member')
+    expect(page.getByRole('menuitem', { name: 'Acme' }).element().textContent).toContain('Owner')
+    expect(
+      globexItem.element().querySelector('[data-type="workspace"]')?.getBoundingClientRect().width,
+    ).toBe(20)
+    await expect
+      .element(page.getByRole('menuitem', { name: 'Acme' }))
+      .toHaveAttribute('aria-current', 'true')
   })
 
   it('falls back to the product name when no workspace is open', async () => {
