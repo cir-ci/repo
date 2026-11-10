@@ -15,21 +15,31 @@ export function Kbd(props: Kbd.Props) {
   return (
     <kbd className={styles.root}>
       {typeof children === 'string'
-        ? children
-            .split(SYMBOLS)
-            .filter(Boolean)
-            .map((part, i) =>
-              SYMBOLS.test(part) ? (
-                <span key={i} className={styles.symbol}>
-                  {part}
-                </span>
-              ) : (
-                <span key={i}>{part}</span>
-              ),
-            )
+        ? keysOf(children).map(({ part, at }) =>
+            SYMBOLS.test(part) ? (
+              <span key={at} className={styles.symbol}>
+                {part}
+              </span>
+            ) : (
+              <span key={at}>{part}</span>
+            ),
+          )
         : children}
     </kbd>
   )
+}
+
+/** The hint's keys with where each starts in the text (its key: the text is fixed per cap). */
+function keysOf(text: string): { part: string; at: number }[] {
+  let at = 0
+  return text
+    .split(SYMBOLS)
+    .filter(Boolean)
+    .map((part) => {
+      const key = { part, at }
+      at += part.length
+      return key
+    })
 }
 
 export namespace Kbd {
