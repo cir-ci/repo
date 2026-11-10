@@ -5,6 +5,7 @@ import {
   expireSites,
   markUnreferencedFiles,
   previewCollection,
+  purgeExpiredUndoActions,
   unmarkReferencedFiles,
 } from '@circi/db/repositories'
 
@@ -30,6 +31,7 @@ export async function runRetention(
   const workspaces = await purgeDueWorkspaces(db, now)
   const builds = await expireBuilds(db, now)
   const sites = await expireSites(db, now)
+  const undoActions = await purgeExpiredUndoActions(db, now)
   const unmarked = await unmarkReferencedFiles(db)
   const marked = await db.transaction((tx) => markUnreferencedFiles(tx, now))
   const collected = await collectMarkedFiles(db, {
@@ -41,6 +43,7 @@ export async function runRetention(
     purgedWorkspaces: workspaces,
     expiredBuilds: builds,
     expiredSites: sites,
+    expiredUndoActions: undoActions,
     unmarked,
     marked,
     ...collected,
@@ -51,6 +54,8 @@ export namespace runRetention {
     purgedWorkspaces: number
     expiredBuilds: number
     expiredSites: { addresses: number; versions: number }
+    /** Undo records past their 30 seconds (a used review undo stays for the build's activity). */
+    expiredUndoActions: number
     unmarked: number
     marked: number
     deleted: number

@@ -279,6 +279,35 @@ describe('expiring sites', () => {
   })
 })
 
+describe('undo records', () => {
+  it('deletes the ones past their window, keeping live ones and used review undos', async () => {
+    const { team, owner } = await seedTeam(t.db)
+    const past = new Date(Date.now() - 60_000)
+    const future = new Date(Date.now() + 60_000)
+    const row = (kind: schema.UndoKind, expiresAt: Date, usedAt: Date | null) => ({
+      userId: owner.id,
+      teamId: team.id,
+      kind,
+      data: {},
+      expiresAt,
+      usedAt,
+    })
+    await t.db.insert(schema.undoActions).values([
+      row('notice_read', past, null), // expired and unused: gone
+      row('notice_read', past, past), // expired and used: gone
+      row('build_review', past, null), // expired and unused: gone
+      row('build_review', past, past), // used review undo: the build's activity keeps it
+      row('notice_read', future, null), // still undoable: kept
+    ])
+    const result = await retention()
+    expect(result.expiredUndoActions).toBe(3)
+    const left = await t.db.select().from(schema.undoActions)
+    expect(left).toHaveLength(2)
+    expect(left.some((r) => r.kind === 'build_review' && r.usedAt !== null)).toBe(true)
+    expect(left.some((r) => r.expiresAt > new Date())).toBe(true)
+  })
+})
+
 describe('storage usage', () => {
   it('totals what is stored by kind, and what waits to be collected', async () => {
     const { team } = await seedTeam(t.db)

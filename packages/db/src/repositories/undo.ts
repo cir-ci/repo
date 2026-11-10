@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { and, eq, isNull, lt, ne, or } from 'drizzle-orm'
 
 import { type UndoKind, undoActions } from '#schema/index.ts'
 import type { Database } from '#src/client.ts'
@@ -34,4 +34,21 @@ export async function lockUndoAction(db: Database, id: string): Promise<UndoActi
 
 export async function markUndoUsed(db: Database, id: string, at: Date): Promise<void> {
   await db.update(undoActions).set({ usedAt: at }).where(eq(undoActions.id, id))
+}
+
+/**
+ * Deletes the actions whose window has closed (retention). A used `build_review` row stays: a
+ * build's activity lists it as "undid approving". Returns how many rows went.
+ */
+export async function purgeExpiredUndoActions(db: Database, now: Date): Promise<number> {
+  const gone = await db
+    .delete(undoActions)
+    .where(
+      and(
+        lt(undoActions.expiresAt, now),
+        or(isNull(undoActions.usedAt), ne(undoActions.kind, 'build_review')),
+      ),
+    )
+    .returning({ id: undoActions.id })
+  return gone.length
 }
