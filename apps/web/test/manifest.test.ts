@@ -16,6 +16,8 @@ describe('the installable app', () => {
       start_url: '/?source=pwa',
       scope: '/',
       display: 'standalone',
+      // The installed app draws its own title bar beside the window's controls.
+      display_override: ['window-controls-overlay', 'standalone'],
       theme_color: '#0c0a09',
       background_color: '#0c0a09',
     })

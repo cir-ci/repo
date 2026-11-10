@@ -12,7 +12,7 @@ import styles from './AppFrame.module.css'
  */
 export function AppFrame(props: AppFrame.Props) {
   const onNavScroll = useScrollingFlag()
-  const height = props.minHeight ?? '100dvh'
+  const height = props.minHeight ?? 'calc(100dvh - var(--circi-window-top, 0px))'
   const style: CSSProperties & Record<'--circi-frame-height', string | number> = {
     minHeight: height,
     '--circi-frame-height': height,

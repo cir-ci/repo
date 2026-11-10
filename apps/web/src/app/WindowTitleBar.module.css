@@ -1,0 +1,31 @@
+.root {
+  display: none;
+}
+
+/* Only in the installed app's overlay mode: the strip the browser leaves beside the window's
+   controls (the titlebar-area variables), dragged to move the window. */
+@media (display-mode: window-controls-overlay) {
+  .root {
+    position: fixed;
+    top: env(titlebar-area-y, 0px);
+    left: env(titlebar-area-x, 0px);
+    z-index: calc(var(--circi-z-dialog) - 1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+    width: env(titlebar-area-width, 100%);
+    height: env(titlebar-area-height, 0px);
+    padding-inline: 12px;
+    background: var(--circi-surface-chrome);
+    color: var(--circi-text-secondary);
+    font-size: 12px;
+    app-region: drag;
+  }
+}
+
+.title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

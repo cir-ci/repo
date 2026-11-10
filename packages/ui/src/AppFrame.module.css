@@ -146,11 +146,11 @@
    */
   .sidebar {
     position: sticky;
-    top: 0;
+    top: var(--circi-window-top, 0px);
     align-self: flex-start;
     flex: 0 0 var(--circi-sidebar-width, 244px);
     height: var(--circi-frame-height, 100dvh);
-    max-height: 100dvh;
+    max-height: calc(100dvh - var(--circi-window-top, 0px));
     width: var(--circi-sidebar-width, 244px);
   }
 

@@ -36,8 +36,9 @@ describe('PanelHeader', () => {
     await expect.poll(() => window.scrollY).toBeGreaterThan(1000)
     await expect.poll(() => header.getBoundingClientRect().top).toBe(0)
     const main = page.getByRole('main').element()
+    // The header's height, below the installed app's title bar (none here: 0).
     expect(main.style.getPropertyValue('--circi-page-top')).toBe(
-      `${header.getBoundingClientRect().height}px`,
+      `calc(var(--circi-window-top, 0px) + ${header.getBoundingClientRect().height}px)`,
     )
   })
 })

@@ -46,6 +46,7 @@ import {
 } from './shell-model.ts'
 import { ShortcutLayer } from './ShortcutLayer.tsx'
 import { Sidebar } from './Sidebar.tsx'
+import { WindowTitleBar } from './WindowTitleBar.tsx'
 
 import styles from './Shell.module.css'
 
@@ -229,6 +230,7 @@ function SignedInFrame({ user }: { user: SessionUser }) {
         </PanelNotices>
       </AppFrame>
       <TeamDialogs />
+      <WindowTitleBar />
       <AddToHomeScreenSheet />
       {phone && !inSettings ? <PhoneMore /> : null}
       <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} title="Navigation">

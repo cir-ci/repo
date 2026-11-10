@@ -12,6 +12,18 @@
  * ::-webkit-scrollbar parts (Chromium ignores those once scrollbar-color or scrollbar-width is
  * set, so the standard properties are only for browsers without them: Firefox, thin).
  */
+/* The installed app draws its own title bar (the manifest's window-controls-overlay mode): the
+   page starts under it, and everything that sticks to the top sticks below it. */
+@media (display-mode: window-controls-overlay) {
+  :where(:root) {
+    --circi-window-top: env(titlebar-area-height, 0px);
+  }
+
+  :where(body) {
+    padding-top: var(--circi-window-top);
+  }
+}
+
 :where(:root) {
   --circi-scrollbar-thumb: color-mix(in srgb, var(--circi-text-tertiary) 45%, transparent);
   --circi-scrollbar-thumb-hover: color-mix(in srgb, var(--circi-text-tertiary) 75%, transparent);

@@ -3,7 +3,7 @@
    (`--circi-page-top`). */
 .root {
   position: sticky;
-  top: 0;
+  top: var(--circi-window-top, 0px);
   z-index: 3;
   display: flex;
   flex-wrap: wrap;

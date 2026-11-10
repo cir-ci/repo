@@ -34,7 +34,10 @@ export function PanelHeader(props: PanelHeader.Props) {
     const panel = header?.parentElement
     if (!header || !panel) return undefined
     const measure = () =>
-      panel.style.setProperty('--circi-page-top', `${header.getBoundingClientRect().height}px`)
+      panel.style.setProperty(
+        '--circi-page-top',
+        `calc(var(--circi-window-top, 0px) + ${header.getBoundingClientRect().height}px)`,
+      )
     measure()
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
     observer?.observe(header)
